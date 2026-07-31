@@ -8,13 +8,13 @@ import "cmd/compile/internal/ssa"
 
 // machine-independent optimization.
 func opt(f *ssa.Func) {
-	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric, RemoveDeadValues)
+	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric, ssa.RemoveDeadValues)
 }
 
 func divisible(f *ssa.Func) {
-	applyRewrite(f, rewriteBlockdivisible, rewriteValuedivisible, RemoveDeadValues)
+	applyRewrite(f, rewriteBlockdivisible, rewriteValuedivisible, ssa.RemoveDeadValues)
 }
 
 func divmod(f *ssa.Func) {
-	applyRewrite(f, rewriteBlockdivmod, rewriteValuedivmod, RemoveDeadValues)
+	applyRewrite(f, rewriteBlockdivmod, rewriteValuedivmod, ssa.RemoveDeadValues)
 }

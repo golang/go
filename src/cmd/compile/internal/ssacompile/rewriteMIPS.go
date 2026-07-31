@@ -639,10 +639,10 @@ func rewriteValueMIPS_OpAddr(v *ssa.Value) bool {
 	// match: (Addr {sym} base)
 	// result: (MOVWaddr {sym} base)
 	for {
-		sym := AuxToSym(v.Aux)
+		sym := ssa.AuxToSym(v.Aux)
 		base := v_0
 		v.Reset(ssaop.OpMIPSMOVWaddr)
-		v.Aux = SymToAux(sym)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg(base)
 		return true
 	}
@@ -667,25 +667,25 @@ func rewriteValueMIPS_OpAtomicAnd8(v *ssa.Value) bool {
 		v.Reset(ssaop.OpMIPSLoweredAtomicAnd)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSAND, typ.UInt32Ptr)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(^3)
+		v1.AuxInt = ssa.Int32ToAuxInt(^3)
 		v0.AddArg2(v1, ptr)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSOR, typ.UInt32)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, typ.UInt32)
 		v4 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v4.AddArg(val)
 		v5 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v5.AuxInt = Int32ToAuxInt(3)
+		v5.AuxInt = ssa.Int32ToAuxInt(3)
 		v6 := b.NewValue0(v.Pos, ssaop.OpMIPSANDconst, typ.UInt32)
-		v6.AuxInt = Int32ToAuxInt(3)
+		v6.AuxInt = ssa.Int32ToAuxInt(3)
 		v6.AddArg(ptr)
 		v5.AddArg(v6)
 		v3.AddArg2(v4, v5)
 		v7 := b.NewValue0(v.Pos, ssaop.OpMIPSNOR, typ.UInt32)
 		v8 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v8.AuxInt = Int32ToAuxInt(0)
+		v8.AuxInt = ssa.Int32ToAuxInt(0)
 		v9 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, typ.UInt32)
 		v10 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v10.AuxInt = Int32ToAuxInt(0xff)
+		v10.AuxInt = ssa.Int32ToAuxInt(0xff)
 		v9.AddArg2(v10, v5)
 		v7.AddArg2(v8, v9)
 		v2.AddArg2(v3, v7)
@@ -705,28 +705,28 @@ func rewriteValueMIPS_OpAtomicAnd8(v *ssa.Value) bool {
 		v.Reset(ssaop.OpMIPSLoweredAtomicAnd)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSAND, typ.UInt32Ptr)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(^3)
+		v1.AuxInt = ssa.Int32ToAuxInt(^3)
 		v0.AddArg2(v1, ptr)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSOR, typ.UInt32)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, typ.UInt32)
 		v4 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v4.AddArg(val)
 		v5 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v5.AuxInt = Int32ToAuxInt(3)
+		v5.AuxInt = ssa.Int32ToAuxInt(3)
 		v6 := b.NewValue0(v.Pos, ssaop.OpMIPSANDconst, typ.UInt32)
-		v6.AuxInt = Int32ToAuxInt(3)
+		v6.AuxInt = ssa.Int32ToAuxInt(3)
 		v7 := b.NewValue0(v.Pos, ssaop.OpMIPSXORconst, typ.UInt32)
-		v7.AuxInt = Int32ToAuxInt(3)
+		v7.AuxInt = ssa.Int32ToAuxInt(3)
 		v7.AddArg(ptr)
 		v6.AddArg(v7)
 		v5.AddArg(v6)
 		v3.AddArg2(v4, v5)
 		v8 := b.NewValue0(v.Pos, ssaop.OpMIPSNOR, typ.UInt32)
 		v9 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v9.AuxInt = Int32ToAuxInt(0)
+		v9.AuxInt = ssa.Int32ToAuxInt(0)
 		v10 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, typ.UInt32)
 		v11 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v11.AuxInt = Int32ToAuxInt(0xff)
+		v11.AuxInt = ssa.Int32ToAuxInt(0xff)
 		v10.AddArg2(v11, v5)
 		v8.AddArg2(v9, v10)
 		v2.AddArg2(v3, v8)
@@ -755,15 +755,15 @@ func rewriteValueMIPS_OpAtomicOr8(v *ssa.Value) bool {
 		v.Reset(ssaop.OpMIPSLoweredAtomicOr)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSAND, typ.UInt32Ptr)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(^3)
+		v1.AuxInt = ssa.Int32ToAuxInt(^3)
 		v0.AddArg2(v1, ptr)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, typ.UInt32)
 		v3 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v3.AddArg(val)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v4.AuxInt = Int32ToAuxInt(3)
+		v4.AuxInt = ssa.Int32ToAuxInt(3)
 		v5 := b.NewValue0(v.Pos, ssaop.OpMIPSANDconst, typ.UInt32)
-		v5.AuxInt = Int32ToAuxInt(3)
+		v5.AuxInt = ssa.Int32ToAuxInt(3)
 		v5.AddArg(ptr)
 		v4.AddArg(v5)
 		v2.AddArg2(v3, v4)
@@ -783,17 +783,17 @@ func rewriteValueMIPS_OpAtomicOr8(v *ssa.Value) bool {
 		v.Reset(ssaop.OpMIPSLoweredAtomicOr)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSAND, typ.UInt32Ptr)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(^3)
+		v1.AuxInt = ssa.Int32ToAuxInt(^3)
 		v0.AddArg2(v1, ptr)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, typ.UInt32)
 		v3 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v3.AddArg(val)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v4.AuxInt = Int32ToAuxInt(3)
+		v4.AuxInt = ssa.Int32ToAuxInt(3)
 		v5 := b.NewValue0(v.Pos, ssaop.OpMIPSANDconst, typ.UInt32)
-		v5.AuxInt = Int32ToAuxInt(3)
+		v5.AuxInt = ssa.Int32ToAuxInt(3)
 		v6 := b.NewValue0(v.Pos, ssaop.OpMIPSXORconst, typ.UInt32)
-		v6.AuxInt = Int32ToAuxInt(3)
+		v6.AuxInt = ssa.Int32ToAuxInt(3)
 		v6.AddArg(ptr)
 		v5.AddArg(v6)
 		v4.AddArg(v5)
@@ -815,7 +815,7 @@ func rewriteValueMIPS_OpAvg32u(v *ssa.Value) bool {
 		y := v_1
 		v.Reset(ssaop.OpMIPSADD)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSRLconst, t)
-		v0.AuxInt = Int32ToAuxInt(1)
+		v0.AuxInt = ssa.Int32ToAuxInt(1)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSSUB, t)
 		v1.AddArg2(x, y)
 		v0.AddArg(v1)
@@ -849,7 +849,7 @@ func rewriteValueMIPS_OpBitLen32(v *ssa.Value) bool {
 		x := v_0
 		v.Reset(ssaop.OpMIPSSUB)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(32)
+		v0.AuxInt = ssa.Int32ToAuxInt(32)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSCLZ, t)
 		v1.AddArg(x)
 		v.AddArg2(v0, v1)
@@ -881,7 +881,7 @@ func rewriteValueMIPS_OpCom16(v *ssa.Value) bool {
 		x := v_0
 		v.Reset(ssaop.OpMIPSNOR)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -896,7 +896,7 @@ func rewriteValueMIPS_OpCom32(v *ssa.Value) bool {
 		x := v_0
 		v.Reset(ssaop.OpMIPSNOR)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -911,7 +911,7 @@ func rewriteValueMIPS_OpCom8(v *ssa.Value) bool {
 		x := v_0
 		v.Reset(ssaop.OpMIPSNOR)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -920,9 +920,9 @@ func rewriteValueMIPS_OpConst16(v *ssa.Value) bool {
 	// match: (Const16 [val])
 	// result: (MOVWconst [int32(val)])
 	for {
-		val := AuxIntToInt16(v.AuxInt)
+		val := ssa.AuxIntToInt16(v.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(val))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(val))
 		return true
 	}
 }
@@ -930,9 +930,9 @@ func rewriteValueMIPS_OpConst32(v *ssa.Value) bool {
 	// match: (Const32 [val])
 	// result: (MOVWconst [int32(val)])
 	for {
-		val := AuxIntToInt32(v.AuxInt)
+		val := ssa.AuxIntToInt32(v.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(val))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(val))
 		return true
 	}
 }
@@ -940,19 +940,19 @@ func rewriteValueMIPS_OpConst8(v *ssa.Value) bool {
 	// match: (Const8 [val])
 	// result: (MOVWconst [int32(val)])
 	for {
-		val := AuxIntToInt8(v.AuxInt)
+		val := ssa.AuxIntToInt8(v.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(val))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(val))
 		return true
 	}
 }
 func rewriteValueMIPS_OpConstBool(v *ssa.Value) bool {
 	// match: (ConstBool [t])
-	// result: (MOVWconst [B2i32(t)])
+	// result: (MOVWconst [ssa.B2i32(t)])
 	for {
-		t := AuxIntToBool(v.AuxInt)
+		t := ssa.AuxIntToBool(v.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(B2i32(t))
+		v.AuxInt = ssa.Int32ToAuxInt(ssa.B2i32(t))
 		return true
 	}
 }
@@ -961,7 +961,7 @@ func rewriteValueMIPS_OpConstNil(v *ssa.Value) bool {
 	// result: (MOVWconst [0])
 	for {
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 }
@@ -976,7 +976,7 @@ func rewriteValueMIPS_OpCtz16(v *ssa.Value) bool {
 		v.Reset(ssaop.OpCtz32)
 		v0 := b.NewValue0(v.Pos, ssaop.OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(1 << 16)
+		v1.AuxInt = ssa.Int32ToAuxInt(1 << 16)
 		v0.AddArg2(x, v1)
 		v.AddArg(v0)
 		return true
@@ -993,10 +993,10 @@ func rewriteValueMIPS_OpCtz32(v *ssa.Value) bool {
 		x := v_0
 		v.Reset(ssaop.OpMIPSSUB)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(32)
+		v0.AuxInt = ssa.Int32ToAuxInt(32)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSCLZ, t)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSSUBconst, t)
-		v2.AuxInt = Int32ToAuxInt(1)
+		v2.AuxInt = ssa.Int32ToAuxInt(1)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSAND, t)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSNEG, t)
 		v4.AddArg(x)
@@ -1018,7 +1018,7 @@ func rewriteValueMIPS_OpCtz8(v *ssa.Value) bool {
 		v.Reset(ssaop.OpCtz32)
 		v0 := b.NewValue0(v.Pos, ssaop.OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(1 << 8)
+		v1.AuxInt = ssa.Int32ToAuxInt(1 << 8)
 		v0.AddArg2(x, v1)
 		v.AddArg(v0)
 		return true
@@ -1153,7 +1153,7 @@ func rewriteValueMIPS_OpEq16(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSSGTUconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSXOR, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to32, typ.UInt32)
 		v1.AddArg(x)
@@ -1175,7 +1175,7 @@ func rewriteValueMIPS_OpEq32(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSSGTUconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSXOR, typ.UInt32)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -1225,7 +1225,7 @@ func rewriteValueMIPS_OpEq8(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSSGTUconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSXOR, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v1.AddArg(x)
@@ -1247,7 +1247,7 @@ func rewriteValueMIPS_OpEqB(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSXOR, typ.Bool)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -1265,7 +1265,7 @@ func rewriteValueMIPS_OpEqPtr(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSSGTUconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSXOR, typ.UInt32)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -1329,7 +1329,7 @@ func rewriteValueMIPS_OpIsNonNil(v *ssa.Value) bool {
 		ptr := v_0
 		v.Reset(ssaop.OpMIPSSGTU)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg2(ptr, v0)
 		return true
 	}
@@ -1345,7 +1345,7 @@ func rewriteValueMIPS_OpIsSliceInBounds(v *ssa.Value) bool {
 		idx := v_0
 		len := v_1
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTU, typ.Bool)
 		v0.AddArg2(idx, len)
 		v.AddArg(v0)
@@ -1363,7 +1363,7 @@ func rewriteValueMIPS_OpLeq16(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSGT, typ.Bool)
 		v1 := b.NewValue0(v.Pos, ssaop.OpSignExt16to32, typ.Int32)
 		v1.AddArg(x)
@@ -1385,7 +1385,7 @@ func rewriteValueMIPS_OpLeq16U(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTU, typ.Bool)
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to32, typ.UInt32)
 		v1.AddArg(x)
@@ -1407,7 +1407,7 @@ func rewriteValueMIPS_OpLeq32(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSGT, typ.Bool)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -1441,7 +1441,7 @@ func rewriteValueMIPS_OpLeq32U(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTU, typ.Bool)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -1475,7 +1475,7 @@ func rewriteValueMIPS_OpLeq8(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSGT, typ.Bool)
 		v1 := b.NewValue0(v.Pos, ssaop.OpSignExt8to32, typ.Int32)
 		v1.AddArg(x)
@@ -1497,7 +1497,7 @@ func rewriteValueMIPS_OpLeq8U(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTU, typ.Bool)
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v1.AddArg(x)
@@ -1660,13 +1660,13 @@ func rewriteValueMIPS_OpLoad(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (Is8BitInt(t) && t.IsSigned())
+	// cond: (ssa.Is8BitInt(t) && t.IsSigned())
 	// result: (MOVBload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(Is8BitInt(t) && t.IsSigned()) {
+		if !(ssa.Is8BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBload)
@@ -1674,13 +1674,13 @@ func rewriteValueMIPS_OpLoad(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (Is8BitInt(t) && !t.IsSigned())
+	// cond: (ssa.Is8BitInt(t) && !t.IsSigned())
 	// result: (MOVBUload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(Is8BitInt(t) && !t.IsSigned()) {
+		if !(ssa.Is8BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBUload)
@@ -1688,13 +1688,13 @@ func rewriteValueMIPS_OpLoad(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (Is16BitInt(t) && t.IsSigned())
+	// cond: (ssa.Is16BitInt(t) && t.IsSigned())
 	// result: (MOVHload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(Is16BitInt(t) && t.IsSigned()) {
+		if !(ssa.Is16BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHload)
@@ -1702,13 +1702,13 @@ func rewriteValueMIPS_OpLoad(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (Is16BitInt(t) && !t.IsSigned())
+	// cond: (ssa.Is16BitInt(t) && !t.IsSigned())
 	// result: (MOVHUload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(Is16BitInt(t) && !t.IsSigned()) {
+		if !(ssa.Is16BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHUload)
@@ -1716,13 +1716,13 @@ func rewriteValueMIPS_OpLoad(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (Is32BitInt(t) || IsPtr(t))
+	// cond: (ssa.Is32BitInt(t) ||ssa.IsPtr(t))
 	// result: (MOVWload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(Is32BitInt(t) || IsPtr(t)) {
+		if !(ssa.Is32BitInt(t) || ssa.IsPtr(t)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWload)
@@ -1730,13 +1730,13 @@ func rewriteValueMIPS_OpLoad(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: Is32BitFloat(t)
+	// cond: ssa.Is32BitFloat(t)
 	// result: (MOVFload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(Is32BitFloat(t)) {
+		if !(ssa.Is32BitFloat(t)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVFload)
@@ -1744,13 +1744,13 @@ func rewriteValueMIPS_OpLoad(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: Is64BitFloat(t)
+	// cond: ssa.Is64BitFloat(t)
 	// result: (MOVDload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(Is64BitFloat(t)) {
+		if !(ssa.Is64BitFloat(t)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVDload)
@@ -1769,14 +1769,14 @@ func rewriteValueMIPS_OpLocalAddr(v *ssa.Value) bool {
 	// result: (MOVWaddr {sym} (SPanchored base mem))
 	for {
 		t := v.Type
-		sym := AuxToSym(v.Aux)
+		sym := ssa.AuxToSym(v.Aux)
 		base := v_0
 		mem := v_1
 		if !(t.Elem().HasPointers()) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWaddr)
-		v.Aux = SymToAux(sym)
+		v.Aux = ssa.SymToAux(sym)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSPanchored, typ.Uintptr)
 		v0.AddArg2(base, mem)
 		v.AddArg(v0)
@@ -1787,13 +1787,13 @@ func rewriteValueMIPS_OpLocalAddr(v *ssa.Value) bool {
 	// result: (MOVWaddr {sym} base)
 	for {
 		t := v.Type
-		sym := AuxToSym(v.Aux)
+		sym := ssa.AuxToSym(v.Aux)
 		base := v_0
 		if !(!t.Elem().HasPointers()) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWaddr)
-		v.Aux = SymToAux(sym)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg(base)
 		return true
 	}
@@ -1816,9 +1816,9 @@ func rewriteValueMIPS_OpLsh16x16(v *ssa.Value) bool {
 		v1.AddArg(y)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -1839,9 +1839,9 @@ func rewriteValueMIPS_OpLsh16x32(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, t)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v2.AuxInt = Int32ToAuxInt(32)
+		v2.AuxInt = ssa.Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v.AddArg3(v0, v1, v2)
 		return true
@@ -1858,12 +1858,12 @@ func rewriteValueMIPS_OpLsh16x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSLLconst)
-		v.AuxInt = Int32ToAuxInt(int32(c))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -1874,12 +1874,12 @@ func rewriteValueMIPS_OpLsh16x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -1901,9 +1901,9 @@ func rewriteValueMIPS_OpLsh16x8(v *ssa.Value) bool {
 		v1.AddArg(y)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -1926,9 +1926,9 @@ func rewriteValueMIPS_OpLsh32x16(v *ssa.Value) bool {
 		v1.AddArg(y)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -1949,9 +1949,9 @@ func rewriteValueMIPS_OpLsh32x32(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, t)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v2.AuxInt = Int32ToAuxInt(32)
+		v2.AuxInt = ssa.Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v.AddArg3(v0, v1, v2)
 		return true
@@ -1968,12 +1968,12 @@ func rewriteValueMIPS_OpLsh32x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSLLconst)
-		v.AuxInt = Int32ToAuxInt(int32(c))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -1984,12 +1984,12 @@ func rewriteValueMIPS_OpLsh32x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -2011,9 +2011,9 @@ func rewriteValueMIPS_OpLsh32x8(v *ssa.Value) bool {
 		v1.AddArg(y)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -2036,9 +2036,9 @@ func rewriteValueMIPS_OpLsh8x16(v *ssa.Value) bool {
 		v1.AddArg(y)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -2059,9 +2059,9 @@ func rewriteValueMIPS_OpLsh8x32(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLL, t)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v2.AuxInt = Int32ToAuxInt(32)
+		v2.AuxInt = ssa.Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v.AddArg3(v0, v1, v2)
 		return true
@@ -2078,12 +2078,12 @@ func rewriteValueMIPS_OpLsh8x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSLLconst)
-		v.AuxInt = Int32ToAuxInt(int32(c))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -2094,12 +2094,12 @@ func rewriteValueMIPS_OpLsh8x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -2121,9 +2121,9 @@ func rewriteValueMIPS_OpLsh8x8(v *ssa.Value) bool {
 		v1.AddArg(y)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -2142,12 +2142,12 @@ func rewriteValueMIPS_OpMIPSADD(v *ssa.Value) bool {
 				continue
 			}
 			t := v_1.Type
-			c := AuxIntToInt32(v_1.AuxInt)
+			c := ssa.AuxIntToInt32(v_1.AuxInt)
 			if !(!t.IsPtr()) {
 				continue
 			}
 			v.Reset(ssaop.OpMIPSADDconst)
-			v.AuxInt = Int32ToAuxInt(c)
+			v.AuxInt = ssa.Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
 		}
@@ -2175,23 +2175,23 @@ func rewriteValueMIPS_OpMIPSADDconst(v *ssa.Value) bool {
 	// match: (ADDconst [off1] (MOVWaddr [off2] {sym} ptr))
 	// result: (MOVWaddr [off1+off2] {sym} ptr)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSMOVWaddr)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg(ptr)
 		return true
 	}
 	// match: (ADDconst [0] x)
 	// result: x
 	for {
-		if AuxIntToInt32(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt32(v.AuxInt) != 0 {
 			break
 		}
 		x := v_0
@@ -2201,40 +2201,40 @@ func rewriteValueMIPS_OpMIPSADDconst(v *ssa.Value) bool {
 	// match: (ADDconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [int32(c+d)])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(c + d))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c + d))
 		return true
 	}
 	// match: (ADDconst [c] (ADDconst [d] x))
 	// result: (ADDconst [c+d] x)
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSADDconst)
-		v.AuxInt = Int32ToAuxInt(c + d)
+		v.AuxInt = ssa.Int32ToAuxInt(c + d)
 		v.AddArg(x)
 		return true
 	}
 	// match: (ADDconst [c] (SUBconst [d] x))
 	// result: (ADDconst [c-d] x)
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSSUBconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSADDconst)
-		v.AuxInt = Int32ToAuxInt(c - d)
+		v.AuxInt = ssa.Int32ToAuxInt(c - d)
 		v.AddArg(x)
 		return true
 	}
@@ -2252,9 +2252,9 @@ func rewriteValueMIPS_OpMIPSAND(v *ssa.Value) bool {
 			if v_1.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_1.AuxInt)
+			c := ssa.AuxIntToInt32(v_1.AuxInt)
 			v.Reset(ssaop.OpMIPSANDconst)
-			v.AuxInt = Int32ToAuxInt(c)
+			v.AuxInt = ssa.Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
 		}
@@ -2274,16 +2274,16 @@ func rewriteValueMIPS_OpMIPSAND(v *ssa.Value) bool {
 	// result: (SGTUconst [1] (OR <x.Type> x y))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != ssaop.OpMIPSSGTUconst || AuxIntToInt32(v_0.AuxInt) != 1 {
+			if v_0.Op != ssaop.OpMIPSSGTUconst || ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				continue
 			}
 			x := v_0.Args[0]
-			if v_1.Op != ssaop.OpMIPSSGTUconst || AuxIntToInt32(v_1.AuxInt) != 1 {
+			if v_1.Op != ssaop.OpMIPSSGTUconst || ssa.AuxIntToInt32(v_1.AuxInt) != 1 {
 				continue
 			}
 			y := v_1.Args[0]
 			v.Reset(ssaop.OpMIPSSGTUconst)
-			v.AuxInt = Int32ToAuxInt(1)
+			v.AuxInt = ssa.Int32ToAuxInt(1)
 			v0 := b.NewValue0(v.Pos, ssaop.OpMIPSOR, x.Type)
 			v0.AddArg2(x, y)
 			v.AddArg(v0)
@@ -2298,17 +2298,17 @@ func rewriteValueMIPS_OpMIPSANDconst(v *ssa.Value) bool {
 	// match: (ANDconst [0] _)
 	// result: (MOVWconst [0])
 	for {
-		if AuxIntToInt32(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt32(v.AuxInt) != 0 {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (ANDconst [-1] x)
 	// result: x
 	for {
-		if AuxIntToInt32(v.AuxInt) != -1 {
+		if ssa.AuxIntToInt32(v.AuxInt) != -1 {
 			break
 		}
 		x := v_0
@@ -2318,26 +2318,26 @@ func rewriteValueMIPS_OpMIPSANDconst(v *ssa.Value) bool {
 	// match: (ANDconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [c&d])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(c & d)
+		v.AuxInt = ssa.Int32ToAuxInt(c & d)
 		return true
 	}
 	// match: (ANDconst [c] (ANDconst [d] x))
 	// result: (ANDconst [c&d] x)
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSANDconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSANDconst)
-		v.AuxInt = Int32ToAuxInt(c & d)
+		v.AuxInt = ssa.Int32ToAuxInt(c & d)
 		v.AddArg(x)
 		return true
 	}
@@ -2351,7 +2351,7 @@ func rewriteValueMIPS_OpMIPSCMOVZ(v *ssa.Value) bool {
 	// result: f
 	for {
 		f := v_1
-		if v_2.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_2.AuxInt) != 0 {
+		if v_2.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_2.AuxInt) != 0 {
 			break
 		}
 		v.CopyOf(f)
@@ -2365,7 +2365,7 @@ func rewriteValueMIPS_OpMIPSCMOVZ(v *ssa.Value) bool {
 		if v_2.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_2.AuxInt)
+		c := ssa.AuxIntToInt32(v_2.AuxInt)
 		if !(c != 0) {
 			break
 		}
@@ -2376,7 +2376,7 @@ func rewriteValueMIPS_OpMIPSCMOVZ(v *ssa.Value) bool {
 	// result: (CMOVZzero a c)
 	for {
 		a := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_1.AuxInt) != 0 {
+		if v_1.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		c := v_2
@@ -2392,11 +2392,11 @@ func rewriteValueMIPS_OpMIPSCMOVZzero(v *ssa.Value) bool {
 	// match: (CMOVZzero _ (MOVWconst [0]))
 	// result: (MOVWconst [0])
 	for {
-		if v_1.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_1.AuxInt) != 0 {
+		if v_1.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (CMOVZzero a (MOVWconst [c]))
@@ -2407,7 +2407,7 @@ func rewriteValueMIPS_OpMIPSCMOVZzero(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		if !(c != 0) {
 			break
 		}
@@ -2421,20 +2421,20 @@ func rewriteValueMIPS_OpMIPSLoweredAtomicAdd(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LoweredAtomicAdd ptr (MOVWconst [c]) mem)
-	// cond: Is16Bit(int64(c))
+	// cond: ssa.Is16Bit(int64(c))
 	// result: (LoweredAtomicAddconst [c] ptr mem)
 	for {
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		if !(Is16Bit(int64(c))) {
+		if !(ssa.Is16Bit(int64(c))) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSLoweredAtomicAddconst)
-		v.AuxInt = Int32ToAuxInt(c)
+		v.AuxInt = ssa.Int32ToAuxInt(c)
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -2448,7 +2448,7 @@ func rewriteValueMIPS_OpMIPSLoweredAtomicStore32(v *ssa.Value) bool {
 	// result: (LoweredAtomicStorezero ptr mem)
 	for {
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_1.AuxInt) != 0 {
+		if v_1.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		mem := v_2
@@ -2464,16 +2464,16 @@ func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRC(v *ssa.Value) bool {
 	// match: (LoweredPanicBoundsRC [kind] {p} (MOVWconst [c]) mem)
 	// result: (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
 	for {
-		kind := AuxIntToInt64(v.AuxInt)
-		p := AuxToPanicBoundsC(v.Aux)
+		kind := ssa.AuxIntToInt64(v.AuxInt)
+		p := ssa.AuxToPanicBoundsC(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		mem := v_1
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsCC)
-		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCCToAux(ssa.PanicBoundsCC{Cx: int64(c), Cy: p.C})
+		v.AuxInt = ssa.Int64ToAuxInt(kind)
+		v.Aux = ssa.PanicBoundsCCToAux(ssa.PanicBoundsCC{Cx: int64(c), Cy: p.C})
 		v.AddArg(mem)
 		return true
 	}
@@ -2486,32 +2486,32 @@ func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRR(v *ssa.Value) bool {
 	// match: (LoweredPanicBoundsRR [kind] x (MOVWconst [c]) mem)
 	// result: (LoweredPanicBoundsRC [kind] x {ssa.PanicBoundsC{C:int64(c)}} mem)
 	for {
-		kind := AuxIntToInt64(v.AuxInt)
+		kind := ssa.AuxIntToInt64(v.AuxInt)
 		x := v_0
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsRC)
-		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
+		v.AuxInt = ssa.Int64ToAuxInt(kind)
+		v.Aux = ssa.PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
 		v.AddArg2(x, mem)
 		return true
 	}
 	// match: (LoweredPanicBoundsRR [kind] (MOVWconst [c]) y mem)
 	// result: (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:int64(c)}} y mem)
 	for {
-		kind := AuxIntToInt64(v.AuxInt)
+		kind := ssa.AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		y := v_1
 		mem := v_2
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsCR)
-		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
+		v.AuxInt = ssa.Int64ToAuxInt(kind)
+		v.Aux = ssa.PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
 		v.AddArg2(y, mem)
 		return true
 	}
@@ -2524,20 +2524,20 @@ func rewriteValueMIPS_OpMIPSLoweredPanicExtendRC(v *ssa.Value) bool {
 	// match: (LoweredPanicExtendRC [kind] {p} (MOVWconst [hi]) (MOVWconst [lo]) mem)
 	// result: (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 	for {
-		kind := AuxIntToInt64(v.AuxInt)
-		p := AuxToPanicBoundsC(v.Aux)
+		kind := ssa.AuxIntToInt64(v.AuxInt)
+		p := ssa.AuxToPanicBoundsC(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		hi := AuxIntToInt32(v_0.AuxInt)
+		hi := ssa.AuxIntToInt32(v_0.AuxInt)
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		lo := AuxIntToInt32(v_1.AuxInt)
+		lo := ssa.AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsCC)
-		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCCToAux(ssa.PanicBoundsCC{Cx: int64(hi)<<32 + int64(uint32(lo)), Cy: p.C})
+		v.AuxInt = ssa.Int64ToAuxInt(kind)
+		v.Aux = ssa.PanicBoundsCCToAux(ssa.PanicBoundsCC{Cx: int64(hi)<<32 + int64(uint32(lo)), Cy: p.C})
 		v.AddArg(mem)
 		return true
 	}
@@ -2551,37 +2551,37 @@ func rewriteValueMIPS_OpMIPSLoweredPanicExtendRR(v *ssa.Value) bool {
 	// match: (LoweredPanicExtendRR [kind] hi lo (MOVWconst [c]) mem)
 	// result: (LoweredPanicExtendRC [kind] hi lo {ssa.PanicBoundsC{C:int64(c)}} mem)
 	for {
-		kind := AuxIntToInt64(v.AuxInt)
+		kind := ssa.AuxIntToInt64(v.AuxInt)
 		hi := v_0
 		lo := v_1
 		if v_2.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_2.AuxInt)
+		c := ssa.AuxIntToInt32(v_2.AuxInt)
 		mem := v_3
 		v.Reset(ssaop.OpMIPSLoweredPanicExtendRC)
-		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
+		v.AuxInt = ssa.Int64ToAuxInt(kind)
+		v.Aux = ssa.PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
 		v.AddArg3(hi, lo, mem)
 		return true
 	}
 	// match: (LoweredPanicExtendRR [kind] (MOVWconst [hi]) (MOVWconst [lo]) y mem)
 	// result: (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
 	for {
-		kind := AuxIntToInt64(v.AuxInt)
+		kind := ssa.AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		hi := AuxIntToInt32(v_0.AuxInt)
+		hi := ssa.AuxIntToInt32(v_0.AuxInt)
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		lo := AuxIntToInt32(v_1.AuxInt)
+		lo := ssa.AuxIntToInt32(v_1.AuxInt)
 		y := v_2
 		mem := v_3
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsCR)
-		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(hi)<<32 + int64(uint32(lo))})
+		v.AuxInt = ssa.Int64ToAuxInt(kind)
+		v.Aux = ssa.PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(hi)<<32 + int64(uint32(lo))})
 		v.AddArg2(y, mem)
 		return true
 	}
@@ -2593,10 +2593,10 @@ func rewriteValueMIPS_OpMIPSMOVBUload(v *ssa.Value) bool {
 	// match: (MOVBUload [off] {sym} ptr (MOVBstore [off] {sym} ptr x _))
 	// result: (MOVBUreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVBstore || AuxIntToInt32(v_1.AuxInt) != off || AuxToSym(v_1.Aux) != sym {
+		if v_1.Op != ssaop.OpMIPSMOVBstore || ssa.AuxIntToInt32(v_1.AuxInt) != off || ssa.AuxToSym(v_1.Aux) != sym {
 			break
 		}
 		x := v_1.Args[1]
@@ -2608,46 +2608,46 @@ func rewriteValueMIPS_OpMIPSMOVBUload(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVBUload [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVBUload [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBUload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVBUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVBUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVBUload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBUload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -2655,14 +2655,14 @@ func rewriteValueMIPS_OpMIPSMOVBUload(v *ssa.Value) bool {
 	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: (MOVBUreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVBstore {
 			break
 		}
-		off2 := AuxIntToInt32(v_1.AuxInt)
-		sym2 := AuxToSym(v_1.Aux)
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
@@ -2700,7 +2700,7 @@ func rewriteValueMIPS_OpMIPSMOVBUreg(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVBUreg <t> x:(MOVBload [off] {sym} ptr mem))
-	// cond: x.Uses == 1 && Clobber(x)
+	// cond: x.Uses == 1 && ssa.Clobber(x)
 	// result: @x.Block (MOVBUload <t> [off] {sym} ptr mem)
 	for {
 		t := v.Type
@@ -2708,18 +2708,18 @@ func rewriteValueMIPS_OpMIPSMOVBUreg(v *ssa.Value) bool {
 		if x.Op != ssaop.OpMIPSMOVBload {
 			break
 		}
-		off := AuxIntToInt32(x.AuxInt)
-		sym := AuxToSym(x.Aux)
+		off := ssa.AuxIntToInt32(x.AuxInt)
+		sym := ssa.AuxToSym(x.Aux)
 		mem := x.Args[1]
 		ptr := x.Args[0]
-		if !(x.Uses == 1 && Clobber(x)) {
+		if !(x.Uses == 1 && ssa.Clobber(x)) {
 			break
 		}
 		b = x.Block
 		v0 := b.NewValue0(x.Pos, ssaop.OpMIPSMOVBUload, t)
 		v.CopyOf(v0)
-		v0.AuxInt = Int32ToAuxInt(off)
-		v0.Aux = SymToAux(sym)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
 		v0.AddArg2(ptr, mem)
 		return true
 	}
@@ -2729,10 +2729,10 @@ func rewriteValueMIPS_OpMIPSMOVBUreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSANDconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSANDconst)
-		v.AuxInt = Int32ToAuxInt(c & 0xff)
+		v.AuxInt = ssa.Int32ToAuxInt(c & 0xff)
 		v.AddArg(x)
 		return true
 	}
@@ -2742,9 +2742,9 @@ func rewriteValueMIPS_OpMIPSMOVBUreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(uint8(c)))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(uint8(c)))
 		return true
 	}
 	return false
@@ -2755,10 +2755,10 @@ func rewriteValueMIPS_OpMIPSMOVBload(v *ssa.Value) bool {
 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off] {sym} ptr x _))
 	// result: (MOVBreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVBstore || AuxIntToInt32(v_1.AuxInt) != off || AuxToSym(v_1.Aux) != sym {
+		if v_1.Op != ssaop.OpMIPSMOVBstore || ssa.AuxIntToInt32(v_1.AuxInt) != off || ssa.AuxToSym(v_1.Aux) != sym {
 			break
 		}
 		x := v_1.Args[1]
@@ -2770,46 +2770,46 @@ func rewriteValueMIPS_OpMIPSMOVBload(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVBload [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVBload [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVBload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVBload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVBload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -2817,14 +2817,14 @@ func rewriteValueMIPS_OpMIPSMOVBload(v *ssa.Value) bool {
 	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: (MOVBreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVBstore {
 			break
 		}
-		off2 := AuxIntToInt32(v_1.AuxInt)
-		sym2 := AuxToSym(v_1.Aux)
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
@@ -2862,7 +2862,7 @@ func rewriteValueMIPS_OpMIPSMOVBreg(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVBreg <t> x:(MOVBUload [off] {sym} ptr mem))
-	// cond: x.Uses == 1 && Clobber(x)
+	// cond: x.Uses == 1 && ssa.Clobber(x)
 	// result: @x.Block (MOVBload <t> [off] {sym} ptr mem)
 	for {
 		t := v.Type
@@ -2870,18 +2870,18 @@ func rewriteValueMIPS_OpMIPSMOVBreg(v *ssa.Value) bool {
 		if x.Op != ssaop.OpMIPSMOVBUload {
 			break
 		}
-		off := AuxIntToInt32(x.AuxInt)
-		sym := AuxToSym(x.Aux)
+		off := ssa.AuxIntToInt32(x.AuxInt)
+		sym := ssa.AuxToSym(x.Aux)
 		mem := x.Args[1]
 		ptr := x.Args[0]
-		if !(x.Uses == 1 && Clobber(x)) {
+		if !(x.Uses == 1 && ssa.Clobber(x)) {
 			break
 		}
 		b = x.Block
 		v0 := b.NewValue0(x.Pos, ssaop.OpMIPSMOVBload, t)
 		v.CopyOf(v0)
-		v0.AuxInt = Int32ToAuxInt(off)
-		v0.Aux = SymToAux(sym)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
 		v0.AddArg2(ptr, mem)
 		return true
 	}
@@ -2892,13 +2892,13 @@ func rewriteValueMIPS_OpMIPSMOVBreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSANDconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		if !(c&0x80 == 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSANDconst)
-		v.AuxInt = Int32ToAuxInt(c & 0x7f)
+		v.AuxInt = ssa.Int32ToAuxInt(c & 0x7f)
 		v.AddArg(x)
 		return true
 	}
@@ -2908,9 +2908,9 @@ func rewriteValueMIPS_OpMIPSMOVBreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(int8(c)))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(int8(c)))
 		return true
 	}
 	return false
@@ -2920,72 +2920,72 @@ func rewriteValueMIPS_OpMIPSMOVBstore(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBstore [off1] {sym} x:(ADDconst [off2] ptr) val mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVBstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVBstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVBstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVBstore [off] {sym} ptr (MOVWconst [0]) mem)
 	// result: (MOVBstorezero [off] {sym} ptr mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_1.AuxInt) != 0 {
+		if v_1.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstorezero)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVBstore [off] {sym} ptr (MOVBreg x) mem)
 	// result: (MOVBstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVBreg {
 			break
@@ -2993,16 +2993,16 @@ func rewriteValueMIPS_OpMIPSMOVBstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	// match: (MOVBstore [off] {sym} ptr (MOVBUreg x) mem)
 	// result: (MOVBstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVBUreg {
 			break
@@ -3010,16 +3010,16 @@ func rewriteValueMIPS_OpMIPSMOVBstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	// match: (MOVBstore [off] {sym} ptr (MOVHreg x) mem)
 	// result: (MOVBstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVHreg {
 			break
@@ -3027,16 +3027,16 @@ func rewriteValueMIPS_OpMIPSMOVBstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	// match: (MOVBstore [off] {sym} ptr (MOVHUreg x) mem)
 	// result: (MOVBstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVHUreg {
 			break
@@ -3044,16 +3044,16 @@ func rewriteValueMIPS_OpMIPSMOVBstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	// match: (MOVBstore [off] {sym} ptr (MOVWreg x) mem)
 	// result: (MOVBstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVWreg {
 			break
@@ -3061,8 +3061,8 @@ func rewriteValueMIPS_OpMIPSMOVBstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
@@ -3072,46 +3072,46 @@ func rewriteValueMIPS_OpMIPSMOVBstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBstorezero [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVBstorezero [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBstorezero)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVBstorezero [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVBstorezero [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVBstorezero [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBstorezero)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -3121,46 +3121,46 @@ func rewriteValueMIPS_OpMIPSMOVDload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVDload [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVDload [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVDload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVDload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVDload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVDload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVDload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -3168,14 +3168,14 @@ func rewriteValueMIPS_OpMIPSMOVDload(v *ssa.Value) bool {
 	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: x
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVDstore {
 			break
 		}
-		off2 := AuxIntToInt32(v_1.AuxInt)
-		sym2 := AuxToSym(v_1.Aux)
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
@@ -3191,48 +3191,48 @@ func rewriteValueMIPS_OpMIPSMOVDstore(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVDstore [off1] {sym} x:(ADDconst [off2] ptr) val mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVDstore [off1+off2] {sym} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVDstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVDstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVDstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVDstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -3244,10 +3244,10 @@ func rewriteValueMIPS_OpMIPSMOVFload(v *ssa.Value) bool {
 	// match: (MOVFload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _))
 	// result: (MOVWgpfp val)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWstore || AuxIntToInt32(v_1.AuxInt) != off || AuxToSym(v_1.Aux) != sym {
+		if v_1.Op != ssaop.OpMIPSMOVWstore || ssa.AuxIntToInt32(v_1.AuxInt) != off || ssa.AuxToSym(v_1.Aux) != sym {
 			break
 		}
 		val := v_1.Args[1]
@@ -3259,46 +3259,46 @@ func rewriteValueMIPS_OpMIPSMOVFload(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVFload [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVFload [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVFload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVFload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVFload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVFload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVFload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -3306,14 +3306,14 @@ func rewriteValueMIPS_OpMIPSMOVFload(v *ssa.Value) bool {
 	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: x
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVFstore {
 			break
 		}
-		off2 := AuxIntToInt32(v_1.AuxInt)
-		sym2 := AuxToSym(v_1.Aux)
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
@@ -3331,8 +3331,8 @@ func rewriteValueMIPS_OpMIPSMOVFstore(v *ssa.Value) bool {
 	// match: (MOVFstore [off] {sym} ptr (MOVWgpfp val) mem)
 	// result: (MOVWstore [off] {sym} ptr val mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVWgpfp {
 			break
@@ -3340,54 +3340,54 @@ func rewriteValueMIPS_OpMIPSMOVFstore(v *ssa.Value) bool {
 		val := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVFstore [off1] {sym} x:(ADDconst [off2] ptr) val mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVFstore [off1+off2] {sym} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVFstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVFstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVFstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVFstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVFstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -3399,10 +3399,10 @@ func rewriteValueMIPS_OpMIPSMOVHUload(v *ssa.Value) bool {
 	// match: (MOVHUload [off] {sym} ptr (MOVHstore [off] {sym} ptr x _))
 	// result: (MOVHUreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVHstore || AuxIntToInt32(v_1.AuxInt) != off || AuxToSym(v_1.Aux) != sym {
+		if v_1.Op != ssaop.OpMIPSMOVHstore || ssa.AuxIntToInt32(v_1.AuxInt) != off || ssa.AuxToSym(v_1.Aux) != sym {
 			break
 		}
 		x := v_1.Args[1]
@@ -3414,46 +3414,46 @@ func rewriteValueMIPS_OpMIPSMOVHUload(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVHUload [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVHUload [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHUload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVHUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVHUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVHUload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHUload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -3461,14 +3461,14 @@ func rewriteValueMIPS_OpMIPSMOVHUload(v *ssa.Value) bool {
 	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: (MOVHUreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVHstore {
 			break
 		}
-		off2 := AuxIntToInt32(v_1.AuxInt)
-		sym2 := AuxToSym(v_1.Aux)
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
@@ -3528,7 +3528,7 @@ func rewriteValueMIPS_OpMIPSMOVHUreg(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVHUreg <t> x:(MOVHload [off] {sym} ptr mem))
-	// cond: x.Uses == 1 && Clobber(x)
+	// cond: x.Uses == 1 && ssa.Clobber(x)
 	// result: @x.Block (MOVHUload <t> [off] {sym} ptr mem)
 	for {
 		t := v.Type
@@ -3536,18 +3536,18 @@ func rewriteValueMIPS_OpMIPSMOVHUreg(v *ssa.Value) bool {
 		if x.Op != ssaop.OpMIPSMOVHload {
 			break
 		}
-		off := AuxIntToInt32(x.AuxInt)
-		sym := AuxToSym(x.Aux)
+		off := ssa.AuxIntToInt32(x.AuxInt)
+		sym := ssa.AuxToSym(x.Aux)
 		mem := x.Args[1]
 		ptr := x.Args[0]
-		if !(x.Uses == 1 && Clobber(x)) {
+		if !(x.Uses == 1 && ssa.Clobber(x)) {
 			break
 		}
 		b = x.Block
 		v0 := b.NewValue0(x.Pos, ssaop.OpMIPSMOVHUload, t)
 		v.CopyOf(v0)
-		v0.AuxInt = Int32ToAuxInt(off)
-		v0.Aux = SymToAux(sym)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
 		v0.AddArg2(ptr, mem)
 		return true
 	}
@@ -3557,10 +3557,10 @@ func rewriteValueMIPS_OpMIPSMOVHUreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSANDconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSANDconst)
-		v.AuxInt = Int32ToAuxInt(c & 0xffff)
+		v.AuxInt = ssa.Int32ToAuxInt(c & 0xffff)
 		v.AddArg(x)
 		return true
 	}
@@ -3570,9 +3570,9 @@ func rewriteValueMIPS_OpMIPSMOVHUreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(uint16(c)))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(uint16(c)))
 		return true
 	}
 	return false
@@ -3583,10 +3583,10 @@ func rewriteValueMIPS_OpMIPSMOVHload(v *ssa.Value) bool {
 	// match: (MOVHload [off] {sym} ptr (MOVHstore [off] {sym} ptr x _))
 	// result: (MOVHreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVHstore || AuxIntToInt32(v_1.AuxInt) != off || AuxToSym(v_1.Aux) != sym {
+		if v_1.Op != ssaop.OpMIPSMOVHstore || ssa.AuxIntToInt32(v_1.AuxInt) != off || ssa.AuxToSym(v_1.Aux) != sym {
 			break
 		}
 		x := v_1.Args[1]
@@ -3598,46 +3598,46 @@ func rewriteValueMIPS_OpMIPSMOVHload(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVHload [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVHload [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVHload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVHload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVHload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -3645,14 +3645,14 @@ func rewriteValueMIPS_OpMIPSMOVHload(v *ssa.Value) bool {
 	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: (MOVHreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVHstore {
 			break
 		}
-		off2 := AuxIntToInt32(v_1.AuxInt)
-		sym2 := AuxToSym(v_1.Aux)
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
@@ -3734,7 +3734,7 @@ func rewriteValueMIPS_OpMIPSMOVHreg(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVHreg <t> x:(MOVHUload [off] {sym} ptr mem))
-	// cond: x.Uses == 1 && Clobber(x)
+	// cond: x.Uses == 1 && ssa.Clobber(x)
 	// result: @x.Block (MOVHload <t> [off] {sym} ptr mem)
 	for {
 		t := v.Type
@@ -3742,18 +3742,18 @@ func rewriteValueMIPS_OpMIPSMOVHreg(v *ssa.Value) bool {
 		if x.Op != ssaop.OpMIPSMOVHUload {
 			break
 		}
-		off := AuxIntToInt32(x.AuxInt)
-		sym := AuxToSym(x.Aux)
+		off := ssa.AuxIntToInt32(x.AuxInt)
+		sym := ssa.AuxToSym(x.Aux)
 		mem := x.Args[1]
 		ptr := x.Args[0]
-		if !(x.Uses == 1 && Clobber(x)) {
+		if !(x.Uses == 1 && ssa.Clobber(x)) {
 			break
 		}
 		b = x.Block
 		v0 := b.NewValue0(x.Pos, ssaop.OpMIPSMOVHload, t)
 		v.CopyOf(v0)
-		v0.AuxInt = Int32ToAuxInt(off)
-		v0.Aux = SymToAux(sym)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
 		v0.AddArg2(ptr, mem)
 		return true
 	}
@@ -3764,13 +3764,13 @@ func rewriteValueMIPS_OpMIPSMOVHreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSANDconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		if !(c&0x8000 == 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSANDconst)
-		v.AuxInt = Int32ToAuxInt(c & 0x7fff)
+		v.AuxInt = ssa.Int32ToAuxInt(c & 0x7fff)
 		v.AddArg(x)
 		return true
 	}
@@ -3780,9 +3780,9 @@ func rewriteValueMIPS_OpMIPSMOVHreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(int16(c)))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(int16(c)))
 		return true
 	}
 	return false
@@ -3792,72 +3792,72 @@ func rewriteValueMIPS_OpMIPSMOVHstore(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHstore [off1] {sym} x:(ADDconst [off2] ptr) val mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVHstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVHstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVHstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVHstore [off] {sym} ptr (MOVWconst [0]) mem)
 	// result: (MOVHstorezero [off] {sym} ptr mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_1.AuxInt) != 0 {
+		if v_1.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVHstorezero)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVHstore [off] {sym} ptr (MOVHreg x) mem)
 	// result: (MOVHstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVHreg {
 			break
@@ -3865,16 +3865,16 @@ func rewriteValueMIPS_OpMIPSMOVHstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	// match: (MOVHstore [off] {sym} ptr (MOVHUreg x) mem)
 	// result: (MOVHstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVHUreg {
 			break
@@ -3882,16 +3882,16 @@ func rewriteValueMIPS_OpMIPSMOVHstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
 	// match: (MOVHstore [off] {sym} ptr (MOVWreg x) mem)
 	// result: (MOVHstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVWreg {
 			break
@@ -3899,8 +3899,8 @@ func rewriteValueMIPS_OpMIPSMOVHstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
@@ -3910,46 +3910,46 @@ func rewriteValueMIPS_OpMIPSMOVHstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHstorezero [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVHstorezero [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstorezero)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVHstorezero [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVHstorezero [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVHstorezero [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstorezero)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -3961,10 +3961,10 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *ssa.Value) bool {
 	// match: (MOVWload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _))
 	// result: (MOVWfpgp val)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVFstore || AuxIntToInt32(v_1.AuxInt) != off || AuxToSym(v_1.Aux) != sym {
+		if v_1.Op != ssaop.OpMIPSMOVFstore || ssa.AuxIntToInt32(v_1.AuxInt) != off || ssa.AuxToSym(v_1.Aux) != sym {
 			break
 		}
 		val := v_1.Args[1]
@@ -3978,10 +3978,10 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *ssa.Value) bool {
 	// match: (MOVWload [off] {sym} ptr (MOVWstore [off] {sym} ptr x _))
 	// result: (MOVWreg x)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWstore || AuxIntToInt32(v_1.AuxInt) != off || AuxToSym(v_1.Aux) != sym {
+		if v_1.Op != ssaop.OpMIPSMOVWstore || ssa.AuxIntToInt32(v_1.AuxInt) != off || ssa.AuxToSym(v_1.Aux) != sym {
 			break
 		}
 		x := v_1.Args[1]
@@ -3993,46 +3993,46 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *ssa.Value) bool {
 		return true
 	}
 	// match: (MOVWload [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVWload [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVWload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVWload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVWload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWload)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -4040,14 +4040,14 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *ssa.Value) bool {
 	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: x
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVWstore {
 			break
 		}
-		off2 := AuxIntToInt32(v_1.AuxInt)
-		sym2 := AuxToSym(v_1.Aux)
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
@@ -4066,9 +4066,9 @@ func rewriteValueMIPS_OpMIPSMOVWnop(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(c)
+		v.AuxInt = ssa.Int32ToAuxInt(c)
 		return true
 	}
 	return false
@@ -4093,9 +4093,9 @@ func rewriteValueMIPS_OpMIPSMOVWreg(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(c)
+		v.AuxInt = ssa.Int32ToAuxInt(c)
 		return true
 	}
 	return false
@@ -4107,8 +4107,8 @@ func rewriteValueMIPS_OpMIPSMOVWstore(v *ssa.Value) bool {
 	// match: (MOVWstore [off] {sym} ptr (MOVWfpgp val) mem)
 	// result: (MOVFstore [off] {sym} ptr val mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVWfpgp {
 			break
@@ -4116,78 +4116,78 @@ func rewriteValueMIPS_OpMIPSMOVWstore(v *ssa.Value) bool {
 		val := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVFstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVWstore [off1] {sym} x:(ADDconst [off2] ptr) val mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVWstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVWstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVWstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVWstore [off] {sym} ptr (MOVWconst [0]) mem)
 	// result: (MOVWstorezero [off] {sym} ptr mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_1.AuxInt) != 0 {
+		if v_1.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVWstorezero)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVWstore [off] {sym} ptr (MOVWreg x) mem)
 	// result: (MOVWstore [off] {sym} ptr x mem)
 	for {
-		off := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		ptr := v_0
 		if v_1.Op != ssaop.OpMIPSMOVWreg {
 			break
@@ -4195,8 +4195,8 @@ func rewriteValueMIPS_OpMIPSMOVWstore(v *ssa.Value) bool {
 		x := v_1.Args[0]
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(off)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
 		return true
 	}
@@ -4206,46 +4206,46 @@ func rewriteValueMIPS_OpMIPSMOVWstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWstorezero [off1] {sym} x:(ADDconst [off2] ptr) mem)
-	// cond: (Is16Bit(int64(off1+off2)) || x.Uses == 1)
+	// cond: (ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1)
 	// result: (MOVWstorezero [off1+off2] {sym} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
 		x := v_0
 		if x.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		off2 := AuxIntToInt32(x.AuxInt)
+		off2 := ssa.AuxIntToInt32(x.AuxInt)
 		ptr := x.Args[0]
 		mem := v_1
-		if !(Is16Bit(int64(off1+off2)) || x.Uses == 1) {
+		if !(ssa.Is16Bit(int64(off1+off2)) || x.Uses == 1) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstorezero)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(sym)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVWstorezero [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1,sym2)
-	// result: (MOVWstorezero [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	// cond: ssa.CanMergeSym(sym1,sym2)
+	// result: (MOVWstorezero [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 	for {
-		off1 := AuxIntToInt32(v.AuxInt)
-		sym1 := AuxToSym(v.Aux)
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
 		if v_0.Op != ssaop.OpMIPSMOVWaddr {
 			break
 		}
-		off2 := AuxIntToInt32(v_0.AuxInt)
-		sym2 := AuxToSym(v_0.Aux)
+		off2 := ssa.AuxIntToInt32(v_0.AuxInt)
+		sym2 := ssa.AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2)) {
+		if !(ssa.CanMergeSym(sym1, sym2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstorezero)
-		v.AuxInt = Int32ToAuxInt(off1 + off2)
-		v.Aux = SymToAux(MergeSym(sym1, sym2))
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -4258,11 +4258,11 @@ func rewriteValueMIPS_OpMIPSMUL(v *ssa.Value) bool {
 	// result: (MOVWconst [0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0.AuxInt) != 0 {
+			if v_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0.AuxInt) != 0 {
 				continue
 			}
 			v.Reset(ssaop.OpMIPSMOVWconst)
-			v.AuxInt = Int32ToAuxInt(0)
+			v.AuxInt = ssa.Int32ToAuxInt(0)
 			return true
 		}
 		break
@@ -4271,7 +4271,7 @@ func rewriteValueMIPS_OpMIPSMUL(v *ssa.Value) bool {
 	// result: x
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0.AuxInt) != 1 {
+			if v_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				continue
 			}
 			x := v_1
@@ -4284,7 +4284,7 @@ func rewriteValueMIPS_OpMIPSMUL(v *ssa.Value) bool {
 	// result: (NEG x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0.AuxInt) != -1 {
+			if v_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0.AuxInt) != -1 {
 				continue
 			}
 			x := v_1
@@ -4295,20 +4295,20 @@ func rewriteValueMIPS_OpMIPSMUL(v *ssa.Value) bool {
 		break
 	}
 	// match: (MUL (MOVWconst [c]) x )
-	// cond: IsPowerOfTwo(uint32(c))
-	// result: (SLLconst [int32(Log32u(uint32(c)))] x)
+	// cond: ssa.IsPowerOfTwo(uint32(c))
+	// result: (SLLconst [int32(ssa.Log32u(uint32(c)))] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			x := v_1
-			if !(IsPowerOfTwo(uint32(c))) {
+			if !(ssa.IsPowerOfTwo(uint32(c))) {
 				continue
 			}
 			v.Reset(ssaop.OpMIPSSLLconst)
-			v.AuxInt = Int32ToAuxInt(int32(Log32u(uint32(c))))
+			v.AuxInt = ssa.Int32ToAuxInt(int32(ssa.Log32u(uint32(c))))
 			v.AddArg(x)
 			return true
 		}
@@ -4321,13 +4321,13 @@ func rewriteValueMIPS_OpMIPSMUL(v *ssa.Value) bool {
 			if v_0.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if v_1.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			d := AuxIntToInt32(v_1.AuxInt)
+			d := ssa.AuxIntToInt32(v_1.AuxInt)
 			v.Reset(ssaop.OpMIPSMOVWconst)
-			v.AuxInt = Int32ToAuxInt(c * d)
+			v.AuxInt = ssa.Int32ToAuxInt(c * d)
 			return true
 		}
 		break
@@ -4364,9 +4364,9 @@ func rewriteValueMIPS_OpMIPSNEG(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(-c)
+		v.AuxInt = ssa.Int32ToAuxInt(-c)
 		return true
 	}
 	return false
@@ -4383,9 +4383,9 @@ func rewriteValueMIPS_OpMIPSOR(v *ssa.Value) bool {
 			if v_1.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_1.AuxInt)
+			c := ssa.AuxIntToInt32(v_1.AuxInt)
 			v.Reset(ssaop.OpMIPSORconst)
-			v.AuxInt = Int32ToAuxInt(c)
+			v.AuxInt = ssa.Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
 		}
@@ -4428,7 +4428,7 @@ func rewriteValueMIPS_OpMIPSORconst(v *ssa.Value) bool {
 	// match: (ORconst [0] x)
 	// result: x
 	for {
-		if AuxIntToInt32(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt32(v.AuxInt) != 0 {
 			break
 		}
 		x := v_0
@@ -4438,36 +4438,36 @@ func rewriteValueMIPS_OpMIPSORconst(v *ssa.Value) bool {
 	// match: (ORconst [-1] _)
 	// result: (MOVWconst [-1])
 	for {
-		if AuxIntToInt32(v.AuxInt) != -1 {
+		if ssa.AuxIntToInt32(v.AuxInt) != -1 {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(-1)
+		v.AuxInt = ssa.Int32ToAuxInt(-1)
 		return true
 	}
 	// match: (ORconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [c|d])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(c | d)
+		v.AuxInt = ssa.Int32ToAuxInt(c | d)
 		return true
 	}
 	// match: (ORconst [c] (ORconst [d] x))
 	// result: (ORconst [c|d] x)
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSORconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSORconst)
-		v.AuxInt = Int32ToAuxInt(c | d)
+		v.AuxInt = ssa.Int32ToAuxInt(c | d)
 		v.AddArg(x)
 		return true
 	}
@@ -4482,10 +4482,10 @@ func rewriteValueMIPS_OpMIPSSGT(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_1
 		v.Reset(ssaop.OpMIPSSGTconst)
-		v.AuxInt = Int32ToAuxInt(c)
+		v.AuxInt = ssa.Int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
 	}
@@ -4493,7 +4493,7 @@ func rewriteValueMIPS_OpMIPSSGT(v *ssa.Value) bool {
 	// result: (SGTzero x)
 	for {
 		x := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_1.AuxInt) != 0 {
+		if v_1.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSGTzero)
@@ -4511,10 +4511,10 @@ func rewriteValueMIPS_OpMIPSSGTU(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_1
 		v.Reset(ssaop.OpMIPSSGTUconst)
-		v.AuxInt = Int32ToAuxInt(c)
+		v.AuxInt = ssa.Int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
 	}
@@ -4522,7 +4522,7 @@ func rewriteValueMIPS_OpMIPSSGTU(v *ssa.Value) bool {
 	// result: (SGTUzero x)
 	for {
 		x := v_0
-		if v_1.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_1.AuxInt) != 0 {
+		if v_1.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSGTUzero)
@@ -4537,88 +4537,88 @@ func rewriteValueMIPS_OpMIPSSGTUconst(v *ssa.Value) bool {
 	// cond: uint32(c) > uint32(d)
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(uint32(c) > uint32(d)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTUconst [c] (MOVWconst [d]))
 	// cond: uint32(c) <= uint32(d)
 	// result: (MOVWconst [0])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(uint32(c) <= uint32(d)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SGTUconst [c] (MOVBUreg _))
 	// cond: 0xff < uint32(c)
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVBUreg || !(0xff < uint32(c)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTUconst [c] (MOVHUreg _))
 	// cond: 0xffff < uint32(c)
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVHUreg || !(0xffff < uint32(c)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTUconst [c] (ANDconst [m] _))
 	// cond: uint32(m) < uint32(c)
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSANDconst {
 			break
 		}
-		m := AuxIntToInt32(v_0.AuxInt)
+		m := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(uint32(m) < uint32(c)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTUconst [c] (SRLconst _ [d]))
 	// cond: uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSSRLconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	return false
@@ -4632,12 +4632,12 @@ func rewriteValueMIPS_OpMIPSSGTUzero(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(d != 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTUzero (MOVWconst [d]))
@@ -4647,12 +4647,12 @@ func rewriteValueMIPS_OpMIPSSGTUzero(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(d == 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -4663,160 +4663,160 @@ func rewriteValueMIPS_OpMIPSSGTconst(v *ssa.Value) bool {
 	// cond: c > d
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(c > d) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTconst [c] (MOVWconst [d]))
 	// cond: c <= d
 	// result: (MOVWconst [0])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(c <= d) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SGTconst [c] (MOVBreg _))
 	// cond: 0x7f < c
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVBreg || !(0x7f < c) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTconst [c] (MOVBreg _))
 	// cond: c <= -0x80
 	// result: (MOVWconst [0])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVBreg || !(c <= -0x80) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SGTconst [c] (MOVBUreg _))
 	// cond: 0xff < c
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVBUreg || !(0xff < c) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTconst [c] (MOVBUreg _))
 	// cond: c < 0
 	// result: (MOVWconst [0])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVBUreg || !(c < 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SGTconst [c] (MOVHreg _))
 	// cond: 0x7fff < c
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVHreg || !(0x7fff < c) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTconst [c] (MOVHreg _))
 	// cond: c <= -0x8000
 	// result: (MOVWconst [0])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVHreg || !(c <= -0x8000) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SGTconst [c] (MOVHUreg _))
 	// cond: 0xffff < c
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVHUreg || !(0xffff < c) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTconst [c] (MOVHUreg _))
 	// cond: c < 0
 	// result: (MOVWconst [0])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVHUreg || !(c < 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SGTconst [c] (ANDconst [m] _))
 	// cond: 0 <= m && m < c
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSANDconst {
 			break
 		}
-		m := AuxIntToInt32(v_0.AuxInt)
+		m := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(0 <= m && m < c) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTconst [c] (SRLconst _ [d]))
 	// cond: 0 <= c && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)
 	// result: (MOVWconst [1])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSSRLconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(0 <= c && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	return false
@@ -4830,12 +4830,12 @@ func rewriteValueMIPS_OpMIPSSGTzero(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(d > 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SGTzero (MOVWconst [d]))
@@ -4845,12 +4845,12 @@ func rewriteValueMIPS_OpMIPSSGTzero(v *ssa.Value) bool {
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		if !(d <= 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -4865,9 +4865,9 @@ func rewriteValueMIPS_OpMIPSSLL(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpMIPSSLLconst)
-		v.AuxInt = Int32ToAuxInt(c & 31)
+		v.AuxInt = ssa.Int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
 	}
@@ -4878,13 +4878,13 @@ func rewriteValueMIPS_OpMIPSSLLconst(v *ssa.Value) bool {
 	// match: (SLLconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [d<<uint32(c)])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(d << uint32(c))
+		v.AuxInt = ssa.Int32ToAuxInt(d << uint32(c))
 		return true
 	}
 	return false
@@ -4899,9 +4899,9 @@ func rewriteValueMIPS_OpMIPSSRA(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(c & 31)
+		v.AuxInt = ssa.Int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
 	}
@@ -4912,13 +4912,13 @@ func rewriteValueMIPS_OpMIPSSRAconst(v *ssa.Value) bool {
 	// match: (SRAconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [d>>uint32(c)])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(d >> uint32(c))
+		v.AuxInt = ssa.Int32ToAuxInt(d >> uint32(c))
 		return true
 	}
 	return false
@@ -4933,9 +4933,9 @@ func rewriteValueMIPS_OpMIPSSRL(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpMIPSSRLconst)
-		v.AuxInt = Int32ToAuxInt(c & 31)
+		v.AuxInt = ssa.Int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
 	}
@@ -4946,13 +4946,13 @@ func rewriteValueMIPS_OpMIPSSRLconst(v *ssa.Value) bool {
 	// match: (SRLconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [int32(uint32(d)>>uint32(c))])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(uint32(d) >> uint32(c)))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(uint32(d) >> uint32(c)))
 		return true
 	}
 	return false
@@ -4967,9 +4967,9 @@ func rewriteValueMIPS_OpMIPSSUB(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpMIPSSUBconst)
-		v.AuxInt = Int32ToAuxInt(c)
+		v.AuxInt = ssa.Int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
 	}
@@ -4993,13 +4993,13 @@ func rewriteValueMIPS_OpMIPSSUB(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SUB (MOVWconst [0]) x)
 	// result: (NEG x)
 	for {
-		if v_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0.AuxInt) != 0 {
+		if v_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0.AuxInt) != 0 {
 			break
 		}
 		x := v_1
@@ -5014,7 +5014,7 @@ func rewriteValueMIPS_OpMIPSSUBconst(v *ssa.Value) bool {
 	// match: (SUBconst [0] x)
 	// result: x
 	for {
-		if AuxIntToInt32(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt32(v.AuxInt) != 0 {
 			break
 		}
 		x := v_0
@@ -5024,40 +5024,40 @@ func rewriteValueMIPS_OpMIPSSUBconst(v *ssa.Value) bool {
 	// match: (SUBconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [d-c])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(d - c)
+		v.AuxInt = ssa.Int32ToAuxInt(d - c)
 		return true
 	}
 	// match: (SUBconst [c] (SUBconst [d] x))
 	// result: (ADDconst [-c-d] x)
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSSUBconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSADDconst)
-		v.AuxInt = Int32ToAuxInt(-c - d)
+		v.AuxInt = ssa.Int32ToAuxInt(-c - d)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SUBconst [c] (ADDconst [d] x))
 	// result: (ADDconst [-c+d] x)
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSADDconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSADDconst)
-		v.AuxInt = Int32ToAuxInt(-c + d)
+		v.AuxInt = ssa.Int32ToAuxInt(-c + d)
 		v.AddArg(x)
 		return true
 	}
@@ -5074,9 +5074,9 @@ func rewriteValueMIPS_OpMIPSXOR(v *ssa.Value) bool {
 			if v_1.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_1.AuxInt)
+			c := ssa.AuxIntToInt32(v_1.AuxInt)
 			v.Reset(ssaop.OpMIPSXORconst)
-			v.AuxInt = Int32ToAuxInt(c)
+			v.AuxInt = ssa.Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
 		}
@@ -5090,7 +5090,7 @@ func rewriteValueMIPS_OpMIPSXOR(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -5100,7 +5100,7 @@ func rewriteValueMIPS_OpMIPSXORconst(v *ssa.Value) bool {
 	// match: (XORconst [0] x)
 	// result: x
 	for {
-		if AuxIntToInt32(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt32(v.AuxInt) != 0 {
 			break
 		}
 		x := v_0
@@ -5110,26 +5110,26 @@ func rewriteValueMIPS_OpMIPSXORconst(v *ssa.Value) bool {
 	// match: (XORconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [c^d])
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(c ^ d)
+		v.AuxInt = ssa.Int32ToAuxInt(c ^ d)
 		return true
 	}
 	// match: (XORconst [c] (XORconst [d] x))
 	// result: (XORconst [c^d] x)
 	for {
-		c := AuxIntToInt32(v.AuxInt)
+		c := ssa.AuxIntToInt32(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSXORconst {
 			break
 		}
-		d := AuxIntToInt32(v_0.AuxInt)
+		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(c ^ d)
+		v.AuxInt = ssa.Int32ToAuxInt(c ^ d)
 		v.AddArg(x)
 		return true
 	}
@@ -5263,7 +5263,7 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// match: (Move [0] _ _ mem)
 	// result: mem
 	for {
-		if AuxIntToInt64(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		mem := v_2
@@ -5273,7 +5273,7 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// match: (Move [1] dst src mem)
 	// result: (MOVBstore dst (MOVBUload src mem) mem)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 1 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 1 {
 			break
 		}
 		dst := v_0
@@ -5289,10 +5289,10 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore dst (MOVHUload src mem) mem)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 2 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -5308,16 +5308,16 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// match: (Move [2] dst src mem)
 	// result: (MOVBstore [1] dst (MOVBUload [1] src mem) (MOVBstore dst (MOVBUload src mem) mem))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 2 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
 		dst := v_0
 		src := v_1
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
-		v0.AuxInt = Int32ToAuxInt(1)
+		v0.AuxInt = ssa.Int32ToAuxInt(1)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
@@ -5330,10 +5330,10 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore dst (MOVWload src mem) mem)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 4 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -5350,10 +5350,10 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore [2] dst (MOVHUload [2] src mem) (MOVHstore dst (MOVHUload src mem) mem))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 4 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -5361,9 +5361,9 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(2)
+		v.AuxInt = ssa.Int32ToAuxInt(2)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHUload, typ.UInt16)
-		v0.AuxInt = Int32ToAuxInt(2)
+		v0.AuxInt = ssa.Int32ToAuxInt(2)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHUload, typ.UInt16)
@@ -5375,26 +5375,26 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// match: (Move [4] dst src mem)
 	// result: (MOVBstore [3] dst (MOVBUload [3] src mem) (MOVBstore [2] dst (MOVBUload [2] src mem) (MOVBstore [1] dst (MOVBUload [1] src mem) (MOVBstore dst (MOVBUload src mem) mem))))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 4 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
 		dst := v_0
 		src := v_1
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(3)
+		v.AuxInt = ssa.Int32ToAuxInt(3)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
-		v0.AuxInt = Int32ToAuxInt(3)
+		v0.AuxInt = ssa.Int32ToAuxInt(3)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(2)
+		v1.AuxInt = ssa.Int32ToAuxInt(2)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
-		v2.AuxInt = Int32ToAuxInt(2)
+		v2.AuxInt = ssa.Int32ToAuxInt(2)
 		v2.AddArg2(src, mem)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v3.AuxInt = Int32ToAuxInt(1)
+		v3.AuxInt = ssa.Int32ToAuxInt(1)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
-		v4.AuxInt = Int32ToAuxInt(1)
+		v4.AuxInt = ssa.Int32ToAuxInt(1)
 		v4.AddArg2(src, mem)
 		v5 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
 		v6 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
@@ -5408,21 +5408,21 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// match: (Move [3] dst src mem)
 	// result: (MOVBstore [2] dst (MOVBUload [2] src mem) (MOVBstore [1] dst (MOVBUload [1] src mem) (MOVBstore dst (MOVBUload src mem) mem)))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 3 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 3 {
 			break
 		}
 		dst := v_0
 		src := v_1
 		mem := v_2
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(2)
+		v.AuxInt = ssa.Int32ToAuxInt(2)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
-		v0.AuxInt = Int32ToAuxInt(2)
+		v0.AuxInt = ssa.Int32ToAuxInt(2)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(1)
+		v1.AuxInt = ssa.Int32ToAuxInt(1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
-		v2.AuxInt = Int32ToAuxInt(1)
+		v2.AuxInt = ssa.Int32ToAuxInt(1)
 		v2.AddArg2(src, mem)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBUload, typ.UInt8)
@@ -5436,10 +5436,10 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore [4] dst (MOVWload [4] src mem) (MOVWstore dst (MOVWload src mem) mem))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 8 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 8 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -5447,9 +5447,9 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(4)
+		v.AuxInt = ssa.Int32ToAuxInt(4)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(4)
+		v0.AuxInt = ssa.Int32ToAuxInt(4)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
@@ -5462,10 +5462,10 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore [6] dst (MOVHload [6] src mem) (MOVHstore [4] dst (MOVHload [4] src mem) (MOVHstore [2] dst (MOVHload [2] src mem) (MOVHstore dst (MOVHload src mem) mem))))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 8 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 8 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -5473,19 +5473,19 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(6)
+		v.AuxInt = ssa.Int32ToAuxInt(6)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHload, typ.Int16)
-		v0.AuxInt = Int32ToAuxInt(6)
+		v0.AuxInt = ssa.Int32ToAuxInt(6)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(4)
+		v1.AuxInt = ssa.Int32ToAuxInt(4)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHload, typ.Int16)
-		v2.AuxInt = Int32ToAuxInt(4)
+		v2.AuxInt = ssa.Int32ToAuxInt(4)
 		v2.AddArg2(src, mem)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
-		v3.AuxInt = Int32ToAuxInt(2)
+		v3.AuxInt = ssa.Int32ToAuxInt(2)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHload, typ.Int16)
-		v4.AuxInt = Int32ToAuxInt(2)
+		v4.AuxInt = ssa.Int32ToAuxInt(2)
 		v4.AddArg2(src, mem)
 		v5 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
 		v6 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHload, typ.Int16)
@@ -5500,10 +5500,10 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore [4] dst (MOVHload [4] src mem) (MOVHstore [2] dst (MOVHload [2] src mem) (MOVHstore dst (MOVHload src mem) mem)))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 6 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 6 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -5511,14 +5511,14 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(4)
+		v.AuxInt = ssa.Int32ToAuxInt(4)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHload, typ.Int16)
-		v0.AuxInt = Int32ToAuxInt(4)
+		v0.AuxInt = ssa.Int32ToAuxInt(4)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(2)
+		v1.AuxInt = ssa.Int32ToAuxInt(2)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHload, typ.Int16)
-		v2.AuxInt = Int32ToAuxInt(2)
+		v2.AuxInt = ssa.Int32ToAuxInt(2)
 		v2.AddArg2(src, mem)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHload, typ.Int16)
@@ -5532,10 +5532,10 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore [8] dst (MOVWload [8] src mem) (MOVWstore [4] dst (MOVWload [4] src mem) (MOVWstore dst (MOVWload src mem) mem)))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 12 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 12 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -5543,14 +5543,14 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(8)
+		v.AuxInt = ssa.Int32ToAuxInt(8)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(8)
+		v0.AuxInt = ssa.Int32ToAuxInt(8)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(4)
+		v1.AuxInt = ssa.Int32ToAuxInt(4)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(4)
+		v2.AuxInt = ssa.Int32ToAuxInt(4)
 		v2.AddArg2(src, mem)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
@@ -5564,10 +5564,10 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore [12] dst (MOVWload [12] src mem) (MOVWstore [8] dst (MOVWload [8] src mem) (MOVWstore [4] dst (MOVWload [4] src mem) (MOVWstore dst (MOVWload src mem) mem))))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 16 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 16 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -5575,19 +5575,19 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(12)
+		v.AuxInt = ssa.Int32ToAuxInt(12)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(12)
+		v0.AuxInt = ssa.Int32ToAuxInt(12)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(8)
+		v1.AuxInt = ssa.Int32ToAuxInt(8)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(8)
+		v2.AuxInt = ssa.Int32ToAuxInt(8)
 		v2.AddArg2(src, mem)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v3.AuxInt = Int32ToAuxInt(4)
+		v3.AuxInt = ssa.Int32ToAuxInt(4)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
-		v4.AuxInt = Int32ToAuxInt(4)
+		v4.AuxInt = ssa.Int32ToAuxInt(4)
 		v4.AddArg2(src, mem)
 		v5 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
 		v6 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWload, typ.UInt32)
@@ -5599,21 +5599,21 @@ func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: (s > 16 && LogLargeCopyValue(v, s) || t.Alignment()%4 != 0)
-	// result: (LoweredMove [int32(t.Alignment())] dst src (ADDconst <src.Type> src [int32(s-MoveSize(t.Alignment(), config))]) mem)
+	// cond: (s > 16 && ssa.LogLargeCopyValue(v, s) || t.Alignment()%4 != 0)
+	// result: (LoweredMove [int32(t.Alignment())] dst src (ADDconst <src.Type> src [int32(s-ssa.MoveSize(t.Alignment(), config))]) mem)
 	for {
-		s := AuxIntToInt64(v.AuxInt)
-		t := AuxToType(v.Aux)
+		s := ssa.AuxIntToInt64(v.AuxInt)
+		t := ssa.AuxToType(v.Aux)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 16 && LogLargeCopyValue(v, s) || t.Alignment()%4 != 0) {
+		if !(s > 16 && ssa.LogLargeCopyValue(v, s) || t.Alignment()%4 != 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSLoweredMove)
-		v.AuxInt = Int32ToAuxInt(int32(t.Alignment()))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(t.Alignment()))
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSADDconst, src.Type)
-		v0.AuxInt = Int32ToAuxInt(int32(s - MoveSize(t.Alignment(), config)))
+		v0.AuxInt = ssa.Int32ToAuxInt(int32(s - ssa.MoveSize(t.Alignment(), config)))
 		v0.AddArg(src)
 		v.AddArg4(dst, src, v0, mem)
 		return true
@@ -5638,7 +5638,7 @@ func rewriteValueMIPS_OpNeq16(v *ssa.Value) bool {
 		v2.AddArg(y)
 		v0.AddArg2(v1, v2)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(0)
+		v3.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg2(v0, v3)
 		return true
 	}
@@ -5657,7 +5657,7 @@ func rewriteValueMIPS_OpNeq32(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSXOR, typ.UInt32)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg2(v0, v1)
 		return true
 	}
@@ -5712,7 +5712,7 @@ func rewriteValueMIPS_OpNeq8(v *ssa.Value) bool {
 		v2.AddArg(y)
 		v0.AddArg2(v1, v2)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(0)
+		v3.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg2(v0, v3)
 		return true
 	}
@@ -5731,7 +5731,7 @@ func rewriteValueMIPS_OpNeqPtr(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSXOR, typ.UInt32)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg2(v0, v1)
 		return true
 	}
@@ -5743,7 +5743,7 @@ func rewriteValueMIPS_OpNot(v *ssa.Value) bool {
 	for {
 		x := v_0
 		v.Reset(ssaop.OpMIPSXORconst)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v.AddArg(x)
 		return true
 	}
@@ -5753,23 +5753,23 @@ func rewriteValueMIPS_OpOffPtr(v *ssa.Value) bool {
 	// match: (OffPtr [off] ptr:(SP))
 	// result: (MOVWaddr [int32(off)] ptr)
 	for {
-		off := AuxIntToInt64(v.AuxInt)
+		off := ssa.AuxIntToInt64(v.AuxInt)
 		ptr := v_0
 		if ptr.Op != ssaop.OpSP {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWaddr)
-		v.AuxInt = Int32ToAuxInt(int32(off))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(off))
 		v.AddArg(ptr)
 		return true
 	}
 	// match: (OffPtr [off] ptr)
 	// result: (ADDconst [int32(off)] ptr)
 	for {
-		off := AuxIntToInt64(v.AuxInt)
+		off := ssa.AuxIntToInt64(v.AuxInt)
 		ptr := v_0
 		v.Reset(ssaop.OpMIPSADDconst)
-		v.AuxInt = Int32ToAuxInt(int32(off))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(off))
 		v.AddArg(ptr)
 		return true
 	}
@@ -5787,15 +5787,15 @@ func rewriteValueMIPS_OpRotateLeft16(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpOr16)
 		v0 := b.NewValue0(v.Pos, ssaop.OpLsh16x32, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(c & 15)
+		v1.AuxInt = ssa.Int32ToAuxInt(c & 15)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpRsh16Ux32, t)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(-c & 15)
+		v3.AuxInt = ssa.Int32ToAuxInt(-c & 15)
 		v2.AddArg2(x, v3)
 		v.AddArg2(v0, v2)
 		return true
@@ -5815,15 +5815,15 @@ func rewriteValueMIPS_OpRotateLeft32(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpOr32)
 		v0 := b.NewValue0(v.Pos, ssaop.OpLsh32x32, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(c & 31)
+		v1.AuxInt = ssa.Int32ToAuxInt(c & 31)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpRsh32Ux32, t)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(-c & 31)
+		v3.AuxInt = ssa.Int32ToAuxInt(-c & 31)
 		v2.AddArg2(x, v3)
 		v.AddArg2(v0, v2)
 		return true
@@ -5843,15 +5843,15 @@ func rewriteValueMIPS_OpRotateLeft64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpOr64)
 		v0 := b.NewValue0(v.Pos, ssaop.OpLsh64x32, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(c & 63)
+		v1.AuxInt = ssa.Int32ToAuxInt(c & 63)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpRsh64Ux32, t)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(-c & 63)
+		v3.AuxInt = ssa.Int32ToAuxInt(-c & 63)
 		v2.AddArg2(x, v3)
 		v.AddArg2(v0, v2)
 		return true
@@ -5871,15 +5871,15 @@ func rewriteValueMIPS_OpRotateLeft8(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_1.AuxInt)
+		c := ssa.AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpOr8)
 		v0 := b.NewValue0(v.Pos, ssaop.OpLsh8x32, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(c & 7)
+		v1.AuxInt = ssa.Int32ToAuxInt(c & 7)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpRsh8Ux32, t)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(-c & 7)
+		v3.AuxInt = ssa.Int32ToAuxInt(-c & 7)
 		v2.AddArg2(x, v3)
 		v.AddArg2(v0, v2)
 		return true
@@ -5905,9 +5905,9 @@ func rewriteValueMIPS_OpRsh16Ux16(v *ssa.Value) bool {
 		v2.AddArg(y)
 		v0.AddArg2(v1, v2)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(0)
+		v3.AuxInt = ssa.Int32ToAuxInt(0)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v4.AuxInt = Int32ToAuxInt(32)
+		v4.AuxInt = ssa.Int32ToAuxInt(32)
 		v4.AddArg(v2)
 		v.AddArg3(v0, v3, v4)
 		return true
@@ -5930,9 +5930,9 @@ func rewriteValueMIPS_OpRsh16Ux32(v *ssa.Value) bool {
 		v1.AddArg(x)
 		v0.AddArg2(v1, y)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(y)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -5951,14 +5951,14 @@ func rewriteValueMIPS_OpRsh16Ux64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRLconst)
-		v.AuxInt = Int32ToAuxInt(int32(c + 16))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c + 16))
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(16)
+		v0.AuxInt = ssa.Int32ToAuxInt(16)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -5970,12 +5970,12 @@ func rewriteValueMIPS_OpRsh16Ux64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -5999,9 +5999,9 @@ func rewriteValueMIPS_OpRsh16Ux8(v *ssa.Value) bool {
 		v2.AddArg(y)
 		v0.AddArg2(v1, v2)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(0)
+		v3.AuxInt = ssa.Int32ToAuxInt(0)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v4.AuxInt = Int32ToAuxInt(32)
+		v4.AuxInt = ssa.Int32ToAuxInt(32)
 		v4.AddArg(v2)
 		v.AddArg3(v0, v3, v4)
 		return true
@@ -6024,9 +6024,9 @@ func rewriteValueMIPS_OpRsh16x16(v *ssa.Value) bool {
 		v2 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to32, typ.UInt32)
 		v2.AddArg(y)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(31)
+		v3.AuxInt = ssa.Int32ToAuxInt(31)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v4.AuxInt = Int32ToAuxInt(32)
+		v4.AuxInt = ssa.Int32ToAuxInt(32)
 		v4.AddArg(v2)
 		v1.AddArg3(v2, v3, v4)
 		v.AddArg2(v0, v1)
@@ -6048,9 +6048,9 @@ func rewriteValueMIPS_OpRsh16x32(v *ssa.Value) bool {
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSCMOVZ, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(31)
+		v2.AuxInt = ssa.Int32ToAuxInt(31)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(y)
 		v1.AddArg3(y, v2, v3)
 		v.AddArg2(v0, v1)
@@ -6070,14 +6070,14 @@ func rewriteValueMIPS_OpRsh16x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(int32(c + 16))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c + 16))
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(16)
+		v0.AuxInt = ssa.Int32ToAuxInt(16)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -6090,14 +6090,14 @@ func rewriteValueMIPS_OpRsh16x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(31)
+		v.AuxInt = ssa.Int32ToAuxInt(31)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(16)
+		v0.AuxInt = ssa.Int32ToAuxInt(16)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -6121,9 +6121,9 @@ func rewriteValueMIPS_OpRsh16x8(v *ssa.Value) bool {
 		v2 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v2.AddArg(y)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(31)
+		v3.AuxInt = ssa.Int32ToAuxInt(31)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v4.AuxInt = Int32ToAuxInt(32)
+		v4.AuxInt = ssa.Int32ToAuxInt(32)
 		v4.AddArg(v2)
 		v1.AddArg3(v2, v3, v4)
 		v.AddArg2(v0, v1)
@@ -6147,9 +6147,9 @@ func rewriteValueMIPS_OpRsh32Ux16(v *ssa.Value) bool {
 		v1.AddArg(y)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -6170,9 +6170,9 @@ func rewriteValueMIPS_OpRsh32Ux32(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSRL, t)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v2.AuxInt = Int32ToAuxInt(32)
+		v2.AuxInt = ssa.Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v.AddArg3(v0, v1, v2)
 		return true
@@ -6189,12 +6189,12 @@ func rewriteValueMIPS_OpRsh32Ux64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRLconst)
-		v.AuxInt = Int32ToAuxInt(int32(c))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -6205,12 +6205,12 @@ func rewriteValueMIPS_OpRsh32Ux64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -6232,9 +6232,9 @@ func rewriteValueMIPS_OpRsh32Ux8(v *ssa.Value) bool {
 		v1.AddArg(y)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -6255,9 +6255,9 @@ func rewriteValueMIPS_OpRsh32x16(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to32, typ.UInt32)
 		v1.AddArg(y)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(31)
+		v2.AuxInt = ssa.Int32ToAuxInt(31)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v0.AddArg3(v1, v2, v3)
 		v.AddArg2(x, v0)
@@ -6277,9 +6277,9 @@ func rewriteValueMIPS_OpRsh32x32(v *ssa.Value) bool {
 		v.Reset(ssaop.OpMIPSSRA)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSCMOVZ, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(31)
+		v1.AuxInt = ssa.Int32ToAuxInt(31)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v2.AuxInt = Int32ToAuxInt(32)
+		v2.AuxInt = ssa.Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v0.AddArg3(y, v1, v2)
 		v.AddArg2(x, v0)
@@ -6297,12 +6297,12 @@ func rewriteValueMIPS_OpRsh32x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(int32(c))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -6314,12 +6314,12 @@ func rewriteValueMIPS_OpRsh32x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(31)
+		v.AuxInt = ssa.Int32ToAuxInt(31)
 		v.AddArg(x)
 		return true
 	}
@@ -6340,9 +6340,9 @@ func rewriteValueMIPS_OpRsh32x8(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v1.AddArg(y)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(31)
+		v2.AuxInt = ssa.Int32ToAuxInt(31)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(v1)
 		v0.AddArg3(v1, v2, v3)
 		v.AddArg2(x, v0)
@@ -6368,9 +6368,9 @@ func rewriteValueMIPS_OpRsh8Ux16(v *ssa.Value) bool {
 		v2.AddArg(y)
 		v0.AddArg2(v1, v2)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(0)
+		v3.AuxInt = ssa.Int32ToAuxInt(0)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v4.AuxInt = Int32ToAuxInt(32)
+		v4.AuxInt = ssa.Int32ToAuxInt(32)
 		v4.AddArg(v2)
 		v.AddArg3(v0, v3, v4)
 		return true
@@ -6393,9 +6393,9 @@ func rewriteValueMIPS_OpRsh8Ux32(v *ssa.Value) bool {
 		v1.AddArg(x)
 		v0.AddArg2(v1, y)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(y)
 		v.AddArg3(v0, v2, v3)
 		return true
@@ -6414,14 +6414,14 @@ func rewriteValueMIPS_OpRsh8Ux64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRLconst)
-		v.AuxInt = Int32ToAuxInt(int32(c + 24))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c + 24))
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(24)
+		v0.AuxInt = ssa.Int32ToAuxInt(24)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -6433,12 +6433,12 @@ func rewriteValueMIPS_OpRsh8Ux64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(0)
+		v.AuxInt = ssa.Int32ToAuxInt(0)
 		return true
 	}
 	return false
@@ -6462,9 +6462,9 @@ func rewriteValueMIPS_OpRsh8Ux8(v *ssa.Value) bool {
 		v2.AddArg(y)
 		v0.AddArg2(v1, v2)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(0)
+		v3.AuxInt = ssa.Int32ToAuxInt(0)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v4.AuxInt = Int32ToAuxInt(32)
+		v4.AuxInt = ssa.Int32ToAuxInt(32)
 		v4.AddArg(v2)
 		v.AddArg3(v0, v3, v4)
 		return true
@@ -6487,9 +6487,9 @@ func rewriteValueMIPS_OpRsh8x16(v *ssa.Value) bool {
 		v2 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to32, typ.UInt32)
 		v2.AddArg(y)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(31)
+		v3.AuxInt = ssa.Int32ToAuxInt(31)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v4.AuxInt = Int32ToAuxInt(32)
+		v4.AuxInt = ssa.Int32ToAuxInt(32)
 		v4.AddArg(v2)
 		v1.AddArg3(v2, v3, v4)
 		v.AddArg2(v0, v1)
@@ -6511,9 +6511,9 @@ func rewriteValueMIPS_OpRsh8x32(v *ssa.Value) bool {
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSCMOVZ, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v2.AuxInt = Int32ToAuxInt(31)
+		v2.AuxInt = ssa.Int32ToAuxInt(31)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v3.AuxInt = Int32ToAuxInt(32)
+		v3.AuxInt = ssa.Int32ToAuxInt(32)
 		v3.AddArg(y)
 		v1.AddArg3(y, v2, v3)
 		v.AddArg2(v0, v1)
@@ -6533,14 +6533,14 @@ func rewriteValueMIPS_OpRsh8x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) < 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(int32(c + 24))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(c + 24))
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(24)
+		v0.AuxInt = ssa.Int32ToAuxInt(24)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -6553,14 +6553,14 @@ func rewriteValueMIPS_OpRsh8x64(v *ssa.Value) bool {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		c := AuxIntToInt64(v_1.AuxInt)
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(uint32(c) >= 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(31)
+		v.AuxInt = ssa.Int32ToAuxInt(31)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSLLconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(24)
+		v0.AuxInt = ssa.Int32ToAuxInt(24)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -6584,9 +6584,9 @@ func rewriteValueMIPS_OpRsh8x8(v *ssa.Value) bool {
 		v2 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v2.AddArg(y)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v3.AuxInt = Int32ToAuxInt(31)
+		v3.AuxInt = ssa.Int32ToAuxInt(31)
 		v4 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTUconst, typ.Bool)
-		v4.AuxInt = Int32ToAuxInt(32)
+		v4.AuxInt = ssa.Int32ToAuxInt(32)
 		v4.AddArg(v2)
 		v1.AddArg3(v2, v3, v4)
 		v.AddArg2(v0, v1)
@@ -6651,11 +6651,11 @@ func rewriteValueMIPS_OpSelect0(v *ssa.Value) bool {
 		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			if v_0_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0_0.AuxInt) != 0 {
+			if v_0_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0_0.AuxInt) != 0 {
 				continue
 			}
 			v.Reset(ssaop.OpMIPSMOVWconst)
-			v.AuxInt = Int32ToAuxInt(0)
+			v.AuxInt = ssa.Int32ToAuxInt(0)
 			return true
 		}
 		break
@@ -6669,11 +6669,11 @@ func rewriteValueMIPS_OpSelect0(v *ssa.Value) bool {
 		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			if v_0_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0_0.AuxInt) != 1 {
+			if v_0_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0_0.AuxInt) != 1 {
 				continue
 			}
 			v.Reset(ssaop.OpMIPSMOVWconst)
-			v.AuxInt = Int32ToAuxInt(0)
+			v.AuxInt = ssa.Int32ToAuxInt(0)
 			return true
 		}
 		break
@@ -6688,24 +6688,24 @@ func rewriteValueMIPS_OpSelect0(v *ssa.Value) bool {
 		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			if v_0_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0_0.AuxInt) != -1 {
+			if v_0_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0_0.AuxInt) != -1 {
 				continue
 			}
 			x := v_0_1
 			v.Reset(ssaop.OpMIPSCMOVZ)
 			v0 := b.NewValue0(v.Pos, ssaop.OpMIPSADDconst, x.Type)
-			v0.AuxInt = Int32ToAuxInt(-1)
+			v0.AuxInt = ssa.Int32ToAuxInt(-1)
 			v0.AddArg(x)
 			v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-			v1.AuxInt = Int32ToAuxInt(0)
+			v1.AuxInt = ssa.Int32ToAuxInt(0)
 			v.AddArg3(v0, v1, x)
 			return true
 		}
 		break
 	}
 	// match: (Select0 (MULTU (MOVWconst [c]) x ))
-	// cond: IsPowerOfTwo(uint32(c))
-	// result: (SRLconst [int32(32-Log32u(uint32(c)))] x)
+	// cond: ssa.IsPowerOfTwo(uint32(c))
+	// result: (SRLconst [int32(32-ssa.Log32u(uint32(c)))] x)
 	for {
 		if v_0.Op != ssaop.OpMIPSMULTU {
 			break
@@ -6717,13 +6717,13 @@ func rewriteValueMIPS_OpSelect0(v *ssa.Value) bool {
 			if v_0_0.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_0_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0_0.AuxInt)
 			x := v_0_1
-			if !(IsPowerOfTwo(uint32(c))) {
+			if !(ssa.IsPowerOfTwo(uint32(c))) {
 				continue
 			}
 			v.Reset(ssaop.OpMIPSSRLconst)
-			v.AuxInt = Int32ToAuxInt(int32(32 - Log32u(uint32(c))))
+			v.AuxInt = ssa.Int32ToAuxInt(int32(32 - ssa.Log32u(uint32(c))))
 			v.AddArg(x)
 			return true
 		}
@@ -6742,13 +6742,13 @@ func rewriteValueMIPS_OpSelect0(v *ssa.Value) bool {
 			if v_0_0.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_0_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0_0.AuxInt)
 			if v_0_1.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			d := AuxIntToInt32(v_0_1.AuxInt)
+			d := ssa.AuxIntToInt32(v_0_1.AuxInt)
 			v.Reset(ssaop.OpMIPSMOVWconst)
-			v.AuxInt = Int32ToAuxInt(int32((int64(uint32(c)) * int64(uint32(d))) >> 32))
+			v.AuxInt = ssa.Int32ToAuxInt(int32((int64(uint32(c)) * int64(uint32(d))) >> 32))
 			return true
 		}
 		break
@@ -6765,17 +6765,17 @@ func rewriteValueMIPS_OpSelect0(v *ssa.Value) bool {
 		if v_0_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0_0.AuxInt)
 		v_0_1 := v_0.Args[1]
 		if v_0_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0_1.AuxInt)
+		d := ssa.AuxIntToInt32(v_0_1.AuxInt)
 		if !(d != 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(c % d)
+		v.AuxInt = ssa.Int32ToAuxInt(c % d)
 		return true
 	}
 	// match: (Select0 (DIVU (MOVWconst [c]) (MOVWconst [d])))
@@ -6790,17 +6790,17 @@ func rewriteValueMIPS_OpSelect0(v *ssa.Value) bool {
 		if v_0_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0_0.AuxInt)
 		v_0_1 := v_0.Args[1]
 		if v_0_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0_1.AuxInt)
+		d := ssa.AuxIntToInt32(v_0_1.AuxInt)
 		if !(d != 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(uint32(c) % uint32(d)))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(uint32(c) % uint32(d)))
 		return true
 	}
 	return false
@@ -6873,11 +6873,11 @@ func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			if v_0_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0_0.AuxInt) != 0 {
+			if v_0_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0_0.AuxInt) != 0 {
 				continue
 			}
 			v.Reset(ssaop.OpMIPSMOVWconst)
-			v.AuxInt = Int32ToAuxInt(0)
+			v.AuxInt = ssa.Int32ToAuxInt(0)
 			return true
 		}
 		break
@@ -6892,7 +6892,7 @@ func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			if v_0_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0_0.AuxInt) != 1 {
+			if v_0_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0_0.AuxInt) != 1 {
 				continue
 			}
 			x := v_0_1
@@ -6911,7 +6911,7 @@ func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 		v_0_0 := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			if v_0_0.Op != ssaop.OpMIPSMOVWconst || AuxIntToInt32(v_0_0.AuxInt) != -1 {
+			if v_0_0.Op != ssaop.OpMIPSMOVWconst || ssa.AuxIntToInt32(v_0_0.AuxInt) != -1 {
 				continue
 			}
 			x := v_0_1
@@ -6923,8 +6923,8 @@ func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 		break
 	}
 	// match: (Select1 (MULTU (MOVWconst [c]) x ))
-	// cond: IsPowerOfTwo(uint32(c))
-	// result: (SLLconst [int32(Log32u(uint32(c)))] x)
+	// cond: ssa.IsPowerOfTwo(uint32(c))
+	// result: (SLLconst [int32(ssa.Log32u(uint32(c)))] x)
 	for {
 		if v_0.Op != ssaop.OpMIPSMULTU {
 			break
@@ -6936,13 +6936,13 @@ func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 			if v_0_0.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_0_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0_0.AuxInt)
 			x := v_0_1
-			if !(IsPowerOfTwo(uint32(c))) {
+			if !(ssa.IsPowerOfTwo(uint32(c))) {
 				continue
 			}
 			v.Reset(ssaop.OpMIPSSLLconst)
-			v.AuxInt = Int32ToAuxInt(int32(Log32u(uint32(c))))
+			v.AuxInt = ssa.Int32ToAuxInt(int32(ssa.Log32u(uint32(c))))
 			v.AddArg(x)
 			return true
 		}
@@ -6961,13 +6961,13 @@ func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 			if v_0_0.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			c := AuxIntToInt32(v_0_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0_0.AuxInt)
 			if v_0_1.Op != ssaop.OpMIPSMOVWconst {
 				continue
 			}
-			d := AuxIntToInt32(v_0_1.AuxInt)
+			d := ssa.AuxIntToInt32(v_0_1.AuxInt)
 			v.Reset(ssaop.OpMIPSMOVWconst)
-			v.AuxInt = Int32ToAuxInt(int32(uint32(c) * uint32(d)))
+			v.AuxInt = ssa.Int32ToAuxInt(int32(uint32(c) * uint32(d)))
 			return true
 		}
 		break
@@ -6984,17 +6984,17 @@ func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 		if v_0_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0_0.AuxInt)
 		v_0_1 := v_0.Args[1]
 		if v_0_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0_1.AuxInt)
+		d := ssa.AuxIntToInt32(v_0_1.AuxInt)
 		if !(d != 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(c / d)
+		v.AuxInt = ssa.Int32ToAuxInt(c / d)
 		return true
 	}
 	// match: (Select1 (DIVU (MOVWconst [c]) (MOVWconst [d])))
@@ -7009,17 +7009,17 @@ func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 		if v_0_0.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		c := AuxIntToInt32(v_0_0.AuxInt)
+		c := ssa.AuxIntToInt32(v_0_0.AuxInt)
 		v_0_1 := v_0.Args[1]
 		if v_0_1.Op != ssaop.OpMIPSMOVWconst {
 			break
 		}
-		d := AuxIntToInt32(v_0_1.AuxInt)
+		d := ssa.AuxIntToInt32(v_0_1.AuxInt)
 		if !(d != 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
-		v.AuxInt = Int32ToAuxInt(int32(uint32(c) / uint32(d)))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(uint32(c) / uint32(d)))
 		return true
 	}
 	return false
@@ -7031,7 +7031,7 @@ func rewriteValueMIPS_OpSignmask(v *ssa.Value) bool {
 	for {
 		x := v_0
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(31)
+		v.AuxInt = ssa.Int32ToAuxInt(31)
 		v.AddArg(x)
 		return true
 	}
@@ -7045,7 +7045,7 @@ func rewriteValueMIPS_OpSlicemask(v *ssa.Value) bool {
 		t := v.Type
 		x := v_0
 		v.Reset(ssaop.OpMIPSSRAconst)
-		v.AuxInt = Int32ToAuxInt(31)
+		v.AuxInt = ssa.Int32ToAuxInt(31)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSNEG, t)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -7060,7 +7060,7 @@ func rewriteValueMIPS_OpStore(v *ssa.Value) bool {
 	// cond: t.Size() == 1
 	// result: (MOVBstore ptr val mem)
 	for {
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
@@ -7075,7 +7075,7 @@ func rewriteValueMIPS_OpStore(v *ssa.Value) bool {
 	// cond: t.Size() == 2
 	// result: (MOVHstore ptr val mem)
 	for {
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
@@ -7090,7 +7090,7 @@ func rewriteValueMIPS_OpStore(v *ssa.Value) bool {
 	// cond: t.Size() == 4 && !t.IsFloat()
 	// result: (MOVWstore ptr val mem)
 	for {
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
@@ -7105,7 +7105,7 @@ func rewriteValueMIPS_OpStore(v *ssa.Value) bool {
 	// cond: t.Size() == 4 && t.IsFloat()
 	// result: (MOVFstore ptr val mem)
 	for {
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
@@ -7120,7 +7120,7 @@ func rewriteValueMIPS_OpStore(v *ssa.Value) bool {
 	// cond: t.Size() == 8 && t.IsFloat()
 	// result: (MOVDstore ptr val mem)
 	for {
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
@@ -7161,7 +7161,7 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// match: (Zero [0] _ mem)
 	// result: mem
 	for {
-		if AuxIntToInt64(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		mem := v_1
@@ -7171,14 +7171,14 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// match: (Zero [1] ptr mem)
 	// result: (MOVBstore ptr (MOVWconst [0]) mem)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 1 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 1 {
 			break
 		}
 		ptr := v_0
 		mem := v_1
 		v.Reset(ssaop.OpMIPSMOVBstore)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
@@ -7186,10 +7186,10 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore ptr (MOVWconst [0]) mem)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 2 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
 		if !(t.Alignment()%2 == 0) {
@@ -7197,24 +7197,24 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpMIPSMOVHstore)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (Zero [2] ptr mem)
 	// result: (MOVBstore [1] ptr (MOVWconst [0]) (MOVBstore [0] ptr (MOVWconst [0]) mem))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 2 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
 		ptr := v_0
 		mem := v_1
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(1)
+		v.AuxInt = ssa.Int32ToAuxInt(1)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v1.AddArg3(ptr, v0, mem)
 		v.AddArg3(ptr, v0, v1)
 		return true
@@ -7223,10 +7223,10 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore ptr (MOVWconst [0]) mem)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 4 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
 		if !(t.Alignment()%4 == 0) {
@@ -7234,7 +7234,7 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
@@ -7242,21 +7242,21 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore [2] ptr (MOVWconst [0]) (MOVHstore [0] ptr (MOVWconst [0]) mem))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 4 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
 		if !(t.Alignment()%2 == 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(2)
+		v.AuxInt = ssa.Int32ToAuxInt(2)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v1.AddArg3(ptr, v0, mem)
 		v.AddArg3(ptr, v0, v1)
 		return true
@@ -7264,21 +7264,21 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// match: (Zero [4] ptr mem)
 	// result: (MOVBstore [3] ptr (MOVWconst [0]) (MOVBstore [2] ptr (MOVWconst [0]) (MOVBstore [1] ptr (MOVWconst [0]) (MOVBstore [0] ptr (MOVWconst [0]) mem))))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 4 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
 		ptr := v_0
 		mem := v_1
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(3)
+		v.AuxInt = ssa.Int32ToAuxInt(3)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(2)
+		v1.AuxInt = ssa.Int32ToAuxInt(2)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v2.AuxInt = Int32ToAuxInt(1)
+		v2.AuxInt = ssa.Int32ToAuxInt(1)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v3.AuxInt = Int32ToAuxInt(0)
+		v3.AuxInt = ssa.Int32ToAuxInt(0)
 		v3.AddArg3(ptr, v0, mem)
 		v2.AddArg3(ptr, v0, v3)
 		v1.AddArg3(ptr, v0, v2)
@@ -7288,19 +7288,19 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// match: (Zero [3] ptr mem)
 	// result: (MOVBstore [2] ptr (MOVWconst [0]) (MOVBstore [1] ptr (MOVWconst [0]) (MOVBstore [0] ptr (MOVWconst [0]) mem)))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 3 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 3 {
 			break
 		}
 		ptr := v_0
 		mem := v_1
 		v.Reset(ssaop.OpMIPSMOVBstore)
-		v.AuxInt = Int32ToAuxInt(2)
+		v.AuxInt = ssa.Int32ToAuxInt(2)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(1)
+		v1.AuxInt = ssa.Int32ToAuxInt(1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVBstore, types.TypeMem)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v2.AddArg3(ptr, v0, mem)
 		v1.AddArg3(ptr, v0, v2)
 		v.AddArg3(ptr, v0, v1)
@@ -7310,23 +7310,23 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// cond: t.Alignment()%2 == 0
 	// result: (MOVHstore [4] ptr (MOVWconst [0]) (MOVHstore [2] ptr (MOVWconst [0]) (MOVHstore [0] ptr (MOVWconst [0]) mem)))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 6 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 6 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
 		if !(t.Alignment()%2 == 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHstore)
-		v.AuxInt = Int32ToAuxInt(4)
+		v.AuxInt = ssa.Int32ToAuxInt(4)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(2)
+		v1.AuxInt = ssa.Int32ToAuxInt(2)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVHstore, types.TypeMem)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v2.AddArg3(ptr, v0, mem)
 		v1.AddArg3(ptr, v0, v2)
 		v.AddArg3(ptr, v0, v1)
@@ -7336,21 +7336,21 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore [4] ptr (MOVWconst [0]) (MOVWstore [0] ptr (MOVWconst [0]) mem))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 8 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 8 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
 		if !(t.Alignment()%4 == 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(4)
+		v.AuxInt = ssa.Int32ToAuxInt(4)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v1.AddArg3(ptr, v0, mem)
 		v.AddArg3(ptr, v0, v1)
 		return true
@@ -7359,23 +7359,23 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore [8] ptr (MOVWconst [0]) (MOVWstore [4] ptr (MOVWconst [0]) (MOVWstore [0] ptr (MOVWconst [0]) mem)))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 12 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 12 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
 		if !(t.Alignment()%4 == 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(8)
+		v.AuxInt = ssa.Int32ToAuxInt(8)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(4)
+		v1.AuxInt = ssa.Int32ToAuxInt(4)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v2.AuxInt = Int32ToAuxInt(0)
+		v2.AuxInt = ssa.Int32ToAuxInt(0)
 		v2.AddArg3(ptr, v0, mem)
 		v1.AddArg3(ptr, v0, v2)
 		v.AddArg3(ptr, v0, v1)
@@ -7385,25 +7385,25 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	// cond: t.Alignment()%4 == 0
 	// result: (MOVWstore [12] ptr (MOVWconst [0]) (MOVWstore [8] ptr (MOVWconst [0]) (MOVWstore [4] ptr (MOVWconst [0]) (MOVWstore [0] ptr (MOVWconst [0]) mem))))
 	for {
-		if AuxIntToInt64(v.AuxInt) != 16 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 16 {
 			break
 		}
-		t := AuxToType(v.Aux)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
 		if !(t.Alignment()%4 == 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWstore)
-		v.AuxInt = Int32ToAuxInt(12)
+		v.AuxInt = ssa.Int32ToAuxInt(12)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v0.AuxInt = Int32ToAuxInt(0)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v1.AuxInt = Int32ToAuxInt(8)
+		v1.AuxInt = ssa.Int32ToAuxInt(8)
 		v2 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v2.AuxInt = Int32ToAuxInt(4)
+		v2.AuxInt = ssa.Int32ToAuxInt(4)
 		v3 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWstore, types.TypeMem)
-		v3.AuxInt = Int32ToAuxInt(0)
+		v3.AuxInt = ssa.Int32ToAuxInt(0)
 		v3.AddArg3(ptr, v0, mem)
 		v2.AddArg3(ptr, v0, v3)
 		v1.AddArg3(ptr, v0, v2)
@@ -7412,19 +7412,19 @@ func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	}
 	// match: (Zero [s] {t} ptr mem)
 	// cond: (s > 16 || t.Alignment()%4 != 0)
-	// result: (LoweredZero [int32(t.Alignment())] ptr (ADDconst <ptr.Type> ptr [int32(s-MoveSize(t.Alignment(), config))]) mem)
+	// result: (LoweredZero [int32(t.Alignment())] ptr (ADDconst <ptr.Type> ptr [int32(s-ssa.MoveSize(t.Alignment(), config))]) mem)
 	for {
-		s := AuxIntToInt64(v.AuxInt)
-		t := AuxToType(v.Aux)
+		s := ssa.AuxIntToInt64(v.AuxInt)
+		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
 		mem := v_1
 		if !(s > 16 || t.Alignment()%4 != 0) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSLoweredZero)
-		v.AuxInt = Int32ToAuxInt(int32(t.Alignment()))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(t.Alignment()))
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSADDconst, ptr.Type)
-		v0.AuxInt = Int32ToAuxInt(int32(s - MoveSize(t.Alignment(), config)))
+		v0.AuxInt = ssa.Int32ToAuxInt(int32(s - ssa.MoveSize(t.Alignment(), config)))
 		v0.AddArg(ptr)
 		v.AddArg3(ptr, v0, mem)
 		return true
@@ -7442,7 +7442,7 @@ func rewriteValueMIPS_OpZeromask(v *ssa.Value) bool {
 		v.Reset(ssaop.OpMIPSNEG)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSSGTU, typ.Bool)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
-		v1.AuxInt = Int32ToAuxInt(0)
+		v1.AuxInt = ssa.Int32ToAuxInt(0)
 		v0.AddArg2(x, v1)
 		v.AddArg(v0)
 		return true
@@ -7471,7 +7471,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (NE cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7485,7 +7485,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (NE cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7499,7 +7499,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (NE cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7513,7 +7513,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (NE cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7527,7 +7527,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (NE cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7541,7 +7541,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (NE cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7555,7 +7555,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (NE x yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSSGTUconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			x := v_0.Args[0]
@@ -7574,7 +7574,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (GEZ x yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSSGTconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 0 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 0 {
 				break
 			}
 			x := v_0.Args[0]
@@ -7593,7 +7593,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 0 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 0 {
 				break
 			}
 			b.Reset(block.BlockFirst)
@@ -7604,7 +7604,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First no yes)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c != 0) {
 				break
 			}
@@ -7618,7 +7618,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c >= 0) {
 				break
 			}
@@ -7630,7 +7630,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First no yes)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c < 0) {
 				break
 			}
@@ -7644,7 +7644,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c > 0) {
 				break
 			}
@@ -7656,7 +7656,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First no yes)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c <= 0) {
 				break
 			}
@@ -7678,7 +7678,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c <= 0) {
 				break
 			}
@@ -7690,7 +7690,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First no yes)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c > 0) {
 				break
 			}
@@ -7704,7 +7704,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c < 0) {
 				break
 			}
@@ -7716,7 +7716,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First no yes)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c >= 0) {
 				break
 			}
@@ -7745,7 +7745,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (EQ cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7759,7 +7759,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (EQ cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7773,7 +7773,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (EQ cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7787,7 +7787,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (EQ cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7801,7 +7801,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (EQ cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7815,7 +7815,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (EQ cmp yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSXORconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			cmp := v_0.Args[0]
@@ -7829,7 +7829,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (EQ x yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSSGTUconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 1 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 1 {
 				break
 			}
 			x := v_0.Args[0]
@@ -7848,7 +7848,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (LTZ x yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSSGTconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 0 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 0 {
 				break
 			}
 			x := v_0.Args[0]
@@ -7867,7 +7867,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First no yes)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			if AuxIntToInt32(v_0.AuxInt) != 0 {
+			if ssa.AuxIntToInt32(v_0.AuxInt) != 0 {
 				break
 			}
 			b.Reset(block.BlockFirst)
@@ -7879,7 +7879,7 @@ func rewriteBlockMIPS(b *ssa.Block) bool {
 		// result: (First yes no)
 		for b.Controls[0].Op == ssaop.OpMIPSMOVWconst {
 			v_0 := b.Controls[0]
-			c := AuxIntToInt32(v_0.AuxInt)
+			c := ssa.AuxIntToInt32(v_0.AuxInt)
 			if !(c != 0) {
 				break
 			}

@@ -99,8 +99,8 @@ func copyCompatibleType(t1, t2 *types.Type) bool {
 	if t1.IsInteger() {
 		return t2.IsInteger()
 	}
-	if IsPtr(t1) {
-		return IsPtr(t2)
+	if ssa.IsPtr(t1) {
+		return ssa.IsPtr(t2)
 	}
 	return t1.Compare(t2) == types.CMPeq
 }
@@ -374,7 +374,7 @@ func needRaceCleanup(sym *ssa.AuxCall, v *ssa.Value) bool {
 	if !f.Config.Race {
 		return false
 	}
-	if !IsSameCall(sym, "runtime.racefuncenter") && !IsSameCall(sym, "runtime.racefuncexit") {
+	if !ssa.IsSameCall(sym, "runtime.racefuncenter") && !ssa.IsSameCall(sym, "runtime.racefuncexit") {
 		return false
 	}
 	for _, b := range f.Blocks {
@@ -401,7 +401,7 @@ func needRaceCleanup(sym *ssa.AuxCall, v *ssa.Value) bool {
 			}
 		}
 	}
-	if IsSameCall(sym, "runtime.racefuncenter") {
+	if ssa.IsSameCall(sym, "runtime.racefuncenter") {
 		// TODO REGISTER ABI this needs to be cleaned up.
 		// If we're removing racefuncenter, remove its argument as well.
 		if v.Args[0].Op != ssaop.OpStore {
@@ -505,7 +505,7 @@ func rewriteCondSelectIntoMath(config *ssa.Config, op ssaop.Op, constant int64) 
 	case "amd64":
 		// constant=1 becomes zext, add 2/4/8 becomes lea, rest becomes shl.
 		// shl has asymmetric latency (1:3 vs 2:2) but performs better in accumulation chains.
-		return IsPowerOfTwo(uint64(constant))
+		return ssa.IsPowerOfTwo(uint64(constant))
 	case "arm64":
 		switch op {
 		case ssaop.OpAdd64, ssaop.OpAdd32, ssaop.OpAdd16, ssaop.OpAdd8:
@@ -518,7 +518,7 @@ func rewriteCondSelectIntoMath(config *ssa.Config, op ssaop.Op, constant int64) 
 			ssaop.OpOr64, ssaop.OpOr32, ssaop.OpOr16, ssaop.OpOr8,
 			ssaop.OpXor64, ssaop.OpXor32, ssaop.OpXor16, ssaop.OpXor8:
 			// Implemented using an inline LSL
-			return IsPowerOfTwo(uint64(constant))
+			return ssa.IsPowerOfTwo(uint64(constant))
 		default:
 			if constant == 1 {
 				return true
@@ -553,7 +553,7 @@ func rewriteFixedLoad(v *ssa.Value, sym ssa.Sym, sb *ssa.Value, off int64) *ssa.
 					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.Fe.Func().Linksym())
 				}
 				v.Reset(ssaop.OpAddr)
-				v.Aux = SymToAux(r.Sym)
+				v.Aux = ssa.SymToAux(r.Sym)
 				v.AddArg(sb)
 				return v
 			}
@@ -599,7 +599,7 @@ func rewriteFixedLoad(v *ssa.Value, sym ssa.Sym, sb *ssa.Value, off int64) *ssa.
 				case "GCData":
 					gcdata, _ := reflectdata.GCSym(t, true)
 					v.Reset(ssaop.OpAddr)
-					v.Aux = SymToAux(gcdata)
+					v.Aux = ssa.SymToAux(gcdata)
 					v.AddArg(sb)
 					return v
 				default:
@@ -612,7 +612,7 @@ func rewriteFixedLoad(v *ssa.Value, sym ssa.Sym, sb *ssa.Value, off int64) *ssa.
 			elemSym := reflectdata.TypeLinksym(t.Elem())
 			reflectdata.MarkTypeSymUsedInInterface(elemSym, f.Fe.Func().Linksym())
 			v.Reset(ssaop.OpAddr)
-			v.Aux = SymToAux(elemSym)
+			v.Aux = ssa.SymToAux(elemSym)
 			v.AddArg(sb)
 			return v
 		}

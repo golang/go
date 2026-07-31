@@ -77,7 +77,7 @@ func softfloat(f *ssa.Func) {
 	if newInt64 && f.Config.RegSize == 4 {
 		// On 32bit arch, decompose Uint64 introduced in the switch above.
 		decomposeBuiltin(f)
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, RemoveDeadValues)
+		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, ssa.RemoveDeadValues)
 	}
 
 }

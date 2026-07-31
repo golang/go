@@ -129,7 +129,7 @@
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 
-(Lsh64x64 x y) && ShiftIsBounded(v) => (I64Shl x y)
+(Lsh64x64 x y) && ssa.ShiftIsBounded(v) => (I64Shl x y)
 (Lsh64x64 x (I64Const [c])) && uint64(c) < 64 => (I64Shl x (I64Const [c]))
 (Lsh64x64 x (I64Const [c])) && uint64(c) >= 64 => (I64Const [0])
 (Lsh64x64 x y) => (Select (I64Shl x y) (I64Const [0]) (I64LtU y (I64Const [64])))
@@ -144,7 +144,7 @@
 (Lsh8x64 ...) => (Lsh64x64 ...)
 (Lsh8x(32|16|8) [c] x y) => (Lsh64x64 [c] x (ZeroExt(32|16|8)to64 y))
 
-(Rsh64Ux64 x y) && ShiftIsBounded(v) => (I64ShrU x y)
+(Rsh64Ux64 x y) && ssa.ShiftIsBounded(v) => (I64ShrU x y)
 (Rsh64Ux64 x (I64Const [c])) && uint64(c) < 64 => (I64ShrU x (I64Const [c]))
 (Rsh64Ux64 x (I64Const [c])) && uint64(c) >= 64 => (I64Const [0])
 (Rsh64Ux64 x y) => (Select (I64ShrU x y) (I64Const [0]) (I64LtU y (I64Const [64])))
@@ -162,7 +162,7 @@
 // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
 // We implement this by setting the shift value to (width - 1) if the shift value is >= width.
 
-(Rsh64x64 x y) && ShiftIsBounded(v) => (I64ShrS x y)
+(Rsh64x64 x y) && ssa.ShiftIsBounded(v) => (I64ShrS x y)
 (Rsh64x64 x (I64Const [c])) && uint64(c) < 64 => (I64ShrS x (I64Const [c]))
 (Rsh64x64 x (I64Const [c])) && uint64(c) >= 64 => (I64ShrS x (I64Const [63]))
 (Rsh64x64 x y) => (I64ShrS x (Select <typ.Int64> y (I64Const [63]) (I64LtU y (I64Const [64]))))
@@ -221,8 +221,8 @@
 (Neq(64|32)F ...) => (F(64|32)Ne ...)
 
 // Lowering loads
-(Load <t> ptr mem) && Is32BitFloat(t) => (F32Load ptr mem)
-(Load <t> ptr mem) && Is64BitFloat(t) => (F64Load ptr mem)
+(Load <t> ptr mem) && ssa.Is32BitFloat(t) => (F32Load ptr mem)
+(Load <t> ptr mem) && ssa.Is64BitFloat(t) => (F64Load ptr mem)
 (Load <t> ptr mem) && t.Size() == 16 => (V128Load ptr mem)
 (Load <t> ptr mem) && t.Size() == 8 => (I64Load ptr mem)
 (Load <t> ptr mem) && t.Size() == 4 && !t.IsSigned() => (I64Load32U ptr mem)
@@ -233,8 +233,8 @@
 (Load <t> ptr mem) && t.Size() == 1 &&  t.IsSigned() => (I64Load8S ptr mem)
 
 // Lowering stores
-(Store {t} ptr val mem) && Is64BitFloat(t) => (F64Store ptr val mem)
-(Store {t} ptr val mem) && Is32BitFloat(t) => (F32Store ptr val mem)
+(Store {t} ptr val mem) && ssa.Is64BitFloat(t) => (F64Store ptr val mem)
+(Store {t} ptr val mem) && ssa.Is32BitFloat(t) => (F32Store ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 16 => (V128Store ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 => (I64Store ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 => (I64Store32 ptr val mem)
@@ -269,7 +269,7 @@
 		(I64Store dst (I64Load src mem) mem))
 
 // Large copying uses helper.
-(Move [s] dst src mem) && LogLargeCopyValue(v, s) =>
+(Move [s] dst src mem) && ssa.LogLargeCopyValue(v, s) =>
 	(LoweredMove [s] dst src mem)
 
 // Lowering Zero instructions
@@ -320,7 +320,7 @@
 (Const(32|16|8) [c]) => (I64Const [int64(c)])
 (Const(64|32)F ...) => (F(64|32)Const ...)
 (ConstNil) => (I64Const [0])
-(ConstBool [c]) => (I64Const [B2i(c)])
+(ConstBool [c]) => (I64Const [ssa.B2i(c)])
 
 // Lowering calls
 (StaticCall ...) => (LoweredStaticCall ...)
@@ -447,23 +447,23 @@
 
 // folding offset into load/store
 ((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off] (I64AddConst [off2] ptr) mem)
-	&& IsU32Bit(off+off2) =>
+	&& ssa.IsU32Bit(off+off2) =>
 	((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off+off2] ptr mem)
 
 ((I64Store|I64Store32|I64Store16|I64Store8) [off] (I64AddConst [off2] ptr) val mem)
-	&& IsU32Bit(off+off2) =>
+	&& ssa.IsU32Bit(off+off2) =>
 	((I64Store|I64Store32|I64Store16|I64Store8) [off+off2] ptr val mem)
 
 // folding offset into address
-(I64AddConst [off] (LoweredAddr {sym} [off2] base)) && IsU32Bit(off+int64(off2)) =>
+(I64AddConst [off] (LoweredAddr {sym} [off2] base)) && ssa.IsU32Bit(off+int64(off2)) =>
 	(LoweredAddr {sym} [int32(off)+off2] base)
-(I64AddConst [off] x:(SP)) && IsU32Bit(off) => (LoweredAddr [int32(off)] x) // so it is rematerializeable
+(I64AddConst [off] x:(SP)) && ssa.IsU32Bit(off) => (LoweredAddr [int32(off)] x) // so it is rematerializeable
 
 // transforming readonly globals into constants
-(I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && SymIsRO(sym) && IsU32Bit(off+int64(off2)) => (I64Const [int64(Read64(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder))])
-(I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _) && SymIsRO(sym) && IsU32Bit(off+int64(off2)) => (I64Const [int64(Read32(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder))])
-(I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _) && SymIsRO(sym) && IsU32Bit(off+int64(off2)) => (I64Const [int64(Read16(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder))])
-(I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _) && SymIsRO(sym) && IsU32Bit(off+int64(off2)) => (I64Const [int64(Read8(sym, off+int64(off2)))])
-(I64Load32S [off] (LoweredAddr {sym} [off2] (SB)) _) && SymIsRO(sym) && IsU32Bit(off+int64(off2)) => (I64Const [int64(int32(Read32(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder)))])
-(I64Load16S [off] (LoweredAddr {sym} [off2] (SB)) _) && SymIsRO(sym) && IsU32Bit(off+int64(off2)) => (I64Const [int64(int16(Read16(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder)))])
-(I64Load8S [off] (LoweredAddr {sym} [off2] (SB)) _) && SymIsRO(sym) && IsU32Bit(off+int64(off2)) => (I64Const [int64(int8(Read8(sym, off+int64(off2))))])
+(I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(ssa.Read64(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder))])
+(I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(ssa.Read32(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder))])
+(I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(ssa.Read16(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder))])
+(I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(ssa.Read8(sym, off+int64(off2)))])
+(I64Load32S [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(int32(ssa.Read32(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder)))])
+(I64Load16S [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(int16(ssa.Read16(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder)))])
+(I64Load8S [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(int8(ssa.Read8(sym, off+int64(off2))))])

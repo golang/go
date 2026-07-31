@@ -149,40 +149,40 @@
 (Lsh16x(64|32|16|8) ...) => (Lsh64x(64|32|16|8) ...)
 (Lsh8x(64|32|16|8)  ...) => (Lsh64x(64|32|16|8) ...)
 
-(Lsh64x(64|32|16|8) <t> x y) && ShiftIsBounded(v) => (SLL <t> x y)
+(Lsh64x(64|32|16|8) <t> x y) && ssa.ShiftIsBounded(v) => (SLL <t> x y)
 
 // signed right shift
 (Rsh32x(64|32|16|8) <t> [bounded] x y) => (Rsh64x(64|32|16|8) <t> [bounded] (SignExt32to64 x) y)
 (Rsh16x(64|32|16|8) <t> [bounded] x y) => (Rsh64x(64|32|16|8) <t> [bounded] (SignExt16to64 x) y)
 (Rsh8x(64|32|16|8)  <t> [bounded] x y) => (Rsh64x(64|32|16|8) <t> [bounded] (SignExt8to64 x)  y)
 
-(Rsh64x(64|32|16|8) <t> x y) && ShiftIsBounded(v) => (SRA <t> x y)
+(Rsh64x(64|32|16|8) <t> x y) && ssa.ShiftIsBounded(v) => (SRA <t> x y)
 
 // unsigned right shift
 (Rsh32Ux(64|32|16|8) <t> [bounded] x y) => (Rsh64Ux(64|32|16|8) <t> [bounded] (ZeroExt32to64 x) y)
 (Rsh16Ux(64|32|16|8) <t> [bounded] x y) => (Rsh64Ux(64|32|16|8) <t> [bounded] (ZeroExt16to64 x) y)
 (Rsh8Ux(64|32|16|8)  <t> [bounded] x y) => (Rsh64Ux(64|32|16|8) <t> [bounded] (ZeroExt8to64 x)  y)
 
-(Rsh64Ux(64|32|16|8) <t> x y) && ShiftIsBounded(v) => (SRL <t> x y)
+(Rsh64Ux(64|32|16|8) <t> x y) && ssa.ShiftIsBounded(v) => (SRL <t> x y)
 
 // shift value may be out of range, use CMP + CSEL instead
-(Lsh64x64 <t> x y) && !ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst  [64] y))
-(Lsh64x32 <t> x y) && !ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
-(Lsh64x(16|8) <t> [bounded] x y) && !ShiftIsBounded(v) => (Lsh64x32 <t> [bounded] x (ZeroExt(16|8)to32 y))
+(Lsh64x64 <t> x y) && !ssa.ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst  [64] y))
+(Lsh64x32 <t> x y) && !ssa.ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
+(Lsh64x(16|8) <t> [bounded] x y) && !ssa.ShiftIsBounded(v) => (Lsh64x32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
-(Rsh64Ux64 <t> x y) && !ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst  [64] y))
-(Rsh64Ux32 <t> x y) && !ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
-(Rsh64Ux(16|8) <t> [bounded] x y) && !ShiftIsBounded(v) => (Rsh64Ux32 <t> [bounded] x (ZeroExt(16|8)to32 y))
+(Rsh64Ux64 <t> x y) && !ssa.ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst  [64] y))
+(Rsh64Ux32 <t> x y) && !ssa.ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
+(Rsh64Ux(16|8) <t> [bounded] x y) && !ssa.ShiftIsBounded(v) => (Rsh64Ux32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
-(Rsh64x64 <t> x y) && !ShiftIsBounded(v) => (SRA x (CSEL [ssaop.OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst  [64] y)))
-(Rsh64x32 <t> x y) && !ShiftIsBounded(v) => (SRA x (CSEL [ssaop.OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPWconst [64] y)))
-(Rsh64x(16|8) <t> [bounded] x y) && !ShiftIsBounded(v) => (Rsh64x32 <t> [bounded] x (ZeroExt(16|8)to32 y))
+(Rsh64x64 <t> x y) && !ssa.ShiftIsBounded(v) => (SRA x (CSEL [ssaop.OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst  [64] y)))
+(Rsh64x32 <t> x y) && !ssa.ShiftIsBounded(v) => (SRA x (CSEL [ssaop.OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPWconst [64] y)))
+(Rsh64x(16|8) <t> [bounded] x y) && !ssa.ShiftIsBounded(v) => (Rsh64x32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
 // constants
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(32|64)F    [val]) => (FMOV(S|D)const [float64(val)])
 (ConstNil) => (MOVDconst [0])
-(ConstBool [t]) => (MOVDconst [B2i(t)])
+(ConstBool [t]) => (MOVDconst [ssa.B2i(t)])
 
 (Slicemask <t> x) => (SRAconst (NEG <t> x) [63])
 
@@ -307,10 +307,10 @@
 (Max32FSel x y) => (FCSELS [ssaop.OpARM64GreaterThanF] x y (FCMPS x y))
 
 // CSEL needs a flag-generating argument. Synthesize a TSTW if necessary.
-(CondSelect x y boolval) && FlagArg(boolval) != nil => (CSEL [boolval.Op] x y FlagArg(boolval))
-(CondSelect x y boolval) && FlagArg(boolval) == nil => (CSEL [ssaop.OpARM64NotEqual] x y (TSTWconst [1] boolval))
+(CondSelect x y boolval) && ssa.FlagArg(boolval) != nil => (CSEL [boolval.Op] x y ssa.FlagArg(boolval))
+(CondSelect x y boolval) && ssa.FlagArg(boolval) == nil => (CSEL [ssaop.OpARM64NotEqual] x y (TSTWconst [1] boolval))
 
-(OffPtr [off] ptr:(SP)) && Is32Bit(off) => (MOVDaddr [int32(off)] ptr)
+(OffPtr [off] ptr:(SP)) && ssa.Is32Bit(off) => (MOVDaddr [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADDconst [off] ptr)
 
 (Addr {sym} base) => (MOVDaddr {sym} base)
@@ -319,15 +319,15 @@
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (Is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
-(Load <t> ptr mem) && (Is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (Is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
-(Load <t> ptr mem) && (Is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
-(Load <t> ptr mem) && (Is32BitInt(t) &&  t.IsSigned()) => (MOVWload ptr mem)
-(Load <t> ptr mem) && (Is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
-(Load <t> ptr mem) && (Is64BitInt(t) || IsPtr(t)) => (MOVDload ptr mem)
-(Load <t> ptr mem) && Is32BitFloat(t) => (FMOVSload ptr mem)
-(Load <t> ptr mem) && Is64BitFloat(t) => (FMOVDload ptr mem)
+(Load <t> ptr mem) && (ssa.Is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
+(Load <t> ptr mem) && (ssa.Is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
+(Load <t> ptr mem) && (ssa.Is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
+(Load <t> ptr mem) && (ssa.Is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
+(Load <t> ptr mem) && (ssa.Is32BitInt(t) &&  t.IsSigned()) => (MOVWload ptr mem)
+(Load <t> ptr mem) && (ssa.Is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
+(Load <t> ptr mem) && (ssa.Is64BitInt(t) ||ssa.IsPtr(t)) => (MOVDload ptr mem)
+(Load <t> ptr mem) && ssa.Is32BitFloat(t) => (FMOVSload ptr mem)
+(Load <t> ptr mem) && ssa.Is64BitFloat(t) => (FMOVDload ptr mem)
 (Load <t> ptr mem) && t.Size() == 16 => (FMOVQload ptr mem)
 
 // stores
@@ -443,8 +443,8 @@
 	(FSTPQ [int32(s-32)] dst (Select0 <typ.Vec128> (FLDPQ [int32(s-32)] src mem)) (Select1 <typ.Vec128> (FLDPQ [int32(s-32)] src mem))
 		(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem))
 
-(Move [s] dst src mem) && s > 64 && s < 192 && LogLargeCopyValue(v, s) => (LoweredMove [s] dst src mem)
-(Move [s] dst src mem) && s >= 192 && LogLargeCopyValue(v, s) => (LoweredMoveLoop [s] dst src mem)
+(Move [s] dst src mem) && s > 64 && s < 192 && ssa.LogLargeCopyValue(v, s) => (LoweredMove [s] dst src mem)
+(Move [s] dst src mem) && s >= 192 && ssa.LogLargeCopyValue(v, s) => (LoweredMoveLoop [s] dst src mem)
 
 // calls
 (StaticCall    ...) => (CALLstatic    ...)
@@ -483,7 +483,7 @@
 
 (If cond yes no) => (TBNZ [0] cond yes no)
 
-(JumpTable idx) => (JUMPTABLE {MakeJumpTableSym(b)} idx (MOVDaddr <typ.Uintptr> {MakeJumpTableSym(b)} (SB)))
+(JumpTable idx) => (JUMPTABLE {ssa.MakeJumpTableSym(b)} idx (MOVDaddr <typ.Uintptr> {ssa.MakeJumpTableSym(b)} (SB)))
 
 // atomic intrinsics
 // Note: these ops do not accept offset.
@@ -629,14 +629,14 @@
 ((EQ|NE) (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => ((EQ|NE) (CMPW a (MULW <x.Type> x y)) yes no)
 
 // Absorb bit-tests into block
-(Z   (ANDconst  [c] x) yes no) && OneBit(c) => (TBZ  [int64(Ntz64(c))] x yes no)
-(NZ  (ANDconst  [c] x) yes no) && OneBit(c) => (TBNZ [int64(Ntz64(c))] x yes no)
-(ZW  (ANDconst  [c] x) yes no) && OneBit(int64(uint32(c))) => (TBZ  [int64(Ntz64(int64(uint32(c))))] x yes no)
-(NZW (ANDconst  [c] x) yes no) && OneBit(int64(uint32(c))) => (TBNZ [int64(Ntz64(int64(uint32(c))))] x yes no)
-(EQ  (TSTconst  [c] x) yes no) && OneBit(c) => (TBZ  [int64(Ntz64(c))] x yes no)
-(NE  (TSTconst  [c] x) yes no) && OneBit(c) => (TBNZ [int64(Ntz64(c))] x yes no)
-(EQ  (TSTWconst [c] x) yes no) && OneBit(int64(uint32(c))) => (TBZ  [int64(Ntz64(int64(uint32(c))))] x yes no)
-(NE  (TSTWconst [c] x) yes no) && OneBit(int64(uint32(c))) => (TBNZ [int64(Ntz64(int64(uint32(c))))] x yes no)
+(Z   (ANDconst  [c] x) yes no) && ssa.OneBit(c) => (TBZ  [int64(ssa.Ntz64(c))] x yes no)
+(NZ  (ANDconst  [c] x) yes no) && ssa.OneBit(c) => (TBNZ [int64(ssa.Ntz64(c))] x yes no)
+(ZW  (ANDconst  [c] x) yes no) && ssa.OneBit(int64(uint32(c))) => (TBZ  [int64(ssa.Ntz64(int64(uint32(c))))] x yes no)
+(NZW (ANDconst  [c] x) yes no) && ssa.OneBit(int64(uint32(c))) => (TBNZ [int64(ssa.Ntz64(int64(uint32(c))))] x yes no)
+(EQ  (TSTconst  [c] x) yes no) && ssa.OneBit(c) => (TBZ  [int64(ssa.Ntz64(c))] x yes no)
+(NE  (TSTconst  [c] x) yes no) && ssa.OneBit(c) => (TBNZ [int64(ssa.Ntz64(c))] x yes no)
+(EQ  (TSTWconst [c] x) yes no) && ssa.OneBit(int64(uint32(c))) => (TBZ  [int64(ssa.Ntz64(int64(uint32(c))))] x yes no)
+(NE  (TSTWconst [c] x) yes no) && ssa.OneBit(int64(uint32(c))) => (TBNZ [int64(ssa.Ntz64(int64(uint32(c))))] x yes no)
 
 ((Z|NZ) s:(SRLconst [63] x) yes no) && s.Uses == 1 => (TB(Z|NZ) [63] x yes no)
 ((Z|NZ) s:(SRAconst [63] x) yes no) && s.Uses == 1 => (TB(Z|NZ) [63] x yes no)
@@ -671,47 +671,47 @@
 ((GE|LT)   (CMPconst [128] x)  yes no) && ssa.ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
 
 // fold offset into address
-(ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) && Is32Bit(off1+int64(off2)) =>
+(ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) && ssa.Is32Bit(off1+int64(off2)) =>
 	 (MOVDaddr [int32(off1)+off2] {sym} ptr)
 
 // fold address into load/store.
 // Do not fold global variable access in -dynlink mode, where it will
 // be rewritten to use the GOT via REGTMP, which currently cannot handle
 // large offset.
-(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBload [off1+int32(off2)] {sym} ptr mem)
-(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBUload [off1+int32(off2)] {sym} ptr mem)
-(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHload [off1+int32(off2)] {sym} ptr mem)
-(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHUload [off1+int32(off2)] {sym} ptr mem)
-(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWload [off1+int32(off2)] {sym} ptr mem)
-(MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWUload [off1+int32(off2)] {sym} ptr mem)
-(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVDload [off1+int32(off2)] {sym} ptr mem)
-(LDP [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(LDP [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(LDP [off1+int32(off2)] {sym} ptr mem)
-(FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVSload [off1+int32(off2)] {sym} ptr mem)
-(FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVDload [off1+int32(off2)] {sym} ptr mem)
-(FMOVQload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(FMOVQload [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVQload [off1+int32(off2)] {sym} ptr mem)
-(FLDPQ [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
+(FLDPQ [off1] {sym} (ADDconst [off2] ptr) mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FLDPQ [off1+int32(off2)] {sym} ptr mem)
 
@@ -726,24 +726,24 @@
 (FMOVSload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil => (FMOVSloadidx ptr idx mem)
 (FMOVDload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil => (FMOVDloadidx ptr idx mem)
 
-(MOVDloadidx  ptr (MOVDconst [c]) mem) && Is32Bit(c) => (MOVDload  [int32(c)] ptr mem)
-(MOVDloadidx  (MOVDconst [c]) ptr mem) && Is32Bit(c) => (MOVDload  [int32(c)] ptr mem)
-(MOVWUloadidx ptr (MOVDconst [c]) mem) && Is32Bit(c) => (MOVWUload [int32(c)] ptr mem)
-(MOVWUloadidx (MOVDconst [c]) ptr mem) && Is32Bit(c) => (MOVWUload [int32(c)] ptr mem)
-(MOVWloadidx  ptr (MOVDconst [c]) mem) && Is32Bit(c) => (MOVWload  [int32(c)] ptr mem)
-(MOVWloadidx  (MOVDconst [c]) ptr mem) && Is32Bit(c) => (MOVWload  [int32(c)] ptr mem)
-(MOVHUloadidx ptr (MOVDconst [c]) mem) && Is32Bit(c) => (MOVHUload [int32(c)] ptr mem)
-(MOVHUloadidx (MOVDconst [c]) ptr mem) && Is32Bit(c) => (MOVHUload [int32(c)] ptr mem)
-(MOVHloadidx  ptr (MOVDconst [c]) mem) && Is32Bit(c) => (MOVHload  [int32(c)] ptr mem)
-(MOVHloadidx  (MOVDconst [c]) ptr mem) && Is32Bit(c) => (MOVHload  [int32(c)] ptr mem)
-(MOVBUloadidx ptr (MOVDconst [c]) mem) && Is32Bit(c) => (MOVBUload [int32(c)] ptr mem)
-(MOVBUloadidx (MOVDconst [c]) ptr mem) && Is32Bit(c) => (MOVBUload [int32(c)] ptr mem)
-(MOVBloadidx  ptr (MOVDconst [c]) mem) && Is32Bit(c) => (MOVBload  [int32(c)] ptr mem)
-(MOVBloadidx  (MOVDconst [c]) ptr mem) && Is32Bit(c) => (MOVBload  [int32(c)] ptr mem)
-(FMOVSloadidx ptr (MOVDconst [c]) mem) && Is32Bit(c) => (FMOVSload [int32(c)] ptr mem)
-(FMOVSloadidx (MOVDconst [c]) ptr mem) && Is32Bit(c) => (FMOVSload [int32(c)] ptr mem)
-(FMOVDloadidx ptr (MOVDconst [c]) mem) && Is32Bit(c) => (FMOVDload [int32(c)] ptr mem)
-(FMOVDloadidx (MOVDconst [c]) ptr mem) && Is32Bit(c) => (FMOVDload [int32(c)] ptr mem)
+(MOVDloadidx  ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (MOVDload  [int32(c)] ptr mem)
+(MOVDloadidx  (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (MOVDload  [int32(c)] ptr mem)
+(MOVWUloadidx ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (MOVWUload [int32(c)] ptr mem)
+(MOVWUloadidx (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (MOVWUload [int32(c)] ptr mem)
+(MOVWloadidx  ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (MOVWload  [int32(c)] ptr mem)
+(MOVWloadidx  (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (MOVWload  [int32(c)] ptr mem)
+(MOVHUloadidx ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (MOVHUload [int32(c)] ptr mem)
+(MOVHUloadidx (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (MOVHUload [int32(c)] ptr mem)
+(MOVHloadidx  ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (MOVHload  [int32(c)] ptr mem)
+(MOVHloadidx  (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (MOVHload  [int32(c)] ptr mem)
+(MOVBUloadidx ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (MOVBUload [int32(c)] ptr mem)
+(MOVBUloadidx (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (MOVBUload [int32(c)] ptr mem)
+(MOVBloadidx  ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (MOVBload  [int32(c)] ptr mem)
+(MOVBloadidx  (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (MOVBload  [int32(c)] ptr mem)
+(FMOVSloadidx ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (FMOVSload [int32(c)] ptr mem)
+(FMOVSloadidx (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (FMOVSload [int32(c)] ptr mem)
+(FMOVDloadidx ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c) => (FMOVDload [int32(c)] ptr mem)
+(FMOVDloadidx (MOVDconst [c]) ptr mem) && ssa.Is32Bit(c) => (FMOVDload [int32(c)] ptr mem)
 
 // shifted register indexed load
 (MOVDload  [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil => (MOVDloadidx8 ptr idx mem)
@@ -763,11 +763,11 @@
 (MOVWUloadidx (SLLconst [2] idx) ptr mem) => (MOVWUloadidx4 ptr idx mem)
 (MOVHloadidx  (ADD idx idx) ptr mem) => (MOVHloadidx2 ptr idx mem)
 (MOVHUloadidx (ADD idx idx) ptr mem) => (MOVHUloadidx2 ptr idx mem)
-(MOVDloadidx8  ptr (MOVDconst [c]) mem) && Is32Bit(c<<3) => (MOVDload  [int32(c)<<3] ptr mem)
-(MOVWUloadidx4 ptr (MOVDconst [c]) mem) && Is32Bit(c<<2) => (MOVWUload [int32(c)<<2] ptr mem)
-(MOVWloadidx4  ptr (MOVDconst [c]) mem) && Is32Bit(c<<2) => (MOVWload  [int32(c)<<2] ptr mem)
-(MOVHUloadidx2 ptr (MOVDconst [c]) mem) && Is32Bit(c<<1) => (MOVHUload [int32(c)<<1] ptr mem)
-(MOVHloadidx2  ptr (MOVDconst [c]) mem) && Is32Bit(c<<1) => (MOVHload  [int32(c)<<1] ptr mem)
+(MOVDloadidx8  ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c<<3) => (MOVDload  [int32(c)<<3] ptr mem)
+(MOVWUloadidx4 ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c<<2) => (MOVWUload [int32(c)<<2] ptr mem)
+(MOVWloadidx4  ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c<<2) => (MOVWload  [int32(c)<<2] ptr mem)
+(MOVHUloadidx2 ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c<<1) => (MOVHUload [int32(c)<<1] ptr mem)
+(MOVHloadidx2  ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c<<1) => (MOVHload  [int32(c)<<1] ptr mem)
 
 (FMOVDload [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil => (FMOVDloadidx8 ptr idx mem)
 (FMOVSload [off] {sym} (ADDshiftLL [2] ptr idx) mem) && off == 0 && sym == nil => (FMOVSloadidx4 ptr idx mem)
@@ -775,34 +775,34 @@
 (FMOVSloadidx ptr (SLLconst [2] idx) mem) => (FMOVSloadidx4 ptr idx mem)
 (FMOVDloadidx (SLLconst [3] idx) ptr mem) => (FMOVDloadidx8 ptr idx mem)
 (FMOVSloadidx (SLLconst [2] idx) ptr mem) => (FMOVSloadidx4 ptr idx mem)
-(FMOVDloadidx8 ptr (MOVDconst [c]) mem) && Is32Bit(c<<3) => (FMOVDload ptr [int32(c)<<3] mem)
-(FMOVSloadidx4 ptr (MOVDconst [c]) mem) && Is32Bit(c<<2) => (FMOVSload ptr [int32(c)<<2] mem)
+(FMOVDloadidx8 ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c<<3) => (FMOVDload ptr [int32(c)<<3] mem)
+(FMOVSloadidx4 ptr (MOVDconst [c]) mem) && ssa.Is32Bit(c<<2) => (FMOVSload ptr [int32(c)<<2] mem)
 
-(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
+(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
+(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
+(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
+(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVDstore [off1+int32(off2)] {sym} ptr val mem)
-(STP [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && Is32Bit(int64(off1)+off2)
+(STP [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(STP [off1+int32(off2)] {sym} ptr val1 val2 mem)
-(FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
+(FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVSstore [off1+int32(off2)] {sym} ptr val mem)
-(FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
+(FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+int32(off2)] {sym} ptr val mem)
-(FMOVQstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
+(FMOVQstore [off1] {sym} (ADDconst [off2] ptr) val mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVQstore [off1+int32(off2)] {sym} ptr val mem)
-(FSTPQ [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && Is32Bit(int64(off1)+off2)
+(FSTPQ [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && ssa.Is32Bit(int64(off1)+off2)
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FSTPQ [off1+int32(off2)] {sym} ptr val1 val2 mem)
 
@@ -813,18 +813,18 @@
 (MOVBstore  [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil => (MOVBstoreidx ptr idx val mem)
 (FMOVDstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil => (FMOVDstoreidx ptr idx val mem)
 (FMOVSstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil => (FMOVSstoreidx ptr idx val mem)
-(MOVDstoreidx  ptr (MOVDconst [c]) val mem) && Is32Bit(c) => (MOVDstore  [int32(c)] ptr val mem)
-(MOVDstoreidx  (MOVDconst [c]) idx val mem) && Is32Bit(c) => (MOVDstore  [int32(c)] idx val mem)
-(MOVWstoreidx  ptr (MOVDconst [c]) val mem) && Is32Bit(c) => (MOVWstore  [int32(c)] ptr val mem)
-(MOVWstoreidx  (MOVDconst [c]) idx val mem) && Is32Bit(c) => (MOVWstore  [int32(c)] idx val mem)
-(MOVHstoreidx  ptr (MOVDconst [c]) val mem) && Is32Bit(c) => (MOVHstore  [int32(c)] ptr val mem)
-(MOVHstoreidx  (MOVDconst [c]) idx val mem) && Is32Bit(c) => (MOVHstore  [int32(c)] idx val mem)
-(MOVBstoreidx  ptr (MOVDconst [c]) val mem) && Is32Bit(c) => (MOVBstore  [int32(c)] ptr val mem)
-(MOVBstoreidx  (MOVDconst [c]) idx val mem) && Is32Bit(c) => (MOVBstore  [int32(c)] idx val mem)
-(FMOVDstoreidx ptr (MOVDconst [c]) val mem) && Is32Bit(c) => (FMOVDstore [int32(c)] ptr val mem)
-(FMOVDstoreidx (MOVDconst [c]) idx val mem) && Is32Bit(c) => (FMOVDstore [int32(c)] idx val mem)
-(FMOVSstoreidx ptr (MOVDconst [c]) val mem) && Is32Bit(c) => (FMOVSstore [int32(c)] ptr val mem)
-(FMOVSstoreidx (MOVDconst [c]) idx val mem) && Is32Bit(c) => (FMOVSstore [int32(c)] idx val mem)
+(MOVDstoreidx  ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c) => (MOVDstore  [int32(c)] ptr val mem)
+(MOVDstoreidx  (MOVDconst [c]) idx val mem) && ssa.Is32Bit(c) => (MOVDstore  [int32(c)] idx val mem)
+(MOVWstoreidx  ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c) => (MOVWstore  [int32(c)] ptr val mem)
+(MOVWstoreidx  (MOVDconst [c]) idx val mem) && ssa.Is32Bit(c) => (MOVWstore  [int32(c)] idx val mem)
+(MOVHstoreidx  ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c) => (MOVHstore  [int32(c)] ptr val mem)
+(MOVHstoreidx  (MOVDconst [c]) idx val mem) && ssa.Is32Bit(c) => (MOVHstore  [int32(c)] idx val mem)
+(MOVBstoreidx  ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c) => (MOVBstore  [int32(c)] ptr val mem)
+(MOVBstoreidx  (MOVDconst [c]) idx val mem) && ssa.Is32Bit(c) => (MOVBstore  [int32(c)] idx val mem)
+(FMOVDstoreidx ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c) => (FMOVDstore [int32(c)] ptr val mem)
+(FMOVDstoreidx (MOVDconst [c]) idx val mem) && ssa.Is32Bit(c) => (FMOVDstore [int32(c)] idx val mem)
+(FMOVSstoreidx ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c) => (FMOVSstore [int32(c)] ptr val mem)
+(FMOVSstoreidx (MOVDconst [c]) idx val mem) && ssa.Is32Bit(c) => (FMOVSstore [int32(c)] idx val mem)
 
 // shifted register indexed store
 (MOVDstore [off] {sym} (ADDshiftLL [3] ptr idx) val mem) && off == 0 && sym == nil => (MOVDstoreidx8 ptr idx val mem)
@@ -838,9 +838,9 @@
 (MOVWstoreidx  (SLLconst [2] idx) ptr val mem) => (MOVWstoreidx4 ptr idx val mem)
 (MOVHstoreidx  (SLLconst [1] idx) ptr val mem) => (MOVHstoreidx2 ptr idx val mem)
 (MOVHstoreidx  (ADD      idx idx) ptr val mem) => (MOVHstoreidx2 ptr idx val mem)
-(MOVDstoreidx8 ptr (MOVDconst [c]) val mem) && Is32Bit(c<<3) => (MOVDstore [int32(c)<<3] ptr val mem)
-(MOVWstoreidx4 ptr (MOVDconst [c]) val mem) && Is32Bit(c<<2) => (MOVWstore [int32(c)<<2] ptr val mem)
-(MOVHstoreidx2 ptr (MOVDconst [c]) val mem) && Is32Bit(c<<1) => (MOVHstore [int32(c)<<1] ptr val mem)
+(MOVDstoreidx8 ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c<<3) => (MOVDstore [int32(c)<<3] ptr val mem)
+(MOVWstoreidx4 ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c<<2) => (MOVWstore [int32(c)<<2] ptr val mem)
+(MOVHstoreidx2 ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c<<1) => (MOVHstore [int32(c)<<1] ptr val mem)
 
 (FMOVDstore [off] {sym} (ADDshiftLL [3] ptr idx) val mem) && off == 0 && sym == nil => (FMOVDstoreidx8 ptr idx val mem)
 (FMOVSstore [off] {sym} (ADDshiftLL [2] ptr idx) val mem) && off == 0 && sym == nil => (FMOVSstoreidx4 ptr idx val mem)
@@ -848,94 +848,94 @@
 (FMOVSstoreidx ptr (SLLconst [2] idx) val mem) => (FMOVSstoreidx4 ptr idx val mem)
 (FMOVDstoreidx (SLLconst [3] idx) ptr val mem) => (FMOVDstoreidx8 ptr idx val mem)
 (FMOVSstoreidx (SLLconst [2] idx) ptr val mem) => (FMOVSstoreidx4 ptr idx val mem)
-(FMOVDstoreidx8 ptr (MOVDconst [c]) val mem) && Is32Bit(c<<3) => (FMOVDstore [int32(c)<<3] ptr val mem)
-(FMOVSstoreidx4 ptr (MOVDconst [c]) val mem) && Is32Bit(c<<2) => (FMOVSstore [int32(c)<<2] ptr val mem)
+(FMOVDstoreidx8 ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c<<3) => (FMOVDstore [int32(c)<<3] ptr val mem)
+(FMOVSstoreidx4 ptr (MOVDconst [c]) val mem) && ssa.Is32Bit(c<<2) => (FMOVSstore [int32(c)<<2] ptr val mem)
 
 (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVBload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(MOVBload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVBUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(MOVBUload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVHload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(MOVHload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (MOVHUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVHUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(MOVHUload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVWload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(MOVWload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (MOVWUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVWUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(MOVWUload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVDload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(MOVDload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (LDP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(LDP [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(LDP [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(FMOVSload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(FMOVSload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(FMOVDload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(FMOVDload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (FMOVQload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(FMOVQload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(FMOVQload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 (FLDPQ [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(FLDPQ [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+	(FLDPQ [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 
 (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVBstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	(MOVBstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 (MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVHstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	(MOVHstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 (MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVWstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	(MOVWstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 (MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(MOVDstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	(MOVDstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 (STP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val1 val2 mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(STP [off1+off2] {MergeSym(sym1,sym2)} ptr val1 val2 mem)
+	(STP [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val1 val2 mem)
 (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(FMOVSstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	(FMOVSstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(FMOVDstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	(FMOVDstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 (FMOVQstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(FMOVQstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+	(FMOVQstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 (FSTPQ [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val1 val2 mem)
-	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
+	&& ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
-	(FSTPQ [off1+off2] {MergeSym(sym1,sym2)} ptr val1 val2 mem)
+	(FSTPQ [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val1 val2 mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
 // these seem to have bad interaction with other rules, resulting in slower code
@@ -1024,7 +1024,7 @@
 (ADDconst [c] y) && c < 0 => (SUBconst [-c] y)
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-((CMP|CMPW) x y) && CanonLessThan(x,y) => (InvertFlags ((CMP|CMPW) y x))
+((CMP|CMPW) x y) && ssa.CanonLessThan(x,y) => (InvertFlags ((CMP|CMPW) y x))
 
 // mul-neg => mneg
 (NEG  (MUL  x y)) => (MNEG  x y)
@@ -1033,15 +1033,15 @@
 (MULW (NEG  x) y) => (MNEGW x y)
 
 // madd/msub
-(ADD a l:(MUL  x y)) && l.Uses==1 && Clobber(l) => (MADD a x y)
-(SUB a l:(MUL  x y)) && l.Uses==1 && Clobber(l) => (MSUB a x y)
-(ADD a l:(MNEG x y)) && l.Uses==1 && Clobber(l) => (MSUB a x y)
-(SUB a l:(MNEG x y)) && l.Uses==1 && Clobber(l) => (MADD a x y)
+(ADD a l:(MUL  x y)) && l.Uses==1 && ssa.Clobber(l) => (MADD a x y)
+(SUB a l:(MUL  x y)) && l.Uses==1 && ssa.Clobber(l) => (MSUB a x y)
+(ADD a l:(MNEG x y)) && l.Uses==1 && ssa.Clobber(l) => (MSUB a x y)
+(SUB a l:(MNEG x y)) && l.Uses==1 && ssa.Clobber(l) => (MADD a x y)
 
-(ADD a l:(MULW  x y)) && v.Type.Size() <= 4 && l.Uses==1 && Clobber(l) => (MADDW a x y)
-(SUB a l:(MULW  x y)) && v.Type.Size() <= 4 && l.Uses==1 && Clobber(l) => (MSUBW a x y)
-(ADD a l:(MNEGW x y)) && v.Type.Size() <= 4 && l.Uses==1 && Clobber(l) => (MSUBW a x y)
-(SUB a l:(MNEGW x y)) && v.Type.Size() <= 4 && l.Uses==1 && Clobber(l) => (MADDW a x y)
+(ADD a l:(MULW  x y)) && v.Type.Size() <= 4 && l.Uses==1 && ssa.Clobber(l) => (MADDW a x y)
+(SUB a l:(MULW  x y)) && v.Type.Size() <= 4 && l.Uses==1 && ssa.Clobber(l) => (MSUBW a x y)
+(ADD a l:(MNEGW x y)) && v.Type.Size() <= 4 && l.Uses==1 && ssa.Clobber(l) => (MSUBW a x y)
+(SUB a l:(MNEGW x y)) && v.Type.Size() <= 4 && l.Uses==1 && ssa.Clobber(l) => (MADDW a x y)
 
 // madd/msub can't take constant arguments, so do a bit of reordering if a non-constant is available.
 // Note: don't reorder arithmetic concerning pointers, as we must ensure that
@@ -1064,131 +1064,131 @@
 (MULW _ (MOVDconst [c])) && int32(c)==0 => (MOVDconst [0])
 (MULW x (MOVDconst [c])) && int32(c)==1 => (MOVWUreg x)
 
-(MUL  x (MOVDconst [c])) && CanMulStrengthReduce(config, c) => {MulStrengthReduce(v, x, c)}
-(MULW x (MOVDconst [c])) && v.Type.Size() <= 4 && CanMulStrengthReduce32(config, int32(c)) => {MulStrengthReduce32(v, x, int32(c))}
+(MUL  x (MOVDconst [c])) && ssa.CanMulStrengthReduce(config, c) => {ssa.MulStrengthReduce(v, x, c)}
+(MULW x (MOVDconst [c])) && v.Type.Size() <= 4 && ssa.CanMulStrengthReduce32(config, int32(c)) => {ssa.MulStrengthReduce32(v, x, int32(c))}
 
 // mneg by constant
 (MNEG x (MOVDconst [-1])) => x
 (MNEG _ (MOVDconst [0])) => (MOVDconst [0])
 (MNEG x (MOVDconst [1])) => (NEG x)
-(MNEG x (MOVDconst [c])) && IsPowerOfTwo(c) => (NEG (SLLconst <x.Type> [Log64(c)] x))
-(MNEG x (MOVDconst [c])) && IsPowerOfTwo(c-1) && c >= 3 => (NEG (ADDshiftLL <x.Type> x x [Log64(c-1)]))
-(MNEG x (MOVDconst [c])) && IsPowerOfTwo(c+1) && c >= 7 => (NEG (ADDshiftLL <x.Type> (NEG <x.Type> x) x [Log64(c+1)]))
-(MNEG x (MOVDconst [c])) && c%3 == 0 && IsPowerOfTwo(c/3) => (SLLconst <x.Type> [Log64(c/3)] (SUBshiftLL <x.Type> x x [2]))
-(MNEG x (MOVDconst [c])) && c%5 == 0 && IsPowerOfTwo(c/5) => (NEG (SLLconst <x.Type> [Log64(c/5)] (ADDshiftLL <x.Type> x x [2])))
-(MNEG x (MOVDconst [c])) && c%7 == 0 && IsPowerOfTwo(c/7) => (SLLconst <x.Type> [Log64(c/7)] (SUBshiftLL <x.Type> x x [3]))
-(MNEG x (MOVDconst [c])) && c%9 == 0 && IsPowerOfTwo(c/9) => (NEG (SLLconst <x.Type> [Log64(c/9)] (ADDshiftLL <x.Type> x x [3])))
+(MNEG x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (NEG (SLLconst <x.Type> [ssa.Log64(c)] x))
+(MNEG x (MOVDconst [c])) && ssa.IsPowerOfTwo(c-1) && c >= 3 => (NEG (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)]))
+(MNEG x (MOVDconst [c])) && ssa.IsPowerOfTwo(c+1) && c >= 7 => (NEG (ADDshiftLL <x.Type> (NEG <x.Type> x) x [ssa.Log64(c+1)]))
+(MNEG x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (SLLconst <x.Type> [ssa.Log64(c/3)] (SUBshiftLL <x.Type> x x [2]))
+(MNEG x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (NEG (SLLconst <x.Type> [ssa.Log64(c/5)] (ADDshiftLL <x.Type> x x [2])))
+(MNEG x (MOVDconst [c])) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (SLLconst <x.Type> [ssa.Log64(c/7)] (SUBshiftLL <x.Type> x x [3]))
+(MNEG x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (NEG (SLLconst <x.Type> [ssa.Log64(c/9)] (ADDshiftLL <x.Type> x x [3])))
 
 
 (MNEGW x (MOVDconst [c])) && int32(c)==-1 => (MOVWUreg x)
 (MNEGW _ (MOVDconst [c])) && int32(c)==0 => (MOVDconst [0])
 (MNEGW x (MOVDconst [c])) && int32(c)==1 => (MOVWUreg (NEG <x.Type> x))
-(MNEGW x (MOVDconst [c])) && IsPowerOfTwo(c) => (NEG (SLLconst <x.Type> [Log64(c)] x))
-(MNEGW x (MOVDconst [c])) && IsPowerOfTwo(c-1) && int32(c) >= 3 => (MOVWUreg (NEG <x.Type> (ADDshiftLL <x.Type> x x [Log64(c-1)])))
-(MNEGW x (MOVDconst [c])) && IsPowerOfTwo(c+1) && int32(c) >= 7 => (MOVWUreg (NEG <x.Type> (ADDshiftLL <x.Type> (NEG <x.Type> x) x [Log64(c+1)])))
-(MNEGW x (MOVDconst [c])) && c%3 == 0 && IsPowerOfTwo(c/3) && Is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [Log64(c/3)] (SUBshiftLL <x.Type> x x [2])))
-(MNEGW x (MOVDconst [c])) && c%5 == 0 && IsPowerOfTwo(c/5) && Is32Bit(c) => (MOVWUreg (NEG <x.Type> (SLLconst <x.Type> [Log64(c/5)] (ADDshiftLL <x.Type> x x [2]))))
-(MNEGW x (MOVDconst [c])) && c%7 == 0 && IsPowerOfTwo(c/7) && Is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [Log64(c/7)] (SUBshiftLL <x.Type> x x [3])))
-(MNEGW x (MOVDconst [c])) && c%9 == 0 && IsPowerOfTwo(c/9) && Is32Bit(c) => (MOVWUreg (NEG <x.Type> (SLLconst <x.Type> [Log64(c/9)] (ADDshiftLL <x.Type> x x [3]))))
+(MNEGW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (NEG (SLLconst <x.Type> [ssa.Log64(c)] x))
+(MNEGW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c-1) && int32(c) >= 3 => (MOVWUreg (NEG <x.Type> (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)])))
+(MNEGW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c+1) && int32(c) >= 7 => (MOVWUreg (NEG <x.Type> (ADDshiftLL <x.Type> (NEG <x.Type> x) x [ssa.Log64(c+1)])))
+(MNEGW x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && ssa.Is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [ssa.Log64(c/3)] (SUBshiftLL <x.Type> x x [2])))
+(MNEGW x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) && ssa.Is32Bit(c) => (MOVWUreg (NEG <x.Type> (SLLconst <x.Type> [ssa.Log64(c/5)] (ADDshiftLL <x.Type> x x [2]))))
+(MNEGW x (MOVDconst [c])) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) && ssa.Is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [ssa.Log64(c/7)] (SUBshiftLL <x.Type> x x [3])))
+(MNEGW x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) && ssa.Is32Bit(c) => (MOVWUreg (NEG <x.Type> (SLLconst <x.Type> [ssa.Log64(c/9)] (ADDshiftLL <x.Type> x x [3]))))
 
 
 (MADD a x (MOVDconst [-1])) => (SUB a x)
 (MADD a _ (MOVDconst [0])) => a
 (MADD a x (MOVDconst [1])) => (ADD a x)
-(MADD a x (MOVDconst [c])) && IsPowerOfTwo(c) => (ADDshiftLL a x [Log64(c)])
-(MADD a x (MOVDconst [c])) && IsPowerOfTwo(c-1) && c>=3 => (ADD a (ADDshiftLL <x.Type> x x [Log64(c-1)]))
-(MADD a x (MOVDconst [c])) && IsPowerOfTwo(c+1) && c>=7 => (SUB a (SUBshiftLL <x.Type> x x [Log64(c+1)]))
-(MADD a x (MOVDconst [c])) && c%3 == 0 && IsPowerOfTwo(c/3) => (SUBshiftLL a (SUBshiftLL <x.Type> x x [2]) [Log64(c/3)])
-(MADD a x (MOVDconst [c])) && c%5 == 0 && IsPowerOfTwo(c/5) => (ADDshiftLL a (ADDshiftLL <x.Type> x x [2]) [Log64(c/5)])
-(MADD a x (MOVDconst [c])) && c%7 == 0 && IsPowerOfTwo(c/7) => (SUBshiftLL a (SUBshiftLL <x.Type> x x [3]) [Log64(c/7)])
-(MADD a x (MOVDconst [c])) && c%9 == 0 && IsPowerOfTwo(c/9) => (ADDshiftLL a (ADDshiftLL <x.Type> x x [3]) [Log64(c/9)])
+(MADD a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (ADDshiftLL a x [ssa.Log64(c)])
+(MADD a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c-1) && c>=3 => (ADD a (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)]))
+(MADD a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c+1) && c>=7 => (SUB a (SUBshiftLL <x.Type> x x [ssa.Log64(c+1)]))
+(MADD a x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (SUBshiftLL a (SUBshiftLL <x.Type> x x [2]) [ssa.Log64(c/3)])
+(MADD a x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (ADDshiftLL a (ADDshiftLL <x.Type> x x [2]) [ssa.Log64(c/5)])
+(MADD a x (MOVDconst [c])) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (SUBshiftLL a (SUBshiftLL <x.Type> x x [3]) [ssa.Log64(c/7)])
+(MADD a x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (ADDshiftLL a (ADDshiftLL <x.Type> x x [3]) [ssa.Log64(c/9)])
 
 (MADD a (MOVDconst [-1]) x) => (SUB a x)
 (MADD a (MOVDconst [0]) _) => a
 (MADD a (MOVDconst [1]) x) => (ADD a x)
-(MADD a (MOVDconst [c]) x) && IsPowerOfTwo(c) => (ADDshiftLL a x [Log64(c)])
-(MADD a (MOVDconst [c]) x) && IsPowerOfTwo(c-1) && c>=3 => (ADD a (ADDshiftLL <x.Type> x x [Log64(c-1)]))
-(MADD a (MOVDconst [c]) x) && IsPowerOfTwo(c+1) && c>=7 => (SUB a (SUBshiftLL <x.Type> x x [Log64(c+1)]))
-(MADD a (MOVDconst [c]) x) && c%3 == 0 && IsPowerOfTwo(c/3) => (SUBshiftLL a (SUBshiftLL <x.Type> x x [2]) [Log64(c/3)])
-(MADD a (MOVDconst [c]) x) && c%5 == 0 && IsPowerOfTwo(c/5) => (ADDshiftLL a (ADDshiftLL <x.Type> x x [2]) [Log64(c/5)])
-(MADD a (MOVDconst [c]) x) && c%7 == 0 && IsPowerOfTwo(c/7) => (SUBshiftLL a (SUBshiftLL <x.Type> x x [3]) [Log64(c/7)])
-(MADD a (MOVDconst [c]) x) && c%9 == 0 && IsPowerOfTwo(c/9) => (ADDshiftLL a (ADDshiftLL <x.Type> x x [3]) [Log64(c/9)])
+(MADD a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c) => (ADDshiftLL a x [ssa.Log64(c)])
+(MADD a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c-1) && c>=3 => (ADD a (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)]))
+(MADD a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c+1) && c>=7 => (SUB a (SUBshiftLL <x.Type> x x [ssa.Log64(c+1)]))
+(MADD a (MOVDconst [c]) x) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (SUBshiftLL a (SUBshiftLL <x.Type> x x [2]) [ssa.Log64(c/3)])
+(MADD a (MOVDconst [c]) x) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (ADDshiftLL a (ADDshiftLL <x.Type> x x [2]) [ssa.Log64(c/5)])
+(MADD a (MOVDconst [c]) x) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (SUBshiftLL a (SUBshiftLL <x.Type> x x [3]) [ssa.Log64(c/7)])
+(MADD a (MOVDconst [c]) x) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (ADDshiftLL a (ADDshiftLL <x.Type> x x [3]) [ssa.Log64(c/9)])
 
 (MADDW a x (MOVDconst [c])) && int32(c)==-1 => (MOVWUreg (SUB <a.Type> a x))
 (MADDW a _ (MOVDconst [c])) && int32(c)==0 => (MOVWUreg a)
 (MADDW a x (MOVDconst [c])) && int32(c)==1 => (MOVWUreg (ADD <a.Type> a x))
-(MADDW a x (MOVDconst [c])) && IsPowerOfTwo(c) => (MOVWUreg (ADDshiftLL <a.Type> a x [Log64(c)]))
-(MADDW a x (MOVDconst [c])) && IsPowerOfTwo(c-1) && int32(c)>=3 => (MOVWUreg (ADD <a.Type> a (ADDshiftLL <x.Type> x x [Log64(c-1)])))
-(MADDW a x (MOVDconst [c])) && IsPowerOfTwo(c+1) && int32(c)>=7 => (MOVWUreg (SUB <a.Type> a (SUBshiftLL <x.Type> x x [Log64(c+1)])))
-(MADDW a x (MOVDconst [c])) && c%3 == 0 && IsPowerOfTwo(c/3) && Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [2]) [Log64(c/3)]))
-(MADDW a x (MOVDconst [c])) && c%5 == 0 && IsPowerOfTwo(c/5) && Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [2]) [Log64(c/5)]))
-(MADDW a x (MOVDconst [c])) && c%7 == 0 && IsPowerOfTwo(c/7) && Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [3]) [Log64(c/7)]))
-(MADDW a x (MOVDconst [c])) && c%9 == 0 && IsPowerOfTwo(c/9) && Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [3]) [Log64(c/9)]))
+(MADDW a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (MOVWUreg (ADDshiftLL <a.Type> a x [ssa.Log64(c)]))
+(MADDW a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c-1) && int32(c)>=3 => (MOVWUreg (ADD <a.Type> a (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)])))
+(MADDW a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c+1) && int32(c)>=7 => (MOVWUreg (SUB <a.Type> a (SUBshiftLL <x.Type> x x [ssa.Log64(c+1)])))
+(MADDW a x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && ssa.Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [2]) [ssa.Log64(c/3)]))
+(MADDW a x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) && ssa.Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [2]) [ssa.Log64(c/5)]))
+(MADDW a x (MOVDconst [c])) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) && ssa.Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [3]) [ssa.Log64(c/7)]))
+(MADDW a x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) && ssa.Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [3]) [ssa.Log64(c/9)]))
 
 (MADDW a (MOVDconst [c]) x) && int32(c)==-1 => (MOVWUreg (SUB <a.Type> a x))
 (MADDW a (MOVDconst [c]) _) && int32(c)==0 => (MOVWUreg a)
 (MADDW a (MOVDconst [c]) x) && int32(c)==1 => (MOVWUreg (ADD <a.Type> a x))
-(MADDW a (MOVDconst [c]) x) && IsPowerOfTwo(c) => (MOVWUreg (ADDshiftLL <a.Type> a x [Log64(c)]))
-(MADDW a (MOVDconst [c]) x) && IsPowerOfTwo(c-1) && int32(c)>=3 => (MOVWUreg (ADD <a.Type> a (ADDshiftLL <x.Type> x x [Log64(c-1)])))
-(MADDW a (MOVDconst [c]) x) && IsPowerOfTwo(c+1) && int32(c)>=7 => (MOVWUreg (SUB <a.Type> a (SUBshiftLL <x.Type> x x [Log64(c+1)])))
-(MADDW a (MOVDconst [c]) x) && c%3 == 0 && IsPowerOfTwo(c/3) && Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [2]) [Log64(c/3)]))
-(MADDW a (MOVDconst [c]) x) && c%5 == 0 && IsPowerOfTwo(c/5) && Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [2]) [Log64(c/5)]))
-(MADDW a (MOVDconst [c]) x) && c%7 == 0 && IsPowerOfTwo(c/7) && Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [3]) [Log64(c/7)]))
-(MADDW a (MOVDconst [c]) x) && c%9 == 0 && IsPowerOfTwo(c/9) && Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [3]) [Log64(c/9)]))
+(MADDW a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c) => (MOVWUreg (ADDshiftLL <a.Type> a x [ssa.Log64(c)]))
+(MADDW a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c-1) && int32(c)>=3 => (MOVWUreg (ADD <a.Type> a (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)])))
+(MADDW a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c+1) && int32(c)>=7 => (MOVWUreg (SUB <a.Type> a (SUBshiftLL <x.Type> x x [ssa.Log64(c+1)])))
+(MADDW a (MOVDconst [c]) x) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && ssa.Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [2]) [ssa.Log64(c/3)]))
+(MADDW a (MOVDconst [c]) x) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) && ssa.Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [2]) [ssa.Log64(c/5)]))
+(MADDW a (MOVDconst [c]) x) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) && ssa.Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [3]) [ssa.Log64(c/7)]))
+(MADDW a (MOVDconst [c]) x) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) && ssa.Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [3]) [ssa.Log64(c/9)]))
 
 (MSUB a x (MOVDconst [-1])) => (ADD a x)
 (MSUB a _ (MOVDconst [0])) => a
 (MSUB a x (MOVDconst [1])) => (SUB a x)
-(MSUB a x (MOVDconst [c])) && IsPowerOfTwo(c) => (SUBshiftLL a x [Log64(c)])
-(MSUB a x (MOVDconst [c])) && IsPowerOfTwo(c-1) && c>=3 => (SUB a (ADDshiftLL <x.Type> x x [Log64(c-1)]))
-(MSUB a x (MOVDconst [c])) && IsPowerOfTwo(c+1) && c>=7 => (ADD a (SUBshiftLL <x.Type> x x [Log64(c+1)]))
-(MSUB a x (MOVDconst [c])) && c%3 == 0 && IsPowerOfTwo(c/3) => (ADDshiftLL a (SUBshiftLL <x.Type> x x [2]) [Log64(c/3)])
-(MSUB a x (MOVDconst [c])) && c%5 == 0 && IsPowerOfTwo(c/5) => (SUBshiftLL a (ADDshiftLL <x.Type> x x [2]) [Log64(c/5)])
-(MSUB a x (MOVDconst [c])) && c%7 == 0 && IsPowerOfTwo(c/7) => (ADDshiftLL a (SUBshiftLL <x.Type> x x [3]) [Log64(c/7)])
-(MSUB a x (MOVDconst [c])) && c%9 == 0 && IsPowerOfTwo(c/9) => (SUBshiftLL a (ADDshiftLL <x.Type> x x [3]) [Log64(c/9)])
+(MSUB a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (SUBshiftLL a x [ssa.Log64(c)])
+(MSUB a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c-1) && c>=3 => (SUB a (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)]))
+(MSUB a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c+1) && c>=7 => (ADD a (SUBshiftLL <x.Type> x x [ssa.Log64(c+1)]))
+(MSUB a x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (ADDshiftLL a (SUBshiftLL <x.Type> x x [2]) [ssa.Log64(c/3)])
+(MSUB a x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (SUBshiftLL a (ADDshiftLL <x.Type> x x [2]) [ssa.Log64(c/5)])
+(MSUB a x (MOVDconst [c])) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (ADDshiftLL a (SUBshiftLL <x.Type> x x [3]) [ssa.Log64(c/7)])
+(MSUB a x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (SUBshiftLL a (ADDshiftLL <x.Type> x x [3]) [ssa.Log64(c/9)])
 
 (MSUB a (MOVDconst [-1]) x) => (ADD a x)
 (MSUB a (MOVDconst [0]) _) => a
 (MSUB a (MOVDconst [1]) x) => (SUB a x)
-(MSUB a (MOVDconst [c]) x) && IsPowerOfTwo(c) => (SUBshiftLL a x [Log64(c)])
-(MSUB a (MOVDconst [c]) x) && IsPowerOfTwo(c-1) && c>=3 => (SUB a (ADDshiftLL <x.Type> x x [Log64(c-1)]))
-(MSUB a (MOVDconst [c]) x) && IsPowerOfTwo(c+1) && c>=7 => (ADD a (SUBshiftLL <x.Type> x x [Log64(c+1)]))
-(MSUB a (MOVDconst [c]) x) && c%3 == 0 && IsPowerOfTwo(c/3) => (ADDshiftLL a (SUBshiftLL <x.Type> x x [2]) [Log64(c/3)])
-(MSUB a (MOVDconst [c]) x) && c%5 == 0 && IsPowerOfTwo(c/5) => (SUBshiftLL a (ADDshiftLL <x.Type> x x [2]) [Log64(c/5)])
-(MSUB a (MOVDconst [c]) x) && c%7 == 0 && IsPowerOfTwo(c/7) => (ADDshiftLL a (SUBshiftLL <x.Type> x x [3]) [Log64(c/7)])
-(MSUB a (MOVDconst [c]) x) && c%9 == 0 && IsPowerOfTwo(c/9) => (SUBshiftLL a (ADDshiftLL <x.Type> x x [3]) [Log64(c/9)])
+(MSUB a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c) => (SUBshiftLL a x [ssa.Log64(c)])
+(MSUB a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c-1) && c>=3 => (SUB a (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)]))
+(MSUB a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c+1) && c>=7 => (ADD a (SUBshiftLL <x.Type> x x [ssa.Log64(c+1)]))
+(MSUB a (MOVDconst [c]) x) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (ADDshiftLL a (SUBshiftLL <x.Type> x x [2]) [ssa.Log64(c/3)])
+(MSUB a (MOVDconst [c]) x) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (SUBshiftLL a (ADDshiftLL <x.Type> x x [2]) [ssa.Log64(c/5)])
+(MSUB a (MOVDconst [c]) x) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (ADDshiftLL a (SUBshiftLL <x.Type> x x [3]) [ssa.Log64(c/7)])
+(MSUB a (MOVDconst [c]) x) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (SUBshiftLL a (ADDshiftLL <x.Type> x x [3]) [ssa.Log64(c/9)])
 
 (MSUBW a x (MOVDconst [c])) && int32(c)==-1 => (MOVWUreg (ADD <a.Type> a x))
 (MSUBW a _ (MOVDconst [c])) && int32(c)==0 => (MOVWUreg a)
 (MSUBW a x (MOVDconst [c])) && int32(c)==1 => (MOVWUreg (SUB <a.Type> a x))
-(MSUBW a x (MOVDconst [c])) && IsPowerOfTwo(c) => (MOVWUreg (SUBshiftLL <a.Type> a x [Log64(c)]))
-(MSUBW a x (MOVDconst [c])) && IsPowerOfTwo(c-1) && int32(c)>=3 => (MOVWUreg (SUB <a.Type> a (ADDshiftLL <x.Type> x x [Log64(c-1)])))
-(MSUBW a x (MOVDconst [c])) && IsPowerOfTwo(c+1) && int32(c)>=7 => (MOVWUreg (ADD <a.Type> a (SUBshiftLL <x.Type> x x [Log64(c+1)])))
-(MSUBW a x (MOVDconst [c])) && c%3 == 0 && IsPowerOfTwo(c/3) && Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [2]) [Log64(c/3)]))
-(MSUBW a x (MOVDconst [c])) && c%5 == 0 && IsPowerOfTwo(c/5) && Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [2]) [Log64(c/5)]))
-(MSUBW a x (MOVDconst [c])) && c%7 == 0 && IsPowerOfTwo(c/7) && Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [3]) [Log64(c/7)]))
-(MSUBW a x (MOVDconst [c])) && c%9 == 0 && IsPowerOfTwo(c/9) && Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [3]) [Log64(c/9)]))
+(MSUBW a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (MOVWUreg (SUBshiftLL <a.Type> a x [ssa.Log64(c)]))
+(MSUBW a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c-1) && int32(c)>=3 => (MOVWUreg (SUB <a.Type> a (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)])))
+(MSUBW a x (MOVDconst [c])) && ssa.IsPowerOfTwo(c+1) && int32(c)>=7 => (MOVWUreg (ADD <a.Type> a (SUBshiftLL <x.Type> x x [ssa.Log64(c+1)])))
+(MSUBW a x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && ssa.Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [2]) [ssa.Log64(c/3)]))
+(MSUBW a x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) && ssa.Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [2]) [ssa.Log64(c/5)]))
+(MSUBW a x (MOVDconst [c])) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) && ssa.Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [3]) [ssa.Log64(c/7)]))
+(MSUBW a x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) && ssa.Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [3]) [ssa.Log64(c/9)]))
 
 (MSUBW a (MOVDconst [c]) x) && int32(c)==-1 => (MOVWUreg (ADD <a.Type> a x))
 (MSUBW a (MOVDconst [c]) _) && int32(c)==0 => (MOVWUreg a)
 (MSUBW a (MOVDconst [c]) x) && int32(c)==1 => (MOVWUreg (SUB <a.Type> a x))
-(MSUBW a (MOVDconst [c]) x) && IsPowerOfTwo(c) => (MOVWUreg (SUBshiftLL <a.Type> a x [Log64(c)]))
-(MSUBW a (MOVDconst [c]) x) && IsPowerOfTwo(c-1) && int32(c)>=3 => (MOVWUreg (SUB <a.Type> a (ADDshiftLL <x.Type> x x [Log64(c-1)])))
-(MSUBW a (MOVDconst [c]) x) && IsPowerOfTwo(c+1) && int32(c)>=7 => (MOVWUreg (ADD <a.Type> a (SUBshiftLL <x.Type> x x [Log64(c+1)])))
-(MSUBW a (MOVDconst [c]) x) && c%3 == 0 && IsPowerOfTwo(c/3) && Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [2]) [Log64(c/3)]))
-(MSUBW a (MOVDconst [c]) x) && c%5 == 0 && IsPowerOfTwo(c/5) && Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [2]) [Log64(c/5)]))
-(MSUBW a (MOVDconst [c]) x) && c%7 == 0 && IsPowerOfTwo(c/7) && Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [3]) [Log64(c/7)]))
-(MSUBW a (MOVDconst [c]) x) && c%9 == 0 && IsPowerOfTwo(c/9) && Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [3]) [Log64(c/9)]))
+(MSUBW a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c) => (MOVWUreg (SUBshiftLL <a.Type> a x [ssa.Log64(c)]))
+(MSUBW a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c-1) && int32(c)>=3 => (MOVWUreg (SUB <a.Type> a (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)])))
+(MSUBW a (MOVDconst [c]) x) && ssa.IsPowerOfTwo(c+1) && int32(c)>=7 => (MOVWUreg (ADD <a.Type> a (SUBshiftLL <x.Type> x x [ssa.Log64(c+1)])))
+(MSUBW a (MOVDconst [c]) x) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && ssa.Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [2]) [ssa.Log64(c/3)]))
+(MSUBW a (MOVDconst [c]) x) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) && ssa.Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [2]) [ssa.Log64(c/5)]))
+(MSUBW a (MOVDconst [c]) x) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) && ssa.Is32Bit(c) => (MOVWUreg (ADDshiftLL <a.Type> a (SUBshiftLL <x.Type> x x [3]) [ssa.Log64(c/7)]))
+(MSUBW a (MOVDconst [c]) x) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) && ssa.Is32Bit(c) => (MOVWUreg (SUBshiftLL <a.Type> a (ADDshiftLL <x.Type> x x [3]) [ssa.Log64(c/9)]))
 
 // div by constant
 (UDIV  x (MOVDconst [1])) => x
-(UDIV  x (MOVDconst [c])) && IsPowerOfTwo(c) => (SRLconst [Log64(c)] x)
+(UDIV  x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (SRLconst [ssa.Log64(c)] x)
 (UDIVW x (MOVDconst [c])) && uint32(c)==1 => (MOVWUreg x)
-(UDIVW x (MOVDconst [c])) && IsPowerOfTwo(c) && Is32Bit(c) => (SRLconst [Log64(c)] (MOVWUreg <v.Type> x))
+(UDIVW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) && ssa.Is32Bit(c) => (SRLconst [ssa.Log64(c)] (MOVWUreg <v.Type> x))
 (UMOD  _ (MOVDconst [1])) => (MOVDconst [0])
-(UMOD  x (MOVDconst [c])) && IsPowerOfTwo(c) => (ANDconst [c-1] x)
+(UMOD  x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (ANDconst [c-1] x)
 (UMODW _ (MOVDconst [c])) && uint32(c)==1 => (MOVDconst [0])
-(UMODW x (MOVDconst [c])) && IsPowerOfTwo(c) && Is32Bit(c) => (ANDconst [c-1] x)
+(UMODW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) && ssa.Is32Bit(c) => (ANDconst [c-1] x)
 
 // generic simplifications
 (ADD x (NEG y)) => (SUB x y)
@@ -1284,21 +1284,21 @@
 (MOVDreg  (MOVDconst [c])) => (MOVDconst [c])
 
 // constant comparisons
-(CMPconst  (MOVDconst [x]) [y]) => (FlagConstant [SubFlags64(x,y)])
-(CMPWconst (MOVDconst [x]) [y]) => (FlagConstant [SubFlags32(int32(x),y)])
-(TSTconst  (MOVDconst [x]) [y]) => (FlagConstant [LogicFlags64(x&y)])
-(TSTWconst (MOVDconst [x]) [y]) => (FlagConstant [LogicFlags32(int32(x)&y)])
-(CMNconst  (MOVDconst [x]) [y]) => (FlagConstant [AddFlags64(x,y)])
-(CMNWconst (MOVDconst [x]) [y]) => (FlagConstant [AddFlags32(int32(x),y)])
+(CMPconst  (MOVDconst [x]) [y]) => (FlagConstant [ssa.SubFlags64(x,y)])
+(CMPWconst (MOVDconst [x]) [y]) => (FlagConstant [ssa.SubFlags32(int32(x),y)])
+(TSTconst  (MOVDconst [x]) [y]) => (FlagConstant [ssa.LogicFlags64(x&y)])
+(TSTWconst (MOVDconst [x]) [y]) => (FlagConstant [ssa.LogicFlags32(int32(x)&y)])
+(CMNconst  (MOVDconst [x]) [y]) => (FlagConstant [ssa.AddFlags64(x,y)])
+(CMNWconst (MOVDconst [x]) [y]) => (FlagConstant [ssa.AddFlags32(int32(x),y)])
 
 // other known comparisons
-(CMPconst  (MOVBUreg _) [c]) && 0xff < c       => (FlagConstant [SubFlags64(0,1)])
-(CMPconst  (MOVHUreg _) [c]) && 0xffff < c     => (FlagConstant [SubFlags64(0,1)])
-(CMPconst  (MOVWUreg _) [c]) && 0xffffffff < c => (FlagConstant [SubFlags64(0,1)])
-(CMPconst  (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [SubFlags64(0,1)])
-(CMPconst  (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 63 && (1<<uint64(64-c)) <= uint64(n) => (FlagConstant [SubFlags64(0,1)])
-(CMPWconst (MOVBUreg _) [c]) && 0xff   < c => (FlagConstant [SubFlags64(0,1)])
-(CMPWconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [SubFlags64(0,1)])
+(CMPconst  (MOVBUreg _) [c]) && 0xff < c       => (FlagConstant [ssa.SubFlags64(0,1)])
+(CMPconst  (MOVHUreg _) [c]) && 0xffff < c     => (FlagConstant [ssa.SubFlags64(0,1)])
+(CMPconst  (MOVWUreg _) [c]) && 0xffffffff < c => (FlagConstant [ssa.SubFlags64(0,1)])
+(CMPconst  (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [ssa.SubFlags64(0,1)])
+(CMPconst  (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 63 && (1<<uint64(64-c)) <= uint64(n) => (FlagConstant [ssa.SubFlags64(0,1)])
+(CMPWconst (MOVBUreg _) [c]) && 0xff   < c => (FlagConstant [ssa.SubFlags64(0,1)])
+(CMPWconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [ssa.SubFlags64(0,1)])
 
 // absorb flag constants into branches
 (EQ (FlagConstant [fc]) yes no) &&  fc.Eq() => (First yes no)
@@ -1379,18 +1379,18 @@
 (CSNEG [cc] x y (InvertFlags cmp)) => (CSNEG [arm64Invert(cc)] x y cmp)
 
 // absorb flag constants into boolean values
-(Equal             (FlagConstant [fc])) => (MOVDconst [B2i(fc.Eq())])
-(NotEqual          (FlagConstant [fc])) => (MOVDconst [B2i(fc.Ne())])
-(LessThan          (FlagConstant [fc])) => (MOVDconst [B2i(fc.Lt())])
-(LessThanU         (FlagConstant [fc])) => (MOVDconst [B2i(fc.Ult())])
-(LessEqual         (FlagConstant [fc])) => (MOVDconst [B2i(fc.Le())])
-(LessEqualU        (FlagConstant [fc])) => (MOVDconst [B2i(fc.Ule())])
-(GreaterThan       (FlagConstant [fc])) => (MOVDconst [B2i(fc.Gt())])
-(GreaterThanU      (FlagConstant [fc])) => (MOVDconst [B2i(fc.Ugt())])
-(GreaterEqual      (FlagConstant [fc])) => (MOVDconst [B2i(fc.Ge())])
-(GreaterEqualU     (FlagConstant [fc])) => (MOVDconst [B2i(fc.Uge())])
-(LessThanNoov      (FlagConstant [fc])) => (MOVDconst [B2i(fc.LtNoov())])
-(GreaterEqualNoov  (FlagConstant [fc])) => (MOVDconst [B2i(fc.GeNoov())])
+(Equal             (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Eq())])
+(NotEqual          (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Ne())])
+(LessThan          (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Lt())])
+(LessThanU         (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Ult())])
+(LessEqual         (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Le())])
+(LessEqualU        (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Ule())])
+(GreaterThan       (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Gt())])
+(GreaterThanU      (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Ugt())])
+(GreaterEqual      (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Ge())])
+(GreaterEqualU     (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.Uge())])
+(LessThanNoov      (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.LtNoov())])
+(GreaterEqualNoov  (FlagConstant [fc])) => (MOVDconst [ssa.B2i(fc.GeNoov())])
 
 // absorb InvertFlags into boolean values
 (Equal            (InvertFlags x)) => (Equal x)
@@ -1410,8 +1410,8 @@
 
 (GreaterEqual (CMPconst x [0])) => (XORconst [1] (SRLconst <v.Type> [63] x))
 (LessThan (CMPconst x [0])) => (SRLconst [63] x)
-(GreaterEqual (CMPWconst x [0])) => (XORconst [1] (UBFX <v.Type> [ArmBFAuxInt(31,1)] x))
-(LessThan (CMPWconst x [0])) => (UBFX [ArmBFAuxInt(31,1)] x)
+(GreaterEqual (CMPWconst x [0])) => (XORconst [1] (UBFX <v.Type> [ssa.ArmBFAuxInt(31,1)] x))
+(LessThan (CMPWconst x [0])) => (UBFX [ssa.ArmBFAuxInt(31,1)] x)
 
 // Don't bother extending if we're not using the higher bits.
 (MOV(B|BU)reg x) && v.Type.Size() <= 1 => x
@@ -1438,66 +1438,66 @@
 (CSETM [cc]     flag) && ccARM64Eval(cc, flag) < 0 => (MOVDconst [0])
 
 // absorb flags back into boolean CSEL
-(CSEL [cc] x y (CMPWconst [0] boolval)) && cc == ssaop.OpARM64NotEqual && FlagArg(boolval) != nil =>
-      (CSEL [boolval.Op] x y FlagArg(boolval))
-(CSEL [cc] x y (CMPWconst [0] boolval)) && cc == ssaop.OpARM64Equal && FlagArg(boolval) != nil =>
-      (CSEL [arm64Negate(boolval.Op)] x y FlagArg(boolval))
-(CSEL0 [cc] x (CMPWconst [0] boolval)) && cc == ssaop.OpARM64NotEqual && FlagArg(boolval) != nil =>
-      (CSEL0 [boolval.Op] x FlagArg(boolval))
-(CSEL0 [cc] x (CMPWconst [0] boolval)) && cc == ssaop.OpARM64Equal && FlagArg(boolval) != nil =>
-      (CSEL0 [arm64Negate(boolval.Op)] x FlagArg(boolval))
+(CSEL [cc] x y (CMPWconst [0] boolval)) && cc == ssaop.OpARM64NotEqual && ssa.FlagArg(boolval) != nil =>
+      (CSEL [boolval.Op] x y ssa.FlagArg(boolval))
+(CSEL [cc] x y (CMPWconst [0] boolval)) && cc == ssaop.OpARM64Equal && ssa.FlagArg(boolval) != nil =>
+      (CSEL [arm64Negate(boolval.Op)] x y ssa.FlagArg(boolval))
+(CSEL0 [cc] x (CMPWconst [0] boolval)) && cc == ssaop.OpARM64NotEqual && ssa.FlagArg(boolval) != nil =>
+      (CSEL0 [boolval.Op] x ssa.FlagArg(boolval))
+(CSEL0 [cc] x (CMPWconst [0] boolval)) && cc == ssaop.OpARM64Equal && ssa.FlagArg(boolval) != nil =>
+      (CSEL0 [arm64Negate(boolval.Op)] x ssa.FlagArg(boolval))
 
 // absorb shifts into ops
-(NEG x:(SLLconst [c] y)) && ClobberIfDead(x) => (NEGshiftLL [c] y)
-(NEG x:(SRLconst [c] y)) && ClobberIfDead(x) => (NEGshiftRL [c] y)
-(NEG x:(SRAconst [c] y)) && ClobberIfDead(x) => (NEGshiftRA [c] y)
-(MVN x:(SLLconst [c] y)) && ClobberIfDead(x) => (MVNshiftLL [c] y)
-(MVN x:(SRLconst [c] y)) && ClobberIfDead(x) => (MVNshiftRL [c] y)
-(MVN x:(SRAconst [c] y)) && ClobberIfDead(x) => (MVNshiftRA [c] y)
-(MVN x:(RORconst [c] y)) && ClobberIfDead(x) => (MVNshiftRO [c] y)
-(ADD x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (ADDshiftLL x0 y [c])
-(ADD x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (ADDshiftRL x0 y [c])
-(ADD x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (ADDshiftRA x0 y [c])
-(SUB x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (SUBshiftLL x0 y [c])
-(SUB x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (SUBshiftRL x0 y [c])
-(SUB x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (SUBshiftRA x0 y [c])
-(AND x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (ANDshiftLL x0 y [c])
-(AND x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (ANDshiftRL x0 y [c])
-(AND x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (ANDshiftRA x0 y [c])
-(AND x0 x1:(RORconst [c] y)) && ClobberIfDead(x1) => (ANDshiftRO x0 y [c])
-(OR  x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (ORshiftLL  x0 y [c]) // useful for combined load
-(OR  x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (ORshiftRL  x0 y [c])
-(OR  x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (ORshiftRA  x0 y [c])
-(OR  x0 x1:(RORconst [c] y)) && ClobberIfDead(x1) => (ORshiftRO  x0 y [c])
-(XOR x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (XORshiftLL x0 y [c])
-(XOR x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (XORshiftRL x0 y [c])
-(XOR x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (XORshiftRA x0 y [c])
-(XOR x0 x1:(RORconst [c] y)) && ClobberIfDead(x1) => (XORshiftRO x0 y [c])
-(BIC x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (BICshiftLL x0 y [c])
-(BIC x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (BICshiftRL x0 y [c])
-(BIC x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (BICshiftRA x0 y [c])
-(BIC x0 x1:(RORconst [c] y)) && ClobberIfDead(x1) => (BICshiftRO x0 y [c])
-(ORN x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (ORNshiftLL x0 y [c])
-(ORN x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (ORNshiftRL x0 y [c])
-(ORN x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (ORNshiftRA x0 y [c])
-(ORN x0 x1:(RORconst [c] y)) && ClobberIfDead(x1) => (ORNshiftRO x0 y [c])
-(EON x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (EONshiftLL x0 y [c])
-(EON x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (EONshiftRL x0 y [c])
-(EON x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (EONshiftRA x0 y [c])
-(EON x0 x1:(RORconst [c] y)) && ClobberIfDead(x1) => (EONshiftRO x0 y [c])
-(CMP x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (CMPshiftLL x0 y [c])
-(CMP x0:(SLLconst [c] y) x1) && ClobberIfDead(x0) => (InvertFlags (CMPshiftLL x1 y [c]))
-(CMP x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (CMPshiftRL x0 y [c])
-(CMP x0:(SRLconst [c] y) x1) && ClobberIfDead(x0) => (InvertFlags (CMPshiftRL x1 y [c]))
-(CMP x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (CMPshiftRA x0 y [c])
-(CMP x0:(SRAconst [c] y) x1) && ClobberIfDead(x0) => (InvertFlags (CMPshiftRA x1 y [c]))
-(CMN x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (CMNshiftLL x0 y [c])
-(CMN x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (CMNshiftRL x0 y [c])
-(CMN x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (CMNshiftRA x0 y [c])
-(TST x0 x1:(SLLconst [c] y)) && ClobberIfDead(x1) => (TSTshiftLL x0 y [c])
-(TST x0 x1:(SRLconst [c] y)) && ClobberIfDead(x1) => (TSTshiftRL x0 y [c])
-(TST x0 x1:(SRAconst [c] y)) && ClobberIfDead(x1) => (TSTshiftRA x0 y [c])
-(TST x0 x1:(RORconst [c] y)) && ClobberIfDead(x1) => (TSTshiftRO x0 y [c])
+(NEG x:(SLLconst [c] y)) && ssa.ClobberIfDead(x) => (NEGshiftLL [c] y)
+(NEG x:(SRLconst [c] y)) && ssa.ClobberIfDead(x) => (NEGshiftRL [c] y)
+(NEG x:(SRAconst [c] y)) && ssa.ClobberIfDead(x) => (NEGshiftRA [c] y)
+(MVN x:(SLLconst [c] y)) && ssa.ClobberIfDead(x) => (MVNshiftLL [c] y)
+(MVN x:(SRLconst [c] y)) && ssa.ClobberIfDead(x) => (MVNshiftRL [c] y)
+(MVN x:(SRAconst [c] y)) && ssa.ClobberIfDead(x) => (MVNshiftRA [c] y)
+(MVN x:(RORconst [c] y)) && ssa.ClobberIfDead(x) => (MVNshiftRO [c] y)
+(ADD x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (ADDshiftLL x0 y [c])
+(ADD x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (ADDshiftRL x0 y [c])
+(ADD x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (ADDshiftRA x0 y [c])
+(SUB x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (SUBshiftLL x0 y [c])
+(SUB x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (SUBshiftRL x0 y [c])
+(SUB x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (SUBshiftRA x0 y [c])
+(AND x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (ANDshiftLL x0 y [c])
+(AND x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (ANDshiftRL x0 y [c])
+(AND x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (ANDshiftRA x0 y [c])
+(AND x0 x1:(RORconst [c] y)) && ssa.ClobberIfDead(x1) => (ANDshiftRO x0 y [c])
+(OR  x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (ORshiftLL  x0 y [c]) // useful for combined load
+(OR  x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (ORshiftRL  x0 y [c])
+(OR  x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (ORshiftRA  x0 y [c])
+(OR  x0 x1:(RORconst [c] y)) && ssa.ClobberIfDead(x1) => (ORshiftRO  x0 y [c])
+(XOR x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (XORshiftLL x0 y [c])
+(XOR x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (XORshiftRL x0 y [c])
+(XOR x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (XORshiftRA x0 y [c])
+(XOR x0 x1:(RORconst [c] y)) && ssa.ClobberIfDead(x1) => (XORshiftRO x0 y [c])
+(BIC x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (BICshiftLL x0 y [c])
+(BIC x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (BICshiftRL x0 y [c])
+(BIC x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (BICshiftRA x0 y [c])
+(BIC x0 x1:(RORconst [c] y)) && ssa.ClobberIfDead(x1) => (BICshiftRO x0 y [c])
+(ORN x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (ORNshiftLL x0 y [c])
+(ORN x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (ORNshiftRL x0 y [c])
+(ORN x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (ORNshiftRA x0 y [c])
+(ORN x0 x1:(RORconst [c] y)) && ssa.ClobberIfDead(x1) => (ORNshiftRO x0 y [c])
+(EON x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (EONshiftLL x0 y [c])
+(EON x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (EONshiftRL x0 y [c])
+(EON x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (EONshiftRA x0 y [c])
+(EON x0 x1:(RORconst [c] y)) && ssa.ClobberIfDead(x1) => (EONshiftRO x0 y [c])
+(CMP x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (CMPshiftLL x0 y [c])
+(CMP x0:(SLLconst [c] y) x1) && ssa.ClobberIfDead(x0) => (InvertFlags (CMPshiftLL x1 y [c]))
+(CMP x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (CMPshiftRL x0 y [c])
+(CMP x0:(SRLconst [c] y) x1) && ssa.ClobberIfDead(x0) => (InvertFlags (CMPshiftRL x1 y [c]))
+(CMP x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (CMPshiftRA x0 y [c])
+(CMP x0:(SRAconst [c] y) x1) && ssa.ClobberIfDead(x0) => (InvertFlags (CMPshiftRA x1 y [c]))
+(CMN x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (CMNshiftLL x0 y [c])
+(CMN x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (CMNshiftRL x0 y [c])
+(CMN x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (CMNshiftRA x0 y [c])
+(TST x0 x1:(SLLconst [c] y)) && ssa.ClobberIfDead(x1) => (TSTshiftLL x0 y [c])
+(TST x0 x1:(SRLconst [c] y)) && ssa.ClobberIfDead(x1) => (TSTshiftRL x0 y [c])
+(TST x0 x1:(SRAconst [c] y)) && ssa.ClobberIfDead(x1) => (TSTshiftRA x0 y [c])
+(TST x0 x1:(RORconst [c] y)) && ssa.ClobberIfDead(x1) => (TSTshiftRO x0 y [c])
 
 // prefer *const ops to *shift ops
 (ADDshiftLL (MOVDconst [c]) x [d]) => (ADDconst [c] (SLLconst <x.Type> x [d]))
@@ -1606,10 +1606,10 @@
 
 // rev16w | rev16
 // ((x>>8) | (x<<8)) => (REV16W x), the type of x is uint16, "|" can also be "^" or "+".
-((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [ArmBFAuxInt(8, 8)] x) x) => (REV16W x)
+((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [ssa.ArmBFAuxInt(8, 8)] x) x) => (REV16W x)
 
 // ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), "|" can also be "^" or "+".
-((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (UBFX [ArmBFAuxInt(8, 24)] (ANDconst [c1] x)) (ANDconst [c2] x))
+((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (UBFX [ssa.ArmBFAuxInt(8, 24)] (ANDconst [c1] x)) (ANDconst [c2] x))
 	&& uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
 	=> (REV16W x)
 
@@ -1630,11 +1630,11 @@
 ( ORshiftLL [c] (SRLconst x [64-c]) x2) => (EXTRconst [64-c] x2 x)
 (XORshiftLL [c] (SRLconst x [64-c]) x2) => (EXTRconst [64-c] x2 x)
 
-(ADDshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == ArmBFAuxInt(32-c, c)
+(ADDshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == ssa.ArmBFAuxInt(32-c, c)
 	=> (EXTRWconst [32-c] x2 x)
-( ORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == ArmBFAuxInt(32-c, c)
+( ORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == ssa.ArmBFAuxInt(32-c, c)
 	=> (EXTRWconst [32-c] x2 x)
-(XORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == ArmBFAuxInt(32-c, c)
+(XORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == ssa.ArmBFAuxInt(32-c, c)
 	=> (EXTRWconst [32-c] x2 x)
 
 // Rewrite special pairs of shifts to AND.
@@ -1663,23 +1663,23 @@
 
 // sbfiz
 // (x << lc) >> rc
-(SRAconst [rc] (SLLconst [lc] x)) && lc > rc => (SBFIZ [ArmBFAuxInt(lc-rc, 64-lc)] x)
+(SRAconst [rc] (SLLconst [lc] x)) && lc > rc => (SBFIZ [ssa.ArmBFAuxInt(lc-rc, 64-lc)] x)
 // int64(x << lc)
-(MOVWreg (SLLconst [lc] x)) && lc < 32 => (SBFIZ [ArmBFAuxInt(lc, 32-lc)] x)
-(MOVHreg (SLLconst [lc] x)) && lc < 16 => (SBFIZ [ArmBFAuxInt(lc, 16-lc)] x)
-(MOVBreg (SLLconst [lc] x)) && lc < 8  => (SBFIZ [ArmBFAuxInt(lc,  8-lc)] x)
+(MOVWreg (SLLconst [lc] x)) && lc < 32 => (SBFIZ [ssa.ArmBFAuxInt(lc, 32-lc)] x)
+(MOVHreg (SLLconst [lc] x)) && lc < 16 => (SBFIZ [ssa.ArmBFAuxInt(lc, 16-lc)] x)
+(MOVBreg (SLLconst [lc] x)) && lc < 8  => (SBFIZ [ssa.ArmBFAuxInt(lc,  8-lc)] x)
 // int64(x) << lc
-(SLLconst [lc] (MOVWreg x))  => (SBFIZ [ArmBFAuxInt(lc, min(32, 64-lc))] x)
-(SLLconst [lc] (MOVHreg x))  => (SBFIZ [ArmBFAuxInt(lc, min(16, 64-lc))] x)
-(SLLconst [lc] (MOVBreg x))  => (SBFIZ [ArmBFAuxInt(lc, min(8,  64-lc))] x)
+(SLLconst [lc] (MOVWreg x))  => (SBFIZ [ssa.ArmBFAuxInt(lc, min(32, 64-lc))] x)
+(SLLconst [lc] (MOVHreg x))  => (SBFIZ [ssa.ArmBFAuxInt(lc, min(16, 64-lc))] x)
+(SLLconst [lc] (MOVBreg x))  => (SBFIZ [ssa.ArmBFAuxInt(lc, min(8,  64-lc))] x)
 
 // sbfx
 // (x << lc) >> rc
-(SRAconst [rc] (SLLconst [lc] x)) && lc <= rc => (SBFX [ArmBFAuxInt(rc-lc, 64-rc)] x)
+(SRAconst [rc] (SLLconst [lc] x)) && lc <= rc => (SBFX [ssa.ArmBFAuxInt(rc-lc, 64-rc)] x)
 // int64(x) >> rc
-(SRAconst [rc] (MOVWreg x)) && rc < 32 => (SBFX [ArmBFAuxInt(rc, 32-rc)] x)
-(SRAconst [rc] (MOVHreg x)) && rc < 16 => (SBFX [ArmBFAuxInt(rc, 16-rc)] x)
-(SRAconst [rc] (MOVBreg x)) && rc < 8  => (SBFX [ArmBFAuxInt(rc,  8-rc)] x)
+(SRAconst [rc] (MOVWreg x)) && rc < 32 => (SBFX [ssa.ArmBFAuxInt(rc, 32-rc)] x)
+(SRAconst [rc] (MOVHreg x)) && rc < 16 => (SBFX [ssa.ArmBFAuxInt(rc, 16-rc)] x)
+(SRAconst [rc] (MOVBreg x)) && rc < 8  => (SBFX [ssa.ArmBFAuxInt(rc,  8-rc)] x)
 // merge sbfx and sign-extension into sbfx
 (MOVWreg (SBFX [bfc] x)) && bfc.Width() <= 32 => (SBFX [bfc] x)
 (MOVHreg (SBFX [bfc] x)) && bfc.Width() <= 16 => (SBFX [bfc] x)
@@ -1687,61 +1687,61 @@
 
 // sbfiz/sbfx combinations: merge shifts into bitfield ops
 (SRAconst [sc] (SBFIZ [bfc] x)) && sc < bfc.Lsb()
-	=> (SBFIZ [ArmBFAuxInt(bfc.Lsb()-sc, bfc.Width())] x)
+	=> (SBFIZ [ssa.ArmBFAuxInt(bfc.Lsb()-sc, bfc.Width())] x)
 (SRAconst [sc] (SBFIZ [bfc] x)) && sc >= bfc.Lsb()
 	&& sc < bfc.Lsb()+bfc.Width()
-	=> (SBFX [ArmBFAuxInt(sc-bfc.Lsb(), bfc.Lsb()+bfc.Width()-sc)] x)
+	=> (SBFX [ssa.ArmBFAuxInt(sc-bfc.Lsb(), bfc.Lsb()+bfc.Width()-sc)] x)
 (SBFX [bfc] s:(SLLconst [sc] x))
 	&& s.Uses == 1
 	&& sc <= bfc.Lsb()
-	=> (SBFX [ArmBFAuxInt(bfc.Lsb() - sc, bfc.Width())] x)
+	=> (SBFX [ssa.ArmBFAuxInt(bfc.Lsb() - sc, bfc.Width())] x)
 (SBFX [bfc] s:(SLLconst [sc] x))
 	&& s.Uses == 1
 	&& sc > bfc.Lsb()
 	&& sc < bfc.Lsb()+bfc.Width()
-	=> (SBFIZ [ArmBFAuxInt(sc - bfc.Lsb(), bfc.Width() - (sc-bfc.Lsb()))] x)
+	=> (SBFIZ [ssa.ArmBFAuxInt(sc - bfc.Lsb(), bfc.Width() - (sc-bfc.Lsb()))] x)
 
 // ubfiz
 // (x << lc) >> rc
-(SRLconst [rc] (SLLconst [lc] x)) && lc > rc => (UBFIZ [ArmBFAuxInt(lc-rc, 64-lc)] x)
+(SRLconst [rc] (SLLconst [lc] x)) && lc > rc => (UBFIZ [ssa.ArmBFAuxInt(lc-rc, 64-lc)] x)
 // uint64(x) << lc
-(SLLconst [lc] (MOVWUreg x))  => (UBFIZ [ArmBFAuxInt(lc, min(32, 64-lc))] x)
-(SLLconst [lc] (MOVHUreg x))  => (UBFIZ [ArmBFAuxInt(lc, min(16, 64-lc))] x)
-(SLLconst [lc] (MOVBUreg x))  => (UBFIZ [ArmBFAuxInt(lc, min(8,  64-lc))] x)
+(SLLconst [lc] (MOVWUreg x))  => (UBFIZ [ssa.ArmBFAuxInt(lc, min(32, 64-lc))] x)
+(SLLconst [lc] (MOVHUreg x))  => (UBFIZ [ssa.ArmBFAuxInt(lc, min(16, 64-lc))] x)
+(SLLconst [lc] (MOVBUreg x))  => (UBFIZ [ssa.ArmBFAuxInt(lc, min(8,  64-lc))] x)
 // uint64(x << lc)
-(MOVWUreg (SLLconst [lc] x)) && lc < 32 => (UBFIZ [ArmBFAuxInt(lc, 32-lc)] x)
-(MOVHUreg (SLLconst [lc] x)) && lc < 16 => (UBFIZ [ArmBFAuxInt(lc, 16-lc)] x)
-(MOVBUreg (SLLconst [lc] x)) && lc < 8  => (UBFIZ [ArmBFAuxInt(lc,  8-lc)] x)
+(MOVWUreg (SLLconst [lc] x)) && lc < 32 => (UBFIZ [ssa.ArmBFAuxInt(lc, 32-lc)] x)
+(MOVHUreg (SLLconst [lc] x)) && lc < 16 => (UBFIZ [ssa.ArmBFAuxInt(lc, 16-lc)] x)
+(MOVBUreg (SLLconst [lc] x)) && lc < 8  => (UBFIZ [ssa.ArmBFAuxInt(lc,  8-lc)] x)
 
 // merge ANDconst into ubfiz
 // (x & ac) << sc
 (SLLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, 0)
-	=> (UBFIZ [ArmBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
+	=> (UBFIZ [ssa.ArmBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
 // (x << sc) & ac
 (ANDconst [ac] (SLLconst [sc] x)) && isARM64BFMask(sc, ac, sc)
-	=> (UBFIZ [ArmBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
+	=> (UBFIZ [ssa.ArmBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
 
 // ubfx
 // (x << lc) >> rc
-(SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [ArmBFAuxInt(rc-lc, 64-rc)] x)
+(SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [ssa.ArmBFAuxInt(rc-lc, 64-rc)] x)
 // uint64(x) >> rc
-(SRLconst [rc] (MOVWUreg x)) && rc < 32 => (UBFX [ArmBFAuxInt(rc, 32-rc)] x)
-(SRLconst [rc] (MOVHUreg x)) && rc < 16 => (UBFX [ArmBFAuxInt(rc, 16-rc)] x)
-(SRLconst [rc] (MOVBUreg x)) && rc < 8  => (UBFX [ArmBFAuxInt(rc,  8-rc)] x)
+(SRLconst [rc] (MOVWUreg x)) && rc < 32 => (UBFX [ssa.ArmBFAuxInt(rc, 32-rc)] x)
+(SRLconst [rc] (MOVHUreg x)) && rc < 16 => (UBFX [ssa.ArmBFAuxInt(rc, 16-rc)] x)
+(SRLconst [rc] (MOVBUreg x)) && rc < 8  => (UBFX [ssa.ArmBFAuxInt(rc,  8-rc)] x)
 // uint64(x >> rc)
-(MOVWUreg (SRLconst [rc] x)) && rc < 32 => (UBFX [ArmBFAuxInt(rc, 32)] x)
-(MOVHUreg (SRLconst [rc] x)) && rc < 16 => (UBFX [ArmBFAuxInt(rc, 16)] x)
-(MOVBUreg (SRLconst [rc] x)) && rc < 8  => (UBFX [ArmBFAuxInt(rc,  8)] x)
+(MOVWUreg (SRLconst [rc] x)) && rc < 32 => (UBFX [ssa.ArmBFAuxInt(rc, 32)] x)
+(MOVHUreg (SRLconst [rc] x)) && rc < 16 => (UBFX [ssa.ArmBFAuxInt(rc, 16)] x)
+(MOVBUreg (SRLconst [rc] x)) && rc < 8  => (UBFX [ssa.ArmBFAuxInt(rc,  8)] x)
 // merge ANDconst into ubfx
 // (x >> sc) & ac
 (ANDconst [ac] (SRLconst [sc] x)) && isARM64BFMask(sc, ac, 0)
-	=> (UBFX [ArmBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
+	=> (UBFX [ssa.ArmBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
 // (x & ac) >> sc
 (SRLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, sc)
-	=> (UBFX [ArmBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
+	=> (UBFX [ssa.ArmBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
 // merge ANDconst and ubfx into ubfx
 (ANDconst [c] (UBFX [bfc] x)) && isARM64BFMask(0, c, 0) =>
-	(UBFX [ArmBFAuxInt(bfc.Lsb(), min(bfc.Width(), arm64BFWidth(c, 0)))] x)
+	(UBFX [ssa.ArmBFAuxInt(bfc.Lsb(), min(bfc.Width(), arm64BFWidth(c, 0)))] x)
 (UBFX [bfc] (ANDconst [c] x)) && isARM64BFMask(0, c, 0) && bfc.Lsb() + bfc.Width() <= arm64BFWidth(c, 0) =>
 	(UBFX [bfc] x)
 // merge ubfx and zero-extension into ubfx
@@ -1753,41 +1753,41 @@
 (UBFX [bfc] e:(MOVWUreg x))
 	&& e.Uses == 1
 	&& bfc.Lsb() < 32
-	=> (UBFX [ArmBFAuxInt(bfc.Lsb(), min(bfc.Width(), 32-bfc.Lsb()))] x)
+	=> (UBFX [ssa.ArmBFAuxInt(bfc.Lsb(), min(bfc.Width(), 32-bfc.Lsb()))] x)
 (UBFX [bfc] e:(MOVHUreg x))
 	&& e.Uses == 1
 	&& bfc.Lsb() < 16
-	=> (UBFX [ArmBFAuxInt(bfc.Lsb(), min(bfc.Width(), 16-bfc.Lsb()))] x)
+	=> (UBFX [ssa.ArmBFAuxInt(bfc.Lsb(), min(bfc.Width(), 16-bfc.Lsb()))] x)
 (UBFX [bfc] e:(MOVBUreg x))
 	&& e.Uses == 1
 	&& bfc.Lsb() < 8
-	=> (UBFX [ArmBFAuxInt(bfc.Lsb(), min(bfc.Width(), 8-bfc.Lsb()))] x)
+	=> (UBFX [ssa.ArmBFAuxInt(bfc.Lsb(), min(bfc.Width(), 8-bfc.Lsb()))] x)
 
 // ubfiz/ubfx combinations: merge shifts into bitfield ops
 (SRLconst [sc] (UBFX [bfc] x)) && sc < bfc.Width()
-	=> (UBFX [ArmBFAuxInt(bfc.Lsb()+sc, bfc.Width()-sc)] x)
+	=> (UBFX [ssa.ArmBFAuxInt(bfc.Lsb()+sc, bfc.Width()-sc)] x)
 (UBFX [bfc] (SRLconst [sc] x)) && sc+bfc.Width()+bfc.Lsb() < 64
-	=> (UBFX [ArmBFAuxInt(bfc.Lsb()+sc, bfc.Width())] x)
+	=> (UBFX [ssa.ArmBFAuxInt(bfc.Lsb()+sc, bfc.Width())] x)
 (SLLconst [sc] (UBFIZ [bfc] x)) && sc+bfc.Width()+bfc.Lsb() < 64
-	=> (UBFIZ [ArmBFAuxInt(bfc.Lsb()+sc, bfc.Width())] x)
+	=> (UBFIZ [ssa.ArmBFAuxInt(bfc.Lsb()+sc, bfc.Width())] x)
 (UBFIZ [bfc] (SLLconst [sc] x)) && sc < bfc.Width()
-	=> (UBFIZ [ArmBFAuxInt(bfc.Lsb()+sc, bfc.Width()-sc)] x)
+	=> (UBFIZ [ssa.ArmBFAuxInt(bfc.Lsb()+sc, bfc.Width()-sc)] x)
 // ((x << c1) >> c2) >> c3
 (SRLconst [sc] (UBFIZ [bfc] x)) && sc == bfc.Lsb()
 	=> (ANDconst [1<<uint(bfc.Width())-1] x)
 (SRLconst [sc] (UBFIZ [bfc] x)) && sc < bfc.Lsb()
-	=> (UBFIZ [ArmBFAuxInt(bfc.Lsb()-sc, bfc.Width())] x)
+	=> (UBFIZ [ssa.ArmBFAuxInt(bfc.Lsb()-sc, bfc.Width())] x)
 (SRLconst [sc] (UBFIZ [bfc] x)) && sc > bfc.Lsb()
 	&& sc < bfc.Lsb()+bfc.Width()
-	=> (UBFX [ArmBFAuxInt(sc-bfc.Lsb(), bfc.Lsb()+bfc.Width()-sc)] x)
+	=> (UBFX [ssa.ArmBFAuxInt(sc-bfc.Lsb(), bfc.Lsb()+bfc.Width()-sc)] x)
 // ((x << c1) << c2) >> c3
 (UBFX [bfc] (SLLconst [sc] x)) && sc == bfc.Lsb()
 	=> (ANDconst [1<<uint(bfc.Width())-1] x)
 (UBFX [bfc] (SLLconst [sc] x)) && sc < bfc.Lsb()
-	=> (UBFX [ArmBFAuxInt(bfc.Lsb()-sc, bfc.Width())] x)
+	=> (UBFX [ssa.ArmBFAuxInt(bfc.Lsb()-sc, bfc.Width())] x)
 (UBFX [bfc] (SLLconst [sc] x)) && sc > bfc.Lsb()
 	&& sc < bfc.Lsb()+bfc.Width()
-	=> (UBFIZ [ArmBFAuxInt(sc-bfc.Lsb(), bfc.Lsb()+bfc.Width()-sc)] x)
+	=> (UBFIZ [ssa.ArmBFAuxInt(sc-bfc.Lsb(), bfc.Lsb()+bfc.Width()-sc)] x)
 
 // bfi
 (OR (UBFIZ [bfc] x) (ANDconst [ac] y))
@@ -1797,18 +1797,18 @@
 	&& xc == ^(yc << s)    // opposite masks
 	&& yc & (yc+1) == 0    // power of 2 minus 1
 	&& yc > 0              // not 0, not all 64 bits (there are better rewrites in that case)
-	&& s+Log64(yc+1) <= 64 // shifted mask doesn't overflow
-	=> (BFI [ArmBFAuxInt(s, Log64(yc+1))] x y)
+	&& s+ssa.Log64(yc+1) <= 64 // shifted mask doesn't overflow
+	=> (BFI [ssa.ArmBFAuxInt(s, ssa.Log64(yc+1))] x y)
 (ORshiftRL [rc] (ANDconst [ac] x) (SLLconst [lc] y))
 	&& lc > rc && ac == ^((1<<uint(64-lc)-1) << uint64(lc-rc))
-	=> (BFI [ArmBFAuxInt(lc-rc, 64-lc)] x y)
+	=> (BFI [ssa.ArmBFAuxInt(lc-rc, 64-lc)] x y)
 // bfxil
 (OR (UBFX [bfc] x) (ANDconst [ac] y)) && ac == ^(1<<uint(bfc.Width())-1)
 	=> (BFXIL [bfc] y x)
 (ORshiftLL [sc] (UBFX [bfc] x) (SRLconst [sc] y)) && sc == bfc.Width()
 	=> (BFXIL [bfc] y x)
 (ORshiftRL [rc] (ANDconst [ac] y) (SLLconst [lc] x)) && lc < rc && ac == ^((1<<uint(64-rc)-1))
-	=> (BFXIL [ArmBFAuxInt(rc-lc, 64-rc)] y x)
+	=> (BFXIL [ssa.ArmBFAuxInt(rc-lc, 64-rc)] y x)
 
 // FP simplification
 (FNEGS  (FMULS  x y)) => (FNMULS x y)
@@ -1833,13 +1833,13 @@
 (FSUBS (FNMULS x y) a) && a.Block.Func.UseFMA(v) => (FNMADDS a x y)
 (FSUBD (FNMULD x y) a) && a.Block.Func.UseFMA(v) => (FNMADDD a x y)
 
-(MOVBUload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVDconst [int64(Read8(sym, int64(off)))])
-(MOVHUload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVDconst [int64(Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
-(MOVWUload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVDconst [int64(Read32(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
-(MOVDload  [off] {sym} (SB) _) && SymIsRO(sym) => (MOVDconst [int64(Read64(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
-(MOVBload  [off] {sym} (SB) _) && SymIsRO(sym) => (MOVDconst [int64(int8(Read8(sym, int64(off))))])
-(MOVHload  [off] {sym} (SB) _) && SymIsRO(sym) => (MOVDconst [int64(int16(Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder)))])
-(MOVWload  [off] {sym} (SB) _) && SymIsRO(sym) => (MOVDconst [int64(int32(Read32(sym, int64(off), config.Ctxt.Arch.ByteOrder)))])
+(MOVBUload [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVDconst [int64(ssa.Read8(sym, int64(off)))])
+(MOVHUload [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVDconst [int64(ssa.Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
+(MOVWUload [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVDconst [int64(ssa.Read32(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
+(MOVDload  [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVDconst [int64(ssa.Read64(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
+(MOVBload  [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVDconst [int64(int8(ssa.Read8(sym, int64(off))))])
+(MOVHload  [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVDconst [int64(int16(ssa.Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder)))])
+(MOVWload  [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVDconst [int64(int32(ssa.Read32(sym, int64(off), config.Ctxt.Arch.ByteOrder)))])
 
 // Prefetch instructions (aux is option: 0 - PLDL1KEEP; 1 - PLDL1STRM)
 (PrefetchCache addr mem)         => (PRFM [0] addr mem)
@@ -1848,19 +1848,19 @@
 // Arch-specific inlining for small or disjoint runtime.memmove
 (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
 	&& sz >= 0
-	&& IsSameCall(sym, "runtime.memmove")
+	&& ssa.IsSameCall(sym, "runtime.memmove")
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& ssa.IsInlinableMemmove(dst, src, sz, config)
-	&& Clobber(s1, s2, s3, call)
+	&& ssa.Clobber(s1, s2, s3, call)
 	=> (Move [sz] dst src mem)
 
 // Match post-lowering calls, register version.
 (SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
 	&& sz >= 0
-	&& IsSameCall(sym, "runtime.memmove")
+	&& ssa.IsSameCall(sym, "runtime.memmove")
 	&& call.Uses == 1
 	&& ssa.IsInlinableMemmove(dst, src, sz, config)
-	&& Clobber(call)
+	&& ssa.Clobber(call)
 	=> (Move [sz] dst src mem)
 
 ((REV|REVW) ((REV|REVW) p)) => p

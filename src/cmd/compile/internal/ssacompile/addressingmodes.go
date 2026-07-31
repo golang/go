@@ -12,14 +12,14 @@ import (
 // addressingModes combines address calculations into memory operations
 // that can perform complicated addressing modes.
 func addressingModes(f *ssa.Func) {
-	isInImmediateRange := Is32Bit
+	isInImmediateRange := ssa.Is32Bit
 	switch f.Config.Arch {
 	default:
 		// Most architectures can't do this.
 		return
 	case "amd64", "386":
 	case "s390x":
-		isInImmediateRange = Is20Bit
+		isInImmediateRange = ssa.Is20Bit
 	}
 
 	var tmp []*ssa.Value

@@ -55,7 +55,7 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v *ssa.Value) bool {
 	// match: (MOVVconst [0])
 	// result: (ZERO)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		v.Reset(ssaop.OpLOONG64ZERO)
@@ -83,7 +83,7 @@ func rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v *ssa.Value) bool {
 	// match: (SLLVconst [1] x)
 	// result: (ADDV x x)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 1 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 1 {
 			break
 		}
 		x := v_0

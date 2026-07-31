@@ -175,7 +175,7 @@
 (Const(8|16|32) [val]) => (MOVWconst [int32(val)])
 (Const(32|64)F [val]) => (MOV(F|D)const [float64(val)])
 (ConstNil) => (MOVWconst [0])
-(ConstBool [t]) => (MOVWconst [B2i32(t)])
+(ConstBool [t]) => (MOVWconst [ssa.B2i32(t)])
 
 // truncations
 // Because we ignore high parts of registers, truncates are just copies.
@@ -255,13 +255,13 @@
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (Is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
-(Load <t> ptr mem) && (Is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (Is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
-(Load <t> ptr mem) && (Is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
-(Load <t> ptr mem) && (Is32BitInt(t) || IsPtr(t)) => (MOVWload ptr mem)
-(Load <t> ptr mem) && Is32BitFloat(t) => (MOVFload ptr mem)
-(Load <t> ptr mem) && Is64BitFloat(t) => (MOVDload ptr mem)
+(Load <t> ptr mem) && (ssa.Is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
+(Load <t> ptr mem) && (ssa.Is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
+(Load <t> ptr mem) && (ssa.Is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
+(Load <t> ptr mem) && (ssa.Is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
+(Load <t> ptr mem) && (ssa.Is32BitInt(t) ||ssa.IsPtr(t)) => (MOVWload ptr mem)
+(Load <t> ptr mem) && ssa.Is32BitFloat(t) => (MOVFload ptr mem)
+(Load <t> ptr mem) && ssa.Is64BitFloat(t) => (MOVDload ptr mem)
 
 // stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
@@ -306,7 +306,7 @@
 	&& s > 512 || t.Alignment()%4 != 0 =>
 	(LoweredZero [t.Alignment()]
 		ptr
-		(ADDconst <ptr.Type> ptr [int32(s-MoveSize(t.Alignment(), config))])
+		(ADDconst <ptr.Type> ptr [int32(s-ssa.MoveSize(t.Alignment(), config))])
 		(MOVWconst [0])
 		mem)
 
@@ -338,16 +338,16 @@
 // 8 and 128 are magic constants, see runtime/mkduff.go
 (Move [s] {t} dst src mem)
 	&& s%4 == 0 && s > 4 && s <= 512
-	&& t.Alignment()%4 == 0 && LogLargeCopyValue(v, s) =>
+	&& t.Alignment()%4 == 0 && ssa.LogLargeCopyValue(v, s) =>
 	(DUFFCOPY [8 * (128 - s/4)] dst src mem)
 
 // Large move uses a loop
 (Move [s] {t} dst src mem)
-	&& (s > 512 || t.Alignment()%4 != 0) && LogLargeCopyValue(v, s) =>
+	&& (s > 512 || t.Alignment()%4 != 0) && ssa.LogLargeCopyValue(v, s) =>
 	(LoweredMove [t.Alignment()]
 		dst
 		src
-		(ADDconst <src.Type> src [int32(s-MoveSize(t.Alignment(), config))])
+		(ADDconst <src.Type> src [int32(s-ssa.MoveSize(t.Alignment(), config))])
 		mem)
 
 // calls
@@ -441,31 +441,31 @@
 (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) => (MOVDstore [off1+off2] {sym} ptr val mem)
 (MOVDstore [off1] {sym} (SUBconst [off2] ptr) val mem) => (MOVDstore [off1-off2] {sym} ptr val mem)
 
-(MOVBload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2) =>
-	(MOVBload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
-(MOVBUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2) =>
-	(MOVBUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
-(MOVHload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2) =>
-	(MOVHload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
-(MOVHUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2) =>
-	(MOVHUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
-(MOVWload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2) =>
-	(MOVWload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
-(MOVFload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2) =>
-	(MOVFload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
-(MOVDload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2) =>
-	(MOVDload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
+(MOVBload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVBload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
+(MOVBUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVBUload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
+(MOVHload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVHload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
+(MOVHUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVHUload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
+(MOVWload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVWload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
+(MOVFload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVFload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
+(MOVDload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVDload [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr mem)
 
-(MOVBstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && CanMergeSym(sym1,sym2) =>
-	(MOVBstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
-(MOVHstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && CanMergeSym(sym1,sym2) =>
-	(MOVHstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
-(MOVWstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && CanMergeSym(sym1,sym2) =>
-	(MOVWstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
-(MOVFstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && CanMergeSym(sym1,sym2) =>
-	(MOVFstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
-(MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && CanMergeSym(sym1,sym2) =>
-	(MOVDstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
+(MOVBstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVBstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
+(MOVHstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVHstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
+(MOVWstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVWstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
+(MOVFstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVFstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
+(MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && ssa.CanMergeSym(sym1,sym2) =>
+	(MOVDstore [off1+off2] {ssa.MergeSym(sym1,sym2)} ptr val mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
 (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2) => (MOVBreg x)
@@ -518,7 +518,7 @@
 (SRR x (MOVWconst [c])) => (SRRconst x [c&31])
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-(CMP x y) && CanonLessThan(x,y) => (InvertFlags (CMP y x))
+(CMP x y) && ssa.CanonLessThan(x,y) => (InvertFlags (CMP y x))
 
 // don't extend after proper load
 // MOVWreg instruction is not emitted if src and dst registers are same, but it ensures the type.
@@ -565,75 +565,75 @@
 (MUL x (MOVWconst [c])) && int32(c) == -1 => (RSBconst [0] x)
 (MUL _ (MOVWconst [0])) => (MOVWconst [0])
 (MUL x (MOVWconst [1])) => x
-(MUL x (MOVWconst [c])) && IsPowerOfTwo(c) => (SLLconst [int32(Log32(c))] x)
-(MUL x (MOVWconst [c])) && IsPowerOfTwo(c-1) && c >= 3 => (ADDshiftLL x x [int32(Log32(c-1))])
-(MUL x (MOVWconst [c])) && IsPowerOfTwo(c+1) && c >= 7 => (RSBshiftLL x x [int32(Log32(c+1))])
-(MUL x (MOVWconst [c])) && c%3 == 0 && IsPowerOfTwo(c/3) => (SLLconst [int32(Log32(c/3))] (ADDshiftLL <x.Type> x x [1]))
-(MUL x (MOVWconst [c])) && c%5 == 0 && IsPowerOfTwo(c/5) => (SLLconst [int32(Log32(c/5))] (ADDshiftLL <x.Type> x x [2]))
-(MUL x (MOVWconst [c])) && c%7 == 0 && IsPowerOfTwo(c/7) => (SLLconst [int32(Log32(c/7))] (RSBshiftLL <x.Type> x x [3]))
-(MUL x (MOVWconst [c])) && c%9 == 0 && IsPowerOfTwo(c/9) => (SLLconst [int32(Log32(c/9))] (ADDshiftLL <x.Type> x x [3]))
+(MUL x (MOVWconst [c])) && ssa.IsPowerOfTwo(c) => (SLLconst [int32(ssa.Log32(c))] x)
+(MUL x (MOVWconst [c])) && ssa.IsPowerOfTwo(c-1) && c >= 3 => (ADDshiftLL x x [int32(ssa.Log32(c-1))])
+(MUL x (MOVWconst [c])) && ssa.IsPowerOfTwo(c+1) && c >= 7 => (RSBshiftLL x x [int32(ssa.Log32(c+1))])
+(MUL x (MOVWconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (SLLconst [int32(ssa.Log32(c/3))] (ADDshiftLL <x.Type> x x [1]))
+(MUL x (MOVWconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (SLLconst [int32(ssa.Log32(c/5))] (ADDshiftLL <x.Type> x x [2]))
+(MUL x (MOVWconst [c])) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (SLLconst [int32(ssa.Log32(c/7))] (RSBshiftLL <x.Type> x x [3]))
+(MUL x (MOVWconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (SLLconst [int32(ssa.Log32(c/9))] (ADDshiftLL <x.Type> x x [3]))
 
 (MULA x (MOVWconst [c]) a) && c == -1 => (SUB a x)
 (MULA _ (MOVWconst [0]) a) => a
 (MULA x (MOVWconst [1]) a) => (ADD x a)
-(MULA x (MOVWconst [c]) a) && IsPowerOfTwo(c) => (ADD (SLLconst <x.Type> [int32(Log32(c))] x) a)
-(MULA x (MOVWconst [c]) a) && IsPowerOfTwo(c-1) && c >= 3 => (ADD (ADDshiftLL <x.Type> x x [int32(Log32(c-1))]) a)
-(MULA x (MOVWconst [c]) a) && IsPowerOfTwo(c+1) && c >= 7 => (ADD (RSBshiftLL <x.Type> x x [int32(Log32(c+1))]) a)
-(MULA x (MOVWconst [c]) a) && c%3 == 0 && IsPowerOfTwo(c/3) => (ADD (SLLconst <x.Type> [int32(Log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
-(MULA x (MOVWconst [c]) a) && c%5 == 0 && IsPowerOfTwo(c/5) => (ADD (SLLconst <x.Type> [int32(Log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
-(MULA x (MOVWconst [c]) a) && c%7 == 0 && IsPowerOfTwo(c/7) => (ADD (SLLconst <x.Type> [int32(Log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
-(MULA x (MOVWconst [c]) a) && c%9 == 0 && IsPowerOfTwo(c/9) => (ADD (SLLconst <x.Type> [int32(Log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
+(MULA x (MOVWconst [c]) a) && ssa.IsPowerOfTwo(c) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c))] x) a)
+(MULA x (MOVWconst [c]) a) && ssa.IsPowerOfTwo(c-1) && c >= 3 => (ADD (ADDshiftLL <x.Type> x x [int32(ssa.Log32(c-1))]) a)
+(MULA x (MOVWconst [c]) a) && ssa.IsPowerOfTwo(c+1) && c >= 7 => (ADD (RSBshiftLL <x.Type> x x [int32(ssa.Log32(c+1))]) a)
+(MULA x (MOVWconst [c]) a) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
+(MULA x (MOVWconst [c]) a) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
+(MULA x (MOVWconst [c]) a) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
+(MULA x (MOVWconst [c]) a) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 
 (MULA (MOVWconst [c]) x a) && c == -1 => (SUB a x)
 (MULA (MOVWconst [0]) _ a) => a
 (MULA (MOVWconst [1]) x a) => (ADD x a)
-(MULA (MOVWconst [c]) x a) && IsPowerOfTwo(c) => (ADD (SLLconst <x.Type> [int32(Log32(c))] x) a)
-(MULA (MOVWconst [c]) x a) && IsPowerOfTwo(c-1) && c >= 3 => (ADD (ADDshiftLL <x.Type> x x [int32(Log32(c-1))]) a)
-(MULA (MOVWconst [c]) x a) && IsPowerOfTwo(c+1) && c >= 7 => (ADD (RSBshiftLL <x.Type> x x [int32(Log32(c+1))]) a)
-(MULA (MOVWconst [c]) x a) && c%3 == 0 && IsPowerOfTwo(c/3) => (ADD (SLLconst <x.Type> [int32(Log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
-(MULA (MOVWconst [c]) x a) && c%5 == 0 && IsPowerOfTwo(c/5) => (ADD (SLLconst <x.Type> [int32(Log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
-(MULA (MOVWconst [c]) x a) && c%7 == 0 && IsPowerOfTwo(c/7) => (ADD (SLLconst <x.Type> [int32(Log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
-(MULA (MOVWconst [c]) x a) && c%9 == 0 && IsPowerOfTwo(c/9) => (ADD (SLLconst <x.Type> [int32(Log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
+(MULA (MOVWconst [c]) x a) && ssa.IsPowerOfTwo(c) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c))] x) a)
+(MULA (MOVWconst [c]) x a) && ssa.IsPowerOfTwo(c-1) && c >= 3 => (ADD (ADDshiftLL <x.Type> x x [int32(ssa.Log32(c-1))]) a)
+(MULA (MOVWconst [c]) x a) && ssa.IsPowerOfTwo(c+1) && c >= 7 => (ADD (RSBshiftLL <x.Type> x x [int32(ssa.Log32(c+1))]) a)
+(MULA (MOVWconst [c]) x a) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
+(MULA (MOVWconst [c]) x a) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
+(MULA (MOVWconst [c]) x a) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
+(MULA (MOVWconst [c]) x a) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (ADD (SLLconst <x.Type> [int32(ssa.Log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 
 (MULS x (MOVWconst [c]) a) && c == -1 => (ADD a x)
 (MULS _ (MOVWconst [0]) a) => a
 (MULS x (MOVWconst [1]) a) => (RSB x a)
-(MULS x (MOVWconst [c]) a) && IsPowerOfTwo(c) => (RSB (SLLconst <x.Type> [int32(Log32(c))] x) a)
-(MULS x (MOVWconst [c]) a) && IsPowerOfTwo(c-1) && c >= 3 => (RSB (ADDshiftLL <x.Type> x x [int32(Log32(c-1))]) a)
-(MULS x (MOVWconst [c]) a) && IsPowerOfTwo(c+1) && c >= 7 => (RSB (RSBshiftLL <x.Type> x x [int32(Log32(c+1))]) a)
-(MULS x (MOVWconst [c]) a) && c%3 == 0 && IsPowerOfTwo(c/3) => (RSB (SLLconst <x.Type> [int32(Log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
-(MULS x (MOVWconst [c]) a) && c%5 == 0 && IsPowerOfTwo(c/5) => (RSB (SLLconst <x.Type> [int32(Log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
-(MULS x (MOVWconst [c]) a) && c%7 == 0 && IsPowerOfTwo(c/7) => (RSB (SLLconst <x.Type> [int32(Log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
-(MULS x (MOVWconst [c]) a) && c%9 == 0 && IsPowerOfTwo(c/9) => (RSB (SLLconst <x.Type> [int32(Log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
+(MULS x (MOVWconst [c]) a) && ssa.IsPowerOfTwo(c) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c))] x) a)
+(MULS x (MOVWconst [c]) a) && ssa.IsPowerOfTwo(c-1) && c >= 3 => (RSB (ADDshiftLL <x.Type> x x [int32(ssa.Log32(c-1))]) a)
+(MULS x (MOVWconst [c]) a) && ssa.IsPowerOfTwo(c+1) && c >= 7 => (RSB (RSBshiftLL <x.Type> x x [int32(ssa.Log32(c+1))]) a)
+(MULS x (MOVWconst [c]) a) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
+(MULS x (MOVWconst [c]) a) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
+(MULS x (MOVWconst [c]) a) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
+(MULS x (MOVWconst [c]) a) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 
 (MULS (MOVWconst [c]) x a) && c == -1 => (ADD a x)
 (MULS (MOVWconst [0]) _ a) => a
 (MULS (MOVWconst [1]) x a) => (RSB x a)
-(MULS (MOVWconst [c]) x a) && IsPowerOfTwo(c) => (RSB (SLLconst <x.Type> [int32(Log32(c))] x) a)
-(MULS (MOVWconst [c]) x a) && IsPowerOfTwo(c-1) && c >= 3 => (RSB (ADDshiftLL <x.Type> x x [int32(Log32(c-1))]) a)
-(MULS (MOVWconst [c]) x a) && IsPowerOfTwo(c+1) && c >= 7 => (RSB (RSBshiftLL <x.Type> x x [int32(Log32(c+1))]) a)
-(MULS (MOVWconst [c]) x a) && c%3 == 0 && IsPowerOfTwo(c/3) => (RSB (SLLconst <x.Type> [int32(Log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
-(MULS (MOVWconst [c]) x a) && c%5 == 0 && IsPowerOfTwo(c/5) => (RSB (SLLconst <x.Type> [int32(Log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
-(MULS (MOVWconst [c]) x a) && c%7 == 0 && IsPowerOfTwo(c/7) => (RSB (SLLconst <x.Type> [int32(Log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
-(MULS (MOVWconst [c]) x a) && c%9 == 0 && IsPowerOfTwo(c/9) => (RSB (SLLconst <x.Type> [int32(Log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
+(MULS (MOVWconst [c]) x a) && ssa.IsPowerOfTwo(c) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c))] x) a)
+(MULS (MOVWconst [c]) x a) && ssa.IsPowerOfTwo(c-1) && c >= 3 => (RSB (ADDshiftLL <x.Type> x x [int32(ssa.Log32(c-1))]) a)
+(MULS (MOVWconst [c]) x a) && ssa.IsPowerOfTwo(c+1) && c >= 7 => (RSB (RSBshiftLL <x.Type> x x [int32(ssa.Log32(c+1))]) a)
+(MULS (MOVWconst [c]) x a) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
+(MULS (MOVWconst [c]) x a) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
+(MULS (MOVWconst [c]) x a) && c%7 == 0 && ssa.IsPowerOfTwo(c/7) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
+(MULS (MOVWconst [c]) x a) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) => (RSB (SLLconst <x.Type> [int32(ssa.Log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 
 // div by constant
 (Select0 (CALLudiv x (MOVWconst [1]))) => x
 (Select1 (CALLudiv _ (MOVWconst [1]))) => (MOVWconst [0])
-(Select0 (CALLudiv x (MOVWconst [c]))) && IsPowerOfTwo(c) => (SRLconst [int32(Log32(c))] x)
-(Select1 (CALLudiv x (MOVWconst [c]))) && IsPowerOfTwo(c) => (ANDconst [c-1] x)
+(Select0 (CALLudiv x (MOVWconst [c]))) && ssa.IsPowerOfTwo(c) => (SRLconst [int32(ssa.Log32(c))] x)
+(Select1 (CALLudiv x (MOVWconst [c]))) && ssa.IsPowerOfTwo(c) => (ANDconst [c-1] x)
 
 // constant comparisons
-(CMPconst (MOVWconst [x]) [y]) => (FlagConstant [SubFlags32(x,y)])
-(CMNconst (MOVWconst [x]) [y]) => (FlagConstant [AddFlags32(x,y)])
-(TSTconst (MOVWconst [x]) [y]) => (FlagConstant [LogicFlags32(x&y)])
-(TEQconst (MOVWconst [x]) [y]) => (FlagConstant [LogicFlags32(x^y)])
+(CMPconst (MOVWconst [x]) [y]) => (FlagConstant [ssa.SubFlags32(x,y)])
+(CMNconst (MOVWconst [x]) [y]) => (FlagConstant [ssa.AddFlags32(x,y)])
+(TSTconst (MOVWconst [x]) [y]) => (FlagConstant [ssa.LogicFlags32(x&y)])
+(TEQconst (MOVWconst [x]) [y]) => (FlagConstant [ssa.LogicFlags32(x^y)])
 
 // other known comparisons
-(CMPconst (MOVBUreg _) [c]) && 0xff < c => (FlagConstant [SubFlags32(0, 1)])
-(CMPconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [SubFlags32(0, 1)])
-(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [SubFlags32(0, 1)])
-(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n) => (FlagConstant [SubFlags32(0, 1)])
+(CMPconst (MOVBUreg _) [c]) && 0xff < c => (FlagConstant [ssa.SubFlags32(0, 1)])
+(CMPconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [ssa.SubFlags32(0, 1)])
+(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [ssa.SubFlags32(0, 1)])
+(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n) => (FlagConstant [ssa.SubFlags32(0, 1)])
 
 // absorb flag constants into branches
 (EQ (FlagConstant [fc]) yes no) &&  fc.Eq() => (First yes no)
@@ -691,16 +691,16 @@
 (NE (InvertFlags cmp) yes no) => (NE cmp yes no)
 
 // absorb flag constants into boolean values
-(Equal (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Eq())])
-(NotEqual (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Ne())])
-(LessThan (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Lt())])
-(LessThanU (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Ult())])
-(LessEqual (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Le())])
-(LessEqualU (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Ule())])
-(GreaterThan (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Gt())])
-(GreaterThanU (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Ugt())])
-(GreaterEqual (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Ge())])
-(GreaterEqualU (FlagConstant [fc])) => (MOVWconst [B2i32(fc.Uge())])
+(Equal (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Eq())])
+(NotEqual (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Ne())])
+(LessThan (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Lt())])
+(LessThanU (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Ult())])
+(LessEqual (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Le())])
+(LessEqualU (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Ule())])
+(GreaterThan (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Gt())])
+(GreaterThanU (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Ugt())])
+(GreaterEqual (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Ge())])
+(GreaterEqualU (FlagConstant [fc])) => (MOVWconst [ssa.B2i32(fc.Uge())])
 
 // absorb InvertFlags into boolean values
 (Equal (InvertFlags x)) => (Equal x)
@@ -1140,7 +1140,7 @@
 // ((x>>8) | (x<<8)) -> (REV16 x), the type of x is uint16, "|" can also be "^" or "+".
 // UBFX instruction is supported by ARMv6T2, ARMv7 and above versions, REV16 is supported by
 // ARMv6 and above versions. So for ARMv6, we need to match SLLconst, SRLconst and ORshiftLL.
-((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(ArmBFAuxInt(8, 8))] x) x) => (REV16 x)
+((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(ssa.ArmBFAuxInt(8, 8))] x) x) => (REV16 x)
 ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x) && buildcfg.GOARM.Version>=6 => (REV16 x)
 
 // use indexed loads and stores
@@ -1436,8 +1436,8 @@
 (GE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) && l.Uses==1 => (GEnoov (TEQshiftRLreg x y z) yes no)
 (GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) && l.Uses==1 => (GEnoov (TEQshiftRAreg x y z) yes no)
 
-(MOVBUload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVWconst [int32(Read8(sym, int64(off)))])
-(MOVHUload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVWconst [int32(Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
-(MOVWload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVWconst [int32(Read32(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
-(MOVBload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVWconst [int32(int8(Read8(sym, int64(off))))])
-(MOVHload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVWconst [int32(int16(Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder)))])
+(MOVBUload [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVWconst [int32(ssa.Read8(sym, int64(off)))])
+(MOVHUload [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVWconst [int32(ssa.Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
+(MOVWload [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVWconst [int32(ssa.Read32(sym, int64(off), config.Ctxt.Arch.ByteOrder))])
+(MOVBload [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVWconst [int32(int8(ssa.Read8(sym, int64(off))))])
+(MOVHload [off] {sym} (SB) _) && ssa.SymIsRO(sym) => (MOVWconst [int32(int16(ssa.Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder)))])

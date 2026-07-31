@@ -322,7 +322,7 @@ func writebarrier(f *ssa.Func) {
 		for _, w := range stores {
 			if w.Op == ssaop.OpMoveWB {
 				val := w.Args[1]
-				if IsVolatile(val) {
+				if ssa.IsVolatile(val) {
 					for _, c := range volatiles {
 						if val == c.src {
 							continue copyLoop // already copied
@@ -475,7 +475,7 @@ func writebarrier(f *ssa.Func) {
 				nWBops--
 			case ssaop.OpMoveWB:
 				src := w.Args[1]
-				if IsVolatile(src) {
+				if ssa.IsVolatile(src) {
 					for _, c := range volatiles {
 						if src == c.src {
 							src = c.tmp
@@ -519,7 +519,7 @@ func writebarrier(f *ssa.Func) {
 				mem.Aux = w.Aux
 			case ssaop.OpMoveWB:
 				src := w.Args[1]
-				if IsVolatile(src) {
+				if ssa.IsVolatile(src) {
 					for _, c := range volatiles {
 						if src == c.src {
 							src = c.tmp
@@ -642,13 +642,4 @@ func IsReadOnlyGlobalAddr(v *ssa.Value) bool {
 		return true
 	}
 	return false
-}
-
-// IsVolatile reports whether v is a pointer to argument region on stack which
-// will be clobbered by a function call.
-func IsVolatile(v *ssa.Value) bool {
-	for v.Op == ssaop.OpOffPtr || v.Op == ssaop.OpAddPtr || v.Op == ssaop.OpPtrIndex || v.Op == ssaop.OpCopy || v.Op == ssaop.OpSelectNAddr {
-		v = v.Args[0]
-	}
-	return v.Op == ssaop.OpSP
 }

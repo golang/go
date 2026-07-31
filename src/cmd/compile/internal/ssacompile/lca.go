@@ -119,7 +119,7 @@ func (lca *lcaRange) find(a, b *ssa.Block) *ssa.Block {
 	// on the tour from p1 to p2.  We've precomputed minimum
 	// depth blocks for powers-of-two subsequences of the tour.
 	// Combine the right two precomputed values to get the answer.
-	logS := uint(Log64(int64(p2 - p1)))
+	logS := uint(ssa.Log64(int64(p2 - p1)))
 	bid1 := lca.rangeMin[logS][p1]
 	bid2 := lca.rangeMin[logS][p2-1<<logS+1]
 	if lca.blocks[bid1].depth < lca.blocks[bid2].depth {

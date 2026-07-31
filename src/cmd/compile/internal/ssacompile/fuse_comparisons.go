@@ -308,5 +308,5 @@ func canOptSingleBitDifference(x, y *ssa.Value, op ssaop.Op) bool {
 	if x.Args[xi^1] != y.Args[yi^1] {
 		return false
 	}
-	return OneBit(x.Args[xi].AuxInt ^ y.Args[yi].AuxInt)
+	return ssa.OneBit(x.Args[xi].AuxInt ^ y.Args[yi].AuxInt)
 }

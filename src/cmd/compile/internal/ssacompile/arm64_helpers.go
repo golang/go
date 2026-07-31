@@ -160,12 +160,12 @@ func ccARM64Eval(op ssaop.Op, flags *ssa.Value) int {
 // checks if mask >> rshift applied at lsb is a valid arm64 bitfield op mask.
 func isARM64BFMask(lsb, mask, rshift int64) bool {
 	shiftedMask := int64(uint64(mask) >> uint64(rshift))
-	return shiftedMask != 0 && IsPowerOfTwo(shiftedMask+1) && nto(shiftedMask)+lsb < 64
+	return shiftedMask != 0 && ssa.IsPowerOfTwo(shiftedMask+1) && nto(shiftedMask)+lsb < 64
 }
 
 // nto returns the number of trailing ones.
 func nto(x int64) int64 {
-	return int64(Ntz64(^x))
+	return int64(ssa.Ntz64(^x))
 }
 
 func rotateRight64(v, rotate int64) int64 {

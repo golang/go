@@ -14,22 +14,22 @@
 
 // Divisiblity by unsigned or signed power of two.
 (Eq(8|16|32|64)  x (Mul(8|16|32|64) <t> (Div(8|16|32|64)u x (Const(8|16|32|64) [c])) (Const(8|16|32|64) [c])))
-  && x.Op != ssaop.OpConst64 && IsPowerOfTwo(c) =>
+  && x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c) =>
   (Eq(8|16|32|64)  (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [c-1])) (Const(8|16|32|64) <t> [0]))
 (Eq(8|16|32|64)  x (Mul(8|16|32|64) <t> (Div(8|16|32|64)  x (Const(8|16|32|64) [c])) (Const(8|16|32|64) [c])))
-  && x.Op != ssaop.OpConst64 && IsPowerOfTwo(c) =>
+  && x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c) =>
   (Eq(8|16|32|64)  (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [c-1])) (Const(8|16|32|64) <t> [0]))
 (Neq(8|16|32|64) x (Mul(8|16|32|64) <t> (Div(8|16|32|64)u x (Const(8|16|32|64) [c])) (Const(8|16|32|64) [c])))
-  && x.Op != ssaop.OpConst64 && IsPowerOfTwo(c) =>
+  && x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c) =>
   (Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [c-1])) (Const(8|16|32|64) <t> [0]))
 (Neq(8|16|32|64) x (Mul(8|16|32|64) <t> (Div(8|16|32|64)  x (Const(8|16|32|64) [c])) (Const(8|16|32|64) [c])))
-  && x.Op != ssaop.OpConst64 && IsPowerOfTwo(c) =>
+  && x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c) =>
   (Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [c-1])) (Const(8|16|32|64) <t> [0]))
 
 // Divisiblity by unsigned.
 (Eq8 x (Mul8 <t> div:(Div8u x (Const8 [c])) (Const8 [c])))
   && div.Uses == 1
-  && x.Op != ssaop.OpConst8 && UdivisibleOK8(c) =>
+  && x.Op != ssaop.OpConst8 && ssa.UdivisibleOK8(c) =>
   (Leq8U
     (RotateLeft8 <t>
       (Mul8 <t> x (Const8 <t> [int8(udivisible8(c).M)]))
@@ -37,7 +37,7 @@
     (Const8 <t> [int8(udivisible8(c).Max)]))
 (Neq8 x (Mul8 <t> div:(Div8u x (Const8 [c])) (Const8 [c])))
   && div.Uses == 1
-  && x.Op != ssaop.OpConst8 && UdivisibleOK8(c) =>
+  && x.Op != ssaop.OpConst8 && ssa.UdivisibleOK8(c) =>
   (Less8U
     (Const8 <t> [int8(udivisible8(c).Max)])
     (RotateLeft8 <t>
@@ -45,7 +45,7 @@
       (Const8 <t> [int8(8 - udivisible8(c).K)])))
 (Eq16 x (Mul16 <t> div:(Div16u x (Const16 [c])) (Const16 [c])))
   && div.Uses == 1
-  && x.Op != ssaop.OpConst16 && UdivisibleOK16(c) =>
+  && x.Op != ssaop.OpConst16 && ssa.UdivisibleOK16(c) =>
   (Leq16U
     (RotateLeft16 <t>
       (Mul16 <t> x (Const16 <t> [int16(udivisible16(c).M)]))
@@ -53,7 +53,7 @@
     (Const16 <t> [int16(udivisible16(c).Max)]))
 (Neq16 x (Mul16 <t> div:(Div16u x (Const16 [c])) (Const16 [c])))
   && div.Uses == 1
-  && x.Op != ssaop.OpConst16 && UdivisibleOK16(c) =>
+  && x.Op != ssaop.OpConst16 && ssa.UdivisibleOK16(c) =>
   (Less16U
     (Const16 <t> [int16(udivisible16(c).Max)])
     (RotateLeft16 <t>
@@ -95,7 +95,7 @@
 // Divisiblity by signed.
 (Eq8 x (Mul8 <t> div:(Div8  x (Const8 [c])) (Const8 [c])))
   && div.Uses == 1
-  && x.Op != ssaop.OpConst8 && SdivisibleOK8(c) =>
+  && x.Op != ssaop.OpConst8 && ssa.SdivisibleOK8(c) =>
   (Leq8U
     (RotateLeft8 <t>
       (Add8 <t> (Mul8 <t> x (Const8 <t> [int8(sdivisible8(c).M)]))
@@ -104,7 +104,7 @@
     (Const8 <t> [int8(sdivisible8(c).Max)]))
 (Neq8 x (Mul8 <t> div:(Div8  x (Const8 [c])) (Const8 [c])))
   && div.Uses == 1
-  && x.Op != ssaop.OpConst8 && SdivisibleOK8(c) =>
+  && x.Op != ssaop.OpConst8 && ssa.SdivisibleOK8(c) =>
   (Less8U
     (Const8 <t> [int8(sdivisible8(c).Max)])
     (RotateLeft8 <t>
@@ -113,7 +113,7 @@
       (Const8 <t> [int8(8 - sdivisible8(c).K)])))
 (Eq16 x (Mul16 <t> div:(Div16 x (Const16 [c])) (Const16 [c])))
   && div.Uses == 1
-  && x.Op != ssaop.OpConst16 && SdivisibleOK16(c) =>
+  && x.Op != ssaop.OpConst16 && ssa.SdivisibleOK16(c) =>
   (Leq16U
     (RotateLeft16 <t>
       (Add16 <t> (Mul16 <t> x (Const16 <t> [int16(sdivisible16(c).M)]))
@@ -122,7 +122,7 @@
     (Const16 <t> [int16(sdivisible16(c).Max)]))
 (Neq16 x (Mul16 <t> div:(Div16 x (Const16 [c])) (Const16 [c])))
   && div.Uses == 1
-  && x.Op != ssaop.OpConst16 && SdivisibleOK16(c) =>
+  && x.Op != ssaop.OpConst16 && ssa.SdivisibleOK16(c) =>
   (Less16U
     (Const16 <t> [int16(sdivisible16(c).Max)])
     (RotateLeft16 <t>

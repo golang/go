@@ -36,10 +36,10 @@ func mergePPC64AndRlwinm(mask uint32, rlw int64) int64 {
 	mask_out := (mask_rlw & uint64(mask))
 
 	// Verify the result is still a valid bitmask of <= 32 bits.
-	if !IsPPC64WordRotateMask(int64(mask_out)) {
+	if !ssa.IsPPC64WordRotateMask(int64(mask_out)) {
 		return 0
 	}
-	return EncodePPC64RotateMask(r, int64(mask_out), 32)
+	return ssa.EncodePPC64RotateMask(r, int64(mask_out), 32)
 }
 
 // Combine (ANDconst [m] (SLDconst [s])) into (RLWINM [y]) or return 0
@@ -54,12 +54,12 @@ func mergePPC64AndSldi(m, s int64) int64 {
 	if !isPPC64WordRotateMaskNonWrapping(mask) {
 		return 0
 	}
-	return EncodePPC64RotateMask(s&31, mask, 32)
+	return ssa.EncodePPC64RotateMask(s&31, mask, 32)
 }
 
 // Combine (ANDconst [m] (SRDconst [s])) into (RLWINM [y]) or return 0
 func mergePPC64AndSrdi(m, s int64) int64 {
-	mask := MergePPC64RShiftMask(m, s, 64)
+	mask := ssa.MergePPC64RShiftMask(m, s, 64)
 
 	// Verify the rotate and mask result only uses the lower 32 bits.
 	rv := bits.RotateLeft64(0xFFFFFFFF00000000, -int(s))
@@ -69,7 +69,7 @@ func mergePPC64AndSrdi(m, s int64) int64 {
 	if !isPPC64WordRotateMaskNonWrapping(mask) {
 		return 0
 	}
-	return EncodePPC64RotateMask((32-s)&31, mask, 32)
+	return ssa.EncodePPC64RotateMask((32-s)&31, mask, 32)
 }
 
 // Test if a doubleword shift right feeding into a CLRLSLDI can be merged into RLWINM.
@@ -94,7 +94,7 @@ func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	if v1&mask_3 != 0 {
 		return 0
 	}
-	return EncodePPC64RotateMask(r_3&31, int64(mask_3), 32)
+	return ssa.EncodePPC64RotateMask(r_3&31, int64(mask_3), 32)
 }
 
 // Test if RLWINM opcode rlw clears the upper 32 bits of the
@@ -118,10 +118,10 @@ func mergePPC64RlwinmAnd(rlw int64, mask uint32) int64 {
 	mask_out := (mask_rlw & uint64(r_mask))
 
 	// Verify the result is still a valid bitmask of <= 32 bits.
-	if !IsPPC64WordRotateMask(int64(mask_out)) {
+	if !ssa.IsPPC64WordRotateMask(int64(mask_out)) {
 		return 0
 	}
-	return EncodePPC64RotateMask(r, int64(mask_out), 32)
+	return ssa.EncodePPC64RotateMask(r, int64(mask_out), 32)
 }
 
 // Test if RLWINM feeding into SRDconst can be merged. Return the encoded RLIWNM constant,
@@ -141,7 +141,7 @@ func mergePPC64SldiRlwinm(sldi, rlw int64) int64 {
 	if uint64(uint32(mask_3)) != mask_3 {
 		return 0
 	}
-	return EncodePPC64RotateMask(r_3, int64(mask_3), 32)
+	return ssa.EncodePPC64RotateMask(r_3, int64(mask_3), 32)
 }
 
 // Convenience function to rotate a 32 bit constant value by another constant.

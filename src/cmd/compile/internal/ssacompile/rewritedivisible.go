@@ -31,7 +31,7 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Eq16 x (Mul16 <t> (Div16u x (Const16 [c])) (Const16 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Eq16 (And16 <t> x (Const16 <t> [c-1])) (Const16 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -55,17 +55,17 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst16 {
 					continue
 				}
-				c := AuxIntToInt16(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst16 || AuxIntToInt16(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt16(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst16 || ssa.AuxIntToInt16(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpEq16)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd16, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v1.AuxInt = Int16ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int16ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v2.AuxInt = Int16ToAuxInt(0)
+				v2.AuxInt = ssa.Int16ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -73,7 +73,7 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 		break
 	}
 	// match: (Eq16 x (Mul16 <t> (Div16 x (Const16 [c])) (Const16 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Eq16 (And16 <t> x (Const16 <t> [c-1])) (Const16 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -97,17 +97,17 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst16 {
 					continue
 				}
-				c := AuxIntToInt16(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst16 || AuxIntToInt16(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt16(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst16 || ssa.AuxIntToInt16(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpEq16)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd16, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v1.AuxInt = Int16ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int16ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v2.AuxInt = Int16ToAuxInt(0)
+				v2.AuxInt = ssa.Int16ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -115,7 +115,7 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 		break
 	}
 	// match: (Eq16 x (Mul16 <t> div:(Div16u x (Const16 [c])) (Const16 [c])))
-	// cond: div.Uses == 1 && x.Op != ssaop.OpConst16 && UdivisibleOK16(c)
+	// cond: div.Uses == 1 && x.Op != ssaop.OpConst16 && ssa.UdivisibleOK16(c)
 	// result: (Leq16U (RotateLeft16 <t> (Mul16 <t> x (Const16 <t> [int16(udivisible16(c).M)])) (Const16 <t> [int16(16 - udivisible16(c).K)])) (Const16 <t> [int16(udivisible16(c).Max)]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -140,21 +140,21 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst16 {
 					continue
 				}
-				c := AuxIntToInt16(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst16 || AuxIntToInt16(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst16 && UdivisibleOK16(c)) {
+				c := ssa.AuxIntToInt16(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst16 || ssa.AuxIntToInt16(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst16 && ssa.UdivisibleOK16(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLeq16U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpRotateLeft16, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpMul16, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v2.AuxInt = Int16ToAuxInt(int16(udivisible16(c).M))
+				v2.AuxInt = ssa.Int16ToAuxInt(int16(udivisible16(c).M))
 				v1.AddArg2(x, v2)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v3.AuxInt = Int16ToAuxInt(int16(16 - udivisible16(c).K))
+				v3.AuxInt = ssa.Int16ToAuxInt(int16(16 - udivisible16(c).K))
 				v0.AddArg2(v1, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v4.AuxInt = Int16ToAuxInt(int16(udivisible16(c).Max))
+				v4.AuxInt = ssa.Int16ToAuxInt(int16(udivisible16(c).Max))
 				v.AddArg2(v0, v4)
 				return true
 			}
@@ -162,7 +162,7 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 		break
 	}
 	// match: (Eq16 x (Mul16 <t> div:(Div16 x (Const16 [c])) (Const16 [c])))
-	// cond: div.Uses == 1 && x.Op != ssaop.OpConst16 && SdivisibleOK16(c)
+	// cond: div.Uses == 1 && x.Op != ssaop.OpConst16 && ssa.SdivisibleOK16(c)
 	// result: (Leq16U (RotateLeft16 <t> (Add16 <t> (Mul16 <t> x (Const16 <t> [int16(sdivisible16(c).M)])) (Const16 <t> [int16(sdivisible16(c).A)])) (Const16 <t> [int16(16 - sdivisible16(c).K)])) (Const16 <t> [int16(sdivisible16(c).Max)]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -187,8 +187,8 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst16 {
 					continue
 				}
-				c := AuxIntToInt16(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst16 || AuxIntToInt16(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst16 && SdivisibleOK16(c)) {
+				c := ssa.AuxIntToInt16(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst16 || ssa.AuxIntToInt16(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst16 && ssa.SdivisibleOK16(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLeq16U)
@@ -196,16 +196,16 @@ func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 				v1 := b.NewValue0(v.Pos, ssaop.OpAdd16, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpMul16, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v3.AuxInt = Int16ToAuxInt(int16(sdivisible16(c).M))
+				v3.AuxInt = ssa.Int16ToAuxInt(int16(sdivisible16(c).M))
 				v2.AddArg2(x, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v4.AuxInt = Int16ToAuxInt(int16(sdivisible16(c).A))
+				v4.AuxInt = ssa.Int16ToAuxInt(int16(sdivisible16(c).A))
 				v1.AddArg2(v2, v4)
 				v5 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v5.AuxInt = Int16ToAuxInt(int16(16 - sdivisible16(c).K))
+				v5.AuxInt = ssa.Int16ToAuxInt(int16(16 - sdivisible16(c).K))
 				v0.AddArg2(v1, v5)
 				v6 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v6.AuxInt = Int16ToAuxInt(int16(sdivisible16(c).Max))
+				v6.AuxInt = ssa.Int16ToAuxInt(int16(sdivisible16(c).Max))
 				v.AddArg2(v0, v6)
 				return true
 			}
@@ -219,7 +219,7 @@ func rewriteValuedivisible_OpEq32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Eq32 x (Mul32 <t> (Div32u x (Const32 [c])) (Const32 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Eq32 (And32 <t> x (Const32 <t> [c-1])) (Const32 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -243,17 +243,17 @@ func rewriteValuedivisible_OpEq32(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst32 {
 					continue
 				}
-				c := AuxIntToInt32(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst32 || AuxIntToInt32(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt32(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst32 || ssa.AuxIntToInt32(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpEq32)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd32, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v1.AuxInt = Int32ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int32ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v2.AuxInt = Int32ToAuxInt(0)
+				v2.AuxInt = ssa.Int32ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -261,7 +261,7 @@ func rewriteValuedivisible_OpEq32(v *ssa.Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 <t> (Div32 x (Const32 [c])) (Const32 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Eq32 (And32 <t> x (Const32 <t> [c-1])) (Const32 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -285,17 +285,17 @@ func rewriteValuedivisible_OpEq32(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst32 {
 					continue
 				}
-				c := AuxIntToInt32(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst32 || AuxIntToInt32(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt32(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst32 || ssa.AuxIntToInt32(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpEq32)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd32, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v1.AuxInt = Int32ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int32ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v2.AuxInt = Int32ToAuxInt(0)
+				v2.AuxInt = ssa.Int32ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -328,21 +328,21 @@ func rewriteValuedivisible_OpEq32(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst32 {
 					continue
 				}
-				c := AuxIntToInt32(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst32 || AuxIntToInt32(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst32 && udivisibleOK32(c)) {
+				c := ssa.AuxIntToInt32(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst32 || ssa.AuxIntToInt32(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst32 && udivisibleOK32(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLeq32U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpRotateLeft32, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpMul32, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v2.AuxInt = Int32ToAuxInt(int32(udivisible32(c).M))
+				v2.AuxInt = ssa.Int32ToAuxInt(int32(udivisible32(c).M))
 				v1.AddArg2(x, v2)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v3.AuxInt = Int32ToAuxInt(int32(32 - udivisible32(c).K))
+				v3.AuxInt = ssa.Int32ToAuxInt(int32(32 - udivisible32(c).K))
 				v0.AddArg2(v1, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v4.AuxInt = Int32ToAuxInt(int32(udivisible32(c).Max))
+				v4.AuxInt = ssa.Int32ToAuxInt(int32(udivisible32(c).Max))
 				v.AddArg2(v0, v4)
 				return true
 			}
@@ -375,8 +375,8 @@ func rewriteValuedivisible_OpEq32(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst32 {
 					continue
 				}
-				c := AuxIntToInt32(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst32 || AuxIntToInt32(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst32 && sdivisibleOK32(c)) {
+				c := ssa.AuxIntToInt32(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst32 || ssa.AuxIntToInt32(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst32 && sdivisibleOK32(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLeq32U)
@@ -384,16 +384,16 @@ func rewriteValuedivisible_OpEq32(v *ssa.Value) bool {
 				v1 := b.NewValue0(v.Pos, ssaop.OpAdd32, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpMul32, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v3.AuxInt = Int32ToAuxInt(int32(sdivisible32(c).M))
+				v3.AuxInt = ssa.Int32ToAuxInt(int32(sdivisible32(c).M))
 				v2.AddArg2(x, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v4.AuxInt = Int32ToAuxInt(int32(sdivisible32(c).A))
+				v4.AuxInt = ssa.Int32ToAuxInt(int32(sdivisible32(c).A))
 				v1.AddArg2(v2, v4)
 				v5 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v5.AuxInt = Int32ToAuxInt(int32(32 - sdivisible32(c).K))
+				v5.AuxInt = ssa.Int32ToAuxInt(int32(32 - sdivisible32(c).K))
 				v0.AddArg2(v1, v5)
 				v6 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v6.AuxInt = Int32ToAuxInt(int32(sdivisible32(c).Max))
+				v6.AuxInt = ssa.Int32ToAuxInt(int32(sdivisible32(c).Max))
 				v.AddArg2(v0, v6)
 				return true
 			}
@@ -407,7 +407,7 @@ func rewriteValuedivisible_OpEq64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Eq64 x (Mul64 <t> (Div64u x (Const64 [c])) (Const64 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Eq64 (And64 <t> x (Const64 <t> [c-1])) (Const64 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -431,17 +431,17 @@ func rewriteValuedivisible_OpEq64(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst64 {
 					continue
 				}
-				c := AuxIntToInt64(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst64 || AuxIntToInt64(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt64(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst64 || ssa.AuxIntToInt64(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpEq64)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd64, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v1.AuxInt = Int64ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int64ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v2.AuxInt = Int64ToAuxInt(0)
+				v2.AuxInt = ssa.Int64ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -449,7 +449,7 @@ func rewriteValuedivisible_OpEq64(v *ssa.Value) bool {
 		break
 	}
 	// match: (Eq64 x (Mul64 <t> (Div64 x (Const64 [c])) (Const64 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Eq64 (And64 <t> x (Const64 <t> [c-1])) (Const64 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -473,17 +473,17 @@ func rewriteValuedivisible_OpEq64(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst64 {
 					continue
 				}
-				c := AuxIntToInt64(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst64 || AuxIntToInt64(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt64(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst64 || ssa.AuxIntToInt64(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpEq64)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd64, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v1.AuxInt = Int64ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int64ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v2.AuxInt = Int64ToAuxInt(0)
+				v2.AuxInt = ssa.Int64ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -516,21 +516,21 @@ func rewriteValuedivisible_OpEq64(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst64 {
 					continue
 				}
-				c := AuxIntToInt64(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst64 || AuxIntToInt64(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst64 && udivisibleOK64(c)) {
+				c := ssa.AuxIntToInt64(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst64 || ssa.AuxIntToInt64(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst64 && udivisibleOK64(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLeq64U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpRotateLeft64, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpMul64, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v2.AuxInt = Int64ToAuxInt(int64(udivisible64(c).M))
+				v2.AuxInt = ssa.Int64ToAuxInt(int64(udivisible64(c).M))
 				v1.AddArg2(x, v2)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v3.AuxInt = Int64ToAuxInt(int64(64 - udivisible64(c).K))
+				v3.AuxInt = ssa.Int64ToAuxInt(int64(64 - udivisible64(c).K))
 				v0.AddArg2(v1, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v4.AuxInt = Int64ToAuxInt(int64(udivisible64(c).Max))
+				v4.AuxInt = ssa.Int64ToAuxInt(int64(udivisible64(c).Max))
 				v.AddArg2(v0, v4)
 				return true
 			}
@@ -563,8 +563,8 @@ func rewriteValuedivisible_OpEq64(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst64 {
 					continue
 				}
-				c := AuxIntToInt64(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst64 || AuxIntToInt64(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst64 && sdivisibleOK64(c)) {
+				c := ssa.AuxIntToInt64(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst64 || ssa.AuxIntToInt64(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst64 && sdivisibleOK64(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLeq64U)
@@ -572,16 +572,16 @@ func rewriteValuedivisible_OpEq64(v *ssa.Value) bool {
 				v1 := b.NewValue0(v.Pos, ssaop.OpAdd64, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpMul64, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v3.AuxInt = Int64ToAuxInt(int64(sdivisible64(c).M))
+				v3.AuxInt = ssa.Int64ToAuxInt(int64(sdivisible64(c).M))
 				v2.AddArg2(x, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v4.AuxInt = Int64ToAuxInt(int64(sdivisible64(c).A))
+				v4.AuxInt = ssa.Int64ToAuxInt(int64(sdivisible64(c).A))
 				v1.AddArg2(v2, v4)
 				v5 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v5.AuxInt = Int64ToAuxInt(int64(64 - sdivisible64(c).K))
+				v5.AuxInt = ssa.Int64ToAuxInt(int64(64 - sdivisible64(c).K))
 				v0.AddArg2(v1, v5)
 				v6 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v6.AuxInt = Int64ToAuxInt(int64(sdivisible64(c).Max))
+				v6.AuxInt = ssa.Int64ToAuxInt(int64(sdivisible64(c).Max))
 				v.AddArg2(v0, v6)
 				return true
 			}
@@ -595,7 +595,7 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Eq8 x (Mul8 <t> (Div8u x (Const8 [c])) (Const8 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Eq8 (And8 <t> x (Const8 <t> [c-1])) (Const8 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -619,17 +619,17 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst8 {
 					continue
 				}
-				c := AuxIntToInt8(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst8 || AuxIntToInt8(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt8(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst8 || ssa.AuxIntToInt8(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpEq8)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd8, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v1.AuxInt = Int8ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int8ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v2.AuxInt = Int8ToAuxInt(0)
+				v2.AuxInt = ssa.Int8ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -637,7 +637,7 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 		break
 	}
 	// match: (Eq8 x (Mul8 <t> (Div8 x (Const8 [c])) (Const8 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Eq8 (And8 <t> x (Const8 <t> [c-1])) (Const8 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -661,17 +661,17 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst8 {
 					continue
 				}
-				c := AuxIntToInt8(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst8 || AuxIntToInt8(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt8(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst8 || ssa.AuxIntToInt8(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpEq8)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd8, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v1.AuxInt = Int8ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int8ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v2.AuxInt = Int8ToAuxInt(0)
+				v2.AuxInt = ssa.Int8ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -679,7 +679,7 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 		break
 	}
 	// match: (Eq8 x (Mul8 <t> div:(Div8u x (Const8 [c])) (Const8 [c])))
-	// cond: div.Uses == 1 && x.Op != ssaop.OpConst8 && UdivisibleOK8(c)
+	// cond: div.Uses == 1 && x.Op != ssaop.OpConst8 && ssa.UdivisibleOK8(c)
 	// result: (Leq8U (RotateLeft8 <t> (Mul8 <t> x (Const8 <t> [int8(udivisible8(c).M)])) (Const8 <t> [int8(8 - udivisible8(c).K)])) (Const8 <t> [int8(udivisible8(c).Max)]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -704,21 +704,21 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst8 {
 					continue
 				}
-				c := AuxIntToInt8(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst8 || AuxIntToInt8(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst8 && UdivisibleOK8(c)) {
+				c := ssa.AuxIntToInt8(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst8 || ssa.AuxIntToInt8(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst8 && ssa.UdivisibleOK8(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLeq8U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpRotateLeft8, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpMul8, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v2.AuxInt = Int8ToAuxInt(int8(udivisible8(c).M))
+				v2.AuxInt = ssa.Int8ToAuxInt(int8(udivisible8(c).M))
 				v1.AddArg2(x, v2)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v3.AuxInt = Int8ToAuxInt(int8(8 - udivisible8(c).K))
+				v3.AuxInt = ssa.Int8ToAuxInt(int8(8 - udivisible8(c).K))
 				v0.AddArg2(v1, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v4.AuxInt = Int8ToAuxInt(int8(udivisible8(c).Max))
+				v4.AuxInt = ssa.Int8ToAuxInt(int8(udivisible8(c).Max))
 				v.AddArg2(v0, v4)
 				return true
 			}
@@ -726,7 +726,7 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 		break
 	}
 	// match: (Eq8 x (Mul8 <t> div:(Div8 x (Const8 [c])) (Const8 [c])))
-	// cond: div.Uses == 1 && x.Op != ssaop.OpConst8 && SdivisibleOK8(c)
+	// cond: div.Uses == 1 && x.Op != ssaop.OpConst8 && ssa.SdivisibleOK8(c)
 	// result: (Leq8U (RotateLeft8 <t> (Add8 <t> (Mul8 <t> x (Const8 <t> [int8(sdivisible8(c).M)])) (Const8 <t> [int8(sdivisible8(c).A)])) (Const8 <t> [int8(8 - sdivisible8(c).K)])) (Const8 <t> [int8(sdivisible8(c).Max)]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -751,8 +751,8 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst8 {
 					continue
 				}
-				c := AuxIntToInt8(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst8 || AuxIntToInt8(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst8 && SdivisibleOK8(c)) {
+				c := ssa.AuxIntToInt8(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst8 || ssa.AuxIntToInt8(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst8 && ssa.SdivisibleOK8(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLeq8U)
@@ -760,16 +760,16 @@ func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 				v1 := b.NewValue0(v.Pos, ssaop.OpAdd8, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpMul8, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v3.AuxInt = Int8ToAuxInt(int8(sdivisible8(c).M))
+				v3.AuxInt = ssa.Int8ToAuxInt(int8(sdivisible8(c).M))
 				v2.AddArg2(x, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v4.AuxInt = Int8ToAuxInt(int8(sdivisible8(c).A))
+				v4.AuxInt = ssa.Int8ToAuxInt(int8(sdivisible8(c).A))
 				v1.AddArg2(v2, v4)
 				v5 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v5.AuxInt = Int8ToAuxInt(int8(8 - sdivisible8(c).K))
+				v5.AuxInt = ssa.Int8ToAuxInt(int8(8 - sdivisible8(c).K))
 				v0.AddArg2(v1, v5)
 				v6 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v6.AuxInt = Int8ToAuxInt(int8(sdivisible8(c).Max))
+				v6.AuxInt = ssa.Int8ToAuxInt(int8(sdivisible8(c).Max))
 				v.AddArg2(v0, v6)
 				return true
 			}
@@ -783,7 +783,7 @@ func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neq16 x (Mul16 <t> (Div16u x (Const16 [c])) (Const16 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Neq16 (And16 <t> x (Const16 <t> [c-1])) (Const16 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -807,17 +807,17 @@ func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst16 {
 					continue
 				}
-				c := AuxIntToInt16(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst16 || AuxIntToInt16(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt16(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst16 || ssa.AuxIntToInt16(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpNeq16)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd16, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v1.AuxInt = Int16ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int16ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v2.AuxInt = Int16ToAuxInt(0)
+				v2.AuxInt = ssa.Int16ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -825,7 +825,7 @@ func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 		break
 	}
 	// match: (Neq16 x (Mul16 <t> (Div16 x (Const16 [c])) (Const16 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Neq16 (And16 <t> x (Const16 <t> [c-1])) (Const16 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -849,17 +849,17 @@ func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst16 {
 					continue
 				}
-				c := AuxIntToInt16(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst16 || AuxIntToInt16(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt16(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst16 || ssa.AuxIntToInt16(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpNeq16)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd16, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v1.AuxInt = Int16ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int16ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v2.AuxInt = Int16ToAuxInt(0)
+				v2.AuxInt = ssa.Int16ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -867,7 +867,7 @@ func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 		break
 	}
 	// match: (Neq16 x (Mul16 <t> div:(Div16u x (Const16 [c])) (Const16 [c])))
-	// cond: div.Uses == 1 && x.Op != ssaop.OpConst16 && UdivisibleOK16(c)
+	// cond: div.Uses == 1 && x.Op != ssaop.OpConst16 && ssa.UdivisibleOK16(c)
 	// result: (Less16U (Const16 <t> [int16(udivisible16(c).Max)]) (RotateLeft16 <t> (Mul16 <t> x (Const16 <t> [int16(udivisible16(c).M)])) (Const16 <t> [int16(16 - udivisible16(c).K)])))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -892,20 +892,20 @@ func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst16 {
 					continue
 				}
-				c := AuxIntToInt16(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst16 || AuxIntToInt16(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst16 && UdivisibleOK16(c)) {
+				c := ssa.AuxIntToInt16(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst16 || ssa.AuxIntToInt16(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst16 && ssa.UdivisibleOK16(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLess16U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v0.AuxInt = Int16ToAuxInt(int16(udivisible16(c).Max))
+				v0.AuxInt = ssa.Int16ToAuxInt(int16(udivisible16(c).Max))
 				v1 := b.NewValue0(v.Pos, ssaop.OpRotateLeft16, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpMul16, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v3.AuxInt = Int16ToAuxInt(int16(udivisible16(c).M))
+				v3.AuxInt = ssa.Int16ToAuxInt(int16(udivisible16(c).M))
 				v2.AddArg2(x, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v4.AuxInt = Int16ToAuxInt(int16(16 - udivisible16(c).K))
+				v4.AuxInt = ssa.Int16ToAuxInt(int16(16 - udivisible16(c).K))
 				v1.AddArg2(v2, v4)
 				v.AddArg2(v0, v1)
 				return true
@@ -914,7 +914,7 @@ func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 		break
 	}
 	// match: (Neq16 x (Mul16 <t> div:(Div16 x (Const16 [c])) (Const16 [c])))
-	// cond: div.Uses == 1 && x.Op != ssaop.OpConst16 && SdivisibleOK16(c)
+	// cond: div.Uses == 1 && x.Op != ssaop.OpConst16 && ssa.SdivisibleOK16(c)
 	// result: (Less16U (Const16 <t> [int16(sdivisible16(c).Max)]) (RotateLeft16 <t> (Add16 <t> (Mul16 <t> x (Const16 <t> [int16(sdivisible16(c).M)])) (Const16 <t> [int16(sdivisible16(c).A)])) (Const16 <t> [int16(16 - sdivisible16(c).K)])))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -939,24 +939,24 @@ func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst16 {
 					continue
 				}
-				c := AuxIntToInt16(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst16 || AuxIntToInt16(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst16 && SdivisibleOK16(c)) {
+				c := ssa.AuxIntToInt16(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst16 || ssa.AuxIntToInt16(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst16 && ssa.SdivisibleOK16(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLess16U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v0.AuxInt = Int16ToAuxInt(int16(sdivisible16(c).Max))
+				v0.AuxInt = ssa.Int16ToAuxInt(int16(sdivisible16(c).Max))
 				v1 := b.NewValue0(v.Pos, ssaop.OpRotateLeft16, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpAdd16, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpMul16, t)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v4.AuxInt = Int16ToAuxInt(int16(sdivisible16(c).M))
+				v4.AuxInt = ssa.Int16ToAuxInt(int16(sdivisible16(c).M))
 				v3.AddArg2(x, v4)
 				v5 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v5.AuxInt = Int16ToAuxInt(int16(sdivisible16(c).A))
+				v5.AuxInt = ssa.Int16ToAuxInt(int16(sdivisible16(c).A))
 				v2.AddArg2(v3, v5)
 				v6 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v6.AuxInt = Int16ToAuxInt(int16(16 - sdivisible16(c).K))
+				v6.AuxInt = ssa.Int16ToAuxInt(int16(16 - sdivisible16(c).K))
 				v1.AddArg2(v2, v6)
 				v.AddArg2(v0, v1)
 				return true
@@ -971,7 +971,7 @@ func rewriteValuedivisible_OpNeq32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neq32 x (Mul32 <t> (Div32u x (Const32 [c])) (Const32 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Neq32 (And32 <t> x (Const32 <t> [c-1])) (Const32 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -995,17 +995,17 @@ func rewriteValuedivisible_OpNeq32(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst32 {
 					continue
 				}
-				c := AuxIntToInt32(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst32 || AuxIntToInt32(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt32(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst32 || ssa.AuxIntToInt32(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpNeq32)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd32, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v1.AuxInt = Int32ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int32ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v2.AuxInt = Int32ToAuxInt(0)
+				v2.AuxInt = ssa.Int32ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -1013,7 +1013,7 @@ func rewriteValuedivisible_OpNeq32(v *ssa.Value) bool {
 		break
 	}
 	// match: (Neq32 x (Mul32 <t> (Div32 x (Const32 [c])) (Const32 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Neq32 (And32 <t> x (Const32 <t> [c-1])) (Const32 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1037,17 +1037,17 @@ func rewriteValuedivisible_OpNeq32(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst32 {
 					continue
 				}
-				c := AuxIntToInt32(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst32 || AuxIntToInt32(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt32(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst32 || ssa.AuxIntToInt32(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpNeq32)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd32, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v1.AuxInt = Int32ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int32ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v2.AuxInt = Int32ToAuxInt(0)
+				v2.AuxInt = ssa.Int32ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -1080,20 +1080,20 @@ func rewriteValuedivisible_OpNeq32(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst32 {
 					continue
 				}
-				c := AuxIntToInt32(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst32 || AuxIntToInt32(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst32 && udivisibleOK32(c)) {
+				c := ssa.AuxIntToInt32(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst32 || ssa.AuxIntToInt32(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst32 && udivisibleOK32(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLess32U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v0.AuxInt = Int32ToAuxInt(int32(udivisible32(c).Max))
+				v0.AuxInt = ssa.Int32ToAuxInt(int32(udivisible32(c).Max))
 				v1 := b.NewValue0(v.Pos, ssaop.OpRotateLeft32, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpMul32, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v3.AuxInt = Int32ToAuxInt(int32(udivisible32(c).M))
+				v3.AuxInt = ssa.Int32ToAuxInt(int32(udivisible32(c).M))
 				v2.AddArg2(x, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v4.AuxInt = Int32ToAuxInt(int32(32 - udivisible32(c).K))
+				v4.AuxInt = ssa.Int32ToAuxInt(int32(32 - udivisible32(c).K))
 				v1.AddArg2(v2, v4)
 				v.AddArg2(v0, v1)
 				return true
@@ -1127,24 +1127,24 @@ func rewriteValuedivisible_OpNeq32(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst32 {
 					continue
 				}
-				c := AuxIntToInt32(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst32 || AuxIntToInt32(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst32 && sdivisibleOK32(c)) {
+				c := ssa.AuxIntToInt32(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst32 || ssa.AuxIntToInt32(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst32 && sdivisibleOK32(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLess32U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v0.AuxInt = Int32ToAuxInt(int32(sdivisible32(c).Max))
+				v0.AuxInt = ssa.Int32ToAuxInt(int32(sdivisible32(c).Max))
 				v1 := b.NewValue0(v.Pos, ssaop.OpRotateLeft32, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpAdd32, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpMul32, t)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v4.AuxInt = Int32ToAuxInt(int32(sdivisible32(c).M))
+				v4.AuxInt = ssa.Int32ToAuxInt(int32(sdivisible32(c).M))
 				v3.AddArg2(x, v4)
 				v5 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v5.AuxInt = Int32ToAuxInt(int32(sdivisible32(c).A))
+				v5.AuxInt = ssa.Int32ToAuxInt(int32(sdivisible32(c).A))
 				v2.AddArg2(v3, v5)
 				v6 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v6.AuxInt = Int32ToAuxInt(int32(32 - sdivisible32(c).K))
+				v6.AuxInt = ssa.Int32ToAuxInt(int32(32 - sdivisible32(c).K))
 				v1.AddArg2(v2, v6)
 				v.AddArg2(v0, v1)
 				return true
@@ -1159,7 +1159,7 @@ func rewriteValuedivisible_OpNeq64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neq64 x (Mul64 <t> (Div64u x (Const64 [c])) (Const64 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Neq64 (And64 <t> x (Const64 <t> [c-1])) (Const64 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1183,17 +1183,17 @@ func rewriteValuedivisible_OpNeq64(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst64 {
 					continue
 				}
-				c := AuxIntToInt64(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst64 || AuxIntToInt64(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt64(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst64 || ssa.AuxIntToInt64(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpNeq64)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd64, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v1.AuxInt = Int64ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int64ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v2.AuxInt = Int64ToAuxInt(0)
+				v2.AuxInt = ssa.Int64ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -1201,7 +1201,7 @@ func rewriteValuedivisible_OpNeq64(v *ssa.Value) bool {
 		break
 	}
 	// match: (Neq64 x (Mul64 <t> (Div64 x (Const64 [c])) (Const64 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Neq64 (And64 <t> x (Const64 <t> [c-1])) (Const64 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1225,17 +1225,17 @@ func rewriteValuedivisible_OpNeq64(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst64 {
 					continue
 				}
-				c := AuxIntToInt64(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst64 || AuxIntToInt64(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt64(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst64 || ssa.AuxIntToInt64(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpNeq64)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd64, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v1.AuxInt = Int64ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int64ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v2.AuxInt = Int64ToAuxInt(0)
+				v2.AuxInt = ssa.Int64ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -1268,20 +1268,20 @@ func rewriteValuedivisible_OpNeq64(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst64 {
 					continue
 				}
-				c := AuxIntToInt64(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst64 || AuxIntToInt64(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst64 && udivisibleOK64(c)) {
+				c := ssa.AuxIntToInt64(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst64 || ssa.AuxIntToInt64(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst64 && udivisibleOK64(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLess64U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v0.AuxInt = Int64ToAuxInt(int64(udivisible64(c).Max))
+				v0.AuxInt = ssa.Int64ToAuxInt(int64(udivisible64(c).Max))
 				v1 := b.NewValue0(v.Pos, ssaop.OpRotateLeft64, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpMul64, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v3.AuxInt = Int64ToAuxInt(int64(udivisible64(c).M))
+				v3.AuxInt = ssa.Int64ToAuxInt(int64(udivisible64(c).M))
 				v2.AddArg2(x, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v4.AuxInt = Int64ToAuxInt(int64(64 - udivisible64(c).K))
+				v4.AuxInt = ssa.Int64ToAuxInt(int64(64 - udivisible64(c).K))
 				v1.AddArg2(v2, v4)
 				v.AddArg2(v0, v1)
 				return true
@@ -1315,24 +1315,24 @@ func rewriteValuedivisible_OpNeq64(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst64 {
 					continue
 				}
-				c := AuxIntToInt64(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst64 || AuxIntToInt64(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst64 && sdivisibleOK64(c)) {
+				c := ssa.AuxIntToInt64(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst64 || ssa.AuxIntToInt64(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst64 && sdivisibleOK64(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLess64U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v0.AuxInt = Int64ToAuxInt(int64(sdivisible64(c).Max))
+				v0.AuxInt = ssa.Int64ToAuxInt(int64(sdivisible64(c).Max))
 				v1 := b.NewValue0(v.Pos, ssaop.OpRotateLeft64, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpAdd64, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpMul64, t)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v4.AuxInt = Int64ToAuxInt(int64(sdivisible64(c).M))
+				v4.AuxInt = ssa.Int64ToAuxInt(int64(sdivisible64(c).M))
 				v3.AddArg2(x, v4)
 				v5 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v5.AuxInt = Int64ToAuxInt(int64(sdivisible64(c).A))
+				v5.AuxInt = ssa.Int64ToAuxInt(int64(sdivisible64(c).A))
 				v2.AddArg2(v3, v5)
 				v6 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v6.AuxInt = Int64ToAuxInt(int64(64 - sdivisible64(c).K))
+				v6.AuxInt = ssa.Int64ToAuxInt(int64(64 - sdivisible64(c).K))
 				v1.AddArg2(v2, v6)
 				v.AddArg2(v0, v1)
 				return true
@@ -1347,7 +1347,7 @@ func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neq8 x (Mul8 <t> (Div8u x (Const8 [c])) (Const8 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Neq8 (And8 <t> x (Const8 <t> [c-1])) (Const8 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1371,17 +1371,17 @@ func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst8 {
 					continue
 				}
-				c := AuxIntToInt8(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst8 || AuxIntToInt8(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt8(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst8 || ssa.AuxIntToInt8(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpNeq8)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd8, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v1.AuxInt = Int8ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int8ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v2.AuxInt = Int8ToAuxInt(0)
+				v2.AuxInt = ssa.Int8ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -1389,7 +1389,7 @@ func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 		break
 	}
 	// match: (Neq8 x (Mul8 <t> (Div8 x (Const8 [c])) (Const8 [c])))
-	// cond: x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)
+	// cond: x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)
 	// result: (Neq8 (And8 <t> x (Const8 <t> [c-1])) (Const8 <t> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1413,17 +1413,17 @@ func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 				if v_1_0_1.Op != ssaop.OpConst8 {
 					continue
 				}
-				c := AuxIntToInt8(v_1_0_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst8 || AuxIntToInt8(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && IsPowerOfTwo(c)) {
+				c := ssa.AuxIntToInt8(v_1_0_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst8 || ssa.AuxIntToInt8(v_1_1.AuxInt) != c || !(x.Op != ssaop.OpConst64 && ssa.IsPowerOfTwo(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpNeq8)
 				v0 := b.NewValue0(v.Pos, ssaop.OpAnd8, t)
 				v1 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v1.AuxInt = Int8ToAuxInt(c - 1)
+				v1.AuxInt = ssa.Int8ToAuxInt(c - 1)
 				v0.AddArg2(x, v1)
 				v2 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v2.AuxInt = Int8ToAuxInt(0)
+				v2.AuxInt = ssa.Int8ToAuxInt(0)
 				v.AddArg2(v0, v2)
 				return true
 			}
@@ -1431,7 +1431,7 @@ func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 		break
 	}
 	// match: (Neq8 x (Mul8 <t> div:(Div8u x (Const8 [c])) (Const8 [c])))
-	// cond: div.Uses == 1 && x.Op != ssaop.OpConst8 && UdivisibleOK8(c)
+	// cond: div.Uses == 1 && x.Op != ssaop.OpConst8 && ssa.UdivisibleOK8(c)
 	// result: (Less8U (Const8 <t> [int8(udivisible8(c).Max)]) (RotateLeft8 <t> (Mul8 <t> x (Const8 <t> [int8(udivisible8(c).M)])) (Const8 <t> [int8(8 - udivisible8(c).K)])))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1456,20 +1456,20 @@ func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst8 {
 					continue
 				}
-				c := AuxIntToInt8(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst8 || AuxIntToInt8(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst8 && UdivisibleOK8(c)) {
+				c := ssa.AuxIntToInt8(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst8 || ssa.AuxIntToInt8(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst8 && ssa.UdivisibleOK8(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLess8U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v0.AuxInt = Int8ToAuxInt(int8(udivisible8(c).Max))
+				v0.AuxInt = ssa.Int8ToAuxInt(int8(udivisible8(c).Max))
 				v1 := b.NewValue0(v.Pos, ssaop.OpRotateLeft8, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpMul8, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v3.AuxInt = Int8ToAuxInt(int8(udivisible8(c).M))
+				v3.AuxInt = ssa.Int8ToAuxInt(int8(udivisible8(c).M))
 				v2.AddArg2(x, v3)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v4.AuxInt = Int8ToAuxInt(int8(8 - udivisible8(c).K))
+				v4.AuxInt = ssa.Int8ToAuxInt(int8(8 - udivisible8(c).K))
 				v1.AddArg2(v2, v4)
 				v.AddArg2(v0, v1)
 				return true
@@ -1478,7 +1478,7 @@ func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 		break
 	}
 	// match: (Neq8 x (Mul8 <t> div:(Div8 x (Const8 [c])) (Const8 [c])))
-	// cond: div.Uses == 1 && x.Op != ssaop.OpConst8 && SdivisibleOK8(c)
+	// cond: div.Uses == 1 && x.Op != ssaop.OpConst8 && ssa.SdivisibleOK8(c)
 	// result: (Less8U (Const8 <t> [int8(sdivisible8(c).Max)]) (RotateLeft8 <t> (Add8 <t> (Mul8 <t> x (Const8 <t> [int8(sdivisible8(c).M)])) (Const8 <t> [int8(sdivisible8(c).A)])) (Const8 <t> [int8(8 - sdivisible8(c).K)])))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1503,24 +1503,24 @@ func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 				if div_1.Op != ssaop.OpConst8 {
 					continue
 				}
-				c := AuxIntToInt8(div_1.AuxInt)
-				if v_1_1.Op != ssaop.OpConst8 || AuxIntToInt8(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst8 && SdivisibleOK8(c)) {
+				c := ssa.AuxIntToInt8(div_1.AuxInt)
+				if v_1_1.Op != ssaop.OpConst8 || ssa.AuxIntToInt8(v_1_1.AuxInt) != c || !(div.Uses == 1 && x.Op != ssaop.OpConst8 && ssa.SdivisibleOK8(c)) {
 					continue
 				}
 				v.Reset(ssaop.OpLess8U)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v0.AuxInt = Int8ToAuxInt(int8(sdivisible8(c).Max))
+				v0.AuxInt = ssa.Int8ToAuxInt(int8(sdivisible8(c).Max))
 				v1 := b.NewValue0(v.Pos, ssaop.OpRotateLeft8, t)
 				v2 := b.NewValue0(v.Pos, ssaop.OpAdd8, t)
 				v3 := b.NewValue0(v.Pos, ssaop.OpMul8, t)
 				v4 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v4.AuxInt = Int8ToAuxInt(int8(sdivisible8(c).M))
+				v4.AuxInt = ssa.Int8ToAuxInt(int8(sdivisible8(c).M))
 				v3.AddArg2(x, v4)
 				v5 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v5.AuxInt = Int8ToAuxInt(int8(sdivisible8(c).A))
+				v5.AuxInt = ssa.Int8ToAuxInt(int8(sdivisible8(c).A))
 				v2.AddArg2(v3, v5)
 				v6 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v6.AuxInt = Int8ToAuxInt(int8(8 - sdivisible8(c).K))
+				v6.AuxInt = ssa.Int8ToAuxInt(int8(8 - sdivisible8(c).K))
 				v1.AddArg2(v2, v6)
 				v.AddArg2(v0, v1)
 				return true

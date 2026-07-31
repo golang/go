@@ -536,25 +536,25 @@ func transformDependentComparisonValue(block *ssa.Block) {
 		switch value.Op {
 		case ssaop.OpARM64CMPconst:
 			arg0 := value.Args[0]
-			auxConstant := AuxIntToInt64(value.AuxInt)
+			auxConstant := ssa.AuxIntToInt64(value.AuxInt)
 			value.Reset(ssaop.OpARM64CMP)
 			constantValue := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, auxConstant, true)
 			value.AddArg2(arg0, constantValue)
 		case ssaop.OpARM64CMNconst:
 			arg0 := value.Args[0]
-			auxConstant := AuxIntToInt64(value.AuxInt)
+			auxConstant := ssa.AuxIntToInt64(value.AuxInt)
 			value.Reset(ssaop.OpARM64CMN)
 			constantValue := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, auxConstant, true)
 			value.AddArg2(arg0, constantValue)
 		case ssaop.OpARM64CMPWconst:
 			arg0 := value.Args[0]
-			auxConstant := AuxIntToInt32(value.AuxInt)
+			auxConstant := ssa.AuxIntToInt32(value.AuxInt)
 			value.Reset(ssaop.OpARM64CMPW)
 			constantValue := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
 			value.AddArg2(arg0, constantValue)
 		case ssaop.OpARM64CMNWconst:
 			arg0 := value.Args[0]
-			auxConstant := AuxIntToInt32(value.AuxInt)
+			auxConstant := ssa.AuxIntToInt32(value.AuxInt)
 			value.Reset(ssaop.OpARM64CMNW)
 			constantValue := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
 			value.AddArg2(arg0, constantValue)
@@ -592,7 +592,7 @@ func transformDependentComparisonValue(block *ssa.Block) {
 func fixComparisonWithConstant(block *ssa.Block, index int) {
 	// Helper function to extract 5-bit immediate from int64 constant (0-31 range)
 	getImm64 := func(auxInt int64) (uint8, bool) {
-		imm := AuxIntToInt64(auxInt)
+		imm := ssa.AuxIntToInt64(auxInt)
 		if imm&^0x1f == 0 {
 			return uint8(imm), true
 		}
@@ -601,7 +601,7 @@ func fixComparisonWithConstant(block *ssa.Block, index int) {
 
 	// Helper function to extract 5-bit immediate from int32 constant (0-31 range)
 	getImm32 := func(auxInt int64) (uint8, bool) {
-		imm := AuxIntToInt32(auxInt)
+		imm := ssa.AuxIntToInt32(auxInt)
 		if imm&^0x1f == 0 {
 			return uint8(imm), true
 		}
@@ -624,7 +624,7 @@ func fixComparisonWithConstant(block *ssa.Block, index int) {
 				value.Reset(newOp)
 				params.ConstVal = imm
 				params.Ind = true
-				value.AuxInt = Arm64ConditionalParamsToAuxInt(params)
+				value.AuxInt = ssa.Arm64ConditionalParamsToAuxInt(params)
 				value.AddArg2(arg0, arg2)
 				return
 			}
@@ -637,7 +637,7 @@ func fixComparisonWithConstant(block *ssa.Block, index int) {
 				invertConditionsInBlock(block, &params, index)
 				params.ConstVal = imm
 				params.Ind = true
-				value.AuxInt = Arm64ConditionalParamsToAuxInt(params)
+				value.AuxInt = ssa.Arm64ConditionalParamsToAuxInt(params)
 				value.AddArg2(arg1, arg2)
 				return
 			}
@@ -703,7 +703,7 @@ func transformToConditionalComparisonValue(outerBlock *ssa.Block, outSuccIndex, 
 
 	innerControl.AddArg(outerControl)
 	innerControl.Op = transformOpToConditionalComparisonOperation(innerControl.Op)
-	innerControl.AuxInt = Arm64ConditionalParamsToAuxInt(params)
+	innerControl.AuxInt = ssa.Arm64ConditionalParamsToAuxInt(params)
 }
 
 // transformOpToConditionalComparisonOperation maps standard comparison operations

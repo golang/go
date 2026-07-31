@@ -477,7 +477,7 @@ func isMemUser(v *ssa.Value) (int, int, int64, bool) {
 func isMemDef(v *ssa.Value) (int, int, int64, bool) {
 	switch v.Op {
 	case ssaop.OpStore:
-		return 0, 2, AuxToType(v.Aux).Size(), true
+		return 0, 2, ssa.AuxToType(v.Aux).Size(), true
 	case ssaop.OpVarDef:
 		return -1, 0, 0, true
 	case ssaop.OpZero:

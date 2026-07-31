@@ -12,14 +12,14 @@ import (
 // convert to machine-dependent ops.
 func lower(f *ssa.Func) {
 	// repeat rewrites until we find no more rewrites
-	applyRewrite(f, f.Config.LowerBlock, f.Config.LowerValue, RemoveDeadValues)
+	applyRewrite(f, f.Config.LowerBlock, f.Config.LowerValue, ssa.RemoveDeadValues)
 }
 
 // lateLower applies those rules that need to be run after the general lower rules.
 func lateLower(f *ssa.Func) {
 	// repeat rewrites until we find no more rewrites
 	if f.Config.LateLowerValue != nil {
-		applyRewrite(f, f.Config.LateLowerBlock, f.Config.LateLowerValue, RemoveDeadValues)
+		applyRewrite(f, f.Config.LateLowerBlock, f.Config.LateLowerValue, ssa.RemoveDeadValues)
 	}
 }
 

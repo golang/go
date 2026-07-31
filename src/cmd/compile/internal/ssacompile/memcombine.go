@@ -479,7 +479,7 @@ func combineLoads(root *ssa.Value, n int64, ptrAlignments []int8) bool {
 	// Clobber the loads, just to prevent additional work being done on
 	// subtrees (which are now unreachable).
 	for i := int64(0); i < n; i++ {
-		Clobber(r[i].load)
+		ssa.Clobber(r[i].load)
 	}
 	return true
 }
@@ -762,7 +762,7 @@ func combineStores(root *ssa.Value, ptrAlignments []int8) {
 				v.SetArg(1, cv)
 				v.SetArg(2, mem)
 			} else {
-				Clobber(v)
+				ssa.Clobber(v)
 				v.Type = types.Types[types.TBOOL] // erase memory type
 			}
 		}
@@ -833,7 +833,7 @@ func combineStores(root *ssa.Value, ptrAlignments []int8) {
 				v.SetArg(1, load)
 				v.SetArg(2, mem)
 			} else {
-				Clobber(v)
+				ssa.Clobber(v)
 				v.Type = types.Types[types.TBOOL] // erase memory type
 			}
 		}
@@ -908,7 +908,7 @@ func combineStores(root *ssa.Value, ptrAlignments []int8) {
 			v.SetArg(1, sv)
 			v.SetArg(2, mem)
 		} else {
-			Clobber(v)
+			ssa.Clobber(v)
 			v.Type = types.Types[types.TBOOL] // erase memory type
 		}
 	}

@@ -18,7 +18,7 @@ import (
 // the element width will result in 0 or -1 (for an arithmetic right shift).
 // Thus, we simply cap this at 255.
 func amd64CapAVXShift(auxInt int64) uint8 {
-	u := AuxIntToUint64(auxInt)
+	u := ssa.AuxIntToUint64(auxInt)
 	if u > 255 {
 		return 255
 	}

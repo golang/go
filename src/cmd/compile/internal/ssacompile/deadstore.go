@@ -59,7 +59,7 @@ func dse(f *ssa.Func) {
 							// This op reads from its memory argument, but
 							// we can treat it as not doing so if we know
 							// the read is from read-only memory.
-							if v.Args[1].Op == ssaop.OpAddr && SymIsRO(AuxToSym(v.Args[1].Aux)) {
+							if v.Args[1].Op == ssaop.OpAddr && ssa.SymIsRO(ssa.AuxToSym(v.Args[1].Aux)) {
 								break
 							}
 							fallthrough

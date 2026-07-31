@@ -18,22 +18,22 @@
 // n / c =       n >> log(c) if n >= 0
 //       = (n+c-1) >> log(c) if n < 0
 // We conditionally add c-1 by adding n>>63>>(64-log(c)) (first shift signed, second shift unsigned).
-(Div8  <t> n (Const8  [c])) && IsPowerOfTwo(c) =>
+(Div8  <t> n (Const8  [c])) && ssa.IsPowerOfTwo(c) =>
   (Rsh8x64
     (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [int64( 8-log8(c))])))
     (Const64 <typ.UInt64> [int64(log8(c))]))
-(Div16 <t> n (Const16 [c])) && IsPowerOfTwo(c) =>
+(Div16 <t> n (Const16 [c])) && ssa.IsPowerOfTwo(c) =>
   (Rsh16x64
-    (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [int64(16-Log16(c))])))
-    (Const64 <typ.UInt64> [int64(Log16(c))]))
-(Div32 <t> n (Const32 [c])) && IsPowerOfTwo(c) =>
+    (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [int64(16-ssa.Log16(c))])))
+    (Const64 <typ.UInt64> [int64(ssa.Log16(c))]))
+(Div32 <t> n (Const32 [c])) && ssa.IsPowerOfTwo(c) =>
   (Rsh32x64
-    (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [int64(32-Log32(c))])))
-    (Const64 <typ.UInt64> [int64(Log32(c))]))
-(Div64 <t> n (Const64 [c])) && IsPowerOfTwo(c) =>
+    (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [int64(32-ssa.Log32(c))])))
+    (Const64 <typ.UInt64> [int64(ssa.Log32(c))]))
+(Div64 <t> n (Const64 [c])) && ssa.IsPowerOfTwo(c) =>
   (Rsh64x64
-    (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [int64(64-Log64(c))])))
-    (Const64 <typ.UInt64> [int64(Log64(c))]))
+    (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [int64(64-ssa.Log64(c))])))
+    (Const64 <typ.UInt64> [int64(ssa.Log64(c))]))
 
 // Divide, not a power of 2, by strength reduction to double-width multiply and shift.
 //

@@ -16,7 +16,7 @@ func rewriteValueMIPS64latelower_OpMIPS64MOVVconst(v *ssa.Value) bool {
 	// match: (MOVVconst [0])
 	// result: (ZERO)
 	for {
-		if AuxIntToInt64(v.AuxInt) != 0 {
+		if ssa.AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		v.Reset(ssaop.OpMIPS64ZERO)

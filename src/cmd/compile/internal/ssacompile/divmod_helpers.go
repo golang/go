@@ -4,30 +4,32 @@
 
 package ssacompile
 
+import "cmd/compile/internal/ssa"
+
 // logX returns logarithm of n base 2.
 // n must be a positive power of 2 (isPowerOfTwoX returns true).
-func log8(n int8) int64 { return Log8u(uint8(n)) }
+func log8(n int8) int64 { return ssa.Log8u(uint8(n)) }
 
-func smagic16(c int16) SmagicData { return Smagic(16, int64(c)) }
+func smagic16(c int16) ssa.SmagicData { return ssa.Smagic(16, int64(c)) }
 
-func smagic32(c int32) SmagicData { return Smagic(32, int64(c)) }
+func smagic32(c int32) ssa.SmagicData { return ssa.Smagic(32, int64(c)) }
 
-func smagic64(c int64) SmagicData { return Smagic(64, c) }
+func smagic64(c int64) ssa.SmagicData { return ssa.Smagic(64, c) }
 
-func smagic8(c int8) SmagicData { return Smagic(8, int64(c)) }
+func smagic8(c int8) ssa.SmagicData { return ssa.Smagic(8, int64(c)) }
 
-func smagicOK16(c int16) bool { return SmagicOK(16, int64(c)) }
+func smagicOK16(c int16) bool { return ssa.SmagicOK(16, int64(c)) }
 
-func smagicOK32(c int32) bool { return SmagicOK(32, int64(c)) }
+func smagicOK32(c int32) bool { return ssa.SmagicOK(32, int64(c)) }
 
-func smagicOK64(c int64) bool { return SmagicOK(64, c) }
+func smagicOK64(c int64) bool { return ssa.SmagicOK(64, c) }
 
 // smagicOKn reports whether we should strength reduce a signed n-bit divide by c.
-func smagicOK8(c int8) bool { return SmagicOK(8, int64(c)) }
+func smagicOK8(c int8) bool { return ssa.SmagicOK(8, int64(c)) }
 
-func umagic16(c int16) UmagicData { return Umagic(16, int64(c)) }
+func umagic16(c int16) ssa.UmagicData { return ssa.Umagic(16, int64(c)) }
 
-func umagic32(c int32) UmagicData { return Umagic(32, int64(c)) }
+func umagic32(c int32) ssa.UmagicData { return ssa.Umagic(32, int64(c)) }
 
 // umagic32PreShifted returns the pre-shifted 64-bit magic constant for unsigned 32-bit
 // division by c on 64-bit targets that have a native 64x64->128-bit multiply instruction
@@ -42,9 +44,9 @@ func umagic32PreShifted(c int32) uint64 {
 	return (1<<32 + magic.M) << uint(32-magic.S)
 }
 
-func umagic64(c int64) UmagicData { return Umagic(64, c) }
+func umagic64(c int64) ssa.UmagicData { return ssa.Umagic(64, c) }
 
-func umagic8(c int8) UmagicData { return Umagic(8, int64(c)) }
+func umagic8(c int8) ssa.UmagicData { return ssa.Umagic(8, int64(c)) }
 
 func umagicOK16(c int16) bool { return c&(c-1) != 0 }
 

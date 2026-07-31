@@ -38,10 +38,10 @@ func TestMoveSmall(t *testing.T) {
 }
 
 func TestSubFlags(t *testing.T) {
-	if !SubFlags32(0, 1).Lt() {
+	if !ssa.SubFlags32(0, 1).Lt() {
 		t.Errorf("subFlags32(0,1).lt() returned false")
 	}
-	if !SubFlags32(0, 1).Ult() {
+	if !ssa.SubFlags32(0, 1).Ult() {
 		t.Errorf("subFlags32(0,1).ult() returned false")
 	}
 }
@@ -138,7 +138,7 @@ func TestIsPPC64WordRotateMask(t *testing.T) {
 	}
 
 	for _, v := range tests {
-		if v.expected != IsPPC64WordRotateMask(v.input) {
+		if v.expected != ssa.IsPPC64WordRotateMask(v.input) {
 			t.Errorf("isPPC64WordRotateMask(0x%x) failed", v.input)
 		}
 	}
@@ -168,7 +168,7 @@ func TestEncodeDecodePPC64WordRotateMask(t *testing.T) {
 	}
 
 	for i, v := range tests {
-		result := EncodePPC64RotateMask(v.rotate, int64(v.mask), v.nbits)
+		result := ssa.EncodePPC64RotateMask(v.rotate, int64(v.mask), v.nbits)
 		if result != v.encoded {
 			t.Errorf("encodePPC64RotateMask(%d,0x%x,%d) = 0x%x, expected 0x%x", v.rotate, v.mask, v.nbits, result, v.encoded)
 		}
@@ -188,18 +188,18 @@ func TestMergePPC64ClrlsldiSrw(t *testing.T) {
 		mask     uint64
 	}{
 		// ((x>>4)&0xFF)<<4
-		{NewPPC64ShiftAuxInt(4, 56, 63, 64), 4, true, 0, 0xFF0},
+		{ssa.NewPPC64ShiftAuxInt(4, 56, 63, 64), 4, true, 0, 0xFF0},
 		// ((x>>4)&0xFFFF)<<4
-		{NewPPC64ShiftAuxInt(4, 48, 63, 64), 4, true, 0, 0xFFFF0},
+		{ssa.NewPPC64ShiftAuxInt(4, 48, 63, 64), 4, true, 0, 0xFFFF0},
 		// ((x>>4)&0xFFFF)<<17
-		{NewPPC64ShiftAuxInt(17, 48, 63, 64), 4, false, 0, 0},
+		{ssa.NewPPC64ShiftAuxInt(17, 48, 63, 64), 4, false, 0, 0},
 		// ((x>>4)&0xFFFF)<<16
-		{NewPPC64ShiftAuxInt(16, 48, 63, 64), 4, true, 12, 0xFFFF0000},
+		{ssa.NewPPC64ShiftAuxInt(16, 48, 63, 64), 4, true, 12, 0xFFFF0000},
 		// ((x>>32)&0xFFFF)<<17
-		{NewPPC64ShiftAuxInt(17, 48, 63, 64), 32, false, 0, 0},
+		{ssa.NewPPC64ShiftAuxInt(17, 48, 63, 64), 32, false, 0, 0},
 	}
 	for i, v := range tests {
-		result := MergePPC64ClrlsldiSrw(int64(v.clrlsldi), v.srw)
+		result := ssa.MergePPC64ClrlsldiSrw(int64(v.clrlsldi), v.srw)
 		if v.valid && result == 0 {
 			t.Errorf("mergePPC64ClrlsldiSrw(Test %d) did not merge", i)
 		} else if !v.valid && result != 0 {
@@ -219,20 +219,20 @@ func TestMergePPC64ClrlsldiRlwinm(t *testing.T) {
 		mask     uint64
 	}{
 		// ((x<<4)&0xFF00)<<4
-		{NewPPC64ShiftAuxInt(4, 56, 63, 64), EncodePPC64RotateMask(4, 0xFF00, 32), false, 0, 0},
+		{ssa.NewPPC64ShiftAuxInt(4, 56, 63, 64), ssa.EncodePPC64RotateMask(4, 0xFF00, 32), false, 0, 0},
 		// ((x>>4)&0xFF)<<4
-		{NewPPC64ShiftAuxInt(4, 56, 63, 64), EncodePPC64RotateMask(28, 0x0FFFFFFF, 32), true, 0, 0xFF0},
+		{ssa.NewPPC64ShiftAuxInt(4, 56, 63, 64), ssa.EncodePPC64RotateMask(28, 0x0FFFFFFF, 32), true, 0, 0xFF0},
 		// ((x>>4)&0xFFFF)<<4
-		{NewPPC64ShiftAuxInt(4, 48, 63, 64), EncodePPC64RotateMask(28, 0xFFFF, 32), true, 0, 0xFFFF0},
+		{ssa.NewPPC64ShiftAuxInt(4, 48, 63, 64), ssa.EncodePPC64RotateMask(28, 0xFFFF, 32), true, 0, 0xFFFF0},
 		// ((x>>4)&0xFFFF)<<17
-		{NewPPC64ShiftAuxInt(17, 48, 63, 64), EncodePPC64RotateMask(28, 0xFFFF, 32), false, 0, 0},
+		{ssa.NewPPC64ShiftAuxInt(17, 48, 63, 64), ssa.EncodePPC64RotateMask(28, 0xFFFF, 32), false, 0, 0},
 		// ((x>>4)&0xFFFF)<<16
-		{NewPPC64ShiftAuxInt(16, 48, 63, 64), EncodePPC64RotateMask(28, 0xFFFF, 32), true, 12, 0xFFFF0000},
+		{ssa.NewPPC64ShiftAuxInt(16, 48, 63, 64), ssa.EncodePPC64RotateMask(28, 0xFFFF, 32), true, 12, 0xFFFF0000},
 		// ((x>>4)&0xF000FFFF)<<16
-		{NewPPC64ShiftAuxInt(16, 48, 63, 64), EncodePPC64RotateMask(28, 0xF000FFFF, 32), true, 12, 0xFFFF0000},
+		{ssa.NewPPC64ShiftAuxInt(16, 48, 63, 64), ssa.EncodePPC64RotateMask(28, 0xF000FFFF, 32), true, 12, 0xFFFF0000},
 	}
 	for i, v := range tests {
-		result := MergePPC64ClrlsldiRlwinm(v.clrlsldi, v.rlwinm)
+		result := ssa.MergePPC64ClrlsldiRlwinm(v.clrlsldi, v.rlwinm)
 		if v.valid && result == 0 {
 			t.Errorf("mergePPC64ClrlsldiRlwinm(Test %d) did not merge", i)
 		} else if !v.valid && result != 0 {
@@ -261,7 +261,7 @@ func TestMergePPC64SldiSrw(t *testing.T) {
 		{32, 32, false, 0, 0},
 	}
 	for i, v := range tests {
-		result := MergePPC64SldiSrw(v.sld, v.srw)
+		result := ssa.MergePPC64SldiSrw(v.sld, v.srw)
 		if v.valid && result == 0 {
 			t.Errorf("mergePPC64SldiSrw(Test %d) did not merge", i)
 		} else if !v.valid && result != 0 {
@@ -289,7 +289,7 @@ func TestMergePPC64AndSrwi(t *testing.T) {
 		{0xFFFFFFFF, 0, true, 0, 0xFFFFFFFF},
 	}
 	for i, v := range tests {
-		result := MergePPC64AndSrwi(v.and, v.srw)
+		result := ssa.MergePPC64AndSrwi(v.and, v.srw)
 		if v.valid && result == 0 {
 			t.Errorf("mergePPC64AndSrwi(Test %d) did not merge", i)
 		} else if !v.valid && result != 0 {
@@ -371,7 +371,7 @@ func TestModularMultiplicativeInverse(t *testing.T) {
 	// We test both sides of the wrapping point (0 and math.MaxUint64) since we need to test something and it's a usual place to have bugs.
 	const halfRange = 1 << 23
 	for i := -int64(halfRange) - 1; i < halfRange; i += 2 { // odd only, a bit after to a bit before the wrapping point
-		mmi := ModularMultiplicativeInverse(uint64(i))
+		mmi := ssa.ModularMultiplicativeInverse(uint64(i))
 
 		if uint64(i)*mmi != 1 {
 			t.Errorf("%d * modularMultiplicativeInverse(%d) != 1; modularMultiplicativeInverse(%d) == %d", i, i, i, mmi)

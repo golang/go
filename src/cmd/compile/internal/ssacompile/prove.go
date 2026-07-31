@@ -2257,7 +2257,7 @@ func (ft *factsTable) simplifyValue(b *ssa.Block, v *ssa.Value) {
 	switch v.Op {
 	case ssaop.OpStaticLECall:
 		if b.Func.Pass.Debug > 0 && len(v.Args) == 2 {
-			fn := AuxToCall(v.Aux).Fn
+			fn := ssa.AuxToCall(v.Aux).Fn
 			if fn != nil && strings.Contains(fn.String(), "prove") {
 				// Print bounds of any argument to single-arg function with "prove" in name,
 				// for debugging and especially for test/prove.go.
@@ -2380,10 +2380,10 @@ func (ft *factsTable) simplifyValue(b *ssa.Block, v *ssa.Value) {
 		xl := ft.limits[x.ID]
 		y := v.Args[1]
 		yl := ft.limits[y.ID]
-		if xl.Umin == xl.Umax && IsPowerOfTwo(xl.Umin) ||
-			xl.Min == xl.Max && IsPowerOfTwo(xl.Min) ||
-			yl.Umin == yl.Umax && IsPowerOfTwo(yl.Umin) ||
-			yl.Min == yl.Max && IsPowerOfTwo(yl.Min) {
+		if xl.Umin == xl.Umax && ssa.IsPowerOfTwo(xl.Umin) ||
+			xl.Min == xl.Max && ssa.IsPowerOfTwo(xl.Min) ||
+			yl.Umin == yl.Umax && ssa.IsPowerOfTwo(yl.Umin) ||
+			yl.Min == yl.Max && ssa.IsPowerOfTwo(yl.Min) {
 			// 0,1 * a power of two is better done as a shift
 			break
 		}
