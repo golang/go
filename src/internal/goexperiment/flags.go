@@ -127,4 +127,7 @@ type Flags struct {
 	// from interleaved key/elem slots (KVKVKVKV) to split key and elem
 	// arrays (KKKKVVVV).
 	MapSplitGroup bool
+
+	// GoListExportNewFormat enables the new format for go list -export.
+	GoListExportNewFormat bool
 }

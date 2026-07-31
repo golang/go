@@ -427,6 +427,8 @@ func (v *jsonFlag) needAny(fields ...string) bool {
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
+	exp := cfg.Experiment
+
 	for _, arg := range args {
 		if arg == "" {
 			base.Fatalf("go: invalid package: %q", arg)
@@ -732,7 +734,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	// Do we need to run a build to gather information?
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
 	var buildPkgs []*load.Package
-	if needStale || *listExport || (*listCompiled && cfg.BuildCover) {
+	if needStale || (*listExport && !exp.GoListExportNewFormat) || (*listCompiled && cfg.BuildCover) {
 		buildPkgs = pkgs
 	} else if *listCompiled {
 		// In the non-cover case, for pure-Go packages, package loading already knows the complete set
@@ -758,7 +760,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}()
 
 		b.IsCmdList = true
-		b.NeedExport = *listExport
+		b.NeedExport = *listExport && !exp.GoListExportNewFormat
 		b.NeedCompiledGoFiles = *listCompiled
 		if cfg.BuildCover {
 			load.PrepareForCoverageBuild(moduleLoader, pkgs)
@@ -768,6 +770,29 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		for _, p := range buildPkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
 				a.Deps = append(a.Deps, b.AutoAction(moduleLoader, work.ModeInstall, work.ModeInstall, p))
+			}
+		}
+		b.Do(ctx, a)
+	}
+
+	// Execute any necessary export actions. Export actions only ever interact
+	// with export actions, so putting them on their own builder is fine.
+	if *listExport && exp.GoListExportNewFormat {
+		b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
+		defer func() {
+			if err := b.Close(); err != nil {
+				base.Fatal(err)
+			}
+		}()
+
+		// Setting IsCmdList doesn't do anything special for exports. We only
+		// set it for completeness.
+		b.IsCmdList = true
+		a := &work.Action{}
+		// TODO: Use pkgsFilter?
+		for _, p := range pkgs {
+			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
+				a.Deps = append(a.Deps, b.ExportAction(p))
 			}
 		}
 		b.Do(ctx, a)
