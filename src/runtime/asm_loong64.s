@@ -487,7 +487,16 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
+TEXT runtime·procyieldAsm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+	BEQ	R4, done
+	RDTIMED	R0, R5
+	IBAR	$0
+delay:
+	NOP
+	RDTIMED	R0, R6
+	SUBV	R5, R6
+	BGEU	R4, R6, delay
+done:
 	RET
 
 // Save state of caller into g->sched.
