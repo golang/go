@@ -487,3 +487,27 @@ func TestFPUnwindAfterRecovery(t *testing.T) {
 	}()
 	panic(1)
 }
+
+//go:noinline
+func deref() int {
+	var i *int
+	runtime.KeepAlive(&i)
+	return *i
+}
+
+func TestFPUnwindStackGrowthAfterRecovery(t *testing.T) {
+	if !runtime.FramePointerEnabled {
+		t.Skip("frame pointers not supported for this architecture")
+	}
+	state := runtime.StackPoisonCopy()
+	defer state.Restore()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("did not recover from panic")
+		}
+		growStack(nil)
+		var pcs [32]uintptr
+		runtime.FPCallers(pcs[:])
+	}()
+	deref()
+}
