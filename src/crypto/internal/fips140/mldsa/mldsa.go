@@ -481,19 +481,29 @@ sign:
 		// check causes the rejection and which coefficient failed the check
 		// (but not the value or sign of the coefficient).
 
+		// y[r] is drawn from the XOF seeded with ρ″ (the nonce) and κ+r.
+		// This implements ExpandMask from FIPS 204.
 		y := make([]ringElement, l, maxL)
+		lanes := [maxL]*sha3.SHAKE{sha3.NewShake256(),
+			sha3.NewShake256(), sha3.NewShake256(),
+			sha3.NewShake256(), sha3.NewShake256(),
+			sha3.NewShake256(), sha3.NewShake256()}
+		// Squeeze the whole (γ₁+1)·n-bit mask at once from each lane.
+		var bufs [maxL][(maxγ1 + 1) * n / 8]byte
+		var outs [maxL][]byte
+		vLen := (p.γ1 + 1) * n / 8
 		for r := range y {
 			counter := make([]byte, 2)
 			byteorder.LEPutUint16(counter, uint16(κ))
 			κ++
 
-			H.Reset()
-			H.Write(nonce)
-			H.Write(counter)
-			v := make([]byte, (p.γ1+1)*n/8, (maxγ1+1)*n/8)
-			H.Read(v)
-
-			y[r] = bitUnpack(v, p)
+			lanes[r].Write(nonce)
+			lanes[r].Write(counter[:])
+			outs[r] = bufs[r][:vLen]
+		}
+		sha3.ReadMulti(lanes[:len(y)], outs[:len(y)])
+		for r := range y {
+			y[r] = bitUnpack(outs[r], p)
 		}
 
 		// w = NTT⁻¹(Â ∘ NTT(y))
