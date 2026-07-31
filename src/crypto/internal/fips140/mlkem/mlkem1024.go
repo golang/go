@@ -217,11 +217,7 @@ func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) {
 	dk.ρ = [32]byte(ρ)
 
 	A := &dk.a
-	for i := byte(0); i < k1024; i++ {
-		for j := byte(0); j < k1024; j++ {
-			A[i*k1024+j] = sampleNTT(ρ, j, i)
-		}
-	}
+	sampleNTTMatrix(A[:], ρ, k1024)
 
 	var N byte
 	s := &dk.s
@@ -342,11 +338,7 @@ func parseEK1024(ek *EncapsulationKey1024, ekPKE []byte) (*EncapsulationKey1024,
 	}
 	copy(ek.ρ[:], ekPKE)
 
-	for i := byte(0); i < k1024; i++ {
-		for j := byte(0); j < k1024; j++ {
-			ek.a[i*k1024+j] = sampleNTT(ek.ρ[:], j, i)
-		}
-	}
+	sampleNTTMatrix(ek.a[:], ek.ρ[:], k1024)
 
 	return ek, nil
 }
