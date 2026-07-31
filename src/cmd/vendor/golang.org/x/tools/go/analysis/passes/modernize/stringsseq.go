@@ -117,6 +117,8 @@ func stringsseq(pass *analysis.Pass) (any, error) {
 				}
 
 				switch obj := typeutil.Callee(info, call); obj {
+				case nil:
+					// a conversion, not a call
 				case stringsSplit, stringsFields, bytesSplit, bytesFields:
 					oldFnName := obj.Name()
 					seqFnName := fmt.Sprintf("%sSeq", oldFnName)

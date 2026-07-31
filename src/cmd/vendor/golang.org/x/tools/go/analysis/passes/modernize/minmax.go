@@ -451,18 +451,3 @@ func checkMinMaxPattern(ifStmt *ast.IfStmt, falseResult ast.Expr, funcName, para
 	// Check if the sign matches the function name
 	return cond(sign < 0, "min", "max") == funcName
 }
-
-// -- utils --
-
-func is[T any](x any) bool {
-	_, ok := x.(T)
-	return ok
-}
-
-func cond[T any](cond bool, t, f T) T {
-	if cond {
-		return t
-	} else {
-		return f
-	}
-}
