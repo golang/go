@@ -275,7 +275,14 @@ func bootstrapBuildTools() {
 
 var ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssacompile/rewrite")
 
+func init() {
+	if ssaRewriteSplitPackages {
+		ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssarewrite")
+	}
+}
+
 // isUnneededSSARewriteFile reports whether srcFile is a
+// src/cmd/compile/internal/ssarewrite/ARCH/rewriteARCHNAME.go file or a
 // src/cmd/compile/internal/ssacompile/rewriteARCHNAME.go file for an
 // architecture that isn't for the given GOARCH.
 //
@@ -283,6 +290,12 @@ var ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssaco
 // the "rewrite" prefix or ".go" suffix: AMD64, 386, ARM, ARM64, etc.
 func isUnneededSSARewriteFile(srcFile, goArch string) (archCaps string, unneeded bool) {
 	if !strings.Contains(srcFile, ssaRewriteFileSubstring) {
+		return "", false
+	}
+	if ssaRewriteSplitPackages && !strings.HasPrefix(filepath.Base(srcFile), "rewrite") {
+		// Don't rewrite any helpers in the package.
+		// TODO(matloob): we should be able to clear those too, but we'd have
+		// to write a file with just a package declaration.
 		return "", false
 	}
 	fileArch := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(srcFile), "rewrite"), ".go")
@@ -311,18 +324,26 @@ func bootstrapRewriteFile(srcFile string) string {
 	// irrelevant architectures. We only need to build a bootstrap
 	// binary that works for the current gohostarch.
 	// This saves 6+ seconds of bootstrap.
+	rewrite := "rewrite"
 	if archCaps, ok := isUnneededSSARewriteFile(srcFile, gohostarch); ok {
-		return fmt.Sprintf(`%spackage ssacompile
+		if ssaRewriteSplitPackages {
+			rewrite = "Rewrite"
+			archCaps = "" // Remove redundant arch suffix
+		}
+		pkg := filepath.Base(filepath.Dir(srcFile))
+		return fmt.Sprintf(`%spackage %s
 
 import "bootstrap/cmd/compile/internal/ssa"
 
-func rewriteValue%s(v *ssa.Value) bool { panic("unused during bootstrap") }
-func rewriteBlock%s(b *ssa.Block) bool { panic("unused during bootstrap") }
-`, generatedHeader, archCaps, archCaps)
+func %sValue%s(v *ssa.Value) bool { panic("unused during bootstrap") }
+func %sBlock%s(b *ssa.Block) bool { panic("unused during bootstrap") }
+`, generatedHeader, pkg, rewrite, archCaps, rewrite, archCaps)
 	}
 
 	return bootstrapFixImports(srcFile)
 }
+
+var ssaRewriteSplitPackages = false
 
 var (
 	importRE      = regexp.MustCompile(`\Aimport\s+(\.|[A-Za-z0-9_]+)?\s*"([^"]+)"\s*(//.*)?\n\z`)
