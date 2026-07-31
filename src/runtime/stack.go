@@ -699,15 +699,6 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 
 // Note: the argument/return area is adjusted by the callee.
 func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
-	if frame.continpc == 0 {
-		// Frame is dead.
-		return
-	}
-	f := frame.fn
-	if stackDebug >= 2 {
-		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
-	}
-
 	// Adjust saved frame pointer if there is one.
 	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64) && frame.argp-frame.varp == 2*goarch.PtrSize {
 		if stackDebug >= 3 {
@@ -728,6 +719,44 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 		// On ARM64, this is the frame pointer of the caller's caller saved
 		// by the caller in its frame (one word below its SP).
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
+	}
+	if goarch.ArchFamily == goarch.ARM64 && isInjectedCall(frame.fn.funcID) {
+		// If this is an injected call on arm64, then we need to adjust
+		// the frame pointer saved by the original function into which
+		// the call was injected. Normally this would be handled when
+		// adjusting the callee's frame or in adjustctxt. But when a
+		// call is injected, the frame is placed 16 bytes below the
+		// original stack pointer to make room to save the link
+		// register, and the frame pointer saved by the original
+		// function isn't inside any call frame. We can adjust that
+		// saved frame pointer here by looking just above frame.fp.
+		//
+		// ^  original call    ^
+		// |  frame above...   |
+		// +-------------------+ <- stack pointer at the time of injection
+		// :  FP saved by      :
+		// :  original func    :
+		// :···················: <- frame pointer register from original function
+		// :  LR saved during  :
+		// :  injection        :
+		// +-------------------+ <- frame.fp (injection decrements SP by 16 bytes)
+		// |  FP saved         |
+		// |  during injection |
+		// +-------------------+
+		// |  injected call    |
+		// V  frame below...   V
+		adjustpointer(adjinfo, unsafe.Pointer(frame.fp+goarch.PtrSize))
+	}
+
+	if frame.continpc == 0 {
+		// Frame is dead. The program might still see the frame pointer
+		// saved in the frame, adjusted above, but we don't need to
+		// adjust the rest of the frame.
+		return
+	}
+	f := frame.fn
+	if stackDebug >= 2 {
+		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
 	}
 
 	locals, args, objs := frame.getStackMap(true)

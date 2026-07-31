@@ -437,6 +437,10 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 	}
 }
 
+func isInjectedCall(id abi.FuncID) bool {
+	return id == abi.FuncID_sigpanic || id == abi.FuncID_asyncPreempt || id == abi.FuncID_debugCallV2
+}
+
 func (u *unwinder) next() {
 	frame := &u.frame
 	f := frame.fn
@@ -481,7 +485,7 @@ func (u *unwinder) next() {
 		throw("traceback stuck")
 	}
 
-	injectedCall := f.funcID == abi.FuncID_sigpanic || f.funcID == abi.FuncID_asyncPreempt || f.funcID == abi.FuncID_debugCallV2
+	injectedCall := isInjectedCall(f.funcID)
 	if injectedCall {
 		u.flags |= unwindTrap
 	} else {
