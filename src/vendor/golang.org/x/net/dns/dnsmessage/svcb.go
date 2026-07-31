@@ -205,7 +205,7 @@ func unpackSVCBResource(msg []byte, off int, length uint16) (SVCBResource, error
 	off = paramsOff
 	var previousKey uint16
 	for off < bodyEnd {
-		var key, len uint16
+		var key, size uint16
 		if key, off, err = unpackUint16(msg, off); err != nil {
 			return SVCBResource{}, &nestedError{"Params key", err}
 		}
@@ -214,14 +214,14 @@ func unpackSVCBResource(msg []byte, off int, length uint16) (SVCBResource, error
 			// consider the RR malformed if the SvcParamKeys are not in strictly increasing numeric order
 			return SVCBResource{}, &nestedError{"Params", errParamOutOfOrder}
 		}
-		if len, off, err = unpackUint16(msg, off); err != nil {
+		if size, off, err = unpackUint16(msg, off); err != nil {
 			return SVCBResource{}, &nestedError{"Params value length", err}
 		}
-		if off+int(len) > bodyEnd {
+		if off+int(size) > bodyEnd {
 			return SVCBResource{}, errResourceLen
 		}
-		totalValueLen += len
-		off += int(len)
+		totalValueLen += size
+		off += int(size)
 		n++
 	}
 	if off != bodyEnd {
@@ -236,20 +236,23 @@ func unpackSVCBResource(msg []byte, off int, length uint16) (SVCBResource, error
 	off = paramsOff
 	for i := 0; i < n; i++ {
 		p := &r.Params[i]
-		var key, len uint16
+		var key, size uint16
 		if key, off, err = unpackUint16(msg, off); err != nil {
 			return SVCBResource{}, &nestedError{"param key", err}
 		}
 		p.Key = SVCParamKey(key)
-		if len, off, err = unpackUint16(msg, off); err != nil {
+		if size, off, err = unpackUint16(msg, off); err != nil {
 			return SVCBResource{}, &nestedError{"param length", err}
 		}
-		if copy(valuesBuf, msg[off:off+int(len)]) != int(len) {
+		if len(msg[off:]) < int(size) {
 			return SVCBResource{}, &nestedError{"param value", errCalcLen}
 		}
-		p.Value = valuesBuf[:len:len]
-		valuesBuf = valuesBuf[len:]
-		off += int(len)
+		if copy(valuesBuf, msg[off:][:int(size)]) != int(size) {
+			return SVCBResource{}, &nestedError{"param value", errCalcLen}
+		}
+		p.Value = valuesBuf[:size:size]
+		valuesBuf = valuesBuf[size:]
+		off += int(size)
 	}
 
 	return r, nil
