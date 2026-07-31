@@ -813,5 +813,9 @@ var Anames = []string{
 	"XVSETALLNEH",
 	"XVSETALLNEW",
 	"XVSETALLNEV",
+	"VBITSELV",
+	"XVBITSELV",
+	"VBITSELB",
+	"XVBITSELB",
 	"LAST",
 }

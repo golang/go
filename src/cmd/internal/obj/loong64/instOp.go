@@ -9,16 +9,18 @@ import (
 )
 
 var oprrrr = map[obj.As]uint32{
-	AFMADDF:  0x81 << 20,  // fmadd.s
-	AFMADDD:  0x82 << 20,  // fmadd.d
-	AFMSUBF:  0x85 << 20,  // fmsub.s
-	AFMSUBD:  0x86 << 20,  // fmsub.d
-	AFNMADDF: 0x89 << 20,  // fnmadd.f
-	AFNMADDD: 0x8a << 20,  // fnmadd.d
-	AFNMSUBF: 0x8d << 20,  // fnmsub.s
-	AFNMSUBD: 0x8e << 20,  // fnmsub.d
-	AVSHUFB:  0x0d5 << 20, // vshuf.b
-	AXVSHUFB: 0x0d6 << 20, // xvshuf.b
+	AFMADDF:    0x81 << 20, // fmadd.s
+	AFMADDD:    0x82 << 20, // fmadd.d
+	AFMSUBF:    0x85 << 20, // fmsub.s
+	AFMSUBD:    0x86 << 20, // fmsub.d
+	AFNMADDF:   0x89 << 20, // fnmadd.f
+	AFNMADDD:   0x8a << 20, // fnmadd.d
+	AFNMSUBF:   0x8d << 20, // fnmsub.s
+	AFNMSUBD:   0x8e << 20, // fnmsub.d
+	AVSHUFB:    0xd5 << 20, // vshuf.b
+	AXVSHUFB:   0xd6 << 20, // xvshuf.b
+	AVBITSELV:  0xd1 << 20, // vbitsel.v
+	AXVBITSELV: 0xd2 << 20, // xvbitsel.v
 }
 
 var oprrr = map[obj.As]uint32{
@@ -906,6 +908,8 @@ var opirr = map[obj.As]uint32{
 	AXVBITREVH:  0x1dc6<<18 | 0x1<<14, // xvbitrevi.h
 	AXVBITREVW:  0x1dc6<<18 | 0x1<<15, // xvbitrevi.w
 	AXVBITREVV:  0x1dc6<<18 | 0x1<<16, // xvbitrevi.d
+	AVBITSELB:   0x1cf1 << 18,         // vbitseli.b
+	AXVBITSELB:  0x1df1 << 18,         // xvbitseli.b
 }
 
 var opirrr = map[obj.As]uint32{
