@@ -30,6 +30,10 @@ func keccakF1600(a *[200]byte) {
 	keccakF1600Generic(a)
 }
 
+func keccakF1600Multi(a []*[200]byte) {
+	keccakF1600MultiGeneric(a)
+}
+
 // codes represent 7-bit KIMD/KLMD function codes as defined in
 // the Principles of Operation.
 type code uint64
@@ -136,6 +140,12 @@ func (d *Digest) sum(b []byte) []byte {
 
 func (d *Digest) read(out []byte) (n int, err error) {
 	if !useSHA3 || d.dsbyte != dsbyteShake {
+		return d.readGeneric(out)
+	}
+	if len(out) == 0 {
+		// KLMD pads but doesn't apply the permutation if there is no output
+		// to squeeze, which would leave an absorbing state different from
+		// the one produced by the generic implementation.
 		return d.readGeneric(out)
 	}
 

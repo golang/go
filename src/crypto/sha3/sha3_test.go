@@ -7,11 +7,14 @@ package sha3_test
 import (
 	"bytes"
 	"crypto/internal/cryptotest"
+	fips140sha3 "crypto/internal/fips140/sha3"
 	. "crypto/sha3"
 	"encoding/hex"
+	"fmt"
 	"hash"
 	"io"
 	"math/rand"
+	mathrand "math/rand/v2"
 	"strings"
 	"testing"
 )
@@ -267,6 +270,28 @@ func TestAllocations(t *testing.T) {
 			t.Errorf("expected zero allocations, got %0.1f", allocs)
 		}
 	})
+	t.Run("ReadMulti", func(t *testing.T) {
+		if allocs := testing.AllocsPerRun(10, func() {
+			var seed [34]byte
+			lanes := [4]*fips140sha3.SHAKE{
+				fips140sha3.NewShake128(), fips140sha3.NewShake128(),
+				fips140sha3.NewShake128(), fips140sha3.NewShake128(),
+			}
+			var bufs [4][504]byte
+			var outs [4][]byte
+			for i := range lanes {
+				seed[33] = byte(i)
+				lanes[i].Write(seed[:])
+				outs[i] = bufs[i][:]
+			}
+			ReadMulti(lanes[:], outs[:])
+			var tail [168]byte
+			lanes[2].Read(tail[:])
+			sinkSHA3 ^= tail[0]
+		}); allocs > 0 {
+			t.Errorf("expected zero allocations, got %0.1f", allocs)
+		}
+	})
 }
 
 func TestCSHAKEAccumulated(t *testing.T) {
@@ -452,6 +477,239 @@ func testMarshalUnmarshalSHAKE(t *testing.T, h *SHAKE) {
 	}
 }
 
+type readMultiLane struct {
+	shake128 bool
+	absorb   int // input bytes written before the ReadMulti call
+	preRead  int // output bytes read before the ReadMulti call
+	outLen   int
+}
+
+// checkReadMulti runs ReadMulti over states configured by lanes and compares
+// outputs and final states with sequential Read calls on cloned states, both
+// for the initial call and for a chained second call.
+func checkReadMulti(t *testing.T, lanes []readMultiLane) {
+	t.Helper()
+	data := make([]byte, 1024)
+	for i := range data {
+		data[i] = byte(i * 251)
+	}
+	s := make([]*fips140sha3.SHAKE, len(lanes))
+	ref := make([]*fips140sha3.SHAKE, len(lanes))
+	out := make([][]byte, len(lanes))
+	refOut := make([][]byte, len(lanes))
+	for i, l := range lanes {
+		if l.shake128 {
+			s[i] = fips140sha3.NewShake128()
+		} else {
+			s[i] = fips140sha3.NewShake256()
+		}
+		s[i].Write(data[:l.absorb])
+		if l.preRead > 0 {
+			s[i].Read(make([]byte, l.preRead))
+		}
+		ref[i] = s[i].Clone()
+		out[i] = make([]byte, l.outLen)
+		refOut[i] = make([]byte, l.outLen)
+	}
+	for round := 0; round < 2; round++ {
+		for i := range ref {
+			ref[i].Read(refOut[i])
+		}
+		ReadMulti(s, out)
+		for i := range lanes {
+			if len(out[i]) != lanes[i].outLen {
+				t.Errorf("round %d, lane %d (%+v): out slice modified", round, i, lanes[i])
+			}
+			if !bytes.Equal(out[i], refOut[i]) {
+				t.Errorf("round %d, lane %d (%+v): output mismatch", round, i, lanes[i])
+			}
+			got, err := s[i].MarshalBinary()
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, err := ref[i].MarshalBinary()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Errorf("round %d, lane %d (%+v): state mismatch", round, i, lanes[i])
+			}
+		}
+	}
+	// Finish with a per-lane Read, like rejection sampling stragglers.
+	tail := make([]byte, 168)
+	refTail := make([]byte, 168)
+	for i := range lanes {
+		s[i].Read(tail)
+		ref[i].Read(refTail)
+		if !bytes.Equal(tail, refTail) {
+			t.Errorf("lane %d (%+v): straggler output mismatch", i, lanes[i])
+		}
+	}
+}
+
+func TestReadMultiEquivalence(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha3", testReadMultiEquivalence)
+}
+
+func testReadMultiEquivalence(t *testing.T) {
+	// Uniform lockstep groups, the intended fast path.
+	for _, n := range []int{1, 2, 3, 4, 5, 6, 7, 8} {
+		for _, shake128 := range []bool{true, false} {
+			rate := fips140sha3.NewShake256().BlockSize()
+			if shake128 {
+				rate = fips140sha3.NewShake128().BlockSize()
+			}
+			for _, absorb := range []int{0, 1, 33, 34, 66, rate - 1, rate, rate + 7, 3 * rate} {
+				for _, outLen := range []int{0, 1, 24, 128, 3*rate - 1, 3 * rate, 3*rate + 1} {
+					lanes := make([]readMultiLane, n)
+					for i := range lanes {
+						lanes[i] = readMultiLane{shake128, absorb, 0, outLen}
+					}
+					checkReadMulti(t, lanes)
+				}
+			}
+		}
+	}
+
+	// Non-uniform groups: mixed rates, phases, offsets, and output lengths.
+	checkReadMulti(t, []readMultiLane{
+		{true, 34, 0, 504}, {true, 34, 0, 200}, {true, 34, 0, 0}, {true, 34, 0, 505},
+	})
+	checkReadMulti(t, []readMultiLane{
+		{true, 34, 0, 504}, {false, 34, 0, 504}, {true, 34, 0, 504}, {false, 34, 0, 504},
+	})
+	checkReadMulti(t, []readMultiLane{
+		{true, 34, 17, 504}, {true, 34, 0, 504}, {true, 34, 17, 504}, {true, 34, 17, 504},
+	})
+	checkReadMulti(t, []readMultiLane{
+		{true, 34, 168, 504}, {true, 34, 168, 504}, {true, 34, 336, 504}, {true, 34, 168, 504},
+	})
+	checkReadMulti(t, []readMultiLane{
+		{false, 66, 0, 640}, {false, 66, 640, 640}, {false, 66, 0, 640}, {false, 66, 0, 640},
+	})
+
+	// Randomized groups.
+	r := mathrand.New(mathrand.NewPCG(42, 0))
+	for i := 0; i < 200; i++ {
+		lanes := make([]readMultiLane, 1+r.IntN(8))
+		uniform := r.IntN(2) == 0
+		l := readMultiLane{r.IntN(2) == 0, r.IntN(300), r.IntN(3) * r.IntN(100), r.IntN(600)}
+		for j := range lanes {
+			if uniform && j > 0 {
+				lanes[j] = lanes[0]
+				lanes[j].outLen = r.IntN(600)
+			} else {
+				l.shake128 = r.IntN(2) == 0
+				l.absorb = r.IntN(300)
+				l.preRead = r.IntN(3) * r.IntN(100)
+				l.outLen = r.IntN(600)
+				lanes[j] = l
+			}
+		}
+		checkReadMulti(t, lanes)
+	}
+}
+
+func TestReadMultiGroup(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha3", testReadMultiGroup)
+}
+
+func testReadMultiGroup(t *testing.T) {
+	// Single lockstep groups of two to four lanes with staggered output
+	// lengths, so lanes drop out of the batch at different points.
+	for _, n := range []int{2, 3, 4} {
+		for _, shake128 := range []bool{true, false} {
+			rate := fips140sha3.NewShake256().BlockSize()
+			if shake128 {
+				rate = fips140sha3.NewShake128().BlockSize()
+			}
+			for _, absorb := range []int{0, 33, 34, 66, rate, rate + 7} {
+				for _, outLen := range []int{0, 1, 128, 3*rate - 1, 3 * rate, 3*rate + 1} {
+					lanes := make([]readMultiLane, n)
+					for i := range lanes {
+						lanes[i] = readMultiLane{shake128, absorb, 0, max(outLen-i*57, 0)}
+					}
+					checkReadMulti(t, lanes)
+				}
+			}
+		}
+	}
+}
+
+func TestReadMultiAliasing(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha3", testReadMultiAliasing)
+}
+
+func testReadMultiAliasing(t *testing.T) {
+	// Duplicate states in the same group must behave like sequential reads
+	// from a single continuing stream.
+	for _, dup := range [][]int{
+		{0, 1, 0, 2},       // duplicate within one group
+		{0, 1, 2, 3, 0, 1}, // duplicate across groups
+		{0, 0, 0, 0},
+	} {
+		states := []*fips140sha3.SHAKE{
+			fips140sha3.NewShake128(), fips140sha3.NewShake128(),
+			fips140sha3.NewShake128(), fips140sha3.NewShake128(),
+		}
+		for i, x := range states {
+			x.Write([]byte{byte(i), 0xa5})
+		}
+		refStates := make([]*fips140sha3.SHAKE, len(states))
+		for i, x := range states {
+			refStates[i] = x.Clone()
+		}
+		s := make([]*fips140sha3.SHAKE, len(dup))
+		ref := make([]*fips140sha3.SHAKE, len(dup))
+		out := make([][]byte, len(dup))
+		refOut := make([][]byte, len(dup))
+		for i, j := range dup {
+			s[i] = states[j]
+			ref[i] = refStates[j]
+			out[i] = make([]byte, 100)
+			refOut[i] = make([]byte, 100)
+		}
+		for i := range ref {
+			ref[i].Read(refOut[i])
+		}
+		ReadMulti(s, out)
+		for i := range dup {
+			if !bytes.Equal(out[i], refOut[i]) {
+				t.Errorf("dup %v, lane %d: output mismatch", dup, i)
+			}
+		}
+	}
+}
+
+func TestReadMultiKAT(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha3", testReadMultiKAT)
+}
+
+func testReadMultiKAT(t *testing.T) {
+	shake128Empty := "7f9c2ba4e88f827d616045507605853ed73b8093f6efbc88eb1a6eacfa66ef26"
+	shake256Empty := "46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f"
+	for _, tt := range []struct {
+		new  func() *fips140sha3.SHAKE
+		want string
+	}{
+		{fips140sha3.NewShake128, shake128Empty},
+		{fips140sha3.NewShake256, shake256Empty},
+	} {
+		s := []*fips140sha3.SHAKE{tt.new(), tt.new(), tt.new(), tt.new()}
+		out := make([][]byte, len(s))
+		for i := range out {
+			out[i] = make([]byte, 32)
+		}
+		ReadMulti(s, out)
+		for i := range out {
+			if got := fmt.Sprintf("%x", out[i]); got != tt.want {
+				t.Errorf("lane %d: got %s, want %s", i, got, tt.want)
+			}
+		}
+	}
+}
+
 // benchmarkHash tests the speed to hash num buffers of buflen each.
 func benchmarkHash(b *testing.B, h hash.Hash, size, num int) {
 	b.StopTimer()
@@ -502,3 +760,48 @@ func BenchmarkShake256_16x(b *testing.B)  { benchmarkShake(b, NewSHAKE256(), 16,
 func BenchmarkShake256_1MiB(b *testing.B) { benchmarkShake(b, NewSHAKE256(), 1024, 1024) }
 
 func BenchmarkSha3_512_1MiB(b *testing.B) { benchmarkHash(b, New512(), 1024, 1024) }
+
+func BenchmarkReadMulti(b *testing.B) {
+	shapes := []struct {
+		name     string
+		shake128 bool
+		lanes    int
+		seedLen  int
+		outLen   int
+	}{
+		// Four RejNTTPoly lanes of an ML-DSA matrix, at five SHAKE-128
+		// blocks each.
+		{"MLDSA/ExpandA", true, 4, 34, 5 * 168},
+		// The seven ExpandMask lanes of an ML-DSA-87 signing attempt.
+		{"MLDSA/ExpandMask", false, 7, 66, 640},
+	}
+	for _, shape := range shapes {
+		b.Run(shape.name, func(b *testing.B) {
+			s := make([]*fips140sha3.SHAKE, shape.lanes)
+			out := make([][]byte, shape.lanes)
+			for i := range s {
+				if shape.shake128 {
+					s[i] = fips140sha3.NewShake128()
+				} else {
+					s[i] = fips140sha3.NewShake256()
+				}
+				out[i] = make([]byte, shape.outLen)
+			}
+			seed := make([]byte, shape.seedLen)
+			b.SetBytes(int64(shape.lanes * shape.outLen))
+			b.ReportAllocs()
+			for b.Loop() {
+				// Reset and reseed in place of constructing fresh states:
+				// calls in a b.Loop body are never inlined, so constructors
+				// would heap-allocate the states here, unlike in the
+				// stack-allocating batch sampling functions.
+				for i := range s {
+					s[i].Reset()
+					seed[len(seed)-1] = byte(i)
+					s[i].Write(seed)
+				}
+				ReadMulti(s, out)
+			}
+		})
+	}
+}

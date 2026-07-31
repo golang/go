@@ -28,6 +28,22 @@ func init() {
 		if got := h.Sum(nil); !bytes.Equal(got, want) {
 			return errors.New("unexpected result")
 		}
+
+		// ReadMulti can use multi-lane implementations of the permutation
+		// that are not reached by Write, Read, or Sum.
+		var s [batchSize]*SHAKE
+		var out [batchSize][]byte
+		for i := range s {
+			s[i] = NewCShake128(input, input)
+			s[i].Write(input)
+			out[i] = make([]byte, len(want))
+		}
+		ReadMulti(s[:], out[:])
+		for _, got := range out {
+			if !bytes.Equal(got, want) {
+				return errors.New("unexpected result")
+			}
+		}
 		return nil
 	})
 }

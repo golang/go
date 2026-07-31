@@ -10,6 +10,10 @@ func keccakF1600(a *[200]byte) {
 	keccakF1600Generic(a)
 }
 
+func keccakF1600Multi(a []*[200]byte) {
+	keccakF1600MultiGeneric(a)
+}
+
 func (d *Digest) write(p []byte) (n int, err error) {
 	return d.writeGeneric(p)
 }

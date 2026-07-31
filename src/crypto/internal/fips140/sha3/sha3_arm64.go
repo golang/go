@@ -24,6 +24,10 @@ func init() {
 //go:noescape
 func keccakF1600NEON(a *[200]byte)
 
+func keccakF1600Multi(a []*[200]byte) {
+	keccakF1600MultiGeneric(a)
+}
+
 func keccakF1600(a *[200]byte) {
 	if useSHA3 {
 		keccakF1600NEON(a)
