@@ -1485,6 +1485,7 @@ func buildop(ctxt *obj.Link) {
 
 		case ASYSCALL:
 			opset(ADBAR, r0)
+			opset(AIBAR, r0)
 			opset(ABREAK, r0)
 
 		case ACMPEQF:

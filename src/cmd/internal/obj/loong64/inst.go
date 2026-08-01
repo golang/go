@@ -111,6 +111,7 @@ const (
 
 	ASUBW
 	ADBAR
+	AIBAR
 	ASYSCALL
 
 	ATEQ

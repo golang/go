@@ -705,6 +705,7 @@ var opi = map[obj.As]uint32{
 	ASYSCALL: 0x56 << 15,   // syscall
 	ABREAK:   0x54 << 15,   // break
 	ADBAR:    0x70e4 << 15, // dbar
+	AIBAR:    0x70e5 << 15, // ibar
 }
 
 var opir = map[obj.As]uint32{
