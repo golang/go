@@ -328,8 +328,16 @@ func init() {
 			needIntTemp:    true,
 			faultOnNilArg0: true,
 			addrSinkArg0:   true,
+			// We dont save RVV in async preemption yet
+			// so mark this as an unsafe point.
+			unsafePoint: true,
 			reg: regInfo{
-				inputs:       []regMask{gpMask},
+				// For GORISCV64 < rva23 this lowers to a runtime branch that
+				// uses either an RVV loop (clobbering X5/X6) or the scalar loop
+				// (using the int temp). For rva23 and later it always uses RVV.
+				// RVV uses V24-V31, which are not allocated by SSA.
+				inputs:       []regMask{gpMask.minus(r5toR6)},
+				clobbers:     r5toR6,
 				clobbersArg0: true,
 			},
 		},

@@ -793,6 +793,7 @@ func cpuinit(env string) {
 		loong64HasLSX = cpu.Loong64.HasLSX
 
 	case "riscv64":
+		riscv64HasV = cpu.RISCV64.HasV
 		riscv64HasZbb = cpu.RISCV64.HasZbb
 	}
 }

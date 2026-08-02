@@ -80,6 +80,7 @@ type symsStruct struct {
 	Loong64HasLAM_BH     *obj.LSym
 	Loong64HasDBAR_HINTS *obj.LSym
 	Loong64HasLSX        *obj.LSym
+	RISCV64HasV          *obj.LSym
 	RISCV64HasZbb        *obj.LSym
 	X86HasAVX            *obj.LSym
 	X86HasFMA            *obj.LSym

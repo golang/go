@@ -382,7 +382,7 @@
 (Zero [s] {t} ptr mem) && s <= 24*ssa.MoveSize(t.Alignment(), config) =>
 	(LoweredZero [s] {t.Alignment()} ptr mem)
 
-// Generic zeroing uses a loop
+// Generic zeroing uses a loop.
 (Zero [s] {t} ptr mem) && s > 24*ssa.MoveSize(t.Alignment(), config) =>
 	(LoweredZeroLoop [s] {t.Alignment()} ptr mem)
 
