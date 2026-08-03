@@ -16,7 +16,7 @@ import (
 	"encoding/json/internal/jsonwire"
 )
 
-// Encoder is a streaming encoder from raw JSON tokens and values.
+// Encoder is a streaming encoder to raw JSON tokens and values.
 // It is used to write a stream of top-level JSON values,
 // each terminated with a newline character.
 //
@@ -337,7 +337,7 @@ func (e *encoderState) UnwriteOnlyObjectMemberName() string {
 // For example, it is an error to provide a number when the encoder
 // is expecting an object name (which is always a string), or
 // to provide an end object delimiter when the encoder is finishing an array.
-// If the provided token is invalid, then it reports a [SyntacticError] and
+// If the provided token is invalid, then WriteToken reports a [SyntacticError] and
 // the internal state remains unchanged. The offset reported
 // in [SyntacticError] will be the [Encoder.OutputOffset] plus any delimiter
 // or whitespace characters that would have preceded the provided token.
@@ -518,7 +518,7 @@ func (e *encoderState) AppendRaw(k Kind, safeASCII bool, appendFn func([]byte) (
 //
 // The provided value kind must be consistent with the JSON grammar
 // (see examples on [Encoder.WriteToken]). If the provided value is invalid,
-// then it reports a [SyntacticError] and the internal state remains unchanged.
+// then WriteValue reports a [SyntacticError] and the internal state remains unchanged.
 // The offset reported in [SyntacticError] will be the [Encoder.OutputOffset]
 // plus the offset into v of any encountered syntax error.
 func (e *Encoder) WriteValue(v Value) error {
@@ -896,7 +896,7 @@ func (e *encoderState) reformatArray(dst []byte, src Value, depth int) ([]byte, 
 // OutputOffset returns the current output byte offset. It gives the location
 // of the next byte immediately after the most recently written token or value.
 // The number of bytes actually written to the underlying [io.Writer] may be less
-// than this offset due to internal buffering effects.
+// than this offset due to internal buffering.
 func (e *Encoder) OutputOffset() int64 {
 	return e.s.previousOffsetEnd()
 }
@@ -968,7 +968,7 @@ func (e *Encoder) StackDepth() int {
 //
 // It also reports the length of that JSON object or array encoded so far.
 // Each name and value in a JSON object is counted separately,
-// so the effective number of members would be half the length.
+// so the effective number of members is half the length.
 // A complete JSON object must have an even length.
 func (e *Encoder) StackIndex(i int) (Kind, int64) {
 	// NOTE: Keep in sync with Decoder.StackIndex.

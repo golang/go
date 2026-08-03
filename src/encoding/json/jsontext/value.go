@@ -152,7 +152,7 @@ func (v *Value) format(opts1, opts2 []Options) error {
 //
 // It does not reformat JSON strings or numbers to use any other representation.
 // To maximize the set of JSON values that can be formatted,
-// this permits values with duplicate names and invalid UTF-8.
+// it permits values with duplicate names and invalid UTF-8.
 //
 // Compact is equivalent to calling [Value.Format] with the following options:
 //   - [AllowDuplicateNames](true)
@@ -174,7 +174,7 @@ func (v *Value) Compact(opts ...Options) error {
 //
 // It does not reformat JSON strings or numbers to use any other representation.
 // To maximize the set of JSON values that can be formatted,
-// this permits values with duplicate names and invalid UTF-8.
+// it permits values with duplicate names and invalid UTF-8.
 //
 // Indent is equivalent to calling [Value.Format] with the following options:
 //   - [AllowDuplicateNames](true)
@@ -194,20 +194,16 @@ func (v *Value) Indent(opts ...Options) error {
 }
 
 // Canonicalize canonicalizes the raw JSON value according to the
-// JSON Canonicalization Scheme (JCS) as defined by RFC 8785
-// where it produces a stable representation of a JSON value.
+// JSON Canonicalization Scheme (JCS) as defined by RFC 8785.
+// Canonicalization produces a JSON value with the same meaning as the original,
+// but is stable in the sense that calling Canonicalize on a canonicalized
+// value does nothing.
 //
 // JSON strings are formatted to use their minimal representation,
 // JSON numbers are formatted as double precision numbers according
 // to some stable serialization algorithm.
 // JSON object members are sorted in ascending order by name.
 // All whitespace is removed.
-//
-// The output stability is dependent on the stability of the application data
-// (see RFC 8785, Appendix E). It cannot produce stable output from
-// fundamentally unstable input. For example, if the JSON value
-// contains ephemeral data (e.g., a frequently changing timestamp),
-// then the value is still unstable regardless of whether this is called.
 //
 // Canonicalize is equivalent to calling [Value.Format] with the following options:
 //   - [CanonicalizeRawInts](true)
@@ -233,7 +229,7 @@ func (v *Value) Canonicalize(opts ...Options) error {
 }
 
 // MarshalJSON returns v as the JSON encoding of v.
-// It returns the stored value as the raw JSON output without any validation.
+// It performs no validation.
 // If v is nil, then this returns a JSON null.
 func (v Value) MarshalJSON() ([]byte, error) {
 	// NOTE: This matches the behavior of v1 json.RawMessage.MarshalJSON.
