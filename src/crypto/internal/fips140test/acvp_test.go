@@ -210,12 +210,12 @@ var (
 
 		"PBKDF": cmdPbkdf(),
 
-		"ML-KEM-768/keyGen":  cmdMlKem768KeyGenAft(),
-		"ML-KEM-768/encap":   cmdMlKem768EncapAft(),
-		"ML-KEM-768/decap":   cmdMlKem768DecapAft(),
-		"ML-KEM-1024/keyGen": cmdMlKem1024KeyGenAft(),
-		"ML-KEM-1024/encap":  cmdMlKem1024EncapAft(),
-		"ML-KEM-1024/decap":  cmdMlKem1024DecapAft(),
+		"ML-KEM-768/keyGen":      cmdMlKem768KeyGenAft(),
+		"ML-KEM-768/encap":       cmdMlKem768EncapAft(),
+		"ML-KEM-768/decap/seed":  cmdMlKem768DecapAft(),
+		"ML-KEM-1024/keyGen":     cmdMlKem1024KeyGenAft(),
+		"ML-KEM-1024/encap":      cmdMlKem1024EncapAft(),
+		"ML-KEM-1024/decap/seed": cmdMlKem1024DecapAft(),
 
 		"hmacDRBG/SHA2-224":     cmdHmacDrbgAft(func() hash.Hash { return sha256.New224() }),
 		"hmacDRBG/SHA2-256":     cmdHmacDrbgAft(func() hash.Hash { return sha256.New() }),
@@ -1227,12 +1227,12 @@ func cmdMlKem768EncapAft() command {
 
 func cmdMlKem768DecapAft() command {
 	return command{
-		requiredArgs: 2, // Private key, ciphertext
+		requiredArgs: 2, // Seed (d || z), ciphertext
 		handler: func(args [][]byte) ([][]byte, error) {
-			pk := args[0]
+			seed := args[0]
 			ct := args[1]
 
-			dk, err := mlkem.TestingOnlyNewDecapsulationKey768(pk)
+			dk, err := mlkem.NewDecapsulationKey768(seed)
 			if err != nil {
 				return nil, fmt.Errorf("generating ML-KEM 768 decapsulation key: %w", err)
 			}
@@ -1289,12 +1289,12 @@ func cmdMlKem1024EncapAft() command {
 
 func cmdMlKem1024DecapAft() command {
 	return command{
-		requiredArgs: 2, // Private key, ciphertext
+		requiredArgs: 2, // Seed (d || z), ciphertext
 		handler: func(args [][]byte) ([][]byte, error) {
-			pk := args[0]
+			seed := args[0]
 			ct := args[1]
 
-			dk, err := mlkem.TestingOnlyNewDecapsulationKey1024(pk)
+			dk, err := mlkem.NewDecapsulationKey1024(seed)
 			if err != nil {
 				return nil, fmt.Errorf("generating ML-KEM 1024 decapsulation key: %w", err)
 			}
@@ -2108,9 +2108,9 @@ func TestACVP(t *testing.T) {
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
-		bsslVersion   = "v0.0.0-20260422110153-4ccbe2adaf4f"
+		bsslVersion   = "v0.0.0-20260804180546-69dd9a8a2afc"
 		goAcvpModule  = "github.com/geomys/acvp-testdata"
-		goAcvpVersion = "v0.0.0-20260526143807-16992c4b1561"
+		goAcvpVersion = "v0.0.0-20260804131014-77f1447dbc6f"
 	)
 
 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"

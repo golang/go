@@ -15,9 +15,9 @@ func init() {
 	commands["ML-DSA-44/keyGen"] = cmdMlDsaKeyGenAft(mldsa.NewPrivateKey44)
 	commands["ML-DSA-65/keyGen"] = cmdMlDsaKeyGenAft(mldsa.NewPrivateKey65)
 	commands["ML-DSA-87/keyGen"] = cmdMlDsaKeyGenAft(mldsa.NewPrivateKey87)
-	commands["ML-DSA-44/sigGen"] = cmdMlDsaSigGenAft()
-	commands["ML-DSA-65/sigGen"] = cmdMlDsaSigGenAft()
-	commands["ML-DSA-87/sigGen"] = cmdMlDsaSigGenAft()
+	commands["ML-DSA-44/sigGen/seed"] = cmdMlDsaSigGenAft(mldsa.NewPrivateKey44)
+	commands["ML-DSA-65/sigGen/seed"] = cmdMlDsaSigGenAft(mldsa.NewPrivateKey65)
+	commands["ML-DSA-87/sigGen/seed"] = cmdMlDsaSigGenAft(mldsa.NewPrivateKey87)
 	commands["ML-DSA-44/sigVer"] = cmdMlDsaSigVerAft(mldsa.NewPublicKey44)
 	commands["ML-DSA-65/sigVer"] = cmdMlDsaSigVerAft(mldsa.NewPublicKey65)
 	commands["ML-DSA-87/sigVer"] = cmdMlDsaSigVerAft(mldsa.NewPublicKey87)
@@ -31,7 +31,7 @@ func cmdMlDsaKeyGenAft(keyGen func([]byte) (*mldsa.PrivateKey, error)) command {
 
 			sk, err := keyGen(seed)
 			if err != nil {
-				return nil, fmt.Errorf("generating ML-DSA 44 private key: %w", err)
+				return nil, fmt.Errorf("generating ML-DSA private key: %w", err)
 			}
 
 			// Important: we must return the full encoding of sk, not the seed.
@@ -40,19 +40,19 @@ func cmdMlDsaKeyGenAft(keyGen func([]byte) (*mldsa.PrivateKey, error)) command {
 	}
 }
 
-func cmdMlDsaSigGenAft() command {
+func cmdMlDsaSigGenAft(keyGen func([]byte) (*mldsa.PrivateKey, error)) command {
 	return command{
-		requiredArgs: 5, // secret key, message, randomizer, mu, context
+		requiredArgs: 5, // seed, message, randomizer, mu, context
 		handler: func(args [][]byte) ([][]byte, error) {
-			skSmiExpanded := args[0]
+			seed := args[0]
 			message := args[1]         // Optional, exclusive with mu
 			randomizer := args[2]      // Optional
 			context := string(args[3]) // Optional
 			mu := args[4]              // Optional, exclusive with message
 
-			sk, err := mldsa.TestingOnlyNewPrivateKeyFromSemiExpanded(skSmiExpanded)
+			sk, err := keyGen(seed)
 			if err != nil {
-				return nil, fmt.Errorf("making ML-DSA private key from semi-expanded form: %w", err)
+				return nil, fmt.Errorf("making ML-DSA private key from seed: %w", err)
 			}
 
 			haveMessage := len(message) != 0
