@@ -43,6 +43,10 @@ func (f *machoFile) symbols() ([]Sym, error) {
 			addrs = append(addrs, s.Value)
 		}
 	}
+	// Add section ends as markers. See issue 78811.
+	for _, sect := range f.macho.Sections {
+		addrs = append(addrs, sect.Addr+sect.Size)
+	}
 	slices.Sort(addrs)
 
 	var syms []Sym
