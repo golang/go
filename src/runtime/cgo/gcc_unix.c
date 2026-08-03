@@ -44,8 +44,6 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 	}
 }
 
-void (* _cgo_init)(G*, void (*)(void*), void **, void **) = x_cgo_init;
-
 void*
 threadentry(void *v)
 {

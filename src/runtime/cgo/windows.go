@@ -6,7 +6,7 @@
 
 package cgo
 
-import _ "unsafe" // for go:linkname
+import "unsafe"
 
 // _cgo_stub_export is only used to ensure there's at least one symbol
 // in the .def file passed to the external linker.
@@ -20,3 +20,20 @@ import _ "unsafe" // for go:linkname
 //go:cgo_export_static _cgo_stub_export
 //go:linkname _cgo_stub_export _cgo_stub_export
 var _cgo_stub_export uintptr
+
+// No pthreads on Windows, these are always zero.
+
+//go:linkname _cgo_init _cgo_init
+var _cgo_init unsafe.Pointer
+
+//go:linkname _cgo_thread_start _cgo_thread_start
+var _cgo_thread_start unsafe.Pointer
+
+//go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
+var _cgo_sys_thread_create unsafe.Pointer
+
+//go:linkname _cgo_bindm _cgo_bindm
+var _cgo_bindm unsafe.Pointer
+
+//go:linkname _cgo_getstackbound _cgo_getstackbound
+var _cgo_getstackbound unsafe.Pointer
