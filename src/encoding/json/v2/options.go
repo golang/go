@@ -131,11 +131,15 @@ func StringifyNumbers(v bool) Options {
 	}
 }
 
-// Deterministic specifies that the same input value will be serialized
-// as the exact same output bytes. Different processes of
-// the same program will serialize equal values to the same bytes,
-// but different versions of the same program are not guaranteed
-// to produce the exact same sequence of bytes.
+// Deterministic specifies that marshaling the same input value will always
+// serialize as the same output bytes.
+//
+// For example, Go maps are marshaled sorted by key.
+//
+// For native Go types, Determinism is guaranteed across different instances of
+// identical binaries, but not across different builds of a program (such as
+// different source or toolchain version, different GOOS/GOARCH, different
+// build flags).
 //
 // This only affects marshaling and is ignored when unmarshaling.
 func Deterministic(v bool) Options {
