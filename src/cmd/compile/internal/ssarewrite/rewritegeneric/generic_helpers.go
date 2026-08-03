@@ -485,11 +485,11 @@ func resetCopy(v *ssa.Value, arg *ssa.Value) bool {
 // rewriteCondSelectIntoMath reports whether x OP (y * constant) should be used instead of a CondSelect.
 // x arbitrary, y in [0,1]
 func rewriteCondSelectIntoMath(config *ssa.Config, op ssaop.Op, constant int64) bool {
+	// at worst this becomes a left shift by a constant which has asymmetric latency (1:3 vs 2:2)
+	// but performs better in accumulation chains.
+	// Various arches do strictly superior for specific cases, but this is a good general default.
+	// FIXME: optimize more constants in arches where this is possible.
 	switch config.Arch {
-	case "amd64":
-		// constant=1 becomes zext, add 2/4/8 becomes lea, rest becomes shl.
-		// shl has asymmetric latency (1:3 vs 2:2) but performs better in accumulation chains.
-		return ssa.IsPowerOfTwo(uint64(constant))
 	case "arm64":
 		switch op {
 		case ssaop.OpAdd64, ssaop.OpAdd32, ssaop.OpAdd16, ssaop.OpAdd8:
@@ -497,22 +497,14 @@ func rewriteCondSelectIntoMath(config *ssa.Config, op ssaop.Op, constant int64) 
 				return false // better done as CSINC
 			}
 			fallthrough
-		case ssaop.OpSub64, ssaop.OpSub32, ssaop.OpSub16, ssaop.OpSub8,
-			ssaop.OpAnd64, ssaop.OpAnd32, ssaop.OpAnd16, ssaop.OpAnd8,
-			ssaop.OpOr64, ssaop.OpOr32, ssaop.OpOr16, ssaop.OpOr8,
-			ssaop.OpXor64, ssaop.OpXor32, ssaop.OpXor16, ssaop.OpXor8:
-			// Implemented using an inline LSL
-			return ssa.IsPowerOfTwo(uint64(constant))
 		default:
-			if constant == 1 {
-				return true
-			}
+			// add sub or xor & and are implemented using inline LSL
+			// the rest becomes the default LSL
+			return ssa.IsPowerOfTwo(uint64(constant))
 		}
 	default:
-		// TODO: fine tune for other architectures.
-		return constant == 1
+		return ssa.IsPowerOfTwo(uint64(constant))
 	}
-	return false
 }
 
 // rewriteFixedLoad rewrites a load to a fixed address or constant, if isFixedLoad returns true.
