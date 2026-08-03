@@ -409,10 +409,11 @@ func (d *decoderState) checkDelim(delim byte, next Kind) error {
 }
 
 // SkipValue is semantically equivalent to calling [Decoder.ReadValue] and discarding
-// the result except that memory is not wasted trying to hold the entire result.
+// the result, except that memory is not wasted trying to hold the entire result.
 func (d *Decoder) SkipValue() error {
 	return d.s.SkipValue()
 }
+
 func (d *decoderState) SkipValue() error {
 	switch d.PeekKind() {
 	case '{', '[':
@@ -1131,7 +1132,7 @@ func (d *decoderState) consumeArray(flags *jsonwire.ValueFlags, pos, depth int) 
 // InputOffset returns the current input byte offset. It gives the location
 // of the next byte immediately after the most recently returned token or value.
 // The number of bytes actually read from the underlying [io.Reader] may be more
-// than this offset due to internal buffering effects.
+// than this offset due to internal buffering.
 func (d *Decoder) InputOffset() int64 {
 	return d.s.previousOffsetEnd()
 }
@@ -1140,7 +1141,7 @@ func (d *Decoder) InputOffset() int64 {
 // which may contain zero or more bytes.
 // This is the data already consumed from the input [io.Reader],
 // but not yet read by a [Decoder.ReadToken] or [Decoder.ReadValue] call.
-// It may contain bytes that do not form valid JSON as it has not yet
+// It may contain bytes that do not form valid JSON, since it has not yet
 // been validated according to the JSON grammar.
 // The exact amount of buffered data is an implementation detail
 // of the Decoder and may change over time.
@@ -1155,7 +1156,8 @@ func (d *Decoder) UnreadBuffer() []byte {
 	return d.s.unreadBuffer()
 }
 
-// StackDepth returns the depth of the state machine for read JSON data.
+// StackDepth returns the depth of the state machine for JSON data
+// that has already been read.
 // Each level on the stack represents a nested JSON object or array.
 // It is incremented whenever a [BeginObject] or [BeginArray] token is encountered
 // and decremented whenever an [EndObject] or [EndArray] token is encountered.
@@ -1193,7 +1195,7 @@ func (d *Decoder) StackDepth() int {
 //
 // It also reports the length of that JSON object or array decoded so far.
 // Each name and value in a JSON object is counted separately,
-// so the effective number of members would be half the length.
+// so the effective number of members is half the length.
 // A complete JSON object must have an even length.
 func (d *Decoder) StackIndex(i int) (Kind, int64) {
 	// NOTE: Keep in sync with Encoder.StackIndex.
