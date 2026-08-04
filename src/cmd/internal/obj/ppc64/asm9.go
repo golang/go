@@ -907,6 +907,9 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			if a.Sym == nil {
 				break
 			} else if a.Sym.Type == objabi.STLSBSS {
+				if c.ctxt.Flag_tlsgd {
+					return C_TLS_IE // GD uses same class; linker emits GD relocs
+				}
 				// For PIC builds, use 12 byte got initial-exec TLS accesses.
 				if c.ctxt.Flag_shared {
 					return C_TLS_IE

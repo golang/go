@@ -327,6 +327,32 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			} else {
 				log.Fatalf("unexpected R_TLS_LE relocation for %v", target.HeadType)
 			}
+		case objabi.R_ARM64_TLS_GD:
+			if target.IsExternal() && target.IsElf() {
+				nExtReloc += 4 // TLSDESC needs four ELF relocations
+				continue
+			}
+			log.Fatalf("cannot handle R_ARM64_TLS_GD (sym %s) when linking internally", ldr.SymName(s))
+		case objabi.R_RISCV_TLS_GD:
+			if target.IsExternal() && target.IsElf() {
+				nExtReloc += 3 // GD_HI20 + PCREL_LO12_I + CALL_PLT
+				continue
+			}
+			log.Fatalf("cannot handle R_RISCV_TLS_GD (sym %s) when linking internally", ldr.SymName(s))
+		case objabi.R_TLS_GD:
+			if target.IsExternal() && target.IsElf() {
+				if target.IsAMD64() {
+					nExtReloc += 2 // TLSDESC: GOTPC32_TLSDESC + TLSDESC_CALL
+				} else {
+					nExtReloc++ // __tls_get_addr: single GD relocation
+				}
+				o = 0
+				if !target.IsAMD64() {
+					o = r.Add()
+				}
+				break
+			}
+			log.Fatalf("cannot handle R_TLS_GD (sym %s) when linking internally", ldr.SymName(s))
 		case objabi.R_TLS_IE:
 			if target.IsExternal() && target.IsElf() {
 				nExtReloc++
@@ -666,7 +692,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 	default:
 		return thearch.Extreloc(target, ldr, r, s)
 
-	case objabi.R_TLS_LE, objabi.R_TLS_IE:
+	case objabi.R_TLS_LE, objabi.R_TLS_IE, objabi.R_TLS_GD, objabi.R_RISCV_TLS_GD:
 		if target.IsElf() {
 			rs := r.Sym()
 			rr.Xsym = rs

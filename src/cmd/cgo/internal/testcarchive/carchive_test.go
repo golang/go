@@ -62,13 +62,6 @@ func testMain(m *testing.M) int {
 		globalSkip = func(t testing.TB) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}
-	if runtime.GOOS == "linux" {
-		if _, err := os.Stat("/etc/alpine-release"); err == nil {
-			globalSkip = func(t testing.TB) { t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
-			return m.Run()
-		}
-	}
-
 	// We need a writable GOPATH in which to run the tests.
 	// Construct one in a temporary directory.
 	var err error

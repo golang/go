@@ -1,0 +1,15 @@
+FROM --platform=linux/riscv64 alpine:3.21
+RUN apk add --no-cache bash build-base linux-headers git wget
+# Download Go 1.24 binary release as bootstrap (Alpine's Go is too old)
+RUN wget -q https://go.dev/dl/go1.24.13.linux-riscv64.tar.gz -O /tmp/go.tar.gz && \
+    tar -C /usr/local -xzf /tmp/go.tar.gz && rm /tmp/go.tar.gz
+COPY . /go-src/
+ENV GOROOT_BOOTSTRAP=/usr/local/go
+RUN cd /go-src/src && ./make.bash
+ENV PATH="/go-src/bin:$PATH"
+ENV GOROOT="/go-src"
+WORKDIR /test
+COPY test/cshared-musl/testdata/ /test/
+RUN CGO_ENABLED=1 go build -buildmode=c-shared -o libtest.so libtest.go
+RUN gcc -o loader loader.c -ldl
+CMD ["./loader", "./libtest.so"]

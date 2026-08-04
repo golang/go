@@ -472,6 +472,23 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		} else {
 			return false
 		}
+	case objabi.R_TLS_GD:
+		// TLSDESC: leaq @TLSDESC(%rip), %rax; call *@TLSCALL(%rax)
+		// Two RELA entries: GOTPC32_TLSDESC on LEA, TLSDESC_CALL on CALL.
+		// The shared addend write at line 515 applies to the SECOND entry,
+		// so we write the first entry's addend here and set up for the
+		// second entry's addend (0) to be written by line 515.
+		if siz == 4 {
+			out.Write64(uint64(elf.R_X86_64_GOTPC32_TLSDESC) | uint64(elfsym)<<32)
+			out.Write64(uint64(r.Xadd)) // addend for GOTPC32_TLSDESC = -4
+			out.Write64(uint64(sectoff + 4))
+			out.Write64(uint64(elf.R_X86_64_TLSDESC_CALL) | uint64(elfsym)<<32)
+			// The addend for TLSDESC_CALL (0) is written by the shared
+			// out.Write64(r.Xadd) after the switch. Override Xadd to 0.
+			r.Xadd = 0
+		} else {
+			return false
+		}
 	case objabi.R_CALL:
 		if siz == 4 {
 			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {

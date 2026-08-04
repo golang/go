@@ -22,6 +22,7 @@ var (
 	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
 	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
 	Linkshared = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
+	TLSModel   = flag.String("tls", "auto", "TLS model for thread-local storage: auto, GD, IE")
 	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
 	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
 	Importpath = flag.String("p", obj.UnlinkablePkg, "set expected package import to path")
