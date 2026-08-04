@@ -19,6 +19,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
 	"internal/abi"
+	"internal/buildcfg"
 )
 
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
@@ -944,10 +945,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux2(&p.To, v, off)
 
 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
-		p.From.Offset = sc.Val64()
+		p := s.Prog(v.Op.Asm())
+		if sc.Val() == 0 && s.ABI == obj.ABIInternal && buildcfg.GOOS != "plan9" && (v.Op == ssa.OpAMD64MOVQstoreconst || v.Op == ssa.OpAMD64MOVLstoreconst) {
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x86.REG_X15
+		} else {
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = sc.Val64()
+		}
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux2(&p.To, v, sc.Off64())
@@ -981,6 +987,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
 		p.From.Offset = sc.Val64()
+		if sc.Val() == 0 && s.ABI == obj.ABIInternal && buildcfg.GOOS != "plan9" {
+			switch v.Op {
+			case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8,
+				ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4:
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = x86.REG_X15
+			}
+		}
 		switch {
 		case p.As == x86.AADDQ && p.From.Offset == 1:
 			p.As = x86.AINCQ

@@ -12,7 +12,7 @@ package codegen
 
 func zeroSize() {
 	c := make(chan struct{})
-	// amd64:`MOVQ \$0, command-line-arguments\.s\+56\(SP\)`
+	// amd64:`MOVQ X15, command-line-arguments\.s\+56\(SP\)`
 	var s *int
 	// force s to be a stack object, also use some (fixed) stack space
 	g(&s, 1, 2, 3, 4, 5)
@@ -24,7 +24,7 @@ func zeroSize() {
 // Like zeroSize, but without hiding the zero-sized struct.
 func zeroSize2() {
 	c := make(chan struct{})
-	// amd64:`MOVQ \$0, command-line-arguments\.s\+48\(SP\)`
+	// amd64:`MOVQ X15, command-line-arguments\.s\+48\(SP\)`
 	var s *int
 	// force s to be a stack object, also use some (fixed) stack space
 	g(&s, 1, 2, 3, 4, 5)

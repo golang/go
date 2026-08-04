@@ -102,7 +102,7 @@ func TestUnsafePoint(t *testing.T) {
 			if parts[3] == "CMPL" {
 				startedWB = true
 			}
-			if parts[3] == "MOVQ" && parts[4] == "$0x0," {
+			if parts[3] == "MOVQ" && (parts[4] == "$0x0," || parts[4] == "X15,") {
 				doneWB = true
 			}
 		}

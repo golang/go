@@ -157,6 +157,36 @@ func idxInt64(x, y []int64, i int) {
 	x[16*i+1] = 77
 }
 
+func zero64(x *uint64) {
+	// amd64: `MOVQ X15, \([A-Z]+[0-9]*\)`
+	*x = 0
+}
+
+func zero32Direct(x *uint32) {
+	// amd64: `MOVL X15, \([A-Z]+[0-9]*\)`
+	*x = 0
+}
+
+func zeroIdx8(x []int64, i int) {
+	// amd64: `MOVQ X15, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
+	x[i] = 0
+}
+
+func zeroIdx1(x []int64, i int) {
+	// amd64: `MOVQ X15, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	x[16*i] = 0
+}
+
+func zero32(x []uint32, i int) {
+	// amd64: `MOVL X15, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+	x[i] = 0
+}
+
+func zero32Idx1(x []uint32, i int) {
+	// amd64: `MOVL X15, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	x[4*i] = 0
+}
+
 func idxFloat32(x, y []float32, i int) {
 	var t float32
 	//    amd64: `MOVSS 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
