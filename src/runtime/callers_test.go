@@ -471,7 +471,7 @@ func TestFPUnwindAfterRecovery(t *testing.T) {
 			// frame pointer before returning control to this
 			// function, it will point somewhere lower in the stack
 			// from one of the frames of runtime.gopanic() or one of
-			// it's callees prior to recovery.  So, we put some
+			// its callees prior to recovery.  So, we put some
 			// non-zero values on the stack to ensure that frame
 			// pointer unwinding will crash if it sees the old,
 			// invalid frame pointer.
