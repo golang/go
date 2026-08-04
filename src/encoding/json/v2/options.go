@@ -23,11 +23,11 @@ import (
 // [encoding/json/jsontext.Options]. Options from the other packages can
 // be used interchangeably with functionality in this package.
 //
-// Options represent either a singular option or a set of options.
-// It can be functionally thought of as a Go map of option properties
+// An Options value represents either a single option or a set of options.
+// It can be thought of as a Go map of option properties
 // (even though the underlying implementation avoids Go maps for performance).
 //
-// The constructors (e.g., [Deterministic]) return a singular option value:
+// The constructors (e.g., [Deterministic]) return a value for a single option:
 //
 //	opt := Deterministic(true)
 //
@@ -104,7 +104,7 @@ func DefaultOptionsV2() Options {
 }
 
 // StringifyNumbers specifies that types that would normally be
-// encoded as a JSON number to instead be encoded as a JSON string
+// encoded as a JSON number instead be encoded as a JSON string
 // containing the equivalent JSON number value.
 // When unmarshaling, the value is parsed from a JSON string
 // containing the JSON number without any surrounding whitespace.
@@ -171,11 +171,11 @@ func FormatNilMapAsNull(v bool) Options {
 	}
 }
 
-// OmitZeroStructFields specifies that a Go struct should marshal in such a way
-// that all struct fields that are zero are omitted from the marshaled output
-// if the value is zero as determined by the "IsZero() bool" method if present,
-// otherwise based on whether the field is the zero Go value.
-// This is semantically equivalent to specifying the `omitzero` tag option
+// OmitZeroStructFields specifies that zero-valued fields of Go struct should be
+// omitted from the marshaled output.
+// A value is considered zero if its type has an "IsZero() bool" method that returns true,
+// or if it lacks such a method and the value is a Go zero value.
+// This option is equivalent to specifying the `omitzero` tag option
 // on every field in a Go struct.
 //
 // This only affects marshaling and is ignored when unmarshaling.
@@ -189,23 +189,23 @@ func OmitZeroStructFields(v bool) Options {
 
 // MatchCaseInsensitiveNames specifies that JSON object members are matched
 // against Go struct fields using a case-insensitive match of the name.
-// If a name matches multiple fields, it chooses the field with an exact
-// match of the name, otherwise it reports an error.
+// If a name matches multiple fields, the field whose name matches exactly is chosen.
+// If there is none, an error is reported.
 // Go struct fields explicitly marked with `case:strict` or `case:ignore`
 // always use case-sensitive (or case-insensitive) name matching,
 // regardless of the value of this option.
 //
 // This affects either marshaling or unmarshaling.
 //
-// By matching names in a case-insensitive manner, it also affects the detection
-// of duplicate names (assuming [jsontext.AllowDuplicateNames] is false) since
+// Matching names case-insensitively also affects duplicate name detection
+// (assuming [jsontext.AllowDuplicateNames] is false) since
 // variations of the same name may match the same Go struct field.
 // For example, when unmarshaling, the names "foo" and "Foo" may both
 // match the same Go struct field and therefore be considered a duplicate name.
 // When marshaling, normally it is impossible for any two Go struct fields to
 // serialize in a way where they unmarshal into the same Go struct field
 // since they all have unique exact names.
-// However, with the use of an embedded fallback, it is possible for the
+// However, it is possible for an
 // embedded fallback to contain a name that also matches the name for
 // a Go struct field, resulting in a duplicate name error.
 func MatchCaseInsensitiveNames(v bool) Options {
