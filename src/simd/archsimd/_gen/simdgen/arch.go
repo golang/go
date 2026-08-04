@@ -124,6 +124,10 @@ var arm64Arrangements = []string{
 	"8B", "16B", "1D", "4H", "8H", "2S", "4S", "2D", "1Q", "B", "H", "S", "D",
 }
 
+// sveArrangements contains the per-element arrangement letters for ARM64 SVE.
+// SVE vectors are scalable, so the arrangement only encodes the element width.
+var sveArrangements = []string{"B", "H", "S", "D"}
+
 const amd64RegInfoParams = "v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv, w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw,\n\twkwload, v21load, v31load, v11load, w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2 regInfo"
 
 const arm64RegInfoParams = "v11, v21, v31, vgp, vgpv, vfpv regInfo"
@@ -157,6 +161,22 @@ func GetArchInfo(arch string) (ArchInfo, error) {
 			RegInfoParams:   arm64RegInfoParams,
 			GeneratedHeader: arm64GeneratedHeader,
 			Arrangements:    arm64Arrangements,
+		}, nil
+	case "sve":
+		// SVE is not a distinct GOARCH: it targets arm64. This entry exists so
+		// CurrentArch() does not panic during -o yaml runs. godefs generation
+		// for SVE (scalable regInfo shapes, internal/arm64 SSA lowering,
+		// scalable Go types) is not yet wired up.
+		// TODO: update the fields when godefs generation for SVE is implemented.
+		return ArchInfo{
+			Arch:            "arm64",
+			ArchUpper:       "ARM64",
+			ObjArch:         "arm64",
+			RegInfoKeys:     arm64RegInfoKeys,
+			RegInfoSet:      arm64RegInfoSet,
+			RegInfoParams:   arm64RegInfoParams,
+			GeneratedHeader: arm64GeneratedHeader,
+			Arrangements:    sveArrangements,
 		}, nil
 	default:
 		return ArchInfo{}, fmt.Errorf("unsupported architecture: %s", arch)

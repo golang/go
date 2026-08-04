@@ -1,0 +1,210 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package sve
+
+import (
+	"fmt"
+	"strings"
+
+	"simd/archsimd/_gen/unify"
+)
+
+// asComment wraps text into // comment lines of at most width columns.
+func asComment(text string, width int) string {
+	text = strings.TrimSpace(text)
+	text = strings.ReplaceAll(text, "&amp;", "&")
+	text = strings.ReplaceAll(text, "\n", " ")
+	words := strings.Fields(text)
+	var lines []string
+	line := ""
+	for _, w := range words {
+		if line != "" {
+			line += " "
+		}
+		line += w
+		if len(line) >= width {
+			lines = append(lines, "// "+line)
+			line = ""
+		}
+	}
+	if line != "" {
+		lines = append(lines, "// "+line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// emit renders an operand as a unify value. Z-vectors and predicates are
+// scalable (a base type and per-operand element width, no fixed bits/lanes);
+// mem, immediate and special operands are opaque (class and position only).
+func (op *Operand) emit() *unify.Value {
+	var db unify.DefBuilder
+	db.Add("class", unify.NewValue(unify.NewStringExact(op.Class)))
+	if op.BaseType != "" {
+		db.Add("base", unify.NewValue(unify.NewStringExact(op.BaseType)))
+	}
+	switch {
+	case op.Bits > 0:
+		// A fixed-width SIMD&FP scalar (OperandVFP): a real bit width and lanes.
+		db.Add("bits", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.Bits))))
+		if op.Lanes > 0 {
+			db.Add("lanes", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.Lanes))))
+		}
+	case op.Class == "vreg" || op.Class == "mask":
+		// SVE vectors and predicates are scalable: no fixed total bit width.
+		// The literal "scalable" both marks that and, because it conflicts with
+		// any numeric bits, keeps these operands from unifying with the
+		// fixed-width (NEON/AVX) types that share types.yaml.
+		db.Add("bits", unify.NewValue(unify.NewStringExact("scalable")))
+	}
+	if op.ElemBits > 0 {
+		db.Add("elemBits", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.ElemBits))))
+	}
+	if op.Predication != "" {
+		// "M" (merging) or "Z" (zeroing) for a governing predicate. Some SVE
+		// instructions support only one; this records which.
+		db.Add("predication", unify.NewValue(unify.NewStringExact(op.Predication)))
+	}
+	if op.isList {
+		// This register came from a single-register list ("{ <Zt>.<T> }"), a
+		// distinct assembler encoding from a bare register.
+		db.Add("listNumber", unify.NewValue(unify.NewStringExact("0")))
+	}
+	db.Add("asmPos", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.AsmPos))))
+	return unify.NewValue(db.Build())
+}
+
+// emitOne emits a single instruction def from a fully-instantiated operand list:
+// the destination is the output, every other operand (including a governing
+// predicate) is a literal input.
+//
+// An SVE predicate is a mandatory input, not an optional AVX-512-style K-mask, so
+// it goes in `in`; inVariant is emitted empty just to satisfy the types.yaml schema.
+func (inst *Instruction) emitOne(asm string, ops []Operand) *unify.Value {
+	var db unify.DefBuilder
+	db.Add("asm", unify.NewValue(unify.NewStringExact(asm)))
+	db.Add("goarch", unify.NewValue(unify.NewStringExact("arm64")))
+	db.Add("cpuFeature", unify.NewValue(unify.NewStringExact(inst.cpuFeature())))
+	if doc := inst.documentation(); doc != "" {
+		db.Add("details", unify.NewValue(unify.NewStringExact(asComment(doc, 80))))
+	}
+
+	var ins, outs []*unify.Value
+	for i := range ops {
+		if ops[i].role == "destination" {
+			outs = append(outs, ops[i].emit())
+		} else {
+			ins = append(ins, ops[i].emit())
+		}
+	}
+	db.Add("in", unify.NewValue(unify.NewTuple(ins...)))
+	db.Add("inVariant", unify.NewValue(unify.NewTuple()))
+	db.Add("out", unify.NewValue(unify.NewTuple(outs...)))
+	return unify.NewValue(db.Build())
+}
+
+// emitAll emits the unify defs for this instruction — the concrete variants of
+// the source template. See classify (used by both emitAll and analyze) for the
+// full disposition.
+func (inst *Instruction) emitAll() []*unify.Value {
+	// emitAll doesn't check the anomalies, that would be done by
+	// a full-corpus test in analyze_test.go.
+	defs, _, _ := inst.classify()
+	return defs
+}
+
+// lookup returns the element width for the given size key in a table.
+func lookup(rows []arngRow, size string) (int, bool) {
+	for _, r := range rows {
+		if r.size == size {
+			return r.bits, true
+		}
+	}
+	return 0, false
+}
+
+// emitVariants emits one def per (integer signedness × arrangement row ×
+// predication). Each operand's element width comes from its own arrangement
+// symbol's table, keyed by the shared size field, so uniform and non-uniform
+// (widening/narrowing) forms are handled the same way; operands with no
+// arrangement stay unsized. Each operand's base type is resolved per operand
+// (laneIsFloat) — floating-point lanes are always "float", integer lanes take
+// the signedness of the current variant — so this naturally extends to
+// conversions, whose lanes will differ.
+func (inst *Instruction) emitVariants(template []Operand) []*unify.Value {
+	asm := inst.goOpPrefix() + inst.mnemonic()
+
+	links := arngLinks(template)
+	tables := map[string][]arngRow{}
+	for _, l := range links {
+		tables[l] = inst.resolveArrangementTable(l)
+	}
+
+	// Rows to iterate: the primary (destination-first) symbol's size keys, or a
+	// single pass when there is no variable arrangement.
+	var sizes []string
+	if len(links) > 0 {
+		for _, r := range tables[links[0]] {
+			sizes = append(sizes, r.size)
+		}
+	} else {
+		sizes = []string{""}
+	}
+
+	signs := inst.integerSignedness(template)
+
+	// Governing-predicate qualifier(s) for this template: /M, /Z, both (a /<ZM>
+	// encoding), or a single no-op pass when there is no governing predicate.
+	preds := predicationVariants(template)
+
+	var defs []*unify.Value
+	for _, sign := range signs {
+		for _, size := range sizes {
+			ops := make([]Operand, len(template))
+			copy(ops, template)
+			skip := false
+			for i := range ops {
+				eb := ops[i].fixedElem
+				if ops[i].fixedBits > 0 {
+					// SIMD&FP scalar with a fixed width letter (<Dd> = 64), the
+					// same for every arrangement row.
+					eb = ops[i].fixedBits
+				} else if l := ops[i].arngLink; l != "" {
+					b, ok := lookup(tables[l], size)
+					if !ok {
+						// This operand's symbol has no element for this size
+						// (e.g. a RESERVED row on one side of a widening op).
+						skip = true
+						break
+					}
+					eb = b
+				}
+				base := sign
+				if inst.laneIsFloat(&ops[i]) {
+					base = "float"
+					if eb > 0 && eb < 16 {
+						// No half/quarter-word floating-point Go types.
+						skip = true
+						break
+					}
+				}
+				ops[i].instantiate(base, eb)
+			}
+			if skip {
+				continue
+			}
+			for _, pred := range preds {
+				variant := make([]Operand, len(ops))
+				copy(variant, ops)
+				for i := range variant {
+					if variant[i].Class == "mask" && variant[i].role == "mask" {
+						variant[i].Predication = pred
+					}
+				}
+				defs = append(defs, inst.emitOne(asm, variant))
+			}
+		}
+	}
+	return defs
+}

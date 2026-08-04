@@ -4,16 +4,19 @@
 
 // simdgen is an experiment in generating Go <-> asm SIMD mappings.
 //
-// Usage: simdgen [-xedPath=path | -arm64Path=path] [-q=query] input.yaml...
+// Usage: simdgen [-xedPath=path | -arm64Path=path | -svePath=path] [-q=query] input.yaml...
 //
-// Only one of -xedPath or -arm64Path may be specified.
+// Only one of -xedPath, -arm64Path or -svePath may be specified.
 //
 // If -xedPath is provided, one of the inputs is a sum of op-code definitions
 // generated from the Intel XED data at path.
 //
-// If -arm64Path is provided, one of the inputs is a set of instruction
-// definitions parsed from ARM64 ISA XML files at path (obtained from
+// If -arm64Path is provided, one of the inputs is a set of NEON (advsimd)
+// instruction definitions parsed from ARM64 ISA XML files at path (obtained from
 // https://developer.arm.com/-/cdn-downloads/permalink/Exploration-Tools-A64-ISA/ISA_A64/ISA_A64_xml_A_profile-2025-12.tar.gz).
+//
+// If -svePath is provided, one of the inputs is a set of SVE / SVE2 instruction
+// definitions parsed from the same ARM64 ISA XML files. See the sve package.
 //
 // If input YAML files are provided, each file is read as an input value. See
 // [unify.Closure.UnmarshalYAML] or "go doc unify.Closure.UnmarshalYAML" for the
@@ -110,6 +113,7 @@ import (
 	"text/template"
 
 	"simd/archsimd/_gen/simdgen/arm64"
+	"simd/archsimd/_gen/simdgen/sve"
 	"simd/archsimd/_gen/unify"
 
 	"gopkg.in/yaml.v3"
@@ -118,6 +122,7 @@ import (
 var (
 	xedPath               = flag.String("xedPath", "", "load XED datafiles from `path`")
 	arm64Path             = flag.String("arm64Path", "", "load ARM64 instruction xml definitions from `path`")
+	svePath               = flag.String("svePath", "", "load ARM64 SVE instruction xml definitions from `path`")
 	flagQ                 = flag.String("q", "", "query: read `def` as another input (skips final validation)")
 	flagO                 = flag.String("o", "yaml", "output type: yaml, godefs (generate definitions into a Go source tree")
 	flagGoDefRoot         = flag.String("goroot", ".", "the path to the Go dev directory that will receive the generated files")
@@ -222,12 +227,15 @@ func main() {
 		}()
 	}
 
-	// Default -arch to arm64 when -arm64Path is specified.
-	if *arm64Path != "" && *FlagArch != "arm64" {
-		if *xedPath != "" {
-			log.Fatalf("both -xedPath and -arm64Path specified")
+	// At most one instruction source may be specified.
+	nPaths := 0
+	for _, p := range []string{*xedPath, *arm64Path, *svePath} {
+		if p != "" {
+			nPaths++
 		}
-		// *FlagArch = "arm64"
+	}
+	if nPaths > 1 {
+		log.Fatalf("only one of -xedPath, -arm64Path or -svePath may be specified")
 	}
 
 	// Load instructions into the architecture-specific defs set.
@@ -245,8 +253,16 @@ func main() {
 				log.Fatalf("loading ARM64 instructions: %s", err)
 			}
 		}
+	case "sve":
+		if *svePath != "" {
+			var err error
+			defs, err = sve.Load(*svePath)
+			if err != nil {
+				log.Fatalf("loading ARM64 SVE instructions: %s", err)
+			}
+		}
 	default:
-		log.Fatalf("simdgen only supports amd64 and arm64")
+		log.Fatalf("simdgen only supports amd64, arm64 and sve")
 	}
 
 	var inputs []unify.Closure
@@ -272,7 +288,7 @@ func main() {
 		inputs = append(inputs, defs)
 
 		base := filepath.Base(path)
-		if base == "go_amd64.yaml" || base == "go_arm64.yaml" {
+		if base == "go_amd64.yaml" || base == "go_arm64.yaml" || base == "go_sve.yaml" {
 			// These must all be used in the final result
 			for def := range defs.Summands() {
 				must[def] = struct{}{}

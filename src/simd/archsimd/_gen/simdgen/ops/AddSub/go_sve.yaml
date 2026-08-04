@@ -1,0 +1,32 @@
+!sum
+# Add — integer ADD and floating-point FADD, unpredicated.
+- go: Add
+  asm: "ZADD|ZFADD"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - *any
+
+# AddSaturated — signed saturating SQADD, unpredicated.
+- go: AddSaturated
+  asm: "ZSQADD"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *int
+
+# AddSaturated — unsigned saturating UQADD, unpredicated.
+- go: AddSaturated
+  asm: "ZUQADD"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out:
+  - *uint

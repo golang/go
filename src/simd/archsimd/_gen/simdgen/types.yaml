@@ -99,6 +99,23 @@ in: !repeat
   - {class: vreg, go: Int64x4,    base: "int",   elemBits: 128, bits: 512, lanes: 4}
   - {class: vreg, go: Uint64x4,   base: "uint",  elemBits: 128, bits: 512, lanes: 4}
 
+# SVE types, bits are set to "scalable" so it doesn't mix with other architectures.
+  - {class: vreg, go: Int8s,      base: "int",   elemBits:  8, bits: scalable}
+  - {class: vreg, go: Int16s,     base: "int",   elemBits: 16, bits: scalable}
+  - {class: vreg, go: Int32s,     base: "int",   elemBits: 32, bits: scalable}
+  - {class: vreg, go: Int64s,     base: "int",   elemBits: 64, bits: scalable}
+  - {class: vreg, go: Uint8s,     base: "uint",  elemBits:  8, bits: scalable}
+  - {class: vreg, go: Uint16s,    base: "uint",  elemBits: 16, bits: scalable}
+  - {class: vreg, go: Uint32s,    base: "uint",  elemBits: 32, bits: scalable}
+  - {class: vreg, go: Uint64s,    base: "uint",  elemBits: 64, bits: scalable}
+  - {class: vreg, go: Float32s,   base: "float", elemBits: 32, bits: scalable}
+  - {class: vreg, go: Float64s,   base: "float", elemBits: 64, bits: scalable}
+
+  - {class: mask, go: Mask8s,     base: "int",   elemBits:  8, bits: scalable}
+  - {class: mask, go: Mask16s,    base: "int",   elemBits: 16, bits: scalable}
+  - {class: mask, go: Mask32s,    base: "int",   elemBits: 32, bits: scalable}
+  - {class: mask, go: Mask64s,    base: "int",   elemBits: 64, bits: scalable}
+
   - {class: immediate, go: Immediate} # TODO: we only support imms that are not used as value -- usually as instruction semantic predicate like VPCMP as of now.
 inVariant: !repeat
 - *types
