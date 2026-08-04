@@ -43,9 +43,14 @@ var (
 // Implementations should return a buffer that is safe
 // for the caller to retain and potentially mutate.
 //
+// Implementations must not return [errors.ErrUnsupported].
+//
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
 // Errors of other types are wrapped within a [SemanticError].
+//
+// Implementations should assume [Deterministic] is true and return
+// deterministic output.
 type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 }
@@ -72,6 +77,25 @@ type Marshaler interface {
 // The MarshalJSONTo method should not be called directly as it may
 // return sentinel errors that need special handling.
 // Users should instead call [MarshalEncode], which handles such cases.
+//
+// Implementations should inspect the marshal options from
+// [jsontext.Encoder.Options] and adjust behavior to respect the options as
+// necessary.
+//
+// The following options may be relevant to MarshalerTo implementations:
+//
+// - [Deterministic]: if the implementation may produce non-deterministic output
+// - [StringifyNumbers]: if the type is represented as a JSON number
+//
+// Several options, such as [FormatNilSliceAsNull], apply only to native Go
+// types. Thus, these options are typically not directly relevant to
+// MarshalerTo implementations. However, types representing a composite type
+// should marshal contained types using [MarshalEncode] to ensure these options
+// apply to the contained types. Similarly, [WithMarshalers] may influence
+// marshaling of any contained type within a composite type.
+//
+// All other options are automatically handled outside of the MarshalerTo
+// implementation, and thus are not relevant to implementations.
 type MarshalerTo interface {
 	MarshalJSONTo(*jsontext.Encoder) error
 }
@@ -86,6 +110,8 @@ type MarshalerTo interface {
 // when unmarshaling into a pre-populated value, as described in [Unmarshal].
 //
 // Implementations must not retain or mutate the input []byte.
+//
+// Implementations must not return [errors.ErrUnsupported].
 //
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
@@ -117,6 +143,24 @@ type Unmarshaler interface {
 // The UnmarshalJSONFrom method should not be called directly as it may
 // return sentinel errors that need special handling.
 // Users should instead call [UnmarshalDecode], which handles such cases.
+//
+// Implementations should inspect the unmarshal options from
+// [jsontext.Decoder.Options] and adjust behavior to respect the options as
+// necessary.
+//
+// The following options may be relevant to UnmarshalerFrom implementations:
+//
+// - [StringifyNumbers]: if the type is represented as a JSON number
+//
+// Several options, such as [FormatNilSliceAsNull], apply only to native Go
+// types. Thus, these options are typically not directly relevant to
+// UnmarshalerFrom implementations. However, types representing a composite
+// type should unmarshal contained types using [UnmarshalDecode] to ensure
+// these options apply to the contained types. Similarly, [WithUnmarshalers]
+// may influence unmarshaling of any contained type within a composite type.
+//
+// All other options are automatically handled outside of the UnmarshalerFrom
+// implementation, and thus are not relevant to implementations.
 type UnmarshalerFrom interface {
 	UnmarshalJSONFrom(*jsontext.Decoder) error
 }
