@@ -1237,6 +1237,7 @@ func (b *Builder) coverActionID(a *Action, covMetaFileName string) cache.ActionI
 	p := a.Package
 	h := cache.NewHash("cover " + p.ImportPath)
 	fmt.Fprintf(h, "cover %q\n", b.toolID("cover"))
+	b.addPackageOrigin(h, p)
 
 	// Input files for cover.
 	fmt.Fprintf(h, "setup %s %v\n", p.Internal.Cover.Mode, p.Internal.Cover.GenMeta)
