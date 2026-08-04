@@ -21,7 +21,7 @@ import (
 )
 
 func templateOf(temp, name string) *template.Template {
-	t, err := template.New(name).Parse(temp)
+	t, err := template.New(name).Funcs(splitFuncs).Parse(temp)
 	if err != nil {
 		panic(fmt.Errorf("failed to parse template %s: %w", name, err))
 	}

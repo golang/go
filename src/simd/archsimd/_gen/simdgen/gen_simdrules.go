@@ -47,7 +47,7 @@ type ruleTemplateMap struct {
 func (rtm *ruleTemplateMap) Add(name string, templ string) *ruleTemplateMap {
 	// Append debugging comment AND end of line
 	templ += " // {{.TplName}}\n"
-	ct := sgutil.TemplateNamed(name, templ)
+	ct := template.Must(template.New(name).Funcs(splitFuncs).Parse(templ))
 	rtm.InsertMap.Put(name, ct)
 	return rtm
 }
@@ -65,8 +65,8 @@ var (
 		Add("maskOut", `({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}}))`).
 		Add("maskIn", `({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask))`).
 		Add("pureVreg", `({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.Asm}} {{.ArgsOut}})`).
-		Add("vregMem", `({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
-		Add("vregMemFeatCheck", `({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
+		Add("vregMem", `({{.Asm}} {{.ArgsLoadAddr}}) && {{ConvName "canMergeLoad"}}(v, l) && {{ConvName "clobber"}}(l) => ({{.Asm}}load {{.ArgsAddr}})`).
+		Add("vregMemFeatCheck", `({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && {{ConvName "canMergeLoad"}}(v, l) && {{ConvName "clobber"}}(l) => ({{.Asm}}load {{.ArgsAddr}})`).
 		Add("asmRule", `({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}`).
 		Add("specialLower", `{{.Rule}}`)
 )
@@ -393,7 +393,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						origArgs = after
 					}
 					immArg = "[c] "
-					immArgCombineOff = " [makeValAndOff(int32(uint8(c)),off)] "
+					immArgCombineOff = " [" + splitCorePrefix + title("makeValAndOff") + "(int32(uint8(c)),off)] "
 				}
 				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", *lastVreg.Bits)
 				// Remove the last vreg from the arg and change it to "ptr".
@@ -406,9 +406,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				if gOp.MemFeaturesData != nil {
 					_, feat2 := getVbcstData(*gOp.MemFeaturesData)
 					knownFeatChecks := map[string]string{
-						"AVX":    "v.Block.CPUfeatures.hasFeature(CPUavx)",
-						"AVX2":   "v.Block.CPUfeatures.hasFeature(CPUavx2)",
-						"AVX512": "v.Block.CPUfeatures.hasFeature(CPUavx512)",
+						"AVX":    "v.Block.CPUfeatures." + title("hasFeature") + "(" + splitCorePrefix + "CPUavx)",
+						"AVX2":   "v.Block.CPUfeatures." + title("hasFeature") + "(" + splitCorePrefix + "CPUavx2)",
+						"AVX512": "v.Block.CPUfeatures." + title("hasFeature") + "(" + splitCorePrefix + "CPUavx512)",
 					}
 					memOpData.FeatCheck = knownFeatChecks[feat2]
 					memOpData.TplName = "vregMemFeatCheck"
@@ -437,8 +437,8 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				// VPBLENDVB cases.
 				noMaskName := machineOpName(NoMask, gOp)
 				ruleExisting, ok := maskedMergeOpts[noMaskName]
-				rule := fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
-					*maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
+				rule := fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.%s(%sCPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
+					*maskElem.Bits, noMaskName, data.Args, title("hasFeature"), splitCorePrefix, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
 				if ok && ruleExisting != rule {
 					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 				} else {
