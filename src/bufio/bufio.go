@@ -745,11 +745,22 @@ func (b *Writer) WriteRune(r rune) (size int, err error) {
 // If the count is less than len(s), it also returns an error explaining
 // why the write is short.
 func (b *Writer) WriteString(s string) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
+
+	if len(s) <= b.Available() {
+		// Fast path: the whole string fits in the buffer.
+		n := copy(b.buf[b.n:], s)
+		b.n += n
+		return n, nil
+	}
+
 	var sw io.StringWriter
 	tryStringWriter := true
 
 	nn := 0
-	for len(s) > b.Available() && b.err == nil {
+	for {
 		var n int
 		if b.Buffered() == 0 && sw == nil && tryStringWriter {
 			// Check at most once whether b.wr is a StringWriter.
@@ -767,6 +778,9 @@ func (b *Writer) WriteString(s string) (int, error) {
 		}
 		nn += n
 		s = s[n:]
+		if len(s) <= b.Available() || b.err != nil {
+			break
+		}
 	}
 	if b.err != nil {
 		return nn, b.err
