@@ -59,6 +59,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/telemetry/counter",
 	"cmd/link",
 	"cmd/link/internal/...",
+	"cmd/preprofile",
 	"compress/flate",
 	"compress/zlib",
 	"container/heap",
