@@ -416,8 +416,8 @@ func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
 // The options provided take precedence over options already applied on
 // the [jsontext.Decoder] and only apply for the duration of the unmarshal call.
 //
-// The input may be a stream of zero or more JSON values,
-// where this only unmarshals the next JSON value in the stream.
+// The input may be a stream of zero or more JSON values.
+// UnmarshalDecode unmarshals only the next JSON value in the stream.
 // If there are no more top-level JSON values, it reports [io.EOF].
 // The output must be a non-nil pointer.
 // See [Unmarshal] for details about the conversion of JSON into a Go value.
