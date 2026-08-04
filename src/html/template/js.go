@@ -32,10 +32,17 @@ const jsWhitespace = "\f\n\r\t\v\u0020\u00a0\u1680\u2000\u2001\u2002\u2003\u2004
 // JavaScript 2.0 lexical grammar and requires one token of lookbehind:
 // https://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
 func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
+	ctx, _ := nextJSCtxAndPreceder(s, preceding, jsPrecederNone)
+	return ctx
+}
+
+// nextJSCtxAndPreceder is nextJSCtx with additional tracking for tokens whose
+// meaning must survive intervening whitespace or comments.
+func nextJSCtxAndPreceder(s []byte, preceding jsCtx, precedingPreceder jsPreceder) (jsCtx, jsPreceder) {
 	// Trim all JS whitespace characters
 	s = bytes.TrimRight(s, jsWhitespace)
 	if len(s) == 0 {
-		return preceding
+		return preceding, precedingPreceder
 	}
 
 	// All cases below are in the single-byte UTF-8 group.
@@ -51,31 +58,31 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 		if (n-start)&1 == 1 {
 			// Reached for trailing minus signs since "---" is the
 			// same as "-- -".
-			return jsCtxRegexp
+			return jsCtxRegexp, jsPrecederNone
 		}
-		return jsCtxDivOp
+		return jsCtxDivOp, jsPrecederNone
 	case '.':
 		// Handle "42."
 		if n != 1 && '0' <= s[n-2] && s[n-2] <= '9' {
-			return jsCtxDivOp
+			return jsCtxDivOp, jsPrecederNone
 		}
-		return jsCtxRegexp
+		return jsCtxRegexp, jsPrecederMember
 	// Suffixes for all punctuators from section 7.7 of the language spec
 	// that only end binary operators not handled above.
 	case ',', '<', '>', '=', '*', '%', '&', '|', '^', '?':
-		return jsCtxRegexp
+		return jsCtxRegexp, jsPrecederNone
 	// Suffixes for all punctuators from section 7.7 of the language spec
 	// that are prefix operators not handled above.
 	case '!', '~':
-		return jsCtxRegexp
+		return jsCtxRegexp, jsPrecederNone
 	// Matches all the punctuators from section 7.7 of the language spec
 	// that are open brackets not handled above.
 	case '(', '[':
-		return jsCtxRegexp
+		return jsCtxRegexp, jsPrecederNone
 	// Matches all the punctuators from section 7.7 of the language spec
 	// that precede expression starts.
 	case ':', ';', '{':
-		return jsCtxRegexp
+		return jsCtxRegexp, jsPrecederNone
 	// CAVEAT: the close punctuators ('}', ']', ')') precede div ops and
 	// are handled in the default except for '}' which can precede a
 	// division op as in
@@ -83,12 +90,11 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 	// which is valid, but, in practice, developers don't divide object
 	// literals, so our heuristic works well for code like
 	//    function () { ... }  /foo/.test(x) && sideEffect();
-	// The ')' punctuator can precede a regular expression as in
-	//     if (b) /foo/.test(x) && ...
-	// but this is much less likely than
+	// Control statement parentheses are tracked separately by tJS. Other ')'
+	// punctuators usually precede division operators, as in
 	//     (a + b) / c
 	case '}':
-		return jsCtxRegexp
+		return jsCtxRegexp, jsPrecederNone
 	default:
 		// Look for an IdentifierName and see if it is a keyword that
 		// can precede a regular expression.
@@ -96,14 +102,39 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 		for j > 0 && isJSIdentPart(rune(s[j-1])) {
 			j--
 		}
-		if regexpPrecederKeywords[string(s[j:])] {
-			return jsCtxRegexp
+		keyword := string(s[j:])
+		prefix := bytes.TrimRight(s[:j], jsWhitespace)
+		member := (precedingPreceder == jsPrecederMember && len(prefix) == 0) ||
+			(len(prefix) != 0 && prefix[len(prefix)-1] == '.')
+		if controlPrecederKeywords[keyword] && !member {
+			return jsCtxRegexp, jsPrecederControl
+		}
+		if keyword == "await" && !member {
+			// In a for-await-of statement, await may be separated from for by
+			// whitespace or a comment. Preserve the pending control condition
+			// until its opening parenthesis.
+			_, p := nextJSCtxAndPreceder(prefix, preceding, precedingPreceder)
+			if p == jsPrecederControl {
+				return jsCtxRegexp, jsPrecederControl
+			}
+		}
+		if regexpPrecederKeywords[keyword] && !member {
+			return jsCtxRegexp, jsPrecederNone
 		}
 	}
 	// Otherwise is a punctuator not listed above, or
 	// a string which precedes a div op, or an identifier
 	// which precedes a div op.
-	return jsCtxDivOp
+	return jsCtxDivOp, jsPrecederNone
+}
+
+// controlPrecederKeywords introduce a parenthesized condition followed by a
+// statement. That statement may begin with a regular expression literal.
+var controlPrecederKeywords = map[string]bool{
+	"for":   true,
+	"if":    true,
+	"while": true,
+	"with":  true,
 }
 
 // regexpPrecederKeywords is a set of reserved JS keywords that can precede a

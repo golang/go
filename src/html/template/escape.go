@@ -241,6 +241,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		s = append(s, "_html_template_jsvalescaper")
 		// A slash after a value starts a div operator.
 		c.jsCtx = jsCtxDivOp
+		c.jsPreceder = jsPrecederNone
 	case stateJSDqStr, stateJSSqStr:
 		s = append(s, "_html_template_jsstrescaper")
 	case stateJSTmplLit:
