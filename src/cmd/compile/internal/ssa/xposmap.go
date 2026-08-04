@@ -20,6 +20,8 @@ type XPosMap struct {
 	// The next two fields provide a single-item cache for common case of repeated lines from same file.
 	lastIndex int32            // -1 means no entry in cache
 	lastMap   *BiasedSparseMap // map found at maps[lastIndex]
+	// Maps written by Set since the last Clear, possibly repeated.
+	dirty []*BiasedSparseMap
 }
 
 // NewXPosMap constructs an xposmap valid for inputs which have a file index in the keys of x,
@@ -39,11 +41,10 @@ type LineRange struct {
 
 // Clear removes data from the map but leaves the sparse skeleton.
 func (m *XPosMap) Clear() {
-	for _, l := range m.maps {
-		if l != nil {
-			l.clear()
-		}
+	for _, l := range m.dirty {
+		l.clear()
 	}
+	m.dirty = m.dirty[:0]
 	m.lastIndex = -1
 	m.lastMap = nil
 }
@@ -65,6 +66,9 @@ func (m *XPosMap) Set(p src.XPos, v int32) {
 	s := m.MapFor(p.FileIndex())
 	if s == nil {
 		panic(fmt.Sprintf("xposmap.set(%d), file index not found in map\n", p.FileIndex()))
+	}
+	if s.size() == 0 {
+		m.dirty = append(m.dirty, s)
 	}
 	s.set(p.Line(), v)
 }
