@@ -162,11 +162,9 @@ func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsono
 // The function is always provided with a non-nil pointer value
 // if T is an interface or pointer type.
 //
-// The function must marshal exactly one JSON value.
-// The value of T must not be retained outside the function call.
-// It is recommended that fn return a []byte buffer that is safe
-// for the caller to retain and potentially mutate.
-// It may not return [errors.ErrUnsupported].
+// Implementations must follow the requirements of [Marshaler].
+//
+// Implementations must not retain the value of T.
 func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, true)
@@ -204,12 +202,10 @@ func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 // The function is always provided with a non-nil pointer value
 // if T is an interface or pointer type.
 //
-// The function must marshal exactly one JSON value by calling write methods
-// on the provided encoder. It may return [errors.ErrUnsupported] such that marshaling can
-// move on to the next marshal function. However, no mutable method calls may
-// be called on the encoder if [errors.ErrUnsupported] is returned.
-// The pointer to [jsontext.Encoder] and the value of T
-// must not be retained outside the function call.
+// Implementations must follow the requirements of [MarshalerTo].
+//
+// Implementations must not retain the pointer to [jsontext.Encoder] or the
+// value of T.
 func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, true)
@@ -253,10 +249,9 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 // T must be an unnamed pointer or an interface type.
 // The function is always provided with a non-nil pointer value.
 //
-// The function must unmarshal exactly one JSON value.
-// The input []byte must not be mutated.
-// The input []byte and value T must not be retained outside the function call.
-// It may not return [errors.ErrUnsupported].
+// Implementations must follow the requirements of [Unmarshaler].
+//
+// Implementations must not retain the value of T.
 func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, false)
@@ -288,12 +283,10 @@ func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 // T must be an unnamed pointer or an interface type.
 // The function is always provided with a non-nil pointer value.
 //
-// The function must unmarshal exactly one JSON value by calling read methods
-// on the provided decoder. It may return [errors.ErrUnsupported] such that unmarshaling can
-// move on to the next unmarshal function. However, no mutable method calls may
-// be called on the decoder if [errors.ErrUnsupported] is returned.
-// The pointer to [jsontext.Decoder] and the value of T
-// must not be retained outside the function call.
+// Implementations must follow the requirements of [UnmarshalerFrom].
+//
+// Implementations must not retain the pointer to [jsontext.Decoder] or the
+// value of T.
 func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, false)

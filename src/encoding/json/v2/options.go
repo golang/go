@@ -109,13 +109,20 @@ func DefaultOptionsV2() Options {
 // When unmarshaling, the value is parsed from a JSON string
 // containing the JSON number without any surrounding whitespace.
 //
-// When the `string` tag option is specified on a Go struct field,
-// this option is applied for the top-level JSON value for that field.
-// Unless StringifyNumbers was applied globally, the option does not
-// recursively apply to nested JSON numbers within a JSON object or array.
+// Specifying the `string` tag option on a Go struct field applies this option
+// to the top-level JSON value for that field. When applied via the `string`
+// tag option, StringifyNumbers option does not recursively apply to nested
+// JSON numbers within a JSON object or array.
+//
+// Like all options, explicitly specifying this option in a call to [Marshal],
+// [Unmarshal], etc, will apply recursively.
+//
 // A Go type with custom marshal/unmarshal that represents a JSON number
 // should respect the StringifyNumbers option and if specified
 // serialize as a JSON number within a JSON string.
+// Custom marshal/unmarshal should handle nested JSON objects using
+// [MarshalEncode]/[UnmarshalDecode], which will automatically apply the
+// non-recursive `string` tag option behavior.
 //
 // According to RFC 8259, section 6, a JSON implementation may choose to
 // limit the representation of a JSON number to an IEEE 754 binary64 value.
@@ -140,6 +147,9 @@ func StringifyNumbers(v bool) Options {
 // identical binaries, but not across different builds of a program (such as
 // different source or toolchain version, different GOOS/GOARCH, different
 // build flags).
+//
+// A Go type with a custom marshaler should also respect the Deterministic
+// option and serialize deterministically if it is true.
 //
 // This only affects marshaling and is ignored when unmarshaling.
 func Deterministic(v bool) Options {
