@@ -13,8 +13,14 @@ func runtime_ignoreHangup() {
 	getg().m.ignoreHangup = true
 }
 
+// A note is delivered at the next kernel exit, so sleep once for each
+// one Cancel posted, or it arrives when nothing ignores it any more.
+//
 //go:linkname runtime_unignoreHangup internal/poll.runtime_unignoreHangup
-func runtime_unignoreHangup(sig string) {
+func runtime_unignoreHangup(notes int) {
+	for ; notes > 0; notes-- {
+		sleep(0)
+	}
 	getg().m.ignoreHangup = false
 }
 

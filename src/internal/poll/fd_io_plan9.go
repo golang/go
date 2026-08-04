@@ -19,12 +19,16 @@ import (
 type asyncIO struct {
 	res chan result
 
-	// mu guards the pid field.
+	// mu guards the pid and notes fields.
 	mu sync.Mutex
 
 	// pid holds the process id of
 	// the process running the IO operation.
 	pid int
+
+	// notes holds the number of hangup notes
+	// posted by Cancel.
+	notes int
 }
 
 // result is the return value of a Read or Write operation.
@@ -56,7 +60,8 @@ func newAsyncIO(fn func([]byte) (int, error), b []byte) *asyncIO {
 
 		aio.mu.Lock()
 		aio.pid = -1
-		runtime_unignoreHangup()
+		runtime_unignoreHangup(aio.notes)
+		aio.notes = 0
 		aio.mu.Unlock()
 
 		aio.res <- result{n, err}
@@ -76,7 +81,9 @@ func (aio *asyncIO) Cancel() {
 	if e != nil {
 		return
 	}
-	syscall.Write(f, []byte("hangup"))
+	if _, e = syscall.Write(f, []byte("hangup")); e == nil {
+		aio.notes++
+	}
 	syscall.Close(f)
 }
 
@@ -87,6 +94,6 @@ func (aio *asyncIO) Wait() (int, error) {
 }
 
 // The following functions, provided by the runtime, are used to
-// ignore and unignore the "hangup" signal received by the process.
+// ignore and unignore the "hangup" note received by the process.
 func runtime_ignoreHangup()
-func runtime_unignoreHangup()
+func runtime_unignoreHangup(notes int)
