@@ -19723,7 +19723,8 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 		}
 		break
 	}
-	// match: (Mul16 (Const16 <t> [c]) (Mul16 (Const16 <t> [d]) x))
+	// match: (Mul16 (Const16 <t> [c]) m:(Mul16 (Const16 <t> [d]) x))
+	// cond: (!isPowerOfTwo(c) || m.Uses == 1)
 	// result: (Mul16 (Const16 <t> [c*d]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -19732,18 +19733,22 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 			}
 			t := v_0.Type
 			c := auxIntToInt16(v_0.AuxInt)
-			if v_1.Op != OpMul16 {
+			m := v_1
+			if m.Op != OpMul16 {
 				continue
 			}
-			_ = v_1.Args[1]
-			v_1_0 := v_1.Args[0]
-			v_1_1 := v_1.Args[1]
-			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
-				if v_1_0.Op != OpConst16 || v_1_0.Type != t {
+			_ = m.Args[1]
+			m_0 := m.Args[0]
+			m_1 := m.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, m_0, m_1 = _i1+1, m_1, m_0 {
+				if m_0.Op != OpConst16 || m_0.Type != t {
 					continue
 				}
-				d := auxIntToInt16(v_1_0.AuxInt)
-				x := v_1_1
+				d := auxIntToInt16(m_0.AuxInt)
+				x := m_1
+				if !(!isPowerOfTwo(c) || m.Uses == 1) {
+					continue
+				}
 				v.reset(OpMul16)
 				v0 := b.NewValue0(v.Pos, OpConst16, t)
 				v0.AuxInt = int16ToAuxInt(c * d)
@@ -19973,7 +19978,8 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 		}
 		break
 	}
-	// match: (Mul32 (Const32 <t> [c]) (Mul32 (Const32 <t> [d]) x))
+	// match: (Mul32 (Const32 <t> [c]) m:(Mul32 (Const32 <t> [d]) x))
+	// cond: (!isPowerOfTwo(c) || m.Uses == 1)
 	// result: (Mul32 (Const32 <t> [c*d]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -19982,18 +19988,22 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 			}
 			t := v_0.Type
 			c := auxIntToInt32(v_0.AuxInt)
-			if v_1.Op != OpMul32 {
+			m := v_1
+			if m.Op != OpMul32 {
 				continue
 			}
-			_ = v_1.Args[1]
-			v_1_0 := v_1.Args[0]
-			v_1_1 := v_1.Args[1]
-			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
-				if v_1_0.Op != OpConst32 || v_1_0.Type != t {
+			_ = m.Args[1]
+			m_0 := m.Args[0]
+			m_1 := m.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, m_0, m_1 = _i1+1, m_1, m_0 {
+				if m_0.Op != OpConst32 || m_0.Type != t {
 					continue
 				}
-				d := auxIntToInt32(v_1_0.AuxInt)
-				x := v_1_1
+				d := auxIntToInt32(m_0.AuxInt)
+				x := m_1
+				if !(!isPowerOfTwo(c) || m.Uses == 1) {
+					continue
+				}
 				v.reset(OpMul32)
 				v0 := b.NewValue0(v.Pos, OpConst32, t)
 				v0.AuxInt = int32ToAuxInt(c * d)
@@ -20384,7 +20394,8 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 		}
 		break
 	}
-	// match: (Mul64 (Const64 <t> [c]) (Mul64 (Const64 <t> [d]) x))
+	// match: (Mul64 (Const64 <t> [c]) m:(Mul64 (Const64 <t> [d]) x))
+	// cond: (!isPowerOfTwo(c) || m.Uses == 1)
 	// result: (Mul64 (Const64 <t> [c*d]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -20393,18 +20404,22 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 			}
 			t := v_0.Type
 			c := auxIntToInt64(v_0.AuxInt)
-			if v_1.Op != OpMul64 {
+			m := v_1
+			if m.Op != OpMul64 {
 				continue
 			}
-			_ = v_1.Args[1]
-			v_1_0 := v_1.Args[0]
-			v_1_1 := v_1.Args[1]
-			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
-				if v_1_0.Op != OpConst64 || v_1_0.Type != t {
+			_ = m.Args[1]
+			m_0 := m.Args[0]
+			m_1 := m.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, m_0, m_1 = _i1+1, m_1, m_0 {
+				if m_0.Op != OpConst64 || m_0.Type != t {
 					continue
 				}
-				d := auxIntToInt64(v_1_0.AuxInt)
-				x := v_1_1
+				d := auxIntToInt64(m_0.AuxInt)
+				x := m_1
+				if !(!isPowerOfTwo(c) || m.Uses == 1) {
+					continue
+				}
 				v.reset(OpMul64)
 				v0 := b.NewValue0(v.Pos, OpConst64, t)
 				v0.AuxInt = int64ToAuxInt(c * d)
@@ -20822,7 +20837,8 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 		}
 		break
 	}
-	// match: (Mul8 (Const8 <t> [c]) (Mul8 (Const8 <t> [d]) x))
+	// match: (Mul8 (Const8 <t> [c]) m:(Mul8 (Const8 <t> [d]) x))
+	// cond: (!isPowerOfTwo(c) || m.Uses == 1)
 	// result: (Mul8 (Const8 <t> [c*d]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -20831,18 +20847,22 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 			}
 			t := v_0.Type
 			c := auxIntToInt8(v_0.AuxInt)
-			if v_1.Op != OpMul8 {
+			m := v_1
+			if m.Op != OpMul8 {
 				continue
 			}
-			_ = v_1.Args[1]
-			v_1_0 := v_1.Args[0]
-			v_1_1 := v_1.Args[1]
-			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
-				if v_1_0.Op != OpConst8 || v_1_0.Type != t {
+			_ = m.Args[1]
+			m_0 := m.Args[0]
+			m_1 := m.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, m_0, m_1 = _i1+1, m_1, m_0 {
+				if m_0.Op != OpConst8 || m_0.Type != t {
 					continue
 				}
-				d := auxIntToInt8(v_1_0.AuxInt)
-				x := v_1_1
+				d := auxIntToInt8(m_0.AuxInt)
+				x := m_1
+				if !(!isPowerOfTwo(c) || m.Uses == 1) {
+					continue
+				}
 				v.reset(OpMul8)
 				v0 := b.NewValue0(v.Pos, OpConst8, t)
 				v0.AuxInt = int8ToAuxInt(c * d)

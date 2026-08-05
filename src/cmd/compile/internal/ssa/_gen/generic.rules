@@ -1350,10 +1350,13 @@
 (Xor8  (Const8  <t> [c]) (Xor8  (Const8  <t> [d]) x)) => (Xor8  (Const8  <t> [c^d]) x)
 
 // C * (D * x) = (C * D) * x
-(Mul64 (Const64 <t> [c]) (Mul64 (Const64 <t> [d]) x)) => (Mul64 (Const64 <t> [c*d]) x)
-(Mul32 (Const32 <t> [c]) (Mul32 (Const32 <t> [d]) x)) => (Mul32 (Const32 <t> [c*d]) x)
-(Mul16 (Const16 <t> [c]) (Mul16 (Const16 <t> [d]) x)) => (Mul16 (Const16 <t> [c*d]) x)
-(Mul8  (Const8  <t> [c]) (Mul8  (Const8  <t> [d]) x)) => (Mul8  (Const8  <t> [c*d]) x)
+// Allow constant folding for single uses while preserving shared power-of-2 multiplies for scaled-index addressing.
+// See issue 80639 for additional details.
+(Mul64 (Const64 <t> [c]) m:(Mul64 (Const64 <t> [d]) x)) && (!isPowerOfTwo(c) || m.Uses == 1) => (Mul64 (Const64 <t> [c*d]) x)
+(Mul32 (Const32 <t> [c]) m:(Mul32 (Const32 <t> [d]) x)) && (!isPowerOfTwo(c) || m.Uses == 1) => (Mul32 (Const32 <t> [c*d]) x)
+(Mul16 (Const16 <t> [c]) m:(Mul16 (Const16 <t> [d]) x)) && (!isPowerOfTwo(c) || m.Uses == 1) => (Mul16 (Const16 <t> [c*d]) x)
+(Mul8  (Const8  <t> [c]) m:(Mul8  (Const8  <t> [d]) x)) && (!isPowerOfTwo(c) || m.Uses == 1) => (Mul8  (Const8  <t> [c*d]) x)
+
 
 // floating point optimizations
 (Mul(32|64)F x (Const(32|64)F [1])) => x
