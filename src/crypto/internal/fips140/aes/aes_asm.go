@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (amd64 || arm64 || ppc64 || ppc64le) && !purego
+//go:build (amd64 || arm64 || loong64 || ppc64 || ppc64le) && !purego
 
 package aes
 
@@ -22,7 +22,7 @@ func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
 
 var supportsAES = cpu.X86HasAES && cpu.X86HasSSE41 && cpu.X86HasSSSE3 ||
-	cpu.ARM64HasAES || cpu.PPC64 || cpu.PPC64le
+	cpu.ARM64HasAES || cpu.LOONG64HasLSX || cpu.PPC64 || cpu.PPC64le
 
 func init() {
 	if cpu.AMD64 {
@@ -30,6 +30,9 @@ func init() {
 	}
 	if cpu.ARM64 {
 		impl.Register("aes", "Armv8.0", &supportsAES)
+	}
+	if cpu.LOONG64 {
+		impl.Register("aes", "LSX", &supportsAES)
 	}
 	if cpu.PPC64 || cpu.PPC64le {
 		// The POWER architecture doesn't have a way to turn off AES support

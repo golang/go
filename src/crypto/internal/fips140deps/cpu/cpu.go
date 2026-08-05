@@ -13,6 +13,7 @@ const (
 	BigEndian = goarch.BigEndian
 	AMD64     = goarch.IsAmd64 == 1
 	ARM64     = goarch.IsArm64 == 1
+	LOONG64   = goarch.IsLoong64 == 1
 	PPC64     = goarch.IsPpc64 == 1
 	PPC64le   = goarch.IsPpc64le == 1
 )
