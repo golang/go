@@ -1545,6 +1545,22 @@ func BenchmarkFormatRFC3339Nano(b *testing.B) {
 	}
 }
 
+func BenchmarkFormatIMFFixdate(b *testing.B) {
+	t := Unix(1265346057, 0)
+	for i := 0; i < b.N; i++ {
+		t.Format("Mon, 02 Jan 2006 15:04:05 GMT")
+	}
+}
+
+// BenchmarkFormatRFC1123 uses a layout the same length as the HTTP date
+// format.
+func BenchmarkFormatRFC1123(b *testing.B) {
+	t := Unix(1265346057, 0)
+	for i := 0; i < b.N; i++ {
+		t.Format("Mon, 02 Jan 2006 15:04:05 MST")
+	}
+}
+
 func BenchmarkFormatNow(b *testing.B) {
 	// Like BenchmarkFormat, but easier, because the time zone
 	// lookup cache is optimized for the present.

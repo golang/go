@@ -1091,3 +1091,25 @@ func FuzzParseRFC3339(f *testing.F) {
 		}
 	})
 }
+
+// TestAppendFormatIMFFixdate checks the specialized formatter for the
+// IMF-fixdate layout (RFC 9110, section 5.6.7) against the general one, across
+// many instants and several locations. The non-UTC cases matter: "GMT" is a
+// literal in this layout, not a zone abbreviation, so the time must not be
+// converted.
+func TestAppendFormatIMFFixdate(t *testing.T) {
+	const imfFixdate = "Mon, 02 Jan 2006 15:04:05 GMT" // net/http.TimeFormat
+	locs := []*Location{UTC, Local, FixedZone("CEST", 2*60*60), FixedZone("X", -11*3600-1800)}
+	base := Date(1990, January, 1, 0, 0, 0, 0, UTC)
+	var got, want [64]byte
+	for _, loc := range locs {
+		for i := range 20000 {
+			tm := base.Add(Duration(i) * 7919 * Second).In(loc)
+			g := tm.AppendFormat(got[:0], imfFixdate)
+			w := AppendFormatAny(tm, want[:0], imfFixdate)
+			if !bytes.Equal(g, w) {
+				t.Fatalf("loc=%v t=%v AppendFormat=%q general=%q", loc, tm, g, w)
+			}
+		}
+	}
+}

@@ -659,6 +659,8 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		return t.appendFormatRFC3339(b, false)
 	case RFC3339Nano:
 		return t.appendFormatRFC3339(b, true)
+	case imfFixdate:
+		return t.appendFormatIMFFixdate(b)
 	default:
 		return t.appendFormat(b, layout)
 	}
