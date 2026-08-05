@@ -380,3 +380,132 @@ func TestECHServerCipherSuite(t *testing.T) {
 		})
 	}
 }
+
+// TestECHOuterHelloOmitsPSK verifies computeAndUpdateOuterECHExtension strips
+// the inner hello's PSK offer from the outer hello.
+func TestECHOuterHelloOmitsPSK(t *testing.T) {
+	// Generate the ECH config in-test so the private key is known and the
+	// sealed payload can be decrypted below.
+	echKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configBuilder := cryptobyte.NewBuilder(nil)
+	configBuilder.AddUint16(extensionEncryptedClientHello)
+	configBuilder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+		builder.AddUint8(1) // config_id
+		builder.AddUint16(0x0020 /* DHKEM(X25519, HKDF-SHA256) */)
+		builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+			builder.AddBytes(echKey.PublicKey().Bytes())
+		})
+		builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+			builder.AddUint16(0x0001 /* HKDF-SHA256 */)
+			builder.AddUint16(0x0001 /* AES-128-GCM */)
+		})
+		builder.AddUint8(32) // maximum_name_length
+		builder.AddUint8LengthPrefixed(func(builder *cryptobyte.Builder) {
+			builder.AddBytes([]byte("public.example"))
+		})
+		builder.AddUint16(0) // extensions
+	})
+	echConfigBytes := configBuilder.BytesOrPanic()
+	listBuilder := cryptobyte.NewBuilder(nil)
+	listBuilder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+		builder.AddBytes(echConfigBytes)
+	})
+
+	configs, err := parseECHConfigList(listBuilder.BytesOrPanic())
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, echPK, kdf, aead := pickECHConfig(configs)
+	if config == nil {
+		t.Fatal("pickECHConfig returned no config")
+	}
+	ech := &echClientContext{config: config, kdfID: kdf.ID(), aeadID: aead.ID()}
+	info := append([]byte("tls ech\x00"), config.raw...)
+	ech.encapsulatedKey, ech.hpkeContext, err = hpke.NewSender(echPK, kdf, aead, info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inner := &clientHelloMsg{
+		vers:                 VersionTLS13,
+		random:               make([]byte, 32),
+		sessionId:            make([]byte, 32),
+		serverName:           "secret.example",
+		cipherSuites:         []uint16{TLS_AES_128_GCM_SHA256},
+		compressionMethods:   []uint8{0},
+		supportedVersions:    []uint16{VersionTLS13},
+		encryptedClientHello: []byte{byte(innerECHExt)},
+		pskIdentities:        []pskIdentity{{label: []byte("ticket")}},
+		pskBinders:           [][]byte{make([]byte, 32)},
+	}
+	outer := inner.clone()
+	outer.serverName = string(config.PublicName)
+
+	if err := computeAndUpdateOuterECHExtension(outer, inner, ech, true); err != nil {
+		t.Fatal(err)
+	}
+
+	if outer.pskIdentities != nil || outer.pskBinders != nil {
+		t.Error("outer hello retains PSK state after computeAndUpdateOuterECHExtension")
+	}
+	marshaled, err := outer.marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed clientHelloMsg
+	if !parsed.unmarshal(marshaled) {
+		t.Fatal("failed to unmarshal outer hello")
+	}
+	if len(parsed.pskIdentities) != 0 || len(parsed.pskBinders) != 0 {
+		t.Error("marshaled outer hello contains a pre_shared_key extension")
+	}
+	if len(inner.pskIdentities) != 1 || len(inner.pskBinders) != 1 {
+		t.Error("inner hello lost its PSK offer")
+	}
+
+	// Stripping the PSK from the outer hello must not leak into the inner
+	// hello's encoding. The sealed inner is the only place the offer is
+	// carried, so losing it there silently disables resumption. Decrypt the
+	// sealed payload as the server would and check the offer survived.
+	echType, echCipherSuite, _, encap, payload, err := parseECHExt(parsed.encryptedClientHello)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if echType != outerECHExt {
+		t.Fatalf("ech extension type: got %v, want %v", echType, outerECHExt)
+	}
+	kem, err := hpke.NewKEM(config.KemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	echPriv, err := kem.NewPrivateKey(echKey.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipientKDF, err := hpke.NewKDF(echCipherSuite.KDFID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipientAEAD, err := hpke.NewAEAD(echCipherSuite.AEADID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipient, err := hpke.NewRecipient(encap, echPriv, recipientKDF, recipientAEAD, info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encodedInner, err := decryptECHPayload(recipient, parsed.original, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decodedInner, err := decodeInnerClientHello(&parsed, encodedInner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decodedInner.pskIdentities) != 1 || len(decodedInner.pskBinders) != 1 {
+		t.Error("decoded inner hello lost its pre_shared_key offer")
+	}
+}

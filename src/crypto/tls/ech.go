@@ -434,6 +434,16 @@ func generateOuterECHExt(id uint8, kdfID, aeadID uint16, encodedKey []byte, payl
 }
 
 func computeAndUpdateOuterECHExtension(outer, inner *clientHelloMsg, ech *echClientContext, useKey bool) error {
+	// The outer hello must not offer the inner hello's PSK as otherwise an
+	// on-path attacker could splice the identity into hellos with guessed
+	// SNIs and use the server's accept/reject behavior as an oracle
+	// (CVE-2026-42505, see #79282).
+	//
+	// For that reason we clear it here, crucially before the outer hello is
+	// marshaled below as the HPKE AAD, so the AAD and the wire bytes agree.
+	outer.pskIdentities = nil
+	outer.pskBinders = nil
+
 	var encapKey []byte
 	if useKey {
 		encapKey = ech.encapsulatedKey
