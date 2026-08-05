@@ -469,6 +469,8 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpSub64(v)
 	case OpSub64F:
 		return rewriteValuegeneric_OpSub64F(v)
+	case OpSub64borrow:
+		return rewriteValuegeneric_OpSub64borrow(v)
 	case OpSub8:
 		return rewriteValuegeneric_OpSub8(v)
 	case OpTrunc:
@@ -8575,6 +8577,34 @@ func rewriteValuegeneric_OpDiv128u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	// match: (Div128u <t> (Const64 [hi]) (Const64 [lo]) (Const64 [y]))
+	// cond: y != 0 && uint64(hi) < uint64(y)
+	// result: (MakeTuple (Const64 <t.FieldType(0)> [bitsDiv128u(hi, lo, y).quo]) (Const64 <t.FieldType(1)> [bitsDiv128u(hi, lo, y).rem]))
+	for {
+		t := v.Type
+		if v_0.Op != OpConst64 {
+			break
+		}
+		hi := auxIntToInt64(v_0.AuxInt)
+		if v_1.Op != OpConst64 {
+			break
+		}
+		lo := auxIntToInt64(v_1.AuxInt)
+		if v_2.Op != OpConst64 {
+			break
+		}
+		y := auxIntToInt64(v_2.AuxInt)
+		if !(y != 0 && uint64(hi) < uint64(y)) {
+			break
+		}
+		v.reset(OpMakeTuple)
+		v0 := b.NewValue0(v.Pos, OpConst64, t.FieldType(0))
+		v0.AuxInt = int64ToAuxInt(bitsDiv128u(hi, lo, y).quo)
+		v1 := b.NewValue0(v.Pos, OpConst64, t.FieldType(1))
+		v1.AuxInt = int64ToAuxInt(bitsDiv128u(hi, lo, y).rem)
+		v.AddArg2(v0, v1)
+		return true
+	}
 	// match: (Div128u <t> (Const64 [0]) lo y)
 	// result: (MakeTuple (Div64u <t.FieldType(0)> lo y) (Mod64u <t.FieldType(1)> lo y))
 	for {
@@ -28242,6 +28272,36 @@ func rewriteValuegeneric_OpRotateLeft16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	// match: (RotateLeft16 (Const16 [x]) (Const64 [y]))
+	// result: (Const16 [int16(bits.RotateLeft16(uint16(x), int(y)))])
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		x := auxIntToInt16(v_0.AuxInt)
+		if v_1.Op != OpConst64 {
+			break
+		}
+		y := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpConst16)
+		v.AuxInt = int16ToAuxInt(int16(bits.RotateLeft16(uint16(x), int(y))))
+		return true
+	}
+	// match: (RotateLeft16 (Const16 [x]) (Const32 [y]))
+	// result: (Const16 [int16(bits.RotateLeft16(uint16(x), int(y)))])
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		x := auxIntToInt16(v_0.AuxInt)
+		if v_1.Op != OpConst32 {
+			break
+		}
+		y := auxIntToInt32(v_1.AuxInt)
+		v.reset(OpConst16)
+		v.AuxInt = int16ToAuxInt(int16(bits.RotateLeft16(uint16(x), int(y))))
+		return true
+	}
 	// match: (RotateLeft16 x (Const16 [c]))
 	// cond: c%16 == 0
 	// result: x
@@ -28787,6 +28847,36 @@ func rewriteValuegeneric_OpRotateLeft32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	// match: (RotateLeft32 (Const32 [x]) (Const64 [y]))
+	// result: (Const32 [int32(bits.RotateLeft32(uint32(x), int(y)))])
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		x := auxIntToInt32(v_0.AuxInt)
+		if v_1.Op != OpConst64 {
+			break
+		}
+		y := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(int32(bits.RotateLeft32(uint32(x), int(y))))
+		return true
+	}
+	// match: (RotateLeft32 (Const32 [x]) (Const32 [y]))
+	// result: (Const32 [int32(bits.RotateLeft32(uint32(x), int(y)))])
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		x := auxIntToInt32(v_0.AuxInt)
+		if v_1.Op != OpConst32 {
+			break
+		}
+		y := auxIntToInt32(v_1.AuxInt)
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(int32(bits.RotateLeft32(uint32(x), int(y))))
+		return true
+	}
 	// match: (RotateLeft32 x (Const32 [c]))
 	// cond: c%32 == 0
 	// result: x
@@ -29332,6 +29422,36 @@ func rewriteValuegeneric_OpRotateLeft64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	// match: (RotateLeft64 (Const64 [x]) (Const64 [y]))
+	// result: (Const64 [int64(bits.RotateLeft64(uint64(x), int(y)))])
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		x := auxIntToInt64(v_0.AuxInt)
+		if v_1.Op != OpConst64 {
+			break
+		}
+		y := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(int64(bits.RotateLeft64(uint64(x), int(y))))
+		return true
+	}
+	// match: (RotateLeft64 (Const64 [x]) (Const32 [y]))
+	// result: (Const64 [int64(bits.RotateLeft64(uint64(x), int(y)))])
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		x := auxIntToInt64(v_0.AuxInt)
+		if v_1.Op != OpConst32 {
+			break
+		}
+		y := auxIntToInt32(v_1.AuxInt)
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(int64(bits.RotateLeft64(uint64(x), int(y))))
+		return true
+	}
 	// match: (RotateLeft64 x (Const64 [c]))
 	// cond: c%64 == 0
 	// result: x
@@ -29877,6 +29997,36 @@ func rewriteValuegeneric_OpRotateLeft8(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	// match: (RotateLeft8 (Const8 [x]) (Const64 [y]))
+	// result: (Const8 [int8(bits.RotateLeft8(uint8(x), int(y)))])
+	for {
+		if v_0.Op != OpConst8 {
+			break
+		}
+		x := auxIntToInt8(v_0.AuxInt)
+		if v_1.Op != OpConst64 {
+			break
+		}
+		y := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpConst8)
+		v.AuxInt = int8ToAuxInt(int8(bits.RotateLeft8(uint8(x), int(y))))
+		return true
+	}
+	// match: (RotateLeft8 (Const8 [x]) (Const32 [y]))
+	// result: (Const8 [int8(bits.RotateLeft8(uint8(x), int(y)))])
+	for {
+		if v_0.Op != OpConst8 {
+			break
+		}
+		x := auxIntToInt8(v_0.AuxInt)
+		if v_1.Op != OpConst32 {
+			break
+		}
+		y := auxIntToInt32(v_1.AuxInt)
+		v.reset(OpConst8)
+		v.AuxInt = int8ToAuxInt(int8(bits.RotateLeft8(uint8(x), int(y))))
+		return true
+	}
 	// match: (RotateLeft8 x (Const8 [c]))
 	// cond: c%8 == 0
 	// result: x
@@ -37062,6 +37212,41 @@ func rewriteValuegeneric_OpSub64F(v *Value) bool {
 		}
 		v.reset(OpConst64F)
 		v.AuxInt = float64ToAuxInt(c - d)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpSub64borrow(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Sub64borrow (Const64 <t> [x]) (Const64 [y]) (Const64 [borrowVal]))
+	// cond: borrowVal >= 0 && borrowVal <= 1
+	// result: (MakeTuple (Const64 <t> [bitsSub64(x, y, borrowVal).diff]) (Const64 <t> [bitsSub64(x, y, borrowVal).borrow]))
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		t := v_0.Type
+		x := auxIntToInt64(v_0.AuxInt)
+		if v_1.Op != OpConst64 {
+			break
+		}
+		y := auxIntToInt64(v_1.AuxInt)
+		if v_2.Op != OpConst64 {
+			break
+		}
+		borrowVal := auxIntToInt64(v_2.AuxInt)
+		if !(borrowVal >= 0 && borrowVal <= 1) {
+			break
+		}
+		v.reset(OpMakeTuple)
+		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0.AuxInt = int64ToAuxInt(bitsSub64(x, y, borrowVal).diff)
+		v1 := b.NewValue0(v.Pos, OpConst64, t)
+		v1.AuxInt = int64ToAuxInt(bitsSub64(x, y, borrowVal).borrow)
+		v.AddArg2(v0, v1)
 		return true
 	}
 	return false

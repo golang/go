@@ -2705,6 +2705,18 @@ func bitsAdd64(x, y, carry int64) (r struct{ sum, carry int64 }) {
 	return
 }
 
+func bitsSub64(x, y, borrow int64) (r struct{ diff, borrow int64 }) {
+	d, b := bits.Sub64(uint64(x), uint64(y), uint64(borrow))
+	r.diff, r.borrow = int64(d), int64(b)
+	return
+}
+
+func bitsDiv128u(hi, lo, y int64) (r struct{ quo, rem int64 }) {
+	q, rem := bits.Div64(uint64(hi), uint64(lo), uint64(y))
+	r.quo, r.rem = int64(q), int64(rem)
+	return
+}
+
 func bitsMulU64(x, y int64) (r struct{ hi, lo int64 }) {
 	hi, lo := bits.Mul64(uint64(x), uint64(y))
 	r.hi, r.lo = int64(hi), int64(lo)

@@ -351,6 +351,63 @@ func ReverseBytes16Const() uint16 {
 	return bits.ReverseBytes16(0x0102)
 }
 
+// ------------------------------------ //
+//    bits constant folding folding     //
+// ------------------------------------ //
+
+func RotateLeft64Const() uint64 {
+	// amd64:-"ROLQ" -"RORQ"
+	// arm64:-"ROR"
+	// loong64:-"ROTRV"
+	// ppc64x:-"ROTL"
+	// riscv64:-"RORI"
+	// s390x:-"RISBGZ"
+	// wasm:-"I64Rotl"
+	return bits.RotateLeft64(0x0102030405060708, 8)
+}
+ 
+func RotateLeft32Const() uint32 {
+	// amd64:-"ROLL"
+	// arm64:-"RORW"
+	// loong64:-"ROTR"
+	// ppc64x:-"ROTLW"
+	// riscv64:-"RORIW"
+	// s390x:-"RLL"
+	// wasm:-"I32Rotl"
+	return bits.RotateLeft32(0x01020304, 8)
+}
+ 
+func RotateLeft16Const() uint16 {
+	// amd64:-"ROLW" -"RORW"
+	// arm64:-"RORW"
+	// loong64:-"ROTR"
+	return bits.RotateLeft16(0x0102, 4)
+}
+ 
+func RotateLeft8Const() uint8 {
+	// amd64:-"ROLB" -"RORB"
+	// arm64:-"RORW"
+	// loong64:-"ROTR"
+	return bits.RotateLeft8(0x01, 4)
+}
+ 
+func Sub64Const() (uint64, uint64) {
+	// amd64:-"SUBQ" -"SBBQ"
+	// arm64:-"SUB" -"SBCS"
+	return bits.Sub64(100, 10, 1)
+}
+ 
+func Sub64ConstBorrow() (uint64, uint64) {
+	// amd64:-"SUBQ" -"SBBQ"
+	// arm64:-"SUB" -"SBCS"
+	return bits.Sub64(10, 100, 1)
+}
+ 
+func Div64Const() (uint64, uint64) {
+	// amd64:-"DIVQ"
+	return bits.Div64(2, 100, 3)
+}
+
 // --------------------- //
 //    bits.RotateLeft    //
 // --------------------- //

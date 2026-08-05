@@ -82,6 +82,16 @@
 (BitRev16 (Const16 [c])) => (Const16 [int16(bits.Reverse16(uint16(c)))])
 (BitRev8  (Const8  [c])) => (Const8  [int8(bits.Reverse8(uint8(c)))])
 (Add64carry (Const64 <t> [x]) (Const64 [y]) (Const64 [c])) && c >= 0 && c <= 1 => (MakeTuple (Const64 <t> [bitsAdd64(x, y, c).sum]) (Const64 <t> [bitsAdd64(x, y, c).carry]))
+(Sub64borrow (Const64 <t> [x]) (Const64 [y]) (Const64 [borrowVal])) && borrowVal >= 0 && borrowVal <= 1 => (MakeTuple (Const64 <t> [bitsSub64(x, y, borrowVal).diff]) (Const64 <t> [bitsSub64(x, y, borrowVal).borrow]))
+
+(RotateLeft64 (Const64 [x]) (Const(64|32) [y])) => (Const64 [int64(bits.RotateLeft64(uint64(x), int(y)))])
+(RotateLeft32 (Const32 [x]) (Const(64|32) [y])) => (Const32 [int32(bits.RotateLeft32(uint32(x), int(y)))])
+(RotateLeft16 (Const16 [x]) (Const(64|32) [y])) => (Const16 [int16(bits.RotateLeft16(uint16(x), int(y)))])
+(RotateLeft8  (Const8  [x]) (Const(64|32) [y])) => (Const8  [int8(bits.RotateLeft8(uint8(x), int(y)))])
+
+
+(Div128u <t> (Const64 [hi]) (Const64 [lo]) (Const64 [y])) && y != 0 && uint64(hi) < uint64(y) => (MakeTuple (Const64 <t.FieldType(0)> [bitsDiv128u(hi, lo, y).quo]) (Const64 <t.FieldType(1)> [bitsDiv128u(hi, lo, y).rem]))
+
 
 (Trunc16to8  (ZeroExt8to16  x)) => x
 (Trunc32to8  (ZeroExt8to32  x)) => x
