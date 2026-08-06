@@ -25,6 +25,7 @@ func init() {
 const (
 	DefaultMaxReadFrameSize     = defaultMaxReadFrameSize
 	DefaultMaxStreams           = defaultMaxStreams
+	HandlerChunkWriteSize       = handlerChunkWriteSize
 	InflowMinRefresh            = inflowMinRefresh
 	InitialHeaderTableSize      = initialHeaderTableSize
 	InitialMaxConcurrentStreams = initialMaxConcurrentStreams
@@ -224,4 +225,16 @@ func InvalidHTTP1LookingFrameHeader() FrameHeader {
 
 func EncodeRequestHeaders(req *ClientRequest, addGzipHeader bool, peerMaxHeaderListSize uint64, headerf func(name, value string)) (httpcommon.EncodeHeadersResult, error) {
 	return encodeRequestHeaders(req, addGzipHeader, peerMaxHeaderListSize, headerf)
+}
+
+func (w *responseWriter) hasWriteBuffer() bool {
+	return w.rws.bw != nil
+}
+
+// ResponseWriterHasWriteBufferForTesting reports whether w (which must
+// be or embed this package's responseWriter) currently holds a write
+// buffer. It is for testing that Flush releases the buffer while a
+// handler is parked mid-response.
+func ResponseWriterHasWriteBufferForTesting(w any) bool {
+	return w.(interface{ hasWriteBuffer() bool }).hasWriteBuffer()
 }

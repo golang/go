@@ -2368,6 +2368,80 @@ func testServer_Response_Empty_Data_Not_FlowControlled(t *testing.T) {
 	})
 }
 
+// TestServer_Response_FlushReleasesWriteBuffer verifies that a handler's
+// write buffer is released back to the pool by an empty-leaving Flush and
+// lazily reacquired by the next write, so that handlers parked mid-response
+// (long polls) don't pin a 4KB buffer per stream.
+func TestServer_Response_FlushReleasesWriteBuffer(t *testing.T) {
+	synctest.Test(t, testServer_Response_FlushReleasesWriteBuffer)
+}
+func testServer_Response_FlushReleasesWriteBuffer(t *testing.T) {
+	const msg = "hello, "
+	const msg2 = "world"
+	largeMsg := bytes.Repeat([]byte("a"), HandlerChunkWriteSize*2)
+	testServerResponse(t, func(w http.ResponseWriter, r *http.Request) error {
+		if ResponseWriterHasWriteBufferForTesting(w) {
+			return fmt.Errorf("write buffer allocated before first write")
+		}
+		io.WriteString(w, msg)
+		if !ResponseWriterHasWriteBufferForTesting(w) {
+			return fmt.Errorf("write buffer not allocated after buffered write")
+		}
+		w.(http.Flusher).Flush()
+		if ResponseWriterHasWriteBufferForTesting(w) {
+			return fmt.Errorf("write buffer not released by Flush")
+		}
+		io.WriteString(w, msg2)
+		if !ResponseWriterHasWriteBufferForTesting(w) {
+			return fmt.Errorf("write buffer not reacquired by write after Flush")
+		}
+		w.(http.Flusher).Flush()
+		if ResponseWriterHasWriteBufferForTesting(w) {
+			return fmt.Errorf("write buffer not released by second Flush")
+		}
+		// A []byte write larger than the 4KB write buffer bypasses
+		// the buffer entirely, going directly to the chunkWriter and
+		// leaving the buffer allocated but empty. Flush must
+		// release it in that case too.
+		w.Write(largeMsg)
+		if !ResponseWriterHasWriteBufferForTesting(w) {
+			return fmt.Errorf("write buffer not allocated by large write")
+		}
+		w.(http.Flusher).Flush()
+		if ResponseWriterHasWriteBufferForTesting(w) {
+			return fmt.Errorf("write buffer not released by Flush after buffer-bypassing write")
+		}
+		return nil
+	}, func(st *serverTester) {
+		getSlash(st)
+		st.wantHeaders(wantHeader{
+			streamID:  1,
+			endStream: false,
+		})
+		st.wantData(wantData{
+			streamID:  1,
+			endStream: false,
+			data:      []byte(msg),
+		})
+		st.wantData(wantData{
+			streamID:  1,
+			endStream: false,
+			data:      []byte(msg2),
+		})
+		st.wantData(wantData{
+			streamID:  1,
+			endStream: false,
+			data:      largeMsg,
+			multiple:  true,
+		})
+		st.wantData(wantData{
+			streamID:  1,
+			endStream: true,
+			size:      0,
+		})
+	})
+}
+
 func TestServer_Response_Automatic100Continue(t *testing.T) {
 	synctest.Test(t, testServer_Response_Automatic100Continue)
 }
