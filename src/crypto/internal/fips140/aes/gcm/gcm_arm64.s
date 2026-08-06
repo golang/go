@@ -58,6 +58,21 @@
 	VEXT	$8, ACC1.B16, ACC1.B16, ACC1.B16 \
 	VEOR	ACC1.B16, ACC0.B16, ACC0.B16     \
 
+// reduce3 performs reduce using EOR3 if it is available.
+#define reduce3() \
+	VEOR3	ACC0.B16, ACC1.B16, ACCM.B16, ACCM.B16 \
+	VEXT	$8, ZERO.B16, ACCM.B16, T0.B16   \
+	VEXT	$8, ACCM.B16, ZERO.B16, ACCM.B16 \
+	VEOR	ACCM.B16, ACC0.B16, ACC0.B16     \
+	VEOR	T0.B16, ACC1.B16, ACC1.B16       \
+	VPMULL	POLY.D1, ACC0.D1, T0.Q1          \
+	VEXT	$8, ACC0.B16, ACC0.B16, ACC0.B16 \
+	VEOR	T0.B16, ACC0.B16, ACC0.B16       \
+	VPMULL	POLY.D1, ACC0.D1, T0.Q1          \
+	VEOR	T0.B16, ACC1.B16, ACC1.B16       \
+	VEXT	$8, ACC1.B16, ACC1.B16, ACC1.B16 \
+	VEOR	ACC1.B16, ACC0.B16, ACC0.B16     \
+
 // func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
 TEXT ·gcmAesFinish(SB),NOSPLIT,$0
 #define pTbl R0
@@ -569,6 +584,8 @@ octetsFinish:
 		aesrndx8(K8)
 		aesrndlastx8(K9)
 
+		// This path should not use EOR3 even if it is available, because it
+		// would contend on limited pipeline resources and regress on Neoverse V2.
 		VEOR	KLAST.B16, B0.B16, B0.B16
 		VEOR	KLAST.B16, B1.B16, B1.B16
 		VEOR	KLAST.B16, B2.B16, B2.B16
@@ -786,6 +803,7 @@ TEXT ·gcmAesDec(SB),NOSPLIT,$0
 	CMP	$128, srcPtrLen
 	BLT	startSingles
 	// There are at least 8 blocks to encrypt
+	MOVBU	·supportsAESGCMEOR3(SB), H1
 	TBZ	$4, NR, octetsLoop
 
 	// For AES-192 round keys occupy: K0 .. K7, K10, K11, K8, K9, KLAST
@@ -843,6 +861,8 @@ octetsFinish:
 		aesrndx8(K8)
 		aesrndlastx8(K9)
 
+		CBNZ	H1, octetsEOR3
+
 		VEOR	KLAST.B16, B0.B16, T1.B16
 		VEOR	KLAST.B16, B1.B16, T2.B16
 		VEOR	KLAST.B16, B2.B16, B2.B16
@@ -890,6 +910,53 @@ octetsFinish:
 
 		MOVD	pTblSave, pTbl
 		reduce()
+
+		CMP	$128, srcPtrLen
+		BGE	octetsLoop
+		B	startSingles
+
+octetsEOR3:
+		VEOR	KLAST.B16, B0.B16, T1.B16
+		VEOR	KLAST.B16, B1.B16, T2.B16
+
+		VLD1.P	32(srcPtr), [B0.B16, B1.B16]
+		VEOR	B0.B16, T1.B16, T1.B16
+		VEOR	B1.B16, T2.B16, T2.B16
+		VST1.P  [T1.B16, T2.B16], 32(dstPtr)
+
+		VLD1.P	32(pTbl), [T1.B16, T2.B16]
+		VREV64	B0.B16, B0.B16
+		VEOR	ACC0.B16, B0.B16, B0.B16
+		VEXT	$8, B0.B16, B0.B16, T0.B16
+		VEOR	B0.B16, T0.B16, T0.B16
+		VPMULL	B0.D1, T1.D1, ACC1.Q1
+		VPMULL2	B0.D2, T1.D2, ACC0.Q1
+		VPMULL	T0.D1, T2.D1, ACCM.Q1
+		mulRound(B1)
+
+		VLD1.P	32(srcPtr), [B0.B16, B1.B16]
+		VEOR3	KLAST.B16, B0.B16, B2.B16, T1.B16
+		VEOR3	KLAST.B16, B1.B16, B3.B16, T2.B16
+		VST1.P  [T1.B16, T2.B16], 32(dstPtr)
+		mulRound(B0)
+		mulRound(B1)
+
+		VLD1.P	32(srcPtr), [B0.B16, B1.B16]
+		VEOR3	KLAST.B16, B0.B16, B4.B16, T1.B16
+		VEOR3	KLAST.B16, B1.B16, B5.B16, T2.B16
+		VST1.P  [T1.B16, T2.B16], 32(dstPtr)
+		mulRound(B0)
+		mulRound(B1)
+
+		VLD1.P	32(srcPtr), [B0.B16, B1.B16]
+		VEOR3	KLAST.B16, B0.B16, B6.B16, T1.B16
+		VEOR3	KLAST.B16, B1.B16, B7.B16, T2.B16
+		VST1.P  [T1.B16, T2.B16], 32(dstPtr)
+		mulRound(B0)
+		mulRound(B1)
+
+		MOVD	pTblSave, pTbl
+		reduce3()
 
 		CMP	$128, srcPtrLen
 		BGE	octetsLoop
