@@ -223,7 +223,7 @@ func TestOffset(t *testing.T) {
 	}
 
 	// Use Seek with an invalid whence.
-	_, err = seeker.Seek(0, 3)
+	_, err = seeker.Seek(0, io.SeekEnd+5)
 	if err == nil {
 		t.Fatal("Seek: expected error for invalid whence")
 	}
