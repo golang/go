@@ -427,7 +427,7 @@ func (b *Block) likelyBranch() bool {
 
 func (b *Block) Logf(msg string, args ...any)   { b.Func.Logf(msg, args...) }
 func (b *Block) Log() bool                      { return b.Func.Log() }
-func (b *Block) Fatalf(msg string, args ...any) { b.Func.Fatalf(msg, args...) }
+func (b *Block) Fatalf(msg string, args ...any) { b.Func.FatalfWithPos(b.Pos, msg, args...) }
 
 type BranchPrediction int8
 

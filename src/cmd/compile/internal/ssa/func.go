@@ -753,16 +753,17 @@ func (f *Func) Warnl(pos src.XPos, msg string, args ...any) { f.fe.Warnl(pos, ms
 func (f *Func) Logf(msg string, args ...any)                { f.fe.Logf(msg, args...) }
 func (f *Func) Log() bool                                   { return f.fe.Log() }
 
-func (f *Func) Fatalf(msg string, args ...any) {
-	stats := "crashed"
+func (f *Func) Fatalf(msg string, args ...any) { f.FatalfWithPos(f.Entry.Pos, msg, args...) }
+
+func (f *Func) FatalfWithPos(pos src.XPos, msg string, args ...any) {
 	if f.Log() {
-		f.Logf("  pass %s end %s\n", f.pass.name, stats)
+		f.Logf("  pass %s end crashed\n", f.pass.name)
 		printFunc(f)
 	}
 	if f.FatalCleanup != nil {
 		f.FatalCleanup()
 	}
-	f.fe.Fatalf(f.Entry.Pos, msg, args...)
+	f.fe.Fatalf(pos, msg, args...)
 }
 
 // postorder returns the reachable blocks in f in a postorder traversal.
