@@ -913,9 +913,9 @@ func (e *Encoder) OutputOffset() int64 {
 //	b = append(b, '"')
 //	... := e.WriteValue(b)
 //
-// WriteValue expects a JSON value. Using AvailableBuffer to manually construct
-// a value requires caution to avoid producing an invalid JSON value that would
-// then cause WriteValue to fail.
+// Note that WriteValue expects a valid JSON value. Constructing a value in a
+// raw []byte requires more care than using constructor functions like
+// [String], which always return valid [Token]s or [Value]s.
 func (e *Encoder) AvailableBuffer() []byte {
 	// NOTE: We don't return e.Buf[len(e.Buf):cap(e.Buf)] since WriteValue would
 	// need to take special care to avoid mangling the data while reformatting.
