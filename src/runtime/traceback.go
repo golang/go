@@ -74,6 +74,13 @@ const (
 	unwindJumpStack
 )
 
+// errFatal reports whether an unwinding error should throw rather than be
+// tolerated: always with neither unwindPrintErrors nor unwindSilentErrors
+// set (e.g. GC unwinds), or under GODEBUG=tracebackcrash=1.
+func (u *unwinder) errFatal() bool {
+	return u.flags&(unwindPrintErrors|unwindSilentErrors) == 0 || debug.tracebackcrash != 0
+}
+
 // An unwinder iterates the physical stack frames of a Go sack.
 //
 // Typical use of an unwinder looks like:
@@ -455,10 +462,7 @@ func (u *unwinder) next() {
 	flr := findfunc(frame.lr)
 	if !flr.valid() {
 		// This happens if you get a profiling interrupt at just the wrong time.
-		// In that context it is okay to stop early.
-		// But if no error flags are set, we're doing a garbage collection and must
-		// get everything, so crash loudly.
-		fail := u.flags&(unwindPrintErrors|unwindSilentErrors) == 0
+		fail := u.errFatal()
 		doPrint := u.flags&unwindSilentErrors == 0
 		if doPrint && gp.m != nil && gp.m.incgo && f.funcID == abi.FuncID_sigpanic {
 			// We can inject sigpanic
@@ -480,10 +484,25 @@ func (u *unwinder) next() {
 	}
 
 	if frame.pc == frame.lr && frame.sp == frame.fp {
-		// If the next frame is identical to the current frame, we cannot make progress.
-		print("runtime: traceback stuck. pc=", hex(frame.pc), " sp=", hex(frame.sp), "\n")
-		tracebackHexdump(gp.stack, frame, frame.sp)
-		throw("traceback stuck")
+		// If the next frame is identical to the current frame, we cannot make
+		// progress, like the invalid-caller-PC case above. A stuck frame does not
+		// always mean the stack is corrupt: a signal can land in machine code the
+		// runtime has no unwind information for, such as a JIT or an assembly blob
+		// entered by a jump from a frameless Go symbol, whose prologue leaves
+		// pc == lr and sp == fp. Such generated machine code is an ABI violation,
+		// but does not imply the stack is corrupt. Do not unwind, because no
+		// amount of unwinding can recover that failure class.
+		fail := u.errFatal()
+		if fail || u.flags&unwindSilentErrors == 0 {
+			print("runtime: traceback stuck. pc=", hex(frame.pc), " sp=", hex(frame.sp), "\n")
+			tracebackHexdump(gp.stack, frame, frame.sp)
+		}
+		if fail {
+			throw("traceback stuck")
+		}
+		frame.lr = 0
+		u.finishInternal()
+		return
 	}
 
 	injectedCall := isInjectedCall(f.funcID)
