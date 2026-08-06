@@ -84,10 +84,12 @@
 //     to instead be encoded as a JSON number quoted within a JSON string,
 //     and to be decoded from a JSON string containing the JSON number
 //     without any surrounding whitespace.
-//     The "string" option only applies to the top-level of the Go struct field value.
-//     Specifically, for the default representation of composite Go data types
-//     (e.g., array, slice, struct, or map), it will not stringify JSON numbers
-//     within such types. Applying this option to invalid types causes a runtime error.
+//     The "string" option only applies to the top-level of the Go struct field
+//     value. Applying this option to any type that does not encode as a JSON
+//     number causes a runtime error. Specifically, for the default
+//     representation of composite Go data types (e.g., array, slice, struct,
+//     or map), it will cause a runtime error rather than affecting JSON
+//     numbers within such types.
 //     This extra level of encoding is often necessary since many JSON parsers
 //     cannot precisely represent 64-bit integers.
 //
