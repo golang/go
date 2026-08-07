@@ -274,7 +274,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 			c.ops.WriteCache(file, data)
 		}
 
-		return cached{data, nil}
+		return cached{text, nil}
 	}).(cached)
 	if result.err != nil {
 		return nil, result.err
