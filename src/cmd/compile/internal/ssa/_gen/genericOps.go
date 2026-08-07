@@ -738,12 +738,8 @@ var genericOps = []opData{
 	{name: "IsNaNFloat64x4", argLength: 1},
 	{name: "IsNaNFloat64x8", argLength: 1},
 
-	// SVE ops
-	{name: "Count8s", argLength: 1},                     // arg0 = count
-	{name: "AddInt8s", argLength: 2, commutative: true}, // arg0 = x, arg1 = y
-	{name: "MergeInt8s", argLength: 3},                  // arg0 = x, arg1 = y, arg2 = mask
-	{name: "GreaterInt8s", argLength: 2},                // arg0 = x, arg1 = y
-	{name: "ScalableVectorLen", argLength: 0},           // SVE vector length
+	{name: "ScalableVectorLen", argLength: 0}, // SVE runtime vector length in bytes
+	{name: "Count8s", argLength: 1},           // arg0 = active byte count; builds an SVE predicate over that many byte lanes
 }
 
 //     kind          controls          successors   implicit exit

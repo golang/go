@@ -347,6 +347,12 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 		panic("simdgen does not understand memory as output as of now")
 	}
 	regInfo += fixedName
+	if CurrentArch().isSVE() && strings.HasPrefix(regInfo, "v") {
+		// SVE vectors live in the scalable Z bank, not the NEON V bank, so name
+		// their shapes with a "z" (z21, z11, ...). This keeps the generated
+		// lowering helpers (simdZ21) and regInfo keys distinct from NEON's.
+		regInfo = "z" + regInfo[1:]
+	}
 	return regInfo, nil
 }
 

@@ -769,13 +769,16 @@ func genOp() {
 		if err != nil {
 			log.Fatalf("can't read %s: %v", a.genfile, err)
 		}
-		// Append the file of simd operations, too
+		// Append the file(s) of simd operations, too. genSIMDfile may list
+		// several space-separated paths (e.g. NEON plus SVE for ARM64).
 		if a.genSIMDfile != "" {
-			simdSrc, err := os.ReadFile(a.genSIMDfile)
-			if err != nil {
-				log.Fatalf("can't read %s: %v", a.genSIMDfile, err)
+			for _, f := range strings.Fields(a.genSIMDfile) {
+				simdSrc, err := os.ReadFile(f)
+				if err != nil {
+					log.Fatalf("can't read %s: %v", f, err)
+				}
+				src = append(src, simdSrc...)
 			}
-			src = append(src, simdSrc...)
 		}
 
 		seen := make(map[string]bool, len(a.ops))

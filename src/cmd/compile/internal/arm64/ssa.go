@@ -653,13 +653,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
-		p := s.Prog(loadByType(v.Type))
-		ssagen.AddrAuto(&p.From, v.Args[0])
-		p.To.Type = obj.TYPE_REG
 		if v.Type.IsSIMD() && (v.Type.Size() == 32 || v.Type.Size() == 8) {
+			// SVE Z/P reload: reach the slot through a register.
+			from := sveStackAddr(s, v.Args[0])
+			p := s.Prog(loadByType(v.Type))
+			p.From = from
+			p.To.Type = obj.TYPE_REG
 			p.To.Reg = pzreg(v.Reg())
-			p.From.Scale = simdSVEVectorLengthScaled
 		} else {
+			p := s.Prog(loadByType(v.Type))
+			ssagen.AddrAuto(&p.From, v.Args[0])
+			p.To.Type = obj.TYPE_REG
 			p.To.Reg = v.Reg()
 		}
 	case ssaop.OpStoreReg:
@@ -667,15 +671,19 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
-		p := s.Prog(storeByType(v.Type))
-		p.From.Type = obj.TYPE_REG
 		if v.Type.IsSIMD() && (v.Type.Size() == 32 || v.Type.Size() == 8) {
+			// SVE Z/P spill: reach the slot through a register.
+			to := sveStackAddr(s, v)
+			p := s.Prog(storeByType(v.Type))
+			p.From.Type = obj.TYPE_REG
 			p.From.Reg = pzreg(v.Args[0].Reg())
-			p.To.Scale = simdSVEVectorLengthScaled
+			p.To = to
 		} else {
+			p := s.Prog(storeByType(v.Type))
+			p.From.Type = obj.TYPE_REG
 			p.From.Reg = v.Args[0].Reg()
+			ssagen.AddrAuto(&p.To, v)
 		}
-		ssagen.AddrAuto(&p.To, v)
 	case ssaop.OpArgIntReg, ssaop.OpArgFloatReg:
 		ssagen.CheckArgReg(v)
 		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
@@ -766,21 +774,50 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssaop.OpARM64ZADDBPred:
-		// TODO: maybe merge destructive args to be one register.
-		// Currently they are listed as both a source and the dest
-		// even though the assembler will reject it if they are not
-		// the same.
+	case ssaop.OpARM64ZLDRload:
+		// Whole-register load of a scalable vector, e.g. ZLDR (VL*0)(R0), Z1.
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.From.Scale = simdSVEVectorLengthScaled
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pzreg(v.Reg())
+	case ssaop.OpARM64ZSTRstore:
+		// Whole-register VL-scaled store of a scalable vector: ZSTR Zn, (mem).
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_B)
-		p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arm64.ARNG_B))
-		p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M))
+		p.From.Reg = pzreg(v.Args[1].Reg())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.To.Scale = simdSVEVectorLengthScaled
+		ssagen.AddAux(&p.To, v)
+	case ssaop.OpARM64ZDUPBconst:
+		// Broadcast an 8-bit immediate to every byte lane (ZeroSIMD uses [0]).
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = zregArng(v.Reg(), arm64.ARNG_B)
+	case ssaop.OpARM64RDVL:
+		// Read the vector length in bytes into a GP register, e.g. RDVL $1, R0.
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssaop.OpARM64PWHILELTB:
+		// Predicate enabling byte lanes [lo,hi), e.g. PWHILELT R0, R1, P0.B.
+		// SSA provides arg0=lo, arg1=hi.
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.AddRestSourceReg(v.Args[0].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pregArng(v.Reg0(), arm64.ARNG_B)
 	case ssaop.OpARM64ZLD1BPredload:
-		// ASM expects: arg0=addr, arg1=pred, dst=[zreg]
-		// SSA op provides: arg0=addr, arg1=pred, dst=zreg
+		// Predicated contiguous byte load, e.g. ZLD1B (VL*0)(R0), P0.Z, [Z0.B].
+		// arg0=addr, arg1=pred, arg2=mem.
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -790,76 +827,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REGLIST
 		p.To.Offset, _ = arm64.RegisterListOffset(int(pzreg(v.Reg())), 1, regListArr("Z", "B"), 0)
 	case ssaop.OpARM64ZST1BPredstore:
-		// ASM expects: arg0=[zreg], arg1=pred, dst=addr
-		// SSA op provides: arg0=addr, arg1=zreg, arg2=pred
+		// Predicated contiguous byte store, e.g. ZST1B [Z0.B], P0, (VL*0)(R0).
+		// arg0=addr, arg1=Z, arg2=pred, arg3=mem.
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REGLIST
 		p.From.Offset, _ = arm64.RegisterListOffset(int(pzreg(v.Args[1].Reg())), 1, regListArr("Z", "B"), 0)
-		p.AddRestSourceReg(v.Args[2].Reg())
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		p.To.Scale = simdSVEVectorLengthScaled
-		ssagen.AddAux(&p.To, v)
-	case ssaop.OpARM64PWHILELTB:
-		// ASM expects: arg0=y, arg1=x, dst=preg
-		// preg enables y-x
-		// SSA op provides: arg0=x, arg1=y, dst=preg
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[1].Reg()
-		p.AddRestSourceReg(v.Args[0].Reg())
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = pregArng(v.Reg0(), arm64.ARNG_B)
-	case ssaop.OpARM64ZCMPGTB:
-		// Asm expects arg0=y, arg1=x, arg2=pred, dst=preg
-		// preg enables x > y
-		// SSA op provides arg0=x, arg1=y, arg2=pred, dst=preg
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_B)
-		p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arm64.ARNG_B))
-		p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_Z))
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = pregArng(v.Reg0(), arm64.ARNG_B)
-	case ssaop.OpARM64ZSELB:
-		// Asm expects: arg0=y, arg1=x, arg2=preg, dst=zreg
-		// preg true, dst is x, otherwise it's y
-		// SSA op provides: arg0=x, arg1=y, arg2=preg, dst=zreg
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_B)
-		p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arm64.ARNG_B))
-		p.AddRestSourceReg(v.Args[2].Reg())
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = zregArng(v.Reg(), arm64.ARNG_B)
-	case ssaop.OpARM64RDVL:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-	case ssaop.OpARM64PPFALSE:
-		p := s.Prog(v.Op.Asm())
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = pregArng(v.Reg(), arm64.ARNG_B)
-	case ssaop.OpARM64ZDUPBconst:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = zregArng(v.Reg(), arm64.ARNG_B)
-	case ssaop.OpARM64ZLDRload, ssaop.OpARM64PLDRload:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[0].Reg()
-		p.From.Scale = simdSVEVectorLengthScaled
-		ssagen.AddAux(&p.From, v)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = pzreg(v.Reg())
-	case ssaop.OpARM64ZSTRstore, ssaop.OpARM64PSTRstore:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = pzreg(v.Args[1].Reg())
+		p.AddRestSourceReg(v.Args[2].Reg()) // store uses a plain governing predicate (no .Z/.M)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Scale = simdSVEVectorLengthScaled
@@ -2095,10 +2068,36 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	default:
-		if !ssaGenSIMDValue(s, v) {
+		if !ssaGenSIMDValue(s, v) && !ssaGenSIMDSVEValue(s, v) {
 			v.Fatalf("genValue not implemented: %s", v.LongString())
 		}
 	}
+}
+
+// sveStackAddr materializes the byte address of SVE stack slot into REGTMP and
+// returns a memory operand addressing it with a zero VL-scaled offset. SVE Z/P
+// loads and stores only support VL-scaled immediate addressing, so a fixed byte
+// frame offset — which is not a compile-time multiple of the runtime VL and can
+// exceed the ±256-VL immediate range — must be reached through a register.
+func sveStackAddr(s *ssagen.State, slot *ssa.Value) obj.Addr {
+	p := s.Prog(arm64.AMOVD)
+	ssagen.AddrAuto(&p.From, slot)
+	p.From.Type = obj.TYPE_ADDR // MOVD $slot(SP), REGTMP: address of the slot
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = arm64.REGTMP
+	return obj.Addr{Type: obj.TYPE_MEM, Reg: arm64.REGTMP, Scale: simdSVEVectorLengthScaled}
+}
+
+// simdZ21 emits an unpredicated SVE binary Z-register instruction with the given
+// element arrangement, e.g. ZADD Z2.B, Z0.B, Z1.B.
+func simdZ21(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[1].Reg(), arng)        // Zm
+	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng)) // Zn
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
 }
 
 var condBits = map[ssaop.Op]arm64.SpecialOperand{

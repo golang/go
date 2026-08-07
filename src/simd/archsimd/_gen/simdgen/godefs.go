@@ -244,13 +244,52 @@ var demotingConvertOps = map[string]bool{
 	"VPMOVWBMasked128": true, "VPMOVSWBMasked128": true, "VPMOVUSWBMasked128": true,
 }
 
+// sveArrangementLetter returns the SVE element-size arrangement letter
+// (B=8, H=16, S=32, D=64) that names an SVE machine op, or "" when the target
+// is not SVE. The letter comes from the operation's governing element width:
+// the output vreg's elemBits, else the first vreg/mask operand's elemBits.
+func sveArrangementLetter(gOp Operation) string {
+	if !CurrentArch().isSVE() {
+		return ""
+	}
+	elemBits := 0
+	pick := func(ops []Operand) {
+		if elemBits != 0 {
+			return
+		}
+		for i := range ops {
+			if c := ops[i].Class; (c == "vreg" || c == "mask") && ops[i].ElemBits != nil {
+				elemBits = *ops[i].ElemBits
+				return
+			}
+		}
+	}
+	pick(gOp.Out)
+	pick(gOp.In)
+	switch elemBits {
+	case 8:
+		return "B"
+	case 16:
+		return "H"
+	case 32:
+		return "S"
+	case 64:
+		return "D"
+	}
+	panic(fmt.Errorf("SVE op %s has no B/H/S/D element width (elemBits=%d)", gOp.Asm, elemBits))
+}
+
 func machineOpName(maskType maskShape, gOp Operation) string {
 	asm := gOp.Asm
 	if maskType == OneMask {
 		asm += "Masked"
 	}
 	// For ARM64, use arrangement to create distinct SSA op names
-	if gOp.Arrangement != nil && *gOp.Arrangement != "" {
+	if letter := sveArrangementLetter(gOp); letter != "" {
+		// SVE: scalable vectors have no fixed width, so distinguish machine ops
+		// by element-size arrangement letter (B/H/S/D), e.g. ZADD -> ZADDB.
+		asm += letter
+	} else if gOp.Arrangement != nil && *gOp.Arrangement != "" {
 		asm = fmt.Sprintf("%s%s", asm, *gOp.Arrangement)
 	} else {
 		asm = fmt.Sprintf("%s%d", asm, gOp.VectorWidth())
@@ -392,6 +431,60 @@ type Operand struct {
 	ListNumber *int
 }
 
+// maxVectorBits is the fixed width simdgen models a scalable SVE vector as: the
+// maximum vector length Go currently supports (256 bits / 32 bytes). Scalable
+// operands decode to this width and their lane counts derive from it.
+const maxVectorBits = 256
+
+// DecodeUnified translates an SVE scalable operand's bits:"scalable" marker into
+// the concrete Go-visible width before the generic struct decode. The SVE loader
+// emits bits:"scalable" (a non-numeric discriminator) so scalable operands never
+// unify with the fixed-width NEON/AVX types that share types.yaml; by the time we
+// decode, unification is done and Bits (an *int) needs a real width. We use
+// maxVectorBits and derive lanes = maxVectorBits/elemBits. Non-scalable operands
+// (numeric bits) decode unchanged.
+func (o *Operand) DecodeUnified(v *unify.Value) error {
+	type operandAlias Operand // no DecodeUnified method: avoids recursion
+	def, ok := v.Domain.(unify.Def)
+	if !ok {
+		return v.Decode((*operandAlias)(o))
+	}
+	scalable, hasLanes, elemBits := false, false, 0
+	for name, fv := range def.All() {
+		switch name {
+		case "bits":
+			var s string
+			if err := fv.Decode(&s); err == nil && s == "scalable" {
+				scalable = true
+			}
+		case "lanes":
+			hasLanes = true
+		case "elemBits":
+			fv.Decode(&elemBits)
+		}
+	}
+	if !scalable {
+		return v.Decode((*operandAlias)(o))
+	}
+	// A scalable operand is a vector/mask whose element width is a lane property,
+	// so it always has elemBits and therefore a derivable lane count.
+	if elemBits == 0 {
+		return fmt.Errorf("scalable operand has no elemBits: %v", v)
+	}
+	var db unify.DefBuilder
+	for name, fv := range def.All() {
+		if name == "bits" {
+			db.Add("bits", unify.NewValue(unify.NewStringExact(fmt.Sprint(maxVectorBits))))
+			continue
+		}
+		db.Add(name, fv)
+	}
+	if !hasLanes {
+		db.Add("lanes", unify.NewValue(unify.NewStringExact(fmt.Sprint(maxVectorBits/elemBits))))
+	}
+	return unify.NewValue(db.Build()).Decode((*operandAlias)(o))
+}
+
 // isDigit returns true if the byte is an ASCII digit.
 func isDigit(b byte) bool {
 	return b >= '0' && b <= '9'
@@ -526,28 +619,33 @@ func writeGoDefs(cl unify.Closure) error {
 	typeMap := parseSIMDTypes(deduped)
 
 	archInfo := CurrentArch()
+	// Generated files are named by GoTypeArch: the Go API files directly, the
+	// backend files by SIMDTag. For amd64/arm64 these match the
+	// GOARCH, so those filenames are unchanged; only SVE diverges (sve/SVE) so its
+	// output sits alongside the NEON arm64 files instead of overwriting them.
+	simdTag := archInfo.SIMDTag
+	goTypeArch := archInfo.GoTypeArch
 	archLower := archInfo.Arch
-	archUpper := archInfo.ArchUpper
 
 	var files gentools.Files
 	defer files.FlushOrExit()
 
-	writeSIMDTypes(files.NewGoFile(simdPackage+"/types_"+archLower+".go"), typeMap)
+	writeSIMDTypes(files.NewGoFile(simdPackage+"/types_"+goTypeArch+".go"), typeMap)
 	// TODO: Enable CPU feature generation for non-x86 architectures.
 	if archLower == "amd64" {
 		writeSIMDFeatures(files.NewGoFile(simdPackage+"/cpu.go"), deduped)
 	}
 	writeSIMDStubs(
-		files.NewGoFile(simdPackage+"/ops_"+archLower+".go"),
-		files.NewGoFile(simdPackage+"/ops_internal_"+archLower+".go"),
+		files.NewGoFile(simdPackage+"/ops_"+goTypeArch+".go"),
+		files.NewGoFile(simdPackage+"/ops_internal_"+goTypeArch+".go"),
 		deduped, typeMap, archLower == "amd64",
 	)
-	writeSIMDIntrinsics(files.NewGoFile("cmd/compile/internal/ssagen/simd"+archUpper+"intrinsics.go"), deduped, typeMap)
+	writeSIMDIntrinsics(files.NewGoFile("cmd/compile/internal/ssagen/simd"+simdTag+"intrinsics.go"), deduped, typeMap)
 	const simdGenericOpsFile = "cmd/compile/internal/ssa/_gen/simdgenericOps.go"
 	writeSIMDGenericOps(files.NewGoFile(simdGenericOpsFile), deduped, genFlags.InputPath(simdGenericOpsFile))
-	writeSIMDMachineOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+archUpper+"ops.go"), deduped)
-	writeSIMDSSA(files.NewGoFile("cmd/compile/internal/"+archLower+"/simdssa.go"), deduped)
-	writeSIMDRules(files.NewRawFile("cmd/compile/internal/ssa/_gen/simd"+archUpper+".rules"), deduped)
+	writeSIMDMachineOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+"ops.go"), deduped)
+	writeSIMDSSA(files.NewGoFile("cmd/compile/internal/"+archLower+"/"+archInfo.ssaGenFile()), deduped)
+	writeSIMDRules(files.NewRawFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+".rules"), deduped)
 
 	return nil
 }

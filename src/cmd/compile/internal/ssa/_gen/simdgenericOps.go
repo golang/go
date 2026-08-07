@@ -31,21 +31,27 @@ func simdGenericOps() []opData {
 		{name: "AbsInt64x2", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt64x4", argLength: 1},                                              // ARCH:amd64
 		{name: "AbsInt64x8", argLength: 1},                                              // ARCH:amd64
+		{name: "AddFloat32s", argLength: 2, commutative: true},                          // ARCH:sve
 		{name: "AddFloat32x4", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "AddFloat32x8", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "AddFloat32x16", argLength: 2, commutative: true},                        // ARCH:amd64
+		{name: "AddFloat64s", argLength: 2, commutative: true},                          // ARCH:sve
 		{name: "AddFloat64x2", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "AddFloat64x4", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "AddFloat64x8", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "AddInt8s", argLength: 2, commutative: true},                             // ARCH:sve
 		{name: "AddInt8x16", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "AddInt8x32", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "AddInt8x64", argLength: 2, commutative: true},                           // ARCH:amd64
+		{name: "AddInt16s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "AddInt16x8", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "AddInt16x16", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "AddInt16x32", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "AddInt32s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "AddInt32x4", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "AddInt32x8", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "AddInt32x16", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "AddInt64s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "AddInt64x2", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "AddInt64x4", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "AddInt64x8", argLength: 2, commutative: true},                           // ARCH:amd64
@@ -53,31 +59,43 @@ func simdGenericOps() []opData {
 		{name: "AddOddSubEvenFloat32x8", argLength: 2},                                  // ARCH:amd64
 		{name: "AddOddSubEvenFloat64x2", argLength: 2},                                  // ARCH:amd64
 		{name: "AddOddSubEvenFloat64x4", argLength: 2},                                  // ARCH:amd64
+		{name: "AddSaturatedInt8s", argLength: 2, commutative: true},                    // ARCH:sve
 		{name: "AddSaturatedInt8x16", argLength: 2, commutative: true},                  // ARCH:amd64,arm64,wasm
 		{name: "AddSaturatedInt8x32", argLength: 2, commutative: true},                  // ARCH:amd64
 		{name: "AddSaturatedInt8x64", argLength: 2, commutative: true},                  // ARCH:amd64
+		{name: "AddSaturatedInt16s", argLength: 2, commutative: true},                   // ARCH:sve
 		{name: "AddSaturatedInt16x8", argLength: 2, commutative: true},                  // ARCH:amd64,arm64,wasm
 		{name: "AddSaturatedInt16x16", argLength: 2, commutative: true},                 // ARCH:amd64
 		{name: "AddSaturatedInt16x32", argLength: 2, commutative: true},                 // ARCH:amd64
+		{name: "AddSaturatedInt32s", argLength: 2, commutative: true},                   // ARCH:sve
 		{name: "AddSaturatedInt32x4", argLength: 2, commutative: true},                  // ARCH:arm64
+		{name: "AddSaturatedInt64s", argLength: 2, commutative: true},                   // ARCH:sve
 		{name: "AddSaturatedInt64x2", argLength: 2, commutative: true},                  // ARCH:arm64
+		{name: "AddSaturatedUint8s", argLength: 2, commutative: true},                   // ARCH:sve
 		{name: "AddSaturatedUint8x16", argLength: 2, commutative: true},                 // ARCH:amd64,arm64,wasm
 		{name: "AddSaturatedUint8x32", argLength: 2, commutative: true},                 // ARCH:amd64
 		{name: "AddSaturatedUint8x64", argLength: 2, commutative: true},                 // ARCH:amd64
+		{name: "AddSaturatedUint16s", argLength: 2, commutative: true},                  // ARCH:sve
 		{name: "AddSaturatedUint16x8", argLength: 2, commutative: true},                 // ARCH:amd64,arm64,wasm
 		{name: "AddSaturatedUint16x16", argLength: 2, commutative: true},                // ARCH:amd64
 		{name: "AddSaturatedUint16x32", argLength: 2, commutative: true},                // ARCH:amd64
+		{name: "AddSaturatedUint32s", argLength: 2, commutative: true},                  // ARCH:sve
 		{name: "AddSaturatedUint32x4", argLength: 2, commutative: true},                 // ARCH:arm64
+		{name: "AddSaturatedUint64s", argLength: 2, commutative: true},                  // ARCH:sve
 		{name: "AddSaturatedUint64x2", argLength: 2, commutative: true},                 // ARCH:arm64
+		{name: "AddUint8s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "AddUint8x16", argLength: 2, commutative: true},                          // ARCH:amd64,arm64
 		{name: "AddUint8x32", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "AddUint8x64", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "AddUint16s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "AddUint16x8", argLength: 2, commutative: true},                          // ARCH:amd64,arm64
 		{name: "AddUint16x16", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "AddUint16x32", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "AddUint32s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "AddUint32x4", argLength: 2, commutative: true},                          // ARCH:amd64,arm64
 		{name: "AddUint32x8", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "AddUint32x16", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "AddUint64s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "AddUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64,arm64
 		{name: "AddUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "AddUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64

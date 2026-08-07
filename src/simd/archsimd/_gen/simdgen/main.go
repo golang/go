@@ -4,7 +4,7 @@
 
 // simdgen is an experiment in generating Go <-> asm SIMD mappings.
 //
-// Usage: simdgen [-arch=amd64|arm64] [-xedPath=path] [-arm64Path=path] [-svePath=path] [-q=query] input.yaml...
+// Usage: simdgen [-arch=amd64|arm64|sve] [-xedPath=path] [-arm64Path=path] [-q=query] input.yaml...
 //
 // The external data inputs (XED data for amd64 or ARM64 ISA XML specs for arm64 and sve)
 // are resolved automatically via search paths including standard environment variables

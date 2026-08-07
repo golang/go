@@ -165,6 +165,14 @@ func main() {
 }
 
 func removeSimdGenericOps(ssaGenPath string) {
+	if *flagN {
+		// Dry run: keep the file. Without this, `go generate -n` (or any run that
+		// stops before regenerating — e.g. an unset XEDPATH failing the amd64
+		// step even when the arm64 path is valid) still deletes simdgenericOps.go
+		// here, and a later single -arch run recreates it with only that arch's
+		// ops, silently dropping the others.
+		return
+	}
 	ssaSimdGenericOps := filepath.Join(ssaGenPath, "simdgenericOps.go")
 	if _, err := os.Stat(ssaSimdGenericOps); err == nil {
 		if err = os.Remove(ssaSimdGenericOps); err != nil {
@@ -190,6 +198,12 @@ func doSimdgen(xedPath, armPath string, files *gentools.Files) {
 	armArgs := append([]string{"-C", "simdgen", ".", "-o", "godefs", "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath)}, files.ExecFlags()...)
 	armArgs = append(armArgs, "go_arm64.yaml", "types.yaml", "categories.yaml")
 	goRun(armArgs...)
+
+	// Regenerate the ARM64 SVE files. SVE reads the same A64 ISA data as NEON,
+	// but is a separate target with its own generated files.
+	sveArgs := append([]string{"-C", "simdgen", ".", "-o", "godefs", "-arch", "sve", "-arm64Path", prettyPath("./simdgen", armPath)}, files.ExecFlags()...)
+	sveArgs = append(sveArgs, "go_sve.yaml", "types.yaml", "categories.yaml")
+	goRun(sveArgs...)
 
 	// Regenerate the XED-derived SIMD files
 	amdArgs := append([]string{"-C", "simdgen", ".", "-o", "godefs", "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath)}, files.ExecFlags()...)

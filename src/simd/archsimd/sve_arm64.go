@@ -2,40 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd
+//go:build goexperiment.simd && arm64
 
 package archsimd
 
-// vsve is a tag type for SVE vectors.
-type vsve struct {
-	_sve [0]func() // uncomparable
-}
-
-// psve is a tag type for SVE predicates.
-type psve struct {
-	_sve [0]func() // uncomparable
-}
-
-// Int8s is an SVE vector of int8s.
-type Int8s struct {
-	int8s vsve
-	vals  [32]int8
-}
-
-// Mask8s is an SVE predicate for 8-bit elements.
-type Mask8s struct {
-	mask8s psve
-	vals   uint32
-}
-
-func (v *Int8s) Len() int {
-	return vl()
-}
-
-func (m *Mask8s) Len() int {
-	return vl()
-}
-
+// vl reports the SVE hardware vector length in bytes. It is an intrinsic,
+// lowered to the RDVL instruction.
 func vl() int
 
 func init() {

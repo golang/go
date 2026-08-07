@@ -34,6 +34,26 @@ func (x simdType) ElemBits() int {
 	return x.Size / x.Lanes
 }
 
+// IsScalable reports whether this vector type's length is only known at run
+// time. A scalable target's godefs run produces only scalable types, so the
+// target decides it.
+func (x simdType) IsScalable() bool {
+	return CurrentArch().Scalable
+}
+
+// LenExpr is the body expression of the type's Len() method. A fixed-width type
+// has a constant lane count; a scalable vector's active lane count is the
+// runtime vector length (bytes) divided by the element size.
+func (x simdType) LenExpr() string {
+	if !x.IsScalable() {
+		return fmt.Sprint(x.Lanes)
+	}
+	if elemBytes := x.ElemBits() / 8; elemBytes > 1 {
+		return fmt.Sprintf("vl() / %d", elemBytes)
+	}
+	return "vl()"
+}
+
 func (x *simdType) Name_() string {
 	return x.Name
 }
@@ -163,8 +183,16 @@ func compareSimdTypePairs(x, y simdTypePair) int {
 }
 
 func simdPackageHeader() string {
+	// A shared-package target's Go API files (SVE: types_sve.go, ops_sve.go) carry a
+	// "sve" name suffix, which is not a GOARCH, so unlike types_arm64.go they get
+	// no implicit build constraint. Add the GOARCH explicitly so they only build
+	// on their host arch and don't clash with other arches' tag types (e.g. v256).
+	constraint := "goexperiment.simd"
+	if a := CurrentArch(); a.sharesBackendPackage() {
+		constraint += " && " + a.Arch
+	}
 	return generatedHeader() + `
-//go:build goexperiment.simd
+//go:build ` + constraint + `
 
 package archsimd
 `
@@ -183,6 +211,18 @@ type v{{.}} struct {
 // {{.Name}} is a mask for a SIMD vector of {{.Lanes}} {{.ElemBits}}-bit elements.
 {{- else}}
 // {{.Name}} is a {{.Size}}-bit SIMD vector of {{.Lanes}} {{.Base}}s.
+{{- end}}
+type {{.Name}} struct {
+{{.Fields}}
+}
+
+{{end}}
+
+{{define "scalableTypeTmpl"}}
+{{- if eq .Type "mask"}}
+// {{.Name}} is a scalable mask for a SIMD vector of {{.ElemBits}}-bit elements.
+{{- else}}
+// {{.Name}} is a scalable SIMD vector of {{.Base}}s.
 {{- end}}
 type {{.Name}} struct {
 {{.Fields}}
@@ -229,7 +269,7 @@ func ({{.FeatureVar}}Features) {{.Feature}}() bool {
 
 const simdLoadStoreTemplate = `
 // Len returns the number of elements in {{.Article}} {{.Name}}.
-func (x {{.Name}}) Len() int { return {{.Lanes}} }
+func (x {{.Name}}) Len() int { return {{.LenExpr}} }
 
 // Load{{.Name}}Array loads {{.Article}} {{.Name}} from an array.
 //
@@ -240,6 +280,76 @@ func Load{{.Name}}Array(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
 //
 //go:noescape
 func (x {{.Name}}) StoreArray(y *[{{.Lanes}}]{{.Base}})
+`
+
+// simdScalableLoadStoreTemplate is the load/store surface for scalable (SVE)
+// types: partial and slice-based rather than fixed-array. The exported Load/Store
+// functions are ordinary Go (the "emulation"): they compute how many elements to
+// move — min(len(s), Len()), and nothing for an empty or nil slice — and call the
+// unexported raw predicated load/store intrinsic. Keeping the length logic in Go
+// (rather than in the intrinsic) makes the bounds behavior explicit and safe.
+const simdScalableLoadStoreTemplate = `
+// Len returns the number of elements in {{.Article}} {{.Name}}.
+func (x {{.Name}}) Len() int { return {{.LenExpr}} }
+
+// Load{{.Name}} loads {{.Article}} {{.Name}} from the first Len() elements of s.
+// It panics if len(s) < Len().
+//
+// Asm: Emulated (a length check that can panic, then ZLDR).
+func Load{{.Name}}(s []{{.Base}}) {{.Name}} {
+	var z {{.Name}}
+	if len(s) < z.Len() {
+		panic("simd: Load{{.Name}}: slice shorter than the vector")
+	}
+	return load{{.Name}}(s)
+}
+
+//go:noescape
+func load{{.Name}}(s []{{.Base}}) {{.Name}}
+
+// Store stores x's Len() elements into the first Len() elements of s. It panics
+// if len(s) < Len().
+//
+// Asm: Emulated (a length check that can panic, then ZSTR).
+func (x {{.Name}}) Store(s []{{.Base}}) {
+	if len(s) < x.Len() {
+		panic("simd: {{.Name}}.Store: slice shorter than the vector")
+	}
+	x.store(s)
+}
+
+//go:noescape
+func (x {{.Name}}) store(s []{{.Base}})
+
+// Load{{.Name}}Part loads {{.Article}} {{.Name}} from s, reading n = min(len(s),
+// Len()) elements and returning the vector and n; the remaining elements are
+// zero.
+//
+// Asm: Emulated (predicate construction + LD1B).
+func Load{{.Name}}Part(s []{{.Base}}) ({{.Name}}, int) {
+	if len(s) == 0 {
+		return {{.Name}}{}, 0
+	}
+	return load{{.Name}}Part(s), min(len(s), {{.Name}}{}.Len())
+}
+
+//go:noescape
+func load{{.Name}}Part(s []{{.Base}}) {{.Name}}
+
+// StorePart stores the low n = min(len(s), Len()) elements of x into s and
+// returns n.
+//
+// Asm: Emulated (predicate construction + ST1B).
+func (x {{.Name}}) StorePart(s []{{.Base}}) int {
+	if len(s) == 0 {
+		return 0
+	}
+	x.storePart(s)
+	return min(len(s), x.Len())
+}
+
+//go:noescape
+func (x {{.Name}}) storePart(s []{{.Base}})
 `
 
 const simdMaskFromValTemplate = `
@@ -567,6 +677,7 @@ func typesFromTypeMap(typeMap simdTypeMap) []simdType {
 func writeSIMDTypes(buffer *bytes.Buffer, typeMap simdTypeMap) {
 	t := templateOf(simdTypesTemplates, "types_amd64")
 	loadStore := templateOf(simdLoadStoreTemplate, "loadstore_amd64")
+	scalableLoadStore := templateOf(simdScalableLoadStoreTemplate, "loadstore_scalable")
 	maskedLoadStore := templateOf(simdMaskedLoadStoreTemplate, "maskedloadstore_amd64")
 	maskFromVal := templateOf(simdMaskFromValTemplate, "maskFromVal_amd64")
 
@@ -591,11 +702,21 @@ func writeSIMDTypes(buffer *bytes.Buffer, typeMap simdTypeMap) {
 			if typeDef.Lanes == 1 {
 				continue
 			}
-			if err := t.ExecuteTemplate(buffer, "typeTmpl", typeDef); err != nil {
+			typeTmplName := "typeTmpl"
+			if typeDef.IsScalable() {
+				typeTmplName = "scalableTypeTmpl"
+			}
+			if err := t.ExecuteTemplate(buffer, typeTmplName, typeDef); err != nil {
 				panic(fmt.Errorf("failed to execute type template for type %s: %w", typeDef.Name, err))
 			}
 			if typeDef.Type != "mask" {
-				if err := loadStore.ExecuteTemplate(buffer, "loadstore_amd64", typeDef); err != nil {
+				// Scalable (SVE) types get a partial, slice-based load/store; the
+				// fixed-width types get the array load/store.
+				ls, lsName := loadStore, "loadstore_amd64"
+				if typeDef.IsScalable() {
+					ls, lsName = scalableLoadStore, "loadstore_scalable"
+				}
+				if err := ls.ExecuteTemplate(buffer, lsName, typeDef); err != nil {
 					panic(fmt.Errorf("failed to execute loadstore template for type %s: %w", typeDef.Name, err))
 				}
 				// restrict to AVX2 masked loads/stores first.

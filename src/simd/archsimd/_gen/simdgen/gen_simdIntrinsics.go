@@ -34,6 +34,9 @@ func templateNamed(name string, templ string) *template.Template {
 		"GetArchUpper": func() string {
 			return archInfo.ArchUpper
 		},
+		"GetSIMDTag": func() string {
+			return archInfo.SIMDTag
+		},
 		"Hasmask": func() bool {
 			return archInfo.Arch == "amd64"
 		},
@@ -67,7 +70,7 @@ import (
 	"cmd/internal/sys"
 )
 
-func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
+func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
 `)
 
 	var intrinsicTemplates = new(intrinsicTemplateMap).
@@ -195,7 +198,10 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 	}
 
 	for _, typ := range typesFromTypeMap(typeMap) {
-		if typ.Type != "mask" {
+		// Scalable (SVE) types have no fixed-array load/store; their slice-based
+		// LoadPart/StorePart are hand-registered in ssagen for now.
+		// TODO: generate them here once simdgen supports predicates (mask CL).
+		if typ.Type != "mask" && !typ.IsScalable() {
 			loadStore.Execute(buffer, typ)
 		}
 	}

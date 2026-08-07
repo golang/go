@@ -17,7 +17,7 @@ func TestLookupOrZero(t *testing.T) {
 	indices := []uint8{7, 6, 5, 4, 3, 2, 1, 0, 0xff, 8, 16, 9, 128, 10, 20, 11}
 	want := []uint8{8, 7, 6, 5, 4, 3, 2, 1, 0, 9, 0, 10, 0, 11, 0, 12}
 	got := make([]uint8, len(x))
-	archsimd.LoadUint8x16(x).LookupOrZero(archsimd.LoadUint8x16(indices)).Store(got)
+	archsimd.LoadUint8x16(x).LookupOrZero(archsimd.LoadUint8x16(indices)).StorePart(got)
 	checkSlices(t, got, want)
 }
 
@@ -27,7 +27,7 @@ func TestClMul(t *testing.T) {
 
 	foo := func(v archsimd.Uint64x2, s []uint64) {
 		r := make([]uint64, 2, 2)
-		v.Store(r)
+		v.StorePart(r)
 		checkSlices[uint64](t, r, s)
 	}
 
@@ -38,37 +38,79 @@ func TestClMul(t *testing.T) {
 	foo(y.CarrylessMultiplyEven(y), []uint64{5, 0})
 }
 
-func TestAddSlice(t *testing.T) {
+//go:noinline
+func addInt8sNoinline(a, b archsimd.Int8s) archsimd.Int8s { return a.Add(b) }
+
+//go:noinline
+func blackholeSVE() {}
+
+// TestAddSVEAcrossCall passes scalable vectors across a real (non-inlined) ABI
+// boundary, exercising the register/stack passing that size.go's simdify decides
+// for SVE types.
+func TestAddSVEAcrossCall(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no sve")
 	}
-	testSize := 100
-	x := make([]int8, testSize)
-	y := make([]int8, testSize)
-	for i := 0; i < testSize; i++ {
-		x[i] = int8(i)
-		y[i] = int8(i + 1)
+	var a, b, got [32]int8
+	for i := range a {
+		a[i] = int8(i)
+		b[i] = int8(2*i + 1)
 	}
-	res := make([]int8, testSize)
-	expected := make([]int8, testSize)
-	for i := 0; i < testSize; i++ {
-		expected[i] = x[i] + y[i]
+	x := archsimd.LoadInt8s(a[:])
+	addInt8sNoinline(x, archsimd.LoadInt8s(b[:])).Store(got[:])
+	for i := 0; i < x.Len(); i++ {
+		if want := a[i] + b[i]; got[i] != want {
+			t.Errorf("lane %d: got %d, want %d", i, got[i], want)
+		}
 	}
-	for i := 0; i < testSize; i += 5 {
-		// The user can actually choose whatever stride they like.
-		// as long as the stride is less than VL, the result
-		// won't miss anything.
-		p := archsimd.Mask8sFromCount(5)
-		xv0, _ := archsimd.LoadInt8sPart(x[i:])
-		xv := xv0.Masked(p)
-		yv0, _ := archsimd.LoadInt8sPart(y[i:])
-		yv := yv0.Masked(p)
-		zv := xv.Add(yv).Masked(p)
-		zv.Masked(p).StorePart(res[i:])
+}
+
+// TestAddSVESpill keeps a scalable vector live across a call, forcing the
+// register allocator to spill and reload it (ZSTR/ZLDR).
+func TestAddSVESpill(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no sve")
 	}
-	for i := range res {
-		if res[i] != expected[i] {
-			t.Errorf("res[%d] = %d; want %d", i, res[i], expected[i])
+	var a, b, got [32]int8
+	for i := range a {
+		a[i] = int8(i)
+		b[i] = int8(100 - i)
+	}
+	sum := archsimd.LoadInt8s(a[:]).Add(archsimd.LoadInt8s(b[:]))
+	blackholeSVE() // clobbers caller-saved regs; sum must survive via a spill
+	sum.Store(got[:])
+	for i := 0; i < sum.Len(); i++ {
+		if want := a[i] + b[i]; got[i] != want {
+			t.Errorf("lane %d: got %d, want %d", i, got[i], want)
+		}
+	}
+}
+
+// TestAddSaturatedSVE checks that the generated saturating add saturates.
+func TestAddSaturatedSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no sve")
+	}
+	var si, gi [32]int8
+	for i := range si {
+		si[i] = 100 // 100+100 saturates to +127
+	}
+	vi := archsimd.LoadInt8s(si[:])
+	vi.AddSaturated(vi).Store(gi[:])
+	for i := 0; i < vi.Len(); i++ {
+		if gi[i] != 127 {
+			t.Errorf("int8 lane %d: got %d, want 127", i, gi[i])
+		}
+	}
+	var su, gu [32]uint8
+	for i := range su {
+		su[i] = 200 // 200+200 saturates to 255
+	}
+	vu := archsimd.LoadUint8s(su[:])
+	vu.AddSaturated(vu).Store(gu[:])
+	for i := 0; i < vu.Len(); i++ {
+		if gu[i] != 255 {
+			t.Errorf("uint8 lane %d: got %d, want 255", i, gu[i])
 		}
 	}
 }

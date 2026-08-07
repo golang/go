@@ -117,6 +117,13 @@ func genRulesSuffix(arch arch, suff string) {
 		if err == nil {
 			readers = append(readers, NamedReader{simdname, simdtext})
 		}
+		// SVE shares the ARM64 backend; add its generated rules too.
+		if arch.name == "ARM64" {
+			sveName := "simdARM64SVE.rules"
+			if sveText, err := os.Open(sveName); err == nil {
+				readers = append(readers, NamedReader{sveName, sveText})
+			}
+		}
 	}
 
 	// oprules contains a list of rules for each block and opcode

@@ -15,7 +15,7 @@ import (
 const simdMachineOpsTmpl = `
 package main
 
-func simd{{.ArchUpper}}Ops({{.RegInfoParams}}) []opData {
+func simd{{.SIMDTag}}Ops({{.RegInfoParams}}) []opData {
 	return []opData{
 {{- range .OpsData }}
 		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}",{{if .Comm}} commutative: true,{{end}} typ: "{{.Type}}"{{if .ResultInArg0}}, resultInArg0: true{{end}}},
@@ -55,7 +55,7 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 		ResultInArg0 bool
 	}
 	type machineOpsData struct {
-		ArchUpper         string
+		SIMDTag           string
 		RegInfoParams     string
 		OpsData           []opData
 		OpsDataImm        []opData
@@ -273,7 +273,7 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 	})
 
 	err := t.Execute(buffer, machineOpsData{
-		ArchUpper:         archInfo.ArchUpper,
+		SIMDTag:           archInfo.SIMDTag,
 		RegInfoParams:     archInfo.RegInfoParams,
 		OpsData:           opsData,
 		OpsDataImm:        opsDataImm,

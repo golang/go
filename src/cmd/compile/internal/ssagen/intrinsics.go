@@ -1679,7 +1679,27 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		simdAMD64Intrinsics(addF)
 		simdARM64Intrinsics(addF)
 		initWasmSIMD()
-		sveIntrinsics(addF)
+		simdARM64SVEIntrinsics(addF)
+		// Hand-written SVE infra intrinsic (not generated from a type op): vl
+		// reads the runtime vector length so the package can bound-check it.
+		addF(simdPackage, "vl", opLen0(ssaop.OpScalableVectorLen, types.Types[types.TINT]), sys.ARM64)
+		// TODO: generate these once simdgen supports predicates (mask CL).
+		for _, t := range []struct {
+			name  string
+			bytes int64
+		}{
+			{"Int8s", 1}, {"Uint8s", 1}, {"Int16s", 2}, {"Uint16s", 2},
+			{"Int32s", 4}, {"Uint32s", 4}, {"Float32s", 4},
+			{"Int64s", 8}, {"Uint64s", 8}, {"Float64s", 8},
+		} {
+			// The exported LoadT/StoreT and LoadTPart/StorePart are generated Go
+			// wrappers (see types_sve.go); only the raw whole-register and predicated
+			// load/store are intrinsics.
+			addF(simdPackage, "load"+t.name, sveLoadWhole(), sys.ARM64)
+			addF(simdPackage, t.name+".store", sveStoreWhole(), sys.ARM64)
+			addF(simdPackage, "load"+t.name+"Part", sveLoadPart(t.bytes), sys.ARM64)
+			addF(simdPackage, t.name+".storePart", sveStorePart(t.bytes), sys.ARM64)
+		}
 
 		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -2393,6 +2413,69 @@ func simdMaskedStore(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Val
 	}
 }
 
+// sveByteCount returns len(s)*elemBytes as an SSA int, the number of active bytes
+// for a byte-granular scalable load/store of an elemBytes-wide element type.
+func sveByteCount(s *state, length *ssa.Value, elemBytes int64) *ssa.Value {
+	if elemBytes == 1 {
+		return length
+	}
+	return s.newValue2(ssaop.OpMul64, types.Types[types.TINT], length, s.constInt64(types.Types[types.TINT], elemBytes))
+}
+
+// slicePtrLen extracts the data pointer and length of a slice SSA value.
+func slicePtrLen(s *state, slice *ssa.Value) (ptr, length *ssa.Value) {
+	ptr = s.newValue1(ssaop.OpSlicePtr, types.NewPtr(slice.Type.Elem()), slice)
+	length = s.newValue1(ssaop.OpSliceLen, types.Types[types.TINT], slice)
+	return
+}
+
+// sveLoadWhole builds a raw whole-register load loadT(s) / loadMask*s(bits): a
+// generic Load of the return type from the slice's data pointer, lowered to ZLDR
+// (a 32-byte scalable vector) or PLDR (an 8-byte predicate). The exported wrapper
+// (generated Go) bounds-checks the slice — and panics if it is too short — so
+// this raw intrinsic never reads past it. args are (s).
+func sveLoadWhole() intrinsicBuilder {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		ptr, _ := slicePtrLen(s, args[0])
+		return s.newValue2(ssaop.OpLoad, n.Type(), ptr, s.mem())
+	}
+}
+
+// sveStoreWhole is the store counterpart of sveLoadWhole: x.store(s) /
+// m.store(bits). args are (x, s).
+func sveStoreWhole() intrinsicBuilder {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		ptr, _ := slicePtrLen(s, args[1])
+		s.vars[memVar] = s.newValue3A(ssaop.OpStore, types.TypeMem, args[0].Type, ptr, args[0], s.mem())
+		return nil
+	}
+}
+
+// sveLoadPart builds the raw predicated load loadTPart(s): a PWHILELT-governed
+// ZLD1B that reads len(s) elements (inactive lanes zeroed). It is byte-granular
+// for every element type, which is correct because arm64 is little-endian, so a
+// contiguous byte copy preserves element layout. The exported LoadTPart wrapper
+// (generated Go) passes s[:min(len(s), Len())] and handles the empty/nil case,
+// so this intrinsic never sees a length past the slice or the vector.
+func sveLoadPart(elemBytes int64) intrinsicBuilder {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		ptr, length := slicePtrLen(s, args[0])
+		mask := s.newValue1(ssaop.OpCount8s, types.TypeMask, sveByteCount(s, length, elemBytes))
+		return s.newValue3(ssaop.OpLoadMasked8, n.Type(), ptr, mask, s.mem())
+	}
+}
+
+// sveStorePart is the store counterpart of sveLoadPart: x.storePart(s). args are
+// (x, s).
+func sveStorePart(elemBytes int64) intrinsicBuilder {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		ptr, length := slicePtrLen(s, args[1])
+		mask := s.newValue1(ssaop.OpCount8s, types.TypeMask, sveByteCount(s, length, elemBytes))
+		s.vars[memVar] = s.newValue4A(ssaop.OpStoreMasked8, types.TypeMem, args[0].Type, ptr, mask, args[0], s.mem())
+		return nil
+	}
+}
+
 // findIntrinsic returns a function which builds the SSA equivalent of the
 // function identified by the symbol sym.  If sym is not an intrinsic call, returns nil.
 func findIntrinsic(sym *types.Sym) intrinsicBuilder {
@@ -2442,16 +2525,6 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
 		return false
 	}
 	return IsIntrinsicSym(name.Sym())
-}
-
-func sveIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
-	addF(simdPackage, "loadInt8sMasked", simdMaskedLoad(ssaop.OpLoadMasked8), sys.ARM64)
-	addF(simdPackage, "Int8s.storeMasked", simdMaskedStore(ssaop.OpStoreMasked8), sys.ARM64)
-	addF(simdPackage, "Mask8sFromCount", opLen1(ssaop.OpCount8s, types.TypeMask), sys.ARM64)
-	addF(simdPackage, "Int8s.Greater", opLen2(ssaop.OpGreaterInt8s, types.TypeMask), sys.ARM64)
-	addF(simdPackage, "Int8s.IfElse", opLen3(ssaop.OpMergeInt8s, types.TypeVec256), sys.ARM64)
-	addF(simdPackage, "Int8s.Add", opLen2(ssaop.OpAddInt8s, types.TypeVec256), sys.ARM64)
-	addF(simdPackage, "vl", opLen0(ssaop.OpScalableVectorLen, types.Types[types.TINT]), sys.ARM64)
 }
 
 func IsIntrinsicSym(sym *types.Sym) bool {
