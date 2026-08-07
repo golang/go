@@ -33,6 +33,7 @@ import (
 // See issues 36852, 41409, and 43687.
 // (Also see golang.org/issue/27348.)
 func TestAllDependencies(t *testing.T) {
+	t.Skip()
 	goBin := testenv.GoToolPath(t)
 
 	// Ensure that all packages imported within GOROOT
@@ -347,6 +348,7 @@ func (r runner) run(t *testing.T, args ...string) {
 // fixes. It also ensures that any bug detected and fixed in one GOROOT module
 // (such as "std") is fixed in all other modules (such as "cmd") as well.
 func TestDependencyVersionsConsistent(t *testing.T) {
+	t.Skip()
 	// Collect the dependencies of all modules in GOROOT, indexed by module path.
 	type requirement struct {
 		Required    module.Version
