@@ -2663,7 +2663,7 @@ omitVCS:
 // GNU binutils flagfile specifiers, sometimes called "response files").
 // To be conservative, we reject almost any arg beginning with non-alphanumeric ASCII.
 // We accept leading . _ and / as likely in file system paths.
-// There is a copy of this function in cmd/compile/internal/gc/noder.go.
+// There is a copy of this function in cmd/compile/internal/noder/noder.go.
 func SafeArg(name string) bool {
 	if name == "" {
 		return false
