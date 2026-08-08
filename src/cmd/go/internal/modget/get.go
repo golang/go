@@ -413,6 +413,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile(moduleLoader))
+	// Record whether the main module's go.mod already had a go directive before
+	// WriteGoMod rewrites (and re-indexes) the file. If it did not, the go
+	// command synthesized the current version into oldReqs, which would
+	// otherwise make adding a go directive look like a downgrade.
+	// See go.dev/issue/63507.
+	mainHadGoDirective := modload.MainModuleHasGoDirective(moduleLoader)
 
 	if err := modload.WriteGoMod(moduleLoader, ctx, opts); err != nil {
 		// A TooNewError can happen for 'go get go@newversion'
@@ -424,7 +430,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	newReqs := reqsFromGoMod(modload.ModFile(moduleLoader))
-	r.reportChanges(oldReqs, newReqs)
+	r.reportChanges(oldReqs, newReqs, mainHadGoDirective)
 
 	if gowork := moduleLoader.FindGoWork(base.Cwd()); gowork != "" {
 		wf, err := modload.ReadWorkFile(gowork)
@@ -1847,7 +1853,7 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 // are not relevant to the user and are not logged.
 //
 // reportChanges should be called after WriteGoMod.
-func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+func (r *resolver) reportChanges(oldReqs, newReqs []module.Version, mainHadGoDirective bool) {
 	type change struct {
 		path, old, new string
 	}
@@ -1904,6 +1910,13 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 	oldGo, oldToolchain := toolchainVersions(oldReqs)
 	newGo, newToolchain := toolchainVersions(newReqs)
 	if oldGo != newGo {
+		// If the main module's go.mod had no go directive, the go command
+		// synthesized the current version into oldGo. Report the directive as
+		// added rather than as a spurious up/downgrade from that synthesized
+		// version. See go.dev/issue/63507.
+		if !mainHadGoDirective {
+			oldGo = ""
+		}
 		changes["go"] = change{"go", oldGo, newGo}
 	}
 	if oldToolchain != newToolchain {

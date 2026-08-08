@@ -324,6 +324,28 @@ func ModFile(ld *Loader) *modfile.File {
 	return modFile
 }
 
+// MainModuleHasGoDirective reports whether the main module's go.mod file
+// declared a go directive as originally loaded from disk. It reads the parsed
+// module index, which preserves that original state, rather than the in-memory
+// go.mod, into which the go command synthesizes a version for a module that
+// omits one. It must therefore be called after the main module is loaded and
+// before WriteGoMod rewrites (and re-indexes) the file; afterward the index
+// reflects the rewritten go.mod instead.
+//
+// In workspace mode, or when there is not exactly one main module, it
+// conservatively reports true.
+func MainModuleHasGoDirective(ld *Loader) bool {
+	Init(ld)
+	if ld.inWorkspaceMode() || ld.MainModules.Len() != 1 {
+		return true
+	}
+	idx := ld.MainModules.GetSingleIndexOrNil(ld)
+	if idx == nil {
+		return true
+	}
+	return idx.goVersion != ""
+}
+
 func BinDir(ld *Loader) string {
 	Init(ld)
 	if cfg.GOBIN != "" {
