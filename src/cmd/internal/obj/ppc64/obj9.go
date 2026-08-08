@@ -982,6 +982,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.Link = x
 				p = x
 			}
+			p.Pos = p.Pos.WithXlogue(src.PosEpilogueBegin)
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
