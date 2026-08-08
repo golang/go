@@ -341,6 +341,148 @@ var shouldBuildTests = []struct {
 	},
 }
 
+// shouldBuildWithPrefixTests tests build-constraint recognition in non-Go
+// source files that use a language-specific comment prefix instead of //.
+var shouldBuildWithPrefixTests = []struct {
+	name          string
+	content       string
+	commentPrefix string // e.g. "% go:build" for MATLAB
+	tags          map[string]bool
+	shouldBuild   bool
+	err           error
+}{
+	// --- MATLAB .m files (prefix "% go:build") ---
+	{
+		name:          "MatlabIgnore",
+		content:       "% go:build ignore\n\nfunction r = f()\n  r = 1;\nend\n",
+		commentPrefix: "% go:build",
+		tags:          map[string]bool{"ignore": true},
+		shouldBuild:   false,
+	},
+	{
+		name:          "MatlabNoConstraint",
+		content:       "% Plain MATLAB file with no build tag.\nfunction r = f()\n  r = 1;\nend\n",
+		commentPrefix: "% go:build",
+		tags:          map[string]bool{},
+		shouldBuild:   true,
+	},
+	{
+		name:          "MatlabLinux",
+		content:       "% go:build linux\n\nfunction r = f()\n  r = 1;\nend\n",
+		commentPrefix: "% go:build",
+		tags:          map[string]bool{"linux": true},
+		shouldBuild:   true,
+	},
+	{
+		name:          "MatlabLinuxFalse",
+		content:       "% go:build linux\n\nfunction r = f()\n  r = 1;\nend\n",
+		commentPrefix: "% go:build",
+		tags:          map[string]bool{},
+		shouldBuild:   false,
+	},
+	{
+		name:          "MatlabAnd",
+		content:       "% go:build linux && amd64\n\nfunction r = f()\n  r = 1;\nend\n",
+		commentPrefix: "% go:build",
+		tags:          map[string]bool{"linux": true, "amd64": true},
+		shouldBuild:   true,
+	},
+	{
+		name:          "MatlabNot",
+		content:       "% go:build !ignore\n\nfunction r = f()\n  r = 1;\nend\n",
+		commentPrefix: "% go:build",
+		tags:          map[string]bool{"ignore": false},
+		shouldBuild:   true,
+	},
+	// go:build lookalike that is NOT a valid constraint should NOT end the scan
+	// prematurely (e.g. "% go:buildmore" is not a constraint).
+	{
+		name:          "MatlabNotAConstraint",
+		content:       "% go:buildmore something\n\nfunction r = f()\n  r = 1;\nend\n",
+		commentPrefix: "% go:build",
+		tags:          map[string]bool{},
+		shouldBuild:   true,
+	},
+	// --- Shell / Python / R files (prefix "# go:build") ---
+	{
+		name:          "HashIgnore",
+		content:       "# go:build ignore\n\necho hello\n",
+		commentPrefix: "# go:build",
+		tags:          map[string]bool{"ignore": true},
+		shouldBuild:   false,
+	},
+	{
+		name:          "HashNoConstraint",
+		content:       "# Just a shell comment.\necho hello\n",
+		commentPrefix: "# go:build",
+		tags:          map[string]bool{},
+		shouldBuild:   true,
+	},
+}
+
+func TestShouldBuildWithPrefix(t *testing.T) {
+	for _, tt := range shouldBuildWithPrefixTests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &Context{BuildTags: []string{"yes"}}
+			tags := map[string]bool{}
+			shouldBuild, _, err := ctx.shouldBuildWithPrefix([]byte(tt.content), tags, []byte(tt.commentPrefix))
+			if shouldBuild != tt.shouldBuild || !maps.Equal(tags, tt.tags) || err != tt.err {
+				t.Errorf("mismatch:\n"+
+					"have shouldBuild=%v, tags=%v, err=%v\n"+
+					"want shouldBuild=%v, tags=%v, err=%v",
+					shouldBuild, tags, err,
+					tt.shouldBuild, tt.tags, tt.err)
+			}
+		})
+	}
+}
+
+// TestMatlabFileBuildTags verifies that .m files in a package directory are
+// correctly included or excluded based on "% go:build" constraints, and that
+// the constraints do NOT interfere with MATLAB being able to read the file
+// (i.e. we do not require the //go:build form).
+func TestMatlabFileBuildTags(t *testing.T) {
+	ctxt := Default
+	ctxt.GOOS = "linux"
+	ctxt.GOARCH = "amd64"
+
+	p, err := ctxt.ImportDir("testdata/non_go_build_tags", 0)
+	if err != nil {
+		t.Fatalf("ImportDir: %v", err)
+	}
+
+	// included.m has no constraint → must be in MFiles.
+	wantIncluded := "included.m"
+	foundIncluded := false
+	for _, f := range p.MFiles {
+		if f == wantIncluded {
+			foundIncluded = true
+		}
+	}
+	if !foundIncluded {
+		t.Errorf("expected %q in MFiles, got %v", wantIncluded, p.MFiles)
+	}
+
+	// ignored.m has "% go:build ignore" → must NOT be in MFiles.
+	for _, f := range p.MFiles {
+		if f == "ignored.m" {
+			t.Errorf("ignored.m should have been excluded from MFiles (has %% go:build ignore)")
+		}
+	}
+
+	// linux_only.m has "% go:build linux" and we're on linux → must be included.
+	wantLinux := "linux_only.m"
+	foundLinux := false
+	for _, f := range p.MFiles {
+		if f == wantLinux {
+			foundLinux = true
+		}
+	}
+	if !foundLinux {
+		t.Errorf("expected %q in MFiles on linux, got %v", wantLinux, p.MFiles)
+	}
+}
+
 func TestShouldBuild(t *testing.T) {
 	for _, tt := range shouldBuildTests {
 		t.Run(tt.name, func(t *testing.T) {
