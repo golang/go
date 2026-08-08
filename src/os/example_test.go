@@ -246,7 +246,7 @@ func ExampleWriteFile() {
 
 func ExampleMkdir() {
 	err := os.Mkdir("testdir", 0750)
-	if err != nil && !os.IsExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrExist) {
 		log.Fatal(err)
 	}
 	err = os.WriteFile("testdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
