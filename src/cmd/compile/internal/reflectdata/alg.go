@@ -527,7 +527,7 @@ func eqFunc(sig string) *ir.Func {
 			// TODO: if the element comparison can't panic, but has strings
 			// in it, maybe we do a loop first without string contents and a
 			// second loop with string contents. There is no way to accomplish
-			// this now they way this code works (to call the equality
+			// this now the way this code works (to call the equality
 			// function of the sub-signature).
 		}
 	}
