@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"iter"
 	"maps"
 	"os"
 	"reflect"
@@ -897,6 +898,16 @@ func Register(value any) {
 	}
 
 	RegisterName(name, value)
+}
+
+// RegisteredTypes is list of registered type with their aliases
+// that registered with [Register] or [RegisterName] methods
+func RegisteredTypes() iter.Seq2[string, reflect.Type] {
+	return func(yield func(string, reflect.Type) bool) {
+		nameToConcreteType.Range(func(k, v any) bool {
+			return yield(k.(string), v.(reflect.Type))
+		})
+	}
 }
 
 func registerBasics() {
