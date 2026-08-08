@@ -873,6 +873,12 @@ var optab = []Optab{
 	{ASTLXR, C_ZREG, C_NONE, C_NONE, C_ZOREG, C_ZREG, 59, 4, 0, 0, 0},
 	{ASTXP, C_PAIR, C_NONE, C_NONE, C_ZOREG, C_ZREG, 59, 4, 0, 0, 0},
 
+	/* FEAT_MOPS memory copy: cpyp/cpym/cpye (Xs), Xn, (Xd) */
+	{ACPYP, C_ZOREG, C_ZREG, C_NONE, C_ZOREG, C_NONE, 111, 4, 0, 0, 0},
+
+	/* FEAT_MOPS memory set: setp/setm/sete Xs, Xn, (Xd) */
+	{ASETP, C_ZREG, C_ZREG, C_NONE, C_ZOREG, C_NONE, 112, 4, 0, 0, 0},
+
 	/* VLD[1-4]/VST[1-4] */
 	{AVLD1, C_ZOREG, C_NONE, C_NONE, C_LIST, C_NONE, 81, 4, 0, 0, 0},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_LIST, C_NONE, 81, 4, 0, 0, C_XPOST},
@@ -3247,6 +3253,14 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASTLXP, t)
 			oprangeset(ASTLXPW, t)
 			oprangeset(ASTXPW, t)
+
+		case ACPYP:
+			oprangeset(ACPYM, t)
+			oprangeset(ACPYE, t)
+
+		case ASETP:
+			oprangeset(ASETM, t)
+			oprangeset(ASETE, t)
 
 		case AVADDP:
 			oprangeset(AVAND, t)
@@ -6201,6 +6215,36 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		o1 = c.opirr(p, p.As)
 		o1 |= (uint32(rm&31) << 16) | (uint32(rn&31) << 5) | uint32(encodedOperation)
+
+	case 111: /* FEAT_MOPS: cpyp/cpym/cpye (Xs), Xn, (Xd) */
+		// Encoding: sz[31:30]=00 | 011101 | op1[23:22] | Xs[20:16] | 000001[15:10] | Xn[9:5] | Xd[4:0]
+		// CPYP op1=00, CPYM op1=01, CPYE op1=10
+		rd := p.To.Reg   // destination pointer register
+		rs := p.From.Reg // source pointer register
+		rn := p.Reg      // count register
+		var op1 uint32
+		switch p.As {
+		case ACPYM:
+			op1 = 1
+		case ACPYE:
+			op1 = 2
+		}
+		o1 = 0x1d000400 | (op1 << 22) | (uint32(rs&31) << 16) | (uint32(rn&31) << 5) | uint32(rd&31)
+
+	case 112: /* FEAT_MOPS: setp/setm/sete Xs, Xn, (Xd) */
+		// Encoding: sz[31:30]=00 | 011101 | op1[23:22] | Xs[20:16] | 000011[15:10] | Xn[9:5] | Xd[4:0]
+		// SETP op1=00, SETM op1=01, SETE op1=10
+		rd := p.To.Reg   // destination pointer register
+		rs := p.From.Reg // fill value register
+		rn := p.Reg      // count register
+		var op1 uint32
+		switch p.As {
+		case ASETM:
+			op1 = 1
+		case ASETE:
+			op1 = 2
+		}
+		o1 = 0x1d000c00 | (op1 << 22) | (uint32(rs&31) << 16) | (uint32(rn&31) << 5) | uint32(rd&31)
 
 	case 127:
 		// Generic SVE instruction encoding
