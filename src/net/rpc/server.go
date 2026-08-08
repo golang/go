@@ -284,8 +284,7 @@ func (server *Server) register(rcvr any, name string, useName bool) error {
 // errors if logErr is true.
 func suitableMethods(typ reflect.Type, logErr bool) map[string]*methodType {
 	methods := make(map[string]*methodType)
-	for m := 0; m < typ.NumMethod(); m++ {
-		method := typ.Method(m)
+	for method := range typ.Methods() {
 		mtype := method.Type
 		mname := method.Name
 		// Method must be exported.
