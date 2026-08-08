@@ -421,6 +421,9 @@ func implements(T, V *abi.Type) bool {
 	}
 	rT := toRType(T)
 	rV := toRType(V)
+	if isEnumInterface(t, rT) && V.Kind() != abi.Interface && V.TFlag&abi.TFlagEnumVariant == 0 {
+		return false
+	}
 
 	// The same algorithm applies in both cases, but the
 	// method tables for an interface type and a concrete type
@@ -492,6 +495,16 @@ func implements(T, V *abi.Type) bool {
 			if i++; i >= len(t.Methods) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func isEnumInterface(t *interfaceType, rt rtype) bool {
+	for i := range t.Methods {
+		name := rt.nameOff(t.Methods[i].Name).Name()
+		if len(name) > len(".enum.") && name[:len(".enum.")] == ".enum." {
+			return true
 		}
 	}
 	return false

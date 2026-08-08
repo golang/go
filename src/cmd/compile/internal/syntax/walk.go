@@ -109,6 +109,22 @@ func (w walker) node(n Node) {
 			w.node(n.Body)
 		}
 
+	case *EnumDecl:
+		w.node(n.Name)
+		w.fieldList(n.TParamList)
+		for _, variant := range n.VariantList {
+			w.node(variant)
+		}
+
+	case *EnumVariant:
+		w.node(n.Name)
+		w.fieldList(n.FieldList)
+		for _, tag := range n.TagList {
+			if tag != nil {
+				w.node(tag)
+			}
+		}
+
 	// expressions
 	case *BadExpr: // nothing to do
 	case *Name: // nothing to do

@@ -123,6 +123,30 @@ func TestImportTestdata(t *testing.T) {
 	}
 }
 
+func TestImportEnum(t *testing.T) {
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+
+	compile(t, "testdata", "enum.go", filepath.Join(tmpdir, "testdata"), nil)
+	pkg := testPath(t, "./testdata/enum", tmpdir)
+	if pkg == nil {
+		t.Fatal("import enum package")
+	}
+	result := pkg.Scope().Lookup("Result").Type().(*types.Named)
+	if result.EnumType() == nil {
+		t.Fatal("imported Result lost enum metadata")
+	}
+	variants := result.EnumVariants()
+	if len(variants) != 2 {
+		t.Fatalf("imported Result has %d variants, want 2; scope=%v methods=%d", len(variants), pkg.Scope().Names(), result.NumMethods())
+	}
+	for _, typ := range append([]*types.Named{result}, variants...) {
+		if method, _, _ := types.LookupFieldOrMethod(typ, true, pkg, "Variant"); method == nil {
+			t.Fatalf("imported %s lost generated Variant method; underlying=%s methods=%d", typ, typ.Underlying(), typ.NumMethods())
+		}
+	}
+}
+
 func TestImportTypeparamTests(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("in short mode, skipping test that requires export data for all of std")

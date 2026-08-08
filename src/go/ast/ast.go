@@ -1009,6 +1009,28 @@ type (
 		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
 	}
+
+	// An EnumDecl node represents an algebraic enum declaration.
+	EnumDecl struct {
+		Doc        *CommentGroup // associated documentation; or nil
+		Type       token.Pos     // position of "type" keyword
+		Enum       token.Pos     // position of "enum" keyword
+		Name       *Ident        // enum name
+		TypeParams *FieldList    // type parameters; or nil
+		Lbrace     token.Pos     // position of "{"
+		Variants   []*EnumVariant
+		Rbrace     token.Pos // position of "}"
+	}
+
+	// An EnumVariant node represents one variant in an algebraic enum.
+	// Fields is nil for a variant without a payload. A non-nil empty
+	// FieldList represents an explicitly empty payload.
+	EnumVariant struct {
+		Doc     *CommentGroup // associated documentation; or nil
+		Name    *Ident        // variant name
+		Fields  *FieldList    // payload fields; or nil
+		Comment *CommentGroup // line comments; or nil
+	}
 )
 
 // Pos and End implementations for declaration nodes.
@@ -1016,6 +1038,9 @@ type (
 func (d *BadDecl) Pos() token.Pos  { return d.From }
 func (d *GenDecl) Pos() token.Pos  { return d.TokPos }
 func (d *FuncDecl) Pos() token.Pos { return d.Type.Pos() }
+func (d *EnumDecl) Pos() token.Pos { return d.Type }
+
+func (v *EnumVariant) Pos() token.Pos { return v.Name.Pos() }
 
 func (d *BadDecl) End() token.Pos { return d.To }
 func (d *GenDecl) End() token.Pos {
@@ -1030,12 +1055,21 @@ func (d *FuncDecl) End() token.Pos {
 	}
 	return d.Type.End()
 }
+func (d *EnumDecl) End() token.Pos { return d.Rbrace + 1 }
+
+func (v *EnumVariant) End() token.Pos {
+	if v.Fields != nil {
+		return v.Fields.End()
+	}
+	return v.Name.End()
+}
 
 // declNode() ensures that only declaration nodes can be
 // assigned to a Decl.
 func (*BadDecl) declNode()  {}
 func (*GenDecl) declNode()  {}
 func (*FuncDecl) declNode() {}
+func (*EnumDecl) declNode() {}
 
 // ----------------------------------------------------------------------------
 // Files and packages

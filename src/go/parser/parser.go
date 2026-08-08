@@ -1917,6 +1917,10 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 	}
 
 	x := p.parseList(false)
+	return p.finishSimpleStmt(x, mode)
+}
+
+func (p *parser) finishSimpleStmt(x []ast.Expr, mode int) (ast.Stmt, bool) {
 
 	switch p.tok {
 	case
@@ -2818,9 +2822,125 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	return decl
 }
 
+func (p *parser) parseEnumVariant() *ast.EnumVariant {
+	if p.trace {
+		defer un(trace(p, "EnumVariant"))
+	}
+
+	doc := p.leadComment
+	name := p.parseIdent()
+	variant := &ast.EnumVariant{Doc: doc, Name: name}
+	if p.tok == token.LBRACE {
+		lbrace := p.expect(token.LBRACE)
+		var fields []*ast.Field
+		for p.tok == token.IDENT || p.tok == token.MUL || p.tok == token.LPAREN {
+			fields = append(fields, p.parseFieldDecl())
+		}
+		rbrace := p.expect(token.RBRACE)
+		variant.Fields = &ast.FieldList{Opening: lbrace, List: fields, Closing: rbrace}
+	}
+	variant.Comment = p.expectSemi()
+	return variant
+}
+
+func (p *parser) typeDeclIsEnum() bool {
+	errorCount := len(p.errors)
+	defer func() {
+		p.errors = p.errors[:errorCount]
+	}()
+
+	s := p.scanner
+	next := func() (token.Token, string) {
+		for {
+			_, tok, lit := s.Scan()
+			if tok != token.COMMENT {
+				return tok, lit
+			}
+		}
+	}
+
+	tok, _ := next()
+	if tok != token.IDENT {
+		return false
+	}
+	tok, lit := next()
+	if tok == token.LBRACK {
+		depth := 1
+		for depth > 0 {
+			tok, _ = next()
+			switch tok {
+			case token.LBRACK:
+				depth++
+			case token.RBRACK:
+				depth--
+			case token.EOF:
+				return false
+			}
+		}
+		tok, lit = next()
+	}
+	if tok != token.IDENT || lit != "enum" {
+		return false
+	}
+	tok, _ = next()
+	return tok == token.LBRACE
+}
+
+func (p *parser) parseEnumDecl(doc *ast.CommentGroup) *ast.EnumDecl {
+	if p.trace {
+		defer un(trace(p, "EnumDecl"))
+	}
+
+	typePos := p.expect(token.TYPE)
+	name := p.parseIdent()
+	var tparams *ast.FieldList
+	if p.tok == token.LBRACK {
+		tparams = p.parseTypeParameters()
+	}
+	enumPos := p.pos
+	if p.tok != token.IDENT || p.lit != "enum" {
+		p.errorExpected(p.pos, "enum")
+	} else {
+		p.next()
+	}
+	lbrace := p.expect(token.LBRACE)
+	var variants []*ast.EnumVariant
+	for p.tok != token.RBRACE && p.tok != token.EOF {
+		if p.tok == token.SEMICOLON {
+			p.next()
+			continue
+		}
+		if p.tok != token.IDENT {
+			p.errorExpected(p.pos, "variant name")
+			p.advance(exprEnd)
+			if p.tok == token.SEMICOLON {
+				p.next()
+			}
+			continue
+		}
+		variants = append(variants, p.parseEnumVariant())
+	}
+	rbrace := p.expect(token.RBRACE)
+	p.expectSemi()
+	return &ast.EnumDecl{
+		Doc:        doc,
+		Type:       typePos,
+		Enum:       enumPos,
+		Name:       name,
+		TypeParams: tparams,
+		Lbrace:     lbrace,
+		Variants:   variants,
+		Rbrace:     rbrace,
+	}
+}
+
 func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 	if p.trace {
 		defer un(trace(p, "Declaration"))
+	}
+
+	if p.tok == token.TYPE && p.typeDeclIsEnum() {
+		return p.parseEnumDecl(p.leadComment)
 	}
 
 	var f parseSpecFunction

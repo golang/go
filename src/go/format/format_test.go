@@ -109,6 +109,27 @@ func TestSource(t *testing.T) {
 	diff(t, res, src)
 }
 
+func TestSourceEnum(t *testing.T) {
+	const src = "package p\ntype Result[T any] enum{Ok{value T};Err{err error};None;Empty{}}\n"
+	const want = `package p
+
+type Result[T any] enum {
+	Ok { value T }
+	Err { err error }
+	None
+	Empty {}
+}
+`
+
+	got, err := Source([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != want {
+		t.Errorf("formatted enum:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 // Test cases that are expected to fail are marked by the prefix "ERROR".
 // The formatted result must look the same as the input for successful tests.
 var tests = []string{

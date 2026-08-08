@@ -2454,11 +2454,12 @@ of the last non-empty expression list.
 
 <p>
 A type declaration binds an identifier, the <i>type name</i>, to a <a href="#Types">type</a>.
-Type declarations come in two forms: alias declarations and type definitions.
+Type declarations come in three forms: alias declarations, type definitions,
+and enum declarations.
 </p>
 
 <pre class="ebnf">
-TypeDecl = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
+TypeDecl = "type" ( TypeSpec | EnumSpec | "(" { TypeSpec ";" } ")" ) .
 TypeSpec = AliasDecl | TypeDef .
 </pre>
 
@@ -2630,6 +2631,68 @@ present in the generic type definition.
 // The method Len returns the number of elements in the linked list l.
 func (l *List[T]) Len() int  { … }
 </pre>
+
+<h4 id="Enum_declarations">Enum declarations</h4>
+
+<p>
+An enum declaration creates a new, distinct <i>enum type</i> and a fixed set
+of <i>variants</i> [<a href="#Go_1.28">Go 1.28</a>].
+Each variant contains zero or more fields. The identifier <code>enum</code> is
+contextual: it introduces an enum only in an EnumSpec and remains an ordinary
+identifier elsewhere. Enum declarations may not appear in grouped type
+declarations.
+</p>
+
+<pre class="ebnf">
+EnumSpec    = identifier [ TypeParameters ] "enum" "{" { EnumVariant ";" } "}" .
+EnumVariant = identifier [ "{" { FieldDecl ";" } "}" ] .
+</pre>
+
+<pre>
+type Result[T any] enum {
+	Ok { value T }
+	Err { err error }
+	None
+}
+</pre>
+
+<p>
+The values of an enum type are <code>nil</code> and the values constructed by
+its declared variants. Each variant denotes a distinct, non-interface defined
+type whose underlying type is the struct described by the variant's fields.
+Only the variant itself, not a pointer to it or a type that embeds it, is
+assignable to the enum type. The set of variants is fixed by the declaration;
+no other type implements the enum type.
+</p>
+
+<p>
+A variant name is a constructor, not a type name. Outside an enum switch it
+must be selected from its enum type and may be used only as the direct type of
+a composite literal. Thus <code>Result[int].Ok{value: 1}</code> constructs an
+<code>Ok</code> value, but a variable, parameter, alias, conversion, or type
+case may not use <code>Result[int].Ok</code> as a type. Taking the address of a
+variant literal is permitted, but the resulting pointer is not an enum value.
+An unexported variant may be constructed only within its declaring package.
+</p>
+
+<p>
+When an enum type is the expected type of a composite literal, its variant may
+be written without qualification. This shorthand also applies to variant names
+in enum switch cases.
+</p>
+
+<pre>
+var r Result[int] = Ok{value: 1} // same value as Result[int].Ok{value: 1}
+</pre>
+
+<p>
+Every enum type and variant has an implicitly declared method
+<code>Variant() string</code>. For a variant value, the method returns the
+variant's declared identifier. A program may not declare another method named
+<code>Variant</code> on the enum type. Methods otherwise declared on the enum
+type receive an enum value and are not methods of the individual variant types.
+The zero value of an enum type is <code>nil</code>.
+</p>
 
 <h3 id="Type_parameter_declarations">Type parameter declarations</h3>
 
@@ -3172,7 +3235,7 @@ math.Sin // denotes the Sin function in package math
 <h3 id="Composite_literals">Composite literals</h3>
 
 <p>
-Composite literals construct new values for structs, arrays, slices, and maps
+Composite literals construct new values for structs, arrays, slices, maps, and enum variants
 each time they are evaluated.
 They consist of the type of the literal followed by a (possibly empty)
 brace-bound list of elements.
@@ -3212,6 +3275,12 @@ It is an error to specify multiple elements with the same field selector
 or constant key value.
 A literal may omit the element list; such a literal evaluates
 to the zero value for its type.
+</p>
+
+<p>
+As a special case, the literal type may be an
+<a href="#Enum_declarations">enum variant constructor</a>. Its literal value
+is interpreted as a struct literal for the fields of that variant.
 </p>
 
 <p>
@@ -6427,6 +6496,29 @@ for equality.
 </p>
 
 <p>
+If the switch expression has enum type, the switch is an <i>enum switch</i>
+[<a href="#Go_1.28">Go 1.28</a>]. Each non-<code>nil</code> case expression
+must be an unqualified variant name of that enum and matches every value of
+that variant, independently of its fields. The variants need not be comparable.
+If the switch expression is an identifier and a case lists exactly one variant,
+that identifier denotes the corresponding variant value within the case's
+implicit block, so its fields may be selected. Otherwise it retains the enum
+type. Unless a default case is present, the cases must collectively list every
+variant and <code>nil</code>. Variant cases may not be repeated, and
+<code>fallthrough</code> is not permitted.
+</p>
+
+<pre>
+switch r {
+case Ok:
+	use(r.value) // r is the Ok variant in this clause
+case Err:
+	log.Print(r.err)
+case None, nil:
+}
+</pre>
+
+<p>
 In a case or default clause, the last non-empty statement
 may be a (possibly <a href="#Labeled_statements">labeled</a>)
 <a href="#Fallthrough_statements">"fallthrough" statement</a> to
@@ -6491,6 +6583,13 @@ expression <code>x</code>. As with type assertions, <code>x</code> must be of
 <code>T</code> listed in a case must implement the type of <code>x</code>.
 The types listed in the cases of a type switch must all be
 <a href="#Type_identity">different</a>.
+</p>
+
+<p>
+If <code>x</code> has enum type, an unqualified variant name may appear in
+place of its otherwise unnameable variant type
+[<a href="#Go_1.28">Go 1.28</a>]. Unless a default case is present, the
+cases must collectively list every variant and <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -8853,6 +8952,14 @@ A <a href="#Method_declarations">method declaration</a> may declare
 A key in a struct <a href="#Composite_literals">composite literal</a> may
 be any valid field <a href="#Selectors">selector</a> for the struct type,
 not just a (top-level) field name of the struct.
+</li>
+</ul>
+
+<h4 id="Go_1.28">Go 1.28</h4>
+<ul>
+<li>
+<a href="#Enum_declarations">Enum declarations</a> define closed sets of
+variants with optional payload fields, and enum switches are exhaustive.
 </li>
 </ul>
 

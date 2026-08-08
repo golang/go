@@ -486,6 +486,12 @@ func (check *Checker) validRecv(pos positioner, recv *Var) {
 			check.errorf(pos, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
 			break
 		}
+		if enumType := T.EnumType(); enumType != nil {
+			if T.Origin() != enumType.Origin() {
+				check.errorf(pos, InvalidRecv, "cannot define method on enum variant %s; use enum type %s as receiver", enumVariantName(T), enumType.obj.name)
+			}
+			break
+		}
 		var cause string
 		switch u := T.Underlying().(type) {
 		case *Basic:

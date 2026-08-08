@@ -81,3 +81,6 @@ Core flags:
 	  	emit analysis diagnostics (and errors) in JSON format
 */
 package main
+
+// Keep the x/tools packages vendored by cmd aware of first-class enums.
+//go:generate go run cmd/internal/toolsvendor -vendor ../vendor

@@ -426,6 +426,9 @@ var keywordMap [1 << 6]token // size must be power of two
 func init() {
 	// populate keywordMap
 	for tok := _Break; tok <= _Var; tok++ {
+		if tok == _Enum {
+			continue // enum is a contextual keyword
+		}
 		h := hash([]byte(tok.String()))
 		if keywordMap[h] != 0 {
 			panic("imperfect hash")

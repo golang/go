@@ -126,6 +126,11 @@ const (
 	// This flag is just a cached computation of Size_ == PtrBytes == goarch.PtrSize.
 	TFlagDirectIface TFlag = 1 << 5
 
+	// TFlagEnumVariant marks a concrete type declared as an enum variant.
+	// Runtime interface checks use this bit to reject types that only promote
+	// an enum's unspellable marker method through embedding.
+	TFlagEnumVariant TFlag = 1 << 6
+
 	// Leaving this breadcrumb behind for dlv. It should not be used, and no
 	// Kind should be big enough to set this bit.
 	KindDirectIface Kind = 1 << 5

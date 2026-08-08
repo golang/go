@@ -37,29 +37,30 @@ func _() {
 	_ = x[_Default-27]
 	_ = x[_Defer-28]
 	_ = x[_Else-29]
-	_ = x[_Fallthrough-30]
-	_ = x[_For-31]
-	_ = x[_Func-32]
-	_ = x[_Go-33]
-	_ = x[_Goto-34]
-	_ = x[_If-35]
-	_ = x[_Import-36]
-	_ = x[_Interface-37]
-	_ = x[_Map-38]
-	_ = x[_Package-39]
-	_ = x[_Range-40]
-	_ = x[_Return-41]
-	_ = x[_Select-42]
-	_ = x[_Struct-43]
-	_ = x[_Switch-44]
-	_ = x[_Type-45]
-	_ = x[_Var-46]
-	_ = x[tokenCount-47]
+	_ = x[_Enum-30]
+	_ = x[_Fallthrough-31]
+	_ = x[_For-32]
+	_ = x[_Func-33]
+	_ = x[_Go-34]
+	_ = x[_Goto-35]
+	_ = x[_If-36]
+	_ = x[_Import-37]
+	_ = x[_Interface-38]
+	_ = x[_Map-39]
+	_ = x[_Package-40]
+	_ = x[_Range-41]
+	_ = x[_Return-42]
+	_ = x[_Select-43]
+	_ = x[_Struct-44]
+	_ = x[_Switch-45]
+	_ = x[_Type-46]
+	_ = x[_Var-47]
+	_ = x[tokenCount-48]
 }
 
-const _token_name = "EOFnameliteralopop=opop=:=<-*([{)]},;:....breakcasechanconstcontinuedefaultdeferelsefallthroughforfuncgogotoifimportinterfacemappackagerangereturnselectstructswitchtypevar"
+const _token_name = "EOFnameliteralopop=opop=:=<-*([{)]},;:....breakcasechanconstcontinuedefaultdeferelseenumfallthroughforfuncgogotoifimportinterfacemappackagerangereturnselectstructswitchtypevar"
 
-var _token_index = [...]uint8{0, 3, 7, 14, 16, 19, 23, 24, 26, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 42, 47, 51, 55, 60, 68, 75, 80, 84, 95, 98, 102, 104, 108, 110, 116, 125, 128, 135, 140, 146, 152, 158, 164, 168, 171, 171}
+var _token_index = [...]uint8{0, 3, 7, 14, 16, 19, 23, 24, 26, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 42, 47, 51, 55, 60, 68, 75, 80, 84, 88, 99, 102, 106, 108, 112, 114, 120, 129, 132, 139, 144, 150, 156, 162, 168, 172, 175, 175}
 
 func (i token) String() string {
 	idx := int(i) - 1

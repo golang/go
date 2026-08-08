@@ -654,6 +654,10 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		case typexpr:
 			// new(T)
+			if check.rejectEnumVariantType(arg, x.typ()) {
+				x.invalidate()
+				return
+			}
 			check.validVarType(arg, x.typ())
 		default:
 			// new(expr)

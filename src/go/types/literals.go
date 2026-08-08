@@ -115,6 +115,22 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 	switch {
 	case e.Type != nil:
 		// composite literal type present - use it
+		if id, _ := e.Type.(*ast.Ident); id != nil {
+			context := U
+			if context == nil {
+				context = hint
+			}
+			if variant := enumVariant(context, id.Name); variant != nil {
+				if variant.Obj().Pkg() != check.pkg && !variant.Obj().Exported() {
+					check.errorf(id, UnexportedName, "cannot refer to unexported enum variant %s", variant)
+				}
+				typ = variant
+				base = typ
+				check.recordUse(id, variant.Obj())
+				check.recordTypeAndValue(id, typexpr, variant, nil)
+				break
+			}
+		}
 		// [...]T array types may only appear with composite literals.
 		// Check for them here so we don't have to handle ... in general.
 		if atyp, _ := e.Type.(*ast.ArrayType); atyp != nil && isdddArray(atyp) {
@@ -125,7 +141,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 			base = typ
 			break
 		}
-		typ = check.typ(e.Type)
+		typ = check.enumLitType(e.Type)
 		base = typ
 
 	// The hint mechanism is kept around to avoid reporting a false "need Go 1.28" error

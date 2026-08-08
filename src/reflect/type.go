@@ -1493,6 +1493,9 @@ func implements(T, V *abi.Type) bool {
 	if len(t.Methods) == 0 {
 		return true
 	}
+	if isEnumInterface(t) && V.Kind() != abi.Interface && V.TFlag&abi.TFlagEnumVariant == 0 {
+		return false
+	}
 
 	// The same algorithm applies in both cases, but the
 	// method tables for an interface type and a concrete type
@@ -1564,6 +1567,16 @@ func implements(T, V *abi.Type) bool {
 			if i++; i >= len(t.Methods) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func isEnumInterface(t *interfaceType) bool {
+	for i := range t.Methods {
+		name := t.nameOff(t.Methods[i].Name).Name()
+		if len(name) > len(".enum.") && name[:len(".enum.")] == ".enum." {
+			return true
 		}
 	}
 	return false

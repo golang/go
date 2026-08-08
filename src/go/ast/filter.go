@@ -240,8 +240,35 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
 		return len(d.Specs) > 0
 	case *FuncDecl:
 		return f(d.Name.Name)
+	case *EnumDecl:
+		if f(d.Name.Name) {
+			d.Variants = filterEnumVariants(d.Variants, f, export)
+			return true
+		}
+		if !export {
+			d.Variants = filterEnumVariants(d.Variants, f, export)
+			return len(d.Variants) > 0
+		}
 	}
 	return false
+}
+
+func filterEnumVariants(list []*EnumVariant, f Filter, export bool) []*EnumVariant {
+	j := 0
+	for _, variant := range list {
+		keep := f(variant.Name.Name)
+		if keep {
+			filterFieldList(variant.Fields, f, export)
+		} else if !export && variant.Fields != nil {
+			filterFieldList(variant.Fields, f, export)
+			keep = len(variant.Fields.List) > 0
+		}
+		if keep {
+			list[j] = variant
+			j++
+		}
+	}
+	return list[:j]
 }
 
 // FilterFile trims the AST for a Go file in place by removing all

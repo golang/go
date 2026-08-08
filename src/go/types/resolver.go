@@ -26,10 +26,16 @@ type declInfo struct {
 	init      ast.Expr      // init/orig expression, or nil (for const and var declarations only)
 	inherited bool          // if set, the init expression is inherited from a previous constant declaration
 	tdecl     *ast.TypeSpec // type declaration, or nil
+	edecl     *enumDeclInfo // enum declaration shared by enum and variant objects, or nil
 	fdecl     *ast.FuncDecl // func declaration, or nil
 
 	// The deps field tracks initialization expression dependencies.
 	deps map[Object]bool // lazily initialized
+}
+
+type enumDeclInfo struct {
+	decl    *ast.EnumDecl
+	objects []*TypeName // enum type followed by variant types in source order
 }
 
 // hasInitializer reports whether the declared object has an initialization
@@ -397,6 +403,17 @@ func (check *Checker) collectObjects() {
 			case typeDecl:
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, version: check.version, tdecl: d.spec})
+			case enumDecl:
+				info := &enumDeclInfo{decl: d.decl, objects: make([]*TypeName, 1+len(d.decl.Variants))}
+				info.objects[0] = NewTypeName(d.decl.Name.Pos(), pkg, d.decl.Name.Name, nil)
+				check.declarePkgObj(d.decl.Name, info.objects[0], &declInfo{file: fileScope, version: check.version, edecl: info})
+				for i, variant := range d.decl.Variants {
+					obj := NewTypeName(variant.Name.Pos(), pkg, d.decl.Name.Name+"."+variant.Name.Name, nil)
+					info.objects[i+1] = obj
+					check.declare(check.pkg.scope, variant.Name, obj, nopos)
+					check.objMap[obj] = &declInfo{file: fileScope, version: check.version, edecl: info}
+					obj.setOrder(uint32(len(check.objMap)))
+				}
 			case funcDecl:
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
@@ -587,7 +604,11 @@ func (check *Checker) resolveBaseTypeName(ptr bool, name *ast.Ident) (ptr_ bool,
 		}
 
 		// we're done if tdecl describes a defined type (not an alias)
-		tdecl := check.objMap[tname].tdecl // must exist for objects in package scope
+		info := check.objMap[tname] // must exist for objects in package scope
+		if info.edecl != nil {
+			return ptr, tname
+		}
+		tdecl := info.tdecl
 		if !tdecl.Assign.IsValid() {
 			return ptr, tname
 		}
@@ -670,7 +691,8 @@ func (check *Checker) packageObjects() {
 		// phase 1: non-alias type declarations
 		for _, obj := range check.objList {
 			if tname, _ := obj.(*TypeName); tname != nil {
-				if check.objMap[tname].tdecl.Assign.IsValid() {
+				info := check.objMap[tname]
+				if info.edecl == nil && info.tdecl.Assign.IsValid() {
 					aliasList = append(aliasList, tname)
 				} else {
 					check.objDecl(obj)
