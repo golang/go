@@ -150,6 +150,28 @@ func loadSystemRoots() (*CertPool, error) {
 	return loadOnDiskRoots(certFilePath, certDirPath)
 }
 
+// readCertsFromDirs reads PEM certificates from each directory and appends
+// them to pool. It returns the first non-IsNotExist error encountered, if any.
+func readCertsFromDirs(pool *CertPool, dirs []string) error {
+	var firstErr error
+	for _, directory := range dirs {
+		fis, err := readUniqueDirectoryEntries(directory)
+		if err != nil {
+			if firstErr == nil && !os.IsNotExist(err) {
+				firstErr = err
+			}
+			continue
+		}
+		for _, fi := range fis {
+			data, err := os.ReadFile(filepath.Join(directory, fi.Name()))
+			if err == nil {
+				pool.AppendCertsFromPEM(data)
+			}
+		}
+	}
+	return firstErr
+}
+
 func loadOnDiskRoots(certFilePath, certDirPath string) (*CertPool, error) {
 	roots := NewCertPool()
 
@@ -171,6 +193,7 @@ func loadOnDiskRoots(certFilePath, certDirPath string) (*CertPool, error) {
 	}
 
 	dirs := certDirectories
+	userProvidedDirs := false
 	if certDirPath != "" {
 		// OpenSSL and BoringSSL both use ":" as the SSL_CERT_DIR separator on
 		// Unix-like systems, and ";" on Windows.
@@ -178,22 +201,25 @@ func loadOnDiskRoots(certFilePath, certDirPath string) (*CertPool, error) {
 		//  * https://golang.org/issue/35325
 		//  * https://docs.openssl.org/4.0/man1/openssl-rehash/#environment
 		dirs = filepath.SplitList(certDirPath)
+		userProvidedDirs = true
 	}
 
-	for _, directory := range dirs {
-		fis, err := readUniqueDirectoryEntries(directory)
-		if err != nil {
-			if firstErr == nil && !os.IsNotExist(err) {
-				firstErr = err
-			}
-			continue
+	// If we already have roots from a cert file and the directories were not
+	// explicitly provided by the user, skip scanning them. On most systems
+	// the cert file is a bundling of the certificates in the directory, so
+	// scanning would just re-read the same certificates.
+	// The directories are stored for lazy loading in case chain construction
+	// using the bundle roots fails, ensuring backward compatibility.
+	// See https://go.dev/issue/38869.
+	if roots.len() > 0 && !userProvidedDirs {
+		roots.lazyRoots = &lazyRootState{
+			dirs: append([]string(nil), dirs...),
 		}
-		for _, fi := range fis {
-			data, err := os.ReadFile(filepath.Join(directory, fi.Name()))
-			if err == nil {
-				roots.AppendCertsFromPEM(data)
-			}
-		}
+		return roots, nil
+	}
+
+	if err := readCertsFromDirs(roots, dirs); err != nil && firstErr == nil {
+		firstErr = err
 	}
 
 	if roots.len() > 0 || firstErr == nil {
