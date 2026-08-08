@@ -928,6 +928,7 @@ func schedinit() {
 	// mcommoninit runs before parsedebugvars, so init profstacks again.
 	mProfStackInit(gp.m)
 	defaultGOMAXPROCSInit()
+	netpollEpollPwait2Init()
 
 	lock(&sched.lock)
 	sched.lastpoll.Store(nanotime())
