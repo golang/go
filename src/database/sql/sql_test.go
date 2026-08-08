@@ -5774,3 +5774,147 @@ func (c *rowsColumnScannerRows) ScanColumn(ctx driver.ScanContext, index int, de
 	}
 	return ConvertAssign(ctx, dest, c.row[index])
 }
+
+func BenchmarkConvertAssignRows(b *testing.B) {
+	now := time.Now()
+	b.Run("Int64ToInt64", func(b *testing.B) {
+		var d int64
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, int64(42), nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("Int64ToInt", func(b *testing.B) {
+		var d int
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, int64(1234567890123), nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("Int64ToNullInt64", func(b *testing.B) {
+		var d NullInt64
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, int64(42), nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("Float64ToFloat64", func(b *testing.B) {
+		var d float64
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, float64(3.14159), nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("BoolToBool", func(b *testing.B) {
+		var d bool
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, true, nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("Int64ToInt32", func(b *testing.B) {
+		var d int32
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, int64(123456), nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("Int64ToAny", func(b *testing.B) {
+		var d any
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, int64(42), nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("StringToInt64", func(b *testing.B) {
+		var d int64
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, "1234567890123", nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("BytesToBytes", func(b *testing.B) {
+		var d []byte
+		var src any = []byte("alice-example-name") // box once: per-op boxing would add a phantom alloc
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, src, nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("BytesToRawBytes", func(b *testing.B) {
+		var d RawBytes
+		var src any = []byte("alice-example-name")
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, src, nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("BytesToInt64", func(b *testing.B) {
+		var d int64
+		var src any = []byte("1234567890123")
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, src, nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("NilToAny", func(b *testing.B) {
+		var d any
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, nil, nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("BytesToString", func(b *testing.B) {
+		var d string
+		var src any = []byte("alice-example-name")
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, src, nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("StringToString", func(b *testing.B) {
+		var d string
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, "alice-example-name", nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("TimeToTime", func(b *testing.B) {
+		var d time.Time
+		var src any = now
+		b.ReportAllocs()
+		for range b.N {
+			if err := convertAssignRows(&d, src, nil); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
