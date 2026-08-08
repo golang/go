@@ -22,6 +22,7 @@ import (
 	urlpkg "net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"cmd/go/internal/auth"
@@ -36,7 +37,7 @@ const userAgent = "GoCommand/1 (+https://go.dev/cmd/go)"
 // impatientInsecureHTTPClient is used with GOINSECURE,
 // when we're connecting to https servers that might not be there
 // or might be using self-signed certificates.
-var impatientInsecureHTTPClient = &http.Client{
+var impatientInsecureHTTPClient = mtlsHTTPClient(&http.Client{
 	CheckRedirect: checkRedirect,
 	Timeout:       5 * time.Second,
 	Transport: &http.Transport{
@@ -45,9 +46,114 @@ var impatientInsecureHTTPClient = &http.Client{
 			InsecureSkipVerify: true,
 		},
 	},
+}, true)
+
+var securityPreservingDefaultClient = securityPreservingHTTPClient(mtlsHTTPClient(http.DefaultClient, false))
+
+type clientCertificateLookup func(*http.Request) (auth.ClientCertificate, bool)
+
+// mtlsHTTPClient returns a client that uses origin-scoped client certificates
+// configured by GOAUTH. Certificate files are not read until the first request
+// to a matching origin.
+func mtlsHTTPClient(original *http.Client, insecure bool) *http.Client {
+	return mtlsHTTPClientWithLookup(original, insecure, auth.ClientCertificateForRequest)
 }
 
-var securityPreservingDefaultClient = securityPreservingHTTPClient(http.DefaultClient)
+func mtlsHTTPClientWithLookup(original *http.Client, insecure bool, lookup clientCertificateLookup) *http.Client {
+	c := new(http.Client)
+	*c = *original
+	base := original.Transport
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	c.Transport = &mtlsTransport{base: base, insecure: insecure, lookup: lookup}
+	return c
+}
+
+type mtlsTransport struct {
+	base     http.RoundTripper
+	insecure bool
+	lookup   clientCertificateLookup
+	states   sync.Map // auth.ClientCertificate → *mtlsTransportState
+}
+
+type mtlsTransportState struct {
+	mu        sync.Mutex
+	once      sync.Once
+	transport http.RoundTripper
+	err       error
+}
+
+func (t *mtlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	cert, ok := t.lookup(req)
+	if !ok {
+		return t.base.RoundTrip(req)
+	}
+	if t.insecure {
+		return nil, fmt.Errorf("GOAUTH=mtls cannot be used with GOINSECURE for %s", cert.Origin)
+	}
+
+	value, _ := t.states.LoadOrStore(cert, new(mtlsTransportState))
+	state := value.(*mtlsTransportState)
+	state.once.Do(func() {
+		state.init(t.base, cert)
+	})
+	if state.err != nil {
+		return nil, state.err
+	}
+	return state.transport.RoundTrip(req)
+}
+
+func (s *mtlsTransportState) init(roundTripper http.RoundTripper, certConfig auth.ClientCertificate) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	base, ok := roundTripper.(*http.Transport)
+	if !ok {
+		s.err = fmt.Errorf("GOAUTH=mtls requires an *http.Transport, but the HTTP client uses %T", roundTripper)
+		return
+	}
+
+	cert, err := tls.LoadX509KeyPair(certConfig.CertFile, certConfig.KeyFile)
+	if err != nil {
+		s.err = fmt.Errorf("loading GOAUTH=mtls client certificate for %s: %w", certConfig.Origin, err)
+		return
+	}
+
+	transport := base.Clone()
+	if proxy := transport.Proxy; proxy != nil {
+		transport.Proxy = func(req *http.Request) (*urlpkg.URL, error) {
+			u, err := proxy(req)
+			if err == nil && u != nil && strings.EqualFold(u.Scheme, "https") {
+				return nil, fmt.Errorf("GOAUTH=mtls does not support HTTPS proxy %s", u.Redacted())
+			}
+			return u, err
+		}
+	}
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = new(tls.Config)
+	} else {
+		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+	}
+	transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+	transport.TLSClientConfig.GetClientCertificate = nil
+	s.transport = transport
+}
+
+func (t *mtlsTransport) CloseIdleConnections() {
+	if closer, ok := t.base.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
+	}
+	t.states.Range(func(_, value any) bool {
+		state := value.(*mtlsTransportState)
+		state.mu.Lock()
+		defer state.mu.Unlock()
+		if closer, ok := state.transport.(interface{ CloseIdleConnections() }); ok {
+			closer.CloseIdleConnections()
+		}
+		return true
+	})
+}
 
 // securityPreservingHTTPClient returns a client that is like the original
 // but rejects redirects to plain-HTTP URLs if the original URL was secure.
@@ -121,7 +227,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		if security == Insecure && url.Scheme == "https" {
 			client = impatientInsecureHTTPClient
 		} else if intercepted && t.Client != nil {
-			client = securityPreservingHTTPClient(t.Client)
+			client = securityPreservingHTTPClient(mtlsHTTPClient(t.Client, false))
 		} else {
 			client = securityPreservingDefaultClient
 		}
