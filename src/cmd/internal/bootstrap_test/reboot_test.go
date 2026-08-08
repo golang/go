@@ -31,14 +31,14 @@ func TestRepeatBootstrap(t *testing.T) {
 	realGoroot := testenv.GOROOT(t)
 
 	// To ensure that bootstrapping doesn't unexpectedly depend
-	// on the Go repo's git metadata, add a fake (unreadable) git
-	// directory above the simulated GOROOT.
-	// This mimics the configuration one much have when
+	// on the Go repo's git metadata, add a fake .git file that
+	// points to a nonexistent gitdir above the simulated GOROOT.
+	// This mimics the configuration one might have when
 	// building from distro-packaged source code
-	// (see https://go.dev/issue/54852).
+	// (see https://go.dev/issue/54852 and https://go.dev/issue/61620).
 	parent := t.TempDir()
 	dotGit := filepath.Join(parent, ".git")
-	if err := os.Mkdir(dotGit, 000); err != nil {
+	if err := os.WriteFile(dotGit, []byte("gitdir: ../nonexistent/.git\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 

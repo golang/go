@@ -245,6 +245,10 @@ func bootstrapBuildTools() {
 	cmd := []string{
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
+		// In case we are bootstrapping from a source tarball instead of a VCS checkout,
+		// ignore any VCS roots found in parent directories of the bootstrap module.
+		// See https://go.dev/issue/54852 and https://go.dev/issue/61620.
+		"-buildvcs=false",
 		"-tags=math_big_pure_go compiler_bootstrap purego",
 	}
 	if vflag > 0 {
