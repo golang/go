@@ -23,6 +23,7 @@ func (c *Counter) Increment() {
 	// arm64/v8.0:".*arm64HasATOMICS"
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// amd64:"LOCK" -"CMPXCHG"
+	// riscv64:"AMOADDW" -"JAL"
 	atomic.AddInt32(&c.count, 1)
 }
 
@@ -35,12 +36,14 @@ func atomicLogical64(x *atomic.Uint64) uint64 {
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// On amd64, make sure we use LOCK+AND instead of CMPXCHG when we don't use the result.
 	// amd64:"LOCK" -"CMPXCHGQ"
+	// riscv64:"AMOANDD" -"JAL"
 	x.And(11)
 	// arm64/v8.0:"LDCLRALD"
 	// arm64/v8.1:"LDCLRALD"
 	// arm64/v8.0:".*arm64HasATOMICS"
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// amd64:"LOCK" "CMPXCHGQ"
+	// riscv64:"AMOANDD" -"JAL"
 	r += x.And(22)
 
 	// arm64/v8.0:"LDORALD"
@@ -49,12 +52,14 @@ func atomicLogical64(x *atomic.Uint64) uint64 {
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// On amd64, make sure we use LOCK+OR instead of CMPXCHG when we don't use the result.
 	// amd64:"LOCK" -"CMPXCHGQ"
+	// riscv64:"AMOORD" -"JAL"
 	x.Or(33)
 	// arm64/v8.0:"LDORALD"
 	// arm64/v8.1:"LDORALD"
 	// arm64/v8.0:".*arm64HasATOMICS"
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// amd64:"LOCK" "CMPXCHGQ"
+	// riscv64:"AMOORD" -"JAL"
 	r += x.Or(44)
 
 	return r
@@ -69,12 +74,14 @@ func atomicLogical32(x *atomic.Uint32) uint32 {
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// On amd64, make sure we use LOCK+AND instead of CMPXCHG when we don't use the result.
 	// amd64:"LOCK" -"CMPXCHGL"
+	// riscv64:"AMOANDW" -"JAL"
 	x.And(11)
 	// arm64/v8.0:"LDCLRALW"
 	// arm64/v8.1:"LDCLRALW"
 	// arm64/v8.0:".*arm64HasATOMICS"
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// amd64:"LOCK" "CMPXCHGL"
+	// riscv64:"AMOANDW" -"JAL"
 	r += x.And(22)
 
 	// arm64/v8.0:"LDORALW"
@@ -83,12 +90,14 @@ func atomicLogical32(x *atomic.Uint32) uint32 {
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// On amd64, make sure we use LOCK+OR instead of CMPXCHG when we don't use the result.
 	// amd64:"LOCK" -"CMPXCHGL"
+	// riscv64:"AMOORW" -"JAL"
 	x.Or(33)
 	// arm64/v8.0:"LDORALW"
 	// arm64/v8.1:"LDORALW"
 	// arm64/v8.0:".*arm64HasATOMICS"
 	// arm64/v8.1:-".*arm64HasATOMICS"
 	// amd64:"LOCK" "CMPXCHGL"
+	// riscv64:"AMOORW" -"JAL"
 	r += x.Or(44)
 
 	return r
