@@ -2600,8 +2600,7 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 		}
 		var date string
 		if _, ok := rws.snapHeader["Date"]; !ok {
-			// TODO(bradfitz): be faster here, like net/http? measure.
-			date = time.Now().UTC().Format(TimeFormat)
+			date = cachedDate()
 		}
 
 		for _, v := range rws.snapHeader["Trailer"] {
