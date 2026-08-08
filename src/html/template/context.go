@@ -29,8 +29,15 @@ type context struct {
 	jsBraceDepth []int
 	attr         attr
 	element      element
-	n            parse.Node // for range break/continue
-	err          *Error
+	// htmlNamespaces tracks foreign namespace boundaries, HTML integration
+	// points, and same-name shadows needed to close the correct boundary.
+	htmlNamespaces  []htmlNamespaceFrame
+	scriptInForeign bool
+	scriptCDATA     bool
+	tagInForeign    bool
+	tagName         string
+	n               parse.Node // for range break/continue
+	err             *Error
 }
 
 func (c context) String() string {
@@ -38,7 +45,7 @@ func (c context) String() string {
 	if c.err != nil {
 		err = c.err
 	}
-	return fmt.Sprintf("{%v %v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.jsBraceDepth, c.attr, c.element, err)
+	return fmt.Sprintf("{%v %v %v %v %v %v %v %v %v %v %v %q %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.jsBraceDepth, c.attr, c.element, c.htmlNamespaces, c.scriptInForeign, c.scriptCDATA, c.tagInForeign, c.tagName, err)
 }
 
 // eq reports whether two contexts are equal.
@@ -50,6 +57,11 @@ func (c context) eq(d context) bool {
 		slices.Equal(c.jsBraceDepth, d.jsBraceDepth) &&
 		c.attr == d.attr &&
 		c.element == d.element &&
+		slices.Equal(c.htmlNamespaces, d.htmlNamespaces) &&
+		c.scriptInForeign == d.scriptInForeign &&
+		c.scriptCDATA == d.scriptCDATA &&
+		c.tagInForeign == d.tagInForeign &&
+		c.tagName == d.tagName &&
 		c.err == d.err
 }
 
@@ -57,7 +69,7 @@ func (c context) eq(d context) bool {
 // from template names mangled with different contexts.
 func (c context) mangle(templateName string) string {
 	// The mangled name for the default context is the input templateName.
-	if c.state == stateText {
+	if c.state == stateText && len(c.htmlNamespaces) == 0 {
 		return templateName
 	}
 	s := templateName + "$htmltemplate_" + c.state.String()
@@ -79,6 +91,21 @@ func (c context) mangle(templateName string) string {
 	if c.element != elementNone {
 		s += "_" + c.element.String()
 	}
+	if c.htmlNamespaces != nil {
+		s += fmt.Sprintf("_htmlNamespaces(%v)", c.htmlNamespaces)
+	}
+	if c.scriptInForeign {
+		s += "_scriptInForeign"
+	}
+	if c.scriptCDATA {
+		s += "_scriptCDATA"
+	}
+	if c.tagInForeign {
+		s += "_tagInForeign"
+	}
+	if c.tagName != "" {
+		s += "_tagName(" + c.tagName + ")"
+	}
 	return s
 }
 
@@ -86,7 +113,19 @@ func (c context) mangle(templateName string) string {
 func (c context) clone() context {
 	clone := c
 	clone.jsBraceDepth = slices.Clone(c.jsBraceDepth)
+	clone.htmlNamespaces = slices.Clone(c.htmlNamespaces)
 	return clone
+}
+
+type htmlNamespaceFrame struct {
+	tag         string
+	foreign     bool // The effective namespace is foreign rather than HTML.
+	math        bool // The foreign namespace is MathML rather than SVG.
+	integration bool // This is an integration point, not a same-name shadow.
+}
+
+func (c context) inForeignContent() bool {
+	return len(c.htmlNamespaces) != 0 && c.htmlNamespaces[len(c.htmlNamespaces)-1].foreign
 }
 
 // state describes a high-level HTML parser state.
