@@ -284,6 +284,23 @@ var fabs = []float64{
 	1.8253080916808550e+00,
 	8.6859247685756013e+00,
 }
+var fsum = 2.1089478335441655e+01
+
+var vffsumSC = [][]float64{
+	{Inf(1), 1},
+	{Inf(-1), 1},
+	{Inf(1), Inf(-1)},
+	{NaN(), 1},
+	{},
+}
+var fsumSC = []float64{
+	Inf(1),
+	Inf(-1),
+	NaN(),
+	NaN(),
+	0,
+}
+
 var fdim = []float64{
 	4.9790119248836735e+00,
 	7.7388724745781045e+00,
@@ -3043,6 +3060,17 @@ func TestSqrt(t *testing.T) {
 		}
 		if f := Sqrt(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
 			t.Errorf("Sqrt(%g) = %g, want %g", vfsqrtSC[i], f, sqrtSC[i])
+		}
+	}
+}
+
+func TestSum(t *testing.T) {
+	if f := Sum(vf); !veryclose(fsum, f) {
+		t.Errorf("Sum(%v) = %g, want %g", vf, f, fsum)
+	}
+	for i, sc := range vffsumSC {
+		if f := Sum(sc); !alike(fsumSC[i], f) {
+			t.Errorf("Sum(%v) = %g, want %g", sc, f, fsumSC[i])
 		}
 	}
 }
