@@ -49,7 +49,18 @@ struct seccomp_data {
 #define SECCOMP_RET_ALLOW 0x7fff0000U
 #define SECCOMP_SET_MODE_FILTER 1
 
+#ifndef SYS_getrandom
+#define SYS_getrandom -1
+#endif
+
+#ifndef SYS_seccomp
+#define SYS_seccomp -1
+#endif
+
 int disable_getrandom() {
+    if (SYS_getrandom == -1 || SYS_seccomp == -1) {
+        return 3;
+    }
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         return 1;
     }
