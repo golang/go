@@ -6,7 +6,9 @@ package embedtest
 
 import (
 	"embed"
+	"errors"
 	"io"
+	"io/fs"
 	"reflect"
 	"slices"
 	"testing"
@@ -218,6 +220,15 @@ func TestOffset(t *testing.T) {
 	}
 	if off != int64(len(want)) {
 		t.Fatal("Seek:", off)
+	}
+
+	// Use Seek with an invalid whence.
+	_, err = seeker.Seek(0, io.SeekEnd+5)
+	if err == nil {
+		t.Fatal("Seek: expected error for invalid whence")
+	}
+	if !errors.Is(err, fs.ErrInvalid) {
+		t.Fatalf("Seek: expected fs.ErrInvalid, got %v", err)
 	}
 
 	// Use ReadAt to read the entire file, ignoring the offset.

@@ -359,12 +359,14 @@ func (f *openFile) Read(b []byte) (int, error) {
 
 func (f *openFile) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
-	case 0:
+	case io.SeekStart:
 		// offset += 0
-	case 1:
+	case io.SeekCurrent:
 		offset += f.offset
-	case 2:
+	case io.SeekEnd:
 		offset += int64(len(f.f.data))
+	default:
+		return 0, &fs.PathError{Op: "seek", Path: f.f.name, Err: fs.ErrInvalid}
 	}
 	if offset < 0 || offset > int64(len(f.f.data)) {
 		return 0, &fs.PathError{Op: "seek", Path: f.f.name, Err: fs.ErrInvalid}
