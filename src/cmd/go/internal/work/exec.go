@@ -1237,6 +1237,7 @@ func (b *Builder) coverActionID(a *Action, covMetaFileName string) cache.ActionI
 	p := a.Package
 	h := cache.NewHash("cover " + p.ImportPath)
 	fmt.Fprintf(h, "cover %q\n", b.toolID("cover"))
+	b.addPackageOrigin(h, p)
 
 	// Input files for cover.
 	fmt.Fprintf(h, "setup %s %v\n", p.Internal.Cover.Mode, p.Internal.Cover.GenMeta)
@@ -1669,7 +1670,10 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 
 	// Toolchain-independent configuration.
 	fmt.Fprintf(h, "link\n")
-	fmt.Fprintf(h, "buildmode %s goos %s goarch %s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+	// Hash the resolved buildmode (ldBuildmode), not cfg.BuildBuildmode,
+	// so that -buildmode=default produces the same build ID as the
+	// buildmode it resolves to. See go.dev/issue/63559.
+	fmt.Fprintf(h, "buildmode %s goos %s goarch %s\n", ldBuildmode, cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
 	fmt.Fprintf(h, "defaultgodebug %q\n", p.DefaultGODEBUG)

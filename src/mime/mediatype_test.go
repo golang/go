@@ -531,6 +531,7 @@ var formatTests = []formatTest{
 	{"foo/BAR", map[string]string{"both": `With \backslash and "quote`}, `foo/bar; both="With \\backslash and \"quote"`},
 	{"foo/BAR", map[string]string{"": "empty attribute"}, ""},
 	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
+	{"foo/BAR", map[string]string{"Name": "foo", "name": "bar"}, ""},
 	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, "foo/bar; nonascii*=utf-8''not%20an%20ascii%20character%3A%20%C3%A4"},
 	{"foo/BAR", map[string]string{"ctl": "newline: \n nil: \000"}, "foo/bar; ctl*=utf-8''newline%3A%20%0A%20nil%3A%20%00"},
 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},

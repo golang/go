@@ -260,7 +260,7 @@ var validPkgConfigFlags = []*lazyregexp.Regexp{
 	re(`--cflags-only-I`),
 	re(`--cflags`),
 	re(`--define-prefix`),
-	re(`--define-variable=[A-Za-z_][A-Za-z0-9_]*=[^@\-]*`),
+	re(`--define-variable=[A-Za-z_][A-Za-z0-9_]*=[^@\-].*`),
 	re(`--digraph`),
 	re(`--dont-define-prefix`),
 	re(`--dont-relocate-paths`),

@@ -19,6 +19,7 @@ import (
 	"internal/testenv"
 	"io"
 	"log"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
@@ -96,6 +97,8 @@ var (
 	echServerRetryConfig       = flagStringSlice("ech-is-retry-config", "")
 
 	expectSessionMiss = flag.Bool("expect-session-miss", false, "")
+
+	expectEMS = flag.Bool("expect-extended-master-secret", false, "")
 
 	_ = flag.Bool("enable-early-data", false, "")
 	_ = flag.Bool("on-resume-expect-accept-early-data", false, "")
@@ -492,6 +495,12 @@ func bogoShim() {
 				log.Fatal("unexpected session resumption")
 			}
 
+			// In TLS 1.3 the extension is irrelevant and reported as always
+			// negotiated.
+			if *expectEMS && !tlsConn.extMasterSecret && cs.Version < VersionTLS13 {
+				log.Fatal("expected extended master secret to be negotiated, but it was not")
+			}
+
 			if *expectedServerName != "" && cs.ServerName != *expectedServerName {
 				log.Fatalf("unexpected server name: got %q, want %q", cs.ServerName, *expectedServerName)
 			}
@@ -546,13 +555,164 @@ func orderlyShutdown(tlsConn *Conn) {
 }
 
 func TestBogoSuite(t *testing.T) {
+	skipFIPS(t)
+
+	results := runBogoSuite(t, *bogoFilter, nil)
+
+	if *bogoReport != "" {
+		if err := generateReport(results, *bogoReport); err != nil {
+			t.Fatalf("failed to generate report: %v", err)
+		}
+	}
+
+	// assertResults contains test results we want to make sure
+	// are present in the output. They are only checked if -bogo-filter
+	// was not passed.
+	assertResults := map[string]string{
+		"CurveTest-Client-X25519MLKEM768-TLS13": "PASS",
+		"CurveTest-Server-X25519MLKEM768-TLS13": "PASS",
+		"CurveTest-Client-MLKEM1024-TLS13":      "PASS",
+		"CurveTest-Server-MLKEM1024-TLS13":      "PASS",
+
+		// Various signature algorithm tests checking that we enforce our
+		// preferences on the peer.
+		"ClientAuth-Enforced":                    "PASS",
+		"ServerAuth-Enforced":                    "PASS",
+		"ClientAuth-Enforced-TLS13":              "PASS",
+		"ServerAuth-Enforced-TLS13":              "PASS",
+		"VerifyPreferences-Advertised":           "PASS",
+		"VerifyPreferences-Enforced":             "PASS",
+		"Client-TLS12-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
+		"Server-TLS12-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
+		"Client-TLS13-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
+		"Server-TLS13-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
+
+		// EMS negotiation in TLS 1.2, its preservation across resumption,
+		// and its always-on reporting in TLS 1.3.
+		"ExtendedMasterSecret-TLS12-Client":    "PASS",
+		"ExtendedMasterSecret-TLS12-Server":    "PASS",
+		"NoExtendedMasterSecret-TLS13-Client":  "PASS",
+		"NoExtendedMasterSecret-TLS13-Server":  "PASS",
+		"ExtendedMasterSecret-YesToYes-Client": "PASS",
+		"ExtendedMasterSecret-YesToYes-Server": "PASS",
+	}
+
+	for name, result := range results.Tests {
+		// This is not really the intended way to do this... but... it works?
+		t.Run(name, func(t *testing.T) {
+			if result.Actual == "FAIL" && result.IsUnexpected {
+				t.Fail()
+			}
+			if result.Error != "" {
+				t.Log(result.Error)
+			}
+			if exp, ok := assertResults[name]; ok && exp != result.Actual {
+				t.Errorf("unexpected result: got %s, want %s", result.Actual, exp)
+			}
+			delete(assertResults, name)
+			if result.Actual == "SKIP" {
+				t.SkipNow()
+			}
+		})
+	}
+	if *bogoFilter == "" {
+		// Anything still in assertResults did not show up in the results, so we should fail
+		for name, expectedResult := range assertResults {
+			t.Run(name, func(t *testing.T) {
+				t.Fatalf("expected test to run with result %s, but it was not present in the test results", expectedResult)
+			})
+		}
+	}
+}
+
+// TestBogoSuiteFIPSEMS tests the enforcement of Extended Master Secret in
+// FIPS 140-3 mode.
+//
+// In particular, it tests the fips140ems GODEBUG escape hatch against runner
+// peers that do not support EMS (which crypto/tls itself cannot be configured
+// to do).
+//
+// FIPS mode is enabled in the shim via GODEBUG, which the runner passes
+// through to the shim processes it spawns.
+func TestBogoSuiteFIPSEMS(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		godebug string
+		// expected maps the names of the tests to run, and no others, to
+		// their required result.
+		expected map[string]string
+	}{
+		{
+			name:    "enforced",
+			godebug: "GODEBUG=fips140=on",
+			expected: map[string]string{
+				// TLS 1.2 handshakes without EMS must fail in FIPS mode. The
+				// NoToNo resumption tests fail at the initial connection,
+				// which is a full handshake without EMS.
+				"NoExtendedMasterSecret-TLS12-Client": "FAIL",
+				"NoExtendedMasterSecret-TLS12-Server": "FAIL",
+				"ExtendedMasterSecret-NoToNo-Client":  "FAIL",
+				"ExtendedMasterSecret-NoToNo-Server":  "FAIL",
+				// Handshakes and resumptions with EMS are not affected by
+				// the enforcement.
+				"ExtendedMasterSecret-TLS12-Client":    "PASS",
+				"ExtendedMasterSecret-TLS12-Server":    "PASS",
+				"ExtendedMasterSecret-YesToYes-Client": "PASS",
+				"ExtendedMasterSecret-YesToYes-Server": "PASS",
+			},
+		},
+		{
+			name:    "fips140ems=0",
+			godebug: "GODEBUG=fips140=on,fips140ems=0",
+			expected: map[string]string{
+				// fips140ems=0 disables enforcement, restoring the non-FIPS
+				// results. We expect full handshakes without EMS succeed, and
+				// the NoToNo tests resume non-EMS sessions without EMS.
+				"NoExtendedMasterSecret-TLS12-Client": "PASS",
+				"NoExtendedMasterSecret-TLS12-Server": "PASS",
+				"ExtendedMasterSecret-NoToNo-Client":  "PASS",
+				"ExtendedMasterSecret-NoToNo-Server":  "PASS",
+				// The RFC 7627 mismatch checks are not FIPS-specific, and
+				// must remain enforced with fips140ems=0.
+				"ExtendedMasterSecret-NoToYes-Client": "PASS",
+				"ExtendedMasterSecret-YesToNo-Server": "PASS",
+				// Handshakes and resumptions with EMS are not affected by
+				// the GODEBUG.
+				"ExtendedMasterSecret-TLS12-Client":    "PASS",
+				"ExtendedMasterSecret-TLS12-Server":    "PASS",
+				"ExtendedMasterSecret-YesToYes-Client": "PASS",
+				"ExtendedMasterSecret-YesToYes-Server": "PASS",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			filter := strings.Join(slices.Sorted(maps.Keys(tc.expected)), ";")
+			results := runBogoSuite(t, filter, []string{tc.godebug})
+			for name, want := range tc.expected {
+				result, ok := results.Tests[name]
+				if !ok {
+					t.Errorf("%s: expected test to run, but it was not present in the test results", name)
+					continue
+				}
+				if result.Actual != want {
+					t.Errorf("%s: got %s, want %s: %s", name, result.Actual, want, result.Error)
+				}
+			}
+		})
+	}
+}
+
+// runBogoSuite runs the BoGo test runner, limited to tests matching the
+// semicolon-separated patterns in filter if it is non-empty, and returns the
+// parsed results. extraEnv is appended to the runner's environment, which is
+// inherited by the shim processes it spawns.
+func runBogoSuite(t *testing.T, filter string, extraEnv []string) bogoResults {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 	if testenv.Builder() != "" && runtime.GOOS == "windows" {
 		t.Skip("#66913: windows network connections are flakey on builders")
 	}
-	skipFIPS(t)
 
 	// In order to make Go test caching work as expected, we stat the
 	// bogo_config.json file, so that the Go testing hooks know that it is
@@ -587,12 +747,15 @@ func TestBogoSuite(t *testing.T) {
 		"-loose-errors", // TODO(roland): this should be removed eventually
 		fmt.Sprintf("-json-output=%s", resultsFile),
 	}
-	if *bogoFilter != "" {
-		args = append(args, fmt.Sprintf("-test=%s", *bogoFilter))
+	if filter != "" {
+		args = append(args, fmt.Sprintf("-test=%s", filter))
 	}
 
 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")
+	if extraEnv != nil {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 	out, err := cmd.CombinedOutput()
 	// NOTE: we don't immediately check the error, because the failure could be either because
 	// the runner failed for some unexpected reason, or because a test case failed, and we
@@ -612,62 +775,7 @@ func TestBogoSuite(t *testing.T) {
 	if err := json.Unmarshal(resultsJSON, &results); err != nil {
 		t.Fatalf("failed to parse results JSON: %s", err)
 	}
-
-	if *bogoReport != "" {
-		if err := generateReport(results, *bogoReport); err != nil {
-			t.Fatalf("failed to generate report: %v", err)
-		}
-	}
-
-	// assertResults contains test results we want to make sure
-	// are present in the output. They are only checked if -bogo-filter
-	// was not passed.
-	assertResults := map[string]string{
-		"CurveTest-Client-X25519MLKEM768-TLS13": "PASS",
-		"CurveTest-Server-X25519MLKEM768-TLS13": "PASS",
-		"CurveTest-Client-MLKEM1024-TLS13":      "PASS",
-		"CurveTest-Server-MLKEM1024-TLS13":      "PASS",
-
-		// Various signature algorithm tests checking that we enforce our
-		// preferences on the peer.
-		"ClientAuth-Enforced":                    "PASS",
-		"ServerAuth-Enforced":                    "PASS",
-		"ClientAuth-Enforced-TLS13":              "PASS",
-		"ServerAuth-Enforced-TLS13":              "PASS",
-		"VerifyPreferences-Advertised":           "PASS",
-		"VerifyPreferences-Enforced":             "PASS",
-		"Client-TLS12-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
-		"Server-TLS12-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
-		"Client-TLS13-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
-		"Server-TLS13-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
-	}
-
-	for name, result := range results.Tests {
-		// This is not really the intended way to do this... but... it works?
-		t.Run(name, func(t *testing.T) {
-			if result.Actual == "FAIL" && result.IsUnexpected {
-				t.Fail()
-			}
-			if result.Error != "" {
-				t.Log(result.Error)
-			}
-			if exp, ok := assertResults[name]; ok && exp != result.Actual {
-				t.Errorf("unexpected result: got %s, want %s", result.Actual, exp)
-			}
-			delete(assertResults, name)
-			if result.Actual == "SKIP" {
-				t.SkipNow()
-			}
-		})
-	}
-	if *bogoFilter == "" {
-		// Anything still in assertResults did not show up in the results, so we should fail
-		for name, expectedResult := range assertResults {
-			t.Run(name, func(t *testing.T) {
-				t.Fatalf("expected test to run with result %s, but it was not present in the test results", expectedResult)
-			})
-		}
-	}
+	return results
 }
 
 // ensureLocalBogo fetches BoringSSL to localBogoDir at the correct revision

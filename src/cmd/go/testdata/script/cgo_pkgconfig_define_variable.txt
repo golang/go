@@ -1,0 +1,33 @@
+[!cgo] skip
+[short] skip
+
+go build -o $WORK/pkg-config$GOEXE ./pkgconfig
+env PKG_CONFIG=$WORK/pkg-config$GOEXE
+go build ./p
+
+-- go.mod --
+module example
+
+go 1.27
+-- pkgconfig/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	for _, arg := range os.Args {
+		if arg == "--define-variable=A=b-c" {
+			return
+		}
+	}
+	fmt.Fprintln(os.Stderr, "missing --define-variable argument")
+	os.Exit(1)
+}
+-- p/p.go --
+package p
+
+// #cgo pkg-config: --define-variable=A=b-c example
+import "C"

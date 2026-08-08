@@ -391,6 +391,8 @@ The available conditions are:
 	cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH
 [default-cgo]
 	when CGO_ENABLED=1|0 was set in make.bash
+[default-pie]
+	-buildmode=default resolves to -buildmode=pie
 [exec:*]
 	<suffix> names an executable in the test binary's PATH
 [fuzz]

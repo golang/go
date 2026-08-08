@@ -6258,6 +6258,8 @@ func rewriteValueMIPS64_OpNot(v *Value) bool {
 }
 func rewriteValueMIPS64_OpOffPtr(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (OffPtr [off] ptr:(SP))
 	// cond: is32Bit(off)
 	// result: (MOVVaddr [int32(off)] ptr)
@@ -6273,15 +6275,35 @@ func rewriteValueMIPS64_OpOffPtr(v *Value) bool {
 		return true
 	}
 	// match: (OffPtr [off] ptr)
+	// cond: is32Bit(off)
 	// result: (ADDVconst [off] ptr)
 	for {
 		off := auxIntToInt64(v.AuxInt)
 		ptr := v_0
+		if !(is32Bit(off)) {
+			break
+		}
 		v.reset(OpMIPS64ADDVconst)
 		v.AuxInt = int64ToAuxInt(off)
 		v.AddArg(ptr)
 		return true
 	}
+	// match: (OffPtr [off] ptr)
+	// cond: !is32Bit(off)
+	// result: (ADDV ptr (MOVVconst <typ.UInt64> [off]))
+	for {
+		off := auxIntToInt64(v.AuxInt)
+		ptr := v_0
+		if !(!is32Bit(off)) {
+			break
+		}
+		v.reset(OpMIPS64ADDV)
+		v0 := b.NewValue0(v.Pos, OpMIPS64MOVVconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(off)
+		v.AddArg2(ptr, v0)
+		return true
+	}
+	return false
 }
 func rewriteValueMIPS64_OpRotateLeft16(v *Value) bool {
 	v_1 := v.Args[1]

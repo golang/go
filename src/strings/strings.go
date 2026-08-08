@@ -1085,10 +1085,7 @@ func trimRightUnicode(s, cutset string) string {
 
 func trimSpaceUnicode(s string) string {
 	for len(s) > 0 {
-		r, n := rune(s[0]), 1
-		if r >= utf8.RuneSelf {
-			r, n = utf8.DecodeRuneInString(s)
-		}
+		r, n := utf8.DecodeRuneInString(s)
 		if !stringslite.IsSpace(r) {
 			break
 		}

@@ -190,6 +190,11 @@ Setting `x509sslcertoverrideplatform=0` disables this behavior in favor of using
 the platform certificate store instead of honoring the environment variables. We
 plan to remove this setting in Go 1.31.
 
+Go 1.27 added a `fips140ems` setting that when set to `0` disables the
+enforcement of Extended Master Secret in FIPS 140-3 mode. There is no change in
+default behavior. This setting was backported to Go 1.26.6 and Go 1.25.13.
+We plan to remove this setting in Go 1.31.
+
 ### Go 1.26
 
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number

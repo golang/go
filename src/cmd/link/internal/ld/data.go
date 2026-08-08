@@ -498,8 +498,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				o = ldr.SymValue(rs) - int64(Segtext.Sections[0].Vaddr) + r.Add()
 				if target.IsWasm() {
 					// On Wasm, textoff (e.g. in the method table) is just the function index,
-					// whereas the "PC" (rs's Value) is function index << 16 + block index (see
-					// ../wasm/asm.go:assignAddress).
+					// whereas the "PC" (rs's Value), relative to section start, is
+					// function index << 16 + block index (see ../wasm/asm.go:assignAddress).
 					if o&(1<<16-1) != 0 {
 						st.err.Errorf(s, "textoff relocation %s does not target function entry: %s %#x", rt, ldr.SymName(rs), o)
 					}
@@ -3006,12 +3006,15 @@ func (ctxt *Link) address() []*sym.Segment {
 		va = uint64(Rnd(int64(va), int64(s.Align)))
 		s.Vaddr = va
 		va += s.Length
-
-		if ctxt.IsWasm() && i == 0 && va < wasmMinDataAddr {
+		if ctxt.IsWasm() && i == 0 {
+			// On Wasm, functions are not in the linear memory.
+			// Start the data address at wasmMinDataAddr.
+			// (The second and later sections in Segtext are
+			// actually rodata. Probably we should put them in
+			// Segrodata.)
 			va = wasmMinDataAddr
 		}
 	}
-
 	Segtext.Length = va - uint64(*FlagTextAddr)
 
 	if len(Segrodata.Sections) > 0 {

@@ -30,11 +30,11 @@ func rewriteValueAMD64latelower(v *Value) bool {
 func rewriteValueAMD64latelower_OpAMD64MOVBQZX(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVBQZX x)
-	// cond: ZeroUpper56Bits(x,3)
+	// cond: ZeroUpper56Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper56Bits(x, 3)) {
+		if !(ZeroUpper56Bits(x)) {
 			break
 		}
 		v.copyOf(x)
@@ -45,11 +45,11 @@ func rewriteValueAMD64latelower_OpAMD64MOVBQZX(v *Value) bool {
 func rewriteValueAMD64latelower_OpAMD64MOVLQZX(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVLQZX x)
-	// cond: ZeroUpper32Bits(x,3)
+	// cond: ZeroUpper32Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper32Bits(x, 3)) {
+		if !(ZeroUpper32Bits(x)) {
 			break
 		}
 		v.copyOf(x)
@@ -60,11 +60,11 @@ func rewriteValueAMD64latelower_OpAMD64MOVLQZX(v *Value) bool {
 func rewriteValueAMD64latelower_OpAMD64MOVWQZX(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVWQZX x)
-	// cond: ZeroUpper48Bits(x,3)
+	// cond: ZeroUpper48Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper48Bits(x, 3)) {
+		if !(ZeroUpper48Bits(x)) {
 			break
 		}
 		v.copyOf(x)

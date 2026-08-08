@@ -41,12 +41,14 @@ var allowedUnexpectedVerifications = map[string]string{
 	"webpki::forbidden-dsa-leaf":                           "Go doesn't enforce CABF key strength policies",
 	"webpki::forbidden-weak-rsa-key-in-root":               "Go doesn't enforce CABF key strength policies",
 	"webpki::forbidden-weak-rsa-in-leaf":                   "Go doesn't enforce CABF key strength policies",
-	"webpki::forbidden-rsa-not-divisable-by-8-in-root":     "Go doesn't enforce CABF key strength policies",
-	"webpki::forbidden-rsa-key-not-divisable-by-8-in-leaf": "Go doesn't enforce CABF key strength policies",
+	"webpki::forbidden-rsa-not-divisible-by-8-in-root":     "Go doesn't enforce CABF key strength policies",
+	"webpki::forbidden-rsa-key-not-divisible-by-8-in-leaf": "Go doesn't enforce CABF key strength policies",
 
 	// We don't want to take a public suffix data dependency, other heuristics
 	// are incomplete and will interact badly with private PKIs.
-	"webpki::san::public-suffix-wildcard-san": "Go doesn't include the PSL in its stdlib",
+	"webpki::san::public-suffix-wildcard-san":                   "Go doesn't include the PSL in its stdlib",
+	"webpki::san::public-suffix-multi-label-wildcard-san":       "Go doesn't include the PSL in its stdlib",
+	"webpki::san::public-suffix-private-namespace-wildcard-san": "Go doesn't include the PSL in its stdlib",
 
 	// Trust anchors are implicitly considered issuers regardless of basic
 	// constraints extension.
@@ -55,6 +57,10 @@ var allowedUnexpectedVerifications = map[string]string{
 	// comment in body of implementation.
 	"rfc5280::root-inconsistent-ca-extensions": "Go ignores KU, only considers BC on intermediates",
 	"rfc5280::leaf-ku-keycertsign":             "Go ignores KU, only considers BC on intermediates",
+	// RFC 9881 §5 forbids keyEncipherment/keyAgreement KU bits with ML-DSA
+	// keys, but Go ignores the KU extension by design (see above).
+	"rfc9881::ml-dsa-44-key-encipherment": "Go ignores KU",
+	"rfc9881::ml-dsa-44-key-agreement":    "Go ignores KU",
 
 	// Enforcing ee-basicconstraints-ca/ca-as-leaf may additionally break the
 	// somewhat common practice of using a self-signed issuer as the sole leaf
@@ -199,6 +205,10 @@ func TestX509Limbo(t *testing.T) {
 				t.Skipf("name constraints for DirectoryNames are not supported")
 			}
 
+			if slices.Contains(tc.Features, x509limbo.FeatureHasMldsa) {
+				cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
+			}
+
 			if len(tc.SignatureAlgorithms) != 0 {
 				// Note: there are no limbo.json test cases that specify signature
 				// algorithms at this time, so this skip is largely a no-op.
@@ -257,15 +267,7 @@ func TestX509Limbo(t *testing.T) {
 
 			validationTime := time.Now()
 			if tc.ValidationTime != nil {
-				vtStr, ok := tc.ValidationTime.(string)
-				if !ok {
-					t.Fatalf("validation time is not a string: %T %v", tc.ValidationTime, tc.ValidationTime)
-				}
-				parsed, err := time.Parse(time.RFC3339, vtStr)
-				if err != nil {
-					t.Fatalf("invalid validation time %q: %v", vtStr, err)
-				}
-				validationTime = parsed
+				validationTime = *tc.ValidationTime
 			}
 
 			var ekus []ExtKeyUsage

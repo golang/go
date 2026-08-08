@@ -1453,7 +1453,8 @@ func rewriteValueWasm(v *Value) bool {
 	case OpZeroExt8to64:
 		return rewriteValueWasm_OpZeroExt8to64(v)
 	case OpZeroSIMD:
-		return rewriteValueWasm_OpZeroSIMD(v)
+		v.Op = OpWasmV128Zero
+		return true
 	}
 	return false
 }
@@ -7536,16 +7537,6 @@ func rewriteValueWasm_OpZeroExt8to64(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
 		v0.AuxInt = int64ToAuxInt(0xff)
 		v.AddArg2(x, v0)
-		return true
-	}
-}
-func rewriteValueWasm_OpZeroSIMD(v *Value) bool {
-	// match: (ZeroSIMD <t>)
-	// result: (V128Zero <t>)
-	for {
-		t := v.Type
-		v.reset(OpWasmV128Zero)
-		v.Type = t
 		return true
 	}
 }

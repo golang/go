@@ -49,7 +49,8 @@ import (
    are call sites.
 
    Sometimes we encode the function ID and block ID separately. When
-   recorded together as a single integer, we use the value F<<16+B.
+   recorded together as a single integer, we use the value 1<<63+F<<16+B.
+   (We also set the highest bit so a PC is distinct from a data address.)
 
    Threads:
 

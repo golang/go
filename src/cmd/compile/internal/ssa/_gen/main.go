@@ -77,6 +77,7 @@ type opData struct {
 	addrSinkArg1      bool   // the address in arg1 does not propagate to the result
 	symEffect         string // effect this op has on symbol in aux
 	scale             uint8  // amd64/386 indexed load scale
+	zeroUpperBits     uint8  // the op writes a 64-bit GPR whose upper N bits are always zero (0, 32, 48 or 56); for a tuple op, this holds for every integer result
 }
 
 type blockData struct {
@@ -450,6 +451,14 @@ func genOp() {
 			}
 			if v.scale != 0 {
 				fmt.Fprintf(w, "scale: %d,\n", v.scale)
+			}
+			if v.zeroUpperBits != 0 {
+				switch v.zeroUpperBits {
+				case 32, 48, 56:
+				default:
+					log.Fatalf("%s: zeroUpperBits must be 0, 32, 48 or 56, have %d", v.name, v.zeroUpperBits)
+				}
+				fmt.Fprintf(w, "zeroUpperBits: %d,\n", v.zeroUpperBits)
 			}
 			fmt.Fprintln(w, "reg:regInfo{")
 

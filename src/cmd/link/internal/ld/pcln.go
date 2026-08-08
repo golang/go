@@ -779,8 +779,8 @@ func textOff(ctxt *Link, s loader.Sym, textStart int64) uint32 {
 	}
 	if ctxt.IsWasm() {
 		// On Wasm, the function table contains just the function index, whereas
-		// the "PC" (s's Value) is function index << 16 + block index (see
-		// ../wasm/asm.go:assignAddress).
+		// the "PC" (s's Value), relative to textStart, is function index << 16 + block index
+		// (see ../wasm/asm.go:assignAddress).
 		if off&(1<<16-1) != 0 {
 			ctxt.Errorf(s, "nonzero PC_B at function entry: %#x", off)
 		}

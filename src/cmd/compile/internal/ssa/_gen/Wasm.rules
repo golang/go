@@ -241,7 +241,7 @@
 (Store {t} ptr val mem) && t.Size() == 2 => (I64Store16 ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 1 => (I64Store8 ptr val mem)
 
-(ZeroSIMD <t>) => (V128Zero <t>)
+(ZeroSIMD ...) => (V128Zero ...)
 
 // Lowering moves
 (Move [0] _ _ mem) => mem

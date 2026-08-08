@@ -35,7 +35,7 @@ type Func struct {
 	bid idAlloc // block ID allocator
 	vid idAlloc // value ID allocator
 
-	HTMLWriter     *HTMLWriter    // html writer, for debugging
+	FatalCleanup   func()         // cleanup function to run before reporting a fatal error
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 	ABI0           *abi.ABIConfig // ABI configuration for ABI0
@@ -759,9 +759,8 @@ func (f *Func) Fatalf(msg string, args ...any) {
 		f.Logf("  pass %s end %s\n", f.pass.name, stats)
 		printFunc(f)
 	}
-	if f.HTMLWriter != nil {
-		f.HTMLWriter.WritePhase(f.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", f.pass.name, stats))
-		f.HTMLWriter.flushPhases()
+	if f.FatalCleanup != nil {
+		f.FatalCleanup()
 	}
 	f.fe.Fatalf(f.Entry.Pos, msg, args...)
 }

@@ -570,6 +570,58 @@ func TestFIPSCertAlgs(t *testing.T) {
 	}
 }
 
+func TestFIPSCertificateWithoutVerification(t *testing.T) {
+	badCert := fipsCert(t, "L", fipsRSAKey(t, 1024), nil, fipsCertLeaf)
+
+	serverCert := func(t *testing.T, version uint16) (clientErr, serverErr error) {
+		clientConfig := testConfigFIPS140.Clone()
+		clientConfig.InsecureSkipVerify = true
+		clientConfig.MinVersion = version
+		clientConfig.MaxVersion = version
+		serverConfig := testConfigFIPS140.Clone()
+		serverConfig.Certificates = []Certificate{{Certificate: [][]byte{badCert.der}, PrivateKey: badCert.key}}
+		serverConfig.MinVersion = version
+		serverConfig.MaxVersion = version
+		return fipsHandshake(t, clientConfig, serverConfig)
+	}
+
+	clientCert := func(t *testing.T, version uint16) (clientErr, serverErr error) {
+		clientConfig := testConfigFIPS140.Clone()
+		clientConfig.InsecureSkipVerify = true
+		clientConfig.Certificates = []Certificate{{Certificate: [][]byte{badCert.der}, PrivateKey: badCert.key}}
+		clientConfig.MinVersion = version
+		clientConfig.MaxVersion = version
+		serverConfig := testConfigFIPS140.Clone()
+		serverConfig.ClientAuth = RequireAnyClientCert
+		serverConfig.MinVersion = version
+		serverConfig.MaxVersion = version
+		return fipsHandshake(t, clientConfig, serverConfig)
+	}
+
+	for _, version := range []uint16{VersionTLS12, VersionTLS13} {
+		t.Run(VersionName(version), func(t *testing.T) {
+			runWithFIPSDisabled(t, func(t *testing.T) {
+				if clientErr, serverErr := serverCert(t, version); clientErr != nil {
+					t.Errorf("server cert: expected success; client error: %v; server error: %v", clientErr, serverErr)
+				}
+				if clientErr, serverErr := clientCert(t, version); serverErr != nil {
+					t.Errorf("client cert: expected success; client error: %v; server error: %v", clientErr, serverErr)
+				}
+			})
+
+			runWithFIPSEnabled(t, func(t *testing.T) {
+				const want = "not allowed in FIPS 140-3 mode"
+				if clientErr, _ := serverCert(t, version); clientErr == nil || !strings.Contains(clientErr.Error(), want) {
+					t.Errorf("server cert: got client error %v, want error containing %q", clientErr, want)
+				}
+				if _, serverErr := clientCert(t, version); serverErr == nil || !strings.Contains(serverErr.Error(), want) {
+					t.Errorf("client cert: got server error %v, want error containing %q", serverErr, want)
+				}
+			})
+		})
+	}
+}
+
 const (
 	fipsCertCA = iota
 	fipsCertLeaf

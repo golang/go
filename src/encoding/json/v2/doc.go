@@ -53,7 +53,7 @@
 // if [RejectUnknownMembers] is specified.
 //
 // The representation of each struct field can be customized in the
-// "json" struct field tag, where the tag is a comma separated list of options.
+// "json" struct field tag, where the tag is a comma-separated list of options.
 // As a special case, if the entire tag is `json:"-"`,
 // then the field is ignored with regard to its JSON representation.
 // Some options also have equivalent behavior controlled by a caller-specified [Options].
@@ -95,16 +95,16 @@
 //     JSON object names are matched with the JSON name for Go struct fields.
 //     The option is a key-value pair specified as "case:value" where
 //     the value must either be 'ignore' or 'strict'.
-//     The 'ignore' value specifies that matching is case-insensitive
-//     where dashes and underscores are also ignored. If multiple fields match,
+//     The 'ignore' value specifies that matching is case-insensitive,
+//     and also ignores dashes and underscores. If multiple fields match,
 //     then the field with an exact name match is selected, otherwise an error
-//     is reported due to an ambiguous set of candidate fields to unmarshal into.
+//     is reported because the choice of field to unmarshal into is ambiguous.
 //     The 'strict' value specifies that matching is case-sensitive.
 //     This takes precedence over the [MatchCaseInsensitiveNames] option.
 //
 //   - embed: The "embed" option specifies that
 //     the JSON representable content of this field type is to be promoted
-//     as if they were specified in the parent struct.
+//     as if it were specified in the parent struct.
 //     It is the JSON equivalent of Go struct embedding.
 //     A Go embedded field is implicitly JSON embedded unless
 //     an explicit JSON name is specified. The embedded field must be a Go struct
@@ -118,7 +118,7 @@
 //     while many non-fallback fields may be specified. This option
 //     must not be specified with any other option (including the JSON name).
 //
-// The "omitzero" and "omitempty" options are mostly semantically identical.
+// The "omitzero" and "omitempty" options behave similarly.
 // The former is defined in terms of the Go type system,
 // while the latter in terms of the JSON type system.
 // Consequently they behave differently in some circumstances.
@@ -127,14 +127,14 @@
 // The "omitzero" option is useful for types with a well-defined zero value
 // (e.g., [net/netip.Addr]) or have an IsZero method (e.g., [time.Time.IsZero]).
 //
-// Every Go struct corresponds to a list of JSON representable fields
+// Every Go struct corresponds to a list of JSON-representable fields
 // which is constructed by performing a breadth-first search over
 // all struct fields (excluding unexported or ignored fields),
 // where the search recursively descends into embedded structs.
 // The set of non-embedded fields in a struct must have unique JSON names.
 // If multiple fields all have the same JSON name, then the one
 // at shallowest depth takes precedence and the other fields at deeper depths
-// are excluded from the list of JSON representable fields.
+// are excluded from the list of JSON-representable fields.
 // If multiple fields at the shallowest depth have the same JSON name,
 // but exactly one is explicitly tagged with a JSON name,
 // then that field takes precedence and all others are excluded from the list.
@@ -142,7 +142,7 @@
 // with embedded struct types.
 //
 // Marshaling or unmarshaling a non-empty struct
-// without any JSON representable fields results in a [SemanticError].
+// without any JSON-representable fields results in a [SemanticError].
 // Unexported fields must not have any `json` tags except for `json:"-"`.
 //
 // # Security Considerations
@@ -154,8 +154,8 @@
 //
 // [For example, suppose we have two micro-services.]
 // The first service is responsible for authenticating a JSON request,
-// while the second service is responsible for executing the request
-// (having assumed that the prior service authenticated the request).
+// while the second service is responsible for executing the request,
+// assuming that it was authenticated.
 // If an attacker were able to maliciously craft a JSON request such that
 // both services believe that the same request is from different users,
 // it could bypass the authenticator with valid credentials for one user,

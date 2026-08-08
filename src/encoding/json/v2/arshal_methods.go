@@ -38,9 +38,9 @@ var (
 
 // Marshaler is implemented by types that can marshal themselves.
 // It is recommended that types implement [MarshalerTo] unless the implementation
-// is trying to avoid a hard dependency on the "jsontext" package.
+// is trying to avoid directly depending on the "jsontext" package.
 //
-// It is recommended that implementations return a buffer that is safe
+// Implementations should return a buffer that is safe
 // for the caller to retain and potentially mutate.
 //
 // If the returned error is a [SemanticError], then unpopulated fields
@@ -52,7 +52,7 @@ type Marshaler interface {
 
 // MarshalerTo is implemented by types that can marshal themselves.
 // It is recommended that types implement MarshalerTo instead of [Marshaler]
-// since this is both more performant and flexible.
+// since it is both more performant and more flexible.
 // If a type implements both Marshaler and MarshalerTo,
 // then MarshalerTo takes precedence. In such a case, both implementations
 // should aim to have equivalent behavior for the default marshal options.
@@ -60,15 +60,16 @@ type Marshaler interface {
 // The implementation must write only one JSON value to the Encoder.
 // Alternatively, it may return [errors.ErrUnsupported] without mutating
 // the Encoder. The "json" package calling the method will
-// use the next available JSON representation for the receiver type.
+// use the next available JSON representation for the receiver type,
+// as described in [Marshal].
 // Implementations must not retain the pointer to [jsontext.Encoder].
 //
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
 // Errors of other types are wrapped within a [SemanticError],
-// unless it is an IO error.
+// except for IO errors.
 //
-// The MarshalJSONTo method should not be directly called as it may
+// The MarshalJSONTo method should not be called directly as it may
 // return sentinel errors that need special handling.
 // Users should instead call [MarshalEncode], which handles such cases.
 type MarshalerTo interface {
@@ -77,13 +78,12 @@ type MarshalerTo interface {
 
 // Unmarshaler is implemented by types that can unmarshal themselves.
 // It is recommended that types implement [UnmarshalerFrom] unless the implementation
-// is trying to avoid a hard dependency on the "jsontext" package.
+// is trying to avoid a direct dependency on the "jsontext" package.
 //
 // The input can be assumed to be a valid encoding of a JSON value
 // if called from unmarshal functionality in this package.
-// UnmarshalJSON must copy the JSON data if it is retained after returning.
-// It is recommended that UnmarshalJSON implement merge semantics when
-// unmarshaling into a pre-populated value.
+// It is recommended that UnmarshalJSON implement merge semantics
+// when unmarshaling into a pre-populated value, as described in [Unmarshal].
 //
 // Implementations must not retain or mutate the input []byte.
 //
@@ -96,14 +96,14 @@ type Unmarshaler interface {
 
 // UnmarshalerFrom is implemented by types that can unmarshal themselves.
 // It is recommended that types implement UnmarshalerFrom instead of [Unmarshaler]
-// since this is both more performant and flexible.
+// since this is both more performant and more flexible.
 // If a type implements both Unmarshaler and UnmarshalerFrom,
 // then UnmarshalerFrom takes precedence. In such a case, both implementations
 // should aim to have equivalent behavior for the default unmarshal options.
 //
 // The implementation must read only one JSON value from the Decoder.
 // It is recommended that UnmarshalJSONFrom implement merge semantics when
-// unmarshaling into a pre-populated value.
+// unmarshaling into a pre-populated value, as described in [Unmarshal].
 // Alternatively, it may return [errors.ErrUnsupported] without mutating
 // the Decoder. The "json" package calling the method will
 // use the next available JSON representation for the receiver type.
@@ -112,9 +112,9 @@ type Unmarshaler interface {
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
 // Errors of other types are wrapped within a [SemanticError],
-// unless it is a [jsontext.SyntacticError] or an IO error.
+// except for [jsontext.SyntacticError]s and IO errors.
 //
-// The UnmarshalJSONFrom method should not be directly called as it may
+// The UnmarshalJSONFrom method should not be called directly as it may
 // return sentinel errors that need special handling.
 // Users should instead call [UnmarshalDecode], which handles such cases.
 type UnmarshalerFrom interface {

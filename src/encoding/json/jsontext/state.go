@@ -91,7 +91,7 @@ func (s *state) reset() {
 //
 // There is exactly one representation of a pointer to a particular value,
 // so comparability of Pointer values is equivalent to checking whether
-// they both point to the exact same value.
+// they both point to the same value.
 type Pointer string
 
 // IsValid reports whether p is a valid JSON Pointer according to RFC 6901.
@@ -117,13 +117,13 @@ func (p Pointer) Contains(pc Pointer) bool {
 }
 
 // Parent strips off the last token and returns the remaining pointer.
-// The parent of an empty p is an empty string.
+// The parent of an empty Pointer is the empty string.
 func (p Pointer) Parent() Pointer {
 	return p[:max(strings.LastIndexByte(string(p), '/'), 0)]
 }
 
 // LastToken returns the last token in the pointer.
-// The last token of an empty p is an empty string.
+// The last token of an empty Pointer is the empty string.
 func (p Pointer) LastToken() string {
 	last := p[max(strings.LastIndexByte(string(p), '/'), 0):]
 	return unescapePointerToken(strings.TrimPrefix(string(last), "/"))
@@ -138,7 +138,7 @@ func (p Pointer) AppendToken(tok string) Pointer {
 // but should this take in a ...string or an iter.Seq[string]?
 
 // Tokens returns an iterator over the reference tokens in the JSON pointer,
-// starting from the first token until the last token (unless stopped early).
+// from first to last.
 func (p Pointer) Tokens() iter.Seq[string] {
 	return func(yield func(string) bool) {
 		for len(p) > 0 {

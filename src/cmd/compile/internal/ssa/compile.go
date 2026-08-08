@@ -30,7 +30,7 @@ import (
 //   - the order of f.Blocks is the order to emit the Blocks
 //   - the order of b.Values is the order to emit the Values in each Block
 //   - f has a non-nil regAlloc field
-func Compile(f *Func) {
+func Compile(f *Func, htmlWriter *HTMLWriter) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
 	if f.Log() {
@@ -51,8 +51,8 @@ func Compile(f *Func) {
 			stack := make([]byte, 16384)
 			n := runtime.Stack(stack, false)
 			stack = stack[:n]
-			if f.HTMLWriter != nil {
-				f.HTMLWriter.flushPhases()
+			if htmlWriter != nil {
+				htmlWriter.flushPhases()
 			}
 			f.Fatalf("panic during %s while compiling %s:\n\n%v\n\n%s\n", phaseName, f.Name, err, stack)
 		}
@@ -62,7 +62,7 @@ func Compile(f *Func) {
 	if f.Log() {
 		printFunc(f)
 	}
-	f.HTMLWriter.WritePhase("start", "start")
+	htmlWriter.WritePhase("start", "start")
 	if BuildDump[f.Name] {
 		f.dumpFile("build")
 	}
@@ -101,7 +101,7 @@ func Compile(f *Func) {
 		tEnd := time.Now()
 
 		// Need something less crude than "Log the whole intermediate result".
-		if f.Log() || f.HTMLWriter != nil {
+		if f.Log() || htmlWriter != nil {
 			time := tEnd.Sub(tStart).Nanoseconds()
 			var stats string
 			if logMemStats {
@@ -118,7 +118,7 @@ func Compile(f *Func) {
 				f.Logf("  pass %s end %s\n", p.name, stats)
 				printFunc(f)
 			}
-			f.HTMLWriter.WritePhase(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats))
+			htmlWriter.WritePhase(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats))
 		}
 		if p.time || p.mem {
 			// Surround timing information w/ enough context to allow comparisons.
@@ -143,9 +143,9 @@ func Compile(f *Func) {
 		}
 	}
 
-	if f.HTMLWriter != nil {
+	if htmlWriter != nil {
 		// Ensure we write any pending phases to the html
-		f.HTMLWriter.flushPhases()
+		htmlWriter.flushPhases()
 	}
 
 	if f.ruleMatches != nil {
@@ -641,6 +641,7 @@ var passOrder = [...]constraint{
 	// known bits does very little except some fancy constant folding and we need opt to clean it up.
 	{"known bits", "late opt"},
 	// known bits does a better job once prove cleaned up some always taken and never taken branches.
+	// known bits also relies on the output to be mostly topo-sorted (for recursion limit purposes) which prove does.
 	{"prove", "known bits"},
 }
 

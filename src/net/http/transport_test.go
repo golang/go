@@ -7734,6 +7734,19 @@ func TestTransportServerProtocols(t *testing.T) {
 			srv.Protocols.SetHTTP2(true)
 		},
 		want: "error",
+	}, {
+		// https://go.dev/issue/80482
+		name:   "ConfigureServer updates TLSNextProto",
+		scheme: "https",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP2(true)
+		},
+		server: func(srv *Server) {
+			srv.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
+			testHTTP2ConfigureServer(srv)
+		},
+		want: "HTTP/2.0",
 	}} {
 		t.Run(test.name, func(t *testing.T) {
 			// We don't use httptest here because it makes its own decisions
@@ -7794,6 +7807,24 @@ func TestTransportServerProtocols(t *testing.T) {
 			}
 		})
 	}
+}
+
+// testHTTP2ConfigureServer is a stripped-down version of http2.ConfigureServer.
+func testHTTP2ConfigureServer(s *Server) {
+	s.Serve(testHTTP2ServerConfig{})
+}
+
+type testHTTP2ServerConfig struct {
+	net.Listener
+}
+
+func (testHTTP2ServerConfig) HTTP2Config() HTTP2Config {
+	return HTTP2Config{}
+}
+func (testHTTP2ServerConfig) IdleTimeout() time.Duration {
+	return 0
+}
+func (testHTTP2ServerConfig) ServeConnFunc(func(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte)) {
 }
 
 func TestIssue61474(t *testing.T) {

@@ -3,10 +3,27 @@
 
 # Test line numbers in cover errors.
 
+# Test twice in different working directories to ensure
+# errors don't leak paths from previous cached work.
+
+mkdir $WORK/gopath1/src
+cp go.mod $WORK/gopath1/src/go.mod
+cp p.go $WORK/gopath1/src/p.go
+cp p1.go $WORK/gopath1/src/p1.go
+cp p_test.go $WORK/gopath1/src/p_test.go
+
+mkdir $WORK/gopath2/src
+cp go.mod $WORK/gopath2/src/go.mod
+cp p.go $WORK/gopath2/src/p.go
+cp p1.go $WORK/gopath2/src/p1.go
+cp p_test.go $WORK/gopath2/src/p_test.go
+
+cd $WORK/gopath1/src
+
 # Get errors from a go test into stderr.txt
 ! go test coverbad
-stderr 'p\.go:4:2' # look for error at coverbad/p.go:4
-[cgo] stderr 'p1\.go:6:2' # look for error at coverbad/p.go:6
+stderr '^\.[\\/]p\.go:4:2' # look for error at coverbad/p.go:4
+[cgo] stderr '^\.[\\/]p1\.go:6:2' # look for error at coverbad/p.go:6
 ! stderr $WORK # make sure temporary directory isn't in error
 
 cp stderr $WORK/stderr.txt
@@ -18,6 +35,21 @@ cp stderr $WORK/stderr2.txt
 wait # for go run above
 
 cmp $WORK/stderr.txt $WORK/stderr2.txt
+
+#
+# Repeat in a second working directory.
+#
+cd $WORK/gopath2/src
+! go test coverbad
+stderr '^\.[\\/]p\.go:4:2' # look for error at coverbad/p.go:4
+[cgo] stderr '^\.[\\/]p1\.go:6:2' # look for error at coverbad/p.go:6
+! stderr $WORK # make sure temporary directory isn't in error
+cp stderr $WORK/stderr3.txt
+! go test -cover coverbad
+cp stderr $WORK/stderr4.txt
+wait
+cmp $WORK/stderr.txt $WORK/stderr3.txt
+cmp $WORK/stderr.txt $WORK/stderr4.txt
 
 -- go.mod --
 module coverbad

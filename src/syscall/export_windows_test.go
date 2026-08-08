@@ -14,3 +14,5 @@ var EncodeWTF16 = encodeWTF16
 var DecodeWTF16 = decodeWTF16
 
 var EnvSorted = envSorted
+
+var RemoveExtendedPrefix = removeExtendedPrefix

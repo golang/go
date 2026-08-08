@@ -892,23 +892,33 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = v.Args[2].Reg()
 		memIdx(&p.To, v)
 		ssagen.AddAux(&p.To, v)
-	case ssa.OpAMD64ADDQconstmodify, ssa.OpAMD64ADDLconstmodify:
+	case ssa.OpAMD64ADDQconstmodify, ssa.OpAMD64ADDLconstmodify,
+		ssa.OpAMD64ADDWconstmodify, ssa.OpAMD64ADDBconstmodify:
 		sc := v.AuxValAndOff()
 		off := sc.Off64()
 		val := sc.Val()
 		if val == 1 || val == -1 {
 			var asm obj.As
-			if v.Op == ssa.OpAMD64ADDQconstmodify {
-				if val == 1 {
-					asm = x86.AINCQ
-				} else {
+			switch v.Op {
+			case ssa.OpAMD64ADDQconstmodify:
+				asm = x86.AINCQ
+				if val == -1 {
 					asm = x86.ADECQ
 				}
-			} else {
-				if val == 1 {
-					asm = x86.AINCL
-				} else {
+			case ssa.OpAMD64ADDLconstmodify:
+				asm = x86.AINCL
+				if val == -1 {
 					asm = x86.ADECL
+				}
+			case ssa.OpAMD64ADDWconstmodify:
+				asm = x86.AINCW
+				if val == -1 {
+					asm = x86.ADECW
+				}
+			default:
+				asm = x86.AINCB
+				if val == -1 {
+					asm = x86.ADECB
 				}
 			}
 			p := s.Prog(asm)
@@ -920,6 +930,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		fallthrough
 	case ssa.OpAMD64ANDQconstmodify, ssa.OpAMD64ANDLconstmodify, ssa.OpAMD64ORQconstmodify, ssa.OpAMD64ORLconstmodify,
 		ssa.OpAMD64XORQconstmodify, ssa.OpAMD64XORLconstmodify,
+		ssa.OpAMD64ANDWconstmodify, ssa.OpAMD64ANDBconstmodify, ssa.OpAMD64ORWconstmodify, ssa.OpAMD64ORBconstmodify,
+		ssa.OpAMD64XORWconstmodify, ssa.OpAMD64XORBconstmodify,
 		ssa.OpAMD64BTSQconstmodify, ssa.OpAMD64BTRQconstmodify, ssa.OpAMD64BTCQconstmodify:
 		sc := v.AuxValAndOff()
 		off := sc.Off64()
@@ -960,7 +972,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpAMD64ADDLconstmodifyidx1, ssa.OpAMD64ADDLconstmodifyidx4, ssa.OpAMD64ADDLconstmodifyidx8, ssa.OpAMD64ADDQconstmodifyidx1, ssa.OpAMD64ADDQconstmodifyidx8,
 		ssa.OpAMD64ANDLconstmodifyidx1, ssa.OpAMD64ANDLconstmodifyidx4, ssa.OpAMD64ANDLconstmodifyidx8, ssa.OpAMD64ANDQconstmodifyidx1, ssa.OpAMD64ANDQconstmodifyidx8,
 		ssa.OpAMD64ORLconstmodifyidx1, ssa.OpAMD64ORLconstmodifyidx4, ssa.OpAMD64ORLconstmodifyidx8, ssa.OpAMD64ORQconstmodifyidx1, ssa.OpAMD64ORQconstmodifyidx8,
-		ssa.OpAMD64XORLconstmodifyidx1, ssa.OpAMD64XORLconstmodifyidx4, ssa.OpAMD64XORLconstmodifyidx8, ssa.OpAMD64XORQconstmodifyidx1, ssa.OpAMD64XORQconstmodifyidx8:
+		ssa.OpAMD64XORLconstmodifyidx1, ssa.OpAMD64XORLconstmodifyidx4, ssa.OpAMD64XORLconstmodifyidx8, ssa.OpAMD64XORQconstmodifyidx1, ssa.OpAMD64XORQconstmodifyidx8,
+		ssa.OpAMD64ADDWconstmodifyidx1, ssa.OpAMD64ADDWconstmodifyidx2, ssa.OpAMD64ADDBconstmodifyidx1,
+		ssa.OpAMD64ANDWconstmodifyidx1, ssa.OpAMD64ANDWconstmodifyidx2, ssa.OpAMD64ANDBconstmodifyidx1,
+		ssa.OpAMD64ORWconstmodifyidx1, ssa.OpAMD64ORWconstmodifyidx2, ssa.OpAMD64ORBconstmodifyidx1,
+		ssa.OpAMD64XORWconstmodifyidx1, ssa.OpAMD64XORWconstmodifyidx2, ssa.OpAMD64XORBconstmodifyidx1:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
@@ -977,6 +993,18 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p.From.Type = obj.TYPE_NONE
 		case p.As == x86.AADDL && p.From.Offset == -1:
 			p.As = x86.ADECL
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDW && p.From.Offset == 1:
+			p.As = x86.AINCW
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDW && p.From.Offset == -1:
+			p.As = x86.ADECW
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDB && p.From.Offset == 1:
+			p.As = x86.AINCB
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDB && p.From.Offset == -1:
+			p.As = x86.ADECB
 			p.From.Type = obj.TYPE_NONE
 		}
 		memIdx(&p.To, v)
@@ -1251,7 +1279,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		if x != y {
 			width := v.Type.Size()
-			if width == 8 && isGPReg(y) && ssa.ZeroUpper32Bits(arg, 3) {
+			if width == 8 && isGPReg(y) && ssa.ZeroUpper32Bits(arg) {
 				// The source was naturally zext-ed from 32 to 64 bits,
 				// but we are asked to do a full 64-bit copy.
 				// Save the REX prefix byte in I-CACHE by using a 32-bit move,
@@ -1288,6 +1316,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpAMD64LoweredHasCPUFeature:
+		// If this load changes width, update zeroUpperBits in AMD64Ops.go.
 		p := s.Prog(x86.AMOVBLZX)
 		p.From.Type = obj.TYPE_MEM
 		ssagen.AddAux(&p.From, v)
@@ -1669,6 +1698,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// LOCK CMPXCHGQ tmp, (addr) : note that AX is implicit old value to compare against
 		// JNE loop
 		// : result in AX
+		//
+		// If the width written to AX changes, update zeroUpperBits in AMD64Ops.go.
 		mov := x86.AMOVQ
 		op := x86.AANDQ
 		cmpxchg := x86.ACMPXCHGQ

@@ -82,6 +82,16 @@
 (BitRev16 (Const16 [c])) => (Const16 [int16(bits.Reverse16(uint16(c)))])
 (BitRev8  (Const8  [c])) => (Const8  [int8(bits.Reverse8(uint8(c)))])
 (Add64carry (Const64 <t> [x]) (Const64 [y]) (Const64 [c])) && c >= 0 && c <= 1 => (MakeTuple (Const64 <t> [bitsAdd64(x, y, c).sum]) (Const64 <t> [bitsAdd64(x, y, c).carry]))
+(Sub64borrow (Const64 <t> [x]) (Const64 [y]) (Const64 [borrowVal])) && borrowVal >= 0 && borrowVal <= 1 => (MakeTuple (Const64 <t> [bitsSub64(x, y, borrowVal).diff]) (Const64 <t> [bitsSub64(x, y, borrowVal).borrow]))
+
+(RotateLeft64 (Const64 [x]) (Const(64|32) [y])) => (Const64 [int64(bits.RotateLeft64(uint64(x), int(y)))])
+(RotateLeft32 (Const32 [x]) (Const(64|32) [y])) => (Const32 [int32(bits.RotateLeft32(uint32(x), int(y)))])
+(RotateLeft16 (Const16 [x]) (Const(64|32) [y])) => (Const16 [int16(bits.RotateLeft16(uint16(x), int(y)))])
+(RotateLeft8  (Const8  [x]) (Const(64|32) [y])) => (Const8  [int8(bits.RotateLeft8(uint8(x), int(y)))])
+
+
+(Div128u <t> (Const64 [hi]) (Const64 [lo]) (Const64 [y])) && y != 0 && uint64(hi) < uint64(y) => (MakeTuple (Const64 <t.FieldType(0)> [bitsDiv128u(hi, lo, y).quo]) (Const64 <t.FieldType(1)> [bitsDiv128u(hi, lo, y).rem]))
+
 
 (Trunc16to8  (ZeroExt8to16  x)) => x
 (Trunc32to8  (ZeroExt8to32  x)) => x
@@ -825,22 +835,22 @@
 	&& isSamePtr(p1, p3)
 	&& copyCompatibleType(t1, x.Type)
 	&& t1.Size() == t3.Size()
-	&& disjoint(p3, t3.Size(), p2, t2.Size())
+	&& disjoint(p3, t3, p2, t2)
 	=> x
 (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 x _))))
 	&& isSamePtr(p1, p4)
 	&& copyCompatibleType(t1, x.Type)
 	&& t1.Size() == t4.Size()
-	&& disjoint(p4, t4.Size(), p2, t2.Size())
-	&& disjoint(p4, t4.Size(), p3, t3.Size())
+	&& disjoint(p4, t4, p2, t2)
+	&& disjoint(p4, t4, p3, t3)
 	=> x
 (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 x _)))))
 	&& isSamePtr(p1, p5)
 	&& copyCompatibleType(t1, x.Type)
 	&& t1.Size() == t5.Size()
-	&& disjoint(p5, t5.Size(), p2, t2.Size())
-	&& disjoint(p5, t5.Size(), p3, t3.Size())
-	&& disjoint(p5, t5.Size(), p4, t4.Size())
+	&& disjoint(p5, t5, p2, t2)
+	&& disjoint(p5, t5, p3, t3)
+	&& disjoint(p5, t5, p4, t4)
 	=> x
 
 // Load from a region just copied by Move can read directly from the source.
@@ -861,7 +871,7 @@
 		mem:(Zero [n] p3 _)))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3)
 	&& CanSSA(t1)
-	&& disjoint(op1, t1.Size(), p2, t2.Size())
+	&& disjoint(op1, t1, p2, t2)
 	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p3) mem)
 (Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
@@ -869,8 +879,8 @@
 			mem:(Zero [n] p4 _))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4)
 	&& CanSSA(t1)
-	&& disjoint(op1, t1.Size(), p2, t2.Size())
-	&& disjoint(op1, t1.Size(), p3, t3.Size())
+	&& disjoint(op1, t1, p2, t2)
+	&& disjoint(op1, t1, p3, t3)
 	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p4) mem)
 (Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
@@ -879,9 +889,9 @@
 				mem:(Zero [n] p5 _)))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5)
 	&& CanSSA(t1)
-	&& disjoint(op1, t1.Size(), p2, t2.Size())
-	&& disjoint(op1, t1.Size(), p3, t3.Size())
-	&& disjoint(op1, t1.Size(), p4, t4.Size())
+	&& disjoint(op1, t1, p2, t2)
+	&& disjoint(op1, t1, p3, t3)
+	&& disjoint(op1, t1, p4, t4)
 	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p5) mem)
 (Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
@@ -891,10 +901,10 @@
 					mem:(Zero [n] p6 _))))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6)
 	&& CanSSA(t1)
-	&& disjoint(op1, t1.Size(), p2, t2.Size())
-	&& disjoint(op1, t1.Size(), p3, t3.Size())
-	&& disjoint(op1, t1.Size(), p4, t4.Size())
-	&& disjoint(op1, t1.Size(), p5, t5.Size())
+	&& disjoint(op1, t1, p2, t2)
+	&& disjoint(op1, t1, p3, t3)
+	&& disjoint(op1, t1, p4, t4)
+	&& disjoint(op1, t1, p5, t5)
 	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p6) mem)
 
 // Zero to Load forwarding.
@@ -943,20 +953,20 @@
 (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ oldmem))
 	&& isSamePtr(p1, p2)
 	&& t2.Size() == t1.Size()
-	&& disjoint(p1, t1.Size(), p3, t3.Size())
+	&& disjoint(p1, t1, p3, t3)
 	=> mem
 (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ (Store {t4} p4 _ oldmem)))
 	&& isSamePtr(p1, p2)
 	&& t2.Size() == t1.Size()
-	&& disjoint(p1, t1.Size(), p3, t3.Size())
-	&& disjoint(p1, t1.Size(), p4, t4.Size())
+	&& disjoint(p1, t1, p3, t3)
+	&& disjoint(p1, t1, p4, t4)
 	=> mem
 (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 _ oldmem))))
 	&& isSamePtr(p1, p2)
 	&& t2.Size() == t1.Size()
-	&& disjoint(p1, t1.Size(), p3, t3.Size())
-	&& disjoint(p1, t1.Size(), p4, t4.Size())
-	&& disjoint(p1, t1.Size(), p5, t5.Size())
+	&& disjoint(p1, t1, p3, t3)
+	&& disjoint(p1, t1, p4, t4)
+	&& disjoint(p1, t1, p5, t5)
 	=> mem
 
 // Don't Store zeros to cleared variables.
@@ -967,20 +977,20 @@
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Zero [n] p3 _)))
 	&& isConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p3)
-	&& disjoint(op1, t1.Size(), p2, t2.Size())
+	&& disjoint(op1, t1, p2, t2)
 	=> mem
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Zero [n] p4 _))))
 	&& isConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p4)
-	&& disjoint(op1, t1.Size(), p2, t2.Size())
-	&& disjoint(op1, t1.Size(), p3, t3.Size())
+	&& disjoint(op1, t1, p2, t2)
+	&& disjoint(op1, t1, p3, t3)
 	=> mem
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Zero [n] p5 _)))))
 	&& isConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p5)
-	&& disjoint(op1, t1.Size(), p2, t2.Size())
-	&& disjoint(op1, t1.Size(), p3, t3.Size())
-	&& disjoint(op1, t1.Size(), p4, t4.Size())
+	&& disjoint(op1, t1, p2, t2)
+	&& disjoint(op1, t1, p3, t3)
+	&& disjoint(op1, t1, p4, t4)
 	=> mem
 
 // Collapse OffPtr
@@ -1014,7 +1024,7 @@
 // array ops
 (ArraySelect (ArrayMake1 x)) => x
 
-(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && CanSSA(t) =>
+(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && CanSSA(t) =>
   (ArrayMake1 (Load <t.Elem()> ptr mem))
 
 (Store dst (ArrayMake1 e) mem) => (Store {e.Type} dst e mem)
@@ -1774,7 +1784,7 @@
 (Move {t1} [n] dst1 src1 store:(Store {t2} op1:(OffPtr [o2] dst2) _ mem))
 	&& isSamePtr(dst1, dst2) && store.Uses == 1
 	&& n >= o2 + t2.Size()
-	&& disjoint(src1, n, op1, t2.Size())
+	&& disjoint1(src1, n, op1, t2.Size())
 	&& clobber(store)
 	=> (Move {t1} [n] dst1 src1 mem)
 
@@ -1786,7 +1796,7 @@
 	=> (Zero {t} [n] dst1 mem)
 (Move {t} [n] dst1 src1 move:(Move {t} [n] dst2 _ mem))
 	&& move.Uses == 1
-	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
+	&& isSamePtr(dst1, dst2) && disjoint1(src1, n, dst2, n)
 	&& clobber(move)
 	=> (Move {t} [n] dst1 src1 mem)
 (Zero {t} [n] dst1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
@@ -1796,7 +1806,7 @@
 	=> (Zero {t} [n] dst1 (VarDef {x} mem))
 (Move {t} [n] dst1 src1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
 	&& move.Uses == 1 && vardef.Uses == 1
-	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
+	&& isSamePtr(dst1, dst2) && disjoint1(src1, n, dst2, n)
 	&& clobber(move, vardef)
 	=> (Move {t} [n] dst1 src1 (VarDef {x} mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
@@ -1837,12 +1847,12 @@
 // before being accessed.
 (Move {t} [n] dst1 src1 zero:(Zero {t} [n] dst2 mem))
 	&& zero.Uses == 1
-	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
+	&& isSamePtr(dst1, dst2) && disjoint1(src1, n, dst2, n)
 	&& clobber(zero)
 	=> (Move {t} [n] dst1 src1 mem)
 (Move {t} [n] dst1 src1 vardef:(VarDef {x} zero:(Zero {t} [n] dst2 mem)))
 	&& zero.Uses == 1 && vardef.Uses == 1
-	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
+	&& isSamePtr(dst1, dst2) && disjoint1(src1, n, dst2, n)
 	&& clobber(zero, vardef)
 	=> (Move {t} [n] dst1 src1 (VarDef {x} mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
@@ -2164,8 +2174,8 @@
 	&& t1.Compare(t2) == types.CMPeq
 	&& isSamePtr(tmp1, tmp2)
 	&& isStackPtr(src) && !isVolatile(src)
-	&& disjoint(src, s, tmp2, s)
-	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	&& disjoint1(src, s, tmp2, s)
+	&& (disjoint1(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
 	=> (Move {t1} [s] dst src midmem)
 
 // Same, but for large types that require VarDefs.
@@ -2173,8 +2183,8 @@
 	&& t1.Compare(t2) == types.CMPeq
 	&& isSamePtr(tmp1, tmp2)
 	&& isStackPtr(src) && !isVolatile(src)
-	&& disjoint(src, s, tmp2, s)
-	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	&& disjoint1(src, s, tmp2, s)
+	&& (disjoint1(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
 	=> (Move {t1} [s] dst src midmem)
 
 // Don't zero the same bits twice.

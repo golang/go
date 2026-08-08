@@ -93,8 +93,6 @@ void x_cgo_bindm(void* g) {
 	pthread_setspecific(pthread_g, g);
 }
 
-void (* _cgo_bindm)(void*) = x_cgo_bindm;
-
 void
 x_cgo_notify_runtime_init_done(void* dummy __attribute__ ((unused))) {
 	pthread_mutex_lock(&runtime_init_mu);
@@ -196,5 +194,3 @@ x_cgo_thread_start(ThreadStart *arg)
 
 	_cgo_sys_thread_start(ts);	/* OS-dependent half */
 }
-
-void (* _cgo_thread_start)(ThreadStart*) = x_cgo_thread_start;

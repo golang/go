@@ -137,6 +137,17 @@ type ReverseProxy struct {
 	// issues if the proxy's interpretation of query parameters
 	// does not match that of the downstream server.
 	//
+	// The outbound request contains the exact Cookie header
+	// (if any) from the inbound request.
+	// Proxies which examine request cookies should use
+	// http.ParseCookie, which returns an error,
+	// to parse and validate cookies.
+	// The Cookie, Cookies, or CookiesNamed methods of http.Request
+	// silently discard invalid cookies, and using them to access
+	// cookie values can cause security issues if the proxy's
+	// interpretation of cookie values does not match that of the
+	// downstream server.
+	//
 	// At most one of Rewrite or Director may be set.
 	Rewrite func(*ProxyRequest)
 

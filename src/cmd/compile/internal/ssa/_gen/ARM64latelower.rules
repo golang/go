@@ -29,9 +29,9 @@
 (MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => x
 
 // omit unsigned extension
-(MOVBUreg x) && ZeroUpper56Bits(x, 3) => x
-(MOVHUreg x) && ZeroUpper48Bits(x, 3) => x
-(MOVWUreg x) && ZeroUpper32Bits(x, 3) => x
+(MOVBUreg x) && ZeroUpper56Bits(x) => x
+(MOVHUreg x) && ZeroUpper48Bits(x) => x
+(MOVWUreg x) && ZeroUpper32Bits(x) => x
 
 // don't extend after proper load
 (MOVBreg  x:(MOVBload  _ _)) => (MOVDreg x)

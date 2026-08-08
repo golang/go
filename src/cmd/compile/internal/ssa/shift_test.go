@@ -43,7 +43,7 @@ func makeConstShiftFunc(c *Conf, amount int64, op Op, typ *types.Type) fun {
 			Valu("shift", op, typ, 0, nil, "load", "c"),
 			Valu("store", OpStore, types.TypeMem, 0, c.config.Types.UInt64, "resptr", "shift", "mem"),
 			Exit("store")))
-	Compile(fun.f)
+	runPasses(fun.f)
 	return fun
 }
 
@@ -102,6 +102,19 @@ func makeShiftExtensionFunc(c *Conf, amount int64, lshift, rshift Op, typ *types
 			Valu("rshift", rshift, typ, 0, nil, "lshift", "c"),
 			Valu("store", OpStore, types.TypeMem, 0, c.config.Types.UInt64, "resptr", "rshift", "mem"),
 			Exit("store")))
-	Compile(fun.f)
+	runPasses(fun.f)
 	return fun
+}
+
+// runPasses is a simplified version of Compile that runs the passes
+// for the tests in this file.
+func runPasses(f *Func) {
+	for i := range passes {
+		p := &passes[i]
+		if !f.Config.optimize && !p.required || p.disabled {
+			continue
+		}
+		f.pass = p
+		p.fn(f)
+	}
 }

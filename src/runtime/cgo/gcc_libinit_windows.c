@@ -48,11 +48,6 @@ static int runtime_init_done;
 // No pthreads on Windows, these are always zero.
 uintptr_t x_cgo_pthread_key_created;
 void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
-void (*_cgo_init)(G*, void (*)(void*), void **, void **);
-void (*_cgo_thread_start)(ThreadStart *);
-void (*_cgo_sys_thread_create)(void* (*func)(void*));
-void (*_cgo_getstackbound)(uintptr[2]);
-void (*_cgo_bindm)(void*);
 
 // Pre-initialize the runtime synchronization objects
 void

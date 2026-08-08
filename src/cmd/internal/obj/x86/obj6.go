@@ -625,11 +625,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		autoffset = 0
 	}
 
-	hasCall := false
-	for q := p; q != nil; q = q.Link {
-		if q.As == obj.ACALL || q.As == obj.ADUFFCOPY || q.As == obj.ADUFFZERO {
+	var hasCall, mightCallABI0 bool
+	for q := p; q != nil && !(hasCall && mightCallABI0); q = q.Link {
+		switch q.As {
+		case obj.ACALL:
 			hasCall = true
-			break
+			if q.To.Sym != nil {
+				if q.To.Sym.ABI() == obj.ABI0 {
+					mightCallABI0 = true
+				}
+			} else {
+				if ctxt.IsAsm {
+					// We have no idea what this indirect call looks like, so assume the worst.
+					mightCallABI0 = true
+				} else {
+					// The compiler always use ABIInternal for indirect calls
+					// since otherwise it goes through an ABIInternal → ABI0 wrapper.
+				}
+			}
+		case obj.ADUFFCOPY, obj.ADUFFZERO:
+			hasCall = true
 		}
 	}
 
@@ -828,8 +843,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// We can't use LEAVE with ABI0 assembly because the go
 			// asm promise it will insert save and restores for BP.
 			// Thus many pieces of code use BP as a scratch register.
+			// Due to ABI0 NOFRAME functions not restoring BP we can't
+			// use LEAVE there either. See https://go.dev/issue/80710
 			asmSafe := !ctxt.IsAsm || cursym.ABI() == obj.ABIInternal
-			if asmSafe && needSpRestore && needBpRestore {
+			if asmSafe && !mightCallABI0 && needSpRestore && needBpRestore {
 				p.As = ALEAVEQ
 				p.Spadj = -localoffset - int32(bpsize)
 				p = obj.Appendp(p, newprog)
