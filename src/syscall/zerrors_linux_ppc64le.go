@@ -1878,3 +1878,7 @@ var signals = [...]string{
 	30: "power failure",
 	31: "bad system call",
 }
+
+const (
+	_PR_SET_NO_NEW_PRIVS = PR_SET_NO_NEW_PRIVS
+)
