@@ -202,7 +202,6 @@ var goodLinkerFlags = [][]string{
 	{"-L", "framework"},
 	{"-framework", "Chocolate"},
 	{"-v"},
-	{"-Wl,-sectcreate,__TEXT,__info_plist,${SRCDIR}/Info.plist"},
 	{"-Wl,-framework", "-Wl,Chocolate"},
 	{"-Wl,-framework,Chocolate"},
 	{"-Wl,-unresolved-symbols=ignore-all"},
@@ -220,9 +219,9 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,-framework,."},
 	{"-Wl,-rpath,."},
 	{"-Wl,-rpath-link,."},
-	{"-Wl,-sectcreate,.,.,."},
 	{"-Wl,-syslibroot,."},
 	{"-Wl,-undefined,."},
+	{"-Wl,-sectcreate,__RESTRICT,__restrict,/dev/null"},
 }
 
 var badLinkerFlags = [][]string{
@@ -289,6 +288,9 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-e="},
 	{"-Wl,-e,"},
 	{"-Wl,-R,-flag"},
+	{"-Wl,-sectcreate,.,.,."},
+	{"-Wl,-sectcreate,__TEXT,__info_plist,${SRCDIR}/Info.plist"},
+	{"-Wl,-sectcreate,__TEXT,__info,/etc/hosts"},
 	{"-Wl,--push-state,"},
 	{"-Wl,--push-state,@foo"},
 	{"-fplugin=./-Wl,--push-state,-R.so"},
