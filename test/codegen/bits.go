@@ -455,7 +455,7 @@ func bitsOpOnMem(a []uint32, b, c, d uint32) {
 
 func bitsCheckMostNegative(b uint8) bool {
 	// amd64:"TESTB"
-	// arm64:"TSTW" "CSET"
+	// arm64:"UBFX [$]7, R[0-9]+, [$]1" -"TSTW" -"CSET"
 	// loong64:"AND [$]128," "SGTU"
 	// riscv64:"ANDI [$]128," "SNEZ" -"ADDI"
 	return b&0x80 == 0x80
