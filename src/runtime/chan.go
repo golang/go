@@ -545,8 +545,8 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		c.timer.maybeRunChan(c)
 	}
 
-	// Fast path: check for failed non-blocking operation without acquiring the lock.
-	if !block && empty(c) {
+	// Fast path: check for failed receive on closed chan without acquiring the lock.
+	if empty(c) {
 		// After observing that the channel is not ready for receiving, we observe whether the
 		// channel is closed.
 		//
@@ -557,16 +557,18 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		// separate critical sections under the same lock.  This assumption fails when closing
 		// an unbuffered channel with a blocked send, but that is an error condition anyway.
 		if atomic.Load(&c.closed) == 0 {
-			// Because a channel cannot be reopened, the later observation of the channel
-			// being not closed implies that it was also not closed at the moment of the
-			// first observation. We behave as if we observed the channel at that moment
-			// and report that the receive cannot proceed.
-			return
-		}
-		// The channel is irreversibly closed. Re-check whether the channel has any pending data
-		// to receive, which could have arrived between the empty and closed checks above.
-		// Sequential consistency is also required here, when racing with such a send.
-		if empty(c) {
+			if !block {
+				// Because a channel cannot be reopened, the later observation of the channel
+				// being not closed implies that it was also not closed at the moment of the
+				// first observation. We behave as if we observed the channel at that moment
+				// and report that the receive cannot proceed.
+				return
+			}
+		} else if empty(c) {
+			// The channel is irreversibly closed. Re-check whether the channel has any pending data
+			// to receive, which could have arrived between the empty and closed checks above.
+			// Sequential consistency is also required here, when racing with such a send.
+
 			// The channel is irreversibly closed and empty.
 			if raceenabled {
 				raceacquire(c.raceaddr())
@@ -576,6 +578,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 			}
 			return true, false
 		}
+		// Fast path failed: this is not a closed chan or has data in it.
 	}
 
 	var t0 int64
