@@ -1576,6 +1576,56 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 	}
 }
 
+// Proxy-Authorization is scoped to the proxy connection, so the client
+// should not copy a caller-supplied value when constructing redirect requests.
+func TestClientStripProxyAuthorizationOnRedirect(t *testing.T) {
+	run(t, testClientStripProxyAuthorizationOnRedirect, http3SkippedMode)
+}
+func testClientStripProxyAuthorizationOnRedirect(t *testing.T, mode testMode) {
+	var proto string
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		switch r.Host + r.URL.Path {
+		case "example.com/":
+			if h := r.Header.Get("Proxy-Authorization"); h != "secretpassword" {
+				t.Errorf("initial request Proxy-Authorization=%q, want secretpassword", h)
+			}
+			Redirect(w, r, proto+"://sub.example.com/redirect", StatusFound)
+		case "sub.example.com/redirect":
+			if h := r.Header.Get("Authorization"); h != "secretpassword" {
+				t.Errorf("redirected request Authorization=%q, want secretpassword", h)
+			}
+			if h := r.Header.Get("Cookie"); h != "foo=bar" {
+				t.Errorf("redirected request Cookie=%q, want foo=bar", h)
+			}
+			if h := r.Header.Get("Proxy-Authorization"); h != "" {
+				t.Errorf("redirected request Proxy-Authorization=%q, want no header", h)
+			}
+			w.Header().Set("X-Done", "true")
+		default:
+			t.Errorf("unexpected request to %v%v", r.Host, r.URL.Path)
+		}
+	})).ts
+	proto, _, _ = strings.Cut(ts.URL, ":")
+
+	c := ts.Client()
+	c.Transport.(*Transport).Dial = func(_ string, _ string) (net.Conn, error) {
+		return net.Dial("tcp", ts.Listener.Addr().String())
+	}
+
+	req, _ := NewRequest("GET", proto+"://example.com/", nil)
+	req.Header.Add("Cookie", "foo=bar")
+	req.Header.Add("Authorization", "secretpassword")
+	req.Header.Add("Proxy-Authorization", "secretpassword")
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.Header.Get("X-Done") != "true" {
+		t.Fatalf("response missing expected header: X-Done=true")
+	}
+}
+
 // Issue #70530: Once we strip a header on a redirect to a different host,
 // the header should stay stripped across any further redirects.
 func TestClientStripHeadersOnRepeatedRedirect(t *testing.T) {
