@@ -23,6 +23,8 @@ const (
 
 // NewGCM returns the given 128-bit, block cipher wrapped in Galois Counter Mode
 // with the standard nonce length.
+//
+// The returned AEAD is safe for concurrent use if the underlying [Block] is.
 func NewGCM(cipher Block) (AEAD, error) {
 	if fips140only.Enforced() {
 		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
