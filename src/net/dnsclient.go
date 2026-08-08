@@ -27,6 +27,18 @@ func randIntn(n int) int {
 	return randInt() % n
 }
 
+// shuffle the same as rand.Shuffle in package math/rand/v2
+// for reduce dependency usage.
+func shuffle(n int, swap func(i, j int)) {
+	if n < 0 {
+		panic("invalid argument to Shuffle")
+	}
+	for i := n - 1; i > 0; i-- {
+		j := randIntn(i + 1)
+		swap(i, j)
+	}
+}
+
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
 // address addr suitable for rDNS (PTR) record lookup or an error if it fails
 // to parse the IP address.
