@@ -327,12 +327,19 @@ func TestChdir(t *testing.T) {
 	}
 	defer os.Chdir(oldDir)
 
-	// The "relative" test case relies on tmp not being a symlink.
+	// The "relative" test case relies on neither tmp nor oldDir being a
+	// symlink, since it compares the result of Getwd (which may resolve
+	// symlinks) against an expected path computed from filepath.Rel.
+	// Resolve both to their physical paths for the relative path computation.
+	realOldDir, err := filepath.EvalSymlinks(oldDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	tmp, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	rel, err := filepath.Rel(oldDir, tmp)
+	rel, err := filepath.Rel(realOldDir, tmp)
 	if err != nil {
 		// If GOROOT is on C: volume and tmp is on the D: volume, there
 		// is no relative path between them, so skip that test case.
