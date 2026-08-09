@@ -1201,7 +1201,7 @@ func init() {
 		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, hasSideEffects: true, symEffect: "RdWr", zeroUpperBits: 32},
 		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, hasSideEffects: true, symEffect: "RdWr"},
 
-		// Atomic adds.
+		// Atomic adds and exchange.
 		// *(arg1+auxint+aux) += arg0.  arg2=mem.
 		// Returns a tuple of <old contents of *(arg1+auxint+aux), memory>.
 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
@@ -1209,6 +1209,15 @@ func init() {
 		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, hasSideEffects: true, symEffect: "RdWr"},
 		{name: "AddTupleFirst32", argLength: 2}, // arg1=tuple <x,y>.  Returns <x+arg0,y>.
 		{name: "AddTupleFirst64", argLength: 2}, // arg1=tuple <x,y>.  Returns <x+arg0,y>.
+
+		// Atomic adds, used when we do atomic.Add* and do not use the returned value.
+		// (*arg0+auxint+aux) += arg1.  arg2=mem.
+		// returns memory
+		// Note: arg0 and arg1 are backwards compared to XADD*lock.
+		{name: "ADDLlock", argLength: 3, reg: gpstore, asm: "ADDL", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
+		{name: "ADDQlock", argLength: 3, reg: gpstore, asm: "ADDQ", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
+
+		// TODO: ADDlockconst
 
 		// Compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.

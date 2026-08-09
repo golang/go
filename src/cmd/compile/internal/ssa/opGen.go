@@ -785,6 +785,8 @@ const (
 	OpAMD64XADDQlock
 	OpAMD64AddTupleFirst32
 	OpAMD64AddTupleFirst64
+	OpAMD64ADDLlock
+	OpAMD64ADDQlock
 	OpAMD64CMPXCHGLlock
 	OpAMD64CMPXCHGQlock
 	OpAMD64ANDBlock
@@ -20539,6 +20541,38 @@ var opcodeTable = [...]opInfo{
 		name:   "AddTupleFirst64",
 		argLen: 2,
 		reg:    regInfo{},
+	},
+	{
+		name:           "ADDLlock",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		symEffect:      SymRdWr,
+		asm:            x86.AADDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "ADDQlock",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		symEffect:      SymRdWr,
+		asm:            x86.AADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
 	},
 	{
 		name:           "CMPXCHGLlock",

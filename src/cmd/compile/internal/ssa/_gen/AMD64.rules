@@ -525,6 +525,12 @@
 (Select0 <t> (AddTupleFirst64 val tuple)) => (ADDQ val (Select0 <t> tuple))
 (Select1     (AddTupleFirst64   _ tuple)) => (Select1 tuple)
 
+(Select1 xadd:(XADDLlock [off] {sym} val ptr mem)) && xadd.Uses == 1 && clobber(xadd) => (ADDLlock [off] {sym} ptr val mem)
+(Select1 xadd:(XADDQlock [off] {sym} val ptr mem)) && xadd.Uses == 1 && clobber(xadd) => (ADDQlock [off] {sym} ptr val mem)
+// FIXME: remove when we teach rewrite to remove dead values
+(AddTupleFirst32 _ _) && v.Uses == 0 => (Invalid)
+(AddTupleFirst64 _ _) && v.Uses == 0 => (Invalid)
+
 // Atomic compare and swap.
 (AtomicCompareAndSwap32 ptr old new_ mem) => (CMPXCHGLlock ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) => (CMPXCHGQlock ptr old new_ mem)

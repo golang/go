@@ -1693,7 +1693,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p = s.Prog(x86.ASETEQ)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ANDLlock, ssa.OpAMD64ANDQlock, ssa.OpAMD64ORBlock, ssa.OpAMD64ORLlock, ssa.OpAMD64ORQlock:
+	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ANDLlock, ssa.OpAMD64ANDQlock,
+		ssa.OpAMD64ORBlock, ssa.OpAMD64ORLlock, ssa.OpAMD64ORQlock,
+		ssa.OpAMD64ADDLlock, ssa.OpAMD64ADDQlock:
 		// Atomic memory operations that don't need to return the old value.
 		s.Prog(x86.ALOCK)
 		p := s.Prog(v.Op.Asm())
