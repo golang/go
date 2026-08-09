@@ -67,6 +67,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64ADDLconstmodify(v)
 	case OpAMD64ADDLload:
 		return rewriteValueAMD64_OpAMD64ADDLload(v)
+	case OpAMD64ADDLlock:
+		return rewriteValueAMD64_OpAMD64ADDLlock(v)
 	case OpAMD64ADDLmodify:
 		return rewriteValueAMD64_OpAMD64ADDLmodify(v)
 	case OpAMD64ADDQ:
@@ -79,6 +81,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64ADDQconstmodify(v)
 	case OpAMD64ADDQload:
 		return rewriteValueAMD64_OpAMD64ADDQload(v)
+	case OpAMD64ADDQlock:
+		return rewriteValueAMD64_OpAMD64ADDQlock(v)
 	case OpAMD64ADDQmodify:
 		return rewriteValueAMD64_OpAMD64ADDQmodify(v)
 	case OpAMD64ADDSD:
@@ -8159,6 +8163,34 @@ func rewriteValueAMD64_OpAMD64ADDLload(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64ADDLlock(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ADDLlock [off] {sym} ptr n:(NEGL val) mem)
+	// cond: n.Uses == 1
+	// result: (SUBLlock [off] {sym} ptr val mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		ptr := v_0
+		n := v_1
+		if n.Op != OpAMD64NEGL {
+			break
+		}
+		val := n.Args[0]
+		mem := v_2
+		if !(n.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64SUBLlock)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64ADDLmodify(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -8775,6 +8807,34 @@ func rewriteValueAMD64_OpAMD64ADDQload(v *Value) bool {
 		v0 := b.NewValue0(v_2.Pos, OpAMD64MOVQf2i, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64ADDQlock(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ADDQlock [off] {sym} ptr n:(NEGQ val) mem)
+	// cond: n.Uses == 1
+	// result: (SUBQlock [off] {sym} ptr val mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		ptr := v_0
+		n := v_1
+		if n.Op != OpAMD64NEGQ {
+			break
+		}
+		val := n.Args[0]
+		mem := v_2
+		if !(n.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64SUBQlock)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	return false

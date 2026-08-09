@@ -102,3 +102,12 @@ func atomicAddWithoutExchange64(x *atomic.Uint64, y uint64) {
 	// amd64:"LOCK" -"XADDQ" "ADDQ"
 	x.Add(y)
 }
+
+func atomicSubWithoutExchange32(x *atomic.Uint32, y uint32) {
+	// amd64:"LOCK" -"XADDL" -"ADDL" "SUBL"
+	x.Add(-y)
+}
+func atomicSubWithoutExchange64(x *atomic.Uint64, y uint64) {
+	// amd64:"LOCK" -"XADDQ" -"ADDQ" "SUBQ"
+	x.Add(-y)
+}

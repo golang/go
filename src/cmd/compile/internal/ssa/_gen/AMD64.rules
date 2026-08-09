@@ -531,6 +531,10 @@
 (AddTupleFirst32 _ _) && v.Uses == 0 => (Invalid)
 (AddTupleFirst64 _ _) && v.Uses == 0 => (Invalid)
 
+// Atomic subtracts.
+(ADDLlock [off] {sym} ptr n:(NEGL val) mem) && n.Uses == 1 => (SUBLlock [off] {sym} ptr val mem)
+(ADDQlock [off] {sym} ptr n:(NEGQ val) mem) && n.Uses == 1 => (SUBQlock [off] {sym} ptr val mem)
+
 // Atomic compare and swap.
 (AtomicCompareAndSwap32 ptr old new_ mem) => (CMPXCHGLlock ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) => (CMPXCHGQlock ptr old new_ mem)

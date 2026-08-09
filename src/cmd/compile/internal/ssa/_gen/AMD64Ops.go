@@ -1217,7 +1217,14 @@ func init() {
 		{name: "ADDLlock", argLength: 3, reg: gpstore, asm: "ADDL", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
 		{name: "ADDQlock", argLength: 3, reg: gpstore, asm: "ADDQ", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
 
-		// TODO: ADDlockconst
+		// Atomic subtracts, used when we do atomic.Add* and do not use the returned value.
+		// (*arg0+auxint+aux) -= arg1.  arg2=mem.
+		// returns memory
+		// Note: arg0 and arg1 are backwards compared to XADD*lock.
+		{name: "SUBLlock", argLength: 3, reg: gpstore, asm: "SUBL", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
+		{name: "SUBQlock", argLength: 3, reg: gpstore, asm: "SUBQ", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
+
+		// TODO: ADDlockconst & SUBlockconst
 
 		// Compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
