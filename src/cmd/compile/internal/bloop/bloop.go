@@ -325,7 +325,6 @@ func (e editor) edit(n ir.Node) ir.Node {
 		case *ir.BlockStmt:
 			preserveStmts(e.curFn, n.List)
 		case *ir.CaseClause:
-			preserveStmts(e.curFn, n.List)
 			preserveStmts(e.curFn, n.Body)
 		case *ir.CommClause:
 			preserveStmts(e.curFn, n.Body)

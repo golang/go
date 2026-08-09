@@ -56,6 +56,10 @@ func test(b *testing.B, localsink, cond int) { // ERROR ".*"
 		case 2:
 			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
 		}
+		// Case expressions are not statements and should not be rewritten by the bloop pass.
+		switch cond {
+		case caninline(2): // ERROR "inlining call to caninline"
+		}
 		{
 			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
 		}
