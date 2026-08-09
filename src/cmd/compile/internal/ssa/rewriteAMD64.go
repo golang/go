@@ -8189,6 +8189,38 @@ func rewriteValueAMD64_OpAMD64ADDLlock(v *Value) bool {
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
+	// match: (ADDLlock [off] {sym} ptr (MOVLconst [1]) mem)
+	// result: (INCLlock [off] {sym} ptr mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		ptr := v_0
+		if v_1.Op != OpAMD64MOVLconst || auxIntToInt32(v_1.AuxInt) != 1 {
+			break
+		}
+		mem := v_2
+		v.reset(OpAMD64INCLlock)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (ADDLlock [off] {sym} ptr (MOVLconst [-1]) mem)
+	// result: (DECLlock [off] {sym} ptr mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		ptr := v_0
+		if v_1.Op != OpAMD64MOVLconst || auxIntToInt32(v_1.AuxInt) != -1 {
+			break
+		}
+		mem := v_2
+		v.reset(OpAMD64DECLlock)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg2(ptr, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64ADDLmodify(v *Value) bool {
@@ -8835,6 +8867,38 @@ func rewriteValueAMD64_OpAMD64ADDQlock(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(off)
 		v.Aux = symToAux(sym)
 		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	// match: (ADDQlock [off] {sym} ptr (MOVQconst [1]) mem)
+	// result: (INCQlock [off] {sym} ptr mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		ptr := v_0
+		if v_1.Op != OpAMD64MOVQconst || auxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		mem := v_2
+		v.reset(OpAMD64INCQlock)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (ADDQlock [off] {sym} ptr (MOVQconst [-1]) mem)
+	// result: (DECQlock [off] {sym} ptr mem)
+	for {
+		off := auxIntToInt32(v.AuxInt)
+		sym := auxToSym(v.Aux)
+		ptr := v_0
+		if v_1.Op != OpAMD64MOVQconst || auxIntToInt64(v_1.AuxInt) != -1 {
+			break
+		}
+		mem := v_2
+		v.reset(OpAMD64DECQlock)
+		v.AuxInt = int32ToAuxInt(off)
+		v.Aux = symToAux(sym)
+		v.AddArg2(ptr, mem)
 		return true
 	}
 	return false

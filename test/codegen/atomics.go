@@ -111,3 +111,21 @@ func atomicSubWithoutExchange64(x *atomic.Uint64, y uint64) {
 	// amd64:"LOCK" -"XADDQ" -"ADDQ" "SUBQ"
 	x.Add(-y)
 }
+
+func atomicIncWithoutExchange32(x *atomic.Uint32) {
+	// amd64:"LOCK" -"XADDL" -"ADDL" "INCL"
+	x.Add(1)
+}
+func atomicIncWithoutExchange64(x *atomic.Uint64) {
+	// amd64:"LOCK" -"XADDQ" -"ADDQ" "INCQ"
+	x.Add(1)
+}
+
+func atomicDecWithoutExchange32(x *atomic.Int32) {
+	// amd64:"LOCK" -"XADDL" -"ADDL" "DECL"
+	x.Add(-1)
+}
+func atomicDecWithoutExchange64(x *atomic.Int64) {
+	// amd64:"LOCK" -"XADDQ" -"ADDQ" "DECQ"
+	x.Add(-1)
+}

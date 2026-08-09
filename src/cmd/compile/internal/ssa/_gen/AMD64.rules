@@ -535,6 +535,12 @@
 (ADDLlock [off] {sym} ptr n:(NEGL val) mem) && n.Uses == 1 => (SUBLlock [off] {sym} ptr val mem)
 (ADDQlock [off] {sym} ptr n:(NEGQ val) mem) && n.Uses == 1 => (SUBQlock [off] {sym} ptr val mem)
 
+// Atomic inc and dec.
+(ADDLlock [off] {sym} ptr (MOVLconst [1]) mem) => (INCLlock [off] {sym} ptr mem)
+(ADDQlock [off] {sym} ptr (MOVQconst [1]) mem) => (INCQlock [off] {sym} ptr mem)
+(ADDLlock [off] {sym} ptr (MOVLconst [-1]) mem) => (DECLlock [off] {sym} ptr mem)
+(ADDQlock [off] {sym} ptr (MOVQconst [-1]) mem) => (DECQlock [off] {sym} ptr mem)
+
 // Atomic compare and swap.
 (AtomicCompareAndSwap32 ptr old new_ mem) => (CMPXCHGLlock ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) => (CMPXCHGQlock ptr old new_ mem)

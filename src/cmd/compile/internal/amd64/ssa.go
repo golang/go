@@ -1705,6 +1705,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
+	case ssa.OpAMD64INCLlock, ssa.OpAMD64INCQlock,
+		ssa.OpAMD64DECLlock, ssa.OpAMD64DECQlock:
+		// Unary atomic memory operations that don't need to return the old value.
+		s.Prog(x86.ALOCK)
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.To, v)
 	case ssa.OpAMD64LoweredAtomicAnd64, ssa.OpAMD64LoweredAtomicOr64, ssa.OpAMD64LoweredAtomicAnd32, ssa.OpAMD64LoweredAtomicOr32:
 		// Atomic memory operations that need to return the old value.
 		// We need to do these with compare-and-exchange to get access to the old value.

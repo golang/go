@@ -1226,6 +1226,16 @@ func init() {
 
 		// TODO: ADDlockconst & SUBlockconst
 
+		// Atomic inc & dec.
+		// (*arg0+auxint+aux) += 1.  arg1=mem.
+		// (*arg0+auxint+aux) -= 1.  arg1=mem.
+		// returns memory
+		// Note: arg0 is backwards compared to XADD*lock.
+		{name: "INCLlock", argLength: 2, reg: gpstoreconst, asm: "INCL", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
+		{name: "INCQlock", argLength: 2, reg: gpstoreconst, asm: "INCQ", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
+		{name: "DECLlock", argLength: 2, reg: gpstoreconst, asm: "DECL", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
+		{name: "DECQlock", argLength: 2, reg: gpstoreconst, asm: "DECQ", typ: "Mem", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
+
 		// Compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
 		// if *(arg0+auxint+aux) == arg1 {
