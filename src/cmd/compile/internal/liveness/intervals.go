@@ -67,25 +67,9 @@ func (i Interval) String() string {
 	return fmt.Sprintf("[%d,%d)", i.st, i.en)
 }
 
-// TEMPORARY until bootstrap version catches up.
-func imin(i, j int) int {
-	if i < j {
-		return i
-	}
-	return j
-}
-
-// TEMPORARY until bootstrap version catches up.
-func imax(i, j int) int {
-	if i > j {
-		return i
-	}
-	return j
-}
-
 // Overlaps returns true if here is any overlap between i and i2.
 func (i Interval) Overlaps(i2 Interval) bool {
-	return (imin(i.en, i2.en) - imax(i.st, i2.st)) > 0
+	return (min(i.en, i2.en) - max(i.st, i2.st)) > 0
 }
 
 // adjacent returns true if the start of one interval is equal to the
@@ -100,8 +84,8 @@ func (i1 *Interval) MergeInto(i2 Interval) error {
 	if !i1.Overlaps(i2) && !i1.adjacent(i2) {
 		return fmt.Errorf("merge method invoked on non-overlapping/non-adjacent")
 	}
-	i1.st = imin(i1.st, i2.st)
-	i1.en = imax(i1.en, i2.en)
+	i1.st = min(i1.st, i2.st)
+	i1.en = max(i1.en, i2.en)
 	return nil
 }
 
