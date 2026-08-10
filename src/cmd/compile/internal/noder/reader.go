@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/devirtualize"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/inline/interleaved"
@@ -3668,6 +3669,12 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
 // unifiedHaveInlineBody reports whether we have the function body for
 // fn, so we can inline it.
 func unifiedHaveInlineBody(fn *ir.Func) bool {
+	if orig := fn.DevirtOriginal; orig != nil {
+		// A devirtualized variant inlines through its original's
+		// body.
+		fn = orig
+	}
+
 	if fn.Inl == nil {
 		return false
 	}
@@ -3681,6 +3688,21 @@ var inlgen = 0
 // unifiedInlineCall implements inline.NewInline by re-reading the function
 // body from its Unified IR export data.
 func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int, profile *pgoir.Profile) *ir.InlinedCallExpr {
+	if orig := fn.DevirtOriginal; orig != nil {
+		// A devirtualized variant is its original's body with the
+		// boxing removed from the devirtualized results, so inline
+		// the original and unbox those results. The unchecked
+		// extraction is sound for the same reason the split's was:
+		// the recorded result sets prove the dynamic type.
+		res := unifiedInlineCall(callerfn, call, orig, inlIndex, profile)
+		for i, f := range fn.Type().Results() {
+			if !f.Type.IsInterface() && orig.Type().Results()[i].Type.IsInterface() {
+				res.ReturnVars[i] = devirtualize.Unbox(res.ReturnVars[i], f.Type)
+			}
+		}
+		return res
+	}
+
 	pri, ok := bodyReaderFor(fn)
 	if !ok {
 		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
