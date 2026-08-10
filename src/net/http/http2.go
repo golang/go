@@ -123,7 +123,6 @@ func http2ServerRequestFromRequest(req *Request) *http2.ServerRequest {
 		RemoteAddr:    req.RemoteAddr,
 		RequestURI:    req.RequestURI,
 		TLS:           req.TLS,
-		MultipartForm: req.MultipartForm,
 	}
 }
 
@@ -147,7 +146,6 @@ func (h http2Handler) ServeHTTP(w *http2.ResponseWriter, req *http2.ServerReques
 		ContentLength: req.ContentLength,
 		RemoteAddr:    req.RemoteAddr,
 		TLS:           req.TLS,
-		MultipartForm: req.MultipartForm,
 	})
 }
 

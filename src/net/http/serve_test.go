@@ -7495,10 +7495,6 @@ func TestProcessing(t *testing.T) {
 
 func TestParseFormCleanup(t *testing.T) { run(t, testParseFormCleanup, http3SkippedMode) }
 func testParseFormCleanup(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("https://go.dev/issue/20253")
-	}
-
 	const maxMemory = 1024
 	const key = "file"
 

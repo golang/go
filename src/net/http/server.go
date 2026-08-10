@@ -1715,10 +1715,6 @@ func (w *response) finishRequest() {
 	//
 	// In full-duplex mode, this may also drain the remaining request body.
 	w.reqBody.Close()
-
-	if w.req.MultipartForm != nil {
-		w.req.MultipartForm.RemoveAll()
-	}
 }
 
 // shouldReuseConnection reports whether the underlying TCP connection can be reused.
@@ -3413,6 +3409,11 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 		handler = globalOptionsHandler{}
 	}
 
+	defer func() {
+		if req.MultipartForm != nil {
+			req.MultipartForm.RemoveAll()
+		}
+	}()
 	handler.ServeHTTP(rw, req)
 }
 
