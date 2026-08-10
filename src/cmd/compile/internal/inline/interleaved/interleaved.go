@@ -133,6 +133,17 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 
 			}
 		}
+
+		if base.Debug.RetDevirt != 0 {
+			// The bodies in this component are now final for this
+			// pass, so record which of their interface-typed results
+			// always hold a single dynamic type. Functions in later
+			// components are then analyzed through their static
+			// calls into this one.
+			for _, fn := range list {
+				state.AnalyzeResultTypes(fn)
+			}
+		}
 	})
 
 	ir.CurFunc = nil
@@ -233,12 +244,12 @@ func (s *inlClosureState) edit(state *devirtualize.State, i int) (*ir.CallExpr, 
 	// resolve, but because things can change it
 	// must be re-checked.
 	callee, count := s.resolve(state, i)
-	if count <= 0 {
-		return nil, nil
+	if count > 0 {
+		if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile, count == 1 && callee.ClosureParent != nil); inlCall != nil {
+			return call, inlCall
+		}
 	}
-	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile, count == 1 && callee.ClosureParent != nil); inlCall != nil {
-		return call, inlCall
-	}
+
 	return nil, nil
 }
 

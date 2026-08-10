@@ -86,6 +86,7 @@ type DebugFlags struct {
 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
 	PGODevirtualize       int    `help:"enable profile-guided devirtualization; 0 to disable, 1 to enable interface devirtualization, 2 to enable function devirtualization" concurrent:"ok"`
 	RangeFuncCheck        int    `help:"insert code to check behavior of range iterator functions" concurrent:"ok"`
+	RetDevirt             int    `help:"enable return-value devirtualization" concurrent:"ok"`
 	VariableMakeHash      string `help:"hash value for debugging stack allocation of variable-sized make results" concurrent:"ok"`
 	VariableMakeThreshold int    `help:"threshold in bytes for possible stack allocation of variable-sized make results" concurrent:"ok"`
 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
