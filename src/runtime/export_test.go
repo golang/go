@@ -2102,6 +2102,15 @@ func DumpPrintQuoted(s string) string {
 	return string(buf)
 }
 
+// PrintBacklog returns a copy of the runtime's print backlog.
+func PrintBacklog() []byte {
+	b := make([]byte, len(printBacklog))
+	printlock()
+	copy(b, printBacklog[:])
+	printunlock()
+	return b
+}
+
 // DumpPrint returns the output of print(v).
 func DumpPrint[T any](v T) string {
 	gp := getg()
