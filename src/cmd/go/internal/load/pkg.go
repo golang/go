@@ -3254,6 +3254,8 @@ func setToolFlags(ld *modload.Loader, pkgs ...*Package) {
 	}
 }
 
+var errFileNotFound = errors.New("file not found")
+
 // GoFilesPackage creates a package for building a collection of Go files
 // (typically named on the command line). The target is named p.a for
 // package p or named after the first Go file for package main.
@@ -3287,6 +3289,11 @@ func GoFilesPackage(ld *modload.Loader, ctx context.Context, opts PackageOpts, g
 	for _, file := range gofiles {
 		fi, err := fsys.Stat(file)
 		if err != nil {
+			if os.IsNotExist(err) {
+				// Canonicalize OS-specific errors to errFileNotFound so that error
+				// messages will be easier for users to search for.
+				err = &fs.PathError{Op: "stat", Path: file, Err: errFileNotFound}
+			}
 			base.Fatalf("%s", err)
 		}
 		if fi.IsDir() {
