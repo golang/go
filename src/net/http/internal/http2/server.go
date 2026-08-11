@@ -2140,12 +2140,25 @@ func (sc *serverConn) newStream(id, pusherID uint32, state streamState, priority
 func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*responseWriter, *ServerRequest, error) {
 	sc.serveG.check()
 
-	rp := httpcommon.ServerRequestParam{
-		Method:    f.PseudoValue("method"),
-		Scheme:    f.PseudoValue("scheme"),
-		Authority: f.PseudoValue("authority"),
-		Path:      f.PseudoValue("path"),
-		Protocol:  f.PseudoValue("protocol"),
+	rp := httpcommon.ServerRequestParam{}
+	for _, hf := range f.Fields {
+		// No pseudo-headers may have a zero-length value.
+		// Rejecting them here means we can assume "" means "no header" below.
+		if hf.Name == "" || (hf.Name[0] == ':' && len(hf.Value) == 0) {
+			return nil, nil, sc.countError("invalid_pseudo_header", streamError(f.StreamID, ErrCodeProtocol))
+		}
+		switch hf.Name {
+		case ":method":
+			rp.Method = hf.Value
+		case ":scheme":
+			rp.Scheme = hf.Value
+		case ":authority":
+			rp.Authority = hf.Value
+		case ":path":
+			rp.Path = hf.Value
+		case ":protocol":
+			rp.Protocol = hf.Value
+		}
 	}
 
 	// extended connect is disabled, so we should not see :protocol
