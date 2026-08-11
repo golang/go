@@ -7,6 +7,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/scanner"
 	"go/token"
 	"io/fs"
 	"reflect"
@@ -994,5 +995,163 @@ const _ = ` + stringlit + ` ;
 	})
 	if count != 3 {
 		t.Errorf("found %d BasicLit, want 3", count)
+	}
+}
+
+func TestParseEnumDecl(t *testing.T) {
+	const src = `package p
+
+// Result reports success or failure.
+type Result[T any] enum {
+	// Ok carries a value.
+	Ok {
+		value T
+	}
+	Err {
+		err error
+	}
+	None // no payload
+	Empty {}
+}
+`
+
+	fset := token.NewFileSet()
+	f, err := ParseFile(fset, "enum.go", src, ParseComments|DeclarationErrors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Decls) != 1 {
+		t.Fatalf("got %d declarations, want 1", len(f.Decls))
+	}
+	decl, ok := f.Decls[0].(*ast.EnumDecl)
+	if !ok {
+		t.Fatalf("declaration has type %T, want *ast.EnumDecl", f.Decls[0])
+	}
+	if decl.Name.Name != "Result" || decl.Name.Obj == nil || decl.Name.Obj.Kind != ast.Typ {
+		t.Fatalf("enum name not declared as type: %#v", decl.Name)
+	}
+	if decl.TypeParams == nil || len(decl.TypeParams.List) != 1 {
+		t.Fatalf("type parameters = %#v, want one parameter", decl.TypeParams)
+	}
+	if len(decl.Variants) != 4 {
+		t.Fatalf("got %d variants, want 4", len(decl.Variants))
+	}
+	if decl.Doc == nil || decl.Doc.Text() != "Result reports success or failure.\n" {
+		t.Fatalf("enum documentation = %#v", decl.Doc)
+	}
+	if doc := decl.Variants[0].Doc; doc == nil || doc.Text() != "Ok carries a value.\n" {
+		t.Fatalf("variant documentation = %#v", doc)
+	}
+	for _, variant := range decl.Variants {
+		if variant.Name.Obj == nil || variant.Name.Obj.Kind != ast.Typ {
+			t.Errorf("variant %s not declared as type", variant.Name)
+		}
+	}
+	if decl.Variants[2].Fields != nil {
+		t.Errorf("payload-free variant has fields %#v", decl.Variants[2].Fields)
+	}
+	if decl.Variants[2].Comment == nil {
+		t.Fatal("payload-free variant is missing trailing comment")
+	}
+	file := fset.File(decl.Pos())
+	start := file.Offset(decl.Variants[2].Pos())
+	end := file.Offset(decl.Variants[2].End())
+	if got := src[start:end]; got != "None" {
+		t.Errorf("variant source range = %q, want %q", got, "None")
+	}
+	if fields := decl.Variants[3].Fields; fields == nil || len(fields.List) != 0 {
+		t.Errorf("explicit empty payload = %#v, want non-nil empty field list", fields)
+	}
+	tparam := decl.TypeParams.List[0].Names[0]
+	valueType := decl.Variants[0].Fields.List[0].Type.(*ast.Ident)
+	if valueType.Obj != tparam.Obj {
+		t.Errorf("payload type parameter resolved to %p, want %p", valueType.Obj, tparam.Obj)
+	}
+
+	var variants int
+	ast.Inspect(f, func(n ast.Node) bool {
+		if _, ok := n.(*ast.EnumVariant); ok {
+			variants++
+		}
+		return true
+	})
+	if variants != 4 {
+		t.Errorf("ast.Inspect visited %d variants, want 4", variants)
+	}
+}
+
+func TestParseEnumDuplicateVariant(t *testing.T) {
+	const src = "package p; type E enum { A; A }"
+	_, err := ParseFile(token.NewFileSet(), "enum.go", src, DeclarationErrors)
+	if err == nil || !strings.Contains(err.Error(), "A redeclared") {
+		t.Fatalf("duplicate variant error = %v, want redeclaration error", err)
+	}
+}
+
+func TestGroupedEnumRejected(t *testing.T) {
+	const src = "package p; type ( E enum { A } )"
+	if _, err := ParseFile(token.NewFileSet(), "enum.go", src, 0); err == nil {
+		t.Fatal("grouped enum declaration parsed without error")
+	}
+}
+
+func TestEnumIsContextualKeyword(t *testing.T) {
+	const src = `package p
+var enum = 1
+func f(enum string) string {
+	enum += "x"
+	{
+		enum := 2
+		enum++
+		_ = enum
+	}
+	type Local enum { A }
+	var _ Local = A{}
+	return enum
+}
+`
+	if _, err := ParseFile(token.NewFileSet(), "enum.go", src, DeclarationErrors); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEnumUnderlyingTypeName(t *testing.T) {
+	const src = `package p
+type enum int
+type E enum
+type G[T any] enum
+type I enum[int]
+`
+	if _, err := ParseFile(token.NewFileSet(), "enum.go", src, DeclarationErrors); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEnumLookaheadDoesNotDuplicateErrors(t *testing.T) {
+	const src = "package p; type E[T @] enum { A }"
+	_, err := ParseFile(token.NewFileSet(), "enum.go", src, 0)
+	errs, ok := err.(scanner.ErrorList)
+	if !ok {
+		t.Fatalf("error has type %T, want scanner.ErrorList", err)
+	}
+	var illegal int
+	for _, err := range errs {
+		if strings.Contains(err.Msg, "illegal character") {
+			illegal++
+		}
+	}
+	if illegal != 1 {
+		t.Fatalf("got %d illegal-character errors, want 1: %v", illegal, errs)
+	}
+}
+
+func TestEnumVariantsStayNamespacedInResolver(t *testing.T) {
+	const src = `package p
+type E enum { A }
+type F enum { A }
+type A int
+`
+	if _, err := ParseFile(token.NewFileSet(), "enum.go", src, DeclarationErrors); err != nil {
+		t.Fatal(err)
 	}
 }

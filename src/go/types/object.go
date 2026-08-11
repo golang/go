@@ -243,6 +243,30 @@ type TypeName struct {
 	object
 }
 
+// Exported reports whether the declared type name is exported. Enum variant
+// objects use a qualified package-local name such as Result.Ok, so visibility
+// is determined by the final component.
+func (obj *TypeName) Exported() bool {
+	name := obj.name
+	if i := strings.LastIndexByte(name, '.'); i >= 0 {
+		name = name[i+1:]
+	}
+	return isExported(name)
+}
+
+// Id returns the qualified package-local name, additionally prefixed by the
+// package path when the final name component is not exported.
+func (obj *TypeName) Id() string {
+	if obj.Exported() {
+		return obj.name
+	}
+	path := "_"
+	if obj.pkg != nil && obj.pkg.path != "" {
+		path = obj.pkg.path
+	}
+	return path + "." + obj.name
+}
+
 // NewTypeName returns a new type name denoting the given typ.
 // The remaining arguments set the attributes found with all Objects.
 //

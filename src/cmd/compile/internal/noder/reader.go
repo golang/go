@@ -864,6 +864,11 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
 			methods[i] = r.method(rext)
 		}
 		if len(methods) != 0 {
+			if typ.IsInterface() {
+				// Preserve an enum's marker-only interface method set before
+				// attaching its statically dispatched convenience methods.
+				types.CalcSize(typ)
+			}
 			typ.SetMethods(methods)
 		}
 

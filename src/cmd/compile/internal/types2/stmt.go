@@ -11,6 +11,7 @@ import (
 	"go/constant"
 	. "internal/types/errors"
 	"slices"
+	"strings"
 )
 
 // decl may be nil
@@ -308,12 +309,29 @@ func (check *Checker) caseTypes(x *operand, types []syntax.Expr, seen map[Type]s
 	var dummy operand
 L:
 	for _, e := range types {
+		T = nil
 		// The spec allows the value nil instead of a type.
 		if check.isNil(e) {
 			T = nil
 			check.expr(nil, nil, &dummy, e) // run e through expr so we get the usual Info recordings
 		} else {
-			T = check.varType(e)
+			if x != nil && check.isEnumType(x.typ()) {
+				if id, _ := e.(*syntax.Name); id != nil {
+					if variant := enumVariant(x.typ(), id.Value); variant != nil {
+						if obj := variant.Obj(); obj.Pkg() != check.pkg && !obj.Exported() {
+							check.errorf(id, UnexportedName, "cannot refer to unexported enum variant %s", variant)
+							T = Typ[Invalid]
+						} else {
+							T = variant
+							check.recordUse(id, obj)
+							check.recordTypeAndValue(id, typexpr, variant, nil)
+						}
+					}
+				}
+			}
+			if T == nil {
+				T = check.varType(e)
+			}
 			if !isValid(T) {
 				continue L
 			}
@@ -726,6 +744,11 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		// By checking assignment of x to an invisible temporary
 		// (as a compiler would), we get all the relevant checks.
 		check.assignment(&x, nil, "switch expression")
+		if check.isEnumType(x.typ()) {
+			name, _ := syntax.Unparen(s.Tag).(*syntax.Name)
+			check.enumValueSwitchStmt(inner|inTypeSwitch, s, name, &x)
+			return
+		}
 		if x.isValid() && !Comparable(x.typ()) && !hasNil(x.typ()) {
 			check.errorf(&x, InvalidExprSwitch, "cannot switch on %s (%s is not comparable)", &x, x.typ())
 			x.invalidate()
@@ -763,6 +786,115 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
 	}
+}
+
+func (check *Checker) isEnumType(typ Type) bool {
+	named, _ := Unalias(typ).(*Named)
+	return named != nil && named.EnumType() != nil && named.EnumType().Origin() == named.Origin()
+}
+
+func (check *Checker) enumValueSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, tag *syntax.Name, x *operand) {
+	check.multipleSwitchDefaults(s.Body)
+
+	seen := make(map[Type]syntax.Expr)
+	for _, clause := range s.Body {
+		if clause == nil {
+			check.error(s, InvalidSyntaxTree, "incorrect enum switch case")
+			continue
+		}
+		cases := syntax.UnpackListExpr(clause.Cases)
+		T := check.enumCaseTypes(x, cases, seen)
+		check.openScope(clause, "enum case")
+
+		var obj *Var
+		if tag != nil {
+			obj = newVar(LocalVar, tag.Pos(), check.pkg, tag.Value, T)
+			check.declare(check.scope, nil, obj, clause.Colon)
+			check.recordImplicit(clause, obj)
+		}
+		check.stmtList(inner, clause.Body)
+		if obj != nil {
+			check.usedVars[obj] = true // the narrowed shadow is implicit
+		}
+		check.closeScope()
+	}
+
+	var hasDefault bool
+	for _, clause := range s.Body {
+		if clause != nil && clause.Cases == nil {
+			hasDefault = true
+			break
+		}
+	}
+	if !hasDefault {
+		check.enumSwitchExhaustive(s, x.typ(), seen)
+	}
+}
+
+func (check *Checker) enumCaseTypes(x *operand, exprs []syntax.Expr, seen map[Type]syntax.Expr) Type {
+	result := x.typ()
+	var single Type
+	variants := Unalias(x.typ()).(*Named).EnumVariants()
+
+Next:
+	for _, e := range exprs {
+		var T Type
+		if check.isNil(e) {
+			var dummy operand
+			check.expr(nil, nil, &dummy, e)
+		} else {
+			if id, _ := e.(*syntax.Name); id != nil {
+				if variant := enumVariant(x.typ(), id.Value); variant != nil {
+					if obj := variant.Obj(); obj.Pkg() != check.pkg && !obj.Exported() {
+						check.errorf(id, UnexportedName, "cannot refer to unexported enum variant %s", variant)
+						T = Typ[Invalid]
+					} else {
+						T = variant
+						check.recordUse(id, obj)
+						check.recordTypeAndValue(id, typexpr, variant, nil)
+					}
+				}
+			}
+			if T == nil {
+				T = check.varType(e)
+			}
+			if !isValid(T) {
+				continue
+			}
+			valid := false
+			for _, variant := range variants {
+				if Identical(T, variant) {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				check.errorf(e, InvalidTypeSwitch, "%s is not a variant of %s", T, x.typ())
+				continue
+			}
+		}
+
+		for other, prev := range seen {
+			if T == nil && other == nil || T != nil && other != nil && Identical(T, other) {
+				name := "nil"
+				if T != nil {
+					name = TypeString(T, check.qualifier)
+				}
+				err := check.newError(DuplicateCase)
+				err.addf(e, "duplicate case %s in enum switch", name)
+				err.addf(prev, "previous case")
+				err.report()
+				continue Next
+			}
+		}
+		seen[T] = e
+		single = T
+	}
+
+	if len(exprs) == 1 && single != nil {
+		result = single
+	}
+	return result
 }
 
 func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, guard *syntax.TypeSwitchGuard) {
@@ -828,6 +960,19 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		check.closeScope()
 	}
 
+	if sx != nil {
+		var hasDefault bool
+		for _, clause := range s.Body {
+			if clause != nil && clause.Cases == nil {
+				hasDefault = true
+				break
+			}
+		}
+		if !hasDefault {
+			check.enumSwitchExhaustive(s, sx.typ(), seen)
+		}
+	}
+
 	// If lhs exists, we must have at least one lhs variable that was used.
 	// (We can't use check.usage because that only looks at one scope; and
 	// we don't want to use the same variable for all scopes and change the
@@ -844,4 +989,35 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			check.softErrorf(lhs, UnusedVar, "%s declared and not used", lhs.Value)
 		}
 	}
+}
+
+func (check *Checker) enumSwitchExhaustive(s *syntax.SwitchStmt, typ Type, seen map[Type]syntax.Expr) {
+	named, _ := Unalias(typ).(*Named)
+	if named == nil || named.EnumType() == nil || named.EnumType().Origin() != named.Origin() {
+		return
+	}
+	var missing []string
+	for _, variant := range named.EnumVariants() {
+		covered := false
+		for caseType := range seen {
+			if caseType != nil && AssignableTo(variant, caseType) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			missing = append(missing, enumVariantName(variant))
+		}
+	}
+	if _, covered := seen[nil]; !covered {
+		missing = append(missing, "nil")
+	}
+	if len(missing) != 0 {
+		check.errorf(s, InvalidTypeSwitch, "non-exhaustive enum switch on %s; missing %s", named, strings.Join(missing, ", "))
+		return
+	}
+	if check.enumSwitches == nil {
+		check.enumSwitches = make(map[*syntax.SwitchStmt]bool)
+	}
+	check.enumSwitches[s] = true
 }

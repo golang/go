@@ -1,0 +1,49 @@
+go test ./...
+
+-- go.mod --
+module example.com/enumimport
+
+go 1.28
+
+-- timer/model.go --
+package timer
+
+import "time"
+
+type Key enum {
+	Chat
+}
+
+func ChatKey() Key {
+	return Key.Chat{}
+}
+
+func (key Key) Duration() time.Duration {
+	switch key {
+	case Chat:
+		return 3 * time.Second
+	default:
+		panic("should never happen")
+	}
+}
+
+-- timer/service.go --
+package timer
+
+type Service struct {
+	values map[Key]int
+}
+
+func (service *Service) Remaining(key Key) int {
+	return service.values[key]
+}
+
+-- chat/chat.go --
+package chat
+
+import "example.com/enumimport/timer"
+
+func Duration() int64 {
+	service := &timer.Service{}
+	return int64(timer.ChatKey().Duration()) + int64(service.Remaining(timer.ChatKey()))
+}

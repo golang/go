@@ -1951,6 +1951,41 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 	p.funcBody(p.distanceFrom(d.Pos(), startCol), vtab, d.Body)
 }
 
+func (p *printer) enumDecl(d *ast.EnumDecl) {
+	p.setComment(d.Doc)
+	p.setPos(d.Type)
+	p.print(token.TYPE, blank)
+	p.expr(d.Name)
+	if d.TypeParams != nil {
+		p.parameters(d.TypeParams, typeTParam)
+	}
+	p.print(blank)
+	p.setPos(d.Enum)
+	p.print(token.ENUM)
+	p.print(blank)
+	p.setPos(d.Lbrace)
+	p.print(token.LBRACE, indent, formfeed)
+
+	var line int
+	for i, variant := range d.Variants {
+		if i > 0 {
+			p.linebreak(p.lineFor(variant.Pos()), 1, ignore, p.linesFrom(line) > 0)
+		}
+		p.setComment(variant.Doc)
+		p.recordLine(&line)
+		p.expr(variant.Name)
+		if variant.Fields != nil {
+			p.print(blank)
+			p.fieldList(variant.Fields, true, false)
+		}
+		p.setComment(variant.Comment)
+	}
+
+	p.print(unindent, formfeed)
+	p.setPos(d.Rbrace)
+	p.print(token.RBRACE)
+}
+
 func (p *printer) decl(decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
@@ -1960,6 +1995,8 @@ func (p *printer) decl(decl ast.Decl) {
 		p.genDecl(d)
 	case *ast.FuncDecl:
 		p.funcDecl(d)
+	case *ast.EnumDecl:
+		p.enumDecl(d)
 	default:
 		panic("unreachable")
 	}
@@ -1975,6 +2012,8 @@ func declToken(decl ast.Decl) (tok token.Token) {
 		tok = d.Tok
 	case *ast.FuncDecl:
 		tok = token.FUNC
+	case *ast.EnumDecl:
+		tok = token.TYPE
 	}
 	return
 }

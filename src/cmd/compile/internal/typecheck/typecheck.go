@@ -791,6 +791,12 @@ func NewMethodExpr(pos src.XPos, recv *types.Type, sym *types.Sym) *ir.SelectorE
 	}
 
 	m := Lookdot1(nil, sym, recv, ms, 0)
+	if m == nil && recv.IsInterface() && recv.Sym() != nil {
+		// Enum methods are ordinary, statically dispatched methods on the
+		// named enum type. They are intentionally not part of the underlying
+		// interface method set, which contains only the enum marker.
+		m = Lookdot1(nil, sym, recv, recv.Methods(), 0)
+	}
 	if m == nil {
 		base.FatalfAt(pos, "type %v has no method %v", recv, sym)
 	}
@@ -831,9 +837,14 @@ func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 	}
 
 	var f2 *types.Field
+	if f1 == nil && t.IsInterface() && t.Sym() != nil {
+		// A named enum's declared methods are separate from the interface
+		// methods used to recognize its variants at run time.
+		f2 = Lookdot1(n, s, t, t.Methods(), dostrcmp)
+	}
 	if n.X.Type() == t || n.X.Type().Sym() == nil {
 		mt := types.ReceiverBaseType(t)
-		if mt != nil {
+		if f2 == nil && mt != nil {
 			f2 = Lookdot1(n, s, mt, mt.Methods(), dostrcmp)
 		}
 	}

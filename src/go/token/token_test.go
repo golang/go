@@ -31,3 +31,21 @@ func TestIsIdentifier(t *testing.T) {
 		})
 	}
 }
+
+func TestEnumIsContextualKeyword(t *testing.T) {
+	if ENUM.IsKeyword() {
+		t.Error("ENUM.IsKeyword() = true, want false")
+	}
+	if got := Lookup("enum"); got != IDENT {
+		t.Errorf("Lookup(\"enum\") = %v, want IDENT", got)
+	}
+	if IsKeyword("enum") {
+		t.Error("IsKeyword(\"enum\") = true, want false")
+	}
+	if !IsIdentifier("enum") {
+		t.Error("IsIdentifier(\"enum\") = false, want true")
+	}
+	if got := ENUM.String(); got != "enum" {
+		t.Errorf("ENUM.String() = %q, want %q", got, "enum")
+	}
+}

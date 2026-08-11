@@ -181,14 +181,36 @@ func (check *Checker) validVarType(e syntax.Expr, typ Type) {
 // named def, and def.typ.fromRHS will be set to the [Type] of e immediately
 // after its creation.
 func (check *Checker) declaredType(e syntax.Expr, def *TypeName) Type {
+	return check.declaredType0(e, def, false)
+}
+
+// enumLitType accepts an enum variant as the direct type of a composite
+// literal. Variants are constructors in source, not standalone types.
+func (check *Checker) enumLitType(e syntax.Expr) Type {
+	return check.declaredType0(e, nil, true)
+}
+
+func (check *Checker) declaredType0(e syntax.Expr, def *TypeName, allowEnumVariant bool) Type {
 	typ := check.typInternal(e, def)
 	assert(isTyped(typ))
+	if !allowEnumVariant && check.rejectEnumVariantType(e, typ) {
+		typ = Typ[Invalid]
+	}
 	if isGeneric(typ) {
 		check.errorf(e, WrongTypeArgCount, "cannot use generic type %s without instantiation", typ)
 		typ = Typ[Invalid]
 	}
 	check.recordTypeAndValue(e, typexpr, typ, nil)
 	return typ
+}
+
+func (check *Checker) rejectEnumVariantType(e syntax.Expr, typ Type) bool {
+	named, _ := Unalias(typ).(*Named)
+	if named == nil || !isEnumVariantNamed(named) {
+		return false
+	}
+	check.errorf(e, NotAType, "enum variant %s is a constructor, not a type", typ)
+	return true
 }
 
 // genericType is like typ but the type must be an (uninstantiated) generic

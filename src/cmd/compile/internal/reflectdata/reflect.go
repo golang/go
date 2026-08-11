@@ -420,6 +420,18 @@ func ABIKindOfType(t *types.Type) abi.Kind {
 	return kinds[t.Kind()]
 }
 
+func isEnumVariant(t *types.Type) bool {
+	if t.Kind() == types.TINTER {
+		return false
+	}
+	for _, method := range t.Methods() {
+		if method.Sym != nil && strings.HasPrefix(method.Sym.Name, ".enum.") {
+			return true
+		}
+	}
+	return false
+}
+
 var (
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
@@ -476,6 +488,9 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	}
 	if onDemand {
 		tflag |= abi.TFlagGCMaskOnDemand
+	}
+	if isEnumVariant(t) {
+		tflag |= abi.TFlagEnumVariant
 	}
 
 	exported := false
@@ -959,6 +974,9 @@ func writeType(t *types.Type) *obj.LSym {
 		case types.TPTR, types.TARRAY, types.TCHAN, types.TFUNC, types.TMAP, types.TSLICE, types.TSTRUCT:
 			keep = true
 		}
+	}
+	if isEnumVariant(t) {
+		keep = true
 	}
 	// Do not put Noalg types in typelinks.  See issue #22605.
 	if types.TypeHasNoAlg(t) {

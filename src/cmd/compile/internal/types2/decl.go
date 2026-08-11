@@ -10,6 +10,7 @@ import (
 	"go/constant"
 	. "internal/types/errors"
 	"slices"
+	"strings"
 )
 
 func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syntax.Pos) {
@@ -155,8 +156,12 @@ func (check *Checker) objDecl(obj Object) {
 		check.varDecl(obj, d.lhs, d.vtyp, d.init)
 	case *TypeName:
 		// invalid recursive types are detected via path
-		check.typeDecl(obj, d.tdecl)
-		check.collectMethods(obj) // methods can only be added to top-level types
+		if d.edecl != nil {
+			check.enumDecl(d.edecl)
+		} else {
+			check.typeDecl(obj, d.tdecl)
+			check.collectMethods(obj) // methods can only be added to top-level types
+		}
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
@@ -505,6 +510,193 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl) {
 	}
 }
 
+func (check *Checker) enumDecl(info *enumDeclInfo) {
+	// Another object from this enum may have initialized the whole declaration.
+	if info.objects[0].typ != nil {
+		return
+	}
+
+	decl := info.decl
+	check.verifyVersionf(decl, go1_28, "enum declaration")
+	named := make([]*Named, len(info.objects))
+	for i, obj := range info.objects {
+		named[i] = check.newNamed(obj, nil, nil)
+	}
+
+	if decl.TParamList != nil {
+		check.openScope(decl, "enum type parameters")
+		defer check.closeScope()
+		check.collectEnumTypeParams(named, decl.TParamList)
+	}
+
+	markerName := ".enum." + decl.Name.Value
+	if named[0].Obj().Parent() != check.pkg.Scope() {
+		markerName += "." + decl.Name.Pos().String()
+	}
+	markerSig := NewSignatureType(nil, nil, nil, enumMarkerParams(decl.Name.Pos(), check.pkg, named[0].TypeParams().list()), nil, false)
+	marker := NewFunc(decl.Name.Pos(), check.pkg, markerName, markerSig)
+	variantResult := NewTuple(newVar(ResultVar, decl.Name.Pos(), check.pkg, "", Typ[String]))
+	variantSig := NewSignatureType(nil, nil, nil, nil, variantResult, false)
+	variantMethod := NewFunc(decl.Name.Pos(), check.pkg, "Variant", variantSig)
+	named[0].fromRHS = NewInterfaceType([]*Func{marker, variantMethod}, nil)
+	einfo := &enumInfo{parent: named[0], variants: named[1:]}
+	for _, typ := range named {
+		typ.enumInfo = einfo
+	}
+
+	for i, variant := range decl.VariantList {
+		styp := new(Struct)
+		check.structType(styp, &syntax.StructType{FieldList: variant.FieldList, TagList: variant.TagList})
+		for i := 0; i < styp.NumFields(); i++ {
+			field := styp.Field(i)
+			if field.Embedded() && promotesEnumMarker(field.Type(), nil) {
+				check.errorf(field, InvalidPtrEmbed, "enum variant %s cannot anonymously embed a type that promotes an enum marker: %s", variant.Name.Value, field.Type())
+			}
+		}
+		baseTParams := named[0].TypeParams().list()
+		variantTParams := named[i+1].TypeParams().list()
+		if len(baseTParams) == 0 {
+			named[i+1].fromRHS = styp
+		} else {
+			smap := makeRenameMap(baseTParams, variantTParams)
+			named[i+1].fromRHS = check.subst(variant.Name.Pos(), styp, smap, nil, check.context())
+		}
+
+		newReceiver := func() (*Var, []*TypeParam) {
+			recvType := Type(named[i+1])
+			rparams := make([]*TypeParam, len(variantTParams))
+			for i, baseTParam := range variantTParams {
+				obj := NewTypeName(variant.Name.Pos(), check.pkg, baseTParam.Obj().Name(), nil)
+				rparams[i] = check.newTypeParam(obj, nil)
+			}
+			if len(rparams) != 0 {
+				smap := makeRenameMap(variantTParams, rparams)
+				targs := make([]Type, len(rparams))
+				for i, tparam := range rparams {
+					tparam.bound = check.subst(variant.Name.Pos(), variantTParams[i].bound, smap, nil, check.context())
+					targs[i] = tparam
+				}
+				recvType = check.instance(variant.Name.Pos(), named[i+1], targs, nil, check.context())
+			}
+			return newVar(RecvVar, variant.Name.Pos(), check.pkg, "", recvType), rparams
+		}
+		markerRecv, markerRParams := newReceiver()
+		sig := NewSignatureType(markerRecv, markerRParams, nil, enumMarkerParams(variant.Name.Pos(), check.pkg, markerRParams), nil, false)
+		variantRecv, variantRParams := newReceiver()
+		variantResult := NewTuple(newVar(ResultVar, variant.Name.Pos(), check.pkg, "", Typ[String]))
+		variantSig := NewSignatureType(variantRecv, variantRParams, nil, nil, variantResult, false)
+		named[i+1].methods = []*Func{
+			NewFunc(variant.Name.Pos(), check.pkg, markerName, sig),
+			NewFunc(variant.Name.Pos(), check.pkg, "Variant", variantSig),
+		}
+	}
+	for _, variant := range named[1:] {
+		variant := variant
+		check.later(func() {
+			check.validType(variant)
+		}).describef(variant.obj, "validType(%s)", variant.obj.Name())
+	}
+
+	for _, obj := range info.objects {
+		check.collectMethods(obj)
+	}
+}
+
+func promotesEnumMarker(typ Type, seen map[Type]bool) bool {
+	typ = Unalias(typ)
+	if ptr, _ := Unalias(typ).(*Pointer); ptr != nil {
+		typ = Unalias(ptr.Elem())
+	}
+	if seen == nil {
+		seen = make(map[Type]bool)
+	}
+	if seen[typ] {
+		return false
+	}
+	seen[typ] = true
+	if named, _ := typ.(*Named); named != nil {
+		if named.EnumType() != nil {
+			return true
+		}
+		typ = named.Underlying()
+	}
+	switch typ := typ.(type) {
+	case *Interface:
+		for i := 0; i < typ.NumMethods(); i++ {
+			if strings.HasPrefix(typ.Method(i).name, ".enum.") {
+				return true
+			}
+		}
+	case *Struct:
+		for i := 0; i < typ.NumFields(); i++ {
+			field := typ.Field(i)
+			if field.Embedded() && promotesEnumMarker(field.Type(), seen) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func enumMarkerParams(pos syntax.Pos, pkg *Package, tparams []*TypeParam) *Tuple {
+	if len(tparams) == 0 {
+		return nil
+	}
+	params := make([]*Var, len(tparams))
+	for i, tparam := range tparams {
+		params[i] = NewParam(pos, pkg, "", tparam)
+	}
+	return NewTuple(params...)
+}
+
+// collectEnumTypeParams declares the enum's type parameters and creates a
+// distinct, equivalent type parameter list for every variant. Distinct lists
+// are required because each variant is a separate defined type.
+func (check *Checker) collectEnumTypeParams(named []*Named, list []*syntax.Field) {
+	base := make([]*TypeParam, len(list))
+	if len(list) > 0 {
+		scopePos := list[0].Pos()
+		for i, field := range list {
+			base[i] = check.declareTypeParam(field.Name, scopePos)
+		}
+	}
+	named[0].tparams = bindTParams(base)
+
+	variantParams := make([][]*TypeParam, len(named)-1)
+	for i, variant := range named[1:] {
+		params := make([]*TypeParam, len(base))
+		for j, tparam := range base {
+			obj := NewTypeName(tparam.Obj().Pos(), check.pkg, tparam.Obj().Name(), nil)
+			params[j] = check.newTypeParam(obj, Typ[Invalid])
+		}
+		variant.tparams = bindTParams(params)
+		variantParams[i] = params
+	}
+
+	assert(!check.inTParamList)
+	check.inTParamList = true
+	defer func() { check.inTParamList = false }()
+
+	var bound Type
+	for i, field := range list {
+		if i == 0 || field.Type != list[i-1].Type {
+			bound = check.bound(field.Type)
+			if isTypeParam(bound) {
+				check.error(field.Type, MisplacedTypeParam, "cannot use type parameter as constraint")
+				bound = Typ[Invalid]
+			}
+		}
+		base[i].bound = bound
+	}
+
+	for _, params := range variantParams {
+		smap := makeRenameMap(base, params)
+		for i, tparam := range params {
+			tparam.bound = check.subst(tparam.Obj().Pos(), base[i].bound, smap, nil, check.context())
+		}
+	}
+}
+
 func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Field) {
 	tparams := make([]*TypeParam, len(list))
 
@@ -595,7 +787,9 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		return
 	}
 	delete(check.methods, obj)
-	assert(!check.objMap[obj].tdecl.Alias) // don't use TypeName.IsAlias (requires fully set up object)
+	if tdecl := check.objMap[obj].tdecl; tdecl != nil {
+		assert(!tdecl.Alias) // don't use TypeName.IsAlias (requires fully set up object)
+	}
 
 	// use an objset to check for name conflicts
 	var mset objset
@@ -627,6 +821,14 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		// spec: "For a base type, the non-blank names of methods bound
 		// to it must be unique."
 		assert(m.name != "_")
+		if base != nil && enumHasVariantName(base, m.name) {
+			check.errorf(m.pos, DuplicateMethod, "method %s.%s conflicts with enum variant %s", obj.Name(), m.name, m.name)
+			continue
+		}
+		if base != nil && m.name == "Variant" && isEnumType(base) {
+			check.errorf(m.pos, DuplicateMethod, "method %s.Variant conflicts with generated enum method Variant", obj.Name())
+			continue
+		}
 		if alt := mset.insert(m); alt != nil {
 			if alt.Pos().IsKnown() {
 				check.errorf(m.pos, DuplicateMethod, "method %s.%s already declared at %v", obj.Name(), m.name, alt.Pos())
@@ -838,6 +1040,17 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			check.push(obj) // mark as grey
 			check.typeDecl(obj, s)
 			check.pop()
+
+		case *syntax.EnumDecl:
+			info := &enumDeclInfo{decl: s, objects: make([]*TypeName, 1+len(s.VariantList))}
+			info.objects[0] = NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
+			check.declare(check.scope, s.Name, info.objects[0], s.Name.Pos())
+			for i, variant := range s.VariantList {
+				obj := NewTypeName(variant.Name.Pos(), pkg, s.Name.Value+"."+variant.Name.Value, nil)
+				info.objects[i+1] = obj
+				check.declare(check.scope, variant.Name, obj, s.Name.Pos())
+			}
+			check.enumDecl(info)
 
 		default:
 			check.errorf(s, InvalidSyntaxTree, "unknown syntax.Decl node %T", s)

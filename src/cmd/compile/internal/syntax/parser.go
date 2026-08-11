@@ -660,7 +660,15 @@ func (p *parser) typeDecl(group *Group) Decl {
 				// d.Name "[" pname ptype "," ...
 				d.TParamList = p.paramList(pname, ptype, _Rbrack, true, false) // ptype may be nil
 				d.Alias = p.gotAssign()
-				d.Type = p.typeOrNil()
+				if !d.Alias && p.tok == _Name && p.lit == "enum" {
+					name := p.name()
+					if p.tok == _Lbrace {
+						return p.enumDecl(d)
+					}
+					d.Type = p.qualifiedName(name)
+				} else {
+					d.Type = p.typeOrNil()
+				}
 			} else {
 				// d.Name "[" pname "]" ...
 				// d.Name "[" x ...
@@ -676,7 +684,15 @@ func (p *parser) typeDecl(group *Group) Decl {
 		}
 	} else {
 		d.Alias = p.gotAssign()
-		d.Type = p.typeOrNil()
+		if !d.Alias && p.tok == _Name && p.lit == "enum" {
+			name := p.name()
+			if p.tok == _Lbrace {
+				return p.enumDecl(d)
+			}
+			d.Type = p.qualifiedName(name)
+		} else {
+			d.Type = p.typeOrNil()
+		}
 	}
 
 	if d.Type == nil {
@@ -685,6 +701,50 @@ func (p *parser) typeDecl(group *Group) Decl {
 		p.advance(_Semi, _Rparen)
 	}
 
+	return d
+}
+
+// EnumDecl = "type" identifier [ TypeParams ] "enum" "{" { EnumVariant ";" } "}" .
+func (p *parser) enumDecl(header *TypeDecl) Decl {
+	if trace {
+		defer p.trace("enumDecl")()
+	}
+	if header.Group != nil {
+		p.syntaxError("enum declarations cannot be grouped")
+	}
+
+	d := &EnumDecl{
+		Pragma:     header.Pragma,
+		Group:      header.Group,
+		Name:       header.Name,
+		TParamList: header.TParamList,
+	}
+	d.pos = header.pos
+	p.want(_Lbrace)
+	p.list("enum declaration", _Semi, _Rbrace, func() bool {
+		if p.tok != _Name {
+			p.syntaxError("expected variant name")
+			p.advance(_Semi, _Rbrace)
+			return false
+		}
+
+		v := new(EnumVariant)
+		v.pos = p.pos()
+		v.Name = p.name()
+		if p.got(_Lbrace) {
+			v.HasPayload = true
+			payload := new(StructType)
+			payload.pos = v.pos
+			p.list("enum variant payload", _Semi, _Rbrace, func() bool {
+				p.fieldDecl(payload)
+				return false
+			})
+			v.FieldList = payload.FieldList
+			v.TagList = payload.TagList
+		}
+		d.VariantList = append(d.VariantList, v)
+		return false
+	})
 	return d
 }
 
@@ -2621,6 +2681,7 @@ func (p *parser) stmtOrNil() Stmt {
 
 	case _Type:
 		return p.declStmt(p.typeDecl)
+
 	}
 
 	p.clearPragma()
@@ -2819,7 +2880,10 @@ func (p *parser) exprList() Expr {
 		defer p.trace("exprList")()
 	}
 
-	x := p.expr()
+	return p.exprListFrom(p.expr())
+}
+
+func (p *parser) exprListFrom(x Expr) Expr {
 	if p.got(_Comma) {
 		list := []Expr{x, p.expr()}
 		for p.got(_Comma) {

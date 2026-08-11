@@ -50,6 +50,7 @@ const (
 	_Default     // default
 	_Defer       // defer
 	_Else        // else
+	_Enum        // enum
 	_Fallthrough // fallthrough
 	_For         // for
 	_Func        // func

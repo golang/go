@@ -200,8 +200,11 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 		}
 
 		if obj.Op() == ir.OTYPE && !obj.Alias() {
-			if typ := obj.Type(); !typ.IsInterface() {
+			if typ := obj.Type(); typ != nil {
 				for _, method := range typ.Methods() {
+					if method.Nname == nil {
+						continue // interface method, not a declared enum method
+					}
 					l.exportBody(method.Nname.(*ir.Name), local)
 				}
 			}
@@ -320,8 +323,8 @@ func (l *linker) relocTypeExt(w *pkgbits.Encoder, name *ir.Name) {
 	l.lsymIdx(w, "", reflectdata.TypeLinksym(typ))
 	l.lsymIdx(w, "", reflectdata.TypeLinksym(typ.PtrTo()))
 
-	if typ.Kind() != types.TINTER {
-		for _, method := range typ.Methods() {
+	for _, method := range typ.Methods() {
+		if method.Nname != nil {
 			l.relocFuncExt(w, method.Nname.(*ir.Name))
 		}
 	}
