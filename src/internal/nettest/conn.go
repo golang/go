@@ -34,8 +34,8 @@ type Conn struct {
 // NewConnPair returns a pair of connected Conns.
 func NewConnPair() (*Conn, *Conn) {
 	return newConnPair(
-		net.TCPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:10000")),
-		net.TCPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:10001")),
+		net.TCPAddrFromAddrPort(netip.MustParseAddrPort("192.0.2.1:10000")),
+		net.TCPAddrFromAddrPort(netip.MustParseAddrPort("192.0.2.1:10001")),
 	)
 }
 

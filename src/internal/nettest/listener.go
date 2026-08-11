@@ -27,8 +27,8 @@ type Listener struct {
 func NewListener() *Listener {
 	return &Listener{
 		gate:     gate.New(false),
-		addr:     net.TCPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:1000")),
-		nextaddr: netip.MustParseAddrPort("127.0.0.1:10001"),
+		addr:     net.TCPAddrFromAddrPort(netip.MustParseAddrPort("192.0.2.1:1000")),
+		nextaddr: netip.MustParseAddrPort("192.0.2.1:10001"),
 	}
 }
 
