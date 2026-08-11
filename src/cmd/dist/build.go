@@ -1593,9 +1593,18 @@ func cmdbootstrap() {
 		copyfile(pathf("%s/compile3", tooldir), pathf("%s/compile", tooldir), writeExec)
 	}
 
-	// Now that toolchain3 has been built from scratch, its compiler and linker
-	// should have accurate build IDs suitable for caching, so we can use it
-	// as the final toolchain.
+	// If goexperiment == "", so that the first compiler was semantically
+	// identical to the second compiler, toolchain3 has converged and can
+	// be used as the final toolchain (or the final host toolchain in the
+	// case of a cross compile). Otherwise we need to do one more build.
+	if goexperiment != "" {
+		xprintf("Building commands for GOEXPERIMENT=%s convergence for %s/%s.\n", goexperiment, goos, goarch)
+		goInstall(toolenv(), goBootstrap, append([]string{"-a"}, toolsToInstall...)...)
+		if debug {
+			run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+			copyfile(pathf("%s/compile3goexp", tooldir), pathf("%s/compile", tooldir), writeExec)
+		}
+	}
 
 	if goos == oldgoos && goarch == oldgoarch {
 		// Common case - not setting up for cross-compilation.
@@ -1628,6 +1637,7 @@ func cmdbootstrap() {
 		xprintf("Building commands for target, %s/%s.\n", goos, goarch)
 		goInstall(toolenv(), goBootstrap, append([]string{"-a"}, toolsToInstall...)...)
 	}
+
 	checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
 	checkNotStale(toolenv(), gorootBinGo, toolsToInstall...)
 	if debug {
