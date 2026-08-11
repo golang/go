@@ -6,10 +6,46 @@ import "cmd/compile/internal/ssa/block"
 
 func rewriteValueLOONG64latelower(v *Value) bool {
 	switch v.Op {
+	case OpLOONG64MOVBUreg:
+		return rewriteValueLOONG64latelower_OpLOONG64MOVBUreg(v)
+	case OpLOONG64MOVHUreg:
+		return rewriteValueLOONG64latelower_OpLOONG64MOVHUreg(v)
 	case OpLOONG64MOVVconst:
 		return rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v)
+	case OpLOONG64MOVWUreg:
+		return rewriteValueLOONG64latelower_OpLOONG64MOVWUreg(v)
 	case OpLOONG64SLLVconst:
 		return rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v)
+	}
+	return false
+}
+func rewriteValueLOONG64latelower_OpLOONG64MOVBUreg(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVBUreg x)
+	// cond: ZeroUpper56Bits(x)
+	// result: x
+	for {
+		x := v_0
+		if !(ZeroUpper56Bits(x)) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64latelower_OpLOONG64MOVHUreg(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVHUreg x)
+	// cond: ZeroUpper48Bits(x)
+	// result: x
+	for {
+		x := v_0
+		if !(ZeroUpper48Bits(x)) {
+			break
+		}
+		v.copyOf(x)
+		return true
 	}
 	return false
 }
@@ -21,6 +57,21 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v *Value) bool {
 			break
 		}
 		v.reset(OpLOONG64ZERO)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64latelower_OpLOONG64MOVWUreg(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVWUreg x)
+	// cond: ZeroUpper32Bits(x)
+	// result: x
+	for {
+		x := v_0
+		if !(ZeroUpper32Bits(x)) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	return false

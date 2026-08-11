@@ -10,3 +10,8 @@
 
 // use zero register
 (MOVVconst [0]) => (ZERO)
+
+// omit unsigned extension
+(MOVBUreg x) && ZeroUpper56Bits(x) => x
+(MOVHUreg x) && ZeroUpper48Bits(x) => x
+(MOVWUreg x) && ZeroUpper32Bits(x) => x

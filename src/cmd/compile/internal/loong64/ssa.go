@@ -925,9 +925,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		as := loong64.AMOVV
 		switch v.Op {
 		case ssa.OpLOONG64LoweredAtomicLoad8:
-			as = loong64.AMOVB
+			as = loong64.AMOVBU
 		case ssa.OpLOONG64LoweredAtomicLoad32:
-			as = loong64.AMOVW
+			as = loong64.AMOVWU
 		}
 		p := s.Prog(as)
 		p.From.Type = obj.TYPE_MEM

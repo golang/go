@@ -225,6 +225,7 @@ func noUnsignEXT(t1, t2, t3, t4 uint32, k int64) uint64 {
 	ret += uint64(bits.Reverse32(t1))
 
 	// arm64:"CLZW" -"MOVWU"
+	// loong64:"CLZW" -"MOVWU"
 	ret += uint64(bits.LeadingZeros32(t1))
 
 	// arm64:"REV16W" -"MOVWU"
@@ -266,18 +267,23 @@ func shouldSignEXT(x int) int64 {
 	var ret int64
 
 	// arm64:"MOVW"
+	// loong64:"MOVW"
 	ret += int64(t1 & (-1))
 
 	// arm64:"MOVW"
+	// loong64:"MOVW"
 	ret += int64(int32(x & 0x80000000))
 
 	// arm64:"MOVW"
+	// loong64:"MOVW"
 	ret += int64(int32(x & 0x1100000011111111))
 
 	// arm64:"MOVH"
+	// loong64:"MOVH"
 	ret += int64(int16(x & 0x1100000000001111))
 
 	// arm64:"MOVB"
+	// loong64:"MOVB"
 	ret += int64(int8(x & 0x1100000000000011))
 
 	return ret
@@ -633,36 +639,42 @@ func noZeroExtCMOVLNEF(x, y float64, a, b uint32) uint64 {
 func noZeroExtLoad32(p *uint32) uint64 {
 	// amd64:`MOVL \(` -`MOVL [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
 	// arm64:`MOVWU \(` -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:`MOVWU \(` -"MOVWU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(*p)
 }
 
 func noZeroExtLoad16(p *uint16) uint64 {
 	// amd64:`MOVWLZX \(` -`MOVWLZX [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
 	// arm64:`MOVHU \(` -"MOVHU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:`MOVHU \(` -"MOVHU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(*p)
 }
 
 func noZeroExtLoad8(p *uint8) uint64 {
 	// amd64:`MOVBLZX \(` -`MOVBLZX [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
 	// arm64:`MOVBU \(` -"MOVBU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:`MOVBU \(` -"MOVBU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(*p)
 }
 
 func noZeroExtLoadidx32(s *[8]uint32, i int) uint64 {
 	// amd64:`MOVL \(.*\)\(.*\*4\)` -`MOVL [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
 	// arm64:`MOVWU \(R[0-9]+\)\(R[0-9]+<<2\)` -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:`MOVWU \(R[0-9]+\)\(R[0-9]+\)` -"MOVWU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(s[i&(len(s)-1)])
 }
 
 func noZeroExtLoadidx16(s *[8]uint16, i int) uint64 {
 	// amd64:`MOVWLZX \(.*\)\(.*\*2\)` -`MOVWLZX [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
 	// arm64:`MOVHU \(R[0-9]+\)\(R[0-9]+<<1\)` -"MOVHU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:`MOVHU \(R[0-9]+\)\(R[0-9]+\)` -"MOVHU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(s[i&(len(s)-1)])
 }
 
 func noZeroExtLoadidx8(s *[8]uint8, i int) uint64 {
 	// amd64:`MOVBLZX \(.*\)\(.*\*1\)` -`MOVBLZX [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
 	// arm64:`MOVBU \(R[0-9]+\)\(R[0-9]+\)` -"MOVBU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:`MOVBU \(R[0-9]+\)\(R[0-9]+\)` -"MOVBU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(s[i&(len(s)-1)])
 }
 
@@ -767,6 +779,7 @@ func noZeroExtRBITW(a uint32) uint64 {
 
 func noZeroExtCLZW(a uint32) uint64 {
 	// arm64:"CLZW" -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:"CLZW" -"MOVWU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(uint32(bits.LeadingZeros32(a)))
 }
 
@@ -812,6 +825,7 @@ func noZeroExtUMODW(a, b uint32) uint64 {
 func noZeroExt48MOVBQZX(x uint8) uint64 {
 	// amd64:"MOVBLZX" -"MOVWLZX"
 	// arm64:"MOVBU R[0-9]+, R[0-9]+" -"MOVHU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:"MOVBU R[0-9]+, R[0-9]+" -"MOVHU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(uint16(x))
 }
 
@@ -845,6 +859,7 @@ func noZeroExtBLSRL(a uint32) uint64 {
 func noZeroExtMOVLatomicload(p *uint32) uint64 {
 	// amd64:`MOVL \(` -`MOVL [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
 	// arm64:"LDARW" -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:"MOVWU" "DBAR" -"MOVWU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(atomic.LoadUint32(p))
 }
 
@@ -855,6 +870,7 @@ func noZeroExtXADDLlock(p *uint32) uint64 {
 
 func noZeroExtLDPW(p *[2]uint32) (uint64, uint64) {
 	// arm64:"LDPW" -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:"MOVWU" `MOVWU [$4]\(R[0-9]+\), R[0-9]+`
 	return uint64(p[0]), uint64(p[1])
 }
 
@@ -863,11 +879,13 @@ func noZeroExtLDPW(p *[2]uint32) (uint64, uint64) {
 
 func noZeroExt56CLZ(a uint64) uint8 {
 	// arm64:"CLZ " -"MOVBU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:"CLZV " -"MOVBU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint8(bits.LeadingZeros64(a))
 }
 
 func noZeroExt56CLZW(a uint32) uint8 {
 	// arm64:"CLZW" -"MOVBU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:"CLZW" -"MOVBU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint8(bits.LeadingZeros32(a))
 }
 

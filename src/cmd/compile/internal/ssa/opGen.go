@@ -85205,10 +85205,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CLZW",
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.ACLZW,
+		name:          "CLZW",
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.ACLZW,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -85219,10 +85220,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CLZV",
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.ACLZV,
+		name:          "CLZV",
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.ACLZV,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -85233,10 +85235,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CTZW",
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.ACTZW,
+		name:          "CTZW",
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.ACTZW,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -85247,10 +85250,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CTZV",
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.ACTZV,
+		name:          "CTZV",
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.ACTZV,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -86407,10 +86411,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "SGT",
-		argLen:  2,
-		earlyOk: true,
-		asm:     loong64.ASGT,
+		name:          "SGT",
+		argLen:        2,
+		earlyOk:       true,
+		asm:           loong64.ASGT,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -86422,11 +86427,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "SGTconst",
-		auxType: auxInt64,
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.ASGT,
+		name:          "SGTconst",
+		auxType:       auxInt64,
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.ASGT,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -86437,10 +86443,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "SGTU",
-		argLen:  2,
-		earlyOk: true,
-		asm:     loong64.ASGTU,
+		name:          "SGTU",
+		argLen:        2,
+		earlyOk:       true,
+		asm:           loong64.ASGTU,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -86452,11 +86459,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "SGTUconst",
-		auxType: auxInt64,
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.ASGTU,
+		name:          "SGTUconst",
+		auxType:       auxInt64,
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.ASGTU,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -86467,9 +86475,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CMPEQF",
-		argLen: 2,
-		asm:    loong64.ACMPEQF,
+		name:          "CMPEQF",
+		argLen:        2,
+		asm:           loong64.ACMPEQF,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686017353646080, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -86478,9 +86487,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CMPEQD",
-		argLen: 2,
-		asm:    loong64.ACMPEQD,
+		name:          "CMPEQD",
+		argLen:        2,
+		asm:           loong64.ACMPEQD,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686017353646080, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -86489,9 +86499,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CMPGEF",
-		argLen: 2,
-		asm:    loong64.ACMPGEF,
+		name:          "CMPGEF",
+		argLen:        2,
+		asm:           loong64.ACMPGEF,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686017353646080, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -86500,9 +86511,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CMPGED",
-		argLen: 2,
-		asm:    loong64.ACMPGED,
+		name:          "CMPGED",
+		argLen:        2,
+		asm:           loong64.ACMPGED,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686017353646080, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -86511,9 +86523,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CMPGTF",
-		argLen: 2,
-		asm:    loong64.ACMPGTF,
+		name:          "CMPGTF",
+		argLen:        2,
+		asm:           loong64.ACMPGTF,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686017353646080, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -86522,9 +86535,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CMPGTD",
-		argLen: 2,
-		asm:    loong64.ACMPGTD,
+		name:          "CMPGTD",
+		argLen:        2,
+		asm:           loong64.ACMPGTD,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686017353646080, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -86643,6 +86657,7 @@ var opcodeTable = [...]opInfo{
 		addrSinkArg0:   true,
 		symEffect:      SymRead,
 		asm:            loong64.AMOVBU,
+		zeroUpperBits:  56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686019501129724, v2: 0}}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
@@ -86677,6 +86692,7 @@ var opcodeTable = [...]opInfo{
 		addrSinkArg0:   true,
 		symEffect:      SymRead,
 		asm:            loong64.AMOVHU,
+		zeroUpperBits:  48,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686019501129724, v2: 0}}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
@@ -86711,6 +86727,7 @@ var opcodeTable = [...]opInfo{
 		addrSinkArg0:   true,
 		symEffect:      SymRead,
 		asm:            loong64.AMOVWU,
+		zeroUpperBits:  32,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686019501129724, v2: 0}}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
@@ -86802,10 +86819,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVWUloadidx",
-		argLen:       3,
-		addrSinkArg0: true,
-		asm:          loong64.AMOVWU,
+		name:          "MOVWUloadidx",
+		argLen:        3,
+		addrSinkArg0:  true,
+		asm:           loong64.AMOVWU,
+		zeroUpperBits: 32,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 1073741816, v2: 0}},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -86832,10 +86850,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVHUloadidx",
-		argLen:       3,
-		addrSinkArg0: true,
-		asm:          loong64.AMOVHU,
+		name:          "MOVHUloadidx",
+		argLen:        3,
+		addrSinkArg0:  true,
+		asm:           loong64.AMOVHU,
+		zeroUpperBits: 48,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 1073741816, v2: 0}},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -86862,10 +86881,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVBUloadidx",
-		argLen:       3,
-		addrSinkArg0: true,
-		asm:          loong64.AMOVBU,
+		name:          "MOVBUloadidx",
+		argLen:        3,
+		addrSinkArg0:  true,
+		asm:           loong64.AMOVBU,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 1073741816, v2: 0}},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -87145,10 +87165,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVBUreg",
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.AMOVBU,
+		name:          "MOVBUreg",
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.AMOVBU,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -87173,10 +87194,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVHUreg",
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.AMOVHU,
+		name:          "MOVHUreg",
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.AMOVHU,
+		zeroUpperBits: 48,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -87201,10 +87223,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVWUreg",
-		argLen:  1,
-		earlyOk: true,
-		asm:     loong64.AMOVWU,
+		name:          "MOVWUreg",
+		argLen:        1,
+		earlyOk:       true,
+		asm:           loong64.AMOVWU,
+		zeroUpperBits: 32,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 1073741816, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -87589,6 +87612,7 @@ var opcodeTable = [...]opInfo{
 		name:           "LoweredAtomicLoad8",
 		argLen:         2,
 		faultOnNilArg0: true,
+		zeroUpperBits:  56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686019501129724, v2: 0}}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
@@ -87602,6 +87626,7 @@ var opcodeTable = [...]opInfo{
 		name:           "LoweredAtomicLoad32",
 		argLen:         2,
 		faultOnNilArg0: true,
+		zeroUpperBits:  32,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 4611686019501129724, v2: 0}}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
@@ -87783,6 +87808,7 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0:  true,
 		hasSideEffects:  true,
 		unsafePoint:     true,
+		zeroUpperBits:   56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 1073741816, v2: 0}},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -87801,6 +87827,7 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0:  true,
 		hasSideEffects:  true,
 		unsafePoint:     true,
+		zeroUpperBits:   56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 1073741816, v2: 0}},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -87819,6 +87846,7 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0:  true,
 		hasSideEffects:  true,
 		unsafePoint:     true,
+		zeroUpperBits:   56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 1073741816, v2: 0}},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -87837,6 +87865,7 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0:  true,
 		hasSideEffects:  true,
 		unsafePoint:     true,
+		zeroUpperBits:   56,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 1073741816, v2: 0}},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -87956,9 +87985,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "FPFlagTrue",
-		argLen:  1,
-		earlyOk: true,
+		name:          "FPFlagTrue",
+		argLen:        1,
+		earlyOk:       true,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 1071644664, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
@@ -87966,9 +87996,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "FPFlagFalse",
-		argLen:  1,
-		earlyOk: true,
+		name:          "FPFlagFalse",
+		argLen:        1,
+		earlyOk:       true,
+		zeroUpperBits: 56,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 1071644664, v2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
@@ -88106,12 +88137,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:      "ZERO",
-		argLen:    0,
-		zeroWidth: true,
-		fixedReg:  true,
-		earlyOk:   true,
-		reg:       regInfo{},
+		name:          "ZERO",
+		argLen:        0,
+		zeroWidth:     true,
+		fixedReg:      true,
+		earlyOk:       true,
+		zeroUpperBits: 56,
+		reg:           regInfo{},
 	},
 
 	{
