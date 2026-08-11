@@ -302,8 +302,11 @@ func (f *openMapFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (f *openMapFile) ReadAt(b []byte, offset int64) (int, error) {
-	if offset < 0 || offset > int64(len(f.f.Data)) {
+	if offset < 0 {
 		return 0, &fs.PathError{Op: "read", Path: f.path, Err: fs.ErrInvalid}
+	}
+	if offset >= int64(len(f.f.Data)) {
+		return 0, io.EOF
 	}
 	n := copy(b, f.f.Data[offset:])
 	if n < len(b) {

@@ -376,8 +376,11 @@ func (f *openFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (f *openFile) ReadAt(b []byte, offset int64) (int, error) {
-	if offset < 0 || offset > int64(len(f.f.data)) {
+	if offset < 0 {
 		return 0, &fs.PathError{Op: "read", Path: f.f.name, Err: fs.ErrInvalid}
+	}
+	if offset >= int64(len(f.f.data)) {
+		return 0, io.EOF
 	}
 	n := copy(b, f.f.data[offset:])
 	if n < len(b) {

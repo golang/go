@@ -247,16 +247,38 @@ func TestOffset(t *testing.T) {
 
 	// Use ReadAt with non-zero offset.
 	off = int64(7)
-	want = want[off:]
-	got = make([]byte, len(want))
+	part := want[off:]
+	got = make([]byte, len(part))
 	n, err = at.ReadAt(got, off)
 	if err != nil {
 		t.Fatal("ReadAt:", err)
 	}
-	if n != len(want) {
-		t.Fatalf("ReadAt: got %d bytes, want %d bytes", n, len(want))
+	if n != len(part) {
+		t.Fatalf("ReadAt: got %d bytes, want %d bytes", n, len(part))
 	}
-	if string(got) != want {
-		t.Fatalf("ReadAt: got %q, want %q", got, want)
+	if string(got) != part {
+		t.Fatalf("ReadAt: got %q, want %q", got, part)
+	}
+
+	// Use ReadAt with an offset at the end of the file.
+	off = int64(len(want))
+	got = make([]byte, 1)
+	n, err = at.ReadAt(got, off)
+	if err != io.EOF {
+		t.Fatalf("ReadAt: expected io.EOF for offset at end of file")
+	}
+	if n != 0 {
+		t.Fatalf("ReadAt: got %d bytes, want 0 bytes", n)
+	}
+
+	// Use ReadAt with an offset beyond the end of the file.
+	off = int64(len(want) + 1)
+	got = make([]byte, 1)
+	n, err = at.ReadAt(got, off)
+	if err != io.EOF {
+		t.Fatalf("ReadAt: expected io.EOF for offset beyond end of file")
+	}
+	if n != 0 {
+		t.Fatalf("ReadAt: got %d bytes, want 0 bytes", n)
 	}
 }
