@@ -4,7 +4,7 @@
 
 package issue76861
 
-// #cgo CFLAGS: -Wall -Werror
+// #cgo CFLAGS: -Wall -Wextra -Werror
 // void issue76861(void) {}
 import "C"
 
