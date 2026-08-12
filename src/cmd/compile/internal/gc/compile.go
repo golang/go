@@ -158,11 +158,7 @@ func compileFunctions(profile *pgoir.Profile) {
 	mu.Lock()
 
 	for workerId := range base.Flag.LowerC {
-		// TODO: replace with wg.Go when the oldest bootstrap has it.
-		// With the current policy, that'd be go1.27.
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			var closures []*ir.Func
 			for {
 				mu.Lock()
@@ -178,7 +174,7 @@ func compileFunctions(profile *pgoir.Profile) {
 				ssagen.Compile(fn, workerId, profile)
 				closures = fn.Closures
 			}
-		}()
+		})
 	}
 
 	types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
