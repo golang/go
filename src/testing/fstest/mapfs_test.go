@@ -5,7 +5,9 @@
 package fstest
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"strings"
 	"testing"
@@ -121,5 +123,24 @@ func TestMapFSSymlink(t *testing.T) {
 		if got, want := gotInfo.Mode(), fs.ModeDir|0555; got != want {
 			t.Errorf("fs.Stat(m, \"linklink\").Mode() = %v; want %v", got, want)
 		}
+	}
+}
+
+func TestMapFSSeek(t *testing.T) {
+	m := MapFS{
+		"hello": {Data: []byte("hello, world\n")},
+	}
+	f, err := m.Open("hello")
+	if err != nil {
+		t.Error(err)
+	}
+	defer f.Close()
+	s := f.(io.Seeker)
+	_, err = s.Seek(0, io.SeekEnd+5)
+	if err == nil {
+		t.Errorf("Seek: expected error for invalid whence")
+	}
+	if !errors.Is(err, fs.ErrInvalid) {
+		t.Errorf("Seek: expected fs.ErrInvalid, got %v", err)
 	}
 }

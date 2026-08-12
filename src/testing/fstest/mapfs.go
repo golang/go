@@ -285,12 +285,14 @@ func (f *openMapFile) Read(b []byte) (int, error) {
 
 func (f *openMapFile) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
-	case 0:
+	case io.SeekStart:
 		// offset += 0
-	case 1:
+	case io.SeekCurrent:
 		offset += f.offset
-	case 2:
+	case io.SeekEnd:
 		offset += int64(len(f.f.Data))
+	default:
+		return 0, &fs.PathError{Op: "seek", Path: f.path, Err: fs.ErrInvalid}
 	}
 	if offset < 0 || offset > int64(len(f.f.Data)) {
 		return 0, &fs.PathError{Op: "seek", Path: f.path, Err: fs.ErrInvalid}
