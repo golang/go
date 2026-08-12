@@ -302,7 +302,8 @@ variables, separated by a comma:
 
 in which case $index and $element are set to the successive values of the
 array/slice index or map key and element, respectively. Note that if there is
-only one variable, it is assigned the element; this is opposite to the
+only one variable, it is assigned the V of any map[K]V type,
+or the first value of any iter.Seq2[E1, E2] type; this is opposite to the
 convention in Go range clauses.
 
 A variable's scope extends to the "end" action of the control structure ("if",
