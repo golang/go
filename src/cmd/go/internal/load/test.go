@@ -21,6 +21,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -38,6 +39,8 @@ var TestMainDeps = []string{
 	"testing",
 	"testing/internal/testdeps",
 }
+
+var testFileQueue = par.NewQueue(runtime.GOMAXPROCS(0))
 
 type TestCover struct {
 	Mode  string
@@ -634,18 +637,21 @@ func loadTestFuncs(ptest *Package) (*testFuncs, error) {
 
 	nTest := len(ptest.TestGoFiles)
 	results := make([]testFileResult, nTest+len(ptest.XTestGoFiles))
-	q := par.NewQueue(runtime.GOMAXPROCS(0))
-	for i, file := range ptest.TestGoFiles {
-		q.Add(func() {
-			results[i] = loadTestFuncFile(ptest, filepath.Join(ptest.Dir, file), "_test")
+	var wg sync.WaitGroup
+	queueFile := func(i int, filename, pkg string) {
+		wg.Add(1)
+		testFileQueue.Add(func() {
+			defer wg.Done()
+			results[i] = loadTestFuncFile(ptest, filename, pkg)
 		})
+	}
+	for i, file := range ptest.TestGoFiles {
+		queueFile(i, filepath.Join(ptest.Dir, file), "_test")
 	}
 	for i, file := range ptest.XTestGoFiles {
-		q.Add(func() {
-			results[nTest+i] = loadTestFuncFile(ptest, filepath.Join(ptest.Dir, file), "_xtest")
-		})
+		queueFile(nTest+i, filepath.Join(ptest.Dir, file), "_xtest")
 	}
-	<-q.Idle()
+	wg.Wait()
 
 	var err error
 	for i := range results {
