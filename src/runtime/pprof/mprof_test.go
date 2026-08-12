@@ -14,6 +14,8 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -92,41 +94,53 @@ func TestMemoryProfiler(t *testing.T) {
 
 	memoryProfilerRun++
 
+	type entry struct {
+		sizeEach   int
+		liveCount  int
+		allocCount int
+	}
+
 	tests := []struct {
-		stk    []string
-		legacy string
+		stk         []string
+		legacy      string
+		legacyEntry entry
 	}{{
 		// 4 PCs for the fast path
 		// 5 PCs for the slow path with size-specialized malloc
 		// 6 PCs for race builds (which also disable size-specialized malloc)
 		stk: []string{"runtime/pprof.allocatePersistent1K", "runtime/pprof.TestMemoryProfiler"},
-		legacy: fmt.Sprintf(`%v: %v \[%v: %v\] @( 0x[0-9,a-f]+){4,6}
-#	0x[0-9,a-f]+	runtime/pprof\.allocatePersistent1K\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test\.go:48
-#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test\.go:87
-`, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),
+		legacy: `([0-9]+): ([0-9]+) \[([0-9]+): ([0-9]+)\] @( 0x[0-9,a-f]+){4,6}
+#	0x[0-9,a-f]+	runtime/pprof\.allocatePersistent1K\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test\.go:50
+#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test\.go:89
+`,
+		legacyEntry: entry{sizeEach: 32, liveCount: 32, allocCount: 32},
 	}, {
 		stk: []string{"runtime/pprof.allocateTransient1M", "runtime/pprof.TestMemoryProfiler"},
-		legacy: fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient1M\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:25
-#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:84
-`, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
+		legacy: `([0-9]+): ([0-9]+) \[([0-9]+): ([0-9]+)\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient1M\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:27
+#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:86
+`,
+		legacyEntry: entry{sizeEach: 1 << 10, allocCount: 1 << 10},
 	}, {
 		stk: []string{"runtime/pprof.allocateTransient2M", "runtime/pprof.TestMemoryProfiler"},
-		legacy: fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient2M\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:31
-#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:85
-`, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+		legacy: `([0-9]+): ([0-9]+) \[([0-9]+): ([0-9]+)\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient2M\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:33
+#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:87
+`,
+		legacyEntry: entry{sizeEach: 2 << 20, allocCount: 1},
 	}, {
 		stk: []string{"runtime/pprof.allocateTransient2MInline", "runtime/pprof.TestMemoryProfiler"},
-		legacy: fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient2MInline\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:35
-#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:86
-`, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+		legacy: `([0-9]+): ([0-9]+) \[([0-9]+): ([0-9]+)\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient2MInline\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:37
+#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:88
+`,
+		legacyEntry: entry{sizeEach: 2 << 20, allocCount: 1},
 	}, {
 		stk: []string{"runtime/pprof.allocateReflectTransient"},
-		legacy: fmt.Sprintf(`0: 0 \[%v: %v\] @( 0x[0-9,a-f]+)+
-#	0x[0-9,a-f]+	runtime/pprof\.allocateReflectTransient\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:56
-`, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+		legacy: `([0-9]+): ([0-9]+) \[([0-9]+): ([0-9]+)\] @( 0x[0-9,a-f]+)+
+#	0x[0-9,a-f]+	runtime/pprof\.allocateReflectTransient\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test.go:58
+`,
+		legacyEntry: entry{sizeEach: 2 << 20, allocCount: 1},
 	}}
 
 	t.Run("debug=1", func(t *testing.T) {
@@ -135,9 +149,56 @@ func TestMemoryProfiler(t *testing.T) {
 			t.Fatalf("failed to write heap profile: %v", err)
 		}
 
+		defer func() {
+			if t.Failed() {
+				t.Logf("\nProfile:\n%v\n", buf.String())
+			}
+		}()
+
 		for _, test := range tests {
-			if !regexp.MustCompile(test.legacy).Match(buf.Bytes()) {
-				t.Fatalf("The entry did not match:\n%v\n\nProfile:\n%v\n", test.legacy, buf.String())
+			re := regexp.MustCompile(test.legacy)
+			// Small allocations can appear with more than one call stack, such
+			// as the fast vs slow paths in the size-specialized malloc code.
+			// Individual line numbers can also be responsible for multiple
+			// allocations. That includes not only the byte slices that these
+			// tests try to observe, but also the slice headers (easy to split
+			// out) as well as runtime-internal structures such as sudogs
+			// (harder)! Filter by the size of the entry to see if it's the one
+			// we're trying to observe, and sum all entries of that size.
+
+			var (
+				wantSize   = test.legacyEntry.sizeEach
+				wantLive   = memoryProfilerRun * test.legacyEntry.liveCount
+				wantAllocs = memoryProfilerRun * test.legacyEntry.allocCount
+
+				foundLive   int
+				foundAllocs int
+			)
+
+			var matches []string
+			for _, match := range re.FindAllSubmatch(buf.Bytes(), -1) {
+				if len(match) < 5 {
+					continue
+				}
+				matches = append(matches, string(match[0]))
+				liveCount, _ := strconv.Atoi(string(match[1]))
+				allocCount, _ := strconv.Atoi(string(match[3]))
+				totalSize, _ := strconv.Atoi(string(match[4]))
+				if allocCount == 0 {
+					continue
+				}
+				sizeEach := totalSize / allocCount
+				if sizeEach == wantSize {
+					foundLive += liveCount
+					foundAllocs += allocCount
+				}
+			}
+
+			if foundLive != wantLive || foundAllocs != wantAllocs {
+				t.Errorf("Found %d entries with value %v (not %v) matching\n%v\n\n%v\n", len(matches),
+					fmt.Sprintf("%d: %d [%d: %d]", foundLive, foundLive*wantSize, foundAllocs, foundAllocs*wantSize),
+					fmt.Sprintf("%d: %d [%d: %d]", wantLive, wantLive*wantSize, wantAllocs, wantAllocs*wantSize),
+					test.legacy, strings.Join(matches, "\n\n"))
 			}
 		}
 	})
