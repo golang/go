@@ -440,11 +440,12 @@ func NewServerRequest(rp ServerRequestParam) ServerRequestResult {
 		// but it must match the :authority pseudo-header.
 		if authority == "" {
 			authority = host[0]
-		} else if host[0] != rp.Authority {
+		} else if host[0] != authority {
 			return ServerRequestResult{
 				InvalidReason: "authority_host_mismatch",
 			}
 		}
+		delete(rp.Header, "Host")
 	} else if len(host) > 1 {
 		// HTTP/1.1 rejects any request containing more than one Host header.
 		// HTTP/2 and HTTP/3 don't use the Host header, but reject multiple anyway.

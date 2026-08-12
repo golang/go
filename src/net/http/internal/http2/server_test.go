@@ -5300,6 +5300,9 @@ func TestServerAuthorityAndHostHeader(t *testing.T) {
 				if got, want := call.req.Host, test.wantHost; got != want {
 					t.Errorf("handler got Host %q, want %q", got, want)
 				}
+				if h, ok := call.req.Header["Host"]; ok {
+					t.Errorf(`handler got Header["Host"] = %q, want unset`, h)
+				}
 			} else {
 				st.wantRSTStream(1, ErrCodeProtocol)
 			}
