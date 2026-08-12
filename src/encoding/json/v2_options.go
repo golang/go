@@ -498,7 +498,7 @@ func ReportErrorsWithLegacySemantics(v bool) Options {
 // and stringifies the JSON number within a JSON string. In particular,
 // the v2 default does not stringify Go bools and strings.
 // If [ReportErrorsWithLegacySemantics] is false,
-// then incorrect usages of `string` results in a runtime error.
+// then incorrect usages of `string` result in a runtime error.
 //
 // When marshaling, such Go values are serialized as their usual JSON
 // representation, but quoted within a JSON string.
