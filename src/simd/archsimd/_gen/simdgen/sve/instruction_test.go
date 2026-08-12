@@ -426,7 +426,7 @@ func TestReductionOutput(t *testing.T) {
 		got = append(got, op.Class+":"+op.role)
 	}
 	// The scalar result <Dd> is a SIMD&FP register destination, not an input.
-	want := []string{"vreg:destination", "mask:op0", "vreg:op1"}
+	want := []string{"vreg:destination", "mask:mask", "vreg:op0"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("SADDV operands = %v, want %v", got, want)
 	}
@@ -477,8 +477,10 @@ func TestStoreReglist(t *testing.T) {
 		got = append(got, op.Class+":"+op.role)
 	}
 	// The single-register list unwraps to a vreg (the data source); the memory
-	// operand is the store destination. Order follows the source template.
-	want := []string{"vreg:op0", "mask:op1", "mem:destination"}
+	// operand is the store destination. Order follows the source template. The
+	// predicate is <Pg>: a governing predicate (role "mask"), even though a
+	// store writes no /Z or /M qualifier.
+	want := []string{"vreg:op0", "mask:mask", "mem:destination"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ST1B operands = %v, want %v", got, want)
 	}

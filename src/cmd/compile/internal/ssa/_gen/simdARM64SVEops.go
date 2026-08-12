@@ -2,12 +2,16 @@
 
 package main
 
-func simdARM64SVEOps(z11, z21 regInfo) []opData {
+func simdARM64SVEOps(z11, z21, z2kk regInfo) []opData {
 	return []opData{
 		{name: "ZADDB", argLength: 2, reg: z21, asm: "ZADD", commutative: true, typ: "Vec256"},
 		{name: "ZADDD", argLength: 2, reg: z21, asm: "ZADD", commutative: true, typ: "Vec256"},
 		{name: "ZADDH", argLength: 2, reg: z21, asm: "ZADD", commutative: true, typ: "Vec256"},
 		{name: "ZADDS", argLength: 2, reg: z21, asm: "ZADD", commutative: true, typ: "Vec256"},
+		{name: "ZCMPGTB", argLength: 3, reg: z2kk, asm: "ZCMPGT", typ: "Mask"},
+		{name: "ZCMPGTD", argLength: 3, reg: z2kk, asm: "ZCMPGT", typ: "Mask"},
+		{name: "ZCMPGTH", argLength: 3, reg: z2kk, asm: "ZCMPGT", typ: "Mask"},
+		{name: "ZCMPGTS", argLength: 3, reg: z2kk, asm: "ZCMPGT", typ: "Mask"},
 		{name: "ZFADDD", argLength: 2, reg: z21, asm: "ZFADD", commutative: true, typ: "Vec256"},
 		{name: "ZFADDS", argLength: 2, reg: z21, asm: "ZFADD", commutative: true, typ: "Vec256"},
 		{name: "ZSQADDB", argLength: 2, reg: z21, asm: "ZSQADD", commutative: true, typ: "Vec256"},

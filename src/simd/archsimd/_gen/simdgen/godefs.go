@@ -429,6 +429,36 @@ type Operand struct {
 	// Currently only list number 0 is supported (we might need to teach regalloc handle register lists
 	// to support more than one register in the list).
 	ListNumber *int
+	// ImplicitAllTrue marks an SVE governing-predicate input that is dropped from
+	// the user-facing (unpredicated) API: the generated method/generic op/intrinsic
+	// omit it, and the lowering synthesizes an all-true predicate for it. This is
+	// how predicated-only SVE instructions (e.g. ZCMPGT) expose an unpredicated Go
+	// API, for #79781.
+	ImplicitAllTrue *bool
+}
+
+// isImplicitAllTrue reports whether this operand is an SVE governing predicate
+// that is dropped from the API and filled with an all-true predicate at lowering.
+func (o *Operand) isImplicitAllTrue() bool {
+	return o.ImplicitAllTrue != nil && *o.ImplicitAllTrue
+}
+
+// implicitPredCount reports whether the op has an implicit-all-true governing
+// predicate input, as a count (0 or 1). An instruction has at most one governing
+// predicate — the single mask input carrying a /Z or /M qualifier (see the
+// role=="mask" operand in sve.buildOperandList) — which is a real machine-op
+// input the lowering synthesizes as all-true but which is invisible in the Go
+// API. So the generic op, intrinsic and stub size themselves by len(In) minus
+// this. Source predicates (e.g. Pn, Pm in a predicate-logical op) are ordinary
+// numbered inputs, not governing predicates, and are never counted.
+func (op Operation) implicitPredCount() int {
+	n := 0
+	for i := range op.In {
+		if op.In[i].isImplicitAllTrue() {
+			n++
+		}
+	}
+	return n
 }
 
 // maxVectorBits is the fixed width simdgen models a scalable SVE vector as: the

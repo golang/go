@@ -35,6 +35,18 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZUQADDS:
 		p = simdZ21(s, v, arm64.ARNG_S)
 
+	case ssaop.OpARM64ZCMPGTB:
+		p = simdZ2kk(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZCMPGTD:
+		p = simdZ2kk(s, v, arm64.ARNG_D)
+
+	case ssaop.OpARM64ZCMPGTH:
+		p = simdZ2kk(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZCMPGTS:
+		p = simdZ2kk(s, v, arm64.ARNG_S)
+
 	default:
 		// Unknown reg shape
 		return false

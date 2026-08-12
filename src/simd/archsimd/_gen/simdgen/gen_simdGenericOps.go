@@ -27,8 +27,10 @@ func writeSIMDGenericOps(buffer *bytes.Buffer, ops []Operation, genericOpsFilePa
 		_, _, _, immType, gOp, _ := op.shape()
 
 		newOps = append(newOps, sgutil.GenericOpsData{
-			OpName:  gOp.GenericName(),
-			OpInLen: len(gOp.In),
+			OpName: gOp.GenericName(),
+			// An implicit-all-true predicate is a machine-op input only; the
+			// generic op is unpredicated, so exclude it from the arg count.
+			OpInLen: len(gOp.In) - gOp.implicitPredCount(),
 			Comm:    op.Commutative,
 			HasAux:  immType == VarImm || immType == VarImmLim || immType == ConstVarImm,
 			Archs:   []string{currentArch},

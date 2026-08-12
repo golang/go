@@ -66,6 +66,22 @@ func (op *Operand) emit() *unify.Value {
 		// instructions support only one; this records which.
 		db.Add("predication", unify.NewValue(unify.NewStringExact(op.Predication)))
 	}
+	if op.role == "mask" {
+		// role "mask" is precisely the governing predicate: the operand named <Pg>
+		// (buildOperandList assigns the role; every instruction has at most one). It
+		// is implicit-all-true — dropped from the unpredicated Go API and
+		// synthesized as an all-true predicate at lowering, so predicated-only
+		// instructions (e.g. ZCMPGT) expose an unpredicated API. Flagging it here,
+		// not in the user's go_*.yaml, keeps the YAML unpredicated.
+		//
+		// The governing predicate is identified by name, not by a /Z or /M
+		// qualifier: most data-processing ops write <Pg>/Z or <Pg>/M, but some
+		// governing predicates have no qualifier (e.g. the store ST1B {<Zt>.B},
+		// <Pg>, [...]). Either way it is <Pg>. Source predicates <Pn>/<Pm> (e.g. in
+		// AND <Pd>.B, <Pg>/Z, <Pn>.B, <Pm>.B) are ordinary numbered inputs (role
+		// "opN"), real data, and are never flagged all-true.
+		db.Add("implicitAllTrue", unify.NewValue(unify.NewStringExact("true")))
+	}
 	if op.isList {
 		// This register came from a single-register list ("{ <Zt>.<T> }"), a
 		// distinct assembler encoding from a bare register.

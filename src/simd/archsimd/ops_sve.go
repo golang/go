@@ -98,6 +98,28 @@ func (x Uint32s) AddSaturated(y Uint32s) Uint32s
 // Asm: ZUQADD, CPU Feature: SVE
 func (x Uint64s) AddSaturated(y Uint64s) Uint64s
 
+/* Greater */
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZCMPGT, CPU Feature: SVE
+func (x Int8s) Greater(y Int8s) Mask8s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZCMPGT, CPU Feature: SVE
+func (x Int16s) Greater(y Int16s) Mask16s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZCMPGT, CPU Feature: SVE
+func (x Int32s) Greater(y Int32s) Mask32s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZCMPGT, CPU Feature: SVE
+func (x Int64s) Greater(y Int64s) Mask64s
+
 // BitsToInt8 reinterprets the bits of a Uint8s vector as a Int8s vector
 func (x Uint8s) BitsToInt8() Int8s
 

@@ -534,9 +534,14 @@ func buildOperandList(parsed []tok) []Operand {
 		}
 		switch p.operandType {
 		case OperandPReg:
-			if p.predication != "" {
-				// Governing predicate: a mandatory mask input (role "mask", not a
-				// numbered opN).
+			if p.regName == "Pg" || p.predication != "" {
+				// Governing predicate: the operand named <Pg> ("g" for governing), a
+				// mandatory mask input (role "mask", not a numbered opN). Most carry a
+				// /Z or /M qualifier (predicated data-processing ops), but some do not
+				// — e.g. the store ST1B {<Zt>.B}, <Pg>, [...] governs with a plain
+				// <Pg> — so key on the register name, not the qualifier. Source
+				// predicates <Pn>/<Pm> and the destination <Pd> are ordinary operands,
+				// filed by place() below.
 				ins = append(ins, Operand{
 					Type: OperandPReg, Class: "mask", role: "mask",
 					Predication: p.predication, AsmPos: p.asmPos,

@@ -113,6 +113,13 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	addF(simdPackage, "{{.Name}}.ToBits", simdCvtMaskToV({{.ElemBits}}, {{.Lanes}}), {{GetSysArch}})
 {{- end}}`)
 
+	// SVE predicates are P-registers, moved to/from memory by the hand-written
+	// sveLoadWhole/sveStoreWhole builders (a generic Load/Store of a mask value,
+	// lowered to PLDR/PSTR); only this registration of the raw intrinsics is
+	// generated (the exported Load/Store wrappers are generated Go in types_sve.go).
+	var sveMask = templateNamed("sveMask", `	addF(simdPackage, "{{.Name}}.store", sveStoreWhole(), {{GetSysArch}})
+	addF(simdPackage, "load{{.Name}}", sveLoadWhole(), {{GetSysArch}})`)
+
 	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssaop.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)
 
 	var vectorConversion = templateNamed("vectorConversion", `	addF(simdPackage, "{{.Tsrc.Name}}.As{{.Tdst.Name}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})`)
@@ -216,8 +223,17 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 		}
 	}
 
+	// The AVX mask template treats a mask as a data vector (no-op To/asMask
+	// conversions, And/Or/Not via reshaped vector ops, FromBits/ToBits); an SVE
+	// predicate is a P-register with just the memory APIs (Store/LoadMask). The
+	// predicate-consuming ops (Masked, IfElse, ...) are peephole optimizations of
+	// the data-vector ops, not mask methods, so they are not generated here.
+	maskTpl := mask
+	if CurrentArch().isSVE() {
+		maskTpl = sveMask
+	}
 	for _, m := range masksFromTypeMap(typeMap) {
-		doTemplate(mask, m)
+		doTemplate(maskTpl, m)
 	}
 
 	buffer.WriteString(footer)

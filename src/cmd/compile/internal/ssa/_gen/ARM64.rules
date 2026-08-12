@@ -1893,6 +1893,11 @@
 // SVE scalable-vector load/store and runtime vector length.
 (Load <t> ptr mem) && t.Size() == 32 && t.IsSIMD() => (ZLDRload ptr mem)
 (Store {t} ptr val mem) && t.Size() == 32 && t.IsSIMD() => (ZSTRstore ptr val mem)
+// SVE predicate (mask) load/store. A predicate is 8 bytes at the SSA level
+// (types.TypeMask); it cannot move to a GP/FP register, so masks that cross a
+// call or spill round-trip through memory via PLDR/PSTR.
+(Load <t> ptr mem) && t.Size() == 8 && t.IsSIMD() => (PLDRload ptr mem)
+(Store {t} ptr val mem) && t.Size() == 8 && t.IsSIMD() => (PSTRstore ptr val mem)
 (ScalableVectorLen) => (RDVL [1])
 
 // SVE byte-granular predicated scalable load/store (LoadTs/Store slice APIs).

@@ -792,6 +792,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Scale = simdSVEVectorLengthScaled
 		ssagen.AddAux(&p.To, v)
+	case ssaop.OpARM64PLDRload:
+		// Whole-register VL-scaled load of a predicate, e.g. PLDR (VL*0)(R0), P0.
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.From.Scale = simdSVEVectorLengthScaled
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssaop.OpARM64PSTRstore:
+		// Whole-register VL-scaled store of a predicate, e.g. PSTR P0, (VL*0)(R0).
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.To.Scale = simdSVEVectorLengthScaled
+		ssagen.AddAux(&p.To, v)
 	case ssaop.OpARM64ZDUPBconst:
 		// Broadcast an 8-bit immediate to every byte lane (ZeroSIMD uses [0]).
 		p := s.Prog(v.Op.Asm())
@@ -807,14 +825,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssaop.OpARM64PWHILELTB:
-		// Predicate enabling byte lanes [lo,hi), e.g. PWHILELT R0, R1, P0.B.
-		// SSA provides arg0=lo, arg1=hi.
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[1].Reg()
-		p.AddRestSourceReg(v.Args[0].Reg())
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = pregArng(v.Reg0(), arm64.ARNG_B)
+		simdPWHILELT(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64PWHILELTH:
+		simdPWHILELT(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64PWHILELTS:
+		simdPWHILELT(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64PWHILELTD:
+		simdPWHILELT(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64ZLD1BPredload:
 		// Predicated contiguous byte load, e.g. ZLD1B (VL*0)(R0), P0.Z, [Z0.B].
 		// arg0=addr, arg1=pred, arg2=mem.
@@ -2097,6 +2114,33 @@ func simdZ21(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng)) // Zn
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
+// simdPWHILELT emits a PWHILELT that fills a predicate with lanes [lo,hi) set for
+// the given element arrangement, e.g. PWHILELT R0, R1, P0.B. SSA provides
+// arg0=lo, arg1=hi.
+func simdPWHILELT(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[1].Reg()
+	p.AddRestSourceReg(v.Args[0].Reg())
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = pregArng(v.Reg0(), arng)
+	return p
+}
+
+// simdZ2kk emits a predicated SVE integer compare that produces a predicate
+// mask, e.g. ZCMPGT Z1.B, Z0.B, P0.Z, P1.B. SSA provides arg0=x (Zn), arg1=y
+// (Zm) and arg2=governing predicate (Pg); the result is the predicate mask Pd.
+func simdZ2kk(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[1].Reg(), arng)                // Zm
+	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng))         // Zn
+	p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_Z)) // Pg/Z
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = pregArng(v.Reg(), arng) // Pd
 	return p
 }
 

@@ -522,15 +522,19 @@ func simdGenericOps() []opData {
 		{name: "GreaterFloat64x2", argLength: 2},                                        // ARCH:amd64,arm64,wasm
 		{name: "GreaterFloat64x4", argLength: 2},                                        // ARCH:amd64
 		{name: "GreaterFloat64x8", argLength: 2},                                        // ARCH:amd64
+		{name: "GreaterInt8s", argLength: 2},                                            // ARCH:sve
 		{name: "GreaterInt8x16", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt8x32", argLength: 2},                                          // ARCH:amd64
 		{name: "GreaterInt8x64", argLength: 2},                                          // ARCH:amd64
+		{name: "GreaterInt16s", argLength: 2},                                           // ARCH:sve
 		{name: "GreaterInt16x8", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt16x16", argLength: 2},                                         // ARCH:amd64
 		{name: "GreaterInt16x32", argLength: 2},                                         // ARCH:amd64
+		{name: "GreaterInt32s", argLength: 2},                                           // ARCH:sve
 		{name: "GreaterInt32x4", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt32x8", argLength: 2},                                          // ARCH:amd64
 		{name: "GreaterInt32x16", argLength: 2},                                         // ARCH:amd64
+		{name: "GreaterInt64s", argLength: 2},                                           // ARCH:sve
 		{name: "GreaterInt64x2", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt64x4", argLength: 2},                                          // ARCH:amd64
 		{name: "GreaterInt64x8", argLength: 2},                                          // ARCH:amd64

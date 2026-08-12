@@ -510,9 +510,6 @@ func CalcStructSize(t *Type) {
 			case "v512":
 				simdify(t, true)
 				return
-			case "vsve":
-				simdify(t, true)
-				return
 			case "psve":
 				simdify(t, true)
 				return

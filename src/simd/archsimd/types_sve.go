@@ -4,6 +4,11 @@
 
 package archsimd
 
+// psve is a tag type that tells the compiler that this is an SVE predicate.
+type psve struct {
+	_sve [0]func() // uncomparable
+}
+
 // v256 is a tag type that tells the compiler that this is really 256-bit SIMD
 type v256 struct {
 	_256 [0]func() // uncomparable
@@ -688,3 +693,191 @@ func (x Uint64s) StorePart(s []uint64) int {
 
 //go:noescape
 func (x Uint64s) storePart(s []uint64)
+
+// Mask8s is a scalable mask for a SIMD vector of 8-bit elements.
+//
+// An SVE predicate holds one bit per byte of the vector it governs, so a
+// Mask8s carries one bit for each byte of the runtime vector length, and
+// lane i is governed by bit i.
+type Mask8s struct {
+	mask8s psve
+	vals   uint32
+}
+
+// LoadMask8s loads a Mask8s from the predicate bits packed into bits.
+// The bits are concatenated in little-endian order: bit i of bits[j] governs
+// vector byte 16*j+i, and so lane k is governed by bit k.
+//
+// One uint16 covers 16 bytes of vector, the length of the smallest vector SVE
+// defines, so bits must hold one uint16 per 16 bytes of the runtime vector
+// length. LoadMask8s panics if bits is shorter than that.
+//
+// Asm: Emulated (a length check that can panic, then PLDR (predicate)).
+func LoadMask8s(bits []uint16) Mask8s {
+	if len(bits) < (vl()+15)/16 {
+		panic("simd: LoadMask8s: bits is too short to hold the predicate")
+	}
+	return loadMask8s(bits)
+}
+
+//go:noescape
+func loadMask8s(bits []uint16) Mask8s
+
+// Store stores m's predicate bits into bits, concatenated in little-endian
+// order: bit i of bits[j] governs vector byte 16*j+i, and so lane k is
+// governed by bit k.
+//
+// bits must hold one uint16 per 16 bytes of the runtime vector length; Store
+// panics if it is shorter.
+//
+// Asm: Emulated (a length check that can panic, then PSTR (predicate)).
+func (m Mask8s) Store(bits []uint16) {
+	if len(bits) < (vl()+15)/16 {
+		panic("simd: Mask8s.Store: bits is too short to hold the predicate")
+	}
+	m.store(bits)
+}
+
+//go:noescape
+func (m Mask8s) store(bits []uint16)
+
+// Mask16s is a scalable mask for a SIMD vector of 16-bit elements.
+//
+// An SVE predicate holds one bit per byte of the vector it governs, so a
+// Mask16s carries one bit for each byte of the runtime vector length, and
+// lane i is governed by bit 2*i. The bits in between are ignored.
+type Mask16s struct {
+	mask16s psve
+	vals    uint32
+}
+
+// LoadMask16s loads a Mask16s from the predicate bits packed into bits.
+// The bits are concatenated in little-endian order: bit i of bits[j] governs
+// vector byte 16*j+i, and so lane k is governed by bit 2*k.
+//
+// One uint16 covers 16 bytes of vector, the length of the smallest vector SVE
+// defines, so bits must hold one uint16 per 16 bytes of the runtime vector
+// length. LoadMask16s panics if bits is shorter than that.
+//
+// Asm: Emulated (a length check that can panic, then PLDR (predicate)).
+func LoadMask16s(bits []uint16) Mask16s {
+	if len(bits) < (vl()+15)/16 {
+		panic("simd: LoadMask16s: bits is too short to hold the predicate")
+	}
+	return loadMask16s(bits)
+}
+
+//go:noescape
+func loadMask16s(bits []uint16) Mask16s
+
+// Store stores m's predicate bits into bits, concatenated in little-endian
+// order: bit i of bits[j] governs vector byte 16*j+i, and so lane k is
+// governed by bit 2*k.
+//
+// bits must hold one uint16 per 16 bytes of the runtime vector length; Store
+// panics if it is shorter.
+//
+// Asm: Emulated (a length check that can panic, then PSTR (predicate)).
+func (m Mask16s) Store(bits []uint16) {
+	if len(bits) < (vl()+15)/16 {
+		panic("simd: Mask16s.Store: bits is too short to hold the predicate")
+	}
+	m.store(bits)
+}
+
+//go:noescape
+func (m Mask16s) store(bits []uint16)
+
+// Mask32s is a scalable mask for a SIMD vector of 32-bit elements.
+//
+// An SVE predicate holds one bit per byte of the vector it governs, so a
+// Mask32s carries one bit for each byte of the runtime vector length, and
+// lane i is governed by bit 4*i. The bits in between are ignored.
+type Mask32s struct {
+	mask32s psve
+	vals    uint32
+}
+
+// LoadMask32s loads a Mask32s from the predicate bits packed into bits.
+// The bits are concatenated in little-endian order: bit i of bits[j] governs
+// vector byte 16*j+i, and so lane k is governed by bit 4*k.
+//
+// One uint16 covers 16 bytes of vector, the length of the smallest vector SVE
+// defines, so bits must hold one uint16 per 16 bytes of the runtime vector
+// length. LoadMask32s panics if bits is shorter than that.
+//
+// Asm: Emulated (a length check that can panic, then PLDR (predicate)).
+func LoadMask32s(bits []uint16) Mask32s {
+	if len(bits) < (vl()+15)/16 {
+		panic("simd: LoadMask32s: bits is too short to hold the predicate")
+	}
+	return loadMask32s(bits)
+}
+
+//go:noescape
+func loadMask32s(bits []uint16) Mask32s
+
+// Store stores m's predicate bits into bits, concatenated in little-endian
+// order: bit i of bits[j] governs vector byte 16*j+i, and so lane k is
+// governed by bit 4*k.
+//
+// bits must hold one uint16 per 16 bytes of the runtime vector length; Store
+// panics if it is shorter.
+//
+// Asm: Emulated (a length check that can panic, then PSTR (predicate)).
+func (m Mask32s) Store(bits []uint16) {
+	if len(bits) < (vl()+15)/16 {
+		panic("simd: Mask32s.Store: bits is too short to hold the predicate")
+	}
+	m.store(bits)
+}
+
+//go:noescape
+func (m Mask32s) store(bits []uint16)
+
+// Mask64s is a scalable mask for a SIMD vector of 64-bit elements.
+//
+// An SVE predicate holds one bit per byte of the vector it governs, so a
+// Mask64s carries one bit for each byte of the runtime vector length, and
+// lane i is governed by bit 8*i. The bits in between are ignored.
+type Mask64s struct {
+	mask64s psve
+	vals    uint32
+}
+
+// LoadMask64s loads a Mask64s from the predicate bits packed into bits.
+// The bits are concatenated in little-endian order: bit i of bits[j] governs
+// vector byte 16*j+i, and so lane k is governed by bit 8*k.
+//
+// One uint16 covers 16 bytes of vector, the length of the smallest vector SVE
+// defines, so bits must hold one uint16 per 16 bytes of the runtime vector
+// length. LoadMask64s panics if bits is shorter than that.
+//
+// Asm: Emulated (a length check that can panic, then PLDR (predicate)).
+func LoadMask64s(bits []uint16) Mask64s {
+	if len(bits) < (vl()+15)/16 {
+		panic("simd: LoadMask64s: bits is too short to hold the predicate")
+	}
+	return loadMask64s(bits)
+}
+
+//go:noescape
+func loadMask64s(bits []uint16) Mask64s
+
+// Store stores m's predicate bits into bits, concatenated in little-endian
+// order: bit i of bits[j] governs vector byte 16*j+i, and so lane k is
+// governed by bit 8*k.
+//
+// bits must hold one uint16 per 16 bytes of the runtime vector length; Store
+// panics if it is shorter.
+//
+// Asm: Emulated (a length check that can panic, then PSTR (predicate)).
+func (m Mask64s) Store(bits []uint16) {
+	if len(bits) < (vl()+15)/16 {
+		panic("simd: Mask64s.Store: bits is too short to hold the predicate")
+	}
+	m.store(bits)
+}
+
+//go:noescape
+func (m Mask64s) store(bits []uint16)
