@@ -220,6 +220,17 @@ func AddAddSubSimplify(a, b, c int) int {
 	return r
 }
 
+func AddSubSubSimplify(a, b, c int) int {
+	// amd64:"LEAQ" -"SUBQ"
+	// arm64:"ADD" -"SUB"
+	// loong64:"ADDV" -"SUBV"
+	// mips:"ADD" -"SUB"
+	// mips64:"ADDV" -"SUBV"
+	// ppc64x:-"SUB"
+	// riscv64:"ADD" -"SUB"
+	return a + (b - (a - c))
+}
+
 func NegToInt32(a int) int {
 	// riscv64: "NEGW" -"MOVW"
 	r := int(int32(-a))
