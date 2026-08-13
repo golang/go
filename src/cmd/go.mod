@@ -6,7 +6,7 @@ require (
 	github.com/google/pprof v0.0.0-20250208200701-d0013a598941
 	golang.org/x/arch v0.18.1-0.20250605182141-b2f4e2807dec
 	golang.org/x/build v0.0.0-20250606033421-8c8ff6f34a83
-	golang.org/x/mod v0.25.0
+	golang.org/x/mod v0.25.1-0.20260813213422-9be67dd65223
 	golang.org/x/sync v0.15.0
 	golang.org/x/sys v0.33.1-0.20260225210015-e0c9f78de999
 	golang.org/x/telemetry v0.0.0-20250606142133-60998feb31a8
