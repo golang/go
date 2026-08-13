@@ -161,6 +161,10 @@
 //
 // All new usages of "json" in Go should use the v2 package,
 // but the v1 package will forever remain supported.
+//
+// See the [encoding/json/v2 Migration Guide] for additional detail on migration approaches.
+//
+// [encoding/json/v2 Migration Guide]: https://go.dev/doc/jsonv2-migration
 package json
 
 // TODO(https://go.dev/issue/71631): Update the "Migrating to v2" documentation

@@ -9,6 +9,8 @@
 // primitive data types such as booleans, strings, and numbers,
 // in addition to structured data types such as objects and arrays.
 //
+// See the [Working with JSON] tutorial for an introduction to this package.
+//
 // [Marshal] and [Unmarshal] encode and decode Go values
 // to/from JSON text contained within a []byte.
 // [MarshalWrite] and [UnmarshalRead] operate on JSON text
@@ -239,6 +241,7 @@
 // The v2 API generally chooses more secure defaults than v1,
 // but care should still be taken with large integers or unknown members.
 //
+// [Working with JSON]: https://go.dev/doc/tutorial/json
 // [For example, suppose we have two micro-services.]: https://www.youtube.com/watch?v=avilmOcHKHE&t=1057s
 package json
 
