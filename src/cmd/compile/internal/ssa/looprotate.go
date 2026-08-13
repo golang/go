@@ -28,16 +28,16 @@ import (
 //	  CMPQ ...
 //	  JLT loop
 func loopRotate(f *Func) {
-	loopnest := f.loopnest()
-	if loopnest.hasIrreducible {
+	loopnest := f.Loopnest()
+	if loopnest.HasIrreducible {
 		return
 	}
-	if len(loopnest.loops) == 0 {
+	if len(loopnest.Loops) == 0 {
 		return
 	}
 
-	idToIdx := f.Cache.allocIntSlice(f.NumBlocks())
-	defer f.Cache.freeIntSlice(idToIdx)
+	idToIdx := f.Cache.AllocIntSlice(f.NumBlocks())
+	defer f.Cache.FreeIntSlice(idToIdx)
 	for i, b := range f.Blocks {
 		idToIdx[b.ID] = i
 	}
@@ -84,14 +84,14 @@ func loopRotate(f *Func) {
 
 	// Order loops to rotate any child loop before adding its top block
 	// to the parent loop's 'after' list.
-	loopOrder := f.Cache.allocIntSlice(len(loopnest.loops))
+	loopOrder := f.Cache.AllocIntSlice(len(loopnest.Loops))
 	for i := range loopOrder {
 		loopOrder[i] = i
 	}
-	defer f.Cache.freeIntSlice(loopOrder)
+	defer f.Cache.FreeIntSlice(loopOrder)
 	slices.SortFunc(loopOrder, func(i, j int) int {
-		di := loopnest.loops[i].depth
-		dj := loopnest.loops[j].depth
+		di := loopnest.Loops[i].Depth
+		dj := loopnest.Loops[j].Depth
 		switch {
 		case di > dj:
 			return -1
@@ -104,22 +104,22 @@ func loopRotate(f *Func) {
 
 	// Check each loop header and decide if we want to move it.
 	for _, loopIdx := range loopOrder {
-		loop := loopnest.loops[loopIdx]
-		b := loop.header
+		loop := loopnest.Loops[loopIdx]
+		b := loop.Header
 		var p *Block // b's in-loop predecessor
 		for _, e := range b.Preds {
-			if e.b.Kind != block.BlockPlain {
+			if e.B.Kind != block.BlockPlain {
 				continue
 			}
-			if loopnest.b2l[e.b.ID] != loop {
+			if loopnest.B2L[e.B.ID] != loop {
 				continue
 			}
-			p = e.b
+			p = e.B
 		}
 		if p == nil {
 			continue
 		}
-		tops[loop.header.ID] = p
+		tops[loop.Header.ID] = p
 		p.Hotness |= HotInitial
 		if f.IsPgoHot {
 			p.Hotness |= HotPgo
@@ -141,17 +141,17 @@ func loopRotate(f *Func) {
 			if nextb == p { // original loop predecessor is next
 				break
 			}
-			if bloop := loopnest.b2l[nextb.ID]; bloop != nil {
-				if bloop == loop || bloop.outer == loop && tops[bloop.header.ID] == nextb {
+			if bloop := loopnest.B2L[nextb.ID]; bloop != nil {
+				if bloop == loop || bloop.Outer == loop && tops[bloop.Header.ID] == nextb {
 					after[p.ID] = append(after[p.ID], nextb)
 				}
 			}
 			b = nextb
 		}
 		// Swap b and p so that we'll handle p before b when moving blocks.
-		f.Blocks[idToIdx[loop.header.ID]] = p
-		f.Blocks[idToIdx[p.ID]] = loop.header
-		idToIdx[loop.header.ID], idToIdx[p.ID] = idToIdx[p.ID], idToIdx[loop.header.ID]
+		f.Blocks[idToIdx[loop.Header.ID]] = p
+		f.Blocks[idToIdx[p.ID]] = loop.Header
+		idToIdx[loop.Header.ID], idToIdx[p.ID] = idToIdx[p.ID], idToIdx[loop.Header.ID]
 
 		// Place loop blocks after p.
 		for _, b := range after[p.ID] {
@@ -167,8 +167,8 @@ func loopRotate(f *Func) {
 	// Some blocks that are not part of a loop may be placed
 	// between loop blocks. In order to avoid these blocks from
 	// being overwritten, use a temporary slice.
-	oldOrder := f.Cache.allocBlockSlice(len(f.Blocks))
-	defer f.Cache.freeBlockSlice(oldOrder)
+	oldOrder := f.Cache.AllocBlockSlice(len(f.Blocks))
+	defer f.Cache.FreeBlockSlice(oldOrder)
 	copy(oldOrder, f.Blocks)
 	var moveBlocks func(bs []*Block)
 	moveBlocks = func(blocks []*Block) {

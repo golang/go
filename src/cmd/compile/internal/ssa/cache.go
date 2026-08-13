@@ -15,26 +15,26 @@ type Cache struct {
 	// Storage for low-numbered values and blocks.
 	values [2000]Value
 	blocks [200]Block
-	locs   [2000]Location
+	Locs   [2000]Location
 
 	// Reusable stackAllocState.
 	// See stackalloc.go's {new,put}StackAllocState.
-	stackAllocState *stackAllocState
+	stackAllocState *StackAllocState
 
-	scrPoset []*poset // scratch poset to be reused
+	scrPoset []*Poset // scratch poset to be reused
 
 	// Reusable regalloc state.
-	regallocValues []valState
+	RegallocValues []ValState
 
 	ValueToProgAfter []*obj.Prog
-	debugState       debugState
+	DebugState       DebugState
 
 	Liveness any // *gc.livenessFuncCache
 
 	// Free "headers" for use by the allocators in allocators.go.
 	// Used to put slices in sync.Pools without allocation.
 	hdrValueSlice []*[]*Value
-	hdrLimitSlice []*[]limit
+	hdrLimitSlice []*[]Limit
 }
 
 func (c *Cache) Reset() {
@@ -42,10 +42,10 @@ func (c *Cache) Reset() {
 	clear(c.values[:nv])
 	nb := sort.Search(len(c.blocks), func(i int) bool { return c.blocks[i].ID == 0 })
 	clear(c.blocks[:nb])
-	nl := sort.Search(len(c.locs), func(i int) bool { return c.locs[i] == nil })
-	clear(c.locs[:nl])
+	nl := sort.Search(len(c.Locs), func(i int) bool { return c.Locs[i] == nil })
+	clear(c.Locs[:nl])
 
 	// regalloc sets the length of c.regallocValues to whatever it may use,
 	// so clear according to length.
-	clear(c.regallocValues)
+	clear(c.RegallocValues)
 }

@@ -17,7 +17,7 @@ func zcse(f *Func) {
 	for _, b := range f.Blocks {
 		for i := 0; i < len(b.Values); i++ {
 			v := b.Values[i]
-			if opcodeTable[v.Op].argLen == 0 {
+			if OpcodeTable[v.Op].ArgLen == 0 {
 				key := vkey{v.Op, keyFor(v), v.Aux, v.Type}
 				if vals[key] == nil {
 					vals[key] = v
@@ -42,7 +42,7 @@ func zcse(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				if opcodeTable[a.Op].argLen == 0 {
+				if OpcodeTable[a.Op].ArgLen == 0 {
 					key := vkey{a.Op, keyFor(a), a.Aux, a.Type}
 					if rv, ok := vals[key]; ok {
 						v.SetArg(i, rv)

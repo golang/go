@@ -1642,7 +1642,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = v.Args[0].Reg()
 		params := v.AuxArm64ConditionalParams()
 		p.From.Type = obj.TYPE_SPECIAL // assembler encodes conditional bits in Offset
-		p.From.Offset = int64(condBits[params.Cond()])
+		p.From.Offset = int64(condBits[params.Cond])
 		constValue, ok := params.ConstValue()
 		if ok {
 			p.AddRestSourceConst(constValue)

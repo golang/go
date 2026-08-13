@@ -25,14 +25,14 @@ func trim(f *Func) {
 
 		// Splice b out of the graph. NOTE: `mergePhi` depends on the
 		// order, in which the predecessors edges are merged here.
-		p, i := b.Preds[0].b, b.Preds[0].i
-		s, j := b.Succs[0].b, b.Succs[0].i
+		p, i := b.Preds[0].B, b.Preds[0].I
+		s, j := b.Succs[0].B, b.Succs[0].I
 		ns := len(s.Preds)
 		p.Succs[i] = Edge{s, j}
 		s.Preds[j] = Edge{p, i}
 
 		for _, e := range b.Preds[1:] {
-			p, i := e.b, e.i
+			p, i := e.B, e.I
 			p.Succs[i] = Edge{s, len(s.Preds)}
 			s.Preds = append(s.Preds, Edge{p, i})
 		}
@@ -69,7 +69,7 @@ func trim(f *Func) {
 			for _, v := range b.Values {
 				if v.Op == OpPhi {
 					if v.Uses == 0 {
-						v.resetArgs()
+						v.ResetArgs()
 						continue
 					}
 					// Pad the arguments of the remaining phi-ops so
@@ -80,7 +80,7 @@ func trim(f *Func) {
 					// argument to v!
 					args := make([]*Value, len(v.Args))
 					copy(args, v.Args)
-					v.resetArgs()
+					v.ResetArgs()
 					for x := 0; x < j; x++ {
 						v.AddArg(v)
 					}
@@ -111,7 +111,7 @@ func trim(f *Func) {
 		copy(s.Values, b.Values)
 	}
 	if n < len(f.Blocks) {
-		f.invalidateCFG()
+		f.InvalidateCFG()
 		clear(f.Blocks[n:])
 		f.Blocks = f.Blocks[:n]
 	}
@@ -139,7 +139,7 @@ func trimmableBlock(b *Block) bool {
 	if b.Kind != block.BlockPlain || b == b.Func.Entry {
 		return false
 	}
-	s := b.Succs[0].b
+	s := b.Succs[0].B
 	return s != b && (len(s.Preds) == 1 || emptyBlock(b))
 }
 

@@ -70,9 +70,9 @@ type Block struct {
 	Func *Func
 
 	// Storage for Succs, Preds and Values.
-	succstorage [2]Edge
-	predstorage [4]Edge
-	valstorage  [9]*Value
+	Succstorage [2]Edge
+	Predstorage [4]Edge
+	Valstorage  [9]*Value
 }
 
 // Edge represents a CFG edge.
@@ -100,22 +100,22 @@ type Block struct {
 // means x is chosen if k is true.
 type Edge struct {
 	// block edge goes to (in a Succs list) or from (in a Preds list)
-	b *Block
+	B *Block
 	// index of reverse edge.  Invariant:
 	//   e := x.Succs[idx]
-	//   e.b.Preds[e.i] = Edge{x,idx}
+	//   e.b.Preds[e.I] = Edge{x,idx}
 	// and similarly for predecessors.
-	i int
+	I int
 }
 
 func (e Edge) Block() *Block {
-	return e.b
+	return e.B
 }
 func (e Edge) Index() int {
-	return e.i
+	return e.I
 }
 func (e Edge) String() string {
-	return fmt.Sprintf("{%v,%d}", e.b, e.i)
+	return fmt.Sprintf("{%v,%d}", e.B, e.I)
 }
 
 // short form print
@@ -138,7 +138,7 @@ func (b *Block) LongString() string {
 	if len(b.Succs) > 0 {
 		s += " ->"
 		for _, c := range b.Succs {
-			s += " " + c.b.String()
+			s += " " + c.B.String()
 		}
 	}
 	switch b.Likely {
@@ -233,11 +233,11 @@ func (b *Block) Reset(kind block.BlockKind) {
 	b.AuxInt = 0
 }
 
-// resetWithControl resets b and adds control v.
+// ResetWithControl resets b and adds control v.
 // It is equivalent to b.Reset(kind); b.AddControl(v),
 // except that it is one call instead of two and avoids a bounds check.
 // It is intended for use by rewrite rules, where this matters.
-func (b *Block) resetWithControl(kind block.BlockKind, v *Value) {
+func (b *Block) ResetWithControl(kind block.BlockKind, v *Value) {
 	b.Kind = kind
 	b.ResetControls()
 	b.Aux = nil
@@ -246,11 +246,11 @@ func (b *Block) resetWithControl(kind block.BlockKind, v *Value) {
 	v.Uses++
 }
 
-// resetWithControl2 resets b and adds controls v and w.
+// ResetWithControl2 resets b and adds controls v and w.
 // It is equivalent to b.Reset(kind); b.AddControl(v); b.AddControl(w),
 // except that it is one call instead of three and avoids two bounds checks.
 // It is intended for use by rewrite rules, where this matters.
-func (b *Block) resetWithControl2(kind block.BlockKind, v, w *Value) {
+func (b *Block) ResetWithControl2(kind block.BlockKind, v, w *Value) {
 	b.Kind = kind
 	b.ResetControls()
 	b.Aux = nil
@@ -261,10 +261,10 @@ func (b *Block) resetWithControl2(kind block.BlockKind, v, w *Value) {
 	w.Uses++
 }
 
-// truncateValues truncates b.Values at the ith element, zeroing subsequent elements.
+// TruncateValues truncates b.Values at the ith element, zeroing subsequent elements.
 // The values in b.Values after i must already have had their args reset,
 // to maintain correct value uses counts.
-func (b *Block) truncateValues(i int) {
+func (b *Block) TruncateValues(i int) {
 	clear(b.Values[i:])
 	b.Values = b.Values[:i]
 }
@@ -275,45 +275,45 @@ func (b *Block) AddEdgeTo(c *Block) {
 	j := len(c.Preds)
 	b.Succs = append(b.Succs, Edge{c, j})
 	c.Preds = append(c.Preds, Edge{b, i})
-	b.Func.invalidateCFG()
+	b.Func.InvalidateCFG()
 }
 
-// removePred removes the ith input edge from b.
+// RemovePred removes the ith input edge from b.
 // It is the responsibility of the caller to remove
 // the corresponding successor edge, and adjust any
 // phi values by calling b.removePhiArg(v, i).
-func (b *Block) removePred(i int) {
+func (b *Block) RemovePred(i int) {
 	n := len(b.Preds) - 1
 	if i != n {
 		e := b.Preds[n]
 		b.Preds[i] = e
 		// Update the other end of the edge we moved.
-		e.b.Succs[e.i].i = i
+		e.B.Succs[e.I].I = i
 	}
 	b.Preds[n] = Edge{}
 	b.Preds = b.Preds[:n]
-	b.Func.invalidateCFG()
+	b.Func.InvalidateCFG()
 }
 
-// removeSucc removes the ith output edge from b.
+// RemoveSucc removes the ith output edge from b.
 // It is the responsibility of the caller to remove
 // the corresponding predecessor edge.
 // Note that this potentially reorders successors of b, so it
 // must be used very carefully.
-func (b *Block) removeSucc(i int) {
+func (b *Block) RemoveSucc(i int) {
 	n := len(b.Succs) - 1
 	if i != n {
 		e := b.Succs[n]
 		b.Succs[i] = e
 		// Update the other end of the edge we moved.
-		e.b.Preds[e.i].i = i
+		e.B.Preds[e.I].I = i
 	}
 	b.Succs[n] = Edge{}
 	b.Succs = b.Succs[:n]
-	b.Func.invalidateCFG()
+	b.Func.InvalidateCFG()
 }
 
-func (b *Block) swapSuccessors() {
+func (b *Block) SwapSuccessors() {
 	if len(b.Succs) != 2 {
 		b.Fatalf("swapSuccessors with len(Succs)=%d", len(b.Succs))
 	}
@@ -321,13 +321,13 @@ func (b *Block) swapSuccessors() {
 	e1 := b.Succs[1]
 	b.Succs[0] = e1
 	b.Succs[1] = e0
-	e0.b.Preds[e0.i].i = 1
-	e1.b.Preds[e1.i].i = 0
+	e0.B.Preds[e0.I].I = 1
+	e1.B.Preds[e1.I].I = 0
 	b.Likely *= -1
 }
 
 // Swaps b.Succs[x] and b.Succs[y].
-func (b *Block) swapSuccessorsByIdx(x, y int) {
+func (b *Block) SwapSuccessorsByIdx(x, y int) {
 	if x == y {
 		return
 	}
@@ -335,11 +335,11 @@ func (b *Block) swapSuccessorsByIdx(x, y int) {
 	ey := b.Succs[y]
 	b.Succs[x] = ey
 	b.Succs[y] = ex
-	ex.b.Preds[ex.i].i = y
-	ey.b.Preds[ey.i].i = x
+	ex.B.Preds[ex.I].I = y
+	ey.B.Preds[ey.I].I = x
 }
 
-// removePhiArg removes the ith arg from phi.
+// RemovePhiArg removes the ith arg from phi.
 // It must be called after calling b.removePred(i) to
 // adjust the corresponding phi value of the block:
 //
@@ -349,10 +349,10 @@ func (b *Block) swapSuccessorsByIdx(x, y int) {
 //	if v.Op != OpPhi {
 //	    continue
 //	}
-//	b.removePhiArg(v, i)
+//	b.RemovePhiArg(v, i)
 //
 // }
-func (b *Block) removePhiArg(phi *Value, i int) {
+func (b *Block) RemovePhiArg(phi *Value, i int) {
 	n := len(b.Preds)
 	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
 		b.Fatalf("inconsistent state for %v, num predecessors: %d, num phi args: %d", phi, n, numPhiArgs)
@@ -361,16 +361,16 @@ func (b *Block) removePhiArg(phi *Value, i int) {
 	phi.Args[i] = phi.Args[n]
 	phi.Args[n] = nil
 	phi.Args = phi.Args[:n]
-	phielimValue(phi)
+	PhiElimValue(phi)
 }
 
-// uniquePred returns the predecessor of b, if there is exactly one.
+// UniquePred returns the predecessor of b, if there is exactly one.
 // Returns nil otherwise.
-func (b *Block) uniquePred() *Block {
+func (b *Block) UniquePred() *Block {
 	if len(b.Preds) != 1 {
 		return nil
 	}
-	return b.Preds[0].b
+	return b.Preds[0].B
 }
 
 // LackingPos indicates whether b is a block whose position should be inherited
@@ -409,15 +409,15 @@ func (b *Block) AuxIntString() string {
 	}
 }
 
-// likelyBranch reports whether block b is the likely branch of all of its predecessors.
-func (b *Block) likelyBranch() bool {
+// LikelyBranch reports whether block b is the likely branch of all of its predecessors.
+func (b *Block) LikelyBranch() bool {
 	if len(b.Preds) == 0 {
 		return false
 	}
 	for _, e := range b.Preds {
-		p := e.b
-		if len(p.Succs) == 1 || len(p.Succs) == 2 && (p.Likely == BranchLikely && p.Succs[0].b == b ||
-			p.Likely == BranchUnlikely && p.Succs[1].b == b) {
+		p := e.B
+		if len(p.Succs) == 1 || len(p.Succs) == 2 && (p.Likely == BranchLikely && p.Succs[0].B == b ||
+			p.Likely == BranchUnlikely && p.Succs[1].B == b) {
 			continue
 		}
 		return false
@@ -471,7 +471,7 @@ const (
 	CPUsve2
 )
 
-func (f CPUfeatures) hasFeature(x CPUfeatures) bool {
+func (f CPUfeatures) HasFeature(x CPUfeatures) bool {
 	return f&x == x
 }
 

@@ -111,10 +111,10 @@ func makeShiftExtensionFunc(c *Conf, amount int64, lshift, rshift Op, typ *types
 func runPasses(f *Func) {
 	for i := range passes {
 		p := &passes[i]
-		if !f.Config.optimize && !p.required || p.disabled {
+		if !f.Config.Optimize && !p.Required || p.Disabled {
 			continue
 		}
-		f.pass = p
-		p.fn(f)
+		f.Pass = p
+		p.Fn(f)
 	}
 }

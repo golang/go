@@ -7,14 +7,14 @@ package ssa
 // addressingModes combines address calculations into memory operations
 // that can perform complicated addressing modes.
 func addressingModes(f *Func) {
-	isInImmediateRange := is32Bit
-	switch f.Config.arch {
+	isInImmediateRange := Is32Bit
+	switch f.Config.Arch {
 	default:
 		// Most architectures can't do this.
 		return
 	case "amd64", "386":
 	case "s390x":
-		isInImmediateRange = is20Bit
+		isInImmediateRange = Is20Bit
 	}
 
 	var tmp []*Value
@@ -30,7 +30,7 @@ func addressingModes(f *Func) {
 			// the pointer in arg[1], and the corresponding result op
 			// has the pointer in arg[1] and the index in arg[2].
 			ptrIndex := 0
-			if opcodeTable[v.Op].resultInArg0 {
+			if OpcodeTable[v.Op].ResultInArg0 {
 				ptrIndex = 1
 			}
 			p := v.Args[ptrIndex]
@@ -39,14 +39,14 @@ func addressingModes(f *Func) {
 				continue
 			}
 			// See if we can combine the Aux/AuxInt values.
-			switch [2]auxType{opcodeTable[v.Op].auxType, opcodeTable[p.Op].auxType} {
-			case [2]auxType{auxSymOff, auxInt32}:
+			switch [2]AuxType_{OpcodeTable[v.Op].AuxType, OpcodeTable[p.Op].AuxType} {
+			case [2]AuxType_{AuxTypeSymOff, AuxTypeInt32}:
 				// TODO: introduce auxSymOff32
 				if !isInImmediateRange(v.AuxInt + p.AuxInt) {
 					continue
 				}
 				v.AuxInt += p.AuxInt
-			case [2]auxType{auxSymOff, auxSymOff}:
+			case [2]AuxType_{AuxTypeSymOff, AuxTypeSymOff}:
 				if v.Aux != nil && p.Aux != nil {
 					continue
 				}
@@ -57,27 +57,27 @@ func addressingModes(f *Func) {
 					v.Aux = p.Aux
 				}
 				v.AuxInt += p.AuxInt
-			case [2]auxType{auxSymValAndOff, auxInt32}:
+			case [2]AuxType_{AuxTypeSymValAndOff, AuxTypeInt32}:
 				vo := ValAndOff(v.AuxInt)
-				if !vo.canAdd64(p.AuxInt) {
+				if !vo.CanAdd64(p.AuxInt) {
 					continue
 				}
-				v.AuxInt = int64(vo.addOffset64(p.AuxInt))
-			case [2]auxType{auxSymValAndOff, auxSymOff}:
+				v.AuxInt = int64(vo.AddOffset64(p.AuxInt))
+			case [2]AuxType_{AuxTypeSymValAndOff, AuxTypeSymOff}:
 				vo := ValAndOff(v.AuxInt)
 				if v.Aux != nil && p.Aux != nil {
 					continue
 				}
-				if !vo.canAdd64(p.AuxInt) {
+				if !vo.CanAdd64(p.AuxInt) {
 					continue
 				}
 				if p.Aux != nil {
 					v.Aux = p.Aux
 				}
-				v.AuxInt = int64(vo.addOffset64(p.AuxInt))
-			case [2]auxType{auxSymOff, auxNone}:
+				v.AuxInt = int64(vo.AddOffset64(p.AuxInt))
+			case [2]AuxType_{AuxTypeSymOff, AuxTypeNone}:
 				// nothing to do
-			case [2]auxType{auxSymValAndOff, auxNone}:
+			case [2]AuxType_{AuxTypeSymValAndOff, AuxTypeNone}:
 				// nothing to do
 			default:
 				f.Fatalf("unknown aux combining for %s and %s\n", v.Op, p.Op)
@@ -86,7 +86,7 @@ func addressingModes(f *Func) {
 			tmp = append(tmp[:0], v.Args[:ptrIndex]...)
 			tmp = append(tmp, p.Args...)
 			tmp = append(tmp, v.Args[ptrIndex+1:]...)
-			v.resetArgs()
+			v.ResetArgs()
 			v.Op = c
 			v.AddArgs(tmp...)
 			if needSplit[c] {
@@ -94,7 +94,7 @@ func addressingModes(f *Func) {
 				// but not the two instructions that led to them being combined here.  For example
 				// (CMPBconstload c (ADDQ x y)) -> (CMPBconstloadidx1 c x y) -> (CMPB c (MOVBloadidx1 x y))
 				// The final pair of instructions turns out to be notably faster, at least in some benchmarks.
-				f.Config.splitLoad(v)
+				f.Config.SplitLoad(v)
 			}
 		}
 	}

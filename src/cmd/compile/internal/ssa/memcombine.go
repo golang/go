@@ -18,9 +18,9 @@ import (
 // uses pointer alignment facts to avoid introducing unaligned wider operations.
 func memcombine(f *Func) {
 	var ptrAlignments []int8
-	if !f.Config.unalignedOK {
-		ptrAlignments = f.Cache.allocInt8Slice(f.NumValues())
-		defer f.Cache.freeInt8Slice(ptrAlignments)
+	if !f.Config.UnalignedOK {
+		ptrAlignments = f.Cache.AllocInt8Slice(f.NumValues())
+		defer f.Cache.FreeInt8Slice(ptrAlignments)
 		computePtrAlignments(f, ptrAlignments)
 	}
 	memcombineLoads(f, ptrAlignments)
@@ -29,16 +29,16 @@ func memcombine(f *Func) {
 
 func memcombineLoads(f *Func, ptrAlignments []int8) {
 	// Find "OR trees" to start with.
-	mark := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(mark)
+	mark := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(mark)
 	var order []*Value
 
 	// Mark all values that are the argument of an OR.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op == OpOr16 || v.Op == OpOr32 || v.Op == OpOr64 {
-				mark.add(v.Args[0].ID)
-				mark.add(v.Args[1].ID)
+				mark.Add(v.Args[0].ID)
+				mark.Add(v.Args[1].ID)
 			}
 		}
 	}
@@ -48,7 +48,7 @@ func memcombineLoads(f *Func, ptrAlignments []int8) {
 			if v.Op != OpOr16 && v.Op != OpOr32 && v.Op != OpOr64 {
 				continue
 			}
-			if mark.contains(v.ID) {
+			if mark.Contains(v.ID) {
 				// marked - means it is not the root of an OR tree
 				continue
 			}
@@ -199,7 +199,7 @@ func splitPtr(ptr *Value) (BaseAddress, int64) {
 // computePtrAlignments computes pointer alignment facts from typed base pointers
 // and constant offsets.
 func computePtrAlignments(f *Func, ptrAlignments []int8) {
-	for _, b := range slices.Backward(f.postorder()) {
+	for _, b := range slices.Backward(f.Postorder()) {
 		for _, v := range b.Values {
 			ptrAlignments[v.ID] = int8(valuePtrAlignment(v, ptrAlignments))
 		}
@@ -334,7 +334,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	mem := v.Args[1]
 	size := v.Type.Size()
 
-	if root.Block.Func.Config.arch == "S390X" {
+	if root.Block.Func.Config.Arch == "S390X" {
 		// s390x can't handle unaligned accesses to global variables.
 		if base.ptr.Op == OpAddr {
 			return false
@@ -391,7 +391,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 			return false
 		}
 	}
-	if !root.Block.Func.Config.unalignedOK && ptrAlignment(r[0].load.Args[0], ptrAlignments) < n*size {
+	if !root.Block.Func.Config.UnalignedOK && ptrAlignment(r[0].load.Args[0], ptrAlignments) < n*size {
 		return false
 	}
 
@@ -442,7 +442,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	// Check to see if we need byte swap before storing.
 	needSwap := isLittleEndian && root.Block.Func.Config.BigEndian ||
 		isBigEndian && !root.Block.Func.Config.BigEndian
-	if needSwap && (size != 1 || !root.Block.Func.Config.haveByteSwap(n)) {
+	if needSwap && (size != 1 || !root.Block.Func.Config.HaveByteSwap(n)) {
 		return false
 	}
 
@@ -470,28 +470,28 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	}
 
 	// Install with (Copy v).
-	root.reset(OpCopy)
+	root.Reset(OpCopy)
 	root.AddArg(v)
 
 	// Clobber the loads, just to prevent additional work being done on
 	// subtrees (which are now unreachable).
 	for i := int64(0); i < n; i++ {
-		clobber(r[i].load)
+		Clobber(r[i].load)
 	}
 	return true
 }
 
 func memcombineStores(f *Func, ptrAlignments []int8) {
-	mark := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(mark)
+	mark := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(mark)
 	var order []*Value
 
 	for _, b := range f.Blocks {
 		// Mark all stores which are not last in a store sequence.
-		mark.clear()
+		mark.Clear()
 		for _, v := range b.Values {
 			if v.Op == OpStore {
-				mark.add(v.MemoryArg().ID)
+				mark.Add(v.MemoryArg().ID)
 			}
 		}
 
@@ -502,7 +502,7 @@ func memcombineStores(f *Func, ptrAlignments []int8) {
 			if v.Op != OpStore {
 				continue
 			}
-			if mark.contains(v.ID) {
+			if mark.Contains(v.ID) {
 				continue // not last in a chain of stores
 			}
 			for {
@@ -625,7 +625,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	// Gather n stores to look at. Check easy conditions we require.
 	allMergeable := make([]StoreRecord, 0, 8)
 	rbase, roff := splitPtr(root.Args[0])
-	if root.Block.Func.Config.arch == "S390X" {
+	if root.Block.Func.Config.Arch == "S390X" {
 		// s390x can't handle unaligned accesses to global variables.
 		if rbase.ptr.Op == OpAddr {
 			return
@@ -712,7 +712,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	}
 	// Memory location we're going to write at (the lowest one).
 	ptr := a[0].store.Args[0]
-	if !root.Block.Func.Config.unalignedOK && ptrAlignment(ptr, ptrAlignments) < aTotalSize {
+	if !root.Block.Func.Config.UnalignedOK && ptrAlignment(ptr, ptrAlignments) < aTotalSize {
 		return
 	}
 
@@ -759,7 +759,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 				v.SetArg(1, cv)
 				v.SetArg(2, mem)
 			} else {
-				clobber(v)
+				Clobber(v)
 				v.Type = types.Types[types.TBOOL] // erase memory type
 			}
 		}
@@ -808,7 +808,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	if loadMem != nil {
 		// Modify the first load to do a larger load instead.
 		load := a[0].store.Args[1]
-		if !root.Block.Func.Config.unalignedOK && ptrAlignment(load.Args[0], ptrAlignments) < aTotalSize {
+		if !root.Block.Func.Config.UnalignedOK && ptrAlignment(load.Args[0], ptrAlignments) < aTotalSize {
 			return
 		}
 		switch aTotalSize {
@@ -830,7 +830,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 				v.SetArg(1, load)
 				v.SetArg(2, mem)
 			} else {
-				clobber(v)
+				Clobber(v)
 				v.Type = types.Types[types.TBOOL] // erase memory type
 			}
 		}
@@ -873,7 +873,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	// Check to see if we need byte swap before storing.
 	needSwap := isLittleEndian && root.Block.Func.Config.BigEndian ||
 		isBigEndian && !root.Block.Func.Config.BigEndian
-	if needSwap && (int64(len(a)) != aTotalSize || !root.Block.Func.Config.haveByteSwap(aTotalSize)) {
+	if needSwap && (int64(len(a)) != aTotalSize || !root.Block.Func.Config.HaveByteSwap(aTotalSize)) {
 		return
 	}
 
@@ -905,7 +905,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 			v.SetArg(1, sv)
 			v.SetArg(2, mem)
 		} else {
-			clobber(v)
+			Clobber(v)
 			v.Type = types.Types[types.TBOOL] // erase memory type
 		}
 	}

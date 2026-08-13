@@ -48,12 +48,12 @@ func fuseBranchRedirect(f *Func) bool {
 
 		for k := 0; k < len(b.Preds); k++ {
 			pk := b.Preds[k]
-			p := pk.b
+			p := pk.B
 			if p.Kind != block.BlockIf || p == b {
 				continue
 			}
 			pbranch := positive
-			if pk.i == 1 {
+			if pk.I == 1 {
 				pbranch = negative
 			}
 			ft.checkpoint()
@@ -72,29 +72,29 @@ func fuseBranchRedirect(f *Func) bool {
 				}
 				// This branch is impossible,so redirect p directly to another branch.
 				out := 1 ^ j
-				child := parent.Succs[out].b
+				child := parent.Succs[out].B
 				if child == b {
 					continue
 				}
-				b.removePred(k)
-				p.Succs[pk.i] = Edge{child, len(child.Preds)}
+				b.RemovePred(k)
+				p.Succs[pk.I] = Edge{child, len(child.Preds)}
 				// Fix up Phi value in b to have one less argument.
 				for _, v := range b.Values {
 					if v.Op != OpPhi {
 						continue
 					}
-					b.removePhiArg(v, k)
+					b.RemovePhiArg(v, k)
 				}
 				// Fix up child to have one more predecessor.
-				child.Preds = append(child.Preds, Edge{p, pk.i})
-				ai := b.Succs[out].i
+				child.Preds = append(child.Preds, Edge{p, pk.I})
+				ai := b.Succs[out].I
 				for _, v := range child.Values {
 					if v.Op != OpPhi {
 						continue
 					}
 					v.AddArg(v.Args[ai])
 				}
-				if b.Func.pass.debug > 0 {
+				if b.Func.Pass.Debug > 0 {
 					b.Func.Warnl(b.Controls[0].Pos, "Redirect %s based on %s", b.Controls[0].Op, p.Controls[0].Op)
 				}
 				changed = true

@@ -58,7 +58,7 @@ const (
 // The resulting code uses conditional comparison instructions that test the second
 // condition only if the first condition evaluates to a specific value.
 func mergeConditionalBranches(f *Func) {
-	if f.Config.arch != "arm64" {
+	if f.Config.Arch != "arm64" {
 		return
 	}
 
@@ -69,7 +69,7 @@ func mergeConditionalBranches(f *Func) {
 	// 3. It maintains the integrity of the CFG during transformations
 	// Reverse order (from leaves to root) allows safe modification without affecting
 	// yet-to-be-processed outer structures.
-	blocks := f.postorder()
+	blocks := f.Postorder()
 
 	for _, block := range blocks {
 		// outerSuccIndex: index of the outedge from if1 to if2
@@ -123,11 +123,11 @@ func removeEmptyPlainBlock(block *Block) {
 	prevEdge := block.Preds[0]
 	nextEdge := block.Succs[0]
 
-	prevEdge.b.Succs[prevEdge.i] = nextEdge
-	nextEdge.b.Preds[nextEdge.i] = prevEdge
+	prevEdge.B.Succs[prevEdge.I] = nextEdge
+	nextEdge.B.Preds[nextEdge.I] = prevEdge
 
-	block.removePred(0)
-	block.removeSucc(0)
+	block.RemovePred(0)
+	block.RemoveSucc(0)
 	block.Reset(blockpkg.BlockInvalid)
 }
 
@@ -335,7 +335,7 @@ func canValueBeMoved(v *Value) bool {
 	if v.Op.HasSideEffects() {
 		return false
 	}
-	if opcodeTable[v.Op].nilCheck {
+	if OpcodeTable[v.Op].NilCheck {
 		return false
 	}
 	if v.MemoryArg() != nil {
@@ -439,7 +439,7 @@ func moveAllValues(dest, src *Block) {
 		value.Block = dest
 		dest.Values = append(dest.Values, value)
 	}
-	src.truncateValues(0)
+	src.TruncateValues(0)
 }
 
 // elimNestedBlock eliminates a nested block that has been incorporated into
@@ -451,16 +451,16 @@ func elimNestedBlock(b *Block, index int) {
 	notBothMetBlock := removedEdge.Block()
 	i := removedEdge.Index()
 
-	b.removeSucc(index ^ 1)
-	notBothMetBlock.removePred(i)
+	b.RemoveSucc(index ^ 1)
+	notBothMetBlock.RemovePred(i)
 	for _, v := range notBothMetBlock.Values {
 		if v.Op != OpPhi {
 			continue
 		}
-		notBothMetBlock.removePhiArg(v, i)
+		notBothMetBlock.RemovePhiArg(v, i)
 	}
 
-	b.Func.invalidateCFG()
+	b.Func.InvalidateCFG()
 	b.Reset(block.BlockPlain)
 	b.Likely = BranchUnknown
 }
@@ -469,7 +469,7 @@ func elimNestedBlock(b *Block, index int) {
 // based on the inner block's control value. It also updates the branch
 // likelihood based on the original block's branch prediction.
 func setNewControlValue(outerBlock, innerBlock *Block, outSuccIndex, inSuccIndex int) {
-	outerBlock.resetWithControl(innerBlock.Kind, innerBlock.Controls[0])
+	outerBlock.ResetWithControl(innerBlock.Kind, innerBlock.Controls[0])
 	if !isBranchLikelyConsistentWithIndex(outerBlock, outSuccIndex) ||
 		!isBranchLikelyConsistentWithIndex(innerBlock, inSuccIndex) {
 		outerBlock.Likely = BranchUnknown
@@ -495,19 +495,19 @@ func transformPrimaryComparisonValue(block *Block) {
 	case blockpkg.BlockARM64Z:
 		arg0 := block.Controls[0]
 		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPconst, types.TypeFlags, 0, arg0)
-		block.resetWithControl(blockpkg.BlockARM64EQ, controlValue)
+		block.ResetWithControl(blockpkg.BlockARM64EQ, controlValue)
 	case blockpkg.BlockARM64NZ:
 		arg0 := block.Controls[0]
 		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPconst, types.TypeFlags, 0, arg0)
-		block.resetWithControl(blockpkg.BlockARM64NE, controlValue)
+		block.ResetWithControl(blockpkg.BlockARM64NE, controlValue)
 	case blockpkg.BlockARM64ZW:
 		arg0 := block.Controls[0]
 		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPWconst, types.TypeFlags, 0, arg0)
-		block.resetWithControl(blockpkg.BlockARM64EQ, controlValue)
+		block.ResetWithControl(blockpkg.BlockARM64EQ, controlValue)
 	case blockpkg.BlockARM64NZW:
 		arg0 := block.Controls[0]
 		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPWconst, types.TypeFlags, 0, arg0)
-		block.resetWithControl(blockpkg.BlockARM64NE, controlValue)
+		block.ResetWithControl(blockpkg.BlockARM64NE, controlValue)
 	default:
 		return
 	}
@@ -535,51 +535,51 @@ func transformDependentComparisonValue(block *Block) {
 		switch value.Op {
 		case OpARM64CMPconst:
 			arg0 := value.Args[0]
-			auxConstant := auxIntToInt64(value.AuxInt)
-			value.reset(OpARM64CMP)
-			constantValue := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, auxConstant, true)
+			auxConstant := AuxIntToInt64(value.AuxInt)
+			value.Reset(OpARM64CMP)
+			constantValue := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, auxConstant, true)
 			value.AddArg2(arg0, constantValue)
 		case OpARM64CMNconst:
 			arg0 := value.Args[0]
-			auxConstant := auxIntToInt64(value.AuxInt)
-			value.reset(OpARM64CMN)
-			constantValue := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, auxConstant, true)
+			auxConstant := AuxIntToInt64(value.AuxInt)
+			value.Reset(OpARM64CMN)
+			constantValue := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, auxConstant, true)
 			value.AddArg2(arg0, constantValue)
 		case OpARM64CMPWconst:
 			arg0 := value.Args[0]
-			auxConstant := auxIntToInt32(value.AuxInt)
-			value.reset(OpARM64CMPW)
-			constantValue := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
+			auxConstant := AuxIntToInt32(value.AuxInt)
+			value.Reset(OpARM64CMPW)
+			constantValue := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
 			value.AddArg2(arg0, constantValue)
 		case OpARM64CMNWconst:
 			arg0 := value.Args[0]
-			auxConstant := auxIntToInt32(value.AuxInt)
-			value.reset(OpARM64CMNW)
-			constantValue := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
+			auxConstant := AuxIntToInt32(value.AuxInt)
+			value.Reset(OpARM64CMNW)
+			constantValue := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
 			value.AddArg2(arg0, constantValue)
 		default:
 			return
 		}
 	case blockpkg.BlockARM64Z:
 		arg0 := block.Controls[0]
-		arg1 := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, 0, true)
+		arg1 := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, 0, true)
 		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMP, types.TypeFlags, arg0, arg1)
-		block.resetWithControl(blockpkg.BlockARM64EQ, comparisonValue)
+		block.ResetWithControl(blockpkg.BlockARM64EQ, comparisonValue)
 	case blockpkg.BlockARM64NZ:
 		arg0 := block.Controls[0]
-		arg1 := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, 0, true)
+		arg1 := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, 0, true)
 		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMP, types.TypeFlags, arg0, arg1)
-		block.resetWithControl(blockpkg.BlockARM64NE, comparisonValue)
+		block.ResetWithControl(blockpkg.BlockARM64NE, comparisonValue)
 	case blockpkg.BlockARM64ZW:
 		arg0 := block.Controls[0]
-		arg1 := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, 0, true)
+		arg1 := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, 0, true)
 		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMPW, types.TypeFlags, arg0, arg1)
-		block.resetWithControl(blockpkg.BlockARM64EQ, comparisonValue)
+		block.ResetWithControl(blockpkg.BlockARM64EQ, comparisonValue)
 	case blockpkg.BlockARM64NZW:
 		arg0 := block.Controls[0]
-		arg1 := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, 0, true)
+		arg1 := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, 0, true)
 		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMPW, types.TypeFlags, arg0, arg1)
-		block.resetWithControl(blockpkg.BlockARM64NE, comparisonValue)
+		block.ResetWithControl(blockpkg.BlockARM64NE, comparisonValue)
 	default:
 		panic("Wrong block kind")
 	}
@@ -591,7 +591,7 @@ func transformDependentComparisonValue(block *Block) {
 func fixComparisonWithConstant(block *Block, index int) {
 	// Helper function to extract 5-bit immediate from int64 constant (0-31 range)
 	getImm64 := func(auxInt int64) (uint8, bool) {
-		imm := auxIntToInt64(auxInt)
+		imm := AuxIntToInt64(auxInt)
 		if imm&^0x1f == 0 {
 			return uint8(imm), true
 		}
@@ -600,7 +600,7 @@ func fixComparisonWithConstant(block *Block, index int) {
 
 	// Helper function to extract 5-bit immediate from int32 constant (0-31 range)
 	getImm32 := func(auxInt int64) (uint8, bool) {
-		imm := auxIntToInt32(auxInt)
+		imm := AuxIntToInt32(auxInt)
 		if imm&^0x1f == 0 {
 			return uint8(imm), true
 		}
@@ -620,10 +620,10 @@ func fixComparisonWithConstant(block *Block, index int) {
 		// Check second operand for small constant
 		if arg1.Op == OpARM64MOVDconst {
 			if imm, ok := getImm(arg1.AuxInt); ok {
-				value.reset(newOp)
-				params.constValue = imm
-				params.ind = true
-				value.AuxInt = arm64ConditionalParamsToAuxInt(params)
+				value.Reset(newOp)
+				params.ConstVal = imm
+				params.Ind = true
+				value.AuxInt = Arm64ConditionalParamsToAuxInt(params)
 				value.AddArg2(arg0, arg2)
 				return
 			}
@@ -632,11 +632,11 @@ func fixComparisonWithConstant(block *Block, index int) {
 		// Check first operand for small constant
 		if arg0.Op == OpARM64MOVDconst {
 			if imm, ok := getImm(arg0.AuxInt); ok {
-				value.reset(newOp)
+				value.Reset(newOp)
 				invertConditionsInBlock(block, &params, index)
-				params.constValue = imm
-				params.ind = true
-				value.AuxInt = arm64ConditionalParamsToAuxInt(params)
+				params.ConstVal = imm
+				params.Ind = true
+				value.AuxInt = Arm64ConditionalParamsToAuxInt(params)
 				value.AddArg2(arg1, arg2)
 				return
 			}
@@ -662,13 +662,13 @@ func fixComparisonWithConstant(block *Block, index int) {
 // invertConditionsInBlock inverts the condition in a block and returns updated
 // conditional parameters. This is used when swapping operands in constant
 // optimizations to maintain correct semantics.
-func invertConditionsInBlock(block *Block, params *arm64ConditionalParams, index int) {
+func invertConditionsInBlock(block *Block, params *Arm64ConditionalParams, index int) {
 	invertKind := invertBlockKind(block.Kind)
 	block.Kind = invertKind
 	if index == FalseConditionSuccIndex {
 		invertKind = negateBlockKind(invertKind)
 	}
-	params.nzcv = nzcvByBlockKind(invertKind)
+	params.NzcvVal = nzcvByBlockKind(invertKind)
 }
 
 // transformToConditionalComparisonValue transforms the comparison operations
@@ -681,7 +681,7 @@ func transformToConditionalComparisonValue(outerBlock *Block, outSuccIndex, inSu
 	// Adjust block kinds and successors if needed to match expected pattern
 	if outSuccIndex != inSuccIndex {
 		outerBlock.Kind = negateBlockKind(outerBlock.Kind)
-		outerBlock.swapSuccessors()
+		outerBlock.SwapSuccessors()
 		outSuccIndex ^= 1
 	}
 
@@ -702,7 +702,7 @@ func transformToConditionalComparisonValue(outerBlock *Block, outSuccIndex, inSu
 
 	innerControl.AddArg(outerControl)
 	innerControl.Op = transformOpToConditionalComparisonOperation(innerControl.Op)
-	innerControl.AuxInt = arm64ConditionalParamsToAuxInt(params)
+	innerControl.AuxInt = Arm64ConditionalParamsToAuxInt(params)
 }
 
 // transformOpToConditionalComparisonOperation maps standard comparison operations
@@ -735,7 +735,7 @@ func transformOpToConditionalComparisonOperation(op Op) Op {
 // - outerKind specifies the main condition (e.g., LT, GT) to be evaluated.
 // - innerKind determines the NZCV flag pattern to be used when the main condition is FALSE.
 // The resulting parameters are typically used by conditional comparison operations (CCMP, CCMN).
-func createConditionalParamsByBlockKind(outerKind, innerKind block.BlockKind) arm64ConditionalParams {
+func createConditionalParamsByBlockKind(outerKind, innerKind block.BlockKind) Arm64ConditionalParams {
 	cond := condByBlockKind(outerKind) // the condition code for the primary comparison
 	nzcv := nzcvByBlockKind(innerKind) // NZCV flags to apply when the condition is false
 	return arm64ConditionalParamsAuxInt(cond, nzcv)

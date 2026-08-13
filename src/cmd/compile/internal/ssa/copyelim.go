@@ -49,7 +49,7 @@ func copySource(v *Value) *Value {
 	for w.Op == OpCopy {
 		w = w.Args[0]
 		if w == slow {
-			w.reset(OpUnknown)
+			w.Reset(OpUnknown)
 			break
 		}
 		if advance {
@@ -105,12 +105,12 @@ func phielim(f *Func) {
 				// This is an early place in SSA where all values are examined.
 				// Rewrite all 0-sized Go values to remove accessors, dereferences, loads, etc.
 				if t := v.Type; (t.IsStruct() || t.IsArray()) && t.Size() == 0 {
-					v.reset(OpEmpty)
+					v.Reset(OpEmpty)
 				}
 				// Modify all values so no arg (including args
 				// of OpCopy) is a copy.
 				copyelimValue(v)
-				change = phielimValue(v) || change
+				change = PhiElimValue(v) || change
 			}
 		}
 		if !change {
@@ -119,8 +119,8 @@ func phielim(f *Func) {
 	}
 }
 
-// phielimValue tries to convert the phi v to a copy.
-func phielimValue(v *Value) bool {
+// PhiElimValue tries to convert the phi v to a copy.
+func PhiElimValue(v *Value) bool {
 	if v.Op != OpPhi {
 		return false
 	}
@@ -150,7 +150,7 @@ func phielimValue(v *Value) bool {
 	v.Op = OpCopy
 	v.SetArgs1(w)
 	f := v.Block.Func
-	if f.pass.debug > 0 {
+	if f.Pass.Debug > 0 {
 		f.Warnl(v.Pos, "eliminated phi")
 	}
 	return true

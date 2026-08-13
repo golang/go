@@ -52,7 +52,7 @@ type lattice struct {
 type worklist struct {
 	f            *Func               // the target function to be optimized out
 	edges        []Edge              // propagate constant facts through edges
-	inUses       *sparseSet          // IDs already in uses, for duplicate check
+	inUses       *SparseSet          // IDs already in uses, for duplicate check
 	uses         []*Value            // re-visiting set
 	visited      map[Edge]bool       // visited edges
 	latticeCells map[*Value]lattice  // constant lattices
@@ -73,10 +73,10 @@ func sccp(f *Func) {
 	t.defUse = make(map[*Value][]*Value)
 	t.defBlock = make(map[*Value][]*Block)
 	t.latticeCells = make(map[*Value]lattice)
-	t.visitedBlock = f.Cache.allocBoolSlice(f.NumBlocks())
-	t.inUses = f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(t.inUses)
-	defer f.Cache.freeBoolSlice(t.visitedBlock)
+	t.visitedBlock = f.Cache.AllocBoolSlice(f.NumBlocks())
+	t.inUses = f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(t.inUses)
+	defer f.Cache.FreeBoolSlice(t.visitedBlock)
 
 	// build it early since we rely heavily on the def-use chain later
 	t.buildDefUses()
@@ -87,7 +87,7 @@ func sccp(f *Func) {
 			edge := t.edges[0]
 			t.edges = t.edges[1:]
 			if _, exist := t.visited[edge]; !exist {
-				dest := edge.b
+				dest := edge.B
 				destVisited := t.visitedBlock[dest.ID]
 
 				// mark edge as visited
@@ -109,7 +109,7 @@ func sccp(f *Func) {
 		if len(t.uses) > 0 {
 			use := t.uses[0]
 			t.uses = t.uses[1:]
-			t.inUses.remove(use.ID)
+			t.inUses.Remove(use.ID)
 			t.visitValue(use)
 			continue
 		}
@@ -118,7 +118,7 @@ func sccp(f *Func) {
 
 	// apply optimizations based on discovered constants
 	constCnt, rewireCnt := t.replaceConst()
-	if f.pass.debug > 0 {
+	if f.Pass.Debug > 0 {
 		if constCnt > 0 || rewireCnt > 0 {
 			f.Warnl(f.Entry.Pos, "Phase SCCP for %v : %v constants, %v dce", f.Name, constCnt, rewireCnt)
 		}
@@ -286,8 +286,8 @@ func (t *worklist) addUses(val *Value) {
 			continue
 		}
 		// Avoid duplicate visits
-		if !t.inUses.contains(use.ID) {
-			t.inUses.add(use.ID)
+		if !t.inUses.Contains(use.ID) {
+			t.inUses.Add(use.ID)
 			t.uses = append(t.uses, use)
 		}
 	}
@@ -360,7 +360,7 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	// to change it permanently, which can lead to errors. For example, We cannot
 	// change its value immediately after visiting Phi, because some of its input
 	// edges may still not be visited at this moment.
-	constValue := f.newValue(val.Op, val.Type, f.Entry, val.Pos)
+	constValue := f.NewValue(val.Op, val.Type, f.Entry, val.Pos)
 	constValue.AddArgs(args...)
 	matched := rewriteValuegeneric(constValue)
 	if matched {
@@ -371,7 +371,7 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	// Either we can not match generic rules for given value or it does not
 	// satisfy additional constraints(e.g. divide by zero), in these cases, clean
 	// up temporary value immediately in case they are not dominated by their args.
-	constValue.reset(OpInvalid)
+	constValue.Reset(OpInvalid)
 	return lattice{bottom, nil}
 }
 
@@ -545,7 +545,7 @@ func (t *worklist) propagate(block *Block) {
 func rewireSuccessor(block *Block, constVal *Value) bool {
 	switch block.Kind {
 	case blockpkg.BlockIf:
-		block.removeEdge(int(constVal.AuxInt))
+		block.RemoveEdge(int(constVal.AuxInt))
 		block.Kind = blockpkg.BlockPlain
 		block.Likely = BranchUnknown
 		block.ResetControls()
@@ -560,9 +560,9 @@ func rewireSuccessor(block *Block, constVal *Value) bool {
 			// See issue 64826.
 			return false
 		}
-		block.swapSuccessorsByIdx(0, idx)
+		block.SwapSuccessorsByIdx(0, idx)
 		for len(block.Succs) > 1 {
-			block.removeEdge(1)
+			block.RemoveEdge(1)
 		}
 		block.Kind = blockpkg.BlockPlain
 		block.Likely = BranchUnknown
@@ -580,10 +580,10 @@ func (t *worklist) replaceConst() (int, int) {
 	for val, lt := range t.latticeCells {
 		if lt.tag == constant {
 			if !isConst(val) {
-				if t.f.pass.debug > 0 {
+				if t.f.Pass.Debug > 0 {
 					t.f.Warnl(val.Pos, "Replace %v with %v", val.LongString(), lt.val.LongString())
 				}
-				val.reset(lt.val.Op)
+				val.Reset(lt.val.Op)
 				val.AuxInt = lt.val.AuxInt
 				constCnt++
 			}
@@ -592,7 +592,7 @@ func (t *worklist) replaceConst() (int, int) {
 			for _, block := range ctrlBlock {
 				if rewireSuccessor(block, lt.val) {
 					rewireCnt++
-					if t.f.pass.debug > 0 {
+					if t.f.Pass.Debug > 0 {
 						t.f.Warnl(block.Pos, "Rewire %v %v successors", block.Kind, block)
 					}
 				}

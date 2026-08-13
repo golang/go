@@ -61,7 +61,7 @@ type Value struct {
 	InCache bool
 
 	// Storage for the first three args
-	argstorage [3]*Value
+	Argstorage [3]*Value
 }
 
 // Examples:
@@ -80,28 +80,28 @@ func (v *Value) String() string {
 }
 
 func (v *Value) AuxInt8() int8 {
-	if opcodeTable[v.Op].auxType != auxInt8 && opcodeTable[v.Op].auxType != auxNameOffsetInt8 {
+	if OpcodeTable[v.Op].AuxType != AuxTypeInt8 && OpcodeTable[v.Op].AuxType != AuxTypeNameOffsetInt8 {
 		v.Fatalf("op %s doesn't have an int8 aux field", v.Op)
 	}
 	return int8(v.AuxInt)
 }
 
 func (v *Value) AuxUInt8() uint8 {
-	if opcodeTable[v.Op].auxType != auxUInt8 {
+	if OpcodeTable[v.Op].AuxType != AuxTypeUInt8 {
 		v.Fatalf("op %s doesn't have a uint8 aux field", v.Op)
 	}
 	return uint8(v.AuxInt)
 }
 
 func (v *Value) AuxInt16() int16 {
-	if opcodeTable[v.Op].auxType != auxInt16 {
+	if OpcodeTable[v.Op].AuxType != AuxTypeInt16 {
 		v.Fatalf("op %s doesn't have an int16 aux field", v.Op)
 	}
 	return int16(v.AuxInt)
 }
 
 func (v *Value) AuxInt32() int32 {
-	if opcodeTable[v.Op].auxType != auxInt32 {
+	if OpcodeTable[v.Op].AuxType != AuxTypeInt32 {
 		v.Fatalf("op %s doesn't have an int32 aux field", v.Op)
 	}
 	return int32(v.AuxInt)
@@ -127,30 +127,30 @@ func (v *Value) AuxUnsigned() uint64 {
 }
 
 func (v *Value) AuxFloat() float64 {
-	if opcodeTable[v.Op].auxType != auxFloat32 && opcodeTable[v.Op].auxType != auxFloat64 {
+	if OpcodeTable[v.Op].AuxType != AuxTypeFloat32 && OpcodeTable[v.Op].AuxType != AuxTypeFloat64 {
 		v.Fatalf("op %s doesn't have a float aux field", v.Op)
 	}
 	return math.Float64frombits(uint64(v.AuxInt))
 }
 func (v *Value) AuxValAndOff() ValAndOff {
-	if opcodeTable[v.Op].auxType != auxSymValAndOff {
+	if OpcodeTable[v.Op].AuxType != AuxTypeSymValAndOff {
 		v.Fatalf("op %s doesn't have a ValAndOff aux field", v.Op)
 	}
 	return ValAndOff(v.AuxInt)
 }
 
-func (v *Value) AuxArm64BitField() arm64BitField {
-	if opcodeTable[v.Op].auxType != auxARM64BitField {
+func (v *Value) AuxArm64BitField() Arm64BitField {
+	if OpcodeTable[v.Op].AuxType != AuxTypeARM64BitField {
 		v.Fatalf("op %s doesn't have a ARM64BitField aux field", v.Op)
 	}
-	return arm64BitField(v.AuxInt)
+	return Arm64BitField(v.AuxInt)
 }
 
-func (v *Value) AuxArm64ConditionalParams() arm64ConditionalParams {
-	if opcodeTable[v.Op].auxType != auxARM64ConditionalParams {
+func (v *Value) AuxArm64ConditionalParams() Arm64ConditionalParams {
+	if OpcodeTable[v.Op].AuxType != AuxTypeARM64ConditionalParams {
 		v.Fatalf("op %s doesn't have a ARM64ConditionalParams aux field", v.Op)
 	}
-	return auxIntToArm64ConditionalParams(v.AuxInt)
+	return AuxIntToArm64ConditionalParams(v.AuxInt)
 }
 
 // long form print.  v# = opcode <type> [aux] args [: reg] (names)
@@ -160,7 +160,7 @@ func (v *Value) LongString() string {
 	}
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
 	s += " <" + v.Type.String() + ">"
-	s += v.auxString()
+	s += v.AuxString()
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
@@ -171,7 +171,7 @@ func (v *Value) LongString() string {
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].String()
 	}
-	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
+	if reg := v.Block.Func.TempRegs[v.ID]; reg != nil {
 		s += " tmp=" + reg.String()
 	}
 	var names []string
@@ -190,72 +190,72 @@ func (v *Value) LongString() string {
 	return s
 }
 
-func (v *Value) auxString() string {
-	switch opcodeTable[v.Op].auxType {
-	case auxBool:
+func (v *Value) AuxString() string {
+	switch OpcodeTable[v.Op].AuxType {
+	case AuxTypeBool:
 		if v.AuxInt == 0 {
 			return " [false]"
 		} else {
 			return " [true]"
 		}
-	case auxInt8:
+	case AuxTypeInt8:
 		return fmt.Sprintf(" [%d]", v.AuxInt8())
-	case auxInt16:
+	case AuxTypeInt16:
 		return fmt.Sprintf(" [%d]", v.AuxInt16())
-	case auxInt32:
+	case AuxTypeInt32:
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
-	case auxInt64, auxInt128:
+	case AuxTypeInt64, AuxTypeInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
-	case auxUInt8:
+	case AuxTypeUInt8:
 		return fmt.Sprintf(" [%d]", v.AuxUInt8())
-	case auxARM64BitField:
-		lsb := v.AuxArm64BitField().lsb()
-		width := v.AuxArm64BitField().width()
+	case AuxTypeARM64BitField:
+		lsb := v.AuxArm64BitField().Lsb()
+		width := v.AuxArm64BitField().Width()
 		return fmt.Sprintf(" [lsb=%d,width=%d]", lsb, width)
-	case auxARM64ConditionalParams:
+	case AuxTypeARM64ConditionalParams:
 		params := v.AuxArm64ConditionalParams()
-		cond := params.Cond()
+		cond := params.Cond
 		nzcv := params.Nzcv()
 		imm, ok := params.ConstValue()
 		if ok {
 			return fmt.Sprintf(" [cond=%s,nzcv=%d,imm=%d]", cond, nzcv, imm)
 		}
 		return fmt.Sprintf(" [cond=%s,nzcv=%d]", cond, nzcv)
-	case auxFloat32, auxFloat64:
+	case AuxTypeFloat32, AuxTypeFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
-	case auxString:
+	case AuxTypeString:
 		return fmt.Sprintf(" {%q}", v.Aux)
-	case auxSym, auxCall, auxTyp:
+	case AuxTypeSym, AuxTypeCall, AuxTypeTyp:
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
 		return ""
-	case auxSymOff, auxCallOff, auxTypSize, auxNameOffsetInt8:
+	case AuxTypeSymOff, AuxTypeCallOff, AuxTypeTypSize, AuxTypeNameOffsetInt8:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
-		if v.AuxInt != 0 || opcodeTable[v.Op].auxType == auxNameOffsetInt8 {
+		if v.AuxInt != 0 || OpcodeTable[v.Op].AuxType == AuxTypeNameOffsetInt8 {
 			s += fmt.Sprintf(" [%v]", v.AuxInt)
 		}
 		return s
-	case auxSymValAndOff:
+	case AuxTypeSymValAndOff:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
-	case auxCCop:
+	case AuxTypeCCop:
 		return fmt.Sprintf(" [%s]", Op(v.AuxInt))
-	case auxS390XCCMask, auxS390XRotateParams:
+	case AuxTypeS390XCCMask, AuxTypeS390XRotateParams:
 		return fmt.Sprintf(" {%v}", v.Aux)
-	case auxFlagConstant:
-		return fmt.Sprintf("[%s]", flagConstant(v.AuxInt))
-	case auxNone:
+	case AuxTypeFlagConstant:
+		return fmt.Sprintf("[%s]", FlagConstant(v.AuxInt))
+	case AuxTypeNone:
 		return ""
 	default:
 		// If you see this, add a case above instead.
-		return fmt.Sprintf("[auxtype=%d AuxInt=%d Aux=%v]", opcodeTable[v.Op].auxType, v.AuxInt, v.Aux)
+		return fmt.Sprintf("[auxtype=%d AuxInt=%d Aux=%v]", OpcodeTable[v.Op].AuxType, v.AuxInt, v.Aux)
 	}
 }
 
@@ -265,7 +265,7 @@ func (v *Value) auxString() string {
 //go:noinline
 func (v *Value) AddArg(w *Value) {
 	if v.Args == nil {
-		v.resetArgs() // use argstorage
+		v.ResetArgs() // use argstorage
 	}
 	v.Args = append(v.Args, w)
 	w.Uses++
@@ -274,7 +274,7 @@ func (v *Value) AddArg(w *Value) {
 //go:noinline
 func (v *Value) AddArg2(w1, w2 *Value) {
 	if v.Args == nil {
-		v.resetArgs() // use argstorage
+		v.ResetArgs() // use argstorage
 	}
 	v.Args = append(v.Args, w1, w2)
 	w1.Uses++
@@ -284,7 +284,7 @@ func (v *Value) AddArg2(w1, w2 *Value) {
 //go:noinline
 func (v *Value) AddArg3(w1, w2, w3 *Value) {
 	if v.Args == nil {
-		v.resetArgs() // use argstorage
+		v.ResetArgs() // use argstorage
 	}
 	v.Args = append(v.Args, w1, w2, w3)
 	w1.Uses++
@@ -324,7 +324,7 @@ func (v *Value) AddArg6(w1, w2, w3, w4, w5, w6 *Value) {
 
 func (v *Value) AddArgs(a ...*Value) {
 	if v.Args == nil {
-		v.resetArgs() // use argstorage
+		v.ResetArgs() // use argstorage
 	}
 	v.Args = append(v.Args, a...)
 	for _, x := range a {
@@ -337,54 +337,54 @@ func (v *Value) SetArg(i int, w *Value) {
 	w.Uses++
 }
 func (v *Value) SetArgs1(a *Value) {
-	v.resetArgs()
+	v.ResetArgs()
 	v.AddArg(a)
 }
 func (v *Value) SetArgs2(a, b *Value) {
-	v.resetArgs()
+	v.ResetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
 }
 func (v *Value) SetArgs3(a, b, c *Value) {
-	v.resetArgs()
+	v.ResetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
 	v.AddArg(c)
 }
 func (v *Value) SetArgs4(a, b, c, d *Value) {
-	v.resetArgs()
+	v.ResetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
 	v.AddArg(c)
 	v.AddArg(d)
 }
 
-func (v *Value) resetArgs() {
+func (v *Value) ResetArgs() {
 	for _, a := range v.Args {
 		a.Uses--
 	}
-	v.argstorage[0] = nil
-	v.argstorage[1] = nil
-	v.argstorage[2] = nil
-	v.Args = v.argstorage[:0]
+	v.Argstorage[0] = nil
+	v.Argstorage[1] = nil
+	v.Argstorage[2] = nil
+	v.Args = v.Argstorage[:0]
 }
 
-// reset is called from most rewrite rules.
+// Reset is called from most rewrite rules.
 // Allowing it to be inlined increases the size
 // of cmd/compile by almost 10%, and slows it down.
 //
 //go:noinline
-func (v *Value) reset(op Op) {
+func (v *Value) Reset(op Op) {
 	if v.InCache {
-		v.Block.Func.unCache(v)
+		v.Block.Func.UnCache(v)
 	}
 	v.Op = op
-	v.resetArgs()
+	v.ResetArgs()
 	v.AuxInt = 0
 	v.Aux = nil
 }
 
-// invalidateRecursively marks a value as invalid (unused)
+// InvalidateRecursively marks a value as invalid (unused)
 // and after decrementing reference counts on its Args,
 // also recursively invalidates any of those whose use
 // count goes to zero.  It returns whether any of the
@@ -392,53 +392,53 @@ func (v *Value) reset(op Op) {
 //
 // BEWARE of doing this *before* you've applied intended
 // updates to SSA.
-func (v *Value) invalidateRecursively() bool {
+func (v *Value) InvalidateRecursively() bool {
 	lostStmt := v.Pos.IsStmt() == src.PosIsStmt
 	if v.InCache {
-		v.Block.Func.unCache(v)
+		v.Block.Func.UnCache(v)
 	}
 	v.Op = OpInvalid
 
 	for _, a := range v.Args {
 		a.Uses--
 		if a.Uses == 0 {
-			lost := a.invalidateRecursively()
+			lost := a.InvalidateRecursively()
 			lostStmt = lost || lostStmt
 		}
 	}
 
-	v.argstorage[0] = nil
-	v.argstorage[1] = nil
-	v.argstorage[2] = nil
-	v.Args = v.argstorage[:0]
+	v.Argstorage[0] = nil
+	v.Argstorage[1] = nil
+	v.Argstorage[2] = nil
+	v.Args = v.Argstorage[:0]
 
 	v.AuxInt = 0
 	v.Aux = nil
 	return lostStmt
 }
 
-// copyOf is called from rewrite rules.
+// CopyOf is called from rewrite rules.
 // It modifies v to be (Copy a).
 //
 //go:noinline
-func (v *Value) copyOf(a *Value) {
+func (v *Value) CopyOf(a *Value) {
 	if v == a {
 		return
 	}
 	if v.InCache {
-		v.Block.Func.unCache(v)
+		v.Block.Func.UnCache(v)
 	}
 	v.Op = OpCopy
-	v.resetArgs()
+	v.ResetArgs()
 	v.AddArg(a)
 	v.AuxInt = 0
 	v.Aux = nil
 	v.Type = a.Type
 }
 
-// copyInto makes a new value identical to v and adds it to the end of b.
+// CopyInto makes a new value identical to v and adds it to the end of b.
 // unlike copyIntoWithXPos this does not check for v.Pos being a statement.
-func (v *Value) copyInto(b *Block) *Value {
+func (v *Value) CopyInto(b *Block) *Value {
 	c := b.NewValue0(v.Pos.WithNotStmt(), v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
@@ -451,13 +451,13 @@ func (v *Value) copyInto(b *Block) *Value {
 	return c
 }
 
-// copyIntoWithXPos makes a new value identical to v and adds it to the end of b.
+// CopyIntoWithXPos makes a new value identical to v and adds it to the end of b.
 // The supplied position is used as the position of the new value.
 // Because this is used for rematerialization, check for case that (rematerialized)
 // input to value with position 'pos' carried a statement mark, and that the supplied
 // position (of the instruction using the rematerialized value) is not marked, and
 // preserve that mark if its line matches the supplied position.
-func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
+func (v *Value) CopyIntoWithXPos(b *Block, pos src.XPos) *Value {
 	if v.Pos.IsStmt() == src.PosIsStmt && pos.IsStmt() != src.PosIsStmt && v.Pos.SameFileAndLine(pos) {
 		pos = pos.WithIsStmt()
 	}
@@ -479,8 +479,8 @@ func (v *Value) Fatalf(msg string, args ...any) {
 	v.Block.Func.FatalfWithPos(v.Pos, msg, args...)
 }
 
-// isGenericIntConst reports whether v is a generic integer constant.
-func (v *Value) isGenericIntConst() bool {
+// IsGenericIntConst reports whether v is a generic integer constant.
+func (v *Value) IsGenericIntConst() bool {
 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
 }
 
@@ -530,7 +530,7 @@ func (v *Value) Reg1() int16 {
 
 // RegTmp returns the temporary register assigned to v, in cmd/internal/obj/$ARCH numbering.
 func (v *Value) RegTmp() int16 {
-	reg := v.Block.Func.tempRegs[v.ID]
+	reg := v.Block.Func.TempRegs[v.ID]
 	if reg == nil {
 		v.Fatalf("nil tmp register for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
@@ -573,14 +573,14 @@ func (v *Value) LackingPos() bool {
 		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
 }
 
-// removeable reports whether the value v can be removed from the SSA graph entirely
+// Removeable reports whether the value v can be removed from the SSA graph entirely
 // if its use count drops to 0.
-func (v *Value) removeable() bool {
+func (v *Value) Removeable() bool {
 	if v.Type.IsVoid() {
 		// Void ops (inline marks), must stay.
 		return false
 	}
-	if opcodeTable[v.Op].nilCheck {
+	if OpcodeTable[v.Op].NilCheck {
 		// Nil pointer checks must stay.
 		return false
 	}
@@ -671,10 +671,10 @@ func CanSSA(t *types.Type) bool {
 // to not propagate to the output value.
 func (v *Value) AddrSinkArg(idx int) bool {
 	if idx == 0 {
-		return opcodeTable[v.Op].addrSinkArg0
+		return OpcodeTable[v.Op].AddrSinkArg0
 	}
 	if idx == 1 {
-		return opcodeTable[v.Op].addrSinkArg1
+		return OpcodeTable[v.Op].AddrSinkArg1
 	}
 	return false
 }

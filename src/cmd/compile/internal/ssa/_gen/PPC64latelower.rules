@@ -19,17 +19,17 @@
 (SETBCR [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [5] (MOVDconst [1]) cmp)
 
 // Convert simple bit masks to an equivalent rldic[lr] if possible.
-(AND x:(MOVDconst [m]) n) && isPPC64ValidShiftMask(m) => (RLDICL [encodePPC64RotateMask(0,m,64)] n)
-(AND x:(MOVDconst [m]) n) && m != 0 && isPPC64ValidShiftMask(^m) => (RLDICR [encodePPC64RotateMask(0,m,64)] n)
+(AND x:(MOVDconst [m]) n) && IsPPC64ValidShiftMask(m) => (RLDICL [EncodePPC64RotateMask(0,m,64)] n)
+(AND x:(MOVDconst [m]) n) && m != 0 && IsPPC64ValidShiftMask(^m) => (RLDICR [EncodePPC64RotateMask(0,m,64)] n)
 
 // If the RLDICL does not rotate its value, a shifted value can be merged.
 (RLDICL [em] x:(SRDconst [s] a)) && (em&0xFF0000) == 0 => (RLDICL [mergePPC64RLDICLandSRDconst(em, s)] a)
 
 // Convert rotated 32 bit masks on 32 bit values into rlwinm. In general, this leaves the upper 32 bits in an undefined state.
-(AND <t> x:(MOVDconst [m]) n) && t.Size() == 4 && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(0,m,32)] n)
+(AND <t> x:(MOVDconst [m]) n) && t.Size() == 4 && IsPPC64WordRotateMask(m) => (RLWINM [EncodePPC64RotateMask(0,m,32)] n)
 
 // When PCRel is supported, paddi can add a 34b signed constant in one instruction.
-(ADD (MOVDconst [m]) x) && supportsPPC64PCRel() && (m<<30)>>30 == m => (ADDconst [m] x)
+(ADD (MOVDconst [m]) x) && SupportsPPC64PCRel() && (m<<30)>>30 == m => (ADDconst [m] x)
 
 
 // Where possible and practical, generate CC opcodes. Due to the structure of the rules, there are limits to how
@@ -51,7 +51,7 @@
 
 // After trying to convert ANDconst to ANDCCconst above, if the CC result is not needed, try to avoid using
 // ANDconst which clobbers CC.
-(ANDconst [m] x) && isPPC64ValidShiftMask(m) => (RLDICL [encodePPC64RotateMask(0,m,64)] x)
+(ANDconst [m] x) && IsPPC64ValidShiftMask(m) => (RLDICL [EncodePPC64RotateMask(0,m,64)] x)
 
 // Likewise, trying converting RLDICLCC back to ANDCCconst as it is faster.
 (RLDICLCC [a] x) && convertPPC64RldiclAndccconst(a) != 0 => (ANDCCconst [convertPPC64RldiclAndccconst(a)] x)

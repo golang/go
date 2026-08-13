@@ -27,9 +27,9 @@ func decomposeBuiltin(f *Func) {
 	// Decompose other values
 	// Note: Leave dead values because we need to keep the original
 	// values around so the name component resolution below can still work.
-	applyRewrite(f, rewriteBlockdec, rewriteValuedec, leaveDeadValues)
+	applyRewrite(f, rewriteBlockdec, rewriteValuedec, LeaveDeadValues)
 	if f.Config.RegSize == 4 {
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, leaveDeadValues)
+		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, LeaveDeadValues)
 	}
 
 	// Split up named values into their components.
@@ -42,7 +42,7 @@ func decomposeBuiltin(f *Func) {
 		t := name.Type
 		switch {
 		case t.IsInteger() && t.Size() > f.Config.RegSize:
-			hiName, loName := f.SplitInt64(f.localSlotAddr(name))
+			hiName, loName := f.SplitInt64(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, hiName, loName)
 			for j, v := range f.NamedValues[name] {
 				if v.Op != OpInt64Make {
@@ -53,7 +53,7 @@ func decomposeBuiltin(f *Func) {
 				toDelete = append(toDelete, namedVal{i, j})
 			}
 		case t.IsComplex():
-			rName, iName := f.SplitComplex(f.localSlotAddr(name))
+			rName, iName := f.SplitComplex(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, rName, iName)
 			for j, v := range f.NamedValues[name] {
 				if v.Op != OpComplexMake {
@@ -64,7 +64,7 @@ func decomposeBuiltin(f *Func) {
 				toDelete = append(toDelete, namedVal{i, j})
 			}
 		case t.IsString():
-			ptrName, lenName := f.SplitString(f.localSlotAddr(name))
+			ptrName, lenName := f.SplitString(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, ptrName, lenName)
 			for j, v := range f.NamedValues[name] {
 				if v.Op != OpStringMake {
@@ -75,7 +75,7 @@ func decomposeBuiltin(f *Func) {
 				toDelete = append(toDelete, namedVal{i, j})
 			}
 		case t.IsSlice():
-			ptrName, lenName, capName := f.SplitSlice(f.localSlotAddr(name))
+			ptrName, lenName, capName := f.SplitSlice(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, ptrName, lenName)
 			newNames = maybeAppend(f, newNames, capName)
 			for j, v := range f.NamedValues[name] {
@@ -88,7 +88,7 @@ func decomposeBuiltin(f *Func) {
 				toDelete = append(toDelete, namedVal{i, j})
 			}
 		case t.IsInterface():
-			typeName, dataName := f.SplitInterface(f.localSlotAddr(name))
+			typeName, dataName := f.SplitInterface(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, typeName, dataName)
 			for j, v := range f.NamedValues[name] {
 				if v.Op != OpIMake {
@@ -151,7 +151,7 @@ func decomposeStringPhi(v *Value) {
 		ptr.AddArg(a.Block.NewValue1(v.Pos, OpStringPtr, ptrType, a))
 		len.AddArg(a.Block.NewValue1(v.Pos, OpStringLen, lenType, a))
 	}
-	v.reset(OpStringMake)
+	v.Reset(OpStringMake)
 	v.AddArg(ptr)
 	v.AddArg(len)
 }
@@ -169,7 +169,7 @@ func decomposeSlicePhi(v *Value) {
 		len.AddArg(a.Block.NewValue1(v.Pos, OpSliceLen, lenType, a))
 		cap.AddArg(a.Block.NewValue1(v.Pos, OpSliceCap, lenType, a))
 	}
-	v.reset(OpSliceMake)
+	v.Reset(OpSliceMake)
 	v.AddArg(ptr)
 	v.AddArg(len)
 	v.AddArg(cap)
@@ -190,7 +190,7 @@ func decomposeInt64Phi(v *Value) {
 		hi.AddArg(a.Block.NewValue1(v.Pos, OpInt64Hi, partType, a))
 		lo.AddArg(a.Block.NewValue1(v.Pos, OpInt64Lo, cfgtypes.UInt32, a))
 	}
-	v.reset(OpInt64Make)
+	v.Reset(OpInt64Make)
 	v.AddArg(hi)
 	v.AddArg(lo)
 }
@@ -213,7 +213,7 @@ func decomposeComplexPhi(v *Value) {
 		real.AddArg(a.Block.NewValue1(v.Pos, OpComplexReal, partType, a))
 		imag.AddArg(a.Block.NewValue1(v.Pos, OpComplexImag, partType, a))
 	}
-	v.reset(OpComplexMake)
+	v.Reset(OpComplexMake)
 	v.AddArg(real)
 	v.AddArg(imag)
 }
@@ -228,7 +228,7 @@ func decomposeInterfacePhi(v *Value) {
 		itab.AddArg(a.Block.NewValue1(v.Pos, OpITab, uintptrType, a))
 		data.AddArg(a.Block.NewValue1(v.Pos, OpIData, ptrType, a))
 	}
-	v.reset(OpIMake)
+	v.Reset(OpIMake)
 	v.AddArg(itab)
 	v.AddArg(data)
 }
@@ -249,9 +249,9 @@ func decomposeUser(f *Func) {
 		t := name.Type
 		switch {
 		case isStructNotSIMD(t):
-			newNames = decomposeUserStructInto(f, f.localSlotAddr(name), newNames)
+			newNames = decomposeUserStructInto(f, f.LocalSlotAddr(name), newNames)
 		case t.IsArray():
-			newNames = decomposeUserArrayInto(f, f.localSlotAddr(name), newNames)
+			newNames = decomposeUserArrayInto(f, f.LocalSlotAddr(name), newNames)
 		default:
 			f.Names[i] = name
 			i++
@@ -363,7 +363,7 @@ func decomposeUserPhi(v *Value) {
 func decomposeStructPhi(v *Value) {
 	t := v.Type
 	if t.Size() == 0 {
-		v.reset(OpEmpty)
+		v.Reset(OpEmpty)
 		return
 	}
 	n := t.NumFields()
@@ -376,7 +376,7 @@ func decomposeStructPhi(v *Value) {
 			fields[i].AddArg(a.Block.NewValue1I(v.Pos, OpStructSelect, t.FieldType(i), int64(i), a))
 		}
 	}
-	v.reset(OpStructMake)
+	v.Reset(OpStructMake)
 	v.AddArgs(fields...)
 
 	// Recursively decompose phis for each field.
@@ -390,7 +390,7 @@ func decomposeStructPhi(v *Value) {
 func decomposeArrayPhi(v *Value) {
 	t := v.Type
 	if t.Size() == 0 {
-		v.reset(OpEmpty)
+		v.Reset(OpEmpty)
 		return
 	}
 	if t.NumElem() != 1 {
@@ -400,7 +400,7 @@ func decomposeArrayPhi(v *Value) {
 	for _, a := range v.Args {
 		elem.AddArg(a.Block.NewValue1I(v.Pos, OpArraySelect, t.Elem(), 0, a))
 	}
-	v.reset(OpArrayMake1)
+	v.Reset(OpArrayMake1)
 	v.AddArg(elem)
 
 	// Recursively decompose elem phi.

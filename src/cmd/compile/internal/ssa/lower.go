@@ -7,14 +7,14 @@ package ssa
 // convert to machine-dependent ops.
 func lower(f *Func) {
 	// repeat rewrites until we find no more rewrites
-	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue, removeDeadValues)
+	applyRewrite(f, f.Config.LowerBlock, f.Config.LowerValue, RemoveDeadValues)
 }
 
 // lateLower applies those rules that need to be run after the general lower rules.
 func lateLower(f *Func) {
 	// repeat rewrites until we find no more rewrites
-	if f.Config.lateLowerValue != nil {
-		applyRewrite(f, f.Config.lateLowerBlock, f.Config.lateLowerValue, removeDeadValues)
+	if f.Config.LateLowerValue != nil {
+		applyRewrite(f, f.Config.LateLowerBlock, f.Config.LateLowerValue, RemoveDeadValues)
 	}
 }
 
@@ -25,7 +25,7 @@ func checkLower(f *Func) {
 	// rules may leave dead generic ops behind).
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if !opcodeTable[v.Op].generic {
+			if !OpcodeTable[v.Op].Generic {
 				continue // lowered
 			}
 			switch v.Op {
@@ -36,7 +36,7 @@ func checkLower(f *Func) {
 					continue
 				}
 			case OpGetG:
-				if f.Config.hasGReg {
+				if f.Config.HasGReg {
 					// has hardware g register, regalloc takes care of it
 					continue // ok not to lower
 				}

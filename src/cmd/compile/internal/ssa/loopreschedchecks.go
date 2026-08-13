@@ -72,14 +72,14 @@ func insertLoopReschedChecks(f *Func) {
 	}
 
 	lastMems := findLastMems(f)
-	defer f.Cache.freeValueSlice(lastMems)
+	defer f.Cache.FreeValueSlice(lastMems)
 
 	idom := f.Idom()
-	po := f.postorder()
+	po := f.Postorder()
 	sdom := f.Sdom()
 
-	if f.pass.debug > 1 {
-		fmt.Printf("before %s = %s\n", f.Name, sdom.treestructure(f.Entry))
+	if f.Pass.Debug > 1 {
+		fmt.Printf("before %s = %s\n", f.Name, sdom.Treestructure(f.Entry))
 	}
 
 	tofixBackedges := []edgeMem{}
@@ -93,8 +93,8 @@ func insertLoopReschedChecks(f *Func) {
 		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, types.TypeMem)
 	}
 
-	memDefsAtBlockEnds := f.Cache.allocValueSlice(f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
-	defer f.Cache.freeValueSlice(memDefsAtBlockEnds)
+	memDefsAtBlockEnds := f.Cache.AllocValueSlice(f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
+	defer f.Cache.FreeValueSlice(memDefsAtBlockEnds)
 
 	// Propagate last mem definitions forward through successor blocks.
 	for i := len(po) - 1; i >= 0; i-- {
@@ -102,10 +102,10 @@ func insertLoopReschedChecks(f *Func) {
 		mem := lastMems[b.ID]
 		for j := 0; mem == nil; j++ { // if there's no def, then there's no phi, so the visible mem is identical in all predecessors.
 			// loop because there might be backedges that haven't been visited yet.
-			mem = memDefsAtBlockEnds[b.Preds[j].b.ID]
+			mem = memDefsAtBlockEnds[b.Preds[j].B.ID]
 		}
 		memDefsAtBlockEnds[b.ID] = mem
-		if f.pass.debug > 2 {
+		if f.Pass.Debug > 2 {
 			fmt.Printf("memDefsAtBlockEnds[%s] = %s\n", b, mem)
 		}
 	}
@@ -116,7 +116,7 @@ func insertLoopReschedChecks(f *Func) {
 	// Insert phi functions as necessary for future changes to flow graph.
 	for i, emc := range tofixBackedges {
 		e := emc.e
-		h := e.b
+		h := e.B
 
 		// find the phi function for the memory input at "h", if there is one.
 		var headerMemPhi *Value // look for header mem phi
@@ -138,7 +138,7 @@ func insertLoopReschedChecks(f *Func) {
 		tofixBackedges[i].m = headerMemPhi
 
 	}
-	if f.pass.debug > 0 {
+	if f.Pass.Debug > 0 {
 		for b, r := range newmemphis {
 			fmt.Printf("before b=%s, rewrite=%s\n", b, r.String())
 		}
@@ -150,7 +150,7 @@ func insertLoopReschedChecks(f *Func) {
 
 	rewriteNewPhis(f.Entry, f.Entry, f, memDefsAtBlockEnds, newmemphis, dfPhiTargets, sdom)
 
-	if f.pass.debug > 0 {
+	if f.Pass.Debug > 0 {
 		for b, r := range newmemphis {
 			fmt.Printf("after b=%s, rewrite=%s\n", b, r.String())
 		}
@@ -167,16 +167,16 @@ func insertLoopReschedChecks(f *Func) {
 	for _, emc := range tofixBackedges {
 		e := emc.e
 		headerMemPhi := emc.m
-		h := e.b
-		i := e.i
+		h := e.B
+		i := e.I
 		p := h.Preds[i]
-		bb := p.b
+		bb := p.B
 		mem0 := headerMemPhi.Args[i]
 		// bb e->p h,
 		// Because we're going to insert a rare-call, make sure the
 		// looping edge still looks likely.
 		likely := BranchLikely
-		if p.i != 0 {
+		if p.I != 0 {
 			likely = BranchUnlikely
 		}
 		if bb.Kind != block.BlockPlain { // backedges can be unconditional. e.g., if x { something; continue }
@@ -245,14 +245,14 @@ func insertLoopReschedChecks(f *Func) {
 		// sched:
 		//    mem1 := call resched (mem0)
 		//    goto header
-		resched := f.fe.Syslook("goschedguarded")
+		resched := f.Fe.Syslook("goschedguarded")
 		call := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(resched, bb.Func.ABIDefault.ABIAnalyzeTypes(nil, nil)), mem0)
 		mem1 := sched.NewValue1I(bb.Pos, OpSelectN, types.TypeMem, 0, call)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
 
-		bb.Succs[p.i] = Edge{test, 0}
-		test.Preds = append(test.Preds, Edge{bb, p.i})
+		bb.Succs[p.I] = Edge{test, 0}
+		test.Preds = append(test.Preds, Edge{bb, p.I})
 
 		// Must correct all the other phi functions in the header for new incoming edge.
 		// Except for mem phis, it will be the same value seen on the original
@@ -264,11 +264,11 @@ func insertLoopReschedChecks(f *Func) {
 		}
 	}
 
-	f.invalidateCFG()
+	f.InvalidateCFG()
 
-	if f.pass.debug > 1 {
-		sdom = newSparseTree(f, f.Idom())
-		fmt.Printf("after %s = %s\n", f.Name, sdom.treestructure(f.Entry))
+	if f.Pass.Debug > 1 {
+		sdom = NewSparseTree(f, f.Idom())
+		fmt.Printf("after %s = %s\n", f.Name, sdom.Treestructure(f.Entry))
 	}
 }
 
@@ -320,7 +320,7 @@ func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Blo
 					continue
 				}
 				*p = append(*p, tgt)
-				if f.pass.debug > 1 {
+				if f.Pass.Debug > 1 {
 					fmt.Printf("added block target for h=%v, b=%v, x=%v, y=%v, tgt.v=%s, tgt.i=%d\n",
 						h, b, x, y, v, i)
 				}
@@ -334,16 +334,16 @@ func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Blo
 		// phi use-def graph, but it's true for memory.)
 		if dfu := defsForUses[b.ID]; dfu != nil && dfu.Block != b {
 			for _, e := range b.Succs {
-				s := e.b
+				s := e.B
 
 				for _, v := range s.Values {
-					if v.Op == OpPhi && v.Args[e.i] == x {
-						tgt := rewriteTarget{v, e.i}
+					if v.Op == OpPhi && v.Args[e.I] == x {
+						tgt := rewriteTarget{v, e.I}
 						*p = append(*p, tgt)
 						dfPhiTargets[tgt] = true
-						if f.pass.debug > 1 {
+						if f.Pass.Debug > 1 {
 							fmt.Printf("added phi target for h=%v, b=%v, s=%v, x=%v, y=%v, tgt.v=%s, tgt.i=%d\n",
-								h, b, s, x, y, v.LongString(), e.i)
+								h, b, s, x, y, v.LongString(), e.I)
 						}
 						break
 					}
@@ -353,7 +353,7 @@ func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Blo
 		newphis[h] = change
 	}
 
-	for c := sdom[b.ID].child; c != nil; c = sdom[c.ID].sibling {
+	for c := sdom[b.ID].Child; c != nil; c = sdom[c.ID].Sibling {
 		rewriteNewPhis(h, c, f, defsForUses, newphis, dfPhiTargets, sdom) // TODO: convert to explicit stack from recursion.
 	}
 }
@@ -373,9 +373,9 @@ func addDFphis(x *Value, h, b *Block, f *Func, defForUses []*Value, newphis map[
 	idom := f.Idom()
 outer:
 	for _, e := range b.Succs {
-		s := e.b
+		s := e.B
 		// check phi functions in the dominance frontier
-		if sdom.isAncestor(h, s) {
+		if sdom.IsAncestor(h, s) {
 			continue // h dominates s, successor of b, therefore s is not in the frontier.
 		}
 		if _, ok := newphis[s]; ok {
@@ -383,7 +383,7 @@ outer:
 		}
 		if x != nil {
 			for _, v := range s.Values {
-				if v.Op == OpPhi && v.Args[e.i] == x {
+				if v.Op == OpPhi && v.Args[e.I] == x {
 					continue outer // successor s of b has an old phi function, so there is no need to add another.
 				}
 			}
@@ -395,7 +395,7 @@ outer:
 		newphis[s] = rewrite{before: old, after: headerPhi} // record new phi, to have inputs labeled "old" rewritten to "headerPhi"
 		addDFphis(old, s, s, f, defForUses, newphis, sdom)  // the new definition may also create new phi functions.
 	}
-	for c := sdom[b.ID].child; c != nil; c = sdom[c.ID].sibling {
+	for c := sdom[b.ID].Child; c != nil; c = sdom[c.ID].Sibling {
 		addDFphis(x, h, c, f, defForUses, newphis, sdom) // TODO: convert to explicit stack from recursion.
 	}
 }
@@ -404,13 +404,13 @@ outer:
 func findLastMems(f *Func) []*Value {
 
 	var stores []*Value
-	lastMems := f.Cache.allocValueSlice(f.NumBlocks())
-	storeUse := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(storeUse)
+	lastMems := f.Cache.AllocValueSlice(f.NumBlocks())
+	storeUse := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(storeUse)
 	for _, b := range f.Blocks {
 		// Find all the stores in this block. Categorize their uses:
 		//  storeUse contains stores which are used by a subsequent store.
-		storeUse.clear()
+		storeUse.Clear()
 		stores = stores[:0]
 		var memPhi *Value
 		for _, v := range b.Values {
@@ -424,7 +424,7 @@ func findLastMems(f *Func) []*Value {
 				stores = append(stores, v)
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
-						storeUse.add(a.ID)
+						storeUse.Add(a.ID)
 					}
 				}
 			}
@@ -437,7 +437,7 @@ func findLastMems(f *Func) []*Value {
 		// find last store in the block
 		var last *Value
 		for _, v := range stores {
-			if storeUse.contains(v.ID) {
+			if storeUse.Contains(v.ID) {
 				continue
 			}
 			if last != nil {
@@ -494,7 +494,7 @@ func backedges(f *Func) []Edge {
 		if x.i < len(x.b.Succs) {
 			e := x.b.Succs[x.i]
 			stack[l-1].i++
-			s := e.b
+			s := e.B
 			if mark[s.ID] == notFound {
 				mark[s.ID] = notExplored
 				stack = append(stack, backedgesState{s, 0})

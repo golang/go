@@ -13,54 +13,54 @@ import (
 	"cmd/internal/src"
 )
 
-func printFunc(f *Func) {
+func PrintFunc(f *Func) {
 	f.Logf("%s", f)
 }
 
-func hashFunc(f *Func) []byte {
+func HashFunc(f *Func) []byte {
 	h := hash.New32()
-	p := stringFuncPrinter{w: h, printDead: true}
-	fprintFunc(p, f)
+	p := StringFuncPrinter{w: h, printDead: true}
+	FprintFunc(p, f)
 	return h.Sum(nil)
 }
 
 func (f *Func) String() string {
 	var buf strings.Builder
-	p := stringFuncPrinter{w: &buf, printDead: true}
-	fprintFunc(p, f)
+	p := StringFuncPrinter{w: &buf, printDead: true}
+	FprintFunc(p, f)
 	return buf.String()
 }
 
-// rewriteHash returns a hash of f suitable for detecting rewrite cycles.
-func (f *Func) rewriteHash() string {
+// RewriteHash returns a hash of f suitable for detecting rewrite cycles.
+func (f *Func) RewriteHash() string {
 	h := hash.New32()
-	p := stringFuncPrinter{w: h, printDead: false}
-	fprintFunc(p, f)
+	p := StringFuncPrinter{w: h, printDead: false}
+	FprintFunc(p, f)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 type funcPrinter interface {
-	header(f *Func)
-	startBlock(b *Block, reachable bool)
-	endBlock(b *Block, reachable bool)
-	value(v *Value, live bool)
-	startDepCycle()
-	endDepCycle()
-	named(n LocalSlot, vals []*Value)
+	Header(f *Func)
+	StartBlock(b *Block, reachable bool)
+	EndBlock(b *Block, reachable bool)
+	Value(v *Value, live bool)
+	StartDepCycle()
+	EndDepCycle()
+	Named(n LocalSlot, vals []*Value)
 }
 
-type stringFuncPrinter struct {
+type StringFuncPrinter struct {
 	w         io.Writer
 	printDead bool
 }
 
-func (p stringFuncPrinter) header(f *Func) {
+func (p StringFuncPrinter) Header(f *Func) {
 	fmt.Fprint(p.w, f.Name)
 	fmt.Fprint(p.w, " ")
 	fmt.Fprintln(p.w, f.Type)
 }
 
-func (p stringFuncPrinter) startBlock(b *Block, reachable bool) {
+func (p StringFuncPrinter) StartBlock(b *Block, reachable bool) {
 	if !p.printDead && !reachable {
 		return
 	}
@@ -68,7 +68,7 @@ func (p stringFuncPrinter) startBlock(b *Block, reachable bool) {
 	if len(b.Preds) > 0 {
 		io.WriteString(p.w, " <-")
 		for _, e := range b.Preds {
-			pred := e.b
+			pred := e.B
 			fmt.Fprintf(p.w, " b%d", pred.ID)
 		}
 	}
@@ -78,7 +78,7 @@ func (p stringFuncPrinter) startBlock(b *Block, reachable bool) {
 	io.WriteString(p.w, "\n")
 }
 
-func (p stringFuncPrinter) endBlock(b *Block, reachable bool) {
+func (p StringFuncPrinter) EndBlock(b *Block, reachable bool) {
 	if !p.printDead && !reachable {
 		return
 	}
@@ -100,7 +100,7 @@ func StmtString(p src.XPos) string {
 	return linenumber
 }
 
-func (p stringFuncPrinter) value(v *Value, live bool) {
+func (p StringFuncPrinter) Value(v *Value, live bool) {
 	if !p.printDead && !live {
 		return
 	}
@@ -112,31 +112,31 @@ func (p stringFuncPrinter) value(v *Value, live bool) {
 	fmt.Fprintln(p.w)
 }
 
-func (p stringFuncPrinter) startDepCycle() {
+func (p StringFuncPrinter) StartDepCycle() {
 	fmt.Fprintln(p.w, "dependency cycle!")
 }
 
-func (p stringFuncPrinter) endDepCycle() {}
+func (p StringFuncPrinter) EndDepCycle() {}
 
-func (p stringFuncPrinter) named(n LocalSlot, vals []*Value) {
+func (p StringFuncPrinter) Named(n LocalSlot, vals []*Value) {
 	fmt.Fprintf(p.w, "name %s: %v\n", n, vals)
 }
 
-func fprintFunc(p funcPrinter, f *Func) {
+func FprintFunc(p funcPrinter, f *Func) {
 	reachable, live := findlive(f)
-	defer f.Cache.freeBoolSlice(live)
-	p.header(f)
+	defer f.Cache.FreeBoolSlice(live)
+	p.Header(f)
 	printed := make([]bool, f.NumValues())
 	for _, b := range f.Blocks {
-		p.startBlock(b, reachable[b.ID])
+		p.StartBlock(b, reachable[b.ID])
 
-		if f.scheduled {
+		if f.Scheduled {
 			// Order of Values has been decided - print in that order.
 			for _, v := range b.Values {
-				p.value(v, live[v.ID])
+				p.Value(v, live[v.ID])
 				printed[v.ID] = true
 			}
-			p.endBlock(b, reachable[b.ID])
+			p.EndBlock(b, reachable[b.ID])
 			continue
 		}
 
@@ -146,7 +146,7 @@ func fprintFunc(p funcPrinter, f *Func) {
 			if v.Op != OpPhi {
 				continue
 			}
-			p.value(v, live[v.ID])
+			p.Value(v, live[v.ID])
 			printed[v.ID] = true
 			n++
 		}
@@ -166,27 +166,27 @@ func fprintFunc(p funcPrinter, f *Func) {
 						continue outer
 					}
 				}
-				p.value(v, live[v.ID])
+				p.Value(v, live[v.ID])
 				printed[v.ID] = true
 				n++
 			}
 			if m == n {
-				p.startDepCycle()
+				p.StartDepCycle()
 				for _, v := range b.Values {
 					if printed[v.ID] {
 						continue
 					}
-					p.value(v, live[v.ID])
+					p.Value(v, live[v.ID])
 					printed[v.ID] = true
 					n++
 				}
-				p.endDepCycle()
+				p.EndDepCycle()
 			}
 		}
 
-		p.endBlock(b, reachable[b.ID])
+		p.EndBlock(b, reachable[b.ID])
 	}
 	for _, name := range f.Names {
-		p.named(name, f.NamedValues[name])
+		p.Named(name, f.NamedValues[name])
 	}
 }

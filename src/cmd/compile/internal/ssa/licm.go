@@ -37,31 +37,31 @@ import "cmd/compile/internal/ssa/block"
 
 func licm(f *Func) {
 	// See likelyadjust.go for details about loop info.
-	nest := loopnestfor(f)
-	if len(nest.loops) == 0 || nest.hasIrreducible {
+	nest := Loopnestfor(f)
+	if len(nest.Loops) == 0 || nest.HasIrreducible {
 		return
 	}
 
 	uses := uses(f)
 	defer uses.free(f)
 
-	loopDependent := f.Cache.allocBoolSlice(f.NumValues())
-	defer f.Cache.freeBoolSlice(loopDependent)
-	queue := f.Cache.allocValueSlice(f.NumValues())
-	defer f.Cache.freeValueSlice(queue)
+	loopDependent := f.Cache.AllocBoolSlice(f.NumValues())
+	defer f.Cache.FreeBoolSlice(loopDependent)
+	queue := f.Cache.AllocValueSlice(f.NumValues())
+	defer f.Cache.FreeValueSlice(queue)
 	queue = queue[:0]
 
 	// Start with all values we can't move out of loops.
 	for _, b := range f.Blocks {
-		if loop := nest.b2l[b.ID]; loop == nil || !loop.isInner {
+		if loop := nest.B2L[b.ID]; loop == nil || !loop.IsInner {
 			// Values outside any loop we don't care about.
 			// Values not in a leaf loop we can't handle.
 			continue
 		}
 		for _, v := range b.Values {
-			if opcodeTable[v.Op].earlyOk {
+			if OpcodeTable[v.Op].EarlyOk {
 				// Double check we didn't mark the wrong ops as earlyOk
-				if v.Type.IsMemory() || opcodeTable[v.Op].nilCheck || opcodeTable[v.Op].hasSideEffects || v.MemoryArg() != nil {
+				if v.Type.IsMemory() || OpcodeTable[v.Op].NilCheck || OpcodeTable[v.Op].HasSideEffects || v.MemoryArg() != nil {
 					v.Fatalf("op %s has bad earlyOk mark", v.Op)
 				}
 				if !v.Type.IsPtr() {
@@ -88,7 +88,7 @@ func licm(f *Func) {
 		queue = queue[:len(queue)-1]
 
 		for _, u := range uses.get(v) {
-			if loop := nest.b2l[u.Block.ID]; loop == nil || !loop.isInner {
+			if loop := nest.B2L[u.Block.ID]; loop == nil || !loop.IsInner {
 				continue // see above
 			}
 			if loopDependent[u.ID] {
@@ -101,14 +101,14 @@ func licm(f *Func) {
 
 	// Anything not marked as loop-dependent can be moved out of its loop.
 	for _, b := range f.Blocks {
-		loop := nest.b2l[b.ID]
-		if loop == nil || !loop.isInner {
+		loop := nest.B2L[b.ID]
+		if loop == nil || !loop.IsInner {
 			// loopDependent check is wrong for loops containing other loops,
 			// because then a value might have an argument computed inside
 			// a nested loop.
 			continue
 		}
-		if len(loop.header.Preds) != 2 {
+		if len(loop.Header.Preds) != 2 {
 			continue // is never true?
 		}
 		anyMoved := false
@@ -117,16 +117,16 @@ func licm(f *Func) {
 				continue
 			}
 			// Figure out where to move loop-independent values.
-			h := loop.header
+			h := loop.Header
 			var inIdx int
-			if int(h.Preds[0].b.ID) >= len(nest.b2l) || nest.b2l[h.Preds[0].b.ID] != loop {
+			if int(h.Preds[0].B.ID) >= len(nest.B2L) || nest.B2L[h.Preds[0].B.ID] != loop {
 				inIdx = 0
 			} else {
 				inIdx = 1
 			}
-			dest := h.Preds[inIdx].b
+			dest := h.Preds[inIdx].B
 			if dest.Kind != block.BlockPlain {
-				outIdx := h.Preds[inIdx].i
+				outIdx := h.Preds[inIdx].I
 				// Introduce a new block between the loop
 				// header predecessor and the loop header itself.
 				mid := f.NewBlock(block.BlockPlain)

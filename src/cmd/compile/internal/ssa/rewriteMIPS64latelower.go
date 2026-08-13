@@ -13,10 +13,10 @@ func rewriteValueMIPS64latelower_OpMIPS64MOVVconst(v *Value) bool {
 	// match: (MOVVconst [0])
 	// result: (ZERO)
 	for {
-		if auxIntToInt64(v.AuxInt) != 0 {
+		if AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpMIPS64ZERO)
+		v.Reset(OpMIPS64ZERO)
 		return true
 	}
 	return false

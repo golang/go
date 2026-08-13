@@ -49,7 +49,7 @@ func tightenTupleSelectors(f *Func) {
 			}{tuple.ID, idx}
 			if t := selectors[key]; t != nil {
 				if selector != t {
-					selector.copyOf(t)
+					selector.CopyOf(t)
 				}
 				continue
 			}
@@ -57,8 +57,8 @@ func tightenTupleSelectors(f *Func) {
 			// If the selector is in the wrong block copy it into the target
 			// block.
 			if selector.Block != tuple.Block {
-				t := selector.copyInto(tuple.Block)
-				selector.copyOf(t)
+				t := selector.CopyInto(tuple.Block)
+				selector.CopyOf(t)
 				selectors[key] = t
 				continue
 			}

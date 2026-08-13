@@ -18,52 +18,52 @@ import (
 // It is created once, early during compilation,
 // and shared across all compilations.
 type Config struct {
-	arch           string // "amd64", etc.
+	Arch           string // "amd64", etc.
 	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
 	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
 	Types          Types
-	lowerBlock     blockRewriter      // block lowering function, first round
-	lowerValue     valueRewriter      // value lowering function, first round
-	lateLowerBlock blockRewriter      // block lowering function that needs to be run after the first round; only used on some architectures
-	lateLowerValue valueRewriter      // value lowering function that needs to be run after the first round; only used on some architectures
-	splitLoad      valueRewriter      // function for splitting merged load ops; only used on some architectures
-	registers      []ssabase.Register // machine registers
-	gpRegMask      regMask            // general purpose integer register mask
-	fpRegMask      regMask            // floating point register mask
-	fp32RegMask    regMask            // floating point register mask
-	fp64RegMask    regMask            // floating point register mask
-	simdRegMask    regMask            // simd register mask; may be same as fpRegMask
-	specialRegMask regMask            // special register mask
-	intParamRegs   []int8             // register numbers of integer param (in/out) registers
-	floatParamRegs []int8             // register numbers of floating param (in/out) registers
+	LowerBlock     BlockRewriter      // block lowering function, first round
+	LowerValue     ValueRewriter      // value lowering function, first round
+	LateLowerBlock BlockRewriter      // block lowering function that needs to be run after the first round; only used on some architectures
+	LateLowerValue ValueRewriter      // value lowering function that needs to be run after the first round; only used on some architectures
+	SplitLoad      ValueRewriter      // function for splitting merged load ops; only used on some architectures
+	Registers      []ssabase.Register // machine registers
+	GpRegMask      RegMask            // general purpose integer register mask
+	FpRegMask      RegMask            // floating point register mask
+	Fp32RegMask    RegMask            // floating point register mask
+	Fp64RegMask    RegMask            // floating point register mask
+	SimdRegMask    RegMask            // simd register mask; may be same as fpRegMask
+	SpecialRegMask RegMask            // special register mask
+	IntParamRegs   []int8             // register numbers of integer param (in/out) registers
+	FloatParamRegs []int8             // register numbers of floating param (in/out) registers
 	ABI1           *abi.ABIConfig     // "ABIInternal" under development // TODO change comment when this becomes current
 	ABI0           *abi.ABIConfig
 	FPReg          int8      // register number of frame pointer, -1 if not used
 	LinkReg        int8      // register number of link register if it is a general purpose register, -1 if not used
-	hasGReg        bool      // has hardware g register
-	ctxt           *obj.Link // Generic arch information
-	optimize       bool      // Do optimization
+	HasGReg        bool      // has hardware g register
+	Ctxt           *obj.Link // Generic arch information
+	Optimize       bool      // Do optimization
 	SoftFloat      bool      //
 	Race           bool      // race detector enabled
 	BigEndian      bool      //
-	unalignedOK    bool      // Unaligned loads/stores are ok
-	haveBswap64    bool      // architecture implements Bswap64
-	haveBswap32    bool      // architecture implements Bswap32
-	haveBswap16    bool      // architecture implements Bswap16
-	haveCondSelect bool      // architecture implements CondSelect
+	UnalignedOK    bool      // Unaligned loads/stores are ok
+	HaveBswap64    bool      // architecture implements Bswap64
+	HaveBswap32    bool      // architecture implements Bswap32
+	HaveBswap16    bool      // architecture implements Bswap16
+	HaveCondSelect bool      // architecture implements CondSelect
 
-	// mulRecipes[x] = function to build v * x from v.
-	mulRecipes map[int64]mulRecipe
+	// MulRecipes[x] = function to build v * x from v.
+	MulRecipes map[int64]mulRecipe
 }
 
 type mulRecipe struct {
 	cost  int
-	build func(*Value, *Value) *Value // build(m, v) returns v * x built at m.
+	Build func(*Value, *Value) *Value // build(m, v) returns v * x built at m.
 }
 
 type (
-	blockRewriter func(*Block) bool
-	valueRewriter func(*Value) bool
+	BlockRewriter func(*Block) bool
+	ValueRewriter func(*Value) bool
 )
 
 type Types struct {
@@ -175,249 +175,247 @@ type Frontend interface {
 
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
-	c := &Config{arch: arch, Types: types}
+	c := &Config{Arch: arch, Types: types}
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.lowerBlock = rewriteBlockAMD64
-		c.lowerValue = rewriteValueAMD64
-		c.lateLowerBlock = rewriteBlockAMD64latelower
-		c.lateLowerValue = rewriteValueAMD64latelower
-		c.splitLoad = rewriteValueAMD64splitload
-		c.registers = registersAMD64[:]
-		c.gpRegMask = gpRegMaskAMD64
-		c.fpRegMask = fpRegMaskAMD64
-		c.simdRegMask = simdRegMaskAMD64
-		c.specialRegMask = specialRegMaskAMD64
-		c.intParamRegs = paramIntRegAMD64
-		c.floatParamRegs = paramFloatRegAMD64
+		c.LowerBlock = rewriteBlockAMD64
+		c.LowerValue = rewriteValueAMD64
+		c.LateLowerBlock = rewriteBlockAMD64latelower
+		c.LateLowerValue = rewriteValueAMD64latelower
+		c.SplitLoad = rewriteValueAMD64splitload
+		c.Registers = registersAMD64[:]
+		c.GpRegMask = gpRegMaskAMD64
+		c.FpRegMask = fpRegMaskAMD64
+		c.SimdRegMask = simdRegMaskAMD64
+		c.SpecialRegMask = specialRegMaskAMD64
+		c.IntParamRegs = paramIntRegAMD64
+		c.FloatParamRegs = paramFloatRegAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
-		c.hasGReg = true
-		c.unalignedOK = true
-		c.haveBswap64 = true
-		c.haveBswap32 = true
-		c.haveBswap16 = true
-		c.haveCondSelect = true
+		c.HasGReg = true
+		c.UnalignedOK = true
+		c.HaveBswap64 = true
+		c.HaveBswap32 = true
+		c.HaveBswap16 = true
+		c.HaveCondSelect = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
-		c.lowerBlock = rewriteBlock386
-		c.lowerValue = rewriteValue386
-		c.splitLoad = rewriteValue386splitload
-		c.registers = registers386[:]
-		c.gpRegMask = gpRegMask386
-		c.fpRegMask = fpRegMask386
+		c.LowerBlock = rewriteBlock386
+		c.LowerValue = rewriteValue386
+		c.SplitLoad = rewriteValue386splitload
+		c.Registers = registers386[:]
+		c.GpRegMask = gpRegMask386
+		c.FpRegMask = fpRegMask386
 		c.FPReg = framepointerReg386
 		c.LinkReg = linkReg386
-		c.hasGReg = false
-		c.unalignedOK = true
-		c.haveBswap32 = true
-		c.haveBswap16 = true
+		c.HasGReg = false
+		c.UnalignedOK = true
+		c.HaveBswap32 = true
+		c.HaveBswap16 = true
 	case "arm":
 		c.PtrSize = 4
 		c.RegSize = 4
-		c.lowerBlock = rewriteBlockARM
-		c.lowerValue = rewriteValueARM
-		c.registers = registersARM[:]
-		c.gpRegMask = gpRegMaskARM
-		c.fpRegMask = fpRegMaskARM
+		c.LowerBlock = rewriteBlockARM
+		c.LowerValue = rewriteValueARM
+		c.Registers = registersARM[:]
+		c.GpRegMask = gpRegMaskARM
+		c.FpRegMask = fpRegMaskARM
 		c.FPReg = framepointerRegARM
 		c.LinkReg = linkRegARM
-		c.hasGReg = true
+		c.HasGReg = true
 	case "arm64":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.lowerBlock = rewriteBlockARM64
-		c.lowerValue = rewriteValueARM64
-		c.lateLowerBlock = rewriteBlockARM64latelower
-		c.lateLowerValue = rewriteValueARM64latelower
-		c.registers = registersARM64[:]
-		c.gpRegMask = gpRegMaskARM64
-		c.fpRegMask = fpRegMaskARM64
-		c.simdRegMask = simdRegMaskARM64
-		c.specialRegMask = specialRegMaskARM64
-		c.intParamRegs = paramIntRegARM64
-		c.floatParamRegs = paramFloatRegARM64
+		c.LowerBlock = rewriteBlockARM64
+		c.LowerValue = rewriteValueARM64
+		c.LateLowerBlock = rewriteBlockARM64latelower
+		c.LateLowerValue = rewriteValueARM64latelower
+		c.Registers = registersARM64[:]
+		c.GpRegMask = gpRegMaskARM64
+		c.FpRegMask = fpRegMaskARM64
+		c.SimdRegMask = simdRegMaskARM64
+		c.SpecialRegMask = specialRegMaskARM64
+		c.IntParamRegs = paramIntRegARM64
+		c.FloatParamRegs = paramFloatRegARM64
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
-		c.hasGReg = true
-		c.unalignedOK = true
-		c.haveBswap64 = true
-		c.haveBswap32 = true
-		c.haveBswap16 = true
-		c.haveCondSelect = true
+		c.HasGReg = true
+		c.UnalignedOK = true
+		c.HaveBswap64 = true
+		c.HaveBswap32 = true
+		c.HaveBswap16 = true
+		c.HaveCondSelect = true
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
 	case "ppc64le":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.lowerBlock = rewriteBlockPPC64
-		c.lowerValue = rewriteValuePPC64
-		c.lateLowerBlock = rewriteBlockPPC64latelower
-		c.lateLowerValue = rewriteValuePPC64latelower
-		c.registers = registersPPC64[:]
-		c.gpRegMask = gpRegMaskPPC64
-		c.fpRegMask = fpRegMaskPPC64
-		c.specialRegMask = specialRegMaskPPC64
-		c.intParamRegs = paramIntRegPPC64
-		c.floatParamRegs = paramFloatRegPPC64
+		c.LowerBlock = rewriteBlockPPC64
+		c.LowerValue = rewriteValuePPC64
+		c.LateLowerBlock = rewriteBlockPPC64latelower
+		c.LateLowerValue = rewriteValuePPC64latelower
+		c.Registers = registersPPC64[:]
+		c.GpRegMask = gpRegMaskPPC64
+		c.FpRegMask = fpRegMaskPPC64
+		c.SpecialRegMask = specialRegMaskPPC64
+		c.IntParamRegs = paramIntRegPPC64
+		c.FloatParamRegs = paramFloatRegPPC64
 		c.FPReg = framepointerRegPPC64
 		c.LinkReg = linkRegPPC64
-		c.hasGReg = true
-		c.unalignedOK = true
+		c.HasGReg = true
+		c.UnalignedOK = true
 		// Note: ppc64 has register bswap ops only when GOPPC64>=10.
 		// But it has bswap+load and bswap+store ops for all ppc64 variants.
 		// That is the sense we're using them here - they are only used
 		// in contexts where they can be merged with a load or store.
-		c.haveBswap64 = true
-		c.haveBswap32 = true
-		c.haveBswap16 = true
-		c.haveCondSelect = true
+		c.HaveBswap64 = true
+		c.HaveBswap32 = true
+		c.HaveBswap16 = true
+		c.HaveCondSelect = true
 	case "mips64":
 		c.BigEndian = true
 		fallthrough
 	case "mips64le":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.lowerBlock = rewriteBlockMIPS64
-		c.lowerValue = rewriteValueMIPS64
-		c.lateLowerBlock = rewriteBlockMIPS64latelower
-		c.lateLowerValue = rewriteValueMIPS64latelower
-		c.registers = registersMIPS64[:]
-		c.gpRegMask = gpRegMaskMIPS64
-		c.fpRegMask = fpRegMaskMIPS64
-		c.specialRegMask = specialRegMaskMIPS64
+		c.LowerBlock = rewriteBlockMIPS64
+		c.LowerValue = rewriteValueMIPS64
+		c.LateLowerBlock = rewriteBlockMIPS64latelower
+		c.LateLowerValue = rewriteValueMIPS64latelower
+		c.Registers = registersMIPS64[:]
+		c.GpRegMask = gpRegMaskMIPS64
+		c.FpRegMask = fpRegMaskMIPS64
+		c.SpecialRegMask = specialRegMaskMIPS64
 		c.FPReg = framepointerRegMIPS64
 		c.LinkReg = linkRegMIPS64
-		c.hasGReg = true
+		c.HasGReg = true
 	case "loong64":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.lowerBlock = rewriteBlockLOONG64
-		c.lowerValue = rewriteValueLOONG64
-		c.lateLowerBlock = rewriteBlockLOONG64latelower
-		c.lateLowerValue = rewriteValueLOONG64latelower
-		c.registers = registersLOONG64[:]
-		c.gpRegMask = gpRegMaskLOONG64
-		c.fpRegMask = fpRegMaskLOONG64
-		c.intParamRegs = paramIntRegLOONG64
-		c.floatParamRegs = paramFloatRegLOONG64
+		c.LowerBlock = rewriteBlockLOONG64
+		c.LowerValue = rewriteValueLOONG64
+		c.LateLowerBlock = rewriteBlockLOONG64latelower
+		c.LateLowerValue = rewriteValueLOONG64latelower
+		c.Registers = registersLOONG64[:]
+		c.GpRegMask = gpRegMaskLOONG64
+		c.FpRegMask = fpRegMaskLOONG64
+		c.IntParamRegs = paramIntRegLOONG64
+		c.FloatParamRegs = paramFloatRegLOONG64
 		c.FPReg = framepointerRegLOONG64
 		c.LinkReg = linkRegLOONG64
-		c.hasGReg = true
-		c.unalignedOK = true
-		c.haveBswap64 = true
-		c.haveBswap32 = true
-		c.haveBswap16 = true
-		c.haveCondSelect = true
+		c.HasGReg = true
+		c.UnalignedOK = true
+		c.HaveBswap64 = true
+		c.HaveBswap32 = true
+		c.HaveBswap16 = true
+		c.HaveCondSelect = true
 	case "s390x":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.lowerBlock = rewriteBlockS390X
-		c.lowerValue = rewriteValueS390X
-		c.registers = registersS390X[:]
-		c.gpRegMask = gpRegMaskS390X
-		c.fpRegMask = fpRegMaskS390X
-		c.intParamRegs = paramIntRegS390X
-		c.floatParamRegs = paramFloatRegS390X
+		c.LowerBlock = rewriteBlockS390X
+		c.LowerValue = rewriteValueS390X
+		c.Registers = registersS390X[:]
+		c.GpRegMask = gpRegMaskS390X
+		c.FpRegMask = fpRegMaskS390X
+		c.IntParamRegs = paramIntRegS390X
+		c.FloatParamRegs = paramFloatRegS390X
 		c.FPReg = framepointerRegS390X
 		c.LinkReg = linkRegS390X
-		c.hasGReg = true
+		c.HasGReg = true
 		c.BigEndian = true
-		c.unalignedOK = true
-		c.haveBswap64 = true
-		c.haveBswap32 = true
-		c.haveBswap16 = true // only for loads&stores, see ppc64 comment
+		c.UnalignedOK = true
+		c.HaveBswap64 = true
+		c.HaveBswap32 = true
+		c.HaveBswap16 = true // only for loads&stores, see ppc64 comment
 	case "mips":
 		c.BigEndian = true
 		fallthrough
 	case "mipsle":
 		c.PtrSize = 4
 		c.RegSize = 4
-		c.lowerBlock = rewriteBlockMIPS
-		c.lowerValue = rewriteValueMIPS
-		c.registers = registersMIPS[:]
-		c.gpRegMask = gpRegMaskMIPS
-		c.fpRegMask = fpRegMaskMIPS
-		c.specialRegMask = specialRegMaskMIPS
+		c.LowerBlock = rewriteBlockMIPS
+		c.LowerValue = rewriteValueMIPS
+		c.Registers = registersMIPS[:]
+		c.GpRegMask = gpRegMaskMIPS
+		c.FpRegMask = fpRegMaskMIPS
+		c.SpecialRegMask = specialRegMaskMIPS
 		c.FPReg = framepointerRegMIPS
 		c.LinkReg = linkRegMIPS
-		c.hasGReg = true
+		c.HasGReg = true
 	case "riscv64":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.lowerBlock = rewriteBlockRISCV64
-		c.lowerValue = rewriteValueRISCV64
-		c.lateLowerBlock = rewriteBlockRISCV64latelower
-		c.lateLowerValue = rewriteValueRISCV64latelower
-		c.registers = registersRISCV64[:]
-		c.gpRegMask = gpRegMaskRISCV64
-		c.fpRegMask = fpRegMaskRISCV64
-		c.intParamRegs = paramIntRegRISCV64
-		c.floatParamRegs = paramFloatRegRISCV64
+		c.LowerBlock = rewriteBlockRISCV64
+		c.LowerValue = rewriteValueRISCV64
+		c.LateLowerBlock = rewriteBlockRISCV64latelower
+		c.LateLowerValue = rewriteValueRISCV64latelower
+		c.Registers = registersRISCV64[:]
+		c.GpRegMask = gpRegMaskRISCV64
+		c.FpRegMask = fpRegMaskRISCV64
+		c.IntParamRegs = paramIntRegRISCV64
+		c.FloatParamRegs = paramFloatRegRISCV64
 		c.FPReg = framepointerRegRISCV64
-		c.hasGReg = true
+		c.HasGReg = true
 	case "wasm":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.lowerBlock = rewriteBlockWasm
-		c.lowerValue = rewriteValueWasm
-		c.registers = registersWasm[:]
-		c.gpRegMask = gpRegMaskWasm
-		c.fpRegMask = fpRegMaskWasm
-		c.fp32RegMask = fp32RegMaskWasm
-		c.fp64RegMask = fp64RegMaskWasm
-		c.simdRegMask = simdRegMaskWasm
+		c.LowerBlock = rewriteBlockWasm
+		c.LowerValue = rewriteValueWasm
+		c.Registers = registersWasm[:]
+		c.GpRegMask = gpRegMaskWasm
+		c.FpRegMask = fpRegMaskWasm
+		c.Fp32RegMask = fp32RegMaskWasm
+		c.Fp64RegMask = fp64RegMaskWasm
+		c.SimdRegMask = simdRegMaskWasm
 		c.FPReg = framepointerRegWasm
 		c.LinkReg = linkRegWasm
-		c.hasGReg = true
-		c.unalignedOK = true
-		c.haveCondSelect = true
+		c.HasGReg = true
+		c.UnalignedOK = true
+		c.HaveCondSelect = true
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}
-	c.ctxt = ctxt
-	c.optimize = optimize
+	c.Ctxt = ctxt
+	c.Optimize = optimize
 	c.SoftFloat = softfloat
 	if softfloat {
-		c.floatParamRegs = nil // no FP registers in softfloat mode
+		c.FloatParamRegs = nil // no FP registers in softfloat mode
 	}
 
 	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize, 0)
-	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize, 1)
+	c.ABI1 = abi.NewABIConfig(len(c.IntParamRegs), len(c.FloatParamRegs), ctxt.Arch.FixedFrameSize, 1)
 
 	if ctxt.Flag_shared {
 		// LoweredWB is secretly a CALL and CALLs on 386 in
 		// shared mode get rewritten by obj6.go to go through
 		// the GOT, which clobbers BX.
-		opcodeTable[Op386LoweredWB].reg.clobbers = opcodeTable[Op386LoweredWB].reg.clobbers.addReg(3) // BX
+		OpcodeTable[Op386LoweredWB].Reg.Clobbers = OpcodeTable[Op386LoweredWB].Reg.Clobbers.AddReg(3) // BX
 	}
 
-	c.buildRecipes(arch)
+	c.BuildRecipes(arch)
 
 	return c
 }
 
-func (c *Config) Ctxt() *obj.Link { return c.ctxt }
-
-func (c *Config) haveByteSwap(size int64) bool {
+func (c *Config) HaveByteSwap(size int64) bool {
 	switch size {
 	case 8:
-		return c.haveBswap64
+		return c.HaveBswap64
 	case 4:
-		return c.haveBswap32
+		return c.HaveBswap32
 	case 2:
-		return c.haveBswap16
+		return c.HaveBswap16
 	default:
 		base.Fatalf("bad size %d\n", size)
 		return false
 	}
 }
 
-func (c *Config) buildRecipes(arch string) {
+func (c *Config) BuildRecipes(arch string) {
 	// Information for strength-reducing multiplies.
 	type linearCombo struct {
 		// we can compute a*x+b*y in one instruction
@@ -634,16 +632,16 @@ func (c *Config) buildRecipes(arch string) {
 		}
 	}
 
-	c.mulRecipes = map[int64]mulRecipe{}
+	c.MulRecipes = map[int64]mulRecipe{}
 
 	// Single-instruction recipes.
 	// The only option for the input value(s) is v.
 	for _, combo := range linearCombos {
 		x := combo.a + combo.b
 		cost := combo.cost
-		old := c.mulRecipes[x]
-		if (old.build == nil || cost < old.cost) && cost < mulCost {
-			c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+		old := c.MulRecipes[x]
+		if (old.Build == nil || cost < old.cost) && cost < mulCost {
+			c.MulRecipes[x] = mulRecipe{cost: cost, Build: func(m, v *Value) *Value {
 				return combo.build(m, v, v)
 			}}
 		}
@@ -660,9 +658,9 @@ func (c *Config) buildRecipes(arch string) {
 		for _, outer := range linearCombos {
 			x := (inner.a + inner.b) * (outer.a + outer.b)
 			cost := inner.cost + outer.cost
-			old := c.mulRecipes[x]
-			if (old.build == nil || cost < old.cost) && cost < mulCost {
-				c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+			old := c.MulRecipes[x]
+			if (old.Build == nil || cost < old.cost) && cost < mulCost {
+				c.MulRecipes[x] = mulRecipe{cost: cost, Build: func(m, v *Value) *Value {
 					v = inner.build(m, v, v)
 					return outer.build(m, v, v)
 				}}
@@ -675,9 +673,9 @@ func (c *Config) buildRecipes(arch string) {
 		for _, outer := range linearCombos {
 			x := outer.a + outer.b*(inner.a+inner.b)
 			cost := inner.cost + outer.cost
-			old := c.mulRecipes[x]
-			if (old.build == nil || cost < old.cost) && cost < mulCost {
-				c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+			old := c.MulRecipes[x]
+			if (old.Build == nil || cost < old.cost) && cost < mulCost {
+				c.MulRecipes[x] = mulRecipe{cost: cost, Build: func(m, v *Value) *Value {
 					return outer.build(m, v, inner.build(m, v, v))
 				}}
 			}
@@ -689,9 +687,9 @@ func (c *Config) buildRecipes(arch string) {
 		for _, outer := range linearCombos {
 			x := outer.a*(inner.a+inner.b) + outer.b
 			cost := inner.cost + outer.cost
-			old := c.mulRecipes[x]
-			if (old.build == nil || cost < old.cost) && cost < mulCost {
-				c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+			old := c.MulRecipes[x]
+			if (old.Build == nil || cost < old.cost) && cost < mulCost {
+				c.MulRecipes[x] = mulRecipe{cost: cost, Build: func(m, v *Value) *Value {
 					return outer.build(m, inner.build(m, v, v), v)
 				}}
 			}
@@ -710,9 +708,9 @@ func (c *Config) buildRecipes(arch string) {
 				for _, third := range linearCombos {
 					x := third.a*(first.a+first.b) + third.b*(second.a+second.b)
 					cost := first.cost + second.cost + third.cost
-					old := c.mulRecipes[x]
-					if (old.build == nil || cost < old.cost) && cost < mulCost {
-						c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+					old := c.MulRecipes[x]
+					if (old.Build == nil || cost < old.cost) && cost < mulCost {
+						c.MulRecipes[x] = mulRecipe{cost: cost, Build: func(m, v *Value) *Value {
 							v1 := first.build(m, v, v)
 							v2 := second.build(m, v, v)
 							return third.build(m, v1, v2)
@@ -728,9 +726,9 @@ func (c *Config) buildRecipes(arch string) {
 				for _, third := range linearCombos {
 					x := third.a*(second.a*(first.a+first.b)+second.b) + third.b
 					cost := first.cost + second.cost + third.cost
-					old := c.mulRecipes[x]
-					if (old.build == nil || cost < old.cost) && cost < mulCost {
-						c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+					old := c.MulRecipes[x]
+					if (old.Build == nil || cost < old.cost) && cost < mulCost {
+						c.MulRecipes[x] = mulRecipe{cost: cost, Build: func(m, v *Value) *Value {
 							v1 := first.build(m, v, v)
 							v2 := second.build(m, v1, v)
 							return third.build(m, v2, v)
@@ -743,8 +741,8 @@ func (c *Config) buildRecipes(arch string) {
 
 	// These cases should be handled specially by rewrite rules.
 	// (Otherwise v * 1 == (neg (neg v)))
-	delete(c.mulRecipes, 0)
-	delete(c.mulRecipes, 1)
+	delete(c.MulRecipes, 0)
+	delete(c.MulRecipes, 1)
 
 	// Currently:
 	// len(c.mulRecipes) == 5984 on arm64

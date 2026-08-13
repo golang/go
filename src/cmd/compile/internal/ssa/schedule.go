@@ -24,7 +24,7 @@ const (
 	ScoreDefault
 	ScoreFlags
 	ScoreInductionInc // an increment of an induction variable
-	ScoreControl // towards bottom of block
+	ScoreControl      // towards bottom of block
 )
 
 type ValHeap struct {
@@ -89,16 +89,6 @@ func (h ValHeap) Less(i, j int) bool {
 	return x.ID < y.ID
 }
 
-func (op Op) isLoweredGetClosurePtr() bool {
-	switch op {
-	case OpAMD64LoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr, OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
-		Op386LoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr, OpLOONG64LoweredGetClosurePtr, OpS390XLoweredGetClosurePtr, OpMIPSLoweredGetClosurePtr,
-		OpRISCV64LoweredGetClosurePtr, OpWasmLoweredGetClosurePtr:
-		return true
-	}
-	return false
-}
-
 // Schedule the Values in each Block. After this phase returns, the
 // order of b.Values matters and is the order in which those values
 // will appear in the assembly output. For now it generates a
@@ -109,18 +99,18 @@ func schedule(f *Func) {
 	priq := new(ValHeap)
 
 	// "priority" for a value
-	score := f.Cache.allocInt8Slice(f.NumValues())
-	defer f.Cache.freeInt8Slice(score)
+	score := f.Cache.AllocInt8Slice(f.NumValues())
+	defer f.Cache.FreeInt8Slice(score)
 
 	// maps mem values to the next live memory value
-	nextMem := f.Cache.allocValueSlice(f.NumValues())
-	defer f.Cache.freeValueSlice(nextMem)
+	nextMem := f.Cache.AllocValueSlice(f.NumValues())
+	defer f.Cache.FreeValueSlice(nextMem)
 
 	// inBlockUses records whether a value is used in the block
 	// in which it lives. (block control values don't count as uses.)
-	inBlockUses := f.Cache.allocBoolSlice(f.NumValues())
-	defer f.Cache.freeBoolSlice(inBlockUses)
-	if f.Config.optimize {
+	inBlockUses := f.Cache.AllocBoolSlice(f.NumValues())
+	defer f.Cache.FreeBoolSlice(inBlockUses)
+	if f.Config.Optimize {
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				for _, a := range v.Args {
@@ -137,7 +127,7 @@ func schedule(f *Func) {
 		// Compute score. Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
 			switch {
-			case v.Op.isLoweredGetClosurePtr():
+			case v.Op.IsLoweredGetClosurePtr():
 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
 				// context register is not stomped. GetLoweredClosurePtr should only appear
 				// in the entry block where there are no phi functions, so there is no
@@ -146,7 +136,7 @@ func schedule(f *Func) {
 					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block, b=%s", b.String())
 				}
 				score[v.ID] = ScorePhi
-			case opcodeTable[v.Op].nilCheck:
+			case OpcodeTable[v.Op].NilCheck:
 				// Nil checks must come before loads from the same address.
 				score[v.ID] = ScoreNilCheck
 			case v.Op == OpPhi:
@@ -175,11 +165,11 @@ func schedule(f *Func) {
 				// Tuple selectors need to appear immediately after the instruction
 				// that generates the tuple.
 				score[v.ID] = ScoreReadTuple
-			case v.hasFlagInput():
+			case v.HasFlagInput():
 				// Schedule flag-reading ops earlier, to minimize the lifetime
 				// of flag values.
 				score[v.ID] = ScoreReadFlags
-			case v.isFlagOp():
+			case v.IsFlagOp():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
@@ -190,8 +180,8 @@ func schedule(f *Func) {
 				v.Args[0].Op == OpPhi &&
 				v.Args[0].Uses > 1 &&
 				len(b.Succs) == 1 &&
-				b.Succs[0].b == v.Args[0].Block &&
-				v.Args[0].Args[b.Succs[0].i] == v):
+				b.Succs[0].B == v.Args[0].Block &&
+				v.Args[0].Args[b.Succs[0].I] == v):
 				// This is a value computing v++ (or similar) in a loop.
 				// Try to schedule it later, so we issue all uses of v before the v++.
 				// If we don't, then we need an additional move.
@@ -234,8 +224,8 @@ func schedule(f *Func) {
 
 	// inEdges is the number of scheduling edges incoming from values that haven't been scheduled yet.
 	// i.e. inEdges[y.ID] = |e in edges where e.y == y and e.x is not in the schedule yet|.
-	inEdges := f.Cache.allocInt32Slice(f.NumValues())
-	defer f.Cache.freeInt32Slice(inEdges)
+	inEdges := f.Cache.AllocInt32Slice(f.NumValues())
+	defer f.Cache.FreeInt32Slice(inEdges)
 
 	for _, b := range f.Blocks {
 		edges = edges[:0]
@@ -330,14 +320,14 @@ func schedule(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				for a.Op == OpSPanchored || opcodeTable[a.Op].nilCheck {
+				for a.Op == OpSPanchored || OpcodeTable[a.Op].NilCheck {
 					a = a.Args[0]
 					v.SetArg(i, a)
 				}
 			}
 		}
 		for i, c := range b.ControlValues() {
-			for c.Op == OpSPanchored || opcodeTable[c.Op].nilCheck {
+			for c.Op == OpSPanchored || OpcodeTable[c.Op].NilCheck {
 				c = c.Args[0]
 				b.ReplaceControl(i, c)
 			}
@@ -351,10 +341,10 @@ func schedule(f *Func) {
 				if v.Uses != 0 {
 					base.Fatalf("SPAnchored still has %d uses", v.Uses)
 				}
-				v.resetArgs()
-				f.freeValue(v)
+				v.ResetArgs()
+				f.FreeValue(v)
 			} else {
-				if opcodeTable[v.Op].nilCheck {
+				if OpcodeTable[v.Op].NilCheck {
 					if v.Uses != 0 {
 						base.Fatalf("nilcheck still has %d uses", v.Uses)
 					}
@@ -367,10 +357,10 @@ func schedule(f *Func) {
 				i++
 			}
 		}
-		b.truncateValues(i)
+		b.TruncateValues(i)
 	}
 
-	f.scheduled = true
+	f.Scheduled = true
 }
 
 // storeOrder orders values with respect to stores. That is,
@@ -394,7 +384,7 @@ func schedule(f *Func) {
 // Auxiliary data structures are passed in as arguments, so
 // that they can be allocated in the caller and be reused.
 // This function takes care of reset them.
-func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value {
+func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value {
 	if len(values) == 0 {
 		return values
 	}
@@ -408,20 +398,20 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	// enough to cover almost every storeOrder call.
 	stores := make([]*Value, 0, 64)
 	hasNilCheck := false
-	sset.clear() // sset is the set of stores that are used in other values
+	sset.Clear() // sset is the set of stores that are used in other values
 	for _, v := range values {
 		if v.Type.IsMemory() {
 			stores = append(stores, v)
 			if v.Op == OpInitMem || v.Op == OpPhi {
 				continue
 			}
-			sset.add(v.MemoryArg().ID) // record that v's memory arg is used
+			sset.Add(v.MemoryArg().ID) // record that v's memory arg is used
 		}
 		if v.Op == OpNilCheck {
 			hasNilCheck = true
 		}
 	}
-	if len(stores) == 0 || !hasNilCheck && f.pass.name == "nilcheckelim" {
+	if len(stores) == 0 || !hasNilCheck && f.Pass.Name == "nilcheckelim" {
 		// there is no store, the order does not matter
 		return values
 	}
@@ -429,7 +419,7 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	// find last store, which is the one that is not used by other stores
 	var last *Value
 	for _, v := range stores {
-		if !sset.contains(v.ID) {
+		if !sset.Contains(v.ID) {
 			if last != nil {
 				f.Fatalf("two stores live simultaneously: %v and %v", v, last)
 			}
@@ -447,11 +437,11 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	// First we assign the number to all stores by walking back the store chain,
 	// then assign the number to other values in DFS order.
 	count := make([]int32, 3*(len(stores)+1))
-	sset.clear() // reuse sparse set to ensure that a value is pushed to stack only once
+	sset.Clear() // reuse sparse set to ensure that a value is pushed to stack only once
 	for n, w := len(stores), last; n > 0; n-- {
 		storeNumber[w.ID] = int32(3 * n)
 		count[3*n]++
-		sset.add(w.ID)
+		sset.Add(w.ID)
 		if w.Op == OpInitMem || w.Op == OpPhi {
 			if n != 1 {
 				f.Fatalf("store order is wrong: there are stores before %v", w)
@@ -462,12 +452,12 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	}
 	var stack []*Value
 	for _, v := range values {
-		if sset.contains(v.ID) {
+		if sset.Contains(v.ID) {
 			// in sset means v is a store, or already pushed to stack, or already assigned a store number
 			continue
 		}
 		stack = append(stack, v)
-		sset.add(v.ID)
+		sset.Add(v.ID)
 
 		for len(stack) > 0 {
 			w := stack[len(stack)-1]
@@ -490,9 +480,9 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 				if a.Block != w.Block {
 					continue
 				}
-				if !sset.contains(a.ID) {
+				if !sset.Contains(a.ID) {
 					stack = append(stack, a)
-					sset.add(a.ID)
+					sset.Add(a.ID)
 					argsdone = false
 					break
 				}
@@ -558,8 +548,8 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	return order
 }
 
-// isFlagOp reports if v is an OP with the flag type.
-func (v *Value) isFlagOp() bool {
+// IsFlagOp reports if v is an OP with the flag type.
+func (v *Value) IsFlagOp() bool {
 	if v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags() {
 		return true
 	}
@@ -572,10 +562,10 @@ func (v *Value) isFlagOp() bool {
 	return false
 }
 
-// hasFlagInput reports whether v has a flag value as any of its inputs.
-func (v *Value) hasFlagInput() bool {
+// HasFlagInput reports whether v has a flag value as any of its inputs.
+func (v *Value) HasFlagInput() bool {
 	for _, a := range v.Args {
-		if a.isFlagOp() {
+		if a.IsFlagOp() {
 			return true
 		}
 	}

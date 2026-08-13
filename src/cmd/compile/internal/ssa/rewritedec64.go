@@ -153,7 +153,7 @@ func rewriteValuedec64_OpAdd64(v *Value) bool {
 		t := v.Type
 		x := v_0
 		y := v_1
-		v.reset(OpLast)
+		v.Reset(OpLast)
 		v.Type = t
 		x0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		x0.AddArg(x)
@@ -187,7 +187,7 @@ func rewriteValuedec64_OpAnd64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpAnd32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -209,78 +209,78 @@ func rewriteValuedec64_OpArg(v *Value) bool {
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Arg {n} [off])
-	// cond: is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")
+	// cond: Is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")
 	// result: (Int64Make (Arg <typ.Int32> {n} [off+4]) (Arg <typ.UInt32> {n} [off]))
 	for {
-		off := auxIntToInt32(v.AuxInt)
-		n := auxToSym(v.Aux)
-		if !(is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")) {
+		off := AuxIntToInt32(v.AuxInt)
+		n := AuxToSym(v.Aux)
+		if !(Is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpArg, typ.Int32)
-		v0.AuxInt = int32ToAuxInt(off + 4)
-		v0.Aux = symToAux(n)
+		v0.AuxInt = Int32ToAuxInt(off + 4)
+		v0.Aux = SymToAux(n)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.UInt32)
-		v1.AuxInt = int32ToAuxInt(off)
-		v1.Aux = symToAux(n)
+		v1.AuxInt = Int32ToAuxInt(off)
+		v1.Aux = SymToAux(n)
 		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Arg {n} [off])
-	// cond: is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")
+	// cond: Is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")
 	// result: (Int64Make (Arg <typ.UInt32> {n} [off+4]) (Arg <typ.UInt32> {n} [off]))
 	for {
-		off := auxIntToInt32(v.AuxInt)
-		n := auxToSym(v.Aux)
-		if !(is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")) {
+		off := AuxIntToInt32(v.AuxInt)
+		n := AuxToSym(v.Aux)
+		if !(Is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpArg, typ.UInt32)
-		v0.AuxInt = int32ToAuxInt(off + 4)
-		v0.Aux = symToAux(n)
+		v0.AuxInt = Int32ToAuxInt(off + 4)
+		v0.Aux = SymToAux(n)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.UInt32)
-		v1.AuxInt = int32ToAuxInt(off)
-		v1.Aux = symToAux(n)
+		v1.AuxInt = Int32ToAuxInt(off)
+		v1.Aux = SymToAux(n)
 		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Arg {n} [off])
-	// cond: is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")
+	// cond: Is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")
 	// result: (Int64Make (Arg <typ.Int32> {n} [off]) (Arg <typ.UInt32> {n} [off+4]))
 	for {
-		off := auxIntToInt32(v.AuxInt)
-		n := auxToSym(v.Aux)
-		if !(is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")) {
+		off := AuxIntToInt32(v.AuxInt)
+		n := AuxToSym(v.Aux)
+		if !(Is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpArg, typ.Int32)
-		v0.AuxInt = int32ToAuxInt(off)
-		v0.Aux = symToAux(n)
+		v0.AuxInt = Int32ToAuxInt(off)
+		v0.Aux = SymToAux(n)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.UInt32)
-		v1.AuxInt = int32ToAuxInt(off + 4)
-		v1.Aux = symToAux(n)
+		v1.AuxInt = Int32ToAuxInt(off + 4)
+		v1.Aux = SymToAux(n)
 		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Arg {n} [off])
-	// cond: is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")
+	// cond: Is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")
 	// result: (Int64Make (Arg <typ.UInt32> {n} [off]) (Arg <typ.UInt32> {n} [off+4]))
 	for {
-		off := auxIntToInt32(v.AuxInt)
-		n := auxToSym(v.Aux)
-		if !(is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")) {
+		off := AuxIntToInt32(v.AuxInt)
+		n := AuxToSym(v.Aux)
+		if !(Is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpArg, typ.UInt32)
-		v0.AuxInt = int32ToAuxInt(off)
-		v0.Aux = symToAux(n)
+		v0.AuxInt = Int32ToAuxInt(off)
+		v0.Aux = SymToAux(n)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.UInt32)
-		v1.AuxInt = int32ToAuxInt(off + 4)
-		v1.Aux = symToAux(n)
+		v1.AuxInt = Int32ToAuxInt(off + 4)
+		v1.Aux = SymToAux(n)
 		v.AddArg2(v0, v1)
 		return true
 	}
@@ -297,12 +297,12 @@ func rewriteValuedec64_OpAvg64u(v *Value) bool {
 		t := v.Type
 		x := v_0
 		y := v_1
-		v.reset(OpAdd64)
+		v.Reset(OpAdd64)
 		v0 := b.NewValue0(v.Pos, OpRsh64Ux32, t)
 		v1 := b.NewValue0(v.Pos, OpSub64, t)
 		v1.AddArg2(x, y)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v2.AuxInt = int32ToAuxInt(1)
+		v2.AuxInt = Int32ToAuxInt(1)
 		v0.AddArg2(v1, v2)
 		v.AddArg2(v0, y)
 		return true
@@ -316,7 +316,7 @@ func rewriteValuedec64_OpBitLen64(v *Value) bool {
 	// result: (Add32 <typ.Int> (BitLen32 <typ.Int> (Int64Hi x)) (BitLen32 <typ.Int> (Or32 <typ.UInt32> (Int64Lo x) (Zeromask (Int64Hi x)))))
 	for {
 		x := v_0
-		v.reset(OpAdd32)
+		v.Reset(OpAdd32)
 		v.Type = typ.Int
 		v0 := b.NewValue0(v.Pos, OpBitLen32, typ.Int)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -342,7 +342,7 @@ func rewriteValuedec64_OpBswap64(v *Value) bool {
 	// result: (Int64Make (Bswap32 <typ.UInt32> (Int64Lo x)) (Bswap32 <typ.UInt32> (Int64Hi x)))
 	for {
 		x := v_0
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpBswap32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v1.AddArg(x)
@@ -363,7 +363,7 @@ func rewriteValuedec64_OpCom64(v *Value) bool {
 	// result: (Int64Make (Com32 <typ.UInt32> (Int64Hi x)) (Com32 <typ.UInt32> (Int64Lo x)))
 	for {
 		x := v_0
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpCom32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -384,15 +384,15 @@ func rewriteValuedec64_OpConst64(v *Value) bool {
 	// result: (Int64Make (Const32 <typ.Int32> [int32(c>>32)]) (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		t := v.Type
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if !(t.IsSigned()) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
-		v0.AuxInt = int32ToAuxInt(int32(c >> 32))
+		v0.AuxInt = Int32ToAuxInt(int32(c >> 32))
 		v1 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v1.AuxInt = int32ToAuxInt(int32(c))
+		v1.AuxInt = Int32ToAuxInt(int32(c))
 		v.AddArg2(v0, v1)
 		return true
 	}
@@ -401,15 +401,15 @@ func rewriteValuedec64_OpConst64(v *Value) bool {
 	// result: (Int64Make (Const32 <typ.UInt32> [int32(c>>32)]) (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		t := v.Type
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if !(!t.IsSigned()) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v0.AuxInt = int32ToAuxInt(int32(c >> 32))
+		v0.AuxInt = Int32ToAuxInt(int32(c >> 32))
 		v1 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v1.AuxInt = int32ToAuxInt(int32(c))
+		v1.AuxInt = Int32ToAuxInt(int32(c))
 		v.AddArg2(v0, v1)
 		return true
 	}
@@ -423,7 +423,7 @@ func rewriteValuedec64_OpCtz64(v *Value) bool {
 	// result: (Add32 <typ.UInt32> (Ctz32 <typ.UInt32> (Int64Lo x)) (And32 <typ.UInt32> (Com32 <typ.UInt32> (Zeromask (Int64Lo x))) (Ctz32 <typ.UInt32> (Int64Hi x))))
 	for {
 		x := v_0
-		v.reset(OpAdd32)
+		v.Reset(OpAdd32)
 		v.Type = typ.UInt32
 		v0 := b.NewValue0(v.Pos, OpCtz32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
@@ -453,7 +453,7 @@ func rewriteValuedec64_OpEq64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpAndB)
+		v.Reset(OpAndB)
 		v0 := b.NewValue0(v.Pos, OpEq32, typ.Bool)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -480,7 +480,7 @@ func rewriteValuedec64_OpHmul64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpLast)
+		v.Reset(OpLast)
 		p := b.NewValue0(v.Pos, OpHmul64u, typ.UInt64)
 		p.AddArg2(x, y)
 		xSign := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
@@ -488,7 +488,7 @@ func rewriteValuedec64_OpHmul64(v *Value) bool {
 		v3 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v3.AddArg(x)
 		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v4.AuxInt = int32ToAuxInt(31)
+		v4.AuxInt = Int32ToAuxInt(31)
 		xs.AddArg2(v3, v4)
 		xSign.AddArg2(xs, xs)
 		ySign := b.NewValue0(v.Pos, OpInt64Make, typ.UInt64)
@@ -519,7 +519,7 @@ func rewriteValuedec64_OpHmul64u(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpSelect0)
+		v.Reset(OpSelect0)
 		v0 := b.NewValue0(v.Pos, OpMul64uhilo, types.NewTuple(typ.UInt64, typ.UInt64))
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -535,7 +535,7 @@ func rewriteValuedec64_OpInt64Hi(v *Value) bool {
 			break
 		}
 		hi := v_0.Args[0]
-		v.copyOf(hi)
+		v.CopyOf(hi)
 		return true
 	}
 	return false
@@ -549,7 +549,7 @@ func rewriteValuedec64_OpInt64Lo(v *Value) bool {
 			break
 		}
 		lo := v_0.Args[1]
-		v.copyOf(lo)
+		v.CopyOf(lo)
 		return true
 	}
 	return false
@@ -558,7 +558,7 @@ func rewriteValuedec64_OpLast(v *Value) bool {
 	// match: (Last ___)
 	// result: v.Args[len(v.Args)-1]
 	for {
-		v.copyOf(v.Args[len(v.Args)-1])
+		v.CopyOf(v.Args[len(v.Args)-1])
 		return true
 	}
 }
@@ -572,7 +572,7 @@ func rewriteValuedec64_OpLeq64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpOrB)
+		v.Reset(OpOrB)
 		v0 := b.NewValue0(v.Pos, OpLess32, typ.Bool)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -603,7 +603,7 @@ func rewriteValuedec64_OpLeq64U(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpOrB)
+		v.Reset(OpOrB)
 		v0 := b.NewValue0(v.Pos, OpLess32U, typ.Bool)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -634,7 +634,7 @@ func rewriteValuedec64_OpLess64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpOrB)
+		v.Reset(OpOrB)
 		v0 := b.NewValue0(v.Pos, OpLess32, typ.Bool)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -665,7 +665,7 @@ func rewriteValuedec64_OpLess64U(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpOrB)
+		v.Reset(OpOrB)
 		v0 := b.NewValue0(v.Pos, OpLess32U, typ.Bool)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -693,19 +693,19 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Load <t> ptr mem)
-	// cond: is64BitInt(t) && !config.BigEndian && t.IsSigned()
+	// cond: Is64BitInt(t) && !config.BigEndian && t.IsSigned()
 	// result: (Int64Make (Load <typ.Int32> (OffPtr <typ.Int32Ptr> [4] ptr) mem) (Load <typ.UInt32> ptr mem))
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is64BitInt(t) && !config.BigEndian && t.IsSigned()) {
+		if !(Is64BitInt(t) && !config.BigEndian && t.IsSigned()) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
 		v1 := b.NewValue0(v.Pos, OpOffPtr, typ.Int32Ptr)
-		v1.AuxInt = int64ToAuxInt(4)
+		v1.AuxInt = Int64ToAuxInt(4)
 		v1.AddArg(ptr)
 		v0.AddArg2(v1, mem)
 		v2 := b.NewValue0(v.Pos, OpLoad, typ.UInt32)
@@ -714,19 +714,19 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is64BitInt(t) && !config.BigEndian && !t.IsSigned()
+	// cond: Is64BitInt(t) && !config.BigEndian && !t.IsSigned()
 	// result: (Int64Make (Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem) (Load <typ.UInt32> ptr mem))
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is64BitInt(t) && !config.BigEndian && !t.IsSigned()) {
+		if !(Is64BitInt(t) && !config.BigEndian && !t.IsSigned()) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpLoad, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpOffPtr, typ.UInt32Ptr)
-		v1.AuxInt = int64ToAuxInt(4)
+		v1.AuxInt = Int64ToAuxInt(4)
 		v1.AddArg(ptr)
 		v0.AddArg2(v1, mem)
 		v2 := b.NewValue0(v.Pos, OpLoad, typ.UInt32)
@@ -735,42 +735,42 @@ func rewriteValuedec64_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is64BitInt(t) && config.BigEndian && t.IsSigned()
+	// cond: Is64BitInt(t) && config.BigEndian && t.IsSigned()
 	// result: (Int64Make (Load <typ.Int32> ptr mem) (Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is64BitInt(t) && config.BigEndian && t.IsSigned()) {
+		if !(Is64BitInt(t) && config.BigEndian && t.IsSigned()) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
 		v0.AddArg2(ptr, mem)
 		v1 := b.NewValue0(v.Pos, OpLoad, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, typ.UInt32Ptr)
-		v2.AuxInt = int64ToAuxInt(4)
+		v2.AuxInt = Int64ToAuxInt(4)
 		v2.AddArg(ptr)
 		v1.AddArg2(v2, mem)
 		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is64BitInt(t) && config.BigEndian && !t.IsSigned()
+	// cond: Is64BitInt(t) && config.BigEndian && !t.IsSigned()
 	// result: (Int64Make (Load <typ.UInt32> ptr mem) (Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is64BitInt(t) && config.BigEndian && !t.IsSigned()) {
+		if !(Is64BitInt(t) && config.BigEndian && !t.IsSigned()) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpLoad, typ.UInt32)
 		v0.AddArg2(ptr, mem)
 		v1 := b.NewValue0(v.Pos, OpLoad, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, typ.UInt32Ptr)
-		v2.AuxInt = int64ToAuxInt(4)
+		v2.AuxInt = Int64ToAuxInt(4)
 		v2.AddArg(ptr)
 		v1.AddArg2(v2, mem)
 		v.AddArg2(v0, v1)
@@ -794,29 +794,29 @@ func rewriteValuedec64_OpLsh16x64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpConst32)
-		v.AuxInt = int32ToAuxInt(0)
+		v.Reset(OpConst32)
+		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (Lsh16x64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Lsh16x32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpLsh16x32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpLsh16x32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -833,7 +833,7 @@ func rewriteValuedec64_OpLsh16x64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpLsh16x32)
+		v.Reset(OpLsh16x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -846,7 +846,7 @@ func rewriteValuedec64_OpLsh16x64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpLsh16x32)
+		v.Reset(OpLsh16x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -875,29 +875,29 @@ func rewriteValuedec64_OpLsh32x64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpConst32)
-		v.AuxInt = int32ToAuxInt(0)
+		v.Reset(OpConst32)
+		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (Lsh32x64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Lsh32x32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpLsh32x32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpLsh32x32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -914,7 +914,7 @@ func rewriteValuedec64_OpLsh32x64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpLsh32x32)
+		v.Reset(OpLsh32x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -927,7 +927,7 @@ func rewriteValuedec64_OpLsh32x64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpLsh32x32)
+		v.Reset(OpLsh32x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -950,7 +950,7 @@ func rewriteValuedec64_OpLsh64x16(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpLsh32x16, typ.UInt32)
@@ -962,7 +962,7 @@ func rewriteValuedec64_OpLsh64x16(v *Value) bool {
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpSub16, typ.UInt16)
 		v7 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-		v7.AuxInt = int16ToAuxInt(32)
+		v7.AuxInt = Int16ToAuxInt(32)
 		v6.AddArg2(v7, s)
 		v4.AddArg2(v5, v6)
 		v1.AddArg2(v2, v4)
@@ -987,7 +987,7 @@ func rewriteValuedec64_OpLsh64x32(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
@@ -999,7 +999,7 @@ func rewriteValuedec64_OpLsh64x32(v *Value) bool {
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpSub32, typ.UInt32)
 		v7 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v7.AuxInt = int32ToAuxInt(32)
+		v7.AuxInt = Int32ToAuxInt(32)
 		v6.AddArg2(v7, s)
 		v4.AddArg2(v5, v6)
 		v1.AddArg2(v2, v4)
@@ -1030,29 +1030,29 @@ func rewriteValuedec64_OpLsh64x64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpConst64)
-		v.AuxInt = int64ToAuxInt(0)
+		v.Reset(OpConst64)
+		v.AuxInt = Int64ToAuxInt(0)
 		return true
 	}
 	// match: (Lsh64x64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Lsh64x32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpLsh64x32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpLsh64x32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -1069,7 +1069,7 @@ func rewriteValuedec64_OpLsh64x64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpLsh64x32)
+		v.Reset(OpLsh64x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -1082,7 +1082,7 @@ func rewriteValuedec64_OpLsh64x64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpLsh64x32)
+		v.Reset(OpLsh64x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -1105,7 +1105,7 @@ func rewriteValuedec64_OpLsh64x8(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpLsh32x8, typ.UInt32)
@@ -1117,7 +1117,7 @@ func rewriteValuedec64_OpLsh64x8(v *Value) bool {
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpSub8, typ.UInt8)
 		v7 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-		v7.AuxInt = int8ToAuxInt(32)
+		v7.AuxInt = Int8ToAuxInt(32)
 		v6.AddArg2(v7, s)
 		v4.AddArg2(v5, v6)
 		v1.AddArg2(v2, v4)
@@ -1148,29 +1148,29 @@ func rewriteValuedec64_OpLsh8x64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpConst32)
-		v.AuxInt = int32ToAuxInt(0)
+		v.Reset(OpConst32)
+		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (Lsh8x64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Lsh8x32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpLsh8x32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpLsh8x32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -1187,7 +1187,7 @@ func rewriteValuedec64_OpLsh8x64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpLsh8x32)
+		v.Reset(OpLsh8x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -1200,7 +1200,7 @@ func rewriteValuedec64_OpLsh8x64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpLsh8x32)
+		v.Reset(OpLsh8x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -1224,7 +1224,7 @@ func rewriteValuedec64_OpMul64(v *Value) bool {
 		t := v.Type
 		x := v_0
 		y := v_1
-		v.reset(OpLast)
+		v.Reset(OpLast)
 		v.Type = t
 		x0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		x0.AddArg(x)
@@ -1265,7 +1265,7 @@ func rewriteValuedec64_OpMul64uhilo(v *Value) bool {
 		t := v.Type
 		x := v_0
 		y := v_1
-		v.reset(OpLast)
+		v.Reset(OpLast)
 		v.Type = t
 		x0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		x0.AddArg(x)
@@ -1307,7 +1307,7 @@ func rewriteValuedec64_OpMul64uhilo(v *Value) bool {
 		w2a.AddArg3(x0y1Hi, x1y0Hi, v18)
 		w3a := b.NewValue0(v.Pos, OpAdd32withcarry, typ.UInt32)
 		v20 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v20.AuxInt = int32ToAuxInt(0)
+		v20.AuxInt = Int32ToAuxInt(0)
 		v21 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
 		v21.AddArg(w2a)
 		w3a.AddArg3(x1y1Hi, v20, v21)
@@ -1347,9 +1347,9 @@ func rewriteValuedec64_OpNeg64(v *Value) bool {
 	for {
 		t := v.Type
 		x := v_0
-		v.reset(OpSub64)
+		v.Reset(OpSub64)
 		v0 := b.NewValue0(v.Pos, OpConst64, t)
-		v0.AuxInt = int64ToAuxInt(0)
+		v0.AuxInt = Int64ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -1364,7 +1364,7 @@ func rewriteValuedec64_OpNeq64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpOrB)
+		v.Reset(OpOrB)
 		v0 := b.NewValue0(v.Pos, OpNeq32, typ.Bool)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -1401,12 +1401,12 @@ func rewriteValuedec64_OpOr32(v *Value) bool {
 			if v_0_0.Op != OpConst32 {
 				continue
 			}
-			c := auxIntToInt32(v_0_0.AuxInt)
+			c := AuxIntToInt32(v_0_0.AuxInt)
 			y := v_1
 			if !(c == 0) {
 				continue
 			}
-			v.copyOf(y)
+			v.CopyOf(y)
 			return true
 		}
 		break
@@ -1426,13 +1426,13 @@ func rewriteValuedec64_OpOr32(v *Value) bool {
 			if v_0_0.Op != OpConst32 {
 				continue
 			}
-			c := auxIntToInt32(v_0_0.AuxInt)
+			c := AuxIntToInt32(v_0_0.AuxInt)
 			if !(c != 0) {
 				continue
 			}
-			v.reset(OpConst32)
+			v.Reset(OpConst32)
 			v.Type = typ.UInt32
-			v.AuxInt = int32ToAuxInt(-1)
+			v.AuxInt = Int32ToAuxInt(-1)
 			return true
 		}
 		break
@@ -1449,7 +1449,7 @@ func rewriteValuedec64_OpOr64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -1477,7 +1477,7 @@ func rewriteValuedec64_OpRotateLeft16(v *Value) bool {
 			break
 		}
 		lo := v_1.Args[1]
-		v.reset(OpRotateLeft16)
+		v.Reset(OpRotateLeft16)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -1494,7 +1494,7 @@ func rewriteValuedec64_OpRotateLeft32(v *Value) bool {
 			break
 		}
 		lo := v_1.Args[1]
-		v.reset(OpRotateLeft32)
+		v.Reset(OpRotateLeft32)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -1513,7 +1513,7 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 			break
 		}
 		lo := v_1.Args[1]
-		v.reset(OpRotateLeft64)
+		v.Reset(OpRotateLeft64)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -1525,11 +1525,11 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := auxIntToInt64(v_1.AuxInt)
+		c := AuxIntToInt64(v_1.AuxInt)
 		if !(c&63 == 0) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	// match: (RotateLeft64 <t> x (Const32 [c]))
@@ -1540,11 +1540,11 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1.AuxInt)
+		c := AuxIntToInt32(v_1.AuxInt)
 		if !(c&63 == 0) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	// match: (RotateLeft64 <t> x (Const16 [c]))
@@ -1555,11 +1555,11 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := auxIntToInt16(v_1.AuxInt)
+		c := AuxIntToInt16(v_1.AuxInt)
 		if !(c&63 == 0) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	// match: (RotateLeft64 <t> x (Const8 [c]))
@@ -1570,11 +1570,11 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst8 {
 			break
 		}
-		c := auxIntToInt8(v_1.AuxInt)
+		c := AuxIntToInt8(v_1.AuxInt)
 		if !(c&63 == 0) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	// match: (RotateLeft64 <t> x (Const64 [c]))
@@ -1586,11 +1586,11 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := auxIntToInt64(v_1.AuxInt)
+		c := AuxIntToInt64(v_1.AuxInt)
 		if !(c&63 == 32) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v0.AddArg(x)
@@ -1608,11 +1608,11 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1.AuxInt)
+		c := AuxIntToInt32(v_1.AuxInt)
 		if !(c&63 == 32) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v0.AddArg(x)
@@ -1630,11 +1630,11 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := auxIntToInt16(v_1.AuxInt)
+		c := AuxIntToInt16(v_1.AuxInt)
 		if !(c&63 == 32) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v0.AddArg(x)
@@ -1652,11 +1652,11 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst8 {
 			break
 		}
-		c := auxIntToInt8(v_1.AuxInt)
+		c := AuxIntToInt8(v_1.AuxInt)
 		if !(c&63 == 32) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v0.AddArg(x)
@@ -1674,24 +1674,24 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := auxIntToInt64(v_1.AuxInt)
+		c := AuxIntToInt64(v_1.AuxInt)
 		if !(0 < c&63 && c&63 < 32) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v2.AddArg(x)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v3.AuxInt = Int32ToAuxInt(int32(c & 31))
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v6.AuxInt = Int32ToAuxInt(int32(32 - c&31))
 		v4.AddArg2(v5, v6)
 		v0.AddArg2(v1, v4)
 		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
@@ -1712,24 +1712,24 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1.AuxInt)
+		c := AuxIntToInt32(v_1.AuxInt)
 		if !(0 < c&63 && c&63 < 32) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v2.AddArg(x)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v3.AuxInt = Int32ToAuxInt(int32(c & 31))
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v6.AuxInt = Int32ToAuxInt(int32(32 - c&31))
 		v4.AddArg2(v5, v6)
 		v0.AddArg2(v1, v4)
 		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
@@ -1750,24 +1750,24 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := auxIntToInt16(v_1.AuxInt)
+		c := AuxIntToInt16(v_1.AuxInt)
 		if !(0 < c&63 && c&63 < 32) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v2.AddArg(x)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v3.AuxInt = Int32ToAuxInt(int32(c & 31))
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v6.AuxInt = Int32ToAuxInt(int32(32 - c&31))
 		v4.AddArg2(v5, v6)
 		v0.AddArg2(v1, v4)
 		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
@@ -1788,24 +1788,24 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst8 {
 			break
 		}
-		c := auxIntToInt8(v_1.AuxInt)
+		c := AuxIntToInt8(v_1.AuxInt)
 		if !(0 < c&63 && c&63 < 32) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v2.AddArg(x)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v3.AuxInt = Int32ToAuxInt(int32(c & 31))
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v5 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v6.AuxInt = Int32ToAuxInt(int32(32 - c&31))
 		v4.AddArg2(v5, v6)
 		v0.AddArg2(v1, v4)
 		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
@@ -1826,24 +1826,24 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := auxIntToInt64(v_1.AuxInt)
+		c := AuxIntToInt64(v_1.AuxInt)
 		if !(32 < c&63 && c&63 < 64) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v2.AddArg(x)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v3.AuxInt = Int32ToAuxInt(int32(c & 31))
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v5 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v6.AuxInt = Int32ToAuxInt(int32(32 - c&31))
 		v4.AddArg2(v5, v6)
 		v0.AddArg2(v1, v4)
 		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
@@ -1864,24 +1864,24 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1.AuxInt)
+		c := AuxIntToInt32(v_1.AuxInt)
 		if !(32 < c&63 && c&63 < 64) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v2.AddArg(x)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v3.AuxInt = Int32ToAuxInt(int32(c & 31))
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v5 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v6.AuxInt = Int32ToAuxInt(int32(32 - c&31))
 		v4.AddArg2(v5, v6)
 		v0.AddArg2(v1, v4)
 		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
@@ -1902,24 +1902,24 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := auxIntToInt16(v_1.AuxInt)
+		c := AuxIntToInt16(v_1.AuxInt)
 		if !(32 < c&63 && c&63 < 64) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v2.AddArg(x)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v3.AuxInt = Int32ToAuxInt(int32(c & 31))
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v5 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v6.AuxInt = Int32ToAuxInt(int32(32 - c&31))
 		v4.AddArg2(v5, v6)
 		v0.AddArg2(v1, v4)
 		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
@@ -1940,24 +1940,24 @@ func rewriteValuedec64_OpRotateLeft64(v *Value) bool {
 		if v_1.Op != OpConst8 {
 			break
 		}
-		c := auxIntToInt8(v_1.AuxInt)
+		c := AuxIntToInt8(v_1.AuxInt)
 		if !(32 < c&63 && c&63 < 64) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v2.AddArg(x)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int32ToAuxInt(int32(c & 31))
+		v3.AuxInt = Int32ToAuxInt(int32(c & 31))
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v5 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v5.AddArg(x)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int32ToAuxInt(int32(32 - c&31))
+		v6.AuxInt = Int32ToAuxInt(int32(32 - c&31))
 		v4.AddArg2(v5, v6)
 		v0.AddArg2(v1, v4)
 		v7 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
@@ -1982,7 +1982,7 @@ func rewriteValuedec64_OpRotateLeft8(v *Value) bool {
 			break
 		}
 		lo := v_1.Args[1]
-		v.reset(OpRotateLeft8)
+		v.Reset(OpRotateLeft8)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2004,29 +2004,29 @@ func rewriteValuedec64_OpRsh16Ux64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpConst32)
-		v.AuxInt = int32ToAuxInt(0)
+		v.Reset(OpConst32)
+		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (Rsh16Ux64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Rsh16Ux32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpRsh16Ux32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpRsh16Ux32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2043,7 +2043,7 @@ func rewriteValuedec64_OpRsh16Ux64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpRsh16Ux32)
+		v.Reset(OpRsh16Ux32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -2056,7 +2056,7 @@ func rewriteValuedec64_OpRsh16Ux64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRsh16Ux32)
+		v.Reset(OpRsh16Ux32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -2086,11 +2086,11 @@ func rewriteValuedec64_OpRsh16x64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpSignmask)
+		v.Reset(OpSignmask)
 		v0 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -2099,18 +2099,18 @@ func rewriteValuedec64_OpRsh16x64(v *Value) bool {
 	// match: (Rsh16x64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Rsh16x32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpRsh16x32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpRsh16x32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2127,7 +2127,7 @@ func rewriteValuedec64_OpRsh16x64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpRsh16x32)
+		v.Reset(OpRsh16x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -2140,7 +2140,7 @@ func rewriteValuedec64_OpRsh16x64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRsh16x32)
+		v.Reset(OpRsh16x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -2169,29 +2169,29 @@ func rewriteValuedec64_OpRsh32Ux64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpConst32)
-		v.AuxInt = int32ToAuxInt(0)
+		v.Reset(OpConst32)
+		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (Rsh32Ux64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Rsh32Ux32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpRsh32Ux32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpRsh32Ux32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2208,7 +2208,7 @@ func rewriteValuedec64_OpRsh32Ux64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpRsh32Ux32)
+		v.Reset(OpRsh32Ux32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -2221,7 +2221,7 @@ func rewriteValuedec64_OpRsh32Ux64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRsh32Ux32)
+		v.Reset(OpRsh32Ux32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -2251,29 +2251,29 @@ func rewriteValuedec64_OpRsh32x64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpSignmask)
+		v.Reset(OpSignmask)
 		v.AddArg(x)
 		return true
 	}
 	// match: (Rsh32x64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Rsh32x32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpRsh32x32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpRsh32x32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2290,7 +2290,7 @@ func rewriteValuedec64_OpRsh32x64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpRsh32x32)
+		v.Reset(OpRsh32x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -2303,7 +2303,7 @@ func rewriteValuedec64_OpRsh32x64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRsh32x32)
+		v.Reset(OpRsh32x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -2326,7 +2326,7 @@ func rewriteValuedec64_OpRsh64Ux16(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpRsh32Ux16, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -2340,7 +2340,7 @@ func rewriteValuedec64_OpRsh64Ux16(v *Value) bool {
 		v6 := b.NewValue0(v.Pos, OpLsh32x16, typ.UInt32)
 		v7 := b.NewValue0(v.Pos, OpSub16, typ.UInt16)
 		v8 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-		v8.AuxInt = int16ToAuxInt(32)
+		v8.AuxInt = Int16ToAuxInt(32)
 		v7.AddArg2(v8, s)
 		v6.AddArg2(v1, v7)
 		v3.AddArg2(v4, v6)
@@ -2363,7 +2363,7 @@ func rewriteValuedec64_OpRsh64Ux32(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -2377,7 +2377,7 @@ func rewriteValuedec64_OpRsh64Ux32(v *Value) bool {
 		v6 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v7 := b.NewValue0(v.Pos, OpSub32, typ.UInt32)
 		v8 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v8.AuxInt = int32ToAuxInt(32)
+		v8.AuxInt = Int32ToAuxInt(32)
 		v7.AddArg2(v8, s)
 		v6.AddArg2(v1, v7)
 		v3.AddArg2(v4, v6)
@@ -2406,29 +2406,29 @@ func rewriteValuedec64_OpRsh64Ux64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpConst64)
-		v.AuxInt = int64ToAuxInt(0)
+		v.Reset(OpConst64)
+		v.AuxInt = Int64ToAuxInt(0)
 		return true
 	}
 	// match: (Rsh64Ux64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Rsh64Ux32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpRsh64Ux32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpRsh64Ux32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2445,7 +2445,7 @@ func rewriteValuedec64_OpRsh64Ux64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpRsh64Ux32)
+		v.Reset(OpRsh64Ux32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -2458,7 +2458,7 @@ func rewriteValuedec64_OpRsh64Ux64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRsh64Ux32)
+		v.Reset(OpRsh64Ux32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -2481,7 +2481,7 @@ func rewriteValuedec64_OpRsh64Ux8(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpRsh32Ux8, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -2495,7 +2495,7 @@ func rewriteValuedec64_OpRsh64Ux8(v *Value) bool {
 		v6 := b.NewValue0(v.Pos, OpLsh32x8, typ.UInt32)
 		v7 := b.NewValue0(v.Pos, OpSub8, typ.UInt8)
 		v8 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-		v8.AuxInt = int8ToAuxInt(32)
+		v8.AuxInt = Int8ToAuxInt(32)
 		v7.AddArg2(v8, s)
 		v6.AddArg2(v1, v7)
 		v3.AddArg2(v4, v6)
@@ -2518,7 +2518,7 @@ func rewriteValuedec64_OpRsh64x16(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpRsh32x16, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -2532,7 +2532,7 @@ func rewriteValuedec64_OpRsh64x16(v *Value) bool {
 		v6 := b.NewValue0(v.Pos, OpLsh32x16, typ.UInt32)
 		v7 := b.NewValue0(v.Pos, OpSub16, typ.UInt16)
 		v8 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-		v8.AuxInt = int16ToAuxInt(32)
+		v8.AuxInt = Int16ToAuxInt(32)
 		v7.AddArg2(v8, s)
 		v6.AddArg2(v1, v7)
 		v3.AddArg2(v4, v6)
@@ -2545,7 +2545,7 @@ func rewriteValuedec64_OpRsh64x16(v *Value) bool {
 		v13 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v14 := b.NewValue0(v.Pos, OpRsh16Ux32, typ.UInt16)
 		v15 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v15.AuxInt = int32ToAuxInt(5)
+		v15.AuxInt = Int32ToAuxInt(5)
 		v14.AddArg2(s, v15)
 		v13.AddArg(v14)
 		v12.AddArg(v13)
@@ -2565,7 +2565,7 @@ func rewriteValuedec64_OpRsh64x32(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpRsh32x32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -2579,7 +2579,7 @@ func rewriteValuedec64_OpRsh64x32(v *Value) bool {
 		v6 := b.NewValue0(v.Pos, OpLsh32x32, typ.UInt32)
 		v7 := b.NewValue0(v.Pos, OpSub32, typ.UInt32)
 		v8 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v8.AuxInt = int32ToAuxInt(32)
+		v8.AuxInt = Int32ToAuxInt(32)
 		v7.AddArg2(v8, s)
 		v6.AddArg2(v1, v7)
 		v3.AddArg2(v4, v6)
@@ -2591,7 +2591,7 @@ func rewriteValuedec64_OpRsh64x32(v *Value) bool {
 		v12 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v13 := b.NewValue0(v.Pos, OpRsh32Ux32, typ.UInt32)
 		v14 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v14.AuxInt = int32ToAuxInt(5)
+		v14.AuxInt = Int32ToAuxInt(5)
 		v13.AddArg2(s, v14)
 		v12.AddArg(v13)
 		v9.AddArg2(v10, v12)
@@ -2617,11 +2617,11 @@ func rewriteValuedec64_OpRsh64x64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -2632,18 +2632,18 @@ func rewriteValuedec64_OpRsh64x64(v *Value) bool {
 	// match: (Rsh64x64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Rsh64x32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpRsh64x32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpRsh64x32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2660,7 +2660,7 @@ func rewriteValuedec64_OpRsh64x64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpRsh64x32)
+		v.Reset(OpRsh64x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -2673,7 +2673,7 @@ func rewriteValuedec64_OpRsh64x64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRsh64x32)
+		v.Reset(OpRsh64x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -2696,7 +2696,7 @@ func rewriteValuedec64_OpRsh64x8(v *Value) bool {
 	for {
 		x := v_0
 		s := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpRsh32x8, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -2710,7 +2710,7 @@ func rewriteValuedec64_OpRsh64x8(v *Value) bool {
 		v6 := b.NewValue0(v.Pos, OpLsh32x8, typ.UInt32)
 		v7 := b.NewValue0(v.Pos, OpSub8, typ.UInt8)
 		v8 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-		v8.AuxInt = int8ToAuxInt(32)
+		v8.AuxInt = Int8ToAuxInt(32)
 		v7.AddArg2(v8, s)
 		v6.AddArg2(v1, v7)
 		v3.AddArg2(v4, v6)
@@ -2723,7 +2723,7 @@ func rewriteValuedec64_OpRsh64x8(v *Value) bool {
 		v13 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
 		v14 := b.NewValue0(v.Pos, OpRsh8Ux32, typ.UInt8)
 		v15 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v15.AuxInt = int32ToAuxInt(5)
+		v15.AuxInt = Int32ToAuxInt(5)
 		v14.AddArg2(s, v15)
 		v13.AddArg(v14)
 		v12.AddArg(v13)
@@ -2749,29 +2749,29 @@ func rewriteValuedec64_OpRsh8Ux64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpConst32)
-		v.AuxInt = int32ToAuxInt(0)
+		v.Reset(OpConst32)
+		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (Rsh8Ux64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Rsh8Ux32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpRsh8Ux32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpRsh8Ux32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2788,7 +2788,7 @@ func rewriteValuedec64_OpRsh8Ux64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpRsh8Ux32)
+		v.Reset(OpRsh8Ux32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -2801,7 +2801,7 @@ func rewriteValuedec64_OpRsh8Ux64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRsh8Ux32)
+		v.Reset(OpRsh8Ux32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -2831,11 +2831,11 @@ func rewriteValuedec64_OpRsh8x64(v *Value) bool {
 		if v_1_0.Op != OpConst32 {
 			break
 		}
-		c := auxIntToInt32(v_1_0.AuxInt)
+		c := AuxIntToInt32(v_1_0.AuxInt)
 		if !(c != 0) {
 			break
 		}
-		v.reset(OpSignmask)
+		v.Reset(OpSignmask)
 		v0 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -2844,18 +2844,18 @@ func rewriteValuedec64_OpRsh8x64(v *Value) bool {
 	// match: (Rsh8x64 [c] x (Int64Make (Const32 [0]) lo))
 	// result: (Rsh8x32 [c] x lo)
 	for {
-		c := auxIntToBool(v.AuxInt)
+		c := AuxIntToBool(v.AuxInt)
 		x := v_0
 		if v_1.Op != OpInt64Make {
 			break
 		}
 		lo := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpConst32 || auxIntToInt32(v_1_0.AuxInt) != 0 {
+		if v_1_0.Op != OpConst32 || AuxIntToInt32(v_1_0.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpRsh8x32)
-		v.AuxInt = boolToAuxInt(c)
+		v.Reset(OpRsh8x32)
+		v.AuxInt = BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2872,7 +2872,7 @@ func rewriteValuedec64_OpRsh8x64(v *Value) bool {
 		if !(hi.Op != OpConst32) {
 			break
 		}
-		v.reset(OpRsh8x32)
+		v.Reset(OpRsh8x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v1.AddArg(hi)
@@ -2885,7 +2885,7 @@ func rewriteValuedec64_OpRsh8x64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRsh8x32)
+		v.Reset(OpRsh8x32)
 		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpZeromask, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
@@ -2907,7 +2907,7 @@ func rewriteValuedec64_OpSelect0(v *Value) bool {
 			break
 		}
 		x := v_0.Args[0]
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -2921,7 +2921,7 @@ func rewriteValuedec64_OpSelect1(v *Value) bool {
 			break
 		}
 		y := v_0.Args[1]
-		v.copyOf(y)
+		v.CopyOf(y)
 		return true
 	}
 	return false
@@ -2934,7 +2934,7 @@ func rewriteValuedec64_OpSignExt16to64(v *Value) bool {
 	// result: (SignExt32to64 (SignExt16to32 x))
 	for {
 		x := v_0
-		v.reset(OpSignExt32to64)
+		v.Reset(OpSignExt32to64)
 		v0 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -2949,7 +2949,7 @@ func rewriteValuedec64_OpSignExt32to64(v *Value) bool {
 	// result: (Int64Make (Signmask x) x)
 	for {
 		x := v_0
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
 		v0.AddArg(x)
 		v.AddArg2(v0, x)
@@ -2964,7 +2964,7 @@ func rewriteValuedec64_OpSignExt8to64(v *Value) bool {
 	// result: (SignExt32to64 (SignExt8to32 x))
 	for {
 		x := v_0
-		v.reset(OpSignExt32to64)
+		v.Reset(OpSignExt32to64)
 		v0 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -2981,7 +2981,7 @@ func rewriteValuedec64_OpStore(v *Value) bool {
 	// cond: t.Size() == 8 && !config.BigEndian
 	// result: (Store {hi.Type} (OffPtr <hi.Type.PtrTo()> [4] dst) hi (Store {lo.Type} dst lo mem))
 	for {
-		t := auxToType(v.Aux)
+		t := AuxToType(v.Aux)
 		dst := v_0
 		if v_1.Op != OpInt64Make {
 			break
@@ -2992,13 +2992,13 @@ func rewriteValuedec64_OpStore(v *Value) bool {
 		if !(t.Size() == 8 && !config.BigEndian) {
 			break
 		}
-		v.reset(OpStore)
-		v.Aux = typeToAux(hi.Type)
+		v.Reset(OpStore)
+		v.Aux = TypeToAux(hi.Type)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, hi.Type.PtrTo())
-		v0.AuxInt = int64ToAuxInt(4)
+		v0.AuxInt = Int64ToAuxInt(4)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = typeToAux(lo.Type)
+		v1.Aux = TypeToAux(lo.Type)
 		v1.AddArg3(dst, lo, mem)
 		v.AddArg3(v0, hi, v1)
 		return true
@@ -3007,7 +3007,7 @@ func rewriteValuedec64_OpStore(v *Value) bool {
 	// cond: t.Size() == 8 && config.BigEndian
 	// result: (Store {lo.Type} (OffPtr <lo.Type.PtrTo()> [4] dst) lo (Store {hi.Type} dst hi mem))
 	for {
-		t := auxToType(v.Aux)
+		t := AuxToType(v.Aux)
 		dst := v_0
 		if v_1.Op != OpInt64Make {
 			break
@@ -3018,13 +3018,13 @@ func rewriteValuedec64_OpStore(v *Value) bool {
 		if !(t.Size() == 8 && config.BigEndian) {
 			break
 		}
-		v.reset(OpStore)
-		v.Aux = typeToAux(lo.Type)
+		v.Reset(OpStore)
+		v.Aux = TypeToAux(lo.Type)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, lo.Type.PtrTo())
-		v0.AuxInt = int64ToAuxInt(4)
+		v0.AuxInt = Int64ToAuxInt(4)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = typeToAux(hi.Type)
+		v1.Aux = TypeToAux(hi.Type)
 		v1.AddArg3(dst, hi, mem)
 		v.AddArg3(v0, lo, v1)
 		return true
@@ -3042,7 +3042,7 @@ func rewriteValuedec64_OpSub64(v *Value) bool {
 		t := v.Type
 		x := v_0
 		y := v_1
-		v.reset(OpLast)
+		v.Reset(OpLast)
 		v.Type = t
 		x0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		x0.AddArg(x)
@@ -3077,7 +3077,7 @@ func rewriteValuedec64_OpTrunc64to16(v *Value) bool {
 			break
 		}
 		lo := v_0.Args[1]
-		v.reset(OpTrunc32to16)
+		v.Reset(OpTrunc32to16)
 		v.AddArg(lo)
 		return true
 	}
@@ -3085,7 +3085,7 @@ func rewriteValuedec64_OpTrunc64to16(v *Value) bool {
 	// result: (Trunc32to16 (Int64Lo x))
 	for {
 		x := v_0
-		v.reset(OpTrunc32to16)
+		v.Reset(OpTrunc32to16)
 		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -3101,14 +3101,14 @@ func rewriteValuedec64_OpTrunc64to32(v *Value) bool {
 			break
 		}
 		lo := v_0.Args[1]
-		v.copyOf(lo)
+		v.CopyOf(lo)
 		return true
 	}
 	// match: (Trunc64to32 x)
 	// result: (Int64Lo x)
 	for {
 		x := v_0
-		v.reset(OpInt64Lo)
+		v.Reset(OpInt64Lo)
 		v.AddArg(x)
 		return true
 	}
@@ -3124,7 +3124,7 @@ func rewriteValuedec64_OpTrunc64to8(v *Value) bool {
 			break
 		}
 		lo := v_0.Args[1]
-		v.reset(OpTrunc32to8)
+		v.Reset(OpTrunc32to8)
 		v.AddArg(lo)
 		return true
 	}
@@ -3132,7 +3132,7 @@ func rewriteValuedec64_OpTrunc64to8(v *Value) bool {
 	// result: (Trunc32to8 (Int64Lo x))
 	for {
 		x := v_0
-		v.reset(OpTrunc32to8)
+		v.Reset(OpTrunc32to8)
 		v0 := b.NewValue0(v.Pos, OpInt64Lo, typ.UInt32)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -3149,7 +3149,7 @@ func rewriteValuedec64_OpXor64(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpXor32, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpInt64Hi, typ.UInt32)
 		v1.AddArg(x)
@@ -3174,7 +3174,7 @@ func rewriteValuedec64_OpZeroExt16to64(v *Value) bool {
 	// result: (ZeroExt32to64 (ZeroExt16to32 x))
 	for {
 		x := v_0
-		v.reset(OpZeroExt32to64)
+		v.Reset(OpZeroExt32to64)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -3189,9 +3189,9 @@ func rewriteValuedec64_OpZeroExt32to64(v *Value) bool {
 	// result: (Int64Make (Const32 <typ.UInt32> [0]) x)
 	for {
 		x := v_0
-		v.reset(OpInt64Make)
+		v.Reset(OpInt64Make)
 		v0 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v0.AuxInt = int32ToAuxInt(0)
+		v0.AuxInt = Int32ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -3204,7 +3204,7 @@ func rewriteValuedec64_OpZeroExt8to64(v *Value) bool {
 	// result: (ZeroExt32to64 (ZeroExt8to32 x))
 	for {
 		x := v_0
-		v.reset(OpZeroExt32to64)
+		v.Reset(OpZeroExt32to64)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
 		v0.AddArg(x)
 		v.AddArg(v0)

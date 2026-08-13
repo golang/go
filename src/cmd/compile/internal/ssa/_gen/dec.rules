@@ -99,7 +99,7 @@
 // Helpers for expand calls
 // Some of these are copied from generic.rules
 
-(IMake _typ (StructMake ___)) => imakeOfStructMake(v)
+(IMake _typ (StructMake ___)) => ImakeOfStructMake(v)
 (StructSelect (IData x)) && v.Type.Size() > 0 => (IData x)
 (StructSelect (IData x)) && v.Type.Size() == 0 => (Empty)
 
@@ -120,7 +120,7 @@
 (StructMake x) && x.Type.IsPtrShaped() => x
 
 
-(Store _ (StructMake ___) _) => rewriteStructStore(v)
+(Store _ (StructMake ___) _) => RewriteStructStore(v)
 
 (IMake _typ (ArrayMake1 val)) => (IMake _typ val)
 (ArraySelect (ArrayMake1 x)) => x

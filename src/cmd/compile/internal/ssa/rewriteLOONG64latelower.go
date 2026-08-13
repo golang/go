@@ -29,7 +29,7 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVBUreg(v *Value) bool {
 		if !(ZeroUpper56Bits(x)) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -44,7 +44,7 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVHUreg(v *Value) bool {
 		if !(ZeroUpper48Bits(x)) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -53,10 +53,10 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v *Value) bool {
 	// match: (MOVVconst [0])
 	// result: (ZERO)
 	for {
-		if auxIntToInt64(v.AuxInt) != 0 {
+		if AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
-		v.reset(OpLOONG64ZERO)
+		v.Reset(OpLOONG64ZERO)
 		return true
 	}
 	return false
@@ -71,7 +71,7 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVWUreg(v *Value) bool {
 		if !(ZeroUpper32Bits(x)) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -81,11 +81,11 @@ func rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v *Value) bool {
 	// match: (SLLVconst [1] x)
 	// result: (ADDV x x)
 	for {
-		if auxIntToInt64(v.AuxInt) != 1 {
+		if AuxIntToInt64(v.AuxInt) != 1 {
 			break
 		}
 		x := v_0
-		v.reset(OpLOONG64ADDV)
+		v.Reset(OpLOONG64ADDV)
 		v.AddArg2(x, x)
 		return true
 	}
@@ -104,7 +104,7 @@ func rewriteBlockLOONG64latelower(b *Block) bool {
 			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
 				x := v_0_0
 				y := v_0_1
-				b.resetWithControl2(block.BlockLOONG64BEQ, x, y)
+				b.ResetWithControl2(block.BlockLOONG64BEQ, x, y)
 				return true
 			}
 		}
@@ -119,7 +119,7 @@ func rewriteBlockLOONG64latelower(b *Block) bool {
 			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
 				x := v_0_0
 				y := v_0_1
-				b.resetWithControl2(block.BlockLOONG64BNE, x, y)
+				b.ResetWithControl2(block.BlockLOONG64BNE, x, y)
 				return true
 			}
 		}

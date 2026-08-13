@@ -44,7 +44,7 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 
 		kb.entries[v.ID].known = known
 		kb.entries[v.ID].value = value
-		if v.Block.Func.pass.debug > 1 {
+		if v.Block.Func.Pass.Debug > 1 {
 			v.Block.Func.Warnl(v.Pos, "known bits state %v: %v", v, kb.entries[v.ID])
 		}
 	}()
@@ -108,7 +108,7 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 			return 0, -1
 		}
 		if xk == -1 && yk == -1 {
-			return boolToAuxInt(x == y), -1
+			return BoolToAuxInt(x == y), -1
 		}
 		return 0, -1 << 1
 	case OpNeq64, OpNeq32, OpNeq16, OpNeq8, OpNeqB:
@@ -119,7 +119,7 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 			return 1, -1
 		}
 		if xk == -1 && yk == -1 {
-			return boolToAuxInt(x != y), -1
+			return BoolToAuxInt(x != y), -1
 		}
 		return 0, -1 << 1
 	case OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64, OpZeroExt16to32, OpZeroExt16to64, OpZeroExt32to64:
@@ -155,28 +155,28 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 	}
 }
 
-// knownBits does constant folding across bitfields
-func knownBits(f *Func) {
+// KnownBits does constant folding across bitfields
+func KnownBits(f *Func) {
 	kb := &knownBitsState{
-		entries:         f.Cache.allocKnownBitsEntriesSlice(f.NumValues()),
+		entries:         f.Cache.AllocKnownBitsEntriesSlice(f.NumValues()),
 		seenValues:      f.Cache.allocBitset(f.NumValues()),
 		reachableBlocks: f.Cache.allocBitset(f.NumBlocks()),
 	}
-	defer f.Cache.freeKnownBitsEntriesSlice(kb.entries)
+	defer f.Cache.FreeKnownBitsEntriesSlice(kb.entries)
 	defer f.Cache.freeBitset(kb.seenValues)
 	defer f.Cache.freeBitset(kb.reachableBlocks)
 	clear(kb.seenValues)
 	clear(kb.entries)
 	clear(kb.reachableBlocks)
 
-	blocks := f.postorder()
+	blocks := f.Postorder()
 	for _, b := range blocks {
 		kb.reachableBlocks.Set(uint32(b.ID))
 	}
 
 	for _, b := range slices.Backward(blocks) {
 		for _, v := range b.Values {
-			if v.Uses == 0 && f.pass.debug == 0 {
+			if v.Uses == 0 && f.Pass.Debug == 0 {
 				continue
 			}
 			if !(v.Type.IsInteger() || v.Type.IsBoolean()) {
@@ -190,7 +190,7 @@ func knownBits(f *Func) {
 			if k != -1 {
 				continue
 			}
-			if f.pass.debug > 0 {
+			if f.Pass.Debug > 0 {
 				var pval any = val
 				if v.Type.IsBoolean() {
 					pval = val != 0
@@ -214,7 +214,7 @@ func knownBits(f *Func) {
 			default:
 				panic("unreachable; unknown integer size")
 			}
-			v.copyOf(c)
+			v.CopyOf(c)
 		}
 	}
 }
@@ -254,7 +254,7 @@ func (kbe knownBitsEntry) String() string {
 
 func (kb *knownBitsState) isLiveInEdge(b *Block, index uint) bool {
 	inEdge := b.Preds[index]
-	return kb.isLiveOutEdge(inEdge.b, uint(inEdge.i))
+	return kb.isLiveOutEdge(inEdge.B, uint(inEdge.I))
 }
 
 func (kb *knownBitsState) isLiveOutEdge(b *Block, index uint) bool {

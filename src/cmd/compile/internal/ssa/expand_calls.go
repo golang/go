@@ -26,11 +26,11 @@ func expandCalls(f *Func) {
 	// Convert incoming aggregate arg into assembly of parts.
 	// Feed modified AST to decompose.
 
-	sp, _ := f.spSb()
+	sp, _ := f.SpSb()
 
 	x := &expandState{
 		f:               f,
-		debug:           f.pass.debug,
+		debug:           f.Pass.Debug,
 		regSize:         f.Config.RegSize,
 		sp:              sp,
 		typs:            &f.Config.Types,
@@ -93,7 +93,7 @@ func expandCalls(f *Func) {
 					aux := call.Aux.(*AuxCall)
 					mem := x.memForCall[call.ID]
 					if mem == nil {
-						v.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
+						v.AuxInt = int64(aux.AbiInfo.OutRegistersUsed())
 						x.memForCall[call.ID] = v
 					} else {
 						panic(fmt.Errorf("Saw two memories for call %v, %v and %v", call, mem, v))
@@ -108,7 +108,7 @@ func expandCalls(f *Func) {
 				aux := call.Aux.(*AuxCall)
 				pt := v.Type
 				off := x.offsetFrom(x.f.Entry, x.sp, aux.OffsetOfResult(which), pt)
-				v.copyOf(off)
+				v.CopyOf(off)
 			}
 		}
 
@@ -127,10 +127,10 @@ func expandCalls(f *Func) {
 		regs := a.Registers
 		var offset int64
 		if len(regs) == 0 {
-			offset = a.FrameOffset(aux.abiInfo)
+			offset = a.FrameOffset(aux.AbiInfo)
 		}
 		auxBase := x.offsetFrom(x.f.Entry, x.sp, offset, types.NewPtr(v.Type))
-		rc.init(regs, aux.abiInfo, nil, auxBase, 0)
+		rc.init(regs, aux.AbiInfo, nil, auxBase, 0)
 		x.rewriteSelectOrArg(f.Entry.Pos, f.Entry, v, v, m0, v.Type, rc)
 	}
 
@@ -144,7 +144,7 @@ func expandCalls(f *Func) {
 		aux := call.Aux.(*AuxCall)
 		mem := x.memForCall[call.ID]
 		if mem == nil {
-			mem = call.Block.NewValue1I(call.Pos, OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
+			mem = call.Block.NewValue1I(call.Pos, OpSelectN, types.TypeMem, int64(aux.AbiInfo.OutRegistersUsed()), call)
 			x.memForCall[call.ID] = mem
 		}
 
@@ -159,9 +159,9 @@ func expandCalls(f *Func) {
 			if len(regs) > 0 {
 				// Cannot do a rewrite that builds up a result from pieces; instead, copy pieces to the store operation.
 				var rc registerCursor
-				rc.init(regs, aux.abiInfo, nil, storeAddr, 0)
+				rc.init(regs, aux.AbiInfo, nil, storeAddr, 0)
 				mem = x.rewriteWideSelectToStores(call.Pos, call.Block, v, mem, v.Type, rc)
-				store.copyOf(mem)
+				store.CopyOf(mem)
 			} else {
 				// Move directly from AuxBase to store target; rewrite the store instruction.
 				offset := aux.OffsetOfResult(i)
@@ -170,7 +170,7 @@ func expandCalls(f *Func) {
 				// now Move dst, auxBase, mem
 				move := store.Block.NewValue3A(store.Pos, OpMove, types.TypeMem, v.Type, storeAddr, auxBase, mem)
 				move.AuxInt = v.Type.Size()
-				store.copyOf(move)
+				store.CopyOf(move)
 			}
 			continue
 		}
@@ -181,7 +181,7 @@ func expandCalls(f *Func) {
 			auxBase = x.offsetFrom(x.f.Entry, x.sp, offset, types.NewPtr(v.Type))
 		}
 		var rc registerCursor
-		rc.init(regs, aux.abiInfo, nil, auxBase, 0)
+		rc.init(regs, aux.AbiInfo, nil, auxBase, 0)
 		x.rewriteSelectOrArg(call.Pos, call.Block, v, v, mem, v.Type, rc)
 	}
 
@@ -189,7 +189,7 @@ func expandCalls(f *Func) {
 		// Break aggregate args passed to call into smaller pieces.
 		x.rewriteCallArgs(v, argStart)
 		v.Op = newOp
-		rts := abi.RegisterTypes(v.Aux.(*AuxCall).abiInfo.OutParams())
+		rts := abi.RegisterTypes(v.Aux.(*AuxCall).AbiInfo.OutParams())
 		v.Type = types.NewResults(append(rts, types.TypeMem))
 	}
 
@@ -250,10 +250,10 @@ func (x *expandState) rewriteFuncResults(v *Value, b *Block, aux *AuxCall) {
 				continue // Self move to output parameter
 			}
 		}
-		rc.init(aRegs, aux.abiInfo, result, auxBase, auxOffset)
+		rc.init(aRegs, aux.AbiInfo, result, auxBase, auxOffset)
 		mem = x.decomposeAsNecessary(v.Pos, b, a, mem, rc)
 	}
-	v.resetArgs()
+	v.ResetArgs()
 	v.AddArgs(allResults...)
 	v.AddArg(mem)
 	for _, a := range oldArgs {
@@ -264,7 +264,7 @@ func (x *expandState) rewriteFuncResults(v *Value, b *Block, aux *AuxCall) {
 			x.invalidateRecursively(a)
 		}
 	}
-	v.Type = types.NewResults(append(abi.RegisterTypes(aux.abiInfo.OutParams()), types.TypeMem))
+	v.Type = types.NewResults(append(abi.RegisterTypes(aux.AbiInfo.OutParams()), types.TypeMem))
 	return
 }
 
@@ -310,7 +310,7 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 			// It's common for a tail call passing the same arguments (e.g. method wrapper),
 			// so this would be a self copy. Detect this and optimize it out.
 			n := a.Aux.(*ir.Name)
-			if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.Arch.FixedFrameSize == aOffset {
+			if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.Ctxt.Arch.FixedFrameSize == aOffset {
 				continue
 			}
 		}
@@ -318,12 +318,12 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 			x.Printf("...storeArg %s, %v, %d\n", a.LongString(), aType, aOffset)
 		}
 
-		rc.init(aRegs, aux.abiInfo, result, sp, aOffset)
+		rc.init(aRegs, aux.AbiInfo, result, sp, aOffset)
 		mem = x.decomposeAsNecessary(v.Pos, v.Block, a, mem, rc)
 	}
 	var preArgStore [2]*Value
 	preArgs := append(preArgStore[:0], v.Args[0:firstArg]...)
-	v.resetArgs()
+	v.ResetArgs()
 	v.AddArgs(preArgs...)
 	v.AddArgs(allResults...)
 	v.AddArg(mem)
@@ -492,7 +492,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m0 *Value, at *types.Type, rc registerCursor) *Value {
 
 	if at == types.TypeMem {
-		a.copyOf(m0)
+		a.CopyOf(m0)
 		return a
 	}
 
@@ -501,7 +501,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 			a = b.NewValue0(pos, op, at)
 			a.AddArgs(args...)
 		} else {
-			a.resetArgs()
+			a.ResetArgs()
 			a.Aux, a.AuxInt = nil, 0
 			a.Pos, a.Op, a.Type = pos, op, at
 			a.AddArgs(args...)
@@ -520,7 +520,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		if a == nil {
 			return dupe
 		}
-		a.copyOf(dupe)
+		a.CopyOf(dupe)
 		return a
 	}
 
@@ -657,7 +657,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 				if a == nil {
 					a = w
 				} else {
-					a.copyOf(w)
+					a.CopyOf(w)
 				}
 			} else {
 				if a == nil {
@@ -682,7 +682,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		} else if rc.hasRegs() {
 			firstReg := uint32(0)
 			for i := 0; i < int(which); i++ {
-				firstReg += uint32(len(aux.abiInfo.OutParam(i).Registers))
+				firstReg += uint32(len(aux.AbiInfo.OutParam(i).Registers))
 			}
 			reg := int64(rc.nextSlice + Abi1RO(firstReg))
 			a = makeOf(a, OpSelectN, []*Value{call})
@@ -786,7 +786,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 		if rc.hasRegs() {
 			firstReg := uint32(0)
 			for i := 0; i < int(which); i++ {
-				firstReg += uint32(len(aux.abiInfo.OutParam(i).Registers))
+				firstReg += uint32(len(aux.AbiInfo.OutParam(i).Registers))
 			}
 			reg := int64(rc.nextSlice + Abi1RO(firstReg))
 			a := b.NewValue1I(pos, OpSelectN, at, reg, call)
@@ -948,7 +948,7 @@ func (x *expandState) prAssignForArg(v *Value) *abi.ABIParamAssignment {
 
 // ParamAssignmentForArgName returns the ABIParamAssignment for f's arg with matching name.
 func ParamAssignmentForArgName(f *Func, name *ir.Name) *abi.ABIParamAssignment {
-	abiInfo := f.OwnAux.abiInfo
+	abiInfo := f.OwnAux.AbiInfo
 	ip := abiInfo.InParams()
 	for i, a := range ip {
 		if a.Name == name {
@@ -983,7 +983,7 @@ func (x *expandState) invalidateRecursively(a *Value) {
 			x.Printf("...marking %v unused\n", s)
 		}
 	}
-	lost := a.invalidateRecursively()
+	lost := a.InvalidateRecursively()
 	if x.debug&1 != 0 && lost { // For odd values of x.debug, do this.
 		x.Printf("Lost statement marker in %s on former %s\n", base.Ctxt.Pkgpath+"."+x.f.Name, s)
 	}

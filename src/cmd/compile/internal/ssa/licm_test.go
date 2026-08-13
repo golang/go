@@ -61,7 +61,7 @@ func TestLICMNewBlock(t *testing.T) {
 	licm(fun.f)
 	CheckFunc(fun.f)
 
-	b := fun.blocks["entry"].Succs[0].b
+	b := fun.blocks["entry"].Succs[0].B
 	if len(b.Values) != 2 {
 		// b,sum should have been moved from loop to new block between entry & loop
 		t.Errorf("loop invariant code wasn't lifted, but should have")

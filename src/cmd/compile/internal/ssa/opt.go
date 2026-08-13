@@ -6,13 +6,13 @@ package ssa
 
 // machine-independent optimization.
 func opt(f *Func) {
-	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric, removeDeadValues)
+	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric, RemoveDeadValues)
 }
 
 func divisible(f *Func) {
-	applyRewrite(f, rewriteBlockdivisible, rewriteValuedivisible, removeDeadValues)
+	applyRewrite(f, rewriteBlockdivisible, rewriteValuedivisible, RemoveDeadValues)
 }
 
 func divmod(f *Func) {
-	applyRewrite(f, rewriteBlockdivmod, rewriteValuedivmod, removeDeadValues)
+	applyRewrite(f, rewriteBlockdivmod, rewriteValuedivmod, RemoveDeadValues)
 }

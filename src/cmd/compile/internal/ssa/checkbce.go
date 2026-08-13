@@ -14,7 +14,7 @@ import (
 // corresponding debug options, so it's off by default.
 // See test/checkbce.go
 func checkbce(f *Func) {
-	if f.pass.debug <= 0 && !logopt.Enabled() {
+	if f.Pass.Debug <= 0 && !logopt.Enabled() {
 		return
 	}
 
@@ -24,7 +24,7 @@ func checkbce(f *Func) {
 		}
 		for _, v := range b.Values {
 			if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
-				if f.pass.debug > 0 {
+				if f.Pass.Debug > 0 {
 					f.Warnl(v.Pos, "Found %v", v.Op)
 				}
 				if logopt.Enabled() {

@@ -16,7 +16,7 @@ import (
 // into single 2-register memory instructions.
 func pair(f *Func) {
 	// Only arm64 for now. This pass is fairly arch-specific.
-	switch f.Config.arch {
+	switch f.Config.Arch {
 	case "arm64":
 	default:
 		return
@@ -199,9 +199,9 @@ func pairLoads(f *Func) {
 			load := b.NewValue2IA(x.Pos, pairableLoads[x.Op].pair, types.NewTuple(x.Type, y.Type), x.AuxInt, x.Aux, x.Args[0], x.Args[1])
 
 			// Modify x to be (Select0 load). Similar for y.
-			x.reset(OpSelect0)
+			x.Reset(OpSelect0)
 			x.SetArgs1(load)
-			y.reset(OpSelect1)
+			y.Reset(OpSelect1)
 			y.SetArgs1(load)
 
 			i++ // Skip y next time around the loop.
@@ -240,10 +240,10 @@ func pairLoads(f *Func) {
 		// TODO: could maybe look further than just one successor hop.
 		clear(nextBlock)
 		for _, e := range b.Succs {
-			if len(e.b.Preds) > 1 {
+			if len(e.B.Preds) > 1 {
 				continue
 			}
-			for _, v := range e.b.Values {
+			for _, v := range e.B.Values {
 				info := pairableLoads[v.Op]
 				if info.width == 0 {
 					continue
@@ -277,11 +277,11 @@ func pairLoads(f *Func) {
 				load := b.NewValue2IA(x.Pos, info.pair, types.NewTuple(x.Type, y.Type), x.AuxInt, x.Aux, x.Args[0], x.Args[1])
 
 				// Modify x to be (Select0 load).
-				x.reset(OpSelect0)
+				x.Reset(OpSelect0)
 				x.SetArgs1(load)
 				// Modify y to be (Copy (Select1 load)).
 				// Note: the Select* needs to live in the load's block, not y's block.
-				y.reset(OpCopy)
+				y.Reset(OpCopy)
 				y.SetArgs1(b.NewValue1(y.Pos, OpSelect1, y.Type, load))
 				nMoved++
 				continue
@@ -294,10 +294,10 @@ func pairLoads(f *Func) {
 				load := b.NewValue2IA(x.Pos, info.pair, types.NewTuple(y.Type, x.Type), y.AuxInt, x.Aux, x.Args[0], x.Args[1])
 
 				// Modify x to be (Select1 load).
-				x.reset(OpSelect1)
+				x.Reset(OpSelect1)
 				x.SetArgs1(load)
 				// Modify y to be (Copy (Select0 load)).
-				y.reset(OpCopy)
+				y.Reset(OpCopy)
 				y.SetArgs1(b.NewValue1(y.Pos, OpSelect0, y.Type, load))
 				nMoved++
 				continue
@@ -325,8 +325,8 @@ func memoryBarrierTest(b *Block) bool {
 // When encountering an instruction that cannot be added to the buffer,
 // it pairs the accumulated stores, flushes the buffer, and continues processing.
 func pairStores(f *Func) {
-	last := f.Cache.allocBoolSlice(f.NumValues())
-	defer f.Cache.freeBoolSlice(last)
+	last := f.Cache.AllocBoolSlice(f.NumValues())
+	defer f.Cache.FreeBoolSlice(last)
 
 	// memChain contains a list of stores with the same ptr/aux pair and
 	// nonoverlapping write ranges [AuxInt:AuxInt+writeSize]. All of the
@@ -366,14 +366,14 @@ func pairStores(f *Func) {
 				// Arguments for the merged store: ptr, val1, val2, mem.
 				args := []*Value{v.Args[0], v.Args[1], w.Args[1], mem}
 
-				v.reset(info.pair)
+				v.Reset(info.pair)
 				v.AddArgs(args...)
 				v.Aux = aux
 				v.AuxInt = off
 				v.Pos = pos
 
 				// Make w just a memory copy.
-				w.reset(OpCopy)
+				w.Reset(OpCopy)
 				w.SetArgs1(wmem)
 
 				// Skip merged store (w)
@@ -479,7 +479,7 @@ func pairStores(f *Func) {
 
 			for _, w := range memChain {
 				wWriteSize := storeWidth(w.Op)
-				if overlap(w.AuxInt, wWriteSize, v.AuxInt, writeSize) {
+				if Overlap(w.AuxInt, wWriteSize, v.AuxInt, writeSize) {
 					// Aliases with w's location.
 					// Flush the chain and start a new one with v.
 					flushMemChain()

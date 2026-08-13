@@ -57,7 +57,7 @@ type lcaEasy struct {
 }
 
 func makeLCAeasy(f *Func) *lcaEasy {
-	return &lcaEasy{parent: dominators(f)}
+	return &lcaEasy{parent: Dominators(f)}
 }
 
 func (lca *lcaEasy) find(a, b *Block) *Block {

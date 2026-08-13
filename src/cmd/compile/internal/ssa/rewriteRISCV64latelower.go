@@ -33,7 +33,7 @@ func rewriteValueRISCV64latelower_OpRISCV64AND(v *Value) bool {
 				continue
 			}
 			y := v_1.Args[0]
-			v.reset(OpRISCV64ANDN)
+			v.Reset(OpRISCV64ANDN)
 			v.AddArg2(x, y)
 			return true
 		}
@@ -51,7 +51,7 @@ func rewriteValueRISCV64latelower_OpRISCV64NOT(v *Value) bool {
 		}
 		y := v_0.Args[1]
 		x := v_0.Args[0]
-		v.reset(OpRISCV64XNOR)
+		v.Reset(OpRISCV64XNOR)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -69,7 +69,7 @@ func rewriteValueRISCV64latelower_OpRISCV64OR(v *Value) bool {
 				continue
 			}
 			y := v_1.Args[0]
-			v.reset(OpRISCV64ORN)
+			v.Reset(OpRISCV64ORN)
 			v.AddArg2(x, y)
 			return true
 		}
@@ -85,7 +85,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *Value) bool {
 	// cond: c <= 56
 	// result: (SRLI [56-c] (SLLI <typ.UInt64> [56] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVBUreg {
 			break
 		}
@@ -93,10 +93,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *Value) bool {
 		if !(c <= 56) {
 			break
 		}
-		v.reset(OpRISCV64SRLI)
-		v.AuxInt = int64ToAuxInt(56 - c)
+		v.Reset(OpRISCV64SRLI)
+		v.AuxInt = Int64ToAuxInt(56 - c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(56)
+		v0.AuxInt = Int64ToAuxInt(56)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -105,7 +105,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *Value) bool {
 	// cond: c <= 48
 	// result: (SRLI [48-c] (SLLI <typ.UInt64> [48] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVHUreg {
 			break
 		}
@@ -113,10 +113,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *Value) bool {
 		if !(c <= 48) {
 			break
 		}
-		v.reset(OpRISCV64SRLI)
-		v.AuxInt = int64ToAuxInt(48 - c)
+		v.Reset(OpRISCV64SRLI)
+		v.AuxInt = Int64ToAuxInt(48 - c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(48)
+		v0.AuxInt = Int64ToAuxInt(48)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -125,7 +125,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *Value) bool {
 	// cond: c <= 32
 	// result: (SRLI [32-c] (SLLI <typ.UInt64> [32] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVWUreg {
 			break
 		}
@@ -133,10 +133,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *Value) bool {
 		if !(c <= 32) {
 			break
 		}
-		v.reset(OpRISCV64SRLI)
-		v.AuxInt = int64ToAuxInt(32 - c)
+		v.Reset(OpRISCV64SRLI)
+		v.AuxInt = Int64ToAuxInt(32 - c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(32)
+		v0.AuxInt = Int64ToAuxInt(32)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -144,11 +144,11 @@ func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *Value) bool {
 	// match: (SLLI [0] x)
 	// result: x
 	for {
-		if auxIntToInt64(v.AuxInt) != 0 {
+		if AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		x := v_0
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -161,7 +161,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *Value) bool {
 	// cond: c < 8
 	// result: (SRAI [56+c] (SLLI <typ.Int64> [56] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVBreg {
 			break
 		}
@@ -169,10 +169,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *Value) bool {
 		if !(c < 8) {
 			break
 		}
-		v.reset(OpRISCV64SRAI)
-		v.AuxInt = int64ToAuxInt(56 + c)
+		v.Reset(OpRISCV64SRAI)
+		v.AuxInt = Int64ToAuxInt(56 + c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.Int64)
-		v0.AuxInt = int64ToAuxInt(56)
+		v0.AuxInt = Int64ToAuxInt(56)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -181,7 +181,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *Value) bool {
 	// cond: c < 16
 	// result: (SRAI [48+c] (SLLI <typ.Int64> [48] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVHreg {
 			break
 		}
@@ -189,10 +189,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *Value) bool {
 		if !(c < 16) {
 			break
 		}
-		v.reset(OpRISCV64SRAI)
-		v.AuxInt = int64ToAuxInt(48 + c)
+		v.Reset(OpRISCV64SRAI)
+		v.AuxInt = Int64ToAuxInt(48 + c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.Int64)
-		v0.AuxInt = int64ToAuxInt(48)
+		v0.AuxInt = Int64ToAuxInt(48)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -201,7 +201,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *Value) bool {
 	// cond: c < 32
 	// result: (SRAI [32+c] (SLLI <typ.Int64> [32] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVWreg {
 			break
 		}
@@ -209,10 +209,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *Value) bool {
 		if !(c < 32) {
 			break
 		}
-		v.reset(OpRISCV64SRAI)
-		v.AuxInt = int64ToAuxInt(32 + c)
+		v.Reset(OpRISCV64SRAI)
+		v.AuxInt = Int64ToAuxInt(32 + c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.Int64)
-		v0.AuxInt = int64ToAuxInt(32)
+		v0.AuxInt = Int64ToAuxInt(32)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -220,11 +220,11 @@ func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *Value) bool {
 	// match: (SRAI [0] x)
 	// result: x
 	for {
-		if auxIntToInt64(v.AuxInt) != 0 {
+		if AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		x := v_0
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -237,7 +237,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
 	// cond: c < 8
 	// result: (SRLI [56+c] (SLLI <typ.UInt64> [56] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVBUreg {
 			break
 		}
@@ -245,10 +245,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
 		if !(c < 8) {
 			break
 		}
-		v.reset(OpRISCV64SRLI)
-		v.AuxInt = int64ToAuxInt(56 + c)
+		v.Reset(OpRISCV64SRLI)
+		v.AuxInt = Int64ToAuxInt(56 + c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(56)
+		v0.AuxInt = Int64ToAuxInt(56)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -257,7 +257,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
 	// cond: c < 16
 	// result: (SRLI [48+c] (SLLI <typ.UInt64> [48] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVHUreg {
 			break
 		}
@@ -265,10 +265,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
 		if !(c < 16) {
 			break
 		}
-		v.reset(OpRISCV64SRLI)
-		v.AuxInt = int64ToAuxInt(48 + c)
+		v.Reset(OpRISCV64SRLI)
+		v.AuxInt = Int64ToAuxInt(48 + c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(48)
+		v0.AuxInt = Int64ToAuxInt(48)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -277,7 +277,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
 	// cond: c < 32
 	// result: (SRLI [32+c] (SLLI <typ.UInt64> [32] x))
 	for {
-		c := auxIntToInt64(v.AuxInt)
+		c := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != OpRISCV64MOVWUreg {
 			break
 		}
@@ -285,10 +285,10 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
 		if !(c < 32) {
 			break
 		}
-		v.reset(OpRISCV64SRLI)
-		v.AuxInt = int64ToAuxInt(32 + c)
+		v.Reset(OpRISCV64SRLI)
+		v.AuxInt = Int64ToAuxInt(32 + c)
 		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, typ.UInt64)
-		v0.AuxInt = int64ToAuxInt(32)
+		v0.AuxInt = Int64ToAuxInt(32)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -296,11 +296,11 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
 	// match: (SRLI [0] x)
 	// result: x
 	for {
-		if auxIntToInt64(v.AuxInt) != 0 {
+		if AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		x := v_0
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -317,7 +317,7 @@ func rewriteValueRISCV64latelower_OpRISCV64XOR(v *Value) bool {
 				continue
 			}
 			y := v_1.Args[0]
-			v.reset(OpRISCV64XNOR)
+			v.Reset(OpRISCV64XNOR)
 			v.AddArg2(x, y)
 			return true
 		}

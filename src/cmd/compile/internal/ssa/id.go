@@ -6,13 +6,13 @@ package ssa
 
 type ID int32
 
-// idAlloc provides an allocator for unique integers.
-type idAlloc struct {
+// IDAlloc provides an allocator for unique integers.
+type IDAlloc struct {
 	last ID
 }
 
-// get allocates an ID and returns it. IDs are always > 0.
-func (a *idAlloc) get() ID {
+// Get allocates an ID and returns it. IDs are always > 0.
+func (a *IDAlloc) Get() ID {
 	x := a.last
 	x++
 	if x == 1<<31-1 {
@@ -22,7 +22,7 @@ func (a *idAlloc) get() ID {
 	return x
 }
 
-// num returns the maximum ID ever returned + 1.
-func (a *idAlloc) num() int {
+// Num returns the maximum ID ever returned + 1.
+func (a *IDAlloc) Num() int {
 	return int(a.last + 1)
 }

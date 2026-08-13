@@ -37,7 +37,7 @@ func rewriteValueAMD64latelower_OpAMD64MOVBQZX(v *Value) bool {
 		if !(ZeroUpper56Bits(x)) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -52,7 +52,7 @@ func rewriteValueAMD64latelower_OpAMD64MOVLQZX(v *Value) bool {
 		if !(ZeroUpper32Bits(x)) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -67,7 +67,7 @@ func rewriteValueAMD64latelower_OpAMD64MOVWQZX(v *Value) bool {
 		if !(ZeroUpper48Bits(x)) {
 			break
 		}
-		v.copyOf(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
@@ -84,7 +84,7 @@ func rewriteValueAMD64latelower_OpAMD64SARL(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.reset(OpAMD64SARXL)
+		v.Reset(OpAMD64SARXL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -102,7 +102,7 @@ func rewriteValueAMD64latelower_OpAMD64SARQ(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.reset(OpAMD64SARXQ)
+		v.Reset(OpAMD64SARXQ)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -120,7 +120,7 @@ func rewriteValueAMD64latelower_OpAMD64SHLL(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.reset(OpAMD64SHLXL)
+		v.Reset(OpAMD64SHLXL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -138,7 +138,7 @@ func rewriteValueAMD64latelower_OpAMD64SHLQ(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.reset(OpAMD64SHLXQ)
+		v.Reset(OpAMD64SHLXQ)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -156,7 +156,7 @@ func rewriteValueAMD64latelower_OpAMD64SHRL(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.reset(OpAMD64SHRXL)
+		v.Reset(OpAMD64SHRXL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -174,7 +174,7 @@ func rewriteValueAMD64latelower_OpAMD64SHRQ(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.reset(OpAMD64SHRXQ)
+		v.Reset(OpAMD64SHRXQ)
 		v.AddArg2(x, y)
 		return true
 	}

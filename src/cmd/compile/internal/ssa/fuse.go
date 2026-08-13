@@ -63,7 +63,7 @@ func fuse(f *Func, typ fuseType) {
 			changed = fuseBranchRedirect(f) || changed
 		}
 		if changed {
-			f.invalidateCFG()
+			f.InvalidateCFG()
 		}
 	}
 }
@@ -92,21 +92,21 @@ func fuseBlockIf(b *Block) bool {
 	}
 	// It doesn't matter how much Preds does s0 or s1 have.
 	var ss0, ss1 *Block
-	s0 := b.Succs[0].b
-	i0 := b.Succs[0].i
+	s0 := b.Succs[0].B
+	i0 := b.Succs[0].I
 	if s0.Kind != block.BlockPlain || !isEmpty(s0) {
 		s0, ss0 = b, s0
 	} else {
-		ss0 = s0.Succs[0].b
-		i0 = s0.Succs[0].i
+		ss0 = s0.Succs[0].B
+		i0 = s0.Succs[0].I
 	}
-	s1 := b.Succs[1].b
-	i1 := b.Succs[1].i
+	s1 := b.Succs[1].B
+	i1 := b.Succs[1].I
 	if s1.Kind != block.BlockPlain || !isEmpty(s1) {
 		s1, ss1 = b, s1
 	} else {
-		ss1 = s1.Succs[0].b
-		i1 = s1.Succs[0].i
+		ss1 = s1.Succs[0].B
+		i1 = s1.Succs[0].I
 	}
 	if ss0 != ss1 {
 		if s0.Kind == block.BlockPlain && isEmpty(s0) && s1.Kind == block.BlockPlain && isEmpty(s1) {
@@ -135,9 +135,9 @@ func fuseBlockIf(b *Block) bool {
 
 	// We do not need to redirect the Preds of s0 and s1 to ss,
 	// the following optimization will do this.
-	b.removeEdge(0)
+	b.RemoveEdge(0)
 	if s0 != b && len(s0.Preds) == 0 {
-		s0.removeEdge(0)
+		s0.RemoveEdge(0)
 		// Move any (dead) values in s0 to b,
 		// where they will be eliminated by the next deadcode pass.
 		for _, v := range s0.Values {
@@ -161,16 +161,16 @@ func fuseBlockIf(b *Block) bool {
 	// in walkValues, because the arguments may also become dead values.
 	walkValues := []*Value{}
 	for _, v := range b.Values {
-		if v.Uses == 0 && v.removeable() {
+		if v.Uses == 0 && v.Removeable() {
 			walkValues = append(walkValues, v)
 		}
 	}
 	for len(walkValues) != 0 {
 		v := walkValues[len(walkValues)-1]
 		walkValues = walkValues[:len(walkValues)-1]
-		if v.Uses == 0 && v.removeable() {
+		if v.Uses == 0 && v.Removeable() {
 			walkValues = append(walkValues, v.Args...)
-			v.reset(OpInvalid)
+			v.Reset(OpInvalid)
 		}
 	}
 	return true
@@ -180,7 +180,7 @@ func fuseBlockIf(b *Block) bool {
 // There may be false positives.
 func isEmpty(b *Block) bool {
 	for _, v := range b.Values {
-		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() || opcodeTable[v.Op].nilCheck {
+		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() || OpcodeTable[v.Op].NilCheck {
 			return false
 		}
 	}
@@ -197,14 +197,14 @@ func fuseBlockPlain(b *Block) bool {
 		return false
 	}
 
-	c := b.Succs[0].b
+	c := b.Succs[0].B
 	if len(c.Preds) != 1 || c == b { // At least 2 distinct blocks.
 		return false
 	}
 
 	// find earliest block in run.  Avoid simple cycles.
-	for len(b.Preds) == 1 && b.Preds[0].b != c && b.Preds[0].b.Kind == block.BlockPlain {
-		b = b.Preds[0].b
+	for len(b.Preds) == 1 && b.Preds[0].B != c && b.Preds[0].B.Kind == block.BlockPlain {
+		b = b.Preds[0].B
 	}
 
 	// find latest block in run.  Still beware of simple cycles.
@@ -212,7 +212,7 @@ func fuseBlockPlain(b *Block) bool {
 		if c.Kind != block.BlockPlain {
 			break
 		} // Has exactly 1 successor
-		cNext := c.Succs[0].b
+		cNext := c.Succs[0].B
 		if cNext == b {
 			break
 		} // not a cycle
@@ -228,7 +228,7 @@ func fuseBlockPlain(b *Block) bool {
 		// For each bx with an end-of-block statement marker,
 		// try to move it to a value in the next block,
 		// or to the next block's end, if possible.
-		b_next = bx.Succs[0].b
+		b_next = bx.Succs[0].B
 		if bx.Pos.IsStmt() == src.PosIsStmt {
 			l := bx.Pos.Line() // looking for another place to mark for line l
 			outOfOrder := false
@@ -262,7 +262,7 @@ func fuseBlockPlain(b *Block) bool {
 	totalBeforeMax := 0 // number of elements preceding the maximum block (i.e. its position in the result).
 	max_b := b          // block with maximum capacity
 
-	for bx := b; ; bx = bx.Succs[0].b {
+	for bx := b; ; bx = bx.Succs[0].B {
 		if cap(bx.Values) > cap(max_b.Values) {
 			totalBeforeMax = total
 			max_b = bx
@@ -287,8 +287,8 @@ func fuseBlockPlain(b *Block) bool {
 	// figure out what slice will hold the values,
 	// preposition the destination elements if not allocating new storage
 	var t []*Value
-	if total <= len(c.valstorage) {
-		t = c.valstorage[:total]
+	if total <= len(c.Valstorage) {
+		t = c.Valstorage[:total]
 		max_b = c
 		totalBeforeMax = total - len(c.Values)
 		copy(t[totalBeforeMax:], c.Values)
@@ -302,7 +302,7 @@ func fuseBlockPlain(b *Block) bool {
 
 	// copy the values
 	copyTo := 0
-	for bx := b; ; bx = bx.Succs[0].b {
+	for bx := b; ; bx = bx.Succs[0].B {
 		if bx != max_b {
 			copy(t[copyTo:], bx.Values)
 		} else if copyTo != totalBeforeMax { // trust but verify.
@@ -316,15 +316,15 @@ func fuseBlockPlain(b *Block) bool {
 	c.Values = t
 
 	// replace b->c edge with preds(b) -> c
-	c.predstorage[0] = Edge{}
-	if len(b.Preds) > len(b.predstorage) {
+	c.Predstorage[0] = Edge{}
+	if len(b.Preds) > len(b.Predstorage) {
 		c.Preds = b.Preds
 	} else {
-		c.Preds = append(c.predstorage[:0], b.Preds...)
+		c.Preds = append(c.Predstorage[:0], b.Preds...)
 	}
 	for i, e := range c.Preds {
-		p := e.b
-		p.Succs[e.i] = Edge{c, i}
+		p := e.B
+		p.Succs[e.I] = Edge{c, i}
 	}
 	f := b.Func
 	if f.Entry == b {
@@ -333,7 +333,7 @@ func fuseBlockPlain(b *Block) bool {
 
 	// trash b's fields, just in case
 	for bx := b; bx != c; bx = b_next {
-		b_next = bx.Succs[0].b
+		b_next = bx.Succs[0].B
 
 		bx.Kind = block.BlockInvalid
 		bx.Values = nil

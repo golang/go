@@ -795,7 +795,7 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	hash := hashFunc(w.Func)
+	hash := HashFunc(w.Func)
 	w.pendingPhases = append(w.pendingPhases, phase)
 	w.pendingTitles = append(w.pendingTitles, title)
 	if !bytes.Equal(hash, w.prevHash) {
@@ -808,7 +808,7 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 // a fatal error.
 func (w *HTMLWriter) FatalCleanup() {
 	const stats = "crashed"
-	w.WritePhase(w.Func.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", w.Func.pass.name, stats))
+	w.WritePhase(w.Func.Pass.Name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", w.Func.Pass.Name, stats))
 	w.flushPhases()
 }
 
@@ -823,7 +823,7 @@ func (w *HTMLWriter) flushPhases() {
 		phases,
 		w.pendingTitles,
 		fmt.Sprintf("hash-%x", w.prevHash),
-		w.Func.HTML(w.pendingPhases[phaseLen-1], w.dot),
+		HTML(w.Func, w.pendingPhases[phaseLen-1], w.dot),
 	)
 	w.pendingPhases = w.pendingPhases[:0]
 	w.pendingTitles = w.pendingTitles[:0]
@@ -990,7 +990,7 @@ func (v *Value) LongHTML() string {
 	s += fmt.Sprintf("%s %s = %s", v.HTML(), linenumber, v.Op.String())
 
 	s += " &lt;" + html.EscapeString(v.Type.String()) + "&gt;"
-	s += html.EscapeString(v.auxString())
+	s += html.EscapeString(v.AuxString())
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %s", a.HTML())
 	}
@@ -998,7 +998,7 @@ func (v *Value) LongHTML() string {
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + html.EscapeString(r[v.ID].String())
 	}
-	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
+	if reg := v.Block.Func.TempRegs[v.ID]; reg != nil {
 		s += " tmp=" + reg.String()
 	}
 	var names []string
@@ -1041,7 +1041,7 @@ func (b *Block) LongHTML() string {
 	if len(b.Succs) > 0 {
 		s += " &#8594;" // right arrow
 		for _, e := range b.Succs {
-			c := e.b
+			c := e.B
 			s += " " + c.HTML()
 		}
 	}
@@ -1059,14 +1059,14 @@ func (b *Block) LongHTML() string {
 	return s
 }
 
-func (f *Func) HTML(phase string, dot *dotWriter) string {
+func HTML(f *Func, phase string, dot *dotWriter) string {
 	buf := new(strings.Builder)
 	if dot != nil {
 		dot.writeFuncSVG(buf, phase, f)
 	}
 	fmt.Fprint(buf, "<code>")
 	p := htmlFuncPrinter{w: buf}
-	fprintFunc(p, f)
+	FprintFunc(p, f)
 
 	// fprintFunc(&buf, f) // TODO: HTML, not text, <br> for line breaks, etc.
 	fmt.Fprint(buf, "</code>")
@@ -1107,7 +1107,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 			continue
 		}
 		layout := ""
-		if f.laidout {
+		if f.Laidout {
 			layout = fmt.Sprintf(" #%d", i)
 		}
 		fmt.Fprintf(pipe, `%v [label="%v%s\n%v",id="graph_node_%v_%v",tooltip="%v"];`, b, b, layout, b.Kind.String(), id, b, b.LongString())
@@ -1119,7 +1119,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	layoutDrawn := make([]bool, f.NumBlocks())
 
 	ponums := make([]int32, f.NumBlocks())
-	_ = postorderWithNumbering(f, ponums)
+	_ = PostorderWithNumbering(f, ponums)
 	isBackEdge := func(from, to ID) bool {
 		return ponums[from] <= ponums[to]
 	}
@@ -1129,20 +1129,20 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 			style := "solid"
 			color := "black"
 			arrow := "vee"
-			if b.unlikelyIndex() == i {
+			if b.UnlikelyIndex() == i {
 				style = "dashed"
 			}
-			if f.laidout && indexOf[s.b.ID] == indexOf[b.ID]+1 {
+			if f.Laidout && indexOf[s.B.ID] == indexOf[b.ID]+1 {
 				// Red color means ordered edge. It overrides other colors.
 				arrow = "dotvee"
-				layoutDrawn[s.b.ID] = true
-			} else if isBackEdge(b.ID, s.b.ID) {
+				layoutDrawn[s.B.ID] = true
+			} else if isBackEdge(b.ID, s.B.ID) {
 				color = "#2893ff"
 			}
-			fmt.Fprintf(pipe, `%v -> %v [label=" %d ",style="%s",color="%s",arrowhead="%s"];`, b, s.b, i, style, color, arrow)
+			fmt.Fprintf(pipe, `%v -> %v [label=" %d ",style="%s",color="%s",arrowhead="%s"];`, b, s.B, i, style, color, arrow)
 		}
 	}
-	if f.laidout {
+	if f.Laidout {
 		fmt.Fprintln(pipe, `edge[constraint=false,color=gray,style=solid,arrowhead=dot];`)
 		colors := [...]string{"#eea24f", "#f38385", "#f4d164", "#ca89fc", "gray"}
 		ci := 0
@@ -1176,7 +1176,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	io.Copy(w, buf)
 }
 
-func (b *Block) unlikelyIndex() int {
+func (b *Block) UnlikelyIndex() int {
 	switch b.Likely {
 	case BranchLikely:
 		return 1
@@ -1199,9 +1199,9 @@ type htmlFuncPrinter struct {
 	w io.Writer
 }
 
-func (p htmlFuncPrinter) header(f *Func) {}
+func (p htmlFuncPrinter) Header(f *Func) {}
 
-func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
+func (p htmlFuncPrinter) StartBlock(b *Block, reachable bool) {
 	var dead string
 	if !reachable {
 		dead = "dead-block"
@@ -1211,7 +1211,7 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
 	if len(b.Preds) > 0 {
 		io.WriteString(p.w, " &#8592;") // left arrow
 		for _, e := range b.Preds {
-			pred := e.b
+			pred := e.B
 			fmt.Fprintf(p.w, " %s", pred.HTML())
 		}
 	}
@@ -1225,7 +1225,7 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
 	}
 }
 
-func (p htmlFuncPrinter) endBlock(b *Block, reachable bool) {
+func (p htmlFuncPrinter) EndBlock(b *Block, reachable bool) {
 	if len(b.Values) > 0 { // end list of values
 		io.WriteString(p.w, "</ul>")
 		io.WriteString(p.w, "</li>")
@@ -1236,7 +1236,7 @@ func (p htmlFuncPrinter) endBlock(b *Block, reachable bool) {
 	io.WriteString(p.w, "</ul>")
 }
 
-func (p htmlFuncPrinter) value(v *Value, live bool) {
+func (p htmlFuncPrinter) Value(v *Value, live bool) {
 	var dead string
 	if !live {
 		dead = "dead-value"
@@ -1246,15 +1246,15 @@ func (p htmlFuncPrinter) value(v *Value, live bool) {
 	io.WriteString(p.w, "</li>")
 }
 
-func (p htmlFuncPrinter) startDepCycle() {
+func (p htmlFuncPrinter) StartDepCycle() {
 	fmt.Fprintln(p.w, "<span class=\"depcycle\">")
 }
 
-func (p htmlFuncPrinter) endDepCycle() {
+func (p htmlFuncPrinter) EndDepCycle() {
 	fmt.Fprintln(p.w, "</span>")
 }
 
-func (p htmlFuncPrinter) named(n LocalSlot, vals []*Value) {
+func (p htmlFuncPrinter) Named(n LocalSlot, vals []*Value) {
 	fmt.Fprintf(p.w, "<li>name %s: ", n)
 	for _, val := range vals {
 		fmt.Fprintf(p.w, "%s ", val.HTML())
@@ -1301,7 +1301,7 @@ func newDotWriter(mask string) *dotWriter {
 			return nil
 		}
 		for p := first; p <= last; p++ {
-			ph[passes[p].name] = true
+			ph[passes[p].Name] = true
 		}
 	}
 
@@ -1315,7 +1315,7 @@ func newDotWriter(mask string) *dotWriter {
 
 func passIdxByName(name string) int {
 	for i, p := range passes {
-		if p.name == name {
+		if p.Name == name {
 			return i
 		}
 	}

@@ -108,7 +108,7 @@ func Equiv(f, g *Func) bool {
 				return false
 			}
 			for i := range fb.Succs {
-				if !checkBlk(fb.Succs[i].b, gb.Succs[i].b) {
+				if !checkBlk(fb.Succs[i].B, gb.Succs[i].B) {
 					return false
 				}
 			}
@@ -116,7 +116,7 @@ func Equiv(f, g *Func) bool {
 				return false
 			}
 			for i := range fb.Preds {
-				if !checkBlk(fb.Preds[i].b, gb.Preds[i].b) {
+				if !checkBlk(fb.Preds[i].B, gb.Preds[i].B) {
 					return false
 				}
 			}
@@ -138,8 +138,8 @@ type fun struct {
 	values map[string]*Value
 }
 
-var emptyPass pass = pass{
-	name: "empty pass",
+var emptyPass Pass = Pass{
+	Name: "empty pass",
 }
 
 // AuxCallLSym returns an AuxCall initialized with an LSym that should pass "check"
@@ -157,8 +157,8 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
 	// or set up a shared Cache and Reset it between tests.
 	// But not both.
 	f := c.config.NewFunc(c.Frontend(), new(Cache))
-	f.pass = &emptyPass
-	f.cachedLineStarts = newXposmap(map[int]lineRange{0: {0, 100}, 1: {0, 100}, 2: {0, 100}, 3: {0, 100}, 4: {0, 100}})
+	f.Pass = &emptyPass
+	f.CachedLineStarts = NewXPosMap(map[int]LineRange{0: {0, 100}, 1: {0, 100}, 2: {0, 100}, 3: {0, 100}, 4: {0, 100}})
 
 	blocks := make(map[string]*Block)
 	values := make(map[string]*Value)
@@ -456,8 +456,8 @@ func TestConstCache(t *testing.T) {
 			Exit("mem")))
 	v1 := f.f.ConstBool(c.config.Types.Bool, false)
 	v2 := f.f.ConstBool(c.config.Types.Bool, true)
-	f.f.freeValue(v1)
-	f.f.freeValue(v2)
+	f.f.FreeValue(v1)
+	f.f.FreeValue(v2)
 	v3 := f.f.ConstBool(c.config.Types.Bool, false)
 	v4 := f.f.ConstBool(c.config.Types.Bool, true)
 	if v3.AuxInt != 0 {

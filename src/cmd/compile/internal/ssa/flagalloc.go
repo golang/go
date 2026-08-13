@@ -13,9 +13,9 @@ func flagalloc(f *Func) {
 	// Compute the in-register flag value we want at the end of
 	// each block. This is basically a best-effort live variable
 	// analysis, so it can be much simpler than a full analysis.
-	end := f.Cache.allocValueSlice(f.NumBlocks())
-	defer f.Cache.freeValueSlice(end)
-	po := f.postorder()
+	end := f.Cache.AllocValueSlice(f.NumBlocks())
+	defer f.Cache.FreeValueSlice(end)
+	po := f.Postorder()
 	for n := 0; n < 2; n++ {
 		for _, b := range po {
 			// Walk values backwards to figure out what flag
@@ -38,7 +38,7 @@ func flagalloc(f *Func) {
 				if v == flag {
 					flag = nil
 				}
-				if v.clobbersFlags() {
+				if v.ClobbersFlags() {
 					flag = nil
 				}
 				for _, a := range v.Args {
@@ -49,7 +49,7 @@ func flagalloc(f *Func) {
 			}
 			if flag != nil {
 				for _, e := range b.Preds {
-					p := e.b
+					p := e.B
 					end[p.ID] = flag
 				}
 			}
@@ -77,7 +77,7 @@ func flagalloc(f *Func) {
 	for _, b := range f.Blocks {
 		var flag *Value
 		if len(b.Preds) > 0 {
-			flag = end[b.Preds[0].b.ID]
+			flag = end[b.Preds[0].B.ID]
 		}
 		for _, v := range b.Values {
 			for _, a := range v.Args {
@@ -91,7 +91,7 @@ func flagalloc(f *Func) {
 				spill[a.ID] = true
 				flag = a
 			}
-			if v.clobbersFlags() {
+			if v.ClobbersFlags() {
 				flag = nil
 			}
 			if v.Type.IsFlags() {
@@ -117,10 +117,10 @@ func flagalloc(f *Func) {
 		// The current live flag value (the pre-flagalloc copy).
 		var flag *Value
 		if len(b.Preds) > 0 {
-			flag = end[b.Preds[0].b.ID]
+			flag = end[b.Preds[0].B.ID]
 			// Note: the following condition depends on the lack of critical edges.
 			for _, e := range b.Preds[1:] {
-				p := e.b
+				p := e.B
 				if end[p.ID] != flag {
 					f.Fatalf("live flag in %s's predecessors not consistent", b)
 				}
@@ -135,7 +135,7 @@ func flagalloc(f *Func) {
 			// into a load + a flag generator.
 			if spill[v.ID] && v.MemoryArg() != nil {
 				remove = append(remove, v)
-				if !f.Config.splitLoad(v) {
+				if !f.Config.SplitLoad(v) {
 					f.Fatalf("can't split flag generator: %s", v.LongString())
 				}
 			}
@@ -158,7 +158,7 @@ func flagalloc(f *Func) {
 			}
 			// Issue v.
 			b.Values = append(b.Values, v)
-			if v.clobbersFlags() {
+			if v.ClobbersFlags() {
 				flag = nil
 			}
 			if v.Type.IsFlags() {
@@ -203,7 +203,7 @@ func flagalloc(f *Func) {
 	for i := 0; i < len(remove); i++ {
 		v := remove[i]
 		if v.Uses == 0 {
-			v.reset(OpInvalid)
+			v.Reset(OpInvalid)
 			continue
 		}
 		// Remove v.
@@ -218,15 +218,15 @@ func flagalloc(f *Func) {
 		return
 	}
 
-	removeBlocks := f.newSparseSet(f.NumBlocks())
-	defer f.retSparseSet(removeBlocks)
+	removeBlocks := f.NewSparseSet(f.NumBlocks())
+	defer f.RetSparseSet(removeBlocks)
 	for _, v := range remove {
-		removeBlocks.add(v.Block.ID)
+		removeBlocks.Add(v.Block.ID)
 	}
 
 	// Process affected blocks, preserving value order.
 	for _, b := range f.Blocks {
-		if !removeBlocks.contains(b.ID) {
+		if !removeBlocks.Contains(b.ID) {
 			continue
 		}
 		i := 0
@@ -238,12 +238,12 @@ func flagalloc(f *Func) {
 			b.Values[i] = v
 			i++
 		}
-		b.truncateValues(i)
+		b.TruncateValues(i)
 	}
 }
 
-func (v *Value) clobbersFlags() bool {
-	if opcodeTable[v.Op].clobberFlags {
+func (v *Value) ClobbersFlags() bool {
+	if OpcodeTable[v.Op].ClobberFlags {
 		return true
 	}
 	if v.Type.IsTuple() && (v.Type.FieldType(0).IsFlags() || v.Type.FieldType(1).IsFlags()) {
@@ -264,7 +264,7 @@ func copyFlags(v *Value, b *Block) *Value {
 			flagsArgs[i] = copyFlags(a, b)
 		}
 	}
-	c := v.copyInto(b)
+	c := v.CopyInto(b)
 	for i, a := range flagsArgs {
 		c.SetArg(i, a)
 	}

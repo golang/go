@@ -24,41 +24,41 @@ import (
 // rewrite Phis in the postdominator as CondSelects.
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
-	if !f.Config.haveCondSelect {
+	if !f.Config.HaveCondSelect {
 		return
 	}
 
 	// Find all the values used in computing the address of any load.
 	// Typically these values have operations like AddPtr, Lsh64x64, etc.
-	loadAddr := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(loadAddr)
+	loadAddr := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(loadAddr)
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpLoad, OpAtomicLoad8, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32, OpAtomicLoadAcq64:
-				loadAddr.add(v.Args[0].ID)
+				loadAddr.Add(v.Args[0].ID)
 			case OpMove:
-				loadAddr.add(v.Args[1].ID)
+				loadAddr.Add(v.Args[1].ID)
 			}
 		}
 	}
-	po := f.postorder()
+	po := f.Postorder()
 	for {
-		n := loadAddr.size()
+		n := loadAddr.Size()
 		for _, b := range po {
 			for i := len(b.Values) - 1; i >= 0; i-- {
 				v := b.Values[i]
-				if !loadAddr.contains(v.ID) {
+				if !loadAddr.Contains(v.ID) {
 					continue
 				}
 				for _, a := range v.Args {
 					if a.Type.IsInteger() || a.Type.IsPtr() || a.Type.IsUnsafePtr() {
-						loadAddr.add(a.ID)
+						loadAddr.Add(a.ID)
 					}
 				}
 			}
 		}
-		if loadAddr.size() == n {
+		if loadAddr.Size() == n {
 			break
 		}
 	}
@@ -72,9 +72,9 @@ func branchelim(f *Func) {
 	}
 }
 
-func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
+func canCondSelect(v *Value, arch string, loadAddr *SparseSet) bool {
 	if loadAddr != nil && // prove calls this on some multiplies and doesn't take care of loadAddrs
-		loadAddr.contains(v.ID) {
+		loadAddr.Contains(v.ID) {
 		// The result of the soon-to-be conditional move is used to compute a load address.
 		// We want to avoid generating a conditional move in this case
 		// because the load address would now be data-dependent on the condition.
@@ -88,8 +88,8 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
 		// We should not generate conditional moves if neither of the arguments is constant zero,
 		// because it requires three instructions (OR, MASKEQZ, MASKNEZ) and will increase the
 		// register pressure.
-		if !(v.Args[0].isGenericIntConst() && v.Args[0].AuxInt == 0) &&
-			!(v.Args[1].isGenericIntConst() && v.Args[1].AuxInt == 0) {
+		if !(v.Args[0].IsGenericIntConst() && v.Args[0].AuxInt == 0) &&
+			!(v.Args[1].IsGenericIntConst() && v.Args[1].AuxInt == 0) {
 			return false
 		}
 	}
@@ -120,7 +120,7 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
 // canonicalized to Less with swapped operands during SSA building, so only Less
 // needs to be matched here.
 func floatMinMaxSelOp(cond, trueVal, falseVal *Value) Op {
-	switch trueVal.Block.Func.Config.arch {
+	switch trueVal.Block.Func.Config.Arch {
 	case "amd64", "arm64":
 	default:
 		return OpInvalid
@@ -148,8 +148,8 @@ func floatMinMaxSelOp(cond, trueVal, falseVal *Value) Op {
 // canSelectPhi reports whether phi v can be rewritten as a CondSelect or a
 // float min/max-select op. cond is the branch condition. When !swap, v.Args[0]
 // is chosen when cond is true; otherwise v.Args[1] is chosen.
-func canSelectPhi(v *Value, loadAddr *sparseSet, cond *Value, swap bool) bool {
-	if canCondSelect(v, v.Block.Func.Config.arch, loadAddr) {
+func canSelectPhi(v *Value, loadAddr *SparseSet, cond *Value, swap bool) bool {
+	if canCondSelect(v, v.Block.Func.Config.Arch, loadAddr) {
 		return true
 	}
 	trueVal, falseVal := v.Args[0], v.Args[1]
@@ -178,7 +178,7 @@ func rewritePhiAsSelect(v *Value, swap bool, cond *Value) {
 // elimIf converts the one-way branch starting at dom in f to a conditional move if possible.
 // loadAddr is a set of values which are used to compute the address of a load.
 // Those values are exempt from CMOV generation.
-func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
+func elimIf(f *Func, loadAddr *SparseSet, dom *Block) bool {
 	// See if dom is an If with one arm that
 	// is trivial and succeeded by the other
 	// successor of dom.
@@ -244,7 +244,7 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	dom.Succs = append(dom.Succs[:0], post.Succs...)
 	for i := range dom.Succs {
 		e := dom.Succs[i]
-		e.b.Preds[e.i].b = dom
+		e.B.Preds[e.I].B = dom
 	}
 
 	// Try really hard to preserve statement marks attached to blocks.
@@ -346,7 +346,7 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	clobberBlock(post)
 	clobberBlock(simple)
 
-	f.invalidateCFG()
+	f.InvalidateCFG()
 	return true
 }
 
@@ -368,7 +368,7 @@ func clobberBlock(b *Block) {
 // elimIfElse converts the two-way branch starting at dom in f to a conditional move if possible.
 // loadAddr is a set of values which are used to compute the address of a load.
 // Those values are exempt from CMOV generation.
-func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
+func elimIfElse(f *Func, loadAddr *SparseSet, b *Block) bool {
 	// See if 'b' ends in an if/else: it should
 	// have two successors, both of which are BlockPlain
 	// and succeeded by the same block.
@@ -405,7 +405,7 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 	}
 
 	// Don't generate CondSelects if branch is cheaper.
-	if !shouldElimIfElse(no, yes, post, f.Config.arch) {
+	if !shouldElimIfElse(no, yes, post, f.Config.Arch) {
 		return false
 	}
 
@@ -425,7 +425,7 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 	b.Succs = append(b.Succs[:0], post.Succs...)
 	for i := range b.Succs {
 		e := b.Succs[i]
-		e.b.Preds[e.i].b = b
+		e.B.Preds[e.I].B = b
 	}
 	for i := range post.Values {
 		post.Values[i].Block = b
@@ -445,7 +445,7 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 	clobberBlock(no)
 	clobberBlock(post)
 
-	f.invalidateCFG()
+	f.InvalidateCFG()
 	return true
 }
 
@@ -495,7 +495,7 @@ func canSpeculativelyExecute(b *Block) bool {
 	// or anything else with side-effects
 	for _, v := range b.Values {
 		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) ||
-			v.Type.IsMemory() || opcodeTable[v.Op].hasSideEffects {
+			v.Type.IsMemory() || OpcodeTable[v.Op].HasSideEffects {
 			return false
 		}
 

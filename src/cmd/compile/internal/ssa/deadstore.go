@@ -20,12 +20,12 @@ const maxShadowRanges = 64
 // This implementation only works within a basic block. TODO: use something more global.
 func dse(f *Func) {
 	var stores []*Value
-	loadUse := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(loadUse)
-	storeUse := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(storeUse)
-	shadowed := f.newSparseMap(f.NumValues())
-	defer f.retSparseMap(shadowed)
+	loadUse := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(loadUse)
+	storeUse := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(storeUse)
+	shadowed := f.NewSparseMap(f.NumValues())
+	defer f.RetSparseMap(shadowed)
 	// localAddrs maps from a local variable (the Aux field of a LocalAddr value) to an instance of a LocalAddr value for that variable in the current block.
 	localAddrs := map[any]*Value{}
 
@@ -36,8 +36,8 @@ func dse(f *Func) {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
 		//  storeUse contains stores which are used by a subsequent store.
-		loadUse.clear()
-		storeUse.clear()
+		loadUse.Clear()
+		storeUse.Clear()
 		clear(localAddrs)
 		stores = stores[:0]
 		for _, v := range b.Values {
@@ -49,7 +49,7 @@ func dse(f *Func) {
 				stores = append(stores, v)
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
-						storeUse.add(a.ID)
+						storeUse.Add(a.ID)
 						switch v.Op {
 						case OpStore, OpZero, OpVarDef:
 							// These ops never read from their memory input.
@@ -57,14 +57,14 @@ func dse(f *Func) {
 							// This op reads from its memory argument, but
 							// we can treat it as not doing so if we know
 							// the read is from read-only memory.
-							if v.Args[1].Op == OpAddr && symIsRO(auxToSym(v.Args[1].Aux)) {
+							if v.Args[1].Op == OpAddr && SymIsRO(AuxToSym(v.Args[1].Aux)) {
 								break
 							}
 							fallthrough
 						default:
 							// CALL, DUFFCOPY, etc. are both
 							// reads and writes.
-							loadUse.add(a.ID)
+							loadUse.Add(a.ID)
 						}
 					}
 				}
@@ -81,7 +81,7 @@ func dse(f *Func) {
 				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
-						loadUse.add(a.ID)
+						loadUse.Add(a.ID)
 					}
 				}
 			}
@@ -93,7 +93,7 @@ func dse(f *Func) {
 		// find last store in the block
 		var last *Value
 		for _, v := range stores {
-			if storeUse.contains(v.ID) {
+			if storeUse.Contains(v.ID) {
 				continue
 			}
 			if last != nil {
@@ -111,15 +111,15 @@ func dse(f *Func) {
 		// mapping the ID of the address to a shadowRanges where future writes will happen.
 		// Since we're walking backwards, writes to a shadowed region are useless,
 		// as they will be immediately overwritten.
-		shadowed.clear()
+		shadowed.Clear()
 		shadowedRanges = shadowedRanges[:0]
 		v := last
 
 	walkloop:
-		if loadUse.contains(v.ID) {
+		if loadUse.Contains(v.ID) {
 			// Someone might be reading this memory state.
 			// Clear all shadowed addresses.
-			shadowed.clear()
+			shadowed.Clear()
 			shadowedRanges = shadowedRanges[:0]
 		}
 		if v.Op == OpStore || v.Op == OpZero || v.Op == OpMove {
@@ -142,7 +142,7 @@ func dse(f *Func) {
 				}
 			}
 			var si *shadowRanges
-			idx, ok := shadowed.get(ptr.ID)
+			idx, ok := shadowed.Get(ptr.ID)
 			if ok {
 				// The sparseMap stores a 1-based index, so we subtract 1.
 				si = shadowedRanges[idx-1]
@@ -168,7 +168,7 @@ func dse(f *Func) {
 					si = &shadowRanges{}
 					shadowedRanges = append(shadowedRanges, si)
 					// Store a 1-based index in the sparseMap.
-					shadowed.set(ptr.ID, int32(len(shadowedRanges)))
+					shadowed.Set(ptr.ID, int32(len(shadowedRanges)))
 				}
 				si.add(off, off+sz)
 			}

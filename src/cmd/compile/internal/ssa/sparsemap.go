@@ -34,14 +34,14 @@ func (s *genericSparseMap[K, V]) size() int {
 	return len(s.dense)
 }
 
-func (s *genericSparseMap[K, V]) contains(k K) bool {
+func (s *genericSparseMap[K, V]) Contains(k K) bool {
 	i := s.sparse[k]
 	return i < int32(len(s.dense)) && s.dense[i].key == k
 }
 
-// get returns the value for key k, or the zero V
+// Get returns the value for key k, or the zero V
 // if k does not appear in the map.
-func (s *genericSparseMap[K, V]) get(k K) (V, bool) {
+func (s *genericSparseMap[K, V]) Get(k K) (V, bool) {
 	i := s.sparse[k]
 	if i < int32(len(s.dense)) && s.dense[i].key == k {
 		return s.dense[i].val, true
@@ -50,7 +50,7 @@ func (s *genericSparseMap[K, V]) get(k K) (V, bool) {
 	return v, false
 }
 
-func (s *genericSparseMap[K, V]) set(k K, v V) {
+func (s *genericSparseMap[K, V]) Set(k K, v V) {
 	i := s.sparse[k]
 	if i < int32(len(s.dense)) && s.dense[i].key == k {
 		s.dense[i].val = v
@@ -70,7 +70,7 @@ func (s *genericSparseMap[K, V]) remove(k K) {
 	}
 }
 
-func (s *genericSparseMap[K, V]) clear() {
+func (s *genericSparseMap[K, V]) Clear() {
 	s.dense = s.dense[:0]
 }
 
@@ -80,8 +80,8 @@ func (s *genericSparseMap[K, V]) contents() []sparseEntry[K, V] {
 
 type sparseMap = genericSparseMap[ID, int32]
 
-// newSparseMap returns a sparseMap that can map
+// NewSparseMap returns a sparseMap that can map
 // integers between 0 and n-1 to int32s.
-func newSparseMap(n int) *sparseMap {
+func NewSparseMap(n int) *sparseMap {
 	return newGenericSparseMap[ID, int32](n)
 }

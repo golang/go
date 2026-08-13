@@ -32,30 +32,30 @@ func cse(f *Func) {
 	// until it reaches a fixed point.
 
 	// Make initial coarse partitions by using a subset of the conditions above.
-	a := f.Cache.allocValueSlice(f.NumValues())
-	defer func() { f.Cache.freeValueSlice(a) }() // inside closure to use final value of a
+	a := f.Cache.AllocValueSlice(f.NumValues())
+	defer func() { f.Cache.FreeValueSlice(a) }() // inside closure to use final value of a
 	a = a[:0]
-	o := f.Cache.allocInt32Slice(f.NumValues()) // the ordering score for stores
-	defer func() { f.Cache.freeInt32Slice(o) }()
-	if f.auxmap == nil {
-		f.auxmap = auxmap{}
+	o := f.Cache.AllocInt32Slice(f.NumValues()) // the ordering score for stores
+	defer func() { f.Cache.FreeInt32Slice(o) }()
+	if f.Auxmap == nil {
+		f.Auxmap = AuxMap{}
 	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Type.IsMemory() {
 				continue // memory values can never cse
 			}
-			if f.auxmap[v.Aux] == 0 {
-				f.auxmap[v.Aux] = int32(len(f.auxmap)) + 1
+			if f.Auxmap[v.Aux] == 0 {
+				f.Auxmap[v.Aux] = int32(len(f.Auxmap)) + 1
 			}
 			a = append(a, v)
 		}
 	}
-	partition := partitionValues(a, f.auxmap)
+	partition := partitionValues(a, f.Auxmap)
 
 	// map from value id back to eqclass id
-	valueEqClass := f.Cache.allocIDSlice(f.NumValues())
-	defer f.Cache.freeIDSlice(valueEqClass)
+	valueEqClass := f.Cache.AllocIDSlice(f.NumValues())
+	defer f.Cache.FreeIDSlice(valueEqClass)
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			// Use negative equivalence class #s for unique values.
@@ -64,7 +64,7 @@ func cse(f *Func) {
 	}
 	var pNum ID = 1
 	for _, e := range partition {
-		if f.pass.debug > 1 && len(e) > 500 {
+		if f.Pass.Debug > 1 && len(e) > 500 {
 			fmt.Printf("CSE.large partition (%d): ", len(e))
 			for j := 0; j < 3; j++ {
 				fmt.Printf("%s ", e[j].LongString())
@@ -75,7 +75,7 @@ func cse(f *Func) {
 		for _, v := range e {
 			valueEqClass[v.ID] = pNum
 		}
-		if f.pass.debug > 2 && len(e) > 1 {
+		if f.Pass.Debug > 2 && len(e) > 1 {
 			fmt.Printf("CSE.partition #%d:", pNum)
 			for _, v := range e {
 				fmt.Printf(" %s", v.String())
@@ -87,8 +87,8 @@ func cse(f *Func) {
 
 	// Keep a table to remap memory operand of any memory user which does not have a memory result (such as a regular load),
 	// to some dominating memory operation, skipping the memory defs that do not alias with it.
-	memTable := f.Cache.allocInt32Slice(f.NumValues())
-	defer f.Cache.freeInt32Slice(memTable)
+	memTable := f.Cache.AllocInt32Slice(f.NumValues())
+	defer f.Cache.FreeInt32Slice(memTable)
 
 	// Split equivalence classes at points where they have
 	// non-equivalent arguments.  Repeat until we can't find any
@@ -102,7 +102,7 @@ func cse(f *Func) {
 		for i := 0; i < len(partition); i++ {
 			e := partition[i]
 
-			if opcodeTable[e[0].Op].commutative {
+			if OpcodeTable[e[0].Op].Commutative {
 				// Order the first two args before comparison.
 				for _, v := range e {
 					if valueEqClass[v.Args[0].ID] > valueEqClass[v.Args[1].ID] {
@@ -203,11 +203,11 @@ func cse(f *Func) {
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
-	rewrite := f.Cache.allocValueSlice(f.NumValues())
-	defer f.Cache.freeValueSlice(rewrite)
+	rewrite := f.Cache.AllocValueSlice(f.NumValues())
+	defer f.Cache.FreeValueSlice(rewrite)
 	for _, e := range partition {
 		slices.SortFunc(e, func(v, w *Value) int {
-			if c := cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block)); c != 0 {
+			if c := cmp.Compare(sdom.DomOrder(v.Block), sdom.DomOrder(w.Block)); c != 0 {
 				return c
 			}
 			if _, _, _, ok := isMemUser(v); ok {
@@ -316,7 +316,7 @@ func cse(f *Func) {
 		}
 	}
 
-	if f.pass.stats > 0 {
+	if f.Pass.Stats > 0 {
 		f.LogStat("CSE REWRITES", rewrites)
 	}
 }
@@ -376,7 +376,7 @@ type eqclass []*Value
 // being a sorted by ID list of *Values. The eqclass slices are
 // backed by the same storage as the input slice.
 // Equivalence classes of size 1 are ignored.
-func partitionValues(a []*Value, auxIDs auxmap) []eqclass {
+func partitionValues(a []*Value, auxIDs AuxMap) []eqclass {
 	slices.SortFunc(a, func(v, w *Value) int {
 		switch cmpVal(v, w, auxIDs) {
 		case types.CMPlt:
@@ -414,9 +414,9 @@ func lt2Cmp(isLt bool) types.Cmp {
 	return types.CMPgt
 }
 
-type auxmap map[Aux]int32
+type AuxMap map[Aux]int32
 
-func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
+func cmpVal(v, w *Value, auxIDs AuxMap) types.Cmp {
 	// Try to order these comparison by cost (cheaper first)
 	if v.Op != w.Op {
 		return lt2Cmp(v.Op < w.Op)
@@ -476,7 +476,7 @@ func isMemUser(v *Value) (int, int, int64, bool) {
 func isMemDef(v *Value) (int, int, int64, bool) {
 	switch v.Op {
 	case OpStore:
-		return 0, 2, auxToType(v.Aux).Size(), true
+		return 0, 2, AuxToType(v.Aux).Size(), true
 	case OpVarDef:
 		return -1, 0, 0, true
 	case OpZero:
@@ -535,7 +535,7 @@ func skipDisjointMemDefs(user *Value, idxUserPtr, idxUserMem int, useWidth int64
 				continue
 			}
 			defPtr := mem.Args[idxPtr]
-			if disjoint1(defPtr, width, usePtr, useWidth) {
+			if Disjoint1(defPtr, width, usePtr, useWidth) {
 				mem = mem.Args[idxMem]
 				continue
 			}

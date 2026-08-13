@@ -10,31 +10,23 @@ import (
 )
 
 type SparseTreeNode struct {
-	child   *Block
-	sibling *Block
+	Child   *Block
+	Sibling *Block
 	parent  *Block
 
 	// Every block has 6 numbers associated with it:
-	// entry-1, entry, entry+1, exit-1, and exit, exit+1.
-	// entry and exit are conceptually the top of the block (phi functions)
-	// entry+1 and exit-1 are conceptually the bottom of the block (ordinary defs)
-	// entry-1 and exit+1 are conceptually "just before" the block (conditions flowing in)
+	// Entry-1, Entry, Entry+1, Exit-1, and Exit, Exit+1.
+	// Entry and Exit are conceptually the top of the block (phi functions)
+	// Entry+1 and Exit-1 are conceptually the bottom of the block (ordinary defs)
+	// Entry-1 and Exit+1 are conceptually "just before" the block (conditions flowing in)
 	//
 	// This simplifies life if we wish to query information about x
 	// when x is both an input to and output of a block.
-	entry, exit int32
+	Entry, Exit int32
 }
 
 func (s *SparseTreeNode) String() string {
-	return fmt.Sprintf("[%d,%d]", s.entry, s.exit)
-}
-
-func (s *SparseTreeNode) Entry() int32 {
-	return s.entry
-}
-
-func (s *SparseTreeNode) Exit() int32 {
-	return s.exit
+	return fmt.Sprintf("[%d,%d]", s.Entry, s.Exit)
 }
 
 const (
@@ -55,29 +47,29 @@ const (
 // such as whether one block dominates another.
 type SparseTree []SparseTreeNode
 
-// newSparseTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID).
+// NewSparseTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID).
 // The children of a given node are in reverse postorder.
 // This has the nice property that for a given tree walk, the source block of all
 // non-retreating edges are visited before their destination block.
-func newSparseTree(f *Func, parentOf []*Block) SparseTree {
-	po := f.postorder()
+func NewSparseTree(f *Func, parentOf []*Block) SparseTree {
+	po := f.Postorder()
 	t := make(SparseTree, f.NumBlocks())
 	for _, b := range po {
 		n := &t[b.ID]
 		if p := parentOf[b.ID]; p != nil {
 			n.parent = p
-			n.sibling = t[p.ID].child
-			t[p.ID].child = b
+			n.Sibling = t[p.ID].Child
+			t[p.ID].Child = b
 		}
 	}
-	t.numberBlock(f.Entry, 1)
+	t.NumberBlock(f.Entry, 1)
 	return t
 }
 
-// treestructure provides a string description of the dominator
+// Treestructure provides a string description of the dominator
 // tree and flow structure of block b and all blocks that it
 // dominates.
-func (t SparseTree) treestructure(b *Block) string {
+func (t SparseTree) Treestructure(b *Block) string {
 	return t.treestructure1(b, 0)
 }
 func (t SparseTree) treestructure1(b *Block, i int) string {
@@ -86,12 +78,12 @@ func (t SparseTree) treestructure1(b *Block, i int) string {
 		if i > 0 {
 			s += ","
 		}
-		s += e.b.String()
+		s += e.B.String()
 	}
 	s += "]"
-	if c0 := t[b.ID].child; c0 != nil {
+	if c0 := t[b.ID].Child; c0 != nil {
 		s += "("
-		for c := c0; c != nil; c = t[c.ID].sibling {
+		for c := c0; c != nil; c = t[c.ID].Sibling {
 			if c != c0 {
 				s += " "
 			}
@@ -130,18 +122,18 @@ func (t SparseTree) treestructure1(b *Block, i int) string {
 //   root     left     left      right       right       root
 //  1 2e 3 | 4 5e 6 | 7 8x 9 | 10 11e 12 | 13 14x 15 | 16 17x 18
 
-func (t SparseTree) numberBlock(b *Block, n int32) int32 {
+func (t SparseTree) NumberBlock(b *Block, n int32) int32 {
 	// reserve n for entry-1, assign n+1 to entry
 	n++
-	t[b.ID].entry = n
+	t[b.ID].Entry = n
 	// reserve n+1 for entry+1, n+2 is next free number
 	n += 2
-	for c := t[b.ID].child; c != nil; c = t[c.ID].sibling {
-		n = t.numberBlock(c, n) // preserves n = next free number
+	for c := t[b.ID].Child; c != nil; c = t[c.ID].Sibling {
+		n = t.NumberBlock(c, n) // preserves n = next free number
 	}
 	// reserve n for exit-1, assign n+1 to exit
 	n++
-	t[b.ID].exit = n
+	t[b.ID].Exit = n
 	// reserve n+1 for exit+1, n+2 is next free number, returned.
 	return n + 2
 }
@@ -154,14 +146,14 @@ func (t SparseTree) numberBlock(b *Block, n int32) int32 {
 // numbers are also consistent with this order (i.e.,
 // Sibling(x) has entry number larger than x's exit number).
 func (t SparseTree) Sibling(x *Block) *Block {
-	return t[x.ID].sibling
+	return t[x.ID].Sibling
 }
 
 // Child returns a child of x in the dominator tree, or
 // nil if there are none. The choice of first child is
 // arbitrary but repeatable.
 func (t SparseTree) Child(x *Block) *Block {
-	return t[x.ID].child
+	return t[x.ID].Child
 }
 
 // Parent returns the parent of x in the dominator tree, or
@@ -177,29 +169,29 @@ func (t SparseTree) IsAncestorEq(x, y *Block) bool {
 	}
 	xx := &t[x.ID]
 	yy := &t[y.ID]
-	return xx.entry <= yy.entry && yy.exit <= xx.exit
+	return xx.Entry <= yy.Entry && yy.Exit <= xx.Exit
 }
 
-// isAncestor reports whether x is a strict ancestor of y.
-func (t SparseTree) isAncestor(x, y *Block) bool {
+// IsAncestor reports whether x is a strict ancestor of y.
+func (t SparseTree) IsAncestor(x, y *Block) bool {
 	if x == y {
 		return false
 	}
 	xx := &t[x.ID]
 	yy := &t[y.ID]
-	return xx.entry < yy.entry && yy.exit < xx.exit
+	return xx.Entry < yy.Entry && yy.Exit < xx.Exit
 }
 
-// domorder returns a value for dominator-oriented sorting.
+// DomOrder returns a value for dominator-oriented sorting.
 // Block domination does not provide a total ordering,
-// but domorder two has useful properties.
-//  1. If domorder(x) > domorder(y) then x does not dominate y.
-//  2. If domorder(x) < domorder(y) and domorder(y) < domorder(z) and x does not dominate y,
+// but DomOrder two has useful properties.
+//  1. If DomOrder(x) > DomOrder(y) then x does not dominate y.
+//  2. If DomOrder(x) < DomOrder(y) and DomOrder(y) < DomOrder(z) and x does not dominate y,
 //     then x does not dominate z.
 //
-// Property (1) means that blocks sorted by domorder always have a maximal dominant block first.
+// Property (1) means that blocks sorted by DomOrder always have a maximal dominant block first.
 // Property (2) allows searches for dominated blocks to exit early.
-func (t SparseTree) domorder(x *Block) int32 {
+func (t SparseTree) DomOrder(x *Block) int32 {
 	// Here is an argument that entry(x) provides the properties documented above.
 	//
 	// Entry and exit values are assigned in a depth-first dominator tree walk.
@@ -224,5 +216,5 @@ func (t SparseTree) domorder(x *Block) int32 {
 	// y-dom-z requires entry(y) < entry(z), but we have entry(z) < entry(y).
 	// y-then-z requires exit(y) < entry(z), but we have entry(z) < exit(y).
 	// We have a contradiction, so x does not dominate z, as required.
-	return t[x.ID].entry
+	return t[x.ID].Entry
 }

@@ -13,22 +13,22 @@
 (Select0 (MakeTuple x y)) => x
 (Select1 (MakeTuple x y)) => y
 
-(Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && t.IsSigned() =>
+(Load <t> ptr mem) && Is64BitInt(t) && !config.BigEndian && t.IsSigned() =>
 	(Int64Make
 		(Load <typ.Int32> (OffPtr <typ.Int32Ptr> [4] ptr) mem)
 		(Load <typ.UInt32> ptr mem))
 
-(Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && !t.IsSigned() =>
+(Load <t> ptr mem) && Is64BitInt(t) && !config.BigEndian && !t.IsSigned() =>
 	(Int64Make
 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem)
 		(Load <typ.UInt32> ptr mem))
 
-(Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && t.IsSigned() =>
+(Load <t> ptr mem) && Is64BitInt(t) && config.BigEndian && t.IsSigned() =>
 	(Int64Make
 		(Load <typ.Int32> ptr mem)
 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
 
-(Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && !t.IsSigned() =>
+(Load <t> ptr mem) && Is64BitInt(t) && config.BigEndian && !t.IsSigned() =>
 	(Int64Make
 		(Load <typ.UInt32> ptr mem)
 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
@@ -46,20 +46,20 @@
 		(Store {hi.Type} dst hi mem))
 
 // These are not enabled during decomposeBuiltin if late call expansion, but they are always enabled for softFloat
-(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && Is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.Int32> {n} [off+4])
     (Arg <typ.UInt32> {n} [off]))
-(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")  =>
+(Arg {n} [off]) && Is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")  =>
   (Int64Make
     (Arg <typ.UInt32> {n} [off+4])
     (Arg <typ.UInt32> {n} [off]))
 
-(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && Is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.Int32> {n} [off])
     (Arg <typ.UInt32> {n} [off+4]))
-(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && Is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.UInt32> {n} [off])
     (Arg <typ.UInt32> {n} [off+4]))

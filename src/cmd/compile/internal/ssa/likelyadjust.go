@@ -10,32 +10,32 @@ import (
 	"cmd/compile/internal/ssa/block"
 )
 
-type loop struct {
-	header *Block // The header node of this (reducible) loop
-	outer  *loop  // loop containing this loop
+type Loop struct {
+	Header *Block // The header node of this (reducible) loop
+	Outer  *Loop  // loop containing this loop
 
 	// Next three fields used by regalloc and/or
 	// aid in computation of inner-ness and list of blocks.
-	nBlocks int32 // Number of blocks in this loop but not within inner loops
-	depth   int16 // Nesting depth of the loop; 1 is outermost.
-	isInner bool  // True if never discovered to contain a loop
+	NBlocks int32 // Number of blocks in this loop but not within inner loops
+	Depth   int16 // Nesting depth of the loop; 1 is outermost.
+	IsInner bool  // True if never discovered to contain a loop
 
 	// True if all paths through the loop have a call.
 	// Computed and used by regalloc; stored here for convenience.
-	containsUnavoidableCall bool
+	ContainsUnavoidableCall bool
 }
 
 // outerinner records that outer contains inner
-func (sdom SparseTree) outerinner(outer, inner *loop) {
+func (sdom SparseTree) outerinner(outer, inner *Loop) {
 	// There could be other outer loops found in some random order,
 	// locate the new outer loop appropriately among them.
 
 	// Outer loop headers dominate inner loop headers.
 	// Use this to put the "new" "outer" loop in the right place.
-	oldouter := inner.outer
-	for oldouter != nil && sdom.isAncestor(outer.header, oldouter.header) {
+	oldouter := inner.Outer
+	for oldouter != nil && sdom.IsAncestor(outer.Header, oldouter.Header) {
 		inner = oldouter
-		oldouter = inner.outer
+		oldouter = inner.Outer
 	}
 	if outer == oldouter {
 		return
@@ -44,17 +44,17 @@ func (sdom SparseTree) outerinner(outer, inner *loop) {
 		sdom.outerinner(oldouter, outer)
 	}
 
-	inner.outer = outer
-	outer.isInner = false
+	inner.Outer = outer
+	outer.IsInner = false
 }
 
-type loopnest struct {
-	f              *Func
-	b2l            []*loop
-	po             []*Block
-	sdom           SparseTree
-	loops          []*loop
-	hasIrreducible bool // TODO current treatment of irreducible loops is very flaky, if accurate loops are needed, must punt at function level.
+type LoopNest struct {
+	F              *Func
+	B2L            []*Loop
+	Po             []*Block
+	SDom           SparseTree
+	Loops          []*Loop
+	HasIrreducible bool // TODO current treatment of irreducible loops is very flaky, if accurate loops are needed, must punt at function level.
 }
 
 const (
@@ -87,14 +87,14 @@ func likelyadjust(f *Func) {
 	// in their rank order.  0 is default, more positive
 	// is less likely. It's possible to assign a negative
 	// unlikeliness (though not currently the case).
-	certain := f.Cache.allocInt8Slice(f.NumBlocks()) // In the long run, all outcomes are at least this bad. Mainly for Exit
-	defer f.Cache.freeInt8Slice(certain)
-	local := f.Cache.allocInt8Slice(f.NumBlocks()) // for our immediate predecessors.
-	defer f.Cache.freeInt8Slice(local)
+	certain := f.Cache.AllocInt8Slice(f.NumBlocks()) // In the long run, all outcomes are at least this bad. Mainly for Exit
+	defer f.Cache.FreeInt8Slice(certain)
+	local := f.Cache.AllocInt8Slice(f.NumBlocks()) // for our immediate predecessors.
+	defer f.Cache.FreeInt8Slice(local)
 
-	po := f.postorder()
-	nest := f.loopnest()
-	b2l := nest.b2l
+	po := f.Postorder()
+	nest := f.Loopnest()
+	b2l := nest.B2L
 
 	for _, b := range po {
 		switch b.Kind {
@@ -113,11 +113,11 @@ func likelyadjust(f *Func) {
 			// and less influential than inferences from loop structure.
 		case block.BlockDefer:
 			local[b.ID] = blCALL
-			certain[b.ID] = max(blCALL, certain[b.Succs[0].b.ID])
+			certain[b.ID] = max(blCALL, certain[b.Succs[0].B.ID])
 
 		default:
 			if len(b.Succs) == 1 {
-				certain[b.ID] = certain[b.Succs[0].b.ID]
+				certain[b.ID] = certain[b.Succs[0].B.ID]
 			} else if len(b.Succs) == 2 {
 				// If successor is an unvisited backedge, it's in loop and we don't care.
 				// Its default unlikely is also zero which is consistent with favoring loop edges.
@@ -125,8 +125,8 @@ func likelyadjust(f *Func) {
 				// default "everything returns" unlikeliness is erased by min with the
 				// backedge likeliness; however a loop with calls on every path will be
 				// tagged with call cost. Net effect is that loop entry is favored.
-				b0 := b.Succs[0].b.ID
-				b1 := b.Succs[1].b.ID
+				b0 := b.Succs[0].B.ID
+				b1 := b.Succs[1].B.ID
 				certain[b.ID] = min(certain[b0], certain[b1])
 
 				l := b2l[b.ID]
@@ -154,7 +154,7 @@ func likelyadjust(f *Func) {
 					default:
 						noprediction = true
 					}
-					if f.pass.debug > 0 && !noprediction {
+					if f.Pass.Debug > 0 && !noprediction {
 						f.Warnl(b.Pos, "Branch prediction rule stay in loop%s",
 							describePredictionAgrees(b, prediction))
 					}
@@ -163,22 +163,22 @@ func likelyadjust(f *Func) {
 					// Lacking loop structure, fall back on heuristics.
 					if certain[b1] > certain[b0] {
 						prediction = BranchLikely
-						if f.pass.debug > 0 {
+						if f.Pass.Debug > 0 {
 							describeBranchPrediction(f, b, certain[b0], certain[b1], prediction)
 						}
 					} else if certain[b0] > certain[b1] {
 						prediction = BranchUnlikely
-						if f.pass.debug > 0 {
+						if f.Pass.Debug > 0 {
 							describeBranchPrediction(f, b, certain[b1], certain[b0], prediction)
 						}
 					} else if local[b1] > local[b0] {
 						prediction = BranchLikely
-						if f.pass.debug > 0 {
+						if f.Pass.Debug > 0 {
 							describeBranchPrediction(f, b, local[b0], local[b1], prediction)
 						}
 					} else if local[b0] > local[b1] {
 						prediction = BranchUnlikely
-						if f.pass.debug > 0 {
+						if f.Pass.Debug > 0 {
 							describeBranchPrediction(f, b, local[b1], local[b0], prediction)
 						}
 					}
@@ -191,41 +191,41 @@ func likelyadjust(f *Func) {
 			}
 			// Look for calls in the block.  If there is one, make this block unlikely.
 			for _, v := range b.Values {
-				if opcodeTable[v.Op].call {
+				if OpcodeTable[v.Op].Call {
 					local[b.ID] = blCALL
-					certain[b.ID] = max(blCALL, certain[b.Succs[0].b.ID])
+					certain[b.ID] = max(blCALL, certain[b.Succs[0].B.ID])
 					break
 				}
 			}
 		}
-		if f.pass.debug > 2 {
+		if f.Pass.Debug > 2 {
 			f.Warnl(b.Pos, "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
 		}
 
 	}
 }
 
-func (l *loop) String() string {
-	return fmt.Sprintf("hdr:%s", l.header)
+func (l *Loop) String() string {
+	return fmt.Sprintf("hdr:%s", l.Header)
 }
 
-func (l *loop) LongString() string {
+func (l *Loop) LongString() string {
 	i := ""
 	o := ""
-	if l.isInner {
+	if l.IsInner {
 		i = ", INNER"
 	}
-	if l.outer != nil {
-		o = ", o=" + l.outer.header.String()
+	if l.Outer != nil {
+		o = ", o=" + l.Outer.Header.String()
 	}
-	return fmt.Sprintf("hdr:%s%s%s", l.header, i, o)
+	return fmt.Sprintf("hdr:%s%s%s", l.Header, i, o)
 }
 
-func (l *loop) isWithinOrEq(ll *loop) bool {
+func (l *Loop) IsWithinOrEq(ll *Loop) bool {
 	if ll == nil { // nil means whole program
 		return true
 	}
-	for ; l != nil; l = l.outer {
+	for ; l != nil; l = l.Outer {
 		if l == ll {
 			return true
 		}
@@ -237,33 +237,33 @@ func (l *loop) isWithinOrEq(ll *loop) bool {
 // containing block b; the header must dominate b.  loop itself
 // is assumed to not be that loop. For acceptable performance,
 // we're relying on loop nests to not be terribly deep.
-func (l *loop) nearestOuterLoop(sdom SparseTree, b *Block) *loop {
-	var o *loop
-	for o = l.outer; o != nil && !sdom.IsAncestorEq(o.header, b); o = o.outer {
+func (l *Loop) nearestOuterLoop(sdom SparseTree, b *Block) *Loop {
+	var o *Loop
+	for o = l.Outer; o != nil && !sdom.IsAncestorEq(o.Header, b); o = o.Outer {
 	}
 	return o
 }
 
-func loopnestfor(f *Func) *loopnest {
-	po := f.postorder()
+func Loopnestfor(f *Func) *LoopNest {
+	po := f.Postorder()
 	sdom := f.Sdom()
-	b2l := make([]*loop, f.NumBlocks())
-	loops := make([]*loop, 0)
-	visited := f.Cache.allocBoolSlice(f.NumBlocks())
-	defer f.Cache.freeBoolSlice(visited)
+	b2l := make([]*Loop, f.NumBlocks())
+	loops := make([]*Loop, 0)
+	visited := f.Cache.AllocBoolSlice(f.NumBlocks())
+	defer f.Cache.FreeBoolSlice(visited)
 	sawIrred := false
 
-	if f.pass.debug > 2 {
+	if f.Pass.Debug > 2 {
 		fmt.Printf("loop finding in %s\n", f.Name)
 	}
 
 	// Reducible-loop-nest-finding.
 	for _, b := range po {
-		if f.pass != nil && f.pass.debug > 3 {
+		if f.Pass != nil && f.Pass.Debug > 3 {
 			fmt.Printf("loop finding at %s\n", b)
 		}
 
-		var innermost *loop // innermost header reachable from this block
+		var innermost *Loop // innermost header reachable from this block
 
 		// IF any successor s of b is in a loop headed by h
 		// AND h dominates b
@@ -276,21 +276,21 @@ func loopnestfor(f *Func) *loopnest {
 		// Since there's at most 2 successors, the inner/outer ordering
 		// between them can be established with simple comparisons.
 		for _, e := range b.Succs {
-			bb := e.b
+			bb := e.B
 			l := b2l[bb.ID]
 
 			if sdom.IsAncestorEq(bb, b) { // Found a loop header
-				if f.pass != nil && f.pass.debug > 4 {
+				if f.Pass != nil && f.Pass.Debug > 4 {
 					fmt.Printf("loop finding    succ %s of %s is header\n", bb.String(), b.String())
 				}
 				if l == nil {
-					l = &loop{header: bb, isInner: true}
+					l = &Loop{Header: bb, IsInner: true}
 					loops = append(loops, l)
 					b2l[bb.ID] = l
 				}
 			} else if !visited[bb.ID] { // Found an irreducible loop
 				sawIrred = true
-				if f.pass != nil && f.pass.debug > 4 {
+				if f.Pass != nil && f.Pass.Debug > 4 {
 					fmt.Printf("loop finding    succ %s of %s is IRRED, in %s\n", bb.String(), b.String(), f.Name)
 				}
 			} else if l != nil {
@@ -298,18 +298,18 @@ func loopnestfor(f *Func) *loopnest {
 				// Perhaps a loop header is inherited.
 				// is there any loop containing our successor whose
 				// header dominates b?
-				if !sdom.IsAncestorEq(l.header, b) {
+				if !sdom.IsAncestorEq(l.Header, b) {
 					l = l.nearestOuterLoop(sdom, b)
 				}
-				if f.pass != nil && f.pass.debug > 4 {
+				if f.Pass != nil && f.Pass.Debug > 4 {
 					if l == nil {
 						fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
 					} else {
-						fmt.Printf("loop finding    succ %s of %s provides loop with header %s\n", bb.String(), b.String(), l.header.String())
+						fmt.Printf("loop finding    succ %s of %s provides loop with header %s\n", bb.String(), b.String(), l.Header.String())
 					}
 				}
 			} else { // No loop
-				if f.pass != nil && f.pass.debug > 4 {
+				if f.Pass != nil && f.Pass.Debug > 4 {
 					fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
 				}
 
@@ -324,78 +324,78 @@ func loopnestfor(f *Func) *loopnest {
 				continue
 			}
 
-			if sdom.isAncestor(innermost.header, l.header) {
+			if sdom.IsAncestor(innermost.Header, l.Header) {
 				sdom.outerinner(innermost, l)
 				innermost = l
-			} else if sdom.isAncestor(l.header, innermost.header) {
+			} else if sdom.IsAncestor(l.Header, innermost.Header) {
 				sdom.outerinner(l, innermost)
 			}
 		}
 
 		if innermost != nil {
 			b2l[b.ID] = innermost
-			innermost.nBlocks++
+			innermost.NBlocks++
 		}
 		visited[b.ID] = true
 	}
 
 	// Compute depths.
 	for _, l := range loops {
-		if l.depth != 0 {
+		if l.Depth != 0 {
 			// Already computed because it is an ancestor of
 			// a previous loop.
 			continue
 		}
 		// Find depth by walking up the loop tree.
 		d := int16(0)
-		for x := l; x != nil; x = x.outer {
-			if x.depth != 0 {
-				d += x.depth
+		for x := l; x != nil; x = x.Outer {
+			if x.Depth != 0 {
+				d += x.Depth
 				break
 			}
 			d++
 		}
 		// Set depth for every ancestor.
-		for x := l; x != nil; x = x.outer {
-			if x.depth != 0 {
+		for x := l; x != nil; x = x.Outer {
+			if x.Depth != 0 {
 				break
 			}
-			x.depth = d
+			x.Depth = d
 			d--
 		}
 	}
 	// Double-check depths.
 	for _, l := range loops {
 		want := int16(1)
-		if l.outer != nil {
-			want = l.outer.depth + 1
+		if l.Outer != nil {
+			want = l.Outer.Depth + 1
 		}
-		if l.depth != want {
-			l.header.Fatalf("bad depth calculation for loop %s: got %d want %d", l.header, l.depth, want)
+		if l.Depth != want {
+			l.Header.Fatalf("bad depth calculation for loop %s: got %d want %d", l.Header, l.Depth, want)
 		}
 	}
 
-	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops, hasIrreducible: sawIrred}
+	ln := &LoopNest{F: f, B2L: b2l, Po: po, SDom: sdom, Loops: loops, HasIrreducible: sawIrred}
 
 	// Curious about the loopiness? "-d=ssa/likelyadjust/stats"
-	if f.pass != nil && f.pass.stats > 0 && len(loops) > 0 {
+	if f.Pass != nil && f.Pass.Stats > 0 && len(loops) > 0 {
 
 		// Note stats for non-innermost loops are slightly flawed because
 		// they don't account for inner loop exits that span multiple levels.
 
 		for _, l := range loops {
 			inner := 0
-			if l.isInner {
+			if l.IsInner {
 				inner++
 			}
 
 			f.LogStat("loopstats in "+f.Name+":",
-				l.depth, "depth",
-				inner, "is_inner", l.nBlocks, "n_blocks")
+				l.Depth, "depth",
+				inner, "is_inner", l.NBlocks, "n_blocks")
 		}
 	}
 
-	if f.pass != nil && f.pass.debug > 1 && len(loops) > 0 {
+	if f.Pass != nil && f.Pass.Debug > 1 && len(loops) > 0 {
 		fmt.Printf("Loops in %s:\n", f.Name)
 		for _, l := range loops {
 			fmt.Printf("%s, b=", l.LongString())
@@ -417,10 +417,10 @@ func loopnestfor(f *Func) *loopnest {
 	return ln
 }
 
-// depth returns the loop nesting level of block b.
-func (ln *loopnest) depth(b ID) int16 {
-	if l := ln.b2l[b]; l != nil {
-		return l.depth
+// Depth returns the loop nesting level of block b.
+func (ln *LoopNest) Depth(b ID) int16 {
+	if l := ln.B2L[b]; l != nil {
+		return l.Depth
 	}
 	return 0
 }

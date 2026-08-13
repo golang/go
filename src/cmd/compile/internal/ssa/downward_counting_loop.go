@@ -53,11 +53,11 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 
 	start, end := v.min, v.max
 
-	if !start.isGenericIntConst() {
+	if !start.IsGenericIntConst() {
 		// if start is not a constant we would be winning nothing from inverting the loop
 		return
 	}
-	if end.isGenericIntConst() {
+	if end.IsGenericIntConst() {
 		// TODO: if both start and end are constants we should rewrite such that the comparison
 		// is against zero and nxt is ++ or -- operation
 		// That means:
@@ -73,7 +73,7 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 		return
 	}
 
-	check := v.entry.Preds[0].b.Controls[0]
+	check := v.entry.Preds[0].B.Controls[0]
 
 	neededRoom := -v.step
 
@@ -87,7 +87,7 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 
 	switch check.Op {
 	case OpLess8, OpLess16, OpLess32, OpLess64, OpLeq8, OpLeq16, OpLeq32, OpLeq64:
-		if _, ok := safeAdd(start.AuxInt, neededRoom, uint(start.Type.Size())*8); !ok {
+		if _, ok := SafeAdd(start.AuxInt, neededRoom, uint(start.Type.Size())*8); !ok {
 			// We lack sufficient room after start to safely land without an overflow.
 			// See go.dev/issue/78303
 			return
@@ -160,7 +160,7 @@ You need to update this code and add tests then.`)
 		panic("unreachable")
 	}
 
-	if f.pass.debug > 0 {
+	if f.Pass.Debug > 0 {
 		f.Warnl(ind.Pos, "Inverted loop iteration")
 	}
 }

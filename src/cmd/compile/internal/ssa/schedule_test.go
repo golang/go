@@ -31,7 +31,7 @@ func TestSchedule(t *testing.T) {
 		schedule(c.f)
 		if !isSingleLiveMem(c.f) {
 			t.Error("single-live-mem restriction not enforced by schedule for func:")
-			printFunc(c.f)
+			PrintFunc(c.f)
 		}
 	}
 }
@@ -78,7 +78,7 @@ func TestStoreOrder(t *testing.T) {
 			Exit("mem2")))
 
 	CheckFunc(fun.f)
-	order := storeOrder(fun.f.Blocks[0].Values, fun.f.newSparseSet(fun.f.NumValues()), make([]int32, fun.f.NumValues()))
+	order := storeOrder(fun.f.Blocks[0].Values, fun.f.NewSparseSet(fun.f.NumValues()), make([]int32, fun.f.NumValues()))
 
 	// check that v2, v3, v4 is sorted after v5
 	var ai, bi, ci, si int

@@ -45,8 +45,8 @@ func nilcheckelim(f *Func) {
 	// If there is extrinsic information about non-nil-ness, this map
 	// points a value to itself. If a value is known non-nil because we
 	// already did a nil check on it, it points to the nil check operation.
-	nonNilValues := f.Cache.allocValueSlice(f.NumValues())
-	defer f.Cache.freeValueSlice(nonNilValues)
+	nonNilValues := f.Cache.AllocValueSlice(f.NumValues())
+	defer f.Cache.FreeValueSlice(nonNilValues)
 
 	// make an initial pass identifying any non-nil values
 	for _, b := range f.Blocks {
@@ -89,10 +89,10 @@ func nilcheckelim(f *Func) {
 	}
 
 	// allocate auxiliary date structures for computing store order
-	sset := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(sset)
-	storeNumber := f.Cache.allocInt32Slice(f.NumValues())
-	defer f.Cache.freeInt32Slice(storeNumber)
+	sset := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(sset)
+	storeNumber := f.Cache.AllocInt32Slice(f.NumValues())
+	defer f.Cache.FreeInt32Slice(storeNumber)
 
 	// perform a depth first walk of the dominee tree
 	for len(work) > 0 {
@@ -105,8 +105,8 @@ func nilcheckelim(f *Func) {
 
 			// First, see if we're dominated by an explicit nil check.
 			if len(b.Preds) == 1 {
-				p := b.Preds[0].b
-				if p.Kind == block.BlockIf && p.Controls[0].Op == OpIsNonNil && p.Succs[0].b == b {
+				p := b.Preds[0].B
+				if p.Kind == block.BlockIf && p.Controls[0].Op == OpIsNonNil && p.Succs[0].B == b {
 					if ptr := p.Controls[0].Args[0]; nonNilValues[ptr.ID] == nil {
 						nonNilValues[ptr.ID] = ptr
 						work = append(work, bp{op: ClearPtr, ptr: ptr})
@@ -117,8 +117,8 @@ func nilcheckelim(f *Func) {
 			// Next, order values in the current block w.r.t. stores.
 			b.Values = storeOrder(b.Values, sset, storeNumber)
 
-			pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
-			pendingLines.clear()
+			pendingLines := f.CachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+			pendingLines.Clear()
 
 			// Next, process values in the block.
 			for _, v := range b.Values {
@@ -127,11 +127,11 @@ func nilcheckelim(f *Func) {
 					ptr := v.Args[0]
 					if nonNilValues[ptr.ID] != nil {
 						if v.Pos.IsStmt() == src.PosIsStmt { // Boolean true is a terrible statement boundary.
-							pendingLines.add(v.Pos)
+							pendingLines.Add(v.Pos)
 							v.Pos = v.Pos.WithNotStmt()
 						}
 						// This is a redundant explicit nil check.
-						v.reset(OpConstBool)
+						v.Reset(OpConstBool)
 						v.AuxInt = 1 // true
 					}
 				case OpNilCheck:
@@ -140,11 +140,11 @@ func nilcheckelim(f *Func) {
 						// This is a redundant implicit nil check.
 						// Logging in the style of the former compiler -- and omit line 1,
 						// which is usually in generated code.
-						if f.fe.Debug_checknil() && v.Pos.Line() > 1 {
+						if f.Fe.Debug_checknil() && v.Pos.Line() > 1 {
 							f.Warnl(v.Pos, "removed nil check")
 						}
 						if v.Pos.IsStmt() == src.PosIsStmt { // About to lose a statement boundary
-							pendingLines.add(v.Pos)
+							pendingLines.Add(v.Pos)
 						}
 						v.Op = OpCopy
 						v.SetArgs1(nilCheck)
@@ -156,27 +156,27 @@ func nilcheckelim(f *Func) {
 					work = append(work, bp{op: ClearPtr, ptr: ptr})
 					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
 				default:
-					if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
+					if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.Contains(v.Pos) {
 						v.Pos = v.Pos.WithIsStmt()
-						pendingLines.remove(v.Pos)
+						pendingLines.Remove(v.Pos)
 					}
 				}
 			}
 			// This reduces the lost statement count in "go" by 5 (out of 500 total).
 			for j := range b.Values { // is this an ordering problem?
 				v := b.Values[j]
-				if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
+				if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.Contains(v.Pos) {
 					v.Pos = v.Pos.WithIsStmt()
-					pendingLines.remove(v.Pos)
+					pendingLines.Remove(v.Pos)
 				}
 			}
-			if pendingLines.contains(b.Pos) {
+			if pendingLines.Contains(b.Pos) {
 				b.Pos = b.Pos.WithIsStmt()
-				pendingLines.remove(b.Pos)
+				pendingLines.Remove(b.Pos)
 			}
 
 			// Add all dominated blocks to the work list.
-			for w := sdom[node.block.ID].child; w != nil; w = sdom[w.ID].sibling {
+			for w := sdom[node.block.ID].Child; w != nil; w = sdom[w.ID].Sibling {
 				work = append(work, bp{op: Work, block: w})
 			}
 
@@ -198,23 +198,23 @@ var faultOnLoad = buildcfg.GOOS != "aix"
 // nilcheckelim2 eliminates unnecessary nil checks.
 // Runs after lowering and scheduling.
 func nilcheckelim2(f *Func) {
-	unnecessary := f.newSparseMap(f.NumValues()) // map from pointer that will be dereferenced to index of dereferencing value in b.Values[]
-	defer f.retSparseMap(unnecessary)
+	unnecessary := f.NewSparseMap(f.NumValues()) // map from pointer that will be dereferenced to index of dereferencing value in b.Values[]
+	defer f.RetSparseMap(unnecessary)
 
-	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+	pendingLines := f.CachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
 
 	for _, b := range f.Blocks {
 		// Walk the block backwards. Find instructions that will fault if their
 		// input pointer is nil. Remove nil checks on those pointers, as the
 		// faulting instruction effectively does the nil check for free.
-		unnecessary.clear()
-		pendingLines.clear()
+		unnecessary.Clear()
+		pendingLines.Clear()
 		// Optimization: keep track of removed nilcheck with smallest index
 		firstToRemove := len(b.Values)
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
-			if opcodeTable[v.Op].nilCheck && unnecessary.contains(v.Args[0].ID) {
-				if f.fe.Debug_checknil() && v.Pos.Line() > 1 {
+			if OpcodeTable[v.Op].NilCheck && unnecessary.Contains(v.Args[0].ID) {
+				if f.Fe.Debug_checknil() && v.Pos.Line() > 1 {
 					f.Warnl(v.Pos, "removed nil check")
 				}
 				// For bug 33724, policy is that we might choose to bump an existing position
@@ -222,18 +222,18 @@ func nilcheckelim2(f *Func) {
 
 				// Iteration order means that first nilcheck in the chain wins, others
 				// are bumped into the ordinary statement preservation algorithm.
-				uid, _ := unnecessary.get(v.Args[0].ID)
+				uid, _ := unnecessary.Get(v.Args[0].ID)
 				u := b.Values[uid]
 				if !u.Pos.SameFileAndLine(v.Pos) {
 					if u.Pos.IsStmt() == src.PosIsStmt {
-						pendingLines.add(u.Pos)
+						pendingLines.Add(u.Pos)
 					}
 					u.Pos = v.Pos
 				} else if v.Pos.IsStmt() == src.PosIsStmt {
-					pendingLines.add(v.Pos)
+					pendingLines.Add(v.Pos)
 				}
 
-				v.reset(OpUnknown)
+				v.Reset(OpUnknown)
 				firstToRemove = i
 				continue
 			}
@@ -266,17 +266,17 @@ func nilcheckelim2(f *Func) {
 				}
 				// This op changes memory.  Any faulting instruction after v that
 				// we've recorded in the unnecessary map is now obsolete.
-				unnecessary.clear()
+				unnecessary.Clear()
 			}
 
 			// Find any pointers that this op is guaranteed to fault on if nil.
 			var ptrstore [2]*Value
 			ptrs := ptrstore[:0]
-			if opcodeTable[v.Op].faultOnNilArg0 && (faultOnLoad || v.Type.IsMemory()) {
+			if OpcodeTable[v.Op].FaultOnNilArg0 && (faultOnLoad || v.Type.IsMemory()) {
 				// On AIX, only writing will fault.
 				ptrs = append(ptrs, v.Args[0])
 			}
-			if opcodeTable[v.Op].faultOnNilArg1 && (faultOnLoad || (v.Type.IsMemory() && v.Op != OpPPC64LoweredMove)) {
+			if OpcodeTable[v.Op].FaultOnNilArg1 && (faultOnLoad || (v.Type.IsMemory() && v.Op != OpPPC64LoweredMove)) {
 				// On AIX, only writing will fault.
 				// LoweredMove is a special case because it's considered as a "mem" as it stores on arg0 but arg1 is accessed as a load and should be checked.
 				ptrs = append(ptrs, v.Args[1])
@@ -284,33 +284,33 @@ func nilcheckelim2(f *Func) {
 
 			for _, ptr := range ptrs {
 				// Check to make sure the offset is small.
-				switch opcodeTable[v.Op].auxType {
-				case auxSym:
+				switch OpcodeTable[v.Op].AuxType {
+				case AuxTypeSym:
 					if v.Aux != nil {
 						continue
 					}
-				case auxSymOff:
+				case AuxTypeSymOff:
 					if v.Aux != nil || v.AuxInt < 0 || v.AuxInt >= minZeroPage {
 						continue
 					}
-				case auxSymValAndOff:
+				case AuxTypeSymValAndOff:
 					off := ValAndOff(v.AuxInt).Off()
 					if v.Aux != nil || off < 0 || off >= minZeroPage {
 						continue
 					}
-				case auxInt32:
+				case AuxTypeInt32:
 					// Mips uses this auxType for atomic add constant. It does not affect the effective address.
-				case auxInt64:
+				case AuxTypeInt64:
 					// ARM uses this auxType for duffcopy/duffzero/alignment info.
 					// It does not affect the effective address.
-				case auxNone:
+				case AuxTypeNone:
 					// offset is zero.
 				default:
-					v.Fatalf("can't handle aux %s (type %d) yet\n", v.auxString(), int(opcodeTable[v.Op].auxType))
+					v.Fatalf("can't handle aux %s (type %d) yet\n", v.AuxString(), int(OpcodeTable[v.Op].AuxType))
 				}
 				// This instruction is guaranteed to fault if ptr is nil.
 				// Any previous nil check op is unnecessary.
-				unnecessary.set(ptr.ID, int32(i))
+				unnecessary.Set(ptr.ID, int32(i))
 			}
 		}
 		// Remove values we've clobbered with OpUnknown.
@@ -318,20 +318,20 @@ func nilcheckelim2(f *Func) {
 		for j := i; j < len(b.Values); j++ {
 			v := b.Values[j]
 			if v.Op != OpUnknown {
-				if !notStmtBoundary(v.Op) && pendingLines.contains(v.Pos) { // Late in compilation, so any remaining NotStmt values are probably okay now.
+				if !NotStmtBoundary(v.Op) && pendingLines.Contains(v.Pos) { // Late in compilation, so any remaining NotStmt values are probably okay now.
 					v.Pos = v.Pos.WithIsStmt()
-					pendingLines.remove(v.Pos)
+					pendingLines.Remove(v.Pos)
 				}
 				b.Values[i] = v
 				i++
 			}
 		}
 
-		if pendingLines.contains(b.Pos) {
+		if pendingLines.Contains(b.Pos) {
 			b.Pos = b.Pos.WithIsStmt()
 		}
 
-		b.truncateValues(i)
+		b.TruncateValues(i)
 
 		// TODO: if b.Kind == BlockPlain, start the analysis in the subsequent block to find
 		// more unnecessary nil checks.  Would fix test/nilptr3.go:159.

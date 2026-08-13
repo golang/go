@@ -20,10 +20,10 @@ func TestAddFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[flagConstant]bool{}
+	coverage := map[FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
-			a := addFlags64(x, y)
+			a := AddFlags64(x, y)
 			b := flagRegister2flagConstant(asmAddFlags(x, y), false)
 			if a != b {
 				t.Errorf("asmAdd diff: x=%x y=%x got=%s want=%s\n", x, y, a, b)
@@ -42,10 +42,10 @@ func TestSubFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[flagConstant]bool{}
+	coverage := map[FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
-			a := subFlags64(x, y)
+			a := SubFlags64(x, y)
 			b := flagRegister2flagConstant(asmSubFlags(x, y), true)
 			if a != b {
 				t.Errorf("asmSub diff: x=%x y=%x got=%s want=%s\n", x, y, a, b)
@@ -64,10 +64,10 @@ func TestAndFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[flagConstant]bool{}
+	coverage := map[FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
-			a := logicFlags64(x & y)
+			a := LogicFlags64(x & y)
 			b := flagRegister2flagConstant(asmAndFlags(x, y), false)
 			if a != b {
 				t.Errorf("asmAnd diff: x=%x y=%x got=%s want=%s\n", x, y, a, b)
@@ -84,8 +84,8 @@ func asmAddFlags(x, y int64) int
 func asmSubFlags(x, y int64) int
 func asmAndFlags(x, y int64) int
 
-func flagRegister2flagConstant(x int, sub bool) flagConstant {
-	var fcb flagConstantBuilder
+func flagRegister2flagConstant(x int, sub bool) FlagConstant {
+	var fcb FlagConstantBuilder
 	switch runtime.GOARCH {
 	case "amd64":
 		fcb.Z = x>>6&1 != 0
@@ -104,5 +104,5 @@ func flagRegister2flagConstant(x int, sub bool) flagConstant {
 	default:
 		panic("unsupported architecture: " + runtime.GOARCH)
 	}
-	return fcb.encode()
+	return fcb.Encode()
 }

@@ -113,7 +113,7 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 		b.SetControl(v)
 
 		// Modify p so that it jumps directly to b.
-		p.removeEdge(i)
+		p.RemoveEdge(i)
 		p.Kind = block.BlockPlain
 		p.Likely = BranchUnknown
 		p.ResetControls()
@@ -130,8 +130,8 @@ func hasDifferentiatedPhi(x Edge, y Edge) bool {
 	if y.Block() != b {
 		panic("non matching edges")
 	}
-	xi := x.i
-	yi := y.i
+	xi := x.I
+	yi := y.I
 	for _, v := range b.Values {
 		if v.Op != OpPhi {
 			continue
@@ -304,5 +304,5 @@ func canOptSingleBitDifference(x, y *Value, op Op) bool {
 	if x.Args[xi^1] != y.Args[yi^1] {
 		return false
 	}
-	return oneBit(x.Args[xi].AuxInt ^ y.Args[yi].AuxInt)
+	return OneBit(x.Args[xi].AuxInt ^ y.Args[yi].AuxInt)
 }

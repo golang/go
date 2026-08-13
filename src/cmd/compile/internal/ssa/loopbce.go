@@ -153,7 +153,7 @@ nextblock:
 			}
 
 			// Expect the increment to be a nonzero constant.
-			if !inc.isGenericIntConst() {
+			if !inc.IsGenericIntConst() {
 				continue
 			}
 			step := inc.AuxInt
@@ -170,9 +170,9 @@ nextblock:
 			// startBody is the edge that eventually returns to the loop header.
 			var startBody Edge
 			switch {
-			case sdom.IsAncestorEq(b.Succs[0].b, loopReturn.b):
+			case sdom.IsAncestorEq(b.Succs[0].B, loopReturn.B):
 				startBody = b.Succs[0]
-			case sdom.IsAncestorEq(b.Succs[1].b, loopReturn.b):
+			case sdom.IsAncestorEq(b.Succs[1].B, loopReturn.B):
 				// if x { goto exit } else { goto entry } is identical to if !x { goto entry } else { goto exit }
 				startBody = b.Succs[1]
 				less = !less
@@ -209,14 +209,14 @@ nextblock:
 			// The entry now means the in-loop edge where the induction variable
 			// comparison succeeded. Its predecessor is not necessarily the header
 			// block. This implies that b.Succs[0] is reached iff ind < limit.
-			if len(startBody.b.Preds) != 1 {
+			if len(startBody.B.Preds) != 1 {
 				// the other successor must exit the loop.
 				continue
 			}
 
 			// Second condition: startBody.b dominates nxt so that
 			// nxt is computed when inc < limit.
-			if !sdom.IsAncestorEq(startBody.b, nxt.Block) {
+			if !sdom.IsAncestorEq(startBody.B, nxt.Block) {
 				// inc+ind can only be reached through the branch that confirmed the
 				// induction variable is in bounds.
 				continue
@@ -228,7 +228,7 @@ nextblock:
 			// This function returns true if the increment will never overflow/underflow.
 			ok := func() bool {
 				if step > 0 {
-					if limit.isGenericIntConst() {
+					if limit.IsGenericIntConst() {
 						// Figure out the actual largest value.
 						v := limit.AuxInt
 						if !inclusive {
@@ -237,7 +237,7 @@ nextblock:
 							}
 							v--
 						}
-						if init.isGenericIntConst() {
+						if init.IsGenericIntConst() {
 							// Use stride to compute a better lower limit.
 							if init.AuxInt > v {
 								return false
@@ -251,7 +251,7 @@ nextblock:
 						}
 						if inclusive && v != limit.AuxInt || !inclusive && v+1 != limit.AuxInt {
 							// We know a better limit than the programmer did. Use our limit instead.
-							limit = f.constVal(limit.Op, limit.Type, v, true)
+							limit = f.ConstVal(limit.Op, limit.Type, v, true)
 							inclusive = true
 						}
 						return true
@@ -280,7 +280,7 @@ nextblock:
 					// for i := 0; i < KNN&^(k-1) ; i += k // k a power of 2
 					// for i := 0; i < KNN&(-k) ; i += k // k a power of 2
 				} else { // step < 0
-					if limit.isGenericIntConst() {
+					if limit.IsGenericIntConst() {
 						// Figure out the actual smallest value.
 						v := limit.AuxInt
 						if !inclusive {
@@ -289,7 +289,7 @@ nextblock:
 							}
 							v++
 						}
-						if init.isGenericIntConst() {
+						if init.IsGenericIntConst() {
 							// Use stride to compute a better lower limit.
 							if init.AuxInt < v {
 								return false
@@ -303,7 +303,7 @@ nextblock:
 						}
 						if inclusive && v != limit.AuxInt || !inclusive && v-1 != limit.AuxInt {
 							// We know a better limit than the programmer did. Use our limit instead.
-							limit = f.constVal(limit.Op, limit.Type, v, true)
+							limit = f.ConstVal(limit.Op, limit.Type, v, true)
 							inclusive = true
 						}
 						return true
@@ -334,7 +334,7 @@ nextblock:
 					}
 					step = -step
 				}
-				if f.pass.debug >= 1 {
+				if f.Pass.Debug >= 1 {
 					printIndVar(b, ind, min, max, step, flags)
 				}
 
@@ -346,7 +346,7 @@ nextblock:
 					// This is startBody.b, where startBody is the edge from the comparison for the
 					// induction variable, not necessarily the in-loop edge from the loop header.
 					// Induction variable bounds are not valid in the loop before this edge.
-					entry: startBody.b,
+					entry: startBody.B,
 					step:  step,
 					flags: flags,
 				})
@@ -431,7 +431,7 @@ func findKNN(v *Value) (*Value, int64) {
 	case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
 		x = v.Args[0]
 		y = v.Args[1]
-		if x.isGenericIntConst() {
+		if x.IsGenericIntConst() {
 			x, y = y, x
 		}
 	}
@@ -443,7 +443,7 @@ func findKNN(v *Value) (*Value, int64) {
 	if y == nil {
 		return x, 0
 	}
-	if !y.isGenericIntConst() {
+	if !y.IsGenericIntConst() {
 		return nil, 0
 	}
 	if v.Op == OpAdd64 || v.Op == OpAdd32 || v.Op == OpAdd16 || v.Op == OpAdd8 {
@@ -462,22 +462,22 @@ func printIndVar(b *Block, i, min, max *Value, inc int64, flags indVarFlags) {
 	}
 
 	mlim1, mlim2 := fmt.Sprint(min.AuxInt), fmt.Sprint(max.AuxInt)
-	if !min.isGenericIntConst() {
-		if b.Func.pass.debug >= 2 {
+	if !min.IsGenericIntConst() {
+		if b.Func.Pass.Debug >= 2 {
 			mlim1 = fmt.Sprint(min)
 		} else {
 			mlim1 = "?"
 		}
 	}
-	if !max.isGenericIntConst() {
-		if b.Func.pass.debug >= 2 {
+	if !max.IsGenericIntConst() {
+		if b.Func.Pass.Debug >= 2 {
 			mlim2 = fmt.Sprint(max)
 		} else {
 			mlim2 = "?"
 		}
 	}
 	extra := ""
-	if b.Func.pass.debug >= 2 {
+	if b.Func.Pass.Debug >= 2 {
 		extra = fmt.Sprintf(" (%s)", i)
 	}
 	b.Func.Warnl(b.Pos, "Induction variable: limits %v%v,%v%v, increment %d%s", mb1, mlim1, mlim2, mb2, inc, extra)

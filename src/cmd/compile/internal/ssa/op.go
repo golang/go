@@ -23,87 +23,87 @@ import (
 // for each architecture.
 type Op int32
 
-type opInfo struct {
-	name              string
-	reg               regInfo
-	auxType           auxType
-	argLen            int32 // the number of arguments, -1 if variable length
+type OpInfo struct {
+	Name              string
+	Reg               RegInfo
+	AuxType           AuxType_
+	ArgLen            int32 // the number of arguments, -1 if variable length
 	asm               obj.As
-	generic           bool      // this is a generic (arch-independent) opcode
-	rematerializeable bool      // this op is rematerializeable
-	commutative       bool      // this operation is commutative (e.g. addition)
-	resultInArg0      bool      // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
-	resultNotInArgs   bool      // outputs must not be allocated to the same registers as inputs
-	clobberFlags      bool      // this op clobbers flags register
-	needIntTemp       bool      // need a temporary free integer register
-	call              bool      // is a function call
+	Generic           bool      // this is a generic (arch-independent) opcode
+	Rematerializeable bool      // this op is rematerializeable
+	Commutative       bool      // this operation is commutative (e.g. addition)
+	ResultInArg0      bool      // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+	ResultNotInArgs   bool      // outputs must not be allocated to the same registers as inputs
+	ClobberFlags      bool      // this op clobbers flags register
+	NeedIntTemp       bool      // need a temporary free integer register
+	Call              bool      // is a function call
 	tailCall          bool      // is a tail call
-	nilCheck          bool      // this op is a nil check on arg0
-	faultOnNilArg0    bool      // this op will fault if arg0 is nil (and aux encodes a small offset)
-	faultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)
+	NilCheck          bool      // this op is a nil check on arg0
+	FaultOnNilArg0    bool      // this op will fault if arg0 is nil (and aux encodes a small offset)
+	FaultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)
 	usesScratch       bool      // this op requires scratch memory space
-	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
-	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+	HasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	ZeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	unsafePoint       bool      // this op is an unsafe point, i.e. not safe for async preemption
-	fixedReg          bool      // this op will be assigned a fixed register
-	earlyOk           bool      // executing this op in an earlier block is ok
-	addrSinkArg0      bool      // the address in arg0 does not propagate to the result
-	addrSinkArg1      bool      // the address in arg1 does not propagate to the result
+	FixedReg          bool      // this op will be assigned a fixed register
+	EarlyOk           bool      // executing this op in an earlier block is ok
+	AddrSinkArg0      bool      // the address in arg0 does not propagate to the result
+	AddrSinkArg1      bool      // the address in arg1 does not propagate to the result
 	symEffect         SymEffect // effect this op has on symbol in aux
 	scale             uint8     // amd64/386 indexed load scale
-	zeroUpperBits     uint8     // the op writes a 64-bit GPR whose upper N bits are always zero (0, 32, 48 or 56); for a tuple op, this holds for every integer result
+	ZeroUpperBits     uint8     // the op writes a 64-bit GPR whose upper N bits are always zero (0, 32, 48 or 56); for a tuple op, this holds for every integer result
 }
 
-type inputInfo struct {
-	idx  int     // index in Args array
-	regs regMask // allowed input registers
+type InputInfo struct {
+	Idx  int     // index in Args array
+	Regs RegMask // allowed input registers
 }
 
-type outputInfo struct {
-	idx  int     // index in output tuple
-	regs regMask // allowed output registers
+type OutputInfo struct {
+	Idx  int     // index in output tuple
+	Regs RegMask // allowed output registers
 }
 
-type regInfo struct {
-	// inputs encodes the register restrictions for an instruction's inputs.
+type RegInfo struct {
+	// Inputs encodes the register restrictions for an instruction's Inputs.
 	// Each entry specifies an allowed register set for a particular input.
 	// They are listed in the order in which regalloc should pick a register
 	// from the register set (most constrained first).
 	// Inputs which do not need registers are not listed.
-	inputs []inputInfo
-	// clobbers encodes the set of registers that are overwritten by
+	Inputs []InputInfo
+	// Clobbers encodes the set of registers that are overwritten by
 	// the instruction (other than the output registers).
-	clobbers regMask
+	Clobbers RegMask
 	// Instruction clobbers the register containing input 0.
-	clobbersArg0 bool
+	ClobbersArg0 bool
 	// Instruction clobbers the register containing input 1.
-	clobbersArg1 bool
-	// outputs is the same as inputs, but for the outputs of the instruction.
-	outputs []outputInfo
+	ClobbersArg1 bool
+	// Outputs is the same as inputs, but for the Outputs of the instruction.
+	Outputs []OutputInfo
 }
 
-func (r *regInfo) String() string {
+func (r *RegInfo) String() string {
 	s := ""
 	s += "INS:\n"
-	for _, i := range r.inputs {
-		mask := fmt.Sprintf("%64b", i.regs)
+	for _, i := range r.Inputs {
+		mask := fmt.Sprintf("%64b", i.Regs)
 		mask = strings.ReplaceAll(mask, "0", ".")
-		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
+		s += fmt.Sprintf("%2d |%s|\n", i.Idx, mask)
 	}
 	s += "OUTS:\n"
-	for _, i := range r.outputs {
-		mask := fmt.Sprintf("%64b", i.regs)
+	for _, i := range r.Outputs {
+		mask := fmt.Sprintf("%64b", i.Regs)
 		mask = strings.ReplaceAll(mask, "0", ".")
-		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
+		s += fmt.Sprintf("%2d |%s|\n", i.Idx, mask)
 	}
 	s += "CLOBBERS:\n"
-	mask := fmt.Sprintf("%64b", r.clobbers)
+	mask := fmt.Sprintf("%64b", r.Clobbers)
 	mask = strings.ReplaceAll(mask, "0", ".")
 	s += fmt.Sprintf("   |%s|\n", mask)
 	return s
 }
 
-type auxType int8
+type AuxType_ int8
 
 type AuxNameOffset struct {
 	Name   *ir.Name
@@ -120,9 +120,9 @@ func (a *AuxNameOffset) FrameOffset() int64 {
 }
 
 type AuxCall struct {
-	Fn      *obj.LSym
-	reg     *regInfo // regInfo for this call
-	abiInfo *abi.ABIParamResultInfo
+	Fn       *obj.LSym
+	RegCache *RegInfo // regInfo for this call
+	AbiInfo  *abi.ABIParamResultInfo
 }
 
 // Reg returns the regInfo for a given call, combining the derived in/out register masks
@@ -135,70 +135,70 @@ type AuxCall struct {
 // and outputs from calls, so that all integer registers come first, then all floating registers.
 // At this point (active development of register ABI) that is very premature,
 // but if this turns out to be a cost, we could do it.
-func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
-	if !a.reg.clobbers.empty() {
+func (a *AuxCall) Reg(i *RegInfo, c *Config) *RegInfo {
+	if !a.RegCache.Clobbers.Empty() {
 		// Already updated
-		return a.reg
+		return a.RegCache
 	}
-	if a.abiInfo.InRegistersUsed()+a.abiInfo.OutRegistersUsed() == 0 {
+	if a.AbiInfo.InRegistersUsed()+a.AbiInfo.OutRegistersUsed() == 0 {
 		// Shortcut for zero case, also handles old ABI.
-		a.reg = i
-		return a.reg
+		a.RegCache = i
+		return a.RegCache
 	}
 
-	k := len(i.inputs)
-	for _, p := range a.abiInfo.InParams() {
+	k := len(i.Inputs)
+	for _, p := range a.AbiInfo.InParams() {
 		for _, r := range p.Registers {
-			m := archRegForAbiReg(r, c)
-			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: regMaskAt(register(m))})
+			m := ArchRegForAbiReg(r, c)
+			a.RegCache.Inputs = append(a.RegCache.Inputs, InputInfo{Idx: k, Regs: RegMaskAt(Register(m))})
 			k++
 		}
 	}
-	a.reg.inputs = append(a.reg.inputs, i.inputs...) // These are less constrained, thus should come last
-	k = len(i.outputs)
-	for _, p := range a.abiInfo.OutParams() {
+	a.RegCache.Inputs = append(a.RegCache.Inputs, i.Inputs...) // These are less constrained, thus should come last
+	k = len(i.Outputs)
+	for _, p := range a.AbiInfo.OutParams() {
 		for _, r := range p.Registers {
-			m := archRegForAbiReg(r, c)
-			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: k, regs: regMaskAt(register(m))})
+			m := ArchRegForAbiReg(r, c)
+			a.RegCache.Outputs = append(a.RegCache.Outputs, OutputInfo{Idx: k, Regs: RegMaskAt(Register(m))})
 			k++
 		}
 	}
-	a.reg.outputs = append(a.reg.outputs, i.outputs...)
-	a.reg.clobbers = i.clobbers
-	return a.reg
+	a.RegCache.Outputs = append(a.RegCache.Outputs, i.Outputs...)
+	a.RegCache.Clobbers = i.Clobbers
+	return a.RegCache
 }
 func (a *AuxCall) ABI() *abi.ABIConfig {
-	return a.abiInfo.Config()
+	return a.AbiInfo.Config()
 }
 func (a *AuxCall) ABIInfo() *abi.ABIParamResultInfo {
-	return a.abiInfo
+	return a.AbiInfo
 }
-func (a *AuxCall) ResultReg(c *Config) *regInfo {
-	if a.abiInfo.OutRegistersUsed() == 0 {
-		return a.reg
+func (a *AuxCall) ResultReg(c *Config) *RegInfo {
+	if a.AbiInfo.OutRegistersUsed() == 0 {
+		return a.RegCache
 	}
-	if len(a.reg.inputs) > 0 {
-		return a.reg
+	if len(a.RegCache.Inputs) > 0 {
+		return a.RegCache
 	}
 	k := 0
-	for _, p := range a.abiInfo.OutParams() {
+	for _, p := range a.AbiInfo.OutParams() {
 		for _, r := range p.Registers {
-			m := archRegForAbiReg(r, c)
-			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: regMaskAt(register(m))})
+			m := ArchRegForAbiReg(r, c)
+			a.RegCache.Inputs = append(a.RegCache.Inputs, InputInfo{Idx: k, Regs: RegMaskAt(Register(m))})
 			k++
 		}
 	}
-	return a.reg
+	return a.RegCache
 }
 
 // For ABI register index r, returns the (dense) register number used in
 // SSA backend.
-func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
+func ArchRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
 	var m int8
-	if int(r) < len(c.intParamRegs) {
-		m = c.intParamRegs[r]
+	if int(r) < len(c.IntParamRegs) {
+		m = c.IntParamRegs[r]
 	} else {
-		m = c.floatParamRegs[int(r)-len(c.intParamRegs)]
+		m = c.FloatParamRegs[int(r)-len(c.IntParamRegs)]
 	}
 	return uint8(m)
 }
@@ -206,8 +206,8 @@ func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
 // For ABI register index r, returns the register number used in the obj
 // package (assembler).
 func ObjRegForAbiReg(r abi.RegIndex, c *Config) int16 {
-	m := archRegForAbiReg(r, c)
-	return c.registers[m].ObjNum
+	m := ArchRegForAbiReg(r, c)
+	return c.Registers[m].ObjNum
 }
 
 // ArgWidth returns the amount of stack needed for all the inputs
@@ -217,52 +217,52 @@ func ObjRegForAbiReg(r abi.RegIndex, c *Config) int16 {
 // The name is taken from the types package's ArgWidth(<function type>),
 // which predated changes to the ABI; this version handles those changes.
 func (a *AuxCall) ArgWidth() int64 {
-	return a.abiInfo.ArgWidth()
+	return a.AbiInfo.ArgWidth()
 }
 
 // ParamAssignmentForResult returns the ABI Parameter assignment for result which (indexed 0, 1, etc).
 func (a *AuxCall) ParamAssignmentForResult(which int64) *abi.ABIParamAssignment {
-	return a.abiInfo.OutParam(int(which))
+	return a.AbiInfo.OutParam(int(which))
 }
 
 // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
 func (a *AuxCall) OffsetOfResult(which int64) int64 {
-	n := int64(a.abiInfo.OutParam(int(which)).Offset())
+	n := int64(a.AbiInfo.OutParam(int(which)).Offset())
 	return n
 }
 
 // OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
 // If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) OffsetOfArg(which int64) int64 {
-	n := int64(a.abiInfo.InParam(int(which)).Offset())
+	n := int64(a.AbiInfo.InParam(int(which)).Offset())
 	return n
 }
 
 // RegsOfResult returns the register(s) used for result which (indexed 0, 1, etc).
 func (a *AuxCall) RegsOfResult(which int64) []abi.RegIndex {
-	return a.abiInfo.OutParam(int(which)).Registers
+	return a.AbiInfo.OutParam(int(which)).Registers
 }
 
 // RegsOfArg returns the register(s) used for argument which (indexed 0, 1, etc).
 // If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
-	return a.abiInfo.InParam(int(which)).Registers
+	return a.AbiInfo.InParam(int(which)).Registers
 }
 
 // NameOfResult returns the ir.Name of result which (indexed 0, 1, etc).
 func (a *AuxCall) NameOfResult(which int64) *ir.Name {
-	return a.abiInfo.OutParam(int(which)).Name
+	return a.AbiInfo.OutParam(int(which)).Name
 }
 
 // TypeOfResult returns the type of result which (indexed 0, 1, etc).
 func (a *AuxCall) TypeOfResult(which int64) *types.Type {
-	return a.abiInfo.OutParam(int(which)).Type
+	return a.AbiInfo.OutParam(int(which)).Type
 }
 
 // TypeOfArg returns the type of argument which (indexed 0, 1, etc).
 // If the call is to a method, the receiver is the first argument (i.e., index 0)
 func (a *AuxCall) TypeOfArg(which int64) *types.Type {
-	return a.abiInfo.InParam(int(which)).Type
+	return a.AbiInfo.InParam(int(which)).Type
 }
 
 // SizeOfResult returns the size of result which (indexed 0, 1, etc).
@@ -278,7 +278,7 @@ func (a *AuxCall) SizeOfArg(which int64) int64 {
 
 // NResults returns the number of results.
 func (a *AuxCall) NResults() int64 {
-	return int64(len(a.abiInfo.OutParams()))
+	return int64(len(a.AbiInfo.OutParams()))
 }
 
 // LateExpansionResultType returns the result type (including trailing mem)
@@ -294,7 +294,7 @@ func (a *AuxCall) LateExpansionResultType() *types.Type {
 
 // NArgs returns the number of arguments (including receiver, if there is one).
 func (a *AuxCall) NArgs() int64 {
-	return int64(len(a.abiInfo.InParams()))
+	return int64(len(a.AbiInfo.InParams()))
 }
 
 // String returns "AuxCall{<fn>}"
@@ -315,29 +315,29 @@ func StaticAuxCall(sym *obj.LSym, paramResultInfo *abi.ABIParamResultInfo) *AuxC
 	if paramResultInfo == nil {
 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
 	}
-	var reg *regInfo
+	var reg *RegInfo
 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
-		reg = &regInfo{}
+		reg = &RegInfo{}
 	}
-	return &AuxCall{Fn: sym, abiInfo: paramResultInfo, reg: reg}
+	return &AuxCall{Fn: sym, AbiInfo: paramResultInfo, RegCache: reg}
 }
 
 // InterfaceAuxCall returns an AuxCall for an interface call.
 func InterfaceAuxCall(paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
-	var reg *regInfo
+	var reg *RegInfo
 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
-		reg = &regInfo{}
+		reg = &RegInfo{}
 	}
-	return &AuxCall{Fn: nil, abiInfo: paramResultInfo, reg: reg}
+	return &AuxCall{Fn: nil, AbiInfo: paramResultInfo, RegCache: reg}
 }
 
 // ClosureAuxCall returns an AuxCall for a closure call.
 func ClosureAuxCall(paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
-	var reg *regInfo
+	var reg *RegInfo
 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
-		reg = &regInfo{}
+		reg = &RegInfo{}
 	}
-	return &AuxCall{Fn: nil, abiInfo: paramResultInfo, reg: reg}
+	return &AuxCall{Fn: nil, AbiInfo: paramResultInfo, RegCache: reg}
 }
 
 func (*AuxCall) CanBeAnSSAAux() {}
@@ -345,46 +345,46 @@ func (*AuxCall) CanBeAnSSAAux() {}
 // OwnAuxCall returns a function's own AuxCall.
 func OwnAuxCall(fn *obj.LSym, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
 	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
-	var reg *regInfo
+	var reg *RegInfo
 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
-		reg = &regInfo{}
+		reg = &RegInfo{}
 	}
-	return &AuxCall{Fn: fn, abiInfo: paramResultInfo, reg: reg}
+	return &AuxCall{Fn: fn, AbiInfo: paramResultInfo, RegCache: reg}
 }
 
 const (
-	auxNone           auxType = iota
-	auxBool                   // auxInt is 0/1 for false/true
-	auxInt8                   // auxInt is an 8-bit integer
-	auxInt16                  // auxInt is a 16-bit integer
-	auxInt32                  // auxInt is a 32-bit integer
-	auxInt64                  // auxInt is a 64-bit integer
-	auxInt128                 // auxInt represents a 128-bit integer.  Always 0.
-	auxUInt8                  // auxInt is an 8-bit unsigned integer
-	auxFloat32                // auxInt is a float32 (encoded with math.Float64bits)
-	auxFloat64                // auxInt is a float64 (encoded with math.Float64bits)
-	auxFlagConstant           // auxInt is a flagConstant
-	auxCCop                   // auxInt is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
-	auxNameOffsetInt8         // aux is a &struct{Name ir.Name, Offset int64}; auxInt is index in parameter registers array
-	auxString                 // aux is a string
-	auxSym                    // aux is a symbol (a *ir.Name for locals, an *obj.LSym for globals, or nil for none)
-	auxSymOff                 // aux is a symbol, auxInt is an offset
-	auxSymValAndOff           // aux is a symbol, auxInt is a ValAndOff
-	auxTyp                    // aux is a type
-	auxTypSize                // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
-	auxCall                   // aux is a *ssa.AuxCall
-	auxCallOff                // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
+	AuxTypeNone           AuxType_ = iota
+	AuxTypeBool                    // auxInt is 0/1 for false/true
+	AuxTypeInt8                    // auxInt is an 8-bit integer
+	AuxTypeInt16                   // auxInt is a 16-bit integer
+	AuxTypeInt32                   // auxInt is a 32-bit integer
+	AuxTypeInt64                   // auxInt is a 64-bit integer
+	AuxTypeInt128                  // auxInt represents a 128-bit integer.  Always 0.
+	AuxTypeUInt8                   // auxInt is an 8-bit unsigned integer
+	AuxTypeFloat32                 // auxInt is a float32 (encoded with math.Float64bits)
+	AuxTypeFloat64                 // auxInt is a float64 (encoded with math.Float64bits)
+	AuxTypeFlagConstant            // auxInt is a flagConstant
+	AuxTypeCCop                    // auxInt is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+	AuxTypeNameOffsetInt8          // aux is a &struct{Name ir.Name, Offset int64}; auxInt is index in parameter registers array
+	AuxTypeString                  // aux is a string
+	AuxTypeSym                     // aux is a symbol (a *ir.Name for locals, an *obj.LSym for globals, or nil for none)
+	AuxTypeSymOff                  // aux is a symbol, auxInt is an offset
+	AuxTypeSymValAndOff            // aux is a symbol, auxInt is a ValAndOff
+	AuxTypeTyp                     // aux is a type
+	AuxTypeTypSize                 // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+	AuxTypeCall                    // aux is a *ssa.AuxCall
+	AuxTypeCallOff                 // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
 
-	auxPanicBoundsC  // constant for a bounds failure
-	auxPanicBoundsCC // two constants for a bounds failure
+	AuxTypePanicBoundsC  // constant for a bounds failure
+	AuxTypePanicBoundsCC // two constants for a bounds failure
 
 	// architecture specific aux types
-	auxARM64BitField          // aux is an arm64 bitfield lsb and width packed into auxInt
-	auxARM64ConditionalParams // aux is a structure, which contains condition, NZCV flags and constant with indicator of using it
-	auxS390XRotateParams      // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
-	auxS390XCCMask            // aux is a s390x 4-bit condition code mask
-	auxS390XCCMaskInt8        // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
-	auxS390XCCMaskUint8       // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
+	AuxTypeARM64BitField          // aux is an arm64 bitfield lsb and width packed into auxInt
+	AuxTypeARM64ConditionalParams // aux is a structure, which contains condition, NZCV flags and constant with indicator of using it
+	AuxTypeS390XRotateParams      // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
+	AuxTypeS390XCCMask            // aux is a s390x 4-bit condition code mask
+	AuxTypeS390XCCMaskInt8        // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
+	AuxTypeS390XCCMaskUint8       // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
 )
 
 // A SymEffect describes the effect that an SSA Value has on the variable
@@ -431,36 +431,30 @@ func (x ValAndOff) String() string {
 	return fmt.Sprintf("val=%d,off=%d", x.Val(), x.Off())
 }
 
-// validVal reports whether the value can be used
-// as an argument to makeValAndOff.
-func validVal(val int64) bool {
-	return val == int64(int32(val))
-}
-
-func makeValAndOff(val, off int32) ValAndOff {
+func MakeValAndOff(val, off int32) ValAndOff {
 	return ValAndOff(int64(val)<<32 + int64(uint32(off)))
 }
 
-func (x ValAndOff) canAdd32(off int32) bool {
+func (x ValAndOff) CanAdd32(off int32) bool {
 	newoff := x.Off64() + int64(off)
 	return newoff == int64(int32(newoff))
 }
-func (x ValAndOff) canAdd64(off int64) bool {
+func (x ValAndOff) CanAdd64(off int64) bool {
 	newoff := x.Off64() + off
 	return newoff == int64(int32(newoff))
 }
 
-func (x ValAndOff) addOffset32(off int32) ValAndOff {
-	if !x.canAdd32(off) {
+func (x ValAndOff) AddOffset32(off int32) ValAndOff {
+	if !x.CanAdd32(off) {
 		panic("invalid ValAndOff.addOffset32")
 	}
-	return makeValAndOff(x.Val(), x.Off()+off)
+	return MakeValAndOff(x.Val(), x.Off()+off)
 }
-func (x ValAndOff) addOffset64(off int64) ValAndOff {
-	if !x.canAdd64(off) {
+func (x ValAndOff) AddOffset64(off int64) ValAndOff {
+	if !x.CanAdd64(off) {
 		panic("invalid ValAndOff.addOffset64")
 	}
-	return makeValAndOff(x.Val(), x.Off()+int32(off))
+	return MakeValAndOff(x.Val(), x.Off()+int32(off))
 }
 
 // int128 is a type that stores a 128-bit constant.
@@ -534,16 +528,26 @@ func (b BoundsKind) Code() (rtabi.BoundsErrorCode, bool) {
 	}
 }
 
-// arm64BitField is the GO type of ARM64BitField auxInt.
+// Arm64BitField is the GO type of ARM64BitField auxInt.
 // if x is an ARM64BitField, then width=x&0xff, lsb=(x>>8)&0xff, and
 // width+lsb<64 for 64-bit variant, width+lsb<32 for 32-bit variant.
 // the meaning of width and lsb are instruction-dependent.
-type arm64BitField int16
+type Arm64BitField int16
 
-// arm64ConditionalParams is the GO type of ARM64ConditionalParams auxInt.
-type arm64ConditionalParams struct {
-	cond       Op    // Condition code to evaluate
-	nzcv       uint8 // Fallback NZCV flags value when condition is false
-	constValue uint8 // Immediate value for constant comparisons
-	ind        bool  // Constant comparison indicator
+// Arm64ConditionalParams is the GO type of ARM64ConditionalParams auxInt.
+type Arm64ConditionalParams struct {
+	Cond     Op    // Condition code to evaluate
+	NzcvVal  uint8 // Fallback NZCV flags value when condition is false
+	ConstVal uint8 // Immediate value for constant comparisons
+	Ind      bool  // Constant comparison indicator
+}
+
+func (op Op) IsLoweredGetClosurePtr() bool {
+	switch op {
+	case OpAMD64LoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr, OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
+		Op386LoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr, OpLOONG64LoweredGetClosurePtr, OpS390XLoweredGetClosurePtr, OpMIPSLoweredGetClosurePtr,
+		OpRISCV64LoweredGetClosurePtr, OpWasmLoweredGetClosurePtr:
+		return true
+	}
+	return false
 }

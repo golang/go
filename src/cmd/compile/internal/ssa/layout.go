@@ -22,14 +22,14 @@ func layoutRegallocOrder(f *Func) []*Block {
 
 func layoutOrder(f *Func) []*Block {
 	order := make([]*Block, 0, f.NumBlocks())
-	scheduled := f.Cache.allocBoolSlice(f.NumBlocks())
-	defer f.Cache.freeBoolSlice(scheduled)
-	idToBlock := f.Cache.allocBlockSlice(f.NumBlocks())
-	defer f.Cache.freeBlockSlice(idToBlock)
-	indegree := f.Cache.allocIntSlice(f.NumBlocks())
-	defer f.Cache.freeIntSlice(indegree)
-	posdegree := f.newSparseSet(f.NumBlocks()) // blocks with positive remaining degree
-	defer f.retSparseSet(posdegree)
+	scheduled := f.Cache.AllocBoolSlice(f.NumBlocks())
+	defer f.Cache.FreeBoolSlice(scheduled)
+	idToBlock := f.Cache.AllocBlockSlice(f.NumBlocks())
+	defer f.Cache.FreeBlockSlice(idToBlock)
+	indegree := f.Cache.AllocIntSlice(f.NumBlocks())
+	defer f.Cache.FreeIntSlice(indegree)
+	posdegree := f.NewSparseSet(f.NumBlocks()) // blocks with positive remaining degree
+	defer f.RetSparseSet(posdegree)
 	// blocks with zero remaining degree. Use slice to simulate a LIFO queue to implement
 	// the depth-first topology sorting algorithm.
 	var zerodegree []ID
@@ -37,35 +37,35 @@ func layoutOrder(f *Func) []*Block {
 	// encounter loops, we choose to schedule the successor block of the most recently
 	// scheduled block.
 	var succs []ID
-	exit := f.newSparseSet(f.NumBlocks()) // exit blocks
-	defer f.retSparseSet(exit)
+	exit := f.NewSparseSet(f.NumBlocks()) // exit blocks
+	defer f.RetSparseSet(exit)
 
 	// Populate idToBlock and find exit blocks.
 	for _, b := range f.Blocks {
 		idToBlock[b.ID] = b
 		if b.Kind == block.BlockExit {
-			exit.add(b.ID)
+			exit.Add(b.ID)
 		}
 	}
 
 	// Expand exit to include blocks post-dominated by exit blocks.
 	for {
 		changed := false
-		for _, id := range exit.contents() {
+		for _, id := range exit.Contents() {
 			b := idToBlock[id]
 		NextPred:
 			for _, pe := range b.Preds {
-				p := pe.b
-				if exit.contains(p.ID) {
+				p := pe.B
+				if exit.Contains(p.ID) {
 					continue
 				}
 				for _, s := range p.Succs {
-					if !exit.contains(s.b.ID) {
+					if !exit.Contains(s.B.ID) {
 						continue NextPred
 					}
 				}
 				// All Succs are in exit; add p.
-				exit.add(p.ID)
+				exit.Add(p.ID)
 				changed = true
 			}
 		}
@@ -76,7 +76,7 @@ func layoutOrder(f *Func) []*Block {
 
 	// Initialize indegree of each block
 	for _, b := range f.Blocks {
-		if exit.contains(b.ID) {
+		if exit.Contains(b.ID) {
 			// exit blocks are always scheduled last
 			continue
 		}
@@ -85,7 +85,7 @@ func layoutOrder(f *Func) []*Block {
 			// Push an element to the tail of the queue.
 			zerodegree = append(zerodegree, b.ID)
 		} else {
-			posdegree.add(b.ID)
+			posdegree.Add(b.ID)
 		}
 	}
 
@@ -111,10 +111,10 @@ blockloop:
 		// better.
 		// Note: You need to consider both layout and register allocation when testing performance.
 		for i := len(b.Succs) - 1; i >= 0; i-- {
-			c := b.Succs[i].b
+			c := b.Succs[i].B
 			indegree[c.ID]--
 			if indegree[c.ID] == 0 {
-				posdegree.remove(c.ID)
+				posdegree.Remove(c.ID)
 				zerodegree = append(zerodegree, c.ID)
 			} else {
 				succs = append(succs, c.ID)
@@ -128,9 +128,9 @@ blockloop:
 		var likely *Block
 		switch b.Likely {
 		case BranchLikely:
-			likely = b.Succs[0].b
+			likely = b.Succs[0].B
 		case BranchUnlikely:
-			likely = b.Succs[1].b
+			likely = b.Succs[1].B
 		}
 		if likely != nil && !scheduled[likely.ID] {
 			bid = likely.ID
@@ -164,8 +164,8 @@ blockloop:
 		}
 
 		// Still nothing, pick any non-exit block.
-		for posdegree.size() > 0 {
-			cid := posdegree.pop()
+		for posdegree.Size() > 0 {
+			cid := posdegree.Pop()
 			if !scheduled[cid] {
 				bid = cid
 				continue blockloop
@@ -174,14 +174,14 @@ blockloop:
 		// Pick any exit block.
 		// TODO: Order these to minimize jump distances?
 		for {
-			cid := exit.pop()
+			cid := exit.Pop()
 			if !scheduled[cid] {
 				bid = cid
 				continue blockloop
 			}
 		}
 	}
-	f.laidout = true
+	f.Laidout = true
 	return order
 	//f.Blocks = order
 }

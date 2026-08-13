@@ -19,21 +19,21 @@ func tighten(f *Func) {
 		return
 	}
 
-	canMove := f.Cache.allocBoolSlice(f.NumValues())
-	defer f.Cache.freeBoolSlice(canMove)
+	canMove := f.Cache.AllocBoolSlice(f.NumValues())
+	defer f.Cache.FreeBoolSlice(canMove)
 
 	// Compute the memory states of each block.
-	startMem := f.Cache.allocValueSlice(f.NumBlocks())
-	defer f.Cache.freeValueSlice(startMem)
-	endMem := f.Cache.allocValueSlice(f.NumBlocks())
-	defer f.Cache.freeValueSlice(endMem)
-	distinctArgs := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(distinctArgs)
+	startMem := f.Cache.AllocValueSlice(f.NumBlocks())
+	defer f.Cache.FreeValueSlice(startMem)
+	endMem := f.Cache.AllocValueSlice(f.NumBlocks())
+	defer f.Cache.FreeValueSlice(endMem)
+	distinctArgs := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(distinctArgs)
 	memState(f, startMem, endMem)
 
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op.isLoweredGetClosurePtr() {
+			if v.Op.IsLoweredGetClosurePtr() {
 				// Must stay in the entry block.
 				continue
 			}
@@ -45,22 +45,22 @@ func tighten(f *Func) {
 				// SelectN is typically, ultimately, a register.
 				continue
 			}
-			if opcodeTable[v.Op].nilCheck {
+			if OpcodeTable[v.Op].NilCheck {
 				// Nil checks need to stay in their block. See issue 72860.
 				continue
 			}
 			// Count distinct arguments which will need a register.
-			distinctArgs.clear()
+			distinctArgs.Clear()
 
 			for _, a := range v.Args {
 				// SP and SB are special registers and have no effect on
 				// the allocation of general-purpose registers.
-				if a.needRegister() && a.Op != OpSB && a.Op != OpSP {
-					distinctArgs.add(a.ID)
+				if a.NeedRegister() && a.Op != OpSB && a.Op != OpSP {
+					distinctArgs.Add(a.ID)
 				}
 			}
 
-			if distinctArgs.size() >= 2 && !v.Type.IsFlags() {
+			if distinctArgs.Size() >= 2 && !v.Type.IsFlags() {
 				// Don't move values with more than one input, as that may
 				// increase register pressure.
 				// We make an exception for flags, as we want flag generators
@@ -75,13 +75,13 @@ func tighten(f *Func) {
 	lca := makeLCArange(f)
 
 	// For each moveable value, record the block that dominates all uses found so far.
-	target := f.Cache.allocBlockSlice(f.NumValues())
-	defer f.Cache.freeBlockSlice(target)
+	target := f.Cache.AllocBlockSlice(f.NumValues())
+	defer f.Cache.FreeBlockSlice(target)
 
 	// Grab loop information.
 	// We use this to make sure we don't tighten a value into a (deeper) loop.
 	idom := f.Idom()
-	loops := f.loopnest()
+	loops := f.Loopnest()
 
 	changed := true
 	for changed {
@@ -100,7 +100,7 @@ func tighten(f *Func) {
 					}
 					use := b
 					if v.Op == OpPhi {
-						use = b.Preds[i].b
+						use = b.Preds[i].B
 					}
 					if target[a.ID] == nil {
 						target[a.ID] = use
@@ -123,20 +123,20 @@ func tighten(f *Func) {
 
 		// If the target location is inside a loop,
 		// move the target location up to just before the loop head.
-		if !loops.hasIrreducible {
+		if !loops.HasIrreducible {
 			// Loop info might not be correct for irreducible loops. See issue 75569.
 			for _, b := range f.Blocks {
-				origloop := loops.b2l[b.ID]
+				origloop := loops.B2L[b.ID]
 				for _, v := range b.Values {
 					t := target[v.ID]
 					if t == nil {
 						continue
 					}
-					targetloop := loops.b2l[t.ID]
-					for targetloop != nil && (origloop == nil || targetloop.depth > origloop.depth) {
-						t = idom[targetloop.header.ID]
+					targetloop := loops.B2L[t.ID]
+					for targetloop != nil && (origloop == nil || targetloop.Depth > origloop.Depth) {
+						t = idom[targetloop.Header.ID]
 						target[v.ID] = t
-						targetloop = loops.b2l[t.ID]
+						targetloop = loops.B2L[t.ID]
 					}
 				}
 			}
@@ -158,7 +158,7 @@ func tighten(f *Func) {
 						continue
 					}
 				}
-				if f.pass.debug > 0 {
+				if f.Pass.Debug > 0 {
 					b.Func.Warnl(v.Pos, "%v is moved", v.Op)
 				}
 				// Move v to the block which dominates its uses.
@@ -185,14 +185,14 @@ func phiTighten(f *Func) {
 				continue
 			}
 			for i, a := range v.Args {
-				if !a.rematerializeable() {
+				if !a.Rematerializeable() {
 					continue // not a constant we can move around
 				}
-				if a.Block == b.Preds[i].b {
+				if a.Block == b.Preds[i].B {
 					continue // already in the right place
 				}
 				// Make a copy of a, put in predecessor block.
-				v.SetArg(i, a.copyInto(b.Preds[i].b))
+				v.SetArg(i, a.CopyInto(b.Preds[i].B))
 			}
 		}
 	}
@@ -259,7 +259,7 @@ func memState(f *Func, startMem, endMem []*Value) {
 		changed = changed[1:]
 		mem := startMem[top.ID]
 		for i, p := range top.Preds {
-			pb := p.b
+			pb := p.B
 			if endMem[pb.ID] != nil {
 				continue
 			}

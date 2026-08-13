@@ -14,8 +14,8 @@ import (
 func findlive(f *Func) (reachable []bool, live []bool) {
 	reachable = ReachableBlocks(f)
 	var order []*Value
-	live, order = liveValues(f, reachable)
-	f.Cache.freeValueSlice(order)
+	live, order = LiveValues(f, reachable)
+	f.Cache.FreeValueSlice(order)
 	return
 }
 
@@ -35,7 +35,7 @@ func ReachableBlocks(f *Func) []bool {
 			s = s[:1]
 		}
 		for _, e := range s {
-			c := e.b
+			c := e.B
 			if int(c.ID) >= len(reachable) {
 				f.Fatalf("block %s >= f.NumBlocks()=%d?", c, len(reachable))
 			}
@@ -48,15 +48,15 @@ func ReachableBlocks(f *Func) []bool {
 	return reachable
 }
 
-// liveValues returns the live values in f and a list of values that are eligible
+// LiveValues returns the live values in f and a list of values that are eligible
 // to be statements in reversed data flow order.
 // The second result is used to help conserve statement boundaries for debugging.
 // reachable is a map from block ID to whether the block is reachable.
 // The caller should call f.Cache.freeBoolSlice(live) and f.Cache.freeValueSlice(liveOrderStmts).
 // when they are done with the return values.
-func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value) {
-	live = f.Cache.allocBoolSlice(f.NumValues())
-	liveOrderStmts = f.Cache.allocValueSlice(f.NumValues())[:0]
+func LiveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value) {
+	live = f.Cache.AllocBoolSlice(f.NumValues())
+	liveOrderStmts = f.Cache.AllocValueSlice(f.NumValues())[:0]
 
 	// After regalloc, consider all values to be live.
 	// See the comment at the top of regalloc.go and in deadcode for details.
@@ -69,7 +69,7 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 
 	// Record all the inline indexes we need
 	var liveInlIdx map[int]bool
-	pt := f.Config.ctxt.PosTable
+	pt := f.Config.Ctxt.PosTable
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			i := pt.Pos(v.Pos).Base().InliningIndex()
@@ -92,8 +92,8 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 	}
 
 	// Find all live values
-	q := f.Cache.allocValueSlice(f.NumValues())[:0]
-	defer f.Cache.freeValueSlice(q)
+	q := f.Cache.AllocValueSlice(f.NumValues())[:0]
+	defer f.Cache.FreeValueSlice(q)
 
 	// Starting set: all control values of reachable blocks are live.
 	// Calls are live (because callee can observe the memory state).
@@ -111,7 +111,7 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 			}
 		}
 		for _, v := range b.Values {
-			if (opcodeTable[v.Op].call || opcodeTable[v.Op].hasSideEffects || opcodeTable[v.Op].nilCheck) && !live[v.ID] {
+			if (OpcodeTable[v.Op].Call || OpcodeTable[v.Op].HasSideEffects || OpcodeTable[v.Op].NilCheck) && !live[v.ID] {
 				live[v.ID] = true
 				q = append(q, v)
 				if v.Pos.IsStmt() != src.PosNotStmt {
@@ -142,7 +142,7 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 		q[len(q)-1] = nil
 		q = q[:len(q)-1]
 		for i, x := range v.Args {
-			if v.Op == OpPhi && !reachable[v.Block.Preds[i].b.ID] {
+			if v.Op == OpPhi && !reachable[v.Block.Preds[i].B.ID] {
 				continue
 			}
 			if !live[x.ID] {
@@ -178,8 +178,8 @@ func deadcode(f *Func) {
 		}
 		for i := 0; i < len(b.Succs); {
 			e := b.Succs[i]
-			if reachable[e.b.ID] {
-				b.removeEdge(i)
+			if reachable[e.B.ID] {
+				b.RemoveEdge(i)
 			} else {
 				i++
 			}
@@ -194,7 +194,7 @@ func deadcode(f *Func) {
 		if b.Kind != block.BlockFirst {
 			continue
 		}
-		b.removeEdge(1)
+		b.RemoveEdge(1)
 		b.Kind = block.BlockPlain
 		b.Likely = BranchUnknown
 	}
@@ -203,23 +203,23 @@ func deadcode(f *Func) {
 	copyelim(f)
 
 	// Find live values.
-	live, order := liveValues(f, reachable)
-	defer func() { f.Cache.freeBoolSlice(live) }()
-	defer func() { f.Cache.freeValueSlice(order) }()
+	live, order := LiveValues(f, reachable)
+	defer func() { f.Cache.FreeBoolSlice(live) }()
+	defer func() { f.Cache.FreeValueSlice(order) }()
 
 	// Remove dead & duplicate entries from namedValues map.
-	s := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(s)
+	s := f.NewSparseSet(f.NumValues())
+	defer f.RetSparseSet(s)
 	i := 0
 	for _, name := range f.Names {
 		j := 0
-		s.clear()
+		s.Clear()
 		values := f.NamedValues[name]
 		for _, v := range values {
-			if live[v.ID] && !s.contains(v.ID) {
+			if live[v.ID] && !s.Contains(v.ID) {
 				values[j] = v
 				j++
-				s.add(v.ID)
+				s.Add(v.ID)
 			}
 		}
 		if j == 0 {
@@ -236,8 +236,8 @@ func deadcode(f *Func) {
 	clear(f.Names[i:])
 	f.Names = f.Names[:i]
 
-	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
-	pendingLines.clear()
+	pendingLines := f.CachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+	pendingLines.Clear()
 
 	// Unlink values and conserve statement boundaries
 	for i, b := range f.Blocks {
@@ -247,9 +247,9 @@ func deadcode(f *Func) {
 		}
 		for _, v := range b.Values {
 			if !live[v.ID] {
-				v.resetArgs()
+				v.ResetArgs()
 				if v.Pos.IsStmt() == src.PosIsStmt && reachable[b.ID] {
-					pendingLines.set(v.Pos, int32(i)) // TODO could be more than one pos for a line
+					pendingLines.Set(v.Pos, int32(i)) // TODO could be more than one pos for a line
 				}
 			}
 		}
@@ -258,14 +258,14 @@ func deadcode(f *Func) {
 	// Find new homes for lost lines -- require earliest in data flow with same line that is also in same block
 	for i := len(order) - 1; i >= 0; i-- {
 		w := order[i]
-		if j, ok := pendingLines.get(w.Pos); ok && f.Blocks[j] == w.Block {
+		if j, ok := pendingLines.Get(w.Pos); ok && f.Blocks[j] == w.Block {
 			w.Pos = w.Pos.WithIsStmt()
-			pendingLines.remove(w.Pos)
+			pendingLines.Remove(w.Pos)
 		}
 	}
 
 	// Any boundary that failed to match a live value can move to a block end
-	pendingLines.foreachEntry(func(j int32, l uint, bi int32) {
+	pendingLines.ForeachEntry(func(j int32, l uint, bi int32) {
 		b := f.Blocks[bi]
 		if b.Pos.Line() == l && b.Pos.FileIndex() == j {
 			b.Pos = b.Pos.WithIsStmt()
@@ -281,10 +281,10 @@ func deadcode(f *Func) {
 				b.Values[i] = v
 				i++
 			} else {
-				f.freeValue(v)
+				f.FreeValue(v)
 			}
 		}
-		b.truncateValues(i)
+		b.TruncateValues(i)
 	}
 
 	// Remove unreachable blocks. Return dead blocks to allocator.
@@ -297,7 +297,7 @@ func deadcode(f *Func) {
 			if len(b.Values) > 0 {
 				b.Fatalf("live values in unreachable block %v: %v", b, b.Values)
 			}
-			f.freeBlock(b)
+			f.FreeBlock(b)
 		}
 	}
 	// zero remainder to help GC
@@ -305,27 +305,27 @@ func deadcode(f *Func) {
 	f.Blocks = f.Blocks[:i]
 }
 
-// removeEdge removes the i'th outgoing edge from b (and
+// RemoveEdge removes the i'th outgoing edge from b (and
 // the corresponding incoming edge from b.Succs[i].b).
 // Note that this potentially reorders successors of b, so it
 // must be used very carefully.
-func (b *Block) removeEdge(i int) {
+func (b *Block) RemoveEdge(i int) {
 	e := b.Succs[i]
-	c := e.b
-	j := e.i
+	c := e.B
+	j := e.I
 
 	// Adjust b.Succs
-	b.removeSucc(i)
+	b.RemoveSucc(i)
 
 	// Adjust c.Preds
-	c.removePred(j)
+	c.RemovePred(j)
 
 	// Remove phi args from c's phis.
 	for _, v := range c.Values {
 		if v.Op != OpPhi {
 			continue
 		}
-		c.removePhiArg(v, j)
+		c.RemovePhiArg(v, j)
 		// Note: this is trickier than it looks. Replacing
 		// a Phi with a Copy can in general cause problems because
 		// Phi and Copy don't have exactly the same semantics.

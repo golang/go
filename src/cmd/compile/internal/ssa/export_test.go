@@ -64,7 +64,7 @@ func (c *Conf) Frontend() Frontend {
 
 		c.fe = TestFrontend{
 			t:    c.tb,
-			ctxt: c.config.ctxt,
+			ctxt: c.config.Ctxt,
 			f:    fn,
 		}
 	}

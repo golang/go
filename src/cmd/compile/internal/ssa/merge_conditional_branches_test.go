@@ -50,7 +50,7 @@ func isNewConditionCorrect(b *Block) bool {
 	}
 
 	params := v.AuxArm64ConditionalParams()
-	if params.Cond() != OpARM64GreaterThan {
+	if params.Cond != OpARM64GreaterThan {
 		return false
 	}
 	if params.Nzcv() != 1 {

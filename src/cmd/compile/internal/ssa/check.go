@@ -27,13 +27,13 @@ func checkFunc(f *Func) {
 		}
 
 		for i, e := range b.Preds {
-			if se := e.b.Succs[e.i]; se.b != b || se.i != i {
-				f.Fatalf("block pred/succ not crosslinked correctly %d:%s %d:%s", i, b, se.i, se.b)
+			if se := e.B.Succs[e.I]; se.B != b || se.I != i {
+				f.Fatalf("block pred/succ not crosslinked correctly %d:%s %d:%s", i, b, se.I, se.B)
 			}
 		}
 		for i, e := range b.Succs {
-			if pe := e.b.Preds[e.i]; pe.b != b || pe.i != i {
-				f.Fatalf("block succ/pred not crosslinked correctly %d:%s %d:%s", i, b, pe.i, pe.b)
+			if pe := e.B.Preds[e.I]; pe.B != b || pe.I != i {
+				f.Fatalf("block succ/pred not crosslinked correctly %d:%s %d:%s", i, b, pe.I, pe.B)
 			}
 		}
 
@@ -114,7 +114,7 @@ func checkFunc(f *Func) {
 		for _, v := range b.Values {
 			// Check to make sure argument count makes sense (argLen of -1 indicates
 			// variable length args)
-			nArgs := opcodeTable[v.Op].argLen
+			nArgs := OpcodeTable[v.Op].ArgLen
 			if nArgs != -1 && int32(len(v.Args)) != nArgs {
 				f.Fatalf("value %s has %d args, expected %d", v.LongString(),
 					len(v.Args), nArgs)
@@ -124,39 +124,39 @@ func checkFunc(f *Func) {
 			canHaveAux := false
 			canHaveAuxInt := false
 			// TODO: enforce types of Aux in this switch (like auxString does below)
-			switch opcodeTable[v.Op].auxType {
-			case auxNone:
-			case auxBool:
+			switch OpcodeTable[v.Op].AuxType {
+			case AuxTypeNone:
+			case AuxTypeBool:
 				if v.AuxInt < 0 || v.AuxInt > 1 {
 					f.Fatalf("bad bool AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxInt8:
+			case AuxTypeInt8:
 				if v.AuxInt != int64(int8(v.AuxInt)) {
 					f.Fatalf("bad int8 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxInt16:
+			case AuxTypeInt16:
 				if v.AuxInt != int64(int16(v.AuxInt)) {
 					f.Fatalf("bad int16 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxInt32:
+			case AuxTypeInt32:
 				if v.AuxInt != int64(int32(v.AuxInt)) {
 					f.Fatalf("bad int32 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxInt64, auxARM64BitField, auxARM64ConditionalParams:
+			case AuxTypeInt64, AuxTypeARM64BitField, AuxTypeARM64ConditionalParams:
 				canHaveAuxInt = true
-			case auxInt128:
+			case AuxTypeInt128:
 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
-			case auxUInt8:
+			case AuxTypeUInt8:
 				// Cast to int8 due to requirement of AuxInt, check its comment for details.
 				if v.AuxInt != int64(int8(v.AuxInt)) {
 					f.Fatalf("bad uint8 AuxInt value for %v, saw %d but need %d", v, v.AuxInt, int64(int8(v.AuxInt)))
 				}
 				canHaveAuxInt = true
-			case auxFloat32:
+			case AuxTypeFloat32:
 				canHaveAuxInt = true
 				if math.IsNaN(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
@@ -164,20 +164,20 @@ func checkFunc(f *Func) {
 				if !isExactFloat32(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
 				}
-			case auxFloat64:
+			case AuxTypeFloat64:
 				canHaveAuxInt = true
 				if math.IsNaN(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
 				}
-			case auxString:
-				if _, ok := v.Aux.(stringAux); !ok {
+			case AuxTypeString:
+				if _, ok := v.Aux.(StringAux); !ok {
 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
 				}
 				canHaveAux = true
-			case auxCallOff:
+			case AuxTypeCallOff:
 				canHaveAuxInt = true
 				fallthrough
-			case auxCall:
+			case AuxTypeCall:
 				if ac, ok := v.Aux.(*AuxCall); ok {
 					if v.Op == OpStaticCall && ac.Fn == nil {
 						f.Fatalf("value %v has *AuxCall with nil Fn", v)
@@ -186,38 +186,38 @@ func checkFunc(f *Func) {
 					f.Fatalf("value %v has Aux type %T, want *AuxCall", v, v.Aux)
 				}
 				canHaveAux = true
-			case auxNameOffsetInt8:
+			case AuxTypeNameOffsetInt8:
 				if _, ok := v.Aux.(*AuxNameOffset); !ok {
 					f.Fatalf("value %v has Aux type %T, want *AuxNameOffset", v, v.Aux)
 				}
 				canHaveAux = true
 				canHaveAuxInt = true
-			case auxSym, auxTyp:
+			case AuxTypeSym, AuxTypeTyp:
 				canHaveAux = true
-			case auxSymOff, auxSymValAndOff, auxTypSize:
+			case AuxTypeSymOff, AuxTypeSymValAndOff, AuxTypeTypSize:
 				canHaveAuxInt = true
 				canHaveAux = true
-			case auxCCop:
-				if opcodeTable[Op(v.AuxInt)].name == "OpInvalid" {
+			case AuxTypeCCop:
+				if OpcodeTable[Op(v.AuxInt)].Name == "OpInvalid" {
 					f.Fatalf("value %v has an AuxInt value that is not a valid opcode", v)
 				}
 				canHaveAuxInt = true
-			case auxS390XCCMask:
+			case AuxTypeS390XCCMask:
 				if _, ok := v.Aux.(s390x.CCMask); !ok {
 					f.Fatalf("bad type %T for S390XCCMask in %v", v.Aux, v)
 				}
 				canHaveAux = true
-			case auxS390XRotateParams:
+			case AuxTypeS390XRotateParams:
 				if _, ok := v.Aux.(s390x.RotateParams); !ok {
 					f.Fatalf("bad type %T for S390XRotateParams in %v", v.Aux, v)
 				}
 				canHaveAux = true
-			case auxFlagConstant:
+			case AuxTypeFlagConstant:
 				if v.AuxInt < 0 || v.AuxInt > 15 {
 					f.Fatalf("bad FlagConstant AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxPanicBoundsC, auxPanicBoundsCC:
+			case AuxTypePanicBoundsC, AuxTypePanicBoundsCC:
 				canHaveAux = true
 				canHaveAuxInt = true
 			default:
@@ -330,7 +330,7 @@ func checkFunc(f *Func) {
 			case OpNilCheck:
 				// nil checks have pointer type before scheduling, and
 				// void type after scheduling.
-				if f.scheduled {
+				if f.Scheduled {
 					if v.Uses != 0 {
 						f.Fatalf("nilcheck must have 0 uses %s", v.Uses)
 					}
@@ -402,12 +402,12 @@ func checkFunc(f *Func) {
 	}
 	for _, b := range f.Blocks {
 		for _, c := range b.Preds {
-			if !blockMark[c.b.ID] {
+			if !blockMark[c.B.ID] {
 				f.Fatalf("predecessor block %v for %v is missing", c, b)
 			}
 		}
 		for _, c := range b.Succs {
-			if !blockMark[c.b.ID] {
+			if !blockMark[c.B.ID] {
 				f.Fatalf("successor block %v for %v is missing", c, b)
 			}
 		}
@@ -432,12 +432,12 @@ func checkFunc(f *Func) {
 			}
 		}
 	}
-	for b := f.freeBlocks; b != nil; b = b.succstorage[0].b {
+	for b := f.FreeBlocks; b != nil; b = b.Succstorage[0].B {
 		if blockMark[b.ID] {
 			f.Fatalf("used block b%d in free list", b.ID)
 		}
 	}
-	for v := f.freeValues; v != nil; v = v.argstorage[0] {
+	for v := f.FreeValues; v != nil; v = v.Argstorage[0] {
 		if valueMark[v.ID] {
 			f.Fatalf("used value v%d in free list", v.ID)
 		}
@@ -454,7 +454,7 @@ func checkFunc(f *Func) {
 					x := arg.Block
 					y := b
 					if v.Op == OpPhi {
-						y = b.Preds[i].b
+						y = b.Preds[i].B
 					}
 					if !domCheck(f, sdom, x, y) {
 						f.Fatalf("arg %d of value %s does not dominate, arg=%s", i, v.LongString(), arg.LongString())
@@ -470,17 +470,17 @@ func checkFunc(f *Func) {
 	}
 
 	// Check loop construction
-	if f.RegAlloc == nil && f.pass != nil { // non-nil pass allows better-targeted debug printing
-		ln := f.loopnest()
-		if !ln.hasIrreducible {
-			po := f.postorder() // use po to avoid unreachable blocks.
+	if f.RegAlloc == nil && f.Pass != nil { // non-nil pass allows better-targeted debug printing
+		ln := f.Loopnest()
+		if !ln.HasIrreducible {
+			po := f.Postorder() // use po to avoid unreachable blocks.
 			for _, b := range po {
 				for _, s := range b.Succs {
 					bb := s.Block()
-					if ln.b2l[b.ID] == nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header {
+					if ln.B2L[b.ID] == nil && ln.B2L[bb.ID] != nil && bb != ln.B2L[bb.ID].Header {
 						f.Fatalf("block %s not in loop branches to non-header block %s in loop", b.String(), bb.String())
 					}
-					if ln.b2l[b.ID] != nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header && !ln.b2l[b.ID].isWithinOrEq(ln.b2l[bb.ID]) {
+					if ln.B2L[b.ID] != nil && ln.B2L[bb.ID] != nil && bb != ln.B2L[bb.ID].Header && !ln.B2L[b.ID].IsWithinOrEq(ln.B2L[bb.ID]) {
 						f.Fatalf("block %s in loop branches to non-header block %s in non-containing loop", b.String(), bb.String())
 					}
 				}
@@ -539,17 +539,17 @@ func memCheck(f *Func) {
 
 	// Compute live memory at the end of each block.
 	lastmem := make([]*Value, f.NumBlocks())
-	ss := newSparseSet(f.NumValues())
+	ss := NewSparseSet(f.NumValues())
 	for _, b := range f.Blocks {
 		// Mark overwritten memory values. Those are args of other
 		// ops that generate memory values.
-		ss.clear()
+		ss.Clear()
 		for _, v := range b.Values {
 			if v.Op == OpPhi || !v.Type.IsMemory() {
 				continue
 			}
 			if m := v.MemoryArg(); m != nil {
-				ss.add(m.ID)
+				ss.Add(m.ID)
 			}
 		}
 		// There should be at most one remaining unoverwritten memory value.
@@ -557,7 +557,7 @@ func memCheck(f *Func) {
 			if !v.Type.IsMemory() {
 				continue
 			}
-			if ss.contains(v.ID) {
+			if ss.Contains(v.ID) {
 				continue
 			}
 			if lastmem[b.ID] != nil {
@@ -591,7 +591,7 @@ func memCheck(f *Func) {
 				continue
 			}
 			for _, e := range b.Preds {
-				p := e.b
+				p := e.B
 				if lastmem[p.ID] != nil {
 					lastmem[b.ID] = lastmem[p.ID]
 					changed = true
@@ -608,8 +608,8 @@ func memCheck(f *Func) {
 		for _, v := range b.Values {
 			if v.Op == OpPhi && v.Type.IsMemory() {
 				for i, a := range v.Args {
-					if a != lastmem[b.Preds[i].b.ID] {
-						f.Fatalf("inconsistent memory phi %s %d %s %s", v.LongString(), i, a, lastmem[b.Preds[i].b.ID])
+					if a != lastmem[b.Preds[i].B.ID] {
+						f.Fatalf("inconsistent memory phi %s %d %s %s", v.LongString(), i, a, lastmem[b.Preds[i].B.ID])
 					}
 				}
 			}
@@ -617,7 +617,7 @@ func memCheck(f *Func) {
 	}
 
 	// Check that only one memory is live at any point.
-	if f.scheduled {
+	if f.Scheduled {
 		for _, b := range f.Blocks {
 			var mem *Value // the current live memory in the block
 			for _, v := range b.Values {
@@ -629,7 +629,7 @@ func memCheck(f *Func) {
 				}
 				if mem == nil && len(b.Preds) > 0 {
 					// If no mem phi, take mem of any predecessor.
-					mem = lastmem[b.Preds[0].b.ID]
+					mem = lastmem[b.Preds[0].B.ID]
 				}
 				for _, a := range v.Args {
 					if a.Type.IsMemory() && a != mem {
@@ -644,7 +644,7 @@ func memCheck(f *Func) {
 	}
 
 	// Check that after scheduling, phis are always first in the block.
-	if f.scheduled {
+	if f.Scheduled {
 		for _, b := range f.Blocks {
 			seenNonPhi := false
 			for _, v := range b.Values {

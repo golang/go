@@ -39,7 +39,7 @@ type useInfo struct {
 // the next modification of f.
 func uses(f *Func) useInfo {
 	// Write down number of uses of each value.
-	idx := f.Cache.allocInt32Slice(f.NumValues())
+	idx := f.Cache.AllocInt32Slice(f.NumValues())
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			idx[v.ID] = v.Uses
@@ -55,7 +55,7 @@ func uses(f *Func) useInfo {
 	}
 
 	// Compute uses.
-	uses := f.Cache.allocValueSlice(int(cum))
+	uses := f.Cache.AllocValueSlice(int(cum))
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for _, a := range v.Args {
@@ -104,6 +104,6 @@ func (u useInfo) get(v *Value) []*Value {
 }
 
 func (u useInfo) free(f *Func) {
-	f.Cache.freeInt32Slice(u.starts)
-	f.Cache.freeValueSlice(u.uses)
+	f.Cache.FreeInt32Slice(u.starts)
+	f.Cache.FreeValueSlice(u.uses)
 }

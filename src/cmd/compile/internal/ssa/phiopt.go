@@ -35,16 +35,16 @@ func phiopt(f *Func) {
 			continue
 		}
 
-		pb0, b0 := b, b.Preds[0].b
+		pb0, b0 := b, b.Preds[0].B
 		for len(b0.Succs) == 1 && len(b0.Preds) == 1 {
-			pb0, b0 = b0, b0.Preds[0].b
+			pb0, b0 = b0, b0.Preds[0].B
 		}
 		if b0.Kind != block.BlockIf {
 			continue
 		}
-		pb1, b1 := b, b.Preds[1].b
+		pb1, b1 := b, b.Preds[1].B
 		for len(b1.Succs) == 1 && len(b1.Preds) == 1 {
-			pb1, b1 = b1, b1.Preds[0].b
+			pb1, b1 = b1, b1.Preds[0].B
 		}
 		if b1 != b0 {
 			continue
@@ -52,9 +52,9 @@ func phiopt(f *Func) {
 		// b0 is the if block giving the boolean value.
 		// reverse is the predecessor from which the truth value comes.
 		var reverse int
-		if b0.Succs[0].b == pb0 && b0.Succs[1].b == pb1 {
+		if b0.Succs[0].B == pb0 && b0.Succs[1].B == pb1 {
 			reverse = 0
-		} else if b0.Succs[0].b == pb1 && b0.Succs[1].b == pb0 {
+		} else if b0.Succs[0].B == pb1 && b0.Succs[1].B == pb0 {
 			reverse = 1
 		} else {
 			b.Fatalf("invalid predecessors\n")
@@ -81,9 +81,9 @@ func phiopt(f *Func) {
 			if v.Args[0].Op == OpConstBool && v.Args[1].Op == OpConstBool {
 				if v.Args[reverse].AuxInt != v.Args[1-reverse].AuxInt {
 					ops := [2]Op{OpNot, OpCopy}
-					v.reset(ops[v.Args[reverse].AuxInt])
+					v.Reset(ops[v.Args[reverse].AuxInt])
 					v.AddArg(b0.Controls[0])
-					if f.pass.debug > 0 {
+					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 					}
 					continue
@@ -97,9 +97,9 @@ func phiopt(f *Func) {
 			// of value are not seen if a is false.
 			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
 				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
-					v.reset(OpOrB)
+					v.Reset(OpOrB)
 					v.SetArgs2(b0.Controls[0], tmp)
-					if f.pass.debug > 0 {
+					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 					}
 					continue
@@ -113,9 +113,9 @@ func phiopt(f *Func) {
 			// of value are not seen if a is false.
 			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
 				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
-					v.reset(OpAndB)
+					v.Reset(OpAndB)
 					v.SetArgs2(b0.Controls[0], tmp)
-					if f.pass.debug > 0 {
+					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 					}
 					continue
@@ -126,9 +126,9 @@ func phiopt(f *Func) {
 			// Requires that value dominates x.
 			if v.Args[1-reverse] == b0.Controls[0] {
 				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
-					v.reset(OpAndB)
+					v.Reset(OpAndB)
 					v.SetArgs2(b0.Controls[0], tmp)
-					if f.pass.debug > 0 {
+					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 					}
 					continue
@@ -140,9 +140,9 @@ func phiopt(f *Func) {
 			// Requires that value dominates x.
 			if v.Args[reverse] == b0.Controls[0] {
 				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
-					v.reset(OpOrB)
+					v.Reset(OpOrB)
 					v.SetArgs2(b0.Controls[0], tmp)
-					if f.pass.debug > 0 {
+					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 					}
 					continue
@@ -213,8 +213,8 @@ func phiopt(f *Func) {
 				continue
 			}
 
-			pb0 := b.Preds[0].b
-			pb1 := b.Preds[1].b
+			pb0 := b.Preds[0].B
+			pb1 := b.Preds[1].B
 			if pb0.Kind == block.BlockIf && pb0 == sdom.Parent(b) {
 				// special case: pb0 is the dominator block b0.
 				//     b0(pb0)
@@ -225,8 +225,8 @@ func phiopt(f *Func) {
 				//    |  /
 				//     b
 				// if another successor sb1 of b0(pb0) dominates pb1, do replace.
-				ei := b.Preds[0].i
-				sb1 := pb0.Succs[1-ei].b
+				ei := b.Preds[0].I
+				sb1 := pb0.Succs[1-ei].B
 				if sdom.IsAncestorEq(sb1, pb1) {
 					convertPhi(pb0, v, ei)
 					break
@@ -241,8 +241,8 @@ func phiopt(f *Func) {
 				//      \  |
 				//        b
 				// if another successor sb0 of b0(pb0) dominates pb0, do replace.
-				ei := b.Preds[1].i
-				sb0 := pb1.Succs[1-ei].b
+				ei := b.Preds[1].I
+				sb0 := pb1.Succs[1-ei].B
 				if sdom.IsAncestorEq(sb0, pb0) {
 					convertPhi(pb1, v, 1-ei)
 					break
@@ -264,8 +264,8 @@ func phiopt(f *Func) {
 				if b0.Kind != block.BlockIf {
 					break
 				}
-				sb0 := b0.Succs[0].b
-				sb1 := b0.Succs[1].b
+				sb0 := b0.Succs[0].B
+				sb1 := b0.Succs[1].B
 				var reverse int
 				if sdom.IsAncestorEq(sb0, pb0) && sdom.IsAncestorEq(sb1, pb1) {
 					reverse = 0
@@ -322,20 +322,20 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 	cvt := v.Block.NewValue1(v.Pos, OpCvtBoolToUint8, v.Block.Func.Config.Types.UInt8, a)
 	switch v.Type.Size() {
 	case 1:
-		v.reset(OpCopy)
+		v.Reset(OpCopy)
 	case 2:
-		v.reset(OpZeroExt8to16)
+		v.Reset(OpZeroExt8to16)
 	case 4:
-		v.reset(OpZeroExt8to32)
+		v.Reset(OpZeroExt8to32)
 	case 8:
-		v.reset(OpZeroExt8to64)
+		v.Reset(OpZeroExt8to64)
 	default:
 		v.Fatalf("bad int size %d", v.Type.Size())
 	}
 	v.AddArg(cvt)
 
 	f := b0.Func
-	if f.pass.debug > 0 {
+	if f.Pass.Debug > 0 {
 		f.Warnl(v.Block.Pos, "converted OpPhi bool -> int%d", v.Type.Size()*8)
 	}
 }
@@ -346,9 +346,9 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 func convertPhi(b *Block, v *Value, reverse int) {
 	f := b.Func
 	ops := [2]Op{OpNot, OpCopy}
-	v.reset(ops[v.Args[reverse].AuxInt])
+	v.Reset(ops[v.Args[reverse].AuxInt])
 	v.AddArg(b.Controls[0])
-	if f.pass.debug > 0 {
+	if f.Pass.Debug > 0 {
 		f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 	}
 }

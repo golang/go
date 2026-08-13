@@ -35,11 +35,11 @@ func (slop SIMDLogicalOP) String() string {
 }
 
 func rewriteTern(f *Func) {
-	if f.maxCPUFeatures == CPUNone {
+	if f.MaxCPUFeatures == CPUNone {
 		return
 	}
 
-	arch := f.Config.Ctxt().Arch.Family
+	arch := f.Config.Ctxt.Arch.Family
 	// TODO there are other SIMD architectures
 	if arch != goarch.AMD64 {
 		return
@@ -71,11 +71,11 @@ func rewriteTern(f *Func) {
 	// get a canonical sorted set of roots
 	var roots []*Value
 	for v, slo := range boolExprTrees {
-		if f.pass.debug > 1 {
+		if f.Pass.Debug > 1 {
 			f.Warnl(v.Pos, "%s has SLO %v", v.LongString(), slo)
 		}
 
-		if slo&sloInterior == 0 && v.Block.CPUfeatures.hasFeature(CPUavx512) {
+		if slo&sloInterior == 0 && v.Block.CPUfeatures.HasFeature(CPUavx512) {
 			roots = append(roots, v)
 		}
 	}
@@ -174,16 +174,16 @@ func rewriteTern(f *Func) {
 		imm := computeTT(a0, vars0)
 		op := ternOpForLogical(a0.Op)
 		if op == a0.Op {
-			if f.pass.debug > 0 {
+			if f.Pass.Debug > 0 {
 				f.Warnl(a0.Pos, "Skipping rewrite for %s, op=%v", a0.LongString(), op)
 			}
 			return
 		}
-		if f.pass.debug > 0 {
+		if f.Pass.Debug > 0 {
 			f.Warnl(a0.Pos, "Rewriting %s into %v of 0b%b %v %v %v", a0.LongString(), op, imm,
 				vars0[0], vars0[1], vars0[2])
 		}
-		a0.reset(op)
+		a0.Reset(op)
 		a0.SetArgs3(vars0[0], vars0[1], vars0[2])
 		a0.AuxInt = int64(int8(imm))
 	}
@@ -213,7 +213,7 @@ func rewriteTern(f *Func) {
 			return [3]*Value{v, nil, nil}
 		}
 		var vars [3]*Value
-		hasFeature := v.Block.CPUfeatures.hasFeature(CPUavx512)
+		hasFeature := v.Block.CPUfeatures.HasFeature(CPUavx512)
 		if slo&sloNot == sloNot {
 			vars = rewrite(v.Args[0])
 			if !hasFeature {
@@ -230,17 +230,17 @@ func rewriteTern(f *Func) {
 			vars1 := rewrite(a1)
 			vars, ok = combine(vars0, vars1)
 
-			if f.pass.debug > 1 {
+			if f.Pass.Debug > 1 {
 				f.Warnl(a0.Pos, "combine(%v, %v) -> %v, %v", vars0, vars1, vars, ok)
 			}
 
-			if !(ok && v.Block.CPUfeatures.hasFeature(CPUavx512)) {
+			if !(ok && v.Block.CPUfeatures.HasFeature(CPUavx512)) {
 				// too many variables, or cannot rewrite current values.
 				// rewrite one or both subtrees if possible
-				if vars0[2] != nil && a0.Block.CPUfeatures.hasFeature(CPUavx512) {
+				if vars0[2] != nil && a0.Block.CPUfeatures.HasFeature(CPUavx512) {
 					replace(a0, vars0)
 				}
-				if vars1[2] != nil && a1.Block.CPUfeatures.hasFeature(CPUavx512) {
+				if vars1[2] != nil && a1.Block.CPUfeatures.HasFeature(CPUavx512) {
 					replace(a1, vars1)
 				}
 
@@ -286,7 +286,7 @@ func rewriteTern(f *Func) {
 	}
 
 	for _, v := range roots {
-		if f.pass.debug > 1 {
+		if f.Pass.Debug > 1 {
 			f.Warnl(v.Pos, "SLO root %s", v.LongString())
 		}
 		rewrite(v)

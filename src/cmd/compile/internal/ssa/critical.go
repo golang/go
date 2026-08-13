@@ -11,8 +11,8 @@ import "cmd/compile/internal/ssa/block"
 // Regalloc wants a critical-edge-free CFG so it can implement phi values.
 func critical(f *Func) {
 	// maps from phi arg ID to the new block created for that argument
-	blocks := f.Cache.allocBlockSlice(f.NumValues())
-	defer f.Cache.freeBlockSlice(blocks)
+	blocks := f.Cache.AllocBlockSlice(f.NumValues())
+	defer f.Cache.FreeBlockSlice(blocks)
 	// need to iterate over f.Blocks without range, as we might
 	// need to split critical edges on newly constructed blocks
 	for j := 0; j < len(f.Blocks); j++ {
@@ -45,8 +45,8 @@ func critical(f *Func) {
 		// split input edges coming from multi-output blocks.
 		for i := 0; i < len(b.Preds); {
 			e := b.Preds[i]
-			p := e.b
-			pi := e.i
+			p := e.B
+			pi := e.I
 			if p.Kind == block.BlockPlain {
 				i++
 				continue // only single output block
@@ -65,7 +65,7 @@ func critical(f *Func) {
 					d = f.NewBlock(block.BlockPlain)
 					d.Pos = p.Pos
 					blocks[argID] = d
-					if f.pass.debug > 0 {
+					if f.Pass.Debug > 0 {
 						f.Warnl(p.Pos, "split critical edge")
 					}
 				} else {
@@ -76,7 +76,7 @@ func critical(f *Func) {
 				// to place on the edge
 				d = f.NewBlock(block.BlockPlain)
 				d.Pos = p.Pos
-				if f.pass.debug > 0 {
+				if f.Pass.Debug > 0 {
 					f.Warnl(p.Pos, "split critical edge")
 				}
 			}
@@ -91,10 +91,10 @@ func critical(f *Func) {
 				d.Preds = append(d.Preds, Edge{p, pi})
 
 				// Remove p as a predecessor from b.
-				b.removePred(i)
+				b.RemovePred(i)
 
 				// Update corresponding phi args
-				b.removePhiArg(phi, i)
+				b.RemovePhiArg(phi, i)
 
 				// splitting occasionally leads to a phi having
 				// a single argument (occurs with -N)

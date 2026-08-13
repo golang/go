@@ -30,14 +30,14 @@ func shortcircuit(f *Func) {
 			}
 			for i, a := range v.Args {
 				e := b.Preds[i]
-				p := e.b
+				p := e.B
 				if p.Kind != block.BlockIf {
 					continue
 				}
 				if p.Controls[0] != a {
 					continue
 				}
-				if e.i == 0 {
+				if e.I == 0 {
 					if ct == nil {
 						ct = f.ConstBool(f.Config.Types.Bool, true)
 					}
@@ -175,13 +175,13 @@ func shortcircuitBlock(b *Block) bool {
 
 	// p is the predecessor corresponding to cidx.
 	pe := b.Preds[cidx]
-	p := pe.b
-	pi := pe.i
+	p := pe.B
+	pi := pe.I
 
 	// t is the "taken" branch: the successor we always go to when coming in from p.
 	ti := 1 ^ ctl.Args[cidx].AuxInt ^ swap
 	te := b.Succs[ti]
-	t := te.b
+	t := te.B
 	if p == b || t == b {
 		// This is an infinite loop; we can't remove it. See issue 33903.
 		return false
@@ -199,8 +199,8 @@ func shortcircuitBlock(b *Block) bool {
 	// If you modify this section, update shortcircuitPhiPlan corresponding.
 
 	// Remove b's incoming edge from p.
-	b.removePred(cidx)
-	b.removePhiArg(ctl, cidx)
+	b.RemovePred(cidx)
+	b.RemovePhiArg(ctl, cidx)
 
 	// Redirect p's outgoing edge to t.
 	p.Succs[pi] = Edge{t, len(t.Preds)}
@@ -211,7 +211,7 @@ func shortcircuitBlock(b *Block) bool {
 		if v.Op != OpPhi {
 			continue
 		}
-		v.AddArg(v.Args[te.i])
+		v.AddArg(v.Args[te.I])
 	}
 
 	if nOtherPhi != 0 {
@@ -243,9 +243,9 @@ func shortcircuitBlock(b *Block) bool {
 				}
 			}
 			if phi.Uses != 0 {
-				phielimValue(phi)
+				PhiElimValue(phi)
 			} else {
-				phi.reset(OpInvalid)
+				phi.Reset(OpInvalid)
 			}
 			i-- // v.moveTo put a new value at index i; reprocess
 		}
@@ -254,7 +254,7 @@ func shortcircuitBlock(b *Block) bool {
 		// but the wrong number of arguments. Eliminate those.
 		for _, v := range b.Values {
 			if v.Uses == 0 {
-				v.reset(OpInvalid)
+				v.Reset(OpInvalid)
 			}
 		}
 	}
@@ -264,7 +264,7 @@ func shortcircuitBlock(b *Block) bool {
 		b.Kind = block.BlockInvalid
 	}
 
-	phielimValue(ctl)
+	PhiElimValue(ctl)
 	return true
 }
 
@@ -280,14 +280,14 @@ func shortcircuitBlock(b *Block) bool {
 // The returned function assumes that shortcircuitBlock has completed its CFG modifications.
 func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, int) {
 	// t is the "taken" branch: the successor we always go to when coming in from p.
-	t := b.Succs[ti].b
+	t := b.Succs[ti].B
 	// u is the "untaken" branch: the successor we never go to when coming in from p.
-	u := b.Succs[1^ti].b
+	u := b.Succs[1^ti].B
 
 	// In the following CFG matching, ensure that b's preds are entirely distinct from b's succs.
 	// This is probably a stronger condition than required, but this happens extremely rarely,
 	// and it makes it easier to avoid getting deceived by pretty ASCII charts. See #44465.
-	if p0, p1 := b.Preds[0].b, b.Preds[1].b; p0 == t || p1 == t || p0 == u || p1 == u {
+	if p0, p1 := b.Preds[0].B, b.Preds[1].B; p0 == t || p1 == t || p0 == u || p1 == u {
 		return nil
 	}
 
@@ -298,9 +298,9 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 	// of any phi in b must be in the successor blocks.
 
 	if len(t.Preds) == 1 && len(t.Succs) == 1 && len(u.Preds) == 1 &&
-		len(t.Succs[0].b.Preds) == 2 {
-		m := t.Succs[0].b
-		if visited := u.flowsTo(m, 5); visited != nil {
+		len(t.Succs[0].B.Preds) == 2 {
+		m := t.Succs[0].B
+		if visited := u.FlowsTo(m, 5); visited != nil {
 			// p   q
 			//  \ /
 			//   b
@@ -326,18 +326,18 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 				// Then move v to m and adjust its value accordingly;
 				// this handles all other uses of v.
 				argP, argQ := v.Args[cidx], v.Args[1^cidx]
-				phi := t.Func.newValue(OpPhi, v.Type, t, v.Pos)
+				phi := t.Func.NewValue(OpPhi, v.Type, t, v.Pos)
 				phi.AddArg2(argQ, argP)
-				t.replaceUses(v, phi)
+				t.ReplaceUses(v, phi)
 				for bb := range visited {
-					bb.replaceUses(v, argQ)
+					bb.ReplaceUses(v, argQ)
 				}
 				if v.Uses == 0 {
 					return
 				}
-				v.moveTo(m, i)
+				v.MoveTo(m, i)
 				// The phi in m belongs to whichever pred idx corresponds to t.
-				if m.Preds[0].b == t {
+				if m.Preds[0].B == t {
 					v.SetArgs2(phi, argQ)
 				} else {
 					v.SetArgs2(argQ, phi)
@@ -347,7 +347,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 	}
 
 	if len(t.Preds) == 2 && len(u.Preds) == 1 {
-		if visited := u.flowsTo(t, 5); visited != nil {
+		if visited := u.FlowsTo(t, 5); visited != nil {
 			// p   q
 			//  \ /
 			//   b
@@ -371,15 +371,15 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 				// Replace any uses of v in U. Then move v to t.
 				argP, argQ := v.Args[cidx], v.Args[1^cidx]
 				for bb := range visited {
-					bb.replaceUses(v, argQ)
+					bb.ReplaceUses(v, argQ)
 				}
-				v.moveTo(t, i)
+				v.MoveTo(t, i)
 				v.SetArgs3(argQ, argQ, argP)
 			}
 		}
 	}
 
-	if len(u.Preds) == 2 && len(t.Preds) == 1 && len(t.Succs) == 1 && t.Succs[0].b == u {
+	if len(u.Preds) == 2 && len(t.Preds) == 1 && len(t.Succs) == 1 && t.Succs[0].B == u {
 		// p   q
 		//  \ /
 		//   b
@@ -402,13 +402,13 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 		return func(v *Value, i int) {
 			// Replace any uses of v in t. Then move v to u.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
-			phi := t.Func.newValue(OpPhi, v.Type, t, v.Pos)
+			phi := t.Func.NewValue(OpPhi, v.Type, t, v.Pos)
 			phi.AddArg2(argQ, argP)
-			t.replaceUses(v, phi)
+			t.ReplaceUses(v, phi)
 			if v.Uses == 0 {
 				return
 			}
-			v.moveTo(u, i)
+			v.MoveTo(u, i)
 			v.SetArgs2(argQ, phi)
 		}
 	}
@@ -443,13 +443,13 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
 			// If there are no uses of v in t or x, this phi will be unused.
 			// That's OK; it's not worth the cost to prevent that.
-			phi := t.Func.newValue(OpPhi, v.Type, t, v.Pos)
+			phi := t.Func.NewValue(OpPhi, v.Type, t, v.Pos)
 			phi.AddArg2(argQ, argP)
-			t.replaceUses(v, phi)
+			t.ReplaceUses(v, phi)
 			if v.Uses == 0 {
 				return
 			}
-			v.moveTo(u, i)
+			v.MoveTo(u, i)
 			v.SetArgs1(argQ)
 		}
 	}
@@ -475,8 +475,8 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 		return func(v *Value, i int) {
 			// Replace any uses of v in u (and x). Then move v to t.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
-			u.replaceUses(v, argQ)
-			v.moveTo(t, i)
+			u.ReplaceUses(v, argQ)
+			v.MoveTo(t, i)
 			v.SetArgs2(argQ, argP)
 		}
 	}
@@ -485,8 +485,8 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 	return nil
 }
 
-// replaceUses replaces all uses of old in b with new.
-func (b *Block) replaceUses(old, new *Value) {
+// ReplaceUses replaces all uses of old in b with new.
+func (b *Block) ReplaceUses(old, new *Value) {
 	for _, v := range b.Values {
 		for i, a := range v.Args {
 			if a == old {
@@ -501,11 +501,11 @@ func (b *Block) replaceUses(old, new *Value) {
 	}
 }
 
-// moveTo moves v to dst, adjusting the appropriate Block.Values slices.
+// MoveTo moves v to dst, adjusting the appropriate Block.Values slices.
 // The caller is responsible for ensuring that this is safe.
 // i is the index of v in v.Block.Values.
-func (v *Value) moveTo(dst *Block, i int) {
-	if dst.Func.scheduled {
+func (v *Value) MoveTo(dst *Block, i int) {
+	if dst.Func.Scheduled {
 		v.Fatalf("moveTo after scheduling")
 	}
 	src := v.Block
@@ -523,7 +523,7 @@ func (v *Value) moveTo(dst *Block, i int) {
 	src.Values = src.Values[:last]
 }
 
-// flowsTo checks that the subgraph starting from v and ends at t is a DAG, with
+// FlowsTo checks that the subgraph starting from v and ends at t is a DAG, with
 // the following constraints:
 //
 //	(1) v can reach t.
@@ -545,7 +545,7 @@ func (v *Value) moveTo(dst *Block, i int) {
 // and requires another constraint on the source block v, and a more complex proof.
 // Furthermore optimizing the branch guarding a loop might bring less gains as the
 // loop itself might be the bottleneck.
-func (v *Block) flowsTo(t *Block, cap int) map[*Block]struct{} {
+func (v *Block) FlowsTo(t *Block, cap int) map[*Block]struct{} {
 	seen := map[*Block]struct{}{}
 	var boundedDFS func(b *Block)
 	hasPathToT := false
@@ -574,7 +574,7 @@ func (v *Block) flowsTo(t *Block, cap int) map[*Block]struct{} {
 		seen[b] = struct{}{}
 		visited[b] = struct{}{}
 		for _, se := range b.Succs {
-			boundedDFS(se.b)
+			boundedDFS(se.B)
 			if !(isDAG && fullyExplored) {
 				return
 			}
@@ -586,7 +586,7 @@ func (v *Block) flowsTo(t *Block, cap int) map[*Block]struct{} {
 		for b := range seen {
 			if b != v {
 				for _, se := range b.Preds {
-					if _, ok := seen[se.b]; !ok {
+					if _, ok := seen[se.B]; !ok {
 						return nil
 					}
 				}

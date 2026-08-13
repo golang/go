@@ -107,14 +107,14 @@ func ifEffect(b *Block) (features CPUfeatures, taken int) {
 		"HasSSE3", "HasSSSE3", "HasSSE41", "HasSSE42":
 
 	}
-	if b.Func.pass.debug > 2 {
+	if b.Func.Pass.Debug > 2 {
 		b.Func.Warnl(b.Pos, "%s, block b%v has features offset %d, match is %s, features is %v", b.Func.Name, b.ID, o, match, features)
 	}
 	return
 }
 
 func cpufeatures(f *Func) {
-	arch := f.Config.Ctxt().Arch.Family
+	arch := f.Config.Ctxt.Arch.Family
 	// TODO there are other SIMD architectures
 	if arch != goarch.AMD64 {
 		return
@@ -197,12 +197,12 @@ func cpufeatures(f *Func) {
 		e.end[taken] |= branchEffect
 
 		effects[b.ID] = e
-		if f.pass.debug > 1 && feat != CPUNone {
+		if f.Pass.Debug > 1 && feat != CPUNone {
 			f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, feat)
 		}
 
 		b.CPUfeatures = feat
-		f.maxCPUFeatures |= feat // not necessary to refine this estimate below
+		f.MaxCPUFeatures |= feat // not necessary to refine this estimate below
 	}
 
 	// If the flow graph is irreducible, things can still change on backedges.
@@ -231,7 +231,7 @@ func cpufeatures(f *Func) {
 			e.start = feat
 			effects[b.ID] = e
 			// uh-oh, something changed
-			if f.pass.debug > 1 {
+			if f.Pass.Debug > 1 {
 				f.Warnl(b.Pos, "%s, block b%v saw predecessor feature change", b.Func.Name, b.ID)
 			}
 
@@ -246,13 +246,13 @@ func cpufeatures(f *Func) {
 
 			effects[b.ID] = e
 			b.CPUfeatures = feat
-			if f.pass.debug > 1 {
+			if f.Pass.Debug > 1 {
 				f.Warnl(b.Pos, "%s, block b%v has new features %v", b.Func.Name, b.ID, feat)
 			}
 			change = true
 		}
 	}
-	if f.pass.debug > 0 {
+	if f.Pass.Debug > 0 {
 		for _, b := range f.Blocks {
 			if b.CPUfeatures != CPUNone {
 				f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, b.CPUfeatures)

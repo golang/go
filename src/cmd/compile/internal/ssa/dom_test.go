@@ -170,7 +170,7 @@ func benchmarkDominators(b *testing.B, size int, bg blockGen) {
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		domBenchRes = dominators(fun.f)
+		domBenchRes = Dominators(fun.f)
 	}
 }
 
@@ -232,8 +232,8 @@ func TestDominatorsSingleBlock(t *testing.T) {
 	doms := map[string]string{}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, dominators, doms)
-	verifyDominators(t, fun, dominatorsSimple, doms)
+	verifyDominators(t, fun, Dominators, doms)
+	verifyDominators(t, fun, DominatorsSimple, doms)
 
 }
 
@@ -260,8 +260,8 @@ func TestDominatorsSimple(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, dominators, doms)
-	verifyDominators(t, fun, dominatorsSimple, doms)
+	verifyDominators(t, fun, Dominators, doms)
+	verifyDominators(t, fun, DominatorsSimple, doms)
 
 }
 
@@ -289,8 +289,8 @@ func TestDominatorsMultPredFwd(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, dominators, doms)
-	verifyDominators(t, fun, dominatorsSimple, doms)
+	verifyDominators(t, fun, Dominators, doms)
+	verifyDominators(t, fun, DominatorsSimple, doms)
 }
 
 func TestDominatorsDeadCode(t *testing.T) {
@@ -312,8 +312,8 @@ func TestDominatorsDeadCode(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, dominators, doms)
-	verifyDominators(t, fun, dominatorsSimple, doms)
+	verifyDominators(t, fun, Dominators, doms)
+	verifyDominators(t, fun, DominatorsSimple, doms)
 }
 
 func TestDominatorsMultPredRev(t *testing.T) {
@@ -343,8 +343,8 @@ func TestDominatorsMultPredRev(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, dominators, doms)
-	verifyDominators(t, fun, dominatorsSimple, doms)
+	verifyDominators(t, fun, Dominators, doms)
+	verifyDominators(t, fun, DominatorsSimple, doms)
 }
 
 func TestDominatorsMultPred(t *testing.T) {
@@ -371,8 +371,8 @@ func TestDominatorsMultPred(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, dominators, doms)
-	verifyDominators(t, fun, dominatorsSimple, doms)
+	verifyDominators(t, fun, Dominators, doms)
+	verifyDominators(t, fun, DominatorsSimple, doms)
 }
 
 func TestInfiniteLoop(t *testing.T) {
@@ -391,7 +391,7 @@ func TestInfiniteLoop(t *testing.T) {
 	CheckFunc(fun.f)
 	doms := map[string]string{"a": "entry",
 		"b": "a"}
-	verifyDominators(t, fun, dominators, doms)
+	verifyDominators(t, fun, Dominators, doms)
 }
 
 func TestDomTricky(t *testing.T) {
@@ -435,8 +435,8 @@ func TestDomTricky(t *testing.T) {
 			Bloc("19",
 				Goto("10")))
 		CheckFunc(fun.f)
-		verifyDominators(t, fun, dominators, doms)
-		verifyDominators(t, fun, dominatorsSimple, doms)
+		verifyDominators(t, fun, Dominators, doms)
+		verifyDominators(t, fun, DominatorsSimple, doms)
 	}
 }
 
@@ -447,7 +447,7 @@ func generateDominatorMap(fut fun) map[string]string {
 	for n, b := range fut.blocks {
 		blockNames[b] = n
 	}
-	referenceDom := dominatorsSimple(fut.f)
+	referenceDom := DominatorsSimple(fut.f)
 	doms := make(map[string]string)
 	for _, b := range fut.f.Blocks {
 		if d := referenceDom[b.ID]; d != nil {
@@ -604,5 +604,5 @@ func testDominatorsPostTricky(t *testing.T, b7then, b7else, b12then, b12else, b1
 			Exit("mem")))
 	CheckFunc(fun.f)
 	doms := generateDominatorMap(fun)
-	verifyDominators(t, fun, dominators, doms)
+	verifyDominators(t, fun, Dominators, doms)
 }

@@ -10,7 +10,7 @@ package ssa
 // postorder computes a postorder traversal ordering for the
 // basic blocks in f. Unreachable blocks will not appear.
 func postorder(f *Func) []*Block {
-	return postorderWithNumbering(f, nil)
+	return PostorderWithNumbering(f, nil)
 }
 
 type blockAndIndex struct {
@@ -18,11 +18,11 @@ type blockAndIndex struct {
 	index int // index is the number of successor edges of b that have already been explored.
 }
 
-// postorderWithNumbering provides a DFS postordering.
+// PostorderWithNumbering provides a DFS postordering.
 // This seems to make loop-finding more robust.
-func postorderWithNumbering(f *Func, ponums []int32) []*Block {
-	seen := f.Cache.allocBoolSlice(f.NumBlocks())
-	defer f.Cache.freeBoolSlice(seen)
+func PostorderWithNumbering(f *Func, ponums []int32) []*Block {
+	seen := f.Cache.AllocBoolSlice(f.NumBlocks())
+	defer f.Cache.FreeBoolSlice(seen)
 
 	// result ordering
 	order := make([]*Block, 0, len(f.Blocks))
@@ -55,7 +55,7 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	return order
 }
 
-func dominators(f *Func) []*Block {
+func Dominators(f *Func) []*Block {
 	// TODO: benchmark and try to find criteria for swapping between
 	// dominatorsSimple and dominatorsLT
 	return f.dominatorsLTOrig(f.Entry)
@@ -66,8 +66,8 @@ func (f *Func) dominatorsLTOrig(entry *Block) []*Block {
 	// Adapted directly from the original TOPLAS article's "simple" algorithm
 
 	maxBlockID := entry.Func.NumBlocks()
-	scratch := f.Cache.allocIDSlice(7 * maxBlockID)
-	defer f.Cache.freeIDSlice(scratch)
+	scratch := f.Cache.AllocIDSlice(7 * maxBlockID)
+	defer f.Cache.FreeIDSlice(scratch)
 	semi := scratch[0*maxBlockID : 1*maxBlockID]
 	vertex := scratch[1*maxBlockID : 2*maxBlockID]
 	label := scratch[2*maxBlockID : 3*maxBlockID]
@@ -79,8 +79,8 @@ func (f *Func) dominatorsLTOrig(entry *Block) []*Block {
 	// This version uses integers for most of the computation,
 	// to make the work arrays smaller and pointer-free.
 	// fromID translates from ID to *Block where that is needed.
-	fromID := f.Cache.allocBlockSlice(maxBlockID)
-	defer f.Cache.freeBlockSlice(fromID)
+	fromID := f.Cache.AllocBlockSlice(maxBlockID)
+	defer f.Cache.FreeBlockSlice(fromID)
 	for _, v := range f.Blocks {
 		fromID[v.ID] = v
 	}
@@ -95,7 +95,7 @@ func (f *Func) dominatorsLTOrig(entry *Block) []*Block {
 
 		// step2 in TOPLAS paper
 		for _, e := range fromID[w].Preds {
-			v := e.b
+			v := e.B
 			if semi[v.ID] == 0 {
 				// skip unreachable predecessor
 				// not in original, but we're using existing pred instead of building one.
@@ -160,7 +160,7 @@ func (f *Func) dfsOrig(entry *Block, semi, vertex, label, parent []ID) ID {
 		label[v.ID] = v.ID
 		// ancestor[v] already zero
 		for _, e := range v.Succs {
-			w := e.b
+			w := e.B
 			// if it has a dfnum, we've already visited it
 			if semi[w.ID] == 0 {
 				// yes, w can be pushed multiple times.
@@ -196,20 +196,20 @@ func linkOrig(v, w ID, ancestor []ID) {
 	ancestor[w] = v
 }
 
-// dominatorsSimple computes the dominator tree for f. It returns a slice
+// DominatorsSimple computes the dominator tree for f. It returns a slice
 // which maps block ID to the immediate dominator of that block.
 // Unreachable blocks map to nil. The entry block maps to nil.
-func dominatorsSimple(f *Func) []*Block {
+func DominatorsSimple(f *Func) []*Block {
 	// A simple algorithm for now
 	// Cooper, Harvey, Kennedy
 	idom := make([]*Block, f.NumBlocks())
 
 	// Compute postorder walk
-	post := f.postorder()
+	post := f.Postorder()
 
 	// Make map from block id to order index (for intersect call)
-	postnum := f.Cache.allocIntSlice(f.NumBlocks())
-	defer f.Cache.freeIntSlice(postnum)
+	postnum := f.Cache.AllocIntSlice(f.NumBlocks())
+	defer f.Cache.FreeIntSlice(postnum)
 	for i, b := range post {
 		postnum[b.ID] = i
 	}
@@ -228,7 +228,7 @@ func dominatorsSimple(f *Func) []*Block {
 			b := post[i]
 			var d *Block
 			for _, e := range b.Preds {
-				p := e.b
+				p := e.B
 				if idom[p.ID] == nil {
 					continue
 				}
