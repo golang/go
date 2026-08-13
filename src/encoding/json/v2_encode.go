@@ -8,8 +8,7 @@
 // RFC 7159. The mapping between JSON and Go values is described
 // in the documentation for the Marshal and Unmarshal functions.
 //
-// See "JSON and Go" for an introduction to this package:
-// https://golang.org/doc/articles/json_and_go.html
+// See [JSON and Go] for an introduction to this package.
 //
 // # Security Considerations
 //
@@ -18,6 +17,8 @@
 // For historical reasons, the default behavior of v1 [encoding/json]
 // unfortunately operates with less secure defaults.
 // New usages of JSON in Go are encouraged to use [encoding/json/v2] instead.
+//
+// [JSON and Go]: https://go.dev/blog/json
 package json
 
 import (
