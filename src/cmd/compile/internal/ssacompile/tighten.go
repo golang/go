@@ -7,6 +7,7 @@ package ssacompile
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -27,13 +28,11 @@ func tighten(f *ssa.Func) {
 	defer f.Cache.FreeBoolSlice(canMove)
 
 	// Compute the memory states of each block.
-	startMem := f.Cache.AllocValueSlice(f.NumBlocks())
+	startMem := memStartState(f)
 	defer f.Cache.FreeValueSlice(startMem)
-	endMem := f.Cache.AllocValueSlice(f.NumBlocks())
-	defer f.Cache.FreeValueSlice(endMem)
+
 	distinctArgs := f.NewSparseSet(f.NumValues())
 	defer f.RetSparseSet(distinctArgs)
-	memState(f, startMem, endMem)
 
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -203,80 +202,244 @@ func phiTighten(f *ssa.Func) {
 	}
 }
 
-// memState computes the memory state at the beginning and end of each block of
-// the function. The memory state is represented by a value of mem type.
-// The returned result is stored in startMem and endMem, and endMem is nil for
-// blocks with no successors (Exit,Ret,RetJmp blocks). This algorithm is not
-// suitable for infinite loop blocks that do not contain any mem operations.
-// For example:
-// b1:
+// Returns the memory state that block starts with
+// and the memory state at the end of the block.
 //
-//	(some values)
+// If the block doesn't use nor produce any memory value
+// this function returns nil and nil. Otherwise it returns
+// the live memories at entry and exit of the block.
 //
-// plain -> b2
-// b2: <- b1 b2
-// Plain -> b2
+// Entry, exit and return blocks are handled by the same logic:
+// their memory states can be inferred from memory operations
+// (such as OpInitMemory and OpMakeResult).
 //
-// Algorithm introduction:
-//  1. The start memory state of a block is InitMem, a Phi node of type mem or
-//     an incoming memory value.
-//  2. The start memory state of a block is consistent with the end memory state
-//     of its parent nodes. If the start memory state of a block is a Phi value,
-//     then the end memory state of its parent nodes is consistent with the
-//     corresponding argument value of the Phi node.
-//  3. The algorithm first obtains the memory state of some blocks in the tree
-//     in the first step. Then floods the known memory state to other nodes in
-//     the second step.
-func memState(f *ssa.Func, startMem, endMem []*ssa.Value) {
-	// This slice contains the set of blocks that have had their startMem set but this
-	// startMem value has not yet been propagated to the endMem of its predecessors
-	changed := make([]*ssa.Block, 0)
-	// First step, init the memory state of some blocks.
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			var mem *ssa.Value
-			if v.Op == ssaop.OpPhi {
-				if v.Type.IsMemory() {
-					mem = v
-				}
-			} else if v.Op == ssaop.OpInitMem {
-				mem = v // This is actually not needed.
-			} else if a := v.MemoryArg(); a != nil && a.Block != b {
-				// The only incoming memory value doesn't belong to this block.
-				mem = a
-			}
-			if mem != nil {
-				if old := startMem[b.ID]; old != nil {
-					if old == mem {
-						continue
-					}
-					f.Fatalf("func %s, startMem[%v] has different values, old %v, new %v", f.Name, b, old, mem)
-				}
-				startMem[b.ID] = mem
-				changed = append(changed, b)
+// Note: This is mainly implementation detail of memState, better use it instead.
+//
+// cache is the bitset that can be indexed by Value's ID.
+// The bitset must not be set for values inside the block.
+func blockState(b *ssa.Block, cache ssa.Bitset) (start, end *ssa.Value) {
+	// usedMem bitset is used to record if memory value was used
+	// by another one inside the block.
+	// Indexed by Value's ID, and for all memory values in the block
+	// the usedMem mustn't be set beforehand.
+	if cache.Cap() < b.Func.NumValues() {
+		b.Fatalf("blockState(%v) cache is too small %v < %v", b, cache.Cap(), b.Func.NumValues())
+	}
+	usedMem := cache
+
+	// captures start and b
+	setStart := func(v *ssa.Value) {
+		if start != nil && start != v {
+			b.Fatalf("blockState(%v): conflicting start values %v and %v", b, start, v)
+		}
+		start = v
+	}
+
+	// 1. Scan all values in block to find start and fill the usedMem
+	for _, v := range b.Values {
+		// Check for start.
+		// The starting memory of the block is from the block itself
+		// (InitMemory or Phi<mem>), or memory state from predecessor block.
+		if v.Op == ssaop.OpInitMem || (v.Op == ssaop.OpPhi && v.Type.IsMemory()) {
+			setStart(v)
+			continue
+		}
+
+		m := v.MemoryArg()
+		if m == nil {
+			continue
+		}
+
+		if m.Block != b {
+			setStart(m)
+		} else {
+			if v.Type.IsMemory() {
+				// Record that m was used as an argument,
+				// meaning it can't be an end value
+				//
+				// Note: We clobber bitset only for values
+				// from current block
+				usedMem.Set(uint32(m.ID))
 			}
 		}
 	}
 
-	// Second step, floods the known memory state of some blocks to others.
-	for len(changed) != 0 {
-		top := changed[0]
-		changed = changed[1:]
-		mem := startMem[top.ID]
-		for i, p := range top.Preds {
-			pb := p.B
-			if endMem[pb.ID] != nil {
-				continue
-			}
-			if mem.Op == ssaop.OpPhi && mem.Block == top {
-				endMem[pb.ID] = mem.Args[i]
-			} else {
-				endMem[pb.ID] = mem
-			}
-			if startMem[pb.ID] == nil {
-				startMem[pb.ID] = endMem[pb.ID]
-				changed = append(changed, pb)
-			}
+	// 2. Scan values to find the end using the usedMem info.
+	//
+	// The memory value is the end iff it is not used as the argument of another
+	// value in this block.
+	//
+	// FIXME(ArsenySamoylov): This doesn't always work as intended because
+	// the single-live-memory invariant is not maintained: stale memory values
+	// with zero uses appear to diverge the memory chain.
+	// Noticeable example include OpCopy left after lower pass and dead OpStore after dse.
+	for _, v := range b.Values {
+		if v.Type.IsMemory() && !usedMem.Test(uint32(v.ID)) {
+			end = v
+			break
 		}
 	}
+
+	if start != nil && end == nil {
+		// This could happen only when there is no memory values in the
+		// block but there are value that has memory argument (e.g. Load)
+		// from which we found the start.
+		if start.Block == b {
+			b.Fatalf("blockState(%v): unexpected, end is nil, while the start (%v) is found", b, start)
+		}
+
+		end = start
+	}
+
+	if start == nil && end != nil {
+		b.Fatalf("blockState(%v): unexpected, start is nil, while the end (%v) is found", b, end)
+	}
+	return
+}
+
+// Simple wrapper around memState
+// that return only start memory state.
+// The result must be freed explicitly by calling to f.Cache.freeValueSlice.
+func memStartState(f *ssa.Func) []*ssa.Value {
+	startMem, endMem := memState(f)
+	f.Cache.FreeValueSlice(endMem)
+	return startMem
+}
+
+// Simple wrapper around memState
+// that return only end memory state.
+// The result must be freed explicitly by calling to f.Cache.freeValueSlice.
+func memEndState(f *ssa.Func) []*ssa.Value {
+	startMem, endMem := memState(f)
+	f.Cache.FreeValueSlice(startMem)
+	return endMem
+}
+
+// memState computes the live memory at the beginning and end of each block of
+// the function. The memory state is represented by a value of mem type.
+//
+// The memory state is undefined for invalid (`b.Kind == block.BlockInvalid`) blocks and blocks
+// that can't be reached from entry block through successors relation; state may be nil or non-nil.
+//
+// For a valid block that can be reached from entry the state could be nil iff the whole function
+// have no memory values at all (this is extremely rare and happens only in some synthetic edge cases).
+//
+// The result is returned in two slices startMem and endMem.
+// These slices must be explicitly freed by calling to f.Cache.freeValueSlice.
+func memState(f *ssa.Func) (startMem, endMem []*ssa.Value) {
+	startMem = f.Cache.AllocValueSlice(f.NumBlocks())
+	endMem = f.Cache.AllocValueSlice(f.NumBlocks())
+
+	// First step will not find memory state for blocks
+	// that don't have memory operations.
+	// Save blocks that do to propagate it.
+	haveState := f.Cache.AllocBlockSlice(len(f.Blocks))[:0]
+	// FIXME(@ArsenySamoylov): haveState could be empty by the end of the analysis, leading to Free panicking
+	// thats why we need to set len == cap
+	defer f.Cache.FreeBlockSlice(haveState[:cap(haveState)])
+
+	// For blockState
+	cache := f.Cache.AllocBitset(f.NumValues())
+	defer f.Cache.FreeBitset(cache)
+
+	for _, b := range f.Blocks {
+		start, end := blockState(b, cache)
+		if start == nil && end == nil {
+			continue
+		}
+		endMem[b.ID] = end
+		startMem[b.ID] = start
+		haveState = append(haveState, b)
+	}
+
+	// Second step, floods the known memory state
+	// from blocks with known state to their successors.
+	for i := 0; i < len(haveState); i++ {
+		b := haveState[i]
+		bEndMem := endMem[b.ID]
+		if bEndMem == nil {
+			b.Fatalf("block %v must have had the state", b)
+		}
+
+		for _, succEdge := range b.Succs {
+			succ := succEdge.Block()
+			m := startMem[succ.ID]
+			if m != nil {
+				continue
+			}
+
+			startMem[succ.ID] = bEndMem
+			endMem[succ.ID] = bEndMem
+
+			haveState = append(haveState, succ)
+		}
+	}
+
+	if checkEnabled {
+		if len(haveState) == 0 {
+			// There are functions that have no ssa instructions (or just a few but non memory ones).
+			// For example see test/fixedbugs/bug076.go func f or test/escape2.go func foo120.
+			//
+			// So, there is no memory state for the whole function and nothing to check.
+			return
+		}
+
+		// Sanity check
+		for _, b := range f.Blocks {
+			start := startMem[b.ID]
+			end := endMem[b.ID]
+
+			if start != nil && end != nil {
+				// Check that we can reach start from end
+				for curMem := end; curMem != start; curMem = curMem.MemoryArg() {
+					if curMem.Block != b {
+						b.Fatalf("memState: can't reach start from end")
+					}
+				}
+
+				// b has consistent memory state
+				continue
+			}
+
+			// BlockInvalid blocks can be disconnected and have nil state.
+			//
+			// Also there are cases of blocks (and even chains of blocks) that
+			// can't be reached from entry block. Hence they are invalid as well
+			// (but are not marked as such).
+			//
+			// Notably, this seems to come after late fuse pass.
+			//
+			// Ps: We could change the flooding logic from step 2 to also propagate
+			// information to predecessors. This way we could infer information
+			// for these blocks, yet these blocks are in inconsistent state
+			// so better not to have a proper state for them.
+			//
+			// Pss: This logic could loop infinitely on cycle. Since this is just a sanity check
+			// it should stay as simple as possible. So this avoids cycle detection in favor of simplicity.
+			unreachable := false
+			for currB := b; ; currB = currB.Preds[0].Block() {
+				if currB.Kind == block.BlockInvalid {
+					unreachable = true
+					break
+				}
+
+				if len(currB.Preds) != 1 {
+					// (@ArsenySamoylov): Currently only a chain of blocks that starts from single BlockInvalid block
+					// has been observed. In theory we could have a subgraph where "invalid" blocks have more than
+					// one incoming edge. But instead of overengineering the check here, I guess, it would be better
+					// to address the root problem of why we have invalid subgraphs in the first place
+					// if (or when) such case would be observed.
+					break
+				}
+			}
+
+			if unreachable {
+				// It is okay to have nil state
+				continue
+			}
+
+			f.Fatalf("memState: sanity check failed, nil mem state for %v", b)
+		}
+	}
+	return
 }

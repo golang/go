@@ -422,36 +422,15 @@ func pairStores(f *ssa.Func) {
 		return width
 	}
 
+	endMem := memEndState(f)
+	defer f.Cache.FreeValueSlice(endMem)
+
 	for _, b := range f.Blocks {
 		memChain = memChain[:0]
 
-		// Find last store in block, so we can
-		// walk the stores last to first.
-		// Last to first helps ensure that the rewrites we
-		// perform do not get in the way of subsequent rewrites.
-		for _, v := range b.Values {
-			if v.Type.IsMemory() {
-				last[v.ID] = true
-			}
-		}
-		for _, v := range b.Values {
-			if v.Type.IsMemory() {
-				if m := prevStore(v); m != nil {
-					last[m.ID] = false
-				}
-			}
-		}
-		var lastMem *ssa.Value
-		for _, v := range b.Values {
-			if last[v.ID] {
-				lastMem = v
-				break
-			}
-		}
-
 		// Iterate over memory stores, accumulating them in memChain for potential merging.
 		// Flush the chain when reordering is unsafe or a conflict is detected.
-		for v := lastMem; v != nil; v = prevStore(v) {
+		for v := endMem[b.ID]; v != nil && v.Block == b; v = prevStore(v) {
 			writeSize := storeWidth(v.Op)
 
 			if writeSize == 0 {

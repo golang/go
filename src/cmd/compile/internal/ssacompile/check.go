@@ -608,6 +608,16 @@ func memCheck(f *ssa.Func) {
 			break
 		}
 	}
+
+	// Compare our result with memoryState function
+	endMem := memEndState(f)
+	defer f.Cache.FreeValueSlice(endMem)
+	for _, b := range f.Blocks {
+		if endMem[b.ID] != lastmem[b.ID] {
+			f.Fatalf("inconsistent end memory state %v != %v", endMem, lastmem)
+		}
+	}
+
 	// Check merge points.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {

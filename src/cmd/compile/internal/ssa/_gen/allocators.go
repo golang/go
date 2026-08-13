@@ -246,7 +246,7 @@ func genDerived(w io.Writer, d derived, base allocator) {
 	fmt.Fprintf(w, "var derived %s\n", d.typ[2:])
 	fmt.Fprintf(w, "scale := unsafe.Sizeof(base)/unsafe.Sizeof(derived)\n")
 	fmt.Fprintf(w, "b := unsafeheader.Slice {\n")
-	fmt.Fprintf(w, "  Data: unsafe.Pointer(&s[0]),\n")
+	fmt.Fprintf(w, "  Data: unsafe.Pointer(&s[0]),\n") // FIXME(@ArsenySamoylov): This panics when we free allocated slice with zero length
 	fmt.Fprintf(w, "  Len: int((uintptr(len(s))+scale-1)/scale),\n")
 	fmt.Fprintf(w, "  Cap: int((uintptr(cap(s))+scale-1)/scale),\n")
 	fmt.Fprintf(w, "  }\n")
