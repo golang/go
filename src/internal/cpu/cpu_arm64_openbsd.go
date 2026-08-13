@@ -36,5 +36,6 @@ func osInit() {
 		return
 	}
 
-	parseARM64SystemRegisters(isar0, isar1, pfr0)
+	// TODO: read ID_AA64ISAR2_EL1 via sysctl to detect FEAT_MOPS.
+	parseARM64SystemRegisters(isar0, isar1, pfr0, 0)
 }

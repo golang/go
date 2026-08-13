@@ -121,6 +121,17 @@ copy96:
 
 	// Copy more than 128 bytes.
 copy_long:
+	// Fast path for large copies using FEAT_MOPS. clang uses MOPS for > 256 bytes
+	CMP	$256, R2
+	BLE	copy_long_scalar
+	MOVBU	runtime·arm64HasMOPS(SB), R3
+	CBZ	R3, copy_long_scalar
+	CPYP	(R1), R2, (R0)
+	CPYM	(R1), R2, (R0)
+	CPYE	(R1), R2, (R0)
+	RET
+
+copy_long_scalar:
 	ADD	R1, R2, R4 // R4 points just past the last source byte
 	ADD	R0, R2, R5 // R5 points just past the last destination byte
 	MOVD	ZR, R7

@@ -9,6 +9,17 @@
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 // Also called from assembly in sys_windows_arm64.s without g (but using Go stack convention).
 TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
+	// FEAT_MOPS fast path for large zeroing. clang uses MOPS above ~512 bytes.
+	CMP	$512, R1
+	BLE	small
+	MOVBU	runtime·arm64HasMOPS(SB), R3
+	CBZ	R3, small
+	SETP	ZR, R1, (R0)
+	SETM	ZR, R1, (R0)
+	SETE	ZR, R1, (R0)
+	RET
+
+small:
 	CMP	$16, R1
 	// If n is equal to 16 bytes, use zero_exact_16 to zero
 	BEQ	zero_exact_16
