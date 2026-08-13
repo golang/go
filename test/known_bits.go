@@ -429,3 +429,24 @@ func unknownBitsSextAfterTrunc(x int64, cond1, cond2 bool) int64 {
 
 	return int64(truncated) & (-1 << 63)
 }
+
+func pruneNoopAnd(x, y uint8) uint8 {
+	//    x & y => is x &= y a noop ?
+	// 1. 0 & 0 => noop
+	// 2. 1 & 0 => keep and
+	// 3. ? & 0 => keep and
+	// 4. 0 & 1 => noop
+	// 5. 1 & 1 => noop
+	// 6. ? & 1 => noop
+	// 7. 0 & ? => noop; can't be handled by prove
+	// 8. 1 & ? => keep and
+	// 9. ? & ? => keep and
+
+	// Test patterns: 76541
+	x &= 0b01000
+	x |= 0b00100
+	y &= 0b10000
+	y |= 0b01110
+
+	return x & y // ERROR "Removed v[0-9]+ no-op And8$"
+}
