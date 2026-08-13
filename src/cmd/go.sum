@@ -10,8 +10,8 @@ golang.org/x/arch v0.27.1-0.20260521044007-9c1a596a2c97 h1:OEbDVxixMxnrAI3whhcFk
 golang.org/x/arch v0.27.1-0.20260521044007-9c1a596a2c97/go.mod h1:0X+GdSIP+kL5wPmpK7sdkEVTt2XoYP0cSjQSbZBwOi8=
 golang.org/x/build v0.0.0-20260522210304-d55d0041b921 h1:94de7eCg8UQyP1wZw1ap2Y6rUGCmlKFSmffASSuprtk=
 golang.org/x/build v0.0.0-20260522210304-d55d0041b921/go.mod h1:fBHxr1BrGapBTKSXEIQF99Z70AVWGYjAYKtf4FahAkA=
-golang.org/x/mod v0.36.1-0.20260520130633-087f6515dd3b h1:/ZgX0SqMKZLpu1t6t3AEb2XROCzL71ILKLDWzDOZEUM=
-golang.org/x/mod v0.36.1-0.20260520130633-087f6515dd3b/go.mod h1:moc6ELqsWcOw5Ef3xVprK5ul/MvtVvkIXLziUOICjUQ=
+golang.org/x/mod v0.36.1-0.20260813213634-8569e2639ca1 h1:mvVf5vNWIEd2A6cnWTrK9hv194u/9lVqhYdiQzRvBZo=
+golang.org/x/mod v0.36.1-0.20260813213634-8569e2639ca1/go.mod h1:moc6ELqsWcOw5Ef3xVprK5ul/MvtVvkIXLziUOICjUQ=
 golang.org/x/sync v0.20.0 h1:e0PTpb7pjO8GAtTs2dQ6jYa5BWYlMuX047Dco/pItO4=
 golang.org/x/sync v0.20.0/go.mod h1:9xrNwdLfx4jkKbNva9FpL6vEN7evnE43NNNJQ2LF3+0=
 golang.org/x/sys v0.45.0 h1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=

@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
 # golang.org/x/build v0.0.0-20260522210304-d55d0041b921
 ## explicit; go 1.25.0
 golang.org/x/build/relnote
-# golang.org/x/mod v0.36.1-0.20260520130633-087f6515dd3b
+# golang.org/x/mod v0.36.1-0.20260813213634-8569e2639ca1
 ## explicit; go 1.25.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
