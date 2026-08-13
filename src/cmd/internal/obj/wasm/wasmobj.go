@@ -206,7 +206,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	s.Func().Args = s.Func().Text.To.Val.(int32)
 	s.Func().Locals = int32(framesize)
 
-	// If the function exits just to call out to a wasmimport, then
+	// If the function exists just to call out to a wasmimport, then
 	// generate the code to translate from our internal Go-stack
 	// based call convention to the native webassembly call convention.
 	if s.Func().WasmImport != nil {
@@ -395,7 +395,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// record the branches targeting the entry loop and the unwind exit,
-	// their targets with be filled in later
+	// their targets will be filled in later
 	var entryPointLoopBranches []*obj.Prog
 	var unwindExitBranches []*obj.Prog
 	currentDepth := 0
@@ -1035,7 +1035,7 @@ func regAddr(reg int16) obj.Addr {
 	return obj.Addr{Type: obj.TYPE_REG, Reg: reg}
 }
 
-// Most of the Go functions has a single parameter (PC_B) in
+// Most of the Go functions have a single parameter (PC_B) in the
 // Wasm ABI. This is a list of exceptions.
 var notUsePC_B = map[string]bool{
 	"_rt0_wasm_js":            true,

@@ -181,7 +181,7 @@ func FoldSubSymbolOffset(ldr *loader.Loader, s loader.Sym) (loader.Sym, int64) {
 // and resolves them where applicable. Relocations are often
 // architecture-specific, requiring calls into the 'archreloc' and/or
 // 'archrelocvariant' functions for the architecture. When external
-// linking is in effect, it may not be  possible to completely resolve
+// linking is in effect, it may not be possible to completely resolve
 // the address/offset for a symbol, in which case the goal is to lay
 // the groundwork for turning a given relocation into an external reloc
 // (to be applied by the external linker). For more on how relocations
