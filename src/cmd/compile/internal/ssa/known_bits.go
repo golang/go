@@ -292,6 +292,22 @@ func (kb *knownBitsState) simplifyValue(v *Value) {
 			x, y = y, x
 			xk, yk = yk, xk
 		}
+	case ssaop.OpOr64, ssaop.OpOr32, ssaop.OpOr16, ssaop.OpOr8:
+		x, xk := kb.fold(v.Args[0])
+		y, yk := kb.fold(v.Args[1])
+		for i := range 2 {
+			xAllCouldBeZeros := ^x
+			yAllCouldBeOnes := y | ^yk
+			if xAllCouldBeZeros&yAllCouldBeOnes == 0 {
+				if f := v.Block.Func; f.Pass.Debug > 0 {
+					f.Warnl(v.Pos, "Removed %v no-op %v", v, v.Op)
+				}
+				v.CopyOf(v.Args[i])
+				return
+			}
+			x, y = y, x
+			xk, yk = yk, xk
+		}
 	}
 }
 

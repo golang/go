@@ -450,3 +450,26 @@ func pruneNoopAnd(x, y uint8) uint8 {
 
 	return x & y // ERROR "Removed v[0-9]+ no-op And8$"
 }
+
+func pruneNoopOr(x, y uint8) uint8 {
+	//    x | y => is x |= y a noop ?
+	// 1. 0 | 0 => noop
+	// 2. 1 | 0 => noop
+	// 3. ? | 0 => noop
+	// 4. 0 | 1 => keep or
+	// 5. 1 | 1 => noop
+	// 6. ? | 1 => keep or
+	// 7. 0 | ? => keep or
+	// 8. 1 | ? => noop; can't be handled by prove
+	// 9. ? | ? => keep or
+
+	// Test patterns: 85321
+	// invert the and & or in setup otherwise generic.rules reassociate in a
+	// form known bits doesn't for.
+	x |= 0b11010
+	x &= 0b11110
+	y |= 0b01000
+	y &= 0b11000
+
+	return x | y // ERROR "Removed v[0-9]+ no-op Or8$"
+}
