@@ -186,6 +186,47 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 	return v, nil
 }
 
+// BytesMontgomery converts v to a point on the birationally-equivalent
+// Curve25519 Montgomery curve, and returns its canonical 32 bytes encoding
+// according to RFC 7748.
+//
+// Note that BytesMontgomery only encodes the u-coordinate, so v and -v encode
+// to the same value. If v is the identity point, BytesMontgomery returns 32
+// zero bytes, analogously to the X25519 function.
+//
+// The lack of an inverse operation (such as SetMontgomeryBytes) is deliberate:
+// while every valid edwards25519 point has a unique u-coordinate Montgomery
+// encoding, X25519 accepts inputs on the quadratic twist, which don't correspond
+// to any edwards25519 point, and every other X25519 input corresponds to two
+// edwards25519 points.
+func (v *Point) BytesMontgomery() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var buf [32]byte
+	return v.bytesMontgomery(&buf)
+}
+
+func (v *Point) bytesMontgomery(buf *[32]byte) []byte {
+	checkInitialized(v)
+
+	// RFC 7748, Section 4.1 provides the bilinear map to calculate the
+	// Montgomery u-coordinate
+	//
+	//              u = (1 + y) / (1 - y)
+	//
+	// where y = Y / Z and therefore
+	//
+	//              u = (Z + Y) / (Z - Y)
+
+	var n, r, u field.Element
+
+	n.Add(&v.z, &v.y)                // n = Z + Y
+	r.Invert(r.Subtract(&v.z, &v.y)) // r = 1 / (Z - Y)
+	u.Multiply(&n, &r)               // u = n * r
+
+	return copyFieldElement(buf, &u)
+}
+
 func copyFieldElement(buf *[32]byte, v *field.Element) []byte {
 	copy(buf[:], v.Bytes())
 	return buf[:]
