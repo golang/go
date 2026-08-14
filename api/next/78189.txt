@@ -11,4 +11,5 @@ pkg runtime/jit, type Region struct, Next func(uintptr, uintptr) (uintptr, uintp
 pkg runtime/jit, type Region struct, ScanStack func(func(uintptr)) #78189
 pkg runtime/jit, type Region struct, Start uintptr #78189
 pkg runtime/jit, type Region struct, Unwind UnwindMode #78189
+pkg runtime/jit, func Preempt() bool #78189
 pkg runtime/jit, type UnwindMode uint8 #78189
