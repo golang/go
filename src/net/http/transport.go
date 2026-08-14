@@ -2519,12 +2519,17 @@ func (pc *persistConn) readLoop() {
 		pc.mu.Unlock()
 
 		bodyWritable := resp.bodyIsWritable()
+		isConnect := rc.treq.Request.Method == "CONNECT"
 		hasBody := rc.treq.Request.Method != "HEAD" && resp.ContentLength != 0
 
-		if resp.Close || rc.treq.Request.Close || resp.StatusCode <= 199 || bodyWritable {
+		if resp.Close || rc.treq.Request.Close || resp.StatusCode <= 199 || bodyWritable || isConnect {
 			// Don't do keep-alive on error if either party requested a close
 			// or we get an unexpected informational (1xx) response.
 			// StatusCode 100 is already handled above.
+			//
+			// Don't do keep-alive after sending a CONNECT request.
+			// Only a 2xx response converts the connection into a tunnel,
+			// but for safety we'll drop the connection even after getting a non-2xx.
 			alive = false
 		}
 

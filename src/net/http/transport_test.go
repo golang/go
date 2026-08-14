@@ -6344,6 +6344,40 @@ func testTransportCONNECTBidi(t *testing.T, mode testMode) {
 	}
 }
 
+func TestTransportCONNECTRejected(t *testing.T) {
+	runSynctest(t, testTransportCONNECTRejected, []testMode{http1Mode})
+}
+func testTransportCONNECTRejected(t *testing.T, mode testMode) {
+	tt := newHTTP1TransportTest(t)
+
+	sentReq := &Request{
+		Method: "CONNECT",
+		URL: &url.URL{
+			Scheme: "http",
+			Opaque: "backend.example.tld:80",
+			Host:   "proxy.example.tld",
+		},
+		Host:   "proxy.example.tld",
+		Header: make(Header),
+	}
+	rt := tt.roundTrip(sentReq)
+
+	dial := tt.wantDial("tcp", "proxy.example.tld:80")
+	conn := dial.connect()
+	recvReq := conn.readRequest()
+	if got, want := recvReq.URL.Path, sentReq.URL.Path; got != want {
+		t.Fatalf("read request path %q, want %q", got, want)
+	}
+
+	conn.writeMessage(
+		"HTTP/1.1 405 We Have No Connections Today",
+		"Content-Length: 0",
+		"",
+	)
+	rt.wantStatus(405)
+	conn.wantClosed()
+}
+
 func TestTransportRequestReplayable(t *testing.T) {
 	someBody := io.NopCloser(strings.NewReader(""))
 	tests := []struct {

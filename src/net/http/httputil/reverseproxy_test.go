@@ -2346,3 +2346,27 @@ func TestReverseProxy1xx(t *testing.T) {
 		}
 	})
 }
+
+func TestReverseProxyCONNECT(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		test := newReverseProxyTest(t)
+		test.backendHandler = func(w http.ResponseWriter, req *http.Request) {
+			t.Errorf("unexpected call to backend")
+		}
+		test.proxy.Rewrite = func(r *ProxyRequest) {
+			backendURL := url.MustParse("http://backend.tld/")
+			r.SetURL(backendURL)
+		}
+
+		req, _ := http.NewRequest("CONNECT", "http://example.tld/", strings.NewReader("body"))
+		resp, err := test.client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if got, want := resp.StatusCode, http.StatusMethodNotAllowed; got != want {
+			t.Errorf("on response to CONNECT: got status %v, want %v", got, want)
+		}
+	})
+}
