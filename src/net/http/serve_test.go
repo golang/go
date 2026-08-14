@@ -8410,3 +8410,73 @@ func TestServerIdleKeepAliveNonstandardTimeoutError(t *testing.T) {
 		})
 	})
 }
+
+func TestServerCONNECTSuccess(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		handler := newTestHandler(t)
+		st := newHTTP1ServerTest(t, handler.ServeHTTP)
+		defer handler.Close() // return from handlers before server shutdown
+		conn := st.dial()
+		conn.writeMessage(
+			"CONNECT backend.example.tld:80 HTTP/1.1",
+			"Host: example.tld",
+			"",
+		)
+		call := handler.nextCall()
+		const code = 200
+		call.w.WriteHeader(code)
+		body := []byte("body")
+		call.w.Write(body)
+		NewResponseController(call.w).Flush()
+		call.exit()
+
+		resp := conn.readResponse()
+		if resp.StatusCode != code {
+			t.Errorf("response status = %v, want %v", resp.StatusCode, code)
+		}
+		if resp.ContentLength != -1 {
+			t.Errorf("Content-Length: %v; want absent", resp.ContentLength)
+		}
+		if len(resp.TransferEncoding) > 0 {
+			t.Errorf("Transfer-Encoding: %q; want absent", resp.TransferEncoding)
+		}
+		for _, h := range []string{"Content-Length", "Transfer-Encoding"} {
+			if got, ok := resp.Header[h]; ok {
+				t.Errorf("response header %q = %q; want absent", h, got)
+			}
+		}
+		conn.wantBytes(body)
+		conn.wantClosed()
+	})
+}
+
+func TestServerCONNECTFailure(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		handler := newTestHandler(t)
+		st := newHTTP1ServerTest(t, handler.ServeHTTP)
+		defer handler.Close() // return from handlers before server shutdown
+		conn := st.dial()
+		conn.writeMessage(
+			"CONNECT backend.example.tld:80 HTTP/1.1",
+			"Host: example.tld",
+			"",
+		)
+		call := handler.nextCall()
+		const code = 409
+		body := []byte("body")
+		call.w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		call.w.WriteHeader(code)
+		call.w.Write(body)
+		call.exit()
+
+		resp := conn.readResponse()
+		if resp.StatusCode != code {
+			t.Errorf("response status = %v, want %v", resp.StatusCode, code)
+		}
+		if !resp.Close {
+			t.Errorf("Connection: close not set; want it to be")
+		}
+		conn.wantBytes(body)
+		conn.wantClosed()
+	})
+}
