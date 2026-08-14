@@ -22816,22 +22816,24 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:   "Zero256",
-		ArgLen: 0,
-		asm:    x86.AVPXOR,
+		Name:      "Zero256",
+		ArgLen:    0,
+		ZeroWidth: true,
+		FixedReg:  true,
 		Reg: RegInfo{
 			Outputs: []OutputInfo{
-				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, RegMask{V1: 2147483648, V2: 0}}, // X15
 			},
 		},
 	},
 	{
-		Name:   "Zero512",
-		ArgLen: 0,
-		asm:    x86.AVPXORQ,
+		Name:      "Zero512",
+		ArgLen:    0,
+		ZeroWidth: true,
+		FixedReg:  true,
 		Reg: RegInfo{
 			Outputs: []OutputInfo{
-				{0, RegMask{V1: 281472829161472, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{0, RegMask{V1: 2147483648, V2: 0}}, // X15
 			},
 		},
 	},

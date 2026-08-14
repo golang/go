@@ -1801,15 +1801,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssaop.OpAMD64VZEROUPPER, ssaop.OpAMD64VZEROALL:
 		s.Prog(v.Op.Asm())
 
-	case ssaop.OpAMD64Zero128: // no code emitted
-
-	case ssaop.OpAMD64Zero256, ssaop.OpAMD64Zero512:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = simdReg(v)
-		p.AddRestSourceReg(simdReg(v))
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = simdReg(v)
+	case ssaop.OpAMD64Zero128, ssaop.OpAMD64Zero256, ssaop.OpAMD64Zero512: // no code emitted
 
 	case ssaop.OpAMD64VMOVSSf2v, ssaop.OpAMD64VMOVSDf2v:
 		// These are for initializing the least 32/64 bits of a SIMD register from a "float".
@@ -1979,7 +1971,31 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 // zeroX15 zeroes the X15 register.
 func zeroX15(s *ssagen.State) {
+	vxorps := func(s *ssagen.State) {
+		p := s.Prog(x86.AVXORPS)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_X15
+		p.AddRestSourceReg(x86.REG_X15)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x86.REG_X15
+	}
+	if buildcfg.GOAMD64 >= 3 {
+		vxorps(s)
+		return
+	}
 	opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+	// AVX may not be available, check before zeroing the high bits.
+	p := s.Prog(x86.ACMPB)
+	p.From.Type = obj.TYPE_MEM
+	p.From.Name = obj.NAME_EXTERN
+	p.From.Sym = ir.Syms.X86HasAVX
+	p.To.Type = obj.TYPE_CONST
+	p.To.Offset = 1
+	jmp := s.Prog(x86.AJNE)
+	jmp.To.Type = obj.TYPE_BRANCH
+	vxorps(s)
+	end := s.Prog(obj.ANOP)
+	jmp.To.SetTarget(end)
 }
 
 // Example instruction: VRSQRTPS X1, X1
