@@ -245,6 +245,23 @@ func userFrameScanReport(ptr uintptr) {
 	scanblock(ptr, unsafe.Sizeof(uintptr(0)), &oneptrmask[0], gcw, nil)
 }
 
+// userFramePreempt reports whether the current goroutine has been
+// asked to yield by the runtime (GC, scheduler). JIT code calls this
+// at safepoints via jit.Preempt().
+//
+//go:nosplit
+func userFramePreempt() bool {
+	gp := getg()
+	if gp == nil {
+		return false
+	}
+	// If called from g0, check the user goroutine.
+	if gp.m != nil && gp.m.curg != nil {
+		gp = gp.m.curg
+	}
+	return gp.preempt
+}
+
 // Linknames for the runtime/jit package.
 
 //go:linkname jit_registerUserFrameRegion runtime/jit.registerUserFrameRegion
@@ -267,4 +284,10 @@ func jit_registerUserFrameRegion(start, end uintptr, unwindMode uint8,
 //go:linkname jit_unregisterUserFrameRegion runtime/jit.unregisterUserFrameRegion
 func jit_unregisterUserFrameRegion(handle uintptr) {
 	unregisterUserFrameRegion(handle)
+}
+
+//go:linkname jit_userFramePreempt runtime/jit.userFramePreempt
+//go:nosplit
+func jit_userFramePreempt() bool {
+	return userFramePreempt()
 }

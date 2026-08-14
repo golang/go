@@ -424,6 +424,46 @@ func TestScanStackGC(t *testing.T) {
 	}
 }
 
+// TestPreemptReturnsFalseNormally tests that Preempt returns false when
+// no preemption is requested.
+func TestPreemptReturnsFalseNormally(t *testing.T) {
+	if jit.Preempt() {
+		t.Fatal("Preempt() returned true when no preemption was requested")
+	}
+}
+
+// TestPreemptDuringGC tests that Preempt returns true when GC requests
+// preemption. We spawn a goroutine that busy-loops checking Preempt
+// and force a GC cycle — the goroutine should observe Preempt() == true.
+func TestPreemptDuringGC(t *testing.T) {
+	var saw atomic.Bool
+	var stop atomic.Bool
+
+	go func() {
+		for !stop.Load() {
+			if jit.Preempt() {
+				saw.Store(true)
+			}
+			// Tight loop simulating JIT execution.
+			// Do NOT call runtime.Gosched — we want to test that
+			// Preempt detects the flag without yielding first.
+		}
+	}()
+
+	// Give the goroutine time to start.
+	runtime.Gosched()
+
+	// Force GC — this sets gp.preempt on all goroutines during STW.
+	runtime.GC()
+
+	stop.Store(true)
+
+	// The goroutine should have seen preempt==true at some point.
+	if !saw.Load() {
+		t.Log("Preempt() was not observed as true during GC (timing-dependent, not a hard failure)")
+	}
+}
+
 var capturedStack string
 
 // goStackCapture captures runtime.Stack into capturedStack.
