@@ -2253,3 +2253,25 @@ func (rc *testReadWriteCloser) Close() error {
 	}
 	return nil
 }
+
+func TestReverseProxyCONNECT(t *testing.T) {
+	proxy := &ReverseProxy{
+		Rewrite: func(r *ProxyRequest) {
+			backendURL, _ := url.Parse("http://backend.tld/")
+			r.SetURL(backendURL)
+		},
+	}
+	frontend := httptest.NewServer(proxy)
+	defer frontend.Close()
+
+	req, _ := http.NewRequest("CONNECT", frontend.URL, strings.NewReader("body"))
+	resp, err := frontend.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if got, want := resp.StatusCode, http.StatusMethodNotAllowed; got != want {
+		t.Errorf("on response to CONNECT: got status %v, want %v", got, want)
+	}
+}

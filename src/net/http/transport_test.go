@@ -6327,6 +6327,78 @@ func testTransportCONNECTBidi(t *testing.T, mode testMode) {
 	}
 }
 
+func TestTransportCONNECTRejected(t *testing.T) {
+	runSynctest(t, testTransportCONNECTRejected, []testMode{http1Mode})
+}
+func testTransportCONNECTRejected(t *testing.T, mode testMode) {
+	l := fakeNetListen()
+	defer l.Close()
+
+	tr := &Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return l.connect(), nil
+		},
+	}
+	defer tr.CloseIdleConnections()
+
+	sentReq := &Request{
+		Method: "CONNECT",
+		URL: &url.URL{
+			Scheme: "http",
+			Opaque: "backend.example.tld:80",
+			Host:   "proxy.example.tld",
+		},
+		Host:   "proxy.example.tld",
+		Header: make(Header),
+	}
+
+	type roundTripResult struct {
+		resp *Response
+		err  error
+	}
+	respc := make(chan roundTripResult, 1)
+	go func() {
+		resp, err := tr.RoundTrip(sentReq)
+		respc <- roundTripResult{resp, err}
+	}()
+
+	srvConn, err := l.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srvConn.Close()
+
+	bufr := bufio.NewReader(srvConn)
+	recvReq, err := ReadRequest(bufr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := recvReq.URL.Path, sentReq.URL.Path; got != want {
+		t.Fatalf("read request path %q, want %q", got, want)
+	}
+
+	io.WriteString(srvConn, "HTTP/1.1 405 We Have No Connections Today\r\nContent-Length: 0\r\n\r\n")
+
+	synctest.Wait()
+	res := <-respc
+	if res.err != nil {
+		t.Fatalf("RoundTrip: %v", res.err)
+	}
+	res.resp.Body.Close()
+	if got, want := res.resp.StatusCode, 405; got != want {
+		t.Fatalf("status = %v, want %v", got, want)
+	}
+
+	synctest.Wait()
+	conn := srvConn.(*fakeNetConn)
+	if !conn.IsClosedByPeer() {
+		t.Errorf("connection not closed by peer")
+	}
+	if got, err := bufr.Peek(32); len(got) != 0 || err != io.EOF {
+		t.Errorf("read from conn: %q, %v; expect conn to be closed", got, err)
+	}
+}
+
 func TestTransportRequestReplayable(t *testing.T) {
 	someBody := io.NopCloser(strings.NewReader(""))
 	tests := []struct {

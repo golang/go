@@ -531,6 +531,21 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	if outreq.Method == "CONNECT" {
+		// We cannot handle CONNECT requests.
+		// (Perhaps we should just send a 405 and never call ErrorHandler?
+		// More consistent to always call ErrorHandler or ModifyResponse,
+		// so we do that for now.)
+		err := errors.New("client sent unsupported CONNECT request")
+		if p.ErrorHandler != nil {
+			p.ErrorHandler(rw, outreq, err)
+		} else {
+			p.logf("http: proxy error: %v", err)
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+		}
+		return
+	}
+
 	if _, ok := outreq.Header["User-Agent"]; !ok {
 		// If the outbound request doesn't have a User-Agent header set,
 		// don't send the default Go HTTP client User-Agent.
