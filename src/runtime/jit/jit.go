@@ -139,6 +139,29 @@ func (h Handle) Unregister() {
 	liveRegionsMu.Unlock()
 }
 
+// Preempt reports whether the Go runtime is requesting the current
+// goroutine to yield (e.g., for garbage collection or scheduling).
+//
+// JIT-compiled code should call Preempt at regular safepoints such as
+// loop back-edges and function entries. When Preempt returns true, the
+// JIT code should return to its Go caller as soon as possible so the
+// runtime can perform pending operations (GC stop-the-world, goroutine
+// preemption, etc.).
+//
+// JIT code that frequently calls Go functions may not need explicit
+// Preempt checks, because Go function prologues already check for
+// preemption requests. Preempt is primarily useful for long-running
+// JIT loops that do not call back into Go.
+//
+// Preempt is very lightweight: it reads a single flag from the current
+// goroutine with no synchronization overhead.
+func Preempt() bool {
+	return userFramePreempt()
+}
+
+//go:linkname userFramePreempt runtime/jit.userFramePreempt
+func userFramePreempt() bool
+
 //go:linkname registerUserFrameRegion runtime/jit.registerUserFrameRegion
 func registerUserFrameRegion(start, end uintptr, unwindMode uint8,
 	describe func(pc uintptr) (string, string, int, bool),
