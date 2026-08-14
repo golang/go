@@ -349,3 +349,7 @@ const (
 	SYS_FINIT_MODULE           = 353
 	SYS_KCMP                   = 354
 )
+
+const (
+	_SYS_landlock_restrict_self = 446
+)
