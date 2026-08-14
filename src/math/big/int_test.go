@@ -573,6 +573,56 @@ func TestIntDivide(t *testing.T) {
 	}
 }
 
+func TestIntDivideRemainderAliasingDivisor(t *testing.T) {
+	tests := []struct {
+		name       string
+		x, y, q, r int64
+		mode       RoundingMode
+	}{
+		{"trunc", 5, 3, 1, 2, Trunc},
+		{"ceil", 5, 3, 2, -1, Ceil},
+		{"floor", -5, 3, -2, 1, Floor},
+		{"round", 2, 3, 1, -1, Round},
+	}
+
+	for _, test := range tests {
+		for _, scaleString := range []string{"1", "12345678901234567890"} {
+			t.Run(test.name+"/scale="+scaleString, func(t *testing.T) {
+				scale, ok := new(Int).SetString(scaleString, 10)
+				if !ok {
+					t.Fatal("invalid test scale")
+				}
+				x := new(Int).Mul(NewInt(test.x), scale)
+				y := new(Int).Mul(NewInt(test.y), scale)
+				wantQ := NewInt(test.q)
+				wantR := new(Int).Mul(NewInt(test.r), scale)
+
+				gotQ, gotR := new(Int).Divide(x, y, y, test.mode)
+				if gotQ.Cmp(wantQ) != 0 || gotR.Cmp(wantR) != 0 {
+					t.Fatalf("Divide(%v, %v, y, %v) = (%v, %v); want (%v, %v)", x, test.y, test.mode, gotQ, gotR, wantQ, wantR)
+				}
+
+				y.Mul(NewInt(test.y), scale)
+				_, gotR = (*Int)(nil).Divide(x, y, y, test.mode)
+				if gotR.Cmp(wantR) != 0 {
+					t.Fatalf("Divide(%v, %v, y, %v) with nil quotient returned remainder %v; want %v", x, test.y, test.mode, gotR, wantR)
+				}
+			})
+		}
+	}
+
+	t.Run("shared backing array", func(t *testing.T) {
+		x := NewInt(5)
+		y := NewInt(3)
+		r := new(Int).SetBits(y.Bits())
+
+		gotQ, gotR := new(Int).Divide(x, y, r, Ceil)
+		if gotQ.Cmp(NewInt(2)) != 0 || gotR.Cmp(NewInt(-1)) != 0 {
+			t.Fatalf("Divide(5, 3, r, Ceil) = (%v, %v); want (2, -1)", gotQ, gotR)
+		}
+	})
+}
+
 var bitLenTests = []struct {
 	in  string
 	out int

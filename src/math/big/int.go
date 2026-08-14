@@ -403,7 +403,7 @@ func (z *Int) Divide(x, y, r *Int, mode RoundingMode) (*Int, *Int) {
 		r_abs = r.abs
 	}
 	y_abs := y.abs // save y
-	if z == y || alias(z_abs, y.abs) {
+	if z == y || r == y || alias(z_abs, y.abs) || alias(r_abs, y.abs) {
 		y_abs = nat(nil).set(y.abs)
 	}
 	neg := x.neg != y.neg
