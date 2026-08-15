@@ -1922,6 +1922,14 @@ func WriteGoMod(ld *Loader, ctx context.Context, opts WriteOpts) error {
 	return commitRequirements(ld, ctx, opts)
 }
 
+// WriteTidyGoSum writes the checksums needed to reproduce the current module
+// graph and removes unneeded checksums.
+func WriteTidyGoSum(ld *Loader, ctx context.Context) error {
+	keep := keepSums(ld, ctx, ld.pkgLoader, ld.requirements, addBuildListZipSums)
+	ld.Fetcher().TrimGoSum(keep)
+	return ld.Fetcher().WriteGoSum(ctx, keep, mustHaveCompleteRequirements(ld))
+}
+
 var errNoChange = errors.New("no update needed")
 
 // UpdateGoModFromReqs returns a modified go.mod file using the current

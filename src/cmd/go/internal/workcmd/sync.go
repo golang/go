@@ -152,4 +152,17 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	if err := modload.WriteWorkFile(workFilePath, wf); err != nil {
 		base.Fatal(err)
 	}
+
+	if moduleLoader.HasModRoot() {
+		if err := moduleLoader.Fetcher().ReloadWorkspaceGoSumFiles(); err != nil {
+			base.Fatal(err)
+		}
+		modload.ExplicitWriteGoMod = true
+		if _, err := modload.ListModules(moduleLoader, ctx, []string{"all"}, 0, ""); err != nil {
+			base.Fatal(err)
+		}
+		if err := modload.WriteTidyGoSum(moduleLoader, ctx); err != nil {
+			base.Fatal(err)
+		}
+	}
 }

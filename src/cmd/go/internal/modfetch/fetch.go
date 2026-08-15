@@ -494,6 +494,25 @@ func (f *Fetcher) AddWorkspaceGoSumFile(file string) {
 	f.workspaceGoSumFiles = append(f.workspaceGoSumFiles, file)
 }
 
+// ReloadWorkspaceGoSumFiles reloads the go.sum files for workspace modules.
+func (f *Fetcher) ReloadWorkspaceGoSumFiles() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, err := f.initGoSum(); err != nil {
+		return err
+	}
+
+	w := make(map[string]map[module.Version][]string, len(f.workspaceGoSumFiles))
+	for _, file := range f.workspaceGoSumFiles {
+		w[file] = make(map[module.Version][]string)
+		if _, err := readGoSumFile(w[file], file); err != nil {
+			return err
+		}
+	}
+	f.sumState.w = w
+	return nil
+}
+
 // Reset resets globals in the modfetch package, so previous loads don't affect
 // contents of go.sum files.
 func (f *Fetcher) Reset() {
