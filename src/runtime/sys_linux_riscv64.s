@@ -423,10 +423,35 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	RET
 
 // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
-TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$224
 	MOVW	A0, 8(X2)
 	MOV	A1, 16(X2)
 	MOV	A2, 24(X2)
+
+	MOV	X8, 32(X2)
+	MOV	X9, 40(X2)
+	MOV	X18, 48(X2)
+	MOV	X19, 56(X2)
+	MOV	X20, 64(X2)
+	MOV	X21, 72(X2)
+	MOV	X22, 80(X2)
+	MOV	X23, 88(X2)
+	MOV	X24, 96(X2)
+	MOV	X25, 104(X2)
+	MOV	X26, 112(X2)
+	MOV	g, 120(X2)
+	MOVD	F8, 128(X2)
+	MOVD	F9, 136(X2)
+	MOVD	F18, 144(X2)
+	MOVD	F19, 152(X2)
+	MOVD	F20, 160(X2)
+	MOVD	F21, 168(X2)
+	MOVD	F22, 176(X2)
+	MOVD	F23, 184(X2)
+	MOVD	F24, 192(X2)
+	MOVD	F25, 200(X2)
+	MOVD	F26, 208(X2)
+	MOVD	F27, 216(X2)
 
 	// this might be called in external code context,
 	// where g is not set.
@@ -436,6 +461,31 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 
 	MOV	$runtime·sigtrampgo(SB), A0
 	JALR	RA, A0
+
+	MOV	32(X2), X8
+	MOV	40(X2), X9
+	MOV	48(X2), X18
+	MOV	56(X2), X19
+	MOV	64(X2), X20
+	MOV	72(X2), X21
+	MOV	80(X2), X22
+	MOV	88(X2), X23
+	MOV	96(X2), X24
+	MOV	104(X2), X25
+	MOV	112(X2), X26
+	MOV	120(X2), g
+	MOVD	128(X2), F8
+	MOVD	136(X2), F9
+	MOVD	144(X2), F18
+	MOVD	152(X2), F19
+	MOVD	160(X2), F20
+	MOVD	168(X2), F21
+	MOVD	176(X2), F22
+	MOVD	184(X2), F23
+	MOVD	192(X2), F24
+	MOVD	200(X2), F25
+	MOVD	208(X2), F26
+	MOVD	216(X2), F27
 	RET
 
 // func cgoSigtramp()

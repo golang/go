@@ -413,9 +413,26 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	R5
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$160
 	// initialize essential registers (just in case)
 	XOR	R0, R0
+
+	MOVD	R6, 32(R15)
+	MOVD	R7, 40(R15)
+	MOVD	R8, 48(R15)
+	MOVD	R9, 56(R15)
+	MOVD	R10, 64(R15)
+	MOVD	R11, 72(R15)
+	MOVD	R12, 80(R15)
+	MOVD	g, 88(R15)
+	FMOVD	F8, 96(R15)
+	FMOVD	F9, 104(R15)
+	FMOVD	F10, 112(R15)
+	FMOVD	F11, 120(R15)
+	FMOVD	F12, 128(R15)
+	FMOVD	F13, 136(R15)
+	FMOVD	F14, 144(R15)
+	FMOVD	F15, 152(R15)
 
 	// this might be called in external code context,
 	// where g is not set.
@@ -428,6 +445,23 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 	MOVD	R4, 24(R15)
 	MOVD	$runtime·sigtrampgo(SB), R5
 	BL	R5
+
+	MOVD	32(R15), R6
+	MOVD	40(R15), R7
+	MOVD	48(R15), R8
+	MOVD	56(R15), R9
+	MOVD	64(R15), R10
+	MOVD	72(R15), R11
+	MOVD	80(R15), R12
+	MOVD	88(R15), g
+	FMOVD	96(R15), F8
+	FMOVD	104(R15), F9
+	FMOVD	112(R15), F10
+	FMOVD	120(R15), F11
+	FMOVD	128(R15), F12
+	FMOVD	136(R15), F13
+	FMOVD	144(R15), F14
+	FMOVD	152(R15), F15
 	RET
 
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0

@@ -319,7 +319,32 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R22, R29
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$12
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$104
+	MOVW	R16, 16(R29)
+	MOVW	R17, 20(R29)
+	MOVW	R18, 24(R29)
+	MOVW	R19, 28(R29)
+	MOVW	R20, 32(R29)
+	MOVW	R21, 36(R29)
+	MOVW	R22, 40(R29)
+	MOVW	R23, 44(R29)
+	MOVW	R28, 48(R29)
+	MOVW	g, 52(R29)
+	#ifndef GOMIPS_softfloat
+	MOVF	F20, 56(R29)
+	MOVF	F21, 60(R29)
+	MOVF	F22, 64(R29)
+	MOVF	F23, 68(R29)
+	MOVF	F24, 72(R29)
+	MOVF	F25, 76(R29)
+	MOVF	F26, 80(R29)
+	MOVF	F27, 84(R29)
+	MOVF	F28, 88(R29)
+	MOVF	F29, 92(R29)
+	MOVF	F30, 96(R29)
+	MOVF	F31, 100(R29)
+	#endif
+
 	// this might be called in external code context,
 	// where g is not set.
 	MOVB	runtime·iscgo(SB), R1
@@ -331,6 +356,31 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$12
 	MOVW	R6, 12(R29)
 	MOVW	$runtime·sigtrampgo(SB), R1
 	JAL	(R1)
+
+	MOVW	16(R29), R16
+	MOVW	20(R29), R17
+	MOVW	24(R29), R18
+	MOVW	28(R29), R19
+	MOVW	32(R29), R20
+	MOVW	36(R29), R21
+	MOVW	40(R29), R22
+	MOVW	44(R29), R23
+	MOVW	48(R29), R28
+	MOVW	52(R29), g
+	#ifndef GOMIPS_softfloat
+	MOVF	56(R29), F20
+	MOVF	60(R29), F21
+	MOVF	64(R29), F22
+	MOVF	68(R29), F23
+	MOVF	72(R29), F24
+	MOVF	76(R29), F25
+	MOVF	80(R29), F26
+	MOVF	84(R29), F27
+	MOVF	88(R29), F28
+	MOVF	92(R29), F29
+	MOVF	96(R29), F30
+	MOVF	100(R29), F31
+	#endif
 	RET
 
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
