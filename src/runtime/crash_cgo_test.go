@@ -505,6 +505,34 @@ func TestCgoPprofThreadNoTraceback(t *testing.T) {
 	testCgoPprof(t, "", "CgoPprofThreadNoTraceback", "cpuHogThread", "runtime._ExternalCode")
 }
 
+// TestCgoCallbackPprofRace tests that high-frequency C→Go callbacks
+// under continuous CPU profiling do not crash due to the #70529 race
+// (isExtraInC stale during exitsyscall). Running under -race changes
+// scheduling timing and increases the likelihood of hitting the window.
+func TestCgoCallbackPprofRace(t *testing.T) {
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
+		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprogcgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.CleanCmdEnv(exec.Command(exe, "CgoCallbackPprofRace"))
+	got, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CgoCallbackPprofRace failed (this is the #70529 panic if unpatched): %v\n%s", err, got)
+	}
+	if want := "OK\n"; string(got) != want {
+		t.Fatalf("expected %q got %q", want, string(got))
+	}
+}
+
 func TestRaceProf(t *testing.T) {
 	if !race.Enabled {
 		t.Skip("skipping: race detector not enabled")
