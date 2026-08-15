@@ -1202,6 +1202,9 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 		}
 	}
 
+	if t.isChan && bubble == nil {
+		delay += nanotime() - now
+	}
 	f(arg, seq, delay)
 
 	if t.isChan {
