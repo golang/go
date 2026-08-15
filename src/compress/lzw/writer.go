@@ -235,7 +235,9 @@ func (w *Writer) Close() error {
 			return err
 		}
 	}
-	return w.w.Flush()
+	err := w.w.Flush()
+	w.w = nil
+	return err
 }
 
 // Reset clears the [Writer]'s state and allows it to be reused again

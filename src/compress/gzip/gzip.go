@@ -254,5 +254,6 @@ func (z *Writer) Close() error {
 	le.PutUint32(z.buf[:4], z.digest)
 	le.PutUint32(z.buf[4:8], z.size)
 	_, z.err = z.w.Write(z.buf[:8])
+	z.w = nil
 	return z.err
 }
