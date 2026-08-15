@@ -682,9 +682,9 @@ opSwitch:
 		v.budget -= inlineExtraPanicCost
 
 	case ir.ORECOVER:
-		// TODO: maybe we could allow inlining of recover() now?
-		v.reason = "call to recover"
-		return true
+		// recover matches panics to frames via stack unwinding
+		// (including inlined frames), so it is safe to inline.
+		v.budget -= v.extraCallCost
 
 	case ir.OCLOSURE:
 		if base.Debug.InlFuncsWithClosures == 0 {

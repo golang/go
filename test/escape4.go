@@ -36,9 +36,9 @@ func f1() {
 
 func f2() {} // ERROR "can inline f2"
 
-// No inline for recover; panic now allowed to inline.
-func f3() { panic(1) } // ERROR "can inline f3" "1 escapes to heap"
-func f4() { recover() }
+// Both panic and recover are allowed to inline.
+func f3() { panic(1) }  // ERROR "can inline f3" "1 escapes to heap"
+func f4() { recover() } // ERROR "can inline f4"
 
 func f5() *byte { // ERROR "can inline f5"
 	type T struct {

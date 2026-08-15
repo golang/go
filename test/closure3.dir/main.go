@@ -242,7 +242,7 @@ func main() {
 				if c != 4 {
 					ppanic("c != 4")
 				}
-				recover() // prevent inlining
+				defer func() {}() // prevent inlining // ERROR "can inline main.func26.1.1" "func literal does not escape"
 			}()
 		}() // ERROR "inlining call to main.func26" "func literal does not escape"
 		if c != 4 {
