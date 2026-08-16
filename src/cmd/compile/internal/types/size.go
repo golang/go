@@ -187,7 +187,9 @@ func calcStructOffset(t *Type, fields []*Field, offset int64) int64 {
 		if maxwidth < 1<<32 {
 			maxwidth = 1<<31 - 1
 		}
-		if offset >= maxwidth {
+		// Only apply the MaxWidth constraint when t is a struct; skip it when
+		// calculating function argument offsets.
+		if t.IsStruct() && offset >= maxwidth {
 			base.ErrorfAt(typePos(t), 0, "type %L too large", t)
 			offset = 8 // small but nonzero
 		}
