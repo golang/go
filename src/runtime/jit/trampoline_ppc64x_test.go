@@ -9,7 +9,7 @@ package jit_test
 import (
 	"encoding/binary"
 	"runtime"
-	"unsafe"
+	"runtime/jit"
 )
 
 var ppc64BE = runtime.GOARCH == "ppc64"
@@ -56,12 +56,12 @@ func tailCallTrampoline(fnAddr uintptr) []byte {
 	lo16 := uint16(fnAddr)
 
 	copy(code[0:], u32(0x3D800000|uint32(hi48)))  // lis r12, addr@highest
-	copy(code[4:], u32(0x618C0000|uint32(hi32)))   // ori r12, r12, addr@higher
-	copy(code[8:], u32(0x798C07C6))                // sldi r12, r12, 32 (rldicr r12, r12, 32, 31)
-	copy(code[12:], u32(0x658C0000|uint32(hi16)))  // oris r12, r12, addr@h
-	copy(code[16:], u32(0x618C0000|uint32(lo16)))  // ori r12, r12, addr@l
-	copy(code[20:], u32(0x7D8903A6))               // mtctr r12
-	copy(code[24:], u32(0x4E800420))               // bctr
+	copy(code[4:], u32(0x618C0000|uint32(hi32)))  // ori r12, r12, addr@higher
+	copy(code[8:], u32(0x798C07C6))               // sldi r12, r12, 32 (rldicr r12, r12, 32, 31)
+	copy(code[12:], u32(0x658C0000|uint32(hi16))) // oris r12, r12, addr@h
+	copy(code[16:], u32(0x618C0000|uint32(lo16))) // ori r12, r12, addr@l
+	copy(code[20:], u32(0x7D8903A6))              // mtctr r12
+	copy(code[24:], u32(0x4E800420))              // bctr
 	return code
 }
 
@@ -89,37 +89,46 @@ func callTrampoline(fnAddr uintptr) []byte {
 	lo16 := uint16(fnAddr)
 	off := 0
 
-	copy(code[off:], u32(0x7C0802A6)); off += 4  // mflr r0
-	copy(code[off:], u32(0xF821FFD1)); off += 4  // stdu r1, -48(r1)
-	copy(code[off:], u32(0xF8010040)); off += 4  // std r0, 64(r1)   ; LR save area
-	copy(code[off:], u32(0xFBE10020)); off += 4  // std r31, 32(r1)
-	copy(code[off:], u32(0x7C3F0B78)); off += 4  // mr r31, r1
+	copy(code[off:], u32(0x7C0802A6))
+	off += 4 // mflr r0
+	copy(code[off:], u32(0xF821FFD1))
+	off += 4 // stdu r1, -48(r1)
+	copy(code[off:], u32(0xF8010040))
+	off += 4 // std r0, 64(r1)   ; LR save area
+	copy(code[off:], u32(0xFBE10020))
+	off += 4 // std r31, 32(r1)
+	copy(code[off:], u32(0x7C3F0B78))
+	off += 4 // mr r31, r1
 
 	// Load address into r12
-	copy(code[off:], u32(0x3D800000|uint32(hi48))); off += 4  // lis r12, hi48
-	copy(code[off:], u32(0x618C0000|uint32(hi32))); off += 4  // ori r12, r12, hi32
-	copy(code[off:], u32(0x798C07C6)); off += 4               // sldi r12, r12, 32
-	copy(code[off:], u32(0x658C0000|uint32(hi16))); off += 4  // oris r12, r12, hi16
-	copy(code[off:], u32(0x618C0000|uint32(lo16))); off += 4  // ori r12, r12, lo16
-	copy(code[off:], u32(0x7D8903A6)); off += 4               // mtctr r12
-	copy(code[off:], u32(0x4E800421)); off += 4               // bctrl
+	copy(code[off:], u32(0x3D800000|uint32(hi48)))
+	off += 4 // lis r12, hi48
+	copy(code[off:], u32(0x618C0000|uint32(hi32)))
+	off += 4 // ori r12, r12, hi32
+	copy(code[off:], u32(0x798C07C6))
+	off += 4 // sldi r12, r12, 32
+	copy(code[off:], u32(0x658C0000|uint32(hi16)))
+	off += 4 // oris r12, r12, hi16
+	copy(code[off:], u32(0x618C0000|uint32(lo16)))
+	off += 4 // ori r12, r12, lo16
+	copy(code[off:], u32(0x7D8903A6))
+	off += 4 // mtctr r12
+	copy(code[off:], u32(0x4E800421))
+	off += 4 // bctrl
 
-	copy(code[off:], u32(0xEBE10020)); off += 4  // ld r31, 32(r1)
-	copy(code[off:], u32(0xE8010040)); off += 4  // ld r0, 64(r1)
-	copy(code[off:], u32(0x7C0803A6)); off += 4  // mtlr r0
-	copy(code[off:], u32(0x38210030)); off += 4  // addi r1, r1, 48
-	copy(code[off:], u32(0x4E800020)); off += 4  // blr
+	copy(code[off:], u32(0xEBE10020))
+	off += 4 // ld r31, 32(r1)
+	copy(code[off:], u32(0xE8010040))
+	off += 4 // ld r0, 64(r1)
+	copy(code[off:], u32(0x7C0803A6))
+	off += 4 // mtlr r0
+	copy(code[off:], u32(0x38210030))
+	off += 4 // addi r1, r1, 48
+	copy(code[off:], u32(0x4E800020))
+	off += 4 // blr
 	return code[:off]
 }
 
-func nextCallback() func(pc, sp uintptr) (uintptr, uintptr, uintptr, bool) {
-	return func(pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool) {
-		// PPC64 frame: sp points to the JIT frame base.
-		// [sp+32] = saved r31 (FP)
-		// [sp+64] = saved LR (at caller's LR save area = sp + framesize + 16)
-		// callerSP = sp + 48 (frame size)
-		savedFP := *(*uintptr)(unsafe.Pointer(sp + 32))
-		savedLR := *(*uintptr)(unsafe.Pointer(sp + 64))
-		return savedLR, sp + 48, savedFP, true
-	}
+func callTrampolineStackMaps() []jit.StackMap {
+	return []jit.StackMap{{PCOffset: 48, HasUnwind: true, CallerPCOffset: 64, CallerSPOffset: 48, CallerBPOffset: 32}}
 }

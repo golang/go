@@ -8,7 +8,7 @@ package jit_test
 
 import (
 	"encoding/binary"
-	"unsafe"
+	"runtime/jit"
 )
 
 func retTrampoline() []byte {
@@ -61,19 +61,35 @@ func callTrampoline(fnAddr uintptr) []byte {
 	off := 0
 
 	// aghi r15, -16: A7 F9 FFF0 (4 bytes)
-	code[off] = 0xA7; code[off+1] = 0xF9; code[off+2] = 0xFF; code[off+3] = 0xF0
+	code[off] = 0xA7
+	code[off+1] = 0xF9
+	code[off+2] = 0xFF
+	code[off+3] = 0xF0
 	off += 4
 
 	// stg r14, 8(r15): E3 E0 F008 0024 (6 bytes)
-	code[off] = 0xE3; code[off+1] = 0xE0; code[off+2] = 0xF0; code[off+3] = 0x08; code[off+4] = 0x00; code[off+5] = 0x24
+	code[off] = 0xE3
+	code[off+1] = 0xE0
+	code[off+2] = 0xF0
+	code[off+3] = 0x08
+	code[off+4] = 0x00
+	code[off+5] = 0x24
 	off += 6
 
 	// stg r11, 0(r15): E3 B0 F000 0024 (6 bytes)
-	code[off] = 0xE3; code[off+1] = 0xB0; code[off+2] = 0xF0; code[off+3] = 0x00; code[off+4] = 0x00; code[off+5] = 0x24
+	code[off] = 0xE3
+	code[off+1] = 0xB0
+	code[off+2] = 0xF0
+	code[off+3] = 0x00
+	code[off+4] = 0x00
+	code[off+5] = 0x24
 	off += 6
 
 	// lgr r11, r15: B9 04 00 BF (4 bytes)
-	code[off] = 0xB9; code[off+1] = 0x04; code[off+2] = 0x00; code[off+3] = 0xBF
+	code[off] = 0xB9
+	code[off+1] = 0x04
+	code[off+2] = 0x00
+	code[off+3] = 0xBF
 	off += 4
 
 	// lgrl r1, literal: C4 18 <ri2> (6 bytes)
@@ -82,27 +98,43 @@ func callTrampoline(fnAddr uintptr) []byte {
 	// Remaining: basr(2) + lg(6) + lg(6) + aghi(4) + br(2) = 20 bytes
 	// literal at offset 20 + 6 + 20 = 46... Let me just compute.
 	lgrlOff := off // offset 20
-	code[off] = 0xC4; code[off+1] = 0x18
+	code[off] = 0xC4
+	code[off+1] = 0x18
 	off += 6 // ri2 will be filled in after we know literal offset
 
 	// basr r14, r1: 0D E1 (2 bytes)
-	code[off] = 0x0D; code[off+1] = 0xE1
+	code[off] = 0x0D
+	code[off+1] = 0xE1
 	off += 2
 
 	// lg r11, 0(r15): E3 B0 F000 0004 (6 bytes)
-	code[off] = 0xE3; code[off+1] = 0xB0; code[off+2] = 0xF0; code[off+3] = 0x00; code[off+4] = 0x00; code[off+5] = 0x04
+	code[off] = 0xE3
+	code[off+1] = 0xB0
+	code[off+2] = 0xF0
+	code[off+3] = 0x00
+	code[off+4] = 0x00
+	code[off+5] = 0x04
 	off += 6
 
 	// lg r14, 8(r15): E3 E0 F008 0004 (6 bytes)
-	code[off] = 0xE3; code[off+1] = 0xE0; code[off+2] = 0xF0; code[off+3] = 0x08; code[off+4] = 0x00; code[off+5] = 0x04
+	code[off] = 0xE3
+	code[off+1] = 0xE0
+	code[off+2] = 0xF0
+	code[off+3] = 0x08
+	code[off+4] = 0x00
+	code[off+5] = 0x04
 	off += 6
 
 	// aghi r15, 16: A7 F9 0010 (4 bytes)
-	code[off] = 0xA7; code[off+1] = 0xF9; code[off+2] = 0x00; code[off+3] = 0x10
+	code[off] = 0xA7
+	code[off+1] = 0xF9
+	code[off+2] = 0x00
+	code[off+3] = 0x10
 	off += 4
 
 	// br r14: 07 FE (2 bytes)
-	code[off] = 0x07; code[off+1] = 0xFE
+	code[off] = 0x07
+	code[off+1] = 0xFE
 	off += 2
 
 	// Literal: 8 bytes (must be 8-byte aligned; pad if needed)
@@ -120,11 +152,6 @@ func callTrampoline(fnAddr uintptr) []byte {
 	return code[:off]
 }
 
-func nextCallback() func(pc, sp uintptr) (uintptr, uintptr, uintptr, bool) {
-	return func(pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool) {
-		// [sp+0] = saved r11 (FP), [sp+8] = saved r14 (LR).
-		savedFP := *(*uintptr)(unsafe.Pointer(sp))
-		savedLR := *(*uintptr)(unsafe.Pointer(sp + 8))
-		return savedLR, sp + 16, savedFP, true
-	}
+func callTrampolineStackMaps() []jit.StackMap {
+	return []jit.StackMap{{PCOffset: 28, HasUnwind: true, CallerPCOffset: 8, CallerSPOffset: 16}}
 }
