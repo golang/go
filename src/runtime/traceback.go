@@ -133,6 +133,12 @@ type unwinder struct {
 	// This field is pointer-free (uintptr) to maintain the invariant
 	// that unwinder contains no pointers.
 	userFramePC uintptr
+
+	// userFrameScanPC and userFrameScanSP identify a user frame skipped while
+	// advancing the unwinder. GC scanning and stack copying consume these
+	// pointer-free values immediately after next returns.
+	userFrameScanPC uintptr
+	userFrameScanSP uintptr
 }
 
 // init initializes u to start unwinding gp's stack and positions the
@@ -184,6 +190,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 		}
 	}
 
+	var userFrameScanPC, userFrameScanSP uintptr
 	var frame stkframe
 	frame.pc = pc0
 	frame.sp = sp0
@@ -222,6 +229,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 		// Check if this PC belongs to a registered user frame region.
 		fr := findUserFrameRegion(frame.pc)
 		if fr != nil {
+			userFrameScanPC, userFrameScanSP = frame.pc, frame.sp
 			// User frame. Try to get caller info to continue unwinding.
 			callerPC, callerSP, _, ok := userFrameNext(fr, frame.pc, frame.sp)
 			if ok && callerPC != 0 {
@@ -254,11 +262,13 @@ userFrameResolved:
 
 	// Populate the unwinder.
 	*u = unwinder{
-		frame:        frame,
-		g:            gp.guintptr(),
-		cgoCtxt:      len(gp.cgoCtxt) - 1,
-		calleeFuncID: abi.FuncIDNormal,
-		flags:        flags,
+		frame:           frame,
+		g:               gp.guintptr(),
+		cgoCtxt:         len(gp.cgoCtxt) - 1,
+		calleeFuncID:    abi.FuncIDNormal,
+		flags:           flags,
+		userFrameScanPC: userFrameScanPC,
+		userFrameScanSP: userFrameScanSP,
 	}
 
 	isSyscall := frame.pc == pc0 && frame.sp == sp0 && pc0 == gp.syscallpc && sp0 == gp.syscallsp
@@ -483,6 +493,8 @@ func isInjectedCall(id abi.FuncID) bool {
 }
 
 func (u *unwinder) next() {
+	u.userFrameScanPC = 0
+	u.userFrameScanSP = 0
 	frame := &u.frame
 	f := frame.fn
 	gp := u.g.ptr()
@@ -498,6 +510,8 @@ func (u *unwinder) next() {
 		// This handles the case where Go code was called from JIT code.
 		fr := findUserFrameRegion(frame.lr)
 		if fr != nil {
+			u.userFrameScanPC = frame.lr
+			u.userFrameScanSP = frame.fp
 			// The caller is user code. Try to unwind past it.
 			callerPC, callerSP, _, ok := userFrameNext(fr, frame.lr, frame.fp)
 			if ok && callerPC != 0 {

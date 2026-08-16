@@ -24,15 +24,17 @@
 //
 //   - [UnwindStop]: The traceback ends at the user frame boundary.
 //   - [UnwindSkip]: The user frame is skipped and the traceback continues
-//     past it using the provided Next callback.
+//     past it using the registered safepoint's unwind recipe.
 //   - [UnwindDeclare]: Like UnwindSkip, but the user frame is also
 //     described in tracebacks using the provided Describe callback.
 //
 // # GC integration
 //
-// If user code holds Go pointers (e.g., on a shadow stack), the
-// ScanStack callback must be provided so the GC can find and mark those
-// pointers. Failure to do so may cause the GC to collect live objects.
+// If user code holds Go pointers in an active frame, StackMaps must describe
+// those slots precisely. The runtime uses the same map both
+// while marking the goroutine stack and while relocating a growing stack.
+// Failure to describe a live pointer may cause the GC to collect its target
+// or leave a stale pointer after stack growth.
 package jit
 
 import (
@@ -48,14 +50,45 @@ const (
 	// UnwindStop ends the traceback at the user frame boundary.
 	UnwindStop UnwindMode = iota
 
-	// UnwindSkip skips user frames and continues unwinding using
-	// the Next callback. The user frames do not appear in tracebacks.
+	// UnwindSkip skips user frames and continues unwinding using the
+	// safepoint metadata. The user frames do not appear in tracebacks.
 	UnwindSkip
 
 	// UnwindDeclare is like UnwindSkip but also describes user frames
 	// in tracebacks using the Describe callback.
 	UnwindDeclare
 )
+
+// StackMap describes pointer-bearing words in a user frame at one safepoint.
+// PointerMask has one bit per frame word in least-significant-bit-first order;
+// a set bit denotes a Go pointer. The runtime copies maps passed to Register
+// or AddStackMaps, so callers may release or reuse the input afterward.
+type StackMap struct {
+	// PCOffset is the return-PC offset from Region.Start. Entries in a Region
+	// must be strictly ordered by PCOffset.
+	PCOffset uintptr
+
+	// FrameOffset is added to the user frame SP to locate the first word
+	// described by PointerMask.
+	FrameOffset uintptr
+
+	// FrameWords is the number of pointer-sized words described by the map.
+	FrameWords uintptr
+
+	PointerMask []byte
+
+	// HasUnwind enables the declarative unwind recipe below. base starts at
+	// sp+UnwindBaseOffset. If UnwindBaseUsesDelta is set, the uintptr stored at
+	// sp+UnwindBaseDeltaOffset is added to base. CallerPC and CallerBP are read
+	// from base plus their offsets; CallerSP is base+CallerSPOffset.
+	HasUnwind             bool
+	UnwindBaseOffset      uintptr
+	UnwindBaseDeltaOffset uintptr
+	UnwindBaseUsesDelta   bool
+	CallerPCOffset        uintptr
+	CallerSPOffset        uintptr
+	CallerBPOffset        uintptr
+}
 
 // Region describes a range of executable memory containing user code.
 type Region struct {
@@ -74,31 +107,28 @@ type Region struct {
 	// UnwindDeclare. Must not allocate Go memory. May be nil.
 	Describe func(pc uintptr) (name, file string, line int, ok bool)
 
-	// Next returns the caller's PC, SP, and BP for a frame at the
-	// given PC and SP. This allows the runtime to unwind past user
-	// frames. Must not allocate Go memory.
-	// Required for UnwindSkip and UnwindDeclare modes.
-	// May be nil for UnwindStop (traceback simply ends).
-	//
-	// The callback runs on the system stack and must not grow the stack.
-	// It receives:
-	//   pc: the return address pointing into user code
-	//   sp: the frame pointer of the Go callee (= user frame's SP before call)
-	// It must return:
-	//   callerPC: the return address of the Go caller (above the user frame)
-	//   callerSP: the SP of the Go caller
-	//   callerBP: unused, reserved for future use
-	Next func(pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool)
-
-	// ScanStack is called during garbage collection to report Go
-	// pointers held in user stack frames or shadow stacks.
-	// Must not allocate Go memory. May be nil.
-	ScanStack func(report func(ptr uintptr))
+	// StackMaps contains immutable GC and optional unwind metadata for
+	// safepoints in this region. The runtime performs lookup itself without
+	// calling user code. Declarative unwind recipes avoid executing instrumented
+	// Go callbacks from the runtime system stack.
+	// It may initially be nil when maps are published with Handle.AddStackMaps
+	// before the corresponding code becomes reachable.
+	StackMaps []StackMap
 }
 
 // Handle represents a registered user frame region.
 type Handle struct {
 	handle uintptr
+}
+
+// AddStackMaps appends safepoints to a registered region. Entries must be
+// strictly ordered after all previously published entries. The runtime copies
+// maps and masks before publishing them to lock-free stack walkers.
+//
+// JIT compilers must call AddStackMaps after the corresponding machine code is
+// complete and before making that code reachable by another goroutine.
+func (h Handle) AddStackMaps(stackMaps ...StackMap) {
+	addUserFrameStackMaps(h.handle, stackMaps)
 }
 
 // liveRegions keeps function pointers (closures) alive so the GC does
@@ -115,8 +145,7 @@ func Register(r Region) Handle {
 		r.Start, r.End,
 		uint8(r.Unwind),
 		r.Describe,
-		r.Next,
-		r.ScanStack,
+		r.StackMaps,
 	)
 
 	// Keep closures alive for the GC.
@@ -130,7 +159,10 @@ func Register(r Region) Handle {
 	return Handle{handle: h}
 }
 
-// Unregister removes the user frame region from the runtime.
+// Unregister removes the user frame region from the runtime. The caller must
+// ensure that no goroutine is executing code in the region, that no user frame
+// from the region remains on a goroutine stack, and that the code cannot be
+// entered again.
 func (h Handle) Unregister() {
 	unregisterUserFrameRegion(h.handle)
 
@@ -165,9 +197,11 @@ func userFramePreempt() bool
 //go:linkname registerUserFrameRegion runtime/jit.registerUserFrameRegion
 func registerUserFrameRegion(start, end uintptr, unwindMode uint8,
 	describe func(pc uintptr) (string, string, int, bool),
-	next func(pc, sp uintptr) (uintptr, uintptr, uintptr, bool),
-	scanStack func(report func(ptr uintptr)),
+	stackMaps []StackMap,
 ) uintptr
 
 //go:linkname unregisterUserFrameRegion runtime/jit.unregisterUserFrameRegion
 func unregisterUserFrameRegion(handle uintptr)
+
+//go:linkname addUserFrameStackMaps runtime/jit.addUserFrameStackMaps
+func addUserFrameStackMaps(handle uintptr, stackMaps []StackMap)

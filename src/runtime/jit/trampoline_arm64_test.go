@@ -8,7 +8,7 @@ package jit_test
 
 import (
 	"encoding/binary"
-	"unsafe"
+	"runtime/jit"
 )
 
 func retTrampoline() []byte {
@@ -44,14 +44,8 @@ func callTrampoline(fnAddr uintptr) []byte {
 	return code
 }
 
-func nextCallback() func(pc, sp uintptr) (uintptr, uintptr, uintptr, bool) {
-	return func(pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool) {
-		// frame.fp of callee = JIT's SP (after stp decremented by 16).
-		// [sp+0] = saved x29 (caller FP), [sp+8] = saved x30 (caller LR).
-		savedFP := *(*uintptr)(unsafe.Pointer(sp))
-		savedLR := *(*uintptr)(unsafe.Pointer(sp + 8))
-		return savedLR, sp + 16, savedFP, true
-	}
+func callTrampolineStackMaps() []jit.StackMap {
+	return []jit.StackMap{{PCOffset: 16, HasUnwind: true, CallerPCOffset: 8, CallerSPOffset: 16}}
 }
 
 func leU32(v uint32) []byte {
