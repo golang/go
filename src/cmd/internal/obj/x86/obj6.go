@@ -846,7 +846,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// Due to ABI0 NOFRAME functions not restoring BP we can't
 			// use LEAVE there either. See https://go.dev/issue/80710
 			asmSafe := !ctxt.IsAsm || cursym.ABI() == obj.ABIInternal
-			if asmSafe && !mightCallABI0 && needSpRestore && needBpRestore {
+			// On Plan 9, BP holds the system call number, not a frame pointer.
+			// See https://go.dev/issue/80910.
+			plan9 := ctxt.Headtype == objabi.Hplan9
+			if asmSafe && !plan9 && !mightCallABI0 && needSpRestore && needBpRestore {
 				p.As = ALEAVEQ
 				p.Spadj = -localoffset - int32(bpsize)
 				p = obj.Appendp(p, newprog)
