@@ -1002,8 +1002,12 @@ func copystack(gp *g, newsize uintptr) {
 
 	// Adjust pointers in the new stack.
 	var u unwinder
-	for u.init(gp, 0); u.valid(); u.next() {
+	u.init(gp, 0)
+	adjustUserFrame(&u, &adjinfo)
+	for u.valid() {
 		adjustframe(&u.frame, &adjinfo)
+		u.next()
+		adjustUserFrame(&u, &adjinfo)
 	}
 
 	if valgrindenabled {
@@ -1029,6 +1033,30 @@ func copystack(gp *g, newsize uintptr) {
 		fillstack(old, 0xfc)
 	}
 	stackfree(old)
+}
+
+// adjustUserFrame relocates stack pointers held in one active user frame using
+// the same precise map used by the garbage collector.
+func adjustUserFrame(u *unwinder, adjinfo *adjustinfo) {
+	pc, sp := u.userFrameScanPC, u.userFrameScanSP
+	if pc == 0 {
+		return
+	}
+	base, words, pointerMask, ok := userFramePointerMap(pc, sp)
+	if !ok || words == 0 {
+		return
+	}
+	bytes := words * goarch.PtrSize
+	newLo := adjinfo.old.lo + adjinfo.delta
+	newHi := adjinfo.old.hi + adjinfo.delta
+	if pointerMask == nil || bytes/goarch.PtrSize != words || base < newLo || base+bytes < base || base+bytes > newHi {
+		throw("invalid user frame pointer map")
+	}
+	bits := bitvector{n: int32(words), bytedata: pointerMask}
+	if uintptr(bits.n) != words {
+		throw("user frame pointer map too large")
+	}
+	adjustpointers(unsafe.Pointer(base), &bits, adjinfo, funcInfo{})
 }
 
 // round x up to a power of 2.
