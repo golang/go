@@ -205,13 +205,23 @@ func simdCreditMultiplier(fn *ir.Func) int32 {
 // possibility that a call to the function might have its score
 // adjusted downwards. If 'verbose' is set, then print a remark where
 // we boost the budget due to PGO.
-// Note that inlineCostOk has the final say on whether an inline will
+// Note that inlineCostOK has the final say on whether an inline will
 // happen; changes here merely make inlines possible.
 func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose bool) int32 {
 	// Update the budget for profile-guided inlining.
 	budget := int32(inlineMaxBudget)
 
 	budget *= simdCreditMultiplier(fn)
+
+	if strings.HasPrefix(ir.FuncName(fn), "runtime_mapaccess2") &&
+		fn.Sym().Pkg.Path == "internal/runtime/maps" {
+		// Increase budget for mapaccess2* functions so they could be
+		// inlined to mapaccess1* wrappers
+		budget = inlineHotMaxBudget
+		if verbose {
+			fmt.Printf("mapaccess enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
+		}
+	}
 
 	if IsPgoHotFunc(fn, profile) {
 		budget = inlineHotMaxBudget
@@ -974,6 +984,12 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
 //   - whether the inlined function is "hot" according to PGO.
 func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCalledOnce bool) (bool, int32, int32, bool) {
 	maxCost := int32(inlineMaxBudget)
+
+	if strings.HasPrefix(ir.FuncName(caller), "runtime_mapaccess1") && caller.Sym().Pkg.Path == "internal/runtime/maps" &&
+		strings.HasPrefix(ir.FuncName(callee), "runtime_mapaccess2") && callee.Sym().Pkg.Path == "internal/runtime/maps" {
+		// Raise cost to allow inlining of mapaccess2* functions to mapaccess1* wrappers
+		maxCost = inlineHotMaxBudget
+	}
 
 	if bigCaller {
 		// We use this to restrict inlining into very big functions.
