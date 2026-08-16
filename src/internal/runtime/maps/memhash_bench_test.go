@@ -31,6 +31,10 @@ var sink uintptr
 // Throughput (i.e., how long matters when many independent things are being
 // hashed, resulting in better IPC. We measure this by using a seed of 0 for
 // each iteration. This tends to favor AES more.
+//
+// Conservatively, we treat throughput as more important. However, more study
+// is needed to determine if prioritizing latency (and thus picking a higher
+// cutoff, such as MinLen = 112 on Zen4) results in better macrobenchmarks.
 func BenchmarkHashBakeoff(b *testing.B) {
 	if !maps.AeshashEnabled() {
 		b.Skip("AES hashing not available on this machine")
@@ -78,7 +82,7 @@ func BenchmarkHashBakeoff(b *testing.B) {
 	for _, s := range sizes {
 		b.Run(fmt.Sprintf("aes/throughput/%d", s), func(b *testing.B) {
 			var h uintptr
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				h ^= maps.MemHashAES(p, 0, s)
 			}
 			sink = h
