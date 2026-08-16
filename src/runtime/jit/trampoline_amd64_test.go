@@ -6,7 +6,7 @@
 
 package jit_test
 
-import "unsafe"
+import "runtime/jit"
 
 func retTrampoline() []byte {
 	return []byte{0xc3} // ret
@@ -26,24 +26,68 @@ func tailCallTrampoline(fnAddr uintptr) []byte {
 func callTrampoline(fnAddr uintptr) []byte {
 	// push rbp; mov rbp, rsp; movabs rax, imm64; call rax; pop rbp; ret
 	code := make([]byte, 20)
-	code[0] = 0x55                   // push rbp
-	code[1] = 0x48; code[2] = 0x89; code[3] = 0xe5 // mov rbp, rsp
-	code[4] = 0x48; code[5] = 0xb8  // movabs rax, imm64
+	code[0] = 0x55 // push rbp
+	code[1] = 0x48
+	code[2] = 0x89
+	code[3] = 0xe5 // mov rbp, rsp
+	code[4] = 0x48
+	code[5] = 0xb8 // movabs rax, imm64
 	putU64(code[6:], fnAddr)
-	code[14] = 0xff; code[15] = 0xd0 // call rax
-	code[16] = 0x5d                   // pop rbp
-	code[17] = 0xc3                   // ret
+	code[14] = 0xff
+	code[15] = 0xd0 // call rax
+	code[16] = 0x5d // pop rbp
+	code[17] = 0xc3 // ret
 	return code
 }
 
-func nextCallback() func(pc, sp uintptr) (uintptr, uintptr, uintptr, bool) {
-	return func(pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool) {
-		// frame.fp of callee = entrySP - PtrSize (after push rbp).
-		// [sp+0] = saved RBP, [sp+8] = Go caller's return address.
-		savedBP := *(*uintptr)(unsafe.Pointer(sp))
-		goRetAddr := *(*uintptr)(unsafe.Pointer(sp + 8))
-		return goRetAddr, sp + 16, savedBP, true
+func pointerSlotCallTrampoline(fnAddr, ptr uintptr) []byte {
+	// Establish a frame with two local words, store ptr in the first word,
+	// call Go, then discard the locals and return.
+	code := []byte{
+		0x55,             // push rbp
+		0x48, 0x89, 0xe5, // mov rbp, rsp
+		0x48, 0x83, 0xec, 0x10, // sub rsp, 16
+		0x48, 0xb8, // movabs rax, ptr
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0x48, 0x89, 0x04, 0x24, // mov [rsp], rax
+		0x48, 0xb8, // movabs rax, fnAddr
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0xff, 0xd0, // call rax
+		0x48, 0x83, 0xc4, 0x10, // add rsp, 16
+		0x5d, // pop rbp
+		0xc3, // ret
 	}
+	putU64(code[10:], ptr)
+	putU64(code[24:], fnAddr)
+	return code
+}
+
+func stackPointerCallTrampoline(fnAddr uintptr) []byte {
+	code := pointerSlotCallTrampoline(fnAddr, 0)
+	// Replace movabs/store with: lea rax,[rsp+8]; mov [rsp],rax; nops.
+	copy(code[8:22], []byte{
+		0x48, 0x8d, 0x44, 0x24, 0x08,
+		0x48, 0x89, 0x04, 0x24,
+		0x90, 0x90, 0x90, 0x90, 0x90,
+	})
+	// Replace frame teardown with a comparison against the relocated address:
+	// mov rax,[rsp]; lea rcx,[rsp+8]; cmp rax,rcx; sete al; movzx eax,al.
+	check := []byte{
+		0x48, 0x8b, 0x04, 0x24,
+		0x48, 0x8d, 0x4c, 0x24, 0x08,
+		0x48, 0x39, 0xc8,
+		0x0f, 0x94, 0xc0,
+		0x0f, 0xb6, 0xc0,
+		0x48, 0x83, 0xc4, 0x10,
+		0x5d,
+		0xc3,
+	}
+	code = append(code[:34], check...)
+	return code
+}
+
+func callTrampolineStackMaps() []jit.StackMap {
+	return []jit.StackMap{{PCOffset: 16, HasUnwind: true, CallerPCOffset: 8, CallerSPOffset: 16}}
 }
 
 func putU64(b []byte, v uintptr) {

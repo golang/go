@@ -19,7 +19,6 @@ const (
 	fixedRootFinalizers = iota
 	fixedRootFreeGStacks
 	fixedRootCleanups
-	fixedRootUserFrames
 	fixedRootCount
 
 	// rootBlockBytes is the number of bytes to scan per data or
@@ -254,11 +253,6 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 			n := uintptr(atomic.Load(&cb.n))
 			scanblock(uintptr(unsafe.Pointer(&cb.cleanups[0])), n*unsafe.Sizeof(cleanupFn{}), &cleanupBlockPtrMask[0], gcw, nil)
 		}
-
-	case i == fixedRootUserFrames:
-		// Scan user frame (JIT) roots. Each registered region may
-		// hold Go pointers in shadow stacks or other structures.
-		userFrameScanRoots(gcw)
 
 	case work.baseSpans <= i && i < work.baseStacks:
 		// mark mspan.specials
@@ -980,8 +974,12 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 
 	// Scan the stack. Accumulate a list of stack objects.
 	var u unwinder
-	for u.init(gp, 0); u.valid(); u.next() {
+	u.init(gp, 0)
+	userFrameScan(u.userFrameScanPC, u.userFrameScanSP, &state, gcw)
+	for u.valid() {
 		scanframeworker(&u.frame, &state, gcw)
+		u.next()
+		userFrameScan(u.userFrameScanPC, u.userFrameScanSP, &state, gcw)
 	}
 
 	// Find additional pointers that point into the stack from the heap.
@@ -1072,6 +1070,26 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 		throw("remaining pointer buffers")
 	}
 	return int64(scannedSize)
+}
+
+// userFrameScan scans one active user frame as part of its owning goroutine's
+// stack. This is deliberately not a fixed root: stack roots are processed in
+// parallel, and the frame's pc/sp pair is the identity of the live instance.
+//
+//go:nowritebarrier
+func userFrameScan(pc, sp uintptr, state *stackScanState, gcw *gcWork) {
+	if pc == 0 {
+		return
+	}
+	base, words, pointerMask, ok := userFramePointerMap(pc, sp)
+	if !ok || words == 0 {
+		return
+	}
+	bytes := words * goarch.PtrSize
+	if pointerMask == nil || bytes/goarch.PtrSize != words || base < state.stack.lo || base+bytes < base || base+bytes > state.stack.hi {
+		throw("invalid user frame pointer map")
+	}
+	scanblock(base, bytes, pointerMask, gcw, state)
 }
 
 // Scan a stack frame: local variables and function arguments/results.
