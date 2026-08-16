@@ -80,6 +80,64 @@ func squareLookup(x int) int {
 	}
 }
 
+// use lookup tables when cases assign constants to a local variable
+func squareAssignLookup(x int) (int, int) {
+	var n int
+	// amd64:`LEAQ .*\(SB\)` `MOVQ .*\(.*\)\(.*\*8\)` -`JMP \(.*\)\(.*\)$`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` -`JMP \(R.*\)$`
+	// loong64:`SLLV` `MOVV \(R.*\)\(R.*\)` -`ALSLV`
+	switch x {
+	case 1:
+		n = 1
+	case 2:
+		n = 4
+	case 3:
+		n = 9
+	case 4:
+		n = 16
+	case 5:
+		n = 25
+	case 6:
+		n = 36
+	case 7:
+		n = 49
+	case 8:
+		n = 64
+	default:
+		n = x * x
+	}
+	return n, x
+}
+
+// use lookup tables when cases assign constants to a local variable
+func squareAssignLocalLookup(x int) int {
+	var n int
+	// amd64:`LEAQ .*\(SB\)` `MOVQ .*\(.*\)\(.*\*8\)` -`JMP \(.*\)\(.*\*8\)$`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` -`JMP \(R.*\)$`
+	// loong64:`SLLV` `MOVV \(R.*\)\(R.*\)` -`ALSLV`
+	switch x {
+	case 1:
+		n = 1
+	case 2:
+		n = 4
+	case 3:
+		n = 9
+	case 4:
+		n = 16
+	case 5:
+		n = 25
+	case 6:
+		n = 36
+	case 7:
+		n = 49
+	case 8:
+		n = 64
+	default:
+		n = x * x
+	}
+	return n + 1
+}
+
 // lookup tables work even when some cases use fallthrough,
 // as long as enough non-fallthrough cases return constants.
 func fallthroughLookup(x int) int {

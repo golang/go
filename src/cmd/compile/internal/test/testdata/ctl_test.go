@@ -88,6 +88,61 @@ func switch_nonconstcase(n, c int) int {
 	return 0
 }
 
+func switchAssign_ssa(a int) (int, int) {
+	ret := -1
+	switch a {
+	case 1:
+		ret = 10
+	case 2:
+		ret = 20
+	case 3:
+		ret = a * 10
+	case 4:
+		ret = 40
+	case 6:
+		ret = 60
+	default:
+		ret = 99
+	}
+	return ret, a
+}
+
+func switchAssignLocal_ssa(a int) int {
+	ret := -1
+	switch a {
+	case 1:
+		ret = 10
+	case 2:
+		ret = 20
+	case 3:
+		ret = a * 10
+	case 4:
+		ret = 40
+	case 6:
+		ret = 60
+	default:
+		ret = 99
+	}
+	return ret + 1
+}
+
+func switchAssignReturnDefault_ssa(a int) int {
+	ret := -1
+	switch a {
+	case 1:
+		ret = 10
+	case 2:
+		ret = 20
+	case 4:
+		ret = 40
+	case 5:
+		ret = 50
+	default:
+		return 99
+	}
+	return ret + 1
+}
+
 func fallthrough_ssa(a int) int {
 	ret := 0
 	switch a {
@@ -125,6 +180,18 @@ func testSwitch(t *testing.T) {
 	}
 	if got := switch_nonconstcase(3, 3); got != 9 {
 		t.Errorf("switch_nonconstcase(3, 3) = %d, wanted 9", got)
+	}
+	want := [...]int{99, 10, 20, 30, 40, 99, 60, 99}
+	for i, want := range want {
+		if got, _ := switchAssign_ssa(i); got != want {
+			t.Errorf("switchAssign_ssa(%d) = %d, wanted %d", i, got, want)
+		}
+		if got := switchAssignLocal_ssa(i); got != want+1 {
+			t.Errorf("switchAssignLocal_ssa(%d) = %d, wanted %d", i, got, want+1)
+		}
+	}
+	if got := switchAssignReturnDefault_ssa(3); got != 99 {
+		t.Errorf("switchAssignReturnDefault_ssa(3) = %d, wanted 99", got)
 	}
 }
 

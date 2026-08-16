@@ -338,11 +338,11 @@ func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
 	return true
 }
 
-// tryLookupTable attempts to replace constant-returning cases of an integer
-// switch with a static lookup table. Cases whose bodies are a single "return
-// <int constant>" are served from a read-only array, eliminating branching.
-// Remaining cases (non-constant bodies, default) are left in sw.Cases for
-// normal switch compilation.
+// tryLookupTable attempts to replace cases of an integer switch that produce a
+// constant with a static lookup table. Cases whose bodies are a single return
+// or an assignment to the same local variable are served from a read-only
+// array, eliminating branching. Remaining cases (non-constant bodies, default)
+// are left in sw.Cases for normal switch compilation.
 //
 // For example:
 //
@@ -389,47 +389,36 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 	}
 
 	fn := ir.CurFunc
-	if fn == nil || fn.Type().NumResults() != 1 {
-		return // only handle single return value
+	if fn == nil {
+		return
 	}
-	resultType := fn.Type().Results()[0].Type
+	var resultType *types.Type
 
-	// Classify each case as const-returning or not.
-	// TODO: support more complex bodies, like local variable assignments.
-	// For example:
-	//
-	//   var n int
-	//   switch x {
-	//   case 1: n = 1
-	//   case 2: n = 4
-	//   case 3: n = 9
-	//   case 4: n = 16
-	//   }
-	//   return n
-	//
-	// Could be optimized to:
-	//
-	//   var table = [4]int{1, 4, 9, 16}
-	//   var n int
-	//   if uint(x-1) < 4 { n = table[x-1] }
-	//   return n
-	constSet := make(map[int64]ir.Node) // case value → return constant literal
-	constCaseSet := make(map[int]bool)  // indices of const-returning non-default cases
-	excludeSet := make(map[int64]bool)  // case values with non-const bodies
-	var defaultVal ir.Node              // non-nil if default returns a constant
+	// Classify each case as const-producing or not.
+	constSet := make(map[int64]ir.Node)         // case value → constant literal
+	constCases := make(map[*ir.CaseClause]bool) // const-producing non-default cases
+	excludeSet := make(map[int64]bool)          // case values with non-const bodies
+	var assignTarget *ir.Name                   // nil if table values are returned
+	var defaultTarget *ir.Name
+	var defaultVal ir.Node // non-nil if default produces a constant
 	minVal, maxVal := int64(math.MaxInt64), int64(math.MinInt64)
 	var excludeNextCase bool // true if the previous case ends in fallthrough
 
-	for i, ncase := range sw.Cases {
+	// TODO: Support multiple result actions, such as a mix of returns and
+	// assignments or assignments to different locals. Currently, the first
+	// eligible non-default case selects whether the table returns or assigns and,
+	// for an assignment, its target. Cases with a different action are excluded
+	// from the table and left in sw.Cases for normal switch compilation.
+	for _, ncase := range sw.Cases {
 		// A case that is the target of a fallthrough must be excluded,
 		// since removing it would break the fallthrough chain.
 		isFallthroughTarget := excludeNextCase
 		excludeNextCase, _ = endsInFallthrough(ncase.Body)
 
 		if len(ncase.List) == 0 {
-			// Default case: check if it returns a constant (for gap filling).
-			if isConstReturn(ncase) && !isFallthroughTarget {
-				defaultVal = ncase.Body[0].(*ir.ReturnStmt).Results[0]
+			// Default case: remember a constant result for gap filling.
+			if target, val, ok := constCaseResult(ncase); ok && !isFallthroughTarget {
+				defaultTarget, defaultVal = target, val
 			}
 			continue
 		}
@@ -448,28 +437,45 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 			return
 		}
 
-		if !isConstReturn(ncase) || isFallthroughTarget || excludeNextCase {
-			// Non-const body, fallthrough source, or fallthrough target:
-			// exclude these values from the table so the mask redirects
-			// them to the normal switch, preserving Go's top-to-bottom
-			// case evaluation order.
+		target, val, ok := constCaseResult(ncase)
+		if !ok || isFallthroughTarget || excludeNextCase || len(constSet) != 0 && target != assignTarget {
+			// Non-const or incompatible body, fallthrough source, or
+			// fallthrough target: exclude these values from the table so
+			// the mask redirects them to the normal switch, preserving Go's
+			// top-to-bottom case evaluation order.
 			for _, v := range vals {
 				excludeSet[v] = true
 			}
 			continue // will be handled by normal switch
 		}
 
-		retVal := ncase.Body[0].(*ir.ReturnStmt).Results[0]
+		if len(constSet) == 0 {
+			// The first eligible case determines whether table values are returned or
+			// assigned. For assignments, the local's type may differ from the function's
+			// result type, so use it as the table element type.
+			assignTarget = target
+			if assignTarget == nil {
+				resultType = fn.Type().Results()[0].Type
+			} else {
+				resultType = assignTarget.Type()
+			}
+		}
 		for _, v := range vals {
-			constSet[v] = retVal
+			constSet[v] = val
 			minVal = min(minVal, v)
 			maxVal = max(maxVal, v)
 		}
-		constCaseSet[i] = true
+		constCases[ncase] = true
 	}
 
 	if len(constSet) < minCases {
 		return
+	}
+	if defaultTarget != assignTarget {
+		// A constant default may have a different result target from the table cases:
+		// one may return while the other assigns, or they may assign to different
+		// locals. Such a default cannot be used to fill gaps in the table.
+		defaultVal = nil
 	}
 
 	tableSize := maxVal - minVal + 1
@@ -563,9 +569,15 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 	lookup.SetBounded(true)
 	lookup = typecheck.Expr(lookup).(*ir.IndexExpr)
 
-	retStmt := ir.NewReturnStmt(pos, []ir.Node{lookup})
+	var resultBody []ir.Node
+	if assignTarget == nil {
+		resultBody = []ir.Node{ir.NewReturnStmt(pos, []ir.Node{lookup})}
+	} else {
+		assign := typecheck.Stmt(ir.NewAssignStmt(pos, assignTarget, lookup))
+		br := ir.NewBranchStmt(pos, ir.OBREAK, nil)
+		resultBody = []ir.Node{assign, br}
+	}
 
-	var ifBody []ir.Node
 	if needMask {
 		var maskCheck ir.Node
 		if useBitmask {
@@ -574,38 +586,29 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 			bitmaskType := types.Types[types.TUINTPTR]
 			bitmaskLit := ir.NewBasicLit(pos, bitmaskType, constant.MakeUint64(bitmask))
 			shifted := typecheck.Expr(ir.NewBinaryExpr(pos, ir.ORSH, bitmaskLit, uidx))
-			one := ir.NewBasicLit(pos, bitmaskType, constant.MakeUint64(1))
+			one := ir.NewOne(pos, bitmaskType)
 			masked := typecheck.Expr(ir.NewBinaryExpr(pos, ir.OAND, shifted, one))
-			zero := ir.NewBasicLit(pos, bitmaskType, constant.MakeUint64(0))
+			zero := ir.NewZero(pos, bitmaskType)
 			maskCheck = typecheck.Expr(ir.NewBinaryExpr(pos, ir.ONE, masked, zero))
 		} else {
 			// Mask array check: mask[idx] != 0.
 			maskLookup := ir.NewIndexExpr(pos, maskName, uidx)
 			maskLookup.SetBounded(true)
 			maskLookup = typecheck.Expr(maskLookup).(*ir.IndexExpr)
-			zero := ir.NewBasicLit(pos, types.Types[types.TUINT8], constant.MakeInt64(0))
+			zero := ir.NewZero(pos, maskLookup.Type())
 			maskCheck = typecheck.Expr(ir.NewBinaryExpr(pos, ir.ONE, maskLookup, zero))
 		}
-		maskCheck = typecheck.DefaultLit(maskCheck, nil)
-
-		innerIf := ir.NewIfStmt(pos, maskCheck, []ir.Node{retStmt}, nil)
-		ifBody = []ir.Node{innerIf}
+		condition := typecheck.DefaultLit(typecheck.Expr(ir.NewLogicalExpr(pos, ir.OANDAND, boundsCheck, maskCheck)), nil)
+		sw.Compiled.Append(ir.NewIfStmt(pos, condition, resultBody, nil))
 	} else {
-		ifBody = []ir.Node{retStmt}
+		sw.Compiled.Append(ir.NewIfStmt(pos, boundsCheck, resultBody, nil))
 	}
-
-	outerIf := ir.NewIfStmt(pos, boundsCheck, ifBody, nil)
-	sw.Compiled.Append(outerIf)
 
 	// Remove handled const cases from sw.Cases.
 	// Keep default and non-const cases for normal switch processing.
-	newCases := make([]*ir.CaseClause, 0, len(sw.Cases)-len(constCaseSet))
-	for i, ncase := range sw.Cases {
-		if !constCaseSet[i] {
-			newCases = append(newCases, ncase)
-		}
-	}
-	sw.Cases = newCases
+	sw.Cases = slices.DeleteFunc(sw.Cases, func(ncase *ir.CaseClause) bool {
+		return constCases[ncase]
+	})
 }
 
 // isSwitchDense reports whether a lookup table with tableSize entries
@@ -620,17 +623,35 @@ func isSwitchDense(numCases, tableSize int64) bool {
 	return numCases*100 >= tableSize*minDensity
 }
 
-// isConstReturn reports whether ncase has a body that is a single
-// return statement returning one constant.
-func isConstReturn(ncase *ir.CaseClause) bool {
+// constCaseResult reports whether ncase has a body that is a single constant
+// return or assignment to a local variable. A nil target denotes a return.
+func constCaseResult(ncase *ir.CaseClause) (*ir.Name, ir.Node, bool) {
 	if len(ncase.Body) != 1 {
-		return false
+		return nil, nil, false
 	}
-	ret, ok := ncase.Body[0].(*ir.ReturnStmt)
-	if !ok || len(ret.Results) != 1 {
-		return false
+
+	switch stmt := ncase.Body[0].(type) {
+	case *ir.ReturnStmt:
+		if len(stmt.Results) == 1 && ir.IsConstNode(stmt.Results[0]) {
+			return nil, stmt.Results[0], true
+		}
+	case *ir.AssignStmt:
+		if stmt.Def || !ir.IsConstNode(stmt.Y) {
+			break
+		}
+		target, ok := stmt.X.(*ir.Name)
+		if !ok || ir.IsBlank(target) {
+			break
+		}
+		// Return-slot optimization may rewrite a local variable to an output
+		// parameter before walk.
+		switch target.Class {
+		case ir.PAUTO, ir.PAUTOHEAP, ir.PPARAMOUT:
+			return target, stmt.Y, true
+		}
 	}
-	return ret.Results[0].Op() == ir.OLITERAL
+
+	return nil, nil, false
 }
 
 // constIntCaseVals returns the int64 values of all case expressions in
@@ -638,7 +659,7 @@ func isConstReturn(ncase *ir.CaseClause) bool {
 // case expression is not a constant integer.
 func constIntCaseVals(ncase *ir.CaseClause) (vals []int64, ok bool) {
 	for _, n1 := range ncase.List {
-		if n1.Op() != ir.OLITERAL || n1.Val().Kind() != constant.Int {
+		if !ir.IsConst(n1, constant.Int) {
 			return nil, false
 		}
 		v, fit := constant.Int64Val(n1.Val())
