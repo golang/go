@@ -1080,7 +1080,7 @@ func TestMemHashGlobalSeed(t *testing.T) {
 	// aeshash and memHashFallback use separate per-process seeds, so test
 	// both.
 	t.Run("aes", func(t *testing.T) {
-		if !*runtime.UseAeshash {
+		if !runtime.AeshashEnabled() {
 			t.Skip("No AES")
 		}
 
@@ -1098,7 +1098,7 @@ func TestMemHashGlobalSeed(t *testing.T) {
 
 	t.Run("noaes", func(t *testing.T) {
 		env := ""
-		if *runtime.UseAeshash {
+		if runtime.AeshashEnabled() {
 			env = "GODEBUG=cpu.aes=off"
 		}
 

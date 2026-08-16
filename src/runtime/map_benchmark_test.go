@@ -1226,3 +1226,68 @@ func BenchmarkMapAccessEmpty(b *testing.B) {
 	b.Run("Key=mediumType", mapAccessEmptyBenchmark[mediumType])
 	b.Run("Key=bigType", mapAccessEmptyBenchmark[bigType])
 }
+
+type groupByStats struct {
+	min, max, sum float64
+	count         int64
+}
+
+const (
+	groupByRows   = 1 << 18
+	groupByGroups = 512
+)
+
+var groupBySink int
+
+// mapGroupByBenchmark aggregates a large row set into per-group
+// statistics, one map lookup plus an update through the stored pointer
+// per row.
+//
+// Unlike the access benchmarks above, whose lookups are independent,
+// each row here chains the lookup into loads and stores of the group's
+// stats, so the benchmark is sensitive to hash latency rather than
+// hash throughput.
+func mapGroupByBenchmark[K comparable](genKey func(int) K) func(*testing.B) {
+	return func(b *testing.B) {
+		r := rand.New(rand.NewSource(1234))
+		rows := make([]K, groupByRows)
+		temps := make([]float64, groupByRows)
+		for i := range rows {
+			rows[i] = genKey(r.Intn(groupByGroups))
+			temps[i] = float64(r.Intn(999)-499) / 10
+		}
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			m := make(map[K]*groupByStats, groupByGroups)
+			for j, k := range rows {
+				s := m[k]
+				if s == nil {
+					s = &groupByStats{min: 1000, max: -1000}
+					m[k] = s
+				}
+				t := temps[j]
+				if t < s.min {
+					s.min = t
+				}
+				if t > s.max {
+					s.max = t
+				}
+				s.sum += t
+				s.count++
+			}
+			groupBySink = len(m)
+		}
+	}
+}
+
+func BenchmarkMapGroupBy(b *testing.B) {
+	b.Run("Key=int64", mapGroupByBenchmark(func(g int) int64 {
+		return int64(g)*7919 + 13
+	}))
+	b.Run("Key=string", mapGroupByBenchmark(func(g int) string {
+		// Realistic short identifier keys, 9 to 13 bytes.
+		return fmt.Sprintf("station_%x", g*7919)
+	}))
+}

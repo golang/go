@@ -11,10 +11,27 @@ import (
 	"unsafe"
 )
 
-// runtime variable to check if the processor we're running on
-// actually supports the instructions used by the AES-based
-// hash implementation.
-var UseAeshash bool
+// MinAeshashSize is the smallest key size hashed with the AES-based
+// implementation. Selecting hash is a size comparison against this value.
+// Setting this to MaxUintptr disables AES altogether.
+//
+// When support is detected, the threshold is lowered to select between the
+// scalar-based fallback hash and the vector-based AES hash. This value is
+// selected on a per-platform basis based on what value produces the best
+// benchmark results.
+//
+// Scalar hashes are faster on small values because it avoids taking a trip
+// into the vector unit, which hurts latency (and for very small values,
+// throughput).
+var MinAeshashSize uintptr = ^uintptr(0)
+
+// AeshashEnabled reports whether this machine hashes any sizes with AES.
+//
+// Test-only; compare against MinAeshashSize in non-test code to fuse this
+// comparison with the MinAeshashSize check.
+func AeshashEnabled() bool {
+	return MinAeshashSize != ^uintptr(0)
+}
 
 const hashRandomBytes = goarch.PtrSize / 4 * 64
 
@@ -23,6 +40,13 @@ var aeskeysched [hashRandomBytes]byte
 
 // used in hash{32,64}.go to seed the hash function
 var hashkey [4]uintptr
+
+// Pre-computed comparisons against MinAeshashSize, which reduces a
+// load-and-compare-and-branch to a load-and-branch.
+var (
+	useAeshash32 bool // = MinAeshashSize <= 4
+	useAeshash64 bool // = MinAeshashSize <= 8
+)
 
 func AlgInit() {
 	// Always intialize hashkey.
@@ -46,23 +70,32 @@ func AlgInit() {
 		}
 		initAlgAES()
 
-		if memHashUsesVAES {
+		if memHashUsesVAES && !cpu.X86.HasAVX {
 			// We are using intrinsics hash implementation.
 			// Override the UseAeshash in this case, since it uses VAES (AVX) instructions.
 			// While assembly implementation used AES-NI instructions,
 			// simd intrinsics only provide access to AVX ones.
-			UseAeshash = cpu.X86.HasAVX
+			MinAeshashSize = ^uintptr(0)
 		}
-		return
-	}
-	if goarch.GOARCH == "arm64" && cpu.ARM64.HasAES {
+	} else if goarch.GOARCH == "arm64" && cpu.ARM64.HasAES {
 		initAlgAES()
-		return
 	}
+
+	useAeshash32 = 4 >= MinAeshashSize
+	useAeshash64 = 8 >= MinAeshashSize
 }
 
 func initAlgAES() {
-	UseAeshash = true
+	// TODO(mcy): investigate cutoffs on a per-uarch basis.
+	// See memhash_bench_test.go.
+	switch goarch.ArchFamily {
+	case goarch.AMD64:
+		// Measured on AMD Ryzen Threadripper PRO 7995WX (Zen4).
+		MinAeshashSize = 9
+	default:
+		MinAeshashSize = 0
+	}
+
 	// Initialize with random data so hash collisions will be hard to engineer.
 	key := (*[hashRandomBytes / 8]uint64)(unsafe.Pointer(&aeskeysched))
 	for i := range key {
