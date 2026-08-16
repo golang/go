@@ -8,7 +8,7 @@ package jit_test
 
 import (
 	"encoding/binary"
-	"unsafe"
+	"runtime/jit"
 )
 
 func retTrampoline() []byte {
@@ -24,9 +24,9 @@ func tailCallTrampoline(fnAddr uintptr) []byte {
 	// jr t1             ; jump
 	// .quad <addr>      ; at offset 12
 	code := make([]byte, 20)
-	copy(code[0:], leU32(0x00000317))  // auipc t1, 0
-	copy(code[4:], leU32(0x00C33303))  // ld t1, 12(t1)
-	copy(code[8:], leU32(0x00030067))  // jalr x0, t1, 0 (jr t1)
+	copy(code[0:], leU32(0x00000317)) // auipc t1, 0
+	copy(code[4:], leU32(0x00C33303)) // ld t1, 12(t1)
+	copy(code[8:], leU32(0x00030067)) // jalr x0, t1, 0 (jr t1)
 	binary.LittleEndian.PutUint64(code[12:], uint64(fnAddr))
 	return code
 }
@@ -92,13 +92,8 @@ func callTrampoline(fnAddr uintptr) []byte {
 	return code
 }
 
-func nextCallback() func(pc, sp uintptr) (uintptr, uintptr, uintptr, bool) {
-	return func(pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool) {
-		// JIT frame: [sp+0] = saved s0 (FP), [sp+8] = saved ra (LR).
-		savedFP := *(*uintptr)(unsafe.Pointer(sp))
-		savedRA := *(*uintptr)(unsafe.Pointer(sp + 8))
-		return savedRA, sp + 16, savedFP, true
-	}
+func callTrampolineStackMaps() []jit.StackMap {
+	return []jit.StackMap{{PCOffset: 28, HasUnwind: true, CallerPCOffset: 8, CallerSPOffset: 16}}
 }
 
 func leU32(v uint32) []byte {

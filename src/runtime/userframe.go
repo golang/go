@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -25,16 +26,49 @@ type userFrameRegion struct {
 	// Must not allocate. May be nil.
 	describe func(pc uintptr) (name string, file string, line int, ok bool)
 
-	// next returns the caller PC and SP for a frame at the given PC/SP.
-	// This allows the unwinder to continue past user frames.
-	// Must not allocate. May be nil (treated as unwindStop).
-	next func(pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool)
-
-	// scanStack is called during GC to report Go pointers held in
-	// user frame stack segments. Must not allocate. May be nil.
-	scanStack func(report func(ptr uintptr))
+	stackMaps *userFrameStackMapTable
 
 	handle uintptr
+}
+
+// userFrameStackMapInput must have the same memory layout as
+// runtime/jit.StackMap. It is copied into runtime-owned metadata by Register.
+type userFrameStackMapInput struct {
+	pcOffset              uintptr
+	frameOffset           uintptr
+	frameWords            uintptr
+	pointerMask           []byte
+	hasUnwind             bool
+	unwindBaseOffset      uintptr
+	unwindBaseDeltaOffset uintptr
+	unwindBaseUsesDelta   bool
+	callerPCOffset        uintptr
+	callerSPOffset        uintptr
+	callerBPOffset        uintptr
+}
+
+type userFrameStackMap struct {
+	pcOffset              uintptr
+	frameOffset           uintptr
+	frameWords            uintptr
+	pointerMask           *byte
+	hasUnwind             bool
+	unwindBaseOffset      uintptr
+	unwindBaseDeltaOffset uintptr
+	unwindBaseUsesDelta   bool
+	callerPCOffset        uintptr
+	callerSPOffset        uintptr
+	callerBPOffset        uintptr
+}
+
+// userFrameStackMapTable is append-only. Writers serialize through
+// userFrameLock. Readers atomically load count and maps without locking. Old
+// backing arrays are persistentalloc'd and never freed, so a concurrent grow
+// cannot invalidate a reader's snapshot.
+type userFrameStackMapTable struct {
+	maps     unsafe.Pointer // *userFrameStackMap
+	count    uintptr
+	capacity uintptr // protected by userFrameLock
 }
 
 type userFrameUnwindMode uint8
@@ -79,10 +113,6 @@ func registerUserFrameRegion(r userFrameRegion) uintptr {
 	if r.start >= r.end {
 		throw("registerUserFrameRegion: invalid address range")
 	}
-	if r.unwindMode != userFrameUnwindStop && r.next == nil {
-		throw("registerUserFrameRegion: Next callback required for UnwindSkip/UnwindDeclare")
-	}
-
 	lock(&userFrameLock)
 
 	// Read current snapshot (may be nil on first call).
@@ -204,45 +234,157 @@ func findUserFrameRegion(pc uintptr) *userFrameRegion {
 }
 
 func userFrameNext(r *userFrameRegion, pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool) {
-	if r.next == nil {
-		return 0, 0, 0, false
-	}
-	return r.next(pc, sp)
-}
-
-// userFrameScanRoots calls all registered ScanStack callbacks during GC.
-// Called from markroot as a fixed root.
-//
-// The report callback passed to ScanStack uses a package-level variable
-// to avoid creating a closure (which is forbidden in the runtime package).
-// This is safe because markroot is single-threaded per root index.
-var userFrameScanGCW *gcWork
-
-func userFrameScanRoots(gcw *gcWork) {
-	snap := loadUserFrameSnapshot()
-	if snap == nil {
-		return
-	}
-	userFrameScanGCW = gcw
-	for i := 0; i < snap.count; i++ {
-		if snap.regions[i].scanStack != nil {
-			snap.regions[i].scanStack(userFrameScanReport)
+	if m := findUserFrameStackMap(r, pc); m != nil && m.hasUnwind {
+		base := sp + m.unwindBaseOffset
+		if base < sp {
+			return 0, 0, 0, false
 		}
+		if m.unwindBaseUsesDelta {
+			deltaAddr := sp + m.unwindBaseDeltaOffset
+			if deltaAddr < sp {
+				return 0, 0, 0, false
+			}
+			delta := *(*uintptr)(unsafe.Pointer(deltaAddr))
+			if base+delta < base {
+				return 0, 0, 0, false
+			}
+			base += delta
+		}
+		callerPCAddr := base + m.callerPCOffset
+		callerSP = base + m.callerSPOffset
+		callerBPAddr := base + m.callerBPOffset
+		if callerPCAddr < base || callerSP < base || callerBPAddr < base {
+			return 0, 0, 0, false
+		}
+		return *(*uintptr)(unsafe.Pointer(callerPCAddr)), callerSP, *(*uintptr)(unsafe.Pointer(callerBPAddr)), true
 	}
-	userFrameScanGCW = nil
+	return 0, 0, 0, false
 }
 
-// userFrameScanReport is the report function passed to ScanStack callbacks.
-// It marks a pointer-sized slot as a GC root.
+// userFramePointerMap resolves one immutable map without calling user code.
+// Looking the region up again keeps unwinder pointer-free.
 //
 //go:nosplit
-func userFrameScanReport(ptr uintptr) {
-	gcw := userFrameScanGCW
-	if gcw == nil {
+func userFramePointerMap(pc, sp uintptr) (base, words uintptr, pointerMask *byte, ok bool) {
+	r := findUserFrameRegion(pc)
+	m := findUserFrameStackMap(r, pc)
+	if m == nil || m.frameWords == 0 || sp+m.frameOffset < sp {
+		return 0, 0, nil, false
+	}
+	return sp + m.frameOffset, m.frameWords, m.pointerMask, true
+}
+
+//go:nosplit
+func findUserFrameStackMap(r *userFrameRegion, pc uintptr) *userFrameStackMap {
+	if r == nil || r.stackMaps == nil {
+		return nil
+	}
+	count := atomic.Loaduintptr(&r.stackMaps.count)
+	maps := atomic.Loadp(unsafe.Pointer(&r.stackMaps.maps))
+	if count == 0 || maps == nil {
+		return nil
+	}
+	offset := pc - r.start
+	lo, hi := uintptr(0), count
+	for lo < hi {
+		mid := (lo + hi) >> 1
+		m := (*userFrameStackMap)(add(maps, mid*unsafe.Sizeof(userFrameStackMap{})))
+		if m.pcOffset < offset {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+	if lo == count {
+		return nil
+	}
+	m := (*userFrameStackMap)(add(maps, lo*unsafe.Sizeof(userFrameStackMap{})))
+	if m.pcOffset != offset {
+		return nil
+	}
+	return m
+}
+
+func appendUserFrameStackMaps(table *userFrameStackMapTable, start, end uintptr, unwindMode userFrameUnwindMode, input []userFrameStackMapInput) {
+	if len(input) == 0 {
 		return
 	}
-	// ptr is the address of a slot containing a Go pointer.
-	scanblock(ptr, unsafe.Sizeof(uintptr(0)), &oneptrmask[0], gcw, nil)
+	oldCount := atomic.Loaduintptr(&table.count)
+	newCount := oldCount + uintptr(len(input))
+	if newCount < oldCount {
+		throw("registerUserFrameRegion: too many stack maps")
+	}
+	maps := atomic.Loadp(unsafe.Pointer(&table.maps))
+	if newCount > table.capacity {
+		newCapacity := table.capacity * 2
+		if newCapacity < 16 {
+			newCapacity = 16
+		}
+		for newCapacity < newCount {
+			if newCapacity > ^uintptr(0)/2 {
+				throw("registerUserFrameRegion: too many stack maps")
+			}
+			newCapacity *= 2
+		}
+		bytes := newCapacity * unsafe.Sizeof(userFrameStackMap{})
+		if bytes/unsafe.Sizeof(userFrameStackMap{}) != newCapacity {
+			throw("registerUserFrameRegion: stack map table too large")
+		}
+		newMaps := persistentalloc(bytes, unsafe.Alignof(userFrameStackMap{}), &memstats.other_sys)
+		if oldCount != 0 {
+			memmove(newMaps, maps, oldCount*unsafe.Sizeof(userFrameStackMap{}))
+		}
+		maps = newMaps
+		table.capacity = newCapacity
+		atomic.StorepNoWB(unsafe.Pointer(&table.maps), maps)
+	}
+	var previousPC uintptr
+	if oldCount != 0 {
+		previous := (*userFrameStackMap)(add(maps, (oldCount-1)*unsafe.Sizeof(userFrameStackMap{})))
+		previousPC = previous.pcOffset
+	}
+	for i := range input {
+		in := &input[i]
+		if in.pcOffset >= end-start || ((oldCount != 0 || i > 0) && in.pcOffset <= previousPC) {
+			throw("registerUserFrameRegion: unordered or invalid stack map PC")
+		}
+		if unwindMode != userFrameUnwindStop && !in.hasUnwind {
+			throw("registerUserFrameRegion: declarative unwind required at every safepoint")
+		}
+		if in.frameWords > uintptr(^uint32(0)>>1) {
+			throw("registerUserFrameRegion: stack map too large")
+		}
+		frameBytes := in.frameWords * goarch.PtrSize
+		if frameBytes/goarch.PtrSize != in.frameWords || in.frameOffset+frameBytes < in.frameOffset {
+			throw("registerUserFrameRegion: invalid stack map range")
+		}
+		maskBytes := (in.frameWords + 7) / 8
+		if maskBytes < in.frameWords/8 || uintptr(len(in.pointerMask)) < maskBytes {
+			throw("registerUserFrameRegion: short stack map bitmap")
+		}
+		var mask *byte
+		if maskBytes != 0 {
+			mask = (*byte)(persistentalloc(maskBytes, 1, &memstats.other_sys))
+			memmove(unsafe.Pointer(mask), unsafe.Pointer(&in.pointerMask[0]), maskBytes)
+		}
+		out := (*userFrameStackMap)(add(maps, (oldCount+uintptr(i))*unsafe.Sizeof(userFrameStackMap{})))
+		*out = userFrameStackMap{
+			pcOffset:              in.pcOffset,
+			frameOffset:           in.frameOffset,
+			frameWords:            in.frameWords,
+			pointerMask:           mask,
+			hasUnwind:             in.hasUnwind,
+			unwindBaseOffset:      in.unwindBaseOffset,
+			unwindBaseDeltaOffset: in.unwindBaseDeltaOffset,
+			unwindBaseUsesDelta:   in.unwindBaseUsesDelta,
+			callerPCOffset:        in.callerPCOffset,
+			callerSPOffset:        in.callerSPOffset,
+			callerBPOffset:        in.callerBPOffset,
+		}
+		previousPC = in.pcOffset
+	}
+	// Publish only after every entry and bitmap is fully initialized.
+	atomic.Storeuintptr(&table.count, newCount)
 }
 
 // userFramePreempt reports whether the current goroutine has been
@@ -267,18 +409,42 @@ func userFramePreempt() bool {
 //go:linkname jit_registerUserFrameRegion runtime/jit.registerUserFrameRegion
 func jit_registerUserFrameRegion(start, end uintptr, unwindMode uint8,
 	describe func(pc uintptr) (string, string, int, bool),
-	next func(pc, sp uintptr) (uintptr, uintptr, uintptr, bool),
-	scanStack func(report func(ptr uintptr)),
+	stackMaps []userFrameStackMapInput,
 ) uintptr {
+	if start >= end {
+		throw("registerUserFrameRegion: invalid address range")
+	}
+	if userFrameUnwindMode(unwindMode) > userFrameUnwindDeclare {
+		throw("registerUserFrameRegion: invalid unwind mode")
+	}
+	table := (*userFrameStackMapTable)(persistentalloc(unsafe.Sizeof(userFrameStackMapTable{}), unsafe.Alignof(userFrameStackMapTable{}), &memstats.other_sys))
+	appendUserFrameStackMaps(table, start, end, userFrameUnwindMode(unwindMode), stackMaps)
 	r := userFrameRegion{
 		start:      start,
 		end:        end,
 		unwindMode: userFrameUnwindMode(unwindMode),
 		describe:   describe,
-		next:       next,
-		scanStack:  scanStack,
+		stackMaps:  table,
 	}
 	return registerUserFrameRegion(r)
+}
+
+//go:linkname jit_addUserFrameStackMaps runtime/jit.addUserFrameStackMaps
+func jit_addUserFrameStackMaps(handle uintptr, stackMaps []userFrameStackMapInput) {
+	lock(&userFrameLock)
+	snap := loadUserFrameSnapshot()
+	if snap != nil {
+		for i := 0; i < snap.count; i++ {
+			r := &snap.regions[i]
+			if r.handle == handle {
+				appendUserFrameStackMaps(r.stackMaps, r.start, r.end, r.unwindMode, stackMaps)
+				unlock(&userFrameLock)
+				return
+			}
+		}
+	}
+	unlock(&userFrameLock)
+	throw("addUserFrameStackMaps: handle not found")
 }
 
 //go:linkname jit_unregisterUserFrameRegion runtime/jit.unregisterUserFrameRegion

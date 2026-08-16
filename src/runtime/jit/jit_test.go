@@ -144,10 +144,10 @@ func TestPanicThroughUserFrameWithCall(t *testing.T) {
 	defer freeExecutable(addr, size)
 
 	h := jit.Register(jit.Region{
-		Start:  addr,
-		End:    addr + uintptr(size),
-		Unwind: jit.UnwindSkip,
-		Next:   nextCallback(),
+		Start:     addr,
+		End:       addr + uintptr(size),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: callTrampolineStackMaps(),
 	})
 	defer h.Unregister()
 
@@ -172,7 +172,7 @@ func TestUnwindStop(t *testing.T) {
 	}
 	defer freeExecutable(addr, size)
 
-	// Register with UnwindStop — no Next callback.
+	// Register with UnwindStop and no safepoint metadata.
 	// The panic should be unable to find the defer/recover, so the
 	// program would crash. We test this in a subprocess.
 	h := jit.Register(jit.Region{
@@ -182,7 +182,7 @@ func TestUnwindStop(t *testing.T) {
 	})
 	defer h.Unregister()
 
-	// With UnwindStop and no Next callback, the unwinder stops at the
+	// With UnwindStop and no unwind recipe, the unwinder stops at the
 	// JIT boundary. The panic cannot reach callAndRecover's defer, so
 	// recover() returns nil and the panic continues to crash.
 	// We just verify the registration itself doesn't crash.
@@ -290,10 +290,10 @@ func TestPanicRecoverMultipleGoroutines(t *testing.T) {
 	defer freeExecutable(addr, size)
 
 	h := jit.Register(jit.Region{
-		Start:  addr,
-		End:    addr + uintptr(size),
-		Unwind: jit.UnwindSkip,
-		Next:   nextCallback(),
+		Start:     addr,
+		End:       addr + uintptr(size),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: callTrampolineStackMaps(),
 	})
 	defer h.Unregister()
 
@@ -336,7 +336,7 @@ func TestUnwindDeclareDescribe(t *testing.T) {
 			atomic.AddUint32(&describeCalled, 1)
 			return "myJitFunction", "jit_generated.go", 42, true
 		},
-		Next: nextCallback(),
+		StackMaps: callTrampolineStackMaps(),
 	})
 	defer h.Unregister()
 
@@ -376,7 +376,7 @@ func TestUnwindDeclareInStackTrace(t *testing.T) {
 		Describe: func(pc uintptr) (string, string, int, bool) {
 			return "myJitFunction", "jit_generated.go", 42, true
 		},
-		Next: nextCallback(),
+		StackMaps: callTrampolineStackMaps(),
 	})
 	defer h.Unregister()
 
@@ -395,9 +395,9 @@ func TestUnwindDeclareInStackTrace(t *testing.T) {
 	}
 }
 
-// TestScanStackGC tests that the ScanStack callback is invoked during
-// garbage collection when registered.
-func TestScanStackGC(t *testing.T) {
+// TestStackMapInactive verifies that registering stack maps without an active
+// frame does not add global GC roots.
+func TestStackMapInactive(t *testing.T) {
 	code := retTrampoline()
 	addr, size, err := allocExecutable(code)
 	if err != nil {
@@ -405,23 +405,15 @@ func TestScanStackGC(t *testing.T) {
 	}
 	defer freeExecutable(addr, size)
 
-	var scanCalled uint32
 	h := jit.Register(jit.Region{
-		Start:  addr,
-		End:    addr + uintptr(size),
-		Unwind: jit.UnwindStop,
-		ScanStack: func(report func(ptr uintptr)) {
-			atomic.AddUint32(&scanCalled, 1)
-		},
+		Start:     addr,
+		End:       addr + uintptr(size),
+		Unwind:    jit.UnwindStop,
+		StackMaps: []jit.StackMap{{PCOffset: 0, FrameWords: 1, PointerMask: []byte{1}}},
 	})
 	defer h.Unregister()
 
-	// Force GC. The ScanStack callback should be invoked.
 	runtime.GC()
-
-	if atomic.LoadUint32(&scanCalled) == 0 {
-		t.Fatal("ScanStack callback was not called during GC")
-	}
 }
 
 // TestPreemptReturnsFalseNormally tests that Preempt returns false when
