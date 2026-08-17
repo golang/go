@@ -327,6 +327,22 @@ func ubfx16(x uint64) uint64 {
 	return ((x >> 3) & 0xfff) >> 1 & 0x3f
 }
 
+// materialize a single-bit test as ubfx instead of TST + CSET.
+func ubfx17(x uint64) bool {
+	// arm64:"UBFX [$]3, R[0-9]+, [$]1" -"TST" -"CSET"
+	return x&8 != 0
+}
+
+func ubfx18(x uint64) bool {
+	// arm64:"UBFX [$]63, R[0-9]+, [$]1" -"TST" -"CSET"
+	return x&(1<<63) != 0
+}
+
+func ubfx19(x uint32) bool {
+	// arm64:"UBFX [$]31, R[0-9]+, [$]1" -"TST" -"CSET"
+	return x&(1<<31) != 0
+}
+
 // Check that we don't emit comparisons for constant shifts.
 //
 //go:nosplit
