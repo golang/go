@@ -562,6 +562,8 @@ func newTestTransport(t *testing.T, opts ...any) *testTransport {
 				tr1.HTTP2 = &http.HTTP2Config{}
 			}
 			o(tr1.HTTP2)
+		case func(*Transport):
+			// Applied below, once the HTTP/2 transport exists.
 		default:
 			t.Fatalf("unknown newTestTransport option type %T", o)
 		}
@@ -569,6 +571,11 @@ func newTestTransport(t *testing.T, opts ...any) *testTransport {
 	tt.tr1 = tr1
 
 	tr2 := transportFromH1Transport(tr1).(*Transport)
+	for _, o := range opts {
+		if f, ok := o.(func(*Transport)); ok {
+			f(tr2)
+		}
+	}
 	tr2.TestSetNewClientConnHook(func(cc *ClientConn) {
 		tc := newTestClientConnFromClientConn(t, tr2, cc)
 		tt.ccs = append(tt.ccs, tc)

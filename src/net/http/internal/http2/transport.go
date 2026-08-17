@@ -77,6 +77,12 @@ type Transport struct {
 
 type transportTestHooks struct {
 	newclientconn func(*ClientConn)
+	// readLoopExited, if non-nil, runs on a connection's read-loop goroutine
+	// after the loop publishes its terminal exit and before its cleanup.
+	readLoopExited func(*ClientConn)
+	// newHealthCheckTimer, if non-nil, observes each connection's
+	// health-check timer as it is created.
+	newHealthCheckTimer func(*time.Timer)
 }
 
 func (t *Transport) maxHeaderListSize() uint32 {
@@ -140,6 +146,12 @@ type ClientConn struct {
 	// readLoop goroutine fields:
 	readerDone chan struct{} // closed on error
 	readerErr  error         // set before readerDone is closed
+
+	// readLoopExited is owned by mu and set once the read loop has observed
+	// a terminal connection error, before cleanup publishes closed. Lost-ping
+	// classification consults it so a concurrently failing ping is never
+	// counted after the connection has terminally failed.
+	readLoopExited bool
 
 	idleTimeout time.Duration // or 0 for never
 	idleTimer   *time.Timer
@@ -660,7 +672,7 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool, internalStateHook 
 		lastActive:                  time.Now(),
 		internalStateHook:           internalStateHook,
 	}
-	if t.transportTestHooks != nil {
+	if t.transportTestHooks != nil && t.transportTestHooks.newclientconn != nil {
 		t.transportTestHooks.newclientconn(cc)
 		c = cc.tconn
 	}
@@ -1072,13 +1084,29 @@ func (cc *ClientConn) Close() error {
 	return nil
 }
 
-// closes the client connection immediately. In-flight requests are interrupted.
+// closeForLostPing closes the client connection if this health check is the
+// one that claims it. The eligibility check and the claim share one critical
+// section: a connection that is already closed, whose read loop has published
+// a terminal failure, or that an overlapping health check already claimed is
+// not a lost ping and is not counted again. In-flight requests on a claimed
+// connection are interrupted.
 func (cc *ClientConn) closeForLostPing() {
 	err := errors.New("http2: client connection lost")
+	cc.mu.Lock()
+	if cc.closed || cc.readLoopExited {
+		cc.mu.Unlock()
+		return
+	}
+	cc.closed = true
+	for _, cs := range cc.streams {
+		cs.abortStreamLocked(err)
+	}
+	cc.cond.Broadcast()
+	cc.mu.Unlock()
 	if f := cc.fr.countError; f != nil {
 		f("conn_close_lost_ping")
 	}
-	cc.closeForError(err)
+	cc.closeConn()
 }
 
 // errRequestCanceled is a copy of net/http's errRequestCanceled because it's not
@@ -2034,6 +2062,12 @@ func (cc *ClientConn) readLoop() {
 	rl := &clientConnReadLoop{cc: cc}
 	defer rl.cleanup()
 	cc.readerErr = rl.run()
+	cc.mu.Lock()
+	cc.readLoopExited = true
+	cc.mu.Unlock()
+	if hooks := cc.t.transportTestHooks; hooks != nil && hooks.readLoopExited != nil {
+		hooks.readLoopExited(cc)
+	}
 	if ce, ok := cc.readerErr.(ConnectionError); ok {
 		cc.wmu.Lock()
 		cc.fr.WriteGoAway(0, ErrCode(ce), nil)
@@ -2165,6 +2199,13 @@ func (rl *clientConnReadLoop) run() error {
 	var t *time.Timer
 	if readIdleTimeout != 0 {
 		t = time.AfterFunc(readIdleTimeout, cc.healthCheck)
+		if hooks := cc.t.transportTestHooks; hooks != nil && hooks.newHealthCheckTimer != nil {
+			hooks.newHealthCheckTimer(t)
+		}
+		// The timer is re-armed below after every ReadFrame return, including
+		// the final erroring one; without a Stop it would outlive the
+		// connection and health-check the closed conn once more.
+		defer t.Stop()
 	}
 	for {
 		f, err := cc.fr.ReadFrame()
@@ -2183,6 +2224,12 @@ func (rl *clientConnReadLoop) run() error {
 			}
 			continue
 		} else if err != nil {
+			// Publish the terminal exit before counting, so a concurrently
+			// failing health-check ping cannot also classify this failure
+			// as a lost ping.
+			cc.mu.Lock()
+			cc.readLoopExited = true
+			cc.mu.Unlock()
 			cc.countReadFrameError(err)
 			return err
 		}
