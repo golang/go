@@ -537,6 +537,7 @@ var passes = [...]pass{
 	{name: "late nilcheck", fn: nilcheckelim2},
 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
+	{name: "setcc zero extend", fn: setccZeroExtend},   // amd64: zero SETcc's register ahead of the compare
 	{name: "loop rotate", fn: loopRotate},
 	{name: "trim", fn: trim}, // remove empty blocks
 }
@@ -612,6 +613,8 @@ var passOrder = [...]constraint{
 	{"schedule", "flagalloc"},
 	// regalloc needs flags to be allocated first.
 	{"flagalloc", "regalloc"},
+	// setcc zero extend reasons about assigned registers.
+	{"regalloc", "setcc zero extend"},
 	// loopRotate will confuse regalloc.
 	{"regalloc", "loop rotate"},
 	// trim needs regalloc to be done first.
