@@ -1066,37 +1066,66 @@ func (c *ctxt0) specialLsxMovInst(a obj.As, fReg, tReg int16, offset_flag bool) 
 		}
 
 	case C_ELEM | (C_REG << 16):
-		// vmov Vd.<T>[index], Rn
-		switch a {
-		case AVMOVQ:
-			switch farng {
-			case ARNG_B:
-				return (0x01CBBE << 14), 0xf // vpickve2gr.b
-			case ARNG_H:
-				return (0x03977E << 13), 0x7 // vpickve2gr.h
-			case ARNG_W:
-				return (0x072EFE << 12), 0x3 // vpickve2gr.w
-			case ARNG_V:
-				return (0x0E5DFE << 11), 0x1 // vpickve2gr.d
-			case ARNG_BU:
-				return (0x01CBCE << 14), 0xf // vpickve2gr.bu
-			case ARNG_HU:
-				return (0x03979E << 13), 0x7 // vpickve2gr.hu
-			case ARNG_WU:
-				return (0x072F3E << 12), 0x3 // vpickve2gr.wu
-			case ARNG_VU:
-				return (0x0E5E7E << 11), 0x1 // vpickve2gr.du
+		switch {
+		case offset_flag:
+			// vmov Vd.<T>[index], offset(Rj)
+			switch a {
+			case AVMOVQ:
+				switch farng {
+				case ARNG_B:
+					return (0xc6 << 22), 0xf // vstelm.b
+				case ARNG_H:
+					return (0x18a << 21), 0x7 // vstelm.h
+				case ARNG_W:
+					return (0x312 << 20), 0x3 // vstelm.w
+				case ARNG_V:
+					return (0x622 << 19), 0x1 // vstelm.d
+				}
+			case AXVMOVQ:
+				switch farng {
+				case ARNG_B:
+					return (0x67 << 23), 0x1f // xvstelm.b
+				case ARNG_H:
+					return (0xcd << 22), 0xf // xvstelm.h
+				case ARNG_W:
+					return (0x199 << 21), 0x7 // xvstelm.w
+				case ARNG_V:
+					return (0x331 << 20), 0x3 // xvstelm.d
+				}
 			}
-		case AXVMOVQ:
-			switch farng {
-			case ARNG_W:
-				return (0x03B77E << 13), 0x7 // xvpickve2gr.w
-			case ARNG_V:
-				return (0x076EFE << 12), 0x3 // xvpickve2gr.d
-			case ARNG_WU:
-				return (0x03B79E << 13), 0x7 // xvpickve2gr.wu
-			case ARNG_VU:
-				return (0x076F3E << 12), 0x3 // xvpickve2gr.du
+		default:
+			// vmov Vd.<T>[index], Rn
+			switch a {
+			case AVMOVQ:
+				switch farng {
+				case ARNG_B:
+					return (0x01CBBE << 14), 0xf // vpickve2gr.b
+				case ARNG_H:
+					return (0x03977E << 13), 0x7 // vpickve2gr.h
+				case ARNG_W:
+					return (0x072EFE << 12), 0x3 // vpickve2gr.w
+				case ARNG_V:
+					return (0x0E5DFE << 11), 0x1 // vpickve2gr.d
+				case ARNG_BU:
+					return (0x01CBCE << 14), 0xf // vpickve2gr.bu
+				case ARNG_HU:
+					return (0x03979E << 13), 0x7 // vpickve2gr.hu
+				case ARNG_WU:
+					return (0x072F3E << 12), 0x3 // vpickve2gr.wu
+				case ARNG_VU:
+					return (0x0E5E7E << 11), 0x1 // vpickve2gr.du
+				}
+			case AXVMOVQ:
+				switch farng {
+				case ARNG_W:
+					return (0x03B77E << 13), 0x7 // xvpickve2gr.w
+				case ARNG_V:
+					return (0x076EFE << 12), 0x3 // xvpickve2gr.d
+				case ARNG_WU:
+					return (0x03B79E << 13), 0x7 // xvpickve2gr.wu
+				case ARNG_VU:
+					return (0x076F3E << 12), 0x3 // xvpickve2gr.du
+				}
 			}
 		}
 

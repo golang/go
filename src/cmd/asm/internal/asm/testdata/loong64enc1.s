@@ -608,6 +608,16 @@ lable2:
 	XVMOVQ		24(R4), X3.V4	// 830c1032
 	XVMOVQ		-24(R4), X3.V4	// 83f41732
 
+	// Store the byte/halfword/word/doubleword element selected by immediate index from vector register vd/xd into memory.
+	VMOVQ		V5.B[3], 1(R4)	// 85048c31
+	VMOVQ		V5.H[2], 2(R4)	// 85044831
+	VMOVQ		V5.W[1], 4(R4)	// 85042431
+	VMOVQ		V5.V[0], 8(R4)	// 85041031
+	XVMOVQ		X5.B[3], 1(R4)	// 85048c33
+	XVMOVQ		X5.H[2], 2(R4)	// 85044833
+	XVMOVQ		X5.W[1], 4(R4)	// 85042433
+	XVMOVQ		X5.V[0], 8(R4)	// 85041033
+
 	// VSEQ{B,H,W,V}, XVSEQ{B,H,W,V} instruction
 	VSEQB		V1, V2, V3      // 43040070
 	VSEQH		V1, V2, V3      // 43840070

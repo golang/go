@@ -284,6 +284,35 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
 	XVEXTRINSW ui8, Vj, Vd | xvextrins.w vd, vj, ui8 | XR[xd].W[ui8[5:4]] = XR[xj].W[ui8[1:0]], XR[xd].W[ui8[5:4]+4] = XR[xj].W[ui8[1:0]+4]
 	XVEXTRINSV ui8, Vj, Vd | xvextrins.d vd, vj, ui8 | XR[xd].D[ui8[4]] = XR[xj].D[ui8[0]],XR[xd].D[ui8[4]+2] = XR[xj].D[ui8[0]+2]
 
+3.10 Store a vector element to memory.
+
+	Instruction format:
+	        VMOVQ    <Vd>.<T>[index], offset(Rj)
+
+	Mapping between Go and platform assembly:
+	   Go assembly                    |     platform assembly        |                          semantics
+	-------------------------------------------------------------------------------------------------------------------------------------------
+	 VMOVQ   Vd.B[index], offset(Rj)  |  vstelm.b  Vd, Rj, si8, idx  |  store 8  bit VR[vd].b[idx] to (GR[rj]+SignExtend(si8))
+	 VMOVQ   Vd.H[index], offset(Rj)  |  vstelm.h  Vd, Rj, si8, idx  |  store 16 bit VR[vd].h[idx] to (GR[rj]+SignExtend(si8<<1))
+	 VMOVQ   Vd.W[index], offset(Rj)  |  vstelm.w  Vd, Rj, si8, idx  |  store 32 bit VR[vd].w[idx] to (GR[rj]+SignExtend(si8<<2))
+	 VMOVQ   Vd.V[index], offset(Rj)  |  vstelm.d  Vd, Rj, si8, idx  |  store 64 bit VR[vd].d[idx] to (GR[rj]+SignExtend(si8<<3))
+	XVMOVQ   Xd.B[index], offset(Rj)  | xvstelm.b  Xd, Rj, si8, idx  |  store 8  bit XR[xd].b[idx] to (GR[rj]+SignExtend(si8))
+	XVMOVQ   Xd.H[index], offset(Rj)  | xvstelm.h  Xd, Rj, si8, idx  |  store 16 bit XR[xd].h[idx] to (GR[rj]+SignExtend(si8<<1))
+	XVMOVQ   Xd.W[index], offset(Rj)  | xvstelm.w  Xd, Rj, si8, idx  |  store 32 bit XR[xd].w[idx] to (GR[rj]+SignExtend(si8<<2))
+	XVMOVQ   Xd.V[index], offset(Rj)  | xvstelm.d  Xd, Rj, si8, idx  |  store 64 bit XR[xd].d[idx] to (GR[rj]+SignExtend(si8<<3))
+
+	note: As with the "load and broadcast" form above (see 3.7), in Go assembly the offset represents the
+	      actual byte address offset for ease of understanding. During platform encoding it is shifted right
+	      by the element width to fit into si8, as follows:
+
+	   Go assembly               |      platform assembly
+         VMOVQ   V5.B[3], 1(R4)      |      vstelm.b  v5, r4, $1, 3
+         VMOVQ   V5.H[2], 2(R4)      |      vstelm.h  v5, r4, $1, 2
+         VMOVQ   V5.W[1], 4(R4)      |      vstelm.w  v5, r4, $1, 1
+         VMOVQ   V5.V[0], 8(R4)      |      vstelm.d  v5, r4, $1, 0
+        XVMOVQ   X5.B[3], 1(R4)      |     xvstelm.b  x5, r4, $1, 3
+        XVMOVQ   X5.V[1], 8(R4)      |     xvstelm.d  x5, r4, $1, 1
+
 # Special instruction encoding definition and description on LoongArch
 
  1. DBAR hint encoding for LA664(Loongson 3A6000) and later micro-architectures, paraphrased
