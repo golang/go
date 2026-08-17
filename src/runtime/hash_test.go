@@ -32,7 +32,7 @@ func TestMemHash32AlignAccess(t *testing.T) {
 }
 
 func TestMemHash32Equality(t *testing.T) {
-	if *UseAeshash {
+	if *MinAeshashSize <= 4 {
 		t.Skip("skipping since AES hash implementation is used")
 	}
 	var b [4]byte
@@ -60,7 +60,7 @@ func TestMemHash64AlignAccess(t *testing.T) {
 }
 
 func TestMemHash64Equality(t *testing.T) {
-	if *UseAeshash {
+	if *MinAeshashSize <= 8 {
 		t.Skip("skipping since AES hash implementation is used")
 	}
 	var b [8]byte
@@ -658,7 +658,7 @@ func TestSmhasherSeed(t *testing.T) {
 }
 
 func TestIssue66841(t *testing.T) {
-	if *UseAeshash && os.Getenv("TEST_ISSUE_66841") == "" {
+	if AeshashEnabled() && os.Getenv("TEST_ISSUE_66841") == "" {
 		// We want to test the backup hash, so if we're running on a machine
 		// that uses aeshash, exec ourselves while turning aes off.
 		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestIssue66841$"))

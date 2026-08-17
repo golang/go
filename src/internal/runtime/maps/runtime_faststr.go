@@ -66,7 +66,7 @@ dohash:
 	// This path will cost 1 hash and 1+ε comparisons.
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && uintptr(len(key)) >= MinAeshashSize {
 		hash = memHashAES(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
 	} else {
 		hash = memHashFallback(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
@@ -143,7 +143,7 @@ func runtime_mapaccess2_faststr(typ *abi.MapType, m *Map, key string) (unsafe.Po
 
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && uintptr(len(key)) >= MinAeshashSize {
 		hash = memHashAES(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
 	} else {
 		hash = memHashFallback(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
@@ -273,7 +273,7 @@ func runtime_mapassign_faststr(typ *abi.MapType, m *Map, key string) unsafe.Poin
 
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && uintptr(len(key)) >= MinAeshashSize {
 		hash = memHashAES(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
 	} else {
 		hash = memHashFallback(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))

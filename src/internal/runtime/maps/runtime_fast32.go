@@ -69,9 +69,9 @@ func runtime_mapaccess2_fast32(typ *abi.MapType, m *Map, key uint32) (unsafe.Poi
 	// But when we are using intrinsic implementation we want it to be inlined,
 	// since it improves performance.
 	//
-	// Note: memHashAESImplemented is compile time constant. We use it to remove runtime UseAeshash check
+	// Note: memHashAESImplemented is compile time constant. We use it to remove the useAeshash32 check
 	// for architectures where we don't have AES hashing implementations.
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && useAeshash32 {
 		hash = memHash32AES(key, m.seed)
 	} else {
 		hash = memHash32Fallback(key, m.seed)
@@ -199,7 +199,7 @@ func runtime_mapassign_fast32(typ *abi.MapType, m *Map, key uint32) unsafe.Point
 
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && useAeshash32 {
 		hash = memHash32AES(key, m.seed)
 	} else {
 		hash = memHash32Fallback(key, m.seed)
@@ -348,7 +348,7 @@ func runtime_mapassign_fast32ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && useAeshash32 {
 		hash = memHash32AES(uint32((uintptr)(key)), m.seed)
 	} else {
 		hash = memHash32Fallback(uint32((uintptr)(key)), m.seed)

@@ -212,7 +212,9 @@ var (
 	IfaceHash  = ifaceHash
 )
 
-var UseAeshash = &maps.UseAeshash
+var MinAeshashSize = &maps.MinAeshashSize
+
+var AeshashEnabled = maps.AeshashEnabled
 
 func MemclrBytes(b []byte) {
 	s := (*slice)(unsafe.Pointer(&b))

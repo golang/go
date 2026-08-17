@@ -13,21 +13,21 @@ import (
 const memHashAESImplemented = true
 
 func MemHash(p unsafe.Pointer, h, s uintptr) uintptr {
-	if UseAeshash {
+	if s >= MinAeshashSize {
 		return memHashAES(p, h, s)
 	}
 	return memHashFallback(p, h, s)
 }
 
 func MemHash32(k uint32, h uintptr) uintptr {
-	if UseAeshash {
+	if useAeshash32 {
 		return memHash32AES(k, h)
 	}
 	return memHash32Fallback(k, h)
 }
 
 func MemHash64(k uint64, h uintptr) uintptr {
-	if UseAeshash {
+	if useAeshash64 {
 		return memHash64AES(k, h)
 	}
 	return memHash64Fallback(k, h)
