@@ -97,6 +97,8 @@ func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, saw
 	if upgradeReq != nil {
 		serverUpgradeReq = http2ServerRequestFromRequest(upgradeReq)
 	}
+	nc.SetReadDeadline(time.Time{})
+	nc.SetWriteDeadline(time.Time{})
 	s.h2.ServeConn(nc, &http2.ServeConnOpts{
 		Context:          ctx,
 		Handler:          http2Handler{h},
