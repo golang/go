@@ -39,6 +39,13 @@ func (x simdType) ElemBytes() int {
 	return x.ElemBits() / 8
 }
 
+// PredUint16s is the number of uint16s that hold a whole SVE predicate: one bit
+// per vector byte, at the maximum vector length. It bounds the scratch buffer a
+// mask's String needs to read its own bits.
+func (x simdType) PredUint16s() int {
+	return (maxVectorBits/8 + 15) / 16
+}
+
 // IsScalable reports whether this vector type's length is only known at run
 // time. A scalable target's godefs run produces only scalable types, so the
 // target decides it.
@@ -276,6 +283,35 @@ func (m {{.Name}}) Store(bits []uint16) {
 
 //go:noescape
 func (m {{.Name}}) store(bits []uint16)
+{{end}}
+
+{{define "sveStringTmpl"}}
+{{- if eq .Type "mask"}}
+// String returns a string representation of SIMD mask m: 1 for an active lane,
+// 0 for an inactive one. Only the {{.LenExpr}} lanes that exist at the runtime
+// vector length are shown.
+func (m {{.Name}}) String() string {
+	var bits [{{.PredUint16s}}]uint16
+	m.Store(bits[:])
+	var s [{{.Lanes}}]{{.Base}}
+	n := {{.LenExpr}}
+	for i := range n {
+		if b := i{{if gt .ElemBytes 1}} * {{.ElemBytes}}{{end}}; bits[b/16]>>(b%16)&1 != 0 {
+			s[i] = 1
+		}
+	}
+	return sliceToString(s[:n])
+}
+{{- else}}
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x {{.Name}}) String() string {
+	var s [{{.Lanes}}]{{.Base}}
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
+{{- end}}
 {{end}}
 `
 
@@ -801,6 +837,14 @@ type psve struct {
 					if err := maskFromVal.ExecuteTemplate(buffer, "maskFromVal_amd64", typeDef); err != nil {
 						panic(fmt.Errorf("failed to execute maskFromVal template for type %s: %w", typeDef.Name, err))
 					}
+				}
+			}
+			// Scalable types print only the lanes that exist at the runtime vector
+			// length, so their String is generated here rather than by tmplgen (which
+			// generates the fixed-width ones from a constant lane count).
+			if typeDef.IsScalable() {
+				if err := t.ExecuteTemplate(buffer, "sveStringTmpl", typeDef); err != nil {
+					panic(fmt.Errorf("failed to execute sveStringTmpl template for type %s: %w", typeDef.Name, err))
 				}
 			}
 		}

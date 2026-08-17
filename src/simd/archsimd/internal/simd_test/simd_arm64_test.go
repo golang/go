@@ -7,7 +7,9 @@
 package simd_test
 
 import (
+	"fmt"
 	"simd/archsimd"
+	"strings"
 	"testing"
 )
 
@@ -149,4 +151,43 @@ func TestAddSaturatedSVE(t *testing.T) {
 			t.Errorf("uint8 lane %d: got %d, want 255", i, gu[i])
 		}
 	}
+}
+
+func TestStringSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no sve")
+	}
+	want := func(v any) string {
+		return "{" + strings.ReplaceAll(strings.Trim(fmt.Sprint(v), "[]"), " ", ",") + "}"
+	}
+
+	xs := make([]int8, archsimd.Int8s{}.Len())
+	ys := make([]int64, archsimd.Int64s{}.Len())
+	for i := range xs {
+		xs[i] = int8(i % 2)
+	}
+	for i := range ys {
+		ys[i] = int64(i % 2)
+	}
+	x := archsimd.LoadInt8s(xs)
+	y := archsimd.LoadInt64s(ys)
+	mx := x.Greater(archsimd.LoadInt8s(make([]int8, len(xs))))
+	my := y.Greater(archsimd.LoadInt64s(make([]int64, len(ys))))
+
+	if x.String() != want(xs) {
+		t.Errorf("x=%s wanted %s", x, want(xs))
+	}
+	if y.String() != want(ys) {
+		t.Errorf("y=%s wanted %s", y, want(ys))
+	}
+	if mx.String() != want(xs) {
+		t.Errorf("mx=%s wanted %s", mx, want(xs))
+	}
+	if my.String() != want(ys) {
+		t.Errorf("my=%s wanted %s", my, want(ys))
+	}
+	t.Logf("x=%s", x)
+	t.Logf("y=%s", y)
+	t.Logf("mx=%s", mx)
+	t.Logf("my=%s", my)
 }

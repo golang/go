@@ -82,6 +82,15 @@ func (x Float32s) StorePart(s []float32) int {
 //go:noescape
 func (x Float32s) storePart(s []float32)
 
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Float32s) String() string {
+	var s [8]float32
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
+
 // Float64s is a scalable SIMD vector of float64s.
 type Float64s struct {
 	float64x4 v256
@@ -149,6 +158,15 @@ func (x Float64s) StorePart(s []float64) int {
 
 //go:noescape
 func (x Float64s) storePart(s []float64)
+
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Float64s) String() string {
+	var s [4]float64
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
 
 // Int8s is a scalable SIMD vector of int8s.
 type Int8s struct {
@@ -218,6 +236,15 @@ func (x Int8s) StorePart(s []int8) int {
 //go:noescape
 func (x Int8s) storePart(s []int8)
 
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Int8s) String() string {
+	var s [32]int8
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
+
 // Int16s is a scalable SIMD vector of int16s.
 type Int16s struct {
 	int16x16 v256
@@ -285,6 +312,15 @@ func (x Int16s) StorePart(s []int16) int {
 
 //go:noescape
 func (x Int16s) storePart(s []int16)
+
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Int16s) String() string {
+	var s [16]int16
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
 
 // Int32s is a scalable SIMD vector of int32s.
 type Int32s struct {
@@ -354,6 +390,15 @@ func (x Int32s) StorePart(s []int32) int {
 //go:noescape
 func (x Int32s) storePart(s []int32)
 
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Int32s) String() string {
+	var s [8]int32
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
+
 // Int64s is a scalable SIMD vector of int64s.
 type Int64s struct {
 	int64x4 v256
@@ -421,6 +466,15 @@ func (x Int64s) StorePart(s []int64) int {
 
 //go:noescape
 func (x Int64s) storePart(s []int64)
+
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Int64s) String() string {
+	var s [4]int64
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
 
 // Uint8s is a scalable SIMD vector of uint8s.
 type Uint8s struct {
@@ -490,6 +544,15 @@ func (x Uint8s) StorePart(s []uint8) int {
 //go:noescape
 func (x Uint8s) storePart(s []uint8)
 
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Uint8s) String() string {
+	var s [32]uint8
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
+
 // Uint16s is a scalable SIMD vector of uint16s.
 type Uint16s struct {
 	uint16x16 v256
@@ -557,6 +620,15 @@ func (x Uint16s) StorePart(s []uint16) int {
 
 //go:noescape
 func (x Uint16s) storePart(s []uint16)
+
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Uint16s) String() string {
+	var s [16]uint16
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
 
 // Uint32s is a scalable SIMD vector of uint32s.
 type Uint32s struct {
@@ -626,6 +698,15 @@ func (x Uint32s) StorePart(s []uint32) int {
 //go:noescape
 func (x Uint32s) storePart(s []uint32)
 
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Uint32s) String() string {
+	var s [8]uint32
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
+
 // Uint64s is a scalable SIMD vector of uint64s.
 type Uint64s struct {
 	uint64x4 v256
@@ -694,6 +775,15 @@ func (x Uint64s) StorePart(s []uint64) int {
 //go:noescape
 func (x Uint64s) storePart(s []uint64)
 
+// String returns a string representation of SIMD vector x. Only the x.Len()
+// elements that exist at the runtime vector length are shown.
+func (x Uint64s) String() string {
+	var s [4]uint64
+	n := x.Len()
+	x.Store(s[:])
+	return sliceToString(s[:n])
+}
+
 // Mask8s is a scalable mask for a SIMD vector of 8-bit elements.
 //
 // An SVE predicate holds one bit per byte of the vector it governs, so a
@@ -740,6 +830,22 @@ func (m Mask8s) Store(bits []uint16) {
 
 //go:noescape
 func (m Mask8s) store(bits []uint16)
+
+// String returns a string representation of SIMD mask m: 1 for an active lane,
+// 0 for an inactive one. Only the vl() lanes that exist at the runtime
+// vector length are shown.
+func (m Mask8s) String() string {
+	var bits [2]uint16
+	m.Store(bits[:])
+	var s [32]int8
+	n := vl()
+	for i := range n {
+		if b := i; bits[b/16]>>(b%16)&1 != 0 {
+			s[i] = 1
+		}
+	}
+	return sliceToString(s[:n])
+}
 
 // Mask16s is a scalable mask for a SIMD vector of 16-bit elements.
 //
@@ -788,6 +894,22 @@ func (m Mask16s) Store(bits []uint16) {
 //go:noescape
 func (m Mask16s) store(bits []uint16)
 
+// String returns a string representation of SIMD mask m: 1 for an active lane,
+// 0 for an inactive one. Only the vl() / 2 lanes that exist at the runtime
+// vector length are shown.
+func (m Mask16s) String() string {
+	var bits [2]uint16
+	m.Store(bits[:])
+	var s [16]int16
+	n := vl() / 2
+	for i := range n {
+		if b := i * 2; bits[b/16]>>(b%16)&1 != 0 {
+			s[i] = 1
+		}
+	}
+	return sliceToString(s[:n])
+}
+
 // Mask32s is a scalable mask for a SIMD vector of 32-bit elements.
 //
 // An SVE predicate holds one bit per byte of the vector it governs, so a
@@ -835,6 +957,22 @@ func (m Mask32s) Store(bits []uint16) {
 //go:noescape
 func (m Mask32s) store(bits []uint16)
 
+// String returns a string representation of SIMD mask m: 1 for an active lane,
+// 0 for an inactive one. Only the vl() / 4 lanes that exist at the runtime
+// vector length are shown.
+func (m Mask32s) String() string {
+	var bits [2]uint16
+	m.Store(bits[:])
+	var s [8]int32
+	n := vl() / 4
+	for i := range n {
+		if b := i * 4; bits[b/16]>>(b%16)&1 != 0 {
+			s[i] = 1
+		}
+	}
+	return sliceToString(s[:n])
+}
+
 // Mask64s is a scalable mask for a SIMD vector of 64-bit elements.
 //
 // An SVE predicate holds one bit per byte of the vector it governs, so a
@@ -881,3 +1019,19 @@ func (m Mask64s) Store(bits []uint16) {
 
 //go:noescape
 func (m Mask64s) store(bits []uint16)
+
+// String returns a string representation of SIMD mask m: 1 for an active lane,
+// 0 for an inactive one. Only the vl() / 8 lanes that exist at the runtime
+// vector length are shown.
+func (m Mask64s) String() string {
+	var bits [2]uint16
+	m.Store(bits[:])
+	var s [4]int64
+	n := vl() / 8
+	for i := range n {
+		if b := i * 8; bits[b/16]>>(b%16)&1 != 0 {
+			s[i] = 1
+		}
+	}
+	return sliceToString(s[:n])
+}
