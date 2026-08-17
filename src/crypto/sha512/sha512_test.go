@@ -14,7 +14,9 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"runtime"
 	"testing"
+	"time"
 )
 
 type sha512Test struct {
@@ -998,16 +1000,16 @@ func maybeCloner(h hash.Hash) any {
 }
 
 var bench = New()
-var buf = make([]byte, 8192)
 
 func benchmarkSize(b *testing.B, size int) {
+	buf := make([]byte, size)
 	sum := make([]byte, bench.Size())
 	b.Run("New", func(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
 			bench.Reset()
-			bench.Write(buf[:size])
+			bench.Write(buf)
 			bench.Sum(sum[:0])
 		}
 	})
@@ -1015,14 +1017,14 @@ func benchmarkSize(b *testing.B, size int) {
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
-			Sum384(buf[:size])
+			Sum384(buf)
 		}
 	})
 	b.Run("Sum512", func(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
-			Sum512(buf[:size])
+			Sum512(buf)
 		}
 	})
 }
@@ -1037,4 +1039,41 @@ func BenchmarkHash1K(b *testing.B) {
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192)
+}
+
+func BenchmarkHash256K(b *testing.B) {
+	benchmarkSize(b, 256*1024)
+}
+
+func BenchmarkHash1M(b *testing.B) {
+	benchmarkSize(b, 1024*1024)
+}
+
+var sinkSTW []byte
+
+// BenchmarkSTW reports how long a garbage collection had to wait while a hash
+// ran alongside it, as gcwait-ns/op. Assembly is not preemptible, so a call
+// that covers the whole input blocks every goroutine in the process for as
+// long as it runs; bounding the call gives the collector a way in between
+// chunks. Run with GOMAXPROCS>=2 so the two actually overlap.
+func BenchmarkSTW(b *testing.B) {
+	buf := make([]byte, 64<<20)
+	var total time.Duration
+	var iters int
+	b.SetBytes(int64(len(buf)))
+	for b.Loop() {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			h := New()
+			h.Write(buf)
+			sinkSTW = h.Sum(nil)
+		}()
+		start := time.Now()
+		runtime.GC() // one per iteration, so the mean is well defined
+		total += time.Since(start)
+		iters++
+		<-done
+	}
+	b.ReportMetric(float64(total.Nanoseconds())/float64(iters), "gcwait-ns/op")
 }
