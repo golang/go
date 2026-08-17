@@ -2207,6 +2207,8 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 		return false
 	}
 	c.setState(c.rwc, StateActive, skipHooks)
+	c.rwc.SetReadDeadline(time.Time{})
+	c.rwc.SetWriteDeadline(time.Time{})
 	h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
 	fn(c.server, unencryptedTLSConn(c.rwc), h)
 	return true

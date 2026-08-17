@@ -46,6 +46,11 @@ const (
 	http2UnencryptedMode = testMode("h2unencrypted") // HTTP/2
 )
 
+type (
+	testAddMode  []testMode // default, plus these
+	testSkipMode []testMode // default, minus these
+)
+
 type testNotParallelOpt struct{}
 
 var (
@@ -70,6 +75,16 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 	parallel := true
 	for _, opt := range opts {
 		switch opt := opt.(type) {
+		case testAddMode:
+			for _, m := range opt {
+				if !slices.Contains(modes, m) {
+					modes = append(modes, m)
+				}
+			}
+		case testSkipMode:
+			modes = slices.DeleteFunc(modes, func(m testMode) bool {
+				return slices.Contains(opt, m)
+			})
 		case []testMode:
 			modes = opt
 		case testNotParallelOpt:
@@ -99,8 +114,12 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 //
 // The TB passed to f arranges for cleanup functions to be run in the synctest bubble.
 func runSynctest(t *testing.T, f func(t *testing.T, mode testMode), opts ...any) {
+	// HTTP/2 pool reset is not parallelizable.
+	opts = append(opts, testNotParallel)
 	run(t, func(t *testing.T, mode testMode) {
 		synctest.Test(t, func(t *testing.T) {
+			ResetPools()
+			defer ResetPools()
 			f(t, mode)
 		})
 	}, opts...)
@@ -168,7 +187,7 @@ var optFakeNet = new(struct{})
 // The optFakeNet option configures the server and client to use a fake network implementation,
 // suitable for use in testing/synctest tests.
 func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *clientServerTest {
-	if mode == http2Mode {
+	if mode == http2Mode || mode == http2UnencryptedMode {
 		CondSkipHTTP2(t)
 	}
 	cst := &clientServerTest{
