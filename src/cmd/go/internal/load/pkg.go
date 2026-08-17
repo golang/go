@@ -933,6 +933,20 @@ func loadPackageData(ld *modload.Loader, ctx context.Context, path, parentPath, 
 					modroot = gorootSrcCmd
 				}
 			}
+			if modroot == "" && cfg.BuildMod == "vendor" && ld.Enabled() {
+				// (If an enclosing module was chosen instead, modindex.GetPackage
+				// would return ErrNotIndexed because indexing stops at go.mod
+				// boundaries, silently falling back to slow unindexed ImportDir.)
+				// Find the most specific (longest) module root containing r.dir.
+				// In a workspace, one module might be a subdirectory of another
+				// (for example, /path/to/repo and /path/to/repo/submodule).
+				for _, m := range ld.MainModules.Versions() {
+					root := ld.MainModules.ModRoot(m)
+					if root != "" && str.HasFilePathPrefix(r.dir, root) && len(root) > len(modroot) {
+						modroot = root
+					}
+				}
+			}
 			if modroot != "" {
 				if rp, err := modindex.GetPackage(modroot, r.dir); err == nil {
 					data.p, data.err = rp.Import(cfg.BuildContext, buildMode)
@@ -1056,7 +1070,7 @@ var preloadWorkerCount = runtime.GOMAXPROCS(0)
 // modified by modload.LoadPackages.
 type preload struct {
 	cancel chan struct{}
-	sema   chan struct{}
+	queue  *par.Queue
 }
 
 // newPreload creates a new preloader. flush must be called later to avoid
@@ -1064,7 +1078,7 @@ type preload struct {
 func newPreload() *preload {
 	pre := &preload{
 		cancel: make(chan struct{}),
-		sema:   make(chan struct{}, preloadWorkerCount),
+		queue:  par.NewQueue(preloadWorkerCount),
 	}
 	return pre
 }
@@ -1075,19 +1089,18 @@ func newPreload() *preload {
 func (pre *preload) preloadMatches(ld *modload.Loader, ctx context.Context, opts PackageOpts, matches []*search.Match) {
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
-			select {
-			case <-pre.cancel:
-				return
-			case pre.sema <- struct{}{}:
-				go func(pkg string) {
-					mode := 0 // don't use vendoring or module import resolution
-					bp, loaded, err := loadPackageData(ld, ctx, pkg, "", base.Cwd(), "", false, mode)
-					<-pre.sema
-					if bp != nil && loaded && err == nil && !opts.IgnoreImports {
-						pre.preloadImports(ld, ctx, opts, bp.Imports, bp)
-					}
-				}(pkg)
-			}
+			pre.queue.Add(func() {
+				select {
+				case <-pre.cancel:
+					return
+				default:
+				}
+				mode := 0 // don't use vendoring or module import resolution
+				bp, loaded, err := loadPackageData(ld, ctx, pkg, "", base.Cwd(), "", false, mode)
+				if bp != nil && loaded && err == nil && !opts.IgnoreImports {
+					pre.preloadImports(ld, ctx, opts, bp.Imports, bp)
+				}
+			})
 		}
 	}
 }
@@ -1101,18 +1114,17 @@ func (pre *preload) preloadImports(ld *modload.Loader, ctx context.Context, opts
 		if path == "C" || path == "unsafe" {
 			continue
 		}
-		select {
-		case <-pre.cancel:
-			return
-		case pre.sema <- struct{}{}:
-			go func(path string) {
-				bp, loaded, err := loadPackageData(ld, ctx, path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
-				<-pre.sema
-				if bp != nil && loaded && err == nil && !opts.IgnoreImports {
-					pre.preloadImports(ld, ctx, opts, bp.Imports, bp)
-				}
-			}(path)
-		}
+		pre.queue.Add(func() {
+			select {
+			case <-pre.cancel:
+				return
+			default:
+			}
+			bp, loaded, err := loadPackageData(ld, ctx, path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
+			if bp != nil && loaded && err == nil && !opts.IgnoreImports {
+				pre.preloadImports(ld, ctx, opts, bp.Imports, bp)
+			}
+		})
 	}
 }
 
@@ -1127,9 +1139,7 @@ func (pre *preload) flush() {
 	}
 
 	close(pre.cancel)
-	for i := 0; i < preloadWorkerCount; i++ {
-		pre.sema <- struct{}{}
-	}
+	<-pre.queue.Idle()
 }
 
 func cleanImport(path string) string {

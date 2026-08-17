@@ -43,7 +43,8 @@ func newImportReader(name string, r io.Reader) *importReader {
 		b.Discard(3)
 	}
 	return &importReader{
-		b: b,
+		b:   b,
+		buf: make([]byte, 0, 1024),
 		pos: token.Position{
 			Filename: name,
 			Line:     1,

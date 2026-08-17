@@ -1,0 +1,45 @@
+# Test that vendor mode package loading works in a workspace
+# with nested modules.
+
+go work vendor
+go list -mod=vendor example.com/root/sub/p
+stdout example.com/root/sub/p
+go list -mod=vendor ./sub/p
+stdout example.com/root/sub/p
+
+-- go.work --
+go 1.21
+
+use (
+	.
+	./sub
+)
+
+-- go.mod --
+module example.com/root
+
+go 1.21
+
+-- root.go --
+package root
+
+-- sub/go.mod --
+module example.com/root/sub
+
+go 1.21
+
+require example.com/dep v0.0.0
+replace example.com/dep => ./dep
+
+-- sub/p/p.go --
+package p
+
+import _ "example.com/dep"
+
+-- sub/dep/go.mod --
+module example.com/dep
+
+go 1.21
+
+-- sub/dep/dep.go --
+package dep

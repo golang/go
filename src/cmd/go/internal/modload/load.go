@@ -277,37 +277,53 @@ func LoadPackages(ld *Loader, ctx context.Context, opts PackageOpts, patterns ..
 				// the exact version of a particular module increases during
 				// the loader iterations.
 				m.Pkgs = m.Pkgs[:0]
-				for _, dir := range m.Dirs {
-					var (
+				if len(m.Dirs) > 0 {
+					type result struct {
 						pkg string
 						err error
-					)
-					absDir := mkAbs(base.Cwd(), dir)
-					if m.IsLiteral() {
-						pkg, err = resolveLocalPackage(ld, ctx, absDir, rs)
-					} else {
-						// Wildcard matches have already been filtered to directories
-						// that contain packages. Avoid re-reading package files on
-						// every loader iteration just to map directory to import path.
-						pkg, err = localPackagePath(ld, ctx, absDir, rs)
 					}
-					if err != nil {
-						if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
-							continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
-						}
-
-						// If we're outside of a module, ensure that the failure mode
-						// indicates that.
-						if !ld.HasModRoot() {
-							die(ld)
-						}
-
-						if pld != nil {
-							m.AddError(err)
-						}
-						continue
+					results := make([]result, len(m.Dirs))
+					work := par.NewQueue(runtime.GOMAXPROCS(0))
+					for i, dir := range m.Dirs {
+						work.Add(func() {
+							var (
+								pkg string
+								err error
+							)
+							absDir := mkAbs(base.Cwd(), dir)
+							if m.IsLiteral() {
+								pkg, err = resolveLocalPackage(ld, ctx, absDir, rs)
+							} else {
+								// Wildcard matches have already been filtered to directories
+								// that contain packages. Avoid re-reading package files on
+								// every loader iteration just to map directory to import path.
+								pkg, err = localPackagePath(ld, ctx, absDir, rs)
+							}
+							results[i] = result{pkg, err}
+						})
 					}
-					m.Pkgs = append(m.Pkgs, pkg)
+					<-work.Idle()
+
+					for _, res := range results {
+						pkg, err := res.pkg, res.err
+						if err != nil {
+							if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
+								continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
+							}
+
+							// If we're outside of a module, ensure that the failure mode
+							// indicates that.
+							if !ld.HasModRoot() {
+								die(ld)
+							}
+
+							if pld != nil {
+								m.AddError(err)
+							}
+							continue
+						}
+						m.Pkgs = append(m.Pkgs, pkg)
+					}
 				}
 
 			case m.IsLiteral():
