@@ -872,6 +872,35 @@ func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
 	}
 }
 
+func TestServerReadHeaderTimeoutIsCleared(t *testing.T) {
+	runSynctest(t, testServerReadHeaderTimeoutIsCleared,
+		testAddMode{http2UnencryptedMode})
+}
+func testServerReadHeaderTimeoutIsCleared(t *testing.T, mode testMode) {
+	const timeout = time.Second
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(200)
+		NewResponseController(w).Flush()
+		time.Sleep(2 * timeout)
+		io.WriteString(w, "ok")
+	}), func(s *Server) {
+		s.ReadHeaderTimeout = timeout
+	}, optFakeNet)
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatalf("reading response body after ReadHeaderTimeout: %v", err)
+	}
+	if want := "ok"; string(got) != want {
+		t.Fatalf("response body = %q, want %q", got, want)
+	}
+}
+
 func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout) }
 func testServerReadTimeout(t *testing.T, mode testMode) {
 	respBody := "response body"
