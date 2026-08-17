@@ -61,6 +61,11 @@ const (
 	http3Mode            = testMode("h3")            // HTTP/3
 )
 
+type (
+	testAddMode  []testMode // default, plus these
+	testSkipMode []testMode // default, minus these
+)
+
 // http3SkippedMode is a convenient alias for []testMode{http1Mode, http2Mode},
 // which was the default test mode used by run and runSynctest prior to HTTP/3
 // development.
@@ -104,6 +109,16 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 	parallel := true
 	for _, opt := range opts {
 		switch opt := opt.(type) {
+		case testAddMode:
+			for _, m := range opt {
+				if !slices.Contains(modes, m) {
+					modes = append(modes, m)
+				}
+			}
+		case testSkipMode:
+			modes = slices.DeleteFunc(modes, func(m testMode) bool {
+				return slices.Contains(opt, m)
+			})
 		case []testMode:
 			modes = opt
 		case testNotParallelOpt:

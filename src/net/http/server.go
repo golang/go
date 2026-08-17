@@ -2249,6 +2249,8 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 		const sawClientPreface = true
 		c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
 	} else {
+		c.rwc.SetReadDeadline(time.Time{})
+		c.rwc.SetWriteDeadline(time.Time{})
 		h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
 		nextFunc(c.server, unencryptedTLSConn(c.rwc), h)
 	}
