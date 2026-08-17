@@ -17,3 +17,10 @@ func TestFilterNilAVX512(t *testing.T) {
 	}
 	runTestFilterNil(t, scan.FilterNilAVX512)
 }
+
+func filterNilPlatform() func(*uintptr, int32) int32 {
+	if scan.CanAVX512() {
+		return scan.FilterNilAVX512
+	}
+	return nil
+}

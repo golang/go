@@ -5,7 +5,10 @@
 package scan_test
 
 import (
+	"fmt"
+	"internal/runtime/gc"
 	"internal/runtime/gc/scan"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -95,4 +98,42 @@ func testFilterNil(t *testing.T, buf, want []uintptr, filterNil func(*uintptr, i
 	}
 	t.Logf("got:  %v", buf)
 	t.Logf("want: %v", want)
+}
+
+func BenchmarkFilterNil(b *testing.B) {
+	n := int(gc.PageWords)
+	for _, nilPct := range []int{0, 10, 50, 90, 100} {
+		b.Run(fmt.Sprintf("nil=%d", nilPct), func(b *testing.B) {
+			src := make([]uintptr, n)
+			nilN := n * nilPct / 100
+			for i := range src {
+				if i < nilN {
+					src[i] = 0
+				} else {
+					src[i] = uintptr(i) + 1
+				}
+			}
+			rnd := rand.New(rand.NewPCG(42, 42))
+			rnd.Shuffle(n, func(i, j int) { src[i], src[j] = src[j], src[i] })
+			buf := make([]uintptr, n)
+			b.Run("impl=Go", func(b *testing.B) {
+				for b.Loop() {
+					b.StopTimer()
+					copy(buf, src)
+					b.StartTimer()
+					scan.FilterNil(&buf[0], int32(n))
+				}
+			})
+			if platform := filterNilPlatform(); platform != nil {
+				b.Run("impl=Platform", func(b *testing.B) {
+					for b.Loop() {
+						b.StopTimer()
+						copy(buf, src)
+						b.StartTimer()
+						platform(&buf[0], int32(n))
+					}
+				})
+			}
+		})
+	}
 }
