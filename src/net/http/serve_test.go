@@ -7834,6 +7834,30 @@ func testServerExpect100ContinueUnreadBody(t *testing.T, mode testMode) {
 	}
 }
 
+func TestServer1xxExpect100ContinueRace(t *testing.T) {
+	runSynctest(t, func(t *testing.T, mode testMode) {
+		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			// Sending non-final informational statuses should not race with
+			// the automatically sent status 100 when the request body is read.
+			wg.Go(func() { w.WriteHeader(StatusProcessing) })
+			wg.Go(func() { w.WriteHeader(StatusEarlyHints) })
+			io.ReadAll(r.Body)
+		}))
+		req, _ := NewRequest("POST", cst.ts.URL, strings.NewReader("hello"))
+		req.Header.Set("Expect", "100-continue")
+		res, err := cst.c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != StatusOK {
+			t.Errorf("want 200 OK, got %v", res.Status)
+		}
+	})
+}
+
 func TestInvalidChunkedBodies(t *testing.T) {
 	for _, test := range []struct {
 		name string
