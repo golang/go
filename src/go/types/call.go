@@ -32,7 +32,8 @@ import (
 // If an error (other than a version error) occurs in any case, it is reported
 // and x.mode is set to invalid.
 func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexedExpr, infer bool) []Type {
-	assert(T != nil || ix != nil)
+	Tsig := T.sig()
+	assert(Tsig != nil || ix != nil)
 
 	var instErrPos positioner
 	if ix != nil {
@@ -101,7 +102,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 			// that makes sense when reported in error messages from infer, below.
 			expr := ast.NewIdent(T.desc)
 			expr.NamePos = x.Pos() // correct position
-			args = []*operand{{mode_: value, expr: expr, typ_: T.sig}}
+			args = []*operand{{mode_: value, expr: expr, typ_: Tsig}}
 			reverse = true
 		}
 

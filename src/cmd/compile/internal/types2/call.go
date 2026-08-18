@@ -31,7 +31,8 @@ import (
 // If an error (other than a version error) occurs in any case, it is reported
 // and x.mode is set to invalid.
 func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *syntax.IndexExpr, infer bool) []Type {
-	assert(T != nil || inst != nil)
+	Tsig := T.sig()
+	assert(Tsig != nil || inst != nil)
 
 	var instErrPos poser
 	if inst != nil {
@@ -99,7 +100,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 			// or the result type in a return statement. Create a pseudo-expression for that operand
 			// that makes sense when reported in error messages from infer, below.
 			expr := syntax.NewName(x.Pos(), T.desc)
-			args = []*operand{{mode_: value, expr: expr, typ_: T.sig}}
+			args = []*operand{{mode_: value, expr: expr, typ_: Tsig}}
 			reverse = true
 		}
 

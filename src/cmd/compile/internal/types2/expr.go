@@ -953,21 +953,30 @@ const (
 	statement
 )
 
-// target represent the (signature) type and description of the LHS
+// target represent the type and description of the LHS
 // variable of an assignment, or of a function result variable.
 type target struct {
-	sig  *Signature
+	typ  Type
 	desc string
 }
 
 // newTarget creates a new target for the given type and description.
-// The result is nil if typ is not a signature.
+// The result is nil if typ is nil.
 func newTarget(typ Type, desc string) *target {
 	if typ != nil {
-		if u, _ := commonUnder(typ, nil); u != nil {
-			if sig, _ := u.(*Signature); sig != nil {
-				return &target{sig, desc}
-			}
+		return &target{typ, desc}
+	}
+	return nil
+}
+
+// sig returns the target type T as a signature if it exists.
+// The result is nil if T is nil or T's type set has no common
+// signature type.
+func (T *target) sig() *Signature {
+	if T != nil {
+		if u, _ := commonUnder(T.typ, nil); u != nil {
+			sig, _ := u.(*Signature)
+			return sig // possibly nil
 		}
 	}
 	return nil
@@ -1018,7 +1027,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 		}
 	case *Signature:
 		if t.tparams != nil {
-			if enableReverseTypeInference && T != nil {
+			if enableReverseTypeInference && T.sig() != nil {
 				check.funcInst(T, x.Pos(), x, nil, true)
 				return
 			}
