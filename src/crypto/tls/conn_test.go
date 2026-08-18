@@ -138,12 +138,12 @@ func TestBrokenCertificateSkipped(t *testing.T) {
 		{name: "SupportsCertificate", buildIndex: false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.Certificates = []Certificate{brokenCert, testECDSAP256Cert}
 			if test.buildIndex {
 				serverConfig.BuildNameToCertificate()
 			}
-			clientConfig := testConfigClient.Clone()
+			clientConfig := testConfigClient()
 			_, cs, err := testHandshake(t, clientConfig, serverConfig)
 			if err != nil {
 				t.Fatalf("handshake failed: %v", err)
@@ -163,7 +163,7 @@ func runDynamicRecordSizingTest(t *testing.T, serverConfig *Config) {
 	serverConfig.DynamicRecordSizingDisabled = false
 	tlsConn := Server(serverConn, serverConfig)
 
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.MinVersion = serverConfig.MinVersion
 	clientConfig.MaxVersion = serverConfig.MaxVersion
 	clientConfig.CipherSuites = serverConfig.CipherSuites
@@ -268,7 +268,7 @@ func runDynamicRecordSizingTest(t *testing.T, serverConfig *Config) {
 func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
 	skipFIPS(t) // No RC4 in FIPS mode.
 
-	config := testConfigServer.Clone()
+	config := testConfigServer()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
 	runDynamicRecordSizingTest(t, config)
@@ -277,21 +277,21 @@ func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
 func TestDynamicRecordSizingWithCBC(t *testing.T) {
 	skipFIPS(t) // No CBC cipher suites in defaultCipherSuitesFIPS.
 
-	config := testConfigServer.Clone()
+	config := testConfigServer()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
 	runDynamicRecordSizingTest(t, config)
 }
 
 func TestDynamicRecordSizingWithAEAD(t *testing.T) {
-	config := testConfigServer.Clone()
+	config := testConfigServer()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 	runDynamicRecordSizingTest(t, config)
 }
 
 func TestDynamicRecordSizingWithTLSv13(t *testing.T) {
-	config := testConfigServer.Clone()
+	config := testConfigServer()
 	runDynamicRecordSizingTest(t, config)
 }
 
@@ -331,9 +331,9 @@ func TestRecordBadVersionTLS13(t *testing.T) {
 	defer server.Close()
 	defer client.Close()
 
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.MinVersion, clientConfig.MaxVersion = VersionTLS13, VersionTLS13
-	serverConfig := testConfigServer.Clone()
+	serverConfig := testConfigServer()
 	serverConfig.MinVersion, serverConfig.MaxVersion = VersionTLS13, VersionTLS13
 
 	go func() {
@@ -368,7 +368,7 @@ func TestKeyUpdateSpamPostHandshakeTLS13(t *testing.T) {
 	defer client.Close()
 
 	go func() {
-		c := Client(client, testConfigClient.Clone())
+		c := Client(client, testConfigClient())
 		if err := c.Handshake(); err != nil {
 			t.Error(err)
 			return
@@ -384,7 +384,7 @@ func TestKeyUpdateSpamPostHandshakeTLS13(t *testing.T) {
 			c.setWriteTrafficSecret(cs, QUICEncryptionLevelInitial, cs.nextTrafficSecret(c.out.trafficSecret))
 		}
 	}()
-	s := Server(server, testConfigServer.Clone())
+	s := Server(server, testConfigServer())
 	if err := s.Handshake(); err != nil {
 		t.Fatal(err)
 	}

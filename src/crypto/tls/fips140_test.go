@@ -25,11 +25,14 @@ import (
 	"time"
 )
 
-var testConfigFIPS140 = &Config{
-	Time:         testTime,
-	Certificates: []Certificate{testECDSAP256Cert, testRSAPSSCert, testEd25519Cert, testMLDSA44Cert, testMLDSA65Cert, testMLDSA87Cert},
-	RootCAs:      testRootCertPool,
-	ServerName:   "test.golang.example",
+func testConfigFIPS140() *Config {
+	return &Config{
+		Time:         testTime,
+		Certificates: []Certificate{testECDSAP256Cert, testRSAPSSCert, testEd25519Cert, testMLDSA44Cert, testMLDSA65Cert, testMLDSA87Cert},
+		RootCAs:      testRootCertPool,
+		ServerName:   "test.golang.example",
+		KeyLogWriter: testKeyLogWriter,
+	}
 }
 
 func allCipherSuitesIncludingTLS13() []uint16 {
@@ -67,10 +70,10 @@ func generateKeyShare(group CurveID) keyShare {
 func TestFIPSServerProtocolVersion(t *testing.T) {
 	test := func(t *testing.T, name string, v uint16, msg string) {
 		t.Run(name, func(t *testing.T) {
-			serverConfig := testConfigFIPS140.Clone()
+			serverConfig := testConfigFIPS140()
 			serverConfig.MinVersion = VersionSSL30
 			serverConfig.MaxVersion = VersionTLS13
-			clientConfig := testConfigFIPS140.Clone()
+			clientConfig := testConfigFIPS140()
 			clientConfig.MinVersion = v
 			clientConfig.MaxVersion = v
 			_, _, err := testHandshake(t, clientConfig, serverConfig)
@@ -195,7 +198,7 @@ func isFIPSSignatureScheme(alg SignatureScheme) bool {
 func TestFIPSServerCipherSuites(t *testing.T) {
 	for _, id := range allCipherSuitesIncludingTLS13() {
 		t.Run(fmt.Sprintf("suite=%s", CipherSuiteName(id)), func(t *testing.T) {
-			serverConfig := testConfigFIPS140.Clone()
+			serverConfig := testConfigFIPS140()
 			clientHello := &clientHelloMsg{
 				vers:                         VersionTLS12,
 				random:                       make([]byte, 32),
@@ -235,7 +238,7 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 func TestFIPSServerCurves(t *testing.T) {
 	for _, curveid := range curvePreferenceOrder() {
 		t.Run(fmt.Sprintf("curve=%v", curveid), func(t *testing.T) {
-			testConfig := testConfigFIPS140.Clone()
+			testConfig := testConfigFIPS140()
 			testConfig.CurvePreferences = []CurveID{curveid}
 
 			runWithFIPSDisabled(t, func(t *testing.T) {
@@ -288,7 +291,7 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 			if isMLDSA {
 				cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
 			}
-			serverConfig := testConfigFIPS140.Clone()
+			serverConfig := testConfigFIPS140()
 			testingOnlySupportedSignatureAlgorithms = []SignatureScheme{sigHash}
 			// PKCS#1 v1.5 signature algorithms can't be used standalone in TLS
 			// 1.3, and the ECDSA ones bind to the curve used. However, ML-DSA
@@ -298,7 +301,7 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 			}
 
 			runWithFIPSDisabled(t, func(t *testing.T) {
-				clientErr, serverErr := fipsHandshake(t, testConfigFIPS140, serverConfig)
+				clientErr, serverErr := fipsHandshake(t, testConfigFIPS140(), serverConfig)
 				if clientErr != nil {
 					t.Fatalf("expected handshake with %v to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
 				}
@@ -306,7 +309,7 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 
 			// With fipstls forced, bad curves should be rejected.
 			runWithFIPSEnabled(t, func(t *testing.T) {
-				clientErr, _ := fipsHandshake(t, testConfigFIPS140, serverConfig)
+				clientErr, _ := fipsHandshake(t, testConfigFIPS140(), serverConfig)
 				if isFIPSSignatureScheme(sigHash) {
 					if clientErr != nil {
 						t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
@@ -337,7 +340,7 @@ func testFIPSClientHello(t *testing.T) {
 	defer c.Close()
 	defer s.Close()
 
-	clientConfig := testConfigFIPS140.Clone()
+	clientConfig := testConfigFIPS140()
 	// All sorts of traps for the client to avoid.
 	clientConfig.MinVersion = VersionSSL30
 	clientConfig.MaxVersion = VersionTLS13
@@ -345,7 +348,7 @@ func testFIPSClientHello(t *testing.T) {
 	clientConfig.CurvePreferences = curvePreferenceOrder()
 
 	go Client(c, clientConfig).Handshake()
-	srv := Server(s, testConfigFIPS140)
+	srv := Server(s, testConfigFIPS140())
 	msg, err := srv.readHandshake(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -418,13 +421,13 @@ func TestFIPSCertAlgs(t *testing.T) {
 
 	// client verifying server cert
 	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key any, list [][]byte, ok bool) {
-		clientConfig := testConfigFIPS140.Clone()
+		clientConfig := testConfigFIPS140()
 		clientConfig.RootCAs = pool
 		clientConfig.InsecureSkipVerify = false
 		clientConfig.ServerName = "example.com"
 		clientConfig.Time = func() time.Time { return time.Unix(0, 0) }
 
-		serverConfig := testConfigFIPS140.Clone()
+		serverConfig := testConfigFIPS140()
 		serverConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
 		serverConfig.Time = func() time.Time { return time.Unix(0, 0) }
 
@@ -447,12 +450,12 @@ func TestFIPSCertAlgs(t *testing.T) {
 
 	// server verifying client cert
 	testClientCert := func(t *testing.T, desc string, pool *x509.CertPool, key any, list [][]byte, ok bool) {
-		clientConfig := testConfigFIPS140.Clone()
+		clientConfig := testConfigFIPS140()
 		clientConfig.InsecureSkipVerify = true
 		clientConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
 		clientConfig.Time = func() time.Time { return time.Unix(0, 0) }
 
-		serverConfig := testConfigFIPS140.Clone()
+		serverConfig := testConfigFIPS140()
 		serverConfig.ClientCAs = pool
 		serverConfig.ClientAuth = RequireAndVerifyClientCert
 		serverConfig.Time = func() time.Time { return time.Unix(0, 0) }
@@ -574,11 +577,11 @@ func TestFIPSCertificateWithoutVerification(t *testing.T) {
 	badCert := fipsCert(t, "L", fipsRSAKey(t, 1024), nil, fipsCertLeaf)
 
 	serverCert := func(t *testing.T, version uint16) (clientErr, serverErr error) {
-		clientConfig := testConfigFIPS140.Clone()
+		clientConfig := testConfigFIPS140()
 		clientConfig.InsecureSkipVerify = true
 		clientConfig.MinVersion = version
 		clientConfig.MaxVersion = version
-		serverConfig := testConfigFIPS140.Clone()
+		serverConfig := testConfigFIPS140()
 		serverConfig.Certificates = []Certificate{{Certificate: [][]byte{badCert.der}, PrivateKey: badCert.key}}
 		serverConfig.MinVersion = version
 		serverConfig.MaxVersion = version
@@ -586,12 +589,12 @@ func TestFIPSCertificateWithoutVerification(t *testing.T) {
 	}
 
 	clientCert := func(t *testing.T, version uint16) (clientErr, serverErr error) {
-		clientConfig := testConfigFIPS140.Clone()
+		clientConfig := testConfigFIPS140()
 		clientConfig.InsecureSkipVerify = true
 		clientConfig.Certificates = []Certificate{{Certificate: [][]byte{badCert.der}, PrivateKey: badCert.key}}
 		clientConfig.MinVersion = version
 		clientConfig.MaxVersion = version
-		serverConfig := testConfigFIPS140.Clone()
+		serverConfig := testConfigFIPS140()
 		serverConfig.ClientAuth = RequireAnyClientCert
 		serverConfig.MinVersion = version
 		serverConfig.MaxVersion = version

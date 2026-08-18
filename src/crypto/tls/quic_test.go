@@ -172,9 +172,9 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onEvent 
 }
 
 func TestQUICConnection(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 
 	cli := newTestQUICClient(t, clientConfig)
@@ -249,10 +249,10 @@ func TestQUICVersions(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			client := testConfigClient.Clone()
+			client := testConfigClient()
 			client.MinVersion = tc.clientMin
 			client.MaxVersion = tc.clientMax
-			server := testConfigServer.Clone()
+			server := testConfigServer()
 			server.MinVersion = tc.serverMin
 			server.MaxVersion = tc.serverMax
 
@@ -269,11 +269,11 @@ func TestQUICVersions(t *testing.T) {
 }
 
 func TestQUICSessionResumption(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	clientConfig.TLSConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 
 	cli := newTestQUICClient(t, clientConfig)
@@ -312,11 +312,11 @@ func TestQUICSessionResumption(t *testing.T) {
 }
 
 func TestQUICFragmentaryData(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	clientConfig.TLSConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 
 	cli := newTestQUICClient(t, clientConfig)
@@ -343,9 +343,9 @@ func TestQUICFragmentaryData(t *testing.T) {
 
 func TestQUICPostHandshakeClientAuthentication(t *testing.T) {
 	// RFC 9001, Section 4.4.
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	cli := newTestQUICClient(t, clientConfig)
 	cli.conn.SetTransportParameters(nil)
@@ -373,9 +373,9 @@ func TestQUICPostHandshakeClientAuthentication(t *testing.T) {
 
 func TestQUICPostHandshakeKeyUpdate(t *testing.T) {
 	// RFC 9001, Section 6.
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	cli := newTestQUICClient(t, clientConfig)
 	cli.conn.SetTransportParameters(nil)
@@ -399,9 +399,9 @@ func TestQUICPostHandshakeKeyUpdate(t *testing.T) {
 }
 
 func TestQUICPostHandshakeMessageTooLarge(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	cli := newTestQUICClient(t, clientConfig)
 	cli.conn.SetTransportParameters(nil)
@@ -423,12 +423,12 @@ func TestQUICPostHandshakeMessageTooLarge(t *testing.T) {
 }
 
 func TestQUICHandshakeError(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	clientConfig.TLSConfig.InsecureSkipVerify = false
 	clientConfig.TLSConfig.ServerName = "name"
 
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 
 	cli := newTestQUICClient(t, clientConfig)
@@ -455,10 +455,10 @@ func TestQUICHandshakeError(t *testing.T) {
 // Test that we can report an error produced by the GetEncryptedClientHelloKeys function.
 func TestQUICECHKeyError(t *testing.T) {
 	getECHKeysError := errors.New("error returned by GetEncryptedClientHelloKeys")
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	clientConfig.TLSConfig.NextProtos = []string{"h3"}
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	serverConfig.TLSConfig.NextProtos = []string{"h3"}
 	serverConfig.TLSConfig.GetEncryptedClientHelloKeys = func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) {
@@ -490,10 +490,10 @@ func TestQUICECHKeyError(t *testing.T) {
 // and that it reports the application protocol as soon as it has been
 // negotiated.
 func TestQUICConnectionState(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	clientConfig.TLSConfig.NextProtos = []string{"h3"}
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	serverConfig.TLSConfig.NextProtos = []string{"h3"}
 	cli := newTestQUICClient(t, clientConfig)
@@ -524,9 +524,9 @@ func TestQUICStartContextPropagation(t *testing.T) {
 	const key = "key"
 	const value = "value"
 	ctx := context.WithValue(context.Background(), key, value)
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	calls := 0
 	serverConfig.TLSConfig.GetConfigForClient = func(info *ClientHelloInfo) (*Config, error) {
@@ -555,10 +555,10 @@ func TestQUICClientHelloInfoConn(t *testing.T) {
 		clientHelloInfoConn.Close()
 		peerConn.Close()
 	})
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	serverConfig := &QUICConfig{
-		TLSConfig:           testConfigServer.Clone(),
+		TLSConfig:           testConfigServer(),
 		ClientHelloInfoConn: clientHelloInfoConn,
 	}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
@@ -584,9 +584,9 @@ func TestQUICClientHelloInfoConn(t *testing.T) {
 
 func TestQUICContextCancelation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	cli := newTestQUICClient(t, clientConfig)
 	cli.conn.SetTransportParameters(nil)
@@ -603,11 +603,11 @@ func TestQUICContextCancelation(t *testing.T) {
 }
 
 func TestQUICDelayedTransportParameters(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	clientConfig.TLSConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 
 	cliParams := "client params"
@@ -636,9 +636,9 @@ func TestQUICDelayedTransportParameters(t *testing.T) {
 }
 
 func TestQUICEmptyTransportParameters(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 
 	cli := newTestQUICClient(t, clientConfig)
@@ -664,7 +664,7 @@ func TestQUICEmptyTransportParameters(t *testing.T) {
 }
 
 func TestQUICCanceledWaitingForData(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	cli := newTestQUICClient(t, clientConfig)
 	cli.conn.SetTransportParameters(nil)
@@ -678,7 +678,7 @@ func TestQUICCanceledWaitingForData(t *testing.T) {
 }
 
 func TestQUICCanceledWaitingForTransportParams(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	cli := newTestQUICClient(t, clientConfig)
 	cli.conn.Start(context.Background())
@@ -691,12 +691,12 @@ func TestQUICCanceledWaitingForTransportParams(t *testing.T) {
 }
 
 func TestQUICEarlyData(t *testing.T) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	clientConfig.TLSConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 	clientConfig.TLSConfig.NextProtos = []string{"h3"}
 
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	serverConfig.TLSConfig.NextProtos = []string{"h3"}
 
@@ -752,13 +752,13 @@ func TestQUICEarlyDataDeclined(t *testing.T) {
 }
 
 func testQUICEarlyDataDeclined(t *testing.T, server bool) {
-	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
 	clientConfig.EnableSessionEvents = true
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
 	clientConfig.TLSConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 	clientConfig.TLSConfig.NextProtos = []string{"h3"}
 
-	serverConfig := &QUICConfig{TLSConfig: testConfigServer.Clone()}
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
 	serverConfig.EnableSessionEvents = true
 	serverConfig.TLSConfig.MinVersion = VersionTLS13
 	serverConfig.TLSConfig.NextProtos = []string{"h3"}
