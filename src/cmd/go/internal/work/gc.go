@@ -6,6 +6,7 @@ package work
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
@@ -53,16 +54,14 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
-	if archive != "" {
-		ofile = archive
-	} else {
-		out := "_go_.o"
-		ofile = objdir + out
+	if export == "" {
+		export = objdir + "_go_.x"
 	}
+	ofile = objdir + "_go_.o"
 
 	pkgpath := pkgPath(a)
 	defaultGcFlags := []string{"-p", pkgpath}
@@ -133,7 +132,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
 	}
 
-	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", export, "-linkobj", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
 	if p.Internal.LocalPrefix == "" {
 		args = append(args, "-nolocalimports")
 	} else {
@@ -150,9 +149,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			return "", nil, err
 		}
 		args = append(args, "-embedcfg", objdir+"embedcfg")
-	}
-	if ofile == archive {
-		args = append(args, "-pack")
 	}
 	if asmhdr {
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
@@ -505,6 +501,22 @@ func packInternal(afile string, ofiles []string) error {
 		if err != nil {
 			src.Close()
 			return err
+		}
+		if filepath.Base(ofile) == "_go_.o" {
+			header := []byte("!<arch>\n")
+			b := make([]byte, len(header))
+			// If this is an archive, copy the inner entries over.
+			if _, err := io.ReadFull(src, b[:]); err == nil && bytes.Equal(header, b) {
+				_, err := io.Copy(w, src)
+				src.Close()
+				if err != nil {
+					return fmt.Errorf("copying %s to %s: %v", ofile, afile, err)
+				}
+				continue
+			}
+			// Otherwise, seek back to the beginning and continue to add
+			// the full file to the archive.
+			src.Seek(0, 0)
 		}
 		// Note: Not using %-16.16s format because we care
 		// about bytes, not runes.
