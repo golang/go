@@ -338,10 +338,10 @@
 (Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c]) o:(Neg(64|32|16|8) x)) && o.Uses == 1 => (Eq(64|32|16|8)  (Const(64|32|16|8) <t> [-c]) x)
 (Neq(64|32|16|8) (Const(64|32|16|8) <t> [c]) o:(Neg(64|32|16|8) x)) && o.Uses == 1 => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [-c]) x)
 
-((Eq|Neq)64  (Const64 <t> [c]) o:(Mul64 (Const64 [d]) x)) && uint64(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)64  (Const64 <t> [int64(uint64(c) *        ssa.ModularMultiplicativeInverse(uint64(d))) ]) x)
-((Eq|Neq)32  (Const32 <t> [c]) o:(Mul32 (Const32 [d]) x)) && uint32(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)32  (Const32 <t> [int32(uint32(c) * uint32(ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
-((Eq|Neq)16  (Const16 <t> [c]) o:(Mul16 (Const16 [d]) x)) && uint16(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)16  (Const16 <t> [int16(uint16(c) * uint16(ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
-((Eq|Neq)8   (Const8  <t> [c]) o:(Mul8  (Const8  [d]) x)) && uint8( d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)8   (Const8  <t> [int8( uint8( c) * uint8( ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
+((Eq|Neq)64  (Const64 <t> [c]) o:(Mul64 (Const64 [d]) x)) && uint64(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)64  (Const64 <t> [int64(uint64(c) *        modularMultiplicativeInverse(uint64(d))) ]) x)
+((Eq|Neq)32  (Const32 <t> [c]) o:(Mul32 (Const32 [d]) x)) && uint32(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)32  (Const32 <t> [int32(uint32(c) * uint32(modularMultiplicativeInverse(uint64(d))))]) x)
+((Eq|Neq)16  (Const16 <t> [c]) o:(Mul16 (Const16 [d]) x)) && uint16(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)16  (Const16 <t> [int16(uint16(c) * uint16(modularMultiplicativeInverse(uint64(d))))]) x)
+((Eq|Neq)8   (Const8  <t> [c]) o:(Mul8  (Const8  [d]) x)) && uint8( d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)8   (Const8  <t> [int8( uint8( c) * uint8( modularMultiplicativeInverse(uint64(d))))]) x)
 
 // signed integer range: ( c <= x && x (<|<=) d ) -> ( unsigned(x-c) (<|<=) unsigned(d-c) )
 (AndB (Leq64 (Const64 [c]) x) ((Less|Leq)64 x (Const64 [d]))) && d >= c => ((Less|Leq)64U (Sub64 <x.Type> x (Const64 <x.Type> [c])) (Const64 <x.Type> [d-c]))

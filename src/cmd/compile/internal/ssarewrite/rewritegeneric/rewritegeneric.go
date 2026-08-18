@@ -9790,7 +9790,7 @@ func rewriteValue_OpEq16(v *ssa.Value) bool {
 	}
 	// match: (Eq16 (Const16 <t> [c]) o:(Mul16 (Const16 [d]) x))
 	// cond: uint16(d)%2 == 1 && o.Uses == 1
-	// result: (Eq16 (Const16 <t> [int16(uint16(c) * uint16(ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
+	// result: (Eq16 (Const16 <t> [int16(uint16(c) * uint16(modularMultiplicativeInverse(uint64(d))))]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpConst16 {
@@ -9816,7 +9816,7 @@ func rewriteValue_OpEq16(v *ssa.Value) bool {
 				}
 				v.Reset(ssaop.OpEq16)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v0.AuxInt = ssa.Int16ToAuxInt(int16(uint16(c) * uint16(ssa.ModularMultiplicativeInverse(uint64(d)))))
+				v0.AuxInt = ssa.Int16ToAuxInt(int16(uint16(c) * uint16(modularMultiplicativeInverse(uint64(d)))))
 				v.AddArg2(v0, x)
 				return true
 			}
@@ -10204,7 +10204,7 @@ func rewriteValue_OpEq32(v *ssa.Value) bool {
 	}
 	// match: (Eq32 (Const32 <t> [c]) o:(Mul32 (Const32 [d]) x))
 	// cond: uint32(d)%2 == 1 && o.Uses == 1
-	// result: (Eq32 (Const32 <t> [int32(uint32(c) * uint32(ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
+	// result: (Eq32 (Const32 <t> [int32(uint32(c) * uint32(modularMultiplicativeInverse(uint64(d))))]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpConst32 {
@@ -10230,7 +10230,7 @@ func rewriteValue_OpEq32(v *ssa.Value) bool {
 				}
 				v.Reset(ssaop.OpEq32)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v0.AuxInt = ssa.Int32ToAuxInt(int32(uint32(c) * uint32(ssa.ModularMultiplicativeInverse(uint64(d)))))
+				v0.AuxInt = ssa.Int32ToAuxInt(int32(uint32(c) * uint32(modularMultiplicativeInverse(uint64(d)))))
 				v.AddArg2(v0, x)
 				return true
 			}
@@ -10577,7 +10577,7 @@ func rewriteValue_OpEq64(v *ssa.Value) bool {
 	}
 	// match: (Eq64 (Const64 <t> [c]) o:(Mul64 (Const64 [d]) x))
 	// cond: uint64(d)%2 == 1 && o.Uses == 1
-	// result: (Eq64 (Const64 <t> [int64(uint64(c) * ssa.ModularMultiplicativeInverse(uint64(d))) ]) x)
+	// result: (Eq64 (Const64 <t> [int64(uint64(c) * modularMultiplicativeInverse(uint64(d))) ]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpConst64 {
@@ -10603,7 +10603,7 @@ func rewriteValue_OpEq64(v *ssa.Value) bool {
 				}
 				v.Reset(ssaop.OpEq64)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v0.AuxInt = ssa.Int64ToAuxInt(int64(uint64(c) * ssa.ModularMultiplicativeInverse(uint64(d))))
+				v0.AuxInt = ssa.Int64ToAuxInt(int64(uint64(c) * modularMultiplicativeInverse(uint64(d))))
 				v.AddArg2(v0, x)
 				return true
 			}
@@ -10952,7 +10952,7 @@ func rewriteValue_OpEq8(v *ssa.Value) bool {
 	}
 	// match: (Eq8 (Const8 <t> [c]) o:(Mul8 (Const8 [d]) x))
 	// cond: uint8( d)%2 == 1 && o.Uses == 1
-	// result: (Eq8 (Const8 <t> [int8( uint8( c) * uint8( ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
+	// result: (Eq8 (Const8 <t> [int8( uint8( c) * uint8( modularMultiplicativeInverse(uint64(d))))]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpConst8 {
@@ -10978,7 +10978,7 @@ func rewriteValue_OpEq8(v *ssa.Value) bool {
 				}
 				v.Reset(ssaop.OpEq8)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v0.AuxInt = ssa.Int8ToAuxInt(int8(uint8(c) * uint8(ssa.ModularMultiplicativeInverse(uint64(d)))))
+				v0.AuxInt = ssa.Int8ToAuxInt(int8(uint8(c) * uint8(modularMultiplicativeInverse(uint64(d)))))
 				v.AddArg2(v0, x)
 				return true
 			}
@@ -21900,7 +21900,7 @@ func rewriteValue_OpNeq16(v *ssa.Value) bool {
 	}
 	// match: (Neq16 (Const16 <t> [c]) o:(Mul16 (Const16 [d]) x))
 	// cond: uint16(d)%2 == 1 && o.Uses == 1
-	// result: (Neq16 (Const16 <t> [int16(uint16(c) * uint16(ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
+	// result: (Neq16 (Const16 <t> [int16(uint16(c) * uint16(modularMultiplicativeInverse(uint64(d))))]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpConst16 {
@@ -21926,7 +21926,7 @@ func rewriteValue_OpNeq16(v *ssa.Value) bool {
 				}
 				v.Reset(ssaop.OpNeq16)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst16, t)
-				v0.AuxInt = ssa.Int16ToAuxInt(int16(uint16(c) * uint16(ssa.ModularMultiplicativeInverse(uint64(d)))))
+				v0.AuxInt = ssa.Int16ToAuxInt(int16(uint16(c) * uint16(modularMultiplicativeInverse(uint64(d)))))
 				v.AddArg2(v0, x)
 				return true
 			}
@@ -22250,7 +22250,7 @@ func rewriteValue_OpNeq32(v *ssa.Value) bool {
 	}
 	// match: (Neq32 (Const32 <t> [c]) o:(Mul32 (Const32 [d]) x))
 	// cond: uint32(d)%2 == 1 && o.Uses == 1
-	// result: (Neq32 (Const32 <t> [int32(uint32(c) * uint32(ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
+	// result: (Neq32 (Const32 <t> [int32(uint32(c) * uint32(modularMultiplicativeInverse(uint64(d))))]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpConst32 {
@@ -22276,7 +22276,7 @@ func rewriteValue_OpNeq32(v *ssa.Value) bool {
 				}
 				v.Reset(ssaop.OpNeq32)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
-				v0.AuxInt = ssa.Int32ToAuxInt(int32(uint32(c) * uint32(ssa.ModularMultiplicativeInverse(uint64(d)))))
+				v0.AuxInt = ssa.Int32ToAuxInt(int32(uint32(c) * uint32(modularMultiplicativeInverse(uint64(d)))))
 				v.AddArg2(v0, x)
 				return true
 			}
@@ -22623,7 +22623,7 @@ func rewriteValue_OpNeq64(v *ssa.Value) bool {
 	}
 	// match: (Neq64 (Const64 <t> [c]) o:(Mul64 (Const64 [d]) x))
 	// cond: uint64(d)%2 == 1 && o.Uses == 1
-	// result: (Neq64 (Const64 <t> [int64(uint64(c) * ssa.ModularMultiplicativeInverse(uint64(d))) ]) x)
+	// result: (Neq64 (Const64 <t> [int64(uint64(c) * modularMultiplicativeInverse(uint64(d))) ]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpConst64 {
@@ -22649,7 +22649,7 @@ func rewriteValue_OpNeq64(v *ssa.Value) bool {
 				}
 				v.Reset(ssaop.OpNeq64)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst64, t)
-				v0.AuxInt = ssa.Int64ToAuxInt(int64(uint64(c) * ssa.ModularMultiplicativeInverse(uint64(d))))
+				v0.AuxInt = ssa.Int64ToAuxInt(int64(uint64(c) * modularMultiplicativeInverse(uint64(d))))
 				v.AddArg2(v0, x)
 				return true
 			}
@@ -22996,7 +22996,7 @@ func rewriteValue_OpNeq8(v *ssa.Value) bool {
 	}
 	// match: (Neq8 (Const8 <t> [c]) o:(Mul8 (Const8 [d]) x))
 	// cond: uint8( d)%2 == 1 && o.Uses == 1
-	// result: (Neq8 (Const8 <t> [int8( uint8( c) * uint8( ssa.ModularMultiplicativeInverse(uint64(d))))]) x)
+	// result: (Neq8 (Const8 <t> [int8( uint8( c) * uint8( modularMultiplicativeInverse(uint64(d))))]) x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != ssaop.OpConst8 {
@@ -23022,7 +23022,7 @@ func rewriteValue_OpNeq8(v *ssa.Value) bool {
 				}
 				v.Reset(ssaop.OpNeq8)
 				v0 := b.NewValue0(v.Pos, ssaop.OpConst8, t)
-				v0.AuxInt = ssa.Int8ToAuxInt(int8(uint8(c) * uint8(ssa.ModularMultiplicativeInverse(uint64(d)))))
+				v0.AuxInt = ssa.Int8ToAuxInt(int8(uint8(c) * uint8(modularMultiplicativeInverse(uint64(d)))))
 				v.AddArg2(v0, x)
 				return true
 			}
