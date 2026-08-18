@@ -104,7 +104,7 @@ func (check *Checker) funcLit(x *operand, e *syntax.FuncLit) {
 	}
 }
 
-func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, hint Type) {
+func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit, hint Type) {
 	var typ, base Type
 	var isElem bool // true if composite literal is an element of an enclosing composite literal
 
@@ -139,11 +139,12 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 
 	default:
 		// no composite literal type or hint present - use assignment context (if available and past Go 1.28)
-		if U != nil {
+		if T != nil {
+			assert(T.typ != nil)
 			// report a version error only if we have an inferred type
 			check.verifyVersionf(e, go1_28, "missing type in composite literal")
 			// continue with the inferred type regardless of version
-			typ = U
+			typ = T.typ
 			base = typ
 			// *T implies &T{}
 			u, _ := commonUnder(base, nil)
@@ -207,7 +208,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 				}
 				// we can now check the value using the field target type
 				etyp := fld.typ
-				check.genericExpr(etyp, x, kv.Value, nil)
+				check.genericExpr(newTarget(etyp, "map value"), x, kv.Value, nil)
 				if len(index) > 1 && !check.verifyVersionf(kv.Key, go1_27, "use of promoted field %s in struct literal of type %s", fieldPath(utyp, index), base) {
 					continue
 				}
@@ -242,7 +243,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 				// i < len(fields)
 				fld := fields[i]
 				etyp := fld.typ
-				check.genericExpr(etyp, x, e, nil)
+				check.genericExpr(newTarget(etyp, "struct field"), x, e, nil)
 				if !fld.Exported() && fld.pkg != check.pkg {
 					check.errorf(x, UnexportedLitField, "implicit assignment to unexported field %s in struct literal of type %s", fld.name, base)
 					continue
@@ -298,7 +299,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 				check.error(e, MissingLitKey, "missing key in map literal")
 				continue
 			}
-			check.genericExpr(utyp.key, x, kv.Key, utyp.key)
+			check.genericExpr(newTarget(utyp.key, "map key"), x, kv.Key, utyp.key)
 			check.assignment(x, utyp.key, "map literal")
 			if !x.isValid() {
 				continue
@@ -323,7 +324,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 					continue
 				}
 			}
-			check.genericExpr(utyp.elem, x, kv.Value, utyp.elem)
+			check.genericExpr(newTarget(utyp.elem, "map value"), x, kv.Value, utyp.elem)
 			check.assignment(x, utyp.elem, "map literal")
 		}
 
@@ -400,7 +401,7 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
 
 		// check element against composite literal element type
 		var x operand
-		check.genericExpr(typ, &x, eval, typ)
+		check.genericExpr(newTarget(typ, "array or slice element"), &x, eval, typ)
 		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max

@@ -95,7 +95,7 @@ func indexes() {
 	_ = &s /* ERROR "cannot take address" */ [:10]
 
 	var m map[string]int
-	_ = m[0 /* ERRORx `cannot use .* in map index` */ ]
+	_ = m[0 /* ERRORx `cannot use .* in map key` */ ]
 	_ = m /* ERROR "cannot slice" */ ["foo" : "bar"]
 	_ = m["foo"]
 	// ok is of type bool

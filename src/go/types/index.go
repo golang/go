@@ -115,8 +115,8 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 			return false
 		}
 		var key operand
-		check.genericExpr(typ.key, &key, index, nil)
-		check.assignment(&key, typ.key, "map index")
+		check.genericExpr(newTarget(typ.key, "map key"), &key, index, nil)
+		check.assignment(&key, typ.key, "map key")
 		// ok to continue even if indexing failed - map element type is known
 		x.mode_ = mapindex
 		x.typ_ = typ.elem
@@ -189,8 +189,8 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 					return false
 				}
 				var k operand
-				check.genericExpr(key, &k, index, nil)
-				check.assignment(&k, key, "map index")
+				check.genericExpr(newTarget(key, "map key"), &k, index, nil)
+				check.assignment(&k, key, "map key")
 				// ok to continue even if indexing failed - map element type is known
 				x.mode_ = mapindex
 				x.typ_ = elem
@@ -231,7 +231,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 }
 
 func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
-	check.expr(nil, nil, x, e.X)
+	check.expr(nil, x, e.X)
 	if !x.isValid() {
 		check.use(e.Low, e.High, e.Max)
 		return
@@ -419,7 +419,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 	val = -1
 
 	var x operand
-	check.expr(nil, nil, &x, index)
+	check.expr(nil, &x, index)
 	if !check.isValidIndex(&x, InvalidIndex, "index", false) {
 		return
 	}

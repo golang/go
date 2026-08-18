@@ -211,7 +211,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		case 0:
 			check.errorf(inNode(call, call.Rparen), WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
-			check.expr(newTarget(T, "conversion"), T, x, call.Args[0])
+			check.expr(newTarget(T, "conversion"), x, call.Args[0])
 			if x.isValid() {
 				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
@@ -361,7 +361,7 @@ func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
 		xlist = make([]*operand, n)
 		for i, e := range elist {
 			var x operand
-			check.expr(nil, nil, &x, e)
+			check.expr(nil, &x, e)
 			xlist[i] = &x
 		}
 	}
@@ -376,6 +376,8 @@ func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
 // elements do not exist (targsList is nil) or the elements are nil.
 // For each partially instantiated generic function operand, the corresponding
 // targsList elements are the operand's partial type arguments.
+//
+// TODO(gri) consider passing targetAt (instead of typeAt) for better context (target desc can be more accurate)
 func (check *Checker) genericExprList(typeAt func(int) Type, elist []ast.Expr) (resList []*operand, targsList [][]Type) {
 	if debug {
 		defer func() {
@@ -419,7 +421,7 @@ func (check *Checker) genericExprList(typeAt func(int) Type, elist []ast.Expr) (
 			resList = []*operand{&x}
 		} else {
 			// x is not a function instantiation (it may still be a generic function).
-			check.rawExpr(nil, typeAt(0), &x, e, nil, true)
+			check.rawExpr(newTarget(typeAt(0), "function parameter"), &x, e, nil, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 			if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 				// x is a function call returning multiple values; it cannot be generic.
@@ -453,7 +455,7 @@ func (check *Checker) genericExprList(typeAt func(int) Type, elist []ast.Expr) (
 				}
 			} else {
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
-				check.genericExpr(typeAt(i), &x, e, nil)
+				check.genericExpr(newTarget(typeAt(i), "function parameter"), &x, e, nil)
 			}
 			resList[i] = &x
 		}
@@ -1050,7 +1052,7 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 			check.usedVars[v] = v_used // restore v.used
 		}
 	default:
-		check.rawExpr(nil, nil, &x, e, nil, true)
+		check.rawExpr(nil, &x, e, nil, true)
 	}
 	return x.isValid()
 }
