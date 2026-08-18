@@ -1321,9 +1321,6 @@ func prove(f *ssa.Func) {
 				addBranchRestrictions(ft, parent, branch)
 			}
 
-			// Add slices of the same length start from current block.
-			addSlicesOfSameLen(ft, node.block)
-
 			if ft.unsat {
 				// node.block is unreachable.
 				// Remove it and don't visit
@@ -1337,6 +1334,9 @@ func prove(f *ssa.Func) {
 			// ft when we unwind.
 
 			ft.topoSortValuesInBlock(node.block)
+
+			// Add slices of the same length start from current block.
+			addSlicesOfSameLen(ft, node.block)
 
 			for _, v := range node.block.Values {
 				ft.flowLimit(v)
