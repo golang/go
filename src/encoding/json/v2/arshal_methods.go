@@ -67,6 +67,7 @@ type Marshaler interface {
 // the Encoder. The "json" package calling the method will
 // use the next available JSON representation for the receiver type,
 // as described in [Marshal].
+//
 // Implementations must not retain the pointer to [jsontext.Encoder].
 //
 // If the returned error is a [SemanticError], then unpopulated fields
@@ -133,7 +134,9 @@ type Unmarshaler interface {
 // Alternatively, it may return [errors.ErrUnsupported] without mutating
 // the Decoder. The "json" package calling the method will
 // use the next available JSON representation for the receiver type.
-// Implementations must not retain the pointer to [jsontext.Decoder].
+//
+// Implementations of UnmarshalJSONFrom must not retain the method receiver
+// or the pointer to [jsontext.Decoder].
 //
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
