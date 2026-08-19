@@ -2,8 +2,10 @@
 
 package ssacompile
 
-import "cmd/compile/internal/ssa"
-import "cmd/compile/internal/ssa/ssaop"
+import (
+	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 type SIMDLogicalOP uint8
 
