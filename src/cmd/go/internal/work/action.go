@@ -128,10 +128,10 @@ type Action struct {
 }
 
 // BuildActionID returns the action ID section of a's build ID.
-func (a *Action) BuildActionID() string { return actionID(a.buildID) }
+func (a *Action) BuildActionID() string { return buildActionID(a.buildID) }
 
 // BuildContentID returns the content ID section of a's build ID.
-func (a *Action) BuildContentID() string { return contentID(a.buildID) }
+func (a *Action) BuildContentID() string { return buildObjectID(a.buildID) }
 
 // BuildID returns a's build ID.
 func (a *Action) BuildID() string { return a.buildID }

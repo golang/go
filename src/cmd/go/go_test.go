@@ -2228,19 +2228,19 @@ func TestTestCache(t *testing.T) {
 	// Changing the actual package should have limited effects.
 	tg.tempFile("src/p1/p1.go", "package p1\nvar X = 02\n")
 	tg.run("test", "-p=1", "-x", "-v", "-short", "t/...")
-
-	// p2 should have been rebuilt.
-	tg.grepStderr(`([\\/]compile|gccgo).*p2.go`, "did not recompile p2")
+	// p2 should not have been rebuilt.
+	tg.grepStderrNot(`([\\/]compile|gccgo).*p2.go`, "incorrectly recompiled p2")
 
 	// t1 does not import anything, should not have been rebuilt.
 	tg.grepStderrNot(`([\\/]compile|gccgo).*t1_test.go`, "incorrectly recompiled t1")
 	tg.grepStderrNot(`([\\/]link|gccgo).*t1_test`, "incorrectly relinked t1_test")
 	tg.grepStdout(`ok  \tt/t1\t\(cached\)`, "did not cache t/t1")
 
-	// t2 imports p1 and must be rebuilt and relinked,
-	// but the change should not have any effect on the test binary,
+	// t2 imports p1 and it must not be rebuilt because p1's export data
+	// didn't change but must be relinked because p1's object data did.
+	// The change should not have any effect on the test binary,
 	// so the test should not have been rerun.
-	tg.grepStderr(`([\\/]compile|gccgo).*t2_test.go`, "did not recompile t2")
+	tg.grepStderrNot(`([\\/]compile|gccgo).*t2_test.go`, "incorrectly recompiled t2")
 	tg.grepStderr(`([\\/]link|gccgo).*t2\.test`, "did not relink t2_test")
 	// This check does not currently work with gccgo, as garbage
 	// collection of unused variables is not turned on by default.
@@ -2249,7 +2249,7 @@ func TestTestCache(t *testing.T) {
 	}
 
 	// t3 imports p1, and changing X changes t3's test binary.
-	tg.grepStderr(`([\\/]compile|gccgo).*t3_test.go`, "did not recompile t3")
+	tg.grepStderrNot(`([\\/]compile|gccgo).*t3_test.go`, "incorrectly recompiled t3")
 	tg.grepStderr(`([\\/]link|gccgo).*t3\.test`, "did not relink t3_test")
 	tg.grepStderr(`t3\.test.*-test.short`, "did not rerun t3_test")
 	tg.grepStdoutNot(`ok  \tt/t3\t\(cached\)`, "reported cached t3_test result")

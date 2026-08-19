@@ -15,7 +15,7 @@ stale -cover m/example
 
 # Collect build ID from for m/example built with -cover.
 go list -cover -export -f '{{.BuildID}}' m/example
-cp stdout $WORK/listbuildid.txt
+cp stdout $WORK/rawlistbuildid.txt
 
 # Now build the m/example binary with coverage.
 go build -cover -o $WORK/m.exe m/example
@@ -26,9 +26,11 @@ cp stdout $WORK/rawtoolbuildid.txt
 
 # Make sure that the two build IDs agree with respect to the
 # m/example package. Build IDs from binaries are of the form X/Y/Z/W
-# where Y/Z is the package build ID; running the program below will
-# pick out the parts of the ID that we want.
+# where Y is the package action ID and Z is the package's object's content ID.
+# Running the program below will pick out the parts of the ID that we want.
 env GOCOVERDIR=$WORK
+exec $WORK/m.exe $WORK/rawlistbuildid.txt
+cp stdout $WORK/listbuildid.txt
 exec $WORK/m.exe $WORK/rawtoolbuildid.txt
 cp stdout $WORK/toolbuildid.txt
 
@@ -59,8 +61,16 @@ func main() {
 		os.Exit(1)
 	}
 	fields := strings.Split(strings.TrimSpace(string(content)), "/")
-	if len(fields) != 4 {
-		os.Exit(2)
+	switch len(fields) {
+	case 3:
+	    // We're reading a build action id X/Y/Z: return X/Z, the
+	    // part that will be embedded in the link's build id.
+	    fmt.Println(fields[0] + "/" + fields[2])
+	case 4:
+	    // We're reading a link action id X/Y/Z/W: return Y/Z the part
+	    // derived from the main package's build action.
+        fmt.Println(fields[1] + "/" + fields[2])
+    default:
+        os.Exit(2)
 	}
-	fmt.Println(fields[1] + "/" + fields[2])
 }

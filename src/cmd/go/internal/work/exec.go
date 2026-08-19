@@ -373,7 +373,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
 		if p1 != nil && p1 != p { // p can show up in its own action deps in a cache or cgo action
-			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, contentID(a1.buildID))
+			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, buildExportID(a1.buildID))
 		}
 		if a1.Mode == "preprocess PGO profile" {
 			fmt.Fprintf(h, "pgofile %s\n", b.fileHash(a1.built))
@@ -1868,7 +1868,7 @@ func (b *Builder) exportActionID(a *Action, ecfg *exportConfig) cache.ActionID {
 	}
 	// Any dependencies.
 	for _, dep := range a.Deps {
-		fmt.Fprintf(h, "packageFile %s=%s\n", dep.Package.ImportPath, contentID(dep.buildID))
+		fmt.Fprintf(h, "packageFile %s=%s\n", dep.Package.ImportPath, buildExportID(dep.buildID))
 	}
 	return cache.ActionID(h.Sum())
 }
@@ -1915,15 +1915,17 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 				if buildID == "" {
 					buildID = b.buildID(a1.built)
 				}
-				fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, contentID(buildID))
+				fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, buildObjectID(buildID))
 			}
-			// Because we put package main's full action ID into the binary's build ID,
-			// we must also put the full action ID into the binary's action ID hash.
+			// Because we put package main's action ID and object data content ID into the binary's build ID,
+			// we must also put the action ID and object data content ID into the binary's action ID hash.
+			// We only put in the object data content ID, which was hashed from everything other than the export data,
+			// and not the export data content ID, because the export data is not given to the linker.
 			if p1.Name == "main" {
-				fmt.Fprintf(h, "packagemain %s\n", a1.buildID)
+				fmt.Fprintf(h, "packagemain %s\n", buildActionID(a1.buildID)+buildIDSeparator+buildObjectID(a1.buildID))
 			}
 			if p1.Shlib != "" {
-				fmt.Fprintf(h, "packageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
+				fmt.Fprintf(h, "packageshlib %s=%s\n", p1.ImportPath, buildObjectID(b.buildID(p1.Shlib)))
 			}
 		}
 	}
@@ -2248,16 +2250,16 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
 			continue
 		}
 		if p1 != nil {
-			fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, contentID(b.buildID(a1.built)))
+			fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, buildObjectID(b.buildID(a1.built)))
 			if p1.Shlib != "" {
-				fmt.Fprintf(h, "packageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
+				fmt.Fprintf(h, "packageshlib %s=%s\n", p1.ImportPath, buildObjectID(b.buildID(p1.Shlib)))
 			}
 		}
 	}
 	// Files named on command line are special.
 	for _, a1 := range a.Deps[0].Deps {
 		p1 := a1.Package
-		fmt.Fprintf(h, "top %s=%s\n", p1.ImportPath, contentID(b.buildID(a1.built)))
+		fmt.Fprintf(h, "top %s=%s\n", p1.ImportPath, buildObjectID(b.buildID(a1.built)))
 	}
 
 	return h.Sum()
