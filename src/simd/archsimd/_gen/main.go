@@ -112,7 +112,7 @@ func ssaGen(ssaGenPath string) {
 }
 
 func doTmplgen() {
-	goRun("-C", "tmplgen", ".")
+	goRun("-C", "tmplgen", ".", "-w")
 }
 
 func doWasmgen() {

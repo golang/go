@@ -8,14 +8,11 @@ package main
 // slice operations and tests
 
 import (
-	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"go/format"
 	"io"
-	"os"
 	"path"
+	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/sgutil"
 	"strings"
 	"text/template"
@@ -1383,10 +1380,10 @@ func (x Mask{{.WxC}}) String() string {
 }
 `)
 
-const SIMD = "../../"
-const TD = "../../internal/simd_test/"
+const SIMD = "simd/archsimd/"
+const TD = "simd/archsimd/internal/simd_test/"
 
-var SSA = "../../../../cmd/compile/internal/ssa/"
+var SSA = "cmd/compile/internal/ssa/"
 
 var splitPhase = phase6Rewrites
 
@@ -1427,10 +1424,14 @@ func init() {
 		splitCorePath = "cmd/compile/internal/ssa"
 		splitCorePrefix = "ssa."
 	}
-	SSA = "../../../../" + splitRewritesPath + "/"
+	SSA = splitRewritesPath + "/"
 }
 
+var files gentools.Files
+
 func main() {
+	gentools.RegisterFlags(nil)
+
 	sl := flag.String("sl", SIMD+"slice_gen_amd64.go", "file name for slice operations")
 	cm := flag.String("cm", SIMD+"compare_gen_amd64.go", "file name for comparison operations")
 	mm := flag.String("mm", SIMD+"maskmerge_gen_amd64.go", "file name for mask/merge operations")
@@ -1451,6 +1452,8 @@ func main() {
 	mmArm64 := flag.String("mmArm64", SIMD+"maskmerge_gen_arm64.go", "file name for ARM64 mask/merge operations")
 	rhArm64 := flag.String("rhArm64", TD+"reduce_helpers_arm64_test.go", "file name for ARM64 reduce test helpers")
 	flag.Parse()
+
+	defer files.FlushOrExit()
 
 	if *sl != "" {
 		one(*sl, unsafePrologue,
@@ -1670,52 +1673,15 @@ func classifyBooleanSIMD(v *%sValue) SIMDLogicalOP {
 `)
 }
 
-// numberLines takes a slice of bytes, and returns a string where each line
-// is numbered, starting from 1.
-func numberLines(data []byte) string {
-	var buf bytes.Buffer
-	r := bytes.NewReader(data)
-	s := bufio.NewScanner(r)
-	for i := 1; s.Scan(); i++ {
-		fmt.Fprintf(&buf, "%d: %s\n", i, s.Text())
-	}
-	return buf.String()
-}
-
 func nonTemplateRewrites(filename string, prologue func(s string, out io.Writer), rewrites ...func(out io.Writer)) {
 	if filename == "" {
 		return
 	}
-
-	ofile := os.Stdout
-
-	if filename != "-" {
-		var err error
-		ofile, err = os.Create(filename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not create the output file %s for the generated code, %v", filename, err)
-			os.Exit(1)
-		}
-	}
-
-	out := new(bytes.Buffer)
-
-	prologue("tmplgen", out)
+	buf := files.NewGoFile(filename)
+	prologue("tmplgen", buf)
 	for _, rewrite := range rewrites {
-		rewrite(out)
+		rewrite(buf)
 	}
-
-	b, err := format.Source(out.Bytes())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "There was a problem formatting the generated code for %s, %v\n", filename, err)
-		fmt.Fprintf(os.Stderr, "%s\n", numberLines(out.Bytes()))
-		fmt.Fprintf(os.Stderr, "There was a problem formatting the generated code for %s, %v\n", filename, err)
-		os.Exit(1)
-	} else {
-		ofile.Write(b)
-		ofile.Close()
-	}
-
 }
 
 func one(filename string, prologue func(s, buildArch string, out io.Writer), sats ...shapeAndTemplate) {
@@ -1734,34 +1700,12 @@ func one(filename string, prologue func(s, buildArch string, out io.Writer), sat
 }
 
 func oneArch(filename, buildArch string, prologue func(s, buildArch string, out io.Writer), filter shapeFilter, sats ...shapeAndTemplate) {
-
-	ofile := os.Stdout
-
-	if filename != "-" {
-		var err error
-		ofile, err = os.Create(filename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not create the output file %s for the generated code, %v", filename, err)
-			os.Exit(1)
-		}
+	if filename == "" {
+		return
 	}
-
-	out := new(bytes.Buffer)
-
-	prologue("tmplgen", buildArch, out)
+	buf := files.NewGoFile(filename)
+	prologue("tmplgen", buildArch, buf)
 	for _, sat := range sats {
-		sat.forTemplates(out, filter)
+		sat.forTemplates(buf, filter)
 	}
-
-	b, err := format.Source(out.Bytes())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "There was a problem formatting the generated code for %s, %v\n", filename, err)
-		fmt.Fprintf(os.Stderr, "%s\n", numberLines(out.Bytes()))
-		fmt.Fprintf(os.Stderr, "There was a problem formatting the generated code for %s, %v\n", filename, err)
-		os.Exit(1)
-	} else {
-		ofile.Write(b)
-		ofile.Close()
-	}
-
 }
