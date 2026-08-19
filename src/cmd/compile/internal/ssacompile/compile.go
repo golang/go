@@ -106,7 +106,7 @@ func (_ Compiler) Compile(f *ssa.Func, htmlWriter ssa.HTMLWriter) {
 		tEnd := time.Now()
 
 		// Need something less crude than "Log the whole intermediate result".
-		if f.Log() || htmlWriter != nil {
+		if f.Log() || htmlWriter.Enabled() {
 			time := tEnd.Sub(tStart).Nanoseconds()
 			var stats string
 			if logMemStats {
