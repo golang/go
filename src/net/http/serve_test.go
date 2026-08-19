@@ -1459,6 +1459,18 @@ func TestClientCanClose(t *testing.T) {
 	}))
 }
 
+func TestTransferEncodingContentLengthClosesConnection(t *testing.T) {
+	testTCPConnectionCloses(t, "POST / HTTP/1.1\r\nHost: foo\r\nTransfer-Encoding: chunked\r\nContent-Length: 9999\r\n\r\n3\r\nfoo\r\n0\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading request body: %v", err)
+		}
+		if got, want := string(body), "foo"; got != want {
+			t.Errorf("request body = %q; want %q", got, want)
+		}
+	}))
+}
+
 // TestHandlersCanSetConnectionClose verifies that handlers can force a connection to close,
 // even for HTTP/1.1 requests.
 func TestHandlersCanSetConnectionClose11(t *testing.T) {

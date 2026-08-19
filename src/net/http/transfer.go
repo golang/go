@@ -535,9 +535,16 @@ func readTransfer(msg any, r *bufio.Reader, maxTrailerHeaders int64) (err error)
 		return err
 	}
 
+	hasContentLength := t.Header.has("Content-Length")
 	realLength, err := fixLength(isResponse, t.StatusCode, t.RequestMethod, t.Header, t.Chunked)
 	if err != nil {
 		return err
+	}
+	if !isResponse && t.Chunked && hasContentLength {
+		// RFC 9112, section 6.1: A server may process a request with both
+		// Transfer-Encoding and Content-Length, but must close the connection
+		// after responding.
+		t.Close = true
 	}
 	if isResponse && t.RequestMethod == "HEAD" {
 		if n, err := parseContentLength(t.Header["Content-Length"]); err != nil {
