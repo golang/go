@@ -7,13 +7,13 @@ It is the work of hundreds of contributors. We appreciate your help!
 ## Before filing an issue
 
 If you are unsure whether you have found a bug, please consider asking in the [golang-nuts mailing
-list](https://groups.google.com/forum/#!forum/golang-nuts) or [other forums](https://golang.org/help/) first. If
+list](https://groups.google.com/forum/#!forum/golang-nuts) or [other forums](https://go.dev/help) first. If
 the behavior you are seeing is confirmed as a bug or issue, it can easily be re-raised in the issue tracker.
 
 ## Filing issues
 
 Sensitive security-related issues should be reported to [security@golang.org](mailto:security@golang.org).
-See the [security policy](https://golang.org/security) for details.
+See the [security policy](https://go.dev/doc/security/) for details.
 
 The recommended way to file an issue is by running `go bug`.
 Otherwise, when filing an issue, make sure to answer these five questions:
@@ -28,7 +28,7 @@ For change proposals, see [Proposing Changes To Go](https://go.dev/s/proposal-pr
 
 ## Contributing code
 
-Please read the [Contribution Guidelines](https://golang.org/doc/contribute.html) before sending patches.
+Please read the [Contribution Guidelines](https://go.dev/doc/contribute) before sending patches.
 
 Unless otherwise noted, the Go source files are distributed under
 the BSD-style license found in the LICENSE file.

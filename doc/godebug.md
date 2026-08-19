@@ -214,7 +214,7 @@ We plan to remove this setting in Go 1.31.
 
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
 of cookies that net/http will accept when parsing HTTP headers. If the number of
-cookie in a header exceeds the number set in `httpcookiemaxnum`, cookie parsing
+cookies in a header exceeds the number set in `httpcookiemaxnum`, cookie parsing
 will fail early. The default value is `httpcookiemaxnum=3000`. Setting
 `httpcookiemaxnum=0` will allow the cookie parsing to accept an indefinite
 number of cookies. To avoid denial of service attacks, this setting and default
@@ -286,7 +286,7 @@ and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environm
 Go 1.25 (starting with Go 1.25 RC 2) disabled build information stamping when
 multiple VCS are detected due to concerns around VCS injection attacks. This
 behavior and setting was backported to Go 1.24.5 and Go 1.23.11. This behavior
-can be renabled with the setting `allowmultiplevcs=1`.
+can be reenabled with the setting `allowmultiplevcs=1`.
 
 ### Go 1.24
 
