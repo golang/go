@@ -49,12 +49,31 @@ func ResolveFile(file *ast.File) {
 	// Rather than add a sync.Once field to ast.File itself,
 	// we use a "singleflight"-like pattern to ensure that all
 	// doIt operations on a given file are mutually exclusive.
-	v, _ := resolveOnces.LoadOrStore(file, new(sync.Once))
-	v.(*sync.Once).Do(doIt)
-	resolveOnces.Delete(file)
+	v, _ := resolveOnces.LoadOrStore(file, new(resolveOnce))
+	r := v.(*resolveOnce)
+	r.once.Do(func() {
+		defer func() {
+			if e := recover(); e != nil {
+				r.panicValue = e
+			}
+		}()
+		doIt()
+	})
+	if r.panicValue != nil {
+		panic(r.panicValue)
+	}
+	// A successful resolution is permanent, so the synchronization state
+	// can be discarded. Failed resolutions remain cached so that callers do
+	// not silently accept a partially resolved file or retry it unsafely.
+	resolveOnces.CompareAndDelete(file, r)
 }
 
-var resolveOnces sync.Map // *ast.File -> *sync.Once
+type resolveOnce struct {
+	once       sync.Once
+	panicValue any
+}
+
+var resolveOnces sync.Map // *ast.File -> *resolveOnce
 
 // resolveFile walks the given file to resolve identifiers within the file
 // scope, updating ast.Ident.Obj fields with declaration information.

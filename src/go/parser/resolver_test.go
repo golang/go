@@ -243,3 +243,58 @@ func TestResolveFile(t *testing.T) {
 
 	ResolveFile(f) // idempotent; no ill effects
 }
+
+// TestResolveFilePanic checks that two calls to ResolveFile
+// observe the same behavior when it panics.
+func TestResolveFilePanic(t *testing.T) {
+	const n = 1001
+	src := "package p; func f() {" + strings.Repeat("if true {", n) + strings.Repeat("}", n) + "}"
+	f, err := ParseFile(token.NewFileSet(), "", src, SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	call := func() (panicked any) {
+		defer func() { panicked = recover() }()
+		ResolveFile(f)
+		return nil
+	}
+	first := call()
+	if first == nil {
+		t.Fatal("ResolveFile did not panic")
+	}
+	if f.Scope != nil {
+		t.Fatal("ResolveFile set File.Scope after a failed resolution")
+	}
+	second := call()
+	if second == nil {
+		t.Fatal("ResolveFile returned after a failed resolution")
+	}
+	if fmt.Sprint(second) != fmt.Sprint(first) {
+		t.Errorf("first panic %v, second panic %v", first, second)
+	}
+}
+
+// TestResolveFilePanicConcurrent checks that concurrent calls to
+// ResolveFile all observe the same behavior when it panics.
+func TestResolveFilePanicConcurrent(t *testing.T) {
+	const n = 1001
+	src := "package p; func f() {" + strings.Repeat("if true {", n) + strings.Repeat("}", n) + "}"
+	f, err := ParseFile(token.NewFileSet(), "", src, SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results := make(chan any, 8)
+	for range cap(results) {
+		go func() {
+			defer func() { results <- recover() }()
+			ResolveFile(f)
+		}()
+	}
+	for range cap(results) {
+		if panicValue := <-results; panicValue == nil {
+			t.Error("concurrent ResolveFile call returned after a failed resolution")
+		}
+	}
+}
