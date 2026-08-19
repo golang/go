@@ -134,10 +134,6 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 		setParallel(t)
 	}
 	for _, mode := range modes {
-		// TODO(nsh): re-enable the tests once tree re-opens.
-		if mode == http3Mode {
-			continue
-		}
 		t.Run(string(mode), func(t T) {
 			panicking := false
 			defer func() {
@@ -344,7 +340,9 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 
 	// Fakenet httptest servers always set the URL scheme to "http".
 	// Override it in https tests.
-	if fakeNet {
+	// Exclude HTTP3, which manages its own PacketNet URL, and lacks the
+	// ability to intercept "example.com".
+	if fakeNet && mode != http3Mode {
 		cst.ts.URL = mode.Scheme() + "://example.com"
 	}
 

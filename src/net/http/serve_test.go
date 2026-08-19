@@ -1545,6 +1545,13 @@ func testSetsRemoteAddr(t *testing.T, mode testMode) {
 	// Relying on it here isn't particularly principled,
 	// but we don't have a good way to get the address out at the moment.
 	want := "192.0.2.1"
+	if mode == http3Mode {
+		// HTTP/3 does not yet use a TEST-NET-1 address. This is also not
+		// particularly principled, but just do this for now instead of
+		// half-heartedly trying to match minute internal details, and causing
+		// larger churns such as updating test TLS certs to include 192.0.2.1.
+		want = "127.0.0.1"
+	}
 	if !strings.HasPrefix(ip, want+":") && !strings.HasPrefix(ip, "[::1]:") {
 		t.Fatalf("got RemoteAddr %q, want %q", ip, want)
 	}
