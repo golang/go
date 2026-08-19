@@ -495,6 +495,11 @@
 
 (AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
 
+(AtomicAnd32value ...) => (LoweredAtomicAnd32value ...)
+(AtomicAnd64value ...) => (LoweredAtomicAnd64value ...)
+(AtomicOr32value ...) => (LoweredAtomicOr32value ...)
+(AtomicOr64value ...) => (LoweredAtomicOr64value ...)
+
 (AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
 (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
 
