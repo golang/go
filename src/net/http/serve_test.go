@@ -8169,3 +8169,313 @@ func TestServerConnectionReuse(t *testing.T) {
 		})
 	}
 }
+
+func TestServerRequestBodyLength(t *testing.T) {
+	joinCRLF := func(s ...string) string {
+		return strings.Join(s, "\r\n")
+	}
+	for _, test := range []struct {
+		name              string
+		message           string
+		closeWrite        bool
+		wantContentLength int64
+		wantBodyLength    int64
+		wantErrorStatus   int
+		wantClose         bool
+	}{{
+		// RFC 9112 6.3.3
+		name: "TE and CL",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: chunked",
+			"Content-Length: 5",
+			"",
+			"5",
+			"hello",
+			"0",
+			"",
+			"",
+		),
+		wantContentLength: -1,
+		wantBodyLength:    5,
+	}, {
+		// RFC 9112 6.3.4 paragraph 1
+		name: "TE only",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: chunked",
+			"",
+			"5",
+			"hello",
+			"0",
+			"",
+			"",
+		),
+		wantContentLength: -1,
+		wantBodyLength:    5,
+	}, {
+		// RFC 9112 6.3.4 paragraph 3
+		name: "TE not chunked",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: chunked, smooth",
+			"",
+			"5",
+			"hello",
+			"0",
+			"",
+		),
+		// RFC is ambiguous here: 501 for we don't recognize the TE,
+		// or 400 for chunked is not the last?
+		wantErrorStatus: 501,
+		wantClose:       true,
+	}, {
+		// RFC 9112 6.3.5
+		name: "invalid CL",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: yes",
+			"",
+			"",
+		),
+		wantErrorStatus: 400,
+		wantClose:       true,
+	}, {
+		// RFC 9112 6.3.5
+		name: "identical CL comma",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 5, 5",
+			"",
+			"hello",
+		),
+		// RFC 9112 says we should accept this, but currently we do not.
+		wantErrorStatus: 400,
+		wantClose:       true,
+	}, {
+		// RFC 9112 6.3.5
+		name: "identical CL duplicate",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 5",
+			"Content-Length: 5",
+			"",
+			"hello",
+		),
+		wantContentLength: 5,
+		wantBodyLength:    5,
+	}, {
+		// RFC 9112 6.3.6
+		name: "CL only",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 5",
+			"",
+			"hello",
+		),
+		wantContentLength: 5,
+		wantBodyLength:    5,
+	}, {
+		name: "unsupported TE",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: fugazi",
+			"",
+			"",
+		),
+		wantErrorStatus: 501,
+		wantClose:       true,
+	}, {
+		name: "duplicate TE values",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: chunked, chunked",
+			"",
+			"",
+		),
+		wantErrorStatus: 501,
+		wantClose:       true,
+	}, {
+		name: "duplicate TE headers",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: chunked",
+			"Transfer-Encoding: chunked",
+			"",
+			"",
+		),
+		wantErrorStatus: 501,
+		wantClose:       true,
+	}, {
+		name: "empty TE",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: ",
+			"",
+			"",
+		),
+		wantErrorStatus: 501,
+		wantClose:       true,
+	}, {
+		name: "TE: chunked, identity",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: chunked, identity",
+			"",
+			"",
+		),
+		wantErrorStatus: 501,
+		wantClose:       true,
+	}, {
+		name: "TE: chunked, TE: identity",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: chunked",
+			"Transfer-Encoding: identity",
+			"",
+			"",
+		),
+		wantErrorStatus: 501,
+		wantClose:       true,
+	}, {
+		name: "TE: invalid character",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Transfer-Encoding: \x0bchunked",
+			"",
+			"",
+		),
+		wantErrorStatus: 400,
+		wantClose:       true,
+	}, {
+		name: "empty CL",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: ",
+			"",
+			"",
+		),
+		wantErrorStatus: 400,
+		wantClose:       true,
+	}, {
+		name: "duplicate CL differs",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 4",
+			"Content-Length: 5",
+			"",
+			"hello",
+		),
+		wantErrorStatus: 400,
+		wantClose:       true,
+	}, {
+		name: "CL with plus",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: +3",
+			"",
+			"",
+		),
+		wantErrorStatus: 400,
+		wantClose:       true,
+	}, {
+		name: "negative CL",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: -3",
+			"",
+			"",
+		),
+		wantErrorStatus: 400,
+		wantClose:       true,
+	}, {
+		name: "maxInt64 CL",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 9223372036854775807",
+			"",
+			"hello",
+		),
+		closeWrite:        true,
+		wantContentLength: 9223372036854775807,
+		wantBodyLength:    5,
+	}, {
+		name: "overflowing CL",
+		message: joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 9223372036854775808",
+			"",
+			"",
+		),
+		wantErrorStatus: 400,
+		wantClose:       true,
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				handler := newTestHandler(t)
+				st := newHTTP1ServerTest(t, handler.ServeHTTP)
+				defer handler.Close() // return from handlers before server shutdown
+				conn := st.dial()
+				conn.conn.Write([]byte(test.message))
+				if test.closeWrite {
+					conn.conn.CloseWrite()
+				}
+
+				if test.wantErrorStatus == 0 {
+					call := handler.nextCall()
+					if got, want := call.req.ContentLength, test.wantContentLength; got != want {
+						t.Errorf("handler Request.ContentLength = %v, want %v", got, want)
+					}
+
+					var bodySize int64
+					reading := true
+					go func() {
+						bodySize, _ = io.Copy(io.Discard, call.req.Body)
+						reading = false
+					}()
+					synctest.Wait()
+					if reading {
+						t.Fatalf("handler still reading request body (should have finished)")
+					}
+					if got, want := bodySize, test.wantBodyLength; got != want {
+						t.Errorf("read %v body bytes, want %v", got, want)
+					}
+					call.exit()
+				}
+
+				wantStatus := 200
+				if test.wantErrorStatus != 0 {
+					wantStatus = test.wantErrorStatus
+				}
+				resp := conn.readResponse()
+				if got, want := resp.StatusCode, wantStatus; got != want {
+					t.Errorf("server responded with status code %v, want %v", got, want)
+				}
+
+				if got, want := conn.conn.Peer().IsClosed(), test.wantClose; got != want {
+					t.Errorf("server closed connection: %v, want %v", got, want)
+				}
+			})
+		})
+	}
+}
