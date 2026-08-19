@@ -11396,6 +11396,19 @@ func RewriteBlock(b *ssa.Block) bool {
 			b.ResetWithControl(block.BlockRISCV64BNEZ, v0)
 			return true
 		}
+	case block.BlockJumpTable:
+		// match: (JumpTable idx)
+		// result: (JUMPTABLE {ssa.MakeJumpTableSym(b)} idx (MOVaddr <typ.Uintptr> {ssa.MakeJumpTableSym(b)} (SB)))
+		for {
+			idx := b.Controls[0]
+			v0 := b.NewValue0(b.Pos, ssaop.OpRISCV64MOVaddr, typ.Uintptr)
+			v0.Aux = ssa.SymToAux(ssa.MakeJumpTableSym(b))
+			v1 := b.NewValue0(b.Pos, ssaop.OpSB, typ.Uintptr)
+			v0.AddArg(v1)
+			b.ResetWithControl2(block.BlockRISCV64JUMPTABLE, idx, v0)
+			b.Aux = ssa.SymToAux(ssa.MakeJumpTableSym(b))
+			return true
+		}
 	}
 	return false
 }
