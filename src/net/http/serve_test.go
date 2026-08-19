@@ -544,6 +544,9 @@ func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
 }
 func testServeWithSlashRedirectKeepsQueryString(t *testing.T, mode testMode) {
 	writeBackQuery := func(w ResponseWriter, r *Request) {
+		if r.Method == "CONNECT" {
+			w.WriteHeader(400) // non-2xx to avoid creating a tunnel for CONNECT responses
+		}
 		fmt.Fprintf(w, "%s", r.URL.RawQuery)
 	}
 
@@ -552,6 +555,7 @@ func testServeWithSlashRedirectKeepsQueryString(t *testing.T, mode testMode) {
 	mux.HandleFunc("/testTwo/", writeBackQuery)
 	mux.HandleFunc("/testThree", writeBackQuery)
 	mux.HandleFunc("/testThree/", func(w ResponseWriter, r *Request) {
+		w.WriteHeader(400) // non-2xx to avoid creating a tunnel for CONNECT responses
 		fmt.Fprintf(w, "%s:bar", r.URL.RawQuery)
 	})
 
