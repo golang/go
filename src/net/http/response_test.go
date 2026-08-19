@@ -237,6 +237,7 @@ var respTests = []respTest{
 			"\r\n",
 
 		"HTTP/1.1 200 OK\r\n" +
+			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n" +
 			"\r\n" +
 			"a\r\n" +
@@ -252,7 +253,7 @@ var respTests = []respTest{
 			ProtoMinor:       1,
 			Request:          dummyReq("GET"),
 			Header:           Header{},
-			Close:            false,
+			Close:            true,
 			ContentLength:    -1,
 			TransferEncoding: []string{"chunked"},
 		},

@@ -8199,6 +8199,7 @@ func TestServerRequestBodyLength(t *testing.T) {
 		),
 		wantContentLength: -1,
 		wantBodyLength:    5,
+		wantClose:         true, // RFC 9112 6.1
 	}, {
 		// RFC 9112 6.3.4 paragraph 1
 		name: "TE only",
