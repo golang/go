@@ -116,7 +116,7 @@ func doTmplgen() {
 }
 
 func doWasmgen() {
-	goRun("-C", "wasmgen", ".")
+	goRun("-C", "wasmgen", ".", "-w")
 }
 
 func doMidway() {
