@@ -46,14 +46,34 @@ align_4:
 	ADDV	$-4, R6
 
 aligned:
-	// The input is now 8-byte aligned and we can process 8-byte chunks.
+	// The input is now 8-byte aligned.
+	// Process 32-byte chunks first to amortize loop-control overhead.
+	SGT	$32, R6, R12
+	BNE	R12, aligned8
+
+aligned32:
+	MOVV	(R5), R13
+	CRCCWVW	R4, R13, R4
+	MOVV	8(R5), R13
+	CRCCWVW	R4, R13, R4
+	MOVV	16(R5), R13
+	CRCCWVW	R4, R13, R4
+	MOVV	24(R5), R13
+	CRCCWVW	R4, R13, R4
+	ADDV	$32, R5
+	ADDV	$-32, R6
+	SGT	$32, R6, R12
+	BEQ	R12, aligned32
+
+aligned8:
+	// Fewer than 32 bytes left; process remaining 8-byte chunks.
 	SGT	$8, R6, R12
 	BNE	R12, less_than_8
 	MOVV	(R5), R13
 	CRCCWVW	R4, R13, R4
 	ADDV	$8, R5
 	ADDV	$-8, R6
-	JMP	aligned
+	JMP	aligned8
 
 less_than_8:
 	// We may have some bytes left over; process 4 bytes, then 2, then 1.
@@ -123,14 +143,34 @@ align_4:
 	ADDV	$-4, R6
 
 aligned:
-	// The input is now 8-byte aligned and we can process 8-byte chunks.
+	// The input is now 8-byte aligned.
+	// Process 32-byte chunks first to amortize loop-control overhead.
+	SGT	$32, R6, R12
+	BNE	R12, aligned8
+
+aligned32:
+	MOVV	(R5), R13
+	CRCWVW	R4, R13, R4
+	MOVV	8(R5), R13
+	CRCWVW	R4, R13, R4
+	MOVV	16(R5), R13
+	CRCWVW	R4, R13, R4
+	MOVV	24(R5), R13
+	CRCWVW	R4, R13, R4
+	ADDV	$32, R5
+	ADDV	$-32, R6
+	SGT	$32, R6, R12
+	BEQ	R12, aligned32
+
+aligned8:
+	// Fewer than 32 bytes left; process remaining 8-byte chunks.
 	SGT	$8, R6, R12
 	BNE	R12, less_than_8
 	MOVV	(R5), R13
 	CRCWVW	R4, R13, R4
 	ADDV	$8, R5
 	ADDV	$-8, R6
-	JMP	aligned
+	JMP	aligned8
 
 less_than_8:
 	// We may have some bytes left over; process 4 bytes, then 2, then 1.
