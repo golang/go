@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/sgutil"
 )
 
@@ -26,10 +27,8 @@ var (
 	flagXedPath   = sgutil.FlagXEDPath(".")
 	flagArm64Path = sgutil.FlagARM64Path(".")
 
-	flagGoRoot = flag.String("goroot", "", "destination go dev tree for generated files")
+	genFlags = gentools.RegisterFlags(nil)
 )
-
-var goRoot string
 
 func main() {
 	flag.Parse()
@@ -38,10 +37,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	var err error
-	goRoot, err = resolveGOROOT()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	if genFlags.GOROOT == "" {
+		fmt.Fprintln(os.Stderr, "failed to find Go dev tree root from current directory")
 		os.Exit(1)
 	}
 
@@ -70,27 +67,41 @@ func main() {
 		fmt.Fprintln(os.Stderr, "# This may take a few minutes...")
 	}
 
+	var files gentools.Files
+	defer files.FlushOrExit()
+
 	if *flagTmplgen {
-		doTmplgen()
+		doGen("tmplgen", &files)
 	}
 
 	if *flagWasmgen || *flagSimdgen {
-		ssaGenPath := prettyPath(".", filepath.Join(goRoot, "src", "cmd", "compile", "internal", "ssa", "_gen"))
+		ssaGenPath := prettyPath(".", genFlags.OutputPath("cmd/compile/internal/ssa/_gen"))
 
 		// If there is garbage in ssa/_gen/simdgenericOps.go, it can affect the merge in simdgen/wasmgen.
-		removeSimdGenericOps(ssaGenPath)
+		if genFlags.Write {
+			removeSimdGenericOps(ssaGenPath)
+		}
 
 		if *flagWasmgen {
-			doWasmgen()
+			doGen("wasmgen", &files)
 		}
 		if *flagSimdgen {
-			doSimdgen(xedPath, armPath)
+			doSimdgen(xedPath, armPath, &files)
 		}
-		ssaGen(ssaGenPath)
+
+		// ssaGen doesn't use gentools, so we can only run if it we're writing
+		// to the Go source tree, and we have to flush any file changes before
+		// we do.
+		if genFlags.WritingToInput() {
+			files.FlushOrExit()
+			ssaGen(ssaGenPath)
+		} else {
+			fmt.Fprintf(os.Stderr, "# skipping %s gen because we're not writing to -goroot\n", ssaGenPath)
+		}
 	}
 
 	if *flagMidway {
-		doMidway()
+		doGen("midway", &files)
 	}
 }
 
@@ -111,45 +122,20 @@ func ssaGen(ssaGenPath string) {
 	fmt.Fprintln(os.Stderr, "# Compiler changed. Consider running \"go install cmd/compile\"")
 }
 
-func doTmplgen() {
-	goRun("-C", "tmplgen", ".", "-w")
+func doGen(tool string, files *gentools.Files) {
+	flags := append([]string{"-C", tool, "."}, files.ExecFlags()...)
+	goRun(flags...)
 }
 
-func doWasmgen() {
-	goRun("-C", "wasmgen", ".", "-w")
-}
-
-func doMidway() {
-	goRun("-C", "midway", ".", "-w")
-}
-
-func doSimdgen(xedPath, armPath string) {
-	goRun("-C", "simdgen", ".", "-w", "-o", "godefs", "-goroot", goRoot, "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
+func doSimdgen(xedPath, armPath string, files *gentools.Files) {
+	armArgs := append([]string{"-C", "simdgen", ".", "-o", "godefs", "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath)}, files.ExecFlags()...)
+	armArgs = append(armArgs, "go_arm64.yaml", "types.yaml", "categories.yaml")
+	goRun(armArgs...)
 
 	// Regenerate the XED-derived SIMD files
-	goRun("-C", "simdgen", ".", "-w", "-o", "godefs", "-goroot", goRoot, "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
-}
-func resolveGOROOT() (goRoot string, err error) {
-	goRoot = *flagGoRoot
-	if goRoot != "" {
-		return
-	}
-	// Using the current compiler's goroot depends on a working dev compiler,
-	// which is not guaranteed.  Instead, assume
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("Getwd error: %s", err)
-	}
-	goRoot, err = filepath.Abs(filepath.Join(cwd, "..", "..", "..", ".."))
-	if err != nil {
-		return "", fmt.Errorf("Abs path error: %s", err)
-	}
-	_, err = os.Stat(filepath.Join(goRoot, "src", "simd", "archsimd", "_gen"))
-	if err != nil {
-		return "", fmt.Errorf("-goroot not specified and not run in src/simd/archsimd/_gen")
-	}
-
-	return
+	amdArgs := append([]string{"-C", "simdgen", ".", "-o", "godefs", "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath)}, files.ExecFlags()...)
+	amdArgs = append(amdArgs, "go_amd64.yaml", "types.yaml", "categories.yaml")
+	goRun(amdArgs...)
 }
 
 func goRun(args ...string) {

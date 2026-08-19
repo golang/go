@@ -33,9 +33,11 @@ import (
 	"go/token"
 	"internal/diff"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // Options contains standard options and CLI flags for code generators.
@@ -100,6 +102,11 @@ func (o *Options) OutputPath(relPath string) string {
 	return filepath.Join(outDir, "src", relPath)
 }
 
+// WritingToInput returns true if Flush will write to the input tree.
+func (o *Options) WritingToInput() bool {
+	return o.Write && (o.outDir == "" || o.outDir == o.GOROOT)
+}
+
 type fileInfo struct {
 	relPath string
 	isGo    bool
@@ -115,6 +122,11 @@ type Files struct {
 	Options *Options
 
 	files []*fileInfo
+
+	// tmpDir is a temporary directory used for communicating with subprocess
+	// gentools.
+	tmpDirOnce sync.Once
+	tmpDir     string
 }
 
 func (f *Files) getOptions() Options {
@@ -165,6 +177,25 @@ func (f *Files) NewRawFile(relPath string) *bytes.Buffer {
 	return &info.buf
 }
 
+// ExecFlags returns a sequence of flags that can be passed to a gentools
+// subprocess. This allows several gentools to be tied together by a larger
+// gentool, including if later gentools read the outputs of earlier gentools.
+//
+// Regardless of the output mode of f, this directs subprocesses to write to a
+// temporary directory. Flush then reads the contents of this temporary
+// directory back as if this process had written all of those files using f and
+// applies the configured output mode.
+func (f *Files) ExecFlags() []string {
+	f.tmpDirOnce.Do(func() {
+		tmpDir, err := os.MkdirTemp("", "")
+		if err != nil {
+			panic("failed to create tmpdir: " + err.Error())
+		}
+		f.tmpDir = tmpDir
+	})
+	return []string{"-goroot", f.getOptions().GOROOT, "-w", "-outdir", f.tmpDir}
+}
+
 // Flush outputs all registered files according to the mode in options.
 //
 // In default / -txtar mode, it outputs files as a txtar archive to Output. In
@@ -184,6 +215,31 @@ func (f *Files) Flush() error {
 	}
 
 	prepared := make([]preparedFile, len(f.files))
+
+	// If we invoked subprocesses, read their output files.
+	if f.tmpDir != "" {
+		root := filepath.Join(f.tmpDir, "src")
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if d.IsDir() {
+				return nil
+			}
+			relPath, ok := strings.CutPrefix(path, root)
+			if !ok {
+				return fmt.Errorf("expected path %q to start with root %q", path, root)
+			}
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			prepared = append(prepared, preparedFile{relPath, content})
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		os.RemoveAll(f.tmpDir)
+	}
+
 	for i, fi := range f.files {
 		raw := fi.buf.Bytes()
 		var content []byte
