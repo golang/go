@@ -157,7 +157,7 @@ func IndexRune(s string, r rune) int {
 	fallback:
 		// see comment in ../bytes/bytes.go
 		if haveFastIndex {
-			if j := bytealg.IndexString(s[i-last:], string(r)); j >= 0 {
+			if j := bytealg.IndexString(s[i-last:], rs); j >= 0 {
 				return i + j - last
 			}
 		} else {
