@@ -31,6 +31,11 @@ const (
 	blockSize = 128
 )
 
+// The maximum number of bytes that can be passed to block(). The limit exists
+// because implementations that rely on assembly routines are not preemptible.
+const maxAsmIters = 512
+const maxAsmSize = chunk * maxAsmIters // 64KiB
+
 const (
 	chunk     = 128
 	init0     = 0x6a09e667f3bcc908
@@ -248,6 +253,11 @@ func (d *Digest) Write(p []byte) (nn int, err error) {
 	}
 	if len(p) >= chunk {
 		n := len(p) &^ (chunk - 1)
+		for n > maxAsmSize {
+			block(d, p[:maxAsmSize])
+			p = p[maxAsmSize:]
+			n -= maxAsmSize
+		}
 		block(d, p[:n])
 		p = p[n:]
 	}

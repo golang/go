@@ -25,7 +25,7 @@ const blockSize = 64
 // The maximum number of bytes that can be passed to block(). The limit exists
 // because implementations that rely on assembly routines are not preemptible.
 const maxAsmIters = 1024
-const maxAsmSize = blockSize * maxAsmIters // 64KiB
+const maxAsmSize = chunk * maxAsmIters // 64KiB
 
 const (
 	chunk     = 64
