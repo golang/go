@@ -20,16 +20,16 @@ Basic algorithm:
 Expressions are checked recursively, top down. Expression checker functions
 are generally of the form:
 
-  func f(x *operand, e *syntax.Expr, ...)
+  func f(T *target, x *operand, e *syntax.Expr, ...)
 
-where e is the expression to be checked, and x is the result of the check.
+where e is the expression to be checked, T is the target type for e if
+e appears in an assignment context, and x is the result of the check.
 The check performed by f may fail in which case x.mode_ == invalid, and
 related error messages will have been issued by f.
 
-If a hint argument is present, it is the composite literal element type
-of an outer composite literal; it is used to type-check composite literal
-elements that have no explicit type specification in the source
-(e.g.: []T{{...}, {...}}, the hint is the type T in this case).
+If T is not nil, it represents the target type expected by the context, such as
+the LHS variable type of an assignment, the field type of a composite literal
+element, etc. It is used to infer the type or type parameters missing in e.
 
 All expressions are checked via rawExpr, which dispatches according
 to expression kind. Upon returning, rawExpr is recording the types and
@@ -1008,12 +1008,9 @@ func (T *target) String() string {
 // type arguments for e. If e is an untyped composite literal, starting
 // with Go 1.28, the type of T is used as the composite literal type
 // (and the composite literal must be compatible with T).
-// If hint != nil, it is the type of an untyped composite literal element;
-// if hint is provided, it matches the type in T (but T may be present when
-// hint is nil).
 // If allowGeneric is set, the operand type may be an uninstantiated
 // parameterized type or function value.
-func (check *Checker) rawExpr(T *target, x *operand, e syntax.Expr, hint Type, allowGeneric bool) exprKind {
+func (check *Checker) rawExpr(T *target, x *operand, e syntax.Expr, allowGeneric bool) exprKind {
 	if check.conf.Trace {
 		check.trace(e.Pos(), "-- expr %s", e)
 		check.indent++
@@ -1023,8 +1020,7 @@ func (check *Checker) rawExpr(T *target, x *operand, e syntax.Expr, hint Type, a
 		}()
 	}
 
-	assert(hint == nil || hint == T.typ)
-	kind := check.exprInternal(T, x, e, hint)
+	kind := check.exprInternal(T, x, e)
 
 	if !allowGeneric {
 		check.nonGeneric(T, x)
@@ -1067,7 +1063,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 // exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
 // (See rawExpr for an explanation of the parameters.)
-func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Type) exprKind {
+func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr) exprKind {
 	// make sure x has a valid state in case of bailout
 	// (was go.dev/issue/5770)
 	x.invalidate()
@@ -1104,14 +1100,14 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		}
 
 	case *syntax.CompositeLit:
-		check.compositeLit(T, x, e, hint)
+		check.compositeLit(T, x, e)
 		if !x.isValid() {
 			goto Error
 		}
 
 	case *syntax.ParenExpr:
 		// type inference doesn't go past parentheses (target types T/U = nil)
-		kind := check.rawExpr(nil, x, e.X, nil, false)
+		kind := check.rawExpr(nil, x, e.X, false)
 		x.expr = e
 		return kind
 
@@ -1350,14 +1346,14 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitc
 // The result must be a single value.
 // If an error occurred, x.mode is set to invalid.
 func (check *Checker) expr(T *target, x *operand, e syntax.Expr) {
-	check.rawExpr(T, x, e, nil, false)
+	check.rawExpr(T, x, e, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
 
 // genericExpr is like expr but the result may also be generic.
-func (check *Checker) genericExpr(T *target, x *operand, e syntax.Expr, hint Type) {
-	check.rawExpr(T, x, e, hint, true)
+func (check *Checker) genericExpr(T *target, x *operand, e syntax.Expr) {
+	check.rawExpr(T, x, e, true)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
@@ -1369,7 +1365,7 @@ func (check *Checker) genericExpr(T *target, x *operand, e syntax.Expr, hint Typ
 // If an error occurred, list[0] is not valid.
 func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*operand, commaOk bool) {
 	var x operand
-	check.rawExpr(nil, &x, e, nil, false)
+	check.rawExpr(nil, &x, e, false)
 	check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 
 	if t, ok := x.typ().(*Tuple); ok && x.isValid() {
@@ -1424,7 +1420,7 @@ func nth(n int, what string) string {
 // value.
 // If an error occurred, x.mode is set to invalid.
 func (check *Checker) exprOrType(x *operand, e syntax.Expr, allowGeneric bool) {
-	check.rawExpr(nil, x, e, nil, allowGeneric)
+	check.rawExpr(nil, x, e, allowGeneric)
 	check.exclude(x, 1<<novalue)
 	check.singleValue(x)
 }

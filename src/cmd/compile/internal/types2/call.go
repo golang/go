@@ -419,7 +419,7 @@ func (check *Checker) genericExprList(typeAt func(int) Type, elist []syntax.Expr
 			resList = []*operand{&x}
 		} else {
 			// x is not a function instantiation (it may still be a generic function).
-			check.rawExpr(newTarget(typeAt(0), "function parameter"), &x, e, nil, true)
+			check.rawExpr(newTarget(typeAt(0), "function parameter"), &x, e, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 			if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 				// x is a function call returning multiple values; it cannot be generic.
@@ -453,7 +453,7 @@ func (check *Checker) genericExprList(typeAt func(int) Type, elist []syntax.Expr
 				}
 			} else {
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
-				check.genericExpr(newTarget(typeAt(i), "function parameter"), &x, e, nil)
+				check.genericExpr(newTarget(typeAt(i), "function parameter"), &x, e)
 			}
 			resList[i] = &x
 		}
@@ -1006,7 +1006,7 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
 	case *syntax.ListExpr:
 		return check.useN(n.ElemList, lhs)
 	default:
-		check.rawExpr(nil, &x, e, nil, true)
+		check.rawExpr(nil, &x, e, true)
 	}
 	return x.isValid()
 }
