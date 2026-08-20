@@ -92,6 +92,10 @@ func initAlgAES() {
 	case goarch.AMD64:
 		// Measured on AMD Ryzen Threadripper PRO 7995WX (Zen4).
 		MinAeshashSize = 9
+	case goarch.ARM64:
+		// Measured on Apple M1.
+		// Latency crossover is at 192.
+		MinAeshashSize = 16
 	default:
 		MinAeshashSize = 0
 	}
