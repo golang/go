@@ -36,3 +36,10 @@
   commutative: false
   documentation: !string |-
     // NAME returns a mask whose elements indicate whether x > y.
+- go: TestPairBitsNonzero
+  noTypes: "true"
+  noGenericOps: "true"
+  commutative: true
+  documentation: !string |-
+    // NAME returns a mask whose elements indicate whether x & y != 0.
+

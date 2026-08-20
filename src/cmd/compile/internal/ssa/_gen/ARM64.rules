@@ -1882,6 +1882,13 @@
 // SIMD zero
 (ZeroSIMD <t>) && t.Size() == 16 => (VMOVI16B [0] <t>)
 
+// Neon peephole
+(VEOR16B x x) => (VMOVI16B [0])
+(VNOT16B (VCMEQ16B (VAND16B x y) (VMOVI16B [0]))) => (VCMTST16B x y)
+(VNOT16B (VCMEQ8H (VAND16B x y) (VMOVI16B [0]))) => (VCMTST8H x y)
+(VNOT16B (VCMEQ4S (VAND16B x y) (VMOVI16B [0]))) => (VCMTST4S x y)
+(VNOT16B (VCMEQ2D (VAND16B x y) (VMOVI16B [0]))) => (VCMTST2D x y)
+
 // SVE
 (LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
 (StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)
