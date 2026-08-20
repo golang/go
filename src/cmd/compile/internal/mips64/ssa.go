@@ -927,6 +927,33 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = b.Controls[0].Reg()
 		}
+	case block.BlockMIPS64JUMPTABLE:
+		// SLLV	$3, Rarg0, Rtmp
+		// ADDVU	Rarg1, Rtmp
+		// MOVV	(Rtmp), Rtmp
+		// JMP	(Rtmp)
+		p := s.Prog(mips.ASLLV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 3 // idx*8
+		p.Reg = b.Controls[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = mips.REGTMP
+		p1 := s.Prog(mips.AADDVU)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = b.Controls[1].Reg()
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = mips.REGTMP
+		p2 := s.Prog(mips.AMOVV)
+		p2.From.Type = obj.TYPE_MEM
+		p2.From.Reg = mips.REGTMP
+		p2.From.Offset = 0
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = mips.REGTMP
+		p3 := s.Prog(obj.AJMP)
+		p3.To.Type = obj.TYPE_MEM
+		p3.To.Reg = mips.REGTMP
+		// Save jump tables for later resolution of the target blocks.
+		s.JumpTables = append(s.JumpTables, b)
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}

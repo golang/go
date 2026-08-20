@@ -491,6 +491,12 @@ func init() {
 		{name: "GEZ", controls: 1}, // >= 0
 		{name: "FPT", controls: 1}, // FP flag is true
 		{name: "FPF", controls: 1}, // FP flag is false
+
+		// JUMPTABLE implements jump tables.
+		// Aux is the symbol (an *obj.LSym) for the jump table.
+		// control[0] is the index into the jump table.
+		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
+		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
 	archs = append(archs, arch{

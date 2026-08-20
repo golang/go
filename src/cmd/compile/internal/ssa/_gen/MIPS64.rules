@@ -479,6 +479,8 @@
 
 (If cond yes no) => (NE cond yes no)
 
+(JumpTable idx) => (JUMPTABLE {ssa.MakeJumpTableSym(b)} idx (MOVVaddr <typ.Uintptr> {ssa.MakeJumpTableSym(b)} (SB)))
+
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 

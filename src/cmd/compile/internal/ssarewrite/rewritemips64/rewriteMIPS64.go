@@ -8163,6 +8163,7 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 	return false
 }
 func RewriteBlock(b *ssa.Block) bool {
+	typ := &b.Func.Config.Types
 	switch b.Kind {
 	case block.BlockMIPS64EQ:
 		// match: (EQ (FPFlagTrue cmp) yes no)
@@ -8366,6 +8367,19 @@ func RewriteBlock(b *ssa.Block) bool {
 		for {
 			cond := b.Controls[0]
 			b.ResetWithControl(block.BlockMIPS64NE, cond)
+			return true
+		}
+	case block.BlockJumpTable:
+		// match: (JumpTable idx)
+		// result: (JUMPTABLE {ssa.MakeJumpTableSym(b)} idx (MOVVaddr <typ.Uintptr> {ssa.MakeJumpTableSym(b)} (SB)))
+		for {
+			idx := b.Controls[0]
+			v0 := b.NewValue0(b.Pos, ssaop.OpMIPS64MOVVaddr, typ.Uintptr)
+			v0.Aux = ssa.SymToAux(ssa.MakeJumpTableSym(b))
+			v1 := b.NewValue0(b.Pos, ssaop.OpSB, typ.Uintptr)
+			v0.AddArg(v1)
+			b.ResetWithControl2(block.BlockMIPS64JUMPTABLE, idx, v0)
+			b.Aux = ssa.SymToAux(ssa.MakeJumpTableSym(b))
 			return true
 		}
 	case block.BlockMIPS64LEZ:
