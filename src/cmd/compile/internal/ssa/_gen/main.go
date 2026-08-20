@@ -143,9 +143,8 @@ type arch struct {
 	imports            []string
 }
 
-type opData struct {
+type comparableOpData struct {
 	name              string
-	reg               regInfo
 	asm               string
 	typ               string // default result type
 	aux               string
@@ -171,6 +170,11 @@ type opData struct {
 	symEffect         string // effect this op has on symbol in aux
 	scale             uint8  // amd64/386 indexed load scale
 	zeroUpperBits     uint8  // the op writes a 64-bit GPR whose upper N bits are always zero (0, 32, 48 or 56); for a tuple op, this holds for every integer result
+}
+
+type opData struct {
+	reg regInfo
+	comparableOpData
 }
 
 type blockData struct {
@@ -288,6 +292,9 @@ func main() {
 			log.Fatalf("failed to create output directory: %v", err)
 		}
 	}
+
+	// call this late so that all genericOps contributors have run their init functions.
+	genericInit()
 
 	slices.SortFunc(archs, func(a, b arch) int {
 		return strings.Compare(a.name, b.name)

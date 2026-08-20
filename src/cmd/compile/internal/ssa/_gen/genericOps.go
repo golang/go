@@ -4,6 +4,12 @@
 
 package main
 
+import (
+	"log"
+	"slices"
+	"strings"
+)
+
 // Generic opcodes typically specify a width. The inputs and outputs
 // of that op are the given number of bits wide. There is no notion of
 // "sign", so Add32 can be used both for signed and unsigned 32-bit
@@ -766,8 +772,58 @@ var genericBlocks = []blockData{
 	{name: "First"}, // 2 successors, always takes the first one (second is dead)
 }
 
-func init() {
-	genericOps = append(genericOps, simdGenericOps()...)
+var additionalGenericOps = make(map[string][]opData)
+
+func compareOpData(a, b opData) int {
+	return strings.Compare(a.name, b.name)
+}
+
+func merge(a, b []opData) []opData {
+	m := make([]opData, 0, len(a)+len(b))
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		x, y := a[i], b[j]
+		c := compareOpData(x, y)
+		if c < 0 {
+			m = append(m, x)
+			i++
+			continue
+		}
+		if c > 0 {
+			m = append(m, y)
+			j++
+			continue
+		}
+		if x.comparableOpData == y.comparableOpData {
+			m = append(m, x)
+			i++
+			j++
+			continue
+		}
+		log.Fatalf("Two generic ops have same name but unequal attributes, %v, %v", x, y)
+	}
+	m = append(m, a[i:]...)
+	m = append(m, b[j:]...)
+	return m
+}
+
+func moreGenericOps() []opData {
+	var keys []string
+	for k := range additionalGenericOps {
+		keys = append(keys, k)
+	}
+	g := simdGenericOps()
+	slices.SortFunc(g, compareOpData)
+	for _, k := range keys {
+		s := additionalGenericOps[k]
+		slices.SortFunc(s, compareOpData)
+		g = merge(g, s)
+	}
+	return g
+}
+
+func genericInit() {
+	genericOps = append(genericOps, moreGenericOps()...)
 	// When adding SIMD for another architecture, it may be useful to temporarily
 	// maintain a separate list of generic operations till that work stabilizes.
 	// For example:
