@@ -15,3 +15,62 @@
 (MOVBUreg x) && ssa.ZeroUpper56Bits(x) => x
 (MOVHUreg x) && ssa.ZeroUpper48Bits(x) => x
 (MOVWUreg x) && ssa.ZeroUpper32Bits(x) => x
+
+
+// don't extend after proper load
+(MOVBreg x:(MOVBload _ _)) => (MOVVreg x)
+(MOVBUreg x:(MOVBUload _ _)) => (MOVVreg x)
+(MOVHreg x:(MOVBload _ _)) => (MOVVreg x)
+(MOVHreg x:(MOVBUload _ _)) => (MOVVreg x)
+(MOVHreg x:(MOVHload _ _)) => (MOVVreg x)
+(MOVHUreg x:(MOVBUload _ _)) => (MOVVreg x)
+(MOVHUreg x:(MOVHUload _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVBload _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVBUload _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVHload _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVHUload _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVWload _ _)) => (MOVVreg x)
+(MOVWUreg x:(MOVBUload _ _)) => (MOVVreg x)
+(MOVWUreg x:(MOVHUload _ _)) => (MOVVreg x)
+(MOVWUreg x:(MOVWUload _ _)) => (MOVVreg x)
+(MOVBreg x:(MOVBloadidx _ _ _)) => (MOVVreg x)
+(MOVBUreg x:(MOVBUloadidx _ _ _)) => (MOVVreg x)
+(MOVHreg x:(MOVBloadidx _ _ _)) => (MOVVreg x)
+(MOVHreg x:(MOVBUloadidx _ _ _)) => (MOVVreg x)
+(MOVHreg x:(MOVHloadidx _ _ _)) => (MOVVreg x)
+(MOVHUreg x:(MOVBUloadidx _ _ _)) => (MOVVreg x)
+(MOVHUreg x:(MOVHUloadidx _ _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVBloadidx _ _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVBUloadidx _ _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVHloadidx _ _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVHUloadidx _ _ _)) => (MOVVreg x)
+(MOVWreg x:(MOVWloadidx _ _ _)) => (MOVVreg x)
+(MOVWUreg x:(MOVBUloadidx _ _ _)) => (MOVVreg x)
+(MOVWUreg x:(MOVHUloadidx _ _ _)) => (MOVVreg x)
+(MOVWUreg x:(MOVWUloadidx _ _ _)) => (MOVVreg x)
+
+// fold double extensions
+(MOVBreg x:(MOVBreg _)) => (MOVVreg x)
+(MOVBUreg x:(MOVBUreg _)) => (MOVVreg x)
+(MOVHreg x:(MOVBreg _)) => (MOVVreg x)
+(MOVHreg x:(MOVBUreg _)) => (MOVVreg x)
+(MOVHreg x:(MOVHreg _)) => (MOVVreg x)
+(MOVHUreg x:(MOVBUreg _)) => (MOVVreg x)
+(MOVHUreg x:(MOVHUreg _)) => (MOVVreg x)
+(MOVWreg x:(MOVBreg _)) => (MOVVreg x)
+(MOVWreg x:(MOVBUreg _)) => (MOVVreg x)
+(MOVWreg x:(MOVHreg _)) => (MOVVreg x)
+(MOVWreg x:(MOVWreg _)) => (MOVVreg x)
+(MOVWUreg x:(MOVBUreg _)) => (MOVVreg x)
+(MOVWUreg x:(MOVHUreg _)) => (MOVVreg x)
+(MOVWUreg x:(MOVWUreg _)) => (MOVVreg x)
+
+
+// if a register move has only 1 use, just use the same register without emitting instruction
+// MOVVnop doesn't emit instruction, only for ensuring the type.
+(MOVVreg x) && x.Uses == 1 => (MOVVnop x)
+
+// TODO: we should be able to get rid of MOVVnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVVnop (MOVVconst [c])) => (MOVVconst [c])
+

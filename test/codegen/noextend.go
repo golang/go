@@ -245,15 +245,19 @@ func noSignEXT(x int) int64 {
 	var ret int64
 
 	// arm64:-"MOVW"
+	// loong64:-"MOVW"
 	ret += int64(t1 & 1)
 
 	// arm64:-"MOVW"
+	// loong64:-"MOVW"
 	ret += int64(int32(x & 0x7fffffff))
 
 	// arm64:-"MOVH"
+	// loong64:-"MOVH"
 	ret += int64(int16(x & 0x7fff))
 
 	// arm64:-"MOVB"
+	// loong64:-"MOVB"
 	ret += int64(int8(x & 0x7f))
 
 	return ret
@@ -832,12 +836,14 @@ func noZeroExt48MOVBQZX(x uint8) uint64 {
 func noZeroExt48MOVBload(p *uint8) uint64 {
 	// amd64:`MOVBLZX \(` -"MOVWLZX"
 	// arm64:`MOVBU \(` -"MOVHU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:`MOVBU \(` -"MOVHU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(uint16(*p))
 }
 
 func noZeroExt48MOVBloadidx(s *[8]uint8, i int) uint64 {
 	// amd64:`MOVBLZX \(.*\)\(.*\*1\)` -"MOVWLZX"
 	// arm64:`MOVBU \(R[0-9]+\)\(R[0-9]+\)` -"MOVHU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	// loong64:`MOVBU \(R[0-9]+\)\(R[0-9]+\)` -"MOVHU R[0-9]+, R[0-9]+" -"MOVV R[0-9]+, R[0-9]+"
 	return uint64(uint16(s[i&(len(s)-1)]))
 }
 
