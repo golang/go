@@ -7,6 +7,7 @@ package mldsa
 import (
 	"crypto/internal/constanttime"
 	"crypto/internal/fips140/sha3"
+	"crypto/internal/fips140deps/byteorder"
 	"errors"
 	"math/bits"
 )
@@ -301,14 +302,33 @@ func nttMul(a, b nttElement) (p nttElement) {
 //
 // On return, coefficients at or beyond the updated index may be clobbered.
 func parseSampleNTT(a *nttElement, j int, buf []byte) int {
-	for off := 0; off < len(buf) && j < n; off += 3 {
-		v := uint32(buf[off]) | uint32(buf[off+1])<<8 | uint32(buf[off+2])<<16
-		f, err := fieldToMontgomery(v & 0b01111111_11111111_11111111) // 23 bits
-		if err != nil {
-			continue
-		}
-		a[j] = f
-		j++
+	// For as long as there are enough bytes in buf and enough remaining slots
+	// in a, consume 6 bytes (48 bits) at a time as two 24-bit values, convert
+	// them to the Montgomery domain by multiplying by R², and do a branchless
+	// rejection: every candidate is stored at a[j], and a rejected one is
+	// simply overwritten by the next candidate because j doesn't move.
+	_ = a[0]                                  // hoist a's nil check out of the loops below
+	const mask = 0b01111111_11111111_11111111 // 23 bits
+	for len(buf) >= 8 && uint(j) <= n-2 {     // uint to avoid bounds checks on a[j]
+		w := byteorder.LEUint64(buf)
+		v1 := uint32(w) & mask
+		v2 := uint32(w>>24) & mask
+		a[j] = fieldMontgomeryMul(fieldElement(v1), RR)
+		j += int((v1 - q) >> 31)
+		a[j] = fieldMontgomeryMul(fieldElement(v2), RR)
+		j += int((v2 - q) >> 31)
+		buf = buf[6:]
+	}
+	// Consume the rest of the buffer 3 bytes (one value) at a time, in the
+	// same way. This handles both the last six bytes (which we actually have
+	// negligible chance of reaching) and a sole final element (which the loop
+	// above can't fill, as it would write past the end of a).
+	for len(buf) > 0 && j < n {
+		w := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16
+		buf = buf[3:]
+		v := uint32(w) & mask
+		a[j] = fieldMontgomeryMul(fieldElement(v), RR)
+		j += int((v - q) >> 31)
 	}
 	return j
 }
