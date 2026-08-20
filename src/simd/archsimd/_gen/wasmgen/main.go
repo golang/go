@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log"
 	"slices"
-	"strconv"
 	"strings"
 	"text/template"
 	"unicode"
@@ -32,42 +31,6 @@ var (
 
 	genFlags = gentools.RegisterFlags(nil)
 )
-
-var splitPhase = phase6Rewrites
-
-var (
-	splitOpPath = "cmd/compile/internal/ssa"
-	splitOpPkg  = "ssa"
-
-	splitCorePath = "cmd/compile/internal/ssa"
-	splitCorePkg  = "ssa"
-)
-
-const (
-	phase0Start = iota
-	phase0Export
-	phase1Op
-	phase2Core
-	phase3Compile
-	phase4CoreRename
-	phase5Conv
-	phase6Rewrites
-)
-
-func init() {
-	if splitPhase >= phase1Op {
-		splitOpPath = "cmd/compile/internal/ssa/ssaop"
-		splitOpPkg = "ssaop"
-	}
-	if splitPhase >= phase2Core {
-		splitCorePath = "cmd/compile/internal/ssa/ssacore"
-		splitCorePkg = "ssacore"
-	}
-	if splitPhase >= phase4CoreRename {
-		splitCorePath = "cmd/compile/internal/ssa"
-		splitCorePkg = "ssa"
-	}
-}
 
 type simdType struct {
 	Name       string // e.g. "Int8x16"
@@ -1633,14 +1596,14 @@ func genWasmSSA(f *bytes.Buffer) {
 	fmt.Fprintln(f, "package wasm")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "import (")
-	fmt.Fprintf(f, "\t%q\n", splitCorePath)
-	fmt.Fprintf(f, "\t%q\n", splitOpPath)
+	fmt.Fprintln(f, "\t\"cmd/compile/internal/ssa\"")
+	fmt.Fprintln(f, "\t\"cmd/compile/internal/ssa/ssaop\"")
 	fmt.Fprintln(f, "\t\"cmd/compile/internal/ssagen\"")
 	fmt.Fprintln(f, "\t\"cmd/internal/obj\"")
 	fmt.Fprintln(f, "\t\"cmd/internal/obj/wasm\"")
 	fmt.Fprintln(f, ")")
 	fmt.Fprintln(f)
-	fmt.Fprintf(f, "func ssaGenSIMDValue(s *ssagen.State, v *%s.Value, extend bool) bool {\n", splitCorePkg)
+	fmt.Fprintln(f, "func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {")
 	fmt.Fprintln(f, "\tswitch v.Op {")
 
 	const (
@@ -1866,7 +1829,7 @@ func genWasmSSA(f *bytes.Buffer) {
 		if op.class != ssagenWasmOps[i+1].class {
 			sep = ":"
 		}
-		fmt.Fprintf(f, "%s.OpWasm%s%s", splitOpPkg, op.op.SsaWasmOp(), sep)
+		fmt.Fprintf(f, "ssaop.OpWasm%s%s", op.op.SsaWasmOp(), sep)
 		if i >= lastCR+3 {
 			fmt.Fprintln(f)
 			lastCR = i
@@ -1909,47 +1872,47 @@ package ssagen
 
 import (
 	"cmd/compile/internal/ir"
-	{{.CoreImport}}
-	{{.OpImport}}
+	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
 )
 
 func initWasmSIMD() {
-	makeSimdOp1 := func(op {{.OpPkg}}.Op) func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
-		return func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
+	makeSimdOp1 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(op, types.TypeVec128, args[0])
 		}
 	}
-	makeSimdOp2 := func(op {{.OpPkg}}.Op) func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
-		return func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
+	makeSimdOp2 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(op, types.TypeVec128, args[0], args[1])
 		}
 	}
-	makeSimdOp3 := func(op {{.OpPkg}}.Op) func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
-		return func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
+	makeSimdOp3 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(op, types.TypeVec128, args[0], args[1], args[2])
 		}
 	}
 
 	// "As" is a type pun, just return the bits
-	makeAsOp := func() func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
-		return func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
+	makeAsOp := func() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return args[0]
 		}
 	}
 
 	// converting to a mask is an not-equals comparison with zero, zero obtained by x XOR x.
-	makeToMask := func(op, xor {{.OpPkg}}.Op) func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
-		return func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
+	makeToMask := func(op, xor ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(op, types.TypeVec128, args[0], s.newValue2(xor, n.Type(), args[0], args[0]))
 		}
 	}
 
-	makeSimdOp1Imm8 := func(op {{.OpPkg}}.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
-		return func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
+	makeSimdOp1Imm8 := func(op ssaop.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			t := n.Type()
-			if args[1].Op == {{.OpPkg}}.OpConst8 && uint64(args[1].AuxInt) < immLimit {
+			if args[1].Op == ssaop.OpConst8 && uint64(args[1].AuxInt) < immLimit {
 				return s.newValue1I(op, t, args[1].AuxInt, args[0])
 			}
 			return immJumpTableN(s, args[1], n, immLimit, func(sNew *state, idx int) {
@@ -1959,10 +1922,10 @@ func initWasmSIMD() {
 		}
 	}
 
-	makeSimdOp2Imm8 := func(op {{.OpPkg}}.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
-		return func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value {
+	makeSimdOp2Imm8 := func(op ssaop.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			t := types.TypeVec128
-			if args[1].Op == {{.OpPkg}}.OpConst8 && uint64(args[1].AuxInt) < immLimit {
+			if args[1].Op == ssaop.OpConst8 && uint64(args[1].AuxInt) < immLimit {
 				return s.newValue2I(op, t, args[1].AuxInt, args[0], args[2])
 			}
 			return immJumpTableN(s, args[1], n, immLimit, func(sNew *state, idx int) {
@@ -1972,23 +1935,12 @@ func initWasmSIMD() {
 		}
 	}
 
-	addWasmSIMD := func(pkg, fn string, builder func(s *state, n *ir.CallExpr, args []*{{.CorePkg}}.Value) *{{.CorePkg}}.Value) {
+	addWasmSIMD := func(pkg, fn string, builder func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value) {
 		intrinsics.add(sys.ArchWasm, pkg, fn, builder)
 	}
 
 `))
-	headerData := struct {
-		CoreImport string
-		CorePkg    string
-		OpImport   string
-		OpPkg      string
-	}{
-		CoreImport: strconv.Quote(splitCorePath),
-		CorePkg:    splitCorePkg,
-		OpImport:   strconv.Quote(splitOpPath),
-		OpPkg:      splitOpPkg,
-	}
-	if err := header.Execute(f, headerData); err != nil {
+	if err := header.Execute(f, nil); err != nil {
 		log.Fatalf("executing intrinsics header template: %v", err)
 	}
 
@@ -2007,7 +1959,7 @@ func initWasmSIMD() {
 		if g == "" || op.Flag(IsSplat) {
 			continue
 		}
-		genOp := splitOpPkg + ".Op" + g
+		genOp := "ssaop.Op" + g
 
 		if op.ImmRange() > 0 {
 			switch op.ArgCount() {
@@ -2037,7 +1989,7 @@ func initWasmSIMD() {
 		// Conversions to/from mask types
 		// func (x Int8x16) ToMask() Mask8x16 -> x.Ne(x xor x)
 		// func (x Mask8x16) ToInt8x16() Int8x16 -> AsInt8x16 (just a pun, masks are negative)
-		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", makeToMask(%s, %s))\n", pkg, t.Name+".ToMask", splitOpPkg+".Op"+t.Methods["ne"].SsaGenOp(), splitOpPkg+".Op"+t.Methods["xor"].SsaGenOp())
+		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", makeToMask(%s, %s))\n", pkg, t.Name+".ToMask", "ssaop.Op"+t.Methods["ne"].SsaGenOp(), "ssaop.Op"+t.Methods["xor"].SsaGenOp())
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", makeAsOp())\n", pkg, t.MaskFor().Name+".To"+t.Name)
 	}
 
@@ -2048,7 +2000,7 @@ func initWasmSIMD() {
 			u = t.IntShaped
 		}
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdLoad())\n", pkg, "Load"+t.Name+"Array")
-		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdBroadcast(%s.OpBroadcast%s))\n", pkg, "Broadcast"+t.Name, splitOpPkg, u.Name)
+		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdBroadcast(ssaop.OpBroadcast%s))\n", pkg, "Broadcast"+t.Name, u.Name)
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdStore())\n", pkg, t.Name+".StoreArray")
 	}
 
@@ -2076,5 +2028,4 @@ func initWasmSIMD() {
 	})
 
 	fmt.Fprintln(f, "}")
-	return
 }
