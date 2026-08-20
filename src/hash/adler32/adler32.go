@@ -85,6 +85,9 @@ func (d *digest) Clone() (hash.Cloner, error) {
 
 // update adds p to the running checksum d.
 func update(d digest, p []byte) digest {
+	if haveSIMD && len(p) >= minSIMD {
+		return updateSIMD(d, p)
+	}
 	return updateGeneric(d, p)
 }
 
