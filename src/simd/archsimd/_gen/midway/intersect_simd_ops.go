@@ -5,8 +5,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -23,6 +21,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"simd/archsimd/_gen/gentools"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,7 +35,7 @@ type Comments struct {
 	Methods   map[string]map[string]string `yaml:"methods"`
 }
 
-var goRoot = flag.String("goroot", "../../../../..", "Go root")
+var genFlags = gentools.RegisterFlags(nil)
 var verbose = flag.Bool("v", false, "Be much chattier about processing")
 
 type ArchAndFiles struct {
@@ -75,10 +75,13 @@ func combine(arch, typ string) string {
 	return arch + "-" + typ
 }
 
+var files gentools.Files
+
 func main() {
 	minorProblem := false
 
 	flag.Parse()
+	defer files.FlushOrExit()
 
 	var comments Comments
 	commentsData, err := os.ReadFile("comments.yaml")
@@ -99,8 +102,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, f, s...)
 	}
 
-	// Hardcoded path to archsimd
-	archSimdPath := *goRoot + "/src/simd/archsimd"
+	archSimdPath := filepath.Join(genFlags.GOROOT, "src", "simd", "archsimd")
 
 	// Hardcoded list of files
 	amd64Files := []string{"ops_amd64.go", "compare_gen_amd64.go", "types_amd64.go",
@@ -114,7 +116,7 @@ func main() {
 		"ops_internal_arm64.go", "other_gen_arm64.go", "slice_gen_arm64.go",
 		"slicepart_arm64.go", "types_arm64.go"}
 
-	emulatedFile := *goRoot + "/src/simd/simd_emulated.go"
+	emulatedFile := filepath.Join(genFlags.GOROOT, "src", "simd", "simd_emulated.go")
 
 	archAndFiles := []ArchAndFiles{
 		ArchAndFiles{"wasm", wasmFiles},
@@ -558,8 +560,8 @@ package simd
 		}
 	}
 
-	formatAndWrite(*goRoot+"/src/simd/simd_types.go", doTypes)
-	formatAndWrite(*goRoot+"/src/simd/simd_stubs.go", doMethods)
+	doTypes(files.NewGoFile("simd/simd_types.go"))
+	doMethods(files.NewGoFile("simd/simd_stubs.go"))
 
 	var extraMocks []TypeMethod
 	for x := range emulated {
@@ -736,10 +738,7 @@ package simd
 				}
 			}
 		}
-		archDir := filepath.Join(*goRoot, "src", "simd", "internal", "bridge")
-		os.MkdirAll(archDir, 0755)
-		filename := filepath.Join(archDir, "decls_"+arch+".go")
-		formatAndWrite(filename, doArchWrites)
+		doArchWrites(files.NewGoFile("simd/internal/bridge/decls_" + arch + ".go"))
 
 		doToFromWrites := func(w io.Writer) {
 			pf := func(f string, s ...any) { fmt.Fprintf(w, f, s...) }
@@ -789,48 +788,10 @@ package simd
 				pf("\t}\n\tpanic(\"wrong type\")\n}\n\n")
 			}
 		}
-		toFromFilename := filepath.Join(*goRoot, "src", "simd", "tofrom_"+arch+".go")
-		formatAndWrite(toFromFilename, doToFromWrites)
+		doToFromWrites(files.NewGoFile("simd/tofrom_" + arch + ".go"))
 	}
 
 	if minorProblem {
 		pw("The logged warnings did not prevent generation of the midway API files, but the API is flawed (lacks emulations, documentation, etc).\n")
-	}
-}
-
-// numberLines takes a slice of bytes, and returns a string where each line
-// is numbered, starting from 1.
-func numberLines(data []byte) string {
-	var buf bytes.Buffer
-	r := bytes.NewReader(data)
-	s := bufio.NewScanner(r)
-	for i := 1; s.Scan(); i++ {
-		fmt.Fprintf(&buf, "%d: %s\n", i, s.Text())
-	}
-	return buf.String()
-}
-
-func formatAndWrite(filename string, doWrites func(w io.Writer)) {
-	if filename == "" {
-		return
-	}
-	f, err := os.Create(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	out := new(bytes.Buffer)
-	doWrites(out)
-
-	b, err := format.Source(out.Bytes())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "There was a problem formatting the generated code for %s, %v\n", filename, err)
-		fmt.Fprintf(os.Stderr, "%s\n", numberLines(out.Bytes()))
-		fmt.Fprintf(os.Stderr, "There was a problem formatting the generated code for %s, %v\n", filename, err)
-		os.Exit(1)
-	} else {
-		f.Write(b)
-		f.Close()
 	}
 }

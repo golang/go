@@ -120,7 +120,7 @@ func doWasmgen() {
 }
 
 func doMidway() {
-	goRun("-C", "midway", ".")
+	goRun("-C", "midway", ".", "-w")
 }
 
 func doSimdgen(xedPath, armPath string) {
