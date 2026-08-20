@@ -8,9 +8,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"simd/archsimd/_gen/gentools"
@@ -18,10 +20,7 @@ import (
 )
 
 var (
-	flagTmplgen = flag.Bool("tmplgen", true, "run tmplgen generator")
-	flagSimdgen = flag.Bool("simdgen", true, "run simdgen generator")
-	flagWasmgen = flag.Bool("wasmgen", true, "run wasmgen generator")
-	flagMidway  = flag.Bool("midway", true, "run midway generator")
+	flagTools = flagVar("tools", ToolSet{"tmplgen": true, "simdgen": true, "wasmgen": true, "midway": true}, "comma-separated list of tools (or +/-tools) to run")
 
 	flagN         = flag.Bool("n", false, "dry run")
 	flagXedPath   = sgutil.FlagXEDPath(".")
@@ -29,6 +28,62 @@ var (
 
 	genFlags = gentools.RegisterFlags(nil)
 )
+
+// ToolSet is a [flag.Value] that accepts a comma-separated list of tool names.
+// It rejects any tool names that aren't in the map. A list like "a,c" sets only
+// "a" and "c" to true and all other tools to false. Alternatively, the list
+// items may each start with + or -, which enables or disables (respectively)
+// only the named tools.
+type ToolSet map[string]bool
+
+func (s ToolSet) String() string {
+	var have []string
+	for k, v := range s {
+		if v {
+			have = append(have, k)
+		}
+	}
+	slices.Sort(have)
+	return strings.Join(have, ",")
+}
+
+func (s ToolSet) Set(list string) error {
+	list = strings.TrimSpace(list)
+	isDelta := len(list) > 0 && (list[0] == '+' || list[0] == '-')
+	if !isDelta {
+		for k := range s {
+			s[k] = false
+		}
+	}
+	for item := range strings.SplitSeq(list, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		var itemDelta bool
+		val := true
+		switch item[0] {
+		case '+':
+			val, itemDelta, item = true, true, item[1:]
+		case '-':
+			val, itemDelta, item = false, true, item[1:]
+		}
+		if isDelta != itemDelta {
+			return fmt.Errorf("tool list %q mixes +/- and regular items", list)
+		}
+		if _, ok := s[item]; !ok {
+			all := slices.Sorted(maps.Keys(s))
+			return fmt.Errorf("unknown tool %s; valid tools are: %s", item, strings.Join(all, ", "))
+		}
+		s[item] = val
+	}
+	return nil
+}
+
+func flagVar[T flag.Value](name string, value T, usage string) T {
+	flag.Var(value, name, usage)
+	return value
+}
 
 func main() {
 	flag.Parse()
@@ -45,7 +100,7 @@ func main() {
 	// If we need data paths, resolve them before we start running any tools so
 	// we can report errors immediately.
 	var xedPath, armPath string
-	if *flagSimdgen {
+	if flagTools["simdgen"] {
 		var err error
 		resolveError := false
 		xedPath, err = sgutil.ResolveXEDPath(flagXedPath)
@@ -63,18 +118,18 @@ func main() {
 		}
 	}
 
-	if *flagSimdgen {
+	if flagTools["simdgen"] {
 		fmt.Fprintln(os.Stderr, "# This may take a few minutes...")
 	}
 
 	var files gentools.Files
 	defer files.FlushOrExit()
 
-	if *flagTmplgen {
+	if flagTools["tmplgen"] {
 		doGen("tmplgen", &files)
 	}
 
-	if *flagWasmgen || *flagSimdgen {
+	if flagTools["wasmgen"] || flagTools["simdgen"] {
 		ssaGenPath := prettyPath(".", genFlags.OutputPath("cmd/compile/internal/ssa/_gen"))
 
 		// If there is garbage in ssa/_gen/simdgenericOps.go, it can affect the merge in simdgen/wasmgen.
@@ -82,10 +137,10 @@ func main() {
 			removeSimdGenericOps(ssaGenPath)
 		}
 
-		if *flagWasmgen {
+		if flagTools["wasmgen"] {
 			doGen("wasmgen", &files)
 		}
-		if *flagSimdgen {
+		if flagTools["simdgen"] {
 			doSimdgen(xedPath, armPath, &files)
 		}
 
@@ -100,7 +155,7 @@ func main() {
 		}
 	}
 
-	if *flagMidway {
+	if flagTools["midway"] {
 		doGen("midway", &files)
 	}
 }
