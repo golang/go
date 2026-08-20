@@ -466,11 +466,7 @@ var netmarshal = godebug.New("netmarshal")
 func netmarshalOld() bool {
 	switch netmarshal.Value() {
 	case "":
-		if goversion.Version < 30 {
-			return true
-		} else {
-			return false
-		}
+		return goversion.Version < 30
 	case "0":
 		if goversion.Version >= 30 {
 			netmarshal.IncNonDefault()
