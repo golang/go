@@ -27,6 +27,7 @@ func squareJump(x int) (int, int) {
 	// amd64:`JMP \(.*\)\(.*\)$`
 	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
 	// loong64: `ALSLV` `MOVV` `JMP`
+	// mips:`SLL` `ADDU` `MOVW` `JMP`
 	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
 	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
 	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`
@@ -219,6 +220,7 @@ func length(x string) int {
 	// amd64:`JMP \(.*\)\(.*\)$`
 	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
 	// loong64:`ALSLV` `MOVV` `JMP`
+	// mips:`SLL` `ADDU` `MOVW` `JMP`
 	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
 	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
 	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`
@@ -275,6 +277,7 @@ func mimetype(ext string) string {
 func typeSwitch(x any) int {
 	// amd64:`JMP \(.*\)\(.*\)$`
 	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
+	// mips:`SLL` `ADDU` `MOVW` `JMP`
 	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
 	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
 	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`

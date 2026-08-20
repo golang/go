@@ -105,6 +105,7 @@ const (
 	BlockMIPSGEZ
 	BlockMIPSFPT
 	BlockMIPSFPF
+	BlockMIPSJUMPTABLE
 
 	BlockMIPS64EQ
 	BlockMIPS64NE
@@ -256,14 +257,15 @@ var blockString = [...]string{
 	BlockLOONG64BLTU:      "BLTU",
 	BlockLOONG64JUMPTABLE: "JUMPTABLE",
 
-	BlockMIPSEQ:  "EQ",
-	BlockMIPSNE:  "NE",
-	BlockMIPSLTZ: "LTZ",
-	BlockMIPSLEZ: "LEZ",
-	BlockMIPSGTZ: "GTZ",
-	BlockMIPSGEZ: "GEZ",
-	BlockMIPSFPT: "FPT",
-	BlockMIPSFPF: "FPF",
+	BlockMIPSEQ:        "EQ",
+	BlockMIPSNE:        "NE",
+	BlockMIPSLTZ:       "LTZ",
+	BlockMIPSLEZ:       "LEZ",
+	BlockMIPSGTZ:       "GTZ",
+	BlockMIPSGEZ:       "GEZ",
+	BlockMIPSFPT:       "FPT",
+	BlockMIPSFPF:       "FPF",
+	BlockMIPSJUMPTABLE: "JUMPTABLE",
 
 	BlockMIPS64EQ:        "EQ",
 	BlockMIPS64NE:        "NE",

@@ -159,6 +159,7 @@ var ArchMIPS = &Arch{
 	MinLC:          4,
 	Alignment:      4,
 	CanMergeLoads:  false,
+	CanJumpTable:   true,
 	HasLR:          true,
 	FixedFrameSize: 4, // LR
 }
@@ -172,6 +173,7 @@ var ArchMIPSLE = &Arch{
 	MinLC:          4,
 	Alignment:      4,
 	CanMergeLoads:  false,
+	CanJumpTable:   true,
 	HasLR:          true,
 	FixedFrameSize: 4, // LR
 }
