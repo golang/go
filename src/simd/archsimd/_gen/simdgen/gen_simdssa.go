@@ -83,7 +83,7 @@ func getArrangementFromOp(archInfo ArchInfo, caseStr string) string {
 
 // writeSIMDSSA generates the ssa to prog lowering codes and writes it to simdssa.go
 // within the specified directory.
-func writeSIMDSSA(ops []Operation) *bytes.Buffer {
+func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 	archInfo := CurrentArch()
 	var ZeroingMask []string
 	regInfoKeys := archInfo.RegInfoKeys
@@ -239,8 +239,6 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		panic(fmt.Errorf("unsupported register constraint for prog, please update gen_simdssa.go and amd64/ssa.go: %+v\nAll keys: %v\n, cases: %v\n", allUnseen, allKeys, allUnseenCaseStr))
 	}
 
-	buffer := new(bytes.Buffer)
-
 	headerData := tplSSAHeader{
 		Arch:            archInfo.Arch,
 		ObjArch:         archInfo.ObjArch,
@@ -303,6 +301,4 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 	if err := ssaTemplates.ExecuteTemplate(buffer, "ending", headerData); err != nil {
 		panic(fmt.Errorf("failed to execute ending template: %w", err))
 	}
-
-	return buffer
 }

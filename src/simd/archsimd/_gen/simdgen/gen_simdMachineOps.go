@@ -41,9 +41,8 @@ func simd{{.ArchUpper}}Ops({{.RegInfoParams}}) []opData {
 
 // writeSIMDMachineOps generates the machine ops and writes it to simdAMD64ops.go
 // within the specified directory.
-func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
+func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 	t := templateOf(simdMachineOpsTmpl, "simdAMD64Ops")
-	buffer := new(bytes.Buffer)
 	buffer.WriteString(generatedHeader())
 
 	type opData struct {
@@ -286,6 +285,4 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	if err != nil {
 		panic(fmt.Errorf("failed to execute template: %w", err))
 	}
-
-	return buffer
 }

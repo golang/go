@@ -564,13 +564,12 @@ func typesFromTypeMap(typeMap simdTypeMap) []simdType {
 }
 
 // writeSIMDTypes generates the simd vector types into a bytes.Buffer
-func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
+func writeSIMDTypes(buffer *bytes.Buffer, typeMap simdTypeMap) {
 	t := templateOf(simdTypesTemplates, "types_amd64")
 	loadStore := templateOf(simdLoadStoreTemplate, "loadstore_amd64")
 	maskedLoadStore := templateOf(simdMaskedLoadStoreTemplate, "maskedloadstore_amd64")
 	maskFromVal := templateOf(simdMaskFromValTemplate, "maskFromVal_amd64")
 
-	buffer := new(bytes.Buffer)
 	buffer.WriteString(simdPackageHeader())
 
 	sizes := make([]int, 0, len(typeMap))
@@ -616,8 +615,6 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 			}
 		}
 	}
-
-	return buffer
 }
 
 type goarchFeatures struct {
@@ -679,7 +676,7 @@ func featureImplies(goarch string, base string) string {
 	}
 }
 
-func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
+func writeSIMDFeatures(buffer *bytes.Buffer, ops []Operation) {
 	// Gather all features
 	type featureKey struct {
 		GoArch  string
@@ -728,21 +725,16 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 	// to be more careful about this.
 	t := templateOf(simdFeaturesTemplate, "features")
 
-	buffer := new(bytes.Buffer)
 	buffer.WriteString(simdPackageHeader())
 
 	if err := t.Execute(buffer, features); err != nil {
 		panic(fmt.Errorf("failed to execute features template: %w", err))
 	}
-
-	return buffer
 }
 
 // writeSIMDStubs returns two bytes.Buffers containing the declarations for the public
 // and internal-use vector intrinsics.
-func writeSIMDStubs(ops []Operation, typeMap simdTypeMap, doDeprecatedPuns bool) (f, fI *bytes.Buffer) {
-	f = new(bytes.Buffer)
-	fI = new(bytes.Buffer)
+func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, doDeprecatedPuns bool) {
 	f.WriteString(simdPackageHeader())
 	fI.WriteString(simdPackageHeader())
 
@@ -840,6 +832,4 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap, doDeprecatedPuns bool)
 			panic(fmt.Errorf("failed to execute mask template for mask %s: %w", mask.Name, err))
 		}
 	}
-
-	return
 }

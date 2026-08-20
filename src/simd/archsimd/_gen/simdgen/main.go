@@ -116,6 +116,7 @@ import (
 	"strings"
 	"text/template"
 
+	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/sgutil"
 	"simd/archsimd/_gen/simdgen/arm64"
 	"simd/archsimd/_gen/simdgen/sve"
@@ -129,7 +130,7 @@ var (
 	flagArm64Path         = sgutil.FlagARM64Path("..")
 	flagQ                 = flag.String("q", "", "query: read `def` as another input (skips final validation)")
 	flagO                 = flag.String("o", "yaml", "output type: yaml, godefs (generate definitions into a Go source tree")
-	flagGoDefRoot         = flag.String("goroot", ".", "the path to the Go dev directory that will receive the generated files")
+	genFlags              = gentools.RegisterFlags(nil)
 	FlagNoDedup           = flag.Bool("nodedup", false, "disable deduplicating godefs of 2 qualifying operations from different extensions")
 	FlagNoConstImmPorting = flag.Bool("noconstimmporting", false, "disable const immediate porting from op to imm operand")
 
@@ -348,7 +349,7 @@ func main() {
 			enc.Close()
 		}
 	case "godefs":
-		if err := writeGoDefs(*flagGoDefRoot, unified); err != nil {
+		if err := writeGoDefs(unified); err != nil {
 			log.Fatalf("Failed writing godefs: %+v", err)
 		}
 	}

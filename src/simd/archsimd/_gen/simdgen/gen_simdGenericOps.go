@@ -12,7 +12,7 @@ import (
 // writeSIMDGenericOps generates the generic ops for the current architecture,
 // merges them with existing ops from other architectures, and returns the
 // result as a buffer ready for writing.
-func writeSIMDGenericOps(ops []Operation, genericOpsFilePath string) *bytes.Buffer {
+func writeSIMDGenericOps(buffer *bytes.Buffer, ops []Operation, genericOpsFilePath string) {
 	// Generate fresh ops for current arch.
 	currentArch := CurrentArch().Arch
 	var newOps []sgutil.GenericOpsData
@@ -35,6 +35,5 @@ func writeSIMDGenericOps(ops []Operation, genericOpsFilePath string) *bytes.Buff
 	}
 
 	buf := sgutil.MergeSIMDGenericOps(newOps, genericOpsFilePath, currentArch)
-
-	return buf
+	buffer.Write(buf.Bytes())
 }

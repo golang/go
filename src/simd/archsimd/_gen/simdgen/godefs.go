@@ -14,6 +14,7 @@ import (
 	"strings"
 	"unicode"
 
+	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/unify"
 )
 
@@ -459,7 +460,7 @@ func generatedHeader() string {
 	return CurrentArch().GeneratedHeader
 }
 
-func writeGoDefs(path string, cl unify.Closure) error {
+func writeGoDefs(cl unify.Closure) error {
 	// TODO: Merge operations with the same signature but multiple
 	// implementations (e.g., SSE vs AVX)
 	var ops []Operation
@@ -528,20 +529,25 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	archLower := archInfo.Arch
 	archUpper := archInfo.ArchUpper
 
-	formatWriteAndClose(writeSIMDTypes(typeMap), path, "src/"+simdPackage+"/types_"+archLower+".go")
+	var files gentools.Files
+	defer files.FlushOrExit()
+
+	writeSIMDTypes(files.NewGoFile(simdPackage+"/types_"+archLower+".go"), typeMap)
 	// TODO: Enable CPU feature generation for non-x86 architectures.
 	if archLower == "amd64" {
-		formatWriteAndClose(writeSIMDFeatures(deduped), path, "src/"+simdPackage+"/cpu.go")
+		writeSIMDFeatures(files.NewGoFile(simdPackage+"/cpu.go"), deduped)
 	}
-	f, fI := writeSIMDStubs(deduped, typeMap, archLower == "amd64")
-	formatWriteAndClose(f, path, "src/"+simdPackage+"/ops_"+archLower+".go")
-	formatWriteAndClose(fI, path, "src/"+simdPackage+"/ops_internal_"+archLower+".go")
-	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simd"+archUpper+"intrinsics.go")
-	const simdGenericOpsFile = "src/cmd/compile/internal/ssa/_gen/simdgenericOps.go"
-	formatWriteAndClose(writeSIMDGenericOps(deduped, path+"/"+simdGenericOpsFile), path, simdGenericOpsFile)
-	formatWriteAndClose(writeSIMDMachineOps(deduped), path, "src/cmd/compile/internal/ssa/_gen/simd"+archUpper+"ops.go")
-	formatWriteAndClose(writeSIMDSSA(deduped), path, "src/cmd/compile/internal/"+archLower+"/simdssa.go")
-	writeAndClose(writeSIMDRules(deduped).Bytes(), path, "src/cmd/compile/internal/ssa/_gen/simd"+archUpper+".rules")
+	writeSIMDStubs(
+		files.NewGoFile(simdPackage+"/ops_"+archLower+".go"),
+		files.NewGoFile(simdPackage+"/ops_internal_"+archLower+".go"),
+		deduped, typeMap, archLower == "amd64",
+	)
+	writeSIMDIntrinsics(files.NewGoFile("cmd/compile/internal/ssagen/simd"+archUpper+"intrinsics.go"), deduped, typeMap)
+	const simdGenericOpsFile = "cmd/compile/internal/ssa/_gen/simdgenericOps.go"
+	writeSIMDGenericOps(files.NewGoFile(simdGenericOpsFile), deduped, genFlags.InputPath(simdGenericOpsFile))
+	writeSIMDMachineOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+archUpper+"ops.go"), deduped)
+	writeSIMDSSA(files.NewGoFile("cmd/compile/internal/"+archLower+"/simdssa.go"), deduped)
+	writeSIMDRules(files.NewRawFile("cmd/compile/internal/ssa/_gen/simd"+archUpper+".rules"), deduped)
 
 	return nil
 }

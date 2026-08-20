@@ -124,10 +124,10 @@ func doMidway() {
 }
 
 func doSimdgen(xedPath, armPath string) {
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
+	goRun("-C", "simdgen", ".", "-w", "-o", "godefs", "-goroot", goRoot, "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
 
 	// Regenerate the XED-derived SIMD files
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
+	goRun("-C", "simdgen", ".", "-w", "-o", "godefs", "-goroot", goRoot, "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
 }
 func resolveGOROOT() (goRoot string, err error) {
 	goRoot = *flagGoRoot

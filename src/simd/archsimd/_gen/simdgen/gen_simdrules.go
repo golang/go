@@ -194,8 +194,7 @@ func expandFormatSpecifiers(s string, elemBits int) string {
 
 // writeSIMDRules generates the lowering and rewrite rules for ssa and writes it to simdAMD64.rules
 // within the specified directory.
-func writeSIMDRules(ops []Operation) *bytes.Buffer {
-	buffer := new(bytes.Buffer)
+func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 	buffer.WriteString(generatedHeader() + "\n")
 
 	// asm -> masked merging rules
@@ -523,8 +522,6 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.TplName, data.Asm, err))
 		}
 	}
-
-	return buffer
 }
 
 // Note: SetHi was removed (temporarily?) from 1.27, but may return in some form

@@ -54,7 +54,7 @@ func (rtm *intrinsicTemplateMap) Add(name string, templ string) *intrinsicTempla
 
 // writeSIMDIntrinsics generates the intrinsic mappings and writes it to simdintrinsics.go
 // within the specified directory.
-func writeSIMDIntrinsics(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
+func writeSIMDIntrinsics(buffer *bytes.Buffer, ops []Operation, typeMap simdTypeMap) {
 
 	// These are defined here to avoid init-order problems with GetSysArch GetArchUpper etc which depend on flag values
 
@@ -119,7 +119,6 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 
 	slices.SortFunc(ops, compareOperations)
 
-	buffer := new(bytes.Buffer)
 	buffer.WriteString(generatedHeader())
 
 	doTemplate := func(tpl *template.Template, data any) {
@@ -217,6 +216,4 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 	}
 
 	buffer.WriteString(footer)
-
-	return buffer
 }

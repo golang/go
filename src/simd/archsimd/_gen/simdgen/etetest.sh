@@ -8,7 +8,7 @@ which go >/dev/null || exit 1
 set -ex
 
 # Regenerate SIMD files
-go run . -o godefs -arch amd64 go_amd64.yaml types.yaml categories.yaml
+go run . -w -o godefs -arch amd64 go_amd64.yaml types.yaml categories.yaml
 # Regenerate SSA files from SIMD rules
 go run -C ../../../../cmd/compile/internal/ssa/_gen .
 
