@@ -6,6 +6,7 @@ package adler32
 
 import (
 	"encoding"
+	"fmt"
 	"hash"
 	"internal/testhash"
 	"io"
@@ -137,6 +138,26 @@ func TestGoldenMarshal(t *testing.T) {
 		if h.Sum32() != h2.Sum32() {
 			t.Errorf("checksum(%q) = 0x%x != marshaled (0x%x)", g.in, h.Sum32(), h2.Sum32())
 		}
+	}
+}
+
+func BenchmarkAdler32(b *testing.B) {
+	sizes := []int{16, 64, 256, 1 << 10, 4 << 10, 32 << 10, 512 << 10}
+	for _, size := range sizes {
+		data := make([]byte, size)
+		for i := range data {
+			data[i] = byte(i)
+		}
+		name := fmt.Sprintf("%dB", size)
+		if size >= 1<<10 {
+			name = fmt.Sprintf("%dKB", size>>10)
+		}
+		b.Run(name, func(b *testing.B) {
+			b.SetBytes(int64(size))
+			for b.Loop() {
+				Checksum(data)
+			}
+		})
 	}
 }
 
