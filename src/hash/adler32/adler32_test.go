@@ -97,6 +97,65 @@ func TestGolden(t *testing.T) {
 	}
 }
 
+// TestUpdate cross-checks update against the reference
+// implementation across lengths, alignments, initial states, and the
+// block boundaries of vectorized implementations.
+func TestUpdate(t *testing.T) {
+	// Deterministic pseudo-random input.
+	data := make([]byte, 2*nmax+256)
+	seed := uint32(0x1234567)
+	for i := range data {
+		seed = seed*1664525 + 1013904223
+		data[i] = byte(seed >> 24)
+	}
+
+	lengths := []int{
+		0, 1, 2, 3, 4, 7, 8, 15, 16, 17, 31, 32, 33, 47, 63, 64, 65,
+		95, 96, 127, 128, 129, 255, 256, 511, 512, 1024,
+		nmax - nmax%16 - 1, nmax - nmax%16, nmax - nmax%16 + 1,
+		nmax - nmax%32 - 1, nmax - nmax%32, nmax - nmax%32 + 1,
+		nmax - nmax%64 - 1, nmax - nmax%64, nmax - nmax%64 + 1,
+		nmax - 1, nmax, nmax + 1, nmax + 31, nmax + 32,
+		2*nmax - 1, 2 * nmax, 2*nmax + 17,
+	}
+
+	// All-0xff input maximizes the intermediate sums, exercising
+	// overflow handling.
+	maxData := make([]byte, 2*nmax+256)
+	for i := range maxData {
+		maxData[i] = 0xff
+	}
+
+	// worst is the largest valid initial state: s1 = s2 = mod-1.
+	// Together with all-0xff input it maximizes the intermediate
+	// sums of an implementation that defers modular reduction.
+	const worst = digest((mod-1)<<16 | (mod - 1))
+
+	for _, in := range [][]byte{data, maxData} {
+		for _, n := range lengths {
+			for _, offset := range []int{0, 1, 7} {
+				p := in[offset : offset+n]
+				if got, want := uint32(update(1, p)), checksum(p); got != want {
+					t.Errorf("update(1, data[%d:%d]) = 0x%x, want 0x%x", offset, offset+n, got, want)
+				}
+				if got, want := update(worst, p), updateGeneric(worst, p); got != want {
+					t.Errorf("update(worst, data[%d:%d]) = 0x%x, want 0x%x", offset, offset+n, uint32(got), uint32(want))
+				}
+			}
+		}
+	}
+
+	// Nonzero initial states: check that splitting the input at an
+	// arbitrary point gives the same result as a single update.
+	p := data[:nmax+1024]
+	want := checksum(p)
+	for _, split := range []int{1, 15, 16, 63, 255, 4096, nmax - 1, nmax, len(p) - 1} {
+		if got := uint32(update(update(1, p[:split]), p[split:])); got != want {
+			t.Errorf("update split at %d = 0x%x, want 0x%x", split, got, want)
+		}
+	}
+}
+
 func TestGoldenMarshal(t *testing.T) {
 	for _, g := range golden {
 		h := New()
