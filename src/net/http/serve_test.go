@@ -8148,3 +8148,34 @@ func TestServerConnectionReuse(t *testing.T) {
 		})
 	}
 }
+
+// A handler may close the request body itself. When it has not read the body
+// to EOF, Close drains the remainder; reaching the end of the body is the
+// expected outcome and must not be reported to the caller as an error.
+func TestServerRequestBodyCloseAfterPartialRead(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		closeErr := make(chan error, 1)
+		st := newHTTP1ServerTest(t, func(w ResponseWriter, req *Request) {
+			// Read part of the body, leaving the rest for Close to drain.
+			if _, err := io.ReadFull(req.Body, make([]byte, 2)); err != nil {
+				closeErr <- fmt.Errorf("reading request body: %v", err)
+				return
+			}
+			closeErr <- req.Body.Close()
+		})
+		conn := st.dial()
+		conn.writeMessage(
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 4",
+			"",
+			"test",
+		)
+		if got, want := conn.readResponse().StatusCode, 200; got != want {
+			t.Fatalf("got response %v, want %v", got, want)
+		}
+		if err := <-closeErr; err != nil {
+			t.Errorf("Request.Body.Close() = %v, want nil", err)
+		}
+	})
+}
