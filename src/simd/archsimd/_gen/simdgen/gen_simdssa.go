@@ -8,9 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"text/template"
 )
@@ -20,14 +18,14 @@ var (
 package {{.Arch}}
 
 import (
-	{{.CoreImport}}
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj"
 	"cmd/internal/obj/{{.ObjArch}}"
-	{{.OpPkg}}
+	"cmd/compile/internal/ssa/ssaop"
 )
 
-func ssaGenSIMDValue(s *ssagen.State, v *{{.CorePkg}}.Value) bool {
+func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {{"{"}}{{end}}
 {{define "case"}}
@@ -65,9 +63,6 @@ type tplSSAHeader struct {
 	Arch            string
 	ObjArch         string
 	GeneratedHeader string
-	OpPkg           string
-	CoreImport      string
-	CorePkg         string
 }
 
 // getArrangementFromOp extracts the arrangement constant from an SSA op name for ARM64.
@@ -187,7 +182,7 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 			continue
 		}
 		seen[asm] = struct{}{}
-		caseStr := fmt.Sprintf("%s.Op%s%s", path.Base(splitOpPkg), archInfo.ArchUpper, asm)
+		caseStr := fmt.Sprintf("ssaop.Op%s%s", archInfo.ArchUpper, asm)
 		isZeroMasking := false
 		if shapeIn == OneKmaskIn || shapeIn == OneKmaskImmIn {
 			if gOp.Zeroing == nil || *gOp.Zeroing {
@@ -206,7 +201,7 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 			kind := op.hiHalfKind()
 			if kind != "" {
 				asm2 := hiHalfOpName(*gOp.HiHalfAsm, gOp)
-				caseStr2 := fmt.Sprintf("%s.Op%s%s", path.Base(splitOpPkg), archInfo.ArchUpper, asm2)
+				caseStr2 := fmt.Sprintf("ssaop.Op%s%s", archInfo.ArchUpper, asm2)
 				if _, ok2 := seen[asm2]; !ok2 {
 					seen[asm2] = struct{}{}
 					if err := classifyHiHalfOp(op, kind, caseStr2, immOpArg, immType); err != nil {
@@ -243,9 +238,6 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 		Arch:            archInfo.Arch,
 		ObjArch:         archInfo.ObjArch,
 		GeneratedHeader: archInfo.GeneratedHeader,
-		OpPkg:           strconv.Quote(splitOpPkg),
-		CoreImport:      strconv.Quote(splitCorePath),
-		CorePkg:         splitCorePkg,
 	}
 	if err := ssaTemplates.ExecuteTemplate(buffer, "header", headerData); err != nil {
 		panic(fmt.Errorf("failed to execute header template: %w", err))

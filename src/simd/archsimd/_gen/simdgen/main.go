@@ -108,13 +108,10 @@ import (
 	"log"
 	"maps"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime/pprof"
 	"slices"
-	"strconv"
 	"strings"
-	"text/template"
 
 	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/sgutil"
@@ -148,65 +145,6 @@ var (
 )
 
 const simdPackage = "simd/archsimd"
-
-var splitPhase = phase6Rewrites
-
-var (
-	title = identity
-
-	splitOpPkg = "cmd/compile/internal/ssa"
-
-	splitCorePath   = "cmd/compile/internal/ssa"
-	splitCorePkg    = "ssa"
-	splitCorePrefix = ""
-
-	splitConvPrefix = ""
-)
-
-var splitFuncs = template.FuncMap{
-	"OpImport":   func() string { return strconv.Quote(splitOpPkg) },
-	"OpPkg":      func() string { return path.Base(splitOpPkg) },
-	"CoreImport": func() string { return strconv.Quote(splitCorePath) },
-	"CorePkg":    func() string { return splitCorePkg },
-	"ConvName":   func(name string) string { return splitConvPrefix + title(name) },
-}
-
-func identity(s string) string { return s }
-
-func simpleTitle(s string) string { return strings.ToUpper(s[:1]) + s[1:] }
-
-const (
-	phase0Start = iota
-	phase0Export
-	phase1Op
-	phase2Core
-	phase3Compile
-	phase4CoreRename
-	phase5Conv
-	phase6Rewrites
-)
-
-func init() {
-	if splitPhase >= phase0Export {
-		title = simpleTitle
-	}
-	if splitPhase >= phase1Op {
-		splitOpPkg = "cmd/compile/internal/ssa/ssaop"
-	}
-	if splitPhase >= phase2Core {
-		splitCorePath = "cmd/compile/internal/ssa/ssacore"
-		splitCorePkg = "ssacore"
-		splitCorePrefix = "ssacore."
-	}
-	if splitPhase >= phase4CoreRename {
-		splitCorePath = "cmd/compile/internal/ssa"
-		splitCorePkg = "ssa"
-		splitCorePrefix = "ssa."
-	}
-	if splitPhase >= phase5Conv {
-		splitConvPrefix = "ssa."
-	}
-}
 
 func main() {
 	flag.Parse()
