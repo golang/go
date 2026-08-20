@@ -24,7 +24,7 @@ func NewSparseTree(f *Func, parentOf []*Block) SparseTree {
 			t[p.ID].Child = b
 		}
 	}
-	t.NumberBlock(f.Entry, 1)
+	t.NumberBlock(f.Entry, 1, 1)
 	return t
 }
 
@@ -47,6 +47,9 @@ type SparseTreeNode struct {
 	// This simplifies life if we wish to query information about x
 	// when x is both an input to and output of a block.
 	Entry, Exit int32
+
+	// level is the depth of the block in the tree.
+	level int32
 }
 
 const (
@@ -123,14 +126,15 @@ func (t SparseTree) treestructure1(b *Block, i int) string {
 //   root     left     left      right       right       root
 //  1 2e 3 | 4 5e 6 | 7 8x 9 | 10 11e 12 | 13 14x 15 | 16 17x 18
 
-func (t SparseTree) NumberBlock(b *Block, n int32) int32 {
+func (t SparseTree) NumberBlock(b *Block, n int32, level int32) int32 {
 	// reserve n for entry-1, assign n+1 to entry
 	n++
+	t[b.ID].level = level
 	t[b.ID].Entry = n
 	// reserve n+1 for entry+1, n+2 is next free number
 	n += 2
 	for c := t[b.ID].Child; c != nil; c = t[c.ID].Sibling {
-		n = t.NumberBlock(c, n) // preserves n = next free number
+		n = t.NumberBlock(c, n, level+1) // preserves n = next free number
 	}
 	// reserve n for exit-1, assign n+1 to exit
 	n++
@@ -161,6 +165,13 @@ func (t SparseTree) Child(x *Block) *Block {
 // nil if x is the function's entry.
 func (t SparseTree) Parent(x *Block) *Block {
 	return t[x.ID].parent
+}
+
+// Level returns the depth of x in the tree: the root is level 1, its
+// children 2, and so on. Blocks that are not in the tree (unreachable
+// from the entry) have level 0.
+func (t SparseTree) Level(x *Block) int {
+	return int(t[x.ID].level)
 }
 
 // IsAncestorEq reports whether x is an ancestor of or equal to y.
