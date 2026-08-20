@@ -303,6 +303,17 @@ func TestEverything(t *testing.T) {
 	}
 }
 
+func TestBigmodImplementations(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "bigmod", func(t *testing.T) {
+		for _, key := range []*PrivateKey{test2048Key, test3072Key, test4096Key} {
+			t.Run(fmt.Sprintf("%d", key.N.BitLen()), func(t *testing.T) {
+				t.Parallel()
+				testEverything(t, key)
+			})
+		}
+	})
+}
+
 func testEverything(t *testing.T, priv *PrivateKey) {
 	validateErr := priv.Validate()
 	if validateErr != nil && len(priv.Primes) >= 2 {

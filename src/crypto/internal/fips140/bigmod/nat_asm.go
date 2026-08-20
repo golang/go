@@ -23,7 +23,7 @@ var supportADX = cpu.X86HasADX && cpu.X86HasBMI2
 
 func init() {
 	if cpu.AMD64 {
-		impl.Register("aes", "ADX", &supportADX)
+		impl.Register("bigmod", "ADX", &supportADX)
 	}
 }
 
