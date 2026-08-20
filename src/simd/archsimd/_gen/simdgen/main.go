@@ -4,19 +4,23 @@
 
 // simdgen is an experiment in generating Go <-> asm SIMD mappings.
 //
-// Usage: simdgen [-xedPath=path | -arm64Path=path | -svePath=path] [-q=query] input.yaml...
+// Usage: simdgen [-arch=amd64|arm64] [-xedPath=path] [-arm64Path=path] [-svePath=path] [-q=query] input.yaml...
 //
-// Only one of -xedPath, -arm64Path or -svePath may be specified.
+// The external data inputs (XED data for amd64 or ARM64 ISA XML specs for arm64 and sve)
+// are resolved automatically via search paths including standard environment variables
+// ($XEDPATH or $ARM64_ISA_PATH), local directories populated by fetch-xed.sh /
+// fetch-arm64.sh (e.g. ../extern/), or default $HOME locations. Explicit -xedPath
+// or -arm64Path flags may be supplied to override search paths.
 //
-// If -xedPath is provided, one of the inputs is a sum of op-code definitions
-// generated from the Intel XED data at path.
+// If arch is amd64, one of the inputs is a sum of op-code definitions generated
+// from the Intel XED data (which can be downloaded via fetch-xed.sh).
 //
-// If -arm64Path is provided, one of the inputs is a set of NEON (advsimd)
-// instruction definitions parsed from ARM64 ISA XML files at path (obtained from
-// https://developer.arm.com/-/cdn-downloads/permalink/Exploration-Tools-A64-ISA/ISA_A64/ISA_A64_xml_A_profile-2025-12.tar.gz).
+// If arch is arm64, one of the inputs is a set of NEON (advsimd) instruction
+// definitions parsed from ARM64 ISA XML files (which can be downloaded via
+// fetch-arm64.sh).
 //
-// If -svePath is provided, one of the inputs is a set of SVE / SVE2 instruction
-// definitions parsed from the same ARM64 ISA XML files. See the sve package.
+// Likewise, if arch is sve, one of the inputs is the set of SVE / SVE2
+// instruction definitions parsed from the ARM64 ISA XML files.
 //
 // If input YAML files are provided, each file is read as an input value. See
 // [unify.Closure.UnmarshalYAML] or "go doc unify.Closure.UnmarshalYAML" for the
@@ -33,31 +37,31 @@
 //
 // Typical usage:
 //
-//	go run . -xedPath $XEDPATH *.yaml
+//	go run . *.yaml
 //
 // To see just the definitions generated from XED, run:
 //
-//	go run . -xedPath $XEDPATH
+//	go run . -arch=amd64
 //
 // (This works because if there's only one input, there's nothing to unify it
 // with, so the result is simply itself.)
 //
-// To see just the definitions for VPADDQ:
+// To see just the definitions for VPADDQ on AMD64:
 //
-//	go run . -xedPath $XEDPATH -q '{asm: VPADDQ}'
+//	go run . -arch=amd64 -q '{asm: VPADDQ}'
 //
 // For VADD.S4 on ARM64:
 //
-//	go run . -arm64Path $ARM64_ISA_PATH -o yaml -q '{asm: VADD, arrangement: "4S"}'
+//	go run . -arch arm64 -q '{asm: VADD, arrangement: "4S"}'
 //
-// simdgen can also generate Go definitions of SIMD mappings:
+// simdgen can also generate Go definitions of SIMD mappings.
 // To generate go files to the go root, run:
 //
-//	go run . -xedPath $XEDPATH -o godefs -goroot $PATH/TO/go go_amd64.yaml categories.yaml types.yaml
+//	go run . -arch amd64 -o godefs -goroot $PATH/TO/go go_amd64.yaml categories.yaml types.yaml
 //
 // For ARM64:
 //
-//	go run . -arm64Path $ARM64_ISA_PATH -o godefs -goroot $PATH/TO/go go_arm64.yaml categories.yaml types.yaml
+//	go run . -arch arm64 -o godefs -goroot $PATH/TO/go go_arm64.yaml categories.yaml types.yaml
 //
 // types.yaml is already written, it specifies the shapes of vectors.
 // categories.yaml and go_<arch>.yaml contain definitions that unify with types.yaml and
@@ -112,6 +116,7 @@ import (
 	"strings"
 	"text/template"
 
+	"simd/archsimd/_gen/sgutil"
 	"simd/archsimd/_gen/simdgen/arm64"
 	"simd/archsimd/_gen/simdgen/sve"
 	"simd/archsimd/_gen/unify"
@@ -120,17 +125,15 @@ import (
 )
 
 var (
-	xedPath               = flag.String("xedPath", "", "load XED datafiles from `path`")
-	arm64Path             = flag.String("arm64Path", "", "load ARM64 instruction xml definitions from `path`")
-	svePath               = flag.String("svePath", "", "load ARM64 SVE instruction xml definitions from `path`")
+	flagXedPath           = sgutil.FlagXEDPath("..")
+	flagArm64Path         = sgutil.FlagARM64Path("..")
 	flagQ                 = flag.String("q", "", "query: read `def` as another input (skips final validation)")
 	flagO                 = flag.String("o", "yaml", "output type: yaml, godefs (generate definitions into a Go source tree")
 	flagGoDefRoot         = flag.String("goroot", ".", "the path to the Go dev directory that will receive the generated files")
 	FlagNoDedup           = flag.Bool("nodedup", false, "disable deduplicating godefs of 2 qualifying operations from different extensions")
 	FlagNoConstImmPorting = flag.Bool("noconstimmporting", false, "disable const immediate porting from op to imm operand")
 
-	// FlagArch must be pre-initialized to a bogus value because there have been initializations that depended on it
-	FlagArch = flag.String("arch", "must be specified, amd64 or arm64", "the target architecture")
+	FlagArch = flag.String("arch", "", "unify with architecture definitions for `arch`\n\tif amd64, loads from -xedPath\n\tif arm64 or sve, loads from -arm64Path")
 
 	Verbose = flag.Bool("v", false, "verbose")
 
@@ -227,46 +230,48 @@ func main() {
 		}()
 	}
 
-	// At most one instruction source may be specified.
-	nPaths := 0
-	for _, p := range []string{*xedPath, *arm64Path, *svePath} {
-		if p != "" {
-			nPaths++
-		}
-	}
-	if nPaths > 1 {
-		log.Fatalf("only one of -xedPath, -arm64Path or -svePath may be specified")
-	}
-
 	// Load instructions into the architecture-specific defs set.
 	var defs []*unify.Value
 	switch *FlagArch {
-	case "amd64":
-		if *xedPath != "" {
-			defs = loadXED(*xedPath)
+	case "":
+		// No input from architecture definitions. That's fine if we're just
+		// emitting generic yaml, but if we're emitting godefs we need to know
+		// the arch.
+		if *flagO == "godefs" {
+			log.Fatalf("-o godefs requires -arch")
 		}
+	case "amd64":
+		xedPath, err := sgutil.ResolveXEDPath(flagXedPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defs = loadXED(xedPath)
 	case "arm64":
-		if *arm64Path != "" {
-			var err error
-			defs, err = arm64.Load(*arm64Path)
-			if err != nil {
-				log.Fatalf("loading ARM64 instructions: %s", err)
-			}
+		arm64Path, err := sgutil.ResolveARM64Path(flagArm64Path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defs, err = arm64.Load(arm64Path)
+		if err != nil {
+			log.Fatalf("loading ARM64 instructions: %s", err)
 		}
 	case "sve":
-		if *svePath != "" {
-			var err error
-			defs, err = sve.Load(*svePath)
-			if err != nil {
-				log.Fatalf("loading ARM64 SVE instructions: %s", err)
-			}
+		arm64Path, err := sgutil.ResolveARM64Path(flagArm64Path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defs, err = sve.Load(arm64Path)
+		if err != nil {
+			log.Fatalf("loading ARM64 SVE instructions: %s", err)
 		}
 	default:
-		log.Fatalf("simdgen only supports amd64, arm64 and sve")
+		log.Fatalf("-arch must be one of: amd64, arm64, sve")
 	}
 
 	var inputs []unify.Closure
-	inputs = append(inputs, unify.NewSum(defs...))
+	if defs != nil {
+		inputs = append(inputs, unify.NewSum(defs...))
+	}
 
 	// Load query.
 	if *flagQ != "" {
@@ -348,7 +353,7 @@ func main() {
 		}
 	}
 
-	if !*Verbose && *xedPath != "" {
+	if !*Verbose && *FlagArch == "amd64" {
 		if operandRemarks == 0 {
 			fmt.Fprintf(os.Stderr, "XED decoding generated no errors, which is unusual.\n")
 		} else {
