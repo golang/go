@@ -960,13 +960,22 @@ type target struct {
 	//           (setting/computing desc may be expensive for not being used)
 	//           Also, if we keep it, review consistency of description.
 	desc string
+	hint bool // if set, the target may be used as untyped composite literal hint before Go 1.28
 }
 
 // newTarget creates a new target for the given type and description.
 // The result is nil if typ is nil.
 func newTarget(typ Type, desc string) *target {
 	if typ != nil {
-		return &target{typ, desc}
+		return &target{typ, desc, false}
+	}
+	return nil
+}
+
+// newHint is like newTarget but it marks the result as a hint.
+func newHint(typ Type, desc string) *target {
+	if typ != nil {
+		return &target{typ, desc, true}
 	}
 	return nil
 }

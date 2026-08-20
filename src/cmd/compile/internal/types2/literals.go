@@ -126,23 +126,23 @@ func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit
 
 	// The hint mechanism is kept around to avoid reporting a false "need Go 1.28" error
 	// for users of a Go 1.27 compiler.
-	case hint != nil:
-		// no composite literal type present - use hint (element type of enclosing type)
-		typ = hint
-		base = typ
-		// *T implies &T{}
-		u, _ := commonUnder(base, nil)
-		if b, ok := deref(u); ok {
-			base = b
-		}
-		isElem = true
+	// case hint != nil:
+	// 	// no composite literal type present - use hint (element type of enclosing type)
+	// 	typ = hint
+	// 	base = typ
+	// 	// *T implies &T{}
+	// 	u, _ := commonUnder(base, nil)
+	// 	if b, ok := deref(u); ok {
+	// 		base = b
+	// 	}
+	// 	isElem = true
 
 	default:
 		// no composite literal type or hint present - use assignment context (if available and past Go 1.28)
 		if T != nil {
 			assert(T.typ != nil)
-			// report a version error only if we have an inferred type
-			check.verifyVersionf(e, go1_28, "missing type in composite literal")
+			// report a version error only if we have an inferred type that is not a hint
+			_ = T.hint || check.verifyVersionf(e, go1_28, "missing type in composite literal")
 			// continue with the inferred type regardless of version
 			typ = T.typ
 			base = typ
@@ -151,6 +151,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit
 			if b, ok := deref(u); ok {
 				base = b
 			}
+			isElem = T.hint
 		} else {
 			// TODO(gri) provide better error messages depending on context
 			check.error(e, UntypedLit, "missing type in composite literal")
@@ -299,7 +300,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit
 				check.error(e, MissingLitKey, "missing key in map literal")
 				continue
 			}
-			check.genericExpr(newTarget(utyp.key, "map key"), x, kv.Key, utyp.key)
+			check.genericExpr(newHint(utyp.key, "map key"), x, kv.Key, utyp.key)
 			check.assignment(x, utyp.key, "map literal")
 			if !x.isValid() {
 				continue
@@ -324,7 +325,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit
 					continue
 				}
 			}
-			check.genericExpr(newTarget(utyp.elem, "map value"), x, kv.Value, utyp.elem)
+			check.genericExpr(newHint(utyp.elem, "map value"), x, kv.Value, utyp.elem)
 			check.assignment(x, utyp.elem, "map literal")
 		}
 
@@ -401,7 +402,7 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
 
 		// check element against composite literal element type
 		var x operand
-		check.genericExpr(newTarget(typ, "array or slice element"), &x, eval, typ)
+		check.genericExpr(newHint(typ, "array or slice element"), &x, eval, typ)
 		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max
