@@ -829,6 +829,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssaop.OpARM64ZSELB:
+		simdZ2kv(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZSELH:
+		simdZ2kv(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZSELS:
+		simdZ2kv(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZSELD:
+		simdZ2kv(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64PWHILELTB:
 		simdPWHILELT(s, v, arm64.ARNG_B)
 	case ssaop.OpARM64PWHILELTH:
@@ -2119,6 +2127,100 @@ func simdZ21(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng)) // Zn
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
+// simdZ2kv emits an SVE instruction that takes a predicate as a plain data
+// operand rather than a governing predicate, e.g. ZSEL Z1.B, Z0.B, P0, Z2.B.
+// Unlike a predicated instruction it is constructive: the destination is
+// independent of the sources, so it needs no MOVPRFX. SSA provides arg0=x (kept
+// where the predicate is true), arg1=y (kept where false) and arg2=the predicate.
+func simdZ2kv(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[1].Reg(), arng)        // Zm
+	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng)) // Zn
+	p.AddRestSourceReg(v.Args[2].Reg())                 // Pv, unqualified
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
+// simdZ2kvPred emits an SVE predicated binary operation, e.g. ZADD Z1.B, Z0.B, P0.M,
+// Z0.B. These instructions are destructive: the destination is also the first
+// source. How the destination is put in place depends on what the register
+// allocator chose:
+//
+//   - dst == arg0: already destructive-ready, emit the instruction alone.
+//   - dst == arg1: only reachable for a commutative operation (a
+//     non-commutative one is marked resultInArg0, which pins dst to arg0), so
+//     swap the sources and it becomes the case above.
+//   - anything else: prefix MOVPRFX, which hints the hardware to fuse the pair
+//     into one constructive operation and leaves both sources intact.
+func simdZ2kvPred(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	x, y := v.Args[0].Reg(), v.Args[1].Reg()
+	d := v.Reg()
+	switch d {
+	case x:
+	case y:
+		x, y = y, x
+	default:
+		mp := s.Prog(arm64.AZMOVPRFX)
+		mp.From.Type = obj.TYPE_REG
+		mp.From.Reg = pzreg(x)
+		mp.To.Type = obj.TYPE_REG
+		mp.To.Reg = pzreg(d)
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(y, arng)                              // Zm
+	p.AddRestSourceReg(zregArng(d, arng))                       // Zdn
+	p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M)) // Pg/M
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(d, arng) // Zdn
+	return p
+}
+
+// simdZ3kvPredResultInArg0 emits an SVE merging-predicated binary operation
+// whose inactive lanes come from a value that is neither of its sources, e.g.
+// x.Add(y).IfElse(mask, z). SSA provides arg0=z, arg1=x, arg2=y, arg3=mask, and
+// resultInArg0 puts z in the destination register.
+//
+//	ZMOVPRFX Zx, Pg/M, Zd    // Zd = x on the active lanes, z on the rest
+//	ZADD     Zy, Zd, Pg/M, Zd // Zd = x+y on the active lanes, z on the rest
+//
+// The prefix must be the predicated MOVPRFX, not the unpredicated one: the
+// whole-register form would leave x rather than z in the inactive lanes.
+//
+// A prefixed instruction may not name its destination in any operand position
+// other than the destructive one, so Zd must differ from the operation's Zm.
+// Only a commutative operation gets this lowering (see sveMergingPrefixedOp in
+// simdgen), so when the register allocator puts the destination on one source —
+// which it can only do when z is that source — the other one becomes Zm and the
+// prefix is unnecessary.
+func simdZ3kvPredResultInArg0(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	d := v.Reg()
+	x, y := v.Args[1].Reg(), v.Args[2].Reg()
+	pg := v.Args[3].Reg()
+	zn, zm := x, y
+	if d == zm {
+		zn, zm = zm, zn
+	}
+	if d != zn {
+		mp := s.Prog(arm64.AZMOVPRFX)
+		mp.From.Type = obj.TYPE_REG
+		mp.From.Reg = zregArng(zn, arng)
+		mp.AddRestSourceReg(pregMask(pg, arm64.PRED_M))
+		mp.To.Type = obj.TYPE_REG
+		mp.To.Reg = zregArng(d, arng)
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(zm, arng)                // Zm
+	p.AddRestSourceReg(zregArng(d, arng))          // Zdn
+	p.AddRestSourceReg(pregMask(pg, arm64.PRED_M)) // Pg/M
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(d, arng) // Zdn
 	return p
 }
 

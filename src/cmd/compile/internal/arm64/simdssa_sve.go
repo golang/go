@@ -47,6 +47,50 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssaop.OpARM64ZCMPGTS:
 		p = simdZ2kk(s, v, arm64.ARNG_S)
 
+	case ssaop.OpARM64ZADDMergingB,
+		ssaop.OpARM64ZSQADDMergingB,
+		ssaop.OpARM64ZUQADDMergingB:
+		p = simdZ2kvPred(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZFADDMergingD,
+		ssaop.OpARM64ZADDMergingD,
+		ssaop.OpARM64ZSQADDMergingD,
+		ssaop.OpARM64ZUQADDMergingD:
+		p = simdZ2kvPred(s, v, arm64.ARNG_D)
+
+	case ssaop.OpARM64ZADDMergingH,
+		ssaop.OpARM64ZSQADDMergingH,
+		ssaop.OpARM64ZUQADDMergingH:
+		p = simdZ2kvPred(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZFADDMergingS,
+		ssaop.OpARM64ZADDMergingS,
+		ssaop.OpARM64ZSQADDMergingS,
+		ssaop.OpARM64ZUQADDMergingS:
+		p = simdZ2kvPred(s, v, arm64.ARNG_S)
+
+	case ssaop.OpARM64ZADDMergingPrefixedB,
+		ssaop.OpARM64ZSQADDMergingPrefixedB,
+		ssaop.OpARM64ZUQADDMergingPrefixedB:
+		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZFADDMergingPrefixedD,
+		ssaop.OpARM64ZADDMergingPrefixedD,
+		ssaop.OpARM64ZSQADDMergingPrefixedD,
+		ssaop.OpARM64ZUQADDMergingPrefixedD:
+		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_D)
+
+	case ssaop.OpARM64ZADDMergingPrefixedH,
+		ssaop.OpARM64ZSQADDMergingPrefixedH,
+		ssaop.OpARM64ZUQADDMergingPrefixedH:
+		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZFADDMergingPrefixedS,
+		ssaop.OpARM64ZADDMergingPrefixedS,
+		ssaop.OpARM64ZSQADDMergingPrefixedS,
+		ssaop.OpARM64ZUQADDMergingPrefixedS:
+		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_S)
+
 	default:
 		// Unknown reg shape
 		return false

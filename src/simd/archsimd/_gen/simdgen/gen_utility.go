@@ -165,7 +165,7 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 	hasVreg := false
 	hasListIn := false
 	for _, in := range op.In {
-		if in.IsImplicitAllTrue() {
+		if in.IsGoverning() {
 			// An SVE implicit-all-true governing predicate is not part of the Go
 			// API: it must not count as a mask input here, so the op classifies as
 			// an unpredicated (PureVregIn/NoMask) op. The machine op and lowering
@@ -194,8 +194,14 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 			if immAsmPos == outputReg {
 				immOpIdx += "Out"
 			}
-		} else if in.Class == "mask" {
+		} else if in.Class == "mask" && (!CurrentArch().isSVE() || in.Predication != nil) {
 			maskCount++
+		} else if in.Class == "mask" {
+			// An SVE predicate operand with no /M or /Z qualifier is <Pv>, a plain
+			// data operand (SEL's select predicate) rather than a governing
+			// predicate: the operation is unpredicated and the mask is just an
+			// argument. regShape still counts it as a predicate register.
+			hasVreg = true
 		} else {
 			if immAsmPos == in.AsmPos {
 				immOpIdx += fmt.Sprintf("In%d", in.AsmPos)
@@ -356,6 +362,20 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 		panic("simdgen does not understand memory as output as of now")
 	}
 	regInfo += fixedName
+	if CurrentArch().isSVE() {
+		// A governing predicate supplied by the caller (/M or /Z, from the paired
+		// predicated encoding) means the instruction is predicated and
+		// destructive; a plain predicate operand (SEL's <Pv>) is not, and an
+		// implicit-all-true predicate is synthesized rather than passed in. They
+		// share register classes but need different ssa-to-prog helpers, so give
+		// the caller-predicated form its own shape name.
+		for i := range gOp.In {
+			if gOp.In[i].Class == "mask" && gOp.In[i].Predication != nil && !gOp.In[i].IsGoverning() {
+				regInfo += "Pred"
+				break
+			}
+		}
+	}
 	if CurrentArch().isSVE() && strings.HasPrefix(regInfo, "v") {
 		// SVE vectors live in the scalable Z bank, not the NEON V bank, so name
 		// their shapes with a "z" (z21, z11, ...). This keeps the generated
@@ -940,6 +960,13 @@ func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool 
 				return false
 			}
 		}
+	}
+	if CurrentArch().isSVE() {
+		// AMD64 merging takes the merge source as an extra destination operand.
+		// An SVE predicated instruction is destructive — it merges into its own
+		// first source — so there is no separate operand to add, and the merging
+		// form is just the /M-predicated machine op.
+		return false
 	}
 	// BLEND and VMOVDQU are not user-facing ops so we should filter them out.
 	return o.OperandOrder == nil && maskType == OneMask && outType == OneVregOut &&

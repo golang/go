@@ -6,6 +6,7 @@ package sve
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -109,11 +110,16 @@ type Operand struct {
 	// and unknown operands so diagnostics can name what was skipped.
 	Raw string
 
-	// role is the operand's internal role: "destination", "op0"/"op1"/..., or
-	// "mask" (a governing predicate). It drives out/in/inVariant partitioning at
-	// emit time but is NOT emitted (simdgen orders operands by AsmPos, so a role
-	// field in the YAML would be redundant).
+	// role is the operand's internal role: "destination" or "op0"/"op1"/....
+	// It drives out/in partitioning at emit time but is NOT emitted (simdgen
+	// orders operands by AsmPos, so a role field in the YAML would be
+	// redundant). A governing predicate has no role; it is marked by governing.
 	role string
+	// governing marks the governing predicate — the operand selecting which
+	// lanes the instruction acts on, as opposed to a predicate read as data.
+	// It is classified from the spec's own explanation text for the symbol and
+	// emitted as the def's "governing" field.
+	governing bool
 	// arngLink is the <a> link of this operand's arrangement symbol (<T>/<Ta>/
 	// <Tb>), used to resolve its per-operand element widths. Empty if the
 	// operand has a fixed or no arrangement.
@@ -130,6 +136,11 @@ type Operand struct {
 	isList bool
 	// regName is the inner register symbol, e.g. "Zdn", "Zm", "Pg".
 	regName string
+	// predRegName is the symbol this operand has in each paired predicated
+	// encoding, indexed to match the operation's predicated variants (and so the
+	// inVariant tuple the def carries). It is nil when the operation has no
+	// predicated form.
+	predRegName []string
 }
 
 // resultInArg0 reports whether this destination register is also read, i.e. it
@@ -215,17 +226,20 @@ type tok struct {
 }
 
 // operandsFromTextA parses operands from an assembly template's <text>/<a>
-// sequence, preserving each operand's arrangement-symbol link.
-func operandsFromTextA(textA []xmlspec.TextA) []Operand {
-	return buildOperandList(classifyToks(tokenizeTextA(textA)))
+// sequence, preserving each operand's arrangement-symbol link. govern reports
+// whether a predicate register symbol is the governing predicate; the real
+// loader path passes the instruction's explanation lookup.
+func operandsFromTextA(textA []xmlspec.TextA, govern func(regName string) (governing, found bool)) []Operand {
+	return buildOperandList(classifyToks(tokenizeTextA(textA)), govern)
 }
 
 // operands parses operands from a flattened template string. It cannot recover
-// <a> links, so arrangement symbols resolve to empty links; it is used for
+// <a> links or explanations, so arrangement symbols resolve to empty links and
+// the governing predicate is classified syntactically; it is used for
 // classification-only paths and tests. The real loader path uses
 // operandsFromTextA.
 func operands(asmTemplate string) []Operand {
-	return buildOperandList(classifyToks(tokenizeString(asmTemplate)))
+	return buildOperandList(classifyToks(tokenizeString(asmTemplate)), nil)
 }
 
 // tokenizeTextA splits a <text>/<a> sequence into operand tokens on top-level
@@ -493,9 +507,9 @@ func isInPlaceReg(name string) bool {
 //
 // Unlike an AMD64 AVX-512 K-mask, an SVE governing predicate is NOT optional:
 // there is no K0-style "no predicate" encoding, so it is a mandatory literal
-// input (class "mask", role "mask"), not an inVariant. See the discussion in
-// emitOne.
-func buildOperandList(parsed []tok) []Operand {
+// input (class "mask", marked governing), not an inVariant. See the discussion
+// in emitOne.
+func buildOperandList(parsed []tok, govern func(regName string) (governing, found bool)) []Operand {
 	var outs, ins []Operand
 	inputCount := 0
 	destAssigned := false
@@ -534,16 +548,49 @@ func buildOperandList(parsed []tok) []Operand {
 		}
 		switch p.operandType {
 		case OperandPReg:
-			if p.regName == "Pg" || p.predication != "" {
-				// Governing predicate: the operand named <Pg> ("g" for governing), a
-				// mandatory mask input (role "mask", not a numbered opN). Most carry a
-				// /Z or /M qualifier (predicated data-processing ops), but some do not
-				// — e.g. the store ST1B {<Zt>.B}, <Pg>, [...] governs with a plain
-				// <Pg> — so key on the register name, not the qualifier. Source
-				// predicates <Pn>/<Pm> and the destination <Pd> are ordinary operands,
-				// filed by place() below.
+			// The governing predicate is classified from the spec's own words:
+			// its explanation calls the symbol "the governing scalable predicate
+			// register". The syntactic signal — the symbol is <Pg>, or it carries
+			// a /M or /Z qualifier — is kept as a cross-check, so a shape where
+			// the two diverge fails loudly instead of misclassifying: the SME
+			// outer products govern with two predicates spelled <Pn>/<Pm>
+			// (SUMOPA <ZAda>.S, <Pn>/M, <Pm>/M, <Zn>.B, <Zm>.B), which does not
+			// fit the one-governing-predicate shape simdgen builds on and must
+			// be rejected here, not silently halved. The bare-string parse path
+			// (tests, diagnostics) has no explanations and uses the syntactic
+			// signal alone.
+			syntactic := p.regName == "Pg" || p.predication != ""
+			governing := syntactic
+			if govern != nil {
+				if verdict, found := govern(p.regName); found {
+					governing = verdict
+					if governing != syntactic {
+						// The explanation wins, but say so. Two shapes diverge in
+						// the ISA today, in opposite directions: the MOV alias of
+						// SEL (MOV <Zd>.<T>, <Pv>/M, <Zn>.<T>), whose <Pv> keeps
+						// its "select" description from SEL even though the alias
+						// writes it with a qualifier; and the bare <PNg> of the
+						// predicate-as-counter loads/stores, which the spec calls
+						// governing though it is neither <Pg> nor qualified.
+						// Neither instruction is emitted today, so nothing
+						// downstream sees the difference — but the second is the
+						// case the explanation gets right and the syntax cannot.
+						log.Printf("sve: symbol <%s> (qualifier %q): explanation says governing=%v, syntactic signal says %v; following the explanation",
+							p.regName, p.predication, governing, syntactic)
+					}
+				}
+				// No explanation for this symbol — an alias template, or a test
+				// fixture with the explanations stripped — so the syntactic
+				// signal stands alone.
+			}
+			if governing {
+				// A mandatory mask input, not a numbered opN. Most carry a /Z or
+				// /M qualifier (predicated data-processing ops), but some do not
+				// — the store ST1B {<Zt>.B}, <Pg>, [...] governs with a plain
+				// <Pg>. Source predicates <Pn>/<Pm> and the destination <Pd> are
+				// ordinary operands, filed by place() below.
 				ins = append(ins, Operand{
-					Type: OperandPReg, Class: "mask", role: "mask",
+					Type: OperandPReg, Class: "mask", governing: true,
 					Predication: p.predication, AsmPos: p.asmPos,
 					arngLink: p.arngLink, fixedElem: p.fixedElem, regName: p.regName,
 				})
@@ -570,6 +617,19 @@ func buildOperandList(parsed []tok) []Operand {
 				isList: p.isList, regName: p.regName,
 			}, p.isDestination)
 		}
+	}
+	// An instruction has at most one governing predicate — everything simdgen
+	// derives from the field (implicitPredCount, regShape, the all-true
+	// synthesis) assumes it. The SME outer products break this (SUMOPA governs
+	// with <Pn>/M and <Pm>/M at once) and must be rejected here, not halved.
+	governCount := 0
+	for i := range ins {
+		if ins[i].governing {
+			governCount++
+		}
+	}
+	if governCount > 1 {
+		panic(fmt.Sprintf("sve: %d governing predicates in one operand list; only one is supported", governCount))
 	}
 	return append(outs, ins...)
 }

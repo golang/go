@@ -65,6 +65,32 @@ type Instruction struct {
 	// If nil, the first iclass is used.
 	iclass        *xmlspec.Iclass
 	mnemonicCache string
+	// predVariants is set on the unpredicated instruction of a
+	// predicated/unpredicated pair (see [groupPredicationForms]), one entry per
+	// predicated machine op the pair implies. It is nil for an instruction that
+	// comes in one form only.
+	predVariants []predVariant
+}
+
+// predVariant is one predicated encoding of an operation, as seen from its
+// unpredicated sibling: the governing-predicate qualifiers it offers ("M", "Z",
+// or "MZ" for an encoding written <Pg>/<ZM>, which supports either) and its
+// register symbols, in the same order as the sibling's own results and
+// non-predicate inputs.
+//
+// One encoding can imply several machine ops — one per qualifier — but they
+// share these symbols, because they are the same encoding. A second entry would
+// mean a genuinely separate predicated encoding, which no paired operation in
+// the ISA has today; the list exists so that such an encoding could be
+// described with its own symbols rather than collapsed onto the first one's.
+type predVariant struct {
+	quals       string
+	outRegNames []string
+	inRegNames  []string
+	// predAsmPos is the assembly position of the encoding's governing
+	// predicate: 1 on every encoding grouped today, but recorded rather than
+	// assumed — PTEST, with no destination, governs from position 0.
+	predAsmPos int
 }
 
 // ic returns the iclass this logical instruction represents, defaulting to the
@@ -286,6 +312,27 @@ func (inst *Instruction) findExplanation(link string) *xmlspec.Explanation {
 	return nil
 }
 
+// symbolIsGoverning reports whether this instruction's explanation for
+// register symbol name (e.g. "Pg") describes it as the governing predicate —
+// the spec writes "the governing scalable predicate register" for exactly the
+// symbols with that role. found reports whether any explanation names the
+// symbol at all. This is the authoritative classification; [buildOperandList]
+// cross-checks it against the syntactic <Pg>/qualifier signal.
+func (inst *Instruction) symbolIsGoverning(name string) (governing, found bool) {
+	want := "<" + name + ">"
+	for i := range inst.Explanations.Explanations {
+		e := &inst.Explanations.Explanations[i]
+		if strings.TrimSpace(e.Symbol.Value) != want {
+			continue
+		}
+		found = true
+		if strings.Contains(strings.ToLower(e.Account.Intro), "governing") {
+			return true, true
+		}
+	}
+	return false, found
+}
+
 // arngRow is one row of an arrangement size table: the encoding value of the
 // size field and the resulting element width in bits.
 type arngRow struct {
@@ -399,7 +446,17 @@ func (inst *Instruction) allEncodingOperands() [][]Operand {
 			continue
 		}
 		seen[s] = true
-		if ops := operandsFromTextA(enc.AsmTemplate.TextA); len(ops) > 0 {
+		ops := func() []Operand {
+			// A classification panic names only the operand; add which
+			// instruction and template it came from.
+			defer func() {
+				if r := recover(); r != nil {
+					panic(fmt.Sprintf("%v\n  in %q template %q", r, inst.Title, s))
+				}
+			}()
+			return operandsFromTextA(enc.AsmTemplate.TextA, inst.symbolIsGoverning)
+		}()
+		if len(ops) > 0 {
 			inst.fixMemoryDirection(ops)
 			out = append(out, ops)
 		}
@@ -454,7 +511,7 @@ func hasClass(ops []Operand, class string) bool {
 // bit, or a single no-op pass when the template has no governing predicate.
 func predicationVariants(ops []Operand) []string {
 	for i := range ops {
-		if ops[i].Class == "mask" && ops[i].role == "mask" {
+		if ops[i].governing {
 			if ops[i].Predication == "MZ" {
 				return []string{"M", "Z"}
 			}
@@ -462,6 +519,44 @@ func predicationVariants(ops []Operand) []string {
 		}
 	}
 	return []string{""}
+}
+
+// predicationForm reports whether this encoding is the predicated or the
+// unpredicated form of an operation, as "predicated" / "unpredicated".
+//
+// It reads the encoding rather than the title: an encoding that takes a
+// governing predicate is the predicated one. SVE does also spell this out in
+// the title of an operation that has both forms ("ADD (vectors, predicated)"
+// and "ADD (vectors, unpredicated)"), and [predicationGroupKey] uses that to pair
+// them, but an operation that only comes predicated says nothing in its title —
+// both of ABS's encodings are titled plain "ABS".
+func (inst *Instruction) predicationForm() string {
+	for _, ops := range inst.allEncodingOperands() {
+		for i := range ops {
+			if ops[i].governing {
+				return "predicated"
+			}
+		}
+	}
+	return "unpredicated"
+}
+
+// predicationGroupKey returns the key that groups the encodings of one
+// operation: the title with any predicated/unpredicated qualifier removed, e.g.
+// both "ADD (vectors, predicated)" and "ADD (vectors, unpredicated)" yield "add
+// (vectors)", and both of ABS's encodings yield "abs".
+//
+// Encodings that are not variations on one another keep distinct titles — "ADD
+// (immediate)", "ADD (extended register)" — so they land in groups of their own,
+// which groupPredicationForms then leaves alone.
+func (inst *Instruction) predicationGroupKey() string {
+	t := strings.ToLower(inst.Title)
+	t = strings.ReplaceAll(t, "unpredicated", "")
+	t = strings.ReplaceAll(t, "predicated", "")
+	// Tidy the separator the qualifier left behind: "(vectors, )" -> "(vectors)".
+	t = strings.ReplaceAll(t, ", )", ")")
+	t = strings.ReplaceAll(t, "( ", "(")
+	return strings.Join(strings.Fields(t), " ")
 }
 
 // documentation returns a one-line description of the instruction.

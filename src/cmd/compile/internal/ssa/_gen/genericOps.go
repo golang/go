@@ -746,6 +746,22 @@ var genericOps = []opData{
 
 	{name: "ScalableVectorLen", argLength: 0}, // SVE runtime vector length in bytes
 	{name: "Count8s", argLength: 1},           // arg0 = active byte count; builds an SVE predicate over that many byte lanes
+
+	// IfElse selects per element between two scalable vectors under a predicate.
+	// It backs both the IfElse and (against a zero vector) the Masked method, and
+	// is written by hand rather than derived from the ISA because SEL is
+	// bit-pattern-agnostic: there is no float-lane encoding of it to unify with.
+	// arg0 = x, arg1 = predicate, arg2 = y (taken where the predicate is false).
+	{name: "IfElseInt8s", argLength: 3},
+	{name: "IfElseUint8s", argLength: 3},
+	{name: "IfElseInt16s", argLength: 3},
+	{name: "IfElseUint16s", argLength: 3},
+	{name: "IfElseInt32s", argLength: 3},
+	{name: "IfElseUint32s", argLength: 3},
+	{name: "IfElseFloat32s", argLength: 3},
+	{name: "IfElseInt64s", argLength: 3},
+	{name: "IfElseUint64s", argLength: 3},
+	{name: "IfElseFloat64s", argLength: 3},
 }
 
 //     kind          controls          successors   implicit exit

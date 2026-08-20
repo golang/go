@@ -44,6 +44,19 @@ type Operation struct {
 	//
 	// For masked operations, this will have the mask operand appended.
 	In []types.Operand
+
+	// sveMergingPrefixed marks the MOVPRFX-prefixed variant of a merging
+	// predicated operation, built by [Operation.sveMergingPrefixedOp]. It exists
+	// only to give that variant a machine-op name of its own.
+	sveMergingPrefixed bool
+
+	// sveMergeSourceIn0 marks a merging predicated operation whose first input
+	// is the value the destination starts out holding, and which therefore has
+	// to share that input's register. Merging predication leaves the inactive
+	// lanes of the destination alone, so that value is an operand of the
+	// operation whether the instruction names it (a constructive one does, as
+	// ABS <Zd>, <Pg>/M, <Zn>) or a MOVPRFX has to put it there.
+	sveMergeSourceIn0 bool
 }
 
 func (o *Operation) IsMasked() bool {
@@ -106,6 +119,13 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	}
 
 	isMasked := o.IsMasked()
+	if CurrentArch().isSVE() {
+		// An SVE inVariant is the operation's predicated encoding, not a separate
+		// masked API. The operation keeps its unpredicated name and inputs; the
+		// predicate is picked up later, by the machine op and peephole generators,
+		// through svePredicated.
+		isMasked = false
+	}
 
 	// Compute full Go method name.
 	o.Go = o.rawOperation.Go
@@ -133,7 +153,10 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 		o.Documentation += "\n" + reForName.ReplaceAllString(*o.rawOperation.AddDoc, o.Go)
 	}
 
-	o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
+	o.In = o.rawOperation.In
+	if !CurrentArch().isSVE() {
+		o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
+	}
 
 	// For operations that read only the lower half of input registers (indicated by hiHalfAsm),
 	// add a doc note showing the compositional pattern for the upper half.
@@ -205,6 +228,19 @@ var demotingConvertOps = map[string]bool{
 	"VPMOVWBMasked128": true, "VPMOVSWBMasked128": true, "VPMOVUSWBMasked128": true,
 }
 
+// sveMaskSuffix returns the machine-op name suffix for a masked operation:
+// "Merging" for an SVE /M predicate, "Masked" for /Z and for every other target.
+func sveMaskSuffix(gOp Operation) string {
+	if CurrentArch().isSVE() {
+		for i := range gOp.In {
+			if gOp.In[i].Class == "mask" && gOp.In[i].Predication != nil && *gOp.In[i].Predication == "M" {
+				return "Merging"
+			}
+		}
+	}
+	return "Masked"
+}
+
 // sveArrangementLetter returns the SVE element-size arrangement letter
 // (B=8, H=16, S=32, D=64) that names an SVE machine op, or "" when the target
 // is not SVE. The letter comes from the operation's governing element width:
@@ -243,7 +279,15 @@ func sveArrangementLetter(gOp Operation) string {
 func machineOpName(maskType maskShape, gOp Operation) string {
 	asm := gOp.Asm
 	if maskType == OneMask {
-		asm += "Masked"
+		// An SVE predicated encoding is either merging (/M) or zeroing (/Z), and
+		// an operation may offer only one of them; name the machine op after the
+		// qualifier so both can coexist and so the peepholes can tell which
+		// (IfElse folds into merging, Masked into zeroing). Elsewhere a mask is
+		// always zeroing, and keeps the historical "Masked" name.
+		asm += sveMaskSuffix(gOp)
+		if gOp.sveMergingPrefixed {
+			asm += "Prefixed"
+		}
 	}
 	// For ARM64, use arrangement to create distinct SSA op names
 	if letter := sveArrangementLetter(gOp); letter != "" {
@@ -361,6 +405,161 @@ func compareOperands(x, y *types.Operand) int {
 	}
 }
 
+// isInPlaceRegName reports whether an ARM register symbol names an operand that
+// is written in place: <Zdn>, <Zda> and friends, as opposed to <Zd> or <Zn>.
+func isInPlaceRegName(name string) bool {
+	return len(name) >= 3 && name[1] == 'd'
+}
+
+// sveInPlaceInput returns the index in op.In of the input naming the same
+// register as the destination — the operand a destructive instruction
+// overwrites — or -1 when the instruction is constructive.
+//
+// It fails loudly on a destination that is written in place but is not among
+// the inputs, e.g. the accumulator of MLA <Zda>, <Pg>/M, <Zn>, <Zm>: that needs
+// a machine op with an extra input, which simdgen does not build yet, and
+// silently treating it as constructive would generate wrong code.
+func (op Operation) sveInPlaceInput() int {
+	if len(op.Out) != 1 || op.Out[0].RegName == nil {
+		return -1
+	}
+	dst := *op.Out[0].RegName
+	for i := range op.In {
+		if op.In[i].RegName != nil && *op.In[i].RegName == dst {
+			return i
+		}
+	}
+	if isInPlaceRegName(dst) {
+		panic(fmt.Errorf("simdgen: %s writes %s in place but does not read it as an input; "+
+			"this shape is not supported yet: %s", op.Asm, dst, op))
+	}
+	return -1
+}
+
+// svePredicatedOps returns the machine-level operations implied by the
+// operation's inVariant: the same operation with the governing predicate as an
+// ordinary input, once per qualifier the encoding supports. The inVariant
+// implies machine ops only — the API is generated from the unpredicated in/out
+// — and these are what the Masked/IfElse peepholes fold into.
+func (op Operation) svePredicatedOps() []Operation {
+	if !CurrentArch().isSVE() || len(op.InVariant) != 1 || op.InVariant[0].Predication == nil {
+		return nil
+	}
+	var out []Operation
+	for i, predicate := range op.InVariant {
+		if predicate.Predication == nil {
+			continue
+		}
+		for _, qual := range *predicate.Predication {
+			// "M" (merging), "Z" (zeroing), or both: an encoding that offers each
+			// gets a machine op for each, and only the peepholes that apply to it.
+			q := string(qual)
+			p := predicate
+			p.Predication = &q
+			pred := op
+			// Give every operand the symbol it has in this encoding, so the
+			// operation describes the instruction that will be emitted and its
+			// shape can be read off it the same way as an unpredicated one.
+			pred.In = withPredRegNames(op.In, i)
+			pred.Out = withPredRegNames(op.Out, i)
+			// An operation with an unpredicated encoding has no governing
+			// predicate to begin with, so the variant's is a new input. One
+			// without (ABS) already carries its own, hidden behind an all-true
+			// predicate; the variant supplies the real one in its place, rather
+			// than a second one.
+			if idx := governingInput(pred.In); idx >= 0 {
+				pred.In[idx] = p
+			} else {
+				pred.In = append(pred.In, p)
+			}
+			pred.InVariant = nil
+			pred.sortOperand()
+			if q == "M" && pred.sveInPlaceInput() < 0 {
+				// A constructive instruction names its destination separately
+				// from its sources, and merging predication preserves that
+				// destination's inactive lanes, so the value it starts out
+				// holding is a real operand. Without it the machine op would
+				// claim to write a register it in fact only partly writes.
+				merge := pred.Out[0]
+				pred.In = append([]types.Operand{merge}, pred.In...)
+				pred.sveMergeSourceIn0 = true
+			}
+			out = append(out, pred)
+		}
+	}
+	return out
+}
+
+// sveMergingPrefixedOp returns the MOVPRFX-prefixed variant of a merging
+// predicated operation, or nil when the operation cannot use one.
+//
+// A merging SVE instruction is destructive — it merges into its own first
+// source — so on its own it can only express a select whose "else" operand is
+// that same source. Prefixing MOVPRFX lifts that: given
+//
+//	ZMOVPRFX Zx, Pg/M, Zd
+//	ZADD     Zy, Zd, Pg/M, Zd
+//
+// the destination holds x+y on the active lanes and whatever it already held on
+// the inactive ones, so the "else" operand can be any value. The returned
+// operation carries that value as an extra leading input, which makes it the
+// operand the destination must share a register with (resultInArg0) and gives
+// the operation a three-vreg register shape of its own.
+//
+// It is offered only for a commutative operation. The prefixed instruction must
+// not name the destination in any operand position other than the destructive
+// one, i.e. the ZADD above needs Zy != Zd; a commutative operation can always
+// satisfy that by swapping its two sources, and a non-commutative one cannot.
+func (op Operation) sveMergingPrefixedOp() *Operation {
+	if !CurrentArch().isSVE() || !op.Commutative || op.sveInPlaceInput() != 0 {
+		return nil
+	}
+	if len(op.Out) != 1 || op.Out[0].RegName == nil {
+		return nil
+	}
+	if sveMaskSuffix(op) != "Merging" {
+		return nil
+	}
+	// The extra input is the destination read before the operation, so it takes
+	// the destination's symbol; the source it displaces becomes the MOVPRFX's
+	// Zn, which is the symbol that instruction gives it.
+	merge := op.Out[0]
+	prefixed := op
+	prefixed.In = make([]types.Operand, 0, len(op.In)+1)
+	prefixed.In = append(prefixed.In, merge)
+	prefixed.In = append(prefixed.In, op.In...)
+	movprfxSrc := "Zn"
+	prefixed.In[1].RegName = &movprfxSrc
+	prefixed.sveMergingPrefixed = true
+	prefixed.sveMergeSourceIn0 = true
+	return &prefixed
+}
+
+// governingInput returns the index of the governing predicate in ops, or -1
+// when there is none.
+func governingInput(ops []types.Operand) int {
+	for i := range ops {
+		if ops[i].IsGoverning() {
+			return i
+		}
+	}
+	return -1
+}
+
+// withPredRegNames copies operands with each one's register symbol replaced by
+// the symbol it has in predicated encoding i, where it has one.
+func withPredRegNames(ops []types.Operand, i int) []types.Operand {
+	out := make([]types.Operand, len(ops))
+	copy(out, ops)
+	for j := range out {
+		if names := out[j].PredRegName; names != nil && i < len(*names) {
+			name := (*names)[i]
+			out[j].RegName = &name
+		}
+	}
+	return out
+}
+
 // implicitPredCount reports whether the op has an implicit-all-true governing
 // predicate input, as a count (0 or 1). An instruction has at most one governing
 // predicate — the single mask input carrying a /Z or /M qualifier (see the
@@ -372,7 +571,7 @@ func compareOperands(x, y *types.Operand) int {
 func (op Operation) implicitPredCount() int {
 	n := 0
 	for i := range op.In {
-		if op.In[i].IsImplicitAllTrue() {
+		if op.In[i].IsGoverning() {
 			n++
 		}
 	}

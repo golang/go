@@ -204,6 +204,8 @@ func init() {
 		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
 		fp1flags       = regInfo{inputs: []regMask{fp}}
 		fp2predpred    = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{pred}}
+		fp2predfp      = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{fp}}
+		fp3predfp      = regInfo{inputs: []regMask{fp, fp, fp, pred}, outputs: []regMask{fp}}
 		predload       = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{pred}}
 		predstore      = regInfo{inputs: []regMask{gpspsbg, pred}}
 		fpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
@@ -839,6 +841,10 @@ func init() {
 		// scalable Z bank reuses the fp register masks.
 		{name: "ZLDRload", argLength: 2, reg: fpload, aux: "SymOff", asm: "ZLDR", typ: "Vec256", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
 		{name: "ZSTRstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "ZSTR", faultOnNilArg0: true, symEffect: "Write"},             // store arg1 to arg0 + auxInt + aux.  arg2=mem.
+		{name: "ZSELB", argLength: 3, reg: fp2predfp, asm: "ZSEL", typ: "Vec256"},                                                         // arg0=x, arg1=y, arg2=predicate; per-element select, constructive.
+		{name: "ZSELH", argLength: 3, reg: fp2predfp, asm: "ZSEL", typ: "Vec256"},                                                         // arg0=x, arg1=y, arg2=predicate; per-element select, constructive.
+		{name: "ZSELS", argLength: 3, reg: fp2predfp, asm: "ZSEL", typ: "Vec256"},                                                         // arg0=x, arg1=y, arg2=predicate; per-element select, constructive.
+		{name: "ZSELD", argLength: 3, reg: fp2predfp, asm: "ZSEL", typ: "Vec256"},                                                         // arg0=x, arg1=y, arg2=predicate; per-element select, constructive.
 		{name: "PLDRload", argLength: 2, reg: predload, aux: "SymOff", asm: "PLDR", typ: "Mask", faultOnNilArg0: true, symEffect: "Read"}, // load a predicate from arg0 + auxInt + aux.  arg1=mem.
 		{name: "PSTRstore", argLength: 3, reg: predstore, aux: "SymOff", asm: "PSTR", faultOnNilArg0: true, symEffect: "Write"},           // store predicate arg1 to arg0 + auxInt + aux.  arg2=mem.
 		// PPFALSEB sets every bit of a predicate false, it's the zero value of a predicate.
@@ -896,7 +902,7 @@ func init() {
 		pkg:                "cmd/internal/obj/arm64",
 		genfile:            "../../arm64/ssa.go",
 		genSIMDfile:        "../../arm64/simdssa.go ../../arm64/simdssa_sve.go",
-		ops:                append(append(ops, simdARM64Ops(fp11, fp21, fp31, fpgp, fpgpfp, fp21)...), simdARM64SVEOps(fp11, fp21, fp2predpred)...),
+		ops:                append(append(ops, simdARM64Ops(fp11, fp21, fp31, fpgp, fpgpfp, fp21)...), simdARM64SVEOps(fp11, fp21, fp2predpred, fp2predfp, fp2predfp, fp3predfp)...),
 		blocks:             blocks,
 		regnames:           regNamesARM64,
 		ParamIntRegNames:   "R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15",

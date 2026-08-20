@@ -214,9 +214,9 @@ func TestOperandsPredicated(t *testing.T) {
 	ops := parse(t, addPred).operands()
 	var got []string
 	for _, op := range ops {
-		got = append(got, op.Class+":"+op.role)
+		got = append(got, op.Class+":"+opRole(op))
 	}
-	want := []string{"vreg:destination", "mask:mask", "vreg:op0", "vreg:op1"}
+	want := []string{"vreg:destination", "mask:governing", "vreg:op0", "vreg:op1"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("predicated operands = %v, want %v", got, want)
 	}
@@ -423,10 +423,10 @@ func TestReductionOutput(t *testing.T) {
 	ops := parse(t, saddv).operands()
 	var got []string
 	for _, op := range ops {
-		got = append(got, op.Class+":"+op.role)
+		got = append(got, op.Class+":"+opRole(op))
 	}
 	// The scalar result <Dd> is a SIMD&FP register destination, not an input.
-	want := []string{"vreg:destination", "mask:mask", "vreg:op0"}
+	want := []string{"vreg:destination", "mask:governing", "vreg:op0"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("SADDV operands = %v, want %v", got, want)
 	}
@@ -474,13 +474,13 @@ func TestStoreReglist(t *testing.T) {
 	ops := parse(t, st1b).operands()
 	var got []string
 	for _, op := range ops {
-		got = append(got, op.Class+":"+op.role)
+		got = append(got, op.Class+":"+opRole(op))
 	}
 	// The single-register list unwraps to a vreg (the data source); the memory
 	// operand is the store destination. Order follows the source template. The
 	// predicate is <Pg>: a governing predicate (role "mask"), even though a
 	// store writes no /Z or /M qualifier.
-	want := []string{"vreg:op0", "mask:mask", "mem:destination"}
+	want := []string{"vreg:op0", "mask:governing", "mem:destination"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ST1B operands = %v, want %v", got, want)
 	}
@@ -519,6 +519,122 @@ func TestMemoryOperandClassified(t *testing.T) {
 	for _, op := range ops {
 		if op.Class == "vreg" && strings.Contains(op.regName, "Xn") {
 			t.Errorf("memory address misclassified as vreg: %+v", op)
+		}
+	}
+}
+
+// opRole renders an operand's partition for test expectations: its role, or
+// "governing" for the governing predicate, which has no numbered role.
+func opRole(op Operand) string {
+	if op.governing {
+		return "governing"
+	}
+	return op.role
+}
+
+// absExplanations is the explanation block for the ABS fixtures: the size table
+// plus a <Pg> explanation using the spec's "governing scalable predicate
+// register" wording, so parsing exercises the explanation-driven governing
+// classification rather than the syntactic fallback.
+const absExplanations = `
+  <explanations>
+    <explanation>
+      <symbol link="t">&lt;T&gt;</symbol>
+      <definition>
+        <table><tgroup><tbody>
+          <row><entry class="symbol">B</entry></row>
+          <row><entry class="symbol">H</entry></row>
+          <row><entry class="symbol">S</entry></row>
+          <row><entry class="symbol">D</entry></row>
+        </tbody></tgroup></table>
+      </definition>
+    </explanation>
+    <explanation>
+      <symbol link="pg">&lt;Pg&gt;</symbol>
+      <account encodedin="Pg"><intro><para>Is the name of the governing scalable predicate register, encoded in the "Pg" field.</para></intro></account>
+    </explanation>
+  </explanations>`
+
+// absSection builds one encoding of ABS, a predicated-only operation: both
+// encodings are titled plain "ABS" (nothing in the title says "predicated"),
+// and they differ only in the governing predicate's qualifier.
+func absSection(id, qual string) string {
+	return `<instructionsection id="` + id + `" title="ABS" type="instruction">
+  <docvars>
+    <docvar key="instr-class" value="sve"/>
+    <docvar key="mnemonic" value="ABS"/>
+  </docvars>
+  <desc><brief><para>Absolute value of the signed integer in each active element.</para></brief></desc>
+  <classes><iclass><encoding name="` + id + `">
+    <asmtemplate><text>ABS  </text><a link="zd">&lt;Zd&gt;</a><text>.</text><a link="t">&lt;T&gt;</a><text>, </text><a link="pg">&lt;Pg&gt;</a><text>/` + qual + `, </text><a link="zn">&lt;Zn&gt;</a><text>.</text><a link="t">&lt;T&gt;</a></asmtemplate>
+  </encoding></iclass></classes>` + absExplanations + `</instructionsection>`
+}
+
+// TestGroupPredicatedOnly covers the emission path of an operation with no
+// unpredicated encoding at all: the merging encoding carries the operation,
+// keeping its governing predicate as an implicit-all-true input, and the group
+// becomes an inVariant on it; the sibling encoding is covered and not emitted.
+func TestGroupPredicatedOnly(t *testing.T) {
+	m := parse(t, absSection("abs_m", "M"))
+	z := parse(t, absSection("abs_z", "Z"))
+	covered := groupPredicationForms([]*Instruction{m, z})
+	if covered[m] || !covered[z] {
+		t.Fatalf("covered[m]=%v covered[z]=%v, want the merging carrier kept and the zeroing sibling covered", covered[m], covered[z])
+	}
+	if len(m.predVariants) != 1 || m.predVariants[0].quals != "M" {
+		t.Fatalf("carrier predVariants = %+v, want one variant with quals M", m.predVariants)
+	}
+
+	defs := m.emitAll()
+	if len(defs) == 0 {
+		t.Fatal("carrier emitAll returned no defs")
+	}
+	for _, d := range defs {
+		var op struct {
+			In []struct {
+				Class       string
+				Predication *string
+				Governing   *bool
+				RegName     *string   `unify:"regName"`
+				PredRegName *[]string `unify:"predRegName"`
+			} `unify:"in"`
+			InVariant []struct {
+				Class       string
+				Predication *string
+			} `unify:"inVariant"`
+			Out []struct {
+				PredRegName *[]string `unify:"predRegName"`
+			} `unify:"out"`
+		}
+		if err := d.Decode(&op); err != nil {
+			t.Fatal(err)
+		}
+		var sawGoverning, sawVreg bool
+		for _, in := range op.In {
+			switch in.Class {
+			case "mask":
+				if in.Governing == nil || !*in.Governing {
+					t.Errorf("mask input not marked governing: %+v", in)
+				}
+				if in.Predication == nil || *in.Predication != "M" {
+					t.Errorf("governing predicate predication = %v, want M", in.Predication)
+				}
+				sawGoverning = true
+			case "vreg":
+				if in.PredRegName == nil || !reflect.DeepEqual(*in.PredRegName, []string{"Zn"}) {
+					t.Errorf("vreg input predRegName = %v, want [Zn]", in.PredRegName)
+				}
+				sawVreg = true
+			}
+		}
+		if !sawGoverning || !sawVreg {
+			t.Errorf("inputs missing governing mask or vreg: %+v", op.In)
+		}
+		if len(op.InVariant) != 1 || op.InVariant[0].Predication == nil || *op.InVariant[0].Predication != "M" {
+			t.Errorf("inVariant = %+v, want one mask with predication M", op.InVariant)
+		}
+		if len(op.Out) != 1 || op.Out[0].PredRegName == nil || !reflect.DeepEqual(*op.Out[0].PredRegName, []string{"Zd"}) {
+			t.Errorf("out predRegName = %+v, want [Zd]", op.Out)
 		}
 	}
 }

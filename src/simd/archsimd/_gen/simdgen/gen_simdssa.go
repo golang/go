@@ -191,6 +191,19 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 		registerRegShape(regShape, caseStr, op)
 		return nil
 	}
+	// An SVE inVariant implies machine ops that are not operations of their own,
+	// so expand them here too; each needs its own ssa-to-prog case.
+	expanded := make([]Operation, 0, len(ops))
+	for _, op := range ops {
+		expanded = append(expanded, op)
+		for _, pred := range op.svePredicatedOps() {
+			expanded = append(expanded, pred)
+			if prefixed := pred.sveMergingPrefixedOp(); prefixed != nil {
+				expanded = append(expanded, *prefixed)
+			}
+		}
+	}
+	ops = expanded
 	for _, op := range ops {
 		shapeIn, shapeOut, maskType, immType, gOp, immOpArg := op.shape()
 		asm := machineOpName(maskType, gOp)
@@ -201,7 +214,11 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 		caseStr := fmt.Sprintf("ssaop.Op%s%s", archInfo.ArchUpper, asm)
 		isZeroMasking := false
 		if shapeIn == OneKmaskIn || shapeIn == OneKmaskImmIn {
-			if gOp.Zeroing == nil || *gOp.Zeroing {
+			if (gOp.Zeroing == nil || *gOp.Zeroing) && !CurrentArch().isSVE() {
+				// x86 spells the zeroing/merging choice as an assembler suffix on
+				// the masked instruction. SVE encodes it in the governing predicate
+				// operand itself (Pg/Z or Pg/M), which the ssa-to-prog helper
+				// already emits, so there is no suffix to parse.
 				ZeroingMask = append(ZeroingMask, caseStr)
 				isZeroMasking = true
 			}

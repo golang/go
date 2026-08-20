@@ -1700,6 +1700,24 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			addF(simdPackage, "load"+t.name+"Part", sveLoadPart(t.bytes), sys.ARM64)
 			addF(simdPackage, t.name+".storePart", sveStorePart(t.bytes), sys.ARM64)
 		}
+		// IfElse backs both the IfElse and Masked methods on every scalable vector.
+		for _, t := range []struct {
+			name string
+			op   ssaop.Op
+		}{
+			{"Int8s", ssaop.OpIfElseInt8s},
+			{"Uint8s", ssaop.OpIfElseUint8s},
+			{"Int16s", ssaop.OpIfElseInt16s},
+			{"Uint16s", ssaop.OpIfElseUint16s},
+			{"Int32s", ssaop.OpIfElseInt32s},
+			{"Uint32s", ssaop.OpIfElseUint32s},
+			{"Float32s", ssaop.OpIfElseFloat32s},
+			{"Int64s", ssaop.OpIfElseInt64s},
+			{"Uint64s", ssaop.OpIfElseUint64s},
+			{"Float64s", ssaop.OpIfElseFloat64s},
+		} {
+			addF(simdPackage, t.name+".IfElse", opLen3(t.op, types.TypeVec256), sys.ARM64)
+		}
 
 		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

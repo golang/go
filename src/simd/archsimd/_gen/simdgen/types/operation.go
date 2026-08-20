@@ -100,12 +100,38 @@ type Operand struct {
 	// Currently only list number 0 is supported (we might need to teach regalloc handle register lists
 	// to support more than one register in the list).
 	ListNumber *int
-	// ImplicitAllTrue marks an SVE governing-predicate input that is dropped from
-	// the user-facing (unpredicated) API: the generated method/generic op/intrinsic
-	// omit it, and the lowering synthesizes an all-true predicate for it. This is
-	// how predicated-only SVE instructions (e.g. ZCMPGT) expose an unpredicated Go
-	// API, for #79781.
-	ImplicitAllTrue *bool
+	// RegName is the assembly template's register symbol for this operand, e.g.
+	// "Zdn", "Zn", "Pg" (SVE only). Comparing it across operands is how the
+	// shape of an instruction is recognised: an input naming the same register
+	// as the destination is written in place.
+	RegName *string
+	// PredRegName is the symbol this operand has in each of the operation's
+	// predicated encodings, indexed to match InVariant (SVE only). It is nil
+	// for an operation with no predicated encoding, and for every other target.
+	PredRegName *[]string
+	// Predication is the SVE governing-predicate qualifier, "M" (merging) or
+	// "Z" (zeroing). It is set on mask operands of predicated encodings and
+	// decides whether the generated machine op is the merging or the zeroing
+	// form (see sveMaskSuffix).
+	Predication *string
+	// Governing marks the SVE governing predicate among an instruction's
+	// operands — the one that selects which lanes the instruction acts on, as
+	// opposed to a predicate it merely reads as data (SEL's <Pv>, the <Pn>/<Pm>
+	// of a predicate-logical op).
+	//
+	// It is set only where the instruction has no unpredicated encoding, since
+	// otherwise that encoding carries the operation and its predicated sibling's
+	// predicate becomes an InVariant instead. So a governing predicate here is
+	// always one the Go API hides: the generated method, generic op and
+	// intrinsic omit it, and the lowering synthesizes an all-true predicate in
+	// its place, which is how predicated-only instructions (ZCMPGT) expose an
+	// unpredicated API. See #79781.
+	//
+	// This is independent of [Operand.Predication]: a governing predicate need
+	// not carry a qualifier (SADDV <Dd>, <Pg>, <Zn>.<T> has no lanes to merge
+	// into), and a qualified predicate need not be governing in this sense (the
+	// InVariant of a paired operation is a real operand a peephole supplies).
+	Governing *bool
 }
 
 // VectorSize is a unifier value that is either a number or the string "scalable".
@@ -136,10 +162,10 @@ func (vs VectorSize) String() string {
 	return fmt.Sprint(vs.N())
 }
 
-// IsImplicitAllTrue reports whether this operand is an SVE governing predicate
-// that is dropped from the API and filled with an all-true predicate at lowering.
-func (o *Operand) IsImplicitAllTrue() bool {
-	return o.ImplicitAllTrue != nil && *o.ImplicitAllTrue
+// IsGoverning reports whether this operand is the SVE governing predicate, and
+// so is dropped from the API and filled with an all-true predicate at lowering.
+func (o *Operand) IsGoverning() bool {
+	return o.Governing != nil && *o.Governing
 }
 
 func (o Operand) OpName(s string) string {

@@ -82,6 +82,21 @@ func (x Float32s) StorePart(s []float32) int {
 //go:noescape
 func (x Float32s) storePart(s []float32)
 
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Float32s) IfElse(mask Mask32s, y Float32s) Float32s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Float32s) Masked(mask Mask32s) Float32s {
+	var zero Float32s
+	return x.IfElse(mask, zero)
+}
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Float32s) String() string {
@@ -158,6 +173,21 @@ func (x Float64s) StorePart(s []float64) int {
 
 //go:noescape
 func (x Float64s) storePart(s []float64)
+
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Float64s) IfElse(mask Mask64s, y Float64s) Float64s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Float64s) Masked(mask Mask64s) Float64s {
+	var zero Float64s
+	return x.IfElse(mask, zero)
+}
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -236,6 +266,21 @@ func (x Int8s) StorePart(s []int8) int {
 //go:noescape
 func (x Int8s) storePart(s []int8)
 
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Int8s) IfElse(mask Mask8s, y Int8s) Int8s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Int8s) Masked(mask Mask8s) Int8s {
+	var zero Int8s
+	return x.IfElse(mask, zero)
+}
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Int8s) String() string {
@@ -312,6 +357,21 @@ func (x Int16s) StorePart(s []int16) int {
 
 //go:noescape
 func (x Int16s) storePart(s []int16)
+
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Int16s) IfElse(mask Mask16s, y Int16s) Int16s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Int16s) Masked(mask Mask16s) Int16s {
+	var zero Int16s
+	return x.IfElse(mask, zero)
+}
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -390,6 +450,21 @@ func (x Int32s) StorePart(s []int32) int {
 //go:noescape
 func (x Int32s) storePart(s []int32)
 
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Int32s) IfElse(mask Mask32s, y Int32s) Int32s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Int32s) Masked(mask Mask32s) Int32s {
+	var zero Int32s
+	return x.IfElse(mask, zero)
+}
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Int32s) String() string {
@@ -466,6 +541,21 @@ func (x Int64s) StorePart(s []int64) int {
 
 //go:noescape
 func (x Int64s) storePart(s []int64)
+
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Int64s) IfElse(mask Mask64s, y Int64s) Int64s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Int64s) Masked(mask Mask64s) Int64s {
+	var zero Int64s
+	return x.IfElse(mask, zero)
+}
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -544,6 +634,21 @@ func (x Uint8s) StorePart(s []uint8) int {
 //go:noescape
 func (x Uint8s) storePart(s []uint8)
 
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Uint8s) IfElse(mask Mask8s, y Uint8s) Uint8s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Uint8s) Masked(mask Mask8s) Uint8s {
+	var zero Uint8s
+	return x.IfElse(mask, zero)
+}
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Uint8s) String() string {
@@ -620,6 +725,21 @@ func (x Uint16s) StorePart(s []uint16) int {
 
 //go:noescape
 func (x Uint16s) storePart(s []uint16)
+
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Uint16s) IfElse(mask Mask16s, y Uint16s) Uint16s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Uint16s) Masked(mask Mask16s) Uint16s {
+	var zero Uint16s
+	return x.IfElse(mask, zero)
+}
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -698,6 +818,21 @@ func (x Uint32s) StorePart(s []uint32) int {
 //go:noescape
 func (x Uint32s) storePart(s []uint32)
 
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Uint32s) IfElse(mask Mask32s, y Uint32s) Uint32s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Uint32s) Masked(mask Mask32s) Uint32s {
+	var zero Uint32s
+	return x.IfElse(mask, zero)
+}
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Uint32s) String() string {
@@ -774,6 +909,21 @@ func (x Uint64s) StorePart(s []uint64) int {
 
 //go:noescape
 func (x Uint64s) storePart(s []uint64)
+
+// IfElse returns the elements of x where the corresponding element of mask is
+// true, and the elements of y where it is false.
+//
+// Asm: ZSEL
+func (x Uint64s) IfElse(mask Mask64s, y Uint64s) Uint64s
+
+// Masked returns the elements of x where the corresponding element of mask is
+// true, and zero where it is false.
+//
+// Asm: Emulated
+func (x Uint64s) Masked(mask Mask64s) Uint64s {
+	var zero Uint64s
+	return x.IfElse(mask, zero)
+}
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.

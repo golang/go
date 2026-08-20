@@ -519,6 +519,14 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpARM64XORshiftRL(v)
 	case ssaop.OpARM64XORshiftRO:
 		return rewriteValue_OpARM64XORshiftRO(v)
+	case ssaop.OpARM64ZSELB:
+		return rewriteValue_OpARM64ZSELB(v)
+	case ssaop.OpARM64ZSELD:
+		return rewriteValue_OpARM64ZSELD(v)
+	case ssaop.OpARM64ZSELH:
+		return rewriteValue_OpARM64ZSELH(v)
+	case ssaop.OpARM64ZSELS:
+		return rewriteValue_OpARM64ZSELS(v)
 	case ssaop.OpAbs:
 		v.Op = ssaop.OpARM64FABSD
 		return true
@@ -1331,6 +1339,26 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpHmul64u:
 		v.Op = ssaop.OpARM64UMULH
 		return true
+	case ssaop.OpIfElseFloat32s:
+		return rewriteValue_OpIfElseFloat32s(v)
+	case ssaop.OpIfElseFloat64s:
+		return rewriteValue_OpIfElseFloat64s(v)
+	case ssaop.OpIfElseInt16s:
+		return rewriteValue_OpIfElseInt16s(v)
+	case ssaop.OpIfElseInt32s:
+		return rewriteValue_OpIfElseInt32s(v)
+	case ssaop.OpIfElseInt64s:
+		return rewriteValue_OpIfElseInt64s(v)
+	case ssaop.OpIfElseInt8s:
+		return rewriteValue_OpIfElseInt8s(v)
+	case ssaop.OpIfElseUint16s:
+		return rewriteValue_OpIfElseUint16s(v)
+	case ssaop.OpIfElseUint32s:
+		return rewriteValue_OpIfElseUint32s(v)
+	case ssaop.OpIfElseUint64s:
+		return rewriteValue_OpIfElseUint64s(v)
+	case ssaop.OpIfElseUint8s:
+		return rewriteValue_OpIfElseUint8s(v)
 	case ssaop.OpInterCall:
 		v.Op = ssaop.OpARM64CALLinter
 		return true
@@ -19812,6 +19840,842 @@ func rewriteValue_OpARM64XORshiftRO(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpARM64ZSELB(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ZSELB (ZADDB x y) x mask)
+	// result: (ZADDMergingB x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDB {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZADDMergingB)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELB (ZADDB x y) y mask)
+	// result: (ZADDMergingB y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDB {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZADDMergingB)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELB (ZADDB x y) z mask)
+	// result: (ZADDMergingPrefixedB z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDB {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZADDMergingPrefixedB)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELB (ZSQADDB x y) x mask)
+	// result: (ZSQADDMergingB x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDB {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZSQADDMergingB)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELB (ZSQADDB x y) y mask)
+	// result: (ZSQADDMergingB y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDB {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZSQADDMergingB)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELB (ZSQADDB x y) z mask)
+	// result: (ZSQADDMergingPrefixedB z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDB {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSQADDMergingPrefixedB)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELB (ZUQADDB x y) x mask)
+	// result: (ZUQADDMergingB x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDB {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZUQADDMergingB)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELB (ZUQADDB x y) y mask)
+	// result: (ZUQADDMergingB y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDB {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZUQADDMergingB)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELB (ZUQADDB x y) z mask)
+	// result: (ZUQADDMergingPrefixedB z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDB {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZUQADDMergingPrefixedB)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpARM64ZSELD(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ZSELD (ZADDD x y) x mask)
+	// result: (ZADDMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDD {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZADDMergingD)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELD (ZADDD x y) y mask)
+	// result: (ZADDMergingD y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDD {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZADDMergingD)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELD (ZADDD x y) z mask)
+	// result: (ZADDMergingPrefixedD z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDD {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZADDMergingPrefixedD)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELD (ZFADDD x y) x mask)
+	// result: (ZFADDMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFADDD {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZFADDMergingD)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELD (ZFADDD x y) y mask)
+	// result: (ZFADDMergingD y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFADDD {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZFADDMergingD)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELD (ZFADDD x y) z mask)
+	// result: (ZFADDMergingPrefixedD z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFADDD {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZFADDMergingPrefixedD)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELD (ZSQADDD x y) x mask)
+	// result: (ZSQADDMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDD {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZSQADDMergingD)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELD (ZSQADDD x y) y mask)
+	// result: (ZSQADDMergingD y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDD {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZSQADDMergingD)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELD (ZSQADDD x y) z mask)
+	// result: (ZSQADDMergingPrefixedD z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDD {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSQADDMergingPrefixedD)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELD (ZUQADDD x y) x mask)
+	// result: (ZUQADDMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDD {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZUQADDMergingD)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELD (ZUQADDD x y) y mask)
+	// result: (ZUQADDMergingD y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDD {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZUQADDMergingD)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELD (ZUQADDD x y) z mask)
+	// result: (ZUQADDMergingPrefixedD z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDD {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZUQADDMergingPrefixedD)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpARM64ZSELH(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ZSELH (ZADDH x y) x mask)
+	// result: (ZADDMergingH x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDH {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZADDMergingH)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELH (ZADDH x y) y mask)
+	// result: (ZADDMergingH y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDH {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZADDMergingH)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELH (ZADDH x y) z mask)
+	// result: (ZADDMergingPrefixedH z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDH {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZADDMergingPrefixedH)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELH (ZSQADDH x y) x mask)
+	// result: (ZSQADDMergingH x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDH {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZSQADDMergingH)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELH (ZSQADDH x y) y mask)
+	// result: (ZSQADDMergingH y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDH {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZSQADDMergingH)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELH (ZSQADDH x y) z mask)
+	// result: (ZSQADDMergingPrefixedH z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDH {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSQADDMergingPrefixedH)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELH (ZUQADDH x y) x mask)
+	// result: (ZUQADDMergingH x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDH {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZUQADDMergingH)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELH (ZUQADDH x y) y mask)
+	// result: (ZUQADDMergingH y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDH {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZUQADDMergingH)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELH (ZUQADDH x y) z mask)
+	// result: (ZUQADDMergingPrefixedH z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDH {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZUQADDMergingPrefixedH)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ZSELS (ZADDS x y) x mask)
+	// result: (ZADDMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDS {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZADDMergingS)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELS (ZADDS x y) y mask)
+	// result: (ZADDMergingS y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDS {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZADDMergingS)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELS (ZADDS x y) z mask)
+	// result: (ZADDMergingPrefixedS z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZADDS {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZADDMergingPrefixedS)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELS (ZFADDS x y) x mask)
+	// result: (ZFADDMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFADDS {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZFADDMergingS)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELS (ZFADDS x y) y mask)
+	// result: (ZFADDMergingS y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFADDS {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZFADDMergingS)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELS (ZFADDS x y) z mask)
+	// result: (ZFADDMergingPrefixedS z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFADDS {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZFADDMergingPrefixedS)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELS (ZSQADDS x y) x mask)
+	// result: (ZSQADDMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDS {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZSQADDMergingS)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELS (ZSQADDS x y) y mask)
+	// result: (ZSQADDMergingS y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDS {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZSQADDMergingS)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELS (ZSQADDS x y) z mask)
+	// result: (ZSQADDMergingPrefixedS z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSQADDS {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSQADDMergingPrefixedS)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELS (ZUQADDS x y) x mask)
+	// result: (ZUQADDMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDS {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if x != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZUQADDMergingS)
+			v.AddArg3(x, y, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELS (ZUQADDS x y) y mask)
+	// result: (ZUQADDMergingS y x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDS {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			y := v_0_1
+			if y != v_1 {
+				continue
+			}
+			mask := v_2
+			v.Reset(ssaop.OpARM64ZUQADDMergingS)
+			v.AddArg3(y, x, mask)
+			return true
+		}
+		break
+	}
+	// match: (ZSELS (ZUQADDS x y) z mask)
+	// result: (ZUQADDMergingPrefixedS z x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUQADDS {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZUQADDMergingPrefixedS)
+		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	return false
+}
 func rewriteValue_OpAddr(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Addr {sym} base)
@@ -20543,6 +21407,156 @@ func rewriteValue_OpHmul32u(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpARM64UMULL, typ.UInt64)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpIfElseFloat32s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseFloat32s x mask y)
+	// result: (ZSELS x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELS)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseFloat64s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseFloat64s x mask y)
+	// result: (ZSELD x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELD)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseInt16s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseInt16s x mask y)
+	// result: (ZSELH x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELH)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseInt32s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseInt32s x mask y)
+	// result: (ZSELS x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELS)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseInt64s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseInt64s x mask y)
+	// result: (ZSELD x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELD)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseInt8s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseInt8s x mask y)
+	// result: (ZSELB x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELB)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseUint16s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseUint16s x mask y)
+	// result: (ZSELH x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELH)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseUint32s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseUint32s x mask y)
+	// result: (ZSELS x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELS)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseUint64s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseUint64s x mask y)
+	// result: (ZSELD x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELD)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+}
+func rewriteValue_OpIfElseUint8s(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (IfElseUint8s x mask y)
+	// result: (ZSELB x y mask)
+	for {
+		x := v_0
+		mask := v_1
+		y := v_2
+		v.Reset(ssaop.OpARM64ZSELB)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 }

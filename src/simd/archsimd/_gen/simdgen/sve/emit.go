@@ -7,6 +7,7 @@ package sve
 import (
 	"cmp"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 
@@ -36,6 +37,10 @@ func asComment(text string, width int) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// mixedWidthLogged dedupes the mixed-element-width warning by mnemonic, so a
+// conversion family with many encodings logs once per generate run.
+var mixedWidthLogged = map[string]bool{}
 
 // emit renders an operand as a unify value. Z-vectors and predicates are
 // scalable (a base type and per-operand element width, no fixed bits/lanes);
@@ -68,29 +73,52 @@ func (op *Operand) emit() *unify.Value {
 		// instructions support only one; this records which.
 		db.Add("predication", unify.NewValue(unify.NewStringExact(op.Predication)))
 	}
-	if op.role == "mask" {
-		// role "mask" is precisely the governing predicate: the operand named <Pg>
-		// (buildOperandList assigns the role; every instruction has at most one). It
-		// is implicit-all-true — dropped from the unpredicated Go API and
-		// synthesized as an all-true predicate at lowering, so predicated-only
-		// instructions (e.g. ZCMPGT) expose an unpredicated API. Flagging it here,
-		// not in the user's go_*.yaml, keeps the YAML unpredicated.
-		//
-		// The governing predicate is identified by name, not by a /Z or /M
-		// qualifier: most data-processing ops write <Pg>/Z or <Pg>/M, but some
-		// governing predicates have no qualifier (e.g. the store ST1B {<Zt>.B},
-		// <Pg>, [...]). Either way it is <Pg>. Source predicates <Pn>/<Pm> (e.g. in
-		// AND <Pd>.B, <Pg>/Z, <Pn>.B, <Pm>.B) are ordinary numbered inputs (role
-		// "opN"), real data, and are never flagged all-true.
-		db.Add("implicitAllTrue", unify.NewValue(unify.NewStringExact("true")))
+	if op.governing {
+		// This operand is a governing predicate.
+		db.Add("governing", unify.NewValue(unify.NewStringExact("true")))
 	}
 	if op.isList {
 		// This register came from a single-register list ("{ <Zt>.<T> }"), a
 		// distinct assembler encoding from a bare register.
 		db.Add("listNumber", unify.NewValue(unify.NewStringExact("0")))
 	}
+	if op.regName != "" {
+		// The assembly template's register symbol, e.g. "Zdn", "Zn", "Pg".
+		db.Add("regName", unify.NewValue(unify.NewStringExact(op.regName)))
+	}
+	// The symbol this operand has in each predicated encoding, indexed to
+	// match the def's inVariant. The symbols can differ from the unpredicated
+	// ones to predicated ones:
+	// ADD <Zd>, <Zn>, <Zm> unpredicated
+	// ADD <Zdn>, <Pg>/M, <Zdn>, <Zm> predicated
+	//
+	// [groupPredicationForms] folds the two into one def.
+	// simdgen needs these symbols to recognize resultInArg0.
+	names := make([]*unify.Value, len(op.predRegName))
+	for i, n := range op.predRegName {
+		names[i] = unify.NewValue(unify.NewStringExact(n))
+	}
+	db.Add("predRegName", unify.NewValue(unify.NewTuple(names...)))
 	db.Add("asmPos", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.AsmPos))))
 	return unify.NewValue(db.Build())
+}
+
+// pickRegNames returns operand idx's symbol in each predicated encoding, in
+// variant order. The encodings passed [sameOperandShape], so idx addresses the
+// matching operand in every one of them.
+func pickRegNames(variants []predVariant, idx int, sel func(predVariant) []string) []string {
+	if len(variants) == 0 {
+		return nil
+	}
+	out := make([]string, len(variants))
+	for i, pv := range variants {
+		names := sel(pv)
+		if idx >= len(names) {
+			panic(fmt.Sprintf("operand %d has no counterpart in predicated encoding %d", idx, i))
+		}
+		out[i] = names[idx]
+	}
+	return out
 }
 
 // emitOne emits a single instruction def from a fully-instantiated operand list:
@@ -108,11 +136,26 @@ func (inst *Instruction) emitOne(asm string, ops []Operand) *unify.Value {
 		db.Add("details", unify.NewValue(unify.NewStringExact(asComment(doc, 80))))
 	}
 
+	// One def can describe several encodings of one operation, grouped by
+	// [groupPredicationForms] or [groupPredicatedOnly], so each operand also
+	// carries the symbol it has in each predicated encoding. The symbols are
+	// matched up in template order, so they must be attached before the sort
+	// below reorders the inputs.
 	var inOps, outOps []Operand
+	var outIdx, inIdx int
 	for _, op := range ops {
-		if op.role == "destination" {
+		switch {
+		case op.governing:
+			// The governing predicate is the operand the paired encodings differ in, so
+			// it is not one of the symbols they are matched up by.
+			inOps = append(inOps, op)
+		case op.role == "destination":
+			op.predRegName = pickRegNames(inst.predVariants, outIdx, func(pv predVariant) []string { return pv.outRegNames })
+			outIdx++
 			outOps = append(outOps, op)
-		} else {
+		default:
+			op.predRegName = pickRegNames(inst.predVariants, inIdx, func(pv predVariant) []string { return pv.inRegNames })
+			inIdx++
 			inOps = append(inOps, op)
 		}
 	}
@@ -134,7 +177,17 @@ func (inst *Instruction) emitOne(asm string, ops []Operand) *unify.Value {
 		outs = append(outs, outOps[i].emit())
 	}
 	db.Add("in", unify.NewValue(unify.NewTuple(ins...)))
-	db.Add("inVariant", unify.NewValue(unify.NewTuple()))
+	var inVar []*unify.Value
+	for _, pv := range inst.predVariants {
+		// The governing predicate of the paired predicated encoding.
+		var pdb unify.DefBuilder
+		pdb.Add("class", unify.NewValue(unify.NewStringExact("mask")))
+		pdb.Add("bits", unify.NewValue(unify.NewStringExact("scalable")))
+		pdb.Add("predication", unify.NewValue(unify.NewStringExact(pv.quals)))
+		pdb.Add("asmPos", unify.NewValue(unify.NewStringExact(fmt.Sprint(pv.predAsmPos))))
+		inVar = append(inVar, unify.NewValue(pdb.Build()))
+	}
+	db.Add("inVariant", unify.NewValue(unify.NewTuple(inVar...)))
 	db.Add("out", unify.NewValue(unify.NewTuple(outs...)))
 	return unify.NewValue(db.Build())
 }
@@ -232,9 +285,33 @@ func (inst *Instruction) emitVariants(template []Operand) []*unify.Value {
 			for _, pred := range preds {
 				variant := make([]Operand, len(ops))
 				copy(variant, ops)
+				elem := 0
+				mixedWidths := false
 				for i := range variant {
-					if variant[i].Class == "mask" && variant[i].role == "mask" {
+					if variant[i].Class == "vreg" && variant[i].ElemBits > 0 {
+						if elem == 0 {
+							elem = variant[i].ElemBits
+						} else if variant[i].ElemBits != elem {
+							mixedWidths = true
+						}
+					}
+				}
+				for i := range variant {
+					if variant[i].Class != "mask" {
+						continue
+					}
+					if variant[i].governing {
 						variant[i].Predication = pred
+					}
+					if variant[i].ElemBits == 0 {
+						// This predicate doesn't come with an arrangement (which is usual).
+						// Get it from its peer data operand.
+						if mixedWidths && !mixedWidthLogged[inst.mnemonic()] {
+							mixedWidthLogged[inst.mnemonic()] = true
+							log.Printf("sve: %s: operands have mixed element widths; predicate width provisionally %d — derive esize from the pseudocode before generating an API from this def",
+								inst.mnemonic(), elem)
+						}
+						variant[i].ElemBits = elem
 					}
 				}
 				defs = append(defs, inst.emitOne(asm, variant))
