@@ -590,13 +590,14 @@ func testGCMCounterWrap(t *testing.T, newCipher func(key []byte) cipher.Block) {
 }
 
 func TestGCMAsm(t *testing.T) {
-	// Create a new pair of AEADs, one using the assembly implementation
+	testAllImplementations(t, testGCMAsm)
+}
+
+func testGCMAsm(t *testing.T, newCipher func(key []byte) cipher.Block) {
+	// Create a new pair of AEADs, one using the selected implementation
 	// and one using the generic Go implementation.
 	newAESGCM := func(key []byte) (asm, generic cipher.AEAD, err error) {
-		block, err := aes.NewCipher(key[:])
-		if err != nil {
-			return nil, nil, err
-		}
+		block := newCipher(key)
 		asm, err = cipher.NewGCM(block)
 		if err != nil {
 			return nil, nil, err
