@@ -530,47 +530,63 @@ func sampleNTTMatrix(A []nttElement, rho []byte, k int) {
 // parseSampleNTT consumes buf, whose length must be a multiple of three,
 // filling a from index j on with accepted values, and returns the updated
 // index.
+//
+// SampleNTT essentially draws 12 bits at a time from buf, interprets them
+// in little-endian, and rejects values higher than q, until it drew 256
+// values. (The rejection rate is approximately 19%.)
 func parseSampleNTT(a *nttElement, j int, buf []byte) int {
-	// SampleNTT essentially draws 12 bits at a time from buf, interprets them in
-	// little-endian, and rejects values higher than q, until it drew 256
-	// values. (The rejection rate is approximately 19%.)
-	//
-	// To do this from a bytes stream, it draws three bytes at a time, and
-	// splits them into two uint16 appropriately masked.
-	//
-	//               r₀              r₁              r₂
-	//       |- - - - - - - -|- - - - - - - -|- - - - - - - -|
-	//
-	//               Uint16(r₀ || r₁)
-	//       |- - - - - - - - - - - - - - - -|
-	//       |- - - - - - - - - - - -|
-	//                   d₁
-	//
-	//                                Uint16(r₁ || r₂)
-	//                       |- - - - - - - - - - - - - - - -|
-	//                               |- - - - - - - - - - - -|
-	//                                           d₂
-	//
-	// Note that in little-endian, the rightmost bits are the most significant
-	// bits (dropped with a mask) and the leftmost bits are the least
-	// significant bits (dropped with a right shift).
-	for off := 0; off < len(buf); off += 3 {
-		d1 := byteorder.LEUint16(buf[off:]) & 0b1111_1111_1111
-		d2 := byteorder.LEUint16(buf[off+1:]) >> 4
+	// For as long as there are enough bytes in buf and enough remaining slots
+	// in a, consume 6 bytes (48 bits) at a time as four 12-bit values,
+	// advancing j branchlessly. (The uint conversion lets the compiler prove
+	// j is non-negative and drop the bounds checks on the stores below.)
+	_ = a[0] // hoist a's nil check out of the loops below
+	const mask = 0b1111_1111_1111
+	for len(buf) >= 8 && uint(j) <= n-4 {
+		w := byteorder.LEUint64(buf)
+		d1 := uint32(w) & mask
+		d2 := uint32(w>>12) & mask
+		d3 := uint32(w>>24) & mask
+		d4 := uint32(w>>36) & mask
+		a[j] = fieldElement(d1)
+		j += int((d1 - q) >> 31)
+		a[j] = fieldElement(d2)
+		j += int((d2 - q) >> 31)
+		a[j] = fieldElement(d3)
+		j += int((d3 - q) >> 31)
+		a[j] = fieldElement(d4)
+		j += int((d4 - q) >> 31)
+		buf = buf[6:]
+	}
+	// Consume the rest of the buffer 3 bytes (two values) at a time. This
+	// handles both the last six bytes (which the loop above can't load, as it
+	// would read past the end of buf) and the last three elements (which the
+	// loop above can't fill, as it would write past the end of a).
+	for len(buf) > 0 && j < n {
+		//
+		//          r₀              r₁              r₂
+		//  |- - - - - - - -|- - - - - - - -|- - - - - - - -|
+		//
+		//             Uint16(buf)
+		//  |- - - - - - - - - - - - - - - -|
+		//  |- - - - - - - - - - - -|
+		//              d₁
+		//
+		//                            Uint16(buf[1:])
+		//                  |- - - - - - - - - - - - - - - -|
+		//                          |- - - - - - - - - - - -|
+		//                                      d₂
+		//
+		d1 := byteorder.LEUint16(buf) & mask
+		d2 := byteorder.LEUint16(buf[1:]) >> 4
 		if d1 < q {
 			a[j] = fieldElement(d1)
 			j++
 		}
-		if j >= len(a) {
-			break
-		}
-		if d2 < q {
+		if d2 < q && j < n {
 			a[j] = fieldElement(d2)
 			j++
 		}
-		if j >= len(a) {
-			break
-		}
+		buf = buf[3:]
 	}
 	return j
 }
