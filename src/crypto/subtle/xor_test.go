@@ -14,6 +14,10 @@ import (
 )
 
 func TestXORBytes(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "subtle", testXORBytes)
+}
+
+func testXORBytes(t *testing.T) {
 	for n := 1; n <= 1024; n++ {
 		if n > 16 && testing.Short() {
 			n += n >> 3
@@ -90,6 +94,10 @@ func TestXorBytesPanic(t *testing.T) {
 }
 
 func TestXORBytesBoundary(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "subtle", testXORBytesBoundary)
+}
+
+func testXORBytesBoundary(t *testing.T) {
 	safe := make([]byte, 1000)
 	start, end := cryptotest.BoundarySlices(t, 1000)
 	for i := 1; i <= 1000; i++ {
