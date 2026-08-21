@@ -146,7 +146,9 @@
 // with embedded struct types.
 //
 // Marshaling or unmarshaling a non-empty struct
-// without any JSON-representable fields results in a [SemanticError].
+// without any JSON-representable fields results in a [SemanticError],
+// unless the Go struct has a field with an explicit `json` tag,
+// which signals that the type has a valid JSON representation (even if empty).
 // Unexported fields must not have any `json` tags except for `json:"-"`.
 //
 // # Security Considerations
