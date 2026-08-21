@@ -422,7 +422,7 @@ func authorityAddr(scheme string, authority string) (addr string) {
 	}
 	// Same as net/http.
 	if !ascii.Is(host) {
-		if a, err := idna.Lookup.ToASCII(host); err == nil {
+		if a, err := idna.Lookup.ToASCII(host); err == nil && a != "" {
 			host = a
 		}
 	}

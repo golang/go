@@ -3209,7 +3209,7 @@ func schemePort(scheme string) string {
 
 func idnaASCIIFromURL(url *url.URL) string {
 	addr := url.Hostname()
-	if v, err := idnaASCII(addr); err == nil {
+	if v, err := idnaASCII(addr); err == nil && v != "" {
 		addr = v
 	}
 	return addr

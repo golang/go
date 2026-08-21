@@ -386,6 +386,56 @@ func TestTransportPoolHTTP2CachedIDNAConnection(t *testing.T) {
 	})
 }
 
+func TestTransportPoolIDNAConversions(t *testing.T) {
+	for _, test := range []struct {
+		hostname string
+		wantDial string
+	}{{
+		// Unicode name converted to ASCII.
+		hostname: "gö.dev",
+		wantDial: "xn--g-1ga.dev",
+	}, {
+		// Unicode name case folded and converted to ASCII.
+		hostname: "Gö.dev",
+		wantDial: "xn--g-1ga.dev",
+	}, {
+		// ASCII name left alone.
+		hostname: "xn--g-1ga.dev",
+		wantDial: "xn--g-1ga.dev",
+	}, {
+		// Invalid ASCII name left alone.
+		// Matches WHATWG URL Standard behavior.
+		hostname: "xn--go-.dev",
+		wantDial: "xn--go-.dev",
+	}, {
+		// Invalid Unicode name left alone.
+		// TODO: Weird. Should reject this.
+		hostname: "a⒈com",
+		wantDial: "a⒈com",
+	}, {
+		// Unicode name converted to the empty string.
+		// Conversion rejected, and we leave the name alone.
+		// TODO: Weird. Should reject this.
+		hostname: "\u00ad",
+		wantDial: "\u00ad",
+	}} {
+		synctest.Test(t, func(t *testing.T) {
+			dt := newTransportDialTester(t, http1Mode)
+			rt1 := dt.roundTrip(test.hostname)
+			c1 := dt.wantDial()
+			c1.finish(nil)
+			rt1.wantDone(c1, "HTTP/1.1")
+			rt1.finish()
+			if got, want := c1.addr, test.wantDial+":80"; got != want {
+				t.Errorf("RoundTrip to %v: got dial address %v, want %v",
+					strconv.QuoteToASCII(test.hostname),
+					strconv.QuoteToASCII(got),
+					strconv.QuoteToASCII(want))
+			}
+		})
+	}
+}
+
 // A transportDialTester manages a test of a connection's Dials.
 type transportDialTester struct {
 	t   *testing.T
