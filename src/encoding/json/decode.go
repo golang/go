@@ -189,6 +189,7 @@ func (d *decodeState) unmarshal(v any) error {
 }
 
 // A Number represents a JSON number literal.
+// When unmarshaling, it also accepts JSON numbers encoded within a JSON string.
 type Number string
 
 // String returns the literal text of the number.
