@@ -62,7 +62,7 @@ zero-cost bitwise conversion, or not, depending on the underlying hardware.
 # Storing
 
 SIMD vector types have two methods, one for storing the entire vector into a slice
-"Store([]<type>)"" and a second for storing part of a vector into a slice "StorePart([]<type>) int".
+"Store([]<type>)" and a second for storing part of a vector into a slice "StorePart([]<type>) int".
 StorePart returns the number of elements actually stored.
 
 # String conversion
@@ -81,7 +81,7 @@ architecture-dependent simd/archsimd value (e.g. [archsimd.Float32x4])
 into the corresponding simd type.  This function will panic if the
 correspondence is incorrect.
 
-For an example of converting between [simd] and [arch/simd] types,
+For an example of converting between [simd] and [simd/archsimd] types,
 see the test file sum_amd64_test.go.
 */
 package simd
