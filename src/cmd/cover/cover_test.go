@@ -864,3 +864,53 @@ func main() {
 	got := coverRanges(t, src)
 	compareRanges(t, src, got, want)
 }
+
+// TestStatementCountsAfterCommentSplit verifies that splitting a basic block
+// at blank or comment-only lines preserves the statement count of the block.
+func TestStatementCountsAfterCommentSplit(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	src := []byte(`package main
+
+func main() {
+	a := 1
+	b := 2
+
+	c := 3
+	d := 4
+
+	if a == 0 {
+		return
+	}
+
+	println(a + b + c + d)
+}`)
+	tmpdir := t.TempDir()
+	srcPath := filepath.Join(tmpdir, "test.go")
+	if err := os.WriteFile(srcPath, src, 0666); err != nil {
+		t.Fatal(err)
+	}
+	cmd := testenv.Command(t, testcover(t), "-mode=set", srcPath)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("cover failed: %v\nOutput: %s", err, out)
+	}
+
+	re := regexp.MustCompile(`(?s)NumStmt: \[\d+\]uint16\{(.*?)\n\t\}`)
+	m := re.FindSubmatch(out)
+	if m == nil {
+		t.Fatalf("NumStmt array not found in output:\n%s", out)
+	}
+	var got []int
+	for _, entry := range regexp.MustCompile(`(?m)^\s*(\d+),`).FindAllSubmatch(m[1], -1) {
+		n, err := strconv.Atoi(string(entry[1]))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, n)
+	}
+	want := []int{2, 2, 1, 1, 1}
+	if !slices.Equal(got, want) {
+		t.Errorf("NumStmt = %v, want %v", got, want)
+	}
+}
