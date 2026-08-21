@@ -54,9 +54,17 @@ import (
 //
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by [Marshal] (either the struct field name or its tag),
-// preferring an exact match but also accepting a case-insensitive match. By
-// default, object keys which don't have a corresponding struct field are
-// ignored (see [Decoder.DisallowUnknownFields] for an alternative).
+// preferring an exact match but also accepting a case-insensitive match.
+// If a name matches multiple fields, the field whose name matches exactly
+// is chosen. By default, object keys which don't have a corresponding
+// struct field are ignored (see [Decoder.DisallowUnknownFields] for an alternative).
+//
+// Incoming object members are processed in the order they are observed.
+// If an object includes duplicate names, later values will replace or be
+// merged into prior values, depending on the Go value type.
+// Case-insensitive matching provides another vector through which
+// duplicate names can occur: for example, the names "foo" and "Foo"
+// may both match the same Go struct field.
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
