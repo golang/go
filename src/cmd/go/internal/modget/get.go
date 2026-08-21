@@ -413,6 +413,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile(moduleLoader))
+	// Record whether the main module's go.mod already had a go directive before
+	// WriteGoMod rewrites (and re-indexes) the file. If it did not, the go
+	// command synthesized the current version into oldReqs, which would
+	// otherwise make adding a go directive look like a downgrade.
+	// See go.dev/issue/63507.
+	mainHadGoDirective := modload.MainModuleHasGoDirective(moduleLoader)
 
 	if err := modload.WriteGoMod(moduleLoader, ctx, opts); err != nil {
 		// A TooNewError can happen for 'go get go@newversion'
@@ -424,7 +430,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	newReqs := reqsFromGoMod(modload.ModFile(moduleLoader))
-	r.reportChanges(oldReqs, newReqs)
+	r.reportChanges(oldReqs, newReqs, mainHadGoDirective)
 
 	if gowork := moduleLoader.FindGoWork(base.Cwd()); gowork != "" {
 		wf, err := modload.ReadWorkFile(gowork)
@@ -1847,7 +1853,7 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 // are not relevant to the user and are not logged.
 //
 // reportChanges should be called after WriteGoMod.
-func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+func (r *resolver) reportChanges(oldReqs, newReqs []module.Version, mainHadGoDirective bool) {
 	type change struct {
 		path, old, new string
 	}
@@ -1903,6 +1909,16 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 	}
 	oldGo, oldToolchain := toolchainVersions(oldReqs)
 	newGo, newToolchain := toolchainVersions(newReqs)
+	// A go.mod with no go directive leaves the main module at the implicit
+	// gover.DefaultGoModVersion. The go command synthesizes its own version
+	// into the in-memory go.mod before this point, so without this oldGo would
+	// make a newly written directive look like an up- or downgrade from
+	// whichever version of the go command happened to run.
+	// See go.dev/issue/63507.
+	goImplicit := !mainHadGoDirective
+	if goImplicit {
+		oldGo = gover.DefaultGoModVersion
+	}
 	if oldGo != newGo {
 		changes["go"] = change{"go", oldGo, newGo}
 	}
@@ -1935,18 +1951,24 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 	})
 
 	for _, c := range sortedChanges {
+		// An implicit go version was never written in go.mod, so say so rather
+		// than let it read as a version the module used to declare.
+		what := c.path
+		if c.path == "go" && goImplicit {
+			what = "implicit go"
+		}
 		if c.old == "" {
-			fmt.Fprintf(os.Stderr, "go: added %s %s\n", c.path, c.new)
+			fmt.Fprintf(os.Stderr, "go: added %s %s\n", what, c.new)
 		} else if c.new == "none" || c.new == "" {
-			fmt.Fprintf(os.Stderr, "go: removed %s %s\n", c.path, c.old)
+			fmt.Fprintf(os.Stderr, "go: removed %s %s\n", what, c.old)
 		} else if gover.ModCompare(c.path, c.new, c.old) > 0 {
-			fmt.Fprintf(os.Stderr, "go: upgraded %s %s => %s\n", c.path, c.old, c.new)
+			fmt.Fprintf(os.Stderr, "go: upgraded %s %s => %s\n", what, c.old, c.new)
 			if c.path == "go" && gover.Compare(c.old, gover.ExplicitIndirectVersion) < 0 && gover.Compare(c.new, gover.ExplicitIndirectVersion) >= 0 {
 				fmt.Fprintf(os.Stderr, "\tnote: expanded dependencies to upgrade to go %s or higher; run 'go mod tidy' to clean up\n", gover.ExplicitIndirectVersion)
 			}
 
 		} else {
-			fmt.Fprintf(os.Stderr, "go: downgraded %s %s => %s\n", c.path, c.old, c.new)
+			fmt.Fprintf(os.Stderr, "go: downgraded %s %s => %s\n", what, c.old, c.new)
 		}
 	}
 
