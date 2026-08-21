@@ -2141,6 +2141,28 @@ func rewriteValue_OpLOONG64ANDconst(v *ssa.Value) bool {
 		v.CopyOf(x)
 		return true
 	}
+	// match: (ANDconst [0xffff] x)
+	// result: (MOVHUreg x)
+	for {
+		if ssa.AuxIntToInt64(v.AuxInt) != 0xffff {
+			break
+		}
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVHUreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (ANDconst [0xffffffff] x)
+	// result: (MOVWUreg x)
+	for {
+		if ssa.AuxIntToInt64(v.AuxInt) != 0xffffffff {
+			break
+		}
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVWUreg)
+		v.AddArg(x)
+		return true
+	}
 	// match: (ANDconst [c] (MOVVconst [d]))
 	// result: (MOVVconst [c&d])
 	for {

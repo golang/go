@@ -809,6 +809,8 @@
 (SUBVconst [0]  x) => x
 (ANDconst [0]  _) => (MOVVconst [0])
 (ANDconst [-1] x) => x
+(ANDconst [0xffff] x) => (MOVHUreg x)
+(ANDconst [0xffffffff] x) => (MOVWUreg x)
 (ORconst  [0]  x) => x
 (ORconst  [-1] _) => (MOVVconst [-1])
 (XORconst [0]  x) => x
