@@ -755,7 +755,11 @@ func (p *pp) printArg(arg any, verb rune) {
 // It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
 func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	// Handle values with special methods if not already handled by printArg (depth == 0).
-	if depth > 0 && value.IsValid() && value.CanInterface() {
+	// A method-less type implements none of those interfaces, so skip building arg for
+	// it. An interface value gets another chance in the Interface case below. %w still
+	// goes through, because handleMethods prints the %!w marker for a misused verb.
+	if depth > 0 && value.IsValid() && value.CanInterface() &&
+		(value.Type().NumMethod() > 0 || verb == 'w') {
 		arg := value.Interface() // TODO(thepudds): Currently causes value to escape.
 		if p.handleMethods(arg, value, verb) {
 			return
