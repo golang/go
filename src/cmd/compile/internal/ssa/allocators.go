@@ -106,8 +106,8 @@ func (c *Cache) FreeSparseSet(s *SparseSet) {
 
 var poolFreeSparseMap [27]sync.Pool
 
-func (c *Cache) AllocSparseMap(n int) *sparseMap {
-	var s *sparseMap
+func (c *Cache) AllocSparseMap(n int) *SparseMap {
+	var s *SparseMap
 	n2 := n
 	if n2 < 32 {
 		n2 = 32
@@ -117,11 +117,11 @@ func (c *Cache) AllocSparseMap(n int) *sparseMap {
 	if v == nil {
 		s = NewSparseMap(1 << b)
 	} else {
-		s = v.(*sparseMap)
+		s = v.(*SparseMap)
 	}
 	return s
 }
-func (c *Cache) FreeSparseMap(s *sparseMap) {
+func (c *Cache) FreeSparseMap(s *SparseMap) {
 	s.Clear()
 	b := bits.Len(uint(s.cap()) - 1)
 	poolFreeSparseMap[b-5].Put(s)

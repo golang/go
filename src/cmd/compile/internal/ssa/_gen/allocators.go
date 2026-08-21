@@ -67,7 +67,7 @@ func genAllocators() {
 		},
 		{
 			name:     "SparseMap",
-			typ:      "*sparseMap",
+			typ:      "*SparseMap",
 			capacity: "%s.cap()",
 			mak:      "newSparseMap(%s)",
 			resize:   "", // larger-sized sparse maps are ok

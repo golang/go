@@ -6,7 +6,7 @@ package ssa
 
 // NewSparseMap returns a sparseMap that can map
 // integers between 0 and n-1 to int32s.
-func NewSparseMap(n int) *sparseMap {
+func NewSparseMap(n int) *SparseMap {
 	return newGenericSparseMap[ID, int32](n)
 }
 
@@ -32,7 +32,7 @@ type sparseEntry[K sparseKey, V any] struct {
 // sparseKey needs to be something we can index a slice with.
 type sparseKey interface{ ~int | ~int32 }
 
-type sparseMap = genericSparseMap[ID, int32]
+type SparseMap = genericSparseMap[ID, int32]
 
 func (s *genericSparseMap[K, V]) cap() int {
 	return len(s.sparse)

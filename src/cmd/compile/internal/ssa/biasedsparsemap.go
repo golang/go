@@ -12,7 +12,7 @@ import "math"
 // Not all features of a SparseMap are exported, and it is also easy to treat a
 // BiasedSparseMap like a SparseSet.
 type BiasedSparseMap struct {
-	s     *sparseMap
+	s     *SparseMap
 	first int
 }
 
