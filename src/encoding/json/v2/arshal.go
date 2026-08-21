@@ -177,6 +177,9 @@ func Marshal(in any, opts ...Options) (out []byte, err error) {
 // It does not terminate the output with a newline.
 // See [Marshal] for details about the conversion of a Go value into JSON.
 func MarshalWrite(out io.Writer, in any, opts ...Options) (err error) {
+	if out == nil {
+		panic("nil io.Writer")
+	}
 	enc := export.GetStreamingEncoder(out, opts...)
 	defer export.PutStreamingEncoder(enc)
 	xe := export.Encoder(enc)
@@ -195,6 +198,9 @@ func MarshalWrite(out io.Writer, in any, opts ...Options) (err error) {
 //
 // See [Marshal] for details about the conversion of a Go value into JSON.
 func MarshalEncode(out *jsontext.Encoder, in any, opts ...Options) (err error) {
+	if out == nil {
+		panic("nil jsontext.Encoder")
+	}
 	xe := export.Encoder(out)
 	if len(opts) > 0 {
 		optsOriginal := xe.Struct
@@ -401,6 +407,9 @@ func Unmarshal(in []byte, out any, opts ...Options) (err error) {
 // without reporting an error for EOF. The output must be a non-nil pointer.
 // See [Unmarshal] for details about the conversion of JSON into a Go value.
 func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
+	if in == nil {
+		panic("nil io.Reader")
+	}
 	dec := export.GetStreamingDecoder(in, opts...)
 	defer export.PutStreamingDecoder(dec)
 	xd := export.Decoder(dec)
@@ -422,6 +431,9 @@ func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
 // The output must be a non-nil pointer.
 // See [Unmarshal] for details about the conversion of JSON into a Go value.
 func UnmarshalDecode(in *jsontext.Decoder, out any, opts ...Options) (err error) {
+	if in == nil {
+		panic("nil jsontext.Decoder")
+	}
 	xd := export.Decoder(in)
 	if len(opts) > 0 {
 		optsOriginal := xd.Struct

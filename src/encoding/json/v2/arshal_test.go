@@ -9953,3 +9953,22 @@ func BenchmarkMarshalEncodeOptions(b *testing.B) {
 	b.Run("Same", makeBench(&export.Encoder(enc).Struct))
 	b.Run("New", makeBench(DefaultOptionsV2()))
 }
+
+func TestNilPanic(t *testing.T) {
+	checkPanic := func(name string, want any, f func()) {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				got := recover()
+				if got != want {
+					t.Errorf("panic: got %v, want %v", got, want)
+				}
+			}()
+			f()
+		})
+	}
+
+	checkPanic("MarshalWrite", "nil io.Writer", func() { MarshalWrite(nil, new(any)) })
+	checkPanic("MarshalEncode", "nil jsontext.Encoder", func() { MarshalEncode(nil, new(any)) })
+	checkPanic("UnmarshalRead", "nil io.Reader", func() { UnmarshalRead(nil, new(any)) })
+	checkPanic("UnmarshalDecode", "nil jsontext.Decoder", func() { UnmarshalDecode(nil, new(any)) })
+}

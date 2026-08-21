@@ -828,11 +828,29 @@ func TestEncoderReset(t *testing.T) {
 	})
 
 	t.Run("Test ability to reset nil writer", func(t *testing.T) {
-		defer func() {
-			if recover() != nil {
-				t.Fatalf("encoder.Reset(nil) shouldn`t panic")
-			}
-		}()
-		enc.Reset(nil)
+		checkPanic := func(want any, f func()) {
+			defer func() {
+				got := recover()
+				if got != want {
+					t.Errorf("panic: got %v, want %v", got, want)
+				}
+			}()
+			f()
+		}
+
+		// NewEncoder on a nil Writer should not panic.
+		checkPanic(nil, func() { NewEncoder(nil) })
+
+		// Reset(nil) on an Encoder with an internal io.Writer should not panic.
+		checkPanic(nil, func() {
+			enc.Reset(new(bytes.Buffer))
+			enc.Reset(nil)
+			enc.Reset(nil) // should be idempotent
+		})
+
+		// Subsequent Encoder method calls after Reset(nil) must panic.
+		checkPanic("nil io.Writer", func() { enc.WriteToken(Null) })
+
+		// TODO: Calling methods on zero Encoder should also panic.
 	})
 }

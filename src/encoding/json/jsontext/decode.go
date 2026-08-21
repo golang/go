@@ -134,6 +134,14 @@ func (d *Decoder) Reset(r io.Reader, opts ...Options) {
 	switch {
 	case d == nil:
 		panic("jsontext: invalid nil Decoder")
+	case r == nil:
+		// Reset with nil io.Reader is often used to avoid pinning memory
+		// when using the Decoder with a sync.Pool.
+		// A nil io.Reader is insufficient since that signals that the
+		// Decoder is operating in a purely buffered mode.
+		// Instead, use a wrapped nil interface so that method calls
+		// on Decoder eventually panic when calling the Read method.
+		r = struct{ io.Reader }{}
 	case d.s.Flags.Get(jsonflags.WithinArshalCall):
 		panic("jsontext: cannot reset Decoder passed to json.UnmarshalerFrom")
 	}
@@ -174,6 +182,9 @@ var errBufferWriteAfterNext = errors.New("invalid bytes.Buffer.Write call after 
 func (d *decoderState) fetch() error {
 	if d.rd == nil {
 		return io.ErrUnexpectedEOF
+	}
+	if r, ok := d.rd.(struct{ io.Reader }); ok && r.Reader == nil {
+		panic("nil io.Reader")
 	}
 
 	// Inform objectNameStack that we are about to fetch new buffer content.
