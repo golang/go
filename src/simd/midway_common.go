@@ -62,6 +62,9 @@ func configure(actualMax, allFeatureSize int, gosimd string) (maxVectorSize int,
 	// any hardware feature check disabling of hardware SIMD.
 	// The '+' may be followed by a size, expected to be 0, 128, 256, 512.
 	// If it is zero (e.g., "0" or +0") then hardware SIMD is still disabled.
+	if gosimd == "1" {
+		gosimd = "+"
+	}
 	if len(gosimd) > 0 && gosimd[0] == '+' {
 		// override feature reduction
 		// keep maxVectorSize
@@ -92,14 +95,17 @@ func configure(actualMax, allFeatureSize int, gosimd string) (maxVectorSize int,
 	if err != nil {
 		panic(fmt.Errorf("could not parse GODEBUG=simd='%s' as a decimal number: %v", gosimd, err))
 	}
+	if val < 0 {
+		panic(fmt.Errorf("requested GODEBUG=simd=%d is negative", val))
+	}
+	if val != 0 && val != 128 && val != 256 && val != 512 {
+		panic(fmt.Errorf("requested GODEBUG=simd=%d is not a supported vector size (want 0, 128, 256, or 512)", val))
+	}
 	if val > actualMax {
 		panic(fmt.Errorf("requested GODEBUG=simd=%d is larger than the SIMD length (%d) supported on this CPU", val, actualMax))
 	}
 	if !explicitRequest && val > allFeatureSize {
 		panic(fmt.Errorf("requested GODEBUG=simd=%d is larger than the SIMD length required for expected features (%d) on this CPU; GODEBUG=simd=+%d will skip this check", val, allFeatureSize, val))
-	}
-	if val < 0 {
-		panic(fmt.Errorf("requested GODEBUG=simd=%d is negative", val))
 	}
 	// user-requested emulation
 	if val == 0 {
