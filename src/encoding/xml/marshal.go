@@ -60,10 +60,10 @@ const (
 //     if the field value is empty. The empty values are false, 0, any
 //     nil pointer or interface value, and any array, slice, map, or
 //     string of length zero.
-//   - an anonymous struct field is handled as if the fields of its
-//     value were part of the outer struct.
-//   - an anonymous struct field of interface type is treated the same as having
-//     that type as its name, rather than being anonymous.
+//   - an embedded struct field of a concrete type is handled as if
+//     the fields of its value were part of the outer struct.
+//   - an embedded struct field of an interface type is treated the same as
+//     having a field named after the type in the interface value.
 //   - a field implementing [Marshaler] is written by calling its MarshalXML
 //     method.
 //   - a field implementing [encoding.TextMarshaler] is written by encoding the
@@ -855,7 +855,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		}
 		vf := finfo.value(val, dontInitNilPointers)
 		if !vf.IsValid() {
-			// The field is behind an anonymous struct field that's
+			// The field is behind an embedded struct field that's
 			// nil. Skip it.
 			continue
 		}
