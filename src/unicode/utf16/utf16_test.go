@@ -64,6 +64,21 @@ func TestEncode(t *testing.T) {
 	}
 }
 
+func TestEncodeCapacity(t *testing.T) {
+	for _, tt := range []struct {
+		in   []rune
+		want int
+	}{
+		{[]rune{MaxRune + 1}, 1},
+		{[]rune{MaxRune}, 2},
+	} {
+		out := Encode(tt.in)
+		if cap(out) != tt.want {
+			t.Errorf("cap(Encode(%x)) = %d; want %d", tt.in, cap(out), tt.want)
+		}
+	}
+}
+
 func TestAppendRune(t *testing.T) {
 	for _, tt := range encodeTests {
 		var out []uint16
@@ -237,6 +252,13 @@ func BenchmarkEncodeValidASCII(b *testing.B) {
 
 func BenchmarkEncodeValidJapaneseChars(b *testing.B) {
 	data := []rune{'日', '本', '語'}
+	for i := 0; i < b.N; i++ {
+		Encode(data)
+	}
+}
+
+func BenchmarkEncodeMixedRunes(b *testing.B) {
+	data := []rune{'h', 'e', '日', MaxRune + 1, '本', '語', MaxRune + 1, MaxRune + 2, 'b', 'e', 'n'}
 	for i := 0; i < b.N; i++ {
 		Encode(data)
 	}
