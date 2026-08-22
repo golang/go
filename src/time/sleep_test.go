@@ -859,6 +859,48 @@ func testStopResetResult(t *testing.T, testStop bool) {
 	wg.Wait()
 }
 
+// Test that Reset does not report an active timer once Stop has reported
+// the timer stopped, or once the timer's value has been received. This
+// used to happen when the timer's expiry raced with Stop: the in-flight
+// send that Stop had already voided was counted again by Reset.
+// Issue #80760.
+func TestStopThenResetResult(t *testing.T) {
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	const N = 1000
+	wg.Add(N)
+	for range N {
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < 100; j++ {
+				timer1 := NewTimer(1 * Millisecond)
+				timer2 := NewTimer(1 * Millisecond)
+				var loser *Timer
+				select {
+				case <-timer1.C:
+					loser = timer2
+				case <-timer2.C:
+					loser = timer1
+				}
+				if loser.Stop() {
+					if loser.Reset(1 * Hour) {
+						t.Errorf("Reset returned true right after Stop returned true")
+					}
+				} else {
+					<-loser.C
+					if loser.Reset(1 * Hour) {
+						t.Errorf("Reset returned true after Stop returned false and the value was received")
+					}
+				}
+				loser.Stop()
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+}
+
 // Test having a large number of goroutines wake up a ticker simultaneously.
 // This used to trigger a crash when run under x/tools/cmd/stress.
 func TestMultiWakeupTicker(t *testing.T) {
