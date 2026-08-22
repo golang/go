@@ -1553,6 +1553,58 @@ func TestReverseProxyWebSocketCancellation(t *testing.T) {
 	}
 }
 
+// TestReverseProxyH2CUpgradeNotForwarded verifies that a client request
+// with an "Upgrade: h2c" header does not result in the Upgrade and Connection
+// headers being forwarded to the backend. An h2c upgrade would switch the
+// connection to HTTP/2, which multiplexes requests over a single connection
+// and cannot be safely proxied as a raw byte stream.
+func TestReverseProxyH2CUpgradeNotForwarded(t *testing.T) {
+	for _, upType := range []string{"h2c", "H2C", "H2c"} {
+		t.Run(upType, func(t *testing.T) {
+			backendGotUpgrade := make(chan string, 1)
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				backendGotUpgrade <- r.Header.Get("Upgrade")
+				if c := r.Header.Get("Connection"); ascii.EqualFold(c, "Upgrade") {
+					t.Errorf("backend received Connection: %q; want it stripped", c)
+				}
+				io.WriteString(w, "backend response")
+			}))
+			defer backend.Close()
+
+			backendURL, _ := url.Parse(backend.URL)
+			rproxy := NewSingleHostReverseProxy(backendURL)
+			rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+			frontendProxy := httptest.NewServer(rproxy)
+			defer frontendProxy.Close()
+
+			req, _ := http.NewRequest("GET", frontendProxy.URL, nil)
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", upType)
+
+			res, err := frontendProxy.Client().Do(req)
+			if err != nil {
+				t.Fatalf("Get: %v", err)
+			}
+			defer res.Body.Close()
+
+			// The backend should not have received an Upgrade header.
+			select {
+			case got := <-backendGotUpgrade:
+				if got != "" {
+					t.Errorf("backend received Upgrade header %q; want empty (stripped)", got)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("timed out waiting for backend to receive request")
+			}
+
+			// The response should be a normal HTTP response, not 101.
+			if res.StatusCode != http.StatusOK {
+				t.Errorf("status = %v; want %v", res.Status, http.StatusOK)
+			}
+		})
+	}
+}
+
 func TestReverseProxyWebSocketHalfTCP(t *testing.T) {
 	// Issue #35892: support TCP half-close when HTTP is upgraded in the ReverseProxy.
 	// Specifically testing:
