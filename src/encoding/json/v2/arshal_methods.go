@@ -84,8 +84,8 @@ type Marshaler interface {
 //
 // The following options may be relevant to MarshalerTo implementations:
 //
-// - [Deterministic]: if the implementation may produce non-deterministic output
-// - [StringifyNumbers]: if the type is represented as a JSON number
+//   - [Deterministic]: if the implementation may produce non-deterministic output
+//   - [StringifyNumbers]: if the type is represented as a JSON number
 //
 // Several options, such as [FormatNilSliceAsNull], apply only to native Go
 // types. Thus, these options are typically not directly relevant to
@@ -150,7 +150,7 @@ type Unmarshaler interface {
 //
 // The following options may be relevant to UnmarshalerFrom implementations:
 //
-// - [StringifyNumbers]: if the type is represented as a JSON number
+//   - [StringifyNumbers]: if the type is represented as a JSON number
 //
 // Several options, such as [FormatNilSliceAsNull], apply only to native Go
 // types. Thus, these options are typically not directly relevant to
