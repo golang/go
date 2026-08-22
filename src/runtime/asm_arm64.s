@@ -1033,6 +1033,20 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	(R0), R0
 	UNDEF
 
+// check that SP is in range [g->stack.lo, g->stack.hi]
+TEXT runtime·stackcheck(SB), NOSPLIT|NOFRAME, $0-0
+	MOVD	RSP, R0
+	MOVD	(g_stack+stack_hi)(g), R4
+	CMP	R0, R4
+	BHS	2(PC)
+	B	runtime·abort(SB)
+
+	MOVD	(g_stack+stack_lo)(g), R4
+	CMP	R0, R4
+	BLO	2(PC)
+	B	runtime·abort(SB)
+	RET
+
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
 TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
