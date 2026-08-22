@@ -731,6 +731,9 @@ func benchmarkSign(b *testing.B, params Parameters, messages []string) {
 }
 
 func BenchmarkVerify(b *testing.B) {
+	// Unlike BenchmarkSign, BenchmarkVerify does not precompute anything, not
+	// even public key parsing, because in most PKI applications the public key
+	// is not reused more than once.
 	b.Run("ML-DSA-44", func(b *testing.B) {
 		benchmarkVerify(b, MLDSA44())
 	})
@@ -753,34 +756,15 @@ func benchmarkVerify(b *testing.B, params Parameters) {
 		b.Fatalf("SignDeterministic: %v", err)
 	}
 	pub := priv.PublicKey().Bytes()
-
-	// "Whole" runs both public key parsing and signature verification,
-	// since pre-computation can be easily moved between the two, but in practice
-	// most uses of verification are for fresh public keys (unlike signing).
-	b.Run("Whole", func(b *testing.B) {
-		for b.Loop() {
-			pk, err := NewPublicKey(params, pub)
-			if err != nil {
-				b.Fatalf("NewPublicKey: %v", err)
-			}
-			if err := Verify(pk, msg, sig, &Options{Context: "context"}); err != nil {
-				b.Fatalf("Verify: %v", err)
-			}
-		}
-	})
-
-	// "Precomputed" runs only Verify with a pre-parsed public key.
-	b.Run("Precomputed", func(b *testing.B) {
+	for b.Loop() {
 		pk, err := NewPublicKey(params, pub)
 		if err != nil {
 			b.Fatalf("NewPublicKey: %v", err)
 		}
-		for b.Loop() {
-			if err := Verify(pk, msg, sig, &Options{Context: "context"}); err != nil {
-				b.Fatalf("Verify: %v", err)
-			}
+		if err := Verify(pk, msg, sig, &Options{Context: "context"}); err != nil {
+			b.Fatalf("Verify: %v", err)
 		}
-	})
+	}
 }
 
 func BenchmarkKeygen(b *testing.B) {

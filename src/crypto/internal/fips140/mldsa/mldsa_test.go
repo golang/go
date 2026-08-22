@@ -13,9 +13,9 @@ import (
 	"testing"
 )
 
-// Most tests are in crypto/internal/fips140test/mldsa_test.go, so they can
-// apply to all FIPS 140-3 module versions. This file contains only tests that
-// need access to the unexported symbol testingOnlyRejectionReason.
+// Most tests are in crypto/mldsa, so they can apply to all FIPS 140-3 module
+// versions. This file contains only tests that need access to the unexported
+// symbol testingOnlyRejectionReason.
 
 func TestACVPRejectionKATs(t *testing.T) {
 	testCases := []struct {
