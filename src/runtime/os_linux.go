@@ -237,21 +237,25 @@ var auxvreadbuf [128]uintptr
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
-	// skip over argv, envp to get to auxv
-	for argv_index(argv, n) != nil {
+	// auxv on argv is not available on musl library/archive.
+	if !libmusl {
+		// skip over argv, envp to get to auxv
+		for argv_index(argv, n) != nil {
+			n++
+		}
+
+		// skip NULL separator
 		n++
+
+		// now argv+n is auxv
+		auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+
+		if pairs := sysauxv(auxvp[:]); pairs != 0 {
+			auxv = auxvp[: pairs*2 : pairs*2]
+			return
+		}
 	}
 
-	// skip NULL separator
-	n++
-
-	// now argv+n is auxv
-	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-
-	if pairs := sysauxv(auxvp[:]); pairs != 0 {
-		auxv = auxvp[: pairs*2 : pairs*2]
-		return
-	}
 	// In some situations we don't get a loader-provided
 	// auxv, such as when loaded as a library on Android.
 	// Fall back to /proc/self/auxv.
@@ -369,8 +373,16 @@ func readRandom(r []byte) int {
 }
 
 func goenvs() {
+	if libmusl {
+		// Read envs from /proc/self/environ instead
+		envs = readNullTerminatedStringsFromFile(procEnviron)
+		return
+	}
 	goenvs_unix()
 }
+
+//go:linkname _cgo_is_musl _cgo_is_musl
+var _cgo_is_musl unsafe.Pointer
 
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
@@ -379,6 +391,7 @@ func goenvs() {
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
+	libmusl = asmcgocall(_cgo_is_musl, nil) == 1
 	initsig(true)
 }
 
