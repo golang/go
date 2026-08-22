@@ -304,3 +304,25 @@ func TestListenIPv6WildcardAddr(t *testing.T) {
 		t.Errorf("Listen(\"tcp\", \"[::]:0\") bound to %v, want IPv6 address", addr)
 	}
 }
+
+func TestSplitHostPortRejectsNonIPv6InBrackets(t *testing.T) {
+	// Regression test for golang/go#78945
+	// SplitHostPort should reject [non-ipv6]:port like [hostname]:port
+	tests := []struct {
+		hostport string
+		wantErr  bool
+	}{
+		{"[localhost]:8080", true},  // plain hostname, not IPv6
+		{"[foo]:8080", true},        // plain hostname, not IPv6
+		{"[myserver]:443", true},    // plain hostname, not IPv6
+		{"[::1]:8080", false},      // actual IPv6
+		{"[2001:db8::1]:8080", false}, // actual IPv6
+		{"[::ffff:192.168.1.1]:8080", false}, // IPv4-mapped IPv6
+	}
+	for _, tt := range tests {
+		_, _, err := SplitHostPort(tt.hostport)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("SplitHostPort(%q) err=%v, wantErr=%v", tt.hostport, err, tt.wantErr)
+		}
+	}
+}
