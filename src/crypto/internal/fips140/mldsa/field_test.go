@@ -104,15 +104,15 @@ func TestFieldSubToMontgomery(t *testing.T) {
 
 func TestFieldReduceOnce(t *testing.T) {
 	t.Parallel()
-	for a := range uint32(2 * q) {
+	for a := range fieldElementPartiallyReduced(2 * q) {
 		got := fieldReduceOnce(a)
-		var exp uint32
+		var exp fieldElementPartiallyReduced
 		if a < q {
 			exp = a
 		} else {
 			exp = a - q
 		}
-		if uint32(got) != exp {
+		if fieldElementPartiallyReduced(got) != exp {
 			t.Fatalf("fieldReduceOnce(%d) = %d, expected %d", a, got, exp)
 		}
 	}
@@ -150,33 +150,65 @@ func TestFieldToMontgomeryOverflow(t *testing.T) {
 	}
 }
 
-func TestFieldMulSub(t *testing.T) {
-	for _, a := range interestingValues() {
-		for _, b := range interestingValues() {
-			for _, c := range interestingValues() {
-				got := fieldFromMontgomery(fieldMontgomeryMulSub(a.m, b.m, c.m))
-				exp := uint32((uint64(a.v) * (uint64(b.v) + q - uint64(c.v))) % q)
-				if got != exp {
-					t.Fatalf("%d * (%d - %d) = %d, expected %d", a.v, b.v, c.v, got, exp)
-				}
+func TestFieldPartialReduce(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		for _, a := range []uint32{
+			0, 1, q - 1, q, 2*q - 1, 2 * q, 1<<23 - 1,
+			1 << 23, 17 * q, 512 * q, ^uint32(0),
+		} {
+			got := fieldPartialReduce(a)
+			if got >= 2*q {
+				t.Fatalf("fieldPartialReduce(%d) = %d, out of the [0, 2q) range", a, got)
+			}
+			if uint32(got%q) != a%q || uint32(fieldReduceOnce(got)) != a%q {
+				t.Fatalf("fieldPartialReduce(%d) = %d, which is not congruent to %d mod q", a, got, a)
 			}
 		}
+		return
+	}
+	// Test the whole input space, tracking the expected value incrementally to
+	// avoid a division in the loop.
+	var a, exp uint32
+	for {
+		got := fieldPartialReduce(a)
+		if got >= 2*q || uint32(fieldReduceOnce(got)) != exp {
+			t.Fatalf("fieldPartialReduce(%d) = %d, expected a value congruent to %d mod q", a, got, exp)
+		}
+		exp++
+		if exp == q {
+			exp = 0
+		}
+		if a == 1<<32-1 {
+			break
+		}
+		a++
 	}
 }
 
-func TestFieldAddMul(t *testing.T) {
-	for _, a := range interestingValues() {
-		for _, b := range interestingValues() {
-			for _, c := range interestingValues() {
-				for _, d := range interestingValues() {
-					got := fieldFromMontgomery(fieldMontgomeryAddMul(a.m, b.m, c.m, d.m))
-					exp := uint32((uint64(a.v)*uint64(b.v) + uint64(c.v)*uint64(d.v)) % q)
-					if got != exp {
-						t.Fatalf("%d + %d * %d = %d, expected %d", a.v, b.v, c.v, got, exp)
-					}
-				}
-			}
+func TestFieldMontgomeryPartialReduce(t *testing.T) {
+	t.Parallel()
+	check := func(x uint64) {
+		t.Helper()
+		got := fieldMontgomeryPartialReduce(x)
+		if got >= 2*q {
+			t.Fatalf("fieldMontgomeryPartialReduce(%d) = %d, out of the [0, 2q) range", x, got)
 		}
+		// got ≡ x * R⁻¹ (mod q), so got * R ≡ x (mod q).
+		if uint64(got)*(R%q)%q != x%q {
+			t.Fatalf("fieldMontgomeryPartialReduce(%d) = %d, which is not congruent to %d * R⁻¹ mod q", x, got, x)
+		}
+	}
+	// The largest input allowed by the contract, inclusive, along with the
+	// bounds reached at the call sites and other notable values.
+	for _, x := range []uint64{
+		0, 1, q - 1, q, R - 1, R, 4 * q * q, 30 * q * q,
+		32 * q * q, uint64(q-1) * (R - 1), 512 * q * 16382, q*R - 1, q * R,
+	} {
+		check(x)
+	}
+	for i := range uint64(1 << 20) {
+		check(i * (q * R >> 20))
 	}
 }
 
