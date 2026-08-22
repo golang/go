@@ -178,6 +178,29 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
+
+	case APREFETCHI, APREFETCHR, APREFETCHW:
+		if p.From.Type != obj.TYPE_MEM || p.From.Sym != nil {
+			ctxt.Diag("%v: expected offset(base) memory operand", p)
+			return
+		}
+		if p.From.Offset&0b11111 != 0 || p.From.Offset < -2048 || p.From.Offset > 2016 {
+			ctxt.Diag("%v: improper prefetch offset %d", p, p.From.Offset)
+			return
+		}
+		switch p.As {
+		case APREFETCHI:
+			p.From.Offset |= 0b00000
+		case APREFETCHR:
+			p.From.Offset |= 0b00001
+		case APREFETCHW:
+			p.From.Offset |= 0b00011
+		}
+		p.From.Offset = signExtend(p.From.Offset, 12)
+		p.As = AORI
+		p.To.Reg = REG_ZERO
+		// AORI used instructionsForOpImmediate to encode. so p.Reg will used by rs1 and rs2 will be REG_NONE
+		p.Reg = p.From.Reg
 	}
 
 	if ctxt.Flag_dynlink {
@@ -2479,6 +2502,14 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AAMOMINUW & obj.AMask: {enc: rIIIEncoding},
 	AAMOMINUD & obj.AMask: {enc: rIIIEncoding},
 
+	// 19.6.1: Cache-Block Management Instructions (Zicbom)
+	ACBOCLEAN & obj.AMask: {enc: iIIEncoding},
+	ACBOFLUSH & obj.AMask: {enc: iIIEncoding},
+	ACBOINVAL & obj.AMask: {enc: iIIEncoding},
+
+	// 19.6.2: Cache-Block Zero Instructions (Zicboz)
+	ACBOZERO & obj.AMask: {enc: iIIEncoding},
+
 	// 21.5: Single-Precision Load and Store Instructions
 	AFLW & obj.AMask: {enc: iFEncoding},
 	AFSW & obj.AMask: {enc: sFEncoding},
@@ -4662,6 +4693,17 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		if ins.imm < 0 || ins.imm > 31 {
 			p.Ctxt.Diag("%v: immediate out of range 0 to 31", p)
 		}
+
+	case ACBOCLEAN, ACBOFLUSH, ACBOINVAL, ACBOZERO:
+		if p.From.Type != obj.TYPE_MEM {
+			p.Ctxt.Diag("%v: expected offset(base) memory operand", p)
+			return nil
+		}
+		if p.From.Offset != 0 || p.From.Sym != nil {
+			p.Ctxt.Diag("%v: offset must be 0", p)
+			return nil
+		}
+		ins.rd, ins.rs1, ins.rs2, ins.imm = REG_ZERO, uint32(p.From.Reg), obj.REG_NONE, encode(p.As).csr
 
 	case ACLZ, ACLZW, ACTZ, ACTZW, ACPOP, ACPOPW, ASEXTB, ASEXTH, AZEXTH:
 		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
