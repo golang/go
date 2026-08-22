@@ -191,6 +191,10 @@ func BenchmarkEncodeInterfaceSlice(b *testing.B) {
 	benchmarkEncodeSlice(b, a)
 }
 
+func BenchmarkEncodeNilInterfaceSlice(b *testing.B) {
+	benchmarkEncodeSlice(b, make([]any, 1000))
+}
+
 // benchmarkBuf is a read buffer we can reset
 type benchmarkBuf struct {
 	offset int

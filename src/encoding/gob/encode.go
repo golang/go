@@ -394,6 +394,7 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	state.sendZero = true
 	if iv.IsNil() {
 		state.encodeUint(0)
+		enc.freeEncoderState(state)
 		return
 	}
 

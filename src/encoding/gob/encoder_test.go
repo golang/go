@@ -59,6 +59,24 @@ func TestBasicEncoderDecoder(t *testing.T) {
 	}
 }
 
+func TestEncodeNilInterfaceReusesEncoderState(t *testing.T) {
+	var value any
+	iv := reflect.ValueOf(&value).Elem()
+	enc := NewEncoder(io.Discard)
+	b := new(encBuffer)
+
+	enc.encodeInterface(b, iv)
+	state := enc.freeList
+	if state == nil {
+		t.Fatal("nil interface encoding did not return encoderState to free list")
+	}
+
+	enc.encodeInterface(b, iv)
+	if enc.freeList != state {
+		t.Fatal("nil interface encoding did not reuse encoderState")
+	}
+}
+
 func TestEncodeIntSlice(t *testing.T) {
 
 	s8 := []int8{1, 5, 12, 22, 35, 51, 70, 92, 117}
