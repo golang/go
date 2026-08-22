@@ -74,6 +74,7 @@ var All = []Info{
 	{Name: "urlstrictcolons", Package: "net/url", Changed: 26, Old: "0"},
 	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},
 	{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"},
+	{Name: "x509lazydirscan", Package: "crypto/x509", Changed: 27, Old: "0"},
 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
 	{Name: "x509rsacrt", Package: "crypto/x509", Changed: 24, Old: "0"},
 	{Name: "x509sha256skid", Package: "crypto/x509", Changed: 25, Old: "0"},
