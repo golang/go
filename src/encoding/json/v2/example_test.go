@@ -599,7 +599,7 @@ func ExampleUnmarshalDecode_stream() {
 	// Gopher: Rodentia
 }
 
-// Use [jsontext.Multiline] to create multiline, idented output for more
+// Use [jsontext.Multiline] to create multiline, indented output for more
 // readable output for human consumption.
 //
 // See [jsontext.Multiline] for additional options that customize the multiline
