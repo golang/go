@@ -931,6 +931,41 @@ Cases:
 	}
 }
 
+func TestParseMaxMIMEHeaderSize(t *testing.T) {
+	sep := "MyBoundary"
+	in := `This is a multi-part message.  This line is ignored.
+--MyBoundary
+Header1: value1
+Header2: value2
+Header3: value3
+Header4: value4
+Header5: value5
+Header6: value6
+Header7: value7
+Header8: value8
+
+My value
+The end.
+--MyBoundary--`
+
+	in = strings.Replace(in, "\n", "\r\n", -1)
+
+	// Control.
+	r := NewReader(strings.NewReader(in), sep)
+	_, err := r.NextPart()
+	if err != nil {
+		t.Fatalf("control failed: %v", err)
+	}
+
+	// Test MaxMIMEHeaderSize.
+	r = NewReader(strings.NewReader(in), sep)
+	r.MaxMIMEHeaderSize = 100
+	_, err = r.NextPart()
+	if err != ErrMessageTooLarge {
+		t.Fatalf("test failed: %v", err)
+	}
+}
+
 func partsFromReader(r *Reader) ([]headerBody, error) {
 	got := []headerBody{}
 	for {
