@@ -2038,7 +2038,7 @@ func (c *conn) serve(ctx context.Context) {
 	}
 
 	protos := c.server.protocols()
-	if c.tlsState == nil && protos.UnencryptedHTTP2() {
+	if protos.UnencryptedHTTP2() {
 		if c.maybeServeUnencryptedHTTP2(ctx) {
 			return
 		}
