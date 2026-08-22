@@ -537,7 +537,7 @@ func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string) 
 		// We check that executing n.List once results in the same context
 		// as executing n.List twice.
 		e.rangeContext = &rangeContext{outer: e.rangeContext}
-		c1, _ := e.escapeListConditionally(c0, n.List, nil)
+		c1, _ := e.escapeListConditionally(c0.clone(), n.List, nil)
 		c0 = join(c0, c1, n, nodeName)
 		if c0.state == stateError {
 			e.rangeContext = e.rangeContext.outer
