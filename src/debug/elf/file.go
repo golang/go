@@ -441,7 +441,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 		if shnum == 0 {
 			if size < uint64(SHN_LORESERVE) {
-				return nil, &FormatError{shoff, "invalid ELF shnum contained in sh_size", shnum}
+				return nil, &FormatError{shoff, "invalid ELF shnum contained in sh_size", size}
 			}
 			shnum = int(size)
 		}
