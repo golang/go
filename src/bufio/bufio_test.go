@@ -1997,3 +1997,20 @@ func BenchmarkWriterFlush(b *testing.B) {
 		bw.Flush()
 	}
 }
+
+func BenchmarkWriteString(b *testing.B) {
+	small := strings.Repeat("x", 50)
+	huge := strings.Repeat("x", 8<<10)
+	for _, tc := range []struct{ name, s string }{
+		{"small", small},
+		{"huge", huge},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			bw := NewWriter(io.Discard)
+			for b.Loop() {
+				bw.WriteString(tc.s)
+			}
+		})
+	}
+}
