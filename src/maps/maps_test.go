@@ -373,3 +373,55 @@ func TestCloneLarge(t *testing.T) {
 		}
 	}
 }
+
+func TestGrow(t *testing.T) {
+	m := map[int]int{1: 2, 2: 4}
+	Grow(m, 1000)
+
+	if !Equal(m, map[int]int{1: 2, 2: 4}) {
+		t.Errorf("Grow changed the contents of m: got %v", m)
+	}
+
+	for i := 0; i < 1000; i++ {
+		m[i] = i
+	}
+	if len(m) != 1000 {
+		t.Errorf("len(m) after inserts got %d want 1000", len(m))
+	}
+	for i := 0; i < 1000; i++ {
+		if got := m[i]; got != i {
+			t.Errorf("m[%d] got %d want %d", i, got, i)
+		}
+	}
+}
+
+func TestGrowZero(t *testing.T) {
+	m := map[int]int{1: 2}
+	Grow(m, 0)
+	if !Equal(m, map[int]int{1: 2}) {
+		t.Errorf("Grow(m, 0) changed the contents of m: got %v", m)
+	}
+
+	// Growing a nil map by zero must not panic.
+	var nilMap map[int]int
+	Grow(nilMap, 0)
+}
+
+func TestGrowNegative(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("Grow(m, -1) did not panic")
+		}
+	}()
+	Grow(map[int]int{}, -1)
+}
+
+func TestGrowNil(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("Grow(nil, 1) did not panic")
+		}
+	}()
+	var m map[int]int
+	Grow(m, 1)
+}

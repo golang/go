@@ -318,8 +318,8 @@ func mapclone(m any) any {
 	return m
 }
 
-// mapgrow for implementing maps.Copy's presizing. n must be
-// non-negative.
+// mapgrow for implementing maps.Grow and maps.Copy's presizing. n must
+// be non-negative; maps.Grow rejects negative counts before calling here.
 //
 //go:linkname mapgrow maps.grow
 func mapgrow(m any, n int) {
