@@ -125,6 +125,8 @@ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
 	// Ensure that a.actual is set at the end of type checking.
 	if check != nil {
 		check.needsCleanup(a)
+	} else {
+		a.cleanup()
 	}
 
 	return a
