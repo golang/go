@@ -579,6 +579,23 @@ func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) str
 	return string(b)
 }
 
+// ReplaceAllStringSubmatchFunc returns a copy of src in which all matches of the
+// [Regexp] have been replaced by the return value of function repl applied to the
+// submatch. The replacement returned by repl is substituted directly, without using
+// [Regexp.Expand].
+func (re *Regexp) ReplaceAllStringSubmatchFunc(src string, repl func(groups []string) string) string {
+	b := re.replaceAll(nil, src, 2*(re.numSubexp+1), func(dst []byte, match []int) []byte {
+		groups := make([]string, len(match)/2)
+		for i := 0; i < len(groups); i++ {
+			if match[2*i] >= 0 {
+				groups[i] = src[match[2*i]:match[2*i+1]]
+			}
+		}
+		return append(dst, repl(groups)...)
+	})
+	return string(b)
+}
+
 func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst []byte, m []int) []byte) []byte {
 	lastMatchEnd := 0 // end position of the most recent match
 	searchPos := 0    // position where we next look for a match
@@ -679,6 +696,23 @@ func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
 	return re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
 		return append(dst, repl(src[match[0]:match[1]])...)
 	})
+}
+
+// ReplaceAllSubmatchFunc returns a copy of src in which all matches of the
+// [Regexp] have been replaced by the return value of function repl applied to the
+// submatch. The replacement returned by repl is substituted directly, without using
+// [Regexp.Expand].
+func (re *Regexp) ReplaceAllSubmatchFunc(src []byte, repl func(groups [][]byte) []byte) []byte {
+	b := re.replaceAll(src, "", 2*(re.numSubexp+1), func(dst []byte, match []int) []byte {
+		groups := make([][]byte, len(match)/2)
+		for i := 0; i < len(groups); i++ {
+			if match[2*i] >= 0 {
+				groups[i] = src[match[2*i]:match[2*i+1]:match[2*i+1]]
+			}
+		}
+		return append(dst, repl(groups)...)
+	})
+	return b
 }
 
 // Bitmap used by func special to check whether a character needs to be escaped.
