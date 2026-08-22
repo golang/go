@@ -373,7 +373,6 @@ func run(ctx context.Context, args RunArgs) ([]byte, error) {
 		}()
 	}
 	// TODO: Impose limits on command output size.
-	// TODO: Set environment to get English error messages.
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
 	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
@@ -382,7 +381,11 @@ func run(ctx context.Context, args RunArgs) ([]byte, error) {
 	c.Stdin = args.stdin
 	c.Stderr = &stderr
 	c.Stdout = &stdout
-	c.Env = append(c.Environ(), args.env...)
+	// Ensure VCS commands produce English error messages regardless of the
+	// user's locale, so that error message parsing in the module proxy and
+	// VCS code is reliable.
+	c.Env = append(c.Environ(), "LC_ALL=C")
+	c.Env = append(c.Env, args.env...)
 	err := c.Run()
 	if err != nil {
 		err = &RunError{Cmd: strings.Join(cmd, " ") + " in " + args.dir, Stderr: stderr.Bytes(), Err: err}
