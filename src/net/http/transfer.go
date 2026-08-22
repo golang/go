@@ -1019,6 +1019,9 @@ func (b *body) Close() error {
 			if err == io.EOF && n <= maxPostHandlerReadBytes {
 				b.earlyClose = false
 				b.sawEOF = true
+				// Reaching the end of the body is the expected
+				// outcome here, not an error to report to the caller.
+				err = nil
 			}
 		}
 	default:
