@@ -101,6 +101,24 @@ type Func struct {
 
 	Inl *Inline
 
+	// ResultTypeSets, if non-nil, records for each result of this
+	// function the set of dynamic types it may hold. Maintained by
+	// the devirtualize package, including across package boundaries.
+	ResultTypeSets []TypeSet
+
+	// DevirtVariant, if non-nil, is this function's devirtualized
+	// variant f.dv, split off by the devirtualize package. It has
+	// this function's body, unboxed interface results, and any
+	// receiver promoted to a leading parameter; this function is a
+	// thunk around it.
+	DevirtVariant *Func
+
+	// DevirtOriginal, if non-nil, is the function this variant was
+	// split from. The variant has no body of its own in export data,
+	// so the inliner inlines the original's body and unboxes the
+	// devirtualized results.
+	DevirtOriginal *Func
+
 	// RangeParent, if non-nil, is the first non-range body function containing
 	// the closure for the body of a range function.
 	RangeParent *Func

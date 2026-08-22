@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/devirtualize"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/inline/interleaved"
@@ -1258,10 +1259,81 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 				fn.Inl.Properties = r.String()
 			}
 		}
+
+		r.retDevirt(fn)
 	} else {
 		r.addBody(name.Func, method)
 	}
 	r.Sync(pkgbits.SyncEOF)
+}
+
+// retDevirt reads fn's return-value devirtualization record: its
+// result type sets and split variant.
+//
+// The record is always consumed; it is only registered when
+// -d=retdevirt is set, so that devirtualization verdicts with the
+// flag off match a compiler without the records.
+func (r *reader) retDevirt(fn *ir.Func) {
+	if !r.Bool() {
+		return
+	}
+
+	sets := make([]devirtualize.ImportedSet, r.Len())
+	for i := range sets {
+		is := &sets[i]
+		if r.Bool() {
+			is.Unknown = true
+			continue
+		}
+		nmembers := r.Len()
+		for j := 0; j < nmembers; j++ {
+			depth := r.Len()
+			idx := r.Reloc(pkgbits.SectionObj)
+
+			var typ *types.Type
+			if n, err := r.p.objIdxMayFail(idx, nil, nil, false); err == nil {
+				if nn, ok := n.(*ir.Name); ok && nn.Op() == ir.OTYPE {
+					typ = nn.Type()
+				}
+			}
+			if typ == nil {
+				// An unresolvable member invalidates the whole set:
+				// a partial set would claim to be exhaustive.
+				is.Unknown = true
+				continue
+			}
+
+			for k := 0; k < depth; k++ {
+				typ = types.NewPtr(typ)
+			}
+			is.Members = append(is.Members, typ)
+		}
+		is.HasNil = r.Bool()
+		if is.Unknown {
+			is.Members = nil
+		}
+	}
+
+	var devirt []bool
+	var notes []string
+	if r.Bool() {
+		devirt = make([]bool, len(sets))
+		for i := range devirt {
+			devirt[i] = r.Bool()
+		}
+		notes = make([]string, r.Len())
+		for i := range notes {
+			notes[i] = r.String()
+		}
+	}
+
+	if base.Debug.RetDevirt == 0 {
+		return
+	}
+	devirtualize.ImportResults(fn, sets)
+	if devirt != nil {
+		devirtualize.ImportSplit(fn, devirt, notes)
+	}
 }
 
 func (r *reader) typeExt(name *ir.Name) {
@@ -3711,6 +3783,12 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
 // unifiedHaveInlineBody reports whether we have the function body for
 // fn, so we can inline it.
 func unifiedHaveInlineBody(fn *ir.Func) bool {
+	if orig := fn.DevirtOriginal; orig != nil {
+		// A devirtualized variant inlines through its original's
+		// body.
+		fn = orig
+	}
+
 	if fn.Inl == nil {
 		return false
 	}
@@ -3724,6 +3802,21 @@ var inlgen = 0
 // unifiedInlineCall implements inline.NewInline by re-reading the function
 // body from its Unified IR export data.
 func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int, profile *pgoir.Profile) *ir.InlinedCallExpr {
+	if orig := fn.DevirtOriginal; orig != nil {
+		// A devirtualized variant is its original's body with the
+		// boxing removed from the devirtualized results, so inline
+		// the original and unbox those results. The unchecked
+		// extraction is sound for the same reason the split's was:
+		// the recorded result sets prove the dynamic type.
+		res := unifiedInlineCall(callerfn, call, orig, inlIndex, profile)
+		for i, f := range fn.Type().Results() {
+			if !f.Type.IsInterface() && orig.Type().Results()[i].Type.IsInterface() {
+				res.ReturnVars[i] = devirtualize.Unbox(res.ReturnVars[i], f.Type)
+			}
+		}
+		return res
+	}
+
 	pri, ok := bodyReaderFor(fn)
 	if !ok {
 		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)

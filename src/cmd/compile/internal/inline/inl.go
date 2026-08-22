@@ -58,6 +58,14 @@ const (
 	inlineBigFunctionNodes      = 5000                 // Functions with this many nodes are considered "big".
 	inlineBigFunctionMaxCost    = 20                   // Max cost of inlinee when inlining into a "big" function.
 	inlineClosureCalledOnceCost = 10 * inlineMaxBudget // if a closure is just called once, inline it.
+
+	// MinSplitCost is the smallest cost at which return-value
+	// devirtualization splits a function. A cheaper function inlines
+	// at most call sites anyway, exposing its returns to the caller's
+	// analysis directly; splitting it would only add a symbol and
+	// defeat inlining of the devirtualized call, since the variant
+	// has no inline body.
+	MinSplitCost = inlineMaxBudget / 2
 )
 
 var (
