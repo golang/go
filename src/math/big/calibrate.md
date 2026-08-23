@@ -91,7 +91,7 @@ Now the optimal value is clear: the best threshold on this chip, with these algo
 
 Unfortunately, other chips are different. Here is an Intel Xeon server chip:
 
-![KaratsubaThreshold on an Apple M3 Pro](https://swtch.com/math/big/_calibrate/KaratsubaMul/cal.c2s16.svg)
+![KaratsubaThreshold on an Intel Xeon Gold 6253CL](https://swtch.com/math/big/_calibrate/KaratsubaMul/cal.c2s16.svg)
 
 On this chip, the best threshold is closer to 60. Luckily, 40 is not a terrible choice either: it is only about 2% slower on average.
 
@@ -110,7 +110,7 @@ In general, we break ties in favor of the newer c3h88 x86 perf gomote, then the 
 
 Here are the full results for the Karatsuba multiplication threshold.
 
-![KaratsubaThreshold on an Intel Xeon Platium 8481C](https://swtch.com/math/big/_calibrate/KaratsubaMul/cal.c3h88.svg)
+![KaratsubaThreshold on an Intel Xeon Platinum 8481C](https://swtch.com/math/big/_calibrate/KaratsubaMul/cal.c3h88.svg)
 ![KaratsubaThreshold on an Intel Xeon Gold 6253CL](https://swtch.com/math/big/_calibrate/KaratsubaMul/cal.c2s16.svg)
 ![KaratsubaThreshold on an AMD Ryzen 9 7950X](https://swtch.com/math/big/_calibrate/KaratsubaMul/cal.s7.svg)
 ![KaratsubaThreshold on an Axiom Arm](https://swtch.com/math/big/_calibrate/KaratsubaMul/cal.c4as16.svg)
@@ -129,7 +129,7 @@ so it is slower for small inputs. How small?
 
 Here are the timings:
 
-![BasicSqrThreshold on an Intel Xeon Platium 8481C](https://swtch.com/math/big/_calibrate/BasicSqr/cal.c3h88.svg)
+![BasicSqrThreshold on an Intel Xeon Platinum 8481C](https://swtch.com/math/big/_calibrate/BasicSqr/cal.c3h88.svg)
 ![BasicSqrThreshold on an Intel Xeon Gold 6253CL](https://swtch.com/math/big/_calibrate/BasicSqr/cal.c2s16.svg)
 ![BasicSqrThreshold on an AMD Ryzen 9 7950X](https://swtch.com/math/big/_calibrate/BasicSqr/cal.s7.svg)
 ![BasicSqrThreshold on an Axiom Arm](https://swtch.com/math/big/_calibrate/BasicSqr/cal.c4as16.svg)
@@ -154,7 +154,7 @@ Beyond the basic squaring threshold, at some point a customized Karatsuba can ta
 It uses three half-sized squarings instead of three half-sized multiplies.
 Here are the timings:
 
-![KaratsubaSqrThreshold on an Intel Xeon Platium 8481C](https://swtch.com/math/big/_calibrate/KaratsubaSqr/cal.c3h88.svg)
+![KaratsubaSqrThreshold on an Intel Xeon Platinum 8481C](https://swtch.com/math/big/_calibrate/KaratsubaSqr/cal.c3h88.svg)
 ![KaratsubaSqrThreshold on an Intel Xeon Gold 6253CL](https://swtch.com/math/big/_calibrate/KaratsubaSqr/cal.c2s16.svg)
 ![KaratsubaSqrThreshold on an AMD Ryzen 9 7950X](https://swtch.com/math/big/_calibrate/KaratsubaSqr/cal.s7.svg)
 ![KaratsubaSqrThreshold on an Axiom Arm](https://swtch.com/math/big/_calibrate/KaratsubaSqr/cal.c4as16.svg)
@@ -171,7 +171,7 @@ Division uses a recursive divide-and-conquer algorithm for large inputs,
 eventually falling back to a more traditional grade-school whole-input trial-and-error division.
 Here are the timings for the threshold between the two:
 
-![DivRecursiveThreshold on an Intel Xeon Platium 8481C](https://swtch.com/math/big/_calibrate/DivRecursive/cal.c3h88.svg)
+![DivRecursiveThreshold on an Intel Xeon Platinum 8481C](https://swtch.com/math/big/_calibrate/DivRecursive/cal.c3h88.svg)
 ![DivRecursiveThreshold on an Intel Xeon Gold 6253CL](https://swtch.com/math/big/_calibrate/DivRecursive/cal.c2s16.svg)
 ![DivRecursiveThreshold on an AMD Ryzen 9 7950X](https://swtch.com/math/big/_calibrate/DivRecursive/cal.s7.svg)
 ![DivRecursiveThreshold on an Axiom Arm](https://swtch.com/math/big/_calibrate/DivRecursive/cal.c4as16.svg)
