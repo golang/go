@@ -1206,6 +1206,32 @@ func TestLRUClientSessionCache(t *testing.T) {
 	}
 }
 
+func TestLRUClientSessionCacheDeleteMissingKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		capacity int
+	}{
+		{"cache not full", 2},
+		{"cache full", 1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cache := NewLRUClientSessionCache(test.capacity)
+			var cs ClientSessionState
+			cache.Put("present", &cs)
+
+			cache.Put("missing", nil)
+
+			if s, ok := cache.Get("missing"); ok || s != nil {
+				t.Errorf(`after deleting a key that is not in the cache, Get("missing") = %p, %v; want nil, false`, s, ok)
+			}
+			if s, ok := cache.Get("present"); !ok || s != &cs {
+				t.Errorf(`after deleting a key that is not in the cache, Get("present") = %p, %v; want %p, true`, s, ok, &cs)
+			}
+		})
+	}
+}
+
 func TestKeyLogTLS12(t *testing.T) {
 	var serverBuf, clientBuf bytes.Buffer
 
