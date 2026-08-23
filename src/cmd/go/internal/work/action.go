@@ -621,7 +621,10 @@ func (c cgoCompileActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	a.nonGoOverlay = pr.nonGoOverlay
 	buildAction := a.triggers[0].triggers[0] // cgo compile -> cgo collect -> build
 
-	a.actionID = cache.Subkey(buildAction.actionID, "cgo compile "+c.file) // buildAction's action id was computed by the check cache action.
+	// Objdir is randomly named and we don't want it passed into the action ID,
+	// which is used as the compiler's -frandom-seed ; Trim to allow reproducible builds.
+	file := strings.TrimPrefix(c.file, a.Objdir)
+	a.actionID = cache.Subkey(buildAction.actionID, "cgo compile "+file) // buildAction's action id was computed by the check cache action.
 	return c.compileFunc(a, a.Objdir, a.Target, c.getFlagsFunc(pr), c.file)
 }
 
