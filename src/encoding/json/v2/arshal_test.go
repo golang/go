@@ -5541,7 +5541,7 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Floats/Float32/Overflow"),
 		inBuf:   `-1e1000`,
 		inVal:   addr(float32(32.32)),
-		want:    addr(float32(math.Inf(-1))),
+		want:    addr(float32(32.32)),
 		wantErr: EU(strconv.ErrRange).withVal(`-1e1000`).withType('0', T[float32]()),
 	}, {
 		name:  jsontest.Name("Floats/Float64/Pi"),
@@ -5557,13 +5557,25 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Floats/Float64/Overflow"),
 		inBuf:   `-1e1000`,
 		inVal:   addr(float64(64.64)),
-		want:    addr(float64(math.Inf(-1))),
+		want:    addr(float64(64.64)),
 		wantErr: EU(strconv.ErrRange).withVal(`-1e1000`).withType('0', T[float64]()),
 	}, {
 		name:    jsontest.Name("Floats/Any/Overflow"),
 		inBuf:   `1e1000`,
 		inVal:   new(any),
-		want:    addr(any(float64(math.Inf(+1)))),
+		want:    addr(any(float64(0))),
+		wantErr: EU(strconv.ErrRange).withVal(`1e1000`).withType('0', T[float64]()),
+	}, {
+		name:    jsontest.Name("Floats/Any/ExistingFloat32/Overflow"),
+		inBuf:   `1e1000`,
+		inVal:   addr(any(float32(32.32))),
+		want:    addr(any(float32(32.32))),
+		wantErr: EU(strconv.ErrRange).withVal(`1e1000`).withType('0', T[float32]()),
+	}, {
+		name:    jsontest.Name("Floats/Any/ExistingFloat64/Overflow"),
+		inBuf:   `1e1000`,
+		inVal:   addr(any(float64(64.64))),
+		want:    addr(any(float64(64.64))),
 		wantErr: EU(strconv.ErrRange).withVal(`1e1000`).withType('0', T[float64]()),
 	}, {
 		name:  jsontest.Name("Floats/Named"),

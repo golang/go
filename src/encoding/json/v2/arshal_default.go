@@ -760,10 +760,10 @@ func makeFloatArshaler(t reflect.Type) *arshaler {
 				break
 			}
 			fv, err := strconv.ParseFloat(string(val), bits)
-			va.SetFloat(fv)
 			if err != nil {
 				return newUnmarshalErrorAfterWithValue(dec, t, errors.Unwrap(err))
 			}
+			va.SetFloat(fv)
 			return nil
 		}
 		return newUnmarshalErrorAfter(dec, t, nil)
