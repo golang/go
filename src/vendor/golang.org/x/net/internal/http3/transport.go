@@ -192,7 +192,8 @@ func (tr *transport) CloseIdleConnections() {
 //
 // Multiple goroutines may invoke methods on a clientConn simultaneously.
 type clientConn struct {
-	tr *transport
+	tr           *transport
+	unregistered chan struct{} // closed when clientConn is unregistered from tr.
 
 	qconn *quic.Conn
 	genericConn
@@ -218,13 +219,15 @@ func (tr *transport) unregisterConn(cc *clientConn) {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
 	delete(tr.activeConns, cc)
+	close(cc.unregistered)
 }
 
 func (tr *transport) newClientConn(ctx context.Context, qconn *quic.Conn, stateHook func()) (*clientConn, error) {
 	cc := &clientConn{
-		tr:        tr,
-		qconn:     qconn,
-		stateHook: stateHook,
+		tr:           tr,
+		unregistered: make(chan struct{}),
+		qconn:        qconn,
+		stateHook:    stateHook,
 	}
 	tr.registerConn(cc)
 	cc.enc.init()
@@ -243,20 +246,21 @@ func (tr *transport) newClientConn(ctx context.Context, qconn *quic.Conn, stateH
 		cc.mu.Lock()
 		cc.closed = true
 		cc.mu.Unlock()
-		tr.unregisterConn(cc)
 		cc.maybeCallStateHook()
+		tr.unregisterConn(cc)
 	}()
 	return cc, nil
 }
 
 func (cc *clientConn) Close() error {
-	// We need to use Close rather than Abort on the QUIC connection.
-	// Otherwise, when a net/http.Transport.CloseIdleConnections is called, it
-	// might call the http3.transport.CloseIdleConnections prior to all idle
-	// connections being fully closed; this would make it unable to close its
-	// QUIC endpoint, making http3.transport.CloseIdleConnections a no-op
-	// unintentionally.
-	return cc.qconn.Close()
+	err := cc.qconn.Close()
+	// Wait until cc is actually unregistered from the transport before
+	// returning. Otherwise, a race condition might occur: CloseIdleConnections
+	// might be called before cc gets a chance to be unregistered; if so,
+	// CloseIdleConnections will unexpectedly not close its QUIC endpoint,
+	// thinking that there is still an active cc.
+	<-cc.unregistered
+	return err
 }
 
 func (cc *clientConn) Err() error {

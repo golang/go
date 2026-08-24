@@ -370,6 +370,12 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 		if !httpguts.ValidHeaderFieldValue(value) {
 			return &streamError{errH3MessageError, "invalid field value"}
 		}
+		if name == "" || (name[0] == ':' && value == "") {
+			// Reject 0-length pseudo-header values up front,
+			// to avoid any confusion down the line between
+			// "present but zero-length" and "absent".
+			return &streamError{errH3MessageError, "invalid field"}
+		}
 		switch name {
 		case ":method":
 			if hasMethod {
@@ -507,14 +513,14 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 	}
 
 	contentLength := int64(-1)
-	if n, err := strconv.Atoi(header.Get("Content-Length")); err == nil {
+	if n, err := strconv.ParseUint(header.Get("Content-Length"), 10, 63); err == nil {
 		contentLength = int64(n)
 	}
 
 	req := (&http.Request{
 		Proto:         "HTTP/3.0",
 		Method:        pHeader.method,
-		Host:          pHeader.authority,
+		Host:          reqInfo.Host,
 		URL:           reqInfo.URL,
 		RequestURI:    reqInfo.RequestURI,
 		Trailer:       reqInfo.Trailer,
@@ -603,11 +609,11 @@ type responseWriter struct {
 	snapHeaders    http.Header // Snapshot of headers at WriteHeader time
 	trailer        http.Header
 	bb             bodyBuffer
-	wroteHeader    bool // Non-1xx header has been (logically) written.
-	statusCode     int  // Non-1xx status of the response that will be sent in HEADERS frame. Zero means none has been set.
-	sent100        bool // Status 100 has been sent by the server.
-	cannotHaveBody bool // Response should not have a body (e.g. response to a HEAD request).
-	bodyLenLeft    int  // How much of the content body is left to be sent, set via "Content-Length" header. -1 if unknown.
+	wroteHeader    bool  // Non-1xx header has been (logically) written.
+	statusCode     int   // Non-1xx status of the response that will be sent in HEADERS frame. Zero means none has been set.
+	sent100        bool  // Status 100 has been sent by the server.
+	cannotHaveBody bool  // Response should not have a body (e.g. response to a HEAD request).
+	bodyLenLeft    int64 // How much of the content body is left to be sent, set via "Content-Length" header. -1 if unknown.
 }
 
 func (rw *responseWriter) Header() http.Header {
@@ -755,13 +761,14 @@ func (rw *responseWriter) WriteHeader(statusCode int) {
 
 	// Non-informational headers should only be set once, and should be
 	// buffered.
-	rw.statusCode = statusCode
-	rw.snapHeaders = rw.headers.Clone()
-	if n, err := strconv.Atoi(rw.Header().Get("Content-Length")); err == nil {
-		rw.bodyLenLeft = n
+	if n, err := strconv.ParseUint(rw.headers.Get("Content-Length"), 10, 63); err == nil {
+		rw.bodyLenLeft = int64(n)
 	} else {
+		rw.headers.Del("Content-Length")
 		rw.bodyLenLeft = -1 // Unknown.
 	}
+	rw.statusCode = statusCode
+	rw.snapHeaders = rw.headers.Clone()
 }
 
 // trimWriteLocked trims a byte slice, b, such that the length of b will not
@@ -772,9 +779,9 @@ func (rw *responseWriter) trimWriteLocked(b []byte) ([]byte, bool) {
 	if rw.bodyLenLeft < 0 {
 		return b, false
 	}
-	n := min(len(b), rw.bodyLenLeft)
+	n := min(int64(len(b)), rw.bodyLenLeft)
 	rw.bodyLenLeft -= n
-	return b[:n], n != len(b)
+	return b[:n], n != int64(len(b))
 }
 
 func (rw *responseWriter) Write(b []byte) (n int, err error) {
@@ -915,7 +922,7 @@ func (bb *bodyBuffer) inferHeader(h http.Header, status int) {
 	}
 	// If the Content-Encoding is non-blank, we shouldn't
 	// sniff the body. See Issue golang.org/issue/31753.
-	_, hasCE := h["Content-Encoding"]
+	hasCE := len(h.Get("Content-Encoding")) > 0
 	_, hasCT := h["Content-Type"]
 	if !hasCE && !hasCT && responseCanHaveBody(status) && len(*bb) > 0 {
 		h.Set("Content-Type", http.DetectContentType(*bb))

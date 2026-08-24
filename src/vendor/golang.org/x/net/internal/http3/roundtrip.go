@@ -143,7 +143,7 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 			},
 			AddGzipHeader:         addedGzip,
 			PeerMaxHeaderListSize: 0,
-			DefaultUserAgent:      "Go-http-client/3",
+			DefaultUserAgent:      "Go-http-client/3.0",
 		}, func(name, value string) {
 			// Issue #71374: Consider supporting never-indexed fields.
 			yield(mayIndex, name, value)

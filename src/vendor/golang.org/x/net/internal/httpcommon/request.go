@@ -391,6 +391,7 @@ type ServerRequestParam struct {
 // ServerRequestResult is the result of NewServerRequest.
 type ServerRequestResult struct {
 	// Various http.Request fields.
+	Host       string
 	URL        *url.URL
 	RequestURI string
 	Trailer    map[string][]string
@@ -433,20 +434,46 @@ func NewServerRequest(rp ServerRequestParam) ServerRequestResult {
 	}
 	delete(rp.Header, "Trailer")
 
+	authority := rp.Authority
+	if host := rp.Header["Host"]; len(host) == 1 {
+		// HTTP/2 and HTTP/3 permit the Host header to be present,
+		// but it must match the :authority pseudo-header.
+		if authority == "" {
+			authority = host[0]
+		} else if host[0] != authority {
+			return ServerRequestResult{
+				InvalidReason: "authority_host_mismatch",
+			}
+		}
+		delete(rp.Header, "Host")
+	} else if len(host) > 1 {
+		// HTTP/1.1 rejects any request containing more than one Host header.
+		// HTTP/2 and HTTP/3 don't use the Host header, but reject multiple anyway.
+		return ServerRequestResult{
+			InvalidReason: "multiple_host_headers",
+		}
+	}
+
 	// "':authority' MUST NOT include the deprecated userinfo subcomponent
 	// for "http" or "https" schemed URIs."
 	// https://www.rfc-editor.org/rfc/rfc9113.html#section-8.3.1-2.3.8
-	if strings.IndexByte(rp.Authority, '@') != -1 && (rp.Scheme == "http" || rp.Scheme == "https") {
+	if strings.IndexByte(authority, '@') != -1 && (rp.Scheme == "http" || rp.Scheme == "https") {
 		return ServerRequestResult{
 			InvalidReason: "userinfo_in_authority",
+		}
+	}
+
+	if authority != "" && !httpguts.ValidHostHeader(authority) {
+		return ServerRequestResult{
+			InvalidReason: "invalid_authority",
 		}
 	}
 
 	var url_ *url.URL
 	var requestURI string
 	if rp.Method == "CONNECT" && rp.Protocol == "" {
-		url_ = &url.URL{Host: rp.Authority}
-		requestURI = rp.Authority // mimic HTTP/1 server behavior
+		url_ = &url.URL{Host: authority}
+		requestURI = authority // mimic HTTP/1 server behavior
 	} else {
 		// "[The :path] pseudo-header field MUST NOT be empty [...]"
 		// https://www.rfc-editor.org/rfc/rfc9113.html#section-8.3.1-2.4.2
@@ -467,6 +494,7 @@ func NewServerRequest(rp ServerRequestParam) ServerRequestResult {
 	}
 
 	return ServerRequestResult{
+		Host:          authority,
 		URL:           url_,
 		NeedsContinue: needsContinue,
 		RequestURI:    requestURI,

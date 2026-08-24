@@ -31,10 +31,18 @@ type headerFieldTable struct {
 
 	// byName maps a HeaderField name to the unique id of the newest entry with
 	// the same name. See above for a definition of "unique id".
+	//
+	// byName and byNameValue are used only by search, which is only called
+	// for tables used by encoders. For tables used only by decoders, the
+	// maps are never built, as a memory optimization for servers with many
+	// mostly-idle connections, each pinning a dynamic table. The maps are
+	// built lazily by the first search call and are nil until then. The two
+	// maps are always both nil or both non-nil.
 	byName map[string]uint64
 
 	// byNameValue maps a HeaderField name/value pair to the unique id of the newest
 	// entry with the same name and value. See above for a definition of "unique id".
+	// See byName for when this map is non-nil.
 	byNameValue map[pairNameValue]uint64
 }
 
@@ -42,9 +50,17 @@ type pairNameValue struct {
 	name, value string
 }
 
-func (t *headerFieldTable) init() {
-	t.byName = make(map[string]uint64)
-	t.byNameValue = make(map[pairNameValue]uint64)
+// buildMaps initializes byName and byNameValue from ents.
+func (t *headerFieldTable) buildMaps() {
+	t.byName = make(map[string]uint64, len(t.ents))
+	t.byNameValue = make(map[pairNameValue]uint64, len(t.ents))
+	for k, f := range t.ents {
+		// Map to the newest matching entry: later (newer) entries
+		// overwrite earlier ones, matching addEntry's behavior.
+		id := t.evictCount + uint64(k) + 1
+		t.byName[f.Name] = id
+		t.byNameValue[pairNameValue{f.Name, f.Value}] = id
+	}
 }
 
 // len reports the number of entries in the table.
@@ -54,9 +70,11 @@ func (t *headerFieldTable) len() int {
 
 // addEntry adds a new entry.
 func (t *headerFieldTable) addEntry(f HeaderField) {
-	id := uint64(t.len()) + t.evictCount + 1
-	t.byName[f.Name] = id
-	t.byNameValue[pairNameValue{f.Name, f.Value}] = id
+	if t.byName != nil {
+		id := uint64(t.len()) + t.evictCount + 1
+		t.byName[f.Name] = id
+		t.byNameValue[pairNameValue{f.Name, f.Value}] = id
+	}
 	t.ents = append(t.ents, f)
 }
 
@@ -65,14 +83,16 @@ func (t *headerFieldTable) evictOldest(n int) {
 	if n > t.len() {
 		panic(fmt.Sprintf("evictOldest(%v) on table with %v entries", n, t.len()))
 	}
-	for k := 0; k < n; k++ {
-		f := t.ents[k]
-		id := t.evictCount + uint64(k) + 1
-		if t.byName[f.Name] == id {
-			delete(t.byName, f.Name)
-		}
-		if p := (pairNameValue{f.Name, f.Value}); t.byNameValue[p] == id {
-			delete(t.byNameValue, p)
+	if t.byName != nil {
+		for k := 0; k < n; k++ {
+			f := t.ents[k]
+			id := t.evictCount + uint64(k) + 1
+			if t.byName[f.Name] == id {
+				delete(t.byName, f.Name)
+			}
+			if p := (pairNameValue{f.Name, f.Value}); t.byNameValue[p] == id {
+				delete(t.byNameValue, p)
+			}
 		}
 	}
 	copy(t.ents, t.ents[n:])
@@ -100,6 +120,9 @@ func (t *headerFieldTable) evictOldest(n int) {
 //
 // See Section 2.3.3.
 func (t *headerFieldTable) search(f HeaderField) (i uint64, nameValueMatch bool) {
+	if t.byName == nil {
+		t.buildMaps()
+	}
 	if !f.Sensitive {
 		if id := t.byNameValue[pairNameValue{f.Name, f.Value}]; id != 0 {
 			return t.idToIndex(id), true
