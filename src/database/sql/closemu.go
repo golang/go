@@ -65,8 +65,11 @@ func (m *closingMutex) Lock() {
 	defer m.mu.Unlock()
 	for {
 		x := m.state.Load()
-		if (x == 0 || x == 1) && m.state.CompareAndSwap(x, -1) {
-			return
+		if x == 0 || x == 1 {
+			if m.state.CompareAndSwap(x, -1) {
+				return
+			}
+			continue
 		}
 		// Set writer waiting bit and sleep.
 		if x&1 == 0 && !m.state.CompareAndSwap(x, x|1) {
