@@ -2714,6 +2714,17 @@ func rewriteValue_OpLOONG64MOVBUreg(v *ssa.Value) bool {
 		v.CopyOf(x)
 		return true
 	}
+	// match: (MOVBUreg x)
+	// cond: v.Type.Size() <= 1
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 1) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValue_OpLOONG64MOVBload(v *ssa.Value) bool {
@@ -2904,6 +2915,17 @@ func rewriteValue_OpLOONG64MOVBreg(v *ssa.Value) bool {
 		}
 		c := ssa.AuxIntToInt64(x.AuxInt)
 		if !(c >= 0 && int64(int8(c)) == c) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVBreg x)
+	// cond: v.Type.Size() <= 1
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 1) {
 			break
 		}
 		v.CopyOf(x)
@@ -4054,6 +4076,17 @@ func rewriteValue_OpLOONG64MOVHUreg(v *ssa.Value) bool {
 		v.CopyOf(x)
 		return true
 	}
+	// match: (MOVHUreg x)
+	// cond: v.Type.Size() <= 2
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 2) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValue_OpLOONG64MOVHload(v *ssa.Value) bool {
@@ -4244,6 +4277,17 @@ func rewriteValue_OpLOONG64MOVHreg(v *ssa.Value) bool {
 		}
 		c := ssa.AuxIntToInt64(x.AuxInt)
 		if !(c >= 0 && int64(int16(c)) == c) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVHreg x)
+	// cond: v.Type.Size() <= 2
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 2) {
 			break
 		}
 		v.CopyOf(x)
@@ -5073,6 +5117,17 @@ func rewriteValue_OpLOONG64MOVWUreg(v *ssa.Value) bool {
 		v.CopyOf(x)
 		return true
 	}
+	// match: (MOVWUreg x)
+	// cond: v.Type.Size() <= 4
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 4) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValue_OpLOONG64MOVWload(v *ssa.Value) bool {
@@ -5263,6 +5318,17 @@ func rewriteValue_OpLOONG64MOVWreg(v *ssa.Value) bool {
 		}
 		c := ssa.AuxIntToInt64(x.AuxInt)
 		if !(c >= 0 && int64(int32(c)) == c) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWreg x)
+	// cond: v.Type.Size() <= 4
+	// result: x
+	for {
+		x := v_0
+		if !(v.Type.Size() <= 4) {
 			break
 		}
 		v.CopyOf(x)

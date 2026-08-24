@@ -295,6 +295,7 @@ func shouldSignEXT(x int) int64 {
 
 func noIntermediateExtension(a, b, c uint32) uint32 {
 	// arm64:-"MOVWU"
+	// loong64:-"MOVWU"
 	return a*b*9 + c
 }
 
