@@ -580,6 +580,22 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
+	// Call prctl(PR_SET_NO_NEW_PRIVS).
+	if sys.NoNewPrivs {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Enforce a Landlock policy if requested.
+	if sys.UseLandlock {
+		_, _, err1 = RawSyscall(_SYS_landlock_restrict_self, uintptr(sys.LandlockFD), uintptr(sys.LandlockFlags), 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
@@ -666,22 +682,6 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		_, _, err1 = RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, 0, uintptr(unsafe.Pointer(&lim)), 0, 0)
 		if err1 != 0 || (lim.Cur == rlim.Max-1 && lim.Max == rlim.Max) {
 			RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
-		}
-	}
-
-	// Call prctl(PR_SET_NO_NEW_PRIVS).
-	if sys.NoNewPrivs {
-		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0)
-		if err1 != 0 {
-			goto childerror
-		}
-	}
-
-	// Enforce a Landlock policy if requested.
-	if sys.UseLandlock {
-		_, _, err1 = RawSyscall(_SYS_landlock_restrict_self, uintptr(sys.LandlockFD), uintptr(sys.LandlockFlags), 0)
-		if err1 != 0 {
-			goto childerror
 		}
 	}
 
