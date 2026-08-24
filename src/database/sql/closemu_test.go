@@ -5,8 +5,10 @@
 package sql
 
 import (
+	"runtime"
 	"testing"
 	"testing/synctest"
+	"time"
 )
 
 func TestClosingMutex(t *testing.T) {
@@ -127,6 +129,46 @@ func TestClosingMutexLockStarvation(t *testing.T) {
 			m.RUnlock()
 		}
 	})
+}
+
+func TestClosingMutexLockRLockRace(t *testing.T) {
+	oldProcs := runtime.GOMAXPROCS(2)
+	defer runtime.GOMAXPROCS(oldProcs)
+
+	// Race Lock against readers entering and leaving. A stale state in Lock
+	// can leave the mutex in state 1 with no reader remaining to wake the
+	// writer, at which point the writer will never finish.
+	var m closingMutex
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 10_000 {
+			m.Lock()
+			m.Unlock()
+		}
+	}()
+
+	// Yield after each reader attempt so the writer can run on targets with
+	// one P and no goroutine preemption, such as wasm.
+	for range 100_000 {
+		select {
+		case <-done:
+			return
+		default:
+		}
+		if m.TryRLock() {
+			m.RUnlock()
+		}
+		runtime.Gosched()
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Minute):
+		if state := m.state.Load(); state == 1 {
+			t.Fatalf("Lock left the mutex in state 1 with no reader to wake the writer")
+		}
+		t.Fatalf("Lock did not complete within one minute; mutex state is %v", m.state.Load())
+	}
 }
 
 func TestClosingMutexPanics(t *testing.T) {
