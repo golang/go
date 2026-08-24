@@ -5,7 +5,6 @@
 package logopt
 
 import (
-	"cmd/compile/internal/base"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/json"
@@ -16,7 +15,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -244,13 +242,6 @@ const (
 var Format = None
 var dest string
 
-type pathRewrite struct {
-	before, after string
-	ambiguous     bool
-}
-
-var pathRewrites []pathRewrite
-
 // LogJsonOption parses and validates the version,directory value attached to the -json compiler flag.
 func LogJsonOption(flagValue string) {
 	version, directory := parseLogFlag("json", flagValue)
@@ -259,54 +250,6 @@ func LogJsonOption(flagValue string) {
 	}
 	dest = checkLogPath(directory)
 	Format = Json0
-
-	invertTrimpath(base.Flag.TrimPath)
-}
-
-const ambiguousTrimPathInversion = "/!non-invertible-trimpath-option!"
-
-func invertTrimpath(s string) {
-	pathRewrites = []pathRewrite{} // clear it for testing
-	if s == "" {
-		return
-	}
-	rewrites := strings.Split(s, ";")
-	for _, r := range rewrites {
-		before, after, _ := strings.Cut(r, "=>")
-		// Cut returns just what we need for the not-found case -- before==r becomes ""
-		pathRewrites = append(pathRewrites, pathRewrite{before: before, after: after})
-	}
-	slices.SortFunc(pathRewrites, func(a, b pathRewrite) int {
-		if len(a.after) != len(b.after) {
-			return len(b.after) - len(a.after) // longest output first
-		}
-		if a.after != b.after {
-			if a.after < b.after {
-				return -1
-			}
-			return 1
-		}
-		if a.before != b.before {
-			if a.before < b.before {
-				return -1
-			}
-			return 1
-		}
-		return 0
-	})
-	for i := range pathRewrites {
-		if i == 0 {
-			continue
-		}
-		if pathRewrites[i-1].after == pathRewrites[i].after &&
-			(pathRewrites[i-1].before != pathRewrites[i].before || pathRewrites[i-1].before == ambiguousTrimPathInversion) {
-			pathRewrites[i-1].before = ambiguousTrimPathInversion
-			pathRewrites[i].before = ambiguousTrimPathInversion
-			pathRewrites[i-1].ambiguous = true
-			pathRewrites[i].ambiguous = true
-		}
-	}
-
 }
 
 // parseLogFlag checks the flag passed to -json
@@ -479,25 +422,10 @@ func uprootedPath(filename string) string {
 	if filename == "" {
 		return "__unnamed__"
 	}
-	if buildcfg.GOROOT != "" && strings.HasPrefix(filename, "$GOROOT/") {
-		return buildcfg.GOROOT + filename[len("$GOROOT"):]
+	if buildcfg.GOROOT == "" || !strings.HasPrefix(filename, "$GOROOT/") {
+		return filename
 	}
-	if filename[0] != '/' && len(pathRewrites) > 0 {
-		for _, r := range pathRewrites {
-			if strings.HasPrefix(filename, r.after) {
-				head := r.before
-				tail := filename[len(r.after):]
-				if r.ambiguous {
-					head += "(" + r.after + ")"
-				}
-				if len(tail) > 0 && tail[0] != '/' {
-					head += "/"
-				}
-				return head + tail
-			}
-		}
-	}
-	return filename
+	return buildcfg.GOROOT + filename[len("$GOROOT"):]
 }
 
 // FlushLoggedOpts flushes all the accumulated optimization log entries.

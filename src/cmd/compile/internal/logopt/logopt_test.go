@@ -81,45 +81,6 @@ func TestPathStuff(t *testing.T) {
 	}
 }
 
-func TestUprootedPath(t *testing.T) {
-	unnamed := "__unnamed__"
-	if p := uprootedPath(""); p != unnamed {
-		t.Errorf("uprootedPath(\"\") returned %s instead of expected %s", p, unnamed)
-	}
-	invertTrimpath("/foo")
-	if p := uprootedPath("bar"); p != "/foo/bar" {
-		t.Errorf("trimpath(/foo): uprootedPath(\"bar\") returned %s instead of expected /foo/bar", p)
-	}
-
-	invertTrimpath("/foo=>")
-	if p := uprootedPath("bar"); p != "/foo/bar" {
-		t.Errorf("trimpath(/foo=>): uprootedPath(\"bar\") returned %s instead of expected /foo/bar", p)
-	}
-
-	invertTrimpath("/longer/foo=>foo")
-	if p := uprootedPath("foo/bar"); p != "/longer/foo/bar" {
-		t.Errorf("trimpath(/longer/foo=>foo): uprootedPath(\"foo/bar\") returned %s instead of expected /longer/foo/bar", p)
-	}
-	if p := uprootedPath("/foo/bar"); p != "/foo/bar" {
-		t.Errorf("trimpath(/longer/foo=>foo): uprootedPath(\"/foo/bar\") returned %s instead of expected /foo/bar", p)
-	}
-
-	invertTrimpath("/longer/foo=>foo;/other=>")
-	if p := uprootedPath("notfoo/bar"); p != "/other/notfoo/bar" {
-		t.Errorf("trimpath(/longer/foo=>foo;/other=>): uprootedPath(\"notfoo/bar\") returned %s instead of expected /other/notfoo/bar", p)
-	}
-	if p := uprootedPath("/foo/bar"); p != "/foo/bar" {
-		t.Errorf("trimpath(/longer/foo=>foo;/other=>): uprootedPath(\"/foo/bar\") returned %s instead of expected /foo/bar", p)
-	}
-
-	invertTrimpath("/longer/foo=>foo;/other=>foo")
-	e := ambiguousTrimPathInversion + "(foo)/bar"
-	if p := uprootedPath("foo/bar"); p != e {
-		t.Errorf("trimpath(/longer/foo=>foo;/other=>foo): uprootedPath(\"foo/bar\") returned %s instead of expected %s", p, e)
-	}
-
-}
-
 func TestLogOpt(t *testing.T) {
 	t.Parallel()
 
