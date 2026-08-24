@@ -42,6 +42,8 @@ type specFunc struct {
 	NameTmpl     specTemplate // API name template from `//specgen:name` directive, or same as Name.
 	Pos          token.Pos
 	Doc          specTemplate
+	Category     string
+	Commutative  bool
 	Sig          *types.Signature
 	TypeParams   []*types.TypeParam
 	Params       []*types.Var
@@ -133,12 +135,32 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 	// Gather exported functions
 	var funcs []*specFunc
 	for _, file := range astFiles {
+		// Gather directives
+		var category string
+		directives := make(map[*ast.Comment]ast.Directive)
+		for _, cg := range file.Comments {
+			for _, comment := range cg.List {
+				if dir, ok := ast.ParseDirective(comment.Slash, comment.Text); ok && dir.Tool == "specgen" {
+					switch dir.Name {
+					case "category":
+						// File-level directive
+						if category != "" {
+							ctx.at(dir.Pos()).errorf("multiple category directives in file")
+						}
+						category = dir.Args
+					case "name", "commutative", "require":
+						// Gather other directives to process with decls
+						directives[comment] = dir
+					default:
+						ctx.at(dir.Pos()).errorf("unknown //specgen directive")
+					}
+				}
+			}
+		}
+
 		for _, decl := range file.Decls {
 			d, ok := decl.(*ast.FuncDecl)
 			if !ok || !d.Name.IsExported() {
-				continue
-			}
-			if opts.Filter != nil && !opts.Filter(d) {
 				continue
 			}
 
@@ -179,6 +201,7 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 				TypeParams: typeParams,
 				Params:     params,
 				Results:    results,
+				Category:   category,
 			}
 			f.NameTmpl = specTemplate{tmpl: f.Name}
 			if d.Doc != nil {
@@ -188,15 +211,21 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 					ctx.at(d.Doc.Pos()).errorf("malformed doc comment: %s", err)
 				}
 				for _, comment := range d.Doc.List {
-					if dir, ok := ast.ParseDirective(comment.Slash, comment.Text); ok && dir.Tool == "specgen" {
+					if dir, ok := directives[comment]; ok {
+						delete(directives, comment)
 						switch dir.Name {
 						default:
-							ctx.at(dir.Pos()).errorf("unknown //specgen directive")
+							panic("directive lists out of sync")
 						case "name":
 							f.NameTmpl, err = newSpecTemplate(dir.Args)
 							if err != nil {
 								ctx.at(dir.Pos()).errorf("malformed //specgen:name directive: %s", err)
 							}
+						case "commutative":
+							if dir.Args != "" {
+								ctx.at(dir.Pos()).errorf("malformed //specgen:commutative directive: expected no argument")
+							}
+							f.Commutative = true
 						case "require":
 							args, err := dir.ParseArgs()
 							if err != nil {
@@ -216,7 +245,15 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 				}
 			}
 
+			if opts.Filter != nil && !opts.Filter(d) {
+				continue
+			}
+
 			funcs = append(funcs, f)
+		}
+
+		for _, dir := range directives {
+			ctx.at(dir.Pos()).errorf("//%s:%s directive must be attached to a function", dir.Tool, dir.Name)
 		}
 	}
 

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//simdgen:category Numeric conversion
+
 package spec
 
 // ConvertToZ converts element values to {zE}. The result has the same number of lanes.

@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//simdgen:category Math
+
 package spec
 
 // Add adds corresponding elements of two vectors.
 //
 //	z[i] = x[i] + y[i]
+//
+//specgen:commutative
 func Add[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return map2[E, W, E, W](x, y, func(x, y E) E { return x + y })
 }
@@ -18,6 +22,7 @@ func Add[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 //	w[i] = x[i] * y[i]        // Double width
 //	z[i] = w[2*i] + w[2*i+1]
 //
+//specgen:commutative
 //specgen:require z={xB}{xN*2}x{xL/2}
 func DotProductPairs[E Nums, W Width, zE Nums](x, y Vec[E, W]) (z Vec[zE, W]) {
 	// TODO: How do we handle/specify overflow? x86 only supports this on signed
@@ -46,6 +51,7 @@ func DotProductPairs[E Nums, W Width, zE Nums](x, y Vec[E, W]) (z Vec[zE, W]) {
 //	w[i] = x[i] * y[i]        // Double width, saturated
 //	z[i] = w[2*i] + w[2*i+1]  // Saturated
 //
+//specgen:commutative
 //specgen:require y=Int{xN}x{xL} z=Int{xN*2}x{xL/2}
 func DotProductPairsSaturated[xE Uints, xW Width, yE Ints, zE Ints](x Vec[xE, xW], y Vec[yE, xW]) (z Vec[zE, xW]) {
 	z = makeVec[zE, xW]()

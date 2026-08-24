@@ -90,6 +90,9 @@ func (sFn *specFunc) expand(ctx context, opts *LoadOptions) []*Func {
 func (sFn *specFunc) instantiate(ctx context, b *specexpr.Bindings, argGet map[*types.Var]func(*specexpr.Bindings) specexpr.Type) *Func {
 	var f Func
 
+	f.Commutative = sFn.Commutative
+	f.Category = sFn.Category
+	f.Pos = sFn.Pkg.Fset.Position(sFn.Pos)
 	f.specFunc = sFn
 	f.instance = b
 
