@@ -1554,7 +1554,8 @@ func isNEGop(op obj.As) bool {
 
 func isLoadStorePairOp(op obj.As) bool {
 	switch op {
-	case AFLDPQ, AFSTPQ, ALDP, ASTP, ALDPW, ASTPW:
+	case ALDP, ALDPW, ALDPSW, ASTP, ASTPW,
+		AFLDPD, AFLDPQ, AFLDPS, AFSTPD, AFSTPQ, AFSTPS:
 		return true
 	}
 	return false
