@@ -351,7 +351,7 @@ var float64inputs = []string{
 	"75224575729e-45",
 	"459926601011e+15",
 
-	// Constants plundered from strconv/atof_test.go.
+	// Constants plundered from internal/strconv/atof_test.go.
 
 	"0",
 	"1",

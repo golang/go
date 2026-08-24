@@ -36,7 +36,7 @@ import (
 	"math/bits"
 )
 
-// Generate internal/runtime/gc/msize.go
+// Generate internal/runtime/gc/sizeclasses.go
 
 func generateSizeClasses(classes []class) []byte {
 	flag.Parse()

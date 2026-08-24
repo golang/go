@@ -9,12 +9,12 @@
 // decimal and rounding.
 //
 // The key observation and some code (shr) is borrowed from
-// strconv/decimal.go: conversion of binary fractional values can be done
+// internal/strconv/decimal.go: conversion of binary fractional values can be done
 // precisely in multi-precision decimal because 2 divides 10 (required for
 // >> of mantissa); but conversion of decimal floating-point values cannot
 // be done precisely in binary representation.
 //
-// In contrast to strconv/decimal.go, only right shift is implemented in
+// In contrast to internal/strconv/decimal.go, only right shift is implemented in
 // decimal format - left shift can be done precisely in binary format.
 
 package big

@@ -448,7 +448,7 @@ func unescapedLen(in []byte) int {
 //
 // Returns the number of bytes written to out.
 //
-// Also see escapePath in cgroup_linux_test.go.
+// Also see escapePath in cgroup_test.go.
 func unescapePath(out []byte, in []byte) (int, error) {
 	var outi, ini int
 	for ini < len(in) {
