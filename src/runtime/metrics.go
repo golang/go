@@ -549,6 +549,10 @@ func initMetrics() {
 		}
 	}
 
+	for _, pending := range pendingGodebugMetrics {
+		registerGodebugMetric(pending.name, pending.read)
+	}
+	pendingGodebugMetrics = nil
 	metricsInit = true
 }
 
@@ -564,16 +568,34 @@ func (f metricReader) compute(_ *statAggregate, out *metricValue) {
 	out.scalar = f()
 }
 
-//go:linkname godebug_registerMetric internal/godebug.registerMetric
-func godebug_registerMetric(name string, read func() uint64) {
-	metricsLock()
-	initMetrics()
+type pendingGodebugMetric struct {
+	name string
+	read func() uint64
+}
+
+// pendingGodebugMetrics queues readers until first metrics use, allowing
+// initMetrics to be dead-code eliminated. It is protected by metricsSema.
+var pendingGodebugMetrics []pendingGodebugMetric
+
+// registerGodebugMetric installs a reader in an initialized metrics map.
+// metricsSema must be held.
+func registerGodebugMetric(name string, read func() uint64) {
 	d, ok := metrics[name]
 	if !ok {
 		throw("runtime: unexpected metric registration for " + name)
 	}
 	d.compute = metricReader(read).compute
 	metrics[name] = d
+}
+
+//go:linkname godebug_registerMetric internal/godebug.registerMetric
+func godebug_registerMetric(name string, read func() uint64) {
+	metricsLock()
+	if metricsInit {
+		registerGodebugMetric(name, read)
+	} else {
+		pendingGodebugMetrics = append(pendingGodebugMetrics, pendingGodebugMetric{name, read})
+	}
 	metricsUnlock()
 }
 

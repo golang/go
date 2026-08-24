@@ -49,18 +49,14 @@ func TestGet(t *testing.T) {
 func TestMetrics(t *testing.T) {
 	const name = "http2client" // must be a real name so runtime will accept it
 
-	var m [1]metrics.Sample
-	m[0].Name = "/godebug/non-default-behavior/" + name + ":events"
-	metrics.Read(m[:])
-	if kind := m[0].Value.Kind(); kind != metrics.KindUint64 {
-		t.Fatalf("NonDefault kind = %v, want uint64", kind)
-	}
-
 	s := New(name)
 	s.Value()
 	s.IncNonDefault()
 	s.IncNonDefault()
 	s.IncNonDefault()
+
+	var m [1]metrics.Sample
+	m[0].Name = "/godebug/non-default-behavior/" + name + ":events"
 	metrics.Read(m[:])
 	if kind := m[0].Value.Kind(); kind != metrics.KindUint64 {
 		t.Fatalf("NonDefault kind = %v, want uint64", kind)
