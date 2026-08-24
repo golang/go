@@ -2111,6 +2111,9 @@ const (
 	OpAMD64VPSUBWMasked128
 	OpAMD64VPSUBWMasked256
 	OpAMD64VPSUBWMasked512
+	OpAMD64VPUNPCKHBW128
+	OpAMD64VPUNPCKHBW256
+	OpAMD64VPUNPCKHBW512
 	OpAMD64VPUNPCKHDQ128
 	OpAMD64VPUNPCKHDQ256
 	OpAMD64VPUNPCKHDQ512
@@ -2120,6 +2123,9 @@ const (
 	OpAMD64VPUNPCKHWD128
 	OpAMD64VPUNPCKHWD256
 	OpAMD64VPUNPCKHWD512
+	OpAMD64VPUNPCKLBW128
+	OpAMD64VPUNPCKLBW256
+	OpAMD64VPUNPCKLBW512
 	OpAMD64VPUNPCKLDQ128
 	OpAMD64VPUNPCKLDQ256
 	OpAMD64VPUNPCKLDQ512
@@ -3289,6 +3295,8 @@ const (
 	OpAMD64VPSUBW256load
 	OpAMD64VPSUBWMasked128load
 	OpAMD64VPSUBWMasked256load
+	OpAMD64VPUNPCKHBW128load
+	OpAMD64VPUNPCKHBW256load
 	OpAMD64VPUNPCKHDQ128load
 	OpAMD64VPUNPCKHDQ256load
 	OpAMD64VPUNPCKHDQ512load
@@ -3297,6 +3305,8 @@ const (
 	OpAMD64VPUNPCKHQDQ512load
 	OpAMD64VPUNPCKHWD128load
 	OpAMD64VPUNPCKHWD256load
+	OpAMD64VPUNPCKLBW128load
+	OpAMD64VPUNPCKLBW256load
 	OpAMD64VPUNPCKLDQ128load
 	OpAMD64VPUNPCKLDQ256load
 	OpAMD64VPUNPCKLDQ512load
@@ -7501,12 +7511,16 @@ const (
 	OpInterleaveEvenUint16x8
 	OpInterleaveEvenUint32x4
 	OpInterleaveEvenUint64x2
+	OpInterleaveHiGroupedInt8x32
+	OpInterleaveHiGroupedInt8x64
 	OpInterleaveHiGroupedInt16x16
 	OpInterleaveHiGroupedInt16x32
 	OpInterleaveHiGroupedInt32x8
 	OpInterleaveHiGroupedInt32x16
 	OpInterleaveHiGroupedInt64x4
 	OpInterleaveHiGroupedInt64x8
+	OpInterleaveHiGroupedUint8x32
+	OpInterleaveHiGroupedUint8x64
 	OpInterleaveHiGroupedUint16x16
 	OpInterleaveHiGroupedUint16x32
 	OpInterleaveHiGroupedUint32x8
@@ -7521,12 +7535,16 @@ const (
 	OpInterleaveHiUint16x8
 	OpInterleaveHiUint32x4
 	OpInterleaveHiUint64x2
+	OpInterleaveLoGroupedInt8x32
+	OpInterleaveLoGroupedInt8x64
 	OpInterleaveLoGroupedInt16x16
 	OpInterleaveLoGroupedInt16x32
 	OpInterleaveLoGroupedInt32x8
 	OpInterleaveLoGroupedInt32x16
 	OpInterleaveLoGroupedInt64x4
 	OpInterleaveLoGroupedInt64x8
+	OpInterleaveLoGroupedUint8x32
+	OpInterleaveLoGroupedUint8x64
 	OpInterleaveLoGroupedUint16x16
 	OpInterleaveLoGroupedUint16x32
 	OpInterleaveLoGroupedUint32x8
@@ -40105,6 +40123,48 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "VPUNPCKHBW128",
+		ArgLen: 2,
+		asm:    x86.AVPUNPCKHBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 4294901760, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VPUNPCKHBW256",
+		ArgLen: 2,
+		asm:    x86.AVPUNPCKHBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 4294901760, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VPUNPCKHBW512",
+		ArgLen: 2,
+		asm:    x86.AVPUNPCKHBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 281474976645120, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, RegMask{V1: 281474976645120, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 281472829161472, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		Name:   "VPUNPCKHDQ128",
 		ArgLen: 2,
 		asm:    x86.AVPUNPCKHDQ,
@@ -40220,6 +40280,48 @@ var OpcodeTable = [...]OpInfo{
 		Name:   "VPUNPCKHWD512",
 		ArgLen: 2,
 		asm:    x86.AVPUNPCKHWD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 281474976645120, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, RegMask{V1: 281474976645120, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 281472829161472, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		Name:   "VPUNPCKLBW128",
+		ArgLen: 2,
+		asm:    x86.AVPUNPCKLBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 4294901760, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VPUNPCKLBW256",
+		ArgLen: 2,
+		asm:    x86.AVPUNPCKLBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 4294901760, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VPUNPCKLBW512",
+		ArgLen: 2,
+		asm:    x86.AVPUNPCKLBW,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 281474976645120, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -58868,6 +58970,38 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:      "VPUNPCKHBW128load",
+		AuxType:   AuxTypeSymOff,
+		ArgLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AVPUNPCKHBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 72057594037977087, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:      "VPUNPCKHBW256load",
+		AuxType:   AuxTypeSymOff,
+		ArgLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AVPUNPCKHBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 72057594037977087, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		Name:      "VPUNPCKHDQ128load",
 		AuxType:   AuxTypeSymOff,
 		ArgLen:    3,
@@ -58985,6 +59119,38 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:    3,
 		symEffect: SymRead,
 		asm:       x86.AVPUNPCKHWD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 72057594037977087, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:      "VPUNPCKLBW128load",
+		AuxType:   AuxTypeSymOff,
+		ArgLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AVPUNPCKLBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 72057594037977087, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:      "VPUNPCKLBW256load",
+		AuxType:   AuxTypeSymOff,
+		ArgLen:    3,
+		symEffect: SymRead,
+		asm:       x86.AVPUNPCKLBW,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -111981,6 +112147,16 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "InterleaveHiGroupedInt8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "InterleaveHiGroupedInt8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "InterleaveHiGroupedInt16x16",
 		ArgLen:  2,
 		Generic: true,
@@ -112007,6 +112183,16 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "InterleaveHiGroupedInt64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "InterleaveHiGroupedUint8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "InterleaveHiGroupedUint8x64",
 		ArgLen:  2,
 		Generic: true,
 	},
@@ -112081,6 +112267,16 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "InterleaveLoGroupedInt8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "InterleaveLoGroupedInt8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "InterleaveLoGroupedInt16x16",
 		ArgLen:  2,
 		Generic: true,
@@ -112107,6 +112303,16 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "InterleaveLoGroupedInt64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "InterleaveLoGroupedUint8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "InterleaveLoGroupedUint8x64",
 		ArgLen:  2,
 		Generic: true,
 	},

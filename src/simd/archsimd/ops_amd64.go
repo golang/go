@@ -3279,6 +3279,11 @@ func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
 
 // InterleaveHi interleaves the elements of the high halves of x and y.
 //
+// Asm: VPUNPCKHBW, CPU Feature: AVX
+func (x Int8x16) InterleaveHi(y Int8x16) Int8x16
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
 // Asm: VPUNPCKHWD, CPU Feature: AVX
 func (x Int16x8) InterleaveHi(y Int16x8) Int16x8
 
@@ -3291,6 +3296,11 @@ func (x Int32x4) InterleaveHi(y Int32x4) Int32x4
 //
 // Asm: VPUNPCKHQDQ, CPU Feature: AVX
 func (x Int64x2) InterleaveHi(y Int64x2) Int64x2
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX
+func (x Uint8x16) InterleaveHi(y Uint8x16) Uint8x16
 
 // InterleaveHi interleaves the elements of the high halves of x and y.
 //
@@ -3308,6 +3318,16 @@ func (x Uint32x4) InterleaveHi(y Uint32x4) Uint32x4
 func (x Uint64x2) InterleaveHi(y Uint64x2) Uint64x2
 
 /* InterleaveHiGrouped */
+
+// InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX2
+func (x Int8x32) InterleaveHiGrouped(y Int8x32) Int8x32
+
+// InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX512
+func (x Int8x64) InterleaveHiGrouped(y Int8x64) Int8x64
 
 // InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
 //
@@ -3338,6 +3358,16 @@ func (x Int64x4) InterleaveHiGrouped(y Int64x4) Int64x4
 //
 // Asm: VPUNPCKHQDQ, CPU Feature: AVX512
 func (x Int64x8) InterleaveHiGrouped(y Int64x8) Int64x8
+
+// InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX2
+func (x Uint8x32) InterleaveHiGrouped(y Uint8x32) Uint8x32
+
+// InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX512
+func (x Uint8x64) InterleaveHiGrouped(y Uint8x64) Uint8x64
 
 // InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
 //
@@ -3373,6 +3403,11 @@ func (x Uint64x8) InterleaveHiGrouped(y Uint64x8) Uint64x8
 
 // InterleaveLo interleaves the elements of the low halves of x and y.
 //
+// Asm: VPUNPCKLBW, CPU Feature: AVX
+func (x Int8x16) InterleaveLo(y Int8x16) Int8x16
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
 // Asm: VPUNPCKLWD, CPU Feature: AVX
 func (x Int16x8) InterleaveLo(y Int16x8) Int16x8
 
@@ -3385,6 +3420,11 @@ func (x Int32x4) InterleaveLo(y Int32x4) Int32x4
 //
 // Asm: VPUNPCKLQDQ, CPU Feature: AVX
 func (x Int64x2) InterleaveLo(y Int64x2) Int64x2
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX
+func (x Uint8x16) InterleaveLo(y Uint8x16) Uint8x16
 
 // InterleaveLo interleaves the elements of the low halves of x and y.
 //
@@ -3402,6 +3442,16 @@ func (x Uint32x4) InterleaveLo(y Uint32x4) Uint32x4
 func (x Uint64x2) InterleaveLo(y Uint64x2) Uint64x2
 
 /* InterleaveLoGrouped */
+
+// InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX2
+func (x Int8x32) InterleaveLoGrouped(y Int8x32) Int8x32
+
+// InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX512
+func (x Int8x64) InterleaveLoGrouped(y Int8x64) Int8x64
 
 // InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
 //
@@ -3432,6 +3482,16 @@ func (x Int64x4) InterleaveLoGrouped(y Int64x4) Int64x4
 //
 // Asm: VPUNPCKLQDQ, CPU Feature: AVX512
 func (x Int64x8) InterleaveLoGrouped(y Int64x8) Int64x8
+
+// InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX2
+func (x Uint8x32) InterleaveLoGrouped(y Uint8x32) Uint8x32
+
+// InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX512
+func (x Uint8x64) InterleaveLoGrouped(y Uint8x64) Uint8x64
 
 // InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
 //

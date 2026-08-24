@@ -2827,6 +2827,10 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64VPTERNLOGQ256(v)
 	case ssaop.OpAMD64VPTERNLOGQ512:
 		return rewriteValue_OpAMD64VPTERNLOGQ512(v)
+	case ssaop.OpAMD64VPUNPCKHBW128:
+		return rewriteValue_OpAMD64VPUNPCKHBW128(v)
+	case ssaop.OpAMD64VPUNPCKHBW256:
+		return rewriteValue_OpAMD64VPUNPCKHBW256(v)
 	case ssaop.OpAMD64VPUNPCKHDQ128:
 		return rewriteValue_OpAMD64VPUNPCKHDQ128(v)
 	case ssaop.OpAMD64VPUNPCKHDQ256:
@@ -2843,6 +2847,10 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64VPUNPCKHWD128(v)
 	case ssaop.OpAMD64VPUNPCKHWD256:
 		return rewriteValue_OpAMD64VPUNPCKHWD256(v)
+	case ssaop.OpAMD64VPUNPCKLBW128:
+		return rewriteValue_OpAMD64VPUNPCKLBW128(v)
+	case ssaop.OpAMD64VPUNPCKLBW256:
+		return rewriteValue_OpAMD64VPUNPCKLBW256(v)
 	case ssaop.OpAMD64VPUNPCKLDQ128:
 		return rewriteValue_OpAMD64VPUNPCKLDQ128(v)
 	case ssaop.OpAMD64VPUNPCKLDQ256:
@@ -4748,6 +4756,12 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpInterleaveHiGroupedInt64x8:
 		v.Op = ssaop.OpAMD64VPUNPCKHQDQ512
 		return true
+	case ssaop.OpInterleaveHiGroupedInt8x32:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW256
+		return true
+	case ssaop.OpInterleaveHiGroupedInt8x64:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW512
+		return true
 	case ssaop.OpInterleaveHiGroupedUint16x16:
 		v.Op = ssaop.OpAMD64VPUNPCKHWD256
 		return true
@@ -4766,6 +4780,12 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpInterleaveHiGroupedUint64x8:
 		v.Op = ssaop.OpAMD64VPUNPCKHQDQ512
 		return true
+	case ssaop.OpInterleaveHiGroupedUint8x32:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW256
+		return true
+	case ssaop.OpInterleaveHiGroupedUint8x64:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW512
+		return true
 	case ssaop.OpInterleaveHiInt16x8:
 		v.Op = ssaop.OpAMD64VPUNPCKHWD128
 		return true
@@ -4775,6 +4795,9 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpInterleaveHiInt64x2:
 		v.Op = ssaop.OpAMD64VPUNPCKHQDQ128
 		return true
+	case ssaop.OpInterleaveHiInt8x16:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW128
+		return true
 	case ssaop.OpInterleaveHiUint16x8:
 		v.Op = ssaop.OpAMD64VPUNPCKHWD128
 		return true
@@ -4783,6 +4806,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpInterleaveHiUint64x2:
 		v.Op = ssaop.OpAMD64VPUNPCKHQDQ128
+		return true
+	case ssaop.OpInterleaveHiUint8x16:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW128
 		return true
 	case ssaop.OpInterleaveLoGroupedInt16x16:
 		v.Op = ssaop.OpAMD64VPUNPCKLWD256
@@ -4802,6 +4828,12 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpInterleaveLoGroupedInt64x8:
 		v.Op = ssaop.OpAMD64VPUNPCKLQDQ512
 		return true
+	case ssaop.OpInterleaveLoGroupedInt8x32:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW256
+		return true
+	case ssaop.OpInterleaveLoGroupedInt8x64:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW512
+		return true
 	case ssaop.OpInterleaveLoGroupedUint16x16:
 		v.Op = ssaop.OpAMD64VPUNPCKLWD256
 		return true
@@ -4820,6 +4852,12 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpInterleaveLoGroupedUint64x8:
 		v.Op = ssaop.OpAMD64VPUNPCKLQDQ512
 		return true
+	case ssaop.OpInterleaveLoGroupedUint8x32:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW256
+		return true
+	case ssaop.OpInterleaveLoGroupedUint8x64:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW512
+		return true
 	case ssaop.OpInterleaveLoInt16x8:
 		v.Op = ssaop.OpAMD64VPUNPCKLWD128
 		return true
@@ -4829,6 +4867,9 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpInterleaveLoInt64x2:
 		v.Op = ssaop.OpAMD64VPUNPCKLQDQ128
 		return true
+	case ssaop.OpInterleaveLoInt8x16:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW128
+		return true
 	case ssaop.OpInterleaveLoUint16x8:
 		v.Op = ssaop.OpAMD64VPUNPCKLWD128
 		return true
@@ -4837,6 +4878,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpInterleaveLoUint64x2:
 		v.Op = ssaop.OpAMD64VPUNPCKLQDQ128
+		return true
+	case ssaop.OpInterleaveLoUint8x16:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW128
 		return true
 	case ssaop.OpIsInBounds:
 		return rewriteValue_OpIsInBounds(v)
@@ -90280,6 +90324,60 @@ func rewriteValue_OpAMD64VPTERNLOGQ512(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpAMD64VPUNPCKHBW128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPUNPCKHBW128 x l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPUNPCKHBW128load {sym} [off] x ptr mem)
+	for {
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPUNPCKHBW128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPUNPCKHBW256(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPUNPCKHBW256 x l:(VMOVDQUload256 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPUNPCKHBW256load {sym} [off] x ptr mem)
+	for {
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPUNPCKHBW256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
 func rewriteValue_OpAMD64VPUNPCKHDQ128(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -90489,6 +90587,60 @@ func rewriteValue_OpAMD64VPUNPCKHWD256(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpAMD64VPUNPCKHWD256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPUNPCKLBW128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPUNPCKLBW128 x l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPUNPCKLBW128load {sym} [off] x ptr mem)
+	for {
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPUNPCKLBW128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPUNPCKLBW256(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPUNPCKLBW256 x l:(VMOVDQUload256 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPUNPCKLBW256load {sym} [off] x ptr mem)
+	for {
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPUNPCKLBW256load)
 		v.AuxInt = ssa.Int32ToAuxInt(off)
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(x, ptr, mem)

@@ -290,26 +290,32 @@ func TestDivAMD64(t *testing.T) {
 }
 
 func TestInterleaveLo(t *testing.T) {
+	testInt8x16Binary(t, archsimd.Int8x16.InterleaveLo, interleaveSlice[int8](128, false))
 	testInt16x8Binary(t, archsimd.Int16x8.InterleaveLo, interleaveSlice[int16](128, false))
 	testInt32x4Binary(t, archsimd.Int32x4.InterleaveLo, interleaveSlice[int32](128, false))
 	testInt64x2Binary(t, archsimd.Int64x2.InterleaveLo, interleaveSlice[int64](128, false))
+	testUint8x16Binary(t, archsimd.Uint8x16.InterleaveLo, interleaveSlice[uint8](128, false))
 	testUint16x8Binary(t, archsimd.Uint16x8.InterleaveLo, interleaveSlice[uint16](128, false))
 	testUint32x4Binary(t, archsimd.Uint32x4.InterleaveLo, interleaveSlice[uint32](128, false))
 	testUint64x2Binary(t, archsimd.Uint64x2.InterleaveLo, interleaveSlice[uint64](128, false))
 
 	if archsimd.X86.AVX2() {
+		testInt8x32Binary(t, archsimd.Int8x32.InterleaveLoGrouped, interleaveSlice[int8](128, false))
 		testInt16x16Binary(t, archsimd.Int16x16.InterleaveLoGrouped, interleaveSlice[int16](128, false))
 		testInt32x8Binary(t, archsimd.Int32x8.InterleaveLoGrouped, interleaveSlice[int32](128, false))
 		testInt64x4Binary(t, archsimd.Int64x4.InterleaveLoGrouped, interleaveSlice[int64](128, false))
+		testUint8x32Binary(t, archsimd.Uint8x32.InterleaveLoGrouped, interleaveSlice[uint8](128, false))
 		testUint16x16Binary(t, archsimd.Uint16x16.InterleaveLoGrouped, interleaveSlice[uint16](128, false))
 		testUint32x8Binary(t, archsimd.Uint32x8.InterleaveLoGrouped, interleaveSlice[uint32](128, false))
 		testUint64x4Binary(t, archsimd.Uint64x4.InterleaveLoGrouped, interleaveSlice[uint64](128, false))
 	}
 
 	if archsimd.X86.AVX512() {
+		testInt8x64Binary(t, archsimd.Int8x64.InterleaveLoGrouped, interleaveSlice[int8](128, false))
 		testInt16x32Binary(t, archsimd.Int16x32.InterleaveLoGrouped, interleaveSlice[int16](128, false))
 		testInt32x16Binary(t, archsimd.Int32x16.InterleaveLoGrouped, interleaveSlice[int32](128, false))
 		testInt64x8Binary(t, archsimd.Int64x8.InterleaveLoGrouped, interleaveSlice[int64](128, false))
+		testUint8x64Binary(t, archsimd.Uint8x64.InterleaveLoGrouped, interleaveSlice[uint8](128, false))
 		testUint16x32Binary(t, archsimd.Uint16x32.InterleaveLoGrouped, interleaveSlice[uint16](128, false))
 		testUint32x16Binary(t, archsimd.Uint32x16.InterleaveLoGrouped, interleaveSlice[uint32](128, false))
 		testUint64x8Binary(t, archsimd.Uint64x8.InterleaveLoGrouped, interleaveSlice[uint64](128, false))
@@ -317,26 +323,32 @@ func TestInterleaveLo(t *testing.T) {
 }
 
 func TestInterleaveHi(t *testing.T) {
+	testInt8x16Binary(t, archsimd.Int8x16.InterleaveHi, interleaveSlice[int8](128, true))
 	testInt16x8Binary(t, archsimd.Int16x8.InterleaveHi, interleaveSlice[int16](128, true))
 	testInt32x4Binary(t, archsimd.Int32x4.InterleaveHi, interleaveSlice[int32](128, true))
 	testInt64x2Binary(t, archsimd.Int64x2.InterleaveHi, interleaveSlice[int64](128, true))
+	testUint8x16Binary(t, archsimd.Uint8x16.InterleaveHi, interleaveSlice[uint8](128, true))
 	testUint16x8Binary(t, archsimd.Uint16x8.InterleaveHi, interleaveSlice[uint16](128, true))
 	testUint32x4Binary(t, archsimd.Uint32x4.InterleaveHi, interleaveSlice[uint32](128, true))
 	testUint64x2Binary(t, archsimd.Uint64x2.InterleaveHi, interleaveSlice[uint64](128, true))
 
 	if archsimd.X86.AVX2() {
+		testInt8x32Binary(t, archsimd.Int8x32.InterleaveHiGrouped, interleaveSlice[int8](128, true))
 		testInt16x16Binary(t, archsimd.Int16x16.InterleaveHiGrouped, interleaveSlice[int16](128, true))
 		testInt32x8Binary(t, archsimd.Int32x8.InterleaveHiGrouped, interleaveSlice[int32](128, true))
 		testInt64x4Binary(t, archsimd.Int64x4.InterleaveHiGrouped, interleaveSlice[int64](128, true))
+		testUint8x32Binary(t, archsimd.Uint8x32.InterleaveHiGrouped, interleaveSlice[uint8](128, true))
 		testUint16x16Binary(t, archsimd.Uint16x16.InterleaveHiGrouped, interleaveSlice[uint16](128, true))
 		testUint32x8Binary(t, archsimd.Uint32x8.InterleaveHiGrouped, interleaveSlice[uint32](128, true))
 		testUint64x4Binary(t, archsimd.Uint64x4.InterleaveHiGrouped, interleaveSlice[uint64](128, true))
 	}
 
 	if archsimd.X86.AVX512() {
+		testInt8x64Binary(t, archsimd.Int8x64.InterleaveHiGrouped, interleaveSlice[int8](128, true))
 		testInt16x32Binary(t, archsimd.Int16x32.InterleaveHiGrouped, interleaveSlice[int16](128, true))
 		testInt32x16Binary(t, archsimd.Int32x16.InterleaveHiGrouped, interleaveSlice[int32](128, true))
 		testInt64x8Binary(t, archsimd.Int64x8.InterleaveHiGrouped, interleaveSlice[int64](128, true))
+		testUint8x64Binary(t, archsimd.Uint8x64.InterleaveHiGrouped, interleaveSlice[uint8](128, true))
 		testUint16x32Binary(t, archsimd.Uint16x32.InterleaveHiGrouped, interleaveSlice[uint16](128, true))
 		testUint32x16Binary(t, archsimd.Uint32x16.InterleaveHiGrouped, interleaveSlice[uint32](128, true))
 		testUint64x8Binary(t, archsimd.Uint64x8.InterleaveHiGrouped, interleaveSlice[uint64](128, true))

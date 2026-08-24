@@ -744,7 +744,7 @@
   - *256Or512lanes8
 
 - go: InterleaveHi
-  asm: VPUNPCKH(QDQ|DQ|WD|WB)
+  asm: VPUNPCKH(QDQ|DQ|WD|BW)
   in:
   - *128any
   - *128any
@@ -753,7 +753,7 @@
   - *128any
 
 - go: InterleaveLo
-  asm: VPUNPCKL(QDQ|DQ|WD|WB)
+  asm: VPUNPCKL(QDQ|DQ|WD|BW)
   in:
   - *128any
   - *128any
@@ -762,7 +762,7 @@
   - *128any
 
 - go: InterleaveHiGrouped
-  asm: VPUNPCKH(QDQ|DQ|WD|WB)
+  asm: VPUNPCKH(QDQ|DQ|WD|BW)
   in:
   - *256Or512any
   - *256Or512any
@@ -771,7 +771,7 @@
   - *256Or512any
 
 - go: InterleaveLoGrouped
-  asm: VPUNPCKL(QDQ|DQ|WD|WB)
+  asm: VPUNPCKL(QDQ|DQ|WD|BW)
   in:
   - *256Or512any
   - *256Or512any
