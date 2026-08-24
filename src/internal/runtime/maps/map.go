@@ -265,7 +265,7 @@ type Map struct {
 }
 
 // Use 64-bit hash on 64-bit systems, except on Wasm, where we use
-// 32-bit hash (see runtime/hash32.go).
+// 32-bit hash (see runtime_hash32.go).
 const Use64BitHash = goarch.PtrSize == 8 && goarch.IsWasm == 0
 
 func depthToShift(depth uint8) uint8 {

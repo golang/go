@@ -525,7 +525,7 @@ func moduleTypelinks(md *moduledata) []*_type {
 	td := md.types
 
 	// We have to increment by the pointer size to match the
-	// increment in cmd/link/internal/data.go createRelroSect
+	// increment in cmd/link/internal/ld/data.go createRelroSect
 	// in allocateDataSections.
 	//
 	// The linker doesn't do that increment when runtime.types

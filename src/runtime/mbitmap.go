@@ -1211,7 +1211,7 @@ func (s *mspan) isFreeOrNewlyAllocated(index uintptr) bool {
 func (s *mspan) divideByElemSize(n uintptr) uintptr {
 	const doubleCheck = false
 
-	// See explanation in mksizeclasses.go's computeDivMagic.
+	// See explanation in runtime/_mkmalloc/mksizeclasses.go's computeDivMagic.
 	q := uintptr((uint64(n) * uint64(s.divMul)) >> 32)
 
 	if doubleCheck && q != n/s.elemsize {
