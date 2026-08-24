@@ -9,6 +9,15 @@
   out:
   - *any
 
+# Sub — integer SUB and floating-point FSUB, unpredicated.
+- go: Sub
+  asm: "ZSUB|ZFSUB"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
 # AddSaturated — signed saturating SQADD, unpredicated.
 - go: AddSaturated
   asm: "ZSQADD"

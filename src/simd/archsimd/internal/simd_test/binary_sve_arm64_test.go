@@ -88,3 +88,16 @@ func TestAddSVE(t *testing.T) {
 	testFloat32sBinary(t, archsimd.Float32s.Add, addSlice[float32])
 	testFloat64sBinary(t, archsimd.Float64s.Add, addSlice[float64])
 }
+
+func TestSubSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testInt8sBinary(t, archsimd.Int8s.Sub, subSlice[int8])
+	testInt16sBinary(t, archsimd.Int16s.Sub, subSlice[int16])
+	testInt32sBinary(t, archsimd.Int32s.Sub, subSlice[int32])
+	testInt64sBinary(t, archsimd.Int64s.Sub, subSlice[int64])
+	testUint8sBinary(t, archsimd.Uint8s.Sub, subSlice[uint8])
+	testFloat32sBinary(t, archsimd.Float32s.Sub, subSlice[float32])
+	testFloat64sBinary(t, archsimd.Float64s.Sub, subSlice[float64])
+}

@@ -120,6 +120,58 @@ func (x Int32s) Greater(y Int32s) Mask32s
 // Asm: ZCMPGT, CPU Feature: SVE
 func (x Int64s) Greater(y Int64s) Mask64s
 
+/* Sub */
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZFSUB, CPU Feature: SVE
+func (x Float32s) Sub(y Float32s) Float32s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZFSUB, CPU Feature: SVE
+func (x Float64s) Sub(y Float64s) Float64s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZSUB, CPU Feature: SVE
+func (x Int8s) Sub(y Int8s) Int8s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZSUB, CPU Feature: SVE
+func (x Int16s) Sub(y Int16s) Int16s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZSUB, CPU Feature: SVE
+func (x Int32s) Sub(y Int32s) Int32s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZSUB, CPU Feature: SVE
+func (x Int64s) Sub(y Int64s) Int64s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZSUB, CPU Feature: SVE
+func (x Uint8s) Sub(y Uint8s) Uint8s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZSUB, CPU Feature: SVE
+func (x Uint16s) Sub(y Uint16s) Uint16s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZSUB, CPU Feature: SVE
+func (x Uint32s) Sub(y Uint32s) Uint32s
+
+// Sub subtracts corresponding elements of two vectors.
+//
+// Asm: ZSUB, CPU Feature: SVE
+func (x Uint64s) Sub(y Uint64s) Uint64s
+
 // BitsToInt8 reinterprets the bits of a Uint8s vector as a Int8s vector
 func (x Uint8s) BitsToInt8() Int8s
 

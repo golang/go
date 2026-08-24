@@ -201,6 +201,26 @@ func sveIfElseMovprfx(x, y archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
 	return r
 }
 
+// A non-commutative operation is more restricted. Its destructive operand is
+// fixed, so only an "else" operand that is already that one folds, and there is
+// no prefixed form to place any other.
+
+func sveIfElseFoldsSubMinuend(x, y archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// arm64:`ZSUB.*P[0-9]+\.M` -`ZSEL`
+	return x.Sub(y).IfElse(m, x)
+}
+
+func sveIfElseKeepsSelectSubSubtrahend(x, y archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// Folding here would compute y-x.
+	// arm64:`ZSEL` -`ZSUB.*P[0-9]+\.M`
+	return x.Sub(y).IfElse(m, y)
+}
+
+func sveIfElseKeepsSelectSubArbitrary(x, y, z archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// arm64:`ZSEL` -`ZMOVPRFX` -`ZSUB.*P[0-9]+\.M`
+	return x.Sub(y).IfElse(m, z)
+}
+
 func sveIfElseFloat(x, y archsimd.Float64s, m archsimd.Mask64s) archsimd.Float64s {
 	// arm64:`ZFADD.*P[0-9]+\.M` -`ZSEL`
 	return x.Add(y).IfElse(m, x)

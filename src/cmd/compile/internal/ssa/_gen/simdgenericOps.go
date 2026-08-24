@@ -1223,21 +1223,27 @@ func simdGenericOps() []opData {
 		{name: "SqrtFloat64x2", argLength: 1},                                           // ARCH:amd64,arm64,wasm
 		{name: "SqrtFloat64x4", argLength: 1},                                           // ARCH:amd64
 		{name: "SqrtFloat64x8", argLength: 1},                                           // ARCH:amd64
+		{name: "SubFloat32s", argLength: 2},                                             // ARCH:sve
 		{name: "SubFloat32x4", argLength: 2},                                            // ARCH:amd64,arm64,wasm
 		{name: "SubFloat32x8", argLength: 2},                                            // ARCH:amd64
 		{name: "SubFloat32x16", argLength: 2},                                           // ARCH:amd64
+		{name: "SubFloat64s", argLength: 2},                                             // ARCH:sve
 		{name: "SubFloat64x2", argLength: 2},                                            // ARCH:amd64,arm64,wasm
 		{name: "SubFloat64x4", argLength: 2},                                            // ARCH:amd64
 		{name: "SubFloat64x8", argLength: 2},                                            // ARCH:amd64
+		{name: "SubInt8s", argLength: 2},                                                // ARCH:sve
 		{name: "SubInt8x16", argLength: 2},                                              // ARCH:amd64,arm64,wasm
 		{name: "SubInt8x32", argLength: 2},                                              // ARCH:amd64
 		{name: "SubInt8x64", argLength: 2},                                              // ARCH:amd64
+		{name: "SubInt16s", argLength: 2},                                               // ARCH:sve
 		{name: "SubInt16x8", argLength: 2},                                              // ARCH:amd64,arm64,wasm
 		{name: "SubInt16x16", argLength: 2},                                             // ARCH:amd64
 		{name: "SubInt16x32", argLength: 2},                                             // ARCH:amd64
+		{name: "SubInt32s", argLength: 2},                                               // ARCH:sve
 		{name: "SubInt32x4", argLength: 2},                                              // ARCH:amd64,arm64,wasm
 		{name: "SubInt32x8", argLength: 2},                                              // ARCH:amd64
 		{name: "SubInt32x16", argLength: 2},                                             // ARCH:amd64
+		{name: "SubInt64s", argLength: 2},                                               // ARCH:sve
 		{name: "SubInt64x2", argLength: 2},                                              // ARCH:amd64,arm64,wasm
 		{name: "SubInt64x4", argLength: 2},                                              // ARCH:amd64
 		{name: "SubInt64x8", argLength: 2},                                              // ARCH:amd64
@@ -1257,15 +1263,19 @@ func simdGenericOps() []opData {
 		{name: "SubSaturatedUint16x32", argLength: 2},                                   // ARCH:amd64
 		{name: "SubSaturatedUint32x4", argLength: 2},                                    // ARCH:arm64
 		{name: "SubSaturatedUint64x2", argLength: 2},                                    // ARCH:arm64
+		{name: "SubUint8s", argLength: 2},                                               // ARCH:sve
 		{name: "SubUint8x16", argLength: 2},                                             // ARCH:amd64,arm64
 		{name: "SubUint8x32", argLength: 2},                                             // ARCH:amd64
 		{name: "SubUint8x64", argLength: 2},                                             // ARCH:amd64
+		{name: "SubUint16s", argLength: 2},                                              // ARCH:sve
 		{name: "SubUint16x8", argLength: 2},                                             // ARCH:amd64,arm64
 		{name: "SubUint16x16", argLength: 2},                                            // ARCH:amd64
 		{name: "SubUint16x32", argLength: 2},                                            // ARCH:amd64
+		{name: "SubUint32s", argLength: 2},                                              // ARCH:sve
 		{name: "SubUint32x4", argLength: 2},                                             // ARCH:amd64,arm64
 		{name: "SubUint32x8", argLength: 2},                                             // ARCH:amd64
 		{name: "SubUint32x16", argLength: 2},                                            // ARCH:amd64
+		{name: "SubUint64s", argLength: 2},                                              // ARCH:sve
 		{name: "SubUint64x2", argLength: 2},                                             // ARCH:amd64,arm64
 		{name: "SubUint64x4", argLength: 2},                                             // ARCH:amd64
 		{name: "SubUint64x8", argLength: 2},                                             // ARCH:amd64

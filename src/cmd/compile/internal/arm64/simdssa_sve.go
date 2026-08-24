@@ -15,24 +15,30 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpARM64ZADDB,
 		ssaop.OpARM64ZSQADDB,
-		ssaop.OpARM64ZUQADDB:
+		ssaop.OpARM64ZUQADDB,
+		ssaop.OpARM64ZSUBB:
 		p = simdZ21(s, v, arm64.ARNG_B)
 
 	case ssaop.OpARM64ZFADDD,
 		ssaop.OpARM64ZADDD,
 		ssaop.OpARM64ZSQADDD,
-		ssaop.OpARM64ZUQADDD:
+		ssaop.OpARM64ZUQADDD,
+		ssaop.OpARM64ZFSUBD,
+		ssaop.OpARM64ZSUBD:
 		p = simdZ21(s, v, arm64.ARNG_D)
 
 	case ssaop.OpARM64ZADDH,
 		ssaop.OpARM64ZSQADDH,
-		ssaop.OpARM64ZUQADDH:
+		ssaop.OpARM64ZUQADDH,
+		ssaop.OpARM64ZSUBH:
 		p = simdZ21(s, v, arm64.ARNG_H)
 
 	case ssaop.OpARM64ZFADDS,
 		ssaop.OpARM64ZADDS,
 		ssaop.OpARM64ZSQADDS,
-		ssaop.OpARM64ZUQADDS:
+		ssaop.OpARM64ZUQADDS,
+		ssaop.OpARM64ZFSUBS,
+		ssaop.OpARM64ZSUBS:
 		p = simdZ21(s, v, arm64.ARNG_S)
 
 	case ssaop.OpARM64ZCMPGTB:
@@ -49,24 +55,30 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 
 	case ssaop.OpARM64ZADDMergingB,
 		ssaop.OpARM64ZSQADDMergingB,
-		ssaop.OpARM64ZUQADDMergingB:
+		ssaop.OpARM64ZUQADDMergingB,
+		ssaop.OpARM64ZSUBMergingB:
 		p = simdZ2kvPred(s, v, arm64.ARNG_B)
 
 	case ssaop.OpARM64ZFADDMergingD,
 		ssaop.OpARM64ZADDMergingD,
 		ssaop.OpARM64ZSQADDMergingD,
-		ssaop.OpARM64ZUQADDMergingD:
+		ssaop.OpARM64ZUQADDMergingD,
+		ssaop.OpARM64ZFSUBMergingD,
+		ssaop.OpARM64ZSUBMergingD:
 		p = simdZ2kvPred(s, v, arm64.ARNG_D)
 
 	case ssaop.OpARM64ZADDMergingH,
 		ssaop.OpARM64ZSQADDMergingH,
-		ssaop.OpARM64ZUQADDMergingH:
+		ssaop.OpARM64ZUQADDMergingH,
+		ssaop.OpARM64ZSUBMergingH:
 		p = simdZ2kvPred(s, v, arm64.ARNG_H)
 
 	case ssaop.OpARM64ZFADDMergingS,
 		ssaop.OpARM64ZADDMergingS,
 		ssaop.OpARM64ZSQADDMergingS,
-		ssaop.OpARM64ZUQADDMergingS:
+		ssaop.OpARM64ZUQADDMergingS,
+		ssaop.OpARM64ZFSUBMergingS,
+		ssaop.OpARM64ZSUBMergingS:
 		p = simdZ2kvPred(s, v, arm64.ARNG_S)
 
 	case ssaop.OpARM64ZADDMergingPrefixedB,

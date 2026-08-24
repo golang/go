@@ -2163,6 +2163,12 @@ func simdZ2kvPred(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	switch d {
 	case x:
 	case y:
+		// Only reachable for a commutative operation: a non-commutative one is
+		// marked resultInArg0, which pins the destination to arg0. Swapping the
+		// sources of one would compute y-x where x-y was asked for.
+		if v.Op.ResultInArg0() {
+			v.Fatalf("destination is arg1 of resultInArg0 op %v", v.Op)
+		}
 		x, y = y, x
 	default:
 		mp := s.Prog(arm64.AZMOVPRFX)

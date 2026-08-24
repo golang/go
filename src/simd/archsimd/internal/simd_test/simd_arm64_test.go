@@ -269,6 +269,35 @@ func TestIfElseSVE(t *testing.T) {
 		return 0
 	})
 
+	// SUB is not commutative, so only an "else" operand that is the destructive
+	// one — the minuend — folds into the merging-predicated instruction.
+	check("Sub.IfElse(x)", x.Sub(y).IfElse(m, x), func(i int, active bool) int8 {
+		if active {
+			return xs[i] - ys[i]
+		}
+		return xs[i]
+	})
+	// Does not fold, and must not silently become y-x.
+	check("Sub.IfElse(y)", x.Sub(y).IfElse(m, y), func(i int, active bool) int8 {
+		if active {
+			return xs[i] - ys[i]
+		}
+		return ys[i]
+	})
+	// Does not fold: there is no prefixed form for a non-commutative operation.
+	check("Sub.IfElse(z)", x.Sub(y).IfElse(m, z), func(i int, active bool) int8 {
+		if active {
+			return xs[i] - ys[i]
+		}
+		return zs[i]
+	})
+	check("Sub.Masked", x.Sub(y).Masked(m), func(i int, active bool) int8 {
+		if active {
+			return xs[i] - ys[i]
+		}
+		return 0
+	})
+
 	// The prefixed path with every operand still live afterwards, so the
 	// destination can be none of them and the merging MOVPRFX has to place the
 	// else operand itself.

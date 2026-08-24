@@ -2223,20 +2223,38 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpSub8:
 		v.Op = ssaop.OpARM64SUB
 		return true
+	case ssaop.OpSubFloat32s:
+		v.Op = ssaop.OpARM64ZFSUBS
+		return true
 	case ssaop.OpSubFloat32x4:
 		v.Op = ssaop.OpARM64VFSUB4S
+		return true
+	case ssaop.OpSubFloat64s:
+		v.Op = ssaop.OpARM64ZFSUBD
 		return true
 	case ssaop.OpSubFloat64x2:
 		v.Op = ssaop.OpARM64VFSUB2D
 		return true
+	case ssaop.OpSubInt16s:
+		v.Op = ssaop.OpARM64ZSUBH
+		return true
 	case ssaop.OpSubInt16x8:
 		v.Op = ssaop.OpARM64VSUB8H
+		return true
+	case ssaop.OpSubInt32s:
+		v.Op = ssaop.OpARM64ZSUBS
 		return true
 	case ssaop.OpSubInt32x4:
 		v.Op = ssaop.OpARM64VSUB4S
 		return true
+	case ssaop.OpSubInt64s:
+		v.Op = ssaop.OpARM64ZSUBD
+		return true
 	case ssaop.OpSubInt64x2:
 		v.Op = ssaop.OpARM64VSUB2D
+		return true
+	case ssaop.OpSubInt8s:
+		v.Op = ssaop.OpARM64ZSUBB
 		return true
 	case ssaop.OpSubInt8x16:
 		v.Op = ssaop.OpARM64VSUB16B
@@ -2268,14 +2286,26 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpSubSaturatedUint8x16:
 		v.Op = ssaop.OpARM64VUQSUB16B
 		return true
+	case ssaop.OpSubUint16s:
+		v.Op = ssaop.OpARM64ZSUBH
+		return true
 	case ssaop.OpSubUint16x8:
 		v.Op = ssaop.OpARM64VSUB8H
+		return true
+	case ssaop.OpSubUint32s:
+		v.Op = ssaop.OpARM64ZSUBS
 		return true
 	case ssaop.OpSubUint32x4:
 		v.Op = ssaop.OpARM64VSUB4S
 		return true
+	case ssaop.OpSubUint64s:
+		v.Op = ssaop.OpARM64ZSUBD
+		return true
 	case ssaop.OpSubUint64x2:
 		v.Op = ssaop.OpARM64VSUB2D
+		return true
+	case ssaop.OpSubUint8s:
+		v.Op = ssaop.OpARM64ZSUBB
 		return true
 	case ssaop.OpSubUint8x16:
 		v.Op = ssaop.OpARM64VSUB16B
@@ -19960,6 +19990,22 @@ func rewriteValue_OpARM64ZSELB(v *ssa.Value) bool {
 		v.AddArg4(z, x, y, mask)
 		return true
 	}
+	// match: (ZSELB (ZSUBB x y) x mask)
+	// result: (ZSUBMergingB x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSUBB {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSUBMergingB)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (ZSELB (ZUQADDB x y) x mask)
 	// result: (ZUQADDMergingB x y mask)
 	for {
@@ -20140,6 +20186,22 @@ func rewriteValue_OpARM64ZSELD(v *ssa.Value) bool {
 		v.AddArg4(z, x, y, mask)
 		return true
 	}
+	// match: (ZSELD (ZFSUBD x y) x mask)
+	// result: (ZFSUBMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFSUBD {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZFSUBMergingD)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (ZSELD (ZSQADDD x y) x mask)
 	// result: (ZSQADDMergingD x y mask)
 	for {
@@ -20196,6 +20258,22 @@ func rewriteValue_OpARM64ZSELD(v *ssa.Value) bool {
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZSQADDMergingPrefixedD)
 		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELD (ZSUBD x y) x mask)
+	// result: (ZSUBMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSUBD {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSUBMergingD)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 	// match: (ZSELD (ZUQADDD x y) x mask)
@@ -20378,6 +20456,22 @@ func rewriteValue_OpARM64ZSELH(v *ssa.Value) bool {
 		v.AddArg4(z, x, y, mask)
 		return true
 	}
+	// match: (ZSELH (ZSUBH x y) x mask)
+	// result: (ZSUBMergingH x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSUBH {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSUBMergingH)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (ZSELH (ZUQADDH x y) x mask)
 	// result: (ZUQADDMergingH x y mask)
 	for {
@@ -20558,6 +20652,22 @@ func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
 		v.AddArg4(z, x, y, mask)
 		return true
 	}
+	// match: (ZSELS (ZFSUBS x y) x mask)
+	// result: (ZFSUBMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFSUBS {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZFSUBMergingS)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (ZSELS (ZSQADDS x y) x mask)
 	// result: (ZSQADDMergingS x y mask)
 	for {
@@ -20614,6 +20724,22 @@ func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZSQADDMergingPrefixedS)
 		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELS (ZSUBS x y) x mask)
+	// result: (ZSUBMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSUBS {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSUBMergingS)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 	// match: (ZSELS (ZUQADDS x y) x mask)
