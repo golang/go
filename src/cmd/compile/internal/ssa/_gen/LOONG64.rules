@@ -261,14 +261,14 @@
 (SignExt32to64 ...) => (MOVWreg ...)
 
 // float <=> int conversion
-(Cvt32to32F ...) => (MOVWF ...)
-(Cvt32to64F ...) => (MOVWD ...)
-(Cvt64to32F ...) => (MOVVF ...)
-(Cvt64to64F ...) => (MOVVD ...)
-(Cvt32Fto32 ...) => (TRUNCFW ...)
-(Cvt64Fto32 ...) => (TRUNCDW ...)
-(Cvt32Fto64 ...) => (TRUNCFV ...)
-(Cvt64Fto64 ...) => (TRUNCDV ...)
+(Cvt32to32F <t> x) => (MOVWF (MOVWgpfp <t> x))
+(Cvt32to64F <t> x) => (MOVWD (MOVWgpfp <t> x))
+(Cvt64to32F <t> x) => (MOVVF (MOVVgpfp <t> x))
+(Cvt64to64F <t> x) => (MOVVD (MOVVgpfp <t> x))
+(Cvt32Fto32 <t> x) => (MOVWfpgp (TRUNCFW <t> x))
+(Cvt64Fto32 <t> x) => (MOVWfpgp (TRUNCDW <t> x))
+(Cvt32Fto64 <t> x) => (MOVVfpgp (TRUNCFV <t> x))
+(Cvt64Fto64 <t> x) => (MOVVfpgp (TRUNCDV <t> x))
 (Cvt32Fto64F ...) => (MOVFD ...)
 (Cvt64Fto32F ...) => (MOVDF ...)
 

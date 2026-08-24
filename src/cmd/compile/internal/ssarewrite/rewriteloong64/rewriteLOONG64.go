@@ -218,35 +218,27 @@ func RewriteValue(v *ssa.Value) bool {
 		v.Op = ssaop.OpCtz64
 		return true
 	case ssaop.OpCvt32Fto32:
-		v.Op = ssaop.OpLOONG64TRUNCFW
-		return true
+		return rewriteValue_OpCvt32Fto32(v)
 	case ssaop.OpCvt32Fto64:
-		v.Op = ssaop.OpLOONG64TRUNCFV
-		return true
+		return rewriteValue_OpCvt32Fto64(v)
 	case ssaop.OpCvt32Fto64F:
 		v.Op = ssaop.OpLOONG64MOVFD
 		return true
 	case ssaop.OpCvt32to32F:
-		v.Op = ssaop.OpLOONG64MOVWF
-		return true
+		return rewriteValue_OpCvt32to32F(v)
 	case ssaop.OpCvt32to64F:
-		v.Op = ssaop.OpLOONG64MOVWD
-		return true
+		return rewriteValue_OpCvt32to64F(v)
 	case ssaop.OpCvt64Fto32:
-		v.Op = ssaop.OpLOONG64TRUNCDW
-		return true
+		return rewriteValue_OpCvt64Fto32(v)
 	case ssaop.OpCvt64Fto32F:
 		v.Op = ssaop.OpLOONG64MOVDF
 		return true
 	case ssaop.OpCvt64Fto64:
-		v.Op = ssaop.OpLOONG64TRUNCDV
-		return true
+		return rewriteValue_OpCvt64Fto64(v)
 	case ssaop.OpCvt64to32F:
-		v.Op = ssaop.OpLOONG64MOVVF
-		return true
+		return rewriteValue_OpCvt64to32F(v)
 	case ssaop.OpCvt64to64F:
-		v.Op = ssaop.OpLOONG64MOVVD
-		return true
+		return rewriteValue_OpCvt64to64F(v)
 	case ssaop.OpCvtBoolToUint8:
 		v.Op = ssaop.OpCopy
 		return true
@@ -1309,6 +1301,126 @@ func rewriteValue_OpCtz8(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpLOONG64MOVVconst, typ.UInt64)
 		v1.AuxInt = ssa.Int64ToAuxInt(1 << 8)
 		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt32Fto32(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt32Fto32 <t> x)
+	// result: (MOVWfpgp (TRUNCFW <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVWfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64TRUNCFW, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt32Fto64(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt32Fto64 <t> x)
+	// result: (MOVVfpgp (TRUNCFV <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVVfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64TRUNCFV, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt32to32F(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt32to32F <t> x)
+	// result: (MOVWF (MOVWgpfp <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVWF)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64MOVWgpfp, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt32to64F(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt32to64F <t> x)
+	// result: (MOVWD (MOVWgpfp <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVWD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64MOVWgpfp, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt64Fto32(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt64Fto32 <t> x)
+	// result: (MOVWfpgp (TRUNCDW <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVWfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64TRUNCDW, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt64Fto64(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt64Fto64 <t> x)
+	// result: (MOVVfpgp (TRUNCDV <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVVfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64TRUNCDV, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt64to32F(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt64to32F <t> x)
+	// result: (MOVVF (MOVVgpfp <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVVF)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64MOVVgpfp, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt64to64F(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt64to64F <t> x)
+	// result: (MOVVD (MOVVgpfp <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpLOONG64MOVVD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64MOVVgpfp, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
