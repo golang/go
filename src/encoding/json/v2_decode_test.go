@@ -1316,6 +1316,22 @@ var unmarshalTests = []struct {
 		}{C: 321},
 		err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeFor[complex128](), Field: "B", Offset: len64(`{"A":null,"B":[`)},
 	},
+	{
+		CaseName: Name("QuotedNull"),
+		in:       `{"A":"null", "B":"null", "C":"null", "D":"null"}`,
+		ptr: new(struct {
+			A string  `json:"A,string"`
+			B int     `json:"B,string"`
+			C float64 `json:"C,string"`
+			D bool    `json:"D,string"`
+		}),
+		out: struct {
+			A string  `json:"A,string"`
+			B int     `json:"B,string"`
+			C float64 `json:"C,string"`
+			D bool    `json:"D,string"`
+		}{},
+	},
 }
 
 func TestMarshal(t *testing.T) {

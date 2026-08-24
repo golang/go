@@ -281,15 +281,15 @@ func makeStringArshaler(t reflect.Type) *arshaler {
 		case '"':
 			val = jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
 			if stringify {
-				val, err = jsontext.AppendUnquote(nil, val)
-				if err != nil {
-					return newUnmarshalErrorAfter(dec, t, err)
-				}
-				if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) && string(val) == "null" {
+				if string(val) == "null" {
 					if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
 						va.SetString("")
 					}
 					return nil
+				}
+				val, err = jsontext.AppendUnquote(nil, val)
+				if err != nil {
+					return newUnmarshalErrorAfter(dec, t, err)
 				}
 			}
 			if xd.StringCache == nil {
