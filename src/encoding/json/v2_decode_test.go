@@ -436,6 +436,7 @@ var unmarshalTests = []struct {
 	{CaseName: Name(""), in: `true`, ptr: new(bool), out: true},
 	{CaseName: Name(""), in: `1`, ptr: new(int), out: 1},
 	{CaseName: Name(""), in: `1.2`, ptr: new(float64), out: 1.2},
+	{CaseName: Name(""), in: `1e1000`, ptr: new(float64), out: float64(0), err: &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64("1e1000")}},
 	{CaseName: Name(""), in: `-5`, ptr: new(int16), out: int16(-5)},
 	{CaseName: Name(""), in: `2`, ptr: new(Number), out: Number("2"), useNumber: true},
 	{CaseName: Name(""), in: `2`, ptr: new(Number), out: Number("2")},
@@ -2526,9 +2527,10 @@ func TestPrefilled(t *testing.T) {
 	// Values here change, cannot reuse table across runs.
 	tests := []struct {
 		CaseName
-		in  string
-		ptr any
-		out any
+		in      string
+		ptr     any
+		out     any
+		wantErr error
 	}{{
 		CaseName: Name(""),
 		in:       `{"X": 1, "Y": 2}`,
@@ -2559,16 +2561,28 @@ func TestPrefilled(t *testing.T) {
 		in:       `[3]`,
 		ptr:      &[...]int{1, 2},
 		out:      &[...]int{3, 0},
+	}, {
+		CaseName: Name(""),
+		in:       `1e1000`,
+		ptr:      addr(float64(math.Pi)),
+		out:      addr(float64(math.Pi)),
+		wantErr:  &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64("1e1000")},
+	}, {
+		CaseName: Name(""),
+		in:       `1e1000`,
+		ptr:      addr(any(float64(0))),
+		out:      addr(any(float64(0))),
+		wantErr:  &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64("1e1000")},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			ptrstr := fmt.Sprintf("%v", tt.ptr)
 			err := Unmarshal([]byte(tt.in), tt.ptr) // tt.ptr edited here
-			if err != nil {
-				t.Errorf("%s: Unmarshal error: %v", tt.Where, err)
-			}
 			if !reflect.DeepEqual(tt.ptr, tt.out) {
 				t.Errorf("%s: Unmarshal(%#q, %T):\n\tgot:  %v\n\twant: %v", tt.Where, tt.in, ptrstr, tt.ptr, tt.out)
+			}
+			if !reflect.DeepEqual(err, tt.wantErr) {
+				t.Errorf("%s: Unmarshal(%#q, %T) error:\n\tgot:  %v\n\twant: %v", tt.Where, tt.in, ptrstr, err, tt.wantErr)
 			}
 		})
 	}
