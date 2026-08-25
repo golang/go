@@ -625,7 +625,7 @@ func (x Int16s) Or(y Int16s) Int16s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int16s) ShiftAllLeft(y uint8) Int16s {
+func (x Int16s) ShiftAllLeft(y uint64) Int16s {
 	var res Int16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)<<y)
@@ -634,7 +634,7 @@ func (x Int16s) ShiftAllLeft(y uint8) Int16s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Int16s) ShiftAllRight(y uint8) Int16s {
+func (x Int16s) ShiftAllRight(y uint64) Int16s {
 	var res Int16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)>>y)
@@ -974,7 +974,7 @@ func (x Int32s) Or(y Int32s) Int32s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int32s) ShiftAllLeft(y uint8) Int32s {
+func (x Int32s) ShiftAllLeft(y uint64) Int32s {
 	var res Int32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)<<y)
@@ -983,7 +983,7 @@ func (x Int32s) ShiftAllLeft(y uint8) Int32s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Int32s) ShiftAllRight(y uint8) Int32s {
+func (x Int32s) ShiftAllRight(y uint64) Int32s {
 	var res Int32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)>>y)
@@ -1228,7 +1228,7 @@ func (x Int64s) Or(y Int64s) Int64s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int64s) ShiftAllLeft(y uint8) Int64s {
+func (x Int64s) ShiftAllLeft(y uint64) Int64s {
 	return Int64s{a: x.a << y, b: x.b << y}
 }
 
@@ -1786,7 +1786,7 @@ func (x Uint16s) Or(y Uint16s) Uint16s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint16s) ShiftAllLeft(y uint8) Uint16s {
+func (x Uint16s) ShiftAllLeft(y uint64) Uint16s {
 	var res Uint16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)<<y)
@@ -1795,7 +1795,7 @@ func (x Uint16s) ShiftAllLeft(y uint8) Uint16s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint16s) ShiftAllRight(y uint8) Uint16s {
+func (x Uint16s) ShiftAllRight(y uint64) Uint16s {
 	var res Uint16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)>>y)
@@ -2106,7 +2106,7 @@ func (x Uint32s) Or(y Uint32s) Uint32s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint32s) ShiftAllLeft(y uint8) Uint32s {
+func (x Uint32s) ShiftAllLeft(y uint64) Uint32s {
 	var res Uint32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)<<y)
@@ -2115,7 +2115,7 @@ func (x Uint32s) ShiftAllLeft(y uint8) Uint32s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint32s) ShiftAllRight(y uint8) Uint32s {
+func (x Uint32s) ShiftAllRight(y uint64) Uint32s {
 	var res Uint32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)>>y)
@@ -2361,12 +2361,12 @@ func (x Uint64s) Or(y Uint64s) Uint64s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint64s) ShiftAllLeft(y uint8) Uint64s {
+func (x Uint64s) ShiftAllLeft(y uint64) Uint64s {
 	return Uint64s{a: x.a << y, b: x.b << y}
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint64s) ShiftAllRight(y uint8) Uint64s {
+func (x Uint64s) ShiftAllRight(y uint64) Uint64s {
 	return Uint64s{a: x.a >> y, b: x.b >> y}
 }
 
