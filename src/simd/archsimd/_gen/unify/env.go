@@ -7,7 +7,6 @@ package unify
 import (
 	"fmt"
 	"iter"
-	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -449,10 +448,6 @@ func (d Var) Exact() bool {
 func (d Var) WhyNotExact() string {
 	// These can't appear in concrete Values.
 	return "WhyNotExact called on non-concrete Value"
-}
-
-func (d Var) decode(rv reflect.Value) error {
-	return &inexactError{"var", rv.Type().String()}
 }
 
 func (d Var) unify(w *Value, e envSet, swap bool, uf *unifier) (Domain, envSet, error) {
