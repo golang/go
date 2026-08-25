@@ -298,6 +298,34 @@ func TestIfElseSVE(t *testing.T) {
 		return 0
 	})
 
+	// Abs is predicated-only, so its unpredicated API runs under an all-true
+	// predicate that a select can simply replace: IfElse becomes the merging
+	// form and Masked the zeroing one, each a single instruction.
+	absLane := func(v int8) int8 {
+		if v < 0 {
+			return -v
+		}
+		return v
+	}
+	check("Abs.IfElse(z)", x.Abs().IfElse(m, z), func(i int, active bool) int8 {
+		if active {
+			return absLane(xs[i])
+		}
+		return zs[i]
+	})
+	check("Abs.IfElse(x)", x.Abs().IfElse(m, x), func(i int, active bool) int8 {
+		if active {
+			return absLane(xs[i])
+		}
+		return xs[i]
+	})
+	check("Abs.Masked", x.Abs().Masked(m), func(i int, active bool) int8 {
+		if active {
+			return absLane(xs[i])
+		}
+		return 0
+	})
+
 	// The prefixed path with every operand still live afterwards, so the
 	// destination can be none of them and the merging MOVPRFX has to place the
 	// else operand itself.

@@ -203,6 +203,7 @@ func init() {
 		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
 		fp1flags       = regInfo{inputs: []regMask{fp}}
+		fp1predfp      = regInfo{inputs: []regMask{fp, pred}, outputs: []regMask{fp}}
 		fp2predpred    = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{pred}}
 		fp2predfp      = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{fp}}
 		fp3predfp      = regInfo{inputs: []regMask{fp, fp, fp, pred}, outputs: []regMask{fp}}
@@ -902,7 +903,7 @@ func init() {
 		pkg:                "cmd/internal/obj/arm64",
 		genfile:            "../../arm64/ssa.go",
 		genSIMDfile:        "../../arm64/simdssa.go ../../arm64/simdssa_sve.go",
-		ops:                append(append(ops, simdARM64Ops(fp11, fp21, fp31, fpgp, fpgpfp, fp21)...), simdARM64SVEOps(fp11, fp21, fp2predpred, fp2predfp, fp2predfp, fp3predfp)...),
+		ops:                append(append(ops, simdARM64Ops(fp11, fp21, fp31, fpgp, fpgpfp, fp21)...), simdARM64SVEOps(fp11, fp21, fp1predfp, fp2predpred, fp2predfp, fp2predfp, fp3predfp)...),
 		blocks:             blocks,
 		regnames:           regNamesARM64,
 		ParamIntRegNames:   "R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15",

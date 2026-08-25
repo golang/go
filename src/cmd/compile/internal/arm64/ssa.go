@@ -2187,6 +2187,35 @@ func simdZ2kvPred(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	return p
 }
 
+// simdZkv emits a predicated-only SVE unary operation standing in for an
+// unpredicated one, e.g. ZABS Z0.B, P0.M, Z1.B. SSA provides arg0=x and
+// arg1=the governing predicate, which the lowering rule synthesized as
+// all-true. With every lane active, merging predication leaves nothing of the
+// destination behind, so the operation is unpredicated in effect.
+func simdZkv(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	return sveUnaryPred(s, v, arng, v.Args[0].Reg(), v.Args[1].Reg(), arm64.PRED_M)
+}
+
+// simdZ2kvPredResultInArg0 emits the merging form of a predicated SVE unary
+// operation, e.g. ZABS Z1.B, P0.M, Z0.B. SSA provides arg0=the value the
+// inactive lanes keep, arg1=x, arg2=mask, and resultInArg0 puts that value in
+// the destination. The instruction is constructive -- it names its destination
+// apart from its source -- so merging into that destination needs no MOVPRFX.
+func simdZ2kvPredResultInArg0(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	return sveUnaryPred(s, v, arng, v.Args[1].Reg(), v.Args[2].Reg(), arm64.PRED_M)
+}
+
+// sveUnaryPred emits a predicated SVE unary operation: OP Zn.T, Pg/<qual>, Zd.T.
+func sveUnaryPred(s *ssagen.State, v *ssa.Value, arng int16, zn, pg int16, qual int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(zn, arng)        // Zn
+	p.AddRestSourceReg(pregMask(pg, qual)) // Pg/M or Pg/Z
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
 // simdZ3kvPredResultInArg0 emits an SVE merging-predicated binary operation
 // whose inactive lanes come from a value that is neither of its sources, e.g.
 // x.Add(y).IfElse(mask, z). SSA provides arg0=z, arg1=x, arg2=y, arg3=mask, and

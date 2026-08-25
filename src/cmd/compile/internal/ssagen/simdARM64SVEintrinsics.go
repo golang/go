@@ -11,6 +11,10 @@ import (
 
 func simdARM64SVEIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
 
+	addF(simdPackage, "Int8s.Abs", opLen1(ssaop.OpAbsInt8s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Int16s.Abs", opLen1(ssaop.OpAbsInt16s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Int32s.Abs", opLen1(ssaop.OpAbsInt32s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Int64s.Abs", opLen1(ssaop.OpAbsInt64s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float32s.Add", opLen2(ssaop.OpAddFloat32s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float64s.Add", opLen2(ssaop.OpAddFloat64s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Int8s.Add", opLen2(ssaop.OpAddInt8s, types.TypeVec256), sys.ARM64)

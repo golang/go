@@ -221,6 +221,31 @@ func sveIfElseKeepsSelectSubArbitrary(x, y, z archsimd.Int8s, m archsimd.Mask8s)
 	return x.Sub(y).IfElse(m, z)
 }
 
+// An operation that only comes predicated reaches its unpredicated API through
+// an all-true predicate. A select over it replaces that predicate instead of
+// adding an instruction.
+
+func sveAbsSynthesizesAllTrue(x archsimd.Int8s) archsimd.Int8s {
+	// arm64:`PWHILELT` `ZABS.*P[0-9]+\.M`
+	return x.Abs()
+}
+
+func sveAbsIfElseFoldsToMerging(x, z archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// ABS names its destination apart from its source, so the else operand is an
+	// operand of the instruction: no select, no MOVPRFX, and the all-true
+	// predicate is gone because the select's mask took its place.
+	// arm64:`ZABS.*P[0-9]+\.M` -`ZSEL` -`PWHILELT` -`ZMOVPRFX`
+	return x.Abs().IfElse(m, z)
+}
+
+func sveAbsMaskedFoldsToMerging(x archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// Masked folds through the same rule, with the zero vector as the else
+	// operand. Zeroing predication would save the ZDUP, but ABS only has a
+	// zeroing encoding from Armv9.6-A on.
+	// arm64:`ZABS.*P[0-9]+\.M` -`ZSEL` -`PWHILELT`
+	return x.Abs().Masked(m)
+}
+
 func sveIfElseFloat(x, y archsimd.Float64s, m archsimd.Mask64s) archsimd.Float64s {
 	// arm64:`ZFADD.*P[0-9]+\.M` -`ZSEL`
 	return x.Add(y).IfElse(m, x)

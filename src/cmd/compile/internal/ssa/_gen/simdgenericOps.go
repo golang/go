@@ -19,15 +19,19 @@ func simdGenericOps() []opData {
 		{name: "AESInvMixColumnsUint32x4", argLength: 1},                                // ARCH:amd64
 		{name: "AbsFloat32x4", argLength: 1},                                            // ARCH:arm64,wasm
 		{name: "AbsFloat64x2", argLength: 1},                                            // ARCH:arm64,wasm
+		{name: "AbsInt8s", argLength: 1},                                                // ARCH:sve
 		{name: "AbsInt8x16", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt8x32", argLength: 1},                                              // ARCH:amd64
 		{name: "AbsInt8x64", argLength: 1},                                              // ARCH:amd64
+		{name: "AbsInt16s", argLength: 1},                                               // ARCH:sve
 		{name: "AbsInt16x8", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt16x16", argLength: 1},                                             // ARCH:amd64
 		{name: "AbsInt16x32", argLength: 1},                                             // ARCH:amd64
+		{name: "AbsInt32s", argLength: 1},                                               // ARCH:sve
 		{name: "AbsInt32x4", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt32x8", argLength: 1},                                              // ARCH:amd64
 		{name: "AbsInt32x16", argLength: 1},                                             // ARCH:amd64
+		{name: "AbsInt64s", argLength: 1},                                               // ARCH:sve
 		{name: "AbsInt64x2", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt64x4", argLength: 1},                                              // ARCH:amd64
 		{name: "AbsInt64x8", argLength: 1},                                              // ARCH:amd64

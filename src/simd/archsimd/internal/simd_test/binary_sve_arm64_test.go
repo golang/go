@@ -101,3 +101,39 @@ func TestSubSVE(t *testing.T) {
 	testFloat32sBinary(t, archsimd.Float32s.Sub, subSlice[float32])
 	testFloat64sBinary(t, archsimd.Float64s.Sub, subSlice[float64])
 }
+
+// testSVEUnary drives a scalable unary op, the one-input counterpart of
+// testSVEBinary.
+func testSVEUnary[T number, V any](t *testing.T, pool []T, elemBytes, active int,
+	load func([]T) V, f func(V) V, store func(V, []T), want func([]T) []T) {
+	t.Helper()
+	count := sveMaxBytes / elemBytes
+	forSlice(t, pool, count, func(x []T) bool {
+		t.Helper()
+		g := make([]T, count)
+		store(f(load(x)), g)
+		w := want(x)
+		return checkSlicesLogInput(t, g[:active], w[:active], 0.0, func() {
+			t.Helper()
+			t.Logf("x=%v", x)
+		})
+	})
+}
+
+func TestAbsSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	absSlice := func(x []int8) []int8 {
+		r := make([]int8, len(x))
+		for i, v := range x {
+			if v < 0 {
+				v = -v // -128 stays -128, as ABS does
+			}
+			r[i] = v
+		}
+		return r
+	}
+	var z archsimd.Int8s
+	testSVEUnary(t, int8s, 1, z.Len(), archsimd.LoadInt8s, archsimd.Int8s.Abs, archsimd.Int8s.Store, absSlice)
+}

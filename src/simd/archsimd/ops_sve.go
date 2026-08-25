@@ -4,6 +4,28 @@
 
 package archsimd
 
+/* Abs */
+
+// Abs computes the absolute value of each element.
+//
+// Asm: ZABS, CPU Feature: SVE
+func (x Int8s) Abs() Int8s
+
+// Abs computes the absolute value of each element.
+//
+// Asm: ZABS, CPU Feature: SVE
+func (x Int16s) Abs() Int16s
+
+// Abs computes the absolute value of each element.
+//
+// Asm: ZABS, CPU Feature: SVE
+func (x Int32s) Abs() Int32s
+
+// Abs computes the absolute value of each element.
+//
+// Asm: ZABS, CPU Feature: SVE
+func (x Int64s) Abs() Int64s
+
 /* Add */
 
 // Add adds corresponding elements of two vectors.

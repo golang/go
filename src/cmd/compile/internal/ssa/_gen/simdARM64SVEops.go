@@ -2,8 +2,16 @@
 
 package main
 
-func simdARM64SVEOps(z11, z21, z2kk, z2kv, z2kvPred, z3kvPred regInfo) []opData {
+func simdARM64SVEOps(z11, z21, zkv, z2kk, z2kv, z2kvPred, z3kvPred regInfo) []opData {
 	return []opData{
+		{name: "ZABSB", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
+		{name: "ZABSD", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
+		{name: "ZABSH", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
+		{name: "ZABSMergingB", argLength: 3, reg: z2kvPred, asm: "ZABS", typ: "Vec256", resultInArg0: true},
+		{name: "ZABSMergingD", argLength: 3, reg: z2kvPred, asm: "ZABS", typ: "Vec256", resultInArg0: true},
+		{name: "ZABSMergingH", argLength: 3, reg: z2kvPred, asm: "ZABS", typ: "Vec256", resultInArg0: true},
+		{name: "ZABSMergingS", argLength: 3, reg: z2kvPred, asm: "ZABS", typ: "Vec256", resultInArg0: true},
+		{name: "ZABSS", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
 		{name: "ZADDB", argLength: 2, reg: z21, asm: "ZADD", commutative: true, typ: "Vec256"},
 		{name: "ZADDD", argLength: 2, reg: z21, asm: "ZADD", commutative: true, typ: "Vec256"},
 		{name: "ZADDH", argLength: 2, reg: z21, asm: "ZADD", commutative: true, typ: "Vec256"},

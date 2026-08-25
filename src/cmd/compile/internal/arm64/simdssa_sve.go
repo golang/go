@@ -13,6 +13,18 @@ import (
 func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
+	case ssaop.OpARM64ZABSB:
+		p = simdZkv(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZABSD:
+		p = simdZkv(s, v, arm64.ARNG_D)
+
+	case ssaop.OpARM64ZABSH:
+		p = simdZkv(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZABSS:
+		p = simdZkv(s, v, arm64.ARNG_S)
+
 	case ssaop.OpARM64ZADDB,
 		ssaop.OpARM64ZSQADDB,
 		ssaop.OpARM64ZUQADDB,
@@ -80,6 +92,18 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFSUBMergingS,
 		ssaop.OpARM64ZSUBMergingS:
 		p = simdZ2kvPred(s, v, arm64.ARNG_S)
+
+	case ssaop.OpARM64ZABSMergingB:
+		p = simdZ2kvPredResultInArg0(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZABSMergingD:
+		p = simdZ2kvPredResultInArg0(s, v, arm64.ARNG_D)
+
+	case ssaop.OpARM64ZABSMergingH:
+		p = simdZ2kvPredResultInArg0(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZABSMergingS:
+		p = simdZ2kvPredResultInArg0(s, v, arm64.ARNG_S)
 
 	case ssaop.OpARM64ZADDMergingPrefixedB,
 		ssaop.OpARM64ZSQADDMergingPrefixedB,
