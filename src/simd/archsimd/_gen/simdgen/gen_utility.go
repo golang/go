@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"simd/archsimd/_gen/simdgen/types"
 	"slices"
 	"sort"
 	"strings"
@@ -164,7 +165,7 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 	hasVreg := false
 	hasListIn := false
 	for _, in := range op.In {
-		if in.isImplicitAllTrue() {
+		if in.IsImplicitAllTrue() {
 			// An SVE implicit-all-true governing predicate is not part of the Go
 			// API: it must not count as a mask input here, so the op classifies as
 			// an unpredicated (PureVregIn/NoMask) op. The machine op and lowering
@@ -456,20 +457,6 @@ func (op Operation) ImmType() string {
 	return "uint8"
 }
 
-func (o Operand) OpName(s string) string {
-	if n := o.Name; n != nil {
-		return *n
-	}
-	if o.Class == "mask" {
-		return "mask"
-	}
-	return s
-}
-
-func (o Operand) OpNameAndType(s string) string {
-	return o.OpName(s) + " " + *o.Go
-}
-
 // GoExported returns [Go] with first character capitalized.
 func (op Operation) GoExported() string {
 	return capitalizeFirst(op.Go)
@@ -643,7 +630,7 @@ func rewriteVecAsScalarRegInfo(op Operation, regInfo string) (string, error) {
 }
 
 func rewriteLastVregToMem(op Operation) Operation {
-	newIn := make([]Operand, len(op.In))
+	newIn := make([]types.Operand, len(op.In))
 	lastVregIdx := -1
 	for i := range len(op.In) {
 		newIn[i] = op.In[i]
@@ -802,7 +789,7 @@ func capitalizeFirst(s string) string {
 //     and [writeSIMDSSA], please be careful when updating these constraints.
 func overwrite(ops []Operation) error {
 	hasClassOverwrite := false
-	overwrite := func(op []Operand, idx int, o Operation) error {
+	overwrite := func(op []types.Operand, idx int, o Operation) error {
 		if op[idx].OverwriteElementBits != nil {
 			if op[idx].ElemBits == nil {
 				panic(fmt.Errorf("ElemBits is nil at operand %d of %v", idx, o))
@@ -901,7 +888,7 @@ func reportXEDInconsistency(ops []Operation) error {
 	for _, o := range ops {
 		if o.NameAndSizeCheck != nil {
 			suffixSizeMap := map[byte]int{'B': 8, 'W': 16, 'D': 32, 'Q': 64}
-			checkOperand := func(opr Operand) error {
+			checkOperand := func(opr types.Operand) error {
 				if opr.ElemBits == nil {
 					return fmt.Errorf("simdgen expects elemBits to be set when performing NameAndSizeCheck")
 				}
@@ -962,10 +949,6 @@ func getVbcstData(s string) (string, string) {
 
 func (o Operation) String() string {
 	return pprints(o)
-}
-
-func (op Operand) String() string {
-	return pprints(op)
 }
 
 // hiHalfOpName constructs the SSA machine op name for a hi-half "2" variant.

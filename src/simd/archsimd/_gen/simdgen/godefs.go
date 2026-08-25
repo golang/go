@@ -15,8 +15,11 @@ import (
 	"unicode"
 
 	"simd/archsimd/_gen/gentools"
+	"simd/archsimd/_gen/simdgen/types"
 	"simd/archsimd/_gen/unify"
 )
+
+type rawOperation = types.RawOperation
 
 type Operation struct {
 	rawOperation
@@ -39,50 +42,7 @@ type Operation struct {
 	// In is the sequence of parameters to the Go method.
 	//
 	// For masked operations, this will have the mask operand appended.
-	In []Operand
-}
-
-// rawOperation is the unifier representation of an [Operation]. It is
-// translated into a more parsed form after unifier decoding.
-type rawOperation struct {
-	Go string // Base Go method name
-
-	GOARCH       string  // GOARCH for this definition
-	Asm          string  // Assembly mnemonic
-	Arrangement  *string // optional Arrangement for ARM64 SIMD operations (e.g., "4S", "2D")
-	OperandOrder *string // optional Operand order for better Go declarations
-	// Optional tag to indicate this operation is paired with special generic->machine ssa lowering rules.
-	// Should be paired with special templates in gen_simdrules.go
-	SpecialLower *string
-	// HiHalfAsm is the assembly mnemonic for the hi-half "2" variant of this operation,
-	// specified in go_arm64.yaml (e.g., "VSHRN2", "VUMULL2").
-	// When non-nil, simdgen generates the "2" variant machine op and folding rules.
-	HiHalfAsm *string
-
-	In              []Operand // Parameters
-	InVariant       []Operand // Optional parameters
-	Out             []Operand // Results
-	MemFeatures     *string   // The memory operand feature this operation supports
-	MemFeaturesData *string   // Additional data associated with MemFeatures
-	Commutative     bool      // Commutativity
-	CPUFeature      string    // CPUID/Has* feature name
-	Zeroing         *bool     // nil => use asm suffix ".Z"; false => do not use asm suffix ".Z"
-	Documentation   *string   // Documentation will be appended to the stubs comments.
-	AddDoc          *string   // Additional doc to be appended.
-	// ConstMask is a hack to reduce the size of defs the user writes for const-immediate
-	// If present, it will be copied to [In[0].Const].
-	ConstImm *string
-	// NameAndSizeCheck is used to check [BWDQ] maps to (8|16|32|64) elemBits.
-	NameAndSizeCheck *bool
-	// If non-nil, all generation in gen_simdTypes.go and gen_intrinsics will be skipped.
-	NoTypes *string
-	// If non-nil, all generation in gen_simdGenericOps and gen_simdrules will be skipped.
-	NoGenericOps *string
-	// If non-nil, this string will be attached to the machine ssa op name.  E.g. "const"
-	SSAVariant *string
-	// If true, do not emit method declarations, generic ops, or intrinsics for masked variants
-	// DO emit the architecture-specific opcodes and optimizations.
-	HideMaskMethods *bool
+	In []types.Operand
 }
 
 func (o *Operation) IsMasked() bool {
@@ -253,7 +213,7 @@ func sveArrangementLetter(gOp Operation) string {
 		return ""
 	}
 	elemBits := 0
-	pick := func(ops []Operand) {
+	pick := func(ops []types.Operand) {
 		if elemBits != 0 {
 			return
 		}
@@ -364,7 +324,7 @@ func compareOperations(x, y Operation) int {
 	return 0
 }
 
-func compareOperands(x, y *Operand) int {
+func compareOperands(x, y *types.Operand) int {
 	if c := compareNatural(x.Class, y.Class); c != 0 {
 		return c
 	}
@@ -387,62 +347,6 @@ func compareOperands(x, y *Operand) int {
 	}
 }
 
-type Operand struct {
-	Class string // One of "mask", "immediate", "vreg", "greg", and "mem"
-
-	Go     *string // Go type of this operand
-	AsmPos int     // Position of this operand in the assembly instruction
-
-	Base     *string // Base Go type ("int", "uint", "float")
-	ElemBits *int    // Element bit width
-	Bits     *int    // Total vector bit width
-
-	Const *string // Optional constant value for immediates.
-	// Optional immediate arg offsets. If this field is non-nil,
-	// This operand will be an immediate operand:
-	// The compiler will right-shift the user-passed value by ImmOffset and set it as the AuxInt
-	// field of the operation.
-	ImmOffset *string
-	ImmMax    *int    // optional maximum immediate, also highest case in immediate jump table
-	Name      *string // optional name in the Go intrinsic declaration
-	Lanes     *int    // *Lanes equals Bits/ElemBits except for scalars, when *Lanes == 1
-	// TreatLikeAScalarOfSize means only the lower $TreatLikeAScalarOfSize bits of the vector
-	// is used, so at the API level we can make it just a scalar value of this size; Then we
-	// can overwrite it to a vector of the right size during intrinsics stage.
-	TreatLikeAScalarOfSize *int
-	// If non-nil, it means the [Class] field is overwritten here, right now this is used to
-	// overwrite the results of AVX2 compares to masks.
-	OverwriteClass *string
-	// If non-nil, it means the [Base] field is overwritten here. This field exist solely
-	// because Intel's XED data is inconsistent. e.g. VANDNP[SD] marks its operand int.
-	OverwriteBase *string
-	// If non-nil, it means the [ElementBits] field is overwritten. This field exist solely
-	// because Intel's XED data is inconsistent. e.g. AVX512 VPMADDUBSW marks its operand
-	// elemBits 16, which should be 8.
-	OverwriteElementBits *int
-	// For greg only, specifically VPEXTR[BW], their results are specified by Intel as 32 bits,
-	// but they really are 8/16 bits.
-	OverwriteBits *int
-	// FixedReg is the name of the fixed registers
-	FixedReg *string
-	// If non-nil, marks this vreg as a register list operand (for TBL/TBX).
-	// Currently only list number 0 is supported (we might need to teach regalloc handle register lists
-	// to support more than one register in the list).
-	ListNumber *int
-	// ImplicitAllTrue marks an SVE governing-predicate input that is dropped from
-	// the user-facing (unpredicated) API: the generated method/generic op/intrinsic
-	// omit it, and the lowering synthesizes an all-true predicate for it. This is
-	// how predicated-only SVE instructions (e.g. ZCMPGT) expose an unpredicated Go
-	// API, for #79781.
-	ImplicitAllTrue *bool
-}
-
-// isImplicitAllTrue reports whether this operand is an SVE governing predicate
-// that is dropped from the API and filled with an all-true predicate at lowering.
-func (o *Operand) isImplicitAllTrue() bool {
-	return o.ImplicitAllTrue != nil && *o.ImplicitAllTrue
-}
-
 // implicitPredCount reports whether the op has an implicit-all-true governing
 // predicate input, as a count (0 or 1). An instruction has at most one governing
 // predicate — the single mask input carrying a /Z or /M qualifier (see the
@@ -454,65 +358,11 @@ func (o *Operand) isImplicitAllTrue() bool {
 func (op Operation) implicitPredCount() int {
 	n := 0
 	for i := range op.In {
-		if op.In[i].isImplicitAllTrue() {
+		if op.In[i].IsImplicitAllTrue() {
 			n++
 		}
 	}
 	return n
-}
-
-// maxVectorBits is the fixed width simdgen models a scalable SVE vector as: the
-// maximum vector length Go currently supports (256 bits / 32 bytes). Scalable
-// operands decode to this width and their lane counts derive from it.
-const maxVectorBits = 256
-
-// DecodeUnified translates an SVE scalable operand's bits:"scalable" marker into
-// the concrete Go-visible width before the generic struct decode. The SVE loader
-// emits bits:"scalable" (a non-numeric discriminator) so scalable operands never
-// unify with the fixed-width NEON/AVX types that share types.yaml; by the time we
-// decode, unification is done and Bits (an *int) needs a real width. We use
-// maxVectorBits and derive lanes = maxVectorBits/elemBits. Non-scalable operands
-// (numeric bits) decode unchanged.
-func (o *Operand) DecodeUnified(v *unify.Value) error {
-	type operandAlias Operand // no DecodeUnified method: avoids recursion
-	def, ok := v.Domain.(unify.Def)
-	if !ok {
-		return v.Decode((*operandAlias)(o))
-	}
-	scalable, hasLanes, elemBits := false, false, 0
-	for name, fv := range def.All() {
-		switch name {
-		case "bits":
-			var s string
-			if err := fv.Decode(&s); err == nil && s == "scalable" {
-				scalable = true
-			}
-		case "lanes":
-			hasLanes = true
-		case "elemBits":
-			fv.Decode(&elemBits)
-		}
-	}
-	if !scalable {
-		return v.Decode((*operandAlias)(o))
-	}
-	// A scalable operand is a vector/mask whose element width is a lane property,
-	// so it always has elemBits and therefore a derivable lane count.
-	if elemBits == 0 {
-		return fmt.Errorf("scalable operand has no elemBits: %v", v)
-	}
-	var db unify.DefBuilder
-	for name, fv := range def.All() {
-		if name == "bits" {
-			db.Add("bits", unify.NewValue(unify.NewStringExact(fmt.Sprint(maxVectorBits))))
-			continue
-		}
-		db.Add(name, fv)
-	}
-	if !hasLanes {
-		db.Add("lanes", unify.NewValue(unify.NewStringExact(fmt.Sprint(maxVectorBits/elemBits))))
-	}
-	return unify.NewValue(db.Build()).Decode((*operandAlias)(o))
 }
 
 // isDigit returns true if the byte is an ASCII digit.

@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"simd/archsimd/_gen/sgutil"
+	"simd/archsimd/_gen/simdgen/types"
 )
 
 type tplRuleData struct {
@@ -208,7 +209,7 @@ func expandFormatSpecifiers(s string, elemBits int) string {
 func sveImplicitPredRule(gOp Operation, asm, args string) string {
 	elemBits := *gOp.Out[0].ElemBits
 	letter := sveArrangementLetter(gOp)
-	lanes := maxVectorBits / elemBits
+	lanes := types.MaxVectorBits / elemBits
 	return fmt.Sprintf("(%s %s) => (%s %s (Select0 <types.TypeMask> (PWHILELT%s (MOVDconst [0]) (MOVDconst [%d]))))\n",
 		gOp.GenericName(), args, asm, args, letter, lanes)
 }

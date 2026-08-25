@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"simd/archsimd/_gen/simdgen/types"
 	"sort"
 	"strings"
 	"text/template"
@@ -163,7 +164,7 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 			if shapeOut != OneVregOutAtIn {
 				// We have to copy the slice here because the sort will be visible from other
 				// aliases when no reslicing is happening.
-				newIn := make([]Operand, len(op.In), len(op.In)+1)
+				newIn := make([]types.Operand, len(op.In), len(op.In)+1)
 				copy(newIn, op.In)
 				op.In = newIn
 				op.In = append(op.In, op.Out[0])

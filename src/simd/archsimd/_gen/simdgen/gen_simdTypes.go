@@ -16,6 +16,7 @@ import (
 	"unicode"
 
 	"simd/archsimd/_gen/sgutil"
+	"simd/archsimd/_gen/simdgen/types"
 )
 
 type simdType struct {
@@ -43,7 +44,7 @@ func (x simdType) ElemBytes() int {
 // per vector byte, at the maximum vector length. It bounds the scratch buffer a
 // mask's String needs to read its own bits.
 func (x simdType) PredUint16s() int {
-	return (maxVectorBits/8 + 15) / 16
+	return (types.MaxVectorBits/8 + 15) / 16
 }
 
 // IsScalable reports whether this vector type's length is only known at run
@@ -670,7 +671,7 @@ func parseSIMDTypes(ops []Operation) simdTypeMap {
 	// TODO: maybe instead of going over ops, let's try go over types.yaml.
 	ret := map[int][]simdType{}
 	seen := map[string]struct{}{}
-	processArg := func(arg Operand) {
+	processArg := func(arg types.Operand) {
 		if arg.Class == "immediate" || arg.Class == "greg" {
 			// Immediates are not encoded as vector types.
 			return
@@ -687,7 +688,7 @@ func parseSIMDTypes(ops []Operation) simdTypeMap {
 		valFieldS := fmt.Sprintf("vals%s[%d]%s", strings.Repeat(" ", len(tagFieldNameS)-3), lanes, base)
 		fields := fmt.Sprintf("\t%s\n\t%s", tagFieldS, valFieldS)
 		if arg.Class == "mask" && CurrentArch().isSVE() {
-			fields = fmt.Sprintf("\t%s psve\n\tvals uint%d", strings.ToLower(*arg.Go), maxVectorBits/8)
+			fields = fmt.Sprintf("\t%s psve\n\tvals uint%d", strings.ToLower(*arg.Go), types.MaxVectorBits/8)
 		}
 		hasNot := CurrentArch().Arch == "arm64"
 		if arg.Class == "mask" {
