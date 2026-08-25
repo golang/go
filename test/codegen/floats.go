@@ -172,46 +172,50 @@ func ArrayCopy(a [16]byte) (b [16]byte) {
 // ---------------- //
 
 func Float64Min(a, b float64) float64 {
+	// FIXME: add WFMINDB on s390x/z14 when GOS390X is added.
+
 	// amd64:"MINSD"
 	// arm64:"FMIND"
 	// loong64:"FMIND"
 	// riscv64:"FMIN"
 	// ppc64/power9:"XSMINJDP"
 	// ppc64/power10:"XSMINJDP"
-	// s390x: "WFMINDB"
 	return min(a, b)
 }
 
 func Float64Max(a, b float64) float64 {
+	// FIXME: add WFMAXDB on s390x/z14 when GOS390X is added.
+
 	// amd64:"MINSD"
 	// arm64:"FMAXD"
 	// loong64:"FMAXD"
 	// riscv64:"FMAX"
 	// ppc64/power9:"XSMAXJDP"
 	// ppc64/power10:"XSMAXJDP"
-	// s390x: "WFMAXDB"
 	return max(a, b)
 }
 
 func Float32Min(a, b float32) float32 {
+	// FIXME: add WFMINSB on s390x/z14 when GOS390X is added.
+
 	// amd64:"MINSS"
 	// arm64:"FMINS"
 	// loong64:"FMINF"
 	// riscv64:"FMINS"
 	// ppc64/power9:"XSMINJDP"
 	// ppc64/power10:"XSMINJDP"
-	// s390x: "WFMINSB"
 	return min(a, b)
 }
 
 func Float32Max(a, b float32) float32 {
+	// FIXME: add WFMAXSB on s390x/z14 when GOS390X is added.
+
 	// amd64:"MINSS"
 	// arm64:"FMAXS"
 	// loong64:"FMAXF"
 	// riscv64:"FMAXS"
 	// ppc64/power9:"XSMAXJDP"
 	// ppc64/power10:"XSMAXJDP"
-	// s390x: "WFMAXSB"
 	return max(a, b)
 }
 

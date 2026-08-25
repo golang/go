@@ -4275,10 +4275,12 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 		if typ.IsFloat() {
 			hasIntrinsic := false
 			switch Arch.LinkArch.Family {
-			case sys.AMD64, sys.ARM64, sys.Loong64, sys.RISCV64, sys.S390X:
+			case sys.AMD64, sys.ARM64, sys.Loong64, sys.RISCV64:
 				hasIntrinsic = true
 			case sys.PPC64:
 				hasIntrinsic = buildcfg.GOPPC64 >= 9
+			case sys.S390X:
+				// FIXME: add check once GOS390X exists
 			}
 
 			if hasIntrinsic {
