@@ -185,11 +185,11 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 		doTemplate(vectorConversion, conv)
 
 		// New style factored conversion intrinsics always involve at least one unsigned type
-		if from.Name[0] != 'U' && to.Name[0] != 'U' {
+		if from.Name()[0] != 'U' && to.Name()[0] != 'U' {
 			continue
 		}
-		// Only emit the intrinsic if lanes are equal OR both are unsigned
-		if from.Lanes != to.Lanes && (from.Name[0] != 'U' || to.Name[0] != 'U') {
+		// Only emit the intrinsic if element sizes are equal OR both are unsigned
+		if from.ElemBits() != to.ElemBits() && (from.Name()[0] != 'U' || to.Name()[0] != 'U') {
 			continue
 		}
 		var typeDotMethodIntrinsic *template.Template
@@ -208,7 +208,7 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 		// Scalable (SVE) types have no fixed-array load/store; their slice-based
 		// LoadPart/StorePart are hand-registered in ssagen for now.
 		// TODO: generate them here once simdgen supports predicates (mask CL).
-		if typ.Type != "mask" && !typ.IsScalable() {
+		if !typ.IsMask() && !typ.IsScalable() {
 			loadStore.Execute(buffer, typ)
 		}
 	}

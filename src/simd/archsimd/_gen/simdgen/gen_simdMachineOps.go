@@ -147,7 +147,11 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 		var outType string
 		if shapeOut == OneVregOut || shapeOut == OneVregOutAtIn || shapeOut == OneVregOutScalar || gOp.Out[0].OverwriteClass != nil {
 			// If class overwrite is happening, that's not really a mask but a vreg.
-			outType = fmt.Sprintf("Vec%d", *gOp.Out[0].Bits)
+			if gOp.Out[0].Bits.Scalable {
+				outType = fmt.Sprintf("Vec%d", types.MaxVectorBits)
+			} else {
+				outType = fmt.Sprintf("Vec%d", gOp.Out[0].Bits.N())
+			}
 		} else if shapeOut == OneGregOut {
 			outType = gOp.GoType() // this is a straight Go type, not a VecNNN type
 		} else if shapeOut == OneKmaskOut {

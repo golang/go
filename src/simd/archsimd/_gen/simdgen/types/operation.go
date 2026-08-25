@@ -6,6 +6,7 @@ package types
 
 import (
 	"fmt"
+	"simd/archsimd/_gen/specgen/specexpr"
 	"simd/archsimd/_gen/unify"
 )
 
@@ -52,9 +53,9 @@ type RawOperation struct {
 	HideMaskMethods *bool
 }
 
-// MaxVectorBits is the fixed width simdgen models a scalable SVE vector as: the
-// maximum vector length Go currently supports (256 bits / 32 bytes). Scalable
-// operands decode to this width and their lane counts derive from it.
+// MaxVectorBits is the maximum vector length in bits Go currently supports (256
+// bits / 32 bytes). It is used where a concrete upper bound is required for
+// scalable SVE vectors (e.g., SSA vector types and buffer allocations).
 const MaxVectorBits = 256
 
 type Operand struct {
@@ -63,9 +64,9 @@ type Operand struct {
 	Go     *string // Go type of this operand
 	AsmPos int     // Position of this operand in the assembly instruction
 
-	Base     *string // Base Go type ("int", "uint", "float")
-	ElemBits *int    // Element bit width
-	Bits     *int    // Total vector bit width
+	Base     *string    // Base Go type ("int", "uint", "float")
+	ElemBits *int       // Element bit width (omitted for greg)
+	Bits     VectorSize // Total bit width, or scalable
 
 	Const *string // Optional constant value for immediates.
 	// Optional immediate arg offsets. If this field is non-nil,
@@ -75,7 +76,7 @@ type Operand struct {
 	ImmOffset *string
 	ImmMax    *int    // optional maximum immediate, also highest case in immediate jump table
 	Name      *string // optional name in the Go intrinsic declaration
-	Lanes     *int    // *Lanes equals Bits/ElemBits except for scalars, when *Lanes == 1
+	Lanes     *int    // Omitted for scalable
 	// TreatLikeAScalarOfSize means only the lower $TreatLikeAScalarOfSize bits of the vector
 	// is used, so at the API level we can make it just a scalar value of this size; Then we
 	// can overwrite it to a vector of the right size during intrinsics stage.
@@ -107,53 +108,32 @@ type Operand struct {
 	ImplicitAllTrue *bool
 }
 
-// DecodeUnified translates an SVE scalable operand's bits:"scalable" marker into
-// the concrete Go-visible width before the generic struct decode. The SVE loader
-// emits bits:"scalable" (a non-numeric discriminator) so scalable operands never
-// unify with the fixed-width NEON/AVX types that share types.yaml; by the time we
-// decode, unification is done and Bits (an *int) needs a real width. We use
-// maxVectorBits and derive lanes = maxVectorBits/elemBits. Non-scalable operands
-// (numeric bits) decode unchanged.
-func (o *Operand) DecodeUnified(v *unify.Value) error {
-	type operandAlias Operand // no DecodeUnified method: avoids recursion
-	def, ok := v.Domain.(unify.Def)
-	if !ok {
-		return v.Decode((*operandAlias)(o))
+// VectorSize is a unifier value that is either a number or the string "scalable".
+type VectorSize struct {
+	Scalable bool
+	NRaw     int // Only meaningful if !Scalable
+}
+
+// N returns vs.NRaw, or panics if vs.Scalable.
+func (vs VectorSize) N() int {
+	if vs.Scalable {
+		panic("cannot get bit width of scalable type")
 	}
-	scalable, hasLanes, elemBits := false, false, 0
-	for name, fv := range def.All() {
-		switch name {
-		case "bits":
-			var s string
-			if err := fv.Decode(&s); err == nil && s == "scalable" {
-				scalable = true
-			}
-		case "lanes":
-			hasLanes = true
-		case "elemBits":
-			fv.Decode(&elemBits)
-		}
+	return vs.NRaw
+}
+
+func (vs VectorSize) Num() specexpr.Num {
+	if vs.Scalable {
+		return specexpr.VW()
 	}
-	if !scalable {
-		return v.Decode((*operandAlias)(o))
+	return specexpr.Int(vs.NRaw)
+}
+
+func (vs VectorSize) String() string {
+	if vs.Scalable {
+		return "scalable"
 	}
-	// A scalable operand is a vector/mask whose element width is a lane property,
-	// so it always has elemBits and therefore a derivable lane count.
-	if elemBits == 0 {
-		return fmt.Errorf("scalable operand has no elemBits: %v", v)
-	}
-	var db unify.DefBuilder
-	for name, fv := range def.All() {
-		if name == "bits" {
-			db.Add("bits", unify.NewValue(unify.NewStringExact(fmt.Sprint(MaxVectorBits))))
-			continue
-		}
-		db.Add(name, fv)
-	}
-	if !hasLanes {
-		db.Add("lanes", unify.NewValue(unify.NewStringExact(fmt.Sprint(MaxVectorBits/elemBits))))
-	}
-	return unify.NewValue(db.Build()).Decode((*operandAlias)(o))
+	return fmt.Sprint(vs.N())
 }
 
 // IsImplicitAllTrue reports whether this operand is an SVE governing predicate
@@ -174,4 +154,20 @@ func (o Operand) OpName(s string) string {
 
 func (o Operand) OpNameAndType(s string) string {
 	return o.OpName(s) + " " + *o.Go
+}
+
+func (vs *VectorSize) DecodeUnified(v *unify.Value) error {
+	var n int
+	if err := v.Decode(&n); err == nil {
+		*vs = VectorSize{false, n}
+		return nil
+	}
+
+	var s string
+	if err := v.Decode(&s); err == nil && s == "scalable" {
+		*vs = VectorSize{true, -1}
+		return nil
+	}
+
+	return fmt.Errorf("bits must be an integer or \"scalable\"")
 }

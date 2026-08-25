@@ -10,34 +10,99 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"text/template"
 	"unicode"
 
 	"simd/archsimd/_gen/sgutil"
 	"simd/archsimd/_gen/simdgen/types"
+	"simd/archsimd/_gen/specgen/specexpr"
 )
 
 type simdType struct {
-	Name                    string // The go type name of this simd type, for example Int32x4.
-	Lanes                   int    // The number of elements in this vector/mask.
-	Base                    string // The element's type, like for Int32x4 it will be int32.
-	Fields                  string // The struct fields, it should be right formatted.
-	Type                    string // Either "mask" or "vreg"
-	VectorCounterpart       string // For mask use only: just replacing the "Mask" in [simdType.Name] with "Int"
-	ReshapedVectorWithAndOr string // For mask use only: vector AND and OR are only available in some shape with element width 32.
-	Size                    int    // The size of the vector type
-	HasNot                  bool   // True when this mask type supports Not()
+	Shape  specexpr.Vector // Shape represents the element type, element bits, and vector width.
+	Fields string          // The struct fields, it should be right formatted.
+	HasNot bool            // True when this mask type supports Not()
+}
+
+func (x simdType) IsMask() bool {
+	return strings.EqualFold(x.Shape.Elem.Base, "mask")
+}
+
+func (x simdType) Type() string {
+	if x.IsMask() {
+		return "mask"
+	}
+	return "vreg"
+}
+
+func (x simdType) Name() string {
+	return x.Shape.String()
+}
+
+func (x simdType) Base() string {
+	if x.IsMask() {
+		return fmt.Sprintf("int%d", x.ElemBits())
+	}
+	return fmt.Sprintf("%s%d", strings.ToLower(x.Shape.Elem.Base), x.ElemBits())
 }
 
 func (x simdType) ElemBits() int {
-	return x.Size / x.Lanes
+	return int(x.Shape.Elem.Bits)
 }
 
 // ElemBytes is the element width in bytes.
 func (x simdType) ElemBytes() int {
 	return x.ElemBits() / 8
+}
+
+// Lanes returns the number of elements in a fixed-width vector.
+// Panics if the vector is scalable.
+func (x simdType) Lanes() int {
+	if x.IsScalable() {
+		panic(fmt.Sprintf("cannot get fixed lane count of scalable type %s", x.Name()))
+	}
+	l, err := x.Shape.Width.Div(x.Shape.Elem.Bits)
+	if err != nil {
+		panic(err)
+	}
+	return int(l.(specexpr.Int))
+}
+
+// MaxLanes returns the maximum number of elements for scalable vectors (based on
+// MaxVectorBits) or the fixed lane count for fixed-width vectors.
+func (x simdType) MaxLanes() int {
+	if x.IsScalable() {
+		return types.MaxVectorBits / x.ElemBits()
+	}
+	return x.Lanes()
+}
+
+// Size returns the total bit width of a fixed-width vector.
+// Panics if the vector is scalable.
+func (x simdType) Size() int {
+	if x.IsScalable() {
+		panic(fmt.Sprintf("cannot get fixed bit width of scalable type %s", x.Name()))
+	}
+	return int(x.Shape.Width.(specexpr.Int))
+}
+
+// VectorCounterpart returns the counterpart vector type name for a mask type.
+func (x simdType) VectorCounterpart() string {
+	v := specexpr.Vector{
+		Elem:  specexpr.Basic{Base: "int", Bits: x.Shape.Elem.Bits},
+		Width: x.Shape.Width,
+	}
+	return v.String()
+}
+
+// ReshapedVectorWithAndOr returns the 32-bit-element vector type name with matching width.
+func (x simdType) ReshapedVectorWithAndOr() string {
+	v := specexpr.Vector{
+		Elem:  specexpr.Basic{Base: "int", Bits: 32},
+		Width: x.Shape.Width,
+	}
+	return v.String()
 }
 
 // PredUint16s is the number of uint16s that hold a whole SVE predicate: one bit
@@ -47,11 +112,9 @@ func (x simdType) PredUint16s() int {
 	return (types.MaxVectorBits/8 + 15) / 16
 }
 
-// IsScalable reports whether this vector type's length is only known at run
-// time. A scalable target's godefs run produces only scalable types, so the
-// target decides it.
+// IsScalable reports whether this vector type's length is only known at run time.
 func (x simdType) IsScalable() bool {
-	return CurrentArch().Scalable
+	return x.Shape.Scalable()
 }
 
 // LenExpr is the body expression of the type's Len() method. A fixed-width type
@@ -59,7 +122,7 @@ func (x simdType) IsScalable() bool {
 // runtime vector length (bytes) divided by the element size.
 func (x simdType) LenExpr() string {
 	if !x.IsScalable() {
-		return fmt.Sprint(x.Lanes)
+		return fmt.Sprint(x.Lanes())
 	}
 	if elemBytes := x.ElemBits() / 8; elemBytes > 1 {
 		return fmt.Sprintf("vl() / %d", elemBytes)
@@ -67,12 +130,13 @@ func (x simdType) LenExpr() string {
 	return "vl()"
 }
 
-func (x *simdType) Name_() string {
-	return x.Name
+// Name_ implements sgutil.TforAsBits.
+func (x simdType) Name_() string {
+	return x.Name()
 }
 
 func (x simdType) Article() string {
-	if strings.HasPrefix(x.Name, "Int") {
+	if strings.HasPrefix(x.Name(), "Int") {
 		return "an"
 	}
 	return "a" // Float, Uint
@@ -82,16 +146,17 @@ func (x simdType) Article() string {
 // large enough to hold one bit for each lane.  E.g., Mask32x4
 // is 4 lanes, and a uint8 is the smallest uint that has 4 bits.
 func (x simdType) LanesContainer() int {
-	if x.Lanes > 64 {
+	lanes := x.Lanes()
+	if lanes > 64 {
 		panic("too many lanes")
 	}
-	if x.Lanes > 32 {
+	if lanes > 32 {
 		return 64
 	}
-	if x.Lanes > 16 {
+	if lanes > 16 {
 		return 32
 	}
-	if x.Lanes > 8 {
+	if lanes > 8 {
 		return 16
 	}
 	return 8
@@ -101,7 +166,10 @@ func (x simdType) LanesContainer() int {
 // get masked loads/stores generated, it is used in two places,
 // this forces coordination.
 func (x simdType) MaskedLoadStoreFilter() bool {
-	return x.Size == 512 || x.ElemBits() >= 32 && x.Type != "mask"
+	if x.IsScalable() {
+		return false
+	}
+	return x.Size() == 512 || (x.ElemBits() >= 32 && !x.IsMask())
 }
 
 func (x simdType) IntelSizeSuffix() string {
@@ -119,7 +187,7 @@ func (x simdType) IntelSizeSuffix() string {
 }
 
 func (x simdType) MaskedLoadDoc() string {
-	if x.Size == 512 || x.ElemBits() < 32 {
+	if x.Size() == 512 || x.ElemBits() < 32 {
 		return fmt.Sprintf("// Asm: VMOVDQU%d.Z, CPU Feature: AVX512", x.ElemBits())
 	} else {
 		return fmt.Sprintf("// Asm: VMASKMOV%s, CPU Feature: AVX2", x.IntelSizeSuffix())
@@ -127,7 +195,7 @@ func (x simdType) MaskedLoadDoc() string {
 }
 
 func (x simdType) MaskedStoreDoc() string {
-	if x.Size == 512 || x.ElemBits() < 32 {
+	if x.Size() == 512 || x.ElemBits() < 32 {
 		return fmt.Sprintf("// Asm: VMOVDQU%d, CPU Feature: AVX512", x.ElemBits())
 	} else {
 		return fmt.Sprintf("// Asm: VMASKMOV%s, CPU Feature: AVX2", x.IntelSizeSuffix())
@@ -135,7 +203,10 @@ func (x simdType) MaskedStoreDoc() string {
 }
 
 func (x simdType) ToBitsDoc() string {
-	if x.Size == 512 || x.ElemBits() == 16 {
+	if x.IsScalable() {
+		panic("ToBitsDoc is not supported for scalable types")
+	}
+	if x.Size() == 512 || x.ElemBits() == 16 {
 		return fmt.Sprintf("// Asm: KMOV%s, CPU Features: AVX512", x.IntelSizeSuffix())
 	}
 	// 128/256 bit vectors with 8, 32, 64 bit elements
@@ -144,7 +215,7 @@ func (x simdType) ToBitsDoc() string {
 	switch x.ElemBits() {
 	case 8:
 		asm = "VPMOVMSKB"
-		if x.Size == 256 {
+		if x.Size() == 256 {
 			feat = "AVX2"
 		} else {
 			feat = "AVX"
@@ -161,15 +232,27 @@ func (x simdType) ToBitsDoc() string {
 	return fmt.Sprintf("// Asm: %s, CPU Features: %s", asm, feat)
 }
 
+func compareWidths(a, b specexpr.Num) int {
+	if c, ok := a.Compare(b); ok {
+		return c
+	}
+	_, aScale := a.(specexpr.ScalableWidth)
+	_, bScale := b.(specexpr.ScalableWidth)
+	if !aScale && bScale {
+		return -1
+	}
+	return 1
+}
+
 func compareSimdTypes(x, y simdType) int {
 	// "vreg" then "mask"
-	if c := -compareNatural(x.Type, y.Type); c != 0 {
+	if c := -compareNatural(x.Type(), y.Type()); c != 0 {
 		return c
 	}
 	// want "flo" < "int" < "uin" (and then 8 < 16 < 32 < 64),
 	// not "int16" < "int32" < "int64" < "int8")
 	// so limit comparison to first 3 bytes in string.
-	if c := compareNatural(x.Base[:3], y.Base[:3]); c != 0 {
+	if c := compareNatural(x.Base()[:3], y.Base()[:3]); c != 0 {
 		return c
 	}
 	// base type size, 8 < 16 < 32 < 64
@@ -177,10 +260,10 @@ func compareSimdTypes(x, y simdType) int {
 		return c
 	}
 	// vector size last
-	return x.Size - y.Size
+	return compareWidths(x.Shape.Width, y.Shape.Width)
 }
 
-type simdTypeMap map[int][]simdType
+type simdTypeMap map[specexpr.Num][]simdType
 
 type simdTypePair struct {
 	Tsrc simdType
@@ -294,7 +377,7 @@ func (m {{.Name}}) store(bits []uint16)
 func (m {{.Name}}) String() string {
 	var bits [{{.PredUint16s}}]uint16
 	m.Store(bits[:])
-	var s [{{.Lanes}}]{{.Base}}
+	var s [{{.MaxLanes}}]{{.Base}}
 	n := {{.LenExpr}}
 	for i := range n {
 		if b := i{{if gt .ElemBytes 1}} * {{.ElemBytes}}{{end}}; bits[b/16]>>(b%16)&1 != 0 {
@@ -307,7 +390,7 @@ func (m {{.Name}}) String() string {
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x {{.Name}}) String() string {
-	var s [{{.Lanes}}]{{.Base}}
+	var s [{{.MaxLanes}}]{{.Base}}
 	n := x.Len()
 	x.Store(s[:])
 	return sliceToString(s[:n])
@@ -665,15 +748,40 @@ func (x {{.Name}}) Not() {{.Name}}
 
 }
 
-// parseSIMDTypes groups go simd types by their vector sizes, and
-// returns a map whose key is the vector size, value is the simd type.
+func structFields(shape specexpr.Vector) string {
+	if shape.Elem.Base == "mask" && CurrentArch().isSVE() {
+		return fmt.Sprintf("\t%s psve\n\tvals uint%d", strings.ToLower(shape.String()), types.MaxVectorBits/8)
+	}
+	elemBits := int(shape.Elem.Bits)
+	base := strings.ToLower(shape.Elem.Base)
+	if shape.Elem.Base == "mask" {
+		base = "int"
+	}
+	elemBase := fmt.Sprintf("%s%d", base, elemBits)
+	lanes, width := types.MaxVectorBits/elemBits, types.MaxVectorBits
+	if !shape.Scalable() {
+		width = int(shape.Width.(specexpr.Int))
+		lanes = width / elemBits
+	}
+	tagFieldNameS := fmt.Sprintf("%sx%d", elemBase, lanes)
+	tagFieldS := fmt.Sprintf("%s v%d", tagFieldNameS, width)
+	valFieldS := fmt.Sprintf("vals%s[%d]%s", strings.Repeat(" ", len(tagFieldNameS)-3), lanes, elemBase)
+	return fmt.Sprintf("\t%s\n\t%s", tagFieldS, valFieldS)
+}
+
+// parseSIMDTypes groups go simd types by their vector widths, and
+// returns a map whose key is the vector width (specexpr.Num), value is the simd type.
 func parseSIMDTypes(ops []Operation) simdTypeMap {
 	// TODO: maybe instead of going over ops, let's try go over types.yaml.
-	ret := map[int][]simdType{}
+	ret := map[specexpr.Num][]simdType{}
 	seen := map[string]struct{}{}
 	processArg := func(arg types.Operand) {
 		if arg.Class == "immediate" || arg.Class == "greg" {
-			// Immediates are not encoded as vector types.
+			// Immediates and general-purpose registers are not encoded as vector types.
+			return
+		}
+		if arg.Lanes != nil && *arg.Lanes <= 1 {
+			// Scalar vreg operands (e.g. float32/float64) are not SIMD vector types.
 			return
 		}
 		if _, ok := seen[*arg.Go]; ok {
@@ -681,28 +789,35 @@ func parseSIMDTypes(ops []Operation) simdTypeMap {
 		}
 		seen[*arg.Go] = struct{}{}
 
-		lanes := *arg.Lanes
-		base := fmt.Sprintf("%s%d", *arg.Base, *arg.ElemBits)
-		tagFieldNameS := fmt.Sprintf("%sx%d", base, lanes)
-		tagFieldS := fmt.Sprintf("%s v%d", tagFieldNameS, *arg.Bits)
-		valFieldS := fmt.Sprintf("vals%s[%d]%s", strings.Repeat(" ", len(tagFieldNameS)-3), lanes, base)
-		fields := fmt.Sprintf("\t%s\n\t%s", tagFieldS, valFieldS)
-		if arg.Class == "mask" && CurrentArch().isSVE() {
-			fields = fmt.Sprintf("\t%s psve\n\tvals uint%d", strings.ToLower(*arg.Go), types.MaxVectorBits/8)
-		}
-		hasNot := CurrentArch().Arch == "arm64"
+		base := *arg.Base
 		if arg.Class == "mask" {
-			// vectorCounterpart will only be used for fixed-width vector types.
-			vectorCounterpart := strings.ReplaceAll(*arg.Go, "Mask", "Int")
-			reshapedVectorWithAndOr := fmt.Sprintf("Int32x%d", *arg.Bits/32)
-			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, vectorCounterpart, reshapedVectorWithAndOr, *arg.Bits, hasNot})
-			// In case the vector counterpart of a mask is not present, put its vector counterpart typedef into the map as well.
-			if _, ok := seen[vectorCounterpart]; !ok {
-				seen[vectorCounterpart] = struct{}{}
-				ret[*arg.Bits] = append(ret[*arg.Bits], simdType{vectorCounterpart, lanes, base, fields, "vreg", "", "", *arg.Bits, hasNot})
+			base = "mask"
+		}
+		elem := specexpr.Basic{
+			Base: base,
+			Bits: specexpr.Int(*arg.ElemBits),
+		}
+		width := arg.Bits.Num()
+		shape := specexpr.Vector{Elem: elem, Width: width}
+
+		fields := structFields(shape)
+		hasNot := CurrentArch().Arch == "arm64"
+		ret[width] = append(ret[width], simdType{Shape: shape, Fields: fields, HasNot: hasNot})
+		if !shape.Scalable() && shape.Elem.Base == "mask" {
+			// In case the vector counterpart of a fixed-width mask is not present, put its vector counterpart typedef into the map as well.
+			vCounterpartShape := specexpr.Vector{
+				Elem:  specexpr.Basic{Base: "int", Bits: elem.Bits},
+				Width: width,
 			}
-		} else {
-			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, "", "", *arg.Bits, hasNot})
+			vcName := vCounterpartShape.String()
+			if _, ok := seen[vcName]; !ok {
+				seen[vcName] = struct{}{}
+				ret[width] = append(ret[width], simdType{
+					Shape:  vCounterpartShape,
+					Fields: structFields(vCounterpartShape),
+					HasNot: hasNot,
+				})
+			}
 		}
 	}
 	for _, op := range ops {
@@ -725,8 +840,7 @@ func vConvertFromTypeMap(typeMap simdTypeMap) []simdTypePair {
 	for _, ts := range typeMap {
 		for i, tsrc := range ts {
 			for j, tdst := range ts {
-				if i != j && tsrc.Type == tdst.Type && tsrc.Type == "vreg" &&
-					tsrc.Lanes > 1 && tdst.Lanes > 1 {
+				if i != j && !tsrc.IsMask() && !tdst.IsMask() {
 					v = append(v, simdTypePair{tsrc, tdst})
 				}
 			}
@@ -740,7 +854,7 @@ func masksFromTypeMap(typeMap simdTypeMap) []simdType {
 	m := []simdType{}
 	for _, ts := range typeMap {
 		for _, tsrc := range ts {
-			if tsrc.Type == "mask" {
+			if tsrc.IsMask() {
 				m = append(m, tsrc)
 			}
 		}
@@ -752,11 +866,7 @@ func masksFromTypeMap(typeMap simdTypeMap) []simdType {
 func typesFromTypeMap(typeMap simdTypeMap) []simdType {
 	m := []simdType{}
 	for _, ts := range typeMap {
-		for _, tsrc := range ts {
-			if tsrc.Lanes > 1 {
-				m = append(m, tsrc)
-			}
-		}
+		m = append(m, ts...)
 	}
 	slices.SortFunc(m, compareSimdTypes)
 	return m
@@ -783,33 +893,27 @@ type psve struct {
 `)
 	}
 
-	sizes := make([]int, 0, len(typeMap))
-	for size, types := range typeMap {
-		slices.SortFunc(types, compareSimdTypes)
-		sizes = append(sizes, size)
-	}
-	sort.Ints(sizes)
+	widths := slices.SortedFunc(maps.Keys(typeMap), compareWidths)
 
-	for _, size := range sizes {
-		if size <= 64 {
-			// these are scalar
-			continue
-		}
-		if err := t.ExecuteTemplate(buffer, "sizeTmpl", size); err != nil {
-			panic(fmt.Errorf("failed to execute size template for size %d: %w", size, err))
-		}
-		for _, typeDef := range typeMap[size] {
-			if typeDef.Lanes == 1 {
-				continue
+	for _, width := range widths {
+		if wInt, ok := width.(specexpr.Int); ok {
+			if err := t.ExecuteTemplate(buffer, "sizeTmpl", int(wInt)); err != nil {
+				panic(fmt.Errorf("failed to execute size template for size %d: %w", wInt, err))
 			}
+		} else if CurrentArch().isSVE() {
+			if err := t.ExecuteTemplate(buffer, "sizeTmpl", types.MaxVectorBits); err != nil {
+				panic(fmt.Errorf("failed to execute size template for size %d: %w", types.MaxVectorBits, err))
+			}
+		}
+		for _, typeDef := range typeMap[width] {
 			typeTmplName := "typeTmpl"
 			if typeDef.IsScalable() {
 				typeTmplName = "scalableTypeTmpl"
 			}
 			if err := t.ExecuteTemplate(buffer, typeTmplName, typeDef); err != nil {
-				panic(fmt.Errorf("failed to execute type template for type %s: %w", typeDef.Name, err))
+				panic(fmt.Errorf("failed to execute type template for type %s: %w", typeDef.Name(), err))
 			}
-			if typeDef.Type != "mask" {
+			if !typeDef.IsMask() {
 				// Scalable (SVE) types get a partial, slice-based load/store; the
 				// fixed-width types get the array load/store.
 				ls, lsName := loadStore, "loadstore_amd64"
@@ -817,26 +921,26 @@ type psve struct {
 					ls, lsName = scalableLoadStore, "loadstore_scalable"
 				}
 				if err := ls.ExecuteTemplate(buffer, lsName, typeDef); err != nil {
-					panic(fmt.Errorf("failed to execute loadstore template for type %s: %w", typeDef.Name, err))
+					panic(fmt.Errorf("failed to execute loadstore template for type %s: %w", typeDef.Name(), err))
 				}
 				// restrict to AVX2 masked loads/stores first.
 				if CurrentArch().Arch == "amd64" && typeDef.MaskedLoadStoreFilter() {
 					if err := maskedLoadStore.ExecuteTemplate(buffer, "maskedloadstore_amd64", typeDef); err != nil {
-						panic(fmt.Errorf("failed to execute maskedloadstore template for type %s: %w", typeDef.Name, err))
+						panic(fmt.Errorf("failed to execute maskedloadstore template for type %s: %w", typeDef.Name(), err))
 					}
 				}
 			} else if CurrentArch().isSVE() {
 				// SVE predicates expose raw-bit memory APIs: exported wrappers that
 				// bounds-check (and may panic) around unexported PLDR/PSTR intrinsics.
 				if err := t.ExecuteTemplate(buffer, "sveMaskLoadStore", typeDef); err != nil {
-					panic(fmt.Errorf("failed to execute sveMaskLoadStore template for type %s: %w", typeDef.Name, err))
+					panic(fmt.Errorf("failed to execute sveMaskLoadStore template for type %s: %w", typeDef.Name(), err))
 				}
 			} else {
 				// ARM64 NEON comparisons produce all-0/all-1 per lane, so
 				// FromBits/ToBits (x86 mask register conversions) are not needed.
 				if CurrentArch().Arch != "arm64" {
 					if err := maskFromVal.ExecuteTemplate(buffer, "maskFromVal_amd64", typeDef); err != nil {
-						panic(fmt.Errorf("failed to execute maskFromVal template for type %s: %w", typeDef.Name, err))
+						panic(fmt.Errorf("failed to execute maskFromVal template for type %s: %w", typeDef.Name(), err))
 					}
 				}
 			}
@@ -845,7 +949,7 @@ type psve struct {
 			// generates the fixed-width ones from a constant lane count).
 			if typeDef.IsScalable() {
 				if err := t.ExecuteTemplate(buffer, "sveStringTmpl", typeDef); err != nil {
-					panic(fmt.Errorf("failed to execute sveStringTmpl template for type %s: %w", typeDef.Name, err))
+					panic(fmt.Errorf("failed to execute sveStringTmpl template for type %s: %w", typeDef.Name(), err))
 				}
 			}
 		}
@@ -1033,14 +1137,14 @@ func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, d
 		}
 
 		// New style factored conversion intrinsics
-		if from.Name[0] != 'U' && to.Name[0] != 'U' {
+		if from.Name()[0] != 'U' && to.Name()[0] != 'U' {
 			continue
 		}
-		// Only emit the intrinsic if lanes are equal OR both are unsigned
-		if from.Lanes != to.Lanes && (from.Name[0] != 'U' || to.Name[0] != 'U') {
+		// Only emit the intrinsic if element sizes are equal OR both are unsigned
+		if from.ElemBits() != to.ElemBits() && (from.Name()[0] != 'U' || to.Name()[0] != 'U') {
 			continue
 		}
-		switch to.Name[0] {
+		switch to.Name()[0] {
 		case 'F': // U -> F
 			sgutil.ToFloatsDcl.Execute(f, sgutil.Conversion(from, to))
 			sgutil.ToBitsDcl.Execute(f, sgutil.Conversion(to, from))
@@ -1048,7 +1152,7 @@ func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, d
 			sgutil.ToIntsDcl.Execute(f, sgutil.Conversion(from, to))
 			sgutil.ToBitsDcl.Execute(f, sgutil.Conversion(to, from))
 		case 'U': // U -> U
-			if from.Name[0] != 'U' {
+			if from.Name()[0] != 'U' {
 				continue
 			}
 			sgutil.ReshapeDcl.Execute(f, sgutil.Conversion(from, to))
@@ -1068,7 +1172,7 @@ func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, d
 				panic(fmt.Errorf("template mask not found"))
 			}
 			if err := tpl.Execute(f, mask); err != nil {
-				panic(fmt.Errorf("failed to execute mask template for mask %s: %w", mask.Name, err))
+				panic(fmt.Errorf("failed to execute mask template for mask %s: %w", mask.Name(), err))
 			}
 		}
 	}

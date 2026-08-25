@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -174,11 +175,11 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 func (o *Operation) VectorWidth() int {
 	out := o.Out[0]
 	if out.Class == "vreg" {
-		return *out.Bits
+		return out.Bits.N()
 	} else if out.Class == "greg" || out.Class == "mask" {
 		for i := range o.In {
 			if o.In[i].Class == "vreg" {
-				return *o.In[i].Bits
+				return o.In[i].Bits.N()
 			}
 		}
 	}
@@ -260,7 +261,7 @@ func machineOpName(maskType maskShape, gOp Operation) string {
 	if demotingConvertOps[asm] {
 		// Need to append the size of the source as well.
 		// TODO: should be "%sto%d".
-		asm = fmt.Sprintf("%s_%d", asm, *gOp.In[0].Bits)
+		asm = fmt.Sprintf("%s_%d", asm, gOp.In[0].Bits.N())
 	}
 	return asm
 }
@@ -289,6 +290,19 @@ func compareIntPointers(x, y *int) int {
 		return -1
 	}
 	return 1
+}
+
+func compareVectorSizes(x, y types.VectorSize) int {
+	if x.Scalable != y.Scalable {
+		if !x.Scalable {
+			return -1
+		}
+		return 1
+	}
+	if !x.Scalable {
+		return cmp.Compare(x.NRaw, y.NRaw)
+	}
+	return 0
 }
 
 func compareOperations(x, y Operation) int {
@@ -337,7 +351,7 @@ func compareOperands(x, y *types.Operand) int {
 		if c := compareIntPointers(x.ElemBits, y.ElemBits); c != 0 {
 			return c
 		}
-		if c := compareIntPointers(x.Bits, y.Bits); c != 0 {
+		if c := compareVectorSizes(x.Bits, y.Bits); c != 0 {
 			return c
 		}
 		if c := compareIntPointers(x.ListNumber, y.ListNumber); c != 0 {

@@ -430,7 +430,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 					immArg = "[c] "
 					immArgCombineOff = " [ssa.MakeValAndOff(int32(uint8(c)),off)] "
 				}
-				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", *lastVreg.Bits)
+				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", lastVreg.Bits.N())
 				// Remove the last vreg from the arg and change it to "ptr".
 				memOpData.ArgsAddr = "{sym}" + immArgCombineOff + origArgs + "ptr"
 				if maskType == OneMask {
@@ -458,8 +458,8 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		if gOp.hasMaskedMerging(maskType, opOutShape) {
 			// TODO: handle customized operand order and special lower.
 			maskElem := gOp.In[len(gOp.In)-1]
-			if maskElem.Bits == nil {
-				panic("mask has no bits")
+			if maskElem.Bits.Scalable {
+				panic("scalable mask not supported in masked merging")
 			}
 			if maskElem.ElemBits == nil {
 				panic("mask has no elemBits")
@@ -467,13 +467,13 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 			if maskElem.Lanes == nil {
 				panic("mask has no lanes")
 			}
-			switch *maskElem.Bits {
+			switch maskElem.Bits.N() {
 			case 128, 256:
 				// VPBLENDVB cases.
 				noMaskName := machineOpName(NoMask, gOp)
 				ruleExisting, ok := maskedMergeOpts[noMaskName]
 				rule := fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
-					*maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
+					maskElem.Bits.N(), noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
 				if ok && ruleExisting != rule {
 					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 				} else {
@@ -484,7 +484,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 				noMaskName := machineOpName(NoMask, gOp)
 				ruleExisting, ok := maskedMergeOpts[noMaskName]
 				rule := fmt.Sprintf("(VPBLENDM%sMasked%d dst (%s %s) mask) => (%sMerging dst %s mask)\n",
-					s2n[*maskElem.ElemBits], *maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args)
+					s2n[*maskElem.ElemBits], maskElem.Bits.N(), noMaskName, data.Args, data.Asm, data.Args)
 				if ok && ruleExisting != rule {
 					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 				} else {
