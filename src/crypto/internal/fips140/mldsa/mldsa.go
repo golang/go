@@ -195,18 +195,18 @@ func newPrivateKey(seed *[32]byte, p parameters) *PrivateKey {
 		s2[r] = ntt(sampleBoundedPoly(ρs, byte(l+r), p))
 	}
 
-	// ˆt = Â ∘ ŝ₁ + ŝ₂
-	tHat := make([]nttElement, k, maxK)
-	for i := range tHat {
-		tHat[i] = s2[i]
-		for j := range s1 {
-			tHat[i] = polyAdd(tHat[i], nttMul(A[i*l+j], s1[j]))
-		}
-	}
-	// t = NTT⁻¹(ˆt)
+	// t = NTT⁻¹(Â ∘ ŝ₁ + ŝ₂)
 	t := make([]ringElement, k, maxK)
-	for i := range tHat {
-		t[i] = inverseNTT(tHat[i])
+	for i := range t {
+		var tHat wideNTTElement
+		// The bound starts at 2q².
+		nttWiden(&tHat, &s2[i])
+		for j := range s1 {
+			// Each nttMulAdd adds 4q² to the bound, for a total of
+			// 2q² + 4l * q² = 30q² < q * R.
+			nttMulAdd(&tHat, &A[i*l+j], &s1[j])
+		}
+		t[i] = inverseNTT(nttReduce(&tHat))
 	}
 	// (t₁, _) = Power2Round(t)
 	// (_, ˆt₀) = NTT(Power2Round(t))
@@ -513,11 +513,13 @@ sign:
 		}
 		w := make([]ringElement, k, maxK)
 		for i := range w {
-			var wHat nttElement
+			var wHat wideNTTElement
 			for j := range l {
-				wHat = polyAdd(wHat, nttMul(A[i*l+j], yHat[j]))
+				// Each nttMulAdd adds 4q² to the bound, for a total of
+				// 4l * q² = 28q² < q * R.
+				nttMulAdd(&wHat, &A[i*l+j], &yHat[j])
 			}
-			w[i] = inverseNTT(wHat)
+			w[i] = inverseNTT(nttReduce(&wHat))
 		}
 
 		H.Reset()
@@ -722,12 +724,15 @@ func verifyInternal(pub *PublicKey, μ *[64]byte, sig []byte) error {
 	}
 	w := make([]ringElement, k, maxK)
 	for i := range w {
-		var wHat nttElement
+		var wHat wideNTTElement
 		for j := range l {
-			wHat = polyAdd(wHat, nttMul(A[i*l+j], zHat[j]))
+			// Each nttMulAdd adds 4q² to the bound: 4l * q² = 28q².
+			nttMulAdd(&wHat, &A[i*l+j], &zHat[j])
 		}
-		wHat = polySub(wHat, nttMul(c, t1Hat[i]))
-		w[i] = inverseNTT(wHat)
+		// nttMulSub adds 4q² to the bound, for a total of
+		// 28q² + 4q² = 32q² < q * R.
+		nttMulSub(&wHat, &c, &t1Hat[i])
+		w[i] = inverseNTT(nttReduce(&wHat))
 	}
 
 	// Use hints h to compute w₁ from w(approx).

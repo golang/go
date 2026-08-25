@@ -45,8 +45,8 @@ func fieldToMontgomery(a uint32) (fieldElement, error) {
 // fieldSubToMontgomery converts a difference a - b to Montgomery form.
 // a and b must be < q. (This bound can probably be relaxed.)
 func fieldSubToMontgomery(a, b uint32) fieldElement {
-	x := a - b + q
-	return fieldMontgomeryMul(fieldElement(x), RR)
+	x := fieldElementPartiallyReduced(a - b + q)
+	return fieldReduceOnce(fieldMontgomeryPartialMul(x, RR))
 }
 
 // fieldFromMontgomery converts a value a in Montgomery form back to
@@ -114,10 +114,18 @@ func fieldSub(a, b fieldElement) fieldElement {
 	return fieldReduceOnce(x)
 }
 
+// fieldMontgomeryPartialMul returns a * b * R⁻¹ mod q, only
+// reduced to a value less than 2q.
+func fieldMontgomeryPartialMul(a, b fieldElementPartiallyReduced) fieldElementPartiallyReduced {
+	x := uint64(a) * uint64(b)
+	// x < 2q * 2q = 4q² < q * R, so the product is below q * R.
+	return fieldMontgomeryPartialReduce(x)
+}
+
 // fieldMontgomeryMul returns a * b * R⁻¹ mod q.
 func fieldMontgomeryMul(a, b fieldElement) fieldElement {
-	x := uint64(a) * uint64(b)
-	return fieldMontgomeryReduce(x)
+	return fieldReduceOnce(fieldMontgomeryPartialMul(
+		fieldElementPartiallyReduced(a), fieldElementPartiallyReduced(b)))
 }
 
 // fieldMontgomeryMulShortByWide returns a * b * R⁻¹ mod q, where a is a
@@ -148,16 +156,16 @@ const n = 256
 // ringElement is a polynomial, an element of R_q.
 type ringElement [n]fieldElement
 
-// polyAdd adds two ringElements or nttElements.
-func polyAdd[T ~[n]fieldElement](a, b T) (s T) {
+// polyAdd adds two ringElements.
+func polyAdd(a, b ringElement) (s ringElement) {
 	for i := range s {
 		s[i] = fieldAdd(a[i], b[i])
 	}
 	return s
 }
 
-// polySub subtracts two ringElements or nttElements.
-func polySub[T ~[n]fieldElement](a, b T) (s T) {
+// polySub subtracts two ringElements.
+func polySub(a, b ringElement) (s ringElement) {
 	for i := range s {
 		s[i] = fieldSub(a[i], b[i])
 	}
@@ -169,12 +177,15 @@ func polySub[T ~[n]fieldElement](a, b T) (s T) {
 // a stricter type to a looser one, not the other way around.
 //
 // The returned array aliases a, which should be discarded.
-func stripType[T ~[n]fieldElement](a *T) (s *[n]uint32) {
+func stripType[T ringElement | nttElement](a *T) (s *[n]uint32) {
 	return (*[n]uint32)(unsafe.Pointer(a))
 }
 
 // nttElement is an NTT representation, an element of T_q.
-type nttElement [n]fieldElement
+//
+// Its coefficients are lazily reduced to [0, 2q).
+// Elements must not be compared or serialized directly.
+type nttElement [n]fieldElementPartiallyReduced
 
 // zetas are the values ζ^BitRev₈(k) mod q for each index k, converted to the
 // Montgomery domain.
@@ -256,10 +267,10 @@ func ntt(g ringElement) nttElement {
 		f[start] += uint32(t)
 	}
 
-	// Reduce the coefficients to [0, q).
+	// Reduce the coefficients to [0, 2q).
 	var h nttElement
 	for i := range f {
-		h[i] = fieldReduceOnce(fieldPartialReduce(f[i]))
+		h[i] = fieldPartialReduce(f[i])
 	}
 	return h
 }
@@ -372,9 +383,58 @@ func inverseNTT(g nttElement) ringElement {
 // nttMul multiplies two nttElements.
 func nttMul(a, b nttElement) (p nttElement) {
 	for i := range p {
-		p[i] = fieldMontgomeryMul(a[i], b[i])
+		p[i] = fieldMontgomeryPartialMul(a[i], b[i])
 	}
 	return p
+}
+
+// wideNTTElement is a representation of an NTT polynomial with unreduced
+// coefficients in the double Montgomery domain, i.e. as integers x in
+// [0, q * R] such that x ≡ n * R² (mod q) where R = 2³².
+type wideNTTElement [n]uint64
+
+// nttWiden initializes the wide accumulator p to a.
+//
+// The bound of the coefficients of p is 2q².
+func nttWiden(p *wideNTTElement, a *nttElement) {
+	for i := range p {
+		// Bring the coefficient from the regular Montgomery domain into the
+		// double Montgomery domain by adding an R factor.
+		p[i] = uint64(a[i]) * one
+	}
+}
+
+// nttMulAdd adds the product of a and b to the wide accumulator p.
+//
+// The bound of coefficients of p grows by 4q².
+func nttMulAdd(p *wideNTTElement, a, b *nttElement) {
+	for i := range p {
+		// Note that we don't apply the R⁻¹ factor here, because the two inputs
+		// are in the regular Montgomery domain, so the product is naturally in
+		// the double Montgomery domain: (a * R) * (b * R) ≡ a * b * R².
+		p[i] += uint64(a[i]) * uint64(b[i])
+	}
+}
+
+// nttMulSub subtracts the product of a and b from the wide accumulator p.
+//
+// The bound of coefficients of p grows by 4q².
+func nttMulSub(p *wideNTTElement, a, b *nttElement) {
+	for i := range p {
+		// -a[i]*b[i] ≡ 4q² - a[i]*b[i] mod q, and a[i]*b[i] < 4q²
+		// because a[i], b[i] < 2q, so this doesn't underflow.
+		p[i] += 4*q*q - uint64(a[i])*uint64(b[i])
+	}
+}
+
+// nttReduce reduces the coefficients of the wide accumulator p.
+func nttReduce(p *wideNTTElement) (r nttElement) {
+	for i := range r {
+		// Apply the R⁻¹ factor to take coefficients from the double Montgomery
+		// domain back to the regular Montgomery domain.
+		r[i] = fieldMontgomeryPartialReduce(p[i])
+	}
+	return r
 }
 
 // parseSampleNTT consumes buf, whose length must be a multiple of three,
@@ -392,11 +452,11 @@ func parseSampleNTT(a *nttElement, j int, buf []byte) int {
 	const mask = 0b01111111_11111111_11111111 // 23 bits
 	for len(buf) >= 8 && uint(j) <= n-2 {     // uint to avoid bounds checks on a[j]
 		w := byteorder.LEUint64(buf)
-		v1 := uint32(w) & mask
-		v2 := uint32(w>>24) & mask
-		a[j] = fieldMontgomeryMul(fieldElement(v1), RR)
+		v1 := fieldElementPartiallyReduced(w) & mask
+		v2 := fieldElementPartiallyReduced(w>>24) & mask
+		a[j] = fieldMontgomeryPartialMul(v1, RR)
 		j += int((v1 - q) >> 31)
-		a[j] = fieldMontgomeryMul(fieldElement(v2), RR)
+		a[j] = fieldMontgomeryPartialMul(v2, RR)
 		j += int((v2 - q) >> 31)
 		buf = buf[6:]
 	}
@@ -407,8 +467,8 @@ func parseSampleNTT(a *nttElement, j int, buf []byte) int {
 	for len(buf) > 0 && j < n {
 		w := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16
 		buf = buf[3:]
-		v := uint32(w) & mask
-		a[j] = fieldMontgomeryMul(fieldElement(v), RR)
+		v := fieldElementPartiallyReduced(w) & mask
+		a[j] = fieldMontgomeryPartialMul(v, RR)
 		j += int((v - q) >> 31)
 	}
 	return j

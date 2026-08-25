@@ -92,11 +92,15 @@ func TestingOnlyNewPrivateKeyFromSemiExpanded(sk []byte) (*PrivateKey, error) {
 
 	t1 := make([][n]uint16, k, maxK)
 	for i := range k {
-		tHat := priv.s2[i]
+		var tHat wideNTTElement
+		// The bound starts at 2q².
+		nttWiden(&tHat, &priv.s2[i])
 		for j := range l {
-			tHat = polyAdd(tHat, nttMul(A[i*l+j], priv.s1[j]))
+			// Each nttMulAdd adds 4q² to the bound, for a total of
+			// 2q² + 4l * q² = 30q² < q * R.
+			nttMulAdd(&tHat, &A[i*l+j], &priv.s1[j])
 		}
-		t := inverseNTT(tHat)
+		t := inverseNTT(nttReduce(&tHat))
 		for j := range n {
 			r1, r0 := power2Round(t[j])
 			t1[i][j] = r1

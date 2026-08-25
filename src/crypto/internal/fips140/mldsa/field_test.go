@@ -6,9 +6,11 @@ package mldsa
 
 import (
 	"crypto/internal/fips140/sha3"
+	cryptorand "crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -400,6 +402,250 @@ func TestZetas(t *testing.T) {
 		got := fieldFromMontgomery(zeta)
 		if big.NewInt(int64(got)).Cmp(exp) != 0 {
 			t.Errorf("zetas[%d] = %v, expected %v", k, got, exp)
+		}
+	}
+}
+
+func randomRingElement() ringElement {
+	var f ringElement
+	for i := range f {
+		f[i] = fieldElement(rand.Uint32N(q))
+	}
+	return f
+}
+
+func randomNTTElement() nttElement {
+	var f nttElement
+	for i := range f {
+		f[i] = fieldElementPartiallyReduced(rand.Uint32N(2 * q))
+	}
+	return f
+}
+
+func checkNTTElementBounds(t *testing.T, a nttElement) {
+	t.Helper()
+	for i, v := range a {
+		if v >= 2*q {
+			t.Fatalf("coefficient %d is %d, out of the [0, 2q) range", i, v)
+		}
+	}
+}
+
+func TestNTTRoundTrip(t *testing.T) {
+	t.Parallel()
+	check := func(f ringElement) {
+		t.Helper()
+		fHat := ntt(f)
+		checkNTTElementBounds(t, fHat)
+		if got := inverseNTT(fHat); got != f {
+			t.Fatal("inverseNTT(ntt(f)) != f")
+		}
+	}
+	var worst ringElement
+	for i := range worst {
+		worst[i] = q - 1
+	}
+	check(worst)
+	check(ringElement{})
+	for range 100 {
+		check(randomRingElement())
+	}
+}
+
+// TestInverseNTTLazyReduction checks that inverseNTT returns the same result
+// for a partially reduced input and for the fully reduced input representing
+// the same element. The all 2q - 1 input maximizes the intermediate values,
+// which reach up to 512q, close to the uint32 limit.
+func TestInverseNTTLazyReduction(t *testing.T) {
+	t.Parallel()
+	check := func(f nttElement) {
+		t.Helper()
+		var reduced nttElement
+		for i := range f {
+			reduced[i] = fieldElementPartiallyReduced(fieldReduceOnce(f[i]))
+		}
+		if inverseNTT(f) != inverseNTT(reduced) {
+			t.Fatal("inverseNTT(f) != inverseNTT(f mod q)")
+		}
+	}
+	var worst nttElement
+	for i := range worst {
+		worst[i] = 2*q - 1
+	}
+	check(worst)
+	for range 100 {
+		check(randomNTTElement())
+	}
+}
+
+// TestNTTElementBounds checks that the functions producing nttElements keep
+// their coefficients in the [0, 2q) range assumed across the package, in
+// particular by the bound analysis of inverseNTT and the wide accumulators.
+func TestNTTElementBounds(t *testing.T) {
+	t.Parallel()
+	var worstRing ringElement
+	for i := range worstRing {
+		worstRing[i] = q - 1
+	}
+	var worstNTT nttElement
+	for i := range worstNTT {
+		worstNTT[i] = 2*q - 1
+	}
+
+	checkNTTElementBounds(t, ntt(worstRing))
+	checkNTTElementBounds(t, nttMul(worstNTT, worstNTT))
+
+	var a nttElement
+	buf := make([]byte, 5*168)
+	cryptorand.Read(buf)
+	parseSampleNTT(&a, 0, buf)
+	checkNTTElementBounds(t, a)
+
+	for range 100 {
+		checkNTTElementBounds(t, ntt(randomRingElement()))
+		checkNTTElementBounds(t, nttMul(randomNTTElement(), randomNTTElement()))
+	}
+}
+
+// TestNTTAccumulator checks the wide accumulator functions against
+// coefficient-wise modular arithmetic, in the same shapes used by key
+// generation (a 2q² initial value and 4l * q² of products) and verification
+// (4l * q² of products and a 4q² subtraction), with worst-case and random
+// inputs.
+func TestNTTAccumulator(t *testing.T) {
+	t.Parallel()
+	// std returns the standard domain value of a coefficient.
+	std := func(v fieldElementPartiallyReduced) uint64 {
+		return uint64(fieldFromMontgomery(fieldReduceOnce(v)))
+	}
+	check := func(init nttElement, a, b [maxL]nttElement, sub bool) {
+		t.Helper()
+		var p wideNTTElement
+		nttWiden(&p, &init)
+		for j := range maxL {
+			nttMulAdd(&p, &a[j], &b[j])
+		}
+		if sub {
+			nttMulSub(&p, &a[0], &b[0])
+		}
+		got := nttReduce(&p)
+		checkNTTElementBounds(t, got)
+		for i := range got {
+			exp := std(init[i])
+			for j := range maxL {
+				exp = (exp + std(a[j][i])*std(b[j][i])) % q
+			}
+			if sub {
+				exp = (exp + q - std(a[0][i])*std(b[0][i])%q) % q
+			}
+			if std(got[i]) != exp {
+				t.Fatalf("accumulator coefficient %d is %d, expected %d", i, std(got[i]), exp)
+			}
+		}
+	}
+
+	var worst nttElement
+	for i := range worst {
+		worst[i] = 2*q - 1
+	}
+	var worstL [maxL]nttElement
+	for i := range worstL {
+		worstL[i] = worst
+	}
+	check(worst, worstL, worstL, false)
+	check(nttElement{}, worstL, worstL, true)
+
+	for range 10 {
+		var a, b [maxL]nttElement
+		for i := range a {
+			a[i], b[i] = randomNTTElement(), randomNTTElement()
+		}
+		check(randomNTTElement(), a, b, false)
+		check(nttElement{}, a, b, true)
+	}
+}
+
+// parseSampleNTTReference is a direct transcription of the RejNTTPoly loop and
+// CoeffFromThreeBytes from FIPS 204, sharing only the Montgomery conversion
+// with parseSampleNTT so that representations can be compared exactly.
+func parseSampleNTTReference(a *nttElement, j int, buf []byte) int {
+	for len(buf) > 0 && j < n {
+		z := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2]&0x7f)<<16
+		buf = buf[3:]
+		if z < q {
+			a[j] = fieldMontgomeryPartialMul(fieldElementPartiallyReduced(z), RR)
+			j++
+		}
+	}
+	return j
+}
+
+func TestParseSampleNTT(t *testing.T) {
+	t.Parallel()
+	// Candidates that exercise the acceptance boundary, including values with
+	// the top bit of the third byte set, which must be ignored.
+	candidates := []uint32{0, 1, q - 1, q, q + 1, 1<<23 - 1, q | 1<<23, 1<<24 - 1}
+	randomBuf := func(size int) []byte {
+		buf := make([]byte, 0, size)
+		for len(buf) < size {
+			v := candidates[rand.IntN(len(candidates))]
+			buf = append(buf, byte(v), byte(v>>8), byte(v>>16))
+		}
+		return buf
+	}
+	check := func(j0 int, buf []byte) {
+		t.Helper()
+		var got, exp nttElement
+		gotJ := parseSampleNTT(&got, j0, buf)
+		expJ := parseSampleNTTReference(&exp, j0, buf)
+		if gotJ != expJ {
+			t.Fatalf("parseSampleNTT(%d, %x) = %d, expected %d", j0, buf, gotJ, expJ)
+		}
+		for i := j0; i < gotJ; i++ {
+			if got[i] != exp[i] {
+				t.Fatalf("parseSampleNTT(%d, %x): a[%d] = %d, expected %d", j0, buf, i, got[i], exp[i])
+			}
+		}
+	}
+	for range 10 {
+		for _, size := range []int{3, 6, 9, 24, 168, 840} {
+			for _, j0 := range []int{0, 100, 253, 254, 255, 256} {
+				check(j0, randomBuf(size))
+			}
+		}
+	}
+
+	// An all-rejected buffer must not advance j.
+	allRejected := make([]byte, 0, 840)
+	for range 280 {
+		v := uint32(q)
+		allRejected = append(allRejected, byte(v), byte(v>>8), byte(v>>16))
+	}
+	var a nttElement
+	if j := parseSampleNTT(&a, 0, allRejected); j != 0 {
+		t.Fatalf("parseSampleNTT accepted %d rejected candidates", j)
+	}
+
+	// Resumed filling with one 168-byte block at a time, like computeMatrixA.
+	var got, exp nttElement
+	gotJ, expJ := 0, 0
+	for range 100 {
+		if gotJ >= n {
+			break
+		}
+		buf := randomBuf(168)
+		gotJ = parseSampleNTT(&got, gotJ, buf)
+		expJ = parseSampleNTTReference(&exp, expJ, buf)
+		if gotJ != expJ {
+			t.Fatalf("resumed parseSampleNTT returned %d, expected %d", gotJ, expJ)
+		}
+	}
+	if gotJ != n {
+		t.Fatal("failed to fill the element in 100 blocks")
+	}
+	for i := range got {
+		if got[i] != exp[i] {
+			t.Fatalf("resumed parseSampleNTT: a[%d] = %d, expected %d", i, got[i], exp[i])
 		}
 	}
 }
