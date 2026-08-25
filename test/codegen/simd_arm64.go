@@ -154,3 +154,10 @@ func loToHiUint32Vec(x, lo archsimd.Uint32x4) archsimd.Uint32x4 {
 func loToHiUint16Vec(x, lo archsimd.Uint16x8) archsimd.Uint16x8 {
 	return x.ReshapeToUint64s().BitsToFloat64().SetElem(1, lo.ReshapeToUint64s().BitsToFloat64().GetElem(0)).ToBits().ReshapeToUint16s()
 }
+
+// The zero value of a mask is an all-false predicate.
+func sveZeroMask() archsimd.Mask8s {
+	// arm64:`PPFALSE` -`ZDUP`
+	var m archsimd.Mask8s
+	return m
+}

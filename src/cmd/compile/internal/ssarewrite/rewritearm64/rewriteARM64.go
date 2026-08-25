@@ -24836,6 +24836,17 @@ func rewriteValue_OpZeroSIMD(v *ssa.Value) bool {
 		v.AuxInt = ssa.Int8ToAuxInt(0)
 		return true
 	}
+	// match: (ZeroSIMD <t>)
+	// cond: t.Size() == 8 && t.IsSIMD()
+	// result: (PPFALSEB)
+	for {
+		t := v.Type
+		if !(t.Size() == 8 && t.IsSIMD()) {
+			break
+		}
+		v.Reset(ssaop.OpARM64PPFALSEB)
+		return true
+	}
 	return false
 }
 func rewriteValue_Opbroadcast1To16Int8x16(v *ssa.Value) bool {

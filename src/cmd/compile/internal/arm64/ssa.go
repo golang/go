@@ -810,6 +810,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Scale = simdSVEVectorLengthScaled
 		ssagen.AddAux(&p.To, v)
+	case ssaop.OpARM64PPFALSEB:
+		// Zero value of a mask: every lane false, e.g. PPFALSE P0.B.
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pregArng(v.Reg(), arm64.ARNG_B)
 	case ssaop.OpARM64ZDUPBconst:
 		// Broadcast an 8-bit immediate to every byte lane (ZeroSIMD uses [0]).
 		p := s.Prog(v.Op.Asm())

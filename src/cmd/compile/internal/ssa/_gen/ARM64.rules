@@ -1896,6 +1896,7 @@
 // SVE predicate (mask) load/store. A predicate is 8 bytes at the SSA level
 // (types.TypeMask); it cannot move to a GP/FP register, so masks that cross a
 // call or spill round-trip through memory via PLDR/PSTR.
+(ZeroSIMD <t>) && t.Size() == 8 && t.IsSIMD() => (PPFALSEB)
 (Load <t> ptr mem) && t.Size() == 8 && t.IsSIMD() => (PLDRload ptr mem)
 (Store {t} ptr val mem) && t.Size() == 8 && t.IsSIMD() => (PSTRstore ptr val mem)
 (ScalableVectorLen) => (RDVL [1])

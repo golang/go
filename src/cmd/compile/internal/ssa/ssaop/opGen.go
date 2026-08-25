@@ -4717,6 +4717,7 @@ const (
 	OpARM64ZSTRstore
 	OpARM64PLDRload
 	OpARM64PSTRstore
+	OpARM64PPFALSEB
 	OpARM64ZDUPBconst
 	OpARM64RDVL
 	OpARM64PWHILELTB
@@ -81078,6 +81079,16 @@ var OpcodeTable = [...]OpInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
 				{0, RegMask{V1: 1476395007, V2: 32768}},          // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+		},
+	},
+	{
+		Name:   "PPFALSEB",
+		ArgLen: 0,
+		asm:    arm64.APPFALSE,
+		Reg: RegInfo{
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
 			},
 		},
 	},

@@ -194,6 +194,7 @@ func init() {
 		gpxchg         = regInfo{inputs: []regMask{gpspsbg, gpg.union(rz)}, outputs: []regMask{gp}}
 		gpcas          = regInfo{inputs: []regMask{gpspsbg, gpg.union(rz), gpg.union(rz)}, outputs: []regMask{gp}}
 		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
+		pred01         = regInfo{inputs: nil, outputs: []regMask{pred}}
 		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
 		fpgpfp         = regInfo{inputs: []regMask{fp, gp}, outputs: []regMask{fp}}
@@ -840,6 +841,8 @@ func init() {
 		{name: "ZSTRstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "ZSTR", faultOnNilArg0: true, symEffect: "Write"},             // store arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "PLDRload", argLength: 2, reg: predload, aux: "SymOff", asm: "PLDR", typ: "Mask", faultOnNilArg0: true, symEffect: "Read"}, // load a predicate from arg0 + auxInt + aux.  arg1=mem.
 		{name: "PSTRstore", argLength: 3, reg: predstore, aux: "SymOff", asm: "PSTR", faultOnNilArg0: true, symEffect: "Write"},           // store predicate arg1 to arg0 + auxInt + aux.  arg2=mem.
+		// PPFALSEB sets every bit of a predicate false, it's the zero value of a predicate.
+		{name: "PPFALSEB", argLength: 0, reg: pred01, asm: "PPFALSE", typ: "Mask"},
 		// ZDUPBconst broadcasts an 8-bit immediate to every byte lane; with [0] it
 		// zeroes a whole scalable vector, lowering ZeroSIMD for a 256-bit value.
 		{name: "ZDUPBconst", argLength: 0, aux: "Int8", reg: fp01, asm: "ZDUP", typ: "Vec256"},
