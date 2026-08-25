@@ -1036,6 +1036,30 @@ var relocationTests = []relocationTest{
 			},
 		},
 	},
+	{
+		"testdata/go-relocation-test-gcc133-ppc.obj",
+		[]relocationTestEntry{
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xc,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C17 13.3.0 -msecure-plt -g2 -fstack-protector-strong", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(29), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/home/exedev", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrHighpc, Val: int64(68), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
+				},
+				pcRanges: [][2]uint64{
+					{0, 0x44},
+				},
+			},
+		},
+	},
 }
 
 func TestDWARFRelocations(t *testing.T) {

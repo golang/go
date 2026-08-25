@@ -976,7 +976,7 @@ func (f *File) applyRelocationsPPC(dst []byte, rels []byte) error {
 
 		switch t {
 		case R_PPC_ADDR32:
-			putUint(f.ByteOrder, dst, uint64(rela.Off), 4, sym.Value, 0, false)
+			putUint(f.ByteOrder, dst, uint64(rela.Off), 4, sym.Value, int64(rela.Addend), false)
 		}
 	}
 
