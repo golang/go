@@ -383,10 +383,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, &FormatError{0, "invalid ELF shnum for shoff=0", shnum}
 	}
 
-	if shnum > 0 && shstrndx >= shnum {
-		return nil, &FormatError{0, "invalid ELF shstrndx", shstrndx}
-	}
-
 	var wantPhentsize, wantShentsize int
 	switch f.Class {
 	case ELFCLASS32:
@@ -464,6 +460,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, &FormatError{shoff, "invalid ELF shstrndx contained in sh_link", shstrndx}
 			}
 		}
+	}
+
+	if shnum > 0 && shstrndx >= shnum {
+		return nil, &FormatError{0, "invalid ELF shstrndx", shstrndx}
 	}
 
 	// Read program headers
