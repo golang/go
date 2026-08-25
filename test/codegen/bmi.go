@@ -212,6 +212,7 @@ func XSubXandYAndn64(x, y uint64) uint64 {
 	// amd64/v1:"ANDQ" "NOTQ" -"SUBQ"
 	// amd64/v3:"ANDNQ" -"SUBQ" -"ANDQ"
 	// arm64:"BIC" -"SUB" -"AND"
+	// loong64:"ANDN" -"SUBV" -"AND "
 	// riscv64:"ANDN" -"SUB" -"AND "
 	return x - (x & y)
 }
@@ -220,6 +221,7 @@ func XSubXandYAndn32(x, y uint32) uint32 {
 	// amd64/v1:"ANDL" "NOTL" -"SUBL"
 	// amd64/v3:"ANDNL" -"SUBL" -"ANDL"
 	// arm64:"BIC" -"SUB" -"AND"
+	// loong64:"ANDN" -"SUBW" -"AND "
 	// riscv64:"ANDN" -"SUB" -"AND "
 	return x - (x & y)
 }
