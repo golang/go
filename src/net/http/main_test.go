@@ -137,9 +137,10 @@ func afterTest(t testing.TB) {
 		").readLoop(":  "a Transport",
 		").writeLoop(": "a Transport",
 		"created by net/http/httptest.(*Server).Start": "an httptest.Server",
-		"timeoutHandler":        "a TimeoutHandler",
-		"net.(*netFD).connect(": "a timing out dial",
-		").noteClientGone(":     "a closenotifier sender",
+		"timeoutHandler":           "a TimeoutHandler",
+		"net.(*netFD).connect(":    "a timing out dial",
+		").noteClientGone(":        "a closenotifier sender",
+		"quic.(*Endpoint).listen(": "a quic.Endpoint",
 	}
 	var stacks string
 	for i := 0; i < 2500; i++ {
