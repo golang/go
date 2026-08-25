@@ -457,3 +457,45 @@ func TestMaskToInt(t *testing.T) {
 		t.Errorf("Wanted %v, got %v", want, got)
 	}
 }
+
+//go:noinline
+func four() uint64 {
+	return 4
+}
+
+func TestShiftAllLeft(t *testing.T) {
+	// Int16s on 512-bit vector has 32 elements.
+	in := []int16{
+		1, 2, 4, 8, 16, 32, 64, 128,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	}
+
+	v := simd.LoadInt16s(in)
+	want := []int16{
+		1 << 4, 2 << 4, 4 << 4, 8 << 4, 16 << 4, 32 << 4, 64 << 4, 128 << 4,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	}[:v.Len()]
+
+	{
+		// Shift all elements left by 4 bits.
+		res := v.ShiftAllLeft(4)
+		got := make([]int16, res.Len())
+		res.Store(got)
+		if !slices.Equal(want, got) {
+			t.Errorf("Wanted %v, got %v", want, got)
+		}
+	}
+	{
+		// Shift all elements left by 4 bits.
+		res := v.ShiftAllLeft(four())
+		got := make([]int16, res.Len())
+		res.Store(got)
+		if !slices.Equal(want, got) {
+			t.Errorf("Wanted %v, got %v", want, got)
+		}
+	}
+}
