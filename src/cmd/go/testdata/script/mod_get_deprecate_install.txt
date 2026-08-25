@@ -1,5 +1,3 @@
-[short] skip
-
 env GO111MODULE=on
 
 # 'go get' outside a module prints an error.

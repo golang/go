@@ -1,8 +1,6 @@
 # This is a regression test for Issue #56098: Go generate
 # wasn't initializing workspace mode
 
-[short] skip
-
 go generate ./mod
 cmp ./mod/got.txt want.txt
 

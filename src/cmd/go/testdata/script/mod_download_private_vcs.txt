@@ -1,5 +1,4 @@
 # Testing stderr for git ls-remote; turn off proxy.
-[short] skip
 [!git] skip
 env GOPROXY=direct
 

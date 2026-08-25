@@ -1,4 +1,3 @@
-[short] skip
 
 # Ensure that the target of 'go build -o' can be an existing, empty file so that
 # its name can be reserved using os.CreateTemp or the 'mktemp` command.

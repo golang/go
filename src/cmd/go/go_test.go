@@ -467,9 +467,6 @@ func (tg *testgoData) unsetenv(name string) {
 	if tg.env == nil {
 		tg.env = append([]string(nil), os.Environ()...)
 		tg.env = append(tg.env, "GO111MODULE=off", "TESTGONETWORK=panic")
-		if testing.Short() {
-			tg.env = append(tg.env, "TESTGOVCSREMOTE=panic")
-		}
 	}
 	for i, v := range tg.env {
 		if strings.HasPrefix(v, name+"=") {

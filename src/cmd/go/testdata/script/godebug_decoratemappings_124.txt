@@ -5,7 +5,6 @@ go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
 stdout decoratemappings=0
 
 [!GOOS:linux] skip
-[short] skip
 
 # Programs in Go 1.24 module should never see annotations. This ensures that
 # the runtime has not overridden the default.

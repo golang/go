@@ -1,5 +1,3 @@
-[short] skip 'skipping cross-compile in short mode'
-
 env GOARCH=arm
 env GOOS=linux
 env GOARM=5

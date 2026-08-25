@@ -1,4 +1,3 @@
-[short] skip
 [!cgo] skip
 
 ! go build .

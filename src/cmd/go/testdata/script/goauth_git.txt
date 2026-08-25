@@ -1,7 +1,6 @@
 # This test covers the HTTP authentication mechanism over GOAUTH
 # See golang.org/issue/26232
 
-[short] skip 'constructs a local git repo'
 [!git] skip
 
 env GOPROXY=direct

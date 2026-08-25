@@ -1,7 +1,5 @@
 # Issue #25579
 
-[short] skip
-
 go build -o $devnull hello.go
 ! exists 'hello'$GOEXE
 

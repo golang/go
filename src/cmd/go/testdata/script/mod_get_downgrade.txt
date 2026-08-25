@@ -1,5 +1,4 @@
 env GO111MODULE=on
-[short] skip
 
 # downgrade sampler should downgrade quote
 cp go.mod.orig go.mod

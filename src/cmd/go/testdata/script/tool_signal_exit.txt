@@ -1,4 +1,3 @@
-[short] skip 'runs go build'
 [GOOS:plan9] skip 'signals differ on Plan 9'
 [GOOS:windows] skip 'os.Interrupt is not implemented on Windows'
 

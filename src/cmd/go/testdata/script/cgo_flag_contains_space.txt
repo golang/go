@@ -1,4 +1,3 @@
-[short] skip
 [!cgo] skip
 
 env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.

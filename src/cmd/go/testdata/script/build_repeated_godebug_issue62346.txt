@@ -1,4 +1,3 @@
-[short] skip # runs go build
 ! go build file.go
 ! stderr 'panic:'
 ! stderr 'runtime error'

@@ -337,9 +337,6 @@ func run(ctx context.Context, args RunArgs) ([]byte, error) {
 	}
 
 	cmd := str.StringList(args.cmdline...)
-	if os.Getenv("TESTGOVCSREMOTE") == "panic" && !args.local {
-		panic(fmt.Sprintf("use of remote vcs: %v", cmd))
-	}
 	if xLog, ok := cfg.BuildXWriter(ctx); ok {
 		text := new(strings.Builder)
 		if args.dir != "" {

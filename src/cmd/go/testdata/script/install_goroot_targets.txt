@@ -1,5 +1,3 @@
-[short] skip
-
 # Packages in std do not have an install target.
 go list -f '{{.Target}}' fmt
 ! stdout .

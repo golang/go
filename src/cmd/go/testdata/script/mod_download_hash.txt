@@ -1,5 +1,4 @@
 # Testing mod download with non semantic versions; turn off proxy.
-[short] skip
 [!git] skip
 env GOPROXY=direct
 env GOSUMDB=off

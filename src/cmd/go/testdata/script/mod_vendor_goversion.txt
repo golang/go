@@ -1,8 +1,6 @@
 # https://golang.org/issue/36876: As of Go 1.17, vendor/modules.txt should
 # indicate the language version used by each dependency.
 
-[short] skip
-
 # Control case: without a vendor directory, need117 builds and bad114 doesn't.
 
 go build example.net/need117

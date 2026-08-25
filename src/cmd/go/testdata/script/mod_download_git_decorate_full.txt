@@ -1,6 +1,5 @@
 env GO111MODULE=on
 
-[short] skip
 [!git] skip
 
 # Redirect git to a test-specific .gitconfig.

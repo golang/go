@@ -1,6 +1,5 @@
 # golang.org/issue/13037: 'go get' was not parsing <meta> tags in 404 served over HTTPS.
 
-[short] skip
 [!git] skip
 
 env GONOSUMDB=vcs-test.golang.org

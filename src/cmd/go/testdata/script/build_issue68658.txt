@@ -1,8 +1,6 @@
 # Test for issue #68658: In GOPATH mode, files with a //go:build fileVersion
 # earlier than go1.21 should downgrade to go1.21 and no further.
 
-[short] skip 'requires build'
-
 env GO111MODULE=off
 go build foo bar
 
