@@ -22,7 +22,7 @@
   - &uintAsInt
     go: $t
     base: uint
-    OverwriteBase: int
+    overwriteBase: int
   out:
   - *uint
 
@@ -92,7 +92,7 @@
 - go: shiftLeftSaturatedConst
   signed: true
   asm: "VSQSHL"
-  SSAVariant: "const"
+  ssaVariant: "const"
   specialLower: "if a==0 => x"
   in:
   - *imm
@@ -103,7 +103,7 @@
 - go: shiftLeftSaturatedConst
   signed: false
   asm: "VUQSHL"
-  SSAVariant: "const"
+  ssaVariant: "const"
   specialLower: "if a==0 => x"
   in:
   - *imm
@@ -141,7 +141,7 @@
     go: $t
     base: uint
     treatLikeAScalarOfSize: 64
-    OverwriteBase: int
+    overwriteBase: int
   out:
   - *uint
 

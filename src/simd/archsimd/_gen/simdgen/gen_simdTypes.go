@@ -922,7 +922,7 @@ func writeSIMDFeatures(buffer *bytes.Buffer, ops []Operation) {
 		// composite feature.
 		for feature := range strings.SplitSeq(op.CPUFeature, ",") {
 			feature = strings.TrimSpace(feature)
-			featureSet[featureKey{op.GoArch, feature}] = struct{}{}
+			featureSet[featureKey{op.GOARCH, feature}] = struct{}{}
 		}
 	}
 	featureKeys := slices.SortedFunc(maps.Keys(featureSet), func(a, b featureKey) int {

@@ -3,7 +3,7 @@
 # GetElem VMOV (UMOV, integer)
 - go: GetElem
   asm: "VMOV"
-  SSAVariant: "extr"
+  ssaVariant: "extr"
   in:
   - &immIndex
     class: immediate
@@ -19,7 +19,7 @@
 # GetElem VDUP (duplicate element into scalar float in vreg)
 - go: GetElem
   asm: "VDUP"
-  SSAVariant: "extr"
+  ssaVariant: "extr"
   in:
   - *immIndex
   - &fvector
@@ -29,13 +29,13 @@
   - &fscalarOut
     class: vreg
     treatLikeAScalarOfSize: 0
-    OverwriteClass: greg
-    OverwriteBase: float
+    overwriteClass: greg
+    overwriteBase: float
 
 # SetElem VMOV (INS, integer)
 - go: SetElem
   asm: "VMOV"
-  SSAVariant: "ins"
+  ssaVariant: "ins"
   in:
   - *immIndex
   - *vector
@@ -46,7 +46,7 @@
 # SetElem VMOV (float: INS from the lane 0 of the source)
 - go: SetElem
   asm: "VMOV"
-  SSAVariant: "ins0"
+  ssaVariant: "ins0"
   specialLower: !string "match (%h [0] (VMOVI16B [0]) y:(VDUP%sextr [i] _)) => y"
   in:
   - *immIndex
@@ -64,7 +64,7 @@
 # broadcast1To16 VDUP (duplicate element 0 to all 16 byte lanes)
 - go: broadcast1To16
   asm: "VDUP"
-  SSAVariant: "bcast"
+  ssaVariant: "bcast"
   constImm: 0
   specialLower: !string "match (%h [i] (VMOV%sins [j] _ (MOVDconst [c]))) && i == j && c>=-128 && c<=255 => (VMOVI%a [uint8(c)])"
   in:
@@ -83,7 +83,7 @@
 # broadcast1To8 VDUP (duplicate element 0 to all 8 halfword lanes)
 - go: broadcast1To8
   asm: "VDUP"
-  SSAVariant: "bcast"
+  ssaVariant: "bcast"
   constImm: 0
   in:
   - *immLane0
@@ -97,7 +97,7 @@
 # broadcast1To4 VDUP (duplicate element 0 to all 4 word lanes)
 - go: broadcast1To4
   asm: "VDUP"
-  SSAVariant: "bcast"
+  ssaVariant: "bcast"
   constImm: 0
   in:
   - *immLane0
@@ -111,7 +111,7 @@
 # broadcast1To2 VDUP (duplicate element 0 to both doubleword lanes)
 - go: broadcast1To2
   asm: "VDUP"
-  SSAVariant: "bcast"
+  ssaVariant: "bcast"
   constImm: 0
   in:
   - *immLane0

@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
+	"unicode"
 )
 
 // Decode decodes v into a Go value.
@@ -117,42 +119,82 @@ func (d Def) decode(rv reflect.Value) error {
 		return fmt.Errorf("cannot decode Def into %s", rv.Type())
 	}
 
-	var lowered map[string]string // Lower case -> canonical for d.fields.
-	rt := rv.Type()
-	for fi := range rv.NumField() {
-		fType := rt.Field(fi)
-		if fType.PkgPath != "" {
-			continue
-		}
-		v := d.fields[fType.Name]
+	fieldMap := canonStructFields(rv.Type())
+	for defName, f := range fieldMap {
+		v := d.fields[defName]
 		if v == nil {
 			v = topValue
-
-			// Try a case-insensitive match
-			canon, ok := d.fields[strings.ToLower(fType.Name)]
-			if ok {
-				v = canon
-			} else {
-				if lowered == nil {
-					lowered = make(map[string]string, len(d.fields))
-					for k := range d.fields {
-						l := strings.ToLower(k)
-						if k != l {
-							lowered[l] = k
-						}
-					}
-				}
-				canon, ok := lowered[strings.ToLower(fType.Name)]
-				if ok {
-					v = d.fields[canon]
-				}
-			}
 		}
-		if err := decodeReflect(v, rv.Field(fi)); err != nil {
-			return newDecodeError(fType.Name, err)
+		if err := decodeReflect(v, rv.FieldByIndex(f.Index)); err != nil {
+			return newDecodeError(f.Name, err)
 		}
 	}
 	return nil
+}
+
+var structFieldsCache sync.Map /*[reflect.Type, map[string]reflect.StructField]*/
+
+// canonStructFields canonicalizes the name of all exported fields in rt to from
+// Go-style exported names to YAML-style lower-case names. If a name starts with
+// N upper-case letters, then if N==1, it lower-cases just the first letter; if
+// N=len, it lower-cases the whole name; otherwise it lower-cases the first N-1
+// letters.
+//
+// For example:
+//
+//	AsmPos      => asmPos
+//	CPUFeatures => cpuFeatures
+//	GOARCH      => goarch
+//
+// It returns a map from Def field name to struct field. The mapping between Go
+// field names and Def names is a bijection, so it can be used for encoding and
+// decoding.
+//
+// rt must be a struct type.
+func canonStructFields(rt reflect.Type) map[string]reflect.StructField {
+	type fieldMap = map[string]reflect.StructField
+	if fields, ok := structFieldsCache.Load(rt); ok {
+		return fields.(fieldMap)
+	}
+
+	fm := make(fieldMap)
+	for f := range rt.Fields() {
+		if !f.IsExported() {
+			continue
+		}
+		defName := lowerGoName(f.Name)
+		if _, ok := fm[defName]; ok {
+			panic(fmt.Sprintf("multiple fields in type %s map to %q", rt, defName))
+		}
+		fm[defName] = f
+	}
+
+	res, _ := structFieldsCache.LoadOrStore(rt, fm)
+	return res.(fieldMap)
+}
+
+func lowerGoName(goName string) string {
+	prefixBytes := -1
+	prevBytes := 0
+	allUpper := true
+	for pos, ch := range goName {
+		if !unicode.IsUpper(ch) {
+			allUpper = false
+			prefixBytes = pos
+			break
+		}
+		prevBytes = pos
+	}
+	if allUpper {
+		// The whole name is upper-case.
+		return strings.ToLower(goName)
+	}
+	if prevBytes == 0 {
+		// The name starts with a single upper-case letter. Lower-case just it.
+		prevBytes = prefixBytes
+	}
+	// Lower case the first n-1 upper-case letters.
+	return strings.ToLower(goName[:prevBytes]) + goName[prevBytes:]
 }
 
 func (d Tuple) decode(rv reflect.Value) error {

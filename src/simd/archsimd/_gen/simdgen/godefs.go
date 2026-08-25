@@ -47,7 +47,7 @@ type Operation struct {
 type rawOperation struct {
 	Go string // Base Go method name
 
-	GoArch       string  // GOARCH for this definition
+	GOARCH       string  // GOARCH for this definition
 	Asm          string  // Assembly mnemonic
 	Arrangement  *string // optional Arrangement for ARM64 SIMD operations (e.g., "4S", "2D")
 	OperandOrder *string // optional Operand order for better Go declarations

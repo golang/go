@@ -70,10 +70,10 @@
   - &t
     class: vreg
     base: int
-    OverwriteBase: float
+    overwriteBase: float
   - class: greg
     base: int
-    OverwriteBase: float
+    overwriteBase: float
     lanes: 1 # Scalar, darn it!
   out:
   - *t
@@ -87,10 +87,10 @@
   - &t
     class: vreg
     base: int
-    OverwriteBase: float
+    overwriteBase: float
   - class: greg
     base: int
-    OverwriteBase: float
+    overwriteBase: float
     lanes: 1 # Scalar, darn it!
   out:
   - *t
@@ -169,12 +169,12 @@
   - class: vreg
     base: int
     elemBits: $e
-    OverwriteBase: float
+    overwriteBase: float
   out:
   - class: greg
     base: int
     bits: $e
-    OverwriteBase: float
+    overwriteBase: float
 
 - go: GetElem
   asm: "VPEXTRQ"
@@ -186,12 +186,12 @@
   - class: vreg
     base: int
     elemBits: $e
-    OverwriteBase: float
+    overwriteBase: float
   out:
   - class: greg
     base: int
     bits: $e
-    OverwriteBase: float
+    overwriteBase: float
 
 - go: "SetHi|SetLo"
   regexpTag: "move"
@@ -205,11 +205,11 @@
   - &i8x2N
     class: vreg
     base: $t
-    OverwriteElementBits: 8
+    overwriteElementBits: 8
   - &i8xN
     class: vreg
     base: $t
-    OverwriteElementBits: 8
+    overwriteElementBits: 8
   out:
   - *i8x2N
 
@@ -232,11 +232,11 @@
   - &i16x2N
     class: vreg
     base: $t
-    OverwriteElementBits: 16
+    overwriteElementBits: 16
   - &i16xN
     class: vreg
     base: $t
-    OverwriteElementBits: 16
+    overwriteElementBits: 16
   out:
   - *i16x2N
 
@@ -259,11 +259,11 @@
   - &i32x2N
     class: vreg
     base: $t
-    OverwriteElementBits: 32
+    overwriteElementBits: 32
   - &i32xN
     class: vreg
     base: $t
-    OverwriteElementBits: 32
+    overwriteElementBits: 32
   out:
   - *i32x2N
 
@@ -286,11 +286,11 @@
   - &i64x2N
     class: vreg
     base: $t
-    OverwriteElementBits: 64
+    overwriteElementBits: 64
   - &i64xN
     class: vreg
     base: $t
-    OverwriteElementBits: 64
+    overwriteElementBits: 64
   out:
   - *i64x2N
 
@@ -313,11 +313,11 @@
   - &f32x2N
     class: vreg
     base: $t
-    OverwriteElementBits: 32
+    overwriteElementBits: 32
   - &f32xN
     class: vreg
     base: $t
-    OverwriteElementBits: 32
+    overwriteElementBits: 32
   out:
   - *f32x2N
 
@@ -340,11 +340,11 @@
   - &f64x2N
     class: vreg
     base: $t
-    OverwriteElementBits: 64
+    overwriteElementBits: 64
   - &f64xN
     class: vreg
     base: $t
-    OverwriteElementBits: 64
+    overwriteElementBits: 64
   out:
   - *f64x2N
 
@@ -474,13 +474,13 @@
     bits: 128
     elemBits: 64
     base: int
-    OverwriteBase: float
+    overwriteBase: float
   out:
   - class: vreg
     bits: 128
     elemBits: 64
     base: int
-    OverwriteBase: float
+    overwriteBase: float
 
 - go: broadcast1To4
   asm: VPBROADCAST[BWDQ]
@@ -643,7 +643,7 @@
     bits: 128
     go: $t
     elemBits: 32
-    OverwriteElementBits: 16 # XED data incorrectly specified this as 32-bit, we need to fix it.
+    overwriteElementBits: 16 # XED data incorrectly specified this as 32-bit, we need to fix it.
   hideMaskMethods: true
   out:
   - *32x4To16x8
@@ -719,7 +719,7 @@
     bits: 128
     go: $t
     elemBits: 32
-    OverwriteElementBits: 16 # XED data incorrectly specified this as 32-bit, we need to fix it.
+    overwriteElementBits: 16 # XED data incorrectly specified this as 32-bit, we need to fix it.
   hideMaskMethods: true
   out:
   - *32x4To16x8
@@ -809,7 +809,7 @@
     class: vreg
     base: float
     bits: 128
-    OverwriteBase: int
+    overwriteBase: int
   - *v
   inVariant: []
   out:
@@ -826,7 +826,7 @@
     class: vreg
     base: float
     bits: 128
-    OverwriteBase: uint
+    overwriteBase: uint
   - *v
   inVariant: []
   out:
@@ -860,7 +860,7 @@
     class: vreg
     base: float
     bits: "256|512"
-    OverwriteBase: int
+    overwriteBase: int
   - *v
   inVariant: []
   out:
@@ -877,7 +877,7 @@
     class: vreg
     base: float
     bits: "256|512"
-    OverwriteBase: uint
+    overwriteBase: uint
   - *v
   inVariant: []
   out:
@@ -913,7 +913,7 @@
     class: vreg
     base: float
     bits: 128
-    OverwriteBase: int
+    overwriteBase: int
   - *v
   inVariant: []
   out:
@@ -930,7 +930,7 @@
     class: vreg
     base: float
     bits: 128
-    OverwriteBase: uint
+    overwriteBase: uint
   - *v
   inVariant: []
   out:
@@ -963,7 +963,7 @@
     class: vreg
     base: float
     bits: "256|512"
-    OverwriteBase: int
+    overwriteBase: int
   - *v
   inVariant: []
   out:
@@ -980,7 +980,7 @@
     class: vreg
     base: float
     bits: "256|512"
-    OverwriteBase: uint
+    overwriteBase: uint
   - *v
   inVariant: []
   out:
@@ -1027,7 +1027,7 @@
     class: vreg
     base: float
     bits: 256
-    OverwriteElementBits: 32
+    overwriteElementBits: 32
   - *v
   inVariant: []
   out:
@@ -1051,7 +1051,7 @@
     class: vreg
     base: int|uint
     bits: 256
-    OverwriteElementBits: 64
+    overwriteElementBits: 64
   - *v
   inVariant: []
   out:
@@ -1075,7 +1075,7 @@
     class: vreg
     base: int|uint
     bits: 256
-    OverwriteElementBits: 32
+    overwriteElementBits: 32
   - *v
   inVariant: []
   out:
@@ -1100,7 +1100,7 @@
     class: vreg
     base: int|uint
     bits: 256
-    OverwriteElementBits: 16
+    overwriteElementBits: 16
   - *v
   inVariant: []
   out:
@@ -1125,7 +1125,7 @@
     class: vreg
     base: int|uint
     bits: 256
-    OverwriteElementBits: 8
+    overwriteElementBits: 8
   - *v
   inVariant: []
   out:
