@@ -966,6 +966,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			retTarget, retReg := p.To.Sym, p.To.Reg
+			finish := func(last *obj.Prog) {}
 			if retReg == obj.REG_NONE {
 				retReg = REG_LR
 			} else {
@@ -980,6 +981,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.To.Reg = REG_CTR
 				retReg = REG_CTR
 				p.Link = x
+				// Everything from here through the BR (CTR) must be an
+				// unsafe point. runtime.asyncPreempt does not preserve CTR,
+				// and its resume sequence leaves CTR holding the resume PC,
+				// so a goroutine preempted at the BR (CTR) would resume by
+				// branching to that very instruction and spin there forever.
+				c.ctxt.StartUnsafePoint(p, c.newprog)
+				finish = func(last *obj.Prog) {
+					c.ctxt.EndUnsafePoint(last, c.newprog, -1)
+				}
 				p = x
 			}
 
@@ -995,6 +1005,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 						p.To.Sym = retTarget
 					}
 					p.Mark |= BRANCH
+					finish(p)
 					break
 				}
 
@@ -1020,6 +1031,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 				q.Link = p.Link
 				p.Link = q
+				finish(q)
 				break
 			}
 
@@ -1089,6 +1101,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			q1.Link = q.Link
 			prev.Link = q1
+			finish(q1)
+
 		case AADD:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
