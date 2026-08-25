@@ -8145,9 +8145,6 @@ func TestServerConnectionReuse(t *testing.T) {
 }
 
 func TestServerRequestBodyLength(t *testing.T) {
-	joinCRLF := func(s ...string) string {
-		return strings.Join(s, "\r\n")
-	}
 	for _, test := range []struct {
 		name              string
 		message           string

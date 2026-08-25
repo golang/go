@@ -1464,7 +1464,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 
 		if discard {
 			w.reqBody.Close()
-			if w.reqBody.didEarlyClose() {
+			if !w.reqBody.consumedEntireBody() {
 				w.closeAfterReply = true
 			}
 		}
@@ -1740,15 +1740,12 @@ func (w *response) shouldReuseConnection() bool {
 		return false
 	}
 
-	if w.closedRequestBodyEarly() {
+	// We haven't read the entire request body, so we can't reuse the connection.
+	if !w.reqBody.consumedEntireBody() {
 		return false
 	}
 
 	return true
-}
-
-func (w *response) closedRequestBodyEarly() bool {
-	return w.reqBody != nil && w.reqBody.didEarlyClose()
 }
 
 func (w *response) Flush() {
@@ -2142,7 +2139,12 @@ func (c *conn) serve(ctx context.Context) {
 		w.finishRequest()
 		c.rwc.SetWriteDeadline(time.Time{})
 		if !w.shouldReuseConnection() {
-			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
+			// On some platforms, closing a socket with data in the read buffer
+			// sends a RST. If we do this with data sent by us in flight, the client
+			// might read the RST before reading what we sent. So if we might still
+			// have bytes in our read buffer, CloseWrite the connection (to send a FIN)
+			// and wait a short while before closing it entirely.
+			if w.requestBodyLimitHit || !w.reqBody.consumedEntireBody() {
 				c.closeWriteAndWait()
 			}
 			return
