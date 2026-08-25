@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"log"
 	"maps"
@@ -672,7 +673,13 @@ func inferMaskSizes(ops []operand) error {
 // Optional mask input operands are added to the inVariant field if
 // variant&instVariantMasked, and omitted otherwise.
 func addOperandsToDef(ops []operand, instDB *unify.DefBuilder, variant instVariant) {
-	var inVals, inVar, outVals []*unify.Value
+	type inItem struct {
+		val      *unify.Value
+		priority int
+		asmPos   int
+	}
+	var inItems []inItem
+	var inVar, outVals []*unify.Value
 	asmPos := 0
 	for _, op := range ops {
 		var db unify.DefBuilder
@@ -692,8 +699,18 @@ func addOperandsToDef(ops []operand, instDB *unify.DefBuilder, variant instVaria
 					asmCount = 0
 				}
 			} else {
-				// Just a regular input operand.
-				inVals = append(inVals, inVal)
+				prio := 1
+				switch op.(type) {
+				case operandImm:
+					prio = 0
+				case operandMask:
+					prio = 2
+				}
+				inItems = append(inItems, inItem{
+					val:      inVal,
+					priority: prio,
+					asmPos:   asmPos,
+				})
 			}
 		}
 		if action.w {
@@ -702,6 +719,18 @@ func addOperandsToDef(ops []operand, instDB *unify.DefBuilder, variant instVaria
 		}
 
 		asmPos += asmCount
+	}
+
+	slices.SortStableFunc(inItems, func(a, b inItem) int {
+		if a.priority != b.priority {
+			return cmp.Compare(a.priority, b.priority)
+		}
+		return cmp.Compare(a.asmPos, b.asmPos)
+	})
+
+	inVals := make([]*unify.Value, len(inItems))
+	for i, item := range inItems {
+		inVals[i] = item.val
 	}
 
 	instDB.Add("in", unify.NewValue(unify.NewTuple(inVals...)))

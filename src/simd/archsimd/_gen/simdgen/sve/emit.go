@@ -5,7 +5,9 @@
 package sve
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	"simd/archsimd/_gen/unify"
@@ -106,13 +108,30 @@ func (inst *Instruction) emitOne(asm string, ops []Operand) *unify.Value {
 		db.Add("details", unify.NewValue(unify.NewStringExact(asComment(doc, 80))))
 	}
 
-	var ins, outs []*unify.Value
-	for i := range ops {
-		if ops[i].role == "destination" {
-			outs = append(outs, ops[i].emit())
+	var inOps, outOps []Operand
+	for _, op := range ops {
+		if op.role == "destination" {
+			outOps = append(outOps, op)
 		} else {
-			ins = append(ins, ops[i].emit())
+			inOps = append(inOps, op)
 		}
+	}
+	priority := map[string]int{"immediate": 0, "vreg": 1, "greg": 1, "memory": 1, "mask": 2}
+	slices.SortStableFunc(inOps, func(a, b Operand) int {
+		pa := priority[a.Class]
+		pb := priority[b.Class]
+		if pa != pb {
+			return cmp.Compare(pa, pb)
+		}
+		return cmp.Compare(a.AsmPos, b.AsmPos)
+	})
+
+	var ins, outs []*unify.Value
+	for i := range inOps {
+		ins = append(ins, inOps[i].emit())
+	}
+	for i := range outOps {
+		outs = append(outs, outOps[i].emit())
 	}
 	db.Add("in", unify.NewValue(unify.NewTuple(ins...)))
 	db.Add("inVariant", unify.NewValue(unify.NewTuple()))

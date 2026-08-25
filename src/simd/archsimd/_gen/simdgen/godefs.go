@@ -597,8 +597,6 @@ func writeGoDefs(cl unify.Closure) error {
 			log.Println(def)
 			continue
 		}
-		// TODO: verify that this is safe.
-		op.sortOperand()
 		op.adjustAsm()
 		ops = append(ops, op)
 	}

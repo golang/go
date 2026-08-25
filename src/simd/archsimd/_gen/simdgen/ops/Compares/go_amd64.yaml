@@ -60,13 +60,13 @@
   regexpTag: "compares"
   asm: "VPCMP[BWDQ]"
   in:
+  - class: immediate
+    const: 0 # Just a placeholder, will be overwritten by const imm porting.
   - &int
     bits: (128|256)
     go: $t
     base: int
   - *int
-  - class: immediate
-    const: 0 # Just a placeholder, will be overwritten by const imm porting.
   inVariant:
   - class: mask
   out:
@@ -78,13 +78,13 @@
   regexpTag: "compares"
   asm: "VPCMPU[BWDQ]"
   in:
+  - class: immediate
+    const: 0
   - &uint
     bits: (128|256)
     go: $t
     base: uint
   - *uint
-  - class: immediate
-    const: 0
   inVariant:
   - class: mask
   out:
@@ -95,13 +95,13 @@
   regexpTag: "compares"
   asm: "VPCMP[BWDQ]"
   in:
+  - class: immediate
+    const: 0 # Just a placeholder, will be overwritten by const imm porting.
   - &int
     bits: 512
     go: $t
     base: int
   - *int
-  - class: immediate
-    const: 0 # Just a placeholder, will be overwritten by const imm porting.
   out:
   - class: mask
 
@@ -110,13 +110,13 @@
   regexpTag: "compares"
   asm: "VPCMPU[BWDQ]"
   in:
+  - class: immediate
+    const: 0
   - &uint
     bits: 512
     go: $t
     base: uint
   - *uint
-  - class: immediate
-    const: 0
   out:
   - class: mask
 
@@ -125,12 +125,12 @@
   regexpTag: "compares"
   asm: "VCMPP[SD]"
   in:
+  - class: immediate
+    const: 0
   - &float
     go: $t
     base: float
   - *float
-  - class: immediate
-    const: 0
   out:
   - go: $t
     overwriteBase: int
@@ -139,9 +139,9 @@
   regexpTag: "compares"
   asm: "VCMPP[SD]"
   in:
-  - *float
-  - *float
   - class: immediate
     const: 0
+  - *float
+  - *float
   out:
   - class: mask

@@ -42,10 +42,10 @@
   specialLower: "if a==0 => x"
   asm: "VPSLL[WDQ]"
   in:
-  - *any
   - &imm
     class: immediate
     immOffset: 0
+  - *any
   out:
   - *any
 - go: shiftAllRightConst
@@ -54,8 +54,8 @@
   specialLower: "if a==0 => x"
   asm: "VPSRA[WDQ]"
   in:
-  - *int
   - *imm
+  - *int
   out:
   - *int
 - go: shiftAllRightConst
@@ -64,8 +64,8 @@
   specialLower: "if a==0 => x"
   asm: "VPSRL[WDQ]"
   in:
-  - *uint
   - *imm
+  - *uint
   out:
   - *uint
 
@@ -144,19 +144,19 @@
   nameAndSizeCheck: true
   asm: "VPROL[DQ]"
   in:
-  - *any
   - &pureImm
     class: immediate
     immOffset: 0
     name: shift
+  - *any
   out:
   - *any
 - go: rotateAllRight
   nameAndSizeCheck: true
   asm: "VPROR[DQ]"
   in:
-  - *any
   - *pureImm
+  - *any
   out:
   - *any
 - go: RotateLeft
@@ -182,9 +182,9 @@
   asm: "VPSHLDW"
   operandOrder: 2I
   in:
-  - *any
-  - *any
   - *pureImm
+  - *any
+  - *any
   out:
   - *any
 - go: ShiftAllRightConcatMod16
@@ -192,9 +192,9 @@
   asm: "VPSHRDW"
   operandOrder: 2I
   in:
-  - *any
-  - *any
   - *pureImm
+  - *any
+  - *any
   out:
   - *any
 - go: ShiftLeftConcatMod16
@@ -222,9 +222,9 @@
   asm: "VPSHLDD"
   operandOrder: 2I
   in:
-  - *any
-  - *any
   - *pureImm
+  - *any
+  - *any
   out:
   - *any
 - go: ShiftAllRightConcatMod32
@@ -232,9 +232,9 @@
   asm: "VPSHRDD"
   operandOrder: 2I
   in:
-  - *any
-  - *any
   - *pureImm
+  - *any
+  - *any
   out:
   - *any
 - go: ShiftLeftConcatMod32
@@ -262,9 +262,9 @@
   asm: "VPSHLDQ"
   operandOrder: 2I
   in:
-  - *any
-  - *any
   - *pureImm
+  - *any
+  - *any
   out:
   - *any
 - go: ShiftAllRightConcatMod64
@@ -272,9 +272,9 @@
   asm: "VPSHRDQ"
   operandOrder: 2I
   in:
-  - *any
-  - *any
   - *pureImm
+  - *any
+  - *any
   out:
   - *any
 - go: ShiftLeftConcatMod64

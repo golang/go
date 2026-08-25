@@ -27,10 +27,10 @@
 - go: AESRoundKeyGenAssist
   asm: VAESKEYGENASSIST
   in:
-  - *uint32s
   - class: immediate
     immOffset: 0
     name: rconVal
+  - *uint32s
   out:
   - *uint32s
 - go: AESDecryptOneRound
@@ -57,12 +57,12 @@
   asm: SHA1RNDS4
   operandOrder: "SHA1RNDS4"
   in: &2uint1imm
+  - class: immediate
+    immOffset: 0
   - &uint
     go: $t
     base: uint
   - *uint
-  - class: immediate
-    immOffset: 0
   out: &1uint
   - *uint
 - go: SHA1NextE

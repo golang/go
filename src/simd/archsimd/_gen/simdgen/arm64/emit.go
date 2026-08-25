@@ -5,7 +5,9 @@
 package arm64
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	"simd/archsimd/_gen/unify"
@@ -114,13 +116,42 @@ func (template *template) Emit(arrangement string) *unify.Value {
 		db.Add("details", unify.NewValue(unify.NewStringExact(asComment(doc, 80))))
 	}
 
-	var inVals, outVals []*unify.Value
+	type inItem struct {
+		val      *unify.Value
+		priority int
+		asmPos   int
+	}
+	var inItems []inItem
+	var outVals []*unify.Value
+
 	for _, op := range template.operands {
 		if op.Role == "destination" {
 			outVals = append(outVals, op.Emit())
 		} else {
-			inVals = append(inVals, op.Emit())
+			prio := 1
+			if op.Class == "immediate" || op.Type == OperandImm {
+				prio = 0
+			} else if op.Class == "mask" {
+				prio = 2
+			}
+			inItems = append(inItems, inItem{
+				val:      op.Emit(),
+				priority: prio,
+				asmPos:   op.AsmPos,
+			})
 		}
+	}
+
+	slices.SortStableFunc(inItems, func(a, b inItem) int {
+		if a.priority != b.priority {
+			return cmp.Compare(a.priority, b.priority)
+		}
+		return cmp.Compare(a.asmPos, b.asmPos)
+	})
+
+	inVals := make([]*unify.Value, len(inItems))
+	for i, item := range inItems {
+		inVals[i] = item.val
 	}
 
 	db.Add("in", unify.NewValue(unify.NewTuple(inVals...)))

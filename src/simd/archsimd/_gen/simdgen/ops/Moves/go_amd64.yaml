@@ -2,67 +2,71 @@
 - go: SetElem
   asm: "VPINSRB"
   in:
+  - class: immediate
+    immOffset: 0
+    immMax: 15
+    name: index
   - &t
     class: vreg
     base: $b
   - class: greg
     base: $b
     lanes: 1 # Scalar, darn it!
-  - class: immediate
-    immOffset: 0
-    immMax: 15
-    name: index
   out:
   - *t
 - go: SetElem
   asm: "VPINSRW"
   in:
+  - class: immediate
+    immOffset: 0
+    immMax: 7
+    name: index
   - &t
     class: vreg
     base: $b
   - class: greg
     base: $b
     lanes: 1 # Scalar, darn it!
-  - class: immediate
-    immOffset: 0
-    immMax: 7
-    name: index
   out:
   - *t
 - go: SetElem
   asm: "VPINSRD"
   in:
+  - class: immediate
+    immOffset: 0
+    immMax: 3
+    name: index
   - &t
     class: vreg
     base: $b
   - class: greg
     base: $b
     lanes: 1 # Scalar, darn it!
-  - class: immediate
-    immOffset: 0
-    immMax: 3
-    name: index
   out:
   - *t
 - go: SetElem
   asm: "VPINSRQ"
   in:
+  - class: immediate
+    immOffset: 0
+    immMax: 1
+    name: index
   - &t
     class: vreg
     base: $b
   - class: greg
     base: $b
     lanes: 1 # Scalar, darn it!
-  - class: immediate
-    immOffset: 0
-    immMax: 1
-    name: index
   out:
   - *t
 
 - go: SetElem
   asm: "VPINSRD"
   in:
+  - class: immediate
+    immOffset: 0
+    immMax: 3
+    name: index
   - &t
     class: vreg
     base: int
@@ -71,15 +75,15 @@
     base: int
     OverwriteBase: float
     lanes: 1 # Scalar, darn it!
-  - class: immediate
-    immOffset: 0
-    immMax: 3
-    name: index
   out:
   - *t
 - go: SetElem
   asm: "VPINSRQ"
   in:
+  - class: immediate
+    immOffset: 0
+    immMax: 1
+    name: index
   - &t
     class: vreg
     base: int
@@ -88,24 +92,20 @@
     base: int
     OverwriteBase: float
     lanes: 1 # Scalar, darn it!
-  - class: immediate
-    immOffset: 0
-    immMax: 1
-    name: index
   out:
   - *t
 
 - go: GetElem # VPEXTRB 128 bit
   asm: VPEXTRB
   in:
-  - bits: 128
-    base: $b
-    class: vreg
-    elemBits: 8
   - class: immediate
     immOffset: 0
     immMax: 15
     name: index
+  - bits: 128
+    base: $b
+    class: vreg
+    elemBits: 8
   out:
     - bits: 32
       base: $b
@@ -115,14 +115,14 @@
 - go: GetElem # VPEXTRW 128 bit
   asm: VPEXTRW
   in:
-  - bits: 128
-    base: $b
-    class: vreg
-    elemBits: 16
   - class: immediate
     immOffset: 0
     immMax: 7
     name: index
+  - bits: 128
+    base: $b
+    class: vreg
+    elemBits: 16
   out:
     - bits: 32
       base: $b
@@ -132,13 +132,13 @@
 - go: GetElem
   asm: "VPEXTRD"
   in:
-  - class: vreg
-    base: $b
-    elemBits: $e
   - class: immediate
     immOffset: 0
     immMax: 3
     name: index
+  - class: vreg
+    base: $b
+    elemBits: $e
   out:
   - class: greg
     base: $b
@@ -147,13 +147,13 @@
 - go: GetElem
   asm: "VPEXTRQ"
   in:
-  - class: vreg
-    base: $b
-    elemBits: $e
   - class: immediate
     immOffset: 0
     immMax: 1
     name: index
+  - class: vreg
+    base: $b
+    elemBits: $e
   out:
   - class: greg
     base: $b
@@ -162,14 +162,14 @@
 - go: GetElem
   asm: "VPEXTRD"
   in:
-  - class: vreg
-    base: int
-    elemBits: $e
-    OverwriteBase: float
   - class: immediate
     immOffset: 0
     immMax: 3
     name: index
+  - class: vreg
+    base: int
+    elemBits: $e
+    OverwriteBase: float
   out:
   - class: greg
     base: int
@@ -179,14 +179,14 @@
 - go: GetElem
   asm: "VPEXTRQ"
   in:
-  - class: vreg
-    base: int
-    elemBits: $e
-    OverwriteBase: float
   - class: immediate
     immOffset: 0
     immMax: 1
     name: index
+  - class: vreg
+    base: int
+    elemBits: $e
+    OverwriteBase: float
   out:
   - class: greg
     base: int
@@ -198,6 +198,10 @@
   asm: "VINSERTI128|VINSERTI64X4"
   inVariant: []
   in:
+  - &imm01 # This immediate should be only 0 or 1
+    class: immediate
+    const: 0 # place holder
+    name: index
   - &i8x2N
     class: vreg
     base: $t
@@ -206,10 +210,6 @@
     class: vreg
     base: $t
     OverwriteElementBits: 8
-  - &imm01 # This immediate should be only 0 or 1
-    class: immediate
-    const: 0 # place holder
-    name: index
   out:
   - *i8x2N
 
@@ -218,8 +218,8 @@
   regexpTag: "move"
   inVariant: []
   in:
-  - *i8x2N
   - *imm01
+  - *i8x2N
   out:
   - *i8xN
 
@@ -228,6 +228,7 @@
   regexpTag: "move"
   inVariant: []
   in:
+  - *imm01
   - &i16x2N
     class: vreg
     base: $t
@@ -236,7 +237,6 @@
     class: vreg
     base: $t
     OverwriteElementBits: 16
-  - *imm01
   out:
   - *i16x2N
 
@@ -245,8 +245,8 @@
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
   in:
-  - *i16x2N
   - *imm01
+  - *i16x2N
   out:
   - *i16xN
 
@@ -255,6 +255,7 @@
   asm: "VINSERTI128|VINSERTI64X4"
   inVariant: []
   in:
+  - *imm01
   - &i32x2N
     class: vreg
     base: $t
@@ -263,7 +264,6 @@
     class: vreg
     base: $t
     OverwriteElementBits: 32
-  - *imm01
   out:
   - *i32x2N
 
@@ -272,8 +272,8 @@
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
   in:
-  - *i32x2N
   - *imm01
+  - *i32x2N
   out:
   - *i32xN
 
@@ -282,6 +282,7 @@
   asm: "VINSERTI128|VINSERTI64X4"
   inVariant: []
   in:
+  - *imm01
   - &i64x2N
     class: vreg
     base: $t
@@ -290,7 +291,6 @@
     class: vreg
     base: $t
     OverwriteElementBits: 64
-  - *imm01
   out:
   - *i64x2N
 
@@ -299,8 +299,8 @@
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
   in:
-  - *i64x2N
   - *imm01
+  - *i64x2N
   out:
   - *i64xN
 
@@ -309,6 +309,7 @@
   asm: "VINSERTF128|VINSERTF64X4"
   inVariant: []
   in:
+  - *imm01
   - &f32x2N
     class: vreg
     base: $t
@@ -317,7 +318,6 @@
     class: vreg
     base: $t
     OverwriteElementBits: 32
-  - *imm01
   out:
   - *f32x2N
 
@@ -326,8 +326,8 @@
   asm: "VEXTRACTF128|VEXTRACTF64X4"
   inVariant: []
   in:
-  - *f32x2N
   - *imm01
+  - *f32x2N
   out:
   - *f32xN
 
@@ -336,6 +336,7 @@
   asm: "VINSERTF128|VINSERTF64X4"
   inVariant: []
   in:
+  - *imm01
   - &f64x2N
     class: vreg
     base: $t
@@ -344,7 +345,6 @@
     class: vreg
     base: $t
     OverwriteElementBits: 64
-  - *imm01
   out:
   - *f64x2N
 
@@ -353,8 +353,8 @@
   asm: "VEXTRACTF128|VEXTRACTF64X4"
   inVariant: []
   in:
-  - *f64x2N
   - *imm01
+  - *f64x2N
   out:
   - *f64xN
 
@@ -387,8 +387,8 @@
   asm: "VPCOMPRESS[BWDQ]|VCOMPRESSP[SD]"
   in:
     # The mask in Compress is a control mask rather than a write mask, so it's not optional.
-  - class: mask
   - go: $t
+  - class: mask
   out:
   - go: $t
 
@@ -448,8 +448,8 @@
   asm: "VPEXPAND[BWDQ]|VEXPANDP[SD]"
   in:
     # The mask in Expand is a control mask rather than a write mask, so it's not optional.
-  - class: mask
   - go: $t
+  - class: mask
   out:
   - go: $t
 
@@ -603,10 +603,10 @@
     //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
   in:
-  - *128any
   - class: immediate
     immOffset: 0
     name: indices
+  - *128any
   hideMaskMethods: true
   out:
   - *128any
@@ -620,10 +620,10 @@
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
     // Each group is of size 128-bit.
   in:
-  - *256Or512any
   - class: immediate
     immOffset: 0
     name: indices
+  - *256Or512any
   hideMaskMethods: true
   out:
   - *256Or512any
@@ -636,14 +636,14 @@
     //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
   in:
+  - class: immediate
+    immOffset: 0
+    name: indices
   - &32x4To16x8
     bits: 128
     go: $t
     elemBits: 32
     OverwriteElementBits: 16 # XED data incorrectly specified this as 32-bit, we need to fix it.
-  - class: immediate
-    immOffset: 0
-    name: indices
   hideMaskMethods: true
   out:
   - *32x4To16x8
@@ -656,13 +656,13 @@
     //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
   in:
+    - class: immediate
+      immOffset: 0
+      name: indices
     - &128lanes8
       bits: 128
       go: $t
       elemBits: 16
-    - class: immediate
-      immOffset: 0
-      name: indices
   hideMaskMethods: true
   out:
     - *128lanes8
@@ -677,13 +677,13 @@
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
     // Each group is of size 128-bit.
   in:
+  - class: immediate
+    immOffset: 0
+    name: indices
   - &256Or512lanes8
     bits: "256|512"
     go: $t
     elemBits: 16
-  - class: immediate
-    immOffset: 0
-    name: indices
   hideMaskMethods: true
   out:
   - *256Or512lanes8
@@ -696,10 +696,10 @@
     //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
   in:
-  - *128lanes8
   - class: immediate
     immOffset: 0
     name: indices
+  - *128lanes8
   hideMaskMethods: true
   out:
   - *128lanes8
@@ -712,14 +712,14 @@
     //
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
   in:
+  - class: immediate
+    immOffset: 0
+    name: indices
   - &32x4To16x8
     bits: 128
     go: $t
     elemBits: 32
     OverwriteElementBits: 16 # XED data incorrectly specified this as 32-bit, we need to fix it.
-  - class: immediate
-    immOffset: 0
-    name: indices
   hideMaskMethods: true
   out:
   - *32x4To16x8
@@ -735,10 +735,10 @@
     // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
     // Each group is of size 128-bit.
   in:
-  - *256Or512lanes8
   - class: immediate
     immOffset: 0
     name: indices
+  - *256Or512lanes8
   hideMaskMethods: true
   out:
   - *256Or512lanes8
@@ -785,15 +785,15 @@
   asm: VSHUFPS
   width: 32
   in:
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
   - &v
     go: $t
     class: vreg
     base: float
     bits: 128
   - *v
-  - class: immediate
-    immOffset: 0
-    name: h1h0l1l0
   inVariant: []
   out:
   - *v
@@ -801,6 +801,9 @@
 - go: concatSelectedConstant
   asm: VSHUFPS
   in:
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
   - &v
     go: $t
     class: vreg
@@ -808,9 +811,6 @@
     bits: 128
     OverwriteBase: int
   - *v
-  - class: immediate
-    immOffset: 0
-    name: h1h0l1l0
   inVariant: []
   out:
   - *v
@@ -818,6 +818,9 @@
 - go: concatSelectedConstant
   asm: VSHUFPS
   in:
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
   - &v
     go: $t
     class: vreg
@@ -825,9 +828,6 @@
     bits: 128
     OverwriteBase: uint
   - *v
-  - class: immediate
-    immOffset: 0
-    name: h1h0l1l0
   inVariant: []
   out:
   - *v
@@ -836,15 +836,15 @@
 - go: concatSelectedConstantGrouped
   asm: VSHUFPS
   in:
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
   - &v
     go: $t
     class: vreg
     base: float
     bits: "256|512"
   - *v
-  - class: immediate
-    immOffset: 0
-    name: h1h0l1l0
   inVariant: []
   out:
   - *v
@@ -852,6 +852,9 @@
 - go: concatSelectedConstantGrouped
   asm: VSHUFPS
   in:
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
   - &v
     go: $t
     class: vreg
@@ -859,9 +862,6 @@
     bits: "256|512"
     OverwriteBase: int
   - *v
-  - class: immediate
-    immOffset: 0
-    name: h1h0l1l0
   inVariant: []
   out:
   - *v
@@ -869,6 +869,9 @@
 - go: concatSelectedConstantGrouped
   asm: VSHUFPS
   in:
+  - class: immediate
+    immOffset: 0
+    name: h1h0l1l0
   - &v
     go: $t
     class: vreg
@@ -876,9 +879,6 @@
     bits: "256|512"
     OverwriteBase: uint
   - *v
-  - class: immediate
-    immOffset: 0
-    name: h1h0l1l0
   inVariant: []
   out:
   - *v
@@ -889,15 +889,15 @@
 - go: concatSelectedConstant
   asm: VSHUFPD
   in:
+  - class: immediate
+    immOffset: 0
+    name: hilo
   - &v
     go: $t
     class: vreg
     base: float
     bits: 128
   - *v
-  - class: immediate
-    immOffset: 0
-    name: hilo
   inVariant: []
   out:
   - *v
@@ -905,6 +905,9 @@
 - go: concatSelectedConstant
   asm: VSHUFPD
   in:
+  - class: immediate
+    immOffset: 0
+    name: hilo
   - &v
     go: $t
     class: vreg
@@ -912,9 +915,6 @@
     bits: 128
     OverwriteBase: int
   - *v
-  - class: immediate
-    immOffset: 0
-    name: hilo
   inVariant: []
   out:
   - *v
@@ -922,6 +922,9 @@
 - go: concatSelectedConstant
   asm: VSHUFPD
   in:
+  - class: immediate
+    immOffset: 0
+    name: hilo
   - &v
     go: $t
     class: vreg
@@ -929,9 +932,6 @@
     bits: 128
     OverwriteBase: uint
   - *v
-  - class: immediate
-    immOffset: 0
-    name: hilo
   inVariant: []
   out:
   - *v
@@ -939,15 +939,15 @@
 - go: concatSelectedConstantGrouped
   asm: VSHUFPD
   in:
+  - class: immediate
+    immOffset: 0
+    name: hilos
   - &v
     go: $t
     class: vreg
     base: float
     bits: "256|512"
   - *v
-  - class: immediate
-    immOffset: 0
-    name: hilos
   inVariant: []
   out:
   - *v
@@ -955,6 +955,9 @@
 - go: concatSelectedConstantGrouped
   asm: VSHUFPD
   in:
+  - class: immediate
+    immOffset: 0
+    name: hilos
   - &v
     go: $t
     class: vreg
@@ -962,9 +965,6 @@
     bits: "256|512"
     OverwriteBase: int
   - *v
-  - class: immediate
-    immOffset: 0
-    name: hilos
   inVariant: []
   out:
   - *v
@@ -972,6 +972,9 @@
 - go: concatSelectedConstantGrouped
   asm: VSHUFPD
   in:
+  - class: immediate
+    immOffset: 0
+    name: hilos
   - &v
     go: $t
     class: vreg
@@ -979,9 +982,6 @@
     bits: "256|512"
     OverwriteBase: uint
   - *v
-  - class: immediate
-    immOffset: 0
-    name: hilos
   inVariant: []
   out:
   - *v
@@ -996,15 +996,15 @@
     //
     // returns {70, 71, 40, 41}.
   in:
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
   - &v
     go: $t
     class: vreg
     base: float
     bits: 256
   - *v
-  - class: immediate
-    immOffset: 0
-    name: "lo, hi"
   inVariant: []
   out:
   - *v
@@ -1019,6 +1019,9 @@
     //
     // returns {70, 71, 72, 73, 40, 41, 42, 43}.
   in:
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
   - &v
     go: $t
     class: vreg
@@ -1026,9 +1029,6 @@
     bits: 256
     OverwriteElementBits: 32
   - *v
-  - class: immediate
-    immOffset: 0
-    name: "lo, hi"
   inVariant: []
   out:
   - *v
@@ -1043,6 +1043,9 @@
     //
     // returns {70, 71, 40, 41}.
   in:
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
   - &v
     go: $t
     class: vreg
@@ -1050,9 +1053,6 @@
     bits: 256
     OverwriteElementBits: 64
   - *v
-  - class: immediate
-    immOffset: 0
-    name: "lo, hi"
   inVariant: []
   out:
   - *v
@@ -1067,6 +1067,9 @@
     //
     // returns {70, 71, 72, 73, 40, 41, 42, 43}.
   in:
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
   - &v
     go: $t
     class: vreg
@@ -1074,9 +1077,6 @@
     bits: 256
     OverwriteElementBits: 32
   - *v
-  - class: immediate
-    immOffset: 0
-    name: "lo, hi"
   inVariant: []
   out:
   - *v
@@ -1092,6 +1092,9 @@
     //
     // returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
   in:
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
   - &v
     go: $t
     class: vreg
@@ -1099,9 +1102,6 @@
     bits: 256
     OverwriteElementBits: 16
   - *v
-  - class: immediate
-    immOffset: 0
-    name: "lo, hi"
   inVariant: []
   out:
   - *v
@@ -1117,6 +1117,9 @@
     //
     // returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
   in:
+  - class: immediate
+    immOffset: 0
+    name: "lo, hi"
   - &v
     go: $t
     class: vreg
@@ -1124,9 +1127,6 @@
     bits: 256
     OverwriteElementBits: 8
   - *v
-  - class: immediate
-    immOffset: 0
-    name: "lo, hi"
   inVariant: []
   out:
   - *v
@@ -1135,14 +1135,14 @@
   asm: VPALIGNR
   operandOrder: 2I
   in:
+  - class: immediate
+    immOffset: 0
+    name: shift
   - &uint128
     go: $t
     base: uint
     bits: 128
   - *uint128
-  - class: immediate
-    immOffset: 0
-    name: shift
   out:
   - *uint128
 
@@ -1150,13 +1150,13 @@
   asm: VPALIGNR
   operandOrder: 2I
   in:
+  - class: immediate
+    immOffset: 0
+    name: shift
   - &uint256512
     go: $t
     base: uint
     bits: 256|512
   - *uint256512
-  - class: immediate
-    immOffset: 0
-    name: shift
   out:
   - *uint256512

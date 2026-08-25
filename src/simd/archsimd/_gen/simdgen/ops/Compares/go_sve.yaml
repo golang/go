@@ -4,10 +4,10 @@
 - go: Greater
   asm: "ZCMPGT"
   in:
-  - class: mask # governing predicate
   - &int
     go: $t
     base: int
   - *int
+  - class: mask # governing predicate
   out:
   - class: mask
