@@ -758,42 +758,58 @@ func TestLandlockRestrictSelf(t *testing.T) {
 		LANDLOCK_ACCESS_FS_MAKE_DIR     = 1 << 7
 	)
 
-	// Check if Landlock is supported.
-	_, _, errno := syscall.Syscall(SYS_LANDLOCK_CREATE_RULESET, 0, 0, LANDLOCK_CREATE_RULESET_VERSION)
-	if errno != 0 {
-		t.Skipf("Kernel does not support Landlock: %v", errno)
-	}
+	for _, tt := range []struct {
+		Name       string
+		ExtraFiles []*os.File
+	}{
+		{
+			Name: "Simple",
+		},
+		{
+			Name:       "WithExtraFiles",
+			ExtraFiles: {os.Stdout, os.Stdout, os.Stdout, os.Stdout, os.Stdout},
+		},
+	} {
+		t.Run(tt.Name, func(t *testing.T) {
+			// Check if Landlock is supported.
+			_, _, errno := syscall.Syscall(SYS_LANDLOCK_CREATE_RULESET, 0, 0, LANDLOCK_CREATE_RULESET_VERSION)
+			if errno != 0 {
+				t.Skipf("Kernel does not support Landlock: %v", errno)
+			}
 
-	// Create a ruleset restricting directory creation with no allow rules,
-	// effectively denying directory creation everywhere.
-	type landlockRulesetAttr struct {
-		handledAccessFS uint64
-	}
-	attr := landlockRulesetAttr{
-		handledAccessFS: LANDLOCK_ACCESS_FS_MAKE_DIR,
-	}
-	rulesetFD, _, errno := syscall.Syscall(SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&attr)), unsafe.Sizeof(attr), 0)
-	if errno != 0 {
-		t.Fatalf("landlock_create_ruleset: %v", errno)
-	}
-	defer syscall.Close(int(rulesetFD))
+			// Create a ruleset restricting directory creation with no allow rules,
+			// effectively denying directory creation everywhere.
+			type landlockRulesetAttr struct {
+				handledAccessFS uint64
+			}
+			attr := landlockRulesetAttr{
+				handledAccessFS: LANDLOCK_ACCESS_FS_MAKE_DIR,
+			}
+			rulesetFD, _, errno := syscall.Syscall(SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&attr)), unsafe.Sizeof(attr), 0)
+			if errno != 0 {
+				t.Fatalf("landlock_create_ruleset: %v", errno)
+			}
+			defer syscall.Close(int(rulesetFD))
 
-	d := t.TempDir()
-	exe := testenv.Executable(t)
-	cmd := testenv.Command(t, exe, "-test.run=^TestLandlockRestrictSelf$", d)
-	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		NoNewPrivs:    true,
-		UseLandlock:   true,
-		LandlockFD:    int(rulesetFD),
-		LandlockFlags: 0,
-	}
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Subprocess failed: %v\n%s", err, out)
-	}
-	got := strings.TrimSpace(string(out))
-	if want := "EACCES"; got != want {
-		t.Errorf("Subprocess output: got %q, want %q", got, want)
+			d := t.TempDir()
+			exe := testenv.Executable(t)
+			cmd := testenv.Command(t, exe, "-test.run=^TestLandlockRestrictSelf$", d)
+			cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+			cmd.ExtraFiles = tt.ExtraFiles
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				NoNewPrivs:    true,
+				UseLandlock:   true,
+				LandlockFD:    int(rulesetFD),
+				LandlockFlags: 0,
+			}
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("Subprocess failed: %v\n%s", err, out)
+			}
+			got := strings.TrimSpace(string(out))
+			if want := "EACCES"; got != want {
+				t.Errorf("Subprocess output: got %q, want %q", got, want)
+			}
+		})
 	}
 }
