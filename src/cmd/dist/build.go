@@ -488,6 +488,9 @@ func isGitRepo() bool {
 	// suffice here, but that requires deviating from the infrastructure
 	// provided by `run`.
 	gitDir := chomp(run(goroot, 0, "git", "rev-parse", "--git-dir"))
+	if gitDir == "" {
+		return false
+	}
 	if !filepath.IsAbs(gitDir) {
 		gitDir = filepath.Join(goroot, gitDir)
 	}
@@ -498,6 +501,9 @@ func isGitRepo() bool {
 func isJJRepo() bool {
 	// Don't check the error from jj, similarly to what we do in isGitRepo.
 	jjDir := chomp(run(goroot, 0, "jj", "--no-pager", "--color=never", "root"))
+	if jjDir == "" {
+		return false
+	}
 	if !filepath.IsAbs(jjDir) {
 		jjDir = filepath.Join(goroot, jjDir)
 	}
