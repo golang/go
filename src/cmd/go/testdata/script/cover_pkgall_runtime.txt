@@ -2,8 +2,6 @@ env GO111MODULE=off
 
 # Issue 23882
 
-[short] skip
-
 go test -coverpkg=all x
 stdout ok[\s\S]+?coverage
 

@@ -1,7 +1,6 @@
 # Regression test for https://go.dev/issue/51748: by default, 'go build' should
 # not attempt to stamp VCS information when the VCS tool is not present.
 
-[short] skip
 [!git] skip
 
 cd sub

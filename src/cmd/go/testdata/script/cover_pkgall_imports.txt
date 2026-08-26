@@ -3,7 +3,6 @@
 # which only have tests.
 # Verifies golang.org/issue/27333, golang.org/issue/43242.
 
-[short] skip
 cd $GOPATH/src/example.com/cov
 
 env GO111MODULE=on

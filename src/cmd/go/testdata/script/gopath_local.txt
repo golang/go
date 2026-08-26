@@ -1,7 +1,5 @@
 env GO111MODULE=off  # Relative imports only work in GOPATH mode.
 
-[short] skip
-
 # Imports should be resolved relative to the source file.
 go build testdata/local/easy.go
 exec ./easy$GOEXE

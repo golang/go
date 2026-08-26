@@ -1,5 +1,4 @@
 [!cgo] skip
-[short] skip
 
 cp x.go.txt x.go
 

@@ -4,8 +4,6 @@
 # always instrumented (but not their dependencies). This rule applies
 # inside and outside the standard library.
 
-[short] skip
-
 # Compile an object.
 go tool compile -p tiny tiny/tiny.go tiny/tiny2.go
 

@@ -9,8 +9,6 @@ stderr '^go mod why: malformed module path "golang.org//x/...": double slash$'
 ! go mod why -m golang.org/...//.../text
 stderr '^go mod why: malformed module path "golang.org/...//.../text": double slash$'
 
-[short] skip
-
 # Populate go.sum.
 go mod tidy
 cp go.mod go.mod.orig

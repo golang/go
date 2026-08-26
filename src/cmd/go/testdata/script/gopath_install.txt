@@ -1,6 +1,5 @@
 # Regression test for 'go install' locations in GOPATH mode.
 env GO111MODULE=off
-[short] skip
 
 # Without $GOBIN set, binaries should be installed into the GOPATH bin directory.
 env GOBIN=

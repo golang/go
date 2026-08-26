@@ -1,5 +1,3 @@
-[short] skip 'builds go programs'
-
 go build -o cacheprog$GOEXE cacheprog.go
 env GOCACHEPROG=$GOPATH/src/cacheprog$GOEXE
 

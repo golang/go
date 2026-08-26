@@ -2,7 +2,6 @@
 # with -coverpkg=all without duplicate symbol errors.
 # Verifies golang.org/issue/30374, golang.org/issue/34114.
 
-[short] skip
 cd $GOPATH/src/example.com/cov
 
 env GO111MODULE=on

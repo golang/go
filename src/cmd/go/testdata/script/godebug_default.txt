@@ -73,8 +73,6 @@ stdout randseednop=1
 ! go build -tags godebugbad
 stderr 'invalid //go:debug: value contains space'
 
-[short] skip
-
 # Programs in Go 1.21 work module should trigger run-time error.
 cp go.mod.21 go.mod
 ! go run .

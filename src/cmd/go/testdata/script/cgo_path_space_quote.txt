@@ -4,7 +4,6 @@
 # with single or double quotes. This is the same as -gcflags and similar
 # options.
 
-[short] skip
 [!exec:clang] [!exec:gcc] skip
 [!cgo] skip
 

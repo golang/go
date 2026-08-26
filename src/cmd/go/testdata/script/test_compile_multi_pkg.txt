@@ -1,5 +1,3 @@
-[short] skip 'links test binaries'
-
 # Verify test -c can output multiple executables to a directory.
 
 # This test also serves as a regression test for https://go.dev/issue/62221:

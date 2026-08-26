@@ -1,4 +1,3 @@
-[short] skip 'links and runs a test binary'
 [!fuzz] skip 'tests SIGINT behavior for interrupting fuzz tests'
 [GOOS:windows] skip 'windows does not support os.Interrupt'
 

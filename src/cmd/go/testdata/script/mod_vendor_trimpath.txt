@@ -2,8 +2,6 @@
 # paths in vendored packages are properly trimmed.
 # Verifies golang.org/issue/36566.
 
-[short] skip
-
 # Only the main module has a root directory in vendor mode.
 go mod vendor
 go list -f {{.Module.Dir}} example.com/main

@@ -5,8 +5,6 @@
 # 'go' version in the go.mod file to 1.16, without actually updating the
 # requirements to match.
 
-[short] skip
-
 env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
 
 

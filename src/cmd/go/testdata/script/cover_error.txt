@@ -1,4 +1,3 @@
-[short] skip
 [compiler:gccgo] skip
 
 # Test line numbers in cover errors.

@@ -1,4 +1,3 @@
-[short] skip 'builds and runs go programs'
 [!symlink] skip 'uses symlinks to construct a GOROOT'
 
 env NEWGOROOT=$WORK${/}goroot

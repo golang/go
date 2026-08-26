@@ -3,7 +3,6 @@
 # through the __FILE__ macro using --file-prefix-map.
 
 [!cgo] skip
-[short] skip 'links and runs binaries'
 
 # Test in main module.
 go run -trimpath -mod=vendor ./main

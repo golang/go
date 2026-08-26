@@ -1,5 +1,3 @@
-[short] skip
-
 # In package list mode, output is buffered.
 # Check that a newline is printed after the buffer's contents.
 cd fail

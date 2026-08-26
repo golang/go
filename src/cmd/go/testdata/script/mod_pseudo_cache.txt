@@ -1,5 +1,4 @@
 [!git] skip
-[short] skip
 
 env GOPROXY=direct
 env GOSUMDB=off

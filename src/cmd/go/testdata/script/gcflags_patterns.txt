@@ -1,7 +1,6 @@
 env GO111MODULE=off
 
 [!compiler:gc] skip 'using -gcflags and -ldflags'
-[short] skip
 
 # -gcflags=-e applies to named packages, not dependencies
 go build -a -n -v -gcflags=-e z1 z2

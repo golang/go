@@ -5,7 +5,6 @@
 # and contains the module in vcs-test.golang.org/git/gitreposubdir/foo/subdir.
 # See testdata/vcstest/go/gitreposubdir.txt and testdata/vcstest/git/gitreposubdir.txt
 
-[short] skip 'builds a go program'
 [!git] skip
 
 env GOPROXY=direct

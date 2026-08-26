@@ -1,5 +1,3 @@
-[short] skip
-
 cp go.mod go.mod.orig
 
 # Make sure the test builds without replacement.

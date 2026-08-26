@@ -1,7 +1,5 @@
 env GO111MODULE=off
 
-[short] skip
-
 go test -coverpkg=all -covermode=atomic x
 stdout ok[\s\S]+?coverage
 

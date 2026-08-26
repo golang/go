@@ -2,8 +2,6 @@ env GO111MODULE=off
 
 # Issue 23150
 
-[short] skip
-
 go test -o=$WORK/x.test -cpuprofile=$WORK/cpu_profile_twice.out x
 rm $WORK/cpu_profile_twice.out
 

@@ -1,4 +1,3 @@
-[short] skip
 [!race] skip
 
 go test -race testrace

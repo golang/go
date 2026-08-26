@@ -3,7 +3,6 @@
 # erroneously rejected the pseudo-version as invalid, because it did not fetch
 # enough commit history to validate the pseudo-version base.
 
-[short] skip 'creates and uses a git repository'
 [!git] skip
 
 env GOPRIVATE=vcs-test.golang.org

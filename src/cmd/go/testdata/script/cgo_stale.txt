@@ -1,7 +1,6 @@
 # golang.org/issue/46347: a stale runtime/cgo should only force a single rebuild
 
 [!cgo] skip
-[short] skip
 
 
 # If we set a unique CGO_CFLAGS, the installed copy of runtime/cgo

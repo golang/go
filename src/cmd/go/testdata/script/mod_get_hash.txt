@@ -1,6 +1,5 @@
 env GOPROXY=direct
 env GOSUMDB=off
-[short] skip
 [!git] skip
 
 # fetch commit hash reachable from refs/heads/* and refs/tags/* is OK

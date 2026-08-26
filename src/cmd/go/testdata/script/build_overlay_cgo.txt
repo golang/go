@@ -1,4 +1,3 @@
-[short] skip
 [!cgo] skip
 
 # Test building cgo packages in overlays.

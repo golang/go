@@ -1,4 +1,3 @@
-[short] skip 'generates a vcstest git repo'
 [!git] skip
 
 env GOPROXY=direct

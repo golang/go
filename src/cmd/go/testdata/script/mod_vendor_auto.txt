@@ -1,7 +1,5 @@
 # Integration test for golang.org/issue/33848: automatically check and use vendored packages.
 
-[short] skip
-
 cd $WORK/auto
 cp go.mod go.mod.orig
 cp $WORK/modules-1.13.txt $WORK/auto/modules.txt

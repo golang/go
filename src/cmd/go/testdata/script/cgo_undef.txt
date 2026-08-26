@@ -16,7 +16,6 @@
 # to fail, because the failure to create _cgo_import.go should cause
 # the linker to report an inability to internally link.
 
-[short] skip
 [!cgo] skip
 [!exec:ar] skip
 

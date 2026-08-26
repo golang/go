@@ -1,5 +1,3 @@
-[short] skip
-
 go test -timeout=0 -run=TestNoDeadline
 go test -timeout=1m -run=TestDeadlineWithinMinute
 go test -timeout=1m -run=TestSubtestDeadlineWithinMinute

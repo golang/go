@@ -1,5 +1,4 @@
 # Tests issue #18845
-[short] skip
 
 go test -bench . -timeout=750ms timeoutbench_test.go
 stdout ok
