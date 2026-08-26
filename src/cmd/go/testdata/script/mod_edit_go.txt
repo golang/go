@@ -1,6 +1,5 @@
 # Test support for go mod edit -go to set language version.
 
-env GO111MODULE=on
 ! go build
 stderr ' type alias requires'
 go mod edit -go=1.9

@@ -1,4 +1,3 @@
-env GO111MODULE=on
 cp go.mod.orig go.mod
 
 # relative and absolute paths must be within the main module.

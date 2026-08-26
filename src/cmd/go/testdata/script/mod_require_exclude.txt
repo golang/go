@@ -1,5 +1,4 @@
 # build with no newer version to satisfy exclude
-env GO111MODULE=on
 cp go.mod go.mod.orig
 
 # With the selected version excluded, commands that query that version without

@@ -1,5 +1,4 @@
 env GOWORK=off
-env GO111MODULE=on
 
 # golang.org/issue/32917 and golang.org/issue/28459: 'go build' and 'go test'
 # in an empty directory should refer to the path '.' and should not attempt

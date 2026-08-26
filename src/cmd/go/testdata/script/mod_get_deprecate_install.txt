@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # 'go get' outside a module prints an error.
 ! go get example.com/cmd/a
 stderr '^go: go.mod file not found in current directory or any parent directory.$'

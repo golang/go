@@ -2,8 +2,6 @@
 # requirements in go.mod are unused.  Regression test for
 # golang.org/issue/36580
 
-env GO111MODULE=on
-
 go mod vendor
 cmp go1.14-modules.txt vendor/modules.txt
 

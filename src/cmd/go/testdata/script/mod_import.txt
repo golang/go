@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # latest rsc.io/quote should be v1.5.2 not v1.5.3-pre1
 go get
 go list -m all

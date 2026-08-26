@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Regression test for golang.org/issue/31031:
 # Importing or loading a non-existent package in cmd/ should print
 # a clear error in module mode.

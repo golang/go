@@ -7,7 +7,6 @@
 # Verifies golang.org/issue/42323.
 
 
-env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 

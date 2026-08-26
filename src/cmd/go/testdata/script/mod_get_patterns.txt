@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # If a pattern doesn't match any packages provided by modules
 # in the build list, we assume the pattern matches a single module
 # whose path is a prefix of the part of the pattern before "...".

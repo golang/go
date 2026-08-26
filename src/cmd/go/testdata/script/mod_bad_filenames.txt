@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 ! go get rsc.io/badfile1 rsc.io/badfile2 rsc.io/badfile3 rsc.io/badfile4 rsc.io/badfile5
 ! stderr 'unzip.*badfile1'
 stderr 'unzip.*badfile2[\\/]@v[\\/]v1.0.0.zip:.*malformed file path "☺.go": invalid char ''☺'''

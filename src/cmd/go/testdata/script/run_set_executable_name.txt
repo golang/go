@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Check for correct naming of temporary executable
 
 #Test for single file specified

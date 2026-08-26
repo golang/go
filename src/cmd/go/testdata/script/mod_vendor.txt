@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Without vendoring, a build should succeed unless -mod=vendor is set.
 [!short] go build
 [!short] ! go build -mod=vendor

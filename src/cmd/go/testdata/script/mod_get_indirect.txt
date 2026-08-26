@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # get -u should not upgrade anything, since the package
 # in the current directory doesn't import anything.
 go get -u

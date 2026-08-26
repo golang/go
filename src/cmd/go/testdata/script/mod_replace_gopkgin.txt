@@ -8,7 +8,6 @@ skip 'skipping test that depends on an unreliable third-party server; see https:
 # TODO(#54503): Make this work without needing the external network, and then re-enable.
 [!git] skip
 
-env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 env GOFLAGS=-mod=mod

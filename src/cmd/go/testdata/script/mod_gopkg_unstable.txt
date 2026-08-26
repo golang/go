@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 cp go.mod.empty go.mod
 go get gopkg.in/dummy.v2-unstable
 

@@ -1,7 +1,5 @@
 # Integration test for golang.org/issue/33848: automatically check and use vendored packages.
 
-env GO111MODULE=on
-
 [short] skip
 
 cd $WORK/auto

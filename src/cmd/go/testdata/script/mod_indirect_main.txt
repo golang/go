@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Regression test for golang.org/issue/29773: 'go list -m' was not following
 # dependencies through older versions of the main module.
 

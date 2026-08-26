@@ -2,8 +2,6 @@
 # to update the go.mod file if the changes only affect formatting, and should only
 # remove redundant requirements in 'go mod tidy'.
 
-env GO111MODULE=on
-
 # Control case: verify that go.mod.tidy is actually tidy.
 cp go.mod.tidy go.mod
 go list -mod=mod all

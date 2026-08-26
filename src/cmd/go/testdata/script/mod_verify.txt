@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # With good go.sum, verify succeeds by avoiding download.
 cp go.sum.good go.sum
 go mod verify

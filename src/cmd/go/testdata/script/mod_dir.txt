@@ -1,7 +1,5 @@
 # The directory named go.mod should be ignored
 
-env GO111MODULE=on
-
 cd $WORK/sub
 
 go list .

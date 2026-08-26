@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Download modules to avoid stderr chatter
 go mod download example.com@v1.0.0
 go mod download example.com/newcycle/a@v1.0.0

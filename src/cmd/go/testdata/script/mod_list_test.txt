@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # go list -compiled -test must handle test-only packages
 # golang.org/issue/27097.
 go list -compiled -test

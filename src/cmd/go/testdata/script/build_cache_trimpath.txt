@@ -1,5 +1,4 @@
 [short] skip
-env GO111MODULE=on
 
 # Set up fresh GOCACHE.
 env GOCACHE=$WORK/gocache

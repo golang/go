@@ -30,8 +30,6 @@ go version
 stdout '^go version'
 env GOFLAGS=
 
-env GO111MODULE=on
-
 # Check that very basic version lookup succeeds.
 go build empty.go
 go version empty$GOEXE

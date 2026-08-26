@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 [!cgo] skip
 
 # Regression test for golang.org/issue/29667:

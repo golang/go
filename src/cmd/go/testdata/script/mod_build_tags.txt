@@ -1,8 +1,6 @@
 # Test that build tags are used.
 # golang.org/issue/24053.
 
-env GO111MODULE=on
-
 cd x
 ! go list -f {{.GoFiles}}
 stderr 'build constraints exclude all Go files'

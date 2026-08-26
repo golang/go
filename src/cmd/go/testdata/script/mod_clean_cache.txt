@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # 'mod download' should download the module to the cache.
 go mod download rsc.io/quote@v1.5.0
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info

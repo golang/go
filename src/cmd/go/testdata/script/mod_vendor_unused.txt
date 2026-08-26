@@ -3,8 +3,6 @@
 # We need metadata about replacements in order to verify that modules.txt
 # remains in sync with the main module's go.mod file.
 
-env GO111MODULE=on
-
 go mod vendor
 cmp go1.14-modules.txt vendor/modules.txt
 

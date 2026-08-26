@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # go help get shows usage for get
 go help get
 stdout 'usage: go get'

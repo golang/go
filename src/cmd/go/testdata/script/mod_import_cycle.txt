@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # 'go list all' should fail with a reasonable error message
 ! go list all
 stderr '^package m\n\timports m/a from m.go\n\timports m/b from a.go\n\timports m/a from b.go: import cycle not allowed'

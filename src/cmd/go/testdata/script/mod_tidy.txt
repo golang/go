@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # tidy removes unused y, but everything else is used
 go mod tidy -v
 stderr '^unused y.1'

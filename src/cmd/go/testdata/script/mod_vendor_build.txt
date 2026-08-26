@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Populate go.mod and go.sum.
 go mod tidy
 

@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # -mod=readonly must not resolve missing modules nor update go.mod
 env GOFLAGS=-mod=readonly
 go mod edit -fmt

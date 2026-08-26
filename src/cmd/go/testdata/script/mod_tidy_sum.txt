@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # go.sum should list directly used modules and dependencies
 go get rsc.io/quote@v1.5.2
 go mod tidy

@@ -1,7 +1,6 @@
 # This test matches list_bad_import, but in module mode.
 # Please keep them in sync.
 
-env GO111MODULE=on
 cd example.com
 
 # Without -e, listing an otherwise-valid package with an unsatisfied direct import should fail.

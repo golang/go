@@ -3,7 +3,6 @@
 [!git] skip
 
 env GONOSUMDB=vcs-test.golang.org
-env GO111MODULE=on
 env GOPROXY=direct
 go get -x vcs-test.golang.org/go/get_404_meta
 stderr 'get https://vcs-test.golang.org/go/get_404_meta\?go-get=1: 404 Not Found'

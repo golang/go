@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # 'go mod why -m' should reject malformed module paths before loading
 # the module graph.
 ! go mod why -m golang.org/x/text/

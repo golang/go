@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 go get rsc.io/fortune/v2
 
 # The default executable name shouldn't be v2$GOEXE

@@ -1,7 +1,6 @@
 # Test to ensure runtime/debug.ReadBuildInfo parses
 # the modinfo embedded in a binary by the go tool
 # when module is enabled.
-env GO111MODULE=on
 
 cd x
 go mod edit -require=rsc.io/quote@v1.5.2

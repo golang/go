@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 [!git] skip
 [short] skip
 

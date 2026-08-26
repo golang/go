@@ -1,5 +1,4 @@
 # Test that go.sum does not get updated when -mod=readonly flag is set
-env GO111MODULE=on
 
 # When a sum is needed to load the build list, we get an error for the
 # specific module. The .mod file is not downloaded, and go.sum is not written.

@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # golang.org/issue/31248: loading the build list must not add explicit entries
 # for indirect dependencies already implied by older-than-selected versions
 # already in the build list.

@@ -1,4 +1,3 @@
-env GO111MODULE=on
 env GOFLAGS=-mod=mod
 
 # golang.org/issue/30166: 'go mod tidy' should not crash if a replaced module is

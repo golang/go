@@ -1,6 +1,5 @@
 [short] skip
 
-env GO111MODULE=on
 env GOCACHE=$WORK/gocache
 env GODEBUG=gocachetest=1
 

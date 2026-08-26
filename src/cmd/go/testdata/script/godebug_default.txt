@@ -1,4 +1,3 @@
-env GO111MODULE=on
 env GOTRACEBACK=single
 
 # Go 1.21 work module should leave panicnil with an implicit default.

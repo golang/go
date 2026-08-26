@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 cd m
 
 # 'go list all' should list all of the packages used (directly or indirectly) by

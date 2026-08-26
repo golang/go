@@ -1,8 +1,6 @@
 # Builds and runs test binaries, so skip in short mode.
 [short] skip
 
-env GO111MODULE=on
-
 # If a test invoked by 'go test' exits with a zero status code,
 # it will panic.
 ! go test ./zero

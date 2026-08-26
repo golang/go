@@ -1,8 +1,6 @@
 # Regression test for golang.org/issue/34634: permissions for the go.sum and
 # go.mod files should be preserved when overwriting them.
 
-env GO111MODULE=on
-
 # Skip platforms that do not have Unix-style file permissions.
 [GOOS:windows] skip
 [GOOS:plan9] skip

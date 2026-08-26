@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 cd $WORK
 
 # An import provided by two different modules should be flagged as an error.
