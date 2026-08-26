@@ -282,6 +282,7 @@ func (v Value) Bool() bool {
 	return *(*bool)(v.ptr)
 }
 
+//go:noinline
 func (v Value) panicNotBool() {
 	v.mustBe(Bool)
 }

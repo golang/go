@@ -648,7 +648,10 @@ opSwitch:
 				//
 				// TODO: in the case of a single-call closure, the inlining budget here is potentially much, much larger.
 				//
-				v.budget -= callee.Inl.Cost
+				// The normal node cost below already charges for the call.
+				// Replace that cost with the inline body cost instead of
+				// charging for both the body and the call that disappears.
+				v.budget -= callee.Inl.Cost - 1
 				break
 			}
 		}
