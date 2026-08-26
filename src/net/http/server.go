@@ -23,6 +23,7 @@ import (
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
+	"os"
 	"path"
 	"runtime"
 	"slices"
@@ -804,15 +805,27 @@ func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
 // non-nil error.
 //
 // The provided non-nil err is almost always io.EOF or a "use of
-// closed network connection". In any case, the error is not
-// particularly interesting, except perhaps for debugging during
-// development. Any error means the connection is dead and we should
-// down its context.
+// closed network connection". Any error means the connection is dead and we
+// should shut down its context. An error other than io.EOF or an expired read
+// deadline also means the connection is dead for writing, so any response
+// write still in flight is aborted.
 //
 // The caller must hold connReader.mu.
-func (cr *connReader) handleReadErrorLocked(_ error) {
+func (cr *connReader) handleReadErrorLocked(err error) {
 	if cr.conn == nil {
 		return
+	}
+	// io.EOF means the client half closed and may still be waiting for a
+	// response, and an expired read deadline is the server's own doing.
+	// Any other error means the connection is gone in both directions, so
+	// unblock a response write in flight.
+	//
+	// This matters because on some systems the poller never reports the
+	// socket as writable again once a read has consumed its pending error,
+	// so a handler blocked writing a large response would otherwise block
+	// forever. See go.dev/issue/78438.
+	if err != io.EOF && !errors.Is(err, os.ErrDeadlineExceeded) {
+		cr.conn.rwc.SetWriteDeadline(aLongTimeAgo)
 	}
 	cr.conn.cancelCtx()
 	if res := cr.conn.curReq.Load(); res != nil {
