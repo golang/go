@@ -1,0 +1,49 @@
+# 'go work sync' must write go.sum files that are complete for each module on
+# its own, including the go.mod hashes of the versions it upgrades to.
+# The go.mod hashes are only verified during the workspace-mode load, where
+# they are found in the collective workspace checksums, so the second
+# single-module load reuses the cached summaries and leaves them out.
+
+go -C a mod tidy
+go -C b mod tidy
+grep '^rsc.io/quote v1.0.0/go.mod ' b/go.sum
+
+# go work sync upgrades b to quote v1.1.0, which a already uses.
+go work sync
+grep '^rsc.io/quote v1.1.0 h1:' b/go.sum
+# TODO: this should be 'grep', not '! grep'.
+! grep '^rsc.io/quote v1.1.0/go.mod ' b/go.sum
+
+# ... so b does not build outside the workspace today, though it should.
+env GOWORK=off
+# TODO: this should be 'go -C b build ./...'.
+! go -C b build ./...
+stderr 'missing go.sum entry for go.mod file'
+
+-- go.work --
+go 1.21
+
+use (
+	./a
+	./b
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.21
+
+require rsc.io/quote v1.1.0
+-- a/a.go --
+package a
+
+import _ "rsc.io/quote"
+-- b/go.mod --
+module example.com/b
+
+go 1.21
+
+require rsc.io/quote v1.0.0
+-- b/b.go --
+package b
+
+import _ "rsc.io/quote"
