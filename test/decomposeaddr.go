@@ -1,7 +1,5 @@
 // errorcheck -0 -d=ssa/decompose_addr/debug=1
 
-//go:build goexperiment.simd
-
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -205,6 +203,71 @@ func unsafeAliasMovePadding(v uint8, c bool) (uint8, uint32) {
 		b.c++
 	}
 	return b.y, b.b + b.c
+}
+
+type stringStruct struct {
+	s string
+	i int
+}
+
+func stringField(c bool) int {
+	// The string field splits into a pointer leaf and a length leaf.
+	ss := stringStruct{"hello", 10} // ERROR "promoted ss"
+	p := &ss
+	if c {
+		p.i += 5
+	}
+	return len(p.s) + p.i
+}
+
+type sliceStruct struct {
+	sl []int
+	i  int
+}
+
+func sliceField(c bool, sl []int) int {
+	// The slice field splits into ptr/len/cap leaves.
+	ss := sliceStruct{sl, 10} // ERROR "promoted ss"
+	p := &ss
+	if c {
+		p.i += 5
+	}
+	return len(p.sl) + cap(p.sl) + p.i
+}
+
+type ifaceStruct struct {
+	e any
+	i int
+}
+
+func ifaceField(c bool, e any) int {
+	// The interface field splits into a type word and a data word.
+	is := ifaceStruct{e, 10} // ERROR "promoted is"
+	p := &is
+	if c {
+		p.i += 5
+	}
+	if p.e != nil {
+		p.i++
+	}
+	return p.i
+}
+
+type complexStruct struct {
+	z complex64
+	i int
+}
+
+func complexField(c bool) float32 {
+	// The complex field splits into two float leaves. complex64 rather
+	// than complex128 so the float leaves fit in a register on 32-bit
+	// platforms too.
+	cs := complexStruct{complex(3, 4), 10} // ERROR "promoted cs"
+	p := &cs
+	if c {
+		p.i += 5
+	}
+	return real(p.z) + imag(p.z) + float32(p.i)
 }
 
 func main() {}

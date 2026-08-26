@@ -215,12 +215,63 @@ func decomposeAddr(f *ssa.Func) {
 					return nil, s
 				}
 			}
+		} else if t.IsString() {
+			// Strings split into a pointer and a length word, mirroring
+			// (*Func).SplitString. By the time this pass runs, decompose
+			// builtin has already rewritten string-typed accesses into
+			// word-level ones, so accesses line up with these leaves.
+			ptrType := f.Config.Types.BytePtr
+			lenType := types.Types[types.TINT]
+			if s := checkField(ptrType, base); s != partSuccess {
+				return nil, s
+			}
+			if s := checkField(lenType, base+ptrType.Size()); s != partSuccess {
+				return nil, s
+			}
+		} else if t.IsSlice() {
+			// Mirrors (*Func).SplitSlice.
+			ptrType := types.NewPtr(t.Elem())
+			lenType := types.Types[types.TINT]
+			if s := checkField(ptrType, base); s != partSuccess {
+				return nil, s
+			}
+			if s := checkField(lenType, base+ptrType.Size()); s != partSuccess {
+				return nil, s
+			}
+			if s := checkField(lenType, base+ptrType.Size()+lenType.Size()); s != partSuccess {
+				return nil, s
+			}
+		} else if t.IsInterface() {
+			// Mirrors (*Func).SplitInterface: the itab/type word is a
+			// uintptr (see the comment in typebits.Set), the data word is
+			// a scannable pointer.
+			itabType := types.Types[types.TUINTPTR]
+			dataType := f.Config.Types.BytePtr
+			if s := checkField(itabType, base); s != partSuccess {
+				return nil, s
+			}
+			if s := checkField(dataType, base+itabType.Size()); s != partSuccess {
+				return nil, s
+			}
+		} else if t.IsComplex() {
+			// Mirrors (*Func).SplitComplex.
+			elemType := types.Types[types.TFLOAT32]
+			if t.Size() == 16 {
+				elemType = types.Types[types.TFLOAT64]
+			}
+			if s := checkField(elemType, base); s != partSuccess {
+				return nil, s
+			}
+			if s := checkField(elemType, base+elemType.Size()); s != partSuccess {
+				return nil, s
+			}
 		} else {
 			// Leaf field
 			if !t.IsSIMD() && t.Size() > f.Config.RegSize {
 				// This leaf field is too large to be stored in one register.
-				// This currently bails out slices, interfaces, strings, etc.
-				// TODO: decomposeAddr can handle them too, but it needs more work.
+				// This can still trigger for e.g. 8-byte scalars on 32-bit
+				// platforms; wide builtin composites (strings, slices,
+				// interfaces, complexes) are split into words above.
 				return nil, partLarge
 			}
 			if t.Size() == 0 {
@@ -269,8 +320,15 @@ NameLoop:
 			st.Record("params", 1)
 			continue
 		}
-		if !(n.Type().IsStruct() && !n.Type().IsSIMD()) && !n.Type().IsArray() {
-			st.Record("non struct nor array", 1)
+		t := n.Type()
+		splittable := (t.IsStruct() && !t.IsSIMD()) || t.IsArray() ||
+			t.IsString() || t.IsSlice() || t.IsInterface() || t.IsComplex()
+		if !splittable {
+			// Bare multi-word builtin composites (strings, slices,
+			// interfaces, complexes) split into word leaves just like
+			// aggregate fields of those types do; everything else that
+			// is not a struct or array stays with mem2reg alone.
+			st.Record("non composite", 1)
 			continue
 		}
 		if n.NonMergeable() || n.OpenDeferSlot() {
@@ -496,9 +554,23 @@ NamesLoop:
 				case ssaop.OpOffPtr, ssaop.OpCopy:
 					// Handled by derived.
 				case ssaop.OpLoad, ssaop.OpStore:
+					if use.Op == ssaop.OpLoad && use.Uses == 0 {
+						// A dead load may span several leaves — e.g. a wide
+						// composite load whose selectors decompose builtin
+						// already rewrote into direct word loads, leaving
+						// the original load unused. It is about to be
+						// removed by deadcode, so it neither disqualifies
+						// the variable nor marks a leaf active. The rewrite
+						// phase skips it too, leaving it on the original
+						// address until deadcode collects it.
+						continue
+					}
 					leaf, ok := matchToLeaf(c, use, findOffset(use.Args[0]))
 					if !ok {
 						// we can't find a leaf node that matches
+						if f.Pass.Debug > 1 {
+							f.Warnl(n.Pos(), "decomposeAddr: %v has a load or store not on leaf level", n)
+						}
 						st.Record("load or store not on leaf level", 1)
 						c.unDecomposable = true
 						continue NamesLoop
@@ -737,6 +809,11 @@ NamesLoop:
 				case ssaop.OpOffPtr:
 					collectSimpleUses(use, offset+use.AuxInt)
 				case ssaop.OpLoad, ssaop.OpStore:
+					if use.Op == ssaop.OpLoad && use.Uses == 0 {
+						// Skipped during the leaf matching above; leave it
+						// for deadcode.
+						continue
+					}
 					accesses = append(accesses, pAccess{use, offset})
 				case ssaop.OpCopy:
 					collectSimpleUses(use, offset)

@@ -237,13 +237,83 @@ type stringStruct struct {
 
 //go:noinline
 func stringStructAddr(c bool) int {
-	// string has non-scalar fields (ptr + len), so it won't be decomposed by my current implementation
-	// which only allows true scalars.
+	// The string field splits into a pointer leaf and a length leaf,
+	// so the whole struct decomposes into three scalar variables.
 	ss := stringStruct{"hello", 10}
 	if c {
 		ss.i += 5
 	}
 	return len(ss.s) + ss.i
+}
+
+//go:noinline
+func sliceStructAddr(c bool) int {
+	type sliceStruct struct {
+		sl []int
+		i  int
+	}
+	ss := sliceStruct{[]int{1, 2, 3}, 10}
+	p := &ss
+	if c {
+		p.i += 5
+	}
+	return len(p.sl) + cap(p.sl) + p.sl[0] + p.i
+}
+
+//go:noinline
+func sliceStructReg(c bool) int {
+	sl, i := []int{1, 2, 3}, 10
+	if c {
+		i += 5
+	}
+	return len(sl) + cap(sl) + sl[0] + i
+}
+
+//go:noinline
+func ifaceStructAddr(c bool) int {
+	type ifaceStruct struct {
+		e any
+		i int
+	}
+	is := ifaceStruct{e: 42, i: 10}
+	p := &is
+	if c {
+		p.i += 5
+	}
+	return p.e.(int) + p.i
+}
+
+//go:noinline
+func ifaceStructReg(c bool) int {
+	var e any = 42
+	i := 10
+	if c {
+		i += 5
+	}
+	return e.(int) + i
+}
+
+//go:noinline
+func complexStructAddr(c bool) int {
+	type complexStruct struct {
+		z complex128
+		i int
+	}
+	cs := complexStruct{z: complex(3, 4), i: 10}
+	p := &cs
+	if c {
+		p.i += 5
+	}
+	return int(real(p.z)) + int(imag(p.z)) + p.i
+}
+
+//go:noinline
+func complexStructReg(c bool) int {
+	z, i := complex(3.0, 4.0), 10
+	if c {
+		i += 5
+	}
+	return int(real(z)) + int(imag(z)) + i
 }
 
 //go:noinline
@@ -326,6 +396,41 @@ func unsafeAliasMoveReg(c bool) int {
 	return int(v0) + int(v1)
 }
 
+//go:noinline
+func bareComplexAddr(c bool) int {
+	// A bare multi-word builtin composite (no enclosing struct) splits
+	// into word leaves just like a composite-typed field does.
+	x := complex(3.0, 4.0)
+	q := &x
+	if c {
+		q = &x
+	}
+	return int(real(*q)) + int(imag(*q))
+}
+
+//go:noinline
+func bareComplexReg(c bool) int {
+	re, im := 3.0, 4.0
+	_ = c
+	return int(re) + int(im)
+}
+
+//go:noinline
+func bareStringAddr(c bool) int {
+	s := "hello"
+	p := &s
+	if c {
+		p = &s
+	}
+	return len(*p)
+}
+
+//go:noinline
+func bareStringReg(c bool) int {
+	_ = c
+	return 5
+}
+
 func TestDecomposeAddr(t *testing.T) {
 	tests := []struct {
 		name string
@@ -349,6 +454,11 @@ func TestDecomposeAddr(t *testing.T) {
 			}
 			return int(b)
 		}},
+		{"bareComplex", bareComplexAddr, bareComplexReg},
+		{"bareString", bareStringAddr, bareStringReg},
+		{"sliceStruct", sliceStructAddr, sliceStructReg},
+		{"ifaceStruct", ifaceStructAddr, ifaceStructReg},
+		{"complexStruct", complexStructAddr, complexStructReg},
 		{"partialZero", partialZeroAddr, func(bool) int { return 81 }},
 		{"partialMove", partialMoveAddr, func(bool) int { return 81 }},
 	}

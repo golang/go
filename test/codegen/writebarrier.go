@@ -6,6 +6,8 @@
 
 package codegen
 
+import "runtime"
+
 func combine2string(p *[2]string, a, b string) {
 	// amd64:`.*runtime[.]gcWriteBarrier4\(SB\)`
 	// arm64:`.*runtime[.]gcWriteBarrier4\(SB\)`
@@ -87,6 +89,11 @@ func issue71228(dst *S, ptr *int) {
 	g2 = nil
 	//amd64:`.*runtime[.]wbMove`
 	*dst = *sp
+	// This test guards the ordering of the memory-to-memory move above,
+	// which requires s to actually live in memory. The KeepAlive applies
+	// a VarLive to s so that mem2reg/decomposeAddr do not promote it to
+	// SSA values (which would remove the wbMove entirely).
+	runtime.KeepAlive(sp)
 }
 
 func writeDouble(p *[2]*int, x, y *int) {
