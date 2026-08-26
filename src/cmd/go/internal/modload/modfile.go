@@ -708,7 +708,7 @@ func rawGoModSummary(ld *Loader, m module.Version) (*modFileSummary, error) {
 			return summaryFromModFile(m, ld.MainModules.modFiles[m])
 		}
 	}
-	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
+	return ld.rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
 		name, data, err := rawGoModData(ld, m)
 		if err != nil {
 			return nil, err
@@ -771,8 +771,6 @@ func summaryFromModFile(m module.Version, f *modfile.File) (*modFileSummary, err
 
 	return summary, nil
 }
-
-var rawGoModSummaryCache par.ErrCache[module.Version, *modFileSummary]
 
 // rawGoModData returns the content of the go.mod file for module m, ignoring
 // all replacements that may apply to m.
