@@ -1,0 +1,2 @@
+pkg net/http, const MethodQuery = "QUERY" #80058
+pkg net/http, const MethodQuery ideal-string #80058
