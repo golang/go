@@ -2059,6 +2059,10 @@ func TestGoroutineProfileCoro(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	done := make(chan struct{})
+	defer func() {
+		close(done)
+		wg.Wait()
+	}()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -2066,6 +2070,7 @@ func TestGoroutineProfileCoro(t *testing.T) {
 			iterFunc()
 			select {
 			case <-done:
+				return
 			default:
 			}
 		}
