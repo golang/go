@@ -149,7 +149,8 @@ func decomposeAddr(f *ssa.Func) {
 
 	// maxPartitions limits the number of fields an aggregate can be decomposed into.
 	// This prevents OOM and hangs on extremely large arrays or deeply nested structs.
-	const maxPartitions = 64
+	// Tunable for experiments via -d=ssa/decompose_addr/@maxpartitions=<n>.
+	maxPartitions := f.Pass.Val("maxpartitions", 64)
 
 	// maxActivePartitions limits the number of *active* fields an aggregate
 	// can be decomposed into. While maxPartitions bounds how many leaf fields
@@ -171,7 +172,8 @@ func decomposeAddr(f *ssa.Func) {
 	// and higher register pressure for mem2reg.
 	// If we set this number too high, the register allocation might behave suboptimally
 	// and the performance might even regress.
-	const maxActivePartitions = 4
+	// Tunable for experiments via -d=ssa/decompose_addr/@maxactivepartitions=<n>.
+	maxActivePartitions := f.Pass.Val("maxactivepartitions", 4)
 
 	type partitionStatus int
 	const (
@@ -190,7 +192,7 @@ func decomposeAddr(f *ssa.Func) {
 			if s != partSuccess {
 				return s
 			}
-			if len(leaves)+len(ls) > maxPartitions {
+			if int64(len(leaves)+len(ls)) > maxPartitions {
 				return partTooMany
 			}
 			leaves = append(leaves, ls...)
@@ -505,7 +507,7 @@ NamesLoop:
 						// Only a scalar Load marks a leaf active.
 						if _, ok := usedLeaf[leaf.off]; !ok {
 							usedLeaf[leaf.off] = struct{}{}
-							if len(usedLeaf) > maxActivePartitions {
+							if int64(len(usedLeaf)) > maxActivePartitions {
 								st.Record("too many active partitions", 1)
 								c.unDecomposable = true
 								continue NamesLoop

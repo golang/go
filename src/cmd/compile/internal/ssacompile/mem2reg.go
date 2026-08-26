@@ -506,7 +506,8 @@ NextVar:
 
 	// crossBlockBudget caps both the number of def blocks and the number
 	// of phi insertions one variable may require.
-	crossBlockBudget := 20
+	// Tunable for experiments via -d=ssa/mem2reg/@crossblockbudget=<n>.
+	crossBlockBudget := f.Pass.Val("crossblockbudget", 20)
 
 	// Phase 1: placement.
 	phiBlocksByName := map[*ir.Name][]*ssa.Block{}
@@ -531,7 +532,7 @@ NextVar:
 					}
 					seen[use.Block] = struct{}{}
 					seeds = append(seeds, use.Block)
-					if len(seeds) >= crossBlockBudget {
+					if int64(len(seeds)) >= crossBlockBudget {
 						// Too many def blocks, bail out.
 						st.Record("too many def blocks", 1)
 						delete(varGrouped, n)
@@ -545,7 +546,7 @@ NextVar:
 			slices.SortFunc(seeds, func(a, b *ssa.Block) int { return int(a.ID - b.ID) })
 			var phiBlocks []*ssa.Block
 			for y := range f.IterDomFrontierPlus(slices.Values(seeds)) {
-				if len(phiBlocks) >= crossBlockBudget {
+				if int64(len(phiBlocks)) >= crossBlockBudget {
 					// Too many phis, bail out.
 					st.Record("too many cascading def blocks", 1)
 					delete(varGrouped, n)
