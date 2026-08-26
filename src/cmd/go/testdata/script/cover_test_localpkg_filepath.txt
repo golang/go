@@ -1,6 +1,3 @@
-
-[short] skip
-
 # collect coverage profile in text format
 go test -coverprofile=blah.prof prog.go prog_test.go
 

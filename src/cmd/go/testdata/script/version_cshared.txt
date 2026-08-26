@@ -1,4 +1,3 @@
-[short] skip
 [!cgo] skip '-buildmode=c-shared requires external linking'
 [!buildmode:c-shared] stop
 

@@ -1,5 +1,4 @@
 env GO111MODULE=off
-[short] skip
 
 # This test matches mod_list_bad_import, but in GOPATH mode.
 # Please keep them in sync.

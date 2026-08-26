@@ -1,10 +1,7 @@
-
 # Testcase inspired by issue #58770, intended to verify that we're
 # doing the right thing when running "go test -coverpkg=./... ./..."
 # on a collection of packages where some have init functions and some
 # do not, some have tests and some do not.
-
-[short] skip
 
 # Verify correct statements percentages. We have a total of 10
 # statements in the packages matched by "./..."; package "a" (for

@@ -1,4 +1,3 @@
-[short] skip
 [!cgo] skip
 
 # Test that cgo rejects attempts to declare methods

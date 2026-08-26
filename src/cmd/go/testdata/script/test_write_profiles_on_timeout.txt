@@ -1,7 +1,5 @@
 # Tests issue 19394
 
-[short] skip
-
 ! go test -cpuprofile cpu.pprof -memprofile mem.pprof -timeout 1ms
 stdout '^panic: test timed out'
 grep . cpu.pprof

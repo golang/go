@@ -17,8 +17,6 @@ stderr 'dep\s+rsc.io/quote\s+v1.5.2\s+'
 stderr '=>\s+rsc.io/quote\s+v1.0.0\s+h1:'
 stderr 'Hello, world.'
 
-[short] skip
-
 # Build a binary that accesses its debug info by reading the binary directly
 # (rather than through debug.ReadBuildInfo).
 # The debug info should still be present (golang.org/issue/28753).

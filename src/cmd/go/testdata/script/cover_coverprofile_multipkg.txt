@@ -1,4 +1,3 @@
-
 # Testcase for #63356. In this bug we're doing a "go test -coverprofile"
 # run for a collection of packages, mostly independent (hence tests can
 # be done in parallel) and in the original bug, temp coverage profile
@@ -6,8 +5,6 @@
 # in a corrupted final profile. Actual content of the packages doesn't
 # especially matter as long as we have a mix of packages with tests and
 # multiple packages without tests.
-
-[short] skip
 
 # Kick off test.
 go test -p=10 -vet=off -count=1 -coverprofile=cov.p ./...

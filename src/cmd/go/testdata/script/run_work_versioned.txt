@@ -1,4 +1,3 @@
-[short] skip
 go run example.com/printversion@v0.1.0
 stdout '^main is example.com/printversion v0.1.0$'
 

@@ -54,7 +54,6 @@ env NETRC=$WORK/missing
 ! go get vcs-test.golang.org/auth/or401
 stderr '^\tserver response: ACCESS DENIED, buddy$'
 
-[short] skip 'requires a remote vcs lookup'
 [!git] skip
 # An unset home directory should warn the user but not cause a failure.
 env NETRC=

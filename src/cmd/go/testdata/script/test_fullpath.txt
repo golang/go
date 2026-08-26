@@ -1,4 +1,3 @@
-[short] skip
 
 # test with -fullpath
 ! go test ./x/... -fullpath

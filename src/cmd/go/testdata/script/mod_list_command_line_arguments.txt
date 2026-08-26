@@ -7,8 +7,6 @@ stdout '^<nil>$'
 go list -f '{{.Module}}' a.go
 stdout '^<nil>$'
 
-[short] skip
-
 # check that the version of command-line-arguments doesn't include a module
 go build -o a.exe a.go
 go version -m a.exe

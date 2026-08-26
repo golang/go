@@ -1,4 +1,3 @@
-[short] skip
 [!race] skip
 
 ! go test -v -race main_panic/testmain_parallel_sub_panic_test.go

@@ -13,8 +13,6 @@ stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]q
 go list -f '{{.Dir}}' example.com/b
 stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
 
-[short] skip
-
 rm b
 rm q1_0_0
 rm q1_1_0

@@ -1,8 +1,6 @@
 # This test only checks that basic PATH lookups work.
 # The full test of toolchain version selection is in gotoolchain.txt.
 
-[short] skip
-
 env TESTGO_VERSION=go1.21pre3
 
 # Compile a fake toolchain to put in the path under various names.

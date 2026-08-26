@@ -1,8 +1,6 @@
 # Ensure buildinfo is populated on test binaries even if they
 # are not tests for package main. See issue #33976.
 
-[short] skip 'invokes go test'
-
 go mod init foo
 go get example.com/version@v1.0.0
 

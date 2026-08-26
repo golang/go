@@ -1,4 +1,3 @@
-[short] skip
 [!cgo] skip
 
 [GOOS:solaris] skip "skipping on Solaris; see golang.org/issue/13247"

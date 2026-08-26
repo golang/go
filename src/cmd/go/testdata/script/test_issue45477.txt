@@ -1,5 +1,3 @@
-[short] skip  # links and runs a test binary
-
 go test -v .
 
 -- go.mod --

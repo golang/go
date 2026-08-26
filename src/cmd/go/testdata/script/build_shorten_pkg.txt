@@ -1,5 +1,3 @@
-[short] skip
-
 # This test may go away when the loopvar experiment goes away.
 # Accurate reporting of notable loops in the presence of inlining
 # can create warnings in sibling directories, and it's nice if those

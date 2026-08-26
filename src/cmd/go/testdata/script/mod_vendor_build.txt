@@ -1,5 +1,4 @@
 env GO111MODULE=on
-[short] skip
 
 # Populate go.mod and go.sum.
 go mod tidy

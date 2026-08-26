@@ -1,5 +1,4 @@
 env GO111MODULE=on
-[short] skip
 
 # get -u should not upgrade anything, since the package
 # in the current directory doesn't import anything.

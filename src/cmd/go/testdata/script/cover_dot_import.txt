@@ -1,4 +1,3 @@
-[short] skip
 [compiler:gccgo] skip # gccgo has no cover tool
 
 go test -coverpkg=coverdot/a,coverdot/b coverdot/b

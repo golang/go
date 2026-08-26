@@ -35,8 +35,6 @@ env GOPROXY=off
 ! go get golang.org/x/text
 stderr '^go: golang.org/x/text: module lookup disabled by GOPROXY=off$'
 
-[short] skip 'the rest of the test uses git'
-
 # GONOPROXY bypasses proxy
 [!git] skip
 env GOPROXY=$proxy

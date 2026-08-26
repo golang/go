@@ -4,8 +4,6 @@
 # running a go list (creating index and output cache entries for
 # the module index) and then removing just the output entries.
 
-[short] skip 'runs go build'
-
 go build -o roe$GOEXE ./remove_output_entries.go
 
 # populate new cache

@@ -3,7 +3,6 @@
 # remove redundant requirements in 'go mod tidy'.
 
 env GO111MODULE=on
-[short] skip
 
 # Control case: verify that go.mod.tidy is actually tidy.
 cp go.mod.tidy go.mod

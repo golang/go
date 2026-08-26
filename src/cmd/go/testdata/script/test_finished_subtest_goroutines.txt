@@ -2,8 +2,6 @@
 # Goroutines for completed parallel subtests should exit immediately,
 # not block until earlier subtests have finished.
 
-[short] skip
-
 ! go test .
 stdout 'panic: slow failure'
 ! stdout '\[chan send'

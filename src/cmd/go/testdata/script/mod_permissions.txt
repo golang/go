@@ -2,7 +2,6 @@
 # go.mod files should be preserved when overwriting them.
 
 env GO111MODULE=on
-[short] skip
 
 # Skip platforms that do not have Unix-style file permissions.
 [GOOS:windows] skip

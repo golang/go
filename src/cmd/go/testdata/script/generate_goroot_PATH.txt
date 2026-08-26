@@ -2,8 +2,6 @@
 # runtime.GOROOT, 'go generate' should run the test with its own GOROOT/bin
 # at the beginning of $PATH.
 
-[short] skip
-
 [!GOOS:plan9] env PATH=
 [GOOS:plan9] env path=
 go generate .

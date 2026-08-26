@@ -1,5 +1,4 @@
 [!cgo] skip
-[short] skip
 
 go build -o $WORK/pkg-config$GOEXE ./pkgconfig
 env PKG_CONFIG=$WORK/pkg-config$GOEXE

@@ -2,8 +2,6 @@
 # insertion of coverage instrumentation doesn't perturb package
 # initialization order.
 
-[short] skip
-
 go test -cover example
 
 -- go.mod --

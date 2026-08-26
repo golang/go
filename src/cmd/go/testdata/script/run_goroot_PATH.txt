@@ -1,8 +1,6 @@
 # https://go.dev/issue/68005: 'go run' should run the program with its own GOROOT/bin
 # at the beginning of $PATH.
 
-[short] skip
-
 [!GOOS:plan9] env PATH=
 [GOOS:plan9] env path=
 go run .

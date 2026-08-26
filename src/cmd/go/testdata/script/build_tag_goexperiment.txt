@@ -1,4 +1,3 @@
-[short] skip
 # Reset all experiments so fieldtrack is definitely off.
 env GOEXPERIMENT=none
 go run m

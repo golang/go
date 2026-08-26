@@ -1,5 +1,3 @@
-[short] skip
-
 # Check that it's okay for test pattern to match only examples.
 go test -run Example example1_test.go
 ! stderr '^ok.*\[no tests to run\]'
