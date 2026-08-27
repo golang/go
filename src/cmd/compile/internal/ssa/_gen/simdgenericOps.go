@@ -826,12 +826,20 @@ func simdGenericOps() []opData {
 		{name: "MulFloat64x2", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "MulFloat64x4", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "MulFloat64x8", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "MulHighInt8s", argLength: 2, commutative: true},                         // ARCH:sve
+		{name: "MulHighInt16s", argLength: 2, commutative: true},                        // ARCH:sve
 		{name: "MulHighInt16x8", argLength: 2, commutative: true},                       // ARCH:amd64
 		{name: "MulHighInt16x16", argLength: 2, commutative: true},                      // ARCH:amd64
 		{name: "MulHighInt16x32", argLength: 2, commutative: true},                      // ARCH:amd64
+		{name: "MulHighInt32s", argLength: 2, commutative: true},                        // ARCH:sve
+		{name: "MulHighInt64s", argLength: 2, commutative: true},                        // ARCH:sve
+		{name: "MulHighUint8s", argLength: 2, commutative: true},                        // ARCH:sve
+		{name: "MulHighUint16s", argLength: 2, commutative: true},                       // ARCH:sve
 		{name: "MulHighUint16x8", argLength: 2, commutative: true},                      // ARCH:amd64
 		{name: "MulHighUint16x16", argLength: 2, commutative: true},                     // ARCH:amd64
 		{name: "MulHighUint16x32", argLength: 2, commutative: true},                     // ARCH:amd64
+		{name: "MulHighUint32s", argLength: 2, commutative: true},                       // ARCH:sve
+		{name: "MulHighUint64s", argLength: 2, commutative: true},                       // ARCH:sve
 		{name: "MulInt8s", argLength: 2, commutative: true},                             // ARCH:sve
 		{name: "MulInt8x16", argLength: 2, commutative: true},                           // ARCH:arm64
 		{name: "MulInt16s", argLength: 2, commutative: true},                            // ARCH:sve

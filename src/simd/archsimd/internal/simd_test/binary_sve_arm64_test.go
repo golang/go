@@ -362,3 +362,31 @@ func TestMulSVE(t *testing.T) {
 		testInt8sBinary(t, archsimd.Int8s.Mul, mulInt8)
 	}
 }
+
+func TestMulHighSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	mulHighInt8 := func(x, y []int8) []int8 {
+		r := make([]int8, len(x))
+		for i := range x {
+			r[i] = int8((int16(x[i]) * int16(y[i])) >> 8)
+		}
+		return r
+	}
+	mulHighUint8 := func(x, y []uint8) []uint8 {
+		r := make([]uint8, len(x))
+		for i := range x {
+			r[i] = uint8((uint16(x[i]) * uint16(y[i])) >> 8)
+		}
+		return r
+	}
+	// Ungated: compiles to the merging-predicated fallback, correct on any SVE.
+	testInt8sBinary(t, archsimd.Int8s.MulHigh, mulHighInt8)
+	testUint8sBinary(t, archsimd.Uint8s.MulHigh, mulHighUint8)
+	if archsimd.ARM64.SVE2() {
+		// Gated: this block compiles to the unpredicated SVE2 encodings.
+		testInt8sBinary(t, archsimd.Int8s.MulHigh, mulHighInt8)
+		testUint8sBinary(t, archsimd.Uint8s.MulHigh, mulHighUint8)
+	}
+}

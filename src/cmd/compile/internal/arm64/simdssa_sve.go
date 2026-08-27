@@ -47,6 +47,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZSQADDB,
 		ssaop.OpARM64ZUQADDB,
 		ssaop.OpARM64ZMULB,
+		ssaop.OpARM64ZSMULHB,
+		ssaop.OpARM64ZUMULHB,
 		ssaop.OpARM64ZSUBB,
 		ssaop.OpARM64ZSQSUBB,
 		ssaop.OpARM64ZUQSUBB:
@@ -60,6 +62,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZBICD,
 		ssaop.OpARM64ZFMULD,
 		ssaop.OpARM64ZMULD,
+		ssaop.OpARM64ZSMULHD,
+		ssaop.OpARM64ZUMULHD,
 		ssaop.OpARM64ZORRD,
 		ssaop.OpARM64ZFSUBD,
 		ssaop.OpARM64ZSUBD,
@@ -72,6 +76,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZSQADDH,
 		ssaop.OpARM64ZUQADDH,
 		ssaop.OpARM64ZMULH,
+		ssaop.OpARM64ZSMULHH,
+		ssaop.OpARM64ZUMULHH,
 		ssaop.OpARM64ZSUBH,
 		ssaop.OpARM64ZSQSUBH,
 		ssaop.OpARM64ZUQSUBH:
@@ -83,6 +89,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZUQADDS,
 		ssaop.OpARM64ZFMULS,
 		ssaop.OpARM64ZMULS,
+		ssaop.OpARM64ZSMULHS,
+		ssaop.OpARM64ZUMULHS,
 		ssaop.OpARM64ZFSUBS,
 		ssaop.OpARM64ZSUBS,
 		ssaop.OpARM64ZSQSUBS,
@@ -135,6 +143,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZANDMergingB,
 		ssaop.OpARM64ZBICMergingB,
 		ssaop.OpARM64ZMULMergingB,
+		ssaop.OpARM64ZSMULHMergingB,
+		ssaop.OpARM64ZUMULHMergingB,
 		ssaop.OpARM64ZORRMergingB,
 		ssaop.OpARM64ZSUBMergingB,
 		ssaop.OpARM64ZSQSUBMergingB,
@@ -150,6 +160,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZBICMergingD,
 		ssaop.OpARM64ZFMULMergingD,
 		ssaop.OpARM64ZMULMergingD,
+		ssaop.OpARM64ZSMULHMergingD,
+		ssaop.OpARM64ZUMULHMergingD,
 		ssaop.OpARM64ZORRMergingD,
 		ssaop.OpARM64ZFSUBMergingD,
 		ssaop.OpARM64ZSUBMergingD,
@@ -164,6 +176,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZANDMergingH,
 		ssaop.OpARM64ZBICMergingH,
 		ssaop.OpARM64ZMULMergingH,
+		ssaop.OpARM64ZSMULHMergingH,
+		ssaop.OpARM64ZUMULHMergingH,
 		ssaop.OpARM64ZORRMergingH,
 		ssaop.OpARM64ZSUBMergingH,
 		ssaop.OpARM64ZSQSUBMergingH,
@@ -179,6 +193,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZBICMergingS,
 		ssaop.OpARM64ZFMULMergingS,
 		ssaop.OpARM64ZMULMergingS,
+		ssaop.OpARM64ZSMULHMergingS,
+		ssaop.OpARM64ZUMULHMergingS,
 		ssaop.OpARM64ZORRMergingS,
 		ssaop.OpARM64ZFSUBMergingS,
 		ssaop.OpARM64ZSUBMergingS,
@@ -214,6 +230,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZUQADDMergingPrefixedB,
 		ssaop.OpARM64ZANDMergingPrefixedB,
 		ssaop.OpARM64ZMULMergingPrefixedB,
+		ssaop.OpARM64ZSMULHMergingPrefixedB,
+		ssaop.OpARM64ZUMULHMergingPrefixedB,
 		ssaop.OpARM64ZORRMergingPrefixedB,
 		ssaop.OpARM64ZEORMergingPrefixedB:
 		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_B)
@@ -225,6 +243,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZANDMergingPrefixedD,
 		ssaop.OpARM64ZFMULMergingPrefixedD,
 		ssaop.OpARM64ZMULMergingPrefixedD,
+		ssaop.OpARM64ZSMULHMergingPrefixedD,
+		ssaop.OpARM64ZUMULHMergingPrefixedD,
 		ssaop.OpARM64ZORRMergingPrefixedD,
 		ssaop.OpARM64ZEORMergingPrefixedD:
 		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_D)
@@ -234,6 +254,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZUQADDMergingPrefixedH,
 		ssaop.OpARM64ZANDMergingPrefixedH,
 		ssaop.OpARM64ZMULMergingPrefixedH,
+		ssaop.OpARM64ZSMULHMergingPrefixedH,
+		ssaop.OpARM64ZUMULHMergingPrefixedH,
 		ssaop.OpARM64ZORRMergingPrefixedH,
 		ssaop.OpARM64ZEORMergingPrefixedH:
 		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_H)
@@ -245,6 +267,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZANDMergingPrefixedS,
 		ssaop.OpARM64ZFMULMergingPrefixedS,
 		ssaop.OpARM64ZMULMergingPrefixedS,
+		ssaop.OpARM64ZSMULHMergingPrefixedS,
+		ssaop.OpARM64ZUMULHMergingPrefixedS,
 		ssaop.OpARM64ZORRMergingPrefixedS,
 		ssaop.OpARM64ZEORMergingPrefixedS:
 		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_S)

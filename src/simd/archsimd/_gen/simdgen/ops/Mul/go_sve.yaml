@@ -31,3 +31,21 @@
   - *float
   out:
   - *float
+
+# MulHigh — integer multiply returning the high half, ZSMULH/ZUMULH. Like ZMUL,
+# the unpredicated encodings are SVE2 and the predicated siblings baseline SVE.
+- go: MulHigh
+  asm: "ZSMULH"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+- go: MulHigh
+  asm: "ZUMULH"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint

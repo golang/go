@@ -446,6 +446,48 @@ func (x Uint32s) Mul(y Uint32s) Uint32s
 // Asm: ZMUL, CPU Feature: SVE
 func (x Uint64s) Mul(y Uint64s) Uint64s
 
+/* MulHigh */
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: ZSMULH, CPU Feature: SVE
+func (x Int8s) MulHigh(y Int8s) Int8s
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: ZSMULH, CPU Feature: SVE
+func (x Int16s) MulHigh(y Int16s) Int16s
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: ZSMULH, CPU Feature: SVE
+func (x Int32s) MulHigh(y Int32s) Int32s
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: ZSMULH, CPU Feature: SVE
+func (x Int64s) MulHigh(y Int64s) Int64s
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: ZUMULH, CPU Feature: SVE
+func (x Uint8s) MulHigh(y Uint8s) Uint8s
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: ZUMULH, CPU Feature: SVE
+func (x Uint16s) MulHigh(y Uint16s) Uint16s
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: ZUMULH, CPU Feature: SVE
+func (x Uint32s) MulHigh(y Uint32s) Uint32s
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: ZUMULH, CPU Feature: SVE
+func (x Uint64s) MulHigh(y Uint64s) Uint64s
+
 /* Neg */
 
 // Neg returns the elementwise negation of x.
