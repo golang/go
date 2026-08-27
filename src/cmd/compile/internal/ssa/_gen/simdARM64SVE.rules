@@ -26,6 +26,14 @@
 (AndUint16s ...) => (ZANDD ...) // pureVreg
 (AndUint32s ...) => (ZANDD ...) // pureVreg
 (AndUint64s ...) => (ZANDD ...) // pureVreg
+(OrInt8s ...) => (ZORRD ...) // pureVreg
+(OrInt16s ...) => (ZORRD ...) // pureVreg
+(OrInt32s ...) => (ZORRD ...) // pureVreg
+(OrInt64s ...) => (ZORRD ...) // pureVreg
+(OrUint8s ...) => (ZORRD ...) // pureVreg
+(OrUint16s ...) => (ZORRD ...) // pureVreg
+(OrUint32s ...) => (ZORRD ...) // pureVreg
+(OrUint64s ...) => (ZORRD ...) // pureVreg
 (SubFloat32s ...) => (ZFSUBS ...) // pureVreg
 (SubFloat64s ...) => (ZFSUBD ...) // pureVreg
 (SubInt8s ...) => (ZSUBB ...) // pureVreg
@@ -114,6 +122,9 @@
 (ZSELB (ZANDD x y) y mask) => (ZANDMergingB y x mask)
 (ZSELB (ZANDD x y) z mask) => (ZANDMergingPrefixedB z x y mask)
 (ZSELB (ZNEGB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) z mask) => (ZNEGMergingB z x mask)
+(ZSELB (ZORRD x y) x mask) => (ZORRMergingB x y mask)
+(ZSELB (ZORRD x y) y mask) => (ZORRMergingB y x mask)
+(ZSELB (ZORRD x y) z mask) => (ZORRMergingPrefixedB z x y mask)
 (ZSELB (ZSQADDB x y) x mask) => (ZSQADDMergingB x y mask)
 (ZSELB (ZSQADDB x y) y mask) => (ZSQADDMergingB y x mask)
 (ZSELB (ZSQADDB x y) z mask) => (ZSQADDMergingPrefixedB z x y mask)
@@ -138,6 +149,9 @@
 (ZSELD (ZFSQRTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) z mask) => (ZFSQRTMergingD z x mask)
 (ZSELD (ZFSUBD x y) x mask) => (ZFSUBMergingD x y mask)
 (ZSELD (ZNEGD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) z mask) => (ZNEGMergingD z x mask)
+(ZSELD (ZORRD x y) x mask) => (ZORRMergingD x y mask)
+(ZSELD (ZORRD x y) y mask) => (ZORRMergingD y x mask)
+(ZSELD (ZORRD x y) z mask) => (ZORRMergingPrefixedD z x y mask)
 (ZSELD (ZSQADDD x y) x mask) => (ZSQADDMergingD x y mask)
 (ZSELD (ZSQADDD x y) y mask) => (ZSQADDMergingD y x mask)
 (ZSELD (ZSQADDD x y) z mask) => (ZSQADDMergingPrefixedD z x y mask)
@@ -155,6 +169,9 @@
 (ZSELH (ZANDD x y) y mask) => (ZANDMergingH y x mask)
 (ZSELH (ZANDD x y) z mask) => (ZANDMergingPrefixedH z x y mask)
 (ZSELH (ZNEGH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) z mask) => (ZNEGMergingH z x mask)
+(ZSELH (ZORRD x y) x mask) => (ZORRMergingH x y mask)
+(ZSELH (ZORRD x y) y mask) => (ZORRMergingH y x mask)
+(ZSELH (ZORRD x y) z mask) => (ZORRMergingPrefixedH z x y mask)
 (ZSELH (ZSQADDH x y) x mask) => (ZSQADDMergingH x y mask)
 (ZSELH (ZSQADDH x y) y mask) => (ZSQADDMergingH y x mask)
 (ZSELH (ZSQADDH x y) z mask) => (ZSQADDMergingPrefixedH z x y mask)
@@ -179,6 +196,9 @@
 (ZSELS (ZFSQRTS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) z mask) => (ZFSQRTMergingS z x mask)
 (ZSELS (ZFSUBS x y) x mask) => (ZFSUBMergingS x y mask)
 (ZSELS (ZNEGS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) z mask) => (ZNEGMergingS z x mask)
+(ZSELS (ZORRD x y) x mask) => (ZORRMergingS x y mask)
+(ZSELS (ZORRD x y) y mask) => (ZORRMergingS y x mask)
+(ZSELS (ZORRD x y) z mask) => (ZORRMergingPrefixedS z x y mask)
 (ZSELS (ZSQADDS x y) x mask) => (ZSQADDMergingS x y mask)
 (ZSELS (ZSQADDS x y) y mask) => (ZSQADDMergingS y x mask)
 (ZSELS (ZSQADDS x y) z mask) => (ZSQADDMergingPrefixedS z x y mask)

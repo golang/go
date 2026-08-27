@@ -436,6 +436,48 @@ func (x Uint32s) NotEqual(y Uint32s) Mask32s
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Uint64s) NotEqual(y Uint64s) Mask64s
 
+/* Or */
+
+// Or performs a bitwise x | y.
+//
+// Asm: ZORR, CPU Feature: SVE
+func (x Int8s) Or(y Int8s) Int8s
+
+// Or performs a bitwise x | y.
+//
+// Asm: ZORR, CPU Feature: SVE
+func (x Int16s) Or(y Int16s) Int16s
+
+// Or performs a bitwise x | y.
+//
+// Asm: ZORR, CPU Feature: SVE
+func (x Int32s) Or(y Int32s) Int32s
+
+// Or performs a bitwise x | y.
+//
+// Asm: ZORR, CPU Feature: SVE
+func (x Int64s) Or(y Int64s) Int64s
+
+// Or performs a bitwise x | y.
+//
+// Asm: ZORR, CPU Feature: SVE
+func (x Uint8s) Or(y Uint8s) Uint8s
+
+// Or performs a bitwise x | y.
+//
+// Asm: ZORR, CPU Feature: SVE
+func (x Uint16s) Or(y Uint16s) Uint16s
+
+// Or performs a bitwise x | y.
+//
+// Asm: ZORR, CPU Feature: SVE
+func (x Uint32s) Or(y Uint32s) Uint32s
+
+// Or performs a bitwise x | y.
+//
+// Asm: ZORR, CPU Feature: SVE
+func (x Uint64s) Or(y Uint64s) Uint64s
+
 /* Round */
 
 // Round rounds elements to the nearest integer, rounding ties to even.

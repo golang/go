@@ -21,3 +21,20 @@
   - *uint
   out:
   - *uint
+
+# Or — bitwise inclusive OR, ZORR. Width-agnostic like ZAND.
+- go: Or
+  asm: "ZORR"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+- go: Or
+  asm: "ZORR"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
