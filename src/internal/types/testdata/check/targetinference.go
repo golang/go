@@ -29,13 +29,22 @@ func _() {
 
 // Checker.assignVar
 func _() {
-	var v F
-	v = f /* ERROR "inferred type func(int, int) for func(T, T) does not match type func(int, string) of v" */
-	_ = v
+	var v1 F
+	v1 = f /* ERROR "inferred type func(int, int) for func(T, T) does not match type F of v1" */
+	_ = v1
+
+	var v2 func(int, string)
+	v2 = f /* ERROR "inferred type func(int, int) for func(T, T) does not match type func(int, string) of v2" */
+	_ = v2
+
+	type A = func(int, string)
+	var v3 A
+	v3 = f /* ERROR "inferred type func(int, int) for func(T, T) does not match type A of v3" */
+	_ = v3
 
 	var a []F
 	var i, j int
-	a[i+j] = f /* ERROR "inferred type func(int, int) for func(T, T) does not match type func(int, string) of a[i + j]" */
+	a[i+j] = f /* ERROR "inferred type func(int, int) for func(T, T) does not match type F of a[i + j]" */
 }
 
 // Checker.initVars

@@ -972,14 +972,14 @@ func newHint(typ Type, desc string) *target {
 	return nil
 }
 
-// sig returns the target type T as a signature if it exists.
-// The result is nil if T is nil or T's type set has no common
-// signature type.
-func (T *target) sig() *Signature {
+// sig returns the target type T if it is a signature (the result may be its Named or Alias type, if any).
+// The result is nil if T is nil or T's type set has no common signature type.
+func (T *target) sig() Type {
 	if T != nil {
 		if u, _ := commonUnder(T.typ, nil); u != nil {
-			sig, _ := u.(*Signature)
-			return sig // possibly nil
+			if _, ok := u.(*Signature); ok {
+				return T.typ
+			}
 		}
 	}
 	return nil
