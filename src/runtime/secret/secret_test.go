@@ -215,10 +215,14 @@ func TestGoExit(t *testing.T) {
 	lo := <-c
 	hi := <-c
 	// We want to wait until the other goroutine has finished Goexiting and
-	// cleared its stack. There's no signal for that, so just wait a bit.
-	time.Sleep(1 * time.Millisecond)
-
-	checkRangeForSecret(t, lo, hi)
+	// cleared its stack. The send above is the last thing that goroutine does
+	// under our control; the erasure happens later, in runtime.goexit0, and
+	// there is no signal for it. Sleeping for a fixed amount of time is not
+	// enough: the goroutine can be descheduled between the send and goexit0
+	// for an arbitrarily long time, which makes this test flaky (see
+	// go.dev/issue/80855). Poll the stack instead, and only report an error
+	// if it never comes back clean.
+	waitRangeCleared(t, lo, hi)
 
 	var spillArea [64]secretType
 	n := spillRegisters(unsafe.Pointer(&spillArea))
@@ -252,6 +256,37 @@ func checkRangeForSecret(t *testing.T, lo, hi uintptr) {
 		t.Logf("%s", hex.Dump(s))
 	}
 }
+
+// rangeHasSecret reports whether [lo,hi) still contains a secret value.
+func rangeHasSecret(lo, hi uintptr) bool {
+	for p := lo; p < hi; p += unsafe.Sizeof(secretType(0)) {
+		if *(*secretType)(unsafe.Pointer(p)) == secretValue {
+			return true
+		}
+	}
+	return false
+}
+
+// waitRangeCleared waits for [lo,hi) to be erased by the runtime, reporting
+// the secrets that are left if that doesn't happen within waitRangeTimeout.
+// Use it for ranges that are erased asynchronously, where there is no way to
+// synchronize with whoever does the erasing.
+func waitRangeCleared(t *testing.T, lo, hi uintptr) {
+	t.Helper()
+	for start := time.Now(); rangeHasSecret(lo, hi); {
+		if time.Since(start) > waitRangeTimeout {
+			// Report the details of what is left behind.
+			checkRangeForSecret(t, lo, hi)
+			return
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+}
+
+// waitRangeTimeout is how long waitRangeCleared waits before declaring
+// failure. It only affects how long a genuinely broken runtime takes to
+// fail the test, so it can afford to be generous.
+const waitRangeTimeout = 10 * time.Second
 
 func waitCollected[P any](t *testing.T, ptr weak.Pointer[P]) {
 	t.Helper()
