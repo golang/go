@@ -130,6 +130,48 @@ func (x Uint32s) AddSaturated(y Uint32s) Uint32s
 // Asm: ZUQADD, CPU Feature: SVE
 func (x Uint64s) AddSaturated(y Uint64s) Uint64s
 
+/* And */
+
+// And performs a bitwise x & y.
+//
+// Asm: ZAND, CPU Feature: SVE
+func (x Int8s) And(y Int8s) Int8s
+
+// And performs a bitwise x & y.
+//
+// Asm: ZAND, CPU Feature: SVE
+func (x Int16s) And(y Int16s) Int16s
+
+// And performs a bitwise x & y.
+//
+// Asm: ZAND, CPU Feature: SVE
+func (x Int32s) And(y Int32s) Int32s
+
+// And performs a bitwise x & y.
+//
+// Asm: ZAND, CPU Feature: SVE
+func (x Int64s) And(y Int64s) Int64s
+
+// And performs a bitwise x & y.
+//
+// Asm: ZAND, CPU Feature: SVE
+func (x Uint8s) And(y Uint8s) Uint8s
+
+// And performs a bitwise x & y.
+//
+// Asm: ZAND, CPU Feature: SVE
+func (x Uint16s) And(y Uint16s) Uint16s
+
+// And performs a bitwise x & y.
+//
+// Asm: ZAND, CPU Feature: SVE
+func (x Uint32s) And(y Uint32s) Uint32s
+
+// And performs a bitwise x & y.
+//
+// Asm: ZAND, CPU Feature: SVE
+func (x Uint64s) And(y Uint64s) Uint64s
+
 /* Ceil */
 
 // Ceil rounds elements up to the nearest integer.

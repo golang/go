@@ -42,6 +42,12 @@ func simd{{.SIMDTag}}Ops({{.RegInfoParams}}) []opData {
 
 // writeSIMDMachineOps generates the machine ops and writes it to simdAMD64ops.go
 // within the specified directory.
+// isWidthAgnostic reports whether the operation is an SVE width-agnostic
+// bitwise op (see types.RawOperation.WidthAgnostic).
+func isWidthAgnostic(gOp Operation) bool {
+	return gOp.WidthAgnostic != nil && *gOp.WidthAgnostic
+}
+
 func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 	t := templateOf(simdMachineOpsTmpl, "simdAMD64Ops")
 	buffer.WriteString(generatedHeader())
@@ -91,6 +97,14 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 	for _, op := range ops {
 		_, _, maskType, _, gOp, _ := op.shape()
 		asm := machineOpName(maskType, gOp)
+		if isWidthAgnostic(gOp) {
+			// The unpredicated machine op of a width-agnostic bitwise operation
+			// collapses to one .D instruction, but its predicated forms merge at
+			// a real element granularity, so every width's def must survive this
+			// dedup to generate them; the shared unpredicated opData is deduped
+			// at the append instead.
+			asm = fmt.Sprintf("%s#%d", asm, *gOp.Out[0].ElemBits)
+		}
 		other, ok := best[asm]
 		if !ok {
 			best[asm] = op
@@ -109,9 +123,11 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 
 	regInfoErrs := make([]error, 0)
 	regInfoMissing := make(map[string]bool, 0)
+	seenUnpred := make(map[string]bool)
 	for _, asm := range mOpOrder {
 		op := best[asm]
 		shapeIn, shapeOut, maskType, _, gOp, _ := op.shape()
+		asm = machineOpName(maskType, gOp)
 
 		// TODO: all our masked operations are now zeroing, we need to generate machine ops with merging masks, maybe copy
 		// one here with a name suffix "Merging". The rewrite rules will need them.
@@ -231,7 +247,10 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 				opsDataImmMerging = append(opsDataImmMerging, opData{asm, gOp.Asm, mergingLen, regInfoMerging, gOp.Commutative, outType, resultInArg0})
 			}
 		} else {
-			opsData = append(opsData, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
+			if !seenUnpred[asm] {
+				seenUnpred[asm] = true
+				opsData = append(opsData, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
+			}
 			// The inVariant implies machine ops only: one predicated instruction
 			// per governing-predicate qualifier the encoding supports, reached by
 			// peephole rather than by any API of its own.

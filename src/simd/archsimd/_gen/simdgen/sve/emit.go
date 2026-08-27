@@ -127,13 +127,16 @@ func pickRegNames(variants []predVariant, idx int, sel func(predVariant) []strin
 //
 // An SVE predicate is a mandatory input, not an optional AVX-512-style K-mask, so
 // it goes in `in`; inVariant is emitted empty just to satisfy the types.yaml schema.
-func (inst *Instruction) emitOne(asm string, ops []Operand) *unify.Value {
+func (inst *Instruction) emitOne(asm string, ops []Operand, widthAgnostic bool) *unify.Value {
 	var db unify.DefBuilder
 	db.Add("asm", unify.NewValue(unify.NewStringExact(asm)))
 	db.Add("goarch", unify.NewValue(unify.NewStringExact("arm64")))
 	db.Add("cpuFeature", unify.NewValue(unify.NewStringExact(inst.cpuFeature())))
 	if doc := inst.documentation(); doc != "" {
 		db.Add("details", unify.NewValue(unify.NewStringExact(asComment(doc, 80))))
+	}
+	if widthAgnostic {
+		db.Add("widthAgnostic", unify.NewValue(unify.NewStringExact("true")))
 	}
 
 	// One def can describe several encodings of one operation, grouped by
@@ -246,6 +249,17 @@ func (inst *Instruction) emitVariants(template []Operand) []*unify.Value {
 	// encoding), or a single no-op pass when there is no governing predicate.
 	preds := predicationVariants(template)
 
+	// A bitwise operation with no variable arrangement is width-agnostic: the
+	// encoding is written .D, but any element view of it computes the same
+	// bits, and its predicated sibling is a per-<T> encoding. Emit a def per
+	// element width so every Go type gets the API, marked so that simdgen
+	// collapses the unpredicated machine op back to the single .D instruction.
+	widths := []int{0}
+	widthAgnostic := len(links) == 0 && inst.bitwise()
+	if widthAgnostic {
+		widths = []int{8, 16, 32, 64}
+	}
+
 	var defs []*unify.Value
 	for _, sign := range signs {
 		for _, size := range sizes {
@@ -314,7 +328,19 @@ func (inst *Instruction) emitVariants(template []Operand) []*unify.Value {
 						variant[i].ElemBits = elem
 					}
 				}
-				defs = append(defs, inst.emitOne(asm, variant))
+				for _, w := range widths {
+					v := variant
+					if w > 0 {
+						v = make([]Operand, len(variant))
+						copy(v, variant)
+						for i := range v {
+							if v[i].Class == "vreg" || v[i].Class == "mask" {
+								v[i].ElemBits = w
+							}
+						}
+					}
+					defs = append(defs, inst.emitOne(asm, v, widthAgnostic))
+				}
 			}
 		}
 	}

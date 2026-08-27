@@ -293,6 +293,14 @@ func machineOpName(maskType maskShape, gOp Operation) string {
 	if letter := sveArrangementLetter(gOp); letter != "" {
 		// SVE: scalable vectors have no fixed width, so distinguish machine ops
 		// by element-size arrangement letter (B/H/S/D), e.g. ZADD -> ZADDB.
+		//
+		// A width-agnostic bitwise operation is one .D instruction serving
+		// every element width, so its unpredicated machine op is always the D
+		// one, shared by all the generic ops; only its predicated forms, which
+		// merge at a real element granularity, stay per width.
+		if maskType == NoMask && gOp.WidthAgnostic != nil && *gOp.WidthAgnostic {
+			letter = "D"
+		}
 		asm += letter
 	} else if gOp.Arrangement != nil && *gOp.Arrangement != "" {
 		asm = fmt.Sprintf("%s%s", asm, *gOp.Arrangement)

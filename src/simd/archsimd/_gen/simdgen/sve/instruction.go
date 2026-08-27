@@ -227,6 +227,14 @@ func (inst *Instruction) laneIsFloat(op *Operand) bool {
 	return isFloatBrief(inst.brief())
 }
 
+// bitwise reports whether this instruction is a bitwise operation, which the
+// spec's brief description spells with a "Bitwise " prefix (mirroring the NEON
+// loader's test). A bitwise vector encoding is written .D but is element-width
+// agnostic: any lane view of it is valid.
+func (inst *Instruction) bitwise() bool {
+	return strings.HasPrefix(inst.brief(), "Bitwise ")
+}
+
 // isFloatBrief reports whether a brief description names a floating-point type.
 // SVE spells these as "floating-point", "bfloat", or an "X-precision" (half /
 // single / double / 8-bit) qualifier.

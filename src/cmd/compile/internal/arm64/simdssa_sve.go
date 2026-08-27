@@ -55,6 +55,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZADDD,
 		ssaop.OpARM64ZSQADDD,
 		ssaop.OpARM64ZUQADDD,
+		ssaop.OpARM64ZANDD,
 		ssaop.OpARM64ZFSUBD,
 		ssaop.OpARM64ZSUBD,
 		ssaop.OpARM64ZSQSUBD,
@@ -122,6 +123,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssaop.OpARM64ZADDMergingB,
 		ssaop.OpARM64ZSQADDMergingB,
 		ssaop.OpARM64ZUQADDMergingB,
+		ssaop.OpARM64ZANDMergingB,
 		ssaop.OpARM64ZSUBMergingB,
 		ssaop.OpARM64ZSQSUBMergingB,
 		ssaop.OpARM64ZUQSUBMergingB:
@@ -131,6 +133,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZADDMergingD,
 		ssaop.OpARM64ZSQADDMergingD,
 		ssaop.OpARM64ZUQADDMergingD,
+		ssaop.OpARM64ZANDMergingD,
 		ssaop.OpARM64ZFSUBMergingD,
 		ssaop.OpARM64ZSUBMergingD,
 		ssaop.OpARM64ZSQSUBMergingD,
@@ -140,6 +143,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssaop.OpARM64ZADDMergingH,
 		ssaop.OpARM64ZSQADDMergingH,
 		ssaop.OpARM64ZUQADDMergingH,
+		ssaop.OpARM64ZANDMergingH,
 		ssaop.OpARM64ZSUBMergingH,
 		ssaop.OpARM64ZSQSUBMergingH,
 		ssaop.OpARM64ZUQSUBMergingH:
@@ -149,6 +153,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZADDMergingS,
 		ssaop.OpARM64ZSQADDMergingS,
 		ssaop.OpARM64ZUQADDMergingS,
+		ssaop.OpARM64ZANDMergingS,
 		ssaop.OpARM64ZFSUBMergingS,
 		ssaop.OpARM64ZSUBMergingS,
 		ssaop.OpARM64ZSQSUBMergingS,
@@ -179,24 +184,28 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 
 	case ssaop.OpARM64ZADDMergingPrefixedB,
 		ssaop.OpARM64ZSQADDMergingPrefixedB,
-		ssaop.OpARM64ZUQADDMergingPrefixedB:
+		ssaop.OpARM64ZUQADDMergingPrefixedB,
+		ssaop.OpARM64ZANDMergingPrefixedB:
 		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_B)
 
 	case ssaop.OpARM64ZFADDMergingPrefixedD,
 		ssaop.OpARM64ZADDMergingPrefixedD,
 		ssaop.OpARM64ZSQADDMergingPrefixedD,
-		ssaop.OpARM64ZUQADDMergingPrefixedD:
+		ssaop.OpARM64ZUQADDMergingPrefixedD,
+		ssaop.OpARM64ZANDMergingPrefixedD:
 		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_D)
 
 	case ssaop.OpARM64ZADDMergingPrefixedH,
 		ssaop.OpARM64ZSQADDMergingPrefixedH,
-		ssaop.OpARM64ZUQADDMergingPrefixedH:
+		ssaop.OpARM64ZUQADDMergingPrefixedH,
+		ssaop.OpARM64ZANDMergingPrefixedH:
 		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_H)
 
 	case ssaop.OpARM64ZFADDMergingPrefixedS,
 		ssaop.OpARM64ZADDMergingPrefixedS,
 		ssaop.OpARM64ZSQADDMergingPrefixedS,
-		ssaop.OpARM64ZUQADDMergingPrefixedS:
+		ssaop.OpARM64ZUQADDMergingPrefixedS,
+		ssaop.OpARM64ZANDMergingPrefixedS:
 		p = simdZ3kvPredResultInArg0(s, v, arm64.ARNG_S)
 
 	default:

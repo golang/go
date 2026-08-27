@@ -51,6 +51,12 @@ type RawOperation struct {
 	// If true, do not emit method declarations, generic ops, or intrinsics for masked variants
 	// DO emit the architecture-specific opcodes and optimizations.
 	HideMaskMethods *bool
+	// WidthAgnostic marks an SVE bitwise operation whose unpredicated encoding
+	// is written .D but computes the same bits under any element view. The
+	// loader emits one def per element width so every Go type gets the API;
+	// the unpredicated machine op collapses back to the single .D instruction
+	// (see machineOpName), while the per-<T> predicated forms stay per width.
+	WidthAgnostic *bool
 }
 
 // MaxVectorBits is the maximum vector length in bits Go currently supports (256

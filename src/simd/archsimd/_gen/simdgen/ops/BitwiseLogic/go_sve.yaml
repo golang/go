@@ -1,0 +1,23 @@
+!sum
+# And — bitwise AND, both signednesses. The unpredicated ZAND is a single
+# width-agnostic .D encoding that the loader emits at every element width; its
+# predicated sibling merges per <T>, so the merging machine ops stay per width.
+- go: And
+  asm: "ZAND"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *int
+
+- go: And
+  asm: "ZAND"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out:
+  - *uint
