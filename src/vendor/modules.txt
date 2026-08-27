@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
-# golang.org/x/net v0.58.1-0.20260825222430-bf481657f8f2
+# golang.org/x/net v0.58.1-0.20260828192815-d34deae423f9
 ## explicit; go 1.26.0
 golang.org/x/net/dns/dnsmessage
 golang.org/x/net/http/httpguts

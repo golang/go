@@ -336,6 +336,6 @@ func (c *Conn) enterDraining(now time.Time) {
 // exit fully terminates a connection immediately.
 func (c *Conn) exit() {
 	c.sendMsg(func(now time.Time, c *Conn) {
-		c.abortImmediately(now, errors.New("connection closed"))
+		c.abortImmediately(now, errConnClosed)
 	})
 }

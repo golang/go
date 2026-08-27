@@ -142,7 +142,8 @@ func (tr *transport) initEndpoint() (err error) {
 		if tr.opts.ListenQUIC != nil {
 			tr.endpoint, err = tr.opts.ListenQUIC(":0", quicConfig)
 		} else if tr.opts.ListenPacket != nil {
-			conn, err := tr.opts.ListenPacket("udp", ":0")
+			var conn net.PacketConn
+			conn, err = tr.opts.ListenPacket("udp", ":0")
 			if err != nil {
 				return err
 			}

@@ -125,7 +125,8 @@ func (e *Endpoint) LocalAddr() netip.AddrPort {
 //
 // Close aborts every open connection.
 // Data in stream read and write buffers is discarded.
-// It waits for the peers of any open connection to acknowledge the connection has been closed.
+// It waits for the peers of any open connection to acknowledge the connection
+// has been closed, unless the given context has expired or is canceled.
 func (e *Endpoint) Close(ctx context.Context) error {
 	e.acceptQueue.close(errors.New("endpoint closed"))
 
@@ -135,26 +136,38 @@ func (e *Endpoint) Close(ctx context.Context) error {
 	e.connsMu.Lock()
 	if !e.closing {
 		e.closing = true // setting e.closing prevents new conns from being created
-		for c := range e.conns {
-			conns = append(conns, c)
-		}
 		if len(e.conns) == 0 {
 			e.packetConn.Close()
 		}
+	}
+	// Copy the conns even if e.closing was already true. That way, if Close is
+	// called with context.Background, and then again with a canceled context
+	// concurrently, the Close with canceled context will terminate the
+	// connections immediately as expected rather than waiting on the first
+	// Close.
+	for c := range e.conns {
+		conns = append(conns, c)
 	}
 	e.connsMu.Unlock()
 
 	for _, c := range conns {
 		c.Abort(localTransportError{code: errNo})
 	}
+
 	select {
-	case <-e.closec:
 	case <-ctx.Done():
+	case <-e.closec:
 	}
 	for _, c := range conns {
 		c.exit()
 	}
-	return ctx.Err() // nil if context hasn't expired
+	// We should only return once all conn loops and the listen loop exit.
+	// That is, there should no longer be any lingering goroutines.
+	for _, c := range conns {
+		<-c.donec
+	}
+	<-e.closec
+	return ctx.Err()
 }
 
 // Accept waits for and returns the next connection.

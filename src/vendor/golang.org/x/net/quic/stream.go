@@ -526,7 +526,7 @@ func (s *Stream) writeErrorLocked() error {
 				return err
 			}
 		}
-		return errors.New("write to reset stream")
+		return fmt.Errorf("write to reset stream: %w", StreamErrorCode(s.outresetcode))
 	}
 	if s.outclosed.isSet() {
 		return errors.New("write to closed stream")

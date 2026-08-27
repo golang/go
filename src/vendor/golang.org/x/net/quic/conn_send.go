@@ -81,7 +81,7 @@ func (c *Conn) maybeSend(now time.Time) (next time.Time) {
 			}
 			sentInitial = c.w.finishProtectedLongHeaderPacket(pnumMaxAcked, c.keysInitial.w, p)
 			if sentInitial != nil {
-				// Client initial packets and ack-eliciting server initial packaets
+				// Client initial packets and ack-eliciting server initial packets
 				// need to be sent in a datagram padded to at least 1200 bytes.
 				// We can't add the padding yet, however, since we may want to
 				// coalesce additional packets with this one.
@@ -232,7 +232,7 @@ func (c *Conn) appendFrames(now time.Time, space numberSpace, pnum packetNumber,
 			// Either we are willing to send an ACK-only packet,
 			// or we've added additional frames.
 			c.acks[space].sentAck()
-			if !c.w.sent.ackEliciting && c.shouldMakePacketAckEliciting() {
+			if !c.w.sent.ackEliciting && c.shouldMakePacketAckEliciting(space) {
 				c.w.appendPingFrame()
 			}
 		}()
@@ -240,6 +240,15 @@ func (c *Conn) appendFrames(now time.Time, space numberSpace, pnum packetNumber,
 	if limit != ccOK {
 		return
 	}
+	if space == initialSpace && c.w.dgramLim < paddedInitialDatagramSize {
+		// The anti-amplification limit prevents us from sending a 1200-byte packet.
+		// (This implies we're a server, since clients don't have an anti-amp limit.)
+		// As a server, this prevents us from adding any ack-eliciting frames to the
+		// packet, so return now. We might still be able to send ACK frames
+		// without padding, if we added any above.
+		return
+	}
+
 	pto := c.loss.ptoExpired
 
 	// TODO: Add all the other frames we can send.
@@ -346,7 +355,13 @@ func (c *Conn) appendFrames(now time.Time, space numberSpace, pnum packetNumber,
 
 // shouldMakePacketAckEliciting is called when sending a packet containing nothing but an ACK frame.
 // It reports whether we should add a PING frame to the packet to make it ack-eliciting.
-func (c *Conn) shouldMakePacketAckEliciting() bool {
+func (c *Conn) shouldMakePacketAckEliciting(space numberSpace) bool {
+	if space == initialSpace && c.side == serverSide && c.w.dgramLim < paddedInitialDatagramSize {
+		// We are a server sending an Initial packet while at our anti-amplification limit.
+		// If we make the packet ack-eliciting, we need to pad its datagram to 1200 bytes,
+		// but we lack the ability to do so. Don't make this packet ack-eliciting.
+		return false
+	}
 	if c.keysAppData.needAckEliciting() {
 		// The peer has initiated a key update.
 		// We haven't sent them any packets yet in the new phase.

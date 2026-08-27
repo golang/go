@@ -16,11 +16,12 @@ func newQUICConfig(config *quic.Config, tlsConfig *tls.Config) *quic.Config {
 	if config == nil {
 		config = &quic.Config{}
 	}
-	if !slices.Equal(tlsConfig.NextProtos, []string{"h3"}) {
+	// tlsConfig may be nil: net/http.Transport.TLSClientConfig is nil
+	// by default, and initEndpoint passes it to us unchanged.
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{NextProtos: []string{"h3"}}
+	} else if !slices.Equal(tlsConfig.NextProtos, []string{"h3"}) {
 		tlsConfig = tlsConfig.Clone()
-		if tlsConfig == nil {
-			tlsConfig = &tls.Config{}
-		}
 		tlsConfig.NextProtos = []string{"h3"}
 	}
 	config.TLSConfig = tlsConfig
