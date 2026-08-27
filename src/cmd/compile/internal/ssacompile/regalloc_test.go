@@ -538,3 +538,63 @@ func TestStartRegsDrop(t *testing.T) {
 		t.Errorf("expected <= 8 OpLoadReg in right block (got %d)", rightLoadCount)
 	}
 }
+
+// TestShuffleTempReuse checks that the edge shuffler keeps reusing the
+// scratch register it obtains for mem->mem moves. K loop-carried values
+// rotate along the back edge; with K larger than the register file the
+// extra ones live in stack slots, and each of their moves at the latch
+// goes through a temporary register. Once every register holds a value
+// the shuffler has to evict one to get that temporary. It must then keep
+// reusing it rather than evict another register for every move, which is
+// what a stale uniqueRegs bit used to cause.
+func TestShuffleTempReuse(t *testing.T) {
+	for _, K := range []int{16, 40} {
+		c := testConfig(t)
+		i64 := c.config.Types.Int64
+		entry := []any{
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("ptr", ssaop.OpArg, i64.PtrTo(), 0, c.Temp(i64.PtrTo())),
+			Valu("cond", ssaop.OpArg, c.config.Types.Bool, 0, c.Temp(c.config.Types.Bool)),
+		}
+		for i := 0; i < K; i++ {
+			entry = append(entry, Valu(fmt.Sprintf("a%d", i), ssaop.OpAMD64MOVQload, i64, int64(8*i), nil, "ptr", "mem"))
+		}
+		entry = append(entry, Goto("loop"))
+		loop := []any{}
+		for i := 0; i < K; i++ {
+			// p_i takes p_{i+1} around the loop: every value moves on the back edge.
+			loop = append(loop, Valu(fmt.Sprintf("p%d", i), ssaop.OpPhi, i64, 0, nil, fmt.Sprintf("a%d", i), fmt.Sprintf("p%d", (i+1)%K)))
+		}
+		loop = append(loop,
+			Valu("test", ssaop.OpAMD64CMPBconst, types.TypeFlags, 0, nil, "cond"),
+			Eq("test", "next", "exit"))
+		exit := []any{}
+		prev := "mem"
+		for i := 0; i < K; i++ {
+			name := fmt.Sprintf("st%d", i)
+			exit = append(exit, Valu(name, ssaop.OpAMD64MOVQstore, types.TypeMem, int64(8*i), nil, "ptr", fmt.Sprintf("p%d", i), prev))
+			prev = name
+		}
+		exit = append(exit, Exit(prev))
+		f := c.Fun("entry",
+			Bloc("entry", entry...),
+			Bloc("loop", loop...),
+			Bloc("next", Goto("loop")),
+			Bloc("exit", exit...),
+		)
+		regalloc(f.f)
+		checkFunc(f.f)
+
+		evictions := 0
+		for _, v := range f.blocks["next"].Values {
+			// A StoreReg of a LoadReg is the temp store of a mem->mem move.
+			// Any other StoreReg here spills a live register value to make room.
+			if v.Op == ssaop.OpStoreReg && v.Args[0].Op != ssaop.OpLoadReg {
+				evictions++
+			}
+		}
+		if evictions > 2 {
+			t.Errorf("K=%d: %d register evictions in the latch shuffle, want at most 2", K, evictions)
+		}
+	}
+}

@@ -3082,13 +3082,15 @@ func (e *edgeState) set(loc ssa.Location, vid ssa.ID, c *ssa.Value, final bool, 
 		if len(a) == 1 {
 			e.uniqueRegs = e.uniqueRegs.AddReg(ssaop.Register(r.Num))
 		}
-		if len(a) == 2 {
-			if t, ok := e.s.f.GetHome(a[0].ID).(*ssabase.Register); ok {
-				e.uniqueRegs = e.uniqueRegs.RemoveReg(ssaop.Register(t.Num))
-			}
-		}
 		if e.s.values[vid].Rematerializeable {
 			e.rematerializeableRegs = e.rematerializeableRegs.AddReg(ssaop.Register(r.Num))
+		}
+	}
+	if len(a) == 2 {
+		// The first copy is no longer the only one, wherever the
+		// second one landed (a spill to a stack slot included).
+		if t, ok := e.s.f.GetHome(a[0].ID).(*ssabase.Register); ok {
+			e.uniqueRegs = e.uniqueRegs.RemoveReg(ssaop.Register(t.Num))
 		}
 	}
 	if e.s.f.Pass.Debug > ssa.RegDebug {
@@ -3140,6 +3142,7 @@ func (e *edgeState) erase(loc ssa.Location) {
 		if cr.final {
 			e.finalRegs = e.finalRegs.RemoveReg(ssaop.Register(r.Num))
 		}
+		e.uniqueRegs = e.uniqueRegs.RemoveReg(ssaop.Register(r.Num)) // it holds nothing now
 		e.rematerializeableRegs = e.rematerializeableRegs.RemoveReg(ssaop.Register(r.Num))
 	}
 	if len(a) == 1 {
