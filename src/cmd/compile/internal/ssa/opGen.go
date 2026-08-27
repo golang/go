@@ -65242,6 +65242,7 @@ var opcodeTable = [...]opInfo{
 		clobberFlags:   true,
 		faultOnNilArg0: true,
 		addrSinkArg0:   true,
+		addrSinkArg1:   true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
@@ -85725,6 +85726,7 @@ var opcodeTable = [...]opInfo{
 		clobberFlags:   true,
 		faultOnNilArg0: true,
 		addrSinkArg0:   true,
+		addrSinkArg1:   true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
