@@ -64,3 +64,32 @@
   - class: mask # governing predicate
   out:
   - class: mask
+
+# NotEqual — integer compare, ZCMPNE (sign-agnostic, both signednesses).
+- go: NotEqual
+  asm: "ZCMPNE"
+  in:
+  - *int
+  - *int
+  - class: mask # governing predicate
+  out:
+  - class: mask
+
+- go: NotEqual
+  asm: "ZCMPNE"
+  in:
+  - *uint
+  - *uint
+  - class: mask # governing predicate
+  out:
+  - class: mask
+
+# NotEqual — floating-point compare, ZFCMNE.
+- go: NotEqual
+  asm: "ZFCMNE"
+  in:
+  - *float
+  - *float
+  - class: mask # governing predicate
+  out:
+  - class: mask

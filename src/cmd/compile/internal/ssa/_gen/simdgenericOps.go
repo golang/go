@@ -858,26 +858,36 @@ func simdGenericOps() []opData {
 		{name: "NegInt32x4", argLength: 1},                                              // ARCH:arm64,wasm
 		{name: "NegInt64s", argLength: 1},                                               // ARCH:sve
 		{name: "NegInt64x2", argLength: 1},                                              // ARCH:arm64,wasm
+		{name: "NotEqualFloat32s", argLength: 2, commutative: true},                     // ARCH:sve
 		{name: "NotEqualFloat32x4", argLength: 2, commutative: true},                    // ARCH:amd64,wasm
 		{name: "NotEqualFloat32x8", argLength: 2, commutative: true},                    // ARCH:amd64
 		{name: "NotEqualFloat32x16", argLength: 2, commutative: true},                   // ARCH:amd64
+		{name: "NotEqualFloat64s", argLength: 2, commutative: true},                     // ARCH:sve
 		{name: "NotEqualFloat64x2", argLength: 2, commutative: true},                    // ARCH:amd64,wasm
 		{name: "NotEqualFloat64x4", argLength: 2, commutative: true},                    // ARCH:amd64
 		{name: "NotEqualFloat64x8", argLength: 2, commutative: true},                    // ARCH:amd64
+		{name: "NotEqualInt8s", argLength: 2, commutative: true},                        // ARCH:sve
 		{name: "NotEqualInt8x16", argLength: 2, commutative: true},                      // ARCH:wasm
 		{name: "NotEqualInt8x64", argLength: 2, commutative: true},                      // ARCH:amd64
+		{name: "NotEqualInt16s", argLength: 2, commutative: true},                       // ARCH:sve
 		{name: "NotEqualInt16x8", argLength: 2, commutative: true},                      // ARCH:wasm
 		{name: "NotEqualInt16x32", argLength: 2, commutative: true},                     // ARCH:amd64
+		{name: "NotEqualInt32s", argLength: 2, commutative: true},                       // ARCH:sve
 		{name: "NotEqualInt32x4", argLength: 2, commutative: true},                      // ARCH:wasm
 		{name: "NotEqualInt32x16", argLength: 2, commutative: true},                     // ARCH:amd64
+		{name: "NotEqualInt64s", argLength: 2, commutative: true},                       // ARCH:sve
 		{name: "NotEqualInt64x2", argLength: 2, commutative: true},                      // ARCH:wasm
 		{name: "NotEqualInt64x8", argLength: 2, commutative: true},                      // ARCH:amd64
+		{name: "NotEqualUint8s", argLength: 2, commutative: true},                       // ARCH:sve
 		{name: "NotEqualUint8x16", argLength: 2, commutative: true},                     // ARCH:wasm
 		{name: "NotEqualUint8x64", argLength: 2, commutative: true},                     // ARCH:amd64
+		{name: "NotEqualUint16s", argLength: 2, commutative: true},                      // ARCH:sve
 		{name: "NotEqualUint16x8", argLength: 2, commutative: true},                     // ARCH:wasm
 		{name: "NotEqualUint16x32", argLength: 2, commutative: true},                    // ARCH:amd64
+		{name: "NotEqualUint32s", argLength: 2, commutative: true},                      // ARCH:sve
 		{name: "NotEqualUint32x4", argLength: 2, commutative: true},                     // ARCH:wasm
 		{name: "NotEqualUint32x16", argLength: 2, commutative: true},                    // ARCH:amd64
+		{name: "NotEqualUint64s", argLength: 2, commutative: true},                      // ARCH:sve
 		{name: "NotEqualUint64x2", argLength: 2, commutative: true},                     // ARCH:wasm
 		{name: "NotEqualUint64x8", argLength: 2, commutative: true},                     // ARCH:amd64
 		{name: "NotInt8x16", argLength: 1},                                              // ARCH:arm64,wasm

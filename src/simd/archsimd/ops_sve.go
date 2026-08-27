@@ -290,6 +290,58 @@ func (x Int32s) Neg() Int32s
 // Asm: ZNEG, CPU Feature: SVE
 func (x Int64s) Neg() Int64s
 
+/* NotEqual */
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZFCMNE, CPU Feature: SVE
+func (x Float32s) NotEqual(y Float32s) Mask32s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZFCMNE, CPU Feature: SVE
+func (x Float64s) NotEqual(y Float64s) Mask64s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Int8s) NotEqual(y Int8s) Mask8s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Int16s) NotEqual(y Int16s) Mask16s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Int32s) NotEqual(y Int32s) Mask32s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Int64s) NotEqual(y Int64s) Mask64s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Uint8s) NotEqual(y Uint8s) Mask8s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Uint16s) NotEqual(y Uint16s) Mask16s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Uint32s) NotEqual(y Uint32s) Mask32s
+
+// NotEqual returns a mask whose elements indicate whether x != y.
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Uint64s) NotEqual(y Uint64s) Mask64s
+
 /* Round */
 
 // Round rounds elements to the nearest integer, rounding ties to even.
