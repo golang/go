@@ -171,3 +171,21 @@ func TestNegSVE(t *testing.T) {
 	var zf archsimd.Float64s
 	testSVEUnary(t, float64s, 8, zf.Len(), archsimd.LoadFloat64s, archsimd.Float64s.Neg, archsimd.Float64s.Store, negFloat64)
 }
+
+func TestSqrtSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	var in, got [4]float64
+	for i := range in {
+		in[i] = float64(i + 1)
+	}
+	v := archsimd.LoadFloat64s(in[:])
+	v.Sqrt().Store(got[:])
+	var z archsimd.Float64s
+	for i := 0; i < z.Len(); i++ {
+		if want := math.Sqrt(in[i]); got[i] != want {
+			t.Errorf("lane %d: Sqrt(%v) = %v, want %v", i, in[i], got[i], want)
+		}
+	}
+}

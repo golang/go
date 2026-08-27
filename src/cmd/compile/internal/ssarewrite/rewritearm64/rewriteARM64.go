@@ -2216,9 +2216,13 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpSqrt32:
 		v.Op = ssaop.OpARM64FSQRTS
 		return true
+	case ssaop.OpSqrtFloat32s:
+		return rewriteValue_OpSqrtFloat32s(v)
 	case ssaop.OpSqrtFloat32x4:
 		v.Op = ssaop.OpARM64VFSQRT4S
 		return true
+	case ssaop.OpSqrtFloat64s:
+		return rewriteValue_OpSqrtFloat64s(v)
 	case ssaop.OpSqrtFloat64x2:
 		v.Op = ssaop.OpARM64VFSQRT2D
 		return true
@@ -20421,6 +20425,37 @@ func rewriteValue_OpARM64ZSELD(v *ssa.Value) bool {
 		v.AddArg3(z, x, mask)
 		return true
 	}
+	// match: (ZSELD (ZFSQRTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) z mask)
+	// result: (ZFSQRTMergingD z x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFSQRTD {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != ssaop.OpSelect0 || v_0_1.Type != types.TypeMask {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != ssaop.OpARM64PWHILELTD {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_1.AuxInt) != 4 {
+			break
+		}
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZFSQRTMergingD)
+		v.AddArg3(z, x, mask)
+		return true
+	}
 	// match: (ZSELD (ZFSUBD x y) x mask)
 	// result: (ZFSUBMergingD x y mask)
 	for {
@@ -21134,6 +21169,37 @@ func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
 		z := v_1
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZFNEGMergingS)
+		v.AddArg3(z, x, mask)
+		return true
+	}
+	// match: (ZSELS (ZFSQRTS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) z mask)
+	// result: (ZFSQRTMergingS z x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFSQRTS {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != ssaop.OpSelect0 || v_0_1.Type != types.TypeMask {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != ssaop.OpARM64PWHILELTS {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_1.AuxInt) != 8 {
+			break
+		}
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZFSQRTMergingS)
 		v.AddArg3(z, x, mask)
 		return true
 	}
@@ -26278,6 +26344,48 @@ func rewriteValue_OpSlicemask(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpARM64NEG, t)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpSqrtFloat32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SqrtFloat32s x)
+	// result: (ZFSQRTS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZFSQRTS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpSqrtFloat64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SqrtFloat64s x)
+	// result: (ZFSQRTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZFSQRTD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
 		return true
 	}
 }

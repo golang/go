@@ -1229,9 +1229,11 @@ func simdGenericOps() []opData {
 		{name: "ShiftUint16x8", argLength: 2},                                           // ARCH:arm64
 		{name: "ShiftUint32x4", argLength: 2},                                           // ARCH:arm64
 		{name: "ShiftUint64x2", argLength: 2},                                           // ARCH:arm64
+		{name: "SqrtFloat32s", argLength: 1},                                            // ARCH:sve
 		{name: "SqrtFloat32x4", argLength: 1},                                           // ARCH:amd64,arm64,wasm
 		{name: "SqrtFloat32x8", argLength: 1},                                           // ARCH:amd64
 		{name: "SqrtFloat32x16", argLength: 1},                                          // ARCH:amd64
+		{name: "SqrtFloat64s", argLength: 1},                                            // ARCH:sve
 		{name: "SqrtFloat64x2", argLength: 1},                                           // ARCH:amd64,arm64,wasm
 		{name: "SqrtFloat64x4", argLength: 1},                                           // ARCH:amd64
 		{name: "SqrtFloat64x8", argLength: 1},                                           // ARCH:amd64

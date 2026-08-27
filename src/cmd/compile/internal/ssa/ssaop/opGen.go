@@ -5078,6 +5078,10 @@ const (
 	OpARM64ZFNEGMergingD
 	OpARM64ZFNEGMergingS
 	OpARM64ZFNEGS
+	OpARM64ZFSQRTD
+	OpARM64ZFSQRTMergingD
+	OpARM64ZFSQRTMergingS
+	OpARM64ZFSQRTS
 	OpARM64ZFSUBD
 	OpARM64ZFSUBMergingD
 	OpARM64ZFSUBMergingS
@@ -8394,9 +8398,11 @@ const (
 	OpShiftUint32x4
 	OpShiftUint64x2
 	OpShiftUint8x16
+	OpSqrtFloat32s
 	OpSqrtFloat32x16
 	OpSqrtFloat32x4
 	OpSqrtFloat32x8
+	OpSqrtFloat64s
 	OpSqrtFloat64x2
 	OpSqrtFloat64x4
 	OpSqrtFloat64x8
@@ -86349,6 +86355,66 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "ZFSQRTD",
+		ArgLen: 2,
+		asm:    arm64.AZFSQRT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:         "ZFSQRTMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZFSQRT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:         "ZFSQRTMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZFSQRT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:   "ZFSQRTS",
+		ArgLen: 2,
+		asm:    arm64.AZFSQRT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:   "ZFSUBD",
 		ArgLen: 2,
 		asm:    arm64.AZFSUB,
@@ -117837,6 +117903,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "SqrtFloat32s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
 		Name:    "SqrtFloat32x16",
 		ArgLen:  1,
 		Generic: true,
@@ -117848,6 +117919,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "SqrtFloat32x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "SqrtFloat64s",
 		ArgLen:  1,
 		Generic: true,
 	},

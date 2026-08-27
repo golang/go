@@ -1,0 +1,13 @@
+!sum
+# Sqrt — floating-point square root, ZFSQRT. Predicated-only: the governing
+# predicate is implicit-all-true and the merging qualifier becomes the
+# predicated machine op.
+- go: Sqrt
+  asm: "ZFSQRT"
+  in:
+  - &float
+    go: $t
+    base: float
+  - class: mask # governing predicate
+  out:
+  - *float

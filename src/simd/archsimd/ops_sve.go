@@ -184,6 +184,18 @@ func (x Int32s) Neg() Int32s
 // Asm: ZNEG, CPU Feature: SVE
 func (x Int64s) Neg() Int64s
 
+/* Sqrt */
+
+// Sqrt computes the square root of each element.
+//
+// Asm: ZFSQRT, CPU Feature: SVE
+func (x Float32s) Sqrt() Float32s
+
+// Sqrt computes the square root of each element.
+//
+// Asm: ZFSQRT, CPU Feature: SVE
+func (x Float64s) Sqrt() Float64s
+
 /* Sub */
 
 // Sub subtracts corresponding elements of two vectors.
