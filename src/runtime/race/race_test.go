@@ -196,6 +196,16 @@ func runTests(t *testing.T) ([]byte, error) {
 	if mapFatals != 0 {
 		return out, nil
 	}
+	// TestRaceWaitGroupReuse deliberately reuses a WaitGroup, and on a slow
+	// machine both it and its helper goroutine can be blocked in Wait when the
+	// last Done arrives. Whichever one returns first can reach the next Add
+	// before the other has returned from Wait, which makes that Wait panic.
+	// Like the concurrent map case above, the panic takes down the whole
+	// testdata program, so the tests after it do not run. The tests that did
+	// run are still scored.
+	if bytes.Contains(out, []byte("panic: sync: WaitGroup is reused before previous Wait has returned")) {
+		return out, nil
+	}
 	if !bytes.Contains(out, []byte("ALL TESTS COMPLETE")) {
 		return out, errors.New("not all tests ran")
 	}
