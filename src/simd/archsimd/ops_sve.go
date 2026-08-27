@@ -172,6 +172,48 @@ func (x Uint32s) And(y Uint32s) Uint32s
 // Asm: ZAND, CPU Feature: SVE
 func (x Uint64s) And(y Uint64s) Uint64s
 
+/* AndNot */
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: ZBIC, CPU Feature: SVE
+func (x Int8s) AndNot(y Int8s) Int8s
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: ZBIC, CPU Feature: SVE
+func (x Int16s) AndNot(y Int16s) Int16s
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: ZBIC, CPU Feature: SVE
+func (x Int32s) AndNot(y Int32s) Int32s
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: ZBIC, CPU Feature: SVE
+func (x Int64s) AndNot(y Int64s) Int64s
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: ZBIC, CPU Feature: SVE
+func (x Uint8s) AndNot(y Uint8s) Uint8s
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: ZBIC, CPU Feature: SVE
+func (x Uint16s) AndNot(y Uint16s) Uint16s
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: ZBIC, CPU Feature: SVE
+func (x Uint32s) AndNot(y Uint32s) Uint32s
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: ZBIC, CPU Feature: SVE
+func (x Uint64s) AndNot(y Uint64s) Uint64s
+
 /* Ceil */
 
 // Ceil rounds elements up to the nearest integer.

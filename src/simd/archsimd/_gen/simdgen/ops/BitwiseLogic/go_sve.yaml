@@ -55,3 +55,20 @@
   - *uint
   out:
   - *uint
+
+# AndNot — bitwise x &^ y, ZBIC. Width-agnostic like ZAND.
+- go: AndNot
+  asm: "ZBIC"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+- go: AndNot
+  asm: "ZBIC"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint

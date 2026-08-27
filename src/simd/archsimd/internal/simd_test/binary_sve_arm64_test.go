@@ -321,3 +321,17 @@ func TestXorSVE(t *testing.T) {
 	}
 	testInt8sBinary(t, archsimd.Int8s.Xor, xorInt8)
 }
+
+func TestAndNotSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	andNotInt8 := func(x, y []int8) []int8 {
+		r := make([]int8, len(x))
+		for i := range x {
+			r[i] = x[i] &^ y[i]
+		}
+		return r
+	}
+	testInt8sBinary(t, archsimd.Int8s.AndNot, andNotInt8)
+}

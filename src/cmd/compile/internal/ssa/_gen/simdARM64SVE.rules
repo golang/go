@@ -26,6 +26,14 @@
 (AndUint16s ...) => (ZANDD ...) // pureVreg
 (AndUint32s ...) => (ZANDD ...) // pureVreg
 (AndUint64s ...) => (ZANDD ...) // pureVreg
+(AndNotInt8s ...) => (ZBICD ...) // pureVreg
+(AndNotInt16s ...) => (ZBICD ...) // pureVreg
+(AndNotInt32s ...) => (ZBICD ...) // pureVreg
+(AndNotInt64s ...) => (ZBICD ...) // pureVreg
+(AndNotUint8s ...) => (ZBICD ...) // pureVreg
+(AndNotUint16s ...) => (ZBICD ...) // pureVreg
+(AndNotUint32s ...) => (ZBICD ...) // pureVreg
+(AndNotUint64s ...) => (ZBICD ...) // pureVreg
 (OrInt8s ...) => (ZORRD ...) // pureVreg
 (OrInt16s ...) => (ZORRD ...) // pureVreg
 (OrInt32s ...) => (ZORRD ...) // pureVreg
@@ -129,6 +137,7 @@
 (ZSELB (ZANDD x y) x mask) => (ZANDMergingB x y mask)
 (ZSELB (ZANDD x y) y mask) => (ZANDMergingB y x mask)
 (ZSELB (ZANDD x y) z mask) => (ZANDMergingPrefixedB z x y mask)
+(ZSELB (ZBICD x y) x mask) => (ZBICMergingB x y mask)
 (ZSELB (ZEORD x y) x mask) => (ZEORMergingB x y mask)
 (ZSELB (ZEORD x y) y mask) => (ZEORMergingB y x mask)
 (ZSELB (ZEORD x y) z mask) => (ZEORMergingPrefixedB z x y mask)
@@ -152,6 +161,7 @@
 (ZSELD (ZANDD x y) x mask) => (ZANDMergingD x y mask)
 (ZSELD (ZANDD x y) y mask) => (ZANDMergingD y x mask)
 (ZSELD (ZANDD x y) z mask) => (ZANDMergingPrefixedD z x y mask)
+(ZSELD (ZBICD x y) x mask) => (ZBICMergingD x y mask)
 (ZSELD (ZEORD x y) x mask) => (ZEORMergingD x y mask)
 (ZSELD (ZEORD x y) y mask) => (ZEORMergingD y x mask)
 (ZSELD (ZEORD x y) z mask) => (ZEORMergingPrefixedD z x y mask)
@@ -182,6 +192,7 @@
 (ZSELH (ZANDD x y) x mask) => (ZANDMergingH x y mask)
 (ZSELH (ZANDD x y) y mask) => (ZANDMergingH y x mask)
 (ZSELH (ZANDD x y) z mask) => (ZANDMergingPrefixedH z x y mask)
+(ZSELH (ZBICD x y) x mask) => (ZBICMergingH x y mask)
 (ZSELH (ZEORD x y) x mask) => (ZEORMergingH x y mask)
 (ZSELH (ZEORD x y) y mask) => (ZEORMergingH y x mask)
 (ZSELH (ZEORD x y) z mask) => (ZEORMergingPrefixedH z x y mask)
@@ -205,6 +216,7 @@
 (ZSELS (ZANDD x y) x mask) => (ZANDMergingS x y mask)
 (ZSELS (ZANDD x y) y mask) => (ZANDMergingS y x mask)
 (ZSELS (ZANDD x y) z mask) => (ZANDMergingPrefixedS z x y mask)
+(ZSELS (ZBICD x y) x mask) => (ZBICMergingS x y mask)
 (ZSELS (ZEORD x y) x mask) => (ZEORMergingS x y mask)
 (ZSELS (ZEORD x y) y mask) => (ZEORMergingS y x mask)
 (ZSELS (ZEORD x y) z mask) => (ZEORMergingPrefixedS z x y mask)
