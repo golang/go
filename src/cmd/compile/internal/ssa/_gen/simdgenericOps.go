@@ -520,26 +520,36 @@ func simdGenericOps() []opData {
 		{name: "GetLoUint32x16", argLength: 1},                                          // ARCH:amd64
 		{name: "GetLoUint64x4", argLength: 1},                                           // ARCH:amd64
 		{name: "GetLoUint64x8", argLength: 1},                                           // ARCH:amd64
+		{name: "GreaterEqualFloat32s", argLength: 2},                                    // ARCH:sve
 		{name: "GreaterEqualFloat32x4", argLength: 2},                                   // ARCH:amd64,arm64,wasm
 		{name: "GreaterEqualFloat32x8", argLength: 2},                                   // ARCH:amd64
 		{name: "GreaterEqualFloat32x16", argLength: 2},                                  // ARCH:amd64
+		{name: "GreaterEqualFloat64s", argLength: 2},                                    // ARCH:sve
 		{name: "GreaterEqualFloat64x2", argLength: 2},                                   // ARCH:amd64,arm64,wasm
 		{name: "GreaterEqualFloat64x4", argLength: 2},                                   // ARCH:amd64
 		{name: "GreaterEqualFloat64x8", argLength: 2},                                   // ARCH:amd64
+		{name: "GreaterEqualInt8s", argLength: 2},                                       // ARCH:sve
 		{name: "GreaterEqualInt8x16", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "GreaterEqualInt8x64", argLength: 2},                                     // ARCH:amd64
+		{name: "GreaterEqualInt16s", argLength: 2},                                      // ARCH:sve
 		{name: "GreaterEqualInt16x8", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "GreaterEqualInt16x32", argLength: 2},                                    // ARCH:amd64
+		{name: "GreaterEqualInt32s", argLength: 2},                                      // ARCH:sve
 		{name: "GreaterEqualInt32x4", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "GreaterEqualInt32x16", argLength: 2},                                    // ARCH:amd64
+		{name: "GreaterEqualInt64s", argLength: 2},                                      // ARCH:sve
 		{name: "GreaterEqualInt64x2", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "GreaterEqualInt64x8", argLength: 2},                                     // ARCH:amd64
+		{name: "GreaterEqualUint8s", argLength: 2},                                      // ARCH:sve
 		{name: "GreaterEqualUint8x16", argLength: 2},                                    // ARCH:arm64,wasm
 		{name: "GreaterEqualUint8x64", argLength: 2},                                    // ARCH:amd64
+		{name: "GreaterEqualUint16s", argLength: 2},                                     // ARCH:sve
 		{name: "GreaterEqualUint16x8", argLength: 2},                                    // ARCH:arm64,wasm
 		{name: "GreaterEqualUint16x32", argLength: 2},                                   // ARCH:amd64
+		{name: "GreaterEqualUint32s", argLength: 2},                                     // ARCH:sve
 		{name: "GreaterEqualUint32x4", argLength: 2},                                    // ARCH:arm64,wasm
 		{name: "GreaterEqualUint32x16", argLength: 2},                                   // ARCH:amd64
+		{name: "GreaterEqualUint64s", argLength: 2},                                     // ARCH:sve
 		{name: "GreaterEqualUint64x2", argLength: 2},                                    // ARCH:arm64
 		{name: "GreaterEqualUint64x8", argLength: 2},                                    // ARCH:amd64
 		{name: "GreaterFloat32s", argLength: 2},                                         // ARCH:sve

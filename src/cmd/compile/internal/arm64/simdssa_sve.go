@@ -82,6 +82,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssaop.OpARM64ZCMPEQB,
 		ssaop.OpARM64ZCMPGTB,
 		ssaop.OpARM64ZCMPHIB,
+		ssaop.OpARM64ZCMPGEB,
+		ssaop.OpARM64ZCMPHSB,
 		ssaop.OpARM64ZCMPNEB:
 		p = simdZ2kk(s, v, arm64.ARNG_B)
 
@@ -90,6 +92,9 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFCMGTD,
 		ssaop.OpARM64ZCMPGTD,
 		ssaop.OpARM64ZCMPHID,
+		ssaop.OpARM64ZFCMGED,
+		ssaop.OpARM64ZCMPGED,
+		ssaop.OpARM64ZCMPHSD,
 		ssaop.OpARM64ZFCMNED,
 		ssaop.OpARM64ZCMPNED:
 		p = simdZ2kk(s, v, arm64.ARNG_D)
@@ -97,6 +102,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssaop.OpARM64ZCMPEQH,
 		ssaop.OpARM64ZCMPGTH,
 		ssaop.OpARM64ZCMPHIH,
+		ssaop.OpARM64ZCMPGEH,
+		ssaop.OpARM64ZCMPHSH,
 		ssaop.OpARM64ZCMPNEH:
 		p = simdZ2kk(s, v, arm64.ARNG_H)
 
@@ -105,6 +112,9 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFCMGTS,
 		ssaop.OpARM64ZCMPGTS,
 		ssaop.OpARM64ZCMPHIS,
+		ssaop.OpARM64ZFCMGES,
+		ssaop.OpARM64ZCMPGES,
+		ssaop.OpARM64ZCMPHSS,
 		ssaop.OpARM64ZFCMNES,
 		ssaop.OpARM64ZCMPNES:
 		p = simdZ2kk(s, v, arm64.ARNG_S)

@@ -93,3 +93,33 @@
   - class: mask # governing predicate
   out:
   - class: mask
+
+# GreaterEqual — signed integer compare, ZCMPGE.
+- go: GreaterEqual
+  asm: "ZCMPGE"
+  in:
+  - *int
+  - *int
+  - class: mask # governing predicate
+  out:
+  - class: mask
+
+# GreaterEqual — unsigned integer compare, ZCMPHS ("higher or same").
+- go: GreaterEqual
+  asm: "ZCMPHS"
+  in:
+  - *uint
+  - *uint
+  - class: mask # governing predicate
+  out:
+  - class: mask
+
+# GreaterEqual — floating-point compare, ZFCMGE.
+- go: GreaterEqual
+  asm: "ZFCMGE"
+  in:
+  - *float
+  - *float
+  - class: mask # governing predicate
+  out:
+  - class: mask

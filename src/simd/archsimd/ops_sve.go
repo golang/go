@@ -258,6 +258,58 @@ func (x Uint32s) Greater(y Uint32s) Mask32s
 // Asm: ZCMPHI, CPU Feature: SVE
 func (x Uint64s) Greater(y Uint64s) Mask64s
 
+/* GreaterEqual */
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZFCMGE, CPU Feature: SVE
+func (x Float32s) GreaterEqual(y Float32s) Mask32s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZFCMGE, CPU Feature: SVE
+func (x Float64s) GreaterEqual(y Float64s) Mask64s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZCMPGE, CPU Feature: SVE
+func (x Int8s) GreaterEqual(y Int8s) Mask8s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZCMPGE, CPU Feature: SVE
+func (x Int16s) GreaterEqual(y Int16s) Mask16s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZCMPGE, CPU Feature: SVE
+func (x Int32s) GreaterEqual(y Int32s) Mask32s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZCMPGE, CPU Feature: SVE
+func (x Int64s) GreaterEqual(y Int64s) Mask64s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZCMPHS, CPU Feature: SVE
+func (x Uint8s) GreaterEqual(y Uint8s) Mask8s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZCMPHS, CPU Feature: SVE
+func (x Uint16s) GreaterEqual(y Uint16s) Mask16s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZCMPHS, CPU Feature: SVE
+func (x Uint32s) GreaterEqual(y Uint32s) Mask32s
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: ZCMPHS, CPU Feature: SVE
+func (x Uint64s) GreaterEqual(y Uint64s) Mask64s
+
 /* Neg */
 
 // Neg returns the elementwise negation of x.

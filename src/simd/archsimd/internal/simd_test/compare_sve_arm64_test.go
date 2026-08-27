@@ -120,3 +120,12 @@ func TestNotEqualSVE(t *testing.T) {
 	testUint8sCompare(t, archsimd.Uint8s.NotEqual, func(a, b uint8) bool { return a != b })
 	testFloat64sCompare(t, archsimd.Float64s.NotEqual, func(a, b float64) bool { return a != b })
 }
+
+func TestGreaterEqualSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no sve")
+	}
+	testInt8sCompare(t, archsimd.Int8s.GreaterEqual, func(a, b int8) bool { return a >= b })
+	testUint8sCompare(t, archsimd.Uint8s.GreaterEqual, func(a, b uint8) bool { return a >= b })
+	testFloat64sCompare(t, archsimd.Float64s.GreaterEqual, func(a, b float64) bool { return a >= b })
+}
