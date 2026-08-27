@@ -214,6 +214,16 @@ func sveImplicitPredRule(gOp Operation, asm, args string) string {
 		gOp.GenericName(), args, asm, args, letter, lanes)
 }
 
+// sveFeatureConst maps a def's cpuFeature string to the ssa.CPUfeatures
+// constant the generated rule conditions on.
+func sveFeatureConst(feature string) string {
+	switch feature {
+	case "SVE2":
+		return "CPUsve2"
+	}
+	panic(fmt.Errorf("simdgen: no ssa.CPUfeatures constant for feature %q", feature))
+}
+
 // sveAllTruePattern returns the rule text for the synthesized all-true
 // governing predicate of an operation, the same term sveImplicitPredRule
 // produces. Matching it, rather than a wildcard, is what makes the peepholes
@@ -354,6 +364,41 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		} else if immType == ConstVarImm {
 			data.Args = fmt.Sprintf("[a] %s", data.Args)
 			data.ArgsOut = fmt.Sprintf("[a+%s] %s", *opr.In[0].Const, data.ArgsOut)
+		}
+
+		// An SVE operation whose unpredicated encoding needs a higher feature
+		// level than the operation itself lowers through its merging-predicated
+		// sibling under a synthesized all-true predicate, with the unpredicated
+		// encoding as a feature-gated upgrade in blocks where the cpufeatures
+		// analysis proves the level:
+		//
+		//	(MulInt8s x y) && ...HasFeature(ssa.CPUsve2) => (ZMULB x y)
+		//	(MulInt8s x y) => (ZMULMergingB x y <all-true>)
+		if gOp.UnpredCPUFeature != nil {
+			preds := gOp.svePredicatedOps()
+			if len(preds) == 0 || sveMaskSuffix(preds[0]) != "Merging" {
+				panic(fmt.Errorf("simdgen: %s has unpredCpuFeature but no merging fallback", gOp.Asm))
+			}
+			merging := machineOpName(OneMask, preds[0])
+			sveRules = append(sveRules, fmt.Sprintf("(%s %s) && v.Block.CPUfeatures.HasFeature(ssa.%s) => (%s %s)\n",
+				gOp.GenericName(), data.Args, sveFeatureConst(*gOp.UnpredCPUFeature), asm, data.Args))
+			sveRules = append(sveRules, fmt.Sprintf("(%s %s) => (%s %s %s)\n",
+				gOp.GenericName(), data.Args, merging, data.Args, sveAllTruePattern(gOp)))
+			// A select over the fallback folds by replacing the synthesized
+			// all-true predicate, mirroring sveMergingPeephole's three forms.
+			sel := "ZSEL" + sveArrangementLetter(gOp)
+			allTrue := sveAllTruePattern(gOp)
+			sveRules = append(sveRules, fmt.Sprintf("(%s (%s x y %s) x mask) => (%s x y mask)\n", sel, merging, allTrue, merging))
+			if gOp.Commutative {
+				sveRules = append(sveRules, fmt.Sprintf("(%s (%s x y %s) y mask) => (%s y x mask)\n", sel, merging, allTrue, merging))
+				if preds[0].sveMergingPrefixedOp() != nil {
+					sveRules = append(sveRules, fmt.Sprintf("(%s (%s x y %s) z mask) => (%s z x y mask)\n",
+						sel, merging, allTrue, machineOpName(OneMask, *preds[0].sveMergingPrefixedOp())))
+				}
+			}
+			asmCheck[asm] = true
+			asmCheck[merging] = true
+			continue
 		}
 
 		// SVE ops with an implicit-all-true governing predicate expose an

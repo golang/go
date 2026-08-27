@@ -1,0 +1,33 @@
+!sum
+# Mul — integer multiply (low half), ZMUL. The unpredicated vector encoding is
+# SVE2; the merging-predicated sibling is baseline SVE.
+- go: Mul
+  asm: "ZMUL"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *int
+
+- go: Mul
+  asm: "ZMUL"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out:
+  - *uint
+
+# Mul — floating-point multiply, ZFMUL (baseline SVE, both forms).
+- go: Mul
+  asm: "ZFMUL"
+  in:
+  - &float
+    go: $t
+    base: float
+  - *float
+  out:
+  - *float

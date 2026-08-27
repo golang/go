@@ -87,6 +87,11 @@ type predVariant struct {
 	quals       string
 	outRegNames []string
 	inRegNames  []string
+	// cpuFeature is the predicated sibling encoding's own feature level. It can
+	// sit below the carrier's: the unpredicated integer MUL is SVE2 while its
+	// predicated sibling is baseline SVE, making the operation available on SVE
+	// with the unpredicated encoding a feature-gated upgrade.
+	cpuFeature string
 	// predAsmPos is the assembly position of the encoding's governing
 	// predicate: 1 on every encoding grouped today, but recorded rather than
 	// assumed — PTEST, with no destination, governs from position 0.

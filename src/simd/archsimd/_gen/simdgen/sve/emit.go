@@ -131,7 +131,22 @@ func (inst *Instruction) emitOne(asm string, ops []Operand, widthAgnostic bool) 
 	var db unify.DefBuilder
 	db.Add("asm", unify.NewValue(unify.NewStringExact(asm)))
 	db.Add("goarch", unify.NewValue(unify.NewStringExact("arm64")))
-	db.Add("cpuFeature", unify.NewValue(unify.NewStringExact(inst.cpuFeature())))
+	// The operation's feature level is the floor across its encodings: an
+	// operation whose predicated sibling is baseline SVE is available on SVE
+	// even when its unpredicated carrier needs SVE2 — the carrier is then a
+	// feature-gated upgrade, recorded as unpredCpuFeature for the rules.
+	feature := inst.cpuFeature()
+	unpred := ""
+	for _, pv := range inst.predVariants {
+		if pv.cpuFeature == "SVE" && feature == "SVE2" {
+			unpred = feature
+			feature = pv.cpuFeature
+		}
+	}
+	db.Add("cpuFeature", unify.NewValue(unify.NewStringExact(feature)))
+	if unpred != "" {
+		db.Add("unpredCPUFeature", unify.NewValue(unify.NewStringExact(unpred)))
+	}
 	if doc := inst.documentation(); doc != "" {
 		db.Add("details", unify.NewValue(unify.NewStringExact(asComment(doc, 80))))
 	}

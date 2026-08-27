@@ -255,4 +255,15 @@ func sveIfElseFloat(x, y archsimd.Float64s, m archsimd.Mask64s) archsimd.Float64
 func sveZeroMask() archsimd.Mask8s {
 	// arm64:`PPFALSE` -`ZDUP`
 	var m archsimd.Mask8s
-	return m}
+	return m
+}
+
+// An operation whose unpredicated encoding needs SVE2 lowers to it only in
+// blocks where the cpufeatures analysis proves SVE2; elsewhere it lowers to
+// its baseline-SVE merging-predicated sibling under an all-true predicate.
+func sveMulSVE2Gate(x, y archsimd.Int8s) archsimd.Int8s {
+	if archsimd.ARM64.SVE2() {
+		return x.Mul(y) // arm64:`ZMUL\s+Z[0-9]+\.B, Z[0-9]+\.B, Z[0-9]+\.B`
+	}
+	return x.Mul(y) // arm64:`PWHILELT` `ZMUL.*P[0-9]+\.M`
+}

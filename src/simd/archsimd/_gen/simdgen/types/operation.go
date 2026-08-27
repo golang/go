@@ -51,6 +51,13 @@ type RawOperation struct {
 	// If true, do not emit method declarations, generic ops, or intrinsics for masked variants
 	// DO emit the architecture-specific opcodes and optimizations.
 	HideMaskMethods *bool
+	// UnpredCPUFeature is set when an SVE operation's unpredicated encoding
+	// needs a higher feature level than the operation itself: the CPUFeature
+	// field is the floor its predicated sibling provides, and the lowering may
+	// use the unpredicated encoding only in blocks where the ssa cpufeatures
+	// analysis proves this level (e.g. integer MUL: CPUFeature "SVE",
+	// UnpredCPUFeature "SVE2").
+	UnpredCPUFeature *string
 	// WidthAgnostic marks an SVE bitwise operation whose unpredicated encoding
 	// is written .D but computes the same bits under any element view. The
 	// loader emits one def per element width so every Go type gets the API;

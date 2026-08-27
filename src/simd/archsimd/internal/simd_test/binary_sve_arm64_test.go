@@ -335,3 +335,30 @@ func TestAndNotSVE(t *testing.T) {
 	}
 	testInt8sBinary(t, archsimd.Int8s.AndNot, andNotInt8)
 }
+
+func TestMulSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	mulFloat64 := func(x, y []float64) []float64 {
+		r := make([]float64, len(x))
+		for i := range x {
+			r[i] = x[i] * y[i]
+		}
+		return r
+	}
+	testFloat64sBinary(t, archsimd.Float64s.Mul, mulFloat64)
+	mulInt8 := func(x, y []int8) []int8 {
+		r := make([]int8, len(x))
+		for i := range x {
+			r[i] = x[i] * y[i]
+		}
+		return r
+	}
+	// Ungated: compiles to the merging-predicated fallback, correct on any SVE.
+	testInt8sBinary(t, archsimd.Int8s.Mul, mulInt8)
+	if archsimd.ARM64.SVE2() {
+		// Gated: this block compiles to the unpredicated SVE2 encoding.
+		testInt8sBinary(t, archsimd.Int8s.Mul, mulInt8)
+	}
+}

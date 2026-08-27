@@ -507,6 +507,8 @@ func (f CPUfeatures) String() string {
 	foo("vbmi2", CPUvbmi2)
 	foo("popcntdq", CPUvpopcntdq)
 	foo("avx512vnni", CPUavx512vnni)
+	foo("neon", CPUneon)
+	foo("sve2", CPUsve2)
 
 	return s
 }

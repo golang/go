@@ -128,7 +128,7 @@ func groupPredicationForms(insts []*Instruction) map[*Instruction]bool {
 			// Each encoding carries its own register symbols, so a machine op is
 			// always generated from the shape of the encoding it comes from.
 			outs, ins := splitRegNames(prOps)
-			variants = append(variants, predVariant{quals: quals, outRegNames: outs, inRegNames: ins, predAsmPos: governingAsmPos(prOps)})
+			variants = append(variants, predVariant{quals: quals, outRegNames: outs, inRegNames: ins, predAsmPos: governingAsmPos(prOps), cpuFeature: pr.cpuFeature()})
 			covered[pr] = true
 		}
 		if len(variants) == 0 {
@@ -185,7 +185,7 @@ func groupPredicatedOnly(pred []*Instruction, covered map[*Instruction]bool) {
 	}
 	baseOps := base.operands()
 	outs, ins := splitRegNames(baseOps)
-	base.predVariants = []predVariant{{quals: "M", outRegNames: outs, inRegNames: ins, predAsmPos: governingAsmPos(baseOps)}}
+	base.predVariants = []predVariant{{quals: "M", outRegNames: outs, inRegNames: ins, predAsmPos: governingAsmPos(baseOps), cpuFeature: base.cpuFeature()}}
 	for _, inst := range byQual {
 		if inst != base {
 			covered[inst] = true

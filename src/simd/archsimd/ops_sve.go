@@ -394,6 +394,58 @@ func (x Uint32s) GreaterEqual(y Uint32s) Mask32s
 // Asm: ZCMPHS, CPU Feature: SVE
 func (x Uint64s) GreaterEqual(y Uint64s) Mask64s
 
+/* Mul */
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZFMUL, CPU Feature: SVE
+func (x Float32s) Mul(y Float32s) Float32s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZFMUL, CPU Feature: SVE
+func (x Float64s) Mul(y Float64s) Float64s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZMUL, CPU Feature: SVE
+func (x Int8s) Mul(y Int8s) Int8s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZMUL, CPU Feature: SVE
+func (x Int16s) Mul(y Int16s) Int16s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZMUL, CPU Feature: SVE
+func (x Int32s) Mul(y Int32s) Int32s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZMUL, CPU Feature: SVE
+func (x Int64s) Mul(y Int64s) Int64s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZMUL, CPU Feature: SVE
+func (x Uint8s) Mul(y Uint8s) Uint8s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZMUL, CPU Feature: SVE
+func (x Uint16s) Mul(y Uint16s) Uint16s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZMUL, CPU Feature: SVE
+func (x Uint32s) Mul(y Uint32s) Uint32s
+
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+//
+// Asm: ZMUL, CPU Feature: SVE
+func (x Uint64s) Mul(y Uint64s) Uint64s
+
 /* Neg */
 
 // Neg returns the elementwise negation of x.
