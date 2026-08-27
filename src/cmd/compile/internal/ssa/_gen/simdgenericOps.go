@@ -1404,27 +1404,35 @@ func simdGenericOps() []opData {
 		{name: "TruncToUint32Uint64x2", argLength: 1},                                   // ARCH:amd64,arm64
 		{name: "TruncToUint32Uint64x4", argLength: 1},                                   // ARCH:amd64
 		{name: "TruncToUint32Uint64x8", argLength: 1},                                   // ARCH:amd64
+		{name: "XorInt8s", argLength: 2, commutative: true},                             // ARCH:sve
 		{name: "XorInt8x16", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "XorInt8x32", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "XorInt8x64", argLength: 2, commutative: true},                           // ARCH:amd64
+		{name: "XorInt16s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "XorInt16x8", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "XorInt16x16", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "XorInt16x32", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "XorInt32s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "XorInt32x4", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "XorInt32x8", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "XorInt32x16", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "XorInt64s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "XorInt64x2", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "XorInt64x4", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "XorInt64x8", argLength: 2, commutative: true},                           // ARCH:amd64
+		{name: "XorUint8s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "XorUint8x16", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "XorUint8x32", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "XorUint8x64", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "XorUint16s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "XorUint16x8", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "XorUint16x16", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "XorUint16x32", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "XorUint32s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "XorUint32x4", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "XorUint32x8", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "XorUint32x16", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "XorUint64s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "XorUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "XorUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "XorUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64

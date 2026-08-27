@@ -608,6 +608,48 @@ func (x Float32s) Trunc() Float32s
 // Asm: ZFRINTZ, CPU Feature: SVE
 func (x Float64s) Trunc() Float64s
 
+/* Xor */
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: ZEOR, CPU Feature: SVE
+func (x Int8s) Xor(y Int8s) Int8s
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: ZEOR, CPU Feature: SVE
+func (x Int16s) Xor(y Int16s) Int16s
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: ZEOR, CPU Feature: SVE
+func (x Int32s) Xor(y Int32s) Int32s
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: ZEOR, CPU Feature: SVE
+func (x Int64s) Xor(y Int64s) Int64s
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: ZEOR, CPU Feature: SVE
+func (x Uint8s) Xor(y Uint8s) Uint8s
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: ZEOR, CPU Feature: SVE
+func (x Uint16s) Xor(y Uint16s) Uint16s
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: ZEOR, CPU Feature: SVE
+func (x Uint32s) Xor(y Uint32s) Uint32s
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: ZEOR, CPU Feature: SVE
+func (x Uint64s) Xor(y Uint64s) Uint64s
+
 // BitsToInt8 reinterprets the bits of a Uint8s vector as a Int8s vector
 func (x Uint8s) BitsToInt8() Int8s
 

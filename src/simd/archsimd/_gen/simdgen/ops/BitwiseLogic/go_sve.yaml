@@ -38,3 +38,20 @@
   - *uint
   out:
   - *uint
+
+# Xor — bitwise exclusive OR, ZEOR. Width-agnostic like ZAND.
+- go: Xor
+  asm: "ZEOR"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+- go: Xor
+  asm: "ZEOR"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint

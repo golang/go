@@ -307,3 +307,17 @@ func TestOrSVE(t *testing.T) {
 	var z archsimd.Uint64s
 	testSVEBinary(t, uint64s, 8, z.Len(), archsimd.LoadUint64s, archsimd.Uint64s.Or, archsimd.Uint64s.Store, orUint64)
 }
+
+func TestXorSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	xorInt8 := func(x, y []int8) []int8 {
+		r := make([]int8, len(x))
+		for i := range x {
+			r[i] = x[i] ^ y[i]
+		}
+		return r
+	}
+	testInt8sBinary(t, archsimd.Int8s.Xor, xorInt8)
+}
