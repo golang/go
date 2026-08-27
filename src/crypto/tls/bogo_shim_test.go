@@ -74,8 +74,8 @@ var (
 	expectedSigAlg     = flag.String("expect-peer-signature-algorithm", "", "")
 	expectedPeerSigAlg = flagIntSlice("expect-peer-verify-pref", "")
 
-	shimID = flag.Uint64("shim-id", 0, "")
-	_      = flag.Bool("ipv6", false, "")
+	shimID  = flag.Uint64("shim-id", 0, "")
+	useIPv6 = flag.Bool("ipv6", false, "")
 
 	echConfigList              = flagBase64("ech-config-list", "")
 	expectECHAccepted          = flag.Bool("expect-ech-accept", false, "")
@@ -384,7 +384,11 @@ func bogoShim() {
 			cfg.EncryptedClientHelloConfigList = *onResumeECHConfigList
 		}
 
-		conn, err := net.Dial("tcp", net.JoinHostPort("localhost", *port))
+		host := "127.0.0.1"
+		if *useIPv6 {
+			host = "::1"
+		}
+		conn, err := net.Dial("tcp", net.JoinHostPort(host, *port))
 		if err != nil {
 			log.Fatalf("dial err: %s", err)
 		}
