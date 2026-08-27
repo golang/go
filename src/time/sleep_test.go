@@ -10,6 +10,7 @@ import (
 	"internal/testenv"
 	"math/rand"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -417,6 +418,9 @@ func testAfterStop(t *testing.T, newTimer func(Duration) *Timer) {
 	logErrs()
 }
 
+// TestAfterQueuing checks that concurrent After calls are queued by deadline:
+// timers created in one order but with deadlines in another must fire in
+// deadline order, and each must fire near its deadline.
 func TestAfterQueuing(t *testing.T) {
 	t.Run("impl=chan", func(t *testing.T) {
 		testAfterQueuing(t, After)
@@ -427,8 +431,10 @@ func TestAfterQueuing(t *testing.T) {
 }
 
 func testAfterQueuing(t *testing.T, after func(Duration) <-chan Time) {
-	// This test flakes out on some systems,
-	// so we'll try it a few times before declaring it a failure.
+	// The arrival time check below depends on the timers running roughly on
+	// schedule, which a loaded machine cannot promise, so try a few times with
+	// increasing deltas before declaring a failure. The ordering check does not
+	// depend on load and would not benefit from a retry.
 	const attempts = 5
 	err := errors.New("!=nil")
 	for i := 0; i < attempts && err != nil; i++ {
@@ -461,23 +467,33 @@ func testAfterQueuing1(delta Duration, after func(Duration) <-chan Time) error {
 
 	t0 := Now()
 	for _, slot := range slots {
-		go await(slot, result, After(Duration(slot)*delta))
+		go await(slot, result, after(Duration(slot)*delta))
 	}
-	var order []int
-	var times []Time
+	results := make([]afterResult, 0, len(slots))
 	for range slots {
-		r := <-result
-		order = append(order, r.slot)
-		times = append(times, r.t)
+		results = append(results, <-result)
 	}
-	for i := range order {
-		if i > 0 && order[i] < order[i-1] {
-			return fmt.Errorf("After calls returned out of order: %v", order)
+
+	// Sort by the time each timer reported, which is the order the timers
+	// fired in. The order in which the goroutines started above manage to send
+	// on result is up to the scheduler, not the timers, so it says nothing
+	// about whether the timers were queued correctly.
+	slices.SortStableFunc(results, func(a, b afterResult) int {
+		return a.t.Compare(b.t)
+	})
+	for i := range results {
+		if i > 0 && results[i].slot < results[i-1].slot {
+			fired := make([]int, len(results))
+			for j, r := range results {
+				fired[j] = r.slot
+			}
+			return fmt.Errorf("After calls fired out of order: %v", fired)
 		}
 	}
-	for i, t := range times {
-		dt := t.Sub(t0)
-		target := Duration(order[i]) * delta
+
+	for _, r := range results {
+		dt := r.t.Sub(t0)
+		target := Duration(r.slot) * delta
 		if dt < target-delta/2 || dt > target+delta*10 {
 			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-delta/2, target+delta*10)
 		}
