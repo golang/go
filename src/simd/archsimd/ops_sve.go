@@ -194,6 +194,48 @@ func (x Uint32s) Sub(y Uint32s) Uint32s
 // Asm: ZSUB, CPU Feature: SVE
 func (x Uint64s) Sub(y Uint64s) Uint64s
 
+/* SubSaturated */
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: ZSQSUB, CPU Feature: SVE
+func (x Int8s) SubSaturated(y Int8s) Int8s
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: ZSQSUB, CPU Feature: SVE
+func (x Int16s) SubSaturated(y Int16s) Int16s
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: ZSQSUB, CPU Feature: SVE
+func (x Int32s) SubSaturated(y Int32s) Int32s
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: ZSQSUB, CPU Feature: SVE
+func (x Int64s) SubSaturated(y Int64s) Int64s
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: ZUQSUB, CPU Feature: SVE
+func (x Uint8s) SubSaturated(y Uint8s) Uint8s
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: ZUQSUB, CPU Feature: SVE
+func (x Uint16s) SubSaturated(y Uint16s) Uint16s
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: ZUQSUB, CPU Feature: SVE
+func (x Uint32s) SubSaturated(y Uint32s) Uint32s
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: ZUQSUB, CPU Feature: SVE
+func (x Uint64s) SubSaturated(y Uint64s) Uint64s
+
 // BitsToInt8 reinterprets the bits of a Uint8s vector as a Int8s vector
 func (x Uint8s) BitsToInt8() Int8s
 

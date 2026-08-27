@@ -1251,21 +1251,29 @@ func simdGenericOps() []opData {
 		{name: "SubInt64x2", argLength: 2},                                              // ARCH:amd64,arm64,wasm
 		{name: "SubInt64x4", argLength: 2},                                              // ARCH:amd64
 		{name: "SubInt64x8", argLength: 2},                                              // ARCH:amd64
+		{name: "SubSaturatedInt8s", argLength: 2},                                       // ARCH:sve
 		{name: "SubSaturatedInt8x16", argLength: 2},                                     // ARCH:amd64,arm64,wasm
 		{name: "SubSaturatedInt8x32", argLength: 2},                                     // ARCH:amd64
 		{name: "SubSaturatedInt8x64", argLength: 2},                                     // ARCH:amd64
+		{name: "SubSaturatedInt16s", argLength: 2},                                      // ARCH:sve
 		{name: "SubSaturatedInt16x8", argLength: 2},                                     // ARCH:amd64,arm64,wasm
 		{name: "SubSaturatedInt16x16", argLength: 2},                                    // ARCH:amd64
 		{name: "SubSaturatedInt16x32", argLength: 2},                                    // ARCH:amd64
+		{name: "SubSaturatedInt32s", argLength: 2},                                      // ARCH:sve
 		{name: "SubSaturatedInt32x4", argLength: 2},                                     // ARCH:arm64
+		{name: "SubSaturatedInt64s", argLength: 2},                                      // ARCH:sve
 		{name: "SubSaturatedInt64x2", argLength: 2},                                     // ARCH:arm64
+		{name: "SubSaturatedUint8s", argLength: 2},                                      // ARCH:sve
 		{name: "SubSaturatedUint8x16", argLength: 2},                                    // ARCH:amd64,arm64,wasm
 		{name: "SubSaturatedUint8x32", argLength: 2},                                    // ARCH:amd64
 		{name: "SubSaturatedUint8x64", argLength: 2},                                    // ARCH:amd64
+		{name: "SubSaturatedUint16s", argLength: 2},                                     // ARCH:sve
 		{name: "SubSaturatedUint16x8", argLength: 2},                                    // ARCH:amd64,arm64,wasm
 		{name: "SubSaturatedUint16x16", argLength: 2},                                   // ARCH:amd64
 		{name: "SubSaturatedUint16x32", argLength: 2},                                   // ARCH:amd64
+		{name: "SubSaturatedUint32s", argLength: 2},                                     // ARCH:sve
 		{name: "SubSaturatedUint32x4", argLength: 2},                                    // ARCH:arm64
+		{name: "SubSaturatedUint64s", argLength: 2},                                     // ARCH:sve
 		{name: "SubSaturatedUint64x2", argLength: 2},                                    // ARCH:arm64
 		{name: "SubUint8s", argLength: 2},                                               // ARCH:sve
 		{name: "SubUint8x16", argLength: 2},                                             // ARCH:amd64,arm64

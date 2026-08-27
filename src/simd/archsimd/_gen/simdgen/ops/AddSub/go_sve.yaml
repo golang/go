@@ -39,3 +39,21 @@
   - *uint
   out:
   - *uint
+
+# SubSaturated — signed saturating SQSUB, unpredicated.
+- go: SubSaturated
+  asm: "ZSQSUB"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+# SubSaturated — unsigned saturating UQSUB, unpredicated.
+- go: SubSaturated
+  asm: "ZUQSUB"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
