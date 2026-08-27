@@ -8,6 +8,16 @@ package archsimd
 
 // Abs computes the absolute value of each element.
 //
+// Asm: ZFABS, CPU Feature: SVE
+func (x Float32s) Abs() Float32s
+
+// Abs computes the absolute value of each element.
+//
+// Asm: ZFABS, CPU Feature: SVE
+func (x Float64s) Abs() Float64s
+
+// Abs computes the absolute value of each element.
+//
 // Asm: ZABS, CPU Feature: SVE
 func (x Int8s) Abs() Int8s
 

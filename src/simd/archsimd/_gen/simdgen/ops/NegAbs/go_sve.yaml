@@ -22,3 +22,13 @@
   - class: mask # governing predicate
   out:
   - *float
+
+# Abs — floating-point absolute value, ZFABS. Predicated-only, same shape as
+# ZFNEG; the integer ZABS lives in IntOnlyArith.
+- go: Abs
+  asm: "ZFABS"
+  in:
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float

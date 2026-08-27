@@ -17,7 +17,9 @@ func simdGenericOps() []opData {
 		{name: "AESEncryptOneRoundUint8x32", argLength: 2},                              // ARCH:amd64
 		{name: "AESEncryptOneRoundUint8x64", argLength: 2},                              // ARCH:amd64
 		{name: "AESInvMixColumnsUint32x4", argLength: 1},                                // ARCH:amd64
+		{name: "AbsFloat32s", argLength: 1},                                             // ARCH:sve
 		{name: "AbsFloat32x4", argLength: 1},                                            // ARCH:arm64,wasm
+		{name: "AbsFloat64s", argLength: 1},                                             // ARCH:sve
 		{name: "AbsFloat64x2", argLength: 1},                                            // ARCH:arm64,wasm
 		{name: "AbsInt8s", argLength: 1},                                                // ARCH:sve
 		{name: "AbsInt8x16", argLength: 1},                                              // ARCH:amd64,arm64,wasm

@@ -36,6 +36,8 @@
 (SubSaturatedUint16s ...) => (ZUQSUBH ...) // pureVreg
 (SubSaturatedUint32s ...) => (ZUQSUBS ...) // pureVreg
 (SubSaturatedUint64s ...) => (ZUQSUBD ...) // pureVreg
+(AbsFloat32s x) => (ZFABSS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+(AbsFloat64s x) => (ZFABSD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
 (AbsInt16s x) => (ZABSH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16]))))
 (AbsInt32s x) => (ZABSS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
 (AbsInt64s x) => (ZABSD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
@@ -68,6 +70,7 @@
 (ZSELD (ZADDD x y) x mask) => (ZADDMergingD x y mask)
 (ZSELD (ZADDD x y) y mask) => (ZADDMergingD y x mask)
 (ZSELD (ZADDD x y) z mask) => (ZADDMergingPrefixedD z x y mask)
+(ZSELD (ZFABSD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) z mask) => (ZFABSMergingD z x mask)
 (ZSELD (ZFADDD x y) x mask) => (ZFADDMergingD x y mask)
 (ZSELD (ZFADDD x y) y mask) => (ZFADDMergingD y x mask)
 (ZSELD (ZFADDD x y) z mask) => (ZFADDMergingPrefixedD z x y mask)
@@ -101,6 +104,7 @@
 (ZSELS (ZADDS x y) x mask) => (ZADDMergingS x y mask)
 (ZSELS (ZADDS x y) y mask) => (ZADDMergingS y x mask)
 (ZSELS (ZADDS x y) z mask) => (ZADDMergingPrefixedS z x y mask)
+(ZSELS (ZFABSS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) z mask) => (ZFABSMergingS z x mask)
 (ZSELS (ZFADDS x y) x mask) => (ZFADDMergingS x y mask)
 (ZSELS (ZFADDS x y) y mask) => (ZFADDMergingS y x mask)
 (ZSELS (ZFADDS x y) z mask) => (ZFADDMergingPrefixedS z x y mask)

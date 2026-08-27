@@ -14,6 +14,7 @@
 package simd_test
 
 import (
+	"math"
 	"simd/archsimd"
 	"testing"
 )
@@ -136,6 +137,15 @@ func TestAbsSVE(t *testing.T) {
 	}
 	var z archsimd.Int8s
 	testSVEUnary(t, int8s, 1, z.Len(), archsimd.LoadInt8s, archsimd.Int8s.Abs, archsimd.Int8s.Store, absSlice)
+	absFloat32 := func(x []float32) []float32 {
+		r := make([]float32, len(x))
+		for i, v := range x {
+			r[i] = float32(math.Abs(float64(v)))
+		}
+		return r
+	}
+	var zf archsimd.Float32s
+	testSVEUnary(t, float32s, 4, zf.Len(), archsimd.LoadFloat32s, archsimd.Float32s.Abs, archsimd.Float32s.Store, absFloat32)
 }
 
 func TestNegSVE(t *testing.T) {
