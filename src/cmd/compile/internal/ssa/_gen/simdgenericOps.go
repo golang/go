@@ -461,8 +461,10 @@ func simdGenericOps() []opData {
 		{name: "ExtendToUint64Uint16x8", argLength: 1},                                  // ARCH:amd64
 		{name: "ExtendToUint64Uint32x4", argLength: 1},                                  // ARCH:amd64
 		{name: "ExtendToUint64Uint32x8", argLength: 1},                                  // ARCH:amd64
+		{name: "FloorFloat32s", argLength: 1},                                           // ARCH:sve
 		{name: "FloorFloat32x4", argLength: 1},                                          // ARCH:amd64,arm64,wasm
 		{name: "FloorFloat32x8", argLength: 1},                                          // ARCH:amd64
+		{name: "FloorFloat64s", argLength: 1},                                           // ARCH:sve
 		{name: "FloorFloat64x2", argLength: 1},                                          // ARCH:amd64,arm64,wasm
 		{name: "FloorFloat64x4", argLength: 1},                                          // ARCH:amd64
 		{name: "GaloisFieldMulUint8x16", argLength: 2},                                  // ARCH:amd64

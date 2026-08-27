@@ -20,3 +20,12 @@
   - class: mask # governing predicate
   out:
   - *float
+
+# Floor — floating-point round (ZFRINTM). Predicated-only, same shape as Sqrt.
+- go: Floor
+  asm: "ZFRINTM"
+  in:
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float

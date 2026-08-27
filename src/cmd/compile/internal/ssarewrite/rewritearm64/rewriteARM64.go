@@ -1232,9 +1232,13 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpFloor:
 		v.Op = ssaop.OpARM64FRINTMD
 		return true
+	case ssaop.OpFloorFloat32s:
+		return rewriteValue_OpFloorFloat32s(v)
 	case ssaop.OpFloorFloat32x4:
 		v.Op = ssaop.OpARM64VFRINTM4S
 		return true
+	case ssaop.OpFloorFloat64s:
+		return rewriteValue_OpFloorFloat64s(v)
 	case ssaop.OpFloorFloat64x2:
 		v.Op = ssaop.OpARM64VFRINTM2D
 		return true
@@ -22191,6 +22195,48 @@ func rewriteValue_OpFMA(v *ssa.Value) bool {
 		z := v_2
 		v.Reset(ssaop.OpARM64FMADDD)
 		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValue_OpFloorFloat32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (FloorFloat32s x)
+	// result: (ZFRINTMS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZFRINTMS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpFloorFloat64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (FloorFloat64s x)
+	// result: (ZFRINTMD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZFRINTMD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
 		return true
 	}
 }

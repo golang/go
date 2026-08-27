@@ -37,6 +37,8 @@ func simdARM64SVEIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFa
 	addF(simdPackage, "Uint64s.AddSaturated", opLen2(ssaop.OpAddSaturatedUint64s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float32s.Ceil", opLen1(ssaop.OpCeilFloat32s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float64s.Ceil", opLen1(ssaop.OpCeilFloat64s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Float32s.Floor", opLen1(ssaop.OpFloorFloat32s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Float64s.Floor", opLen1(ssaop.OpFloorFloat64s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Int8s.Greater", opLen2(ssaop.OpGreaterInt8s, types.TypeMask), sys.ARM64)
 	addF(simdPackage, "Int16s.Greater", opLen2(ssaop.OpGreaterInt16s, types.TypeMask), sys.ARM64)
 	addF(simdPackage, "Int32s.Greater", opLen2(ssaop.OpGreaterInt32s, types.TypeMask), sys.ARM64)

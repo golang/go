@@ -142,6 +142,18 @@ func (x Float32s) Ceil() Float32s
 // Asm: ZFRINTP, CPU Feature: SVE
 func (x Float64s) Ceil() Float64s
 
+/* Floor */
+
+// Floor rounds elements down to the nearest integer.
+//
+// Asm: ZFRINTM, CPU Feature: SVE
+func (x Float32s) Floor() Float32s
+
+// Floor rounds elements down to the nearest integer.
+//
+// Asm: ZFRINTM, CPU Feature: SVE
+func (x Float64s) Floor() Float64s
+
 /* Greater */
 
 // Greater returns a mask whose elements indicate whether x > y.

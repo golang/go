@@ -20,6 +20,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssaop.OpARM64ZFABSD,
 		ssaop.OpARM64ZABSD,
 		ssaop.OpARM64ZFRINTPD,
+		ssaop.OpARM64ZFRINTMD,
 		ssaop.OpARM64ZFNEGD,
 		ssaop.OpARM64ZNEGD,
 		ssaop.OpARM64ZFSQRTD:
@@ -32,6 +33,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssaop.OpARM64ZFABSS,
 		ssaop.OpARM64ZABSS,
 		ssaop.OpARM64ZFRINTPS,
+		ssaop.OpARM64ZFRINTMS,
 		ssaop.OpARM64ZFNEGS,
 		ssaop.OpARM64ZNEGS,
 		ssaop.OpARM64ZFSQRTS:
