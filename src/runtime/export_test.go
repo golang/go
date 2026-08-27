@@ -574,6 +574,22 @@ func NextArenaHint() (uintptr, bool) {
 	return mheap_.arenaHints.addr, true
 }
 
+const RandomizeHeapBase = randomizeHeapBase
+
+// ArenaHintAddrs returns the heap's remaining arena hint addresses, in
+// chain order.
+func ArenaHintAddrs() []uintptr {
+	// Preallocate: appending while holding the heap lock would allocate
+	// under mheap_.lock. mallocinit generates at most 64 heap hints.
+	out := make([]uintptr, 0, 128)
+	lock(&mheap_.lock)
+	for h := mheap_.arenaHints; h != nil; h = h.next {
+		out = append(out, h.addr)
+	}
+	unlock(&mheap_.lock)
+	return out
+}
+
 type G = g
 
 type Sudog = sudog
