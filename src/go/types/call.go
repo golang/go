@@ -309,7 +309,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	}
 
 	// evaluate arguments
-	args, atargs := check.genericExprList(sig.argType, call.Args)
+	targetAt := func(i int) *target { return newTarget(sig.argType(i), "function parameter") }
+	args, atargs := check.genericExprList(targetAt, call.Args)
 	sig = check.arguments(call, sig, targs, xlist, args, atargs)
 
 	if wasGeneric && sig.TypeParams().Len() == 0 {
@@ -376,9 +377,7 @@ func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
 // elements do not exist (targsList is nil) or the elements are nil.
 // For each partially instantiated generic function operand, the corresponding
 // targsList elements are the operand's partial type arguments.
-//
-// TODO(gri) consider passing targetAt (instead of typeAt) for better context (target desc can be more accurate)
-func (check *Checker) genericExprList(typeAt func(int) Type, elist []ast.Expr) (resList []*operand, targsList [][]Type) {
+func (check *Checker) genericExprList(targetAt func(int) *target, elist []ast.Expr) (resList []*operand, targsList [][]Type) {
 	if debug {
 		defer func() {
 			// type arguments must only exist for partially instantiated functions
@@ -421,7 +420,7 @@ func (check *Checker) genericExprList(typeAt func(int) Type, elist []ast.Expr) (
 			resList = []*operand{&x}
 		} else {
 			// x is not a function instantiation (it may still be a generic function).
-			check.rawExpr(newTarget(typeAt(0), "function parameter"), &x, e, true)
+			check.rawExpr(targetAt(0), &x, e, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 			if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 				// x is a function call returning multiple values; it cannot be generic.
@@ -455,7 +454,7 @@ func (check *Checker) genericExprList(typeAt func(int) Type, elist []ast.Expr) (
 				}
 			} else {
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
-				check.genericExpr(newTarget(typeAt(i), "function parameter"), &x, e)
+				check.genericExpr(targetAt(i), &x, e)
 			}
 			resList[i] = &x
 		}

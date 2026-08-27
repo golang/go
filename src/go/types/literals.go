@@ -198,7 +198,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *ast.CompositeLit) {
 				}
 				// we can now check the value using the field target type
 				etyp := fld.typ
-				check.genericExpr(newTarget(etyp, "map value"), x, kv.Value)
+				check.genericExpr(newTarget(etyp, "struct field"), x, kv.Value)
 				if len(index) > 1 && !check.verifyVersionf(kv.Key, go1_27, "use of promoted field %s in struct literal of type %s", fieldPath(utyp, index), base) {
 					continue
 				}
