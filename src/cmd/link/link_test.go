@@ -1616,6 +1616,61 @@ func main() {}
 	}
 }
 
+// TestExtldWithArgs tests that cmd/link runs the external linker command
+// with the arguments that command was given (as in CC="ccache gcc"), both
+// when linking and when merely probing whether the toolchain supports some
+// flag. Dropping the arguments makes every probe fail, which silently
+// changes how the program is linked. See issue 81164.
+func TestExtldWithArgs(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t) // this test requires -linkmode=external
+	t.Parallel()
+
+	ccOut, err := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "env", "CC")).Output()
+	if err != nil {
+		t.Fatalf("go env CC: %v", err)
+	}
+	cc := strings.TrimSpace(string(ccOut))
+	if cc == "" || strings.ContainsAny(cc, " \t'\"") {
+		t.Skipf("CC=%q is not a plain command name", cc)
+	}
+
+	tmpdir := t.TempDir()
+	if strings.ContainsAny(tmpdir, " \t'\"") {
+		t.Skipf("temporary directory %q needs quoting in CC", tmpdir)
+	}
+	errfile := filepath.Join(tmpdir, "errors")
+
+	wrapccGo := filepath.Join(tmpdir, "wrapcc.go")
+	src := strings.Replace(wrapccSrc, "ERRFILE", strconv.Quote(errfile), 1)
+	if err := os.WriteFile(wrapccGo, []byte(src), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	wrapcc := filepath.Join(tmpdir, "wrapcc.exe")
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "build", "-o", wrapcc, wrapccGo))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("building wrapcc failed: %v\n%s", err, out)
+	}
+
+	xGo := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(xGo, []byte(`package main; import "C"; func main() {}`), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd = goCmd(t, "build", "-ldflags=-linkmode=external", "-o", exe, xGo)
+	cmd.Env = append(cmd.Env, "CC="+wrapcc+" --sentinel "+cc)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+
+	switch data, err := os.ReadFile(errfile); {
+	case err == nil:
+		t.Errorf("C compiler wrapper was invoked without its arguments:\n%s", data)
+	case !os.IsNotExist(err):
+		t.Fatal(err)
+	}
+}
+
 // TestResponseFile tests that creating a response file to pass to the
 // external linker works correctly.
 func TestResponseFile(t *testing.T) {
@@ -2579,3 +2634,42 @@ func TestTypePlacement(t *testing.T) {
 		}
 	}
 }
+
+// wrapcc is a C compiler wrapper that runs the compiler named by its
+// second argument, but only if it was passed the sentinel first
+// argument. Invocations missing them are recorded in errfile.
+const wrapccSrc = `
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+)
+
+func main() {
+	for _, arg := range os.Args {
+		if arg == "-###" {
+			// cmd/go probes the compiler named by CC[0] alone to
+			// compute its tool ID. Don't print the word "version".
+			return
+		}
+	}
+	if len(os.Args) < 3 || os.Args[1] != "--sentinel" {
+		f, err := os.OpenFile(ERRFILE, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o666)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprintf(f, "%q\n", os.Args)
+		f.Close()
+		os.Exit(1)
+	}
+	cmd := exec.Command(os.Args[2], os.Args[3:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+`
