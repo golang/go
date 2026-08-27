@@ -88,6 +88,7 @@ var ARM64 struct {
 	HasSB      bool
 	IsNeoverse bool
 	HasSVE     bool
+	HasSVE2    bool
 	_          CacheLinePad
 }
 

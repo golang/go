@@ -21,6 +21,10 @@ import _ "unsafe" // for linkname
 //go:linkname HWCap
 var HWCap uint
 
+// HWCap2 may be initialized by archauxv and
+// should not be changed after it was initialized.
+var HWCap2 uint
+
 // HWCAP bits. These are exposed by Linux.
 // See arch/arm64/include/uapi/asm/hwcap.h.
 const (
@@ -36,6 +40,8 @@ const (
 	hwcap_SVE     = 1 << 22
 	hwcap_DIT     = 1 << 24
 	hwcap_SB      = 1 << 29
+
+	hwcap2_SVE2 = 1 << 1
 )
 
 func hwcapInit(os string) {
@@ -54,6 +60,7 @@ func hwcapInit(os string) {
 	ARM64.HasDIT = isSet(HWCap, hwcap_DIT)
 	ARM64.HasSB = isSet(HWCap, hwcap_SB)
 	ARM64.HasSVE = isSet(HWCap, hwcap_SVE)
+	ARM64.HasSVE2 = isSet(HWCap2, hwcap2_SVE2)
 
 	// The Samsung S9+ kernel reports support for atomics, but not all cores
 	// actually support them, resulting in SIGILL. See issue #28431.
