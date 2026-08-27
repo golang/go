@@ -142,6 +142,38 @@ func (x Int32s) Greater(y Int32s) Mask32s
 // Asm: ZCMPGT, CPU Feature: SVE
 func (x Int64s) Greater(y Int64s) Mask64s
 
+/* Neg */
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: ZFNEG, CPU Feature: SVE
+func (x Float32s) Neg() Float32s
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: ZFNEG, CPU Feature: SVE
+func (x Float64s) Neg() Float64s
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: ZNEG, CPU Feature: SVE
+func (x Int8s) Neg() Int8s
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: ZNEG, CPU Feature: SVE
+func (x Int16s) Neg() Int16s
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: ZNEG, CPU Feature: SVE
+func (x Int32s) Neg() Int32s
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: ZNEG, CPU Feature: SVE
+func (x Int64s) Neg() Int64s
+
 /* Sub */
 
 // Sub subtracts corresponding elements of two vectors.

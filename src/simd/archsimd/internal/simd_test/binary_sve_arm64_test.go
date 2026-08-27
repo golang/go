@@ -137,3 +137,27 @@ func TestAbsSVE(t *testing.T) {
 	var z archsimd.Int8s
 	testSVEUnary(t, int8s, 1, z.Len(), archsimd.LoadInt8s, archsimd.Int8s.Abs, archsimd.Int8s.Store, absSlice)
 }
+
+func TestNegSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	negInt8 := func(x []int8) []int8 {
+		r := make([]int8, len(x))
+		for i, v := range x {
+			r[i] = -v
+		}
+		return r
+	}
+	negFloat64 := func(x []float64) []float64 {
+		r := make([]float64, len(x))
+		for i, v := range x {
+			r[i] = -v
+		}
+		return r
+	}
+	var zi archsimd.Int8s
+	testSVEUnary(t, int8s, 1, zi.Len(), archsimd.LoadInt8s, archsimd.Int8s.Neg, archsimd.Int8s.Store, negInt8)
+	var zf archsimd.Float64s
+	testSVEUnary(t, float64s, 8, zf.Len(), archsimd.LoadFloat64s, archsimd.Float64s.Neg, archsimd.Float64s.Store, negFloat64)
+}

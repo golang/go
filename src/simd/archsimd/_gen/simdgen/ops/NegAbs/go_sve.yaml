@@ -1,0 +1,24 @@
+!sum
+# Neg — signed integer negate. ZNEG is predicated-only, like ZABS: the
+# governing predicate is implicit-all-true and the merging qualifier becomes
+# the predicated machine op.
+- go: Neg
+  asm: "ZNEG"
+  in:
+  - &int
+    go: $t
+    base: int
+  - class: mask # governing predicate
+  out:
+  - *int
+
+# Neg — floating-point negate, ZFNEG. Same shape as ZNEG.
+- go: Neg
+  asm: "ZFNEG"
+  in:
+  - &float
+    go: $t
+    base: float
+  - class: mask # governing predicate
+  out:
+  - *float

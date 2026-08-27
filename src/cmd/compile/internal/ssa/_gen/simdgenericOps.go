@@ -824,11 +824,17 @@ func simdGenericOps() []opData {
 		{name: "MulWidenLoUint8x16", argLength: 2, commutative: true},                   // ARCH:arm64,wasm
 		{name: "MulWidenLoUint16x8", argLength: 2, commutative: true},                   // ARCH:arm64,wasm
 		{name: "MulWidenLoUint32x4", argLength: 2, commutative: true},                   // ARCH:arm64,wasm
+		{name: "NegFloat32s", argLength: 1},                                             // ARCH:sve
 		{name: "NegFloat32x4", argLength: 1},                                            // ARCH:arm64,wasm
+		{name: "NegFloat64s", argLength: 1},                                             // ARCH:sve
 		{name: "NegFloat64x2", argLength: 1},                                            // ARCH:arm64,wasm
+		{name: "NegInt8s", argLength: 1},                                                // ARCH:sve
 		{name: "NegInt8x16", argLength: 1},                                              // ARCH:arm64,wasm
+		{name: "NegInt16s", argLength: 1},                                               // ARCH:sve
 		{name: "NegInt16x8", argLength: 1},                                              // ARCH:arm64,wasm
+		{name: "NegInt32s", argLength: 1},                                               // ARCH:sve
 		{name: "NegInt32x4", argLength: 1},                                              // ARCH:arm64,wasm
+		{name: "NegInt64s", argLength: 1},                                               // ARCH:sve
 		{name: "NegInt64x2", argLength: 1},                                              // ARCH:arm64,wasm
 		{name: "NotEqualFloat32x4", argLength: 2, commutative: true},                    // ARCH:amd64,wasm
 		{name: "NotEqualFloat32x8", argLength: 2, commutative: true},                    // ARCH:amd64
