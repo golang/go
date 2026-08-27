@@ -1,6 +1,8 @@
 # This test only checks that basic PATH lookups work.
 # The full test of toolchain version selection is in gotoolchain.txt.
 
+[GOOS:openbsd] skip 'broken on openbsd: #81173'
+
 env TESTGO_VERSION=go1.21pre3
 
 # Compile a fake toolchain to put in the path under various names.

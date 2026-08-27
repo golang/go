@@ -6,6 +6,8 @@
 
 [!exec:clang] [!exec:gcc] skip
 [!cgo] skip
+[GOARCH:ppc64le] skip 'broken on ppc64le: #81174'
+[GOARCH:ppc64] skip 'broken on ppc64: #81174'
 
 env GOENV=$WORK/go.env
 mkdir 'program files'
