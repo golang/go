@@ -588,8 +588,8 @@ var depsRules = `
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
 	< golang.org/x/crypto/cryptobyte
-	< crypto/dsa, crypto/elliptic, crypto/rsa
-	< crypto/ecdsa
+	< crypto/dsa, crypto/elliptic, crypto/rsa;
+	encoding/pem, crypto/dsa, crypto/elliptic, crypto/rsa < crypto/ecdsa
 	< CRYPTO-MATH;
 
 	CGO, net !< CRYPTO-MATH;
