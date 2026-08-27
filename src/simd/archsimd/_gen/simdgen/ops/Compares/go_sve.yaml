@@ -11,3 +11,27 @@
   - class: mask # governing predicate
   out:
   - class: mask
+
+# Greater — unsigned integer compare, ZCMPHI ("higher").
+- go: Greater
+  asm: "ZCMPHI"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  - class: mask # governing predicate
+  out:
+  - class: mask
+
+# Greater — floating-point compare, ZFCMGT.
+- go: Greater
+  asm: "ZFCMGT"
+  in:
+  - &float
+    go: $t
+    base: float
+  - *float
+  - class: mask # governing predicate
+  out:
+  - class: mask

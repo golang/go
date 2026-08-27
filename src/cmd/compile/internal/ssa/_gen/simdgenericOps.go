@@ -532,9 +532,11 @@ func simdGenericOps() []opData {
 		{name: "GreaterEqualUint32x16", argLength: 2},                                   // ARCH:amd64
 		{name: "GreaterEqualUint64x2", argLength: 2},                                    // ARCH:arm64
 		{name: "GreaterEqualUint64x8", argLength: 2},                                    // ARCH:amd64
+		{name: "GreaterFloat32s", argLength: 2},                                         // ARCH:sve
 		{name: "GreaterFloat32x4", argLength: 2},                                        // ARCH:amd64,arm64,wasm
 		{name: "GreaterFloat32x8", argLength: 2},                                        // ARCH:amd64
 		{name: "GreaterFloat32x16", argLength: 2},                                       // ARCH:amd64
+		{name: "GreaterFloat64s", argLength: 2},                                         // ARCH:sve
 		{name: "GreaterFloat64x2", argLength: 2},                                        // ARCH:amd64,arm64,wasm
 		{name: "GreaterFloat64x4", argLength: 2},                                        // ARCH:amd64
 		{name: "GreaterFloat64x8", argLength: 2},                                        // ARCH:amd64
@@ -554,12 +556,16 @@ func simdGenericOps() []opData {
 		{name: "GreaterInt64x2", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt64x4", argLength: 2},                                          // ARCH:amd64
 		{name: "GreaterInt64x8", argLength: 2},                                          // ARCH:amd64
+		{name: "GreaterUint8s", argLength: 2},                                           // ARCH:sve
 		{name: "GreaterUint8x16", argLength: 2},                                         // ARCH:arm64,wasm
 		{name: "GreaterUint8x64", argLength: 2},                                         // ARCH:amd64
+		{name: "GreaterUint16s", argLength: 2},                                          // ARCH:sve
 		{name: "GreaterUint16x8", argLength: 2},                                         // ARCH:arm64,wasm
 		{name: "GreaterUint16x32", argLength: 2},                                        // ARCH:amd64
+		{name: "GreaterUint32s", argLength: 2},                                          // ARCH:sve
 		{name: "GreaterUint32x4", argLength: 2},                                         // ARCH:arm64,wasm
 		{name: "GreaterUint32x16", argLength: 2},                                        // ARCH:amd64
+		{name: "GreaterUint64s", argLength: 2},                                          // ARCH:sve
 		{name: "GreaterUint64x2", argLength: 2},                                         // ARCH:arm64
 		{name: "GreaterUint64x8", argLength: 2},                                         // ARCH:amd64
 		{name: "InterleaveEvenInt8x16", argLength: 2},                                   // ARCH:arm64

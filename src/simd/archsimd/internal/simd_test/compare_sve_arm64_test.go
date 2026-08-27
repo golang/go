@@ -59,6 +59,21 @@ func testInt64sCompare(t *testing.T, cmp func(_, _ archsimd.Int64s) archsimd.Mas
 	testSVECompare(t, int64s, 8, z.Len(), archsimd.LoadInt64s, cmp, archsimd.Mask64s.Store, want)
 }
 
+func testUint8sCompare(t *testing.T, cmp func(_, _ archsimd.Uint8s) archsimd.Mask8s, want func(_, _ uint8) bool) {
+	var z archsimd.Uint8s
+	testSVECompare(t, uint8s, 1, z.Len(), archsimd.LoadUint8s, cmp, archsimd.Mask8s.Store, want)
+}
+
+func testFloat32sCompare(t *testing.T, cmp func(_, _ archsimd.Float32s) archsimd.Mask32s, want func(_, _ float32) bool) {
+	var z archsimd.Float32s
+	testSVECompare(t, float32s, 4, z.Len(), archsimd.LoadFloat32s, cmp, archsimd.Mask32s.Store, want)
+}
+
+func testFloat64sCompare(t *testing.T, cmp func(_, _ archsimd.Float64s) archsimd.Mask64s, want func(_, _ float64) bool) {
+	var z archsimd.Float64s
+	testSVECompare(t, float64s, 8, z.Len(), archsimd.LoadFloat64s, cmp, archsimd.Mask64s.Store, want)
+}
+
 func TestGreaterSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no sve")
@@ -67,6 +82,9 @@ func TestGreaterSVE(t *testing.T) {
 	testInt16sCompare(t, archsimd.Int16s.Greater, func(a, b int16) bool { return a > b })
 	testInt32sCompare(t, archsimd.Int32s.Greater, func(a, b int32) bool { return a > b })
 	testInt64sCompare(t, archsimd.Int64s.Greater, func(a, b int64) bool { return a > b })
+	testUint8sCompare(t, archsimd.Uint8s.Greater, func(a, b uint8) bool { return a > b })
+	testFloat32sCompare(t, archsimd.Float32s.Greater, func(a, b float32) bool { return a > b })
+	testFloat64sCompare(t, archsimd.Float64s.Greater, func(a, b float64) bool { return a > b })
 }
 
 // TestMaskStoreLoadPanicSVE checks that the exported mask memory APIs panic when

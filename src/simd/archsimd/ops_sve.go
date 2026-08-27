@@ -158,6 +158,16 @@ func (x Float64s) Floor() Float64s
 
 // Greater returns a mask whose elements indicate whether x > y.
 //
+// Asm: ZFCMGT, CPU Feature: SVE
+func (x Float32s) Greater(y Float32s) Mask32s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZFCMGT, CPU Feature: SVE
+func (x Float64s) Greater(y Float64s) Mask64s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
 // Asm: ZCMPGT, CPU Feature: SVE
 func (x Int8s) Greater(y Int8s) Mask8s
 
@@ -175,6 +185,26 @@ func (x Int32s) Greater(y Int32s) Mask32s
 //
 // Asm: ZCMPGT, CPU Feature: SVE
 func (x Int64s) Greater(y Int64s) Mask64s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZCMPHI, CPU Feature: SVE
+func (x Uint8s) Greater(y Uint8s) Mask8s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZCMPHI, CPU Feature: SVE
+func (x Uint16s) Greater(y Uint16s) Mask16s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZCMPHI, CPU Feature: SVE
+func (x Uint32s) Greater(y Uint32s) Mask32s
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: ZCMPHI, CPU Feature: SVE
+func (x Uint64s) Greater(y Uint64s) Mask64s
 
 /* Neg */
 
