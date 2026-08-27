@@ -1980,9 +1980,13 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpRound64F:
 		v.Op = ssaop.OpARM64LoweredRound64F
 		return true
+	case ssaop.OpRoundFloat32s:
+		return rewriteValue_OpRoundFloat32s(v)
 	case ssaop.OpRoundFloat32x4:
 		v.Op = ssaop.OpARM64VFRINTN4S
 		return true
+	case ssaop.OpRoundFloat64s:
+		return rewriteValue_OpRoundFloat64s(v)
 	case ssaop.OpRoundFloat64x2:
 		v.Op = ssaop.OpARM64VFRINTN2D
 		return true
@@ -24868,6 +24872,48 @@ func rewriteValue_OpRotateLeft8(v *ssa.Value) bool {
 		v4.AddArg(v5)
 		v2.AddArg2(v3, v4)
 		v.AddArg2(v0, v2)
+		return true
+	}
+}
+func rewriteValue_OpRoundFloat32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (RoundFloat32s x)
+	// result: (ZFRINTNS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZFRINTNS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpRoundFloat64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (RoundFloat64s x)
+	// result: (ZFRINTND x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZFRINTND)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
 		return true
 	}
 }

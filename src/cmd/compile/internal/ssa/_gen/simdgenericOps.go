@@ -1010,8 +1010,10 @@ func simdGenericOps() []opData {
 		{name: "RotateRightUint64x2", argLength: 2},                                     // ARCH:amd64
 		{name: "RotateRightUint64x4", argLength: 2},                                     // ARCH:amd64
 		{name: "RotateRightUint64x8", argLength: 2},                                     // ARCH:amd64
+		{name: "RoundFloat32s", argLength: 1},                                           // ARCH:sve
 		{name: "RoundFloat32x4", argLength: 1},                                          // ARCH:amd64,arm64,wasm
 		{name: "RoundFloat32x8", argLength: 1},                                          // ARCH:amd64
+		{name: "RoundFloat64s", argLength: 1},                                           // ARCH:sve
 		{name: "RoundFloat64x2", argLength: 1},                                          // ARCH:amd64,arm64,wasm
 		{name: "RoundFloat64x4", argLength: 1},                                          // ARCH:amd64
 		{name: "SHA1Message1Uint32x4", argLength: 2},                                    // ARCH:amd64

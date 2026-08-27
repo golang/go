@@ -5080,6 +5080,8 @@ const (
 	OpARM64ZFNEGS
 	OpARM64ZFRINTMD
 	OpARM64ZFRINTMS
+	OpARM64ZFRINTND
+	OpARM64ZFRINTNS
 	OpARM64ZFRINTPD
 	OpARM64ZFRINTPS
 	OpARM64ZFRINTZD
@@ -8126,8 +8128,10 @@ const (
 	OpRotateRightUint64x2
 	OpRotateRightUint64x4
 	OpRotateRightUint64x8
+	OpRoundFloat32s
 	OpRoundFloat32x4
 	OpRoundFloat32x8
+	OpRoundFloat64s
 	OpRoundFloat64x2
 	OpRoundFloat64x4
 	OpRoundScaledFloat32x16
@@ -86395,6 +86399,34 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "ZFRINTND",
+		ArgLen: 2,
+		asm:    arm64.AZFRINTN,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:   "ZFRINTNS",
+		ArgLen: 2,
+		asm:    arm64.AZFRINTN,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:   "ZFRINTPD",
 		ArgLen: 2,
 		asm:    arm64.AZFRINTP,
@@ -116550,12 +116582,22 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "RoundFloat32s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
 		Name:    "RoundFloat32x4",
 		ArgLen:  1,
 		Generic: true,
 	},
 	{
 		Name:    "RoundFloat32x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "RoundFloat64s",
 		ArgLen:  1,
 		Generic: true,
 	},

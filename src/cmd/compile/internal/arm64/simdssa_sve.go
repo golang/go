@@ -23,6 +23,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFRINTMD,
 		ssaop.OpARM64ZFNEGD,
 		ssaop.OpARM64ZNEGD,
+		ssaop.OpARM64ZFRINTND,
 		ssaop.OpARM64ZFSQRTD,
 		ssaop.OpARM64ZFRINTZD:
 		p = simdZkv(s, v, arm64.ARNG_D)
@@ -37,6 +38,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFRINTMS,
 		ssaop.OpARM64ZFNEGS,
 		ssaop.OpARM64ZNEGS,
+		ssaop.OpARM64ZFRINTNS,
 		ssaop.OpARM64ZFSQRTS,
 		ssaop.OpARM64ZFRINTZS:
 		p = simdZkv(s, v, arm64.ARNG_S)

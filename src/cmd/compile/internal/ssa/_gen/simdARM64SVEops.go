@@ -44,6 +44,8 @@ func simdARM64SVEOps(z11, z21, zkv, z2kk, z2kv, z2kvPred, z3kvPred regInfo) []op
 		{name: "ZFNEGS", argLength: 2, reg: zkv, asm: "ZFNEG", typ: "Vec256"},
 		{name: "ZFRINTMD", argLength: 2, reg: zkv, asm: "ZFRINTM", typ: "Vec256"},
 		{name: "ZFRINTMS", argLength: 2, reg: zkv, asm: "ZFRINTM", typ: "Vec256"},
+		{name: "ZFRINTND", argLength: 2, reg: zkv, asm: "ZFRINTN", typ: "Vec256"},
+		{name: "ZFRINTNS", argLength: 2, reg: zkv, asm: "ZFRINTN", typ: "Vec256"},
 		{name: "ZFRINTPD", argLength: 2, reg: zkv, asm: "ZFRINTP", typ: "Vec256"},
 		{name: "ZFRINTPS", argLength: 2, reg: zkv, asm: "ZFRINTP", typ: "Vec256"},
 		{name: "ZFRINTZD", argLength: 2, reg: zkv, asm: "ZFRINTZ", typ: "Vec256"},

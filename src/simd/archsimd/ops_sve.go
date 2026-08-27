@@ -208,6 +208,18 @@ func (x Int32s) Neg() Int32s
 // Asm: ZNEG, CPU Feature: SVE
 func (x Int64s) Neg() Int64s
 
+/* Round */
+
+// Round rounds elements to the nearest integer, rounding ties to even.
+//
+// Asm: ZFRINTN, CPU Feature: SVE
+func (x Float32s) Round() Float32s
+
+// Round rounds elements to the nearest integer, rounding ties to even.
+//
+// Asm: ZFRINTN, CPU Feature: SVE
+func (x Float64s) Round() Float64s
+
 /* Sqrt */
 
 // Sqrt computes the square root of each element.
