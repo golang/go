@@ -11,3 +11,12 @@
   - class: mask # governing predicate
   out:
   - *float
+
+# Ceil — floating-point round (ZFRINTP). Predicated-only, same shape as Sqrt.
+- go: Ceil
+  asm: "ZFRINTP"
+  in:
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float

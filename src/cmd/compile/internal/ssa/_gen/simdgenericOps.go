@@ -177,8 +177,10 @@ func simdGenericOps() []opData {
 		{name: "BroadcastInt16x8", argLength: 1},                                        // ARCH:wasm
 		{name: "BroadcastInt32x4", argLength: 1},                                        // ARCH:wasm
 		{name: "BroadcastInt64x2", argLength: 1},                                        // ARCH:wasm
+		{name: "CeilFloat32s", argLength: 1},                                            // ARCH:sve
 		{name: "CeilFloat32x4", argLength: 1},                                           // ARCH:amd64,arm64,wasm
 		{name: "CeilFloat32x8", argLength: 1},                                           // ARCH:amd64
+		{name: "CeilFloat64s", argLength: 1},                                            // ARCH:sve
 		{name: "CeilFloat64x2", argLength: 1},                                           // ARCH:amd64,arm64,wasm
 		{name: "CeilFloat64x4", argLength: 1},                                           // ARCH:amd64
 		{name: "CompressFloat32x4", argLength: 2},                                       // ARCH:amd64

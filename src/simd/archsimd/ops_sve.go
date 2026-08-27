@@ -130,6 +130,18 @@ func (x Uint32s) AddSaturated(y Uint32s) Uint32s
 // Asm: ZUQADD, CPU Feature: SVE
 func (x Uint64s) AddSaturated(y Uint64s) Uint64s
 
+/* Ceil */
+
+// Ceil rounds elements up to the nearest integer.
+//
+// Asm: ZFRINTP, CPU Feature: SVE
+func (x Float32s) Ceil() Float32s
+
+// Ceil rounds elements up to the nearest integer.
+//
+// Asm: ZFRINTP, CPU Feature: SVE
+func (x Float64s) Ceil() Float64s
+
 /* Greater */
 
 // Greater returns a mask whose elements indicate whether x > y.

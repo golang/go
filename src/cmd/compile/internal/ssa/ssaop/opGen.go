@@ -5078,6 +5078,8 @@ const (
 	OpARM64ZFNEGMergingD
 	OpARM64ZFNEGMergingS
 	OpARM64ZFNEGS
+	OpARM64ZFRINTPD
+	OpARM64ZFRINTPS
 	OpARM64ZFSQRTD
 	OpARM64ZFSQRTMergingD
 	OpARM64ZFSQRTMergingS
@@ -7234,8 +7236,10 @@ const (
 	OpBroadcastInt32x4
 	OpBroadcastInt64x2
 	OpBroadcastInt8x16
+	OpCeilFloat32s
 	OpCeilFloat32x4
 	OpCeilFloat32x8
+	OpCeilFloat64s
 	OpCeilFloat64x2
 	OpCeilFloat64x4
 	OpCeilScaledFloat32x16
@@ -86355,6 +86359,34 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "ZFRINTPD",
+		ArgLen: 2,
+		asm:    arm64.AZFRINTP,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:   "ZFRINTPS",
+		ArgLen: 2,
+		asm:    arm64.AZFRINTP,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:   "ZFSQRTD",
 		ArgLen: 2,
 		asm:    arm64.AZFSQRT,
@@ -111787,12 +111819,22 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "CeilFloat32s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
 		Name:    "CeilFloat32x4",
 		ArgLen:  1,
 		Generic: true,
 	},
 	{
 		Name:    "CeilFloat32x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "CeilFloat64s",
 		ArgLen:  1,
 		Generic: true,
 	},
