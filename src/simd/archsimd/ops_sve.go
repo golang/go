@@ -142,6 +142,58 @@ func (x Float32s) Ceil() Float32s
 // Asm: ZFRINTP, CPU Feature: SVE
 func (x Float64s) Ceil() Float64s
 
+/* Equal */
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZFCMEQ, CPU Feature: SVE
+func (x Float32s) Equal(y Float32s) Mask32s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZFCMEQ, CPU Feature: SVE
+func (x Float64s) Equal(y Float64s) Mask64s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZCMPEQ, CPU Feature: SVE
+func (x Int8s) Equal(y Int8s) Mask8s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZCMPEQ, CPU Feature: SVE
+func (x Int16s) Equal(y Int16s) Mask16s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZCMPEQ, CPU Feature: SVE
+func (x Int32s) Equal(y Int32s) Mask32s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZCMPEQ, CPU Feature: SVE
+func (x Int64s) Equal(y Int64s) Mask64s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZCMPEQ, CPU Feature: SVE
+func (x Uint8s) Equal(y Uint8s) Mask8s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZCMPEQ, CPU Feature: SVE
+func (x Uint16s) Equal(y Uint16s) Mask16s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZCMPEQ, CPU Feature: SVE
+func (x Uint32s) Equal(y Uint32s) Mask32s
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: ZCMPEQ, CPU Feature: SVE
+func (x Uint64s) Equal(y Uint64s) Mask64s
+
 /* Floor */
 
 // Floor rounds elements down to the nearest integer.

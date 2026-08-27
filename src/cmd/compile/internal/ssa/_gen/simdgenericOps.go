@@ -359,33 +359,43 @@ func simdGenericOps() []opData {
 		{name: "DotProductPairsSaturatedUint8x16", argLength: 2},                        // ARCH:amd64
 		{name: "DotProductPairsSaturatedUint8x32", argLength: 2},                        // ARCH:amd64
 		{name: "DotProductPairsSaturatedUint8x64", argLength: 2},                        // ARCH:amd64
+		{name: "EqualFloat32s", argLength: 2, commutative: true},                        // ARCH:sve
 		{name: "EqualFloat32x4", argLength: 2, commutative: true},                       // ARCH:amd64,arm64,wasm
 		{name: "EqualFloat32x8", argLength: 2, commutative: true},                       // ARCH:amd64
 		{name: "EqualFloat32x16", argLength: 2, commutative: true},                      // ARCH:amd64
+		{name: "EqualFloat64s", argLength: 2, commutative: true},                        // ARCH:sve
 		{name: "EqualFloat64x2", argLength: 2, commutative: true},                       // ARCH:amd64,arm64,wasm
 		{name: "EqualFloat64x4", argLength: 2, commutative: true},                       // ARCH:amd64
 		{name: "EqualFloat64x8", argLength: 2, commutative: true},                       // ARCH:amd64
+		{name: "EqualInt8s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "EqualInt8x16", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "EqualInt8x32", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "EqualInt8x64", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "EqualInt16s", argLength: 2, commutative: true},                          // ARCH:sve
 		{name: "EqualInt16x8", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "EqualInt16x16", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "EqualInt16x32", argLength: 2, commutative: true},                        // ARCH:amd64
+		{name: "EqualInt32s", argLength: 2, commutative: true},                          // ARCH:sve
 		{name: "EqualInt32x4", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "EqualInt32x8", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "EqualInt32x16", argLength: 2, commutative: true},                        // ARCH:amd64
+		{name: "EqualInt64s", argLength: 2, commutative: true},                          // ARCH:sve
 		{name: "EqualInt64x2", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "EqualInt64x4", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "EqualInt64x8", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "EqualUint8s", argLength: 2, commutative: true},                          // ARCH:sve
 		{name: "EqualUint8x16", argLength: 2, commutative: true},                        // ARCH:amd64,arm64,wasm
 		{name: "EqualUint8x32", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "EqualUint8x64", argLength: 2, commutative: true},                        // ARCH:amd64
+		{name: "EqualUint16s", argLength: 2, commutative: true},                         // ARCH:sve
 		{name: "EqualUint16x8", argLength: 2, commutative: true},                        // ARCH:amd64,arm64,wasm
 		{name: "EqualUint16x16", argLength: 2, commutative: true},                       // ARCH:amd64
 		{name: "EqualUint16x32", argLength: 2, commutative: true},                       // ARCH:amd64
+		{name: "EqualUint32s", argLength: 2, commutative: true},                         // ARCH:sve
 		{name: "EqualUint32x4", argLength: 2, commutative: true},                        // ARCH:amd64,arm64,wasm
 		{name: "EqualUint32x8", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "EqualUint32x16", argLength: 2, commutative: true},                       // ARCH:amd64
+		{name: "EqualUint64s", argLength: 2, commutative: true},                         // ARCH:sve
 		{name: "EqualUint64x2", argLength: 2, commutative: true},                        // ARCH:amd64,arm64,wasm
 		{name: "EqualUint64x4", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "EqualUint64x8", argLength: 2, commutative: true},                        // ARCH:amd64

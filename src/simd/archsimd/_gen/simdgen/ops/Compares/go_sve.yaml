@@ -35,3 +35,32 @@
   - class: mask # governing predicate
   out:
   - class: mask
+
+# Equal — integer compare, ZCMPEQ (sign-agnostic, both signednesses).
+- go: Equal
+  asm: "ZCMPEQ"
+  in:
+  - *int
+  - *int
+  - class: mask # governing predicate
+  out:
+  - class: mask
+
+- go: Equal
+  asm: "ZCMPEQ"
+  in:
+  - *uint
+  - *uint
+  - class: mask # governing predicate
+  out:
+  - class: mask
+
+# Equal — floating-point compare, ZFCMEQ.
+- go: Equal
+  asm: "ZFCMEQ"
+  in:
+  - *float
+  - *float
+  - class: mask # governing predicate
+  out:
+  - class: mask

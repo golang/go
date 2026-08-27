@@ -102,3 +102,12 @@ func TestMaskStoreLoadPanicSVE(t *testing.T) {
 	m.Store(bits)
 	archsimd.LoadMask8s(bits)
 }
+
+func TestEqualSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no sve")
+	}
+	testInt8sCompare(t, archsimd.Int8s.Equal, func(a, b int8) bool { return a == b })
+	testUint8sCompare(t, archsimd.Uint8s.Equal, func(a, b uint8) bool { return a == b })
+	testFloat64sCompare(t, archsimd.Float64s.Equal, func(a, b float64) bool { return a == b })
+}
