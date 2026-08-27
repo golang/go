@@ -69,6 +69,8 @@ func simdARM64SVEIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFa
 	addF(simdPackage, "Uint16s.SubSaturated", opLen2(ssaop.OpSubSaturatedUint16s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Uint32s.SubSaturated", opLen2(ssaop.OpSubSaturatedUint32s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Uint64s.SubSaturated", opLen2(ssaop.OpSubSaturatedUint64s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Float32s.Trunc", opLen1(ssaop.OpTruncFloat32s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Float64s.Trunc", opLen1(ssaop.OpTruncFloat64s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float32s.AsFloat64s", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.ARM64)
 	addF(simdPackage, "Float32s.AsInt8s", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.ARM64)
 	addF(simdPackage, "Float32s.AsInt16s", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.ARM64)

@@ -314,6 +314,18 @@ func (x Uint32s) SubSaturated(y Uint32s) Uint32s
 // Asm: ZUQSUB, CPU Feature: SVE
 func (x Uint64s) SubSaturated(y Uint64s) Uint64s
 
+/* Trunc */
+
+// Trunc truncates elements towards zero.
+//
+// Asm: ZFRINTZ, CPU Feature: SVE
+func (x Float32s) Trunc() Float32s
+
+// Trunc truncates elements towards zero.
+//
+// Asm: ZFRINTZ, CPU Feature: SVE
+func (x Float64s) Trunc() Float64s
+
 // BitsToInt8 reinterprets the bits of a Uint8s vector as a Int8s vector
 func (x Uint8s) BitsToInt8() Int8s
 

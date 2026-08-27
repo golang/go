@@ -2397,9 +2397,13 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpTrunc64to8:
 		v.Op = ssaop.OpCopy
 		return true
+	case ssaop.OpTruncFloat32s:
+		return rewriteValue_OpTruncFloat32s(v)
 	case ssaop.OpTruncFloat32x4:
 		v.Op = ssaop.OpARM64VFRINTZ4S
 		return true
+	case ssaop.OpTruncFloat64s:
+		return rewriteValue_OpTruncFloat64s(v)
 	case ssaop.OpTruncFloat64x2:
 		v.Op = ssaop.OpARM64VFRINTZ2D
 		return true
@@ -26644,6 +26648,48 @@ func rewriteValue_OpStoreMasked8(v *ssa.Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValue_OpTruncFloat32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (TruncFloat32s x)
+	// result: (ZFRINTZS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZFRINTZS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpTruncFloat64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (TruncFloat64s x)
+	// result: (ZFRINTZD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZFRINTZD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
 }
 func rewriteValue_OpZero(v *ssa.Value) bool {
 	v_1 := v.Args[1]

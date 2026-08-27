@@ -58,6 +58,8 @@
 (NegInt8s x) => (ZNEGB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
 (SqrtFloat32s x) => (ZFSQRTS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
 (SqrtFloat64s x) => (ZFSQRTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+(TruncFloat32s x) => (ZFRINTZS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+(TruncFloat64s x) => (ZFRINTZD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
 (ZSELB (ZABSB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) z mask) => (ZABSMergingB z x mask)
 (ZSELB (ZADDB x y) x mask) => (ZADDMergingB x y mask)
 (ZSELB (ZADDB x y) y mask) => (ZADDMergingB y x mask)

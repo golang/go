@@ -29,3 +29,12 @@
   - class: mask # governing predicate
   out:
   - *float
+
+# Trunc — floating-point round (ZFRINTZ). Predicated-only, same shape as Sqrt.
+- go: Trunc
+  asm: "ZFRINTZ"
+  in:
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float

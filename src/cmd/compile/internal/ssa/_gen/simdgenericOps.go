@@ -1308,8 +1308,10 @@ func simdGenericOps() []opData {
 		{name: "SumOf8AbsDiffUint8x16", argLength: 2},                                   // ARCH:amd64
 		{name: "SumOf8AbsDiffUint8x32", argLength: 2},                                   // ARCH:amd64
 		{name: "SumOf8AbsDiffUint8x64", argLength: 2},                                   // ARCH:amd64
+		{name: "TruncFloat32s", argLength: 1},                                           // ARCH:sve
 		{name: "TruncFloat32x4", argLength: 1},                                          // ARCH:amd64,arm64,wasm
 		{name: "TruncFloat32x8", argLength: 1},                                          // ARCH:amd64
+		{name: "TruncFloat64s", argLength: 1},                                           // ARCH:sve
 		{name: "TruncFloat64x2", argLength: 1},                                          // ARCH:amd64,arm64,wasm
 		{name: "TruncFloat64x4", argLength: 1},                                          // ARCH:amd64
 		{name: "TruncToInt8Int16x8", argLength: 1},                                      // ARCH:amd64,arm64

@@ -225,3 +225,21 @@ func TestFloorSVE(t *testing.T) {
 		}
 	}
 }
+
+func TestTruncSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	var in, got [4]float64
+	for i := range in {
+		in[i] = float64(i) - 1.5
+	}
+	v := archsimd.LoadFloat64s(in[:])
+	v.Trunc().Store(got[:])
+	var z archsimd.Float64s
+	for i := 0; i < z.Len(); i++ {
+		if want := math.Trunc(in[i]); got[i] != want {
+			t.Errorf("lane %d: Trunc(%v) = %v, want %v", i, in[i], got[i], want)
+		}
+	}
+}
