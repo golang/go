@@ -61,7 +61,6 @@ type Curve[P Point[P]] struct {
 
 // Point is a generic constraint for the [nistec] Point types.
 type Point[P any] interface {
-	*nistec.P224Point | *nistec.P256Point | *nistec.P384Point | *nistec.P521Point
 	Bytes() []byte
 	BytesX() ([]byte, error)
 	SetBytes([]byte) (P, error)

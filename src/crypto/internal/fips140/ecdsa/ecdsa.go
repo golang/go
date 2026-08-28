@@ -62,7 +62,6 @@ type Curve[P Point[P]] struct {
 
 // Point is a generic constraint for the [nistec] Point types.
 type Point[P any] interface {
-	*nistec.P224Point | *nistec.P256Point | *nistec.P384Point | *nistec.P521Point
 	Bytes() []byte
 	BytesX() ([]byte, error)
 	SetBytes([]byte) (P, error)
@@ -228,7 +227,7 @@ func randomPoint[P Point[P]](c *Curve[P], generate func([]byte) error) (k *bigmo
 	for {
 		b := make([]byte, c.N.Size())
 		if err := generate(b); err != nil {
-			return nil, nil, err
+			return nil, p, err
 		}
 
 		// Take only the leftmost bits of the generated random value. This is
