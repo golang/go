@@ -1078,7 +1078,7 @@ type policyGraph struct {
 	depth       int
 }
 
-var anyPolicyOID = mustNewOIDFromInts([]uint64{2, 5, 29, 32, 0})
+var anyPolicyOID = OID{der: []byte{2*40 + 5, 29, 32, 0}} // 2.5.29.32.0
 
 func newPolicyGraph() *policyGraph {
 	root := policyGraphNode{
