@@ -1773,8 +1773,11 @@ func getBranch(sdom ssa.SparseTree, p *ssa.Block, b *ssa.Block) branch {
 // starting in Block b.
 func addIndVarRestrictions(ft *factsTable, b *ssa.Block, iv indVar) {
 	d := signed
+	if iv.unsigned {
+		d = unsigned
+	}
 	if ft.isNonNegative(iv.min) && ft.isNonNegative(iv.max) {
-		d |= unsigned
+		d |= signed | unsigned
 	}
 
 	if iv.flags&indVarMinExc == 0 {

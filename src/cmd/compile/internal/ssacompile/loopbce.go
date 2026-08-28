@@ -6,6 +6,7 @@ package ssacompile
 
 import (
 	"fmt"
+	"math"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa"
@@ -22,13 +23,14 @@ const (
 )
 
 type indVar struct {
-	ind   *ssa.Value // induction variable
-	nxt   *ssa.Value // the incremented variable
-	min   *ssa.Value // minimum value, inclusive/exclusive depends on flags
-	max   *ssa.Value // maximum value, inclusive/exclusive depends on flags
-	entry *ssa.Block // the block where the edge from the succeeded comparison of the induction variable goes to, means when the bound check has passed.
-	step  int64      // it will always be positive.
-	flags indVarFlags
+	ind      *ssa.Value // induction variable
+	nxt      *ssa.Value // the incremented variable
+	min      *ssa.Value // minimum value, inclusive/exclusive depends on flags
+	max      *ssa.Value // maximum value, inclusive/exclusive depends on flags
+	entry    *ssa.Block // the block where the edge from the succeeded comparison of the induction variable goes to, means when the bound check has passed.
+	step     int64      // it will always be positive.
+	flags    indVarFlags
+	unsigned bool
 	// Invariant: for all blocks dominated by entry:
 	//	min <= ind <  max    [if flags == 0]
 	//	min <  ind <  max    [if flags == indVarMinExc]
@@ -130,12 +132,17 @@ nextblock:
 		c := b.Controls[0]
 		for idx := range 2 {
 			// Check that the control if it either ind </<= limit or limit </<= ind.
-			// TODO: Handle unsigned comparisons?
 			inclusive := false
+			unsigned := false
 			switch c.Op {
 			case ssaop.OpLeq64, ssaop.OpLeq32, ssaop.OpLeq16, ssaop.OpLeq8:
 				inclusive = true
 			case ssaop.OpLess64, ssaop.OpLess32, ssaop.OpLess16, ssaop.OpLess8:
+			case ssaop.OpLeq64U, ssaop.OpLeq32U, ssaop.OpLeq16U, ssaop.OpLeq8U:
+				inclusive = true
+				unsigned = true
+			case ssaop.OpLess64U, ssaop.OpLess32U, ssaop.OpLess16U, ssaop.OpLess8U:
+				unsigned = true
 			default:
 				continue nextblock
 			}
@@ -161,6 +168,10 @@ nextblock:
 			}
 			step := inc.AuxInt
 			if step == 0 {
+				continue
+			}
+			if unsigned && inc.AuxUnsigned() > math.MaxInt64 {
+				// indVar.step is signed; don't reinterpret a wrapped constant.
 				continue
 			}
 			// step == minInt64 cannot be safely negated below, because -step
@@ -230,6 +241,32 @@ nextblock:
 			// We use a function wrapper here for easy return true / return false / keep going logic.
 			// This function returns true if the increment will never overflow/underflow.
 			ok := func() bool {
+				if unsigned {
+					max := maxUintForConstType(ind.Type)
+					if step > 0 {
+						if limit.IsGenericIntConst() {
+							room := max - limit.AuxUnsigned()
+							if (!inclusive && room >= uint64(step-1)) || (inclusive && room >= uint64(step)) {
+								return true
+							}
+						}
+						if step == 1 && !inclusive {
+							return true
+						}
+					} else {
+						if limit.IsGenericIntConst() {
+							bound := uint64(-step)
+							if (!inclusive && limit.AuxUnsigned() >= bound-1) || (inclusive && limit.AuxUnsigned() >= bound) {
+								return true
+							}
+						}
+						if step == -1 && !inclusive {
+							return true
+						}
+					}
+					return false
+				}
+
 				if step > 0 {
 					if limit.IsGenericIntConst() {
 						// Figure out the actual largest value.
@@ -349,9 +386,10 @@ nextblock:
 					// This is startBody.b, where startBody is the edge from the comparison for the
 					// induction variable, not necessarily the in-loop edge from the loop header.
 					// Induction variable bounds are not valid in the loop before this edge.
-					entry: startBody.B,
-					step:  step,
-					flags: flags,
+					entry:    startBody.B,
+					step:     step,
+					flags:    flags,
+					unsigned: unsigned,
 				})
 				b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
 			}
@@ -359,6 +397,21 @@ nextblock:
 	}
 
 	return iv
+}
+
+func maxUintForConstType(t *types.Type) uint64 {
+	switch t.Size() {
+	case 8:
+		return math.MaxUint64
+	case 4:
+		return math.MaxUint32
+	case 2:
+		return math.MaxUint16
+	case 1:
+		return math.MaxUint8
+	default:
+		panic("unreachable")
+	}
 }
 
 // subWillUnderflow checks if x - y underflows the min value.
