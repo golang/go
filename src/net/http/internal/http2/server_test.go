@@ -3754,6 +3754,166 @@ func testServerReturnsStreamAndConnFlowControlOnBodyClose(t *testing.T) {
 	})
 }
 
+func TestServerResetStreamUnreadBody(t *testing.T) {
+	synctestSubtest(t, "read_after_reset", func(t *testing.T) {
+		st := newServerTester(t, nil)
+		defer st.Close()
+
+		st.greet()
+		st.writeHeaders(HeadersFrameParam{
+			StreamID:      1,
+			BlockFragment: st.encodeHeader(":method", "POST"),
+			EndHeaders:    true,
+		})
+		call := st.nextHandlerCall()
+
+		const size = InflowMinRefresh
+		st.writeData(1, false, make([]byte, size))
+		st.writeRSTStream(1, ErrCodeCancel)
+		st.sync()
+
+		// The handler reads the body after the stream has been reset.
+		call.do(func(w http.ResponseWriter, req *http.Request) {
+			io.ReadAll(req.Body)
+		})
+		st.wantWindowUpdate(0, size)
+
+		// Handler exits; no second refund.
+		call.exit()
+		st.wantIdle()
+	})
+
+	synctestSubtest(t, "exit_without_reading", func(t *testing.T) {
+		st := newServerTester(t, nil)
+		defer st.Close()
+
+		st.greet()
+		st.writeHeaders(HeadersFrameParam{
+			StreamID:      1,
+			BlockFragment: st.encodeHeader(":method", "POST"),
+			EndHeaders:    true,
+		})
+		call := st.nextHandlerCall()
+
+		const size = InflowMinRefresh
+		st.writeData(1, false, make([]byte, size))
+		st.writeRSTStream(1, ErrCodeCancel)
+		st.sync()
+
+		// The handler exits without reading the body. Flow control is returned on exit.
+		call.exit()
+		st.wantWindowUpdate(0, size)
+		st.wantIdle()
+	})
+
+	synctestSubtest(t, "read_after_handler_exit", func(t *testing.T) {
+		st := newServerTester(t, nil)
+		defer st.Close()
+
+		st.greet()
+		st.writeHeaders(HeadersFrameParam{
+			StreamID:      1,
+			BlockFragment: st.encodeHeader(":method", "POST"),
+			EndHeaders:    true,
+		})
+		call := st.nextHandlerCall()
+
+		const size = InflowMinRefresh
+		st.writeData(1, false, make([]byte, size))
+		synctest.Wait()
+
+		// The handler exits without reading the body.
+		call.exit()
+
+		// Flow control is returned when the handler exits.
+		st.wantUnorderedFrames(
+			func(f *WindowUpdateFrame) bool {
+				return f.StreamID == 0 && f.Increment == size
+			},
+			func(f *HeadersFrame) bool {
+				return f.StreamID == 1 && f.StreamEnded()
+			},
+			func(f *RSTStreamFrame) bool {
+				return f.StreamID == 1 && f.ErrCode == ErrCodeNo
+			},
+		)
+
+		// Reading the body after the handler exits must not cause a double refund.
+		io.ReadAll(call.req.Body)
+		st.wantIdle()
+	})
+
+	synctestSubtest(t, "unstarted_handler", func(t *testing.T) {
+		st := newServerTester(t, nil, func(h2 *http.HTTP2Config) {
+			h2.MaxConcurrentStreams = 1
+		})
+		defer st.Close()
+
+		st.greet()
+
+		// Stream 1 uses the single handler slot.
+		st.writeHeaders(HeadersFrameParam{
+			StreamID:      1,
+			BlockFragment: st.encodeHeader(),
+			EndStream:     true,
+			EndHeaders:    true,
+		})
+		call := st.nextHandlerCall()
+
+		// Reset stream 1 so the client can open another stream without
+		// exceeding the concurrent stream limit.
+		st.writeRSTStream(1, ErrCodeCancel)
+
+		// Stream 3 is queued in unstartedHandlers because the handler for
+		// stream 1 is still executing.
+		st.writeHeaders(HeadersFrameParam{
+			StreamID:      3,
+			BlockFragment: st.encodeHeader(":method", "POST"),
+			EndHeaders:    true,
+		})
+
+		const size = InflowMinRefresh
+		st.writeData(3, false, make([]byte, size))
+		st.writeRSTStream(3, ErrCodeCancel)
+		st.wantIdle()
+
+		// Stream 1 handler exits. Stream 3 is removed from unstartedHandlers
+		// and its flow control is returned.
+		call.exit()
+		st.wantWindowUpdate(0, size)
+		st.wantIdle()
+	})
+
+	// Same thing as exit_without_reading, but some imaginary middleware
+	// replaced Request.Body first.
+	synctestSubtest(t, "middleware_replaces_body", func(t *testing.T) {
+		st := newServerTester(t, nil)
+		defer st.Close()
+
+		st.greet()
+		st.writeHeaders(HeadersFrameParam{
+			StreamID:      1,
+			BlockFragment: st.encodeHeader(":method", "POST"),
+			EndHeaders:    true,
+		})
+		call := st.nextHandlerCall()
+
+		call.do(func(w http.ResponseWriter, r *http.Request) {
+			// Wrap r.Body like some middleware might.
+			r.Body = http.MaxBytesReader(w, r.Body, 1000)
+		})
+
+		const size = InflowMinRefresh
+		st.writeData(1, false, make([]byte, size))
+		st.writeRSTStream(1, ErrCodeCancel)
+		st.sync()
+
+		call.exit()
+		st.wantWindowUpdate(0, size)
+		st.wantIdle()
+	})
+}
+
 func TestServerIdleTimeout(t *testing.T) { synctest.Test(t, testServerIdleTimeout) }
 func testServerIdleTimeout(t *testing.T) {
 	if testing.Short() {
@@ -4460,9 +4620,21 @@ func testServerWindowUpdateOnBodyClose(t *testing.T) {
 		}
 	}
 
+	st.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: true,
+	})
+
 	// Writing data after the stream is reset immediately returns flow control credit.
 	st.writeData(1, false, content[windowSize/2:])
-	st.wantWindowUpdate(0, windowSize/2)
+	st.wantUnorderedFrames(
+		func(f *WindowUpdateFrame) bool {
+			return f.StreamID == 0 && f.Increment == windowSize/2
+		},
+		func(f *RSTStreamFrame) bool {
+			return f.StreamID == 1 && f.ErrCode == ErrCodeStreamClosed
+		},
+	)
 }
 
 func TestNoErrorLoggedOnPostAfterGOAWAY(t *testing.T) {
