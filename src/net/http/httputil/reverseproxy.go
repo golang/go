@@ -13,6 +13,7 @@ import (
 	"internal/godebug"
 	"io"
 	"log"
+	"maps"
 	"mime"
 	"net"
 	"net/http"
@@ -567,11 +568,19 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 				return nil
 			}
 			h := rw.Header()
+			var orig http.Header
+			if len(h) > 0 {
+				orig = h.Clone()
+			}
+
 			copyHeader(h, http.Header(header))
 			rw.WriteHeader(code)
 
-			// Clear headers, it's not automatically done by ResponseWriter.WriteHeader() for 1xx responses
+			// Restore the original headers (which may include headers added
+			// by middleware that ran before us).
 			clear(h)
+			maps.Copy(h, orig)
+
 			return nil
 		},
 	}

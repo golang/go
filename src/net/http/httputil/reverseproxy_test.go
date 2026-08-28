@@ -29,6 +29,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -37,6 +38,36 @@ const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
 func init() {
 	inOurTests = true
 	hopHeaders = append(hopHeaders, fakeHopHeader)
+}
+
+type proxyTest struct {
+	backend         *httptest.Server
+	frontend        *httptest.Server
+	backendHandler  http.HandlerFunc
+	frontendHandler http.HandlerFunc
+	client          *http.Client
+	proxy           *ReverseProxy
+}
+
+func newReverseProxyTest(t *testing.T) *proxyTest {
+	test := &proxyTest{}
+	test.backend = httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if test.backendHandler != nil {
+			test.backendHandler(w, req)
+		}
+	}))
+	test.frontend = httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if test.frontendHandler != nil {
+			test.frontendHandler(w, req)
+			return
+		}
+		test.proxy.ServeHTTP(w, req)
+	}))
+	test.proxy = &ReverseProxy{
+		Transport: test.backend.Client().Transport,
+	}
+	test.client = test.frontend.Client()
+	return test
 }
 
 func TestReverseProxy(t *testing.T) {
@@ -2258,4 +2289,60 @@ func (rc *testReadWriteCloser) Close() error {
 		return rc.close()
 	}
 	return nil
+}
+
+func TestReverseProxy1xx(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		test := newReverseProxyTest(t)
+		test.backendHandler = func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("X-Backend", "backend")
+			w.WriteHeader(103)
+		}
+		test.proxy.Rewrite = func(r *ProxyRequest) {
+			backendURL := url.MustParse("http://backend.tld/")
+			r.SetURL(backendURL)
+		}
+		test.frontendHandler = func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("X-Frontend", "frontend")
+			test.proxy.ServeHTTP(w, req)
+		}
+
+		var got1xxCode int
+		var got1xxHeader http.Header
+		trace := &httptrace.ClientTrace{
+			Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+				got1xxCode = code
+				got1xxHeader = http.Header(header).Clone()
+				return nil
+			},
+		}
+		ctx := httptrace.WithClientTrace(context.Background(), trace)
+		req, err := http.NewRequestWithContext(ctx, "GET", "http://example.tld/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := test.client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if got, want := got1xxCode, 103; got != want {
+			t.Errorf("got 1xx code %v, want %v", got, want)
+		}
+		if got, want := got1xxHeader.Get("X-Backend"), "backend"; got != want {
+			t.Errorf("got 1xx X-Backend header %q, want %q", got, want)
+		}
+		if got, want := got1xxHeader.Get("X-Frontend"), "frontend"; got != want {
+			t.Errorf("got 1xx X-Frontend header %q, want %q", got, want)
+		}
+
+		if got, want := resp.Header.Get("X-Backend"), "backend"; got != want {
+			t.Errorf("got 2xx X-Backend header %q, want %q", got, want)
+		}
+		if got, want := resp.Header.Get("X-Frontend"), "frontend"; got != want {
+			t.Errorf("got 2xx X-Frontend header %q, want %q", got, want)
+		}
+	})
 }
