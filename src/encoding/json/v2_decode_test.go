@@ -2073,7 +2073,7 @@ func TestNullString(t *testing.T) {
 	case s.B != 1:
 		t.Fatalf("Unmarshal: s.B = %d, want 1", s.B)
 	case s.C != nil:
-		t.Fatalf("Unmarshal: s.C = %d, want non-nil", s.C)
+		t.Fatalf("Unmarshal: s.C = new(%d), want nil", *s.C)
 	}
 }
 
