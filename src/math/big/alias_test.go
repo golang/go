@@ -178,6 +178,69 @@ func checkAliasingTwoArgs(t *testing.T, f func(v, x, y *big.Int) *big.Int, v, x,
 	return equal(x, x1) && equal(y, y1)
 }
 
+// checkAliasingTwoResults checks if f returns correct results when any
+// combination of v, x, y and w alias.
+//
+// f is a function that takes x and y as arguments, doesn't modify them, sets v
+// and w to the two results, and returns them. It is the function signature of
+// unbound methods like
+//
+//	func (v *big.Int) m(x, y, w *big.Int) (*big.Int, *big.Int)
+//
+// v, x, y and w are random Int values. v and w are randomized even if they will
+// be overwritten to test for improper buffer reuse.
+func checkAliasingTwoResults(t *testing.T, f func(v, x, y, w *big.Int) (*big.Int, *big.Int), v, x, y, w *big.Int) bool {
+	x1, y1 := new(big.Int).Set(x), new(big.Int).Set(y)
+	v1, w1 := new(big.Int).Set(v), new(big.Int).Set(w)
+
+	// Calculate a reference f(x, y) without aliasing.
+	if out1, out2 := f(v, x, y, w); out1 != v || out2 != w {
+		return false
+	}
+
+	// Test aliasing the first argument and the receiver.
+	v1.Set(x)
+	if out1, out2 := f(v1, v1, y, w1); out1 != v1 || out2 != w1 || !equal(v1, v) || !equal(w1, w) {
+		t.Logf("f(v, x, y, w) != f(x, x, y, w)")
+		return false
+	}
+	// Test aliasing the second argument and the receiver.
+	v1.Set(y)
+	if out1, out2 := f(v1, x, v1, w1); out1 != v1 || out2 != w1 || !equal(v1, v) || !equal(w1, w) {
+		t.Logf("f(v, x, y, w) != f(y, x, y, w)")
+		return false
+	}
+	// Test aliasing the first argument and the second result.
+	w1.Set(x)
+	if out1, out2 := f(v1, w1, y, w1); out1 != v1 || out2 != w1 || !equal(v1, v) || !equal(w1, w) {
+		t.Logf("f(v, x, y, w) != f(v, x, y, x)")
+		return false
+	}
+	// Test aliasing the second argument and the second result.
+	w1.Set(y)
+	if out1, out2 := f(v1, x, w1, w1); out1 != v1 || out2 != w1 || !equal(v1, v) || !equal(w1, w) {
+		t.Logf("f(v, x, y, w) != f(v, x, y, y)")
+		return false
+	}
+	// Test aliasing both arguments with both results.
+	v1.Set(x)
+	w1.Set(y)
+	if out1, out2 := f(v1, v1, w1, w1); out1 != v1 || out2 != w1 || !equal(v1, v) || !equal(w1, w) {
+		t.Logf("f(v, x, y, w) != f(x, x, y, y)")
+		return false
+	}
+	// Test aliasing both arguments with both results, crosswise.
+	v1.Set(y)
+	w1.Set(x)
+	if out1, out2 := f(v1, w1, v1, w1); out1 != v1 || out2 != w1 || !equal(v1, v) || !equal(w1, w) {
+		t.Logf("f(v, x, y, w) != f(y, x, y, x)")
+		return false
+	}
+
+	// Ensure the arguments were not modified.
+	return equal(x, x1) && equal(y, y1)
+}
+
 func TestAliasing(t *testing.T) {
 	for name, f := range map[string]any{
 		"Abs": func(v, x bigInt) bool {
@@ -194,6 +257,9 @@ func TestAliasing(t *testing.T) {
 		},
 		"Div": func(v, x bigInt, y notZeroInt) bool {
 			return checkAliasingTwoArgs(t, (*big.Int).Div, v.Int, x.Int, y.Int)
+		},
+		"DivMod": func(v, w, x bigInt, y notZeroInt) bool {
+			return checkAliasingTwoResults(t, (*big.Int).DivMod, v.Int, x.Int, y.Int, w.Int)
 		},
 		"Exp-XY": func(v, x, y bigInt, z notZeroInt) bool {
 			return checkAliasingTwoArgs(t, func(v, x, y *big.Int) *big.Int {
@@ -257,6 +323,9 @@ func TestAliasing(t *testing.T) {
 		},
 		"Quo": func(v, x bigInt, y notZeroInt) bool {
 			return checkAliasingTwoArgs(t, (*big.Int).Quo, v.Int, x.Int, y.Int)
+		},
+		"QuoRem": func(v, w, x bigInt, y notZeroInt) bool {
+			return checkAliasingTwoResults(t, (*big.Int).QuoRem, v.Int, x.Int, y.Int, w.Int)
 		},
 		"Rand": func(v, x bigInt, seed int64) bool {
 			return checkAliasingOneArg(t, func(v, x *big.Int) *big.Int {

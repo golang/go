@@ -356,7 +356,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 // See [Int.QuoRem] for T-division and modulus (like Go).
 func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 	y0 := y // save y
-	if z == y || alias(z.abs, y.abs) {
+	if z == y || m == y || alias(z.abs, y.abs) || alias(m.abs, y.abs) {
 		y0 = new(Int).Set(y)
 	}
 	z.QuoRem(x, y, m)
