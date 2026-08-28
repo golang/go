@@ -242,11 +242,17 @@ func (t *LineTable) parsePclnTab() {
 	default:
 		return
 	}
-	t.version = possibleVersion
 
 	// quantum and ptrSize are the same between 1.2, 1.16, and 1.18
 	t.quantum = uint32(t.Data[6])
 	t.ptrsize = uint32(t.Data[7])
+
+	// Compute the field size from possibleVersion because t.version must
+	// remain ver11 until parsing succeeds.
+	fieldsize := int(t.ptrsize)
+	if possibleVersion >= ver118 {
+		fieldsize = 4
+	}
 
 	offset := func(word uint32) uint64 {
 		return t.uintptr(t.Data[8+word*t.ptrsize:])
@@ -266,7 +272,7 @@ func (t *LineTable) parsePclnTab() {
 		t.pctab = data(6)
 		t.funcdata = data(7)
 		t.functab = data(7)
-		functabsize := (int(t.nfunctab)*2 + 1) * t.functabFieldSize()
+		functabsize := (int(t.nfunctab)*2 + 1) * fieldsize
 		t.functab = t.functab[:functabsize]
 	case ver116:
 		t.nfunctab = uint32(offset(0))
@@ -277,7 +283,7 @@ func (t *LineTable) parsePclnTab() {
 		t.pctab = data(5)
 		t.funcdata = data(6)
 		t.functab = data(6)
-		functabsize := (int(t.nfunctab)*2 + 1) * t.functabFieldSize()
+		functabsize := (int(t.nfunctab)*2 + 1) * fieldsize
 		t.functab = t.functab[:functabsize]
 	case ver12:
 		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
@@ -285,7 +291,7 @@ func (t *LineTable) parsePclnTab() {
 		t.funcnametab = t.Data
 		t.functab = t.Data[8+t.ptrsize:]
 		t.pctab = t.Data
-		functabsize := (int(t.nfunctab)*2 + 1) * t.functabFieldSize()
+		functabsize := (int(t.nfunctab)*2 + 1) * fieldsize
 		fileoff := t.binary.Uint32(t.functab[functabsize:])
 		t.functab = t.functab[:functabsize]
 		t.filetab = t.Data[fileoff:]
@@ -294,6 +300,8 @@ func (t *LineTable) parsePclnTab() {
 	default:
 		panic("unreachable")
 	}
+
+	t.version = possibleVersion
 }
 
 // go12Funcs returns a slice of Funcs derived from the Go 1.2+ pcln table.
