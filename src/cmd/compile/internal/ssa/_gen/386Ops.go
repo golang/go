@@ -511,7 +511,7 @@ func init() {
 		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
 
 		// Pseudo-ops
-		{name: "LoweredGetG", argLength: 1, reg: gp01}, // arg0=mem
+		{name: "LoweredGetG", argLength: 1, reg: regInfo{outputs: []regMask{gp.minus(ax)}, clobbers: ax}, clobberFlags: true}, // arg0=mem
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
 		// use of DX (the closure pointer)

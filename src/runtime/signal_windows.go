@@ -106,20 +106,6 @@ const (
 	callbackLastVCH
 )
 
-// sigFetchGSafe is like getg() but without panicking
-// when TLS is not set.
-// Only implemented on windows/386, which is the only
-// arch that loads TLS when calling getg(). Others
-// use a dedicated register.
-func sigFetchGSafe() *g
-
-func sigFetchG() *g {
-	if GOARCH == "386" {
-		return sigFetchGSafe()
-	}
-	return getg()
-}
-
 // sigtrampgo is called from the exception handler function, sigtramp,
 // written in assembly code.
 // Return EXCEPTION_CONTINUE_EXECUTION if the exception is handled,
@@ -129,7 +115,7 @@ func sigFetchG() *g {
 //
 //go:nosplit
 func sigtrampgo(ep *windows.ExceptionPointers, kind int) int32 {
-	gp := sigFetchG()
+	gp := getg()
 	if gp == nil {
 		return windows.EXCEPTION_CONTINUE_SEARCH
 	}

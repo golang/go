@@ -2237,9 +2237,11 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	if !CanUse1InsnTLS(ctxt) {
 		useTLS := func(p *obj.Prog) bool {
 			// Only need to mark the second instruction, which has
-			// REG_TLS as Index. (It is okay to interrupt and restart
-			// the first instruction.)
-			return p.From.Index == REG_TLS
+			// REG_TLS as Index. Rewritten Windows TLS accesses also
+			// mark the instructions that hold per-thread pointers.
+			// (It is okay to interrupt and restart the instructions
+			// before these.)
+			return p.From.Index == REG_TLS || p.Mark&unsafeTLS != 0
 		}
 		obj.MarkUnsafePoints(ctxt, s.Func().Text, newprog, useTLS, nil)
 	}

@@ -155,10 +155,6 @@ nocgo:
 
 	BL	runtime·check(SB)
 
-#ifdef GOOS_windows
-	BL	runtime·wintls(SB)
-#endif
-
 	// Check that CPU we use for execution supports instructions targeted during compile-time.
 #ifdef CHECK_GOARM64_LSE
 	// Read the ID_AA64ISAR0_EL1 register

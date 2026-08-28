@@ -868,6 +868,19 @@ func (ctxt *Link) linksetup() {
 		}
 		ctxt.loader.SetAttrReachable(tlsg, true)
 		ctxt.Tlsg = tlsg
+
+		if ctxt.IsWindows() && ctxt.IsExternal() {
+			ctxt.loader.SetAttrNotInSymbolTable(tlsg, false)
+			tlsOffset := ctxt.loader.Lookup("runtime.tls_g", 0)
+			if tlsOffset == 0 {
+				Errorf("missing runtime.tls_g")
+			} else {
+				rel, _ := ctxt.loader.MakeSymbolUpdater(tlsOffset).AddRel(objabi.R_ADDROFF)
+				rel.SetOff(0)
+				rel.SetSiz(4)
+				rel.SetSym(tlsg)
+			}
+		}
 	}
 
 	var moduledata loader.Sym

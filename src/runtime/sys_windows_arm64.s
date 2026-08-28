@@ -11,8 +11,6 @@
 
 // Offsets into Thread Environment Block (pointer in R18)
 #define TEB_error 0x68
-#define TEB_TlsSlots 0x1480
-#define TEB_ArbitraryPtr 0x28
 
 // Note: R0-R7 are args, R8 is indirect return value address,
 // R9-R15 are caller-save, R19-R29 are callee-save.
@@ -154,28 +152,3 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	MOVD	R0, ret+0(FP)
 	RET
 
-// This is called from rt0_go, which runs on the system stack
-// using the initial stack allocated by the OS.
-// It calls back into standard C using the BL below.
-TEXT runtime·wintls(SB),NOSPLIT,$0
-	// Allocate a TLS slot to hold g across calls to external code
-	MOVD	runtime·_TlsAlloc(SB), R0
-	SUB	$16, RSP	// skip over saved frame pointer below RSP
-	BL	(R0)
-	ADD	$16, RSP
-
-	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
-	CMP	$64, R0
-	BLT	ok
-	// Fallback to the TEB arbitrary pointer.
-	// TODO: don't use the arbitrary pointer (see go.dev/issue/59824)
-	MOVD	$TEB_ArbitraryPtr, R0
-	B	settls
-ok:
-
-	// Save offset from R18 into tls_g.
-	LSL	$3, R0
-	ADD	$TEB_TlsSlots, R0
-settls:
-	MOVD	R0, runtime·tls_g(SB)
-	RET

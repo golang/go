@@ -48,6 +48,24 @@ type IMAGE_EXPORT_DIRECTORY struct {
 	AddressOfNameOrdinals uint32
 }
 
+type IMAGE_TLS_DIRECTORY32 struct {
+	StartAddressOfRawData uint32
+	EndAddressOfRawData   uint32
+	AddressOfIndex        uint32
+	AddressOfCallBacks    uint32
+	SizeOfZeroFill        uint32
+	Characteristics       uint32
+}
+
+type IMAGE_TLS_DIRECTORY64 struct {
+	StartAddressOfRawData uint64
+	EndAddressOfRawData   uint64
+	AddressOfIndex        uint64
+	AddressOfCallBacks    uint64
+	SizeOfZeroFill        uint32
+	Characteristics       uint32
+}
+
 var (
 	// PEBASE is the base address for the executable.
 	// It is small for 32-bit and large for 64-bit.
@@ -567,6 +585,8 @@ type peFile struct {
 	rdataSect      *peSection
 	dataSect       *peSection
 	bssSect        *peSection
+	tlsSect        *peSection
+	tlsDirOffset   uint32
 	ctorsSect      *peSection
 	pdataSect      *peSection
 	xdataSect      *peSection
@@ -692,6 +712,63 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 		ctxt.Out.Write32(uint32(addr))
 	}
 	return sect
+}
+
+// addTLS adds storage for runtime.tlsg. For external linking, the host linker
+// combines this section with the TLS template supplied by its runtime. For
+// internal linking, this also emits the TLS directory consumed by the loader.
+func (f *peFile) addTLS(ctxt *Link) {
+	ptrSize := ctxt.Arch.PtrSize
+	name := ".tls$"
+	size := ptrSize
+	if ctxt.LinkMode == LinkInternal {
+		name = ".tls"
+		f.tlsDirOffset = uint32(ptrSize)
+		if pe64 {
+			size += binary.Size(&IMAGE_TLS_DIRECTORY64{})
+		} else {
+			size += binary.Size(&IMAGE_TLS_DIRECTORY32{})
+		}
+	}
+
+	sect := f.addSection(name, size, size)
+	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
+	if ptrSize == 8 {
+		sect.characteristics |= IMAGE_SCN_ALIGN_8BYTES
+	} else {
+		sect.characteristics |= IMAGE_SCN_ALIGN_4BYTES
+	}
+	f.tlsSect = sect
+
+	out := ctxt.Out
+	out.SeekSet(int64(sect.pointerToRawData))
+	sect.checkOffset(out.Offset())
+	out.WriteStringN("", ptrSize)
+
+	if ctxt.LinkMode == LinkInternal {
+		start := uint64(PEBASE) + uint64(sect.virtualAddress)
+		index := uint64(ctxt.loader.SymValue(ctxt.loader.Lookup("_tls_index", 0)))
+		if pe64 {
+			dir := IMAGE_TLS_DIRECTORY64{
+				StartAddressOfRawData: start,
+				EndAddressOfRawData:   start + uint64(ptrSize),
+				AddressOfIndex:        index,
+				Characteristics:       IMAGE_SCN_ALIGN_8BYTES,
+			}
+			binary.Write(out, binary.LittleEndian, &dir)
+		} else {
+			dir := IMAGE_TLS_DIRECTORY32{
+				StartAddressOfRawData: uint32(start),
+				EndAddressOfRawData:   uint32(start) + uint32(ptrSize),
+				AddressOfIndex:        uint32(index),
+				Characteristics:       IMAGE_SCN_ALIGN_4BYTES,
+			}
+			binary.Write(out, binary.LittleEndian, &dir)
+		}
+		f.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress = sect.virtualAddress + f.tlsDirOffset
+		f.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_TLS].Size = uint32(size - ptrSize)
+	}
+	sect.pad(out, uint32(size))
 }
 
 // emitRelocations emits relocation entries for go.o in external linking.
@@ -845,6 +922,9 @@ func (f *peFile) writeSymbol(out *OutBuf, ldr *loader.Loader, s loader.Sym, name
 // mapToPESection searches peFile f for s symbol's location.
 // It returns PE section index, and offset within that section.
 func (f *peFile) mapToPESection(ldr *loader.Loader, s loader.Sym, linkmode LinkMode) (pesectidx int, offset int64, err error) {
+	if ldr.SymType(s) == sym.STLSBSS && f.tlsSect != nil {
+		return f.tlsSect.index, ldr.SymValue(s), nil
+	}
 	sect := ldr.SymSect(s)
 	if sect == nil {
 		return 0, 0, fmt.Errorf("could not map %s symbol with no section", ldr.SymName(s))
@@ -884,7 +964,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 	ldr := ctxt.loader
 	addsym := func(s loader.Sym) {
 		t := ldr.SymType(s)
-		if ldr.SymSect(s) == nil && t != sym.SDYNIMPORT && t != sym.SHOSTOBJ && t != sym.SUNDEFEXT {
+		if ldr.SymSect(s) == nil && t != sym.STLSBSS && t != sym.SDYNIMPORT && t != sym.SHOSTOBJ && t != sym.SUNDEFEXT {
 			return
 		}
 
@@ -986,9 +1066,6 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		}
 		t := ldr.SymType(s)
 		if t >= sym.SELFRXSECT && t < sym.SFirstUnallocated { // data sections handled in dodata
-			if t == sym.STLSBSS {
-				continue
-			}
 			if !shouldBeInSymbolTable(s) {
 				continue
 			}
@@ -1252,7 +1329,7 @@ func Peinit(ctxt *Link) {
 		}
 	}
 
-	var sh [16]pe.SectionHeader32
+	var sh [17]pe.SectionHeader32
 	var fh pe.FileHeader
 	PEFILEHEADR = int32(Rnd(int64(len(dosstub)+binary.Size(&fh)+l+binary.Size(&sh)), PEFILEALIGN))
 	if ctxt.LinkMode != LinkExternal {
@@ -1295,6 +1372,20 @@ func Peinit(ctxt *Link) {
 		sb.SetData(buf.Bytes())
 		sb.SetSize(int64(buf.Len()))
 		ctxt.loader.SetAttrReachable(sb.Sym(), true)
+
+		// The Windows loader writes this module's static TLS index here.
+		tlsIndex := ctxt.loader.CreateSymForUpdate("_tls_index", 0)
+		tlsIndex.SetType(sym.SNOPTRBSS)
+		tlsIndex.SetSize(4)
+		tlsIndex.SetAlign(4)
+		ctxt.loader.SetAttrReachable(tlsIndex.Sym(), true)
+	} else {
+		tlsIndex := ctxt.loader.LookupOrCreateSym("_tls_index", 0)
+		sb := ctxt.loader.MakeSymbolUpdater(tlsIndex)
+		if sb.Type() == 0 || sb.Type() == sym.SXREF {
+			sb.SetType(sym.SHOSTOBJ)
+		}
+		ctxt.loader.SetAttrReachable(tlsIndex, true)
 	}
 
 	HEADR = PEFILEHEADR
@@ -1655,12 +1746,15 @@ func (rt *peBaseRelocTable) init(ctxt *Link) {
 }
 
 func (rt *peBaseRelocTable) addentry(ldr *loader.Loader, s loader.Sym, r *loader.Reloc) {
+	rt.add(ldr.SymValue(s)+int64(r.Off())-PEBASE, r.Siz())
+}
+
+func (rt *peBaseRelocTable) add(addr int64, size uint8) {
 	// pageSize is the size in bytes of a page
 	// described by a base relocation block.
 	const pageSize = 0x1000
 	const pageMask = pageSize - 1
 
-	addr := ldr.SymValue(s) + int64(r.Off()) - PEBASE
 	page := uint32(addr &^ pageMask)
 	off := uint32(addr & pageMask)
 
@@ -1674,9 +1768,9 @@ func (rt *peBaseRelocTable) addentry(ldr *loader.Loader, s loader.Sym, r *loader
 	}
 
 	// Set entry type
-	switch r.Siz() {
+	switch size {
 	default:
-		Exitf("unsupported relocation size %d\n", r.Siz)
+		Exitf("unsupported relocation size %d\n", size)
 	case 4:
 		e.typeOff |= uint16(IMAGE_REL_BASED_HIGHLOW << 12)
 	case 8:
@@ -1769,6 +1863,12 @@ func addPEBaseReloc(ctxt *Link) {
 	}
 	for _, s := range ctxt.datap {
 		addPEBaseRelocSym(ldr, s, &rt)
+	}
+	if pefile.tlsSect != nil && pefile.tlsDirOffset != 0 {
+		dir := int64(pefile.tlsSect.virtualAddress + pefile.tlsDirOffset)
+		for i := range 3 {
+			rt.add(dir+int64(i*ctxt.Arch.PtrSize), uint8(ctxt.Arch.PtrSize))
+		}
 	}
 
 	// Write relocation information
@@ -1893,6 +1993,7 @@ func asmbPe(ctxt *Link) {
 
 	pefile.addSEH(ctxt)
 	pefile.addDWARF()
+	pefile.addTLS(ctxt)
 
 	if ctxt.LinkMode == LinkExternal {
 		pefile.ctorsSect = pefile.addInitArray(ctxt)

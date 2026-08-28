@@ -121,6 +121,7 @@ func init() {
 		ax         = buildReg("AX")
 		cx         = buildReg("CX")
 		dx         = buildReg("DX")
+		r12        = buildReg("R12")
 		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15")
 		g          = buildReg("g")
 		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14")
@@ -1142,7 +1143,8 @@ func init() {
 		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
 
 		// Pseudo-ops
-		{name: "LoweredGetG", argLength: 1, reg: gp01}, // arg0=mem
+		// LoweredGetG loads g from TLS, clobbering R12 and flags on Windows.
+		{name: "LoweredGetG", argLength: 1, reg: regInfo{outputs: []regMask{gp.minus(r12)}, clobbers: r12}, clobberFlags: true}, // arg0=mem
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
 		// use of DX (the closure pointer)

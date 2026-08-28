@@ -126,9 +126,8 @@ notintel:
 	JZ	bad_proc
 
 nocpuinfo:
-	// if there is an _cgo_init, call it to let it
-	// initialize and to set up GS.  if not,
-	// we set up GS ourselves.
+	// If there is an _cgo_init, call it to initialize and, on platforms
+	// that need it, set up GS. Otherwise, we set up GS ourselves.
 	MOVL	_cgo_init(SB), AX
 	TESTL	AX, AX
 	JZ	needtls
@@ -141,11 +140,7 @@ nocpuinfo:
 #else
 	MOVL	$0, BX
 	MOVL	BX, 12(SP)	// arg 4: not used when using platform's TLS
-#ifdef GOOS_windows
-	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
-#else
 	MOVL	BX, 8(SP)	// arg 3: not used when using platform's TLS
-#endif
 #endif
 	MOVL	$setg_gcc<>(SB), BX
 	MOVL	BX, 4(SP)	// arg 2: setg_gcc
@@ -159,10 +154,7 @@ nocpuinfo:
 	MOVL	AX, g_stackguard0(CX)
 	MOVL	AX, g_stackguard1(CX)
 
-#ifndef GOOS_windows
-	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
 	JMP ok
-#endif
 needtls:
 #ifdef GOOS_openbsd
 	// skip runtime·ldt0setup(SB) and tls test on OpenBSD in all cases
@@ -172,8 +164,11 @@ needtls:
 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
 	JMP	ok
 #endif
-
-	// set up %gs
+#ifdef GOOS_windows
+	// The Windows loader has already set up TLS.
+	JMP ok
+#else
+	// Set up %gs.
 	CALL	ldt0setup<>(SB)
 
 	// store through it, to make sure it works
@@ -183,6 +178,7 @@ needtls:
 	CMPL	AX, $0x123
 	JEQ	ok
 	MOVL	AX, 0	// abort
+#endif
 ok:
 	// set up m and g "registers"
 	get_tls(BX)
@@ -369,7 +365,7 @@ bad:
 TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
 	MOVL 	fn+0(FP), AX
 
-	get_tls(CX)
+	get_tls2(CX, DI)
 	MOVL	g(CX), BX	// BX = g
 	MOVL	g_m(BX), DX	// DX = curm
 
@@ -377,7 +373,7 @@ TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
 	LEAL	runtime·gcrash(SB), BX // g = &gcrash
 	MOVL	DX, g_m(BX)            // g.m = curm
 	MOVL	BX, m_g0(DX)           // curm.g0 = g
-	get_tls(CX)
+	get_tls2(CX, DI)
 	MOVL	BX, g(CX)
 
 	// switch to crashstack
@@ -634,14 +630,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already. Or we might already
 	// be on the m->gsignal stack.
-#ifdef GOOS_windows
-	// On Windows, get_tls might return garbage if the thread
-	// has never called into Go, so check tls_g directly.
-	MOVL	runtime·tls_g(SB), CX
-	CMPL	CX, $0
-	JEQ	nosave
-#endif
-	get_tls(CX)
+	get_tls2(CX, DI)
 	MOVL	g(CX), DI
 	CMPL	DI, $0
 	JEQ	nosave	// Don't even have a G yet.
@@ -652,7 +641,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	CMPL	DI, SI
 	JEQ	noswitch
 	CALL	gosave_systemstack_switch<>(SB)
-	get_tls(CX)
+	get_tls2(CX, BP)
 	MOVL	SI, g(CX)
 	MOVL	(g_sched+gobuf_sp)(SI), SP
 
@@ -668,7 +657,7 @@ noswitch:
 	CALL	AX
 
 	// Restore registers, g, stack pointer.
-	get_tls(CX)
+	get_tls2(CX, DI)
 	MOVL	8(SP), DI
 	MOVL	(g_stack+stack_hi)(DI), SI
 	SUBL	4(SP), SI
@@ -714,11 +703,6 @@ loadg:
 	// lots of space, but the linker doesn't know. Hide the call from
 	// the linker analysis by using an indirect call through AX.
 	get_tls(CX)
-#ifdef GOOS_windows
-	MOVL	$0, BP
-	CMPL	CX, $0
-	JEQ	needm
-#endif
 	MOVL	g(CX), BP
 	CMPL	BP, $0
 	JEQ	needm
@@ -833,24 +817,13 @@ droppedm:
 // void setg(G*); set g. for use by needm.
 TEXT runtime·setg(SB), NOSPLIT, $0-4
 	MOVL	gg+0(FP), BX
-#ifdef GOOS_windows
-	MOVL	runtime·tls_g(SB), CX
-	CMPL	BX, $0
-	JNE	settls
-	MOVL	$0, 0(CX)(FS)
-	RET
-settls:
-	MOVL	g_m(BX), AX
-	LEAL	m_tls(AX), AX
-	MOVL	AX, 0(CX)(FS)
-#endif
 	get_tls(CX)
 	MOVL	BX, g(CX)
 	RET
 
 // void setg_gcc(G*); set g. for use by gcc
 TEXT setg_gcc<>(SB), NOSPLIT, $0
-	get_tls(AX)
+	get_tls2(AX, DX)
 	MOVL	gg+0(FP), DX
 	MOVL	DX, g(AX)
 	RET
@@ -906,10 +879,8 @@ rdtsc:
 	RDTSC
 	JMP done
 
+#ifndef GOOS_windows
 TEXT ldt0setup<>(SB),NOSPLIT,$16-0
-#ifdef GOOS_windows
-	CALL	runtime·wintls(SB)
-#endif
 	// set up ldt 7 to point at m0.tls
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
 	// the entry number is just a hint.  setldt will set up GS with what it used.
@@ -919,6 +890,7 @@ TEXT ldt0setup<>(SB),NOSPLIT,$16-0
 	MOVL	$32, 8(SP)	// sizeof(tls array)
 	CALL	runtime·setldt(SB)
 	RET
+#endif
 
 TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
@@ -996,7 +968,7 @@ TEXT gcWriteBarrier<>(SB),NOSPLIT,$28
 retry:
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
-	get_tls(BX)
+	get_tls2(BX, CX) // Preserve AX by using the saved CX as scratch.
 	MOVL	g(BX), BX
 	MOVL	g_m(BX), BX
 	MOVL	m_p(BX), BX
@@ -1111,5 +1083,6 @@ DATA runtime·tls_g+0(SB)/4, $8
 GLOBL runtime·tls_g+0(SB), NOPTR, $4
 #endif
 #ifdef GOOS_windows
+DATA runtime·tls_g+0(SB)/4, $0
 GLOBL runtime·tls_g+0(SB), NOPTR, $4
 #endif

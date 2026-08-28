@@ -480,6 +480,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			if weak && !ldr.AttrReachable(rs) {
 				continue
 			}
+			if target.IsWindows() && target.IsExternal() && rst == sym.STLSBSS {
+				nExtReloc++
+				o = 0
+				break
+			}
 			sect := ldr.SymSect(rs)
 			if sect == nil {
 				if rst == sym.SDYNIMPORT {
@@ -688,6 +693,14 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 		rr.Xadd = r.Add() + off
 		rr.Xsym = rs
 
+	case objabi.R_ADDROFF:
+		if target.IsWindows() && ldr.SymType(r.Sym()) == sym.STLSBSS {
+			rr.Xsym = r.Sym()
+			rr.Xadd = r.Add()
+			break
+		}
+		return rr, false
+
 	case objabi.R_DWARFSECREF:
 		// On most platforms, the external linker needs to adjust DWARF references
 		// as it combines DWARF sections. However, on Darwin, dsymutil does the
@@ -734,7 +747,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 		return ExtrelocSimple(ldr, r), true
 
 	// These reloc types don't need external relocations.
-	case objabi.R_ADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
+	case objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
 		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF,
 		objabi.R_DWTXTADDR_U1, objabi.R_DWTXTADDR_U2,
 		objabi.R_DWTXTADDR_U3, objabi.R_DWTXTADDR_U4:

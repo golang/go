@@ -256,7 +256,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
 	}
 }
 
-func TestIssue59213(t *testing.T) {
+func TestIssue59824(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows only test")
 	}

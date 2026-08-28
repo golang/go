@@ -12243,11 +12243,13 @@ var OpcodeTable = [...]OpInfo{
 		Reg:    RegInfo{},
 	},
 	{
-		Name:   "LoweredGetG",
-		ArgLen: 1,
+		Name:         "LoweredGetG",
+		ArgLen:       1,
+		ClobberFlags: true,
 		Reg: RegInfo{
+			Clobbers: RegMask{V1: 1, V2: 0}, // AX
 			Outputs: []OutputInfo{
-				{0, RegMask{V1: 239, V2: 0}}, // AX CX DX BX BP SI DI
+				{0, RegMask{V1: 238, V2: 0}}, // CX DX BX BP SI DI
 			},
 		},
 	},
@@ -20703,11 +20705,13 @@ var OpcodeTable = [...]OpInfo{
 		Reg:    RegInfo{},
 	},
 	{
-		Name:   "LoweredGetG",
-		ArgLen: 1,
+		Name:         "LoweredGetG",
+		ArgLen:       1,
+		ClobberFlags: true,
 		Reg: RegInfo{
+			Clobbers: RegMask{V1: 4096, V2: 0}, // R12
 			Outputs: []OutputInfo{
-				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, RegMask{V1: 45039, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R13 R15
 			},
 		},
 	},

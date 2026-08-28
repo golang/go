@@ -10,6 +10,7 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
+	"encoding/binary"
 	"errors"
 	"internal/abi"
 	"internal/buildcfg"
@@ -1183,6 +1184,96 @@ func TestPErsrcLLVM(t *testing.T) {
 	}
 	if !bytes.Contains(b, []byte("resname RCDATA a.rc")) {
 		t.Fatalf("binary does not contain expected content")
+	}
+}
+
+func TestPELoaderTLS(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	if runtime.GOOS != "windows" {
+		t.Skip("this is a windows-only test")
+	}
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "main.go")
+	if err := os.WriteFile(src, []byte(trivialSrc), 0666); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "main.exe")
+	cmd := goCmd(t, "build", "-ldflags=-linkmode=internal", "-o", exe, src)
+	cmd.Env = append(cmd.Env, "CGO_ENABLED=0")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+	}
+
+	pf, err := pe.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pf.Close()
+
+	var imageBase uint64
+	var imageSize uint64
+	var tlsDir pe.DataDirectory
+	ptrSize := 4
+	switch header := pf.OptionalHeader.(type) {
+	case *pe.OptionalHeader32:
+		imageBase = uint64(header.ImageBase)
+		imageSize = uint64(header.SizeOfImage)
+		tlsDir = header.DataDirectory[pe.IMAGE_DIRECTORY_ENTRY_TLS]
+	case *pe.OptionalHeader64:
+		imageBase = header.ImageBase
+		imageSize = uint64(header.SizeOfImage)
+		tlsDir = header.DataDirectory[pe.IMAGE_DIRECTORY_ENTRY_TLS]
+		ptrSize = 8
+	default:
+		t.Fatalf("unexpected optional header type %T", header)
+	}
+	wantDirSize := uint32(4*ptrSize + 8)
+	if tlsDir.VirtualAddress == 0 || tlsDir.Size != wantDirSize {
+		t.Fatalf("TLS directory = {%#x, %#x}, want non-zero address and size %#x", tlsDir.VirtualAddress, tlsDir.Size, wantDirSize)
+	}
+
+	var tlsSection *pe.Section
+	for _, section := range pf.Sections {
+		if section.Name == ".tls" {
+			tlsSection = section
+			break
+		}
+	}
+	if tlsSection == nil {
+		t.Fatal("missing .tls section")
+	}
+	data, err := tlsSection.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tlsDir.VirtualAddress < tlsSection.VirtualAddress {
+		t.Fatalf("TLS directory lies outside .tls section")
+	}
+	dirOffset := int(tlsDir.VirtualAddress - tlsSection.VirtualAddress)
+	if dirOffset+int(tlsDir.Size) > len(data) {
+		t.Fatalf("TLS directory lies outside .tls section")
+	}
+	directory := data[dirOffset:]
+	readAddress := func(offset int) uint64 {
+		if ptrSize == 8 {
+			return binary.LittleEndian.Uint64(directory[offset:])
+		}
+		return uint64(binary.LittleEndian.Uint32(directory[offset:]))
+	}
+	start := readAddress(0)
+	end := readAddress(ptrSize)
+	index := readAddress(2 * ptrSize)
+	callbacks := readAddress(3 * ptrSize)
+	if want := imageBase + uint64(tlsSection.VirtualAddress); start != want || end-start != uint64(ptrSize) {
+		t.Fatalf("TLS template = [%#x, %#x), want [%#x, %#x)", start, end, want, want+uint64(ptrSize))
+	}
+	if index < imageBase || index >= imageBase+imageSize {
+		t.Fatalf("TLS index address %#x lies outside image", index)
+	}
+	if callbacks != 0 {
+		t.Fatalf("TLS callback address = %#x, want 0", callbacks)
 	}
 }
 

@@ -586,7 +586,7 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	default:
 		return false
 
-	case objabi.R_DWARFSECREF:
+	case objabi.R_ADDROFF, objabi.R_DWARFSECREF:
 		v = ld.IMAGE_REL_AMD64_SECREL
 
 	case objabi.R_ADDR:

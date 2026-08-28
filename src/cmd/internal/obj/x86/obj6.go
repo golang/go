@@ -159,39 +159,63 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
-	// Android and Windows use a tls offset determined at runtime. Rewrite
+	// Android uses a tls offset determined at runtime. Rewrite
 	//	MOVQ TLS, BX
 	// to
 	//	MOVQ runtime.tls_g(SB), BX
-	if (isAndroid || ctxt.Headtype == objabi.Hwindows) &&
+	if isAndroid &&
 		(p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
 		p.From.Type = obj.TYPE_MEM
 		p.From.Name = obj.NAME_EXTERN
 		p.From.Reg = REG_NONE
 		p.From.Sym = ctxt.Lookup("runtime.tls_g")
 		p.From.Index = REG_NONE
-		if ctxt.Headtype == objabi.Hwindows {
-			// Windows requires an additional indirection
-			// to retrieve the TLS pointer,
-			// as runtime.tls_g contains the TLS offset from GS or FS.
-			// on AMD64 add
-			//	MOVQ 0(BX)(GS*1), BX
-			// on 386 add
-			//	MOVQ 0(BX)(FS*1), BX4
-			q := obj.Appendp(p, newprog)
-			q.As = p.As
-			q.From = obj.Addr{}
-			q.From.Type = obj.TYPE_MEM
-			q.From.Reg = p.To.Reg
-			if ctxt.Arch.Family == sys.AMD64 {
-				q.From.Index = REG_GS
-			} else {
-				q.From.Index = REG_FS
-			}
-			q.From.Scale = 1
-			q.From.Offset = 0
-			q.To = p.To
+	}
+
+	// Windows uses loader-provided static TLS. Rewrite
+	//	MOVQ TLS, BX
+	// to a lookup through the TEB ThreadLocalStoragePointer array.
+	if ctxt.Headtype == objabi.Hwindows &&
+		(p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
+		mov, dst := p.As, p.To.Reg
+		scratch := int16(REG_AX)
+		// These TEB.ThreadLocalStoragePointer offsets match
+		// TEB_ThreadLocalStoragePointer in runtime/go_tls.h.
+		tebTLS, scale := int64(0x2c), int16(4)
+		segment := int16(REG_FS)
+		if ctxt.Arch.Family == sys.AMD64 {
+			// Use a Go ABI scratch register to preserve arguments already
+			// loaded for an ABI0-to-ABIInternal call.
+			scratch = REG_R12
+			tebTLS, scale = 0x58, 8
+			segment = REG_GS
+		} else if dst == scratch {
+			scratch = REG_DX
 		}
+
+		// Load the module's 32-bit TLS index, zero-extending it on amd64.
+		p.As = AMOVL
+		p.From = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ctxt.Lookup("_tls_index")}
+
+		q := obj.Appendp(p, newprog)
+		q.As = mov
+		q.From = obj.Addr{Type: obj.TYPE_MEM, Index: segment, Scale: 1, Offset: tebTLS}
+		q.To = obj.Addr{Type: obj.TYPE_REG, Reg: scratch}
+
+		q = obj.Appendp(q, newprog)
+		q.As = mov
+		q.From = obj.Addr{Type: obj.TYPE_MEM, Reg: scratch, Index: dst, Scale: scale}
+		q.To = obj.Addr{Type: obj.TYPE_REG, Reg: dst}
+		q.Mark |= unsafeTLS
+
+		q = obj.Appendp(q, newprog)
+		q.As = AADDL
+		if ctxt.Arch.Family == sys.AMD64 {
+			q.As = AADDQ
+		}
+		q.From = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ctxt.Lookup("runtime.tls_g")}
+		q.To = obj.Addr{Type: obj.TYPE_REG, Reg: dst}
+		q.Mark |= unsafeTLS
 	}
 
 	// TODO: Remove.
@@ -611,7 +635,8 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 // Prog.mark
 const (
-	markBit = 1 << 0 // used in errorCheck to avoid duplicate work
+	markBit   = 1 << 0 // used in errorCheck to avoid duplicate work
+	unsafeTLS = 1 << 1 // unsafe part of a rewritten TLS access
 )
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
