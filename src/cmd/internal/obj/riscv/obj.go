@@ -1380,7 +1380,10 @@ func validateCR(ctxt *obj.Link, ins *instruction) {
 	case ACADD:
 		wantIntReg(ctxt, ins, "rd", ins.rd)
 		if ins.rd == REG_X0 {
-			ctxt.Diag("%v: cannot use register X0 in rd", ins)
+			// C.NTL hints (Zihintntl) are encoded as C.ADD x0, x2-x5.
+			if ins.rs1 != REG_X0 || ins.rs2 < REG_X2 || ins.rs2 > REG_X5 {
+				ctxt.Diag("%v: cannot use register X0 in rd", ins)
+			}
 		}
 		if ins.rd != ins.rs1 {
 			ctxt.Diag("%v: rd must be the same as rs1", ins)
@@ -4328,6 +4331,38 @@ func instructionsForMinMax(p *obj.Prog, ins *instruction) []*instruction {
 	}
 }
 
+// instructionsForNTL returns the machine instruction for a non-temporal
+// locality hint (Zihintntl). A hint is encoded as an ADD x0, x0, rs2
+// instruction (C.ADD x0, rs2 for the compressed C.NTL.* forms), with the
+// locality domain selected by rs2 (X2-X5).
+func instructionsForNTL(p *obj.Prog, ins *instruction) []*instruction {
+	if p.From.Type != obj.TYPE_NONE || p.To.Type != obj.TYPE_NONE {
+		p.Ctxt.Diag("%v: NTL hints take no operands", p)
+		return nil
+	}
+	switch ins.as {
+	case ANTLP1, ACNTLP1:
+		ins.rs2 = REG_X2
+	case ANTLPALL, ACNTLPALL:
+		ins.rs2 = REG_X3
+	case ANTLS1, ACNTLS1:
+		ins.rs2 = REG_X4
+	case ANTLALL, ACNTLALL:
+		ins.rs2 = REG_X5
+	}
+
+	// The compressed C.NTL.* forms are encoded as C.ADD x0, rs2; the
+	// non-compressed forms as ADD x0, x0, rs2.
+	switch ins.as {
+	case ACNTLP1, ACNTLPALL, ACNTLS1, ACNTLALL:
+		ins.as = ACADD
+	default:
+		ins.as = AADD
+	}
+	ins.rd, ins.rs1 = REG_ZERO, REG_ZERO
+	return []*instruction{ins}
+}
+
 // instructionsForProg returns the machine instructions for an *obj.Prog.
 func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 	ins := instructionForProg(p)
@@ -4408,6 +4443,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		}
 		ins.rs1 = REG_ZERO
 		ins.imm = insEnc.csr
+
+	case ANTLP1, ANTLPALL, ANTLS1, ANTLALL, ACNTLP1, ACNTLPALL, ACNTLS1, ACNTLALL:
+		inss = instructionsForNTL(p, ins)
 
 	case ARDCYCLE, ARDTIME, ARDINSTRET:
 		ins.as = ACSRRS
