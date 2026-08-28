@@ -1088,7 +1088,7 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
 	if isGenericMethod(obj.Type()) {
 		recv := obj.Type().(*types2.Signature).Recv().Type()
 		fstr := "%s.%s"
-		if _, ok := recv.(*types2.Pointer); ok {
+		if _, ok := types2.Unalias(recv).(*types2.Pointer); ok {
 			fstr = "(*%s).%s"
 		}
 		name = fmt.Sprintf(fstr, types2.Unalias(deref2(recv)).(*types2.Named).Obj().Name(), name)
