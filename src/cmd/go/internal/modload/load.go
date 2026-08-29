@@ -258,18 +258,24 @@ func LoadPackages(ld *Loader, ctx context.Context, opts PackageOpts, patterns ..
 	}
 
 	updateMatches := func(rs *Requirements, pld *packageLoader) {
+		matchWork := par.NewQueue(runtime.GOMAXPROCS(0))
 		for _, m := range matches {
-			switch {
-			case m.IsLocal():
-				// Evaluate list of file system directories on first iteration.
-				if m.Dirs == nil {
+			if m.IsLocal() && m.Dirs == nil {
+				// only scan the filesystem once
+				matchWork.Add(func() {
 					matchModRoots := ld.modRoots
 					if opts.MainModule != (module.Version{}) {
 						matchModRoots = []string{ld.MainModules.ModRoot(opts.MainModule)}
 					}
 					matchLocalDirs(ld, ctx, matchModRoots, m, rs)
-				}
+				})
+			}
+		}
+		<-matchWork.Idle()
 
+		for _, m := range matches {
+			switch {
+			case m.IsLocal():
 				// Make a copy of the directory list and translate to import paths.
 				// Note that whether a directory corresponds to an import path
 				// changes as the build list is updated, and a directory can change
