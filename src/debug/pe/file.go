@@ -437,8 +437,8 @@ func (f *File) ImportedSymbols() ([]string, error) {
 					all = append(all, fn+":"+dt.dll)
 				}
 			} else { // 32bit
-				if len(d) <= 4 {
-					return nil, errors.New("thunk parsing needs at least 5-bytes")
+				if len(d) < 4 {
+					return nil, errors.New("thunk parsing needs at least 4 bytes")
 				}
 				va := binary.LittleEndian.Uint32(d[0:4])
 				d = d[4:]
