@@ -33,5 +33,9 @@ func log2(x float64) float64 {
 	if frac == 0.5 {
 		return float64(exp - 1)
 	}
+	// Avoid cancellation near 1. x-1 is exact for x in [0.5, 2).
+	if exp == 0 || exp == 1 {
+		return Log1p(x-1) * (1 / Ln2)
+	}
 	return Log(frac)*(1/Ln2) + float64(exp)
 }
