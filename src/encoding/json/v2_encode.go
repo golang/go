@@ -113,6 +113,9 @@ import (
 //	// Field appears in JSON as key "-".
 //	Field int `json:"'-'"`
 //
+//	// The JSON object members of Nested are promoted into the parent object.
+//	Nested NestedType `json:",embed"`
+//
 // The "omitzero" option specifies that the field should be omitted
 // from the encoding if the field has a zero value, according to rules:
 //
@@ -134,6 +137,24 @@ import (
 // The key name will be used if it's a non-empty string consisting of
 // only Unicode letters, digits, and ASCII punctuation except quotation
 // marks, backslash, and comma.
+//
+// The "embed" option specifies that the JSON representable content of this
+// field type is to be promoted as if it were specified in the parent struct.
+// It is the JSON equivalent of Go struct embedding:
+//
+//	Nested NestedType `json:",embed"`
+//
+// A Go embedded field is implicitly JSON embedded unless an explicit JSON
+// name is specified. The embedded field must be a Go struct
+// (that does not implement any JSON methods), [jsontext.Value],
+// map[~string]T, or an unnamed pointer to such types. When marshaling,
+// embedded fields from a pointer type are omitted if it is nil.
+// Embedded fields of type [jsontext.Value] and map[~string]T are called
+// “embedded fallbacks” as they can represent all possible
+// JSON object members not directly handled by the parent struct.
+// Only one embedded fallback field may be specified in a struct,
+// while many non-fallback fields may be specified. This option
+// must not be specified with any other option (including the JSON name).
 //
 // Embedded struct fields are usually marshaled as if their inner exported fields
 // were fields in the outer struct, subject to the usual Go visibility rules amended
