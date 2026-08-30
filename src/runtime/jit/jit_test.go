@@ -72,6 +72,29 @@ func TestMultipleRegisterUnregister(t *testing.T) {
 	}
 }
 
+// TestManyRegisterUnregister verifies that the registry grows with its users.
+// JITs commonly allocate one registered region per executable arena.
+func TestManyRegisterUnregister(t *testing.T) {
+	code := make([]byte, 128)
+	addr, size, err := allocExecutable(code)
+	if err != nil {
+		t.Fatalf("allocExecutable: %v", err)
+	}
+	defer freeExecutable(addr, size)
+
+	handles := make([]jit.Handle, len(code))
+	for i := range handles {
+		handles[i] = jit.Register(jit.Region{
+			Start:  addr + uintptr(i),
+			End:    addr + uintptr(i+1),
+			Unwind: jit.UnwindStop,
+		})
+	}
+	for i := len(handles) - 1; i >= 0; i-- {
+		handles[i].Unregister()
+	}
+}
+
 // TestConcurrentRegisterUnregister tests that concurrent registration
 // and unregistration do not crash.
 func TestConcurrentRegisterUnregister(t *testing.T) {
