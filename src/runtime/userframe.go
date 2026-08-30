@@ -87,12 +87,13 @@ const (
 // on an immutable snapshot. This avoids data races without requiring
 // the reader to take a lock (which is important because the reader runs
 // on the system stack during stack unwinding and signal handling).
-const maxUserFrameRegions = 64
 
 // userFrameSnapshot is the immutable snapshot published to readers.
+// regions is a variable-length trailing array allocated by
+// allocUserFrameSnapshot.
 type userFrameSnapshot struct {
-	regions [maxUserFrameRegions]userFrameRegion
 	count   int
+	regions [1]userFrameRegion
 }
 
 var (
@@ -109,6 +110,29 @@ func loadUserFrameSnapshot() *userFrameSnapshot {
 	return (*userFrameSnapshot)(p)
 }
 
+func allocUserFrameSnapshot(count int) *userFrameSnapshot {
+	if count < 0 {
+		throw("registerUserFrameRegion: too many regions")
+	}
+	regionBytes := uintptr(count) * unsafe.Sizeof(userFrameRegion{})
+	if count != 0 && regionBytes/unsafe.Sizeof(userFrameRegion{}) != uintptr(count) {
+		throw("registerUserFrameRegion: too many regions")
+	}
+	bytes := unsafe.Offsetof(userFrameSnapshot{}.regions) + regionBytes
+	if bytes < regionBytes {
+		throw("registerUserFrameRegion: too many regions")
+	}
+	mem := persistentalloc(bytes, unsafe.Alignof(userFrameSnapshot{}), &memstats.other_sys)
+	snap := (*userFrameSnapshot)(mem)
+	snap.count = count
+	return snap
+}
+
+//go:nosplit
+func (snap *userFrameSnapshot) region(i int) *userFrameRegion {
+	return (*userFrameRegion)(add(unsafe.Pointer(snap), unsafe.Offsetof(userFrameSnapshot{}.regions)+uintptr(i)*unsafe.Sizeof(userFrameRegion{})))
+}
+
 func registerUserFrameRegion(r userFrameRegion) uintptr {
 	if r.start >= r.end {
 		throw("registerUserFrameRegion: invalid address range")
@@ -122,14 +146,9 @@ func registerUserFrameRegion(r userFrameRegion) uintptr {
 		oldCount = old.count
 	}
 
-	if oldCount >= maxUserFrameRegions {
-		unlock(&userFrameLock)
-		throw("registerUserFrameRegion: too many regions")
-	}
-
 	// Check for overlaps.
 	for i := 0; i < oldCount; i++ {
-		fr := &old.regions[i]
+		fr := old.region(i)
 		if r.start < fr.end && r.end > fr.start {
 			unlock(&userFrameLock)
 			throw("registerUserFrameRegion: overlapping region")
@@ -141,27 +160,25 @@ func registerUserFrameRegion(r userFrameRegion) uintptr {
 	r.handle = userFrameHandle
 
 	// Build new snapshot with the region inserted in sorted order.
-	mem := persistentalloc(unsafe.Sizeof(userFrameSnapshot{}), unsafe.Sizeof(uintptr(0)), &memstats.other_sys)
-	snap := (*userFrameSnapshot)(mem)
+	snap := allocUserFrameSnapshot(oldCount + 1)
 
 	pos := oldCount
 	for i := 0; i < oldCount; i++ {
-		if r.start < old.regions[i].start {
+		if r.start < old.region(i).start {
 			pos = i
 			break
 		}
 	}
 	// Copy elements before pos.
 	for i := 0; i < pos; i++ {
-		snap.regions[i] = old.regions[i]
+		*snap.region(i) = *old.region(i)
 	}
 	// Insert new region.
-	snap.regions[pos] = r
+	*snap.region(pos) = r
 	// Copy elements after pos.
 	for i := pos; i < oldCount; i++ {
-		snap.regions[i+1] = old.regions[i]
+		*snap.region(i + 1) = *old.region(i)
 	}
-	snap.count = oldCount + 1
 
 	// Publish atomically. Readers will see the complete new snapshot.
 	atomic.StorepNoWB(unsafe.Pointer(&userFrameSnap), unsafe.Pointer(snap))
@@ -182,7 +199,7 @@ func unregisterUserFrameRegion(handle uintptr) {
 	// Find the region.
 	idx := -1
 	for i := 0; i < old.count; i++ {
-		if old.regions[i].handle == handle {
+		if old.region(i).handle == handle {
 			idx = i
 			break
 		}
@@ -193,17 +210,14 @@ func unregisterUserFrameRegion(handle uintptr) {
 	}
 
 	// Build new snapshot without the region.
-	mem := persistentalloc(unsafe.Sizeof(userFrameSnapshot{}), unsafe.Sizeof(uintptr(0)), &memstats.other_sys)
-	snap := (*userFrameSnapshot)(mem)
+	snap := allocUserFrameSnapshot(old.count - 1)
 	j := 0
 	for i := 0; i < old.count; i++ {
 		if i != idx {
-			snap.regions[j] = old.regions[i]
+			*snap.region(j) = *old.region(i)
 			j++
 		}
 	}
-	snap.count = old.count - 1
-
 	atomic.StorepNoWB(unsafe.Pointer(&userFrameSnap), unsafe.Pointer(snap))
 
 	unlock(&userFrameLock)
@@ -222,12 +236,13 @@ func findUserFrameRegion(pc uintptr) *userFrameRegion {
 	lo, hi := 0, snap.count
 	for lo < hi {
 		mid := int(uint(lo+hi) >> 1)
-		if snap.regions[mid].end <= pc {
+		region := snap.region(mid)
+		if region.end <= pc {
 			lo = mid + 1
-		} else if snap.regions[mid].start > pc {
+		} else if region.start > pc {
 			hi = mid
 		} else {
-			return &snap.regions[mid]
+			return region
 		}
 	}
 	return nil
@@ -435,7 +450,7 @@ func jit_addUserFrameStackMaps(handle uintptr, stackMaps []userFrameStackMapInpu
 	snap := loadUserFrameSnapshot()
 	if snap != nil {
 		for i := 0; i < snap.count; i++ {
-			r := &snap.regions[i]
+			r := snap.region(i)
 			if r.handle == handle {
 				appendUserFrameStackMaps(r.stackMaps, r.start, r.end, r.unwindMode, stackMaps)
 				unlock(&userFrameLock)
