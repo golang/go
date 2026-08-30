@@ -30,8 +30,8 @@ var (
 	timeTimeType     = reflect.TypeFor[time.Time]()
 )
 
-func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
-	// Ideally, time types would implement MarshalerTo and UnmarshalerFrom,
+func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
+	// Ideally, time types would implement MarshalerTo,
 	// but that would incur a dependency on package json from package time.
 	// Given how widely used time is, it is more acceptable that we incur a
 	// dependency on time from json.
@@ -42,8 +42,8 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 	switch t {
 	case timeDurationType:
 		fncs.nonDefault = true
-		marshalNano := fncs.marshal
-		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
+		marshalNano := fncs.fnc
+		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			xe := export.Encoder(enc)
 			var m durationArshaler
 			if mo.Flags.Has(jsonflags.FormatTag) {
@@ -74,8 +74,51 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			}
 			return nil
 		}
-		unmarshalNano := fncs.unmarshal
-		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+	case timeTimeType:
+		fncs.nonDefault = true
+		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
+			xe := export.Encoder(enc)
+			var m timeArshaler
+			if mo.Flags.Has(jsonflags.FormatTag) {
+				if !m.initFormat(mo.Format) {
+					return newInvalidFormatError(enc, t)
+				}
+			}
+			if mo.Flags.Get(jsonflags.StringTag) && !m.isNumeric() && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+				return newMarshalErrorBefore(enc, t, errInvalidStringTag)
+			}
+
+			m.tt, _ = reflect.TypeAssert[time.Time](va.Value)
+			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag))
+			if err := xe.AppendRaw(k, !m.hasCustomFormat(), m.appendMarshal); err != nil {
+				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
+				}
+				if !isSyntacticError(err) && !export.IsIOError(err) {
+					err = newMarshalErrorBefore(enc, t, err)
+				}
+				return err
+			}
+			return nil
+		}
+	}
+	return fncs
+}
+
+func makeTimeUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
+	// Ideally, time types would implement UnmarshalerFrom,
+	// but that would incur a dependency on package json from package time.
+	// Given how widely used time is, it is more acceptable that we incur a
+	// dependency on time from json.
+	//
+	// Injecting the arshaling functionality like this will not be identical
+	// to actually declaring methods on the time types since embedding of the
+	// time types will not be able to forward this functionality.
+	switch t {
+	case timeDurationType:
+		fncs.nonDefault = true
+		unmarshalNano := fncs.fnc
+		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			xd := export.Decoder(dec)
 			var u durationArshaler
 			if uo.Flags.Has(jsonflags.FormatTag) {
@@ -133,32 +176,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		}
 	case timeTimeType:
 		fncs.nonDefault = true
-		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
-			xe := export.Encoder(enc)
-			var m timeArshaler
-			if mo.Flags.Has(jsonflags.FormatTag) {
-				if !m.initFormat(mo.Format) {
-					return newInvalidFormatError(enc, t)
-				}
-			}
-			if mo.Flags.Get(jsonflags.StringTag) && !m.isNumeric() && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-				return newMarshalErrorBefore(enc, t, errInvalidStringTag)
-			}
-
-			m.tt, _ = reflect.TypeAssert[time.Time](va.Value)
-			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag))
-			if err := xe.AppendRaw(k, !m.hasCustomFormat(), m.appendMarshal); err != nil {
-				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
-				}
-				if !isSyntacticError(err) && !export.IsIOError(err) {
-					err = newMarshalErrorBefore(enc, t, err)
-				}
-				return err
-			}
-			return nil
-		}
-		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) (err error) {
+		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) (err error) {
 			xd := export.Decoder(dec)
 			var u timeArshaler
 			if uo.Flags.Has(jsonflags.FormatTag) {

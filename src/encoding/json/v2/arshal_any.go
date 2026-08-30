@@ -50,7 +50,7 @@ func marshalValueAny(enc *jsontext.Encoder, val any, mo *jsonopts.Struct) error 
 
 	v := newAddressableValue(reflect.TypeOf(val))
 	v.Set(reflect.ValueOf(val))
-	marshal := lookupArshaler(v.Type()).marshal
+	marshal := lookupMarshaler(v.Type()).fnc
 	if mo.Marshalers != nil {
 		marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, v.Type())
 	}

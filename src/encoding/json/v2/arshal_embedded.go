@@ -37,7 +37,7 @@ var errRawEmbedNotObject = errors.New("embedded raw value must be a JSON object"
 var jsontextValueType = reflect.TypeFor[jsontext.Value]()
 
 // marshalEmbeddedFallbackAll marshals all the members in an embedded fallback.
-func marshalEmbeddedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct, f *structField, insertUnquotedName func([]byte) bool) error {
+func marshalEmbeddedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct, f *structField, fnc *marshaler, insertUnquotedName func([]byte) bool) error {
 	v := addressableValue{va.Field(f.index0), va.forcedAddr} // addressable if struct value is addressable
 	if len(f.index) > 0 {
 		v = v.fieldByIndex(f.index, false)
@@ -126,7 +126,7 @@ func marshalEmbeddedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *
 			}
 			return enc.WriteValue(b)
 		}
-		marshalVal := f.fncs.marshal
+		marshalVal := fnc.fnc
 		if mo.Marshalers != nil {
 			marshalVal, _ = mo.Marshalers.(*Marshalers).lookup(marshalVal, mv.Type())
 		}
@@ -166,7 +166,7 @@ func marshalEmbeddedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *
 }
 
 // unmarshalEmbeddedFallbackNext unmarshals only the next member in an embedded fallback.
-func unmarshalEmbeddedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct, f *structField, quotedName, unquotedName []byte) error {
+func unmarshalEmbeddedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct, f *structField, fnc *unmarshaler, quotedName, unquotedName []byte) error {
 	v := addressableValue{va.Field(f.index0), va.forcedAddr} // addressable if struct value is addressable
 	if len(f.index) > 0 {
 		v = v.fieldByIndex(f.index, true)
@@ -216,7 +216,7 @@ func unmarshalEmbeddedFallbackNext(dec *jsontext.Decoder, va addressableValue, u
 			mv.Set(v2)
 		}
 
-		unmarshal := f.fncs.unmarshal
+		unmarshal := fnc.fnc
 		if uo.Unmarshalers != nil {
 			unmarshal, _ = uo.Unmarshalers.(*Unmarshalers).lookup(unmarshal, mv.Type())
 		}

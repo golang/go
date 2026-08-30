@@ -241,7 +241,7 @@ func marshalEncode(out *jsontext.Encoder, in any, mo *jsonopts.Struct) (err erro
 	t := va.Type()
 
 	// Lookup and call the marshal function for this type.
-	marshal := lookupArshaler(t).marshal
+	marshal := lookupMarshaler(t).fnc
 	if mo.Marshalers != nil {
 		marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, t)
 	}
@@ -464,7 +464,7 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 	}
 
 	// Lookup and call the unmarshal function for this type.
-	unmarshal := lookupArshaler(t).unmarshal
+	unmarshal := lookupUnmarshaler(t).fnc
 	if uo.Unmarshalers != nil {
 		unmarshal, _ = uo.Unmarshalers.(*Unmarshalers).lookup(unmarshal, t)
 	}
@@ -504,7 +504,7 @@ func newAddressableValue(t reflect.Type) addressableValue {
 	return addressableValue{reflect.New(t).Elem(), true}
 }
 
-// TODO: Remove *jsonopts.Struct argument from [marshaler] and [unmarshaler].
+// TODO: Remove *jsonopts.Struct argument from [marshalFunc] and [unmarshalFunc].
 // This can be directly accessed on the encoder or decoder.
 
 // All marshal and unmarshal behavior is implemented using these signatures.
@@ -513,30 +513,50 @@ func newAddressableValue(t reflect.Type) addressableValue {
 // It is identical for Marshal, Unmarshal, MarshalWrite, and UnmarshalRead.
 // It is a super-set for MarshalEncode and UnmarshalDecode.
 type (
-	marshaler   = func(*jsontext.Encoder, addressableValue, *jsonopts.Struct) error
-	unmarshaler = func(*jsontext.Decoder, addressableValue, *jsonopts.Struct) error
+	marshalFunc   = func(*jsontext.Encoder, addressableValue, *jsonopts.Struct) error
+	unmarshalFunc = func(*jsontext.Decoder, addressableValue, *jsonopts.Struct) error
 )
 
-type arshaler struct {
-	marshal    marshaler
-	unmarshal  unmarshaler
+type marshaler struct {
+	fnc        marshalFunc
 	nonDefault bool
 }
 
-var lookupArshalerCache sync.Map // map[reflect.Type]*arshaler
+type unmarshaler struct {
+	fnc        unmarshalFunc
+	nonDefault bool
+}
 
-func lookupArshaler(t reflect.Type) *arshaler {
-	if v, ok := lookupArshalerCache.Load(t); ok {
-		return v.(*arshaler)
+var lookupMarshalerCache sync.Map // map[reflect.Type]*marshaler
+
+func lookupMarshaler(t reflect.Type) *marshaler {
+	if v, ok := lookupMarshalerCache.Load(t); ok {
+		return v.(*marshaler)
 	}
 
-	fncs := makeDefaultArshaler(t)
-	fncs = makeMethodArshaler(fncs, t)
-	fncs = makeTimeArshaler(fncs, t)
+	fnc := makeDefaultMarshaler(t)
+	fnc = makeMethodMarshaler(fnc, t)
+	fnc = makeTimeMarshaler(fnc, t)
 
-	// Use the last stored so that duplicate arshalers can be garbage collected.
-	v, _ := lookupArshalerCache.LoadOrStore(t, fncs)
-	return v.(*arshaler)
+	// Use the last stored so that duplicate marshalers can be garbage collected.
+	v, _ := lookupMarshalerCache.LoadOrStore(t, fnc)
+	return v.(*marshaler)
+}
+
+var lookupUnmarshalerCache sync.Map // map[reflect.Type]*unmarshaler
+
+func lookupUnmarshaler(t reflect.Type) *unmarshaler {
+	if v, ok := lookupUnmarshalerCache.Load(t); ok {
+		return v.(*unmarshaler)
+	}
+
+	fnc := makeDefaultUnmarshaler(t)
+	fnc = makeMethodUnmarshaler(fnc, t)
+	fnc = makeTimeUnmarshaler(fnc, t)
+
+	// Use the last stored so that duplicate unmarshalers can be garbage collected.
+	v, _ := lookupUnmarshalerCache.LoadOrStore(t, fnc)
+	return v.(*unmarshaler)
 }
 
 var stringsPools = &sync.Pool{New: func() any { return new(stringSlice) }}
