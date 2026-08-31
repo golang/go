@@ -376,11 +376,11 @@
 
 // Unroll zeroing in medium size (at most 192 bytes i.e. 3 cachelines)
 (Zero [s] {t} ptr mem) && s <= 24*moveSize(t.Alignment(), config) =>
-	(LoweredZero [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+	(LoweredZero [s] {t.Alignment()} ptr mem)
 
 // Generic zeroing uses a loop
 (Zero [s] {t} ptr mem) && s > 24*moveSize(t.Alignment(), config) =>
-	(LoweredZeroLoop [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+	(LoweredZeroLoop [s] {t.Alignment()} ptr mem)
 
 // Checks
 (IsNonNil ...) => (SNEZ ...)
@@ -446,12 +446,12 @@
 // Generic move
 (Move [s] {t} dst src mem) && s > 0 && s <= 3*8*moveSize(t.Alignment(), config)
 	&& logLargeCopy(v, s) =>
-	(LoweredMove [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+	(LoweredMove [s] {t.Alignment()} dst src mem)
 
 // Generic move uses a loop
 (Move [s] {t} dst src mem) && s > 3*8*moveSize(t.Alignment(), config)
 	&& logLargeCopy(v, s) =>
-	(LoweredMoveLoop [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+	(LoweredMoveLoop [s] {t.Alignment()} dst src mem)
 
 // Boolean ops; 0=false, 1=true
 (AndB ...) => (AND ...)

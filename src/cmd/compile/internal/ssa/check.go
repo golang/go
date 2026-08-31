@@ -219,8 +219,14 @@ func checkFunc(f *Func) {
 			case auxPanicBoundsC, auxPanicBoundsCC:
 				canHaveAux = true
 				canHaveAuxInt = true
+			case auxSizeAndAlign:
+				if _, ok := v.Aux.(int64Aux); !ok {
+					f.Fatalf("value %v has Aux type %T, want int64Aux", v, v.Aux)
+				}
+				canHaveAux = true
+				canHaveAuxInt = true
 			default:
-				f.Fatalf("unknown aux type for %s", v.Op)
+				f.Fatalf("unknown aux type %T for %s", opcodeTable[v.Op].auxType, v.Op)
 			}
 			if !canHaveAux && v.Aux != nil {
 				f.Fatalf("value %s has an Aux value %v but shouldn't", v.LongString(), v.Aux)

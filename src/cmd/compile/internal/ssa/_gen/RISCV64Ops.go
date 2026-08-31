@@ -286,15 +286,15 @@ func init() {
 		// general unrolled zeroing
 		// arg0 = address of memory to zero
 		// arg1 = mem
-		// auxint = element size and type alignment
+		// auxint = size
+		// aux = alignment (as an int64)
 		// returns mem
 		//	mov	ZERO, (OFFSET)(Rarg0)
 		{
 			name:           "LoweredZero",
-			aux:            "SymValAndOff",
+			aux:            "SizeAndAlign",
 			typ:            "Mem",
 			argLength:      2,
-			symEffect:      "Write",
 			faultOnNilArg0: true,
 			addrSinkArg0:   true,
 			reg: regInfo{
@@ -303,15 +303,15 @@ func init() {
 		},
 		// general unaligned zeroing
 		// arg0 = address of memory to zero (clobber)
-		// arg2 = mem
-		// auxint = element size and type alignment
+		// arg1 = mem
+		// auxint = size
+		// aux = alignment (as an int64)
 		// returns mem
 		{
 			name:           "LoweredZeroLoop",
-			aux:            "SymValAndOff",
+			aux:            "SizeAndAlign",
 			typ:            "Mem",
 			argLength:      2,
-			symEffect:      "Write",
 			needIntTemp:    true,
 			faultOnNilArg0: true,
 			addrSinkArg0:   true,
@@ -325,14 +325,14 @@ func init() {
 		// arg0 = address of dst memory (clobber)
 		// arg1 = address of src memory (clobber)
 		// arg2 = mem
-		// auxint = size and type alignment
+		// auxint = size
+		// aux = alignment (as an int64)
 		// returns mem
 		//	mov	(offset)(Rarg1), TMP
 		//	mov	TMP, (offset)(Rarg0)
 		{
 			name:      "LoweredMove",
-			aux:       "SymValAndOff",
-			symEffect: "Write",
+			aux:       "SizeAndAlign",
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{gpMask &^ regNamed["X5"], gpMask &^ regNamed["X5"]},
@@ -347,8 +347,9 @@ func init() {
 		// general unaligned move
 		// arg0 = address of dst memory (clobber)
 		// arg1 = address of src memory (clobber)
-		// arg3 = mem
-		// auxint = alignment
+		// arg2 = mem
+		// auxint = size
+		// aux = alignment (as an int64)
 		// returns mem
 		//	ADD	$sz, X6
 		//loop:
@@ -360,9 +361,8 @@ func init() {
 		//	BNE	X6, Rarg1, loop
 		{
 			name:      "LoweredMoveLoop",
-			aux:       "SymValAndOff",
+			aux:       "SizeAndAlign",
 			argLength: 3,
-			symEffect: "Write",
 			reg: regInfo{
 				inputs:       []regMask{gpMask &^ r5toR6, gpMask &^ r5toR6},
 				clobbers:     r5toR6,
