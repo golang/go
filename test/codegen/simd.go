@@ -162,6 +162,13 @@ func simdZeroingUsesVEX(x archsimd.Uint64x8) uint64 {
 	return n
 }
 
+func simdShiftScalarUsesVEX(x archsimd.Uint64x2, n uint64) archsimd.Uint64x2 {
+	// The scalar shift count must be moved to a vector register with
+	// a VEX encoding, not a legacy-SSE MOVQ (issue 80835).
+	// amd64:`VMOVQ` -`\bMOVQ [A-Z]+, X`
+	return x.ShiftAllLeft(n)
+}
+
 func simdMoveUsesVEX(x archsimd.Uint64x8, p *[8]uint64) uint64 {
 	// The 64-byte array copy is a lowered Move; its 16-byte chunks
 	// must use VEX encodings here (issue 80835).
@@ -183,4 +190,29 @@ func simdMove16UsesVEX(x archsimd.Uint64x2, d, s *[16]byte) uint64 {
 	var out [2]uint64
 	t.Store(out[:])
 	return out[0]
+}
+
+//go:noinline
+func simdOpaque() {}
+
+func simdSpillUsesVEX(a, b archsimd.Uint64x2) archsimd.Uint64x2 {
+	// x is live across the call, so it is spilled and reloaded; both
+	// must use VEX encodings here (issue 80835).
+	// amd64:`VMOVUPS [^,]*\(SP\), X` -`\bMOVUPS`
+	x := a.Add(b)
+	simdOpaque()
+	return x.Add(x)
+}
+
+func simdShuffleCopyUsesVEX(a, b archsimd.Uint64x2, n int) archsimd.Uint64x2 {
+	// The swap makes regalloc place shuffle copies in the block
+	// splitting the loop back edge; they must use VEX encodings here.
+	// This also relies on split-edge blocks inheriting the CPU
+	// features of their edge (issue 80835).
+	x, y := a, b
+	// amd64:`VMOVUPS X[0-9]+, X[0-9]+` -`\bMOVUPS`
+	for i := 0; i < n; i++ {
+		x, y = y, x
+	}
+	return x.Add(y)
 }

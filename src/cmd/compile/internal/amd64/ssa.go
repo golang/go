@@ -67,7 +67,10 @@ func isHighFPReg(r int16) bool {
 }
 
 // loadByRegWidth returns the load instruction of the given register of a given width.
-func loadByRegWidth(r int16, width int64) obj.As {
+// avx says whether AVX is known to be present, in which case VEX encodings are
+// used for otherwise legacy-SSE instructions to avoid AVX-SSE transition
+// penalties. See issue #80835.
+func loadByRegWidth(r int16, width int64, avx bool) obj.As {
 	// Avoid partial register write for GPR
 	if !isFPReg(r) && !isKReg(r) {
 		switch width {
@@ -78,17 +81,28 @@ func loadByRegWidth(r int16, width int64) obj.As {
 		}
 	}
 	// Otherwise, there's no difference between load and store opcodes.
-	return storeByRegWidth(r, width)
+	return storeByRegWidth(r, width, avx)
 }
 
 // storeByRegWidth returns the store instruction of the given register of a given width.
 // It's also used for loading const to a reg.
-func storeByRegWidth(r int16, width int64) obj.As {
+// See loadByRegWidth for the meaning of avx.
+func storeByRegWidth(r int16, width int64, avx bool) obj.As {
 	if isHighFPReg(r) {
 		// High registers require AVX512 instruction
 		return x86.AVMOVDQU64
 	}
 	if isFPReg(r) {
+		if avx {
+			switch width {
+			case 4:
+				return x86.AVMOVSS
+			case 8:
+				return x86.AVMOVSD
+			case 16:
+				return x86.AVMOVUPS
+			}
+		}
 		switch width {
 		case 4:
 			return x86.AMOVSS
@@ -121,7 +135,8 @@ func storeByRegWidth(r int16, width int64) obj.As {
 }
 
 // moveByRegsWidth returns the reg->reg move instruction of the given dest/src registers of a given width.
-func moveByRegsWidth(dest, src int16, width int64) obj.As {
+// See loadByRegWidth for the meaning of avx.
+func moveByRegsWidth(dest, src int16, width int64, avx bool) obj.As {
 	// fp -> fp
 	if isFPReg(dest) && isFPReg(src) {
 		if isHighFPReg(src) || isHighFPReg(dest) {
@@ -133,6 +148,9 @@ func moveByRegsWidth(dest, src int16, width int64) obj.As {
 		// There is no xmm->xmm move with 1 byte opcode,
 		// so use movups, which has 2 byte opcode.
 		if width <= 16 {
+			if avx {
+				return x86.AVMOVUPS
+			}
 			return x86.AMOVUPS
 		}
 		if width <= 32 {
@@ -146,6 +164,15 @@ func moveByRegsWidth(dest, src int16, width int64) obj.As {
 			panic(fmt.Sprintf("bad move, src=%v, dest=%v, width=%d", src, dest, width))
 		}
 		return x86.AKMOVQ
+	}
+	// gp -> fp, fp -> gp
+	if avx && (isFPReg(dest) || isFPReg(src)) {
+		switch width {
+		case 1, 2, 4:
+			return x86.AVMOVD
+		case 8:
+			return x86.AVMOVQ
+		}
 	}
 	// gp -> fp, fp -> gp, gp -> gp
 	switch width {
@@ -665,7 +692,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// But this requires a way for regalloc to know that SRC might be
 		// clobbered by this instruction.
 		t := v.RegTmp()
-		opregreg(s, moveByRegsWidth(t, v.Args[1].Reg(), v.Type.Size()), t, v.Args[1].Reg())
+		opregreg(s, moveByRegsWidth(t, v.Args[1].Reg(), v.Type.Size(), hasAVX(v)), t, v.Args[1].Reg())
 
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -850,7 +877,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			opregreg(s, x86.AXORL, x, x)
 			break
 		}
-		p := s.Prog(storeByRegWidth(x, v.Type.Size()))
+		p := s.Prog(storeByRegWidth(x, v.Type.Size(), hasAVX(v)))
 		p.From.Type = obj.TYPE_FCONST
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
@@ -1062,12 +1089,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		opregreg(s, x86.AXORPS, r, r)
 		opregreg(s, v.Op.Asm(), r, v.Args[0].Reg())
 	case ssaop.OpAMD64MOVQi2f, ssaop.OpAMD64MOVQf2i, ssaop.OpAMD64MOVLi2f, ssaop.OpAMD64MOVLf2i:
+		avx := hasAVX(v)
 		var p *obj.Prog
 		switch v.Op {
 		case ssaop.OpAMD64MOVQi2f, ssaop.OpAMD64MOVQf2i:
-			p = s.Prog(x86.AMOVQ)
+			if avx {
+				p = s.Prog(x86.AVMOVQ)
+			} else {
+				p = s.Prog(x86.AMOVQ)
+			}
 		case ssaop.OpAMD64MOVLi2f, ssaop.OpAMD64MOVLf2i:
-			p = s.Prog(x86.AMOVL)
+			if avx {
+				p = s.Prog(x86.AVMOVD)
+			} else {
+				p = s.Prog(x86.AMOVL)
+			}
 		}
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
@@ -1333,7 +1369,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				// since it zeroes the upper 32 bits anyway.
 				width = 4
 			}
-			opregreg(s, moveByRegsWidth(y, x, width), y, x)
+			opregreg(s, moveByRegsWidth(y, x, width, hasAVX(v)), y, x)
 		}
 	case ssaop.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -1341,7 +1377,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			return
 		}
 		r := v.Reg()
-		p := s.Prog(loadByRegWidth(r, v.Type.Size()))
+		p := s.Prog(loadByRegWidth(r, v.Type.Size(), hasAVX(v)))
 		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		if v.Type.IsSIMD() {
@@ -1358,7 +1394,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if v.Type.IsSIMD() {
 			r = simdOrMaskReg(v.Args[0])
 		}
-		p := s.Prog(storeByRegWidth(r, v.Type.Size()))
+		p := s.Prog(storeByRegWidth(r, v.Type.Size(), hasAVX(v)))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
@@ -1381,8 +1417,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			if t.IsSIMD() {
 				reg = simdRegBySize(reg, sz)
 			}
+			// These spills execute in the prologue, so only the
+			// entry block's CPU features apply.
+			avx := v.Block.Func.Entry.CPUfeatures.HasFeature(ssa.CPUavx)
 			s.FuncInfo().AddSpill(
-				obj.RegSpill{Reg: reg, Addr: addr, Unspill: loadByRegWidth(reg, sz), Spill: storeByRegWidth(reg, sz)})
+				obj.RegSpill{Reg: reg, Addr: addr, Unspill: loadByRegWidth(reg, sz, avx), Spill: storeByRegWidth(reg, sz, avx)})
 		}
 		v.Block.Func.RegArgs = nil
 		ssagen.CheckArgReg(v)
@@ -2637,7 +2676,10 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 }
 
 func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
-	p := s.Prog(loadByRegWidth(reg, t.Size()))
+	// The entry block's CPU features hold on every path through the
+	// function, so they can be used regardless of where this load is
+	// placed.
+	p := s.Prog(loadByRegWidth(reg, t.Size(), f.Entry.CPUfeatures.HasFeature(ssa.CPUavx)))
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_AUTO
 	p.From.Sym = n.Linksym()
@@ -2648,7 +2690,8 @@ func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir
 }
 
 func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
-	p = pp.Append(p, storeByRegWidth(reg, t.Size()), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
+	// See loadRegResult for why the entry block's features apply.
+	p = pp.Append(p, storeByRegWidth(reg, t.Size(), f.Entry.CPUfeatures.HasFeature(ssa.CPUavx)), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
