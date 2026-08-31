@@ -68,20 +68,39 @@ func critical(f *ssa.Func) {
 					// the new blocks to be re-examined.
 					d = f.NewBlock(block.BlockPlain)
 					d.Pos = p.Pos
+					// CPU features are execution-invariant facts: d
+					// executes only after p and unconditionally jumps
+					// to b, so both blocks' features hold in d.
+					d.CPUfeatures = p.CPUfeatures | b.CPUfeatures
 					blocks[argID] = d
 					if f.Pass.Debug > 0 {
 						f.Warnl(p.Pos, "split critical edge")
+						if d.CPUfeatures != ssa.CPUNone {
+							f.Warnl(p.Pos, "split-edge block b%d has features %v", d.ID, d.CPUfeatures)
+						}
 					}
 				} else {
 					reusedBlock = true
+					// d gains another predecessor, so only the
+					// features common to all of its predecessors
+					// (plus b's) are still guaranteed.
+					d.CPUfeatures &= p.CPUfeatures | b.CPUfeatures
+					if f.Pass.Debug > 0 && d.CPUfeatures != ssa.CPUNone {
+						f.Warnl(p.Pos, "reused split-edge block b%d has features %v", d.ID, d.CPUfeatures)
+					}
 				}
 			} else {
 				// no existing block, so allocate a new block
 				// to place on the edge
 				d = f.NewBlock(block.BlockPlain)
 				d.Pos = p.Pos
+				// See above for why d inherits these features.
+				d.CPUfeatures = p.CPUfeatures | b.CPUfeatures
 				if f.Pass.Debug > 0 {
 					f.Warnl(p.Pos, "split critical edge")
+					if d.CPUfeatures != ssa.CPUNone {
+						f.Warnl(p.Pos, "split-edge block b%d has features %v", d.ID, d.CPUfeatures)
+					}
 				}
 			}
 
