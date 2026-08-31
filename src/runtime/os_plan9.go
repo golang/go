@@ -554,7 +554,9 @@ func signame(sig uint32) string {
 
 const preemptMSupported = false
 
-func preemptM(mp *m) {
+func preemptM(gp *g) {
+	casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
+
 	// Not currently supported.
 	//
 	// TODO: Use a note like we use signals on POSIX OSes

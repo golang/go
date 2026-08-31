@@ -214,13 +214,7 @@ func suspendG(gp *g) suspendGState {
 			asyncM = asyncM2
 			asyncGen = asyncGen2
 
-			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
-
-			// Send asynchronous preemption. We do this
-			// after CASing the G back to _Grunning
-			// because preemptM may be synchronous and we
-			// don't want to catch the G just spinning on
-			// its status.
+			// Send asynchronous preemption. preemptM releases the _Gscan bit.
 			if preemptMSupported && debug.asyncpreemptoff == 0 && needAsync {
 				// Rate limit preemptM calls. This is
 				// particularly important on Windows
@@ -230,9 +224,11 @@ func suspendG(gp *g) suspendGState {
 				now := nanotime()
 				if now >= nextPreemptM {
 					nextPreemptM = now + yieldDelay/2
-					preemptM(asyncM)
+					preemptM(gp)
+					break
 				}
 			}
+			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 		}
 
 		// TODO: Don't busy wait. This loop should really only

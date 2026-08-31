@@ -360,13 +360,22 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 
 const preemptMSupported = true
 
-// preemptM sends a preemption request to mp. This request may be
-// handled asynchronously and may be coalesced with other requests to
+// preemptM sends a preemption request to the M running gp. This request may
+// be handled asynchronously and may be coalesced with other requests to
 // the M. When the request is received, if the running G or P are
 // marked for preemption and the goroutine is at an asynchronous
 // safe-point, it will preempt the goroutine. It always atomically
-// increments mp.preemptGen after handling a preemption request.
-func preemptM(mp *m) {
+// increments the M's preemptGen after handling a preemption request.
+//
+// gp.preempt must be set, and gp must be in _Gscanrunning, with its _Gscan
+// bit held by the caller.
+// preemptM releases the _Gscan bit before returning.
+func preemptM(gp *g) {
+	// Save the M before releasing the _Gscan bit, which lets gp change Ms.
+	// preemptM is best effort, so it's fine if we signal a stale M.
+	mp := gp.m
+	casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
+
 	// On Darwin, don't try to preempt threads during exec.
 	// Issue #41702.
 	if GOOS == "darwin" || GOOS == "ios" {

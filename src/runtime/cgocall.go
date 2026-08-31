@@ -166,13 +166,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// saved by entersyscall here.
 	entersyscall()
 
-	// Tell asynchronous preemption that we're entering external
-	// code. We do this after entersyscall because this may block
-	// and cause an async preemption to fail, but at this point a
-	// sync preemption will succeed (though this is not a matter
-	// of correctness).
-	osPreemptExtEnter(mp)
-
 	mp.incgo = true
 	// We use ncgo as a check during execution tracing for whether there is
 	// any C on the call stack, which there will be after this point. If
@@ -188,8 +181,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// reschedule us on to a different M.
 	mp.incgo = false
 	mp.ncgo--
-
-	osPreemptExtExit(mp)
 
 	// After exitsyscall we can be rescheduled on a different M,
 	// so we need to restore the original M's winsyscall.
@@ -353,8 +344,6 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 		gp.m.isExtraInC = false
 	}
 
-	osPreemptExtExit(gp.m)
-
 	if gp.nocgocallback {
 		panic("runtime: function marked with #cgo nocallback called back into Go")
 	}
@@ -376,8 +365,6 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	if gp.m != checkm {
 		throw("m changed unexpectedly in cgocallbackg")
 	}
-
-	osPreemptExtEnter(gp.m)
 
 	// going back to cgo call
 	reentersyscall(savedpc, uintptr(savedsp), uintptr(savedbp))
@@ -510,7 +497,6 @@ func unwindm(restore *bool) {
 		if mp.ncgo > 0 {
 			mp.incgo = false
 			mp.ncgo--
-			osPreemptExtExit(mp)
 		}
 
 		// Undo the call to lockOSThread in cgocallbackg, only on the

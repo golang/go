@@ -173,29 +173,6 @@ type mOS struct {
 	highResTimer   uintptr // high resolution timer handle used in usleep
 	waitIocpTimer  uintptr // high resolution timer handle used in netpoll
 	waitIocpHandle uintptr // wait completion handle used in netpoll
-
-	// preemptExtLock synchronizes preemptM with entry/exit from
-	// external C code.
-	//
-	// This protects against races between preemptM calling
-	// SuspendThread and external code on this thread calling
-	// ExitProcess. If these happen concurrently, it's possible to
-	// exit the suspending thread and suspend the exiting thread,
-	// leading to deadlock.
-	//
-	// 0 indicates this M is not being preempted or in external
-	// code. Entering external code CASes this from 0 to 1. If
-	// this fails, a preemption is in progress, so the thread must
-	// wait for the preemption. preemptM also CASes this from 0 to
-	// 1. If this fails, the preemption fails (as it would if the
-	// PC weren't in Go code). The value is reset to 0 when
-	// returning from external code or after a preemption is
-	// complete.
-	//
-	// TODO(austin): We may not need this if preemption were more
-	// tightly synchronized on the G status and preemption
-	// blocked transition into _Gsyscall.
-	preemptExtLock uint32
 }
 
 // Stubs so tests can link correctly. These should never be called.
@@ -1193,25 +1170,27 @@ var suspendLock mutex
 // themselves from acquiring new locks.
 const threadPausedLockRank = lockRankLeafRank
 
-func preemptM(mp *m) {
+// preemptM requests preemption of the M running gp.
+// gp.preempt must be set, and gp must be in _Gscanrunning, with its _Gscan
+// bit held by the caller.
+// preemptM releases the _Gscan bit before returning.
+func preemptM(gp *g) {
+	mp := gp.m
 	if mp == getg().m {
 		throw("self-preempt")
 	}
 
-	// Synchronize with external code that may try to ExitProcess.
-	if !atomic.Cas(&mp.preemptExtLock, 0, 1) {
-		// External code is running. Fail the preemption
-		// attempt.
-		mp.preemptGen.Add(1)
-		return
-	}
+	// Keep gp in _Gscanrunning so it can't enter _Gsyscall and external
+	// code before SuspendThread takes effect. External code may call
+	// ExitProcess, which can otherwise kill this thread before the target
+	// is suspended.
 
 	// Acquire our own handle to mp's thread.
 	lock(&mp.threadLock)
 	if mp.thread == 0 {
 		// The M hasn't been minit'd yet (or was just unminit'd).
 		unlock(&mp.threadLock)
-		atomic.Store(&mp.preemptExtLock, 0)
+		casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 		mp.preemptGen.Add(1)
 		return
 	}
@@ -1242,11 +1221,11 @@ func preemptM(mp *m) {
 	if int32(stdcall(_SuspendThread, thread)) == -1 {
 		unlock(&suspendLock)
 		stdcall(_CloseHandle, thread)
-		atomic.Store(&mp.preemptExtLock, 0)
 		// The thread no longer exists. This shouldn't be
 		// possible, but just acknowledge the request.
 		mp.preemptGen.Add(1)
 		releaseLockRankAndM(threadPausedLockRank)
+		casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 		return
 	}
 
@@ -1263,9 +1242,8 @@ func preemptM(mp *m) {
 
 	unlock(&suspendLock)
 
-	// Does it want a preemption and is it safe to preempt?
-	gp := gFromSP(mp, c.SP())
-	if gp != nil && wantAsyncPreempt(gp) {
+	// Is it safe to preempt?
+	if gFromSP(mp, c.SP()) == gp {
 		if ok, resumePC := isAsyncSafePoint(gp, c.PC(), c.SP(), c.LR()); ok {
 			// Inject call to asyncPreempt
 			targetPC := abi.FuncPCABI0(asyncPreempt)
@@ -1274,8 +1252,6 @@ func preemptM(mp *m) {
 		}
 	}
 
-	atomic.Store(&mp.preemptExtLock, 0)
-
 	// Acknowledge the preemption.
 	mp.preemptGen.Add(1)
 
@@ -1283,36 +1259,5 @@ func preemptM(mp *m) {
 	stdcall(_CloseHandle, thread)
 
 	releaseLockRankAndM(threadPausedLockRank)
-}
-
-// osPreemptExtEnter is called before entering external code that may
-// call ExitProcess.
-//
-// This must be nosplit because it may be called from a syscall with
-// untyped stack slots, so the stack must not be grown or scanned.
-//
-//go:nosplit
-func osPreemptExtEnter(mp *m) {
-	for !atomic.Cas(&mp.preemptExtLock, 0, 1) {
-		// An asynchronous preemption is in progress. It's not
-		// safe to enter external code because it may call
-		// ExitProcess and deadlock with SuspendThread.
-		// Ideally we would do the preemption ourselves, but
-		// can't since there may be untyped syscall arguments
-		// on the stack. Instead, just wait and encourage the
-		// SuspendThread APC to run. The preemption should be
-		// done shortly.
-		osyield()
-	}
-	// Asynchronous preemption is now blocked.
-}
-
-// osPreemptExtExit is called after returning from external code that
-// may call ExitProcess.
-//
-// See osPreemptExtEnter for why this is nosplit.
-//
-//go:nosplit
-func osPreemptExtExit(mp *m) {
-	atomic.Store(&mp.preemptExtLock, 0)
+	casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 }

@@ -136,7 +136,9 @@ type gsignalStack struct{}
 
 const preemptMSupported = false
 
-func preemptM(mp *m) {
+func preemptM(gp *g) {
+	casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
+
 	// No threads, so nothing to do.
 }
 

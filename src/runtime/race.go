@@ -506,10 +506,6 @@ func racefini() {
 	// Tell the scheduler we entering external code.
 	entersyscall()
 
-	// We're entering external code that may call ExitProcess on
-	// Windows.
-	osPreemptExtEnter(getg().m)
-
 	racecall(&__tsan_fini, 0, 0, 0, 0)
 }
 
