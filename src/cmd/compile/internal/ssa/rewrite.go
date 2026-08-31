@@ -794,6 +794,14 @@ func (stringAux) CanBeAnSSAAux() {}
 func auxToString(i Aux) string {
 	return string(i.(stringAux))
 }
+
+type int64Aux int64
+
+func (int64Aux) CanBeAnSSAAux() {}
+
+func int64ToAux(v int64) Aux {
+	return int64Aux(v)
+}
 func auxToSym(i Aux) Sym {
 	// TODO: kind of a hack - allows nil interface through
 	s, _ := i.(Sym)

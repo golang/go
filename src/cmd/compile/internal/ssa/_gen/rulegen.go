@@ -1460,7 +1460,7 @@ func opHasAuxInt(op opData) bool {
 	switch op.aux {
 	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "UInt8", "Float32", "Float64",
 		"SymOff", "CallOff", "SymValAndOff", "TypSize", "ARM64BitField", "FlagConstant", "CCop",
-		"PanicBoundsC", "PanicBoundsCC", "ARM64ConditionalParams":
+		"PanicBoundsC", "PanicBoundsCC", "ARM64ConditionalParams", "SizeAndAlign":
 		return true
 	}
 	return false
@@ -1469,7 +1469,7 @@ func opHasAuxInt(op opData) bool {
 func opHasAux(op opData) bool {
 	switch op.aux {
 	case "String", "Sym", "SymOff", "Call", "CallOff", "SymValAndOff", "Typ", "TypSize",
-		"S390XCCMask", "S390XRotateParams", "PanicBoundsC", "PanicBoundsCC":
+		"S390XCCMask", "S390XRotateParams", "PanicBoundsC", "PanicBoundsCC", "SizeAndAlign":
 		return true
 	}
 	return false
@@ -1828,6 +1828,8 @@ func (op opData) auxType() string {
 		return "PanicBoundsC"
 	case "PanicBoundsCC":
 		return "PanicBoundsCC"
+	case "SizeAndAlign":
+		return "int64"
 	default:
 		return "invalid"
 	}
@@ -1871,6 +1873,8 @@ func (op opData) auxIntType() string {
 	case "ARM64ConditionalParams":
 		return "arm64ConditionalParams"
 	case "PanicBoundsC", "PanicBoundsCC":
+		return "int64"
+	case "SizeAndAlign":
 		return "int64"
 	default:
 		return "invalid"

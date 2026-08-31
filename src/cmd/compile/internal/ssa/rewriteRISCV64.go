@@ -3102,7 +3102,7 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
 	}
 	// match: (Move [s] {t} dst src mem)
 	// cond: s > 0 && s <= 3*8*moveSize(t.Alignment(), config) && logLargeCopy(v, s)
-	// result: (LoweredMove [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+	// result: (LoweredMove [s] {t.Alignment()} dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		t := auxToType(v.Aux)
@@ -3113,13 +3113,14 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpRISCV64LoweredMove)
-		v.AuxInt = valAndOffToAuxInt(makeValAndOff(int32(s), int32(t.Alignment())))
+		v.AuxInt = int64ToAuxInt(s)
+		v.Aux = int64ToAux(t.Alignment())
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
 	// cond: s > 3*8*moveSize(t.Alignment(), config) && logLargeCopy(v, s)
-	// result: (LoweredMoveLoop [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+	// result: (LoweredMoveLoop [s] {t.Alignment()} dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		t := auxToType(v.Aux)
@@ -3130,7 +3131,8 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpRISCV64LoweredMoveLoop)
-		v.AuxInt = valAndOffToAuxInt(makeValAndOff(int32(s), int32(t.Alignment())))
+		v.AuxInt = int64ToAuxInt(s)
+		v.Aux = int64ToAux(t.Alignment())
 		v.AddArg3(dst, src, mem)
 		return true
 	}
@@ -10768,7 +10770,7 @@ func rewriteValueRISCV64_OpZero(v *Value) bool {
 	}
 	// match: (Zero [s] {t} ptr mem)
 	// cond: s <= 24*moveSize(t.Alignment(), config)
-	// result: (LoweredZero [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+	// result: (LoweredZero [s] {t.Alignment()} ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		t := auxToType(v.Aux)
@@ -10778,13 +10780,14 @@ func rewriteValueRISCV64_OpZero(v *Value) bool {
 			break
 		}
 		v.reset(OpRISCV64LoweredZero)
-		v.AuxInt = valAndOffToAuxInt(makeValAndOff(int32(s), int32(t.Alignment())))
+		v.AuxInt = int64ToAuxInt(s)
+		v.Aux = int64ToAux(t.Alignment())
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (Zero [s] {t} ptr mem)
 	// cond: s > 24*moveSize(t.Alignment(), config)
-	// result: (LoweredZeroLoop [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+	// result: (LoweredZeroLoop [s] {t.Alignment()} ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		t := auxToType(v.Aux)
@@ -10794,7 +10797,8 @@ func rewriteValueRISCV64_OpZero(v *Value) bool {
 			break
 		}
 		v.reset(OpRISCV64LoweredZeroLoop)
-		v.AuxInt = valAndOffToAuxInt(makeValAndOff(int32(s), int32(t.Alignment())))
+		v.AuxInt = int64ToAuxInt(s)
+		v.Aux = int64ToAux(t.Alignment())
 		v.AddArg2(ptr, mem)
 		return true
 	}

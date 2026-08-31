@@ -302,7 +302,7 @@ func nilcheckelim2(f *Func) {
 				case auxInt64:
 					// ARM uses this auxType for duffcopy/duffzero/alignment info.
 					// It does not affect the effective address.
-				case auxNone:
+				case auxNone, auxSizeAndAlign:
 					// offset is zero.
 				default:
 					v.Fatalf("can't handle aux %s (type %d) yet\n", v.auxString(), int(opcodeTable[v.Op].auxType))

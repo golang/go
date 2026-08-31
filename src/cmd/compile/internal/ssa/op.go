@@ -384,6 +384,7 @@ const (
 	auxS390XCCMask            // aux is a s390x 4-bit condition code mask
 	auxS390XCCMaskInt8        // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
 	auxS390XCCMaskUint8       // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
+	auxSizeAndAlign           // auxInt is an int64 size, aux is an int64 alignment
 )
 
 // A SymEffect describes the effect that an SSA Value has on the variable
