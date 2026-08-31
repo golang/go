@@ -262,7 +262,13 @@ func (cc *ClientConn) RoundTrip(req *Request) (*Response, error) {
 		if !ok {
 			return nil, errors.New("http: ClientConn does not support PING")
 		}
-		return nil, pinger.Ping(req.Context())
+		if err := pinger.Ping(req.Context()); err != nil {
+			return nil, err
+		}
+		return &Response{
+			StatusCode: 200,
+			Body:       NoBody,
+		}, nil
 	}
 	if err := validateClientConnRequest(req); err != nil {
 		cc.Release()

@@ -67,6 +67,39 @@ func testTransportNewClientConnRoundTrip(t *testing.T, mode testMode) {
 	t.Log(err)
 }
 
+// TestClientConnPing sends the undocumented ":ping" request used to
+// send an HTTP/2 PING frame, and verifies that a successful ping
+// returns a non-nil Response with a NoBody body (see go.dev/issue/81206).
+func TestClientConnPing(t *testing.T) {
+	runSynctest(t, testClientConnPing, http3SkippedMode)
+}
+func testClientConnPing(t *testing.T, mode testMode) {
+	_, cc := newClientConnTest(t, mode, nil)
+
+	resp, err := cc.RoundTrip(&http.Request{Method: ":ping"})
+	switch mode {
+	case http2Mode, http2UnencryptedMode:
+		if err != nil {
+			t.Fatalf("RoundTrip(:ping) = %v, want nil", err)
+		}
+		if resp == nil {
+			t.Fatal("RoundTrip(:ping) returned nil Response, want non-nil")
+		}
+		if resp.StatusCode != 200 {
+			t.Errorf("resp.StatusCode = %v, want 200", resp.StatusCode)
+		}
+		if resp.Body != http.NoBody {
+			t.Errorf("resp.Body = %T, want http.NoBody", resp.Body)
+		}
+		resp.Body.Close()
+	default:
+		// HTTP/1 connections do not support PING.
+		if err == nil {
+			t.Fatal("RoundTrip(:ping) = nil error, want error on HTTP/1")
+		}
+	}
+}
+
 func newClientConnTest(t testing.TB, mode testMode, h http.HandlerFunc, opts ...any) (*clientServerTest, *http.ClientConn) {
 	if h == nil {
 		h = func(w http.ResponseWriter, req *http.Request) {}
