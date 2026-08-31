@@ -2258,3 +2258,66 @@ func (rc *testReadWriteCloser) Close() error {
 	}
 	return nil
 }
+
+
+func TestReverseProxyWebSocketDataLossAndHopByHop(t *testing.T) {
+	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+
+		// Send 101 with a hop-by-hop header that should be removed by proxy
+		io.WriteString(c, "HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: WebSocket\r\nKeep-Alive: timeout=5\r\n\r\n")
+
+		bs := bufio.NewScanner(c)
+		if !bs.Scan() {
+			t.Errorf("backend failed to read: %v", bs.Err())
+			return
+		}
+		fmt.Fprintf(c, "echo: %s\n", bs.Text())
+	}))
+	defer backendServer.Close()
+
+	backURL, _ := url.Parse(backendServer.URL)
+	rproxy := NewSingleHostReverseProxy(backURL)
+
+	frontendProxy := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rproxy.ServeHTTP(rw, req)
+	}))
+	defer frontendProxy.Close()
+
+	u, _ := url.Parse(frontendProxy.URL)
+	conn, err := net.Dial("tcp", u.Host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	// Write upgrade request AND immediate WebSocket payload in one batch to test bufio buffering
+	rawReq := fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\nearly client payload\n", u.Host)
+	if _, err := conn.Write([]byte(rawReq)); err != nil {
+		t.Fatal(err)
+	}
+
+	br := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(br, &http.Request{Method: "GET"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != 101 {
+		t.Fatalf("expected status 101, got %d", resp.StatusCode)
+	}
+	if resp.Header.Get("Keep-Alive") != "" {
+		t.Errorf("expected Keep-Alive to be stripped, got %q", resp.Header.Get("Keep-Alive"))
+	}
+
+	line, err := br.ReadString('\n')
+	if err != nil {
+		t.Fatalf("failed reading echo: %v", err)
+	}
+	if want := "echo: early client payload\n"; line != want {
+		t.Errorf("got %q, want %q", line, want)
+	}
+}
