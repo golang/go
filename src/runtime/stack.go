@@ -1042,21 +1042,26 @@ func adjustUserFrame(u *unwinder, adjinfo *adjustinfo) {
 	if pc == 0 {
 		return
 	}
-	base, words, pointerMask, ok := userFramePointerMap(pc, sp)
-	if !ok || words == 0 {
-		return
-	}
-	bytes := words * goarch.PtrSize
 	newLo := adjinfo.old.lo + adjinfo.delta
 	newHi := adjinfo.old.hi + adjinfo.delta
-	if pointerMask == nil || bytes/goarch.PtrSize != words || base < newLo || base+bytes < base || base+bytes > newHi {
-		throw("invalid user frame pointer map")
+	if base, words, pointerMask, ok := userFramePointerMap(pc, sp); ok && words != 0 {
+		bytes := words * goarch.PtrSize
+		if pointerMask == nil || bytes/goarch.PtrSize != words || base < newLo || base+bytes < base || base+bytes > newHi {
+			throw("invalid user frame pointer map")
+		}
+		bits := bitvector{n: int32(words), bytedata: pointerMask}
+		if uintptr(bits.n) != words {
+			throw("user frame pointer map too large")
+		}
+		adjustpointers(unsafe.Pointer(base), &bits, adjinfo, funcInfo{})
 	}
-	bits := bitvector{n: int32(words), bytedata: pointerMask}
-	if uintptr(bits.n) != words {
-		throw("user frame pointer map too large")
+
+	if bpSlot, ok := userFrameCallerBPSlot(pc, sp); ok {
+		if bpSlot < newLo || bpSlot+goarch.PtrSize < bpSlot || bpSlot+goarch.PtrSize > newHi {
+			throw("invalid user frame caller frame pointer")
+		}
+		adjustpointer(adjinfo, unsafe.Pointer(bpSlot))
 	}
-	adjustpointers(unsafe.Pointer(base), &bits, adjinfo, funcInfo{})
 }
 
 // round x up to a power of 2.
