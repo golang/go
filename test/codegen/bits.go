@@ -224,19 +224,25 @@ func bitsFlipU64(a, b uint64) (n uint64) {
 	// amd64:"BTCQ"
 	// arm64:"MOVD [$]1," "LSL" "EOR"
 	// loong64:"MOVV [$]1," "SLLV" "XOR"
-	// riscv64:"MOV [$]1," "SLL " "XOR " -"ANDI"
+	// riscv64/rva20u64:"MOV [$]1," "SLL " "XOR " -"ANDI"
+	// riscv64/rva22u64:"MOV [$]1," "SLL " "XOR " -"ANDI"
+	// riscv64/rva23u64:"BINV " -"MOV" -"SLL" -"XOR" -"ANDI"
 	n += b ^ (1 << (a & 63))
 
 	// amd64:"BTCQ [$]63,"
 	// arm64:"EOR [$]-9223372036854775808,"
 	// loong64:"MOVV [$]" "XOR"
-	// riscv64:"MOV [$]-9223372036854775808," "XOR "
+	// riscv64/rva20u64:"MOV [$]-9223372036854775808," "XOR "
+	// riscv64/rva22u64:"MOV [$]-9223372036854775808," "XOR "
+	// riscv64/rva23u64:"BINVI [$]63," -"MOV" -"XOR"
 	n += a ^ (1 << 63)
 
 	// amd64:"BTCQ [$]60,"
 	// arm64:"EOR [$]1152921504606846976,"
 	// loong64:"MOVV [$]" "XOR"
-	// riscv64:"MOV [$]1152921504606846976," "XOR "
+	// riscv64/rva20u64:"MOV [$]1152921504606846976," "XOR "
+	// riscv64/rva22u64:"MOV [$]1152921504606846976," "XOR "
+	// riscv64/rva23u64:"BINVI [$]60," -"MOV" -"XOR"
 	n += a ^ (1 << 60)
 
 	// amd64:"XORQ [$]1,"
@@ -244,6 +250,9 @@ func bitsFlipU64(a, b uint64) (n uint64) {
 	// loong64:"XOR [$]1,"
 	// riscv64:"XORI [$]1,"
 	n += a ^ (1 << 0)
+
+	// riscv64:"XORI [$]-2147483648,"
+	n += a ^ 0xffffffff80000000
 
 	return n
 }
@@ -446,24 +455,70 @@ func bitsFlipU32(a, b uint32) (n uint32) {
 	// amd64:"BTCL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "EOR"
 	// loong64:"MOVV [$]1," "SLL R" "XOR"
-	// riscv64:"MOV [$]1," "SLLW " "XOR " -"ANDI"
+	// riscv64/rva20u64:"MOV [$]1," "SLLW" "XOR " -"ANDI"
+	// riscv64/rva22u64:"MOV [$]1," "SLLW" "XOR " -"ANDI"
+	// riscv64/rva23u64:"ANDI [$]31," "BINV " -"MOV" -"SLL" -"XOR"
 	n += b ^ (1 << (a & 31))
 
 	// amd64:"XORL [$]-2147483648,"
 	// arm64:"EOR [$]-2147483648,"
 	// loong64:"XOR [$]-2147483648,"
-	// riscv64:"XORI [$]-2147483648,"
+	// riscv64/rva20u64:"XORI [$]-2147483648,"
+	// riscv64/rva22u64:"XORI [$]-2147483648,"
+	// riscv64/rva23u64:"BINVI [$]31," -"XOR"
 	n += a ^ (1 << 31)
 
 	// amd64:"XORL [$]268435456,"
 	// arm64:"EOR [$]268435456,"
 	// loong64:"XOR [$]268435456,"
-	// riscv64:"XORI [$]268435456,"
+	// riscv64/rva20u64:"XORI [$]268435456,"
+	// riscv64/rva22u64:"XORI [$]268435456,"
+	// riscv64/rva23u64:"BINVI [$]28," -"XOR"
 	n += a ^ (1 << 28)
 
 	// amd64:"XORL [$]1,"
 	// arm64:"EOR [$]1,"
 	// loong64:"XOR [$]1,"
+	// riscv64:"XORI [$]1,"
+	n += a ^ (1 << 0)
+
+	return n
+}
+
+func bitsFlipU16(a, b uint16) (n uint16) {
+	// riscv64/rva20u64:"ANDI [$]15," "MOV [$]1," "SLL " "XOR "
+	// riscv64/rva22u64:"ANDI [$]15," "MOV [$]1," "SLL " "XOR "
+	// riscv64/rva23u64:"ANDI [$]15," "BINV " -"MOV" -"SLL" -"XOR"
+	n += b ^ (1 << (a & 15))
+
+	// riscv64/rva20u64:"XORI [$]-32768,"
+	// riscv64/rva22u64:"XORI [$]-32768,"
+	// riscv64/rva23u64:"BINVI [$]15," -"XOR"
+	n += a ^ (1 << 15)
+
+	// riscv64/rva20u64:"XORI [$]16384,"
+	// riscv64/rva22u64:"XORI [$]16384,"
+	// riscv64/rva23u64:"BINVI [$]14," -"XOR"
+	n += a ^ (1 << 14)
+
+	// riscv64:"XORI [$]1,"
+	n += a ^ (1 << 0)
+
+	return n
+}
+
+func bitsFlipU8(a, b uint8) (n uint8) {
+	// riscv64/rva20u64:"ANDI [$]7," "MOV [$]1," "SLL " "XOR "
+	// riscv64/rva22u64:"ANDI [$]7," "MOV [$]1," "SLL " "XOR "
+	// riscv64/rva23u64:"ANDI [$]7," "BINV " -"MOV" -"SLL" -"XOR"
+	n += b ^ (1 << (a & 7))
+
+	// riscv64:"XORI [$]-128,"
+	n += a ^ (1 << 7)
+
+	// riscv64:"XORI [$]64,"
+	n += a ^ (1 << 6)
+
 	// riscv64:"XORI [$]1,"
 	n += a ^ (1 << 0)
 
