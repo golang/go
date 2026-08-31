@@ -289,7 +289,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssaop.OpRISCV64MULHU, ssaop.OpRISCV64DIV, ssaop.OpRISCV64DIVU, ssaop.OpRISCV64DIVW,
 		ssaop.OpRISCV64DIVUW, ssaop.OpRISCV64REM, ssaop.OpRISCV64REMU, ssaop.OpRISCV64REMW,
 		ssaop.OpRISCV64REMUW,
-		ssaop.OpRISCV64BEXT, ssaop.OpRISCV64BINV,
+		ssaop.OpRISCV64BEXT, ssaop.OpRISCV64BINV, ssaop.OpRISCV64BSET,
 		ssaop.OpRISCV64ROL, ssaop.OpRISCV64ROLW, ssaop.OpRISCV64ROR, ssaop.OpRISCV64RORW,
 		ssaop.OpRISCV64FADDS, ssaop.OpRISCV64FSUBS, ssaop.OpRISCV64FMULS, ssaop.OpRISCV64FDIVS,
 		ssaop.OpRISCV64FEQS, ssaop.OpRISCV64FNES, ssaop.OpRISCV64FLTS, ssaop.OpRISCV64FLES,
@@ -473,7 +473,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssaop.OpRISCV64ADDI, ssaop.OpRISCV64ADDIW, ssaop.OpRISCV64XORI, ssaop.OpRISCV64ORI, ssaop.OpRISCV64ANDI,
 		ssaop.OpRISCV64SLLI, ssaop.OpRISCV64SLLIW, ssaop.OpRISCV64SRAI, ssaop.OpRISCV64SRAIW,
 		ssaop.OpRISCV64SRLI, ssaop.OpRISCV64SRLIW, ssaop.OpRISCV64SLTI, ssaop.OpRISCV64SLTIU,
-		ssaop.OpRISCV64BEXTI, ssaop.OpRISCV64BINVI,
+		ssaop.OpRISCV64BEXTI, ssaop.OpRISCV64BINVI, ssaop.OpRISCV64BSETI,
 		ssaop.OpRISCV64RORI, ssaop.OpRISCV64RORIW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST

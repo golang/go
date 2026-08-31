@@ -17,6 +17,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpRISCV64NOT(v)
 	case ssaop.OpRISCV64OR:
 		return rewriteValue_OpRISCV64OR(v)
+	case ssaop.OpRISCV64ORI:
+		return rewriteValue_OpRISCV64ORI(v)
 	case ssaop.OpRISCV64SLLI:
 		return rewriteValue_OpRISCV64SLLI(v)
 	case ssaop.OpRISCV64SNEZ:
@@ -109,6 +111,7 @@ func rewriteValue_OpRISCV64NOT(v *ssa.Value) bool {
 func rewriteValue_OpRISCV64OR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (OR x (NOT y))
 	// result: (ORN x y)
 	for {
@@ -123,6 +126,125 @@ func rewriteValue_OpRISCV64OR(v *ssa.Value) bool {
 			return true
 		}
 		break
+	}
+	// match: (OR (SLL (MOVDconst [1]) x) y)
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (BSET y x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpRISCV64SLL {
+				continue
+			}
+			x := v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != ssaop.OpRISCV64MOVDconst || ssa.AuxIntToInt64(v_0_0.AuxInt) != 1 {
+				continue
+			}
+			y := v_1
+			if !(buildcfg.GORISCV64 >= 23) {
+				continue
+			}
+			v.Reset(ssaop.OpRISCV64BSET)
+			v.AddArg2(y, x)
+			return true
+		}
+		break
+	}
+	// match: (OR (SLLW <t> (MOVDconst [1]) x) y)
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (BSET y (ANDI <t> [31] x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpRISCV64SLLW {
+				continue
+			}
+			t := v_0.Type
+			x := v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != ssaop.OpRISCV64MOVDconst || ssa.AuxIntToInt64(v_0_0.AuxInt) != 1 {
+				continue
+			}
+			y := v_1
+			if !(buildcfg.GORISCV64 >= 23) {
+				continue
+			}
+			v.Reset(ssaop.OpRISCV64BSET)
+			v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64ANDI, t)
+			v0.AuxInt = ssa.Int64ToAuxInt(31)
+			v0.AddArg(x)
+			v.AddArg2(y, v0)
+			return true
+		}
+		break
+	}
+	// match: (OR (MOVDconst [c]) x)
+	// cond: ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23
+	// result: (BSETI [ssa.Log64u(uint64(c))] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpRISCV64MOVDconst {
+				continue
+			}
+			c := ssa.AuxIntToInt64(v_0.AuxInt)
+			x := v_1
+			if !(ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23) {
+				continue
+			}
+			v.Reset(ssaop.OpRISCV64BSETI)
+			v.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(c)))
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValue_OpRISCV64ORI(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (ORI <t> [c] x)
+	// cond: t.Size() == 2 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint16(c)) && buildcfg.GORISCV64 >= 23
+	// result: (BSETI [ssa.Log16u(uint16(c))] x)
+	for {
+		t := v.Type
+		c := ssa.AuxIntToInt64(v.AuxInt)
+		x := v_0
+		if !(t.Size() == 2 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint16(c)) && buildcfg.GORISCV64 >= 23) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64BSETI)
+		v.AuxInt = ssa.Int64ToAuxInt(ssa.Log16u(uint16(c)))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORI <t> [c] x)
+	// cond: t.Size() == 4 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint32(c)) && buildcfg.GORISCV64 >= 23
+	// result: (BSETI [ssa.Log32u(uint32(c))] x)
+	for {
+		t := v.Type
+		c := ssa.AuxIntToInt64(v.AuxInt)
+		x := v_0
+		if !(t.Size() == 4 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint32(c)) && buildcfg.GORISCV64 >= 23) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64BSETI)
+		v.AuxInt = ssa.Int64ToAuxInt(ssa.Log32u(uint32(c)))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORI <t> [c] x)
+	// cond: t.Size() == 8 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23
+	// result: (BSETI [ssa.Log64u(uint64(c))] x)
+	for {
+		t := v.Type
+		c := ssa.AuxIntToInt64(v.AuxInt)
+		x := v_0
+		if !(t.Size() == 8 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64BSETI)
+		v.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(c)))
+		v.AddArg(x)
+		return true
 	}
 	return false
 }

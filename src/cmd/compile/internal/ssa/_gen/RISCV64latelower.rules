@@ -50,3 +50,11 @@
 (XORI <t> [c] x) && t.Size() == 2 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint16(c)) && buildcfg.GORISCV64 >= 23 => (BINVI [ssa.Log16u(uint16(c))] x)
 (XORI <t> [c] x) && t.Size() == 4 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint32(c)) && buildcfg.GORISCV64 >= 23 => (BINVI [ssa.Log32u(uint32(c))] x)
 (XORI <t> [c] x) && t.Size() == 8 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BINVI [ssa.Log64u(uint64(c))] x)
+
+// Single bit set.
+(OR (SLL (MOVDconst [1]) x) y) && buildcfg.GORISCV64 >= 23 => (BSET y x)
+(OR (SLLW <t> (MOVDconst [1]) x) y) && buildcfg.GORISCV64 >= 23 => (BSET y (ANDI <t> [31] x))
+(OR (MOVDconst [c]) x) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BSETI [ssa.Log64u(uint64(c))] x)
+(ORI <t> [c] x) && t.Size() == 2 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint16(c)) && buildcfg.GORISCV64 >= 23 => (BSETI [ssa.Log16u(uint16(c))] x)
+(ORI <t> [c] x) && t.Size() == 4 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint32(c)) && buildcfg.GORISCV64 >= 23 => (BSETI [ssa.Log32u(uint32(c))] x)
+(ORI <t> [c] x) && t.Size() == 8 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BSETI [ssa.Log64u(uint64(c))] x)
