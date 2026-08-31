@@ -145,9 +145,9 @@ func (s *phiState) insertPhis() {
 
 func (s *phiState) insertVarPhis(n int, var_ ir.Node, defs []*ssa.Block, typ *types.Type) {
 	// Iterate DF+ of the defining blocks.
-	for c := range s.f.IterDomFrontierPlus(slices.Values(defs)) {
+	for c, b := range s.f.IterDomFrontierPlus(slices.Values(defs)) {
 		// Add a phi to block c for variable n.
-		v := c.NewValue0I(s.s.blockStarts[c.ID], ssaop.OpPhi, typ, int64(n))
+		v := c.NewValue0I(s.s.blockStarts[b.ID], ssaop.OpPhi, typ, int64(n))
 		// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
 		if var_.Op() == ir.ONAME {
 			s.s.addNamedValue(var_.(*ir.Name), v)

@@ -118,7 +118,29 @@ func TestIterDomFrontierPlusSeedAtMerge(t *testing.T) {
 	}
 }
 
-func collectBlockIDs(seq iter.Seq[*Block]) []ID {
+func TestIterDomFrontierPlusOrigin(t *testing.T) {
+	f := (&Config{}).NewFunc(nil, &Cache{})
+	entry := f.NewBlock(block.BlockIf)
+	f.Entry = entry
+	left := f.NewBlock(block.BlockPlain)
+	right := f.NewBlock(block.BlockPlain)
+	merge := f.NewBlock(block.BlockExit)
+
+	entry.AddEdgeTo(left)
+	entry.AddEdgeTo(right)
+	left.AddEdgeTo(merge)
+	right.AddEdgeTo(merge)
+
+	var got [][2]*Block
+	for b, origin := range f.IterDomFrontierPlus(slices.Values([]*Block{left})) {
+		got = append(got, [2]*Block{b, origin})
+	}
+	if want := [][2]*Block{{merge, left}}; !slices.Equal(got, want) {
+		t.Fatalf("got frontier and origin %v, want %v", got, want)
+	}
+}
+
+func collectBlockIDs(seq iter.Seq2[*Block, *Block]) []ID {
 	var ids []ID
 	for b := range seq {
 		ids = append(ids, b.ID)

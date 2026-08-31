@@ -18,16 +18,17 @@ import (
 
 // IterDomFrontierPlus iterates the DF+ of seeds: every block at which
 // a phi may need to be placed if a variable were defined in the seed
-// blocks. Blocks are yielded at most once, in a deterministic order;
-// an early break stops the walk. Seed blocks themselves are not
-// yielded as such, but a seed that is also a merge point (e.g. a loop
-// header) is.
+// blocks. For each frontier block, it also yields the block whose
+// outgoing edge discovered the frontier. Frontier blocks are yielded
+// at most once, in a deterministic order; an early break stops the walk.
+// Seed blocks themselves are not yielded as such, but a seed that is
+// also a merge point (e.g. a loop header) is.
 // seeds iterator is consumed in full before the walk starts (the current
 // algorithm has to walk deeper roots first).
 // CFG must not change while iteration is in progress; inserting
 // values (like phis) is fine.
-func (f *Func) IterDomFrontierPlus(seeds iter.Seq[*Block]) iter.Seq[*Block] {
-	return func(yield func(*Block) bool) {
+func (f *Func) IterDomFrontierPlus(seeds iter.Seq[*Block]) iter.Seq2[*Block, *Block] {
+	return func(yield func(*Block, *Block) bool) {
 		// Materialize the seeds into a pooled slice reused by walkDFPlus.
 		s := f.Cache.AllocBlockSlice(f.NumBlocks())[:0]
 		defer f.Cache.FreeBlockSlice(s[:cap(s)])
@@ -61,7 +62,7 @@ const (
 // plus the frontier found, and memory is O(f.NumBlocks()). The walk reads
 // the CFG's edges and uses the cached dominator tree.
 // The seeds slice is reused in place by the PiggyBank.
-func (f *Func) walkDFPlus(seeds []*Block, yield func(*Block) bool) {
+func (f *Func) walkDFPlus(seeds []*Block, yield func(*Block, *Block) bool) {
 	sdom := f.Sdom()
 
 	// Roots to process, deepest first.
@@ -120,7 +121,7 @@ func (f *Func) walkDFPlus(seeds []*Block, yield func(*Block) bool) {
 					flags[c.ID] |= flagPiggyBanked
 					heap.Push(&piggyBank, c)
 				}
-				if !yield(c) {
+				if !yield(c, b) {
 					return
 				}
 			}
