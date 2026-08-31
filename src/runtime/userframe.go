@@ -250,20 +250,9 @@ func findUserFrameRegion(pc uintptr) *userFrameRegion {
 
 func userFrameNext(r *userFrameRegion, pc, sp uintptr) (callerPC, callerSP, callerBP uintptr, ok bool) {
 	if m := findUserFrameStackMap(r, pc); m != nil && m.hasUnwind {
-		base := sp + m.unwindBaseOffset
-		if base < sp {
+		base, ok := userFrameUnwindBase(m, sp)
+		if !ok {
 			return 0, 0, 0, false
-		}
-		if m.unwindBaseUsesDelta {
-			deltaAddr := sp + m.unwindBaseDeltaOffset
-			if deltaAddr < sp {
-				return 0, 0, 0, false
-			}
-			delta := *(*uintptr)(unsafe.Pointer(deltaAddr))
-			if base+delta < base {
-				return 0, 0, 0, false
-			}
-			base += delta
 		}
 		callerPCAddr := base + m.callerPCOffset
 		callerSP = base + m.callerSPOffset
@@ -274,6 +263,44 @@ func userFrameNext(r *userFrameRegion, pc, sp uintptr) (callerPC, callerSP, call
 		return *(*uintptr)(unsafe.Pointer(callerPCAddr)), callerSP, *(*uintptr)(unsafe.Pointer(callerBPAddr)), true
 	}
 	return 0, 0, 0, false
+}
+
+func userFrameUnwindBase(m *userFrameStackMap, sp uintptr) (uintptr, bool) {
+	base := sp + m.unwindBaseOffset
+	if base < sp {
+		return 0, false
+	}
+	if m.unwindBaseUsesDelta {
+		deltaAddr := sp + m.unwindBaseDeltaOffset
+		if deltaAddr < sp {
+			return 0, false
+		}
+		delta := *(*uintptr)(unsafe.Pointer(deltaAddr))
+		if base+delta < base {
+			return 0, false
+		}
+		base += delta
+	}
+	return base, true
+}
+
+// userFrameCallerBPSlot returns the address of the saved caller frame pointer.
+// Stack copying must relocate this value even when the user frame has no Go
+// pointers of its own. On amd64, Go function epilogues may use LEAVE, so a
+// stale frame pointer would also restore SP to the old, freed stack.
+//
+//go:nosplit
+func userFrameCallerBPSlot(pc, sp uintptr) (uintptr, bool) {
+	r := findUserFrameRegion(pc)
+	m := findUserFrameStackMap(r, pc)
+	if m == nil || !m.hasUnwind {
+		return 0, false
+	}
+	base, ok := userFrameUnwindBase(m, sp)
+	if !ok || base+m.callerBPOffset < base {
+		return 0, false
+	}
+	return base + m.callerBPOffset, true
 }
 
 // userFramePointerMap resolves one immutable map without calling user code.
