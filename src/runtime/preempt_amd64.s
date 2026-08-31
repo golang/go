@@ -39,8 +39,8 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	#ifdef GOEXPERIMENT_simd
 	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
 	JE saveAVX512
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
-	JE saveAVX2
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JE saveAVX
 	#endif
 saveSSE:
 	MOVUPS X0, 0(AX)
@@ -60,7 +60,7 @@ saveSSE:
 	MOVUPS X14, 896(AX)
 	MOVUPS X15, 960(AX)
 	JMP preempt
-saveAVX2:
+saveAVX:
 	VMOVDQU Y0, 0(AX)
 	VMOVDQU Y1, 64(AX)
 	VMOVDQU Y2, 128(AX)
@@ -129,8 +129,8 @@ preempt:
 	#ifdef GOEXPERIMENT_simd
 	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
 	JE restoreAVX512
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
-	JE restoreAVX2
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JE restoreAVX
 	#endif
 restoreSSE:
 	MOVUPS 960(AX), X15
@@ -150,7 +150,7 @@ restoreSSE:
 	MOVUPS 64(AX), X1
 	MOVUPS 0(AX), X0
 	JMP restoreGPs
-restoreAVX2:
+restoreAVX:
 	VMOVDQU 960(AX), Y15
 	VMOVDQU 896(AX), Y14
 	VMOVDQU 832(AX), Y13

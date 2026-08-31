@@ -461,8 +461,8 @@ func genAMD64(g *gen) {
 	p("#ifdef GOEXPERIMENT_simd")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
 	p("JE saveAVX512")
-	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1")
-	p("JE saveAVX2")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1")
+	p("JE saveAVX")
 	p("#endif")
 
 	// No features. Assume only SSE.
@@ -470,7 +470,7 @@ func genAMD64(g *gen) {
 	lXRegs.save(g)
 	p("JMP preempt")
 
-	label("saveAVX2:")
+	label("saveAVX:")
 	lYRegs.save(g)
 	p("JMP preempt")
 
@@ -489,15 +489,15 @@ func genAMD64(g *gen) {
 	p("#ifdef GOEXPERIMENT_simd")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
 	p("JE restoreAVX512")
-	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1")
-	p("JE restoreAVX2")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1")
+	p("JE restoreAVX")
 	p("#endif")
 
 	label("restoreSSE:")
 	lXRegs.restore(g)
 	p("JMP restoreGPs")
 
-	label("restoreAVX2:")
+	label("restoreAVX:")
 	lYRegs.restore(g)
 	p("JMP restoreGPs")
 
