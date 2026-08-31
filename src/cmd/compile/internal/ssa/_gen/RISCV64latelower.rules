@@ -23,3 +23,22 @@
 (SRAI [0] x) => x
 (SRLI [0] x) => x
 (SLLI [0] x) => x
+
+//
+// Optimisations for rva23u64 and above.
+//
+
+// Note: while Zbs is mandated as part of the rva22u64 profile, some hardware
+// that we can currently run on with rva22u64 lacks Zbs support. Restrict Zbs
+// usage to rva23u64, at least for now.
+
+// Single bit extract.
+(ANDI [1] (SRLI [c] x)) && buildcfg.GORISCV64 >= 23 => (BEXTI [c] x)
+(ANDI [1] (SRLIW [c] x)) && buildcfg.GORISCV64 >= 23 => (BEXTI [c] x)
+
+// Single bit test.
+(B(EQ|NE)Z (ANDI [1] (SRL x y)) yes no) && buildcfg.GORISCV64 >= 23 => (B(EQ|NE)Z (BEXT <typ.UInt64> x y) yes no)
+(SNEZ (ANDI [c] y)) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BEXTI [ssa.Log64u(uint64(c))] y)
+
+// Remove redundant SNEZ from bit test.
+(SNEZ x:(BEXTI [_] _)) => x
