@@ -784,10 +784,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssaop.OpRISCV64LoweredZero:
 		ptr := v.Args[0].Reg()
-		sc := v.AuxValAndOff()
-		n := sc.Val64()
-
-		mov, sz := largestMove(sc.Off64())
+		n, align := v.AuxSizeAndAlign()
+		mov, sz := largestMove(align)
 
 		// mov	ZERO, (offset)(Rarg0)
 		var off int64
@@ -809,9 +807,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssaop.OpRISCV64LoweredZeroLoop:
 		ptr := v.Args[0].Reg()
-		sc := v.AuxValAndOff()
-		n := sc.Val64()
-		mov, sz := largestMove(sc.Off64())
+		n, align := v.AuxSizeAndAlign()
+		mov, sz := largestMove(align)
 		chunk := 8 * sz
 
 		if n <= 3*chunk {
@@ -820,9 +817,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		tmp := v.RegTmp()
 
+		if n >= 1<<31 {
+			p := s.Prog(riscv.AMOV)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = n - n%chunk
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = tmp
+		}
 		p := s.Prog(riscv.AADD)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = n - n%chunk
+		if n >= 1<<31 {
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = tmp
+		} else {
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = n - n%chunk
+		}
 		p.Reg = ptr
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = tmp
@@ -871,9 +880,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			break
 		}
 
-		sa := v.AuxValAndOff()
-		n := sa.Val64()
-		mov, sz := largestMove(sa.Off64())
+		n, align := v.AuxSizeAndAlign()
+		mov, sz := largestMove(align)
 
 		var off int64
 		tmp := int16(riscv.REG_X5)
@@ -900,9 +908,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			break
 		}
 
-		sc := v.AuxValAndOff()
-		n := sc.Val64()
-		mov, sz := largestMove(sc.Off64())
+		n, align := v.AuxSizeAndAlign()
+		mov, sz := largestMove(align)
 		chunk := 8 * sz
 
 		if n <= 3*chunk {
@@ -910,9 +917,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		tmp := int16(riscv.REG_X5)
 
+		if n >= 1<<31 {
+			p := s.Prog(riscv.AMOV)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = n - n%chunk
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = riscv.REG_X6
+		}
 		p := s.Prog(riscv.AADD)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = n - n%chunk
+		if n >= 1<<31 {
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = riscv.REG_X6
+		} else {
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = n - n%chunk
+		}
 		p.Reg = src
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = riscv.REG_X6

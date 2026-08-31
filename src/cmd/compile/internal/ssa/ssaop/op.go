@@ -46,6 +46,7 @@ const (
 	AuxTypeS390XCCMask            // aux is a s390x 4-bit condition code mask
 	AuxTypeS390XCCMaskInt8        // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
 	AuxTypeS390XCCMaskUint8       // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
+	AuxTypeSizeAndAlign           // auxInt is an int64 size, aux is an int64 alignment
 )
 
 // An Op encodes the specific operation that a Value performs.

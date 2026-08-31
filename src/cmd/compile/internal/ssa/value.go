@@ -226,6 +226,10 @@ func (v *Value) AuxArm64ConditionalParams() Arm64ConditionalParams {
 	return AuxIntToArm64ConditionalParams(v.AuxInt)
 }
 
+func (v *Value) AuxSizeAndAlign() (int64, int64) {
+	return v.AuxInt, int64(v.Aux.(Int64Aux))
+}
+
 // long form print.  v# = opcode <type> [aux] args [: reg] (names)
 func (v *Value) LongString() string {
 	if v == nil {
@@ -324,6 +328,8 @@ func (v *Value) AuxString() string {
 		return fmt.Sprintf(" {%v}", v.Aux)
 	case ssaop.AuxTypeFlagConstant:
 		return fmt.Sprintf("[%s]", FlagConstant(v.AuxInt))
+	case ssaop.AuxTypeSizeAndAlign:
+		return fmt.Sprintf(" [size=%d] {align=%d}", v.AuxInt, v.Aux)
 	case ssaop.AuxTypeNone:
 		return ""
 	default:

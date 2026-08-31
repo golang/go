@@ -306,7 +306,7 @@ func nilcheckelim2(f *ssa.Func) {
 				case ssaop.AuxTypeInt64:
 					// ARM uses this auxType for duffcopy/duffzero/alignment info.
 					// It does not affect the effective address.
-				case ssaop.AuxTypeNone:
+				case ssaop.AuxTypeNone, ssaop.AuxTypeSizeAndAlign:
 					// offset is zero.
 				default:
 					v.Fatalf("can't handle aux %s (type %d) yet\n", v.AuxString(), int(ssaop.OpcodeTable[v.Op].AuxType))

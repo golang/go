@@ -97300,11 +97300,10 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:           "LoweredZero",
-		AuxType:        AuxTypeSymValAndOff,
+		AuxType:        AuxTypeSizeAndAlign,
 		ArgLen:         2,
 		FaultOnNilArg0: true,
 		AddrSinkArg0:   true,
-		symEffect:      SymWrite,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -97313,12 +97312,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:           "LoweredZeroLoop",
-		AuxType:        AuxTypeSymValAndOff,
+		AuxType:        AuxTypeSizeAndAlign,
 		ArgLen:         2,
 		NeedIntTemp:    true,
 		FaultOnNilArg0: true,
 		AddrSinkArg0:   true,
-		symEffect:      SymWrite,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -97328,13 +97326,12 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:           "LoweredMove",
-		AuxType:        AuxTypeSymValAndOff,
+		AuxType:        AuxTypeSizeAndAlign,
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		FaultOnNilArg1: true,
 		AddrSinkArg0:   true,
 		AddrSinkArg1:   true,
-		symEffect:      SymWrite,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 1006632928, V2: 0}}, // X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -97345,13 +97342,12 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:           "LoweredMoveLoop",
-		AuxType:        AuxTypeSymValAndOff,
+		AuxType:        AuxTypeSizeAndAlign,
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		FaultOnNilArg1: true,
 		AddrSinkArg0:   true,
 		AddrSinkArg1:   true,
-		symEffect:      SymWrite,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 1006632896, V2: 0}}, // X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30

@@ -527,6 +527,14 @@ func Arm64ConditionalParamsToAuxInt(v Arm64ConditionalParams) int64 {
 	return i
 }
 
+type Int64Aux int64
+
+func (Int64Aux) CanBeAnSSAAux() {}
+
+func Int64ToAux(v int64) Aux {
+	return Int64Aux(v)
+}
+
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
 func ArmBFAuxInt(lsb, width int64) Arm64BitField {
 	if lsb < 0 || lsb > 63 {

@@ -3121,7 +3121,7 @@ func rewriteValue_OpMove(v *ssa.Value) bool {
 	}
 	// match: (Move [s] {t} dst src mem)
 	// cond: s > 0 && s <= 3*8*ssa.MoveSize(t.Alignment(), config) && ssa.LogLargeCopyValue(v, s)
-	// result: (LoweredMove [ssa.MakeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+	// result: (LoweredMove [s] {t.Alignment()} dst src mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		t := ssa.AuxToType(v.Aux)
@@ -3132,13 +3132,14 @@ func rewriteValue_OpMove(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRISCV64LoweredMove)
-		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(s), int32(t.Alignment())))
+		v.AuxInt = ssa.Int64ToAuxInt(s)
+		v.Aux = ssa.Int64ToAux(t.Alignment())
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
 	// cond: s > 3*8*ssa.MoveSize(t.Alignment(), config) && ssa.LogLargeCopyValue(v, s)
-	// result: (LoweredMoveLoop [ssa.MakeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+	// result: (LoweredMoveLoop [s] {t.Alignment()} dst src mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		t := ssa.AuxToType(v.Aux)
@@ -3149,7 +3150,8 @@ func rewriteValue_OpMove(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRISCV64LoweredMoveLoop)
-		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(s), int32(t.Alignment())))
+		v.AuxInt = ssa.Int64ToAuxInt(s)
+		v.Aux = ssa.Int64ToAux(t.Alignment())
 		v.AddArg3(dst, src, mem)
 		return true
 	}
@@ -11088,7 +11090,7 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 	}
 	// match: (Zero [s] {t} ptr mem)
 	// cond: s <= 24*ssa.MoveSize(t.Alignment(), config)
-	// result: (LoweredZero [ssa.MakeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+	// result: (LoweredZero [s] {t.Alignment()} ptr mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		t := ssa.AuxToType(v.Aux)
@@ -11098,13 +11100,14 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRISCV64LoweredZero)
-		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(s), int32(t.Alignment())))
+		v.AuxInt = ssa.Int64ToAuxInt(s)
+		v.Aux = ssa.Int64ToAux(t.Alignment())
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (Zero [s] {t} ptr mem)
 	// cond: s > 24*ssa.MoveSize(t.Alignment(), config)
-	// result: (LoweredZeroLoop [ssa.MakeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+	// result: (LoweredZeroLoop [s] {t.Alignment()} ptr mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		t := ssa.AuxToType(v.Aux)
@@ -11114,7 +11117,8 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRISCV64LoweredZeroLoop)
-		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(s), int32(t.Alignment())))
+		v.AuxInt = ssa.Int64ToAuxInt(s)
+		v.Aux = ssa.Int64ToAux(t.Alignment())
 		v.AddArg2(ptr, mem)
 		return true
 	}
