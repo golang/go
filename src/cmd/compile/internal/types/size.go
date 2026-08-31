@@ -190,7 +190,20 @@ func calcStructOffset(t *Type, fields []*Field, offset int64) int64 {
 		// Only apply the MaxWidth constraint when t is a struct; skip it when
 		// calculating function argument offsets.
 		if t.IsStruct() && offset >= maxwidth {
-			base.ErrorfAt(typePos(t), 0, "type %L too large", t)
+			// Use the field position if the struct position is unknown.
+			// Presumably this can happen for unnamed struct types since
+			// the struct position is its object position. But it appears
+			// to also happen for named struct types at the moment, so this
+			// is a work-around for those cases.
+			// Caused an internal compiler error; see go.dev/issue/81241.
+			//
+			// TODO: need to investigate why named struct types have a
+			//       nil Object which in turn produces a nil position.
+			pos := t.Pos()
+			if !pos.IsKnown() {
+				pos = f.Pos
+			}
+			base.ErrorfAt(pos, 0, "type %L too large", t)
 			offset = 8 // small but nonzero
 		}
 	}
