@@ -145,3 +145,42 @@ func simdMemoryOperandMerge() archsimd.Uint32x4 {
 	a = a.Add(archsimd.LoadUint32x4(globalSlice[4:8]))
 	return a
 }
+
+func simdZeroingUsesVEX(x archsimd.Uint64x8) uint64 {
+	// The SIMD-typed value in this function implies AVX is present,
+	// so the zeroing of t must not use legacy-SSE encodings, which
+	// would incur AVX-SSE transition penalties (issue 80835).
+	// amd64:`VMOVUPS X15` -`\bMOVUPS`
+	var t [8]uint64
+	acc := archsimd.LoadUint64x8(t[:])
+	acc = acc.Add(x)
+	acc.Store(t[:])
+	var n uint64
+	for _, v := range t {
+		n += v
+	}
+	return n
+}
+
+func simdMoveUsesVEX(x archsimd.Uint64x8, p *[8]uint64) uint64 {
+	// The 64-byte array copy is a lowered Move; its 16-byte chunks
+	// must use VEX encodings here (issue 80835).
+	var t [8]uint64
+	acc := archsimd.LoadUint64x8(t[:])
+	acc = acc.Add(x)
+	acc.Store(t[:])
+	// amd64:`VMOVUPS \([A-Z0-9]+\), X14` -`\bMOVUPS`
+	*p = t
+	return p[0]
+}
+
+func simdMove16UsesVEX(x archsimd.Uint64x2, d, s *[16]byte) uint64 {
+	// The 16-byte block copy is lowered to MOVOload/MOVOstore, which
+	// must use VEX encodings here (issue 80835).
+	// amd64:`VMOVUPS \([A-Z0-9]+\), X` -`\bMOVUPS`
+	*d = *s
+	t := x.Add(x)
+	var out [2]uint64
+	t.Store(out[:])
+	return out[0]
+}
