@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements the (temporary) plumbing to get importing to work.
+// This file implements the plumbing to get importing to work.
 
 package types2_test
 
 import (
-	gcimporter "cmd/compile/internal/importer"
+	"cmd/compile/internal/importer"
 	"cmd/compile/internal/types2"
 	"io"
 )
 
+// TODO(mark): Switch to use new types2 importer.
 func defaultImporter() types2.Importer {
 	return &gcimports{
 		packages: make(map[string]*types2.Package),
@@ -31,5 +32,5 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
 	if mode != 0 {
 		panic("mode must be 0")
 	}
-	return gcimporter.Import(m.packages, path, srcDir, m.lookup)
+	return importer.Import(m.packages, path, srcDir, m.lookup)
 }
