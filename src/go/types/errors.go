@@ -257,6 +257,13 @@ func (check *Checker) versionErrorf(at positioner, v goVersion, format string, a
 	err.report()
 }
 
+func (check *Checker) internalErrorf(at positioner, format string, args ...any) {
+	if at == nil {
+		at = atPos(nopos)
+	}
+	check.errorf(at, InvalidSyntaxTree, "internal error: "+format, args...)
+}
+
 // atPos wraps a token.Pos to implement the positioner interface.
 type atPos token.Pos
 

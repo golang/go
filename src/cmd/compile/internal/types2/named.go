@@ -362,6 +362,18 @@ func (check *Checker) newNamedInstance(pos syntax.Pos, orig *Named, targs []Type
 }
 
 func (n *Named) cleanup() {
+	// Before CL 825744, incomplete or cyclic named type declarations could leave
+	// n.fromRHS as nil. Typ[Invalid] is better.
+	//
+	// Invariant: avoid returning Typ[Invalid] unless an error was
+	// reported. If n.fromRHS is nil without any recorded error during package
+	// checking, this is an internal compiler bug, so report an error.
+	if n.fromRHS == nil && n.inst == nil {
+		if n.check != nil && n.check.firstErr == nil {
+			n.check.internalErrorf(n.obj, "%v has nil fromRHS", n)
+		}
+		n.fromRHS = Typ[Invalid]
+	}
 	// Instances can have a nil underlying at the end of type checking — they
 	// will lazily expand it as needed. All other types must have one.
 	if n.inst == nil {
@@ -646,6 +658,15 @@ func (n *Named) resolveUnderlying() {
 		switch t := rhs.(type) {
 		case *Alias:
 			rhs = unalias(t)
+			if rhs == nil {
+				// Before CL 825744, unalias(t) returning nil for an incomplete alias
+				// caused an infinite loop here because u was left as nil.
+				//
+				// An incomplete alias has no defined underlying type. Just as calling
+				// a.Underlying() on an incomplete alias panics, resolving the underlying
+				// type of a Named type whose RHS is an incomplete alias must panic.
+				panic("Underlying() called on Named type with incomplete Alias")
+			}
 
 		case *Named:
 			if debug {

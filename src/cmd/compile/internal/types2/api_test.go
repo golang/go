@@ -2166,6 +2166,75 @@ func TestNewAlias_Issue65455(t *testing.T) {
 	alias.Underlying() // must not panic
 }
 
+func shouldPanic(t *testing.T, msg string, f func()) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Errorf("%s: expected panic, but did not panic", msg)
+		}
+	}()
+	f()
+}
+
+func TestIncompleteAlias(t *testing.T) {
+	obj := NewTypeName(nopos, nil, "A", nil)
+	alias := NewAlias(obj, nil)
+
+	// An incomplete alias has no defined underlying or RHS type;
+	// accessing it must panic rather than return a misleading type.
+	shouldPanic(t, "alias.Underlying()", func() { alias.Underlying() })
+	shouldPanic(t, "alias.Rhs()", func() { alias.Rhs() })
+
+	// Unalias on an incomplete alias returns nil per its contract.
+	if got := Unalias(alias); got != nil {
+		t.Errorf("Unalias(alias) = %v, want nil", got)
+	}
+}
+
+func TestIncompleteTypeParam(t *testing.T) {
+	tname := NewTypeName(nopos, nil, "P", nil)
+	tparam := NewTypeParam(tname, nil)
+
+	// An incomplete TypeParam has no defined constraint or underlying type;
+	// accessing it must panic.
+	shouldPanic(t, "tparam.Constraint()", func() { tparam.Constraint() })
+	shouldPanic(t, "tparam.Underlying()", func() { tparam.Underlying() })
+}
+
+func TestIncompletePackageObjects(t *testing.T) {
+	const src = `package p
+type A = undeclared
+type B undeclared
+var C = undeclared
+const D = undeclared
+func F(undeclared)
+`
+	pkg, _ := typecheck(src, nil, nil)
+
+	for _, name := range pkg.Scope().Names() {
+		obj := pkg.Scope().Lookup(name)
+		if obj.Type() == nil {
+			t.Errorf("object %s has nil Type", obj.Name())
+		}
+	}
+
+	// Check that an incomplete alias from package checking has Typ[Invalid]
+	// as its Underlying and Rhs (errors occurred), and does not panic.
+	a := pkg.Scope().Lookup("A").Type().(*Alias)
+	if got, want := a.Underlying(), Typ[Invalid]; got != want {
+		t.Errorf("A.Underlying() = %v, want %v", got, want)
+	}
+	if got, want := a.Rhs(), Typ[Invalid]; got != want {
+		t.Errorf("A.Rhs() = %v, want %v", got, want)
+	}
+
+	// Verify that the broken func has an empty *Signature type, not Typ[Invalid] or nil.
+	fn := pkg.Scope().Lookup("F").(*Func)
+	if _, ok := fn.Type().(*Signature); !ok {
+		t.Errorf("F has type %T, want *Signature", fn.Type())
+	}
+}
+
 func TestIssue15305(t *testing.T) {
 	const src = "package p; func f() int16; var _ = f(undef)"
 	f := mustParse(src)

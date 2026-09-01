@@ -527,6 +527,32 @@ func (check *Checker) cleanup() {
 		check.cleaners[i].cleanup()
 	}
 	check.cleaners = nil
+
+	// Before CL 825744, syntax errors, broken cyclic declarations, or
+	// unresolved types could leave objects in check.objList with a nil Type().
+	// When callers (such as gopls, objectpath, or linters) walked
+	// the package scope, calling methods on obj.Type() resulted in nil pointer
+	// panics (see go.dev/issue/77321, go.dev/issue/81138, go.dev/issue/80275).
+	//
+	// Invariant: go/types must never return Typ[Invalid] unless an error was
+	// reported. If an object has a nil type at the end of checking but no
+	// error was recorded, this indicates an internal type-checker bug, so we
+	// report an error.
+	for _, obj := range check.objList {
+		if obj.Type() == nil {
+			if check.firstErr == nil {
+				check.internalErrorf(obj, "%v has nil type", obj)
+			}
+			if fn, ok := obj.(*Func); ok {
+				// The type checker and external callers (such as (*Func).Signature())
+				// require that a Func's type dynamically implements *Signature.
+				// Assign an empty Signature for broken functions to satisfy this type assertion.
+				fn.setType(new(Signature))
+			} else {
+				obj.setType(Typ[Invalid])
+			}
+		}
+	}
 }
 
 // go/types doesn't support recording of types directly in the AST.

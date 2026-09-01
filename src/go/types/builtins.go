@@ -947,7 +947,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 		if x.val.Kind() != constant.Bool {
-			check.errorf(x, Test, "internal error: value of %s should be a boolean constant", x)
+			check.internalErrorf(x, "value of %s should be a boolean constant", x)
 			return
 		}
 		if !constant.BoolVal(x.val) {

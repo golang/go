@@ -70,6 +70,18 @@ func (t *TypeParam) Index() int {
 
 // Constraint returns the type constraint specified for t.
 func (t *TypeParam) Constraint() Type {
+	if t.bound == nil {
+		// Before CL 825744, Constraint() returned t.bound directly, which could be nil
+		// for incomplete or uninitialized TypeParams (e.g. created via NewTypeParam
+		// without a subsequent SetConstraint). Callers (such as typeWriter,
+		// objectpath, and typeutil.Map) calling methods on the returned constraint would
+		// panic with unhandled nil-pointer dereferences.
+		//
+		// An incomplete TypeParam has no defined constraint. Constraint panics if
+		// called on an incomplete TypeParam whose constraint has not yet been set.
+		// Callers must ensure SetConstraint has been called before querying Constraint.
+		panic("incomplete TypeParam: constraint not set")
+	}
 	return t.bound
 }
 
@@ -103,6 +115,22 @@ func (t *TypeParam) String() string { return TypeString(t, nil) }
 // Implementation
 
 func (t *TypeParam) cleanup() {
+	// Before CL 825744, an unresolved type parameter constraint could leave
+	// t.bound as nil, causing t.iface() below to panic on bound.Underlying().
+	//
+	// Change incomplete type parameters to Typ[Invalid] so the
+	// published package graph never contains buried nils.
+	//
+	// Invariant: The type checker must never return Typ[Invalid] unless an error was
+	// reported. If a TypeParam created during package checking has a nil bound
+	// at cleanup time, verify that an error occurred; if not, this is an
+	// internal compiler bug, so report an error.
+	if t.bound == nil {
+		if t.check != nil && t.check.firstErr == nil {
+			t.check.internalErrorf(t.obj, "%v has nil constraint", t)
+		}
+		t.bound = Typ[Invalid]
+	}
 	t.iface()
 	t.check = nil
 }
@@ -110,6 +138,14 @@ func (t *TypeParam) cleanup() {
 // iface returns the constraint interface of t.
 func (t *TypeParam) iface() *Interface {
 	bound := t.bound
+	if bound == nil {
+		// Before CL 825744 if bound was nil, bound.Underlying() below panicked
+		// with a nil-pointer dereference.
+		//
+		// iface panics if called on an incomplete TypeParam before its constraint
+		// is set.
+		panic("incomplete TypeParam: constraint not set")
+	}
 
 	// determine constraint interface
 	var ityp *Interface

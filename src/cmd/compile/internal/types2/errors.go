@@ -242,6 +242,13 @@ func (check *Checker) versionErrorf(at poser, v goVersion, format string, args .
 	err.report()
 }
 
+func (check *Checker) internalErrorf(at poser, format string, args ...any) {
+	if at == nil {
+		at = nopos
+	}
+	check.errorf(at, InvalidSyntaxTree, "internal error: "+format, args...)
+}
+
 // atPos reports the left (= start) position of at.
 func atPos(at poser) syntax.Pos {
 	switch x := at.(type) {
