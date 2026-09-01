@@ -1,5 +1,7 @@
 [!race] skip
 
+[GOARCH:loong64] skip 'broken on loong64: #78219'
+
 go test -v -race
 stdout 'testing_test.go:26: directCall'
 stdout 'testing_test.go:27: interfaceTBCall'

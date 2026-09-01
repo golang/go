@@ -7,6 +7,8 @@ stdout ok[\s\S]+?coverage
 
 [!race] stop
 
+[GOARCH:loong64] skip 'broken on loong64: #78219'
+
 go test -coverpkg=all -race x
 stdout ok[\s\S]+?coverage
 

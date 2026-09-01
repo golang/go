@@ -1,5 +1,7 @@
 [!race] skip
 
+[GOARCH:loong64] skip 'broken on loong64: #78219'
+
 go test -race testrace
 
 -- go.mod --

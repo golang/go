@@ -2,6 +2,8 @@
 
 go test testrace
 
+[GOARCH:loong64] skip 'broken on loong64: #78219'
+
 ! go test -race testrace
 stdout 'FAIL: TestRace'
 ! stdout 'PASS'
