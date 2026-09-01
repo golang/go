@@ -516,13 +516,13 @@ func (c *DeepCopier) CopySimpleStmt(s syntax.SimpleStmt) syntax.SimpleStmt {
 					newList.ElemList = append(newList.ElemList, c.CopyExpr(el))
 				}
 			}
+			newList.SetPos(list.Pos())
 			newS.Lhs = newList
 		} else if id, ok := s.Lhs.(*syntax.Name); ok && s.Def {
 			newS.Lhs = c.CopyName(id, true)
 		} else {
 			newS.Lhs = c.CopyExpr(s.Lhs)
 		}
-		newS.Lhs.SetPos(s.Lhs.Pos())
 		newS.SetPos(s.Pos())
 		return newS
 	case *syntax.AssignStmt:

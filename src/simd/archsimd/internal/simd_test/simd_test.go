@@ -8,6 +8,7 @@ package simd_test
 
 import (
 	"reflect"
+	"simd"
 	"simd/archsimd"
 	"testing"
 )
@@ -376,4 +377,10 @@ func TestSlicesInt8SetElem17const(t *testing.T) {
 	v := archsimd.LoadInt8x16(a)
 	e := v.SetElem(17, 18).GetElem(2)
 	t.Errorf("Should have panicked, e=%v", e)
+}
+
+func TestIssue81264(t *testing.T) {
+	var _ simd.Float32s
+	for range 1 {
+	}
 }
