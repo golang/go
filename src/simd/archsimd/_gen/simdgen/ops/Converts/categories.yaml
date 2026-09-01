@@ -69,7 +69,7 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME truncates element values to int16.
-- go: "SaturateToInt16(Concat(Grouped)?)?"
+- go: "(Concat)?SaturateToInt16(Grouped)?"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
@@ -114,7 +114,7 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME truncates element values to uint16.
-- go: "SaturateToUint16(Concat(Grouped)?)?"
+- go: "(Concat)?SaturateToUint16(Grouped)?"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-

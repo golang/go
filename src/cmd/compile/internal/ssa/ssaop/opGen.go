@@ -7248,6 +7248,12 @@ const (
 	OpConcatPermuteUint8x16
 	OpConcatPermuteUint8x32
 	OpConcatPermuteUint8x64
+	OpConcatSaturateToInt16GroupedInt32x16
+	OpConcatSaturateToInt16GroupedInt32x8
+	OpConcatSaturateToInt16Int32x4
+	OpConcatSaturateToUint16GroupedInt32x16
+	OpConcatSaturateToUint16GroupedInt32x8
+	OpConcatSaturateToUint16Int32x4
 	OpConcatShiftBytesRightGroupedUint8x32
 	OpConcatShiftBytesRightGroupedUint8x64
 	OpConcatShiftBytesRightUint8x16
@@ -8023,9 +8029,6 @@ const (
 	OpSHA256Message1Uint32x4
 	OpSHA256Message2Uint32x4
 	OpSHA256TwoRoundsUint32x4
-	OpSaturateToInt16ConcatGroupedInt32x16
-	OpSaturateToInt16ConcatGroupedInt32x8
-	OpSaturateToInt16ConcatInt32x4
 	OpSaturateToInt16Int32x16
 	OpSaturateToInt16Int32x4
 	OpSaturateToInt16Int32x8
@@ -8044,9 +8047,6 @@ const (
 	OpSaturateToInt8Int64x2
 	OpSaturateToInt8Int64x4
 	OpSaturateToInt8Int64x8
-	OpSaturateToUint16ConcatGroupedInt32x16
-	OpSaturateToUint16ConcatGroupedInt32x8
-	OpSaturateToUint16ConcatInt32x4
 	OpSaturateToUint16Int32x4
 	OpSaturateToUint16Uint32x16
 	OpSaturateToUint16Uint32x4
@@ -110831,6 +110831,36 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "ConcatSaturateToInt16GroupedInt32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatSaturateToInt16GroupedInt32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatSaturateToInt16Int32x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatSaturateToUint16GroupedInt32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatSaturateToUint16GroupedInt32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatSaturateToUint16Int32x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "ConcatShiftBytesRightGroupedUint8x32",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
@@ -114934,21 +114964,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "SaturateToInt16ConcatGroupedInt32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "SaturateToInt16ConcatGroupedInt32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "SaturateToInt16ConcatInt32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "SaturateToInt16Int32x16",
 		ArgLen:  1,
 		Generic: true,
@@ -115036,21 +115051,6 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "SaturateToInt8Int64x8",
 		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "SaturateToUint16ConcatGroupedInt32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "SaturateToUint16ConcatGroupedInt32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "SaturateToUint16ConcatInt32x4",
-		ArgLen:  2,
 		Generic: true,
 	},
 	{

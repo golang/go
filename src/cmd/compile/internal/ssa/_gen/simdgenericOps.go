@@ -267,6 +267,12 @@ func simdGenericOps() []opData {
 		{name: "ConcatPermuteUint64x2", argLength: 3},                                   // ARCH:amd64
 		{name: "ConcatPermuteUint64x4", argLength: 3},                                   // ARCH:amd64
 		{name: "ConcatPermuteUint64x8", argLength: 3},                                   // ARCH:amd64
+		{name: "ConcatSaturateToInt16GroupedInt32x8", argLength: 2},                     // ARCH:amd64
+		{name: "ConcatSaturateToInt16GroupedInt32x16", argLength: 2},                    // ARCH:amd64
+		{name: "ConcatSaturateToInt16Int32x4", argLength: 2},                            // ARCH:amd64
+		{name: "ConcatSaturateToUint16GroupedInt32x8", argLength: 2},                    // ARCH:amd64
+		{name: "ConcatSaturateToUint16GroupedInt32x16", argLength: 2},                   // ARCH:amd64
+		{name: "ConcatSaturateToUint16Int32x4", argLength: 2},                           // ARCH:amd64
 		{name: "ConcatSubPairsFloat32x4", argLength: 2},                                 // ARCH:amd64
 		{name: "ConcatSubPairsFloat64x2", argLength: 2},                                 // ARCH:amd64
 		{name: "ConcatSubPairsGroupedFloat32x8", argLength: 2},                          // ARCH:amd64
@@ -1007,9 +1013,6 @@ func simdGenericOps() []opData {
 		{name: "SaturateToInt8Int64x2", argLength: 1},                                   // ARCH:amd64
 		{name: "SaturateToInt8Int64x4", argLength: 1},                                   // ARCH:amd64
 		{name: "SaturateToInt8Int64x8", argLength: 1},                                   // ARCH:amd64
-		{name: "SaturateToInt16ConcatGroupedInt32x8", argLength: 2},                     // ARCH:amd64
-		{name: "SaturateToInt16ConcatGroupedInt32x16", argLength: 2},                    // ARCH:amd64
-		{name: "SaturateToInt16ConcatInt32x4", argLength: 2},                            // ARCH:amd64
 		{name: "SaturateToInt16Int32x4", argLength: 1},                                  // ARCH:amd64,arm64
 		{name: "SaturateToInt16Int32x8", argLength: 1},                                  // ARCH:amd64
 		{name: "SaturateToInt16Int32x16", argLength: 1},                                 // ARCH:amd64
@@ -1029,9 +1032,6 @@ func simdGenericOps() []opData {
 		{name: "SaturateToUint8Uint64x2", argLength: 1},                                 // ARCH:amd64
 		{name: "SaturateToUint8Uint64x4", argLength: 1},                                 // ARCH:amd64
 		{name: "SaturateToUint8Uint64x8", argLength: 1},                                 // ARCH:amd64
-		{name: "SaturateToUint16ConcatGroupedInt32x8", argLength: 2},                    // ARCH:amd64
-		{name: "SaturateToUint16ConcatGroupedInt32x16", argLength: 2},                   // ARCH:amd64
-		{name: "SaturateToUint16ConcatInt32x4", argLength: 2},                           // ARCH:amd64
 		{name: "SaturateToUint16Int32x4", argLength: 1},                                 // ARCH:arm64
 		{name: "SaturateToUint16Uint32x4", argLength: 1},                                // ARCH:amd64,arm64
 		{name: "SaturateToUint16Uint32x8", argLength: 1},                                // ARCH:amd64
