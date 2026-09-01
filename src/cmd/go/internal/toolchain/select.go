@@ -25,6 +25,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 	"cmd/go/internal/work"
@@ -532,6 +533,7 @@ func modGoToolchain(ld *modload.Loader) (file, goVers, toolchain string) {
 	if _, err := os.Stat(file); err != nil {
 		file = ""
 	}
+	isWork := file != ""
 	if file == "" {
 		file = modload.FindGoMod(wd)
 	}
@@ -539,7 +541,13 @@ func modGoToolchain(ld *modload.Loader) (file, goVers, toolchain string) {
 		return "", "", ""
 	}
 
-	data, err := os.ReadFile(file)
+	var data []byte
+	var err error
+	if isWork {
+		data, err = os.ReadFile(file)
+	} else {
+		data, err = lockedfile.Read(file)
+	}
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
