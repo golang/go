@@ -580,9 +580,9 @@ func (b *Builder) runCover(ctx context.Context, a *Action) error {
 	return nil
 }
 
-// build is the action for building a single package.
+// buildExport is the action for building the export data of a single package.
 // Note that any new influence on this logic must be reported in b.buildActionID above as well.
-func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 	p := a.Package
 	sh := b.Shell(a)
 
@@ -604,7 +604,8 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		bit(needVet, a.needVet) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
-	if b.useCache(a, b.buildActionID(a), p.Target, need&needBuild != 0) {
+	actionID := b.buildActionID(a)
+	if b.useCache(a, actionID, p.Target, need&needBuild != 0) {
 		// We found the main output in the cache.
 		// If we don't need any other outputs, we can stop.
 		// Otherwise, we need to write files to a.Objdir (needVet).
@@ -862,8 +863,16 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	}
 
 	// Compile Go.
-	objpkg := objdir + "_pkg_.a"
-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, coverageConfig, gofiles)
+	// Save the export file so that it's safe to remove the rest of the object directory using
+	// clean after the compile action completes.
+	exportFile := objdir + "_pkg_.a"
+	if cfg.BuildToolchainName == "gc" {
+		exportFile = filepath.Join(b.WorkDir, "export", filepath.Base(filepath.Clean(objdir))+".a")
+		if err := sh.Mkdir(filepath.Dir(exportFile)); err != nil {
+			return err
+		}
+	}
+	ofile, out, err := BuildToolchain.gc(b, a, exportFile, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, coverageConfig, gofiles)
 	if len(out) > 0 && (p.UsesCgo() || p.UsesSwig()) && !cfg.BuildX {
 		// Fix up output referring to cgo-generated code to be more readable.
 		// Replace *[100]_Ctype_foo with *[100]C.foo.
@@ -873,9 +882,68 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	if err := sh.reportCmd("", "", out, err); err != nil {
 		return err
 	}
-	if ofile != objpkg {
+	if ofile != exportFile {
 		objects = append(objects, ofile)
 	}
+
+	a.built = exportFile
+	if cfg.BuildToolchainName == "gc" {
+		if err := b.updateExportBuildID(a, exportFile); err != nil {
+			return err
+		}
+	}
+
+	ep := &exportProvider{
+		exportFile: exportFile,
+		objects:    objects,
+		cgoObjects: cgoObjects,
+		cfiles:     cfiles,
+		sfiles:     sfiles,
+		output:     a.output,
+	}
+	a.output = nil
+	a.Provider = ep
+	return nil
+}
+
+func (b *Builder) buildObject(ctx context.Context, a *Action) error {
+	p := a.Package
+	sh := b.Shell(a)
+
+	exportAction := a.Deps[0]
+	a.actionID = exportAction.actionID
+	a.buildID = exportAction.buildID
+
+	ep, _ := exportAction.Provider.(*exportProvider)
+	if ep == nil {
+		a.built = exportAction.built
+		if b.NeedExport {
+			p.Export = a.built
+			p.BuildID = a.buildID
+		}
+		return nil
+	}
+
+	a.output = ep.output
+	defer b.flushOutput(a)
+
+	if b.IsCmdList && !b.NeedExport {
+		return nil
+	}
+	if p.Error != nil {
+		return p.Error
+	}
+
+	if err := sh.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+
+	objdir := a.Objdir
+	objpkg := objdir + "_pkg_.a"
+	objects := ep.objects
+
+	cfiles := ep.cfiles
+	sfiles := ep.sfiles
 
 	// Copy .h files named for goos or goarch or goos_goarch
 	// to names using GOOS and GOARCH.
@@ -949,7 +1017,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	// gcc-compiled objects (cgoObjects) be listed after the ordinary
 	// objects in the archive. I do not know why this is.
 	// https://golang.org/issue/2601
-	objects = append(objects, cgoObjects...)
+	objects = append(objects, ep.cgoObjects...)
 
 	// Add system object files.
 	for _, syso := range p.SysoFiles {
@@ -961,6 +1029,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	// object files for non-Go sources to the archive.
 	// If the Go compiler wrote an archive and the package is entirely
 	// Go sources, there is no pack to execute at all.
+	if ep.exportFile != objpkg {
+		if err := sh.CopyFile(objpkg, ep.exportFile, 0666, true); err != nil {
+			return err
+		}
+	}
 	if len(objects) > 0 {
 		if err := BuildToolchain.pack(b, a, objpkg, objects); err != nil {
 			return err

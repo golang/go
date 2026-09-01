@@ -451,16 +451,21 @@ func (b *Builder) AutoAction(s *modload.Loader, mode, depMode BuildMode, p *load
 	if p.Name == "main" {
 		return b.LinkAction(s, mode, depMode, p)
 	}
-	return b.CompileAction(mode, depMode, p)
+	a := b.CompileAction(mode, depMode, p)
+	// Add the compile actions to the builder to ensure the built outputs are cached.
+	exportAction := b.BuildExportAction(mode, depMode, p)
+	b.addTransitiveCompileActions(a, exportAction)
+	return a
 }
 
-// buildActor implements the Actor interface for package build
-// actions. For most package builds this simply means invoking the
-// *Builder.build method.
-type buildActor struct{}
-
-func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
-	return b.build(ctx, a)
+// exportProvider holds the information from the export action needed by the build action.
+type exportProvider struct {
+	exportFile string
+	objects    []string
+	cgoObjects []string
+	cfiles     []string
+	sfiles     []string
+	output     []byte
 }
 
 // pgoActionID computes the action ID for a preprocess PGO action.
@@ -580,36 +585,32 @@ func (c cgoCompileActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	return nil
 }
 
-// CompileAction returns the action for compiling and possibly installing
-// (according to mode) the given package. The resulting action is only
-// for building packages (archives), never for linking executables.
-// depMode is the action (build or install) to use when building dependencies.
-// To turn package main into an executable, call b.Link instead.
-func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
+// BuildExportAction returns the action to start the compile for p.
+// The compile process is logically split between the export action
+// and the compile action. The export action completing signifies the
+// availability of the export data for dependent build actions, while
+// the build action completing signifies that the complete archive for
+// a package is ready.
+func (b *Builder) BuildExportAction(mode, depMode BuildMode, p *load.Package) *Action {
 	vetOnly := mode&ModeVetOnly != 0
 	mode &^= ModeVetOnly
 
-	if mode != ModeBuild && p.Target == "" {
-		// No permanent target.
-		mode = ModeBuild
-	}
-	if mode != ModeBuild && p.Name == "main" {
-		// We never install the .a file for a main package.
-		mode = ModeBuild
-	}
-
-	// Construct package build action.
-	a := b.cacheAction("build", p, func() *Action {
+	a := b.cacheAction("build-export", p, func() *Action {
 		a := &Action{
-			Mode:    "build",
+			Mode:    "build-export",
 			Package: p,
-			Actor:   &buildActor{},
+			Actor:   ActorFunc((*Builder).buildExport),
 			Objdir:  b.NewObjdir(),
 		}
 
 		if p.Error == nil || !p.Error.IsImportCycle {
 			for _, p1 := range p.Internal.Imports {
-				a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+				if cfg.BuildToolchainName == "gccgo" {
+					// gccgo can't do early export. it wants the full object
+					a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+				} else {
+					a.Deps = append(a.Deps, b.BuildExportAction(depMode, depMode, p1))
+				}
 			}
 		}
 
@@ -674,19 +675,41 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 
 		return a
 	})
+	a.needBuild = a.needBuild || !vetOnly
+	return a
+}
 
-	// Find the build action; the cache entry may have been replaced
-	// by the install action during (*Builder).installAction.
-	buildAction := a
-	switch buildAction.Mode {
-	case "build", "built-in package", "gccgo stdlib":
-		// ok
-	case "build-install":
-		buildAction = a.Deps[0]
-	default:
-		panic("lost build action: " + buildAction.Mode)
+// CompileAction returns the action for compiling and possibly installing
+// (according to mode) the given package. The resulting action is only
+// for building packages (archives), never for linking executables.
+// depMode is the action (build or install) to use when building dependencies.
+// To turn package main into an executable, call b.Link instead.
+func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
+	if mode != ModeBuild && p.Target == "" {
+		// No permanent target.
+		mode = ModeBuild
 	}
-	buildAction.needBuild = buildAction.needBuild || !vetOnly
+	if mode != ModeBuild && p.Name == "main" {
+		// We never install the .a file for a main package.
+		mode = ModeBuild
+	}
+
+	a := b.cacheAction("build", p, func() *Action {
+		exportAction := b.BuildExportAction(mode, depMode, p)
+		if exportAction.Actor == nil {
+			return exportAction
+		}
+
+		a := &Action{
+			Mode:    "build",
+			Package: p,
+			Actor:   ActorFunc((*Builder).buildObject),
+			Objdir:  exportAction.Objdir,
+			Deps:    []*Action{exportAction},
+		}
+
+		return a
+	})
 
 	// Construct install action.
 	if mode == ModeInstall || mode == ModeBuggyInstall {
@@ -826,7 +849,7 @@ func (b *Builder) VetAction(s *modload.Loader, mode, depMode BuildMode, needFix 
 func (b *Builder) vetAction(s *modload.Loader, mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
-		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
+		a1 := b.BuildExportAction(mode|ModeVetOnly, depMode, p)
 
 		var deps []*Action
 		if a1.buggyInstall {
@@ -856,6 +879,7 @@ func (b *Builder) vetAction(s *modload.Loader, mode, depMode BuildMode, p *load.
 		}
 		deps[0].needVet = true
 		a.Actor = ActorFunc((*Builder).vet)
+		b.addTransitiveCompileActions(a, a1)
 		return a
 	})
 	return a
@@ -890,6 +914,7 @@ func (b *Builder) LinkAction(s *modload.Loader, mode, depMode BuildMode, p *load
 			Package: p,
 		}
 
+		exportAction := b.BuildExportAction(ModeBuild, depMode, p)
 		a1 := b.CompileAction(ModeBuild, depMode, p)
 		a.Actor = ActorFunc((*Builder).link)
 		a.Deps = []*Action{a1}
@@ -917,7 +942,7 @@ func (b *Builder) LinkAction(s *modload.Loader, mode, depMode BuildMode, p *load
 		}
 		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
 		a.built = a.Target
-		b.addTransitiveLinkDeps(s, a, a1, "")
+		b.addTransitiveLinkDeps(s, a, exportAction, "")
 
 		// Sequence the build of the main package (a1) strictly after the build
 		// of all other dependencies that go into the link. It is likely to be after
@@ -926,7 +951,7 @@ func (b *Builder) LinkAction(s *modload.Loader, mode, depMode BuildMode, p *load
 		// In order for that linkActionID call to compute the right action ID, all the
 		// dependencies of a (except a1) must have completed building and have
 		// recorded their build IDs.
-		a1.Deps = append(a1.Deps, &Action{Mode: "nop", Deps: a.Deps[1:]})
+		exportAction.Deps = append(exportAction.Deps, &Action{Mode: "nop", Deps: a.Deps[1:]})
 		return a
 	})
 
@@ -994,6 +1019,30 @@ func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
 	})
 }
 
+// addTransitiveCompileActions adds the compile actions for all packages
+// that are transitive dependencies of root to the dependencies of action a.
+func (b *Builder) addTransitiveCompileActions(a, root *Action) {
+	workq := []*Action{root}
+	haveDep := map[string]bool{}
+	if root.Package != nil {
+		haveDep[root.Package.ImportPath] = true
+	}
+	for i := 0; i < len(workq); i++ {
+		for _, a2 := range workq[i].Deps {
+			for a2.Mode == "build-install" || a2.Mode == "build" {
+				a2 = a2.Deps[0]
+			}
+			// TODO(rsc): Find a better discriminator than the Mode strings, once the dust settles.
+			if a2.Mode != "build-export" || haveDep[a2.Package.ImportPath] {
+				continue
+			}
+			haveDep[a2.Package.ImportPath] = true
+			a.Deps = append(a.Deps, b.CompileAction(ModeBuild, ModeBuild, a2.Package))
+			workq = append(workq, a2)
+		}
+	}
+}
+
 // addTransitiveLinkDeps adds to the link action a all packages
 // that are transitive dependencies of a1.Deps.
 // That is, if a is a link of package main, a1 is the compile of package main
@@ -1009,26 +1058,7 @@ func (b *Builder) addTransitiveLinkDeps(s *modload.Loader, a, a1 *Action, shlib 
 	// before the standard ones.
 	// TODO(rsc): Eliminate the standard ones from the action graph,
 	// which will require doing a little bit more rebuilding.
-	workq := []*Action{a1}
-	haveDep := map[string]bool{}
-	if a1.Package != nil {
-		haveDep[a1.Package.ImportPath] = true
-	}
-	for i := 0; i < len(workq); i++ {
-		a1 := workq[i]
-		for _, a2 := range a1.Deps {
-			// TODO(rsc): Find a better discriminator than the Mode strings, once the dust settles.
-			if a2.Package == nil || (a2.Mode != "build-install" && a2.Mode != "build") || haveDep[a2.Package.ImportPath] {
-				continue
-			}
-			haveDep[a2.Package.ImportPath] = true
-			a.Deps = append(a.Deps, a2)
-			if a2.Mode == "build-install" {
-				a2 = a2.Deps[0] // walk children of "build" action
-			}
-			workq = append(workq, a2)
-		}
-	}
+	b.addTransitiveCompileActions(a, a1)
 
 	// If this is go build -linkshared, then the link depends on the shared libraries
 	// in addition to the packages themselves. (The compile steps do not.)

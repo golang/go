@@ -43,7 +43,7 @@ func BuildActionCoverMetaFile(runAct *Action) (string, error) {
 			continue
 		}
 		var coverAction *Action
-		for _, act := range pred.Deps {
+		for _, act := range pred.Deps[0].Deps {
 			if act.Mode == "cover" {
 				coverAction = act
 				break
@@ -129,7 +129,7 @@ func WriteCoverMetaFilesFile(b *Builder, ctx context.Context, a *Action) error {
 			panic("unexpected mode " + dep.Mode)
 		}
 		var coverAction *Action
-		for _, act := range dep.Deps {
+		for _, act := range dep.Deps[0].Deps {
 			if act.Mode == "cover" {
 				coverAction = act
 			}

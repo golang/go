@@ -531,7 +531,9 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		// already up-to-date, then to avoid a rebuild, report the package
 		// as up-to-date as well. See "Build IDs" comment above.
 		// TODO(rsc): Rewrite this code to use a TryCache func on the link action.
-		if !b.NeedExport && a.Mode == "build" && len(a.triggers) == 1 && a.triggers[0].Mode == "link" {
+		if !b.NeedExport && a.Mode == "build-export" && len(a.triggers) == 1 &&
+			len(a.triggers[0].triggers) == 1 && a.triggers[0].triggers[0].Mode == "link" {
+			buildAction, linkAction := a.triggers[0], a.triggers[0].triggers[0]
 			if id := strings.Split(buildID, buildIDSeparator); len(id) == 4 && id[1] == actionID {
 				// Temporarily assume a.buildID is the package build ID
 				// stored in the installed binary, and see if that makes
@@ -545,7 +547,8 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 				// build IDs of completed actions.
 				oldBuildID := a.buildID
 				a.buildID = id[1] + buildIDSeparator + id[2] + buildIDSeparator + id[2]
-				linkID := buildid.HashToString(b.linkActionID(a.triggers[0]))
+				buildAction.buildID = a.buildID
+				linkID := buildid.HashToString(b.linkActionID(linkAction))
 				if id[0] == linkID {
 					// Best effort attempt to display output from the compile and link steps.
 					// If it doesn't work, it doesn't work: reusing the cached binary is more
@@ -565,6 +568,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 				}
 				// Otherwise restore old build ID for main build.
 				a.buildID = oldBuildID
+				buildAction.buildID = ""
 			}
 		}
 	}
@@ -721,78 +725,33 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 		}
 	}
 
-	var matches []int64
-	var exportHash [32]byte
-	var objectOffset int64 // where to start hashing the object data from
-	// Find occurrences of old ID and compute new content-based ID.
-	r, err := os.Open(target)
+	// We updated the export data to have the export content id by
+	// giving it the build id actionID/exportID/exportID, while the
+	// object data still has the original actionID/actionID/actionID.
+	// We'll have to update both of those to actionID/exportID/objectID.
+	objectBuildID := a.buildID
+	if a.Mode == "build" {
+		id := buildid.HashToString(a.actionID)
+		objectBuildID = id + buildIDSeparator + id + buildIDSeparator + id
+	}
+	matches, _, objectHash, err := b.findBuildIDs(a, target, objectBuildID)
 	if err != nil {
-		return err
-	}
-	// Hash export id if this is an archive with an export data file.
-	if v, err := archive.Parse(r, false); err == nil && len(v.Entries) > 0 && v.Entries[0].Type == archive.EntryPkgDef {
-		pkgEntry := v.Entries[0]
-		exportMatches, contentHash, err := buildid.FindAndHash(io.NewSectionReader(r, pkgEntry.Offset, pkgEntry.Size), a.buildID, 0)
-		if err != nil {
-			r.Close()
-			return err
-		}
-		exportHash = contentHash
-		for _, m := range exportMatches {
-			matches = append(matches, pkgEntry.Offset+m)
-		}
-		objectOffset = pkgEntry.Offset + pkgEntry.Size
-	}
-	if _, err := r.Seek(objectOffset, io.SeekStart); err != nil {
-		r.Close()
-		return err
-	}
-	objectMatches, objectHash, err := buildid.FindAndHash(r, a.buildID, 0)
-	if err != nil {
-		return err
-	}
-	for _, m := range objectMatches {
-		matches = append(matches, objectOffset+m)
-	}
-	if err := r.Close(); err != nil {
 		return err
 	}
 
 	var newID string
 	if a.Mode == "build" {
-		if exportHash == [32]byte{} {
-			exportHash = objectHash // gccgo does not have export data
-		}
-		newID = buildActionID(a.buildID) + buildIDSeparator + buildid.HashToString(exportHash) + buildIDSeparator + buildid.HashToString(objectHash)
+		exportID := buildExportID(a.Deps[0].buildID)
+		newID = buildActionID(a.buildID) + buildIDSeparator + exportID + buildIDSeparator + buildid.HashToString(objectHash)
 	} else {
 		newID = a.buildID[:strings.LastIndex(a.buildID, buildIDSeparator)] + buildIDSeparator + buildid.HashToString(objectHash)
 	}
-	if len(newID) != len(a.buildID) {
-		return fmt.Errorf("internal error: build ID length mismatch %q vs %q", a.buildID, newID)
-	}
-
-	// Replace with new content-based ID.
-	a.buildID = newID
-	if a.json != nil {
-		a.json.BuildID = a.buildID
+	if err := b.rewriteBuildID(a, target, newID, matches); err != nil {
+		return err
 	}
 	if len(matches) == 0 {
 		// Assume the user specified -buildid= to override what we were going to choose.
 		return nil
-	}
-
-	// Replace the build id in the file with the content-based ID.
-	w, err := os.OpenFile(target, os.O_RDWR, 0)
-	if err != nil {
-		return err
-	}
-	err = buildid.Rewrite(w, matches, newID)
-	if err != nil {
-		w.Close()
-		return err
-	}
-	if err := w.Close(); err != nil {
-		return err
 	}
 
 	// Cache package builds, and cache executable builds if
@@ -840,5 +799,99 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 		}
 	}
 
+	return nil
+}
+
+func (b *Builder) rewriteBuildID(a *Action, target, newID string, matches []int64) error {
+	if len(newID) != len(a.buildID) {
+		return fmt.Errorf("internal error: build ID length mismatch %q vs %q", a.buildID, newID)
+	}
+
+	// Replace with new content-based ID.
+	a.buildID = newID
+	if a.json != nil {
+		a.json.BuildID = a.buildID
+	}
+	if len(matches) == 0 {
+		return nil
+	}
+
+	// Replace the build id in the file with the content-based ID.
+	w, err := os.OpenFile(target, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	if err := buildid.Rewrite(w, matches, newID); err != nil {
+		w.Close()
+		return err
+	}
+	return w.Close()
+}
+
+func (b *Builder) findBuildIDs(a *Action, target, objectBuildID string) (matches []int64, exportHash, objectHash [32]byte, err error) {
+	var objectOffset int64 // where to start hashing the object data from
+	// Find occurrences of old ID and compute new content-based ID.
+	r, err := os.Open(target)
+	if err != nil {
+		return nil, exportHash, objectHash, err
+	}
+	defer func() {
+		if cerr := r.Close(); err == nil {
+			err = cerr
+		}
+	}()
+
+	if v, err := archive.Parse(r, false); err == nil && len(v.Entries) > 0 && v.Entries[0].Type == archive.EntryPkgDef {
+		pkgEntry := v.Entries[0]
+		exportMatches, contentHash, err := buildid.FindAndHash(io.NewSectionReader(r, pkgEntry.Offset, pkgEntry.Size), a.buildID, 0)
+		if err != nil {
+			return nil, exportHash, objectHash, err
+		}
+		exportHash = contentHash
+		for _, m := range exportMatches {
+			matches = append(matches, pkgEntry.Offset+m)
+		}
+		objectOffset = pkgEntry.Offset + pkgEntry.Size
+	}
+
+	if _, err := r.Seek(objectOffset, io.SeekStart); err != nil {
+		return nil, exportHash, objectHash, err
+	}
+	objectMatches, objectHash, err := buildid.FindAndHash(r, objectBuildID, 0)
+	if err != nil {
+		return nil, exportHash, objectHash, err
+	}
+	for _, m := range objectMatches {
+		matches = append(matches, objectOffset+m)
+	}
+	return matches, exportHash, objectHash, nil
+}
+
+func (b *Builder) updateExportBuildID(a *Action, target string) error {
+	if cfg.BuildX || cfg.BuildN {
+		b.Shell(a).ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("go", "tool", "buildid", "-w", target)))
+		if cfg.BuildN {
+			return nil
+		}
+	}
+
+	matches, exportHash, objectHash, err := b.findBuildIDs(a, target, a.buildID)
+	if err != nil {
+		return err
+	}
+	if exportHash == [32]byte{} {
+		exportHash = objectHash // gccgo does not have export data
+	}
+
+	exportHashStr := buildid.HashToString(exportHash)
+	newID := buildActionID(a.buildID) + buildIDSeparator + exportHashStr + buildIDSeparator + exportHashStr
+	if err := b.rewriteBuildID(a, target, newID, matches); err != nil {
+		return err
+	}
+
+	if b.NeedExport {
+		a.Package.Export = target
+		a.Package.BuildID = a.buildID
+	}
 	return nil
 }
