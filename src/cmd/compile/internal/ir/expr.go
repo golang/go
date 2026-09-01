@@ -1212,28 +1212,15 @@ func promotedWrapperSym(wrapper, wrappee *types.Type, msym *types.Sym, offset in
 		recvMode = "n"
 	}
 
-	rsym := wrapper.Sym()
-	if wrapper.IsPtr() {
-		if rsym != nil {
-			base.Fatalf("declared pointer receiver type: %v", wrapper)
-		}
-		rsym = wrapper.Elem().Sym()
-	}
-	rpkg := Pkgs.Go
-	if rsym != nil {
-		rpkg = rsym.Pkg
-	}
+	wrappeeMethod := ReceiverMethodSym(wrappee, msym)
 
 	var b bytes.Buffer
-	fmt.Fprintf(&b, ".embed.%-S.", wrappee)
-	if !types.IsExported(msym.Name) {
-		b.WriteString(msym.Pkg.Prefix)
-		b.WriteString(".")
-	}
-	b.WriteString(msym.Name)
-	fmt.Fprintf(&b, ".%d%s.%d", derefs, recvMode, offset)
+	fmt.Fprintf(&b, ".embed.%d%s.%d.", derefs, recvMode, offset)
+	b.WriteString(wrappeeMethod.Pkg.Prefix)
+	b.WriteString(".")
+	b.WriteString(wrappeeMethod.Name)
 
-	sym := rpkg.LookupBytes(b.Bytes())
+	sym := wrappeeMethod.Pkg.LookupBytes(b.Bytes())
 	sym.SetFunc(true)
 	return sym
 }
