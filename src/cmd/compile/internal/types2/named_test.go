@@ -123,7 +123,7 @@ package p
 type T struct{}
 
 func (T) a() {}
-func (T) c() {}
+func (T) c[X any](x X) {}
 func (T) b() {}
 `
 	// should get the same method order each time
