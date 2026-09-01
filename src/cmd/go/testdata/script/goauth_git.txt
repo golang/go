@@ -8,7 +8,9 @@ env GOSUMDB=off
 # Disable 'git credential fill' interactive prompts.
 env GIT_TERMINAL_PROMPT=0
 exec git init
-exec git config credential.helper 'store --file=.git-credentials'
+# Ignore credential helpers inherited from system configuration.
+exec git config credential.helper ''
+exec git config --add credential.helper 'store --file=.git-credentials'
 cp go.mod.orig go.mod
 
 # Set GOAUTH to git without a working directory.
