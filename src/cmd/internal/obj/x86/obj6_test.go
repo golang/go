@@ -7,7 +7,11 @@ package x86_test
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/obj"
+	x86obj "cmd/internal/obj/x86"
+	"cmd/internal/objabi"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -16,6 +20,44 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestCanUse1InsnTLS(t *testing.T) {
+	for _, headType := range []objabi.HeadType{
+		objabi.Hlinux,
+		objabi.Hfreebsd,
+		objabi.Hopenbsd,
+	} {
+		ctxt := &obj.Link{Arch: &x86obj.Linkamd64, Headtype: headType}
+		if buildcfg.GOOS != "android" {
+			if !x86obj.CanUse1InsnTLS(ctxt) {
+				t.Errorf("CanUse1InsnTLS(%v, shared=false) = false, want true", headType)
+			}
+		}
+		ctxt.Flag_shared = true
+		if x86obj.CanUse1InsnTLS(ctxt) {
+			t.Errorf("CanUse1InsnTLS(%v, shared=true) = true, want false", headType)
+		}
+	}
+}
+
+func TestOpenBSDSharedTLS(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	dir := t.TempDir()
+	source := filepath.Join(dir, "tls.s")
+	if err := os.WriteFile(source, []byte("TEXT ·tls(SB),$0\n\tMOVQ TLS, AX\n\tMOVQ 0(AX)(TLS*1), BX\n\tRET\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-shared", "-o", filepath.Join(dir, "tls.o"), source)
+	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=openbsd")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to assemble OpenBSD shared TLS access: %v\n%s", err, out)
+	}
+	if !bytes.Contains(out, []byte("R_TLS_IE")) {
+		t.Fatalf("OpenBSD shared TLS access did not use initial-exec TLS relocation:\n%s", out)
+	}
+}
 
 const testdata = `
 MOVQ AX, AX -> MOVQ AX, AX
