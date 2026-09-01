@@ -174,11 +174,11 @@ func (t *itabTableType) add(m *itab) {
 	for i := uintptr(1); ; i++ {
 		p := (**itab)(add(unsafe.Pointer(&t.entries), h*goarch.PtrSize))
 		m2 := *p
-		if m2 == m {
-			// A given itab may be used in more than one module
-			// and thanks to the way global symbol resolution works, the
-			// pointed-to itab may already have been inserted into the
-			// global 'hash'.
+		if m2 != nil && m2.Inter == m.Inter && m2.Type == m.Type {
+			// A plugin has its own copy of the itabs that the main program
+			// also has. Type switches and type assertions compare against
+			// the itab that is already in the table, so don't add a second
+			// itab for the same interface/type pair.
 			return
 		}
 		if m2 == nil {
