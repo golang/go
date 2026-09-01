@@ -5370,28 +5370,26 @@ func TestServerEnableConnectProtocol_Settings(t *testing.T) {
 		{name: "enabled", enable: true, want: true},
 		{name: "disabled", enable: false, want: false},
 	} {
-		t.Run(tt.name, func(t *testing.T) {
-			synctestTest(t, func(t testing.TB) {
-				var opts []any
-				if tt.enable {
-					opts = append(opts, func(h2 *http.HTTP2Config) {
-						h2.EnableConnectProtocol = true
-					})
-				}
-				st := newServerTester(t, nil, opts...)
-				defer st.Close()
-
-				var saw bool
-				st.greetAndCheckSettings(func(s Setting) error {
-					if s.ID == SettingEnableConnectProtocol {
-						saw = true
-					}
-					return nil
+		synctestSubtest(t, tt.name, func(t *testing.T) {
+			var opts []any
+			if tt.enable {
+				opts = append(opts, func(h2 *http.HTTP2Config) {
+					h2.EnableConnectProtocol = true
 				})
-				if saw != tt.want {
-					t.Errorf("ENABLE_CONNECT_PROTOCOL advertised=%v; want %v", saw, tt.want)
+			}
+			st := newServerTester(t, nil, opts...)
+			defer st.Close()
+
+			var saw bool
+			st.greetAndCheckSettings(func(s Setting) error {
+				if s.ID == SettingEnableConnectProtocol {
+					saw = true
 				}
+				return nil
 			})
+			if saw != tt.want {
+				t.Errorf("ENABLE_CONNECT_PROTOCOL advertised=%v; want %v", saw, tt.want)
+			}
 		})
 	}
 }
