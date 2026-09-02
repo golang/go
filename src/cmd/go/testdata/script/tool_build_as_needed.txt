@@ -1,7 +1,10 @@
 [!symlink] skip 'uses symlinks to construct a GOROOT'
 
 env NEWGOROOT=$WORK${/}goroot
-env TOOLDIR=$GOROOT/pkg/tool/${GOOS}_${GOARCH}
+# Use the installed host tools, but make testgo find them under its runtime tuple.
+env TOOLDIR=$GOROOT/pkg/tool/${TESTGO_GOHOSTOS}_${TESTGO_GOHOSTARCH}
+env TESTGO_GOHOSTOS=$GOOS
+env TESTGO_GOHOSTARCH=$GOARCH
 # Use ${/} in paths we'll check for in stdout below, so they contain '\' on Windows
 env NEWTOOLDIR=$NEWGOROOT${/}pkg${/}tool${/}${GOOS}_${GOARCH}
 mkdir $NEWGOROOT $NEWGOROOT/bin $NEWTOOLDIR
