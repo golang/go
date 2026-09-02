@@ -99,12 +99,27 @@ type Conn struct {
 	clientProtocol string
 
 	// input/output
-	in, out   halfConn
-	rawInput  bytes.Buffer // raw input, starting with a record header
-	input     bytes.Reader // application data waiting to be read, from rawInput.Next
-	hand      bytes.Buffer // handshake data waiting to be read
-	buffering bool         // whether records are buffered in sendBuf
-	sendBuf   []byte       // a buffer of records waiting to be sent
+	in, out halfConn
+	// rawInput holds raw input, starting with a record header.
+	// It is nil when no input is buffered, in which case the buffer has
+	// been returned to rawInputPool so that connections idle in Read do
+	// not pin a record-sized buffer. It is lazily repopulated from the
+	// pool by readFromUntil.
+	rawInput *bytes.Buffer
+	// smallInput is a small buffer that serves as rawInput while
+	// waiting for a record header after rawInput has been returned to
+	// rawInputPool. It is lazily allocated by readFromUntil and then
+	// kept for the life of the connection.
+	smallInput *bytes.Buffer
+	// input holds application data waiting to be read, from rawInput.Next.
+	input bytes.Reader
+	// hand holds handshake data waiting to be read.
+	// It is nil when no handshake data is buffered, in which case the
+	// buffer has been returned to handPool. Use handBuf and handLen to
+	// access it.
+	hand      *bytes.Buffer
+	buffering bool   // whether records are buffered in sendBuf
+	sendBuf   []byte // a buffer of records waiting to be sent
 
 	// bytesSent counts the bytes of application data sent.
 	// packetsSent counts packets.
@@ -580,7 +595,9 @@ func (e RecordHeaderError) Error() string { return "tls: " + e.Msg }
 func (c *Conn) newRecordHeaderError(conn net.Conn, msg string) (err RecordHeaderError) {
 	err.Msg = msg
 	err.Conn = conn
-	copy(err.RecordHeader[:], c.rawInput.Bytes())
+	if c.rawInput != nil {
+		copy(err.RecordHeader[:], c.rawInput.Bytes())
+	}
 	return err
 }
 
@@ -620,6 +637,19 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 
 	if c.quic != nil {
 		return c.in.setErrorLocked(errors.New("tls: internal error: attempted to read record with QUIC transport"))
+	}
+
+	// If rawInput is empty, we are about to block in a Read on the
+	// underlying connection waiting for the next record, possibly for a
+	// long time. A previous record may have grown rawInput to the maximum
+	// record size; don't pin that memory while idle. Return the buffer to
+	// the pool, and let readFromUntil read the header into a small buffer
+	// and switch back to a pooled record-sized buffer only once the
+	// payload length is known.
+	if c.rawInput != nil && c.rawInput.Len() == 0 && c.rawInput != c.smallInput && c.rawInput.Cap() > maxIdleInputCap {
+		c.rawInput.Reset()
+		rawInputPool.Put(c.rawInput)
+		c.rawInput = nil
 	}
 
 	// Read header, payload.
@@ -702,7 +732,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 	}
 
 	// Handshake messages MUST NOT be interleaved with other record types in TLS 1.3.
-	if c.vers == VersionTLS13 && typ != recordTypeHandshake && c.hand.Len() > 0 {
+	if c.vers == VersionTLS13 && typ != recordTypeHandshake && c.handLen() > 0 {
 		return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 	}
 
@@ -747,7 +777,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 			return c.in.setErrorLocked(c.sendAlert(alertDecodeError))
 		}
 		// Handshake messages are not allowed to fragment across the CCS.
-		if c.hand.Len() > 0 {
+		if c.handLen() > 0 {
 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 		}
 		// In TLS 1.3, change_cipher_spec records are ignored until the
@@ -783,7 +813,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 		if len(data) == 0 || expectChangeCipherSpec {
 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 		}
-		c.hand.Write(data)
+		c.handBuf().Write(data)
 	}
 
 	return nil
@@ -800,13 +830,85 @@ func (c *Conn) retryReadRecord(expectChangeCipherSpec bool) error {
 	return c.readRecordOrCCS(expectChangeCipherSpec)
 }
 
+// rawInputPool pools the record-sized buffers that back Conn.rawInput
+// while records are being received. A connection returns its buffer to
+// the pool before blocking to wait for a new record, often for a long
+// time, so that idle connections do not each pin a record-sized buffer.
+// Only buffers with capacity above maxIdleInputCap are pooled; smaller
+// buffers stay attached to their connection.
+var rawInputPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+
+// maxIdleInputCap is the largest rawInput capacity that a connection
+// keeps while waiting for a new record to arrive. It is large enough to
+// hold a record header and small records, so that only connections
+// receiving larger records pay for the pooled buffer switch below.
+const maxIdleInputCap = 1024
+
+// handPool pools the buffers that back Conn.hand, which typically grow
+// to hold the peer's largest flight of handshake messages. A connection
+// returns its buffer to the pool once the handshake completes and after
+// buffered post-handshake messages have been consumed, so that
+// established connections do not pin it.
+var handPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+
+// handBuf returns c.hand for writing, getting a buffer from handPool if
+// c.hand is nil.
+func (c *Conn) handBuf() *bytes.Buffer {
+	if c.hand == nil {
+		c.hand = handPool.Get().(*bytes.Buffer)
+	}
+	return c.hand
+}
+
+// handLen returns the number of buffered handshake bytes.
+func (c *Conn) handLen() int {
+	if c.hand == nil {
+		return 0
+	}
+	return c.hand.Len()
+}
+
+// releaseHand returns c.hand to handPool if it is empty.
+func (c *Conn) releaseHand() {
+	if c.hand != nil && c.hand.Len() == 0 {
+		c.hand.Reset()
+		handPool.Put(c.hand)
+		c.hand = nil
+	}
+}
+
 // readFromUntil reads from r into c.rawInput until c.rawInput contains
 // at least n bytes or else returns an error.
 func (c *Conn) readFromUntil(r io.Reader, n int) error {
+	if c.rawInput == nil {
+		// The record buffer was released while waiting for a new
+		// record. Block for the header using the connection's small
+		// buffer; the switch to a pooled record-sized buffer below
+		// happens only once the payload length is known and data is
+		// flowing.
+		if c.smallInput == nil {
+			c.smallInput = new(bytes.Buffer)
+		}
+		c.rawInput = c.smallInput
+	}
 	if c.rawInput.Len() >= n {
 		return nil
 	}
 	needs := n - c.rawInput.Len()
+	if want := c.rawInput.Len() + needs + bytes.MinRead; want > maxIdleInputCap && want > c.rawInput.Cap() {
+		// Growing past maxIdleInputCap: switch to a pooled buffer so
+		// that record-sized buffers are recycled across connections
+		// rather than allocated for every record.
+		b := rawInputPool.Get().(*bytes.Buffer)
+		b.Write(c.rawInput.Bytes())
+		if c.rawInput == c.smallInput {
+			c.smallInput.Reset()
+		} else if c.rawInput.Cap() > maxIdleInputCap {
+			c.rawInput.Reset()
+			rawInputPool.Put(c.rawInput)
+		}
+		c.rawInput = b
+	}
 	// There might be extra input waiting on the wire. Make a best effort
 	// attempt to fetch it so that it can be used in (*Conn).Read to
 	// "predict" closeNotify alerts.
@@ -1079,7 +1181,7 @@ func (c *Conn) readHandshakeBytes(n int) error {
 	if c.quic != nil {
 		return c.quicReadHandshakeBytes(n)
 	}
-	for c.hand.Len() < n {
+	for c.handLen() < n {
 		if err := c.readRecord(); err != nil {
 			return err
 		}
@@ -1392,11 +1494,12 @@ func (c *Conn) Read(b []byte) (int, error) {
 		if err := c.readRecord(); err != nil {
 			return 0, err
 		}
-		for c.hand.Len() > 0 {
+		for c.handLen() > 0 {
 			if err := c.handlePostHandshakeMessage(); err != nil {
 				return 0, err
 			}
 		}
+		c.releaseHand()
 	}
 
 	n, _ := c.input.Read(b)
@@ -1574,6 +1677,14 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 		panic("tls: internal error: handshake returned an error but is marked successful")
 	}
 
+	// The handshake buffer typically grew to hold the peer's largest
+	// flight of handshake messages and is now empty. Post-handshake
+	// messages are rare and small, so release the buffer rather than
+	// pinning it for the life of the connection.
+	if c.handshakeErr == nil {
+		c.releaseHand()
+	}
+
 	if c.quic != nil {
 		if c.handshakeErr == nil {
 			c.quicHandshakeComplete()
@@ -1685,7 +1796,7 @@ func (c *Conn) setReadTrafficSecret(suite *cipherSuiteTLS13, level QUICEncryptio
 	// Ensure that there are no buffered handshake messages before changing the
 	// read keys, since that can cause messages to be parsed that were encrypted
 	// using old keys which are no longer appropriate.
-	if c.hand.Len() != 0 {
+	if c.handLen() != 0 {
 		if locked {
 			c.sendAlertLocked(alertUnexpectedMessage)
 		} else {
