@@ -8,7 +8,7 @@
 # protect the module cache from being modified in place: the replaced
 # source file below stands in for stale contents, not an attacker.
 
-env snap=v1.26.0
+env snap=v1.26.0-cd900eea
 env GOFIPS140=$snap
 env GOMODCACHE=$WORK/modcache
 env GOFLAGS=-modcacherw
@@ -24,7 +24,7 @@ go list -f '{{.DefaultGODEBUG}}'
 stdout fips140=on
 exists $ziphash
 exists $srcfile
-grep '^h1:dtoPX1ALGGp4rMLzyh6oqIkYRXnXxRkpPWu56l5DFpM=$' $ziphash
+grep '^h1:C83YxCGTpzaT4ZWTupHiW7eqlUxlDyF4SrBaiUinoaE=$' $ziphash
 cp $ziphash good.ziphash
 
 # a recorded hash that does not match fips140.sum
