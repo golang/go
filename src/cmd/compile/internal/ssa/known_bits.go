@@ -45,6 +45,7 @@ func KnownBits(f *Func) {
 			}
 			val, k := kb.fold(v)
 			if k != -1 {
+				kb.simplifyValue(v)
 				continue
 			}
 			if f.Pass.Debug > 0 {
@@ -270,6 +271,43 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 		})
 	default:
 		return 0, 0
+	}
+}
+
+func (kb *knownBitsState) simplifyValue(v *Value) {
+	switch v.Op {
+	case ssaop.OpAnd64, ssaop.OpAnd32, ssaop.OpAnd16, ssaop.OpAnd8:
+		x, xk := kb.fold(v.Args[0])
+		y, yk := kb.fold(v.Args[1])
+		for i := range 2 {
+			xAllCouldBeOnes := x | ^xk
+			yAllCouldBeZeros := ^y
+			if xAllCouldBeOnes&yAllCouldBeZeros == 0 {
+				if f := v.Block.Func; f.Pass.Debug > 0 {
+					f.Warnl(v.Pos, "Removed %v no-op %v", v, v.Op)
+				}
+				v.CopyOf(v.Args[i])
+				return
+			}
+			x, y = y, x
+			xk, yk = yk, xk
+		}
+	case ssaop.OpOr64, ssaop.OpOr32, ssaop.OpOr16, ssaop.OpOr8:
+		x, xk := kb.fold(v.Args[0])
+		y, yk := kb.fold(v.Args[1])
+		for i := range 2 {
+			xAllCouldBeZeros := ^x
+			yAllCouldBeOnes := y | ^yk
+			if xAllCouldBeZeros&yAllCouldBeOnes == 0 {
+				if f := v.Block.Func; f.Pass.Debug > 0 {
+					f.Warnl(v.Pos, "Removed %v no-op %v", v, v.Op)
+				}
+				v.CopyOf(v.Args[i])
+				return
+			}
+			x, y = y, x
+			xk, yk = yk, xk
+		}
 	}
 }
 
