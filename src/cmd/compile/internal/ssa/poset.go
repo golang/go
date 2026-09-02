@@ -58,19 +58,19 @@ type Poset struct {
 	values  map[ID]uint32     // map SSA values to dense indexes
 	nodes   []posetNode       // nodes (in all DAGs)
 	roots   []uint32          // list of root nodes (forest)
-	noneq   map[uint32]bitset // non-equal relations
+	noneq   map[uint32]Bitset // non-equal relations
 	undo    []posetUndo       // undo chain
 }
 
 // bitset is a bit array for dense indexes.
-type bitset []uint
+type Bitset []uint
 
 func computeBitsetSize(n int) int {
 	return (n + uintSize - 1) / uintSize
 }
 
-func newBitset(n int) bitset {
-	return make(bitset, computeBitsetSize(n))
+func NewBitset(n int) Bitset {
+	return make(Bitset, computeBitsetSize(n))
 }
 
 func newPoset() *Poset {
@@ -78,7 +78,7 @@ func newPoset() *Poset {
 		values: make(map[ID]uint32),
 		nodes:  make([]posetNode, 1, 16),
 		roots:  make([]uint32, 0, 4),
-		noneq:  make(map[uint32]bitset),
+		noneq:  make(map[uint32]Bitset),
 		undo:   make([]posetUndo, 0, 4),
 	}
 }
@@ -128,28 +128,32 @@ const (
 
 type undoType uint8
 
-func (c *Cache) allocBitset(n int) bitset {
-	return bitset(c.AllocUintSlice(computeBitsetSize(n)))
+func (c *Cache) AllocBitset(n int) Bitset {
+	return Bitset(c.AllocUintSlice(computeBitsetSize(n)))
 }
 
-func (c *Cache) freeBitset(bs bitset) {
+func (c *Cache) FreeBitset(bs Bitset) {
 	c.FreeUintSlice([]uint(bs))
 }
 
-func (bs bitset) Reset() {
+func (bs Bitset) Reset() {
 	clear(bs)
 }
 
-func (bs bitset) Set(idx uint32) {
+func (bs Bitset) Set(idx uint32) {
 	bs[idx/uintSize] |= 1 << (idx % uintSize)
 }
 
-func (bs bitset) Clear(idx uint32) {
+func (bs Bitset) Clear(idx uint32) {
 	bs[idx/uintSize] &^= 1 << (idx % uintSize)
 }
 
-func (bs bitset) Test(idx uint32) bool {
+func (bs Bitset) Test(idx uint32) bool {
 	return bs[idx/uintSize]&(1<<(idx%uintSize)) != 0
+}
+
+func (bs Bitset) Cap() int {
+	return len(bs) * uintSize
 }
 
 func (e posetEdge) Target() uint32 { return uint32(e) >> 1 }
@@ -278,7 +282,7 @@ func (po *Poset) aliasnewnode(n1, n2 *Value) {
 // of nodes in i2s, so that they point to n1 instead.
 // Complexity is O(n) (with n being the total number of nodes in the poset, not just
 // the number of nodes being aliased).
-func (po *Poset) aliasnodes(n1 *Value, i2s bitset) {
+func (po *Poset) aliasnodes(n1 *Value, i2s Bitset) {
 	i1 := po.values[n1.ID]
 	if i1 == 0 {
 		panic("aliasnode for non-existing node")
@@ -369,7 +373,7 @@ func (po *Poset) removeroot(r uint32) {
 // a strict walk visits D,E,F.
 // If the visit ends, false is returned.
 func (po *Poset) dfs(r uint32, strict bool, f func(i uint32) bool) bool {
-	closed := newBitset(int(po.lastidx + 1))
+	closed := NewBitset(int(po.lastidx + 1))
 	open := make([]uint32, 1, 64)
 	open[0] = r
 
@@ -493,15 +497,15 @@ func (po *Poset) collapsepath(n1, n2 *Value) bool {
 // We do a DFS from cur (stopping going deep any time we reach dst, if ever),
 // and mark as part of the paths any node that has a children which is already
 // part of the path (or is dst itself).
-func (po *Poset) findpaths(cur, dst uint32) bitset {
-	seen := newBitset(int(po.lastidx + 1))
-	path := newBitset(int(po.lastidx + 1))
+func (po *Poset) findpaths(cur, dst uint32) Bitset {
+	seen := NewBitset(int(po.lastidx + 1))
+	path := NewBitset(int(po.lastidx + 1))
 	path.Set(dst)
 	po.findpaths1(cur, dst, seen, path)
 	return path
 }
 
-func (po *Poset) findpaths1(cur, dst uint32, seen bitset, path bitset) {
+func (po *Poset) findpaths1(cur, dst uint32, seen Bitset, path Bitset) {
 	if cur == dst {
 		return
 	}
@@ -565,7 +569,7 @@ func (po *Poset) setnoneq(n1, n2 *Value) {
 		// higher index as a key, the bitsize will never change size.
 		// TODO(rasky): if memory is a problem, consider allocating
 		// a small bitset and lazily grow it when higher indices arrive.
-		bs = newBitset(int(i1))
+		bs = NewBitset(int(i1))
 		po.noneq[i1] = bs
 	} else if bs.Test(i2) {
 		// Already recorded
@@ -579,7 +583,7 @@ func (po *Poset) setnoneq(n1, n2 *Value) {
 // for debugging purposes.
 func (po *Poset) CheckIntegrity() {
 	// Verify that each node appears in a single DAG
-	seen := newBitset(int(po.lastidx + 1))
+	seen := NewBitset(int(po.lastidx + 1))
 	for _, r := range po.roots {
 		if r == 0 {
 			panic("empty root")
@@ -989,7 +993,7 @@ func (po *Poset) SetEqual(n1, n2 *Value) bool {
 
 		// Set n2 as alias of n1. This will also update all the references
 		// to n2 to become references to n1
-		i2s := newBitset(int(po.lastidx) + 1)
+		i2s := NewBitset(int(po.lastidx) + 1)
 		i2s.Set(i2)
 		po.aliasnodes(n1, i2s)
 	}
