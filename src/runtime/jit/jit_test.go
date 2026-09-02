@@ -231,6 +231,45 @@ func TestPanicThroughUserFrameWithCall(t *testing.T) {
 	}
 }
 
+// TestPanicThroughNestedUserFramesWithCall verifies that the unwinder can
+// cross consecutive generated frames without an intervening Go trampoline:
+//
+//	Go recoverer -> outer JIT -> inner JIT -> Go panicker
+func TestPanicThroughNestedUserFramesWithCall(t *testing.T) {
+	innerCode := callTrampoline(goFuncPtr(goPanicker))
+	innerAddr, innerSize, err := allocExecutable(innerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable inner: %v", err)
+	}
+	defer freeExecutable(innerAddr, innerSize)
+	innerHandle := jit.Register(jit.Region{
+		Start:     innerAddr,
+		End:       innerAddr + uintptr(innerSize),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: callTrampolineStackMaps(),
+	})
+	defer innerHandle.Unregister()
+
+	outerCode := callTrampoline(innerAddr)
+	outerAddr, outerSize, err := allocExecutable(outerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable outer: %v", err)
+	}
+	defer freeExecutable(outerAddr, outerSize)
+	outerHandle := jit.Register(jit.Region{
+		Start:     outerAddr,
+		End:       outerAddr + uintptr(outerSize),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: callTrampolineStackMaps(),
+	})
+	defer outerHandle.Unregister()
+
+	recovered := callAndRecover(outerAddr)
+	if msg := fmt.Sprint(recovered); msg != "jit panic test" {
+		t.Fatalf("unexpected recovered value: %v", recovered)
+	}
+}
+
 // TestUnwindStop tests that UnwindStop gracefully terminates the traceback
 // at the user frame boundary without crashing.
 func TestUnwindStop(t *testing.T) {
@@ -466,6 +505,75 @@ func TestUnwindDeclareInStackTrace(t *testing.T) {
 	}
 }
 
+// TestNestedUserFramesAreRegularBacktraceEntries verifies that consecutive JIT
+// frames appear in call order in both runtime.Stack and the ordinary
+// runtime.Callers/CallersFrames API.
+func TestNestedUserFramesAreRegularBacktraceEntries(t *testing.T) {
+	innerCode := callTrampoline(goFuncPtr(goBacktraceCapture))
+	innerAddr, innerSize, err := allocExecutable(innerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable inner: %v", err)
+	}
+	defer freeExecutable(innerAddr, innerSize)
+	innerHandle := jit.Register(jit.Region{
+		Start:  innerAddr,
+		End:    innerAddr + uintptr(innerSize),
+		Unwind: jit.UnwindDeclare,
+		Describe: func(uintptr) (string, string, int, bool) {
+			return "innerJIT", "inner.scm", 11, true
+		},
+		StackMaps: callTrampolineStackMaps(),
+	})
+	defer innerHandle.Unregister()
+
+	outerCode := callTrampoline(innerAddr)
+	outerAddr, outerSize, err := allocExecutable(outerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable outer: %v", err)
+	}
+	defer freeExecutable(outerAddr, outerSize)
+	outerHandle := jit.Register(jit.Region{
+		Start:  outerAddr,
+		End:    outerAddr + uintptr(outerSize),
+		Unwind: jit.UnwindDeclare,
+		Describe: func(uintptr) (string, string, int, bool) {
+			return "outerJIT", "outer.scm", 22, true
+		},
+		StackMaps: callTrampolineStackMaps(),
+	})
+	defer outerHandle.Unregister()
+
+	capturedStack = ""
+	capturedFrames = nil
+	callJIT(outerAddr)
+
+	calleeAt := strings.Index(capturedStack, "goBacktraceCapture")
+	innerAt := strings.Index(capturedStack, "innerJIT")
+	outerAt := strings.Index(capturedStack, "outerJIT")
+	if calleeAt < 0 || innerAt <= calleeAt || outerAt <= innerAt {
+		t.Fatalf("nested JIT frames are not in call order:\n%s", capturedStack)
+	}
+
+	innerAt, outerAt = -1, -1
+	for i, frame := range capturedFrames {
+		switch frame.Function {
+		case "innerJIT":
+			innerAt = i
+			if frame.File != "inner.scm" || frame.Line != 11 || frame.Entry != innerAddr {
+				t.Fatalf("unexpected inner frame: %+v", frame)
+			}
+		case "outerJIT":
+			outerAt = i
+			if frame.File != "outer.scm" || frame.Line != 22 || frame.Entry != outerAddr {
+				t.Fatalf("unexpected outer frame: %+v", frame)
+			}
+		}
+	}
+	if innerAt < 0 || outerAt <= innerAt {
+		t.Fatalf("runtime.CallersFrames omitted or reordered JIT frames: %+v", capturedFrames)
+	}
+}
+
 // TestStackMapInactive verifies that registering stack maps without an active
 // frame does not add global GC roots.
 func TestStackMapInactive(t *testing.T) {
@@ -528,6 +636,7 @@ func TestPreemptDuringGC(t *testing.T) {
 }
 
 var capturedStack string
+var capturedFrames []runtime.Frame
 
 // goStackCapture captures runtime.Stack into capturedStack.
 //
@@ -536,6 +645,21 @@ func goStackCapture() {
 	buf := make([]byte, 8192)
 	n := runtime.Stack(buf, false)
 	capturedStack = string(buf[:n])
+}
+
+//go:noinline
+func goBacktraceCapture() {
+	goStackCapture()
+	pcs := make([]uintptr, 64)
+	n := runtime.Callers(0, pcs)
+	frames := runtime.CallersFrames(pcs[:n])
+	for {
+		frame, more := frames.Next()
+		capturedFrames = append(capturedFrames, frame)
+		if !more {
+			return
+		}
+	}
 }
 
 // callJIT calls a function at addr without recover.

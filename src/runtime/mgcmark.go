@@ -1072,24 +1072,28 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 	return int64(scannedSize)
 }
 
-// userFrameScan scans one active user frame as part of its owning goroutine's
-// stack. This is deliberately not a fixed root: stack roots are processed in
-// parallel, and the frame's pc/sp pair is the identity of the live instance.
+// userFrameScan scans a contiguous chain of active user frames as part of its
+// owning goroutine's stack. These are deliberately not fixed roots: stack roots
+// are processed in parallel, and each frame's pc/sp pair identifies the live
+// instance.
 //
 //go:nowritebarrier
 func userFrameScan(pc, sp uintptr, state *stackScanState, gcw *gcWork) {
-	if pc == 0 {
-		return
+	for pc != 0 {
+		base, words, pointerMask, ok := userFramePointerMap(pc, sp)
+		if ok && words != 0 {
+			bytes := words * goarch.PtrSize
+			if pointerMask == nil || bytes/goarch.PtrSize != words || base < state.stack.lo || base+bytes < base || base+bytes > state.stack.hi {
+				throw("invalid user frame pointer map")
+			}
+			scanblock(base, bytes, pointerMask, gcw, state)
+		}
+		nextPC, nextSP, more := userFrameNextUser(pc, sp)
+		if !more {
+			return
+		}
+		pc, sp = nextPC, nextSP
 	}
-	base, words, pointerMask, ok := userFramePointerMap(pc, sp)
-	if !ok || words == 0 {
-		return
-	}
-	bytes := words * goarch.PtrSize
-	if pointerMask == nil || bytes/goarch.PtrSize != words || base < state.stack.lo || base+bytes < base || base+bytes > state.stack.hi {
-		throw("invalid user frame pointer map")
-	}
-	scanblock(base, bytes, pointerMask, gcw, state)
 }
 
 // Scan a stack frame: local variables and function arguments/results.
