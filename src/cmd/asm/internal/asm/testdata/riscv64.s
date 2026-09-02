@@ -2132,6 +2132,25 @@ start:
 	MOVW	X5, (X6)				// 23205300
 	MOVW	X5, 4(X6)				// 23225300
 
+	// Offsets that do not fit in a signed 12-bit immediate, but are the sum
+	// of two signed 12-bit immediates, only need an additional ADDI.
+	MOV	2047(X5), X6				// 03b3f27f
+	MOV	2048(X5), X6				// 938ff27f03b31f00
+	MOV	4094(X5), X6				// 938ff27f03b3ff7f
+	MOV	4095(X5), X6				// b71f0000b38f5f0003b3ffff
+	MOV	-2048(X5), X6				// 03b30280
+	MOV	-2049(X5), X6				// 938f028003b3ffff
+	MOV	-4096(X5), X6				// 938f028003b30f80
+	MOV	-4097(X5), X6				// b7ffffffb38f5f0003b3ffff
+	MOV	X5, 2047(X6)				// a33f537e
+	MOV	X5, 2048(X6)				// 930ff37fa3b05f00
+	MOV	X5, 4094(X6)				// 930ff37fa3bf5f7e
+	MOV	X5, 4095(X6)				// b71f0000b38f6f00a3bf5ffe
+	MOV	X5, -2048(X6)				// 23305380
+	MOV	X5, -2049(X6)				// 930f0380a3bf5ffe
+	MOV	X5, -4096(X6)				// 930f038023b05f80
+	MOV	X5, -4097(X6)				// b7ffffffb38f6f00a3bf5ffe
+
 	MOVB	X5, X6					// 1393820313538343 or 13934260
 	MOVH	X5, X6					// 1393020313530343 or 13935260
 	MOVW	X5, X6					// 1b830200

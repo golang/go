@@ -1011,6 +1011,33 @@ func signExtend(val int64, bit uint) int64 {
 	return val << (64 - bit) >> (64 - bit)
 }
 
+// splitTwo12BitImmediate splits an immediate into a signed 12-bit base
+// immediate and a signed 12-bit offset immediate to be added to the base.
+// For example, base may be used in an ADDI and off in a following load or
+// store, to reach an offset that does not fit in a single signed 12-bit
+// immediate. A base of zero indicates that the immediate already fits in
+// 12 bits and that no addition is needed.
+func splitTwo12BitImmediate(imm int64) (off, base int64, ok bool) {
+	// Nothing special needs to be done if the immediate fits in 12 bits.
+	if err := immIFits(imm, 12); err == nil {
+		return imm, 0, true
+	}
+
+	// Take the base to the end of the signed 12-bit range, rather than say
+	// half of the immediate, so that the remaining offset is as small as possible.
+	base = 2047
+	if imm < 0 {
+		base = -2048
+	}
+	off = imm - base
+
+	if err := immIFits(off, 12); err != nil {
+		return 0, 0, false
+	}
+
+	return off, base, true
+}
+
 // Split32BitImmediate splits a signed 32-bit immediate into a signed 20-bit
 // upper immediate and a signed 12-bit lower immediate to be added to the upper
 // result. For example, high may be used in LUI and low in a following ADDI to
@@ -3873,13 +3900,26 @@ func instructionsForLoad(p *obj.Prog, as obj.As, rs int16) []*instruction {
 	ins.as, ins.rs1, ins.rs2 = as, uint32(rs), obj.REG_NONE
 	ins.imm = p.From.Offset
 
+	off, base, ok := splitTwo12BitImmediate(ins.imm)
+	if ok && base == 0 {
+		return []*instruction{ins}
+	}
+
+	// An offset that is the sum of two signed 12-bit immediates only needs an
+	// additional ADDI.
+	if ok {
+		// ADDI $base, REG, TMP
+		// <load> $off, TMP, TO
+		insADDI := &instruction{as: AADDI, rd: REG_TMP, rs1: ins.rs1, imm: base}
+		ins.rs1, ins.imm = REG_TMP, off
+
+		return []*instruction{insADDI, ins}
+	}
+
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
 		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm)
 		return nil
-	}
-	if high == 0 {
-		return []*instruction{ins}
 	}
 
 	// LUI $high, TMP
@@ -3913,13 +3953,26 @@ func instructionsForStore(p *obj.Prog, as obj.As, rd int16) []*instruction {
 	ins.as, ins.rd, ins.rs1, ins.rs2 = as, uint32(rd), uint32(p.From.Reg), obj.REG_NONE
 	ins.imm = p.To.Offset
 
+	off, base, ok := splitTwo12BitImmediate(ins.imm)
+	if ok && base == 0 {
+		return []*instruction{ins}
+	}
+
+	// An offset that is the sum of two signed 12-bit immediates only needs an
+	// additional ADDI.
+	if ok {
+		// ADDI $base, TO, TMP
+		// <store> $off, REG, TMP
+		insADDI := &instruction{as: AADDI, rd: REG_TMP, rs1: ins.rd, imm: base}
+		ins.rd, ins.imm = REG_TMP, off
+
+		return []*instruction{insADDI, ins}
+	}
+
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
 		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm)
 		return nil
-	}
-	if high == 0 {
-		return []*instruction{ins}
 	}
 
 	// LUI $high, TMP
