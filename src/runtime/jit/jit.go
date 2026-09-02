@@ -222,6 +222,28 @@ type Handle struct {
 	handle uintptr
 }
 
+// StackCheck describes the runtime values needed to emit the same split-stack
+// prologue as a Go function. The instruction sequence and the register used to
+// preserve closure context across MoreStackPC are architecture-specific.
+type StackCheck struct {
+	StackGuardOffset uintptr
+	StackSmall       uintptr
+	MoreStackPC      uintptr
+}
+
+// StackCheckConfig returns immutable process-wide metadata for emitting a
+// split-stack check. MoreStackPC is runtime.morestack, not an ordinary
+// returning function: generated code must follow the platform's Go prologue
+// ABI and resume by retrying its stack check.
+func StackCheckConfig() StackCheck {
+	guardOffset, stackSmall, moreStackPC := userFrameStackCheck()
+	return StackCheck{
+		StackGuardOffset: guardOffset,
+		StackSmall:       stackSmall,
+		MoreStackPC:      moreStackPC,
+	}
+}
+
 // AddStackMaps appends safepoints to a registered region. Entries must be
 // strictly ordered after all previously published entries. The runtime copies
 // maps and masks before publishing them to lock-free stack walkers.
@@ -301,6 +323,9 @@ func userFramePreempt() bool
 //
 //go:linkname mallocgc runtime.mallocgc
 func mallocgc(size uintptr, typ *abi.Type, needzero bool) unsafe.Pointer
+
+//go:linkname userFrameStackCheck runtime/jit.userFrameStackCheck
+func userFrameStackCheck() (guardOffset, stackSmall, moreStackPC uintptr)
 
 //go:linkname registerUserFrameRegion runtime/jit.registerUserFrameRegion
 func registerUserFrameRegion(start, end uintptr, unwindMode uint8,
