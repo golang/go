@@ -82,6 +82,55 @@ func TestPointerMapKeepsHeapObjectLive(t *testing.T) {
 	}
 }
 
+// TestPointerMapKeepsHeapObjectLiveAcrossNestedFrames leaves the only typed
+// reference in the outer of two consecutive JIT frames. A GC called through
+// the inner frame must scan both registered maps.
+func TestPointerMapKeepsHeapObjectLiveAcrossNestedFrames(t *testing.T) {
+	jitObjectFinalized.Store(false)
+	ptr := newFinalizedJITObject()
+
+	innerCode := pointerSlotCallTrampoline(goFuncPtr(forceJITGC), 0)
+	innerAddr, innerSize, err := allocExecutable(innerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable inner: %v", err)
+	}
+	defer freeExecutable(innerAddr, innerSize)
+	innerHandle := jit.Register(jit.Region{
+		Start:     innerAddr,
+		End:       innerAddr + uintptr(innerSize),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: pointerSlotStackMaps(),
+	})
+	defer innerHandle.Unregister()
+
+	outerCode := pointerSlotCallTrampoline(innerAddr, ptr)
+	outerAddr, outerSize, err := allocExecutable(outerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable outer: %v", err)
+	}
+	defer freeExecutable(outerAddr, outerSize)
+	outerHandle := jit.Register(jit.Region{
+		Start:     outerAddr,
+		End:       outerAddr + uintptr(outerSize),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: pointerSlotStackMaps(),
+	})
+	defer outerHandle.Unregister()
+
+	callJIT(outerAddr)
+	if jitObjectFinalized.Load() {
+		t.Fatal("object referenced by outer JIT frame was finalized during nested call")
+	}
+
+	for i := 0; i < 20 && !jitObjectFinalized.Load(); i++ {
+		runtime.GC()
+		runtime.Gosched()
+	}
+	if !jitObjectFinalized.Load() {
+		t.Fatal("object was still retained after nested JIT frames returned")
+	}
+}
+
 // TestStackMapParallelActiveFrames exercises concurrent stack-root jobs. Each
 // worker resolves immutable metadata for the frame it is currently walking.
 func TestStackMapParallelActiveFrames(t *testing.T) {
@@ -133,6 +182,43 @@ func TestPointerMapStackGrowth(t *testing.T) {
 
 	if got := callJITUintptr(addr); got != 1 {
 		t.Fatal("pointer in JIT frame was not relocated during stack growth")
+	}
+}
+
+// TestPointerMapStackGrowthAcrossNestedFrames verifies that stack pointers in
+// an outer JIT frame are relocated while stack growth is triggered through a
+// directly called inner JIT frame.
+func TestPointerMapStackGrowthAcrossNestedFrames(t *testing.T) {
+	innerCode := pointerSlotCallTrampoline(goFuncPtr(growJITStack), 0)
+	innerAddr, innerSize, err := allocExecutable(innerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable inner: %v", err)
+	}
+	defer freeExecutable(innerAddr, innerSize)
+	innerHandle := jit.Register(jit.Region{
+		Start:     innerAddr,
+		End:       innerAddr + uintptr(innerSize),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: pointerSlotStackMaps(),
+	})
+	defer innerHandle.Unregister()
+
+	outerCode := stackPointerCallTrampoline(innerAddr)
+	outerAddr, outerSize, err := allocExecutable(outerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable outer: %v", err)
+	}
+	defer freeExecutable(outerAddr, outerSize)
+	outerHandle := jit.Register(jit.Region{
+		Start:     outerAddr,
+		End:       outerAddr + uintptr(outerSize),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: pointerSlotStackMaps(),
+	})
+	defer outerHandle.Unregister()
+
+	if got := callJITUintptr(outerAddr); got != 1 {
+		t.Fatal("pointer in outer JIT frame was not relocated during nested stack growth")
 	}
 }
 
