@@ -3832,26 +3832,25 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 	ins := instructionForProg(p)
 	ins.as, ins.rs1, ins.rs2 = as, uint32(rs), obj.REG_NONE
 
-	low, high, err := Split32BitImmediate(ins.imm)
-	if err != nil {
-		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
-		return nil
-	}
-	if high == 0 {
+	off, base, ok := splitTwo12BitImmediate(ins.imm)
+	if ok && base == 0 {
 		return []*instruction{ins}
 	}
 
 	// Split into two additions, if possible.
 	// Do not split SP-writing instructions, as otherwise the recorded SP delta may be wrong.
-	if p.Spadj == 0 && ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
-		imm0 := ins.imm / 2
-		imm1 := ins.imm - imm0
-
-		// ADDI $(imm/2), REG, TO
-		// ADDI $(imm-imm/2), TO, TO
-		ins.imm = imm0
-		insADDI := &instruction{as: AADDI, rd: ins.rd, rs1: ins.rd, imm: imm1}
+	if p.Spadj == 0 && ok && ins.as == AADDI {
+		// ADDI $base, REG, TO
+		// ADDI $off, TO, TO
+		ins.imm = base
+		insADDI := &instruction{as: AADDI, rd: ins.rd, rs1: ins.rd, imm: off}
 		return []*instruction{ins, insADDI}
+	}
+
+	low, high, err := Split32BitImmediate(ins.imm)
+	if err != nil {
+		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
+		return nil
 	}
 
 	// LUI $high, TMP
