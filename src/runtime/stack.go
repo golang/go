@@ -1035,32 +1035,37 @@ func copystack(gp *g, newsize uintptr) {
 	stackfree(old)
 }
 
-// adjustUserFrame relocates stack pointers held in one active user frame using
-// the same precise map used by the garbage collector.
+// adjustUserFrame relocates stack pointers held in a contiguous chain of active
+// user frames using the same precise maps used by the garbage collector.
 func adjustUserFrame(u *unwinder, adjinfo *adjustinfo) {
 	pc, sp := u.userFrameScanPC, u.userFrameScanSP
-	if pc == 0 {
-		return
-	}
 	newLo := adjinfo.old.lo + adjinfo.delta
 	newHi := adjinfo.old.hi + adjinfo.delta
-	if base, words, pointerMask, ok := userFramePointerMap(pc, sp); ok && words != 0 {
-		bytes := words * goarch.PtrSize
-		if pointerMask == nil || bytes/goarch.PtrSize != words || base < newLo || base+bytes < base || base+bytes > newHi {
-			throw("invalid user frame pointer map")
+	for pc != 0 {
+		if base, words, pointerMask, ok := userFramePointerMap(pc, sp); ok && words != 0 {
+			bytes := words * goarch.PtrSize
+			if pointerMask == nil || bytes/goarch.PtrSize != words || base < newLo || base+bytes < base || base+bytes > newHi {
+				throw("invalid user frame pointer map")
+			}
+			bits := bitvector{n: int32(words), bytedata: pointerMask}
+			if uintptr(bits.n) != words {
+				throw("user frame pointer map too large")
+			}
+			adjustpointers(unsafe.Pointer(base), &bits, adjinfo, funcInfo{})
 		}
-		bits := bitvector{n: int32(words), bytedata: pointerMask}
-		if uintptr(bits.n) != words {
-			throw("user frame pointer map too large")
-		}
-		adjustpointers(unsafe.Pointer(base), &bits, adjinfo, funcInfo{})
-	}
 
-	if bpSlot, ok := userFrameCallerBPSlot(pc, sp); ok {
-		if bpSlot < newLo || bpSlot+goarch.PtrSize < bpSlot || bpSlot+goarch.PtrSize > newHi {
-			throw("invalid user frame caller frame pointer")
+		if bpSlot, ok := userFrameCallerBPSlot(pc, sp); ok {
+			if bpSlot < newLo || bpSlot+goarch.PtrSize < bpSlot || bpSlot+goarch.PtrSize > newHi {
+				throw("invalid user frame caller frame pointer")
+			}
+			adjustpointer(adjinfo, unsafe.Pointer(bpSlot))
 		}
-		adjustpointer(adjinfo, unsafe.Pointer(bpSlot))
+
+		nextPC, nextSP, more := userFrameNextUser(pc, sp)
+		if !more {
+			return
+		}
+		pc, sp = nextPC, nextSP
 	}
 }
 
