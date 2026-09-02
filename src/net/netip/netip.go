@@ -1550,6 +1550,8 @@ func (p *Prefix) UnmarshalText(text []byte) error {
 // AppendBinary implements the [encoding.BinaryAppender] interface.
 // It returns [Addr.AppendBinary] with an additional byte appended
 // containing the prefix bits.
+//
+// The invalid bits value is encoded as 0xff.
 func (p Prefix) AppendBinary(b []byte) ([]byte, error) {
 	b, err := p.Addr().withoutZone().AppendBinary(b)
 	if err != nil {
@@ -1561,6 +1563,8 @@ func (p Prefix) AppendBinary(b []byte) ([]byte, error) {
 // MarshalBinary implements the [encoding.BinaryMarshaler] interface.
 // It returns [Addr.MarshalBinary] with an additional byte appended
 // containing the prefix bits.
+//
+// The invalid bits value is encoded as 0xff.
 func (p Prefix) MarshalBinary() ([]byte, error) {
 	// without the zone the max length is 16, plus an additional byte is 17
 	return p.AppendBinary(make([]byte, 0, p.Addr().withoutZone().marshalBinarySize()+1))

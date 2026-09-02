@@ -570,33 +570,74 @@ func TestPrefixMarshalTextString(t *testing.T) {
 
 func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
 	type testCase struct {
-		prefix   Prefix
-		wantSize int
+		prefix Prefix
+		want   []byte
 	}
 	tests := []testCase{
-		{mustPrefix("1.2.3.4/24"), 4 + 1},
-		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), 16 + 1},
-		{mustPrefix("::ffff:c000:0280/96"), 16 + 1},
-		{PrefixFrom(mustIP("::ffff:c000:0280").WithZone("eth0"), 37), 16 + 1}, // Zone should be stripped
+		{
+			prefix: mustPrefix("1.2.3.4/24"),
+			want:   []byte{1, 2, 3, 4, 24},
+		},
+		{
+			prefix: mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"),
+			want:   []byte{0xfd, 0x7a, 0x11, 0x5c, 0xa1, 0xe0, 0xab, 0x12, 0x48, 0x43, 0xcd, 0x96, 0x62, 0x6b, 0x43, 0x0b, 118},
+		},
+		{
+			prefix: mustPrefix("::ffff:c000:0280/96"),
+			want:   []byte{10: 0xff, 0xff, 0xc0, 0x00, 0x02, 0x80, 96},
+		},
+		{
+			prefix: PrefixFrom(mustIP("::ffff:c000:0280").WithZone("eth0"), 37), // Zone should be stripped
+			want:   []byte{10: 0xff, 0xff, 0xc0, 0x00, 0x02, 0x80, 37},
+		},
+		{
+			prefix: PrefixFrom(Addr{}, 0),
+			want:   []byte{0xff},
+		},
+		{
+			prefix: PrefixFrom(Addr{}, 24),
+			want:   []byte{0xff},
+		},
+		{
+			prefix: PrefixFrom(mustIP("1.2.3.4"), -2),
+			want:   []byte{1, 2, 3, 4, 0xff},
+		},
+		{
+			prefix: PrefixFrom(mustIP("1.2.3.4"), 33),
+			want:   []byte{1, 2, 3, 4, 0xff},
+		},
+		{
+			prefix: PrefixFrom(mustIP("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b"), -2),
+			want:   []byte{0xfd, 0x7a, 0x11, 0x5c, 0xa1, 0xe0, 0xab, 0x12, 0x48, 0x43, 0xcd, 0x96, 0x62, 0x6b, 0x43, 0x0b, 0xff},
+		},
+		{
+			prefix: PrefixFrom(mustIP("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b"), 129),
+			want:   []byte{0xfd, 0x7a, 0x11, 0x5c, 0xa1, 0xe0, 0xab, 0x12, 0x48, 0x43, 0xcd, 0x96, 0x62, 0x6b, 0x43, 0x0b, 0xff},
+		},
+		{
+			prefix: PrefixFrom(mustIP("::ffff:c000:0280"), -2),
+			want:   []byte{10: 0xff, 0xff, 0xc0, 0x00, 0x02, 0x80, 0xff},
+		},
+		{
+			prefix: PrefixFrom(mustIP("::ffff:c000:0280"), 129),
+			want:   []byte{10: 0xff, 0xff, 0xc0, 0x00, 0x02, 0x80, 0xff},
+		},
 	}
-	tests = append(tests,
-		testCase{PrefixFrom(tests[0].prefix.Addr(), 33), tests[0].wantSize},
-		testCase{PrefixFrom(tests[1].prefix.Addr(), 129), tests[1].wantSize})
 	for _, tc := range tests {
 		prefix := tc.prefix
 		b, err := prefix.MarshalBinary()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(b) != tc.wantSize {
-			t.Fatalf("%q encoded to size %d; want %d", tc.prefix, len(b), tc.wantSize)
+		if !bytes.Equal(b, tc.want) {
+			t.Fatalf("%q.MarshalBinary() = %v; want %v", tc.prefix, b, tc.want)
 		}
 		var prefix2 Prefix
 		if err := prefix2.UnmarshalBinary(b); err != nil {
 			t.Fatal(err)
 		}
 		if prefix != prefix2 {
-			t.Fatalf("got %v; want %v", prefix2, prefix)
+			t.Fatalf("%v.UnmarshalBinary() = %v; want %v", b, prefix2, prefix)
 		}
 
 		bAppend := make([]byte, 4, 32)
@@ -605,15 +646,15 @@ func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(bAppend) != tc.wantSize {
-			t.Fatalf("%q encoded to size %d; want %d", tc.prefix, len(bAppend), tc.wantSize)
+		if !bytes.Equal(bAppend, tc.want) {
+			t.Fatalf("%q.AppendBinary() = %v; want %v", tc.prefix, bAppend, tc.want)
 		}
 		var prefix3 Prefix
 		if err := prefix3.UnmarshalBinary(bAppend); err != nil {
 			t.Fatal(err)
 		}
 		if prefix != prefix3 {
-			t.Fatalf("got %v; want %v", prefix3, prefix)
+			t.Fatalf("%v.UnmarshalBinary() = %v; want %v", bAppend, prefix3, prefix)
 		}
 	}
 
