@@ -1510,6 +1510,9 @@
 // referenced from the main module, the stanza will display a single
 // parenthesized note indicating that fact.
 //
+// If any of the listed packages or modules is not referenced from
+// the main module, why exits with a non-zero status.
+//
 // For example:
 //
 //	$ go mod why golang.org/x/text/language golang.org/x/text/encoding
