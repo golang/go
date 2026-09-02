@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
 	"unsafe"
@@ -541,4 +542,10 @@ func jit_unregisterUserFrameRegion(handle uintptr) {
 //go:nosplit
 func jit_userFramePreempt() bool {
 	return userFramePreempt()
+}
+
+//go:linkname jit_userFrameStackCheck runtime/jit.userFrameStackCheck
+//go:nosplit
+func jit_userFrameStackCheck() (guardOffset, stackSmall, moreStackPC uintptr) {
+	return unsafe.Offsetof(g{}.stackguard0), abi.StackSmall, abi.FuncPCABI0(morestack)
 }
