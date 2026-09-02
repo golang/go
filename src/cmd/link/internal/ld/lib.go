@@ -1526,9 +1526,6 @@ func (ctxt *Link) hostlink() {
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-pthread")
-		if ctxt.BuildMode != BuildModePIE {
-			argv = append(argv, "-Wl,-nopie")
-		}
 		if linkerFlagSupported(ctxt.Arch, ctxt.extld(), "", "-Wl,-z,nobtcfi") {
 			// -Wl,-z,nobtcfi is only supported on OpenBSD 7.4+, remove guard
 			// when OpenBSD 7.5 is released and 7.3 is no longer supported.
