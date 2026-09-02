@@ -303,6 +303,49 @@ func userFrameCallerBPSlot(pc, sp uintptr) (uintptr, bool) {
 	return base + m.callerBPOffset, true
 }
 
+// userFrameNextGo unwinds a contiguous chain of user frames and returns the
+// first Go caller. Consecutive user frames arise when generated functions call
+// one another directly rather than returning through an intermediate Go
+// trampoline.
+//
+//go:nosplit
+func userFrameNextGo(pc, sp uintptr) (callerPC, callerSP uintptr, ok bool) {
+	for {
+		r := findUserFrameRegion(pc)
+		if r == nil {
+			return 0, 0, false
+		}
+		callerPC, callerSP, _, ok = userFrameNext(r, pc, sp)
+		if !ok || callerPC == 0 || callerSP <= sp {
+			return 0, 0, false
+		}
+		if findfunc(callerPC).valid() {
+			return callerPC, callerSP, true
+		}
+		if findUserFrameRegion(callerPC) == nil {
+			return 0, 0, false
+		}
+		pc, sp = callerPC, callerSP
+	}
+}
+
+// userFrameNextUser returns the immediately enclosing user frame, if any.
+// Callers use this to scan, relocate, or describe every frame in a contiguous
+// chain after the main unwinder has validated that the chain reaches Go.
+//
+//go:nosplit
+func userFrameNextUser(pc, sp uintptr) (callerPC, callerSP uintptr, ok bool) {
+	r := findUserFrameRegion(pc)
+	if r == nil {
+		return 0, 0, false
+	}
+	callerPC, callerSP, _, ok = userFrameNext(r, pc, sp)
+	if !ok || callerPC == 0 || callerSP <= sp || findUserFrameRegion(callerPC) == nil {
+		return 0, 0, false
+	}
+	return callerPC, callerSP, true
+}
+
 // userFramePointerMap resolves one immutable map without calling user code.
 // Looking the region up again keeps unwinder pointer-free.
 //

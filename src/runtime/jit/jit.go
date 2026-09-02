@@ -25,8 +25,9 @@
 //   - [UnwindStop]: The traceback ends at the user frame boundary.
 //   - [UnwindSkip]: The user frame is skipped and the traceback continues
 //     past it using the registered safepoint's unwind recipe.
-//   - [UnwindDeclare]: Like UnwindSkip, but the user frame is also
-//     described in tracebacks using the provided Describe callback.
+//   - [UnwindDeclare]: Like UnwindSkip, but every user frame is also exposed
+//     as a regular logical frame by runtime.Stack and runtime.CallersFrames,
+//     using the provided Describe callback for symbols and source positions.
 //
 // # GC integration
 //
@@ -153,8 +154,9 @@ const (
 	// safepoint metadata. The user frames do not appear in tracebacks.
 	UnwindSkip
 
-	// UnwindDeclare is like UnwindSkip but also describes user frames
-	// in tracebacks using the Describe callback.
+	// UnwindDeclare is like UnwindSkip but also exposes user frames as regular
+	// logical stack entries in runtime.Stack and runtime.CallersFrames, using
+	// the Describe callback for symbols and source positions.
 	UnwindDeclare
 )
 
