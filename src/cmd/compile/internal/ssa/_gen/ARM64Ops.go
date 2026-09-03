@@ -161,7 +161,7 @@ func init() {
 		gpspsbg    = gpspg.union(buildReg("SB"))
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		pred       = buildReg("P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15")
-		callerSave = gp.union(fp).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
+		callerSave = gp.union(fp).union(pred).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
 		r25        = buildReg("R25")
 		r24to25    = buildReg("R24 R25")
 		f16to17    = buildReg("F16 F17")
