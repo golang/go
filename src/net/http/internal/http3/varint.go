@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The functions in this file are copied from golang.org/x/net/internal/quic/quicwire.
+
 package http3
 
 // consumeVarint parses a variable-length integer, reporting its length.

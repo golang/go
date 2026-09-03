@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The deadlocals pass removes assignments to unused local variables.
+// Package deadlocals implements a pass that removes assignments to
+// unused local variables.
 package deadlocals
 
 import (
