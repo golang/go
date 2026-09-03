@@ -313,7 +313,7 @@ func userFrameCallerBPSlot(pc, sp uintptr) (uintptr, bool) {
 func userFrameNextGo(pc, sp uintptr) (callerPC, callerSP uintptr, ok bool) {
 	for {
 		r := findUserFrameRegion(pc)
-		if r == nil {
+		if r == nil || r.unwindMode == userFrameUnwindStop {
 			return 0, 0, false
 		}
 		callerPC, callerSP, _, ok = userFrameNext(r, pc, sp)
@@ -337,7 +337,7 @@ func userFrameNextGo(pc, sp uintptr) (callerPC, callerSP uintptr, ok bool) {
 //go:nosplit
 func userFrameNextUser(pc, sp uintptr) (callerPC, callerSP uintptr, ok bool) {
 	r := findUserFrameRegion(pc)
-	if r == nil {
+	if r == nil || r.unwindMode == userFrameUnwindStop {
 		return 0, 0, false
 	}
 	callerPC, callerSP, _, ok = userFrameNext(r, pc, sp)
