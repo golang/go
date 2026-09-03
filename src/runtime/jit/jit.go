@@ -100,8 +100,21 @@ func TailTypeFor[T any](count uintptr) TailType {
 		array.Type.GCData = (*byte)(unsafe.Pointer(mask))
 	}
 
+	exactSize := last.Offset + tailSize
+	if count == 0 {
+		// Go gives a final zero-sized field a distinct address by retaining
+		// trailing padding in the base struct. Preserve that layout when the
+		// repeated tail is empty.
+		exactSize = base.Size_
+	} else if align := uintptr(base.Align_); exactSize%align != 0 {
+		padding := align - exactSize%align
+		if exactSize > ^uintptr(0)-padding {
+			panic("runtime/jit: tail allocation size overflow")
+		}
+		exactSize += padding
+	}
 	exact := new(abi.StructType)
-	exact.Type.Size_ = last.Offset + tailSize
+	exact.Type.Size_ = exactSize
 	exact.Type.Align_ = base.Align_
 	exact.Type.FieldAlign_ = base.FieldAlign_
 	exact.Type.Kind_ = abi.Struct

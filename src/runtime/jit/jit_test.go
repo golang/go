@@ -29,27 +29,40 @@ type tailAllocationObject struct {
 }
 
 func TestTailTypeAllocatesRepeatedPointerLayout(t *testing.T) {
-	const count = 3
-	prepared := jit.TailTypeFor[tailAllocationObject](count)
-	object := (*tailAllocationObject)(prepared.Alloc())
-	tail := unsafe.Slice((*tailAllocationElement)(unsafe.Add(unsafe.Pointer(object), unsafe.Offsetof(object.Tail))), count)
-	header := 7
-	object.Header = &header
-	for index := range tail {
-		value := 10 + index
-		tail[index].Pointer = &value
-		tail[index].Value = uintptr(value)
+	for _, count := range []int{0, 3, 4097} {
+		t.Run(fmt.Sprintf("count_%d", count), func(t *testing.T) {
+			prepared := jit.TailTypeFor[tailAllocationObject](uintptr(count))
+			object := (*tailAllocationObject)(prepared.Alloc())
+			var tail []tailAllocationElement
+			if count != 0 {
+				tail = unsafe.Slice((*tailAllocationElement)(unsafe.Add(unsafe.Pointer(object), unsafe.Offsetof(object.Tail))), count)
+			}
+			header := 7
+			object.Header = &header
+			object.Value = ^uintptr(0)
+			for index := range tail {
+				value := 10 + index
+				tail[index].Pointer = &value
+				tail[index].Value = uintptr(value)
+				if index == count/2 {
+					runtime.GC()
+				}
+			}
+			runtime.GC()
+			if *object.Header != 7 {
+				t.Fatalf("header pointer = %d, want 7", *object.Header)
+			}
+			if object.Value != ^uintptr(0) {
+				t.Fatalf("non-pointer prefix word = %#x, want %#x", object.Value, ^uintptr(0))
+			}
+			for index := range tail {
+				if got, want := *tail[index].Pointer, 10+index; got != want {
+					t.Fatalf("tail[%d] pointer = %d, want %d", index, got, want)
+				}
+			}
+			runtime.KeepAlive(object)
+		})
 	}
-	runtime.GC()
-	if *object.Header != 7 {
-		t.Fatalf("header pointer = %d, want 7", *object.Header)
-	}
-	for index := range tail {
-		if got, want := *tail[index].Pointer, 10+index; got != want {
-			t.Fatalf("tail[%d] pointer = %d, want %d", index, got, want)
-		}
-	}
-	runtime.KeepAlive(object)
 }
 
 // goFuncPtr returns the raw entry point of a Go function value.
