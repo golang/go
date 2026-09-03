@@ -39,12 +39,8 @@ import (
 // The basic data structure is nameConstraintsSet, which implements the sorting,
 // pruning, and querying of the prefix sets.
 //
-// In order to check IP, DNS, URI, and email constraints, we need to use two
-// different techniques, one for IP addresses, which is quite simple, and one
-// for DNS names, which additionally compose the portions of URIs and emails we
-// care about (technically we also need some special logic for email addresses
-// as well for when constraints comprise of full email addresses) which is
-// slightly more complex.
+// In order to check IP, DNS, URI, and email constraints, we use different
+// techniques based on the matching rules for each name form.
 //
 // IP addresses use two nameConstraintsSets, one for IPv4 addresses and one for
 // IPv6 addresses, with no additional logic.
@@ -54,15 +50,17 @@ import (
 // semantics of leading period constraints (i.e. '.example.com'). This logic is
 // implemented in the dnsConstraints type.
 //
-// Email addresses also require some additional logic, which does not make use
-// of nameConstraintsSet, to handle constraints which define full email
-// addresses (i.e. 'test@example.com'). For bare domain constraints, we use the
-// dnsConstraints type described above, querying the domain portion of the email
-// address. For full email addresses, we also hold a map of email addresses with
-// the domain portion of the email lowercased, since it is case insensitive. When
-// looking up an email address in the constraint set, we first check the full
-// email address map, and if we don't find anything, we check the domain portion
-// of the email address against the dnsConstraints.
+// URI and email host constraints use hostConstraints. Unlike DNS constraints,
+// a constraint without a leading period only matches an exact host, while a
+// leading period matches subdomains.
+//
+// Email addresses also require additional logic to handle constraints which
+// define full email addresses (i.e. 'test@example.com'). For full email
+// addresses, we hold a map of email addresses with the domain portion of the
+// email lowercased, since it is case insensitive. When looking up an email
+// address in the constraint set, we first check the full email address map, and
+// if we don't find anything, we check the domain portion of the email address
+// against the hostConstraints.
 
 type nameConstraintsSet[T *net.IPNet | string, V net.IP | string] struct {
 	set []T
@@ -391,8 +389,59 @@ func (dnc *dnsConstraints) query(s string) (string, bool) {
 	return "", false
 }
 
+// hostMatchesConstraint reports whether host is matched by constraint under
+// the RFC 5280 rules for URI and email host constraints. A constraint with a
+// leading period matches subdomains, while all other constraints match exactly.
+// These rules are the same for permitted and excluded constraints.
+//
+// sortAndPrune passes another constraint as host. In that case, this reports
+// whether the second constraint is a subset of the first, so it can serve as
+// both the query match and pruning predicate.
+func hostMatchesConstraint(constraint, host string) bool {
+	if constraint == "" {
+		return true
+	}
+	if constraint[0] != '.' && len(constraint) != len(host) {
+		return false
+	}
+	return dnsHasSuffix(constraint, host)
+}
+
+type hostConstraints struct {
+	// all lets us short circuit the query logic if we see a zero length
+	// constraint which permits or excludes everything.
+	all bool
+
+	constraints *nameConstraintsSet[string, string]
+}
+
+func newHostConstraints(l []string) interface{ query(string) (string, bool) } {
+	if len(l) == 0 {
+		return nil
+	}
+	// An empty constraint matches every host.
+	if slices.Contains(l, "") {
+		return &hostConstraints{all: true}
+	}
+
+	hc := &hostConstraints{
+		constraints: &nameConstraintsSet[string, string]{
+			set: slices.Clone(l),
+		},
+	}
+	hc.constraints.sortAndPrune(dnsCompare, hostMatchesConstraint)
+	return hc
+}
+
+func (hc *hostConstraints) query(s string) (string, bool) {
+	if hc.all {
+		return "", true
+	}
+	return hc.constraints.search(s, dnsCompare, hostMatchesConstraint)
+}
+
 type emailConstraints struct {
-	dnsConstraints interface{ query(string) (string, bool) }
+	hostConstraints interface{ query(string) (string, bool) }
 
 	// fullEmails is map of rfc2821Mailboxs that are fully specified in the
 	// constraints, which we need to check for separately since they don't
@@ -403,7 +452,7 @@ type emailConstraints struct {
 	fullEmails map[rfc2821Mailbox]struct{}
 }
 
-func newEmailConstraints(l []string, permitted bool) interface {
+func newEmailConstraints(l []string) interface {
 	query(rfc2821Mailbox) (string, bool)
 } {
 	if len(l) == 0 {
@@ -431,7 +480,7 @@ func newEmailConstraints(l []string, permitted bool) interface {
 		fullEmails: exactMap,
 	}
 	if len(domains) > 0 {
-		ec.dnsConstraints = newDNSConstraints(domains, permitted)
+		ec.hostConstraints = newHostConstraints(domains)
 	}
 	return ec
 }
@@ -442,10 +491,10 @@ func (ec *emailConstraints) query(s rfc2821Mailbox) (string, bool) {
 			return fmt.Sprintf("%s@%s", s.local, s.domain), true
 		}
 	}
-	if ec.dnsConstraints == nil {
+	if ec.hostConstraints == nil {
 		return "", false
 	}
-	constraint, found := ec.dnsConstraints.query(s.domain)
+	constraint, found := ec.hostConstraints.query(s.domain)
 	return constraint, found
 }
 
@@ -523,7 +572,7 @@ func checkChainConstraints(chain []*Certificate) error {
 			ip:    constraints[*net.IPNet, net.IP]{"IP address", newIPNetConstraints(c.PermittedIPRanges), newIPNetConstraints(c.ExcludedIPRanges)},
 			dns:   constraints[string, string]{"DNS name", newDNSConstraints(c.PermittedDNSDomains, true), newDNSConstraints(c.ExcludedDNSDomains, false)},
 			uri:   constraints[string, string]{"URI", newDNSConstraints(c.PermittedURIDomains, true), newDNSConstraints(c.ExcludedURIDomains, false)},
-			email: constraints[string, rfc2821Mailbox]{"email address", newEmailConstraints(c.PermittedEmailAddresses, true), newEmailConstraints(c.ExcludedEmailAddresses, false)},
+			email: constraints[string, rfc2821Mailbox]{"email address", newEmailConstraints(c.PermittedEmailAddresses), newEmailConstraints(c.ExcludedEmailAddresses)},
 			index: i,
 		}
 		if currentConstraints == nil {

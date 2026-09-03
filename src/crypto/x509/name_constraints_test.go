@@ -803,6 +803,129 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 	{
+		name: "email host constraint does not match subdomains",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"email:example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:foo@sub.example.com"},
+		},
+		expectedError: "\"foo@sub.example.com\" is not permitted",
+	},
+	{
+		name: "excluded email host constraint",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"email:example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:foo@example.com"},
+		},
+		expectedError: "\"foo@example.com\" is excluded",
+	},
+	{
+		name: "excluded email host constraint does not match subdomains",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"email:example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:foo@sub.example.com"},
+		},
+	},
+	{
+		name: "excluded email subdomain constraint does not match parent",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"email:.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:foo@example.com"},
+		},
+	},
+	{
+		name: "excluded email host constraint treats wildcard literally",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"email:example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:foo@*.example.com"},
+		},
+		noOpenSSL: true, // OpenSSL rejects wildcard rfc822Name domains.
+	},
+	{
+		name: "email host and subdomain constraints",
+		roots: []constraintsSpec{
+			{
+				// Mixed case exercises case-insensitive sorting and matching.
+				ok: []string{"email:EXAMPLE.com", "email:.EXAMPLE.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{
+				"email:foo@example.com",
+				"email:foo@sub.example.com",
+			},
+		},
+	},
+	{
+		name: "email subdomain constraint prunes covered host",
+		roots: []constraintsSpec{
+			{
+				// Mixed case exercises case-insensitive pruning and matching.
+				ok: []string{"email:.EXAMPLE.com", "email:sub.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{
+				"email:foo@sub.example.com",
+				"email:foo@deep.sub.example.com",
+			},
+		},
+	},
+	{
 		name: "email subdomain constraint",
 		roots: []constraintsSpec{
 			{
