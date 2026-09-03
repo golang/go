@@ -220,6 +220,7 @@ func (r *LineReader) readHeader(compDir string) error {
 		return DecodeError{"line", hdrOffset, fmt.Sprintf("malformed line table: program offset %d exceeds end offset %d", programOffset, r.endOffset)}
 	}
 	r.programOffset = programOffset
+	r.buf = makeBuf(buf.dwarf, buf.format, buf.name, buf.off, buf.data[:programOffset-buf.off])
 	r.minInstructionLength = int(buf.uint8())
 	if r.version >= 4 {
 		// [DWARF4 6.2.4]
