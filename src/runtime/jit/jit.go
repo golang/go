@@ -102,10 +102,10 @@ func TailTypeFor[T any](count uintptr) TailType {
 	}
 
 	exactSize := last.Offset + tailSize
-	if count == 0 {
+	if tailSize == 0 {
 		// Go gives a final zero-sized field a distinct address by retaining
-		// trailing padding in the base struct. Preserve that layout when the
-		// repeated tail is empty.
+		// trailing padding in the base struct. Preserve that layout whenever
+		// repeating the element still produces a zero-sized tail.
 		exactSize = base.Size_
 	} else if align := uintptr(base.Align_); exactSize%align != 0 {
 		padding := align - exactSize%align
