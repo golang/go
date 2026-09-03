@@ -321,7 +321,19 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	if conf.CountError != nil {
 		fr.countError = conf.CountError
 	}
-	fr.ReadMetaHeaders = hpack.NewDecoder(uint32(conf.MaxDecoderHeaderTableSize), nil)
+	// A decoder table size below the initial 4096 (RFC 7540, Section 6.5.2)
+	// can't be applied immediately: the client may keep using the initial
+	// size until it processes our SETTINGS frame (RFC 7540, Section 6.5.3),
+	// and it signals the reduction with a dynamic table size update at the
+	// beginning of the first header block following the settings
+	// acknowledgment (RFC 7541, Section 4.2). Start at the initial size and
+	// lower it when the client acknowledges our SETTINGS. See processSettings.
+	decoderTableSize := uint32(conf.MaxDecoderHeaderTableSize)
+	if decoderTableSize < initialHeaderTableSize {
+		sc.pendingDecoderTableSize = decoderTableSize
+		decoderTableSize = initialHeaderTableSize
+	}
+	fr.ReadMetaHeaders = hpack.NewDecoder(decoderTableSize, nil)
 	fr.MaxHeaderListSize = sc.maxHeaderListSize()
 	fr.MaxHeaderValueCount = sc.hs.MaxHeaderValueCount()
 	fr.SetMaxReadFrameSize(uint32(conf.MaxReadFrameSize))
@@ -443,6 +455,7 @@ type serverConn struct {
 	sawFirstSettings            bool // got the initial SETTINGS frame after the preface
 	needToSendSettingsAck       bool
 	unackedSettings             int    // how many SETTINGS have we sent without ACKs?
+	pendingDecoderTableSize     uint32 // if non-zero, HPACK decoder table size to apply on SETTINGS ack
 	queuedControlFrames         int    // control frames in the writeSched queue
 	clientMaxStreams            uint32 // SETTINGS_MAX_CONCURRENT_STREAMS from client (our PUSH_PROMISE limit)
 	advMaxStreams               uint32 // our SETTINGS_MAX_CONCURRENT_STREAMS advertised the client
@@ -1613,6 +1626,17 @@ func (sc *serverConn) processSettings(f *SettingsFrame) error {
 			// The spec doesn't mention this case, but
 			// hang up on them anyway.
 			return sc.countError("ack_mystery", ConnectionError(ErrCodeProtocol))
+		}
+		if sc.pendingDecoderTableSize != 0 {
+			// The client has acknowledged our SETTINGS, so all header
+			// blocks it sends from now on were encoded with knowledge
+			// of our lower HEADER_TABLE_SIZE. It is now safe to apply
+			// the configured size to the decoder. The read goroutine
+			// is parked until readMore is called, so mutating the
+			// decoder here is race-free.
+			sc.framer.ReadMetaHeaders.SetAllowedMaxDynamicTableSize(sc.pendingDecoderTableSize)
+			sc.framer.ReadMetaHeaders.SetMaxDynamicTableSize(sc.pendingDecoderTableSize)
+			sc.pendingDecoderTableSize = 0
 		}
 		return nil
 	}

@@ -2857,6 +2857,88 @@ func testServer_MaxDecoderHeaderTableSize(t *testing.T) {
 	}
 }
 
+func TestServer_MaxDecoderHeaderTableSize_DeferredUntilAck(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testServer_MaxDecoderHeaderTableSizeDeferred(t, true)
+	})
+}
+
+func TestServer_MaxDecoderHeaderTableSize_EnforcedAfterAck(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testServer_MaxDecoderHeaderTableSizeDeferred(t, false)
+	})
+}
+
+// testServer_MaxDecoderHeaderTableSizeDeferred tests that a server
+// configured with a decoder header table size below the protocol-initial
+// 4096 bytes does not apply it until the client acknowledges the server's
+// SETTINGS frame. Until then, the client's encoder may legitimately
+// reference dynamic table entries under the initial 4096-byte table size
+// (RFC 7540, Section 6.5.3; RFC 7541, Section 4.2).
+func testServer_MaxDecoderHeaderTableSizeDeferred(t *testing.T, sizeUpdateAfterAck bool) {
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {}, func(h2 *http.HTTP2Config) {
+		h2.MaxDecoderHeaderTableSize = 1
+	})
+	defer st.Close()
+
+	st.writePreface()
+	st.writeSettings()
+	st.sync()
+	readFrame[*SettingsFrame](t, st)
+
+	// The server's initial WINDOW_UPDATE and its ack of our SETTINGS
+	// can arrive in either order.
+	st.wantUnorderedFrames(
+		func(f *SettingsFrame) bool {
+			if !f.IsAck() {
+				t.Fatalf("got second non-ack SETTINGS frame")
+			}
+			return true
+		},
+		func(f *WindowUpdateFrame) bool {
+			return true
+		},
+	)
+
+	// Send two requests whose header blocks use the dynamic table, before
+	// acknowledging the server's SETTINGS. The second request references
+	// entries added by the first. Our encoder is still permitted to use
+	// the initial 4096-byte table size, so both must succeed.
+	for _, id := range []uint32{1, 3} {
+		st.writeHeaders(HeadersFrameParam{
+			StreamID:      id,
+			BlockFragment: st.encodeHeader("x-custom-header", "long-enough-value-to-index"),
+			EndStream:     true,
+			EndHeaders:    true,
+		})
+		st.wantHeaders(wantHeader{streamID: id, endStream: true})
+	}
+
+	// Acknowledge the server's SETTINGS. Header blocks we send from here
+	// on must respect the reduced table size.
+	st.writeSettingsAck()
+	st.sync()
+
+	if sizeUpdateAfterAck {
+		// A compliant encoder begins its next header block with a
+		// dynamic table size update. The request must succeed.
+		st.hpackEnc.SetMaxDynamicTableSize(1)
+	}
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      5,
+		BlockFragment: st.encodeHeader("x-custom-header", "long-enough-value-to-index"),
+		EndStream:     true,
+		EndHeaders:    true,
+	})
+	if sizeUpdateAfterAck {
+		st.wantHeaders(wantHeader{streamID: 5, endStream: true})
+	} else {
+		// A header block that keeps referencing the now-evicted
+		// 4096-byte table without a size update must be rejected.
+		st.wantGoAway(5, ErrCodeCompression)
+	}
+}
+
 func TestServer_MaxEncoderHeaderTableSize(t *testing.T) {
 	synctest.Test(t, testServer_MaxEncoderHeaderTableSize)
 }
