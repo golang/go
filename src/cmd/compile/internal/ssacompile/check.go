@@ -223,8 +223,14 @@ func checkFunc(f *ssa.Func) {
 			case ssaop.AuxTypePanicBoundsC, ssaop.AuxTypePanicBoundsCC:
 				canHaveAux = true
 				canHaveAuxInt = true
+			case ssaop.AuxTypeSizeAndAlign:
+				if _, ok := v.Aux.(ssa.Int64Aux); !ok {
+					f.Fatalf("value %v has Aux type %T, want Int64Aux", v, v.Aux)
+				}
+				canHaveAux = true
+				canHaveAuxInt = true
 			default:
-				f.Fatalf("unknown aux type for %s", v.Op)
+				f.Fatalf("unknown aux type %T for %s", ssaop.OpcodeTable[v.Op].AuxType, v.Op)
 			}
 			if !canHaveAux && v.Aux != nil {
 				f.Fatalf("value %s has an Aux value %v but shouldn't", v.LongString(), v.Aux)
