@@ -896,6 +896,9 @@ func (x Float32s) Neg() Float32s
 // NotEqual returns a mask indicating where x and y are not equal.
 func (x Float32s) NotEqual(y Float32s) Mask32s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float32s) ReduceSum() float32
+
 // Sqrt returns the element-wise square root of x.
 func (x Float32s) Sqrt() Float32s
 
@@ -973,6 +976,9 @@ func (x Float64s) Neg() Float64s
 
 // NotEqual returns a mask indicating where x and y are not equal.
 func (x Float64s) NotEqual(y Float64s) Mask64s
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float64s) ReduceSum() float64
 
 // Sqrt returns the element-wise square root of x.
 func (x Float64s) Sqrt() Float64s

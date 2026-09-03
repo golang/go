@@ -130,7 +130,7 @@ func main() {
 	neonFiles := []string{"clmul_arm64.go", "compare_gen_arm64.go",
 		"maskmerge_gen_arm64.go", "ops_arm64.go", "slicepart_128.go",
 		"ops_internal_arm64.go", "other_gen_arm64.go", "slice_gen_arm64.go",
-		"slicepart_arm64.go", "types_arm64.go"}
+		"slicepart_arm64.go", "types_arm64.go", "ops_emulated_arm64.go"}
 
 	emulatedFile := filepath.Join(genFlags.GOROOT, "src", "simd", "simd_emulated.go")
 
