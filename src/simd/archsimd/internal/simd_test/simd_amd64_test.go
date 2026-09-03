@@ -1565,3 +1565,88 @@ func TestMaskOr(t *testing.T) {
 	testMaskOr32x4(t)
 	testMaskOr64x2(t)
 }
+
+func TestReduceSumFloat32x8(t *testing.T) {
+	// 256-bit float available with plain AVX
+	tests := []struct {
+		in   []float32
+		want float32
+	}{
+		{in: []float32{1, 2, 3, 4, 5, 6, 7, 8}, want: 36},
+		{in: []float32{0.5, -0.5, 1.25, -1.25, 2.125, -2.125, 4, 8}, want: 12},
+		{in: []float32{0, 0, 0, 0, 0, 0, 0, 0}, want: 0},
+		{in: []float32{-1, -2, -3, -4, -5, -6, -7, -8}, want: -36},
+	}
+	for _, tc := range tests {
+		v := archsimd.LoadFloat32x8(tc.in)
+		got := v.ReduceSum()
+		if got != tc.want {
+			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestReduceSumFloat64x4(t *testing.T) {
+	// 256-bit float available with plain AVX
+	tests := []struct {
+		in   []float64
+		want float64
+	}{
+		{in: []float64{10, 20, 30, 40}, want: 100},
+		{in: []float64{0.5, -0.5, 1.25, -1.25}, want: 0},
+		{in: []float64{0, 0, 0, 0}, want: 0},
+		{in: []float64{1.125, 2.25, 3.5, 4.0}, want: 10.875},
+		{in: []float64{-10, -20, -30, -40}, want: -100},
+	}
+	for _, tc := range tests {
+		v := archsimd.LoadFloat64x4(tc.in)
+		got := v.ReduceSum()
+		if got != tc.want {
+			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestReduceSumFloat32x16(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+		return
+	}
+	tests := []struct {
+		in   []float32
+		want float32
+	}{
+		{in: []float32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, want: 136},
+		{in: []float32{1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, 9}, want: 17},
+		{in: make([]float32, 16), want: 0},
+	}
+	for _, tc := range tests {
+		v := archsimd.LoadFloat32x16(tc.in)
+		got := v.ReduceSum()
+		if got != tc.want {
+			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestReduceSumFloat64x8(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+		return
+	}
+	tests := []struct {
+		in   []float64
+		want float64
+	}{
+		{in: []float64{1, 2, 3, 4, 5, 6, 7, 8}, want: 36},
+		{in: []float64{1, -1, 2, -2, 3, -3, 4, 5}, want: 9},
+		{in: make([]float64, 8), want: 0},
+	}
+	for _, tc := range tests {
+		v := archsimd.LoadFloat64x8(tc.in)
+		got := v.ReduceSum()
+		if got != tc.want {
+			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}

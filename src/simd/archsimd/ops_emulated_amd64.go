@@ -203,3 +203,47 @@ func (x Uint8x64) Mul(y Uint8x64) Uint8x64 {
 	po := xo.Mul(yo).And(mask16).ShiftAllLeft(8)
 	return pe.Or(po).ReshapeToUint8s()
 }
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated, CPU Feature: AVX
+func (x Float32x4) ReduceSum() float32 {
+	x = x.ConcatAddPairs(x) // [x0+x1, x2+x3, x0+x1, x2+x3]
+	x = x.ConcatAddPairs(x) // [(x0+x1)+(x2+x3), ...]
+	return x.GetElem(0)
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated, CPU Feature: AVX
+func (x Float64x2) ReduceSum() float64 {
+	return x.ConcatAddPairs(x).GetElem(0) // [x0+x1, x0+x1]
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated, CPU Feature: AVX
+func (x Float32x8) ReduceSum() float32 {
+	return x.GetLo().Add(x.GetHi()).ReduceSum()
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated, CPU Feature: AVX
+func (x Float64x4) ReduceSum() float64 {
+	return x.GetLo().Add(x.GetHi()).ReduceSum()
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated, CPU Feature: AVX512
+func (x Float32x16) ReduceSum() float32 {
+	return x.GetLo().Add(x.GetHi()).ReduceSum()
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated, CPU Feature: AVX512
+func (x Float64x8) ReduceSum() float64 {
+	return x.GetLo().Add(x.GetHi()).ReduceSum()
+}

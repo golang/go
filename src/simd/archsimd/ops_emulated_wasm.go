@@ -210,3 +210,19 @@ func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
 	y = y.SetElem(0, x.GetElem(1))
 	return x.carrylessMultiply(y)
 }
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated
+func (x Float32x4) ReduceSum() float32 {
+	// (x0+x1) + (x2 + x3) is a shorter evaluation tree,
+	// and associates the same as horizontal addition
+	return (x.GetElem(0) + x.GetElem(1)) + (x.GetElem(2) + x.GetElem(3))
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated
+func (x Float64x2) ReduceSum() float64 {
+	return x.GetElem(0) + x.GetElem(1)
+}

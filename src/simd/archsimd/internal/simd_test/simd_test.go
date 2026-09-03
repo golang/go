@@ -384,3 +384,45 @@ func TestIssue81264(t *testing.T) {
 	for range 1 {
 	}
 }
+
+func TestReduceSumFloat32x4(t *testing.T) {
+	tests := []struct {
+		in   []float32
+		want float32
+	}{
+		{in: []float32{1, 2, 3, 4}, want: 10},
+		{in: []float32{1.5, -2.5, 3.25, -0.25}, want: 2.0},
+		{in: []float32{0, 0, 0, 0}, want: 0},
+		{in: []float32{0.125, 0.25, 0.5, 1.0}, want: 1.875},
+		{in: []float32{-10, -20, -30, -40}, want: -100},
+		{in: []float32{100, 200, 300, 400}, want: 1000},
+	}
+	for _, tc := range tests {
+		v := archsimd.LoadFloat32x4(tc.in)
+		got := v.ReduceSum()
+		if got != tc.want {
+			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestReduceSumFloat64x2(t *testing.T) {
+	tests := []struct {
+		in   []float64
+		want float64
+	}{
+		{in: []float64{1, 2}, want: 3},
+		{in: []float64{1.5, -2.5}, want: -1.0},
+		{in: []float64{0, 0}, want: 0},
+		{in: []float64{0.125, 0.375}, want: 0.5},
+		{in: []float64{-100, 250}, want: 150},
+		{in: []float64{1e10, 2e10}, want: 3e10},
+	}
+	for _, tc := range tests {
+		v := archsimd.LoadFloat64x2(tc.in)
+		got := v.ReduceSum()
+		if got != tc.want {
+			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
