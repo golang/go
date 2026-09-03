@@ -437,7 +437,7 @@ func (r *LineReader) readFileEntry() (bool, error) {
 	off := r.buf.off
 	dirIndex := int(r.buf.uint())
 	if !pathIsAbs(name) {
-		if dirIndex >= len(r.directories) {
+		if dirIndex < 0 || dirIndex >= len(r.directories) {
 			return false, DecodeError{"line", off, "directory index too large"}
 		}
 		name = pathJoin(r.directories[dirIndex], name)
