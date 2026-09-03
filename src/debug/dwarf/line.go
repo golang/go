@@ -465,7 +465,7 @@ func (r *LineReader) readFileEntry() (bool, error) {
 // updateFile updates r.state.File after r.fileIndex has
 // changed or r.fileEntries has changed.
 func (r *LineReader) updateFile() {
-	if r.fileIndex < len(r.fileEntries) {
+	if r.fileIndex >= 0 && r.fileIndex < len(r.fileEntries) {
 		r.state.File = r.fileEntries[r.fileIndex]
 	} else {
 		r.state.File = nil

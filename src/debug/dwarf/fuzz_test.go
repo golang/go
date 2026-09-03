@@ -92,6 +92,35 @@ func FuzzReader(f *testing.F) {
 		}
 	}
 
+	// A DWARF 4 compile unit with a line program containing a
+	// DW_LNS_set_file instruction with a file index of math.MaxUint64.
+	f.Add(
+		[]byte{
+			1, 0x11, 0,
+			0x10, 0x17,
+			0, 0,
+			0,
+		},
+		[]byte{
+			0x0c, 0, 0, 0,
+			4, 0,
+			0, 0, 0, 0,
+			8,
+			1,
+			0, 0, 0, 0,
+		},
+		[]byte{
+			0x25, 0, 0, 0,
+			4, 0,
+			0x14, 0, 0, 0,
+			1, 1, 1, 0, 1, 13,
+			0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1,
+			0, 0,
+			4,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 1,
+		},
+	)
+
 	f.Fuzz(func(t *testing.T, abbrev, info, line []byte) {
 		d, err := dwarf.New(abbrev, nil, nil, info, line, nil, nil, nil)
 		if err != nil {
