@@ -574,6 +574,55 @@ func TestNestedUserFramesAreRegularBacktraceEntries(t *testing.T) {
 	}
 }
 
+// TestNestedUnwindStopEndsTraceback verifies that an unwind recipe does not
+// turn an UnwindStop region into a traversable frame when it is reached from a
+// nested user frame.
+func TestNestedUnwindStopEndsTraceback(t *testing.T) {
+	innerCode := callTrampoline(goFuncPtr(goStackCapture))
+	innerAddr, innerSize, err := allocExecutable(innerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable inner: %v", err)
+	}
+	defer freeExecutable(innerAddr, innerSize)
+	innerHandle := jit.Register(jit.Region{
+		Start:     innerAddr,
+		End:       innerAddr + uintptr(innerSize),
+		Unwind:    jit.UnwindDeclare,
+		StackMaps: callTrampolineStackMaps(),
+	})
+	defer innerHandle.Unregister()
+
+	outerCode := callTrampoline(innerAddr)
+	outerAddr, outerSize, err := allocExecutable(outerCode)
+	if err != nil {
+		t.Fatalf("allocExecutable outer: %v", err)
+	}
+	defer freeExecutable(outerAddr, outerSize)
+	outerHandle := jit.Register(jit.Region{
+		Start:     outerAddr,
+		End:       outerAddr + uintptr(outerSize),
+		Unwind:    jit.UnwindStop,
+		StackMaps: callTrampolineStackMaps(),
+	})
+	defer outerHandle.Unregister()
+
+	capturedStack = ""
+	callJIT(outerAddr)
+	if strings.Contains(capturedStack, "TestNestedUnwindStopEndsTraceback") {
+		t.Fatalf("traceback crossed UnwindStop region:\n%s", capturedStack)
+	}
+}
+
+func TestStackCheckConfig(t *testing.T) {
+	config := jit.StackCheckConfig()
+	if config.StackGuardOffset == 0 || config.StackSmall == 0 || config.MoreStackPC == 0 {
+		t.Fatalf("incomplete stack check configuration: %+v", config)
+	}
+	if second := jit.StackCheckConfig(); second != config {
+		t.Fatalf("stack check configuration changed: first %+v, second %+v", config, second)
+	}
+}
+
 // TestStackMapInactive verifies that registering stack maps without an active
 // frame does not add global GC roots.
 func TestStackMapInactive(t *testing.T) {
