@@ -46,3 +46,24 @@ func TestSupported(t *testing.T) {
 		}
 	}
 }
+
+// TestFIPS140Supported verifies that dist's copy of the FIPS 140-3 platform
+// checks agrees with internal/platform.
+func TestFIPS140Supported(t *testing.T) {
+	defer func(a, o string) {
+		goarch = a
+		goos = o
+	}(goarch, goos)
+
+	for _, a := range okgoarch {
+		goarch = a
+		for _, o := range okgoos {
+			goos = o
+			dist := fips140Supported(o, a)
+			std := platform.FIPS140Supported(o, a)
+			if dist != std {
+				t.Errorf("discrepancy for %s-%s: dist says %t, internal/platform says %t", o, a, dist, std)
+			}
+		}
+	}
+}

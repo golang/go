@@ -717,7 +717,7 @@ func (t *tester) registerTests() {
 	})
 
 	// Check that all crypto packages compile (and test correctly, in longmode) with fips.
-	if t.fipsSupported() {
+	if t.fips140Supported() {
 		// Test standard crypto packages with fips140=on.
 		t.registerTest("GOFIPS140=latest go test crypto/...", &goTest{
 			variant: "gofips140",
@@ -727,7 +727,7 @@ func (t *tester) registerTests() {
 
 		// Test that earlier FIPS snapshots build.
 		// In long mode, test that they work too.
-		for _, version := range fipsVersions() {
+		for _, version := range fips140Versions() {
 			suffix := " # (build and vet only)"
 			run := "^$" // only ensure they compile
 			if !t.short {
@@ -1726,6 +1726,20 @@ func raceDetectorSupported(goos, goarch string) bool {
 	}
 }
 
+// fips140Supported is a copy of the function
+// internal/platform.FIPS140Supported, which can't be used here
+// because cmd/dist can not import internal packages during bootstrap.
+func fips140Supported(goos, goarch string) bool {
+	switch {
+	case goarch == "wasm",
+		goos == "windows" && goarch == "386",
+		goos == "openbsd",
+		goos == "aix":
+		return false
+	}
+	return true
+}
+
 // buildModeSupported is a copy of the function
 // internal/platform.BuildModeSupported, which can't be used here
 // because cmd/dist can not import internal packages during bootstrap.
@@ -1836,25 +1850,16 @@ func isEnvSet(evar string) bool {
 	return false
 }
 
-func (t *tester) fipsSupported() bool {
-	// Keep this in sync with [crypto/internal/fips140.Supported].
+func (t *tester) fips140Supported() bool {
+	if !fips140Supported(goos, goarch) {
+		return false
+	}
 
+	// Keep the platform checks below in sync with crypto/internal/fips140.Supported.
 	// We don't test with the purego tag, so no need to check it.
 
 	// Use GOFIPS140 or GOEXPERIMENT=boringcrypto, but not both.
 	if strings.Contains(goexperiment, "boringcrypto") {
-		return false
-	}
-
-	// If this goos/goarch does not support FIPS at all, return no versions.
-	// The logic here matches crypto/internal/fips140/check.Supported for now.
-	// In the future, if some snapshots add support for these, we will have
-	// to make a decision on a per-version basis.
-	switch {
-	case goarch == "wasm",
-		goos == "windows" && goarch == "386",
-		goos == "openbsd",
-		goos == "aix":
 		return false
 	}
 
@@ -1867,8 +1872,8 @@ func (t *tester) fipsSupported() bool {
 	return true
 }
 
-// fipsVersions returns the list of versions available in lib/fips140.
-func fipsVersions() []string {
+// fips140Versions returns the list of versions available in lib/fips140.
+func fips140Versions() []string {
 	var versions []string
 	zips, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.zip"))
 	if err != nil {

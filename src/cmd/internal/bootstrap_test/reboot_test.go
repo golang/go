@@ -8,6 +8,8 @@ package bootstrap_test
 
 import (
 	"fmt"
+	"internal/goexperiment"
+	"internal/platform"
 	"internal/testenv"
 	"io"
 	"os"
@@ -75,12 +77,60 @@ func TestRepeatBootstrap(t *testing.T) {
 	var stdout strings.Builder
 	cmd := exec.Command(filepath.Join(goroot, "src", makeScript))
 	cmd.Dir = gorootSrc
-	cmd.Env = append(cmd.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+realGoroot)
+	cmd.Env = append(cmd.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+realGoroot, "GOFIPS140=off")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
 	}
+
+	t.Run("GOFIPS140=latest", func(t *testing.T) {
+		if !platform.FIPS140Supported(runtime.GOOS, runtime.GOARCH) {
+			t.Skipf("GOFIPS140 is not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
+		if goexperiment.BoringCrypto {
+			t.Skip("GOEXPERIMENT=boringcrypto is not compatible with GOFIPS140")
+		}
+
+		cmd := exec.Command(filepath.Join(goroot, "src", makeScript))
+		cmd.Dir = gorootSrc
+		cmd.Env = append(cmd.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+realGoroot, "GOFIPS140=latest")
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+		if err := cmd.Run(); err != nil {
+			t.Fatal(err)
+		}
+
+		cmd = exec.Command(filepath.Join(goroot, "bin", "go"), "env", "GOFIPS140")
+		cmd.Env = append(cmd.Environ(), "GOROOT=", "GOFIPS140=")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%s failed: %v\n%s", cmd, err, out)
+		}
+		if got := strings.TrimSpace(string(out)); got != "latest" {
+			t.Errorf("default GOFIPS140 = %q, want latest", got)
+		}
+
+		mainGo := filepath.Join(t.TempDir(), "main.go")
+		const program = `package main
+
+import "crypto/fips140"
+
+func main() {
+	if !fips140.Enabled() {
+		panic("FIPS 140-3 mode is not enabled")
+	}
+}
+`
+		if err := os.WriteFile(mainGo, []byte(program), 0666); err != nil {
+			t.Fatal(err)
+		}
+		cmd = exec.Command(filepath.Join(goroot, "bin", "go"), "run", mainGo)
+		cmd.Env = append(cmd.Environ(), "GOROOT=", "GOFIPS140=")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%s failed: %v\n%s", cmd, err, out)
+		}
+	})
 
 	// Test that go.dev/issue/42563 hasn't regressed.
 	t.Run("PATH reminder", func(t *testing.T) {

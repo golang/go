@@ -291,7 +291,8 @@ func bootstrapBuildTools() {
 	// GOBIN is empty, so that binaries are installed to GOPATH/bin,
 	// and GOOS, GOHOSTOS, GOARCH, and GOHOSTOS are empty,
 	// so that Go bootstrap toolchain builds whatever kind of binary it knows how to build.
-	// Restore GOROOT, GOPATH, and GOBIN when done.
+	// Set GOFIPS140=off to work with the purego build tag.
+	// Restore GOROOT, GOPATH, GOBIN, and GOFIPS140 when done.
 	// Don't bother with GOOS, GOHOSTOS, GOARCH, and GOHOSTARCH,
 	// because setup will take care of those when bootstrapBuildTools returns.
 
@@ -303,6 +304,9 @@ func bootstrapBuildTools() {
 
 	defer os.Setenv("GOBIN", os.Getenv("GOBIN"))
 	os.Setenv("GOBIN", "")
+
+	defer os.Setenv("GOFIPS140", os.Getenv("GOFIPS140"))
+	os.Setenv("GOFIPS140", "off")
 
 	os.Setenv("GOOS", gohostos)
 	os.Setenv("GOHOSTOS", "")
