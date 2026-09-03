@@ -74,17 +74,40 @@ func testFloat64sCompare(t *testing.T, cmp func(_, _ archsimd.Float64s) archsimd
 	testSVECompare(t, float64s, 8, z.Len(), archsimd.LoadFloat64s, cmp, archsimd.Mask64s.Store, want)
 }
 
+func testUint16sCompare(t *testing.T, cmp func(_, _ archsimd.Uint16s) archsimd.Mask16s, want func(_, _ uint16) bool) {
+	var z archsimd.Uint16s
+	testSVECompare(t, uint16s, 2, z.Len(), archsimd.LoadUint16s, cmp, archsimd.Mask16s.Store, want)
+}
+
+func testUint32sCompare(t *testing.T, cmp func(_, _ archsimd.Uint32s) archsimd.Mask32s, want func(_, _ uint32) bool) {
+	var z archsimd.Uint32s
+	testSVECompare(t, uint32s, 4, z.Len(), archsimd.LoadUint32s, cmp, archsimd.Mask32s.Store, want)
+}
+
+func testUint64sCompare(t *testing.T, cmp func(_, _ archsimd.Uint64s) archsimd.Mask64s, want func(_, _ uint64) bool) {
+	var z archsimd.Uint64s
+	testSVECompare(t, uint64s, 8, z.Len(), archsimd.LoadUint64s, cmp, archsimd.Mask64s.Store, want)
+}
+
+func gtWant[T number](a, b T) bool { return a > b }
+func geWant[T number](a, b T) bool { return a >= b }
+func eqWant[T number](a, b T) bool { return a == b }
+func neWant[T number](a, b T) bool { return a != b }
+
 func TestGreaterSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
-		t.Skip("no sve")
+		t.Skip("no SVE")
 	}
-	testInt8sCompare(t, archsimd.Int8s.Greater, func(a, b int8) bool { return a > b })
-	testInt16sCompare(t, archsimd.Int16s.Greater, func(a, b int16) bool { return a > b })
-	testInt32sCompare(t, archsimd.Int32s.Greater, func(a, b int32) bool { return a > b })
-	testInt64sCompare(t, archsimd.Int64s.Greater, func(a, b int64) bool { return a > b })
-	testUint8sCompare(t, archsimd.Uint8s.Greater, func(a, b uint8) bool { return a > b })
-	testFloat32sCompare(t, archsimd.Float32s.Greater, func(a, b float32) bool { return a > b })
-	testFloat64sCompare(t, archsimd.Float64s.Greater, func(a, b float64) bool { return a > b })
+	testInt8sCompare(t, archsimd.Int8s.Greater, gtWant[int8])
+	testInt16sCompare(t, archsimd.Int16s.Greater, gtWant[int16])
+	testInt32sCompare(t, archsimd.Int32s.Greater, gtWant[int32])
+	testInt64sCompare(t, archsimd.Int64s.Greater, gtWant[int64])
+	testUint8sCompare(t, archsimd.Uint8s.Greater, gtWant[uint8])
+	testUint16sCompare(t, archsimd.Uint16s.Greater, gtWant[uint16])
+	testUint32sCompare(t, archsimd.Uint32s.Greater, gtWant[uint32])
+	testUint64sCompare(t, archsimd.Uint64s.Greater, gtWant[uint64])
+	testFloat32sCompare(t, archsimd.Float32s.Greater, gtWant[float32])
+	testFloat64sCompare(t, archsimd.Float64s.Greater, gtWant[float64])
 }
 
 // TestMaskStoreLoadPanicSVE checks that the exported mask memory APIs panic when
@@ -105,27 +128,48 @@ func TestMaskStoreLoadPanicSVE(t *testing.T) {
 
 func TestEqualSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
-		t.Skip("no sve")
+		t.Skip("no SVE")
 	}
-	testInt8sCompare(t, archsimd.Int8s.Equal, func(a, b int8) bool { return a == b })
-	testUint8sCompare(t, archsimd.Uint8s.Equal, func(a, b uint8) bool { return a == b })
-	testFloat64sCompare(t, archsimd.Float64s.Equal, func(a, b float64) bool { return a == b })
+	testInt8sCompare(t, archsimd.Int8s.Equal, eqWant[int8])
+	testInt16sCompare(t, archsimd.Int16s.Equal, eqWant[int16])
+	testInt32sCompare(t, archsimd.Int32s.Equal, eqWant[int32])
+	testInt64sCompare(t, archsimd.Int64s.Equal, eqWant[int64])
+	testUint8sCompare(t, archsimd.Uint8s.Equal, eqWant[uint8])
+	testUint16sCompare(t, archsimd.Uint16s.Equal, eqWant[uint16])
+	testUint32sCompare(t, archsimd.Uint32s.Equal, eqWant[uint32])
+	testUint64sCompare(t, archsimd.Uint64s.Equal, eqWant[uint64])
+	testFloat32sCompare(t, archsimd.Float32s.Equal, eqWant[float32])
+	testFloat64sCompare(t, archsimd.Float64s.Equal, eqWant[float64])
 }
 
 func TestNotEqualSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
-		t.Skip("no sve")
+		t.Skip("no SVE")
 	}
-	testInt8sCompare(t, archsimd.Int8s.NotEqual, func(a, b int8) bool { return a != b })
-	testUint8sCompare(t, archsimd.Uint8s.NotEqual, func(a, b uint8) bool { return a != b })
-	testFloat64sCompare(t, archsimd.Float64s.NotEqual, func(a, b float64) bool { return a != b })
+	testInt8sCompare(t, archsimd.Int8s.NotEqual, neWant[int8])
+	testInt16sCompare(t, archsimd.Int16s.NotEqual, neWant[int16])
+	testInt32sCompare(t, archsimd.Int32s.NotEqual, neWant[int32])
+	testInt64sCompare(t, archsimd.Int64s.NotEqual, neWant[int64])
+	testUint8sCompare(t, archsimd.Uint8s.NotEqual, neWant[uint8])
+	testUint16sCompare(t, archsimd.Uint16s.NotEqual, neWant[uint16])
+	testUint32sCompare(t, archsimd.Uint32s.NotEqual, neWant[uint32])
+	testUint64sCompare(t, archsimd.Uint64s.NotEqual, neWant[uint64])
+	testFloat32sCompare(t, archsimd.Float32s.NotEqual, neWant[float32])
+	testFloat64sCompare(t, archsimd.Float64s.NotEqual, neWant[float64])
 }
 
 func TestGreaterEqualSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
-		t.Skip("no sve")
+		t.Skip("no SVE")
 	}
-	testInt8sCompare(t, archsimd.Int8s.GreaterEqual, func(a, b int8) bool { return a >= b })
-	testUint8sCompare(t, archsimd.Uint8s.GreaterEqual, func(a, b uint8) bool { return a >= b })
-	testFloat64sCompare(t, archsimd.Float64s.GreaterEqual, func(a, b float64) bool { return a >= b })
+	testInt8sCompare(t, archsimd.Int8s.GreaterEqual, geWant[int8])
+	testInt16sCompare(t, archsimd.Int16s.GreaterEqual, geWant[int16])
+	testInt32sCompare(t, archsimd.Int32s.GreaterEqual, geWant[int32])
+	testInt64sCompare(t, archsimd.Int64s.GreaterEqual, geWant[int64])
+	testUint8sCompare(t, archsimd.Uint8s.GreaterEqual, geWant[uint8])
+	testUint16sCompare(t, archsimd.Uint16s.GreaterEqual, geWant[uint16])
+	testUint32sCompare(t, archsimd.Uint32s.GreaterEqual, geWant[uint32])
+	testUint64sCompare(t, archsimd.Uint64s.GreaterEqual, geWant[uint64])
+	testFloat32sCompare(t, archsimd.Float32s.GreaterEqual, geWant[float32])
+	testFloat64sCompare(t, archsimd.Float64s.GreaterEqual, geWant[float64])
 }

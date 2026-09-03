@@ -127,7 +127,8 @@ func TestAddSVESpill(t *testing.T) {
 	}
 }
 
-// TestAddSaturatedSVE checks that the generated saturating add saturates.
+// TestAddSaturatedSVE checks the generated saturating add: an explicit
+// boundary case, then every integer shape against the generic emulation.
 func TestAddSaturatedSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no sve")
@@ -143,20 +144,18 @@ func TestAddSaturatedSVE(t *testing.T) {
 			t.Errorf("int8 lane %d: got %d, want 127", i, gi[i])
 		}
 	}
-	var su, gu [32]uint8
-	for i := range su {
-		su[i] = 200 // 200+200 saturates to 255
-	}
-	vu := archsimd.LoadUint8s(su[:])
-	vu.AddSaturated(vu).Store(gu[:])
-	for i := 0; i < vu.Len(); i++ {
-		if gu[i] != 255 {
-			t.Errorf("uint8 lane %d: got %d, want 255", i, gu[i])
-		}
-	}
+	testInt8sBinary(t, archsimd.Int8s.AddSaturated, addSaturatedSlice[int8])
+	testInt16sBinary(t, archsimd.Int16s.AddSaturated, addSaturatedSlice[int16])
+	testInt32sBinary(t, archsimd.Int32s.AddSaturated, addSaturatedSlice[int32])
+	testInt64sBinary(t, archsimd.Int64s.AddSaturated, addSaturatedSlice[int64])
+	testUint8sBinary(t, archsimd.Uint8s.AddSaturated, addSaturatedSlice[uint8])
+	testUint16sBinary(t, archsimd.Uint16s.AddSaturated, addSaturatedSlice[uint16])
+	testUint32sBinary(t, archsimd.Uint32s.AddSaturated, addSaturatedSlice[uint32])
+	testUint64sBinary(t, archsimd.Uint64s.AddSaturated, addSaturatedSlice[uint64])
 }
 
-// TestSubSaturatedSVE checks that the generated saturating subtract saturates.
+// TestSubSaturatedSVE checks the generated saturating subtract: an explicit
+// boundary case, then every integer shape against the generic emulation.
 func TestSubSaturatedSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no sve")
@@ -173,18 +172,14 @@ func TestSubSaturatedSVE(t *testing.T) {
 			t.Errorf("int8 lane %d: got %d, want 127", i, gi[i])
 		}
 	}
-	var ux, uy, gu [32]uint8
-	for i := range ux {
-		ux[i] = 10 // 10 - 20 saturates to 0
-		uy[i] = 20
-	}
-	vx, vy := archsimd.LoadUint8s(ux[:]), archsimd.LoadUint8s(uy[:])
-	vx.SubSaturated(vy).Store(gu[:])
-	for i := 0; i < vx.Len(); i++ {
-		if gu[i] != 0 {
-			t.Errorf("uint8 lane %d: got %d, want 0", i, gu[i])
-		}
-	}
+	testInt8sBinary(t, archsimd.Int8s.SubSaturated, subSaturatedSlice[int8])
+	testInt16sBinary(t, archsimd.Int16s.SubSaturated, subSaturatedSlice[int16])
+	testInt32sBinary(t, archsimd.Int32s.SubSaturated, subSaturatedSlice[int32])
+	testInt64sBinary(t, archsimd.Int64s.SubSaturated, subSaturatedSlice[int64])
+	testUint8sBinary(t, archsimd.Uint8s.SubSaturated, subSaturatedSlice[uint8])
+	testUint16sBinary(t, archsimd.Uint16s.SubSaturated, subSaturatedSlice[uint16])
+	testUint32sBinary(t, archsimd.Uint32s.SubSaturated, subSaturatedSlice[uint32])
+	testUint64sBinary(t, archsimd.Uint64s.SubSaturated, subSaturatedSlice[uint64])
 }
 
 func TestStringSVE(t *testing.T) {
