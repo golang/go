@@ -38,9 +38,95 @@
 package jit
 
 import (
+	"internal/abi"
 	"sync"
-	_ "unsafe" // for go:linkname
+	"unsafe"
 )
+
+// TailType is a prepared GC allocation layout for a struct whose final field
+// is a zero-length array. It describes the struct prefix once followed by a
+// caller-selected number of array elements.
+type TailType struct {
+	runtimeType *abi.Type
+}
+
+type tailTypeKey struct {
+	base  *abi.Type
+	count uintptr
+}
+
+var tailTypes sync.Map
+
+// TailTypeFor prepares the allocation layout T with count repetitions of the
+// element type of T's final [0]E field. Preparation is intended to happen when
+// JIT code is compiled; allocating the prepared type is an O(1) operation.
+func TailTypeFor[T any](count uintptr) TailType {
+	base := abi.TypeFor[T]()
+	key := tailTypeKey{base: base, count: count}
+	if cached, ok := tailTypes.Load(key); ok {
+		return TailType{runtimeType: cached.(*abi.Type)}
+	}
+	if base.Kind() != abi.Struct {
+		panic("runtime/jit: tail allocation base is not a struct")
+	}
+	baseStruct := base.StructType()
+	if len(baseStruct.Fields) == 0 {
+		panic("runtime/jit: tail allocation struct has no fields")
+	}
+	last := baseStruct.Fields[len(baseStruct.Fields)-1]
+	if last.Typ.Kind() != abi.Array || last.Typ.Len() != 0 {
+		panic("runtime/jit: tail allocation struct must end in [0]E")
+	}
+	element := last.Typ.Elem()
+	if element.Size_ != 0 && count > ^uintptr(0)/element.Size_ {
+		panic("runtime/jit: tail allocation size overflow")
+	}
+	tailSize := element.Size_ * count
+	if last.Offset > ^uintptr(0)-tailSize {
+		panic("runtime/jit: tail allocation size overflow")
+	}
+
+	array := new(abi.ArrayType)
+	array.Type.Size_ = tailSize
+	array.Type.Align_ = element.Align_
+	array.Type.FieldAlign_ = element.FieldAlign_
+	array.Type.Kind_ = abi.Array
+	array.Elem = element
+	array.Len = count
+	if count != 0 && element.PtrBytes != 0 {
+		array.Type.PtrBytes = (count-1)*element.Size_ + element.PtrBytes
+		array.Type.TFlag = abi.TFlagGCMaskOnDemand
+		mask := new(*byte)
+		array.Type.GCData = (*byte)(unsafe.Pointer(mask))
+	}
+
+	exact := new(abi.StructType)
+	exact.Type.Size_ = last.Offset + tailSize
+	exact.Type.Align_ = base.Align_
+	exact.Type.FieldAlign_ = base.FieldAlign_
+	exact.Type.Kind_ = abi.Struct
+	exact.Fields = append([]abi.StructField(nil), baseStruct.Fields...)
+	exact.Fields[len(exact.Fields)-1].Typ = &array.Type
+	exact.Type.PtrBytes = base.PtrBytes
+	if array.PtrBytes != 0 {
+		exact.Type.PtrBytes = last.Offset + array.PtrBytes
+	}
+	if exact.Type.PtrBytes != 0 {
+		exact.Type.TFlag = abi.TFlagGCMaskOnDemand
+		mask := new(*byte)
+		exact.Type.GCData = (*byte)(unsafe.Pointer(mask))
+	}
+	actual, _ := tailTypes.LoadOrStore(key, &exact.Type)
+	return TailType{runtimeType: actual.(*abi.Type)}
+}
+
+// Alloc returns one zeroed, precisely typed Go heap object.
+func (t TailType) Alloc() unsafe.Pointer {
+	if t.runtimeType == nil {
+		panic("runtime/jit: uninitialized TailType")
+	}
+	return mallocgc(t.runtimeType.Size_, t.runtimeType, true)
+}
 
 // UnwindMode controls how the Go runtime handles user frames during
 // stack unwinding (tracebacks, panics, GC).
@@ -193,6 +279,13 @@ func Preempt() bool {
 
 //go:linkname userFramePreempt runtime/jit.userFramePreempt
 func userFramePreempt() bool
+
+// mallocgc is private runtime ABI. runtime/jit is part of the same standard
+// library revision, so this dependency stays inside the package shipped with
+// that runtime instead of leaking into JIT clients.
+//
+//go:linkname mallocgc runtime.mallocgc
+func mallocgc(size uintptr, typ *abi.Type, needzero bool) unsafe.Pointer
 
 //go:linkname registerUserFrameRegion runtime/jit.registerUserFrameRegion
 func registerUserFrameRegion(start, end uintptr, unwindMode uint8,

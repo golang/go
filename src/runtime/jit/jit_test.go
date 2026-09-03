@@ -17,6 +17,41 @@ import (
 	"unsafe"
 )
 
+type tailAllocationElement struct {
+	Pointer *int
+	Value   uintptr
+}
+
+type tailAllocationObject struct {
+	Header *int
+	Value  uintptr
+	Tail   [0]tailAllocationElement
+}
+
+func TestTailTypeAllocatesRepeatedPointerLayout(t *testing.T) {
+	const count = 3
+	prepared := jit.TailTypeFor[tailAllocationObject](count)
+	object := (*tailAllocationObject)(prepared.Alloc())
+	tail := unsafe.Slice((*tailAllocationElement)(unsafe.Add(unsafe.Pointer(object), unsafe.Offsetof(object.Tail))), count)
+	header := 7
+	object.Header = &header
+	for index := range tail {
+		value := 10 + index
+		tail[index].Pointer = &value
+		tail[index].Value = uintptr(value)
+	}
+	runtime.GC()
+	if *object.Header != 7 {
+		t.Fatalf("header pointer = %d, want 7", *object.Header)
+	}
+	for index := range tail {
+		if got, want := *tail[index].Pointer, 10+index; got != want {
+			t.Fatalf("tail[%d] pointer = %d, want %d", index, got, want)
+		}
+	}
+	runtime.KeepAlive(object)
+}
+
 // goFuncPtr returns the raw entry point of a Go function value.
 func goFuncPtr(fn func()) uintptr {
 	return **(**uintptr)(unsafe.Pointer(&fn))
