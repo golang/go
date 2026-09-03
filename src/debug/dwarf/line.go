@@ -216,7 +216,7 @@ func (r *LineReader) readHeader(compDir string) error {
 		headerLength = Offset(buf.uint32())
 	}
 	programOffset := buf.off + headerLength
-	if programOffset > r.endOffset {
+	if programOffset < buf.off || programOffset > r.endOffset {
 		return DecodeError{"line", hdrOffset, fmt.Sprintf("malformed line table: program offset %d exceeds end offset %d", programOffset, r.endOffset)}
 	}
 	r.programOffset = programOffset
