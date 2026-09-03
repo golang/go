@@ -11,4 +11,4 @@ const X509LimboModule = "github.com/C2SP/x509-limbo"
 
 // X509LimboVersion is the X509LimboModule version that schema.go was
 // generated against.
-const X509LimboVersion = "v0.0.0-20260726184259-1252c300df48"
+const X509LimboVersion = "v0.0.0-20260903143643-3f8cba420e90"

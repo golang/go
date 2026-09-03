@@ -33,6 +33,11 @@ var allowedUnexpectedVerifications = map[string]string{
 	"rfc5280::eku::ee-eku-empty":                      "TODO(#79743)",
 	"rfc5280::ca-empty-subject":                       "TODO(#79744)",
 
+	// Go accepts an empty sequence in either field when the other field is
+	// non-empty.
+	"rfc5280::nc::permitted-empty-sequence-excluded-nonempty": "empty permittedSubtrees sequence accepted",
+	"rfc5280::nc::permitted-nonempty-excluded-empty-sequence": "empty excludedSubtrees sequence accepted",
+
 	// Underscores and other invalid characters are presently allowed after
 	// tightening up the validation caused issues with real world certificates.
 	"rfc5280::san::underscore-dns": "TODO(#75835)",

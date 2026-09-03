@@ -31,7 +31,7 @@ import (
 // (no main package). Instead we fetch the module on demand via `go mod
 // download` below, and propagate this constant to ../schemaversion.go so the
 // runtime test fetches a matching revision.
-const x509LimboVersion = "v0.0.0-20260726184259-1252c300df48"
+const x509LimboVersion = "v0.0.0-20260903143643-3f8cba420e90"
 
 const x509LimboModule = "github.com/C2SP/x509-limbo"
 
