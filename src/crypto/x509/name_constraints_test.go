@@ -1044,6 +1044,23 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 	{
+		name: "URI host constraint does not match subdomains",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"uri:example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:http://sub.example.com/"},
+		},
+		expectedError: "\"http://sub.example.com/\" is not permitted",
+	},
+	{
 		name: "URI with IP is rejected",
 		roots: []constraintsSpec{
 			{
@@ -1146,6 +1163,75 @@ var nameConstraintsTests = []nameConstraintsTest{
 		expectedError: "\"http://foo.com/\" is excluded",
 	},
 	{
+		name: "excluded URI host constraint does not match subdomains",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"uri:foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:http://sub.foo.com/"},
+		},
+	},
+	{
+		name: "excluded URI subdomain constraint does not match parent",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"uri:.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:https://example.com/"},
+		},
+	},
+	{
+		name: "excluded URI host constraint treats wildcard literally",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"uri:example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:https://*.example.com/"},
+		},
+		noOpenSSL: true, // OpenSSL rejects wildcard URI hosts.
+	},
+	{
+		name: "URI host and subdomain constraints",
+		roots: []constraintsSpec{
+			{
+				// Mixed case exercises case-insensitive sorting and matching.
+				ok: []string{"uri:EXAMPLE.com", "uri:.EXAMPLE.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{
+				"uri:https://example.com/",
+				"uri:https://sub.example.com/",
+			},
+		},
+	},
+	{
 		name: "URI subdomain constraint",
 		roots: []constraintsSpec{
 			{
@@ -1159,6 +1245,39 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 		leaf: leafSpec{
 			sans: []string{"uri:http://www.foo.com/"},
+		},
+	},
+	{
+		name: "URI subdomain constraint does not match parent",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"uri:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:http://foo.com/"},
+		},
+		expectedError: "\"http://foo.com/\" is not permitted",
+	},
+	{
+		name: "URI subdomain constraint matches deeper subdomains",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"uri:.foo.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:http://one.two.foo.com/"},
 		},
 	},
 	{

@@ -571,7 +571,7 @@ func checkChainConstraints(chain []*Certificate) error {
 		cc := &chainConstraints{
 			ip:    constraints[*net.IPNet, net.IP]{"IP address", newIPNetConstraints(c.PermittedIPRanges), newIPNetConstraints(c.ExcludedIPRanges)},
 			dns:   constraints[string, string]{"DNS name", newDNSConstraints(c.PermittedDNSDomains, true), newDNSConstraints(c.ExcludedDNSDomains, false)},
-			uri:   constraints[string, string]{"URI", newDNSConstraints(c.PermittedURIDomains, true), newDNSConstraints(c.ExcludedURIDomains, false)},
+			uri:   constraints[string, string]{"URI", newHostConstraints(c.PermittedURIDomains), newHostConstraints(c.ExcludedURIDomains)},
 			email: constraints[string, rfc2821Mailbox]{"email address", newEmailConstraints(c.PermittedEmailAddresses), newEmailConstraints(c.ExcludedEmailAddresses)},
 			index: i,
 		}
