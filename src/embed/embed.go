@@ -368,7 +368,7 @@ func (f *openFile) Seek(offset int64, whence int) (int64, error) {
 	default:
 		return 0, &fs.PathError{Op: "seek", Path: f.f.name, Err: fs.ErrInvalid}
 	}
-	if offset < 0 || offset > int64(len(f.f.data)) {
+	if offset < 0 {
 		return 0, &fs.PathError{Op: "seek", Path: f.f.name, Err: fs.ErrInvalid}
 	}
 	f.offset = offset
