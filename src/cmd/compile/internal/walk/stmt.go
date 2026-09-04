@@ -7,6 +7,7 @@ package walk
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/reflectdata"
 )
 
 // The result of walkStmt MUST be assigned back to n, e.g.
@@ -137,6 +138,16 @@ func walkStmt(n ir.Node) ir.Node {
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
+
+		// Since go.dev/cl/751465, the compiler emits tail calls for wrappers
+		// for embedded interfaces. But a tail call never reaches walkCall, so
+		// the interface calls are not marked as used, causing the linker to
+		// drop the callee. See issues #81089 and #81340.
+		// TODO: Should we just call walkCall here?
+		if n.Call.Op() == ir.OCALLINTER {
+			usemethod(n.Call)
+			reflectdata.MarkUsedIfaceMethod(n.Call)
+		}
 
 		var init ir.Nodes
 		n.Call.Fun = walkExpr(n.Call.Fun, &init)
