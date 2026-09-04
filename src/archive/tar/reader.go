@@ -276,10 +276,16 @@ func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
 			hdr.Gname = v
 		case paxUid:
 			id64, err = strconv.ParseInt(v, 10, 64)
-			hdr.Uid = int(id64) // Integer overflow possible
+			if err == nil && int64(int(id64)) != id64 {
+				err = ErrHeader
+			}
+			hdr.Uid = int(id64) // Integer overflow prevented
 		case paxGid:
 			id64, err = strconv.ParseInt(v, 10, 64)
-			hdr.Gid = int(id64) // Integer overflow possible
+			if err == nil && int64(int(id64)) != id64 {
+				err = ErrHeader
+			}
+			hdr.Gid = int(id64) // Integer overflow prevented
 		case paxAtime:
 			hdr.AccessTime, err = parsePAXTime(v)
 		case paxMtime:
@@ -384,8 +390,16 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 	hdr.Linkname = p.parseString(v7.linkName())
 	hdr.Size = p.parseNumeric(v7.size())
 	hdr.Mode = p.parseNumeric(v7.mode())
-	hdr.Uid = int(p.parseNumeric(v7.uid()))
-	hdr.Gid = int(p.parseNumeric(v7.gid()))
+	uid := p.parseNumeric(v7.uid())
+	if int64(int(uid)) != uid {
+		p.err = ErrHeader
+	}
+	hdr.Uid = int(uid)
+	gid := p.parseNumeric(v7.gid())
+	if int64(int(gid)) != gid {
+		p.err = ErrHeader
+	}
+	hdr.Gid = int(gid)
 	hdr.ModTime = time.Unix(p.parseNumeric(v7.modTime()), 0)
 
 	// Unpack format specific fields.
