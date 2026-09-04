@@ -310,6 +310,15 @@ func (x Int8s) Or(y Int8s) Int8s {
 	return Int8s{a: x.a | y.a, b: x.b | y.b}
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int8s) ReduceSum() int8 {
+	var res int8
+	for i := 0; i < 16; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Int8s) Store(s []int8) {
 	for i := 0; i < 16 && i < len(s); i++ {
@@ -666,6 +675,15 @@ func (x Int16s) RotateAllRight(dist uint64) Int16s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int16s) ReduceSum() int16 {
+	var res int16
+	for i := 0; i < 8; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Int16s) Store(s []int16) {
 	for i := 0; i < 8 && i < len(s); i++ {
@@ -1011,6 +1029,15 @@ func (x Int32s) RotateAllRight(dist uint64) Int32s {
 		u := uint32(x.get(i))
 		r := (u >> d) | (u << ((32 - d) & 31))
 		res.set(i, int32(r))
+	}
+	return res
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int32s) ReduceSum() int32 {
+	var res int32
+	for i := 0; i < 4; i++ {
+		res += x.get(i)
 	}
 	return res
 }
@@ -1484,6 +1511,15 @@ func (x Uint8s) Or(y Uint8s) Uint8s {
 	return Uint8s{a: x.a | y.a, b: x.b | y.b}
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint8s) ReduceSum() uint8 {
+	var res uint8
+	for i := 0; i < 16; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Uint8s) Store(s []uint8) {
 	for i := 0; i < 16 && i < len(s); i++ {
@@ -1827,6 +1863,15 @@ func (x Uint16s) RotateAllRight(dist uint64) Uint16s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint16s) ReduceSum() uint16 {
+	var res uint16
+	for i := 0; i < 8; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Uint16s) Store(s []uint16) {
 	for i := 0; i < 8 && i < len(s); i++ {
@@ -2143,6 +2188,15 @@ func (x Uint32s) RotateAllRight(dist uint64) Uint32s {
 		u := x.get(i)
 		r := (u >> d) | (u << ((32 - d) & 31))
 		res.set(i, r)
+	}
+	return res
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint32s) ReduceSum() uint32 {
+	var res uint32
+	for i := 0; i < 4; i++ {
+		res += x.get(i)
 	}
 	return res
 }

@@ -8,6 +8,7 @@ package simd_test
 
 import (
 	"simd"
+	"simd/internal/test_helpers"
 	"slices"
 	"testing"
 )
@@ -501,47 +502,12 @@ func TestShiftAllLeft(t *testing.T) {
 }
 
 func TestReduceSum(t *testing.T) {
-	t.Run("Float32s", func(t *testing.T) {
-		tests := [][]float32{
-			{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-			{1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8},
-			{0.5, -0.5, 1.25, -1.25, 2.125, -2.125, 4, 8, 0.25, -0.25, 0.75, -0.75, 1.5, -1.5, 16, 32},
-			make([]float32, 16),
-			{-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16},
-		}
-		for _, in := range tests {
-			v := simd.LoadFloat32s(in)
-			got := v.ReduceSum()
-			var want float32
-			// Note the test does not associate the same as the implementations,
-			// fortunately the test case is small integers.
-			for _, x := range in[:v.Len()] {
-				want += x
-			}
-			if got != want {
-				t.Errorf("%v[:%d].ReduceSum() = %v, want %v", in, v.Len(), got, want)
-			}
-		}
-	})
-
-	t.Run("Float64s", func(t *testing.T) {
-		tests := [][]float64{
-			{1, 2, 3, 4, 5, 6, 7, 8},
-			{1, -1, 2, -2, 3, -3, 4, -4},
-			{1.125, 2.25, 3.5, 4.0, 5.5, 6.25, 7.125, 8.0},
-			make([]float64, 8),
-			{-10, -20, -30, -40, -50, -60, -70, -80},
-		}
-		for _, in := range tests {
-			v := simd.LoadFloat64s(in)
-			got := v.ReduceSum()
-			var want float64
-			for _, x := range in[:v.Len()] {
-				want += x
-			}
-			if got != want {
-				t.Errorf("%v[:%d].ReduceSum() = %v, want %v", in, v.Len(), got, want)
-			}
-		}
-	})
+	test_helpers.TestV2S(t, test_helpers.Float32s(), simd.LoadFloat32s, simd.Float32s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Float64s(), simd.LoadFloat64s, simd.Float64s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Int32s(), simd.LoadInt32s, simd.Int32s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Uint32s(), simd.LoadUint32s, simd.Uint32s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Int16s(), simd.LoadInt16s, simd.Int16s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Uint16s(), simd.LoadUint16s, simd.Uint16s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Uint8s(), simd.LoadUint8s, simd.Uint8s.ReduceSum, test_helpers.ReduceSum)
 }
