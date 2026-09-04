@@ -2245,6 +2245,25 @@ func sveUnaryPred(s *ssagen.State, v *ssa.Value, arng int16, zn, pg int16, qual 
 	return p
 }
 
+// simdZ3kvPredAcc emits a predicated SVE accumulating operation, e.g.
+// ZFMLA Zm.S, Zn.S, P0.M, Zda.S. SSA provides arg0=the accumulator, arg1=x,
+// arg2=y, arg3=the governing predicate; the accumulator is the register the
+// instruction merges into, so resultInArg0 pins the destination to it.
+//
+// This helper is only for <Zda>-style operations, whose destination is not
+// repeated in the assembly: it emits one more distinct register than the
+// <Zdn>-destructive helpers (simdZ2kvPred, simdZ3kvPredResultInArg0) do.
+func simdZ3kvPredAcc(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[2].Reg(), arng)                // Zm
+	p.AddRestSourceReg(zregArng(v.Args[1].Reg(), arng))         // Zn
+	p.AddRestSourceReg(pregMask(v.Args[3].Reg(), arm64.PRED_M)) // Pg/M
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zda
+	return p
+}
+
 // simdZ3kvPredResultInArg0 emits an SVE merging-predicated binary operation
 // whose inactive lanes come from a value that is neither of its sources, e.g.
 // x.Add(y).IfElse(mask, z). SSA provides arg0=z, arg1=x, arg2=y, arg3=mask, and

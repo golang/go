@@ -178,7 +178,19 @@ func (inst *Instruction) emitOne(asm string, ops []Operand, widthAgnostic bool) 
 		case op.role == "destination":
 			op.predRegName = pickRegNames(inst.predVariants, outIdx, func(pv predVariant) []string { return pv.outRegNames })
 			outIdx++
-			out = append(out, op.encode())
+			enc := op.encode()
+			out = append(out, enc)
+			// An accumulator destination (FMLA's <Zda>) is read as well as
+			// written, but unlike a <Zdn> operand the template names it only
+			// once, so no input carries its register. Synthesize that input —
+			// a copy of the destination, sharing its assembly position — so
+			// the def describes what the instruction reads and the operation
+			// is an ordinary destructive one downstream.
+			if op.resultInArg0() && !slices.ContainsFunc(ops, func(o Operand) bool {
+				return o.role != "destination" && o.regName == op.regName
+			}) {
+				in = append(in, enc)
+			}
 		default:
 			op.predRegName = pickRegNames(inst.predVariants, inIdx, func(pv predVariant) []string { return pv.inRegNames })
 			inIdx++

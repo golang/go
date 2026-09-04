@@ -115,7 +115,9 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 		if regShape == "v01load" {
 			regShape = "vload"
 		}
-		if shapeOut == OneVregOutAtIn {
+		if shapeOut == OneVregOutAtIn && !strings.HasSuffix(regShape, "Acc") {
+			// An Acc shape's first input is by definition the destination
+			// (see sveAccumulatorInput), so the suffix would be redundant.
 			regShape += "ResultInArg0"
 		} else if shapeOut == OneVregOutScalar {
 			regShape += "Scalar"

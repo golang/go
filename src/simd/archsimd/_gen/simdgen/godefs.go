@@ -425,6 +425,20 @@ func isInPlaceRegName(name string) bool {
 	return len(name) >= 3 && name[1] == 'd'
 }
 
+// sveAccumulatorInput reports whether op's first input is an accumulator: an
+// in-place destination like FMLA's <Zda> that the assembly names only once, as
+// opposed to a <Zdn> operand that is also named in a source position. The two
+// need different ssa-to-prog helpers — an accumulating instruction has one
+// more distinct register — so the accumulator gives the operation its own
+// register shape.
+func (op Operation) sveAccumulatorInput() bool {
+	if op.sveInPlaceInput() != 0 || op.In[0].RegName == nil {
+		return false
+	}
+	name := *op.In[0].RegName
+	return len(name) >= 3 && name[1] == 'd' && name[2] == 'a'
+}
+
 // sveInPlaceInput returns the index in op.In of the input naming the same
 // register as the destination — the operand a destructive instruction
 // overwrites — or -1 when the instruction is constructive.

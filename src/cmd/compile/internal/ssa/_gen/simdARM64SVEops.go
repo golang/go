@@ -2,7 +2,7 @@
 
 package main
 
-func simdARM64SVEOps(z11, z21, zkv, z2kk, z2kv, z2kvPred, z3kvPred regInfo) []opData {
+func simdARM64SVEOps(z11, z21, zkv, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPredAcc regInfo) []opData {
 	return []opData{
 		{name: "ZABSB", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
 		{name: "ZABSD", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
@@ -101,6 +101,10 @@ func simdARM64SVEOps(z11, z21, zkv, z2kk, z2kv, z2kvPred, z3kvPred regInfo) []op
 		{name: "ZFMINMergingD", argLength: 3, reg: z2kvPred, asm: "ZFMIN", typ: "Vec256", resultInArg0: true},
 		{name: "ZFMINMergingS", argLength: 3, reg: z2kvPred, asm: "ZFMIN", typ: "Vec256", resultInArg0: true},
 		{name: "ZFMINS", argLength: 3, reg: z2kvPred, asm: "ZFMIN", typ: "Vec256", resultInArg0: true},
+		{name: "ZFMLAD", argLength: 4, reg: z3kvPredAcc, asm: "ZFMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZFMLAMergingD", argLength: 4, reg: z3kvPredAcc, asm: "ZFMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZFMLAMergingS", argLength: 4, reg: z3kvPredAcc, asm: "ZFMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZFMLAS", argLength: 4, reg: z3kvPredAcc, asm: "ZFMLA", typ: "Vec256", resultInArg0: true},
 		{name: "ZFMULD", argLength: 2, reg: z21, asm: "ZFMUL", commutative: true, typ: "Vec256"},
 		{name: "ZFMULMergingD", argLength: 3, reg: z2kvPred, asm: "ZFMUL", typ: "Vec256", resultInArg0: true},
 		{name: "ZFMULMergingPrefixedD", argLength: 4, reg: z3kvPred, asm: "ZFMUL", typ: "Vec256", resultInArg0: true},
@@ -127,6 +131,14 @@ func simdARM64SVEOps(z11, z21, zkv, z2kk, z2kv, z2kvPred, z3kvPred regInfo) []op
 		{name: "ZFSUBMergingD", argLength: 3, reg: z2kvPred, asm: "ZFSUB", typ: "Vec256", resultInArg0: true},
 		{name: "ZFSUBMergingS", argLength: 3, reg: z2kvPred, asm: "ZFSUB", typ: "Vec256", resultInArg0: true},
 		{name: "ZFSUBS", argLength: 2, reg: z21, asm: "ZFSUB", typ: "Vec256"},
+		{name: "ZMLAB", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZMLAD", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZMLAH", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZMLAMergingB", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZMLAMergingD", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZMLAMergingH", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZMLAMergingS", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
+		{name: "ZMLAS", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
 		{name: "ZMULB", argLength: 2, reg: z21, asm: "ZMUL", commutative: true, typ: "Vec256"},
 		{name: "ZMULD", argLength: 2, reg: z21, asm: "ZMUL", commutative: true, typ: "Vec256"},
 		{name: "ZMULH", argLength: 2, reg: z21, asm: "ZMUL", commutative: true, typ: "Vec256"},

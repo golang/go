@@ -380,6 +380,12 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 			destructiveAllTrue := gOp.In[i].IsGoverning() && gOp.sveInPlaceInput() == 0
 			if callerPredicated || destructiveAllTrue {
 				regInfo += "Pred"
+				// An accumulating operation (FMLA's <Zda>) names one more
+				// distinct register than a <Zdn>-destructive one, so it is
+				// emitted by a different helper and gets its own shape.
+				if gOp.sveAccumulatorInput() {
+					regInfo += "Acc"
+				}
 				break
 			}
 		}

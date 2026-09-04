@@ -277,6 +277,26 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFSQRTMergingS:
 		p = simdZ2kvPredResultInArg0(s, v, arm64.ARNG_S)
 
+	case ssaop.OpARM64ZMLAB,
+		ssaop.OpARM64ZMLAMergingB:
+		p = simdZ3kvPredAcc(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZFMLAD,
+		ssaop.OpARM64ZFMLAMergingD,
+		ssaop.OpARM64ZMLAD,
+		ssaop.OpARM64ZMLAMergingD:
+		p = simdZ3kvPredAcc(s, v, arm64.ARNG_D)
+
+	case ssaop.OpARM64ZMLAH,
+		ssaop.OpARM64ZMLAMergingH:
+		p = simdZ3kvPredAcc(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZFMLAS,
+		ssaop.OpARM64ZFMLAMergingS,
+		ssaop.OpARM64ZMLAS,
+		ssaop.OpARM64ZMLAMergingS:
+		p = simdZ3kvPredAcc(s, v, arm64.ARNG_S)
+
 	case ssaop.OpARM64ZADDMergingPrefixedB,
 		ssaop.OpARM64ZSQADDMergingPrefixedB,
 		ssaop.OpARM64ZUQADDMergingPrefixedB,

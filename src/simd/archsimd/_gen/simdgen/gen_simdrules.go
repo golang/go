@@ -268,17 +268,17 @@ func sveImplicitPredPeepholes(gOp Operation, asm, args string) string {
 			continue
 		}
 		// Destructive: the inactive lanes keep the first source, so only an
-		// else operand that is a source folds directly (either source when
+		// else operand that is that source folds directly (either source when
 		// commutative); any other else operand goes through the
 		// MOVPRFX-prefixed form. These mirror sveMergingPeephole, with the
 		// all-true operation in place of the unpredicated encoding it lacks.
-		if args != "x y" {
-			panic(fmt.Errorf("simdgen: %s is destructive with implicit predicate and %d sources; only two are supported", gOp.Asm, len(gOp.In)-1))
-		}
 		allTrue := sveAllTruePattern(gOp)
 		merging := machineOpName(OneMask, pred)
-		rules += fmt.Sprintf("(%s (%s x y %s) x mask) => (%s x y mask)\n", sel, asm, allTrue, merging)
+		rules += fmt.Sprintf("(%s (%s %s %s) x mask) => (%s %s mask)\n", sel, asm, args, allTrue, merging, args)
 		if gOp.Commutative {
+			if args != "x y" {
+				panic(fmt.Errorf("simdgen: %s is a commutative destructive op with %d sources; only two are supported", gOp.Asm, len(gOp.In)-1))
+			}
 			rules += fmt.Sprintf("(%s (%s x y %s) y mask) => (%s y x mask)\n", sel, asm, allTrue, merging)
 		}
 		if prefixed := pred.sveMergingPrefixedOp(); prefixed != nil {

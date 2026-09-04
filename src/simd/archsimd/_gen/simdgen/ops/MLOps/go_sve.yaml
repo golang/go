@@ -1,0 +1,36 @@
+!sum
+# MulAdd — integer MLA and fused floating-point FMLA: Zda += Zn * Zm. Both are
+# predicated-only and accumulating: the destination <Zda> is read as well as
+# written but is not named among the assembly inputs, so the loader
+# synthesizes the accumulator input (see the emitOne comment in sve/emit.go).
+# operandOrder 231Type1 gives the NEON operand convention x.MulAdd(y, z) with
+# the accumulator z last, while the machine op keeps it pinned first.
+- go: MulAdd
+  asm: "ZMLA"
+  operandOrder: "231Type1"
+  documentation: !string |-
+    // NAME computes (x * y) + z.
+  in:
+  - &int
+    go: $t
+    base: int|uint
+  - *int
+  - *int
+  - class: mask # governing predicate
+  out:
+  - *int
+
+- go: MulAdd
+  asm: "ZFMLA"
+  operandOrder: "231Type1"
+  documentation: !string |-
+    // NAME performs a fused (x * y) + z.
+  in:
+  - &fp
+    go: $t
+    base: float
+  - *fp
+  - *fp
+  - class: mask # governing predicate
+  out:
+  - *fp
