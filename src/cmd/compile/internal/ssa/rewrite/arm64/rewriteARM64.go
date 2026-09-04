@@ -1247,12 +1247,24 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpDiv8(v)
 	case ssaop.OpDiv8u:
 		return rewriteValue_OpDiv8u(v)
+	case ssaop.OpDivFloat32s:
+		return rewriteValue_OpDivFloat32s(v)
 	case ssaop.OpDivFloat32x4:
 		v.Op = ssaop.OpARM64VFDIV4S
 		return true
+	case ssaop.OpDivFloat64s:
+		return rewriteValue_OpDivFloat64s(v)
 	case ssaop.OpDivFloat64x2:
 		v.Op = ssaop.OpARM64VFDIV2D
 		return true
+	case ssaop.OpDivInt32s:
+		return rewriteValue_OpDivInt32s(v)
+	case ssaop.OpDivInt64s:
+		return rewriteValue_OpDivInt64s(v)
+	case ssaop.OpDivUint32s:
+		return rewriteValue_OpDivUint32s(v)
+	case ssaop.OpDivUint64s:
+		return rewriteValue_OpDivUint64s(v)
 	case ssaop.OpEq16:
 		return rewriteValue_OpEq16(v)
 	case ssaop.OpEq32:
@@ -21794,6 +21806,37 @@ func rewriteValue_OpARM64ZSELD(v *ssa.Value) bool {
 		v.AddArg4(z, x, y, mask)
 		return true
 	}
+	// match: (ZSELD (ZFDIVD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask)
+	// result: (ZFDIVMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFDIVD {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTD {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 4 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZFDIVMergingD)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (ZSELD (ZFMAXD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask)
 	// result: (ZFMAXMergingD x y mask)
 	for {
@@ -22173,6 +22216,37 @@ func rewriteValue_OpARM64ZSELD(v *ssa.Value) bool {
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZORRMergingPrefixedD)
 		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELD (ZSDIVD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask)
+	// result: (ZSDIVMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSDIVD {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTD {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 4 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSDIVMergingD)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 	// match: (ZSELD (ZSMAXD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask)
@@ -22564,6 +22638,37 @@ func rewriteValue_OpARM64ZSELD(v *ssa.Value) bool {
 		}
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZSUBMergingD)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (ZSELD (ZUDIVD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask)
+	// result: (ZUDIVMergingD x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUDIVD {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTD {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 4 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZUDIVMergingD)
 		v.AddArg3(x, y, mask)
 		return true
 	}
@@ -24437,6 +24542,37 @@ func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
 		v.AddArg4(z, x, y, mask)
 		return true
 	}
+	// match: (ZSELS (ZFDIVS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask)
+	// result: (ZFDIVMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZFDIVS {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTS {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 8 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZFDIVMergingS)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (ZSELS (ZFMAXS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask)
 	// result: (ZFMAXMergingS x y mask)
 	for {
@@ -24816,6 +24952,37 @@ func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZORRMergingPrefixedS)
 		v.AddArg4(z, x, y, mask)
+		return true
+	}
+	// match: (ZSELS (ZSDIVS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask)
+	// result: (ZSDIVMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZSDIVS {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTS {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 8 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZSDIVMergingS)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 	// match: (ZSELS (ZSMAXS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask)
@@ -25207,6 +25374,37 @@ func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
 		}
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZSUBMergingS)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (ZSELS (ZUDIVS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask)
+	// result: (ZUDIVMergingS x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZUDIVS {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTS {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 8 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZUDIVMergingS)
 		v.AddArg3(x, y, mask)
 		return true
 	}
@@ -26227,6 +26425,144 @@ func rewriteValue_OpDiv8u(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
 		v1.AddArg(y)
 		v.AddArg2(v0, v1)
+		return true
+	}
+}
+func rewriteValue_OpDivFloat32s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (DivFloat32s x y)
+	// result: (ZFDIVS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZFDIVS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpDivFloat64s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (DivFloat64s x y)
+	// result: (ZFDIVD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZFDIVD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpDivInt32s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (DivInt32s x y)
+	// result: (ZSDIVS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZSDIVS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpDivInt64s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (DivInt64s x y)
+	// result: (ZSDIVD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZSDIVD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpDivUint32s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (DivUint32s x y)
+	// result: (ZUDIVS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZUDIVS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpDivUint64s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (DivUint64s x y)
+	// result: (ZUDIVD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZUDIVD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
 		return true
 	}
 }

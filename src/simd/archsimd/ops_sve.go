@@ -226,6 +226,46 @@ func (x Float32s) Ceil() Float32s
 // Asm: ZFRINTP, CPU Feature: SVE
 func (x Float64s) Ceil() Float64s
 
+/* Div */
+
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
+//
+// Asm: ZFDIV, CPU Feature: SVE
+func (x Float32s) Div(y Float32s) Float32s
+
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
+//
+// Asm: ZFDIV, CPU Feature: SVE
+func (x Float64s) Div(y Float64s) Float64s
+
+// Div divides corresponding elements of two vectors, truncating toward
+// zero. Division by zero yields zero rather than panicking, and dividing
+// the minimum signed value by -1 yields the minimum signed value.
+//
+// Asm: ZSDIV, CPU Feature: SVE
+func (x Int32s) Div(y Int32s) Int32s
+
+// Div divides corresponding elements of two vectors, truncating toward
+// zero. Division by zero yields zero rather than panicking, and dividing
+// the minimum signed value by -1 yields the minimum signed value.
+//
+// Asm: ZSDIV, CPU Feature: SVE
+func (x Int64s) Div(y Int64s) Int64s
+
+// Div divides corresponding elements of two vectors, truncating toward
+// zero. Division by zero yields zero rather than panicking, and dividing
+// the minimum signed value by -1 yields the minimum signed value.
+//
+// Asm: ZUDIV, CPU Feature: SVE
+func (x Uint32s) Div(y Uint32s) Uint32s
+
+// Div divides corresponding elements of two vectors, truncating toward
+// zero. Division by zero yields zero rather than panicking, and dividing
+// the minimum signed value by -1 yields the minimum signed value.
+//
+// Asm: ZUDIV, CPU Feature: SVE
+func (x Uint64s) Div(y Uint64s) Uint64s
+
 /* Equal */
 
 // Equal returns a mask whose elements indicate whether x == y.

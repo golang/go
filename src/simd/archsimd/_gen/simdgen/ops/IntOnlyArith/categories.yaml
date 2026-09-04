@@ -20,3 +20,13 @@
   commutative: false
   documentation: !string |-
     // NAME counts the number of set bits in each element.
+# Constrained to integer elements: the float Div in FPonlyArith documents the
+# IEEE 754 semantics.
+- go: Div
+  commutative: false
+  out:
+  - base: int|uint
+  documentation: !string |-
+    // NAME divides corresponding elements of two vectors, truncating toward
+    // zero. Division by zero yields zero rather than panicking, and dividing
+    // the minimum signed value by -1 yields the minimum signed value.

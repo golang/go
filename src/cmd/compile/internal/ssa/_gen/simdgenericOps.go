@@ -365,12 +365,18 @@ func simdGenericOps() []opData {
 		{name: "ConvertToUint64Float64x2", argLength: 1},                                // ARCH:amd64,arm64
 		{name: "ConvertToUint64Float64x4", argLength: 1},                                // ARCH:amd64
 		{name: "ConvertToUint64Float64x8", argLength: 1},                                // ARCH:amd64
+		{name: "DivFloat32s", argLength: 2},                                             // ARCH:sve
 		{name: "DivFloat32x4", argLength: 2},                                            // ARCH:amd64,arm64,wasm
 		{name: "DivFloat32x8", argLength: 2},                                            // ARCH:amd64
 		{name: "DivFloat32x16", argLength: 2},                                           // ARCH:amd64
+		{name: "DivFloat64s", argLength: 2},                                             // ARCH:sve
 		{name: "DivFloat64x2", argLength: 2},                                            // ARCH:amd64,arm64,wasm
 		{name: "DivFloat64x4", argLength: 2},                                            // ARCH:amd64
 		{name: "DivFloat64x8", argLength: 2},                                            // ARCH:amd64
+		{name: "DivInt32s", argLength: 2},                                               // ARCH:sve
+		{name: "DivInt64s", argLength: 2},                                               // ARCH:sve
+		{name: "DivUint32s", argLength: 2},                                              // ARCH:sve
+		{name: "DivUint64s", argLength: 2},                                              // ARCH:sve
 		{name: "DotProductPairsInt16x8", argLength: 2},                                  // ARCH:amd64
 		{name: "DotProductPairsInt16x16", argLength: 2},                                 // ARCH:amd64
 		{name: "DotProductPairsInt16x32", argLength: 2},                                 // ARCH:amd64

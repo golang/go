@@ -402,6 +402,25 @@ func absSlice[T number](x []T) []T {
 	return map1[T](abs)(x)
 }
 
+// intDiv divides like SVE SDIV/UDIV, where Go's operator would panic:
+// division by zero yields zero, and the minimum signed value divided by -1
+// yields itself.
+func intDiv[T integer](x, y T) T {
+	if y == 0 {
+		return 0
+	}
+	if isSignedInt[T]() && y+1 == 0 {
+		// x / -1 is -x, and Go's negation already wraps the minimum value
+		// onto itself the way the instruction does.
+		return -x
+	}
+	return x / y
+}
+
+func intDivSlice[T integer](x, y []T) []T {
+	return map2[T](intDiv)(x, y)
+}
+
 // isSignedInt reports whether T is a signed integer type.
 func isSignedInt[T integer]() bool {
 	var t T

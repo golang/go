@@ -48,3 +48,15 @@
   - class: mask # governing predicate
   out:
   - *float
+
+# Div — floating-point divide (ZFDIV). Predicated-only and destructive, the
+# same shape as Max; non-commutative, so its machine op pins the destination
+# to the dividend.
+- go: Div
+  asm: "ZFDIV"
+  in:
+  - *float
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float

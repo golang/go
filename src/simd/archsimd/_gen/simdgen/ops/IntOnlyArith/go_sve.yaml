@@ -11,3 +11,25 @@
   - class: mask # governing predicate
   out:
   - *int
+
+# Div — signed and unsigned integer divide (ZSDIV/ZUDIV), 32- and 64-bit
+# elements only (the narrower widths have no encoding). Predicated-only and
+# destructive like the float Div.
+- go: Div
+  asm: "ZSDIV"
+  in:
+  - *int
+  - *int
+  - class: mask # governing predicate
+  out:
+  - *int
+- go: Div
+  asm: "ZUDIV"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  - class: mask # governing predicate
+  out:
+  - *uint
