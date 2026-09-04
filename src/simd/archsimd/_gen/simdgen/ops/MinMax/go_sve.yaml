@@ -12,3 +12,13 @@
   - class: mask # governing predicate
   out:
   - *any
+
+# Min — SMIN/UMIN/FMIN, the same shape as Max.
+- go: Min
+  asm: "ZSMIN|ZUMIN|ZFMIN"
+  in:
+  - *any
+  - *any
+  - class: mask # governing predicate
+  out:
+  - *any

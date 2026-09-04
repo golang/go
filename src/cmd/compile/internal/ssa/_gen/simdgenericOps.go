@@ -776,33 +776,43 @@ func simdGenericOps() []opData {
 		{name: "MaxUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MaxUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MaxUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "MinFloat32s", argLength: 2},                                             // ARCH:sve
 		{name: "MinFloat32x4", argLength: 2},                                            // ARCH:amd64,arm64,wasm
 		{name: "MinFloat32x8", argLength: 2},                                            // ARCH:amd64
 		{name: "MinFloat32x16", argLength: 2},                                           // ARCH:amd64
+		{name: "MinFloat64s", argLength: 2},                                             // ARCH:sve
 		{name: "MinFloat64x2", argLength: 2},                                            // ARCH:amd64,arm64,wasm
 		{name: "MinFloat64x4", argLength: 2},                                            // ARCH:amd64
 		{name: "MinFloat64x8", argLength: 2},                                            // ARCH:amd64
+		{name: "MinInt8s", argLength: 2, commutative: true},                             // ARCH:sve
 		{name: "MinInt8x16", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "MinInt8x32", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "MinInt8x64", argLength: 2, commutative: true},                           // ARCH:amd64
+		{name: "MinInt16s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "MinInt16x8", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "MinInt16x16", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MinInt16x32", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "MinInt32s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "MinInt32x4", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "MinInt32x8", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "MinInt32x16", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "MinInt64s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "MinInt64x2", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "MinInt64x4", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "MinInt64x8", argLength: 2, commutative: true},                           // ARCH:amd64
+		{name: "MinUint8s", argLength: 2, commutative: true},                            // ARCH:sve
 		{name: "MinUint8x16", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "MinUint8x32", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MinUint8x64", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "MinUint16s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "MinUint16x8", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "MinUint16x16", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "MinUint16x32", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "MinUint32s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "MinUint32x4", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "MinUint32x8", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MinUint32x16", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "MinUint64s", argLength: 2, commutative: true},                           // ARCH:sve
 		{name: "MinUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MinUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MinUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64

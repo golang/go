@@ -446,6 +446,58 @@ func (x Uint32s) Max(y Uint32s) Uint32s
 // Asm: ZUMAX, CPU Feature: SVE
 func (x Uint64s) Max(y Uint64s) Uint64s
 
+/* Min */
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZFMIN, CPU Feature: SVE
+func (x Float32s) Min(y Float32s) Float32s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZFMIN, CPU Feature: SVE
+func (x Float64s) Min(y Float64s) Float64s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZSMIN, CPU Feature: SVE
+func (x Int8s) Min(y Int8s) Int8s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZSMIN, CPU Feature: SVE
+func (x Int16s) Min(y Int16s) Int16s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZSMIN, CPU Feature: SVE
+func (x Int32s) Min(y Int32s) Int32s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZSMIN, CPU Feature: SVE
+func (x Int64s) Min(y Int64s) Int64s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZUMIN, CPU Feature: SVE
+func (x Uint8s) Min(y Uint8s) Uint8s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZUMIN, CPU Feature: SVE
+func (x Uint16s) Min(y Uint16s) Uint16s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZUMIN, CPU Feature: SVE
+func (x Uint32s) Min(y Uint32s) Uint32s
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: ZUMIN, CPU Feature: SVE
+func (x Uint64s) Min(y Uint64s) Uint64s
+
 /* Mul */
 
 // Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.

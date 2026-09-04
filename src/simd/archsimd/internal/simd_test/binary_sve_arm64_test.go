@@ -381,3 +381,19 @@ func TestMaxSVE(t *testing.T) {
 	testFloat32sBinary(t, archsimd.Float32s.Max, maxSlice[float32])
 	testFloat64sBinary(t, archsimd.Float64s.Max, maxSlice[float64])
 }
+
+func TestMinSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testInt8sBinary(t, archsimd.Int8s.Min, minSlice[int8])
+	testInt16sBinary(t, archsimd.Int16s.Min, minSlice[int16])
+	testInt32sBinary(t, archsimd.Int32s.Min, minSlice[int32])
+	testInt64sBinary(t, archsimd.Int64s.Min, minSlice[int64])
+	testUint8sBinary(t, archsimd.Uint8s.Min, minSlice[uint8])
+	testUint16sBinary(t, archsimd.Uint16s.Min, minSlice[uint16])
+	testUint32sBinary(t, archsimd.Uint32s.Min, minSlice[uint32])
+	testUint64sBinary(t, archsimd.Uint64s.Min, minSlice[uint64])
+	testFloat32sBinary(t, archsimd.Float32s.Min, minSlice[float32])
+	testFloat64sBinary(t, archsimd.Float64s.Min, minSlice[float64])
+}
