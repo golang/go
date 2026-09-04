@@ -86297,10 +86297,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZADDMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZADD,
+		Name:         "ZADDMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -86313,10 +86313,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZADDMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZADD,
+		Name:         "ZADDMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -86329,10 +86329,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZADDMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZADD,
+		Name:         "ZADDMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -86413,10 +86413,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZADDMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZADD,
+		Name:         "ZADDMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -86459,10 +86459,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZANDMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZAND,
+		Name:         "ZANDMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZAND,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -86475,10 +86475,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZANDMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZAND,
+		Name:         "ZANDMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZAND,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -86491,10 +86491,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZANDMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZAND,
+		Name:         "ZANDMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZAND,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -86575,10 +86575,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZANDMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZAND,
+		Name:         "ZANDMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZAND,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87052,10 +87052,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZEORMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZEOR,
+		Name:         "ZEORMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZEOR,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87068,10 +87068,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZEORMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZEOR,
+		Name:         "ZEORMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZEOR,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87084,10 +87084,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZEORMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZEOR,
+		Name:         "ZEORMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZEOR,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87168,10 +87168,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZEORMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZEOR,
+		Name:         "ZEORMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZEOR,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87259,10 +87259,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZFADDMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZFADD,
+		Name:         "ZFADDMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZFADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87309,10 +87309,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZFADDMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZFADD,
+		Name:         "ZFADDMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZFADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87479,10 +87479,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZFMULMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZFMUL,
+		Name:         "ZFMULMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZFMUL,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87529,10 +87529,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZFMULMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZFMUL,
+		Name:         "ZFMULMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZFMUL,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87897,10 +87897,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZMULMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZMUL,
+		Name:         "ZMULMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZMUL,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87913,10 +87913,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZMULMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZMUL,
+		Name:         "ZMULMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZMUL,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -87929,10 +87929,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZMULMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZMUL,
+		Name:         "ZMULMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZMUL,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88013,10 +88013,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZMULMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZMUL,
+		Name:         "ZMULMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZMUL,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88179,10 +88179,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZORRMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZORR,
+		Name:         "ZORRMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZORR,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88195,10 +88195,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZORRMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZORR,
+		Name:         "ZORRMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZORR,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88211,10 +88211,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZORRMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZORR,
+		Name:         "ZORRMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZORR,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88295,10 +88295,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZORRMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZORR,
+		Name:         "ZORRMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZORR,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88356,10 +88356,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZSMULHMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZSMULH,
+		Name:         "ZSMULHMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZSMULH,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88372,10 +88372,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZSMULHMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZSMULH,
+		Name:         "ZSMULHMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZSMULH,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88388,10 +88388,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZSMULHMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZSMULH,
+		Name:         "ZSMULHMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZSMULH,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88472,10 +88472,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZSMULHMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZSMULH,
+		Name:         "ZSMULHMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZSMULH,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88548,10 +88548,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZSQADDMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZSQADD,
+		Name:         "ZSQADDMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZSQADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88564,10 +88564,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZSQADDMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZSQADD,
+		Name:         "ZSQADDMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZSQADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88580,10 +88580,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZSQADDMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZSQADD,
+		Name:         "ZSQADDMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZSQADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88664,10 +88664,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZSQADDMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZSQADD,
+		Name:         "ZSQADDMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZSQADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88980,10 +88980,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZUMULHMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZUMULH,
+		Name:         "ZUMULHMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZUMULH,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -88996,10 +88996,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZUMULHMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZUMULH,
+		Name:         "ZUMULHMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZUMULH,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -89012,10 +89012,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZUMULHMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZUMULH,
+		Name:         "ZUMULHMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZUMULH,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -89096,10 +89096,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZUMULHMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZUMULH,
+		Name:         "ZUMULHMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZUMULH,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -89172,10 +89172,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZUQADDMergingB",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZUQADD,
+		Name:         "ZUQADDMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZUQADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -89188,10 +89188,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZUQADDMergingD",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZUQADD,
+		Name:         "ZUQADDMergingD",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZUQADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -89204,10 +89204,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZUQADDMergingH",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZUQADD,
+		Name:         "ZUQADDMergingH",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZUQADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
@@ -89288,10 +89288,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:        "ZUQADDMergingS",
-		ArgLen:      3,
-		Commutative: true,
-		asm:         arm64.AZUQADD,
+		Name:         "ZUQADDMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZUQADD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15

@@ -333,6 +333,26 @@ func TestIfElseSVE(t *testing.T) {
 		return 0
 	})
 
+	// The two merges below differ only in which source the inactive lanes
+	// keep. The merging machine op pins its result to that source and is not
+	// commutative, or CSE — which canonicalizes the args of a commutative op —
+	// would conflate the two values and give one of them the wrong else
+	// operand.
+	keepX := x.Add(y).IfElse(m, x)
+	keepY := y.Add(x).IfElse(m, y)
+	check("Add.IfElse cse keepX", keepX, func(i int, active bool) int8 {
+		if active {
+			return xs[i] + ys[i]
+		}
+		return xs[i]
+	})
+	check("Add.IfElse cse keepY", keepY, func(i int, active bool) int8 {
+		if active {
+			return xs[i] + ys[i]
+		}
+		return ys[i]
+	})
+
 	// SUB is not commutative, so only an "else" operand that is the destructive
 	// one — the minuend — folds into the merging-predicated instruction.
 	check("Sub.IfElse(x)", x.Sub(y).IfElse(m, x), func(i int, active bool) int8 {
