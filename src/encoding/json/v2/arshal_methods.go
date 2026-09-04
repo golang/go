@@ -178,7 +178,9 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		prevMarshal := fncs.marshal
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
-				(needAddr && va.forcedAddr) {
+				((needAddr && va.forcedAddr) ||
+					(export.Encoder(enc).Tokens.Last.NeedObjectName()) && t.Kind() == reflect.String) {
+				// Do not call MarshalText on unaddressable values and map keys of string kind.
 				return prevMarshal(enc, va, mo)
 			}
 			marshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](va.Addr())
@@ -204,7 +206,9 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		prevMarshal := fncs.marshal
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
-				(needAddr && va.forcedAddr) {
+				((needAddr && va.forcedAddr) ||
+					(export.Encoder(enc).Tokens.Last.NeedObjectName()) && t.Kind() == reflect.String) {
+				// Do not call AppendText on unaddressable values and map keys of string kind.
 				return prevMarshal(enc, va, mo)
 			}
 			appender, _ := reflect.TypeAssert[encoding.TextAppender](va.Addr())
@@ -228,6 +232,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) || export.Encoder(enc).Tokens.Last.NeedObjectName()) {
+				// Do not call MarshalJSON on unaddressable values and map keys.
 				return prevMarshal(enc, va, mo)
 			}
 			marshaler, _ := reflect.TypeAssert[Marshaler](va.Addr())
@@ -259,6 +264,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) || export.Encoder(enc).Tokens.Last.NeedObjectName()) {
+				// Do not call MarshalJSONTo on unaddressable values and map keys.
 				return prevMarshal(enc, va, mo)
 			}
 			xe := export.Encoder(enc)
@@ -330,6 +336,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			if uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				export.Decoder(dec).Tokens.Last.NeedObjectName() {
+				// Do not call UnmarshalJSON on map keys.
 				return prevUnmarshal(dec, va, uo)
 			}
 			val, err := dec.ReadValue()
@@ -355,6 +362,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			if uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				export.Decoder(dec).Tokens.Last.NeedObjectName() {
+				// Do not call UnmarshalJSONFrom on map keys.
 				return prevUnmarshal(dec, va, uo)
 			}
 			xd := export.Decoder(dec)
