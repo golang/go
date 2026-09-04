@@ -394,6 +394,58 @@ func (x Uint32s) GreaterEqual(y Uint32s) Mask32s
 // Asm: ZCMPHS, CPU Feature: SVE
 func (x Uint64s) GreaterEqual(y Uint64s) Mask64s
 
+/* Max */
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZFMAX, CPU Feature: SVE
+func (x Float32s) Max(y Float32s) Float32s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZFMAX, CPU Feature: SVE
+func (x Float64s) Max(y Float64s) Float64s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZSMAX, CPU Feature: SVE
+func (x Int8s) Max(y Int8s) Int8s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZSMAX, CPU Feature: SVE
+func (x Int16s) Max(y Int16s) Int16s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZSMAX, CPU Feature: SVE
+func (x Int32s) Max(y Int32s) Int32s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZSMAX, CPU Feature: SVE
+func (x Int64s) Max(y Int64s) Int64s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZUMAX, CPU Feature: SVE
+func (x Uint8s) Max(y Uint8s) Uint8s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZUMAX, CPU Feature: SVE
+func (x Uint16s) Max(y Uint16s) Uint16s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZUMAX, CPU Feature: SVE
+func (x Uint32s) Max(y Uint32s) Uint32s
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: ZUMAX, CPU Feature: SVE
+func (x Uint64s) Max(y Uint64s) Uint64s
+
 /* Mul */
 
 // Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.

@@ -101,7 +101,9 @@ func groupPredicationForms(insts []*Instruction) map[*Instruction]bool {
 
 	covered := map[*Instruction]bool{}
 	for _, g := range groups {
-		if len(g.unpred) == 0 && len(g.pred) > 1 {
+		if len(g.unpred) == 0 {
+			// No unpredicated form at all — ABS with its /M and /Z encodings,
+			// or SMAX whose only vector encoding is the /M one.
 			groupPredicatedOnly(g.pred, covered)
 			continue
 		}

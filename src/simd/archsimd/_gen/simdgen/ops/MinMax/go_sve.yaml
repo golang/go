@@ -1,0 +1,14 @@
+!sum
+# Max — SMAX/UMAX/FMAX. All are predicated-only (no unpredicated vector
+# encoding, in SVE2 either), and destructive: the first source is also the
+# destination. The Go API runs them under a synthesized all-true predicate,
+# like Abs, and the select peepholes swap the real mask back in.
+- go: Max
+  asm: "ZSMAX|ZUMAX|ZFMAX"
+  in:
+  - &any
+    go: $t
+  - *any
+  - class: mask # governing predicate
+  out:
+  - *any

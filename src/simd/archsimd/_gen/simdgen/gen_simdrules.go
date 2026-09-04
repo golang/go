@@ -254,11 +254,37 @@ func sveImplicitPredPeepholes(gOp Operation, asm, args string) string {
 	sel := "ZSEL" + sveArrangementLetter(gOp)
 	var rules string
 	for _, pred := range gOp.svePredicatedOps() {
-		if sveMaskSuffix(pred) != "Merging" || !pred.sveMergeSourceIn0 {
+		if sveMaskSuffix(pred) != "Merging" {
 			continue
 		}
-		rules += fmt.Sprintf("(%s (%s %s %s) z mask) => (%s z %s mask)\n",
-			sel, asm, args, sveAllTruePattern(gOp), machineOpName(OneMask, pred), args)
+		if pred.sveMergeSourceIn0 {
+			// Constructive: the merge value is an operand of its own, so any
+			// else operand folds.
+			rules += fmt.Sprintf("(%s (%s %s %s) z mask) => (%s z %s mask)\n",
+				sel, asm, args, sveAllTruePattern(gOp), machineOpName(OneMask, pred), args)
+			continue
+		}
+		if pred.sveInPlaceInput() != 0 {
+			continue
+		}
+		// Destructive: the inactive lanes keep the first source, so only an
+		// else operand that is a source folds directly (either source when
+		// commutative); any other else operand goes through the
+		// MOVPRFX-prefixed form. These mirror sveMergingPeephole, with the
+		// all-true operation in place of the unpredicated encoding it lacks.
+		if args != "x y" {
+			panic(fmt.Errorf("simdgen: %s is destructive with implicit predicate and %d sources; only two are supported", gOp.Asm, len(gOp.In)-1))
+		}
+		allTrue := sveAllTruePattern(gOp)
+		merging := machineOpName(OneMask, pred)
+		rules += fmt.Sprintf("(%s (%s x y %s) x mask) => (%s x y mask)\n", sel, asm, allTrue, merging)
+		if gOp.Commutative {
+			rules += fmt.Sprintf("(%s (%s x y %s) y mask) => (%s y x mask)\n", sel, asm, allTrue, merging)
+		}
+		if prefixed := pred.sveMergingPrefixedOp(); prefixed != nil {
+			rules += fmt.Sprintf("(%s (%s x y %s) z mask) => (%s z x y mask)\n",
+				sel, asm, allTrue, machineOpName(OneMask, *prefixed))
+		}
 	}
 	return rules
 }

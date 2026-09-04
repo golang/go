@@ -365,3 +365,19 @@ func TestMulHighSVE(t *testing.T) {
 		testUint64sBinary(t, archsimd.Uint64s.MulHigh, mulHighSlice[uint64])
 	}
 }
+
+func TestMaxSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testInt8sBinary(t, archsimd.Int8s.Max, maxSlice[int8])
+	testInt16sBinary(t, archsimd.Int16s.Max, maxSlice[int16])
+	testInt32sBinary(t, archsimd.Int32s.Max, maxSlice[int32])
+	testInt64sBinary(t, archsimd.Int64s.Max, maxSlice[int64])
+	testUint8sBinary(t, archsimd.Uint8s.Max, maxSlice[uint8])
+	testUint16sBinary(t, archsimd.Uint16s.Max, maxSlice[uint16])
+	testUint32sBinary(t, archsimd.Uint32s.Max, maxSlice[uint32])
+	testUint64sBinary(t, archsimd.Uint64s.Max, maxSlice[uint64])
+	testFloat32sBinary(t, archsimd.Float32s.Max, maxSlice[float32])
+	testFloat64sBinary(t, archsimd.Float64s.Max, maxSlice[float64])
+}

@@ -273,3 +273,16 @@ func forceArgSpill(a int8) int8 { return a + 1 }
 func sveArgSpillMixed(v archsimd.Int8s, a int8, w archsimd.Uint16s, f float32) int8 {
 	return forceArgSpill(a)
 }
+
+// --- SVE destructive operations under an all-true predicate ---
+
+func sveMaxBothSourcesLive(x, y archsimd.Int8s) archsimd.Int8s {
+	// SMAX has only a predicated, destructive encoding. Both sources stay
+	// live, so the result goes to a third register through an unpredicated
+	// MOVPRFX: with every lane active, no lane of that register survives.
+	// arm64:`ZMOVPRFX` `ZSMAX.*P[0-9]+\.M` -`ZMOVPRFX.*P[0-9]+`
+	r := x.Max(y)
+	sinkInt8s(x)
+	sinkInt8s(y)
+	return r
+}

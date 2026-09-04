@@ -367,9 +367,18 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 		// destructive; a plain predicate operand (SEL's <Pv>) is not, and an
 		// implicit-all-true predicate is synthesized rather than passed in. They
 		// share register classes but need different ssa-to-prog helpers, so give
-		// the caller-predicated form its own shape name.
+		// the caller-predicated form its own shape name. A destructive operation
+		// under its implicit-all-true predicate (SMAX and friends, which have no
+		// unpredicated encoding) is emitted the same way as its caller-predicated
+		// sibling — a swap or MOVPRFX puts the destination in place — so it takes
+		// the same shape.
 		for i := range gOp.In {
-			if gOp.In[i].Class == "mask" && gOp.In[i].Predication != nil && !gOp.In[i].IsGoverning() {
+			if gOp.In[i].Class != "mask" {
+				continue
+			}
+			callerPredicated := gOp.In[i].Predication != nil && !gOp.In[i].IsGoverning()
+			destructiveAllTrue := gOp.In[i].IsGoverning() && gOp.sveInPlaceInput() == 0
+			if callerPredicated || destructiveAllTrue {
 				regInfo += "Pred"
 				break
 			}
