@@ -191,16 +191,6 @@ func sveMaskedFoldsIntoMerging(x, y archsimd.Int8s, m archsimd.Mask8s) archsimd.
 //go:noinline
 func sinkInt8s(archsimd.Int8s) {}
 
-func sveIfElseMovprfx(x, y archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
-	// The else operand is a source, but x stays live so the destructive add
-	// cannot write it. The whole register is copied, not just the active lanes,
-	// so this prefix is the unpredicated MOVPRFX.
-	// arm64:`ZMOVPRFX` `ZADD.*P[0-9]+\.M` -`ZMOVPRFX.*P[0-9]+`
-	r := x.Add(y).IfElse(m, x)
-	sinkInt8s(x)
-	return r
-}
-
 // A non-commutative operation is more restricted. Its destructive operand is
 // fixed, so only an "else" operand that is already that one folds, and there is
 // no prefixed form to place any other.
