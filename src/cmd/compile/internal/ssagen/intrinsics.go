@@ -1718,6 +1718,24 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		} {
 			addF(simdPackage, t.name+".IfElse", opLen3(t.op, types.TypeVec256), sys.ARM64)
 		}
+		// BroadcastT constructs a scalable vector from a scalar.
+		for _, t := range []struct {
+			name string
+			op   ssaop.Op
+		}{
+			{"Int8s", ssaop.OpBroadcastInt8s},
+			{"Uint8s", ssaop.OpBroadcastUint8s},
+			{"Int16s", ssaop.OpBroadcastInt16s},
+			{"Uint16s", ssaop.OpBroadcastUint16s},
+			{"Int32s", ssaop.OpBroadcastInt32s},
+			{"Uint32s", ssaop.OpBroadcastUint32s},
+			{"Float32s", ssaop.OpBroadcastFloat32s},
+			{"Int64s", ssaop.OpBroadcastInt64s},
+			{"Uint64s", ssaop.OpBroadcastUint64s},
+			{"Float64s", ssaop.OpBroadcastFloat64s},
+		} {
+			addF(simdPackage, "Broadcast"+t.name, opLen1(t.op, types.TypeVec256), sys.ARM64)
+		}
 
 		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

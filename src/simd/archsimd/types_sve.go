@@ -97,6 +97,12 @@ func (x Float32s) Masked(mask Mask32s) Float32s {
 	return x.IfElse(mask, zero)
 }
 
+// BroadcastFloat32s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastFloat32s(x float32) Float32s
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Float32s) String() string {
@@ -188,6 +194,12 @@ func (x Float64s) Masked(mask Mask64s) Float64s {
 	var zero Float64s
 	return x.IfElse(mask, zero)
 }
+
+// BroadcastFloat64s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastFloat64s(x float64) Float64s
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -281,6 +293,12 @@ func (x Int8s) Masked(mask Mask8s) Int8s {
 	return x.IfElse(mask, zero)
 }
 
+// BroadcastInt8s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastInt8s(x int8) Int8s
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Int8s) String() string {
@@ -372,6 +390,12 @@ func (x Int16s) Masked(mask Mask16s) Int16s {
 	var zero Int16s
 	return x.IfElse(mask, zero)
 }
+
+// BroadcastInt16s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastInt16s(x int16) Int16s
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -465,6 +489,12 @@ func (x Int32s) Masked(mask Mask32s) Int32s {
 	return x.IfElse(mask, zero)
 }
 
+// BroadcastInt32s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastInt32s(x int32) Int32s
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Int32s) String() string {
@@ -556,6 +586,12 @@ func (x Int64s) Masked(mask Mask64s) Int64s {
 	var zero Int64s
 	return x.IfElse(mask, zero)
 }
+
+// BroadcastInt64s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastInt64s(x int64) Int64s
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -649,6 +685,12 @@ func (x Uint8s) Masked(mask Mask8s) Uint8s {
 	return x.IfElse(mask, zero)
 }
 
+// BroadcastUint8s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastUint8s(x uint8) Uint8s
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Uint8s) String() string {
@@ -740,6 +782,12 @@ func (x Uint16s) Masked(mask Mask16s) Uint16s {
 	var zero Uint16s
 	return x.IfElse(mask, zero)
 }
+
+// BroadcastUint16s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastUint16s(x uint16) Uint16s
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -833,6 +881,12 @@ func (x Uint32s) Masked(mask Mask32s) Uint32s {
 	return x.IfElse(mask, zero)
 }
 
+// BroadcastUint32s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastUint32s(x uint32) Uint32s
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Uint32s) String() string {
@@ -924,6 +978,12 @@ func (x Uint64s) Masked(mask Mask64s) Uint64s {
 	var zero Uint64s
 	return x.IfElse(mask, zero)
 }
+
+// BroadcastUint64s returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func BroadcastUint64s(x uint64) Uint64s
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.

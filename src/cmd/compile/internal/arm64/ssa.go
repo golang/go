@@ -817,11 +817,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = pregArng(v.Reg(), arm64.ARNG_B)
 	case ssaop.OpARM64ZDUPBconst:
 		// Broadcast an 8-bit immediate to every byte lane (ZeroSIMD uses [0]).
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = zregArng(v.Reg(), arm64.ARNG_B)
+		simdZDupConst(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZDUPHconst:
+		simdZDupConst(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZDUPSconst:
+		simdZDupConst(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZDUPDconst:
+		simdZDupConst(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64RDVL:
 		// Read the vector length in bytes into a GP register, e.g. RDVL $1, R0.
 		p := s.Prog(v.Op.Asm())
@@ -829,6 +831,22 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssaop.OpARM64ZDUPB:
+		simdZDupGp(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZDUPH:
+		simdZDupGp(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZDUPS:
+		simdZDupGp(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZDUPD:
+		simdZDupGp(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZDUPIB:
+		simdZDupIndexed(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZDUPIH:
+		simdZDupIndexed(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZDUPIS:
+		simdZDupIndexed(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZDUPID:
+		simdZDupIndexed(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64ZSELB:
 		simdZ2kv(s, v, arm64.ARNG_B)
 	case ssaop.OpARM64ZSELH:
@@ -2130,6 +2148,40 @@ func simdZ21(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	return p
 }
 
+// simdZDupConst emits an SVE broadcast of a signed 8-bit immediate to every
+// lane with the given element arrangement, e.g. ZDUP $5, Z0.H.
+func simdZDupConst(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = v.AuxInt
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZDupGp emits an SVE broadcast of a general register to every lane with
+// the given element arrangement, e.g. ZDUPW R0, Z0.B.
+func simdZDupGp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[0].Reg()
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZDupIndexed emits an SVE broadcast of element auxint of a vector
+// register to every lane, e.g. ZDUP Z0.S[0], Z1.S.
+func simdZDupIndexed(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArngElem(v.Args[0].Reg(), arng)
+	p.From.Index = int16(v.AuxInt)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
 // simdZ2kv emits an SVE instruction that takes a predicate as a plain data
 // operand rather than a governing predicate, e.g. ZSEL Z1.B, Z0.B, P0, Z2.B.
 // Unlike a predicated instruction it is constructive: the destination is
@@ -2573,6 +2625,17 @@ func zregArng(r int16, arng int16) int16 {
 	if r >= arm64.REG_F0 && r <= arm64.REG_F31 &&
 		arng >= arm64.ARNG_B && arng <= arm64.ARNG_Q {
 		return arm64.REG_ZARNG + (r - arm64.REG_F0) | (arng << 5)
+	}
+	panic("Bad Z reg with arrangement")
+}
+
+// zregArngElem is the element-indexed counterpart of zregArng: it encodes
+// Zn.<T> ready for an index (Zn.<T>[i], with the index carried separately in
+// the operand's Index field).
+func zregArngElem(r int16, arng int16) int16 {
+	if r >= arm64.REG_F0 && r <= arm64.REG_F31 &&
+		arng >= arm64.ARNG_B && arng <= arm64.ARNG_Q {
+		return arm64.REG_ZARNGELEM + (r - arm64.REG_F0) | (arng << 5)
 	}
 	panic("Bad Z reg with arrangement")
 }

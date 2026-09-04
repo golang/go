@@ -853,6 +853,23 @@ func init() {
 		// ZDUPBconst broadcasts an 8-bit immediate to every byte lane; with [0] it
 		// zeroes a whole scalable vector, lowering ZeroSIMD for a 256-bit value.
 		{name: "ZDUPBconst", argLength: 0, aux: "Int8", reg: fp01, asm: "ZDUP", typ: "Vec256"},
+		// ZDUP{H,S,D}const broadcast a signed 8-bit immediate to every lane of
+		// the wider widths.
+		{name: "ZDUPHconst", argLength: 0, aux: "Int8", reg: fp01, asm: "ZDUP", typ: "Vec256"},
+		{name: "ZDUPSconst", argLength: 0, aux: "Int8", reg: fp01, asm: "ZDUP", typ: "Vec256"},
+		{name: "ZDUPDconst", argLength: 0, aux: "Int8", reg: fp01, asm: "ZDUP", typ: "Vec256"},
+		// ZDUPB..ZDUPD broadcast a general register to every lane of a scalable
+		// vector.
+		{name: "ZDUPB", argLength: 1, reg: gpfp, asm: "ZDUPW", typ: "Vec256"}, // arg0=scalar
+		{name: "ZDUPH", argLength: 1, reg: gpfp, asm: "ZDUPW", typ: "Vec256"}, // arg0=scalar
+		{name: "ZDUPS", argLength: 1, reg: gpfp, asm: "ZDUPW", typ: "Vec256"}, // arg0=scalar
+		{name: "ZDUPD", argLength: 1, reg: gpfp, asm: "ZDUP", typ: "Vec256"},  // arg0=scalar
+		// ZDUPIB..ZDUPID broadcast element auxint of a vector register to every
+		// lane.
+		{name: "ZDUPIB", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
+		{name: "ZDUPIH", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
+		{name: "ZDUPIS", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
+		{name: "ZDUPID", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
 		// RDVL reads the architecture vector length in bytes (aux = scale). Used
 		// at package init to verify the hardware VL fits the fixed 256-bit model.
 		{name: "RDVL", argLength: 0, aux: "Int64", reg: gp01, asm: "RDVL", typ: "Int64"},

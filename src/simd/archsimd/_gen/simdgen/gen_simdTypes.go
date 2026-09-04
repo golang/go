@@ -386,6 +386,14 @@ func (x {{.Name}}) Masked(mask Mask{{.ElemBits}}s) {{.Name}} {
 }
 {{end}}
 
+{{define "sveBroadcastTmpl"}}
+// Broadcast{{.Name}} returns a vector with the input x assigned to all
+// elements of the output.
+//
+// Asm: ZDUP, CPU Feature: SVE
+func Broadcast{{.Name}}(x {{.Base}}) {{.Name}}
+{{end}}
+
 {{define "sveStringTmpl"}}
 {{- if eq .Type "mask"}}
 // String returns a string representation of SIMD mask m: 1 for an active lane,
@@ -977,6 +985,9 @@ type psve struct {
 			if typeDef.IsScalable() && typeDef.Type() != "mask" {
 				if err := t.ExecuteTemplate(buffer, "sveIfElseTmpl", typeDef); err != nil {
 					panic(fmt.Errorf("failed to execute sveIfElseTmpl template for type %s: %w", typeDef.Name(), err))
+				}
+				if err := t.ExecuteTemplate(buffer, "sveBroadcastTmpl", typeDef); err != nil {
+					panic(fmt.Errorf("failed to execute sveBroadcastTmpl template for type %s: %w", typeDef.Name(), err))
 				}
 			}
 			if typeDef.IsScalable() {

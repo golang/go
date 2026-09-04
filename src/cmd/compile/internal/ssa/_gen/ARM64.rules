@@ -1918,5 +1918,26 @@
 (IfElseUint64s x mask y) => (ZSELD x y mask)
 (IfElseFloat64s x mask y) => (ZSELD x y mask)
 
+// SVE scalar-to-vector broadcast. Integers come from a general register. A
+// float scalar is held in element 0 of the vector register that shares its
+// number, so a float broadcast is a broadcast of that element.
+(BroadcastInt8s ...) => (ZDUPB ...)
+(BroadcastUint8s ...) => (ZDUPB ...)
+(BroadcastInt16s ...) => (ZDUPH ...)
+(BroadcastUint16s ...) => (ZDUPH ...)
+(BroadcastInt32s ...) => (ZDUPS ...)
+(BroadcastUint32s ...) => (ZDUPS ...)
+(BroadcastInt64s ...) => (ZDUPD ...)
+(BroadcastUint64s ...) => (ZDUPD ...)
+(BroadcastFloat32s x) => (ZDUPIS [0] x)
+(BroadcastFloat64s x) => (ZDUPID [0] x)
+
+// A broadcast of a small constant needs no general register: DUP (immediate)
+// takes a signed 8-bit immediate.
+(ZDUPB (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPBconst [int8(c)])
+(ZDUPH (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPHconst [int8(c)])
+(ZDUPS (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPSconst [int8(c)])
+(ZDUPD (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPDconst [int8(c)])
+
 (LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
 (StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)

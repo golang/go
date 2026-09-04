@@ -519,6 +519,14 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpARM64XORshiftRL(v)
 	case ssaop.OpARM64XORshiftRO:
 		return rewriteValue_OpARM64XORshiftRO(v)
+	case ssaop.OpARM64ZDUPB:
+		return rewriteValue_OpARM64ZDUPB(v)
+	case ssaop.OpARM64ZDUPD:
+		return rewriteValue_OpARM64ZDUPD(v)
+	case ssaop.OpARM64ZDUPH:
+		return rewriteValue_OpARM64ZDUPH(v)
+	case ssaop.OpARM64ZDUPS:
+		return rewriteValue_OpARM64ZDUPS(v)
 	case ssaop.OpARM64ZSELB:
 		return rewriteValue_OpARM64ZSELB(v)
 	case ssaop.OpARM64ZSELD:
@@ -942,6 +950,34 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpBitRev8:
 		return rewriteValue_OpBitRev8(v)
+	case ssaop.OpBroadcastFloat32s:
+		return rewriteValue_OpBroadcastFloat32s(v)
+	case ssaop.OpBroadcastFloat64s:
+		return rewriteValue_OpBroadcastFloat64s(v)
+	case ssaop.OpBroadcastInt16s:
+		v.Op = ssaop.OpARM64ZDUPH
+		return true
+	case ssaop.OpBroadcastInt32s:
+		v.Op = ssaop.OpARM64ZDUPS
+		return true
+	case ssaop.OpBroadcastInt64s:
+		v.Op = ssaop.OpARM64ZDUPD
+		return true
+	case ssaop.OpBroadcastInt8s:
+		v.Op = ssaop.OpARM64ZDUPB
+		return true
+	case ssaop.OpBroadcastUint16s:
+		v.Op = ssaop.OpARM64ZDUPH
+		return true
+	case ssaop.OpBroadcastUint32s:
+		v.Op = ssaop.OpARM64ZDUPS
+		return true
+	case ssaop.OpBroadcastUint64s:
+		v.Op = ssaop.OpARM64ZDUPD
+		return true
+	case ssaop.OpBroadcastUint8s:
+		v.Op = ssaop.OpARM64ZDUPB
+		return true
 	case ssaop.OpBswap16:
 		v.Op = ssaop.OpARM64REV16W
 		return true
@@ -20150,6 +20186,82 @@ func rewriteValue_OpARM64XORshiftRO(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpARM64ZDUPB(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (ZDUPB (MOVDconst [c]))
+	// cond: c == int64(int8(c))
+	// result: (ZDUPBconst [int8(c)])
+	for {
+		if v_0.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		if !(c == int64(int8(c))) {
+			break
+		}
+		v.Reset(ssaop.OpARM64ZDUPBconst)
+		v.AuxInt = ssa.Int8ToAuxInt(int8(c))
+		return true
+	}
+	return false
+}
+func rewriteValue_OpARM64ZDUPD(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (ZDUPD (MOVDconst [c]))
+	// cond: c == int64(int8(c))
+	// result: (ZDUPDconst [int8(c)])
+	for {
+		if v_0.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		if !(c == int64(int8(c))) {
+			break
+		}
+		v.Reset(ssaop.OpARM64ZDUPDconst)
+		v.AuxInt = ssa.Int8ToAuxInt(int8(c))
+		return true
+	}
+	return false
+}
+func rewriteValue_OpARM64ZDUPH(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (ZDUPH (MOVDconst [c]))
+	// cond: c == int64(int8(c))
+	// result: (ZDUPHconst [int8(c)])
+	for {
+		if v_0.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		if !(c == int64(int8(c))) {
+			break
+		}
+		v.Reset(ssaop.OpARM64ZDUPHconst)
+		v.AuxInt = ssa.Int8ToAuxInt(int8(c))
+		return true
+	}
+	return false
+}
+func rewriteValue_OpARM64ZDUPS(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (ZDUPS (MOVDconst [c]))
+	// cond: c == int64(int8(c))
+	// result: (ZDUPSconst [int8(c)])
+	for {
+		if v_0.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		if !(c == int64(int8(c))) {
+			break
+		}
+		v.Reset(ssaop.OpARM64ZDUPSconst)
+		v.AuxInt = ssa.Int8ToAuxInt(int8(c))
+		return true
+	}
+	return false
+}
 func rewriteValue_OpARM64ZSELB(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -24020,6 +24132,30 @@ func rewriteValue_OpBitRev8(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpARM64RBIT, typ.UInt64)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpBroadcastFloat32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (BroadcastFloat32s x)
+	// result: (ZDUPIS [0] x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZDUPIS)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue_OpBroadcastFloat64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (BroadcastFloat64s x)
+	// result: (ZDUPID [0] x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZDUPID)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		v.AddArg(x)
 		return true
 	}
 }

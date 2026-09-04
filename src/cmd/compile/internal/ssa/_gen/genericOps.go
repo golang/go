@@ -773,6 +773,19 @@ var genericOps = []opData{
 	{name: "F32AsI32", argLength: 1, typ: "Int32"},
 	{name: "I64AsF64", argLength: 1, typ: "Float64"},
 	{name: "F64AsI64", argLength: 1, typ: "Int64"},
+
+	// Broadcast duplicates a scalar to every element of a scalable vector.
+	// arg0 = the scalar.
+	{name: "BroadcastInt8s", argLength: 1},
+	{name: "BroadcastUint8s", argLength: 1},
+	{name: "BroadcastInt16s", argLength: 1},
+	{name: "BroadcastUint16s", argLength: 1},
+	{name: "BroadcastInt32s", argLength: 1},
+	{name: "BroadcastUint32s", argLength: 1},
+	{name: "BroadcastFloat32s", argLength: 1},
+	{name: "BroadcastInt64s", argLength: 1},
+	{name: "BroadcastUint64s", argLength: 1},
+	{name: "BroadcastFloat64s", argLength: 1},
 }
 
 //     kind          controls          successors   implicit exit
