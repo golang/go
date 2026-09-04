@@ -14,34 +14,38 @@ import (
 )
 
 // IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object,
-// if so, also returns the memory state mem at which v is zero.
-func IsNewObject(v *Value, select1 []*Value) (mem *Value, ok bool) {
+// if so, returns the call that allocated it.
+func IsNewObject(v *Value) *Value {
 	f := v.Block.Func
 	c := f.Config
-	if f.ABIDefault == f.ABI1 && len(c.IntParamRegs) >= 1 {
+	var call *Value
+
+	// If result of call is returned in register then
+	// we look for select. Otherwise it is returned on stack.
+	returnedInReg := f.ABIDefault == f.ABI1 && len(c.IntParamRegs) >= 1
+	if returnedInReg {
 		if v.Op != ssaop.OpSelectN || v.AuxInt != 0 {
-			return nil, false
+			// Here we expect that new object returns pointer to new object
+			// as first argument
+			return nil
 		}
-		mem = select1[v.Args[0].ID]
-		if mem == nil {
-			return nil, false
-		}
+		call = v.Args[0]
 	} else {
 		if v.Op != ssaop.OpLoad {
-			return nil, false
+			return nil
 		}
-		mem = v.MemoryArg()
-		if mem.Op != ssaop.OpSelectN {
-			return nil, false
+		// Load must take memory argument from call
+		if mem := v.MemoryArg(); mem.Op == ssaop.OpSelectN {
+			call = mem.Args[0]
+		} else {
+			return nil
 		}
-		if mem.Type != types.TypeMem {
-			return nil, false
-		} // assume it is the right selection if true
 	}
-	call := mem.Args[0]
+
 	if call.Op != ssaop.OpStaticCall {
-		return nil, false
+		return nil
 	}
+
 	// Check for new object, or for new object calls that have been transformed into size-specialized malloc calls.
 	// Calls that have return type unsafe pointer may have originally been produced by flushPendingHeapAllocations
 	// in the ssa generator, so may have not originally been newObject calls.
@@ -52,24 +56,21 @@ func IsNewObject(v *Value, select1 []*Value) (mem *Value, ok bool) {
 	case IsSpecializedMalloc(call.Aux) && !v.Type.IsUnsafePtr():
 		numParameters = 3
 	default:
-		return nil, false
+		return nil
 	}
-	if f.ABIDefault == f.ABI1 && len(c.IntParamRegs) >= 1 {
-		if v.Args[0] == call {
-			return mem, true
+	if !returnedInReg {
+		// Check that v is returned pointer
+		if v.Args[0].Op != ssaop.OpOffPtr {
+			return nil
 		}
-		return nil, false
+		if v.Args[0].Args[0].Op != ssaop.OpSP {
+			return nil
+		}
+		if v.Args[0].AuxInt != c.Ctxt.Arch.FixedFrameSize+numParameters*c.PtrSize { // offset of return value
+			return nil
+		}
 	}
-	if v.Args[0].Op != ssaop.OpOffPtr {
-		return nil, false
-	}
-	if v.Args[0].Args[0].Op != ssaop.OpSP {
-		return nil, false
-	}
-	if v.Args[0].AuxInt != c.Ctxt.Arch.FixedFrameSize+numParameters*c.PtrSize { // offset of return value
-		return nil, false
-	}
-	return mem, true
+	return call
 }
 
 // A ZeroRegion records parts of an object which are known to be zero.
@@ -118,7 +119,24 @@ func IsSanitizerSafeAddr(v *Value) bool {
 
 // ComputeZeroMap returns a map from an ID of a memory value to
 // a set of locations that are known to be zeroed at that memory value.
-func (f *Func) ComputeZeroMap(select1 []*Value) map[ID]ZeroRegion {
+func (f *Func) ComputeZeroMap() map[ID]ZeroRegion {
+	// Compute map from a call value to the SelectN <mem> value that uses it.
+	callToSelectMem := f.Cache.AllocValueSlice(f.NumValues())
+	defer f.Cache.FreeValueSlice(callToSelectMem)
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if !(v.Op == ssaop.OpSelectN && v.Type.IsMemory()) {
+				continue
+			}
+
+			if call := v.Args[0]; call.Op == ssaop.OpStaticCall {
+				if old := callToSelectMem[call.ID]; old != nil {
+					f.Fatalf("Conflicting SelectN <mem> values %v and %v", old, v)
+				}
+				callToSelectMem[call.ID] = v
+			}
+		}
+	}
 
 	ptrSize := f.Config.PtrSize
 	// Keep track of which parts of memory are known to be zero.
@@ -129,7 +147,7 @@ func (f *Func) ComputeZeroMap(select1 []*Value) map[ID]ZeroRegion {
 	// Find new objects.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if mem, ok := IsNewObject(v, select1); ok {
+			if call := IsNewObject(v); call != nil {
 				// While compiling package runtime itself, we might see user
 				// calls to newobject, which will have result type
 				// unsafe.Pointer instead. We can't easily infer how large the
@@ -139,6 +157,10 @@ func (f *Func) ComputeZeroMap(select1 []*Value) map[ID]ZeroRegion {
 				}
 
 				nptr := min(64, v.Type.Elem().Size()/ptrSize)
+				mem := callToSelectMem[call.ID]
+				if mem == nil {
+					f.Fatalf("call value (%v) doesn't have corresponding select memory", call)
+				}
 				zeroes[mem.ID] = ZeroRegion{Base: v, Mask: 1<<uint(nptr) - 1}
 			}
 		}
