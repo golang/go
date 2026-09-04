@@ -322,6 +322,19 @@ func cse(f *ssa.Func) {
 	if f.Pass.Stats > 0 {
 		f.LogStat("CSE REWRITES", rewrites)
 	}
+
+	// Annotate HTML dumps with each memory user's effective memory arg.
+	f.HTMLWriter.DebugInfo(func(v *ssa.Value) string {
+		_, idxMem, _, ok := isMemUser(v)
+		if !ok {
+			return ""
+		}
+		memID, skips := getEffectiveMemoryArg(memTable, v)
+		if memID == v.Args[idxMem].ID {
+			return ""
+		}
+		return fmt.Sprintf("effmem %s (skips %d)", ssa.ValueHTML(memID), skips)
+	})
 }
 
 // storeOrdering computes the order for stores by iterate over the store

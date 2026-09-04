@@ -7,8 +7,23 @@ package ssa
 import (
 	"fmt"
 	"html"
+	"regexp"
 	"strings"
 )
+
+// ValueHTML returns a string to render the Value with the given ID.
+func ValueHTML(id ID) string {
+	return fmt.Sprintf("{{v%d}}", id)
+}
+
+// valueRefRE matches the {{vN}} markers produced by ValueHTML.
+var valueRefRE = regexp.MustCompile(`\{\{(v\d+)\}\}`)
+
+// debugRefHTML escapes a debug-pass string, linking its ValueHTML references.
+func debugRefHTML(debugStr string) string {
+	debugStr = html.EscapeString(debugStr)
+	return valueRefRE.ReplaceAllString(debugStr, `<span class="$1 ssa-value">$1</span>`)
+}
 
 func (v *Value) HTML() string {
 	// TODO: Using the value ID as the class ignores the fact
@@ -60,8 +75,7 @@ func (v *Value) LongHTML(debugStr string) string {
 
 	s += "</span>"
 	if debugStr != "" {
-		debugStr := html.EscapeString(debugStr)
-		s += fmt.Sprintf(` <button class="debug-pass-button" onclick="hideDebug(this);">+</button><span class="debug-pass">%s</span>`, debugStr)
+		s += fmt.Sprintf(` <button class="debug-pass-button" onclick="hideDebug(this);">+</button><span class="debug-pass">%s</span>`, debugRefHTML(debugStr))
 	}
 	return s
 }
