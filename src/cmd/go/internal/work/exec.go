@@ -1745,18 +1745,31 @@ cachemiss:
 		panic("VetTool unset")
 	}
 
-	if err := sh.run(p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg"); err != nil {
-		return err
-	}
+	runErr := sh.run(p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
 
-	// Vet tool succeeded, possibly with facts, fixes, or JSON stdout.
-	// Save all in cache.
-
-	// Save facts.
+	// Save facts and export data.
+	// Even if vet reported diagnostics and exited non-zero, it may have
+	// successfully produced export data (vet.out). Record a.built so that
+	// downstream actions in this build that ignore dependency failures can
+	// still typecheck and analyze packages that import this one.
+	// However, do not save to the persistent cache on failure.
+	//
+	// TODO(adonovan): This is unsafe if runErr was caused by an I/O
+	// error (e.g. EMFILE, ENOSPC) or crash that left vet.out truncated
+	// or corrupt, which downstream actions will then fail trying to parse.
+	// The principled fix is for 'go test' to run vet in -json mode (like
+	// 'go vet' does), where exit code 0 unambiguously indicates a clean
+	// run (with diagnostics in stdout), while non-zero indicates tool failure.
 	if f, err := os.Open(vcfg.VetxOutput); err == nil {
 		defer f.Close() // ignore error
 		a.built = vcfg.VetxOutput
-		cache.Default().Put(id, f) // ignore error
+		if runErr == nil {
+			cache.Default().Put(id, f) // ignore error
+		}
+	}
+
+	if runErr != nil {
+		return runErr
 	}
 
 	// Save fix archive (if any).
