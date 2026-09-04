@@ -14,6 +14,7 @@
 #define L5     1.818357216161805012e-01   // 0x3FC7466496CB03DE
 #define L6     1.531383769920937332e-01   // 0x3FC39A09D078C69F
 #define L7     1.479819860511658591e-01   // 0x3FC2F112DF3E5244
+#define Two52  4.503599627370496e15       // 0x4330000000000000 (2**52)
 #define NaN    0x7FF8000000000001
 #define NegInf 0xFFF0000000000000
 #define PosInf 0x7FF0000000000000
@@ -32,7 +33,16 @@ TEXT ·archLog(SB),NOSPLIT,$0
 	CMPQ    AX, BX
 	JLE     isInfOrNaN
 	// f1, ki := math.Frexp(x); k := float64(ki)
+	MOVQ    $0, CX
 	MOVQ    BX, X0
+	ANDQ    BX, AX
+	JNE     isNormal
+	// f, exp = normalize(f)
+	MOVSD   $Two52, X1
+	MULSD   X1, X0
+	MOVQ    X0, BX
+	MOVQ    $-52, CX
+isNormal:
 	MOVQ    $0x000FFFFFFFFFFFFF, AX
 	MOVQ    AX, X2
 	ANDPD   X0, X2
@@ -41,6 +51,7 @@ TEXT ·archLog(SB),NOSPLIT,$0
 	SHRQ    $52, BX
 	ANDL    $0x7FF, BX
 	SUBL    $0x3FE, BX
+	ADDQ    CX, BX
 	XORPS   X1, X1 // break dependency for CVTSL2SD
 	CVTSL2SD BX, X1 // x1= k, x2= f1
 	// if f1 < math.Sqrt2/2 { k -= 1; f1 *= 2 }
