@@ -170,19 +170,21 @@ func writebarrier(f *ssa.Func) {
 	var sset, sset2 *ssa.SparseSet
 	var storeNumber []int32
 
-	// Compute map from a value to the SelectN [1] value that uses it.
-	select1 := f.Cache.AllocValueSlice(f.NumValues())
-	defer func() { f.Cache.FreeValueSlice(select1) }()
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			if v.Op != ssaop.OpSelectN {
-				continue
+	var select1 []*ssa.Value
+	if f.ABIDefault == f.ABI1 && len(f.Config.IntParamRegs) >= 1 {
+		select1 = f.Cache.AllocValueSlice(f.NumValues())
+		// Compute map from a value to the SelectN <mem> value that uses it.
+		defer func() { f.Cache.FreeValueSlice(select1) }()
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
+				if !(v.Op == ssaop.OpSelectN && v.Type.IsMemory()) {
+					continue
+				}
+				select1[v.Args[0].ID] = v
 			}
-			if v.AuxInt != 1 {
-				continue
-			}
-			select1[v.Args[0].ID] = v
 		}
+	} else {
+		select1 = nil
 	}
 
 	zeroes := f.ComputeZeroMap(select1)
