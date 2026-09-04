@@ -291,7 +291,10 @@ func (r *LineReader) readHeader(compDir string) error {
 		}
 	} else {
 		dirFormat := r.readLNCTFormat()
-		c := buf.uint()
+		c, err := r.readLNCTCount()
+		if err != nil {
+			return err
+		}
 		r.directories = make([]string, c)
 		for i := range r.directories {
 			dir, _, _, err := r.readLNCT(dirFormat, dwarf64)
@@ -301,7 +304,10 @@ func (r *LineReader) readHeader(compDir string) error {
 			r.directories[i] = dir
 		}
 		fileFormat := r.readLNCTFormat()
-		c = buf.uint()
+		c, err = r.readLNCTCount()
+		if err != nil {
+			return err
+		}
 		r.fileEntries = make([]*LineFile, c)
 		for i := range r.fileEntries {
 			name, mtime, size, err := r.readLNCT(fileFormat, dwarf64)
@@ -334,6 +340,19 @@ func (r *LineReader) readLNCTFormat() []lnctForm {
 		ret[i].form = format(r.buf.uint())
 	}
 	return ret
+}
+
+// readLNCTCount reads an LNCT count and checks that it cannot result in an
+// unreasonable allocation.
+func (r *LineReader) readLNCTCount() (int, error) {
+	c := r.buf.uint()
+	if r.buf.err != nil {
+		return 0, r.buf.err
+	}
+	if c > uint64(len(r.buf.data)) {
+		return 0, DecodeError{"line", r.buf.off, "directory or file count out of range"}
+	}
+	return int(c), nil
 }
 
 // readLNCT reads a sequence of LNCT entries and returns path information.
