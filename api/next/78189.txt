@@ -1,0 +1,27 @@
+pkg runtime/jit, const UnwindDeclare UnwindMode #78189
+pkg runtime/jit, const UnwindSkip UnwindMode #78189
+pkg runtime/jit, const UnwindStop UnwindMode #78189
+pkg runtime/jit, func Register(Region) Handle #78189
+pkg runtime/jit, method (Handle) Unregister() #78189
+pkg runtime/jit, method (Handle) AddStackMaps(...StackMap) #78189
+pkg runtime/jit, type Handle struct #78189
+pkg runtime/jit, type Region struct #78189
+pkg runtime/jit, type Region struct, Describe func(uintptr) (string, string, int, bool) #78189
+pkg runtime/jit, type Region struct, End uintptr #78189
+pkg runtime/jit, type Region struct, StackMaps []StackMap #78189
+pkg runtime/jit, type Region struct, Start uintptr #78189
+pkg runtime/jit, type Region struct, Unwind UnwindMode #78189
+pkg runtime/jit, func Preempt() bool #78189
+pkg runtime/jit, type StackMap struct #78189
+pkg runtime/jit, type StackMap struct, CallerBPOffset uintptr #78189
+pkg runtime/jit, type StackMap struct, CallerPCOffset uintptr #78189
+pkg runtime/jit, type StackMap struct, CallerSPOffset uintptr #78189
+pkg runtime/jit, type StackMap struct, FrameOffset uintptr #78189
+pkg runtime/jit, type StackMap struct, FrameWords uintptr #78189
+pkg runtime/jit, type StackMap struct, HasUnwind bool #78189
+pkg runtime/jit, type StackMap struct, PCOffset uintptr #78189
+pkg runtime/jit, type StackMap struct, PointerMask []uint8 #78189
+pkg runtime/jit, type StackMap struct, UnwindBaseDeltaOffset uintptr #78189
+pkg runtime/jit, type StackMap struct, UnwindBaseOffset uintptr #78189
+pkg runtime/jit, type StackMap struct, UnwindBaseUsesDelta bool #78189
+pkg runtime/jit, type UnwindMode uint8 #78189
