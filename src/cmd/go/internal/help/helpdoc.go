@@ -744,6 +744,8 @@ Special-purpose environment variables:
 		The default is GOFIPS140=off, which makes no FIPS-140 changes at all.
 		Other values enable FIPS-140 compliance measures and select alternate
 		versions of the cryptography source code.
+		Valid values are off, latest, inprocess, certified, and versions
+		of the form v1.N.N.
 		See https://go.dev/doc/security/fips140 for details.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
