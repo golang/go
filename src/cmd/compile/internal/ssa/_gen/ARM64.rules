@@ -1885,6 +1885,12 @@
 (ZeroSIMD <t>) && t.Size() == 16 => (VMOVI16B [0] <t>)
 
 // Neon peephole
+(VDUP(S|D)bcast [i] (VMOV(S|D)ins0 [j] _ x)) && i == j => (VDUP(S|D)bcast [0] x)
+(VDUP(B|H|S|D)bcast [i] (VMOV(B|H|S|D)ins [j] _ x)) && i == j => (VDUP(B|H|S|D) x)
+(VDUPB (MOVDconst [c])) => (VMOVI16B [uint8(c)])
+(VDUPH (MOVDconst [c])) && (uint16(c) <= 0xff || uint16(c)&0xff == 0) => (VMOVI8H [int64(uint16(c))])
+(VDUPS (MOVDconst [c])) && (uint32(c) <= 0xff || (uint32(c)&0xff == 0 && uint32(c)>>8 <= 0xff) || (uint32(c)&0xffff == 0 && uint32(c)>>16 <= 0xff) || (uint32(c)&0xffffff == 0 && uint32(c)>>24 <= 0xff) || (uint32(c)&0xff == 0xff && uint32(c)>>8 <= 0xff) || (uint32(c)&0xffff == 0xffff && uint32(c)>>16 <= 0xff)) => (VMOVI4S [int64(uint32(c))])
+(VDUPD (MOVDconst [c])) && c == (c&0x0101010101010101)*0xff => (VMOVI2D [c])
 (VEOR16B x x) => (VMOVI16B [0])
 (VNOT16B (VCMEQ16B (VAND16B x y) (VMOVI16B [0]))) => (VCMTST16B x y)
 (VNOT16B (VCMEQ8H (VAND16B x y) (VMOVI16B [0]))) => (VCMTST8H x y)

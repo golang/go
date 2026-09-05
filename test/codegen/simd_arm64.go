@@ -77,7 +77,7 @@ func broadcastConstImmFold(k int) {
 		// arm64:`VMOVI [$]254,` -`VDUP`
 		sinkI8 = archsimd.BroadcastInt8x16(-2)
 	default:
-		// arm64:`VMOV R0, V\d+.B\[0\]` `VDUP`
+		// arm64:`VDUP R[0-9]+, V[0-9]+\.B16` -`VMOV`
 		sinkI8 = archsimd.BroadcastInt8x16(int8(k))
 	}
 }
@@ -127,10 +127,10 @@ func broadcastConstImmFoldWide(k int) {
 		// arm64:`VMOVI [$]4278190080, V\d+\.S4` -`VDUP`
 		sinkU32 = archsimd.BroadcastUint32x4(0xFF000000)
 	case 14:
-     		// arm64:`VMOV R\d+, V\d+\.H` `VDUP`
-     		sinkU16 = archsimd.BroadcastUint16x8(0x4201)
+		// arm64:`VDUP R[0-9]+, V[0-9]+\.H8` -`VMOV`
+		sinkU16 = archsimd.BroadcastUint16x8(0x4201)
 	default:
-		// arm64:`VMOV R\d+, V\d+\.S\[0\]` `VDUP`
+		// arm64:`VDUP R[0-9]+, V[0-9]+\.S4` -`VMOV`
 		sinkU32 = archsimd.BroadcastUint32x4(0x7F7F7F7F)
 	}
 }

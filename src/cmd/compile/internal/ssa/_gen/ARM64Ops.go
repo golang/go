@@ -849,6 +849,12 @@ func init() {
 		{name: "VMOVI4S", argLength: 0, reg: fp01, asm: "VMOVI", aux: "Int64", commutative: false, typ: "Vec128", resultInArg0: false},
 		{name: "VMOVI2D", argLength: 0, reg: fp01, asm: "VMOVI", aux: "Int64", commutative: false, typ: "Vec128", resultInArg0: false},
 
+		// Broadcast the low 8/16/32/64 bits of a general register to a 128-bit vector.
+		{name: "VDUPB", argLength: 1, reg: gpfp, asm: "VDUP", typ: "Vec128"},
+		{name: "VDUPH", argLength: 1, reg: gpfp, asm: "VDUP", typ: "Vec128"},
+		{name: "VDUPS", argLength: 1, reg: gpfp, asm: "VDUP", typ: "Vec128"},
+		{name: "VDUPD", argLength: 1, reg: gpfp, asm: "VDUP", typ: "Vec128"},
+
 		// SVE whole-register (unpredicated, VL-scaled) load/store of a scalable
 		// vector. These lower generic Load/Store of a 256-bit SIMD value; the
 		// scalable Z bank reuses the fp register masks.

@@ -355,6 +355,16 @@ func simdV11ImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
+// simdGpv generates a broadcast from a general register, e.g. VDUP R0, V0.S4.
+func simdGpv(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[0].Reg()
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
 // simdV11Scalar generates vector-to-scalar reduction operations, e.g. VUADDLV V1.B8, V0
 func simdV11Scalar(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
@@ -665,6 +675,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		simdV01Imm64(s, v, arm64.ARNG_4S)
 	case ssaop.OpARM64VMOVI2D:
 		simdV01Imm64(s, v, arm64.ARNG_2D)
+	case ssaop.OpARM64VDUPB:
+		simdGpv(s, v, arm64.ARNG_16B)
+	case ssaop.OpARM64VDUPH:
+		simdGpv(s, v, arm64.ARNG_8H)
+	case ssaop.OpARM64VDUPS:
+		simdGpv(s, v, arm64.ARNG_4S)
+	case ssaop.OpARM64VDUPD:
+		simdGpv(s, v, arm64.ARNG_2D)
 	case ssaop.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
