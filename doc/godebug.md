@@ -210,6 +210,15 @@ enforcement of Extended Master Secret in FIPS 140-3 mode. There is no change in
 default behavior. This setting was backported to Go 1.26.6 and Go 1.25.13.
 We plan to remove this setting in Go 1.31.
 
+Go 1.27 enabled the ML-DSA signature algorithms
+([`MLDSA44`, `MLDSA65`, and `MLDSA87`](/pkg/crypto/tls/#MLDSA44)) by default
+in TLS 1.3, advertising them in the signature_algorithms and
+signature_algorithms_cert extensions and accepting them from the peer.
+The default can be reverted using the `tlsmldsa` setting, added in Go 1.28,
+for example when dealing with TLS middleboxes that reject unrecognized
+signature algorithms. Modules declaring Go 1.26 or earlier default to
+`tlsmldsa=0`.
+
 ### Go 1.26
 
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
