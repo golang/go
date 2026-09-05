@@ -180,7 +180,7 @@ func dialPlan9(ctx context.Context, net string, laddr, raddr Addr) (fd *netFD, e
 		fd  *netFD
 		err error
 	}
-	resc := make(chan res)
+	resc := make(chan res, 1)
 	go func() {
 		fd, err := dialPlan9Blocking(ctx, net, laddr, raddr)
 		select {
