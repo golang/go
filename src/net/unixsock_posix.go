@@ -189,6 +189,8 @@ func (ln *UnixListener) close() error {
 	// programs that can mess us up.
 	// Even if there are racy calls to Close, we want to unlink only for the first one.
 	ln.unlinkOnce.Do(func() {
+		ln.unlinkMu.Lock()
+		defer ln.unlinkMu.Unlock()
 		if ln.path[0] != '@' && ln.unlink {
 			syscall.Unlink(ln.path)
 		}
@@ -213,6 +215,8 @@ func (ln *UnixListener) file() (*os.File, error) {
 // but if the listener was created by a call to FileListener to use an already existing
 // socket file, then by default closing the listener will not remove the socket file.
 func (l *UnixListener) SetUnlinkOnClose(unlink bool) {
+	l.unlinkMu.Lock()
+	defer l.unlinkMu.Unlock()
 	l.unlink = unlink
 }
 
@@ -227,7 +231,9 @@ func (sl *sysListener) listenUnix(ctx context.Context, laddr *UnixAddr) (*UnixLi
 	if err != nil {
 		return nil, err
 	}
-	return &UnixListener{fd: fd, path: fd.laddr.String(), unlink: true}, nil
+	ln := &UnixListener{fd: fd, path: fd.laddr.String()}
+	ln.unlink = true
+	return ln, nil
 }
 
 func (sl *sysListener) listenUnixgram(ctx context.Context, laddr *UnixAddr) (*UnixConn, error) {
