@@ -478,4 +478,8 @@ TEXT errors(SB),$0
 	VSM4RVS		V2, V4, V3			// ERROR "too many operands for instruction"
 	VSM4RVV		V2, V4, V3			// ERROR "too many operands for instruction"
 
+	// Zihintntl Extension for Non-Temporal Locality Hints
+	NTLP1	X5					// ERROR "NTL hints take no operands"
+	CNTLP1	X5					// ERROR "NTL hints take no operands"
+
 	RET
