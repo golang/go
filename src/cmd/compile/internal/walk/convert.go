@@ -41,6 +41,15 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	n.X = walkExpr(n.X, init)
 
+	// Boxing a value that was just unboxed from an identically typed
+	// interface is the original interface value. Return-value
+	// devirtualization produces this roundtrip when an inlined
+	// variant's unboxed result is re-boxed at the call site; for
+	// indirectly boxed types the roundtrip would otherwise allocate.
+	if x := unboxedFrom(n.X, n.Type()); x != nil {
+		return x
+	}
+
 	fromType := n.X.Type()
 	toType := n.Type()
 	if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) {
@@ -624,4 +633,24 @@ func walkSliceToArray(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	deref.SetBounded(true)
 
 	return walkExpr(deref, init)
+}
+
+// unboxedFrom reports the interface value that v extracts a concrete
+// value from, if boxing that value into typ reproduces it exactly:
+// v must be the devirtualize package's unchecked unboxing of an
+// interface of the same type, over an operand safe to reevaluate.
+func unboxedFrom(v ir.Node, typ *types.Type) ir.Node {
+	idata := v
+	if deref, ok := v.(*ir.StarExpr); ok {
+		idata = deref.X
+	}
+	u, ok := idata.(*ir.UnaryExpr)
+	if !ok || u.Op() != ir.OIDATA {
+		return nil
+	}
+	x, ok := u.X.(*ir.Name)
+	if !ok || !types.Identical(x.Type(), typ) {
+		return nil
+	}
+	return x
 }
