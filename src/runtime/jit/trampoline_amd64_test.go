@@ -86,6 +86,33 @@ func stackPointerCallTrampoline(fnAddr uintptr) []byte {
 	return code
 }
 
+func callerFramePointerCallTrampoline(fnAddr uintptr) []byte {
+	// Save the distance from this frame pointer to the caller's frame pointer,
+	// trigger stack growth in Go, then verify that stack copying relocated both
+	// pointers by the same amount. The first local word contains only the signed
+	// distance and is deliberately absent from the pointer map.
+	code := []byte{
+		0x55,             // push rbp
+		0x48, 0x89, 0xe5, // mov rbp, rsp
+		0x48, 0x83, 0xec, 0x10, // sub rsp, 16
+		0x48, 0x8b, 0x45, 0x00, // mov rax, [rbp]
+		0x48, 0x29, 0xe8, // sub rax, rbp
+		0x48, 0x89, 0x04, 0x24, // mov [rsp], rax
+		0x48, 0xb8, // movabs rax, fnAddr
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0xff, 0xd0, // call rax
+		0x48, 0x8b, 0x45, 0x00, // mov rax, [rbp]
+		0x48, 0x29, 0xe8, // sub rax, rbp
+		0x48, 0x3b, 0x04, 0x24, // cmp rax, [rsp]
+		0x0f, 0x94, 0xc0, // sete al
+		0x0f, 0xb6, 0xc0, // movzx eax, al
+		0xc9, // leave
+		0xc3, // ret
+	}
+	putU64(code[21:], fnAddr)
+	return code
+}
+
 func callTrampolineStackMaps() []jit.StackMap {
 	return []jit.StackMap{{PCOffset: 16, HasUnwind: true, CallerPCOffset: 8, CallerSPOffset: 16}}
 }
