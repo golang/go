@@ -154,6 +154,22 @@ func TestGCCPULimiter(t *testing.T) {
 		// Drain the bucket by half.
 		l.AddAssistTime(assistTime(CapacityPerProc, 0))
 		l.Update(advance(CapacityPerProc))
+		//
+		// test start condition: l.Fill == l.Capacity
+		//
+		// assistTime   = 0
+		// gcTime       = CapacityPerProc * procs * GCBackgroundUtilization
+		// mutatorTime  = CapacityPerProc * procs * (1 - GCBackgroundUtilization)
+		// change       = gcTime - mutatorTime
+		//              = CapacityPerProc * procs * (2 * GCBackgroundUtilization - 1)
+		// l.Fill       = l.Fill + change       // here change < 0
+		//              = l.Capacity + change
+		//              = CapacityPerProc * procs + change
+		//              = CapacityPerProc * procs * 2 * GCBackgroundUtilization
+		//              = l.Capacity * 2 * GCBackgroundUtilization
+		//              = l.Capacity * 0.5      // by default GCBackgroundUtilization = 0.25
+		//              = l.Capacity / 2
+		//
 		if expect := l.Capacity() / 2; l.Fill() != expect {
 			t.Errorf("failed to drain to %d, got fill %d", expect, l.Fill())
 		}
@@ -167,6 +183,25 @@ func TestGCCPULimiter(t *testing.T) {
 		// Test overfilling the bucket.
 		l.AddAssistTime(assistTime(CapacityPerProc, 1.0-GCBackgroundUtilization))
 		l.Update(advance(CapacityPerProc))
+		//
+		// test start condition: l.Fill == l.Capacity * 2 * GCBackgroundUtilization
+		//
+		// assistTime   = CapacityPerProc * procs * (1 - GCBackgroundUtilization)
+		// gcTime       = CapacityPerProc * procs * GCBackgroundUtilization + assistTime
+		//              = CapacityPerProc * procs
+		//              = l.Capacity
+		// mutatorTime  = CapacityPerProc * procs * (1 - GCBackgroundUtilization) - assistTime
+		//              = 0
+		// change       = gcTime - mutatorTime
+		//              = l.Capacity
+		// l.Overflow   = l.Fill + change - l.Capacity
+		//              = l.Capacity * 2 * GCBackgroundUtilization + l.Capacity - l.Capacity
+		//              = l.Capacity * 2 * GCBackgroundUtilization
+		//              = l.Capacity * 0.5  // by default GCBackgroundUtilization = 0.25
+		//              = l.Capacity / 2
+		//              = CapacityPerProc * procs / 2
+		// l.Fill       = l.Capacity        // because change is too large
+		//
 		if l.Fill() != l.Capacity() {
 			t.Errorf("failed to fill to capacity %d, got fill %d", l.Capacity(), l.Fill())
 		}
