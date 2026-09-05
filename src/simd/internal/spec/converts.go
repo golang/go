@@ -9,7 +9,7 @@ package spec
 // ConvertToZ converts element values to {zE}. The result has the same number of lanes.
 //
 //specgen:name ConvertTo{zE}
-//specgen:require zL=xL zE!=xE
+//specgen:require z={zB}{zN}x{xL} zE!=xE
 func ConvertToZ[xE Nums, xW Width, zE Nums, zW Width](x Vec[xE, xW]) (z Vec[zE, zW]) {
 	// Architectures are generally significantly more constrained in what they
 	// will convert between, but this operation describes the full universe of
