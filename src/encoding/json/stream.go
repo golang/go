@@ -399,6 +399,9 @@ func (dec *Decoder) Token() (Token, error) {
 			if dec.tokenState != tokenArrayStart && dec.tokenState != tokenArrayComma {
 				return dec.tokenError(c)
 			}
+			if len(dec.tokenStack) == 0 {
+				return dec.tokenError(c)
+			}
 			dec.scanp++
 			dec.tokenState = dec.tokenStack[len(dec.tokenStack)-1]
 			dec.tokenStack = dec.tokenStack[:len(dec.tokenStack)-1]
@@ -416,6 +419,9 @@ func (dec *Decoder) Token() (Token, error) {
 
 		case '}':
 			if dec.tokenState != tokenObjectStart && dec.tokenState != tokenObjectComma {
+				return dec.tokenError(c)
+			}
+			if len(dec.tokenStack) == 0 {
 				return dec.tokenError(c)
 			}
 			dec.scanp++
