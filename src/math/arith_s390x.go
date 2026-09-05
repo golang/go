@@ -135,12 +135,6 @@ func archPow(x, y float64) float64
 func powTrampolineSetup(x, y float64) float64
 func powAsm(x, y float64) float64
 
-const haveArchFrexp = false
-
-func archFrexp(x float64) (float64, int) {
-	panic("not implemented")
-}
-
 const haveArchLdexp = false
 
 func archLdexp(frac float64, exp int) float64 {
