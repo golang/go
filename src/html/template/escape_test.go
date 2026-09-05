@@ -1826,7 +1826,7 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			"<script>var a = `${``",
-			context{state: stateJS, element: elementScript, jsBraceDepth: []int{0}},
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var a = `${`}",
@@ -2312,6 +2312,49 @@ func TestCVE202656858(t *testing.T) {
 			tmpl:  "<script>`${ (function(){}/{{.}}/g.test(x)) }`</script>",
 			input: "a.b",
 			want:  "<script>`${ (function(){}/a\\.b/g.test(x)) }`</script>",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpl := Must(New("test").Parse(tt.tmpl))
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, tt.input); err != nil {
+				t.Fatalf("Execute: %v", err)
+			}
+			if got := buf.String(); got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTmplLitCloseDivCtx(t *testing.T) {
+	// Issue #81117: after a template literal closes, a '/' starts a
+	// division, not a regexp literal, so a following action must be
+	// escaped as a value.
+	tests := []struct {
+		name  string
+		tmpl  string
+		input string
+		want  string
+	}{
+		{
+			name:  "division after template literal",
+			tmpl:  "<script>let x = `a`/{{.}}/b;</script>",
+			input: "alert`1`",
+			want:  "<script>let x = `a`/\"alert`1`\"/b;</script>",
+		},
+		{
+			name:  "division after template literal with interpolation",
+			tmpl:  "<script>let x = `${()=>{}}`/{{.}}/b;</script>",
+			input: "alert`1`",
+			want:  "<script>let x = `${()=>{}}`/\"alert`1`\"/b;</script>",
+		},
+		{
+			name:  "division after nested template literal",
+			tmpl:  "<script>let x = `${`a`/{{.}}/b}`;</script>",
+			input: "alert`1`",
+			want:  "<script>let x = `${`a`/\"alert`1`\"/b}`;</script>",
 		},
 	}
 	for _, tt := range tests {
