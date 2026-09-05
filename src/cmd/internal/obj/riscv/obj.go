@@ -2479,6 +2479,14 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AAMOMINUW & obj.AMask: {enc: rIIIEncoding},
 	AAMOMINUD & obj.AMask: {enc: rIIIEncoding},
 
+	// 19.6.1: Cache-Block Management Instructions (Zicbom)
+	ACBOCLEAN & obj.AMask: {enc: iIIEncoding},
+	ACBOFLUSH & obj.AMask: {enc: iIIEncoding},
+	ACBOINVAL & obj.AMask: {enc: iIIEncoding},
+
+	// 19.6.2: Cache-Block Zero Instructions (Zicboz)
+	ACBOZERO & obj.AMask: {enc: iIIEncoding},
+
 	// 21.5: Single-Precision Load and Store Instructions
 	AFLW & obj.AMask: {enc: iFEncoding},
 	AFSW & obj.AMask: {enc: sFEncoding},
@@ -4338,6 +4346,29 @@ func instructionsForMinMax(p *obj.Prog, ins *instruction) []*instruction {
 	}
 }
 
+// instructionsForPrefetch returns the machine instructions for a prefetch
+// operation. A prefetch is encoded as an ORI x0, rs1, imm instruction, with
+// the prefetch type stored in the low 5 bits of the immediate.
+func instructionsForPrefetch(p *obj.Prog, ins *instruction) []*instruction {
+	if p.From.Type != obj.TYPE_MEM || p.From.Sym != nil {
+		p.Ctxt.Diag("%v: expected offset(base) memory operand", p)
+		return nil
+	}
+	if p.From.Offset&0b11111 != 0 || p.From.Offset < -2048 || p.From.Offset > 2016 {
+		p.Ctxt.Diag("%v: improper prefetch offset %d", p, p.From.Offset)
+		return nil
+	}
+	switch ins.as {
+	case APREFETCHR:
+		ins.imm |= 0b00001
+	case APREFETCHW:
+		ins.imm |= 0b00011
+	}
+	ins.as = AORI
+	ins.rd, ins.rs1, ins.rs2 = REG_ZERO, uint32(p.From.Reg), obj.REG_NONE
+	return []*instruction{ins}
+}
+
 // instructionsForProg returns the machine instructions for an *obj.Prog.
 func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 	ins := instructionForProg(p)
@@ -4662,6 +4693,20 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		if ins.imm < 0 || ins.imm > 31 {
 			p.Ctxt.Diag("%v: immediate out of range 0 to 31", p)
 		}
+
+	case ACBOCLEAN, ACBOFLUSH, ACBOINVAL, ACBOZERO:
+		if p.From.Type != obj.TYPE_MEM {
+			p.Ctxt.Diag("%v: expected offset(base) memory operand", p)
+			return nil
+		}
+		if p.From.Offset != 0 || p.From.Sym != nil {
+			p.Ctxt.Diag("%v: offset must be 0", p)
+			return nil
+		}
+		ins.rd, ins.rs1, ins.rs2, ins.imm = REG_ZERO, uint32(p.From.Reg), obj.REG_NONE, encode(p.As).csr
+
+	case APREFETCHI, APREFETCHR, APREFETCHW:
+		inss = instructionsForPrefetch(p, ins)
 
 	case ACLZ, ACLZW, ACTZ, ACTZW, ACPOP, ACPOPW, ASEXTB, ASEXTH, AZEXTH:
 		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
