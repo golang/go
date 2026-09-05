@@ -266,6 +266,18 @@ ok:
 	MOVW	R0, ret+24(FP)
 	RET
 
+// Call the function stored in _cgo_sigaction using the GCC calling convention.
+TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
+	MOVD	sig+0(FP), R0
+	MOVD	new+8(FP), R1
+	MOVD	old+16(FP), R2
+	MOVD	_cgo_sigaction(SB), R3
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
+	BL	R3
+	ADD	$16, RSP
+	MOVW	R0, ret+24(FP)
+	RET
+
 // func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVW	sig+8(FP), R0
