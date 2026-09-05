@@ -200,6 +200,15 @@ func ExampleParseQuery() {
 	// {"x":["1"], "y":["2", "3"]}
 }
 
+func ExampleMustParse() {
+	u := url.MustParse("https://example.com")
+	u.Path = "/search"
+	u.RawQuery = "q=golang"
+	fmt.Println(u)
+	// Output:
+	// https://example.com/search?q=golang
+}
+
 func ExampleURL_EscapedPath() {
 	u, err := url.Parse("http://example.com/x/y%2Fz")
 	if err != nil {
