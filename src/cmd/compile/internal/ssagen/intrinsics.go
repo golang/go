@@ -2373,13 +2373,15 @@ func simdBroadcast(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value
 
 func simdLoad() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return s.newValue2(ssaop.OpLoad, n.Type(), args[0], s.mem())
+		ptr := s.nilCheck(args[0])
+		return s.newValue2(ssaop.OpLoad, n.Type(), ptr, s.mem())
 	}
 }
 
 func simdStore() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		s.store(args[0].Type, args[1], args[0])
+		ptr := s.nilCheck(args[1])
+		s.store(args[0].Type, ptr, args[0])
 		return nil
 	}
 }
