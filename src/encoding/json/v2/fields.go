@@ -229,10 +229,10 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 						// Avoid panics calling IsZero on nil pointer.
 						return va.IsNil() || va.Interface().(isZeroer).IsZero()
 					}
-				case sf.Type.Implements(isZeroerType):
-					f.isZero = func(va addressableValue) bool { return va.Interface().(isZeroer).IsZero() }
 				case reflect.PointerTo(sf.Type).Implements(isZeroerType):
 					f.isZero = func(va addressableValue) bool { return va.Addr().Interface().(isZeroer).IsZero() }
+				case sf.Type.Implements(isZeroerType):
+					f.isZero = func(va addressableValue) bool { return va.Interface().(isZeroer).IsZero() }
 				}
 
 				// Provide a function that can determine whether the value would

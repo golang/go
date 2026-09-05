@@ -278,6 +278,12 @@ var arshalTestdata = []struct {
 	raw:  []byte(`"2006-01-02T22:04:05Z"`),
 	val:  addr(time.Unix(1136239445, 0).UTC()),
 	new:  func() any { return new(time.Time) },
+}, {
+	name:   "OmitZeroMethod",
+	raw:    []byte(`{}`),
+	val:    new(omitZeroStruct),
+	new:    func() any { return new(omitZeroStruct) },
+	skipV1: true,
 }}
 
 type textArshaler struct{ _ [4]int }
@@ -316,6 +322,25 @@ func (*jsonArshalerV2) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	return err
 }
+
+type omitZeroStruct struct {
+	A zeroAlways    `json:"a,omitzero"`
+	B zeroAlwaysPtr `json:"b,omitzero"`
+}
+
+type zeroAlways struct {
+	// Just so the struct has some size to allocate
+	A int
+}
+
+func (zeroAlways) IsZero() bool { return true }
+
+type zeroAlwaysPtr struct {
+	// Just so the struct has some size to allocate
+	A int
+}
+
+func (*zeroAlwaysPtr) IsZero() bool { return true }
 
 func TestBenchmarkUnmarshal(t *testing.T) { runUnmarshal(t) }
 func BenchmarkUnmarshal(b *testing.B)     { runUnmarshal(b) }
