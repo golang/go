@@ -863,6 +863,32 @@ func TestWriterErrors(t *testing.T) {
 		}
 	})
 
+	t.Run("HeaderOnlyWithSize", func(t *testing.T) {
+		// See https://golang.org/issue/76468
+		var buf bytes.Buffer
+		tw := NewWriter(&buf)
+		hdr := &Header{
+			Typeflag: TypeSymlink,
+			Name:     "link.txt",
+			Linkname: "target.txt",
+			Size:     100, // Incorrectly set; should be ignored
+		}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader() = %v, want nil", err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("Close() = %v, want nil", err)
+		}
+		tr := NewReader(&buf)
+		got, err := tr.Next()
+		if err != nil {
+			t.Fatalf("Next() = %v, want nil", err)
+		}
+		if got.Size != 0 {
+			t.Errorf("Header.Size = %d, want 0", got.Size)
+		}
+	})
+
 	t.Run("NegativeSize", func(t *testing.T) {
 		tw := NewWriter(new(bytes.Buffer))
 		hdr := &Header{Name: "small.txt", Size: -1}
