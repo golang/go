@@ -7,6 +7,7 @@ package work
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
@@ -54,10 +56,13 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, compile *shellCmd, err error) {
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
+	// TODO(matloob): Support early export on Windows.
+	hasObjectAction := slices.ContainsFunc(a.triggers, func(t *Action) bool { return t.Mode == "build" && t.Package == a.Package })
+	earlyExport := export != "" && hasObjectAction && runtime.GOOS != "windows" && !(cfg.BuildN || cfg.BuildX)
 	if export == "" {
 		export = objdir + "_go_.x"
 	}
@@ -125,9 +130,29 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 	if p.Internal.FuzzInstrument {
 		gcflags = append(gcflags, fuzzInstrumentFlags()...)
 	}
+	if importcfg != nil {
+		if err := sh.writeFile(objdir+"importcfg", importcfg); err != nil {
+			return "", nil, nil, err
+		}
+	}
+	if embedcfg != nil {
+		if err := sh.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+			return "", nil, nil, err
+		}
+	}
+	var pipeR, pipeW *os.File
+	var extraFiles []*os.File
+	if earlyExport {
+		pipeR, pipeW, err = os.Pipe()
+		if err != nil {
+			return "", nil, nil, err
+		}
+		defer pipeR.Close()
+		extraFiles = []*os.File{pipeW}
+	}
+
 	// Add -c=N to use concurrent backend compilation, if possible.
 	c, release := compilerConcurrency()
-	defer release()
 	if c > 1 {
 		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
 	}
@@ -139,19 +164,16 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 		args = append(args, "-D", p.Internal.LocalPrefix)
 	}
 	if importcfg != nil {
-		if err := sh.writeFile(objdir+"importcfg", importcfg); err != nil {
-			return "", nil, err
-		}
 		args = append(args, "-importcfg", objdir+"importcfg")
 	}
 	if embedcfg != nil {
-		if err := sh.writeFile(objdir+"embedcfg", embedcfg); err != nil {
-			return "", nil, err
-		}
 		args = append(args, "-embedcfg", objdir+"embedcfg")
 	}
 	if asmhdr {
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
+	}
+	if earlyExport {
+		args = append(args, "-exportfd=3")
 	}
 
 	for _, f := range gofiles {
@@ -171,8 +193,22 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 		// code that uses those values to expect absolute paths.
 		args = append(args, fsys.Actual(f))
 	}
-	output, err = sh.runOut(base.Cwd(), cfgChangedEnv, args...)
-	return ofile, output, err
+	sc, err := sh.startOut(base.Cwd(), cfgChangedEnv, extraFiles, release, args...)
+	// If -n is provided sc will always be nil because we don't actually start a command.
+	if err != nil || sc == nil {
+		release()
+		return ofile, nil, nil, err
+	}
+	if !earlyExport {
+		output, err = sc.wait()
+		return ofile, output, nil, err
+	}
+	var ping [1]byte
+	if _, err := pipeR.Read(ping[:]); err != nil {
+		output, werr := sc.wait()
+		return ofile, output, nil, errors.Join(err, werr)
+	}
+	return ofile, nil, sc, nil
 }
 
 // compilerConcurrency returns the compiler concurrency level for a package compilation.

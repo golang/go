@@ -263,7 +263,7 @@ func AssertfAt(b bool, pos src.XPos, format string, args ...any) {
 func hcrash() {
 	if Flag.LowerH != 0 {
 		FlushErrors()
-		if Flag.LowerO != "" {
+		if Flag.LowerO != "" && Flag.ExportFD <= 0 {
 			os.Remove(Flag.LowerO)
 		}
 		panic("-h")
@@ -274,7 +274,7 @@ func hcrash() {
 // It flushes any pending errors, removes the output file, and exits.
 func ErrorExit() {
 	FlushErrors()
-	if Flag.LowerO != "" {
+	if Flag.LowerO != "" && Flag.ExportFD <= 0 {
 		os.Remove(Flag.LowerO)
 	}
 	os.Exit(2)

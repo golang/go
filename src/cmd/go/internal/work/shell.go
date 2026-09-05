@@ -13,7 +13,6 @@ import (
 	"cmd/go/internal/str"
 	"cmd/internal/par"
 	"cmd/internal/pathcache"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -585,6 +584,17 @@ func (sh *Shell) run(dir string, desc string, env []string, cmdargs ...any) erro
 // It returns the command output and any errors that occurred.
 // It accumulates execution time in a.
 func (sh *Shell) runOut(dir string, env []string, cmdargs ...any) ([]byte, error) {
+	sc, err := sh.startOut(dir, env, nil, nil, cmdargs...)
+	if err != nil || sc == nil {
+		return nil, err
+	}
+	return sc.wait()
+}
+
+func (sh *Shell) startOut(dir string, env []string, extraFiles []*os.File, done func(), cmdargs ...any) (*shellCmd, error) {
+	for _, f := range extraFiles {
+		defer f.Close()
+	}
 	a := sh.action
 
 	cmdline := str.StringList(cmdargs...)
@@ -618,7 +628,6 @@ func (sh *Shell) runOut(dir string, env []string, cmdargs ...any) ([]byte, error
 		}
 	}
 
-	var buf bytes.Buffer
 	path, err := pathcache.LookPath(cmdline[0])
 	if err != nil {
 		return nil, err
@@ -627,10 +636,11 @@ func (sh *Shell) runOut(dir string, env []string, cmdargs ...any) ([]byte, error
 	if cmd.Path != "" {
 		cmd.Args[0] = cmd.Path
 	}
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	cleanup := passLongArgsInResponseFiles(cmd)
-	defer cleanup()
+	sc := &shellCmd{sh: sh, cmd: cmd, cmdline: cmdline, done: done}
+	cmd.Stdout = &sc.buf
+	cmd.Stderr = &sc.buf
+	cmd.ExtraFiles = extraFiles
+	sc.cleanup = passLongArgsInResponseFiles(cmd)
 	if dir != "." {
 		cmd.Dir = dir
 	}
@@ -646,13 +656,35 @@ func (sh *Shell) runOut(dir string, env []string, cmdargs ...any) ([]byte, error
 	}
 
 	cmd.Env = append(cmd.Env, env...)
-	start := time.Now()
-	err = cmd.Run()
-	if a != nil && a.json != nil {
+	sc.start = time.Now()
+	if err := cmd.Start(); err != nil {
+		sc.cleanup()
+		return nil, fmt.Errorf("%s: %w", cmdline[0], err)
+	}
+	return sc, nil
+}
+
+type shellCmd struct {
+	sh      *Shell
+	cmd     *exec.Cmd
+	cmdline []string
+	buf     bytes.Buffer
+	start   time.Time
+	cleanup func()
+	done    func()
+}
+
+func (sc *shellCmd) wait() ([]byte, error) {
+	err := sc.cmd.Wait()
+	sc.cleanup()
+	if sc.done != nil {
+		sc.done()
+	}
+	if a := sc.sh.action; a != nil && a.json != nil {
 		aj := a.json
-		aj.Cmd = append(aj.Cmd, joinUnambiguously(cmdline))
-		aj.CmdReal += time.Since(start)
-		if ps := cmd.ProcessState; ps != nil {
+		aj.Cmd = append(aj.Cmd, joinUnambiguously(sc.cmdline))
+		aj.CmdReal += time.Since(sc.start)
+		if ps := sc.cmd.ProcessState; ps != nil {
 			aj.CmdUser += ps.UserTime()
 			aj.CmdSys += ps.SystemTime()
 		}
@@ -664,9 +696,9 @@ func (sh *Shell) runOut(dir string, env []string, cmdargs ...any) ([]byte, error
 	// shows buf.Bytes() and does not print err at all, so the
 	// prefix here does not make most output any more verbose.
 	if err != nil {
-		err = errors.New(cmdline[0] + ": " + err.Error())
+		err = fmt.Errorf("%s: %w", sc.cmdline[0], err)
 	}
-	return buf.Bytes(), err
+	return sc.buf.Bytes(), err
 }
 
 // joinUnambiguously prints the slice, quoting where necessary to make the

@@ -466,6 +466,7 @@ type exportProvider struct {
 	cfiles     []string
 	sfiles     []string
 	output     []byte
+	compile    *shellCmd
 }
 
 // pgoActionID computes the action ID for a preprocess PGO action.
@@ -701,11 +702,12 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		}
 
 		a := &Action{
-			Mode:    "build",
-			Package: p,
-			Actor:   ActorFunc((*Builder).buildObject),
-			Objdir:  exportAction.Objdir,
-			Deps:    []*Action{exportAction},
+			Mode:       "build",
+			Package:    p,
+			Actor:      ActorFunc((*Builder).buildObject),
+			Objdir:     exportAction.Objdir,
+			Deps:       []*Action{exportAction},
+			IgnoreFail: true,
 		}
 
 		return a

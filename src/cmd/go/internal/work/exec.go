@@ -872,14 +872,8 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 			return err
 		}
 	}
-	ofile, out, err := BuildToolchain.gc(b, a, exportFile, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, coverageConfig, gofiles)
-	if len(out) > 0 && (p.UsesCgo() || p.UsesSwig()) && !cfg.BuildX {
-		// Fix up output referring to cgo-generated code to be more readable.
-		// Replace *[100]_Ctype_foo with *[100]C.foo.
-		// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
-		out = cgoTypeSigRe.ReplaceAll(out, []byte("C."))
-	}
-	if err := sh.reportCmd("", "", out, err); err != nil {
+	ofile, out, compile, err := BuildToolchain.gc(b, a, exportFile, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, coverageConfig, gofiles)
+	if err := b.reportCompile(a, out, err); err != nil {
 		return err
 	}
 	if ofile != exportFile {
@@ -889,6 +883,10 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 	a.built = exportFile
 	if cfg.BuildToolchainName == "gc" {
 		if err := b.updateExportBuildID(a, exportFile); err != nil {
+			if compile != nil {
+				_, werr := compile.wait()
+				err = errors.Join(err, werr)
+			}
 			return err
 		}
 	}
@@ -900,6 +898,7 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 		cfiles:     cfiles,
 		sfiles:     sfiles,
 		output:     a.output,
+		compile:    compile,
 	}
 	a.output = nil
 	a.Provider = ep
@@ -915,6 +914,13 @@ func (b *Builder) buildObject(ctx context.Context, a *Action) error {
 	a.buildID = exportAction.buildID
 
 	ep, _ := exportAction.Provider.(*exportProvider)
+	if a.Failed != nil {
+		if ep != nil && ep.compile != nil {
+			_, err := ep.compile.wait()
+			return err
+		}
+		return nil
+	}
 	if ep == nil {
 		a.built = exportAction.built
 		if b.NeedExport {
@@ -926,6 +932,13 @@ func (b *Builder) buildObject(ctx context.Context, a *Action) error {
 
 	a.output = ep.output
 	defer b.flushOutput(a)
+
+	if ep.compile != nil {
+		out, err := ep.compile.wait()
+		if err := b.reportCompile(a, out, err); err != nil {
+			return err
+		}
+	}
 
 	if b.IsCmdList && !b.NeedExport {
 		return nil
@@ -1046,6 +1059,17 @@ func (b *Builder) buildObject(ctx context.Context, a *Action) error {
 
 	a.built = objpkg
 	return nil
+}
+
+func (b *Builder) reportCompile(a *Action, out []byte, err error) error {
+	p := a.Package
+	if len(out) > 0 && (p.UsesCgo() || p.UsesSwig()) && !cfg.BuildX {
+		// Fix up output referring to cgo-generated code to be more readable.
+		// Replace *[100]_Ctype_foo with *[100]C.foo.
+		// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
+		out = cgoTypeSigRe.ReplaceAll(out, []byte("C."))
+	}
+	return b.Shell(a).reportCmd("", "", out, err)
 }
 
 var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
@@ -2652,7 +2676,7 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, out []byte, err error)
+	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, out []byte, compile *shellCmd, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *Builder, a *Action, ofile, cfile string) error
@@ -2692,8 +2716,8 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, out []byte, err error) {
-	return "", nil, noCompiler()
+func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, out []byte, compile *shellCmd, err error) {
+	return "", nil, nil, noCompiler()
 }
 
 func (noToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
@@ -3934,7 +3958,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 
 	p := load.GoFilesPackage(modload.NewLoader(), context.TODO(), load.PackageOpts{}, srcs)
 
-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", "", srcs); e != nil {
+	if _, _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", "", srcs); e != nil {
 		return "32", nil
 	}
 	return "64", nil
