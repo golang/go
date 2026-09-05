@@ -77,7 +77,7 @@ func broadcastConstImmFold(k int) {
 		// arm64:`VMOVI [$]254,` -`VDUP`
 		sinkI8 = archsimd.BroadcastInt8x16(-2)
 	default:
-		// arm64:`VMOV R0, V\d+.B\[0\]` `VDUP`
+		// arm64:`VDUP R[0-9]+, V[0-9]+\.B16` -`VMOV`
 		sinkI8 = archsimd.BroadcastInt8x16(int8(k))
 	}
 }
