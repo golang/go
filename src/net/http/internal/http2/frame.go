@@ -372,6 +372,115 @@ type Framer struct {
 	debugWriteLoggerf func(string, ...any)
 
 	frameCache *frameCache // nil if frames aren't reused (default)
+
+	// metaParse is the state readMetaFrame's hpack emit callback
+	// reads and updates. See metaParseState.
+	metaParse metaParseState
+
+	// emitMetaFieldFunc is the method value (*Framer).emitMetaField,
+	// built on first use. Evaluating a method value allocates a
+	// closure, so readMetaFrame builds it once per Framer instead of
+	// once per HEADERS frame.
+	emitMetaFieldFunc func(hpack.HeaderField)
+}
+
+// metaParseState is the per-parse state of readMetaFrame that its
+// hpack emit callback has to see. It lives on the Framer so that the
+// callback can be a single method value registered once, rather than
+// a fresh closure with a separately boxed variable per captured
+// field allocated on every HEADERS frame.
+//
+// Only one meta parse can be in flight per Framer: readMetaFrame's
+// CONTINUATION loop is the only reentrant path into ReadFrame, and
+// checkFrameOrder guarantees the frames it reads there are
+// CONTINUATION, never HEADERS.
+type metaParseState struct {
+	// mh is the frame being filled in. endMetaParse clears it, so
+	// that a Framer without SetReuseFrames does not retain the
+	// MetaHeadersFrame it handed to the caller.
+	mh *MetaHeadersFrame
+
+	// hdec is the decoder this parse installed the callback on. It is
+	// held here rather than read back out of fr.ReadMetaHeaders so
+	// that the callback and its teardown act on the same decoder the
+	// parse started with, exactly as the closure this replaced did.
+	hdec *hpack.Decoder
+
+	// remainSize is the number of header list bytes still accepted.
+	remainSize uint32
+
+	// headerCount counts emitted fields, against MaxHeaderValueCount.
+	headerCount int
+
+	// sawRegular records whether a non-pseudo field has been seen, so
+	// that a pseudo field after one can be rejected.
+	sawRegular bool
+
+	// invalid is the first pseudo/name/value validation error, if any.
+	invalid error
+}
+
+// noopEmitFunc discards a decoded header field. readMetaFrame installs
+// it when it is done, so that the decoder holds no reference to the
+// parsed frame and a field emitted outside a parse cannot reach a nil
+// metaParse.mh.
+func noopEmitFunc(hpack.HeaderField) {}
+
+// emitMetaField is the hpack decoder's emit callback while
+// readMetaFrame is running. It is the method form of what used to be a
+// per-parse closure; the variables it used to capture now live in
+// fr.metaParse.
+func (fr *Framer) emitMetaField(hf hpack.HeaderField) {
+	mp := &fr.metaParse
+	hdec := mp.hdec
+	if VerboseLogs && fr.logReads {
+		fr.debugReadLoggerf("http2: decoded hpack field %+v", hf)
+	}
+	mp.headerCount++
+	if limit := fr.maxHeaderValueCount(); limit > 0 && mp.headerCount > limit {
+		hdec.SetEmitEnabled(false)
+		mp.mh.Truncated = true
+		mp.remainSize = 0
+		return
+	}
+	if !httpguts.ValidHeaderFieldValue(hf.Value) {
+		// Don't include the value in the error, because it may be sensitive.
+		mp.invalid = headerFieldValueError(hf.Name)
+	}
+	isPseudo := strings.HasPrefix(hf.Name, ":")
+	if isPseudo {
+		if mp.sawRegular {
+			mp.invalid = errPseudoAfterRegular
+		}
+	} else {
+		mp.sawRegular = true
+		if !validWireHeaderFieldName(hf.Name) {
+			mp.invalid = headerFieldNameError(hf.Name)
+		}
+	}
+
+	if mp.invalid != nil {
+		hdec.SetEmitEnabled(false)
+		return
+	}
+
+	size := hf.Size()
+	if size > mp.remainSize {
+		hdec.SetEmitEnabled(false)
+		mp.mh.Truncated = true
+		mp.remainSize = 0
+		return
+	}
+	mp.remainSize -= size
+
+	mp.mh.Fields = append(mp.mh.Fields, hf)
+}
+
+// endMetaParse tears down the state emitMetaField reads, once the
+// parse that set it up is over.
+func (fr *Framer) endMetaParse() {
+	fr.metaParse.hdec.SetEmitFunc(noopEmitFunc)
+	fr.metaParse = metaParseState{}
 }
 
 func (fr *Framer) maxHeaderListSize() uint32 {
@@ -1913,59 +2022,28 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 		HeadersFrame: hf,
 	}
 	mh.Fields = fields[:0]
-	var remainSize = fr.maxHeaderListSize()
-	var sawRegular bool
-	var headerCount int
 
-	var invalid error // pseudo header field errors
+	// Set up the state the emit callback mutates. It lives on the
+	// Framer rather than in a closure so that the callback can be a
+	// method value built once per Framer: a fresh closure here would
+	// heap-allocate itself plus a box for each variable it captures,
+	// on every HEADERS frame.
 	hdec := fr.ReadMetaHeaders
+	fr.metaParse = metaParseState{
+		mh:         mh,
+		hdec:       hdec,
+		remainSize: fr.maxHeaderListSize(),
+	}
+	mp := &fr.metaParse
 	hdec.SetEmitEnabled(true)
 	hdec.SetMaxStringLength(fr.maxHeaderStringLen())
-	hdec.SetEmitFunc(func(hf hpack.HeaderField) {
-		if VerboseLogs && fr.logReads {
-			fr.debugReadLoggerf("http2: decoded hpack field %+v", hf)
-		}
-		headerCount++
-		if limit := fr.maxHeaderValueCount(); limit > 0 && headerCount > limit {
-			hdec.SetEmitEnabled(false)
-			mh.Truncated = true
-			remainSize = 0
-			return
-		}
-		if !httpguts.ValidHeaderFieldValue(hf.Value) {
-			// Don't include the value in the error, because it may be sensitive.
-			invalid = headerFieldValueError(hf.Name)
-		}
-		isPseudo := strings.HasPrefix(hf.Name, ":")
-		if isPseudo {
-			if sawRegular {
-				invalid = errPseudoAfterRegular
-			}
-		} else {
-			sawRegular = true
-			if !validWireHeaderFieldName(hf.Name) {
-				invalid = headerFieldNameError(hf.Name)
-			}
-		}
-
-		if invalid != nil {
-			hdec.SetEmitEnabled(false)
-			return
-		}
-
-		size := hf.Size()
-		if size > remainSize {
-			hdec.SetEmitEnabled(false)
-			mh.Truncated = true
-			remainSize = 0
-			return
-		}
-		remainSize -= size
-
-		mh.Fields = append(mh.Fields, hf)
-	})
-	// Lose reference to MetaHeadersFrame:
-	defer hdec.SetEmitFunc(func(hf hpack.HeaderField) {})
+	if fr.emitMetaFieldFunc == nil {
+		fr.emitMetaFieldFunc = fr.emitMetaField
+	}
+	hdec.SetEmitFunc(fr.emitMetaFieldFunc)
+	// Uninstall the callback and lose the reference to the
+	// MetaHeadersFrame:
+	defer fr.endMetaParse()
 
 	var hc headersOrContinuation = hf
 	for {
@@ -1979,7 +2057,7 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 		// exceeded the max header list size (in which case remainSize is 0),
 		// or a frame whose encoded size is more than twice the remaining
 		// header list bytes we're willing to accept.
-		if int64(len(frag)) > int64(2*remainSize) {
+		if int64(len(frag)) > int64(2*mp.remainSize) {
 			if VerboseLogs {
 				log.Printf("http2: header list too large")
 			}
@@ -1991,9 +2069,9 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 		// Also close the connection after any CONTINUATION frame following an
 		// invalid header, since we stop tracking the size of the headers after
 		// an invalid one.
-		if invalid != nil {
+		if mp.invalid != nil {
 			if VerboseLogs {
-				log.Printf("http2: invalid header: %v", invalid)
+				log.Printf("http2: invalid header: %v", mp.invalid)
 			}
 			// It would be nice to send a RST_STREAM before sending the GOAWAY,
 			// but the structure of the server's frame writer makes this difficult.
@@ -2031,12 +2109,12 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 	if err := hdec.Close(); err != nil {
 		return mh, ConnectionError(ErrCodeCompression)
 	}
-	if invalid != nil {
-		fr.errDetail = invalid
+	if mp.invalid != nil {
+		fr.errDetail = mp.invalid
 		if VerboseLogs {
-			log.Printf("http2: invalid header: %v", invalid)
+			log.Printf("http2: invalid header: %v", mp.invalid)
 		}
-		return nil, StreamError{mh.StreamID, ErrCodeProtocol, invalid}
+		return nil, StreamError{mh.StreamID, ErrCodeProtocol, mp.invalid}
 	}
 	// The header block decoded cleanly, so mh is the frame handed to
 	// the caller: mark it owned, so that the accessor methods work
