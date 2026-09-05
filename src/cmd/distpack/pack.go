@@ -437,7 +437,11 @@ func reportHash(name string) {
 		log.Fatal(err)
 	}
 	h := sha256.New()
-	io.Copy(h, f)
-	f.Close()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
 	fmt.Printf("distpack: %x %s\n", h.Sum(nil)[:8], filepath.Base(name))
 }
