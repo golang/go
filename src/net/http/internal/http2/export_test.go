@@ -107,6 +107,10 @@ func (sc *serverConn) TestFramerMaxHeaderStringLen() int {
 	return sc.framer.maxHeaderStringLen()
 }
 
+func (sc *serverConn) TestFramerReusesFrames() bool {
+	return sc.framer.frameCache != nil
+}
+
 func (t *Transport) DialClientConn(ctx context.Context, addr string, singleUse bool) (*ClientConn, error) {
 	return t.dialClientConn(ctx, addr, singleUse)
 }
@@ -132,6 +136,10 @@ func (cc *ClientConn) TestRoundTrip(req *ClientRequest, f func(stremaID uint32))
 
 func (cc *ClientConn) TestHPACKEncoder() *hpack.Encoder {
 	return cc.henc
+}
+
+func (cc *ClientConn) TestFramerReusesFrames() bool {
+	return cc.fr.frameCache != nil
 }
 
 func (cc *ClientConn) TestPeerMaxHeaderTableSize() uint32 {
