@@ -52,6 +52,9 @@ Implementation restriction: The counting forms x{n,m}, x{n,}, and x{n}
 reject forms that create a minimum or maximum repetition count above 1000.
 Unlimited repetitions are not subject to this restriction.
 
+In addition, some concrete expressions are rejected below this limit by
+other internal checks to avoid excessive compilation complexity.
+
 Grouping:
 
 	(re)           numbered capturing group (submatch)
