@@ -105,6 +105,9 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 	if a.buildID != "" {
 		defaultGcFlags = append(defaultGcFlags, "-buildid", a.buildID)
 	}
+	if cfg.BuildBuildmode == "plugin" && cfg.Goos == "windows" && cfg.Goarch == "amd64" && p.Name == "main" {
+		defaultGcFlags = append(defaultGcFlags, "-pluginexport")
+	}
 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
 		defaultGcFlags = append(defaultGcFlags, "-dwarf=false")
 	}

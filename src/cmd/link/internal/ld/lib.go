@@ -420,7 +420,14 @@ func libinit(ctxt *Link) {
 		case BuildModeExe, BuildModePIE:
 			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", buildcfg.GOARCH, buildcfg.GOOS)
 		case BuildModeShared, BuildModePlugin:
-			// No *flagEntrySymbol for -buildmode=shared and plugin
+			// No *flagEntrySymbol for -buildmode=shared and plugin on
+			// ELF targets. PE (windows) requires every image to have
+			// an entry point, so for windows plugins use a tiny
+			// stub that returns TRUE — the plugin DLL must NOT run
+			// any Go runtime init of its own; that is the host's job.
+			if ctxt.HeadType == objabi.Hwindows && ctxt.BuildMode == BuildModePlugin {
+				*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_plugin", buildcfg.GOARCH, buildcfg.GOOS)
+			}
 		default:
 			Errorf("unknown *flagEntrySymbol for buildmode %v", ctxt.BuildMode)
 		}
@@ -578,7 +585,10 @@ func (ctxt *Link) loadlib() {
 
 	// Plugins a require cgo support to function. Similarly, plugins may require additional
 	// internal linker support on some platforms which may not be implemented.
-	ctxt.canUsePlugins = ctxt.LibraryByPkg["plugin"] != nil && iscgo &&
+	// On windows the plugin support uses PE-level imports/exports instead of
+	// dlopen, so cgo is not required.
+	ctxt.canUsePlugins = ctxt.LibraryByPkg["plugin"] != nil &&
+		(iscgo || buildcfg.GOOS == "windows") &&
 		platform.BuildModeSupported("gc", "plugin", buildcfg.GOOS, buildcfg.GOARCH)
 
 	// We now have enough information to determine the link mode.
@@ -929,6 +939,35 @@ func (ctxt *Link) linksetup() {
 	mdsb.SetType(sym.SMODULEDATA)
 	ctxt.loader.SetAttrReachable(moduledata, true)
 	ctxt.Moduledata = moduledata
+
+	// On windows, the plugin DLL must expose its moduledata symbol via
+	// the PE export table so that plugin.open() in the host can look it
+	// up with GetProcAddress and register it with runtime.addmoduledata
+	// on the host side. (Linux/Darwin rely on dlopen(RTLD_GLOBAL) +
+	// .init_array to do the equivalent automatically.)
+	if ctxt.BuildMode == BuildModePlugin && ctxt.HeadType == objabi.Hwindows {
+		ctxt.loader.SetAttrLocal(moduledata, false)
+		ctxt.loader.SetAttrCgoExportDynamic(moduledata, true)
+		ctxt.loader.SetSymExtname(moduledata, "go_pluginmoduledata")
+		ctxt.dynexp = append(ctxt.dynexp, moduledata)
+
+		// Export each plugin-exported symbol (V, Hello, ...) via the PE
+		// export table under its full Go name, so plugin.Open() can
+		// resolve it via GetProcAddress(pluginpath + "." + symname).
+		if exportsIdx := ctxt.loader.Lookup("go:plugin.exports", 0); exportsIdx != 0 {
+			relocs := ctxt.loader.Relocs(exportsIdx)
+			for i := 0; i < relocs.Count(); i++ {
+				s := relocs.At(i).Sym()
+				if s == 0 {
+					continue
+				}
+				ctxt.loader.SetAttrLocal(s, false)
+				ctxt.loader.SetAttrCgoExportDynamic(s, true)
+				ctxt.loader.SetSymExtname(s, ctxt.loader.SymName(s))
+				ctxt.dynexp = append(ctxt.dynexp, s)
+			}
+		}
+	}
 
 	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
 		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {

@@ -1058,7 +1058,7 @@ func (f *peFile) writeFileHeader(ctxt *Link) {
 		fh.Characteristics = pe.IMAGE_FILE_EXECUTABLE_IMAGE
 		switch ctxt.Arch.Family {
 		case sys.AMD64, sys.I386:
-			if ctxt.BuildMode != BuildModePIE {
+			if ctxt.BuildMode != BuildModePIE && ctxt.BuildMode != BuildModePlugin {
 				fh.Characteristics |= pe.IMAGE_FILE_RELOCS_STRIPPED
 			}
 		}
@@ -1552,6 +1552,15 @@ func initdynexport(ctxt *Link) {
 
 func addexports(ctxt *Link) {
 	ldr := ctxt.loader
+
+	// Plugin host: append every reachable Go symbol the runtime might
+	// share with a plugin, so plugin DLLs can resolve their PE imports
+	// against this EXE via GetProcAddress at LoadLibrary time. This is
+	// done here (not in dope()) so we see the final post-deadcode,
+	// post-DWARF, post-mangleTypeSym reachable set — including
+	// type:.eq.* helpers that get materialized late.
+	peAppendHostExports(ctxt)
+
 	var e IMAGE_EXPORT_DIRECTORY
 
 	nexport := len(dexport)
@@ -1747,8 +1756,10 @@ func addPEBaseRelocSym(ldr *loader.Loader, s loader.Sym, rt *peBaseRelocTable) {
 
 func needPEBaseReloc(ctxt *Link) bool {
 	// Non-PIE x86 binaries don't need the base relocation table.
-	// Everyone else does.
-	if (ctxt.Arch.Family == sys.I386 || ctxt.Arch.Family == sys.AMD64) && ctxt.BuildMode != BuildModePIE {
+	// Everyone else does. -buildmode=plugin produces a DLL that the
+	// host loader may relocate, so it also requires a .reloc section.
+	if (ctxt.Arch.Family == sys.I386 || ctxt.Arch.Family == sys.AMD64) &&
+		ctxt.BuildMode != BuildModePIE && ctxt.BuildMode != BuildModePlugin {
 		return false
 	}
 	return true
@@ -1787,6 +1798,7 @@ func addPEBaseReloc(ctxt *Link) {
 }
 
 func (ctxt *Link) dope() {
+	peMarkPluginImports(ctxt)
 	initdynimport(ctxt)
 	initdynexport(ctxt)
 }
@@ -1900,6 +1912,11 @@ func asmbPe(ctxt *Link) {
 
 	ctxt.Out.SeekSet(int64(pefile.nextFileOffset))
 	if ctxt.LinkMode != LinkExternal {
+		// Plugin DLL link path on windows/amd64 — bails out early with a
+		// descriptive error if the IAT/TLS-callback work is not yet wired up.
+		if ctxt.BuildMode == BuildModePlugin {
+			peLinkPlugin(ctxt)
+		}
 		addimports(ctxt, d)
 		addexports(ctxt)
 		addPEBaseReloc(ctxt)

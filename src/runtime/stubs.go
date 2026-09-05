@@ -446,6 +446,23 @@ func duffcopy()
 // Called from linker-generated .initarray; declared for go vet; do NOT call from Go.
 func addmoduledata()
 
+// pluginAddmoduledata appends md to the global moduledata list.
+// Used by plugin.open on windows where the host (not a TLS callback)
+// registers the freshly loaded plugin's moduledata with the host
+// runtime.  md must point at a fully populated moduledata struct.
+//
+//go:nosplit
+func pluginAddmoduledata(md uintptr) {
+	mdp := (*moduledata)(unsafe.Pointer(md))
+	mdp.next = nil
+	last := &firstmoduledata
+	for last.next != nil {
+		last = last.next
+	}
+	last.next = mdp
+	lastmoduledatap = mdp
+}
+
 // Injected by the signal handler for panicking signals.
 // Initializes any registers that have fixed meaning at calls but
 // are scratch in bodies and calls sigpanic.

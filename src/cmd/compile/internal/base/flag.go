@@ -117,6 +117,7 @@ type CmdFlags struct {
 	NoLocalImports     bool         "help:\"reject local (relative) imports\""
 	CoverageCfg        func(string) "help:\"read coverage configuration from `file`\""
 	Pack               bool         "help:\"write to file.a instead of file.o\""
+	PluginExport       bool         "help:\"emit plugin export table for main package (windows plugin support without -dynlink)\""
 	Race               bool         "help:\"enable race detector\""
 	Shared             *bool        "help:\"generate code that can be linked into a shared library\"" // &Ctxt.Flag_shared, set below
 	SmallFrames        bool         "help:\"reduce the size limit for stack allocated objects\""      // small stacks, to diagnose GC latency; see golang.org/issue/27732
