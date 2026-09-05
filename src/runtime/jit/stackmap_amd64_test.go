@@ -160,6 +160,53 @@ func TestStackMapParallelActiveFrames(t *testing.T) {
 	wg.Wait()
 }
 
+// TestStackMapPublicationConcurrentWithGC grows a region's append-only map
+// table while GCs repeatedly scan an already published active frame. Readers
+// may observe either backing array, but must never observe an entry or bitmap
+// before it has been initialized completely.
+func TestStackMapPublicationConcurrentWithGC(t *testing.T) {
+	finalized := new(atomic.Bool)
+	ptr := newFinalizedJITObjectFor(finalized)
+	code := pointerSlotCallTrampoline(goFuncPtr(forceJITGC), ptr)
+	addr, size, err := allocExecutable(code)
+	if err != nil {
+		t.Fatalf("allocExecutable: %v", err)
+	}
+	defer freeExecutable(addr, size)
+
+	h := jit.Register(jit.Region{
+		Start:     addr,
+		End:       addr + uintptr(size),
+		Unwind:    jit.UnwindSkip,
+		StackMaps: pointerSlotStackMaps(),
+	})
+	defer h.Unregister()
+
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			callJIT(addr)
+		}()
+	}
+
+	actual := pointerSlotStackMaps()[0]
+	for pc := actual.PCOffset + 1; pc < uintptr(size) && pc < actual.PCOffset+2048; pc++ {
+		h.AddStackMaps(jit.StackMap{
+			PCOffset:         pc,
+			HasUnwind:        true,
+			UnwindBaseOffset: actual.UnwindBaseOffset,
+			CallerPCOffset:   actual.CallerPCOffset,
+			CallerSPOffset:   actual.CallerSPOffset,
+		})
+	}
+	wg.Wait()
+	if finalized.Load() {
+		t.Fatal("object referenced by an active frame was lost during stack-map publication")
+	}
+}
+
 // TestPointerMapStackGrowth verifies that copystack uses the JIT pointer map.
 // The generated frame stores a pointer to its own second local word, calls Go
 // deeply enough to grow the goroutine stack, and then checks that the pointer
@@ -222,6 +269,39 @@ func TestPointerMapStackGrowthAcrossNestedFrames(t *testing.T) {
 	}
 }
 
+// TestCallerFramePointerStackGrowth verifies that caller-BP relocation is
+// driven by unwind metadata rather than by pretending that the saved frame
+// pointer is a GC heap root in PointerMask.
+func TestCallerFramePointerStackGrowth(t *testing.T) {
+	code := callerFramePointerCallTrampoline(goFuncPtr(growJITStack))
+	addr, size, err := allocExecutable(code)
+	if err != nil {
+		t.Fatalf("allocExecutable: %v", err)
+	}
+	defer freeExecutable(addr, size)
+
+	h := jit.Register(jit.Region{
+		Start:  addr,
+		End:    addr + uintptr(size),
+		Unwind: jit.UnwindSkip,
+		StackMaps: []jit.StackMap{{
+			PCOffset:         31,
+			FrameWords:       3,
+			PointerMask:      []byte{0},
+			HasUnwind:        true,
+			UnwindBaseOffset: 16,
+			CallerPCOffset:   8,
+			CallerSPOffset:   16,
+			CallerBPOffset:   0,
+		}},
+	})
+	defer h.Unregister()
+
+	if got := callJITUintptr(addr); got != 1 {
+		t.Fatal("saved caller frame pointer was not relocated during stack growth")
+	}
+}
+
 func pointerSlotStackMaps() []jit.StackMap {
 	// pointerSlotCallTrampoline's call ends at byte offset 34. The first of
 	// its two local words is a pointer at that safepoint.
@@ -262,8 +342,13 @@ func forceJITGC() {
 
 //go:noinline
 func newFinalizedJITObject() uintptr {
+	return newFinalizedJITObjectFor(&jitObjectFinalized)
+}
+
+//go:noinline
+func newFinalizedJITObjectFor(finalized *atomic.Bool) uintptr {
 	obj := &jitHeapObject{value: 0x12345678}
-	runtime.SetFinalizer(obj, func(*jitHeapObject) { jitObjectFinalized.Store(true) })
+	runtime.SetFinalizer(obj, func(*jitHeapObject) { finalized.Store(true) })
 	return uintptr(unsafe.Pointer(obj))
 }
 
