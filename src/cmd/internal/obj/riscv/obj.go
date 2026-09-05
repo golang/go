@@ -4338,6 +4338,29 @@ func instructionsForMinMax(p *obj.Prog, ins *instruction) []*instruction {
 	}
 }
 
+// instructionsForPrefetch returns the machine instructions for a prefetch
+// operation. A prefetch is encoded as an ORI x0, rs1, imm instruction, with
+// the prefetch type stored in the low 5 bits of the immediate.
+func instructionsForPrefetch(p *obj.Prog, ins *instruction) []*instruction {
+	if p.From.Type != obj.TYPE_MEM || p.From.Sym != nil {
+		p.Ctxt.Diag("%v: expected offset(base) memory operand", p)
+		return nil
+	}
+	if p.From.Offset&0b11111 != 0 || p.From.Offset < -2048 || p.From.Offset > 2016 {
+		p.Ctxt.Diag("%v: improper prefetch offset %d", p, p.From.Offset)
+		return nil
+	}
+	switch ins.as {
+	case APREFETCHR:
+		ins.imm |= 0b00001
+	case APREFETCHW:
+		ins.imm |= 0b00011
+	}
+	ins.as = AORI
+	ins.rd, ins.rs1, ins.rs2 = REG_ZERO, uint32(p.From.Reg), obj.REG_NONE
+	return []*instruction{ins}
+}
+
 // instructionsForProg returns the machine instructions for an *obj.Prog.
 func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 	ins := instructionForProg(p)
@@ -4521,6 +4544,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 	case APAUSE:
 		ins.as, ins.rd, ins.rs1, ins.rs2 = AFENCE, REG_ZERO, REG_ZERO, obj.REG_NONE
 		ins.imm = 0x010
+
+	case APREFETCHI, APREFETCHR, APREFETCHW:
+		inss = instructionsForPrefetch(p, ins)
 
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
 		// Set the default rounding mode in funct3 to round to zero.
