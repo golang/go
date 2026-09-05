@@ -2346,3 +2346,59 @@ func TestReverseProxy1xx(t *testing.T) {
 		}
 	})
 }
+
+// Issue: hop-by-hop headers must be removed from 1xx informational responses
+// before they are forwarded, per RFC 9110, section 7.6.1.
+func TestReverseProxy1xxRemovesHopByHopHeaders(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Add("Link", "</style.css>; rel=preload")
+		h.Set("Connection", "X-Nominated")
+		h.Set("X-Nominated", "should-be-stripped")
+		h.Set("Keep-Alive", "timeout=5")
+		h.Set("Proxy-Authenticate", "Basic realm=backend")
+		w.WriteHeader(http.StatusEarlyHints)
+
+		h.Del("Connection")
+		h.Del("X-Nominated")
+		h.Del("Keep-Alive")
+		h.Del("Proxy-Authenticate")
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, "done")
+	}))
+	defer backend.Close()
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frontend := httptest.NewServer(NewSingleHostReverseProxy(backendURL))
+	defer frontend.Close()
+
+	var got1xx http.Header
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	trace := &httptrace.ClientTrace{
+		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			got1xx = http.Header(header).Clone()
+			return nil
+		},
+	}
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+	res, err := frontend.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	if got1xx == nil {
+		t.Fatal("did not receive a 1xx response")
+	}
+	if got := got1xx.Get("Link"); got == "" {
+		t.Errorf("1xx Link header was dropped; want it preserved")
+	}
+	for _, k := range []string{"Connection", "X-Nominated", "Keep-Alive", "Proxy-Authenticate"} {
+		if got := got1xx.Get(k); got != "" {
+			t.Errorf("1xx response forwarded hop-by-hop header %q = %q; want it removed", k, got)
+		}
+	}
+}
