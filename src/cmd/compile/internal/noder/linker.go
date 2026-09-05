@@ -11,7 +11,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/types"
 	"cmd/internal/goobj"
 	"cmd/internal/obj"
@@ -317,8 +316,8 @@ func (l *linker) relocTypeExt(w *pkgbits.Encoder, name *ir.Name) {
 	l.pragmaFlag(w, name.Pragma())
 
 	// For type T, export the index of type descriptor symbols of T and *T.
-	l.lsymIdx(w, "", reflectdata.TypeLinksym(typ))
-	l.lsymIdx(w, "", reflectdata.TypeLinksym(typ.PtrTo()))
+	l.lsymIdx(w, "", types.TypeSym(typ).Linksym())
+	l.lsymIdx(w, "", types.TypeSym(typ.PtrTo()).Linksym())
 
 	if typ.Kind() != types.TINTER {
 		for _, method := range typ.Methods() {
@@ -344,6 +343,7 @@ func (l *linker) linkname(w *pkgbits.Encoder, name *ir.Name) {
 
 func (l *linker) lsymIdx(w *pkgbits.Encoder, linkname string, lsym *obj.LSym) bool {
 	if lsym.PkgIdx > goobj.PkgIdxSelf || (lsym.PkgIdx == goobj.PkgIdxInvalid && !lsym.Indexed()) || linkname != "" {
+		base.Ctxt.NoteUnnumberedExport(lsym)
 		w.Int64(-1)
 		return false
 	}

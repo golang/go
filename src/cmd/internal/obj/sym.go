@@ -249,7 +249,23 @@ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
 	})
 }
 
-// Assign index to symbols.
+// NumberSymEarly preassigns an index to a symbol that will appear
+// in export data so that export data can be written early.
+func (ctxt *Link) NumberSymEarly(s *LSym) {
+	if s.PkgIdx != goobj.PkgIdxInvalid || s.Indexed() {
+		panic("NumberSymEarly: symbol " + s.Name + " already numbered")
+	}
+	s.PkgIdx = goobj.PkgIdxSelf
+	s.SymIdx = int32(len(ctxt.predefs))
+	s.Set(AttrIndexed, true)
+	ctxt.predefs = append(ctxt.predefs, s)
+}
+
+func (ctxt *Link) NoteUnnumberedExport(s *LSym) {
+	s.Set(AttrUnnumbered, true)
+}
+
+// NumberSyms assigns indices to symbols not handled by NumberSymEarly.
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
 func (ctxt *Link) NumberSyms() {
@@ -287,13 +303,17 @@ func (ctxt *Link) NumberSyms() {
 	ctxt.SEHSyms = nil
 
 	ctxt.pkgIdx = make(map[string]int32)
-	ctxt.defs = []*LSym{}
+	ctxt.defs = ctxt.predefs // Predefs isn't needed by itself anymore. Take over the slice.
 	ctxt.hashed64defs = []*LSym{}
 	ctxt.hasheddefs = []*LSym{}
 	ctxt.nonpkgdefs = []*LSym{}
 
-	var idx, hashedidx, hashed64idx, nonpkgidx int32
+	var hashedidx, hashed64idx, nonpkgidx int32
+	idx := int32(len(ctxt.predefs))
 	ctxt.traverseSyms(traverseDefs|traversePcdata, func(s *LSym) {
+		if s.PkgIdx == goobj.PkgIdxSelf {
+			return
+		}
 		if s.ContentAddressable() {
 			if s.Size <= 8 && len(s.R) == 0 && contentHashSection(s) == 0 {
 				// We can use short hash only for symbols without relocations.
@@ -315,7 +335,7 @@ func (ctxt *Link) NumberSyms() {
 				ctxt.hasheddefs = append(ctxt.hasheddefs, s)
 				hashedidx++
 			}
-		} else if isNonPkgSym(ctxt, s) {
+		} else if ctxt.IsNonPkgSym(s) {
 			s.PkgIdx = goobj.PkgIdxNone
 			s.SymIdx = nonpkgidx
 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {
@@ -324,6 +344,13 @@ func (ctxt *Link) NumberSyms() {
 			ctxt.nonpkgdefs = append(ctxt.nonpkgdefs, s)
 			nonpkgidx++
 		} else {
+			// We're about to number a symbol that hasn't yet been numbered.
+			// If we write export data before we numbered symbols, make sure that none of the
+			// symbols that weren't numbered at export time have been numbered here. If they
+			// were, we missed a case where we had to number an exported symbol.
+			if s.Attribute&AttrUnnumbered != 0 {
+				panic("exported package symbol " + s.Name + " was not preassigned an index")
+			}
 			s.PkgIdx = goobj.PkgIdxSelf
 			s.SymIdx = idx
 			if idx != int32(len(ctxt.defs)) {
@@ -334,6 +361,23 @@ func (ctxt *Link) NumberSyms() {
 		}
 		s.Set(AttrIndexed, true)
 	})
+
+	// Double check preassigned symbol indices: make sure that all the
+	// numbered symbols were defined and that we didn't index symbols
+	// that shouldn't be numbered
+	for _, s := range ctxt.predefs {
+		if !s.OnList() {
+			panic("preassigned symbol " + s.Name + " was not defined")
+		}
+		if s.ContentAddressable() {
+			// Content addressable symbols couldn't have safely been pre-numbered because
+			// their contents were not determined at export time.
+			panic("content-addressable symbol " + s.Name + " was pre-numbered")
+		}
+		if ctxt.IsNonPkgSym(s) {
+			panic("non-package symbol " + s.Name + " was pre-numbered")
+		}
+	}
 
 	ipkg := int32(1) // 0 is invalid index
 	nonpkgdef := nonpkgidx
@@ -380,7 +424,7 @@ func (ctxt *Link) NumberSyms() {
 
 // Returns whether s is a non-package symbol, which needs to be referenced
 // by name instead of by index.
-func isNonPkgSym(ctxt *Link, s *LSym) bool {
+func (ctxt *Link) IsNonPkgSym(s *LSym) bool {
 	if ctxt.IsAsm && !s.Static() {
 		// asm symbols are referenced by name only, except static symbols
 		// which are file-local and can be referenced by index.

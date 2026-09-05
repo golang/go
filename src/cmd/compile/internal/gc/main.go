@@ -282,6 +282,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// and doesn't benefit from dead-coding or inlining.
 	symABIs.GenABIWrappers()
 
+	// Preassign symbol indexes so that they're set when we emit export data,
+	// if it's emitted early. This depends on the results of GenABIWrappers.
+	preassignSymIdxs(symABIs)
+
 	deadlocals.Funcs(typecheck.Target.Funcs)
 
 	// Escape analysis.

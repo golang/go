@@ -989,6 +989,10 @@ const (
 	// those out, so the other one has to win. See reflectdata.writeType.
 	AttrWeakDef
 
+	// Unnumbered indicates the symbol was not numbered when writing
+	// export data. It's used to check that it wouldn't be numbered later.
+	AttrUnnumbered
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -1225,6 +1229,9 @@ type Link struct {
 	// symbol reference in the object file.
 	pkgIdx map[string]int32
 
+	// By the time we do symbol numbering we should have saved each symbol in either predefs or unnumbered.
+	predefs      []*LSym // list of symbols appearing in export data that we've preassigned indices for
+	unnumbered   []*LSym // list of symbols not numbered when writing export data; used to check they wouldn't be numbered later
 	defs         []*LSym // list of defined symbols in the current package
 	hashed64defs []*LSym // list of defined short (64-bit or less) hashed (content-addressable) symbols
 	hasheddefs   []*LSym // list of defined hashed (content-addressable) symbols

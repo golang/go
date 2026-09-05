@@ -50,7 +50,7 @@ func enqueueFunc(fn *ir.Func, symABIs *ssagen.SymABIs) {
 	}
 
 	if len(fn.Body) == 0 {
-		if ir.IsIntrinsicSym(fn.Sym()) && fn.Sym().Linkname == "" && !symABIs.HasDef(fn.Sym()) {
+		if needsIntrinsicBody(fn, symABIs) {
 			// Generate the function body for a bodyless intrinsic, in case it
 			// is used in a non-call context (e.g. as a function pointer).
 			// We skip functions defined in assembly, or has a linkname (which
@@ -94,6 +94,10 @@ func enqueueFunc(fn *ir.Func, symABIs *ssagen.SymABIs) {
 	// Enqueue just fn itself. compileFunctions will handle
 	// scheduling compilation of its closures after it's done.
 	compilequeue = append(compilequeue, fn)
+}
+
+func needsIntrinsicBody(fn *ir.Func, symABIs *ssagen.SymABIs) bool {
+	return len(fn.Body) == 0 && ir.IsIntrinsicSym(fn.Sym()) && fn.Sym().Linkname == "" && !symABIs.HasDef(fn.Sym())
 }
 
 // prepareFunc handles any remaining frontend compilation tasks that

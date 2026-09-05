@@ -932,12 +932,8 @@ func writeType(t *types.Type) *obj.LSym {
 		dextratype(lsym, B, t, dataAdd)
 	}
 
-	// Note: DUPOK is required to ensure that we don't end up with more
-	// than one type descriptor for a given type, if the type descriptor
-	// can be defined in multiple packages, that is, unnamed types,
-	// instantiated types and shape types.
 	dupok := 0
-	if tbase.Sym() == nil || tbase.IsFullyInstantiated() || tbase.HasShape() {
+	if TypeCanBeDupok(tbase) {
 		dupok = obj.DUPOK
 	}
 
@@ -1000,6 +996,16 @@ func NeedRuntimeType(t *types.Type) {
 	if _, ok := signatset[t]; !ok {
 		signatset[t] = struct{}{}
 		signatslice = append(signatslice, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
+	}
+}
+
+// ForEachRuntimeType calls fn for each type for which a runtime type descriptor
+// has been requested. This is used by the code that indexes symbols early, so
+// we can recursively index the symbols WriteRuntimeTypes numbers using the
+// recursive writeType function.
+func ForEachRuntimeType(fn func(*types.Type)) {
+	for _, ts := range signatslice {
+		fn(ts.t)
 	}
 }
 
@@ -1343,6 +1349,12 @@ func ZeroAddr(size int64) ir.Node {
 	lsym := base.PkgLinksym("go:map", "zero", obj.ABI0)
 	x := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
 	return typecheck.Expr(typecheck.NodAddr(x))
+}
+
+// TypeCanBeDupok reports whether the type descriptor can be defined in multiple packages:
+// that is, unnamed types, instantiated types and shape types.
+func TypeCanBeDupok(t *types.Type) bool {
+	return t.Sym() == nil || t.IsFullyInstantiated() || t.HasShape()
 }
 
 // NeedEmit reports whether typ is a type that we need to emit code
