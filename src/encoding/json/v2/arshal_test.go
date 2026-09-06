@@ -753,6 +753,23 @@ var invalidFormatOption = &jsonopts.Struct{
 	ArshalValues: jsonopts.ArshalValues{Format: "invalid"},
 }
 
+func TestMarshalAppendTextNewSameCapacity(t *testing.T) {
+	var dst bytes.Buffer
+	dst.Grow(64)
+	enc := jsontext.NewEncoder(&dst)
+	err := MarshalEncode(enc, appendTextFunc(func(b []byte) ([]byte, error) {
+		out := make([]byte, len(b), cap(b))
+		copy(out, b)
+		return append(out, "hello"...), nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "\"hello\"\n"; dst.String() != want {
+		t.Fatalf("MarshalEncode = %q, want %q", dst.String(), want)
+	}
+}
+
 func TestMarshal(t *testing.T) {
 	tests := []struct {
 		name    jsontest.CaseName

@@ -180,7 +180,7 @@ func makeBoolMarshaler(t reflect.Type) *marshaler {
 
 		// Optimize for marshaling without preceding whitespace.
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace) && !stringify && !xe.Tokens.Last.NeedObjectName() {
-			xe.Buf = strconv.AppendBool(xe.Tokens.MayAppendDelim(xe.Buf, 't'), va.Bool())
+			xe.CommitBuffer(strconv.AppendBool(xe.Tokens.MayAppendDelim(xe.Buf, 't'), va.Bool()))
 			xe.Tokens.Last.Increment()
 			if xe.NeedFlush() {
 				return xe.Flush()
@@ -275,7 +275,7 @@ func makeStringMarshaler(t reflect.Type) *marshaler {
 			b = xe.Tokens.MayAppendDelim(b, '"')
 			b, err := jsonwire.AppendQuote(b, []byte(s), &mo.Flags)
 			if err == nil {
-				xe.Buf = b
+				xe.CommitBuffer(b)
 				xe.Tokens.Last.Increment()
 				if xe.NeedFlush() {
 					return xe.Flush()
@@ -561,7 +561,7 @@ func makeIntMarshaler(t reflect.Type) *marshaler {
 
 		// Optimize for marshaling without preceding whitespace or string escaping.
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace) && !stringify {
-			xe.Buf = strconv.AppendInt(xe.Tokens.MayAppendDelim(xe.Buf, '0'), va.Int(), 10)
+			xe.CommitBuffer(strconv.AppendInt(xe.Tokens.MayAppendDelim(xe.Buf, '0'), va.Int(), 10))
 			xe.Tokens.Last.Increment()
 			if xe.NeedFlush() {
 				return xe.Flush()
@@ -665,7 +665,7 @@ func makeUintMarshaler(t reflect.Type) *marshaler {
 
 		// Optimize for marshaling without preceding whitespace or string escaping.
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace) && !stringify {
-			xe.Buf = strconv.AppendUint(xe.Tokens.MayAppendDelim(xe.Buf, '0'), va.Uint(), 10)
+			xe.CommitBuffer(strconv.AppendUint(xe.Tokens.MayAppendDelim(xe.Buf, '0'), va.Uint(), 10))
 			xe.Tokens.Last.Increment()
 			if xe.NeedFlush() {
 				return xe.Flush()
@@ -778,7 +778,7 @@ func makeFloatMarshaler(t reflect.Type) *marshaler {
 
 		// Optimize for marshaling without preceding whitespace or string escaping.
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace) && !stringify {
-			xe.Buf = jsonwire.AppendFloat(xe.Tokens.MayAppendDelim(xe.Buf, '0'), fv, bits)
+			xe.CommitBuffer(jsonwire.AppendFloat(xe.Tokens.MayAppendDelim(xe.Buf, '0'), fv, bits))
 			xe.Tokens.Last.Increment()
 			if xe.NeedFlush() {
 				return xe.Flush()
@@ -931,7 +931,7 @@ func makeMapMarshaler(t reflect.Type) *marshaler {
 			}
 			// Optimize for marshaling an empty map without any preceding whitespace.
 			if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace) && !xe.Tokens.Last.NeedObjectName() {
-				xe.Buf = append(xe.Tokens.MayAppendDelim(xe.Buf, '{'), "{}"...)
+				xe.CommitBuffer(append(xe.Tokens.MayAppendDelim(xe.Buf, '{'), "{}"...))
 				xe.Tokens.Last.Increment()
 				if xe.NeedFlush() {
 					return xe.Flush()
@@ -1344,7 +1344,7 @@ func makeStructMarshaler(t reflect.Type) *marshaler {
 				} else {
 					b, _ = jsonwire.AppendQuote(b, []byte(f.name), &mo.Flags)
 				}
-				xe.Buf = b
+				xe.CommitBuffer(b)
 				xe.Names.ReplaceLastQuotedOffset(n0)
 				xe.Tokens.Last.Increment()
 			} else {
@@ -1670,7 +1670,7 @@ func makeSliceMarshaler(t reflect.Type) *marshaler {
 			}
 			// Optimize for marshaling an empty slice without any preceding whitespace.
 			if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace) && !xe.Tokens.Last.NeedObjectName() {
-				xe.Buf = append(xe.Tokens.MayAppendDelim(xe.Buf, '['), "[]"...)
+				xe.CommitBuffer(append(xe.Tokens.MayAppendDelim(xe.Buf, '['), "[]"...))
 				xe.Tokens.Last.Increment()
 				if xe.NeedFlush() {
 					return xe.Flush()
