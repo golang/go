@@ -315,6 +315,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ir.CurFunc = nil
 
+	base.Timer.Start("fe", "dumpexport")
+	dumpexport()
+
 	reflectdata.WriteBasicTypes()
 
 	// Compile top-level declarations.
