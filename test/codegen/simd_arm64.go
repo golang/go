@@ -267,3 +267,19 @@ func sveMulSVE2Gate(x, y archsimd.Int8s) archsimd.Int8s {
 	}
 	return x.Mul(y) // arm64:`PWHILELT` `ZMUL.*P[0-9]+\.M`
 }
+
+//go:noinline
+func forceArgSpill(a int8) int8 { return a + 1 }
+
+// Test spill area instructions around call to morestack.
+// arm64:`MOVB R0, 40\(RSP\)`
+// arm64:2`MOVD \$8\(RSP\), R27`
+// arm64:`ZSTR Z0, \(VL\*0\)\(R27\)`
+// arm64:2`MOVD \$48\(RSP\), R27`
+// arm64:`ZSTR Z1, \(VL\*0\)\(R27\)`
+// arm64:`ZLDR \(VL\*0\)\(R27\), Z1`
+// arm64:`ZLDR \(VL\*0\)\(R27\), Z0`
+// arm64:`FMOVS F2, 80\(RSP\)`
+func sveArgSpillMixed(v archsimd.Int8s, a int8, w archsimd.Uint16s, f float32) int8 {
+	return forceArgSpill(a)
+}

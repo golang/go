@@ -472,6 +472,54 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
 	obj.Nopout(p)
 }
 
+// SIMDSVEVectorLengthScaled marks a VL-scaled displacement ("#imm, mul vl").
+const SIMDSVEVectorLengthScaled int16 = -32768
+
+// sveStackAddr rewrites byte-scaled AUTO, PARAM and SP-relative memory
+// operands of SVE pseudo loads/stores through REGTMP:
+//
+//	ZSTR Z0, 40(RSP)  ->  MOVD $40(RSP), R27; ZSTR Z0, (VL*0)(R27)
+//
+// SVE Z/P loads and stores only support VL-scaled immediate addressing, so
+// a fixed byte frame offset - which is not a compile-time multiple of the
+// runtime VL and can exceed the ±256-VL immediate range - must be reached
+// through a register. VL-scaled operands are left untouched.
+func (c *ctxt7) sveStackAddr(p *obj.Prog, a *obj.Addr) *obj.Prog {
+	if a.Type != obj.TYPE_MEM || a.Scale < 0 || a.Index != 0 {
+		return p
+	}
+	switch {
+	case a.Name == obj.NAME_AUTO || a.Name == obj.NAME_PARAM:
+	case a.Name == obj.NAME_NONE && a.Reg == REGSP && a.Sym == nil:
+	default:
+		return p
+	}
+	q := c.newprog()
+	nocache(q)
+	q.Pos = p.Pos
+	q.As = p.As
+	q.From = p.From
+	q.To = p.To
+	q.Link = p.Link
+	p.Link = q
+
+	p.As = AMOVD
+	p.From = obj.Addr{Type: obj.TYPE_ADDR, Name: a.Name, Sym: a.Sym, Reg: a.Reg, Offset: a.Offset}
+	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REGTMP}
+	nocache(p)
+
+	a = &q.To
+	if q.As == AZLDR || q.As == APLDR {
+		a = &q.From
+	}
+	a.Name = obj.NAME_NONE
+	a.Sym = nil
+	a.Reg = REGTMP
+	a.Offset = 0
+	a.Scale = SIMDSVEVectorLengthScaled
+	return q
+}
+
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
 		return
@@ -860,6 +908,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.Spadj = int32(+p.From.Offset)
 				}
 			}
+
+		case AZSTR, APSTR:
+			p = c.sveStackAddr(p, &p.To)
+
+		case AZLDR, APLDR:
+			p = c.sveStackAddr(p, &p.From)
 
 		case obj.AGETCALLERPC:
 			if cursym.Leaf() {

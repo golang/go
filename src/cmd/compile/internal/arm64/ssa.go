@@ -182,7 +182,8 @@ func genIndexedOperand(op ssaop.Op, base, idx int16) obj.Addr {
 	return mop
 }
 
-const simdSVEVectorLengthScaled int16 = -32768
+// simdSVEVectorLengthScaled marks a VL-scaled displacement ("#imm, mul vl").
+const simdSVEVectorLengthScaled = arm64.SIMDSVEVectorLengthScaled
 
 // simdRegArng encodes ssa value's register with specified simd arrangement
 func simdRegArng(reg int16, arng int16) int16 {
@@ -653,17 +654,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
+		p := s.Prog(loadByType(v.Type))
+		ssagen.AddrAuto(&p.From, v.Args[0])
+		p.To.Type = obj.TYPE_REG
 		if v.Type.IsSIMD() && (v.Type.Size() == 32 || v.Type.Size() == 8) {
-			// SVE Z/P reload: reach the slot through a register.
-			from := sveStackAddr(s, v.Args[0])
-			p := s.Prog(loadByType(v.Type))
-			p.From = from
-			p.To.Type = obj.TYPE_REG
 			p.To.Reg = pzreg(v.Reg())
 		} else {
-			p := s.Prog(loadByType(v.Type))
-			ssagen.AddrAuto(&p.From, v.Args[0])
-			p.To.Type = obj.TYPE_REG
 			p.To.Reg = v.Reg()
 		}
 	case ssaop.OpStoreReg:
@@ -671,19 +667,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
+		p := s.Prog(storeByType(v.Type))
+		p.From.Type = obj.TYPE_REG
 		if v.Type.IsSIMD() && (v.Type.Size() == 32 || v.Type.Size() == 8) {
-			// SVE Z/P spill: reach the slot through a register.
-			to := sveStackAddr(s, v)
-			p := s.Prog(storeByType(v.Type))
-			p.From.Type = obj.TYPE_REG
 			p.From.Reg = pzreg(v.Args[0].Reg())
-			p.To = to
 		} else {
-			p := s.Prog(storeByType(v.Type))
-			p.From.Type = obj.TYPE_REG
 			p.From.Reg = v.Args[0].Reg()
-			ssagen.AddrAuto(&p.To, v)
 		}
+		ssagen.AddrAuto(&p.To, v)
 	case ssaop.OpArgIntReg, ssaop.OpArgFloatReg:
 		ssagen.CheckArgReg(v)
 		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
@@ -714,9 +705,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				}
 			}
 			reg := a.Reg
-			if a.Type.IsSIMD() && (a.Type.Size() == 32 || a.Type.Size() == 8) {
+			if a.Type.IsSIMD() && a.Type.Size() == 32 {
+				// SVE argument: the assembler materializes the slot through REGTMP.
 				reg = pzreg(reg)
-				addr.Scale = simdSVEVectorLengthScaled
 			}
 			// Pass the spill/unspill information along to the assembler.
 			s.FuncInfo().AddSpill(obj.RegSpill{Reg: reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
@@ -2120,20 +2111,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("genValue not implemented: %s", v.LongString())
 		}
 	}
-}
-
-// sveStackAddr materializes the byte address of SVE stack slot into REGTMP and
-// returns a memory operand addressing it with a zero VL-scaled offset. SVE Z/P
-// loads and stores only support VL-scaled immediate addressing, so a fixed byte
-// frame offset — which is not a compile-time multiple of the runtime VL and can
-// exceed the ±256-VL immediate range — must be reached through a register.
-func sveStackAddr(s *ssagen.State, slot *ssa.Value) obj.Addr {
-	p := s.Prog(arm64.AMOVD)
-	ssagen.AddrAuto(&p.From, slot)
-	p.From.Type = obj.TYPE_ADDR // MOVD $slot(SP), REGTMP: address of the slot
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = arm64.REGTMP
-	return obj.Addr{Type: obj.TYPE_MEM, Reg: arm64.REGTMP, Scale: simdSVEVectorLengthScaled}
 }
 
 // simdZ21 emits an unpredicated SVE binary Z-register instruction with the given
