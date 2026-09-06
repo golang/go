@@ -157,6 +157,12 @@ func loadCredential(req *http.Request, rawURL string) bool {
 		if !ok {
 			lastSlash := strings.LastIndexByte(currentPrefix, '/')
 			if lastSlash == -1 {
+				// A .netrc machine name without a port matches any port,
+				// as in curl. Try the hostname without the port last.
+				if u.Port() != "" && currentPrefix != u.Hostname() {
+					currentPrefix = u.Hostname()
+					continue
+				}
 				return false
 			}
 			currentPrefix = currentPrefix[:lastSlash]
