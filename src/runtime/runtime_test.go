@@ -282,8 +282,10 @@ func TestTrailingZero(t *testing.T) {
 		n int64
 		z struct{}
 	}
-	if unsafe.Sizeof(T2{}) != 8+unsafe.Sizeof(uintptr(0)) {
-		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8+unsafe.Sizeof(uintptr(0)))
+	align := unsafe.Alignof(T2{})
+	wantT2 := (uintptr(9) + align - 1) &^ (align - 1)
+	if unsafe.Sizeof(T2{}) != wantT2 {
+		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), wantT2)
 	}
 	type T3 struct {
 		n byte

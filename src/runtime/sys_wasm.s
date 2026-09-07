@@ -4,36 +4,6 @@
 
 #include "textflag.h"
 
-TEXT runtime·wasmDiv(SB), NOSPLIT, $0-0
-	Get R0
-	I64Const $-0x8000000000000000
-	I64Eq
-	If
-		Get R1
-		I64Const $-1
-		I64Eq
-		If
-			I64Const $-0x8000000000000000
-			Return
-		End
-	End
-	Get R0
-	Get R1
-	I64DivS
-	Return
-
-TEXT runtime·exitThread(SB), NOSPLIT, $0-0
-	UNDEF
-
-TEXT runtime·osyield(SB), NOSPLIT, $0-0
-	UNDEF
-
-TEXT runtime·currentMemory(SB), NOSPLIT, $0
-	Get SP
-	CurrentMemory
-	I32Store ret+0(FP)
-	RET
-
 TEXT runtime·growMemory(SB), NOSPLIT, $0
 	Get SP
 	I32Load pages+0(FP)

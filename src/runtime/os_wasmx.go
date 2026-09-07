@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build wasm || wasm32
+
 package runtime
 
 import (
+	"internal/goarch"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -12,8 +15,19 @@ import (
 func osinit() {
 	// https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
 	physPageSize = 64 * 1024
+	if goarch.IsWasm32 != 0 && firstmoduledata.end > ^uintptr(0)-(physPageSize-1) {
+		throw("initial WebAssembly memory exceeds uintptr range")
+	}
 	initBloc()
-	blocMax = uintptr(currentMemory()) * physPageSize // record the initial linear memory size
+	pages := currentMemory()
+	if pages < 0 {
+		throw("negative WebAssembly memory size")
+	}
+	if goarch.IsWasm32 != 0 && uintptr(pages) > ^uintptr(0)/physPageSize {
+		// Only account for memory whose exclusive end fits in uintptr.
+		pages = int32(^uintptr(0) / physPageSize)
+	}
+	blocMax = uintptr(pages) * physPageSize // record the initial linear memory size
 	numCPUStartup = getCPUCount()
 	getg().m.procid = 2
 }

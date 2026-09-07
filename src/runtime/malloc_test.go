@@ -398,7 +398,7 @@ func testFreegc[T comparable](noscan bool) func(*testing.T) {
 			}
 		})
 
-		if runtime.GOARCH == "wasm" {
+		if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 			// TODO(thepudds): for wasm, double-check if just slow, vs. some test logic problem,
 			// vs. something else. It might have been wasm was slowest with tests that spawn
 			// many goroutines, which might be expected for wasm. This skip might no longer be

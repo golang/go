@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !wasm || !wasm.stackswitch
+//go:build (!wasm || !wasm.stackswitch) && (!wasm32 || !wasm32.stackswitch)
 
 package runtime
 

@@ -24,12 +24,13 @@ func TestSizeof(t *testing.T) {
 	// padding after it add 8 bytes.
 	const wasmCont = 2 * unsafe.Sizeof(runtime.WasmContPerG{})
 	var tests = []struct {
-		val    any     // type as a value
-		_32bit uintptr // size on 32bit platforms
-		_64bit uintptr // size on 64bit platforms
+		val     any     // type as a value
+		_32bit  uintptr // size on 32bit platforms
+		_64bit  uintptr // size on 64bit platforms
+		_wasm32 uintptr // size with 32-bit pointers and 64-bit alignment
 	}{
-		{runtime.G{}, 244 + xreg + valgrind, 376 + xreg + valgrind + wasmCont}, // g, but exported for testing
-		{runtime.WaitingG{}, 68, 112},                                          // sudog, but exported for testing
+		{runtime.G{}, 244 + xreg + valgrind, 376 + xreg + valgrind + wasmCont, 256 + xreg + valgrind + wasmCont}, // g, but exported for testing
+		{runtime.WaitingG{}, 68, 112, 72}, // waitingG, but exported for testing
 	}
 
 	if xreg > runtime.PtrSize {
@@ -38,7 +39,9 @@ func TestSizeof(t *testing.T) {
 
 	for _, tt := range tests {
 		want := tt._32bit
-		if _64bit {
+		if runtime.GOARCH == "wasm32" {
+			want = tt._wasm32
+		} else if _64bit {
 			want = tt._64bit
 		}
 		got := reflect.TypeOf(tt.val).Size()

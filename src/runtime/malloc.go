@@ -170,6 +170,7 @@ const (
 	//       */32-bit         32         4MB           1  1024  (4KB)
 	//     */mips(le)         31         4MB           1   512  (2KB)
 	//           wasm         32       512KB           1  8192 (64KB)
+	//         wasm32         32       512KB           1  8192 (32KB)
 	//  openbsd/arm64         39         4MB           1  128K  (1MB)
 
 	// heapArenaBytes is the size of a heap arena. The heap
@@ -195,8 +196,8 @@ const (
 	// constant to compute some other constants).
 	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)*(1-goos.IsOpenbsd*goarch.IsArm64)) +
 		(2+20)*(_64bit*goos.IsWindows+goarch.IsArm64*goos.IsOpenbsd) +
-		(2+20)*(1-_64bit) +
-		(9+10)*goarch.IsWasm +
+		(2+20)*((1-_64bit)*(1-goarch.IsWasm32)) +
+		(9+10)*(goarch.IsWasm|goarch.IsWasm32) +
 		(2+20)*goos.IsIos*goarch.IsArm64
 
 	// heapArenaBitmapWords is the size of each heap arena's bitmap in uintptrs.

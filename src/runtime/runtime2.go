@@ -827,7 +827,7 @@ type mPadded struct {
 	// not in the next-smallest (1792-byte) size class. That leaves the 11 low
 	// bits of muintptr values available for flags, as required by
 	// lock_spinbit.go.
-	_ [(1 - goarch.IsWasm) * (2048 - mallocHeaderSize - mRedZoneSize - unsafe.Sizeof(m{}))]byte
+	_ [(1 - (goarch.IsWasm | goarch.IsWasm32)) * (2048 - mallocHeaderSize - mRedZoneSize - unsafe.Sizeof(m{}))]byte
 }
 
 // mWeakPointer is a "weak" pointer to an M. A weak pointer for each M is

@@ -156,6 +156,15 @@ type BigStruct struct {
 
 func infoBigStruct() []byte {
 	switch runtime.GOARCH {
+	case "wasm32":
+		// The 8-byte alignment of uint64 adds a 4-byte padding word.
+		return []byte{
+			typePointer,                                                // q *int
+			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+			typePointer, typeScalar, typeScalar, // r []byte
+			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; (pad); u uint64
+			typePointer, typeScalar, // i string
+		}
 	case "386", "arm", "mips", "mipsle":
 		return []byte{
 			typePointer,                                                // q *int

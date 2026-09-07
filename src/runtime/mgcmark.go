@@ -530,7 +530,17 @@ func gcAssistAlloc(gp *g) {
 	// functions and simplify all the state tracking. This is a lot.
 	enteredMarkAssistForTracing := false
 retry:
-	if gcCPULimiter.limiting() {
+	limiting := gcCPULimiter.limiting()
+	if limiting && (GOARCH == "wasm" || GOARCH == "wasm32") {
+		// Without sysmon (as on wasm and wasm32), findRunnableGCWorker
+		// may not run to update the limiter. Account for mutator time
+		// here so that limiting can end and assists can resume.
+		if now := nanotime(); gcCPULimiter.needUpdate(now) {
+			gcCPULimiter.update(now)
+			limiting = gcCPULimiter.limiting()
+		}
+	}
+	if limiting {
 		// If the CPU limiter is enabled, intentionally don't
 		// assist to reduce the amount of CPU time spent in the GC.
 		if enteredMarkAssistForTracing {

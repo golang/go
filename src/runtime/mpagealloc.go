@@ -61,7 +61,7 @@ const (
 	// size (see heapArenaBytes).
 	pallocChunkPages    = 1 << logPallocChunkPages
 	pallocChunkBytes    = pallocChunkPages * pageSize
-	logPallocChunkPages = 9*(1-goarch.IsWasm) + 6*goarch.IsWasm
+	logPallocChunkPages = 9*(1-(goarch.IsWasm|goarch.IsWasm32)) + 6*(goarch.IsWasm|goarch.IsWasm32)
 	logPallocChunkBytes = logPallocChunkPages + gc.PageShift
 
 	// The number of radix bits for each level.
@@ -220,12 +220,12 @@ type pageAlloc struct {
 	// Below is a table describing the configuration for chunks for various
 	// heapAddrBits supported by the runtime.
 	//
-	// heapAddrBits | L1 Bits | L2 Bits | L2 Entry Size
-	// ------------------------------------------------
-	// 32           | 0       | 10      | 128 KiB
-	// 32 (wasm)    | 0       | 13      | 128 KiB
-	// 33 (iOS)     | 0       | 11      | 256 KiB
-	// 48           | 13      | 13      | 1 MiB
+	// heapAddrBits     | L1 Bits | L2 Bits | L2 Entry Size
+	// ----------------------------------------------------
+	// 32               | 0       | 10      | 128 KiB
+	// 32 (WebAssembly) | 0       | 13      | 128 KiB
+	// 33 (iOS)         | 0       | 11      | 256 KiB
+	// 48               | 13      | 13      | 1 MiB
 	//
 	// There's no reason to use the L1 part of chunks on 32-bit, the
 	// address space is small so the L2 is small. For platforms with a

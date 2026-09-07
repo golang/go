@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build plan9 || wasm
+//go:build plan9 || wasm || wasm32
 
 package runtime
 
@@ -75,6 +75,9 @@ func memAlloc(n uintptr) unsafe.Pointer {
 //
 //go:systemstack
 func memAllocNoGrow(n uintptr) unsafe.Pointer {
+	if n > ^uintptr(0)-(physPageSize-1) {
+		return nil
+	}
 	n = memRound(n)
 	var prevp *memHdr
 	for p := memFreelist.ptr(); p != nil; p = p.next.ptr() {
@@ -266,6 +269,9 @@ func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 }
 
 func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
+	if size > ^uintptr(0)-align || size+align > ^uintptr(0)-(physPageSize-1) {
+		return nil, 0
+	}
 	var p uintptr
 	systemstack(func() {
 		lock(&memlock)
@@ -288,6 +294,11 @@ func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
 
 		// Round up bloc to align, then allocate size.
 		p = alignUp(bloc, align)
+		if p < bloc || size > ^uintptr(0)-p {
+			p, size = 0, 0
+			unlock(&memlock)
+			return
+		}
 		r := sbrk(p + size - bloc)
 		if r == nil {
 			p, size = 0, 0

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build wasm.stackswitch
+//go:build (wasm && wasm.stackswitch) || (wasm32 && wasm32.stackswitch)
 
 // Continuation table for WebAssembly stack switching (GOWASM=stackswitch).
 //
@@ -20,7 +20,7 @@
 // themselves, slots are never freed, so the table grows to the number of g's
 // ever allocated.
 //
-// wasm runs a single thread, so the allocation state below needs no locking.
+// WebAssembly runs a single thread, so the allocation state below needs no locking.
 
 package runtime
 
@@ -74,7 +74,7 @@ func wasmContGrow(n int32) {
 	wasmContSize = size
 }
 
-// Implemented in stackswitch_wasm.s.
+// Implemented in stackswitch_wasm.s and stackswitch_wasm32.s.
 
 // wasmContTableSize returns the size of the continuation table (table.size).
 func wasmContTableSize() int32

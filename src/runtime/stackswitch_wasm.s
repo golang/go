@@ -7,7 +7,7 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-// Accessors for the continuation table (see stackswitch_wasm.go). An I32Load
+// Accessors for the continuation table (see stackswitch_wasmx.go). An I32Load
 // with an FP operand pushes SP itself, but an I32Store does not: each result
 // store takes its address from an explicit Get SP pushed beforehand.
 

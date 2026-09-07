@@ -5,12 +5,75 @@
 package runtime_test
 
 import (
+	"fmt"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 )
+
+// Check that 64-bit indices retain both words and their signedness when
+// reporting bounds failures on 32-bit architectures.
+func TestBoundsPanic64(t *testing.T) {
+	s := make([]byte, 3, 5)
+	a := [3]byte{}
+	str := "abc"
+	tests := []struct {
+		name     string
+		signed   func(int64)
+		unsigned func(uint64)
+		positive string
+		negative string
+	}{
+		{"index", func(i int64) { _ = s[i] }, func(i uint64) { _ = s[i] },
+			"index out of range [%d] with length 3", "index out of range [%d]"},
+		{"sliceLen", func(i int64) { _ = str[:i] }, func(i uint64) { _ = str[:i] },
+			"slice bounds out of range [:%d] with length 3", "slice bounds out of range [:%d]"},
+		{"sliceCap", func(i int64) { _ = s[:i] }, func(i uint64) { _ = s[:i] },
+			"slice bounds out of range [:%d] with capacity 5", "slice bounds out of range [:%d]"},
+		{"sliceLow", func(i int64) { _ = s[i:2] }, func(i uint64) { _ = s[i:2] },
+			"slice bounds out of range [%d:2]", "slice bounds out of range [%d:]"},
+		{"slice3Len", func(i int64) { _ = a[:1:i] }, func(i uint64) { _ = a[:1:i] },
+			"slice bounds out of range [::%d] with length 3", "slice bounds out of range [::%d]"},
+		{"slice3Cap", func(i int64) { _ = s[:1:i] }, func(i uint64) { _ = s[:1:i] },
+			"slice bounds out of range [::%d] with capacity 5", "slice bounds out of range [::%d]"},
+		{"slice3High", func(i int64) { _ = s[:i:2] }, func(i uint64) { _ = s[:i:2] },
+			"slice bounds out of range [:%d:2]", "slice bounds out of range [:%d:]"},
+		{"slice3Low", func(i int64) { _ = s[i:1:2] }, func(i uint64) { _ = s[i:1:2] },
+			"slice bounds out of range [%d:1:]", "slice bounds out of range [%d::]"},
+	}
+	check := func(t *testing.T, f func(), want string) {
+		t.Helper()
+		defer func() {
+			r := recover()
+			err, ok := r.(runtime.Error)
+			if !ok {
+				t.Fatalf("panic = %v (%T), want runtime.Error", r, r)
+			}
+			if got := err.Error(); got != "runtime error: "+want {
+				t.Fatalf("panic = %q, want %q", got, "runtime error: "+want)
+			}
+		}()
+		f()
+	}
+	for _, tt := range tests {
+		for _, i := range []int64{1 << 32, 1<<32 + 3, -1<<32 + 3, -1 << 63} {
+			t.Run(fmt.Sprintf("%s/int64/%d", tt.name, i), func(t *testing.T) {
+				format := tt.positive
+				if i < 0 {
+					format = tt.negative
+				}
+				check(t, func() { tt.signed(i) }, fmt.Sprintf(format, i))
+			})
+		}
+		for _, i := range []uint64{1 << 32, 1<<32 + 3, 1 << 63, ^uint64(0)} {
+			t.Run(fmt.Sprintf("%s/uint64/%d", tt.name, i), func(t *testing.T) {
+				check(t, func() { tt.unsigned(i) }, fmt.Sprintf(tt.positive, i))
+			})
+		}
+	}
+}
 
 // Test that panics print out the underlying value
 // when the underlying kind is directly printable.

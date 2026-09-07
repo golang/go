@@ -36,7 +36,7 @@ func perpetuumMobile() {
 }
 
 func TestStopTheWorldDeadlock(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
+	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no preemption on wasm yet")
 	}
 	if testing.Short() {
@@ -249,7 +249,7 @@ func TestBlockLocked(t *testing.T) {
 }
 
 func TestTimerFairness(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
+	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no preemption on wasm yet")
 	}
 
@@ -279,7 +279,7 @@ func TestTimerFairness(t *testing.T) {
 }
 
 func TestTimerFairness2(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
+	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no preemption on wasm yet")
 	}
 
@@ -317,7 +317,7 @@ var preempt = func() int {
 }
 
 func TestPreemption(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
+	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no preemption on wasm yet")
 	}
 
@@ -344,7 +344,7 @@ func TestPreemption(t *testing.T) {
 }
 
 func TestPreemptionGC(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
+	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no preemption on wasm yet")
 	}
 
@@ -435,7 +435,7 @@ func TestNumGoroutine(t *testing.T) {
 }
 
 func TestPingPongHog(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
+	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no preemption on wasm yet")
 	}
 	if testing.Short() {
@@ -953,7 +953,7 @@ func TestStealOrder(t *testing.T) {
 }
 
 func TestLockOSThreadNesting(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
+	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no threads on wasm yet")
 	}
 
@@ -1066,7 +1066,7 @@ func fakeSyscall(duration time.Duration) {
 
 // Check that a goroutine will be preempted if it is calling short system calls.
 func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
-	if runtime.GOARCH == "wasm" {
+	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no preemption on wasm yet")
 	}
 

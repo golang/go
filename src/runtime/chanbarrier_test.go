@@ -58,7 +58,7 @@ func testChanSendBarrier(useSelect bool) {
 	var wg sync.WaitGroup
 	outer := 100
 	inner := 100000
-	if testing.Short() || runtime.GOARCH == "wasm" {
+	if testing.Short() || runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		outer = 10
 		inner = 1000
 	}

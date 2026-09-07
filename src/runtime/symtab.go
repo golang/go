@@ -733,7 +733,7 @@ func (md *moduledata) textOff(pc uintptr) (uint32, bool) {
 	}
 	res := uint32(off)
 	if len(md.textsectmap) > 1 {
-		if GOARCH == "wasm" {
+		if GOARCH == "wasm" || GOARCH == "wasm32" {
 			fatal("unexpected multiple text sections on Wasm")
 		}
 		for i, sect := range md.textsectmap {
