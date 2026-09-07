@@ -80,7 +80,10 @@ func TestConvertCPUProfileNoSamples(t *testing.T) {
 func f1() { f1() }
 
 //go:noinline
-func f2() { f2() }
+func f2() {
+	f2()
+	f2() // Keep f2+3 within the symbolized PCs on WebAssembly.
+}
 
 // testPCs returns two PCs and two corresponding memory mappings
 // to use in test profiles.
@@ -139,9 +142,6 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 			BuildID:      buildID,
 			HasFunctions: true,
 		}
-	case "js", "wasip1":
-		addr1 = uint64(abi.FuncPCABIInternal(f1))
-		addr2 = uint64(abi.FuncPCABIInternal(f2))
 	default:
 		addr1 = uint64(abi.FuncPCABIInternal(f1))
 		addr2 = uint64(abi.FuncPCABIInternal(f2))
