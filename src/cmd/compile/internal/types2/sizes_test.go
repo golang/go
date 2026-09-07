@@ -137,12 +137,14 @@ var s struct {
 
 type gcSizeTest struct {
 	name string
+	arch string
 	src  string
 }
 
 var gcSizesTests = []gcSizeTest{
 	{
 		"issue60431",
+		"amd64",
 		`
 package main
 
@@ -160,6 +162,7 @@ func main() {
 	},
 	{
 		"issue60734",
+		"amd64",
 		`
 package main
 
@@ -180,6 +183,30 @@ func main() {
 }
 `,
 	},
+	{
+		"wasm32",
+		"wasm32",
+		`
+package main
+
+import "unsafe"
+
+var s struct {
+	p *byte
+	x int64
+	i int
+}
+
+func main() {
+	assert(unsafe.Sizeof(s.p) == 4)
+	assert(unsafe.Sizeof(s.i) == 4)
+	assert(unsafe.Alignof(s.x) == 8)
+	assert(unsafe.Offsetof(s.x) == 8)
+	assert(unsafe.Offsetof(s.i) == 16)
+	assert(unsafe.Sizeof(s) == 24)
+}
+`,
+	},
 }
 
 func TestGCSizes(t *testing.T) {
@@ -187,7 +214,7 @@ func TestGCSizes(t *testing.T) {
 	for _, tc := range gcSizesTests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			conf := types2.Config{Importer: defaultImporter(), Sizes: types2.SizesFor("gc", "amd64")}
+			conf := types2.Config{Importer: defaultImporter(), Sizes: types2.SizesFor("gc", tc.arch)}
 			mustTypecheck(tc.src, &conf, nil)
 		})
 	}

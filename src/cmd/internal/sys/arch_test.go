@@ -21,4 +21,7 @@ func TestArchInFamily(t *testing.T) {
 	if got, want := ArchPPC64LE.InFamily(AMD64, PPC64), true; got != want {
 		t.Errorf("Got ArchPPC64LE.InFamily(AMD64, PPC64) = %v, want %v", got, want)
 	}
+	if got, want := ArchWasm32.InFamily(Wasm), true; got != want {
+		t.Errorf("Got ArchWasm32.InFamily(Wasm) = %v, want %v", got, want)
+	}
 }

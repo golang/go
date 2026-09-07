@@ -13,6 +13,9 @@ import (
 
 func TestSizeof(t *testing.T) {
 	const _64bit = ^uint(0)>>32 != 0
+	// wasm32 has 32-bit pointers with 8-byte alignment for uint64.
+	_wasm32 := reflect.TypeFor[uintptr]().Size() == 4 &&
+		reflect.TypeFor[uint64]().Align() == 8
 
 	// Objects and Scope each have two position fields (syntax.Pos vs token.Pos),
 	// which accounts for 16 extra bytes in types2 on both 32-bit and 64-bit platforms.
@@ -63,6 +66,11 @@ func TestSizeof(t *testing.T) {
 		want := test._32bit
 		if _64bit {
 			want = test._64bit
+		} else if _wasm32 {
+			switch test.val.(type) {
+			case TypeParam:
+				want = 32
+			}
 		}
 		if got != want {
 			t.Errorf("unsafe.Sizeof(%T) = %d, want %d", test.val, got, want)

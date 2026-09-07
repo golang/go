@@ -266,6 +266,7 @@ var gcArchSizes = map[string]*gcSizes{
 	"s390x":    {8, 8},
 	"sparc64":  {8, 8},
 	"wasm":     {8, 8},
+	"wasm32":   {4, 8},
 	// When adding more architectures here,
 	// update the doc string of SizesFor below.
 }
@@ -275,7 +276,8 @@ var gcArchSizes = map[string]*gcSizes{
 //
 // Supported architectures for compiler "gc":
 // "386", "amd64", "amd64p32", "arm", "arm64", "loong64", "mips", "mipsle",
-// "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "sparc64", "wasm".
+// "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "sparc64", "wasm",
+// "wasm32".
 func SizesFor(compiler, arch string) Sizes {
 	switch compiler {
 	case "gc":
