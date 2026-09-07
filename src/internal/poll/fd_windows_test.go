@@ -28,7 +28,7 @@ func TestWSASocketConflict(t *testing.T) {
 	}
 	fd := poll.FD{Sysfd: s, IsStream: true, ZeroReadIsEOF: true}
 	if err = fd.Init("tcp", true); err != nil {
-		syscall.CloseHandle(s)
+		syscall.Closesocket(s)
 		t.Fatal(err)
 	}
 	defer fd.Close()

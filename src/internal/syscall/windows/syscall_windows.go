@@ -281,7 +281,7 @@ func loadWSASendRecvMsg() error {
 		if sendRecvMsgFunc.err != nil {
 			return
 		}
-		defer syscall.CloseHandle(s)
+		defer syscall.Closesocket(s)
 		var n uint32
 		sendRecvMsgFunc.err = syscall.WSAIoctl(s,
 			syscall.SIO_GET_EXTENSION_FUNCTION_POINTER,
