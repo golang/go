@@ -853,11 +853,12 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 			// calls back into Go, the Go stack may have moved.
 			switch f.Type {
 			case obj.WasmI32:
-				p = appendp(p, AI64ExtendI32U) // the register is 64-bit, so we have to extend
-				p = appendp(p, ASet, regAddr(REG_R0))
+				// PC_B is no longer needed after the import returns. Reuse
+				// its i32 local without widening the result to an i64 local.
+				p = appendp(p, ASet, regAddr(REG_PC_B))
 				p = appendp(p, AGet, regAddr(REG_SP))
-				p = appendp(p, AGet, regAddr(REG_R0))
-				p = appendp(p, AI64Store32, constAddr(storeOffset))
+				p = appendp(p, AGet, regAddr(REG_PC_B))
+				p = appendp(p, AI32Store, constAddr(storeOffset))
 			case obj.WasmI64:
 				p = appendp(p, ASet, regAddr(REG_R0))
 				p = appendp(p, AGet, regAddr(REG_SP))
@@ -885,11 +886,10 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 				p = appendp(p, AGet, regAddr(REG_R0))
 				p = appendp(p, AI64Store, constAddr(storeOffset))
 			case obj.WasmBool:
-				p = appendp(p, AI64ExtendI32U)
-				p = appendp(p, ASet, regAddr(REG_R0))
+				p = appendp(p, ASet, regAddr(REG_PC_B))
 				p = appendp(p, AGet, regAddr(REG_SP))
-				p = appendp(p, AGet, regAddr(REG_R0))
-				p = appendp(p, AI64Store8, constAddr(storeOffset))
+				p = appendp(p, AGet, regAddr(REG_PC_B))
+				p = appendp(p, AI32Store8, constAddr(storeOffset))
 			default:
 				panic("bad result type")
 			}
