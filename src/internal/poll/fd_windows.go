@@ -382,6 +382,10 @@ type FD struct {
 	// message based socket connection.
 	ZeroReadIsEOF bool
 
+	// KeepFileCompletionModes prevents Init from changing the file object's
+	// completion notification modes.
+	KeepFileCompletionModes bool
+
 	// Whether the handle is owned by os.File.
 	isFile bool
 
@@ -469,6 +473,22 @@ func (fd *FD) Init(net string, pollable bool) error {
 		return nil
 	}
 
+	if fd.KeepFileCompletionModes {
+		// Query the existing skip-success mode so we don't wait for a
+		// suppressed completion or skip waiting for an expected one.
+		var info windows.FILE_IO_COMPLETION_NOTIFICATION_INFORMATION
+		if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{},
+			unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileIoCompletionNotificationInformation); err != nil {
+			// Without knowing the modes, neither waiting for a completion
+			// packet on success nor skipping it is safe. Leave the handle
+			// unassociated and use explicit events for pending I/O instead.
+			// Inline success needs no wait, and deadlines are unavailable.
+			fd.skipSyncNotif = true
+			return nil
+		}
+		fd.skipSyncNotif = info.Flags&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0
+	}
+
 	// It is safe to add overlapped handles that also perform I/O
 	// outside of the runtime poller. The runtime poller will ignore
 	// I/O completion notifications not initiated by us.
@@ -476,7 +496,7 @@ func (fd *FD) Init(net string, pollable bool) error {
 	if err != nil {
 		return err
 	}
-	if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
+	if !fd.KeepFileCompletionModes && (fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes) {
 		// Non-socket handles can use SetFileCompletionNotificationModes without problems.
 		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
 			syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
