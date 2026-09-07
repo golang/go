@@ -126,6 +126,24 @@ func TestMapFSSymlink(t *testing.T) {
 	}
 }
 
+func TestMapFSSymlinkParentDir(t *testing.T) {
+	m := MapFS{
+		"proc/self":      {Mode: fs.ModeDir | 0555},
+		"proc/self/root": {Data: []byte("../.."), Mode: fs.ModeSymlink},
+	}
+	if err := TestFS(m, "proc/self", "proc/self/root"); err != nil {
+		t.Error(err)
+	}
+
+	gotInfo, err := fs.Stat(m, "proc/self/root/proc/self")
+	if err != nil {
+		t.Fatalf("fs.Stat(m, \"proc/self/root/proc/self\") = _, %v; want _, <nil>", err)
+	}
+	if got, want := gotInfo.Name(), "self"; got != want {
+		t.Errorf("fs.Stat(m, \"proc/self/root/proc/self\").Name() = %q; want %q", got, want)
+	}
+}
+
 func TestMapFSReadAt(t *testing.T) {
 	const fileContent = "hello, world\n"
 	m := MapFS{
