@@ -1228,6 +1228,11 @@ func mapKeyWithUniqueRepresentation(k reflect.Kind, allowInvalidUTF8 bool) bool 
 var errNilField = errors.New("cannot set embedded pointer to unexported struct type")
 var errInvalidStringTag = errors.New("invalid use of `string` tag option")
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeStructMarshaler(t reflect.Type) *marshaler {
 	// NOTE: The logic below disables namespaces for tracking duplicate names
 	// and does the tracking locally with an efficient bit-set based on which
@@ -1422,6 +1427,11 @@ func makeStructMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeStructUnmarshaler(t reflect.Type) *unmarshaler {
 	// NOTE: The logic below disables namespaces for tracking duplicate names
 	// and does the tracking locally with an efficient bit-set based on which
