@@ -377,6 +377,10 @@ type FD struct {
 	// message based socket connection.
 	ZeroReadIsEOF bool
 
+	// KeepFileCompletionModes prevents Init from changing the file object's
+	// completion notification modes.
+	KeepFileCompletionModes bool
+
 	// Whether the handle is owned by os.File.
 	isFile bool
 
@@ -462,6 +466,22 @@ func (fd *FD) Init(net string, pollable bool) error {
 	// behavior below, as it requires an extra syscall.
 	fd.waitOnSuccess = true
 
+	if fd.KeepFileCompletionModes {
+		// Query the existing skip-success mode so we don't wait for a
+		// suppressed completion or skip waiting for an expected one.
+		var info windows.FILE_IO_COMPLETION_NOTIFICATION_INFORMATION
+		if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{},
+			unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileIoCompletionNotificationInformation); err != nil {
+			// Without knowing the modes, neither waiting for a completion
+			// packet on success nor skipping it is safe. Leave the handle
+			// unassociated and use explicit events for pending I/O instead.
+			// Inline success needs no wait, and deadlines are unavailable.
+			fd.waitOnSuccess = false
+			return nil
+		}
+		fd.waitOnSuccess = info.Flags&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS == 0
+	}
+
 	// It is safe to add overlapped handles that also perform I/O
 	// outside of the runtime poller. The runtime poller will ignore
 	// I/O completion notifications not initiated by us.
@@ -471,16 +491,18 @@ func (fd *FD) Init(net string, pollable bool) error {
 	}
 	fd.associated = true
 
-	// FILE_SKIP_SET_EVENT_ON_HANDLE is always safe to use. We don't use that feature
-	// and it adds some overhead to the Windows I/O manager.
-	// See https://devblogs.microsoft.com/oldnewthing/20200221-00/?p=103466.
-	modes := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
-	if canSkipCompletionPortOnSuccess(fd.Sysfd, fd.kind == kindNet) {
-		modes |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
-	}
-	if syscall.SetFileCompletionNotificationModes(fd.Sysfd, modes) == nil {
-		if modes&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0 {
-			fd.waitOnSuccess = false
+	if !fd.KeepFileCompletionModes {
+		// FILE_SKIP_SET_EVENT_ON_HANDLE is always safe to use. We don't use that feature
+		// and it adds some overhead to the Windows I/O manager.
+		// See https://devblogs.microsoft.com/oldnewthing/20200221-00/?p=103466.
+		modes := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
+		if canSkipCompletionPortOnSuccess(fd.Sysfd, fd.kind == kindNet) {
+			modes |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
+		}
+		if syscall.SetFileCompletionNotificationModes(fd.Sysfd, modes) == nil {
+			if modes&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0 {
+				fd.waitOnSuccess = false
+			}
 		}
 	}
 	return nil

@@ -2341,6 +2341,70 @@ func TestOpenFileTruncateNamedPipe(t *testing.T) {
 	f.Close()
 }
 
+func TestFileKeepsCompletionNotificationModes(t *testing.T) {
+	// NewFile must preserve completion notification modes and perform I/O
+	// correctly with each combination. See go.dev/issue/80979.
+	t.Parallel()
+	for _, tt := range []struct {
+		name  string
+		modes uint8
+	}{
+		{"none", 0},
+		{"skipSuccess", syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS},
+		{"skipEvent", syscall.FILE_SKIP_SET_EVENT_ON_HANDLE},
+		{"both", syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS | syscall.FILE_SKIP_SET_EVENT_ON_HANDLE},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			name := filepath.Join(t.TempDir(), "file")
+			namep, err := syscall.UTF16PtrFromString(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			h, err := syscall.CreateFile(namep, syscall.GENERIC_READ|syscall.GENERIC_WRITE,
+				0, nil, syscall.CREATE_ALWAYS, syscall.FILE_FLAG_OVERLAPPED, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := syscall.SetFileCompletionNotificationModes(h, tt.modes); err != nil {
+				syscall.CloseHandle(h)
+				t.Fatal(err)
+			}
+			f := os.NewFile(uintptr(h), name)
+			if f == nil {
+				syscall.CloseHandle(h)
+				t.Fatal("NewFile returned nil")
+			}
+			defer f.Close()
+
+			// Query h directly: calling f.Fd would disassociate it from the poller.
+			var info windows.FILE_IO_COMPLETION_NOTIFICATION_INFORMATION
+			if err := windows.NtQueryInformationFile(h, &windows.IO_STATUS_BLOCK{},
+				unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileIoCompletionNotificationInformation); err != nil {
+				t.Fatal(err)
+			}
+			if info.Flags != uint32(tt.modes) {
+				t.Fatalf("completion modes = %#x; want %#x", info.Flags, tt.modes)
+			}
+			// Check that NewFile has initialized the runtime poller.
+			if err := f.SetDeadline(time.Time{}); err != nil {
+				t.Fatal(err)
+			}
+			const want = "hello"
+			if n, err := f.Write([]byte(want)); err != nil || n != len(want) {
+				t.Fatalf("Write = %d, %v; want %d, nil", n, err, len(want))
+			}
+			buf := make([]byte, len(want))
+			if n, err := f.ReadAt(buf, 0); err != nil || n != len(want) {
+				t.Fatalf("ReadAt = %d, %v; want %d, nil", n, err, len(want))
+			}
+			if string(buf) != want {
+				t.Fatalf("ReadAt returned %q; want %q", buf, want)
+			}
+		})
+	}
+}
+
 func TestNewFileStdinBlocked(t *testing.T) {
 	// See https://go.dev/issue/75949.
 	t.Parallel()
