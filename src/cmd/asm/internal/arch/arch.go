@@ -80,7 +80,9 @@ func Set(GOARCH string, shared bool) *Arch {
 	case "s390x":
 		return archS390x()
 	case "wasm":
-		return archWasm()
+		return archWasm(&wasm.Linkwasm)
+	case "wasm32":
+		return archWasm(&wasm.Linkwasm32)
 	}
 	return nil
 }
@@ -769,7 +771,7 @@ func archS390x() *Arch {
 	}
 }
 
-func archWasm() *Arch {
+func archWasm(linkArch *obj.LinkArch) *Arch {
 	instructions := make(map[string]obj.As)
 	for i, s := range obj.Anames {
 		instructions[s] = obj.As(i)
@@ -781,7 +783,7 @@ func archWasm() *Arch {
 	}
 
 	return &Arch{
-		LinkArch:       &wasm.Linkwasm,
+		LinkArch:       linkArch,
 		Instructions:   instructions,
 		Register:       wasm.Register,
 		RegisterPrefix: nil,

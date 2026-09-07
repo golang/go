@@ -85,7 +85,7 @@ func canRotate(c *ssa.Config, bits int64) bool {
 	switch c.Arch {
 	case "386", "amd64", "arm64", "loong64", "riscv64":
 		return true
-	case "arm", "s390x", "ppc64", "ppc64le", "wasm":
+	case "arm", "s390x", "ppc64", "ppc64le", "wasm", "wasm32":
 		return bits >= 32
 	default:
 		return false
@@ -118,6 +118,21 @@ func devirtLECall(v *ssa.Value, sym *obj.LSym) *ssa.Value {
 		f.Warnl(v.Pos, "de-virtualizing call")
 	}
 	return v
+}
+
+// funcHandleSym returns the function named by a function-handle relocation
+// at off in sym, or nil if there is no such relocation.
+func funcHandleSym(sym ssa.Sym, off int64) *obj.LSym {
+	lsym := sym.(*obj.LSym)
+	if lsym.Type != objabi.SRODATA {
+		return nil
+	}
+	for _, r := range lsym.R {
+		if r.Type&^objabi.R_WEAK == objabi.R_WASMFCALL && int64(r.Off) == off && r.Add == 0 {
+			return r.Sym
+		}
+	}
+	return nil
 }
 
 // hasSmallRotate reports whether the architecture has rotate instructions

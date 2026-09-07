@@ -3094,11 +3094,20 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		return s.newValue3(ssaop.OpSliceMake, n.Type(), ptr, len, len)
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
-		aux := n.X.(*ir.Name).Linksym()
+		name := n.X.(*ir.Name)
+		aux := name.Linksym()
 		// OCFUNC is used to build function values, which must
 		// always reference ABIInternal entry points.
 		if aux.ABI() != obj.ABIInternal {
 			s.Fatalf("expected ABIInternal: %v", aux.ABI())
+		}
+		if buildcfg.GOARCH == "wasm32" {
+			// wasm32 function values store a call_indirect table index.
+			// Read it from the same function-value symbol used by static
+			// data and closures.
+			funcval := staticdata.FuncLinksym(name)
+			addr := s.entryNewValue1A(ssaop.OpAddr, types.NewPtr(n.Type()), funcval, s.sb)
+			return s.load(n.Type(), addr)
 		}
 		return s.entryNewValue1A(ssaop.OpAddr, n.Type(), aux, s.sb)
 	case ir.ONAME:

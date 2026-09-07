@@ -1210,7 +1210,7 @@ func (w *writer) funcExt(obj *types2.Func) {
 	w.pragmaFlag(pragma)
 	w.linkname(obj)
 
-	if buildcfg.GOARCH == "wasm" {
+	if buildcfg.GOARCH == "wasm" || buildcfg.GOARCH == "wasm32" {
 		if wi != nil {
 			w.String(wi.Module)
 			w.String(wi.Name)

@@ -269,7 +269,7 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
 	l.pragmaFlag(w, name.Func.Pragma)
 	l.linkname(w, name)
 
-	if buildcfg.GOARCH == "wasm" {
+	if buildcfg.GOARCH == "wasm" || buildcfg.GOARCH == "wasm32" {
 		if name.Func.WasmImport != nil {
 			w.String(name.Func.WasmImport.Module)
 			w.String(name.Func.WasmImport.Name)

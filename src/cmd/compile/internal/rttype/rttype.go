@@ -202,6 +202,14 @@ func (c Cursor) WritePtrWeak(target *obj.LSym) {
 	}
 	objw.SymPtrWeak(c.lsym, int(c.offset), target, 0)
 }
+
+// WriteFuncPtrWeak writes a weak function entry into an itab method slot.
+func (c Cursor) WriteFuncPtrWeak(target *obj.LSym) {
+	if c.typ.Kind() != types.TUINTPTR {
+		base.Fatalf("can't write weak func ptr, it has kind %s", c.typ.Kind())
+	}
+	objw.SymFuncPtrWeak(c.lsym, int(c.offset), target)
+}
 func (c Cursor) WriteUintptr(val uint64) {
 	if c.typ.Kind() != types.TUINTPTR {
 		base.Fatalf("can't write uintptr, it has kind %s", c.typ.Kind())

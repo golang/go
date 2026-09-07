@@ -40,6 +40,7 @@ var archInits = map[string]func(*ssagen.ArchInfo){
 	"riscv64":  riscv64.Init,
 	"s390x":    s390x.Init,
 	"wasm":     wasm.Init,
+	"wasm32":   wasm.Init,
 }
 
 func main() {

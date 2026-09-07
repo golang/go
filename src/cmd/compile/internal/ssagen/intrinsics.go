@@ -1712,7 +1712,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	/******** crypto/internal/constanttime ********/
 	// We implement a superset of the Select promise:
 	// Select returns x if v != 0 and y if v == 0.
-	hasCMOV := []*sys.Arch{sys.ArchAMD64, sys.ArchARM64, sys.ArchLoong64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchWasm}
+	hasCMOV := []*sys.Arch{sys.ArchAMD64, sys.ArchARM64, sys.ArchLoong64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchWasm, sys.ArchWasm32}
 	if cfg.goriscv64 >= 23 {
 		hasCMOV = append(hasCMOV, sys.ArchRISCV64)
 	}

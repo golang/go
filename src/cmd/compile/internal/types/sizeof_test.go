@@ -6,6 +6,7 @@ package types
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 	"unsafe"
 )
@@ -16,28 +17,31 @@ func TestSizeof(t *testing.T) {
 	const _64bit = unsafe.Sizeof(uintptr(0)) == 8
 
 	var tests = []struct {
-		val    any     // type as a value
-		_32bit uintptr // size on 32bit platforms
-		_64bit uintptr // size on 64bit platforms
+		val     any     // type as a value
+		_32bit  uintptr // size on 32bit platforms
+		_64bit  uintptr // size on 64bit platforms
+		_wasm32 uintptr // size with 32-bit pointers and 64-bit alignment
 	}{
-		{Sym{}, 32, 64},
-		{Type{}, 60, 96},
-		{Map{}, 12, 24},
-		{Forward{}, 20, 32},
-		{Func{}, 32, 56},
-		{Struct{}, 12, 24},
-		{Interface{}, 0, 0},
-		{Chan{}, 8, 16},
-		{Array{}, 12, 16},
-		{FuncArgs{}, 4, 8},
-		{ChanArgs{}, 4, 8},
-		{Ptr{}, 4, 8},
-		{Slice{}, 4, 8},
+		{Sym{}, 32, 64, 32},
+		{Type{}, 60, 96, 64},
+		{Map{}, 12, 24, 12},
+		{Forward{}, 20, 32, 20},
+		{Func{}, 32, 56, 32},
+		{Struct{}, 12, 24, 12},
+		{Interface{}, 0, 0, 0},
+		{Chan{}, 8, 16, 8},
+		{Array{}, 12, 16, 16},
+		{FuncArgs{}, 4, 8, 4},
+		{ChanArgs{}, 4, 8, 4},
+		{Ptr{}, 4, 8, 4},
+		{Slice{}, 4, 8, 4},
 	}
 
 	for _, tt := range tests {
 		want := tt._32bit
-		if _64bit {
+		if runtime.GOARCH == "wasm32" {
+			want = tt._wasm32
+		} else if _64bit {
 			want = tt._64bit
 		}
 		got := reflect.TypeOf(tt.val).Size()

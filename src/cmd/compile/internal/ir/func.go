@@ -14,6 +14,7 @@ import (
 	"cmd/internal/src"
 	"encoding/base64"
 	"fmt"
+	"internal/buildcfg"
 	"unicode/utf8"
 )
 
@@ -651,6 +652,26 @@ func FuncPC(pos src.XPos, n Node, wantABI obj.ABI) Node {
 	e = NewStarExpr(pos, e)
 	e.SetType(types.Types[types.TUINTPTR])
 	e.SetTypecheck(1)
+	if buildcfg.GOARCH == "wasm32" {
+		// Function values contain call_indirect table handles, whereas
+		// FuncPC returns a logical entry PC. The linker builds this table
+		// with one uint32 entry per handle, including a zero sentinel.
+		typ := types.Types[types.TUINTPTR]
+		table := NewLinksymExpr(pos, base.Ctxt.Lookup("runtime.wasmFuncEntry"), typ)
+		addr := NewConvExpr(pos, OCONVNOP, typ, NewAddrExpr(pos, table))
+		addr.SetTypecheck(1)
+		offset := NewBinaryExpr(pos, OMUL, e, NewUintptr(pos, 4))
+		offset.SetType(typ)
+		offset.SetTypecheck(1)
+		entry := NewBinaryExpr(pos, OADD, addr, offset)
+		entry.SetType(typ)
+		entry.SetTypecheck(1)
+		ptr := NewConvExpr(pos, OCONVNOP, typ.PtrTo(), entry)
+		ptr.SetTypecheck(1)
+		e = NewStarExpr(pos, ptr)
+		e.SetType(typ)
+		e.SetTypecheck(1)
+	}
 	return e
 }
 

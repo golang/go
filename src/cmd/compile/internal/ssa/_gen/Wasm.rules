@@ -106,6 +106,10 @@
 (Trunc32to(16|8)    ...) => (Copy ...)
 (Trunc16to8         ...) => (Copy ...)
 
+// Split a 64-bit index for bounds checks on wasm32.
+(Int64Hi x) => (I64ShrU x (I64Const [32]))
+(Int64Lo ...) => (Copy ...)
+
 // Lowering float <=> int
 (Cvt32to(64|32)F x) => (F(64|32)ConvertI64S (SignExt32to64 x))
 (Cvt64to(64|32)F ...) => (F(64|32)ConvertI64S ...)
@@ -212,7 +216,9 @@
 (Eq16  x y) => (I64Eq (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Eq8   x y) => (I64Eq (ZeroExt8to64  x) (ZeroExt8to64  y))
 (EqB   ...) => (I64Eq ...)
-(EqPtr ...) => (I64Eq ...)
+// Keep pointer types so stack copying can update pointers spilled across calls.
+(EqPtr x y) && config.PtrSize == 4 => (I64Eq (ZeroExt32to64 <x.Type> x) (ZeroExt32to64 <y.Type> y))
+(EqPtr x y) => (I64Eq x y)
 (Eq(64|32)F ...) => (F(64|32)Eq ...)
 
 (Neq64  ...) => (I64Ne ...)
@@ -220,7 +226,8 @@
 (Neq16  x y) => (I64Ne (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Neq8   x y) => (I64Ne (ZeroExt8to64  x) (ZeroExt8to64  y))
 (NeqB   ...) => (I64Ne ...)
-(NeqPtr ...) => (I64Ne ...)
+(NeqPtr x y) && config.PtrSize == 4 => (I64Ne (ZeroExt32to64 <x.Type> x) (ZeroExt32to64 <y.Type> y))
+(NeqPtr x y) => (I64Ne x y)
 (Neq(64|32)F ...) => (F(64|32)Ne ...)
 
 // Lowering loads
@@ -331,12 +338,16 @@
 (InterCall ...) => (LoweredInterCall ...)
 (TailCall ...) => (LoweredTailCall ...)
 (TailCallInter ...) => (LoweredTailCallInter ...)
+(PanicExtend ...) => (LoweredPanicExtend ...)
 
 // Miscellaneous
 (Convert ...) => (LoweredConvert ...)
+(IsNonNil p) && config.PtrSize == 4 => (I64Eqz (I64Eqz (ZeroExt32to64 <p.Type> p)))
 (IsNonNil p) => (I64Eqz (I64Eqz p))
-(IsInBounds ...) => (I64LtU ...)
-(IsSliceInBounds ...) => (I64LeU ...)
+(IsInBounds idx len) && config.PtrSize == 4 => (I64LtU (ZeroExt32to64 idx) (ZeroExt32to64 len))
+(IsInBounds idx len) => (I64LtU idx len)
+(IsSliceInBounds idx len) && config.PtrSize == 4 => (I64LeU (ZeroExt32to64 idx) (ZeroExt32to64 len))
+(IsSliceInBounds idx len) => (I64LeU idx len)
 (NilCheck ...) => (LoweredNilCheck ...)
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
 (GetCallerPC ...) => (LoweredGetCallerPC ...)

@@ -16,6 +16,8 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/wasm"
+	"internal/abi"
+	"internal/buildcfg"
 )
 
 /*
@@ -50,8 +52,10 @@ import (
    are call sites.
 
    Sometimes we encode the function ID and block ID separately. When
-   recorded together as a single integer, we use the value 1<<63+F<<16+B.
-   (We also set the highest bit so a PC is distinct from a data address.)
+   recorded together as a single integer, wasm uses 1<<63+F<<16+B.
+   wasm32 instead uses a dense 32-bit logical PC token and carries F in
+   the high word of its 8-byte continuation slot. It recovers B by
+   subtracting the function entry PC from the logical PC.
 
    Threads:
 
@@ -133,7 +137,11 @@ import (
 */
 
 func Init(arch *ssagen.ArchInfo) {
-	arch.LinkArch = &wasm.Linkwasm
+	if buildcfg.GOARCH == "wasm32" {
+		arch.LinkArch = &wasm.Linkwasm32
+	} else {
+		arch.LinkArch = &wasm.Linkwasm
+	}
 	arch.REGSP = wasm.REG_SP
 	arch.MAXWIDTH = 1 << 50
 
@@ -149,14 +157,20 @@ func zeroRange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 	if cnt == 0 {
 		return p
 	}
-	if cnt%8 != 0 {
+	if cnt%int64(types.PtrSize) != 0 {
 		base.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
 	}
 
-	for i := int64(0); i < cnt; i += 8 {
+	i := int64(0)
+	for ; i+8 <= cnt; i += 8 {
 		p = pp.Append(p, wasm.AGet, obj.TYPE_REG, wasm.REG_SP, 0, 0, 0, 0)
 		p = pp.Append(p, wasm.AI64Const, obj.TYPE_CONST, 0, 0, 0, 0, 0)
 		p = pp.Append(p, wasm.AI64Store, 0, 0, 0, obj.TYPE_CONST, 0, off+i)
+	}
+	if i < cnt {
+		p = pp.Append(p, wasm.AGet, obj.TYPE_REG, wasm.REG_SP, 0, 0, 0, 0)
+		p = pp.Append(p, wasm.AI32Const, obj.TYPE_CONST, 0, 0, 0, 0, 0)
+		p = pp.Append(p, wasm.AI32Store, 0, 0, 0, obj.TYPE_CONST, 0, off+i)
 	}
 
 	return p
@@ -251,6 +265,26 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		}
 
+	case ssaop.OpWasmLoweredPanicExtend:
+		// Pass the high word, low word, and bound in stack slots that
+		// runtime.panicExtend copies to registers 0, 1, and 2 of the
+		// save area consumed by runtime.panicBounds32X.
+		for i, arg := range v.Args[:3] {
+			getReg(s, wasm.REG_SP)
+			getValue32(s, arg)
+			p := s.Prog(wasm.AI32Store)
+			p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i * 4)}
+		}
+		s.UseArgs(3 * 4)
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		const hiReg, loReg, boundReg = 0, 1, 2
+		c := abi.BoundsEncode(code, signed, true, true, hiReg<<2|loReg, boundReg)
+		p := s.Prog(obj.APCDATA)
+		p.From.SetConst(abi.PCDATA_PanicBounds)
+		p.To.SetConst(int64(c))
+		p = s.Prog(obj.ACALL)
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.PanicExtend}
+
 	case ssaop.OpWasmLoweredMove:
 		getValue32(s, v.Args[0])
 		getValue32(s, v.Args[1])
@@ -264,8 +298,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		s.Prog(wasm.AMemoryFill)
 
 	case ssaop.OpWasmLoweredNilCheck:
-		getValue64(s, v.Args[0])
-		s.Prog(wasm.AI64Eqz)
+		if types.PtrSize == 4 {
+			getValue32(s, v.Args[0])
+			s.Prog(wasm.AI32Eqz)
+		} else {
+			getValue64(s, v.Args[0])
+			s.Prog(wasm.AI64Eqz)
+		}
 		s.Prog(wasm.AIf)
 		p := s.Prog(wasm.ACALLNORESUME)
 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.SigPanic}
@@ -332,7 +371,12 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 		getReg(s, wasm.REG_CTXT)
 
 	case ssaop.OpWasmLoweredGetCallerPC:
-		p := s.Prog(wasm.AI64Load)
+		load := wasm.AI64Load
+		if types.PtrSize == 4 {
+			// The high word of a wasm32 continuation is a function handle.
+			load = wasm.AI64Load32U
+		}
+		p := s.Prog(load)
 		// Caller PC is stored 8 bytes below first parameter.
 		p.From = obj.Addr{
 			Type:   obj.TYPE_MEM,

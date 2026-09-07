@@ -490,7 +490,7 @@ func rewriteValue_OpDiv32u(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
-	// cond: umagicOK32(c) && config.RegSize == 8 && config.Ctxt.Arch.Name != "wasm" && umagic32(c).M&1 != 0
+	// cond: umagicOK32(c) && config.RegSize == 8 && !isWasmArch(config) && umagic32(c).M&1 != 0
 	// result: (Trunc64to32 <t> (Hmul64u <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [int64(umagic32PreShifted(c))])))
 	for {
 		t := v.Type
@@ -499,7 +499,7 @@ func rewriteValue_OpDiv32u(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt32(v_1.AuxInt)
-		if !(umagicOK32(c) && config.RegSize == 8 && config.Ctxt.Arch.Name != "wasm" && umagic32(c).M&1 != 0) {
+		if !(umagicOK32(c) && config.RegSize == 8 && !isWasmArch(config) && umagic32(c).M&1 != 0) {
 			break
 		}
 		v.Reset(ssaop.OpTrunc64to32)
@@ -574,7 +574,7 @@ func rewriteValue_OpDiv32u(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
-	// cond: umagicOK32(c) && config.RegSize == 8 && config.Ctxt.Arch.Name == "wasm"
+	// cond: umagicOK32(c) && config.RegSize == 8 && isWasmArch(config)
 	// result: (Trunc64to32 <t> (Rsh64Ux64 <typ.UInt64> (Avg64u (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32])) (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [int64(umagic32(c).M)]))) (Const64 <typ.UInt64> [32 + umagic32(c).S - 1])))
 	for {
 		t := v.Type
@@ -583,7 +583,7 @@ func rewriteValue_OpDiv32u(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt32(v_1.AuxInt)
-		if !(umagicOK32(c) && config.RegSize == 8 && config.Ctxt.Arch.Name == "wasm") {
+		if !(umagicOK32(c) && config.RegSize == 8 && isWasmArch(config)) {
 			break
 		}
 		v.Reset(ssaop.OpTrunc64to32)

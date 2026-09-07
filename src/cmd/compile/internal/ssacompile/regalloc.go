@@ -425,7 +425,7 @@ func (s *regAllocState) allocReg(mask ssaop.RegMask, v *ssa.Value) ssaop.Registe
 		s.f.Fatalf("couldn't find register to spill")
 	}
 
-	if s.f.Config.Ctxt.Arch.Arch == sys.ArchWasm {
+	if s.f.Config.Ctxt.Arch.Arch.InFamily(sys.Wasm) {
 		// TODO(neelance): In theory this should never happen, because all wasm registers are equal.
 		// So if there is still a free register, the allocation should have picked that one in the first place instead of
 		// trying to kick some other value out. In practice, this case does happen and it breaks the stack optimization.
@@ -494,7 +494,7 @@ func (s *regAllocState) makeSpill(v *ssa.Value, b *ssa.Block) *ssa.Value {
 // undone until the caller allows it by clearing nospill. Returns a
 // *Value which is either v or a copy of v allocated to the chosen register.
 func (s *regAllocState) allocValToReg(v *ssa.Value, mask ssaop.RegMask, nospill bool, pos src.XPos) *ssa.Value {
-	if s.f.Config.Ctxt.Arch.Arch == sys.ArchWasm && v.Rematerializeable() {
+	if s.f.Config.Ctxt.Arch.Arch.InFamily(sys.Wasm) && v.Rematerializeable() {
 		c := v.CopyIntoWithXPos(s.curBlock, pos)
 		c.OnWasmStack = true
 		s.setOrig(c, v)
@@ -531,7 +531,7 @@ func (s *regAllocState) allocValToReg(v *ssa.Value, mask ssaop.RegMask, nospill 
 
 	var r ssaop.Register
 	// If nospill is set, the value is used immediately, so it can live on the WebAssembly stack.
-	onWasmStack := nospill && s.f.Config.Ctxt.Arch.Arch == sys.ArchWasm
+	onWasmStack := nospill && s.f.Config.Ctxt.Arch.Arch.InFamily(sys.Wasm)
 	if !onWasmStack {
 		// Allocate a register.
 		r = s.allocReg(mask, v)
@@ -752,7 +752,7 @@ func (s *regAllocState) init(f *ssa.Func) {
 	s.sdom = f.Sdom()
 
 	// wasm: Mark instructions that can be optimized to have their values only on the WebAssembly stack.
-	if f.Config.Ctxt.Arch.Arch == sys.ArchWasm {
+	if f.Config.Ctxt.Arch.Arch.InFamily(sys.Wasm) {
 		canLiveOnStack := f.NewSparseSet(f.NumValues())
 		defer f.RetSparseSet(canLiveOnStack)
 		for _, b := range f.Blocks {
@@ -2045,7 +2045,7 @@ func (s *regAllocState) regalloc(f *ssa.Func) {
 						continue
 					}
 				}
-				if vi.Rematerializeable && s.f.Config.Ctxt.Arch.Arch == sys.ArchWasm {
+				if vi.Rematerializeable && s.f.Config.Ctxt.Arch.Arch.InFamily(sys.Wasm) {
 					continue
 				}
 				// Registers we could load v into.

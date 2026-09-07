@@ -70,6 +70,20 @@ func SymPtrWeak(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	return off
 }
 
+// SymFuncPtr writes the code word stored in a function value.
+func SymFuncPtr(s *obj.LSym, off int, x *obj.LSym) int {
+	off = int(types.RoundUp(int64(off), int64(types.PtrSize)))
+	s.WriteFuncPtr(base.Ctxt, int64(off), x)
+	return off + types.PtrSize
+}
+
+// SymFuncPtrWeak writes a weak code word stored in a function value or itab.
+func SymFuncPtrWeak(s *obj.LSym, off int, x *obj.LSym) int {
+	off = int(types.RoundUp(int64(off), int64(types.PtrSize)))
+	s.WriteWeakFuncPtr(base.Ctxt, int64(off), x)
+	return off + types.PtrSize
+}
+
 func SymPtrOff(s *obj.LSym, off int, x *obj.LSym) int {
 	s.WriteOff(base.Ctxt, int64(off), x, 0)
 	off += 4

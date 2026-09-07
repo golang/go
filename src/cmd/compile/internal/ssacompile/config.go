@@ -230,8 +230,8 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 		c.FloatParamRegs = paramFloatRegRISCV64
 		c.FPReg = framepointerRegRISCV64
 		c.HasGReg = true
-	case "wasm":
-		c.PtrSize = 8
+	case "wasm", "wasm32":
+		c.PtrSize = int64(ctxt.Arch.PtrSize)
 		c.RegSize = 8
 		c.LowerBlock = wasm.RewriteBlock
 		c.LowerValue = wasm.RewriteValue

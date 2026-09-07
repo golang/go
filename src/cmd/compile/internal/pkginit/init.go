@@ -127,7 +127,7 @@ func MakeTask() {
 	ot = objw.Uint32(lsym, ot, 0) // state: not initialized yet
 	ot = objw.Uint32(lsym, ot, uint32(len(fns)))
 	for _, f := range fns {
-		ot = objw.SymPtr(lsym, ot, f, 0)
+		ot = objw.SymFuncPtr(lsym, ot, f)
 	}
 
 	// Add relocations which tell the linker all of the packages

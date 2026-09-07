@@ -358,7 +358,7 @@ func CreateWasmImportWrapper(fn *ir.Func) bool {
 	if fn.WasmImport == nil {
 		return false
 	}
-	if buildcfg.GOARCH != "wasm" {
+	if buildcfg.GOARCH != "wasm" && buildcfg.GOARCH != "wasm32" {
 		base.FatalfAt(fn.Pos(), "CreateWasmImportWrapper call not supported on %s: func was %v", buildcfg.GOARCH, fn)
 	}
 
@@ -381,7 +381,7 @@ func GenWasmExportWrapper(wrapped *ir.Func) {
 	if wrapped.WasmExport == nil {
 		return
 	}
-	if buildcfg.GOARCH != "wasm" {
+	if buildcfg.GOARCH != "wasm" && buildcfg.GOARCH != "wasm32" {
 		base.FatalfAt(wrapped.Pos(), "GenWasmExportWrapper call not supported on %s: func was %v", buildcfg.GOARCH, wrapped)
 	}
 
@@ -516,6 +516,9 @@ func wasmElemTypeAllowed(t *types.Type) bool {
 		types.TINT32, types.TUINT32, types.TINT64, types.TUINT64,
 		types.TFLOAT32, types.TFLOAT64, types.TBOOL:
 		return true
+	case types.TPTR, types.TUNSAFEPTR:
+		// Pointer elements must have the same width as host pointers.
+		return types.PtrSize == 4
 	case types.TARRAY:
 		return wasmElemTypeAllowed(t.Elem())
 	case types.TSTRUCT:
@@ -535,9 +538,6 @@ func wasmElemTypeAllowed(t *types.Type) bool {
 		}
 		return seenHostLayout
 	}
-	// Pointer, and all pointerful types are not allowed, as pointers have
-	// different width on the Go side and the host side. (It will be allowed
-	// on GOARCH=wasm32.)
 	return false
 }
 

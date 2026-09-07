@@ -178,7 +178,7 @@ func SetFIPSDebugHash(pattern string) {
 func EnableFIPS() bool {
 	// WASM is out of scope; its binaries are too weird.
 	// I'm not even sure it can read its own code.
-	if buildcfg.GOARCH == "wasm" {
+	if buildcfg.GOARCH == "wasm" || buildcfg.GOARCH == "wasm32" {
 		return false
 	}
 

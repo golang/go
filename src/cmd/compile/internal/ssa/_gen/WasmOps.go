@@ -163,6 +163,7 @@ func init() {
 		{name: "LoweredTailCallInter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", call: true, tailCall: true}, // tail call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 		{name: "LoweredClosureCall", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp, regMask{}}, clobbers: callerSave}, aux: "CallOff", call: true},    // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
 		{name: "LoweredInterCall", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", call: true},                     // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "LoweredPanicExtend", argLength: 4, reg: regInfo{inputs: []regMask{gp, gp, gp}, clobbers: callerSave}, aux: "Int64", typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, auxint=BoundsKind
 
 		{name: "LoweredAddr", argLength: 1, reg: gp11, aux: "SymOff", rematerializeable: true, symEffect: "Addr", earlyOk: true},           // returns base+aux+auxint, arg0=base
 		{name: "LoweredMove", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Int64", addrSinkArg0: true, addrSinkArg1: true}, // large move. arg0=dst, arg1=src, arg2=mem, auxint=len, returns mem

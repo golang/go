@@ -293,7 +293,7 @@ func WriteFuncSyms() {
 		if s.Pkg.Path == "reflect" && (s.Name == "Value.Method" || s.Name == "Value.MethodByName") {
 			sf.Set(obj.AttrReflectMethod, true)
 		}
-		objw.SymPtr(sf, 0, target, 0)
+		objw.SymFuncPtr(sf, 0, target)
 		objw.Global(sf, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	}
 }

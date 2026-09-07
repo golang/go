@@ -4,7 +4,14 @@
 
 package divmod
 
-import "cmd/compile/internal/ssa"
+import (
+	"cmd/compile/internal/ssa"
+	"cmd/internal/sys"
+)
+
+func isWasmArch(config *ssa.Config) bool {
+	return config.Ctxt.Arch.Arch.InFamily(sys.Wasm)
+}
 
 // logX returns logarithm of n base 2.
 // n must be a positive power of 2 (isPowerOfTwoX returns true).

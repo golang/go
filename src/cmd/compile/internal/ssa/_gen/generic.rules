@@ -1786,6 +1786,14 @@
 // De-virtualize late-expanded interface calls into late-expanded static calls.
 (InterLECall [argsize] {auxCall} (Addr {fn} (SB)) ___) => devirtLECall(v, fn.(*obj.LSym))
 
+// Function handles are table indices, so resolve their targets at calls.
+(InterLECall [argsize] {auxCall} (Load (OffPtr [off] (Addr {sym} (SB))) _) ___)
+	&& config.Arch == "wasm32" && funcHandleSym(sym, off) != nil => devirtLECall(v, funcHandleSym(sym, off))
+(InterLECall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {sym} (SB)) _))) _) ___)
+	&& config.Arch == "wasm32" && funcHandleSym(sym, off) != nil => devirtLECall(v, funcHandleSym(sym, off))
+(InterLECall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Convert (Addr {sym} (SB)) _) _))) _) ___)
+	&& config.Arch == "wasm32" && funcHandleSym(sym, off) != nil => devirtLECall(v, funcHandleSym(sym, off))
+
 // Move and Zero optimizations.
 // Move source and destination may overlap.
 

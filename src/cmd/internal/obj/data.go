@@ -33,6 +33,7 @@ package obj
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"log"
 	"math"
 )
@@ -146,6 +147,24 @@ func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64)
 // This is a weak reference.
 func (s *LSym) WriteWeakAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
 	s.writeAddr(ctxt, off, siz, rsym, roff, objabi.R_WEAKADDR)
+}
+
+// WriteFuncPtr writes the code word stored in a function value.
+func (s *LSym) WriteFuncPtr(ctxt *Link, off int64, rsym *LSym) {
+	rtype := objabi.R_ADDR
+	if ctxt.Arch.Family == sys.Wasm && ctxt.Arch.PtrSize == 4 {
+		rtype = objabi.R_WASMFCALL
+	}
+	s.writeAddr(ctxt, off, ctxt.Arch.PtrSize, rsym, 0, rtype)
+}
+
+// WriteWeakFuncPtr writes a weak code word stored in a function value or itab.
+func (s *LSym) WriteWeakFuncPtr(ctxt *Link, off int64, rsym *LSym) {
+	rtype := objabi.R_WEAKADDR
+	if ctxt.Arch.Family == sys.Wasm && ctxt.Arch.PtrSize == 4 {
+		rtype = objabi.R_WEAK | objabi.R_WASMFCALL
+	}
+	s.writeAddr(ctxt, off, ctxt.Arch.PtrSize, rsym, 0, rtype)
 }
 
 // WriteCURelativeAddr writes a pointer-sized address into s at offset off.

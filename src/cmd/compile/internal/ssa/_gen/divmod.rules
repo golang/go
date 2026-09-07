@@ -187,7 +187,7 @@
 // underlying magic is 33-bit (e.g. d=14=2x7 shares the same m as d=7).
 // When m is even (Case 6), the 32-bit constant path above is preferred to avoid loading
 // a large 64-bit constant on aarch64/riscv64.
-(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 && config.Ctxt.Arch.Name != "wasm" && umagic32(c).M&1 != 0 =>
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 && !isWasmArch(config) && umagic32(c).M&1 != 0 =>
   (Trunc64to32 <t>
     (Hmul64u <typ.UInt64>
       (ZeroExt32to64 x)
@@ -231,7 +231,7 @@
         (Lsh32x64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [16]))
         (Mul32 <typ.UInt32> (ZeroExt16to32 x) (Const32 <typ.UInt32> [int32(umagic16(c).M)])))
       (Const64 <typ.UInt64> [16 + umagic16(c).S - 1])))
-(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 && config.Ctxt.Arch.Name == "wasm" =>
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 && isWasmArch(config) =>
   (Trunc64to32 <t>
     (Rsh64Ux64 <typ.UInt64>
       (Avg64u

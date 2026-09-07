@@ -11708,6 +11708,8 @@ func rewriteValue_OpIMake(v *ssa.Value) bool {
 	return false
 }
 func rewriteValue_OpInterLECall(v *ssa.Value) bool {
+	b := v.Block
+	config := b.Func.Config
 	// match: (InterLECall [argsize] {auxCall} (Addr {fn} (SB)) ___)
 	// result: devirtLECall(v, fn.(*obj.LSym))
 	for {
@@ -11724,6 +11726,110 @@ func rewriteValue_OpInterLECall(v *ssa.Value) bool {
 			break
 		}
 		v.CopyOf(devirtLECall(v, fn.(*obj.LSym)))
+		return true
+	}
+	// match: (InterLECall [argsize] {auxCall} (Load (OffPtr [off] (Addr {sym} (SB))) _) ___)
+	// cond: config.Arch == "wasm32" && funcHandleSym(sym, off) != nil
+	// result: devirtLECall(v, funcHandleSym(sym, off))
+	for {
+		if len(v.Args) < 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != ssaop.OpLoad {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != ssaop.OpOffPtr {
+			break
+		}
+		off := ssa.AuxIntToInt64(v_0_0.AuxInt)
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != ssaop.OpAddr {
+			break
+		}
+		sym := ssa.AuxToSym(v_0_0_0.Aux)
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != ssaop.OpSB || !(config.Arch == "wasm32" && funcHandleSym(sym, off) != nil) {
+			break
+		}
+		v.CopyOf(devirtLECall(v, funcHandleSym(sym, off)))
+		return true
+	}
+	// match: (InterLECall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {sym} (SB)) _))) _) ___)
+	// cond: config.Arch == "wasm32" && funcHandleSym(sym, off) != nil
+	// result: devirtLECall(v, funcHandleSym(sym, off))
+	for {
+		if len(v.Args) < 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != ssaop.OpLoad {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != ssaop.OpOffPtr {
+			break
+		}
+		off := ssa.AuxIntToInt64(v_0_0.AuxInt)
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != ssaop.OpITab {
+			break
+		}
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != ssaop.OpIMake {
+			break
+		}
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != ssaop.OpAddr {
+			break
+		}
+		sym := ssa.AuxToSym(v_0_0_0_0_0.Aux)
+		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0.Op != ssaop.OpSB || !(config.Arch == "wasm32" && funcHandleSym(sym, off) != nil) {
+			break
+		}
+		v.CopyOf(devirtLECall(v, funcHandleSym(sym, off)))
+		return true
+	}
+	// match: (InterLECall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Convert (Addr {sym} (SB)) _) _))) _) ___)
+	// cond: config.Arch == "wasm32" && funcHandleSym(sym, off) != nil
+	// result: devirtLECall(v, funcHandleSym(sym, off))
+	for {
+		if len(v.Args) < 1 {
+			break
+		}
+		v_0 := v.Args[0]
+		if v_0.Op != ssaop.OpLoad {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != ssaop.OpOffPtr {
+			break
+		}
+		off := ssa.AuxIntToInt64(v_0_0.AuxInt)
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != ssaop.OpITab {
+			break
+		}
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != ssaop.OpIMake {
+			break
+		}
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != ssaop.OpConvert {
+			break
+		}
+		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0.Op != ssaop.OpAddr {
+			break
+		}
+		sym := ssa.AuxToSym(v_0_0_0_0_0_0.Aux)
+		v_0_0_0_0_0_0_0 := v_0_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0_0.Op != ssaop.OpSB || !(config.Arch == "wasm32" && funcHandleSym(sym, off) != nil) {
+			break
+		}
+		v.CopyOf(devirtLECall(v, funcHandleSym(sym, off)))
 		return true
 	}
 	return false
