@@ -21,8 +21,8 @@ const DefaultPhysPageSize = goarch.DefaultPhysPageSize
 // The various PC tables record PC deltas pre-divided by PCQuantum.
 const PCQuantum = goarch.PCQuantum
 
-// Int64Align is the required alignment for a 64-bit integer (4 on 32-bit systems, 8 on 64-bit).
-const Int64Align = goarch.PtrSize
+// Int64Align is the required alignment for a 64-bit integer.
+const Int64Align = goarch.Int64Align
 
 // MinFrameSize is the size of the system-reserved words at the bottom
 // of a frame (just above the architectural stack pointer).

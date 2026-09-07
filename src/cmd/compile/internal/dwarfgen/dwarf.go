@@ -454,7 +454,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name, closureVars map[*ir.Name]int64
 	localAutoOffset := func() int64 {
 		offs = n.FrameOffset()
 		if base.Ctxt.Arch.FixedFrameSize == 0 {
-			offs -= int64(types.PtrSize)
+			offs -= int64(base.Ctxt.Arch.RegSize)
 		}
 		if buildcfg.FramePointerEnabled {
 			offs -= int64(types.PtrSize)
@@ -570,7 +570,7 @@ func createHeapDerefLocationList(n *ir.Name, entryID ssa.ID) []ssa.LocListEntry 
 	// Get the stack offset where the heap pointer is stored
 	heapPtrOffset := n.Heapaddr.FrameOffset()
 	if base.Ctxt.Arch.FixedFrameSize == 0 {
-		heapPtrOffset -= int64(types.PtrSize)
+		heapPtrOffset -= int64(base.Ctxt.Arch.RegSize)
 	}
 	if buildcfg.FramePointerEnabled {
 		heapPtrOffset -= int64(types.PtrSize)
