@@ -1435,53 +1435,53 @@
 
 // for late-expanded calls, recognize memequal applied to a single constant byte
 // Support is limited by [1-8] byte sizes
-(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const(32|64) [1]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(ssa.Read8(scon,0))])) mem)
 
-(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [1]) mem)
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const(32|64) [1]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(ssa.Read8(scon,0))])) mem)
 
-(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [2]) mem)
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const(32|64) [2]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config)
   => (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(ssa.Read16(scon,0,config.Ctxt.Arch.ByteOrder))])) mem)
 
-(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [2]) mem)
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const(32|64) [2]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config)
   => (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(ssa.Read16(scon,0,config.Ctxt.Arch.ByteOrder))])) mem)
 
-(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [4]) mem)
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const(32|64) [4]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config)
   => (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(ssa.Read32(scon,0,config.Ctxt.Arch.ByteOrder))])) mem)
 
-(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [4]) mem)
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const(32|64) [4]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config)
   => (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(ssa.Read32(scon,0,config.Ctxt.Arch.ByteOrder))])) mem)
 
-(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [8]) mem)
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const(32|64) [8]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8
   => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(ssa.Read64(scon,0,config.Ctxt.Arch.ByteOrder))])) mem)
 
-(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [8]) mem)
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const(32|64) [8]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8
   => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(ssa.Read64(scon,0,config.Ctxt.Arch.ByteOrder))])) mem)
 
-(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [3]) mem)
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const(32|64) [3]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) =>
@@ -1495,7 +1495,7 @@
       (Const32 <typ.Int32> [int32(uint32(ssa.Read16(scon,0,config.Ctxt.Arch.ByteOrder))|(uint32(ssa.Read8(scon,2))<<16))]))
     mem)
 
-(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [3]) mem)
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const(32|64) [3]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) =>
@@ -1509,7 +1509,7 @@
       (Const32 <typ.Int32> [int32(uint32(ssa.Read16(scon,0,config.Ctxt.Arch.ByteOrder))|(uint32(ssa.Read8(scon,2))<<16))]))
     mem)
 
-(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [5]) mem)
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const(32|64) [5]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8 =>
@@ -1523,7 +1523,7 @@
       (Const64 <typ.Int64> [int64(uint64(ssa.Read32(scon,0,config.Ctxt.Arch.ByteOrder))|(uint64(ssa.Read8(scon,4))<<32))]))
     mem)
 
-(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [5]) mem)
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const(32|64) [5]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8 =>
@@ -1537,7 +1537,7 @@
       (Const64 <typ.Int64> [int64(uint64(ssa.Read32(scon,0,config.Ctxt.Arch.ByteOrder))|(uint64(ssa.Read8(scon,4))<<32))]))
     mem)
 
-(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [6]) mem)
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const(32|64) [6]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8 =>
@@ -1551,7 +1551,7 @@
       (Const64 <typ.Int64> [int64(uint64(ssa.Read32(scon,0,config.Ctxt.Arch.ByteOrder))|(uint64(ssa.Read16(scon,4,config.Ctxt.Arch.ByteOrder))<<32))]))
     mem)
 
-(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [6]) mem)
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const(32|64) [6]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8 =>
@@ -1565,7 +1565,7 @@
       (Const64 <typ.Int64> [int64(uint64(ssa.Read32(scon,0,config.Ctxt.Arch.ByteOrder))|(uint64(ssa.Read16(scon,4,config.Ctxt.Arch.ByteOrder))<<32))]))
     mem)
 
-(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [7]) mem)
+(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const(32|64) [7]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8 =>
@@ -1579,7 +1579,7 @@
       (Const64 <typ.Int64> [int64(uint64(ssa.Read32(scon,0,config.Ctxt.Arch.ByteOrder))|(uint64(ssa.Read32(scon,3,config.Ctxt.Arch.ByteOrder))<<32))]))
     mem)
 
-(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [7]) mem)
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const(32|64) [7]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   && ssa.SymIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8 =>
@@ -1593,7 +1593,7 @@
       (Const64 <typ.Int64> [int64(uint64(ssa.Read32(scon,0,config.Ctxt.Arch.ByteOrder))|(uint64(ssa.Read32(scon,3,config.Ctxt.Arch.ByteOrder))<<32))]))
     mem)
 
-(StaticLECall {callAux} _ _ (Const64 [0]) mem)
+(StaticLECall {callAux} _ _ (Const(32|64) [0]) mem)
   && ssa.IsSameCall(callAux, "runtime.memequal")
   => (MakeResult (ConstBool <typ.Bool> [true]) mem)
 

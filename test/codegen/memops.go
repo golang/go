@@ -6,6 +6,31 @@
 
 package codegen
 
+import "unsafe"
+
+//go:linkname memequal runtime.memequal
+func memequal(a, b unsafe.Pointer, size uintptr) bool
+
+func Equal1Constant(p unsafe.Pointer) bool {
+	// 386:`CMPB` -`.*memequal.*`
+	return memequal(p, unsafe.Pointer(unsafe.StringData("a")), 1)
+}
+
+func Equal4Constant(p unsafe.Pointer) bool {
+	// 386:`CMPL` -`.*memequal.*`
+	return memequal(unsafe.Pointer(unsafe.StringData("abcd")), p, 4)
+}
+
+func Equal8Constant(p unsafe.Pointer) bool {
+	// wasm:`I64Eq` -`.*memequal.*`
+	return memequal(p, unsafe.Pointer(unsafe.StringData("abcdefgh")), 8)
+}
+
+func Equal5Constant(p unsafe.Pointer) bool {
+	// wasm:`I64Eq` -`.*memequal.*`
+	return memequal(unsafe.Pointer(unsafe.StringData("abcde")), p, 5)
+}
+
 var x [2]bool
 var x8 [2]uint8
 var x16 [2]uint16
