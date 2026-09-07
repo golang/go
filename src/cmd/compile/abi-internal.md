@@ -881,6 +881,22 @@ s390x `BL` operation.
 The s390x architecture maintains a single condition code (CC) field in the Program Status Word (PSW).
 Go-generated code sets and tests this condition code to control conditional branches.
 
+### wasm32 architecture
+
+The wasm32 architecture has 32-bit pointers and `int` values. It uses
+the WebAssembly backend with 64-bit integer locals. Its register size,
+stack alignment, and `int64` alignment are 8 bytes. Arguments and
+results are passed on the stack. The result sequence starts at a
+pointer-aligned offset, as specified by the general assignment algorithm.
+
+WebAssembly has no native program counter or link register. A wasm32
+function value stores a non-zero `call_indirect` table index in its
+code word. The runtime identifies resume points with 32-bit logical
+PCs. An 8-byte return-PC slot stores the logical PC in its low word
+and the function handle in its high word. The runtime uses both words
+to resume a suspended function. Keeping the handle separate avoids
+reserving a fixed high-address region for PCs.
+
 ## Future directions
 
 ### Spill path improvements

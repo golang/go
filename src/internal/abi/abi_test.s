@@ -16,6 +16,9 @@
 #ifdef GOARCH_mipsle
 #define PTRSIZE 4
 #endif
+#ifdef GOARCH_wasm32
+#define PTRSIZE 4
+#endif
 #ifndef PTRSIZE
 #define PTRSIZE 8
 #endif

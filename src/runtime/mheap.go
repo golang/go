@@ -2216,6 +2216,7 @@ func setFinalizerContext(ptr unsafe.Pointer, ptrType *_type, createPC, funcPC ui
 // finalizer or cleanup special attached. Pass 0 for the cleanupID to indicate
 // a finalizer.
 func setCleanupContext(ptr unsafe.Pointer, ptrType *_type, createPC, funcPC uintptr, cleanupID uint64) {
+	funcPC = funcValuePC(funcPC)
 	lock(&mheap_.speciallock)
 	s := (*specialCheckFinalizer)(mheap_.specialCheckFinalizerAlloc.alloc())
 	unlock(&mheap_.speciallock)

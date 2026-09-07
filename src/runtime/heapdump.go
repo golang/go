@@ -227,7 +227,8 @@ func dumpfinalizer(obj unsafe.Pointer, fn *funcval, fint *_type, ot *ptrtype) {
 	dumpint(tagFinalizer)
 	dumpint(uint64(uintptr(obj)))
 	dumpint(uint64(uintptr(unsafe.Pointer(fn))))
-	dumpint(uint64(uintptr(unsafe.Pointer(fn.fn))))
+	fnPC := funcValuePC(fn.fn)
+	dumpint(uint64(fnPC))
 	dumpint(uint64(uintptr(unsafe.Pointer(fint))))
 	dumpint(uint64(uintptr(unsafe.Pointer(ot))))
 }
@@ -389,7 +390,8 @@ func dumpgoroutine(gp *g) {
 			// d.fn can be nil for open-coded defers
 			dumpint(uint64(0))
 		} else {
-			dumpint(uint64(uintptr(unsafe.Pointer(fn.fn))))
+			fnPC := funcValuePC(fn.fn)
+			dumpint(uint64(fnPC))
 		}
 		dumpint(uint64(uintptr(unsafe.Pointer(d.link))))
 	}
@@ -437,7 +439,8 @@ func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, o
 	dumpint(tagQueuedFinalizer)
 	dumpint(uint64(uintptr(obj)))
 	dumpint(uint64(uintptr(unsafe.Pointer(fn))))
-	dumpint(uint64(uintptr(unsafe.Pointer(fn.fn))))
+	fnPC := funcValuePC(fn.fn)
+	dumpint(uint64(fnPC))
 	dumpint(uint64(uintptr(unsafe.Pointer(fint))))
 	dumpint(uint64(uintptr(unsafe.Pointer(ot))))
 }

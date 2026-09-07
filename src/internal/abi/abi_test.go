@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/testenv"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -26,6 +27,38 @@ func TestFuncPC(t *testing.T) {
 	pcFromGo = abi.FuncPCABI0(abi.FuncPCTestFn)
 	if pcFromGo != pcFromAsm {
 		t.Errorf("FuncPC returns wrong PC, want %x, got %x", pcFromAsm, pcFromGo)
+	}
+}
+
+//go:noinline
+func dynamicFuncPC(f func(int) int) uintptr {
+	return abi.FuncPCABIInternal(f)
+}
+
+func funcPCTarget(x int) int { return x + 1 }
+
+type funcPCReceiver int
+
+func (r funcPCReceiver) method(x int) int { return x + int(r) }
+
+func TestFuncPCDynamic(t *testing.T) {
+	offset := len(t.Name())
+	for _, test := range []struct {
+		name string
+		fn   func(int) int
+	}{
+		{"function", funcPCTarget},
+		{"closure", func(x int) int { return x + offset }},
+		{"method", funcPCReceiver(offset).method},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got, want := dynamicFuncPC(test.fn), reflect.ValueOf(test.fn).Pointer(); got != want {
+				t.Errorf("FuncPCABIInternal = %#x, want %#x", got, want)
+			}
+		})
+	}
+	if got, want := dynamicFuncPC(funcPCTarget), abi.FuncPCABIInternal(funcPCTarget); got != want {
+		t.Errorf("dynamic FuncPCABIInternal = %#x, want static PC %#x", got, want)
 	}
 }
 

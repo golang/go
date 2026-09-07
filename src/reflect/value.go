@@ -907,7 +907,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *abi.Type, t 
 		if !nameOffFor(v.typ(), m.Name).IsExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
-		ifn := textOffFor(v.typ(), m.Ifn)
+		ifn := funcHandle(uintptr(textOffFor(v.typ(), m.Ifn)))
 		fn = unsafe.Pointer(&ifn)
 		t = (*funcType)(unsafe.Pointer(typeOffFor(v.typ(), m.Mtyp)))
 	}
@@ -2068,7 +2068,7 @@ func (v Value) Pointer() uintptr {
 		if p != nil {
 			p = *(*unsafe.Pointer)(p)
 		}
-		return uintptr(p)
+		return funcValuePC(uintptr(p))
 	case Slice:
 		return uintptr((*unsafeheader.Slice)(v.ptr).Data)
 	case String:
@@ -2580,7 +2580,7 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 		if p != nil {
 			p = *(*unsafe.Pointer)(p)
 		}
-		return p
+		return unsafe.Pointer(funcValuePC(uintptr(p)))
 	case Slice:
 		return (*unsafeheader.Slice)(v.ptr).Data
 	case String:

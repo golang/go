@@ -136,11 +136,11 @@ func computeDeferReturn(ctxt *Link, deferReturnSym, s loader.Sym) uint32 {
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
-		if target.IsWasm() && r.Type() == objabi.R_ADDR {
+		if target.IsWasm() && (r.Type() == objabi.R_ADDR || r.Type() == objabi.R_WASMPC) {
 			// wasm/ssa.go generates an ARESUMEPOINT just
 			// before the deferreturn call. The "PC" of
 			// the deferreturn call is stored in the
-			// R_ADDR relocation on the ARESUMEPOINT.
+			// continuation relocation on the ARESUMEPOINT.
 			lastWasmAddr = uint32(r.Add())
 		}
 		if r.Type().IsDirectCall() && (r.Sym() == deferReturnSym || ldr.IsDeferReturnTramp(r.Sym())) {
@@ -627,7 +627,7 @@ func (state *pclntab) generateFuncdata(ctxt *Link, funcs []loader.Sym, inlsyms m
 				// With multiple .text sections the offset
 				// is from the start of the first one.
 				o -= int64(Segtext.Sections[0].Vaddr)
-				if ctxt.Target.IsWasm() {
+				if ctxt.Target.IsWasm() && ctxt.Arch.PtrSize == 8 {
 					if o&(1<<16-1) != 0 {
 						ctxt.Errorf(fdSym, "textoff relocation does not target function entry for funcdata symbol: %s %#x", ldr.SymName(rs), o)
 					}
@@ -777,8 +777,8 @@ func textOff(ctxt *Link, s loader.Sym, textStart int64) uint32 {
 	if off < 0 {
 		panic(fmt.Sprintf("expected func %s(%x) to be placed at or after textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
 	}
-	if ctxt.IsWasm() {
-		// On Wasm, the function table contains just the function index, whereas
+	if ctxt.IsWasm() && ctxt.Arch.PtrSize == 8 {
+		// On GOARCH=wasm, the function table contains just the function index, whereas
 		// the "PC" (s's Value), relative to textStart, is function index << 16 + block index
 		// (see ../wasm/asm.go:assignAddress).
 		if off&(1<<16-1) != 0 {
@@ -807,8 +807,8 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
 	// Final entry of table is just end pc offset.
 	lastFunc := funcs[len(funcs)-1]
 	lastPC := pcOff(lastFunc) + uint32(ldr.SymSize(lastFunc))
-	if ctxt.IsWasm() {
-		lastPC = pcOff(lastFunc) + 1 // On Wasm it is function index (see above)
+	if ctxt.IsWasm() && ctxt.Arch.PtrSize == 8 {
+		lastPC = pcOff(lastFunc) + 1 // On GOARCH=wasm it is a function index (see above)
 	}
 	sb.SetUint32(ctxt.Arch, int64(len(funcs))*2*4, lastPC)
 }

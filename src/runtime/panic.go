@@ -1503,8 +1503,7 @@ func recovery(gp *g) {
 
 	// branch directly to the deferreturn
 	gp.sched.sp = sp
-	gp.sched.pc = gotoPc
-	gp.sched.lr = 0
+	gobufSetPC(&gp.sched, gotoPc)
 	// Restore the bp on platforms that support frame pointers.
 	// N.B. It's fine to not set anything for platforms that don't
 	// support frame pointers, since nothing consumes them.
@@ -1882,5 +1881,5 @@ func pcOff(pc uintptr) hex {
 	return hex(pc - fn.entry())
 }
 func fnName(fn func()) string {
-	return pcName(**(**uintptr)(unsafe.Pointer(&fn)))
+	return pcName(abi.FuncPCABIInternal(fn))
 }

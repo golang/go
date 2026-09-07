@@ -153,7 +153,9 @@ func SetArgRegs(ints, floats int, floatSize uintptr) (oldInts, oldFloats int, ol
 	return
 }
 
-var MethodValueCallCodePtr = methodValueCallCodePtr
+var MethodValueCallCodePtr = func() uintptr {
+	return funcValuePC(methodValueCallCode())
+}
 
 var InternalIsZero = isZero
 

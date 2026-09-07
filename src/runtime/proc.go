@@ -1933,7 +1933,13 @@ func mstart1() {
 	// And goexit0 does a gogo that needs to return from mstart1
 	// and let mstart0 exit the thread.
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
-	gp.sched.pc = sys.GetCallerPC()
+	pc := sys.GetCallerPC()
+	if goarch.IsWasm32 != 0 {
+		gobufSetPC(&gp.sched, pc)
+	} else {
+		// Some link-register architectures initialize sched.lr before this.
+		gp.sched.pc = pc
+	}
 	gp.sched.sp = sys.GetCallerSP()
 	gp.sched.bp = getcallerfp()
 
@@ -4637,9 +4643,8 @@ func save(pc, sp, bp uintptr) {
 		throw("save on system g not allowed")
 	}
 
-	gp.sched.pc = pc
+	gobufSetPC(&gp.sched, pc)
 	gp.sched.sp = sp
-	gp.sched.lr = 0
 	gp.sched.bp = bp
 	// We need to ensure ctxt is zero, but can't have a write
 	// barrier here. However, it should always already be zero.
@@ -5423,13 +5428,13 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 	memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
 	newg.sched.sp = sp
 	newg.stktopsp = sp
-	newg.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
+	gobufSetGoexit(&newg.sched)
 	newg.sched.g = guintptr(unsafe.Pointer(newg))
 	gostartcallfn(&newg.sched, fn)
 	newg.parentGoid = callergp.goid
 	newg.gopc = callerpc
 	newg.ancestors = saveAncestors(callergp)
-	newg.startpc = fn.fn
+	newg.startpc = funcValuePC(fn.fn)
 	newg.runningCleanups.Store(false)
 	if isSystemGoroutine(newg, false) {
 		sched.ngsys.Add(1)

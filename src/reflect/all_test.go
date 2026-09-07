@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
+	"internal/abi"
 	"internal/asan"
 	"internal/goarch"
 	"internal/msan"
@@ -8691,7 +8692,7 @@ func TestValuePointerAndUnsafePointer(t *testing.T) {
 		{"channel", ValueOf(ch), *(*unsafe.Pointer)(unsafe.Pointer(&ch))},
 		{"map", ValueOf(m), *(*unsafe.Pointer)(unsafe.Pointer(&m))},
 		{"unsafe.Pointer", ValueOf(unsafePtr), unsafePtr},
-		{"function", ValueOf(fn), **(**unsafe.Pointer)(unsafe.Pointer(&fn))},
+		{"function", ValueOf(fn), unsafe.Pointer(abi.FuncPCABIInternal(fn))},
 		{"slice", ValueOf(slice), unsafe.Pointer(unsafe.SliceData(slice))},
 		{"string", ValueOf(s), unsafe.Pointer(unsafe.StringData(s))},
 	}

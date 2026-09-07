@@ -668,7 +668,7 @@ func (t *rtype) Method(i int) (m Method) {
 	}
 	mt := FuncOf(in, out, ft.IsVariadic())
 	m.Type = mt
-	tfn := t.textOff(p.Tfn)
+	tfn := funcHandle(uintptr(t.textOff(p.Tfn)))
 	fn := unsafe.Pointer(&tfn)
 	m.Func = Value{&mt.(*rtype).t, fn, fl}
 

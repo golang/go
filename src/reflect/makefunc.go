@@ -53,7 +53,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 
 	ftyp := (*funcType)(unsafe.Pointer(t))
 
-	code := abi.FuncPCABI0(makeFuncStub)
+	code := funcHandle(abi.FuncPCABI0(makeFuncStub))
 
 	// makeFuncImpl contains a stack map for use by the runtime
 	_, _, abid := funcLayout(ftyp, nil)
@@ -111,7 +111,7 @@ func makeMethodValue(v Value, i int) Value {
 	}
 	ftyp := mtyp.FuncType()
 
-	code := methodValueCallCodePtr()
+	code := methodValueCallCode()
 
 	// methodValue contains a stack map for use by the runtime
 	_, _, abid := funcLayout(ftyp, nil)
@@ -129,8 +129,8 @@ func makeMethodValue(v Value, i int) Value {
 	return Value{ftyp.Common(), unsafe.Pointer(fv), v.flag.ro() | flagMethod | flag(Func)}
 }
 
-func methodValueCallCodePtr() uintptr {
-	return abi.FuncPCABI0(methodValueCall)
+func methodValueCallCode() uintptr {
+	return funcHandle(abi.FuncPCABI0(methodValueCall))
 }
 
 // methodValueCall is an assembly function that is the code half of

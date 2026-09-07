@@ -26,9 +26,10 @@ import (
 const usesLR = sys.MinFrameSize > 0
 
 // retPCSize is the size of the return-PC slot between stack frames on
-// architectures without a link register.
+// architectures without a link register. It is pointer-sized on x86 and
+// 8 bytes on wasm and wasm32.
 // The linker describes the same slot using the target's register size.
-const retPCSize = goarch.PtrSize
+const retPCSize = goarch.PtrSize + (8-goarch.PtrSize)*goarch.IsWasm32
 
 const (
 	// tracebackInnerFrames is the number of innermost frames to print in a
@@ -313,7 +314,11 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 				frame.fn = findfunc(frame.pc)
 				f = frame.fn
 				flag = f.flag
-				frame.lr = gp.sched.lr
+				if usesLR {
+					frame.lr = gp.sched.lr
+				} else {
+					frame.lr = 0
+				}
 				frame.sp = gp.sched.sp
 				u.cgoCtxt = len(gp.cgoCtxt) - 1
 			case abi.FuncID_systemstack:

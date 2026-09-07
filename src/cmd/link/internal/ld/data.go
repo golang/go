@@ -502,8 +502,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			// to the start of the first text section, even if there are multiple.
 			if sect.Name == ".text" {
 				o = ldr.SymValue(rs) - int64(Segtext.Sections[0].Vaddr) + r.Add()
-				if target.IsWasm() {
-					// On Wasm, textoff (e.g. in the method table) is just the function index,
+				if target.IsWasm() && target.Arch.PtrSize == 8 {
+					// On GOARCH=wasm, textoff (e.g. in the method table) is just the function index,
 					// whereas the "PC" (rs's Value), relative to section start, is
 					// function index << 16 + block index (see ../wasm/asm.go:assignAddress).
 					if o&(1<<16-1) != 0 {
@@ -2133,7 +2133,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	var segro *sym.Segment
 	if ctxt.IsELF && ctxt.LinkMode == LinkInternal {
 		segro = &Segrodata
-	} else if ctxt.HeadType == objabi.Hwindows {
+	} else if ctxt.HeadType == objabi.Hwindows || ctxt.IsWasm() && ctxt.Arch.PtrSize == 4 {
 		segro = &Segrodata
 	} else {
 		segro = &Segtext
@@ -3032,16 +3032,25 @@ func (ctxt *Link) address() []*sym.Segment {
 		va = uint64(Rnd(int64(va), int64(s.Align)))
 		s.Vaddr = va
 		va += s.Length
-		if ctxt.IsWasm() && i == 0 {
-			// On Wasm, functions are not in the linear memory.
-			// Start the data address at wasmMinDataAddr.
+		if ctxt.IsWasm() && ctxt.Arch.PtrSize == 8 && i == 0 {
+			// On GOARCH=wasm, PCs have the high bit set, so reset the data address.
 			// (The second and later sections in Segtext are
 			// actually rodata. Probably we should put them in
 			// Segrodata.)
 			va = wasmMinDataAddr
 		}
 	}
+	// Record Segtext.Length while va still marks the end of text.
+	// On wasm32, text occupies a logical PC range at the top of the
+	// 32-bit address space by default. The reset below moves va to
+	// the start of the linear memory layout, beginning with Segrodata.
 	Segtext.Length = va - uint64(*FlagTextAddr)
+	if ctxt.IsWasm() && ctxt.Arch.PtrSize == 4 {
+		// wasm32 PCs are above linear memory. Keep data and the
+		// allocator below them, since user code can hold a PC in
+		// unsafe.Pointer. The Wasm memory section enforces the limit.
+		va = wasmMinDataAddr
+	}
 
 	if len(Segrodata.Sections) > 0 {
 		// align to page boundary so as not to mix

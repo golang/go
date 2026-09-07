@@ -315,7 +315,7 @@ type gobuf struct {
 	pc   uintptr
 	g    guintptr
 	ctxt unsafe.Pointer
-	lr   uintptr
+	lr   uintptr // link register; on wasm32, PC_F paired with pc
 	bp   uintptr // for framepointer-enabled architectures
 }
 

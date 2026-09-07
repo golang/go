@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build wasm || wasm32
+
 package runtime
 
 import (
+	"internal/goarch"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -26,11 +29,18 @@ func wasmExit(code int32)
 // adjust Gobuf as it if executed a call to fn with context ctxt
 // and then stopped before the first instruction in fn.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
-	sp := buf.sp
-	sp -= retPCSize
-	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
+	sp := buf.sp - retPCSize
+	pc := uint64(buf.pc)
+	if goarch.IsWasm32 != 0 {
+		pc |= uint64(buf.lr) << 32
+	}
+	*(*uint64)(unsafe.Pointer(sp)) = pc
 	buf.sp = sp
 	buf.pc = uintptr(fn)
+	if goarch.IsWasm32 != 0 {
+		buf.pc = funcValuePC(buf.pc)
+		buf.lr = uintptr(fn)
+	}
 	buf.ctxt = ctxt
 }
 

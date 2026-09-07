@@ -223,7 +223,7 @@ func itabInit(m *itab, firstTime bool) string {
 	// store emits no write barrier: on wasm a code pointer can look like a
 	// heap pointer and make the GC crash (see issue 80472).
 	methods := unsafe.Slice(&m.Fun[0], ni)
-	var fun0 unsafe.Pointer
+	var fun0 uintptr
 imethods:
 	for k := 0; k < ni; k++ {
 		i := &inter.Methods[k]
@@ -244,11 +244,11 @@ imethods:
 					pkgPath = rtyp.nameOff(x.PkgPath).Name()
 				}
 				if tname.IsExported() || pkgPath == ipkg {
-					ifn := rtyp.textOff(t.Ifn)
+					ifn := funcHandle(uintptr(rtyp.textOff(t.Ifn)))
 					if k == 0 {
 						fun0 = ifn // we'll set m.Fun[0] at the end
 					} else if firstTime {
-						methods[k] = uintptr(ifn)
+						methods[k] = ifn
 					}
 					continue imethods
 				}
@@ -259,7 +259,7 @@ imethods:
 		return iname
 	}
 	if firstTime {
-		m.Fun[0] = uintptr(fun0)
+		m.Fun[0] = fun0
 	}
 	return ""
 }
