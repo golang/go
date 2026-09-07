@@ -153,6 +153,11 @@ func splitPtr(ptr *ssa.Value) (BaseAddress, int64) {
 	var idx Index
 	var off int64
 	for {
+		if ptr.Op == ssaop.OpCopy {
+			// We can have OpCopy left from deadcode pass
+			ptr = ptr.Args[0]
+			continue
+		}
 		if ptr.Op == ssaop.OpOffPtr {
 			off += ptr.AuxInt
 			ptr = ptr.Args[0]
