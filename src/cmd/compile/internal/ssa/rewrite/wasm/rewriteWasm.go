@@ -5912,6 +5912,36 @@ func rewriteValue_OpWasmI64And(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	// match: (I64And x:(I64Load32U _ _) (I64Const [0xffffffff]))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpWasmI64Load32U || v_1.Op != ssaop.OpWasmI64Const || ssa.AuxIntToInt64(v_1.AuxInt) != 0xffffffff {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (I64And x:(I64Load16U _ _) (I64Const [0xffff]))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpWasmI64Load16U || v_1.Op != ssaop.OpWasmI64Const || ssa.AuxIntToInt64(v_1.AuxInt) != 0xffff {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (I64And x:(I64Load8U _ _) (I64Const [0xff]))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpWasmI64Load8U || v_1.Op != ssaop.OpWasmI64Const || ssa.AuxIntToInt64(v_1.AuxInt) != 0xff {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
 	// match: (I64And (I64Const [x]) y)
 	// cond: y.Op != ssaop.OpWasmI64Const
 	// result: (I64And y (I64Const [x]))
@@ -6069,6 +6099,42 @@ func rewriteValue_OpWasmI64Extend16S(v *ssa.Value) bool {
 		v.CopyOf(x)
 		return true
 	}
+	// match: (I64Extend16S x:(I64Load16S _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpWasmI64Load16S {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (I64Extend16S x:(Arg <t>))
+	// cond: t.Size() == 2 && t.IsSigned()
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpArg {
+			break
+		}
+		t := x.Type
+		if !(t.Size() == 2 && t.IsSigned()) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (I64Extend16S (I64Const [c]))
+	// result: (I64Const [int64(int16(c))])
+	for {
+		if v_0.Op != ssaop.OpWasmI64Const {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		v.Reset(ssaop.OpWasmI64Const)
+		v.AuxInt = ssa.Int64ToAuxInt(int64(int16(c)))
+		return true
+	}
 	return false
 }
 func rewriteValue_OpWasmI64Extend32S(v *ssa.Value) bool {
@@ -6126,6 +6192,42 @@ func rewriteValue_OpWasmI64Extend32S(v *ssa.Value) bool {
 		v.CopyOf(x)
 		return true
 	}
+	// match: (I64Extend32S x:(I64Load32S _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpWasmI64Load32S {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (I64Extend32S x:(Arg <t>))
+	// cond: t.Size() == 4 && t.IsSigned()
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpArg {
+			break
+		}
+		t := x.Type
+		if !(t.Size() == 4 && t.IsSigned()) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (I64Extend32S (I64Const [c]))
+	// result: (I64Const [int64(int32(c))])
+	for {
+		if v_0.Op != ssaop.OpWasmI64Const {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		v.Reset(ssaop.OpWasmI64Const)
+		v.AuxInt = ssa.Int64ToAuxInt(int64(int32(c)))
+		return true
+	}
 	return false
 }
 func rewriteValue_OpWasmI64Extend8S(v *ssa.Value) bool {
@@ -6159,6 +6261,42 @@ func rewriteValue_OpWasmI64Extend8S(v *ssa.Value) bool {
 			break
 		}
 		v.CopyOf(x)
+		return true
+	}
+	// match: (I64Extend8S x:(I64Load8S _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpWasmI64Load8S {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (I64Extend8S x:(Arg <t>))
+	// cond: t.Size() == 1 && t.IsSigned()
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpArg {
+			break
+		}
+		t := x.Type
+		if !(t.Size() == 1 && t.IsSigned()) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (I64Extend8S (I64Const [c]))
+	// result: (I64Const [int64(int8(c))])
+	for {
+		if v_0.Op != ssaop.OpWasmI64Const {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		v.Reset(ssaop.OpWasmI64Const)
+		v.AuxInt = ssa.Int64ToAuxInt(int64(int8(c)))
 		return true
 	}
 	return false
