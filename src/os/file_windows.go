@@ -100,11 +100,15 @@ func newFile(h syscall.Handle, name string, kind newFileKind, nonBlocking bool) 
 		panic("newFile with unknown kind")
 	}
 
+	// Completion notification modes are shared by all handles to the file
+	// object. Preserve them for handles passed to NewFile, since other users
+	// of the file object may rely on those modes. See go.dev/issue/80979.
 	f := &File{&file{
 		pfd: poll.FD{
-			Sysfd:         h,
-			IsStream:      true,
-			ZeroReadIsEOF: true,
+			Sysfd:                   h,
+			IsStream:                true,
+			ZeroReadIsEOF:           true,
+			KeepFileCompletionModes: kind == kindNewFile,
 		},
 		name: name,
 	}}
