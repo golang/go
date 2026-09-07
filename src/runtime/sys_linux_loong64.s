@@ -204,6 +204,12 @@ TEXT runtime·mincore<ABIInternal>(SB),NOSPLIT,$0
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime<ABIInternal>(SB),NOSPLIT,$24
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R23
+	BEQ	R23, nosecret
+	JAL	·secretEraseRegisters(SB)
+nosecret:
+#endif
 	MOVV	R3, R23	// R23 is unchanged by C code
 
 	MOVV	g_m(g), R24	// R24 = m
@@ -279,6 +285,12 @@ fallback:
 
 // func nanotime1() int64
 TEXT runtime·nanotime1<ABIInternal>(SB),NOSPLIT,$24
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R23
+	BEQ	R23, nosecret
+	JAL	·secretEraseRegisters(SB)
+nosecret:
+#endif
 	MOVV	R3, R23	// R23 is unchanged by C code
 
 	MOVV	g_m(g), R24	// R24 = m
@@ -683,7 +695,7 @@ TEXT runtime·socket(SB),$0-20
 	RET
 
 // func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
-TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
 	MOVV	R3, R23
 
 	MOVV	runtime·vdsoGetrandomSym(SB), R12
