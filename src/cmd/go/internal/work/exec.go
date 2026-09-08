@@ -1890,27 +1890,25 @@ cachemiss:
 }
 
 func (b *Builder) export(ctx context.Context, a *Action) error {
-	if err := b.doExport(a); err != nil {
-		return err
-	}
-	// Propagate artifacts to package on success.
-	a.Package.Export = a.built
-	a.Package.BuildID = a.buildID
-	return nil
-}
-
-func (b *Builder) doExport(a *Action) error {
 	// Build input, hash it, and check for cache hit.
 	ecfg := b.buildExportConfig(a)
-	if b.useCache(a, b.exportActionID(a, ecfg), a.Target, !b.IsCmdList) {
+	aid := b.exportActionID(a, ecfg)
+	if b.useCache(a, aid, a.Target, !b.IsCmdList) {
+		e, err := cache.Default().Get(aid)
+		if err != nil {
+			return err
+		}
+		a.Package.BuildID = a.buildID
+		a.Package.Export = cache.Default().OutputFile(e.OutputID)
 		return nil
 	}
 	// Miss.
+	defer b.flushOutput(a)
 	sh := b.Shell(a)
 	if err := sh.Mkdir(a.Objdir); err != nil {
 		return err
 	}
-	// Serialize input, call tool, and update build ID.
+	// Serialize input and call tool.
 	js, err := json.Marshal(ecfg)
 	if err != nil {
 		return err
@@ -1923,10 +1921,23 @@ func (b *Builder) doExport(a *Action) error {
 	if err := sh.run(a.Package.Dir, a.Package.ImportPath, nil, cfg.BuildToolexec, tool, in); err != nil {
 		return err
 	}
+	// Update a.buildID and a.built.
 	if err := b.updateBuildID(a, a.Target); err != nil {
 		return err
 	}
 	a.built = a.Target
+	// Save the output in the cache and surface to a.Package.
+	f, err := os.Open(a.built)
+	if err != nil {
+		return err
+	}
+	defer f.Close() // ignore error
+	oid, _, err := cache.Default().Put(aid, f)
+	if err != nil {
+		return err
+	}
+	a.Package.BuildID = a.buildID
+	a.Package.Export = cache.Default().OutputFile(oid)
 	return nil
 }
 
