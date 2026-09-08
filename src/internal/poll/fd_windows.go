@@ -438,10 +438,10 @@ const (
 // Init initializes the FD. The Sysfd field should already be set.
 // This can be called multiple times on a single FD.
 // The net argument is a network name from the net package (e.g., "tcp"),
-// or "file" or "console" or "dir".
-// Set pollable to true if fd should be managed by runtime netpoll.
-// Pollable must be set to true for overlapped fds.
-func (fd *FD) Init(net string, pollable bool) error {
+// or "file", "console", or "pipe".
+// The overlapped argument reports whether the handle was opened for overlapped I/O.
+// Such handles use the runtime poller when possible, or explicit events otherwise.
+func (fd *FD) Init(net string, overlapped bool) error {
 	if initErr != nil {
 		return initErr
 	}
@@ -458,67 +458,83 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.kind = kindNet
 	}
 	fd.isFile = fd.kind != kindNet
-	fd.isBlocking = !pollable
+	fd.isBlocking = !overlapped
 
-	if !pollable {
+	if !overlapped {
 		return nil
 	}
+	return fd.initIOCP()
+}
 
-	// The default behavior of the Windows I/O manager is to queue a completion
-	// port entry for successful operations that complete synchronously when
-	// the handle is opened for overlapped I/O. We will try to disable that
-	// behavior below, as it requires an extra syscall.
-	fd.waitOnSuccess = true
-
+// initIOCP sets up the runtime poller and completion notification modes for an
+// overlapped handle. It must be called before the FD is used concurrently.
+// A nil error does not imply association: if the existing notification modes
+// cannot be determined, the handle is left unassociated to use event-backed I/O.
+func (fd *FD) initIOCP() error {
+	var modes uint32
 	if fd.KeepFileCompletionModes {
-		// Query the existing skip-success mode so we don't wait for a
-		// suppressed completion or skip waiting for an expected one.
-		var info windows.FILE_IO_COMPLETION_NOTIFICATION_INFORMATION
-		if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{},
-			unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileIoCompletionNotificationInformation); err != nil {
+		// Query before associating: we must know whether inline success
+		// queues a completion packet before using the runtime poller.
+		var err error
+		modes, err = fd.getFileCompletionModes()
+		if err != nil {
 			// Without knowing the modes, neither waiting for a completion
 			// packet on success nor skipping it is safe. Leave the handle
 			// unassociated and use explicit events for pending I/O instead.
 			// Inline success needs no wait, and deadlines are unavailable.
 			return nil
 		}
-		fd.waitOnSuccess = info.Flags&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS == 0
 	}
 
 	// It is safe to add overlapped handles that also perform I/O
 	// outside of the runtime poller. The runtime poller will ignore
 	// I/O completion notifications not initiated by us.
-	err := fd.pd.init(fd)
-	if err != nil {
+	if err := fd.pd.init(fd); err != nil {
 		return err
 	}
-	fd.associated = true
 
 	if !fd.KeepFileCompletionModes {
-		// FILE_SKIP_SET_EVENT_ON_HANDLE is always safe to use. We don't use that feature
-		// and it adds some overhead to the Windows I/O manager.
-		// See https://devblogs.microsoft.com/oldnewthing/20200221-00/?p=103466.
-		modes := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
-		if canSkipCompletionPortOnSuccess(fd.Sysfd, fd.kind == kindNet) {
-			modes |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
-		}
-		if syscall.SetFileCompletionNotificationModes(fd.Sysfd, modes) == nil {
-			if modes&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0 {
-				fd.waitOnSuccess = false
-			}
-		}
+		// Only change notification modes after association succeeds.
+		modes = fd.setFileCompletionModes()
 	}
+	fd.waitOnSuccess = modes&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS == 0
+	fd.associated = true
 	return nil
+}
+
+// getFileCompletionModes queries the file object's completion notification modes.
+func (fd *FD) getFileCompletionModes() (uint32, error) {
+	var info windows.FILE_IO_COMPLETION_NOTIFICATION_INFORMATION
+	err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{},
+		unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileIoCompletionNotificationInformation)
+	return info.Flags, err
+}
+
+// setFileCompletionModes enables completion notification optimizations and returns
+// the requested modes on success, or zero if the request fails.
+func (fd *FD) setFileCompletionModes() uint32 {
+	// Suppressing the file object's event saves work for the I/O manager.
+	// Explicit per-operation events are still signaled.
+	// See https://devblogs.microsoft.com/oldnewthing/20200221-00/?p=103466.
+	modes := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
+	if canSkipCompletionPortOnSuccess(fd.Sysfd, fd.kind == kindNet) {
+		modes |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
+	}
+	if syscall.SetFileCompletionNotificationModes(fd.Sysfd, modes) != nil {
+		// Retain the default policy of waiting for an inline-success packet
+		// unless skip-success was enabled successfully.
+		return 0
+	}
+	return uint32(modes)
 }
 
 // DisassociateIOCP disassociates the file handle from the IOCP.
 // The disassociate operation will not succeed if there is any
 // in-progress I/O operation on the file handle.
 func (fd *FD) DisassociateIOCP() error {
-	// There is a small race window between execIO checking fd.disassociated and
-	// DisassociateIOCP setting it. NtSetInformationFile will fail anyway if
-	// there is any in-progress I/O operation, so just take a read-write lock
-	// to ensure there is no in-progress I/O and fail early if we can't get the lock.
+	// Hold both I/O locks while changing the completion mechanism. Don't wait
+	// for them, since an I/O operation might block indefinitely.
+	// NtSetInformationFile also rejects handles with pending I/O outside this FD.
 	if ok, err := fd.tryReadWriteLock(); err != nil || !ok {
 		if err == nil {
 			err = errors.New("can't disassociate the handle while there is in-progress I/O")
