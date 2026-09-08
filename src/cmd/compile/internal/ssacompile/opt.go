@@ -6,20 +6,20 @@ package ssacompile
 
 import (
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/ssarewrite/rewritedivisible"
-	"cmd/compile/internal/ssarewrite/rewritedivmod"
-	"cmd/compile/internal/ssarewrite/rewritegeneric"
+	"cmd/compile/internal/ssa/rewrite/divisible"
+	"cmd/compile/internal/ssa/rewrite/divmod"
+	"cmd/compile/internal/ssa/rewrite/generic"
 )
 
 // machine-independent optimization.
 func opt(f *ssa.Func) {
-	applyRewrite(f, rewritegeneric.RewriteBlock, rewritegeneric.RewriteValue, ssa.RemoveDeadValues)
+	applyRewrite(f, generic.RewriteBlock, generic.RewriteValue, ssa.RemoveDeadValues)
 }
 
 func divisiblePass(f *ssa.Func) {
-	applyRewrite(f, rewritedivisible.RewriteBlock, rewritedivisible.RewriteValue, ssa.RemoveDeadValues)
+	applyRewrite(f, divisible.RewriteBlock, divisible.RewriteValue, ssa.RemoveDeadValues)
 }
 
 func divmodPass(f *ssa.Func) {
-	applyRewrite(f, rewritedivmod.RewriteBlock, rewritedivmod.RewriteValue, ssa.RemoveDeadValues)
+	applyRewrite(f, divmod.RewriteBlock, divmod.RewriteValue, ssa.RemoveDeadValues)
 }

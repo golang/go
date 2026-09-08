@@ -49,17 +49,17 @@ func rewritesPkg(arch, suff string) string {
 	if splitPhase < phase6Rewrites {
 		return splitRewritesPkg
 	}
-	// Add rewrite to the beginning so we don't get
-	// a package name starting with a number in the case of 386.
-	name := strings.ToLower("rewrite" + arch + suff)
-	return name
+	if arch == "386" {
+		arch = "i386"
+	}
+	return strings.ToLower(arch + suff)
 }
 
 func rewritesDir(arch, suff string) string {
 	if splitPhase < phase6Rewrites {
 		return splitRewritesDir
 	}
-	return "../ssarewrite/" + rewritesPkg(arch, suff) + "/"
+	return "rewrite/" + rewritesPkg(arch, suff) + "/"
 }
 
 func rewriteFuncName(kind, arch, suff, rule string) string {

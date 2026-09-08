@@ -53,7 +53,6 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 	roots := []string{
 		wd,
 		filepath.Join(wd, "../ssacompile"),
-		filepath.Join(wd, "../ssarewrite"),
 	}
 	for _, root := range roots {
 		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -118,7 +117,6 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 	genRoots := []string{
 		filepath.Join(tmpdir, "ssa"),
 		filepath.Join(tmpdir, "ssacompile"),
-		filepath.Join(tmpdir, "ssarewrite"),
 	}
 	compare := func(path string, file fs.DirEntry, err error) error {
 		if slices.Contains(genRoots, path) && os.IsNotExist(err) {

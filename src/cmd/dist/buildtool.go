@@ -277,12 +277,12 @@ var ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssaco
 
 func init() {
 	if ssaRewriteSplitPackages {
-		ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssarewrite")
+		ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssa/rewrite")
 	}
 }
 
 // isUnneededSSARewriteFile reports whether srcFile is a
-// src/cmd/compile/internal/ssarewrite/ARCH/rewriteARCHNAME.go file or a
+// src/cmd/compile/internal/ssa/rewrite/ARCH/rewriteARCHNAME.go file or a
 // src/cmd/compile/internal/ssacompile/rewriteARCHNAME.go file for an
 // architecture that isn't for the given GOARCH.
 //
