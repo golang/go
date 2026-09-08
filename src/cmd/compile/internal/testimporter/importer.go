@@ -95,7 +95,7 @@ func (imp *Importer) readArchive(path, dir string) (*types2.Package, error) {
 	}
 	defer f.Close()
 	buf := bufio.NewReader(f)
-	data, err := exportdata.ReadUnified(buf)
+	data, err := exportdata.ReadUnified(buf, true)
 	if err != nil {
 		return nil, err
 	}

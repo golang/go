@@ -7,6 +7,7 @@ package noder
 import (
 	"bytes"
 	"fmt"
+	"internal/goexperiment"
 	"io"
 
 	"cmd/compile/internal/base"
@@ -16,7 +17,11 @@ import (
 func WriteExports(out *bio.Writer) {
 	var data bytes.Buffer
 
-	data.WriteByte('u')
+	if goexperiment.GoListExportNewFormat {
+		data.WriteByte('p')
+	} else {
+		data.WriteByte('u')
+	}
 	writeUnifiedExport(&data)
 
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
