@@ -270,7 +270,6 @@ func (fd *FD) execIO(
 		runtimeCtx: fd.pd.runtimeCtx,
 		mode:       int32(mode),
 	}
-	o.setOffset(fd.offset)
 	if !fd.isBlocking {
 		var pinner *runtime.Pinner
 		if mode == 'r' {
@@ -354,6 +353,8 @@ type FD struct {
 	// The file offset for the next read or write.
 	// Overlapped IO operations don't use the real file pointer,
 	// so we need to keep track of the offset ourselves.
+	// Read and Write only use this for kindFile.
+	// Protected by both the read and write locks.
 	offset int64
 
 	// For console I/O.
@@ -616,10 +617,15 @@ func (fd *FD) Read(buf []byte) (int, error) {
 		n, err = fd.readConsole(buf)
 	case kindFile, kindPipe:
 		n, err = fd.execIO('r', func(o *operation) (qty uint32, err error) {
+			if fd.kind == kindFile {
+				o.setOffset(fd.offset)
+			}
 			err = syscall.ReadFile(fd.Sysfd, buf, &qty, fd.overlapped(o))
 			return qty, err
 		}, pinPtrsFromBuf(buf)...)
-		fd.addOffset(n)
+		if fd.kind == kindFile {
+			fd.addOffset(n)
+		}
 		switch err {
 		case syscall.ERROR_HANDLE_EOF:
 			err = io.EOF
@@ -874,10 +880,15 @@ func (fd *FD) Write(buf []byte) (int, error) {
 			n, err = fd.writeConsole(b)
 		case kindPipe, kindFile:
 			n, err = fd.execIO('w', func(o *operation) (qty uint32, err error) {
+				if fd.kind == kindFile {
+					o.setOffset(fd.offset)
+				}
 				err = syscall.WriteFile(fd.Sysfd, b, &qty, fd.overlapped(o))
 				return qty, err
 			}, pinPtrsFromBuf(b)...)
-			fd.addOffset(n)
+			if fd.kind == kindFile {
+				fd.addOffset(n)
+			}
 		case kindNet:
 			if race.Enabled {
 				race.ReleaseMerge(unsafe.Pointer(&ioSync))

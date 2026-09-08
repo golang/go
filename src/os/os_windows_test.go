@@ -1949,6 +1949,43 @@ func TestNamedPipe(t *testing.T) {
 	}
 }
 
+func TestNamedPipeConcurrentReadWrite(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	server := newBytePipe(t, name, true)
+	client := newFileOverlapped(t, name, true)
+
+	// Read and Write use separate locks. In particular, neither may
+	// access the shared file offset, which is unused by pipes.
+	const count = 100
+	var wg sync.WaitGroup
+	for _, f := range []*os.File{server, client} {
+		wg.Go(func() {
+			var buf [1]byte
+			for i := range count {
+				if _, err := io.ReadFull(f, buf[:]); err != nil {
+					t.Error(err)
+					f.Close() // Unblock the peer.
+					return
+				}
+				if buf[0] != byte(i) {
+					t.Errorf("Read = %d; want %d", buf[0], i)
+				}
+			}
+		})
+		wg.Go(func() {
+			for i := range count {
+				if _, err := f.Write([]byte{byte(i)}); err != nil {
+					t.Error(err)
+					f.Close()
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+}
+
 func TestPipeMessageReadEOF(t *testing.T) {
 	t.Parallel()
 	name := pipeName()
