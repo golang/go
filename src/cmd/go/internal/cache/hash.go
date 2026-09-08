@@ -11,9 +11,9 @@ import (
 	"hash"
 	"io"
 	"os"
-	"runtime"
-	"strings"
 	"sync"
+
+	"cmd/go/internal/gover"
 )
 
 var debugHash = false // set when GODEBUG=gocachehash=1
@@ -38,24 +38,12 @@ type Hash struct {
 // in the cache, but not additional copies of the large output files,
 // which are still addressed by unsalted SHA256.
 //
-// We strip any GOEXPERIMENTs the go tool was built with from this
-// version string on the assumption that they shouldn't affect go tool
-// execution. This allows bootstrapping to converge faster: dist builds
+// We use a version string of the go tool that doesn't include any non-default
+// GOEXPERIMENTs on the assumption that they shouldn't affect go tool execution.
+// This allows bootstrapping to converge faster: dist builds
 // go_bootstrap without any experiments, so by stripping experiments
 // go_bootstrap and the final go binary will use the same salt.
-var hashSalt = []byte(stripExperiment(runtime.Version()))
-
-// stripExperiment strips any GOEXPERIMENT configuration from the Go
-// version string.
-func stripExperiment(version string) string {
-	if i := strings.Index(version, " X:"); i >= 0 {
-		return version[:i]
-	}
-	if i := strings.Index(version, "-X:"); i >= 0 {
-		return version[:i]
-	}
-	return version
-}
+var hashSalt = []byte(gover.LocalToolchain())
 
 // Subkey returns an action ID corresponding to mixing a parent
 // action ID with a string description of the subkey.
