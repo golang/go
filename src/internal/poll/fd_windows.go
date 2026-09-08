@@ -301,11 +301,14 @@ func (fd *FD) execIO(
 	// Start IO.
 	qty, err := submit(o)
 	var waitErr error
+	// An event-backed operation that succeeds inline is already complete.
+	// Only IOCP may require waiting for a completion packet on success.
+	waitOnSuccess := o.o.HEvent == 0 && fd.waitOnSuccess
 	// Blocking operations shouldn't return ERROR_IO_PENDING.
 	// Continue without waiting if that happens.
-	if !fd.isBlocking && (err == syscall.ERROR_IO_PENDING || (err == nil && fd.waitOnSuccess)) {
+	if !fd.isBlocking && (err == syscall.ERROR_IO_PENDING || (err == nil && waitOnSuccess)) {
 		// IO started asynchronously or completed synchronously but
-		// a sync notification is required. Wait for it to complete.
+		// an IOCP completion packet is expected. Wait for completion.
 		waitErr = fd.waitIO(o)
 		if fd.isFile {
 			err = windows.GetOverlappedResult(fd.Sysfd, &o.o, &qty, false)
@@ -366,8 +369,8 @@ type FD struct {
 	// Semaphore signaled when file is closed.
 	csema uint32
 
-	// Don't wait from completion port notifications for successful
-	// operations that complete synchronously.
+	// Whether to wait for an IOCP completion packet for operations that
+	// complete synchronously. Only used while associated is true.
 	waitOnSuccess bool
 
 	// Whether this is a streaming descriptor, as opposed to a
@@ -477,7 +480,6 @@ func (fd *FD) Init(net string, pollable bool) error {
 			// packet on success nor skipping it is safe. Leave the handle
 			// unassociated and use explicit events for pending I/O instead.
 			// Inline success needs no wait, and deadlines are unavailable.
-			fd.waitOnSuccess = false
 			return nil
 		}
 		fd.waitOnSuccess = info.Flags&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS == 0

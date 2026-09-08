@@ -2161,6 +2161,48 @@ func TestFileAssociatedWithExternalIOCP(t *testing.T) {
 	}
 }
 
+func TestPipePendingIOAfterFd(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	writer := newPipe(t, name, 0, false, true)
+	reader := newFileOverlapped(t, name, true)
+	writer.Fd()
+	reader.Fd()
+
+	// An unbuffered pipe keeps the write pending until all bytes are read.
+	// Both handles use events rather than the runtime IOCP.
+	const want = "ab"
+	writeDone := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		var buf [len(want)]byte
+		if _, err := io.ReadFull(reader, buf[:1]); err != nil {
+			t.Error(err)
+			reader.Close()
+			return
+		}
+		select {
+		case <-writeDone:
+			t.Error("Write returned before all bytes were read")
+		default:
+		}
+		if _, err := io.ReadFull(reader, buf[1:]); err != nil {
+			t.Error(err)
+			reader.Close()
+			return
+		}
+		if string(buf[:]) != want {
+			t.Errorf("Read = %q; want %q", buf[:], want)
+		}
+	})
+	if n, err := writer.Write([]byte(want)); err != nil || n != len(want) {
+		t.Errorf("Write = %d, %v; want %d, nil", n, err, len(want))
+		writer.Close()
+	}
+	close(writeDone)
+	wg.Wait()
+}
+
 func TestFileWriteFdRace(t *testing.T) {
 	t.Parallel()
 
