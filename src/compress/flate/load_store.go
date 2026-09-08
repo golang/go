@@ -18,13 +18,20 @@ func loadLE8[I indexer](b []byte, i I) byte {
 
 // loadLE32 will load from b at index i.
 func loadLE32[I indexer](b []byte, i I) uint32 {
-	b = b[i : i+4]
+	// Reslicing and then checking a single index compiles to exactly two
+	// bounds checks and a single 4-byte load. Slicing to b[i:i+4] would
+	// leave the compiler unable to prove the resulting length, costing an
+	// additional bounds check per byte.
+	b = b[i:]
+	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
 // loadLE64 will load from b at index i.
 func loadLE64[I indexer](b []byte, i I) uint64 {
-	b = b[i : i+8]
+	// See loadLE32 for why the load is structured this way.
+	b = b[i:]
+	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 }
