@@ -30,13 +30,11 @@ const (
 
 	// bufferFlushSize indicates the buffer size
 	// after which bytes are flushed to the writer.
-	// Should preferably be a multiple of 6, since
-	// we accumulate 6 bytes between writes to the buffer.
+	// Between checks, at most 7 bytes are added to the buffer,
+	// and writes are done as unconditional 8-byte stores, so the
+	// buffer must have at least bufferFlushSize+7+8 bytes.
 	bufferFlushSize = 246
 )
-
-// lengthExtraBitsMinCode is the minimum length code that emits extra bits.
-const lengthExtraBitsMinCode = 8
 
 // lengthExtraBits[i] is the number of extra bits needed by
 // length code i + lengthCodesStart.
@@ -54,9 +52,6 @@ var lengthBase = [32]uint8{
 	64, 80, 96, 112, 128, 160, 192, 224, 255,
 }
 
-// offsetExtraBitsMinCode is the minimum offset code that emits extra bits.
-const offsetExtraBitsMinCode = 4
-
 // offsetExtraBits[i] is the number of extra bits for offset code i.
 var offsetExtraBits = [32]int8{
 	0, 0, 0, 0, 1, 1, 2, 2, 3, 3,
@@ -66,39 +61,28 @@ var offsetExtraBits = [32]int8{
 	14, 14,
 }
 
-// offsetCombined combines offset lookup of extra bits and offset code in a single table.
+// offsetCombined combines the number of extra bits and the base offset
+// of each offset code in a single table: extra bits in the low 8 bits,
+// and the base offset (already reduced by baseMatchOffset) in the upper bits.
+// Entries for codes 30 and 31 are unused.
 var offsetCombined = [32]uint32{
-	0x0, 0x0, 0x0, 0x0, 0x401, 0x601, 0x802, 0xc02,
+	0x0, 0x100, 0x200, 0x300, 0x401, 0x601, 0x802, 0xc02,
 	0x1003, 0x1803, 0x2004, 0x3004, 0x4005, 0x6005,
 	0x8006, 0xc006, 0x10007, 0x18007, 0x20008, 0x30008,
 	0x40009, 0x60009, 0x8000a, 0xc000a, 0x10000b, 0x18000b,
 	0x20000c, 0x30000c, 0x40000d, 0x60000d, 0x0, 0x0}
 
-/*
-Generated with:
-
-func genOffsetCombined() {
-	var offsetBase = [32]uint32{
-		0x000000, 0x000001, 0x000002, 0x000003, 0x000004,
-		0x000006, 0x000008, 0x00000c, 0x000010, 0x000018,
-		0x000020, 0x000030, 0x000040, 0x000060, 0x000080,
-		0x0000c0, 0x000100, 0x000180, 0x000200, 0x000300,
-		0x000400, 0x000600, 0x000800, 0x000c00, 0x001000,
-		0x001800, 0x002000, 0x003000, 0x004000, 0x006000,
-
-		0x008000, 0x00c000,
+// lengthCombined combines, for each match length (reduced by
+// baseMatchLength), the length code (relative to lengthCodesStart) in
+// bits 0-4, the number of extra bits in bits 5-7 and the value of the
+// extra bits in bits 8-12.
+var lengthCombined = func() (t [256]uint32) {
+	for i := range t {
+		code := lengthCodes[i]
+		t[i] = uint32(code) | uint32(lengthExtraBits[code])<<5 | uint32(uint8(i)-lengthBase[code])<<8
 	}
-
-	for i := range offsetCombined[:] {
-		// Don't use extended window values...
-		if offsetExtraBits[i] == 0 || offsetBase[i] > 0x006000 {
-			continue
-		}
-		offsetCombined[i] = uint32(offsetExtraBits[i]) | (offsetBase[i] << 8)
-	}
-	fmt.Printf("offsetCombined = %#v\n", offsetCombined)
-}
-*/
+	return t
+}()
 
 // codegenOrder is the order in which codegen code sizes are written.
 var codegenOrder = []uint32{16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15}
@@ -141,10 +125,14 @@ type huffmanBitWriter struct {
 	// The initial penalty is 100%.
 	// Adding 1 will cut the penalty in half.
 	logNewTablePenalty uint
-	bytes              [256 + 8]byte
-	literalFreq        [lengthCodesStart + 32]uint16
-	offsetFreq         [32]uint16
-	codegenFreq        [codegenCodeCount]uint16
+
+	// bytes must hold at least bufferFlushSize+7+8 bytes (see bufferFlushSize).
+	// Its size is rounded up to a multiple of 8 to keep the following
+	// fields aligned, which is measurably faster in writeBlockHuff.
+	bytes       [(bufferFlushSize + 7 + 8 + 7) &^ 7]byte
+	literalFreq [lengthCodesStart + 32]uint16
+	offsetFreq  [32]uint16
+	codegenFreq [codegenCodeCount]uint16
 
 	// codegen must have an extra space for the final symbol.
 	codegen [literalCount + offsetCodeCount + 1]uint8
@@ -830,114 +818,75 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, lenCodes, offCodes []hcod
 	lengths := lenCodes[lengthCodesStart:]
 	lengths = lengths[:32]
 
-	// Go 1.16 LOVES having these on stack.
+	// Keeping these on the stack instead of in w is significantly faster.
 	bits, nbits, nbytes := w.bits, w.nbits, w.nbytes
 
-	for _, t := range tokens {
+	// Flush whole bytes, so that nbits <= 7 when entering the loop below.
+	storeLE64(w.bytes[nbytes:], bits)
+	nbytes += nbits >> 3
+	bits >>= nbits & 56
+	nbits &= 7
+	if nbytes >= bufferFlushSize {
+		_, w.err = w.writer.Write(w.bytes[:nbytes])
+		nbytes = 0
+		if w.err != nil {
+			return
+		}
+	}
+
+	// The loop below flushes whole bytes at the end of every iteration,
+	// so that nbits <= 7 at the top of every iteration.
+	// A literal adds at most 15 bits and a match at most
+	// 15+5+15+13 = 48 bits, so up to three literals or a single match
+	// can be added to the 64-bit accumulator without an intermediate flush.
+	// Unconditionally storing 8 bytes and advancing by the number of
+	// whole bytes avoids a poorly predicted branch per token.
+	for i := 0; i < len(tokens); i++ {
+		t := tokens[i]
 		if t < 256 {
 			c := lits[t]
 			bits |= c.code64() << (nbits & 63)
 			nbits += c.len()
-			if nbits >= 48 {
-				storeLE64(w.bytes[nbytes:], bits)
-				bits >>= 48
-				nbits -= 48
-				nbytes += 6
-				if nbytes >= bufferFlushSize {
-					if w.err != nil {
-						nbytes = 0
-						return
-					}
-					_, w.err = w.writer.Write(w.bytes[:nbytes])
-					nbytes = 0
+			// Add up to two more literals before flushing.
+			if i+1 < len(tokens) && tokens[i+1] < 256 {
+				i++
+				c := lits[tokens[i]]
+				bits |= c.code64() << (nbits & 63)
+				nbits += c.len()
+				if i+1 < len(tokens) && tokens[i+1] < 256 {
+					i++
+					c := lits[tokens[i]]
+					bits |= c.code64() << (nbits & 63)
+					nbits += c.len()
 				}
 			}
-			continue
-		}
+		} else {
+			// Write the length code and its extra bits as one unit.
+			lc := lengthCombined[t.length()]
+			c := lengths[lc&31]
+			bits |= (c.code64() | uint64(lc>>8)<<(c.len()&63)) << (nbits & 63)
+			nbits += c.len() + uint8(lc>>5)&7
 
-		// Write the length
-		length := t.length()
-		lenCode := lengthCode(length) & 31
-		// inlined 'w.writeCode(lengths[lengthCode])'
-		c := lengths[lenCode]
-		bits |= c.code64() << (nbits & 63)
-		nbits += c.len()
-		if nbits >= 48 {
-			storeLE64(w.bytes[nbytes:], bits)
-			bits >>= 48
-			nbits -= 48
-			nbytes += 6
-			if nbytes >= bufferFlushSize {
-				if w.err != nil {
-					nbytes = 0
-					return
-				}
-				_, w.err = w.writer.Write(w.bytes[:nbytes])
+			// Write the offset code and its extra bits as one unit.
+			offset := t.offset()
+			offCode := (offset >> 16) & 31
+			c = offs[offCode]
+			offComb := offsetCombined[offCode]
+			extra := (offset - (offComb >> 8)) & matchOffsetOnlyMask
+			bits |= (c.code64() | uint64(extra)<<(c.len()&63)) << (nbits & 63)
+			nbits += c.len() + uint8(offComb)
+		}
+		storeLE64(w.bytes[nbytes:], bits)
+		nbytes += nbits >> 3
+		bits >>= nbits & 56
+		nbits &= 7
+		if nbytes >= bufferFlushSize {
+			if w.err != nil {
 				nbytes = 0
+				return
 			}
-		}
-
-		if lenCode >= lengthExtraBitsMinCode {
-			extraLengthBits := lengthExtraBits[lenCode]
-			//w.writeBits(extraLength, extraLengthBits)
-			extraLength := int32(length - lengthBase[lenCode])
-			bits |= uint64(extraLength) << (nbits & 63)
-			nbits += extraLengthBits
-			if nbits >= 48 {
-				storeLE64(w.bytes[nbytes:], bits)
-				bits >>= 48
-				nbits -= 48
-				nbytes += 6
-				if nbytes >= bufferFlushSize {
-					if w.err != nil {
-						nbytes = 0
-						return
-					}
-					_, w.err = w.writer.Write(w.bytes[:nbytes])
-					nbytes = 0
-				}
-			}
-		}
-		// Write the offset
-		offset := t.offset()
-		offCode := (offset >> 16) & 31
-		// inlined 'w.writeCode(offs[offCode])'
-		c = offs[offCode]
-		bits |= c.code64() << (nbits & 63)
-		nbits += c.len()
-		if nbits >= 48 {
-			storeLE64(w.bytes[nbytes:], bits)
-			bits >>= 48
-			nbits -= 48
-			nbytes += 6
-			if nbytes >= bufferFlushSize {
-				if w.err != nil {
-					nbytes = 0
-					return
-				}
-				_, w.err = w.writer.Write(w.bytes[:nbytes])
-				nbytes = 0
-			}
-		}
-
-		if offCode >= offsetExtraBitsMinCode {
-			offsetComb := offsetCombined[offCode]
-			bits |= uint64((offset-(offsetComb>>8))&matchOffsetOnlyMask) << (nbits & 63)
-			nbits += uint8(offsetComb)
-			if nbits >= 48 {
-				storeLE64(w.bytes[nbytes:], bits)
-				bits >>= 48
-				nbits -= 48
-				nbytes += 6
-				if nbytes >= bufferFlushSize {
-					if w.err != nil {
-						nbytes = 0
-						return
-					}
-					_, w.err = w.writer.Write(w.bytes[:nbytes])
-					nbytes = 0
-				}
-			}
+			_, w.err = w.writer.Write(w.bytes[:nbytes])
+			nbytes = 0
 		}
 	}
 	// Restore...
