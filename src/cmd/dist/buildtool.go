@@ -240,13 +240,10 @@ func bootstrapBuildTools() {
 	os.Setenv("GOHOSTARCH", "")
 
 	// Run Go bootstrap to build binaries.
-	// Use the math_big_pure_go build tag to disable the assembly in math/big
-	// which may contain unsupported instructions.
-	// Use the purego build tag to disable other assembly code.
 	cmd := []string{
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
-		"-tags=math_big_pure_go compiler_bootstrap purego",
+		"-tags=compiler_bootstrap",
 	}
 	if vflag > 0 {
 		cmd = append(cmd, "-v")
