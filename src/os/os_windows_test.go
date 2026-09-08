@@ -2203,6 +2203,45 @@ func TestPipePendingIOAfterFd(t *testing.T) {
 	wg.Wait()
 }
 
+func TestPipeReadCloseRace(t *testing.T) {
+	t.Parallel()
+	for i := range 100 {
+		name := pipeName()
+		writer := newBytePipe(t, name, true)
+		reader := newFileOverlapped(t, name, true)
+		reader.Fd() // Use event-backed I/O.
+
+		var wg sync.WaitGroup
+		readDone := make(chan error, 1)
+		wg.Go(func() {
+			var buf [1]byte
+			_, err := reader.Read(buf[:])
+			readDone <- err
+		})
+		// Give Read a chance to acquire its FD reference, then race Close
+		// against submission of the I/O request.
+		time.Sleep(time.Nanosecond)
+		closeDone := make(chan error, 1)
+		wg.Go(func() { closeDone <- reader.Close() })
+		select {
+		case err := <-closeDone:
+			if err != nil {
+				t.Error(err)
+			}
+		case <-time.After(5 * time.Second):
+			// Release the read even if Close missed its cancellation.
+			writer.Close()
+			wg.Wait()
+			t.Fatalf("iteration %d: Close did not unblock Read", i)
+		}
+		wg.Wait()
+		writer.Close()
+		if err := <-readDone; !errors.Is(err, os.ErrClosed) {
+			t.Fatalf("iteration %d: Read error = %v; want ErrClosed", i, err)
+		}
+	}
+}
+
 func TestFileWriteFdRace(t *testing.T) {
 	t.Parallel()
 

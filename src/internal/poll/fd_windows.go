@@ -223,6 +223,14 @@ var operationPool = sync.Pool{
 // handling cancellation if necessary.
 func (fd *FD) waitIO(o *operation) error {
 	if o.o.HEvent != 0 {
+		// Close may have tried to cancel I/O before this request was
+		// submitted. Retry cancellation now that the request is pending.
+		if fd.kind == kindPipe && fd.closing() {
+			if err := syscall.CancelIoEx(fd.Sysfd, &o.o); err != nil && err != syscall.ERROR_NOT_FOUND {
+				// TODO: maybe do something else, but panic.
+				panic(err)
+			}
+		}
 		// The overlapped handle is not added to the runtime poller,
 		// the only way to wait for the IO to complete is block until
 		// the overlapped event is signaled.
@@ -327,7 +335,7 @@ func (fd *FD) execIO(
 			err = waitErr
 		} else if fd.kind == kindPipe && fd.closing() {
 			// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
-			// If the fd is a pipe and the Write was interrupted by CancelIoEx,
+			// If the fd is a pipe and the I/O was interrupted by CancelIoEx,
 			// we assume it is interrupted by Close.
 			err = errClosing(fd.isFile)
 		}
