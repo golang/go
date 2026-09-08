@@ -453,27 +453,23 @@ func checkFunc(f *ssa.Func) {
 	}
 
 	// Check to make sure all args dominate uses.
-	if f.RegAlloc == nil {
-		// Note: regalloc introduces non-dominating args.
-		// See TODO in regalloc.go.
-		sdom := f.Sdom()
-		for _, b := range f.Blocks {
-			for _, v := range b.Values {
-				for i, arg := range v.Args {
-					x := arg.Block
-					y := b
-					if v.Op == ssaop.OpPhi {
-						y = b.Preds[i].B
-					}
-					if !domCheck(f, sdom, x, y) {
-						f.Fatalf("arg %d of value %s does not dominate, arg=%s", i, v.LongString(), arg.LongString())
-					}
+	sdom := f.Sdom()
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for i, arg := range v.Args {
+				x := arg.Block
+				y := b
+				if v.Op == ssaop.OpPhi {
+					y = b.Preds[i].B
+				}
+				if !domCheck(f, sdom, x, y) {
+					f.Fatalf("arg %d of value %s does not dominate, arg=%s", i, v.LongString(), arg.LongString())
 				}
 			}
-			for _, c := range b.ControlValues() {
-				if !domCheck(f, sdom, c.Block, b) {
-					f.Fatalf("control value %s for %s doesn't dominate", c, b)
-				}
+		}
+		for _, c := range b.ControlValues() {
+			if !domCheck(f, sdom, c.Block, b) {
+				f.Fatalf("control value %s for %s doesn't dominate", c, b)
 			}
 		}
 	}

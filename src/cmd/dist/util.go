@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -133,8 +134,11 @@ var (
 )
 
 func bginit() {
-	bghelpers.Add(maxbg)
-	for i := 0; i < maxbg; i++ {
+	// For deterministic make.bash debugging we should make sure that
+	// when GOMAXPROCS=1 there is only one thread running at a time.
+	workers := runtime.GOMAXPROCS(0)
+	bghelpers.Add(workers)
+	for range workers {
 		go bghelper()
 	}
 }

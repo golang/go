@@ -148,9 +148,6 @@ func main() {
 	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
 		maxbg = min(maxbg, runtime.NumCPU())
 	}
-	// For deterministic make.bash debugging and for smallest-possible footprint,
-	// pay attention to GOMAXPROCS=1.  This was a bad idea for 1.4 bootstrap, but
-	// the bootstrap version is now 1.17+ and thus this is fine.
 	if runtime.GOMAXPROCS(0) == 1 {
 		maxbg = 1
 	}

@@ -164,9 +164,9 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 		panic(errorString("hash of unhashable type " + toRType(t).string()))
 	}
 	if t.IsDirectIface() {
-		return trimHash(c1 * typehash(t, unsafe.Pointer(&a.data), h^c0))
+		return trimHash(c1 * typehash(t, unsafe.Pointer(&a.data), h^c0^uintptr(t.Hash)))
 	} else {
-		return trimHash(c1 * typehash(t, a.data, h^c0))
+		return trimHash(c1 * typehash(t, a.data, h^c0^uintptr(t.Hash)))
 	}
 }
 
@@ -191,9 +191,9 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 		panic(errorString("hash of unhashable type " + toRType(t).string()))
 	}
 	if t.IsDirectIface() {
-		return trimHash(c1 * typehash(t, unsafe.Pointer(&a.data), h^c0))
+		return trimHash(c1 * typehash(t, unsafe.Pointer(&a.data), h^c0^uintptr(t.Hash)))
 	} else {
-		return trimHash(c1 * typehash(t, a.data, h^c0))
+		return trimHash(c1 * typehash(t, a.data, h^c0^uintptr(t.Hash)))
 	}
 }
 

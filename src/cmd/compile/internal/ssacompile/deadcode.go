@@ -16,6 +16,8 @@ func deadcode(f *ssa.Func) {
 	// doesn't quite generate legal SSA which will lead to some
 	// required moves being eliminated. See the comment at the
 	// top of regalloc.go for details.
+	// TODO: regalloc now generates strict SSA, figure out
+	// what subset of the deadcode pass we can run.
 	if f.RegAlloc != nil {
 		f.Fatalf("deadcode after regalloc")
 	}

@@ -525,6 +525,7 @@ func (lv *Liveness) markUnsafePoints() {
 		}
 	}
 
+	phis := make(map[*ssa.Value]bool)
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != ssaop.OpWBend {
@@ -600,7 +601,40 @@ func (lv *Liveness) markUnsafePoints() {
 						load = v
 						break
 					}
-					v.Fatalf("load of write barrier flag not from correct global: %s", v.LongString())
+					// regalloc may introduce a phi if it has to evict/reload a register, make sure the
+					// leafs of the phi-web only touch a materialized address of the write barrier.
+					// TODO(dmo): this assumes that the write barrier is always rematerialized, rather
+					// than stored. We're unlikely to perform actual maths on the address so it is probably fine.
+					if v.Args[0].Op != ssaop.OpPhi {
+						v.Fatalf("load of write barrier flag not from correct global: %s", v.LongString())
+					}
+					clear(phis)
+					phis[v.Args[0]] = false
+					for {
+						progress := false
+						for p, visited := range phis {
+							if visited {
+								continue
+							}
+							phis[p] = true
+							for _, a := range p.Args {
+								if a.Op == ssaop.OpPhi {
+									if phis[a] {
+										continue
+									}
+									phis[a] = false
+									progress = true
+								} else if sym, ok := a.Aux.(*obj.LSym); !ok || sym != ir.Syms.WriteBarrier {
+									v.Fatalf("load of write barrier flag not from correct global: %s", v.LongString())
+								}
+							}
+						}
+						if !progress {
+							break
+						}
+					}
+					load = v
+					break
 				}
 				// Common case: just flow backwards.
 				if len(v.Args) == 1 || len(v.Args) == 2 && v.Args[0] == v.Args[1] {

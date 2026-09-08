@@ -89,28 +89,6 @@
 // are required for phi implementations and helps generate allocations
 // for 2-register architectures.
 
-// Note: regalloc generates a not-quite-SSA output. If we have:
-//
-//             b1: x = ... : AX
-//                 x2 = StoreReg x
-//                 ... AX gets reused for something else ...
-//                 if ... goto b3 else b4
-//
-//   b3: x3 = LoadReg x2 : BX       b4: x4 = LoadReg x2 : CX
-//       ... use x3 ...                 ... use x4 ...
-//
-//             b2: ... use x3 ...
-//
-// If b3 is the primary predecessor of b2, then we use x3 in b2 and
-// add a x4:CX->BX copy at the end of b4.
-// But the definition of x3 doesn't dominate b2.  We should really
-// insert an extra phi at the start of b2 (x5=phi(x3,x4):BX) to keep
-// SSA form. For now, we ignore this problem as remaining in strict
-// SSA form isn't needed after regalloc. We'll just leave the use
-// of x3 not dominated by the definition of x3, and the CX->BX copy
-// will have no use (so don't run deadcode after regalloc!).
-// TODO: maybe we should introduce these extra phis?
-
 package ssacompile
 
 import (
@@ -266,10 +244,6 @@ type regAllocState struct {
 
 	// spillLive[blockid] is the set of live spills at the end of each block
 	spillLive [][]ssa.ID
-
-	// a set of copies we generated to move things around, and
-	// whether it is used in shuffle. Unused copies will be deleted.
-	copies map[*ssa.Value]bool
 
 	loopnest *ssa.LoopNest
 
@@ -448,7 +422,6 @@ func (s *regAllocState) allocReg(mask ssaop.RegMask, v *ssa.Value) ssaop.Registe
 		s.usedSinceBlockStart = s.usedSinceBlockStart.AddReg(r)
 		r2 := s.pickReg(m)
 		c := s.curBlock.NewValue1(v2.Pos, ssaop.OpCopy, v2.Type, s.regs[r].c)
-		s.copies[c] = false
 		if s.f.Pass.Debug > ssa.RegDebug {
 			fmt.Printf("copy %s to %s : %s\n", v2, c, &s.registers[r2])
 		}
@@ -741,7 +714,6 @@ func (s *regAllocState) init(f *ssa.Func) {
 	}
 	s.values = s.f.Cache.RegallocValues
 	s.orig = s.f.Cache.AllocValueSlice(nv)
-	s.copies = make(map[*ssa.Value]bool)
 	for _, b := range s.visitOrder {
 		for _, v := range b.Values {
 			if v.NeedRegister() {
@@ -1201,7 +1173,6 @@ func (s *regAllocState) regalloc(f *ssa.Func) {
 					if !m.Empty() && !s.values[a.ID].Rematerializeable && countRegs(s.values[a.ID].Regs) == 1 {
 						r2 := s.pickReg(m)
 						c := p.NewValue1(a.Pos, ssaop.OpCopy, a.Type, s.regs[r].c)
-						s.copies[c] = false
 						if s.f.Pass.Debug > ssa.RegDebug {
 							fmt.Printf("copy %s to %s : %s\n", a, c, &s.registers[r2])
 						}
@@ -1703,8 +1674,7 @@ func (s *regAllocState) regalloc(f *ssa.Func) {
 				for _, r := range dinfo[idx].in[0] {
 					if r != noRegister && m.HasReg(r) {
 						m = ssa.RegMaskAt(r)
-						c := s.allocValToReg(v.Args[0], m, true, v.Pos)
-						s.copies[c] = false
+						s.allocValToReg(v.Args[0], m, true, v.Pos)
 						// Note: no update to args[0] so the instruction will
 						// use the original copy.
 						goto ok
@@ -1714,8 +1684,7 @@ func (s *regAllocState) regalloc(f *ssa.Func) {
 					for _, r := range dinfo[idx].in[1] {
 						if r != noRegister && m.HasReg(r) {
 							m = ssa.RegMaskAt(r)
-							c := s.allocValToReg(v.Args[1], m, true, v.Pos)
-							s.copies[c] = false
+							s.allocValToReg(v.Args[1], m, true, v.Pos)
 							args[0], args[1] = args[1], args[0]
 							goto ok
 						}
@@ -1728,7 +1697,6 @@ func (s *regAllocState) regalloc(f *ssa.Func) {
 				}
 				// Save input 0 to a new register so we can clobber it.
 				c := s.allocValToReg(v.Args[0], m, true, v.Pos)
-				s.copies[c] = false
 
 				// Normally we use the register of the old copy of input 0 as the target.
 				// However, if input 0 is already in its desired register then we use
@@ -1772,8 +1740,7 @@ func (s *regAllocState) regalloc(f *ssa.Func) {
 					continue
 				}
 				// Copy input to a different register that won't be clobbered.
-				c := s.allocValToReg(v.Args[i], m, true, v.Pos)
-				s.copies[c] = false
+				s.allocValToReg(v.Args[i], m, true, v.Pos)
 			}
 
 			// Pick a temporary register if needed.
@@ -2196,20 +2163,22 @@ func (s *regAllocState) regalloc(f *ssa.Func) {
 	// Fix up all merge edges.
 	s.shuffle(stacklive)
 
-	// Erase any copies we never used.
-	// Also, an unused copy might be the only use of another copy,
-	// so continue erasing until we reach a fixed point.
+	// Erase any copies or restores that we never used. Also, an unused value
+	// might be the only use of a different value, so continue erasing until
+	// we reach a fixed point.
+	// TODO: just use deadcode pass?
 	for {
 		progress := false
-		for c, used := range s.copies {
-			if !used && c.Uses == 0 {
-				if s.f.Pass.Debug > ssa.RegDebug {
-					fmt.Printf("delete copied value %s\n", c.LongString())
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
+				if v.Uses == 0 && (v.Op == ssaop.OpLoadReg || v.Op == ssaop.OpCopy) {
+					if s.f.Pass.Debug > ssa.RegDebug {
+						fmt.Printf("delete unused value %s\n", v.LongString())
+					}
+					v.ResetArgs()
+					f.FreeValue(v)
+					progress = true
 				}
-				c.ResetArgs()
-				f.FreeValue(c)
-				delete(s.copies, c)
-				progress = true
 			}
 		}
 		if !progress {
@@ -2364,23 +2333,363 @@ func (s *regAllocState) shuffle(stacklive [][]ssa.ID) {
 		fmt.Println(s.f.String())
 	}
 
+	e.exposedDownward = make(map[*ssa.Value]contentRecord)
 	for _, b := range s.visitOrder {
-		if len(b.Preds) <= 1 {
-			continue
-		}
-		e.b = b
-		for i, edge := range b.Preds {
-			p := edge.B
-			e.p = p
-			e.setup(i, s.endRegs[p.ID], s.startRegs[b.ID], stacklive[p.ID])
-			e.process()
+		switch len(b.Preds) {
+		case 0:
+			// do nothing
+		case 1:
+			// collect cached values for reestablishing SSA.
+			p := b.Preds[0].B
+			for _, r := range s.endRegs[p.ID] {
+				_, ok := e.exposedDownward[r.c]
+				if !ok {
+					e.exposedDownward[r.c] = contentRecord{r.v.ID, r.c, true, src.NoXPos}
+				}
+			}
+		default:
+			e.b = b
+			for i, edge := range b.Preds {
+				p := edge.B
+				e.p = p
+				e.setup(i, s.endRegs[p.ID], s.startRegs[b.ID], stacklive[p.ID])
+				e.process()
+			}
 		}
 	}
+
+	ed := make([]contentRecord, 0, len(e.exposedDownward))
+	for _, f := range e.exposedDownward {
+		ed = append(ed, f)
+	}
+	// for repeatable builds
+	// TODO(dmo): we can probably avoid this, visit order is consistent
+	slices.SortFunc(ed, func(a, b contentRecord) int {
+		return cmp.Or(cmp.Compare(a.vid, b.vid), cmp.Compare(a.c.ID, b.c.ID))
+	})
+
+	e.reestablishSSA(ed)
 
 	if s.f.Pass.Debug > ssa.RegDebug {
 		fmt.Printf("post shuffle %s\n", s.f.Name)
 		fmt.Println(s.f.String())
 	}
+}
+
+// reestablishSSA reestablishes strict SSA form after we shuffle the
+// values to end up in the right registers.
+func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
+	// shuffle() fixes up the merge nodes, but it may introduce non-strict
+	// SSA.
+	// For example, if we have:
+	//
+	//             b1: x = ... : AX
+	//                 x2 = StoreReg x
+	//                 ... AX gets reused for something else ...
+	//                 if ... goto b3 else b4
+	//
+	//   b3: x3 = LoadReg x2 : BX       b4: x4 = LoadReg x2 : CX
+	//       ... use x3 ...                 ... use x4 ...
+	//
+	//             b2: ... use x3 ...
+	//
+	// If b3 is the primary predecessor of b2, then we use x3 in b2 and
+	// shuffle adds a x4:CX->BX copy at the end of b4.
+	// But the definition of x3 doesn't dominate b2.
+	//
+	// This function reestablishes strict SSA by collecting cached values that
+	// have the same location and represent the same pre-regalloc value.
+	// If multiple cached values exist for a value, we search from the uses
+	// up the dom tree until we find the dominating cached value, inserting phis
+	// when we hit a block in the dominance frontier.
+	//
+	// This roughly follows the traditional SSA construction algorithm, except
+	// we start from renaming, and then insert phi nodes as needed.
+	//
+	// In SSA literature, values with multiple definitions are termed variables,
+	// but here, the multiple definitions are all the same <value,register>
+	// pair, the only difference between them is which program point they are
+	// loaded from. We've opted for homedValue here to reduce confusion.
+	f := e.s.f
+	if f.Pass.Debug > ssa.RegDebug {
+		fmt.Printf("pre-reestablish %s\n", f.Name)
+		fmt.Println(f.String())
+	}
+
+	// Collect all values that have multiple definitions and every use of them.
+	type homedValue struct {
+		orig *ssa.Value
+		loc  ssa.Location
+		uses []useSpec
+
+		// defs contain all final values of this <value, register> pair.
+		defs []*ssa.Value
+		// forceRename forces rename, even though there is only one definition.
+		// This is necessary when we've introduced a non-final value, that might
+		// have references outside the block.
+		forceRename bool
+	}
+	type idLoc struct {
+		id  ssa.ID
+		loc ssa.Location
+	}
+	var homedVals []*homedValue
+	valsToHomed := make(map[idLoc]*homedValue)
+	for _, c := range exposedDownwards {
+		loc := f.GetHome(c.c.ID)
+		homed := valsToHomed[idLoc{c.vid, loc}]
+		if homed == nil {
+			homed = new(homedValue)
+			homed.orig = e.s.orig[c.vid]
+			homed.loc = loc
+			valsToHomed[idLoc{c.vid, loc}] = homed
+			homedVals = append(homedVals, homed)
+		}
+		if c.final {
+			homed.defs = append(homed.defs, c.c)
+		} else {
+			homed.forceRename = true
+		}
+		valsToHomed[idLoc{c.c.ID, loc}] = homed
+	}
+
+	// getHomed looks up which homedValue is applicable for an argument, found
+	// in either a value or in a blocks control.
+	getHomed := func(b *ssa.Block, v *ssa.Value, arg *ssa.Value) *homedValue {
+		// During the linear scan and shuffle, we always update any
+		// arguments according to our current view of the register
+		// state. This means that if we are referring to a value from
+		// within our own block, we know that it is valid.
+		//
+		// The one exception to this is phi nodes.
+		// Phis can refer to other phi nodes and themselves
+		// but we need to search the predecessors dominator
+		// tree ancestors to find the right value
+		if b == arg.Block && (v == nil || v.Op != ssaop.OpPhi) {
+			return nil
+		}
+		loc := f.GetHome(arg.ID)
+		homed := valsToHomed[idLoc{arg.ID, loc}]
+		if homed == nil {
+			return nil
+		}
+		// this homed value only ever has one definition, so don't bother renaming
+		if len(homed.defs) == 1 && !homed.forceRename {
+			return nil
+		}
+		return homed
+	}
+
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for i, a := range v.Args {
+				homed := getHomed(b, v, a)
+				if homed == nil {
+					continue
+				}
+				homed.uses = append(homed.uses, useSpec{v, i})
+			}
+		}
+		for i, c := range b.ControlValues() {
+			homed := getHomed(b, nil, c)
+			if homed == nil {
+				continue
+			}
+			homed.uses = append(homed.uses, useSpec{b, i})
+		}
+	}
+
+	// downwardDef is the downward exposed value for a given block.
+	// Because we do this operation one homed value at a time,
+	// there is only ever one per block
+	downwardDef := f.Cache.AllocValueSlice(f.NumBlocks())
+	defer f.Cache.FreeValueSlice(downwardDef)
+
+	// topDef is the definition that is available within a block.
+	// Because the previous passes make sure that intra-block
+	// references are valid, this will only contain a value
+	// if we break this assumption by inserting a phi value.
+	topDef := f.Cache.AllocValueSlice(f.NumBlocks())
+	defer f.Cache.FreeValueSlice(topDef)
+
+	varDF := f.NewSparseSet(f.NumBlocks())
+	defer f.RetSparseSet(varDF)
+	sdom := f.Sdom()
+	for _, homed := range homedVals {
+		// so far, we've collected all downward exposed definitions and matched
+		// them with any uses. We might find that they are actually dead (no uses), or
+		// that only one downward exposed definition exists. In that case, we
+		// can skip renaming.
+		if (len(homed.defs) == 1 && !homed.forceRename) || len(homed.uses) == 0 {
+			continue
+		}
+		if f.Pass.Debug > ssa.RegDebug {
+			defv := make([]string, len(homed.defs))
+			for i, d := range homed.defs {
+				defv[i] = d.String()
+			}
+			fmt.Printf("variable: %v(%s) defs: %v uses: %v\n", homed.orig, homed.loc, defv, homed.uses)
+		}
+		clear(downwardDef)
+		clear(topDef)
+		for _, d := range homed.defs {
+			if downwardDef[d.Block.ID] != nil {
+				f.Fatalf("already set a downward def for b%d\nprev: %s\nreplace: %s", d.Block.ID, downwardDef[d.Block.ID].LongString(), d.LongString())
+			}
+			downwardDef[d.Block.ID] = d
+		}
+		varDF.Clear()
+		pluckBlocks := func(yield func(*ssa.Block) bool) {
+			for _, d := range homed.defs {
+				if !yield(d.Block) {
+					return
+				}
+			}
+		}
+		for d := range f.IterDomFrontierPlus(pluckBlocks) {
+			varDF.Add(d.ID)
+		}
+		// We append to homed.uses, so we use C-style loops here
+		for i := 0; i < len(homed.uses); i++ {
+			use := homed.uses[i]
+
+			search := use.block()
+			if use.op() == ssaop.OpPhi {
+				search = search.Preds[use.index].B
+				if downwardDef[search.ID] != nil {
+					use.replace(downwardDef[search.ID])
+					continue
+				}
+			} else if topDef[search.ID] != nil {
+				use.replace(topDef[search.ID])
+				continue
+			}
+
+			for {
+				if varDF.Contains(search.ID) {
+					phi := search.NewValue0(homed.orig.Pos, ssaop.OpPhi, homed.orig.Type)
+					f.SetHome(phi, homed.loc)
+					if downwardDef[search.ID] == nil {
+						downwardDef[search.ID] = phi
+					}
+					if topDef[search.ID] != nil {
+						f.Fatalf("double insert of phi")
+					}
+					topDef[search.ID] = phi
+					if f.Pass.Debug > ssa.RegDebug {
+						fmt.Printf("inserting phi v%d in b%d for %v use\n", phi.ID, search.ID, use)
+					}
+					args := make([]*ssa.Value, len(search.Preds))
+					// These args will be set into their actual referents
+					// when we process the phi. For now, we just need
+					// them to point somewhere to make the v.Use update not
+					// segfault.
+					for i := range args {
+						args[i] = phi
+						homed.uses = append(homed.uses, useSpec{phi, i})
+					}
+					phi.AddArgs(args...)
+					break
+				}
+				search = sdom.Parent(search)
+				if search == nil {
+					f.Fatalf("did not find reaching definition for %v in b%d", use, use.block().ID)
+				}
+				if downwardDef[search.ID] != nil {
+					break
+				}
+			}
+			if f.Pass.Debug > ssa.RegDebug && downwardDef[search.ID] != use.value() {
+				fmt.Printf("replacing v%d with v%d in %#s\n", use.value().ID, downwardDef[search.ID].ID, use)
+			}
+			use.replace(downwardDef[search.ID])
+		}
+	}
+
+	// Put phis back at the start of the block.
+	// Instead of keeping track of which phis we inserted,
+	// just check if the last value of a block is a phi.
+	for _, b := range f.Blocks {
+		if len(b.Values) == 0 {
+			continue
+		}
+		if b.Values[len(b.Values)-1].Op == ssaop.OpPhi {
+			slices.SortStableFunc(b.Values, func(a, b *ssa.Value) int {
+				as, bs := 0, 0
+				if a.Op == ssaop.OpPhi {
+					as = -1
+				}
+				if b.Op == ssaop.OpPhi {
+					bs = -1
+				}
+				return cmp.Compare(as, bs)
+			})
+		}
+	}
+}
+
+// useSpec represents a use of a value. We represent it this way so that the
+// other parts of the reestablish algorithm doesn't have to care about whether
+// it is inside a block control or a value.
+type useSpec struct {
+	x     any // Either *Block or *Value
+	index int // Either index into (*Block).Controls or (*Value).Args
+}
+
+func (u *useSpec) replace(v *ssa.Value) {
+	var replace **ssa.Value
+	switch x := u.x.(type) {
+	case *ssa.Block:
+		replace = &x.Controls[u.index]
+	case *ssa.Value:
+		replace = &x.Args[u.index]
+	}
+	(*replace).Uses--
+	(*replace) = v
+	v.Uses++
+}
+
+func (u *useSpec) block() *ssa.Block {
+	switch x := u.x.(type) {
+	case *ssa.Block:
+		return x
+	case *ssa.Value:
+		return x.Block
+	}
+	panic("unreachable")
+}
+
+func (u *useSpec) op() ssaop.Op {
+	switch x := u.x.(type) {
+	case *ssa.Block:
+		return ssaop.OpInvalid
+	case *ssa.Value:
+		return x.Op
+	}
+	panic("unreachable")
+}
+
+func (u useSpec) Format(f fmt.State, verb rune) {
+	switch x := u.x.(type) {
+	case *ssa.Block:
+		fmt.Fprintf(f, "b%d(%v)", x.ID, u.index)
+	case *ssa.Value:
+		if f.Flag('#') {
+			fmt.Fprint(f, x.LongString())
+		} else {
+			fmt.Fprintf(f, "%s(%v)", x.String(), u.index)
+		}
+	}
+}
+
+func (u *useSpec) value() *ssa.Value {
+	switch x := u.x.(type) {
+	case *ssa.Block:
+		return x.Controls[u.index]
+	case *ssa.Value:
+		return x.Args[u.index]
+	}
+	panic("unreachable")
 }
 
 type edgeState struct {
@@ -2397,6 +2706,13 @@ type edgeState struct {
 	// desired destination locations
 	destinations []dstRecord
 	extra        []dstRecord
+
+	// exposedDownward is the set of values which are live beyond their basic
+	// block. During shuffle, we collect these to reestablish strict SSA form
+	// later. Shuffling can cause a value that was exposed downward from a block
+	// to die in that block instead. When this happens, we set the "final" field
+	// in the contentRecord to false.
+	exposedDownward map[*ssa.Value]contentRecord
 
 	usedRegs              ssaop.RegMask // registers currently holding something
 	uniqueRegs            ssaop.RegMask // registers holding the only copy of a value
@@ -2561,18 +2877,17 @@ func (e *edgeState) processDest(loc ssa.Location, vid ssa.ID, splice **ssa.Value
 	occupant := e.contents[loc]
 	if occupant.vid == vid {
 		// Value is already in the correct place.
-		e.contents[loc] = contentRecord{vid, occupant.c, true, pos}
+		cr := contentRecord{vid, occupant.c, true, pos}
+		e.contents[loc] = cr
+		_, ok := e.exposedDownward[occupant.c]
+		if !ok {
+			e.exposedDownward[occupant.c] = cr
+		}
+
 		if splice != nil {
 			(*splice).Uses--
 			*splice = occupant.c
 			occupant.c.Uses++
-		}
-		// Note: if splice==nil then c will appear dead. This is
-		// non-SSA formed code, so be careful after this pass not to run
-		// deadcode elimination.
-		if _, ok := e.s.copies[occupant.c]; ok {
-			// The copy at occupant.c was used to avoid spill.
-			e.s.copies[occupant.c] = true
 		}
 		return true
 	}
@@ -2706,8 +3021,15 @@ func (e *edgeState) processDest(loc ssa.Location, vid ssa.ID, splice **ssa.Value
 // set changes the contents of location loc to hold the given value and its cached representative.
 func (e *edgeState) set(loc ssa.Location, vid ssa.ID, c *ssa.Value, final bool, pos src.XPos) {
 	e.s.f.SetHome(c, loc)
-	e.contents[loc] = contentRecord{vid, c, final, pos}
+	cr := contentRecord{vid, c, final, pos}
+	e.contents[loc] = cr
 	a := e.cache[vid]
+	if final {
+		_, ok := e.exposedDownward[c]
+		if !ok {
+			e.exposedDownward[c] = cr
+		}
+	}
 	if len(a) == 0 {
 		e.cachedVals = append(e.cachedVals, vid)
 	}
@@ -2752,6 +3074,15 @@ func (e *edgeState) erase(loc ssa.Location) {
 		// Make sure it gets added to the tail of the destination queue
 		// so we make progress on other moves first.
 		e.extra = append(e.extra, dstRecord{loc, cr.vid, nil, cr.pos})
+
+		// if a cached value is defined within a block
+		// and it then goes dead before exiting it, it is no
+		// longer downward exposed. Mark this fact.
+		if cr.c.Block == e.p {
+			ed := cr
+			ed.final = false
+			e.exposedDownward[cr.c] = ed
+		}
 	}
 
 	// Remove c from the list of cached values.
