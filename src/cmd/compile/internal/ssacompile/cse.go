@@ -94,113 +94,239 @@ func cse(f *ssa.Func) {
 	defer f.Cache.FreeInt32Slice(memTable)
 
 	// Split equivalence classes at points where they have
-	// non-equivalent arguments.  Repeat until we can't find any
-	// more splits.
-	var splitPoints []int
-	for {
-		changed := false
+	// non-equivalent arguments.
+	//
+	// Every class here is uniform: its members share one tuple of argument
+	// classes. A member only stops fitting once one of its own arguments moves
+	// to a different class, so the values that moved drive the work and a visit
+	// costs the number of values that actually changed rather than the size of
+	// the class they sit in. Rescanning whole classes is what made this
+	// quadratic: a chain of n dependent values splits one value per pass and
+	// re-sorted the remaining n on every one of them, which is n²/2 comparisons
+	// for a single function.
+	//
+	// Memory arguments take no part. Memory values are left out of the
+	// partition above and keep their unique negative class for the whole pass,
+	// so a memory argument is never the argument that moved.
 
-		// partition can grow in the loop. By not using a range loop here,
-		// we process new additions as they arrive, avoiding O(n^2) behavior.
-		for i := 0; i < len(partition); i++ {
-			e := partition[i]
+	// users gives, for each value, the values that take it as an argument.
+	// Nothing below changes which values a value reads, so it stays valid
+	// until the substitutions are applied.
+	users := uses(f)
+	defer users.free(f)
 
-			if ssaop.OpcodeTable[e[0].Op].Commutative {
-				// Order the first two args before comparison.
-				for _, v := range e {
-					if valueEqClass[v.Args[0].ID] > valueEqClass[v.Args[1].ID] {
-						v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
-					}
-				}
-			}
-
-			// Sort by eq class of arguments.
-			slices.SortFunc(e, func(v, w *ssa.Value) int {
-				_, idxMem, _, _ := isMemUser(v)
-				for i, a := range v.Args {
-					var aId, bId ssa.ID
-					if i != idxMem {
-						b := w.Args[i]
-						aId = a.ID
-						bId = b.ID
-					} else {
-						// A memory user's mem argument may be remapped to allow matching
-						// identical load-like instructions across disjoint stores.
-						aId, _ = getEffectiveMemoryArg(memTable, v)
-						bId, _ = getEffectiveMemoryArg(memTable, w)
-					}
-					if valueEqClass[aId] < valueEqClass[bId] {
-						return -1
-					}
-					if valueEqClass[aId] > valueEqClass[bId] {
-						return +1
-					}
-				}
-				return 0
-			})
-
-			// Find split points.
-			splitPoints = append(splitPoints[:0], 0)
-			for j := 1; j < len(e); j++ {
-				v, w := e[j-1], e[j]
-				// Note: commutative args already correctly ordered by byArgClass.
-				eqArgs := true
-				_, idxMem, _, _ := isMemUser(v)
-				for k, a := range v.Args {
-					if v.Op == ssaop.OpLocalAddr && k == 1 {
-						continue
-					}
-					var aId, bId ssa.ID
-					if k != idxMem {
-						b := w.Args[k]
-						aId = a.ID
-						bId = b.ID
-					} else {
-						// A memory user's mem argument may be remapped to allow matching
-						// identical load-like instructions across disjoint stores.
-						aId, _ = getEffectiveMemoryArg(memTable, v)
-						bId, _ = getEffectiveMemoryArg(memTable, w)
-					}
-					if valueEqClass[aId] != valueEqClass[bId] {
-						eqArgs = false
-						break
-					}
-				}
-				if !eqArgs {
-					splitPoints = append(splitPoints, j)
-				}
-			}
-			if len(splitPoints) == 1 {
-				continue // no splits, leave equivalence class alone.
-			}
-
-			// Move another equivalence class down in place of e.
-			partition[i] = partition[len(partition)-1]
-			partition = partition[:len(partition)-1]
-			i--
-
-			// Add new equivalence classes for the parts of e we found.
-			splitPoints = append(splitPoints, len(e))
-			for j := 0; j < len(splitPoints)-1; j++ {
-				f := e[splitPoints[j]:splitPoints[j+1]]
-				if len(f) == 1 {
-					// Don't add singletons.
-					valueEqClass[f[0].ID] = -f[0].ID
-					continue
-				}
-				for _, v := range f {
-					valueEqClass[v.ID] = pNum
-				}
-				pNum++
-				partition = append(partition, f)
-			}
-			changed = true
-		}
-
-		if !changed {
-			break
+	// classIdx is the partition slot holding a value's class, or -1 once the
+	// value stands alone. posInClass is its index inside that slot, which is
+	// what lets a value be pulled out of its class without walking it.
+	classIdx := f.Cache.AllocInt32Slice(f.NumValues())
+	defer f.Cache.FreeInt32Slice(classIdx)
+	posInClass := f.Cache.AllocInt32Slice(f.NumValues())
+	defer f.Cache.FreeInt32Slice(posInClass)
+	for i := range classIdx {
+		classIdx[i] = -1
+	}
+	for i, e := range partition {
+		for j, v := range e {
+			classIdx[v.ID] = int32(i)
+			posInClass[v.ID] = int32(j)
 		}
 	}
+
+	// keyOf writes v's argument classes into buf. Commutative operands are put
+	// in class order first so that the two orders produce one key. The second
+	// argument of OpLocalAddr is left out, matching the equivalence the split
+	// below has always used.
+	keyOf := func(buf []ssa.ID, v *ssa.Value) []ssa.ID {
+		if ssaop.OpcodeTable[v.Op].Commutative {
+			if valueEqClass[v.Args[0].ID] > valueEqClass[v.Args[1].ID] {
+				v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
+			}
+		}
+		buf = buf[:0]
+		_, idxMem, _, _ := isMemUser(v)
+		for k, a := range v.Args {
+			if v.Op == ssaop.OpLocalAddr && k == 1 {
+				continue
+			}
+			if k == idxMem {
+				id, _ := getEffectiveMemoryArg(memTable, v)
+				buf = append(buf, valueEqClass[id])
+				continue
+			}
+			buf = append(buf, valueEqClass[a.ID])
+		}
+		return buf
+	}
+	cmpKeys := func(x, y []ssa.ID) int {
+		for i := range x {
+			if x[i] != y[i] {
+				if x[i] < y[i] {
+					return -1
+				}
+				return +1
+			}
+		}
+		return 0
+	}
+
+	// pending holds the values to look at in the next round, and queued marks
+	// the ones already on it. Every value starts there.
+	queued := make([]bool, f.NumValues())
+	pending := make([]*ssa.Value, 0, len(a))
+	for _, e := range partition {
+		for _, v := range e {
+			pending = append(pending, v)
+			queued[v.ID] = true
+		}
+	}
+
+	// markMoved records that v left its class, so everything reading v has to
+	// be looked at again.
+	markMoved := func(v *ssa.Value) {
+		for _, u := range users.get(v) {
+			if queued[u.ID] || classIdx[u.ID] < 0 {
+				continue
+			}
+			queued[u.ID] = true
+			pending = append(pending, u)
+		}
+	}
+
+	// install turns g into a class of its own, or into a standalone value.
+	install := func(g eqclass) {
+		if len(g) == 1 {
+			valueEqClass[g[0].ID] = -g[0].ID
+			classIdx[g[0].ID] = -1
+			return
+		}
+		ni := int32(len(partition))
+		for j, v := range g {
+			valueEqClass[v.ID] = pNum
+			classIdx[v.ID] = ni
+			posInClass[v.ID] = int32(j)
+		}
+		pNum++
+		partition = append(partition, g)
+	}
+
+	var keyA, keyB []ssa.ID
+	var runs []int
+	var dirty []*ssa.Value
+	for len(pending) > 0 {
+		dirty, pending = pending, dirty[:0]
+		// Group this round's changed values by the class they sit in, so each
+		// class is handled once.
+		slices.SortFunc(dirty, func(v, w *ssa.Value) int {
+			return cmp.Compare(classIdx[v.ID], classIdx[w.ID])
+		})
+		for _, v := range dirty {
+			queued[v.ID] = false
+		}
+		for s := 0; s < len(dirty); {
+			ci := classIdx[dirty[s].ID]
+			t := s
+			for t < len(dirty) && classIdx[dirty[t].ID] == ci {
+				t++
+			}
+			ds := dirty[s:t]
+			s = t
+			if ci < 0 {
+				continue
+			}
+			e := partition[ci]
+			if len(e) < 2 {
+				continue
+			}
+
+			// Every member of ds leaves. In the first round ds is the whole
+			// class. After that a value is queued only because one of its
+			// arguments moved, and a move gives the argument a class number no
+			// key has held before. A key can only pick that number up by reading
+			// a value that moved with it, and every such reader was queued too,
+			// so no member outside ds can match a member inside it.
+			//
+			// Push them to the tail of the class in place, so the class that
+			// stays and the group that leaves are both contiguous and no new
+			// backing array is needed.
+			last := len(e)
+			for _, v := range ds {
+				p := posInClass[v.ID]
+				last--
+				if int(p) != last {
+					e[p], e[last] = e[last], e[p]
+					posInClass[e[p].ID] = p
+					posInClass[e[last].ID] = int32(last)
+				}
+			}
+			leaving := e[last:]
+			staying := e[:last]
+
+			// Cut the movers into runs of equal key.
+			slices.SortFunc(leaving, func(v, w *ssa.Value) int {
+				return cmpKeys(keyOf(keyA[:0], v), keyOf(keyB[:0], w))
+			})
+			runs = runs[:0]
+			runs = append(runs, 0)
+			keyA = keyOf(keyA, leaving[0])
+			for j := 1; j < len(leaving); j++ {
+				keyB = keyOf(keyB, leaving[j])
+				if cmpKeys(keyA, keyB) != 0 {
+					runs = append(runs, j)
+					keyA = append(keyA[:0], keyB...)
+				}
+			}
+			runs = append(runs, len(leaving))
+
+			// One group has to inherit the class number, otherwise every member
+			// counts as moved and everything reading them is queued again,
+			// which is the rescan this pass is trying to avoid. The members
+			// that stayed inherit it when there are any; otherwise the largest
+			// group of movers does. That is the smaller-half rule.
+			keep := -1
+			if len(staying) >= 2 {
+				partition[ci] = staying
+			} else {
+				if len(staying) == 1 {
+					// Nothing keys a standalone value again, so put its commutative
+					// operands in class order now, as every other value's are.
+					keyA = keyOf(keyA, staying[0])
+					valueEqClass[staying[0].ID] = -staying[0].ID
+					classIdx[staying[0].ID] = -1
+					markMoved(staying[0])
+				}
+				partition[ci] = nil
+				best := 0
+				for r := 1; r < len(runs)-1; r++ {
+					if runs[r+1]-runs[r] > runs[best+1]-runs[best] {
+						best = r
+					}
+				}
+				if runs[best+1]-runs[best] >= 2 {
+					keep = best
+					g := leaving[runs[best]:runs[best+1]]
+					partition[ci] = g
+					for j, v := range g {
+						classIdx[v.ID] = ci
+						posInClass[v.ID] = int32(j)
+					}
+				}
+			}
+			for r := 0; r < len(runs)-1; r++ {
+				if r == keep {
+					continue
+				}
+				g := leaving[runs[r]:runs[r+1]]
+				for _, v := range g {
+					markMoved(v)
+				}
+				install(g)
+			}
+		}
+	}
+
+	// Drop the slots left behind by classes that dissolved, restoring the
+	// invariant that every class in partition holds two or more values.
+	partition = slices.DeleteFunc(partition, func(e eqclass) bool { return len(e) < 2 })
 
 	sdom := f.Sdom()
 
@@ -228,7 +354,7 @@ func cse(f *ssa.Func) {
 				vm := v.Args[1]
 				wm := w.Args[1]
 				if vm == wm {
-					return 0
+					return cmp.Compare(v.ID, w.ID)
 				}
 				// if the two OpLocalAddrs are in the same block, and one's memory
 				// arg also in the same block, but the other one's memory arg not,
@@ -258,7 +384,9 @@ func cse(f *ssa.Func) {
 				}
 				return +1
 			}
-			return 0
+			// Sort by value ID last, so which of several equal values in a
+			// block is kept does not depend on the order of the class.
+			return cmp.Compare(v.ID, w.ID)
 		})
 
 		for i := 0; i < len(e)-1; i++ {
