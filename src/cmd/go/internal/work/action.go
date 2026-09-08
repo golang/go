@@ -889,6 +889,14 @@ func (b *Builder) vetAction(s *modload.Loader, mode, depMode BuildMode, p *load.
 
 // ExportAction returns an action to export the type information of p.
 func (b *Builder) ExportAction(p *load.Package) *Action {
+	// Fake packages don't have export data.
+	if p.Standard && p.ImportPath == "unsafe" {
+		return &Action{
+			Mode:    "built-in package",
+			Package: p,
+		}
+	}
+
 	return b.cacheAction("export", p, func() *Action {
 		a := &Action{
 			Mode:    "export",

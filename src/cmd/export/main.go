@@ -129,8 +129,10 @@ func readConfig(filename string) (*config, error) {
 
 func makeTypesImporter(cfg *config, fset *token.FileSet) types.Importer {
 	imports := make(map[string]*types.Package)
-	imports["unsafe"] = types.Unsafe
 	return importerFunc(func(importPath string) (*types.Package, error) {
+		if importPath == "unsafe" {
+			return types.Unsafe, nil
+		}
 		pkgPath, ok := cfg.ImportMap[importPath]
 		if !ok {
 			return nil, fmt.Errorf("can't resolve import %s", importPath)

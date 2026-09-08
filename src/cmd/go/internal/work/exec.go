@@ -1953,7 +1953,11 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 		ecfg.ImportMap[r] = a.Package.Imports[i]
 	}
 	for _, dep := range a.Deps {
-		ecfg.PackageFile[dep.Package.ImportPath] = dep.built
+		// Careful: Export actions can have other kinds of dependencies and we
+		// need to know dep.built is an export file.
+		if dep.Mode == "export" {
+			ecfg.PackageFile[dep.Package.ImportPath] = dep.built
+		}
 	}
 	return ecfg
 }
@@ -1970,9 +1974,11 @@ func (b *Builder) exportActionID(a *Action, ecfg *exportConfig) cache.ActionID {
 	for _, file := range ecfg.GoFiles {
 		fmt.Fprintf(h, "goFile %s %s\n", file, b.fileHash(file))
 	}
-	// Any dependencies.
+	// Any export dependencies.
 	for _, dep := range a.Deps {
-		fmt.Fprintf(h, "packageFile %s=%s\n", dep.Package.ImportPath, buildExportID(dep.buildID))
+		if dep.Mode == "export" {
+			fmt.Fprintf(h, "packageFile %s=%s\n", dep.Package.ImportPath, buildExportID(dep.buildID))
+		}
 	}
 	return cache.ActionID(h.Sum())
 }
