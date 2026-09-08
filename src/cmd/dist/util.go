@@ -12,12 +12,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 // pathf is fmt.Sprintf for generating paths
@@ -26,35 +23,9 @@ func pathf(format string, args ...any) string {
 	return filepath.Clean(fmt.Sprintf(format, args...))
 }
 
-// filter returns a slice containing the elements x from list for which f(x) == true.
-func filter(list []string, f func(string) bool) []string {
-	var out []string
-	for _, x := range list {
-		if f(x) {
-			out = append(out, x)
-		}
-	}
-	return out
-}
-
-// uniq returns a sorted slice containing the unique elements of list.
-func uniq(list []string) []string {
-	out := make([]string, len(list))
-	copy(out, list)
-	sort.Strings(out)
-	keep := out[:0]
-	for _, x := range out {
-		if len(keep) == 0 || keep[len(keep)-1] != x {
-			keep = append(keep, x)
-		}
-	}
-	return keep
-}
-
 const (
 	CheckExit = 1 << iota
 	ShowOutput
-	Background
 )
 
 var outputLock sync.Mutex
@@ -65,12 +36,9 @@ func run(dir string, mode int, cmd ...string) string {
 }
 
 // runEnv runs the command line cmd in dir with additional environment env.
-// If mode has ShowOutput set and Background unset, run passes cmd's output to
+// If mode has ShowOutput set, run passes cmd's output to
 // stdout/stderr directly. Otherwise, run returns cmd's output as a string.
 // If mode has CheckExit set and the command fails, run calls fatalf.
-// If mode has Background set, this command is being run as a
-// Background job. Only bgrun should use the Background mode,
-// not other callers.
 func runEnv(dir string, mode int, env []string, cmd ...string) string {
 	if vflag > 1 {
 		errprintf("run: %s\n", strings.Join(cmd, " "))
@@ -91,7 +59,7 @@ func runEnv(dir string, mode int, env []string, cmd ...string) string {
 	// other command's output. Not buffering lets the output
 	// appear as it is printed instead of once the command exits.
 	// This is most important for the invocation of 'go build -v bootstrap/...'.
-	if mode&(Background|ShowOutput) == ShowOutput {
+	if mode&ShowOutput != 0 {
 		xcmd.Stdout = os.Stdout
 		xcmd.Stderr = os.Stderr
 		err = xcmd.Run()
@@ -104,11 +72,6 @@ func runEnv(dir string, mode int, env []string, cmd ...string) string {
 			xprintf("%s\n", data)
 		}
 		outputLock.Unlock()
-		if mode&Background != 0 {
-			// Prevent fatalf from waiting on our own goroutine's
-			// bghelper to exit:
-			bghelpers.Done()
-		}
 		fatalf("FAILED: %v: %v", strings.Join(cmd, " "), err)
 	}
 	if mode&ShowOutput != 0 {
@@ -124,94 +87,6 @@ func runEnv(dir string, mode int, env []string, cmd ...string) string {
 
 var maxbg = 4 /* maximum number of jobs to run at once */
 
-var (
-	bgwork = make(chan func(), 1e5)
-
-	bghelpers sync.WaitGroup
-
-	dieOnce sync.Once // guards close of dying
-	dying   = make(chan struct{})
-)
-
-func bginit() {
-	// For deterministic make.bash debugging we should make sure that
-	// when GOMAXPROCS=1 there is only one thread running at a time.
-	workers := runtime.GOMAXPROCS(0)
-	bghelpers.Add(workers)
-	for range workers {
-		go bghelper()
-	}
-}
-
-func bghelper() {
-	defer bghelpers.Done()
-	for {
-		select {
-		case <-dying:
-			return
-		case w := <-bgwork:
-			// Dying takes precedence over doing more work.
-			select {
-			case <-dying:
-				return
-			default:
-				w()
-			}
-		}
-	}
-}
-
-// bgrun is like run but runs the command in the background.
-// CheckExit|ShowOutput mode is implied (since output cannot be returned).
-// bgrun adds 1 to wg immediately, and calls Done when the work completes.
-func bgrun(wg *sync.WaitGroup, dir string, cmd ...string) {
-	wg.Add(1)
-	bgwork <- func() {
-		defer wg.Done()
-		run(dir, CheckExit|ShowOutput|Background, cmd...)
-	}
-}
-
-// bgwait waits for pending bgruns to finish.
-// bgwait must be called from only a single goroutine at a time.
-func bgwait(wg *sync.WaitGroup) {
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-dying:
-		// Don't return to the caller, to avoid reporting additional errors
-		// to the user.
-		select {}
-	}
-}
-
-// xgetwd returns the current directory.
-func xgetwd() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		fatalf("%s", err)
-	}
-	return wd
-}
-
-// xrealwd returns the 'real' name for the given path.
-// real is defined as what xgetwd returns in that directory.
-func xrealwd(path string) string {
-	old := xgetwd()
-	if err := os.Chdir(path); err != nil {
-		fatalf("chdir %s: %v", path, err)
-	}
-	real := xgetwd()
-	if err := os.Chdir(old); err != nil {
-		fatalf("chdir %s: %v", old, err)
-	}
-	return real
-}
-
 // isdir reports whether p names an existing directory.
 func isdir(p string) bool {
 	fi, err := os.Stat(p)
@@ -222,15 +97,6 @@ func isdir(p string) bool {
 func isfile(p string) bool {
 	fi, err := os.Stat(p)
 	return err == nil && fi.Mode().IsRegular()
-}
-
-// mtime returns the modification time of the file p.
-func mtime(p string) time.Time {
-	fi, err := os.Stat(p)
-	if err != nil {
-		return time.Time{}
-	}
-	return fi.ModTime()
 }
 
 // readfile returns the content of the named file.
@@ -330,14 +196,6 @@ func xworkdir() string {
 // fatalf prints an error message to standard error and exits.
 func fatalf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
-
-	dieOnce.Do(func() { close(dying) })
-
-	// Wait for background goroutines to finish,
-	// so that exit handler that removes the work directory
-	// is not fighting with active writes or open files.
-	bghelpers.Wait()
-
 	xexit(2)
 }
 

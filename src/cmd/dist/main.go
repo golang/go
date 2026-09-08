@@ -20,7 +20,6 @@ banner                  print installation banner
 bootstrap               rebuild everything
 clean                   deletes all built files
 env [-p]                print environment (-p: include $PATH)
-install [dir]           install individual directory
 list [-json] [-broken]  list all supported platforms
 test [-h]               run Go test(s)
 version                 print Go version
@@ -36,7 +35,6 @@ var commands = map[string]func(){
 	"bootstrap": cmdbootstrap,
 	"clean":     cmdclean,
 	"env":       cmdenv,
-	"install":   cmdinstall,
 	"list":      cmdlist,
 	"test":      cmdtest,
 	"version":   cmdversion,
@@ -151,7 +149,6 @@ func main() {
 	if runtime.GOMAXPROCS(0) == 1 {
 		maxbg = 1
 	}
-	bginit()
 
 	if len(os.Args) > 1 && os.Args[1] == "-check-goarm" {
 		useVFPv1() // might fail with SIGILL
