@@ -483,6 +483,20 @@ func TestParseTagOptions(t *testing.T) {
 		}{},
 		wantOpts: fieldOptions{name: "V", quotedName: `"V"`},
 	}, {
+		name: jsontest.Name("NameStoppingAtReservedCharacter"),
+		in: struct {
+			V int `json:"one\"two"`
+		}{},
+		wantOpts: fieldOptions{name: "V", quotedName: `"V"`},
+		wantErr:  errors.New("Go struct field V has malformed `json` tag: invalid character '\"' before next option (expecting ',')"),
+	}, {
+		name: jsontest.Name("NameStoppingAtBackslash"),
+		in: struct {
+			V int `json:"one\\two"`
+		}{},
+		wantOpts: fieldOptions{name: "V", quotedName: `"V"`},
+		wantErr:  errors.New("Go struct field V has malformed `json` tag: invalid character '\\\\' before next option (expecting ',')"),
+	}, {
 		name: jsontest.Name("Unexported"),
 		in: struct {
 			v int `json:"Hello"`

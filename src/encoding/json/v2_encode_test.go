@@ -885,6 +885,23 @@ type BugY struct {
 	BugD
 }
 
+// A tag name holding a character isValidTag rejects is not a name at all, so
+// the field keeps its Go name. See golang.org/issue/81383.
+func TestInvalidTagNameUsesFieldName(t *testing.T) {
+	var v struct {
+		Quote     int `json:"one\"two"`
+		Backslash int `json:"one\\two"`
+		Valid     int `json:"ok"`
+	}
+	got, err := Marshal(v)
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+	if want := `{"Quote":0,"Backslash":0,"ok":0}`; string(got) != want {
+		t.Errorf("Marshal:\n\tgot  %s\n\twant %s", got, want)
+	}
+}
+
 // Test that a field with a tag dominates untagged fields.
 func TestTaggedFieldDominates(t *testing.T) {
 	v := BugY{

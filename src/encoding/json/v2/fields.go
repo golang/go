@@ -455,7 +455,11 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 			err = cmp.Or(err, fmt.Errorf("Go struct field %s has JSON object name %q with invalid UTF-8", sf.Name, name))
 			name = string([]rune(name)) // replace invalid UTF-8 with utf8.RuneError
 		}
-		if err2 == nil {
+		// A name has to end the tag or be followed by a comma, which is the rule
+		// the option loop below already applies. Adopting one that stopped early
+		// leaves a truncated name in place under v1 semantics, where the error
+		// the loop reports is discarded.
+		if err2 == nil && (n == len(tag) || tag[n] == ',') {
 			out.hasName = true
 			out.name = name
 		}
