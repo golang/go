@@ -1,0 +1,58 @@
+[!cgo] skip
+
+# Verify that the new go list -export format includes types produced by
+# cgo preprocessing (see go.dev/issue/79427).
+
+env GOEXPERIMENT=golistexportnewformat
+go list -export -json p.go
+cp stdout out.json
+go run q.go out.json
+stdout '_Ctype_int'
+
+-- p.go --
+package p
+
+import "C"
+
+var V = C.int(42)
+
+-- q.go --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"go/importer"
+	"go/token"
+	"io"
+	"log"
+	"os"
+)
+
+func main() {
+	data, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	// This is a minimal output of go list -export -json.
+	type output struct {
+		ImportPath	string
+		Export		string
+	}
+	var out output
+	if err := json.Unmarshal(data, &out); err != nil {
+		log.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	imp := importer.ForCompiler(fset, "gc", func(path string) (io.ReadCloser, error) {
+		if path != out.ImportPath {
+			log.Fatalf("unexpected import: %q", path)
+		}
+		return os.Open(out.Export)
+	})
+	pkg, err := imp.Import(out.ImportPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(pkg.Scope().Lookup("V").Type())
+}

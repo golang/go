@@ -1947,21 +1947,36 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 		v = cmp.Or(a.Package.Module.GoVersion, gover.DefaultGoModVersion)
 	}
 
-	srcs := slices.Concat(a.Package.GoFiles, a.Package.CgoFiles)
+	srcs := make([]string, len(a.Package.GoFiles))
+	for i := range srcs {
+		srcs[i] = filepath.Join(a.Package.Dir, a.Package.GoFiles[i])
+	}
+	// Collect output source files from any cgo dependencies.
+	if a.Package.UsesCgo() {
+		for _, dep := range a.Deps {
+			if cgo, ok := dep.Provider.(*runCgoProvider); ok {
+				srcs = append(srcs, cgo.goFiles...)
+			}
+		}
+	}
+
 	ecfg := &exportConfig{
 		ImportPath:  a.Package.ImportPath,
 		Compiler:    cfg.BuildToolchainName,
 		GoVersion:   "go" + v,
-		GoFiles:     make([]string, len(srcs)),
+		GoFiles:     srcs,
 		ImportMap:   make(map[string]string),
 		PackageFile: make(map[string]string),
 		Output:      a.Target,
 	}
-	for i, f := range srcs {
-		ecfg.GoFiles[i] = filepath.Join(a.Package.Dir, f)
+	for i, s := range a.Package.Internal.RawImports {
+		if s != "C" {
+			ecfg.ImportMap[s] = a.Package.Imports[i]
+		}
 	}
-	for i, r := range a.Package.Internal.RawImports {
-		ecfg.ImportMap[r] = a.Package.Imports[i]
+	// Bring in any imports from cgo.
+	for _, s := range a.Package.Internal.CompiledImports {
+		ecfg.ImportMap[s] = s
 	}
 	for _, dep := range a.Deps {
 		// Careful: Export actions can have other kinds of dependencies and we

@@ -909,6 +909,10 @@ func (b *Builder) ExportAction(p *load.Package) *Action {
 		for i, imp := range p.Internal.Imports {
 			a.Deps[i] = b.ExportAction(imp)
 		}
+		if p.UsesCgo() { // TODO(mark): What about SWIG?
+			// Run the cgo preprocessor; export must examine its output files.
+			a.Deps = append(a.Deps, b.cgoAction(p, a.Objdir, nil, false))
+		}
 		return a
 	})
 }
