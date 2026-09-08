@@ -27,7 +27,7 @@ func TestWSASocketConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 	fd := poll.FD{Sysfd: s, IsStream: true, ZeroReadIsEOF: true}
-	if err = fd.Init("tcp", true); err != nil {
+	if err = fd.Init("tcp", new(true)); err != nil {
 		syscall.Closesocket(s)
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func newFD(t testing.TB, h syscall.Handle, kind string, overlapped bool) *poll.F
 		IsStream:      true,
 		ZeroReadIsEOF: true,
 	}
-	err := fd.Init(kind, overlapped)
+	err := fd.Init(kind, &overlapped)
 	if overlapped && err != nil {
 		// Overlapped file handles should not error.
 		fd.Close()

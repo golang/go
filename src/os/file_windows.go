@@ -80,16 +80,6 @@ func newFile(h syscall.Handle, name string, kind newFileKind, nonBlocking bool) 
 		} else if t == syscall.FILE_TYPE_PIPE {
 			typ = "pipe"
 		}
-		// NewFile doesn't know if a handle is blocking or non-blocking,
-		// so we try to detect that here. This call may block/ if the handle
-		// is blocking and there is an outstanding I/O operation.
-		//
-		// Avoid doing this for Stdin, which is almost always blocking and might
-		// be in use by other process when the "os" package is initializing.
-		// See go.dev/issue/75949 and go.dev/issue/76391.
-		if kind == kindNewFile && h != syscall.Stdin {
-			nonBlocking, _ = windows.IsNonblock(h)
-		}
 	case kindPipe:
 		typ = "pipe"
 	case kindSock:
@@ -114,9 +104,16 @@ func newFile(h syscall.Handle, name string, kind newFileKind, nonBlocking bool) 
 	}}
 	runtime.SetFinalizer(f.file, (*file).close)
 
+	overlapped := &nonBlocking
+	if kind == kindNewFile && typ != "console" {
+		// Detecting the mode can block behind outstanding synchronous I/O.
+		// Defer it until first use, including for inherited standard handles.
+		// See go.dev/issue/75949 and go.dev/issue/76391.
+		overlapped = nil
+	}
 	// Ignore initialization errors.
 	// Assume any problems will show up in later I/O.
-	f.pfd.Init(typ, nonBlocking)
+	f.pfd.Init(typ, overlapped)
 	return f
 }
 
