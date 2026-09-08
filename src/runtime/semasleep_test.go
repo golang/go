@@ -9,12 +9,39 @@ package runtime_test
 import (
 	"io"
 	"os/exec"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
 )
 
-// Issue #27250. Spurious wakeups to pthread_cond_timedwait_relative_np
+func TestSemasleepTimeoutRestoresState(t *testing.T) {
+	// The thread's semaphore value should start at value 0. Our first semasleep
+	// call times out, and we expect it to return -1 and to leave the value
+	// unchanged (at 0).
+	//
+	// Then we do a wakeup, increasing the value to 1. We then expect the next
+	// semasleep call to be a success rather than a timeout.
+
+	runtime.Acquirem()
+
+	runtime.Semacreate()
+	ret1 := runtime.Semasleep(1)
+	runtime.SemawakeupSelf()
+	ret2 := runtime.Semasleep(1)
+
+	runtime.Releasem()
+
+	if have, want := ret1, -1; have != want {
+		t.Errorf("expected first semasleep to time out; %d != %d", have, want)
+	}
+
+	if have, want := ret2, 0; have != want {
+		t.Errorf("expected second semasleep to pair with a wakeup; %d != %d", have, want)
+	}
+}
+
+// Issue #27520. Spurious wakeups to pthread_cond_timedwait_relative_np
 // shouldn't cause semasleep to retry with the same timeout which would
 // cause indefinite spinning.
 func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {

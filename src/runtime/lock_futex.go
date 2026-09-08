@@ -138,18 +138,37 @@ func semacreate(mp *m) {}
 //go:nosplit
 func semasleep(ns int64) int32 {
 	mp := getg().m
+	var deadline int64
+	if ns >= 0 {
+		deadline = nanotime() + ns
+	}
 
+	// An M is the sole consumer of its semaphore tokens; go into debt
+	// immediately so semawakeup can detect whether we're sleeping (to avoid the
+	// cost of a futexwakeup otherwise).
 	for v := atomic.Xadd(&mp.waitsema, -1); ; v = atomic.Load(&mp.waitsema) {
 		if int32(v) >= 0 {
-			return 0
+			return 0 // semaphore acquired
 		}
+
 		futexsleep(&mp.waitsema, v, ns)
+
 		if ns >= 0 {
-			if int32(v) >= 0 {
-				return 0
-			} else {
-				return -1
+			ns = deadline - nanotime()
+			if ns <= 0 {
+				break // timed out; no more sleeps
 			}
+		}
+	}
+
+	// Timeout path: we speculatively borrowed a token, try to replace it
+	for {
+		v := atomic.Load(&mp.waitsema)
+		if int32(v) >= 0 {
+			return 0 // semaphore acquired
+		}
+		if atomic.Cas(&mp.waitsema, v, v+1) {
+			return -1
 		}
 	}
 }

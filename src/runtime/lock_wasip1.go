@@ -85,6 +85,18 @@ func notetsleep(n *note, ns int64) bool {
 	return false
 }
 
+//go:nosplit
+func semacreate(mp *m) {}
+
+func semasleep(ns int64) int32 {
+	throw("semasleep not supported by wasi")
+	return 0
+}
+
+func semawakeup(mp *m) {
+	throw("semawakeup not supported by wasi")
+}
+
 // same as runtime·notetsleep, but called on user g (not g0)
 func notetsleepg(n *note, ns int64) bool {
 	gp := getg()

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// for golang.org/issue/27250
+// for golang.org/issue/27520
 
 func init() {
 	register("After1", After1)

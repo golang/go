@@ -1311,6 +1311,10 @@ func NoteTSleepG0(n *Note, ns int64) bool {
 	return ok
 }
 
+func Semacreate()            { semacreate(getg().m) }
+func Semasleep(ns int64) int { return int(semasleep(ns)) }
+func SemawakeupSelf()        { semawakeup(getg().m) }
+
 type Mutex = mutex
 
 var Lock = lock
