@@ -456,8 +456,8 @@ func findgoversion() string {
 }
 
 // goModVersion returns the go version declared in src/go.mod. This is the
-// go version to use in the go.mod building go_bootstrap, toolchain2, and toolchain3.
-// (toolchain1 must be built with requiredBootstrapVersion(goModVersion))
+// go version to use in the go.mod building toolchain2 and toolchain3.
+// (toolchain1 and go_bootstrap must be built with requiredBootstrapVersion(goModVersion))
 func goModVersion() string {
 	goMod := readfile(pathf("%s/src/go.mod", goroot))
 	m := regexp.MustCompile(`(?m)^go (1.\d+)$`).FindStringSubmatch(goMod)
@@ -692,6 +692,24 @@ var gentab = []struct {
 	{"cmd/go/internal/cfg", "zdefaultcc.go", mkzdefaultcc},
 	{"internal/runtime/sys", "zversion.go", mkzversion},
 	{"time/tzdata", "zzipdata.go", mktzdata},
+}
+
+func writeGeneratedFiles() {
+	xmkdirall(pathf("%s/pkg/include", goroot))
+	copyfile(pathf("%s/pkg/include/textflag.h", goroot),
+		pathf("%s/src/runtime/textflag.h", goroot), 0)
+	copyfile(pathf("%s/pkg/include/funcdata.h", goroot),
+		pathf("%s/src/runtime/funcdata.h", goroot), 0)
+	copyfile(pathf("%s/pkg/include/asm_ppc64x.h", goroot),
+		pathf("%s/src/runtime/asm_ppc64x.h", goroot), 0)
+	copyfile(pathf("%s/pkg/include/asm_amd64.h", goroot),
+		pathf("%s/src/runtime/asm_amd64.h", goroot), 0)
+	copyfile(pathf("%s/pkg/include/asm_riscv64.h", goroot),
+		pathf("%s/src/runtime/asm_riscv64.h", goroot), 0)
+	for _, gt := range gentab {
+		dir := pathf("%s/src/%s", goroot, gt.pkg)
+		gt.gen(dir, pathf("%s/%s", dir, gt.file))
+	}
 }
 
 // installed maps from a dir name (as given to install) to a chan
@@ -1503,8 +1521,9 @@ func cmdbootstrap() {
 	}
 
 	setup()
+	writeGeneratedFiles()
 
-	timelog("build", "toolchain1")
+	timelog("build", "toolchain1 and go_bootstrap")
 	checkCC()
 	bootstrapBuildTools()
 
@@ -1524,15 +1543,6 @@ func cmdbootstrap() {
 	os.Setenv("GOARCH", goarch)
 	os.Setenv("GOOS", goos)
 
-	timelog("build", "go_bootstrap")
-	xprintf("Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.\n")
-	install("runtime")     // dependency not visible in sources; also sets up textflag.h
-	install("time/tzdata") // no dependency in sources; creates generated file
-	install("cmd/go")
-	if vflag > 0 {
-		xprintf("\n")
-	}
-
 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
 	setNoOpt()
 	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
@@ -1544,12 +1554,10 @@ func cmdbootstrap() {
 
 	// To recap, so far we have built the new toolchain
 	// (cmd/asm, cmd/cgo, cmd/compile, cmd/link, cmd/preprofile)
-	// using the Go bootstrap toolchain and go command.
-	// Then we built the new go command (as go_bootstrap)
-	// using the new toolchain and our own build logic (above).
+	// and the new go command (as go_bootstrap)
+	// using the Go bootstrap toolchain and its go command.
 	//
-	//	toolchain1 = mk(new toolchain, go1.17 toolchain, go1.17 cmd/go)
-	//	go_bootstrap = mk(new cmd/go, toolchain1, cmd/dist)
+	//	toolchain1 = mk(new toolchain, bootstrap toolchain, bootstrap cmd/go)  # go_bootstrap is cmd/go copied from toolchain1
 	//
 	// The toolchain1 we built earlier is built from the new sources,
 	// but because it was built using cmd/go it has no build IDs.
