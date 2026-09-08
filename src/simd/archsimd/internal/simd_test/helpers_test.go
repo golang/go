@@ -45,6 +45,11 @@ func checkSlicesLogInput[T number](t *testing.T, got, want []T, flakiness float6
 	return test_helpers.CheckSlicesLogInput[T](t, got, want, flakiness, logInput)
 }
 
+func checkScalarsLogInput[T number](t *testing.T, got, want T, flakiness float64, logInput func()) bool {
+	t.Helper()
+	return test_helpers.CheckScalarsLogInput[T](t, got, want, flakiness, logInput)
+}
+
 // sliceOf returns a slice n T's, with each
 // element of the slice initialized to its
 // index + 1.

@@ -1566,87 +1566,44 @@ func TestMaskOr(t *testing.T) {
 	testMaskOr64x2(t)
 }
 
-func TestReduceSumFloat32x8(t *testing.T) {
+func TestReduceSumAmd64(t *testing.T) {
 	// 256-bit float available with plain AVX
-	tests := []struct {
-		in   []float32
-		want float32
-	}{
-		{in: []float32{1, 2, 3, 4, 5, 6, 7, 8}, want: 36},
-		{in: []float32{0.5, -0.5, 1.25, -1.25, 2.125, -2.125, 4, 8}, want: 12},
-		{in: []float32{0, 0, 0, 0, 0, 0, 0, 0}, want: 0},
-		{in: []float32{-1, -2, -3, -4, -5, -6, -7, -8}, want: -36},
-	}
-	for _, tc := range tests {
-		v := archsimd.LoadFloat32x8(tc.in)
-		got := v.ReduceSum()
-		if got != tc.want {
-			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
-		}
-	}
+	testV2S(t, float32s, archsimd.LoadFloat32x8, archsimd.Float32x8.ReduceSum, reduceSum)
+	testV2S(t, float64s, archsimd.LoadFloat64x4, archsimd.Float64x4.ReduceSum, reduceSum)
 }
 
-func TestReduceSumFloat64x4(t *testing.T) {
-	// 256-bit float available with plain AVX
-	tests := []struct {
-		in   []float64
-		want float64
-	}{
-		{in: []float64{10, 20, 30, 40}, want: 100},
-		{in: []float64{0.5, -0.5, 1.25, -1.25}, want: 0},
-		{in: []float64{0, 0, 0, 0}, want: 0},
-		{in: []float64{1.125, 2.25, 3.5, 4.0}, want: 10.875},
-		{in: []float64{-10, -20, -30, -40}, want: -100},
+func TestReduceSumAmd64AVX2(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
 	}
-	for _, tc := range tests {
-		v := archsimd.LoadFloat64x4(tc.in)
-		got := v.ReduceSum()
-		if got != tc.want {
-			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
-		}
-	}
+	testV2S(t, float32s, archsimd.LoadFloat32x8, archsimd.Float32x8.ReduceSum, reduceSum)
+	testV2S(t, float64s, archsimd.LoadFloat64x4, archsimd.Float64x4.ReduceSum, reduceSum)
+
+	testV2S(t, int8s, archsimd.LoadInt8x32, archsimd.Int8x32.ReduceSum, reduceSum)
+	testV2S(t, uint8s, archsimd.LoadUint8x32, archsimd.Uint8x32.ReduceSum, reduceSum)
+
+	testV2S(t, int16s, archsimd.LoadInt16x16, archsimd.Int16x16.ReduceSum, reduceSum)
+	testV2S(t, uint16s, archsimd.LoadUint16x16, archsimd.Uint16x16.ReduceSum, reduceSum)
+
+	testV2S(t, int32s, archsimd.LoadInt32x8, archsimd.Int32x8.ReduceSum, reduceSum)
+	testV2S(t, uint32s, archsimd.LoadUint32x8, archsimd.Uint32x8.ReduceSum, reduceSum)
 }
 
-func TestReduceSumFloat32x16(t *testing.T) {
+func TestReduceSumAmd64AVX512(t *testing.T) {
 	if !archsimd.X86.AVX512() {
 		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
 	}
-	tests := []struct {
-		in   []float32
-		want float32
-	}{
-		{in: []float32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, want: 136},
-		{in: []float32{1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, 9}, want: 17},
-		{in: make([]float32, 16), want: 0},
-	}
-	for _, tc := range tests {
-		v := archsimd.LoadFloat32x16(tc.in)
-		got := v.ReduceSum()
-		if got != tc.want {
-			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
-		}
-	}
-}
+	testV2S(t, float32s, archsimd.LoadFloat32x16, archsimd.Float32x16.ReduceSum, reduceSum)
+	testV2S(t, float64s, archsimd.LoadFloat64x8, archsimd.Float64x8.ReduceSum, reduceSum)
 
-func TestReduceSumFloat64x8(t *testing.T) {
-	if !archsimd.X86.AVX512() {
-		t.Skip("Test requires X86.AVX512, not available on this hardware")
-		return
-	}
-	tests := []struct {
-		in   []float64
-		want float64
-	}{
-		{in: []float64{1, 2, 3, 4, 5, 6, 7, 8}, want: 36},
-		{in: []float64{1, -1, 2, -2, 3, -3, 4, 5}, want: 9},
-		{in: make([]float64, 8), want: 0},
-	}
-	for _, tc := range tests {
-		v := archsimd.LoadFloat64x8(tc.in)
-		got := v.ReduceSum()
-		if got != tc.want {
-			t.Errorf("%v.ReduceSum() = %v, want %v", tc.in, got, tc.want)
-		}
-	}
+	testV2S(t, int8s, archsimd.LoadInt8x64, archsimd.Int8x64.ReduceSum, reduceSum)
+	testV2S(t, uint8s, archsimd.LoadUint8x64, archsimd.Uint8x64.ReduceSum, reduceSum)
+
+	testV2S(t, int16s, archsimd.LoadInt16x32, archsimd.Int16x32.ReduceSum, reduceSum)
+	testV2S(t, uint16s, archsimd.LoadUint16x32, archsimd.Uint16x32.ReduceSum, reduceSum)
+
+	testV2S(t, int32s, archsimd.LoadInt32x16, archsimd.Int32x16.ReduceSum, reduceSum)
+	testV2S(t, uint32s, archsimd.LoadUint32x16, archsimd.Uint32x16.ReduceSum, reduceSum)
 }
