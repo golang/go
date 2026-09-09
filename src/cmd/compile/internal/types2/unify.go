@@ -290,6 +290,9 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		u.depth--
 	}()
 
+	// don't hide bugs
+	assert(x != nil && y != nil)
+
 	// nothing to do if x == y
 	if x == y || Unalias(x) == Unalias(y) {
 		return true
@@ -791,9 +794,6 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 			}
 		}
 		// x != y and there's nothing to do
-
-	case nil:
-		// avoid a crash in case of nil type
 
 	default:
 		panic(sprintf(nil, true, "u.nify(%s, %s, %d)", xorig, yorig, mode))

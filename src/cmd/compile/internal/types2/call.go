@@ -86,7 +86,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		var args []*operand
 		var params []*Var
 		var reverse bool
-		if T != nil && sig.tparams != nil {
+		if Tsig != nil && sig.tparams != nil {
 			if !versionErr && !check.allowVersion(go1_21) {
 				if inst != nil {
 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
