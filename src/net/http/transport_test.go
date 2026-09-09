@@ -7494,6 +7494,144 @@ func TestTransportReqCancelerCleanupOnRequestBodyWriteError(t *testing.T) {
 	})
 }
 
+func TestTransportResponseBodyDrainReadAndClose(t *testing.T) {
+	tests := []struct {
+		name           string
+		read           bool
+		closeEarly     bool
+		closeAfterRead bool
+		serverTruncate bool
+		wantReadErr    error
+		wantCloseErr   error
+		wantReuse      bool
+	}{
+		// go.dev/issue/81404.
+		{
+			name:        "concurrent early close and read to eof",
+			read:        true,
+			closeEarly:  true,
+			wantReadErr: io.EOF,
+			wantReuse:   true,
+		},
+		{
+			name:           "concurrent early close and unexpected read error",
+			read:           true,
+			closeEarly:     true,
+			serverTruncate: true,
+			wantReadErr:    io.ErrUnexpectedEOF,
+			wantReuse:      false,
+		},
+		{
+			name:           "unexpected read error without any close",
+			read:           true,
+			serverTruncate: true,
+			wantReadErr:    io.ErrUnexpectedEOF,
+			wantReuse:      false,
+		},
+		{
+			name:           "unexpected read error followed by close",
+			read:           true,
+			closeAfterRead: true,
+			serverTruncate: true,
+			wantReadErr:    io.ErrUnexpectedEOF,
+			wantCloseErr:   io.ErrUnexpectedEOF,
+			wantReuse:      false,
+		},
+		{
+			name:       "early close without any read",
+			read:       false,
+			closeEarly: true,
+			wantReuse:  true,
+		},
+		{
+			name:           "read all then close",
+			read:           true,
+			closeAfterRead: true,
+			wantReadErr:    io.EOF,
+			wantReuse:      true,
+		},
+	}
+
+	synctestSubtest := func(t *testing.T, name string, f func(*testing.T)) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
+			t.Helper()
+			synctest.Test(t, f)
+		})
+	}
+	for _, tc := range tests {
+		synctestSubtest(t, tc.name, func(t *testing.T) {
+			tt := newHTTP1TransportTest(t)
+			req, _ := NewRequest("GET", "http://example.tld/", nil)
+			rt := tt.roundTrip(req)
+			conn := tt.wantDial("tcp", "example.tld:80").connect()
+			conn.readRequest()
+			conn.writeMessage(
+				"HTTP/1.1 200 OK",
+				"Transfer-Encoding: chunked",
+				"",
+			)
+			res := rt.response()
+
+			readErr := make(chan error, 1)
+			if tc.read {
+				go func() {
+					var buf [1]byte
+					_, err := res.Body.Read(buf[:])
+					readErr <- err
+				}()
+				// Wait for the Read to block on chunk data.
+				synctest.Wait()
+			}
+
+			if tc.closeEarly {
+				if err := res.Body.Close(); !errors.Is(err, tc.wantCloseErr) {
+					t.Fatalf("Close = %v, want %v", err, tc.wantCloseErr)
+				}
+			}
+
+			if tc.serverTruncate {
+				conn.conn.CloseWrite()
+			} else {
+				conn.writeMessage(
+					"0",
+					"",
+				)
+			}
+
+			if tc.read {
+				synctest.Wait()
+				if err := <-readErr; !errors.Is(err, tc.wantReadErr) {
+					t.Fatalf("Read = %v, want %v", err, tc.wantReadErr)
+				}
+			}
+
+			if tc.closeAfterRead {
+				if err := res.Body.Close(); !errors.Is(err, tc.wantCloseErr) {
+					t.Fatalf("Close = %v, want %v", err, tc.wantCloseErr)
+				}
+			}
+
+			if !tc.wantReuse {
+				conn.wantClosed()
+			} else {
+				synctest.Wait()
+				req, _ = NewRequest("GET", "http://example.tld/next", nil)
+				rt = tt.roundTrip(req)
+				if got := conn.readRequest().URL.Path; got != "/next" {
+					t.Fatalf("request path = %q, want /next", got)
+				}
+				conn.writeMessage(
+					"HTTP/1.1 200 OK",
+					"Content-Length: 0",
+					"",
+				)
+				rt.wantStatus(200)
+			}
+		})
+	}
+}
+
 func TestValidateClientRequestTrailers(t *testing.T) {
 	run(t, testValidateClientRequestTrailers)
 }

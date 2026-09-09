@@ -2441,6 +2441,10 @@ func maybeDrainBody(body io.Reader) bool {
 	}
 }
 
+// errClosedEarly is an internal-only error used to indicate that a response body
+// was closed early prior to EOF.
+var errClosedEarly = errors.New("net/http: response body closed early")
+
 func (pc *persistConn) readLoop() {
 	closeErr := errReadLoopExiting // default value, if not changed below
 	defer func() {
@@ -2559,19 +2563,17 @@ func (pc *persistConn) readLoop() {
 			continue
 		}
 
-		waitForBodyRead := make(chan bool, 2)
+		waitForBodyRead := make(chan error, 1)
 		body := &bodyEOFSignal{
 			body: resp.Body,
 			earlyCloseFn: func() error {
-				waitForBodyRead <- false
+				waitForBodyRead <- errClosedEarly
 				<-eofc // will be closed by deferred call at the end of the function
 				return nil
-
 			},
 			fn: func(err error) error {
-				isEOF := err == io.EOF
-				waitForBodyRead <- isEOF
-				if isEOF {
+				waitForBodyRead <- err
+				if err == io.EOF {
 					<-eofc // see comment above eofc declaration
 				} else if err != nil {
 					if cerr := pc.canceled(); cerr != nil {
@@ -2601,19 +2603,26 @@ func (pc *persistConn) readLoop() {
 		// the bufio.Reader, wait for the caller goroutine to finish
 		// reading the response body. (or for cancellation or death)
 		select {
-		case bodyEOF := <-waitForBodyRead:
-			tryDrain := !bodyEOF && resp.ContentLength <= maxPostCloseReadBytes
-			if tryDrain {
-				eofc <- struct{}{}
-				bodyEOF = maybeDrainBody(body.body)
+		case err := <-waitForBodyRead:
+			tryPutIdle := func() {
+				alive = alive &&
+					!pc.sawEOF &&
+					pc.wroteRequest() &&
+					tryPutIdleConn(rc.treq)
 			}
-			alive = alive &&
-				bodyEOF &&
-				!pc.sawEOF &&
-				pc.wroteRequest() &&
-				tryPutIdleConn(rc.treq)
-			if !tryDrain && bodyEOF {
+			switch err {
+			case io.EOF:
+				tryPutIdle()
 				eofc <- struct{}{}
+			case errClosedEarly:
+				eofc <- struct{}{}
+				if alive && resp.ContentLength <= maxPostCloseReadBytes && maybeDrainBody(body.body) {
+					tryPutIdle()
+				} else {
+					alive = false
+				}
+			default:
+				alive = false
 			}
 		case <-rc.treq.ctx.Done():
 			alive = false
@@ -3209,16 +3218,16 @@ func canonicalAddr(url *url.URL) string {
 // once, right before its final (error-producing) Read or Close call
 // returns. fn should return the new error to return from Read or Close.
 //
-// If earlyCloseFn is non-nil and Close is called before io.EOF is
-// seen, earlyCloseFn is called instead of fn, and its return value is
+// If earlyCloseFn is non-nil and Close is called before any final error from
+// Read is seen, earlyCloseFn is called instead of fn, and its return value is
 // the return value from Close.
 type bodyEOFSignal struct {
 	body         io.ReadCloser
 	mu           sync.Mutex        // guards following 4 fields
 	closed       bool              // whether Close has been called
 	rerr         error             // sticky Read error
-	fn           func(error) error // err will be nil on Read io.EOF
-	earlyCloseFn func() error      // optional alt Close func used if io.EOF not seen
+	fn           func(error) error // called on final body.Read non-nil error (or body.Close if earlyCloseFn is not run)
+	earlyCloseFn func() error      // called if body.Close is called before body.Read ever returns a non-nil error
 }
 
 var errReadOnClosedResBody = errors.New("http: read on closed response body")
@@ -3254,8 +3263,11 @@ func (es *bodyEOFSignal) Close() error {
 		return nil
 	}
 	es.closed = true
-	if es.earlyCloseFn != nil && es.rerr != io.EOF {
-		return es.earlyCloseFn()
+	if es.earlyCloseFn != nil && es.rerr == nil {
+		earlyCloseFn := es.earlyCloseFn
+		es.earlyCloseFn = nil
+		es.fn = nil
+		return earlyCloseFn()
 	}
 	err := es.body.Close()
 	return es.condfn(err)
@@ -3266,9 +3278,10 @@ func (es *bodyEOFSignal) condfn(err error) error {
 	if es.fn == nil {
 		return err
 	}
-	err = es.fn(err)
+	fn := es.fn
 	es.fn = nil
-	return err
+	es.earlyCloseFn = nil
+	return fn(err)
 }
 
 // gzipReader wraps a response body so it can lazily
