@@ -800,6 +800,9 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
 			sel = r.selector()
 			r.recvTypeParamNames()
 			recv = r.param()
+			if r.Version().Has(pkgbits.PreserveMethodOrder) {
+				_ = r.Len() // method index not needed in compiler
+			}
 		} else {
 			if sym.Name == "init" {
 				sym = Renameinit()
@@ -1131,6 +1134,9 @@ func (r *reader) typeParamNames() {
 
 func (r *reader) method(rext *reader) *types.Field {
 	r.Sync(pkgbits.SyncMethod)
+	if r.Version().Has(pkgbits.PreserveMethodOrder) {
+		_ = r.Len() // method index not needed in compiler
+	}
 	npos := r.pos()
 	sym := r.selector()
 	r.typeParamNames()
