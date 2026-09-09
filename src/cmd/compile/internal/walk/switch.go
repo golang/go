@@ -29,7 +29,7 @@ import (
 )
 
 // walkSwitch walks a switch statement.
-func walkSwitch(sw *ir.SwitchStmt) {
+func walkSwitch(walkstate *walkState, sw *ir.SwitchStmt) {
 	// Guard against double walk, see #25776.
 	if sw.Walked() {
 		return // Was fatal, but eliminating every possible source of double-walking is hard
@@ -37,15 +37,15 @@ func walkSwitch(sw *ir.SwitchStmt) {
 	sw.SetWalked(true)
 
 	if sw.Tag != nil && sw.Tag.Op() == ir.OTYPESW {
-		walkSwitchType(sw)
+		walkSwitchType(walkstate, sw)
 	} else {
-		walkSwitchExpr(sw)
+		walkSwitchExpr(walkstate, sw)
 	}
 }
 
 // walkSwitchExpr generates an AST implementing sw.  sw is an
 // expression switch.
-func walkSwitchExpr(sw *ir.SwitchStmt) {
+func walkSwitchExpr(walkstate *walkState, sw *ir.SwitchStmt) {
 	lno := ir.SetPos(sw)
 
 	cond := sw.Tag
@@ -70,14 +70,14 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 		cond.SetOp(ir.OBYTES2STRTMP)
 	}
 
-	cond = walkExpr(cond, sw.PtrInit())
+	cond = walkExpr(walkstate, cond, sw.PtrInit())
 	if cond.Op() != ir.OLITERAL && cond.Op() != ir.ONIL {
-		cond = copyExpr(cond, cond.Type(), &sw.Compiled)
+		cond = copyExpr(walkstate, cond, cond.Type(), &sw.Compiled)
 	}
 
 	base.Pos = lno
 
-	tryLookupTable(sw, cond)
+	tryLookupTable(walkstate, sw, cond)
 
 	s := exprSwitch{
 		pos:      lno,
@@ -87,7 +87,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 	var defaultGoto ir.Node
 	var body ir.Nodes
 	for _, ncase := range sw.Cases {
-		label := typecheck.AutoLabel(".s")
+		label := walkstate.autoLabel(".s")
 		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, label)
 
 		// Process case dispatch.
@@ -103,7 +103,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 			if i < len(ncase.RTypes) {
 				rtype = ncase.RTypes[i]
 			}
-			s.Add(ncase.Pos(), n1, rtype, jmp)
+			s.Add(walkstate, ncase.Pos(), n1, rtype, jmp)
 		}
 
 		// Process body.
@@ -123,10 +123,10 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 		defaultGoto = br
 	}
 
-	s.Emit(&sw.Compiled)
+	s.Emit(walkstate, &sw.Compiled)
 	sw.Compiled.Append(defaultGoto)
 	sw.Compiled.Append(body.Take()...)
-	walkStmtList(sw.Compiled)
+	walkStmtList(walkstate, sw.Compiled)
 }
 
 // An exprSwitch walks an expression switch.
@@ -145,24 +145,24 @@ type exprClause struct {
 	jmp    ir.Node
 }
 
-func (s *exprSwitch) Add(pos src.XPos, expr, rtype, jmp ir.Node) {
+func (s *exprSwitch) Add(walkstate *walkState, pos src.XPos, expr, rtype, jmp ir.Node) {
 	c := exprClause{pos: pos, lo: expr, hi: expr, rtype: rtype, jmp: jmp}
 	if types.IsOrdered[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
 		s.clauses = append(s.clauses, c)
 		return
 	}
 
-	s.flush()
+	s.flush(walkstate)
 	s.clauses = append(s.clauses, c)
-	s.flush()
+	s.flush(walkstate)
 }
 
-func (s *exprSwitch) Emit(out *ir.Nodes) {
-	s.flush()
+func (s *exprSwitch) Emit(walkstate *walkState, out *ir.Nodes) {
+	s.flush(walkstate)
 	out.Append(s.done.Take()...)
 }
 
-func (s *exprSwitch) flush() {
+func (s *exprSwitch) flush(walkstate *walkState) {
 	cc := s.clauses
 	s.clauses = nil
 	if len(cc) == 0 {
@@ -224,8 +224,8 @@ func (s *exprSwitch) flush() {
 		// }
 		// endLabel:
 
-		outerLabel := typecheck.AutoLabel(".s")
-		endLabel := typecheck.AutoLabel(".s")
+		outerLabel := walkstate.autoLabel(".s")
+		endLabel := walkstate.autoLabel(".s")
 
 		// Jump around all the individual switches for each length.
 		s.done.Append(ir.NewBranchStmt(s.pos, ir.OGOTO, outerLabel))
@@ -236,7 +236,7 @@ func (s *exprSwitch) flush() {
 
 		for _, run := range runs {
 			// Target label to jump to when we match this length.
-			label := typecheck.AutoLabel(".s")
+			label := walkstate.autoLabel(".s")
 
 			// Search within this run of same-length strings.
 			pos := run[0].pos
@@ -247,10 +247,10 @@ func (s *exprSwitch) flush() {
 			// Add length case to outer switch.
 			cas := ir.NewInt(pos, runLen(run))
 			jmp := ir.NewBranchStmt(pos, ir.OGOTO, label)
-			outer.Add(pos, cas, nil, jmp)
+			outer.Add(walkstate, pos, cas, nil, jmp)
 		}
 		s.done.Append(ir.NewLabelStmt(s.pos, outerLabel))
-		outer.Emit(&s.done)
+		outer.Emit(walkstate, &s.done)
 		s.done.Append(ir.NewLabelStmt(s.pos, endLabel))
 		return
 	}
@@ -375,7 +375,7 @@ func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
 //	var mask  = [8]uint8{1, 1, 0, ...}
 //	if uint(x-1) <= 7 && mask[x-1] != 0 { return table[x-1] }
 //	// remaining switch for case 3 + default
-func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
+func tryLookupTable(walkstate *walkState, sw *ir.SwitchStmt, cond ir.Node) {
 	const minCases = 4 // need enough cases to justify a table
 
 	if base.Flag.N != 0 {
@@ -388,7 +388,7 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 		return // 64-bit switches on 32-bit archs
 	}
 
-	fn := ir.CurFunc
+	fn := walkstate.curfunc
 	if fn == nil {
 		return
 	}
@@ -557,7 +557,7 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 	// so the index can be shared across the bounds check, table, and mask.
 	uintType := types.Types[types.TUINT]
 	uidx := typecheck.Conv(idx, uintType)
-	uidx = copyExpr(uidx, uintType, &sw.Compiled)
+	uidx = copyExpr(walkstate, uidx, uintType, &sw.Compiled)
 
 	// Bounds check: uint(idx) <= uint(maxVal - minVal).
 	rangeLit := ir.NewBasicLit(pos, uintType, constant.MakeUint64(uint64(maxVal-minVal)))
@@ -722,14 +722,14 @@ func endsInFallthrough(stmts []ir.Node) (bool, src.XPos) {
 
 // walkSwitchType generates an AST that implements sw, where sw is a
 // type switch.
-func walkSwitchType(sw *ir.SwitchStmt) {
+func walkSwitchType(walkstate *walkState, sw *ir.SwitchStmt) {
 	var s typeSwitch
 	origSrc := sw.Tag.(*ir.TypeSwitchGuard).X
 	s.srcName = origSrc
-	s.srcName = walkExpr(s.srcName, sw.PtrInit())
-	s.srcName = copyExpr(s.srcName, s.srcName.Type(), &sw.Compiled)
-	s.okName = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
-	s.itabName = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINT8].PtrTo())
+	s.srcName = walkExpr(walkstate, s.srcName, sw.PtrInit())
+	s.srcName = copyExpr(walkstate, s.srcName, s.srcName.Type(), &sw.Compiled)
+	s.okName = typecheck.TempAt(base.Pos, walkstate.curfunc, types.Types[types.TBOOL])
+	s.itabName = typecheck.TempAt(base.Pos, walkstate.curfunc, types.Types[types.TUINT8].PtrTo())
 
 	// Get interface descriptor word.
 	// For empty interfaces this will be the type.
@@ -755,12 +755,12 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 
 	// Load hash from type or itab.
 	dotHash := typeHashFieldOf(base.Pos, srcItab)
-	s.hashName = copyExpr(dotHash, dotHash.Type(), &sw.Compiled)
+	s.hashName = copyExpr(walkstate, dotHash, dotHash.Type(), &sw.Compiled)
 
 	// Make a label for each case body.
 	labels := make([]*types.Sym, len(sw.Cases))
 	for i := range sw.Cases {
-		labels[i] = typecheck.AutoLabel(".s")
+		labels[i] = walkstate.autoLabel(".s")
 	}
 
 	// "jump" to execute if no case matches.
@@ -808,7 +808,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			var val ir.Node
 			// for a single runtime known type with a case var, create the tmpVar
 			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE && ncase.Var != nil {
-				val = typecheck.TempAt(ncase.Pos(), ir.CurFunc, ncase.Var.Type())
+				val = typecheck.TempAt(ncase.Pos(), walkstate.curfunc, ncase.Var.Type())
 				idx = i
 			}
 			cases = append(cases, oneCase{
@@ -848,7 +848,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 					body: []ir.Node{typecheck.Stmt(as), typecheck.Stmt(nif)},
 				})
 			}
-			s.flush(clauses, &sw.Compiled)
+			s.flush(walkstate, clauses, &sw.Compiled)
 			concreteCases = concreteCases[:0]
 		}
 
@@ -888,7 +888,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			} else {
 				typeArg = itabType(srcItab)
 			}
-			caseVar := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+			caseVar := typecheck.TempAt(base.Pos, walkstate.curfunc, types.Types[types.TINT])
 			isw := ir.NewInterfaceSwitchStmt(base.Pos, caseVar, s.itabName, typeArg, dotHash, lsym)
 			sw.Compiled.Append(isw)
 
@@ -1031,7 +1031,7 @@ caseLoop:
 		sw.Compiled.Append(br)
 	}
 
-	walkStmtList(sw.Compiled)
+	walkStmtList(walkstate, sw.Compiled)
 	sw.Tag = nil
 	sw.Cases = nil
 }
@@ -1078,7 +1078,7 @@ type typeClause struct {
 	body ir.Nodes
 }
 
-func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
+func (s *typeSwitch) flush(walkstate *walkState, cc []typeClause, compiled *ir.Nodes) {
 	if len(cc) == 0 {
 		return
 	}
@@ -1097,7 +1097,7 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
 	}
 	cc = merged
 
-	if s.tryJumpTable(cc, compiled) {
+	if s.tryJumpTable(walkstate, cc, compiled) {
 		return
 	}
 	binarySearch(len(cc), compiled,
@@ -1115,7 +1115,7 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
 }
 
 // Try to implement the clauses with a jump table. Returns true if successful.
-func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
+func (s *typeSwitch) tryJumpTable(walkstate *walkState, cc []typeClause, out *ir.Nodes) bool {
 	const minCases = 5 // have at least minCases cases in the switch
 	if base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable || base.Ctxt.Retpoline {
 		return false
@@ -1161,7 +1161,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
 			out.Append(jt)
 
 			// Start with all hashes going to the didn't-match target.
-			noMatch := typecheck.AutoLabel(".s")
+			noMatch := walkstate.autoLabel(".s")
 			for j := 0; j < 1<<b; j++ {
 				jt.Cases[j] = constant.MakeInt64(int64(j))
 				jt.Targets[j] = noMatch
@@ -1173,7 +1173,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
 			// Emit each of the actual cases.
 			for _, c := range cc {
 				h := c.hash >> i & (1<<b - 1)
-				label := typecheck.AutoLabel(".s")
+				label := walkstate.autoLabel(".s")
 				jt.Targets[h] = label
 				out.Append(ir.NewLabelStmt(base.Pos, label))
 				out.Append(c.body...)

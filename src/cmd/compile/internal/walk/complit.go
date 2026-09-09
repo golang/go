@@ -17,17 +17,17 @@ import (
 
 // walkCompLit walks a composite literal node:
 // OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT (all CompLitExpr), or OPTRLIT (AddrExpr).
-func walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
+func walkCompLit(walkstate *walkState, n ir.Node, init *ir.Nodes) ir.Node {
 	if isStaticCompositeLiteral(n) && !ssa.CanSSA(n.Type()) {
 		n := n.(*ir.CompLitExpr) // not OPTRLIT
 		// n can be directly represented in the read-only data section.
 		// Make direct reference to the static data. See issue 12841.
 		vstat := readonlystaticname(n.Type())
-		fixedlit(initKindStatic, n, vstat, init)
+		fixedlit(walkstate, initKindStatic, n, vstat, init)
 		return typecheck.Expr(vstat)
 	}
-	var_ := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type())
-	anylit(n, var_, init)
+	var_ := typecheck.TempAt(base.Pos, walkstate.curfunc, n.Type())
+	anylit(walkstate, n, var_, init)
 	return var_
 }
 
@@ -180,7 +180,7 @@ const (
 
 // fixedlit handles struct, array, and slice literals.
 // TODO: expand documentation.
-func fixedlit(kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+func fixedlit(walkstate *walkState, kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	isBlank := var_ == ir.BlankNode
 	var splitnode func(ir.Node) (a ir.Node, value ir.Node)
 	switch n.Op() {
@@ -223,13 +223,13 @@ func fixedlit(kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 		case ir.OSLICELIT:
 			value := value.(*ir.CompLitExpr)
 			if kind == initKindDynamic {
-				slicelit(value, a, init)
+				slicelit(walkstate, value, a, init)
 				continue
 			}
 
 		case ir.OARRAYLIT, ir.OSTRUCTLIT:
 			value := value.(*ir.CompLitExpr)
-			fixedlit(kind, value, a, init)
+			fixedlit(walkstate, kind, value, a, init)
 			continue
 		}
 
@@ -246,7 +246,7 @@ func fixedlit(kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 		case initKindStatic:
 			genAsStatic(as)
 		case initKindDynamic, initKindLocalCode:
-			appendWalkStmt(init, orderStmtInPlace(as, map[string][]*ir.Name{}))
+			appendWalkStmt(walkstate, init, orderStmtInPlace(walkstate, as, map[string][]*ir.Name{}))
 		default:
 			base.Fatalf("fixedlit: bad kind %d", kind)
 		}
@@ -262,7 +262,7 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
 	return n.Type().Elem().Size() == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Size()
 }
 
-func slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+func slicelit(walkstate *walkState, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	// make an array type corresponding the number of elements we have
 	t := types.NewArray(n.Type().Elem(), n.Len)
 	types.CalcSize(t)
@@ -293,11 +293,11 @@ func slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	mode := getdyn(n, true)
 	if mode&initConst != 0 && !isSmallSliceLit(n) {
 		vstat = readonlystaticname(t)
-		fixedlit(initKindStatic, n, vstat, init)
+		fixedlit(walkstate, initKindStatic, n, vstat, init)
 	}
 
 	// make new auto *array (3 declare)
-	vauto := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(t))
+	vauto := typecheck.TempAt(base.Pos, walkstate.curfunc, types.NewPtr(t))
 
 	// set auto to point at new temp or heap (3 assign)
 	var a ir.Node
@@ -306,20 +306,20 @@ func slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 		if !types.Identical(t, x.Type()) {
 			panic("dotdotdot base type does not match order's assigned type")
 		}
-		a = initStackTemp(init, x, vstat)
+		a = initStackTemp(walkstate, init, x, vstat)
 	} else if n.Esc() == ir.EscNone {
-		a = initStackTemp(init, typecheck.TempAt(base.Pos, ir.CurFunc, t), vstat)
+		a = initStackTemp(walkstate, init, typecheck.TempAt(base.Pos, walkstate.curfunc, t), vstat)
 	} else {
 		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
 	}
-	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, vauto, a))
+	appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, vauto, a))
 
 	if vstat != nil && n.Prealloc == nil && n.Esc() != ir.EscNone {
 		// If we allocated on the heap with ONEW, copy the static to the
 		// heap (4). We skip this for stack temporaries, because
 		// initStackTemp already handled the copy.
 		a = ir.NewStarExpr(base.Pos, vauto)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, a, vstat))
+		appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, a, vstat))
 	}
 
 	// put dynamics into array (5)
@@ -348,7 +348,7 @@ func slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 				// See issue #31987.
 				k = initKindLocalCode
 			}
-			fixedlit(k, value, a, init)
+			fixedlit(walkstate, k, value, a, init)
 			continue
 		}
 
@@ -359,21 +359,21 @@ func slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 		// build list of vauto[c] = expr
 		ir.SetPos(value)
 		as := ir.NewAssignStmt(base.Pos, a, value)
-		appendWalkStmt(init, orderStmtInPlace(typecheck.Stmt(as), map[string][]*ir.Name{}))
+		appendWalkStmt(walkstate, init, orderStmtInPlace(walkstate, typecheck.Stmt(as), map[string][]*ir.Name{}))
 	}
 
 	// make slice out of heap (6)
 	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto, nil, nil, nil))
-	appendWalkStmt(init, orderStmtInPlace(typecheck.Stmt(a), map[string][]*ir.Name{}))
+	appendWalkStmt(walkstate, init, orderStmtInPlace(walkstate, typecheck.Stmt(a), map[string][]*ir.Name{}))
 }
 
-func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+func maplit(walkstate *walkState, n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
 	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(base.Pos, n.Len+int64(len(n.List)))}
 	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
 	a.RType = n.RType
 	a.SetEsc(n.Esc())
-	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
+	appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, m, a))
 
 	entries := n.List
 
@@ -410,14 +410,14 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 			datak.List.Append(r.Key)
 			datae.List.Append(r.Value)
 		}
-		fixedlit(initKindStatic, datak, vstatk, init)
-		fixedlit(initKindStatic, datae, vstate, init)
+		fixedlit(walkstate, initKindStatic, datak, vstatk, init)
+		fixedlit(walkstate, initKindStatic, datae, vstate, init)
 
 		// loop adding structure elements to map
 		// for i = 0; i < len(vstatk); i++ {
 		//	map[vstatk[i]] = vstate[i]
 		// }
-		i := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+		i := typecheck.TempAt(base.Pos, walkstate.curfunc, types.Types[types.TINT])
 		rhs := ir.NewIndexExpr(base.Pos, vstate, i)
 		rhs.SetBounded(true)
 
@@ -435,13 +435,13 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 
 		var body ir.Node = ir.NewAssignStmt(base.Pos, lhs, rhs)
 		body = typecheck.Stmt(body)
-		body = orderStmtInPlace(body, map[string][]*ir.Name{})
+		body = orderStmtInPlace(walkstate, body, map[string][]*ir.Name{})
 
 		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil, false)
 		loop.Body = []ir.Node{body}
 		loop.SetInit([]ir.Node{zero})
 
-		appendWalkStmt(init, loop)
+		appendWalkStmt(walkstate, init, loop)
 		return
 	}
 	// For a small number of entries, just add them directly.
@@ -450,18 +450,18 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// Use temporaries so that mapassign1 can have addressable key, elem.
 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
 	// TODO(khr): assign these temps in order phase so we can reuse them across multiple maplits?
-	tmpkey := typecheck.TempAt(base.Pos, ir.CurFunc, m.Type().Key())
-	tmpelem := typecheck.TempAt(base.Pos, ir.CurFunc, m.Type().Elem())
+	tmpkey := typecheck.TempAt(base.Pos, walkstate.curfunc, m.Type().Key())
+	tmpelem := typecheck.TempAt(base.Pos, walkstate.curfunc, m.Type().Elem())
 
 	for _, r := range entries {
 		r := r.(*ir.KeyExpr)
 		index, elem := r.Key, r.Value
 
 		ir.SetPos(index)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmpkey, index))
+		appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, tmpkey, index))
 
 		ir.SetPos(elem)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmpelem, elem))
+		appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, tmpelem, elem))
 
 		ir.SetPos(tmpelem)
 
@@ -472,12 +472,12 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 
 		var a ir.Node = ir.NewAssignStmt(base.Pos, lhs, tmpelem)
 		a = typecheck.Stmt(a)
-		a = orderStmtInPlace(a, map[string][]*ir.Name{})
-		appendWalkStmt(init, a)
+		a = orderStmtInPlace(walkstate, a, map[string][]*ir.Name{})
+		appendWalkStmt(walkstate, init, a)
 	}
 }
 
-func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
+func anylit(walkstate *walkState, n ir.Node, var_ ir.Node, init *ir.Nodes) {
 	t := n.Type()
 	switch n.Op() {
 	default:
@@ -485,11 +485,11 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 
 	case ir.ONAME:
 		n := n.(*ir.Name)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, n))
+		appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, var_, n))
 
 	case ir.OMETHEXPR:
 		n := n.(*ir.SelectorExpr)
-		anylit(n.FuncName(), var_, init)
+		anylit(walkstate, n.FuncName(), var_, init)
 
 	case ir.OPTRLIT:
 		n := n.(*ir.AddrExpr)
@@ -500,16 +500,16 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		var r ir.Node
 		if n.Prealloc != nil {
 			// n.Prealloc is stack temporary used as backing store.
-			r = initStackTemp(init, n.Prealloc, nil)
+			r = initStackTemp(walkstate, init, n.Prealloc, nil)
 		} else {
 			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.X.Type()))
 			r.SetEsc(n.Esc())
 		}
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, r))
+		appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, var_, r))
 
 		var_ = ir.NewStarExpr(base.Pos, var_)
 		var_ = typecheck.AssignExpr(var_)
-		anylit(n.X, var_, init)
+		anylit(walkstate, n.X, var_, init)
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT:
 		n := n.(*ir.CompLitExpr)
@@ -521,13 +521,13 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			// lay out static data
 			vstat := readonlystaticname(t)
 
-			fixedlit(initKindStatic, n, vstat, init)
+			fixedlit(walkstate, initKindStatic, n, vstat, init)
 
 			// copy static to var
-			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, vstat))
+			appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, var_, vstat))
 
 			// add expressions to automatic
-			fixedlit(initKindDynamic, n, var_, init)
+			fixedlit(walkstate, initKindDynamic, n, var_, init)
 			break
 		}
 
@@ -539,28 +539,28 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		}
 		// initialization of an array or struct with unspecified components (missing fields or arrays)
 		if isSimpleName(var_) || int64(len(n.List)) < components {
-			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))
+			appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, var_, nil))
 		}
 
-		fixedlit(initKindLocalCode, n, var_, init)
+		fixedlit(walkstate, initKindLocalCode, n, var_, init)
 
 	case ir.OSLICELIT:
 		n := n.(*ir.CompLitExpr)
-		slicelit(n, var_, init)
+		slicelit(walkstate, n, var_, init)
 
 	case ir.OMAPLIT:
 		n := n.(*ir.CompLitExpr)
 		if !t.IsMap() {
 			base.Fatalf("anylit: not map")
 		}
-		maplit(n, var_, init)
+		maplit(walkstate, n, var_, init)
 	}
 }
 
 // oaslit handles special composite literal assignments.
 // It returns true if n's effects have been added to init,
 // in which case n should be dropped from the program by the caller.
-func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
+func oaslit(walkstate *walkState, n *ir.AssignStmt, init *ir.Nodes) bool {
 	if n.X == nil || n.Y == nil {
 		// not a special composite literal assignment
 		return false
@@ -595,7 +595,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 			// not safe to do a special composite literal assignment if RHS uses LHS.
 			return false
 		}
-		anylit(n.Y, n.X, init)
+		anylit(walkstate, n.Y, n.X, init)
 	}
 
 	return true

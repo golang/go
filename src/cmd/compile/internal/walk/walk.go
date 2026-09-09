@@ -45,7 +45,7 @@ func (w *walkState) autoLabel(prefix string) *types.Sym {
 }
 
 func Walk(fn *ir.Func) {
-	ir.CurFunc = fn
+	WalkState.curfunc = fn
 
 	// Build pre-walk analysis caches with a single AST traversal.
 	// (At some point, it might be worthwhile to have a walkState structure
@@ -54,20 +54,20 @@ func Walk(fn *ir.Func) {
 	defer func() { staticValues = nil; shapeConvSources = nil }()
 
 	errorsBefore := base.Errors()
-	order(fn)
+	order(WalkState, fn)
 	if base.Errors() > errorsBefore {
 		return
 	}
 
 	if base.Flag.W != 0 {
-		s := fmt.Sprintf("\nbefore walk %v", ir.CurFunc.Sym())
-		ir.DumpList(s, ir.CurFunc.Body)
+		s := fmt.Sprintf("\nbefore walk %v", WalkState.curfunc.Sym())
+		ir.DumpList(s, WalkState.curfunc.Body)
 	}
 
-	walkStmtList(ir.CurFunc.Body)
+	walkStmtList(WalkState, WalkState.curfunc.Body)
 	if base.Flag.W != 0 {
-		s := fmt.Sprintf("after walk %v", ir.CurFunc.Sym())
-		ir.DumpList(s, ir.CurFunc.Body)
+		s := fmt.Sprintf("after walk %v", WalkState.curfunc.Sym())
+		ir.DumpList(s, WalkState.curfunc.Body)
 	}
 
 	// Eagerly compute sizes of all variables for SSA.
@@ -77,18 +77,18 @@ func Walk(fn *ir.Func) {
 }
 
 // walkRecv walks an ORECV node.
-func walkRecv(n *ir.UnaryExpr) ir.Node {
+func walkRecv(walkstate *walkState, n *ir.UnaryExpr) ir.Node {
 	if n.Typecheck() == 0 {
 		base.Fatalf("missing typecheck: %+v", n)
 	}
 	init := ir.TakeInit(n)
 
-	n.X = walkExpr(n.X, &init)
-	call := walkExpr(mkcall1(chanfn("chanrecv1", 2, n.X.Type()), nil, &init, n.X, typecheck.NodNil()), &init)
+	n.X = walkExpr(walkstate, n.X, &init)
+	call := walkExpr(walkstate, mkcall1(walkstate, chanfn("chanrecv1", 2, n.X.Type()), nil, &init, n.X, typecheck.NodNil()), &init)
 	return ir.InitExpr(init, call)
 }
 
-func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
+func convas(walkstate *walkState, n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 	if n.Op() != ir.OAS {
 		base.Fatalf("convas: not OAS %v", n.Op())
 	}
@@ -111,14 +111,14 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
 
 	if !types.Identical(lt, rt) {
 		n.Y = typecheck.AssignConv(n.Y, lt, "assignment")
-		n.Y = walkExpr(n.Y, init)
+		n.Y = walkExpr(walkstate, n.Y, init)
 	}
 	types.CalcSize(n.Y.Type())
 
 	return n
 }
 
-func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
+func vmkcall(walkstate *walkState, fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
 	if init == nil {
 		base.Fatalf("mkcall with nil init: %v", fn)
 	}
@@ -133,24 +133,24 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallEx
 
 	call := typecheck.Call(base.Pos, fn, va, false).(*ir.CallExpr)
 	call.SetType(t)
-	return walkExpr(call, init).(*ir.CallExpr)
+	return walkExpr(walkstate, call, init).(*ir.CallExpr)
 }
 
-func mkcall(name string, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.CallExpr {
-	return vmkcall(typecheck.LookupRuntime(name), t, init, args)
+func mkcall(walkstate *walkState, name string, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.CallExpr {
+	return vmkcall(walkstate, typecheck.LookupRuntime(name), t, init, args)
 }
 
-func mkcallstmt(name string, args ...ir.Node) ir.Node {
-	return mkcallstmt1(typecheck.LookupRuntime(name), args...)
+func mkcallstmt(walkstate *walkState, name string, args ...ir.Node) ir.Node {
+	return mkcallstmt1(walkstate, typecheck.LookupRuntime(name), args...)
 }
 
-func mkcall1(fn ir.Node, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.CallExpr {
-	return vmkcall(fn, t, init, args)
+func mkcall1(walkstate *walkState, fn ir.Node, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.CallExpr {
+	return vmkcall(walkstate, fn, t, init, args)
 }
 
-func mkcallstmt1(fn ir.Node, args ...ir.Node) ir.Node {
+func mkcallstmt1(walkstate *walkState, fn ir.Node, args ...ir.Node) ir.Node {
 	var init ir.Nodes
-	n := vmkcall(fn, nil, &init, args)
+	n := vmkcall(walkstate, fn, nil, &init, args)
 	if len(init) == 0 {
 		return n
 	}
@@ -270,20 +270,20 @@ func algType(t *types.Type) types.AlgKind {
 	return a
 }
 
-func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
-	walkExprListSafe(n.Args, init)
+func walkAppendArgs(walkstate *walkState, n *ir.CallExpr, init *ir.Nodes) {
+	walkExprListSafe(walkstate, n.Args, init)
 
 	// walkExprListSafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
 	// modifying here. Fix explicitly.
 	ls := n.Args
 	for i1, n1 := range ls {
-		ls[i1] = cheapExpr(n1, init)
+		ls[i1] = cheapExpr(walkstate, n1, init)
 	}
 }
 
 // appendWalkStmt typechecks and walks stmt and then appends it to init.
-func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
+func appendWalkStmt(walkstate *walkState, init *ir.Nodes, stmt ir.Node) {
 	op := stmt.Op()
 	n := typecheck.Stmt(stmt)
 	if op == ir.OAS || op == ir.OAS2 {
@@ -291,9 +291,9 @@ func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
 		// directly to init for us, while walkStmt will wrap it in an OBLOCK.
 		// We need to append them directly.
 		// TODO(rsc): Clean this up.
-		n = walkExpr(n, init)
+		n = walkExpr(walkstate, n, init)
 	} else {
-		n = walkStmt(n)
+		n = walkStmt(walkstate, n)
 	}
 	init.Append(n)
 }
@@ -304,9 +304,9 @@ const maxOpenDefers = 8
 
 // backingArrayPtrLen extracts the pointer and length from a slice or string.
 // This constructs two nodes referring to n, so n must be a cheapExpr.
-func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
+func backingArrayPtrLen(walkstate *walkState, n ir.Node) (ptr, length ir.Node) {
 	var init ir.Nodes
-	c := cheapExpr(n, &init)
+	c := cheapExpr(walkstate, n, &init)
 	if c != n || len(init) != 0 {
 		base.Fatalf("backingArrayPtrLen not cheap: %v", n)
 	}

@@ -39,17 +39,17 @@ func fakePC(n ir.Node) ir.Node {
 // The result of walkCompare MUST be assigned back to n, e.g.
 //
 //	n.Left = walkCompare(n.Left, init)
-func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+func walkCompare(walkstate *walkState, n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	if n.X.Type().IsInterface() && n.Y.Type().IsInterface() && n.X.Op() != ir.ONIL && n.Y.Op() != ir.ONIL {
-		return walkCompareInterface(n, init)
+		return walkCompareInterface(walkstate, n, init)
 	}
 
 	if n.X.Type().IsString() && n.Y.Type().IsString() {
-		return walkCompareString(n, init)
+		return walkCompareString(walkstate, n, init)
 	}
 
-	n.X = walkExpr(n.X, init)
-	n.Y = walkExpr(n.Y, init)
+	n.X = walkExpr(walkstate, n.X, init)
+	n.Y = walkExpr(walkstate, n.Y, init)
 
 	// Given mixed interface/concrete comparison,
 	// rewrite into types-equal && data-equal.
@@ -60,8 +60,8 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	// operand is an OCONVIFACE.
 	if n.X.Type().IsInterface() != n.Y.Type().IsInterface() {
 		// Preserve side-effects in case of short-circuiting; see #32187.
-		l := cheapExpr(n.X, init)
-		r := cheapExpr(n.Y, init)
+		l := cheapExpr(walkstate, n.X, init)
+		r := cheapExpr(walkstate, n.Y, init)
 		// Swap so that l is the interface value and r is the concrete value.
 		if n.Y.Type().IsInterface() {
 			l, r = r, l
@@ -97,7 +97,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		eqdata := ir.NewBinaryExpr(base.Pos, eq, ifaceData(n.Pos(), l, r.Type()), r)
 		// Put it all together.
 		expr := ir.NewLogicalExpr(base.Pos, andor, eqtype, eqdata)
-		return finishCompare(n, expr, init)
+		return finishCompare(walkstate, n, expr, init)
 	}
 
 	// Must be comparison of array or struct.
@@ -117,8 +117,8 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	switch t.Kind() {
 	default:
 		if base.Debug.Libfuzzer != 0 && t.IsInteger() && (n.X.Name() == nil || !n.X.Name().Libfuzzer8BitCounter()) {
-			n.X = cheapExpr(n.X, init)
-			n.Y = cheapExpr(n.Y, init)
+			n.X = cheapExpr(walkstate, n.X, init)
+			n.Y = cheapExpr(walkstate, n.Y, init)
 
 			// If exactly one comparison operand is
 			// constant, invoke the constcmp functions
@@ -160,7 +160,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			default:
 				base.Fatalf("unexpected integer size %d for %v", t.Size(), t)
 			}
-			init.Append(mkcall(fn, nil, init, tracecmpArg(l, paramType, init), tracecmpArg(r, paramType, init), fakePC(n)))
+			init.Append(mkcall(walkstate, fn, nil, init, tracecmpArg(walkstate, l, paramType, init), tracecmpArg(walkstate, r, paramType, init), fakePC(n)))
 		}
 		return n
 	case types.TARRAY:
@@ -199,8 +199,8 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			ptrR := typecheck.Conv(typecheck.Conv(addrCmpR, types.Types[types.TUNSAFEPTR]), types.Types[types.TUINTPTR])
 			raceFn := typecheck.LookupRuntime("racereadrange")
 			size := ir.NewInt(base.Pos, t.Size())
-			call.PtrInit().Append(mkcall1(raceFn, nil, init, ptrL, size))
-			call.PtrInit().Append(mkcall1(raceFn, nil, init, ptrR, size))
+			call.PtrInit().Append(mkcall1(walkstate, raceFn, nil, init, ptrL, size))
+			call.PtrInit().Append(mkcall1(walkstate, raceFn, nil, init, ptrR, size))
 		}
 		call.Args.Append(typecheck.Conv(addrCmpL, types.Types[types.TUNSAFEPTR]))
 		call.Args.Append(typecheck.Conv(addrCmpR, types.Types[types.TUNSAFEPTR]))
@@ -211,7 +211,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		if n.Op() != ir.OEQ {
 			res = ir.NewUnaryExpr(base.Pos, ir.ONOT, res)
 		}
-		return finishCompare(n, res, init)
+		return finishCompare(walkstate, n, res, init)
 	}
 
 	// inline: build boolean expression comparing element by element
@@ -235,8 +235,8 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			expr = ir.NewLogicalExpr(base.Pos, andor, expr, cond)
 		}
 	}
-	cmpl = safeExpr(cmpl, init)
-	cmpr = safeExpr(cmpr, init)
+	cmpl = safeExpr(walkstate, cmpl, init)
+	cmpr = safeExpr(walkstate, cmpr, init)
 	if t.IsStruct() {
 		conds, _ := compare.EqStruct(t, cmpl, cmpr)
 		if n.Op() == ir.OEQ {
@@ -313,13 +313,13 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		a2 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpr))
 		init.Append(a1, a2)
 	}
-	return finishCompare(n, expr, init)
+	return finishCompare(walkstate, n, expr, init)
 }
 
-func walkCompareInterface(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+func walkCompareInterface(walkstate *walkState, n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	swap := n.X.Op() != ir.OCONVIFACE && n.Y.Op() == ir.OCONVIFACE
-	n.Y = cheapExpr(n.Y, init)
-	n.X = cheapExpr(n.X, init)
+	n.Y = cheapExpr(walkstate, n.Y, init)
+	n.X = cheapExpr(walkstate, n.X, init)
 	if swap {
 		// Put the concrete type first in the comparison.
 		// This passes a constant type (itab) to efaceeq (ifaceeq)
@@ -336,17 +336,17 @@ func walkCompareInterface(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		eqtab.SetOp(ir.ONE)
 		cmp = ir.NewLogicalExpr(base.Pos, ir.OOROR, eqtab, ir.NewUnaryExpr(base.Pos, ir.ONOT, eqdata))
 	}
-	return finishCompare(n, cmp, init)
+	return finishCompare(walkstate, n, cmp, init)
 }
 
-func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+func walkCompareString(walkstate *walkState, n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	if base.Debug.Libfuzzer != 0 {
 		if !ir.IsConst(n.X, constant.String) || !ir.IsConst(n.Y, constant.String) {
 			fn := "libfuzzerHookStrCmp"
-			n.X = cheapExpr(n.X, init)
-			n.Y = cheapExpr(n.Y, init)
+			n.X = cheapExpr(walkstate, n.X, init)
+			n.Y = cheapExpr(walkstate, n.Y, init)
 			paramType := types.Types[types.TSTRING]
-			init.Append(mkcall(fn, nil, init, tracecmpArg(n.X, paramType, init), tracecmpArg(n.Y, paramType, init), fakePC(n)))
+			init.Append(mkcall(walkstate, fn, nil, init, tracecmpArg(walkstate, n.X, paramType, init), tracecmpArg(walkstate, n.Y, paramType, init), fakePC(n)))
 		}
 	}
 	// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
@@ -399,7 +399,7 @@ func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		}
 		if s := ir.StringVal(cs); len(s) <= maxRewriteLen {
 			if len(s) > 0 {
-				ncs = safeExpr(ncs, init)
+				ncs = safeExpr(walkstate, ncs, init)
 			}
 			r := ir.Node(ir.NewBinaryExpr(base.Pos, cmp, ir.NewUnaryExpr(base.Pos, ir.OLEN, ncs), ir.NewInt(base.Pos, int64(len(s)))))
 			remains := len(s)
@@ -442,15 +442,15 @@ func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 				remains -= step
 				i += step
 			}
-			return finishCompare(n, r, init)
+			return finishCompare(walkstate, n, r, init)
 		}
 	}
 
 	var r ir.Node
 	if n.Op() == ir.OEQ || n.Op() == ir.ONE {
 		// prepare for rewrite below
-		n.X = cheapExpr(n.X, init)
-		n.Y = cheapExpr(n.Y, init)
+		n.X = cheapExpr(walkstate, n.X, init)
+		n.Y = cheapExpr(walkstate, n.Y, init)
 		eqlen, eqmem := compare.EqString(n.X, n.Y)
 		// quick check of len before full compare for == or !=.
 		// memequal then tests equality up to length len.
@@ -464,20 +464,20 @@ func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		}
 	} else {
 		// sys_cmpstring(s1, s2) :: 0
-		r = mkcall("cmpstring", types.Types[types.TINT], init, typecheck.Conv(n.X, types.Types[types.TSTRING]), typecheck.Conv(n.Y, types.Types[types.TSTRING]))
+		r = mkcall(walkstate, "cmpstring", types.Types[types.TINT], init, typecheck.Conv(n.X, types.Types[types.TSTRING]), typecheck.Conv(n.Y, types.Types[types.TSTRING]))
 		r = ir.NewBinaryExpr(base.Pos, n.Op(), r, ir.NewInt(base.Pos, 0))
 	}
 
-	return finishCompare(n, r, init)
+	return finishCompare(walkstate, n, r, init)
 }
 
 // The result of finishCompare MUST be assigned back to n, e.g.
 //
 //	n.Left = finishCompare(n.Left, x, r, init)
-func finishCompare(n *ir.BinaryExpr, r ir.Node, init *ir.Nodes) ir.Node {
+func finishCompare(walkstate *walkState, n *ir.BinaryExpr, r ir.Node, init *ir.Nodes) ir.Node {
 	r = typecheck.Expr(r)
 	r = typecheck.Conv(r, n.Type())
-	r = walkExpr(r, init)
+	r = walkExpr(walkstate, r, init)
 	return r
 }
 
@@ -523,10 +523,10 @@ func brrev(op ir.Op) ir.Op {
 	return op
 }
 
-func tracecmpArg(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
+func tracecmpArg(walkstate *walkState, n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	// Ugly hack to avoid "constant -1 overflows uintptr" errors, etc.
 	if n.Op() == ir.OLITERAL && n.Type().IsSigned() && ir.Int64Val(n) < 0 {
-		n = copyExpr(n, n.Type(), init)
+		n = copyExpr(walkstate, n, n.Type(), init)
 	}
 
 	return typecheck.Conv(n, t)
