@@ -519,6 +519,39 @@ func BenchmarkOSYield(b *testing.B) {
 	}
 }
 
+func BenchmarkUsleep(b *testing.B) {
+	benchN := func(n uint32) func(*testing.B) {
+		return func(b *testing.B) {
+			for b.Loop() {
+				Usleep(n)
+			}
+		}
+	}
+
+	b.Run("1", benchN(1))           // darwin osyield
+	b.Run("3", benchN(3))           // runqgrab
+	b.Run("20", benchN(20))         // sysmon min
+	b.Run("10000", benchN(10*1000)) // sysmon max
+}
+
+func BenchmarkNoteTSleep(b *testing.B) {
+	benchN := func(ns int64, fn func(n *Note, ns int64) bool) func(*testing.B) {
+		return func(b *testing.B) {
+			n := new(Note)
+			for b.Loop() {
+				NoteClear(n)
+				woke := fn(n, ns)
+				if woke {
+					b.Fatal("something woke note; we expected timeout")
+				}
+			}
+		}
+	}
+
+	b.Run("g0-100us", benchN(100*1000, NoteTSleepG0)) // stopTheWorldWithSema, forEachPInternal
+	b.Run("g-100us", benchN(100*1000, NoteTSleepG))
+}
+
 func BenchmarkMutexContention(b *testing.B) {
 	// Measure throughput of a single mutex with all threads contending
 	//
