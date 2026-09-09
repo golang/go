@@ -26,10 +26,7 @@ func applyRewrite(f *ssa.Func, rb ssa.BlockRewriter, rv ssa.ValueRewriter, deadc
 	// at that point turn on cycle detection. Instead of a fixed limit,
 	// size the limit according to func size to allow for cases such
 	// as the one in issue #66773.
-	itersLimit := f.NumBlocks()
-	if itersLimit < 20 {
-		itersLimit = 20
-	}
+	itersLimit := max(1000, f.NumBlocks(), f.NumValues())
 	var iters int
 	var states map[string]bool
 	for {
