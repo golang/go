@@ -71,9 +71,15 @@ func slicesbackward(pass *analysis.Pass) (any, error) {
 		for curLoop := range curFile.Preorder((*ast.ForStmt)(nil)) {
 			loop := curLoop.Node().(*ast.ForStmt)
 
-			// Match init:  i := len(s) - 1   or   i = len(s) - 1
+			// Match init:  i := len(s) - 1.
 			init, ok := loop.Init.(*ast.AssignStmt)
 			if !ok || !isSimpleAssign(init) {
+				continue
+			}
+			// We only modernize if the loop defines a new variable with :=.
+			// Rewriting an assignment to a pre-existing variable would change
+			// its value after the loop (the original loop leaves it at -1).
+			if init.Tok != token.DEFINE {
 				continue
 			}
 			indexIdent, ok := init.Lhs[0].(*ast.Ident)
@@ -267,7 +273,7 @@ func chooseValueName(assign *ast.AssignStmt, sliceStr string) string {
 	// Heuristic: remove plural s suffix from slice var
 	// if present, otherwise use first letter.
 	if token.IsIdentifier(sliceStr) && len(sliceStr) > 1 {
-		if single, ok := strings.CutSuffix(sliceStr, "s"); ok {
+		if single, ok := strings.CutSuffix(sliceStr, "s"); ok && !token.IsKeyword(single) {
 			return single
 		}
 		return sliceStr[:1] // first letter (assuming ASCII)

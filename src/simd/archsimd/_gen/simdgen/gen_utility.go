@@ -15,7 +15,6 @@ import (
 	"reflect"
 	"simd/archsimd/_gen/simdgen/types"
 	"slices"
-	"sort"
 	"strings"
 	"text/template" // NOLINT
 	"unicode"
@@ -292,7 +291,7 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 			gRegInCnt++
 		case "mask":
 			kMaskInCnt++
-		case "memory":
+		case "mem":
 			if mem != VregMemIn {
 				panic("simdgen only knows VregMemIn in regShape")
 			}
@@ -311,7 +310,7 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 			gRegOutCnt++
 		} else if out.Class == "mask" {
 			kMaskOutCnt++
-		} else if out.Class == "memory" {
+		} else if out.Class == "mem" {
 			if mem != VregMemIn {
 				panic("simdgen only knows VregMemIn in regShape")
 			}
@@ -390,15 +389,7 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 // from my observation looks like in asm, imms are always the first,
 // masks are always the last, with vreg in between.
 func (op *Operation) sortOperand() {
-	priority := map[string]int{"immediate": 0, "vreg": 1, "greg": 1, "mask": 2}
-	sort.SliceStable(op.In, func(i, j int) bool {
-		pi := priority[op.In[i].Class]
-		pj := priority[op.In[j].Class]
-		if pi != pj {
-			return pi < pj
-		}
-		return op.In[i].AsmPos < op.In[j].AsmPos
-	})
+	slices.SortStableFunc(op.In, types.Operand.Compare)
 }
 
 // adjustAsm adjusts the asm to make it align with Go's assembler.
@@ -665,7 +656,7 @@ func rewriteLastVregToMem(op Operation) Operation {
 	if lastVregIdx == -1 {
 		panic("simdgen cannot find one vreg in the mem op vreg original")
 	}
-	newIn[lastVregIdx].Class = "memory"
+	newIn[lastVregIdx].Class = "mem"
 	op.In = newIn
 
 	return op

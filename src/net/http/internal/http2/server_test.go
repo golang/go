@@ -632,6 +632,53 @@ func testServer(t *testing.T) {
 	<-gotReq
 }
 
+func TestServer_Request_TLS(t *testing.T) {
+	for _, unencrypted := range []bool{false, true} {
+		for _, scheme := range []string{"https", "http", ""} {
+			name := scheme
+			if scheme == "" {
+				name = "CONNECT"
+			}
+			t.Run(fmt.Sprintf("unencrypted=%v/%s", unencrypted, name), func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					gotTLS := make(chan *tls.ConnectionState, 1)
+					st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+						gotTLS <- r.TLS
+					}, func(s *http.Server) {
+						s.Protocols = new(http.Protocols)
+						s.Protocols.SetHTTP2(!unencrypted)
+						s.Protocols.SetUnencryptedHTTP2(unencrypted)
+					})
+					st.greet()
+					headers := []string{":method", "CONNECT", ":authority", "example.com:443"}
+					if scheme != "" {
+						headers = []string{":method", "GET", ":authority", "example.com", ":scheme", scheme, ":path", "/"}
+					}
+					st.writeHeaders(HeadersFrameParam{
+						StreamID:      1,
+						BlockFragment: st.encodeHeaderRaw(headers...),
+						EndStream:     true,
+						EndHeaders:    true,
+					})
+					state := <-gotTLS
+					if unencrypted {
+						if state != nil {
+							t.Fatalf("Request.TLS = %v; want nil for an unencrypted connection", state)
+						}
+					} else {
+						if state == nil {
+							t.Fatal("Request.TLS = nil; want TLS connection state")
+						}
+						if !state.HandshakeComplete || state.NegotiatedProtocol != "h2" {
+							t.Errorf("Request.TLS = %+v; want completed HTTP/2 TLS handshake", state)
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
 func TestServer_Request_Get(t *testing.T) { synctest.Test(t, testServer_Request_Get) }
 func testServer_Request_Get(t *testing.T) {
 	testServerRequest(t, func(st *serverTester) {

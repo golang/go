@@ -48,7 +48,7 @@ golang.org/x/sync/semaphore
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20260716142750-dad6939de390
+# golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5
 ## explicit; go 1.25.0
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -73,8 +73,8 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.48.1-0.20260722200531-749de1fc71ed
-## explicit; go 1.25.0
+# golang.org/x/tools v0.49.1-0.20260902161736-89ed5c340cb6
+## explicit; go 1.26.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
@@ -144,6 +144,7 @@ golang.org/x/tools/internal/facts
 golang.org/x/tools/internal/fmtstr
 golang.org/x/tools/internal/gcimporter
 golang.org/x/tools/internal/moreiters
+golang.org/x/tools/internal/moremaps
 golang.org/x/tools/internal/packagepath
 golang.org/x/tools/internal/pkgbits
 golang.org/x/tools/internal/refactor

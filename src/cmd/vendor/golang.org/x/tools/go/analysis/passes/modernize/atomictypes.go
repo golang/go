@@ -64,8 +64,9 @@ func runAtomic(pass *analysis.Pass) (any, error) {
 	}
 
 	var (
-		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
-		info  = pass.TypesInfo
+		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info    = pass.TypesInfo
 	)
 
 	// Gather all candidate variables v appearing
@@ -103,6 +104,35 @@ func runAtomic(pass *analysis.Pass) (any, error) {
 			}
 		}
 	}
+	if len(vars) == 0 {
+		return nil, nil
+	}
+
+	// Gather all fields of struct types used in unkeyed composite literals.
+	// Such literals don't contain identifiers for their fields, so they don't
+	// appear in the type index's uses of a field object.
+	unkeyedFields := make(map[*types.Var]bool)
+	for curLit := range inspect.Root().Preorder((*ast.CompositeLit)(nil)) {
+		lit := curLit.Node().(*ast.CompositeLit)
+		if len(lit.Elts) == 0 {
+			continue
+		}
+		// Cannot mix keyed and unkeyed elements, so this must be an unkeyed literal.
+		if _, keyed := lit.Elts[0].(*ast.KeyValueExpr); keyed {
+			continue
+		}
+		typ := info.TypeOf(lit)
+		if typ == nil {
+			continue
+		}
+		st, ok := typesinternal.Unpointer(typ).Underlying().(*types.Struct)
+		if !ok {
+			continue
+		}
+		for field := range st.Fields() {
+			unkeyedFields[field.Origin()] = true
+		}
+	}
 
 	// Check that all uses of each candidate variable
 	// appear in calls of the form atomic.AddInt32(&v, ...).
@@ -123,6 +153,11 @@ nextvar:
 		case *ast.Field: // struct { v int }
 			names = parent.Names
 			typ = parent.Type
+			if unkeyedFields[v.Origin()] {
+				// Do not change the type of a field used by an unkeyed literal:
+				// its positional element may no longer be assignable.
+				continue
+			}
 		case *ast.ValueSpec: // var v int
 			if len(parent.Values) > 0 {
 				// e.g. var v int = 5

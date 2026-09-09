@@ -629,11 +629,26 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 				})
 			}
 
-			for i, n := 0, r.Len(); i < n; i++ {
-				named.AddMethod(r.method())
-			}
-
 			if r.Version().Has(pkgbits.GenericMethods) {
+				// V4 (go1.27.0) emitted all non-generic methods
+				// before all generic ones, discarding source
+				// order: a bug (go.dev/issue/81188).
+				// V5 (go1.27.x) fixes it by emitting an explicit
+				// index along with each method.
+				type indexedMethod struct {
+					index int // (or -1 in V4)
+					fn    *types.Func
+				}
+
+				var methods []indexedMethod
+
+				// ordinary methods
+				for range r.Len() {
+					idx, m := r.method()
+					methods = append(methods, indexedMethod{idx, m})
+				}
+
+				// generic methods
 				for range r.Len() {
 					// Careful: objIdx is used to read in package-scoped declarations, which
 					// methods are not. Instead, decode it here. This makes it easier to
@@ -648,11 +663,31 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 					pkg, name := r.selector()
 					rtparams := r.typeParamNames(true)
 					recv := r.param()
+					methodIdx := -1
+					if r.Version().Has(pkgbits.PreserveMethodOrder) {
+						methodIdx = r.Len()
+					}
 					tparams := r.typeParamNames(false)
 					sig := r.signature(recv, rtparams, tparams)
 
 					pr.retireReader(r)
-					named.AddMethod(types.NewFunc(pos, pkg, name, sig))
+					methods = append(methods, indexedMethod{methodIdx, types.NewFunc(pos, pkg, name, sig)})
+				}
+
+				if r.Version().Has(pkgbits.PreserveMethodOrder) {
+					sort.Slice(methods, func(i, j int) bool {
+						return methods[i].index < methods[j].index
+					})
+				}
+
+				for _, m := range methods {
+					named.AddMethod(m.fn)
+				}
+
+			} else {
+				for range r.Len() {
+					_, m := r.method()
+					named.AddMethod(m)
 				}
 			}
 
@@ -766,8 +801,12 @@ func (r *reader) typeParamNames(isGenMeth bool) []*types.TypeParam {
 	return tparams
 }
 
-func (r *reader) method() *types.Func {
+func (r *reader) method() (int, *types.Func) {
 	r.Sync(pkgbits.SyncMethod)
+	idx := -1
+	if r.Version().Has(pkgbits.PreserveMethodOrder) {
+		idx = r.Len()
+	}
 	pos := r.pos()
 	pkg, name := r.selector()
 
@@ -775,7 +814,7 @@ func (r *reader) method() *types.Func {
 	sig := r.signature(r.param(), rparams, nil)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
-	return types.NewFunc(pos, pkg, name, sig)
+	return idx, types.NewFunc(pos, pkg, name, sig)
 }
 
 func (r *reader) qualifiedIdent() (*types.Package, string) { return r.ident(pkgbits.SyncSym) }

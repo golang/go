@@ -177,7 +177,7 @@ func (inst *Instruction) emitOne(asm string, ops []Operand, widthAgnostic bool) 
 			inOps = append(inOps, op)
 		}
 	}
-	priority := map[string]int{"immediate": 0, "vreg": 1, "greg": 1, "memory": 1, "mask": 2}
+	priority := map[string]int{"immediate": 0, "mem": 0, "vreg": 1, "greg": 1, "mask": 2}
 	slices.SortStableFunc(inOps, func(a, b Operand) int {
 		pa := priority[a.Class]
 		pb := priority[b.Class]

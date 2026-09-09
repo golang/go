@@ -18,27 +18,25 @@
 // If you need a standalone tool, use multichecker,
 // which supports this mode but can also load packages
 // from source using go/packages.
+//
+// This tool must be run on the entire transitive closure of
+// dependencies, in bottom-up order.
 package unitchecker
-
-// TODO(adonovan):
-// - with gccgo, go build does not build standard library,
-//   so we will not get to analyze it. Yet we must in order
-//   to create base facts for, say, the fmt package for the
-//   printf checker.
 
 import (
 	"archive/zip"
+	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/importer"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"go/types"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -48,8 +46,10 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
+	"golang.org/x/tools/go/gcexportdata"
 	"golang.org/x/tools/internal/analysis/driverutil"
 	"golang.org/x/tools/internal/facts"
 )
@@ -59,7 +59,7 @@ import (
 // whose name ends with ".cfg".
 type Config struct {
 	ID                        string // e.g. "fmt [fmt.test]"
-	Compiler                  string // gc or gccgo, provided to makeTypesImporter
+	Compiler                  string // (unused)
 	Dir                       string // (unused)
 	ImportPath                string // package path
 	GoVersion                 string // minimum required Go version, such as "go1.21.0"
@@ -70,14 +70,14 @@ type Config struct {
 	ModuleVersion             string            // Deprecated: redundant w.r.t. Module.Version in go1.27; remove after go1.28.
 	Module                    *analysis.Module  // module information, if any
 	ImportMap                 map[string]string // maps import path to package path
-	PackageFile               map[string]string // maps package path to file of type information
+	PackageFile               map[string]string // (unused)
 	Standard                  map[string]bool   // package belongs to standard library
 	PackageVetx               map[string]string // maps package path to file of fact information
 	VetxOnly                  bool              // run analysis only for facts, not diagnostics
 	VetxOutput                string            // where to write file of fact information
 	Stdout                    string            // write stdout (e.g. JSON, unified diff) to this file
 	FixArchive                string            // write fixed files to this zip archive, if non-empty
-	SucceedOnTypecheckFailure bool              // obsolete awful hack; see #18395 and below
+	SucceedOnTypecheckFailure bool              // (unused)
 }
 
 // Main is the main function of a vet-like analysis tool that must be
@@ -149,6 +149,16 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 	fset := token.NewFileSet()
 	results, err := run(fset, cfg, analyzers)
 	if err != nil {
+		if cfg.VetxOnly {
+			os.Exit(1)
+		}
+		// Print known diagnostic error types without the log prefix.
+		// (See go.dev/issue/34142.)
+		switch err := err.(type) {
+		case types.Error, *scanner.Error, scanner.ErrorList:
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		log.Fatal(err)
 	}
 
@@ -272,74 +282,46 @@ func processResults(fset *token.FileSet, id, fixArchive string, results []result
 	return
 }
 
-type factImporter = func(pkgPath string) ([]byte, error)
-
-// These four hook variables are a proof of concept of a future
-// parameterization of a unitchecker API that allows the client to
-// determine how and where facts and types are produced and consumed.
-// (Note that the eventual API will likely be quite different.)
-//
-// The defaults honor a Config in a manner compatible with 'go vet'.
-var (
-	makeTypesImporter = func(cfg *Config, fset *token.FileSet) types.Importer {
-		compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
-			// path is a resolved package path, not an import path.
-			file, ok := cfg.PackageFile[path]
-			if !ok {
-				if cfg.Compiler == "gccgo" && cfg.Standard[path] {
-					return nil, nil // fall back to default gccgo lookup
-				}
-				return nil, fmt.Errorf("no package file for %q", path)
-			}
-			return os.Open(file)
-		})
-		return importerFunc(func(importPath string) (*types.Package, error) {
-			path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
-			if !ok {
-				return nil, fmt.Errorf("can't resolve import %q", importPath)
-			}
-			return compilerImporter.Import(path)
-		})
-	}
-
-	exportTypes = func(*Config, *token.FileSet, *types.Package) error {
-		// By default this is a no-op, because "go vet"
-		// makes the compiler produce type information.
-		return nil
-	}
-
-	makeFactImporter = func(cfg *Config) factImporter {
-		return func(pkgPath string) ([]byte, error) {
-			if vetx, ok := cfg.PackageVetx[pkgPath]; ok {
-				return os.ReadFile(vetx)
-			}
-			return nil, nil // no .vetx file, no facts
-		}
-	}
-
-	exportFacts = func(cfg *Config, data []byte) error {
-		return os.WriteFile(cfg.VetxOutput, data, 0666)
-	}
-)
-
 func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]result, error) {
 	// Load, parse, typecheck.
 	var files []*ast.File
 	for _, name := range cfg.GoFiles {
 		f, err := parser.ParseFile(fset, name, nil, parser.ParseComments)
 		if err != nil {
-			if cfg.SucceedOnTypecheckFailure {
-				// Silently succeed; let the compiler
-				// report parse errors.
-				err = nil
-			}
 			return nil, err
 		}
 		files = append(files, f)
 	}
+
+	// Read all direct imports' vetx files (for types and facts).
+	vetxEntries, err := readVetxFiles(cfg.PackageVetx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Construct the type importer.
+	imports := make(map[string]*types.Package)
+	importer := importerFunc(func(importPath string) (*types.Package, error) {
+		path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
+		if !ok {
+			return nil, fmt.Errorf("can't resolve import %q", importPath)
+		}
+		if path == "unsafe" {
+			return types.Unsafe, nil
+		}
+		if pkg, ok := imports[path]; ok && pkg.Complete() {
+			return pkg, nil
+		}
+		entry, ok := vetxEntries[path]
+		if !ok {
+			return nil, fmt.Errorf("no package vetx file for %q", path)
+		}
+		return gcexportdata.Read(bytes.NewReader(entry.types), fset, imports, path)
+	})
+
 	tc := &types.Config{
-		Importer:  makeTypesImporter(cfg, fset),
-		Sizes:     types.SizesFor("gc", build.Default.GOARCH), // TODO(adonovan): use cfg.Compiler
+		Importer:  importer,
+		Sizes:     types.SizesFor("gc", build.Default.GOARCH),
 		GoVersion: cfg.GoVersion,
 	}
 	info := &types.Info{
@@ -355,11 +337,6 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 
 	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)
 	if err != nil {
-		if cfg.SucceedOnTypecheckFailure {
-			// Silently succeed; let the compiler
-			// report type errors.
-			err = nil
-		}
 		return nil, err
 	}
 
@@ -408,8 +385,20 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	}
 	analyzers = filtered
 
+	readFacts := func(pkgPath string) ([]byte, error) {
+		entry, ok := vetxEntries[pkgPath]
+		if !ok {
+			// no .vetx file, no facts
+			if pkgPath == "unsafe" {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("missing facts for %q", pkgPath)
+		}
+		return entry.facts, nil
+	}
+
 	// Read facts from imported packages.
-	facts, err := facts.NewDecoder(pkg).Decode(makeFactImporter(cfg))
+	facts, err := facts.NewDecoder(pkg).Decode(readFacts)
 	if err != nil {
 		return nil, err
 	}
@@ -527,12 +516,11 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		results[i] = result{pkg, files, a, act.diagnostics, act.err}
 	}
 
-	data := facts.Encode()
-	if err := exportFacts(cfg, data); err != nil {
-		return nil, fmt.Errorf("failed to export analysis facts: %v", err)
-	}
-	if err := exportTypes(cfg, fset, pkg); err != nil {
-		return nil, fmt.Errorf("failed to export type information: %v", err)
+	// Export types and facts.
+	if cfg.VetxOutput != "" {
+		if err := writeVetxFile(fset, pkg, cfg.VetxOutput, facts); err != nil {
+			return nil, fmt.Errorf("type+fact export failed: %v", err)
+		}
 	}
 
 	return results, nil
@@ -549,3 +537,80 @@ type result struct {
 type importerFunc func(path string) (*types.Package, error)
 
 func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }
+
+// -- vetx file --
+
+const vetxMagic = "vetx"
+
+type vetxEntry struct {
+	types, facts []byte
+}
+
+func readVetxFiles(packageVetx map[string]string) (map[string]*vetxEntry, error) {
+	var (
+		entriesMu sync.Mutex
+		entries   = make(map[string]*vetxEntry, len(packageVetx))
+		g         errgroup.Group
+	)
+	for pkgPath, file := range packageVetx {
+		g.Go(func() error {
+			entry, err := readVetxFile(file)
+			if err != nil {
+				return fmt.Errorf("invalid vetx file for %q: %v", pkgPath, err)
+			}
+			entriesMu.Lock()
+			entries[pkgPath] = entry
+			entriesMu.Unlock()
+
+			return nil
+		})
+	}
+	err := g.Wait()
+	return entries, err
+}
+
+func readVetxFile(filename string) (*vetxEntry, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) < 12 {
+		return nil, fmt.Errorf("vetx file %s too short", filename)
+	}
+	if magic := string(data[:4]); magic != vetxMagic {
+		return nil, fmt.Errorf("vetx files %s has bad magic: %04x", filename, magic)
+	}
+	typesLen := binary.LittleEndian.Uint32(data[4:8])
+	factsLen := binary.LittleEndian.Uint32(data[8:12])
+	if uint64(12)+uint64(typesLen)+uint64(factsLen) > uint64(len(data)) {
+		return nil, fmt.Errorf("invalid vetx file lengths (header claims 12+%d+%d bytes, got %d)", typesLen, factsLen, len(data))
+	}
+	return &vetxEntry{
+		types: data[12 : 12+typesLen],
+		facts: data[12+typesLen : 12+typesLen+factsLen],
+	}, nil
+}
+
+func writeVetxFile(fset *token.FileSet, pkg *types.Package, filename string, facts *facts.Set) error {
+	var buf bytes.Buffer
+	buf.WriteString(vetxMagic)
+	buf.Write(make([]byte, 8)) // placeholder for (types, facts) length fields
+
+	// types
+	startTypes := buf.Len()
+	if err := gcexportdata.Write(&buf, fset, pkg); err != nil {
+		return err
+	}
+	typesLen := buf.Len() - startTypes
+
+	// facts
+	factsData := facts.Encode()
+	buf.Write(factsData)
+	factsLen := len(factsData)
+
+	// Patch the length fields and write it out.
+	data := buf.Bytes()
+	binary.LittleEndian.PutUint32(data[4:8], uint32(typesLen))
+	binary.LittleEndian.PutUint32(data[8:12], uint32(factsLen))
+	return os.WriteFile(filename, data, 0666)
+}

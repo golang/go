@@ -125,13 +125,13 @@ func AddImportEdits(file *ast.File, name, pkgpath string) []Edit {
 	var pos token.Pos
 	if gd, ok := decl0.(*ast.GenDecl); ok && gd.Tok == token.IMPORT && gd.Rparen.IsValid() {
 		// Have existing grouped import ( ... ) decl.
-		if packagepath.IsStdPackage(pkgpath) && len(gd.Specs) > 0 {
+		if packagepath.MaybeStdPackage(pkgpath) && len(gd.Specs) > 0 {
 			// Add spec for a std package before
 			// first existing spec, followed by
 			// a blank line if the next one is non-std.
 			first := gd.Specs[0].(*ast.ImportSpec)
 			pos = first.Pos()
-			if !packagepath.IsStdPackage(first.Path.Value) {
+			if !packagepath.MaybeStdPackage(first.Path.Value) {
 				newText += "\n"
 			}
 			newText += "\n\t"

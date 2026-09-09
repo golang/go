@@ -168,6 +168,9 @@ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
 	if _, ok := obj.(*types.TypeName); ok {
 		return nil
 	}
+	if fn, ok := obj.(*types.Func); ok {
+		return fn.Origin()
+	}
 	return obj
 }
 
@@ -185,7 +188,7 @@ func StaticCallee(info *types.Info, call *ast.CallExpr) *types.Func {
 	if fn == nil || isInterfaceMethod(fn) {
 		return nil
 	}
-	return fn
+	return fn.Origin()
 }
 
 // isInterfaceMethod reports whether its argument is a method of an interface.

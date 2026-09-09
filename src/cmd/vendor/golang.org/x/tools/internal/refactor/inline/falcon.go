@@ -13,6 +13,7 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -124,10 +125,19 @@ func falcon(logf func(string, ...any), fset *token.FileSet, params map[*types.Va
 	// type mapping
 	st.int = st.typename(types.Typ[types.Int])
 	st.any = "interface{}" // don't use "any" as it may be shadowed
-	for obj, info := range st.params {
+
+	// Sort params by Index for determinism
+	sortedParams := make([]*types.Var, 0, len(st.params))
+	for obj := range st.params {
 		if isBasic(obj.Type(), types.IsConstType) {
-			info.FalconType = st.typename(obj.Type())
+			sortedParams = append(sortedParams, obj)
 		}
+	}
+	slices.SortFunc(sortedParams, func(a, b *types.Var) int {
+		return st.params[a].Index - st.params[b].Index
+	})
+	for _, obj := range sortedParams {
+		st.params[obj].FalconType = st.typename(obj.Type())
 	}
 
 	st.stmt(st.decl.Body)

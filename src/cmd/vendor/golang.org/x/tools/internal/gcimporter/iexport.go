@@ -712,7 +712,7 @@ func (p *iexporter) doDecl(obj types.Object) {
 		w.typ(obj.Type(), obj.Pkg())
 
 	case *types.Func:
-		sig, _ := obj.Type().(*types.Signature)
+		sig := obj.Type().(*types.Signature)
 		if sig.Recv() != nil {
 			// We shouldn't see methods in the package scope,
 			// but the type checker may repair "func () F() {}"
@@ -745,7 +745,7 @@ func (p *iexporter) doDecl(obj types.Object) {
 	case *types.Const:
 		w.tag(constTag)
 		w.pos(obj.Pos())
-		w.value(obj.Type(), obj.Val())
+		w.value(obj.Type(), obj.Val(), obj.Pkg())
 
 	case *types.TypeName:
 		t := obj.Type()
@@ -822,7 +822,7 @@ func (p *iexporter) doDecl(obj types.Object) {
 			m := named.Method(i)
 			w.pos(m.Pos())
 			w.string(m.Name())
-			sig, _ := m.Type().(*types.Signature)
+			sig := m.Type().(*types.Signature)
 			if w.p.version >= iexportVersionGenericMethods && w.bool(sig.TypeParams().Len() > 0) {
 				w.tparamList(obj.Name()+"."+m.Name(), sig.TypeParams(), obj.Pkg())
 			}
@@ -970,9 +970,11 @@ func (w *exportWriter) qualifiedType(obj *types.TypeName) {
 // typ emits the specified type.
 //
 // Objects within the type (struct fields and interface methods) are
-// qualified by pkg. It may be nil if the type cannot contain objects,
-// such as the type of a constant.
+// qualified by pkg.
 func (w *exportWriter) typ(t types.Type, pkg *types.Package) {
+	if pkg == nil {
+		pkg = w.p.localpkg
+	}
 	w.data.uint64(w.p.typOff(t, pkg))
 }
 
@@ -1148,7 +1150,7 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 			}
 			w.pos(m.Pos())
 			w.string(m.Name())
-			sig, _ := m.Type().(*types.Signature)
+			sig := m.Type().(*types.Signature)
 			w.signature(sig)
 		}
 
@@ -1295,8 +1297,12 @@ func (w *exportWriter) param(obj types.Object) {
 	w.typ(obj.Type(), obj.Pkg())
 }
 
-func (w *exportWriter) value(typ types.Type, v constant.Value) {
-	w.typ(typ, nil)
+// only called for constants
+func (w *exportWriter) value(typ types.Type, v constant.Value, pkg *types.Package) {
+	if pkg == nil {
+		pkg = w.p.localpkg
+	}
+	w.typ(typ, pkg)
 	if w.p.version >= iexportVersionGo1_18 {
 		w.int64(int64(v.Kind()))
 	}

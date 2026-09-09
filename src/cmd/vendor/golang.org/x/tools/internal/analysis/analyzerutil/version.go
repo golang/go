@@ -38,7 +38,7 @@ func FileUsesGoVersion(pass *analysis.Pass, file *ast.File, version string) (_re
 	// The bootstrap rule does not cover tests,
 	// and some tests (e.g. debug/elf/file_test.go) rely on this.
 	pkgpath := pass.Pkg.Path()
-	if packagepath.IsStdPackage(pkgpath) &&
+	if packagepath.MaybeStdPackage(pkgpath) &&
 		stdlib.IsBootstrapPackage(pkgpath) && // (excludes "*_test" external test packages)
 		!strings.HasSuffix(pass.Fset.File(file.Pos()).Name(), "_test.go") { // (excludes all tests)
 		fileVersion = stdlib.BootstrapVersion.String() // package must bootstrap

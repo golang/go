@@ -5,6 +5,7 @@
 package types
 
 import (
+	"cmp"
 	"fmt"
 	"simd/archsimd/_gen/specgen/specexpr"
 	"simd/archsimd/_gen/unify"
@@ -193,6 +194,28 @@ func (o Operand) OpName(s string) string {
 
 func (o Operand) OpNameAndType(s string) string {
 	return o.OpName(s) + " " + *o.Go
+}
+
+// Compare sorts operands into basic Go API order: immediates and memory,
+// vectors and scalars, then masks. Ties are broken by their assembly order.
+// Note that operand order may be further overridden on a case-by-case basis.
+func (o Operand) Compare(p Operand) int {
+	priority := func(o Operand) int {
+		switch o.Class {
+		case "immediate", "mem":
+			return 0
+		case "vreg", "greg":
+			return 1
+		case "mask":
+			return 2
+		}
+		panic("unknown Operand.Class " + o.Class)
+	}
+
+	if c := cmp.Compare(priority(o), priority(p)); c != 0 {
+		return c
+	}
+	return cmp.Compare(o.AsmPos, p.AsmPos)
 }
 
 func (vs *VectorSize) DecodeUnified(v *unify.Value) error {

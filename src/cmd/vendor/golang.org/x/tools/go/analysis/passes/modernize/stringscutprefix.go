@@ -74,6 +74,10 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 
 			// pattern1
 			if call, ok := ifStmt.Cond.(*ast.CallExpr); ok && ifStmt.Init == nil && len(ifStmt.Body.List) > 0 {
+				if len(call.Args) != 2 {
+					// A multi-valued call may supply the complete argument list.
+					continue
+				}
 
 				obj := typeutil.Callee(info, call)
 				if !typesinternal.IsFunctionNamed(obj, "strings", "HasPrefix", "HasSuffix") &&
@@ -87,6 +91,9 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 				firstStmt := curIfStmt.Child(ifStmt.Body).Child(ifStmt.Body.List[0])
 				for curCall := range firstStmt.Preorder((*ast.CallExpr)(nil)) {
 					call1 := curCall.Node().(*ast.CallExpr)
+					if len(call1.Args) != 2 {
+						continue
+					}
 					obj1 := typeutil.Callee(info, call1)
 					// bytesTrimPrefix or stringsTrimPrefix might be nil if the file doesn't import it,
 					// so we need to ensure the obj1 is not nil otherwise the call1 is not TrimPrefix and cause a panic (ditto Suffix).
@@ -180,6 +187,9 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 				isSimpleAssign(ifStmt.Init) {
 				assign := ifStmt.Init.(*ast.AssignStmt)
 				if call, ok := assign.Rhs[0].(*ast.CallExpr); ok && assign.Tok == token.DEFINE {
+					if len(call.Args) != 2 {
+						continue
+					}
 					lhs := assign.Lhs[0]
 					obj := typeutil.Callee(info, call)
 

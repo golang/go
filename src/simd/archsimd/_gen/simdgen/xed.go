@@ -346,7 +346,7 @@ func (o operandCommon) common() operandCommon {
 }
 
 func (o operandMem) addToDef(b *unify.DefBuilder) {
-	b.Add("class", strVal("memory"))
+	b.Add("class", strVal("mem"))
 	if o.unknown {
 		return
 	}

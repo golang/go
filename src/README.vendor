@@ -43,7 +43,7 @@ Tree inconsistencies are reported by 'go test cmd/internal/moddeps'.
 A typical sequence might be:
 
     cd src  # or src/cmd
-    go get golang.org/x/net@master
+    GOPROXY=direct go get golang.org/x/net@master
     go mod tidy
     go mod vendor
     go test cmd/internal/moddeps

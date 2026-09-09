@@ -2235,11 +2235,6 @@ func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*res
 func (sc *serverConn) newWriterAndRequestNoBody(st *stream, rp httpcommon.ServerRequestParam) (*responseWriter, *ServerRequest, error) {
 	sc.serveG.check()
 
-	var tlsState *tls.ConnectionState // nil if not scheme https
-	if rp.Scheme == "https" {
-		tlsState = sc.tlsState
-	}
-
 	res := httpcommon.NewServerRequest(rp)
 	if res.InvalidReason != "" {
 		return nil, nil, sc.countError(res.InvalidReason, streamError(st.id, ErrCodeProtocol))
@@ -2261,7 +2256,7 @@ func (sc *serverConn) newWriterAndRequestNoBody(st *stream, rp httpcommon.Server
 		Proto:      "HTTP/2.0",
 		ProtoMajor: 2,
 		ProtoMinor: 0,
-		TLS:        tlsState,
+		TLS:        sc.tlsState,
 		Host:       rp.Authority,
 		Body:       body,
 		Trailer:    res.Trailer,

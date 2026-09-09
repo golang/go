@@ -170,6 +170,10 @@ func run(pass *analysis.Pass) (any, error) {
 	} {
 		for curCall := range index.Calls(callee) {
 			call := curCall.Node().(*ast.CallExpr)
+			if len(call.Args) < 2 {
+				// A multi-valued call may supply the complete argument list.
+				continue
+			}
 			switch address := call.Args[1].(type) {
 			case *ast.CallExpr:
 				if len(call.Args) == 2 { // avoid spread-call edge case

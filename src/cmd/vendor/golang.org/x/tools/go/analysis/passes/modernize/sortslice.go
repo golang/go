@@ -15,6 +15,7 @@ import (
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
+	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
 )
@@ -64,6 +65,10 @@ func slicessort(pass *analysis.Pass) (any, error) {
 	)
 	for curCall := range index.Calls(sortSlice) {
 		call := curCall.Node().(*ast.CallExpr)
+		if len(call.Args) != 2 {
+			// A multi-valued call may supply the complete argument list.
+			continue
+		}
 		if lit, ok := call.Args[1].(*ast.FuncLit); ok && len(lit.Body.List) == 1 {
 			sig := info.Types[lit.Type].Type.(*types.Signature)
 
@@ -84,6 +89,7 @@ func slicessort(pass *analysis.Pass) (any, error) {
 					}
 					file := astutil.EnclosingFile(curCall)
 					if isIndex(compare.X, i) && isIndex(compare.Y, j) &&
+						typesinternal.NoEffects(info, s) &&
 						analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_21) {
 						// Have: sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
 

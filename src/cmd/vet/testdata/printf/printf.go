@@ -97,7 +97,8 @@ func PrintfTests() {
 	fmt.Printf("%s", stringerarrayv)
 	fmt.Printf("%v", notstringerarrayv)
 	fmt.Printf("%T", notstringerarrayv)
-	fmt.Printf("%d", new(fmt.Formatter))
+	fmt.Printf("%d", new(fmt.Formatter)) // ERROR `%d has arg .* type \*fmt.Formatter \(use %p for a pointer\)`
+
 	fmt.Printf("%*%", 2)               // Ridiculous but allowed.
 	fmt.Printf("%s", interface{}(nil)) // Nothing useful we can say.
 
@@ -183,12 +184,12 @@ func PrintfTests() {
 	f.Wrapf2(0, "%#s", "hello")           // ERROR "Wrapf2 format %#s has unrecognized flag #"
 	fmt.Printf("%#s", FormatterVal(true)) // correct (the type is responsible for formatting)
 	Printf("d%", 2)                       // ERROR "Printf format % is missing verb at end of string"
-	Printf("%d", percentDV)
-	Printf("%d", &percentDV)
-	Printf("%d", notPercentDV)  // ERROR "Printf format %d has arg notPercentDV of wrong type .*printf.notPercentDStruct"
-	Printf("%d", &notPercentDV) // ERROR `Printf format %d has arg &notPercentDV of wrong type \*.*printf.notPercentDStruct`
-	Printf("%p", &notPercentDV) // Works regardless: we print it as a pointer.
-	Printf("%q", &percentDV)    // ERROR `Printf format %q has arg &percentDV of wrong type \*.*printf.percentDStruct`
+	Printf("%d", percentDV)               // ERROR `Printf format %d has arg .* type cmd/vet/testdata/printf.percentDStruct \(use %p for a pointer\)`
+	Printf("%d", &percentDV)              // ERROR `Printf format %d has arg .* type \*cmd/vet/testdata/printf.percentDStruct \(use %p for a pointer\)`
+	Printf("%d", notPercentDV)            // ERROR "Printf format %d has arg notPercentDV of wrong type .*printf.notPercentDStruct"
+	Printf("%d", &notPercentDV)           // ERROR `Printf format %d has arg &notPercentDV of wrong type \*.*printf.notPercentDStruct`
+	Printf("%p", &notPercentDV)           // Works regardless: we print it as a pointer.
+	Printf("%q", &percentDV)              // ERROR `Printf format %q has arg &percentDV of wrong type \*.*printf.percentDStruct`
 	Printf("%s", percentSV)
 	Printf("%s", &percentSV)
 	// Good argument reorderings.
@@ -619,7 +620,7 @@ func UnexportedStringerOrError() {
 	fmt.Printf("%s", uei)       // ERROR "Printf format %s has arg uei of wrong type .*printf.unexportedErrorInterface"
 	fmt.Println("foo\n", "bar") // not an error
 
-	fmt.Println("foo\n")  // ERROR "Println arg list ends with redundant newline"
+	fmt.Println("foo\n")  // not an error
 	fmt.Println("foo\\n") // not an error
 	fmt.Println(`foo\n`)  // not an error
 

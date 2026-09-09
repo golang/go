@@ -11,7 +11,7 @@
 // It requires well-typed inputs, and may panic otherwise.
 //
 // This package reimplements parts of the type checker. See
-// https://go.dev/issue/70638 for a proposal to expose the the work
+// https://go.dev/issue/70638 for a proposal to expose the work
 // already done by the type checker, which would make this package
 // redundant.
 package satisfy
@@ -108,7 +108,9 @@ func (f *Finder) Find(info *types.Info, files []*ast.File) {
 
 			case *ast.FuncDecl:
 				if d.Body != nil {
-					f.sig = f.info.Defs[d.Name].Type().(*types.Signature)
+					if obj := f.info.Defs[d.Name]; obj != nil {
+						f.sig, _ = obj.Type().(*types.Signature)
+					}
 					f.stmt(d.Body)
 					f.sig = nil
 				}
@@ -126,7 +128,7 @@ var (
 
 // exprN visits an expression in a multi-value context.
 func (f *Finder) exprN(e ast.Expr) types.Type {
-	typ := f.info.Types[e].Type.(*types.Tuple)
+	typ, _ := f.info.Types[e].Type.(*types.Tuple)
 	switch e := e.(type) {
 	case *ast.ParenExpr:
 		return f.exprN(e.X)
@@ -146,7 +148,11 @@ func (f *Finder) exprN(e ast.Expr) types.Type {
 
 	case *ast.TypeAssertExpr:
 		// y, ok := x.(T)
-		f.typeAssert(f.expr(e.X), typ.At(0).Type())
+		if typ != nil && typ.Len() > 0 {
+			f.typeAssert(f.expr(e.X), typ.At(0).Type())
+		} else {
+			f.expr(e.X)
+		}
 
 	case *ast.UnaryExpr: // must be receive <-
 		// y, ok := <-x
@@ -155,7 +161,10 @@ func (f *Finder) exprN(e ast.Expr) types.Type {
 	default:
 		panic(e)
 	}
-	return typ
+	if typ != nil {
+		return typ
+	}
+	return tInvalid
 }
 
 func (f *Finder) call(sig *types.Signature, args []ast.Expr) {
@@ -355,7 +364,8 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 		if e.Name == "_" { // e.g. "for _ = range x"
 			return tInvalid
 		}
-		panic("undefined ident: " + e.Name)
+		// There could be a missing definition, return an invalid type
+		return tInvalid
 
 	case *ast.Ellipsis:
 		if e.Elt != nil {
@@ -364,7 +374,7 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 
 	case *ast.FuncLit:
 		saved := f.sig
-		f.sig = tv.Type.(*types.Signature)
+		f.sig, _ = tv.Type.(*types.Signature)
 		f.stmt(e.Body)
 		f.sig = saved
 
@@ -374,7 +384,14 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 			case *types.Struct:
 				for i, elem := range e.Elts {
 					if kv, ok := elem.(*ast.KeyValueExpr); ok {
-						f.assign(f.info.Uses[kv.Key.(*ast.Ident)].Type(), f.expr(kv.Value))
+						// in weird code, kv.Key might not be an identifier
+						id, ok := kv.Key.(*ast.Ident)
+						if !ok || f.info.Uses[id] == nil {
+							f.expr(kv.Value)
+							continue
+
+						}
+						f.assign(f.info.Uses[id].Type(), f.expr(kv.Value))
 					} else {
 						f.assign(T.Field(i).Type(), f.expr(elem))
 					}
@@ -397,6 +414,19 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 						f.assign(tElem, f.expr(elem))
 					}
 				}
+			case *types.Basic:
+				if T.Kind() == types.Invalid {
+					for _, elem := range e.Elts {
+						if kv, ok := elem.(*ast.KeyValueExpr); ok {
+							f.expr(kv.Key)
+							f.expr(kv.Value)
+						} else {
+							f.expr(elem)
+						}
+					}
+					continue
+				}
+				panic(fmt.Sprintf("unexpected composite literal type %T: %v", tv.Type, tv.Type.String()))
 			default:
 				panic(fmt.Sprintf("unexpected composite literal type %T: %v", tv.Type, tv.Type.String()))
 			}
@@ -412,7 +442,10 @@ func (f *Finder) expr(e ast.Expr) types.Type {
 				f.expr(e.X)
 			}
 		} else {
-			return f.info.Uses[e.Sel].Type() // qualified identifier
+			if obj, ok := f.info.Uses[e.Sel]; ok {
+				return obj.Type() // qualified identifier
+			}
+			return tInvalid
 		}
 
 	case *ast.IndexExpr:
@@ -586,6 +619,12 @@ func (f *Finder) stmt(s ast.Stmt) {
 		f.expr(s.Call)
 
 	case *ast.ReturnStmt:
+		if f.sig == nil {
+			for _, result := range s.Results {
+				f.expr(result)
+			}
+			break
+		}
 		formals := f.sig.Results()
 		switch len(s.Results) {
 		case formals.Len(): // 1:1

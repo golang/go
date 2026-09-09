@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 
 	"golang.org/x/tools/internal/typesinternal"
 )
@@ -71,13 +72,19 @@ func calleefx(info *types.Info, body *ast.BlockStmt, paramInfos map[*types.Var]*
 		// unreferenced by the function body). This lets us
 		// not bother implementing the complete traversal into
 		// control structures.
-		//
-		// TODO(adonovan): add them in a deterministic order.
-		// (This is not a bug but determinism is good.)
-		for _, pinfo := range paramInfos {
+
+		// Sort params by Index for determinism
+		sortedParams := make([]*types.Var, 0, len(paramInfos))
+		for obj, pinfo := range paramInfos {
 			if !pinfo.IsResult && len(pinfo.Refs) > 0 {
-				effect(pinfo.Index)
+				sortedParams = append(sortedParams, obj)
 			}
+		}
+		slices.SortFunc(sortedParams, func(a, b *types.Var) int {
+			return paramInfos[a].Index - paramInfos[b].Index
+		})
+		for _, obj := range sortedParams {
+			effect(paramInfos[obj].Index)
 		}
 	}
 

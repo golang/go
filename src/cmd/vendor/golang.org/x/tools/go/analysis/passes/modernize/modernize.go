@@ -48,6 +48,7 @@ var Suite = []*analysis.Analyzer{
 	reflectTypeAssertAnalyzer, // awaiting public symbol
 	ReflectTypeForAnalyzer,
 	slicesBackwardAnalyzer, // awaiting public symbol
+	slicesClipAnalyzer,     // awaiting public symbol
 	SlicesContainsAnalyzer,
 	SlicesSortAnalyzer,
 	StdIteratorsAnalyzer,
@@ -123,7 +124,7 @@ func filesUsingGoVersion(pass *analysis.Pass, version string) iter.Seq[inspector
 // specified standard packages or their dependencies.
 func within(pass *analysis.Pass, pkgs ...string) bool {
 	path := pass.Pkg.Path()
-	return packagepath.IsStdPackage(path) &&
+	return packagepath.MaybeStdPackage(path) &&
 		moreiters.Contains(stdlib.Dependencies(pkgs...), path)
 }
 

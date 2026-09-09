@@ -72,7 +72,9 @@ func bloop(pass *analysis.Pass) (any, error) {
 			}
 			if call, ok := stmt.X.(*ast.CallExpr); ok {
 				obj := typeutil.Callee(info, call)
-				if typesinternal.IsMethodNamed(obj, "testing", "B", "StopTimer", "StartTimer", "ResetTimer") {
+				// Check that this is the same b before deleting the timer call.
+				if typesinternal.IsMethodNamed(obj, "testing", "B", "StopTimer", "StartTimer", "ResetTimer") &&
+					astutil.EqualSyntax(ast.Unparen(call.Fun).(*ast.SelectorExpr).X, b) {
 					// Delete call statement.
 					// TODO(adonovan): delete following newline, or
 					// up to start of next stmt? (May delete a comment.)

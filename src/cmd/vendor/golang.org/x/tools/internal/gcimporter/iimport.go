@@ -30,14 +30,6 @@ type intReader struct {
 	path string
 }
 
-func (r *intReader) int64() int64 {
-	i, err := binary.ReadVarint(r.Reader)
-	if err != nil {
-		errorf("import %q: read varint error: %v", r.path, err)
-	}
-	return i
-}
-
 func (r *intReader) uint64() uint64 {
 	i, err := binary.ReadUvarint(r.Reader)
 	if err != nil {

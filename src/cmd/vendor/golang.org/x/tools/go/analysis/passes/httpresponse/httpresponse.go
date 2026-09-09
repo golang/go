@@ -108,8 +108,8 @@ func run(pass *analysis.Pass) (any, error) {
 // returns (*http.Response, error).
 func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 	fun, _ := expr.Fun.(*ast.SelectorExpr)
-	sig, _ := info.Types[fun].Type.(*types.Signature)
-	if sig == nil {
+	sig, ok := info.Types[fun].Type.(*types.Signature)
+	if !ok {
 		return false // the call is not of the form x.f()
 	}
 
