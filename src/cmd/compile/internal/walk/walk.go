@@ -25,8 +25,6 @@ const (
 
 type walkState struct{ curfunc *ir.Func }
 
-var WalkState = new(walkState)
-
 // autoLabel generates a new Name node for use with
 // an automatically generated label.
 // prefix is a short mnemonic (e.g. ".s" for switch)
@@ -45,7 +43,7 @@ func (w *walkState) autoLabel(prefix string) *types.Sym {
 }
 
 func Walk(fn *ir.Func) {
-	WalkState.curfunc = fn
+	walkstate := &walkState{curfunc: fn}
 
 	// Build pre-walk analysis caches with a single AST traversal.
 	// (At some point, it might be worthwhile to have a walkState structure
@@ -54,20 +52,20 @@ func Walk(fn *ir.Func) {
 	defer func() { staticValues = nil; shapeConvSources = nil }()
 
 	errorsBefore := base.Errors()
-	order(WalkState, fn)
+	order(walkstate, fn)
 	if base.Errors() > errorsBefore {
 		return
 	}
 
 	if base.Flag.W != 0 {
-		s := fmt.Sprintf("\nbefore walk %v", WalkState.curfunc.Sym())
-		ir.DumpList(s, WalkState.curfunc.Body)
+		s := fmt.Sprintf("\nbefore walk %v", walkstate.curfunc.Sym())
+		ir.DumpList(s, walkstate.curfunc.Body)
 	}
 
-	walkStmtList(WalkState, WalkState.curfunc.Body)
+	walkStmtList(walkstate, walkstate.curfunc.Body)
 	if base.Flag.W != 0 {
-		s := fmt.Sprintf("after walk %v", WalkState.curfunc.Sym())
-		ir.DumpList(s, WalkState.curfunc.Body)
+		s := fmt.Sprintf("after walk %v", walkstate.curfunc.Sym())
+		ir.DumpList(s, walkstate.curfunc.Body)
 	}
 
 	// Eagerly compute sizes of all variables for SSA.

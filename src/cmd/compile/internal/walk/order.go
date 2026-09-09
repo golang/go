@@ -40,10 +40,11 @@ import (
 
 // orderState holds state during the ordering process.
 type orderState struct {
-	out  []ir.Node             // list of generated statements
-	temp []*ir.Name            // stack of temporary variables
-	free map[string][]*ir.Name // free list of unused temporaries, by type.LinkString().
-	edit func(ir.Node) ir.Node // cached closure of o.exprNoLHS
+	out       []ir.Node             // list of generated statements
+	temp      []*ir.Name            // stack of temporary variables
+	free      map[string][]*ir.Name // free list of unused temporaries, by type.LinkString().
+	edit      func(ir.Node) ir.Node // cached closure of o.exprNoLHS
+	walkstate *walkState
 }
 
 // order rewrites fn.Nbody to apply the ordering constraints
@@ -541,6 +542,7 @@ func orderBlock(walkstate *walkState, n *ir.Nodes, free map[string][]*ir.Name) {
 		ir.SetPos((*n)[0])
 	}
 	var order orderState
+	order.walkstate = walkstate
 	order.free = free
 	mark := order.markTemp()
 	order.edge()
@@ -556,6 +558,7 @@ func orderBlock(walkstate *walkState, n *ir.Nodes, free map[string][]*ir.Name) {
 //	n.Left = o.exprInPlace(n.Left)
 func (o *orderState) exprInPlace(walkstate *walkState, n ir.Node) ir.Node {
 	var order orderState
+	order.walkstate = walkstate
 	order.free = o.free
 	n = order.expr(walkstate, n, nil)
 	n = ir.InitExpr(order.out, n)
@@ -575,6 +578,7 @@ func (o *orderState) exprInPlace(walkstate *walkState, n ir.Node) ir.Node {
 // free is a map that can be used to obtain temporary variables by type.
 func orderStmtInPlace(walkstate *walkState, n ir.Node, free map[string][]*ir.Name) ir.Node {
 	var order orderState
+	order.walkstate = walkstate
 	order.free = free
 	mark := order.markTemp()
 	order.stmt(walkstate, n)
@@ -1197,7 +1201,7 @@ func (o *orderState) exprListInPlace(walkstate *walkState, l ir.Nodes) {
 }
 
 func (o *orderState) exprNoLHS(n ir.Node) ir.Node {
-	return o.expr(WalkState, n, nil)
+	return o.expr(o.walkstate, n, nil)
 }
 
 // expr orders a single expression, appending side
