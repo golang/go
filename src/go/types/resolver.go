@@ -321,7 +321,7 @@ func (check *Checker) collectObjects() {
 						check.dotImportMap = make(map[dotImportKey]*PkgName)
 					}
 					// merge imported scope with file scope
-					for name, obj := range imp.scope.elems {
+					for name, obj := range imp.scope.objects {
 						// Note: Avoid eager resolve(name, obj) here, so we only
 						// resolve dot-imported objects as needed.
 
@@ -461,7 +461,7 @@ func (check *Checker) collectObjects() {
 
 	// verify that objects in package and file scopes have different names
 	for _, scope := range fileScopes {
-		for name, obj := range scope.elems {
+		for name, obj := range scope.objects {
 			if alt := pkg.scope.Lookup(name); alt != nil {
 				obj = resolve(name, obj)
 				err := check.newError(DuplicateDecl)

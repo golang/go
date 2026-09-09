@@ -58,7 +58,7 @@ func (check *Checker) usage(scope *Scope) {
 		return !(kind == RecvVar || kind == ParamVar || kind == ResultVar)
 	}
 	var unused []*Var
-	for name, elem := range scope.elems {
+	for name, elem := range scope.objects {
 		elem = resolve(name, elem)
 		if v, _ := elem.(*Var); v != nil && needUse(v.kind) && !check.usedVars[v] {
 			unused = append(unused, v)

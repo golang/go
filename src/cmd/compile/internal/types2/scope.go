@@ -10,9 +10,11 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"io"
+	"iter"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // A Scope maintains a set of objects and links to its containing
@@ -20,19 +22,20 @@ import (
 // and looked up by name. The zero value for Scope is a ready-to-use
 // empty scope.
 type Scope struct {
-	parent   *Scope
-	children []*Scope
-	number   int               // parent.children[number-1] is this scope; 0 if there is no parent
-	elems    map[string]Object // lazily allocated
-	pos, end syntax.Pos        // scope extent; may be invalid
-	comment  string            // for debugging only
-	isFunc   bool              // set if this is a function scope (internal use only)
+	parent      *Scope
+	children    []*Scope
+	number      int                      // parent.children[number-1] is this scope; 0 if there is no parent
+	objects     map[string]Object        // lazily allocated
+	pos, end    syntax.Pos               // scope extent; may be invalid
+	comment     string                   // for debugging only
+	isFunc      bool                     // set if this is a function scope (internal use only)
+	sortedNames atomic.Pointer[[]string] // lazy cache of Names(), cleared during mutation
 }
 
 // NewScope returns a new, empty scope contained in the given parent
 // scope, if any. The comment is for debugging only.
 func NewScope(parent *Scope, pos, end syntax.Pos, comment string) *Scope {
-	s := &Scope{parent, nil, 0, nil, pos, end, comment, false}
+	s := &Scope{parent: parent, pos: pos, end: end, comment: comment}
 	// don't add children to Universe scope!
 	if parent != nil && parent != Universe {
 		parent.children = append(parent.children, s)
@@ -44,19 +47,30 @@ func NewScope(parent *Scope, pos, end syntax.Pos, comment string) *Scope {
 // Parent returns the scope's containing (parent) scope.
 func (s *Scope) Parent() *Scope { return s.parent }
 
-// Len returns the number of scope elements.
-func (s *Scope) Len() int { return len(s.elems) }
+// Len returns the number of scope objects.
+func (s *Scope) Len() int { return len(s.objects) }
 
-// Names returns the scope's element names in sorted order.
+// Names returns the scope's object names in sorted order.
+// The caller must not mutate the array.
 func (s *Scope) Names() []string {
-	names := make([]string, len(s.elems))
-	i := 0
-	for name := range s.elems {
-		names[i] = name
-		i++
+	// We cache the result to avoid allocation on
+	// each call, as this is a known hotspot.
+	ptr := s.sortedNames.Load()
+	if ptr == nil {
+		// cache miss
+		names := make([]string, len(s.objects))
+		i := 0
+		for name := range s.objects {
+			names[i] = name
+			i++
+		}
+		slices.Sort(names)
+		ptr = &names
+
+		// Don't overwrite if another goroutine got there first.
+		s.sortedNames.CompareAndSwap(nil, &names)
 	}
-	slices.Sort(names)
-	return names
+	return *ptr
 }
 
 // NumChildren returns the number of scopes nested in s.
@@ -67,7 +81,25 @@ func (s *Scope) Child(i int) *Scope { return s.children[i] }
 
 // Lookup returns the object in scope s with the given name if such an
 // object exists; otherwise the result is nil.
-func (s *Scope) Lookup(name string) Object { return resolve(name, s.elems[name]) }
+func (s *Scope) Lookup(name string) Object { return resolve(name, s.objects[name]) }
+
+// Objects returns the sequence of objects in the scope in name order.
+//
+// The caller should not mutate the Scope during iteration.
+//
+// Example:
+//
+//	for obj := range s.Objects() { ... }
+func (s *Scope) Objects() iter.Seq[Object] {
+	return func(yield func(obj Object) bool) {
+		names := s.Names()
+		for _, name := range names {
+			if !yield(s.Lookup(name)) {
+				break
+			}
+		}
+	}
+}
 
 // lookupIgnoringCase returns the objects in scope s whose names match
 // the given name ignoring case. If exported is set, only exported names
@@ -112,7 +144,7 @@ func (s *Scope) Insert(obj Object) Object {
 // records the binding and returns true. The object's parent scope
 // will be set to s after resolve is called.
 func (s *Scope) InsertLazy(name string, resolve func() Object) bool {
-	if s.elems[name] != nil {
+	if s.objects[name] != nil {
 		return false
 	}
 	s.insert(name, &lazyObject{parent: s, resolve: resolve})
@@ -120,10 +152,11 @@ func (s *Scope) InsertLazy(name string, resolve func() Object) bool {
 }
 
 func (s *Scope) insert(name string, obj Object) {
-	if s.elems == nil {
-		s.elems = make(map[string]Object)
+	if s.objects == nil {
+		s.objects = make(map[string]Object)
 	}
-	s.elems[name] = obj
+	s.sortedNames.Store(nil) // clear cache
+	s.objects[name] = obj
 }
 
 // WriteTo writes a string representation of the scope to w,

@@ -282,7 +282,7 @@ func (w *monoGraph) localNamedVertex(pkg *Package, named *Named) int {
 	// Walk the type definition's scope to find any ambient type
 	// parameters that it's implicitly parameterized by.
 	for scope := obj.Parent(); scope != root; scope = scope.Parent() {
-		for _, elem := range scope.elems {
+		for _, elem := range scope.objects {
 			if elem, ok := elem.(*TypeName); ok && !elem.IsAlias() && cmpPos(elem.Pos(), obj.Pos()) < 0 {
 				if tpar, ok := elem.Type().(*TypeParam); ok {
 					if idx < 0 {

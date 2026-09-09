@@ -1,0 +1,1 @@
+pkg go/types, method (*Scope) Objects() iter.Seq[Object] #80449
