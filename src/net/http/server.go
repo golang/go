@@ -783,6 +783,46 @@ func (cr *connReader) backgroundRead() {
 	cr.cond.Broadcast()
 }
 
+// idleBufsReleaseDelay is how long a keep-alive connection waits for
+// its next request before it is considered idle and its bufio buffers
+// are released to their pools. It trades a little extra work on
+// connections that idle past it against pinning ~8 kB of buffers on
+// every waiting connection.
+const idleBufsReleaseDelay = 50 * time.Millisecond
+
+// waitReadable blocks until data arrives on the connection, stashing
+// the byte it reads for the next connReader.Read, and reports whether
+// data arrived. It is called between requests, after the connection's
+// bufio buffers have been released to their pools, so that an idle
+// connection pins no buffer memory while it waits, possibly for a long
+// time, for the next request. A false return means the read failed
+// (EOF, a timeout, or another error) and the error has been handled by
+// handleReadErrorLocked.
+func (cr *connReader) waitReadable() (readable bool) {
+	cr.lock()
+	if cr.inRead {
+		panic("invalid concurrent connReader.waitReadable call")
+	}
+	if cr.hasByte {
+		cr.unlock()
+		return true
+	}
+	cr.inRead = true
+	cr.unlock()
+	n, err := cr.rwc.Read(cr.byteBuf[:])
+	cr.lock()
+	cr.inRead = false
+	if n == 1 {
+		cr.hasByte = true
+	}
+	if err != nil {
+		cr.handleReadErrorLocked(err)
+	}
+	cr.unlock()
+	cr.cond.Broadcast()
+	return n == 1 && err == nil
+}
+
 func (cr *connReader) abortPendingRead() {
 	cr.lock()
 	defer cr.unlock()
@@ -2173,17 +2213,49 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 
+		var idleDeadline time.Time
 		if d := c.server.idleTimeout(); d > 0 {
-			c.rwc.SetReadDeadline(time.Now().Add(d))
-		} else {
-			c.rwc.SetReadDeadline(time.Time{})
+			idleDeadline = time.Now().Add(d)
 		}
 
 		// Wait for the connection to become readable again before trying to
 		// read the next request. This prevents a ReadHeaderTimeout or
 		// ReadTimeout from starting until the first bytes of the next request
 		// have been received.
-		if _, err := c.bufr.Peek(4); err != nil {
+		//
+		// The wait runs in two phases. First wait briefly with the
+		// connection's bufio buffers still attached: on a busy
+		// connection the next request typically arrives almost
+		// immediately, and this keeps the buffer release below off the
+		// hot path. If the connection then still has nothing buffered,
+		// it has gone idle, possibly for a long time, so release its
+		// bufio.Reader and Writer (~8 kB of per-connection memory
+		// holding no data) to their pools for the rest of the wait.
+		// The byte read by waitReadable is stashed in the connReader
+		// and yielded by its next Read after fresh buffers are
+		// acquired.
+		shortDeadline := time.Now().Add(idleBufsReleaseDelay)
+		if !idleDeadline.IsZero() && idleDeadline.Before(shortDeadline) {
+			shortDeadline = idleDeadline
+		}
+		c.rwc.SetReadDeadline(shortDeadline)
+		_, peekErr := c.bufr.Peek(4)
+		if errors.Is(peekErr, os.ErrDeadlineExceeded) && (idleDeadline.IsZero() || time.Now().Before(idleDeadline)) {
+			c.rwc.SetReadDeadline(idleDeadline)
+			if c.bufr.Buffered() == 0 && c.bufw.Buffered() == 0 {
+				putBufioReader(c.bufr)
+				c.bufr = nil
+				putBufioWriter(c.bufw)
+				c.bufw = nil
+				if !c.r.waitReadable() {
+					return
+				}
+				c.bufr = newBufioReader(c.r)
+				c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
+			}
+			_, peekErr = c.bufr.Peek(4)
+		}
+		if peekErr != nil {
 			return
 		}
 

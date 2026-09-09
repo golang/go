@@ -5,6 +5,7 @@
 package http2
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -1603,5 +1604,164 @@ func TestTypeFrameParserHolePanic(t *testing.T) {
 
 	if _, ok := f.(*UnknownFrame); !ok {
 		t.Errorf("got %T; want *UnknownFrame", f)
+	}
+}
+
+// frameAccessPanics reports whether accessing the given frame's payload
+// panics, as it must after the frame has been invalidated by a
+// subsequent ReadFrame call.
+func frameAccessPanics(f func()) (panicked bool) {
+	defer func() { panicked = recover() != nil }()
+	f()
+	return
+}
+
+func TestFramerReadBufPooling(t *testing.T) {
+	fr, _ := testFramer()
+
+	// Reading a frame larger than maxIdleReadBufCap acquires a pooled buffer.
+	fr.WriteData(1, false, make([]byte, maxIdleReadBufCap+1))
+	f1, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fr.readBufP == nil {
+		t.Error("after large frame: readBufP = nil, want pooled buffer")
+	}
+	if cap(fr.readBuf) <= maxIdleReadBufCap {
+		t.Errorf("after large frame: cap(readBuf) = %d, want > %d", cap(fr.readBuf), maxIdleReadBufCap)
+	}
+
+	// The next ReadFrame releases the pooled buffer before blocking
+	// (bytes.Buffer is not a bufio.Reader, so there is no buffered
+	// look-ahead), invalidates the previous frame, and reads a payload
+	// of maxIdleReadBufCap or less into a small non-pooled buffer.
+	fr.WriteData(1, false, make([]byte, maxIdleReadBufCap))
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+	if fr.readBufP != nil {
+		t.Error("after small frame: readBufP != nil, want small non-pooled buffer")
+	}
+	if cap(fr.readBuf) > maxIdleReadBufCap {
+		t.Errorf("after small frame: cap(readBuf) = %d, want <= %d", cap(fr.readBuf), maxIdleReadBufCap)
+	}
+	if !frameAccessPanics(func() { f1.(*DataFrame).Data() }) {
+		t.Error("accessing previous frame's Data after ReadFrame did not panic")
+	}
+}
+
+func TestFramerReadBufKeptWhileBuffered(t *testing.T) {
+	var wire bytes.Buffer
+	fw := NewFramer(&wire, nil)
+	fw.WriteData(1, false, make([]byte, maxIdleReadBufCap+1))
+	fw.WriteData(1, false, make([]byte, maxIdleReadBufCap+1))
+
+	// With a bufio.Reader that already has the next frame buffered,
+	// ReadFrame is not about to block and keeps the pooled buffer.
+	fr := NewFramer(nil, bufio.NewReader(bytes.NewReader(wire.Bytes())))
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+	p1 := fr.readBufP
+	if p1 == nil {
+		t.Fatal("after large frame: readBufP = nil, want pooled buffer")
+	}
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+	if fr.readBufP != p1 {
+		t.Error("pooled buffer was released despite buffered look-ahead data")
+	}
+}
+
+func TestFramerReadBufGrowsInPlace(t *testing.T) {
+	var wire bytes.Buffer
+	fw := NewFramer(&wire, nil)
+	fw.WriteData(1, false, make([]byte, 2*maxIdleReadBufCap))
+	fw.WriteData(1, false, make([]byte, 4*maxIdleReadBufCap))
+
+	// A larger frame arriving while the pooled buffer is retained
+	// (buffered look-ahead, so no release) grows the buffer within the
+	// same pooled container rather than acquiring a second one.
+	fr := NewFramer(nil, bufio.NewReader(bytes.NewReader(wire.Bytes())))
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+	p1 := fr.readBufP
+	if p1 == nil {
+		t.Fatal("after first frame: readBufP = nil, want pooled buffer")
+	}
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+	if fr.readBufP != p1 {
+		t.Error("readBufP container not reused for larger frame")
+	}
+	if cap(fr.readBuf) < 4*maxIdleReadBufCap {
+		t.Errorf("cap(readBuf) = %d, want >= %d", cap(fr.readBuf), 4*maxIdleReadBufCap)
+	}
+}
+
+func TestFramerReadBufReleasedOnReadError(t *testing.T) {
+	fr, _ := testFramer()
+	fr.WriteData(1, false, make([]byte, maxIdleReadBufCap+1))
+	f1, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A ReadFrame call that fails reading the next header still
+	// releases the buffer and invalidates the previous frame first.
+	if _, err := fr.ReadFrame(); err != io.EOF {
+		t.Fatalf("ReadFrame on empty input = %v, want io.EOF", err)
+	}
+	if fr.readBufP != nil {
+		t.Error("readBufP != nil after ReadFrame error, want released")
+	}
+	if !frameAccessPanics(func() { f1.(*DataFrame).Data() }) {
+		t.Error("accessing previous frame's Data after failed ReadFrame did not panic")
+	}
+}
+
+func TestFramerWriteBufReleased(t *testing.T) {
+	fr, buf := testFramer()
+	if err := fr.WriteData(1, false, make([]byte, 2*maxIdleWriteBufCap)); err != nil {
+		t.Fatal(err)
+	}
+	if fr.wbuf != nil || fr.wbufP != nil {
+		t.Errorf("after large write: wbuf = %v (cap %d), wbufP = %v; want both released",
+			fr.wbuf != nil, cap(fr.wbuf), fr.wbufP != nil)
+	}
+
+	// Subsequent writes still produce well-formed frames.
+	if err := fr.WritePing(false, [8]byte{1, 2, 3, 4, 5, 6, 7, 8}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fr.ReadFrame(); err != nil { // the DATA frame
+		t.Fatal(err)
+	}
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := f.(*PingFrame); !ok {
+		t.Errorf("second frame = %T, want *PingFrame", f)
+	}
+	_ = buf
+}
+
+func TestFramerWriteBufSmallKept(t *testing.T) {
+	fr, _ := testFramer()
+	fr.wbuf = make([]byte, 0, 64) // small buffer stays attached across writes
+	if err := fr.WritePing(false, [8]byte{}); err != nil {
+		t.Fatal(err)
+	}
+	if fr.wbuf == nil || cap(fr.wbuf) != 64 {
+		t.Errorf("after small write: cap(wbuf) = %d (nil=%v), want the seeded 64-byte buffer kept",
+			cap(fr.wbuf), fr.wbuf == nil)
+	}
+	if fr.wbufP != nil {
+		t.Error("after small write: wbufP != nil, want nil")
 	}
 }
