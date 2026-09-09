@@ -169,6 +169,16 @@ Go 1.28 and all future releases will support both the old and new
 encodings when reading data. This setting may be removed in a future Go release,
 Go 1.34 at the earliest.
 
+Go 1.28 added a new `http2reuseframes` setting that controls whether the
+net/http HTTP/2 server and Transport opt in to `Framer.SetReuseFrames`,
+which reuses parsed `*DataFrame`, `*WindowUpdateFrame`, `*HeadersFrame`,
+and `*MetaHeadersFrame` structs across `ReadFrame` calls to reduce
+per-frame heap allocation. The default is reuse on. Setting
+`http2reuseframes=0` reverts to allocating each parsed frame fresh,
+matching the pre-Go 1.28 behavior. Frame reuse has no observable effect
+on programs, so the default applies regardless of the Go version
+declared in go.mod.
+
 ### Go 1.27
 
 Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22](#go-122) section.

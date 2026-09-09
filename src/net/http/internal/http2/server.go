@@ -337,6 +337,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	fr.MaxHeaderListSize = sc.maxHeaderListSize()
 	fr.MaxHeaderValueCount = sc.hs.MaxHeaderValueCount()
 	fr.SetMaxReadFrameSize(uint32(conf.MaxReadFrameSize))
+	fr.setReuseFramesFromGODEBUG()
 	sc.framer = fr
 
 	if tc, ok := c.(connectionStater); ok {
@@ -1514,6 +1515,11 @@ func (sc *serverConn) processPing(f *PingFrame) error {
 		// PROTOCOL_ERROR."
 		return sc.countError("ping_on_stream", ConnectionError(ErrCodeProtocol))
 	}
+	// writePingAck retains f past this readMore cycle: the ack is
+	// written asynchronously by the write scheduler, possibly after
+	// the read loop has parsed the next frame. That is safe only
+	// because PingFrame is not part of the Framer's frameCache; if it
+	// is ever added there, copy f.Data before queueing the ack.
 	sc.writeFrame(FrameWriteRequest{write: writePingAck{f}})
 	return nil
 }
@@ -2186,10 +2192,29 @@ func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*res
 		return nil, nil, sc.countError("bad_path_method", streamError(f.StreamID, ErrCodeProtocol))
 	}
 
-	header := make(Header)
+	// Build the request header map with one []string allocation for
+	// the whole block instead of one per key: most header keys are
+	// single-valued, so hand each new key a one-element window into a
+	// shared backing array. This mirrors what
+	// clientConnReadLoop.handleResponse does for response headers.
+	regularFields := f.RegularFields()
+	strs := make([]string, len(regularFields))
+	header := make(Header, len(regularFields))
 	rp.Header = header
-	for _, hf := range f.RegularFields() {
-		header.Add(sc.canonicalHeader(hf.Name), hf.Value)
+	for _, hf := range regularFields {
+		key := sc.canonicalHeader(hf.Name)
+		vv := header[key]
+		if vv == nil && len(strs) > 0 {
+			// More than likely this will be a single-element key.
+			// Most headers aren't multi-valued.
+			// Set the capacity on strs[0] to 1, so any future append
+			// won't extend the slice into the other strings.
+			vv, strs = strs[:1:1], strs[1:]
+			vv[0] = hf.Value
+			header[key] = vv
+		} else {
+			header[key] = append(vv, hf.Value)
+		}
 	}
 	if rp.Authority == "" {
 		rp.Authority = header.Get("Host")

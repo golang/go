@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"log"
 	"slices"
@@ -21,6 +22,24 @@ import (
 
 	"golang.org/x/net/http/httpguts"
 )
+
+// http2reuseframes controls whether the per-connection Framer in the
+// stdlib server and Transport opts in to SetReuseFrames. Default is
+// reuse on; GODEBUG=http2reuseframes=0 reverts to allocating each
+// parsed frame fresh, matching the pre-Go 1.28 behavior.
+var http2reuseframes = godebug.New("http2reuseframes")
+
+// setReuseFramesFromGODEBUG opts fr in to SetReuseFrames unless the
+// GODEBUG=http2reuseframes=0 opt-out is set. The server and Transport
+// both call this when constructing their per-connection Framer, so the
+// policy (and its non-default accounting) lives in one place.
+func (fr *Framer) setReuseFramesFromGODEBUG() {
+	if http2reuseframes.Value() == "0" {
+		http2reuseframes.IncNonDefault()
+		return
+	}
+	fr.SetReuseFrames()
+}
 
 const frameHeaderLen = 9
 
@@ -353,6 +372,115 @@ type Framer struct {
 	debugWriteLoggerf func(string, ...any)
 
 	frameCache *frameCache // nil if frames aren't reused (default)
+
+	// metaParse is the state readMetaFrame's hpack emit callback
+	// reads and updates. See metaParseState.
+	metaParse metaParseState
+
+	// emitMetaFieldFunc is the method value (*Framer).emitMetaField,
+	// built on first use. Evaluating a method value allocates a
+	// closure, so readMetaFrame builds it once per Framer instead of
+	// once per HEADERS frame.
+	emitMetaFieldFunc func(hpack.HeaderField)
+}
+
+// metaParseState is the per-parse state of readMetaFrame that its
+// hpack emit callback has to see. It lives on the Framer so that the
+// callback can be a single method value registered once, rather than
+// a fresh closure with a separately boxed variable per captured
+// field allocated on every HEADERS frame.
+//
+// Only one meta parse can be in flight per Framer: readMetaFrame's
+// CONTINUATION loop is the only reentrant path into ReadFrame, and
+// checkFrameOrder guarantees the frames it reads there are
+// CONTINUATION, never HEADERS.
+type metaParseState struct {
+	// mh is the frame being filled in. endMetaParse clears it, so
+	// that a Framer without SetReuseFrames does not retain the
+	// MetaHeadersFrame it handed to the caller.
+	mh *MetaHeadersFrame
+
+	// hdec is the decoder this parse installed the callback on. It is
+	// held here rather than read back out of fr.ReadMetaHeaders so
+	// that the callback and its teardown act on the same decoder the
+	// parse started with, exactly as the closure this replaced did.
+	hdec *hpack.Decoder
+
+	// remainSize is the number of header list bytes still accepted.
+	remainSize uint32
+
+	// headerCount counts emitted fields, against MaxHeaderValueCount.
+	headerCount int
+
+	// sawRegular records whether a non-pseudo field has been seen, so
+	// that a pseudo field after one can be rejected.
+	sawRegular bool
+
+	// invalid is the first pseudo/name/value validation error, if any.
+	invalid error
+}
+
+// noopEmitFunc discards a decoded header field. readMetaFrame installs
+// it when it is done, so that the decoder holds no reference to the
+// parsed frame and a field emitted outside a parse cannot reach a nil
+// metaParse.mh.
+func noopEmitFunc(hpack.HeaderField) {}
+
+// emitMetaField is the hpack decoder's emit callback while
+// readMetaFrame is running. It is the method form of what used to be a
+// per-parse closure; the variables it used to capture now live in
+// fr.metaParse.
+func (fr *Framer) emitMetaField(hf hpack.HeaderField) {
+	mp := &fr.metaParse
+	hdec := mp.hdec
+	if VerboseLogs && fr.logReads {
+		fr.debugReadLoggerf("http2: decoded hpack field %+v", hf)
+	}
+	mp.headerCount++
+	if limit := fr.maxHeaderValueCount(); limit > 0 && mp.headerCount > limit {
+		hdec.SetEmitEnabled(false)
+		mp.mh.Truncated = true
+		mp.remainSize = 0
+		return
+	}
+	if !httpguts.ValidHeaderFieldValue(hf.Value) {
+		// Don't include the value in the error, because it may be sensitive.
+		mp.invalid = headerFieldValueError(hf.Name)
+	}
+	isPseudo := strings.HasPrefix(hf.Name, ":")
+	if isPseudo {
+		if mp.sawRegular {
+			mp.invalid = errPseudoAfterRegular
+		}
+	} else {
+		mp.sawRegular = true
+		if !validWireHeaderFieldName(hf.Name) {
+			mp.invalid = headerFieldNameError(hf.Name)
+		}
+	}
+
+	if mp.invalid != nil {
+		hdec.SetEmitEnabled(false)
+		return
+	}
+
+	size := hf.Size()
+	if size > mp.remainSize {
+		hdec.SetEmitEnabled(false)
+		mp.mh.Truncated = true
+		mp.remainSize = 0
+		return
+	}
+	mp.remainSize -= size
+
+	mp.mh.Fields = append(mp.mh.Fields, hf)
+}
+
+// endMetaParse tears down the state emitMetaField reads, once the
+// parse that set it up is over.
+func (fr *Framer) endMetaParse() {
+	fr.metaParse.hdec.SetEmitFunc(noopEmitFunc)
+	fr.metaParse = metaParseState{}
 }
 
 func (fr *Framer) maxHeaderListSize() uint32 {
@@ -443,7 +571,10 @@ func (fr *Framer) SetReuseFrames() {
 }
 
 type frameCache struct {
-	dataFrame DataFrame
+	dataFrame         DataFrame
+	windowUpdateFrame WindowUpdateFrame
+	headersFrame      HeadersFrame
+	metaHeadersFrame  MetaHeadersFrame
 }
 
 func (fc *frameCache) getDataFrame() *DataFrame {
@@ -452,6 +583,44 @@ func (fc *frameCache) getDataFrame() *DataFrame {
 	}
 	return &fc.dataFrame
 }
+
+func (fc *frameCache) getWindowUpdateFrame() *WindowUpdateFrame {
+	if fc == nil {
+		return &WindowUpdateFrame{}
+	}
+	return &fc.windowUpdateFrame
+}
+
+func (fc *frameCache) getHeadersFrame() *HeadersFrame {
+	if fc == nil {
+		return &HeadersFrame{}
+	}
+	return &fc.headersFrame
+}
+
+func (fc *frameCache) getMetaHeadersFrame() *MetaHeadersFrame {
+	if fc == nil {
+		return &MetaHeadersFrame{}
+	}
+	return &fc.metaHeadersFrame
+}
+
+// maxRetainedMetaFields caps the number of fields a header block may
+// have for its Fields backing array to be kept in the cached
+// MetaHeadersFrame for the next meta parse. Above the cap, the array
+// is dropped when the frame is invalidated and the next parse pays
+// the modest append-growth cost again.
+//
+// The check is on the length of the parsed block, not on the capacity
+// of its backing array: append rounds capacity up to a size class, so
+// the capacity never equals this constant, and checking it would drop
+// the array for every block bigger than the largest size class below
+// the cap (35 fields as of this writing), silently defeating the
+// reuse for exactly the header-heavy connections that need it most.
+// Retained memory stays bounded either way: a block of at most
+// maxRetainedMetaFields fields has a backing array of at most the
+// next size class up.
+const maxRetainedMetaFields = 64
 
 // NewFramer returns a Framer that writes frames to w and reads them from r.
 func NewFramer(w io.Writer, r io.Reader) *Framer {
@@ -522,6 +691,16 @@ func terminalReadFrameError(err error) bool {
 // responsible for the error.
 func (fr *Framer) ReadFrameHeader() (FrameHeader, error) {
 	fr.errDetail = nil
+	// The previous frame's contract ends at this call, not when the
+	// next frame arrives: invalidate it before blocking on the header
+	// read, so that a cached frame does not pin what it parsed (in
+	// particular a MetaHeadersFrame's decoded header fields) for as
+	// long as the connection sits idle. ReadFrameForHeader invalidates
+	// again for callers that read the header themselves; invalidate
+	// is idempotent.
+	if fr.lastFrame != nil {
+		fr.lastFrame.invalidate()
+	}
 	fh, err := readFrameHeader(fr.headerBuf[:], fr.r)
 	if err != nil {
 		return fh, err
@@ -1006,12 +1185,25 @@ func parseUnknownFrame(_ *frameCache, fh FrameHeader, countError func(string), p
 
 // A WindowUpdateFrame is used to implement flow control.
 // See https://httpwg.org/specs/rfc7540.html#rfc.section.6.9
+//
+// When [Framer.SetReuseFrames] is in effect, the same *WindowUpdateFrame
+// is returned by every (*Framer).ReadFrame call that parses a
+// WINDOW_UPDATE and its fields are overwritten on each call, so callers
+// must consume the StreamID and Increment fields before the next
+// ReadFrame and must not retain the pointer.
 type WindowUpdateFrame struct {
 	FrameHeader
 	Increment uint32 // never read with high bit set
 }
 
-func parseWindowUpdateFrame(_ *frameCache, fh FrameHeader, countError func(string), p []byte) (Frame, error) {
+// parseWindowUpdateFrame populates the *WindowUpdateFrame returned by
+// frameCache.getWindowUpdateFrame. When [Framer.SetReuseFrames] is in
+// effect, that struct is reused across ReadFrame calls; the composite
+// literal reset below overwrites every field, so stale data from a
+// previous frame cannot leak even if a field is added to
+// WindowUpdateFrame later. TestReadFrameWindowUpdateOverwrites guards
+// this property.
+func parseWindowUpdateFrame(fc *frameCache, fh FrameHeader, countError func(string), p []byte) (Frame, error) {
 	if len(p) != 4 {
 		countError("frame_windowupdate_bad_len")
 		return nil, ConnectionError(ErrCodeFrameSize)
@@ -1031,10 +1223,12 @@ func parseWindowUpdateFrame(_ *frameCache, fh FrameHeader, countError func(strin
 		countError("frame_windowupdate_zero_inc_stream")
 		return nil, streamError(fh.StreamID, ErrCodeProtocol)
 	}
-	return &WindowUpdateFrame{
+	wuf := fc.getWindowUpdateFrame()
+	*wuf = WindowUpdateFrame{
 		FrameHeader: fh,
 		Increment:   inc,
-	}, nil
+	}
+	return wuf, nil
 }
 
 // WriteWindowUpdate writes a WINDOW_UPDATE frame.
@@ -1053,6 +1247,12 @@ func (f *Framer) WriteWindowUpdate(streamID, incr uint32) error {
 
 // A HeadersFrame is used to open a stream and additionally carries a
 // header block fragment.
+//
+// When [Framer.SetReuseFrames] is in effect, the same *HeadersFrame
+// is returned by every (*Framer).ReadFrame call that parses a HEADERS
+// and its fields are overwritten on each call. The headerFragBuf
+// slice always aliases the framer's read buffer and must not be
+// retained past the next ReadFrame regardless of this setting.
 type HeadersFrame struct {
 	FrameHeader
 
@@ -1079,8 +1279,16 @@ func (f *HeadersFrame) HasPriority() bool {
 	return f.FrameHeader.Flags.Has(FlagHeadersPriority)
 }
 
-func parseHeadersFrame(_ *frameCache, fh FrameHeader, countError func(string), p []byte) (_ Frame, err error) {
-	hf := &HeadersFrame{
+// parseHeadersFrame populates the *HeadersFrame returned by
+// frameCache.getHeadersFrame. When [Framer.SetReuseFrames] is in
+// effect, that struct is reused across ReadFrame calls; the composite
+// literal reset below overwrites every field — including any added in
+// the future — so stale values (Priority, or any flag-dependent field
+// added later) cannot leak from a prior frame.
+// TestReadFrameHeadersOverwrites guards this property.
+func parseHeadersFrame(fc *frameCache, fh FrameHeader, countError func(string), p []byte) (_ Frame, err error) {
+	hf := fc.getHeadersFrame()
+	*hf = HeadersFrame{
 		FrameHeader: fh,
 	}
 	if fh.StreamID == 0 {
@@ -1603,13 +1811,24 @@ type headersOrContinuation interface {
 //
 // This type of frame does not appear on the wire and is only returned
 // by the Framer when Framer.ReadMetaHeaders is set.
+//
+// When [Framer.SetReuseFrames] is in effect, the same *MetaHeadersFrame
+// is returned by every ReadFrame call that produces one and its fields
+// are overwritten on each call. Callers must consume Fields and
+// Truncated before the next ReadFrame and must not retain the pointer.
+// The accessor methods enforce this: calling them after the next
+// ReadFrame panics, mirroring the protection DataFrame.Data has, so a
+// retention bug fails deterministically rather than silently reading
+// another frame's headers. Direct reads of the Fields slice are not
+// guarded.
 type MetaHeadersFrame struct {
 	*HeadersFrame
 
 	// Fields are the fields contained in the HEADERS and
 	// CONTINUATION frames. The underlying slice is owned by the
 	// Framer and must not be retained after the next call to
-	// ReadFrame.
+	// ReadFrame: when [Framer.SetReuseFrames] is in effect, the next
+	// meta parse clears and overwrites the backing array in place.
 	//
 	// Fields are guaranteed to be in the correct http2 order and
 	// not have unknown pseudo header fields or invalid header
@@ -1622,11 +1841,65 @@ type MetaHeadersFrame struct {
 	// and Fields is incomplete. The hpack decoder state is still
 	// valid, however.
 	Truncated bool
+
+	// owned is whether the frame is owned by the caller of ReadFrame:
+	// set when readMetaFrame returns mh without an error and cleared
+	// by the next ReadFrame call via invalidate. A frame returned
+	// together with an error is never owned; only its Header is
+	// meaningful to the caller. The embedded HeadersFrame's valid
+	// bit cannot serve this purpose because readMetaFrame clears it
+	// when the header block fragment is consumed, before mh is
+	// returned.
+	//
+	// Like DataFrame's checkValid protection, this catches access to a
+	// stale frame, not every contract violation: once the Framer
+	// repopulates the cached struct with a new meta frame, the
+	// retained pointer becomes "owned" again and reads the new frame's
+	// fields. Without SetReuseFrames the guard is exact, since a
+	// retained frame is never repopulated.
+	owned bool
+}
+
+func (mh *MetaHeadersFrame) checkOwned() {
+	if !mh.owned {
+		panic("Frame accessor called on non-owned Frame")
+	}
+}
+
+// invalidate overrides the embedded FrameHeader's method so that the
+// next ReadFrame call (which invalidates the Framer's lastFrame)
+// revokes ownership of the whole MetaHeadersFrame, not only of the
+// embedded HeadersFrame.
+//
+// It also releases the parsed header fields. The Fields contract ends
+// here, and header values can hold secrets (Cookie, Authorization,
+// HPACK Sensitive fields), so the strings are dropped now instead of
+// staying reachable from the cached frame until the next HEADERS
+// frame arrives on the connection, which on an idle connection may
+// be never. The backing array is kept for the next meta parse unless
+// the block was larger than maxRetainedMetaFields, so a single large
+// HEADERS frame cannot permanently inflate per-connection memory.
+//
+// Clearing the slice's length is enough to clear the whole backing
+// array: the slots in [len, cap) are already zero, because
+// readMetaFrame is the only writer of the array, it only ever writes
+// through append, and an append that grows the array gets fresh
+// (zeroed) memory and copies only the live elements into it.
+func (mh *MetaHeadersFrame) invalidate() {
+	mh.owned = false
+	if len(mh.Fields) > maxRetainedMetaFields {
+		mh.Fields = nil
+	} else {
+		clear(mh.Fields)
+		mh.Fields = mh.Fields[:0]
+	}
+	mh.HeadersFrame.invalidate()
 }
 
 // PseudoValue returns the given pseudo header field's value.
 // The provided pseudo field should not contain the leading colon.
 func (mh *MetaHeadersFrame) PseudoValue(pseudo string) string {
+	mh.checkOwned()
 	for _, hf := range mh.Fields {
 		if !hf.IsPseudo() {
 			return ""
@@ -1641,6 +1914,7 @@ func (mh *MetaHeadersFrame) PseudoValue(pseudo string) string {
 // RegularFields returns the regular (non-pseudo) header fields of mh.
 // The caller does not own the returned slice.
 func (mh *MetaHeadersFrame) RegularFields() []hpack.HeaderField {
+	mh.checkOwned()
 	for i, hf := range mh.Fields {
 		if !hf.IsPseudo() {
 			return mh.Fields[i:]
@@ -1652,6 +1926,7 @@ func (mh *MetaHeadersFrame) RegularFields() []hpack.HeaderField {
 // PseudoFields returns the pseudo header fields of mh.
 // The caller does not own the returned slice.
 func (mh *MetaHeadersFrame) PseudoFields() []hpack.HeaderField {
+	mh.checkOwned()
 	for i, hf := range mh.Fields {
 		if !hf.IsPseudo() {
 			return mh.Fields[:i]
@@ -1661,6 +1936,7 @@ func (mh *MetaHeadersFrame) PseudoFields() []hpack.HeaderField {
 }
 
 func (mh *MetaHeadersFrame) rfc9218Priority(priorityAware bool) (p PriorityParam, priorityAwareAfter, hasIntermediary bool) {
+	mh.checkOwned()
 	var s string
 	for _, field := range mh.Fields {
 		if field.Name == "priority" {
@@ -1720,62 +1996,54 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 	if fr.AllowIllegalReads {
 		return nil, errors.New("illegal use of AllowIllegalReads with ReadMetaHeaders")
 	}
-	mh := &MetaHeadersFrame{
+	mh := fr.frameCache.getMetaHeadersFrame()
+	// Reuse the Fields backing array from the previous parse. It is
+	// non-nil only when mh is the cached frame, so without
+	// SetReuseFrames every parse still gets a fresh array. The
+	// MetaHeadersFrame.Fields contract (the slice is owned by the
+	// Framer and must not be retained past the next ReadFrame) is
+	// what makes the in-place overwrite legal.
+	//
+	// The cached frame was the Framer's lastFrame, so the ReadFrame
+	// call that led here has already run invalidate, which cleared
+	// the array (or dropped it, if the previous block was too large
+	// to retain). Repeat that here rather than rely on it: a parse
+	// that failed before making mh the lastFrame leaves its partial
+	// Fields behind, and clearing an already-cleared slice is cheap.
+	fields := mh.Fields
+	if len(fields) > maxRetainedMetaFields {
+		fields = nil
+	} else {
+		clear(fields)
+	}
+	// Wholesale reset so values from a previous parse (Truncated, or
+	// any future-added field) cannot leak through.
+	*mh = MetaHeadersFrame{
 		HeadersFrame: hf,
 	}
-	var remainSize = fr.maxHeaderListSize()
-	var sawRegular bool
-	var headerCount int
+	mh.Fields = fields[:0]
 
-	var invalid error // pseudo header field errors
+	// Set up the state the emit callback mutates. It lives on the
+	// Framer rather than in a closure so that the callback can be a
+	// method value built once per Framer: a fresh closure here would
+	// heap-allocate itself plus a box for each variable it captures,
+	// on every HEADERS frame.
 	hdec := fr.ReadMetaHeaders
+	fr.metaParse = metaParseState{
+		mh:         mh,
+		hdec:       hdec,
+		remainSize: fr.maxHeaderListSize(),
+	}
+	mp := &fr.metaParse
 	hdec.SetEmitEnabled(true)
 	hdec.SetMaxStringLength(fr.maxHeaderStringLen())
-	hdec.SetEmitFunc(func(hf hpack.HeaderField) {
-		if VerboseLogs && fr.logReads {
-			fr.debugReadLoggerf("http2: decoded hpack field %+v", hf)
-		}
-		headerCount++
-		if limit := fr.maxHeaderValueCount(); limit > 0 && headerCount > limit {
-			hdec.SetEmitEnabled(false)
-			mh.Truncated = true
-			remainSize = 0
-			return
-		}
-		if !httpguts.ValidHeaderFieldValue(hf.Value) {
-			// Don't include the value in the error, because it may be sensitive.
-			invalid = headerFieldValueError(hf.Name)
-		}
-		isPseudo := strings.HasPrefix(hf.Name, ":")
-		if isPseudo {
-			if sawRegular {
-				invalid = errPseudoAfterRegular
-			}
-		} else {
-			sawRegular = true
-			if !validWireHeaderFieldName(hf.Name) {
-				invalid = headerFieldNameError(hf.Name)
-			}
-		}
-
-		if invalid != nil {
-			hdec.SetEmitEnabled(false)
-			return
-		}
-
-		size := hf.Size()
-		if size > remainSize {
-			hdec.SetEmitEnabled(false)
-			mh.Truncated = true
-			remainSize = 0
-			return
-		}
-		remainSize -= size
-
-		mh.Fields = append(mh.Fields, hf)
-	})
-	// Lose reference to MetaHeadersFrame:
-	defer hdec.SetEmitFunc(func(hf hpack.HeaderField) {})
+	if fr.emitMetaFieldFunc == nil {
+		fr.emitMetaFieldFunc = fr.emitMetaField
+	}
+	hdec.SetEmitFunc(fr.emitMetaFieldFunc)
+	// Uninstall the callback and lose the reference to the
+	// MetaHeadersFrame:
+	defer fr.endMetaParse()
 
 	var hc headersOrContinuation = hf
 	for {
@@ -1789,7 +2057,7 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 		// exceeded the max header list size (in which case remainSize is 0),
 		// or a frame whose encoded size is more than twice the remaining
 		// header list bytes we're willing to accept.
-		if int64(len(frag)) > int64(2*remainSize) {
+		if int64(len(frag)) > int64(2*mp.remainSize) {
 			if VerboseLogs {
 				log.Printf("http2: header list too large")
 			}
@@ -1801,9 +2069,9 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 		// Also close the connection after any CONTINUATION frame following an
 		// invalid header, since we stop tracking the size of the headers after
 		// an invalid one.
-		if invalid != nil {
+		if mp.invalid != nil {
 			if VerboseLogs {
-				log.Printf("http2: invalid header: %v", invalid)
+				log.Printf("http2: invalid header: %v", mp.invalid)
 			}
 			// It would be nice to send a RST_STREAM before sending the GOAWAY,
 			// but the structure of the server's frame writer makes this difficult.
@@ -1817,6 +2085,12 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 		if hc.HeadersEnded() {
 			break
 		}
+		// This re-enters ReadFrame while the HeadersFrame and the
+		// MetaHeadersFrame, both possibly cached, are in use. That is
+		// safe only because checkFrameOrder guarantees the next frame
+		// is a CONTINUATION and ContinuationFrame is not part of
+		// frameCache: caching it, or resetting cached frames eagerly in
+		// ReadFrame, would corrupt a multi-frame header block mid-parse.
 		if f, err := fr.ReadFrame(); err != nil {
 			return nil, err
 		} else {
@@ -1827,16 +2101,29 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 	mh.HeadersFrame.headerFragBuf = nil
 	mh.HeadersFrame.invalidate()
 
+	// The header block is complete: make mh the Framer's lastFrame so
+	// that the next ReadFrame invalidates it, whether or not the checks
+	// below accept it.
+	fr.lastFrame = mh
+
 	if err := hdec.Close(); err != nil {
 		return mh, ConnectionError(ErrCodeCompression)
 	}
-	if invalid != nil {
-		fr.errDetail = invalid
+	if mp.invalid != nil {
+		fr.errDetail = mp.invalid
 		if VerboseLogs {
-			log.Printf("http2: invalid header: %v", invalid)
+			log.Printf("http2: invalid header: %v", mp.invalid)
 		}
-		return nil, StreamError{mh.StreamID, ErrCodeProtocol, invalid}
+		return nil, StreamError{mh.StreamID, ErrCodeProtocol, mp.invalid}
 	}
+	// The header block decoded cleanly, so mh is the frame handed to
+	// the caller: mark it owned, so that the accessor methods work
+	// until the next ReadFrame revokes ownership and panic on a stale
+	// frame instead of reading fields a later parse may have
+	// overwritten in place. A frame returned together with an error
+	// stays unowned. (checkPseudos relies on the ownership being
+	// established first.)
+	mh.owned = true
 	if err := mh.checkPseudos(); err != nil {
 		fr.errDetail = err
 		if VerboseLogs {
