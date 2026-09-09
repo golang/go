@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.27 (August 7, 2026)",
+	"Subtitle": "Language version go1.28 (September 24, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -5428,11 +5428,14 @@ func()(x)        // function signature func() x
 func() int(x)    // x is converted to func() int (unambiguous)
 </pre>
 
+<h4>Constant conversions</h4>
+
 <p>
 A <a href="#Constants">constant</a> value <code>x</code> can be converted to
 type <code>T</code> if <code>x</code> is <a href="#Representability">representable</a>
 by a value of <code>T</code>.
-As a special case, an integer constant <code>x</code> can be explicitly converted to a
+As a special case, <a href="#Constants">untyped</a> <a href="#Rune_literals">rune constants</a>
+and constants with underlying type <code>byte</code> or <code>rune</code> can be explicitly converted to a
 <a href="#String_types">string type</a> using the
 <a href="#Conversions_to_and_from_a_string_type">same rule</a>
 as for non-constant <code>x</code>.
@@ -5446,16 +5449,24 @@ yields a typed constant.
 <pre>
 uint(iota)               // iota value of type uint
 float32(2.718281828)     // 2.718281828 of type float32
-complex128(1)            // 1.0 + 0.0i of type complex128
 float32(0.49999999)      // 0.5 of type float32
 float64(-1e-1000)        // 0.0 of type float64
+complex128(1)            // 1.0 + 0.0i of type complex128
+
 string('x')              // "x" of type string
-string(0x266c)           // "♬" of type string
+string('\u266c')         // "♬" of type string
+string(byte(65))         // "A" of type string
+string(int32(66))        // "B" of type string; int32 and rune are aliases
+
+type myString string
 myString("foo" + "bar")  // "foobar" of type myString
-string([]byte{'a'})      // not a constant: []byte{'a'} is not a constant
-(*int)(nil)              // not a constant: nil is not a constant, *int is not a boolean, numeric, or string type
-int(1.2)                 // illegal: 1.2 cannot be represented as an int
-string(65.0)             // illegal: 65.0 is not an integer constant
+
+string([]byte{'a'})      // ok but not a constant: []byte{'a'} is not a constant
+(*int)(nil)              // ok but not a constant: nil is not a constant, *int is not a boolean, numeric, or string type
+
+int8(128)                // illegal: 128 overflows int8
+int(1.5)                 // illegal: 1.5 truncated to int
+string(65)               // illegal: argument must be untyped rune constant or have type byte or rune
 </pre>
 
 <p>
@@ -5480,6 +5491,8 @@ the numeric value of the expression <code>P(1.1) + 1.2</code> will be computed
 with the same precision as the corresponding non-constant <code>float32</code>
 addition.
 </p>
+
+<h4>Non-constant conversions</h4>
 
 <p>
 A non-constant value <code>x</code> can be converted to type <code>T</code>
@@ -5512,8 +5525,8 @@ in any of these cases:
 	<code>x</code>'s type and <code>T</code> are both complex types.
 	</li>
 	<li>
-	<code>x</code> is an integer or a slice of bytes or runes
-	and <code>T</code> is a string type.
+	<code>x</code> is an integer with underlying type <code>byte</code> or <code>rune</code> [<a href="#Go_1.28">Go 1.28</a>]
+	or a slice of bytes or runes and <code>T</code> is a string type.
 	</li>
 	<li>
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
@@ -5698,28 +5711,23 @@ runes("白鵬翔")              // []rune{0x767d, 0x9d6c, 0x7fd4}
 </li>
 
 <li>
-Finally, for historical reasons, an integer value may be converted to a string type.
+Finally, a value with underlying type <code>byte</code> or <code>rune</code>
+(including untyped rune constants)
+[<a href="#Go_1.28">Go 1.28</a>] may be converted to a string type.
 This form of conversion yields a string containing the (possibly multi-byte) UTF-8
 representation of the Unicode code point with the given integer value.
 Values outside the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
 
 <pre>
 string('a')          // "a"
-string(65)           // "A"
+string(byte(65))     // "A"
+string(rune(65))     // "A"
+string(int32(65))    // same as string(rune(65)); int32 and rune are aliases
 string('\xf8')       // "\u00f8" == "ø" == "\xc3\xb8"
-string(-1)           // "\ufffd" == "\xef\xbf\xbd"
-
-type myString string
+string(rune(-1))     // "\ufffd" == "\xef\xbf\xbd"
 myString('\u65e5')   // "\u65e5" == "日" == "\xe6\x97\xa5"
 </pre>
 
-Note: This form of conversion may eventually be removed from the language.
-The <a href="/pkg/cmd/vet"><code>go vet</code></a> tool flags certain
-integer-to-string conversions as potential errors.
-Library functions such as
-<a href="/pkg/unicode/utf8#AppendRune"><code>utf8.AppendRune</code></a> or
-<a href="/pkg/unicode/utf8#EncodeRune"><code>utf8.EncodeRune</code></a>
-should be used instead.
 </li>
 </ol>
 
@@ -8521,8 +8529,8 @@ func StringData(str string) *byte
 <p>
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
-Any pointer or value of <a href="#Underlying_types">underlying type</a> <code>uintptr</code> can be
-<a href="#Conversions">converted</a> to a type of underlying type <code>Pointer</code> and vice versa.
+Any pointer or value with <a href="#Underlying_types">underlying type</a> <code>uintptr</code> can be
+<a href="#Conversions">converted</a> to a type with underlying type <code>Pointer</code> and vice versa.
 If the respective types are <a href="#Type_parameter_declarations">type parameters</a>, all types in
 their respective type sets must have the same underlying type, which must be <code>uintptr</code> and
 <code>Pointer</code>, respectively.
@@ -8853,6 +8861,16 @@ A <a href="#Method_declarations">method declaration</a> may declare
 A key in a struct <a href="#Composite_literals">composite literal</a> may
 be any valid field <a href="#Selectors">selector</a> for the struct type,
 not just a (top-level) field name of the struct.
+</li>
+</ul>
+
+<h4 id="Go_1.28">Go 1.28</h4>
+<ul>
+<li>
+An integer value may be <a href="#Conversions_to_and_from_a_string_type">converted</a>
+to a string type only if the value's underlying type is <code>byte</code> or <code>rune</code>,
+or if it is an untyped rune constant.
+Prior to [<a href="#Go_1.28">Go 1.28</a>], any integer value could be converted to a string type.
 </li>
 </ul>
 
