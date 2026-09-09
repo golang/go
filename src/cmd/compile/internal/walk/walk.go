@@ -23,6 +23,27 @@ const (
 	tmprunebufsize   = 32
 )
 
+type walkState struct{ curfunc *ir.Func }
+
+var WalkState = new(walkState)
+
+// autoLabel generates a new Name node for use with
+// an automatically generated label.
+// prefix is a short mnemonic (e.g. ".s" for switch)
+// to help with debugging.
+// It should begin with "." to avoid conflicts with
+// user labels.
+// This is a version of typecheck.AutoLabel that doesn't reference
+// ir.CurFunc so that we can remove references to ir.CurFunc from walk.
+func (w *walkState) autoLabel(prefix string) *types.Sym {
+	if prefix[0] != '.' {
+		base.Fatalf("autolabel prefix must start with '.', have %q", prefix)
+	}
+	n := w.curfunc.Label
+	w.curfunc.Label++
+	return typecheck.LookupNum(prefix, int(n))
+}
+
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
 
