@@ -159,6 +159,42 @@ func TestPinnerTwoPinner(t *testing.T) {
 	}
 }
 
+func TestPinnerConcurrent(t *testing.T) {
+	// Small, non-tiny objects exercise updates to different bits in the same
+	// pin-state byte when allocated in the same span.
+	var objects [64]*obj
+	for i := range objects {
+		objects[i] = new(obj)
+	}
+	done := make(chan struct{}, len(objects))
+	for _, p := range objects {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			var pinner runtime.Pinner
+			defer pinner.Unpin()
+			for range 100 {
+				for range 3 {
+					pinner.Pin(p)
+				}
+				if !runtime.IsPinned(unsafe.Pointer(p)) {
+					t.Error("not marked as pinned")
+					return
+				}
+				pinner.Unpin()
+				if runtime.IsPinned(unsafe.Pointer(p)) {
+					t.Error("still marked as pinned")
+					return
+				}
+			}
+		}()
+	}
+	runtime.GC()
+	for range objects {
+		<-done
+	}
+	runtime.KeepAlive(objects)
+}
+
 func TestPinnerPinZerosizeObj(t *testing.T) {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()

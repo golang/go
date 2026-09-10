@@ -254,6 +254,9 @@ func (v *pinState) setMultiPinned(val bool) {
 
 // set sets the pin bit of the pinState to val. If multipin is true, it
 // sets/unsets the multipin bit instead.
+//
+// The caller must hold the span's speciallock from the call to ofObject
+// through the call to set, since set updates the whole byte.
 func (v *pinState) set(val bool, multipin bool) {
 	mask := v.mask
 	if multipin {
@@ -263,12 +266,11 @@ func (v *pinState) set(val bool, multipin bool) {
 		return
 	}
 	if val {
-		atomic.Or8(v.bytep, mask)
 		v.byteVal |= mask
 	} else {
-		atomic.And8(v.bytep, ^mask)
 		v.byteVal &^= mask
 	}
+	atomic.Store8(v.bytep, v.byteVal)
 }
 
 // pinnerBits is the same type as gcBits but has different methods.
