@@ -998,8 +998,8 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 	// Go 1.16 LOVES having these on stack. At least 1.5x the speed.
 	bits, nbits, nbytes := w.bits, w.nbits, w.nbytes
 
-	// Unroll, write 3 codes/loop.
-	// Fastest number of unrolls.
+	// Write 3 codes per iteration. The three codes are combined first,
+	// independently of the accumulator, and merged with a single shift.
 	for len(input) > 3 {
 		// We must have at least 48 bits free.
 		if nbits >= 8 {
@@ -1017,13 +1017,13 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 			_, w.err = w.writer.Write(w.bytes[:nbytes])
 			nbytes = 0
 		}
-		a, b := encoding[input[0]], encoding[input[1]]
-		bits |= a.code64() << (nbits & 63)
-		bits |= b.code64() << ((nbits + a.len()) & 63)
-		c := encoding[input[2]]
-		nbits += b.len() + a.len()
-		bits |= c.code64() << (nbits & 63)
-		nbits += c.len()
+		a, b, c := encoding[input[0]], encoding[input[1]], encoding[input[2]]
+		v := a.code64() | b.code64()<<(a.len()&63)
+		n := a.len() + b.len()
+		v |= c.code64() << (n & 63)
+		n += c.len()
+		bits |= v << (nbits & 63)
+		nbits += n
 		input = input[3:]
 	}
 
