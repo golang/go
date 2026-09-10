@@ -76,7 +76,7 @@ func (p *Pinner) Pin(pointer any) {
 		}
 	}
 	ptr := pinnerGetPtr(&pointer)
-	if setPinned(ptr, true) {
+	if setPinned(ptr) {
 		p.refs = append(p.refs, ptr)
 	}
 }
@@ -112,8 +112,8 @@ func (p *pinner) unpin() {
 	if p == nil || p.refs == nil {
 		return
 	}
-	for i := range p.refs {
-		setPinned(p.refs[i], false)
+	for refs := p.refs; len(refs) != 0; {
+		refs = refs[unpinObjects(refs):]
 	}
 	// The following two lines make all pointers to references
 	// in p.refs unreachable, either by deleting them or dropping
@@ -162,16 +162,10 @@ func isPinned(ptr unsafe.Pointer) bool {
 	return pinState.isPinned()
 }
 
-// setPinned marks or unmarks a Go pointer as pinned, when the ptr is a Go pointer.
-// It will be ignored while trying to pin a non-Go pointer.
-// It will panic while trying to unpin a non-Go pointer,
-// which should not happen in normal usage.
-func setPinned(ptr unsafe.Pointer, pin bool) bool {
+// setPinned marks a Go pointer as pinned. It returns false for non-Go pointers.
+func setPinned(ptr unsafe.Pointer) bool {
 	span := spanOfHeap(uintptr(ptr))
 	if span == nil {
-		if !pin {
-			panic(errorString("tried to unpin non-Go pointer"))
-		}
 		// This is a linker-allocated, zero size object or other object,
 		// nothing to do, silently ignore it.
 		return false
@@ -185,7 +179,7 @@ func setPinned(ptr unsafe.Pointer, pin bool) bool {
 
 	objIndex := span.objIndex(uintptr(ptr))
 
-	lock(&span.speciallock) // guard against concurrent calls of setPinned on same span
+	lock(&span.speciallock) // guard against concurrent pin and unpin operations
 
 	pinnerBits := span.getPinnerBits()
 	if pinnerBits == nil {
@@ -193,19 +187,50 @@ func setPinned(ptr unsafe.Pointer, pin bool) bool {
 		span.setPinnerBits(pinnerBits)
 	}
 	pinState := pinnerBits.ofObject(objIndex)
-	if pin {
-		if pinState.isPinned() {
-			// multiple pins on same object, set multipin bit
-			pinState.setMultiPinned(true)
-			// and increase the pin counter
-			offset := objIndex * span.elemsize
-			span.incPinCounter(offset)
-		} else {
-			// set pin bit
-			pinState.setPinned(true)
-		}
+	if pinState.isPinned() {
+		// multiple pins on same object, set multipin bit
+		pinState.setMultiPinned(true)
+		// and increase the pin counter
+		offset := objIndex * span.elemsize
+		span.incPinCounter(offset)
 	} else {
-		// unpin
+		// set pin bit
+		pinState.setPinned(true)
+	}
+	unlock(&span.speciallock)
+	releasem(mp)
+	return true
+}
+
+// unpinObjects unpins a bounded prefix of refs in the same span and returns
+// the number of references processed. refs must not be empty.
+func unpinObjects(refs []unsafe.Pointer) int {
+	span := spanOfHeap(uintptr(refs[0]))
+	if span == nil {
+		panic(errorString("tried to unpin non-Go pointer"))
+	}
+	mp := acquirem()
+	span.ensureSwept()
+	lock(&span.speciallock)
+	pinnerBits := span.getPinnerBits()
+	if pinnerBits == nil {
+		throw("runtime.Pinner: object already unpinned")
+	}
+
+	// Bound the work done with preemption disabled, even for repeated pins
+	// of the same object. The caller can be preempted between batches.
+	const maxBatch = 64
+	base, limit := span.base(), span.limit
+	n := 0
+	for n < min(len(refs), maxBatch) {
+		ptr := uintptr(refs[n])
+		if ptr < base || ptr >= limit {
+			break
+		}
+		objIndex := span.objIndex(ptr)
+		// Reload the byte for each reference: previous updates may have
+		// changed another object's bits in the same byte.
+		pinState := pinnerBits.ofObject(objIndex)
 		if pinState.isPinned() {
 			if pinState.isMultiPinned() {
 				offset := objIndex * span.elemsize
@@ -221,10 +246,12 @@ func setPinned(ptr unsafe.Pointer, pin bool) bool {
 			// unpinning unpinned object, bail out
 			throw("runtime.Pinner: object already unpinned")
 		}
+		n++
 	}
 	unlock(&span.speciallock)
 	releasem(mp)
-	return true
+	KeepAlive(refs)
+	return n
 }
 
 type pinState struct {

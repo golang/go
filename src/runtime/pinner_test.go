@@ -195,6 +195,42 @@ func TestPinnerConcurrent(t *testing.T) {
 	runtime.KeepAlive(objects)
 }
 
+func TestPinnerUnpinBatch(t *testing.T) {
+	var objects [512]*obj
+	var first, second runtime.Pinner
+	defer first.Unpin()
+	defer second.Unpin()
+	for i := range objects {
+		p := new(obj)
+		objects[i] = p
+		first.Pin(p)
+		if i%3 == 0 {
+			first.Pin(p)
+		}
+		if i%2 == 0 {
+			second.Pin(p)
+		}
+	}
+	runtime.GC()
+	first.Unpin()
+	runtime.GC()
+	for i, p := range objects {
+		addr := unsafe.Pointer(p)
+		if got, want := runtime.IsPinned(addr), i%2 == 0; got != want {
+			t.Errorf("object %d: pinned = %v, want %v", i, got, want)
+		}
+		if runtime.GetPinCounter(addr) != nil {
+			t.Errorf("object %d: pin counter was not deleted", i)
+		}
+	}
+	second.Unpin()
+	for i, p := range objects {
+		if runtime.IsPinned(unsafe.Pointer(p)) {
+			t.Errorf("object %d: still marked as pinned", i)
+		}
+	}
+}
+
 func TestPinnerPinZerosizeObj(t *testing.T) {
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
