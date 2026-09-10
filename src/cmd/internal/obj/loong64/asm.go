@@ -2257,6 +2257,14 @@ func OP_15I(op uint32, i uint32) uint32 {
 	return op | (i&0x7FFF)<<0
 }
 
+func OP_3RRR(op uint32, ca, fk, fj, fd uint32) uint32 {
+	return op | (ca&0x7)<<15 | (fk&0x1F)<<10 | (fj&0x1F)<<5 | (fd & 0x1F)
+}
+
+func OP_5IIRR(op uint32, index, imm, rj, rd uint32) uint32 {
+	return op | (index << 18) | (imm << 10) | (rj << 5) | rd
+}
+
 // i1 -> msb
 // r2 -> rj
 // i3 -> lsb
@@ -2661,7 +2669,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if len(p.RestArgs) > 0 {
 			fj = uint32(p.GetFrom3().Reg)
 		}
-		o1 = 0x340<<18 | (ca&0x7)<<15 | (fk&0x1F)<<10 | (fj&0x1F)<<5 | (fd & 0x1F)
+		o1 = OP_3RRR(0x340<<18, ca, fk, fj, fd)
 
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)
@@ -2713,7 +2721,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		index := uint32(p.To.Index)
 		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (rj << 5) | rd
+		o1 = OP_5IRR(v, index, rj, rd)
 
 	case 40: // vmov Vd.<T>[index], Rn
 		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -2725,7 +2733,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		index := uint32(p.From.Index)
 		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (rj << 5) | rd
+		o1 = OP_5IRR(v, index, rj, rd)
 
 	case 41: // vmov Rn, Vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -2735,7 +2743,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		rj := uint32(p.From.Reg & EXT_REG_MASK)
 		rd := uint32(p.To.Reg & EXT_REG_MASK)
-		o1 = v | (rj << 5) | rd
+		o1 = OP_RR(v, rj, rd)
 
 	case 42: // vmov offset(vj), vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, true)
@@ -2786,19 +2794,19 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			if si&7 != 0 {
 				c.ctxt.Diag("%v: offset must be a multiple of 8.\n", p)
 			}
-			o1 = v | (index << 18) | ((uint32(si>>3) & 0xff) << 10) | (rj << 5) | vd
+			o1 = OP_5IIRR(v, index, uint32(si>>3)&0xff, rj, vd)
 		case 0x00200000: // [x]vstelm.w
 			if si&3 != 0 {
 				c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
 			}
-			o1 = v | (index << 18) | ((uint32(si>>2) & 0xff) << 10) | (rj << 5) | vd
+			o1 = OP_5IIRR(v, index, uint32(si>>2)&0xff, rj, vd)
 		case 0x00400000: // [x]vstelm.h
 			if si&1 != 0 {
 				c.ctxt.Diag("%v: offset must be a multiple of 2.\n", p)
 			}
-			o1 = v | (index << 18) | ((uint32(si>>1) & 0xff) << 10) | (rj << 5) | vd
+			o1 = OP_5IIRR(v, index, uint32(si>>1)&0xff, rj, vd)
 		case 0x00800000: // [x]vstelm.b
-			o1 = v | (index << 18) | ((uint32(si) & 0xff) << 10) | (rj << 5) | vd
+			o1 = OP_5IIRR(v, index, uint32(si)&0xff, rj, vd)
 		}
 
 	case 45:
