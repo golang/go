@@ -465,6 +465,17 @@ func BenchmarkPinnerPinUnpin(b *testing.B) {
 	}
 }
 
+func BenchmarkPinnerPinUnpinWithGC(b *testing.B) {
+	stop := applyGCLoad(b)
+	defer stop()
+	p := new(obj)
+	for b.Loop() {
+		var pinner runtime.Pinner
+		pinner.Pin(p)
+		pinner.Unpin()
+	}
+}
+
 func BenchmarkPinnerPinUnpinTiny(b *testing.B) {
 	p := new(bool)
 	for n := 0; n < b.N; n++ {

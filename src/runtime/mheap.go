@@ -308,8 +308,8 @@ type heapArena struct {
 	// specials (finalizers or other). Like pageInUse, only the bit
 	// corresponding to the first page in each span is used.
 	//
-	// Writes are done atomically whenever a special is added to
-	// a span and whenever the last special is removed from a span.
+	// The bit is set atomically when the first special is added to
+	// a span and cleared when the last special is removed from a span.
 	// Reads are done atomically to find spans containing specials
 	// during marking.
 	pageSpecials [pagesPerArena / 8]uint8
@@ -1970,7 +1970,12 @@ type special struct {
 }
 
 // spanHasSpecials marks a span as having specials in the arena bitmap.
+// The caller must hold s.speciallock and have just added one special.
 func spanHasSpecials(s *mspan) {
+	if s.specials.next != nil {
+		// The span already had specials, so its bit is already set.
+		return
+	}
 	arenaPage := (s.base() / pageSize) % pagesPerArena
 	ai := arenaIndex(s.base())
 	ha := mheap_.arenas[ai.l1()][ai.l2()]
