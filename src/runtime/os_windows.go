@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"internal/runtime/atomic"
 	"internal/runtime/sys"
 	"internal/runtime/syscall/windows"
@@ -1270,7 +1271,9 @@ func preemptM(gp *g) {
 	var c *windows.Context
 	var cbuf [unsafe.Sizeof(*c) + 15]byte
 	c = (*windows.Context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
-	c.ContextFlags = windows.CONTEXT_CONTROL
+	// Also ask the kernel whether the thread is inside an exception
+	// dispatch or a system call; see below.
+	c.ContextFlags = windows.CONTEXT_CONTROL | windows.CONTEXT_EXCEPTION_REQUEST
 
 	// Serialize thread suspension. SuspendThread is asynchronous,
 	// so it's otherwise possible for two threads to suspend each
@@ -1307,8 +1310,26 @@ func preemptM(gp *g) {
 
 	unlock(&suspendLock)
 
+	// A context read while the thread is in kernel mode, inside an
+	// exception dispatch (typically a hard page fault) or a system call,
+	// must not be modified: Windows does not reliably apply such a context
+	// in SetThreadContext. On AMD Zen machines the register state of the
+	// resulting crashes is consistent with the injected call taking effect
+	// at a later kernel entry, so that asyncPreempt returns to a stale PC
+	// and the instruction there runs a second time (#67108, #79249); where
+	// exactly the kernel goes wrong is not established. Follow .NET's
+	// IsContextSafeToRedirect: an active exception or system call is
+	// unsafe, and so is a missing reporting bit, which Windows omits at
+	// times while the thread is in kernel mode, except on 386 where the
+	// bit is not dependable. sysmon retries on its next tick.
+	safe := c.ContextFlags&(windows.CONTEXT_EXCEPTION_ACTIVE|windows.CONTEXT_SERVICE_ACTIVE) == 0
+	if goarch.GOARCH != "386" && c.ContextFlags&windows.CONTEXT_EXCEPTION_REPORTING == 0 {
+		safe = false
+	}
+	c.ContextFlags = windows.CONTEXT_CONTROL
+
 	// Is it safe to preempt?
-	if gFromSP(mp, c.SP()) == gp {
+	if safe && gFromSP(mp, c.SP()) == gp {
 		if ok, resumePC := isAsyncSafePoint(gp, c.PC(), c.SP(), c.LR()); ok {
 			// Inject call to asyncPreempt
 			targetPC := abi.FuncPCABI0(asyncPreempt)
