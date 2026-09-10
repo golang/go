@@ -2071,22 +2071,19 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 func (span *mspan) specialFindSplicePoint(offset uintptr, kind byte) (**special, bool) {
 	// Find splice point, check for existing record.
 	iter := &span.specials
-	found := false
-	for {
-		s := *iter
-		if s == nil {
-			break
-		}
-		if offset == s.offset && kind == s.kind {
-			found = true
-			break
-		}
-		if offset < s.offset || (offset == s.offset && kind < s.kind) {
-			break
+	s := *iter
+	for s != nil && s.offset < offset {
+		iter = &s.next
+		s = *iter
+	}
+	for s != nil && s.offset == offset {
+		if s.kind >= kind {
+			return iter, s.kind == kind
 		}
 		iter = &s.next
+		s = *iter
 	}
-	return iter, found
+	return iter, false
 }
 
 // The described object has a finalizer set for it.
