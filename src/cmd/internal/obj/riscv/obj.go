@@ -88,6 +88,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	switch p.As {
 	case obj.AJMP:
 		// Turn JMP into JAL ZERO or JALR ZERO.
+		if p.From.Reg != obj.REG_NONE {
+			ctxt.Diag("%v: too many operands for instruction", p)
+		}
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_ZERO
 
@@ -4407,6 +4410,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 
 	switch ins.as {
 	case ACJALR, AJAL, AJALR:
+		if ins.as == AJAL && p.Reg != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.To.Reg), obj.REG_NONE
 		ins.imm = p.To.Offset
 
@@ -4685,6 +4691,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		ins.rd, ins.rs1 = obj.REG_NONE, uint32(p.To.Reg)
 
 	case ACJ:
+		if p.From.Reg != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
 		ins.imm = p.To.Offset
 
 	case ACNOP:
