@@ -376,19 +376,25 @@ func (span *mspan) incPinCounter(offset uintptr) {
 	var rec *specialPinCounter
 	ref, exists := span.specialFindSplicePoint(offset, _KindSpecialPinCounter)
 	if !exists {
-		lock(&mheap_.speciallock)
-		rec = (*specialPinCounter)(mheap_.specialPinCounterAlloc.alloc())
-		unlock(&mheap_.speciallock)
+		if pp := getg().m.p.ptr(); pp != nil && pp.pinCounterCache != nil {
+			rec = pp.pinCounterCache
+			pp.pinCounterCache = nil
+		} else {
+			lock(&mheap_.speciallock)
+			rec = (*specialPinCounter)(mheap_.specialPinCounterAlloc.alloc())
+			unlock(&mheap_.speciallock)
+		}
 		// splice in record, fill in offset.
 		rec.special.offset = offset
 		rec.special.kind = _KindSpecialPinCounter
 		rec.special.next = *ref
+		rec.counter = 1
 		*ref = (*special)(unsafe.Pointer(rec))
 		spanHasSpecials(span)
 	} else {
 		rec = (*specialPinCounter)(unsafe.Pointer(*ref))
+		rec.counter++
 	}
-	rec.counter++
 }
 
 // decPinCounter decreases the counter. If the counter reaches 0, the counter
@@ -408,9 +414,14 @@ func (span *mspan) decPinCounter(offset uintptr) bool {
 		if span.specials == nil {
 			spanHasNoSpecials(span)
 		}
-		lock(&mheap_.speciallock)
-		mheap_.specialPinCounterAlloc.free(unsafe.Pointer(counter))
-		unlock(&mheap_.speciallock)
+		if pp := getg().m.p.ptr(); pp != nil && pp.pinCounterCache == nil {
+			counter.special.next = nil
+			pp.pinCounterCache = counter
+		} else {
+			lock(&mheap_.speciallock)
+			mheap_.specialPinCounterAlloc.free(unsafe.Pointer(counter))
+			unlock(&mheap_.speciallock)
+		}
 		return false
 	}
 	return true
