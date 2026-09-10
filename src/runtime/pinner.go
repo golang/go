@@ -259,10 +259,15 @@ func (v *pinState) set(val bool, multipin bool) {
 	if multipin {
 		mask <<= 1
 	}
+	if (v.byteVal&mask != 0) == val {
+		return
+	}
 	if val {
 		atomic.Or8(v.bytep, mask)
+		v.byteVal |= mask
 	} else {
 		atomic.And8(v.bytep, ^mask)
+		v.byteVal &^= mask
 	}
 }
 

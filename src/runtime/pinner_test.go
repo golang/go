@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 	"unsafe"
@@ -442,6 +443,35 @@ func BenchmarkPinnerPinUnpinDouble(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		var pinner runtime.Pinner
 		pinner.Pin(p)
+		pinner.Pin(p)
+		pinner.Unpin()
+	}
+}
+
+func BenchmarkPinnerPinUnpinMultiple(b *testing.B) {
+	for _, pins := range []int{3, 10, 100} {
+		b.Run(strconv.Itoa(pins), func(b *testing.B) {
+			p := new(obj)
+			for b.Loop() {
+				var pinner runtime.Pinner
+				for range pins {
+					pinner.Pin(p)
+				}
+				pinner.Unpin()
+			}
+		})
+	}
+}
+
+func BenchmarkPinnerPinUnpinAlreadyMultiPinned(b *testing.B) {
+	p := new(obj)
+	var pinned runtime.Pinner
+	pinned.Pin(p)
+	pinned.Pin(p)
+	defer pinned.Unpin()
+
+	for b.Loop() {
+		var pinner runtime.Pinner
 		pinner.Pin(p)
 		pinner.Unpin()
 	}
