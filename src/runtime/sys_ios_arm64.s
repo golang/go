@@ -25,6 +25,16 @@ TEXT runtime·cfBundleCopyBundleURL_trampoline(SB),NOSPLIT,$0
 	MOVD	R0, 8(R19)
 	RET
 
+TEXT runtime·cfBundleCopyResourceURL_trampoline(SB),NOSPLIT,$0
+	MOVD	R0, R19
+	MOVD	8(R0), R1	// arg 2 resourceName
+	MOVD	16(R0), R2	// arg 3 resourceType
+	MOVD	24(R0), R3	// arg 4 subDirName
+	MOVD	0(R0), R0	// arg 1 bundle
+	BL	libc_CFBundleCopyResourceURL(SB)
+	MOVD	R0, 32(R19)
+	RET
+
 TEXT runtime·cfURLGetFileSystemRepresentation_trampoline(SB),NOSPLIT,$0
 	MOVD	R0, R19
 	MOVD	8(R0), R1	// arg 2 resolveAgainstBase
