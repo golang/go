@@ -1270,7 +1270,8 @@ func preemptM(gp *g) {
 	var c *windows.Context
 	var cbuf [unsafe.Sizeof(*c) + 15]byte
 	c = (*windows.Context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
-	c.ContextFlags = windows.CONTEXT_CONTROL
+	// CONTEXT_EXCEPTION_REQUEST reports whether the thread is in the kernel.
+	c.ContextFlags = windows.CONTEXT_CONTROL | windows.CONTEXT_EXCEPTION_REQUEST
 
 	// Serialize thread suspension. SuspendThread is asynchronous,
 	// so it's otherwise possible for two threads to suspend each
@@ -1307,8 +1308,15 @@ func preemptM(gp *g) {
 
 	unlock(&suspendLock)
 
+	// Don't redirect a thread that is in the kernel handling an exception
+	// or system call; Windows may not apply the new context correctly
+	// (#79249). Without CONTEXT_EXCEPTION_REPORTING we can't tell.
+	safe := c.ContextFlags&windows.CONTEXT_EXCEPTION_REPORTING != 0 &&
+		c.ContextFlags&(windows.CONTEXT_EXCEPTION_ACTIVE|windows.CONTEXT_SERVICE_ACTIVE) == 0
+	c.ContextFlags = windows.CONTEXT_CONTROL
+
 	// Is it safe to preempt?
-	if gFromSP(mp, c.SP()) == gp {
+	if safe && gFromSP(mp, c.SP()) == gp {
 		if ok, resumePC := isAsyncSafePoint(gp, c.PC(), c.SP(), c.LR()); ok {
 			// Inject call to asyncPreempt
 			targetPC := abi.FuncPCABI0(asyncPreempt)

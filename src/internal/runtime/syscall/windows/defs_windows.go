@@ -161,3 +161,11 @@ type OSVERSIONINFOW struct {
 	PlatformID        uint32
 	CSDVersion        [128]uint16
 }
+
+// GetThreadContext kernel state reporting, from winnt.h.
+const (
+	CONTEXT_EXCEPTION_ACTIVE    = 0x08000000
+	CONTEXT_SERVICE_ACTIVE      = 0x10000000
+	CONTEXT_EXCEPTION_REQUEST   = 0x40000000
+	CONTEXT_EXCEPTION_REPORTING = 0x80000000
+)
