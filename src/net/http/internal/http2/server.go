@@ -39,6 +39,7 @@ import (
 	"math"
 	"net"
 	"net/http/internal"
+	"net/http/internal/ascii"
 	"net/http/internal/httpcommon"
 	"net/textproto"
 	"net/url"
@@ -3040,12 +3041,12 @@ func (w *responseWriter) Push(target, method string, header Header) error {
 		// but PUSH_PROMISE requests cannot have a body.
 		// http://tools.ietf.org/html/rfc7540#section-8.2
 		// Also disallow Host, since the promised URL must be absolute.
-		if asciiEqualFold(k, "content-length") ||
-			asciiEqualFold(k, "content-encoding") ||
-			asciiEqualFold(k, "trailer") ||
-			asciiEqualFold(k, "te") ||
-			asciiEqualFold(k, "expect") ||
-			asciiEqualFold(k, "host") {
+		if ascii.EqualFold(k, "content-length") ||
+			ascii.EqualFold(k, "content-encoding") ||
+			ascii.EqualFold(k, "trailer") ||
+			ascii.EqualFold(k, "te") ||
+			ascii.EqualFold(k, "expect") ||
+			ascii.EqualFold(k, "host") {
 			return fmt.Errorf("promised request headers cannot include %q", k)
 		}
 	}
