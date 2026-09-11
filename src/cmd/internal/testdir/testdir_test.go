@@ -930,7 +930,7 @@ func (t test) run() error {
 
 		modVersion := gomodvers
 		if modVersion == "" {
-			modVersion = "1.14"
+			modVersion = "1.18"
 		}
 		modFile := fmt.Sprintf("module %s\ngo %s\n", modName, modVersion)
 		if err := os.WriteFile(filepath.Join(gopathSrcDir, "go.mod"), []byte(modFile), 0666); err != nil {

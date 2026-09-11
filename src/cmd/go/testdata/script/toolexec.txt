@@ -59,6 +59,8 @@ stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main_test \[test/m
 
 -- go.mod --
 module test/main
+
+go 1.18
 -- foo.go --
 // Simple package so we can test a program build with -toolexec.
 // With a dummy import, to test different TOOLEXEC_IMPORTPATH values.

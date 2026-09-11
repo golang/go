@@ -88,7 +88,7 @@ func testMain(m *testing.M) int {
 		prettyPrintf("mkdir -p %s\n", dstRoot)
 		prettyPrintf("rsync -a %s/ %s\n", srcRoot, dstRoot)
 
-		if err := os.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\n"), 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\ngo 1.18\n"), 0666); err != nil {
 			log.Panic(err)
 		}
 		prettyPrintf("echo 'module testplugin' > %s/go.mod\n", dstRoot)

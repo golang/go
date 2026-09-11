@@ -16,6 +16,8 @@ go build -compiler gccgo
 
 -- go.mod --
 module m
+
+go 1.18
 -- cgo.go --
 package main
 // #cgo LDFLAGS: -L "./ -Wl,--nosuchoption"

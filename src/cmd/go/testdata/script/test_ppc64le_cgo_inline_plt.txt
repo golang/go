@@ -21,6 +21,8 @@ stdout helloworld
 -- go.mod --
 module noplttest
 
+go 1.18
+
 -- noplttest.go --
 package main
 

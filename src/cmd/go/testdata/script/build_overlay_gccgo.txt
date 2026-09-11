@@ -48,7 +48,7 @@ exec ./main_call_asm_gccgo$GOEXE
 // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
 module m
 
-go 1.16
+go 1.18
 
 -- m/dir2/h.go --
 package dir2

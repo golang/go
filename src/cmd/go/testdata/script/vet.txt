@@ -26,7 +26,7 @@ go vet m/onlycgo
 -- go.mod --
 module m
 
-go 1.16
+go 1.18
 -- vetpkg/a_test.go --
 package p_test
 -- vetpkg/b.go --

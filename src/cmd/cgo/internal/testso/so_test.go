@@ -42,7 +42,7 @@ func testSO(t *testing.T, dir string) {
 	if err := cgotest.OverlayDir(modRoot, filepath.Join("testdata", dir)); err != nil {
 		log.Panic(err)
 	}
-	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\ngo 1.18\n"), 0666); err != nil {
 		log.Panic(err)
 	}
 

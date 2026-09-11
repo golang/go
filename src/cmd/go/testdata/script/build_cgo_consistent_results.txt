@@ -13,7 +13,7 @@ cmp $WORK/exe1$GOEXE $WORK/exe2$GOEXE
 -- go.mod --
 module cgotest
 
-go 1.16
+go 1.18
 -- m.go --
 package cgotest
 

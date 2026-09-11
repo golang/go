@@ -11,7 +11,7 @@ stdout  'coverage:.*[1-9][0-9.]+%'
 -- go.mod --
 module cgocover4
 
-go 1.16
+go 1.18
 -- notcgo.go --
 package p
 -- p.go --

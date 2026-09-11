@@ -11,6 +11,8 @@ stderr 'gccgo.*\-L [^ ]*alibpath \-lalib' # make sure that Go-inline "#cgo LDFLA
 
 -- go.mod --
 module m
+
+go 1.18
 -- cgoref.go --
 package main
 // #cgo LDFLAGS: -L alibpath -lalib

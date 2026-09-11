@@ -38,7 +38,7 @@ func testMain(m *testing.M) int {
 		log.Panic(err)
 	}
 	os.Setenv("PWD", modRoot)
-	if err := os.WriteFile("go.mod", []byte("module cgolife\n"), 0666); err != nil {
+	if err := os.WriteFile("go.mod", []byte("module cgolife\ngo 1.18\n"), 0666); err != nil {
 		log.Panic(err)
 	}
 

@@ -103,10 +103,10 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_always_false runtime.cgoAlwaysFalse\n")
 		fmt.Fprintf(fgo2, "var _Cgo_always_false bool\n")
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
-		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
+		fmt.Fprintf(fgo2, "func _Cgo_use(any)\n")
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_keepalive runtime.cgoKeepAlive\n")
 		fmt.Fprintf(fgo2, "//go:noescape\n")
-		fmt.Fprintf(fgo2, "func _Cgo_keepalive(interface{})\n")
+		fmt.Fprintf(fgo2, "func _Cgo_keepalive(any)\n")
 	}
 	fmt.Fprintf(fgo2, "//go:linkname _Cgo_no_callback runtime.cgoNoCallback\n")
 	fmt.Fprintf(fgo2, "func _Cgo_no_callback(bool)\n")
@@ -1717,17 +1717,17 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
 //go:noescape
-func _cgoCheckPointer(interface{}, interface{})
+func _cgoCheckPointer(any, any)
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
 //go:noescape
-func _cgoCheckResult(interface{})
+func _cgoCheckResult(any)
 `
 
 const gccgoGoProlog = `
-func _cgoCheckPointer(interface{}, interface{})
+func _cgoCheckPointer(any, any)
 
-func _cgoCheckResult(interface{})
+func _cgoCheckResult(any)
 `
 
 const goStringDef = `
