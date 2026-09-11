@@ -1246,8 +1246,38 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-	case ssaop.OpClobber, ssaop.OpClobberReg:
-		// TODO: implement for clobberdead experiment. Nop is ok for now.
+	case ssaop.OpClobber:
+		// MOVV $0xdeaddead, REGTMP
+		// MOVW REGTMP, (slot)
+		// MOVW REGTMP, 4(slot)
+		x := uint32(0xdeaddead)
+		p1 := s.Prog(loong64.AMOVV)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = int64(x)
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = loong64.REGTMP
+
+		p2 := s.Prog(loong64.AMOVW)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = loong64.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = loong64.REGSP
+		ssagen.AddAux(&p2.To, v)
+
+		p3 := s.Prog(loong64.AMOVW)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = loong64.REGTMP
+		p3.To.Type = obj.TYPE_MEM
+		p3.To.Reg = loong64.REGSP
+		ssagen.AddAux2(&p3.To, v, v.AuxInt+4)
+
+	case ssaop.OpClobberReg:
+		x := uint64(0xdeaddeaddeaddead)
+		p := s.Prog(loong64.AMOVV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(x)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}
