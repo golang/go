@@ -98,7 +98,7 @@ func (t *Transport) maxHeaderListSize() uint32 {
 }
 
 func (t *Transport) disableCompression() bool {
-	return t.t1 != nil && t.t1.DisableCompression()
+	return t.t1.DisableCompression()
 }
 
 func NewTransport(t1 TransportConfig) *Transport {
@@ -617,13 +617,10 @@ func (t *Transport) dialTLS(ctx context.Context, network, addr string, tlsCfg *t
 // disableKeepAlives reports whether connections should be closed as
 // soon as possible after handling the first request.
 func (t *Transport) disableKeepAlives() bool {
-	return t.t1 != nil && t.t1.DisableKeepAlives()
+	return t.t1.DisableKeepAlives()
 }
 
 func (t *Transport) expectContinueTimeout() time.Duration {
-	if t.t1 == nil {
-		return 0
-	}
 	return t.t1.ExpectContinueTimeout()
 }
 
@@ -1090,14 +1087,7 @@ func (cc *ClientConn) closeForLostPing() {
 var errRequestCanceled = internal.ErrRequestCanceled
 
 func (cc *ClientConn) responseHeaderTimeout() time.Duration {
-	if cc.t.t1 != nil {
-		return cc.t.t1.ResponseHeaderTimeout()
-	}
-	// No way to do this (yet?) with just an http2.Transport. Probably
-	// no need. Request.Cancel this is the new way. We only need to support
-	// this for compatibility with the old http.Transport fields when
-	// we're doing transparent http2.
-	return 0
+	return cc.t.t1.ResponseHeaderTimeout()
 }
 
 // actualContentLength returns a sanitized version of
@@ -2381,8 +2371,8 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 			// Use the larger limit of MaxHeaderListSize and
 			// net/http.Transport.MaxResponseHeaderBytes.
 			limit := int64(cs.cc.t.maxHeaderListSize())
-			if t1 := cs.cc.t.t1; t1 != nil && t1.MaxResponseHeaderBytes() > limit {
-				limit = t1.MaxResponseHeaderBytes()
+			if n := cs.cc.t.t1.MaxResponseHeaderBytes(); n > limit {
+				limit = n
 			}
 			for _, h := range f.Fields {
 				cs.totalHeaderSize += int64(h.Size())
@@ -3282,11 +3272,7 @@ func (cc *ClientConn) maybeCallStateHook() {
 }
 
 func (t *Transport) idleConnTimeout() time.Duration {
-	if t.t1 != nil {
-		return t.t1.IdleConnTimeout()
-	}
-
-	return 0
+	return t.t1.IdleConnTimeout()
 }
 
 func traceGetConn(req *ClientRequest, hostPort string) {

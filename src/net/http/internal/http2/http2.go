@@ -4,11 +4,9 @@
 
 // Package http2 implements the HTTP/2 protocol.
 //
-// This package is low-level and intended to be used directly by very
-// few people. Most users will use it indirectly through the automatic
-// use by the net/http package (from Go 1.6 and later).
-// For use in earlier Go versions see ConfigureServer. (Transport support
-// requires Go 1.6 or later)
+// This package is the HTTP/2 implementation used by net/http.
+// It is internal to net/http. Users configure HTTP/2 through
+// net/http.Server and net/http.Transport.
 //
 // See https://http2.github.io/ for more information on HTTP/2.
 package http2
