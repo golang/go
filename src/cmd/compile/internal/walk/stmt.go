@@ -145,7 +145,7 @@ func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
 		// drop the callee. See issues #81089 and #81340.
 		// TODO: Should we just call walkCall here?
 		if n.Call.Op() == ir.OCALLINTER {
-			usemethod(n.Call)
+			usemethod(walkstate, n.Call)
 			reflectdata.MarkUsedIfaceMethod(n.Call)
 		}
 
