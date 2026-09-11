@@ -16,11 +16,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"net"
 	"os"
 	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -44,17 +44,21 @@ var (
 	inTests = false
 )
 
+var (
+	http2debug    = godebug.New("#http2debug")
+	http2xconnect = godebug.New("#http2xconnect")
+)
+
 func init() {
-	e := os.Getenv("GODEBUG")
-	if strings.Contains(e, "http2debug=1") {
+	switch http2debug.Value() {
+	case "1":
 		VerboseLogs = true
-	}
-	if strings.Contains(e, "http2debug=2") {
+	case "2":
 		VerboseLogs = true
 		logFrameWrites = true
 		logFrameReads = true
 	}
-	if strings.Contains(e, "http2xconnect=1") {
+	if http2xconnect.Value() == "1" {
 		disableExtendedConnectProtocol = false
 	}
 }
