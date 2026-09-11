@@ -68,7 +68,7 @@ const (
 // for concurrent use by multiple goroutines.
 type Transport struct {
 	t1       TransportConfig
-	connPool noDialClientConnPool
+	connPool *clientConnPool
 	*transportTestHooks
 }
 
@@ -102,13 +102,10 @@ func (t *Transport) disableCompression() bool {
 }
 
 func NewTransport(t1 TransportConfig) *Transport {
-	connPool := new(clientConnPool)
-	t2 := &Transport{
-		connPool: noDialClientConnPool{connPool},
+	return &Transport{
+		connPool: new(clientConnPool),
 		t1:       t1,
 	}
-	connPool.t = t2
-	return t2
 }
 
 func (t *Transport) AddConn(scheme, authority string, c net.Conn) error {
@@ -125,7 +122,7 @@ func (t *Transport) AddConn(scheme, authority string, c net.Conn) error {
 type unencryptedTransport Transport
 
 func (t *unencryptedTransport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
-	return (*Transport)(t).RoundTripOpt(req, RoundTripOpt{})
+	return (*Transport)(t).RoundTrip(req)
 }
 
 // ClientConn is the state of a single HTTP/2 client connection to an
@@ -373,38 +370,15 @@ func (sew stickyErrWriter) Write(p []byte) (n int, err error) {
 }
 
 // noCachedConnError is the concrete type of ErrNoCachedConn, which
-// needs to be detected by net/http regardless of whether it's its
-// bundled version (in h2_bundle.go with a rewritten type name) or
-// from a user's x/net/http2. As such, as it has a unique method name
-// (IsHTTP2NoCachedConnError) that net/http sniffs for via func
-// isNoCachedConnError.
+// needs to be detected by net/http regardless of whether it comes from
+// here or from a user's x/net/http2. As such, it has a unique method name
+// (IsHTTP2NoCachedConnError) that net/http sniffs for.
 type noCachedConnError struct{}
 
 func (noCachedConnError) IsHTTP2NoCachedConnError() {}
 func (noCachedConnError) Error() string             { return "http2: no cached connection was available" }
 
-// isNoCachedConnError reports whether err is of type noCachedConnError
-// or its equivalent renamed type in net/http2's h2_bundle.go. Both types
-// may coexist in the same running program.
-func isNoCachedConnError(err error) bool {
-	_, ok := err.(interface{ IsHTTP2NoCachedConnError() })
-	return ok
-}
-
 var ErrNoCachedConn error = noCachedConnError{}
-
-// RoundTripOpt are options for the Transport.RoundTripOpt method.
-type RoundTripOpt struct {
-	// OnlyCachedConn controls whether RoundTripOpt may
-	// create a new TCP connection. If set true and
-	// no cached connection is available, RoundTripOpt
-	// will return ErrNoCachedConn.
-	OnlyCachedConn bool
-}
-
-func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
-	return t.RoundTripOpt(req, RoundTripOpt{})
-}
 
 // authorityAddr returns a given authority (a host/IP, or host:port / ip:port)
 // and returns a host:port. The port 443 is added if needed.
@@ -433,8 +407,7 @@ func authorityAddr(scheme string, authority string) (addr string) {
 	return net.JoinHostPort(host, port)
 }
 
-// RoundTripOpt is like RoundTrip, but takes options.
-func (t *Transport) RoundTripOpt(req *ClientRequest, opt RoundTripOpt) (*ClientResponse, error) {
+func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
 	switch req.URL.Scheme {
 	case "https":
 	case "http":
@@ -571,47 +544,6 @@ func canRetryError(err error) bool {
 		return se.Code == ErrCodeRefusedStream
 	}
 	return false
-}
-
-func (t *Transport) dialClientConn(ctx context.Context, addr string, singleUse bool) (*ClientConn, error) {
-	if t.transportTestHooks != nil {
-		return t.newClientConn(nil, singleUse, nil)
-	}
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, err
-	}
-	tconn, err := t.dialTLS(ctx, "tcp", addr, t.newTLSConfig(host))
-	if err != nil {
-		return nil, err
-	}
-	return t.newClientConn(tconn, singleUse, nil)
-}
-
-func (t *Transport) newTLSConfig(host string) *tls.Config {
-	cfg := new(tls.Config)
-	if !slices.Contains(cfg.NextProtos, NextProtoTLS) {
-		cfg.NextProtos = append([]string{NextProtoTLS}, cfg.NextProtos...)
-	}
-	if cfg.ServerName == "" {
-		cfg.ServerName = host
-	}
-	return cfg
-}
-
-func (t *Transport) dialTLS(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
-	tlsCn, err := t.dialTLSWithContext(ctx, network, addr, tlsCfg)
-	if err != nil {
-		return nil, err
-	}
-	state := tlsCn.ConnectionState()
-	if p := state.NegotiatedProtocol; p != NextProtoTLS {
-		return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, NextProtoTLS)
-	}
-	if !state.NegotiatedProtocolIsMutual {
-		return nil, errors.New("http2: could not negotiate protocol mutually")
-	}
-	return tlsCn, nil
 }
 
 // disableKeepAlives reports whether connections should be closed as
@@ -3335,18 +3267,4 @@ func traceGot1xxResponseFunc(trace *httptrace.ClientTrace) func(int, textproto.M
 		return trace.Got1xxResponse
 	}
 	return nil
-}
-
-// dialTLSWithContext uses tls.Dialer, added in Go 1.15, to open a TLS
-// connection.
-func (t *Transport) dialTLSWithContext(ctx context.Context, network, addr string, cfg *tls.Config) (*tls.Conn, error) {
-	dialer := &tls.Dialer{
-		Config: cfg,
-	}
-	cn, err := dialer.DialContext(ctx, network, addr)
-	if err != nil {
-		return nil, err
-	}
-	tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
-	return tlsCn, nil
 }

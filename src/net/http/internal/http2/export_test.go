@@ -5,7 +5,6 @@
 package http2
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/textproto"
@@ -105,10 +104,6 @@ func (sc *serverConn) TestHPACKEncoder() *hpack.Encoder {
 
 func (sc *serverConn) TestFramerMaxHeaderStringLen() int {
 	return sc.framer.maxHeaderStringLen()
-}
-
-func (t *Transport) DialClientConn(ctx context.Context, addr string, singleUse bool) (*ClientConn, error) {
-	return t.dialClientConn(ctx, addr, singleUse)
 }
 
 func (t *Transport) TestNewClientConn(c net.Conn, singleUse bool, internalStateHook func()) (*ClientConn, error) {
