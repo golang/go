@@ -306,6 +306,12 @@ type conn struct {
 	// by a Handler with the Hijacker interface.
 	// It is guarded by mu.
 	hijackedv bool
+
+	// http2HandedOff is whether the connection has been handed off to
+	// the HTTP/2 server, which then owns closing the connection and
+	// running the final ConnState hook, possibly after (*conn).serve
+	// has returned. It is only accessed by the (*conn).serve goroutine.
+	http2HandedOff bool
 }
 
 func (c *conn) hijacked() bool {
@@ -2018,7 +2024,7 @@ func (c *conn) serve(ctx context.Context) {
 			inFlightResponse.cancelCtx()
 			inFlightResponse.disableWriteContinue(true)
 		}
-		if !c.hijacked() {
+		if !c.hijacked() && !c.http2HandedOff {
 			if inFlightResponse != nil {
 				inFlightResponse.conn.r.abortPendingRead()
 				inFlightResponse.reqBody.Close()
@@ -2076,7 +2082,7 @@ func (c *conn) serve(ctx context.Context) {
 			// closing such connections. See issue https://golang.org/issue/39776.
 			c.setState(c.rwc, StateActive, skipHooks)
 			const sawClientPreface = false
-			c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
+			c.serveHTTP2(ctx, sawClientPreface)
 			return
 		}
 		tlsConn, tlsConnOK := c.rwc.(*tls.Conn)
@@ -2361,7 +2367,7 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 	c.setState(c.rwc, StateActive, skipHooks)
 	if c.server.h2 != nil {
 		const sawClientPreface = true
-		c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
+		c.serveHTTP2(ctx, sawClientPreface)
 	} else {
 		c.rwc.SetReadDeadline(time.Time{})
 		c.rwc.SetWriteDeadline(time.Time{})
@@ -2369,6 +2375,19 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 		nextFunc(c.server, unencryptedTLSConn(c.rwc), h)
 	}
 	return true
+}
+
+// serveHTTP2 hands the connection off to the HTTP/2 server, which owns
+// the connection from here on: it closes the connection and runs the
+// final ConnState hook when it's done, possibly after this function has
+// returned, since an idle HTTP/2 connection doesn't hold onto a
+// goroutine.
+func (c *conn) serveHTTP2(ctx context.Context, sawClientPreface bool) {
+	c.http2HandedOff = true
+	c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil, func() {
+		c.close()
+		c.setState(c.rwc, StateClosed, runHooks)
+	})
 }
 
 func (w *response) sendExpectationFailed() {

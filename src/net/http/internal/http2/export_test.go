@@ -81,6 +81,7 @@ func (sc *serverConn) TestFlowControlConsumed() (consumed int32) {
 
 func (sc *serverConn) TestStreamExists(id uint32) bool {
 	ch := make(chan bool, 1)
+	sc.beginServeSend()
 	sc.serveMsgCh <- func(int) {
 		ch <- (sc.streams[id] != nil)
 	}
@@ -89,11 +90,20 @@ func (sc *serverConn) TestStreamExists(id uint32) bool {
 
 func (sc *serverConn) TestStreamState(id uint32) streamState {
 	ch := make(chan streamState, 1)
+	sc.beginServeSend()
 	sc.serveMsgCh <- func(int) {
 		state, _ := sc.state(id)
 		ch <- state
 	}
 	return <-ch
+}
+
+// TestServeParked reports whether the connection's serve goroutine has
+// exited because the connection is idle. See serverConn.serveLoop.
+func (sc *serverConn) TestServeParked() bool {
+	sc.parkMu.Lock()
+	defer sc.parkMu.Unlock()
+	return sc.parked
 }
 
 func (sc *serverConn) StartGracefulShutdown() { sc.startGracefulShutdown() }

@@ -2,18 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO: turn off the serve goroutine when idle, so
-// an idle conn only has the readFrames goroutine active. (which could
-// also be optimized probably to pin less memory in crypto/tls). This
-// would involve tracking when the serve goroutine is active (atomic
-// int32 read/CAS probably?) and starting it up when frames arrive,
-// and shutting it down when all handlers exit. the occasional PING
-// packets could use time.AfterFunc to call sc.wakeStartServeLoop()
-// (which is a no-op if already running) and then queue the PING write
-// as normal. The serve loop would then exit in most cases (if no
-// Handlers running) and not be woken up again until the PING packet
-// returns.
-
 // TODO (maybe): add a mechanism for Handlers to going into
 // half-closed-local mode (rw.(io.Closer) test?) but not exit their
 // handler, and continue to be able to read from the
@@ -33,6 +21,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"internal/synctest"
 	"io"
 	"log"
@@ -206,6 +195,16 @@ type ServeConnOpts struct {
 	// SawClientPreface is set if the HTTP/2 connection preface
 	// has already been read from the connection.
 	SawClientPreface bool
+
+	// OnClose is an optional callback that runs exactly once, after the
+	// connection is done being served and has been closed. It may run on
+	// any goroutine.
+	//
+	// Setting OnClose also grants ServeConn permission to return before
+	// the connection is done (see the ServeConn documentation), so
+	// callers providing it must release their per-connection resources
+	// here rather than after ServeConn returns.
+	OnClose func()
 }
 
 func (o *ServeConnOpts) context() context.Context {
@@ -216,7 +215,11 @@ func (o *ServeConnOpts) context() context.Context {
 }
 
 // ServeConn serves HTTP/2 requests on the provided connection and
-// blocks until the connection is no longer readable.
+// blocks until the connection is no longer readable. As an exception,
+// if opts.OnClose is set, ServeConn may instead return as soon as the
+// connection goes idle, handing its servicing off to background
+// goroutines; the connection is still being served after ServeConn
+// returns, and opts.OnClose reports when it is done.
 //
 // ServeConn starts speaking HTTP/2 assuming that c has not had any
 // reads or writes. It writes its initial settings frame and expects
@@ -252,13 +255,15 @@ var (
 
 func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverConn)) {
 	baseCtx, cancel := serverConnBaseContext(c, opts)
-	defer cancel()
 
 	conf := configFromServer(opts.BaseConfig)
 	sc := &serverConn{
+		srv:                         s,
 		hs:                          opts.BaseConfig,
 		conn:                        c,
 		baseCtx:                     baseCtx,
+		baseCtxCancel:               cancel,
+		onClose:                     opts.OnClose,
 		remoteAddrStr:               c.RemoteAddr().String(),
 		bw:                          newBufferedWriter(c, conf.WriteByteTimeout),
 		handler:                     opts.Handler,
@@ -276,16 +281,33 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 		maxFrameSize:                initialMaxFrameSize,
 		pingTimeout:                 conf.PingTimeout,
 		countErrorFunc:              conf.CountError,
-		serveG:                      newGoroutineLock(),
 		pushEnabled:                 true,
 		sawClientPreface:            opts.SawClientPreface,
+	}
+	sc.serveG.setOwner() // serve is called below on this same goroutine
+	sc.resumeServeFunc = sc.resumeServe
+	if opts.OnClose != nil && http2serveparking.Value() == "0" {
+		sc.serveParkingDisabled = true
 	}
 	if newf != nil {
 		newf(sc)
 	}
 
 	s.registerConn(sc)
-	defer s.unregisterConn(sc)
+	served := false
+	defer func() {
+		if !served {
+			// We never made it to sc.serve, whose teardown owns
+			// releasing the connection's resources, so release them
+			// here instead. (We either rejected the connection or
+			// panicked during setup.)
+			s.unregisterConn(sc)
+			cancel()
+			if f := sc.onClose; f != nil {
+				f()
+			}
+		}
+	}()
 
 	switch {
 	case sc.hs.DisableClientPriority():
@@ -396,6 +418,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 		opts.UpgradeRequest = nil
 	}
 
+	served = true
 	sc.serve(conf)
 }
 
@@ -413,27 +436,46 @@ func (sc *serverConn) rejectConn(err ErrCode, debug string) {
 
 type serverConn struct {
 	// Immutable:
-	hs               ServerConfig
-	conn             net.Conn
-	bw               *bufferedWriter // writing to conn
-	handler          Handler
-	baseCtx          context.Context
-	framer           *Framer
-	doneServing      chan struct{}          // closed when serverConn.serve ends
-	readFrameCh      chan readFrameResult   // written by serverConn.readFrames
-	wantWriteFrameCh chan FrameWriteRequest // from handlers -> serve
-	wroteFrameCh     chan frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
-	bodyReadCh       chan bodyReadMsg       // from handlers -> serve
-	serveMsgCh       chan any               // misc messages & code to send to / run on the serve loop
-	flow             outflow                // conn-wide (not stream-specific) outbound flow control
-	inflow           inflow                 // conn-wide inbound flow control
-	tlsState         *tls.ConnectionState   // shared by all handlers, like net/http
-	remoteAddrStr    string
-	writeSched       WriteScheduler
-	countErrorFunc   func(errType string)
+	srv           *Server // for unregisterConn in teardown
+	hs            ServerConfig
+	conn          net.Conn
+	bw            *bufferedWriter // writing to conn
+	handler       Handler
+	baseCtx       context.Context
+	baseCtxCancel context.CancelFunc
+	onClose       func() // or nil; from ServeConnOpts.OnClose, called by teardown
+
+	// serveParkingDisabled is whether GODEBUG=http2serveparking=0
+	// disabled parking the serve goroutine for this connection.
+	serveParkingDisabled bool
+	framer               *Framer
+	doneServing          chan struct{}          // closed by teardown when the connection is done
+	readFrameCh          chan readFrameResult   // written by serverConn.readFrames
+	wantWriteFrameCh     chan FrameWriteRequest // from handlers -> serve
+	wroteFrameCh         chan frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
+	bodyReadCh           chan bodyReadMsg       // from handlers -> serve
+	serveMsgCh           chan any               // misc messages & code to send to / run on the serve loop
+	flow                 outflow                // conn-wide (not stream-specific) outbound flow control
+	inflow               inflow                 // conn-wide inbound flow control
+	tlsState             *tls.ConnectionState   // shared by all handlers, like net/http
+	remoteAddrStr        string
+	writeSched           WriteScheduler
+	countErrorFunc       func(errType string)
+
+	// resumeServeFunc is sc.resumeServe, allocated once at setup so
+	// that beginServeSend's "go sc.resumeServeFunc()" doesn't allocate
+	// a method-value closure per park/resume cycle.
+	resumeServeFunc func()
+
+	// parkMu guards the following fields, which coordinate parking the
+	// serve goroutine (exiting it while the connection is idle) with
+	// the goroutines that send it work. See serverConn.serveLoop.
+	parkMu            sync.Mutex
+	parked            bool // serve goroutine has exited; the next sender revives it
+	serveSendsPending int  // sends to serve's channels begun but not yet received by serve
 
 	// Everything following is owned by the serve loop; use serveG.check():
-	serveG                      goroutineLock // used to verify funcs are on serve()
+	serveG                      goroutineLocker // used to verify funcs are on serve()
 	pushEnabled                 bool
 	sawClientPreface            bool // preface has already been read, used in h2c upgrade
 	sawFirstSettings            bool // got the initial SETTINGS frame after the preface
@@ -470,6 +512,9 @@ type serverConn struct {
 	readIdleTimeout             time.Duration
 	pingTimeout                 time.Duration
 	readIdleTimer               *time.Timer // nil if unused
+	settingsTimer               *time.Timer // fires if the client never sends SETTINGS; nil after the first frame arrives
+	lastFrameTime               time.Time   // when we last read a frame from the client
+	loopNum                     int         // serve loop iteration counter, observable by tests
 
 	// Owned by the writeFrameAsync goroutine:
 	headerWriteBuf bytes.Buffer
@@ -694,9 +739,11 @@ func (sc *serverConn) readFrames() {
 	gateDone := func() { gate <- struct{}{} }
 	for {
 		f, err := sc.framer.ReadFrame()
+		sc.beginServeSend()
 		select {
 		case sc.readFrameCh <- readFrameResult{f, err, gateDone}:
 		case <-sc.doneServing:
+			sc.endServeSend()
 			return
 		}
 		select {
@@ -728,6 +775,7 @@ func (sc *serverConn) writeFrameAsync(wr FrameWriteRequest, wd *writeData) {
 	} else {
 		err = sc.framer.endWrite()
 	}
+	sc.beginServeSend()
 	sc.wroteFrameCh <- frameWriteResult{wr: wr, err: err}
 }
 
@@ -763,10 +811,12 @@ func (sc *serverConn) notePanic() {
 func (sc *serverConn) serve(conf Config) {
 	sc.serveG.check()
 	defer sc.notePanic()
-	defer sc.conn.Close()
-	defer sc.closeAllStreamsOnConnClose()
-	defer sc.stopShutdownTimer()
-	defer close(sc.doneServing) // unblocks handlers trying to send
+	parked := false
+	defer func() {
+		if !parked {
+			sc.teardown()
+		}
+	}()
 
 	if VerboseLogs {
 		sc.vlogf("http2: server connection from %v on %p", sc.conn.RemoteAddr(), sc.hs)
@@ -809,71 +859,145 @@ func (sc *serverConn) serve(conf Config) {
 
 	if idle := sc.hs.IdleTimeout(); idle > 0 {
 		sc.idleTimer = time.AfterFunc(idle, sc.onIdleTimer)
-		defer sc.idleTimer.Stop()
 	}
 
 	if conf.SendPingTimeout > 0 {
 		sc.readIdleTimeout = conf.SendPingTimeout
 		sc.readIdleTimer = time.AfterFunc(conf.SendPingTimeout, sc.onReadIdleTimer)
-		defer sc.readIdleTimer.Stop()
 	}
 
-	go sc.readFrames() // closed by defer sc.conn.Close above
+	go sc.readFrames() // closed by the conn.Close in sc.teardown
 
-	settingsTimer := time.AfterFunc(firstSettingsTimeout, sc.onSettingsTimer)
-	defer settingsTimer.Stop()
+	sc.settingsTimer = time.AfterFunc(firstSettingsTimeout, sc.onSettingsTimer)
 
-	lastFrameTime := time.Now()
-	loopNum := 0
+	sc.lastFrameTime = time.Now()
+	parked = sc.serveLoop()
+}
+
+// resumeServe runs the serve loop on a new goroutine for a connection
+// whose previous serve goroutine parked while the connection was idle.
+// It is started by beginServeSend, which precedes every send to the
+// serve loop's channels.
+func (sc *serverConn) resumeServe() {
+	// The serve loop's first incarnation has net/http's conn.serve
+	// above it to recover from panics; this one has nothing, so
+	// recover here to keep a panic from crashing the process.
+	defer func() {
+		if err := recover(); err != nil && err != ErrAbortHandler {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			sc.logf("http2: panic serving %v: %v\n%s", sc.conn.RemoteAddr(), err, buf)
+		}
+	}()
+	sc.serveG.setOwner()
+	defer sc.notePanic()
+	parked := false
+	defer func() {
+		if !parked {
+			sc.teardown()
+		}
+	}()
+	parked = sc.serveLoop()
+}
+
+// teardown closes the connection and releases its resources.
+// It runs (on the serve goroutine) when the serve loop exits.
+//
+// Because the serve goroutine may park while the connection is idle
+// (making ServeConn return early), this is also responsible for the
+// cleanup that ServeConn's callers used to do after it returned:
+// unregistering the connection, canceling its base context, and
+// notifying the ServeConnOpts.OnClose hook.
+func (sc *serverConn) teardown() {
+	sc.serveG.check()
+	if t := sc.settingsTimer; t != nil {
+		t.Stop()
+	}
+	if t := sc.readIdleTimer; t != nil {
+		t.Stop()
+	}
+	if t := sc.idleTimer; t != nil {
+		t.Stop()
+	}
+	close(sc.doneServing) // unblocks handlers trying to send
+	sc.stopShutdownTimer()
+	sc.closeAllStreamsOnConnClose()
+	sc.conn.Close()
+	sc.srv.unregisterConn(sc)
+	sc.baseCtxCancel()
+	if f := sc.onClose; f != nil {
+		f()
+	}
+}
+
+// serveLoop is the serve goroutine's main loop, processing frames and
+// messages until the connection is done (returning false) or until it
+// has nothing runnable and the goroutine parks (returning true).
+//
+// After it parks, the serve loop is resumed on a new goroutine by the
+// next message sent to any of its channels: a frame from readFrames, a
+// handler write or body read, a timer firing, or a graceful shutdown
+// request. This way a connection with nothing to do only pins the
+// readFrames goroutine (plus any handler goroutines), whether it's
+// fully idle or its handlers are parked mid-long-poll.
+func (sc *serverConn) serveLoop() (parked bool) {
+	sc.serveG.check()
 	for {
-		loopNum++
+		sc.loopNum++
 		select {
 		case wr := <-sc.wantWriteFrameCh:
+			sc.endServeSend()
 			if se, ok := wr.write.(StreamError); ok {
 				sc.resetStream(se)
 				break
 			}
 			sc.writeFrame(wr)
 		case res := <-sc.wroteFrameCh:
+			sc.endServeSend()
 			sc.wroteFrame(res)
 		case res := <-sc.readFrameCh:
-			lastFrameTime = time.Now()
+			sc.endServeSend()
+			sc.lastFrameTime = time.Now()
 			// Process any written frames before reading new frames from the client since a
 			// written frame could have triggered a new stream to be started.
 			if sc.writingFrameAsync {
 				select {
 				case wroteRes := <-sc.wroteFrameCh:
+					sc.endServeSend()
 					sc.wroteFrame(wroteRes)
 				default:
 				}
 			}
 			if !sc.processFrameFromReader(res) {
-				return
+				return false
 			}
 			res.readMore()
-			if settingsTimer != nil {
-				settingsTimer.Stop()
-				settingsTimer = nil
+			if t := sc.settingsTimer; t != nil {
+				t.Stop()
+				sc.settingsTimer = nil
 			}
 		case m := <-sc.bodyReadCh:
+			sc.endServeSend()
 			sc.noteBodyRead(m.st, m.n)
 		case msg := <-sc.serveMsgCh:
+			sc.endServeSend()
 			switch v := msg.(type) {
 			case func(int):
-				v(loopNum) // for testing
+				v(sc.loopNum) // for testing
 			case *serverMessage:
 				switch v {
 				case settingsTimerMsg:
 					sc.logf("timeout waiting for SETTINGS frames from %v", sc.conn.RemoteAddr())
-					return
+					return false
 				case idleTimerMsg:
 					sc.vlogf("connection is idle")
 					sc.goAway(ErrCodeNo)
 				case readIdleTimerMsg:
-					sc.handlePingTimer(lastFrameTime)
+					sc.handlePingTimer(sc.lastFrameTime)
 				case shutdownTimerMsg:
 					sc.vlogf("GOAWAY close timer fired; closing conn from %v", sc.conn.RemoteAddr())
-					return
+					return false
 				case gracefulShutdownMsg:
 					sc.startGracefulShutdownInternal()
 				case handlerDoneMsg:
@@ -895,7 +1019,7 @@ func (sc *serverConn) serve(conf Config) {
 		// run out of memory.
 		if sc.queuedControlFrames > maxQueuedControlFrames {
 			sc.vlogf("http2: too many control frames in send queue, closing connection")
-			return
+			return false
 		}
 
 		// Start the shutdown timer after sending a GOAWAY. When sending GOAWAY
@@ -906,7 +1030,83 @@ func (sc *serverConn) serve(conf Config) {
 		if sentGoAway && sc.shutdownTimer == nil && (sc.goAwayCode != ErrCodeNo || gracefulShutdownComplete) {
 			sc.shutDownIn(goAwayTimeout)
 		}
+
+		// If the connection is idle, park: let this goroutine exit and
+		// have the next message revive the loop on a new goroutine.
+		if sc.canPark() && sc.tryPark() {
+			return true
+		}
 	}
+}
+
+// canPark reports whether the serve loop has nothing runnable and can
+// park: nothing being written or unflushed, nothing poppable in the
+// write scheduler, and no shutdown in progress.
+//
+// Open streams and running handlers do not prevent parking: everything
+// that could next give the serve loop work (a frame from the peer, a
+// handler write or body read, a timer firing, a graceful shutdown
+// request) reaches it through a channel send preceded by
+// beginServeSend, which revives the loop. A connection whose handlers
+// are parked mid-long-poll therefore doesn't pin a serve goroutine
+// either.
+//
+// The write side is known to be drained because every state change
+// ends in scheduleFrameWrite, which (except in a GOAWAY with an error
+// code, and inGoAway is false here) pops the write scheduler until Pop
+// fails and then flushes, so writingFrame, writingFrameAsync, and
+// needsFrameFlush are all false only once nothing was left to write.
+// With queuedControlFrames == 0, anything still in the scheduler after
+// a failed Pop is a DATA frame blocked on flow control (non-DATA
+// frames are always consumed whole; see FrameWriteRequest.Consume),
+// and only an incoming WINDOW_UPDATE or SETTINGS frame, which arrives
+// via readFrames and revives the loop, can unblock it.
+// http2serveparking, if "0", disables parking the serve goroutine
+// while a connection has nothing to do, restoring the old behavior of
+// keeping a goroutine parked for the lifetime of each connection.
+//
+// It exists only as a temporary safety measure for the change that
+// parks the serve goroutine. The # prefix marks it as undocumented,
+// so it is not listed in doc/godebug.md or runtime/metrics.
+//
+// TODO: remove this setting; see #81524.
+var http2serveparking = godebug.New("#http2serveparking")
+
+func (sc *serverConn) canPark() bool {
+	sc.serveG.check()
+	// Parking makes ServeConn return early, which only callers that set
+	// ServeConnOpts.OnClose are prepared for.
+	return !sc.serveParkingDisabled &&
+		sc.onClose != nil &&
+		!sc.writingFrame &&
+		!sc.writingFrameAsync &&
+		!sc.needsFrameFlush &&
+		!sc.needToSendGoAway &&
+		!sc.needToSendSettingsAck &&
+		!sc.inGoAway &&
+		sc.queuedControlFrames == 0
+}
+
+// tryPark attempts to mark the serve goroutine as parked, so that the
+// next beginServeSend revives the serve loop on a new goroutine. It
+// fails if a sender has already begun sending a message to one of the
+// serve loop's channels, in which case the caller must keep serving to
+// receive it.
+func (sc *serverConn) tryPark() bool {
+	sc.serveG.check()
+	sc.parkMu.Lock()
+	defer sc.parkMu.Unlock()
+	if sc.serveSendsPending != 0 {
+		return false
+	}
+	// With no sends pending, the channels must all be empty too, but
+	// parking with a queued message would stall the connection, so be
+	// defensive.
+	if len(sc.readFrameCh)+len(sc.wantWriteFrameCh)+len(sc.wroteFrameCh)+len(sc.bodyReadCh)+len(sc.serveMsgCh) != 0 {
+		return false
+	}
+	sc.parked = true
+	return true
 }
 
 func (sc *serverConn) handlePingTimer(lastFrameReadTime time.Time) {
@@ -955,11 +1155,37 @@ func (sc *serverConn) onIdleTimer()     { sc.sendServeMsg(idleTimerMsg) }
 func (sc *serverConn) onReadIdleTimer() { sc.sendServeMsg(readIdleTimerMsg) }
 func (sc *serverConn) onShutdownTimer() { sc.sendServeMsg(shutdownTimerMsg) }
 
+// beginServeSend notes that the caller is about to send a message to
+// one of the serve loop's channels, reviving the serve goroutine if it
+// has parked. Every send to those channels must be preceded by a call
+// to beginServeSend. The send is counted as pending until the serve
+// loop receives the message, or until a sender that bailed out on
+// another select case gives up; both call endServeSend.
+func (sc *serverConn) beginServeSend() {
+	sc.parkMu.Lock()
+	defer sc.parkMu.Unlock()
+	sc.serveSendsPending++
+	if sc.parked {
+		sc.parked = false
+		go sc.resumeServeFunc()
+	}
+}
+
+// endServeSend balances an earlier beginServeSend, either because the
+// serve loop received the message or because the sender never sent it.
+func (sc *serverConn) endServeSend() {
+	sc.parkMu.Lock()
+	defer sc.parkMu.Unlock()
+	sc.serveSendsPending--
+}
+
 func (sc *serverConn) sendServeMsg(msg any) {
 	sc.serveG.checkNotOn() // NOT
+	sc.beginServeSend()
 	select {
 	case sc.serveMsgCh <- msg:
 	case <-sc.doneServing:
+		sc.endServeSend()
 	}
 }
 
@@ -1054,12 +1280,14 @@ func (sc *serverConn) writeDataFromHandler(stream *stream, data []byte, endStrea
 // goroutine, call writeFrame instead.
 func (sc *serverConn) writeFrameFromHandler(wr FrameWriteRequest) error {
 	sc.serveG.checkNotOn() // NOT
+	sc.beginServeSend()
 	select {
 	case sc.wantWriteFrameCh <- wr:
 		return nil
 	case <-sc.doneServing:
 		// Serve loop is gone.
 		// Client has closed their connection to the server.
+		sc.endServeSend()
 		return errClientDisconnected
 	}
 }
@@ -2400,9 +2628,11 @@ type bodyReadMsg struct {
 func (sc *serverConn) noteBodyReadFromHandler(st *stream, n int, err error) {
 	sc.serveG.checkNotOn() // NOT on
 	if n > 0 {
+		sc.beginServeSend()
 		select {
 		case sc.bodyReadCh <- bodyReadMsg{st, n}:
 		case <-sc.doneServing:
+			sc.endServeSend()
 		}
 	}
 }
@@ -3069,10 +3299,13 @@ func (w *responseWriter) Push(target, method string, header Header) error {
 		done:   getErrChan(),
 	}
 
+	sc.beginServeSend()
 	select {
 	case <-sc.doneServing:
+		sc.endServeSend()
 		return errClientDisconnected
 	case <-st.cw:
+		sc.endServeSend()
 		return errStreamClosed
 	case sc.serveMsgCh <- msg:
 	}
