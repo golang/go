@@ -914,12 +914,6 @@ func (cc *ClientConn) closeIfIdle() {
 	cc.closeConn()
 }
 
-func (cc *ClientConn) isDoNotReuseAndIdle() bool {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-	return cc.doNotReuse && len(cc.streams) == 0
-}
-
 var shutdownEnterWaitStateHook = func() {}
 
 // Shutdown gracefully closes the client connection, waiting for running streams to complete.
