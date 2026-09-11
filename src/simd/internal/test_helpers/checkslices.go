@@ -280,12 +280,30 @@ func Bools() []bool {
 	return bools
 }
 
+var s8s = [...]uint64{0, 1, 3, 7, 8, 9, 16, 9999999999}
+var s16s = [...]uint64{0, 1, 3, 15, 16, 17, 32, 9999999999}
+var s32s = [...]uint64{0, 1, 3, 31, 32, 33, 64, 9999999999}
+var s64s = [...]uint64{0, 1, 3, 63, 64, 65, 128, 9999999999}
+
+func Shift8s() []uint64 {
+	return s8s[:]
+}
+func Shift16s() []uint64 {
+	return s16s[:]
+}
+func Shift32s() []uint64 {
+	return s32s[:]
+}
+func Shift64s() []uint64 {
+	return s64s[:]
+}
+
 // ImpliedDo returns a slice T with length n and each element i
-// initialized to val(i), converted to the appropriate type.
-func ImpliedDo[T number](n int, val func(i int) int) []T {
+// initialized to val(i).
+func ImpliedDo[T number](n int, val func(i int) T) []T {
 	s := make([]T, n)
 	for i := range s {
-		s[i] = T(val(i))
+		s[i] = val(i)
 	}
 	return s
 }
@@ -295,6 +313,17 @@ func forSlice[T number](t *testing.T, s []T, n int, f func(a []T) bool) {
 	for i := 0; i < len(s)-n; i++ {
 		if !f(s[i : i+n]) {
 			return
+		}
+	}
+}
+
+func forSlicePair[T number](t *testing.T, s []T, n int, f func(a, b []T) bool) {
+	t.Helper()
+	for i := 0; i < len(s)-n; i++ {
+		for j := 0; j < len(s)-n; j++ {
+			if !f(s[i:i+n], s[j:j+n]) {
+				return
+			}
 		}
 	}
 }

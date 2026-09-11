@@ -34,65 +34,10 @@ type number interface {
 }
 
 func TestInt8s(t *testing.T) {
-	// 64 elements = 512 bits
-	in1 := []int8{
-		1, -2, 3, -4, 5, -6, 7, -8, 9, -10, 11, -12, 13, -14, 15, -16,
-		17, -18, 19, -20, 21, -22, 23, -24, 25, -26, 27, -28, 29, -30, 31, -32,
-		33, -34, 35, -36, 37, -38, 39, -40, 41, -42, 43, -44, 45, -46, 47, -48,
-		49, -50, 51, -52, 53, -54, 55, -56, 57, -58, 59, -60, 61, -62, 63, -64,
-	}
-	in2 := make([]int8, 64)
-	for i := range in2 {
-		in2[i] = 2
-	}
-
-	x := simd.LoadInt8s(in1)
-	y := simd.LoadInt8s(in2)
-
-	if x.Len() <= 0 {
-		t.Errorf("Int8s.Len() returned <= 0")
-	}
-
-	sum := x.Add(y)
-	diff := x.Sub(y)
-	neg := x.Neg()
-	abs := x.Abs()
-
-	buf := make([]int8, x.Len())
-	sum.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] + in2[i]
-		if buf[i] != expected {
-			t.Errorf("Add at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	diff.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] - in2[i]
-		if buf[i] != expected {
-			t.Errorf("Sub at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	neg.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := -in1[i]
-		if buf[i] != expected {
-			t.Errorf("Neg at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	abs.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i]
-		if expected < 0 {
-			expected = -expected
-		}
-		if buf[i] != expected {
-			t.Errorf("Abs at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	test_helpers.TestV2Ve(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.Neg, test_helpers.Neg)
+	test_helpers.TestV2Ve(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.Abs, test_helpers.Abs)
+	test_helpers.TestVV2Ve(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.Sub, test_helpers.Sub)
 }
 
 func TestInt16s(t *testing.T) {
@@ -120,6 +65,8 @@ func TestInt16s(t *testing.T) {
 			t.Errorf("Int16s Add at %d: got %d, want %d", i, buf[i], expected)
 		}
 	}
+
+	test_helpers.TestVR2Ve(t, test_helpers.Int16s(), test_helpers.Shift16s(), simd.LoadInt16s, simd.Int16s.RotateAllLeft, test_helpers.RotateLeft)
 
 	// Test RotateAllLeft
 	rotLeft := x.RotateAllLeft(3)
