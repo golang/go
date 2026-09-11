@@ -527,6 +527,18 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VMSLEG  V21, V22, V23, V24      // e78563807fb8
 	VMSLOG  V21, V22, V23, V24      // e78563407fb8
 	VMSLEOG V21, V22, V23, V24      // e78563c07fb8
+	VMALEG	V10, V11, V12, V1       // e71ab300c0ac
+	VMALOG	V21, V22, V23, V24      // e78563007fad
+	VMALHG	V5, V6, V7, V3          // e735630070a9
+	VMALHQ	V3, V4, V5, V21         // e753440058a9
+	VMALG	V21, V22, V23, V24      // e78563007faa
+	VMALQ	V21, V22, V23, V24      // e78564007faa
+	VMLEG	V21, V22, V23           // e77560003ea4
+	VMLOG	V21, V22, V23           // e77560003ea5
+	VMLHG	V1, V2, V3              // e731200030a1
+	VMLHQ	V1, V2, V3              // e731200040a1
+	VMLG	V21, V22, V23           // e77560003ea2
+	VMLQ	V21, V22, V23           // e77560004ea2
 	VSUMGH	V1, V2, V3              // e73120001065
 	VSUMGF	V16, V17, V18           // e72010002e65
 	VSUMQF	V4, V5, V6              // e76450002067
