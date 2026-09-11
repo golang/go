@@ -28,15 +28,15 @@ func new64x2(lo, hi uint64) archsimd.Uint64x2 {
 	return archsimd.Uint64x2{}.SetElem(0, lo).SetElem(1, hi)
 }
 
-// These masks all have 4 zeroes between 1s.
-var m0_ = new64x2(0x1084210842108421, 0x2108421084210842)
-var m1_ = new64x2(0x2108421084210842, 0x4210842108421084)
-var m2_ = new64x2(0x4210842108421084, 0x8421084210842108)
-var m3_ = new64x2(0x8421084210842108, 0x0842108421084210)
-var m4_ = new64x2(0x0842108421084210, 0x1084210842108421)
+// These masks all have 4 (binary) zeroes between 1s.
+var m0_ = new64x2(0x1084_2108_4210_8421, 0x2108_4210_8421_0842)
+var m1_ = new64x2(0x2108_4210_8421_0842, 0x4210_8421_0842_1084)
+var m2_ = new64x2(0x4210_8421_0842_1084, 0x8421_0842_1084_2108)
+var m3_ = new64x2(0x8421_0842_1084_2108, 0x0842_1084_2108_4210)
+var m4_ = new64x2(0x0842_1084_2108_4210, 0x1084_2108_4210_8421)
 
 // Selects the middle 64 bits of a 128-bit simd value
-var middle = new64x2(0xffffffff00000000, 0x00000000ffffffff)
+var middle = new64x2(0xffff_ffff_0000_0000, 0x0000_0000_ffff_ffff)
 
 // mwl_ is a 64x64 into 128 multiply that is missing
 // some carries that we don't need for CLMUL emulation.

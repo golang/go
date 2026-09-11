@@ -8,6 +8,7 @@ package test_helpers
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -306,6 +307,28 @@ func ImpliedDo[T number](n int, val func(i int) T) []T {
 		s[i] = val(i)
 	}
 	return s
+}
+
+// ImpliedBools returns a string
+func ImpliedBools(n int, val func(i int) bool) string {
+	// TODO if we cared about time and maybe we do,
+	// the string will be 2n+2 long with even elements
+	// equal to left-curly, commas, right-curly and
+	// odd elements equal to '0' or '1'.
+	var s strings.Builder
+	s.WriteString("{")
+	for i := range n {
+		if i > 0 {
+			s.WriteString(",")
+		}
+		if val(i) {
+			s.WriteString("1")
+		} else {
+			s.WriteString("0")
+		}
+	}
+	s.WriteString("}")
+	return s.String()
 }
 
 func forSlice[T number](t *testing.T, s []T, n int, f func(a []T) bool) {
