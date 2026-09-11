@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-	"simd/archsimd/internal/test_helpers"
+	"simd/internal/test_helpers"
 	"testing"
 	"unsafe"
 )

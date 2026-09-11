@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 	"simd/archsimd"
-	"simd/archsimd/internal/test_helpers"
+	"simd/internal/test_helpers"
 	"testing"
 )
 
