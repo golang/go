@@ -4425,6 +4425,126 @@ func (x Uint32s) DotProductPairsSaturated(y Int32s) (z Int64s) {
 	return Int64s{spec.DotProductPairsSaturated[uint32, spec.WidthScalable, int32, int64](x.v, y.v)}
 }
 
+// ToBits reinterprets the bits of each element of x as type uint8.
+func (x Int8x16) ToBits() (z Uint8x16) {
+	return Uint8x16{spec.ToBits[int8, spec.Width128, uint8](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint8.
+func (x Int8x32) ToBits() (z Uint8x32) {
+	return Uint8x32{spec.ToBits[int8, spec.Width256, uint8](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint8.
+func (x Int8x64) ToBits() (z Uint8x64) {
+	return Uint8x64{spec.ToBits[int8, spec.Width512, uint8](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint8.
+func (x Int8s) ToBits() (z Uint8s) {
+	return Uint8s{spec.ToBits[int8, spec.WidthScalable, uint8](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint16.
+func (x Int16x8) ToBits() (z Uint16x8) {
+	return Uint16x8{spec.ToBits[int16, spec.Width128, uint16](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint16.
+func (x Int16x16) ToBits() (z Uint16x16) {
+	return Uint16x16{spec.ToBits[int16, spec.Width256, uint16](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint16.
+func (x Int16x32) ToBits() (z Uint16x32) {
+	return Uint16x32{spec.ToBits[int16, spec.Width512, uint16](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint16.
+func (x Int16s) ToBits() (z Uint16s) {
+	return Uint16s{spec.ToBits[int16, spec.WidthScalable, uint16](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint32.
+func (x Int32x4) ToBits() (z Uint32x4) {
+	return Uint32x4{spec.ToBits[int32, spec.Width128, uint32](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint32.
+func (x Int32x8) ToBits() (z Uint32x8) {
+	return Uint32x8{spec.ToBits[int32, spec.Width256, uint32](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint32.
+func (x Int32x16) ToBits() (z Uint32x16) {
+	return Uint32x16{spec.ToBits[int32, spec.Width512, uint32](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint32.
+func (x Int32s) ToBits() (z Uint32s) {
+	return Uint32s{spec.ToBits[int32, spec.WidthScalable, uint32](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint64.
+func (x Int64x2) ToBits() (z Uint64x2) {
+	return Uint64x2{spec.ToBits[int64, spec.Width128, uint64](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint64.
+func (x Int64x4) ToBits() (z Uint64x4) {
+	return Uint64x4{spec.ToBits[int64, spec.Width256, uint64](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint64.
+func (x Int64x8) ToBits() (z Uint64x8) {
+	return Uint64x8{spec.ToBits[int64, spec.Width512, uint64](x.v)}
+}
+
+// ToBits reinterprets the bits of each element of x as type uint64.
+func (x Int64s) ToBits() (z Uint64s) {
+	return Uint64s{spec.ToBits[int64, spec.WidthScalable, uint64](x.v)}
+}
+
+// ToBits returns the IEEE 754 binary representation of each element of x.
+func (x Float32x4) ToBits() (z Uint32x4) {
+	return Uint32x4{spec.ToBitsFloat[float32, spec.Width128, uint32](x.v)}
+}
+
+// ToBits returns the IEEE 754 binary representation of each element of x.
+func (x Float32x8) ToBits() (z Uint32x8) {
+	return Uint32x8{spec.ToBitsFloat[float32, spec.Width256, uint32](x.v)}
+}
+
+// ToBits returns the IEEE 754 binary representation of each element of x.
+func (x Float32x16) ToBits() (z Uint32x16) {
+	return Uint32x16{spec.ToBitsFloat[float32, spec.Width512, uint32](x.v)}
+}
+
+// ToBits returns the IEEE 754 binary representation of each element of x.
+func (x Float32s) ToBits() (z Uint32s) {
+	return Uint32s{spec.ToBitsFloat[float32, spec.WidthScalable, uint32](x.v)}
+}
+
+// ToBits returns the IEEE 754 binary representation of each element of x.
+func (x Float64x2) ToBits() (z Uint64x2) {
+	return Uint64x2{spec.ToBitsFloat[float64, spec.Width128, uint64](x.v)}
+}
+
+// ToBits returns the IEEE 754 binary representation of each element of x.
+func (x Float64x4) ToBits() (z Uint64x4) {
+	return Uint64x4{spec.ToBitsFloat[float64, spec.Width256, uint64](x.v)}
+}
+
+// ToBits returns the IEEE 754 binary representation of each element of x.
+func (x Float64x8) ToBits() (z Uint64x8) {
+	return Uint64x8{spec.ToBitsFloat[float64, spec.Width512, uint64](x.v)}
+}
+
+// ToBits returns the IEEE 754 binary representation of each element of x.
+func (x Float64s) ToBits() (z Uint64s) {
+	return Uint64s{spec.ToBitsFloat[float64, spec.WidthScalable, uint64](x.v)}
+}
+
 // ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector. The least
 // significant bit of element 0 is bit 0
 func (x Uint8x16) ReshapeToUint16s() (z Uint16x8) {
