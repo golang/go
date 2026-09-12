@@ -5,7 +5,7 @@
 // This package is a lightly modified version of the mmap code
 // in github.com/google/codesearch/index.
 
-// The mmap package provides an abstraction for memory mapping files
+// Package mmap provides an abstraction for memory mapping files
 // on different platforms.
 package mmap
 

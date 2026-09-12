@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-The unique package provides facilities for canonicalizing ("interning")
+Package unique provides facilities for canonicalizing ("interning")
 comparable values.
 */
 package unique
