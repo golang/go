@@ -193,150 +193,32 @@ func concreteType(s *State, n ir.Node) (typ *types.Type) {
 		}()
 	}
 
-	typ = concreteType1(s, n, make(map[*ir.Name]struct{}))
-	if typ == &noType {
-		return nil
+	set := s.exprTypeSet(nil, n, make(map[*ir.Name]struct{}))
+	for _, t := range set {
+		switch t {
+		case nilType:
+			// A nil member is fine here: calling a method on a nil interface
+			// panics no matter what, which we preserved with a UseNilPanic.
+			continue
+		case unknownType:
+			return nil
+		}
+		if typ != nil && typ != t {
+			return nil // assigned with a different type
+		}
+		typ = t
 	}
+
 	if typ != nil && typ.IsInterface() {
 		base.FatalfAt(n.Pos(), "typ.IsInterface() = true; want = false; typ = %v", typ)
 	}
 	return typ
 }
 
-// noType is a sentinel value returned by [concreteType1].
-var noType types.Type
-
-// concreteType1 analyzes the node n and returns its concrete type if it is statically known.
-// Otherwise, it returns a nil Type, indicating that a concrete type was not determined.
-// When n is known to be statically nil or a self-assignment is detected, it returns a sentinel [noType] type instead.
-func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types.Type) {
-	nn := n // for debug messages
-
-	if concreteTypeDebug {
-		defer func() {
-			t := "&noType"
-			if outT != &noType {
-				t = outT.String()
-			}
-			if outT == nil {
-				t = "<nil> (unknown static type)"
-			}
-			base.Warn("concreteType1(%v) -> %v", nn, t)
-		}()
-	}
-
-	for {
-		if concreteTypeDebug {
-			base.Warn("concreteType1(%v): analyzing %v", nn, n)
-		}
-
-		if !n.Type().IsInterface() {
-			return n.Type()
-		}
-
-		switch n1 := n.(type) {
-		case *ir.ConvExpr:
-			if n1.Op() == ir.OCONVNOP {
-				if !n1.Type().IsInterface() || !types.Identical(n1.Type().Underlying(), n1.X.Type().Underlying()) {
-					// As we check (directly before this switch) whether n is an interface, thus we should only reach
-					// here for iface conversions where both operands are the same.
-					base.FatalfAt(n1.Pos(), "not identical/interface types found n1.Type = %v; n1.X.Type = %v", n1.Type(), n1.X.Type())
-				}
-				n = n1.X
-				continue
-			}
-			if n1.Op() == ir.OCONVIFACE {
-				n = n1.X
-				continue
-			}
-		case *ir.InlinedCallExpr:
-			if n1.Op() == ir.OINLCALL {
-				n = n1.SingleResult()
-				continue
-			}
-		case *ir.ParenExpr:
-			n = n1.X
-			continue
-		case *ir.TypeAssertExpr:
-			n = n1.X
-			continue
-		}
-		break
-	}
-
-	if n.Op() != ir.ONAME {
-		return nil
-	}
-
-	name := n.(*ir.Name).Canonical()
-	if name.Class != ir.PAUTO {
-		return nil
-	}
-
-	if name.Op() != ir.ONAME {
-		base.FatalfAt(name.Pos(), "name.Op = %v; want = ONAME", n.Op())
-	}
-
-	// name.Curfn must be set, as we checked name.Class != ir.PAUTO before.
-	if name.Curfn == nil {
-		base.FatalfAt(name.Pos(), "name.Curfn = nil; want not nil")
-	}
-
-	if name.Addrtaken() {
-		return nil // conservatively assume it's reassigned with a different type indirectly
-	}
-
-	if _, ok := seen[name]; ok {
-		return &noType // Already analyzed assignments to name, no need to do that twice.
-	}
-	seen[name] = struct{}{}
-
-	if concreteTypeDebug {
-		base.Warn("concreteType1(%v): analyzing assignments to %v", nn, name)
-	}
-
-	var typ *types.Type
-	for _, v := range s.assignments(name) {
-		var t *types.Type
-		switch v := v.(type) {
-		case *types.Type:
-			t = v
-		case ir.Node:
-			t = concreteType1(s, v, seen)
-			if t == &noType {
-				continue
-			}
-		}
-		if t == nil {
-			return nil // unknown concrete type
-		}
-
-		// Methods are only declared on named types, and each named type
-		// is represented by a unique [*types.Type], thus pointer comparison
-		// is fine here.
-		//
-		// The only scenario where [types.IdenticalStrict] could help here is with
-		// unnamed struct types that embed another type (e.g. foo = struct { Impl }{}).
-		// However, such patterns are uncommon and not worth the additional complexity
-		// in the devirtualizer.
-		if typ != nil && typ != t {
-			return nil // assigned with a different type
-		}
-
-		typ = t
-	}
-
-	if typ == nil {
-		// Variable either declared with zero value, or only assigned with nil.
-		return &noType
-	}
-
-	return typ
-}
-
 // assignment can be one of:
 // - nil - assignment from an interface type.
 // - *types.Type - assignment from a concrete type (non-interface).
+// - result - assignment from one interface-typed result of a call.
 // - ir.Node - assignment from an ir.Node.
 //
 // In most cases assignment should be an [ir.Node], but in cases where we
@@ -346,11 +228,21 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 // slice being ranged-over).
 type assignment any
 
+// A result is an assignment from the index'th result of call.
+//
+// It stands in for the call's result until the call is either inlined
+// (see [State.InlinedCall], which replaces the assignment with the
+// inlined call's ReturnVar) or resolved through the callee's result
+// types recorded by [State.AnalyzeResultTypes].
+type result struct {
+	call  *ir.CallExpr
+	index int
+}
+
 // State holds precomputed state for use in [StaticCall].
 type State struct {
 	// ifaceAssignments maps interface variables to all their assignments
 	// defined inside functions stored in the analyzedFuncs set.
-	// Note: it does not include direct assignments to nil.
 	ifaceAssignments map[*ir.Name][]assignment
 
 	// ifaceCallExprAssigns stores every [*ir.CallExpr], which has an interface
@@ -388,8 +280,8 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, inlinedCall *ir
 	// Update assignments to reference the new ReturnVars of the inlined call.
 	for _, ref := range refs {
 		vt := &s.ifaceAssignments[ref.name][ref.assignmentIndex]
-		if *vt != nil {
-			base.Fatalf("unexpected non-nil assignment")
+		if cr, ok := (*vt).(result); !ok || cr.call != origCall {
+			base.Fatalf("unexpected assignment %v; want a result of %v", *vt, origCall)
 		}
 		if concreteTypeDebug {
 			base.Warn(
@@ -472,11 +364,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 			if a != nil && a.IsInterface() {
 				assignment = nil // non-concrete type
 			}
-		case ir.Node:
-			// nil assignment, we can safely ignore them, see [StaticCall].
-			if ir.IsNil(a) {
-				return nil, -1
-			}
+		case result, ir.Node:
 		default:
 			base.Fatalf("unexpected type: %v", assignment)
 		}
@@ -492,6 +380,22 @@ func (s *State) analyze(nodes ir.Nodes) {
 	var do func(n ir.Node)
 	do = func(n ir.Node) {
 		switch n.Op() {
+		case ir.ODCL:
+			// A declaration without an initializer starts the
+			// variable at its zero value, and the zero value of an
+			// interface is nil. Receiver devirtualization does not
+			// care (concreteType discards nil members), but the
+			// result-type analysis must see it: a function that
+			// conditionally assigns a concrete type to such a
+			// variable and returns it can still return nil.
+			//
+			// Autotmps are definitely assigned before use, and
+			// initialized declarations record their assignment
+			// separately.
+			n := n.(*ir.Decl)
+			if v := n.X; !v.AutoTemp() && !declInitialized(v) {
+				assign(v, nilType)
+			}
 		case ir.OAS:
 			n := n.(*ir.AssignStmt)
 			if rhs := n.Y; rhs != nil {
@@ -504,7 +408,11 @@ func (s *State) analyze(nodes ir.Nodes) {
 				}
 				if call, ok := rhs.(*ir.CallExpr); ok && call.Fun != nil {
 					retTyp := call.Fun.Type().Results()[0].Type
-					n, idx := assign(n.X, retTyp)
+					a := assignment(retTyp)
+					if retTyp.IsInterface() {
+						a = result{call, 0}
+					}
+					n, idx := assign(n.X, a)
 					if n != nil && retTyp.IsInterface() {
 						// We have a call expression, that returns an interface, store it for later evaluation.
 						// In case this func gets inlined later, we will update the assignment (added before)
@@ -549,7 +457,11 @@ func (s *State) analyze(nodes ir.Nodes) {
 			if call, ok := rhs.(*ir.CallExpr); ok {
 				for i, p := range n.Lhs {
 					retTyp := call.Fun.Type().Results()[i].Type
-					n, idx := assign(p, retTyp)
+					a := assignment(retTyp)
+					if retTyp.IsInterface() {
+						a = result{call, i}
+					}
+					n, idx := assign(p, a)
 					if n != nil && retTyp.IsInterface() {
 						// We have a call expression, that returns an interface, store it for later evaluation.
 						// In case this func gets inlined later, we will update the assignment (added before)
@@ -611,4 +523,20 @@ func (s *State) analyze(nodes ir.Nodes) {
 		}
 	}
 	ir.VisitList(nodes, do)
+}
+
+// declInitialized reports whether v's declaration supplies a value,
+// making v's zero value unobservable.
+//
+// It is conservative: declaration forms it does not recognize, like
+// range and type-switch variables, report false, adding a spurious
+// nil member to the variable's type set.
+func declInitialized(v *ir.Name) bool {
+	switch defn := v.Defn.(type) {
+	case *ir.AssignStmt:
+		return defn.Y != nil
+	case *ir.AssignListStmt:
+		return true
+	}
+	return false
 }
