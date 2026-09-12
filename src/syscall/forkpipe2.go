@@ -83,9 +83,9 @@ func acquireForkLock() {
 // acquired by acquireForkLock.
 func releaseForkLock() {
 	forkingLock.Lock()
-	defer forkingLock.Unlock()
-
+	
 	if forking <= 0 {
+		forkingLock.Unlock()
 		panic("syscall.releaseForkLock: negative count")
 	}
 
@@ -95,4 +95,6 @@ func releaseForkLock() {
 		// No more conceptual write locks.
 		ForkLock.Unlock()
 	}
+	
+	forkingLock.Unlock()
 }
