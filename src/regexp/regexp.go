@@ -546,43 +546,55 @@ func Match(pattern string, b []byte) (matched bool, err error) {
 }
 
 // ReplaceAllString returns a copy of src, replacing matches of the [Regexp]
-// with the replacement string repl.
+// with the replacement string repl, or src itself if there is no match.
 // Inside repl, $ signs are interpreted as in [Regexp.Expand].
 func (re *Regexp) ReplaceAllString(src, repl string) string {
 	n := 2
 	if strings.Contains(repl, "$") {
 		n = 2 * (re.numSubexp + 1)
 	}
-	b := re.replaceAll(nil, src, n, func(dst []byte, match []int) []byte {
+	b, matched := re.replaceAll(nil, src, n, func(dst []byte, match []int) []byte {
 		return re.expand(dst, repl, nil, src, match)
 	})
+	if !matched {
+		return src
+	}
 	return string(b)
 }
 
 // ReplaceAllLiteralString returns a copy of src, replacing matches of the [Regexp]
-// with the replacement string repl. The replacement repl is substituted directly,
-// without using [Regexp.Expand].
+// with the replacement string repl, or src itself if there is no match.
+// The replacement repl is substituted directly, without using [Regexp.Expand].
 func (re *Regexp) ReplaceAllLiteralString(src, repl string) string {
-	return string(re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
+	b, matched := re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
 		return append(dst, repl...)
-	}))
+	})
+	if !matched {
+		return src
+	}
+	return string(b)
 }
 
 // ReplaceAllStringFunc returns a copy of src in which all matches of the
 // [Regexp] have been replaced by the return value of function repl applied
-// to the matched substring. The replacement returned by repl is substituted
-// directly, without using [Regexp.Expand].
+// to the matched substring, or src itself if there is no match.
+// The replacement returned by repl is substituted directly, without using
+// [Regexp.Expand]. If there is no match, repl is not called.
 func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
-	b := re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
+	b, matched := re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
 		return append(dst, repl(src[match[0]:match[1]])...)
 	})
+	if !matched {
+		return src
+	}
 	return string(b)
 }
 
-func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst []byte, m []int) []byte) []byte {
+// replaceAll returns the result of replacing all matches in bsrc or src, and
+// reports whether any match was found.
+func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst []byte, m []int) []byte) (buf []byte, matched bool) {
 	lastMatchEnd := 0 // end position of the most recent match
 	searchPos := 0    // position where we next look for a match
-	var buf []byte
 	var endPos int
 	if bsrc != nil {
 		endPos = len(bsrc)
@@ -599,6 +611,7 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 		if len(a) == 0 {
 			break // no more matches
 		}
+		matched = true
 
 		// Copy the unmatched characters before this match.
 		if bsrc != nil {
@@ -634,6 +647,12 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 		}
 	}
 
+	if !matched {
+		// Nothing was replaced, so the result equals the input.
+		// Skip copying it, the caller decides what to return.
+		return nil, false
+	}
+
 	// Copy the unmatched characters after the last match.
 	if bsrc != nil {
 		buf = append(buf, bsrc[lastMatchEnd:]...)
@@ -641,7 +660,7 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 		buf = append(buf, src[lastMatchEnd:]...)
 	}
 
-	return buf
+	return buf, true
 }
 
 // ReplaceAll returns a copy of src, replacing matches of the [Regexp]
@@ -653,12 +672,15 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 		n = 2 * (re.numSubexp + 1)
 	}
 	srepl := ""
-	b := re.replaceAll(src, "", n, func(dst []byte, match []int) []byte {
+	b, matched := re.replaceAll(src, "", n, func(dst []byte, match []int) []byte {
 		if len(srepl) != len(repl) {
 			srepl = string(repl)
 		}
 		return re.expand(dst, srepl, src, "", match)
 	})
+	if !matched {
+		return append([]byte(nil), src...)
+	}
 	return b
 }
 
@@ -666,9 +688,13 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 // with the replacement bytes repl. The replacement repl is substituted directly,
 // without using [Regexp.Expand].
 func (re *Regexp) ReplaceAllLiteral(src, repl []byte) []byte {
-	return re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
+	b, matched := re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
 		return append(dst, repl...)
 	})
+	if !matched {
+		return append([]byte(nil), src...)
+	}
+	return b
 }
 
 // ReplaceAllFunc returns a copy of src in which all matches of the
@@ -676,9 +702,13 @@ func (re *Regexp) ReplaceAllLiteral(src, repl []byte) []byte {
 // to the matched byte slice. The replacement returned by repl is substituted
 // directly, without using [Regexp.Expand].
 func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
-	return re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
+	b, matched := re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
 		return append(dst, repl(src[match[0]:match[1]])...)
 	})
+	if !matched {
+		return append([]byte(nil), src...)
+	}
+	return b
 }
 
 // Bitmap used by func special to check whether a character needs to be escaped.

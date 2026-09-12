@@ -741,6 +741,38 @@ func BenchmarkReplaceAll(b *testing.B) {
 	}
 }
 
+func BenchmarkReplaceAllNoMatch(b *testing.B) {
+	x := "abcdefghijklmnopqrstuvwxyz"
+	re := MustCompile("[123]")
+	for b.Loop() {
+		re.ReplaceAllString(x, "")
+	}
+}
+
+func BenchmarkReplaceAllLongNoMatch(b *testing.B) {
+	x := strings.Repeat("abcdefghijklmnopqrstuvwxyz", 100)
+	re := MustCompile("[123]")
+	for b.Loop() {
+		re.ReplaceAllString(x, "")
+	}
+}
+
+func BenchmarkReplaceAllPrefixNoMatch(b *testing.B) {
+	x := "abcdefghijklmnopqrstuvwxyz"
+	re := MustCompile("123")
+	for b.Loop() {
+		re.ReplaceAllString(x, "")
+	}
+}
+
+func BenchmarkReplaceAllLongPrefixNoMatch(b *testing.B) {
+	x := strings.Repeat("abcdefghijklmnopqrstuvwxyz", 100)
+	re := MustCompile("123")
+	for b.Loop() {
+		re.ReplaceAllString(x, "")
+	}
+}
+
 func BenchmarkAnchoredLiteralShortNonMatch(b *testing.B) {
 	b.StopTimer()
 	x := []byte("abcdefghijklmnopqrstuvwxyz")
