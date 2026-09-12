@@ -14,11 +14,62 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
+// dumpBody is an io.ReadCloser that reports [http.ErrBodyReadAfterClose]
+// once it has been closed, as a real request or response body does.
+//
+// Close may be called concurrently with Read, as [http.Request.Body]
+// requires. The readers dumpBody wraps are all in memory, so Read never
+// blocks and there is nothing for Close to interrupt.
+type dumpBody struct {
+	r      io.Reader
+	closed atomic.Bool
+}
+
+func (b *dumpBody) Read(p []byte) (int, error) {
+	if b.closed.Load() {
+		return 0, http.ErrBodyReadAfterClose
+	}
+	return b.r.Read(p)
+}
+
+func (b *dumpBody) Close() error {
+	b.closed.Store(true)
+	return nil
+}
+
+// dumpBodyWriterTo is a dumpBody whose underlying reader implements
+// [io.WriterTo]. It forwards WriteTo so that copying from the body avoids
+// a buffer copy, just as [io.NopCloser] does for such readers.
+type dumpBodyWriterTo struct{ *dumpBody }
+
+func (b dumpBodyWriterTo) WriteTo(w io.Writer) (int64, error) {
+	if b.closed.Load() {
+		return 0, http.ErrBodyReadAfterClose
+	}
+	return b.r.(io.WriterTo).WriteTo(w)
+}
+
+// newDumpBody returns an [io.ReadCloser] that yields the bytes of r and
+// reports [http.ErrBodyReadAfterClose] once it has been closed.
+func newDumpBody(r io.Reader) io.ReadCloser {
+	b := &dumpBody{r: r}
+	if _, ok := r.(io.WriterTo); ok {
+		return dumpBodyWriterTo{b}
+	}
+	return b
+}
+
 // drainBody reads all of b to memory and then returns two equivalent
-// ReadClosers yielding the same bytes.
+// ReadClosers yielding the same bytes. Reading from r1 after it has been
+// closed reports [http.ErrBodyReadAfterClose], as reading from a real
+// request or response body does; r1 is the one the Dump functions hand
+// back to their caller. r2 is only used to produce the dump, so it stays
+// an [io.NopCloser], which lets net/http recognize it as an in-memory
+// reader and copy from it without an intermediate buffer.
 //
 // It returns an error if the initial slurp of all bytes fails. It does not attempt
 // to make the returned ReadClosers have identical error-matching behavior.
@@ -34,7 +85,7 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
 	if err = b.Close(); err != nil {
 		return nil, b, err
 	}
-	return io.NopCloser(&buf), io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	return newDumpBody(&buf), io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }
 
 // dumpConn is a net.Conn which writes to Writer and reads from Reader
