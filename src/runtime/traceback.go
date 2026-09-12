@@ -121,6 +121,20 @@ type unwinder struct {
 	// flags are the flags to this unwind. Some of these are updated as we
 	// unwind (see the flags documentation).
 	flags unwindFlags
+
+	// userFramePC and userFrameSP identify the innermost frame in a contiguous
+	// chain of user frames skipped during the last next() call. traceback2 walks
+	// the chain to print regions using UnwindDeclare mode. These fields are
+	// pointer-free (uintptr) to maintain the invariant that unwinder contains no
+	// pointers.
+	userFramePC uintptr
+	userFrameSP uintptr
+
+	// userFrameScanPC and userFrameScanSP identify the innermost frame in a
+	// contiguous chain skipped while advancing the unwinder. GC scanning and
+	// stack copying walk the complete chain immediately after next returns.
+	userFrameScanPC uintptr
+	userFrameScanSP uintptr
 }
 
 // init initializes u to start unwinding gp's stack and positions the
@@ -172,6 +186,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 		}
 	}
 
+	var userFrameScanPC, userFrameScanSP uintptr
 	var frame stkframe
 	frame.pc = pc0
 	frame.sp = sp0
@@ -207,6 +222,23 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 
 	f := findfunc(frame.pc)
 	if !f.valid() {
+		// Check if this PC belongs to a registered user frame region.
+		if findUserFrameRegion(frame.pc) != nil {
+			userFrameScanPC, userFrameScanSP = frame.pc, frame.sp
+			// User frame chain. Try to get the first Go caller.
+			callerPC, callerSP, ok := userFrameNextGo(frame.pc, frame.sp)
+			if ok {
+				frame.pc = callerPC
+				frame.sp = callerSP
+				frame.fp = 0
+				frame.lr = 0
+				f = findfunc(frame.pc)
+				goto userFrameResolved
+			}
+			// Cannot unwind further — stop gracefully.
+			*u = unwinder{}
+			return
+		}
 		if flags&unwindSilentErrors == 0 {
 			print("runtime: g ", gp.goid, " gp=", gp, ": unknown pc ", hex(frame.pc), "\n")
 			tracebackHexdump(gp.stack, &frame, 0)
@@ -217,15 +249,20 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 		*u = unwinder{}
 		return
 	}
+userFrameResolved:
 	frame.fn = f
 
 	// Populate the unwinder.
 	*u = unwinder{
-		frame:        frame,
-		g:            gp.guintptr(),
-		cgoCtxt:      len(gp.cgoCtxt) - 1,
-		calleeFuncID: abi.FuncIDNormal,
-		flags:        flags,
+		frame:           frame,
+		g:               gp.guintptr(),
+		cgoCtxt:         len(gp.cgoCtxt) - 1,
+		calleeFuncID:    abi.FuncIDNormal,
+		flags:           flags,
+		userFramePC:     userFrameScanPC,
+		userFrameSP:     userFrameScanSP,
+		userFrameScanPC: userFrameScanPC,
+		userFrameScanSP: userFrameScanSP,
 	}
 
 	isSyscall := frame.pc == pc0 && frame.sp == sp0 && pc0 == gp.syscallpc && sp0 == gp.syscallsp
@@ -450,6 +487,10 @@ func isInjectedCall(id abi.FuncID) bool {
 }
 
 func (u *unwinder) next() {
+	u.userFrameScanPC = 0
+	u.userFrameScanSP = 0
+	u.userFramePC = 0
+	u.userFrameSP = 0
 	frame := &u.frame
 	f := frame.fn
 	gp := u.g.ptr()
@@ -461,6 +502,30 @@ func (u *unwinder) next() {
 	}
 	flr := findfunc(frame.lr)
 	if !flr.valid() {
+		// Check if the return address is in a user frame region.
+		// This handles the case where Go code was called from JIT code.
+		if findUserFrameRegion(frame.lr) != nil {
+			u.userFrameScanPC = frame.lr
+			u.userFrameScanSP = frame.fp
+			// The caller is user code. Try to unwind the complete contiguous
+			// chain and resume at its first Go caller.
+			callerPC, callerSP, ok := userFrameNextGo(frame.lr, frame.fp)
+			if ok {
+				flr = findfunc(callerPC)
+				// Successfully resolved past the user frame chain. frame.fp is
+				// used by next() as the caller's SP.
+				u.userFramePC = frame.lr
+				u.userFrameSP = frame.fp
+				frame.lr = callerPC
+				frame.fp = callerSP
+				goto userFrameCallerResolved
+			}
+			// Cannot unwind further — stop gracefully.
+			frame.lr = 0
+			u.finishInternal()
+			return
+		}
+
 		// This happens if you get a profiling interrupt at just the wrong time.
 		fail := u.errFatal()
 		doPrint := u.flags&unwindSilentErrors == 0
@@ -482,6 +547,7 @@ func (u *unwinder) next() {
 		u.finishInternal()
 		return
 	}
+userFrameCallerResolved:
 
 	if frame.pc == frame.lr && frame.sp == frame.fp {
 		// If the next frame is identical to the current frame, we cannot make
@@ -646,6 +712,33 @@ func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
 	var cgoBuf [32]uintptr
 	n := 0
 	for ; n < len(pcBuf) && u.valid(); u.next() {
+		if u.userFramePC != 0 {
+			pc, sp := u.userFramePC, u.userFrameSP
+			u.userFramePC = 0
+			u.userFrameSP = 0
+			for n < len(pcBuf) {
+				fr := findUserFrameRegion(pc)
+				if fr == nil {
+					break
+				}
+				if fr.unwindMode == userFrameUnwindDeclare {
+					if skip > 0 {
+						skip--
+					} else {
+						pcBuf[n] = pc
+						n++
+					}
+				}
+				nextPC, nextSP, ok := userFrameNextUser(pc, sp)
+				if !ok {
+					break
+				}
+				pc, sp = nextPC, nextSP
+			}
+			if n == len(pcBuf) {
+				break
+			}
+		}
 		f := u.frame.fn
 		cgoN := u.cgoCallers(cgoBuf[:])
 
@@ -1045,6 +1138,47 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 	var cgoBuf [32]uintptr
 	for ; u.valid(); u.next() {
 		lastN = 0
+		// User frames skipped by the preceding unwind step logically sit
+		// between the previously printed Go callee and this Go caller.
+		if u.userFramePC != 0 {
+			pc, sp := u.userFramePC, u.userFrameSP
+			u.userFramePC = 0
+			u.userFrameSP = 0
+			for {
+				fr := findUserFrameRegion(pc)
+				if fr == nil {
+					break
+				}
+				if fr.unwindMode == userFrameUnwindDeclare {
+					if fr.describe != nil {
+						name, file, line, ok := fr.describe(pc)
+						if ok {
+							if pr, stop := commitFrame(); stop {
+								return
+							} else if pr {
+								printFuncName(name)
+								print("()\n")
+								if file != "" {
+									print("\t", file, ":", line)
+								} else {
+									print("\t<user frame>")
+								}
+								print(" pc=", hex(pc), "\n")
+							}
+						}
+					} else if pr, stop := commitFrame(); stop {
+						return
+					} else if pr {
+						print("user-frame function at pc=", hex(pc), "\n")
+					}
+				}
+				nextPC, nextSP, ok := userFrameNextUser(pc, sp)
+				if !ok {
+					break
+				}
+				pc, sp = nextPC, nextSP
+			}
+		}
 		f := u.frame.fn
 		for iu, uf := newInlineUnwinder(f, u.symPC()); uf.valid(); uf = iu.next(uf) {
 			sf := iu.srcFunc(uf)

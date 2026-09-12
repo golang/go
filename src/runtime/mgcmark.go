@@ -974,8 +974,12 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 
 	// Scan the stack. Accumulate a list of stack objects.
 	var u unwinder
-	for u.init(gp, 0); u.valid(); u.next() {
+	u.init(gp, 0)
+	userFrameScan(u.userFrameScanPC, u.userFrameScanSP, &state, gcw)
+	for u.valid() {
 		scanframeworker(&u.frame, &state, gcw)
+		u.next()
+		userFrameScan(u.userFrameScanPC, u.userFrameScanSP, &state, gcw)
 	}
 
 	// Find additional pointers that point into the stack from the heap.
@@ -1066,6 +1070,30 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 		throw("remaining pointer buffers")
 	}
 	return int64(scannedSize)
+}
+
+// userFrameScan scans a contiguous chain of active user frames as part of its
+// owning goroutine's stack. These are deliberately not fixed roots: stack roots
+// are processed in parallel, and each frame's pc/sp pair identifies the live
+// instance.
+//
+//go:nowritebarrier
+func userFrameScan(pc, sp uintptr, state *stackScanState, gcw *gcWork) {
+	for pc != 0 {
+		base, words, pointerMask, ok := userFramePointerMap(pc, sp)
+		if ok && words != 0 {
+			bytes := words * goarch.PtrSize
+			if pointerMask == nil || bytes/goarch.PtrSize != words || base < state.stack.lo || base+bytes < base || base+bytes > state.stack.hi {
+				throw("invalid user frame pointer map")
+			}
+			scanblock(base, bytes, pointerMask, gcw, state)
+		}
+		nextPC, nextSP, more := userFrameNextUser(pc, sp)
+		if !more {
+			return
+		}
+		pc, sp = nextPC, nextSP
+	}
 }
 
 // Scan a stack frame: local variables and function arguments/results.
