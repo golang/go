@@ -478,4 +478,10 @@ TEXT errors(SB),$0
 	VSM4RVS		V2, V4, V3			// ERROR "too many operands for instruction"
 	VSM4RVV		V2, V4, V3			// ERROR "too many operands for instruction"
 
+	// Cache-Block Prefetch Instructions
+	PREFETCHI	X5					// ERROR "expected offset(base) memory operand"
+	PREFETCHI	453(X5)				// ERROR "improper prefetch offset"
+	PREFETCHI	2048(X5)			// ERROR "improper prefetch offset"
+	PREFETCHW	-2080(X5)			// ERROR "improper prefetch offset"
+
 	RET
