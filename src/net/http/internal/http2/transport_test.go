@@ -2864,6 +2864,170 @@ func testTransportCloseAfterLostPing(t *testing.T) {
 	}
 }
 
+// A connection close must not surface as a lost ping: the health-check timer
+// used to survive the read loop's exit and re-ping the dead connection once,
+// counting a spurious conn_close_lost_ping ~SendPingTimeout after every close.
+func TestTransportNoLostPingAfterConnClose(t *testing.T) {
+	synctest.Test(t, testTransportNoLostPingAfterConnClose)
+}
+func testTransportNoLostPingAfterConnClose(t *testing.T) {
+	var lostPings atomic.Int64
+	var hcTimer atomic.Pointer[time.Timer]
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.PingTimeout = 1 * time.Second
+		h2.SendPingTimeout = 1 * time.Second
+		h2.CountError = func(errType string) {
+			if errType == "conn_close_lost_ping" {
+				lostPings.Add(1)
+			}
+		}
+	}, func(tr *Transport) {
+		tr.TestSetNewHealthCheckTimerHook(func(tm *time.Timer) {
+			hcTimer.Store(tm)
+		})
+	})
+	tc.greet()
+
+	tc.closeWrite()
+	// The timer must be disarmed at the exit itself, checked before the
+	// instant it would otherwise fire.
+	time.Sleep(1 * time.Millisecond)
+	tm := hcTimer.Load()
+	if tm == nil {
+		t.Fatalf("health-check timer was never created")
+	}
+	if tm.Stop() {
+		t.Errorf("health-check timer still armed after the read loop exited")
+	}
+	time.Sleep(3 * time.Second)
+	if n := lostPings.Load(); n != 0 {
+		t.Errorf("conn_close_lost_ping count = %d after connection close, want 0", n)
+	}
+}
+
+// A genuine lost ping on a live connection is detected and counted exactly
+// once: neither the teardown it triggers nor a later wake of the read loop
+// may re-report the now-closed connection as a second lost ping.
+func TestTransportLostPingCountedOnce(t *testing.T) {
+	synctest.Test(t, testTransportLostPingCountedOnce)
+}
+func testTransportLostPingCountedOnce(t *testing.T) {
+	var lostPings atomic.Int64
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.PingTimeout = 1 * time.Second
+		h2.SendPingTimeout = 1 * time.Second
+		h2.CountError = func(errType string) {
+			if errType == "conn_close_lost_ping" {
+				lostPings.Add(1)
+			}
+		}
+	})
+	tc.greet()
+
+	// No frames for SendPingTimeout: a health-check ping goes out and is
+	// never answered.
+	time.Sleep(1 * time.Second)
+	tc.wantFrameType(FramePing)
+	// Past the ping deadline, not at it: sleeping to the exact instant races
+	// the health check's own timeout processing under synctest.
+	time.Sleep(1*time.Second + 1*time.Millisecond)
+	if n := lostPings.Load(); n != 1 {
+		t.Fatalf("conn_close_lost_ping count = %d after a lost ping, want 1", n)
+	}
+	// Wake the read loop's blocked read so it observes the teardown; the
+	// exit must not re-arm the health check into a second, phantom count.
+	tc.closeWrite()
+	time.Sleep(3 * time.Second)
+	if n := lostPings.Load(); n != 1 {
+		t.Errorf("conn_close_lost_ping count = %d after the connection closed, want 1", n)
+	}
+}
+
+// A health-check ping that fails after the read loop has observed a terminal
+// connection error must not be classified as a lost ping, even before
+// cleanup marks the connection closed. The read loop is held in that window
+// by the test hook.
+func TestTransportPingRacingReadLoopExitNotLostPing(t *testing.T) {
+	synctest.Test(t, testTransportPingRacingReadLoopExitNotLostPing)
+}
+func testTransportPingRacingReadLoopExitNotLostPing(t *testing.T) {
+	var lostPings atomic.Int64
+	release := make(chan struct{})
+	parked := make(chan struct{})
+	var parkOnce sync.Once
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.PingTimeout = 1 * time.Second
+		h2.SendPingTimeout = 1 * time.Second
+		h2.CountError = func(errType string) {
+			if errType == "conn_close_lost_ping" {
+				lostPings.Add(1)
+			}
+		}
+	}, func(tr *Transport) {
+		tr.TestSetReadLoopExitedHook(func(cc *ClientConn) {
+			parkOnce.Do(func() { close(parked) })
+			<-release
+		})
+	})
+	tc.greet()
+
+	// The health check fires and its PING is in flight, unanswered.
+	time.Sleep(1*time.Second + 1*time.Millisecond)
+	tc.wantFrameType(FramePing)
+
+	// The peer breaks the connection; the read loop observes the terminal
+	// error and parks in the hook, before cleanup marks the conn closed.
+	tc.closeWrite()
+	<-parked
+
+	// The in-flight ping now times out inside that window.
+	time.Sleep(1 * time.Second)
+	if n := lostPings.Load(); n != 0 {
+		t.Errorf("conn_close_lost_ping count = %d for a ping racing the read loop's exit, want 0", n)
+	}
+
+	close(release)
+	time.Sleep(2 * time.Second)
+	if n := lostPings.Load(); n != 0 {
+		t.Errorf("conn_close_lost_ping count = %d after teardown, want 0", n)
+	}
+}
+
+// Overlapping health checks must produce exactly one lost-ping count: the
+// eligibility check and the close claim share one critical section, so a
+// second claimant always observes the first claim.
+func TestTransportLostPingClaimedOnce(t *testing.T) {
+	synctest.Test(t, testTransportLostPingClaimedOnce)
+}
+func testTransportLostPingClaimedOnce(t *testing.T) {
+	var lostPings atomic.Int64
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.CountError = func(errType string) {
+			if errType == "conn_close_lost_ping" {
+				lostPings.Add(1)
+			}
+		}
+	})
+	tc.greet()
+
+	const claimants = 8
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range claimants {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			tc.cc.TestCloseForLostPing()
+		}()
+	}
+	close(start)
+	wg.Wait()
+	if n := lostPings.Load(); n != 1 {
+		t.Errorf("conn_close_lost_ping count = %d from %d overlapping claims, want 1", n, claimants)
+	}
+}
+
 func TestTransportPingWriteBlocks(t *testing.T) {
 	// This test can't use synctest, because blocking the transport's writes
 	// causes it to block trying to acquire ClientConn.wmu.
