@@ -262,6 +262,57 @@ ok:
 	RET
 #endif
 
+// func Cas128(ptr *[2]uint64, old1, old2, new1, new2 uint64) bool
+// Atomically:
+//	if (*ptr)[0] == old1 && (*ptr)[1] == old2 {
+//		(*ptr)[0] = new1
+//		(*ptr)[1] = new2
+//		return true
+//	} else {
+//		return false
+//	}
+//
+// LDAXP/STLXP and CASPAL require their memory operand to be 16-byte aligned;
+// unaligned accesses fault.
+TEXT ·Cas128(SB), NOSPLIT, $0-41
+	MOVD	ptr+0(FP), R0
+	AND	$15, R0, R7
+	CBZ	R7, aligned
+	CALL	·panicUnaligned128(SB)
+aligned:
+	MOVD	old1+8(FP), R2
+	MOVD	old2+16(FP), R3
+	MOVD	new1+24(FP), R4
+	MOVD	new2+32(FP), R5
+#ifndef GOARM64_LSE
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R6
+	CBZ	R6, load_store_loop
+#endif
+	MOVD	R2, R6		// save originals; CASPALD overwrites R2,R3 on failure
+	MOVD	R3, R7
+	CASPALD	(R2, R3), (R0), (R4, R5)
+	CMP	R6, R2
+	BNE	cas_done
+	CMP	R7, R3
+cas_done:
+	CSET	EQ, R0
+	MOVB	R0, ret+40(FP)
+	RET
+#ifndef GOARM64_LSE
+load_store_loop:
+	LDAXP	(R0), (R6, R7)
+	CMP	R2, R6
+	BNE	done
+	CMP	R3, R7
+	BNE	done
+	STLXP	(R4, R5), (R0), R8
+	CBNZ	R8, load_store_loop
+done:
+	CSET	EQ, R0
+	MOVB	R0, ret+40(FP)
+	RET
+#endif
+
 // uint32 xadd(uint32 volatile *ptr, int32 delta)
 // Atomically:
 //      *val += delta;
