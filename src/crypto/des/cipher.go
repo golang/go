@@ -28,6 +28,7 @@ type desCipher struct {
 }
 
 // NewCipher creates and returns a new [cipher.Block].
+// The returned [cipher.Block] is safe for concurrent use.
 func NewCipher(key []byte) (cipher.Block, error) {
 	if fips140only.Enforced() {
 		return nil, errors.New("crypto/des: use of DES is not allowed in FIPS 140-only mode")
@@ -76,6 +77,7 @@ type tripleDESCipher struct {
 }
 
 // NewTripleDESCipher creates and returns a new [cipher.Block].
+// The returned [cipher.Block] is safe for concurrent use.
 func NewTripleDESCipher(key []byte) (cipher.Block, error) {
 	if fips140only.Enforced() {
 		return nil, errors.New("crypto/des: use of TripleDES is not allowed in FIPS 140-only mode")
