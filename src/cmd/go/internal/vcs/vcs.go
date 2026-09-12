@@ -234,15 +234,17 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 	}
 	uncommitted := len(out) > 0
 
-	// "git status" works for empty repositories, but "git log" does not.
-	// Assume there are no commits in the repo when "git log" fails with
-	// uncommitted files and skip tagging revision / committime.
+	// "git status" works for empty repositories, but "git log" fails with
+	// "fatal: your current branch '<branch>' does not have any commits yet"
+	// if there are no commits (see golang.org/issue/52263). Pass
+	// --ignore-missing so that git instead succeeds with no output, and
+	// leave the revision and commit time empty in that case.
 	var rev string
 	var commitTime time.Time
-	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false log -1 --format=%H:%ct")
+	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false log -1 --format=%H:%ct --ignore-missing HEAD --")
 	if err != nil && !uncommitted {
 		return Status{}, err
-	} else if err == nil {
+	} else if err == nil && len(out) > 0 {
 		rev, commitTime, err = parseRevTime(out)
 		if err != nil {
 			return Status{}, err
