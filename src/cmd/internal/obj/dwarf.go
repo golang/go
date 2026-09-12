@@ -22,7 +22,7 @@ const (
 	LINE_BASE   = -4
 	LINE_RANGE  = 10
 	PC_RANGE    = (255 - OPCODE_BASE) / LINE_RANGE
-	OPCODE_BASE = 11
+	OPCODE_BASE = 13
 )
 
 // generateDebugLinesSymbol fills the debug lines symbol of a given function.
@@ -51,9 +51,13 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 	var lastpc int64 // last PC written to line table, not last PC in func
 	fileIndex := 1
 	prologue, wrotePrologue := false, false
+	epilogue := false
 	// Walk the progs, generating the DWARF table.
 	for p := s.Func().Text; p != nil; p = p.Link {
 		prologue = prologue || (p.Pos.Xlogue() == src.PosPrologueEnd)
+		if p.Pos.Xlogue() == src.PosEpilogueBegin {
+			epilogue = true
+		}
 		// If we're not at a real instruction, keep looping!
 		if p.Pos.Line() == 0 || (p.Link != nil && p.Link.Pc == p.Pc) {
 			continue
@@ -73,6 +77,11 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 		if prologue && !wrotePrologue {
 			dctxt.AddUint8(lines, uint8(dwarf.DW_LNS_set_prologue_end))
 			wrotePrologue = true
+			wrote = true
+		}
+		if epilogue {
+			dctxt.AddUint8(lines, uint8(dwarf.DW_LNS_set_epilogue_begin))
+			epilogue = false
 			wrote = true
 		}
 		if stmt != newStmt {
