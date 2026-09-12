@@ -28,6 +28,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/vcweb/vcstest"
+	"cmd/internal/quoted"
 	"cmd/internal/script"
 	"cmd/internal/script/scripttest"
 
@@ -57,6 +58,10 @@ func TestScript(t *testing.T) {
 		}
 	})
 	certFile, err := srv.WriteCertificateFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientCertFile, clientKeyFile, err := srv.WriteClientCertificateFiles()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +95,7 @@ func TestScript(t *testing.T) {
 		t.Cleanup(cancel)
 	}
 
-	env, err := scriptEnv(srv, certFile)
+	env, err := scriptEnv(srv, certFile, clientCertFile, clientKeyFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,12 +218,16 @@ func initScriptDirs(t testing.TB, s *script.State) (telemetryDir string) {
 	return telemetryDir
 }
 
-func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
+func scriptEnv(srv *vcstest.Server, srvCertFile, clientCertFile, clientKeyFile string) ([]string, error) {
 	httpURL, err := url.Parse(srv.HTTP.URL)
 	if err != nil {
 		return nil, err
 	}
 	httpsURL, err := url.Parse(srv.HTTPS.URL)
+	if err != nil {
+		return nil, err
+	}
+	mtlsGOAUTH, err := quoted.Join([]string{"mtls", "https://vcs-test.golang.org", clientCertFile, clientKeyFile})
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +254,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"TESTGO_VCSTEST_HOST=" + httpURL.Host,
 		"TESTGO_VCSTEST_TLS_HOST=" + httpsURL.Host,
 		"TESTGO_VCSTEST_CERT=" + srvCertFile,
+		"TESTGO_VCSTEST_MTLS_GOAUTH=" + mtlsGOAUTH,
 		"TESTGONETWORK=panic", // cleared by the [net] condition
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"TESTGO_SUMDB=" + testSumDBName,

@@ -11,6 +11,9 @@ import (
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/vcweb"
 	"cmd/go/internal/web/intercept"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -18,12 +21,15 @@ import (
 	"internal/testenv"
 	"io"
 	"log"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 var Hosts = []string{
@@ -84,8 +90,9 @@ func NewServer() (srv *Server, err error) {
 		}
 	}()
 
-	srvHTTPS := httptest.NewUnstartedServer(handler)
+	srvHTTPS := httptest.NewUnstartedServer(requireClientCertificate(handler))
 	srvHTTPS.Config.ErrorLog = testLogger()
+	srvHTTPS.TLS = &tls.Config{ClientAuth: tls.RequestClientCert}
 	srvHTTPS.StartTLS()
 	httpsURL, err := url.Parse(srvHTTPS.URL)
 	if err != nil {
@@ -118,6 +125,16 @@ func NewServer() (srv *Server, err error) {
 	fmt.Fprintln(os.Stderr, "https://vcs-test.golang.org rerouted to "+srv.HTTPS.URL)
 
 	return srv, nil
+}
+
+func requireClientCertificate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if strings.HasPrefix(req.URL.Path, "/auth/mtls") && (req.TLS == nil || len(req.TLS.PeerCertificates) == 0) {
+			http.Error(w, "client certificate required", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, req)
+	})
 }
 
 func testLogger() *log.Logger {
@@ -161,6 +178,43 @@ func (srv *Server) WriteCertificateFile() (string, error) {
 		return "", err
 	}
 	return filename, nil
+}
+
+// WriteClientCertificateFiles writes a client certificate and private key for
+// authenticating to the test server.
+func (srv *Server) WriteClientCertificateFiles() (certFile, keyFile string, err error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return "", "", err
+	}
+	now := time.Now()
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    now.Add(-time.Hour),
+		NotAfter:     now.Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		return "", "", err
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return "", "", err
+	}
+
+	certFile = filepath.Join(srv.workDir, "client-cert.pem")
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	if err := os.WriteFile(certFile, certPEM, 0644); err != nil {
+		return "", "", err
+	}
+	keyFile = filepath.Join(srv.workDir, "client-key.pem")
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+	if err := os.WriteFile(keyFile, keyPEM, 0600); err != nil {
+		return "", "", err
+	}
+	return certFile, keyFile, nil
 }
 
 // TLSClient returns an http.Client that can talk to the httptest.Server
