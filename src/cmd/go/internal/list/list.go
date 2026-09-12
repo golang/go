@@ -928,15 +928,17 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	// Record non-identity import mappings in p.ImportMap.
 	for _, p := range pkgs {
 		nRaw := len(p.Internal.RawImports)
+		nCompiled := len(p.Internal.CompiledImports)
 		for i, path := range p.Imports {
 			var srcPath string
 			if i < nRaw {
 				srcPath = p.Internal.RawImports[i]
+			} else if i < len(p.Imports)-nCompiled {
+				// This is an implicitly added import with no corresponding source path.
+				continue
 			} else {
-				// This path is not within the raw imports, so it must be an import
-				// found only within CompiledGoFiles. Those paths are found in
-				// CompiledImports.
-				srcPath = p.Internal.CompiledImports[i-nRaw]
+				// CompiledImports is 1:1 with the end of Imports.
+				srcPath = p.Internal.CompiledImports[i-(len(p.Imports)-nCompiled)]
 			}
 
 			if path != srcPath {
