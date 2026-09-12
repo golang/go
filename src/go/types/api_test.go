@@ -2479,6 +2479,50 @@ type GI = G[int]
 	}
 }
 
+func TestInstantiateAliasRace(t *testing.T) {
+	// This test verifies the fix for issue #79035.
+	// When types.Instantiate is called with check == nil (as done by
+	// golang.org/x/tools/go/ssa), the resulting *Alias instances must
+	// have a.actual set to prevent data races during concurrent calls
+	// to types.Identical.
+	const src = `package p
+
+type A[T any] = func(T)
+
+type S[T any] struct {
+	F A[T]
+}
+`
+	pkg := mustTypecheck(src, nil, nil)
+
+	// Get the generic alias A[T]
+	obj := pkg.Scope().Lookup("A")
+	if obj == nil {
+		t.Fatal("A not found")
+	}
+
+	// Instantiate with nil checker (simulating SSA behavior)
+	inst, err := Instantiate(nil, obj.Type(), []Type{Typ[Int]}, true)
+	if err != nil {
+		t.Fatalf("Instantiate failed: %v", err)
+	}
+
+	// Race: multiple goroutines call Identical on the instantiated alias.
+	// Without the fix, this races on the lazy initialization of a.actual
+	// in unalias().
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				_ = Identical(inst, inst)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 func TestInstantiateErrors(t *testing.T) {
 	tests := []struct {
 		src    string // by convention, T must be the type being instantiated
