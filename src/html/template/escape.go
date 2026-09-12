@@ -12,6 +12,7 @@ import (
 	"io"
 	"maps"
 	"regexp"
+	"slices"
 	"text/template"
 	"text/template/parse"
 )
@@ -835,6 +836,25 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 // s, then returns the context after those tokens and the unprocessed suffix.
 func contextAfterText(c context, s []byte) (context, int) {
 	if c.delim == delimNone {
+		if c.element == elementScript && c.scriptInForeign {
+			if c.scriptCDATA {
+				if i := bytes.Index(s, cdataEnd); i == 0 {
+					c.scriptCDATA = false
+					return c, len(cdataEnd)
+				} else if i > 0 {
+					return transitionFunc[c.state](c, s[:i])
+				}
+				return transitionFunc[c.state](c, s)
+			}
+			if i := bytes.Index(s, cdataStart); i == 0 {
+				c.scriptCDATA = true
+				return c, len(cdataStart)
+			} else if i > 0 {
+				if end := indexTagEnd(s, specialTagEndMarkers[c.element]); end == -1 || i < end {
+					return transitionFunc[c.state](c, s[:i])
+				}
+			}
+		}
 		c1, i := tSpecialTagEnd(c, s)
 		if i == 0 {
 			// A special end tag (`</script>`) has been seen and
@@ -891,7 +911,15 @@ func contextAfterText(c context, s []byte) (context, int) {
 	}
 	// On exiting an attribute, we discard all state information
 	// except the state and element.
-	return context{state: stateTag, element: element}, i
+	return context{
+		state:           stateTag,
+		element:         element,
+		htmlNamespaces:  slices.Clone(c.htmlNamespaces),
+		scriptInForeign: c.scriptInForeign,
+		scriptCDATA:     c.scriptCDATA,
+		tagInForeign:    c.tagInForeign,
+		tagName:         c.tagName,
+	}, i
 }
 
 // editActionNode records a change to an action pipeline for later commit.

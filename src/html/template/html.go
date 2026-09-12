@@ -7,6 +7,7 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -218,7 +219,15 @@ func stripTags(html string) string {
 			// Consume any quote.
 			i1++
 		}
-		c, i = context{state: stateTag, element: c.element}, i1
+		c, i = context{
+			state:           stateTag,
+			element:         c.element,
+			htmlNamespaces:  slices.Clone(c.htmlNamespaces),
+			scriptInForeign: c.scriptInForeign,
+			scriptCDATA:     c.scriptCDATA,
+			tagInForeign:    c.tagInForeign,
+			tagName:         c.tagName,
+		}, i1
 	}
 	if allText {
 		return html
