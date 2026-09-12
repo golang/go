@@ -69,26 +69,32 @@ func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bo
 		return 0
 	}
 
-	n := uint64(0)
+	nCall := uint64(0)
+	nADRP := uint64(0)
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
 		if r.Type().IsDirectCallOrJump() {
-			n++
+			nCall++
+		}
+		if ctxt.IsARM64() && isADRPReloc(r.Type()) {
+			nADRP++
 		}
 	}
 
 	switch {
 	case ctxt.IsARM():
-		return n * 20 // Trampolines in ARM range from 3 to 5 instructions.
+		return nCall * 20 // Trampolines in ARM range from 3 to 5 instructions.
 	case ctxt.IsARM64():
-		return n * 12 // Trampolines in ARM64 are 3 instructions.
+		// Trampolines for calls are 3 instructions.
+		// Erratum 843419 veneers are also 3 instructions.
+		return nCall*12 + nADRP*12
 	case ctxt.IsLOONG64():
-		return n * 12 // Trampolines in LOONG64 are 3 instructions.
+		return nCall * 12 // Trampolines in LOONG64 are 3 instructions.
 	case ctxt.IsPPC64():
-		return n * 16 // Trampolines in PPC64 are 4 instructions.
+		return nCall * 16 // Trampolines in PPC64 are 4 instructions.
 	case ctxt.IsRISCV64():
-		return n * 8 // Trampolines in RISCV64 are 2 instructions.
+		return nCall * 8 // Trampolines in RISCV64 are 2 instructions.
 	}
 	panic("unreachable")
 }
@@ -97,6 +103,9 @@ func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bo
 // ARM, LOONG64, PPC64, PPC64LE and RISCV64 support trampoline insertion for internal
 // and external linking. On PPC64 and PPC64LE the text sections might be split
 // but will still insert trampolines where necessary.
+//
+// On ARM64, this also handles Cortex-A53 erratum 843419 by checking ADRP
+// relocations for dangerous page offsets and generating veneers if needed.
 func trampoline(ctxt *Link, s loader.Sym) {
 	if thearch.Trampoline == nil {
 		return // no need or no support of trampolines on this arch
@@ -107,6 +116,17 @@ func trampoline(ctxt *Link, s loader.Sym) {
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
 		rt := r.Type()
+
+		// On ARM64, pass ADRP relocations to the arch hook for erratum 843419
+		// checking. These are separate from the call/jump trampoline logic.
+		if ctxt.IsARM64() && isADRPReloc(rt) {
+			rs := r.Sym()
+			if rs != 0 && ldr.AttrReachable(rs) {
+				thearch.Trampoline(ctxt, ldr, ri, rs, s)
+			}
+			continue
+		}
+
 		if !rt.IsDirectCallOrJump() && !isPLTCall(ctxt.Arch, rt) {
 			continue
 		}
@@ -135,6 +155,20 @@ func trampoline(ctxt *Link, s loader.Sym) {
 		}
 		thearch.Trampoline(ctxt, ldr, ri, rs, s)
 	}
+}
+
+// isADRPReloc reports whether rt is an ARM64 relocation that produces an ADRP
+// instruction.
+func isADRPReloc(rt objabi.RelocType) bool {
+	switch rt {
+	case objabi.R_ADDRARM64,
+		objabi.R_ARM64_PCREL_LDST8,
+		objabi.R_ARM64_PCREL_LDST16,
+		objabi.R_ARM64_PCREL_LDST32,
+		objabi.R_ARM64_PCREL_LDST64:
+		return true
+	}
+	return false
 }
 
 // whether rt is a (host object) relocation that will be turned into
