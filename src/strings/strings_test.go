@@ -266,6 +266,100 @@ func TestLastIndexByte(t *testing.T) {
 	}
 }
 
+// TestIndexByteSIMDPaths tests edge cases for SIMD implementations of IndexByte,
+// specifically targeting the different code paths: unaligned prefix, 32-byte chunks,
+// 16-byte chunks, and scalar tail handling. This is particularly relevant for
+// ARM64 MTE-safe implementations.
+func TestIndexByteSIMDPaths(t *testing.T) {
+	// Test various sizes that exercise different SIMD code paths
+	sizes := []int{
+		0, 1, 2, 7, 8, 15, 16, 17, 31, 32, 33, 47, 48, 49,
+		63, 64, 65, 95, 96, 97, 127, 128, 129, 255, 256, 257,
+	}
+
+	for _, size := range sizes {
+		// Create a string of the given size
+		b := make([]byte, size)
+		for i := range b {
+			b[i] = 'a'
+		}
+		s := string(b)
+
+		// Test 1: Target byte not present
+		if got := IndexByte(s, 'x'); got != -1 {
+			t.Errorf("IndexByte(size=%d, no match) = %d; want -1", size, got)
+		}
+
+		// Test 2: Target byte at each position
+		for pos := 0; pos < size; pos++ {
+			b[pos] = 'x'
+			s = string(b)
+			if got := IndexByte(s, 'x'); got != pos {
+				t.Errorf("IndexByte(size=%d, pos=%d) = %d; want %d", size, pos, got, pos)
+			}
+			b[pos] = 'a'
+		}
+	}
+}
+
+// TestIndexByteStringUnaligned tests IndexByte with strings created from
+// slices at various alignments. This tests the unaligned prefix handling
+// in SIMD implementations.
+func TestIndexByteStringUnaligned(t *testing.T) {
+	// Create a large buffer and test strings at different offsets
+	const bufSize = 512
+	buf := make([]byte, bufSize)
+	for i := range buf {
+		buf[i] = 'a'
+	}
+
+	// Test with different starting offsets (0 to 63 to cover 32-byte alignment cases)
+	for offset := 0; offset < 64 && offset < bufSize; offset++ {
+		// Test with different lengths from this offset
+		for length := 1; length <= bufSize-offset && length <= 256; length++ {
+			slice := buf[offset : offset+length]
+
+			// Reset slice
+			for i := range slice {
+				slice[i] = 'a'
+			}
+			s := string(slice)
+
+			// Test: no match
+			if got := IndexByte(s, 'x'); got != -1 {
+				t.Errorf("IndexByte(offset=%d, len=%d, no match) = %d; want -1", offset, length, got)
+			}
+
+			// Test: match at first position
+			slice[0] = 'x'
+			s = string(slice)
+			if got := IndexByte(s, 'x'); got != 0 {
+				t.Errorf("IndexByte(offset=%d, len=%d, pos=0) = %d; want 0", offset, length, got)
+			}
+			slice[0] = 'a'
+
+			// Test: match at last position
+			slice[length-1] = 'x'
+			s = string(slice)
+			if got := IndexByte(s, 'x'); got != length-1 {
+				t.Errorf("IndexByte(offset=%d, len=%d, pos=%d) = %d; want %d", offset, length, length-1, got, length-1)
+			}
+			slice[length-1] = 'a'
+
+			// Test: match in middle (if length > 2)
+			if length > 2 {
+				mid := length / 2
+				slice[mid] = 'x'
+				s = string(slice)
+				if got := IndexByte(s, 'x'); got != mid {
+					t.Errorf("IndexByte(offset=%d, len=%d, pos=%d) = %d; want %d", offset, length, mid, got, mid)
+				}
+				slice[mid] = 'a'
+			}
+		}
+	}
+}
+
 func simpleIndex(s, sep string) int {
 	n := len(sep)
 	for i := n; i <= len(s); i++ {
