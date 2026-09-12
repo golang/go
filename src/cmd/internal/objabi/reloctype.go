@@ -438,6 +438,20 @@ const (
 	R_DWTXTADDR_U3
 	R_DWTXTADDR_U4
 
+	// R_PEIMPORT is the PE/COFF analogue of R_GOTPCREL. It marks a
+	// PC-relative 32-bit displacement to an Import Address Table (IAT)
+	// slot for the referenced external symbol. The linker allocates an
+	// IAT entry, fills the PE Import Directory pointing at the host
+	// EXE, and resolves the displacement to the IAT slot's RVA. At
+	// load time the PE loader writes the host symbol's actual address
+	// into that slot, so a `MOV reg, sym(IP)` becomes an indirect load
+	// from the IAT — analogous to ELF GOTPCREL.
+	//
+	// Used only by -buildmode=plugin on windows/amd64 (and -dynlink in
+	// the same configuration); other Windows builds keep using direct
+	// addressing.
+	R_PEIMPORT
+
 	// R_WEAK marks the relocation as a weak reference.
 	// A weak relocation does not make the symbol it refers to reachable,
 	// and is only honored by the linker if the symbol is in some other way

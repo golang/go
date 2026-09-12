@@ -525,6 +525,15 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				nExtReloc++ // need two ELF relocations on 386, see ../x86/asm.go:elfreloc1
 			}
 			fallthrough
+		case objabi.R_PEIMPORT:
+			// PE/COFF analogue of R_GOTPCREL: a PC-relative 32-bit
+			// displacement to the IAT slot that initdynimport allocated
+			// for this SDYNIMPORT symbol. Internal linker only — the
+			// external Windows linker uses its own .idata machinery.
+			if rt == objabi.R_PEIMPORT && target.IsExternal() {
+				st.err.Errorf(s, "R_PEIMPORT to %s requires internal linker", ldr.SymName(rs))
+			}
+			fallthrough
 		case objabi.R_CALL, objabi.R_PCREL:
 			if target.IsExternal() && rs != 0 && rst == sym.SUNDEFEXT {
 				// pass through to the external linker.
@@ -737,7 +746,8 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 	case objabi.R_ADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
 		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF,
 		objabi.R_DWTXTADDR_U1, objabi.R_DWTXTADDR_U2,
-		objabi.R_DWTXTADDR_U3, objabi.R_DWTXTADDR_U4:
+		objabi.R_DWTXTADDR_U3, objabi.R_DWTXTADDR_U4,
+		objabi.R_PEIMPORT:
 		return rr, false
 	}
 	return rr, true

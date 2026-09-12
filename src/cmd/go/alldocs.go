@@ -2340,6 +2340,13 @@
 //		Build the listed main packages, plus all packages that they
 //		import, into a Go plugin. Packages not named main are ignored.
 //
+//		On windows, plugins are produced as DLLs and resolve
+//		their host-shared symbols at load time via GetProcAddress
+//		against the running host EXE — mirroring how the dlopen-based
+//		path on Linux/Darwin uses the dynamic linker. The host EXE
+//		must import the "plugin" package so its linker exports the
+//		needed runtime/stdlib symbols.
+//
 // On AIX, when linking a C program that uses a Go archive built with
 // -buildmode=c-archive, you must pass -Wl,-bnoobjreorder to the C compiler.
 //
