@@ -51,6 +51,9 @@ Repetitions:
 Implementation restriction: The counting forms x{n,m}, x{n,}, and x{n}
 reject forms that create a minimum or maximum repetition count above 1000.
 Unlimited repetitions are not subject to this restriction.
+For nested repetitions, the product of the repetition counts must not
+exceed 1000. For example, x{10}{10} (product 100) is valid,
+but x{10}{101} (product 1010) is not.
 
 Grouping:
 
