@@ -27,13 +27,13 @@ import (
 
 var buildInitStarted = false
 
-// makeCfgChangedEnv is the environment to set to
-// override the current environment for GOOS, GOARCH, and the GOARCH-specific
-// architecture environment variable to the configuration used by
-// the go command. They may be different because go tool <tool> for builtin
-// tools need to be built using the host configuration, so the configuration
-// used will be changed from that set in the environment. It is clipped
-// so its can append to it without changing it.
+// cfgChangedEnv is the environment variable overrides to pass to
+// subprocesses. It includes GOOS, GOARCH, and GOARCH-specific variables
+// when they differ from the current environment (because go tool <tool>
+// for builtin tools may need the host configuration), and TMPDIR (or TMP
+// on Windows) when GOTMPDIR is set, to ensure subprocesses create
+// temporary files in the user-configured directory.
+// It is clipped so callers can append to it without changing it.
 var cfgChangedEnv []string
 
 func makeCfgChangedEnv() []string {
@@ -47,7 +47,22 @@ func makeCfgChangedEnv() []string {
 	if archenv, val, changed := cfg.GetArchEnv(); changed {
 		env = append(env, archenv+"="+val)
 	}
+	if gotmpdir := cfg.Getenv("GOTMPDIR"); gotmpdir != "" {
+		env = append(env, tempEnvName()+"="+gotmpdir)
+	}
 	return slices.Clip(env)
+}
+
+// tempEnvName returns the name of the environment variable that
+// controls the default directory for temporary files on the
+// current host platform.
+func tempEnvName() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "TMP"
+	default:
+		return "TMPDIR"
+	}
 }
 
 func BuildInit(ld *modload.Loader) {
@@ -62,6 +77,20 @@ func BuildInit(ld *modload.Loader) {
 	buildModeInit()
 	initCompilerConcurrencyPool()
 	cfgChangedEnv = makeCfgChangedEnv()
+
+	// If GOTMPDIR is set, propagate it to the platform-specific
+	// temporary directory environment variable so that subprocesses
+	// invoked by the go command (C compiler, linker, cgo, etc.)
+	// create their temporary files in the same directory.
+	// See issue #59636.
+	if gotmpdir := cfg.Getenv("GOTMPDIR"); gotmpdir != "" {
+		if runtime.GOOS == "windows" {
+			os.Setenv("TMP", gotmpdir)
+			os.Setenv("TEMP", gotmpdir)
+		} else {
+			os.Setenv("TMPDIR", gotmpdir)
+		}
+	}
 
 	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
