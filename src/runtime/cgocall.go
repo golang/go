@@ -349,9 +349,9 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	savedbp := unsafe.Pointer(gp.syscallbp)
 	exitsyscall() // coming out of cgo call
 	gp.m.incgo = false
-	if gp.m.isextra {
-		gp.m.isExtraInC = false
-	}
+	// isExtraInC is now cleared inside exitsyscall (see proc.go),
+	// eliminating the race window where a SIGPROF could see
+	// isExtraInC == true while we're already running Go code (#70529).
 
 	osPreemptExtExit(gp.m)
 

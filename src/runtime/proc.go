@@ -4954,6 +4954,23 @@ func exitsyscall() {
 		casgstatus(gp, _Gsyscall, _Grunning)
 	}
 
+	// We are now running Go code. Clear isExtraInC early (before
+	// acquiring a P) so that a SIGPROF landing in the window between
+	// here and P acquisition routes through sigprof (full Go stack
+	// traceback) rather than sigprofNonGoPC (short {pc, _ExternalCode}
+	// stack). Previously this was cleared in cgocallbackg after
+	// exitsyscall returned, leaving a race window (#70529) where a
+	// reused extra M still had isExtraInC == true while executing Go
+	// code. For non-cgo syscall exits, isExtraInC is already false, so
+	// this is a no-op.
+	//
+	// This is safe because isExtraInC is only read by addGSyscallNoP/
+	// decGSyscallNoP, which require it to be stable outside _Gsyscall;
+	// we are now in _Grunning.
+	if gp.m.isextra {
+		gp.m.isExtraInC = false
+	}
+
 	// Caution: we're in a window where we may be in _Grunning without a P.
 	// Either we will grab a P or call exitsyscall0, where we'll switch to
 	// _Grunnable.
