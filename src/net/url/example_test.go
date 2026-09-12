@@ -385,3 +385,67 @@ func toJSON(m any) string {
 	}
 	return strings.ReplaceAll(string(js), ",", ", ")
 }
+
+// ExampleURL_Clone demonstrates creating a deep copy of a URL.
+func ExampleURL_Clone() {
+	u, err := url.Parse("https://example.com/path?query=value#fragment")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Clone creates a deep copy of the URL.
+	clone := u.Clone()
+
+	// Modifying the clone doesn't affect the original.
+	clone.Host = "different.com"
+	clone.Path = "/newpath"
+
+	fmt.Println("Original:", u)
+	fmt.Println("Clone:", clone)
+
+	// Output:
+	// Original: https://example.com/path?query=value#fragment
+	// Clone: https://different.com/newpath?query=value#fragment
+}
+
+// ExampleURL_Clone_nil demonstrates that cloning a nil URL returns nil.
+func ExampleURL_Clone_nil() {
+	var u *url.URL
+	clone := u.Clone()
+	fmt.Println(clone == nil)
+
+	// Output:
+	// true
+}
+
+// ExampleValues_Clone demonstrates creating a deep copy of Values.
+func ExampleValues_Clone() {
+	v := url.Values{}
+	v.Add("color", "red")
+	v.Add("color", "blue")
+	v.Add("size", "large")
+
+	// Clone creates a deep copy of the Values.
+	clone := v.Clone()
+
+	// Modifying the clone doesn't affect the original.
+	clone.Set("color", "green")
+	clone.Add("shape", "circle")
+
+	fmt.Println("Original:", v.Encode())
+	fmt.Println("Clone:", clone.Encode())
+
+	// Output:
+	// Original: color=red&color=blue&size=large
+	// Clone: color=green&shape=circle&size=large
+}
+
+// ExampleValues_Clone_nil demonstrates that cloning nil Values returns nil.
+func ExampleValues_Clone_nil() {
+	var v url.Values
+	clone := v.Clone()
+	fmt.Println(clone == nil)
+
+	// Output:
+	// true
+}
