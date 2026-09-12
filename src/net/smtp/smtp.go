@@ -139,7 +139,7 @@ func (c *Client) ehlo() error {
 		extList = extList[1:]
 		for _, line := range extList {
 			k, v, _ := strings.Cut(line, " ")
-			ext[k] = v
+			ext[strings.ToUpper(k)] = v
 		}
 	}
 	if mechs, ok := ext["AUTH"]; ok {
