@@ -530,6 +530,26 @@ QUIT
 			t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
 		}
 	})
+
+	t.Run("ehlo mixed case extensions", func(t *testing.T) {
+		const basicServer = `250-mx.google.com at your service
+250-starttls
+250-aUtH LOGIN PLAIN
+250 Ok
+`
+
+		c, _, _ := fake(basicServer)
+
+		if err := c.Hello("localhost"); err != nil {
+			t.Fatalf("EHLO failed: %s", err)
+		}
+		if ok, _ := c.Extension("STARTTLS"); !ok {
+			t.Fatalf("Should support STARTTLS")
+		}
+		if ok, args := c.Extension("auth"); !ok || args != "LOGIN PLAIN" {
+			t.Fatalf("Should support AUTH, got ok=%v args=%q", ok, args)
+		}
+	})
 }
 
 func TestNewClient(t *testing.T) {
