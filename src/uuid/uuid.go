@@ -23,6 +23,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -222,8 +223,9 @@ func NewV7() UUID {
 	// |                            rand_b                             |
 	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	//
-	// We store a 12 bit sub-millisecond timestamp fraction in the rand_a section,
-	// as optionally permitted by the RFC.
+	// We store a 12 bit sub-millisecond timestamp fraction in the rand_a section
+	// where available. On platforms without sub-millisecond time precision,
+	// rand_a is seeded with random bits instead, as permitted by the RFC.
 	v7mu.Lock()
 
 	// Generate our 60-bit timestamp: 48 bits of millisecond-resolution,
@@ -233,8 +235,21 @@ func NewV7() UUID {
 	nanos := uint64(now.Nanosecond())
 	msecs := nanos / 1000000
 	frac := nanos - (1000000 * msecs)
+
+	subms := (frac * 4096) / 1000000 // ns converted to 1/4096-ms units
+	if runtime.GOOS == "js" {
+		// On js/wasm, time.Now has only millisecond precision.
+		// In that case the sub-millisecond fraction would always be zero.
+		// Seed it with random bits instead; the monotonic adjustment below
+		// still preserves increasing order for UUIDs generated in the same
+		// millisecond.
+		var b [2]byte
+		rand.Read(b[:])
+		subms = uint64(binary.BigEndian.Uint16(b[:]) & 0x0fff)
+	}
+
 	timestamp := (1000*secs + msecs) << 12 // ms shifted into position
-	timestamp += (frac * 4096) / 1000000   // ns converted to 1/4096-ms units
+	timestamp += subms
 
 	if v7lastSecs > secs {
 		// Time has gone backwards.
