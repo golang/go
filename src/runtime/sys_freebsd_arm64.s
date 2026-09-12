@@ -80,7 +80,8 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	// set up g
 	MOVD	m_g0(R0), g
 	MOVD	R0, g_m(g)
-	BL	emptyfunc<>(SB)	 // fault if stack check is wrong
+
+	BL	runtime·stackcheck(SB)	// fault if stack check is wrong
 	BL	runtime·mstart(SB)
 
 	MOVD	$2, R8	// crash (not reached)
