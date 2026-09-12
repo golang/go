@@ -416,7 +416,13 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
 		},
 		Importer: importer,
 	}
-	info := Info{Uses: make(map[*syntax.Name]Object)}
+	info := Info{
+		Defs:      make(map[*syntax.Name]Object),
+		Uses:      make(map[*syntax.Name]Object),
+		Implicits: make(map[syntax.Node]Object),
+		Types:     make(map[syntax.Expr]TypeAndValue),
+		Scopes:    make(map[syntax.Node]*Scope),
+	}
 	pkg, _ := conf.Check(path, files, &info)
 	err := errors.Join(errs...)
 	if err != nil {
@@ -424,6 +430,9 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
 	}
 
 	// Perform checks of API invariants.
+	if invErrs := checkInvariants(pkg, &info, false); len(invErrs) > 0 {
+		return pkg, fmt.Errorf("invariant failure: %v", errors.Join(invErrs...))
+	}
 
 	// All Objects have a package, except predeclared ones.
 	errorError := Universe.Lookup("error").Type().Underlying().(*Interface).ExplicitMethod(0) // (error).Error

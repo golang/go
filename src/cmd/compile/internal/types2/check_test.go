@@ -189,7 +189,15 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 	}
 
 	// typecheck
-	conf.Check(pkgName, files, &info)
+	pkg, err := conf.Check(pkgName, files, &info)
+	// errlist holds parse errors from parseFiles (and type-checking errors from
+	// conf.Error when !listErrors); err is the first type-checking error from Check.
+	hasErrors := len(errlist) > 0 || err != nil
+	if errs := checkInvariants(pkg, &info, hasErrors); len(errs) > 0 {
+		for _, err := range errs {
+			t.Errorf("%s: invariant failure: %v", pkgName, err)
+		}
+	}
 	if listErrors {
 		return
 	}
