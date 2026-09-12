@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"maps"
 	"os"
 	"path"
@@ -21,6 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -2879,5 +2881,30 @@ func TestEmptyResolvConfReplacedWithConfHaingNameservers(t *testing.T) {
 
 	if getSystemDNSConfigNamed(conf.path).isDefaultNS() {
 		t.Fatal("resolv.conf was not re-loaded")
+	}
+}
+
+// Run in a subprocess: a bubble violation is fatal, not a recoverable panic.
+func TestResolverConfigSemaphoresNotBubbled(t *testing.T) {
+	if os.Getenv("GO_NET_TEST_BUBBLE_HELPER") == "1" {
+		synctest.Test(t, func(t *testing.T) {
+			getSystemDNSConfig()
+			getSystemNSS()
+		})
+		// getSystemDNSConfig would skip the send on "options no-reload".
+		if resolvConf.tryAcquireSema() {
+			resolvConf.releaseSema()
+		}
+		if nssConfig.tryAcquireSema() {
+			nssConfig.releaseSema()
+		}
+		return
+	}
+	testenv.MustHaveExec(t)
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.count=1")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_NET_TEST_BUBBLE_HELPER=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("helper failed: %v\n%s", err, out)
 	}
 }
