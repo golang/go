@@ -133,6 +133,7 @@ type Func struct {
 	FrameSize int
 	LineTable *LineTable
 	Obj       *Obj
+	StartLine int
 }
 
 // An Obj represents a collection of functions in a symbol table.
