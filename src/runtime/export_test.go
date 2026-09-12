@@ -10,6 +10,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/goos"
+	"internal/profilerecord"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"internal/runtime/maps"
@@ -1547,6 +1548,17 @@ func Acquirem() {
 
 func Releasem() {
 	releasem(getg().m)
+}
+
+func MemProfileInternalPreemptible(inuseZero bool) (called, preemptible bool) {
+	preemptible = true
+	memProfileInternal(int(^uint(0)>>1), inuseZero, func(profilerecord.MemProfileRecord) {
+		called = true
+		if getg().m.locks != 0 {
+			preemptible = false
+		}
+	})
+	return
 }
 
 // GoschedIfBusy is an explicit preemption check to call back
