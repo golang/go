@@ -279,6 +279,16 @@ func TestEscape(t *testing.T) {
 			`<button onclick='alert(/foo\u002bbar/.test(""))'>`,
 		},
 		{
+			"jsReAwait",
+			`<script>async function f() { await /{{"/"}}/.test("x"); }</script>`,
+			`<script>async function f() { await /\//.test("x"); }</script>`,
+		},
+		{
+			"jsReYield",
+			`<script>function* g() { yield /{{"/"}}/; }</script>`,
+			`<script>function* g() { yield /\//; }</script>`,
+		},
+		{
 			"jsReBlank",
 			`<script>alert(/{{""}}/.test(""));</script>`,
 			`<script>alert(/(?:)/.test(""));</script>`,

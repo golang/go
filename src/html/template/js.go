@@ -109,6 +109,12 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 // regexpPrecederKeywords is a set of reserved JS keywords that can precede a
 // regular expression in JS source.
 var regexpPrecederKeywords = map[string]bool{
+	// await and yield are contextual keywords (operators only inside
+	// async functions and generators respectively), but treating them
+	// as regexp preceders matches the ECMAScript grammar there, and
+	// misreading a division after an identifier named await or yield
+	// only selects the stricter regexp escaper.
+	"await":      true,
 	"break":      true,
 	"case":       true,
 	"continue":   true,
@@ -123,6 +129,7 @@ var regexpPrecederKeywords = map[string]bool{
 	"try":        true,
 	"typeof":     true,
 	"void":       true,
+	"yield":      true,
 }
 
 var jsonMarshalType = reflect.TypeFor[json.Marshaler]()
