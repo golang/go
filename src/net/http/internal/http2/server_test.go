@@ -4298,6 +4298,55 @@ func testServerGracefulShutdown(t *testing.T) {
 	<-shutdownc
 }
 
+// Issue 81153: a conn that registers after the Server's GOAWAY sweep
+// must still be shut down, or http.Server.Shutdown never returns.
+func TestServerGracefulShutdownBeforeConnRegistered(t *testing.T) {
+	synctest.Test(t, testServerGracefulShutdownBeforeConnRegistered)
+}
+func testServerGracefulShutdownBeforeConnRegistered(t *testing.T) {
+	h1server := &http.Server{
+		Handler:   http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
+		Protocols: protocols("h2c"),
+	}
+	listener := nettest.NewListener()
+	defer listener.Close()
+	cli := listener.NewConn()
+	defer cli.Close()
+	go h1server.Serve(listener)
+	synctest.Wait() // server is waiting for the client preface
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	shutdownc := make(chan error, 1)
+	go func() { shutdownc <- h1server.Shutdown(ctx) }()
+	synctest.Wait() // the OnShutdown hook has swept, and seen no conns
+
+	cli.SetReadError(os.ErrDeadlineExceeded) // make reads non-blocking
+	tf := testConnFramer{
+		t:        t,
+		fr:       NewFramer(cli, cli),
+		dec:      hpack.NewDecoder(InitialHeaderTableSize, nil),
+		testconn: cli,
+	}
+	if _, err := cli.Write([]byte(ClientPreface)); err != nil {
+		t.Fatalf("writing client preface: %v", err)
+	}
+	tf.writeSettings()
+	tf.wantFrameType(FrameSettings)
+	tf.writeSettingsAck()
+	tf.wantUnorderedFrames(
+		func(f *WindowUpdateFrame) bool { return f.StreamID == 0 },
+		func(f *SettingsFrame) bool { return f.IsAck() },
+		func(f *GoAwayFrame) bool { return f.LastStreamID == 0 && f.ErrCode == ErrCodeNo },
+	)
+
+	time.Sleep(GoAwayTimeout)
+	tf.wantClosed()
+	if err := <-shutdownc; err != nil {
+		t.Errorf("Shutdown = %v; want nil", err)
+	}
+}
+
 // Issue 31753: don't sniff when Content-Encoding is set
 func TestContentEncodingNoSniffing(t *testing.T) {
 	type resp struct {
