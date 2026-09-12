@@ -6,6 +6,7 @@ package net
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"syscall"
 	"testing"
@@ -117,5 +118,55 @@ func TestUnixgramLinuxAbstractLongName(t *testing.T) {
 	}
 	if !bytes.Equal(b[:n], data[:]) {
 		t.Fatalf("got %v; want %v", b[:n], data[:])
+	}
+}
+
+func TestUnixgramLinuxWriteToConnectedSockDgram(t *testing.T) {
+	fmt.Println("TestUnixgramLinuxToConnectedSockDgram")
+	if !testableNetwork("unixgram") {
+		t.Skip("abstract unix socket long name test")
+	}
+
+	srv, err := ListenUnixgram("unixgram", &UnixAddr{Name: "", Net: "unixgram"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+
+	err = srv.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg := "hello connected unixgram"
+	rcv := make(chan []byte)
+	go func() {
+		b := make([]byte, 1024)
+		n, _, _, _, err := srv.ReadMsgUnix(b, nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if n != len(msg) {
+			t.Errorf("got %d; want %d", n, len(msg))
+			return
+		}
+		rcv <- b[:n]
+	}()
+
+	uc, err := DialUnix("unixgram", nil, srv.LocalAddr().(*UnixAddr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer uc.Close()
+
+	_, _, err = uc.WriteMsgUnix([]byte(msg), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b := <-rcv
+	if string(b) != msg {
+		t.Fatalf("got %q; want %q", b, msg)
 	}
 }
