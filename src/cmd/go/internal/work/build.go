@@ -172,12 +172,14 @@ and test commands:
 		maps each disk file path (a string) to its backing file path, so that
 		a build will run as if the disk file path exists with the contents
 		given by the backing file paths, or as if the disk file path does not
-		exist if its backing file path is empty. Support for the -overlay flag
-		has some limitations: importantly, cgo files included from outside the
-		include path must be in the same directory as the Go package they are
-		included from, overlays will not appear when binaries and tests are
-		run through go run and go test respectively, and files beneath
-		GOMODCACHE may not be replaced.
+		exist if its backing file path is empty. A disk file path in 'Replace'
+		does not need to exist on disk, so an overlay can also add new files
+		to a build. Support for the -overlay flag has some limitations:
+		importantly, cgo files included from outside the include path must
+		be in the same directory as the Go package they are included from,
+		overlays will not appear when binaries and tests are run through
+		go run and go test respectively, and files beneath GOMODCACHE may
+		not be replaced.
 	-pgo file
 		specify the file path of a profile for profile-guided optimization (PGO).
 		When the special name "auto" is specified, for each main package in the
