@@ -5753,6 +5753,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	TESTW $61731, AX                        // 66a923f1
 	TESTL $4045620583, AX                   // a9674523f1
 	TESTQ $-249346713, AX                   // 48a9674523f1
+	// TEST with an immediate in [0, 127] against a register narrows
+	// to the flag-identical byte form. See progedit in
+	// cmd/internal/obj/x86/obj6.go.
+	TESTW $63, AX                           // a83f
+	TESTW $63, DX                           // f6c23f
+	TESTW $63, R11                          // 41f6c33f
+	TESTL $7, AX                            // a807
+	TESTL $7, DX                            // f6c207
+	TESTL $7, SI                            // 40f6c607
+	TESTQ $7, AX                            // a807
+	TESTQ $7, DX                            // f6c207
+	TESTQ $127, R11                         // 41f6c37f
+	TESTL $128, DX                          // f7c280000000
+	TESTQ $128, AX                          // 48a980000000
+	TESTL $7, (BX)                          // f70307000000
+	TESTW $63, (BX)                         // 66f7033f00
 	TESTW $61731, (BX)                      // 66f70323f1
 	TESTW $61731, (R11)                     // 6641f70323f1
 	TESTW $61731, DX                        // 66f7c223f1
