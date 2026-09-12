@@ -4,7 +4,6 @@
 
 // Package syslist stores tables of OS and ARCH names that are
 // (or at one point were) acceptable build targets.
-
 package syslist
 
 // Note that this file is read by internal/goarch/gengoarch.go and by
@@ -37,7 +36,6 @@ var KnownOS = map[string]bool{
 
 // UnixOS is the set of GOOS values matched by the "unix" build tag.
 // This is not used for filename matching.
-// This list also appears in cmd/dist/build.go.
 var UnixOS = map[string]bool{
 	"aix":       true,
 	"android":   true,
