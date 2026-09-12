@@ -53,17 +53,19 @@ func newOIDFromDER(der []byte) (OID, bool) {
 
 // OIDFromInts creates a new OID using ints, each integer is a separate component.
 func OIDFromInts(oid []uint64) (OID, error) {
-	if len(oid) < 2 || oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
+	if len(oid) < 2 || oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) ||
+		(oid[0] == 2 && oid[1] > math.MaxUint64-80) {
 		return OID{}, errInvalidOID
 	}
 
-	length := base128IntLength(oid[0]*40 + oid[1])
+	firstSubidentifier := oid[0]*40 + oid[1]
+	length := base128IntLength(firstSubidentifier)
 	for _, v := range oid[2:] {
 		length += base128IntLength(v)
 	}
 
 	der := make([]byte, 0, length)
-	der = appendBase128Int(der, oid[0]*40+oid[1])
+	der = appendBase128Int(der, firstSubidentifier)
 	for _, v := range oid[2:] {
 		der = appendBase128Int(der, v)
 	}
