@@ -62,7 +62,8 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 	objdir := a.Objdir
 	// TODO(matloob): Support early export on Windows.
 	hasObjectAction := slices.ContainsFunc(a.triggers, func(t *Action) bool { return t.Mode == "build" && t.Package == a.Package })
-	earlyExport := export != "" && hasObjectAction && runtime.GOOS != "windows" && !(cfg.BuildN || cfg.BuildX)
+	goosSupported := runtime.GOOS != "windows" && runtime.GOOS != "plan9"
+	earlyExport := export != "" && hasObjectAction && goosSupported && !(cfg.BuildN || cfg.BuildX)
 	if export == "" {
 		export = objdir + "_go_.x"
 	}
