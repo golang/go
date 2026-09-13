@@ -3272,6 +3272,11 @@ func (es *bodyEOFSignal) Close() error {
 		es.fn = nil
 		return earlyCloseFn()
 	}
+	if es.rerr != nil && es.rerr != io.EOF {
+		// Read already returned this error and readLoop gave up the
+		// connection. Draining would only read the same error again.
+		return nil
+	}
 	err := es.body.Close()
 	return es.condfn(err)
 }
