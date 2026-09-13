@@ -2615,8 +2615,11 @@ func (pc *persistConn) readLoop() {
 				tryPutIdle()
 				eofc <- struct{}{}
 			case errClosedEarly:
+				// Read resp before signaling eofc: the send lets the caller's
+				// Close return, and resp belongs to the caller after that.
+				tryDrain := alive && resp.ContentLength <= maxPostCloseReadBytes
 				eofc <- struct{}{}
-				if alive && resp.ContentLength <= maxPostCloseReadBytes && maybeDrainBody(body.body) {
+				if tryDrain && maybeDrainBody(body.body) {
 					tryPutIdle()
 				} else {
 					alive = false
