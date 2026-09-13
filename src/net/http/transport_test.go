@@ -7889,3 +7889,22 @@ func testIssue61474(t *testing.T, mode testMode) {
 		})
 	}
 }
+
+// After Body.Close returns, the Response belongs to the caller. readLoop
+// used to read resp.ContentLength after letting Close return; run with -race.
+func TestTransportResponseWriteAfterEarlyClose(t *testing.T) {
+	run(t, testTransportResponseWriteAfterEarlyClose, []testMode{http1Mode})
+}
+func testTransportResponseWriteAfterEarlyClose(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.WriteString(w, "hello")
+	}))
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := res.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	res.ContentLength = 0
+}
