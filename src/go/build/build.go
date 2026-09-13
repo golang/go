@@ -1464,7 +1464,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 		return nil, nil
 	}
 
-	if !ctxt.goodOSArchFile(name, allTags) && !ctxt.UseAllFiles {
+	if !ctxt.goodOSArchFile(name, ext, allTags) && !ctxt.UseAllFiles {
 		return nil, nil
 	}
 
@@ -1988,11 +1988,18 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 //	name_$(GOARCH)_test.*
 //	name_$(GOOS)_$(GOARCH)_test.*
 //
+// The _test variants are only recognized for _test.go files: the "test"
+// component has no meaning for any other extension, since only .go files
+// have a notion of being test-only. A non-Go file whose name would
+// otherwise match one of the _test patterns (for example
+// rsrc_windows_amd64_test.syso) is rejected outright rather than treated
+// as an ordinary, always-included file for the package.
+//
 // Exceptions:
 // if GOOS=android, then files with GOOS=linux are also matched.
 // if GOOS=illumos, then files with GOOS=solaris are also matched.
 // if GOOS=ios, then files with GOOS=darwin are also matched.
-func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
+func (ctxt *Context) goodOSArchFile(name, ext string, allTags map[string]bool) bool {
 	name, _, _ = strings.Cut(name, ".")
 
 	// Before Go 1.4, a file called "linux.go" would be equivalent to having a
@@ -2009,11 +2016,16 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	name = name[i:] // ignore everything before first _
 
 	l := strings.Split(name, "_")
+	hasTestSuffix := false
 	if n := len(l); n > 0 && l[n-1] == "test" {
+		hasTestSuffix = true
 		l = l[:n-1]
 	}
 	n := len(l)
 	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
+		if hasTestSuffix && ext != ".go" {
+			return false
+		}
 		if allTags != nil {
 			// In case we short-circuit on l[n-1].
 			allTags[l[n-2]] = true
@@ -2021,6 +2033,9 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
 	}
 	if n >= 1 && (syslist.KnownOS[l[n-1]] || syslist.KnownArch[l[n-1]]) {
+		if hasTestSuffix && ext != ".go" {
+			return false
+		}
 		return ctxt.matchTag(l[n-1], allTags)
 	}
 	return true

@@ -501,8 +501,10 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			}
 		}
 
+		ext := nameExt(name)
+
 		var shouldBuild = true
-		if !ctxt.goodOSArchFile(name, allTags) && !ctxt.UseAllFiles {
+		if !ctxt.goodOSArchFile(name, ext, allTags) && !ctxt.UseAllFiles {
 			shouldBuild = false
 		} else if goBuildConstraint := tf.goBuildConstraint(); goBuildConstraint != "" {
 			x, err := constraint.Parse(goBuildConstraint)
@@ -520,7 +522,6 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			}
 		}
 
-		ext := nameExt(name)
 		if !shouldBuild || tf.ignoreFile() {
 			if ext == ".go" {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)

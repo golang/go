@@ -362,11 +362,25 @@ func TestGoodOSArchFile(t *testing.T) {
 	ctx := &Context{BuildTags: []string{"linux"}, GOOS: "darwin"}
 	m := map[string]bool{}
 	want := map[string]bool{"linux": true}
-	if !ctx.goodOSArchFile("hello_linux.go", m) {
+	if !ctx.goodOSArchFile("hello_linux.go", ".go", m) {
 		t.Errorf("goodOSArchFile(hello_linux.go) = false, want true")
 	}
 	if !maps.Equal(m, want) {
 		t.Errorf("goodOSArchFile(hello_linux.go) tags = %v, want %v", m, want)
+	}
+
+	// A _test suffix only has special meaning for .go files (#52921): a
+	// non-Go file that would otherwise match name_$(GOOS)_$(GOARCH)_test.*
+	// must be rejected outright, not silently treated as an ordinary file.
+	ctx2 := &Context{GOOS: "windows", GOARCH: "amd64"}
+	if ctx2.goodOSArchFile("rsrc_windows_amd64_test.syso", ".syso", nil) {
+		t.Errorf("goodOSArchFile(rsrc_windows_amd64_test.syso) = true, want false")
+	}
+	// But an ordinary non-Go helper file that merely happens to contain
+	// "_test" (and isn't preceded by a GOOS/GOARCH token) must still be
+	// accepted, e.g. a cgo test helper foo_test.c.
+	if !ctx2.goodOSArchFile("foo_test.c", ".c", nil) {
+		t.Errorf("goodOSArchFile(foo_test.c) = false, want true")
 	}
 }
 
@@ -403,6 +417,8 @@ var matchFileTests = []struct {
 	{ctxtAndroid, "plan9_test.go", "", true},
 	{ctxtAndroid, "arm.s", "", true},
 	{ctxtAndroid, "amd64.s", "", true},
+	{ctxtAndroid, "foo_android_test.syso", "", false},
+	{ctxtAndroid, "foo_test.syso", "", true},
 }
 
 func TestMatchFile(t *testing.T) {

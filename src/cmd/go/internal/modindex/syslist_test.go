@@ -9,6 +9,7 @@ package modindex
 import (
 	"go/build"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -58,7 +59,8 @@ var tests = []GoodFileTest{
 
 func TestGoodOSArch(t *testing.T) {
 	for _, test := range tests {
-		if (*Context)(&build.Default).goodOSArchFile(test.name, make(map[string]bool)) != test.result {
+		ext := test.name[strings.LastIndex(test.name, "."):]
+		if (*Context)(&build.Default).goodOSArchFile(test.name, ext, make(map[string]bool)) != test.result {
 			t.Fatalf("goodOSArchFile(%q) != %v", test.name, test.result)
 		}
 	}
