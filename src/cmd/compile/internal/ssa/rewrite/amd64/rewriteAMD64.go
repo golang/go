@@ -48297,26 +48297,23 @@ func rewriteValue_OpAMD64VMAXPD128(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPD128load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload128 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPD128load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPD128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48327,26 +48324,23 @@ func rewriteValue_OpAMD64VMAXPD256(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPD256load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload256 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPD256load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPD256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48357,26 +48351,23 @@ func rewriteValue_OpAMD64VMAXPD512(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPD512load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload512 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPD512load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload512 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPD512load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48388,27 +48379,24 @@ func rewriteValue_OpAMD64VMAXPDMasked128(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPDMasked128load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload128 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPDMasked128load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPDMasked128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48420,27 +48408,24 @@ func rewriteValue_OpAMD64VMAXPDMasked256(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPDMasked256load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload256 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPDMasked256load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPDMasked256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48452,27 +48437,24 @@ func rewriteValue_OpAMD64VMAXPDMasked512(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPDMasked512load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload512 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPDMasked512load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload512 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPDMasked512load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48483,26 +48465,23 @@ func rewriteValue_OpAMD64VMAXPS128(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPS128load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload128 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPS128load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPS128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48513,26 +48492,23 @@ func rewriteValue_OpAMD64VMAXPS256(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPS256load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload256 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPS256load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPS256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48543,26 +48519,23 @@ func rewriteValue_OpAMD64VMAXPS512(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPS512load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload512 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPS512load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload512 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPS512load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48574,27 +48547,24 @@ func rewriteValue_OpAMD64VMAXPSMasked128(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPSMasked128load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload128 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPSMasked128load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPSMasked128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48606,27 +48576,24 @@ func rewriteValue_OpAMD64VMAXPSMasked256(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPSMasked256load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload256 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPSMasked256load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPSMasked256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48638,27 +48605,24 @@ func rewriteValue_OpAMD64VMAXPSMasked512(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMAXPSMasked512load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload512 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMAXPSMasked512load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload512 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMAXPSMasked512load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48669,26 +48633,23 @@ func rewriteValue_OpAMD64VMINPD128(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPD128load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload128 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPD128load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPD128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48699,26 +48660,23 @@ func rewriteValue_OpAMD64VMINPD256(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPD256load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload256 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPD256load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPD256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48729,26 +48687,23 @@ func rewriteValue_OpAMD64VMINPD512(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPD512load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload512 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPD512load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload512 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPD512load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48760,27 +48715,24 @@ func rewriteValue_OpAMD64VMINPDMasked128(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPDMasked128load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload128 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPDMasked128load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPDMasked128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48792,27 +48744,24 @@ func rewriteValue_OpAMD64VMINPDMasked256(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPDMasked256load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload256 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPDMasked256load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPDMasked256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48824,27 +48773,24 @@ func rewriteValue_OpAMD64VMINPDMasked512(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPDMasked512load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload512 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPDMasked512load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload512 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPDMasked512load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48855,26 +48801,23 @@ func rewriteValue_OpAMD64VMINPS128(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPS128load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload128 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPS128load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPS128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48885,26 +48828,23 @@ func rewriteValue_OpAMD64VMINPS256(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPS256load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload256 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPS256load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPS256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48915,26 +48855,23 @@ func rewriteValue_OpAMD64VMINPS512(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPS512load {sym} [off] x ptr mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload512 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPS512load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg3(x, ptr, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload512 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPS512load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
 	}
 	return false
 }
@@ -48946,27 +48883,24 @@ func rewriteValue_OpAMD64VMINPSMasked128(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPSMasked128load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload128 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPSMasked128load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPSMasked128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -48978,27 +48912,24 @@ func rewriteValue_OpAMD64VMINPSMasked256(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPSMasked256load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload256 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPSMasked256load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPSMasked256load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }
@@ -49010,27 +48941,24 @@ func rewriteValue_OpAMD64VMINPSMasked512(v *ssa.Value) bool {
 	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
 	// result: (VMINPSMasked512load {sym} [off] x ptr mask mem)
 	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			l := v_1
-			if l.Op != ssaop.OpAMD64VMOVDQUload512 {
-				continue
-			}
-			off := ssa.AuxIntToInt32(l.AuxInt)
-			sym := ssa.AuxToSym(l.Aux)
-			mem := l.Args[1]
-			ptr := l.Args[0]
-			mask := v_2
-			if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
-				continue
-			}
-			v.Reset(ssaop.OpAMD64VMINPSMasked512load)
-			v.AuxInt = ssa.Int32ToAuxInt(off)
-			v.Aux = ssa.SymToAux(sym)
-			v.AddArg4(x, ptr, mask, mem)
-			return true
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload512 {
+			break
 		}
-		break
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VMINPSMasked512load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
 	}
 	return false
 }

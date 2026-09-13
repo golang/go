@@ -840,6 +840,11 @@ func initWasmOps() {
 		if strings.HasPrefix(s, "sub") || s == "div" {
 			return 0
 		}
+		if t.Float && (s == "min" || s == "max") {
+			// Generic Min/Max ops are shared with AMD64, where NaNs and
+			// signed zeros make these operations non-commutative.
+			return 0
+		}
 		return IsCommutative
 	}
 	isMask := func(s string, t *simdType) OpFlags {

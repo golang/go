@@ -1,9 +1,27 @@
 !sum
 - go: Max
+  out:
+  - base: int|uint
   commutative: true
-  documentation: !string |-
+  documentation: &maxDoc !string |-
     // NAME computes the maximum of each pair of corresponding elements in x and y.
 - go: Min
+  out:
+  - base: int|uint
   commutative: true
-  documentation: !string |-
+  documentation: &minDoc !string |-
     // NAME computes the minimum of each pair of corresponding elements in x and y.
+
+# On AMD64, floating-point Min and Max select the second operand for NaNs
+# and equal zeros. Generic ops are shared across architectures, so their
+# operands must stay ordered even on targets with different semantics.
+- go: Max
+  out:
+  - base: float
+  commutative: false
+  documentation: *maxDoc
+- go: Min
+  out:
+  - base: float
+  commutative: false
+  documentation: *minDoc

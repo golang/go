@@ -736,12 +736,12 @@ func simdGenericOps() []opData {
 		{name: "LessUint64x8", argLength: 2},                                            // ARCH:amd64
 		{name: "LookupOrZeroInt8x16", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "LookupOrZeroUint8x16", argLength: 2},                                    // ARCH:arm64
-		{name: "MaxFloat32x4", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
-		{name: "MaxFloat32x8", argLength: 2, commutative: true},                         // ARCH:amd64
-		{name: "MaxFloat32x16", argLength: 2, commutative: true},                        // ARCH:amd64
-		{name: "MaxFloat64x2", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
-		{name: "MaxFloat64x4", argLength: 2, commutative: true},                         // ARCH:amd64
-		{name: "MaxFloat64x8", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "MaxFloat32x4", argLength: 2},                                            // ARCH:amd64,arm64,wasm
+		{name: "MaxFloat32x8", argLength: 2},                                            // ARCH:amd64
+		{name: "MaxFloat32x16", argLength: 2},                                           // ARCH:amd64
+		{name: "MaxFloat64x2", argLength: 2},                                            // ARCH:amd64,arm64,wasm
+		{name: "MaxFloat64x4", argLength: 2},                                            // ARCH:amd64
+		{name: "MaxFloat64x8", argLength: 2},                                            // ARCH:amd64
 		{name: "MaxInt8x16", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "MaxInt8x32", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "MaxInt8x64", argLength: 2, commutative: true},                           // ARCH:amd64
@@ -766,12 +766,12 @@ func simdGenericOps() []opData {
 		{name: "MaxUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MaxUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MaxUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64
-		{name: "MinFloat32x4", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
-		{name: "MinFloat32x8", argLength: 2, commutative: true},                         // ARCH:amd64
-		{name: "MinFloat32x16", argLength: 2, commutative: true},                        // ARCH:amd64
-		{name: "MinFloat64x2", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
-		{name: "MinFloat64x4", argLength: 2, commutative: true},                         // ARCH:amd64
-		{name: "MinFloat64x8", argLength: 2, commutative: true},                         // ARCH:amd64
+		{name: "MinFloat32x4", argLength: 2},                                            // ARCH:amd64,arm64,wasm
+		{name: "MinFloat32x8", argLength: 2},                                            // ARCH:amd64
+		{name: "MinFloat32x16", argLength: 2},                                           // ARCH:amd64
+		{name: "MinFloat64x2", argLength: 2},                                            // ARCH:amd64,arm64,wasm
+		{name: "MinFloat64x4", argLength: 2},                                            // ARCH:amd64
+		{name: "MinFloat64x8", argLength: 2},                                            // ARCH:amd64
 		{name: "MinInt8x16", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "MinInt8x32", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "MinInt8x64", argLength: 2, commutative: true},                           // ARCH:amd64
