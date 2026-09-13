@@ -380,6 +380,7 @@ func EncryptOAEP(hash, mgfHash hash.Hash, random io.Reader, pub *PublicKey, msg 
 	fipsSelfTest()
 	fips140.RecordApproved()
 	checkApprovedHash(hash)
+	checkApprovedHash(mgfHash)
 	if fipsApproved, err := checkPublicKey(pub); err != nil {
 		return nil, err
 	} else if !fipsApproved {
@@ -417,6 +418,7 @@ func DecryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 	fipsSelfTest()
 	fips140.RecordApproved()
 	checkApprovedHash(hash)
+	checkApprovedHash(mgfHash)
 
 	k := priv.pub.Size()
 	if len(ciphertext) > k ||

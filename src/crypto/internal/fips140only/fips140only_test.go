@@ -264,6 +264,30 @@ bXVL8iKLrG91IYQByUHZIn3WVAd2bfi4MfKagRt0ggd4
 	expectErr(t, rsa.VerifyPSS(&smallKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPSS, nil))
 	expectErr(t, rsa.VerifyPSS(&rsaKey.PublicKey, crypto.SHA1, make([]byte, 20), sigPSS, nil))
 
+	oaepMsg := make([]byte, 32)
+	oaepCiphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &rsaKey.PublicKey, oaepMsg, nil)
+	expectNoErr(t, err)
+	expectErr(t, errRet2(rsa.EncryptOAEP(sha256.New(), rand.Reader, &smallKey.PublicKey, oaepMsg, nil)))
+	expectErr(t, errRet2(rsa.EncryptOAEP(sha1.New(), rand.Reader, &rsaKey.PublicKey, oaepMsg, nil)))
+	expectErr(t, errRet2(rsa.EncryptOAEP(sha256.New(), readerWrap{rand.Reader}, &rsaKey.PublicKey, oaepMsg, nil)))
+	expectNoErr(t, errRet2(rsa.EncryptOAEPWithOptions(rand.Reader, &rsaKey.PublicKey, oaepMsg, &rsa.OAEPOptions{Hash: crypto.SHA256})))
+	withApprovedHash(func(h crypto.Hash) {
+		expectNoErr(t, errRet2(rsa.EncryptOAEPWithOptions(rand.Reader, &rsaKey.PublicKey, oaepMsg, &rsa.OAEPOptions{Hash: crypto.SHA256, MGFHash: h})))
+	})
+	withNonApprovedHash(func(h crypto.Hash) {
+		expectErr(t, errRet2(rsa.EncryptOAEPWithOptions(rand.Reader, &rsaKey.PublicKey, oaepMsg, &rsa.OAEPOptions{Hash: h})))
+		expectErr(t, errRet2(rsa.EncryptOAEPWithOptions(rand.Reader, &rsaKey.PublicKey, oaepMsg, &rsa.OAEPOptions{Hash: crypto.SHA256, MGFHash: h})))
+	})
+
+	expectNoErr(t, errRet2(rsa.DecryptOAEP(sha256.New(), nil, rsaKey, oaepCiphertext, nil)))
+	expectErr(t, errRet2(rsa.DecryptOAEP(sha256.New(), nil, smallKey, oaepCiphertext, nil)))
+	expectErr(t, errRet2(rsa.DecryptOAEP(sha1.New(), nil, rsaKey, oaepCiphertext, nil)))
+	expectNoErr(t, errRet2(rsaKey.Decrypt(nil, oaepCiphertext, &rsa.OAEPOptions{Hash: crypto.SHA256})))
+	withNonApprovedHash(func(h crypto.Hash) {
+		expectErr(t, errRet2(rsaKey.Decrypt(nil, oaepCiphertext, &rsa.OAEPOptions{Hash: h})))
+		expectErr(t, errRet2(rsaKey.Decrypt(nil, oaepCiphertext, &rsa.OAEPOptions{Hash: crypto.SHA256, MGFHash: h})))
+	})
+
 	k, err := mlkem.GenerateKey768()
 	expectNoErr(t, err)
 	expectErr(t, errRet3(mlkemtest.Encapsulate768(k.EncapsulationKey(), make([]byte, 32))))
