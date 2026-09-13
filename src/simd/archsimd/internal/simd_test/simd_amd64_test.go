@@ -1190,6 +1190,9 @@ func TestPermuteScalarsLoGrouped(t *testing.T) {
 }
 
 func TestClMul(t *testing.T) {
+	if !archsimd.X86.AVXPCLMULQDQ() {
+		t.Skip("Test requires X86.AVXPCLMULQDQ, not available on this hardware")
+	}
 	var x = archsimd.LoadUint64x2([]uint64{1, 5})
 	var y = archsimd.LoadUint64x2([]uint64{3, 9})
 
@@ -1205,6 +1208,25 @@ func TestClMul(t *testing.T) {
 	foo(x.CarrylessMultiplyOdd(y), []uint64{45, 0})
 	foo(y.CarrylessMultiplyEven(y), []uint64{5, 0})
 
+}
+
+func TestClMul256(t *testing.T) {
+	if !archsimd.X86.VPCLMULQDQ() {
+		t.Skip("Test requires X86.VPCLMULQDQ, not available on this hardware")
+	}
+	x := archsimd.LoadUint64x4([]uint64{1, 5, 1 << 63, 5})
+	y := archsimd.LoadUint64x4([]uint64{3, 9, 2, 9})
+
+	check := func(v archsimd.Uint64x4, want []uint64) {
+		t.Helper()
+		var got [4]uint64
+		v.Store(got[:])
+		checkSlices(t, got[:], want)
+	}
+	check(x.CarrylessMultiplyEven(y), []uint64{3, 0, 0, 1})
+	check(x.CarrylessMultiplyEvenOdd(y), []uint64{9, 0, 1 << 63, 4})
+	check(x.CarrylessMultiplyOddEven(y), []uint64{15, 0, 10, 0})
+	check(x.CarrylessMultiplyOdd(y), []uint64{45, 0, 45, 0})
 }
 
 func addPairsSlice[T number](a, b []T) []T {

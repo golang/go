@@ -94,7 +94,7 @@ func loadXED(xedPath string) []*unify.Value {
 		case inst.RealOpcode == "N":
 			return // Skip unstable instructions
 		case !(strings.HasPrefix(inst.Extension, "AVX") || strings.HasPrefix(inst.Extension, "SHA") ||
-			inst.Extension == "FMA" || inst.Extension == "VAES"):
+			inst.Extension == "FMA" || inst.Extension == "VAES" || inst.Extension == "VPCLMULQDQ"):
 			// We're only interested in AVX and SHA instructions.
 			return
 		}
@@ -793,6 +793,11 @@ func decodeCPUFeature(inst *xeddata.Inst) (string, bool) {
 		// instead.
 		isaSet = inst.Extension
 	}
+	if isaSet == "AVX" && inst.Opcode() == "VPCLMULQDQ" {
+		// XED classifies the VEX.128 form as AVX, but it also requires
+		// PCLMULQDQ. The VEX.256 form has its own VPCLMULQDQ ISA set.
+		isaSet = "AVXPCLMULQDQ"
+	}
 	// We require AVX512VL to use AVX512 at all, so strip off the vector length
 	// suffixes.
 	if strings.HasPrefix(isaSet, "AVX512") {
@@ -822,13 +827,15 @@ var isaSetVL = regexp.MustCompile("_(128N?|256N?|512)$")
 //
 // See XED's datafiles/*/cpuid.xed.txt for how ISA set names map to CPUID flags.
 var cpuFeatureMap = map[string]string{
-	"AVX":      "AVX",
-	"AVX_VNNI": "AVXVNNI",
-	"AVX2":     "AVX2",
-	"AVXAES":   "AVXAES",
-	"SHA":      "SHA",
-	"FMA":      "FMA",
-	"VAES":     "VAES",
+	"AVX":          "AVX",
+	"AVX_VNNI":     "AVXVNNI",
+	"AVX2":         "AVX2",
+	"AVXAES":       "AVXAES",
+	"AVXPCLMULQDQ": "AVXPCLMULQDQ",
+	"SHA":          "SHA",
+	"FMA":          "FMA",
+	"VAES":         "VAES",
+	"VPCLMULQDQ":   "VPCLMULQDQ",
 
 	// AVX-512 foundational features. We combine all of these into one "AVX512" feature.
 	"AVX512F":  "AVX512",
@@ -860,9 +867,11 @@ func init() {
 		"AVX2":   {Implies: []string{"AVX"}},
 		"AVX512": {Implies: []string{"AVX2"}},
 
-		"AVXAES": {Virtual: true, Implies: []string{"AVX", "AES"}},
-		"FMA":    {Implies: []string{"AVX"}},
-		"VAES":   {Implies: []string{"AVX"}},
+		"AVXAES":       {Virtual: true, Implies: []string{"AVX", "AES"}},
+		"AVXPCLMULQDQ": {Virtual: true, Implies: []string{"AVX", "PCLMULQDQ"}},
+		"FMA":          {Implies: []string{"AVX"}},
+		"VAES":         {Implies: []string{"AVX"}},
+		"VPCLMULQDQ":   {Implies: []string{"AVX"}},
 
 		// AVX-512 subfeatures.
 		"AVX512BITALG":    {Implies: []string{"AVX512"}},
