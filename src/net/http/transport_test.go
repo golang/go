@@ -7434,8 +7434,9 @@ func TestTransportResponseBodyDrainReadAndClose(t *testing.T) {
 			closeAfterRead: true,
 			serverTruncate: true,
 			wantReadErr:    io.ErrUnexpectedEOF,
-			wantCloseErr:   io.ErrUnexpectedEOF,
-			wantReuse:      false,
+			// golang.org/issue/81511: Close does not repeat the Read error.
+			wantCloseErr: nil,
+			wantReuse:    false,
 		},
 		{
 			name:       "early close without any read",
