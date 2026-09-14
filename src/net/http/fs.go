@@ -12,6 +12,7 @@ import (
 	"internal/godebug"
 	"io"
 	"io/fs"
+	"math"
 	"mime"
 	"mime/multipart"
 	"net/http/internal"
@@ -1018,6 +1019,25 @@ func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHead
 	}
 }
 
+// GODEBUG=httpservecontentmaxranges=<limit> controls the maximum number of ranges that will
+// be processed in a Range header. Setting httpservecontentmaxranges=0 disables the limit.
+var httpservecontentmaxranges = godebug.New("httpservecontentmaxranges")
+
+const defaultMaxContentRanges = 200
+
+func maxContentRanges() int {
+	maxRanges := defaultMaxContentRanges
+	if v := httpservecontentmaxranges.Value(); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			maxRanges = n
+			if maxRanges == 0 {
+				maxRanges = math.MaxInt
+			}
+		}
+	}
+	return maxRanges
+}
+
 // parseRange parses a Range header string as per RFC 7233.
 // errNoOverlap is returned if none of the ranges overlap.
 func parseRange(s string, size int64) ([]httpRange, error) {
@@ -1030,6 +1050,14 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	}
 	var ranges []httpRange
 	noOverlap := false
+	numRanges := strings.Count(s[len(b):], ",") + 1
+	maxRanges := maxContentRanges()
+	if (numRanges > maxRanges) != (numRanges > defaultMaxContentRanges) {
+		httpservecontentmaxranges.IncNonDefault()
+	}
+	if numRanges > maxRanges {
+		return nil, nil // ignore header with too many ranges
+	}
 	for ra := range strings.SplitSeq(s[len(b):], ",") {
 		ra = textproto.TrimString(ra)
 		if ra == "" {
