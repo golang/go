@@ -2404,10 +2404,16 @@ const maxPostCloseReadBytes = 256 << 10
 // has been closed.
 const maxPostCloseReadTime = 50 * time.Millisecond
 
-func maybeDrainBody(body io.Reader) bool {
+func maybeDrainBody(r io.Reader) bool {
 	drainedCh := make(chan bool, 1)
 	go func() {
-		if _, err := io.CopyN(io.Discard, body, maxPostCloseReadBytes+1); err == io.EOF {
+		// When we drain the body and (hopefully) reach EOF, we might
+		// potentially need to deal with trailers. Make sure they are discarded
+		// so the connection can actually be reused.
+		if b, ok := r.(*body); ok {
+			b.discardTrailer()
+		}
+		if _, err := io.CopyN(io.Discard, r, maxPostCloseReadBytes+1); err == io.EOF {
 			drainedCh <- true
 		} else {
 			drainedCh <- false
