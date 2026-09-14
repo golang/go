@@ -927,12 +927,15 @@ func cmdbootstrap() {
 	var debug, distpack, force, noBanner, noClean bool
 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
 	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
+	flag.StringVar(&debugTrace, "debug-trace", debugTrace, "write a merged trace of the toolchain builds to `file`")
 	flag.BoolVar(&distpack, "distpack", distpack, "write distribution files to pkg/distpack")
 	flag.BoolVar(&force, "force", force, "build even if the port is marked as broken")
 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
 	flag.BoolVar(&noClean, "no-clean", noClean, "print deprecation warning")
 
 	xflagparse(0)
+
+	distSpan := startSpan("dist bootstrap")
 
 	if noClean {
 		xprintf("warning: --no-clean is deprecated and has no effect; use 'go install std cmd' instead\n")
@@ -987,6 +990,7 @@ func cmdbootstrap() {
 			pathf("%s/src/pkg", goroot))
 	}
 
+	setupSpan := startSpan("setup")
 	if rebuildall {
 		clean()
 	}
@@ -996,7 +1000,10 @@ func cmdbootstrap() {
 
 	timelog("build", "toolchain1 and go_bootstrap")
 	checkCC()
+	setupSpan.done()
+	bootstrapSpan := startSpan("bootstrapBuildTools")
 	bootstrapBuildTools()
+	bootstrapSpan.done()
 
 	// Remember old content of $GOROOT/bin for comparison below.
 	oldBinFiles, err := filepath.Glob(pathf("%s/bin/*", goroot))
@@ -1045,7 +1052,9 @@ func cmdbootstrap() {
 	os.Setenv("CC", compilerEnvLookup("CC", defaultcc, goos, goarch))
 	// Now that cmd/go is in charge of the build process, enable GOEXPERIMENT.
 	os.Setenv("GOEXPERIMENT", goexperiment)
-	goInstall(toolenv(), goBootstrap, toolchain...)
+	toolchain2Span := startSpan("toolchain2")
+	goInstall(toolenv(), goBootstrap, append(maybeTraceFlag("toolchain2"), toolchain...)...)
+	toolchain2Span.done()
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		copyfile(pathf("%s/compile2", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1072,7 +1081,9 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 	xprintf("Building Go toolchain3 and commands using go_bootstrap and Go toolchain2.\n")
-	goInstall(toolenv(), goBootstrap, append([]string{"-a"}, toolsToInstall...)...)
+	toolchain3Span := startSpan("toolchain3")
+	goInstall(toolenv(), goBootstrap, append(append(maybeTraceFlag("toolchain3"), "-a"), toolsToInstall...)...)
+	toolchain3Span.done()
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		copyfile(pathf("%s/compile3", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1084,7 +1095,9 @@ func cmdbootstrap() {
 	// case of a cross compile). Otherwise we need to do one more build.
 	if goexperiment != "" {
 		xprintf("Building commands for GOEXPERIMENT=%s convergence for %s/%s.\n", goexperiment, goos, goarch)
-		goInstall(toolenv(), goBootstrap, append([]string{"-a"}, toolsToInstall...)...)
+		convergenceSpan := startSpan("GOEXPERIMENT convergence")
+		goInstall(toolenv(), goBootstrap, append(append(maybeTraceFlag("toolchainGOEXPRIMENT"), "-a"), toolsToInstall...)...)
+		convergenceSpan.done()
 		if debug {
 			run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 			copyfile(pathf("%s/compile3goexp", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1107,8 +1120,10 @@ func cmdbootstrap() {
 			xprintf("\n")
 		}
 		xprintf("Checking command staleness for host, %s/%s.\n", goos, goarch)
+		hostStaleSpan := startSpan("host staleness checks")
 		checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
 		checkNotStale(toolenv(), gorootBinGo, toolsToInstall...)
+		hostStaleSpan.done()
 
 		timelog("build", "target toolchain")
 		if vflag > 0 {
@@ -1120,11 +1135,15 @@ func cmdbootstrap() {
 		os.Setenv("GOARCH", goarch)
 		os.Setenv("CC", compilerEnvLookup("CC", defaultcc, goos, goarch))
 		xprintf("Building commands for target, %s/%s.\n", goos, goarch)
-		goInstall(toolenv(), goBootstrap, append([]string{"-a"}, toolsToInstall...)...)
+		targetSpan := startSpan("target toolchain")
+		goInstall(toolenv(), goBootstrap, append(append(maybeTraceFlag("toolchainTarget"), "-a"), toolsToInstall...)...)
+		targetSpan.done()
 	}
 
+	staleSpan := startSpan("staleness checks")
 	checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
 	checkNotStale(toolenv(), gorootBinGo, toolsToInstall...)
+	staleSpan.done()
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		checkNotStale(toolenv(), goBootstrap, toolchain...)
@@ -1175,12 +1194,19 @@ func cmdbootstrap() {
 
 	if distpack {
 		xprintf("Packaging archives for %s/%s.\n", goos, goarch)
+		distpackSpan := startSpan("distpack")
 		run("", ShowOutput|CheckExit, gorootBinGo, "tool", "distpack")
+		distpackSpan.done()
 	}
 
 	// Print trailing banner unless instructed otherwise.
 	if !noBanner {
 		banner()
+	}
+
+	distSpan.done()
+	if debugTrace != "" {
+		writeTrace()
 	}
 }
 
