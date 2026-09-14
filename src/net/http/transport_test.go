@@ -7633,6 +7633,60 @@ func TestTransportResponseBodyDrainReadAndClose(t *testing.T) {
 	}
 }
 
+// When a response body is automatically drained, it should read the trailer to
+// make sure the connection is reusable. Additionally, it should not populate
+// the Response.Trailer: by the time Close returns, Response belongs to the
+// caller and cannot be written to anymore by the draining goroutine.
+func TestTransportResponseBodyDrainDropsTrailers(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		tt := newHTTP1TransportTest(t)
+		req, _ := NewRequest("GET", "http://example.tld/", nil)
+		rt := tt.roundTrip(req)
+		conn := tt.wantDial("tcp", "example.tld:80").connect()
+		conn.readRequest()
+		conn.writeMessage(
+			"HTTP/1.1 200 OK",
+			"Transfer-Encoding: chunked",
+			"Trailer: X-Test",
+			"",
+			"5",
+			"hello",
+		)
+		res := rt.response()
+
+		if err := res.Body.Close(); err != nil {
+			t.Fatalf("Close = %v, want nil", err)
+		}
+		conn.writeMessage(
+			"0",
+			"X-Test: v",
+			"",
+		)
+		synctest.Wait()
+
+		// Trailer must not be populated, to avoid racy write, and to be
+		// consistent with how trailers are normally empty when one does not
+		// read to EOF.
+		if got := res.Trailer.Get("X-Test"); got != "" {
+			t.Error("drained response body unexpectedly has populated trailers")
+		}
+
+		// The trailer must still have been consumed from the connection, or
+		// the connection would not be reusable.
+		req, _ = NewRequest("GET", "http://example.tld/next", nil)
+		rt = tt.roundTrip(req)
+		if got := conn.readRequest().URL.Path; got != "/next" {
+			t.Fatalf("request path = %q, want /next", got)
+		}
+		conn.writeMessage(
+			"HTTP/1.1 200 OK",
+			"Content-Length: 0",
+			"",
+		)
+		rt.wantStatus(200)
+	})
+}
+
 func TestValidateClientRequestTrailers(t *testing.T) {
 	run(t, testValidateClientRequestTrailers)
 }
