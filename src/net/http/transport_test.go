@@ -7579,6 +7579,51 @@ func TestTransportResponseBodyDrainDropsTrailers(t *testing.T) {
 	})
 }
 
+// A Transport which will never reuse a connection should not drain a body, as
+// there is no possible benefit from doing so.
+func TestTransportResponseBodyNoDrainWithoutKeepAlives(t *testing.T) {
+	tests := []struct {
+		name      string
+		configure func(*Transport)
+	}{{
+		name:      "DisableKeepAlives",
+		configure: func(tr *Transport) { tr.DisableKeepAlives = true },
+	}, {
+		name:      "negative MaxIdleConnsPerHost",
+		configure: func(tr *Transport) { tr.MaxIdleConnsPerHost = -1 },
+	}}
+	for _, tc := range tests {
+		synctest.Subtest(t, tc.name, func(t *testing.T) {
+			tt := newHTTP1TransportTest(t)
+			tc.configure(tt.tr)
+			req, _ := NewRequest("GET", "http://example.tld/", nil)
+			rt := tt.roundTrip(req)
+			conn := tt.wantDial("tcp", "example.tld:80").connect()
+			conn.readRequest()
+			// A well-behaved server should echo the "Connection: close" header
+			// that the transport sends when DisableKeepAlives is true.
+			// We intentionally do not send said header here to verify that we
+			// still prevent draining regardless.
+			conn.writeMessage(
+				"HTTP/1.1 200 OK",
+				"Transfer-Encoding: chunked",
+				"",
+				"5",
+				"hello",
+			)
+			res := rt.response()
+
+			// A drain holds the connection open while it reads the rest of the
+			// body, so a connection dropped as soon as Close returns means that
+			// no drain was attempted.
+			if err := res.Body.Close(); err != nil {
+				t.Fatalf("Close = %v, want nil", err)
+			}
+			conn.wantClosed()
+		})
+	}
+}
+
 func TestValidateClientRequestTrailers(t *testing.T) {
 	run(t, testValidateClientRequestTrailers)
 }

@@ -1092,13 +1092,17 @@ func (t *Transport) maxIdleConnsPerHost() int {
 	return DefaultMaxIdleConnsPerHost
 }
 
+func (t *Transport) keepAlivesDisabled() bool {
+	return t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0
+}
+
 // tryPutIdleConn adds pconn to the list of idle persistent connections awaiting
 // a new request.
 // If pconn is no longer needed or not in a good state, tryPutIdleConn returns
 // an error explaining why it wasn't registered.
 // tryPutIdleConn does not close pconn. Use putOrCloseIdleConn instead for that.
 func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
-	if t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0 {
+	if t.keepAlivesDisabled() {
 		return errKeepAlivesDisabled
 	}
 	if pconn.isBroken() {
@@ -2603,7 +2607,7 @@ func (pc *persistConn) readLoop() {
 			case errClosedEarly:
 				// Read resp before signaling eofc: the send lets the caller's
 				// Close return, and resp belongs to the caller after that.
-				tryDrain := alive && resp.ContentLength <= maxPostCloseReadBytes
+				tryDrain := alive && !pc.t.keepAlivesDisabled() && resp.ContentLength <= maxPostCloseReadBytes
 				eofc <- struct{}{}
 				if tryDrain && maybeDrainBody(body.body) {
 					tryPutIdle()
