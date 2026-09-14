@@ -5,9 +5,10 @@
 package main
 
 import (
-	"./a"
 	"bytes"
 	"fmt"
+
+	"./a"
 )
 
 func TestMap() {
@@ -17,8 +18,8 @@ func TestMap() {
 		panic(fmt.Sprintf("unexpectedly found %q in empty map", []byte("a")))
 	}
 
-	for _, c := range []int{'a', 'c', 'b'} {
-		if !m.Insert([]byte(string(c)), c) {
+	for _, c := range []byte{'a', 'c', 'b'} {
+		if !m.Insert([]byte(string(c)), int(c)) {
 			panic(fmt.Sprintf("key %q unexpectedly already present", []byte(string(c))))
 		}
 	}

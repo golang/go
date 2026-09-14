@@ -18,15 +18,15 @@ type foo7 string
 type foo8 string
 type foo9 string
 
-func (f foo1) F() { return }
-func (f foo2) F() { return }
-func (f foo3) F() { return }
-func (f foo4) F() { return }
-func (f foo5) F() { return }
-func (f foo6) F() { return }
-func (f foo7) F() { return }
-func (f foo8) F() { return }
-func (f foo9) F() { return }
+func (foo1) F() {}
+func (foo2) F() {}
+func (foo3) F() {}
+func (foo4) F() {}
+func (foo5) F() {}
+func (foo6) F() {}
+func (foo7) F() {}
+func (foo8) F() {}
+func (foo9) F() {}
 
 func Test1(s string) I  { return foo1(s) }
 func Test2(s string) I  { return foo2(s) }
@@ -36,21 +36,21 @@ func Test5(s []byte) I  { return foo5(s) }
 func Test6(s []rune) I  { return foo6(s) }
 func Test7(s []uint8) I { return foo7(s) }
 func Test8(s []int32) I { return foo8(s) }
-func Test9(s int) I     { return foo9(s) }
+func Test9(s rune) I    { return foo9(s) }
 
 type bar map[int]int
 
-func (b bar) F() { return }
+func (bar) F() {}
 
 func TestBar() I { return bar{1: 2} }
 
 type baz int
 
-func IsBaz(x interface{}) bool { _, ok := x.(baz); return ok }
+func IsBaz(x any) bool { _, ok := x.(baz); return ok }
 
 type baz2 int
 
-func IsBaz2(x interface{}) bool {
+func IsBaz2(x any) bool {
 	switch x.(type) {
 	case baz2:
 		return true

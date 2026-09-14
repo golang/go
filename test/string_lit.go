@@ -114,15 +114,15 @@ func main() {
 
 	// the large rune tests again, this time using constants instead of a variable.
 	// these conversions will be done at compile time.
-	s = string(0x10ffff) // largest rune value
+	s = string('\U0010ffff') // largest rune value
 	assert(s, "\xf4\x8f\xbf\xbf", "largest rune constant")
-	s = string(0x10ffff + 1)
+	s = string('\U0010ffff' + 1)
 	assert(s, "\xef\xbf\xbd", "too-large rune constant")
-	s = string(0xD800)
+	s = string(rune(0xD800)) // '\uD800' is an invalid rune code point
 	assert(s, "\xef\xbf\xbd", "surrogate rune min constant")
-	s = string(0xDFFF)
+	s = string(rune(0xDFFF)) // '\uDFFF' is an invalid rune code point
 	assert(s, "\xef\xbf\xbd", "surrogate rune max constant")
-	s = string(-1)
+	s = string(rune(-1))
 	assert(s, "\xef\xbf\xbd", "negative rune")
 
 	// the large rune tests yet again, with a slice.

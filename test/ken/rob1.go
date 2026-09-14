@@ -53,7 +53,7 @@ func (this *Integer) Init(i int) *Integer {
 }
 
 func (this *Integer) Print() string {
-	return string(this.val + '0')
+	return string(rune(this.val) + '0')
 }
 
 func main() {

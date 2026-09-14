@@ -107,7 +107,7 @@ func TestValuesInfo(t *testing.T) {
 		{`package c5a; var _ = string("foo")`, `"foo"`, `string`, `"foo"`},
 		{`package c5b; var _ = string("foo")`, `string("foo")`, `string`, `"foo"`},
 		{`package c5c; type T string; var _ = T("foo")`, `T("foo")`, `c5c.T`, `"foo"`},
-		{`package c5d; var _ = string(65)`, `65`, `untyped int`, `65`},
+		// {`package c5d; var _ = string(65)`, `65`, `untyped int`, `65`},  // not valid with Go 1.28 - go.dev/issue/3939
 		{`package c5e; var _ = string('A')`, `'A'`, `untyped rune`, `65`},
 		{`package c5f; type T string; var _ = T('A')`, `'A'`, `untyped rune`, `65`},
 
@@ -1991,7 +1991,9 @@ func TestConvertibleTo(t *testing.T) {
 	}{
 		{Typ[Int], Typ[Int], true},
 		{Typ[Int], Typ[Float32], true},
-		{Typ[Int], Typ[String], true},
+		{Typ[Byte], Typ[String], true},
+		{Typ[Rune], Typ[String], true},
+		{Typ[Int], Typ[String], false},
 		{newDefined(Typ[Int]), Typ[Int], true},
 		{newDefined(new(Struct)), new(Struct), true},
 		{newDefined(Typ[Int]), new(Struct), false},

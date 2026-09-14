@@ -18,9 +18,9 @@ func main() {
 		case a, 7:
 			r += "a"
 		default:
-			r += string(i + '0')
+			r += string(rune(i) + '0')
 		}
-		r += "out" + string(i+'0')
+		r += "out" + string(rune(i)+'0')
 	}
 	if r != "0out01out12out2aout34out4fiveout56out6aout78out89out9" {
 		panic(r)

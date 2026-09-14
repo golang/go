@@ -71,7 +71,7 @@ func testblankvars() {
 func testchan() {
 	s := ""
 	for i := range seq('a', 'z') {
-		s += string(i)
+		s += string(rune(i))
 	}
 	if s != alphabet {
 		println("Wanted lowercase alphabet; got", s)

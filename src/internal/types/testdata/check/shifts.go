@@ -382,7 +382,7 @@ func issue21727() {
 	var a = make([]int, 1<<s + 1.2 /* ERROR "truncated to int" */ )
 	var _ = a[1<<s - 2.3 /* ERROR "truncated to int" */ ]
 	var _ int = 1<<s + 3.4 /* ERROR "truncated to int" */
-	var _ = string(1 /* ERRORx `shifted operand 1 .* must be integer` */ << s)
+	var _ = string(1 /* ERROR "cannot convert 1 << s (untyped int value) to type string: argument must have type byte or rune with go1.28 or later" */ << s)
 	var _ = string(1.0 /* ERROR "cannot convert" */ << s)
 }
 

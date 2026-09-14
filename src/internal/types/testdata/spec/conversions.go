@@ -37,7 +37,7 @@ func _[
 	_ = T1(0 /* ERRORx `cannot convert 0 .* to type T1: T1 does not contain specific types` */)
 	_ = T2(1 /* ERRORx `cannot convert 1 .* to type T2: T2 does not contain specific types` */)
 	_ = T3(2 /* ERRORx `cannot convert 2 .* to type T3: cannot convert 2 .* to type bool \(in T3\)` */)
-	_ = T4(3.14 /* ERRORx `cannot convert 3.14 .* to type T4: cannot convert 3.14 .* to type int \(in T4\)` */)
+	_ = T4(3.14 /* ERRORx `cannot convert 3.14 .* to type T4: 3.14 truncated to int \(in T4\)` */)
 }
 
 // "x is assignable to T"
@@ -109,7 +109,7 @@ func _[X Float, T Float](x X) T    { return T(x) }
 
 func _[X, T Integer | Unsigned | Float](x X) T { return T(x) }
 func _[X, T Integer | ~string](x X) T {
-	return T(x /* ERROR "cannot convert x (variable of type X constrained by Integer | ~string) to type T: cannot convert string (in X) to type int (in T)" */)
+	return T(x /* ERROR "cannot convert x (variable of type X constrained by Integer | ~string) to type T: cannot convert int (in X) to type string (in T)" */)
 }
 
 // "x's type and T are both complex types"
@@ -119,24 +119,32 @@ func _[X, T Float | Complex](x X) T {
 	return T(x /* ERROR "cannot convert x (variable of type X constrained by Float | Complex) to type T: cannot convert float32 (in X) to type complex64 (in T)" */)
 }
 
-// "x is an integer or a slice of bytes or runes and T is a string type"
+// "x is a byte or rune or a slice of bytes or runes and T is a string type"
 
-type myInt int
+type myByte byte
+type myRune rune
 type myString string
 
-func _[T ~string](x int) T      { return T(x) }
-func _[T ~string](x myInt) T    { return T(x) }
-func _[X Integer](x X) string   { return string(x) }
-func _[X Integer](x X) myString { return myString(x) }
-func _[X Integer](x X) *string {
-	return (*string)(x /* ERROR "cannot convert x (variable of type X constrained by Integer) to type *string: cannot convert int (in X) to type *string" */)
+func _[T ~string](x byte) T           { return T(x) }
+func _[T ~string](x myByte) T         { return T(x) }
+func _[T ~string](x rune) T           { return T(x) }
+func _[T ~string](x myRune) T         { return T(x) }
+func _[X ~byte | ~rune](x X) string   { return string(x) }
+func _[X ~byte | ~rune](x X) myString { return myString(x) }
+func _[X ~byte | ~rune](x X) *string {
+	return (*string)(x /* ERROR "cannot convert x (variable of type X constrained by ~byte | ~rune) to type *string: cannot convert byte (in X) to type *string" */)
+}
+func _[X ~byte | ~rune](x X) *myString {
+	return (*myString)(x /* ERROR "cannot convert x (variable of type X constrained by ~byte | ~rune) to type *myString: cannot convert byte (in X) to type *myString" */)
 }
 
-func _[T ~string](x []byte) T                           { return T(x) }
-func _[T ~string](x []rune) T                           { return T(x) }
-func _[X ~[]byte, T ~string](x X) T                     { return T(x) }
-func _[X ~[]rune, T ~string](x X) T                     { return T(x) }
-func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T { return T(x) }
+func _[T ~string](x []byte) T       { return T(x) }
+func _[T ~string](x []rune) T       { return T(x) }
+func _[X ~[]byte, T ~string](x X) T { return T(x) }
+func _[X ~[]rune, T ~string](x X) T { return T(x) }
+func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T {
+	return T(x /* ERROR "cannot convert x (variable of type X constrained by Integer | ~[]byte | ~[]rune) to type T: cannot convert int (in X) to type string (in T)" */)
+}
 func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
 	return T(x /* ERROR "cannot convert x (variable of type X constrained by Integer | ~[]byte | ~[]rune) to type T: cannot convert int (in X) to type *string (in T)" */)
 }

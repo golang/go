@@ -63,7 +63,7 @@ func TestVet(t *testing.T) {
 			case "testtag", "stdversion":
 				t.Skipf("%s has its own test", name)
 
-			case "loopclosure":
+			case "loopclosure", "stringintconv":
 				t.Skipf("%s is no longer needed", name)
 
 			case "cgocall":

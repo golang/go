@@ -12,8 +12,8 @@ func f() {
 	_ = bool(1.0)     // ERROR "cannot convert 1.* \(.*untyped float.*\) to type bool|invalid type conversion"
 	_ = bool(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(.*untyped complex.*\) to type bool|invalid type conversion"
 
-	_ = string(true) // ERROR "cannot convert true \(.*untyped bool.*\) to type string|invalid type conversion"
-	_ = string(-1)
+	_ = string(true)    // ERROR "cannot convert true \(.*untyped bool.*\) to type string|invalid type conversion"
+	_ = string(-1)      // ERROR "cannot convert -1 \(untyped int constant\) to type string: argument must be untyped rune constant or have type byte or rune"
 	_ = string(1.0)     // ERROR "cannot convert 1.* \(.*untyped float.*\) to type string|invalid type conversion"
 	_ = string(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(.*untyped complex.*\) to type string|invalid type conversion"
 

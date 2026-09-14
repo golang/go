@@ -17,39 +17,13 @@ import (
 func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode() == constant_
 
-	constConvertibleTo := func(T Type, val *constant.Value) bool {
-		switch t, _ := T.Underlying().(*Basic); {
-		case t == nil:
-			// nothing to do
-		case representableConst(x.val, check, t, val):
-			return true
-		case isInteger(x.typ()) && isString(t):
-			codepoint := unicode.ReplacementChar
-			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
-				codepoint = rune(i)
-			}
-			if val != nil {
-				*val = constant.MakeString(string(codepoint))
-			}
-			return true
-		}
-		return false
-	}
-
 	var ok bool
 	var cause string
 	switch {
 	case constArg && isConstType(T):
 		// constant conversion
-		ok = constConvertibleTo(T, &x.val)
-		// A conversion from an integer constant to an integer type
-		// can only fail if there's overflow. Give a concise error.
-		// (go.dev/issue/63563)
-		if !ok && isInteger(x.typ()) && isInteger(T) {
-			check.errorf(x, InvalidConversion, "constant %s overflows %s", x.val, T)
-			x.invalidate()
-			return
-		}
+		ok = x.constConvertibleTo(check, T, &x.val, &cause)
+
 	case constArg && isTypeParam(T):
 		// x is convertible to T if it is convertible
 		// to each specific type in the type set of T.
@@ -65,18 +39,17 @@ func (check *Checker) conversion(x *operand, T Type) {
 			if isString(x.typ()) && isBytesOrRunes(u) {
 				return true
 			}
-			if !constConvertibleTo(u, nil) {
-				if isInteger(x.typ()) && isInteger(u) {
-					// see comment above on constant conversion
-					cause = check.sprintf("constant %s overflows %s (in %s)", x.val, u, T)
-				} else {
-					cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
+			if !x.constConvertibleTo(check, u, nil, &cause) {
+				if cause == "" {
+					cause = check.sprintf("cannot convert %s to type %s", x, u)
 				}
+				cause = check.sprintf("%s (in %s)", cause, T)
 				return false
 			}
 			return true
 		})
 		x.mode_ = value // type parameters are not constants
+
 	case x.convertibleTo(check, T, &cause):
 		// non-constant conversion
 		ok = true
@@ -117,6 +90,60 @@ func (check *Checker) conversion(x *operand, T Type) {
 	}
 
 	x.typ_ = T
+}
+
+// constConvertibleTo reports whether constant operand x can be converted
+// to a constant value of type T. If true, and a non-nil val is provided,
+// the function sets *val to the respective constant value as a side-effect.
+// If false, a non-empty *cause string explains the failure; cause must not be nil.
+func (x *operand) constConvertibleTo(check *Checker, T Type, val *constant.Value, cause *string) bool {
+	assert(x.mode() == constant_)
+
+	// T must be a constant type
+	t, ok := T.Underlying().(*Basic)
+	if !ok {
+		*cause = check.sprintf("%s is not a valid constant type", T)
+		return false
+	}
+
+	// string(x)
+	if isInteger(x.typ()) && isString(t) {
+		if check.allowVersion(go1_28) && !isByteOrRune(x.typ()) {
+			*cause = check.sprintf("argument must be untyped rune constant or have type byte or rune with %s or later", go1_28)
+			return false
+		}
+		codepoint := unicode.ReplacementChar
+		if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
+			codepoint = rune(i)
+		}
+		if val != nil {
+			*val = constant.MakeString(string(codepoint))
+		}
+		return true
+	}
+
+	// T(x)
+	if !representableConst(x.val, check, t, val) {
+		// provide a cause if possible
+		var msg string
+		switch {
+		case isInteger(x.typ()) && isInteger(t):
+			// A conversion from an integer constant to an integer type
+			// can only fail if there's overflow (go.dev/issue/63563).
+			msg = "constant %s overflows %s" // TODO(gri) remove "constant " prefix or add below for consistency
+		case isNumeric(x.typ()) && isNumeric(t):
+			// A conversion from a numeric type to another numeric type
+			// where at least one of them is not an integer can only fail
+			// because of truncation.
+			msg = "%s truncated to %s"
+		}
+		if msg != "" {
+			*cause = check.sprintf(msg, x.val, T)
+		}
+		return false
+	}
+
+	return true
 }
 
 // TODO(gri) convertibleTo checks if T(x) is valid. It assumes that the type
@@ -174,9 +201,21 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return true
 	}
 
-	// "V is an integer or a slice of bytes or runes and T is a string type"
-	if (isInteger(Vu) || isBytesOrRunes(Vu)) && isString(Tu) {
-		return true
+	// "V is an integer                      or a slice of bytes or runes and T is a string type" (before Go 1.28)
+	// "V is an integer of type byte or rune or a slice of bytes or runes and T is a string type"
+	if isString(Tu) {
+		if isInteger(Vu) {
+			if (check == nil || check.allowVersion(go1_28)) && !isByteOrRune(Vu) {
+				if cause != nil {
+					*cause = "argument must have type byte or rune with go1.28 or later"
+				}
+				return false
+			}
+			return true
+		}
+		if isBytesOrRunes(Vu) {
+			return true
+		}
 	}
 
 	// "V is a string and T is a slice of bytes or runes"
@@ -306,10 +345,13 @@ func isPointer(typ Type) bool {
 	return ok
 }
 
+// includes untyped rune types!
+func isByteOrRune(typ Type) bool {
+	t, _ := typ.Underlying().(*Basic)
+	return t != nil && (t.kind == Byte || t.kind == Rune || t.kind == UntypedRune)
+}
+
 func isBytesOrRunes(typ Type) bool {
-	if s, _ := typ.Underlying().(*Slice); s != nil {
-		t, _ := s.elem.Underlying().(*Basic)
-		return t != nil && (t.kind == Byte || t.kind == Rune)
-	}
-	return false
+	t, _ := typ.Underlying().(*Slice)
+	return t != nil && isByteOrRune(t.elem) // ok to include untyped runes, they are never element types
 }

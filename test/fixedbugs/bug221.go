@@ -13,7 +13,7 @@ package main
 
 var gen = 'a'
 
-func f(n int) string {
+func f(n rune) string {
 	s := string(gen) + string(n+'A'-1)
 	gen++
 	return s

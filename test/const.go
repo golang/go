@@ -26,7 +26,6 @@ const (
 	cfalse = !ctrue
 
 	// Issue #34563
-	_ = string(int(123))
 	_ = string(rune(456))
 )
 
@@ -168,9 +167,9 @@ func truncate() {
 		x30 = 1 << 30
 		x60 = 1 << 60
 
-		staticF32 = float32(x30) + 1 - x30
-		staticF64 = float64(x60) + 1 - x60
-		staticC64 = complex64(x30) + 1 - x30
+		staticF32  = float32(x30) + 1 - x30
+		staticF64  = float64(x60) + 1 - x60
+		staticC64  = complex64(x30) + 1 - x30
 		staticC128 = complex128(x60) + 1 - x60
 	)
 	dynamicF32 := float32(x30)

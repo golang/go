@@ -12,11 +12,11 @@ package main
 import "unsafe"
 
 // explicit conversion of constants
-var x1 = string(1)
-var x2 string = string(1)
+var x1 = string('A')
+var x2 string = string(byte(65))
 var x3 = int(1.5)     // ERROR "convert|truncate"
 var x4 int = int(1.5) // ERROR "convert|truncate"
-var x5 = "a" + string(1)
+var x5 = "a" + string('a')
 var x6 = int(1e100)      // ERROR "overflow|cannot convert"
 var x7 = float32(1e1000) // ERROR "overflow|cannot convert"
 

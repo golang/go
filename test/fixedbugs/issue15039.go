@@ -1,5 +1,8 @@
 // run
 
+// This code relies on pre-1.28 string(integer) conversion rules.
+//go:build !go1.28
+
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -18,7 +21,7 @@ func main() {
 	}
 
 	// cmd/compile used to require integer constants to fit into an "int".
-	const huge = string(1<<100)
+	const huge = string(1 << 100)
 	if huge != fffd {
 		panic("huge != bad")
 	}

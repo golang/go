@@ -1563,7 +1563,7 @@ var types = []modifier{
 		mapT: func() {
 			a := make(map[string]string)
 			for i := 0; i < length; i++ {
-				a[string(i)] = str(i)
+				a[string(rune(i))] = str(i)
 				runtime.Gosched()
 			}
 			for i := 0; i < mods; i++ {

@@ -15,7 +15,7 @@ type	Iputs	interface {
 // ---------
 
 type	Print	struct {
-	whoami	int;
+	whoami	rune;
 	put	Iputs;
 }
 
@@ -27,7 +27,7 @@ func (p *Print) dop() string {
 // ---------
 
 type	Bio	struct {
-	whoami	int;
+	whoami	rune;
 	put	Iputs;
 }
 
@@ -39,7 +39,7 @@ func (b *Bio) puts(s string) string {
 // ---------
 
 type	File	struct {
-	whoami	int;
+	whoami	rune;
 	put	Iputs;
 }
 
