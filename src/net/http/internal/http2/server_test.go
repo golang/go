@@ -449,15 +449,21 @@ func (st *serverTester) Close() {
 // frames may be sent.
 func (st *serverTester) greet() {
 	st.t.Helper()
-	st.greetAndCheckSettings(func(Setting) error { return nil })
+	st.greetAndCheckSettings(nil, func(Setting) error { return nil })
 }
 
-func (st *serverTester) greetAndCheckSettings(checkSetting func(s Setting) error) {
+// greetAndCheckSettings is like greet, but the client sends the
+// provided settings in its initial SETTINGS frame, and the
+// checkSetting callback, if non-nil, is run for each setting in the
+// server's initial SETTINGS frame.
+func (st *serverTester) greetAndCheckSettings(settings []Setting, checkSetting func(s Setting) error) {
 	st.t.Helper()
 	st.writePreface()
-	st.writeSettings()
+	st.writeSettings(settings...)
 	st.sync()
-	readFrame[*SettingsFrame](st.t, st).ForeachSetting(checkSetting)
+	if f := readFrame[*SettingsFrame](st.t, st); checkSetting != nil {
+		f.ForeachSetting(checkSetting)
+	}
 	st.writeSettingsAck()
 
 	// The initial WINDOW_UPDATE and SETTINGS ACK can come in any order.
@@ -2889,7 +2895,7 @@ func testServer_MaxDecoderHeaderTableSize(t *testing.T) {
 	defer st.Close()
 
 	var advHeaderTableSize *uint32
-	st.greetAndCheckSettings(func(s Setting) error {
+	st.greetAndCheckSettings(nil, func(s Setting) error {
 		switch s.ID {
 		case SettingHeaderTableSize:
 			advHeaderTableSize = &s.Val
@@ -3012,7 +3018,7 @@ func testServerDoS_MaxHeaderListSize(t *testing.T) {
 	// shake hands
 	frameSize := DefaultMaxReadFrameSize
 	var advHeaderListSize *uint32
-	st.greetAndCheckSettings(func(s Setting) error {
+	st.greetAndCheckSettings(nil, func(s Setting) error {
 		switch s.ID {
 		case SettingMaxFrameSize:
 			if s.Val < MinMaxFrameSize {
@@ -3942,6 +3948,61 @@ func testServerParkingDisabledByGODEBUG(t *testing.T) {
 		endStream: true,
 	})
 	st.wantParked(false)
+}
+
+func TestServerParksWithFlowControlledData(t *testing.T) {
+	synctest.Test(t, testServerParksWithFlowControlledData)
+}
+func testServerParksWithFlowControlledData(t *testing.T) {
+	// A handler whose response exceeds the client's stream flow
+	// control window. The server sends as much DATA as the window
+	// allows and then parks, with the rest of the response queued in
+	// the write scheduler, blocked on flow control. The client's
+	// WINDOW_UPDATE revives the parked serve goroutine to write it.
+	const window = 100
+	const responseSize = 250
+	rest := responseSize - window
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+		w.(http.Flusher).Flush()
+		io.WriteString(w, strings.Repeat("a", responseSize))
+	})
+	defer st.Close()
+
+	st.greetAndCheckSettings(
+		[]Setting{{SettingInitialWindowSize, window}},
+		nil,
+	)
+	st.bodylessReq1()
+
+	// The server sends the response headers and the first window bytes
+	// of DATA, then the write scheduler blocks the rest on the
+	// stream's flow control window.
+	st.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: false,
+	})
+	st.wantData(wantData{
+		streamID:  1,
+		endStream: false,
+		size:      window,
+	})
+
+	// The serve goroutine parks even though its write scheduler still
+	// holds the blocked DATA, and it stays parked, because only an
+	// incoming WINDOW_UPDATE can unblock it.
+	st.wantParked(true)
+	st.advance(24 * time.Hour)
+	st.wantParked(true)
+
+	// The client's WINDOW_UPDATE revives the serve goroutine, which
+	// writes the rest of the response and ends the stream.
+	st.writeWindowUpdate(1, uint32(rest))
+	st.wantData(wantData{
+		streamID:  1,
+		endStream: true,
+		data:      []byte(strings.Repeat("a", rest)),
+	})
+	st.wantParked(true)
 }
 
 // grpc-go closes the Request.Body currently with a Read.
@@ -5089,7 +5150,7 @@ func testServerSettingNoRFC7540Priorities(t *testing.T) {
 	defer st.Close()
 
 	var gotNoRFC7540Setting bool
-	st.greetAndCheckSettings(func(s Setting) error {
+	st.greetAndCheckSettings(nil, func(s Setting) error {
 		if s.ID != SettingNoRFC7540Priorities {
 			return nil
 		}

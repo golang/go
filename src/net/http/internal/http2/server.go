@@ -286,8 +286,8 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	}
 	sc.serveG.setOwner() // serve is called below on this same goroutine
 	sc.resumeServeFunc = sc.resumeServe
-	if opts.OnClose != nil && http2serveparking.Value() == "0" {
-		sc.serveParkingDisabled = true
+	if opts.OnClose != nil && http2serveparking.Value() != "0" {
+		sc.serveParkingEnabled = true
 	}
 	if newf != nil {
 		newf(sc)
@@ -445,22 +445,28 @@ type serverConn struct {
 	baseCtxCancel context.CancelFunc
 	onClose       func() // or nil; from ServeConnOpts.OnClose, called by teardown
 
-	// serveParkingDisabled is whether GODEBUG=http2serveparking=0
-	// disabled parking the serve goroutine for this connection.
-	serveParkingDisabled bool
-	framer               *Framer
-	doneServing          chan struct{}          // closed by teardown when the connection is done
-	readFrameCh          chan readFrameResult   // written by serverConn.readFrames
-	wantWriteFrameCh     chan FrameWriteRequest // from handlers -> serve
-	wroteFrameCh         chan frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
-	bodyReadCh           chan bodyReadMsg       // from handlers -> serve
-	serveMsgCh           chan any               // misc messages & code to send to / run on the serve loop
-	flow                 outflow                // conn-wide (not stream-specific) outbound flow control
-	inflow               inflow                 // conn-wide inbound flow control
-	tlsState             *tls.ConnectionState   // shared by all handlers, like net/http
-	remoteAddrStr        string
-	writeSched           WriteScheduler
-	countErrorFunc       func(errType string)
+	// serveParkingEnabled is whether this connection's serve goroutine
+	// may park when the connection is idle. It requires the OnClose
+	// hook (which is what lets ServeConn return early) and
+	// GODEBUG=http2serveparking to be enabled. It is set once in
+	// serveConn, before any goroutine that sends to the serve loop's
+	// channels exists, and never changes, so it can be read without a
+	// lock, letting beginServeSend and endServeSend skip the parkMu
+	// accounting on connections that can never park.
+	serveParkingEnabled bool
+	framer              *Framer
+	doneServing         chan struct{}          // closed by teardown when the connection is done
+	readFrameCh         chan readFrameResult   // written by serverConn.readFrames
+	wantWriteFrameCh    chan FrameWriteRequest // from handlers -> serve
+	wroteFrameCh        chan frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
+	bodyReadCh          chan bodyReadMsg       // from handlers -> serve
+	serveMsgCh          chan any               // misc messages & code to send to / run on the serve loop
+	flow                outflow                // conn-wide (not stream-specific) outbound flow control
+	inflow              inflow                 // conn-wide inbound flow control
+	tlsState            *tls.ConnectionState   // shared by all handlers, like net/http
+	remoteAddrStr       string
+	writeSched          WriteScheduler
+	countErrorFunc      func(errType string)
 
 	// resumeServeFunc is sc.resumeServe, allocated once at setup so
 	// that beginServeSend's "go sc.resumeServeFunc()" doesn't allocate
@@ -1061,6 +1067,18 @@ func (sc *serverConn) serveLoop() (parked bool) {
 // frames are always consumed whole; see FrameWriteRequest.Consume),
 // and only an incoming WINDOW_UPDATE or SETTINGS frame, which arrives
 // via readFrames and revives the loop, can unblock it.
+func (sc *serverConn) canPark() bool {
+	sc.serveG.check()
+	return sc.serveParkingEnabled &&
+		!sc.writingFrame &&
+		!sc.writingFrameAsync &&
+		!sc.needsFrameFlush &&
+		!sc.needToSendGoAway &&
+		!sc.needToSendSettingsAck &&
+		!sc.inGoAway &&
+		sc.queuedControlFrames == 0
+}
+
 // http2serveparking, if "0", disables parking the serve goroutine
 // while a connection has nothing to do, restoring the old behavior of
 // keeping a goroutine parked for the lifetime of each connection.
@@ -1071,21 +1089,6 @@ func (sc *serverConn) serveLoop() (parked bool) {
 //
 // TODO: remove this setting; see #81524.
 var http2serveparking = godebug.New("#http2serveparking")
-
-func (sc *serverConn) canPark() bool {
-	sc.serveG.check()
-	// Parking makes ServeConn return early, which only callers that set
-	// ServeConnOpts.OnClose are prepared for.
-	return !sc.serveParkingDisabled &&
-		sc.onClose != nil &&
-		!sc.writingFrame &&
-		!sc.writingFrameAsync &&
-		!sc.needsFrameFlush &&
-		!sc.needToSendGoAway &&
-		!sc.needToSendSettingsAck &&
-		!sc.inGoAway &&
-		sc.queuedControlFrames == 0
-}
 
 // tryPark attempts to mark the serve goroutine as parked, so that the
 // next beginServeSend revives the serve loop on a new goroutine. It
@@ -1162,6 +1165,11 @@ func (sc *serverConn) onShutdownTimer() { sc.sendServeMsg(shutdownTimerMsg) }
 // loop receives the message, or until a sender that bailed out on
 // another select case gives up; both call endServeSend.
 func (sc *serverConn) beginServeSend() {
+	if !sc.serveParkingEnabled {
+		// The serve loop never parks, so there is nothing to count
+		// or revive, and no lock is needed.
+		return
+	}
 	sc.parkMu.Lock()
 	defer sc.parkMu.Unlock()
 	sc.serveSendsPending++
@@ -1174,6 +1182,9 @@ func (sc *serverConn) beginServeSend() {
 // endServeSend balances an earlier beginServeSend, either because the
 // serve loop received the message or because the sender never sent it.
 func (sc *serverConn) endServeSend() {
+	if !sc.serveParkingEnabled {
+		return
+	}
 	sc.parkMu.Lock()
 	defer sc.parkMu.Unlock()
 	sc.serveSendsPending--
