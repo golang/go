@@ -5,12 +5,14 @@
 package runtime_test
 
 import (
+	"internal/abi"
 	"internal/runtime/atomic"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
 	"unsafe"
+	"weak"
 )
 
 func TestCleanup(t *testing.T) {
@@ -79,6 +81,39 @@ func TestCleanupZeroSizedStruct(t *testing.T) {
 	type Z struct{}
 	z := new(Z)
 	runtime.AddCleanup(z, func(s string) {}, "foo")
+}
+
+func TestCleanupNilInterface(t *testing.T) {
+	ptr := new(*byte)
+	// Test both empty and non-empty interfaces.
+	runtime.AddCleanup(ptr, func(any) {}, nil).Stop()
+	runtime.AddCleanup(ptr, func(error) {}, nil).Stop()
+	runtime.KeepAlive(ptr)
+}
+
+func TestCleanupInterfaceArgument(t *testing.T) {
+	ptr := new(*byte) // Avoid the tiny allocator.
+	var data [128]byte
+	for i := range data {
+		data[i] = byte(i + 1)
+	}
+	var arg any = data
+	// Converting data to any boxes a copy of the array. AddCleanup copies
+	// the interface value, so it retains the boxed array but not the local
+	// variables data or arg. Observe the backing allocation, not &data or &arg.
+	iface := (*abi.EmptyInterface)(unsafe.Pointer(&arg))
+	w := weak.Make((*byte)(iface.Data))
+	cleanup := runtime.AddCleanup(ptr, func(any) {}, arg)
+	arg = nil // Only the cleanup should retain the boxed array.
+
+	// On 32-bit systems, using the dynamic argument type allocated the
+	// cleanup's interface storage without a pointer mask for its data pointer.
+	runtime.GC()
+	if w.Value() == nil {
+		t.Error("cleanup argument was collected while the target was still live")
+	}
+	cleanup.Stop()
+	runtime.KeepAlive(ptr)
 }
 
 func TestCleanupAfterFinalizer(t *testing.T) {

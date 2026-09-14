@@ -90,7 +90,8 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 	usptr := uintptr(unsafe.Pointer(ptr))
 
 	// Check that arg is not equal to ptr.
-	argType := abi.TypeOf(arg)
+	// Use the static type of arg, since S may itself be an interface.
+	argType := abi.TypeFor[S]()
 	kind := argType.Kind()
 	if kind == abi.Pointer || kind == abi.UnsafePointer {
 		if unsafe.Pointer(ptr) == *((*unsafe.Pointer)(unsafe.Pointer(&arg))) {
