@@ -5347,22 +5347,22 @@ func RewriteValue(v *ssa.Value) bool {
 		v.Op = ssaop.OpAMD64MULL
 		return true
 	case ssaop.OpMulAddEvenSubOddFloat32x16:
-		v.Op = ssaop.OpAMD64VFMADDSUB213PS512
+		v.Op = ssaop.OpAMD64VFMSUBADD213PS512
 		return true
 	case ssaop.OpMulAddEvenSubOddFloat32x4:
-		v.Op = ssaop.OpAMD64VFMADDSUB213PS128
+		v.Op = ssaop.OpAMD64VFMSUBADD213PS128
 		return true
 	case ssaop.OpMulAddEvenSubOddFloat32x8:
-		v.Op = ssaop.OpAMD64VFMADDSUB213PS256
+		v.Op = ssaop.OpAMD64VFMSUBADD213PS256
 		return true
 	case ssaop.OpMulAddEvenSubOddFloat64x2:
-		v.Op = ssaop.OpAMD64VFMADDSUB213PD128
+		v.Op = ssaop.OpAMD64VFMSUBADD213PD128
 		return true
 	case ssaop.OpMulAddEvenSubOddFloat64x4:
-		v.Op = ssaop.OpAMD64VFMADDSUB213PD256
+		v.Op = ssaop.OpAMD64VFMSUBADD213PD256
 		return true
 	case ssaop.OpMulAddEvenSubOddFloat64x8:
-		v.Op = ssaop.OpAMD64VFMADDSUB213PD512
+		v.Op = ssaop.OpAMD64VFMSUBADD213PD512
 		return true
 	case ssaop.OpMulAddFloat32x16:
 		v.Op = ssaop.OpAMD64VFMADD213PS512
@@ -5383,22 +5383,22 @@ func RewriteValue(v *ssa.Value) bool {
 		v.Op = ssaop.OpAMD64VFMADD213PD512
 		return true
 	case ssaop.OpMulAddOddSubEvenFloat32x16:
-		v.Op = ssaop.OpAMD64VFMSUBADD213PS512
+		v.Op = ssaop.OpAMD64VFMADDSUB213PS512
 		return true
 	case ssaop.OpMulAddOddSubEvenFloat32x4:
-		v.Op = ssaop.OpAMD64VFMSUBADD213PS128
+		v.Op = ssaop.OpAMD64VFMADDSUB213PS128
 		return true
 	case ssaop.OpMulAddOddSubEvenFloat32x8:
-		v.Op = ssaop.OpAMD64VFMSUBADD213PS256
+		v.Op = ssaop.OpAMD64VFMADDSUB213PS256
 		return true
 	case ssaop.OpMulAddOddSubEvenFloat64x2:
-		v.Op = ssaop.OpAMD64VFMSUBADD213PD128
+		v.Op = ssaop.OpAMD64VFMADDSUB213PD128
 		return true
 	case ssaop.OpMulAddOddSubEvenFloat64x4:
-		v.Op = ssaop.OpAMD64VFMSUBADD213PD256
+		v.Op = ssaop.OpAMD64VFMADDSUB213PD256
 		return true
 	case ssaop.OpMulAddOddSubEvenFloat64x8:
-		v.Op = ssaop.OpAMD64VFMSUBADD213PD512
+		v.Op = ssaop.OpAMD64VFMADDSUB213PD512
 		return true
 	case ssaop.OpMulFloat32x16:
 		v.Op = ssaop.OpAMD64VMULPS512
@@ -51022,17 +51022,17 @@ func rewriteValue_OpAMD64VMOVDQU32Masked128(v *ssa.Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU32Masked128 (VFMADDSUB213PS128 x y z) mask)
-	// result: (VFMADDSUB213PSMasked128 x y z mask)
+	// match: (VMOVDQU32Masked128 (VFMSUBADD213PS128 x y z) mask)
+	// result: (VFMSUBADD213PSMasked128 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PS128 {
+		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PS128 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMADDSUB213PSMasked128)
+		v.Reset(ssaop.OpAMD64VFMSUBADD213PSMasked128)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -51050,17 +51050,17 @@ func rewriteValue_OpAMD64VMOVDQU32Masked128(v *ssa.Value) bool {
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
-	// match: (VMOVDQU32Masked128 (VFMSUBADD213PS128 x y z) mask)
-	// result: (VFMSUBADD213PSMasked128 x y z mask)
+	// match: (VMOVDQU32Masked128 (VFMADDSUB213PS128 x y z) mask)
+	// result: (VFMADDSUB213PSMasked128 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PS128 {
+		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PS128 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMSUBADD213PSMasked128)
+		v.Reset(ssaop.OpAMD64VFMADDSUB213PSMasked128)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -51803,17 +51803,17 @@ func rewriteValue_OpAMD64VMOVDQU32Masked256(v *ssa.Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU32Masked256 (VFMADDSUB213PS256 x y z) mask)
-	// result: (VFMADDSUB213PSMasked256 x y z mask)
+	// match: (VMOVDQU32Masked256 (VFMSUBADD213PS256 x y z) mask)
+	// result: (VFMSUBADD213PSMasked256 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PS256 {
+		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PS256 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMADDSUB213PSMasked256)
+		v.Reset(ssaop.OpAMD64VFMSUBADD213PSMasked256)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -51831,17 +51831,17 @@ func rewriteValue_OpAMD64VMOVDQU32Masked256(v *ssa.Value) bool {
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
-	// match: (VMOVDQU32Masked256 (VFMSUBADD213PS256 x y z) mask)
-	// result: (VFMSUBADD213PSMasked256 x y z mask)
+	// match: (VMOVDQU32Masked256 (VFMADDSUB213PS256 x y z) mask)
+	// result: (VFMADDSUB213PSMasked256 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PS256 {
+		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PS256 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMSUBADD213PSMasked256)
+		v.Reset(ssaop.OpAMD64VFMADDSUB213PSMasked256)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -52672,17 +52672,17 @@ func rewriteValue_OpAMD64VMOVDQU32Masked512(v *ssa.Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU32Masked512 (VFMADDSUB213PS512 x y z) mask)
-	// result: (VFMADDSUB213PSMasked512 x y z mask)
+	// match: (VMOVDQU32Masked512 (VFMSUBADD213PS512 x y z) mask)
+	// result: (VFMSUBADD213PSMasked512 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PS512 {
+		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PS512 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMADDSUB213PSMasked512)
+		v.Reset(ssaop.OpAMD64VFMSUBADD213PSMasked512)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -52700,17 +52700,17 @@ func rewriteValue_OpAMD64VMOVDQU32Masked512(v *ssa.Value) bool {
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
-	// match: (VMOVDQU32Masked512 (VFMSUBADD213PS512 x y z) mask)
-	// result: (VFMSUBADD213PSMasked512 x y z mask)
+	// match: (VMOVDQU32Masked512 (VFMADDSUB213PS512 x y z) mask)
+	// result: (VFMADDSUB213PSMasked512 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PS512 {
+		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PS512 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMSUBADD213PSMasked512)
+		v.Reset(ssaop.OpAMD64VFMADDSUB213PSMasked512)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -53503,17 +53503,17 @@ func rewriteValue_OpAMD64VMOVDQU64Masked128(v *ssa.Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU64Masked128 (VFMADDSUB213PD128 x y z) mask)
-	// result: (VFMADDSUB213PDMasked128 x y z mask)
+	// match: (VMOVDQU64Masked128 (VFMSUBADD213PD128 x y z) mask)
+	// result: (VFMSUBADD213PDMasked128 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PD128 {
+		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PD128 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMADDSUB213PDMasked128)
+		v.Reset(ssaop.OpAMD64VFMSUBADD213PDMasked128)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -53531,17 +53531,17 @@ func rewriteValue_OpAMD64VMOVDQU64Masked128(v *ssa.Value) bool {
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
-	// match: (VMOVDQU64Masked128 (VFMSUBADD213PD128 x y z) mask)
-	// result: (VFMSUBADD213PDMasked128 x y z mask)
+	// match: (VMOVDQU64Masked128 (VFMADDSUB213PD128 x y z) mask)
+	// result: (VFMADDSUB213PDMasked128 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PD128 {
+		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PD128 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMSUBADD213PDMasked128)
+		v.Reset(ssaop.OpAMD64VFMADDSUB213PDMasked128)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -54280,17 +54280,17 @@ func rewriteValue_OpAMD64VMOVDQU64Masked256(v *ssa.Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU64Masked256 (VFMADDSUB213PD256 x y z) mask)
-	// result: (VFMADDSUB213PDMasked256 x y z mask)
+	// match: (VMOVDQU64Masked256 (VFMSUBADD213PD256 x y z) mask)
+	// result: (VFMSUBADD213PDMasked256 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PD256 {
+		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PD256 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMADDSUB213PDMasked256)
+		v.Reset(ssaop.OpAMD64VFMSUBADD213PDMasked256)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -54308,17 +54308,17 @@ func rewriteValue_OpAMD64VMOVDQU64Masked256(v *ssa.Value) bool {
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
-	// match: (VMOVDQU64Masked256 (VFMSUBADD213PD256 x y z) mask)
-	// result: (VFMSUBADD213PDMasked256 x y z mask)
+	// match: (VMOVDQU64Masked256 (VFMADDSUB213PD256 x y z) mask)
+	// result: (VFMADDSUB213PDMasked256 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PD256 {
+		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PD256 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMSUBADD213PDMasked256)
+		v.Reset(ssaop.OpAMD64VFMADDSUB213PDMasked256)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -55085,17 +55085,17 @@ func rewriteValue_OpAMD64VMOVDQU64Masked512(v *ssa.Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU64Masked512 (VFMADDSUB213PD512 x y z) mask)
-	// result: (VFMADDSUB213PDMasked512 x y z mask)
+	// match: (VMOVDQU64Masked512 (VFMSUBADD213PD512 x y z) mask)
+	// result: (VFMSUBADD213PDMasked512 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PD512 {
+		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PD512 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMADDSUB213PDMasked512)
+		v.Reset(ssaop.OpAMD64VFMSUBADD213PDMasked512)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
@@ -55113,17 +55113,17 @@ func rewriteValue_OpAMD64VMOVDQU64Masked512(v *ssa.Value) bool {
 		v.AddArg4(x, y, z, mask)
 		return true
 	}
-	// match: (VMOVDQU64Masked512 (VFMSUBADD213PD512 x y z) mask)
-	// result: (VFMSUBADD213PDMasked512 x y z mask)
+	// match: (VMOVDQU64Masked512 (VFMADDSUB213PD512 x y z) mask)
+	// result: (VFMADDSUB213PDMasked512 x y z mask)
 	for {
-		if v_0.Op != ssaop.OpAMD64VFMSUBADD213PD512 {
+		if v_0.Op != ssaop.OpAMD64VFMADDSUB213PD512 {
 			break
 		}
 		z := v_0.Args[2]
 		x := v_0.Args[0]
 		y := v_0.Args[1]
 		mask := v_1
-		v.Reset(ssaop.OpAMD64VFMSUBADD213PDMasked512)
+		v.Reset(ssaop.OpAMD64VFMADDSUB213PDMasked512)
 		v.AddArg4(x, y, z, mask)
 		return true
 	}

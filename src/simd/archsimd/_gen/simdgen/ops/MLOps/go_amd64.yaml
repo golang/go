@@ -63,7 +63,7 @@
   out:
   - *fma_op
 - go: MulAddEvenSubOdd
-  asm: "VFMADDSUB213PS|VFMADDSUB213PD"
+  asm: "VFMSUBADD213PS|VFMSUBADD213PD"
   in:
   - *fma_op
   - *fma_op
@@ -71,7 +71,7 @@
   out:
   - *fma_op
 - go: MulAddOddSubEven
-  asm: "VFMSUBADD213PS|VFMSUBADD213PD"
+  asm: "VFMADDSUB213PS|VFMADDSUB213PD"
   in:
   - *fma_op
   - *fma_op

@@ -4245,64 +4245,64 @@ func (x Float64x8) MulAdd(y Float64x8, z Float64x8) Float64x8
 
 // MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PS, CPU Feature: FMA
+// Asm: VFMSUBADD213PS, CPU Feature: FMA
 func (x Float32x4) MulAddEvenSubOdd(y Float32x4, z Float32x4) Float32x4
 
 // MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PS, CPU Feature: FMA
+// Asm: VFMSUBADD213PS, CPU Feature: FMA
 func (x Float32x8) MulAddEvenSubOdd(y Float32x8, z Float32x8) Float32x8
 
 // MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512
+// Asm: VFMSUBADD213PS, CPU Feature: AVX512
 func (x Float32x16) MulAddEvenSubOdd(y Float32x16, z Float32x16) Float32x16
 
 // MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PD, CPU Feature: FMA
+// Asm: VFMSUBADD213PD, CPU Feature: FMA
 func (x Float64x2) MulAddEvenSubOdd(y Float64x2, z Float64x2) Float64x2
 
 // MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PD, CPU Feature: FMA
+// Asm: VFMSUBADD213PD, CPU Feature: FMA
 func (x Float64x4) MulAddEvenSubOdd(y Float64x4, z Float64x4) Float64x4
 
 // MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512
+// Asm: VFMSUBADD213PD, CPU Feature: AVX512
 func (x Float64x8) MulAddEvenSubOdd(y Float64x8, z Float64x8) Float64x8
 
 /* MulAddOddSubEven */
 
 // MulAddOddSubEven performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PS, CPU Feature: FMA
+// Asm: VFMADDSUB213PS, CPU Feature: FMA
 func (x Float32x4) MulAddOddSubEven(y Float32x4, z Float32x4) Float32x4
 
 // MulAddOddSubEven performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PS, CPU Feature: FMA
+// Asm: VFMADDSUB213PS, CPU Feature: FMA
 func (x Float32x8) MulAddOddSubEven(y Float32x8, z Float32x8) Float32x8
 
 // MulAddOddSubEven performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512
+// Asm: VFMADDSUB213PS, CPU Feature: AVX512
 func (x Float32x16) MulAddOddSubEven(y Float32x16, z Float32x16) Float32x16
 
 // MulAddOddSubEven performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PD, CPU Feature: FMA
+// Asm: VFMADDSUB213PD, CPU Feature: FMA
 func (x Float64x2) MulAddOddSubEven(y Float64x2, z Float64x2) Float64x2
 
 // MulAddOddSubEven performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PD, CPU Feature: FMA
+// Asm: VFMADDSUB213PD, CPU Feature: FMA
 func (x Float64x4) MulAddOddSubEven(y Float64x4, z Float64x4) Float64x4
 
 // MulAddOddSubEven performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512
+// Asm: VFMADDSUB213PD, CPU Feature: AVX512
 func (x Float64x8) MulAddOddSubEven(y Float64x8, z Float64x8) Float64x8
 
 /* MulHigh */
