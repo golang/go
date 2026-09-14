@@ -49,13 +49,13 @@ type orderState struct {
 
 // order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
-func order(walkstate *walkState, fn *ir.Func) {
+func (w *walkState) order(fn *ir.Func) {
 	if base.Flag.W > 1 {
 		s := fmt.Sprintf("\nbefore order %v", fn.Sym())
 		ir.DumpList(s, fn.Body)
 	}
 	ir.SetPos(fn) // Set reasonable position for instrumenting code. See issue 53688.
-	orderBlock(walkstate, &fn.Body, map[string][]*ir.Name{})
+	w.orderBlock(&fn.Body, map[string][]*ir.Name{})
 }
 
 // append typechecks stmt and appends it to out.
@@ -261,7 +261,7 @@ func (o *orderState) addrTemp(walkstate *walkState, n ir.Node) ir.Node {
 			// v can be directly represented in the read-only data section.
 			lit := v.(*ir.CompLitExpr)
 			vstat := readonlystaticname(n.Type())
-			fixedlit(walkstate, initKindStatic, lit, vstat, nil) // nil init
+			walkstate.fixedlit(initKindStatic, lit, vstat, nil) // nil init
 			vstat = typecheck.Expr(vstat).(*ir.Name)
 			return vstat
 		}
@@ -534,7 +534,7 @@ func (o *orderState) edge() {
 // orderBlock orders the block of statements in n into a new slice,
 // and then replaces the old slice in n with the new slice.
 // free is a map that can be used to obtain temporary variables by type.
-func orderBlock(walkstate *walkState, n *ir.Nodes, free map[string][]*ir.Name) {
+func (w *walkState) orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
 	if len(*n) != 0 {
 		// Set reasonable position for instrumenting code. See issue 53688.
 		// It would be nice if ir.Nodes had a position (the opening {, probably),
@@ -542,11 +542,11 @@ func orderBlock(walkstate *walkState, n *ir.Nodes, free map[string][]*ir.Name) {
 		ir.SetPos((*n)[0])
 	}
 	var order orderState
-	order.walkstate = walkstate
+	order.walkstate = w
 	order.free = free
 	mark := order.markTemp()
 	order.edge()
-	order.stmtList(walkstate, *n)
+	order.stmtList(w, *n)
 	order.popTemp(mark)
 	*n = order.out
 }
@@ -576,12 +576,12 @@ func (o *orderState) exprInPlace(walkstate *walkState, n ir.Node) ir.Node {
 //	n.Left = orderStmtInPlace(n.Left)
 //
 // free is a map that can be used to obtain temporary variables by type.
-func orderStmtInPlace(walkstate *walkState, n ir.Node, free map[string][]*ir.Name) ir.Node {
+func (w *walkState) orderStmtInPlace(n ir.Node, free map[string][]*ir.Name) ir.Node {
 	var order orderState
-	order.walkstate = walkstate
+	order.walkstate = w
 	order.free = free
 	mark := order.markTemp()
-	order.stmt(walkstate, n)
+	order.stmt(w, n)
 	order.popTemp(mark)
 	return ir.NewBlockStmt(src.NoXPos, order.out)
 }
@@ -915,8 +915,8 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 		n := n.(*ir.ForStmt)
 		t := o.markTemp()
 		n.Cond = o.exprInPlace(walkstate, n.Cond)
-		orderBlock(walkstate, &n.Body, o.free)
-		n.Post = orderStmtInPlace(walkstate, n.Post, o.free)
+		walkstate.orderBlock(&n.Body, o.free)
+		n.Post = walkstate.orderStmtInPlace(n.Post, o.free)
 		o.out = append(o.out, n)
 		o.popTemp(t)
 
@@ -927,8 +927,8 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 		t := o.markTemp()
 		n.Cond = o.exprInPlace(walkstate, n.Cond)
 		o.popTemp(t)
-		orderBlock(walkstate, &n.Body, o.free)
-		orderBlock(walkstate, &n.Else, o.free)
+		walkstate.orderBlock(&n.Body, o.free)
+		walkstate.orderBlock(&n.Else, o.free)
 		o.out = append(o.out, n)
 
 	case ir.ORANGE:
@@ -1011,7 +1011,7 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 		n.Key = o.exprInPlace(walkstate, n.Key)
 		n.Value = o.exprInPlace(walkstate, n.Value)
 		if orderBody {
-			orderBlock(walkstate, &n.Body, o.free)
+			walkstate.orderBlock(&n.Body, o.free)
 		}
 		o.out = append(o.out, n)
 		o.popTemp(t)
@@ -1094,7 +1094,7 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 					ir.DumpList("ninit", init)
 					base.Fatalf("ninit on select recv")
 				}
-				orderBlock(walkstate, ncas.PtrInit(), o.free)
+				walkstate.orderBlock(ncas.PtrInit(), o.free)
 
 			case ir.OSEND:
 				r := r.(*ir.SendStmt)
@@ -1120,7 +1120,7 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
 		for _, cas := range n.Cases {
-			orderBlock(walkstate, &cas.Body, o.free)
+			walkstate.orderBlock(&cas.Body, o.free)
 
 			// TODO(mdempsky): Is this actually necessary?
 			// walkSelect appears to walk Ninit.
@@ -1164,7 +1164,7 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 		n.Tag = o.expr(walkstate, n.Tag, nil)
 		for _, ncas := range n.Cases {
 			o.exprListInPlace(walkstate, ncas.List)
-			orderBlock(walkstate, &ncas.Body, o.free)
+			walkstate.orderBlock(&ncas.Body, o.free)
 		}
 
 		o.out = append(o.out, n)

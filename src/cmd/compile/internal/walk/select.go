@@ -12,7 +12,7 @@ import (
 	"cmd/internal/src"
 )
 
-func walkSelect(walkstate *walkState, sel *ir.SelectStmt) {
+func (w *walkState) walkSelect(sel *ir.SelectStmt) {
 	lno := ir.SetPos(sel)
 	if sel.Walked() {
 		base.Fatalf("double walkSelect")
@@ -21,22 +21,22 @@ func walkSelect(walkstate *walkState, sel *ir.SelectStmt) {
 
 	init := ir.TakeInit(sel)
 
-	init = append(init, walkSelectCases(walkstate, sel.Cases)...)
+	init = append(init, w.walkSelectCases(sel.Cases)...)
 	sel.Cases = nil
 
 	sel.Compiled = init
-	walkStmtList(walkstate, sel.Compiled)
+	w.walkStmtList(sel.Compiled)
 
 	base.Pos = lno
 }
 
-func walkSelectCases(walkstate *walkState, cases []*ir.CommClause) []ir.Node {
+func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	ncas := len(cases)
 	sellineno := base.Pos
 
 	// optimization: zero-case select
 	if ncas == 0 {
-		return []ir.Node{mkcallstmt(walkstate, "block")}
+		return []ir.Node{w.mkcallstmt("block")}
 	}
 
 	// optimization: one-case select: single op.
@@ -116,7 +116,7 @@ func walkSelectCases(walkstate *walkState, cases []*ir.CommClause) []ir.Node {
 			// if selectnbsend(c, v) { body } else { default body }
 			n := n.(*ir.SendStmt)
 			ch := n.Chan
-			cond = mkcall1(walkstate, chanfn("selectnbsend", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), ch, n.Value)
+			cond = w.mkcall1(chanfn("selectnbsend", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), ch, n.Value)
 
 		case ir.OSELRECV2:
 			n := n.(*ir.AssignListStmt)
@@ -126,9 +126,9 @@ func walkSelectCases(walkstate *walkState, cases []*ir.CommClause) []ir.Node {
 			if ir.IsBlank(elem) {
 				elem = typecheck.NodNil()
 			}
-			cond = typecheck.TempAt(base.Pos, walkstate.curfunc, types.Types[types.TBOOL])
+			cond = typecheck.TempAt(base.Pos, w.curfunc, types.Types[types.TBOOL])
 			fn := chanfn("selectnbrecv", 2, ch.Type())
-			call := mkcall1(walkstate, fn, fn.Type().ResultsTuple(), r.PtrInit(), elem, ch)
+			call := w.mkcall1(fn, fn.Type().ResultsTuple(), r.PtrInit(), elem, ch)
 			as := ir.NewAssignListStmt(r.Pos(), ir.OAS2, []ir.Node{cond, n.Lhs[1]}, []ir.Node{call})
 			r.PtrInit().Append(typecheck.Stmt(as))
 		}
@@ -149,15 +149,15 @@ func walkSelectCases(walkstate *walkState, cases []*ir.CommClause) []ir.Node {
 
 	// generate sel-struct
 	base.Pos = sellineno
-	selv := typecheck.TempAt(base.Pos, walkstate.curfunc, types.NewArray(scasetype(), int64(ncas)))
+	selv := typecheck.TempAt(base.Pos, w.curfunc, types.NewArray(scasetype(), int64(ncas)))
 	init = append(init, typecheck.Stmt(ir.NewAssignStmt(base.Pos, selv, nil)))
 
 	// No initialization for order; runtime.selectgo is responsible for that.
-	order := typecheck.TempAt(base.Pos, walkstate.curfunc, types.NewArray(types.Types[types.TUINT16], 2*int64(ncas)))
+	order := typecheck.TempAt(base.Pos, w.curfunc, types.NewArray(types.Types[types.TUINT16], 2*int64(ncas)))
 
 	var pc0, pcs ir.Node
 	if base.Flag.Race {
-		pcs = typecheck.TempAt(base.Pos, walkstate.curfunc, types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
+		pcs = typecheck.TempAt(base.Pos, w.curfunc, types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
 		pc0 = typecheck.Expr(typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, 0))))
 	} else {
 		pc0 = typecheck.NodNil()
@@ -211,7 +211,7 @@ func walkSelectCases(walkstate *walkState, cases []*ir.CommClause) []ir.Node {
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
 		if base.Flag.Race {
-			r := mkcallstmt(walkstate, "selectsetpc", typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, int64(i)))))
+			r := w.mkcallstmt("selectsetpc", typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, int64(i)))))
 			init = append(init, r)
 		}
 	}
@@ -221,13 +221,13 @@ func walkSelectCases(walkstate *walkState, cases []*ir.CommClause) []ir.Node {
 
 	// run the select
 	base.Pos = sellineno
-	chosen := typecheck.TempAt(base.Pos, walkstate.curfunc, types.Types[types.TINT])
-	recvOK := typecheck.TempAt(base.Pos, walkstate.curfunc, types.Types[types.TBOOL])
+	chosen := typecheck.TempAt(base.Pos, w.curfunc, types.Types[types.TINT])
+	recvOK := typecheck.TempAt(base.Pos, w.curfunc, types.Types[types.TBOOL])
 	r := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	r.Lhs = []ir.Node{chosen, recvOK}
 	fn := typecheck.LookupRuntime("selectgo")
 	var fnInit ir.Nodes
-	r.Rhs = []ir.Node{mkcall1(walkstate, fn, fn.Type().ResultsTuple(), &fnInit, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(base.Pos, int64(nsends)), ir.NewInt(base.Pos, int64(nrecvs)), ir.NewBool(base.Pos, dflt == nil))}
+	r.Rhs = []ir.Node{w.mkcall1(fn, fn.Type().ResultsTuple(), &fnInit, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(base.Pos, int64(nsends)), ir.NewInt(base.Pos, int64(nrecvs)), ir.NewBool(base.Pos, dflt == nil))}
 	init = append(init, fnInit...)
 	init = append(init, typecheck.Stmt(r))
 

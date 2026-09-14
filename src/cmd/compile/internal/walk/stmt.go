@@ -13,14 +13,14 @@ import (
 // The result of walkStmt MUST be assigned back to n, e.g.
 //
 //	n.Left = walkStmt(n.Left)
-func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
+func (w *walkState) walkStmt(n ir.Node) ir.Node {
 	if n == nil {
 		return n
 	}
 
 	ir.SetPos(n)
 
-	walkStmtList(walkstate, n.Init())
+	w.walkStmtList(n.Init())
 
 	switch n.Op() {
 	default:
@@ -58,7 +58,7 @@ func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
 		}
 
 		init := ir.TakeInit(n)
-		n = walkExpr(walkstate, n, &init)
+		n = w.walkExpr(n, &init)
 		if n.Op() == ir.ONAME {
 			// copy rewrote to a statement list and a temp for the length.
 			// Throw away the temp to avoid plain values as statements.
@@ -81,7 +81,7 @@ func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
 	// the value received.
 	case ir.ORECV:
 		n := n.(*ir.UnaryExpr)
-		return walkRecv(walkstate, n)
+		return w.walkRecv(n)
 
 	case ir.OBREAK,
 		ir.OCONTINUE,
@@ -96,7 +96,7 @@ func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
 
 	case ir.OBLOCK:
 		n := n.(*ir.BlockStmt)
-		walkStmtList(walkstate, n.List)
+		w.walkStmtList(n.List)
 		return n
 
 	case ir.OCASE:
@@ -105,36 +105,36 @@ func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
 
 	case ir.ODEFER:
 		n := n.(*ir.GoDeferStmt)
-		walkstate.curfunc.SetHasDefer(true)
-		walkstate.curfunc.NumDefers++
-		if walkstate.curfunc.NumDefers > maxOpenDefers || n.DeferAt != nil {
+		w.curfunc.SetHasDefer(true)
+		w.curfunc.NumDefers++
+		if w.curfunc.NumDefers > maxOpenDefers || n.DeferAt != nil {
 			// Don't allow open-coded defers if there are more than
 			// 8 defers in the function, since we use a single
 			// byte to record active defers.
 			// Also don't allow if we need to use deferprocat.
-			walkstate.curfunc.SetOpenCodedDeferDisallowed(true)
+			w.curfunc.SetOpenCodedDeferDisallowed(true)
 		}
 		if n.Esc() != ir.EscNever {
 			// If n.Esc is not EscNever, then this defer occurs in a loop,
 			// so open-coded defers cannot be used in this function.
-			walkstate.curfunc.SetOpenCodedDeferDisallowed(true)
+			w.curfunc.SetOpenCodedDeferDisallowed(true)
 		}
 		fallthrough
 	case ir.OGO:
 		n := n.(*ir.GoDeferStmt)
-		return walkGoDefer(walkstate, n)
+		return w.walkGoDefer(n)
 
 	case ir.OFOR:
 		n := n.(*ir.ForStmt)
-		return walkFor(walkstate, n)
+		return w.walkFor(n)
 
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
-		return walkIf(walkstate, n)
+		return w.walkIf(n)
 
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
-		return walkReturn(walkstate, n)
+		return w.walkReturn(n)
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
@@ -145,12 +145,12 @@ func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
 		// drop the callee. See issues #81089 and #81340.
 		// TODO: Should we just call walkCall here?
 		if n.Call.Op() == ir.OCALLINTER {
-			usemethod(walkstate, n.Call)
+			w.usemethod(n.Call)
 			reflectdata.MarkUsedIfaceMethod(n.Call)
 		}
 
 		var init ir.Nodes
-		n.Call.Fun = walkExpr(walkstate, n.Call.Fun, &init)
+		n.Call.Fun = w.walkExpr(n.Call.Fun, &init)
 
 		if len(init) > 0 {
 			init.Append(n)
@@ -164,17 +164,17 @@ func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
 
 	case ir.OSELECT:
 		n := n.(*ir.SelectStmt)
-		walkSelect(walkstate, n)
+		w.walkSelect(n)
 		return n
 
 	case ir.OSWITCH:
 		n := n.(*ir.SwitchStmt)
-		walkSwitch(walkstate, n)
+		w.walkSwitch(n)
 		return n
 
 	case ir.ORANGE:
 		n := n.(*ir.RangeStmt)
-		return walkRange(walkstate, n)
+		return w.walkRange(n)
 	}
 
 	// No return! Each case must return (or panic),
@@ -182,23 +182,23 @@ func walkStmt(walkstate *walkState, n ir.Node) ir.Node {
 	// in the presence of type assertions.
 }
 
-func walkStmtList(walkstate *walkState, s []ir.Node) {
+func (w *walkState) walkStmtList(s []ir.Node) {
 	for i := range s {
-		s[i] = walkStmt(walkstate, s[i])
+		s[i] = w.walkStmt(s[i])
 	}
 }
 
 // walkFor walks an OFOR node.
-func walkFor(walkstate *walkState, n *ir.ForStmt) ir.Node {
+func (w *walkState) walkFor(n *ir.ForStmt) ir.Node {
 	if n.Cond != nil {
 		init := ir.TakeInit(n.Cond)
-		walkStmtList(walkstate, init)
-		n.Cond = walkExpr(walkstate, n.Cond, &init)
+		w.walkStmtList(init)
+		n.Cond = w.walkExpr(n.Cond, &init)
 		n.Cond = ir.InitExpr(init, n.Cond)
 	}
 
-	n.Post = walkStmt(walkstate, n.Post)
-	walkStmtList(walkstate, n.Body)
+	n.Post = w.walkStmt(n.Post)
+	w.walkStmtList(n.Body)
 	return n
 }
 
@@ -214,7 +214,7 @@ func validGoDeferCall(call ir.Node) bool {
 }
 
 // walkGoDefer walks an OGO or ODEFER node.
-func walkGoDefer(walkstate *walkState, n *ir.GoDeferStmt) ir.Node {
+func (w *walkState) walkGoDefer(n *ir.GoDeferStmt) ir.Node {
 	if !validGoDeferCall(n.Call) {
 		base.FatalfAt(n.Pos(), "invalid %v call: %v", n.Op(), n.Call)
 	}
@@ -222,7 +222,7 @@ func walkGoDefer(walkstate *walkState, n *ir.GoDeferStmt) ir.Node {
 	var init ir.Nodes
 
 	call := n.Call.(*ir.CallExpr)
-	call.Fun = walkExpr(walkstate, call.Fun, &init)
+	call.Fun = w.walkExpr(call.Fun, &init)
 
 	if len(init) > 0 {
 		init.Append(n)
@@ -232,9 +232,9 @@ func walkGoDefer(walkstate *walkState, n *ir.GoDeferStmt) ir.Node {
 }
 
 // walkIf walks an OIF node.
-func walkIf(walkstate *walkState, n *ir.IfStmt) ir.Node {
-	n.Cond = walkExpr(walkstate, n.Cond, n.PtrInit())
-	walkStmtList(walkstate, n.Body)
-	walkStmtList(walkstate, n.Else)
+func (w *walkState) walkIf(n *ir.IfStmt) ir.Node {
+	n.Cond = w.walkExpr(n.Cond, n.PtrInit())
+	w.walkStmtList(n.Body)
+	w.walkStmtList(n.Else)
 	return n
 }

@@ -18,14 +18,14 @@ import (
 )
 
 // walkConv walks an OCONV or OCONVNOP (but not OCONVIFACE) node.
-func walkConv(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
-	n.X = walkExpr(walkstate, n.X, init)
+func (w *walkState) walkConv(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+	n.X = w.walkExpr(n.X, init)
 	if n.Op() == ir.OCONVNOP && n.Type() == n.X.Type() {
 		return n.X
 	}
-	if n.Op() == ir.OCONVNOP && ir.ShouldCheckPtr(walkstate.curfunc, 1) {
+	if n.Op() == ir.OCONVNOP && ir.ShouldCheckPtr(w.curfunc, 1) {
 		if n.Type().IsUnsafePtr() && n.X.Type().IsUintptr() { // uintptr to unsafe.Pointer
-			return walkCheckPtrArithmetic(walkstate, n, init)
+			return w.walkCheckPtrArithmetic(n, init)
 		}
 	}
 	param, result := rtconvfn(n.X.Type(), n.Type())
@@ -33,17 +33,17 @@ func walkConv(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		return n
 	}
 	fn := types.BasicTypeNames[param] + "to" + types.BasicTypeNames[result]
-	return typecheck.Conv(mkcall(walkstate, fn, types.Types[result], init, typecheck.Conv(n.X, types.Types[param])), n.Type())
+	return typecheck.Conv(w.mkcall(fn, types.Types[result], init, typecheck.Conv(n.X, types.Types[param])), n.Type())
 }
 
 // walkConvInterface walks an OCONVIFACE node.
-func walkConvInterface(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
-	n.X = walkExpr(walkstate, n.X, init)
+	n.X = w.walkExpr(n.X, init)
 
 	fromType := n.X.Type()
 	toType := n.Type()
-	if !fromType.IsInterface() && !ir.IsBlank(walkstate.curfunc.Nname) {
+	if !fromType.IsInterface() && !ir.IsBlank(w.curfunc.Nname) {
 		// skip unnamed functions (func _())
 		if fromType.HasShape() {
 			// Unified IR uses OCONVIFACE for converting all derived types
@@ -51,13 +51,13 @@ func walkConvInterface(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.
 			// MarkTypeUsedInInterface, because we've marked used types
 			// separately anyway.
 		} else {
-			reflectdata.MarkTypeUsedInInterface(fromType, walkstate.curfunc.LSym)
+			reflectdata.MarkTypeUsedInInterface(fromType, w.curfunc.LSym)
 		}
 	}
 
 	if !fromType.IsInterface() {
 		typeWord := reflectdata.ConvIfaceTypeWord(base.Pos, n)
-		l := ir.NewBinaryExpr(base.Pos, ir.OMAKEFACE, typeWord, dataWord(walkstate, n, init))
+		l := ir.NewBinaryExpr(base.Pos, ir.OMAKEFACE, typeWord, w.dataWord(n, init))
 		l.SetType(toType)
 		l.SetTypecheck(n.Typecheck())
 		return l
@@ -67,7 +67,7 @@ func walkConvInterface(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.
 	}
 
 	// Evaluate the input interface.
-	c := typecheck.TempAt(base.Pos, walkstate.curfunc, fromType)
+	c := typecheck.TempAt(base.Pos, w.curfunc, fromType)
 	init.Append(ir.NewAssignStmt(base.Pos, c, n.X))
 
 	if toType.IsEmptyInterface() {
@@ -87,7 +87,7 @@ func walkConvInterface(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.
 		data.SetType(types.Types[types.TUINT8].PtrTo()) // Type is generic pointer - we're just passing it through.
 		data.SetTypecheck(1)
 
-		typeWord := typecheck.TempAt(base.Pos, walkstate.curfunc, types.NewPtr(types.Types[types.TUINT8]))
+		typeWord := typecheck.TempAt(base.Pos, w.curfunc, types.NewPtr(types.Types[types.TUINT8]))
 		init.Append(ir.NewAssignStmt(base.Pos, typeWord, typecheck.Conv(typecheck.Conv(itab, types.Types[types.TUNSAFEPTR]), typeWord.Type())))
 		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), nil, nil)
 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, typeWord, itabType(typeWord))}
@@ -118,7 +118,7 @@ func walkConvInterface(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.
 	rhs.SetType(toType)
 	rhs.SetTypecheck(1)
 
-	res := typecheck.TempAt(base.Pos, walkstate.curfunc, toType)
+	res := typecheck.TempAt(base.Pos, w.curfunc, toType)
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2DOTTYPE, []ir.Node{res, ir.BlankNode}, []ir.Node{rhs})
 	init.Append(as)
 	return res
@@ -126,7 +126,7 @@ func walkConvInterface(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.
 
 // Returns the data word (the second word) used to represent conv.X in
 // an interface.
-func dataWord(walkstate *walkState, conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	pos, n := conv.Pos(), conv.X
 	fromType := n.Type()
 
@@ -157,7 +157,7 @@ func dataWord(walkstate *walkState, conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	case fromType.Size() == 0:
 		// n is zero-sized. Use zerobase.
 		diagnose("using global for zero-sized interface value", n)
-		cheapExpr(walkstate, n, init) // Evaluate n for side-effects. See issue 19246.
+		w.cheapExpr(n, init) // Evaluate n for side-effects. See issue 19246.
 		value = ir.NewLinksymExpr(base.Pos, ir.Syms.Zerobase, types.Types[types.TUINTPTR])
 	case isBool || isInteger && (fromType.Size() == 1 || isConst):
 		// n is a bool, a single-byte integer, or a compile-time constant in [0, 255].
@@ -166,8 +166,8 @@ func dataWord(walkstate *walkState, conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		if isConst {
 			n = ir.NewBasicLit(base.Pos, types.Types[types.TUINT8], constant.MakeInt64(int64(byteVal)))
 		} else {
-			n = cheapExpr(walkstate, n, init)
-			n = soleComponent(walkstate, init, n)
+			n = w.cheapExpr(n, init)
+			n = w.soleComponent(init, n)
 			base.Assert(fromType.Size() == 1)
 		}
 
@@ -196,7 +196,7 @@ func dataWord(walkstate *walkState, conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	case conv.Esc() == ir.EscNone && fromType.Size() <= 1024:
 		// n does not escape. Use a stack temporary initialized to n.
 		diagnose("using stack temporary for interface value", n)
-		value = typecheck.TempAt(base.Pos, walkstate.curfunc, fromType)
+		value = typecheck.TempAt(base.Pos, w.curfunc, fromType)
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
 	}
 	if value != nil {
@@ -217,7 +217,7 @@ func dataWord(walkstate *walkState, conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		// with non-interface cases, is not visible to order.stmt, so we
 		// have to fall back on allocating a temp here.
 		if !ir.IsAddressable(n) {
-			n = copyExpr(walkstate, n, fromType, init)
+			n = w.copyExpr(n, fromType, init)
 		}
 		fn = typecheck.LookupRuntime(fnname, fromType)
 		args = []ir.Node{reflectdata.ConvIfaceSrcRType(base.Pos, conv), typecheck.NodAddr(n)}
@@ -240,7 +240,7 @@ func dataWord(walkstate *walkState, conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 			arg = ir.NewConvExpr(pos, ir.OCONV, argType, n)
 		default:
 			// unsafe cast through memory
-			arg = copyExpr(walkstate, n, fromType, init)
+			arg = w.copyExpr(n, fromType, init)
 			var addr ir.Node = typecheck.NodAddr(arg)
 			addr = ir.NewConvExpr(pos, ir.OCONVNOP, argType.PtrTo(), addr)
 			arg = ir.NewStarExpr(pos, addr)
@@ -250,7 +250,7 @@ func dataWord(walkstate *walkState, conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	}
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 	call.Args = args
-	return safeExpr(walkstate, walkExpr(walkstate, typecheck.Expr(call), init), init)
+	return w.safeExpr(w.walkExpr(typecheck.Expr(call), init), init)
 }
 
 // smallIntConst returns the byte value of n if it is a compile-time
@@ -313,52 +313,52 @@ func smallIntConst(n ir.Node) (byte, bool) {
 }
 
 // walkBytesRunesToString walks an OBYTES2STR or ORUNES2STR node.
-func walkBytesRunesToString(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkBytesRunesToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for string on stack.
-		a = stackBufAddr(walkstate, tmpstringbufsize, types.Types[types.TUINT8])
+		a = w.stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 	}
 	if n.Op() == ir.ORUNES2STR {
 		// slicerunetostring(*[64]byte, []rune) string
-		return mkcall(walkstate, "slicerunetostring", n.Type(), init, a, n.X)
+		return w.mkcall("slicerunetostring", n.Type(), init, a, n.X)
 	}
 	// slicebytetostring(*[64]byte, ptr *byte, n int) string
-	n.X = cheapExpr(walkstate, n.X, init)
-	ptr, len := backingArrayPtrLen(walkstate, n.X)
-	return mkcall(walkstate, "slicebytetostring", n.Type(), init, a, ptr, len)
+	n.X = w.cheapExpr(n.X, init)
+	ptr, len := w.backingArrayPtrLen(n.X)
+	return w.mkcall("slicebytetostring", n.Type(), init, a, ptr, len)
 }
 
 // walkBytesToStringTemp walks an OBYTES2STRTMP node.
-func walkBytesToStringTemp(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
-	n.X = walkExpr(walkstate, n.X, init)
+func (w *walkState) walkBytesToStringTemp(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+	n.X = w.walkExpr(n.X, init)
 	if !base.Flag.Cfg.Instrumenting {
 		// Let the backend handle OBYTES2STRTMP directly
 		// to avoid a function call to slicebytetostringtmp.
 		return n
 	}
 	// slicebytetostringtmp(ptr *byte, n int) string
-	n.X = cheapExpr(walkstate, n.X, init)
-	ptr, len := backingArrayPtrLen(walkstate, n.X)
-	return mkcall(walkstate, "slicebytetostringtmp", n.Type(), init, ptr, len)
+	n.X = w.cheapExpr(n.X, init)
+	ptr, len := w.backingArrayPtrLen(n.X)
+	return w.mkcall("slicebytetostringtmp", n.Type(), init, ptr, len)
 }
 
 // walkRuneToString walks an ORUNESTR node.
-func walkRuneToString(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkRuneToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
-		a = stackBufAddr(walkstate, 4, types.Types[types.TUINT8])
+		a = w.stackBufAddr(4, types.Types[types.TUINT8])
 	}
 	// intstring(*[4]byte, rune)
-	return mkcall(walkstate, "intstring", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TINT64]))
+	return w.mkcall("intstring", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TINT64]))
 }
 
 // walkStringToBytes walks an OSTR2BYTES node.
-func walkStringToBytes(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	s := n.X
 
 	if expr, ok := s.(*ir.AddStringExpr); ok {
-		return walkAddString(walkstate, expr, init, n)
+		return w.walkAddString(expr, init, n)
 	}
 
 	if ir.IsConst(s, constant.String) {
@@ -368,7 +368,7 @@ func walkStringToBytes(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.
 		t := types.NewArray(types.Types[types.TUINT8], int64(len(sc)))
 		var a ir.Node
 		if n.Esc() == ir.EscNone && len(sc) <= int(ir.MaxImplicitStackVarSize) {
-			a = stackBufAddr(walkstate, t.NumElem(), t.Elem())
+			a = w.stackBufAddr(t.NumElem(), t.Elem())
 		} else {
 			types.CalcSize(t)
 			a = ir.NewUnaryExpr(base.Pos, ir.ONEW, nil)
@@ -376,7 +376,7 @@ func walkStringToBytes(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.
 			a.SetTypecheck(1)
 			a.MarkNonNil()
 		}
-		p := typecheck.TempAt(base.Pos, walkstate.curfunc, t.PtrTo()) // *[n]byte
+		p := typecheck.TempAt(base.Pos, w.curfunc, t.PtrTo()) // *[n]byte
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, p, a)))
 
 		// Copy from the static string data to the [n]byte.
@@ -384,27 +384,27 @@ func walkStringToBytes(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.
 			sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
 			sptr.SetBounded(true)
 			as := ir.NewAssignStmt(base.Pos, ir.NewStarExpr(base.Pos, p), ir.NewStarExpr(base.Pos, typecheck.ConvNop(sptr, t.PtrTo())))
-			appendWalkStmt(walkstate, init, as)
+			w.appendWalkStmt(init, as)
 		}
 
 		// Slice the [n]byte to a []byte.
 		slice := ir.NewSliceExpr(n.Pos(), ir.OSLICEARR, p, nil, nil, nil)
 		slice.SetType(n.Type())
 		slice.SetTypecheck(1)
-		return walkExpr(walkstate, slice, init)
+		return w.walkExpr(slice, init)
 	}
 
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for slice on stack.
-		a = stackBufAddr(walkstate, tmpstringbufsize, types.Types[types.TUINT8])
+		a = w.stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 	}
 	// stringtoslicebyte(*32[byte], string) []byte
-	return mkcall(walkstate, "stringtoslicebyte", n.Type(), init, a, typecheck.Conv(s, types.Types[types.TSTRING]))
+	return w.mkcall("stringtoslicebyte", n.Type(), init, a, typecheck.Conv(s, types.Types[types.TSTRING]))
 }
 
 // walkStringToBytesTemp walks an OSTR2BYTESTMP node.
-func walkStringToBytesTemp(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkStringToBytesTemp(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	// []byte(string) conversion that creates a slice
 	// referring to the actual string bytes.
 	// This conversion is handled later by the backend and
@@ -412,19 +412,19 @@ func walkStringToBytesTemp(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes)
 	// that know that the slice won't be mutated.
 	// The only such case today is:
 	// for i, c := range []byte(string)
-	n.X = walkExpr(walkstate, n.X, init)
+	n.X = w.walkExpr(n.X, init)
 	return n
 }
 
 // walkStringToRunes walks an OSTR2RUNES node.
-func walkStringToRunes(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for slice on stack.
-		a = stackBufAddr(walkstate, tmprunebufsize, types.Types[types.TINT32])
+		a = w.stackBufAddr(tmprunebufsize, types.Types[types.TINT32])
 	}
 	// stringtoslicerune(*[32]rune, string) []rune
-	return mkcall(walkstate, "stringtoslicerune", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TSTRING]))
+	return w.mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TSTRING]))
 }
 
 // dataWordFuncName returns the name of the function used to convert a value of type "from"
@@ -504,7 +504,7 @@ func rtconvfn(src, dst *types.Type) (param, result types.Kind) {
 	return types.Txxx, types.Txxx
 }
 
-func soleComponent(walkstate *walkState, init *ir.Nodes, n ir.Node) ir.Node {
+func (w *walkState) soleComponent(init *ir.Nodes, n ir.Node) ir.Node {
 	if n.Type().SoleComponent() == nil {
 		return n
 	}
@@ -514,8 +514,8 @@ func soleComponent(walkstate *walkState, init *ir.Nodes, n ir.Node) ir.Node {
 		case n.Type().IsStruct():
 			if n.Type().Field(0).Sym.IsBlank() {
 				// Treat blank fields as the zero value as the Go language requires.
-				n = typecheck.TempAt(base.Pos, walkstate.curfunc, n.Type().Field(0).Type)
-				appendWalkStmt(walkstate, init, ir.NewAssignStmt(base.Pos, n, nil))
+				n = typecheck.TempAt(base.Pos, w.curfunc, n.Type().Field(0).Type)
+				w.appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n, nil))
 				continue
 			}
 			n = typecheck.DotField(n.Pos(), n, 0)
@@ -546,7 +546,7 @@ func byteindex(n ir.Node) ir.Node {
 	return n
 }
 
-func walkCheckPtrArithmetic(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	// Calling cheapExpr(n, init) below leads to a recursive call to
 	// walkExpr, which leads us back here again. Use n.Checkptr to
 	// prevent infinite loops.
@@ -589,19 +589,19 @@ func walkCheckPtrArithmetic(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes
 		case ir.OCONVNOP:
 			n := n.(*ir.ConvExpr)
 			if n.X.Type().IsUnsafePtr() {
-				n.X = cheapExpr(walkstate, n.X, init)
+				n.X = w.cheapExpr(n.X, init)
 				originals = append(originals, typecheck.ConvNop(n.X, types.Types[types.TUNSAFEPTR]))
 			}
 		}
 	}
 	walk(n.X)
 
-	cheap := cheapExpr(walkstate, n, init)
+	cheap := w.cheapExpr(n, init)
 
 	slice := typecheck.MakeDotArgs(base.Pos, types.NewSlice(types.Types[types.TUNSAFEPTR]), originals)
 	slice.SetEsc(ir.EscNone)
 
-	init.Append(mkcall(walkstate, "checkptrArithmetic", nil, init, typecheck.ConvNop(cheap, types.Types[types.TUNSAFEPTR]), slice))
+	init.Append(w.mkcall("checkptrArithmetic", nil, init, typecheck.ConvNop(cheap, types.Types[types.TUNSAFEPTR]), slice))
 	// TODO(khr): Mark backing store of slice as dead. This will allow us to reuse
 	// the backing store for multiple calls to checkptrArithmetic.
 
@@ -609,7 +609,7 @@ func walkCheckPtrArithmetic(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes
 }
 
 // walkSliceToArray walks an OSLICE2ARR expression.
-func walkSliceToArray(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkSliceToArray(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	// Replace T(x) with *(*T)(x).
 	conv := typecheck.Expr(ir.NewConvExpr(base.Pos, ir.OCONV, types.NewPtr(n.Type()), n.X)).(*ir.ConvExpr)
 	deref := typecheck.Expr(ir.NewStarExpr(base.Pos, conv)).(*ir.StarExpr)
@@ -623,5 +623,5 @@ func walkSliceToArray(walkstate *walkState, n *ir.ConvExpr, init *ir.Nodes) ir.N
 	// necessary for correctness in that case.
 	deref.SetBounded(true)
 
-	return walkExpr(walkstate, deref, init)
+	return w.walkExpr(deref, init)
 }
