@@ -5,6 +5,8 @@
 package http
 
 import (
+	"runtime/metrics"
+	"strings"
 	"testing"
 )
 
@@ -75,5 +77,102 @@ func TestParseRange(t *testing.T) {
 				t.Errorf("parseRange(%q)[%d].length = %d, want %d", test.s, i, ranges[i].length, r[i].length)
 			}
 		}
+	}
+}
+
+func TestParseRangeLimit(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		godebug    string
+		numRanges  int
+		want       int
+		wantNonDef bool
+	}{
+		{
+			name:      "default limit not exceeded",
+			numRanges: defaultMaxContentRanges,
+			want:      defaultMaxContentRanges,
+		},
+		{
+			name:      "default limit exceeded",
+			numRanges: defaultMaxContentRanges + 1,
+			want:      0,
+		},
+		{
+			name:       "small limit exceeded",
+			godebug:    "httpservecontentmaxranges=10",
+			numRanges:  11,
+			want:       0,
+			wantNonDef: true,
+		},
+		{
+			name:      "small limit not exceeded",
+			godebug:   "httpservecontentmaxranges=10",
+			numRanges: 10,
+			want:      10,
+		},
+		{
+			name:       "disabled limit",
+			godebug:    "httpservecontentmaxranges=0",
+			numRanges:  2 * defaultMaxContentRanges,
+			want:       2 * defaultMaxContentRanges,
+			wantNonDef: true,
+		},
+		{
+			name:      "large limit exceeded",
+			godebug:   "httpservecontentmaxranges=300",
+			numRanges: 301,
+			want:      0,
+		},
+		{
+			name:       "large limit not exceeded",
+			godebug:    "httpservecontentmaxranges=300",
+			numRanges:  300,
+			want:       300,
+			wantNonDef: true,
+		},
+		{
+			name:      "large limit not exceeded by small input",
+			godebug:   "httpservecontentmaxranges=300",
+			numRanges: 10,
+			want:      10,
+		},
+		{
+			name:      "invalid limit negative",
+			godebug:   "httpservecontentmaxranges=-5",
+			numRanges: defaultMaxContentRanges + 1,
+			want:      0,
+		},
+		{
+			name:      "invalid limit non-numeric",
+			godebug:   "httpservecontentmaxranges=abc",
+			numRanges: defaultMaxContentRanges + 1,
+			want:      0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("GODEBUG", tc.godebug)
+			var m [1]metrics.Sample
+			m[0].Name = "/godebug/non-default-behavior/httpservecontentmaxranges:events"
+			metrics.Read(m[:])
+			before := m[0].Value.Uint64()
+
+			rangeHeader := "bytes=" + strings.Repeat("0-0,", tc.numRanges-1) + "0-0"
+			ranges, err := parseRange(rangeHeader, 10_000_000)
+			if err != nil {
+				t.Fatalf("parseRange(%q): %v", rangeHeader, err)
+			}
+			if got := len(ranges); got != tc.want {
+				t.Errorf("len(ranges) = %v, want %v", got, tc.want)
+			}
+
+			metrics.Read(m[:])
+			after := m[0].Value.Uint64()
+			if tc.wantNonDef && after <= before {
+				t.Errorf("metric did not increment: before=%d, after=%d", before, after)
+			} else if !tc.wantNonDef && after != before {
+				t.Errorf("metric unexpectedly incremented: before=%d, after=%d", before, after)
+			}
+		})
 	}
 }

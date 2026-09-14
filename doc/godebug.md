@@ -154,6 +154,22 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.28
+
+Go 1.28 changed
+[`net/http.FileServer`](/pkg/net/http#FileServer),
+[`net/http.FileServerFS`](/pkg/net/http#FileServerFS),
+[`net/http.ServeContent`](/pkg/net/http#ServeContent),
+[`net/http.ServeFile`](/pkg/net/http#ServeFile), and
+[`net/http.ServeFileFS`](/pkg/net/http#ServeFileFS) to
+limit the maximum number of ranges in a Range header.
+When the number of ranges in a header exceeds the new
+`httpservecontentmaxranges` setting, the header is ignored.
+The default value is `httpservecontentmaxranges=200`.
+Setting `httpservecontentmaxranges=0` disables the limit.
+To avoid denial of service attacks, this setting and default
+was backported to Go 1.27.2 and Go 1.26.9.
+
 ### Go 1.27
 
 Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22](#go-122) section.
@@ -199,7 +215,7 @@ We plan to remove this setting in Go 1.31.
 
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
 of cookies that net/http will accept when parsing HTTP headers. If the number of
-cookie in a header exceeds the number set in `httpcookiemaxnum`, cookie parsing
+cookies in a header exceeds the number set in `httpcookiemaxnum`, cookie parsing
 will fail early. The default value is `httpcookiemaxnum=3000`. Setting
 `httpcookiemaxnum=0` will allow the cookie parsing to accept an indefinite
 number of cookies. To avoid denial of service attacks, this setting and default
