@@ -306,6 +306,10 @@ func readlinkat(fd int, name string) (string, error) {
 	}
 }
 
+func isLink(fi FileInfo) bool {
+	return fi.Mode()&ModeSymlink != 0
+}
+
 // isDirectoryLink always returns false, because Unix systems don't have separate
 // symlink types for files and directories.
 // (See the Windows version of this function for more details.)

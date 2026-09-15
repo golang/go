@@ -421,8 +421,14 @@ func lstatat(parent syscall.Handle, name string) (FileInfo, error) {
 	return fi, nil
 }
 
-// isDirectoryLink reports whether fi (assumed to be a symlink) is a directory link.
-// Windows symlinks come in two flavors: file and directory. This function distinguishes
+// isLink reports whether fi is a symlink or other surrogate reparse point (such as a junction).
+func isLink(fi FileInfo) bool {
+	fs, ok := fi.(*fileStat)
+	return ok && fs.isReparseTagNameSurrogate()
+}
+
+// isDirectoryLink reports whether fi (assumed to be a link) is a directory link.
+// Windows links come in two flavors: file and directory. This function distinguishes
 // between the two.
 func isDirectoryLink(fi FileInfo) bool {
 	fs, ok := fi.(*fileStat)
