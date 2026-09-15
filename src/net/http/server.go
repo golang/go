@@ -2114,7 +2114,6 @@ func (c *conn) serve(ctx context.Context) {
 
 	c.r = &connReader{conn: c, rwc: c.rwc}
 	c.bufr = newBufioReader(c.r)
-	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
 	if d := c.server.readHeaderTimeout(); d > 0 {
 		c.rwc.SetReadDeadline(time.Now().Add(d))
@@ -2131,6 +2130,8 @@ func (c *conn) serve(ctx context.Context) {
 	}
 
 	// HTTP/1.x from here on.
+
+	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
 	for {
 		w, err := c.readRequest(ctx)
@@ -2384,6 +2385,13 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 // goroutine.
 func (c *conn) serveHTTP2(ctx context.Context, sawClientPreface bool) {
 	c.http2HandedOff = true
+
+	// HTTP/2 only uses c.rwc, so release the bufio.Reader if we have one.
+	if c.bufr != nil {
+		putBufioReader(c.bufr)
+		c.bufr = nil
+	}
+
 	c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil, func() {
 		c.close()
 		c.setState(c.rwc, StateClosed, runHooks)
