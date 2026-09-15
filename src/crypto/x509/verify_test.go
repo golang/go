@@ -407,7 +407,7 @@ func expectHashError(t *testing.T, err error) {
 	if err == nil {
 		t.Fatalf("no error resulted from invalid hash")
 	}
-	if expected := "algorithm unimplemented"; !strings.Contains(err.Error(), expected) {
+	if expected := "signature algorithm"; !strings.Contains(err.Error(), expected) {
 		t.Fatalf("error resulting from invalid hash didn't contain '%s', rather it was: %v", expected, err)
 	}
 }
