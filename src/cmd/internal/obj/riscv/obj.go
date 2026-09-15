@@ -465,6 +465,259 @@ func stackOffset(a *obj.Addr, stacksize int64) {
 	}
 }
 
+// largeStackAddr returns a pointer to the memory Addr in p that is a
+// large-offset stack access (NAME_AUTO or NAME_PARAM with an offset that
+// requires LUI+ADD expansion), or nil if there is none.
+func largeStackAddr(p *obj.Prog) *obj.Addr {
+	switch p.As {
+	case obj.ATEXT, obj.ANOP, obj.AFUNCDATA, obj.APCDATA, obj.APCALIGN:
+		return nil
+	}
+
+	// Load from stack (TYPE_MEM only). TYPE_ADDR (e.g. MOVaddr) is excluded
+	// because its expansion via instructionsForOpImmediate leaves REG_TMP
+	// holding the full offset (high<<12 + low), NOT SP + (high<<12) as
+	// loads/stores do — caching across them would yield a wrong address.
+	//
+	// Correctness note: any TYPE_ADDR with a large offset that appears
+	// between a donor and a hit MUST be flagged as a REG_TMP clobber by
+	// progClobbersRegTmp, otherwise the cached value becomes stale silently.
+	if p.From.Type == obj.TYPE_MEM &&
+		(p.From.Name == obj.NAME_AUTO || p.From.Name == obj.NAME_PARAM) {
+		if _, high, _ := Split32BitImmediate(p.From.Offset); high != 0 {
+			return &p.From
+		}
+	}
+
+	// Store to stack
+	if p.To.Type == obj.TYPE_MEM &&
+		(p.To.Name == obj.NAME_AUTO || p.To.Name == obj.NAME_PARAM) {
+		if _, high, _ := Split32BitImmediate(p.To.Offset); high != 0 {
+			return &p.To
+		}
+	}
+
+	return nil
+}
+
+// progClobbersRegTmp reports whether the Prog p's expansion physically writes
+// REG_TMP (X31) other than at the tail of a basic block. Control-flow progs
+// (calls, jumps, returns, branches) are handled separately by
+// progEndsBasicBlock and intentionally excluded here.
+//
+// Conservative: returns true unless we can prove p never touches REG_TMP.
+func progClobbersRegTmp(p *obj.Prog) bool {
+	// Directives and pseudo-ops that generate no machine instructions.
+	switch p.As {
+	case obj.ATEXT, obj.ANOP, obj.AFUNCDATA, obj.APCDATA, obj.APCALIGN, obj.APCALIGNMAX:
+		return false
+	}
+
+	// Explicit write to REG_TMP is always a clobber.
+	if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_TMP {
+		return true
+	}
+	if p.RegTo2 != 0 && p.RegTo2 == REG_TMP {
+		return true
+	}
+
+	// Any access to external/static/GOT symbols uses REG_TMP (AUIPC).
+	switch p.From.Name {
+	case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
+		return true
+	}
+	switch p.To.Name {
+	case obj.NAME_EXTERN, obj.NAME_STATIC:
+		return true
+	}
+
+	// TYPE_ADDR with large offsets expands via instructionsForOpImmediate.
+	if p.From.Type == obj.TYPE_ADDR {
+		if _, high, _ := Split32BitImmediate(p.From.Offset); high != 0 {
+			return true
+		}
+	}
+
+	// Any memory operand (TYPE_MEM) with a large offset on a non-stack
+	// register, or a non-NAME_AUTO/NAME_PARAM name, may use REG_TMP.
+	for _, a := range []*obj.Addr{&p.From, &p.To} {
+		if a.Type != obj.TYPE_MEM {
+			continue
+		}
+		switch a.Name {
+		case obj.NAME_AUTO, obj.NAME_PARAM:
+			// These are the stack accesses we optimize. Their
+			// large-offset expansion IS the LUI+ADD we're caching,
+			// so we handle them in the main optimization loop.
+		default:
+			if _, high, _ := Split32BitImmediate(a.Offset); high != 0 {
+				return true
+			}
+		}
+	}
+
+	// Large immediate values in ALU operations use REG_TMP.
+	if p.From.Type == obj.TYPE_CONST {
+		if _, high, _ := Split32BitImmediate(p.From.Offset); high != 0 {
+			return true
+		}
+	}
+
+	// On hardware without Zbb (GORISCV64 < 22), several pseudo-instructions
+	// expand into sequences that use REG_TMP as scratch. See the cases in
+	// instructionsForProg / instructionsForRotate / instructionsForMinMax.
+	if buildcfg.GORISCV64 < 22 {
+		switch p.As {
+		case AROL, AROLW, AROR, ARORW, ARORI, ARORIW,
+			AMIN, AMAX, AMINU, AMAXU:
+			return true
+		case AANDN, AORN:
+			// Expansion uses REG_TMP only when the destination
+			// equals the first source operand.
+			rd := p.To.Reg
+			rs1 := p.Reg
+			if rs1 == obj.REG_NONE {
+				rs1 = rd
+			}
+			// Binary form "ANDN rs2, rd" leaves p.Reg unset and
+			// implies rs1 == rd; progedit normally rewrites this.
+			if rs1 == rd {
+				return true
+			}
+		}
+	}
+
+	// Register-to-register ALU ops, small-offset memory ops, small-immediate
+	// ops, and branches are safe — they expand to single instructions and
+	// never touch REG_TMP.
+	return false
+}
+
+// progEndsBasicBlock reports whether p is a control-transfer instruction that
+// ends the current basic block. The cache must be invalidated at these points
+// because REG_TMP is not tracked across dynamic control flow.
+func progEndsBasicBlock(p *obj.Prog) bool {
+	switch p.As {
+	case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ,
+		ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ,
+		ACBEQZ, ACBNEZ, ACJ,
+		AJAL, AJALR, obj.AJMP, obj.ACALL, obj.ARET:
+		return true
+	}
+	return false
+}
+
+// collectBranchTargets returns the set of Progs that are reachable as targets
+// of any branch, jump, or jump-table entry within cursym. These mark basic
+// block entries; caller-tracked register state must be invalidated at them.
+//
+// Both p.To and p.From are inspected because the long-branch fixup may rewrite
+// a long unconditional jump into AUIPC+JALR and stash the real target in
+// p.From (TYPE_BRANCH) — see the AAUIPC handling in preprocess.
+func collectBranchTargets(cursym *obj.LSym) map[*obj.Prog]bool {
+	targets := make(map[*obj.Prog]bool)
+	for p := cursym.Func().Text; p != nil; p = p.Link {
+		if p.To.Type == obj.TYPE_BRANCH {
+			if t := p.To.Target(); t != nil {
+				targets[t] = true
+			}
+		}
+		if p.From.Type == obj.TYPE_BRANCH {
+			if t := p.From.Target(); t != nil {
+				targets[t] = true
+			}
+		}
+	}
+	for _, jt := range cursym.Func().JumpTables {
+		for _, t := range jt.Targets {
+			targets[t] = true
+		}
+	}
+	return targets
+}
+
+// reuseStackHighOffset optimizes stack accesses whose SP-relative
+// offsets exceed the 12-bit signed immediate range. On RISC-V, such accesses
+// are expanded into LUI+ADD+load/store (3 instructions). Within a basic block,
+// consecutive accesses sharing the same high-offset bits redundantly recompute
+// the same LUI+ADD. This pass lets the first such access expand normally
+// (which leaves REG_TMP = SP + high<<12) and rewrites subsequent accesses
+// with the same high bits to reuse REG_TMP directly.
+//
+// This pass runs after the long-branch fixup so that all branch targets
+// (including those introduced by inverted-branch trampolines for long
+// conditional branches) are visible. It never inserts new Progs; the first
+// large-offset access in each run is left untouched (its normal 3-instruction
+// expansion naturally populates REG_TMP), and only later accesses are rewritten.
+func reuseStackHighOffset(cursym *obj.LSym) {
+	var cachedHigh int64
+	cacheValid := false
+	var pendingMark []*obj.Prog // gap Progs needing USES_REG_TMP if a hit occurs
+
+	invalidate := func() {
+		cacheValid = false
+		pendingMark = pendingMark[:0]
+	}
+
+	branchTarget := collectBranchTargets(cursym)
+
+	// Walk the Prog list, track REG_TMP cache, rewrite large-offset
+	// stack accesses. The first access with a given high value is left as-is
+	// (its expansion sets REG_TMP); subsequent hits are rewritten.
+	//
+	// asyncPreempt on RISC-V does NOT save/restore X31 (REG_TMP); it uses
+	// X31 as a scratch register for the return PC. Therefore any Prog
+	// between a donor and a hit where REG_TMP holds a cached value must be
+	// marked non-preemptible (USES_REG_TMP) to prevent async preemption
+	// from clobbering REG_TMP.
+
+	for p := cursym.Func().Text; p != nil; p = p.Link {
+		if branchTarget[p] {
+			invalidate()
+		}
+
+		if progClobbersRegTmp(p) || progEndsBasicBlock(p) {
+			invalidate()
+		}
+
+		addr := largeStackAddr(p)
+		if addr != nil {
+			low, high, _ := Split32BitImmediate(addr.Offset)
+			if high != 0 {
+				if cacheValid && cachedHigh == high {
+					// Flush pending gap marks: all Progs between
+					// the donor (or previous hit) and this hit must
+					// be non-preemptible so REG_TMP is preserved.
+					for _, gp := range pendingMark {
+						gp.Mark |= USES_REG_TMP
+					}
+					pendingMark = pendingMark[:0]
+					addr.Name = obj.NAME_NONE
+					addr.Reg = REG_TMP
+					addr.Offset = low
+				} else {
+					// This prog is a donor: its LUI+ADD+LOAD/STORE
+					// expansion leaves REG_TMP = SP + high<<12 — UNLESS
+					// the load destination is REG_TMP itself, in which
+					// case the trailing LOAD overwrites it. (Stores are
+					// safe: they never write the destination register.)
+					if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_TMP {
+						cacheValid = false
+					} else {
+						cachedHigh = high
+						cacheValid = true
+					}
+					pendingMark = pendingMark[:0]
+				}
+			}
+		}
+
+		if cacheValid {
+			pendingMark = append(pendingMark, p)
+		}
+	}
+}
+
 // preprocess generates prologue and epilogue code, computes PC-relative branch
 // and jump offsets, and resolves pseudo-registers.
 //
@@ -757,6 +1010,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			break
 		}
 	}
+
+	// Optimize large stack offsets by caching the high-offset base in REG_TMP
+	// across consecutive stack accesses within the same basic block.
+	// This runs after the long-branch fixup so that all branch targets
+	// (including those introduced by inverted-branch trampolines) are visible
+	// to the optimization's branch-target collection pass.
+	reuseStackHighOffset(cursym)
+
+	// Recalculate instruction addresses after the optimization changed
+	// instruction counts (rewritten Progs expand to 1 instruction instead of 3).
+	setPCs(cursym.Func().Text, 0, ctxt.CompressInstructions)
 
 	// Now that there are no long branches, resolve branch and jump targets.
 	// At this point, instruction rewriting which changes the number of
