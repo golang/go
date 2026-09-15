@@ -44,10 +44,6 @@ type simpleMatch []string
 // alternationMatch matches a test name if one of the alternations match.
 type alternationMatch []filterMatch
 
-// TODO: fix test_main to avoid race and improve caching, also allowing to
-// eliminate this Mutex.
-var matchMutex sync.Mutex
-
 func allMatcher() *matcher {
 	return newMatcher(nil, "", "", "")
 }
@@ -89,9 +85,6 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok, partial 
 	if c != nil && c.level > 0 {
 		name = m.unique(c.name, rewrite(subname))
 	}
-
-	matchMutex.Lock()
-	defer matchMutex.Unlock()
 
 	// We check the full array of paths each time to allow for the case that a pattern contains a '/'.
 	elem := strings.Split(name, "/")
