@@ -153,13 +153,13 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 	openLastComponentFunc := func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		err := mkdirat(parent, name, perm)
 		if err == syscall.EEXIST {
-			mode, e := modeAt(parent, name)
+			fi, e := lstatat(parent, name)
 			if e == nil {
-				if mode.IsDir() {
+				if fi.Mode().IsDir() {
 					// The target of MkdirAll is an existing directory.
 					err = nil
-				} else if mode&ModeSymlink != 0 {
-					// The target of MkdirAll is a symlink.
+				} else if isLink(fi) {
+					// The target of MkdirAll is a symlink or junction.
 					// For consistency with os.MkdirAll,
 					// succeed if the link resolves to a directory.
 					// We don't return errSymlink here, because we don't
@@ -420,7 +420,7 @@ Loop:
 				case err != nil:
 					return
 				case fi.Mode().Type() == fs.ModeDir:
-				case fi.Mode().Type() == fs.ModeSymlink:
+				case isLink(fi):
 					if runtime.GOOS != "windows" || flags&doInRootAlwaysResolveTerminalSlash != 0 {
 						err = checkSymlink(dirfd, parts[i], syscall.ENOTDIR)
 					} else {

@@ -298,7 +298,7 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
 		syscall.FILE_ATTRIBUTE_NORMAL,
 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
 		FILE_CREATE,
-		FILE_DIRECTORY_FILE,
+		FILE_DIRECTORY_FILE|FILE_OPEN_REPARSE_POINT,
 		nil,
 		0,
 	)
