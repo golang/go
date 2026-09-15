@@ -33,6 +33,8 @@ func (k KeySizeError) Error() string {
 // The key argument must be the AES key,
 // either 16, 24, or 32 bytes to select
 // AES-128, AES-192, or AES-256.
+//
+// The returned [cipher.Block] is safe for concurrent use.
 func NewCipher(key []byte) (cipher.Block, error) {
 	k := len(key)
 	switch k {
