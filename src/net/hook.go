@@ -28,4 +28,6 @@ var (
 	// short deadline (such as 1ns in the future) is always expired by the time
 	// a relevant system call occurs.
 	testHookStepTime = func() {}
+
+	testHookShuffleRand = shuffle
 )
