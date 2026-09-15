@@ -75,6 +75,7 @@ func doinit() {
 		{Name: "aes", Feature: &X86.HasAES},
 		{Name: "erms", Feature: &X86.HasERMS},
 		{Name: "fsrm", Feature: &X86.HasFSRM},
+		{Name: "gfni", Feature: &X86.HasGFNI},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
 		{Name: "sha", Feature: &X86.HasSHA},
@@ -177,6 +178,14 @@ func doinit() {
 	X86.HasVAES = isSet(ecx7, cpuid_VAES) && X86.HasAVX
 	X86.HasVPCLMULQDQ = isSet(ecx7, cpuid_VPCLMULQDQ)
 
+	// GFNI is available in VEX-encoded form on every CPU that reports the
+	// GFNI bit (CPUID leaf 7 ECX bit 8) and supports YMM, regardless of
+	// AVX-512. Gate on HasAVX (which requires OSXSAVE + YMM OS support) so
+	// callers can safely emit VEX-256 VGF2P8AFFINEQB on YMM. The
+	// EVEX-encoded form additionally requires AVX-512F; see HasAVX512GFNI
+	// below.
+	X86.HasGFNI = isSet(ecx7, cpuid_GFNI) && X86.HasAVX
+
 	X86.HasAVX512F = isSet(ebx7, cpuid_AVX512F) && osSupportsAVX512
 	if X86.HasAVX512F {
 		X86.HasAVX512CD = isSet(ebx7, cpuid_AVX512CD)
@@ -193,7 +202,6 @@ func doinit() {
 		X86.HasAVX512VPCLMULQDQ = isSet(ecx7, cpuid_AVX512VPCLMULQDQ)
 		X86.HasAVX512VBMI = isSet(ecx7, cpuid_AVX512_VBMI)
 		X86.HasAVX512VBMI2 = isSet(ecx7, cpuid_AVX512_VBMI2)
-		X86.HasGFNI = isSet(ecx7, cpuid_GFNI)
 		X86.HasAVX512BITALG = isSet(ecx7, cpuid_AVX512_BITALG)
 	}
 
