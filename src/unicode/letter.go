@@ -329,8 +329,8 @@ func (special SpecialCase) ToLower(r rune) rune {
 // will fail (the constants in the composite literal will not fit in uint16)
 // and the types here can change to uint32.
 type foldPair struct {
-	From uint16
-	To   uint16
+	From uint32
+	To   uint32
 }
 
 // SimpleFold iterates over Unicode code points equivalent under
