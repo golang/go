@@ -904,24 +904,21 @@ func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
-	ones := x.Equal(x).ToInt{{.WxC}}()
-	return y.Greater(x).ToInt{{.WxC}}().Xor(ones).asMask()
+	return y.Greater(x).ToInt{{.WxC}}().Not().asMask()
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
-	ones := x.Equal(x).ToInt{{.WxC}}()
-	return x.Greater(y).ToInt{{.WxC}}().Xor(ones).asMask()
+	return x.Greater(y).ToInt{{.WxC}}().Not().asMask()
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y.
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
-	ones := x.Equal(x).ToInt{{.WxC}}()
-	return x.Equal(y).ToInt{{.WxC}}().Xor(ones).asMask()	
+	return x.Equal(y).ToInt{{.WxC}}().Not().asMask()	
 }
 `)
 
