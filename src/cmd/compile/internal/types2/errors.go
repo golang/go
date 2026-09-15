@@ -112,8 +112,9 @@ func (err *error_) report() {
 	// follow-on errors which don't add useful information. Only
 	// exclude them if these strings are not at the beginning,
 	// and only if we have at least one error already reported.
+	// Never filter Test errors as they are important for debugging.
 	check := err.check
-	if check.firstErr != nil {
+	if check.firstErr != nil && err.code != Test {
 		// It is sufficient to look at the first sub-error only.
 		msg := err.desc[0].msg
 		if strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0 {

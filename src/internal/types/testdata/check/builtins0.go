@@ -388,7 +388,7 @@ func len1() {
 	var t string
 	var hash map[interface{}][]*[10]int
 	const n = len /* ERROR "not constant" */ (hash[recover()][len(t)])
-	assert(n == 10) // ok because n has unknown value and no error is reported
+	assert(n /* ERROR "invalid operand" */ == 10)
 	var ch <-chan int
 	const nn = len /* ERROR "not constant" */ (hash[<-ch][len(t)])
 
@@ -1070,6 +1070,11 @@ func assert1() {
 	assert /* ERROR "failed" */ (false)
 	_ = assert(true)
 
+	// The following declaration produces an invalid operand c.
+	// Make sure assert(c) produces an error even for invalid operands.
+	const c = 'a' == "A" /* ERROR "mismatched types untyped rune and untyped string" */
+	assert(c /* ERROR "invalid operand" */ )
+
 	var s []byte
 	assert(s... /* ERROR "invalid use of ..." */ )
 }
@@ -1077,7 +1082,7 @@ func assert1() {
 func assert2() {
 	f1 := func() (x bool) { return }
 	f2 := func() (x bool) { return }
-	assert(f0 /* ERROR "used as value" */ ())
+	assert(f0 /* ERROR "used as value" */ /* ERROR "boolean constant" */ ())
 	assert(f1 /* ERROR "boolean constant" */ ())
 	assert(f2 /* ERROR "boolean constant" */ ())
 }

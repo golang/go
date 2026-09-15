@@ -51,13 +51,16 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	default:
 		// check all arguments
 		args = check.exprList(argList)
-		nargs = len(args)
-		for _, a := range args {
-			if !a.isValid() {
-				return
+		// never bail out early for assert and trace
+		if id != _Assert && id != _Trace {
+			for _, a := range args {
+				if !a.isValid() {
+					return
+				}
 			}
 		}
 		// first argument is always in x
+		nargs = len(args)
 		if nargs > 0 {
 			*x = *args[0]
 		}
