@@ -133,6 +133,32 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 
 			}
 		}
+
+		if base.Debug.RetDevirt != 0 {
+			// The bodies in this component are now final for this
+			// pass, so record which of their interface-typed results
+			// always hold a single dynamic type. Functions in later
+			// components are then analyzed through their static
+			// calls into this one.
+			for _, fn := range list {
+				state.AnalyzeResultTypes(fn)
+			}
+
+			// Split qualifying functions into a devirtualized
+			// variant plus a boxing thunk. Later components call the
+			// variant directly, via the rewrite in edit.
+			for _, fn := range list {
+				fdv := state.SplitResultFunc(fn)
+				if fdv == nil {
+					continue
+				}
+
+				// The variant took over fn's body, and with it this
+				// pass's ParenExprs; register state for it so the
+				// final unparenthesize pass covers the moved body.
+				inlState[fdv] = &inlClosureState{fn: fdv, parens: inlState[fn].parens}
+			}
+		}
 	})
 
 	ir.CurFunc = nil
@@ -233,10 +259,26 @@ func (s *inlClosureState) edit(state *devirtualize.State, i int) (*ir.CallExpr, 
 	// resolve, but because things can change it
 	// must be re-checked.
 	callee, count := s.resolve(state, i)
-	if count <= 0 {
-		return nil, nil
+	if count > 0 {
+		if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile, count == 1 && callee.ClosureParent != nil); inlCall != nil {
+			return call, inlCall
+		}
 	}
-	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile, count == 1 && callee.ClosureParent != nil); inlCall != nil {
+
+	// Not inlined; try rewriting a static call to a split function
+	// into a call of its devirtualized variant. The rewrite has the
+	// shape of an inlined thunk, so the fixpoint treats it exactly
+	// like an inlined call: state.InlinedCall exposes the concrete
+	// result types, later rounds may still inline the variant should
+	// this site's conditions change, and method calls on the results
+	// devirtualize either way.
+	//
+	// Order matters, and the obvious-seeming alternative loses:
+	// rewriting before trying to inline sends inlinable callees
+	// through box-unbox-rebox churn at every already-inlinable call
+	// site, and measurably regresses allocation-heavy code, while
+	// the rewrite's winnings come from the sites inlining declines.
+	if inlCall := devirtualize.StaticResults(state, s.fn, call); inlCall != nil {
 		return call, inlCall
 	}
 	return nil, nil

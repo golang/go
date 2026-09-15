@@ -10,6 +10,7 @@ import (
 	"io"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/devirtualize"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/types"
@@ -303,6 +304,47 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
 		w.Bool(inl.CanDelayResults)
 		if buildcfg.Experiment.NewInliner {
 			w.String(inl.Properties)
+		}
+	}
+
+	// Return-value devirtualization: the function's result type sets
+	// and its split variant, if any. A member references its named
+	// type's object, which also forces the object into the export
+	// data; a member whose object is unavailable degrades its slot to
+	// unknown.
+	if er := devirtualize.ExportFor(name.Func); w.Bool(er != nil) {
+		w.Len(len(er.Slots))
+		for _, slot := range er.Slots {
+			unknown := slot.Unknown
+			var pris []pkgReaderIndex
+			if !unknown {
+				for _, m := range slot.Members {
+					pri, ok := objReader[m.Sym]
+					if !ok {
+						unknown = true
+						break
+					}
+					pris = append(pris, pri)
+				}
+			}
+			if w.Bool(unknown) {
+				continue
+			}
+			w.Len(len(pris))
+			for i, pri := range pris {
+				w.Len(slot.Members[i].Depth)
+				w.Reloc(pkgbits.SectionObj, l.relocObj(pri.pr, pri.idx))
+			}
+			w.Bool(slot.HasNil)
+		}
+		if split := er.Split; w.Bool(split != nil) {
+			for _, d := range split.Devirt {
+				w.Bool(d)
+			}
+			w.Len(len(split.ParamNotes))
+			for _, note := range split.ParamNotes {
+				w.String(note)
+			}
 		}
 	}
 
