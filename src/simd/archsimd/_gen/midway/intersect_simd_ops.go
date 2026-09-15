@@ -140,13 +140,13 @@ func main() {
 	amd64Files := []string{"ops_amd64.go", "compare_gen_amd64.go", "types_amd64.go",
 		"other_gen_amd64.go", "extra_amd64.go", "maskmerge_gen_amd64.go",
 		"shuffles_amd64.go", "slice_gen_amd64.go", "slicepart_amd64.go",
-		"slicepart_128.go", "string.go", "ops_emulated_amd64.go"}
+		"slicepart_128.go", "string.go", "ops_emulated_amd64.go", "maskrange_amd64.go"}
 	wasmFiles := []string{"ops_wasm.go", "types_wasm.go", "slicepart_wasm.go",
-		"string.go", "slicepart_128.go", "ops_emulated_wasm.go"}
+		"string.go", "slicepart_128.go", "ops_emulated_wasm.go", "maskrange_128.go"}
 	neonFiles := []string{"clmul_arm64.go", "compare_gen_arm64.go",
 		"maskmerge_gen_arm64.go", "ops_arm64.go", "slicepart_128.go",
 		"ops_internal_arm64.go", "other_gen_arm64.go", "slice_gen_arm64.go",
-		"slicepart_arm64.go", "types_arm64.go", "ops_emulated_arm64.go"}
+		"slicepart_arm64.go", "types_arm64.go", "ops_emulated_arm64.go", "maskrange_128.go"}
 
 	emulatedFile := filepath.Join(genFlags.GOROOT, "src", "simd", "simd_emulated.go")
 

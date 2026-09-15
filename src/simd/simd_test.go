@@ -402,3 +402,19 @@ func TestReduceSum(t *testing.T) {
 	test_helpers.TestV2S(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.ReduceSum, test_helpers.ReduceSum)
 	test_helpers.TestV2S(t, test_helpers.Uint8s(), simd.LoadUint8s, simd.Uint8s.ReduceSum, test_helpers.ReduceSum)
 }
+
+func TestMaskRange(t *testing.T) {
+	test_helpers.TestMaskAllAny(t, simd.LoadUint8s)
+}
+
+func TestMask16Range(t *testing.T) {
+	test_helpers.TestMaskAllAny(t, simd.LoadUint16s)
+}
+
+func TestMask32Range(t *testing.T) {
+	test_helpers.TestMaskAllAny(t, simd.LoadUint32s)
+}
+
+func TestMask64Range(t *testing.T) {
+	test_helpers.TestMaskAllAny(t, simd.LoadUint64s)
+}

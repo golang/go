@@ -1016,8 +1016,17 @@ func (x Float64s) Sub(y Float64s) Float64s
 // ToBits reinterprets the vector bits as an unsigned integer vector.
 func (x Float64s) ToBits() Uint64s
 
+// All returns true when all positions in mask x are true.
+func (x Mask8s) All() bool
+
 // And returns the bitwise AND of x and y.
 func (x Mask8s) And(y Mask8s) Mask8s
+
+// Any returns true when any position in mask x is true.
+func (x Mask8s) Any() bool
+
+// None returns true when no positions in mask x are set.
+func (x Mask8s) None() bool
 
 // Or returns the bitwise OR of x and y.
 func (x Mask8s) Or(y Mask8s) Mask8s
@@ -1028,8 +1037,17 @@ func (x Mask8s) String() string
 // ToInt8s converts the mask to an Int8s vector.
 func (x Mask8s) ToInt8s() (to Int8s)
 
+// All returns true when all positions in mask x are true.
+func (x Mask16s) All() bool
+
 // And returns the bitwise AND of x and y.
 func (x Mask16s) And(y Mask16s) Mask16s
+
+// Any returns true when any position in mask x is true.
+func (x Mask16s) Any() bool
+
+// None returns true when no positions in mask x are set.
+func (x Mask16s) None() bool
 
 // Or returns the bitwise OR of x and y.
 func (x Mask16s) Or(y Mask16s) Mask16s
@@ -1040,8 +1058,17 @@ func (x Mask16s) String() string
 // ToInt16s converts the mask to an Int16s vector.
 func (x Mask16s) ToInt16s() (to Int16s)
 
+// All returns true when all positions in mask x are true.
+func (x Mask32s) All() bool
+
 // And returns the bitwise AND of x and y.
 func (x Mask32s) And(y Mask32s) Mask32s
+
+// Any returns true when any position in mask x is true.
+func (x Mask32s) Any() bool
+
+// None returns true when no positions in mask x are set.
+func (x Mask32s) None() bool
 
 // Or returns the bitwise OR of x and y.
 func (x Mask32s) Or(y Mask32s) Mask32s
@@ -1052,8 +1079,17 @@ func (x Mask32s) String() string
 // ToInt32s converts the mask to an Int32s vector.
 func (x Mask32s) ToInt32s() (to Int32s)
 
+// All returns true when all positions in mask x are true.
+func (x Mask64s) All() bool
+
 // And returns the bitwise AND of x and y.
 func (x Mask64s) And(y Mask64s) Mask64s
+
+// Any returns true when any position in mask x is true.
+func (x Mask64s) Any() bool
+
+// None returns true when no positions in mask x are set.
+func (x Mask64s) None() bool
 
 // Or returns the bitwise OR of x and y.
 func (x Mask64s) Or(y Mask64s) Mask64s

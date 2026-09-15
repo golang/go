@@ -2654,12 +2654,36 @@ func (x Float64x2nclm) ToBits() Uint64x2nclm {
 	return Uint64x2nclm((archsimd.Float64x2(x)).ToBits())
 }
 
+func (x Mask8x16) All() bool {
+	return (archsimd.Mask8x16(x)).All()
+}
+
+func (x Mask8x16nclm) All() bool {
+	return (archsimd.Mask8x16(x)).All()
+}
+
 func (x Mask8x16) And(y Mask8x16) Mask8x16 {
 	return Mask8x16((archsimd.Mask8x16(x)).And(archsimd.Mask8x16(y)))
 }
 
 func (x Mask8x16nclm) And(y Mask8x16nclm) Mask8x16nclm {
 	return Mask8x16nclm((archsimd.Mask8x16(x)).And(archsimd.Mask8x16(y)))
+}
+
+func (x Mask8x16) Any() bool {
+	return (archsimd.Mask8x16(x)).Any()
+}
+
+func (x Mask8x16nclm) Any() bool {
+	return (archsimd.Mask8x16(x)).Any()
+}
+
+func (x Mask8x16) None() bool {
+	return (archsimd.Mask8x16(x)).None()
+}
+
+func (x Mask8x16nclm) None() bool {
+	return (archsimd.Mask8x16(x)).None()
 }
 
 func (x Mask8x16) Or(y Mask8x16) Mask8x16 {
@@ -2686,12 +2710,36 @@ func (x Mask8x16nclm) ToInt8s() Int8x16nclm {
 	return Int8x16nclm((archsimd.Mask8x16(x)).ToInt8x16())
 }
 
+func (x Mask16x8) All() bool {
+	return (archsimd.Mask16x8(x)).All()
+}
+
+func (x Mask16x8nclm) All() bool {
+	return (archsimd.Mask16x8(x)).All()
+}
+
 func (x Mask16x8) And(y Mask16x8) Mask16x8 {
 	return Mask16x8((archsimd.Mask16x8(x)).And(archsimd.Mask16x8(y)))
 }
 
 func (x Mask16x8nclm) And(y Mask16x8nclm) Mask16x8nclm {
 	return Mask16x8nclm((archsimd.Mask16x8(x)).And(archsimd.Mask16x8(y)))
+}
+
+func (x Mask16x8) Any() bool {
+	return (archsimd.Mask16x8(x)).Any()
+}
+
+func (x Mask16x8nclm) Any() bool {
+	return (archsimd.Mask16x8(x)).Any()
+}
+
+func (x Mask16x8) None() bool {
+	return (archsimd.Mask16x8(x)).None()
+}
+
+func (x Mask16x8nclm) None() bool {
+	return (archsimd.Mask16x8(x)).None()
 }
 
 func (x Mask16x8) Or(y Mask16x8) Mask16x8 {
@@ -2718,12 +2766,36 @@ func (x Mask16x8nclm) ToInt16s() Int16x8nclm {
 	return Int16x8nclm((archsimd.Mask16x8(x)).ToInt16x8())
 }
 
+func (x Mask32x4) All() bool {
+	return (archsimd.Mask32x4(x)).All()
+}
+
+func (x Mask32x4nclm) All() bool {
+	return (archsimd.Mask32x4(x)).All()
+}
+
 func (x Mask32x4) And(y Mask32x4) Mask32x4 {
 	return Mask32x4((archsimd.Mask32x4(x)).And(archsimd.Mask32x4(y)))
 }
 
 func (x Mask32x4nclm) And(y Mask32x4nclm) Mask32x4nclm {
 	return Mask32x4nclm((archsimd.Mask32x4(x)).And(archsimd.Mask32x4(y)))
+}
+
+func (x Mask32x4) Any() bool {
+	return (archsimd.Mask32x4(x)).Any()
+}
+
+func (x Mask32x4nclm) Any() bool {
+	return (archsimd.Mask32x4(x)).Any()
+}
+
+func (x Mask32x4) None() bool {
+	return (archsimd.Mask32x4(x)).None()
+}
+
+func (x Mask32x4nclm) None() bool {
+	return (archsimd.Mask32x4(x)).None()
 }
 
 func (x Mask32x4) Or(y Mask32x4) Mask32x4 {
@@ -2750,12 +2822,36 @@ func (x Mask32x4nclm) ToInt32s() Int32x4nclm {
 	return Int32x4nclm((archsimd.Mask32x4(x)).ToInt32x4())
 }
 
+func (x Mask64x2) All() bool {
+	return (archsimd.Mask64x2(x)).All()
+}
+
+func (x Mask64x2nclm) All() bool {
+	return (archsimd.Mask64x2(x)).All()
+}
+
 func (x Mask64x2) And(y Mask64x2) Mask64x2 {
 	return Mask64x2((archsimd.Mask64x2(x)).And(archsimd.Mask64x2(y)))
 }
 
 func (x Mask64x2nclm) And(y Mask64x2nclm) Mask64x2nclm {
 	return Mask64x2nclm((archsimd.Mask64x2(x)).And(archsimd.Mask64x2(y)))
+}
+
+func (x Mask64x2) Any() bool {
+	return (archsimd.Mask64x2(x)).Any()
+}
+
+func (x Mask64x2nclm) Any() bool {
+	return (archsimd.Mask64x2(x)).Any()
+}
+
+func (x Mask64x2) None() bool {
+	return (archsimd.Mask64x2(x)).None()
+}
+
+func (x Mask64x2nclm) None() bool {
+	return (archsimd.Mask64x2(x)).None()
 }
 
 func (x Mask64x2) Or(y Mask64x2) Mask64x2 {

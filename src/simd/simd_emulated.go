@@ -3313,3 +3313,51 @@ func BroadcastFloat64s(x float64) Float64s {
 	v := math.Float64bits(x)
 	return Float64s{a: v, b: v}
 }
+
+func (x Mask8s) All() bool {
+	return x.a&x.b == 0xffff_ffff_ffff_ffff
+}
+
+func (x Mask8s) Any() bool {
+	return x.a|x.b != 0
+}
+
+func (x Mask8s) None() bool {
+	return x.a|x.b == 0
+}
+
+func (x Mask16s) All() bool {
+	return x.a&x.b == 0xffff_ffff_ffff_ffff
+}
+
+func (x Mask16s) Any() bool {
+	return x.a|x.b != 0
+}
+
+func (x Mask16s) None() bool {
+	return x.a|x.b == 0
+}
+
+func (x Mask32s) All() bool {
+	return x.a&x.b == 0xffff_ffff_ffff_ffff
+}
+
+func (x Mask32s) Any() bool {
+	return x.a|x.b != 0
+}
+
+func (x Mask32s) None() bool {
+	return x.a|x.b == 0
+}
+
+func (x Mask64s) All() bool {
+	return x.a&x.b == 0xffff_ffff_ffff_ffff
+}
+
+func (x Mask64s) Any() bool {
+	return x.a|x.b != 0
+}
+
+func (x Mask64s) None() bool {
+	return x.a|x.b == 0
+}
