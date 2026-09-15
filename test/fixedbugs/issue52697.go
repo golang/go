@@ -8,12 +8,16 @@
 
 package main
 
+var sink int
+
 func g() { // GC_ERROR "stack frame too large"
 	xs := [3000 * 2000][33]int{}
 	for _, x := range xs {
 		if len(x) > 50 {
 
 		}
+		// Use x, so that the copy of xs is not optimized away.
+		sink += x[0]
 	}
 }
 

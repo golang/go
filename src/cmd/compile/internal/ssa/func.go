@@ -115,6 +115,7 @@ const (
 	constInterfaceMagic   = 2233445566
 	constNilMagic         = 3344556677
 	constEmptyStringMagic = 4455667788
+	constSIMDMagic        = 5566778899
 )
 
 // IsMergeCandidate returns true if variable n could participate in
@@ -431,6 +432,8 @@ func (f *Func) UnCache(v *Value) {
 				aux = constEmptyStringMagic
 			case ssaop.OpConstInterface:
 				aux = constInterfaceMagic
+			case ssaop.OpZeroSIMD:
+				aux = constSIMDMagic
 			}
 			if aux != 0 && f.unCacheLine(v, aux) {
 				return
@@ -780,6 +783,10 @@ func (f *Func) ConstEmptyString(t *types.Type) *Value {
 	v := f.ConstVal(ssaop.OpConstString, t, constEmptyStringMagic, false)
 	v.Aux = StringToAux("")
 	return v
+}
+
+func (f *Func) ConstSIMD(t *types.Type) *Value {
+	return f.ConstVal(ssaop.OpZeroSIMD, t, constSIMDMagic, false)
 }
 
 func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {

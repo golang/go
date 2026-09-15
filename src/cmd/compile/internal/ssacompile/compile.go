@@ -433,6 +433,7 @@ var passes = [...]ssa.Pass{
 	{Name: "early fuse", Fn: fuseEarly},
 	{Name: "expand calls", Fn: expandCalls, Required: true},
 	{Name: "decompose builtin", Fn: postExpandCallsDecompose, Required: true},
+	{Name: "decompose addr", Fn: decomposeAddr},
 	{Name: "mem2reg", Fn: mem2reg},
 	{Name: "ptr stats", Fn: ptrStats},
 	{Name: "softfloat", Fn: softfloat, Required: true},

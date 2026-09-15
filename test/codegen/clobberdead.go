@@ -1,4 +1,4 @@
-// asmcheck -gcflags=-clobberdead
+// asmcheck -gcflags=-clobberdead -gcflags=-d=ssa/mem2reg/off -gcflags=-d=ssa/decompose_addr/off
 
 //go:build amd64 || arm64 || loong64
 

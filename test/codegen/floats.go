@@ -1,4 +1,4 @@
-// asmcheck
+// asmcheck -gcflags=-d=ssa/mem2reg/off -gcflags=-d=ssa/decompose_addr/off
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
