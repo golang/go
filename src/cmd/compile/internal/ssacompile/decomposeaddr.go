@@ -554,17 +554,6 @@ NamesLoop:
 				case ssaop.OpOffPtr, ssaop.OpCopy:
 					// Handled by derived.
 				case ssaop.OpLoad, ssaop.OpStore:
-					if use.Op == ssaop.OpLoad && use.Uses == 0 {
-						// A dead load may span several leaves — e.g. a wide
-						// composite load whose selectors decompose builtin
-						// already rewrote into direct word loads, leaving
-						// the original load unused. It is about to be
-						// removed by deadcode, so it neither disqualifies
-						// the variable nor marks a leaf active. The rewrite
-						// phase skips it too, leaving it on the original
-						// address until deadcode collects it.
-						continue
-					}
 					leaf, ok := matchToLeaf(c, use, findOffset(use.Args[0]))
 					if !ok {
 						// we can't find a leaf node that matches
@@ -809,11 +798,6 @@ NamesLoop:
 				case ssaop.OpOffPtr:
 					collectSimpleUses(use, offset+use.AuxInt)
 				case ssaop.OpLoad, ssaop.OpStore:
-					if use.Op == ssaop.OpLoad && use.Uses == 0 {
-						// Skipped during the leaf matching above; leave it
-						// for deadcode.
-						continue
-					}
 					accesses = append(accesses, pAccess{use, offset})
 				case ssaop.OpCopy:
 					collectSimpleUses(use, offset)

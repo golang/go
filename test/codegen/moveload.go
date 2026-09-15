@@ -45,9 +45,11 @@ func moveLoadFieldViaValueInline(ss []moveLoadS, i int) int8 {
 // the parts can no longer be recombined into one load.
 
 func moveLoadCombine(k [4]byte) uint32 {
-	q := k
+	// decomposeAddr breaks the copy into q into byte loads from k, so
+	// the combined load is attributed to this line.
 	// amd64/v1,amd64/v2:`BSWAPL` -`MOVB` -`OR`
 	// amd64/v3:`MOVBEL`
 	// arm64:`REVW` -`MOVBU` -`ORR`
+	q := k
 	return binary.BigEndian.Uint32(q[:])
 }

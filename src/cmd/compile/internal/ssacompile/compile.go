@@ -433,6 +433,7 @@ var passes = [...]ssa.Pass{
 	{Name: "early fuse", Fn: fuseEarly},
 	{Name: "expand calls", Fn: expandCalls, Required: true},
 	{Name: "decompose builtin", Fn: postExpandCallsDecompose, Required: true},
+	{Name: "decompose deadcode", Fn: deadcode}, // dead uses of a local's address left by earlier passes would otherwise disqualify it in decompose addr and mem2reg
 	{Name: "decompose addr", Fn: decomposeAddr},
 	{Name: "mem2reg", Fn: mem2reg},
 	{Name: "ptr stats", Fn: ptrStats},
