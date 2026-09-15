@@ -108,12 +108,22 @@ func main() {
 	if !cmdIsGoTelemetryOff {
 		telemetry.MaybeParent() // Run the upload process. Opening the counter file is idempotent.
 	}
+	// Add global -help flag support
+	var globalHelp bool
+	flag.BoolVar(&globalHelp, "help", false, "show help")
 	flag.Usage = base.Usage
 	flag.Parse()
 	counter.Inc("go/invocations")
 	counter.CountFlags("go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
+
+	// Handle global -help flag
+	if globalHelp {
+		help.Help(os.Stdout, nil)
+		return
+	}
+
 	if len(args) < 1 {
 		base.Usage()
 	}
@@ -309,12 +319,33 @@ func invoke(cmd *base.Command, args []string) {
 		}
 	}
 
-	cmd.Flag.Usage = func() { cmd.Usage() }
+	// Add -help flag support to all commands
+	var helpFlag bool
+	if !cmd.CustomFlags {
+		cmd.Flag.BoolVar(&helpFlag, "help", false, "show help")
+	}
+
+	cmd.Flag.Usage = func() {
+		if helpFlag {
+			// Show full help like "go help <command>"
+			help.Help(os.Stdout, strings.Fields(cmd.LongName()))
+			base.Exit()
+		} else {
+			cmd.Usage()
+		}
+	}
 	if cmd.CustomFlags {
 		args = args[1:]
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
+
+		// Check if -help flag was set and show full help
+		if helpFlag {
+			help.Help(os.Stdout, strings.Fields(cmd.LongName()))
+			base.Exit()
+		}
+
 		flagCounterPrefix := "go/" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "/flag"
 		counter.CountFlags(flagCounterPrefix+":", cmd.Flag)
 		counter.CountFlagValue(flagCounterPrefix+"/", cmd.Flag, "buildmode")
