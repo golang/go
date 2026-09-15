@@ -302,6 +302,13 @@ type HTTP2Config struct {
 	// cipher suites prohibited by the HTTP/2 spec.
 	PermitProhibitedCipherSuites bool
 
+	// EnableConnectProtocol, if true, enables support for
+	// the Extended CONNECT protocol defined in RFC 8441.
+	// When enabled, HTTP/2 servers will advertise support for Extended CONNECT.
+	// Extended CONNECT requests will include a ":protocol" pseudo header
+	// in the request headers.
+	EnableConnectProtocol bool
+
 	// CountError, if non-nil, is called on HTTP/2 errors.
 	// It is intended to increment a metric for monitoring.
 	// The errType contains only lowercase letters, digits, and underscores
