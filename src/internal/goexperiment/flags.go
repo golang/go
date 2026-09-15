@@ -130,4 +130,7 @@ type Flags struct {
 
 	// GoListExportNewFormat enables the new format for go list -export.
 	GoListExportNewFormat bool
+
+	// CgoBindings enables specifying cgo bindings using the go types they bind to.
+	CgoBindings bool
 }
