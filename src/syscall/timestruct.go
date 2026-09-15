@@ -20,6 +20,14 @@ func NsecToTimespec(nsec int64) Timespec {
 	return setTimespec(sec, nsec)
 }
 
+// SecNsecToTimespec converts separate seconds and nanoseconds values
+// into a [Timespec]. This avoids the int64 overflow that can occur
+// when using [NsecToTimespec] with very large or very small timestamps,
+// since it does not require computing seconds * 1e9.
+func SecNsecToTimespec(sec int64, nsec int64) Timespec {
+	return setTimespec(sec, nsec)
+}
+
 // TimevalToNsec returns the time stored in tv as nanoseconds.
 func TimevalToNsec(tv Timeval) int64 { return tv.Nano() }
 
