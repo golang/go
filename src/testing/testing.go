@@ -726,6 +726,13 @@ type common struct {
 	signal     chan bool // To signal a test is done.
 	sub        []*T      // Queue of subtests to be run in parallel.
 
+	// lendingSlot guards the single running-count slot that this test lends
+	// to the parallel subtests of its sequential descendants. Sibling
+	// sequential subtests started concurrently via t.Run share one slot, so
+	// only the one that wins this flag may release it (see tRunner and
+	// go.dev/issue/64470).
+	lendingSlot atomic.Bool
+
 	lastRaceErrors  atomic.Int64 // Max value of race.Errors seen during the test or its subtests.
 	raceErrorLogged atomic.Bool
 
@@ -2138,8 +2145,29 @@ func tRunner(t *T, fn func(t *T)) {
 		if len(t.sub) > 0 {
 			// Run parallel subtests.
 
+			// A sequential subtest does not hold a running-count slot of its
+			// own: it shares the slot of the nearest ancestor that does (a
+			// parallel test, or the main test). When t.Run is called
+			// concurrently from multiple goroutines, several sequential
+			// subtests share that single slot, so only one of them may lend it
+			// to the parallel subtests; otherwise we would release more slots
+			// than the ancestor holds and exceed maxParallel (go.dev/issue/64470).
+			// A parallel test and the main test each hold their own slot and
+			// always lend it.
+			lentSlot := true
+			var slotOwner *common
+			if t.parent != nil && !t.isParallel {
+				slotOwner = t.parent
+				for slotOwner.parent != nil && !slotOwner.isParallel {
+					slotOwner = slotOwner.parent
+				}
+				lentSlot = slotOwner.lendingSlot.CompareAndSwap(false, true)
+			}
+
 			// Decrease the running count for this test and mark it as no longer running.
-			t.tstate.release()
+			if lentSlot {
+				t.tstate.release()
+			}
 			running.Delete(t.name)
 
 			// Release the parallel subtests.
@@ -2159,9 +2187,12 @@ func tRunner(t *T, fn func(t *T)) {
 				doPanic(err)
 			}
 			t.checkRaces()
-			if !t.isParallel {
-				// Reacquire the count for sequential tests. See comment in Run.
-				t.tstate.waitParallel()
+			if !t.isParallel && lentSlot {
+				// Reacquire the slot we lent above. See comment in Run.
+				t.tstate.reacquireParallel()
+				if slotOwner != nil {
+					slotOwner.lendingSlot.Store(false)
+				}
 			}
 		} else if t.isParallel {
 			// Only release the count for this test if it was run as a parallel
@@ -2352,12 +2383,23 @@ type testState struct {
 	// Channel used to signal tests that are ready to be run in parallel.
 	startParallel chan bool
 
+	// Channel used to signal a sequential test that it may reacquire a slot
+	// after its parallel subtests have completed. Reacquiring tests are woken
+	// only after all parallel tests that are ready to start, so that a
+	// reacquiring test cannot take a slot away from a parallel test that is
+	// still waiting to run (see release and go.dev/issue/64470).
+	startReacquire chan bool
+
 	// running is the number of tests currently running in parallel.
 	// This does not include tests that are waiting for subtests to complete.
 	running int
 
-	// numWaiting is the number tests waiting to be run in parallel.
+	// numWaiting is the number of tests waiting to be run in parallel.
 	numWaiting int
+
+	// numReacquiring is the number of sequential tests waiting to reacquire a
+	// slot after their parallel subtests have completed.
+	numReacquiring int
 
 	// maxParallel is a copy of the parallel flag.
 	maxParallel int
@@ -2365,10 +2407,11 @@ type testState struct {
 
 func newTestState(maxParallel int, m *matcher) *testState {
 	return &testState{
-		match:         m,
-		startParallel: make(chan bool),
-		maxParallel:   maxParallel,
-		running:       1, // Set the count to 1 for the main (sequential) test.
+		match:          m,
+		startParallel:  make(chan bool),
+		startReacquire: make(chan bool),
+		maxParallel:    maxParallel,
+		running:        1, // Set the count to 1 for the main (sequential) test.
 	}
 }
 
@@ -2384,16 +2427,43 @@ func (s *testState) waitParallel() {
 	<-s.startParallel
 }
 
-func (s *testState) release() {
+// reacquireParallel reacquires a running-count slot for a sequential test that
+// previously lent its slot to parallel subtests. It behaves like waitParallel
+// except that it is served only after all tests waiting in waitParallel, so a
+// reacquiring test never preempts a parallel test that is ready to run.
+func (s *testState) reacquireParallel() {
 	s.mu.Lock()
-	if s.numWaiting == 0 {
-		s.running--
+	if s.running < s.maxParallel {
+		s.running++
 		s.mu.Unlock()
 		return
 	}
-	s.numWaiting--
+	s.numReacquiring++
 	s.mu.Unlock()
-	s.startParallel <- true // Pick a waiting test to be run.
+	<-s.startReacquire
+}
+
+func (s *testState) release() {
+	s.mu.Lock()
+	// Prefer waking a test waiting to run in parallel over one waiting to
+	// reacquire a slot: parallel tests must be able to run within maxParallel,
+	// whereas a reacquiring test's slot flows back to a sequential ancestor
+	// that may never release it, which would deadlock the waiting parallel
+	// tests (go.dev/issue/64470).
+	if s.numWaiting > 0 {
+		s.numWaiting--
+		s.mu.Unlock()
+		s.startParallel <- true // Pick a waiting test to be run.
+		return
+	}
+	if s.numReacquiring > 0 {
+		s.numReacquiring--
+		s.mu.Unlock()
+		s.startReacquire <- true // Pick a waiting test to reacquire its slot.
+		return
+	}
+	s.running--
+	s.mu.Unlock()
 }
 
 // No one should be using func Main anymore.

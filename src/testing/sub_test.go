@@ -315,6 +315,34 @@ func TestTRun(t *T) {
 			}
 		},
 	}, {
+		desc: "concurrent t.Run respects parallel limit",
+		// t.Run may be called concurrently from multiple goroutines. Each
+		// such sequential subtest shares its parent's single running-count
+		// slot, so only one of them may lend that slot to its parallel
+		// subtests. Otherwise the parallel subtests can exceed -test.parallel
+		// (go.dev/issue/64470).
+		ok:     true,
+		maxPar: 1,
+		f: func(t *T) {
+			var running atomic.Int32
+			var wg sync.WaitGroup
+			for i := 0; i < 3; i++ {
+				wg.Add(1)
+				go t.Run(fmt.Sprint(i), func(t *T) {
+					t.Cleanup(wg.Done)
+					t.Run("inner", func(t *T) {
+						t.Parallel()
+						if n := running.Add(1); n > 1 {
+							realTest.Errorf("%d parallel subtests running; want at most 1", n)
+						}
+						time.Sleep(time.Millisecond)
+						running.Add(-1)
+					})
+				})
+			}
+			wg.Wait()
+		},
+	}, {
 		desc:   "stress test",
 		ok:     true,
 		maxPar: 4,
@@ -627,8 +655,8 @@ func TestTRun(t *T) {
 			if ok != !root.Failed() {
 				t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
 			}
-			if tstate.running != 0 || tstate.numWaiting != 0 {
-				t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, tstate.running, tstate.numWaiting)
+			if tstate.running != 0 || tstate.numWaiting != 0 || tstate.numReacquiring != 0 {
+				t.Errorf("%s:running, waiting, and reacquiring non-zero: got %d, %d, and %d", tc.desc, tstate.running, tstate.numWaiting, tstate.numReacquiring)
 			}
 			got := strings.TrimSpace(buf.String())
 			want := strings.TrimSpace(tc.output)
