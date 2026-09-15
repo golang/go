@@ -35,7 +35,7 @@ func main() {
 	}
 	outDir := os.Args[1]
 	if err := os.MkdirAll(outDir, 0755); err != nil {
-		log.Fatal("unable to create output directory: %s", err)
+		log.Fatalf("unable to create output directory: %s", err)
 	}
 	walkCodes(func(name string, vs *ast.ValueSpec) {
 		// ignore unused errors
@@ -51,7 +51,7 @@ func main() {
 			Description string
 		}{
 			Name:        name,
-			Description: fmt.Sprintf("```\n%s```\n", desyc),
+			Description: fmt.Sprintf("```\n%s```\n", desc),
 		}
 		var buf bytes.Buffer
 		err := template.Must(template.New("eachError").Parse(markdownTemplate)).Execute(&buf, e)
