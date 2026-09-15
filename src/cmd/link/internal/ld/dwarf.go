@@ -1062,7 +1062,7 @@ const (
 	LINE_BASE   = -4
 	LINE_RANGE  = 10
 	PC_RANGE    = (255 - OPCODE_BASE) / LINE_RANGE
-	OPCODE_BASE = 11
+	OPCODE_BASE = 13
 )
 
 /*
@@ -1329,6 +1329,8 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []
 	lsu.AddUint8(0)                // standard_opcode_lengths[8]
 	lsu.AddUint8(1)                // standard_opcode_lengths[9]
 	lsu.AddUint8(0)                // standard_opcode_lengths[10]
+	lsu.AddUint8(0)                // standard_opcode_lengths[11]
+	lsu.AddUint8(1)                // standard_opcode_lengths[12]
 
 	// Call helper to emit dir and file sections.
 	d.writeDirFileTables(unit, lsu)

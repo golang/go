@@ -600,6 +600,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if retReg == obj.REG_NONE {
 				retReg = REG_LR
 			}
+			p.Pos = p.Pos.WithXlogue(src.PosEpilogueBegin)
 
 			if stacksize != 0 {
 				// Restore LR.
