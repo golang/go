@@ -193,6 +193,8 @@ func (st *state) inline() (*Result, error) {
 					logf("keeping block braces: caller uses control labels")
 				} else if intersects(declares(newBlock.List), callerNames) {
 					logf("keeping block braces: avoids name conflict")
+				} else if res.bindingDecl {
+					logf("keeping block braces: avoids potential conflict with other inlinings")
 				} else {
 					elideBraces = true
 				}
@@ -1150,6 +1152,7 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 		var repl ast.Stmt = body
 		clearPositions(repl)
 		if needBindingDecl {
+			res.bindingDecl = true
 			body.List = prepend(bindingDecl.stmt, body.List...)
 		}
 		res.old = stmt
