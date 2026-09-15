@@ -19,6 +19,24 @@ import (
 	"unsafe"
 )
 
+func init() {
+	createJunction = func(t *testing.T, link, target string) {
+		if !filepath.IsAbs(target) {
+			target = filepath.Dir(link) + `\` + target
+		}
+		target, err := syscall.FullPath(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var rd reparseData
+		rd.addSubstituteName(`\??\` + target)
+		rd.addPrintName(target)
+		if err := createMountPoint(link, &rd); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestRootOpenatFallback(t *testing.T) {
 	windows.TestOpenatFallback = true
 	t.Cleanup(func() { windows.TestOpenatFallback = false })
