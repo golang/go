@@ -133,7 +133,7 @@ func (x *operand) constConvertibleTo(check *Checker, T Type, val *constant.Value
 		case isInteger(x.typ()) && isInteger(t):
 			// A conversion from an integer constant to an integer type
 			// can only fail if there's overflow (go.dev/issue/63563).
-			msg = "constant %s overflows %s" // TODO(gri) remove "constant " prefix or add below for consistency
+			msg = "%s overflows %s"
 		case isNumeric(x.typ()) && isNumeric(t):
 			// A conversion from a numeric type to another numeric type
 			// where at least one of them is not an integer can only fail

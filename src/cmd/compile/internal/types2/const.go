@@ -289,6 +289,9 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Co
 	return v, 0
 }
 
+// TODO(gri) There is overlap with the code and error messages here
+//           and in conversions.go. Should simplify.
+
 func (check *Checker) invalidConversion(code Code, x *operand, target Type) {
 	msg := "cannot convert %s to type %s"
 	switch code {
