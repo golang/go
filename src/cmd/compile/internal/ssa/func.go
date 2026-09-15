@@ -15,6 +15,7 @@ import (
 	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssa/ssabase"
 	"cmd/compile/internal/ssa/ssaop"
+	"cmd/compile/internal/stats"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -147,6 +148,15 @@ func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
 		CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot),
 		OwnAux:               &AuxCall{},
 	}
+}
+
+func (f *Func) NewStats(prefix string) *stats.PrefixStats {
+	fef := f.Fe.Func()
+	if fef == nil {
+		return nil
+	}
+	s := fef.Stats
+	return s.NewPrefixStat(prefix)
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.

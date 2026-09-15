@@ -6,6 +6,7 @@ package ir
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/stats"
 	"cmd/compile/internal/types"
 	"cmd/internal/hash"
 	"cmd/internal/obj"
@@ -156,6 +157,9 @@ type Func struct {
 	// WasmExport is used by the //go:wasmexport directive to store info about
 	// a WebAssembly function export.
 	WasmExport *WasmExport
+
+	// Stats holds compiler statistics for this function.
+	Stats *stats.Stats
 }
 
 // WasmImport stores metadata associated with the //go:wasmimport pragma.
@@ -190,6 +194,10 @@ func NewFunc(fpos, npos src.XPos, sym *types.Sym, typ *types.Type) *Func {
 	fn.SetTypecheck(1)
 
 	name.Func = fn
+
+	if base.Flag.Stats {
+		fn.Stats = new(stats.Stats)
+	}
 
 	return fn
 }

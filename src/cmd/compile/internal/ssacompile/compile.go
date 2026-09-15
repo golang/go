@@ -442,6 +442,7 @@ var passes = [...]ssa.Pass{
 	{Name: "late fuse", Fn: fuseLate},
 	{Name: "check bce", Fn: checkbce},
 	{Name: "dse", Fn: dse},
+	{Name: "ptr stats", Fn: ptrStats},
 	{Name: "memcombine", Fn: memcombine},
 	{Name: "writebarrier", Fn: writebarrier, Required: true}, // expand write barrier ops
 	{Name: "insert resched checks", Fn: insertLoopReschedChecks,
