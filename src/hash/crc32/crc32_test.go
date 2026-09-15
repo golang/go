@@ -332,7 +332,7 @@ func BenchmarkCRC32(b *testing.B) {
 
 func benchmarkAll(h hash.Hash32) func(b *testing.B) {
 	return func(b *testing.B) {
-		for _, size := range []int{15, 40, 512, 1 << 10, 4 << 10, 32 << 10} {
+		for _, size := range []int{15, 16, 32, 40, 60, 64, 120, 128, 400, 512, 1 << 10, 4 << 10, 32 << 10} {
 			name := fmt.Sprint(size)
 			if size >= 1024 {
 				name = fmt.Sprintf("%dkB", size/1024)
