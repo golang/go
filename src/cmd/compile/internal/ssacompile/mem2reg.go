@@ -233,6 +233,11 @@ func copyCompatibleType(t1, t2 *types.Type) bool {
 	if ssa.IsPtr(t1) {
 		return ssa.IsPtr(t2)
 	}
+	if t1.IsSIMD() {
+		// SIMD vector types of the same size share a representation,
+		// e.g. the generic vec128 that SIMD ops produce and archsimd.Int8x16.
+		return t2.IsSIMD()
+	}
 	return t1.Compare(t2) == types.CMPeq
 }
 
@@ -364,8 +369,8 @@ func mem2reg(f *ssa.Func) {
 	}
 	// Now we should start the promotion
 	// Simple case one - all uses of v is within the same block.
-	storeCands := []*ssa.Value{} // These stores are to be overwritten
-	loadCands := []loadCandidate{}
+	storeCands := []*ssa.Value{}   // These stores are to be overwritten
+	loadCands := []loadCandidate{} // These loads are to be overwritten
 	vaUses := []*ssa.Value{}
 NextVar:
 	for _, n := range namesOrdered {
@@ -434,7 +439,9 @@ NextVar:
 			// Replace the loads with the corresponding value.
 			replaceLoad(lc)
 		}
-		// Footprints on this variable are now gone, unset its addrtaken flag.
+		// The variable no longer has a memory footprint: all its loads, stores
+		// and VarDefs are gone, so its address is no longer taken anywhere.
+		// Unset its addrtaken flag.
 		n.SetAddrtaken(false)
 		// This var is done, remove it from varGrouped.
 		if f.Pass.Debug > 1 {
@@ -444,8 +451,381 @@ NextVar:
 		st.Record("promoted variable in single block case", 1)
 	}
 
-	// TODO: the rest of variables needs analysis across basic blocks, implement this.
+	if len(varGrouped) == 0 {
+		if changed {
+			deadcode(f)
+		}
+		return
+	}
+	// Cross-block promotion. The remaining variables have uses spanning
+	// multiple blocks, so promotion needs phi insertion. To keep deciding
+	// whether a variable can be promoted separate from performing the
+	// promotion, this proceeds in four phases; the first two only read
+	// the function, and the last two mutate it, so a variable rejected
+	// during deciding leaves no trace in the SSA:
+	//
+	// 1. Placement. For each variable n, collect the blocks that store
+	// to n and compute the iterated dominance frontier of that set
+	// (f.IterDomFrontierPlus): the blocks that need a phi for n. A
+	// variable whose def-block or phi-block count exceeds
+	// crossBlockBudget is dropped here.
+	//
+	// 2. Deciding. A renaming walk (renameWalk below) over the CFG
+	// simulates promotion without mutating the function: phis from
+	// phase 1 exist only as a sentinel value, and every Load is checked
+	// against the type of its reaching definition. A variable with an
+	// incompatible load lands in badNames and is dropped.
+	//
+	// 3. Phi creation. For the surviving variables, create the phis
+	// decided in phase 1 (with no arguments yet).
+	//
+	// 4. Applying. The same renaming walk, now over the real phis,
+	// records the phi arguments along each edge, the loads to replace
+	// and the stores to remove, and finalization applies them. Phis
+	// placed at blocks no definition reaches stay argument-less and
+	// unreferenced; the deadcode pass at the end of mem2reg removes
+	// them.
+
+	// crossBlockBudget caps both the number of def blocks and the number
+	// of phi insertions one variable may require.
+	crossBlockBudget := 20
+
+	// Phase 1: placement.
+	phiBlocksByName := map[*ir.Name][]*ssa.Block{}
+	{
+		var seeds []*ssa.Block
+		seen := map[*ssa.Block]struct{}{}
+	PlacementLoop:
+		for _, n := range namesOrdered {
+			vag, ok := varGrouped[n]
+			if !ok {
+				continue
+			}
+			seeds = seeds[:0]
+			clear(seen)
+			for _, va := range vag {
+				for _, use := range uses.of(va) {
+					if use.Op != ssaop.OpStore {
+						continue
+					}
+					if _, dup := seen[use.Block]; dup {
+						continue
+					}
+					seen[use.Block] = struct{}{}
+					seeds = append(seeds, use.Block)
+					if len(seeds) >= crossBlockBudget {
+						// Too many def blocks, bail out.
+						st.Record("too many def blocks", 1)
+						delete(varGrouped, n)
+						continue PlacementLoop
+					}
+				}
+			}
+			// Sort for determinism: use-list order depends on the order
+			// defs were discovered, and phi placement order affects
+			// assigned ssa.Value IDs, which leak into compiler output.
+			slices.SortFunc(seeds, func(a, b *ssa.Block) int { return int(a.ID - b.ID) })
+			var phiBlocks []*ssa.Block
+			for y := range f.IterDomFrontierPlus(slices.Values(seeds)) {
+				if len(phiBlocks) >= crossBlockBudget {
+					// Too many phis, bail out.
+					st.Record("too many cascading def blocks", 1)
+					delete(varGrouped, n)
+					continue PlacementLoop
+				}
+				phiBlocks = append(phiBlocks, y)
+			}
+			phiBlocksByName[n] = phiBlocks
+		}
+	}
+
+	// virtualPhi stands in for a not-yet-created phi during the deciding
+	// walk. It must never be used as a real SSA value; its reaching type
+	// is the variable's own type.
+	virtualPhi := &ssa.Value{}
+
+	// changeLogEnt records the reaching definition of a variable right
+	// before a walk step overwrote it, so backtracking can restore it.
+	type changeLogEnt struct {
+		name      *ir.Name
+		valBefore *ssa.Value
+	}
+	// These names have access patterns that are not ok; they are decided
+	// against in phase 2 and skipped everywhere after.
+	badNames := map[*ir.Name]struct{}{}
+
+	// renameWalk is the renaming DFS shared by the deciding and applying
+	// phases. It traverses the CFG from the entry block; incomingV[n]
+	// tracks the reaching definition of n. On each Store to n the
+	// previous reaching definition is pushed onto a change log and
+	// overwritten with the stored value; when backtracking, the log is
+	// rewound to restore incomingV to the state at the branch point.
+	// At each block, phiAt(b, n) reports the phi for n in b (real, or
+	// virtualPhi while deciding, or nil): it becomes the new reaching
+	// definition, and onPhiArg records the value flowing in along the
+	// traversed edge. Loads are passed to onLoad with their reaching
+	// definition, and Stores to onStore before they become the new
+	// reaching definition; both report whether the walk should keep
+	// tracking the variable (false when they just decided against it).
+	renameWalk := func(
+		phiAt func(b *ssa.Block, n *ir.Name) *ssa.Value,
+		onPhiArg func(n *ir.Name, phi *ssa.Value, predIdx int, v *ssa.Value),
+		onLoad func(n *ir.Name, use, incoming *ssa.Value) bool,
+		onStore func(n *ir.Name, use *ssa.Value) bool,
+	) {
+		incomingV := map[*ir.Name]*ssa.Value{}
+		changeLog := []changeLogEnt{}
+		type work struct {
+			// e is the currently traversed edge; its predecessor index
+			// identifies the phi argument slot, its target the block.
+			e ssa.Edge
+			// changeLogSnapShot is the length of changeLog right after
+			// processing this work.
+			changeLogSnapShot int
+		}
+		worklist := []work{{ssa.Edge{B: f.Entry, I: -1}, 0}} // DFS list
+		visited := map[*ssa.Block]struct{}{}
+		for len(worklist) > 0 {
+			curWork := worklist[len(worklist)-1]
+			worklist = worklist[:len(worklist)-1]
+			// Undo changes until we reach the right snapshot.
+			for len(changeLog) > curWork.changeLogSnapShot {
+				curLog := changeLog[len(changeLog)-1]
+				changeLog = changeLog[:len(changeLog)-1]
+				incomingV[curLog.name] = curLog.valBefore
+			}
+			curB := curWork.e.B
+			// Process phis.
+			for _, n := range namesOrdered {
+				if _, ok := varGrouped[n]; !ok {
+					continue
+				}
+				if _, bad := badNames[n]; bad {
+					continue
+				}
+				phi := phiAt(curB, n)
+				if phi == nil {
+					continue
+				}
+				if curWork.e.I == -1 {
+					f.Fatalf("phi placed at entry in mem2reg")
+				}
+				if iV := incomingV[n]; iV != nil {
+					// At most one phi per name per block, so no need to
+					// check the status of type compatibility
+					onPhiArg(n, phi, curWork.e.I, iV)
+				}
+				changeLog = append(changeLog, changeLogEnt{n, incomingV[n]})
+				incomingV[n] = phi
+			}
+			// Process block values.
+			if _, ok := visited[curB]; ok {
+				continue
+			}
+			visited[curB] = struct{}{}
+		NameLoop:
+			for _, n := range namesOrdered {
+				vag, ok := varGrouped[n]
+				if !ok {
+					continue
+				}
+				if _, bad := badNames[n]; bad {
+					continue
+				}
+				vaUses := []*ssa.Value{}
+				for _, va := range vag {
+					for _, u := range uses.of(va) {
+						if u.Block == curB {
+							vaUses = append(vaUses, u)
+						}
+					}
+				}
+				vaUses = sortLoadStores(curB, vaUses, memoryOrders)
+				for _, use := range vaUses {
+					switch use.Op {
+					case ssaop.OpLoad:
+						if !onLoad(n, use, incomingV[n]) {
+							continue NameLoop
+						}
+					case ssaop.OpStore:
+						val := use.Args[1]
+						if !onStore(n, use) {
+							continue NameLoop
+						}
+						changeLog = append(changeLog, changeLogEnt{n, incomingV[n]})
+						incomingV[n] = val
+					default:
+						f.Fatalf("should not have uses other than load and store")
+					}
+				}
+			}
+			for _, e := range curB.Succs {
+				worklist = append(worklist, work{e, len(changeLog)})
+			}
+		}
+	}
+
+	// Phase 2: deciding. No mutation; phis exist only as virtualPhi.
+	{
+		phiBlockSet := map[*ir.Name]map[*ssa.Block]struct{}{}
+		for n, bs := range phiBlocksByName {
+			m := make(map[*ssa.Block]struct{}, len(bs))
+			for _, b := range bs {
+				m[b] = struct{}{}
+			}
+			phiBlockSet[n] = m
+		}
+		renameWalk(
+			// phiAt
+			func(b *ssa.Block, n *ir.Name) *ssa.Value {
+				if _, ok := phiBlockSet[n][b]; ok {
+					return virtualPhi
+				}
+				return nil
+			},
+			// onPhiArg
+			func(n *ir.Name, phi *ssa.Value, predIdx int, v *ssa.Value) {
+				t := v.Type
+				if v == virtualPhi {
+					t = n.Type()
+				}
+				if !copyCompatibleType(n.Type(), t) {
+					st.Record("incompatible phi and arg types in cross block cases", 1)
+					badNames[n] = struct{}{}
+				}
+			},
+			// onLoad
+			func(n *ir.Name, use, incoming *ssa.Value) bool {
+				if incoming == nil {
+					f.Fatalf("no incoming value for a load in mem2reg")
+				}
+				t := incoming.Type
+				if incoming == virtualPhi {
+					t = n.Type()
+				}
+				if !copyCompatibleType(use.Type, t) {
+					st.Record("incompatible types in cross block cases", 1)
+					badNames[n] = struct{}{}
+					return false
+				}
+				return true
+			},
+			// onStore
+			func(n *ir.Name, use *ssa.Value) bool {
+				if !copyCompatibleType(use.Args[1].Type, n.Type()) {
+					st.Record("incompatible store types in cross block cases", 1)
+					badNames[n] = struct{}{}
+					return false
+				}
+				return true
+			},
+		)
+	}
+
+	// Phase 3: create the phis for the surviving variables.
+	phiToName := map[*ssa.Value]*ir.Name{}
+	// newPhisByBlockByName[b.ID] = phis inserted in block b, keyed by name.
+	newPhisByBlockByName := make([]map[*ir.Name]*ssa.Value, f.NumBlocks())
+	for _, n := range namesOrdered {
+		if _, ok := varGrouped[n]; !ok {
+			continue
+		}
+		if _, bad := badNames[n]; bad {
+			continue
+		}
+		for _, y := range phiBlocksByName[n] {
+			if newPhisByBlockByName[y.ID] == nil {
+				newPhisByBlockByName[y.ID] = make(map[*ir.Name]*ssa.Value)
+			}
+			p := y.NewValue0(y.Pos, ssaop.OpPhi, n.Type())
+			changed = true
+			phiToName[p] = n
+			newPhisByBlockByName[y.ID][n] = p
+			for range len(y.Preds) {
+				// Use virtualPhi as a placeholder.
+				p.AddArg(virtualPhi)
+			}
+		}
+	}
+
+	// Phase 4: applying. The walk cannot fail anymore; record the
+	// rewrites and finalize.
+	renameWalk(
+		// phiAt
+		func(b *ssa.Block, n *ir.Name) *ssa.Value {
+			if m := newPhisByBlockByName[b.ID]; m != nil {
+				return m[n] // nil if b has no phi for n
+			}
+			return nil
+		},
+		// onPhiArg
+		func(n *ir.Name, phi *ssa.Value, predIdx int, v *ssa.Value) {
+			if !copyCompatibleType(n.Type(), v.Type) {
+				f.Fatalf("phi of %v decided promotable but has incompatible type", n)
+			}
+			phi.SetArg(predIdx, v)
+		},
+		// onLoad
+		func(n *ir.Name, use, incoming *ssa.Value) bool {
+			if incoming == nil {
+				f.Fatalf("no incoming value for a load in mem2reg")
+			}
+			if !copyCompatibleType(use.Type, incoming.Type) {
+				f.Fatalf("load of %v decided promotable but has incompatible type", n)
+			}
+			replaceLoad(loadCandidate{
+				l:           use,
+				v:           incoming,
+				reinterpret: ssaop.OpInvalid,
+			})
+			return true
+		},
+		// onStore
+		func(n *ir.Name, use *ssa.Value) bool {
+			if !copyCompatibleType(use.Args[1].Type, n.Type()) {
+				f.Fatalf("store of %v decided promotable but has incompatible type", n)
+			}
+			removeStore(use)
+			return true
+		},
+	)
+	if st != nil || f.Pass.Debug > 1 {
+		for n := range varGrouped {
+			if _, bad := badNames[n]; bad {
+				continue
+			}
+		}
+	}
+	// The promoted variables' loads and stores are gone. Remove their VarDefs
+	// too, so that they no longer have any memory footprint, and unset their
+	// addrtaken flag, as their address is no longer taken anywhere.
+	// Iterate in namesOrdered order (not over the demographics map) to keep
+	// the debug output deterministic.
+	for _, n := range namesOrdered {
+		if _, ok := varGrouped[n]; !ok {
+			continue
+		}
+		if _, bad := badNames[n]; bad {
+			continue
+		}
+		n.SetAddrtaken(false)
+		for _, v := range demographics[n].varDefs {
+			// Remove the VarDefs.
+			removeStore(v)
+		}
+		// Also record the statistics for the names promoted
+		if f.Pass.Debug > 1 {
+			f.Warnl(n.Pos(), "promoted %v in cross block case", n)
+		}
+		st.Record("promoted variable in cross block cases", 1)
+	}
+
 	if changed {
 		deadcode(f)
+	}
+
+	// Sanity check, although deadcode might fatal away earlier if this happens?
+	if virtualPhi.Uses != 0 {
+		f.Fatalf("some new phis have incomplete arg lists")
 	}
 }
