@@ -223,7 +223,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]*)`),
 	re(`-Wl,-s`),
 	re(`-Wl,-search_paths_first`),
-	re(`-Wl,-sectcreate,([^,@\-][^,]*),([^,@\-][^,]*),([^,@\-][^,]*)`),
+	re(`-Wl,-sectcreate,__RESTRICT,__restrict,/dev/null`),
 	re(`-Wl,--start-group`),
 	re(`-Wl,-?-static`),
 	re(`-Wl,-?-subsystem,(native|windows|console|posix|xbox)`),
