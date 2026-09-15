@@ -22,11 +22,16 @@ var (
 	profInsertLock mutex
 	// profBlockLock protects the contents of every blockRecord struct
 	profBlockLock mutex
-	// profMemActiveLock protects the active field of every memRecord struct
+	// profMemActiveLock serializes updates to the active field of every
+	// memRecord struct. Readers access active atomically.
 	profMemActiveLock mutex
 	// profMemFutureLock is a set of locks that protect the respective elements
 	// of the future array of every memRecord struct
 	profMemFutureLock [len(memRecord{}.future)]mutex
+	// profMemReadSema serializes calls to memProfileInternal. Unlike a runtime
+	// mutex, it permits the calling goroutine to be preempted while reading the
+	// profile.
+	profMemReadSema uint32 = 1
 )
 
 // All memory allocations are local and do not escape outside of the profiler.
@@ -148,10 +153,20 @@ type memRecordCycle struct {
 	allocs, frees uintptr
 }
 
-// add accumulates b into a. It does not zero b.
-func (a *memRecordCycle) add(b *memRecordCycle) {
-	a.allocs += b.allocs
-	a.frees += b.frees
+// addActive accumulates c into the active profile. The caller must hold
+// profMemActiveLock.
+func (m *memRecord) addActive(c *memRecordCycle) {
+	// Publish allocs before frees.
+	atomic.Xadduintptr(&m.active.allocs, c.allocs)
+	atomic.Xadduintptr(&m.active.frees, c.frees)
+}
+
+// readActive reads frees before allocs so a concurrent publication cannot
+// expose new frees without the corresponding allocs.
+func (m *memRecord) readActive() memRecordCycle {
+	frees := atomic.Loaduintptr(&m.active.frees)
+	allocs := atomic.Loaduintptr(&m.active.allocs)
+	return memRecordCycle{allocs: allocs, frees: frees}
 }
 
 // A blockRecord is the bucket data for a bucket of type blockProfile,
@@ -176,29 +191,33 @@ const mProfCycleWrap = uint32(len(memRecord{}.future)) * (2 << 24)
 
 // mProfCycleHolder holds the global heap profile cycle number (wrapped at
 // mProfCycleWrap, stored starting at bit 1), and a flag (stored at bit 0) to
-// indicate whether future[cycle] in all buckets has been queued to flush into
-// the active profile.
+// indicate whether future[cycle] in all buckets has been flushed into the
+// active profile.
 type mProfCycleHolder struct {
 	value atomic.Uint32
 }
 
 // read returns the current cycle count.
-func (c *mProfCycleHolder) read() (cycle uint32) {
-	v := c.value.Load()
-	cycle = v >> 1
-	return cycle
+func (c *mProfCycleHolder) read() uint32 {
+	return c.value.Load() >> 1
 }
 
-// setFlushed sets the flushed flag. It returns the current cycle count and the
-// previous value of the flushed flag.
-func (c *mProfCycleHolder) setFlushed() (cycle uint32, alreadyFlushed bool) {
+// readFlushed returns the current cycle count and whether it has been flushed.
+func (c *mProfCycleHolder) readFlushed() (cycle uint32, flushed bool) {
+	v := c.value.Load()
+	return v >> 1, v&1 != 0
+}
+
+// setFlushed marks cycle as flushed. It does nothing if the current cycle has
+// changed or is already marked flushed.
+func (c *mProfCycleHolder) setFlushed(cycle uint32) {
 	for {
 		prev := c.value.Load()
-		cycle = prev >> 1
-		alreadyFlushed = (prev & 0x1) != 0
-		next := prev | 0x1
-		if c.value.CompareAndSwap(prev, next) {
-			return cycle, alreadyFlushed
+		if prev>>1 != cycle || prev&1 != 0 {
+			return
+		}
+		if c.value.CompareAndSwap(prev, prev|1) {
+			return
 		}
 	}
 }
@@ -377,16 +396,20 @@ func mProf_NextCycle() {
 // contrast with mProf_NextCycle, this is somewhat expensive, but safe
 // to do concurrently.
 func mProf_Flush() {
-	cycle, alreadyFlushed := mProfCycle.setFlushed()
-	if alreadyFlushed {
+	_, flushed := mProfCycle.readFlushed()
+	if flushed {
 		return
 	}
 
-	index := cycle % uint32(len(memRecord{}.future))
 	lock(&profMemActiveLock)
-	lock(&profMemFutureLock[index])
-	mProf_FlushLocked(index)
-	unlock(&profMemFutureLock[index])
+	cycle, flushed := mProfCycle.readFlushed()
+	if !flushed {
+		index := cycle % uint32(len(memRecord{}.future))
+		lock(&profMemFutureLock[index])
+		mProf_FlushLocked(index)
+		unlock(&profMemFutureLock[index])
+		mProfCycle.setFlushed(cycle)
+	}
 	unlock(&profMemActiveLock)
 }
 
@@ -399,14 +422,44 @@ func mProf_FlushLocked(index uint32) {
 	assertLockHeld(&profMemFutureLock[index])
 	head := (*bucket)(mbuckets.Load())
 	for b := head; b != nil; b = b.allnext {
-		mp := b.mp()
-
-		// Flush cycle C into the published profile and clear
-		// it for reuse.
-		mpc := &mp.future[index]
-		mp.active.add(mpc)
-		*mpc = memRecordCycle{}
+		mProf_FlushBucketLocked(b, index)
 	}
+}
+
+// mProf_FlushBucketLocked flushes one bucket from the heap profiling cycle at
+// index into the active profile. The caller must hold profMemActiveLock and
+// profMemFutureLock[index].
+func mProf_FlushBucketLocked(b *bucket, index uint32) {
+	assertLockHeld(&profMemActiveLock)
+	assertLockHeld(&profMemFutureLock[index])
+
+	mp := b.mp()
+	mpc := &mp.future[index]
+	mp.addActive(mpc)
+	*mpc = memRecordCycle{}
+}
+
+// mProf_FlushForReader flushes the current heap profiling cycle one bucket at
+// a time. This bounds each interval in which the calling M is not preemptible.
+func mProf_FlushForReader(head *bucket) {
+	cycle, flushed := mProfCycle.readFlushed()
+	if flushed {
+		return
+	}
+	index := cycle % uint32(len(memRecord{}.future))
+	for b := head; b != nil; b = b.allnext {
+		lock(&profMemActiveLock)
+		current, flushed := mProfCycle.readFlushed()
+		if current != cycle || flushed {
+			unlock(&profMemActiveLock)
+			return
+		}
+		lock(&profMemFutureLock[index])
+		mProf_FlushBucketLocked(b, index)
+		unlock(&profMemFutureLock[index])
+		unlock(&profMemActiveLock)
+	}
+	mProfCycle.setFlushed(cycle)
 }
 
 // mProf_PostSweep records that all sweep frees for this GC cycle have
@@ -931,7 +984,7 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 }
 
 // memProfileInternal returns the number of records n in the profile. If there
-// are less than size records, copyFn is invoked for each record, and ok returns
+// are at most size records, copyFn is invoked for each record, and ok returns
 // true.
 //
 // The linker set disableMemoryProfiling to true to disable memory profiling
@@ -941,62 +994,79 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 //
 //go:noinline
 func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemProfileRecord)) (n int, ok bool) {
-	cycle := mProfCycle.read()
+	semacquire(&profMemReadSema)
+
+	head := (*bucket)(mbuckets.Load())
 	// If we're between mProf_NextCycle and mProf_Flush, take care
 	// of flushing to the active profile so we only have to look
 	// at the active profile below.
-	index := cycle % uint32(len(memRecord{}.future))
-	lock(&profMemActiveLock)
-	lock(&profMemFutureLock[index])
-	mProf_FlushLocked(index)
-	unlock(&profMemFutureLock[index])
-	clear := true
-	head := (*bucket)(mbuckets.Load())
+	mProf_FlushForReader(head)
+
+	empty := true
 	for b := head; b != nil; b = b.allnext {
-		mp := b.mp()
-		if inuseZero || mp.active.allocs != mp.active.frees {
-			n++
-		}
-		if mp.active.allocs != 0 || mp.active.frees != 0 {
-			clear = false
+		active := b.mp().readActive()
+		if active.allocs != 0 || active.frees != 0 {
+			empty = false
 		}
 	}
-	if clear {
+	if empty {
 		// Absolutely no data, suggesting that a garbage collection
 		// has not yet happened. In order to allow profiling when
 		// garbage collection is disabled from the beginning of execution,
-		// accumulate all of the cycles, and recount buckets.
-		n = 0
+		// accumulate all of the cycles.
 		for b := head; b != nil; b = b.allnext {
 			mp := b.mp()
+			lock(&profMemActiveLock)
 			for c := range mp.future {
 				lock(&profMemFutureLock[c])
-				mp.active.add(&mp.future[c])
-				mp.future[c] = memRecordCycle{}
+				mProf_FlushBucketLocked(b, uint32(c))
 				unlock(&profMemFutureLock[c])
 			}
-			if inuseZero || mp.active.allocs != mp.active.frees {
-				n++
-			}
+			unlock(&profMemActiveLock)
 		}
 	}
-	if n <= size {
-		ok = true
+
+	if inuseZero {
 		for b := head; b != nil; b = b.allnext {
-			mp := b.mp()
-			if inuseZero || mp.active.allocs != mp.active.frees {
-				r := profilerecord.MemProfileRecord{
-					ObjectSize:   int64(b.size),
-					AllocObjects: int64(mp.active.allocs),
-					FreeObjects:  int64(mp.active.frees),
-					Stack:        b.stk(),
-				}
+			n++
+		}
+		if n <= size {
+			ok = true
+			for b := head; b != nil; b = b.allnext {
+				copyFn(memProfileRecord(b, b.mp().readActive()))
+			}
+		}
+	} else {
+		var records []profilerecord.MemProfileRecord
+		for b := head; b != nil; b = b.allnext {
+			active := b.mp().readActive()
+			if active.allocs == active.frees {
+				continue
+			}
+			n++
+			if n <= size {
+				records = append(records, memProfileRecord(b, active))
+			}
+		}
+		if n <= size {
+			ok = true
+			for _, r := range records {
 				copyFn(r)
 			}
 		}
 	}
-	unlock(&profMemActiveLock)
+
+	semrelease(&profMemReadSema)
 	return
+}
+
+func memProfileRecord(b *bucket, active memRecordCycle) profilerecord.MemProfileRecord {
+	return profilerecord.MemProfileRecord{
+		ObjectSize:   int64(b.size),
+		AllocObjects: int64(active.allocs),
+		FreeObjects:  int64(active.frees),
+		Stack:        b.stk(),
+	}
 }
 
 func copyMemProfileRecord(dst *MemProfileRecord, src profilerecord.MemProfileRecord) {
@@ -1029,8 +1099,8 @@ func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintp
 	lock(&profMemActiveLock)
 	head := (*bucket)(mbuckets.Load())
 	for b := head; b != nil; b = b.allnext {
-		mp := b.mp()
-		fn(b, b.nstk, &b.stk()[0], b.size, mp.active.allocs, mp.active.frees)
+		active := b.mp().readActive()
+		fn(b, b.nstk, &b.stk()[0], b.size, active.allocs, active.frees)
 	}
 	unlock(&profMemActiveLock)
 }
