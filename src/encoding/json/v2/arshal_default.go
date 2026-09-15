@@ -1899,10 +1899,11 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 			// Optimize for the any type if there are no special options.
 			// We do not care about stringified numbers since JSON strings
 			// are always unmarshaled into an any value as Go strings.
-			// Duplicate name check must be enforced since unmarshalValueAny
-			// does not implement merge semantics.
+			// unmarshalValueAny discards the previous value on a duplicate
+			// name, so it is only usable when that is the desired semantics.
 			if optimizeCommon &&
-				t == anyType && !uo.Flags.Get(jsonflags.AllowDuplicateNames|jsonflags.FormatTag) &&
+				t == anyType && !uo.Flags.Get(jsonflags.FormatTag) &&
+				(!uo.Flags.Get(jsonflags.AllowDuplicateNames) || uo.Flags.Get(jsonflags.MergeWithLegacySemantics)) &&
 				(uo.Unmarshalers == nil || !uo.Unmarshalers.(*Unmarshalers).fromAny) {
 				v, err := unmarshalValueAny(dec, uo)
 				// We must check for nil interface values up front.
