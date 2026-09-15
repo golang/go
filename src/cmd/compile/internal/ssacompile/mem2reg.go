@@ -344,6 +344,21 @@ func mem2reg(f *ssa.Func) {
 		v.AuxInt = 0
 		v.Op = ssaop.OpCopy
 	}
+	// Mem2reg promotes memory accesses to ssa values, and these values originally come
+	// from named local variables. Let's keep this information to help the register allocator
+	// spilling. Like ssagen's state.addNamedValue, compiler-generated temporaries
+	// are not tracked.
+	addNamedValue := func(n *ir.Name, v *ssa.Value) {
+		if ir.IsAutoTmp(n) {
+			return
+		}
+		loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
+		values, ok := f.NamedValues[loc]
+		if !ok {
+			f.Names = append(f.Names, loc)
+		}
+		f.NamedValues[loc] = append(values, v)
+	}
 	type loadCandidate struct {
 		l *ssa.Value // The load
 		v *ssa.Value // The value to replace the load
@@ -351,7 +366,7 @@ func mem2reg(f *ssa.Func) {
 		// if l.Type != v.Type, this op must not be OpInvalid.
 		reinterpret ssaop.Op
 	}
-	replaceLoad := func(lc loadCandidate) {
+	replaceLoad := func(n *ir.Name, lc loadCandidate) {
 		changed = true
 		if lc.reinterpret == ssaop.OpInvalid {
 			if !copyCompatibleType(lc.l.Type, lc.v.Type) {
@@ -366,6 +381,8 @@ func mem2reg(f *ssa.Func) {
 		lc.l.Aux = nil
 		lc.l.AuxInt = 0
 		lc.l.Op = ssaop.OpCopy
+		// lc.v is a stored value or a phi, both already named when recorded.
+		addNamedValue(n, lc.l)
 	}
 	// Now we should start the promotion
 	// Simple case one - all uses of v is within the same block.
@@ -428,7 +445,8 @@ NextVar:
 		}
 		// Do the replacement.
 		for _, v := range storeCands {
-			// Remove the stores.
+			// Remove the stores, keeping the stored values named.
+			addNamedValue(n, v.Args[1])
 			removeStore(v)
 		}
 		for _, v := range demographics[n].varDefs {
@@ -437,7 +455,7 @@ NextVar:
 		}
 		for _, lc := range loadCands {
 			// Replace the loads with the corresponding value.
-			replaceLoad(lc)
+			replaceLoad(n, lc)
 		}
 		// The variable no longer has a memory footprint: all its loads, stores
 		// and VarDefs are gone, so its address is no longer taken anywhere.
@@ -745,6 +763,7 @@ NextVar:
 				// Use virtualPhi as a placeholder.
 				p.AddArg(virtualPhi)
 			}
+			addNamedValue(n, p)
 		}
 	}
 
@@ -773,7 +792,7 @@ NextVar:
 			if !copyCompatibleType(use.Type, incoming.Type) {
 				f.Fatalf("load of %v decided promotable but has incompatible type", n)
 			}
-			replaceLoad(loadCandidate{
+			replaceLoad(n, loadCandidate{
 				l:           use,
 				v:           incoming,
 				reinterpret: ssaop.OpInvalid,
@@ -782,20 +801,15 @@ NextVar:
 		},
 		// onStore
 		func(n *ir.Name, use *ssa.Value) bool {
-			if !copyCompatibleType(use.Args[1].Type, n.Type()) {
+			val := use.Args[1]
+			if !copyCompatibleType(val.Type, n.Type()) {
 				f.Fatalf("store of %v decided promotable but has incompatible type", n)
 			}
 			removeStore(use)
+			addNamedValue(n, val)
 			return true
 		},
 	)
-	if st != nil || f.Pass.Debug > 1 {
-		for n := range varGrouped {
-			if _, bad := badNames[n]; bad {
-				continue
-			}
-		}
-	}
 	// The promoted variables' loads and stores are gone. Remove their VarDefs
 	// too, so that they no longer have any memory footprint, and unset their
 	// addrtaken flag, as their address is no longer taken anywhere.
