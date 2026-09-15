@@ -573,7 +573,18 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 				orig = h.Clone()
 			}
 
-			copyHeader(h, http.Header(header))
+			// Hop-by-hop headers apply to a single transport-level
+			// connection and must be removed by an intermediary before a
+			// message is forwarded (RFC 9110, section 7.6.1). This applies
+			// to informational responses as well as to the final response,
+			// which is handled by removeHopByHopHeaders below.
+			//
+			// Copy the backend's header before modifying it: it belongs to
+			// the transport, not to us.
+			h1xx := http.Header(header).Clone()
+			removeHopByHopHeaders(h1xx)
+
+			copyHeader(h, h1xx)
 			rw.WriteHeader(code)
 
 			// Restore the original headers (which may include headers added
