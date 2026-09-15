@@ -34,6 +34,14 @@ func BenchmarkMul(b *testing.B) {
 			v.Mul(v, v)
 		}
 	})
+	b.Run("P256", func(b *testing.B) {
+		v := new(fiat.P256Element).One()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			v.Mul(v, v)
+		}
+	})
 }
 
 func BenchmarkSquare(b *testing.B) {
