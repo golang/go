@@ -757,7 +757,7 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 		if x.exp <= 64 {
 			// u = trunc(x) fits into a uint64
 			u := msb64(x.mant) >> (64 - uint32(x.exp))
-			if x.MinPrec() <= 64 {
+			if x.MinPrec() <= uint(x.exp) {
 				return u, Exact
 			}
 			return u, Below // x truncated
