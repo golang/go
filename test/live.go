@@ -1,4 +1,4 @@
-// errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+// errorcheckwithauto -0 -l -live -wb=0 -d=ssa/mem2reg/off -d=ssa/insert_resched_checks/off
 
 //go:build !ppc64 && !ppc64le && !goexperiment.regabiargs
 

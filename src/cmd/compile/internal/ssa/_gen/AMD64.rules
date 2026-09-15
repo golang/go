@@ -1988,3 +1988,9 @@
 (SETEQ t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (SET(NE|EQ|GE|LE|G|L|BE|AE|B|A) flags)
 (SETEQ t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (SET(NE|EQ|GE|LE|G|L|BE|AE|B|A) flags)
 (SETEQ t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)  s)) && t.Block == s.Block => (SET(NE|EQ|GE|LE|G|L|BE|AE|B|A) flags)
+
+// Reinterpret int|float
+(I32AsF32 ...) => (MOVLi2f ...)
+(F32AsI32 ...) => (MOVLf2i ...)
+(I64AsF64 ...) => (MOVQi2f ...)
+(F64AsI64 ...) => (MOVQf2i ...)
