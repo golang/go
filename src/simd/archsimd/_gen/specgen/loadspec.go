@@ -5,7 +5,6 @@
 package specgen
 
 import (
-	"fmt"
 	"go/ast"
 	"go/build"
 	"go/importer"
@@ -14,7 +13,6 @@ import (
 	"go/types"
 	"path/filepath"
 	"simd/archsimd/_gen/specgen/specexpr"
-	"strings"
 )
 
 // specPackage represents the parsed _gen/spec package.
@@ -49,13 +47,6 @@ type specFunc struct {
 	Params       []*types.Var
 	Results      []*types.Var
 	Requirements []specexpr.Expr
-}
-
-// specTemplate is a template string, with placeholders of the form `{var}`,
-// which will be replaced with variable values from the solver.
-type specTemplate struct {
-	tmpl   string   // raw template string including patterns
-	fields [][2]int // start:end ranges of fields, including '{}'s, in ascending order
 }
 
 // specGoVersion is the oldest Go toolchain version that must be able to parse
@@ -203,7 +194,7 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 				Results:    results,
 				Category:   category,
 			}
-			f.NameTmpl = specTemplate{tmpl: f.Name}
+			f.NameTmpl = specTemplate{raw: f.Name}
 			if d.Doc != nil {
 				var err error
 				f.Doc, err = newSpecTemplate(d.Doc.Text())
@@ -310,48 +301,4 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 		UintNType:  uintNType,
 	}
 	return &pkg
-}
-
-// newSpecTemplate parses spec template.
-func newSpecTemplate(tmpl string) (specTemplate, error) {
-	if !strings.ContainsAny(tmpl, "{}") {
-		return specTemplate{tmpl, nil}, nil
-	}
-
-	var fields [][2]int
-	for i := 0; i < len(tmpl); i++ {
-		switch tmpl[i] {
-		case '{':
-			j := i + strings.IndexByte(tmpl[i:], '}') + 1
-			if j <= i {
-				return specTemplate{}, fmt.Errorf("unclosed '{' in template %q", tmpl)
-			}
-			fields = append(fields, [2]int{i, j})
-			i = j - 1
-		case '}':
-			return specTemplate{}, fmt.Errorf("unmatched '}' in template %q", tmpl)
-		}
-	}
-	return specTemplate{
-		tmpl:   tmpl,
-		fields: fields,
-	}, nil
-}
-
-// expand replaces placeholders in template s by calling the lookup function to
-// resolve their values.
-func (s *specTemplate) expand(lookup func(string) string) string {
-	if len(s.fields) == 0 {
-		return s.tmpl
-	}
-	var buf strings.Builder
-	pos := 0
-	for _, field := range s.fields {
-		buf.WriteString(s.tmpl[pos:field[0]])
-		val := lookup(s.tmpl[field[0]+1 : field[1]-1])
-		buf.WriteString(val)
-		pos = field[1]
-	}
-	buf.WriteString(s.tmpl[pos:])
-	return buf.String()
 }

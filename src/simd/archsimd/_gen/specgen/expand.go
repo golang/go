@@ -7,7 +7,6 @@ package specgen
 import (
 	"fmt"
 	"go/types"
-	"regexp"
 	"simd/archsimd/_gen/specgen/specexpr"
 	"strings"
 )
@@ -106,36 +105,8 @@ func (sFn *specFunc) instantiate(ctx context, b *specexpr.Bindings, argGet map[*
 		}
 	}
 
-	// Instantiate name
-	name := sFn.NameTmpl.expand(func(s string) string {
-		val := b.Get(specexpr.Variable(s))
-		if val == nil {
-			ctx.errorf("unknown variable %q in function name", s)
-			return ""
-		}
-		str := fmt.Sprint(val)
-		// Make sure str starts with an upper-case letter so it maintains
-		// CamelCase in the overall identifier.
-		str = strings.ToTitle(str[:1]) + str[1:]
-		return str
-	})
-	f.Name = name
-
-	// Instantiate doc
-	doc := sFn.Doc.expand(func(s string) string {
-		val := b.Get(specexpr.Variable(s))
-		if val == nil {
-			ctx.errorf("unknown variable %q in doc", s)
-			return ""
-		}
-		return fmt.Sprint(val)
-	})
-	// Replace name in doc
-	if f.Name == sFn.Name {
-		f.Doc = doc
-	} else {
-		f.Doc = regexp.MustCompile(`\b`+regexp.QuoteMeta(sFn.Name)+`\b`).ReplaceAllLiteralString(doc, f.Name)
-	}
+	// Instantiate name and doc
+	f.Name, f.Doc = sFn.expandNameAndDoc(ctx, b)
 
 	// Instantiate parameter and result types
 	//

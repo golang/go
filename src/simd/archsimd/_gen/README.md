@@ -137,7 +137,7 @@ error)`. Each `Func` is a **fully instantiated, concrete** API signature.
 `specexpr.Type` — so a `Func` carries argument names as well as types, which
 matters to anything comparing signatures. There is also `Name` and `Doc`. Read
 `simd/internal/spec/doc.go` for the `//specgen:name`, `//specgen:require`, and
-`{var}` doc-template mechanisms.
+`{{.var}}` doc-template mechanisms.
 
 Two properties are worth knowing before you build anything on specgen:
 

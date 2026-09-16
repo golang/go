@@ -117,21 +117,22 @@
 // ## Name and doc templates
 //
 // For some operations, the API name or documentation depends on type
-// parameters. For these we support a simple template system where constraint
-// variables can be referenced in curly braces, like {vE}, similar to {}
-// expressions in shape constraints. For doc comments, these can be included
-// directly in the doc comment. For names, we use a `//specgen:name` directive,
-// such as
+// parameters. For these we use Go's text/template system where constraint
+// variables can be referenced in double curly braces, like {{.vE}}.
+// For doc comments, template actions can be included directly in the doc comment
+// (including conditionals like {{if lt .zL .xL}}). For names, we use a
+// `//specgen:name` directive, such as
 //
-//	//specgen:name Load{z}
+//	//specgen:name Load{{.z}}
 //	func LoadZ[E Elt, W Width](s []E) (z Vec[E, W]) {
 //
 // In this case, the spec function itself can be named anything (as long as it's
 // exported), and the API name is generated from the directive. For example,
 // when LoadZ is instantiated on uint32 and Width128, the API name generated
-// from the template will be LoadUint32x4. This is particularly useful for
-// constructor functions and conversion functions where types must appear in the
-// name, such as LoadZ.
+// from the template will be LoadUint32x4. When interpolating element types into
+// identifiers, the title filter can be used: ConvertTo{{.zE | title}}.
+// This is particularly useful for constructor functions and conversion
+// functions where types must appear in the name, such as LoadZ.
 //
 // ## The spec type system
 //

@@ -6,10 +6,10 @@
 
 package spec
 
-// ReshapeToUints reinterprets the bits of x as a {z} vector. The least
+// ReshapeToUints reinterprets the bits of x as a {{.z}} vector. The least
 // significant bit of element 0 is bit 0
 //
-//specgen:name ReshapeToUint{zN}s
+//specgen:name ReshapeToUint{{.zN}}s
 //specgen:require xN!=zN
 func ReshapeToUints[xE Uints, xW Width, zE Uints](x Vec[xE, xW]) (z Vec[zE, xW]) {
 	z = makeVec[zE, xW]()

@@ -99,98 +99,14 @@ func TestLoadSpecNameTmpl(t *testing.T) {
 	for _, f := range pkg.Funcs {
 		if f.Name == "MaskFromBits" {
 			found = true
-			want := "{z}FromBits"
-			if f.NameTmpl.tmpl != want {
-				t.Errorf("MaskFromBits: expected NameTmpl.tmpl %q, got %q", want, f.NameTmpl.tmpl)
+			want := "{{.z}}FromBits"
+			if f.NameTmpl.raw != want {
+				t.Errorf("MaskFromBits: expected NameTmpl.raw %q, got %q", want, f.NameTmpl.raw)
 			}
 			break
 		}
 	}
 	if !found {
 		t.Errorf("failed to find function MaskFromBits in parsed package")
-	}
-}
-
-func TestNewSpecTemplate(t *testing.T) {
-	tests := []struct {
-		tmpl    string
-		want    specTemplate
-		wantErr bool
-	}{
-		{
-			tmpl: "",
-			want: specTemplate{tmpl: "", fields: nil},
-		},
-		{
-			tmpl: "Convert",
-			want: specTemplate{tmpl: "Convert", fields: nil},
-		},
-		{
-			tmpl: "Convert{zL}To{zB}{zN}",
-			want: specTemplate{
-				tmpl:   "Convert{zL}To{zB}{zN}",
-				fields: [][2]int{{7, 11}, {13, 17}, {17, 21}},
-			},
-		},
-		{
-			tmpl:    "Convert{zL",
-			wantErr: true,
-		},
-		{
-			tmpl:    "Convert}",
-			wantErr: true,
-		},
-		{
-			tmpl:    "Convert{a{b}}",
-			wantErr: true,
-		},
-	}
-
-	for _, tc := range tests {
-		got, err := newSpecTemplate(tc.tmpl)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("newSpecTemplate(%q) returned error: %v, wantErr: %v", tc.tmpl, err, tc.wantErr)
-			continue
-		}
-		if tc.wantErr {
-			continue
-		}
-		if got.tmpl != tc.want.tmpl {
-			t.Errorf("newSpecTemplate(%q) tmpl = %q, want %q", tc.tmpl, got.tmpl, tc.want.tmpl)
-		}
-		if len(got.fields) != len(tc.want.fields) {
-			t.Errorf("newSpecTemplate(%q) fields len = %d, want %d", tc.tmpl, len(got.fields), len(tc.want.fields))
-		} else {
-			for i := range got.fields {
-				if got.fields[i] != tc.want.fields[i] {
-					t.Errorf("newSpecTemplate(%q) fields[%d] = %v, want %v", tc.tmpl, i, got.fields[i], tc.want.fields[i])
-				}
-			}
-		}
-	}
-}
-
-func TestSpecTemplateExpand(t *testing.T) {
-	tmpl, err := newSpecTemplate("Convert{zL}To{zB}{zN}")
-	if err != nil {
-		t.Fatalf("unexpected error parsing template: %v", err)
-	}
-
-	lookup := func(name string) string {
-		switch name {
-		case "zL":
-			return "4"
-		case "zB":
-			return "Float"
-		case "zN":
-			return "32"
-		}
-		return ""
-	}
-
-	got := tmpl.expand(lookup)
-	want := "Convert4ToFloat32"
-	if got != want {
-		t.Errorf("expected expanded string %q, got %q", want, got)
 	}
 }

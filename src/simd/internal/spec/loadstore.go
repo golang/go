@@ -12,7 +12,7 @@ package spec
 // BroadcastZ returns a vector with the input x assigned to all elements of the
 // result.
 //
-//specgen:name Broadcast{z}
+//specgen:name Broadcast{{.z}}
 func BroadcastZ[E Elt, W Width](x E) (z Vec[E, W]) {
 	z = makeVec[E, W]()
 	for i := range z {
@@ -24,7 +24,7 @@ func BroadcastZ[E Elt, W Width](x E) (z Vec[E, W]) {
 // LoadZ loads a slice into a vector. If len(s) is less than the number of
 // elements in the vector, it panics.
 //
-//specgen:name Load{z}
+//specgen:name Load{{.z}}
 func LoadZ[E Elt, W Width](s []E) (z Vec[E, W]) {
 	z = makeVec[E, W]()
 	_ = s[:z.len()]
@@ -34,7 +34,7 @@ func LoadZ[E Elt, W Width](s []E) (z Vec[E, W]) {
 
 // LoadZArray loads an array into a vector.
 //
-//specgen:name Load{z}Array
+//specgen:name Load{{.z}}Array
 func LoadZArray[E Elt, W FixedWidth](x *Array[E, W]) (z Vec[E, W]) {
 	z = makeVec[E, W]()
 	if len(*x) != z.len() {
@@ -48,7 +48,7 @@ func LoadZArray[E Elt, W FixedWidth](x *Array[E, W]) (z Vec[E, W]) {
 // of elements loaded from s. If len(s) is less than the number of elements in
 // the vector, the remaining vector elements will be zero-filled.
 //
-//specgen:name Load{z}Part
+//specgen:name Load{{.z}}Part
 func LoadZPart[E Elt, W Width](s []E) (z Vec[E, W], n int) {
 	z = makeVec[E, W]()
 	n = copy(z, s)

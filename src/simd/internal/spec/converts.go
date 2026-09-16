@@ -6,9 +6,9 @@
 
 package spec
 
-// ConvertToZ converts element values to {zE}. The result has the same number of lanes.
+// ConvertToZ converts element values to {{.zE}}. The result has the same number of lanes.
 //
-//specgen:name ConvertTo{zE}
+//specgen:name ConvertTo{{.zE | title}}
 //specgen:require z={zB}{zN}x{xL} zE!=xE
 func ConvertToZ[xE Nums, xW Width, zE Nums, zW Width](x Vec[xE, xW]) (z Vec[zE, zW]) {
 	// Architectures are generally significantly more constrained in what they
@@ -24,9 +24,9 @@ func ConvertToZ[xE Nums, xW Width, zE Nums, zW Width](x Vec[xE, xW]) (z Vec[zE, 
 // Uint8x16.ExtendLo2ToUint64 is the low eighth, but that's implied by going
 // from uint8 to uint64 without changing the width.
 
-// ExtendLoLToZ extends the lowest {zL} vector elements to {zE}.
+// ExtendLoLToZ extends the lowest {{.zL}} vector elements to {{.zE}}.
 //
-//specgen:name ExtendLo{zL}To{zE}
+//specgen:name ExtendLo{{.zL}}To{{.zE | title}}
 //specgen:require zB=xB zN>xN
 func ExtendLoLToZ[E Ints | Uints, W FixedWidth, zE Ints | Uints](x Vec[E, W]) (z Vec[zE, W]) {
 	z = makeVec[zE, W]()
@@ -36,9 +36,9 @@ func ExtendLoLToZ[E Ints | Uints, W FixedWidth, zE Ints | Uints](x Vec[E, W]) (z
 	return z
 }
 
-// ConvertLoLToZ converts the low-indexed {zL} elements of x to {zE}.
+// ConvertLoLToZ converts the low-indexed {{.zL}} elements of x to {{.zE}}.
 //
-//specgen:name ConvertLo{zL}To{zE}
+//specgen:name ConvertLo{{.zL}}To{{.zE | title}}
 //specgen:require zL<xL
 func ConvertLoLToZ[E Nums, W FixedWidth, zE Floats](x Vec[E, W]) (z Vec[zE, W]) {
 	panic("not implemented")
