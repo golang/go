@@ -258,18 +258,17 @@ func addrPortToSockaddrInet4(ap netip.AddrPort) (syscall.SockaddrInet4, error) {
 	return sa, nil
 }
 
-func addrPortToSockaddrInet6(ap netip.AddrPort) (syscall.SockaddrInet6, error) {
+func addrPortToSockaddrInet6(ap netip.AddrPort) syscall.SockaddrInet6 {
 	// ipToSockaddrInet6 has special handling here for zero length slices.
 	// We do not, because netip has no concept of a generic zero IP address.
 	//
 	// addr is allowed to be an IPv4 address, because As16 will convert it
 	// to an IPv4-mapped IPv6 address.
-	// The error message is kept consistent with ipToSockaddrInet6.
 	addr := ap.Addr()
 	sa := syscall.SockaddrInet6{
 		Addr:   addr.As16(),
 		Port:   int(ap.Port()),
 		ZoneId: uint32(zoneCache.index(addr.Zone())),
 	}
-	return sa, nil
+	return sa
 }
