@@ -446,6 +446,14 @@ func (x Int8x16nclm) Or(y Int8x16nclm) Int8x16nclm {
 	return Int8x16nclm((archsimd.Int8x16(x)).Or(archsimd.Int8x16(y)))
 }
 
+func (x Int8x16) ReduceSum() int8 {
+	return (archsimd.Int8x16(x)).ReduceSum()
+}
+
+func (x Int8x16nclm) ReduceSum() int8 {
+	return (archsimd.Int8x16(x)).ReduceSum()
+}
+
 func (x Int8x16) Store(s []int8) {
 	(archsimd.Int8x16(x)).Store(s)
 }
@@ -676,6 +684,14 @@ func (x Int16x8) Or(y Int16x8) Int16x8 {
 
 func (x Int16x8nclm) Or(y Int16x8nclm) Int16x8nclm {
 	return Int16x8nclm((archsimd.Int16x8(x)).Or(archsimd.Int16x8(y)))
+}
+
+func (x Int16x8) ReduceSum() int16 {
+	return (archsimd.Int16x8(x)).ReduceSum()
+}
+
+func (x Int16x8nclm) ReduceSum() int16 {
+	return (archsimd.Int16x8(x)).ReduceSum()
 }
 
 func (x Int16x8) RotateAllLeft(dist uint64) Int16x8 {
@@ -940,6 +956,14 @@ func (x Int32x4) Or(y Int32x4) Int32x4 {
 
 func (x Int32x4nclm) Or(y Int32x4nclm) Int32x4nclm {
 	return Int32x4nclm((archsimd.Int32x4(x)).Or(archsimd.Int32x4(y)))
+}
+
+func (x Int32x4) ReduceSum() int32 {
+	return (archsimd.Int32x4(x)).ReduceSum()
+}
+
+func (x Int32x4nclm) ReduceSum() int32 {
+	return (archsimd.Int32x4(x)).ReduceSum()
 }
 
 func (x Int32x4) RotateAllLeft(dist uint64) Int32x4 {
@@ -1374,6 +1398,14 @@ func (x Uint8x16nclm) Or(y Uint8x16nclm) Uint8x16nclm {
 	return Uint8x16nclm((archsimd.Uint8x16(x)).Or(archsimd.Uint8x16(y)))
 }
 
+func (x Uint8x16) ReduceSum() uint8 {
+	return (archsimd.Uint8x16(x)).ReduceSum()
+}
+
+func (x Uint8x16nclm) ReduceSum() uint8 {
+	return (archsimd.Uint8x16(x)).ReduceSum()
+}
+
 func (x Uint8x16) ReshapeToUint16s() Uint16x8 {
 	return Uint16x8((archsimd.Uint8x16(x)).ReshapeToUint16s())
 }
@@ -1612,6 +1644,14 @@ func (x Uint16x8) Or(y Uint16x8) Uint16x8 {
 
 func (x Uint16x8nclm) Or(y Uint16x8nclm) Uint16x8nclm {
 	return Uint16x8nclm((archsimd.Uint16x8(x)).Or(archsimd.Uint16x8(y)))
+}
+
+func (x Uint16x8) ReduceSum() uint16 {
+	return (archsimd.Uint16x8(x)).ReduceSum()
+}
+
+func (x Uint16x8nclm) ReduceSum() uint16 {
+	return (archsimd.Uint16x8(x)).ReduceSum()
 }
 
 func (x Uint16x8) ReshapeToUint32s() Uint32x4 {
@@ -1876,6 +1916,14 @@ func (x Uint32x4) Or(y Uint32x4) Uint32x4 {
 
 func (x Uint32x4nclm) Or(y Uint32x4nclm) Uint32x4nclm {
 	return Uint32x4nclm((archsimd.Uint32x4(x)).Or(archsimd.Uint32x4(y)))
+}
+
+func (x Uint32x4) ReduceSum() uint32 {
+	return (archsimd.Uint32x4(x)).ReduceSum()
+}
+
+func (x Uint32x4nclm) ReduceSum() uint32 {
+	return (archsimd.Uint32x4(x)).ReduceSum()
 }
 
 func (x Uint32x4) ReshapeToUint16s() Uint16x8 {

@@ -78,6 +78,9 @@ func (x Int8s) NotEqual(y Int8s) Mask8s
 // Or returns the bitwise OR of x and y.
 func (x Int8s) Or(y Int8s) Int8s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int8s) ReduceSum() int8
+
 // Store stores the vector elements into the slice s.
 func (x Int8s) Store(s []int8)
 
@@ -173,6 +176,9 @@ func (x Int16s) NotEqual(y Int16s) Mask16s
 
 // Or returns the bitwise OR of x and y.
 func (x Int16s) Or(y Int16s) Int16s
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int16s) ReduceSum() int16
 
 // RotatesAllLeft rotates all elements left by y bits.
 func (x Int16s) RotateAllLeft(dist uint64) Int16s
@@ -281,6 +287,9 @@ func (x Int32s) NotEqual(y Int32s) Mask32s
 
 // Or returns the bitwise OR of x and y.
 func (x Int32s) Or(y Int32s) Int32s
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int32s) ReduceSum() int32
 
 // RotatesAllLeft rotates all elements left by y bits.
 func (x Int32s) RotateAllLeft(dist uint64) Int32s
@@ -462,6 +471,9 @@ func (x Uint8s) NotEqual(y Uint8s) Mask8s
 // Or returns the bitwise OR of x and y.
 func (x Uint8s) Or(y Uint8s) Uint8s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint8s) ReduceSum() uint8
+
 // ReshapeToUint16s reinterprets the vector bits as a Uint16s vector.
 func (x Uint8s) ReshapeToUint16s() Uint16s
 
@@ -560,6 +572,9 @@ func (x Uint16s) NotEqual(y Uint16s) Mask16s
 
 // Or returns the bitwise OR of x and y.
 func (x Uint16s) Or(y Uint16s) Uint16s
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint16s) ReduceSum() uint16
 
 // ReshapeToUint32s reinterprets the vector bits as a Uint32s vector.
 func (x Uint16s) ReshapeToUint32s() Uint32s
@@ -668,6 +683,9 @@ func (x Uint32s) NotEqual(y Uint32s) Mask32s
 
 // Or returns the bitwise OR of x and y.
 func (x Uint32s) Or(y Uint32s) Uint32s
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint32s) ReduceSum() uint32
 
 // ReshapeToUint16s reinterprets the vector bits as a Uint16s vector.
 func (x Uint32s) ReshapeToUint16s() Uint16s
