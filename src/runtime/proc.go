@@ -3847,10 +3847,6 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 		stealTimersOrRunNextG := i == stealTries-1
 
 		for enum := stealOrder.start(cheaprand()); !enum.done(); enum.next() {
-			if sched.gcwaiting.Load() {
-				// GC work may be available.
-				return nil, false, now, pollUntil, true
-			}
 			p2 := allp[enum.position()]
 			if pp == p2 {
 				continue
@@ -3896,6 +3892,12 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 				if gp := runqsteal(pp, p2, stealTimersOrRunNextG); gp != nil {
 					return gp, false, now, pollUntil, ranTimer
 				}
+			}
+
+			if sched.gcwaiting.Load() {
+				// GC work may be available (and may have caused an early return
+				// from runqsteal).
+				return nil, false, now, pollUntil, true
 			}
 		}
 	}
@@ -7760,6 +7762,11 @@ func runqgrab(pp *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool)
 									// 1-15ms, which is way too much for this
 									// optimization. So just yield.
 									osyield()
+								}
+								if sched.gcwaiting.Load() {
+									// The sleep above might have overlapped with a STW
+									// request. Check before committing to this new work.
+									return 0
 								}
 							}
 						}
