@@ -883,6 +883,39 @@ func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
 	}
 }
 
+// The request context on an unencrypted HTTP/2 connection must not be
+// canceled just because the connection's serve goroutine parked while
+// the handler was waiting.
+func TestServerRequestContextOutlivesIdleServeGoroutine(t *testing.T) {
+	runSynctest(t, testServerRequestContextOutlivesIdleServeGoroutine,
+		testAddMode{http2UnencryptedMode})
+}
+func testServerRequestContextOutlivesIdleServeGoroutine(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		// Long-poll: nothing happens on the connection while we wait,
+		// so the HTTP/2 serve goroutine parks in the meantime.
+		select {
+		case <-r.Context().Done():
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "request context done early: %v", r.Context().Err())
+		case <-time.After(5 * time.Second):
+			io.WriteString(w, "ok")
+		}
+	}))
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 200 || string(body) != "ok" {
+		t.Fatalf("got %d %q, want 200 %q", res.StatusCode, body, "ok")
+	}
+}
+
 func TestServerReadHeaderTimeoutIsCleared(t *testing.T) {
 	runSynctest(t, testServerReadHeaderTimeoutIsCleared,
 		testAddMode{http2UnencryptedMode})
