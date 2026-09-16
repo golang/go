@@ -63,1127 +63,1249 @@ type (
 	Uint8x64   struct{ v []uint8 }
 )
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Float32x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[float32, spec.Width128, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Float32x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float32, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Float32x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float32, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Float32x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[float32, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Float32x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[float32, spec.Width128, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Float32x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float32, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Float32x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float32, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Float32x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[float32, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Float32x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[float32, spec.Width128, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Float32x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[float32, spec.Width256, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Float32x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float32, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Float32x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float32, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Float32x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[float32, spec.Width256, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Float32x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[float32, spec.Width256, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Float32x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float32, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Float32x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float32, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Float32x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[float32, spec.Width256, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Float32x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[float32, spec.Width256, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Float32x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float32, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Float32x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[float32, spec.Width512, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Float32x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[float32, spec.Width512, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Float32x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float32, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Float32x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[float32, spec.Width512, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Float32x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[float32, spec.Width512, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Float32s) ConvertToInt32() (z Int32s) {
 	return Int32s{spec.ConvertToZ[float32, spec.WidthScalable, int32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Float32s) ConvertToUint32() (z Uint32s) {
 	return Uint32s{spec.ConvertToZ[float32, spec.WidthScalable, uint32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[float64, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float64, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float64, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[float64, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Float64x2) ConvertToInt64() (z Int64x2) {
 	return Int64x2{spec.ConvertToZ[float64, spec.Width128, int64, spec.Width128](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float64, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float64, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[float64, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Float64x2) ConvertToUint64() (z Uint64x2) {
 	return Uint64x2{spec.ConvertToZ[float64, spec.Width128, uint64, spec.Width128](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Float64x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[float64, spec.Width256, float32, spec.Width128](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Float64x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float64, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Float64x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float64, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Float64x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[float64, spec.Width256, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Float64x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[float64, spec.Width256, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Float64x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float64, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Float64x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float64, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Float64x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[float64, spec.Width256, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Float64x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[float64, spec.Width256, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Float64x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[float64, spec.Width512, float32, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Float64x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float64, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Float64x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float64, spec.Width512, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Float64x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[float64, spec.Width512, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Float64x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[float64, spec.Width512, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Float64x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float64, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Float64x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float64, spec.Width512, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Float64x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[float64, spec.Width512, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Float64x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[float64, spec.Width512, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Float64s) ConvertToInt64() (z Int64s) {
 	return Int64s{spec.ConvertToZ[float64, spec.WidthScalable, int64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Float64s) ConvertToUint64() (z Uint64s) {
 	return Uint64s{spec.ConvertToZ[float64, spec.WidthScalable, uint64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int8x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[int8, spec.Width128, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Int8x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[int8, spec.Width128, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Int8x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[int8, spec.Width128, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Int8x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int8, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int8x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[int8, spec.Width128, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int8x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[int8, spec.Width128, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Int8x32) ConvertToInt16() (z Int16x32) {
 	return Int16x32{spec.ConvertToZ[int8, spec.Width256, int16, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Int8x32) ConvertToUint8() (z Uint8x32) {
 	return Uint8x32{spec.ConvertToZ[int8, spec.Width256, uint8, spec.Width256](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int8x32) ConvertToUint16() (z Uint16x32) {
 	return Uint16x32{spec.ConvertToZ[int8, spec.Width256, uint16, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Int8x64) ConvertToUint8() (z Uint8x64) {
 	return Uint8x64{spec.ConvertToZ[int8, spec.Width512, uint8, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Int8s) ConvertToUint8() (z Uint8s) {
 	return Uint8s{spec.ConvertToZ[int8, spec.WidthScalable, uint8, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int16x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[int16, spec.Width128, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Int16x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[int16, spec.Width128, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Int16x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int16, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Int16x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[int16, spec.Width128, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Int16x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[int16, spec.Width128, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Int16x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int16, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int16x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int16, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int16x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[int16, spec.Width128, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Int16x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[int16, spec.Width128, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int16x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[int16, spec.Width256, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Int16x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int16, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Int16x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[int16, spec.Width256, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Int16x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int16, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int16x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[int16, spec.Width256, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int16x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[int16, spec.Width256, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Int16x32) ConvertToInt8() (z Int8x32) {
 	return Int8x32{spec.ConvertToZ[int16, spec.Width512, int8, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Int16x32) ConvertToUint8() (z Uint8x32) {
 	return Uint8x32{spec.ConvertToZ[int16, spec.Width512, uint8, spec.Width256](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int16x32) ConvertToUint16() (z Uint16x32) {
 	return Uint16x32{spec.ConvertToZ[int16, spec.Width512, uint16, spec.Width512](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int16s) ConvertToUint16() (z Uint16s) {
 	return Uint16s{spec.ConvertToZ[int16, spec.WidthScalable, uint16, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int32x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[int32, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Int32x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[int32, spec.Width128, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Int32x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int32, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Int32x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int32, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Int32x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[int32, spec.Width128, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Int32x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int32, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Int32x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int32, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int32x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[int32, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Int32x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[int32, spec.Width128, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int32x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[int32, spec.Width256, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Int32x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[int32, spec.Width256, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Int32x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int32, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Int32x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int32, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Int32x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[int32, spec.Width256, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Int32x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int32, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int32x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int32, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int32x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[int32, spec.Width256, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Int32x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[int32, spec.Width256, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int32x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[int32, spec.Width512, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Int32x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int32, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Int32x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[int32, spec.Width512, int16, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Int32x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int32, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int32x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[int32, spec.Width512, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int32x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[int32, spec.Width512, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int32s) ConvertToFloat32() (z Float32s) {
 	return Float32s{spec.ConvertToZ[int32, spec.WidthScalable, float32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int32s) ConvertToUint32() (z Uint32s) {
 	return Uint32s{spec.ConvertToZ[int32, spec.WidthScalable, uint32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[int64, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Int64x2) ConvertToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertToZ[int64, spec.Width128, float64, spec.Width128](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int64, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int64, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[int64, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int64, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int64, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[int64, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Int64x2) ConvertToUint64() (z Uint64x2) {
 	return Uint64x2{spec.ConvertToZ[int64, spec.Width128, uint64, spec.Width128](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int64x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[int64, spec.Width256, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Int64x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[int64, spec.Width256, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Int64x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int64, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Int64x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int64, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Int64x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[int64, spec.Width256, int32, spec.Width128](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Int64x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int64, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Int64x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int64, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int64x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[int64, spec.Width256, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Int64x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[int64, spec.Width256, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Int64x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[int64, spec.Width512, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Int64x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[int64, spec.Width512, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Int64x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int64, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Int64x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int64, spec.Width512, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Int64x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[int64, spec.Width512, int32, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Int64x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int64, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Int64x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int64, spec.Width512, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Int64x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[int64, spec.Width512, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Int64x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[int64, spec.Width512, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Int64s) ConvertToFloat64() (z Float64s) {
 	return Float64s{spec.ConvertToZ[int64, spec.WidthScalable, float64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Int64s) ConvertToUint64() (z Uint64s) {
 	return Uint64s{spec.ConvertToZ[int64, spec.WidthScalable, uint64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint8x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[uint8, spec.Width128, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Uint8x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint8, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint8x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[uint8, spec.Width128, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint8x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[uint8, spec.Width128, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Uint8x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[uint8, spec.Width128, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Uint8x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[uint8, spec.Width128, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Uint8x32) ConvertToInt8() (z Int8x32) {
 	return Int8x32{spec.ConvertToZ[uint8, spec.Width256, int8, spec.Width256](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint8x32) ConvertToInt16() (z Int16x32) {
 	return Int16x32{spec.ConvertToZ[uint8, spec.Width256, int16, spec.Width512](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Uint8x32) ConvertToUint16() (z Uint16x32) {
 	return Uint16x32{spec.ConvertToZ[uint8, spec.Width256, uint16, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Uint8x64) ConvertToInt8() (z Int8x64) {
 	return Int8x64{spec.ConvertToZ[uint8, spec.Width512, int8, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Uint8s) ConvertToInt8() (z Int8s) {
 	return Int8s{spec.ConvertToZ[uint8, spec.WidthScalable, int8, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint16x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[uint16, spec.Width128, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Uint16x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[uint16, spec.Width128, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Uint16x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint16, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint16x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint16, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint16x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[uint16, spec.Width128, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Uint16x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[uint16, spec.Width128, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Uint16x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint16, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Uint16x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[uint16, spec.Width128, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Uint16x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[uint16, spec.Width128, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint16x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[uint16, spec.Width256, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Uint16x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint16, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint16x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[uint16, spec.Width256, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint16x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[uint16, spec.Width256, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Uint16x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint16, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Uint16x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[uint16, spec.Width256, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Uint16x32) ConvertToInt8() (z Int8x32) {
 	return Int8x32{spec.ConvertToZ[uint16, spec.Width512, int8, spec.Width256](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint16x32) ConvertToInt16() (z Int16x32) {
 	return Int16x32{spec.ConvertToZ[uint16, spec.Width512, int16, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Uint16x32) ConvertToUint8() (z Uint8x32) {
 	return Uint8x32{spec.ConvertToZ[uint16, spec.Width512, uint8, spec.Width256](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint16s) ConvertToInt16() (z Int16s) {
 	return Int16s{spec.ConvertToZ[uint16, spec.WidthScalable, int16, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint32x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[uint32, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Uint32x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[uint32, spec.Width128, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Uint32x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint32, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Uint32x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint32, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint32x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[uint32, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Uint32x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[uint32, spec.Width128, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Uint32x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint32, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Uint32x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint32, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Uint32x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[uint32, spec.Width128, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint32x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[uint32, spec.Width256, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Uint32x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[uint32, spec.Width256, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Uint32x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint32, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint32x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint32, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint32x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[uint32, spec.Width256, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Uint32x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[uint32, spec.Width256, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Uint32x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint32, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Uint32x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint32, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64. The result has the same number of lanes.
+// ConvertToUint64 converts element values to uint64.
 func (x Uint32x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[uint32, spec.Width256, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint32x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[uint32, spec.Width512, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
 func (x Uint32x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint32, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint32x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[uint32, spec.Width512, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint32x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[uint32, spec.Width512, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
 func (x Uint32x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint32, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Uint32x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[uint32, spec.Width512, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint32s) ConvertToFloat32() (z Float32s) {
 	return Float32s{spec.ConvertToZ[uint32, spec.WidthScalable, float32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint32s) ConvertToInt32() (z Int32s) {
 	return Int32s{spec.ConvertToZ[uint32, spec.WidthScalable, int32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[uint64, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Uint64x2) ConvertToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertToZ[uint64, spec.Width128, float64, spec.Width128](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint64, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint64, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[uint64, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Uint64x2) ConvertToInt64() (z Int64x2) {
 	return Int64x2{spec.ConvertToZ[uint64, spec.Width128, int64, spec.Width128](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint64, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint64, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
+//
+// The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[uint64, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint64x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[uint64, spec.Width256, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Uint64x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[uint64, spec.Width256, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Uint64x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint64, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Uint64x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint64, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint64x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[uint64, spec.Width256, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Uint64x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[uint64, spec.Width256, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Uint64x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint64, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
+//
+// The low 4 elements of the result are set. The rest are zero.
 func (x Uint64x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint64, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Uint64x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[uint64, spec.Width256, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32. The result has the same number of lanes.
+// ConvertToFloat32 converts element values to float32.
 func (x Uint64x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[uint64, spec.Width512, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Uint64x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[uint64, spec.Width512, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8. The result has the same number of lanes.
+// ConvertToInt8 converts element values to int8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Uint64x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint64, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16. The result has the same number of lanes.
+// ConvertToInt16 converts element values to int16.
 func (x Uint64x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint64, spec.Width512, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32. The result has the same number of lanes.
+// ConvertToInt32 converts element values to int32.
 func (x Uint64x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[uint64, spec.Width512, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Uint64x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[uint64, spec.Width512, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8. The result has the same number of lanes.
+// ConvertToUint8 converts element values to uint8.
+//
+// The low 8 elements of the result are set. The rest are zero.
 func (x Uint64x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint64, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16. The result has the same number of lanes.
+// ConvertToUint16 converts element values to uint16.
 func (x Uint64x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint64, spec.Width512, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32. The result has the same number of lanes.
+// ConvertToUint32 converts element values to uint32.
 func (x Uint64x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[uint64, spec.Width512, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64. The result has the same number of lanes.
+// ConvertToFloat64 converts element values to float64.
 func (x Uint64s) ConvertToFloat64() (z Float64s) {
 	return Float64s{spec.ConvertToZ[uint64, spec.WidthScalable, float64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64. The result has the same number of lanes.
+// ConvertToInt64 converts element values to int64.
 func (x Uint64s) ConvertToInt64() (z Int64s) {
 	return Int64s{spec.ConvertToZ[uint64, spec.WidthScalable, int64, spec.WidthScalable](x.v)}
 }

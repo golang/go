@@ -6,7 +6,14 @@
 
 package spec
 
-// ConvertToZ converts element values to {{.zE}}. The result has the same number of lanes.
+// TODO: The note on ConvertToZ applies to anything that does width rounding.
+// Should we have a quick template for that? Or even just add it automatically?
+
+// ConvertToZ converts element values to {{.zE}}.
+//
+// {{if lt .xL .zL}}
+// The low {{.xL}} elements of the result are set. The rest are zero.
+// {{end}}
 //
 //specgen:name ConvertTo{{.zE | title}}
 //specgen:require z={zB}{zN}x{xL} zE!=xE
