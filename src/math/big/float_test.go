@@ -1857,3 +1857,57 @@ func BenchmarkFloatSub(b *testing.B) {
 		})
 	}
 }
+
+func TestFloat64AtExponentLimits(t *testing.T) {
+	for _, test := range []struct {
+		str   string
+		value float64
+		acc   Accuracy
+	}{
+		{"0", 0, Exact},
+		{"0x1p214748364", math.Inf(+1), Above},
+		{"0x1p-214748364", 0, Below},
+		{"0x1p2147483646", math.Inf(+1), Above},
+		{"0x1p-2147483649", 0, Below},
+		{"-0x1p-2147483649", math.Copysign(0, -1), Above},
+	} {
+		t.Run(test.str, func(t *testing.T) {
+			f, ok := new(Float).SetString(test.str)
+			if !ok {
+				t.Fatal("SetString failed")
+			}
+			val, acc := f.Float64()
+			gv, wv := math.Float64bits(val), math.Float64bits(test.value)
+			if gv != wv || acc != test.acc {
+				t.Fatalf("Float64(%s) = (%v, %v); want (%v, %v)", test.str, val, acc, test.value, test.acc)
+			}
+		})
+	}
+}
+
+func TestFloat32AtExponentLimits(t *testing.T) {
+	for _, test := range []struct {
+		str   string
+		value float32
+		acc   Accuracy
+	}{
+		{"0", 0, Exact},
+		{"0x1p214748364", float32(math.Inf(+1)), Above},
+		{"0x1p-214748364", 0, Below},
+		{"0x1p2147483646", float32(math.Inf(+1)), Above},
+		{"0x1p-2147483649", 0, Below},
+		{"-0x1p-2147483649", float32(math.Copysign(0, -1)), Above},
+	} {
+		t.Run(test.str, func(t *testing.T) {
+			f, ok := new(Float).SetString(test.str)
+			if !ok {
+				t.Fatal("SetString failed")
+			}
+			val, acc := f.Float32()
+			gv, wv := math.Float32bits(val), math.Float32bits(test.value)
+			if gv != wv || acc != test.acc {
+				t.Fatalf("Float32(%s) = (%v, %v); want (%v, %v)", test.str, val, acc, test.value, test.acc)
+			}
+		})
+	}
+}
