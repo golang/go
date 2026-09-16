@@ -115,7 +115,11 @@ func (wr FrameWriteRequest) Consume(n int32) (FrameWriteRequest, FrameWriteReque
 	}
 
 	// Might need to split after applying limits.
-	allowed := min(n, wr.stream.flow.available())
+	avail, ok := wr.stream.flow.available()
+	if !ok {
+		return empty, empty, 0
+	}
+	allowed := min(n, avail)
 	if wr.stream.sc.maxFrameSize < allowed {
 		allowed = wr.stream.sc.maxFrameSize
 	}

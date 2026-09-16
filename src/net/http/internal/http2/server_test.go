@@ -1475,6 +1475,9 @@ func testServer_Send_RstStream_After_Bogus_WindowUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 	st.wantRSTStream(1, ErrCodeFlowControl)
+	// Connection is still alive, even if the stream has been reset.
+	st.writePing(false, [8]byte{})
+	st.wantFrameType(FramePing)
 }
 
 // testServerPostUnblock sends a hanging POST with unsent data to handler,
@@ -5475,6 +5478,9 @@ func testServerSettingsFlowControlUpdateBeyondLimit(t *testing.T) {
 		EndStream:     false, // data coming
 		EndHeaders:    true,
 	})
+	call := st.nextHandlerCall()
+	http.NewResponseController(call.w).Flush()
+	st.wantFrameType(FrameHeaders)
 
 	// Give this stream some additional flow control.
 	const windowIncrease = 1000
@@ -5485,6 +5491,12 @@ func testServerSettingsFlowControlUpdateBeyondLimit(t *testing.T) {
 	const maxWindowSize = (1 << 31) - 1 // RFC 9113, 6.9.1
 	const maxInitialWindowSize = maxWindowSize - windowIncrease
 	st.writeSettings(Setting{SettingInitialWindowSize, maxInitialWindowSize + 1})
+	st.wantSettingsAck()
+
+	// We detect this condition lazily. Write something to the stream so we notice.
+	call.w.Write([]byte("hello"))
+	http.NewResponseController(call.w).Flush()
+
 	st.wantGoAway(1, ErrCodeFlowControl)
 }
 
@@ -5503,6 +5515,9 @@ func testServerSettingsFlowControlUpdateWithinLimit(t *testing.T) {
 		EndStream:     false, // data coming
 		EndHeaders:    true,
 	})
+	call := st.nextHandlerCall()
+	http.NewResponseController(call.w).Flush()
+	st.wantFrameType(FrameHeaders)
 
 	// Give this stream some additional flow control.
 	const windowIncrease = 1000
@@ -5514,6 +5529,10 @@ func testServerSettingsFlowControlUpdateWithinLimit(t *testing.T) {
 	const maxInitialWindowSize = maxWindowSize - windowIncrease
 	st.writeSettings(Setting{SettingInitialWindowSize, maxInitialWindowSize})
 	st.wantSettingsAck()
+
+	call.w.Write([]byte("hello"))
+	http.NewResponseController(call.w).Flush()
+	st.wantFrameType(FrameData)
 	st.wantIdle()
 }
 

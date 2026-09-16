@@ -1750,7 +1750,8 @@ func testTransportSettingsFlowControlUpdateBeyondLimit(t *testing.T) {
 	tc := newTestClientConn(t)
 	tc.greet()
 
-	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	body := tc.newRequestBody()
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", body)
 	rt := tc.roundTrip(req)
 	tc.wantFrameType(FrameHeaders)
 
@@ -1763,6 +1764,12 @@ func testTransportSettingsFlowControlUpdateBeyondLimit(t *testing.T) {
 	const maxWindowSize = (1 << 31) - 1 // RFC 9113, 6.9.1
 	const maxInitialWindowSize = maxWindowSize - windowIncrease
 	tc.writeSettings(Setting{SettingInitialWindowSize, maxInitialWindowSize + 1})
+	tc.wantSettingsAck()
+
+	// We detect this condition lazily. Write something to the stream so we notice.
+	body.writeBytes(1)
+	body.closeWithError(io.EOF)
+
 	tc.wantGoAway(0, ErrCodeFlowControl)
 }
 
@@ -1775,7 +1782,8 @@ func testTransportSettingsFlowControlUpdateWithinLimit(t *testing.T) {
 	tc := newTestClientConn(t)
 	tc.greet()
 
-	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	body := tc.newRequestBody()
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", body)
 	rt := tc.roundTrip(req)
 	tc.wantFrameType(FrameHeaders)
 
@@ -1789,6 +1797,15 @@ func testTransportSettingsFlowControlUpdateWithinLimit(t *testing.T) {
 	const maxInitialWindowSize = maxWindowSize - windowIncrease
 	tc.writeSettings(Setting{SettingInitialWindowSize, maxInitialWindowSize})
 	tc.wantSettingsAck()
+
+	body.writeBytes(1)
+	body.closeWithError(io.EOF)
+	tc.wantData({
+		streamID:  1,
+		endStream: true,
+		size:      1,
+		multiple:  true,
+	})
 	tc.wantIdle()
 }
 

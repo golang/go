@@ -277,7 +277,6 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 		doneServing:                 make(chan struct{}),
 		clientMaxStreams:            math.MaxUint32, // Section 6.5.2: "Initially, there is no limit to this value"
 		advMaxStreams:               uint32(conf.MaxConcurrentStreams),
-		initialStreamSendWindowSize: initialWindowSize,
 		initialStreamRecvWindowSize: int32(conf.MaxReceiveBufferPerStream),
 		maxFrameSize:                initialMaxFrameSize,
 		pingTimeout:                 conf.PingTimeout,
@@ -320,7 +319,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	// These start at the RFC-specified defaults. If there is a higher
 	// configured value for inflow, that will be updated when we send a
 	// WINDOW_UPDATE shortly after sending SETTINGS.
-	sc.flow.add(initialWindowSize)
+	sc.flow.init()
 	sc.inflow.init(initialWindowSize)
 	sc.hpackEncoder = hpack.NewEncoder(&sc.headerWriteBuf)
 	sc.hpackEncoder.SetMaxDynamicTableSizeLimit(uint32(conf.MaxEncoderHeaderTableSize))
@@ -462,7 +461,7 @@ type serverConn struct {
 	wroteFrameCh        chan frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
 	bodyReadCh          chan bodyReadMsg       // from handlers -> serve
 	serveMsgCh          chan any               // misc messages & code to send to / run on the serve loop
-	flow                outflow                // conn-wide (not stream-specific) outbound flow control
+	flow                connOutflow            // conn-wide (not stream-specific) outbound flow control
 	inflow              inflow                 // conn-wide inbound flow control
 	tlsState            *tls.ConnectionState   // shared by all handlers, like net/http
 	remoteAddrStr       string
@@ -504,7 +503,6 @@ type serverConn struct {
 	maxPushPromiseID            uint32 // ID of the last push promise (even), or 0 if there have been no pushes
 	streams                     map[uint32]*stream
 	unstartedHandlers           []unstartedHandler
-	initialStreamSendWindowSize int32
 	initialStreamRecvWindowSize int32
 	maxFrameSize                int32
 	peerMaxHeaderListSize       uint32            // zero means unknown (default)
@@ -1526,6 +1524,11 @@ func (sc *serverConn) scheduleFrameWrite() {
 	}
 	sc.inFrameScheduleLoop = true
 	for !sc.writingFrameAsync {
+		if sc.flow.flowErr && (!sc.inGoAway || sc.goAwayCode == ErrCodeNo) {
+			sc.inGoAway = true
+			sc.needToSendGoAway = true
+			sc.goAwayCode = ErrCodeFlowControl
+		}
 		if sc.needToSendGoAway {
 			sc.needToSendGoAway = false
 			sc.startFrameWrite(FrameWriteRequest{
@@ -1547,6 +1550,9 @@ func (sc *serverConn) scheduleFrameWrite() {
 					sc.queuedControlFrames--
 				}
 				sc.startFrameWrite(wr)
+				continue
+			}
+			if sc.flow.flowErr {
 				continue
 			}
 		}
@@ -1781,6 +1787,10 @@ func (sc *serverConn) processWindowUpdate(f *WindowUpdateFrame) error {
 			return nil
 		}
 		if !st.flow.add(int32(f.Increment)) {
+			if st.flow.conn.flowErr {
+				// This is a lazily-detected connection-level flow control error.
+				return sc.countError("bad_flow", ConnectionError(ErrCodeFlowControl))
+			}
 			return sc.countError("bad_flow", streamError(f.StreamID, ErrCodeFlowControl))
 		}
 	default: // connection-level flow control
@@ -1939,28 +1949,14 @@ func (sc *serverConn) processSetting(s Setting) error {
 
 func (sc *serverConn) processSettingInitialWindowSize(val uint32) error {
 	sc.serveG.check()
-	// Note: val already validated to be within range by
-	// processSetting's Valid call.
-
-	// "A SETTINGS frame can alter the initial flow control window
-	// size for all current streams. When the value of
-	// SETTINGS_INITIAL_WINDOW_SIZE changes, a receiver MUST
-	// adjust the size of all stream flow control windows that it
-	// maintains by the difference between the new value and the
-	// old value."
-	old := sc.initialStreamSendWindowSize
-	sc.initialStreamSendWindowSize = int32(val)
-	growth := int32(val) - old // may be negative
-	for _, st := range sc.streams {
-		if !st.flow.add(growth) {
-			// 6.9.2 Initial Flow Control Window Size
-			// "An endpoint MUST treat a change to
-			// SETTINGS_INITIAL_WINDOW_SIZE that causes any flow
-			// control window to exceed the maximum size as a
-			// connection error (Section 5.4.1) of type
-			// FLOW_CONTROL_ERROR."
-			return sc.countError("setting_win_size", ConnectionError(ErrCodeFlowControl))
-		}
+	if !sc.flow.changeInitialWindowSize(int64(val)) {
+		// 6.9.2 Initial Flow Control Window Size
+		// "An endpoint MUST treat a change to
+		// SETTINGS_INITIAL_WINDOW_SIZE that causes any flow
+		// control window to exceed the maximum size as a
+		// connection error (Section 5.4.1) of type
+		// FLOW_CONTROL_ERROR."
+		return sc.countError("setting_win_size", ConnectionError(ErrCodeFlowControl))
 	}
 	return nil
 }
@@ -2360,7 +2356,6 @@ func (sc *serverConn) newStream(id, pusherID uint32, state streamState, priority
 	}
 	st.cw.Init()
 	st.flow.conn = &sc.flow // link to conn-level counter
-	st.flow.add(sc.initialStreamSendWindowSize)
 	st.inflow.init(sc.initialStreamRecvWindowSize)
 	if writeTimeout := sc.hs.WriteTimeout(); writeTimeout > 0 {
 		st.writeDeadline = time.AfterFunc(writeTimeout, st.onWriteTimeout)
