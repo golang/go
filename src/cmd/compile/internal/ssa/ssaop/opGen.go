@@ -111409,63 +111409,74 @@ var OpcodeTable = [...]OpInfo{
 		Name:    "ConstBool",
 		AuxType: AuxTypeBool,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "ConstString",
 		AuxType: AuxTypeString,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "ConstNil",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const8",
 		AuxType: AuxTypeInt8,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const16",
 		AuxType: AuxTypeInt16,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const32",
 		AuxType: AuxTypeInt32,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const64",
 		AuxType: AuxTypeInt64,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const32F",
 		AuxType: AuxTypeFloat32,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const64F",
 		AuxType: AuxTypeFloat64,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "ConstInterface",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "ConstSlice",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
@@ -111515,6 +111526,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:    0,
 		ZeroWidth: true,
 		FixedReg:  true,
+		EarlyOk:   true,
 		Generic:   true,
 	},
 	{
@@ -111522,6 +111534,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:    0,
 		ZeroWidth: true,
 		FixedReg:  true,
+		EarlyOk:   true,
 		Generic:   true,
 	},
 	{
@@ -111907,11 +111920,13 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "GetClosurePtr",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "GetCallerPC",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
@@ -112534,6 +112549,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "Empty",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
