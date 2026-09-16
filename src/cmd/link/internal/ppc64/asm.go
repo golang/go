@@ -1224,6 +1224,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 				trampb := ldr.MakeSymbolUpdater(tramp)
 				ctxt.AddTramp(trampb, ldr.SymType(s))
 				gentramp(ctxt, ldr, trampb, rs, r.Add())
+				ctxt.AddDwarfDirectTrampoline(tramp, rs, r.Add(), ldr.SymUnit(s))
 			}
 			sb := ldr.MakeSymbolUpdater(s)
 			relocs := sb.Relocs()

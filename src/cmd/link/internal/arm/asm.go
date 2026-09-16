@@ -431,11 +431,15 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 					if immrot(uint32(offset)) == 0 {
 						ctxt.Errorf(s, "odd offset in dynlink direct call: %v+%d", ldr.SymName(rs), offset)
 					}
+					// TODO: Define how DWARF should describe a trampoline
+					// whose final target is resolved dynamically through the GOT.
 					gentrampdyn(ctxt.Arch, trampb, rs, int64(offset))
 				} else if ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE {
 					gentramppic(ctxt.Arch, trampb, rs, int64(offset))
+					ctxt.AddDwarfDirectTrampoline(tramp, rs, int64(offset), ldr.SymUnit(s))
 				} else {
 					gentramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(offset))
+					ctxt.AddDwarfDirectTrampoline(tramp, rs, int64(offset), ldr.SymUnit(s))
 				}
 			}
 			// modify reloc to point to tramp, which will be resolved later

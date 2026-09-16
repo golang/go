@@ -103,7 +103,8 @@ type Link struct {
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
-	tramps []loader.Sym // trampolines
+	tramps           []loader.Sym      // trampolines
+	dwarfTrampolines []dwarfTrampoline // trampolines with statically addressable targets
 
 	compUnits []*sym.CompilationUnit // DWARF compilation units
 	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.

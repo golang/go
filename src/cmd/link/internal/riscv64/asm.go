@@ -445,6 +445,8 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 	return false
 }
 
+const jalReach = 1 << 20
+
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
 	pc := ldr.SymValue(s) + int64(r.Off())
@@ -464,7 +466,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		trs := tr.Sym()
 		if ldr.SymValue(trs) != 0 && ldr.SymType(trs) != sym.SDYNIMPORT && ldr.SymType(trs) != sym.SUNDEFEXT {
 			trsOff := ldr.SymValue(trs) + tr.Add() - pc
-			if trsOff >= -(1<<20) && trsOff < (1<<20) {
+			if trsOff >= -jalReach && trsOff < jalReach {
 				r.SetType(objabi.R_RISCV_JAL)
 				r.SetSym(trs)
 				r.SetAdd(tr.Add())
@@ -704,7 +706,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 
 		// Relocation symbol has an address and is directly reachable,
 		// therefore there is no need for a trampoline.
-		if ldr.SymValue(rs) != 0 && off >= -(1<<20) && off < (1<<20) && (*ld.FlagDebugTramp <= 1 || ldr.SymPkg(s) == ldr.SymPkg(rs)) {
+		if ldr.SymValue(rs) != 0 && off >= -jalReach && off < jalReach && (*ld.FlagDebugTramp <= 1 || ldr.SymPkg(s) == ldr.SymPkg(rs)) {
 			break
 		}
 
@@ -736,7 +738,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			}
 
 			trampOff := ldr.SymValue(tramp) - (ldr.SymValue(s) + int64(r.Off()))
-			if trampOff >= -(1<<20) && trampOff < (1<<20) {
+			if trampOff >= -jalReach && trampOff < jalReach {
 				// An existing trampoline that is reachable.
 				break
 			}
@@ -745,6 +747,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			trampb := ldr.MakeSymbolUpdater(tramp)
 			ctxt.AddTramp(trampb, ldr.SymType(s))
 			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, r.Add())
+			ctxt.AddDwarfDirectTrampoline(tramp, rs, r.Add(), ldr.SymUnit(s))
 		}
 		sb := ldr.MakeSymbolUpdater(s)
 		if ldr.SymValue(rs) == 0 {

@@ -69,6 +69,13 @@ type dwctxt struct {
 	dwmu *sync.Mutex
 }
 
+type dwarfTrampoline struct {
+	sym     loader.Sym
+	target  loader.Sym
+	addend  int64
+	ownerCU *sym.CompilationUnit
+}
+
 // dwSym wraps a loader.Sym; this type is meant to obey the interface
 // rules for dwarf.Sym from the cmd/internal/dwarf package. DwDie and
 // DwAttr objects contain references to symbols via this type.
@@ -1039,6 +1046,79 @@ func (d *dwctxt) calcCompUnitRanges() {
 			prevUnit = unit
 		}
 		unit.PCs[len(unit.PCs)-1].End = sval - u0val + int64(len(d.ldr.Data(sym)))
+	}
+}
+
+// synthesizeTrampolineDIEs adds source-less subprogram DIEs for linker-created
+// trampolines with statically addressable targets. The target relationship is
+// recorded when the trampoline is created instead of being reconstructed from
+// its name or instruction sequence.
+func (d *dwctxt) synthesizeTrampolineDIEs() {
+	if len(d.linkctxt.dwarfTrampolines) == 0 {
+		return
+	}
+
+	touchedUnits := make(map[*sym.CompilationUnit]bool)
+	for _, trampoline := range d.linkctxt.dwarfTrampolines {
+		switch d.ldr.SymType(trampoline.target) {
+		case sym.SDYNIMPORT, sym.SUNDEFEXT:
+			continue
+		}
+		unit := trampoline.ownerCU
+		if unit == nil || unit.DWInfo == nil || len(unit.Textp) == 0 {
+			continue
+		}
+
+		name := d.ldr.SymName(trampoline.sym)
+		size := int64(len(d.ldr.Data(trampoline.sym)))
+		if size == 0 {
+			continue
+		}
+		// Include the loader symbol index in the DIE symbol name. Linker symbols
+		// with different versions can have the same display name, but each DIE
+		// still needs distinct storage in .debug_info.
+		die := d.newdie(unit.DWInfo, dwarf.DW_ABRV_LINKER_TRAMPOLINE, fmt.Sprintf("%s.%d", name, trampoline.sym))
+		nameAttr := getattr(die, dwarf.DW_AT_name)
+		nameAttr.Value = int64(len(name))
+		nameAttr.Data = name
+		newattr(die, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, 0, dwSym(trampoline.sym))
+		newattr(die, dwarf.DW_AT_high_pc, dwarf.DW_CLS_CONSTANT, size, nil)
+		// Preserve the exact branch destination. For targets such as the Duff
+		// routines this can be an address inside, rather than at the entry of,
+		// the target subprogram.
+		newattr(die, dwarf.DW_AT_trampoline, dwarf.DW_CLS_ADDRESS, trampoline.addend, dwSym(trampoline.target))
+
+		base := loader.Sym(unit.Textp[0])
+		start := d.ldr.SymValue(trampoline.sym) - d.ldr.SymValue(base)
+		end := start + size
+		covered := false
+		for _, pcRange := range unit.PCs {
+			if pcRange.Start <= start && end <= pcRange.End {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			unit.PCs = append(unit.PCs, dwarf.Range{Start: start, End: end})
+			touchedUnits[unit] = true
+		}
+	}
+
+	for unit := range touchedUnits {
+		slices.SortFunc(unit.PCs, func(a, b dwarf.Range) int {
+			return cmp.Compare(a.Start, b.Start)
+		})
+		merged := unit.PCs[:0]
+		for _, pcRange := range unit.PCs {
+			if len(merged) == 0 || merged[len(merged)-1].End < pcRange.Start {
+				merged = append(merged, pcRange)
+				continue
+			}
+			if pcRange.End > merged[len(merged)-1].End {
+				merged[len(merged)-1].End = pcRange.End
+			}
+		}
+		unit.PCs = merged
 	}
 }
 
@@ -2190,6 +2270,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	abbrevSec := d.writeabbrev()
 	dwarfp = append(dwarfp, abbrevSec)
 	d.calcCompUnitRanges()
+	d.synthesizeTrampolineDIEs()
 	slices.SortFunc(d.linkctxt.compUnits, compilationUnitByStartPCCmp)
 
 	// newdie adds DIEs to the *beginning* of the parent's DIE list.

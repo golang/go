@@ -3373,6 +3373,33 @@ func (ctxt *Link) AddTramp(s *loader.SymbolBuilder, typ sym.SymKind) {
 	}
 }
 
+// AddDwarfDirectTrampoline records a direct trampoline whose static target can
+// be described by an address-valued DW_AT_trampoline.
+func (ctxt *Link) AddDwarfDirectTrampoline(s, target loader.Sym, addend int64, ownerCU *sym.CompilationUnit) {
+	if ownerCU == nil {
+		// TODO: Use a synthetic linker CU for trampolines created by host
+		// object or linker-generated callers.
+		return
+	}
+	if ownerCU.DWInfo == nil {
+		// dwarfGenerateDebugInfo runs before architectures create trampolines,
+		// so a nil DWInfo means DWARF generation is disabled.
+		return
+	}
+	switch ctxt.loader.SymType(target) {
+	case sym.SDYNIMPORT, sym.SUNDEFEXT:
+		// The final destination of a dynamically resolved target is not a
+		// link-time symbol address.
+		return
+	}
+	ctxt.dwarfTrampolines = append(ctxt.dwarfTrampolines, dwarfTrampoline{
+		sym:     s,
+		target:  target,
+		addend:  addend,
+		ownerCU: ownerCU,
+	})
+}
+
 // compressSyms compresses syms and returns the contents of the
 // compressed section. If the section would get larger, it returns nil.
 func compressSyms(ctxt *Link, syms []loader.Sym) []byte {

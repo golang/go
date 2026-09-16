@@ -1954,6 +1954,229 @@ func main() {
 	}
 }
 
+const linkerTrampolineProg = `
+package main
+
+import "trampoline.test/target"
+
+func main() {
+	target.Target()
+}
+`
+
+const linkerTrampolineTargetProg = `
+package target
+
+//go:noinline
+func Target() {}
+`
+
+const linkerTrampolineTargetName = "trampoline.test/target.Target"
+
+func buildLinkerTrampolineProg(t *testing.T, ldflags string) *builtFile {
+	t.Helper()
+
+	dir := t.TempDir()
+	targetDir := filepath.Join(dir, "target")
+	if err := os.Mkdir(targetDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	for name, contents := range map[string]string{
+		"go.mod":           "module trampoline.test\n\ngo 1.25\n",
+		"main.go":          linkerTrampolineProg,
+		"target/target.go": linkerTrampolineTargetProg,
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(contents), 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	dst := filepath.Join(dir, "out.exe")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+ldflags, "-o", dst, ".")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build error: %v\n%s", err, out)
+	}
+	f, err := objfilepkg.Open(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &builtFile{f, dst}
+}
+
+type linkerTrampolineDIE struct {
+	entry       *dwarf.Entry
+	compileUnit *dwarf.Entry
+}
+
+func collectLinkerTrampolineDIEs(t *testing.T, d *dwarf.Data) []linkerTrampolineDIE {
+	t.Helper()
+
+	reader := d.Reader()
+	var compileUnit *dwarf.Entry
+	var trampolines []linkerTrampolineDIE
+	for {
+		entry, err := reader.Next()
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if entry == nil {
+			return trampolines
+		}
+		if entry.Tag == dwarf.TagCompileUnit {
+			compileUnit = entry
+			continue
+		}
+		if entry.Tag != dwarf.TagSubprogram {
+			continue
+		}
+		if _, ok := entry.Val(dwarf.AttrTrampoline).(uint64); ok {
+			trampolines = append(trampolines, linkerTrampolineDIE{entry, compileUnit})
+		}
+	}
+}
+
+func checkLinkerTrampolineDIE(t *testing.T, d *dwarf.Data, trampoline linkerTrampolineDIE, symbols []objfilepkg.Sym, targetPC uint64) (uint64, uint64) {
+	t.Helper()
+
+	name, _ := trampoline.entry.Val(dwarf.AttrName).(string)
+	if trampoline.entry.Children {
+		t.Errorf("%s DIE unexpectedly has children", name)
+	}
+	if trampoline.compileUnit == nil {
+		t.Fatalf("%s DIE has no compilation unit", name)
+	}
+
+	lowPC, ok := trampoline.entry.Val(dwarf.AttrLowpc).(uint64)
+	if !ok {
+		t.Fatalf("%s DW_AT_low_pc has unexpected value %v", name, trampoline.entry.Val(dwarf.AttrLowpc))
+	}
+	foundSymbol := false
+	for _, symbol := range symbols {
+		if symbol.Name == name && symbol.Addr == lowPC {
+			foundSymbol = true
+			break
+		}
+	}
+	if !foundSymbol {
+		t.Errorf("%s DW_AT_low_pc %#x does not match its linker symbol", name, lowPC)
+	}
+
+	size, ok := trampoline.entry.Val(dwarf.AttrHighpc).(int64)
+	if !ok || size <= 0 {
+		t.Fatalf("%s DW_AT_high_pc has unexpected value %v", name, trampoline.entry.Val(dwarf.AttrHighpc))
+	}
+	if got := trampoline.entry.Val(dwarf.AttrTrampoline); got != targetPC {
+		t.Errorf("%s DW_AT_trampoline = %#x, want %#x", name, got, targetPC)
+	}
+
+	for _, attr := range []dwarf.Attr{
+		dwarf.AttrDeclFile,
+		dwarf.AttrDeclLine,
+		dwarf.AttrFrameBase,
+		dwarf.AttrExternal,
+		dwarf.AttrLinkageName,
+	} {
+		if got := trampoline.entry.Val(attr); got != nil {
+			t.Errorf("%s %s = %v, want omitted", name, attr, got)
+		}
+	}
+
+	ranges, err := d.Ranges(trampoline.compileUnit)
+	if err != nil {
+		t.Fatalf("error reading compilation unit ranges: %v", err)
+	}
+	highPC := lowPC + uint64(size)
+	covered := false
+	for _, pcRange := range ranges {
+		if pcRange[0] <= lowPC && highPC <= pcRange[1] {
+			covered = true
+			break
+		}
+	}
+	if !covered {
+		t.Errorf("%s compilation unit does not cover [%#x, %#x)", name, lowPC, highPC)
+	}
+	return lowPC, highPC
+}
+
+func checkLinkerTrampolineHasNoSource(t *testing.T, d *dwarf.Data, trampoline linkerTrampolineDIE, lowPC, highPC uint64) {
+	t.Helper()
+
+	lineReader, err := d.LineReader(trampoline.compileUnit)
+	if err != nil {
+		t.Fatalf("error obtaining line reader: %v", err)
+	}
+	var line dwarf.LineEntry
+	for {
+		err := lineReader.Next(&line)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			t.Fatalf("error reading line entry: %v", err)
+		}
+		if lowPC <= line.Address && line.Address < highPC && !line.EndSequence {
+			file := "<unknown>"
+			if line.File != nil {
+				file = line.File.Name
+			}
+			t.Errorf("trampoline has source line at %#x: %s:%d", line.Address, file, line.Line)
+		}
+	}
+}
+
+func TestLinkerTrampolineDIE(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	mustHaveDWARF(t)
+	switch runtime.GOARCH {
+	case "arm", "arm64", "loong64", "ppc64", "ppc64le", "riscv64":
+	default:
+		t.Skipf("linker does not generate trampolines on %s", runtime.GOARCH)
+	}
+	t.Parallel()
+
+	f := buildLinkerTrampolineProg(t, "-debugtramp=2")
+	defer f.Close()
+
+	symbols, err := f.Symbols()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var targetPC uint64
+	for _, symbol := range symbols {
+		if symbol.Name == linkerTrampolineTargetName {
+			targetPC = symbol.Addr
+			break
+		}
+	}
+	if targetPC == 0 {
+		t.Fatalf("could not find target symbol %s", linkerTrampolineTargetName)
+	}
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	trampolines := collectLinkerTrampolineDIEs(t, d)
+	var trampoline *linkerTrampolineDIE
+	for i := range trampolines {
+		candidate := &trampolines[i]
+		if candidate.entry.Val(dwarf.AttrTrampoline) == targetPC &&
+			candidate.compileUnit != nil &&
+			candidate.compileUnit.Val(dwarf.AttrName) == "main" {
+			trampoline = candidate
+			break
+		}
+	}
+	if trampoline == nil {
+		t.Fatalf("no linker trampoline DIE targets %s from the main compilation unit", linkerTrampolineTargetName)
+	}
+	lowPC, highPC := checkLinkerTrampolineDIE(t, d, *trampoline, symbols, targetPC)
+	checkLinkerTrampolineHasNoSource(t, d, *trampoline, lowPC, highPC)
+}
+
 const zeroSizedVarProg = `
 package main
 

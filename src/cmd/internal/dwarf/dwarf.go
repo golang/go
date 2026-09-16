@@ -367,6 +367,10 @@ type dwAbbrev struct {
 
 var abbrevsFinalized bool
 
+// DW_ABRV_LINKER_TRAMPOLINE follows all compiler-emitted abbreviations so that
+// adding it does not renumber abbreviations in existing object files.
+var DW_ABRV_LINKER_TRAMPOLINE = DW_ABRV_PUTVAR_START + len(putvarAbbrevs)
+
 // expandPseudoForm takes an input DW_FORM_xxx value and translates it
 // into a version- and platform-appropriate concrete form. Existing
 // concrete/real DW_FORM values are left untouched. For the moment the
@@ -406,6 +410,7 @@ func Abbrevs() []dwAbbrev {
 		return abbrevs
 	}
 	abbrevs = append(abbrevs, putvarAbbrevs...)
+	abbrevs = append(abbrevs, linkerTrampolineAbbrev)
 	for i := 1; i < len(abbrevs); i++ {
 		for j := 0; j < len(abbrevs[i].attr); j++ {
 			abbrevs[i].attr[j].form = expandPseudoForm(abbrevs[i].attr[j].form)
@@ -837,6 +842,20 @@ var abbrevs = []dwAbbrev{
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_go_dict_index, DW_FORM_udata},
 		},
+	},
+}
+
+// Keep the PC attributes in raw address forms, including under DWARF 5.
+// Linker-created DIEs are not compiler function auxiliary symbols, so the
+// linker's .debug_addr collector would not assign addrx slots for them.
+var linkerTrampolineAbbrev = dwAbbrev{
+	DW_TAG_subprogram,
+	DW_CHILDREN_no,
+	[]dwAttrForm{
+		{DW_AT_name, DW_FORM_string},
+		{DW_AT_low_pc, DW_FORM_addr},
+		{DW_AT_high_pc, DW_FORM_udata},
+		{DW_AT_trampoline, DW_FORM_addr},
 	},
 }
 
