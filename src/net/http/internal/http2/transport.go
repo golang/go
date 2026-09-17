@@ -2318,18 +2318,42 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 		return nil, nil
 	}
 
+	// Delete various headers that might mess up framing for HTTP/1. This is
+	// not a problem for HTTP/2, but someone might use HTTP/2 transport as a
+	// reverse proxy which forwards the response to an HTTP/1 client. Our
+	// HTTP/1 client transport will properly reject improper headers such as
+	// multiple conflicting Content-Length headers, but other implementations
+	// might not.
+	// TODO: just reject such responses? We deleted them for compatibility
+	// since this was done in a security fix (go.dev/issue/81115). However,
+	// rejecting them seems entirely reasonable and relatively safe.
+
+	// Connection-specific header fields must not appear in an HTTP/2 message,
+	// and any message containing them is malformed. RFC 9113, Section 8.2.2.
+	for _, k := range connHeaders {
+		delete(res.Header, k)
+	}
 	res.ContentLength = -1
-	if clens := res.Header["Content-Length"]; len(clens) == 1 {
-		if cl, err := strconv.ParseUint(clens[0], 10, 63); err == nil {
-			res.ContentLength = int64(cl)
+	if clens, ok := res.Header["Content-Length"]; ok {
+		// Repeated Content-Length values may be collapsed into one only if
+		// they are identical per RFC 9110 Section 8.6.
+		// No need to trim whitespace, HTTP/2 header values must not have
+		// extraneous whitespace per RFC 9113 Section 8.2.1.
+		// Non-canonical headers are already rejected by our framer at this
+		// point.
+		conflicting := slices.ContainsFunc(clens[1:], func(clen string) bool {
+			return clen != clens[0]
+		})
+		cl, err := strconv.ParseUint(clens[0], 10, 63)
+		if conflicting || err != nil {
+			delete(res.Header, "Content-Length")
 		} else {
-			// TODO: care? unlike http/1, it won't mess up our framing, so it's
-			// more safe smuggling-wise to ignore.
+			res.Header["Content-Length"] = clens[:1]
+			res.ContentLength = int64(cl)
 		}
-	} else if len(clens) > 1 {
-		// TODO: care? unlike http/1, it won't mess up our framing, so it's
-		// more safe smuggling-wise to ignore.
-	} else if f.StreamEnded() && !cs.isHead {
+	}
+
+	if res.ContentLength < 0 && f.StreamEnded() && !cs.isHead {
 		res.ContentLength = 0
 	}
 
