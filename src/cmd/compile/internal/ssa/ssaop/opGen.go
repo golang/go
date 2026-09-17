@@ -8385,6 +8385,14 @@ const (
 	OpScaleFloat64x2
 	OpScaleFloat64x4
 	OpScaleFloat64x8
+	OpScaleSaturatedInt16x8
+	OpScaleSaturatedInt32x4
+	OpScaleSaturatedInt64x2
+	OpScaleSaturatedInt8x16
+	OpScaleSaturatedUint16x8
+	OpScaleSaturatedUint32x4
+	OpScaleSaturatedUint64x2
+	OpScaleSaturatedUint8x16
 	OpSetElemFloat32x4
 	OpSetElemFloat64x2
 	OpSetElemInt16x8
@@ -8587,14 +8595,6 @@ const (
 	OpShiftRightUint64x2
 	OpShiftRightUint64x4
 	OpShiftRightUint64x8
-	OpShiftSaturatedInt16x8
-	OpShiftSaturatedInt32x4
-	OpShiftSaturatedInt64x2
-	OpShiftSaturatedInt8x16
-	OpShiftSaturatedUint16x8
-	OpShiftSaturatedUint32x4
-	OpShiftSaturatedUint64x2
-	OpShiftSaturatedUint8x16
 	OpShiftUint16x8
 	OpShiftUint32x4
 	OpShiftUint64x2
@@ -119453,6 +119453,46 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "ScaleSaturatedInt16x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ScaleSaturatedInt32x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ScaleSaturatedInt64x2",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ScaleSaturatedInt8x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ScaleSaturatedUint16x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ScaleSaturatedUint32x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ScaleSaturatedUint64x2",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ScaleSaturatedUint8x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "SetElemFloat32x4",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
@@ -120505,46 +120545,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftRightUint64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftSaturatedInt16x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftSaturatedInt32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftSaturatedInt64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftSaturatedInt8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftSaturatedUint16x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftSaturatedUint32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftSaturatedUint64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftSaturatedUint8x16",
 		ArgLen:  2,
 		Generic: true,
 	},

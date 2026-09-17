@@ -6,7 +6,7 @@
 
 package spec
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
@@ -14,7 +14,7 @@ package spec
 //	z[i] = saturated(x[i] * 2^scale[i])
 //
 //specgen:require scale=Int{xN}x{xL}
-func ShiftSaturated[E Ints | Uints, W Width, yE Ints](x Vec[E, W], scale Vec[yE, W]) (z Vec[E, W]) {
+func ScaleSaturated[E Ints | Uints, W Width, yE Ints](x Vec[E, W], scale Vec[yE, W]) (z Vec[E, W]) {
 	z = makeVec[E, W]()
 	for i := range z {
 		z[i] = scaleSaturated(x[i], scale[i])

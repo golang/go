@@ -25,18 +25,18 @@ func TestShift(t *testing.T) {
 	testUint64x2Shift(t, archsimd.Uint64x2.Shift, shiftMixedSlice[uint64, int64])
 }
 
-func TestShiftSaturated(t *testing.T) {
+func TestScaleSaturated(t *testing.T) {
 	// Signed — reuse binary helpers
-	testInt8x16Binary(t, archsimd.Int8x16.ShiftSaturated, shiftSaturatingSignedSlice[int8])
-	testInt16x8Binary(t, archsimd.Int16x8.ShiftSaturated, shiftSaturatingSignedSlice[int16])
-	testInt32x4Binary(t, archsimd.Int32x4.ShiftSaturated, shiftSaturatingSignedSlice[int32])
-	testInt64x2Binary(t, archsimd.Int64x2.ShiftSaturated, shiftSaturatingSignedSlice[int64])
+	testInt8x16Binary(t, archsimd.Int8x16.ScaleSaturated, scaleSaturatingSignedSlice[int8])
+	testInt16x8Binary(t, archsimd.Int16x8.ScaleSaturated, scaleSaturatingSignedSlice[int16])
+	testInt32x4Binary(t, archsimd.Int32x4.ScaleSaturated, scaleSaturatingSignedSlice[int32])
+	testInt64x2Binary(t, archsimd.Int64x2.ScaleSaturated, scaleSaturatingSignedSlice[int64])
 
 	// Unsigned — mixed-type
-	testUint8x16Shift(t, archsimd.Uint8x16.ShiftSaturated, shiftSaturatingUnsignedSlice[uint8, int8])
-	testUint16x8Shift(t, archsimd.Uint16x8.ShiftSaturated, shiftSaturatingUnsignedSlice[uint16, int16])
-	testUint32x4Shift(t, archsimd.Uint32x4.ShiftSaturated, shiftSaturatingUnsignedSlice[uint32, int32])
-	testUint64x2Shift(t, archsimd.Uint64x2.ShiftSaturated, shiftSaturatingUnsignedSlice[uint64, int64])
+	testUint8x16Shift(t, archsimd.Uint8x16.ScaleSaturated, scaleSaturatingUnsignedSlice[uint8, int8])
+	testUint16x8Shift(t, archsimd.Uint16x8.ScaleSaturated, scaleSaturatingUnsignedSlice[uint16, int16])
+	testUint32x4Shift(t, archsimd.Uint32x4.ScaleSaturated, scaleSaturatingUnsignedSlice[uint32, int32])
+	testUint64x2Shift(t, archsimd.Uint64x2.ScaleSaturated, scaleSaturatingUnsignedSlice[uint64, int64])
 }
 
 func TestConcatShiftBytesRight(t *testing.T) {

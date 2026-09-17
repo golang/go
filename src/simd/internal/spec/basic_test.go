@@ -181,26 +181,26 @@ func TestShifts(t *testing.T) {
 		t.Fatalf("ShiftRight signed: got %v, want %v", got, wantRightSigned)
 	}
 
-	// ShiftSaturated
+	// ScaleSaturated
 	// positive shifts left (saturates), negative shifts right
 	x8Signed := vecOf[int8, Width128](10, -10, 100, -100, 50, 60, -60, 0, 1, 2, 3, 4, 5, 6, 7, 8)
 	y8Signed := vecOf[int8, Width128](1, -1, 2, -2, 0, 1, -1, 0, 1, 1, 1, 1, 1, 1, 1, 1)
 	want8Signed := vecOf[int8, Width128](20, -5, 127, -25, 50, 120, -30, 0, 2, 4, 6, 8, 10, 12, 14, 16)
-	if got := ShiftSaturated(x8Signed, y8Signed); !slices.Equal(got, want8Signed) {
-		t.Fatalf("ShiftSaturated signed: got %v, want %v", got, want8Signed)
+	if got := ScaleSaturated(x8Signed, y8Signed); !slices.Equal(got, want8Signed) {
+		t.Fatalf("ScaleSaturated signed: got %v, want %v", got, want8Signed)
 	}
 
 	x8Unsigned := vecOf[uint8, Width128](10, 20, 200, 100, 50, 60, 250, 0, 1, 2, 3, 4, 5, 6, 7, 8)
 	want8Unsigned := vecOf[uint8, Width128](20, 10, 255, 25, 50, 120, 125, 0, 2, 4, 6, 8, 10, 12, 14, 16)
-	if got := ShiftSaturated(x8Unsigned, y8Signed); !slices.Equal(got, want8Unsigned) {
-		t.Fatalf("ShiftSaturated unsigned: got %v, want %v", got, want8Unsigned)
+	if got := ScaleSaturated(x8Unsigned, y8Signed); !slices.Equal(got, want8Unsigned) {
+		t.Fatalf("ScaleSaturated unsigned: got %v, want %v", got, want8Unsigned)
 	}
 
 	// Wide range (exponents beyond int8)
 	x16Signed := vecOf[int16, Width128](10, -10, 10, -10, 10, -10, 0, 1)
 	y16Signed := vecOf[int16, Width128](200, 200, -200, -200, 1, -1, 0, 10)
 	want16Signed := vecOf[int16, Width128](32767, -32768, 0, -1, 20, -5, 0, 1024)
-	if got := ShiftSaturated(x16Signed, y16Signed); !slices.Equal(got, want16Signed) {
-		t.Fatalf("ShiftSaturated int16 wide range: got %v, want %v", got, want16Signed)
+	if got := ScaleSaturated(x16Signed, y16Signed); !slices.Equal(got, want16Signed) {
+		t.Fatalf("ScaleSaturated int16 wide range: got %v, want %v", got, want16Signed)
 	}
 }

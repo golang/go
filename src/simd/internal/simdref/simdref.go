@@ -7577,324 +7577,324 @@ func (x Uint64s) ReshapeToUint32s() (z Uint32s) {
 	return Uint32s{spec.ReshapeToUints[uint64, spec.WidthScalable, uint32](x.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int8x16) ShiftSaturated(scale Int8x16) (z Int8x16) {
-	return Int8x16{spec.ShiftSaturated[int8, spec.Width128, int8](x.v, scale.v)}
+func (x Int8x16) ScaleSaturated(scale Int8x16) (z Int8x16) {
+	return Int8x16{spec.ScaleSaturated[int8, spec.Width128, int8](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int8x32) ShiftSaturated(scale Int8x32) (z Int8x32) {
-	return Int8x32{spec.ShiftSaturated[int8, spec.Width256, int8](x.v, scale.v)}
+func (x Int8x32) ScaleSaturated(scale Int8x32) (z Int8x32) {
+	return Int8x32{spec.ScaleSaturated[int8, spec.Width256, int8](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int8x64) ShiftSaturated(scale Int8x64) (z Int8x64) {
-	return Int8x64{spec.ShiftSaturated[int8, spec.Width512, int8](x.v, scale.v)}
+func (x Int8x64) ScaleSaturated(scale Int8x64) (z Int8x64) {
+	return Int8x64{spec.ScaleSaturated[int8, spec.Width512, int8](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int8s) ShiftSaturated(scale Int8s) (z Int8s) {
-	return Int8s{spec.ShiftSaturated[int8, spec.WidthScalable, int8](x.v, scale.v)}
+func (x Int8s) ScaleSaturated(scale Int8s) (z Int8s) {
+	return Int8s{spec.ScaleSaturated[int8, spec.WidthScalable, int8](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int16x8) ShiftSaturated(scale Int16x8) (z Int16x8) {
-	return Int16x8{spec.ShiftSaturated[int16, spec.Width128, int16](x.v, scale.v)}
+func (x Int16x8) ScaleSaturated(scale Int16x8) (z Int16x8) {
+	return Int16x8{spec.ScaleSaturated[int16, spec.Width128, int16](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int16x16) ShiftSaturated(scale Int16x16) (z Int16x16) {
-	return Int16x16{spec.ShiftSaturated[int16, spec.Width256, int16](x.v, scale.v)}
+func (x Int16x16) ScaleSaturated(scale Int16x16) (z Int16x16) {
+	return Int16x16{spec.ScaleSaturated[int16, spec.Width256, int16](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int16x32) ShiftSaturated(scale Int16x32) (z Int16x32) {
-	return Int16x32{spec.ShiftSaturated[int16, spec.Width512, int16](x.v, scale.v)}
+func (x Int16x32) ScaleSaturated(scale Int16x32) (z Int16x32) {
+	return Int16x32{spec.ScaleSaturated[int16, spec.Width512, int16](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int16s) ShiftSaturated(scale Int16s) (z Int16s) {
-	return Int16s{spec.ShiftSaturated[int16, spec.WidthScalable, int16](x.v, scale.v)}
+func (x Int16s) ScaleSaturated(scale Int16s) (z Int16s) {
+	return Int16s{spec.ScaleSaturated[int16, spec.WidthScalable, int16](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int32x4) ShiftSaturated(scale Int32x4) (z Int32x4) {
-	return Int32x4{spec.ShiftSaturated[int32, spec.Width128, int32](x.v, scale.v)}
+func (x Int32x4) ScaleSaturated(scale Int32x4) (z Int32x4) {
+	return Int32x4{spec.ScaleSaturated[int32, spec.Width128, int32](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int32x8) ShiftSaturated(scale Int32x8) (z Int32x8) {
-	return Int32x8{spec.ShiftSaturated[int32, spec.Width256, int32](x.v, scale.v)}
+func (x Int32x8) ScaleSaturated(scale Int32x8) (z Int32x8) {
+	return Int32x8{spec.ScaleSaturated[int32, spec.Width256, int32](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int32x16) ShiftSaturated(scale Int32x16) (z Int32x16) {
-	return Int32x16{spec.ShiftSaturated[int32, spec.Width512, int32](x.v, scale.v)}
+func (x Int32x16) ScaleSaturated(scale Int32x16) (z Int32x16) {
+	return Int32x16{spec.ScaleSaturated[int32, spec.Width512, int32](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int32s) ShiftSaturated(scale Int32s) (z Int32s) {
-	return Int32s{spec.ShiftSaturated[int32, spec.WidthScalable, int32](x.v, scale.v)}
+func (x Int32s) ScaleSaturated(scale Int32s) (z Int32s) {
+	return Int32s{spec.ScaleSaturated[int32, spec.WidthScalable, int32](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int64x2) ShiftSaturated(scale Int64x2) (z Int64x2) {
-	return Int64x2{spec.ShiftSaturated[int64, spec.Width128, int64](x.v, scale.v)}
+func (x Int64x2) ScaleSaturated(scale Int64x2) (z Int64x2) {
+	return Int64x2{spec.ScaleSaturated[int64, spec.Width128, int64](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int64x4) ShiftSaturated(scale Int64x4) (z Int64x4) {
-	return Int64x4{spec.ShiftSaturated[int64, spec.Width256, int64](x.v, scale.v)}
+func (x Int64x4) ScaleSaturated(scale Int64x4) (z Int64x4) {
+	return Int64x4{spec.ScaleSaturated[int64, spec.Width256, int64](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int64x8) ShiftSaturated(scale Int64x8) (z Int64x8) {
-	return Int64x8{spec.ShiftSaturated[int64, spec.Width512, int64](x.v, scale.v)}
+func (x Int64x8) ScaleSaturated(scale Int64x8) (z Int64x8) {
+	return Int64x8{spec.ScaleSaturated[int64, spec.Width512, int64](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Int64s) ShiftSaturated(scale Int64s) (z Int64s) {
-	return Int64s{spec.ShiftSaturated[int64, spec.WidthScalable, int64](x.v, scale.v)}
+func (x Int64s) ScaleSaturated(scale Int64s) (z Int64s) {
+	return Int64s{spec.ScaleSaturated[int64, spec.WidthScalable, int64](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint8x16) ShiftSaturated(scale Int8x16) (z Uint8x16) {
-	return Uint8x16{spec.ShiftSaturated[uint8, spec.Width128, int8](x.v, scale.v)}
+func (x Uint8x16) ScaleSaturated(scale Int8x16) (z Uint8x16) {
+	return Uint8x16{spec.ScaleSaturated[uint8, spec.Width128, int8](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint8x32) ShiftSaturated(scale Int8x32) (z Uint8x32) {
-	return Uint8x32{spec.ShiftSaturated[uint8, spec.Width256, int8](x.v, scale.v)}
+func (x Uint8x32) ScaleSaturated(scale Int8x32) (z Uint8x32) {
+	return Uint8x32{spec.ScaleSaturated[uint8, spec.Width256, int8](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint8x64) ShiftSaturated(scale Int8x64) (z Uint8x64) {
-	return Uint8x64{spec.ShiftSaturated[uint8, spec.Width512, int8](x.v, scale.v)}
+func (x Uint8x64) ScaleSaturated(scale Int8x64) (z Uint8x64) {
+	return Uint8x64{spec.ScaleSaturated[uint8, spec.Width512, int8](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint8s) ShiftSaturated(scale Int8s) (z Uint8s) {
-	return Uint8s{spec.ShiftSaturated[uint8, spec.WidthScalable, int8](x.v, scale.v)}
+func (x Uint8s) ScaleSaturated(scale Int8s) (z Uint8s) {
+	return Uint8s{spec.ScaleSaturated[uint8, spec.WidthScalable, int8](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint16x8) ShiftSaturated(scale Int16x8) (z Uint16x8) {
-	return Uint16x8{spec.ShiftSaturated[uint16, spec.Width128, int16](x.v, scale.v)}
+func (x Uint16x8) ScaleSaturated(scale Int16x8) (z Uint16x8) {
+	return Uint16x8{spec.ScaleSaturated[uint16, spec.Width128, int16](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint16x16) ShiftSaturated(scale Int16x16) (z Uint16x16) {
-	return Uint16x16{spec.ShiftSaturated[uint16, spec.Width256, int16](x.v, scale.v)}
+func (x Uint16x16) ScaleSaturated(scale Int16x16) (z Uint16x16) {
+	return Uint16x16{spec.ScaleSaturated[uint16, spec.Width256, int16](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint16x32) ShiftSaturated(scale Int16x32) (z Uint16x32) {
-	return Uint16x32{spec.ShiftSaturated[uint16, spec.Width512, int16](x.v, scale.v)}
+func (x Uint16x32) ScaleSaturated(scale Int16x32) (z Uint16x32) {
+	return Uint16x32{spec.ScaleSaturated[uint16, spec.Width512, int16](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint16s) ShiftSaturated(scale Int16s) (z Uint16s) {
-	return Uint16s{spec.ShiftSaturated[uint16, spec.WidthScalable, int16](x.v, scale.v)}
+func (x Uint16s) ScaleSaturated(scale Int16s) (z Uint16s) {
+	return Uint16s{spec.ScaleSaturated[uint16, spec.WidthScalable, int16](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint32x4) ShiftSaturated(scale Int32x4) (z Uint32x4) {
-	return Uint32x4{spec.ShiftSaturated[uint32, spec.Width128, int32](x.v, scale.v)}
+func (x Uint32x4) ScaleSaturated(scale Int32x4) (z Uint32x4) {
+	return Uint32x4{spec.ScaleSaturated[uint32, spec.Width128, int32](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint32x8) ShiftSaturated(scale Int32x8) (z Uint32x8) {
-	return Uint32x8{spec.ShiftSaturated[uint32, spec.Width256, int32](x.v, scale.v)}
+func (x Uint32x8) ScaleSaturated(scale Int32x8) (z Uint32x8) {
+	return Uint32x8{spec.ScaleSaturated[uint32, spec.Width256, int32](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint32x16) ShiftSaturated(scale Int32x16) (z Uint32x16) {
-	return Uint32x16{spec.ShiftSaturated[uint32, spec.Width512, int32](x.v, scale.v)}
+func (x Uint32x16) ScaleSaturated(scale Int32x16) (z Uint32x16) {
+	return Uint32x16{spec.ScaleSaturated[uint32, spec.Width512, int32](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint32s) ShiftSaturated(scale Int32s) (z Uint32s) {
-	return Uint32s{spec.ShiftSaturated[uint32, spec.WidthScalable, int32](x.v, scale.v)}
+func (x Uint32s) ScaleSaturated(scale Int32s) (z Uint32s) {
+	return Uint32s{spec.ScaleSaturated[uint32, spec.WidthScalable, int32](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint64x2) ShiftSaturated(scale Int64x2) (z Uint64x2) {
-	return Uint64x2{spec.ShiftSaturated[uint64, spec.Width128, int64](x.v, scale.v)}
+func (x Uint64x2) ScaleSaturated(scale Int64x2) (z Uint64x2) {
+	return Uint64x2{spec.ScaleSaturated[uint64, spec.Width128, int64](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint64x4) ShiftSaturated(scale Int64x4) (z Uint64x4) {
-	return Uint64x4{spec.ShiftSaturated[uint64, spec.Width256, int64](x.v, scale.v)}
+func (x Uint64x4) ScaleSaturated(scale Int64x4) (z Uint64x4) {
+	return Uint64x4{spec.ScaleSaturated[uint64, spec.Width256, int64](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint64x8) ShiftSaturated(scale Int64x8) (z Uint64x8) {
-	return Uint64x8{spec.ShiftSaturated[uint64, spec.Width512, int64](x.v, scale.v)}
+func (x Uint64x8) ScaleSaturated(scale Int64x8) (z Uint64x8) {
+	return Uint64x8{spec.ScaleSaturated[uint64, spec.Width512, int64](x.v, scale.v)}
 }
 
-// ShiftSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation); negative exponents
 // scale down (shift right; arithmetic for signed types, logical for unsigned types).
 //
 //	z[i] = saturated(x[i] * 2^scale[i])
-func (x Uint64s) ShiftSaturated(scale Int64s) (z Uint64s) {
-	return Uint64s{spec.ShiftSaturated[uint64, spec.WidthScalable, int64](x.v, scale.v)}
+func (x Uint64s) ScaleSaturated(scale Int64s) (z Uint64s) {
+	return Uint64s{spec.ScaleSaturated[uint64, spec.WidthScalable, int64](x.v, scale.v)}
 }
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
