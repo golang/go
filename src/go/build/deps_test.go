@@ -659,7 +659,7 @@ var depsRules = `
 	FMT, archive/zip, crypto/sha256, encoding/gob, flag, go/format, log,
 	golang.org/x/tools/go/gcexportdata
 	< golang.org/x/tools/...
-	< internal/analysis/suite/fix, internal/analysis/suite/vet, internal/analysis/unitchecker;
+	< internal/analysis/fipsdit, internal/analysis/suite/fix, internal/analysis/suite/vet, internal/analysis/unitchecker;
 
 	# go/importer
 	DEBUG, crypto/sha256, go/build, go/types, text/scanner
