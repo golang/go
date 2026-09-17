@@ -8,6 +8,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/randutil"
+	"crypto/subtle"
 	"internal/godebug"
 	"io"
 	_ "unsafe"
@@ -26,7 +27,7 @@ func (r reader) Read(b []byte) (n int, err error) {
 		}
 		return len(b), nil
 	}
-	drbg.Read(b)
+	subtle.WithDataIndependentTiming(func() { drbg.Read(b) })
 	return len(b), nil
 }
 

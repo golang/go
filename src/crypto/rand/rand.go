@@ -10,6 +10,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/rand"
+	"crypto/subtle"
 	"io"
 	_ "unsafe"
 
@@ -53,7 +54,7 @@ func Read(b []byte) (n int, err error) {
 		if boring.Enabled {
 			_, err = io.ReadFull(boring.RandReader, b)
 		} else {
-			drbg.Read(b)
+			subtle.WithDataIndependentTiming(func() { drbg.Read(b) })
 		}
 	} else {
 		bb := make([]byte, len(b))
