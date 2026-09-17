@@ -54,14 +54,12 @@ func em1(a, b, c, d uint64) string {
 	return fmt.Sprintf("0x%08x%08x", hi, lo)
 }
 
-// em1 returns the string representation of
-//
-//	clmul(xlo,ylo)^clmul(xhi,yhi)
-//
+// vpsumd2 returns the 128-bit result of
+// clmul(xlo,ylo)^clmul(xhi,yhi)
 // using a clever constant-time implementation of clmul
-// using simpler simd instructions, for an emulated simd
-// type.
-func em2(xlo, xhi, ylo, yhi uint64) string {
+// using simpler (emulated) simd instructions.
+// These are not real simd instructions.
+func vpsumd2(xlo, xhi, ylo, yhi uint64) (lo, hi uint64) {
 	lx := newT(xlo, 0)
 	ly := newT(ylo, 0)
 	hx := newT(xhi, 0)
@@ -69,7 +67,19 @@ func em2(xlo, xhi, ylo, yhi uint64) string {
 
 	z := (lx.ClMul(ly)).Xor(hx.ClMul(hy))
 
-	return fmt.Sprintf("0x%08x%08x", z.b, z.a)
+	return z.a, z.b
+}
+
+// em2 returns the string representation of
+//
+//	clmul(xlo,ylo)^clmul(xhi,yhi)
+//
+// using a clever constant-time implementation of clmul
+// using simpler simd instructions, for an emulated simd
+// type.
+func em2(xlo, xhi, ylo, yhi uint64) string {
+	lo, hi := vpsumd2(xlo, xhi, ylo, yhi)
+	return fmt.Sprintf("0x%08x%08x", hi, lo)
 }
 
 // set0 returns a vector of uint64s that is zero
@@ -98,13 +108,11 @@ func get(v simd.Uint64s) (lo, hi uint64) {
 	return a[0], a[1]
 }
 
-// em3 returns the string representation of
-//
-//	clmul(xlo,ylo)^clmul(xhi,yhi)
-//
+// vpsumd3 returns the 128-bit result of
+// clmul(xlo,ylo)^clmul(xhi,yhi)
 // using the supplied simd operation
-// CarrylessMultiplyEven
-func em3(xlo, xhi, ylo, yhi uint64) string {
+// CarrylessMultiplyEven.
+func vpsumd3(xlo, xhi, ylo, yhi uint64) (lo, hi uint64) {
 	lx := set0(xlo)
 	ly := set0(ylo)
 	hx := set0(xhi)
@@ -112,11 +120,21 @@ func em3(xlo, xhi, ylo, yhi uint64) string {
 
 	z := (lx.CarrylessMultiplyEven(ly)).Xor(hx.CarrylessMultiplyEven(hy))
 
-	lo, hi := get(z)
-	return fmt.Sprintf("0x%08x%08x", hi, lo)
+	return get(z)
 }
 
 // em3 returns the string representation of
+//
+//	clmul(xlo,ylo)^clmul(xhi,yhi)
+//
+// using the supplied simd operation
+// CarrylessMultiplyEven
+func em3(xlo, xhi, ylo, yhi uint64) string {
+	lo, hi := vpsumd3(xlo, xhi, ylo, yhi)
+	return fmt.Sprintf("0x%08x%08x", hi, lo)
+}
+
+// em4 returns the string representation of
 //
 //	clmul(xlo,ylo)^clmul(xhi,yhi)
 //
@@ -132,6 +150,36 @@ func em4(xlo, xhi, ylo, yhi uint64) string {
 
 	lo, hi := get(z)
 	return fmt.Sprintf("0x%08x%08x", hi, lo)
+}
+
+var sinkLo, sinkHi uint64
+
+func BenchmarkVpsumdIteration(b *testing.B) {
+	var a, bb, c, d uint64 = 0x66b32838754f59a3, 0xaeba319ab2418c50, 0x45678b3c7f11fc73, 0xd62ef8ae5f7b693
+	var lo, hi uint64
+	for b.Loop() {
+		lo, hi = vpsumd(a, bb, c, d)
+	}
+	sinkLo, sinkHi = lo, hi
+}
+
+func BenchmarkVpsumdClever(b *testing.B) {
+	var a, bb, c, d uint64 = 0x66b32838754f59a3, 0xaeba319ab2418c50, 0x45678b3c7f11fc73, 0xd62ef8ae5f7b693
+	var lo, hi uint64
+	for b.Loop() {
+		lo, hi = vpsumd2(a, bb, c, d)
+	}
+	sinkLo, sinkHi = lo, hi
+}
+
+func BenchmarkVpsumdSIMD(b *testing.B) {
+	var _ simd.Uint64s // ensure benchmark is SIMD-specialized so the loop calls specialized vpsumd3 directly
+	var a, bb, c, d uint64 = 0x66b32838754f59a3, 0xaeba319ab2418c50, 0x45678b3c7f11fc73, 0xd62ef8ae5f7b693
+	var lo, hi uint64
+	for b.Loop() {
+		lo, hi = vpsumd3(a, bb, c, d)
+	}
+	sinkLo, sinkHi = lo, hi
 }
 
 func TestClMul(t *testing.T) {
