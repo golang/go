@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"math/rand"
 	"net"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2004,6 +2006,161 @@ func TestTransportRejectsContentLengthWithSign(t *testing.T) {
 
 			if got != tt.wantCL {
 				t.Fatalf("Got: %q\nWant: %q", got, tt.wantCL)
+			}
+		})
+	}
+}
+
+// TestTransportResponseContentLength checks that a Content-Length we cannot
+// validate is dropped from the response rather than passed on to the caller,
+// who may be forwarding it to an HTTP/1 endpoint.
+func TestTransportResponseContentLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		clValues []string
+		wantLen  int // -1 means the header is expected to be dropped.
+	}{
+		{
+			name:     "single value",
+			clValues: []string{"3"},
+			wantLen:  3,
+		},
+		{
+			name:     "identical duplicate values",
+			clValues: []string{"3", "3", "3"},
+			wantLen:  3,
+		},
+		{
+			name:     "different duplicate values",
+			clValues: []string{"3", "1", "3"},
+			wantLen:  -1,
+		},
+		{
+			name:     "extraneous whitespace",
+			clValues: []string{" 3"},
+			wantLen:  -1,
+		},
+		{
+			name:     "identical duplicate values with extraneous whitespace",
+			clValues: []string{"3", "3", " 3"},
+			wantLen:  -1,
+		},
+		{
+			name:     "plus sign",
+			clValues: []string{"+3"},
+			wantLen:  -1,
+		},
+		{
+			name:     "non-numeric",
+			clValues: []string{"abc"},
+			wantLen:  -1,
+		},
+		{
+			name:     "empty value",
+			clValues: []string{""},
+			wantLen:  -1,
+		},
+		{
+			name:    "no header",
+			wantLen: -1,
+		},
+	}
+	for _, tt := range tests {
+		synctestSubtest(t, tt.name, func(t *testing.T) {
+			tc := newTestClientConn(t)
+			tc.greet()
+
+			req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+			rt := tc.roundTrip(req)
+
+			headers := []string{":status", "200"}
+			for _, val := range tt.clValues {
+				headers = append(headers, "content-length", val)
+			}
+			tc.wantFrameType(FrameHeaders)
+			tc.writeHeaders(HeadersFrameParam{
+				StreamID:      rt.streamID(),
+				EndHeaders:    true,
+				BlockFragment: tc.makeHeaderBlockFragment(headers...),
+			})
+			body := slices.Repeat([]byte("a"), max(tt.wantLen, 1))
+			tc.writeData(rt.streamID(), true, body)
+
+			res := rt.response()
+			rt.wantBody(body)
+
+			if res.ContentLength != int64(tt.wantLen) {
+				t.Errorf("got ContentLength = %d, want %d", res.ContentLength, tt.wantLen)
+			}
+			var wantHeader []string
+			if tt.wantLen >= 0 {
+				wantHeader = []string{strconv.FormatInt(int64(tt.wantLen), 10)}
+			}
+			if got := res.Header["Content-Length"]; !slices.Equal(got, wantHeader) {
+				t.Errorf("got Header[%q] = %q, want %q", "Content-Length", got, wantHeader)
+			}
+		})
+	}
+}
+
+// TestTransportResponseConnHeaders checks that connection-related headers,
+// which are not valid in HTTP/2 and which an HTTP/1 endpoint may use for
+// framing, are dropped from the response.
+func TestTransportResponseConnHeaders(t *testing.T) {
+	tests := []struct {
+		name       string
+		fields     []string
+		wantHeader http.Header
+	}{
+		{
+			name:       "unaffected header",
+			fields:     []string{"content-type", "text/plain"},
+			wantHeader: http.Header{"Content-Type": {"text/plain"}},
+		},
+		{
+			name:   "transfer-encoding",
+			fields: []string{"transfer-encoding", "chunked"},
+		},
+		{
+			name:   "transfer-encoding alongside content-length",
+			fields: []string{"content-length", "-1", "transfer-encoding", "chunked"},
+		},
+		{
+			name:   "connection and keep-alive",
+			fields: []string{"connection", "keep-alive", "keep-alive", "timeout=5"},
+		},
+		{
+			name:   "proxy-connection",
+			fields: []string{"proxy-connection", "keep-alive"},
+		},
+		{
+			name:   "upgrade",
+			fields: []string{"upgrade", "websocket"},
+		},
+	}
+	for _, tt := range tests {
+		synctestSubtest(t, tt.name, func(t *testing.T) {
+			tc := newTestClientConn(t)
+			tc.greet()
+
+			req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+			rt := tc.roundTrip(req)
+
+			headers := []string{":status", "200"}
+			headers = append(headers, tt.fields...)
+			tc.wantFrameType(FrameHeaders)
+			tc.writeHeaders(HeadersFrameParam{
+				StreamID:      rt.streamID(),
+				EndHeaders:    true,
+				BlockFragment: tc.makeHeaderBlockFragment(headers...),
+			})
+			tc.writeData(rt.streamID(), true, []byte("body"))
+
+			res := rt.response()
+			rt.wantBody([]byte("body"))
+
+			if !maps.EqualFunc(res.Header, tt.wantHeader, slices.Equal) {
+				t.Errorf("got Header = %q, want %q", res.Header, tt.wantHeader)
 			}
 		})
 	}
