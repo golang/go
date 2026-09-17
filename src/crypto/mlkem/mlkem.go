@@ -14,6 +14,7 @@ package mlkem
 import (
 	"crypto"
 	"crypto/internal/fips140/mlkem"
+	"crypto/subtle"
 )
 
 const (
@@ -45,23 +46,29 @@ type DecapsulationKey768 struct {
 // GenerateKey768 generates a new decapsulation key, drawing random bytes from
 // a secure source. The decapsulation key must be kept secret.
 func GenerateKey768() (*DecapsulationKey768, error) {
-	key, err := mlkem.GenerateKey768()
+	var k *mlkem.DecapsulationKey768
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		k, err = mlkem.GenerateKey768()
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	return &DecapsulationKey768{key}, nil
+	return &DecapsulationKey768{k}, nil
 }
 
 // NewDecapsulationKey768 expands a decapsulation key from a 64-byte seed in the
 // "d || z" form. The seed must be uniformly random.
 func NewDecapsulationKey768(seed []byte) (*DecapsulationKey768, error) {
-	key, err := mlkem.NewDecapsulationKey768(seed)
+	var k *mlkem.DecapsulationKey768
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		k, err = mlkem.NewDecapsulationKey768(seed)
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	return &DecapsulationKey768{key}, nil
+	return &DecapsulationKey768{k}, nil
 }
 
 // Bytes returns the decapsulation key as a 64-byte seed in the "d || z" form.
@@ -79,7 +86,8 @@ func (dk *DecapsulationKey768) Bytes() []byte {
 //
 // The shared key must be kept secret.
 func (dk *DecapsulationKey768) Decapsulate(ciphertext []byte) (sharedKey []byte, err error) {
-	return dk.key.Decapsulate(ciphertext)
+	subtle.WithDataIndependentTiming(func() { sharedKey, err = dk.key.Decapsulate(ciphertext) })
+	return
 }
 
 // EncapsulationKey returns the public encapsulation key necessary to produce
@@ -128,7 +136,8 @@ func (ek *EncapsulationKey768) Bytes() []byte {
 // For testing, derandomized encapsulation is provided by the
 // [crypto/mlkem/mlkemtest] package.
 func (ek *EncapsulationKey768) Encapsulate() (sharedKey, ciphertext []byte) {
-	return ek.key.Encapsulate()
+	subtle.WithDataIndependentTiming(func() { sharedKey, ciphertext = ek.key.Encapsulate() })
+	return
 }
 
 // DecapsulationKey1024 is the secret key used to decapsulate a shared key
@@ -140,7 +149,9 @@ type DecapsulationKey1024 struct {
 // GenerateKey1024 generates a new decapsulation key, drawing random bytes from
 // a secure source. The decapsulation key must be kept secret.
 func GenerateKey1024() (*DecapsulationKey1024, error) {
-	key, err := mlkem.GenerateKey1024()
+	var key *mlkem.DecapsulationKey1024
+	var err error
+	subtle.WithDataIndependentTiming(func() { key, err = mlkem.GenerateKey1024() })
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +162,9 @@ func GenerateKey1024() (*DecapsulationKey1024, error) {
 // NewDecapsulationKey1024 expands a decapsulation key from a 64-byte seed in the
 // "d || z" form. The seed must be uniformly random.
 func NewDecapsulationKey1024(seed []byte) (*DecapsulationKey1024, error) {
-	key, err := mlkem.NewDecapsulationKey1024(seed)
+	var key *mlkem.DecapsulationKey1024
+	var err error
+	subtle.WithDataIndependentTiming(func() { key, err = mlkem.NewDecapsulationKey1024(seed) })
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +187,8 @@ func (dk *DecapsulationKey1024) Bytes() []byte {
 //
 // The shared key must be kept secret.
 func (dk *DecapsulationKey1024) Decapsulate(ciphertext []byte) (sharedKey []byte, err error) {
-	return dk.key.Decapsulate(ciphertext)
+	subtle.WithDataIndependentTiming(func() { sharedKey, err = dk.key.Decapsulate(ciphertext) })
+	return
 }
 
 // EncapsulationKey returns the public encapsulation key necessary to produce
@@ -223,5 +237,6 @@ func (ek *EncapsulationKey1024) Bytes() []byte {
 // For testing, derandomized encapsulation is provided by the
 // [crypto/mlkem/mlkemtest] package.
 func (ek *EncapsulationKey1024) Encapsulate() (sharedKey, ciphertext []byte) {
-	return ek.key.Encapsulate()
+	subtle.WithDataIndependentTiming(func() { sharedKey, ciphertext = ek.key.Encapsulate() })
+	return
 }
