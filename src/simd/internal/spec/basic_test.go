@@ -151,3 +151,56 @@ func TestConcatPairsGrouped(t *testing.T) {
 		t.Fatalf("ConcatSubPairsSaturatedGrouped: got %v, want %v", got, wantSubSat)
 	}
 }
+
+func TestShifts(t *testing.T) {
+	// ShiftAllRight
+	xSigned := vecOf[int16, Width128](-4, 8, -16, 32, 0, -1, 100, -100)
+	wantSigned := vecOf[int16, Width128](-2, 4, -8, 16, 0, -1, 50, -50)
+	if got := ShiftAllRight(xSigned, 1); !slices.Equal(got, wantSigned) {
+		t.Fatalf("ShiftAllRight signed: got %v, want %v", got, wantSigned)
+	}
+	wantOOB := vecOf[int16, Width128](-1, 0, -1, 0, 0, -1, 0, -1)
+	if got := ShiftAllRight(xSigned, 20); !slices.Equal(got, wantOOB) {
+		t.Fatalf("ShiftAllRight signed OOB: got %v, want %v", got, wantOOB)
+	}
+
+	xUnsigned := vecOf[uint16, Width128](4, 8, 16, 32, 0, 1, 100, 200)
+	wantUnsigned := vecOf[uint16, Width128](2, 4, 8, 16, 0, 0, 50, 100)
+	if got := ShiftAllRight(xUnsigned, 1); !slices.Equal(got, wantUnsigned) {
+		t.Fatalf("ShiftAllRight unsigned: got %v, want %v", got, wantUnsigned)
+	}
+	wantUnsignedOOB := vecOf[uint16, Width128](0, 0, 0, 0, 0, 0, 0, 0)
+	if got := ShiftAllRight(xUnsigned, 20); !slices.Equal(got, wantUnsignedOOB) {
+		t.Fatalf("ShiftAllRight unsigned OOB: got %v, want %v", got, wantUnsignedOOB)
+	}
+
+	// ShiftRight
+	shiftAmounts := vecOf[uint16, Width128](1, 2, 3, 4, 0, 1, 2, 20)
+	wantRightSigned := vecOf[int16, Width128](-4>>1, 8>>2, -16>>3, 32>>4, 0, -1>>1, 100>>2, -1)
+	if got := ShiftRight(xSigned, shiftAmounts); !slices.Equal(got, wantRightSigned) {
+		t.Fatalf("ShiftRight signed: got %v, want %v", got, wantRightSigned)
+	}
+
+	// ShiftSaturated
+	// positive shifts left (saturates), negative shifts right
+	x8Signed := vecOf[int8, Width128](10, -10, 100, -100, 50, 60, -60, 0, 1, 2, 3, 4, 5, 6, 7, 8)
+	y8Signed := vecOf[int8, Width128](1, -1, 2, -2, 0, 1, -1, 0, 1, 1, 1, 1, 1, 1, 1, 1)
+	want8Signed := vecOf[int8, Width128](20, -5, 127, -25, 50, 120, -30, 0, 2, 4, 6, 8, 10, 12, 14, 16)
+	if got := ShiftSaturated(x8Signed, y8Signed); !slices.Equal(got, want8Signed) {
+		t.Fatalf("ShiftSaturated signed: got %v, want %v", got, want8Signed)
+	}
+
+	x8Unsigned := vecOf[uint8, Width128](10, 20, 200, 100, 50, 60, 250, 0, 1, 2, 3, 4, 5, 6, 7, 8)
+	want8Unsigned := vecOf[uint8, Width128](20, 10, 255, 25, 50, 120, 125, 0, 2, 4, 6, 8, 10, 12, 14, 16)
+	if got := ShiftSaturated(x8Unsigned, y8Signed); !slices.Equal(got, want8Unsigned) {
+		t.Fatalf("ShiftSaturated unsigned: got %v, want %v", got, want8Unsigned)
+	}
+
+	// Wide range (exponents beyond int8)
+	x16Signed := vecOf[int16, Width128](10, -10, 10, -10, 10, -10, 0, 1)
+	y16Signed := vecOf[int16, Width128](200, 200, -200, -200, 1, -1, 0, 10)
+	want16Signed := vecOf[int16, Width128](32767, -32768, 0, -1, 20, -5, 0, 1024)
+	if got := ShiftSaturated(x16Signed, y16Signed); !slices.Equal(got, want16Signed) {
+		t.Fatalf("ShiftSaturated int16 wide range: got %v, want %v", got, want16Signed)
+	}
+}
