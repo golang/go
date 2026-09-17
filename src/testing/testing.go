@@ -1262,7 +1262,9 @@ func (o *outputWriter) writeLine(b []byte, errBegin, errEnd bool) {
 	}
 
 	// Escape the framing marker.
-	b = escapeMarkers(b)
+	if o.c.chatty.json {
+		b = escapeMarkers(b)
+	}
 
 	// If this is the start of an error, add ^O to the start of the output.
 	var strErrBegin, strErrEnd string

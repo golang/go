@@ -195,12 +195,18 @@ func TestTRun(t *T) {
 === RUN   chatty with recursion
 === RUN   chatty with recursion/#00
 === RUN   chatty with recursion/#00/#00
+=== RUN   chatty with recursion/#00/#01
+    sub_test.go:NNN: ^V^O^N^[
 --- PASS: chatty with recursion (N.NNs)
     --- PASS: chatty with recursion/#00 (N.NNs)
-        --- PASS: chatty with recursion/#00/#00 (N.NNs)`,
+        --- PASS: chatty with recursion/#00/#00 (N.NNs)
+        --- PASS: chatty with recursion/#00/#01 (N.NNs)`,
 		f: func(t *T) {
 			t.Run("", func(t *T) {
 				t.Run("", func(t *T) {})
+				t.Run("", func(t *T) {
+					t.Log(string(markFraming) + string(markErrBegin) + string(markErrEnd) + string(markEscape))
+				})
 			})
 		},
 	}, {
