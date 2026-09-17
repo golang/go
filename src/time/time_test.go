@@ -2034,6 +2034,7 @@ func TestZoneBounds(t *testing.T) {
 		20: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
 		21: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
 		22: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
+		23: {makeLocalTime(2240568000), makeLocalTime(2235632400), makeLocalTime(2240611200)},
 	}
 	for i, tt := range realTests {
 		start, end := tt.giveTime.ZoneBounds()
