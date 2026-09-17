@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140hash"
+	"crypto/subtle"
 	"hash"
 )
 
@@ -31,36 +32,44 @@ func init() {
 // Sum224 returns the SHA3-224 hash of data.
 func Sum224(data []byte) [28]byte {
 	var out [28]byte
-	h := sha3.New224()
-	h.Write(data)
-	h.Sum(out[:0])
+	subtle.WithDataIndependentTiming(func() {
+		h := sha3.New224()
+		h.Write(data)
+		h.Sum(out[:0])
+	})
 	return out
 }
 
 // Sum256 returns the SHA3-256 hash of data.
 func Sum256(data []byte) [32]byte {
 	var out [32]byte
-	h := sha3.New256()
-	h.Write(data)
-	h.Sum(out[:0])
+	subtle.WithDataIndependentTiming(func() {
+		h := sha3.New256()
+		h.Write(data)
+		h.Sum(out[:0])
+	})
 	return out
 }
 
 // Sum384 returns the SHA3-384 hash of data.
 func Sum384(data []byte) [48]byte {
 	var out [48]byte
-	h := sha3.New384()
-	h.Write(data)
-	h.Sum(out[:0])
+	subtle.WithDataIndependentTiming(func() {
+		h := sha3.New384()
+		h.Write(data)
+		h.Sum(out[:0])
+	})
 	return out
 }
 
 // Sum512 returns the SHA3-512 hash of data.
 func Sum512(data []byte) [64]byte {
 	var out [64]byte
-	h := sha3.New512()
-	h.Write(data)
-	h.Sum(out[:0])
+	subtle.WithDataIndependentTiming(func() {
+		h := sha3.New512()
+		h.Write(data)
+		h.Sum(out[:0])
+	})
 	return out
 }
 
@@ -78,9 +87,11 @@ func sumSHAKE128(out, data []byte, length int) []byte {
 	} else {
 		out = out[:length]
 	}
-	h := sha3.NewShake128()
-	h.Write(data)
-	h.Read(out)
+	subtle.WithDataIndependentTiming(func() {
+		h := sha3.NewShake128()
+		h.Write(data)
+		h.Read(out)
+	})
 	return out
 }
 
@@ -98,9 +109,11 @@ func sumSHAKE256(out, data []byte, length int) []byte {
 	} else {
 		out = out[:length]
 	}
-	h := sha3.NewShake256()
-	h.Write(data)
-	h.Read(out)
+	subtle.WithDataIndependentTiming(func() {
+		h := sha3.NewShake256()
+		h.Write(data)
+		h.Read(out)
+	})
 	return out
 }
 
@@ -139,13 +152,16 @@ func (s *SHA3) init() {
 // Write absorbs more data into the hash's state.
 func (s *SHA3) Write(p []byte) (n int, err error) {
 	s.init()
-	return s.s.Write(p)
+	subtle.WithDataIndependentTiming(func() { n, err = s.s.Write(p) })
+	return
 }
 
 // Sum appends the current hash to b and returns the resulting slice.
 func (s *SHA3) Sum(b []byte) []byte {
 	s.init()
-	return s.s.Sum(b)
+	var sum []byte
+	subtle.WithDataIndependentTiming(func() { sum = s.s.Sum(b) })
+	return sum
 }
 
 // Reset resets the hash to its initial state.
@@ -235,7 +251,8 @@ func NewCSHAKE256(N, S []byte) *SHAKE {
 // It panics if any output has already been read.
 func (s *SHAKE) Write(p []byte) (n int, err error) {
 	s.init()
-	return s.s.Write(p)
+	subtle.WithDataIndependentTiming(func() { n, err = s.s.Write(p) })
+	return
 }
 
 // Read squeezes more output from the XOF.
@@ -243,7 +260,8 @@ func (s *SHAKE) Write(p []byte) (n int, err error) {
 // Any call to Write after a call to Read will panic.
 func (s *SHAKE) Read(p []byte) (n int, err error) {
 	s.init()
-	return s.s.Read(p)
+	subtle.WithDataIndependentTiming(func() { n, err = s.s.Read(p) })
+	return
 }
 
 // Reset resets the XOF to its initial state.
