@@ -6,6 +6,7 @@ package big
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"unicode"
@@ -155,6 +156,18 @@ func TestProbablyPrime(t *testing.T) {
 				t.Fatalf("%v should be a prime", c)
 			}
 		}()
+	}
+}
+
+func TestProbablyPrimeMaxInt(t *testing.T) {
+	// These Lucas pseudoprimes must still be rejected by Miller-Rabin
+	// when adding its extra base-2 round would overflow an int.
+	for _, v := range []int64{10877, 27971, 29681, 30739, 31631} {
+		for _, n := range []int{math.MaxInt - 1, math.MaxInt} {
+			if NewInt(v).ProbablyPrime(n) {
+				t.Errorf("%d.ProbablyPrime(%d) = true, want false", v, n)
+			}
+		}
 	}
 }
 
