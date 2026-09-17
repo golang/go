@@ -11,6 +11,7 @@ import (
 	"crypto/internal/boring"
 	_ "crypto/internal/fips140/check"
 	"crypto/internal/fips140/sha256"
+	"crypto/subtle"
 	"hash"
 )
 
@@ -56,9 +57,11 @@ func Sum256(data []byte) [Size]byte {
 		return boring.SHA256(data)
 	}
 	h := New()
-	h.Write(data)
 	var sum [Size]byte
-	h.Sum(sum[:0])
+	subtle.WithDataIndependentTiming(func() {
+		h.Write(data)
+		h.Sum(sum[:0])
+	})
 	return sum
 }
 
@@ -68,8 +71,10 @@ func Sum224(data []byte) [Size224]byte {
 		return boring.SHA224(data)
 	}
 	h := New224()
-	h.Write(data)
 	var sum [Size224]byte
-	h.Sum(sum[:0])
+	subtle.WithDataIndependentTiming(func() {
+		h.Write(data)
+		h.Sum(sum[:0])
+	})
 	return sum
 }
