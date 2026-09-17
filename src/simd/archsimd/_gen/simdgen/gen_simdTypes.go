@@ -367,6 +367,11 @@ func (m {{.Name}}) Store(bits []uint16) {
 
 //go:noescape
 func (m {{.Name}}) store(bits []uint16)
+
+// {{.Name}}AllTrue returns a mask with every lane true.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func {{.Name}}AllTrue() {{.Name}}
 {{end}}
 
 {{define "sveIfElseTmpl"}}

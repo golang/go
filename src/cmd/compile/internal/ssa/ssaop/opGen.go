@@ -7276,6 +7276,10 @@ const (
 	OpBroadcastInt64s
 	OpBroadcastUint64s
 	OpBroadcastFloat64s
+	OpMask8sAllTrue
+	OpMask16sAllTrue
+	OpMask32sAllTrue
+	OpMask64sAllTrue
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
 	OpAESDecryptLastRoundUint8x64
@@ -114603,6 +114607,26 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "BroadcastFloat64s",
 		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask8sAllTrue",
+		ArgLen:  0,
+		Generic: true,
+	},
+	{
+		Name:    "Mask16sAllTrue",
+		ArgLen:  0,
+		Generic: true,
+	},
+	{
+		Name:    "Mask32sAllTrue",
+		ArgLen:  0,
+		Generic: true,
+	},
+	{
+		Name:    "Mask64sAllTrue",
+		ArgLen:  0,
 		Generic: true,
 	},
 	{

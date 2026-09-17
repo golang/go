@@ -1939,5 +1939,13 @@
 (ZDUPS (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPSconst [int8(c)])
 (ZDUPD (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPDconst [int8(c)])
 
+// All-true predicate constructors: the same PWHILELT pattern the lowering
+// synthesizes for implicitly predicated operations, so the select-fold
+// peepholes recognize an explicit all-true mask and CSE dedups it with theirs.
+(Mask8sAllTrue) => (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))
+(Mask16sAllTrue) => (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))
+(Mask32sAllTrue) => (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))
+(Mask64sAllTrue) => (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))
+
 (LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
 (StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)

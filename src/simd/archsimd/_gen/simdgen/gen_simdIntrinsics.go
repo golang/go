@@ -118,7 +118,8 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	// lowered to PLDR/PSTR); only this registration of the raw intrinsics is
 	// generated (the exported Load/Store wrappers are generated Go in types_sve.go).
 	var sveMask = templateNamed("sveMask", `	addF(simdPackage, "{{.Name}}.store", sveStoreWhole(), {{GetSysArch}})
-	addF(simdPackage, "load{{.Name}}", sveLoadWhole(), {{GetSysArch}})`)
+	addF(simdPackage, "load{{.Name}}", sveLoadWhole(), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}AllTrue", opLen0(ssaop.Op{{.Name}}AllTrue, types.TypeMask), {{GetSysArch}})`)
 
 	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "load{{.Name}}ArrayMasked", simdMaskedLoad(ssaop.OpLoadMasked{{.ElemBits}}), sys.AMD64)
 	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssaop.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)

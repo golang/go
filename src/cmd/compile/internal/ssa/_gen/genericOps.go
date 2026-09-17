@@ -786,6 +786,14 @@ var genericOps = []opData{
 	{name: "BroadcastInt64s", argLength: 1},
 	{name: "BroadcastUint64s", argLength: 1},
 	{name: "BroadcastFloat64s", argLength: 1},
+
+	// AllTrue constructs a scalable predicate with every lane true. Written by
+	// hand: there is no instruction operand to unify on, and the lowering is
+	// the same synthesized PWHILELT the implicitly predicated operations use.
+	{name: "Mask8sAllTrue", argLength: 0},
+	{name: "Mask16sAllTrue", argLength: 0},
+	{name: "Mask32sAllTrue", argLength: 0},
+	{name: "Mask64sAllTrue", argLength: 0},
 }
 
 //     kind          controls          successors   implicit exit

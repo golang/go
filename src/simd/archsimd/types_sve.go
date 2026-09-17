@@ -1041,6 +1041,11 @@ func (m Mask8s) Store(bits []uint16) {
 //go:noescape
 func (m Mask8s) store(bits []uint16)
 
+// Mask8sAllTrue returns a mask with every lane true.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func Mask8sAllTrue() Mask8s
+
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() lanes that exist at the runtime
 // vector length are shown.
@@ -1103,6 +1108,11 @@ func (m Mask16s) Store(bits []uint16) {
 
 //go:noescape
 func (m Mask16s) store(bits []uint16)
+
+// Mask16sAllTrue returns a mask with every lane true.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func Mask16sAllTrue() Mask16s
 
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 2 lanes that exist at the runtime
@@ -1167,6 +1177,11 @@ func (m Mask32s) Store(bits []uint16) {
 //go:noescape
 func (m Mask32s) store(bits []uint16)
 
+// Mask32sAllTrue returns a mask with every lane true.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func Mask32sAllTrue() Mask32s
+
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 4 lanes that exist at the runtime
 // vector length are shown.
@@ -1229,6 +1244,11 @@ func (m Mask64s) Store(bits []uint16) {
 
 //go:noescape
 func (m Mask64s) store(bits []uint16)
+
+// Mask64sAllTrue returns a mask with every lane true.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func Mask64sAllTrue() Mask64s
 
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 8 lanes that exist at the runtime

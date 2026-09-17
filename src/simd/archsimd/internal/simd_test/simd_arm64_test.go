@@ -440,3 +440,51 @@ func TestIfElseSVE(t *testing.T) {
 		}
 	}
 }
+
+// TestMaskAllTrueSVE checks the all-true mask constructors: a select under an
+// all-true mask returns its first operand in every lane, at each lane width.
+func TestMaskAllTrueSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no sve")
+	}
+	check := func(name string, n int, sel func(i int) (got, want any)) {
+		t.Helper()
+		for i := 0; i < n; i++ {
+			if got, want := sel(i); got != want {
+				t.Errorf("%s: lane %d = %v, want %v", name, i, got, want)
+			}
+		}
+	}
+
+	xs8, ys8 := make([]int8, archsimd.Int8s{}.Len()), make([]int8, archsimd.Int8s{}.Len())
+	for i := range xs8 {
+		xs8[i], ys8[i] = int8(i+1), int8(-i-1)
+	}
+	g8 := make([]int8, len(xs8))
+	archsimd.LoadInt8s(xs8).IfElse(archsimd.Mask8sAllTrue(), archsimd.LoadInt8s(ys8)).Store(g8)
+	check("Mask8sAllTrue", len(xs8), func(i int) (any, any) { return g8[i], xs8[i] })
+
+	xs16, ys16 := make([]int16, archsimd.Int16s{}.Len()), make([]int16, archsimd.Int16s{}.Len())
+	for i := range xs16 {
+		xs16[i], ys16[i] = int16(i+1), int16(-i-1)
+	}
+	g16 := make([]int16, len(xs16))
+	archsimd.LoadInt16s(xs16).IfElse(archsimd.Mask16sAllTrue(), archsimd.LoadInt16s(ys16)).Store(g16)
+	check("Mask16sAllTrue", len(xs16), func(i int) (any, any) { return g16[i], xs16[i] })
+
+	xs32, ys32 := make([]int32, archsimd.Int32s{}.Len()), make([]int32, archsimd.Int32s{}.Len())
+	for i := range xs32 {
+		xs32[i], ys32[i] = int32(i+1), int32(-i-1)
+	}
+	g32 := make([]int32, len(xs32))
+	archsimd.LoadInt32s(xs32).IfElse(archsimd.Mask32sAllTrue(), archsimd.LoadInt32s(ys32)).Store(g32)
+	check("Mask32sAllTrue", len(xs32), func(i int) (any, any) { return g32[i], xs32[i] })
+
+	xs64, ys64 := make([]int64, archsimd.Int64s{}.Len()), make([]int64, archsimd.Int64s{}.Len())
+	for i := range xs64 {
+		xs64[i], ys64[i] = int64(i+1), int64(-i-1)
+	}
+	g64 := make([]int64, len(xs64))
+	archsimd.LoadInt64s(xs64).IfElse(archsimd.Mask64sAllTrue(), archsimd.LoadInt64s(ys64)).Store(g64)
+	check("Mask64sAllTrue", len(xs64), func(i int) (any, any) { return g64[i], xs64[i] })
+}
