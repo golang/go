@@ -39,7 +39,7 @@ type ctrAble interface {
 // NewCTR returns a [Stream] which encrypts/decrypts using the given [Block] in
 // counter mode. The length of iv must be the same as the [Block]'s block size.
 func NewCTR(block Block, iv []byte) Stream {
-	if block, ok := block.(*aes.Block); ok {
+	if block, ok := unwrapAESBlock(block); ok {
 		return aesCtrWrapper{aes.NewCTR(block, iv)}
 	}
 	if fips140only.Enforced() {
@@ -69,7 +69,7 @@ type aesCtrWrapper struct {
 }
 
 func (x aesCtrWrapper) XORKeyStream(dst, src []byte) {
-	x.c.XORKeyStream(dst, src)
+	subtle.WithDataIndependentTiming(func() { x.c.XORKeyStream(dst, src) })
 }
 
 func (x *ctr) refill() {
@@ -100,7 +100,7 @@ func (x *ctr) XORKeyStream(dst, src []byte) {
 	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
-	if _, ok := x.b.(*aes.Block); ok {
+	if _, ok := unwrapAESBlock(x.b); ok {
 		panic("crypto/cipher: internal error: generic CTR used with AES")
 	}
 	for len(src) > 0 {

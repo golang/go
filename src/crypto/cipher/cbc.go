@@ -17,6 +17,8 @@ import (
 	"crypto/internal/fips140/alias"
 	"crypto/internal/fips140only"
 	"crypto/subtle"
+	"internal/runtime/sys"
+	_ "unsafe"
 )
 
 type cbc struct {
@@ -44,6 +46,55 @@ type cbcEncAble interface {
 	NewCBCEncrypter(iv []byte) BlockMode
 }
 
+var unwrapAESBlockFunc func(Block) (*aes.Block, bool)
+
+//go:linkname registerAESBlockUnwrap
+func registerAESBlockUnwrap(fn func(Block) (*aes.Block, bool)) {
+	unwrapAESBlockFunc = fn
+}
+
+func unwrapAESBlock(b Block) (*aes.Block, bool) {
+	if b, ok := b.(*aes.Block); ok {
+		return b, true
+	}
+	if unwrapAESBlockFunc != nil {
+		return unwrapAESBlockFunc(b)
+	}
+	return nil, false
+}
+
+type aesCBCEncrypterWrapper struct {
+	c *aes.CBCEncrypter
+}
+
+func (w aesCBCEncrypterWrapper) BlockSize() int {
+	return w.c.BlockSize()
+}
+
+func (w aesCBCEncrypterWrapper) CryptBlocks(dst, src []byte) {
+	subtle.WithDataIndependentTiming(func() { w.c.CryptBlocks(dst, src) })
+}
+
+func (w aesCBCEncrypterWrapper) SetIV(iv []byte) {
+	w.c.SetIV(iv)
+}
+
+type aesCBCDecrypterWrapper struct {
+	c *aes.CBCDecrypter
+}
+
+func (w aesCBCDecrypterWrapper) BlockSize() int {
+	return w.c.BlockSize()
+}
+
+func (w aesCBCDecrypterWrapper) CryptBlocks(dst, src []byte) {
+	subtle.WithDataIndependentTiming(func() { w.c.CryptBlocks(dst, src) })
+}
+
+func (w aesCBCDecrypterWrapper) SetIV(iv []byte) {
+	w.c.SetIV(iv)
+}
+
 // NewCBCEncrypter returns a BlockMode which encrypts in cipher block chaining
 // mode, using the given Block. The length of iv must be the same as the
 // Block's block size.
@@ -51,8 +102,12 @@ func NewCBCEncrypter(b Block, iv []byte) BlockMode {
 	if len(iv) != b.BlockSize() {
 		panic("cipher.NewCBCEncrypter: IV length must equal block size")
 	}
-	if b, ok := b.(*aes.Block); ok {
-		return aes.NewCBCEncrypter(b, [16]byte(iv))
+	if b, ok := unwrapAESBlock(b); ok {
+		c := aes.NewCBCEncrypter(b, [16]byte(iv))
+		if !sys.DITSupported {
+			return c
+		}
+		return aesCBCEncrypterWrapper{c}
 	}
 	if fips140only.Enforced() {
 		panic("crypto/cipher: use of CBC with non-AES ciphers is not allowed in FIPS 140-only mode")
@@ -86,7 +141,7 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
 	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
-	if _, ok := x.b.(*aes.Block); ok {
+	if _, ok := unwrapAESBlock(x.b); ok {
 		panic("crypto/cipher: internal error: generic CBC used with AES")
 	}
 
@@ -130,8 +185,12 @@ func NewCBCDecrypter(b Block, iv []byte) BlockMode {
 	if len(iv) != b.BlockSize() {
 		panic("cipher.NewCBCDecrypter: IV length must equal block size")
 	}
-	if b, ok := b.(*aes.Block); ok {
-		return aes.NewCBCDecrypter(b, [16]byte(iv))
+	if b, ok := unwrapAESBlock(b); ok {
+		c := aes.NewCBCDecrypter(b, [16]byte(iv))
+		if !sys.DITSupported {
+			return c
+		}
+		return aesCBCDecrypterWrapper{c}
 	}
 	if fips140only.Enforced() {
 		panic("crypto/cipher: use of CBC with non-AES ciphers is not allowed in FIPS 140-only mode")
@@ -165,7 +224,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
-	if _, ok := x.b.(*aes.Block); ok {
+	if _, ok := unwrapAESBlock(x.b); ok {
 		panic("crypto/cipher: internal error: generic CBC used with AES")
 	}
 	if len(src) == 0 {

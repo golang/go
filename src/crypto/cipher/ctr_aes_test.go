@@ -127,7 +127,7 @@ func TestCTR_AES_blocks8FastPathMatchesGeneric(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := block.(*fipsaes.Block); !ok {
+	if boring.Enabled {
 		t.Skip("requires crypto/internal/fips140/aes")
 	}
 
@@ -319,7 +319,11 @@ func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
 				t.Fatal(err)
 			}
 			genericCtr, _ := makeTestingCiphers(aesBlock, iv)
-			ctrAt := fipsaes.NewCTR(aesBlock.(*fipsaes.Block), iv)
+			fipsBlock, err := fipsaes.New(key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctrAt := fipsaes.NewCTR(fipsBlock, iv)
 
 			// Generate reference ciphertext.
 			genericCiphertext := make([]byte, Size)

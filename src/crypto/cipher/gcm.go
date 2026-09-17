@@ -5,13 +5,13 @@
 package cipher
 
 import (
-	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
 	"crypto/internal/fips140/alias"
 	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"errors"
 	"internal/byteorder"
+	"internal/runtime/sys"
 )
 
 const (
@@ -60,7 +60,7 @@ func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
 }
 
 func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
-	c, ok := cipher.(*aes.Block)
+	c, ok := unwrapAESBlock(cipher)
 	if !ok {
 		if fips140only.Enforced() {
 			return nil, errors.New("crypto/cipher: use of GCM with non-AES ciphers is not allowed in FIPS 140-only mode")
@@ -69,11 +69,47 @@ func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 	}
 	// We don't return gcm.New directly, because it would always return a non-nil
 	// AEAD interface value with type *gcm.GCM even if the *gcm.GCM is nil.
-	g, err := gcm.New(c, nonceSize, tagSize)
+	var g *gcm.GCM
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		g, err = gcm.New(c, nonceSize, tagSize)
+	})
 	if err != nil {
 		return nil, err
 	}
-	return g, nil
+	if !sys.DITSupported {
+		return g, nil
+	}
+	return aesGCMWrapper{g}, nil
+}
+
+type aesGCMWrapper struct {
+	g *gcm.GCM
+}
+
+func (w aesGCMWrapper) NonceSize() int {
+	return w.g.NonceSize()
+}
+
+func (w aesGCMWrapper) Overhead() int {
+	return w.g.Overhead()
+}
+
+func (w aesGCMWrapper) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
+	var out []byte
+	subtle.WithDataIndependentTiming(func() {
+		out = w.g.Seal(dst, nonce, plaintext, additionalData)
+	})
+	return out
+}
+
+func (w aesGCMWrapper) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
+	var out []byte
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		out, err = w.g.Open(dst, nonce, ciphertext, additionalData)
+	})
+	return out, err
 }
 
 // NewGCMWithRandomNonce returns the given cipher wrapped in Galois Counter
@@ -87,11 +123,15 @@ func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 // A given key MUST NOT be used to encrypt more than 2^32 messages, to limit the
 // risk of a random nonce collision to negligible levels.
 func NewGCMWithRandomNonce(cipher Block) (AEAD, error) {
-	c, ok := cipher.(*aes.Block)
+	c, ok := unwrapAESBlock(cipher)
 	if !ok {
 		return nil, errors.New("cipher: NewGCMWithRandomNonce requires aes.Block")
 	}
-	g, err := gcm.New(c, gcmStandardNonceSize, gcmTagSize)
+	var g *gcm.GCM
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		g, err = gcm.New(c, gcmStandardNonceSize, gcmTagSize)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +193,7 @@ func (g gcmWithRandomNonce) Seal(dst, nonce, plaintext, additionalData []byte) [
 		plaintext = ciphertext[:len(plaintext)]
 	}
 
-	gcm.SealWithRandomNonce(g.GCM, nonce, ciphertext, plaintext, additionalData)
+	subtle.WithDataIndependentTiming(func() { gcm.SealWithRandomNonce(g.GCM, nonce, ciphertext, plaintext, additionalData) })
 	return ret
 }
 
@@ -186,7 +226,8 @@ func (g gcmWithRandomNonce) Open(dst, nonce, ciphertext, additionalData []byte) 
 		ciphertext = ciphertext[gcmStandardNonceSize:]
 	}
 
-	_, err := g.GCM.Open(out[:0], nonce, ciphertext, additionalData)
+	var err error
+	subtle.WithDataIndependentTiming(func() { _, err = g.GCM.Open(out[:0], nonce, ciphertext, additionalData) })
 	if err != nil {
 		return nil, err
 	}
@@ -252,16 +293,18 @@ func (g *gcmFallback) Seal(dst, nonce, plaintext, additionalData []byte) []byte 
 		panic("crypto/cipher: invalid buffer overlap of output and additional data")
 	}
 
-	var H, counter, tagMask [gcmBlockSize]byte
-	g.cipher.Encrypt(H[:], H[:])
-	deriveCounter(&H, &counter, nonce)
-	gcmCounterCryptGeneric(g.cipher, tagMask[:], tagMask[:], &counter)
+	subtle.WithDataIndependentTiming(func() {
+		var H, counter, tagMask [gcmBlockSize]byte
+		g.cipher.Encrypt(H[:], H[:])
+		deriveCounter(&H, &counter, nonce)
+		gcmCounterCryptGeneric(g.cipher, tagMask[:], tagMask[:], &counter)
 
-	gcmCounterCryptGeneric(g.cipher, out, plaintext, &counter)
+		gcmCounterCryptGeneric(g.cipher, out, plaintext, &counter)
 
-	var tag [gcmTagSize]byte
-	gcmAuth(tag[:], &H, &tagMask, out[:len(plaintext)], additionalData)
-	copy(out[len(plaintext):], tag[:])
+		var tag [gcmTagSize]byte
+		gcmAuth(tag[:], &H, &tagMask, out[:len(plaintext)], additionalData)
+		copy(out[len(plaintext):], tag[:])
+	})
 
 	return ret
 }
@@ -291,26 +334,33 @@ func (g *gcmFallback) Open(dst, nonce, ciphertext, additionalData []byte) ([]byt
 		panic("crypto/cipher: invalid buffer overlap of output and additional data")
 	}
 
-	var H, counter, tagMask [gcmBlockSize]byte
-	g.cipher.Encrypt(H[:], H[:])
-	deriveCounter(&H, &counter, nonce)
-	gcmCounterCryptGeneric(g.cipher, tagMask[:], tagMask[:], &counter)
+	var authErr error
+	subtle.WithDataIndependentTiming(func() {
+		var H, counter, tagMask [gcmBlockSize]byte
+		g.cipher.Encrypt(H[:], H[:])
+		deriveCounter(&H, &counter, nonce)
+		gcmCounterCryptGeneric(g.cipher, tagMask[:], tagMask[:], &counter)
 
-	tag := ciphertext[len(ciphertext)-g.tagSize:]
-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+		tag := ciphertext[len(ciphertext)-g.tagSize:]
+		ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 
-	var expectedTag [gcmTagSize]byte
-	gcmAuth(expectedTag[:], &H, &tagMask, ciphertext, additionalData)
-	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
-		// We sometimes decrypt and authenticate concurrently, so we overwrite
-		// dst in the event of a tag mismatch. To be consistent across platforms
-		// and to avoid releasing unauthenticated plaintext, we clear the buffer
-		// in the event of an error.
-		clear(out)
-		return nil, errOpen
+		var expectedTag [gcmTagSize]byte
+		gcmAuth(expectedTag[:], &H, &tagMask, ciphertext, additionalData)
+		if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+			// We sometimes decrypt and authenticate concurrently, so we overwrite
+			// dst in the event of a tag mismatch. To be consistent across platforms
+			// and to avoid releasing unauthenticated plaintext, we clear the buffer
+			// in the event of an error.
+			clear(out)
+			authErr = errOpen
+			return
+		}
+
+		gcmCounterCryptGeneric(g.cipher, out, ciphertext, &counter)
+	})
+	if authErr != nil {
+		return nil, authErr
 	}
-
-	gcmCounterCryptGeneric(g.cipher, out, ciphertext, &counter)
 
 	return ret, nil
 }
