@@ -11,6 +11,7 @@ import (
 	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
 	"crypto/internal/rand"
+	"crypto/subtle"
 	"errors"
 	"hash"
 	"io"
@@ -122,7 +123,9 @@ func SignPSS(random io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte
 		}
 	}
 
-	return fipsError2(rsa.SignPSS(random, k, h, digest, saltLength))
+	var sig []byte
+	subtle.WithDataIndependentTiming(func() { sig, err = fipsError2(rsa.SignPSS(random, k, h, digest, saltLength)) })
+	return sig, err
 }
 
 // VerifyPSS verifies a PSS signature.
@@ -263,7 +266,9 @@ func encryptOAEP(hash hash.Hash, mgfHash hash.Hash, random io.Reader, pub *Publi
 	if err != nil {
 		return nil, err
 	}
-	return fipsError2(rsa.EncryptOAEP(hash, mgfHash, random, k, msg, label))
+	var ciphertext []byte
+	subtle.WithDataIndependentTiming(func() { ciphertext, err = fipsError2(rsa.EncryptOAEP(hash, mgfHash, random, k, msg, label)) })
+	return ciphertext, err
 }
 
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
@@ -320,7 +325,9 @@ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 		return nil, err
 	}
 
-	return fipsError2(rsa.DecryptOAEP(hash, mgfHash, k, ciphertext, label))
+	var plaintext []byte
+	subtle.WithDataIndependentTiming(func() { plaintext, err = fipsError2(rsa.DecryptOAEP(hash, mgfHash, k, ciphertext, label)) })
+	return plaintext, err
 }
 
 // SignPKCS1v15 calculates the signature of hashed using
@@ -369,7 +376,9 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 	if err != nil {
 		return nil, err
 	}
-	return fipsError2(rsa.SignPKCS1v15(k, hashName, hashed))
+	var sig []byte
+	subtle.WithDataIndependentTiming(func() { sig, err = fipsError2(rsa.SignPKCS1v15(k, hashName, hashed)) })
+	return sig, err
 }
 
 // VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.

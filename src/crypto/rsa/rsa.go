@@ -599,9 +599,13 @@ func (priv *PrivateKey) precompute() (PrecomputedValues, error) {
 
 	// If the CRT values are already set, use them.
 	if priv.Precomputed.Dp != nil && priv.Precomputed.Dq != nil && priv.Precomputed.Qinv != nil {
-		k, err := rsa.NewPrivateKeyWithPrecomputation(priv.N.Bytes(), priv.E, priv.D.Bytes(),
-			priv.Primes[0].Bytes(), priv.Primes[1].Bytes(),
-			priv.Precomputed.Dp.Bytes(), priv.Precomputed.Dq.Bytes(), priv.Precomputed.Qinv.Bytes())
+		var k *rsa.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() {
+			k, err = rsa.NewPrivateKeyWithPrecomputation(priv.N.Bytes(), priv.E, priv.D.Bytes(),
+				priv.Primes[0].Bytes(), priv.Primes[1].Bytes(),
+				priv.Precomputed.Dp.Bytes(), priv.Precomputed.Dq.Bytes(), priv.Precomputed.Qinv.Bytes())
+		})
 		if err != nil {
 			return precomputed, err
 		}
@@ -611,8 +615,12 @@ func (priv *PrivateKey) precompute() (PrecomputedValues, error) {
 		return precomputed, nil
 	}
 
-	k, err := rsa.NewPrivateKey(priv.N.Bytes(), priv.E, priv.D.Bytes(),
-		priv.Primes[0].Bytes(), priv.Primes[1].Bytes())
+	var k *rsa.PrivateKey
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		k, err = rsa.NewPrivateKey(priv.N.Bytes(), priv.E, priv.D.Bytes(),
+			priv.Primes[0].Bytes(), priv.Primes[1].Bytes())
+	})
 	if err != nil {
 		return precomputed, err
 	}
@@ -629,7 +637,11 @@ func (priv *PrivateKey) precompute() (PrecomputedValues, error) {
 func (priv *PrivateKey) precomputeLegacy() (PrecomputedValues, error) {
 	var precomputed PrecomputedValues
 
-	k, err := rsa.NewPrivateKeyWithoutCRT(priv.N.Bytes(), priv.E, priv.D.Bytes())
+	var k *rsa.PrivateKey
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		k, err = rsa.NewPrivateKeyWithoutCRT(priv.N.Bytes(), priv.E, priv.D.Bytes())
+	})
 	if err != nil {
 		return precomputed, err
 	}

@@ -96,7 +96,9 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	return rsa.Encrypt(fk, em)
+	var ciphertext []byte
+	subtle.WithDataIndependentTiming(func() { ciphertext, err = rsa.Encrypt(fk, em) })
+	return ciphertext, err
 }
 
 // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from
@@ -188,20 +190,26 @@ func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []
 		return ErrDecryption
 	}
 
-	valid, em, index, err := decryptPKCS1v15(priv, ciphertext)
-	if err != nil {
-		return err
-	}
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		var valid, index int
+		var em []byte
+		valid, em, index, err = decryptPKCS1v15(priv, ciphertext)
+		if err != nil {
+			return
+		}
 
-	if len(em) != k {
-		// This should be impossible because decryptPKCS1v15 always
-		// returns the full slice.
-		return ErrDecryption
-	}
+		if len(em) != k {
+			// This should be impossible because decryptPKCS1v15 always
+			// returns the full slice.
+			err = ErrDecryption
+			return
+		}
 
-	valid &= subtle.ConstantTimeEq(int32(len(em)-index), int32(len(key)))
-	subtle.ConstantTimeCopy(valid, key, em[len(em)-len(key):])
-	return nil
+		valid &= subtle.ConstantTimeEq(int32(len(em)-index), int32(len(key)))
+		subtle.ConstantTimeCopy(valid, key, em[len(em)-len(key):])
+	})
+	return err
 }
 
 // decryptPKCS1v15 decrypts ciphertext using priv. It returns one or zero in
@@ -221,48 +229,56 @@ func decryptPKCS1v15(priv *PrivateKey, ciphertext []byte) (valid int, em []byte,
 		return 0, nil, 0, err
 	}
 
-	if boring.Enabled && priv.N.BitLen() >= 1024 {
-		var bkey *boring.PrivateKeyRSA
-		bkey, err = boringPrivateKey(priv)
-		if err != nil {
-			return 0, nil, 0, err
+	subtle.WithDataIndependentTiming(func() {
+		if boring.Enabled && priv.N.BitLen() >= 1024 {
+			var bkey *boring.PrivateKeyRSA
+			bkey, err = boringPrivateKey(priv)
+			if err != nil {
+				return
+			}
+			em, err = boring.DecryptRSANoPadding(bkey, ciphertext)
+			if err != nil {
+				err = ErrDecryption
+				return
+			}
+		} else {
+			var fk *rsa.PrivateKey
+			fk, err = fipsPrivateKey(priv)
+			if err != nil {
+				return
+			}
+			em, err = rsa.DecryptWithoutCheck(fk, ciphertext)
+			if err != nil {
+				err = ErrDecryption
+				return
+			}
 		}
-		em, err = boring.DecryptRSANoPadding(bkey, ciphertext)
-		if err != nil {
-			return 0, nil, 0, ErrDecryption
+
+		firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
+		secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2)
+
+		// The remainder of the plaintext must be a string of non-zero random
+		// octets, followed by a 0, followed by the message.
+		//   lookingForIndex: 1 iff we are still looking for the zero.
+		//   index: the offset of the first zero byte.
+		lookingForIndex := 1
+
+		for i := 2; i < len(em); i++ {
+			equals0 := subtle.ConstantTimeByteEq(em[i], 0)
+			index = subtle.ConstantTimeSelect(lookingForIndex&equals0, i, index)
+			lookingForIndex = subtle.ConstantTimeSelect(equals0, 0, lookingForIndex)
 		}
-	} else {
-		fk, err := fipsPrivateKey(priv)
-		if err != nil {
-			return 0, nil, 0, err
-		}
-		em, err = rsa.DecryptWithoutCheck(fk, ciphertext)
-		if err != nil {
-			return 0, nil, 0, ErrDecryption
-		}
+
+		// The PS padding must be at least 8 bytes long, and it starts two
+		// bytes into em.
+		validPS := subtle.ConstantTimeLessOrEq(2+8, index)
+
+		valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1) & validPS
+		index = subtle.ConstantTimeSelect(valid, index+1, 0)
+	})
+	if err != nil {
+		return 0, nil, 0, err
 	}
-
-	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
-	secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2)
-
-	// The remainder of the plaintext must be a string of non-zero random
-	// octets, followed by a 0, followed by the message.
-	//   lookingForIndex: 1 iff we are still looking for the zero.
-	//   index: the offset of the first zero byte.
-	lookingForIndex := 1
-
-	for i := 2; i < len(em); i++ {
-		equals0 := subtle.ConstantTimeByteEq(em[i], 0)
-		index = subtle.ConstantTimeSelect(lookingForIndex&equals0, i, index)
-		lookingForIndex = subtle.ConstantTimeSelect(equals0, 0, lookingForIndex)
-	}
-
-	// The PS padding must be at least 8 bytes long, and it starts two
-	// bytes into em.
-	validPS := subtle.ConstantTimeLessOrEq(2+8, index)
-
-	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1) & validPS
-	index = subtle.ConstantTimeSelect(valid, index+1, 0)
 	return valid, em, index, nil
 }
 
