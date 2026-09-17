@@ -29,6 +29,7 @@ import (
 	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"hash"
+	"internal/runtime/sys"
 )
 
 // New returns a new HMAC hash using the given [hash.Hash] type and key.
@@ -54,7 +55,70 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
 			panic("crypto/hmac: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 		}
 	}
-	return hmac.New(h, key)
+	var hm *hmac.HMAC
+	subtle.WithDataIndependentTiming(func() {
+		hm = hmac.New(h, key)
+	})
+	if !sys.DITSupported {
+		return hm
+	}
+	// Frozen FIPS 140-3 v1.0.0 predates hmac.HMAC.Clone, so only expose
+	// hash.Cloner via hmacClonerWrapper when the underlying HMAC implements it.
+	if _, ok := any(hm).(hash.Cloner); ok {
+		return hmacClonerWrapper{hmacWrapper{hm}}
+	}
+	return hmacWrapper{hm}
+}
+
+type hmacWrapper struct {
+	h *hmac.HMAC
+}
+
+func (w hmacWrapper) Write(p []byte) (int, error) {
+	var n int
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		n, err = w.h.Write(p)
+	})
+	return n, err
+}
+
+func (w hmacWrapper) Sum(b []byte) []byte {
+	var out []byte
+	subtle.WithDataIndependentTiming(func() {
+		out = w.h.Sum(b)
+	})
+	return out
+}
+
+func (w hmacWrapper) Reset() {
+	subtle.WithDataIndependentTiming(func() {
+		w.h.Reset()
+	})
+}
+
+func (w hmacWrapper) Size() int {
+	return w.h.Size()
+}
+
+func (w hmacWrapper) BlockSize() int {
+	return w.h.BlockSize()
+}
+
+type hmacClonerWrapper struct {
+	hmacWrapper
+}
+
+func (w hmacClonerWrapper) Clone() (hash.Cloner, error) {
+	var c hash.Cloner
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		c, err = any(w.h).(hash.Cloner).Clone()
+	})
+	if err != nil {
+		return nil, err
+	}
+	return hmacClonerWrapper{hmacWrapper{any(c).(*hmac.HMAC)}}, nil
 }
 
 // Equal compares two MACs for equality without leaking timing information.
