@@ -143,9 +143,9 @@ func TestProbablyPrime(t *testing.T) {
 		}
 	}
 
-	// check that ProbablyPrime panics if n <= 0
+	// check that ProbablyPrime panics if n < 0
 	c := NewInt(11) // a prime
-	for _, n := range []int{-1, 0, 1} {
+	for _, n := range []int{math.MinInt, -1, 0, 1} {
 		func() {
 			defer func() {
 				if n < 0 && recover() == nil {
@@ -160,12 +160,29 @@ func TestProbablyPrime(t *testing.T) {
 }
 
 func TestProbablyPrimeMaxInt(t *testing.T) {
-	// These Lucas pseudoprimes must still be rejected by Miller-Rabin
-	// when adding its extra base-2 round would overflow an int.
-	for _, v := range []int64{10877, 27971, 29681, 30739, 31631} {
+	// Larger primes would be too slow with these round counts.
+	for _, test := range []struct {
+		x    int64
+		want bool
+	}{
+		{-2, false},
+		{0, false},
+		{1, false},
+		{2, true},
+		{61, true},
+		{63, false},
+		{64, false},
+		{65, false},
+		// Lucas pseudoprimes, rejected only by the base-2 Miller-Rabin round.
+		{10877, false},
+		{27971, false},
+		{29681, false},
+		{30739, false},
+		{31631, false},
+	} {
 		for _, n := range []int{math.MaxInt - 1, math.MaxInt} {
-			if NewInt(v).ProbablyPrime(n) {
-				t.Errorf("%d.ProbablyPrime(%d) = true, want false", v, n)
+			if got := NewInt(test.x).ProbablyPrime(n); got != test.want {
+				t.Errorf("%d.ProbablyPrime(%d) = %v, want %v", test.x, n, got, test.want)
 			}
 		}
 	}
