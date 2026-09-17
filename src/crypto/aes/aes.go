@@ -17,7 +17,10 @@ import (
 	"crypto/cipher"
 	"crypto/internal/boring"
 	"crypto/internal/fips140/aes"
+	"crypto/subtle"
+	"internal/runtime/sys"
 	"strconv"
+	_ "unsafe"
 )
 
 // The AES block size in bytes.
@@ -44,5 +47,44 @@ func NewCipher(key []byte) (cipher.Block, error) {
 	if boring.Enabled {
 		return boring.NewAESCipher(key)
 	}
-	return aes.New(key)
+	var block *aes.Block
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		block, err = aes.New(key)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !sys.DITSupported {
+		return block, nil
+	}
+	return aesBlockWrapper{block}, nil
 }
+
+type aesBlockWrapper struct {
+	b *aes.Block
+}
+
+func (w aesBlockWrapper) BlockSize() int {
+	return w.b.BlockSize()
+}
+
+func (w aesBlockWrapper) Encrypt(dst, src []byte) {
+	subtle.WithDataIndependentTiming(func() { w.b.Encrypt(dst, src) })
+}
+
+func (w aesBlockWrapper) Decrypt(dst, src []byte) {
+	subtle.WithDataIndependentTiming(func() { w.b.Decrypt(dst, src) })
+}
+
+func init() {
+	registerAESBlockUnwrap(func(b cipher.Block) (*aes.Block, bool) {
+		if w, ok := b.(aesBlockWrapper); ok {
+			return w.b, true
+		}
+		return nil, false
+	})
+}
+
+//go:linkname registerAESBlockUnwrap crypto/cipher.registerAESBlockUnwrap
+func registerAESBlockUnwrap(func(cipher.Block) (*aes.Block, bool))
