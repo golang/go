@@ -27,3 +27,9 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
+# golang.org/x/tools v0.50.1-0.20260909225150-e75ea804503b
+## explicit; go 1.26.0
+golang.org/x/tools/go/gcexportdata
+golang.org/x/tools/go/types/objectpath
+golang.org/x/tools/internal/gcimporter
+golang.org/x/tools/internal/pkgbits

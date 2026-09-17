@@ -637,9 +637,26 @@ var depsRules = `
 	hash/maphash, container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
 	< go/types;
 
-	DEBUG, go/build, go/types, text/scanner, crypto/sha256
-	< internal/pkgbits, internal/exportdata
-	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
+	# x/tools
+	# These are the only allowed dependencies of gcexportdata. Any change here
+	# must be mirrored in x/tools/go/gcexportdata/deps_test.go.
+	FMT, STR, crypto/md5, encoding/binary, encoding/json, go/build, go/token, go/types
+	< golang.org/x/tools/go/types/objectpath,
+	  golang.org/x/tools/internal/pkgbits
+	< golang.org/x/tools/internal/gcimporter
+	< golang.org/x/tools/go/gcexportdata;
+
+	# go/importer
+	DEBUG, crypto/sha256, go/build, go/types, text/scanner
+	< internal/exportdata, internal/pkgbits;
+
+	golang.org/x/tools/go/gcexportdata, internal/exportdata, internal/pkgbits
+	< go/internal/gcimporter;
+
+	internal/exportdata, internal/pkgbits
+	< go/internal/gccgoimporter, go/internal/srcimporter;
+
+	go/internal/gccgoimporter, go/internal/gcimporter, go/internal/srcimporter
 	< go/importer;
 
 	NET, crypto/rand, mime/quotedprintable

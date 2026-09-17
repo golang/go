@@ -2,25 +2,49 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package gcimporter implements Import for gc-generated object files.
-package gcimporter // import "go/internal/gcimporter"
+// This file is a reduced copy of $GOROOT/src/go/internal/gcimporter/gcimporter.go.
+
+// Package gcimporter provides various functions for reading
+// gc-generated object files that can be used to implement the
+// Importer interface defined by the Go 1.5 standard library package.
+//
+// The encoding is deterministic: if the encoder is applied twice to
+// the same types.Package data structure, both encodings are equal.
+// This property may be important to avoid spurious changes in
+// applications such as build systems.
+//
+// However, the encoder is not necessarily idempotent. Importing an
+// exported package may yield a types.Package that, while it
+// represents the same set of Go types as the original, may differ in
+// the details of its internal representation. Because of these
+// differences, re-encoding the imported package may yield a
+// different, but equally valid, encoding of the package.
+package gcimporter // import "golang.org/x/tools/internal/gcimporter"
 
 import (
 	"bufio"
 	"fmt"
 	"go/token"
 	"go/types"
-	"internal/exportdata"
-	"internal/pkgbits"
 	"io"
 	"os"
+	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
+)
 
-	"golang.org/x/tools/go/gcexportdata"
+const (
+	// Enable debug during development: it adds some additional checks, and
+	// prevents errors from being recovered.
+	debug = false
+
+	// If trace is set, debugging output is printed to std out.
+	trace = false
 )
 
 // Import imports a gc-generated package given its import path and srcDir, adds
 // the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
+//
+// Import is only used in tests.
 func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
 	var rc io.ReadCloser
 	var id string
@@ -43,7 +67,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 		rc = f
 	} else {
 		var filename string
-		filename, id, err = exportdata.FindPkg(path, srcDir)
+		filename, id, err = FindPkg(path, srcDir)
 		if filename == "" {
 			if path == "unsafe" {
 				return types.Unsafe, nil
@@ -72,23 +96,14 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 	defer rc.Close()
 
 	buf := bufio.NewReader(rc)
-	peek, err := buf.Peek(1)
-	if err != nil {
-		return
-	}
-	if peek[0] == 'i' {
-		pkg, err = gcexportdata.Read(buf, fset, packages, path)
-		return
-	}
-	data, err := exportdata.ReadUnified(buf, false)
+	data, err := ReadUnified(buf)
 	if err != nil {
 		err = fmt.Errorf("import %q: %v", path, err)
 		return
 	}
-	s := string(data)
 
-	input := pkgbits.NewPkgDecoder(id, s)
-	pkg = readUnifiedPackage(fset, nil, packages, input)
+	// unified: emitted by cmd/compile since go1.20.
+	_, pkg, err = UImportData(fset, packages, data, id)
 
 	return
 }
