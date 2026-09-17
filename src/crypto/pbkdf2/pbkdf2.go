@@ -14,6 +14,7 @@ import (
 	"crypto/internal/fips140/pbkdf2"
 	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
+	"crypto/subtle"
 	"errors"
 	"hash"
 )
@@ -50,5 +51,8 @@ func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyL
 			return nil, errors.New("crypto/pbkdf2: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 		}
 	}
-	return pbkdf2.Key(fh, password, salt, iter, keyLength)
+	var key []byte
+	var err error
+	subtle.WithDataIndependentTiming(func() { key, err = pbkdf2.Key(fh, password, salt, iter, keyLength) })
+	return key, err
 }
