@@ -95,8 +95,15 @@ var privateKeyCache fips140cache.Cache[byte, ed25519.PrivateKey]
 // A value of type [Options] can be used as opts, or crypto.Hash(0) or
 // crypto.SHA512 directly to select plain Ed25519 or Ed25519ph, respectively.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	// Keep privateKeyCache.Get outside WithDataIndependentTiming so that
+	// runtime.AddCleanup cannot spawn a cleanup goroutine inheriting DIT state.
 	k, err := privateKeyCache.Get(&priv[0], func() (*ed25519.PrivateKey, error) {
-		return ed25519.NewPrivateKey(priv)
+		var pk *ed25519.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() {
+			pk, err = ed25519.NewPrivateKey(priv)
+		})
+		return pk, err
 	}, func(k *ed25519.PrivateKey) bool {
 		return subtle.ConstantTimeCompare(priv, k.Bytes()) == 1
 	})
@@ -108,19 +115,26 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	if opts, ok := opts.(*Options); ok {
 		context = opts.Context
 	}
-	switch {
-	case hash == crypto.SHA512: // Ed25519ph
-		return ed25519.SignPH(k, message, context)
-	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
-		if fips140only.Enforced() {
-			return nil, errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
+	subtle.WithDataIndependentTiming(func() {
+		switch {
+		case hash == crypto.SHA512: // Ed25519ph
+			signature, err = ed25519.SignPH(k, message, context)
+		case hash == crypto.Hash(0) && context != "": // Ed25519ctx
+			if fips140only.Enforced() {
+				err = errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
+				return
+			}
+			signature, err = ed25519.SignCtx(k, message, context)
+		case hash == crypto.Hash(0): // Ed25519
+			signature, err = ed25519.Sign(k, message), nil
+		default:
+			err = errors.New("ed25519: expected opts.HashFunc() zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
 		}
-		return ed25519.SignCtx(k, message, context)
-	case hash == crypto.Hash(0): // Ed25519
-		return ed25519.Sign(k, message), nil
-	default:
-		return nil, errors.New("ed25519: expected opts.HashFunc() zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
+	})
+	if err != nil {
+		return nil, err
 	}
+	return signature, nil
 }
 
 // Options can be used with [PrivateKey.Sign] or [VerifyWithOptions]
@@ -165,12 +179,22 @@ func GenerateKey(random io.Reader) (PublicKey, PrivateKey, error) {
 	}
 
 	if rand.IsDefaultReader(random) {
-		privateKey, err := ed25519.GenerateKey()
+		var publicKey PublicKey
+		var privateKey PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() {
+			var k *ed25519.PrivateKey
+			k, err = ed25519.GenerateKey()
+			if err != nil {
+				return
+			}
+			publicKey = PublicKey(k.PublicKey())
+			privateKey = PrivateKey(k.Bytes())
+		})
 		if err != nil {
 			return nil, nil, err
 		}
-		publicKey := PublicKey(privateKey.PublicKey())
-		return publicKey, PrivateKey(privateKey.Bytes()), nil
+		return publicKey, privateKey, nil
 	}
 
 	seed := make([]byte, SeedSize)
@@ -194,13 +218,21 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 	return privateKey
 }
 
+//go:noinline
 func newKeyFromSeed(privateKey, seed []byte) {
-	k, err := ed25519.NewPrivateKeyFromSeed(seed)
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		var k *ed25519.PrivateKey
+		k, err = ed25519.NewPrivateKeyFromSeed(seed)
+		if err != nil {
+			return
+		}
+		copy(privateKey, k.Bytes())
+	})
 	if err != nil {
 		// NewPrivateKeyFromSeed only returns an error if the seed length is incorrect.
 		panic("ed25519: bad seed length: " + strconv.Itoa(len(seed)))
 	}
-	copy(privateKey, k.Bytes())
 }
 
 // Sign signs the message with privateKey and returns a signature. It will
@@ -214,16 +246,25 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 }
 
 func sign(signature []byte, privateKey PrivateKey, message []byte) {
+	// Keep privateKeyCache.Get outside WithDataIndependentTiming so that
+	// runtime.AddCleanup cannot spawn a cleanup goroutine inheriting DIT state.
 	k, err := privateKeyCache.Get(&privateKey[0], func() (*ed25519.PrivateKey, error) {
-		return ed25519.NewPrivateKey(privateKey)
+		var pk *ed25519.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() {
+			pk, err = ed25519.NewPrivateKey(privateKey)
+		})
+		return pk, err
 	}, func(k *ed25519.PrivateKey) bool {
 		return subtle.ConstantTimeCompare(privateKey, k.Bytes()) == 1
 	})
 	if err != nil {
 		panic("ed25519: bad private key: " + err.Error())
 	}
-	sig := ed25519.Sign(k, message)
-	copy(signature, sig)
+	subtle.WithDataIndependentTiming(func() {
+		sig := ed25519.Sign(k, message)
+		copy(signature, sig)
+	})
 }
 
 // Verify reports whether sig is a valid signature of message by publicKey. It
