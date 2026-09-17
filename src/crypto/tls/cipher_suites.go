@@ -17,6 +17,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	_ "crypto/sha512" // for crypto.SHA384
+	"crypto/subtle"
 	"fmt"
 	"hash"
 	"internal/cpu"
@@ -464,12 +465,17 @@ func (f *prefixNonceAEAD) explicitNonceLen() int { return f.NonceSize() }
 
 func (f *prefixNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
 	copy(f.nonce[4:], nonce)
-	return f.aead.Seal(out, f.nonce[:], plaintext, additionalData)
+	var ciphertext []byte
+	subtle.WithDataIndependentTiming(func() { ciphertext = f.aead.Seal(out, f.nonce[:], plaintext, additionalData) })
+	return ciphertext
 }
 
 func (f *prefixNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([]byte, error) {
 	copy(f.nonce[4:], nonce)
-	return f.aead.Open(out, f.nonce[:], ciphertext, additionalData)
+	var plaintext []byte
+	var err error
+	subtle.WithDataIndependentTiming(func() { plaintext, err = f.aead.Open(out, f.nonce[:], ciphertext, additionalData) })
+	return plaintext, err
 }
 
 // xorNonceAEAD wraps an AEAD by XORing in a fixed pattern to the nonce
@@ -487,43 +493,57 @@ func (f *xorNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte
 	for i, b := range nonce {
 		f.nonceMask[4+i] ^= b
 	}
-	result := f.aead.Seal(out, f.nonceMask[:], plaintext, additionalData)
+	var ciphertext []byte
+	subtle.WithDataIndependentTiming(func() { ciphertext = f.aead.Seal(out, f.nonceMask[:], plaintext, additionalData) })
 	for i, b := range nonce {
 		f.nonceMask[4+i] ^= b
 	}
 
-	return result
+	return ciphertext
 }
 
 func (f *xorNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([]byte, error) {
 	for i, b := range nonce {
 		f.nonceMask[4+i] ^= b
 	}
-	result, err := f.aead.Open(out, f.nonceMask[:], ciphertext, additionalData)
+	var plaintext []byte
+	var err error
+	subtle.WithDataIndependentTiming(func() { plaintext, err = f.aead.Open(out, f.nonceMask[:], ciphertext, additionalData) })
 	for i, b := range nonce {
 		f.nonceMask[4+i] ^= b
 	}
 
-	return result, err
+	return plaintext, err
 }
 
 func aeadAESGCM(key, noncePrefix []byte) aead {
 	if len(noncePrefix) != noncePrefixLength {
 		panic("tls: internal error: wrong nonce length")
 	}
-	aes, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
 	var aead cipher.AEAD
+	var err error
 	if boring.Enabled {
+		aes, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
 		aead, err = boring.NewGCMTLS(aes)
+		if err != nil {
+			panic(err)
+		}
 	} else {
 		boring.Unreachable()
-		aead, err = gcm.NewGCMForTLS12(aes.(*fipsaes.Block))
-	}
-	if err != nil {
-		panic(err)
+		subtle.WithDataIndependentTiming(func() {
+			var block *fipsaes.Block
+			block, err = fipsaes.New(key)
+			if err != nil {
+				return
+			}
+			aead, err = gcm.NewGCMForTLS12(block)
+		})
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	ret := &prefixNonceAEAD{aead: aead}
@@ -545,19 +565,30 @@ func aeadAESGCMTLS13(key, nonceMask []byte) aead {
 	if len(nonceMask) != aeadNonceLength {
 		panic("tls: internal error: wrong nonce length")
 	}
-	aes, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
 	var aead cipher.AEAD
+	var err error
 	if boring.Enabled {
+		aes, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
 		aead, err = boring.NewGCMTLS13(aes)
+		if err != nil {
+			panic(err)
+		}
 	} else {
 		boring.Unreachable()
-		aead, err = gcm.NewGCMForTLS13(aes.(*fipsaes.Block))
-	}
-	if err != nil {
-		panic(err)
+		subtle.WithDataIndependentTiming(func() {
+			var block *fipsaes.Block
+			block, err = fipsaes.New(key)
+			if err != nil {
+				return
+			}
+			aead, err = gcm.NewGCMForTLS13(block)
+		})
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	ret := &xorNonceAEAD{aead: aead}
@@ -605,14 +636,17 @@ func newConstantTimeHash(h func() hash.Hash) func() hash.Hash {
 
 // tls10MAC implements the TLS 1.0 MAC function. RFC 2246, Section 6.2.3.
 func tls10MAC(h hash.Hash, out, seq, header, data, extra []byte) []byte {
-	h.Reset()
-	h.Write(seq)
-	h.Write(header)
-	h.Write(data)
-	res := h.Sum(out)
-	if extra != nil {
-		h.Write(extra)
-	}
+	var res []byte
+	subtle.WithDataIndependentTiming(func() {
+		h.Reset()
+		h.Write(seq)
+		h.Write(header)
+		h.Write(data)
+		res = h.Sum(out)
+		if extra != nil {
+			h.Write(extra)
+		}
+	})
 	return res
 }
 

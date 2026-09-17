@@ -96,7 +96,10 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 			c.sendAlert(alertInternalError)
 			return err
 		}
-		acceptConfirmation := tls13.ExpandLabel(h, prk, "ech accept confirmation", confTranscript.Sum(nil), 8)
+		var acceptConfirmation []byte
+		subtle.WithDataIndependentTiming(func() {
+			acceptConfirmation = tls13.ExpandLabel(h, prk, "ech accept confirmation", confTranscript.Sum(nil), 8)
+		})
 		if subtle.ConstantTimeCompare(acceptConfirmation, hs.serverHello.random[len(hs.serverHello.random)-8:]) == 1 {
 			hs.hello = hs.echContext.innerHello
 			c.serverName = c.config.ServerName
@@ -279,7 +282,10 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 				c.sendAlert(alertInternalError)
 				return err
 			}
-			acceptConfirmation := tls13.ExpandLabel(h, prk, "hrr ech accept confirmation", confTranscript.Sum(nil), 8)
+			var acceptConfirmation []byte
+			subtle.WithDataIndependentTiming(func() {
+				acceptConfirmation = tls13.ExpandLabel(h, prk, "hrr ech accept confirmation", confTranscript.Sum(nil), 8)
+			})
 			if subtle.ConstantTimeCompare(acceptConfirmation, hs.serverHello.encryptedClientHello) == 1 {
 				hello = hs.echContext.innerHello
 				c.serverName = c.config.ServerName
@@ -496,15 +502,18 @@ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 	c.curveID = hs.serverHello.serverShare.group
 
 	earlySecret := hs.earlySecret
-	if !hs.usingPSK {
-		earlySecret = tls13.NewEarlySecret(hs.suite.hash.New, nil)
-	}
+	var clientSecret, serverSecret []byte
+	subtle.WithDataIndependentTiming(func() {
+		if !hs.usingPSK {
+			earlySecret = tls13.NewEarlySecret(hs.suite.hash.New, nil)
+		}
+		handshakeSecret := earlySecret.HandshakeSecret(sharedKey)
+		clientSecret = handshakeSecret.ClientHandshakeTrafficSecret(hs.transcript)
+		serverSecret = handshakeSecret.ServerHandshakeTrafficSecret(hs.transcript)
+		hs.masterSecret = handshakeSecret.MasterSecret()
+	})
 
-	handshakeSecret := earlySecret.HandshakeSecret(sharedKey)
-
-	clientSecret := handshakeSecret.ClientHandshakeTrafficSecret(hs.transcript)
 	c.setWriteTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, clientSecret)
-	serverSecret := handshakeSecret.ServerHandshakeTrafficSecret(hs.transcript)
 	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, serverSecret, false); err != nil {
 		return err
 	}
@@ -526,8 +535,6 @@ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 		c.sendAlert(alertInternalError)
 		return err
 	}
-
-	hs.masterSecret = handshakeSecret.MasterSecret()
 
 	return nil
 }
@@ -734,8 +741,11 @@ func (hs *clientHandshakeStateTLS13) readServerFinished() error {
 
 	// Derive secrets that take context through the server Finished.
 
-	hs.trafficSecret = hs.masterSecret.ClientApplicationTrafficSecret(hs.transcript)
-	serverSecret := hs.masterSecret.ServerApplicationTrafficSecret(hs.transcript)
+	var serverSecret []byte
+	subtle.WithDataIndependentTiming(func() {
+		hs.trafficSecret = hs.masterSecret.ClientApplicationTrafficSecret(hs.transcript)
+		serverSecret = hs.masterSecret.ServerApplicationTrafficSecret(hs.transcript)
+	})
 	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelApplication, serverSecret, false); err != nil {
 		return err
 	}
@@ -848,7 +858,7 @@ func (hs *clientHandshakeStateTLS13) sendClientFinished() error {
 	c.setWriteTrafficSecret(hs.suite, QUICEncryptionLevelApplication, hs.trafficSecret)
 
 	if !c.config.SessionTicketsDisabled && c.config.ClientSessionCache != nil {
-		c.resumptionSecret = hs.masterSecret.ResumptionMasterSecret(hs.transcript)
+		subtle.WithDataIndependentTiming(func() { c.resumptionSecret = hs.masterSecret.ResumptionMasterSecret(hs.transcript) })
 	}
 
 	if c.quic != nil {
@@ -894,8 +904,11 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 		return c.sendAlert(alertInternalError)
 	}
 
-	psk := tls13.ExpandLabel(cipherSuite.hash.New, c.resumptionSecret, "resumption",
-		msg.nonce, cipherSuite.hash.Size())
+	var psk []byte
+	subtle.WithDataIndependentTiming(func() {
+		psk = tls13.ExpandLabel(cipherSuite.hash.New, c.resumptionSecret, "resumption",
+			msg.nonce, cipherSuite.hash.Size())
+	})
 
 	session := c.sessionState()
 	session.secret = psk

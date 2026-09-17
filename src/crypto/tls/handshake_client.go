@@ -306,7 +306,8 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 		if err := transcriptMsg(transcriptHello, transcript); err != nil {
 			return err
 		}
-		earlyTrafficSecret := earlySecret.ClientEarlyTrafficSecret(transcript)
+		var earlyTrafficSecret []byte
+		subtle.WithDataIndependentTiming(func() { earlyTrafficSecret = earlySecret.ClientEarlyTrafficSecret(transcript) })
 		c.quicSetWriteSecret(QUICEncryptionLevelEarly, suite.id, earlyTrafficSecret)
 	}
 
@@ -518,8 +519,10 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 	hello.pskBinders = [][]byte{make([]byte, cipherSuite.hash.Size())}
 
 	// Compute the PSK binders. See RFC 8446, Section 4.2.11.2.
-	earlySecret = tls13.NewEarlySecret(cipherSuite.hash.New, session.secret)
-	binderKey = earlySecret.ResumptionBinderKey()
+	subtle.WithDataIndependentTiming(func() {
+		earlySecret = tls13.NewEarlySecret(cipherSuite.hash.New, session.secret)
+		binderKey = earlySecret.ResumptionBinderKey()
+	})
 	transcript := cipherSuite.hash.New()
 	if err := computeAndUpdatePSK(hello, binderKey, transcript, cipherSuite.finishedHash); err != nil {
 		return nil, nil, nil, err

@@ -410,15 +410,17 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 				c.SetIV(payload[:explicitNonceLen])
 				payload = payload[explicitNonceLen:]
 			}
-			c.CryptBlocks(payload, payload)
+			subtle.WithDataIndependentTiming(func() {
+				c.CryptBlocks(payload, payload)
 
-			// In a limited attempt to protect against CBC padding oracles like
-			// Lucky13, the data past paddingLen (which is secret) is passed to
-			// the MAC function as extra data, to be fed into the HMAC after
-			// computing the digest. This makes the MAC roughly constant time as
-			// long as the digest computation is constant time and does not
-			// affect the subsequent write, modulo cache effects.
-			paddingLen, paddingGood = extractPadding(payload)
+				// In a limited attempt to protect against CBC padding oracles like
+				// Lucky13, the data past paddingLen (which is secret) is passed to
+				// the MAC function as extra data, to be fed into the HMAC after
+				// computing the digest. This makes the MAC roughly constant time as
+				// long as the digest computation is constant time and does not
+				// affect the subsequent write, modulo cache effects.
+				paddingLen, paddingGood = extractPadding(payload)
+			})
 		default:
 			panic("unknown cipher type")
 		}
@@ -452,21 +454,25 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 			return nil, 0, alertBadRecordMAC
 		}
 
-		n := len(payload) - macSize - paddingLen
-		n = subtle.ConstantTimeSelect(int(uint32(n)>>31), 0, n) // if n < 0 { n = 0 }
-		record[3] = byte(n >> 8)
-		record[4] = byte(n)
-		remoteMAC := payload[n : n+macSize]
-		localMAC := tls10MAC(hc.mac, hc.scratchBuf[:0], hc.seq[:], record[:recordHeaderLen], payload[:n], payload[n+macSize:])
+		var macAndPaddingGood int
+		var n int
+		subtle.WithDataIndependentTiming(func() {
+			n = len(payload) - macSize - paddingLen
+			n = subtle.ConstantTimeSelect(int(uint32(n)>>31), 0, n) // if n < 0 { n = 0 }
+			record[3] = byte(n >> 8)
+			record[4] = byte(n)
+			remoteMAC := payload[n : n+macSize]
+			localMAC := tls10MAC(hc.mac, hc.scratchBuf[:0], hc.seq[:], record[:recordHeaderLen], payload[:n], payload[n+macSize:])
 
-		// This is equivalent to checking the MACs and paddingGood
-		// separately, but in constant-time to prevent distinguishing
-		// padding failures from MAC failures. Depending on what value
-		// of paddingLen was returned on bad padding, distinguishing
-		// bad MAC from bad padding can lead to an attack.
-		//
-		// See also the logic at the end of extractPadding.
-		macAndPaddingGood := subtle.ConstantTimeCompare(localMAC, remoteMAC) & int(paddingGood)
+			// This is equivalent to checking the MACs and paddingGood
+			// separately, but in constant-time to prevent distinguishing
+			// padding failures from MAC failures. Depending on what value
+			// of paddingLen was returned on bad padding, distinguishing
+			// bad MAC from bad padding can lead to an attack.
+			//
+			// See also the logic at the end of extractPadding.
+			macAndPaddingGood = subtle.ConstantTimeCompare(localMAC, remoteMAC) & int(paddingGood)
+		})
 		if macAndPaddingGood != 1 {
 			return nil, 0, alertBadRecordMAC
 		}

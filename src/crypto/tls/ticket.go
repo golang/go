@@ -333,19 +333,27 @@ func (c *Config) encryptTicket(state []byte, ticketKeys []ticketKey) ([]byte, er
 	authenticated := encrypted[:len(encrypted)-sha256.Size]
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
 
-	if _, err := io.ReadFull(c.rand(), iv); err != nil {
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		if _, err = io.ReadFull(c.rand(), iv); err != nil {
+			return
+		}
+		key := ticketKeys[0]
+		var block cipher.Block
+		block, err = aes.NewCipher(key.aesKey[:])
+		if err != nil {
+			err = errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
+			return
+		}
+		cipher.NewCTR(block, iv).XORKeyStream(ciphertext, state)
+
+		mac := hmac.New(sha256.New, key.hmacKey[:])
+		mac.Write(authenticated)
+		mac.Sum(macBytes[:0])
+	})
+	if err != nil {
 		return nil, err
 	}
-	key := ticketKeys[0]
-	block, err := aes.NewCipher(key.aesKey[:])
-	if err != nil {
-		return nil, errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
-	}
-	cipher.NewCTR(block, iv).XORKeyStream(ciphertext, state)
-
-	mac := hmac.New(sha256.New, key.hmacKey[:])
-	mac.Write(authenticated)
-	mac.Sum(macBytes[:0])
 
 	return encrypted, nil
 }
@@ -377,26 +385,28 @@ func (c *Config) decryptTicket(encrypted []byte, ticketKeys []ticketKey) []byte 
 	authenticated := encrypted[:len(encrypted)-sha256.Size]
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
 
-	for _, key := range ticketKeys {
-		mac := hmac.New(sha256.New, key.hmacKey[:])
-		mac.Write(authenticated)
-		expected := mac.Sum(nil)
+	var plaintext []byte
+	subtle.WithDataIndependentTiming(func() {
+		for _, key := range ticketKeys {
+			mac := hmac.New(sha256.New, key.hmacKey[:])
+			mac.Write(authenticated)
+			expected := mac.Sum(nil)
 
-		if subtle.ConstantTimeCompare(macBytes, expected) != 1 {
-			continue
+			if subtle.ConstantTimeCompare(macBytes, expected) != 1 {
+				continue
+			}
+
+			block, err := aes.NewCipher(key.aesKey[:])
+			if err != nil {
+				return
+			}
+			plaintext = make([]byte, len(ciphertext))
+			cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
+			return
 		}
+	})
 
-		block, err := aes.NewCipher(key.aesKey[:])
-		if err != nil {
-			return nil
-		}
-		plaintext := make([]byte, len(ciphertext))
-		cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
-
-		return plaintext
-	}
-
-	return nil
+	return plaintext
 }
 
 // ClientSessionState contains the state needed by a client to

@@ -12,6 +12,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"hash"
@@ -72,7 +73,9 @@ func prf10(secret []byte, label string, seed []byte, keyLen int) []byte {
 // prf12 implements the TLS 1.2 pseudo-random function, as defined in RFC 5246, Section 5.
 func prf12(hashFunc func() hash.Hash) prfFunc {
 	return func(secret []byte, label string, seed []byte, keyLen int) []byte {
-		return tls12.PRF(hashFunc, secret, label, seed, keyLen)
+		var res []byte
+		subtle.WithDataIndependentTiming(func() { res = tls12.PRF(hashFunc, secret, label, seed, keyLen) })
+		return res
 	}
 }
 
@@ -123,7 +126,9 @@ func extMasterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterS
 	if version == VersionTLS12 {
 		// Use the FIPS 140-3 module only for TLS 1.2 with EMS, which is the
 		// only TLS 1.0-1.2 approved mode per IG D.Q.
-		return tls12.MasterSecret(hash.New, preMasterSecret, transcript)
+		var ems []byte
+		subtle.WithDataIndependentTiming(func() { ems = tls12.MasterSecret(hash.New, preMasterSecret, transcript) })
+		return ems
 	}
 	return prf(preMasterSecret, extendedMasterSecretLabel, transcript, masterSecretLength)
 }
