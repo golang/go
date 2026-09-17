@@ -9,6 +9,7 @@ package mldsa
 import (
 	"crypto"
 	"crypto/internal/fips140/mldsa"
+	"crypto/subtle"
 	"errors"
 	"io"
 )
@@ -27,32 +28,55 @@ var errInvalidParameters = errors.New("mldsa: invalid parameters")
 func GenerateKey(params Parameters) (*PrivateKey, error) {
 	switch params {
 	case MLDSA44():
-		return &PrivateKey{k: *mldsa.GenerateKey44()}, nil
+		a := &PrivateKey{}
+		generateKey44(a)
+		return a, nil
 	case MLDSA65():
-		return &PrivateKey{k: *mldsa.GenerateKey65()}, nil
+		a := &PrivateKey{}
+		generateKey65(a)
+		return a, nil
 	case MLDSA87():
-		return &PrivateKey{k: *mldsa.GenerateKey87()}, nil
+		a := &PrivateKey{}
+		generateKey87(a)
+		return a, nil
 	default:
 		return nil, errInvalidParameters
 	}
+}
+
+//go:noinline
+func generateKey44(a *PrivateKey) {
+	subtle.WithDataIndependentTiming(func() { a.k = *mldsa.GenerateKey44() })
+}
+
+//go:noinline
+func generateKey65(a *PrivateKey) {
+	subtle.WithDataIndependentTiming(func() { a.k = *mldsa.GenerateKey65() })
+}
+
+//go:noinline
+func generateKey87(a *PrivateKey) {
+	subtle.WithDataIndependentTiming(func() { a.k = *mldsa.GenerateKey87() })
 }
 
 // NewPrivateKey decodes an ML-DSA private key from the given seed.
 //
 // The seed must be exactly [PrivateKeySize] bytes long.
 func NewPrivateKey(params Parameters, seed []byte) (*PrivateKey, error) {
-	var err error
 	var k *mldsa.PrivateKey
-	switch params {
-	case MLDSA44():
-		k, err = mldsa.NewPrivateKey44(seed)
-	case MLDSA65():
-		k, err = mldsa.NewPrivateKey65(seed)
-	case MLDSA87():
-		k, err = mldsa.NewPrivateKey87(seed)
-	default:
-		return nil, errInvalidParameters
-	}
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		switch params {
+		case MLDSA44():
+			k, err = mldsa.NewPrivateKey44(seed)
+		case MLDSA65():
+			k, err = mldsa.NewPrivateKey65(seed)
+		case MLDSA87():
+			k, err = mldsa.NewPrivateKey87(seed)
+		default:
+			err = errInvalidParameters
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +99,9 @@ func (sk *PrivateKey) Equal(x crypto.PrivateKey) bool {
 	if !ok || other == nil {
 		return false
 	}
-	return sk.k.Equal(&other.k)
+	var res bool
+	subtle.WithDataIndependentTiming(func() { res = sk.k.Equal(&other.k) })
+	return res
 }
 
 // PublicKey returns the corresponding [PublicKey] for this private key.
@@ -115,9 +141,11 @@ func (sk *PrivateKey) Sign(_ io.Reader, message []byte, opts crypto.SignerOpts) 
 		if opts, ok := opts.(*Options); ok && opts != nil {
 			context = opts.Context
 		}
-		return mldsa.Sign(&sk.k, message, context)
+		subtle.WithDataIndependentTiming(func() { signature, err = mldsa.Sign(&sk.k, message, context) })
+		return
 	case crypto.MLDSAMu:
-		return mldsa.SignExternalMu(&sk.k, message)
+		subtle.WithDataIndependentTiming(func() { signature, err = mldsa.SignExternalMu(&sk.k, message) })
+		return
 	default:
 		return nil, errInvalidSignerOpts
 	}
@@ -138,9 +166,11 @@ func (sk *PrivateKey) SignDeterministic(message []byte, opts crypto.SignerOpts) 
 		if opts, ok := opts.(*Options); ok && opts != nil {
 			context = opts.Context
 		}
-		return mldsa.SignDeterministic(&sk.k, message, context)
+		subtle.WithDataIndependentTiming(func() { signature, err = mldsa.SignDeterministic(&sk.k, message, context) })
+		return
 	case crypto.MLDSAMu:
-		return mldsa.SignExternalMuDeterministic(&sk.k, message)
+		subtle.WithDataIndependentTiming(func() { signature, err = mldsa.SignExternalMuDeterministic(&sk.k, message) })
+		return
 	default:
 		return nil, errInvalidSignerOpts
 	}
