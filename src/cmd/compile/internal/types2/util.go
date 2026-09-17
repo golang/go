@@ -66,3 +66,19 @@ var kind2tok = [...]token.Token{
 	syntax.RuneLit:   token.CHAR,
 	syntax.StringLit: token.STRING,
 }
+
+// unTilde returns the operand of ~x and true, or x and false.
+func unTilde(x syntax.Expr) (syntax.Expr, bool) {
+	if op, _ := x.(*syntax.Operation); op != nil && op.Op == syntax.Tilde {
+		return op.X, true
+	}
+	return x, false
+}
+
+// splitOr returns the operands of x | y, or nil, nil.
+func splitOr(e syntax.Expr) (x, y syntax.Expr) {
+	if op, _ := e.(*syntax.Operation); op != nil && op.Op == syntax.Or {
+		return op.X, op.Y
+	}
+	return nil, nil
+}
