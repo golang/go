@@ -10,6 +10,7 @@ import (
 	"crypto/internal/fips140/ecdh"
 	"crypto/internal/fips140only"
 	"crypto/internal/rand"
+	"crypto/subtle"
 	"errors"
 	"io"
 )
@@ -167,16 +168,23 @@ func P256() Curve { return p256 }
 var p256 = &nistCurve{
 	name: "P-256",
 	generate: func(r io.Reader) (*ecdh.PrivateKey, error) {
-		return ecdh.GenerateKey(ecdh.P256(), r)
+		var priv *ecdh.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() { priv, err = ecdh.GenerateKey(ecdh.P256(), r) })
+		return priv, err
 	},
 	newPrivateKey: func(b []byte) (*ecdh.PrivateKey, error) {
-		return ecdh.NewPrivateKey(ecdh.P256(), b)
+		var priv *ecdh.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() { priv, err = ecdh.NewPrivateKey(ecdh.P256(), b) })
+		return priv, err
 	},
 	newPublicKey: func(publicKey []byte) (*ecdh.PublicKey, error) {
 		return ecdh.NewPublicKey(ecdh.P256(), publicKey)
 	},
 	sharedSecret: func(priv *ecdh.PrivateKey, pub *ecdh.PublicKey) (sharedSecret []byte, err error) {
-		return ecdh.ECDH(ecdh.P256(), priv, pub)
+		subtle.WithDataIndependentTiming(func() { sharedSecret, err = ecdh.ECDH(ecdh.P256(), priv, pub) })
+		return
 	},
 }
 
@@ -190,16 +198,23 @@ func P384() Curve { return p384 }
 var p384 = &nistCurve{
 	name: "P-384",
 	generate: func(r io.Reader) (*ecdh.PrivateKey, error) {
-		return ecdh.GenerateKey(ecdh.P384(), r)
+		var priv *ecdh.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() { priv, err = ecdh.GenerateKey(ecdh.P384(), r) })
+		return priv, err
 	},
 	newPrivateKey: func(b []byte) (*ecdh.PrivateKey, error) {
-		return ecdh.NewPrivateKey(ecdh.P384(), b)
+		var priv *ecdh.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() { priv, err = ecdh.NewPrivateKey(ecdh.P384(), b) })
+		return priv, err
 	},
 	newPublicKey: func(publicKey []byte) (*ecdh.PublicKey, error) {
 		return ecdh.NewPublicKey(ecdh.P384(), publicKey)
 	},
 	sharedSecret: func(priv *ecdh.PrivateKey, pub *ecdh.PublicKey) (sharedSecret []byte, err error) {
-		return ecdh.ECDH(ecdh.P384(), priv, pub)
+		subtle.WithDataIndependentTiming(func() { sharedSecret, err = ecdh.ECDH(ecdh.P384(), priv, pub) })
+		return
 	},
 }
 
@@ -213,15 +228,22 @@ func P521() Curve { return p521 }
 var p521 = &nistCurve{
 	name: "P-521",
 	generate: func(r io.Reader) (*ecdh.PrivateKey, error) {
-		return ecdh.GenerateKey(ecdh.P521(), r)
+		var priv *ecdh.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() { priv, err = ecdh.GenerateKey(ecdh.P521(), r) })
+		return priv, err
 	},
 	newPrivateKey: func(b []byte) (*ecdh.PrivateKey, error) {
-		return ecdh.NewPrivateKey(ecdh.P521(), b)
+		var priv *ecdh.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() { priv, err = ecdh.NewPrivateKey(ecdh.P521(), b) })
+		return priv, err
 	},
 	newPublicKey: func(publicKey []byte) (*ecdh.PublicKey, error) {
 		return ecdh.NewPublicKey(ecdh.P521(), publicKey)
 	},
 	sharedSecret: func(priv *ecdh.PrivateKey, pub *ecdh.PublicKey) (sharedSecret []byte, err error) {
-		return ecdh.ECDH(ecdh.P521(), priv, pub)
+		subtle.WithDataIndependentTiming(func() { sharedSecret, err = ecdh.ECDH(ecdh.P521(), priv, pub) })
+		return
 	},
 }
