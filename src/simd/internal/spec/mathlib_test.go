@@ -146,3 +146,26 @@ func TestMulSaturatedUSS(t *testing.T) {
 		{math.MaxUint64, 1, math.MaxInt64},
 		{math.MaxUint64, -1, math.MinInt64})
 }
+
+func TestSubSaturated(t *testing.T) {
+	// Signed int8
+	assertFn2[int8, int8, int8](t, subSaturated, "subSaturated[int8]",
+		{125, 1, 124}, {120, -10, math.MaxInt8}, {-126, 2, -128}, {-120, 10, math.MinInt8})
+
+	// Unsigned uint8
+	assertFn2[uint8, uint8, uint8](t, subSaturated, "subSaturated[uint8]",
+		{253, 1, 252}, {5, 10, 0}, {254, 0, 254})
+
+	// Signed int64
+	assertFn2[int64, int64, int64](t, subSaturated, "subSaturated[int64]",
+		{math.MaxInt64 - 2, 1, math.MaxInt64 - 3},
+		{math.MaxInt64 - 5, -10, math.MaxInt64},
+		{math.MinInt64 + 2, 1, math.MinInt64 + 1},
+		{math.MinInt64 + 5, 10, math.MinInt64},
+		{0, math.MinInt64, math.MaxInt64})
+
+	// Unsigned uint64
+	assertFn2[uint64, uint64, uint64](t, subSaturated, "subSaturated[uint64]",
+		{math.MaxUint64 - 2, 1, math.MaxUint64 - 3},
+		{5, 10, 0})
+}

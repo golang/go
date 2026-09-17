@@ -15,6 +15,141 @@ func Add[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return map2[E, W, E, W](x, y, func(x, y E) E { return x + y })
 }
 
+// Sub subtracts corresponding elements of two vectors.
+//
+//	z[i] = x[i] - y[i]
+func Sub[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return map2[E, W, E, W](x, y, func(x, y E) E { return x - y })
+}
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+//	z[i] = saturated(x[i] + y[i])
+//
+//specgen:commutative
+func AddSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return map2[E, W, E, W](x, y, func(x, y E) E { return addSaturated(x, y) })
+}
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+//	z[i] = saturated(x[i] - y[i])
+func SubSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return map2[E, W, E, W](x, y, func(x, y E) E { return subSaturated(x, y) })
+}
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+// {{if eq .xL 2 -}}
+//
+//	z = {x[0]+x[1], y[0]+y[1]}
+//
+// {{- else -}}
+//
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//
+// {{- end}}
+func ConcatAddPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	half := z.len() / 2
+	for i := 0; i < half; i++ {
+		z[i] = x[2*i] + x[2*i+1]
+		z[half+i] = y[2*i] + y[2*i+1]
+	}
+	return z
+}
+
+// ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
+// and returns the concatenated result.
+//
+// {{if eq .xL 2 -}}
+//
+//	z = {x[0]-x[1], y[0]-y[1]}
+//
+// {{- else -}}
+//
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//
+// {{- end}}
+func ConcatSubPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	half := z.len() / 2
+	for i := 0; i < half; i++ {
+		z[i] = x[2*i] - x[2*i+1]
+		z[half+i] = y[2*i] - y[2*i+1]
+	}
+	return z
+}
+
+// ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
+// y with saturation and returns the concatenated result.
+//
+// {{if eq .xL 2 -}}
+//
+//	z = {x[0]+x[1], y[0]+y[1]}
+//
+// {{- else -}}
+//
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//
+// {{- end}}
+func ConcatAddPairsSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	half := z.len() / 2
+	for i := 0; i < half; i++ {
+		z[i] = addSaturated(x[2*i], x[2*i+1])
+		z[half+i] = addSaturated(y[2*i], y[2*i+1])
+	}
+	return z
+}
+
+// ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
+// x and y with saturation and returns the concatenated result.
+//
+// {{if eq .xL 2 -}}
+//
+//	z = {x[0]-x[1], y[0]-y[1]}
+//
+// {{- else -}}
+//
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//
+// {{- end}}
+func ConcatSubPairsSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	half := z.len() / 2
+	for i := 0; i < half; i++ {
+		z[i] = subSaturated(x[2*i], x[2*i+1])
+		z[half+i] = subSaturated(y[2*i], y[2*i+1])
+	}
+	return z
+}
+
+// ConcatAddPairsGrouped divides x, y, and z into groups of 128 bits and
+// performs [ConcatAddPairs] on each group.
+func ConcatAddPairsGrouped[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return grouped128(ConcatAddPairs, x, y)
+}
+
+// ConcatSubPairsGrouped divides x, y, and z into groups of 128 bits and
+// performs [ConcatSubPairs] on each group.
+func ConcatSubPairsGrouped[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return grouped128(ConcatSubPairs, x, y)
+}
+
+// ConcatAddPairsSaturatedGrouped divides x, y, and z into groups of 128 bits
+// and performs [ConcatAddPairsSaturated] on each group.
+func ConcatAddPairsSaturatedGrouped[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return grouped128(ConcatAddPairsSaturated, x, y)
+}
+
+// ConcatSubPairsSaturatedGrouped divides x, y, and z into groups of 128 bits
+// and performs [ConcatSubPairsSaturated] on each group.
+func ConcatSubPairsSaturatedGrouped[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return grouped128(ConcatSubPairsSaturated, x, y)
+}
+
 // DotProductPairs multiplies corresponding elements of x and y, and sums
 // adjacent pairs, yielding a vector of half as many elements with twice the
 // input element size.

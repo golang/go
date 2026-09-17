@@ -26,3 +26,12 @@ func map2[From Elt, FromW Width, To Elt, ToW Width](x, y Vec[From, FromW], f fun
 	}
 	return z
 }
+
+func grouped128[E Elt, W Width](f func(x, y Vec[E, Width128]) Vec[E, Width128], x, y Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	groupLanes := lanes[E, Width128]()
+	for base := 0; base < len(z); base += groupLanes {
+		copy(z[base:], f(Vec[E, Width128](x[base:][:groupLanes]), Vec[E, Width128](y[base:][:groupLanes])))
+	}
+	return z
+}
