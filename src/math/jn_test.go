@@ -50,9 +50,6 @@ func TestBesselExtremeOrders(t *testing.T) {
 }
 
 func TestBesselExtremeOrdersLargeX(t *testing.T) {
-	// For x much larger than n², the existing asymptotic formulas depend
-	// on the order only modulo 4. Extreme orders must not return zero
-	// unconditionally.
 	for _, n := range []int{MinInt, MinInt + 1, MaxInt - 1, MaxInt} {
 		reduced := n % 4
 		if reduced == 0 {
@@ -71,8 +68,7 @@ func TestBesselExtremeOrdersLargeX(t *testing.T) {
 
 func TestBesselSubnormal(t *testing.T) {
 	// Values from the series J_n(1) = sum_k (-1)^k / (2^(n+2k) k! (n+k)!),
-	// evaluated with rational arithmetic. Do not stop the recurrence while
-	// the result can still be represented as a subnormal number.
+	// evaluated with rational arithmetic.
 	for _, test := range []struct {
 		n    int
 		want float64
