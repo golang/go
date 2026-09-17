@@ -101,9 +101,7 @@ func (sc *serverConn) TestStreamState(id uint32) streamState {
 // TestServeParked reports whether the connection's serve goroutine has
 // exited because the connection is idle. See serverConn.serveLoop.
 func (sc *serverConn) TestServeParked() bool {
-	sc.parkMu.Lock()
-	defer sc.parkMu.Unlock()
-	return sc.parked
+	return sc.parkState.Load()&parkedBit != 0
 }
 
 func (sc *serverConn) StartGracefulShutdown() { sc.startGracefulShutdown() }

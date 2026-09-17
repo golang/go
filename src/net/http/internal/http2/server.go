@@ -39,6 +39,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/http/httpguts"
@@ -451,7 +452,7 @@ type serverConn struct {
 	// GODEBUG=http2serveparking to be enabled. It is set once in
 	// serveConn, before any goroutine that sends to the serve loop's
 	// channels exists, and never changes, so it can be read without a
-	// lock, letting beginServeSend and endServeSend skip the parkMu
+	// lock, letting beginServeSend and endServeSend skip the parkState
 	// accounting on connections that can never park.
 	serveParkingEnabled bool
 	framer              *Framer
@@ -473,12 +474,17 @@ type serverConn struct {
 	// a method-value closure per park/resume cycle.
 	resumeServeFunc func()
 
-	// parkMu guards the following fields, which coordinate parking the
-	// serve goroutine (exiting it while the connection is idle) with
-	// the goroutines that send it work. See serverConn.serveLoop.
-	parkMu            sync.Mutex
-	parked            bool // serve goroutine has exited; the next sender revives it
-	serveSendsPending int  // sends to serve's channels begun but not yet received by serve
+	// parkState coordinates parking the serve goroutine (exiting it
+	// while the connection is idle) with the goroutines that send it
+	// work. See serverConn.serveLoop.
+	//
+	// Its low bits count the sends to serve's channels that have been
+	// begun but not yet received by serve (see beginServeSend), and
+	// its parkedBit is set while the serve goroutine has exited and
+	// the next sender must revive it. The bit is only ever set while
+	// the count is zero, so tryPark's whole condition is a single
+	// compare-and-swap from zero.
+	parkState atomic.Int64
 
 	// Everything following is owned by the serve loop; use serveG.check():
 	serveG                      goroutineLocker // used to verify funcs are on serve()
@@ -1090,6 +1096,10 @@ func (sc *serverConn) canPark() bool {
 // TODO: remove this setting; see #81524.
 var http2serveparking = godebug.New("#http2serveparking")
 
+// parkedBit is the flag in serverConn.parkState marking the serve
+// goroutine as parked. The bits below it count pending sends.
+const parkedBit = 1 << 62
+
 // tryPark attempts to mark the serve goroutine as parked, so that the
 // next beginServeSend revives the serve loop on a new goroutine. It
 // fails if a sender has already begun sending a message to one of the
@@ -1097,19 +1107,19 @@ var http2serveparking = godebug.New("#http2serveparking")
 // receive it.
 func (sc *serverConn) tryPark() bool {
 	sc.serveG.check()
-	sc.parkMu.Lock()
-	defer sc.parkMu.Unlock()
-	if sc.serveSendsPending != 0 {
+	if sc.parkState.Load() != 0 {
+		// A send is pending (the bit can't be set: we're running).
 		return false
 	}
 	// With no sends pending, the channels must all be empty too, but
 	// parking with a queued message would stall the connection, so be
-	// defensive.
+	// defensive. This check is safe before the swap below: a sender
+	// that begins after it either bumps the count first, failing the
+	// swap, or sees the parked bit and revives us.
 	if len(sc.readFrameCh)+len(sc.wantWriteFrameCh)+len(sc.wroteFrameCh)+len(sc.bodyReadCh)+len(sc.serveMsgCh) != 0 {
 		return false
 	}
-	sc.parked = true
-	return true
+	return sc.parkState.CompareAndSwap(0, parkedBit)
 }
 
 func (sc *serverConn) handlePingTimer(lastFrameReadTime time.Time) {
@@ -1166,16 +1176,27 @@ func (sc *serverConn) onShutdownTimer() { sc.sendServeMsg(shutdownTimerMsg) }
 // another select case gives up; both call endServeSend.
 func (sc *serverConn) beginServeSend() {
 	if !sc.serveParkingEnabled {
-		// The serve loop never parks, so there is nothing to count
-		// or revive, and no lock is needed.
+		// The serve loop never parks, so there is nothing to count or
+		// revive, and no atomic traffic on the shared word is needed.
 		return
 	}
-	sc.parkMu.Lock()
-	defer sc.parkMu.Unlock()
-	sc.serveSendsPending++
-	if sc.parked {
-		sc.parked = false
-		go sc.resumeServeFunc()
+	if sc.parkState.Add(1)&parkedBit == 0 {
+		// The common case: the serve goroutine is running.
+		return
+	}
+	// The serve goroutine parked. Our increment keeps it from parking
+	// again until our send is received, so all that's left is to
+	// revive it exactly once: whichever concurrent sender clears the
+	// bit does so.
+	for {
+		old := sc.parkState.Load()
+		if old&parkedBit == 0 {
+			return // another sender is reviving it
+		}
+		if sc.parkState.CompareAndSwap(old, old&^parkedBit) {
+			go sc.resumeServeFunc()
+			return
+		}
 	}
 }
 
@@ -1185,9 +1206,7 @@ func (sc *serverConn) endServeSend() {
 	if !sc.serveParkingEnabled {
 		return
 	}
-	sc.parkMu.Lock()
-	defer sc.parkMu.Unlock()
-	sc.serveSendsPending--
+	sc.parkState.Add(-1)
 }
 
 func (sc *serverConn) sendServeMsg(msg any) {
