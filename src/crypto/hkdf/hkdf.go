@@ -14,6 +14,7 @@ import (
 	"crypto/internal/fips140/hkdf"
 	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
+	"crypto/subtle"
 	"errors"
 	"hash"
 )
@@ -29,7 +30,9 @@ func Extract[H hash.Hash](h func() H, secret, salt []byte) ([]byte, error) {
 	if err := checkFIPS140Only(fh, secret); err != nil {
 		return nil, err
 	}
-	return hkdf.Extract(fh, secret, salt), nil
+	var res []byte
+	subtle.WithDataIndependentTiming(func() { res = hkdf.Extract(fh, secret, salt) })
+	return res, nil
 }
 
 // Expand derives a key from the given hash, key, and optional context info,
@@ -50,7 +53,9 @@ func Expand[H hash.Hash](h func() H, pseudorandomKey []byte, info string, keyLen
 		return nil, errors.New("hkdf: requested key length too large")
 	}
 
-	return hkdf.Expand(fh, pseudorandomKey, info, keyLength), nil
+	var res []byte
+	subtle.WithDataIndependentTiming(func() { res = hkdf.Expand(fh, pseudorandomKey, info, keyLength) })
+	return res, nil
 }
 
 // Key derives a key from the given hash, secret, salt and context info,
@@ -67,7 +72,9 @@ func Key[Hash hash.Hash](h func() Hash, secret, salt []byte, info string, keyLen
 		return nil, errors.New("hkdf: requested key length too large")
 	}
 
-	return hkdf.Key(fh, secret, salt, info, keyLength), nil
+	var key []byte
+	subtle.WithDataIndependentTiming(func() { key = hkdf.Key(fh, secret, salt, info, keyLength) })
+	return key, nil
 }
 
 func checkFIPS140Only[Hash hash.Hash](h func() Hash, key []byte) error {
