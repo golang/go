@@ -10,12 +10,22 @@ import (
 	"crypto/cipher"
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
+	"crypto/subtle"
 )
 
 func newAESGCM(key []byte) (cipher.AEAD, error) {
-	b, err := aes.New(key)
+	var g *gcm.GCMWithXORCounterNonce
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		var b *aes.Block
+		b, err = aes.New(key)
+		if err != nil {
+			return
+		}
+		g, err = gcm.NewGCMForHPKE(b)
+	})
 	if err != nil {
 		return nil, err
 	}
-	return gcm.NewGCMForHPKE(b)
+	return g, nil
 }

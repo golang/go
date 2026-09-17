@@ -13,6 +13,7 @@ import (
 	"crypto/internal/rand"
 	"crypto/mlkem"
 	"crypto/sha3"
+	"crypto/subtle"
 	"errors"
 	"internal/byteorder"
 )
@@ -247,7 +248,7 @@ func NewHybridPrivateKey(pq crypto.Decapsulator, t ecdh.KeyExchanger) (PrivateKe
 
 func (kem *hybridKEM) GenerateKey() (PrivateKey, error) {
 	seed := make([]byte, 32)
-	drbg.Read(seed)
+	subtle.WithDataIndependentTiming(func() { drbg.Read(seed) })
 	return kem.NewPrivateKey(seed)
 }
 
