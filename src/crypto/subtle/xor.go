@@ -15,5 +15,7 @@ import "crypto/internal/fips140/subtle"
 // dst and x or y may overlap exactly or not at all,
 // otherwise XORBytes may panic.
 func XORBytes(dst, x, y []byte) int {
-	return subtle.XORBytes(dst, x, y)
+	var res int
+	WithDataIndependentTiming(func() { res = subtle.XORBytes(dst, x, y) })
+	return res
 }

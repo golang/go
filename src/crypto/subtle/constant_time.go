@@ -4,6 +4,10 @@
 
 // Package subtle implements functions that are often useful in cryptographic
 // code but require careful thought to use correctly.
+//
+// Callers combining the scalar primitives (ConstantTimeSelect,
+// ConstantTimeByteEq, ConstantTimeEq, ConstantTimeLessOrEq) into constant-time
+// algorithms should wrap the enclosing operation in [WithDataIndependentTiming].
 package subtle
 
 import (
@@ -19,7 +23,9 @@ import (
 // is independent of the contents. If the lengths of x and y do not match it
 // returns 0 immediately.
 func ConstantTimeCompare(x, y []byte) int {
-	return subtle.ConstantTimeCompare(x, y)
+	var res int
+	WithDataIndependentTiming(func() { res = subtle.ConstantTimeCompare(x, y) })
+	return res
 }
 
 // ConstantTimeSelect returns x if v == 1 and y if v == 0.
@@ -42,7 +48,7 @@ func ConstantTimeEq(x, y int32) int {
 // if v == 1. If v == 0, x is left unchanged. Its behavior is undefined if v
 // takes any other value.
 func ConstantTimeCopy(v int, x, y []byte) {
-	subtle.ConstantTimeCopy(v, x, y)
+	WithDataIndependentTiming(func() { subtle.ConstantTimeCopy(v, x, y) })
 }
 
 // ConstantTimeLessOrEq returns 1 if x <= y and 0 otherwise.
