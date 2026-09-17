@@ -259,11 +259,16 @@ func ParseRawPrivateKey(curve elliptic.Curve, data []byte) (*PrivateKey, error) 
 }
 
 func parseRawPrivateKey[P ecdsa.Point[P]](c *ecdsa.Curve[P], newPoint func() P, curve elliptic.Curve, data []byte) (*PrivateKey, error) {
-	q, err := newPoint().ScalarBaseMult(data)
-	if err != nil {
-		return nil, err
-	}
-	k, err := ecdsa.NewPrivateKey(c, data, q.Bytes())
+	var k *ecdsa.PrivateKey
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		var q P
+		q, err = newPoint().ScalarBaseMult(data)
+		if err != nil {
+			return
+		}
+		k, err = ecdsa.NewPrivateKey(c, data, q.Bytes())
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -372,11 +377,15 @@ func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], ran
 	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(rand) {
 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
-	privateKey, err := ecdsa.GenerateKey(c, rand)
+	var privkey *ecdsa.PrivateKey
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		privkey, err = ecdsa.GenerateKey(c, rand)
+	})
 	if err != nil {
 		return nil, err
 	}
-	return privateKeyFromFIPS(curve, privateKey)
+	return privateKeyFromFIPS(curve, privkey)
 }
 
 // SignASN1 signs a hash (which should be the result of hashing a larger message)
@@ -432,7 +441,10 @@ func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Rea
 	// Always using SHA-512 instead of the hash that computed hash is
 	// technically a violation of draft-irtf-cfrg-det-sigs-with-noise-04 but in
 	// our API we don't get to know what it was, and this has no security impact.
-	sig, err := ecdsa.Sign(c, sha512.New, k, rand, hash)
+	var sig *ecdsa.Signature
+	subtle.WithDataIndependentTiming(func() {
+		sig, err = ecdsa.Sign(c, sha512.New, k, rand, hash)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +482,10 @@ func signFIPSDeterministic[P ecdsa.Point[P]](c *ecdsa.Curve[P], hashFunc crypto.
 	if fips140only.Enforced() && !fips140only.ApprovedHash(h()) {
 		return nil, errors.New("crypto/ecdsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 	}
-	sig, err := ecdsa.SignDeterministic(c, h, k, hash)
+	var sig *ecdsa.Signature
+	subtle.WithDataIndependentTiming(func() {
+		sig, err = ecdsa.SignDeterministic(c, h, k, hash)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -612,8 +627,15 @@ func privateKeyToFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) (*e
 	}
 	D := priv.D.FillBytes(make([]byte, size, maxScalarSize))
 
+	// Keep privateKeyCache.Get outside WithDataIndependentTiming so that
+	// runtime.AddCleanup cannot spawn a cleanup goroutine inheriting DIT state.
 	return privateKeyCache.Get(priv, func() (*ecdsa.PrivateKey, error) {
-		return ecdsa.NewPrivateKey(c, D, Q)
+		var k *ecdsa.PrivateKey
+		var err error
+		subtle.WithDataIndependentTiming(func() {
+			k, err = ecdsa.NewPrivateKey(c, D, Q)
+		})
+		return k, err
 	}, func(k *ecdsa.PrivateKey) bool {
 		return subtle.ConstantTimeCompare(k.PublicKey().Bytes(), Q) == 1 &&
 			subtle.ConstantTimeCompare(k.Bytes(), D) == 1
