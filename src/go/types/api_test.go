@@ -39,16 +39,14 @@ func mustParse(fset *token.FileSet, src string) *ast.File {
 }
 
 func typecheck(src string, conf *Config, info *Info) (*Package, error) {
-	// TODO(adonovan): plumb this from caller.
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
+	f := mustParse(testFSet, src)
 	if conf == nil {
 		conf = &Config{
 			Error:    func(err error) {}, // collect all errors
-			Importer: defaultImporter(fset),
+			Importer: defaultImporter(testFSet),
 		}
 	}
-	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+	return conf.Check(f.Name.Name, testFSet, []*ast.File{f}, info)
 }
 
 func mustTypecheck(src string, conf *Config, info *Info) *Package {

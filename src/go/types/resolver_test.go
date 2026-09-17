@@ -30,7 +30,7 @@ func (imp *resolveTestImporter) ImportFrom(path, srcDir string, mode ImportMode)
 		panic("mode must be 0")
 	}
 	if imp.importer == nil {
-		imp.importer = defaultImporter(fset).(ImporterFrom)
+		imp.importer = defaultImporter(testFSet).(ImporterFrom)
 		imp.imported = make(map[string]bool)
 	}
 	pkg, err := imp.importer.ImportFrom(path, srcDir, mode)

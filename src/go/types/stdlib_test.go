@@ -181,7 +181,7 @@ func firstComment(filename string) string {
 
 	var first string
 	var s scanner.Scanner
-	s.Init(fset.AddFile("", fset.Base(), n), src[:n], nil /* ignore errors */, scanner.ScanComments)
+	s.Init(testFSet.AddFile("", testFSet.Base(), n), src[:n], nil /* ignore errors */, scanner.ScanComments)
 	for {
 		_, tok, lit := s.Scan()
 		switch tok {

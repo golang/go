@@ -19,9 +19,10 @@ func findStructType(t *testing.T, src string) *types2.Struct {
 }
 
 func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2.Struct {
-	types := make(map[syntax.Expr]types2.TypeAndValue)
-	mustTypecheck(src, nil, &types2.Info{Types: types})
-	for _, tv := range types {
+	// types_: avoid naming conflict in the version generated for go/types
+	types_ := make(map[syntax.Expr]types2.TypeAndValue)
+	mustTypecheck(src, nil, &types2.Info{Types: types_})
+	for _, tv := range types_ {
 		if ts, ok := tv.Type.(*types2.Struct); ok {
 			return ts
 		}
