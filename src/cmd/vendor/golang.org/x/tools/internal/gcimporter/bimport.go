@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"go/types"
 	"sync"
+	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
 
 func errorf(format string, args ...any) {

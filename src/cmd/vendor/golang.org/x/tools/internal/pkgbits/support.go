@@ -4,6 +4,7 @@
 
 package pkgbits
 
+// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 import "fmt"
 
 func assert(b bool) {

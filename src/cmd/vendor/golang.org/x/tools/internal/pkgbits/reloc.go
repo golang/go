@@ -4,6 +4,8 @@
 
 package pkgbits
 
+// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
+
 // A RelocKind indicates a particular section within a unified IR export.
 type RelocKind int32
 

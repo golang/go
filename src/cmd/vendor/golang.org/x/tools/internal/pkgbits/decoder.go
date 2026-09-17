@@ -15,6 +15,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
 
 // A PkgDecoder provides methods for decoding a package's Unified IR

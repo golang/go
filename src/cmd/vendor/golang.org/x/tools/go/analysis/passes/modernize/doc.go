@@ -58,6 +58,12 @@ append([]T(nil), s...), the analyzer suggests the more concise slices.Clone(s).
 For byte slices, it will prefer bytes.Clone if the "bytes" package is
 already imported.
 
+Since the replacement (slices.Concat, or slices.Clone) allocates a new
+slice, any slices.Clone or bytes.Clone wrapping one of the operands is
+redundant and is removed, e.g. append(append([]T{}, slices.Clone(s)...),
+t...) becomes slices.Concat(s, t). The clone of os.Environ in
+append([]string(nil), os.Environ()...) is likewise elided.
+
 This fix is only applied when the base of the append tower is a
 "clipped" slice, meaning its length and capacity are equal (e.g.
 x[:0:0] or []T{}). This is to avoid changing program behavior by

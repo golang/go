@@ -9,7 +9,7 @@
 //   - functions for converting types to strings or syntax (e.g. [TypeExpr], FileQualifier]);
 //   - helpers for working with the [go/types] API (e.g. [NewTypesInfo]);
 //   - access to internal go/types APIs that are not yet
-//     exported (e.g. [SetUsesCgo], [ErrorCodeStartEnd], [VarKind]); and
+//     exported (e.g. [SetUsesCgo], [ErrorCodeStartEnd]); and
 //   - common algorithms related to types (e.g. [TooNewStdSymbols]).
 //
 // See also:
@@ -215,17 +215,17 @@ func ObjectKind(obj types.Object) string {
 		}
 	case *types.Var:
 		switch obj.Kind() {
-		case PackageVar:
+		case types.PackageVar:
 			return "package-level variable"
-		case LocalVar:
+		case types.LocalVar:
 			return "local variable"
-		case RecvVar:
+		case types.RecvVar:
 			return "receiver"
-		case ParamVar:
+		case types.ParamVar:
 			return "parameter"
-		case ResultVar:
+		case types.ResultVar:
 			return "result variable"
-		case FieldVar:
+		case types.FieldVar:
 			return "struct field"
 		}
 	case *types.Func:
@@ -271,6 +271,8 @@ func ImplicitFieldSelections(seln types.Selection) iter.Seq2[*types.Var, bool] {
 	}
 }
 
+// TupleOf returns a tuple type with the specified list of (unnamed)
+// var types. Neither the zero nor one cases are special.
 func TupleOf(elems ...types.Type) *types.Tuple {
 	params := make([]*types.Var, len(elems))
 	for i, elem := range elems {

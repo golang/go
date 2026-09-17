@@ -28,6 +28,7 @@ import (
 	"go/types"
 	"io"
 	"os"
+	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
 
 const (

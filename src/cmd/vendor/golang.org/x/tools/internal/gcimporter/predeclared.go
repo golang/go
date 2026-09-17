@@ -7,6 +7,7 @@ package gcimporter
 import (
 	"go/types"
 	"sync"
+	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
 
 // predecl is a cache for the predeclared types in types.Universe.
