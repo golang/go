@@ -285,10 +285,11 @@ func makeGOROOTCopy(t *testing.T) string {
 			}
 			perm = info.Mode() & os.ModePerm
 		}
+		perm |= 0200
 
 		// If it's a directory, make a corresponding directory.
 		if info.IsDir() {
-			return os.MkdirAll(dst, perm|0200)
+			return os.MkdirAll(dst, perm)
 		}
 
 		// Copy the file bytes.
