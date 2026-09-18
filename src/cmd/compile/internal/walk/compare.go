@@ -192,18 +192,18 @@ func (w *walkState) walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		// is handled by walkCompare.
 		fn, needsLength := reflectdata.EqFor(t)
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-		addrCmpL := typecheck.NodAddr(cmpl)
-		addrCmpR := typecheck.NodAddr(cmpr)
+		addrCmpL := typecheck.NodAddr(ir.CurFunc, cmpl)
+		addrCmpR := typecheck.NodAddr(ir.CurFunc, cmpr)
 		if !types.IsNoRacePkg(types.LocalPkg) && base.Flag.Race {
-			ptrL := typecheck.Conv(typecheck.Conv(addrCmpL, types.Types[types.TUNSAFEPTR]), types.Types[types.TUINTPTR])
-			ptrR := typecheck.Conv(typecheck.Conv(addrCmpR, types.Types[types.TUNSAFEPTR]), types.Types[types.TUINTPTR])
+			ptrL := typecheck.Conv(ir.CurFunc, typecheck.Conv(ir.CurFunc, addrCmpL, types.Types[types.TUNSAFEPTR]), types.Types[types.TUINTPTR])
+			ptrR := typecheck.Conv(ir.CurFunc, typecheck.Conv(ir.CurFunc, addrCmpR, types.Types[types.TUNSAFEPTR]), types.Types[types.TUINTPTR])
 			raceFn := typecheck.LookupRuntime("racereadrange")
 			size := ir.NewInt(base.Pos, t.Size())
 			call.PtrInit().Append(w.mkcall1(raceFn, nil, init, ptrL, size))
 			call.PtrInit().Append(w.mkcall1(raceFn, nil, init, ptrR, size))
 		}
-		call.Args.Append(typecheck.Conv(addrCmpL, types.Types[types.TUNSAFEPTR]))
-		call.Args.Append(typecheck.Conv(addrCmpR, types.Types[types.TUNSAFEPTR]))
+		call.Args.Append(typecheck.Conv(ir.CurFunc, addrCmpL, types.Types[types.TUNSAFEPTR]))
+		call.Args.Append(typecheck.Conv(ir.CurFunc, addrCmpR, types.Types[types.TUNSAFEPTR]))
 		if needsLength {
 			call.Args.Append(ir.NewInt(base.Pos, t.Size()))
 		}
@@ -280,22 +280,22 @@ func (w *walkState) walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			} else {
 				elemType := t.Elem().ToUnsigned()
 				cmplw := ir.Node(ir.NewIndexExpr(base.Pos, cmpl, ir.NewInt(base.Pos, i)))
-				cmplw = typecheck.Conv(cmplw, elemType) // convert to unsigned
-				cmplw = typecheck.Conv(cmplw, convType) // widen
+				cmplw = typecheck.Conv(ir.CurFunc, cmplw, elemType) // convert to unsigned
+				cmplw = typecheck.Conv(ir.CurFunc, cmplw, convType) // widen
 				cmprw := ir.Node(ir.NewIndexExpr(base.Pos, cmpr, ir.NewInt(base.Pos, i)))
-				cmprw = typecheck.Conv(cmprw, elemType)
-				cmprw = typecheck.Conv(cmprw, convType)
+				cmprw = typecheck.Conv(ir.CurFunc, cmprw, elemType)
+				cmprw = typecheck.Conv(ir.CurFunc, cmprw, convType)
 				// For code like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
 				// ssa will generate a single large load.
 				for offset := int64(1); offset < step; offset++ {
 					lb := ir.Node(ir.NewIndexExpr(base.Pos, cmpl, ir.NewInt(base.Pos, i+offset)))
-					lb = typecheck.Conv(lb, elemType)
-					lb = typecheck.Conv(lb, convType)
+					lb = typecheck.Conv(ir.CurFunc, lb, elemType)
+					lb = typecheck.Conv(ir.CurFunc, lb, convType)
 					lb = ir.NewBinaryExpr(base.Pos, ir.OLSH, lb, ir.NewInt(base.Pos, 8*t.Elem().Size()*offset))
 					cmplw = ir.NewBinaryExpr(base.Pos, ir.OOR, cmplw, lb)
 					rb := ir.Node(ir.NewIndexExpr(base.Pos, cmpr, ir.NewInt(base.Pos, i+offset)))
-					rb = typecheck.Conv(rb, elemType)
-					rb = typecheck.Conv(rb, convType)
+					rb = typecheck.Conv(ir.CurFunc, rb, elemType)
+					rb = typecheck.Conv(ir.CurFunc, rb, convType)
 					rb = ir.NewBinaryExpr(base.Pos, ir.OLSH, rb, ir.NewInt(base.Pos, 8*t.Elem().Size()*offset))
 					cmprw = ir.NewBinaryExpr(base.Pos, ir.OOR, cmprw, rb)
 				}
@@ -309,8 +309,8 @@ func (w *walkState) walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		expr = ir.NewBool(base.Pos, n.Op() == ir.OEQ)
 		// We still need to use cmpl and cmpr, in case they contain
 		// an expression which might panic. See issue 23837.
-		a1 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpl))
-		a2 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpr))
+		a1 := typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpl))
+		a2 := typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpr))
 		init.Append(a1, a2)
 	}
 	return w.finishCompare(n, expr, init)
@@ -425,13 +425,13 @@ func (w *walkState) walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node 
 					convType = types.Types[types.TUINT16]
 					step = 2
 				}
-				ncsubstr := typecheck.Conv(ir.NewIndexExpr(base.Pos, ncs, ir.NewInt(base.Pos, int64(i))), convType)
+				ncsubstr := typecheck.Conv(ir.CurFunc, ir.NewIndexExpr(base.Pos, ncs, ir.NewInt(base.Pos, int64(i))), convType)
 				csubstr := int64(s[i])
 				// Calculate large constant from bytes as sequence of shifts and ors.
 				// Like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
 				// ssa will combine this into a single large load.
 				for offset := 1; offset < step; offset++ {
-					b := typecheck.Conv(ir.NewIndexExpr(base.Pos, ncs, ir.NewInt(base.Pos, int64(i+offset))), convType)
+					b := typecheck.Conv(ir.CurFunc, ir.NewIndexExpr(base.Pos, ncs, ir.NewInt(base.Pos, int64(i+offset))), convType)
 					b = ir.NewBinaryExpr(base.Pos, ir.OLSH, b, ir.NewInt(base.Pos, int64(8*offset)))
 					ncsubstr = ir.NewBinaryExpr(base.Pos, ir.OOR, ncsubstr, b)
 					csubstr |= int64(s[i+offset]) << uint8(8*offset)
@@ -464,7 +464,7 @@ func (w *walkState) walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node 
 		}
 	} else {
 		// sys_cmpstring(s1, s2) :: 0
-		r = w.mkcall("cmpstring", types.Types[types.TINT], init, typecheck.Conv(n.X, types.Types[types.TSTRING]), typecheck.Conv(n.Y, types.Types[types.TSTRING]))
+		r = w.mkcall("cmpstring", types.Types[types.TINT], init, typecheck.Conv(ir.CurFunc, n.X, types.Types[types.TSTRING]), typecheck.Conv(ir.CurFunc, n.Y, types.Types[types.TSTRING]))
 		r = ir.NewBinaryExpr(base.Pos, n.Op(), r, ir.NewInt(base.Pos, 0))
 	}
 
@@ -475,8 +475,8 @@ func (w *walkState) walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node 
 //
 //	n.Left = finishCompare(n.Left, x, r, init)
 func (w *walkState) finishCompare(n *ir.BinaryExpr, r ir.Node, init *ir.Nodes) ir.Node {
-	r = typecheck.Expr(r)
-	r = typecheck.Conv(r, n.Type())
+	r = typecheck.Expr(ir.CurFunc, r)
+	r = typecheck.Conv(ir.CurFunc, r, n.Type())
 	r = w.walkExpr(r, init)
 	return r
 }
@@ -529,5 +529,5 @@ func (w *walkState) tracecmpArg(n ir.Node, t *types.Type, init *ir.Nodes) ir.Nod
 		n = w.copyExpr(n, n.Type(), init)
 	}
 
-	return typecheck.Conv(n, t)
+	return typecheck.Conv(ir.CurFunc, n, t)
 }

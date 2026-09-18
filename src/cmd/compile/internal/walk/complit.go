@@ -24,7 +24,7 @@ func (w *walkState) walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
 		// Make direct reference to the static data. See issue 12841.
 		vstat := readonlystaticname(n.Type())
 		w.fixedlit(initKindStatic, n, vstat, init)
-		return typecheck.Expr(vstat)
+		return typecheck.Expr(ir.CurFunc, vstat)
 	}
 	var_ := typecheck.TempAt(base.Pos, w.curfunc, n.Type())
 	w.anylit(n, var_, init)
@@ -241,7 +241,7 @@ func (w *walkState) fixedlit(kind initKind, n *ir.CompLitExpr, var_ ir.Node, ini
 		// build list of assignments: var[index] = expr
 		ir.SetPos(a)
 		as := ir.NewAssignStmt(base.Pos, a, value)
-		as = typecheck.Stmt(as).(*ir.AssignStmt)
+		as = typecheck.Stmt(ir.CurFunc, as).(*ir.AssignStmt)
 		switch kind {
 		case initKindStatic:
 			genAsStatic(as)
@@ -360,18 +360,18 @@ func (w *walkState) slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 		// build list of vauto[c] = expr
 		ir.SetPos(value)
 		as := ir.NewAssignStmt(base.Pos, a, value)
-		w.appendWalkStmt(init, w.orderStmtInPlace(typecheck.Stmt(as), map[string][]*ir.Name{}))
+		w.appendWalkStmt(init, w.orderStmtInPlace(typecheck.Stmt(ir.CurFunc, as), map[string][]*ir.Name{}))
 	}
 
 	// make slice out of heap (6)
 	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto, nil, nil, nil))
-	w.appendWalkStmt(init, w.orderStmtInPlace(typecheck.Stmt(a), map[string][]*ir.Name{}))
+	w.appendWalkStmt(init, w.orderStmtInPlace(typecheck.Stmt(ir.CurFunc, a), map[string][]*ir.Name{}))
 }
 
 func (w *walkState) maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
 	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(base.Pos, n.Len+int64(len(n.List)))}
-	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
+	a := typecheck.Expr(ir.CurFunc, ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
 	a.RType = n.RType
 	a.SetEsc(n.Esc())
 	w.appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
@@ -425,7 +425,7 @@ func (w *walkState) maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		kidx.SetBounded(true)
 
 		// typechecker rewrites OINDEX to OINDEXMAP
-		lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, kidx)).(*ir.IndexExpr)
+		lhs := typecheck.AssignExpr(ir.CurFunc, ir.NewIndexExpr(base.Pos, m, kidx)).(*ir.IndexExpr)
 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
 		lhs.RType = n.RType
 
@@ -434,7 +434,7 @@ func (w *walkState) maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(base.Pos, 1)))
 
 		var body ir.Node = ir.NewAssignStmt(base.Pos, lhs, rhs)
-		body = typecheck.Stmt(body)
+		body = typecheck.Stmt(ir.CurFunc, body)
 		body = w.orderStmtInPlace(body, map[string][]*ir.Name{})
 
 		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil, false)
@@ -466,12 +466,12 @@ func (w *walkState) maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		ir.SetPos(tmpelem)
 
 		// typechecker rewrites OINDEX to OINDEXMAP
-		lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, tmpkey)).(*ir.IndexExpr)
+		lhs := typecheck.AssignExpr(ir.CurFunc, ir.NewIndexExpr(base.Pos, m, tmpkey)).(*ir.IndexExpr)
 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
 		lhs.RType = n.RType
 
 		var a ir.Node = ir.NewAssignStmt(base.Pos, lhs, tmpelem)
-		a = typecheck.Stmt(a)
+		a = typecheck.Stmt(ir.CurFunc, a)
 		a = w.orderStmtInPlace(a, map[string][]*ir.Name{})
 		w.appendWalkStmt(init, a)
 	}
@@ -508,7 +508,7 @@ func (w *walkState) anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		w.appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, r))
 
 		var_ = ir.NewStarExpr(base.Pos, var_)
-		var_ = typecheck.AssignExpr(var_)
+		var_ = typecheck.AssignExpr(ir.CurFunc, var_)
 		w.anylit(n.X, var_, init)
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT:

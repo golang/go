@@ -435,7 +435,7 @@ func copyInputs(curfn *ir.Func, pos src.XPos, recvOrFn ir.Node, args []ir.Node, 
 	}
 
 	asList := ir.NewAssignListStmt(pos, ir.OAS2, lhs, rhs)
-	init.Append(typecheck.Stmt(asList))
+	init.Append(typecheck.Stmt(ir.CurFunc, asList))
 
 	return newRecvOrFn, lhs[1:]
 }
@@ -466,18 +466,18 @@ func condCall(curfn *ir.Func, pos src.XPos, cond ir.Node, thenCall, elseCall *ir
 		// Copy slice so edits in one location don't affect another.
 		thenRet := append([]ir.Node(nil), retvars...)
 		thenAsList := ir.NewAssignListStmt(pos, ir.OAS2, thenRet, []ir.Node{thenCall})
-		thenBlock.Append(typecheck.Stmt(thenAsList))
+		thenBlock.Append(typecheck.Stmt(ir.CurFunc, thenAsList))
 
 		elseRet := append([]ir.Node(nil), retvars...)
 		elseAsList := ir.NewAssignListStmt(pos, ir.OAS2, elseRet, []ir.Node{elseCall})
-		elseBlock.Append(typecheck.Stmt(elseAsList))
+		elseBlock.Append(typecheck.Stmt(ir.CurFunc, elseAsList))
 	}
 
 	nif := ir.NewIfStmt(pos, cond, thenBlock, elseBlock)
 	nif.SetInit(init)
 	nif.Likely = true
 
-	body := []ir.Node{typecheck.Stmt(nif)}
+	body := []ir.Node{typecheck.Stmt(ir.CurFunc, nif)}
 
 	// This isn't really an inlined call of course, but InlinedCallExpr
 	// makes handling reassignment of return values easier.
@@ -539,13 +539,13 @@ func rewriteInterfaceCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp
 
 	assert := ir.NewTypeAssertExpr(pos, recv, concretetyp)
 
-	assertAsList := ir.NewAssignListStmt(pos, ir.OAS2, []ir.Node{tmpnode, tmpok}, []ir.Node{typecheck.Expr(assert)})
-	init.Append(typecheck.Stmt(assertAsList))
+	assertAsList := ir.NewAssignListStmt(pos, ir.OAS2, []ir.Node{tmpnode, tmpok}, []ir.Node{typecheck.Expr(ir.CurFunc, assert)})
+	init.Append(typecheck.Stmt(ir.CurFunc, assertAsList))
 
-	concreteCallee := typecheck.XDotMethod(pos, tmpnode, method, true)
+	concreteCallee := typecheck.XDotMethod(ir.CurFunc, pos, tmpnode, method, true)
 	// Copy slice so edits in one location don't affect another.
 	argvars = append([]ir.Node(nil), argvars...)
-	concreteCall := typecheck.Call(pos, concreteCallee, argvars, call.IsDDD).(*ir.CallExpr)
+	concreteCall := typecheck.Call(ir.CurFunc, pos, concreteCallee, argvars, call.IsDDD).(*ir.CallExpr)
 
 	res := condCall(curfn, pos, tmpok, concreteCall, call, init)
 
@@ -600,13 +600,13 @@ func rewriteFunctionCall(call *ir.CallExpr, curfn, callee *ir.Func) ir.Node {
 
 	// FuncPCABIInternal takes an interface{}, emulate that. This is needed
 	// for to ensure we get the MAKEFACE we need for SSA.
-	fnIface := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TINTER], fn))
-	calleeIface := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TINTER], callee.Nname))
+	fnIface := typecheck.Expr(ir.CurFunc, ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TINTER], fn))
+	calleeIface := typecheck.Expr(ir.CurFunc, ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TINTER], callee.Nname))
 
 	fnPC := ir.FuncPC(pos, fnIface, obj.ABIInternal)
 	concretePC := ir.FuncPC(pos, calleeIface, obj.ABIInternal)
 
-	pcEq := typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.OEQ, fnPC, concretePC))
+	pcEq := typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(base.Pos, ir.OEQ, fnPC, concretePC))
 
 	// TODO(go.dev/issue/61577): Handle callees that a closures and need a
 	// copy of the closure context from call. For now, we skip callees that
@@ -617,7 +617,7 @@ func rewriteFunctionCall(call *ir.CallExpr, curfn, callee *ir.Func) ir.Node {
 
 	// Copy slice so edits in one location don't affect another.
 	argvars = append([]ir.Node(nil), argvars...)
-	concreteCall := typecheck.Call(pos, callee.Nname, argvars, call.IsDDD).(*ir.CallExpr)
+	concreteCall := typecheck.Call(ir.CurFunc, pos, callee.Nname, argvars, call.IsDDD).(*ir.CallExpr)
 
 	res := condCall(curfn, pos, pcEq, concreteCall, call, init)
 

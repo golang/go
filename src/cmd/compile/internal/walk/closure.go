@@ -125,11 +125,11 @@ func (w *walkState) walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 		clos.List[i] = ir.NewStructKeyExpr(base.Pos, typ.Field(i), value)
 	}
 
-	addr := typecheck.NodAddr(clos)
+	addr := typecheck.NodAddr(ir.CurFunc, clos)
 	addr.SetEsc(clo.Esc())
 
 	// Force type conversion from *struct to the func type.
-	cfn := typecheck.ConvNop(addr, clo.Type())
+	cfn := typecheck.ConvNop(ir.CurFunc, addr, clo.Type())
 
 	// non-escaping temp to use, if any.
 	if x := clo.Prealloc; x != nil {
@@ -156,9 +156,9 @@ func closureArgs(clo *ir.ClosureExpr) []ir.Node {
 		var outer ir.Node
 		outer = v.Outer
 		if !v.Byval() {
-			outer = typecheck.NodAddrAt(fn.Pos(), outer)
+			outer = typecheck.NodAddrAt(ir.CurFunc, fn.Pos(), outer)
 		}
-		args[i] = typecheck.Expr(outer)
+		args[i] = typecheck.Expr(ir.CurFunc, outer)
 	}
 	return args
 }
@@ -179,7 +179,7 @@ func (w *walkState) walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node 
 
 		tab := ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X)
 		check := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
-		init.Append(typecheck.Stmt(check))
+		init.Append(typecheck.Stmt(ir.CurFunc, check))
 	}
 
 	typ := typecheck.MethodValueType(n)
@@ -188,11 +188,11 @@ func (w *walkState) walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node 
 	clos.SetEsc(n.Esc())
 	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, methodValueWrapper(n)), n.X}
 
-	addr := typecheck.NodAddr(clos)
+	addr := typecheck.NodAddr(ir.CurFunc, clos)
 	addr.SetEsc(n.Esc())
 
 	// Force type conversion from *struct to the func type.
-	cfn := typecheck.ConvNop(addr, n.Type())
+	cfn := typecheck.ConvNop(ir.CurFunc, addr, n.Type())
 
 	// non-escaping temp to use, if any.
 	if x := n.Prealloc; x != nil {

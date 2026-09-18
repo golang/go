@@ -22,18 +22,18 @@ func RangeExprType(t *types.Type) *types.Type {
 // type check assignment.
 // if this assignment is the definition of a var on the left side,
 // fill in the var's type.
-func tcAssign(n *ir.AssignStmt) {
+func tcAssign(curfunc *ir.Func, n *ir.AssignStmt) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("tcAssign", n)(nil)
 	}
 
 	if n.Y == nil {
-		n.X = AssignExpr(n.X)
+		n.X = AssignExpr(curfunc, n.X)
 		return
 	}
 
 	lhs, rhs := []ir.Node{n.X}, []ir.Node{n.Y}
-	assign(n, lhs, rhs)
+	assign(curfunc, n, lhs, rhs)
 	n.X, n.Y = lhs[0], rhs[0]
 
 	// TODO(mdempsky): This seems out of place.
@@ -42,15 +42,15 @@ func tcAssign(n *ir.AssignStmt) {
 	}
 }
 
-func tcAssignList(n *ir.AssignListStmt) {
+func tcAssignList(curfunc *ir.Func, n *ir.AssignListStmt) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("tcAssignList", n)(nil)
 	}
 
-	assign(n, n.Lhs, n.Rhs)
+	assign(curfunc, n, n.Lhs, n.Rhs)
 }
 
-func assign(stmt ir.Node, lhs, rhs []ir.Node) {
+func assign(curfunc *ir.Func, stmt ir.Node, lhs, rhs []ir.Node) {
 	// delicate little dance.
 	// the definition of lhs may refer to this assignment
 	// as its definition, in which case it will call tcAssign.
@@ -65,7 +65,7 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
 			n.SetType(defaultType(typ))
 		}
 		if lhs[i].Typecheck() == 0 {
-			lhs[i] = AssignExpr(lhs[i])
+			lhs[i] = AssignExpr(curfunc, lhs[i])
 		}
 		checkassign(lhs[i])
 	}
@@ -79,12 +79,12 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
 
 	cr := len(rhs)
 	if len(rhs) == 1 {
-		rhs[0] = typecheck(rhs[0], ctxExpr|ctxMultiOK)
+		rhs[0] = typecheck(curfunc, rhs[0], ctxExpr|ctxMultiOK)
 		if rtyp := rhs[0].Type(); rtyp != nil && rtyp.IsFuncArgStruct() {
 			cr = rtyp.NumFields()
 		}
 	} else {
-		Exprs(rhs)
+		Exprs(curfunc, rhs)
 	}
 
 	// x, ok = y
@@ -150,7 +150,7 @@ assignOK:
 			}
 		}
 		if mismatched && !failed {
-			RewriteMultiValueCall(stmt, r)
+			RewriteMultiValueCall(curfunc, stmt, r)
 		}
 		return
 	}
@@ -171,8 +171,8 @@ func plural(n int) string {
 }
 
 // tcCheckNil typechecks an OCHECKNIL node.
-func tcCheckNil(n *ir.UnaryExpr) ir.Node {
-	n.X = Expr(n.X)
+func tcCheckNil(curfunc *ir.Func, n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(curfunc, n.X)
 	if !n.X.Type().IsPtrShaped() {
 		base.FatalfAt(n.Pos(), "%L is not pointer shaped", n.X)
 	}
@@ -180,9 +180,9 @@ func tcCheckNil(n *ir.UnaryExpr) ir.Node {
 }
 
 // tcFor typechecks an OFOR node.
-func tcFor(n *ir.ForStmt) ir.Node {
-	Stmts(n.Init())
-	n.Cond = Expr(n.Cond)
+func tcFor(curfunc *ir.Func, n *ir.ForStmt) ir.Node {
+	Stmts(curfunc, n.Init())
+	n.Cond = Expr(curfunc, n.Cond)
 	n.Cond = DefaultLit(n.Cond, nil)
 	if n.Cond != nil {
 		t := n.Cond.Type()
@@ -190,14 +190,14 @@ func tcFor(n *ir.ForStmt) ir.Node {
 			base.Errorf("non-bool %L used as for condition", n.Cond)
 		}
 	}
-	n.Post = Stmt(n.Post)
-	Stmts(n.Body)
+	n.Post = Stmt(curfunc, n.Post)
+	Stmts(curfunc, n.Body)
 	return n
 }
 
 // tcGoDefer typechecks (normalizes) an OGO/ODEFER statement.
-func tcGoDefer(n *ir.GoDeferStmt) {
-	call := normalizeGoDeferCall(n.Pos(), n.Op(), n.Call, n.PtrInit())
+func tcGoDefer(curfunc *ir.Func, n *ir.GoDeferStmt) {
+	call := normalizeGoDeferCall(curfunc, n.Pos(), n.Op(), n.Call, n.PtrInit())
 	call.GoDefer = true
 	n.Call = call
 }
@@ -214,7 +214,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 //
 //	x1, y1 := x, y          // added to init
 //	func() { f(x1, y1) }()  // result
-func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) *ir.CallExpr {
+func normalizeGoDeferCall(curfunc *ir.Func, pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) *ir.CallExpr {
 	init.Append(ir.TakeInit(call)...)
 
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
@@ -224,7 +224,7 @@ func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) 
 	}
 
 	// Create a new wrapper function without parameters or results.
-	wrapperFn := ir.NewClosureFunc(pos, pos, op, types.NewSignature(nil, nil, nil), ir.CurFunc, Target, 0)
+	wrapperFn := ir.NewClosureFunc(pos, pos, op, types.NewSignature(nil, nil, nil), curfunc, Target, 0)
 	wrapperFn.DeclareParams(true)
 	wrapperFn.SetWrapper(true)
 
@@ -350,8 +350,8 @@ func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) 
 			}
 
 			// tmp := arg
-			tmp := TempAt(pos, ir.CurFunc, arg.Type())
-			init.Append(Stmt(ir.NewDecl(pos, ir.ODCL, tmp)))
+			tmp := TempAt(pos, curfunc, arg.Type())
+			init.Append(Stmt(curfunc, ir.NewDecl(pos, ir.ODCL, tmp)))
 			tmp.Defn = as
 			as.Lhs[i] = tmp
 			as.Rhs[i] = arg
@@ -359,13 +359,13 @@ func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) 
 			// Rewrite original expression to use/capture tmp.
 			*argp = ir.NewClosureVar(pos, wrapperFn, tmp)
 		}
-		init.Append(Stmt(as))
+		init.Append(Stmt(curfunc, as))
 
 		// For "go/defer iface.M()", if iface is nil, we need to panic at
 		// the point of the go/defer statement.
 		if call.Op() == ir.OCALLINTER {
 			iface := as.Lhs[0]
-			init.Append(Stmt(ir.NewUnaryExpr(stmtPos, ir.OCHECKNIL, ir.NewUnaryExpr(iface.Pos(), ir.OITAB, iface))))
+			init.Append(Stmt(curfunc, ir.NewUnaryExpr(stmtPos, ir.OCHECKNIL, ir.NewUnaryExpr(iface.Pos(), ir.OITAB, iface))))
 		}
 	}
 
@@ -374,13 +374,13 @@ func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) 
 	wrapperFn.Body = []ir.Node{call}
 
 	// Finally, construct a call to the wrapper.
-	return Call(call.Pos(), wrapperFn.OClosure, nil, false).(*ir.CallExpr)
+	return Call(curfunc, call.Pos(), wrapperFn.OClosure, nil, false).(*ir.CallExpr)
 }
 
 // tcIf typechecks an OIF node.
-func tcIf(n *ir.IfStmt) ir.Node {
-	Stmts(n.Init())
-	n.Cond = Expr(n.Cond)
+func tcIf(curfunc *ir.Func, n *ir.IfStmt) ir.Node {
+	Stmts(curfunc, n.Init())
+	n.Cond = Expr(curfunc, n.Cond)
 	n.Cond = DefaultLit(n.Cond, nil)
 	if n.Cond != nil {
 		t := n.Cond.Type()
@@ -388,25 +388,25 @@ func tcIf(n *ir.IfStmt) ir.Node {
 			base.Errorf("non-bool %L used as if condition", n.Cond)
 		}
 	}
-	Stmts(n.Body)
-	Stmts(n.Else)
+	Stmts(curfunc, n.Body)
+	Stmts(curfunc, n.Else)
 	return n
 }
 
 // range
-func tcRange(n *ir.RangeStmt) {
-	n.X = Expr(n.X)
+func tcRange(curfunc *ir.Func, n *ir.RangeStmt) {
+	n.X = Expr(curfunc, n.X)
 
 	// delicate little dance.  see tcAssignList
 	if n.Key != nil {
 		if !ir.DeclaredBy(n.Key, n) {
-			n.Key = AssignExpr(n.Key)
+			n.Key = AssignExpr(curfunc, n.Key)
 		}
 		checkassign(n.Key)
 	}
 	if n.Value != nil {
 		if !ir.DeclaredBy(n.Value, n) {
-			n.Value = AssignExpr(n.Value)
+			n.Value = AssignExpr(curfunc, n.Value)
 		}
 		checkassign(n.Value)
 	}
@@ -414,33 +414,33 @@ func tcRange(n *ir.RangeStmt) {
 	// second half of dance
 	n.SetTypecheck(1)
 	if n.Key != nil && n.Key.Typecheck() == 0 {
-		n.Key = AssignExpr(n.Key)
+		n.Key = AssignExpr(curfunc, n.Key)
 	}
 	if n.Value != nil && n.Value.Typecheck() == 0 {
-		n.Value = AssignExpr(n.Value)
+		n.Value = AssignExpr(curfunc, n.Value)
 	}
 
-	Stmts(n.Body)
+	Stmts(curfunc, n.Body)
 }
 
 // tcReturn typechecks an ORETURN node.
-func tcReturn(n *ir.ReturnStmt) ir.Node {
-	if ir.CurFunc == nil {
+func tcReturn(curfunc *ir.Func, n *ir.ReturnStmt) ir.Node {
+	if curfunc == nil {
 		base.FatalfAt(n.Pos(), "return outside function")
 	}
 
-	typecheckargs(n)
+	typecheckargs(curfunc, n)
 	if len(n.Results) != 0 {
-		typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, func() string { return "return argument" })
+		typecheckaste(ir.ORETURN, nil, false, curfunc.Type().Results(), n.Results, func() string { return "return argument" })
 	}
 	return n
 }
 
 // select
-func tcSelect(sel *ir.SelectStmt) {
+func tcSelect(curfunc *ir.Func, sel *ir.SelectStmt) {
 	var def *ir.CommClause
 	lno := ir.SetPos(sel)
-	Stmts(sel.Init())
+	Stmts(curfunc, sel.Init())
 	for _, ncase := range sel.Cases {
 		if ncase.Comm == nil {
 			// default
@@ -450,7 +450,7 @@ func tcSelect(sel *ir.SelectStmt) {
 				def = ncase
 			}
 		} else {
-			n := Stmt(ncase.Comm)
+			n := Stmt(curfunc, ncase.Comm)
 			ncase.Comm = n
 			oselrecv2 := func(dst, recv ir.Node, def bool) {
 				selrecv := ir.NewAssignListStmt(n.Pos(), ir.OSELRECV2, []ir.Node{dst, ir.BlankNode}, []ir.Node{recv})
@@ -506,16 +506,16 @@ func tcSelect(sel *ir.SelectStmt) {
 			}
 		}
 
-		Stmts(ncase.Body)
+		Stmts(curfunc, ncase.Body)
 	}
 
 	base.Pos = lno
 }
 
 // tcSend typechecks an OSEND node.
-func tcSend(n *ir.SendStmt) ir.Node {
-	n.Chan = Expr(n.Chan)
-	n.Value = Expr(n.Value)
+func tcSend(curfunc *ir.Func, n *ir.SendStmt) ir.Node {
+	n.Chan = Expr(curfunc, n.Chan)
+	n.Value = Expr(curfunc, n.Value)
 	n.Chan = DefaultLit(n.Chan, nil)
 	t := n.Chan.Type()
 	if t == nil {
@@ -539,19 +539,19 @@ func tcSend(n *ir.SendStmt) ir.Node {
 }
 
 // tcSwitch typechecks a switch statement.
-func tcSwitch(n *ir.SwitchStmt) {
-	Stmts(n.Init())
+func tcSwitch(curfunc *ir.Func, n *ir.SwitchStmt) {
+	Stmts(curfunc, n.Init())
 	if n.Tag != nil && n.Tag.Op() == ir.OTYPESW {
-		tcSwitchType(n)
+		tcSwitchType(curfunc, n)
 	} else {
-		tcSwitchExpr(n)
+		tcSwitchExpr(curfunc, n)
 	}
 }
 
-func tcSwitchExpr(n *ir.SwitchStmt) {
+func tcSwitchExpr(curfunc *ir.Func, n *ir.SwitchStmt) {
 	t := types.Types[types.TBOOL]
 	if n.Tag != nil {
-		n.Tag = Expr(n.Tag)
+		n.Tag = Expr(curfunc, n.Tag)
 		n.Tag = DefaultLit(n.Tag, nil)
 		t = n.Tag.Type()
 	}
@@ -589,7 +589,7 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 
 		for i := range ls {
 			ir.SetPos(ncase)
-			ls[i] = Expr(ls[i])
+			ls[i] = Expr(curfunc, ls[i])
 			ls[i] = DefaultLit(ls[i], t)
 			n1 := ls[i]
 			if t == nil || n1.Type() == nil {
@@ -613,13 +613,13 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 			}
 		}
 
-		Stmts(ncase.Body)
+		Stmts(curfunc, ncase.Body)
 	}
 }
 
-func tcSwitchType(n *ir.SwitchStmt) {
+func tcSwitchType(curfunc *ir.Func, n *ir.SwitchStmt) {
 	guard := n.Tag.(*ir.TypeSwitchGuard)
-	guard.X = Expr(guard.X)
+	guard.X = Expr(curfunc, guard.X)
 	t := guard.X.Type()
 	if t != nil && !t.IsInterface() {
 		base.ErrorfAt(n.Pos(), errors.InvalidTypeSwitch, "cannot type switch on non-interface value %L", guard.X)
@@ -646,7 +646,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 		}
 
 		for i := range ls {
-			ls[i] = typecheck(ls[i], ctxExpr|ctxType)
+			ls[i] = typecheck(curfunc, ls[i], ctxExpr|ctxType)
 			n1 := ls[i]
 			if t == nil || n1.Type() == nil {
 				continue
@@ -694,7 +694,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			nvar := ncase.Var
 			nvar.SetType(vt)
 			if vt != nil {
-				nvar = AssignExpr(nvar).(*ir.Name)
+				nvar = AssignExpr(curfunc, nvar).(*ir.Name)
 			} else {
 				// Clause variable is broken; prevent typechecking.
 				nvar.SetTypecheck(1)
@@ -702,7 +702,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			ncase.Var = nvar
 		}
 
-		Stmts(ncase.Body)
+		Stmts(curfunc, ncase.Body)
 	}
 }
 

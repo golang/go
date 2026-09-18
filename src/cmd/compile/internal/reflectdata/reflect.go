@@ -566,7 +566,7 @@ func setTypeInfo(lsym *obj.LSym, t *types.Type) {
 // TypePtrAt returns an expression that evaluates to the
 // *runtime._type value for t.
 func TypePtrAt(pos src.XPos, t *types.Type) *ir.AddrExpr {
-	return typecheck.LinksymAddr(pos, TypeLinksym(t), types.Types[types.TUINT8])
+	return typecheck.LinksymAddr(ir.CurFunc, pos, TypeLinksym(t), types.Types[types.TUINT8])
 }
 
 // ITabLsym returns the LSym representing the itab for concrete type typ implementing
@@ -601,7 +601,7 @@ func itabLsym(typ, iface *types.Type, allowNonImplement bool) *obj.LSym {
 // iface.
 func ITabAddrAt(pos src.XPos, typ, iface *types.Type) *ir.AddrExpr {
 	lsym := itabLsym(typ, iface, false)
-	return typecheck.LinksymAddr(pos, lsym, types.Types[types.TUINT8])
+	return typecheck.LinksymAddr(ir.CurFunc, pos, lsym, types.Types[types.TUINT8])
 }
 
 // needkeyupdate reports whether map updates with t as a key
@@ -1348,7 +1348,7 @@ func ZeroAddr(size int64) ir.Node {
 	}
 	lsym := base.PkgLinksym("go:map", "zero", obj.ABI0)
 	x := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
-	return typecheck.Expr(typecheck.NodAddr(x))
+	return typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, x))
 }
 
 // TypeCanBeDupok reports whether the type descriptor can be defined in multiple packages:

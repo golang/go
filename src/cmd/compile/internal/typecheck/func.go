@@ -15,7 +15,7 @@ import (
 )
 
 // MakeDotArgs package all the arguments that match a ... T parameter into a []T.
-func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
+func MakeDotArgs(curfunc *ir.Func, pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 	if len(args) == 0 {
 		return ir.NewNilExpr(pos, typ)
 	}
@@ -24,7 +24,7 @@ func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 	lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
 	lit.SetImplicit(true)
 
-	n := Expr(lit)
+	n := Expr(curfunc, lit)
 	if n.Type() == nil {
 		base.FatalfAt(pos, "mkdotargslice: typecheck failed")
 	}
@@ -33,7 +33,7 @@ func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 
 // FixVariadicCall rewrites calls to variadic functions to use an
 // explicit ... argument if one is not already present.
-func FixVariadicCall(call *ir.CallExpr) {
+func FixVariadicCall(curfunc *ir.Func, call *ir.CallExpr) {
 	fntype := call.Fun.Type()
 	if !fntype.IsVariadic() || call.IsDDD {
 		return
@@ -44,7 +44,7 @@ func FixVariadicCall(call *ir.CallExpr) {
 
 	args := call.Args
 	extra := args[vi:]
-	slice := MakeDotArgs(call.Pos(), vt, extra)
+	slice := MakeDotArgs(curfunc, call.Pos(), vt, extra)
 	for i := range extra {
 		extra[i] = nil // allow GC
 	}
@@ -144,9 +144,9 @@ func tcFunc(n *ir.Func) {
 }
 
 // tcCall typechecks an OCALL node.
-func tcCall(n *ir.CallExpr, top int) ir.Node {
-	Stmts(n.Init()) // imported rewritten f(g()) calls (#30907)
-	n.Fun = typecheck(n.Fun, ctxExpr|ctxType|ctxCallee)
+func tcCall(curfunc *ir.Func, n *ir.CallExpr, top int) ir.Node {
+	Stmts(curfunc, n.Init()) // imported rewritten f(g()) calls (#30907)
+	n.Fun = typecheck(curfunc, n.Fun, ctxExpr|ctxType|ctxCallee)
 
 	l := n.Fun
 
@@ -165,10 +165,10 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			n.SetOp(l.BuiltinOp)
 			n.Fun = nil
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
-			return typecheck(n, top)
+			return typecheck(curfunc, n, top)
 
 		case ir.OCAP, ir.OCLEAR, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
-			typecheckargs(n)
+			typecheckargs(curfunc, n)
 			fallthrough
 		case ir.ONEW:
 			arg, ok := needOneArg(n, "%v", n.Op())
@@ -177,17 +177,17 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 				return n
 			}
 			u := ir.NewUnaryExpr(n.Pos(), l.BuiltinOp, arg)
-			return typecheck(ir.InitExpr(n.Init(), u), top) // typecheckargs can add to old.Init
+			return typecheck(curfunc, ir.InitExpr(n.Init(), u), top) // typecheckargs can add to old.Init
 
 		case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING:
-			typecheckargs(n)
+			typecheckargs(curfunc, n)
 			arg1, arg2, ok := needTwoArgs(n)
 			if !ok {
 				n.SetType(nil)
 				return n
 			}
 			b := ir.NewBinaryExpr(n.Pos(), l.BuiltinOp, arg1, arg2)
-			return typecheck(ir.InitExpr(n.Init(), b), top) // typecheckargs can add to old.Init
+			return typecheck(curfunc, ir.InitExpr(n.Init(), b), top) // typecheckargs can add to old.Init
 		}
 		panic("unreachable")
 	}
@@ -208,11 +208,11 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 
 		n := ir.NewConvExpr(n.Pos(), ir.OCONV, nil, arg)
 		n.SetType(l.Type())
-		return tcConv(n)
+		return tcConv(curfunc, n)
 	}
 
-	RewriteNonNameCall(n)
-	typecheckargs(n)
+	RewriteNonNameCall(curfunc, n)
+	typecheckargs(curfunc, n)
 	t := l.Type()
 	if t == nil {
 		n.SetType(nil)
@@ -255,7 +255,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	}
 
 	typecheckaste(ir.OCALL, n.Fun, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.Fun) })
-	FixVariadicCall(n)
+	FixVariadicCall(curfunc, n)
 	FixMethodCall(n)
 	if t.NumResults() == 0 {
 		return n
@@ -288,8 +288,8 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 }
 
 // tcAppend typechecks an OAPPEND node.
-func tcAppend(n *ir.CallExpr) ir.Node {
-	typecheckargs(n)
+func tcAppend(curfunc *ir.Func, n *ir.CallExpr) ir.Node {
+	typecheckargs(curfunc, n)
 	args := n.Args
 	if len(args) == 0 {
 		base.Errorf("missing arguments to append")
@@ -349,8 +349,8 @@ func tcAppend(n *ir.CallExpr) ir.Node {
 }
 
 // tcClear typechecks an OCLEAR node.
-func tcClear(n *ir.UnaryExpr) ir.Node {
-	n.X = Expr(n.X)
+func tcClear(curfunc *ir.Func, n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(curfunc, n.X)
 	n.X = DefaultLit(n.X, nil)
 	l := n.X
 	t := l.Type()
@@ -371,8 +371,8 @@ func tcClear(n *ir.UnaryExpr) ir.Node {
 }
 
 // tcClose typechecks an OCLOSE node.
-func tcClose(n *ir.UnaryExpr) ir.Node {
-	n.X = Expr(n.X)
+func tcClose(curfunc *ir.Func, n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(curfunc, n.X)
 	n.X = DefaultLit(n.X, nil)
 	l := n.X
 	t := l.Type()
@@ -395,9 +395,9 @@ func tcClose(n *ir.UnaryExpr) ir.Node {
 }
 
 // tcComplex typechecks an OCOMPLEX node.
-func tcComplex(n *ir.BinaryExpr) ir.Node {
-	l := Expr(n.X)
-	r := Expr(n.Y)
+func tcComplex(curfunc *ir.Func, n *ir.BinaryExpr) ir.Node {
+	l := Expr(curfunc, n.X)
+	r := Expr(curfunc, n.Y)
 	if l.Type() == nil || r.Type() == nil {
 		n.SetType(nil)
 		return n
@@ -437,11 +437,11 @@ func tcComplex(n *ir.BinaryExpr) ir.Node {
 }
 
 // tcCopy typechecks an OCOPY node.
-func tcCopy(n *ir.BinaryExpr) ir.Node {
+func tcCopy(curfunc *ir.Func, n *ir.BinaryExpr) ir.Node {
 	n.SetType(types.Types[types.TINT])
-	n.X = Expr(n.X)
+	n.X = Expr(curfunc, n.X)
 	n.X = DefaultLit(n.X, nil)
-	n.Y = Expr(n.Y)
+	n.Y = Expr(curfunc, n.Y)
 	n.Y = DefaultLit(n.Y, nil)
 	if n.X.Type() == nil || n.Y.Type() == nil {
 		n.SetType(nil)
@@ -479,8 +479,8 @@ func tcCopy(n *ir.BinaryExpr) ir.Node {
 }
 
 // tcDelete typechecks an ODELETE node.
-func tcDelete(n *ir.CallExpr) ir.Node {
-	typecheckargs(n)
+func tcDelete(curfunc *ir.Func, n *ir.CallExpr) ir.Node {
+	typecheckargs(curfunc, n)
 	args := n.Args
 	if len(args) == 0 {
 		base.Errorf("missing arguments to delete")
@@ -513,7 +513,7 @@ func tcDelete(n *ir.CallExpr) ir.Node {
 }
 
 // tcMake typechecks an OMAKE node.
-func tcMake(n *ir.CallExpr) ir.Node {
+func tcMake(curfunc *ir.Func, n *ir.CallExpr) ir.Node {
 	args := n.Args
 	if len(args) == 0 {
 		base.Errorf("missing argument to make")
@@ -523,7 +523,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 
 	n.Args = nil
 	l := args[0]
-	l = typecheck(l, ctxType)
+	l = typecheck(curfunc, l, ctxType)
 	t := l.Type()
 	if t == nil {
 		n.SetType(nil)
@@ -547,12 +547,12 @@ func tcMake(n *ir.CallExpr) ir.Node {
 
 		l = args[i]
 		i++
-		l = Expr(l)
+		l = Expr(curfunc, l)
 		var r ir.Node
 		if i < len(args) {
 			r = args[i]
 			i++
-			r = Expr(r)
+			r = Expr(curfunc, r)
 		}
 
 		if l.Type() == nil || (r != nil && r.Type() == nil) {
@@ -569,7 +569,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 		if i < len(args) {
 			l = args[i]
 			i++
-			l = Expr(l)
+			l = Expr(curfunc, l)
 			l = DefaultLit(l, types.Types[types.TINT])
 			if l.Type() == nil {
 				n.SetType(nil)
@@ -590,7 +590,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 		if i < len(args) {
 			l = args[i]
 			i++
-			l = Expr(l)
+			l = Expr(curfunc, l)
 			l = DefaultLit(l, types.Types[types.TINT])
 			if l.Type() == nil {
 				n.SetType(nil)
@@ -617,7 +617,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 }
 
 // tcMakeSliceCopy typechecks an OMAKESLICECOPY node.
-func tcMakeSliceCopy(n *ir.MakeExpr) ir.Node {
+func tcMakeSliceCopy(curfunc *ir.Func, n *ir.MakeExpr) ir.Node {
 	// Errors here are Fatalf instead of Errorf because only the compiler
 	// can construct an OMAKESLICECOPY node.
 	// Components used in OMAKESCLICECOPY that are supplied by parsed source code
@@ -640,8 +640,8 @@ func tcMakeSliceCopy(n *ir.MakeExpr) ir.Node {
 		base.Fatalf("missing slice argument to copy for OMAKESLICECOPY")
 	}
 
-	n.Len = Expr(n.Len)
-	n.Cap = Expr(n.Cap)
+	n.Len = Expr(curfunc, n.Len)
+	n.Cap = Expr(curfunc, n.Cap)
 
 	n.Len = DefaultLit(n.Len, types.Types[types.TINT])
 
@@ -653,14 +653,14 @@ func tcMakeSliceCopy(n *ir.MakeExpr) ir.Node {
 }
 
 // tcNew typechecks an ONEW node.
-func tcNew(n *ir.UnaryExpr) ir.Node {
+func tcNew(curfunc *ir.Func, n *ir.UnaryExpr) ir.Node {
 	if n.X == nil {
 		// Fatalf because the OCALL above checked for us,
 		// so this must be an internally-generated mistake.
 		base.Fatalf("missing argument to new")
 	}
 	l := n.X
-	l = typecheck(l, ctxType)
+	l = typecheck(curfunc, l, ctxType)
 	t := l.Type()
 	if t == nil {
 		n.SetType(nil)
@@ -672,8 +672,8 @@ func tcNew(n *ir.UnaryExpr) ir.Node {
 }
 
 // tcPanic typechecks an OPANIC node.
-func tcPanic(n *ir.UnaryExpr) ir.Node {
-	n.X = Expr(n.X)
+func tcPanic(curfunc *ir.Func, n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(curfunc, n.X)
 	n.X = AssignConv(n.X, types.Types[types.TINTER], "argument to panic")
 	if n.X.Type() == nil {
 		n.SetType(nil)
@@ -683,8 +683,8 @@ func tcPanic(n *ir.UnaryExpr) ir.Node {
 }
 
 // tcPrint typechecks an OPRINT or OPRINTN node.
-func tcPrint(n *ir.CallExpr) ir.Node {
-	typecheckargs(n)
+func tcPrint(curfunc *ir.Func, n *ir.CallExpr) ir.Node {
+	typecheckargs(curfunc, n)
 	ls := n.Args
 	for i1, n1 := range ls {
 		// Special case for print: int constant is int64, not int.
@@ -698,8 +698,8 @@ func tcPrint(n *ir.CallExpr) ir.Node {
 }
 
 // tcMinMax typechecks an OMIN or OMAX node.
-func tcMinMax(n *ir.CallExpr) ir.Node {
-	typecheckargs(n)
+func tcMinMax(curfunc *ir.Func, n *ir.CallExpr) ir.Node {
+	typecheckargs(curfunc, n)
 	arg0 := n.Args[0]
 	for _, arg := range n.Args[1:] {
 		if !types.Identical(arg.Type(), arg0.Type()) {
@@ -711,8 +711,8 @@ func tcMinMax(n *ir.CallExpr) ir.Node {
 }
 
 // tcRealImag typechecks an OREAL or OIMAG node.
-func tcRealImag(n *ir.UnaryExpr) ir.Node {
-	n.X = Expr(n.X)
+func tcRealImag(curfunc *ir.Func, n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(curfunc, n.X)
 	l := n.X
 	t := l.Type()
 	if t == nil {
@@ -749,9 +749,9 @@ func tcRecover(n *ir.CallExpr) ir.Node {
 }
 
 // tcUnsafeAdd typechecks an OUNSAFEADD node.
-func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
-	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
-	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
+func tcUnsafeAdd(curfunc *ir.Func, n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = AssignConv(Expr(curfunc, n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
+	n.Y = DefaultLit(Expr(curfunc, n.Y), types.Types[types.TINT])
 	if n.X.Type() == nil || n.Y.Type() == nil {
 		n.SetType(nil)
 		return n
@@ -765,9 +765,9 @@ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
 }
 
 // tcUnsafeSlice typechecks an OUNSAFESLICE node.
-func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
-	n.X = Expr(n.X)
-	n.Y = Expr(n.Y)
+func tcUnsafeSlice(curfunc *ir.Func, n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = Expr(curfunc, n.X)
+	n.Y = Expr(curfunc, n.Y)
 	if n.X.Type() == nil || n.Y.Type() == nil {
 		n.SetType(nil)
 		return n
@@ -792,9 +792,9 @@ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
 }
 
 // tcUnsafeString typechecks an OUNSAFESTRING node.
-func tcUnsafeString(n *ir.BinaryExpr) *ir.BinaryExpr {
-	n.X = Expr(n.X)
-	n.Y = Expr(n.Y)
+func tcUnsafeString(curfunc *ir.Func, n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = Expr(curfunc, n.X)
+	n.Y = Expr(curfunc, n.Y)
 	if n.X.Type() == nil || n.Y.Type() == nil {
 		n.SetType(nil)
 		return n

@@ -155,8 +155,8 @@ func registerMeta(cnames names, hashv [16]byte, mdlen int) {
 	hashx := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ht, elist)
 
 	// Materalize expression corresponding to address of the meta-data symbol.
-	mdax := typecheck.NodAddr(cnames.MetaVar)
-	mdauspx := typecheck.ConvNop(mdax, types.Types[types.TUNSAFEPTR])
+	mdax := typecheck.NodAddr(ir.CurFunc, cnames.MetaVar)
+	mdauspx := typecheck.ConvNop(ir.CurFunc, mdax, types.Types[types.TUNSAFEPTR])
 
 	// Materialize expression for length.
 	lenx := ir.NewInt(base.Pos, int64(mdlen)) // untyped
@@ -171,11 +171,11 @@ func registerMeta(cnames names, hashv [16]byte, mdlen int) {
 	cmodeNode := ir.NewInt(base.Pos, int64(cnames.CounterMode))
 	cgranNode := ir.NewInt(base.Pos, int64(cnames.CounterGran))
 	pkPathNode := ir.NewString(base.Pos, base.Ctxt.Pkgpath)
-	callx := typecheck.Call(pos, fn, []ir.Node{mdauspx, lenx, hashx,
+	callx := typecheck.Call(ir.CurFunc, pos, fn, []ir.Node{mdauspx, lenx, hashx,
 		pkPathNode, pkIdNode, cmodeNode, cgranNode}, false)
 	assign := callx
 	if pkid == coverage.NotHardCoded {
-		assign = typecheck.Stmt(ir.NewAssignStmt(pos, cnames.PkgIdVar, callx))
+		assign = typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(pos, cnames.PkgIdVar, callx))
 	}
 
 	// Tack the call onto the start of our init function. We do this
@@ -195,6 +195,6 @@ func addInitHookCall(initfn *ir.Func, cmode coverage.CounterMode) {
 	initf := typecheck.LookupCoverage("initHook")
 	istestNode := ir.NewBool(base.Pos, istest)
 	args := []ir.Node{istestNode}
-	callx := typecheck.Call(pos, initf, args, false)
+	callx := typecheck.Call(ir.CurFunc, pos, initf, args, false)
 	initfn.Body.Append(callx)
 }

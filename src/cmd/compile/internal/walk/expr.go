@@ -135,9 +135,9 @@ func (w *walkState) walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		if n.Op() == ir.OUNSAFEADD && ir.ShouldCheckPtr(w.curfunc, 1) {
 			// For unsafe.Add(p, n), just walk "unsafe.Pointer(uintptr(p)+uintptr(n))"
 			// for the side effects of validating unsafe.Pointer rules.
-			x := typecheck.ConvNop(n.X, types.Types[types.TUINTPTR])
-			y := typecheck.Conv(n.Y, types.Types[types.TUINTPTR])
-			conv := typecheck.ConvNop(ir.NewBinaryExpr(n.Pos(), ir.OADD, x, y), types.Types[types.TUNSAFEPTR])
+			x := typecheck.ConvNop(ir.CurFunc, n.X, types.Types[types.TUINTPTR])
+			y := typecheck.Conv(ir.CurFunc, n.Y, types.Types[types.TUINTPTR])
+			conv := typecheck.ConvNop(ir.CurFunc, ir.NewBinaryExpr(n.Pos(), ir.OADD, x, y), types.Types[types.TUNSAFEPTR])
 			w.walkExpr(conv, init)
 		}
 		return n
@@ -424,7 +424,7 @@ func (w *walkState) safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		}
 		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
-		return w.walkExpr(typecheck.Expr(a), init)
+		return w.walkExpr(typecheck.Expr(ir.CurFunc, a), init)
 
 	case ir.ODOT, ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
@@ -434,7 +434,7 @@ func (w *walkState) safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		}
 		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
-		return w.walkExpr(typecheck.Expr(a), init)
+		return w.walkExpr(typecheck.Expr(ir.CurFunc, a), init)
 
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
@@ -444,7 +444,7 @@ func (w *walkState) safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		}
 		a := ir.Copy(n).(*ir.StarExpr)
 		a.X = l
-		return w.walkExpr(typecheck.Expr(a), init)
+		return w.walkExpr(typecheck.Expr(ir.CurFunc, a), init)
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
@@ -456,7 +456,7 @@ func (w *walkState) safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
 		a := ir.Copy(n).(*ir.IndexExpr)
 		a.X = l
 		a.Index = r
-		return w.walkExpr(typecheck.Expr(a), init)
+		return w.walkExpr(typecheck.Expr(ir.CurFunc, a), init)
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT:
 		n := n.(*ir.CompLitExpr)
@@ -532,7 +532,7 @@ func (w *walkState) walkAddString(x *ir.AddStringExpr, init *ir.Nodes, conv *ir.
 		fn = fmt.Sprintf(fnsmall, c)
 
 		for _, n2 := range x.List {
-			args = append(args, typecheck.Conv(n2, types.Types[types.TSTRING]))
+			args = append(args, typecheck.Conv(ir.CurFunc, n2, types.Types[types.TSTRING]))
 		}
 	} else {
 		// large numbers of strings are passed to the runtime as a slice.
@@ -541,7 +541,7 @@ func (w *walkState) walkAddString(x *ir.AddStringExpr, init *ir.Nodes, conv *ir.
 
 		slargs := make([]ir.Node, len(x.List))
 		for i, n2 := range x.List {
-			slargs[i] = typecheck.Conv(n2, types.Types[types.TSTRING])
+			slargs[i] = typecheck.Conv(ir.CurFunc, n2, types.Types[types.TSTRING])
 		}
 		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, slargs)
 		slice.Prealloc = x.Prealloc
@@ -552,7 +552,7 @@ func (w *walkState) walkAddString(x *ir.AddStringExpr, init *ir.Nodes, conv *ir.
 	cat := typecheck.LookupRuntime(fn)
 	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil)
 	r.Args = args
-	r1 := typecheck.Expr(r)
+	r1 := typecheck.Expr(ir.CurFunc, r)
 	r1 = w.walkExpr(r1, init)
 	r1.SetType(typ)
 
@@ -664,7 +664,7 @@ func (w *walkState) walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		if mayCall(arg) {
 			// assignment of arg to Temp
 			tmp := typecheck.TempAt(base.Pos, w.curfunc, param.Type)
-			init.Append(w.convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init))
+			init.Append(w.convas(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init))
 			// replace arg with temp
 			args[i] = tmp
 		}
@@ -696,8 +696,8 @@ func (w *walkState) walkDivMod(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 
 	if types.IsComplex[et] && n.Op() == ir.ODIV {
 		t := n.Type()
-		call := w.mkcall("complex128div", types.Types[types.TCOMPLEX128], init, typecheck.Conv(n.X, types.Types[types.TCOMPLEX128]), typecheck.Conv(n.Y, types.Types[types.TCOMPLEX128]))
-		return typecheck.Conv(call, t)
+		call := w.mkcall("complex128div", types.Types[types.TCOMPLEX128], init, typecheck.Conv(ir.CurFunc, n.X, types.Types[types.TCOMPLEX128]), typecheck.Conv(ir.CurFunc, n.Y, types.Types[types.TCOMPLEX128]))
+		return typecheck.Conv(ir.CurFunc, call, t)
 	}
 
 	// Nothing to do for float divisions.
@@ -736,7 +736,7 @@ func (w *walkState) walkDivMod(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		} else {
 			fn += "mod"
 		}
-		return w.mkcall(fn, n.Type(), init, typecheck.Conv(n.X, types.Types[et]), typecheck.Conv(n.Y, types.Types[et]))
+		return w.mkcall(fn, n.Type(), init, typecheck.Conv(ir.CurFunc, n.X, types.Types[et]), typecheck.Conv(ir.CurFunc, n.Y, types.Types[et]))
 	}
 	return n
 }
@@ -885,7 +885,7 @@ func mapKeyArg(fast int, n, key ir.Node, assigned bool) ir.Node {
 	if fast == mapslow {
 		// standard version takes key by reference.
 		// orderState.expr made sure key is addressable.
-		return typecheck.NodAddr(key)
+		return typecheck.NodAddr(ir.CurFunc, key)
 	}
 	if assigned {
 		// mapassign does distinguish pointer vs. integer key.
@@ -952,7 +952,7 @@ func (w *walkState) walkSend(n *ir.SendStmt, init *ir.Nodes) ir.Node {
 	n1 := n.Value
 	n1 = typecheck.AssignConv(n1, n.Chan.Type().Elem(), "chan send")
 	n1 = w.walkExpr(n1, init)
-	n1 = typecheck.NodAddr(n1)
+	n1 = typecheck.NodAddr(ir.CurFunc, n1)
 	return w.mkcall1(chanfn("chansend1", 2, n.Chan.Type()), nil, init, n.Chan, n1)
 }
 

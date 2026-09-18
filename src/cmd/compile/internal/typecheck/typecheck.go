@@ -15,21 +15,21 @@ import (
 	"cmd/internal/src"
 )
 
-func AssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
-func Expr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }
-func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
+func AssignExpr(curfunc *ir.Func, n ir.Node) ir.Node { return typecheck(curfunc, n, ctxExpr|ctxAssign) }
+func Expr(curfunc *ir.Func, n ir.Node) ir.Node       { return typecheck(curfunc, n, ctxExpr) }
+func Stmt(curfunc *ir.Func, n ir.Node) ir.Node       { return typecheck(curfunc, n, ctxStmt) }
 
-func Exprs(exprs []ir.Node) { typecheckslice(exprs, ctxExpr) }
-func Stmts(stmts []ir.Node) { typecheckslice(stmts, ctxStmt) }
+func Exprs(curfunc *ir.Func, exprs []ir.Node) { typecheckslice(curfunc, exprs, ctxExpr) }
+func Stmts(curfunc *ir.Func, stmts []ir.Node) { typecheckslice(curfunc, stmts, ctxStmt) }
 
-func Call(pos src.XPos, callee ir.Node, args []ir.Node, dots bool) ir.Node {
+func Call(curfunc *ir.Func, pos src.XPos, callee ir.Node, args []ir.Node, dots bool) ir.Node {
 	call := ir.NewCallExpr(pos, ir.OCALL, callee, args)
 	call.IsDDD = dots
-	return typecheck(call, ctxStmt|ctxExpr)
+	return typecheck(curfunc, call, ctxStmt|ctxExpr)
 }
 
-func Callee(n ir.Node) ir.Node {
-	return typecheck(n, ctxExpr|ctxCallee)
+func Callee(curfunc *ir.Func, n ir.Node) ir.Node {
+	return typecheck(curfunc, n, ctxExpr|ctxCallee)
 }
 
 var traceIndent []byte
@@ -91,9 +91,9 @@ const (
 // marks variables that escape the local frame.
 // rewrites n.Op to be more specific in some cases.
 
-func typecheckslice(l []ir.Node, top int) {
+func typecheckslice(curfunc *ir.Func, l []ir.Node, top int) {
 	for i := range l {
-		l[i] = typecheck(l[i], top)
+		l[i] = typecheck(curfunc, l[i], top)
 	}
 }
 
@@ -146,7 +146,7 @@ func typekind(t *types.Type) string {
 // The result of typecheck MUST be assigned back to n, e.g.
 //
 //	n.Left = typecheck(n.Left, top)
-func typecheck(n ir.Node, top int) (res ir.Node) {
+func typecheck(curfunc *ir.Func, n ir.Node, top int) (res ir.Node) {
 	if n == nil {
 		return nil
 	}
@@ -176,7 +176,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	}
 
 	n.SetTypecheck(2)
-	n = typecheck1(n, top)
+	n = typecheck1(curfunc, n, top)
 	n.SetTypecheck(1)
 
 	t := n.Type()
@@ -209,7 +209,7 @@ func indexlit(n ir.Node) ir.Node {
 }
 
 // typecheck1 should ONLY be called from typecheck.
-func typecheck1(n ir.Node, top int) ir.Node {
+func typecheck1(curfunc *ir.Func, n ir.Node, top int) ir.Node {
 	// Skip over parens.
 	for n.Op() == ir.OPAREN {
 		n = n.(*ir.ParenExpr).X
@@ -245,12 +245,12 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	// type or expr
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
-		return tcStar(n, top)
+		return tcStar(curfunc, n, top)
 
 	// x op= y
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
-		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		n.X, n.Y = Expr(curfunc, n.X), Expr(curfunc, n.Y)
 		checkassign(n.X)
 		if n.IncDec && !okforarith[n.X.Type().Kind()] {
 			base.Errorf("invalid operation: %v (non-numeric type %v)", n, n.X.Type())
@@ -269,7 +269,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	// logical operators
 	case ir.OANDAND, ir.OOROR:
 		n := n.(*ir.LogicalExpr)
-		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		n.X, n.Y = Expr(curfunc, n.X), Expr(curfunc, n.Y)
 		if n.X.Type() == nil || n.Y.Type() == nil {
 			n.SetType(nil)
 			return n
@@ -295,7 +295,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	// shift operators
 	case ir.OLSH, ir.ORSH:
 		n := n.(*ir.BinaryExpr)
-		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		n.X, n.Y = Expr(curfunc, n.X), Expr(curfunc, n.Y)
 		l, r, t := tcShift(n, n.X, n.Y)
 		n.X, n.Y = l, r
 		n.SetType(t)
@@ -304,7 +304,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	// comparison operators
 	case ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT, ir.ONE:
 		n := n.(*ir.BinaryExpr)
-		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		n.X, n.Y = Expr(curfunc, n.X), Expr(curfunc, n.Y)
 		l, r, t := tcArith(n, n.Op(), n.X, n.Y)
 		if t != nil {
 			n.X, n.Y = l, r
@@ -316,7 +316,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	// binary operators
 	case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OMOD, ir.OMUL, ir.OOR, ir.OSUB, ir.OXOR:
 		n := n.(*ir.BinaryExpr)
-		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		n.X, n.Y = Expr(curfunc, n.X), Expr(curfunc, n.Y)
 		l, r, t := tcArith(n, n.Op(), n.X, n.Y)
 		if t != nil && t.Kind() == types.TSTRING && n.Op() == ir.OADD {
 			// create or update OADDSTR node with list of strings in x + y + z + (w + v) + ...
@@ -342,108 +342,108 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OBITNOT, ir.ONEG, ir.ONOT, ir.OPLUS:
 		n := n.(*ir.UnaryExpr)
-		return tcUnaryArith(n)
+		return tcUnaryArith(curfunc, n)
 
 	// exprs
 	case ir.OCOMPLIT:
-		return tcCompLit(n.(*ir.CompLitExpr))
+		return tcCompLit(curfunc, n.(*ir.CompLitExpr))
 
 	case ir.OXDOT, ir.ODOT:
 		n := n.(*ir.SelectorExpr)
-		return tcDot(n, top)
+		return tcDot(curfunc, n, top)
 
 	case ir.ODOTTYPE:
 		n := n.(*ir.TypeAssertExpr)
-		return tcDotType(n)
+		return tcDotType(curfunc, n)
 
 	case ir.OINDEX:
 		n := n.(*ir.IndexExpr)
-		return tcIndex(n)
+		return tcIndex(curfunc, n)
 
 	case ir.ORECV:
 		n := n.(*ir.UnaryExpr)
-		return tcRecv(n)
+		return tcRecv(curfunc, n)
 
 	case ir.OSEND:
 		n := n.(*ir.SendStmt)
-		return tcSend(n)
+		return tcSend(curfunc, n)
 
 	case ir.OSLICEHEADER:
 		n := n.(*ir.SliceHeaderExpr)
-		return tcSliceHeader(n)
+		return tcSliceHeader(curfunc, n)
 
 	case ir.OSTRINGHEADER:
 		n := n.(*ir.StringHeaderExpr)
-		return tcStringHeader(n)
+		return tcStringHeader(curfunc, n)
 
 	case ir.OMAKESLICECOPY:
 		n := n.(*ir.MakeExpr)
-		return tcMakeSliceCopy(n)
+		return tcMakeSliceCopy(curfunc, n)
 
 	case ir.OSLICE, ir.OSLICE3:
 		n := n.(*ir.SliceExpr)
-		return tcSlice(n)
+		return tcSlice(curfunc, n)
 
 	// call and call like
 	case ir.OCALL:
 		n := n.(*ir.CallExpr)
-		return tcCall(n, top)
+		return tcCall(curfunc, n, top)
 
 	case ir.OCAP, ir.OLEN:
 		n := n.(*ir.UnaryExpr)
-		return tcLenCap(n)
+		return tcLenCap(curfunc, n)
 
 	case ir.OMIN, ir.OMAX:
 		n := n.(*ir.CallExpr)
-		return tcMinMax(n)
+		return tcMinMax(curfunc, n)
 
 	case ir.OREAL, ir.OIMAG:
 		n := n.(*ir.UnaryExpr)
-		return tcRealImag(n)
+		return tcRealImag(curfunc, n)
 
 	case ir.OCOMPLEX:
 		n := n.(*ir.BinaryExpr)
-		return tcComplex(n)
+		return tcComplex(curfunc, n)
 
 	case ir.OCLEAR:
 		n := n.(*ir.UnaryExpr)
-		return tcClear(n)
+		return tcClear(curfunc, n)
 
 	case ir.OCLOSE:
 		n := n.(*ir.UnaryExpr)
-		return tcClose(n)
+		return tcClose(curfunc, n)
 
 	case ir.ODELETE:
 		n := n.(*ir.CallExpr)
-		return tcDelete(n)
+		return tcDelete(curfunc, n)
 
 	case ir.OAPPEND:
 		n := n.(*ir.CallExpr)
-		return tcAppend(n)
+		return tcAppend(curfunc, n)
 
 	case ir.OCOPY:
 		n := n.(*ir.BinaryExpr)
-		return tcCopy(n)
+		return tcCopy(curfunc, n)
 
 	case ir.OCONV:
 		n := n.(*ir.ConvExpr)
-		return tcConv(n)
+		return tcConv(curfunc, n)
 
 	case ir.OMAKE:
 		n := n.(*ir.CallExpr)
-		return tcMake(n)
+		return tcMake(curfunc, n)
 
 	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
-		return tcNew(n)
+		return tcNew(curfunc, n)
 
 	case ir.OPRINT, ir.OPRINTLN:
 		n := n.(*ir.CallExpr)
-		return tcPrint(n)
+		return tcPrint(curfunc, n)
 
 	case ir.OPANIC:
 		n := n.(*ir.UnaryExpr)
-		return tcPanic(n)
+		return tcPanic(curfunc, n)
 
 	case ir.ORECOVER:
 		n := n.(*ir.CallExpr)
@@ -451,27 +451,27 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
-		return tcUnsafeAdd(n)
+		return tcUnsafeAdd(curfunc, n)
 
 	case ir.OUNSAFESLICE:
 		n := n.(*ir.BinaryExpr)
-		return tcUnsafeSlice(n)
+		return tcUnsafeSlice(curfunc, n)
 
 	case ir.OUNSAFESLICEDATA:
 		n := n.(*ir.UnaryExpr)
-		return tcUnsafeData(n)
+		return tcUnsafeData(curfunc, n)
 
 	case ir.OUNSAFESTRING:
 		n := n.(*ir.BinaryExpr)
-		return tcUnsafeString(n)
+		return tcUnsafeString(curfunc, n)
 
 	case ir.OUNSAFESTRINGDATA:
 		n := n.(*ir.UnaryExpr)
-		return tcUnsafeData(n)
+		return tcUnsafeData(curfunc, n)
 
 	case ir.OITAB:
 		n := n.(*ir.UnaryExpr)
-		return tcITab(n)
+		return tcITab(curfunc, n)
 
 	case ir.OIDATA:
 		// Whoever creates the OIDATA node must know a priori the concrete type at that moment,
@@ -482,11 +482,11 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OSPTR:
 		n := n.(*ir.UnaryExpr)
-		return tcSPtr(n)
+		return tcSPtr(curfunc, n)
 
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
-		n.X = Expr(n.X)
+		n.X = Expr(curfunc, n.X)
 		n.SetType(types.Types[types.TUINTPTR])
 		return n
 
@@ -500,13 +500,13 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
-		n.X = Expr(n.X)
+		n.X = Expr(curfunc, n.X)
 		return n
 
 	// statements
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
-		tcAssign(n)
+		tcAssign(curfunc, n)
 
 		// Code that creates temps does not bother to set defn, so do it here.
 		if n.X.Op() == ir.ONAME && ir.IsAutoTmp(n.X) {
@@ -515,7 +515,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		return n
 
 	case ir.OAS2:
-		tcAssignList(n.(*ir.AssignListStmt))
+		tcAssignList(curfunc, n.(*ir.AssignListStmt))
 		return n
 
 	case ir.OBREAK,
@@ -527,7 +527,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OBLOCK:
 		n := n.(*ir.BlockStmt)
-		Stmts(n.List)
+		Stmts(curfunc, n.List)
 		return n
 
 	case ir.OLABEL:
@@ -541,41 +541,41 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.ODEFER, ir.OGO:
 		n := n.(*ir.GoDeferStmt)
-		n.Call = typecheck(n.Call, ctxStmt|ctxExpr)
-		tcGoDefer(n)
+		n.Call = typecheck(curfunc, n.Call, ctxStmt|ctxExpr)
+		tcGoDefer(curfunc, n)
 		return n
 
 	case ir.OFOR:
 		n := n.(*ir.ForStmt)
-		return tcFor(n)
+		return tcFor(curfunc, n)
 
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
-		return tcIf(n)
+		return tcIf(curfunc, n)
 
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
-		return tcReturn(n)
+		return tcReturn(curfunc, n)
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
-		n.Call = typecheck(n.Call, ctxStmt|ctxExpr).(*ir.CallExpr)
+		n.Call = typecheck(curfunc, n.Call, ctxStmt|ctxExpr).(*ir.CallExpr)
 		return n
 
 	case ir.OCHECKNIL:
 		n := n.(*ir.UnaryExpr)
-		return tcCheckNil(n)
+		return tcCheckNil(curfunc, n)
 
 	case ir.OSELECT:
-		tcSelect(n.(*ir.SelectStmt))
+		tcSelect(curfunc, n.(*ir.SelectStmt))
 		return n
 
 	case ir.OSWITCH:
-		tcSwitch(n.(*ir.SwitchStmt))
+		tcSwitch(curfunc, n.(*ir.SwitchStmt))
 		return n
 
 	case ir.ORANGE:
-		tcRange(n.(*ir.RangeStmt))
+		tcRange(curfunc, n.(*ir.RangeStmt))
 		return n
 
 	case ir.OTYPESW:
@@ -593,7 +593,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	// Each must execute its own return n.
 }
 
-func typecheckargs(n ir.InitNode) {
+func typecheckargs(curfunc *ir.Func, n ir.InitNode) {
 	var list []ir.Node
 	switch n := n.(type) {
 	default:
@@ -601,30 +601,30 @@ func typecheckargs(n ir.InitNode) {
 	case *ir.CallExpr:
 		list = n.Args
 		if n.IsDDD {
-			Exprs(list)
+			Exprs(curfunc, list)
 			return
 		}
 	case *ir.ReturnStmt:
 		list = n.Results
 	}
 	if len(list) != 1 {
-		Exprs(list)
+		Exprs(curfunc, list)
 		return
 	}
 
-	typecheckslice(list, ctxExpr|ctxMultiOK)
+	typecheckslice(curfunc, list, ctxExpr|ctxMultiOK)
 	t := list[0].Type()
 	if t == nil || !t.IsFuncArgStruct() {
 		return
 	}
 
 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
-	RewriteMultiValueCall(n, list[0])
+	RewriteMultiValueCall(curfunc, n, list[0])
 }
 
 // RewriteNonNameCall replaces non-Name call expressions with temps,
 // rewriting f()(...) to t0 := f(); t0(...).
-func RewriteNonNameCall(n *ir.CallExpr) {
+func RewriteNonNameCall(curfunc *ir.Func, n *ir.CallExpr) {
 	np := &n.Fun
 	if dot, ok := (*np).(*ir.SelectorExpr); ok && (dot.Op() == ir.ODOTMETH || dot.Op() == ir.ODOTINTER || dot.Op() == ir.OMETHVALUE) {
 		np = &dot.X // peel away method selector
@@ -637,28 +637,28 @@ func RewriteNonNameCall(n *ir.CallExpr) {
 		return
 	}
 
-	tmp := TempAt(base.Pos, ir.CurFunc, (*np).Type())
+	tmp := TempAt(base.Pos, curfunc, (*np).Type())
 	as := ir.NewAssignStmt(base.Pos, tmp, *np)
-	as.PtrInit().Append(Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
+	as.PtrInit().Append(Stmt(curfunc, ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
 	*np = tmp
 
-	n.PtrInit().Append(Stmt(as))
+	n.PtrInit().Append(Stmt(curfunc, as))
 }
 
 // RewriteMultiValueCall rewrites multi-valued f() to use temporaries,
 // so the backend wouldn't need to worry about tuple-valued expressions.
-func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
+func RewriteMultiValueCall(curfunc *ir.Func, n ir.InitNode, call ir.Node) {
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{call})
 	results := call.Type().Fields()
 	list := make([]ir.Node, len(results))
 	for i, result := range results {
-		tmp := TempAt(base.Pos, ir.CurFunc, result.Type)
+		tmp := TempAt(base.Pos, curfunc, result.Type)
 		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, tmp))
 		as.Lhs.Append(tmp)
 		list[i] = tmp
 	}
 
-	n.PtrInit().Append(Stmt(as))
+	n.PtrInit().Append(Stmt(curfunc, as))
 
 	switch n := n.(type) {
 	default:
@@ -695,7 +695,7 @@ func checksliceindex(r ir.Node) bool {
 // The result of implicitstar MUST be assigned back to n, e.g.
 //
 //	n.Left = implicitstar(n.Left)
-func implicitstar(n ir.Node) ir.Node {
+func implicitstar(curfunc *ir.Func, n ir.Node) ir.Node {
 	// insert implicit * if needed for fixed array
 	t := n.Type()
 	if t == nil || !t.IsPtr() {
@@ -710,7 +710,7 @@ func implicitstar(n ir.Node) ir.Node {
 	}
 	star := ir.NewStarExpr(base.Pos, n)
 	star.SetImplicit(true)
-	return Expr(star)
+	return Expr(curfunc, star)
 }
 
 func needOneArg(n *ir.CallExpr, f string, args ...any) (ir.Node, bool) {
@@ -819,7 +819,7 @@ func derefall(t *types.Type) *types.Type {
 // methods. If dostrcmp is 0, it matches the field/method with the exact symbol
 // as n.Sel (appropriate for exported fields). If dostrcmp is 1, it matches by name
 // exactly. If dostrcmp is 2, it matches names with case folding.
-func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
+func Lookdot(curfunc *ir.Func, n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 	s := n.Sel
 
 	types.CalcSize(t)
@@ -855,7 +855,7 @@ func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 			if n.X.Type().IsPtr() {
 				star := ir.NewStarExpr(base.Pos, n.X)
 				star.SetImplicit(true)
-				n.X = Expr(star)
+				n.X = Expr(curfunc, star)
 			}
 
 			n.SetOp(ir.ODOTINTER)
@@ -875,13 +875,13 @@ func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 		if !types.Identical(rcvr, tt) {
 			if rcvr.IsPtr() && types.Identical(rcvr.Elem(), tt) {
 				checklvalue(n.X, "call pointer method on")
-				addr := NodAddr(n.X)
+				addr := NodAddr(curfunc, n.X)
 				addr.SetImplicit(true)
-				n.X = typecheck(addr, ctxType|ctxExpr)
+				n.X = typecheck(curfunc, addr, ctxType|ctxExpr)
 			} else if tt.IsPtr() && (!rcvr.IsPtr() || rcvr.IsPtr() && rcvr.Elem().NotInHeap()) && types.Identical(tt.Elem(), rcvr) {
 				star := ir.NewStarExpr(base.Pos, n.X)
 				star.SetImplicit(true)
-				n.X = typecheck(star, ctxType|ctxExpr)
+				n.X = typecheck(curfunc, star, ctxType|ctxExpr)
 			} else if tt.IsPtr() && tt.Elem().IsPtr() && types.Identical(derefall(tt), derefall(rcvr)) {
 				base.Errorf("calling method %v with receiver %L requires explicit dereference", n.Sel, n.X)
 				for tt.IsPtr() {
@@ -891,7 +891,7 @@ func Lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
 					}
 					star := ir.NewStarExpr(base.Pos, n.X)
 					star.SetImplicit(true)
-					n.X = typecheck(star, ctxType|ctxExpr)
+					n.X = typecheck(curfunc, star, ctxType|ctxExpr)
 					tt = tt.Elem()
 				}
 			} else {
@@ -1068,7 +1068,7 @@ func fielddup(name string, hash map[string]bool) {
 }
 
 // typecheckarraylit type-checks a sequence of slice/array literal elements.
-func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx string) int64 {
+func typecheckarraylit(curfunc *ir.Func, elemType *types.Type, bound int64, elts []ir.Node, ctx string) int64 {
 	// If there are key/value pairs, create a map to keep seen
 	// keys so we can check for duplicate indices.
 	var indices map[int64]bool
@@ -1086,13 +1086,13 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
 		var kv *ir.KeyExpr
 		if elt.Op() == ir.OKEY {
 			elt := elt.(*ir.KeyExpr)
-			elt.Key = Expr(elt.Key)
+			elt.Key = Expr(curfunc, elt.Key)
 			key = IndexConst(elt.Key)
 			kv = elt
 			r = elt.Value
 		}
 
-		r = Expr(r)
+		r = Expr(curfunc, r)
 		r = AssignConv(r, elemType, ctx)
 		if kv != nil {
 			kv.Value = r
@@ -1187,7 +1187,7 @@ func checkassignto(src *types.Type, dst ir.Node) {
 // The result of stringtoruneslit MUST be assigned back to n, e.g.
 //
 //	n.Left = stringtoruneslit(n.Left)
-func stringtoruneslit(n *ir.ConvExpr) ir.Node {
+func stringtoruneslit(curfunc *ir.Func, n *ir.ConvExpr) ir.Node {
 	if n.X.Op() != ir.OLITERAL || n.X.Val().Kind() != constant.String {
 		base.Fatalf("stringtoarraylit %v", n)
 	}
@@ -1199,7 +1199,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 		i++
 	}
 
-	return Expr(ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, n.Type(), l))
+	return Expr(curfunc, ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, n.Type(), l))
 }
 
 func checkmake(t *types.Type, arg string, np *ir.Node) bool {
@@ -1235,24 +1235,24 @@ func checkunsafesliceorstring(op ir.Op, np *ir.Node) bool {
 	return true
 }
 
-func Conv(n ir.Node, t *types.Type) ir.Node {
+func Conv(curfunc *ir.Func, n ir.Node, t *types.Type) ir.Node {
 	if types.IdenticalStrict(n.Type(), t) {
 		return n
 	}
 	n = ir.NewConvExpr(base.Pos, ir.OCONV, nil, n)
 	n.SetType(t)
-	n = Expr(n)
+	n = Expr(curfunc, n)
 	return n
 }
 
 // ConvNop converts node n to type t using the OCONVNOP op
 // and typechecks the result with ctxExpr.
-func ConvNop(n ir.Node, t *types.Type) ir.Node {
+func ConvNop(curfunc *ir.Func, n ir.Node, t *types.Type) ir.Node {
 	if types.IdenticalStrict(n.Type(), t) {
 		return n
 	}
 	n = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, n)
 	n.SetType(t)
-	n = Expr(n)
+	n = Expr(curfunc, n)
 	return n
 }

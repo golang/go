@@ -103,7 +103,7 @@ func TestClassifyIntegerCompare(t *testing.T) {
 	noror1 := logical(nlt10, ir.OOROR, ngt100) // n < 10 || n > 100
 	noror2 := logical(nge12, ir.OOROR, nle99)  // n >= 12 || n <= 99
 	noror3 := logical(noror2, ir.OOROR, nne101)
-	nandand := typecheck.Expr(logical(noror1, ir.OANDAND, noror3))
+	nandand := typecheck.Expr(ir.CurFunc, logical(noror1, ir.OANDAND, noror3))
 
 	wantv := true
 	v := ShouldFoldIfNameConstant(nandand, []*ir.Name{nn})
@@ -121,7 +121,7 @@ func TestClassifyStringCompare(t *testing.T) {
 	sltoob := bin(nn, ir.OLT, lits("ooblek"))  // s < "ooblek"
 	sgtpk := bin(nn, ir.OGT, lits("plarkish")) // s > "plarkish"
 	nandand := logical(snefoo, ir.OANDAND, sltoob)
-	top := typecheck.Expr(logical(nandand, ir.OANDAND, sgtpk))
+	top := typecheck.Expr(ir.CurFunc, logical(nandand, ir.OANDAND, sgtpk))
 
 	wantv := true
 	v := ShouldFoldIfNameConstant(top, []*ir.Name{nn})
@@ -146,7 +146,7 @@ func TestClassifyIntegerArith(t *testing.T) {
 	c3add := bin(c2mul, ir.OADD, nls9)
 	c4add := bin(c3add, ir.OADD, nrs2)
 	c5sub := bin(c4add, ir.OSUB, nan7)
-	top := typecheck.Expr(c5sub)
+	top := typecheck.Expr(ir.CurFunc, c5sub)
 
 	wantv := true
 	v := ShouldFoldIfNameConstant(top, []*ir.Name{nn})
@@ -165,7 +165,7 @@ func TestClassifyAssortedShifts(t *testing.T) {
 	}
 	for _, bc := range badcases {
 		wantv := false
-		v := ShouldFoldIfNameConstant(typecheck.Expr(bc), []*ir.Name{nn})
+		v := ShouldFoldIfNameConstant(typecheck.Expr(ir.CurFunc, bc), []*ir.Name{nn})
 		if v != wantv {
 			t.Errorf("wanted shouldfold(%v) %v, got %v", bc, wantv, v)
 		}
@@ -181,7 +181,7 @@ func TestClassifyFloat(t *testing.T) {
 	add := bin(f1, ir.OADD, f2)
 
 	wantv := false
-	v := ShouldFoldIfNameConstant(typecheck.Expr(add), []*ir.Name{nn})
+	v := ShouldFoldIfNameConstant(typecheck.Expr(ir.CurFunc, add), []*ir.Name{nn})
 	if v != wantv {
 		t.Errorf("wanted shouldfold(%v) %v, got %v", add, wantv, v)
 	}
@@ -194,7 +194,7 @@ func TestMultipleNamesAllUsed(t *testing.T) {
 	nm := s.nmi64("m")
 	nne101 := bin(nn, ir.ONE, liti(101)) // n != 101
 	mlt2 := bin(nm, ir.OLT, liti(2))     // m < 2
-	nandand := typecheck.Expr(logical(nne101, ir.OANDAND, mlt2))
+	nandand := typecheck.Expr(ir.CurFunc, logical(nne101, ir.OANDAND, mlt2))
 
 	// all names used
 	wantv := true

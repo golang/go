@@ -138,7 +138,7 @@ func StaticCall(s *State, call *ir.CallExpr) {
 		dt.SetPos(call.Pos())
 	}
 
-	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
+	x := typecheck.XDotMethod(ir.CurFunc, sel.Pos(), dt, sel.Sel, true)
 	switch x.Op() {
 	case ir.ODOTMETH:
 		if base.Flag.LowerM != 0 {

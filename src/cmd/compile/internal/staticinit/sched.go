@@ -223,7 +223,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 		if loff != 0 || !types.Identical(typ, l.Type()) {
 			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
 		}
-		s.append(ir.NewAssignStmt(base.Pos, dst, typecheck.Conv(r, typ)))
+		s.append(ir.NewAssignStmt(base.Pos, dst, typecheck.Conv(ir.CurFunc, r, typ)))
 		return true
 
 	case ir.ONIL:
@@ -1253,7 +1253,7 @@ func OutlineMapInits(fn *ir.Func) {
 		// to the returned wrapper function.
 		if wrapperFn := tryWrapGlobalInit(stmt); wrapperFn != nil {
 			ir.WithFunc(fn, func() {
-				fn.Body[i] = typecheck.Call(stmt.Pos(), wrapperFn.Nname, nil, false)
+				fn.Body[i] = typecheck.Call(ir.CurFunc, stmt.Pos(), wrapperFn.Nname, nil, false)
 			})
 			outlined++
 		}

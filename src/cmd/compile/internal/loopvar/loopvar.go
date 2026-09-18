@@ -362,11 +362,11 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 						// (6)     if tmp_first {tmp_first = false} else {Post} +
 						//         if !cond {break} + ...
 						tmpFirst := typecheck.TempAt(base.Pos, fn, types.Types[types.TBOOL])
-						tmpFirstDcl = typecheck.Stmt(ir.NewAssignStmt(x.Pos(), tmpFirst, ir.NewBool(base.Pos, true)))
-						tmpFirstSetFalse := typecheck.Stmt(ir.NewAssignStmt(x.Pos(), tmpFirst, ir.NewBool(base.Pos, false)))
+						tmpFirstDcl = typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(x.Pos(), tmpFirst, ir.NewBool(base.Pos, true)))
+						tmpFirstSetFalse := typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(x.Pos(), tmpFirst, ir.NewBool(base.Pos, false)))
 						ifTmpFirst := ir.NewIfStmt(x.Pos(), tmpFirst, ir.Nodes{tmpFirstSetFalse}, ir.Nodes{x.Post})
-						ifTmpFirst.PtrInit().Append(typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, tmpFirst))) // declares tmpFirst
-						preBody.Append(typecheck.Stmt(ifTmpFirst))
+						ifTmpFirst.PtrInit().Append(typecheck.Stmt(ir.CurFunc, ir.NewDecl(base.Pos, ir.ODCL, tmpFirst))) // declares tmpFirst
+						preBody.Append(typecheck.Stmt(ir.CurFunc, ifTmpFirst))
 					}
 
 					// body' = prebody +

@@ -60,7 +60,7 @@ func (w *walkState) order(fn *ir.Func) {
 
 // append typechecks stmt and appends it to out.
 func (o *orderState) append(stmt ir.Node) {
-	o.out = append(o.out, typecheck.Stmt(stmt))
+	o.out = append(o.out, typecheck.Stmt(ir.CurFunc, stmt))
 }
 
 // newTemp allocates a new temporary with the given type,
@@ -133,7 +133,7 @@ func (o *orderState) cheapExpr(walkstate *walkState, n ir.Node) ir.Node {
 		}
 		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
-		return typecheck.Expr(a)
+		return typecheck.Expr(ir.CurFunc, a)
 	}
 
 	return o.copyExpr(walkstate, n)
@@ -159,7 +159,7 @@ func (o *orderState) safeExpr(walkstate *walkState, n ir.Node) ir.Node {
 		}
 		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
-		return typecheck.Expr(a)
+		return typecheck.Expr(ir.CurFunc, a)
 
 	case ir.ODOT:
 		n := n.(*ir.SelectorExpr)
@@ -169,7 +169,7 @@ func (o *orderState) safeExpr(walkstate *walkState, n ir.Node) ir.Node {
 		}
 		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
-		return typecheck.Expr(a)
+		return typecheck.Expr(ir.CurFunc, a)
 
 	case ir.ODOTPTR:
 		n := n.(*ir.SelectorExpr)
@@ -179,7 +179,7 @@ func (o *orderState) safeExpr(walkstate *walkState, n ir.Node) ir.Node {
 		}
 		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
-		return typecheck.Expr(a)
+		return typecheck.Expr(ir.CurFunc, a)
 
 	case ir.ODEREF:
 		n := n.(*ir.StarExpr)
@@ -189,7 +189,7 @@ func (o *orderState) safeExpr(walkstate *walkState, n ir.Node) ir.Node {
 		}
 		a := ir.Copy(n).(*ir.StarExpr)
 		a.X = l
-		return typecheck.Expr(a)
+		return typecheck.Expr(ir.CurFunc, a)
 
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
@@ -206,7 +206,7 @@ func (o *orderState) safeExpr(walkstate *walkState, n ir.Node) ir.Node {
 		a := ir.Copy(n).(*ir.IndexExpr)
 		a.X = l
 		a.Index = r
-		return typecheck.Expr(a)
+		return typecheck.Expr(ir.CurFunc, a)
 
 	default:
 		base.Fatalf("order.safeExpr %v", n.Op())
@@ -237,7 +237,7 @@ func (o *orderState) addrTemp(walkstate *walkState, n ir.Node) ir.Node {
 		if s.Out != nil {
 			base.Fatalf("staticassign of const generated code: %+v", n)
 		}
-		vstat = typecheck.Expr(vstat).(*ir.Name)
+		vstat = typecheck.Expr(ir.CurFunc, vstat).(*ir.Name)
 		return vstat
 	}
 
@@ -254,7 +254,7 @@ func (o *orderState) addrTemp(walkstate *walkState, n ir.Node) ir.Node {
 		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize && optEnabled(n) {
 			// This zero value can be represented by the read-only zeroVal.
 			zeroVal := ir.NewLinksymExpr(v.Pos(), ir.Syms.ZeroVal, n.Type())
-			vstat := typecheck.Expr(zeroVal).(*ir.LinksymOffsetExpr)
+			vstat := typecheck.Expr(ir.CurFunc, zeroVal).(*ir.LinksymOffsetExpr)
 			return vstat
 		}
 		if isStaticCompositeLiteral(v) && optEnabled(n) {
@@ -262,7 +262,7 @@ func (o *orderState) addrTemp(walkstate *walkState, n ir.Node) ir.Node {
 			lit := v.(*ir.CompLitExpr)
 			vstat := readonlystaticname(n.Type())
 			walkstate.fixedlit(initKindStatic, lit, vstat, nil) // nil init
-			vstat = typecheck.Expr(vstat).(*ir.Name)
+			vstat = typecheck.Expr(ir.CurFunc, vstat).(*ir.Name)
 			return vstat
 		}
 	}
@@ -319,7 +319,7 @@ func (o *orderState) mapKeyTemp(walkstate *walkState, outerPos src.XPos, t *type
 		return n
 	case nt.Kind() == kt.Kind(), nt.IsPtrShaped() && kt.IsPtrShaped():
 		// can directly convert (e.g. named type to underlying type, or one pointer to another)
-		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, kt, n))
+		return typecheck.Expr(ir.CurFunc, ir.NewConvExpr(pos, ir.OCONVNOP, kt, n))
 	case nt.IsInteger() && kt.IsInteger():
 		// can directly convert (e.g. int32 to uint32)
 		if n.Op() == ir.OLITERAL && nt.IsSigned() {
@@ -328,7 +328,7 @@ func (o *orderState) mapKeyTemp(walkstate *walkState, outerPos src.XPos, t *type
 			n.SetType(kt)
 			return n
 		}
-		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, kt, n))
+		return typecheck.Expr(ir.CurFunc, ir.NewConvExpr(pos, ir.OCONV, kt, n))
 	default:
 		// Unsafe cast through memory.
 		// We'll need to do a load with type kt. Create a temporary of type kt to
@@ -338,7 +338,7 @@ func (o *orderState) mapKeyTemp(walkstate *walkState, outerPos src.XPos, t *type
 		}
 		tmp := o.newTemp(walkstate, kt, true)
 		// *(*nt)(&tmp) = n
-		var e ir.Node = typecheck.NodAddr(tmp)
+		var e ir.Node = typecheck.NodAddr(ir.CurFunc, tmp)
 		e = ir.NewConvExpr(pos, ir.OCONVNOP, nt.PtrTo(), e)
 		e = ir.NewStarExpr(pos, e)
 		o.append(ir.NewAssignStmt(pos, e, n))
@@ -494,7 +494,7 @@ func orderMakeSliceCopy(s []ir.Node) {
 	mk.Cap = cp.Y
 	// Set bounded when m = OMAKESLICE([]T, len(s)); OCOPY(m, s)
 	mk.SetBounded(mk.Len.Op() == ir.OLEN && ir.SameSafeExpr(mk.Len.(*ir.UnaryExpr).X, cp.Y))
-	as.Y = typecheck.Expr(mk)
+	as.Y = typecheck.Expr(ir.CurFunc, mk)
 	s[1] = nil // remove separate copy call
 }
 
@@ -759,8 +759,8 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 				l2.Assigned = false
 			}
 			l2 = o.copyExpr(walkstate, l2)
-			r := o.expr(walkstate, typecheck.Expr(ir.NewBinaryExpr(n.Pos(), n.AsOp, l2, n.Y)), nil)
-			as := typecheck.Stmt(ir.NewAssignStmt(n.Pos(), l1, r))
+			r := o.expr(walkstate, typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(n.Pos(), n.AsOp, l2, n.Y)), nil)
+			as := typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(n.Pos(), l1, r))
 			o.mapAssign(walkstate, as)
 			o.popTemp(t)
 			return
@@ -984,7 +984,7 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 			if r.Type().IsString() && r.Type() != types.Types[types.TSTRING] {
 				r = ir.NewConvExpr(base.Pos, ir.OCONV, nil, r)
 				r.SetType(types.Types[types.TSTRING])
-				r = typecheck.Expr(r)
+				r = typecheck.Expr(ir.CurFunc, r)
 			}
 
 			n.X = o.copyExpr(walkstate, r)
@@ -1080,11 +1080,11 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 								init = init[1:]
 							}
 						}
-						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
+						dcl := typecheck.Stmt(ir.CurFunc, ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 						ncas.PtrInit().Append(dcl)
 					}
 					tmp := o.newTemp(walkstate, t, t.HasPointers())
-					as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, n, typecheck.Conv(tmp, n.Type())))
+					as := typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, n, typecheck.Conv(ir.CurFunc, tmp, n.Type())))
 					ncas.PtrInit().Append(as)
 					r.Lhs[i] = tmp
 				}
@@ -1347,7 +1347,7 @@ func (o *orderState) expr1(walkstate *walkState, n, lhs ir.Node) ir.Node {
 
 		// Evaluate left-hand side.
 		lhs := o.expr(walkstate, n.X, nil)
-		o.out = append(o.out, typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, lhs)))
+		o.out = append(o.out, typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, r, lhs)))
 
 		// Evaluate right-hand side, save generated code.
 		saveout := o.out
@@ -1355,7 +1355,7 @@ func (o *orderState) expr1(walkstate *walkState, n, lhs ir.Node) ir.Node {
 		t := o.markTemp()
 		o.edge()
 		rhs := o.expr(walkstate, n.Y, nil)
-		o.out = append(o.out, typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, rhs)))
+		o.out = append(o.out, typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, r, rhs)))
 		o.popTemp(t)
 		gen := o.out
 		o.out = saveout
@@ -1550,17 +1550,17 @@ func (o *orderState) expr1(walkstate *walkState, n, lhs ir.Node) ir.Node {
 		// Emit the creation of the map (with all its static entries).
 		m := o.newTemp(walkstate, n.Type(), false)
 		as := ir.NewAssignStmt(base.Pos, m, n)
-		typecheck.Stmt(as)
+		typecheck.Stmt(ir.CurFunc, as)
 		o.stmt(walkstate, as)
 
 		// Emit eval+insert of dynamic entries, one at a time.
 		for _, r := range dynamics {
-			lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, r.Key)).(*ir.IndexExpr)
+			lhs := typecheck.AssignExpr(ir.CurFunc, ir.NewIndexExpr(base.Pos, m, r.Key)).(*ir.IndexExpr)
 			base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
 			lhs.RType = n.RType
 
 			as := ir.NewAssignStmt(base.Pos, lhs, r.Value)
-			typecheck.Stmt(as)
+			typecheck.Stmt(ir.CurFunc, as)
 			o.stmt(walkstate, as)
 		}
 
@@ -1604,7 +1604,7 @@ func (o *orderState) as2func(walkstate *walkState, n *ir.AssignListStmt) {
 	}
 
 	o.out = append(o.out, n)
-	o.stmt(walkstate, typecheck.Stmt(as))
+	o.stmt(walkstate, typecheck.Stmt(ir.CurFunc, as))
 }
 
 // as2ok orders OAS2XXX with ok.
@@ -1621,7 +1621,7 @@ func (o *orderState) as2ok(walkstate *walkState, n *ir.AssignListStmt) {
 				// The "ok" result is an untyped boolean according to the Go
 				// spec. We need to explicitly convert it to the LHS type in
 				// case the latter is a defined boolean type (#8475).
-				tmp = typecheck.Conv(tmp, nl.Type())
+				tmp = typecheck.Conv(ir.CurFunc, tmp, nl.Type())
 			}
 			as.Rhs = append(as.Rhs, tmp)
 		}
@@ -1631,5 +1631,5 @@ func (o *orderState) as2ok(walkstate *walkState, n *ir.AssignListStmt) {
 	do(1, types.Types[types.TBOOL])
 
 	o.out = append(o.out, n)
-	o.stmt(walkstate, typecheck.Stmt(as))
+	o.stmt(walkstate, typecheck.Stmt(ir.CurFunc, as))
 }

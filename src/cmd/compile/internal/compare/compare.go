@@ -199,8 +199,8 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 			}
 			switch {
 			case f.Type.IsString():
-				p := typecheck.DotField(base.Pos, typecheck.Expr(np), i)
-				q := typecheck.DotField(base.Pos, typecheck.Expr(nq), i)
+				p := typecheck.DotField(base.Pos, typecheck.Expr(ir.CurFunc, np), i)
+				q := typecheck.DotField(base.Pos, typecheck.Expr(ir.CurFunc, nq), i)
 				eqlen, eqmem := EqString(p, q)
 				and(eqlen)
 				and(eqmem)
@@ -255,12 +255,12 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 // which can be used to construct string equality comparison.
 // eqlen must be evaluated before eqmem, and shortcircuiting is required.
 func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
-	s = typecheck.Conv(s, types.Types[types.TSTRING])
-	t = typecheck.Conv(t, types.Types[types.TSTRING])
+	s = typecheck.Conv(ir.CurFunc, s, types.Types[types.TSTRING])
+	t = typecheck.Conv(ir.CurFunc, t, types.Types[types.TSTRING])
 	sptr := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ir.NewUnaryExpr(base.Pos, ir.OSPTR, s))
 	tptr := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ir.NewUnaryExpr(base.Pos, ir.OSPTR, t))
-	slen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
-	tlen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
+	slen := typecheck.Conv(ir.CurFunc, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
+	tlen := typecheck.Conv(ir.CurFunc, ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
 
 	// Pick the 3rd arg to memequal. Both slen and tlen are fine to use, because we short
 	// circuit the memequal call if they aren't the same. But if one is a constant some
@@ -294,10 +294,10 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	}
 
 	fn := typecheck.LookupRuntime("memequal")
-	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
+	call := typecheck.Call(ir.CurFunc, base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
-	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
+	cmp = typecheck.Expr(ir.CurFunc, cmp).(*ir.BinaryExpr)
 	cmp.SetType(types.Types[types.TBOOL])
 	return cmp, call
 }
@@ -334,10 +334,10 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	sdata.SetTypecheck(1)
 	tdata.SetTypecheck(1)
 
-	call := typecheck.Call(base.Pos, fn, []ir.Node{stab, sdata, tdata}, false).(*ir.CallExpr)
+	call := typecheck.Call(ir.CurFunc, base.Pos, fn, []ir.Node{stab, sdata, tdata}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
-	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
+	cmp = typecheck.Expr(ir.CurFunc, cmp).(*ir.BinaryExpr)
 	cmp.SetType(types.Types[types.TBOOL])
 	return cmp, call
 }
@@ -346,17 +346,17 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 //
 //	p.field == q.field
 func eqfield(p, q ir.Node, field int) ir.Node {
-	nx := typecheck.DotField(base.Pos, typecheck.Expr(p), field)
-	ny := typecheck.DotField(base.Pos, typecheck.Expr(q), field)
-	return typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny))
+	nx := typecheck.DotField(base.Pos, typecheck.Expr(ir.CurFunc, p), field)
+	ny := typecheck.DotField(base.Pos, typecheck.Expr(ir.CurFunc, q), field)
+	return typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny))
 }
 
 // eqmem returns the node
 //
 //	memequal(&p.field, &q.field, size)
 func eqmem(p, q ir.Node, field int, size int64) ir.Node {
-	nx := typecheck.Expr(typecheck.NodAddr(typecheck.DotField(base.Pos, p, field)))
-	ny := typecheck.Expr(typecheck.NodAddr(typecheck.DotField(base.Pos, q, field)))
+	nx := typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, typecheck.DotField(base.Pos, p, field)))
+	ny := typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, typecheck.DotField(base.Pos, q, field)))
 
 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)

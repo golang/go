@@ -48,12 +48,12 @@ func substArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
 // to help with debugging.
 // It should begin with "." to avoid conflicts with
 // user labels.
-func AutoLabel(prefix string) *types.Sym {
+func AutoLabel(curfunc *ir.Func, prefix string) *types.Sym {
 	if prefix[0] != '.' {
 		base.Fatalf("autolabel prefix must start with '.', have %q", prefix)
 	}
-	fn := ir.CurFunc
-	if ir.CurFunc == nil {
+	fn := curfunc
+	if curfunc == nil {
 		base.Fatalf("autolabel outside function")
 	}
 	n := fn.Label
