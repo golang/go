@@ -408,8 +408,6 @@ func splitPkg(name string) (pkgpath, sym string) {
 	return "", name
 }
 
-var CurFunc *Func
-
 // WithFunc invokes do with base.Pos set to curfn.Pos(), and then
 // restores its previous value before returning.
 func WithFunc(curfn *Func, do func()) {

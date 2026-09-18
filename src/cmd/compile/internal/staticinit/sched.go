@@ -1194,7 +1194,6 @@ func tryWrapGlobalInit(n ir.Node) *ir.Func {
 
 	// Insert assignment into function body; mark body finished.
 	fn.Body = []ir.Node{as}
-	typecheck.FinishFuncBody()
 
 	if base.Debug.WrapGlobalMapDbg > 1 {
 		fmt.Fprintf(os.Stderr, "=-= mapvar is %v\n", nm)

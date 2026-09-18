@@ -1043,10 +1043,10 @@ func WriteGCSymbols() {
 // allowNonImplement is true, allow the case where typ does not implement iface, and just
 // create a dummy itab with zeroed-out method entries.
 func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
-	// TODO(mdempsky): Fix methodWrapper, geneq, and genhash (and maybe
-	// others) to stop clobbering these.
-	oldpos, oldfn := base.Pos, ir.CurFunc
-	defer func() { base.Pos, ir.CurFunc = oldpos, oldfn }()
+	// TODO(mdempsky): Fix geneq and genhash (and maybe others) to stop
+	// clobbering base.Pos.
+	oldpos := base.Pos
+	defer func() { base.Pos = oldpos }()
 
 	if typ == nil || (typ.IsPtr() && typ.Elem() == nil) || typ.IsUntyped() || iface == nil || !iface.IsInterface() || iface.IsEmptyInterface() {
 		base.Fatalf("writeITab(%v, %v)", typ, iface)

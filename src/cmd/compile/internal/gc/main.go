@@ -273,7 +273,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	for _, fn := range typecheck.Target.Funcs {
 		transformed = append(transformed, loopvar.ForCapture(fn)...)
 	}
-	ir.CurFunc = nil
 
 	// Build init task, if needed.
 	pkginit.MakeTask()
@@ -312,8 +311,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if base.Flag.CompilingRuntime {
 		ssagen.EnableNoWriteBarrierRecCheck()
 	}
-
-	ir.CurFunc = nil
 
 	base.Timer.Start("fe", "dumpexport")
 	dumpexport()
@@ -403,7 +400,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 
 	ssagen.CheckLargeStacks()
-	typecheck.CheckFuncStack()
 
 	if len(compilequeue) != 0 {
 		base.Fatalf("%d uncompiled functions", len(compilequeue))

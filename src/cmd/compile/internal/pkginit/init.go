@@ -76,10 +76,7 @@ func MakeTask() {
 			asancall.Args.Append(typecheck.DefaultLit(ir.NewInt(base.Pos, int64(ni)), types.Types[types.TUINTPTR]))
 
 			fnInit.Body.Append(asancall)
-			typecheck.FinishFuncBody()
-			ir.CurFunc = fnInit
 			typecheck.Stmts(fnInit, fnInit.Body)
-			ir.CurFunc = nil
 
 			typecheck.Target.Inits = append(typecheck.Target.Inits, fnInit)
 		}

@@ -34,7 +34,6 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 				devirtualize.ProfileGuided(fn, profile)
 			}
 		})
-		ir.CurFunc = nil
 	}
 
 	if base.Flag.LowerL != 0 {
@@ -134,8 +133,6 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 			}
 		}
 	})
-
-	ir.CurFunc = nil
 
 	if base.Flag.LowerL != 0 {
 		if base.Debug.DumpInlFuncProps != "" {

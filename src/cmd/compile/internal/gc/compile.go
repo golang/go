@@ -31,10 +31,6 @@ var (
 )
 
 func enqueueFunc(fn *ir.Func, symABIs *ssagen.SymABIs) {
-	if ir.CurFunc != nil {
-		base.FatalfAt(fn.Pos(), "enqueueFunc %v inside %v", fn, ir.CurFunc)
-	}
-
 	if ir.FuncName(fn) == "_" {
 		// Skip compiling blank functions.
 		// Frontend already reported any spec-mandated errors (#29870).
@@ -124,12 +120,10 @@ func prepareFunc(fn *ir.Func) {
 	// Must be done after InitLSym and CalcSize.
 	ssagen.GenWasmExportWrapper(fn)
 
-	ir.CurFunc = fn
 	walk.Walk(fn)
 	if ir.MatchAstDump(fn, "walk") {
 		ir.AstDump(fn, "walk, "+ir.FuncName(fn))
 	}
-	ir.CurFunc = nil // enforce no further uses of CurFunc
 
 	base.Ctxt.DwTextCount++
 }

@@ -41,8 +41,8 @@ type walkState struct {
 // to help with debugging.
 // It should begin with "." to avoid conflicts with
 // user labels.
-// This is a version of typecheck.AutoLabel that doesn't reference
-// ir.CurFunc so that we can remove references to ir.CurFunc from walk.
+// This is a version of typecheck.AutoLabel that takes the function
+// being walked from the walk state.
 func (w *walkState) autoLabel(prefix string) *types.Sym {
 	if prefix[0] != '.' {
 		base.Fatalf("autolabel prefix must start with '.', have %q", prefix)
@@ -469,7 +469,7 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 // staticValue returns the earliest expression it can find that always
 // evaluates to n, with similar semantics to [ir.StaticValue].
 //
-// It only returns results for the ir.CurFunc being processed in [Walk],
+// It only returns results for the function being processed in [Walk],
 // including its closures, and uses a cache to reduce duplicative work.
 // It can return n or nil if it does not find an earlier expression.
 //

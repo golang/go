@@ -103,8 +103,6 @@ type CallStat struct {
 // The primary benefit of this transformation is enabling inlining of the
 // direct call.
 func ProfileGuided(fn *ir.Func, p *pgoir.Profile) {
-	ir.CurFunc = fn
-
 	name := ir.LinkFuncName(fn)
 
 	var jsonW *json.Encoder

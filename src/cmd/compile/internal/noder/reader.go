@@ -3578,7 +3578,6 @@ func (r *reader) pkgInitOrder(target *ir.Package) {
 		fn.Body = calls
 	}
 
-	typecheck.FinishFuncBody()
 	r.curfn = nil
 	r.locals = nil
 
@@ -3601,8 +3600,6 @@ func (r *reader) generateVarInitFunc(body []ir.Node) *ir.Func {
 	r.curfn = fn
 	fn.Body = r.doPkgInitOrder(body)
 	r.curfn = old
-
-	typecheck.FinishFuncBody()
 
 	return fn
 }

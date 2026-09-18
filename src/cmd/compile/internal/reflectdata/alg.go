@@ -216,8 +216,6 @@ func hashFunc(sig string) *ir.Func {
 		ir.DumpList("genhash body", fn.Body)
 	}
 
-	typecheck.FinishFuncBody()
-
 	fn.SetDupok(true)
 
 	ir.WithFunc(fn, func() {
@@ -581,8 +579,6 @@ func eqFunc(sig string) *ir.Func {
 	if base.Flag.LowerR != 0 {
 		ir.DumpList("geneq body", fn.Body)
 	}
-
-	typecheck.FinishFuncBody()
 
 	fn.SetDupok(true)
 
