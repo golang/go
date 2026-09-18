@@ -410,14 +410,13 @@ func splitPkg(name string) (pkgpath, sym string) {
 
 var CurFunc *Func
 
-// WithFunc invokes do with CurFunc and base.Pos set to curfn and
-// curfn.Pos(), respectively, and then restores their previous values
-// before returning.
+// WithFunc invokes do with base.Pos set to curfn.Pos(), and then
+// restores its previous value before returning.
 func WithFunc(curfn *Func, do func()) {
-	oldfn, oldpos := CurFunc, base.Pos
-	defer func() { CurFunc, base.Pos = oldfn, oldpos }()
+	oldpos := base.Pos
+	defer func() { base.Pos = oldpos }()
 
-	CurFunc, base.Pos = curfn, curfn.Pos()
+	base.Pos = curfn.Pos()
 	do()
 }
 
