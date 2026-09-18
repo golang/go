@@ -17,7 +17,6 @@ import (
 	"sync"
 
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/importer"
 	"cmd/compile/internal/types2"
 )
 
@@ -104,7 +103,7 @@ func (imp *Importer) readArchive(path, dir string) (*types2.Package, error) {
 	defer imp.mu.Unlock()
 	// While ReadPackage might populate imp.readPkgs with an incomplete package,
 	// we check for completeness before returning from ImportFrom.
-	return importer.ReadPackage(nil, imp.readPkgs, pkgbits.NewPkgDecoder(path, string(data))), nil
+	return ReadPackage(nil, imp.readPkgs, pkgbits.NewPkgDecoder(path, string(data))), nil
 }
 
 func (imp *Importer) compile(path, dir string) (string, error) {
