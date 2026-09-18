@@ -332,6 +332,44 @@ func TestLookupIPv6LinkLocalAddrWithZone(t *testing.T) {
 	}
 }
 
+func TestLookupNetIPPreservesZone(t *testing.T) {
+	origTestHookLookupIP := testHookLookupIP
+	t.Cleanup(func() {
+		testHookLookupIP = origTestHookLookupIP
+	})
+	defer dnsWaitGroup.Wait()
+
+	const name = "desktop.local"
+	want := netip.MustParseAddr("fe80::1%lo0")
+	testHookLookupIP = func(
+		ctx context.Context,
+		fn func(context.Context, string, string) ([]IPAddr, error),
+		network string,
+		host string,
+	) ([]IPAddr, error) {
+		if host == name {
+			return []IPAddr{
+				{
+					IP:   want.AsSlice(),
+					Zone: want.Zone(),
+				},
+			}, nil
+		}
+		return nil, newDNSError(errNoSuchHost, host, "")
+	}
+
+	ips, err := DefaultResolver.LookupNetIP(t.Context(), "ip", name)
+	if err != nil {
+		t.Fatalf("DefaultResolver.LookupNetIP() failed: %v", err)
+	}
+	if len(ips) == 0 {
+		t.Fatal("DefaultResolver.LookupNetIP() returned no IPs")
+	}
+	if ips[0] != want {
+		t.Errorf("DefaultResolver.LookupNetIP() = %v, want %v", ips[0], want)
+	}
+}
+
 var lookupCNAMETests = []struct {
 	name, cname string
 }{
