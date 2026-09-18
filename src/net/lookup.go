@@ -226,6 +226,19 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 // network.
 // network must be one of "ip", "ip4" or "ip6".
 func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, error) {
+	addrs, err := r.lookupIPAddrList(ctx, network, host)
+	if err != nil {
+		return nil, err
+	}
+
+	ips := make([]IP, 0, len(addrs))
+	for _, addr := range addrs {
+		ips = append(ips, addr.(*IPAddr).IP)
+	}
+	return ips, nil
+}
+
+func (r *Resolver) lookupIPAddrList(ctx context.Context, network, host string) (addrList, error) {
 	afnet, _, err := parseNetwork(ctx, network, false)
 	if err != nil {
 		return nil, err
@@ -239,16 +252,7 @@ func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, er
 	if host == "" {
 		return nil, newDNSError(errNoSuchHost, host, "")
 	}
-	addrs, err := r.internetAddrList(ctx, afnet, host)
-	if err != nil {
-		return nil, err
-	}
-
-	ips := make([]IP, 0, len(addrs))
-	for _, addr := range addrs {
-		ips = append(ips, addr.(*IPAddr).IP)
-	}
-	return ips, nil
+	return r.internetAddrList(ctx, afnet, host)
 }
 
 // LookupNetIP looks up host using the local resolver.
@@ -260,14 +264,16 @@ func (r *Resolver) LookupNetIP(ctx context.Context, network, host string) ([]net
 	// type throughout be netip.Addr and only converting to the net.IP slice
 	// version at the edge. But for now (2021-10-20), this is a wrapper around
 	// the old way.
-	ips, err := r.LookupIP(ctx, network, host)
+	addrs, err := r.lookupIPAddrList(ctx, network, host)
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]netip.Addr, 0, len(ips))
-	for _, ip := range ips {
-		if a, ok := netip.AddrFromSlice(ip); ok {
-			ret = append(ret, a)
+
+	ret := make([]netip.Addr, 0, len(addrs))
+	for _, addr := range addrs {
+		addr := addr.(*IPAddr)
+		if a, ok := netip.AddrFromSlice(addr.IP); ok {
+			ret = append(ret, a.WithZone(addr.Zone))
 		}
 	}
 	return ret, nil
