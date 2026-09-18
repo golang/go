@@ -75,7 +75,7 @@ func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 
 	b.ResetTimer()
 	start := time.Now()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		conf := Config{
 			IgnoreFuncBodies: ignoreFuncBodies,
 			Importer:         defaultImporter(),

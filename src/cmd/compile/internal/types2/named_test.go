@@ -55,7 +55,7 @@ type Inst = G[int]
 				// Access underlying once, to trigger any lazy calculation.
 				_ = test.typ.Underlying()
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					_ = test.typ.Underlying()
 				}
 			})
