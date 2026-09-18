@@ -6,7 +6,10 @@
 
 package main_test
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestBoringInternalLink(t *testing.T) {
 	tg := testgo(t)
@@ -17,6 +20,6 @@ func TestBoringInternalLink(t *testing.T) {
 		func main() {
 			sha1.New()
 		}`)
-	tg.run("build", "-ldflags=-w -extld=false", tg.path("main.go"))
-	tg.run("build", "-ldflags=-extld=false", tg.path("main.go"))
+	tg.run("build", "-ldflags=-w -extld=false", "-o", os.DevNull, tg.path("main.go"))
+	tg.run("build", "-ldflags=-extld=false", "-o", os.DevNull, tg.path("main.go"))
 }
