@@ -954,17 +954,12 @@ func (r N[B]) m() { r.m(); r.n() }
 
 func (r *N[C]) n() {  }
 `
-	f := mustParse(src)
 	info := Info{
 		Defs:       make(map[*syntax.Name]Object),
 		Uses:       make(map[*syntax.Name]Object),
 		Selections: make(map[*syntax.SelectorExpr]*Selection),
 	}
-	var conf Config
-	pkg, err := conf.Check("p", []*syntax.File{f}, &info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, &info)
 
 	N := pkg.Scope().Lookup("N").Type().(*Named)
 
@@ -975,39 +970,30 @@ func (r *N[C]) n() {  }
 	}
 
 	// Collect objects from info.
-	var dm, dn *Func   // the declared methods
-	var dmm, dmn *Func // the methods used in the body of m
-	for _, decl := range f.DeclList {
-		fdecl, ok := decl.(*syntax.FuncDecl)
-		if !ok {
-			continue
-		}
-		def := info.Defs[fdecl.Name].(*Func)
-		switch fdecl.Name.Value {
+	var dm, dn *Func // the declared methods
+	for id, obj := range info.Defs {
+		switch id.Value {
 		case "m":
-			dm = def
-			syntax.Inspect(fdecl.Body, func(n syntax.Node) bool {
-				if call, ok := n.(*syntax.CallExpr); ok {
-					sel := call.Fun.(*syntax.SelectorExpr)
-					use := info.Uses[sel.Sel].(*Func)
-					selection := info.Selections[sel]
-					if selection.Kind() != MethodVal {
-						t.Errorf("Selection kind = %v, want %v", selection.Kind(), MethodVal)
-					}
-					if selection.Obj() != use {
-						t.Errorf("info.Selections contains %v, want %v", selection.Obj(), use)
-					}
-					switch sel.Sel.Value {
-					case "m":
-						dmm = use
-					case "n":
-						dmn = use
-					}
-				}
-				return true
-			})
+			dm = obj.(*Func)
 		case "n":
-			dn = def
+			dn = obj.(*Func)
+		}
+	}
+
+	var dmm, dmn *Func // the methods used in the body of m
+	for sel, selection := range info.Selections {
+		use := info.Uses[sel.Sel].(*Func)
+		if selection.Kind() != MethodVal {
+			t.Errorf("Selection kind = %v, want %v", selection.Kind(), MethodVal)
+		}
+		if selection.Obj() != use {
+			t.Errorf("info.Selections contains %v, want %v", selection.Obj(), use)
+		}
+		switch sel.Sel.Value {
+		case "m":
+			dmm = use
+		case "n":
+			dmn = use
 		}
 	}
 

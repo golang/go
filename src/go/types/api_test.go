@@ -957,18 +957,12 @@ func (r N[B]) m() { r.m(); r.n() }
 
 func (r *N[C]) n() {  }
 `
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
 	info := Info{
 		Defs:       make(map[*ast.Ident]Object),
 		Uses:       make(map[*ast.Ident]Object),
 		Selections: make(map[*ast.SelectorExpr]*Selection),
 	}
-	var conf Config
-	pkg, err := conf.Check("p", fset, []*ast.File{f}, &info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, &info)
 
 	N := pkg.Scope().Lookup("N").Type().(*Named)
 
@@ -979,39 +973,30 @@ func (r *N[C]) n() {  }
 	}
 
 	// Collect objects from info.
-	var dm, dn *Func   // the declared methods
-	var dmm, dmn *Func // the methods used in the body of m
-	for _, decl := range f.Decls {
-		fdecl, ok := decl.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-		def := info.Defs[fdecl.Name].(*Func)
-		switch fdecl.Name.Name {
+	var dm, dn *Func // the declared methods
+	for id, obj := range info.Defs {
+		switch id.Name {
 		case "m":
-			dm = def
-			ast.Inspect(fdecl.Body, func(n ast.Node) bool {
-				if call, ok := n.(*ast.CallExpr); ok {
-					sel := call.Fun.(*ast.SelectorExpr)
-					use := info.Uses[sel.Sel].(*Func)
-					selection := info.Selections[sel]
-					if selection.Kind() != MethodVal {
-						t.Errorf("Selection kind = %v, want %v", selection.Kind(), MethodVal)
-					}
-					if selection.Obj() != use {
-						t.Errorf("info.Selections contains %v, want %v", selection.Obj(), use)
-					}
-					switch sel.Sel.Name {
-					case "m":
-						dmm = use
-					case "n":
-						dmn = use
-					}
-				}
-				return true
-			})
+			dm = obj.(*Func)
 		case "n":
-			dn = def
+			dn = obj.(*Func)
+		}
+	}
+
+	var dmm, dmn *Func // the methods used in the body of m
+	for sel, selection := range info.Selections {
+		use := info.Uses[sel.Sel].(*Func)
+		if selection.Kind() != MethodVal {
+			t.Errorf("Selection kind = %v, want %v", selection.Kind(), MethodVal)
+		}
+		if selection.Obj() != use {
+			t.Errorf("info.Selections contains %v, want %v", selection.Obj(), use)
+		}
+		switch sel.Sel.Name {
+		case "m":
+			dmm = use
+		case "n":
+			dmn = use
 		}
 	}
 
@@ -1019,7 +1004,7 @@ func (r *N[C]) n() {  }
 		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
 	}
 	if gn != dn {
-		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
+		t.Errorf(`N.Method(...) returns %v for "n", but Info.Defs has %v`, gn, dn)
 	}
 	if dmm == dm {
 		t.Errorf(`Inside "m", r.m uses %v, want a func distinct from %v`, dmm, dm)
