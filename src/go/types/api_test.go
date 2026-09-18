@@ -2269,12 +2269,9 @@ func TestCompositeLitTypes(t *testing.T) {
 		{`struct{}{}`, `struct{}`},
 		{`struct{x, y int; z complex128}{}`, `struct{x int; y int; z complex128}`},
 	} {
-		fset := token.NewFileSet()
-		f := mustParse(fset, fmt.Sprintf("package p%d; var _ = %s", i, test.lit))
+		src := fmt.Sprintf("package p%d; var _ = %s", i, test.lit)
 		types := make(map[ast.Expr]TypeAndValue)
-		if _, err := new(Config).Check("p", fset, []*ast.File{f}, &Info{Types: types}); err != nil {
-			t.Fatalf("%s: %v", test.lit, err)
-		}
+		mustTypecheck(src, nil, &Info{Types: types})
 
 		cmptype := func(x ast.Expr, want string) {
 			tv, ok := types[x]
@@ -2291,12 +2288,24 @@ func TestCompositeLitTypes(t *testing.T) {
 			}
 		}
 
+		// find composite literal expression
+		var rhs *ast.CompositeLit
+		for x := range types {
+			if clit, ok := x.(*ast.CompositeLit); ok {
+				rhs = clit
+				break
+			}
+		}
+		if rhs == nil {
+			t.Errorf("%s: no composite literal found", test.lit)
+			continue
+		}
+
 		// test type of composite literal expression
-		rhs := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0]
 		cmptype(rhs, test.typ)
 
 		// test type of composite literal type expression
-		cmptype(rhs.(*ast.CompositeLit).Type, test.typ)
+		cmptype(rhs.Type, test.typ)
 	}
 }
 
@@ -2631,13 +2640,7 @@ func fn() {
 	info := &Info{
 		Defs: make(map[*ast.Ident]Object),
 	}
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
-	conf := Config{}
-	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, info)
 
 	lookup := func(name string) Type { return pkg.Scope().Lookup(name).Type() }
 	fnScope := pkg.Scope().Lookup("fn").(*Func).Scope()
@@ -2670,12 +2673,9 @@ func fn() {
 
 	// Collect all identifiers by name.
 	idents := make(map[string][]*ast.Ident)
-	ast.Inspect(f, func(n ast.Node) bool {
-		if id, ok := n.(*ast.Ident); ok {
-			idents[id.Name] = append(idents[id.Name], id)
-		}
-		return true
-	})
+	for id := range info.Defs {
+		idents[id.Name] = append(idents[id.Name], id)
+	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

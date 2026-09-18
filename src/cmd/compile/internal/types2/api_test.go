@@ -2266,11 +2266,9 @@ func TestCompositeLitTypes(t *testing.T) {
 		{`struct{}{}`, `struct{}`},
 		{`struct{x, y int; z complex128}{}`, `struct{x int; y int; z complex128}`},
 	} {
-		f := mustParse(fmt.Sprintf("package p%d; var _ = %s", i, test.lit))
+		src := fmt.Sprintf("package p%d; var _ = %s", i, test.lit)
 		types := make(map[syntax.Expr]TypeAndValue)
-		if _, err := new(Config).Check("p", []*syntax.File{f}, &Info{Types: types}); err != nil {
-			t.Fatalf("%s: %v", test.lit, err)
-		}
+		mustTypecheck(src, nil, &Info{Types: types})
 
 		cmptype := func(x syntax.Expr, want string) {
 			tv, ok := types[x]
@@ -2287,12 +2285,24 @@ func TestCompositeLitTypes(t *testing.T) {
 			}
 		}
 
+		// find composite literal expression
+		var rhs *syntax.CompositeLit
+		for x := range types {
+			if clit, ok := x.(*syntax.CompositeLit); ok {
+				rhs = clit
+				break
+			}
+		}
+		if rhs == nil {
+			t.Errorf("%s: no composite literal found", test.lit)
+			continue
+		}
+
 		// test type of composite literal expression
-		rhs := f.DeclList[0].(*syntax.VarDecl).Values
 		cmptype(rhs, test.typ)
 
 		// test type of composite literal type expression
-		cmptype(rhs.(*syntax.CompositeLit).Type, test.typ)
+		cmptype(rhs.Type, test.typ)
 	}
 }
 
@@ -2627,12 +2637,7 @@ func fn() {
 	info := &Info{
 		Defs: make(map[*syntax.Name]Object),
 	}
-	f := mustParse(src)
-	conf := Config{}
-	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, info)
 
 	lookup := func(name string) Type { return pkg.Scope().Lookup(name).Type() }
 	fnScope := pkg.Scope().Lookup("fn").(*Func).Scope()
@@ -2665,12 +2670,9 @@ func fn() {
 
 	// Collect all identifiers by name.
 	idents := make(map[string][]*syntax.Name)
-	syntax.Inspect(f, func(n syntax.Node) bool {
-		if id, ok := n.(*syntax.Name); ok {
-			idents[id.Value] = append(idents[id.Value], id)
-		}
-		return true
-	})
+	for id := range info.Defs {
+		idents[id.Value] = append(idents[id.Value], id)
+	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -121,11 +121,7 @@ func TestTypeString(t *testing.T) {
 
 	for _, test := range tests {
 		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
-		pkg, err := typecheck(src, nil, nil)
-		if err != nil {
-			t.Errorf("%s: %s", src, err)
-			continue
-		}
+		pkg := mustTypecheck(src, nil, nil)
 		obj := pkg.Scope().Lookup("T")
 		if obj == nil {
 			t.Errorf("%s: T not found", test.src)

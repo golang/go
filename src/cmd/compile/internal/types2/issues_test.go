@@ -102,20 +102,20 @@ package p
 func (T) m() (res bool) { return }
 type T struct{} // receiver type after method declaration
 `
-	f := mustParse(src)
-
-	var conf Config
 	defs := make(map[*syntax.Name]Object)
-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Defs: defs})
-	if err != nil {
-		t.Fatal(err)
+	mustTypecheck(src, nil, &Info{Defs: defs})
+
+	var res1, res2 *Var
+	for id, obj := range defs {
+		switch id.Value {
+		case "m":
+			res1 = obj.(*Func).Type().(*Signature).Results().At(0)
+		case "res":
+			res2 = obj.(*Var)
+		}
 	}
 
-	m := f.DeclList[0].(*syntax.FuncDecl)
-	res1 := defs[m.Name].(*Func).Type().(*Signature).Results().At(0)
-	res2 := defs[m.Type.ResultList[0].Name].(*Var)
-
-	if res1 != res2 {
+	if res1 == nil || res1 != res2 {
 		t.Errorf("got %s (%p) != %s (%p)", res1, res2, res1, res2)
 	}
 }
@@ -281,28 +281,18 @@ func TestIssue25627(t *testing.T) {
 		`struct { *I }`,
 		`struct { a int; b Missing; *Missing }`,
 	} {
-		f := mustParse(prefix + src)
-
-		conf := Config{Importer: defaultImporter(), Error: func(err error) {}}
-		info := &Info{Types: make(map[syntax.Expr]TypeAndValue)}
-		_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
+		pkg, err := typecheck(prefix+src, nil, nil)
 		if err != nil {
 			if _, ok := err.(Error); !ok {
 				t.Fatal(err)
 			}
 		}
 
-		syntax.Inspect(f, func(n syntax.Node) bool {
-			if decl, _ := n.(*syntax.TypeDecl); decl != nil {
-				if tv, ok := info.Types[decl.Type]; ok && decl.Name.Value == "T" {
-					want := strings.Count(src, ";") + 1
-					if got := tv.Type.(*Struct).NumFields(); got != want {
-						t.Errorf("%s: got %d fields; want %d", src, got, want)
-					}
-				}
-			}
-			return true
-		})
+		typ := pkg.Scope().Lookup("T").Type().Underlying()
+		want := strings.Count(src, ";") + 1
+		if got := typ.(*Struct).NumFields(); got != want {
+			t.Errorf("%s: got %d fields; want %d", src, got, want)
+		}
 	}
 }
 

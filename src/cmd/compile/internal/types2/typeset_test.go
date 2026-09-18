@@ -46,10 +46,7 @@ func TestTypeSetString(t *testing.T) {
 	} {
 		// parse and type check
 		src := "package p; type T interface" + body
-		pkg, err := typecheck(src, nil, nil)
-		if err != nil {
-			t.Fatalf("%s: %v (invalid test case)", body, err)
-		}
+		pkg := mustTypecheck(src, nil, nil)
 
 		// lookup T
 		obj := pkg.Scope().Lookup("T")
