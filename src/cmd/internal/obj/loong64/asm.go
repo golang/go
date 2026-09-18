@@ -275,12 +275,17 @@ var optab = []Optab{
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0}, // xvreplve0.{b/h/w/d/q}
 
 	// memory access
-	{AMOVWP, C_REG, C_NONE, C_NONE, C_SOREG_16, C_NONE, 73, 4, 0, 0},
-	{AMOVWP, C_REG, C_NONE, C_NONE, C_LOREG_32, C_NONE, 73, 12, 0, 0},
-	{AMOVWP, C_REG, C_NONE, C_NONE, C_LOREG_64, C_NONE, 73, 24, 0, 0},
-	{AMOVWP, C_SOREG_16, C_NONE, C_NONE, C_REG, C_NONE, 74, 4, 0, 0},
-	{AMOVWP, C_LOREG_32, C_NONE, C_NONE, C_REG, C_NONE, 74, 12, 0, 0},
-	{AMOVWP, C_LOREG_64, C_NONE, C_NONE, C_REG, C_NONE, 74, 24, 0, 0},
+	{AMOVWP, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 73, 4, REGSP, 0},
+	{AMOVWP, C_REG, C_NONE, C_NONE, C_LAUTO, C_NONE, 73, 12, REGSP, 0},
+	{AMOVWP, C_REG, C_NONE, C_NONE, C_SOREG_16, C_NONE, 73, 4, REGZERO, 0},
+	{AMOVWP, C_REG, C_NONE, C_NONE, C_LOREG_32, C_NONE, 73, 12, REGZERO, 0},
+	{AMOVWP, C_REG, C_NONE, C_NONE, C_LOREG_64, C_NONE, 73, 20, REGZERO, 0},
+
+	{AMOVWP, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 74, 4, REGSP, 0},
+	{AMOVWP, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 74, 12, REGSP, 0},
+	{AMOVWP, C_SOREG_16, C_NONE, C_NONE, C_REG, C_NONE, 74, 4, REGZERO, 0},
+	{AMOVWP, C_LOREG_32, C_NONE, C_NONE, C_REG, C_NONE, 74, 12, REGZERO, 0},
+	{AMOVWP, C_LOREG_64, C_NONE, C_NONE, C_REG, C_NONE, 74, 20, REGZERO, 0},
 
 	// condition branch
 	{ABEQ, C_REG, C_REG, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
@@ -2284,7 +2289,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	o3 := uint32(0)
 	o4 := uint32(0)
 	o5 := uint32(0)
-	o6 := uint32(0)
 
 	add := AADDVU
 
@@ -3196,50 +3200,55 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 73:
 		v := c.vregoff(&p.To)
-		r := p.To.Reg
 		if v&3 != 0 {
 			c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
+		}
+
+		r := int(p.To.Reg)
+		if r == 0 {
+			r = int(o.param)
 		}
 
 		switch o.size {
 		case 4: // 16 bit
 			o1 = OP_14IRR(c.opirr(p.As), uint32(v>>2), uint32(r), uint32(p.From.Reg))
 		case 12: // 32 bit
-			o1 = OP_16IRR(c.opirr(AADDV16), uint32(v>>16), uint32(REG_R0), uint32(REGTMP))
+			o1 = OP_16IRR(c.opirr(AADDV16), uint32((v+(1<<15))>>16), uint32(REG_R0), uint32(REGTMP))
 			o2 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
 			o3 = OP_14IRR(c.opirr(p.As), uint32(v>>2), uint32(REGTMP), uint32(p.From.Reg))
-		case 24: // 64 bit
-			o1 = OP_IR(c.opir(ALU12IW), uint32(v>>12), uint32(REGTMP))
-			o2 = OP_12IRR(c.opirr(AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
-			o3 = OP_IR(c.opir(ALU32ID), uint32(v>>32), uint32(REGTMP))
-			o4 = OP_12IRR(c.opirr(ALU52ID), uint32(v>>52), uint32(REGTMP), uint32(REGTMP))
-			o5 = OP_RRR(c.oprrr(add), uint32(REGTMP), uint32(r), uint32(r))
-			o6 = OP_14IRR(c.opirr(p.As), uint32(0), uint32(r), uint32(p.From.Reg))
+		case 20: // 64 bit
+			o1 = OP_16IRR(c.opirr(AADDV16), uint32((v+(1<<15))>>16), uint32(REG_R0), uint32(REGTMP))
+			o2 = OP_IR(c.opir(ALU32ID), uint32(v>>32), uint32(REGTMP))
+			o3 = OP_12IRR(c.opirr(ALU52ID), uint32(v>>52), uint32(REGTMP), uint32(REGTMP))
+			o4 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
+			o5 = OP_14IRR(c.opirr(p.As), uint32(v>>2), uint32(REGTMP), uint32(p.From.Reg))
 		}
 
 	case 74:
 		v := c.vregoff(&p.From)
-		r := p.From.Reg
 		if v&3 != 0 {
 			c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
+		}
+
+		r := int(p.From.Reg)
+		if r == 0 {
+			r = int(o.param)
 		}
 
 		switch o.size {
 		case 4: // 16 bit
 			o1 = OP_14IRR(c.opirr(-p.As), uint32(v>>2), uint32(r), uint32(p.To.Reg))
 		case 12: // 32 bit
-			o1 = OP_16IRR(c.opirr(AADDV16), uint32(v>>16), uint32(REG_R0), uint32(REGTMP))
+			o1 = OP_16IRR(c.opirr(AADDV16), uint32((v+(1<<15))>>16), uint32(REG_R0), uint32(REGTMP))
 			o2 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
 			o3 = OP_14IRR(c.opirr(-p.As), uint32(v>>2), uint32(REGTMP), uint32(p.To.Reg))
-		case 24: // 64 bit
-			o1 = OP_IR(c.opir(ALU12IW), uint32(v>>12), uint32(REGTMP))
-			o2 = OP_12IRR(c.opirr(AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
-			o3 = OP_IR(c.opir(ALU32ID), uint32(v>>32), uint32(REGTMP))
-			o4 = OP_12IRR(c.opirr(ALU52ID), uint32(v>>52), uint32(REGTMP), uint32(REGTMP))
-			o5 = OP_RRR(c.oprrr(add), uint32(REGTMP), uint32(r), uint32(r))
-			o6 = OP_14IRR(c.opirr(p.As), uint32(0), uint32(r), uint32(p.To.Reg))
+		case 20: // 64 bit
+			o1 = OP_16IRR(c.opirr(AADDV16), uint32((v+(1<<15))>>16), uint32(REG_R0), uint32(REGTMP))
+			o2 = OP_IR(c.opir(ALU32ID), uint32(v>>32), uint32(REGTMP))
+			o3 = OP_12IRR(c.opirr(ALU52ID), uint32(v>>52), uint32(REGTMP), uint32(REGTMP))
+			o4 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
+			o5 = OP_14IRR(c.opirr(p.As), uint32(v>>2), uint32(REGTMP), uint32(p.To.Reg))
 		}
-
 	}
 
 	out[0] = o1
@@ -3247,7 +3256,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[2] = o3
 	out[3] = o4
 	out[4] = o5
-	out[5] = o6
 }
 
 // checkoperand checks if operand >= 0 && operand <= maxoperand
