@@ -61,8 +61,8 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
 
 // Expressions
 
-func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
-	n := typecheck.NodAddrAt(ir.CurFunc, pos, x)
+func Addr(curfunc *ir.Func, pos src.XPos, x ir.Node) *ir.AddrExpr {
+	n := typecheck.NodAddrAt(curfunc, pos, x)
 	typed(types.NewPtr(x.Type()), n)
 	return n
 }
