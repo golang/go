@@ -370,8 +370,8 @@ func (b *batch) rewriteClosureVarsWithLiterals(clofn *ir.Func) {
 		name := clofn.NewLocal(declPos, cv.Sym(), cv.Type())
 		name.SetUsed(true)
 		name.SetEsc(ir.EscNever) // a constant never needs to be heap allocated
-		as := typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(pos, name, ir.NewBasicLit(pos, cv.Type(), lit.Val())))
-		prefix.Append(typecheck.Stmt(ir.CurFunc, ir.NewDecl(pos, ir.ODCL, name)))
+		as := typecheck.Stmt(clofn, ir.NewAssignStmt(pos, name, ir.NewBasicLit(pos, cv.Type(), lit.Val())))
+		prefix.Append(typecheck.Stmt(clofn, ir.NewDecl(pos, ir.ODCL, name)))
 		prefix.Append(as)
 		name.Defn = as.(*ir.AssignStmt) // so that a ReassignOracle can still find the constant
 
@@ -706,8 +706,8 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 	assignTemp := func(pos src.XPos, n ir.Node, init *ir.Nodes) {
 		// Preserve any side effects of n by assigning it to an otherwise unused temp.
 		tmp := typecheck.TempAt(pos, fn, n.Type())
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewDecl(pos, ir.ODCL, tmp)))
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(pos, tmp, n)))
+		init.Append(typecheck.Stmt(fn, ir.NewDecl(pos, ir.ODCL, tmp)))
+		init.Append(typecheck.Stmt(fn, ir.NewAssignStmt(pos, tmp, n)))
 	}
 
 	switch n.Op() {
@@ -785,7 +785,7 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 				assignTemp(conv.Pos(), conv.X, conv.PtrInit())
 				v := v.(*ir.BasicLit)
 				conv.X = ir.NewBasicLit(conv.Pos(), conv.X.Type(), v.Val())
-				typecheck.Expr(ir.CurFunc, conv)
+				typecheck.Expr(fn, conv)
 			}
 		}
 	}

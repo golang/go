@@ -71,14 +71,14 @@ func MakeTask() {
 			// Call runtime.asanregisterglobals function to poison redzones.
 			// runtime.asanregisterglobals(unsafe.Pointer(&globals[0]), ni)
 			asancall := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("asanregisterglobals"), nil)
-			asancall.Args.Append(typecheck.ConvNop(ir.CurFunc, typecheck.NodAddr(ir.CurFunc,
+			asancall.Args.Append(typecheck.ConvNop(fnInit, typecheck.NodAddr(fnInit,
 				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(base.Pos, 0))), types.Types[types.TUNSAFEPTR]))
 			asancall.Args.Append(typecheck.DefaultLit(ir.NewInt(base.Pos, int64(ni)), types.Types[types.TUINTPTR]))
 
 			fnInit.Body.Append(asancall)
 			typecheck.FinishFuncBody()
 			ir.CurFunc = fnInit
-			typecheck.Stmts(ir.CurFunc, fnInit.Body)
+			typecheck.Stmts(fnInit, fnInit.Body)
 			ir.CurFunc = nil
 
 			typecheck.Target.Inits = append(typecheck.Target.Inits, fnInit)
@@ -93,11 +93,11 @@ func MakeTask() {
 				Temps: make(map[ir.Node]*ir.Name),
 			}
 			for _, n := range fn.Body {
-				s.StaticInit(ir.CurFunc, n)
+				s.StaticInit(fn, n)
 			}
 			fn.Body = s.Out
 			ir.WithFunc(fn, func() {
-				typecheck.Stmts(ir.CurFunc, fn.Body)
+				typecheck.Stmts(fn, fn.Body)
 			})
 
 			if len(fn.Body) == 0 {

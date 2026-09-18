@@ -64,11 +64,11 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 		setField := func(f string, val ir.Node, i int) {
 			r := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT,
 				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(base.Pos, int64(i))), lname(f)), val)
-			init.Append(typecheck.Stmt(ir.CurFunc, r))
+			init.Append(typecheck.Stmt(fn, r))
 		}
 		// globals[i].beg = uintptr(unsafe.Pointer(&n))
-		c = typecheck.ConvNop(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, n), types.Types[types.TUNSAFEPTR])
-		c = typecheck.ConvNop(ir.CurFunc, c, types.Types[types.TUINTPTR])
+		c = typecheck.ConvNop(fn, typecheck.NodAddr(fn, n), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(fn, c, types.Types[types.TUINTPTR])
 		setField("beg", c, i)
 		// Assign globals[i].size.
 		g := n.(*ir.Name)
@@ -85,34 +85,34 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 		// asanName = symbol's linkname + "\000"
 		// globals[i].name = (*defString)(unsafe.Pointer(&asanName)).data
 		name := g.Linksym().Name
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, asanName, ir.NewString(base.Pos, name+"\000"))))
-		c = typecheck.ConvNop(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, asanName), types.Types[types.TUNSAFEPTR])
-		c = typecheck.ConvNop(ir.CurFunc, c, types.NewPtr(defStringstruct))
+		init.Append(typecheck.Stmt(fn, ir.NewAssignStmt(base.Pos, asanName, ir.NewString(base.Pos, name+"\000"))))
+		c = typecheck.ConvNop(fn, typecheck.NodAddr(fn, asanName), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(fn, c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
 		setField("name", c, i)
 
 		// Set the name of package being compiled as a unique identifier of a module.
 		// asanModulename = pkgName + "\000"
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, asanModulename, ir.NewString(base.Pos, types.LocalPkg.Name+"\000"))))
-		c = typecheck.ConvNop(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, asanModulename), types.Types[types.TUNSAFEPTR])
-		c = typecheck.ConvNop(ir.CurFunc, c, types.NewPtr(defStringstruct))
+		init.Append(typecheck.Stmt(fn, ir.NewAssignStmt(base.Pos, asanModulename, ir.NewString(base.Pos, types.LocalPkg.Name+"\000"))))
+		c = typecheck.ConvNop(fn, typecheck.NodAddr(fn, asanModulename), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(fn, c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
 		setField("moduleName", c, i)
 		// Assign asanL[i].filename, asanL[i].line, asanL[i].column
 		// and assign globals[i].location = uintptr(unsafe.Pointer(&asanL[i]))
 		asanLi := ir.NewIndexExpr(base.Pos, asanlocation, ir.NewInt(base.Pos, int64(i)))
 		filename := ir.NewString(base.Pos, base.Ctxt.PosTable.Pos(n.Pos()).Filename()+"\000")
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, asanFilename, filename)))
-		c = typecheck.ConvNop(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, asanFilename), types.Types[types.TUNSAFEPTR])
-		c = typecheck.ConvNop(ir.CurFunc, c, types.NewPtr(defStringstruct))
+		init.Append(typecheck.Stmt(fn, ir.NewAssignStmt(base.Pos, asanFilename, filename)))
+		c = typecheck.ConvNop(fn, typecheck.NodAddr(fn, asanFilename), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(fn, c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("filename")), c)))
+		init.Append(typecheck.Stmt(fn, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("filename")), c)))
 		line := ir.NewInt(base.Pos, int64(n.Pos().Line()))
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("line")), line)))
+		init.Append(typecheck.Stmt(fn, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("line")), line)))
 		col := ir.NewInt(base.Pos, int64(n.Pos().Col()))
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("column")), col)))
-		c = typecheck.ConvNop(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, asanLi), types.Types[types.TUNSAFEPTR])
-		c = typecheck.ConvNop(ir.CurFunc, c, types.Types[types.TUINTPTR])
+		init.Append(typecheck.Stmt(fn, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("column")), col)))
+		c = typecheck.ConvNop(fn, typecheck.NodAddr(fn, asanLi), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(fn, c, types.Types[types.TUINTPTR])
 		setField("sourceLocation", c, i)
 	}
 	fn.Body.Append(init...)

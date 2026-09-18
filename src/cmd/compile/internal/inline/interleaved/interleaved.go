@@ -210,7 +210,7 @@ func (s *inlClosureState) resolve(state *devirtualize.State, i int) (*ir.Func, i
 	if !ok { // previously inlined
 		return nil, -1
 	}
-	devirtualize.StaticCall(state, call)
+	devirtualize.StaticCall(s.fn, state, call)
 	if callee := inline.InlineCallTarget(s.fn, call, s.profile); callee != nil {
 		for len(s.resolved) <= i {
 			s.resolved = append(s.resolved, nil)

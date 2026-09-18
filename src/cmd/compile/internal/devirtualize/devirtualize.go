@@ -22,7 +22,7 @@ const go126ImprovedConcreteTypeAnalysis = true
 
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
-func StaticCall(s *State, call *ir.CallExpr) {
+func StaticCall(curfunc *ir.Func, s *State, call *ir.CallExpr) {
 	// For promoted methods (including value-receiver methods promoted
 	// to pointer-receivers), the interface method wrapper may contain
 	// expressions that can panic (e.g., ODEREF, ODOTPTR,
@@ -138,7 +138,7 @@ func StaticCall(s *State, call *ir.CallExpr) {
 		dt.SetPos(call.Pos())
 	}
 
-	x := typecheck.XDotMethod(ir.CurFunc, sel.Pos(), dt, sel.Sel, true)
+	x := typecheck.XDotMethod(curfunc, sel.Pos(), dt, sel.Sel, true)
 	switch x.Op() {
 	case ir.ODOTMETH:
 		if base.Flag.LowerM != 0 {

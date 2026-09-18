@@ -355,7 +355,7 @@ func (e *escape) copyExpr(pos src.XPos, expr ir.Node, init *ir.Nodes) *ir.Name {
 		ir.NewDecl(pos, ir.ODCL, tmp),
 		ir.NewAssignStmt(pos, tmp, expr),
 	}
-	typecheck.Stmts(ir.CurFunc, stmts)
+	typecheck.Stmts(e.curfn, stmts)
 	init.Append(stmts...)
 
 	e.newLoc(tmp, true)

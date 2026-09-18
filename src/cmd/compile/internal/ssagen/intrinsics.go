@@ -2645,7 +2645,7 @@ func GenIntrinsicBody(fn *ir.Func) {
 	call := ir.NewCallExpr(pos, ir.OCALLFUNC, fn.Nname, nil)
 	call.Args = ir.RecvParamNames(ft)
 	call.IsDDD = ft.IsVariadic()
-	typecheck.Exprs(ir.CurFunc, call.Args)
+	typecheck.Exprs(fn, call.Args)
 	call.SetTypecheck(1)
 	call.SetWalked(true)
 	ret = call
@@ -2666,6 +2666,6 @@ func GenIntrinsicBody(fn *ir.Func) {
 	}
 
 	ir.CurFunc = fn
-	typecheck.Stmts(ir.CurFunc, fn.Body)
+	typecheck.Stmts(fn, fn.Body)
 	ir.CurFunc = nil // we know CurFunc is nil at entry
 }

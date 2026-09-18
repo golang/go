@@ -144,7 +144,7 @@ func getKeepAliveNodes(pos src.XPos, n ir.Node) ir.Nodes {
 // block containing curNode followed by a call to runtime.KeepAlive for each
 // node in ns. These calls ensure that nodes in ns will be live until
 // after curNode's execution.
-func keepAliveAt(ns ir.Nodes, curNode ir.Node) ir.Node {
+func keepAliveAt(curfunc *ir.Func, ns ir.Nodes, curNode ir.Node) ir.Node {
 	if len(ns) == 0 {
 		return curNode
 	}
@@ -158,8 +158,8 @@ func keepAliveAt(ns ir.Nodes, curNode ir.Node) ir.Node {
 		if !ir.IsAddressable(n) {
 			base.FatalfAt(n.Pos(), "keepAliveAt: node %v is not addressable", n)
 		}
-		arg := ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TUNSAFEPTR], typecheck.NodAddr(ir.CurFunc, n))
-		callExpr := typecheck.Call(ir.CurFunc, pos, typecheck.LookupRuntime("KeepAlive"), ir.Nodes{arg}, false).(*ir.CallExpr)
+		arg := ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TUNSAFEPTR], typecheck.NodAddr(curfunc, n))
+		callExpr := typecheck.Call(curfunc, pos, typecheck.LookupRuntime("KeepAlive"), ir.Nodes{arg}, false).(*ir.CallExpr)
 		callExpr.IsCompilerVarLive = true
 		callExpr.NoInline = true
 		calls = append(calls, callExpr)
@@ -196,13 +196,13 @@ func preserveCallResults(curFn *ir.Func, call *ir.CallExpr) ir.Node {
 		base.WarnfAt(call.Pos(), "function result%s will be kept alive", plural)
 	}
 
-	assign := typecheck.AssignExpr(ir.CurFunc, ir.NewAssignListStmt(call.Pos(), ir.OAS2, lhs, ir.Nodes{call})).(*ir.AssignListStmt)
+	assign := typecheck.AssignExpr(curFn, ir.NewAssignListStmt(call.Pos(), ir.OAS2, lhs, ir.Nodes{call})).(*ir.AssignListStmt)
 	assign.Def = true
 	for _, tmp := range lhs {
 		// Place temp declarations in the loop body to help escape analysis.
-		assign.PtrInit().Append(typecheck.Stmt(ir.CurFunc, ir.NewDecl(assign.Pos(), ir.ODCL, tmp.(*ir.Name))))
+		assign.PtrInit().Append(typecheck.Stmt(curFn, ir.NewDecl(assign.Pos(), ir.ODCL, tmp.(*ir.Name))))
 	}
-	return keepAliveAt(ns, assign)
+	return keepAliveAt(curFn, ns, assign)
 }
 
 // preserveCallArgs ensures the arguments of a call statement are kept alive by transforming them into temporaries if necessary.
@@ -214,8 +214,8 @@ func preserveCallArgs(curFn *ir.Func, call *ir.CallExpr) ir.Node {
 		assign := ir.NewAssignStmt(pos, tmp, n)
 		assign.Def = true
 		// Place temp declarations in the loop body to help escape analysis.
-		assign.PtrInit().Append(typecheck.Stmt(ir.CurFunc, ir.NewDecl(assign.Pos(), ir.ODCL, tmp)))
-		argTmps = append(argTmps, typecheck.AssignExpr(ir.CurFunc, assign))
+		assign.PtrInit().Append(typecheck.Stmt(curFn, ir.NewDecl(assign.Pos(), ir.ODCL, tmp)))
+		argTmps = append(argTmps, typecheck.AssignExpr(curFn, assign))
 		names = append(names, tmp)
 		if base.Flag.LowerM > 1 {
 			base.WarnfAt(call.Pos(), "function arg will be kept alive")
@@ -256,9 +256,9 @@ func preserveCallArgs(curFn *ir.Func, call *ir.CallExpr) ir.Node {
 	}
 	if len(argTmps) > 0 {
 		argTmps = append(argTmps, call)
-		return keepAliveAt(names, ir.NewBlockStmt(call.Pos(), argTmps))
+		return keepAliveAt(curFn, names, ir.NewBlockStmt(call.Pos(), argTmps))
 	}
-	return keepAliveAt(names, call)
+	return keepAliveAt(curFn, names, call)
 }
 
 // preserveStmt transforms stmt so that any names defined/assigned within it
@@ -273,11 +273,11 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) ir.Node {
 			tmp := typecheck.TempAt(n.Pos(), curFn, n.Y.Type())
 			n.X = tmp
 			n.Def = true
-			n.PtrInit().Append(typecheck.Stmt(ir.CurFunc, ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
-			stmt = typecheck.AssignExpr(ir.CurFunc, n)
+			n.PtrInit().Append(typecheck.Stmt(curFn, ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
+			stmt = typecheck.AssignExpr(curFn, n)
 			n = stmt.(*ir.AssignStmt)
 		}
-		return keepAliveAt(getKeepAliveNodes(n.Pos(), n.X), n)
+		return keepAliveAt(curFn, getKeepAliveNodes(n.Pos(), n.X), n)
 	case *ir.AssignListStmt:
 		var ns ir.Nodes
 		hasBlank := false
@@ -300,7 +300,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) ir.Node {
 				}
 				tmp := typecheck.TempAt(n.Pos(), curFn, typ)
 				n.Lhs[i] = tmp
-				n.PtrInit().Append(typecheck.Stmt(ir.CurFunc, ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
+				n.PtrInit().Append(typecheck.Stmt(curFn, ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
 				hasBlank = true
 			}
 			ns = append(ns, getKeepAliveNodes(n.Pos(), n.Lhs[i])...)
@@ -308,12 +308,12 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) ir.Node {
 		if hasBlank {
 			// blank nodes are rewritten to temps, we need to typecheck the node again.
 			n.Def = true
-			stmt = typecheck.AssignExpr(ir.CurFunc, n)
+			stmt = typecheck.AssignExpr(curFn, n)
 			n = stmt.(*ir.AssignListStmt)
 		}
-		return keepAliveAt(ns, n)
+		return keepAliveAt(curFn, ns, n)
 	case *ir.AssignOpStmt:
-		return keepAliveAt(getKeepAliveNodes(n.Pos(), n.X), n)
+		return keepAliveAt(curFn, getKeepAliveNodes(n.Pos(), n.X), n)
 	case *ir.CallExpr:
 		if isIgnoredCall(n) {
 			// KeepAlive is self-preserving, panicRangeState is for rangefunc bookkeeping.
