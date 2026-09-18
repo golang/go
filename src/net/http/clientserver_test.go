@@ -20,7 +20,6 @@ import (
 	"log"
 	"maps"
 	"net"
-	"net/http"
 	. "net/http"
 	"net/http/httptest"
 	"net/http/httptrace"
@@ -39,16 +38,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	_ "unsafe" // for linkname
-
-	_ "golang.org/x/net/http3"
+	"net/http/internal/http3"
 )
-
-//go:linkname registerHTTP3Transport
-func registerHTTP3Transport(*http.Transport, any) error
-
-//go:linkname registerHTTP3Server
-func registerHTTP3Server(*http.Server, any) error
 
 type testMode string
 
@@ -240,10 +231,7 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 
 	var transportFuncs []func(*Transport)
 
-	type HTTP3TransportOpts struct {
-		ListenPacket func(network, addr string) (net.PacketConn, error)
-	}
-	var http3TransportOpts HTTP3TransportOpts
+	var http3TransportOpts http3.TransportOpts
 
 	fakeNet := true
 	if idx := slices.Index(opts, any(optRealNet)); idx >= 0 {
@@ -329,16 +317,15 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.ts.EnableHTTP2 = true
 		cst.ts.TLS = cst.ts.Config.TLSConfig
 	case http3Mode:
-		http.ProtocolSetHTTP3(p)
+		p.SetHTTP3(true)
 		cst.ts.TLS = cst.ts.Config.TLSConfig
-		type HTTP3ServerOpts struct{}
-		if err := registerHTTP3Server(cst.ts.Config, HTTP3ServerOpts{}); err != nil {
+		if err := http3.RegisterServer(cst.ts.Config, http3.ServerOpts{}); err != nil {
 			t.Fatal(err)
 		}
 		cst.ts.StartTLS()
 
 		tr := cst.ts.Client().Transport.(*Transport)
-		if err := registerHTTP3Transport(tr, http3TransportOpts); err != nil {
+		if err := http3.RegisterTransport(tr, http3TransportOpts); err != nil {
 			t.Fatal(err)
 		}
 	default:

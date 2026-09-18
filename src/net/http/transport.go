@@ -416,7 +416,8 @@ type dialClientConner interface {
 type closeIdleConnectionser interface {
 	// CloseIdleConnections is called by Transport.CloseIdleConnections.
 	//
-	// We expect to use this on transports supplied by x/net/http2 or x/net/http3.
+	// We expect to use this on transports supplied by x/net/http2 or
+	// internal/http3.
 	//
 	// The transport will close idle connections created with DialClientConn
 	// before calling this method. The HTTP/3 transport should not attempt to
@@ -982,7 +983,7 @@ func (t *Transport) CloseIdleConnections() {
 	if t2 := t.closeIdleFunc; t2 != nil {
 		t2.CloseIdleConnections()
 	}
-	// HTTP/3 transport, probably from x/net/http3.
+	// HTTP/3 transport, probably from internal/http3.
 	if cc, ok := t.h3Transport.(closeIdleConnectionser); ok {
 		cc.CloseIdleConnections()
 	}

@@ -11,11 +11,11 @@ import (
 	"net/http/httptrace"
 	"net/textproto"
 	"strconv"
-	"strings"
+	"net/http/internal/ascii"
 	"sync"
 
 	"golang.org/x/net/http/httpguts"
-	"golang.org/x/net/internal/httpcommon"
+	"net/http/internal/httpcommon"
 	"golang.org/x/net/quic"
 )
 
@@ -245,8 +245,8 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 				Trailer:       trailer,
 				Body:          (*transportResponseBody)(rt),
 			}
-			if addedGzip && strings.EqualFold(h.Get("Content-Encoding"), "gzip") {
-				resp.Body = &gzipReader{body: resp.Body}
+			if addedGzip && ascii.EqualFold(h.Get("Content-Encoding"), "gzip") {
+				resp.Body = &httpcommon.GzipReader{Body: resp.Body}
 				h.Del("Content-Encoding")
 				h.Del("Content-Length")
 				resp.ContentLength = -1

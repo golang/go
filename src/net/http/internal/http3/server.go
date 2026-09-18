@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"golang.org/x/net/http/httpguts"
-	"golang.org/x/net/internal/httpcommon"
+	"net/http/internal/httpcommon"
 	"golang.org/x/net/quic"
 )
 

@@ -33,7 +33,6 @@ var (
 	Export_writeStatusLine            = writeStatusLine
 	Export_is408Message               = is408Message
 	MaxPostCloseReadTime              = maxPostCloseReadTime
-	ProtocolSetHTTP3                  = protocolSetHTTP3
 )
 
 var MaxWriteWaitBeforeConnReuse = &maxWriteWaitBeforeConnReuse
@@ -305,4 +304,9 @@ func SetRSTAvoidanceDelay(t *testing.T, d time.Duration) {
 		rstAvoidanceDelay = prevDelay
 	})
 	rstAvoidanceDelay = d
+}
+
+// SetHTTP3 adds or removes HTTP/3 from p.
+func (p *Protocols) SetHTTP3(ok bool) {
+	p.setHTTP3(ok)
 }

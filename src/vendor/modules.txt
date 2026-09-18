@@ -13,10 +13,7 @@ golang.org/x/net/dns/dnsmessage
 golang.org/x/net/http/httpguts
 golang.org/x/net/http/httpproxy
 golang.org/x/net/http2/hpack
-golang.org/x/net/http3
 golang.org/x/net/idna
-golang.org/x/net/internal/http3
-golang.org/x/net/internal/httpcommon
 golang.org/x/net/internal/quic/quicwire
 golang.org/x/net/lif
 golang.org/x/net/nettest

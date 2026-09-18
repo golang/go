@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
-	_ "unsafe"
 
 	"golang.org/x/net/http/httpguts"
 )
@@ -60,9 +59,6 @@ func (p Protocols) http3() bool { return p.bits&protoHTTP3 != 0 }
 
 // setHTTP3 adds or removes HTTP/3 from p.
 func (p *Protocols) setHTTP3(ok bool) { p.setBit(protoHTTP3, ok) }
-
-//go:linkname protocolSetHTTP3 golang.org/x/net/internal/http3_test.protocolSetHTTP3
-func protocolSetHTTP3(p *Protocols) { p.setHTTP3(true) }
 
 func (p *Protocols) setBit(bit uint8, ok bool) {
 	if ok {

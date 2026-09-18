@@ -684,9 +684,8 @@ var depsRules = `
 
 	net/http, golang.org/x/crypto/hkdf, log/slog
 	< golang.org/x/net/internal/quic/quicwire
-	< golang.org/x/net/quic, golang.org/x/net/internal/httpcommon
-	< golang.org/x/net/internal/http3
-	< golang.org/x/net/http3;
+	< golang.org/x/net/quic
+	< net/http/internal/http3;
 
 	# HTTP-aware packages
 
