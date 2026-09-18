@@ -211,7 +211,8 @@ func TestTypesInfo(t *testing.T) {
 		{`package n2; var _ []byte = nil`, `nil`, `untyped nil`},
 		{`package n3; var _ map[int]int = nil`, `nil`, `untyped nil`},
 		{`package n4; var _ chan int = nil`, `nil`, `untyped nil`},
-		{`package n5; var _ interface{} = nil`, `nil`, `untyped nil`},
+		{`package n5a; var _ interface{} = (*int)(nil)`, `nil`, `untyped nil`},
+		{`package n5b; var _ interface{m()} = nil`, `nil`, `untyped nil`},
 		{`package n6; import "unsafe"; var _ unsafe.Pointer = nil`, `nil`, `untyped nil`},
 
 		{`package n10; var (x *int; _ = x == nil)`, `nil`, `untyped nil`},
@@ -219,15 +220,17 @@ func TestTypesInfo(t *testing.T) {
 		{`package n12; var (x []byte; _ = x == nil)`, `nil`, `untyped nil`},
 		{`package n13; var (x map[int]int; _ = x == nil)`, `nil`, `untyped nil`},
 		{`package n14; var (x chan int; _ = x == nil)`, `nil`, `untyped nil`},
-		{`package n15; var (x interface{}; _ = x == nil)`, `nil`, `untyped nil`},
-		{`package n15; import "unsafe"; var (x unsafe.Pointer; _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n15a; var (x interface{}; _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n15b; var (x interface{m()}; _ = x == nil)`, `nil`, `untyped nil`},
+		{`package n16; import "unsafe"; var (x unsafe.Pointer; _ = x == nil)`, `nil`, `untyped nil`},
 
 		{`package n20; var _ = (*int)(nil)`, `nil`, `untyped nil`},
 		{`package n21; var _ = (func())(nil)`, `nil`, `untyped nil`},
 		{`package n22; var _ = ([]byte)(nil)`, `nil`, `untyped nil`},
 		{`package n23; var _ = (map[int]int)(nil)`, `nil`, `untyped nil`},
 		{`package n24; var _ = (chan int)(nil)`, `nil`, `untyped nil`},
-		{`package n25; var _ = (interface{})(nil)`, `nil`, `untyped nil`},
+		{`package n25a; var _ = (interface{})((*int)(nil))`, `nil`, `untyped nil`},
+		{`package n25b; var _ = (interface{m()})(nil)`, `nil`, `untyped nil`},
 		{`package n26; import "unsafe"; var _ = unsafe.Pointer(nil)`, `nil`, `untyped nil`},
 
 		{`package n30; func f(*int) { f(nil) }`, `nil`, `untyped nil`},
@@ -235,8 +238,9 @@ func TestTypesInfo(t *testing.T) {
 		{`package n32; func f([]byte) { f(nil) }`, `nil`, `untyped nil`},
 		{`package n33; func f(map[int]int) { f(nil) }`, `nil`, `untyped nil`},
 		{`package n34; func f(chan int) { f(nil) }`, `nil`, `untyped nil`},
-		{`package n35; func f(interface{}) { f(nil) }`, `nil`, `untyped nil`},
-		{`package n35; import "unsafe"; func f(unsafe.Pointer) { f(nil) }`, `nil`, `untyped nil`},
+		{`package n35a; func f(interface{}) { f((*int)(nil)) }`, `nil`, `untyped nil`},
+		{`package n35b; func f(interface{m()}) { f(nil) }`, `nil`, `untyped nil`},
+		{`package n36; import "unsafe"; func f(unsafe.Pointer) { f(nil) }`, `nil`, `untyped nil`},
 
 		// comma-ok expressions
 		{`package p0; var x interface{}; var _, _ = x.(int)`,
@@ -357,7 +361,7 @@ func TestTypesInfo(t *testing.T) {
 		{`package g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `g0.t[int]`},
 
 		// go.dev/issue/45096
-		{`package issue45096; func _[T interface{ ~int8 | ~int16 | ~int32  }](x T) { _ = x < 0 }`, `0`, `T`},
+		{`package issue45096; func _[T interface{ ~int8 | ~int16 | ~int32 }](x T) { _ = x < 0 }`, `0`, `T`},
 
 		// go.dev/issue/47895
 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
@@ -522,7 +526,7 @@ func TestTypesInfo(t *testing.T) {
 		{`package qf15; type T[_ any] int; func ((*(T[_]))) _() {}`, `*(T[_])`, `*qf15.T[_]`},
 		{`package qf16; type T[_ any] int; func ((*(T[_]))) _() {}`, `(*(T[_]))`, `*qf16.T[_]`},
 
-		// For historic reasons, type parameters in receiver type expressions
+		// For historical reasons, type parameters in receiver type expressions
 		// are considered both definitions and uses and thus also show up in
 		// the Info.Types map (see go.dev/issue/68670).
 		{`package t1; type T[_ any] int; func (T[P]) _() {}`, `P`, `P`},
