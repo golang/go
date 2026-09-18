@@ -18,7 +18,6 @@ import (
 func instrumentGlobals(fn *ir.Func) *ir.Name {
 	asanGlobalStruct, asanLocationStruct, defStringstruct := createtypes()
 	lname := typecheck.Lookup
-	tconv := typecheck.ConvNop
 	// Make a global array of asanGlobalStruct type.
 	// var asanglobals []asanGlobalStruct
 	arraytype := types.NewArray(asanGlobalStruct, int64(len(InstrumentGlobalsMap)))
@@ -68,8 +67,8 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 			init.Append(typecheck.Stmt(r))
 		}
 		// globals[i].beg = uintptr(unsafe.Pointer(&n))
-		c = tconv(typecheck.NodAddr(n), types.Types[types.TUNSAFEPTR])
-		c = tconv(c, types.Types[types.TUINTPTR])
+		c = typecheck.ConvNop(typecheck.NodAddr(n), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(c, types.Types[types.TUINTPTR])
 		setField("beg", c, i)
 		// Assign globals[i].size.
 		g := n.(*ir.Name)
@@ -87,16 +86,16 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 		// globals[i].name = (*defString)(unsafe.Pointer(&asanName)).data
 		name := g.Linksym().Name
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, asanName, ir.NewString(base.Pos, name+"\000"))))
-		c = tconv(typecheck.NodAddr(asanName), types.Types[types.TUNSAFEPTR])
-		c = tconv(c, types.NewPtr(defStringstruct))
+		c = typecheck.ConvNop(typecheck.NodAddr(asanName), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
 		setField("name", c, i)
 
 		// Set the name of package being compiled as a unique identifier of a module.
 		// asanModulename = pkgName + "\000"
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, asanModulename, ir.NewString(base.Pos, types.LocalPkg.Name+"\000"))))
-		c = tconv(typecheck.NodAddr(asanModulename), types.Types[types.TUNSAFEPTR])
-		c = tconv(c, types.NewPtr(defStringstruct))
+		c = typecheck.ConvNop(typecheck.NodAddr(asanModulename), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
 		setField("moduleName", c, i)
 		// Assign asanL[i].filename, asanL[i].line, asanL[i].column
@@ -104,16 +103,16 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 		asanLi := ir.NewIndexExpr(base.Pos, asanlocation, ir.NewInt(base.Pos, int64(i)))
 		filename := ir.NewString(base.Pos, base.Ctxt.PosTable.Pos(n.Pos()).Filename()+"\000")
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, asanFilename, filename)))
-		c = tconv(typecheck.NodAddr(asanFilename), types.Types[types.TUNSAFEPTR])
-		c = tconv(c, types.NewPtr(defStringstruct))
+		c = typecheck.ConvNop(typecheck.NodAddr(asanFilename), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(c, types.NewPtr(defStringstruct))
 		c = ir.NewSelectorExpr(base.Pos, ir.ODOT, c, lname("data"))
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("filename")), c)))
 		line := ir.NewInt(base.Pos, int64(n.Pos().Line()))
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("line")), line)))
 		col := ir.NewInt(base.Pos, int64(n.Pos().Col()))
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, asanLi, lname("column")), col)))
-		c = tconv(typecheck.NodAddr(asanLi), types.Types[types.TUNSAFEPTR])
-		c = tconv(c, types.Types[types.TUINTPTR])
+		c = typecheck.ConvNop(typecheck.NodAddr(asanLi), types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(c, types.Types[types.TUINTPTR])
 		setField("sourceLocation", c, i)
 	}
 	fn.Body.Append(init...)
