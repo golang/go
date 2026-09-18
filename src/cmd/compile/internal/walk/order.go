@@ -242,7 +242,7 @@ func (o *orderState) addrTemp(walkstate *walkState, n ir.Node) ir.Node {
 	}
 
 	// Check now for a composite literal to possibly store in the read-only data section.
-	v := staticValue(n)
+	v := walkstate.staticValue(n)
 	if v == nil {
 		v = n
 	}

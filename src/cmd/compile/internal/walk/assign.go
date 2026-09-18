@@ -122,7 +122,7 @@ func (w *walkState) walkAssignDotType(n *ir.AssignListStmt, init *ir.Nodes) ir.N
 	w.walkExprListSafe(n.Lhs, init)
 
 	if r, ok := n.Rhs[0].(*ir.TypeAssertExpr); ok && r.Op() == ir.ODOTTYPE2 && !r.Type().IsInterface() {
-		if shapeTypeAssertImpossible(r.X, r.Type()) {
+		if w.shapeTypeAssertImpossible(r.X, r.Type()) {
 			init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.BlankNode, w.walkExpr(r.X, init))))
 			init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, n.Lhs[0], ir.NewZero(base.Pos, r.Type()))))
 			init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, n.Lhs[1], ir.NewBool(base.Pos, false))))

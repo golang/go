@@ -766,11 +766,11 @@ func (w *walkState) walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 // shapeTypeAssertImpossible reports whether a type assertion from src
 // to concrete type dst can never succeed because they have
 // incompatible shape types.
-func shapeTypeAssertImpossible(src ir.Node, dst *types.Type) bool {
+func (w *walkState) shapeTypeAssertImpossible(src ir.Node, dst *types.Type) bool {
 	if dst.IsInterface() {
 		return false
 	}
-	srcShape := convIfaceShapeType(src)
+	srcShape := w.convIfaceShapeType(src)
 	if srcShape == nil {
 		return false
 	}
@@ -780,7 +780,7 @@ func shapeTypeAssertImpossible(src ir.Node, dst *types.Type) bool {
 
 // convIfaceShapeType returns the shape type from which src was
 // created via OCONVIFACE, or nil.
-func convIfaceShapeType(src ir.Node) *types.Type {
+func (w *walkState) convIfaceShapeType(src ir.Node) *types.Type {
 	for {
 		switch s := src.(type) {
 		case *ir.ParenExpr:
@@ -802,8 +802,8 @@ func convIfaceShapeType(src ir.Node) *types.Type {
 		break
 	}
 
-	if name, ok := src.(*ir.Name); ok && shapeConvSources != nil {
-		return shapeConvSources[name.Canonical()]
+	if name, ok := src.(*ir.Name); ok && w.shapeConvSources != nil {
+		return w.shapeConvSources[name.Canonical()]
 	}
 	return nil
 }

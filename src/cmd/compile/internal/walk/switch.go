@@ -955,7 +955,7 @@ caseLoop:
 			// the dynamic type cases separately, as we do above.
 		}
 
-		if shapeTypeAssertImpossible(origSrc, c.typ.Type()) {
+		if w.shapeTypeAssertImpossible(origSrc, c.typ.Type()) {
 			continue
 		}
 
