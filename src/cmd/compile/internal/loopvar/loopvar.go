@@ -447,7 +447,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 			rewriteNodes(fn, editNodes)
 		}
 	}
-	ir.WithFunc(fn, forCapture)
+	ir.WithPos(fn, forCapture)
 
 	if ir.MatchAstDump(fn, "loopvar") {
 		ir.AstDump(fn, "loopvar, "+ir.FuncName(fn))

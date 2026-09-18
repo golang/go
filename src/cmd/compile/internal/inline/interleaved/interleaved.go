@@ -98,7 +98,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 			for _, fn := range list {
 				s := inlState[fn]
 
-				ir.WithFunc(fn, func() {
+				ir.WithPos(fn, func() {
 					l1 := len(s.parens)
 					l0 := 0
 
@@ -154,7 +154,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 // DevirtualizeAndInlineFunc interleaves devirtualization and inlining
 // on a single function.
 func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
-	ir.WithFunc(fn, func() {
+	ir.WithPos(fn, func() {
 		if base.Flag.LowerL != 0 {
 			if inlheur.Enabled() && !fn.Wrapper() {
 				inlheur.ScoreCalls(fn)
@@ -324,7 +324,7 @@ func (s *inlClosureState) unparenthesize() {
 func (s *inlClosureState) fixpoint() bool {
 	changed := false
 	var state devirtualize.State
-	ir.WithFunc(s.fn, func() {
+	ir.WithPos(s.fn, func() {
 		done := false
 		for !done {
 			done = true

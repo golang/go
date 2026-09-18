@@ -93,7 +93,7 @@ func MakeTask() {
 				s.StaticInit(fn, n)
 			}
 			fn.Body = s.Out
-			ir.WithFunc(fn, func() {
+			ir.WithPos(fn, func() {
 				typecheck.Stmts(fn, fn.Body)
 			})
 

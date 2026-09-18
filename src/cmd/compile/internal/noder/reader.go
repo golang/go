@@ -1408,7 +1408,7 @@ func (r *reader) funcBody(fn *ir.Func) {
 		r.dictParam = r.closureVars[len(r.closureVars)-1] // dictParam is last; see reader.funcLit
 	}
 
-	ir.WithFunc(fn, func() {
+	ir.WithPos(fn, func() {
 		r.declareParams()
 
 		if r.syntheticBody(fn.Pos()) {
@@ -3571,7 +3571,7 @@ func (r *reader) pkgInitOrder(target *ir.Package) {
 		varInitFns = r.splitLargeInitOrder(initOrder)
 		calls := make([]ir.Node, len(varInitFns))
 		for i, varInitFn := range varInitFns {
-			ir.WithFunc(fn, func() {
+			ir.WithPos(fn, func() {
 				calls[i] = typecheck.Call(r.curfn, varInitFn.Pos(), varInitFn.Nname, nil, false)
 			})
 		}
@@ -3842,7 +3842,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 	// Note issue 28603.
 	init.Append(ir.NewInlineMarkStmt(call.Pos().WithIsStmt(), int64(r.inlTreeIndex)))
 
-	ir.WithFunc(r.curfn, func() {
+	ir.WithPos(r.curfn, func() {
 		if !r.syntheticBody(call.Pos()) {
 			assert(r.Bool()) // have body
 
@@ -4233,7 +4233,7 @@ func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *t
 }
 
 func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
-	ir.WithFunc(fn, func() {
+	ir.WithPos(fn, func() {
 		typecheck.Stmts(fn, fn.Body)
 	})
 

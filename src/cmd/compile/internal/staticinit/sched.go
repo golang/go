@@ -1251,7 +1251,7 @@ func OutlineMapInits(fn *ir.Func) {
 		// Attempt to outline stmt. If successful, replace it with a call
 		// to the returned wrapper function.
 		if wrapperFn := tryWrapGlobalInit(stmt); wrapperFn != nil {
-			ir.WithFunc(fn, func() {
+			ir.WithPos(fn, func() {
 				fn.Body[i] = typecheck.Call(fn, stmt.Pos(), wrapperFn.Nname, nil, false)
 			})
 			outlined++

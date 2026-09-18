@@ -218,7 +218,7 @@ func hashFunc(sig string) *ir.Func {
 
 	fn.SetDupok(true)
 
-	ir.WithFunc(fn, func() {
+	ir.WithPos(fn, func() {
 		typecheck.Stmts(fn, fn.Body)
 	})
 
@@ -582,7 +582,7 @@ func eqFunc(sig string) *ir.Func {
 
 	fn.SetDupok(true)
 
-	ir.WithFunc(fn, func() {
+	ir.WithPos(fn, func() {
 		typecheck.Stmts(fn, fn.Body)
 	})
 
