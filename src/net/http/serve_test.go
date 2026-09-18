@@ -7078,7 +7078,7 @@ func testTimeoutHandlerSuperfluousLogs(t *testing.T, mode testMode) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		synctest.Subtest(t, tt.name, func(t *testing.T) {
 			exitHandler := make(chan bool, 1)
 			defer close(exitHandler)
 			lastLine := make(chan int, 1)
@@ -7099,13 +7099,9 @@ func testTimeoutHandlerSuperfluousLogs(t *testing.T, mode testMode) {
 
 			logBuf := new(strings.Builder)
 			srvLog := log.New(logBuf, "", 0)
-			// When expecting to timeout, we'll keep the duration short.
-			dur := 20 * time.Millisecond
-			if !tt.mustTimeout {
-				// Otherwise, make it arbitrarily long to reduce the risk of flakes.
-				dur = 10 * time.Second
-			}
-			th := TimeoutHandler(sh, dur, timeoutMsg)
+			// Arbitrary 20ms timeout for all variations of the test because we're using
+			// synctest.
+			th := TimeoutHandler(sh, 20*time.Millisecond, timeoutMsg)
 			cst := newClientServerTest(t, mode, th, optWithServerLog(srvLog))
 			defer cst.close()
 
