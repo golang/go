@@ -54,7 +54,7 @@ func (w *walkState) walkSwitchExpr(sw *ir.SwitchStmt) {
 	// convert switch {...} to switch true {...}
 	if cond == nil {
 		cond = ir.NewBool(base.Pos, true)
-		cond = typecheck.Expr(ir.CurFunc, cond)
+		cond = typecheck.Expr(w.curfunc, cond)
 		cond = typecheck.DefaultLit(cond, nil)
 	}
 
@@ -241,7 +241,7 @@ func (s *exprSwitch) flush(walkstate *walkState) {
 			// Search within this run of same-length strings.
 			pos := run[0].pos
 			s.done.Append(ir.NewLabelStmt(pos, label))
-			stringSearch(s.exprname, run, &s.done)
+			stringSearch(walkstate.curfunc, s.exprname, run, &s.done)
 			s.done.Append(ir.NewBranchStmt(pos, ir.OGOTO, endLabel))
 
 			// Add length case to outer switch.
@@ -278,14 +278,14 @@ func (s *exprSwitch) flush(walkstate *walkState) {
 		cc = merged
 	}
 
-	s.search(cc, &s.done)
+	s.search(walkstate.curfunc, cc, &s.done)
 }
 
-func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
+func (s *exprSwitch) search(curfunc *ir.Func, cc []exprClause, out *ir.Nodes) {
 	if s.tryJumpTable(cc, out) {
 		return
 	}
-	binarySearch(len(cc), out,
+	binarySearch(curfunc, len(cc), out,
 		func(i int) ir.Node {
 			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.exprname, cc[i-1].hi)
 		},
@@ -542,13 +542,13 @@ func (w *walkState) tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 
 	// Widen cond to int to avoid overflow in small integer types.
 	intType := types.Types[types.TINT]
-	wideCond := typecheck.Conv(ir.CurFunc, cond, intType)
+	wideCond := typecheck.Conv(w.curfunc, cond, intType)
 
 	// Compute idx = int(cond) - minVal.
 	var idx ir.Node
 	if minVal != 0 {
 		minLit := ir.NewBasicLit(pos, intType, constant.MakeInt64(minVal))
-		idx = typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(pos, ir.OSUB, wideCond, minLit))
+		idx = typecheck.Expr(w.curfunc, ir.NewBinaryExpr(pos, ir.OSUB, wideCond, minLit))
 	} else {
 		idx = wideCond
 	}
@@ -556,24 +556,24 @@ func (w *walkState) tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 	// Convert to uint for the one-sided bounds check and store in a temp
 	// so the index can be shared across the bounds check, table, and mask.
 	uintType := types.Types[types.TUINT]
-	uidx := typecheck.Conv(ir.CurFunc, idx, uintType)
+	uidx := typecheck.Conv(w.curfunc, idx, uintType)
 	uidx = w.copyExpr(uidx, uintType, &sw.Compiled)
 
 	// Bounds check: uint(idx) <= uint(maxVal - minVal).
 	rangeLit := ir.NewBasicLit(pos, uintType, constant.MakeUint64(uint64(maxVal-minVal)))
-	boundsCheck := typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(pos, ir.OLE, uidx, rangeLit))
+	boundsCheck := typecheck.Expr(w.curfunc, ir.NewBinaryExpr(pos, ir.OLE, uidx, rangeLit))
 	boundsCheck = typecheck.DefaultLit(boundsCheck, nil)
 
 	// Table lookup: table[idx] with bounds elided (already checked).
 	lookup := ir.NewIndexExpr(pos, tabName, uidx)
 	lookup.SetBounded(true)
-	lookup = typecheck.Expr(ir.CurFunc, lookup).(*ir.IndexExpr)
+	lookup = typecheck.Expr(w.curfunc, lookup).(*ir.IndexExpr)
 
 	var resultBody []ir.Node
 	if assignTarget == nil {
 		resultBody = []ir.Node{ir.NewReturnStmt(pos, []ir.Node{lookup})}
 	} else {
-		assign := typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(pos, assignTarget, lookup))
+		assign := typecheck.Stmt(w.curfunc, ir.NewAssignStmt(pos, assignTarget, lookup))
 		br := ir.NewBranchStmt(pos, ir.OBREAK, nil)
 		resultBody = []ir.Node{assign, br}
 	}
@@ -585,20 +585,20 @@ func (w *walkState) tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 			// Use uintptr so the operation is register-width on all architectures.
 			bitmaskType := types.Types[types.TUINTPTR]
 			bitmaskLit := ir.NewBasicLit(pos, bitmaskType, constant.MakeUint64(bitmask))
-			shifted := typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(pos, ir.ORSH, bitmaskLit, uidx))
+			shifted := typecheck.Expr(w.curfunc, ir.NewBinaryExpr(pos, ir.ORSH, bitmaskLit, uidx))
 			one := ir.NewOne(pos, bitmaskType)
-			masked := typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(pos, ir.OAND, shifted, one))
+			masked := typecheck.Expr(w.curfunc, ir.NewBinaryExpr(pos, ir.OAND, shifted, one))
 			zero := ir.NewZero(pos, bitmaskType)
-			maskCheck = typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(pos, ir.ONE, masked, zero))
+			maskCheck = typecheck.Expr(w.curfunc, ir.NewBinaryExpr(pos, ir.ONE, masked, zero))
 		} else {
 			// Mask array check: mask[idx] != 0.
 			maskLookup := ir.NewIndexExpr(pos, maskName, uidx)
 			maskLookup.SetBounded(true)
-			maskLookup = typecheck.Expr(ir.CurFunc, maskLookup).(*ir.IndexExpr)
+			maskLookup = typecheck.Expr(w.curfunc, maskLookup).(*ir.IndexExpr)
 			zero := ir.NewZero(pos, maskLookup.Type())
-			maskCheck = typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(pos, ir.ONE, maskLookup, zero))
+			maskCheck = typecheck.Expr(w.curfunc, ir.NewBinaryExpr(pos, ir.ONE, maskLookup, zero))
 		}
-		condition := typecheck.DefaultLit(typecheck.Expr(ir.CurFunc, ir.NewLogicalExpr(pos, ir.OANDAND, boundsCheck, maskCheck)), nil)
+		condition := typecheck.DefaultLit(typecheck.Expr(w.curfunc, ir.NewLogicalExpr(pos, ir.OANDAND, boundsCheck, maskCheck)), nil)
 		sw.Compiled.Append(ir.NewIfStmt(pos, condition, resultBody, nil))
 	} else {
 		sw.Compiled.Append(ir.NewIfStmt(pos, boundsCheck, resultBody, nil))
@@ -748,7 +748,7 @@ func (w *walkState) walkSwitchType(sw *ir.SwitchStmt) {
 	ifNil := ir.NewIfStmt(base.Pos, nil, nil, nil)
 	ifNil.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, srcItab, typecheck.NodNil())
 	base.Pos = base.Pos.WithNotStmt() // disable statement marks after the first check.
-	ifNil.Cond = typecheck.Expr(ir.CurFunc, ifNil.Cond)
+	ifNil.Cond = typecheck.Expr(w.curfunc, ifNil.Cond)
 	ifNil.Cond = typecheck.DefaultLit(ifNil.Cond, nil)
 	// ifNil.Nbody assigned later.
 	sw.Compiled.Append(ifNil)
@@ -845,7 +845,7 @@ func (w *walkState) walkSwitchType(sw *ir.SwitchStmt) {
 				nif := ir.NewIfStmt(c.pos, s.okName, []ir.Node{c.jmp}, nil)
 				clauses = append(clauses, typeClause{
 					hash: types.TypeHash(c.typ.Type()),
-					body: []ir.Node{typecheck.Stmt(ir.CurFunc, as), typecheck.Stmt(ir.CurFunc, nif)},
+					body: []ir.Node{typecheck.Stmt(w.curfunc, as), typecheck.Stmt(w.curfunc, nif)},
 				})
 			}
 			s.flush(w, clauses, &sw.Compiled)
@@ -902,7 +902,7 @@ func (w *walkState) walkSwitchType(sw *ir.SwitchStmt) {
 			}
 			// TODO: add len(newCases) case, mark switch as bounded
 			sw2 := ir.NewSwitchStmt(base.Pos, caseVar, newCases)
-			sw.Compiled.Append(typecheck.Stmt(ir.CurFunc, sw2))
+			sw.Compiled.Append(typecheck.Stmt(w.curfunc, sw2))
 			interfaceCases = interfaceCases[:0]
 		}
 
@@ -928,7 +928,7 @@ caseLoop:
 				as.Lhs[0] = c.val // tmpVar, ok =
 			}
 			as.Rhs = []ir.Node{dot}
-			typecheck.Stmt(ir.CurFunc, as)
+			typecheck.Stmt(w.curfunc, as)
 
 			nif := ir.NewIfStmt(c.pos, s.okName, []ir.Node{c.jmp}, nil)
 			sw.Compiled.Append(as, nif)
@@ -1024,7 +1024,7 @@ caseLoop:
 				ir.NewDecl(ncase.Pos(), ir.ODCL, caseVar),
 				ir.NewAssignStmt(ncase.Pos(), caseVar, val),
 			}
-			typecheck.Stmts(ir.CurFunc, l)
+			typecheck.Stmts(w.curfunc, l)
 			sw.Compiled.Append(l...)
 		}
 		sw.Compiled.Append(ncase.Body...)
@@ -1100,7 +1100,7 @@ func (s *typeSwitch) flush(walkstate *walkState, cc []typeClause, compiled *ir.N
 	if s.tryJumpTable(walkstate, cc, compiled) {
 		return
 	}
-	binarySearch(len(cc), compiled,
+	binarySearch(walkstate.curfunc, len(cc), compiled,
 		func(i int) ir.Node {
 			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashName, ir.NewInt(base.Pos, int64(cc[i-1].hash)))
 		},
@@ -1152,7 +1152,7 @@ func (s *typeSwitch) tryJumpTable(walkstate *walkState, cc []typeClause, out *ir
 				h = ir.NewBinaryExpr(base.Pos, ir.ORSH, h, ir.NewInt(base.Pos, int64(i)))
 			}
 			h = ir.NewBinaryExpr(base.Pos, ir.OAND, h, ir.NewInt(base.Pos, int64(1<<b-1)))
-			h = typecheck.Expr(ir.CurFunc, h)
+			h = typecheck.Expr(walkstate.curfunc, h)
 
 			// Build jump table.
 			jt := ir.NewJumpTableStmt(base.Pos, h)
@@ -1198,7 +1198,7 @@ func (s *typeSwitch) tryJumpTable(walkstate *walkState, cc []typeClause, out *ir
 //
 // leaf(i, nif) should setup nif (an OIF node) to test case i. In
 // particular, it should set nif.Cond and nif.Body.
-func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i int, nif *ir.IfStmt)) {
+func binarySearch(curfunc *ir.Func, n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i int, nif *ir.IfStmt)) {
 	const binarySearchMin = 4 // minimum number of cases for binary search
 
 	var do func(lo, hi int, out *ir.Nodes)
@@ -1209,7 +1209,7 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 				nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
 				leaf(i, nif)
 				base.Pos = base.Pos.WithNotStmt()
-				nif.Cond = typecheck.Expr(ir.CurFunc, nif.Cond)
+				nif.Cond = typecheck.Expr(curfunc, nif.Cond)
 				nif.Cond = typecheck.DefaultLit(nif.Cond, nil)
 				out.Append(nif)
 				out = &nif.Else
@@ -1221,7 +1221,7 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
 		nif.Cond = less(half)
 		base.Pos = base.Pos.WithNotStmt()
-		nif.Cond = typecheck.Expr(ir.CurFunc, nif.Cond)
+		nif.Cond = typecheck.Expr(curfunc, nif.Cond)
 		nif.Cond = typecheck.DefaultLit(nif.Cond, nil)
 		do(lo, half, &nif.Body)
 		do(half, hi, &nif.Else)
@@ -1231,11 +1231,11 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 	do(0, n, out)
 }
 
-func stringSearch(expr ir.Node, cc []exprClause, out *ir.Nodes) {
+func stringSearch(curfunc *ir.Func, expr ir.Node, cc []exprClause, out *ir.Nodes) {
 	if len(cc) < 4 {
 		// Short list, just do brute force equality checks.
 		for _, c := range cc {
-			nif := ir.NewIfStmt(base.Pos.WithNotStmt(), typecheck.DefaultLit(typecheck.Expr(ir.CurFunc, c.test(expr)), nil), []ir.Node{c.jmp}, nil)
+			nif := ir.NewIfStmt(base.Pos.WithNotStmt(), typecheck.DefaultLit(typecheck.Expr(curfunc, c.test(expr)), nil), []ir.Node{c.jmp}, nil)
 			out.Append(nif)
 			out = &nif.Else
 		}
@@ -1298,7 +1298,7 @@ func stringSearch(expr ir.Node, cc []exprClause, out *ir.Nodes) {
 	load := ir.NewIndexExpr(base.Pos, slice, ir.NewInt(base.Pos, int64(bestIdx)))
 	// Compare with the value we're splitting on.
 	cmp := ir.Node(ir.NewBinaryExpr(base.Pos, ir.OLE, load, ir.NewInt(base.Pos, int64(bestByte))))
-	cmp = typecheck.DefaultLit(typecheck.Expr(ir.CurFunc, cmp), nil)
+	cmp = typecheck.DefaultLit(typecheck.Expr(curfunc, cmp), nil)
 	nif := ir.NewIfStmt(base.Pos, cmp, nil, nil)
 
 	var le []exprClause
@@ -1311,8 +1311,8 @@ func stringSearch(expr ir.Node, cc []exprClause, out *ir.Nodes) {
 			gt = append(gt, c)
 		}
 	}
-	stringSearch(expr, le, &nif.Body)
-	stringSearch(expr, gt, &nif.Else)
+	stringSearch(curfunc, expr, le, &nif.Body)
+	stringSearch(curfunc, expr, gt, &nif.Else)
 	out.Append(nif)
 
 	// TODO: if expr[bestIdx] has enough different possible values, use a jump table.

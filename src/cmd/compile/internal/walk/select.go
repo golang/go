@@ -84,14 +84,14 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 		switch n.Op() {
 		case ir.OSEND:
 			n := n.(*ir.SendStmt)
-			n.Value = typecheck.NodAddr(ir.CurFunc, n.Value)
-			n.Value = typecheck.Expr(ir.CurFunc, n.Value)
+			n.Value = typecheck.NodAddr(w.curfunc, n.Value)
+			n.Value = typecheck.Expr(w.curfunc, n.Value)
 
 		case ir.OSELRECV2:
 			n := n.(*ir.AssignListStmt)
 			if !ir.IsBlank(n.Lhs[0]) {
-				n.Lhs[0] = typecheck.NodAddr(ir.CurFunc, n.Lhs[0])
-				n.Lhs[0] = typecheck.Expr(ir.CurFunc, n.Lhs[0])
+				n.Lhs[0] = typecheck.NodAddr(w.curfunc, n.Lhs[0])
+				n.Lhs[0] = typecheck.Expr(w.curfunc, n.Lhs[0])
 			}
 		}
 	}
@@ -130,10 +130,10 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 			fn := chanfn("selectnbrecv", 2, ch.Type())
 			call := w.mkcall1(fn, fn.Type().ResultsTuple(), r.PtrInit(), elem, ch)
 			as := ir.NewAssignListStmt(r.Pos(), ir.OAS2, []ir.Node{cond, n.Lhs[1]}, []ir.Node{call})
-			r.PtrInit().Append(typecheck.Stmt(ir.CurFunc, as))
+			r.PtrInit().Append(typecheck.Stmt(w.curfunc, as))
 		}
 
-		r.Cond = typecheck.Expr(ir.CurFunc, cond)
+		r.Cond = typecheck.Expr(w.curfunc, cond)
 		r.Body = cas.Body
 		r.Else = append(dflt.Init(), dflt.Body...)
 		return []ir.Node{r, ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)}
@@ -150,7 +150,7 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	// generate sel-struct
 	base.Pos = sellineno
 	selv := typecheck.TempAt(base.Pos, w.curfunc, types.NewArray(scasetype(), int64(ncas)))
-	init = append(init, typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, selv, nil)))
+	init = append(init, typecheck.Stmt(w.curfunc, ir.NewAssignStmt(base.Pos, selv, nil)))
 
 	// No initialization for order; runtime.selectgo is responsible for that.
 	order := typecheck.TempAt(base.Pos, w.curfunc, types.NewArray(types.Types[types.TUINT16], 2*int64(ncas)))
@@ -158,7 +158,7 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	var pc0, pcs ir.Node
 	if base.Flag.Race {
 		pcs = typecheck.TempAt(base.Pos, w.curfunc, types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
-		pc0 = typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, 0))))
+		pc0 = typecheck.Expr(w.curfunc, typecheck.NodAddr(w.curfunc, ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, 0))))
 	} else {
 		pc0 = typecheck.NodNil()
 	}
@@ -198,20 +198,20 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 
 		setField := func(f string, val ir.Node) {
 			r := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, ir.NewIndexExpr(base.Pos, selv, ir.NewInt(base.Pos, int64(i))), typecheck.Lookup(f)), val)
-			init = append(init, typecheck.Stmt(ir.CurFunc, r))
+			init = append(init, typecheck.Stmt(w.curfunc, r))
 		}
 
-		c = typecheck.ConvNop(ir.CurFunc, c, types.Types[types.TUNSAFEPTR])
+		c = typecheck.ConvNop(w.curfunc, c, types.Types[types.TUNSAFEPTR])
 		setField("c", c)
 		if !ir.IsBlank(elem) {
-			elem = typecheck.ConvNop(ir.CurFunc, elem, types.Types[types.TUNSAFEPTR])
+			elem = typecheck.ConvNop(w.curfunc, elem, types.Types[types.TUNSAFEPTR])
 			setField("elem", elem)
 		}
 
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
 		if base.Flag.Race {
-			r := w.mkcallstmt("selectsetpc", typecheck.NodAddr(ir.CurFunc, ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, int64(i)))))
+			r := w.mkcallstmt("selectsetpc", typecheck.NodAddr(w.curfunc, ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, int64(i)))))
 			init = append(init, r)
 		}
 	}
@@ -227,9 +227,9 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	r.Lhs = []ir.Node{chosen, recvOK}
 	fn := typecheck.LookupRuntime("selectgo")
 	var fnInit ir.Nodes
-	r.Rhs = []ir.Node{w.mkcall1(fn, fn.Type().ResultsTuple(), &fnInit, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(base.Pos, int64(nsends)), ir.NewInt(base.Pos, int64(nrecvs)), ir.NewBool(base.Pos, dflt == nil))}
+	r.Rhs = []ir.Node{w.mkcall1(fn, fn.Type().ResultsTuple(), &fnInit, bytePtrToIndex(w.curfunc, selv, 0), bytePtrToIndex(w.curfunc, order, 0), pc0, ir.NewInt(base.Pos, int64(nsends)), ir.NewInt(base.Pos, int64(nrecvs)), ir.NewBool(base.Pos, dflt == nil))}
 	init = append(init, fnInit...)
-	init = append(init, typecheck.Stmt(ir.CurFunc, r))
+	init = append(init, typecheck.Stmt(w.curfunc, r))
 
 	// selv, order, and pcs (if race) are no longer alive after selectgo.
 
@@ -241,7 +241,7 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 			n := n.(*ir.AssignListStmt)
 			if !ir.IsBlank(n.Lhs[1]) {
 				x := ir.NewAssignStmt(base.Pos, n.Lhs[1], recvOK)
-				list.Append(typecheck.Stmt(ir.CurFunc, x))
+				list.Append(typecheck.Stmt(w.curfunc, x))
 			}
 		}
 
@@ -250,7 +250,7 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 
 		var r ir.Node
 		if cond != nil {
-			cond = typecheck.Expr(ir.CurFunc, cond)
+			cond = typecheck.Expr(w.curfunc, cond)
 			cond = typecheck.DefaultLit(cond, nil)
 			r = ir.NewIfStmt(base.Pos, cond, list, nil)
 		} else {
@@ -277,10 +277,10 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 }
 
 // bytePtrToIndex returns a Node representing "(*byte)(&n[i])".
-func bytePtrToIndex(n ir.Node, i int64) ir.Node {
-	s := typecheck.NodAddr(ir.CurFunc, ir.NewIndexExpr(base.Pos, n, ir.NewInt(base.Pos, i)))
+func bytePtrToIndex(curfunc *ir.Func, n ir.Node, i int64) ir.Node {
+	s := typecheck.NodAddr(curfunc, ir.NewIndexExpr(base.Pos, n, ir.NewInt(base.Pos, i)))
 	t := types.NewPtr(types.Types[types.TUINT8])
-	return typecheck.ConvNop(ir.CurFunc, s, t)
+	return typecheck.ConvNop(curfunc, s, t)
 }
 
 var scase *types.Type

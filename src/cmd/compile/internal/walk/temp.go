@@ -18,7 +18,7 @@ func (w *walkState) initStackTemp(init *ir.Nodes, tmp *ir.Name, val ir.Node) *ir
 		base.Fatalf("bad initial value for %L: %L", tmp, val)
 	}
 	w.appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmp, val))
-	return typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, tmp)).(*ir.AddrExpr)
+	return typecheck.Expr(w.curfunc, typecheck.NodAddr(w.curfunc, tmp)).(*ir.AddrExpr)
 }
 
 // stackTempAddr returns the expression &tmp, where tmp is a newly
@@ -38,5 +38,5 @@ func (w *walkState) stackBufAddr(len int64, elem *types.Type) *ir.AddrExpr {
 		base.FatalfAt(base.Pos, "%v has pointers", elem)
 	}
 	tmp := typecheck.TempAt(base.Pos, w.curfunc, types.NewArray(elem, len))
-	return typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, tmp)).(*ir.AddrExpr)
+	return typecheck.Expr(w.curfunc, typecheck.NodAddr(w.curfunc, tmp)).(*ir.AddrExpr)
 }

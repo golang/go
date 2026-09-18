@@ -146,7 +146,7 @@ func (w *walkState) walkStmt(n ir.Node) ir.Node {
 		// TODO: Should we just call walkCall here?
 		if n.Call.Op() == ir.OCALLINTER {
 			w.usemethod(n.Call)
-			reflectdata.MarkUsedIfaceMethod(ir.CurFunc, n.Call)
+			reflectdata.MarkUsedIfaceMethod(w.curfunc, n.Call)
 		}
 
 		var init ir.Nodes

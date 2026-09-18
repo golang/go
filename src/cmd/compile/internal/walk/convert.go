@@ -33,7 +33,7 @@ func (w *walkState) walkConv(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		return n
 	}
 	fn := types.BasicTypeNames[param] + "to" + types.BasicTypeNames[result]
-	return typecheck.Conv(ir.CurFunc, w.mkcall(fn, types.Types[result], init, typecheck.Conv(ir.CurFunc, n.X, types.Types[param])), n.Type())
+	return typecheck.Conv(w.curfunc, w.mkcall(fn, types.Types[result], init, typecheck.Conv(w.curfunc, n.X, types.Types[param])), n.Type())
 }
 
 // walkConvInterface walks an OCONVIFACE node.
@@ -56,7 +56,7 @@ func (w *walkState) walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	}
 
 	if !fromType.IsInterface() {
-		typeWord := reflectdata.ConvIfaceTypeWord(ir.CurFunc, base.Pos, n)
+		typeWord := reflectdata.ConvIfaceTypeWord(w.curfunc, base.Pos, n)
 		l := ir.NewBinaryExpr(base.Pos, ir.OMAKEFACE, typeWord, w.dataWord(n, init))
 		l.SetType(toType)
 		l.SetTypecheck(n.Typecheck())
@@ -88,8 +88,8 @@ func (w *walkState) walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		data.SetTypecheck(1)
 
 		typeWord := typecheck.TempAt(base.Pos, w.curfunc, types.NewPtr(types.Types[types.TUINT8]))
-		init.Append(ir.NewAssignStmt(base.Pos, typeWord, typecheck.Conv(ir.CurFunc, typecheck.Conv(ir.CurFunc, itab, types.Types[types.TUNSAFEPTR]), typeWord.Type())))
-		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), nil, nil)
+		init.Append(ir.NewAssignStmt(base.Pos, typeWord, typecheck.Conv(w.curfunc, typecheck.Conv(w.curfunc, itab, types.Types[types.TUNSAFEPTR]), typeWord.Type())))
+		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(w.curfunc, ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), nil, nil)
 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, typeWord, itabType(typeWord))}
 		init.Append(nif)
 
@@ -197,11 +197,11 @@ func (w *walkState) dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		// n does not escape. Use a stack temporary initialized to n.
 		diagnose("using stack temporary for interface value", n)
 		value = typecheck.TempAt(base.Pos, w.curfunc, fromType)
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, value, n)))
+		init.Append(typecheck.Stmt(w.curfunc, ir.NewAssignStmt(base.Pos, value, n)))
 	}
 	if value != nil {
 		// The interface data word is &value.
-		return typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, value))
+		return typecheck.Expr(w.curfunc, typecheck.NodAddr(w.curfunc, value))
 	}
 
 	// Time to do an allocation. We'll call into the runtime for that.
@@ -220,7 +220,7 @@ func (w *walkState) dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 			n = w.copyExpr(n, fromType, init)
 		}
 		fn = typecheck.LookupRuntime(fnname, fromType)
-		args = []ir.Node{reflectdata.ConvIfaceSrcRType(ir.CurFunc, base.Pos, conv), typecheck.NodAddr(ir.CurFunc, n)}
+		args = []ir.Node{reflectdata.ConvIfaceSrcRType(w.curfunc, base.Pos, conv), typecheck.NodAddr(w.curfunc, n)}
 	} else {
 		// Use a specialized conversion routine that takes the type being
 		// converted by value, not by pointer.
@@ -241,7 +241,7 @@ func (w *walkState) dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		default:
 			// unsafe cast through memory
 			arg = w.copyExpr(n, fromType, init)
-			var addr ir.Node = typecheck.NodAddr(ir.CurFunc, arg)
+			var addr ir.Node = typecheck.NodAddr(w.curfunc, arg)
 			addr = ir.NewConvExpr(pos, ir.OCONVNOP, argType.PtrTo(), addr)
 			arg = ir.NewStarExpr(pos, addr)
 			arg.SetType(argType)
@@ -250,7 +250,7 @@ func (w *walkState) dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	}
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 	call.Args = args
-	return w.safeExpr(w.walkExpr(typecheck.Expr(ir.CurFunc, call), init), init)
+	return w.safeExpr(w.walkExpr(typecheck.Expr(w.curfunc, call), init), init)
 }
 
 // smallIntConst returns the byte value of n if it is a compile-time
@@ -350,7 +350,7 @@ func (w *walkState) walkRuneToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		a = w.stackBufAddr(4, types.Types[types.TUINT8])
 	}
 	// intstring(*[4]byte, rune)
-	return w.mkcall("intstring", n.Type(), init, a, typecheck.Conv(ir.CurFunc, n.X, types.Types[types.TINT64]))
+	return w.mkcall("intstring", n.Type(), init, a, typecheck.Conv(w.curfunc, n.X, types.Types[types.TINT64]))
 }
 
 // walkStringToBytes walks an OSTR2BYTES node.
@@ -377,13 +377,13 @@ func (w *walkState) walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 			a.MarkNonNil()
 		}
 		p := typecheck.TempAt(base.Pos, w.curfunc, t.PtrTo()) // *[n]byte
-		init.Append(typecheck.Stmt(ir.CurFunc, ir.NewAssignStmt(base.Pos, p, a)))
+		init.Append(typecheck.Stmt(w.curfunc, ir.NewAssignStmt(base.Pos, p, a)))
 
 		// Copy from the static string data to the [n]byte.
 		if len(sc) > 0 {
 			sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
 			sptr.SetBounded(true)
-			as := ir.NewAssignStmt(base.Pos, ir.NewStarExpr(base.Pos, p), ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.CurFunc, sptr, t.PtrTo())))
+			as := ir.NewAssignStmt(base.Pos, ir.NewStarExpr(base.Pos, p), ir.NewStarExpr(base.Pos, typecheck.ConvNop(w.curfunc, sptr, t.PtrTo())))
 			w.appendWalkStmt(init, as)
 		}
 
@@ -400,7 +400,7 @@ func (w *walkState) walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		a = w.stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 	}
 	// stringtoslicebyte(*32[byte], string) []byte
-	return w.mkcall("stringtoslicebyte", n.Type(), init, a, typecheck.Conv(ir.CurFunc, s, types.Types[types.TSTRING]))
+	return w.mkcall("stringtoslicebyte", n.Type(), init, a, typecheck.Conv(w.curfunc, s, types.Types[types.TSTRING]))
 }
 
 // walkStringToBytesTemp walks an OSTR2BYTESTMP node.
@@ -424,7 +424,7 @@ func (w *walkState) walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		a = w.stackBufAddr(tmprunebufsize, types.Types[types.TINT32])
 	}
 	// stringtoslicerune(*[32]rune, string) []rune
-	return w.mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(ir.CurFunc, n.X, types.Types[types.TSTRING]))
+	return w.mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(w.curfunc, n.X, types.Types[types.TSTRING]))
 }
 
 // dataWordFuncName returns the name of the function used to convert a value of type "from"
@@ -520,7 +520,7 @@ func (w *walkState) soleComponent(init *ir.Nodes, n ir.Node) ir.Node {
 			}
 			n = typecheck.DotField(n.Pos(), n, 0)
 		case n.Type().IsArray():
-			n = typecheck.Expr(ir.CurFunc, ir.NewIndexExpr(n.Pos(), n, ir.NewInt(base.Pos, 0)))
+			n = typecheck.Expr(w.curfunc, ir.NewIndexExpr(n.Pos(), n, ir.NewInt(base.Pos, 0)))
 		default:
 			return n
 		}
@@ -590,7 +590,7 @@ func (w *walkState) walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.No
 			n := n.(*ir.ConvExpr)
 			if n.X.Type().IsUnsafePtr() {
 				n.X = w.cheapExpr(n.X, init)
-				originals = append(originals, typecheck.ConvNop(ir.CurFunc, n.X, types.Types[types.TUNSAFEPTR]))
+				originals = append(originals, typecheck.ConvNop(w.curfunc, n.X, types.Types[types.TUNSAFEPTR]))
 			}
 		}
 	}
@@ -598,10 +598,10 @@ func (w *walkState) walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.No
 
 	cheap := w.cheapExpr(n, init)
 
-	slice := typecheck.MakeDotArgs(ir.CurFunc, base.Pos, types.NewSlice(types.Types[types.TUNSAFEPTR]), originals)
+	slice := typecheck.MakeDotArgs(w.curfunc, base.Pos, types.NewSlice(types.Types[types.TUNSAFEPTR]), originals)
 	slice.SetEsc(ir.EscNone)
 
-	init.Append(w.mkcall("checkptrArithmetic", nil, init, typecheck.ConvNop(ir.CurFunc, cheap, types.Types[types.TUNSAFEPTR]), slice))
+	init.Append(w.mkcall("checkptrArithmetic", nil, init, typecheck.ConvNop(w.curfunc, cheap, types.Types[types.TUNSAFEPTR]), slice))
 	// TODO(khr): Mark backing store of slice as dead. This will allow us to reuse
 	// the backing store for multiple calls to checkptrArithmetic.
 
@@ -611,8 +611,8 @@ func (w *walkState) walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.No
 // walkSliceToArray walks an OSLICE2ARR expression.
 func (w *walkState) walkSliceToArray(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	// Replace T(x) with *(*T)(x).
-	conv := typecheck.Expr(ir.CurFunc, ir.NewConvExpr(base.Pos, ir.OCONV, types.NewPtr(n.Type()), n.X)).(*ir.ConvExpr)
-	deref := typecheck.Expr(ir.CurFunc, ir.NewStarExpr(base.Pos, conv)).(*ir.StarExpr)
+	conv := typecheck.Expr(w.curfunc, ir.NewConvExpr(base.Pos, ir.OCONV, types.NewPtr(n.Type()), n.X)).(*ir.ConvExpr)
+	deref := typecheck.Expr(w.curfunc, ir.NewStarExpr(base.Pos, conv)).(*ir.StarExpr)
 
 	// The OSLICE2ARRPTR conversion handles checking the slice length,
 	// so the dereference can't fail.

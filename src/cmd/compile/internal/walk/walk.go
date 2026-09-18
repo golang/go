@@ -136,7 +136,7 @@ func (w *walkState) vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.N
 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
 	}
 
-	call := typecheck.Call(ir.CurFunc, base.Pos, fn, va, false).(*ir.CallExpr)
+	call := typecheck.Call(w.curfunc, base.Pos, fn, va, false).(*ir.CallExpr)
 	call.SetType(t)
 	return w.walkExpr(call, init).(*ir.CallExpr)
 }
@@ -290,7 +290,7 @@ func (w *walkState) walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
 // appendWalkStmt typechecks and walks stmt and then appends it to init.
 func (w *walkState) appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
 	op := stmt.Op()
-	n := typecheck.Stmt(ir.CurFunc, stmt)
+	n := typecheck.Stmt(w.curfunc, stmt)
 	if op == ir.OAS || op == ir.OAS2 {
 		// If the assignment has side effects, walkExpr will append them
 		// directly to init for us, while walkStmt will wrap it in an OBLOCK.
