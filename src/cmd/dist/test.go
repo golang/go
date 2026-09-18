@@ -217,7 +217,7 @@ func (t *tester) run() {
 	}
 
 	// On a few builders, make GOROOT unwritable to catch tests writing to it.
-	if strings.HasPrefix(os.Getenv("GO_BUILDER_NAME"), "linux-") {
+	if strings.Contains(os.Getenv("GO_BUILDER_NAME"), "-linux-") {
 		if os.Getuid() == 0 {
 			// Don't bother making GOROOT unwritable:
 			// we're running as root, so permissions would have no effect.
