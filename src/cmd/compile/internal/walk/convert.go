@@ -56,7 +56,7 @@ func (w *walkState) walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	}
 
 	if !fromType.IsInterface() {
-		typeWord := reflectdata.ConvIfaceTypeWord(base.Pos, n)
+		typeWord := reflectdata.ConvIfaceTypeWord(ir.CurFunc, base.Pos, n)
 		l := ir.NewBinaryExpr(base.Pos, ir.OMAKEFACE, typeWord, w.dataWord(n, init))
 		l.SetType(toType)
 		l.SetTypecheck(n.Typecheck())
@@ -220,7 +220,7 @@ func (w *walkState) dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 			n = w.copyExpr(n, fromType, init)
 		}
 		fn = typecheck.LookupRuntime(fnname, fromType)
-		args = []ir.Node{reflectdata.ConvIfaceSrcRType(base.Pos, conv), typecheck.NodAddr(ir.CurFunc, n)}
+		args = []ir.Node{reflectdata.ConvIfaceSrcRType(ir.CurFunc, base.Pos, conv), typecheck.NodAddr(ir.CurFunc, n)}
 	} else {
 		// Use a specialized conversion routine that takes the type being
 		// converted by value, not by pointer.

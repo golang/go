@@ -580,7 +580,7 @@ func (w *walkState) walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		w.usemethod(n)
 	}
 	if n.Op() == ir.OCALLINTER {
-		reflectdata.MarkUsedIfaceMethod(n)
+		reflectdata.MarkUsedIfaceMethod(ir.CurFunc, n)
 	}
 
 	if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.OCLOSURE {
@@ -753,7 +753,7 @@ func (w *walkState) walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	n.X = w.walkExpr(n.X, init)
 	// Set up interface type addresses for back end.
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
-		n.ITab = reflectdata.ITabAddrAt(base.Pos, n.Type(), n.X.Type())
+		n.ITab = reflectdata.ITabAddrAt(ir.CurFunc, base.Pos, n.Type(), n.X.Type())
 	}
 	if n.X.Type().IsInterface() && n.Type().IsInterface() && !n.Type().IsEmptyInterface() {
 		// This kind of conversion needs a runtime call. Allocate
@@ -912,14 +912,14 @@ func (w *walkState) walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	t := map_.Type()
 	fast := mapfast(t)
 	key := mapKeyArg(fast, n, n.Index, n.Assigned)
-	args := []ir.Node{reflectdata.IndexMapRType(base.Pos, n), map_, key}
+	args := []ir.Node{reflectdata.IndexMapRType(ir.CurFunc, base.Pos, n), map_, key}
 
 	var mapFn ir.Node
 	switch {
 	case n.Assigned:
 		mapFn = mapfn(mapassign[fast], t, false)
 	case t.Elem().Size() > abi.ZeroValSize:
-		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
+		args = append(args, reflectdata.ZeroAddr(ir.CurFunc, t.Elem().Size()))
 		mapFn = mapfn("mapaccess1_fat", t, true)
 	default:
 		mapFn = mapfn(mapaccess1[fast], t, false)

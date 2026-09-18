@@ -189,13 +189,13 @@ func hashFunc(sig string) *ir.Func {
 			//         h = elemfn(p+i, h)
 			//     }
 			elemFn := hashFunc(elemSig).Nname
-			idx := typecheck.TempAt(pos, ir.CurFunc, types.Types[types.TUINTPTR])
+			idx := typecheck.TempAt(pos, fn, types.Types[types.TUINTPTR])
 			init := ir.NewAssignStmt(pos, idx, ir.NewInt(pos, off))
 			cond := ir.NewBinaryExpr(pos, ir.OLT, idx, ir.NewInt(pos, off+n*elemSize))
 			post := ir.NewAssignStmt(pos, idx, ir.NewBinaryExpr(pos, ir.OADD, idx, ir.NewInt(pos, elemSize)))
 
 			p := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, np, idx)
-			call := typecheck.Call(ir.CurFunc, pos, elemFn, []ir.Node{p, nh}, false)
+			call := typecheck.Call(fn, pos, elemFn, []ir.Node{p, nh}, false)
 			as := ir.NewAssignStmt(pos, nh, call)
 			loop := ir.NewForStmt(pos, init, cond, post, []ir.Node{as}, false)
 			fn.Body.Append(loop)
@@ -204,7 +204,7 @@ func hashFunc(sig string) *ir.Func {
 			var subSig string
 			subSig, sig = parseSubroutine(sig)
 			subFn := hashFunc(subSig).Nname
-			call := typecheck.Call(ir.CurFunc, pos, subFn, []ir.Node{ptr(), nh}, false)
+			call := typecheck.Call(fn, pos, subFn, []ir.Node{ptr(), nh}, false)
 			fn.Body.Append(ir.NewAssignStmt(pos, nh, call))
 			off += sigSize(subSig)
 		}
@@ -221,7 +221,7 @@ func hashFunc(sig string) *ir.Func {
 	fn.SetDupok(true)
 
 	ir.WithFunc(fn, func() {
-		typecheck.Stmts(ir.CurFunc, fn.Body)
+		typecheck.Stmts(fn, fn.Body)
 	})
 
 	fn.SetNilCheckDisabled(true)
@@ -358,7 +358,7 @@ func eqFunc(sig string) *ir.Func {
 	nr := fn.Dcl[2]
 
 	// Label to jump to if an equality test fails.
-	neq := typecheck.AutoLabel(ir.CurFunc, ".neq")
+	neq := typecheck.AutoLabel(fn, ".neq")
 
 	// Grab known alignment of argument pointers. (ptrSize is the default.)
 	align := int64(types.PtrSize)
@@ -414,7 +414,7 @@ func eqFunc(sig string) *ir.Func {
 			len, _ := load(types.Types[types.TUINTPTR])
 			// Note: we already checked that the lengths are equal.
 			memeq := typecheck.LookupRuntime("memequal")
-			test(typecheck.Call(ir.CurFunc, pos, memeq, []ir.Node{ptrA, ptrB, len}, false))
+			test(typecheck.Call(fn, pos, memeq, []ir.Node{ptrA, ptrB, len}, false))
 			hasCall = true
 		}
 		pendingStrings = pendingStrings[:0]
@@ -434,7 +434,7 @@ func eqFunc(sig string) *ir.Func {
 				q := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, nq, c)
 				len := ir.NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(n))
 				memeq := typecheck.LookupRuntime("memequal")
-				test(typecheck.Call(ir.CurFunc, pos, memeq, []ir.Node{p, q, len}, false))
+				test(typecheck.Call(fn, pos, memeq, []ir.Node{p, q, len}, false))
 				hasCall = true
 				off += n
 				n = 0
@@ -487,7 +487,7 @@ func eqFunc(sig string) *ir.Func {
 			} else {
 				eqFn = typecheck.LookupRuntime("ifaceeq")
 			}
-			test(typecheck.Call(ir.CurFunc, pos, eqFn, []ir.Node{typeX, dataX, dataY}, false))
+			test(typecheck.Call(fn, pos, eqFn, []ir.Node{typeX, dataX, dataY}, false))
 			hasCall = true
 		case sigSkip:
 			var n int64
@@ -516,14 +516,14 @@ func eqFunc(sig string) *ir.Func {
 			//         if !eqfn(p+i, q+i) { goto neq }
 			//     }
 			elemFn := eqFunc(sigTrimSkip(elemSig)).Nname
-			idx := typecheck.TempAt(pos, ir.CurFunc, types.Types[types.TUINTPTR])
+			idx := typecheck.TempAt(pos, fn, types.Types[types.TUINTPTR])
 			init := ir.NewAssignStmt(pos, idx, ir.NewInt(pos, off))
 			cond := ir.NewBinaryExpr(pos, ir.OLT, idx, ir.NewInt(pos, off+n*elemSize))
 			post := ir.NewAssignStmt(pos, idx, ir.NewBinaryExpr(pos, ir.OADD, idx, ir.NewInt(pos, elemSize)))
 
 			p := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, np, idx)
 			q := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, nq, idx)
-			call := typecheck.Call(ir.CurFunc, pos, elemFn, []ir.Node{p, q}, false)
+			call := typecheck.Call(fn, pos, elemFn, []ir.Node{p, q}, false)
 			nif := ir.NewIfStmt(pos, call, nil, []ir.Node{ir.NewBranchStmt(pos, ir.OGOTO, neq)})
 			loop := ir.NewForStmt(pos, init, cond, post, []ir.Node{nif}, false)
 			fn.Body.Append(loop)
@@ -542,7 +542,7 @@ func eqFunc(sig string) *ir.Func {
 			c := ir.NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(off))
 			p := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, np, c)
 			q := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, nq, c)
-			call := typecheck.Call(ir.CurFunc, pos, subFn, []ir.Node{p, q}, false)
+			call := typecheck.Call(fn, pos, subFn, []ir.Node{p, q}, false)
 			test(call)
 			off += sigSize(subSig)
 		}
@@ -558,7 +558,7 @@ func eqFunc(sig string) *ir.Func {
 
 	// ret:
 	//   return
-	ret := typecheck.AutoLabel(ir.CurFunc, ".ret")
+	ret := typecheck.AutoLabel(fn, ".ret")
 	fn.Body.Append(ir.NewLabelStmt(pos, ret))
 	fn.Body.Append(ir.NewReturnStmt(pos, nil))
 
@@ -587,7 +587,7 @@ func eqFunc(sig string) *ir.Func {
 	fn.SetDupok(true)
 
 	ir.WithFunc(fn, func() {
-		typecheck.Stmts(ir.CurFunc, fn.Body)
+		typecheck.Stmts(fn, fn.Body)
 	})
 
 	// Disable checknils while compiling this code.

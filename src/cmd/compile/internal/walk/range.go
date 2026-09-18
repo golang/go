@@ -253,7 +253,7 @@ func (w *walkState) walkRange(nrange *ir.RangeStmt) ir.Node {
 		iterNext := "mapIterNext"
 
 		fn := typecheck.LookupRuntime(iterInit, t.Key(), t.Elem(), th)
-		init = append(init, w.mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(ir.CurFunc, hit)))
+		init = append(init, w.mkcallstmt1(fn, reflectdata.RangeMapRType(ir.CurFunc, base.Pos, nrange), ha, typecheck.NodAddr(ir.CurFunc, hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
 		fn = typecheck.LookupRuntime(iterNext, th)
@@ -469,7 +469,7 @@ func (w *walkState) mapRangeClear(nrange *ir.RangeStmt) ir.Node {
 	origPos := ir.SetPos(m)
 	defer func() { base.Pos = origPos }()
 
-	return w.mapClear(m, reflectdata.RangeMapRType(base.Pos, nrange))
+	return w.mapClear(m, reflectdata.RangeMapRType(ir.CurFunc, base.Pos, nrange))
 }
 
 // mapClear constructs a call to runtime.mapclear for the map m.

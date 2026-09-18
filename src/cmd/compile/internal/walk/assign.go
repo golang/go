@@ -104,7 +104,7 @@ func (w *walkState) walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
 			// Left in place for back end.
 			// Do not add a new write barrier.
 			// Set up address of type for back end.
-			r.Fun = reflectdata.AppendElemRType(base.Pos, r)
+			r.Fun = reflectdata.AppendElemRType(ir.CurFunc, base.Pos, r)
 			return as
 		}
 		// Otherwise, lowered for race detector.
@@ -181,11 +181,11 @@ func (w *walkState) walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.N
 	var call *ir.CallExpr
 	if elemSize := t.Elem().Size(); elemSize <= abi.ZeroValSize {
 		fn := mapfn(mapaccess2[fast], t, false)
-		call = w.mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
+		call = w.mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(ir.CurFunc, base.Pos, r), r.X, key)
 	} else {
 		fn := mapfn("mapaccess2_fat", t, true)
-		z := reflectdata.ZeroAddr(elemSize)
-		call = w.mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key, z)
+		z := reflectdata.ZeroAddr(ir.CurFunc, elemSize)
+		call = w.mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(ir.CurFunc, base.Pos, r), r.X, key, z)
 	}
 
 	// mapaccess2* returns a typed bool, but due to spec changes,
@@ -550,7 +550,7 @@ func (w *walkState) appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		fn := typecheck.LookupRuntime("typedslicecopy", l1.Type().Elem(), l2.Type().Elem())
 		ptr1, len1 := w.backingArrayPtrLen(w.cheapExpr(slice, &nodes))
 		ptr2, len2 := w.backingArrayPtrLen(l2)
-		ncopy = w.mkcall1(fn, types.Types[types.TINT], &nodes, reflectdata.AppendElemRType(base.Pos, n), ptr1, len1, ptr2, len2)
+		ncopy = w.mkcall1(fn, types.Types[types.TINT], &nodes, reflectdata.AppendElemRType(ir.CurFunc, base.Pos, n), ptr1, len1, ptr2, len2)
 	} else if base.Flag.Cfg.Instrumenting && !base.Flag.CompilingRuntime {
 		// rely on runtime to instrument:
 		//  copy(s[idx:], l2)

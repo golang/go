@@ -233,7 +233,7 @@ func (o *orderState) addrTemp(walkstate *walkState, n ir.Node) ir.Node {
 		types.CalcSize(n.Type())
 		vstat := readonlystaticname(n.Type())
 		var s staticinit.Schedule
-		s.StaticAssign(vstat, 0, n, n.Type())
+		s.StaticAssign(ir.CurFunc, vstat, 0, n, n.Type())
 		if s.Out != nil {
 			base.Fatalf("staticassign of const generated code: %+v", n)
 		}

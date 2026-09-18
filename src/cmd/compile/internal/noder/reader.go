@@ -2135,7 +2135,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 						for len(rtypes) < i {
 							rtypes = append(rtypes, nil)
 						}
-						rtypes = append(rtypes, reflectdata.TypePtrAt(cas.Pos(), types.Types[types.TBOOL]))
+						rtypes = append(rtypes, reflectdata.TypePtrAt(ir.CurFunc, cas.Pos(), types.Types[types.TBOOL]))
 					}
 				}
 			}
@@ -3418,7 +3418,7 @@ func (r *reader) rtype0(pos src.XPos) (typ *types.Type, rtype ir.Node) {
 	}
 
 	typ = r.typ()
-	rtype = reflectdata.TypePtrAt(pos, typ)
+	rtype = reflectdata.TypePtrAt(ir.CurFunc, pos, typ)
 	return
 }
 

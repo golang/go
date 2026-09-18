@@ -168,7 +168,7 @@ func calculateCostForType(t *types.Type) int64 {
 // The first return value is the flattened list of conditions,
 // the second value is a boolean indicating whether any of the
 // comparisons could panic.
-func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
+func EqStruct(curfunc *ir.Func, t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 	// The conditions are a list-of-lists. Conditions are reorderable
 	// within each inner list. The outer lists must be evaluated in order.
 	var conds [][]ir.Node
@@ -199,13 +199,13 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 			}
 			switch {
 			case f.Type.IsString():
-				p := typecheck.DotField(base.Pos, typecheck.Expr(ir.CurFunc, np), i)
-				q := typecheck.DotField(base.Pos, typecheck.Expr(ir.CurFunc, nq), i)
-				eqlen, eqmem := EqString(p, q)
+				p := typecheck.DotField(base.Pos, typecheck.Expr(curfunc, np), i)
+				q := typecheck.DotField(base.Pos, typecheck.Expr(curfunc, nq), i)
+				eqlen, eqmem := EqString(curfunc, p, q)
 				and(eqlen)
 				and(eqmem)
 			default:
-				and(eqfield(np, nq, i))
+				and(eqfield(curfunc, np, nq, i))
 			}
 			if typeCanPanic {
 				// Also enforce ordering after something that can panic.
@@ -219,11 +219,11 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 		if cost <= 4 {
 			// Cost of 4 or less: use plain field equality.
 			for j := i; j < next; j++ {
-				and(eqfield(np, nq, j))
+				and(eqfield(curfunc, np, nq, j))
 			}
 		} else {
 			// Higher cost: use memequal.
-			cc := eqmem(np, nq, i, size)
+			cc := eqmem(curfunc, np, nq, i, size)
 			and(cc)
 		}
 		i = next
@@ -254,13 +254,13 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 //
 // which can be used to construct string equality comparison.
 // eqlen must be evaluated before eqmem, and shortcircuiting is required.
-func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
-	s = typecheck.Conv(ir.CurFunc, s, types.Types[types.TSTRING])
-	t = typecheck.Conv(ir.CurFunc, t, types.Types[types.TSTRING])
+func EqString(curfunc *ir.Func, s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+	s = typecheck.Conv(curfunc, s, types.Types[types.TSTRING])
+	t = typecheck.Conv(curfunc, t, types.Types[types.TSTRING])
 	sptr := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ir.NewUnaryExpr(base.Pos, ir.OSPTR, s))
 	tptr := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ir.NewUnaryExpr(base.Pos, ir.OSPTR, t))
-	slen := typecheck.Conv(ir.CurFunc, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
-	tlen := typecheck.Conv(ir.CurFunc, ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
+	slen := typecheck.Conv(curfunc, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
+	tlen := typecheck.Conv(curfunc, ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
 
 	// Pick the 3rd arg to memequal. Both slen and tlen are fine to use, because we short
 	// circuit the memequal call if they aren't the same. But if one is a constant some
@@ -294,10 +294,10 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	}
 
 	fn := typecheck.LookupRuntime("memequal")
-	call := typecheck.Call(ir.CurFunc, base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
+	call := typecheck.Call(curfunc, base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
-	cmp = typecheck.Expr(ir.CurFunc, cmp).(*ir.BinaryExpr)
+	cmp = typecheck.Expr(curfunc, cmp).(*ir.BinaryExpr)
 	cmp.SetType(types.Types[types.TBOOL])
 	return cmp, call
 }
@@ -312,7 +312,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 //
 // which can be used to construct interface equality comparison.
 // eqtab must be evaluated before eqdata, and shortcircuiting is required.
-func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
+func EqInterface(curfunc *ir.Func, s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	if !types.Identical(s.Type(), t.Type()) {
 		base.Fatalf("EqInterface %v %v", s.Type(), t.Type())
 	}
@@ -334,10 +334,10 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	sdata.SetTypecheck(1)
 	tdata.SetTypecheck(1)
 
-	call := typecheck.Call(ir.CurFunc, base.Pos, fn, []ir.Node{stab, sdata, tdata}, false).(*ir.CallExpr)
+	call := typecheck.Call(curfunc, base.Pos, fn, []ir.Node{stab, sdata, tdata}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
-	cmp = typecheck.Expr(ir.CurFunc, cmp).(*ir.BinaryExpr)
+	cmp = typecheck.Expr(curfunc, cmp).(*ir.BinaryExpr)
 	cmp.SetType(types.Types[types.TBOOL])
 	return cmp, call
 }
@@ -345,18 +345,18 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 // eqfield returns the node
 //
 //	p.field == q.field
-func eqfield(p, q ir.Node, field int) ir.Node {
-	nx := typecheck.DotField(base.Pos, typecheck.Expr(ir.CurFunc, p), field)
-	ny := typecheck.DotField(base.Pos, typecheck.Expr(ir.CurFunc, q), field)
-	return typecheck.Expr(ir.CurFunc, ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny))
+func eqfield(curfunc *ir.Func, p, q ir.Node, field int) ir.Node {
+	nx := typecheck.DotField(base.Pos, typecheck.Expr(curfunc, p), field)
+	ny := typecheck.DotField(base.Pos, typecheck.Expr(curfunc, q), field)
+	return typecheck.Expr(curfunc, ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny))
 }
 
 // eqmem returns the node
 //
 //	memequal(&p.field, &q.field, size)
-func eqmem(p, q ir.Node, field int, size int64) ir.Node {
-	nx := typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, typecheck.DotField(base.Pos, p, field)))
-	ny := typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, typecheck.DotField(base.Pos, q, field)))
+func eqmem(curfunc *ir.Func, p, q ir.Node, field int, size int64) ir.Node {
+	nx := typecheck.Expr(curfunc, typecheck.NodAddr(curfunc, typecheck.DotField(base.Pos, p, field)))
+	ny := typecheck.Expr(curfunc, typecheck.NodAddr(curfunc, typecheck.DotField(base.Pos, q, field)))
 
 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)

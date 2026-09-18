@@ -131,7 +131,7 @@ func (w *walkState) walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.N
 func (w *walkState) walkGrowslice(slice *ir.Name, init *ir.Nodes, oldPtr, newLen, oldCap, num ir.Node) *ir.CallExpr {
 	elemtype := slice.Type().Elem()
 	fn := typecheck.LookupRuntime("growslice", elemtype, elemtype)
-	elemtypeptr := reflectdata.TypePtrAt(base.Pos, elemtype)
+	elemtypeptr := reflectdata.TypePtrAt(ir.CurFunc, base.Pos, elemtype)
 	return w.mkcall1(fn, slice.Type(), init, oldPtr, newLen, oldCap, num, elemtypeptr)
 }
 
@@ -147,7 +147,7 @@ func (w *walkState) walkClear(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		// If n == nil, we are clearing an array which takes zero memory, do nothing.
 		return ir.NewBlockStmt(n.Pos(), nil)
 	case typ.IsMap():
-		return w.mapClear(x, reflectdata.TypePtrAt(x.Pos(), typ))
+		return w.mapClear(x, reflectdata.TypePtrAt(ir.CurFunc, x.Pos(), typ))
 	}
 	panic("unreachable")
 }
@@ -175,7 +175,7 @@ func (w *walkState) walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool)
 		ptrL, lenL := w.backingArrayPtrLen(n.X)
 		n.Y = w.cheapExpr(n.Y, init)
 		ptrR, lenR := w.backingArrayPtrLen(n.Y)
-		return w.mkcall1(fn, n.Type(), init, reflectdata.CopyElemRType(base.Pos, n), ptrL, lenL, ptrR, lenR)
+		return w.mkcall1(fn, n.Type(), init, reflectdata.CopyElemRType(ir.CurFunc, base.Pos, n), ptrL, lenL, ptrR, lenR)
 	}
 
 	if runtimecall {
@@ -246,7 +246,7 @@ func (w *walkState) walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
 	t := map_.Type()
 	fast := mapfast(t)
 	key = mapKeyArg(fast, n, key, false)
-	return w.mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.DeleteMapRType(base.Pos, n), map_, key)
+	return w.mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.DeleteMapRType(ir.CurFunc, base.Pos, n), map_, key)
 }
 
 // walkLenCap walks an OLEN or OCAP node.
@@ -308,7 +308,7 @@ func (w *walkState) walkMakeChan(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		argtype = types.Types[types.TINT]
 	}
 
-	return w.mkcall1(chanfn(fnname, 1, n.Type()), n.Type(), init, reflectdata.MakeChanRType(base.Pos, n), typecheck.Conv(ir.CurFunc, size, argtype))
+	return w.mkcall1(chanfn(fnname, 1, n.Type()), n.Type(), init, reflectdata.MakeChanRType(ir.CurFunc, base.Pos, n), typecheck.Conv(ir.CurFunc, size, argtype))
 }
 
 // walkMakeMap walks an OMAKEMAP node.
@@ -418,7 +418,7 @@ func (w *walkState) walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	}
 
 	fn := typecheck.LookupRuntime(fnname, mapType, t.Key(), t.Elem())
-	return w.mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(base.Pos, n), typecheck.Conv(ir.CurFunc, hint, argtype), m)
+	return w.mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(ir.CurFunc, base.Pos, n), typecheck.Conv(ir.CurFunc, hint, argtype), m)
 }
 
 // walkMakeSlice walks an OMAKESLICE node.
@@ -538,7 +538,7 @@ func (w *walkState) walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		argtype = types.Types[types.TINT]
 	}
 	fn := typecheck.LookupRuntime(fnname)
-	ptr := w.mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(base.Pos, n), typecheck.Conv(ir.CurFunc, len, argtype), typecheck.Conv(ir.CurFunc, cap, argtype))
+	ptr := w.mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(ir.CurFunc, base.Pos, n), typecheck.Conv(ir.CurFunc, len, argtype), typecheck.Conv(ir.CurFunc, cap, argtype))
 	ptr.MarkNonNil()
 	len = typecheck.Conv(ir.CurFunc, len, types.Types[types.TINT])
 	cap = typecheck.Conv(ir.CurFunc, cap, types.Types[types.TINT])
@@ -593,7 +593,7 @@ func (w *walkState) walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	// Replace make+copy with runtime.makeslicecopy.
 	// instantiate makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 	fn := typecheck.LookupRuntime("makeslicecopy")
-	ptr := w.mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(base.Pos, n), length, copylen, typecheck.Conv(ir.CurFunc, copyptr, types.Types[types.TUNSAFEPTR]))
+	ptr := w.mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(ir.CurFunc, base.Pos, n), length, copylen, typecheck.Conv(ir.CurFunc, copyptr, types.Types[types.TUNSAFEPTR]))
 	ptr.MarkNonNil()
 	sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, length, length)
 	return w.walkExpr(typecheck.Expr(ir.CurFunc, sh), init)
@@ -796,7 +796,7 @@ func (w *walkState) walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	if ir.ShouldCheckPtr(w.curfunc, 1) {
 		fnname := "unsafeslicecheckptr"
 		fn := typecheck.LookupRuntime(fnname)
-		init.Append(w.mkcall1(fn, nil, init, reflectdata.UnsafeSliceElemRType(base.Pos, n), unsafePtr, typecheck.Conv(ir.CurFunc, len, lenType)))
+		init.Append(w.mkcall1(fn, nil, init, reflectdata.UnsafeSliceElemRType(ir.CurFunc, base.Pos, n), unsafePtr, typecheck.Conv(ir.CurFunc, len, lenType)))
 	} else {
 		// Otherwise, open code unsafe.Slice to prevent runtime call overhead.
 		// Keep this code in sync with runtime.unsafeslice{,64}

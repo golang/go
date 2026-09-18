@@ -83,7 +83,7 @@ func (w *walkState) walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		// compare against the itab address directly?
 		var eqtype ir.Node
 		tab := ir.NewUnaryExpr(base.Pos, ir.OITAB, l)
-		rtyp := reflectdata.CompareRType(base.Pos, n)
+		rtyp := reflectdata.CompareRType(ir.CurFunc, base.Pos, n)
 		if l.Type().IsEmptyInterface() {
 			tab.SetType(types.NewPtr(types.Types[types.TUINT8]))
 			tab.SetTypecheck(1)
@@ -238,7 +238,7 @@ func (w *walkState) walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	cmpl = w.safeExpr(cmpl, init)
 	cmpr = w.safeExpr(cmpr, init)
 	if t.IsStruct() {
-		conds, _ := compare.EqStruct(t, cmpl, cmpr)
+		conds, _ := compare.EqStruct(ir.CurFunc, t, cmpl, cmpr)
 		if n.Op() == ir.OEQ {
 			for _, cond := range conds {
 				and(cond)
@@ -328,7 +328,7 @@ func (w *walkState) walkCompareInterface(n *ir.BinaryExpr, init *ir.Nodes) ir.No
 		n.X, n.Y = n.Y, n.X
 	}
 
-	eqtab, eqdata := compare.EqInterface(n.X, n.Y)
+	eqtab, eqdata := compare.EqInterface(ir.CurFunc, n.X, n.Y)
 	var cmp ir.Node
 	if n.Op() == ir.OEQ {
 		cmp = ir.NewLogicalExpr(base.Pos, ir.OANDAND, eqtab, eqdata)
@@ -451,7 +451,7 @@ func (w *walkState) walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node 
 		// prepare for rewrite below
 		n.X = w.cheapExpr(n.X, init)
 		n.Y = w.cheapExpr(n.Y, init)
-		eqlen, eqmem := compare.EqString(n.X, n.Y)
+		eqlen, eqmem := compare.EqString(ir.CurFunc, n.X, n.Y)
 		// quick check of len before full compare for == or !=.
 		// memequal then tests equality up to length len.
 		if n.Op() == ir.OEQ {

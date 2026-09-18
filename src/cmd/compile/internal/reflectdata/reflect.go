@@ -565,8 +565,8 @@ func setTypeInfo(lsym *obj.LSym, t *types.Type) {
 
 // TypePtrAt returns an expression that evaluates to the
 // *runtime._type value for t.
-func TypePtrAt(pos src.XPos, t *types.Type) *ir.AddrExpr {
-	return typecheck.LinksymAddr(ir.CurFunc, pos, TypeLinksym(t), types.Types[types.TUINT8])
+func TypePtrAt(curfunc_ *ir.Func, pos src.XPos, t *types.Type) *ir.AddrExpr {
+	return typecheck.LinksymAddr(curfunc_, pos, TypeLinksym(t), types.Types[types.TUINT8])
 }
 
 // ITabLsym returns the LSym representing the itab for concrete type typ implementing
@@ -599,9 +599,9 @@ func itabLsym(typ, iface *types.Type, allowNonImplement bool) *obj.LSym {
 // ITabAddrAt returns an expression that evaluates to the
 // *runtime.itab value for concrete type typ implementing interface
 // iface.
-func ITabAddrAt(pos src.XPos, typ, iface *types.Type) *ir.AddrExpr {
+func ITabAddrAt(curfunc_ *ir.Func, pos src.XPos, typ, iface *types.Type) *ir.AddrExpr {
 	lsym := itabLsym(typ, iface, false)
-	return typecheck.LinksymAddr(ir.CurFunc, pos, lsym, types.Types[types.TUINT8])
+	return typecheck.LinksymAddr(curfunc_, pos, lsym, types.Types[types.TUINT8])
 }
 
 // needkeyupdate reports whether map updates with t as a key
@@ -1339,7 +1339,7 @@ func dgcptrmaskOnDemand(t *types.Type, write bool) *obj.LSym {
 
 // ZeroAddr returns the address of a symbol with at least
 // size bytes of zeros.
-func ZeroAddr(size int64) ir.Node {
+func ZeroAddr(curfunc_ *ir.Func, size int64) ir.Node {
 	if size >= 1<<31 {
 		base.Fatalf("map elem too big %d", size)
 	}
@@ -1348,7 +1348,7 @@ func ZeroAddr(size int64) ir.Node {
 	}
 	lsym := base.PkgLinksym("go:map", "zero", obj.ABI0)
 	x := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
-	return typecheck.Expr(ir.CurFunc, typecheck.NodAddr(ir.CurFunc, x))
+	return typecheck.Expr(curfunc_, typecheck.NodAddr(curfunc_, x))
 }
 
 // TypeCanBeDupok reports whether the type descriptor can be defined in multiple packages:
@@ -1465,9 +1465,9 @@ func MarkTypeSymUsedInInterface(tsym *obj.LSym, from *obj.LSym) {
 
 // MarkUsedIfaceMethod marks that an interface method is used in the current
 // function. n is OCALLINTER node.
-func MarkUsedIfaceMethod(n *ir.CallExpr) {
+func MarkUsedIfaceMethod(curfunc_ *ir.Func, n *ir.CallExpr) {
 	// skip unnamed functions (func _())
-	if ir.CurFunc.LSym == nil {
+	if curfunc_.LSym == nil {
 		return
 	}
 	dot := n.Fun.(*ir.SelectorExpr)
@@ -1492,7 +1492,7 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 		// type, and the linker could do more complicated matching using
 		// some sort of fuzzy shape matching. For now, only use the name
 		// of the method for matching.
-		ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+		curfunc_.LSym.AddRel(base.Ctxt, obj.Reloc{
 			Type: objabi.R_USENAMEDMETHOD,
 			Sym:  staticdata.StringSymNoCommon(dot.Sel.Name),
 		})
@@ -1501,7 +1501,7 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 
 	// dot.Offset() is the method index * PtrSize (the offset of code pointer in itab).
 	midx := dot.Offset() / int64(types.PtrSize)
-	ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+	curfunc_.LSym.AddRel(base.Ctxt, obj.Reloc{
 		Type: objabi.R_USEIFACEMETHOD,
 		Sym:  TypeLinksym(ityp),
 		Add:  InterfaceMethodOffset(ityp, midx),
