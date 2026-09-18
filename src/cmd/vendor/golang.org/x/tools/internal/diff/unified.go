@@ -134,7 +134,7 @@ func toUnified(fromName, toName string, content string, edits []Edit, contextLin
 			//direct extension
 		case h != nil && start <= last+gap:
 			//within range of previous lines, add the joiners
-			addEqualLines(h, lines, last, start)
+			toLine += addEqualLines(h, lines, last, start)
 		default:
 			//need to start a new hunk
 			if h != nil {
