@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types2
+package types2_test
 
 import (
-	"cmd/compile/internal/syntax"
-	"strings"
 	"testing"
+
+	. "cmd/compile/internal/types2"
 )
 
 func TestInvalidTypeSet(t *testing.T) {
-	if !invalidTypeSet.IsEmpty() {
+	if !InvalidTypeSetIsEmpty() {
 		t.Error("invalidTypeSet is not empty")
 	}
 }
@@ -44,23 +44,15 @@ func TestTypeSetString(t *testing.T) {
 		"{E}; type E interface{int;string}": "∅",
 		"{E}; type E interface{comparable}": "{comparable}",
 	} {
-		// parse
-		errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
+		// parse and type check
 		src := "package p; type T interface" + body
-		file, err := syntax.Parse(nil, strings.NewReader(src), errh, nil, 0)
-		if err != nil {
-			t.Fatalf("%s: %v (invalid test case)", body, err)
-		}
-
-		// type check
-		var conf Config
-		pkg, err := conf.Check(file.PkgName.Value, []*syntax.File{file}, nil)
+		pkg, err := typecheck(src, nil, nil)
 		if err != nil {
 			t.Fatalf("%s: %v (invalid test case)", body, err)
 		}
 
 		// lookup T
-		obj := pkg.scope.Lookup("T")
+		obj := pkg.Scope().Lookup("T")
 		if obj == nil {
 			t.Fatalf("%s: T not found (invalid test case)", body)
 		}
@@ -70,7 +62,7 @@ func TestTypeSetString(t *testing.T) {
 		}
 
 		// verify test case
-		got := T.typeSet().String()
+		got := TypeSetString(T)
 		if got != want {
 			t.Errorf("%s: got %s; want %s", body, got, want)
 		}

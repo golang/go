@@ -231,6 +231,7 @@ var filemap = map[string]action{
 	"tuple.go":           nil,
 	"typelists.go":       nil,
 	"typeset.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"typeset_test.go":    func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"typeparam.go":       nil,
 	"typeterm_test.go":   nil,
 	"typeterm.go":        nil,
