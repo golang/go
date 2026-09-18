@@ -43,19 +43,20 @@ func main() {
 		}
 	}
 
-	dir, err := os.MkdirTemp("", "issue28698")
+	tmpDir, err := os.MkdirTemp("", "issue28698")
 	if err != nil {
 		panic(err)
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(tmpDir)
 
-	fn := filepath.Join(dir, "p.go")
+	fn := filepath.Join(tmpDir, "p.go")
 	if err := os.WriteFile(fn, []byte(src), 0644); err != nil {
 		panic(err)
 	}
 
 	// Float division does not require a temporary when preparing call arguments.
 	cmd := exec.Command("go", "tool", "compile", "-W", fn)
+	cmd.Dir = tmpDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(err)
@@ -68,6 +69,7 @@ func main() {
 
 	// Forcing softfloat should still emit temporary.
 	cmd = exec.Command("go", "tool", "compile", "-W", "-d=softfloat", fn)
+	cmd.Dir = tmpDir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		panic(err)

@@ -11,30 +11,38 @@ package main
 import (
 	"bytes"
 	"log"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 )
 
 func main() {
+	tmpDir, err := os.MkdirTemp("", "issue14636")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
 	// The cannot open file error indicates that the parsing of -B flag
 	// succeeded and it failed at a later step.
-	checkLinkOutput("0", "-B argument must start with 0x")
-	checkLinkOutput("0x", "cannot open file nonexistent.o")
-	checkLinkOutput("0x0", "-B argument must have even number of digits")
-	checkLinkOutput("0x00", "cannot open file nonexistent.o")
-	checkLinkOutput("0xYZ", "-B argument contains invalid hex digit")
+	checkLinkOutput(tmpDir, "0", "-B argument must start with 0x")
+	checkLinkOutput(tmpDir, "0x", "cannot open file nonexistent.o")
+	checkLinkOutput(tmpDir, "0x0", "-B argument must have even number of digits")
+	checkLinkOutput(tmpDir, "0x00", "cannot open file nonexistent.o")
+	checkLinkOutput(tmpDir, "0xYZ", "-B argument contains invalid hex digit")
 
 	maxLen := 32
 	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		maxLen = 16
 	}
-	checkLinkOutput("0x"+strings.Repeat("00", maxLen), "cannot open file nonexistent.o")
-	checkLinkOutput("0x"+strings.Repeat("00", maxLen+1), "-B option too long")
+	checkLinkOutput(tmpDir, "0x"+strings.Repeat("00", maxLen), "cannot open file nonexistent.o")
+	checkLinkOutput(tmpDir, "0x"+strings.Repeat("00", maxLen+1), "-B option too long")
 }
 
-func checkLinkOutput(buildid string, message string) {
+func checkLinkOutput(tmpDir, buildid, message string) {
 	cmd := exec.Command("go", "tool", "link", "-B", buildid, "nonexistent.o")
+	cmd.Dir = tmpDir
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		log.Fatalf("expected cmd/link to fail")
