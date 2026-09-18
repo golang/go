@@ -7,7 +7,6 @@ package types2_test
 import (
 	"testing"
 
-	"cmd/compile/internal/syntax"
 	. "cmd/compile/internal/types2"
 )
 
@@ -92,11 +91,7 @@ func (Node[Q]) M(Q) {}
 type Inst = *Tree[int]
 `
 
-	f := mustParse(src)
-	pkg := NewPackage("p", f.PkgName.Value)
-	if err := NewChecker(nil, pkg, nil).Files([]*syntax.File{f}); err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, nil)
 
 	firstFieldType := func(n *Named) *Named {
 		return n.Underlying().(*Struct).Field(0).Type().(*Pointer).Elem().(*Named)

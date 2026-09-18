@@ -855,13 +855,11 @@ func (S) M5(struct {S;t}) {}
 .*want M5[(]struct{b[.]S; t}[)]`},
 	}
 
-	fset := token.NewFileSet()
 	test := func(main, b, want string) {
 		re := regexp.MustCompile(want)
 		bpkg := mustTypecheck(b, nil, nil)
-		mast := mustParse(fset, main)
 		conf := Config{Importer: importHelper{pkg: bpkg}}
-		_, err := conf.Check(mast.Name.Name, fset, []*ast.File{mast}, nil)
+		_, err := typecheck(main, &conf, nil)
 		if err == nil {
 			t.Error("Expected failure, but it did not")
 		} else if got := err.Error(); !re.MatchString(got) {

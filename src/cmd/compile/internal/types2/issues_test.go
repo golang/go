@@ -847,9 +847,8 @@ func (S) M5(struct {S;t}) {}
 	test := func(main, b, want string) {
 		re := regexp.MustCompile(want)
 		bpkg := mustTypecheck(b, nil, nil)
-		mast := mustParse(main)
 		conf := Config{Importer: importHelper{pkg: bpkg}}
-		_, err := conf.Check(mast.PkgName.Value, []*syntax.File{mast}, nil)
+		_, err := typecheck(main, &conf, nil)
 		if err == nil {
 			t.Error("Expected failure, but it did not")
 		} else if got := err.Error(); !re.MatchString(got) {

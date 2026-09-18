@@ -5,8 +5,6 @@
 package types_test
 
 import (
-	"go/ast"
-	"go/token"
 	"testing"
 
 	. "go/types"
@@ -106,12 +104,7 @@ func (Node[Q]) M(Q) {}
 type Inst = *Tree[int]
 `
 
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
-	pkg := NewPackage("p", f.Name.Name)
-	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, nil)
 
 	firstFieldType := func(n *Named) *Named {
 		return n.Underlying().(*Struct).Field(0).Type().(*Pointer).Elem().(*Named)

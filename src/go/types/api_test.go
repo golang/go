@@ -1806,14 +1806,13 @@ func main() {
 }
 
 func TestIssue8518(t *testing.T) {
-	fset := token.NewFileSet()
 	imports := make(testImporter)
 	conf := Config{
 		Error:    func(err error) { t.Log(err) }, // don't exit after first error
 		Importer: imports,
 	}
 	makePkg := func(path, src string) {
-		imports[path], _ = conf.Check(path, fset, []*ast.File{mustParse(fset, src)}, nil) // errors logged via conf.Error
+		imports[path], _ = typecheck(src, &conf, nil) // errors logged via conf.Error
 	}
 
 	const libSrc = `
@@ -1835,14 +1834,13 @@ var _ = a.C2
 }
 
 func TestIssue59603(t *testing.T) {
-	fset := token.NewFileSet()
 	imports := make(testImporter)
 	conf := Config{
 		Error:    func(err error) { t.Log(err) }, // don't exit after first error
 		Importer: imports,
 	}
 	makePkg := func(path, src string) {
-		imports[path], _ = conf.Check(path, fset, []*ast.File{mustParse(fset, src)}, nil) // errors logged via conf.Error
+		imports[path], _ = typecheck(src, &conf, nil) // errors logged via conf.Error
 	}
 
 	const libSrc = `
@@ -1972,12 +1970,7 @@ type Node[T any] struct {
 type Instance = *Tree[int]
 `
 
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
-	pkg := NewPackage("pkg", f.Name.Name)
-	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
-		panic(err)
-	}
+	pkg := mustTypecheck(src, nil, nil)
 
 	T := pkg.Scope().Lookup("Instance").Type()
 	_, _, _ = LookupFieldOrMethod(T, false, pkg, "M") // verify that LookupFieldOrMethod terminates
@@ -2245,15 +2238,10 @@ func F(undeclared)
 
 func TestIssue15305(t *testing.T) {
 	const src = "package p; func f() int16; var _ = f(undef)"
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
-	conf := Config{
-		Error: func(err error) {}, // allow errors
-	}
 	info := &Info{
 		Types: make(map[ast.Expr]TypeAndValue),
 	}
-	conf.Check("p", fset, []*ast.File{f}, info) // ignore result
+	typecheck(src, nil, info) // ignore result
 	for e, tv := range info.Types {
 		if _, ok := e.(*ast.CallExpr); ok {
 			if tv.Type != Typ[Int16] {
@@ -2336,15 +2324,10 @@ func (*T1) m2() {}
 func f(x int) { y := x; print(y) }
 `
 
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
-
 	info := &Info{
 		Defs: make(map[*ast.Ident]Object),
 	}
-	if _, err := new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck(src, nil, info)
 
 	for ident, obj := range info.Defs {
 		if obj == nil {
@@ -2395,9 +2378,6 @@ type T = foo.T
 var v T = c
 func f(x T) T { return foo.F(x) }
 `
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
-	files := []*ast.File{f}
 
 	// type-check using all possible importers
 	for _, compiler := range []string{"gc", "gccgo", "source"} {
@@ -2416,7 +2396,7 @@ func f(x T) T { return foo.F(x) }
 		info := &Info{
 			Uses: make(map[*ast.Ident]Object),
 		}
-		pkg, _ := conf.Check("p", fset, files, info)
+		pkg, _ := typecheck(src, &conf, info)
 		if pkg == nil {
 			t.Errorf("for %s importer, type-checking failed to return a package", compiler)
 			continue
@@ -2600,14 +2580,8 @@ func TestInstanceIdentity(t *testing.T) {
 	imports := make(testImporter)
 	conf := Config{Importer: imports}
 	makePkg := func(src string) {
-		fset := token.NewFileSet()
-		f := mustParse(fset, src)
-		name := f.Name.Name
-		pkg, err := conf.Check(name, fset, []*ast.File{f}, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		imports[name] = pkg
+		pkg := mustTypecheck(src, &conf, nil)
+		imports[pkg.Name()] = pkg
 	}
 	makePkg(`package lib; type T[P any] struct{}`)
 	makePkg(`package a; import "lib"; var A lib.T[int]`)
@@ -2788,10 +2762,7 @@ func (N4) m()
 type Bad Bad // invalid type
 `
 
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
-	conf := Config{Error: func(error) {}}
-	pkg, _ := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
+	pkg, _ := typecheck(src, nil, nil)
 
 	lookup := func(tname string) Type { return pkg.Scope().Lookup(tname).Type() }
 	var (
@@ -3175,8 +3146,7 @@ func TestVersionWithoutPos(t *testing.T) {
 }
 
 func TestVarKind(t *testing.T) {
-	fset := token.NewFileSet()
-	f := mustParse(fset, `package p
+	const src = `package p
 
 var global int
 
@@ -3190,14 +3160,11 @@ func (recv T) f(param int) (result int) {
 		_ = local3
 	}
 	return local2
-}`)
+}
+`
 
-	pkg := NewPackage("p", "p")
 	info := &Info{Defs: make(map[*ast.Ident]Object)}
-	check := NewChecker(&Config{}, fset, pkg, info)
-	if err := check.Files([]*ast.File{f}); err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck(src, nil, info)
 	var got []string
 	for _, obj := range info.Defs {
 		if v, ok := obj.(*Var); ok {
