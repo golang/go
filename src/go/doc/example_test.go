@@ -21,6 +21,7 @@ import (
 )
 
 func TestExamples(t *testing.T) {
+	t.Setenv("GODEBUG", "exampledontreduce=1")
 	dir := filepath.Join("testdata", "examples")
 	filenames, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
