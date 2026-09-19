@@ -8,6 +8,7 @@ import _ "unsafe" // for linkname
 
 // Export some functions via linkname to assembly in sync/atomic.
 //
+//go:linknamestd cas128
 //go:linknamestd Load
 //go:linknamestd Loadp
 //go:linknamestd Load64

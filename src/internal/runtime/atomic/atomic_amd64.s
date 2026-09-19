@@ -72,7 +72,7 @@ TEXT ·Casp1(SB), NOSPLIT, $0-25
 	SETEQ	ret+24(FP)
 	RET
 
-// func Cas128(ptr *[2]uint64, old1, old2, new1, new2 uint64) bool
+// func cas128(ptr *[2]uint64, old1, old2, new1, new2 uint64) bool
 // Atomically:
 //	if (*ptr)[0] == old1 && (*ptr)[1] == old2 {
 //		(*ptr)[0] = new1
@@ -85,7 +85,7 @@ TEXT ·Casp1(SB), NOSPLIT, $0-25
 // CMPXCHG16B requires its memory operand to be 16-byte aligned;
 // unaligned accesses fault.
 // NOFRAME is required for the JMP ·goCas128(SB) tail-call.
-TEXT ·Cas128(SB), NOSPLIT|NOFRAME, $0-41
+TEXT ·cas128(SB), NOSPLIT|NOFRAME, $0-41
 #ifndef hasCX16
 	CMPB	internal∕cpu·X86+const_offsetX86HasCX16(SB), $1
 	JEQ	2(PC)

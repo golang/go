@@ -570,6 +570,31 @@ func (p *Pointer[T]) CompareAndSwap(old, new *T) bool {
 	return p.u.CompareAndSwap(unsafe.Pointer(old), unsafe.Pointer(new))
 }
 
+// Uint64Pair is an atomically accessed pair of uint64 values.
+//
+// A Uint64Pair must not be copied.
+type Uint64Pair struct {
+	noCopy noCopy
+	_      align128
+	value  [2]uint64
+}
+
+// CompareAndSwap atomically compares p's value with (old1, old2) and,
+// if equal, replaces it with (new1, new2).
+// It reports whether the swap ran.
+//
+//go:nosplit
+func (p *Uint64Pair) CompareAndSwap(old1, old2, new1, new2 uint64) bool {
+	return cas128(&p.value, old1, old2, new1, new2)
+}
+
+// Addr returns a pointer to the underlying [2]uint64 storage.
+//
+//go:nosplit
+func (p *Uint64Pair) Addr() *[2]uint64 {
+	return &p.value
+}
+
 // noCopy may be embedded into structs which must not be copied
 // after the first use.
 //
