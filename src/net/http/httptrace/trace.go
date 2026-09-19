@@ -94,8 +94,6 @@ type ClientTrace struct {
 	// successfully returned to the idle pool. If err is non-nil,
 	// it describes why not. PutIdleConn is not called if
 	// connection reuse is disabled via Transport.DisableKeepAlives.
-	// PutIdleConn is called before the caller's Response.Body.Close
-	// call returns.
 	// For HTTP/2, this hook is not currently used.
 	PutIdleConn func(err error)
 

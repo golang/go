@@ -115,6 +115,8 @@ func TestAllCASTs(t *testing.T) {
 
 // TestConditionals causes the conditional CASTs and PCTs to be invoked.
 func TestConditionals(t *testing.T) {
+	moduleStatus(t)
+
 	fips140v126Conditionals()
 	// ML-KEM PCT
 	kMLKEM, err := mlkem.GenerateKey768()
@@ -163,8 +165,7 @@ func TestCASTPasses(t *testing.T) {
 	moduleStatus(t)
 	cryptotest.MustSupportFIPS140(t)
 
-	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestConditionals$", "-test.v")
-	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=debug")
+	cmd := reexecCommand(t, "fips140=debug", false, "-test.run=^TestConditionals$", "-test.v")
 	out, err := cmd.CombinedOutput()
 	t.Logf("running with GODEBUG=fips140=debug:\n%s", out)
 	if err != nil || !strings.Contains(string(out), "completed successfully") {
@@ -194,11 +195,10 @@ func TestCASTFailures(t *testing.T) {
 				t.Parallel()
 			}
 			t.Logf("Testing CAST/PCT failure...")
-			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestConditionals$", "-test.v")
-			GODEBUG := fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name)
-			cmd.Env = append(cmd.Environ(), GODEBUG)
+			godebug := fmt.Sprintf("failfipscast=%s,fips140=on", name)
+			cmd := reexecCommand(t, godebug, false, "-test.run=^TestConditionals$", "-test.v")
 			out, err := cmd.CombinedOutput()
-			t.Logf("running with %s:\n%s", GODEBUG, out)
+			t.Logf("running with GODEBUG=%s:\n%s", godebug, out)
 			if err == nil {
 				t.Fatal("test did not fail as expected")
 			}

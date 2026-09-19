@@ -479,6 +479,14 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		return dnsmessage.Parser{}, "", newDNSError(errNoSuchHost, name, "")
 	}
 
+	if isLocalhostName(name) {
+		// RFC 6761, section 6.3, says non-address queries for
+		// localhost names should get negative responses without the
+		// query being sent to DNS servers. Address queries never
+		// reach here; goLookupIPCNAMEOrder answers them itself.
+		return dnsmessage.Parser{}, "", newDNSError(errNoSuchHost, name, "")
+	}
+
 	if conf == nil {
 		conf = getSystemDNSConfig()
 	}
@@ -521,6 +529,14 @@ func avoidDNS(name string) bool {
 	}
 	name = stringslite.TrimSuffix(name, ".")
 	return stringsHasSuffixFold(name, ".onion")
+}
+
+// isLocalhostName reports whether name is "localhost" or a name
+// within the ".localhost" domain, which RFC 6761 reserves to mean
+// the IP loopback interface.
+func isLocalhostName(name string) bool {
+	name = stringslite.TrimSuffix(name, ".")
+	return stringsEqualFold(name, "localhost") || stringsHasSuffixFold(name, ".localhost")
 }
 
 // nameList returns a list of names for sequential DNS queries.
@@ -599,7 +615,10 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
 			return
 		}
 
-		if order == hostLookupFiles {
+		// Localhost names not in the hosts file fall through to
+		// goLookupIPCNAMEOrder, which resolves them itself, even when
+		// the order permits no DNS.
+		if order == hostLookupFiles && !isLocalhostName(name) {
 			return nil, newDNSError(errNoSuchHost, name, "")
 		}
 	}
@@ -649,7 +668,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 			return addrs, cname, nil
 		}
 
-		if order == hostLookupFiles {
+		if order == hostLookupFiles && !isLocalhostName(name) {
 			return nil, dnsmessage.Name{}, newDNSError(errNoSuchHost, name, "")
 		}
 	}
@@ -657,6 +676,26 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 	if !isDomainName(name) {
 		// See comment in func lookup above about use of errNoSuchHost.
 		return nil, dnsmessage.Name{}, newDNSError(errNoSuchHost, name, "")
+	}
+
+	if isLocalhostName(name) {
+		// Per RFC 6761, localhost names mean loopback and must never
+		// reach DNS (or be expanded with search domains on the way).
+		// The hosts file, checked above, can still override.
+		// See go.dev/issue/57757 and go.dev/issue/32017.
+		var addrs []IPAddr
+		if ipVersion(network) != '4' {
+			addrs = append(addrs, IPAddr{IP: IPv6loopback})
+		}
+		if ipVersion(network) != '6' {
+			addrs = append(addrs, IPAddr{IP: IPv4(127, 0, 0, 1)})
+		}
+		sortByRFC6724(addrs)
+		cname, err := dnsmessage.NewName(absDomainName(name))
+		if err != nil {
+			return nil, dnsmessage.Name{}, err
+		}
+		return addrs, cname, nil
 	}
 	type result struct {
 		p      dnsmessage.Parser

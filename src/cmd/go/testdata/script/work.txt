@@ -1,5 +1,3 @@
-[short] skip 'runs go run'
-
 ! go work init doesnotexist
 stderr 'go: directory doesnotexist does not exist'
 go env GOWORK

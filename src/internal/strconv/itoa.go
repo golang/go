@@ -154,8 +154,6 @@ func isPowerOfTwo(x int) bool {
 const nSmalls = 100
 
 // smalls is the formatting of 00..99 concatenated.
-// It is then padded out with 56 x's to 256 bytes,
-// so that smalls[x&0xFF] has no bounds check.
 const smalls = "00010203040506070809" +
 	"10111213141516171819" +
 	"20212223242526272829" +

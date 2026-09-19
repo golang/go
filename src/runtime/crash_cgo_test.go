@@ -120,12 +120,24 @@ func TestCgoCallbackX15(t *testing.T) {
 }
 
 func TestSecretCgo(t *testing.T) {
+	// secret.Do only takes effect on the platforms listed here; everywhere
+	// else it invokes f directly, so there is nothing for this test to
+	// exercise. Skip before paying for a GOEXPERIMENT=runtimesecret build,
+	// which rebuilds the whole dependency graph from scratch. See #79751.
+	switch runtime.GOOS + "/" + runtime.GOARCH {
+	case "linux/amd64", "linux/arm64":
+	default:
+		t.Skipf("runtime/secret not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 
 	exe := filepath.Join(t.TempDir(), "secretcgo.exe")
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+	// Use testenv.Command, not exec.Command: if the build hangs (#76314),
+	// this kills it and dumps its stacks instead of wedging the whole
+	// runtime package until its timeout. See #79751, #79754.
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe)
 	cmd.Dir = "testdata/testprogcgo"
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GOEXPERIMENT=runtimesecret")

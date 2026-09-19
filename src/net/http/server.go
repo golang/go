@@ -306,6 +306,12 @@ type conn struct {
 	// by a Handler with the Hijacker interface.
 	// It is guarded by mu.
 	hijackedv bool
+
+	// http2HandedOff is whether the connection has been handed off to
+	// the HTTP/2 server, which then owns closing the connection and
+	// running the final ConnState hook, possibly after (*conn).serve
+	// has returned. It is only accessed by the (*conn).serve goroutine.
+	http2HandedOff bool
 }
 
 func (c *conn) hijacked() bool {
@@ -710,6 +716,7 @@ type connReader struct {
 	cond    *sync.Cond
 	inRead  bool
 	aborted bool  // set true before conn.rwc deadline is set to past
+	probing bool  // set true during conn.serve's idle probe read, when a timeout is expected
 	remain  int64 // bytes remaining
 }
 
@@ -782,6 +789,46 @@ func (cr *connReader) backgroundRead() {
 	cr.cond.Broadcast()
 }
 
+// idleBufsReleaseDelay is how long a keep-alive connection waits for
+// its next request before it is considered idle and its bufio buffers
+// are released to their pools. It trades a little extra work on
+// connections that idle past it against pinning ~8 kB of buffers on
+// every waiting connection.
+const idleBufsReleaseDelay = 50 * time.Millisecond
+
+// waitReadable blocks until data arrives on the connection, stashing
+// the byte it reads for the next connReader.Read, and reports whether
+// data arrived. It is called between requests, after the connection's
+// bufio buffers have been released to their pools, so that an idle
+// connection pins no buffer memory while it waits, possibly for a long
+// time, for the next request. A false return means the read failed
+// (EOF, a timeout, or another error) and the error has been handled by
+// handleReadErrorLocked.
+func (cr *connReader) waitReadable() (readable bool) {
+	cr.lock()
+	if cr.inRead {
+		panic("invalid concurrent connReader.waitReadable call")
+	}
+	if cr.hasByte {
+		cr.unlock()
+		return true
+	}
+	cr.inRead = true
+	cr.unlock()
+	n, err := cr.rwc.Read(cr.byteBuf[:])
+	cr.lock()
+	cr.inRead = false
+	if n == 1 {
+		cr.hasByte = true
+	}
+	if err != nil {
+		cr.handleReadErrorLocked(err)
+	}
+	cr.unlock()
+	cr.cond.Broadcast()
+	return n == 1 && err == nil
+}
+
 func (cr *connReader) abortPendingRead() {
 	cr.lock()
 	defer cr.unlock()
@@ -796,23 +843,62 @@ func (cr *connReader) abortPendingRead() {
 	cr.rwc.SetReadDeadline(time.Time{})
 }
 
+func (cr *connReader) setProbing(v bool) {
+	cr.lock()
+	cr.probing = v
+	cr.unlock()
+}
+
 func (cr *connReader) setReadLimit(remain int64) { cr.remain = remain }
 func (cr *connReader) setInfiniteReadLimit()     { cr.remain = maxInt64 }
 func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
+
+// isNetTimeoutError reports whether err is a net.Error with Timeout()
+// == true, such as an error from an expired connection deadline.
+// It is used instead of checking errors.Is(err, os.ErrDeadlineExceeded)
+// because non-standard net.Conn implementations may return bespoke
+// timeout errors that don't wrap os.ErrDeadlineExceeded as net package
+// connections have since Go 1.15.
+func isNetTimeoutError(err error) bool {
+	ne, ok := errors.AsType[net.Error](err)
+	return ok && ne.Timeout()
+}
 
 // handleReadErrorLocked is called whenever a Read from the client returns a
 // non-nil error.
 //
 // The provided non-nil err is almost always io.EOF or a "use of
-// closed network connection". In any case, the error is not
-// particularly interesting, except perhaps for debugging during
-// development. Any error means the connection is dead and we should
-// down its context.
+// closed network connection". Except for an expected timeout during the
+// serve loop's idle probe read, any error means the connection is dead
+// and we should shut down its context. An error other than io.EOF or an
+// expired read deadline also means the connection is dead for writing,
+// so any response write still in flight is aborted.
 //
 // The caller must hold connReader.mu.
-func (cr *connReader) handleReadErrorLocked(_ error) {
+func (cr *connReader) handleReadErrorLocked(err error) {
 	if cr.conn == nil {
 		return
+	}
+	// A timeout during conn.serve's idle probe read means only that the
+	// connection has gone idle; it is otherwise fine. In particular,
+	// don't cancel the connection-level context: it is the parent of
+	// every subsequent request's context on this connection, so
+	// canceling it would deliver already-canceled contexts to all
+	// future requests.
+	if cr.probing && isNetTimeoutError(err) {
+		return
+	}
+	// io.EOF means the client half closed and may still be waiting for a
+	// response, and an expired read deadline is the server's own doing.
+	// Any other error means the connection is gone in both directions, so
+	// unblock a response write in flight.
+	//
+	// This matters because on some systems the poller never reports the
+	// socket as writable again once a read has consumed its pending error,
+	// so a handler blocked writing a large response would otherwise block
+	// forever. See go.dev/issue/78438.
+	if err != io.EOF && !isNetTimeoutError(err) {
+		cr.conn.rwc.SetWriteDeadline(aLongTimeAgo)
 	}
 	cr.conn.cancelCtx()
 	if res := cr.conn.curReq.Load(); res != nil {
@@ -1225,6 +1311,8 @@ func (w *response) WriteHeader(code int) {
 	// We shouldn't send any further headers after 101 Switching Protocols,
 	// so it takes the non-informational path.
 	if code >= 100 && code <= 199 && code != StatusSwitchingProtocols {
+		w.writeContinueMu.Lock()
+		defer w.writeContinueMu.Unlock()
 		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
 
 		// Per RFC 8297 we must not clear the current header map
@@ -1462,7 +1550,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 
 		if discard {
 			w.reqBody.Close()
-			if w.reqBody.didEarlyClose() {
+			if !w.reqBody.consumedEntireBody() {
 				w.closeAfterReply = true
 			}
 		}
@@ -1715,10 +1803,6 @@ func (w *response) finishRequest() {
 	//
 	// In full-duplex mode, this may also drain the remaining request body.
 	w.reqBody.Close()
-
-	if w.req.MultipartForm != nil {
-		w.req.MultipartForm.RemoveAll()
-	}
 }
 
 // shouldReuseConnection reports whether the underlying TCP connection can be reused.
@@ -1742,15 +1826,12 @@ func (w *response) shouldReuseConnection() bool {
 		return false
 	}
 
-	if w.closedRequestBodyEarly() {
+	// We haven't read the entire request body, so we can't reuse the connection.
+	if !w.reqBody.consumedEntireBody() {
 		return false
 	}
 
 	return true
-}
-
-func (w *response) closedRequestBodyEarly() bool {
-	return w.reqBody != nil && w.reqBody.didEarlyClose()
 }
 
 func (w *response) Flush() {
@@ -1943,7 +2024,7 @@ func (c *conn) serve(ctx context.Context) {
 			inFlightResponse.cancelCtx()
 			inFlightResponse.disableWriteContinue(true)
 		}
-		if !c.hijacked() {
+		if !c.hijacked() && !c.http2HandedOff {
 			if inFlightResponse != nil {
 				inFlightResponse.conn.r.abortPendingRead()
 				inFlightResponse.reqBody.Close()
@@ -2001,7 +2082,7 @@ func (c *conn) serve(ctx context.Context) {
 			// closing such connections. See issue https://golang.org/issue/39776.
 			c.setState(c.rwc, StateActive, skipHooks)
 			const sawClientPreface = false
-			c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
+			c.serveHTTP2(ctx, sawClientPreface)
 			return
 		}
 		tlsConn, tlsConnOK := c.rwc.(*tls.Conn)
@@ -2027,13 +2108,15 @@ func (c *conn) serve(ctx context.Context) {
 		}
 	}
 
+	// HTTP/2 may outlive this goroutine, so it gets the uncancelable ctx.
+	connCtx := ctx
+
 	ctx, cancelCtx := context.WithCancel(ctx)
 	c.cancelCtx = cancelCtx
 	defer cancelCtx()
 
 	c.r = &connReader{conn: c, rwc: c.rwc}
 	c.bufr = newBufioReader(c.r)
-	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
 	if d := c.server.readHeaderTimeout(); d > 0 {
 		c.rwc.SetReadDeadline(time.Now().Add(d))
@@ -2041,7 +2124,7 @@ func (c *conn) serve(ctx context.Context) {
 
 	protos := c.server.protocols()
 	if c.tlsState == nil && protos.UnencryptedHTTP2() {
-		if c.maybeServeUnencryptedHTTP2(ctx) {
+		if c.maybeServeUnencryptedHTTP2(connCtx) {
 			return
 		}
 	}
@@ -2050,6 +2133,8 @@ func (c *conn) serve(ctx context.Context) {
 	}
 
 	// HTTP/1.x from here on.
+
+	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
 	for {
 		w, err := c.readRequest(ctx)
@@ -2144,7 +2229,12 @@ func (c *conn) serve(ctx context.Context) {
 		w.finishRequest()
 		c.rwc.SetWriteDeadline(time.Time{})
 		if !w.shouldReuseConnection() {
-			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
+			// On some platforms, closing a socket with data in the read buffer
+			// sends a RST. If we do this with data sent by us in flight, the client
+			// might read the RST before reading what we sent. So if we might still
+			// have bytes in our read buffer, CloseWrite the connection (to send a FIN)
+			// and wait a short while before closing it entirely.
+			if w.requestBodyLimitHit || !w.reqBody.consumedEntireBody() {
 				c.closeWriteAndWait()
 			}
 			return
@@ -2160,17 +2250,51 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 
+		var idleDeadline time.Time
 		if d := c.server.idleTimeout(); d > 0 {
-			c.rwc.SetReadDeadline(time.Now().Add(d))
-		} else {
-			c.rwc.SetReadDeadline(time.Time{})
+			idleDeadline = time.Now().Add(d)
 		}
 
 		// Wait for the connection to become readable again before trying to
 		// read the next request. This prevents a ReadHeaderTimeout or
 		// ReadTimeout from starting until the first bytes of the next request
 		// have been received.
-		if _, err := c.bufr.Peek(4); err != nil {
+		//
+		// The wait runs in two phases. First wait briefly with the
+		// connection's bufio buffers still attached: on a busy
+		// connection the next request typically arrives almost
+		// immediately, and this keeps the buffer release below off the
+		// hot path. If the connection then still has nothing buffered,
+		// it has gone idle, possibly for a long time, so release its
+		// bufio.Reader and Writer (~8 kB of per-connection memory
+		// holding no data) to their pools for the rest of the wait.
+		// The byte read by waitReadable is stashed in the connReader
+		// and yielded by its next Read after fresh buffers are
+		// acquired.
+		shortDeadline := time.Now().Add(idleBufsReleaseDelay)
+		if !idleDeadline.IsZero() && idleDeadline.Before(shortDeadline) {
+			shortDeadline = idleDeadline
+		}
+		c.rwc.SetReadDeadline(shortDeadline)
+		c.r.setProbing(true)
+		_, peekErr := c.bufr.Peek(4)
+		c.r.setProbing(false)
+		if isNetTimeoutError(peekErr) && (idleDeadline.IsZero() || time.Now().Before(idleDeadline)) {
+			c.rwc.SetReadDeadline(idleDeadline)
+			if c.bufr.Buffered() == 0 && c.bufw.Buffered() == 0 {
+				putBufioReader(c.bufr)
+				c.bufr = nil
+				putBufioWriter(c.bufw)
+				c.bufw = nil
+				if !c.r.waitReadable() {
+					return
+				}
+				c.bufr = newBufioReader(c.r)
+				c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
+			}
+			_, peekErr = c.bufr.Peek(4)
+		}
+		if peekErr != nil {
 			return
 		}
 
@@ -2247,12 +2371,34 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 	c.setState(c.rwc, StateActive, skipHooks)
 	if c.server.h2 != nil {
 		const sawClientPreface = true
-		c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
+		c.serveHTTP2(ctx, sawClientPreface)
 	} else {
+		c.rwc.SetReadDeadline(time.Time{})
+		c.rwc.SetWriteDeadline(time.Time{})
 		h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
 		nextFunc(c.server, unencryptedTLSConn(c.rwc), h)
 	}
 	return true
+}
+
+// serveHTTP2 hands the connection off to the HTTP/2 server, which owns
+// the connection from here on: it closes the connection and runs the
+// final ConnState hook when it's done, possibly after this function has
+// returned, since an idle HTTP/2 connection doesn't hold onto a
+// goroutine.
+func (c *conn) serveHTTP2(ctx context.Context, sawClientPreface bool) {
+	c.http2HandedOff = true
+
+	// HTTP/2 only uses c.rwc, so release the bufio.Reader if we have one.
+	if c.bufr != nil {
+		putBufioReader(c.bufr)
+		c.bufr = nil
+	}
+
+	c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil, func() {
+		c.close()
+		c.setState(c.rwc, StateClosed, runHooks)
+	})
 }
 
 func (w *response) sendExpectationFailed() {
@@ -3180,7 +3326,7 @@ type Server struct {
 	h2            *http2Server
 	h2Config      http2ExternalServerConfig
 	h2IdleTimeout time.Duration
-	h3            *http3ServerHandler
+	h3Server      http3Server
 
 	listenerGroup sync.WaitGroup
 }
@@ -3199,6 +3345,11 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	err := s.closeListenersLocked()
+	if s.h3Server != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		go s.h3Server.Shutdown(ctx)
+	}
 
 	// Unlock s.mu while waiting for listenerGroup.
 	// The group Add and Done calls are made with s.mu held,
@@ -3248,12 +3399,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.inShutdown.Store(true)
 
 	s.mu.Lock()
-	if s.h3 != nil {
-		s.h3.shutdownCtx = ctx
-	}
 	lnerr := s.closeListenersLocked()
 	for _, f := range s.onShutdown {
 		go f()
+	}
+	if s.h3Server != nil {
+		go s.h3Server.Shutdown(ctx)
 	}
 	s.mu.Unlock()
 	s.listenerGroup.Wait()
@@ -3408,6 +3559,11 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 		handler = globalOptionsHandler{}
 	}
 
+	defer func() {
+		if req.MultipartForm != nil {
+			req.MultipartForm.RemoveAll()
+		}
+	}()
 	handler.ServeHTTP(rw, req)
 }
 
@@ -3502,18 +3658,24 @@ var ErrServerClosed = errors.New("http: Server closed")
 // Serve always returns a non-nil error and closes l.
 // After [Server.Shutdown] or [Server.Close], the returned error is [ErrServerClosed].
 func (s *Server) Serve(l net.Listener) error {
-	if conf, ok := l.(http2ExternalServerConfig); ok {
-		// This is the sneaky path we use to let x/net/http2 wrap an http.Server:
-		// http2.ConfigureServer calls http.Server.Serve with a net.Listener that
-		// implements a certain interface, which we recognize here as an attempt
-		// to associate an http2.Server with us.
-		//
-		// (This is about as principled as the way we (ab)use Transport.RegisterProtocol,
-		// which is to say not at all. It's worth it.)
+	// This is the sneaky path we use to let x/net/http2 wrap an http.Server
+	// and x/net/http3 install an HTTP/3 implementation:
+	// http2.ConfigureServer calls http.Server.Serve with a net.Listener that
+	// implements a certain interface, which we recognize here as an attempt
+	// to associate an http2.Server with us.
+	//
+	// (This is about as principled as the way we (ab)use Transport.RegisterProtocol,
+	// which is to say not at all. It's worth it.)
+	//
+	// Server.Serve never returns a nil error under normal circumstances.
+	// Returning nil on success informs our caller that we support this
+	// sneaky registration mechanism.
+	switch conf := l.(type) {
+	case http2ExternalServerConfig:
 		s.setHTTP2Config(conf)
-		// Server.Serve never returns a nil error under normal circumstances.
-		// Returning nil here informs our caller that we support this sneaky
-		// registration mechanism.
+		return nil
+	case http3Server:
+		s.setHTTP3Server(conf)
 		return nil
 	}
 
@@ -3615,6 +3777,17 @@ func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	// before we clone it and create the TLS Listener.
 	if err := s.setupHTTP2_ServeTLS(); err != nil {
 		return err
+	}
+	if s.h3Server != nil {
+		// Temporary, test-only way to serve HTTP/3 from a PacketConn:
+		// Pass it to ServeTLS wrapped in a net.Listener.
+		// The caller should pass a net.Listener that immediately returns an error
+		// if passed to a Server that doesn't support this path.
+		if x, ok := l.(interface {
+			HTTP3PacketConn() net.PacketConn
+		}); ok {
+			return s.serveHTTP3(x.HTTP3PacketConn(), certFile, keyFile)
+		}
 	}
 
 	var nextProtos []string
@@ -3902,33 +4075,15 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 	p := s.protocols()
 	if p.http3() {
-		fn, ok := s.TLSNextProto["http/3"]
-		if !ok {
-			return errors.New("http: Server.Protocols contains HTTP3, but Server does not support HTTP/3")
-		}
-		config, err := s.setupTLSConfig(certFile, keyFile, []string{"h3"})
-		if err != nil {
-			return err
-		}
-		errc := make(chan error, 1)
-		s.mu.Lock()
-		s.h3 = &http3ServerHandler{
-			handler:   serverHandler{s},
-			tlsConfig: config,
-			baseCtx:   context.WithValue(context.Background(), ServerContextKey, s),
-			errc:      errc,
-		}
-		s.mu.Unlock()
-		go fn(s, nil, s.h3)
-		if err := <-errc; err != nil {
-			return err
-		}
+		// TODO: Support HTTP/3 here.
+		// For now, tests use Server.ServeTLS.
+		return errors.New("http: Server.Protocols contains HTTP3, but Server does not support HTTP/3")
 	}
-
 	// Only start a TCP listener if HTTP/1 or HTTP/2 is used.
 	if !p.HTTP1() && !p.HTTP2() && !p.UnencryptedHTTP2() {
-		return nil
+		return errors.New("http: no protocols configured")
 	}
+
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err

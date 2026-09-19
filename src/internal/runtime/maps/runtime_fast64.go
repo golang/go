@@ -65,7 +65,7 @@ func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Poi
 
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && useAeshash64 {
 		hash = memHash64AES(key, m.seed)
 	} else {
 		hash = memHash64Fallback(key, m.seed)
@@ -194,7 +194,7 @@ func runtime_mapassign_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Point
 
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && useAeshash64 {
 		hash = memHash64AES(key, m.seed)
 	} else {
 		hash = memHash64Fallback(key, m.seed)
@@ -412,7 +412,7 @@ func runtime_mapassign_fast64ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	if memHashAESImplemented && UseAeshash {
+	if memHashAESImplemented && useAeshash64 {
 		hash = memHash64AES(uint64((uintptr)(key)), m.seed)
 	} else {
 		hash = memHash64Fallback(uint64((uintptr)(key)), m.seed)

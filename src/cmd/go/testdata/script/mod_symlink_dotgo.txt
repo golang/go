@@ -1,4 +1,3 @@
-env GO111MODULE=on
 [!symlink] skip
 
 symlink dir.go -> dir

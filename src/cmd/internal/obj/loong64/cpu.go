@@ -228,6 +228,9 @@ const (
 	REGCTXT = REG_R29 // context for closures
 	REGG    = REG_R22 // G in loong64
 	REGTMP  = REG_R30 // used by the assembler
+	REGRT1  = REG_R20 // reserved for runtime, trampoline
+	REGRT2  = REG_R21 // reserved for runtime, trampoline
+	REGTLS  = REG_R2  // C ABI TLS base pointer
 	FREGRET = REG_F0  // not use
 )
 
@@ -298,7 +301,7 @@ const (
 // bits 5-9 indicates arrangement: <T>
 // bits 10 indicates SMID type: 0: LSX, 1: LASX
 const (
-	REG_ARNG = obj.RBaseLOONG64 + (1 << 10) + (iota << 11) // Vn.<T>
+	REG_ARNG = obj.RBaseLOONG64 + (1 << 12) + (iota << 11) // Vn.<T>
 	REG_ELEM                                               // Vn.<T>[index]
 	REG_ELEM_END
 )

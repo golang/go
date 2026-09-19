@@ -7,6 +7,7 @@ package tar
 import (
 	"bytes"
 	"io"
+	"math"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -276,10 +277,16 @@ func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
 			hdr.Gname = v
 		case paxUid:
 			id64, err = strconv.ParseInt(v, 10, 64)
-			hdr.Uid = int(id64) // Integer overflow possible
+			if err != nil || id64 > math.MaxInt || id64 < math.MinInt {
+				return ErrHeader
+			}
+			hdr.Uid = int(id64)
 		case paxGid:
 			id64, err = strconv.ParseInt(v, 10, 64)
-			hdr.Gid = int(id64) // Integer overflow possible
+			if err != nil || id64 > math.MaxInt || id64 < math.MinInt {
+				return ErrHeader
+			}
+			hdr.Gid = int(id64)
 		case paxAtime:
 			hdr.AccessTime, err = parsePAXTime(v)
 		case paxMtime:
@@ -405,9 +412,11 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 
 			// For Format detection, check if block is properly formatted since
 			// the parser is more liberal than what USTAR actually permits.
-			notASCII := func(r rune) bool { return r >= 0x80 }
-			if bytes.IndexFunc(tr.blk[:], notASCII) >= 0 {
-				hdr.Format = FormatUnknown // Non-ASCII characters in block.
+			for _, c := range tr.blk[:] {
+				if c >= 0x80 {
+					hdr.Format = FormatUnknown // Non-ASCII characters in block.
+					break
+				}
 			}
 			nul := func(b []byte) bool { return int(b[len(b)-1]) == 0 }
 			if !(nul(v7.size()) && nul(v7.mode()) && nul(v7.uid()) && nul(v7.gid()) &&

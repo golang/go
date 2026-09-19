@@ -1,7 +1,4 @@
-[short] skip
-
 # Allow (cached) downloads for -mod=readonly.
-env GO111MODULE=on
 env GOPATH=$WORK/gopath1
 cd $WORK/x
 go mod edit -fmt

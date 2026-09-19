@@ -1313,6 +1313,7 @@ next:
 	LDPSW	x(SB), (R1, R2)
 	LDPSW	x+8(SB), (R1, R2)
 	LDPSW	8(R1), (ZR, R2)     // 3f084169
+	LDPSW	0x1000000(R0), (R1, R2)	// LDPSW 16777216(R0), (R1, R2)
 	STP	(R3, R4), (R5)      // a31000a9
 	STP	(R3, R4), 8(R5)     // a39000a9
 	STP.W	(R3, R4), 8(R5)     // a39080a9
@@ -1376,6 +1377,7 @@ next:
 	FLDPD	-8(R0), (F1, F2)    // 01887f6d
 	FLDPD	x(SB), (F1, F2)
 	FLDPD	x+8(SB), (F1, F2)
+	FLDPD	0x1000000(R0), (F1, F2)	// FLDPD 16777216(R0), (F1, F2)
 	FLDPS	-5(R0), (F1, F2)    // 1b1400d1610b402d
 	FLDPS	(R0), (F1, F2)      // 0108402d
 	FLDPS	4(R0), (F1, F2)     // 0188402d
@@ -1393,6 +1395,7 @@ next:
 	FLDPS	1024(RSP), (F1, F2) // fb031091610b402d
 	FLDPS	x(SB), (F1, F2)
 	FLDPS	x+8(SB), (F1, F2)
+	FLDPS	0x1000000(R0), (F1, F2)	// FLDPS 16777216(R0), (F1, F2)
 	FSTPD	(F3, F4), (R5)      // a310006d
 	FSTPD	(F3, F4), 8(R5)     // a390006d
 	FSTPD.W	(F3, F4), 8(R5)     // a390806d
@@ -1410,6 +1413,7 @@ next:
 	FSTPD	(F3, F4), 1024(RSP) // fb0310916313006d
 	FSTPD	(F3, F4), x(SB)
 	FSTPD	(F3, F4), x+8(SB)
+	FSTPD	(F3, F4), 0x1000000(R0)	// FSTPD (F3, F4), 16777216(R0)
 	FSTPS	(F3, F4), (R5)      // a310002d
 	FSTPS	(F3, F4), 4(R5)     // a390002d
 	FSTPS.W	(F3, F4), 4(R5)     // a390802d
@@ -1427,6 +1431,7 @@ next:
 	FSTPS	(F3, F4), 1024(RSP) // fb0310916313002d
 	FSTPS	(F3, F4), x(SB)
 	FSTPS	(F3, F4), x+8(SB)
+	FSTPS	(F3, F4), 0x1000000(R0)	// FSTPS (F3, F4), 16777216(R0)
 
 // FLDPQ/FSTPQ
 	FLDPQ   -4000(R0), (F1, F2)  // 1b803ed1610b40ad
@@ -1771,13 +1776,18 @@ next:
 	MRS	ID_AA64AFR1_EL1, R24               // b80538d5
 	MRS	ID_AA64DFR0_EL1, R21               // 150538d5
 	MRS	ID_AA64DFR1_EL1, R20               // 340538d5
+	MRS	ID_AA64DFR2_EL1, R1                // 410538d5
 	MRS	ID_AA64ISAR0_EL1, R4               // 040638d5
 	MRS	ID_AA64ISAR1_EL1, R6               // 260638d5
+	MRS	ID_AA64ISAR2_EL1, R2               // 420638d5
 	MRS	ID_AA64MMFR0_EL1, R0               // 000738d5
 	MRS	ID_AA64MMFR1_EL1, R17              // 310738d5
 	MRS	ID_AA64MMFR2_EL1, R23              // 570738d5
+	MRS	ID_AA64MMFR3_EL1, R3               // 630738d5
+	MRS	ID_AA64MMFR4_EL1, R4               // 840738d5
 	MRS	ID_AA64PFR0_EL1, R20               // 140438d5
 	MRS	ID_AA64PFR1_EL1, R26               // 3a0438d5
+	MRS	ID_AA64PFR2_EL1, R0                // 400438d5
 	MRS	ID_AA64ZFR0_EL1, R26               // 9a0438d5
 	MRS	ID_AFR0_EL1, R21                   // 750138d5
 	MRS	ID_DFR0_EL1, R15                   // 4f0138d5

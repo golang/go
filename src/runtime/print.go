@@ -67,7 +67,14 @@ var debuglock mutex
 // For both these reasons, let a thread acquire the printlock 'recursively'.
 
 func printlock() {
-	mp := getg().m
+	gp := getg()
+	if gp.writebuf != nil && gp.m.dying == 0 {
+		// Output is being diverted into this goroutine's own buffer
+		// (see gwrite), so there is nothing shared to protect. Once
+		// the M is dying gwrite writes to stderr instead, so keep the lock.
+		return
+	}
+	mp := gp.m
 	mp.locks++ // do not reschedule between printlock++ and lock(&debuglock).
 	mp.printlock++
 	if mp.printlock == 1 {
@@ -77,7 +84,11 @@ func printlock() {
 }
 
 func printunlock() {
-	mp := getg().m
+	gp := getg()
+	if gp.writebuf != nil && gp.m.dying == 0 {
+		return
+	}
+	mp := gp.m
 	mp.printlock--
 	if mp.printlock == 0 {
 		unlock(&debuglock)
@@ -90,7 +101,6 @@ func gwrite(b []byte) {
 	if len(b) == 0 {
 		return
 	}
-	recordForPanic(b)
 	gp := getg()
 	// Don't use the writebuf if gp.m is dying. We want anything
 	// written through gwrite to appear in the terminal rather
@@ -98,6 +108,7 @@ func gwrite(b []byte) {
 	// Note that we can't just clear writebuf in the gp.m.dying case
 	// because a panic isn't allowed to have any write barriers.
 	if gp == nil || gp.writebuf == nil || gp.m.dying > 0 {
+		recordForPanic(b)
 		writeErr(b)
 		return
 	}

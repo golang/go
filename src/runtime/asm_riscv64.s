@@ -364,7 +364,11 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 	MOV	fn+0(FP), X11
 	MOV	arg+8(FP), X10
+	MOV	X2, X9		// save SP in X9 (callee-saved in C ABI)
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
+	MOV	X0, X8		// clear frame pointer register (see asmcgocall)
 	JALR	RA, (X11)
+	MOV	X9, X2
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -396,6 +400,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
 	// Save room for two of our pointers.
 	SUB	$16, X2
 	MOV	X9, 0(X2)	// save old g on stack
@@ -403,6 +408,14 @@ g0:
 	SUB	X8, X9, X8
 	MOV	X8, 8(X2)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
 
+	// Clear the frame pointer register before calling into C.
+	// At least some C unwinder does frame pointer unwinding.
+	// As Go currently doesn't use frame pointer on RISCV64,
+	// the C unwinder may see garbage value and may crash.
+	// Zero the frame pointer to tell the unwinder to stop
+	// (it is a stack switch anyway).
+	// If we enable frame pointers in Go, revisit this.
+	MOV	X0, X8
 	JALR	RA, (X11)
 
 	// Restore g, stack pointer. X10 is return value.
@@ -422,9 +435,11 @@ nosave:
 	MOV	fn+0(FP), X11
 	MOV	arg+8(FP), X10
 	MOV	X2, X8
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
 	SUB	$16, X2
 	MOV	ZERO, 0(X2)	// Where above code stores g, in case someone looks during debugging.
 	MOV	X8, 8(X2)	// Save original stack pointer.
+	MOV	X0, X8		// Clear frame pointer (see above)
 	JALR	RA, (X11)
 	MOV	8(X2), X2	// Restore stack pointer.
 	MOVW	X10, ret+16(FP)

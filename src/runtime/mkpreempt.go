@@ -461,8 +461,8 @@ func genAMD64(g *gen) {
 	p("#ifdef GOEXPERIMENT_simd")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
 	p("JE saveAVX512")
-	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1")
-	p("JE saveAVX2")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1")
+	p("JE saveAVX")
 	p("#endif")
 
 	// No features. Assume only SSE.
@@ -470,7 +470,7 @@ func genAMD64(g *gen) {
 	lXRegs.save(g)
 	p("JMP preempt")
 
-	label("saveAVX2:")
+	label("saveAVX:")
 	lYRegs.save(g)
 	p("JMP preempt")
 
@@ -489,15 +489,15 @@ func genAMD64(g *gen) {
 	p("#ifdef GOEXPERIMENT_simd")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
 	p("JE restoreAVX512")
-	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1")
-	p("JE restoreAVX2")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1")
+	p("JE restoreAVX")
 	p("#endif")
 
 	label("restoreSSE:")
 	lXRegs.restore(g)
 	p("JMP restoreGPs")
 
-	label("restoreAVX2:")
+	label("restoreAVX:")
 	lYRegs.restore(g)
 	p("JMP restoreGPs")
 
@@ -599,7 +599,19 @@ func genARM64(g *gen) {
 		}
 		lVRegs.add2("VST1.P", "VLD1.P", regs, [2]string{"[", "]"}, true)
 	}
-	writeXRegs(g.goarch, &lVRegs)
+
+	// Create a combined layout for struct generation and SVE code generation.
+	var lAll layout
+	lAll.sp = vReg
+	for i := 0; i < 32; i++ {
+		regs := []regInfo{{name: fmt.Sprintf("Z%d", i), size: 32}}
+		lAll.add2("ZSTR", "ZLDR", regs, [2]string{"", ""}, false)
+	}
+	for i := 0; i < 16; i++ {
+		regs := []regInfo{{name: fmt.Sprintf("P%d", i), size: 8}}
+		lAll.add2("PSTR", "PLDR", regs, [2]string{"", ""}, false)
+	}
+	writeXRegs(g.goarch, &lAll)
 	if l.stack%16 != 0 {
 		l.stack += 8 // SP needs 16-byte alignment
 	}
@@ -622,13 +634,59 @@ func genARM64(g *gen) {
 	p("MOVD g_m(g), %s", vReg)
 	p("MOVD m_p(%s), %s", vReg, vReg)
 	p("ADD $(p_xRegs+xRegPerP_scratch), %s, %s", vReg, vReg)
+	p("#ifdef GOEXPERIMENT_simd")
+	p("MOVBU internal∕cpu·ARM64+const_offsetARM64HasSVE(SB), R27")
+	p("CMP $1, R27")
+	p("BNE saveNEON")
+	p("RDVL $1, R27")
+	p("CMP $32, R27")
+	p("BGT saveNEON")
+
+	for i := 0; i < 32; i++ {
+		p("ZSTR Z%d, (VL*%d)(%s)", i, i, vReg)
+	}
+	p("RDVL $1, R27")
+	p("LSL $5, R27")
+	p("ADD %s, R27", vReg)
+	for i := 0; i < 16; i++ {
+		p("PSTR P%d, (VL*%d)(R27)", i, i)
+	}
+	p("JMP preempt")
+	p("#endif")
+
+	g.label("saveNEON:")
 	lVRegs.save(g)
+
+	g.label("preempt:")
 	p("CALL ·asyncPreempt2(SB)")
 	p("// Restore non-GPs from *p.xRegs.cache")
 	p("MOVD g_m(g), %s", vReg)
 	p("MOVD m_p(%s), %s", vReg, vReg)
 	p("MOVD (p_xRegs+xRegPerP_cache)(%s), %s", vReg, vReg)
+	p("#ifdef GOEXPERIMENT_simd")
+	p("MOVBU internal∕cpu·ARM64+const_offsetARM64HasSVE(SB), R27")
+	p("CMP $1, R27")
+	p("BNE restoreNEON")
+	p("RDVL $1, R27")
+	p("CMP $32, R27")
+	p("BGT restoreNEON")
+
+	for i := 0; i < 32; i++ {
+		p("ZLDR (VL*%d)(%s), Z%d", i, vReg, i)
+	}
+	p("RDVL $1, R27")
+	p("LSL $5, R27")
+	p("ADD %s, R27", vReg)
+	for i := 0; i < 16; i++ {
+		p("PLDR (VL*%d)(R27), P%d", i, i)
+	}
+	p("JMP restoreGPs")
+	p("#endif")
+
+	g.label("restoreNEON:")
 	lVRegs.restoreDirect(g)
+
+	g.label("restoreGPs:")
 	p("// Restore GPs")
 	l.restore(g)
 

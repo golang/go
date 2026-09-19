@@ -942,3 +942,29 @@ func TestIssue68411(t *testing.T) {
 		t.Error("missing functions")
 	}
 }
+
+func TestSymbolicFunctions(t *testing.T) {
+	// Test that we can build a c-shared library with -Wl,-Bsymbolic-functions,
+	// see issue 80632.
+	globalSkip(t)
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
+	if GOOS != "linux" {
+		t.Skip("Skipping on non-Linux OS")
+	}
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	libname := filepath.Join(tmpdir, "libbsymbolic.a")
+
+	run(t,
+		nil,
+		"go", "build",
+		"-buildmode=c-shared",
+		"-installsuffix", "testcshared",
+		"-ldflags=-extldflags=-Wl,-Bsymbolic-functions",
+		"-o", libname, "./libgo",
+	)
+}

@@ -54,7 +54,7 @@ for more information.
 `,
 }
 
-var useR = cmdUse.Flag.Bool("r", false, "")
+var useR = cmdUse.Flag.Bool("r", false, "recursively add modules from subdirectories")
 
 func init() {
 	cmdUse.Run = runUse // break init cycle

@@ -52,7 +52,7 @@ import (
 // | [optional padding]    | padding byte (0x0A) if size is odd
 // | [ar file header]      | other ar files
 // | [ar file data]        |
-func ReadUnified(r *bufio.Reader) (data []byte, err error) {
+func ReadUnified(r *bufio.Reader, allowPrivate bool) (data []byte, err error) {
 	// We historically guaranteed headers at the default buffer size (4096) work.
 	// This ensures we can use ReadSlice throughout.
 	const minBufferSize = 4096
@@ -73,7 +73,7 @@ func ReadUnified(r *bufio.Reader) (data []byte, err error) {
 		n -= len(h)
 	}
 
-	hdrlen, err := ReadExportDataHeader(r)
+	hdrlen, err := ReadExportDataHeader(r, allowPrivate)
 	if err != nil {
 		return
 	}
@@ -190,9 +190,10 @@ func ReadObjectHeaders(r *bufio.Reader) (objapi string, headers []string, err er
 // It returns the number of bytes read, or an error if the format is no longer
 // supported or it failed to read.
 //
-// The only currently supported format is binary export data in the
-// unified export format.
-func ReadExportDataHeader(r *bufio.Reader) (n int, err error) {
+// The currently supported formats are the unified ("u") and private ("p") formats,
+// both of which are binary formats. To read the private format, allowPrivate must
+// be true.
+func ReadExportDataHeader(r *bufio.Reader, allowPrivate bool) (n int, err error) {
 	// Read export data header.
 	line, err := r.ReadSlice('\n')
 	if err != nil {
@@ -211,9 +212,15 @@ func ReadExportDataHeader(r *bufio.Reader) (n int, err error) {
 		if err != nil {
 			return
 		}
-		// The unified export format starts with a 'u'.
+		// The unified export format starts with a 'u' or 'p'.
 		switch format {
 		case 'u':
+			// nothing to do
+		case 'p':
+			if !allowPrivate {
+				err = fmt.Errorf("binary export format \"p\" is unsupported (compiler private)")
+				return
+			}
 		default:
 			// Older no longer supported export formats include:
 			// indexed export format which started with an 'i'; and
@@ -228,7 +235,7 @@ func ReadExportDataHeader(r *bufio.Reader) (n int, err error) {
 		return
 	}
 
-	n = len(hdr) + 1 // + 1 is for 'u'
+	n = len(hdr) + 1 // + 1 is for 'u' or 'p'
 	return
 }
 

@@ -11,9 +11,56 @@ import (
 )
 
 // If true, check poset integrity after every mutation
-var debugPoset = false
+var DebugPoset = false
 
-const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
+// Poset is a union-find data structure that can represent a partially ordered set
+// of SSA values. Given a binary relation that creates a partial order (eg: '<'),
+// clients can record relations between SSA values using SetOrder, and later
+// check relations (in the transitive closure) with Ordered. For instance,
+// if SetOrder is called to record that A<B and B<C, Ordered will later confirm
+// that A<C.
+//
+// It is possible to record equality relations between SSA values with SetEqual and check
+// equality with Equal. Equality propagates into the transitive closure for the partial
+// order so that if we know that A<B<C and later learn that A==D, Ordered will return
+// true for D<C.
+//
+// It is also possible to record inequality relations between nodes with SetNonEqual;
+// non-equality relations are not transitive, but they can still be useful: for instance
+// if we know that A<=B and later we learn that A!=B, we can deduce that A<B.
+// NonEqual can be used to check whether it is known that the nodes are different, either
+// because SetNonEqual was called before, or because we know that they are strictly ordered.
+//
+// Poset will refuse to record new relations that contradict existing relations:
+// for instance if A<B<C, calling SetOrder for C<A will fail returning false; also
+// calling SetEqual for C==A will fail.
+//
+// Poset is implemented as a forest of DAGs; in each DAG, if there is a path (directed)
+// from node A to B, it means that A<B (or A<=B). Equality is represented by mapping
+// two SSA values to the same DAG node; when a new equality relation is recorded
+// between two existing nodes, the nodes are merged, adjusting incoming and outgoing edges.
+//
+// Poset is designed to be memory efficient and do little allocations during normal usage.
+// Most internal data structures are pre-allocated and flat, so for instance adding a
+// new relation does not cause any allocation. For performance reasons,
+// each node has only up to two outgoing edges (like a binary tree), so intermediate
+// "extra" nodes are required to represent more than two relations. For instance,
+// to record that A<I, A<J, A<K (with no known relation between I,J,K), we create the
+// following DAG:
+//
+//	  A
+//	 / \
+//	I  extra
+//	    /  \
+//	   J    K
+type Poset struct {
+	lastidx uint32            // last generated dense index
+	values  map[ID]uint32     // map SSA values to dense indexes
+	nodes   []posetNode       // nodes (in all DAGs)
+	roots   []uint32          // list of root nodes (forest)
+	noneq   map[uint32]bitset // non-equal relations
+	undo    []posetUndo       // undo chain
+}
 
 // bitset is a bit array for dense indexes.
 type bitset []uint
@@ -26,12 +73,67 @@ func newBitset(n int) bitset {
 	return make(bitset, computeBitsetSize(n))
 }
 
+func newPoset() *Poset {
+	return &Poset{
+		values: make(map[ID]uint32),
+		nodes:  make([]posetNode, 1, 16),
+		roots:  make([]uint32, 0, 4),
+		noneq:  make(map[uint32]bitset),
+		undo:   make([]posetUndo, 0, 4),
+	}
+}
+
+func newedge(t uint32, strict bool) posetEdge {
+	s := uint32(0)
+	if strict {
+		s = 1
+	}
+	return posetEdge(t<<1 | s)
+}
+
+// A poset edge. The zero value is the null/empty edge.
+// Packs target node index (31 bits) and strict flag (1 bit).
+type posetEdge uint32
+
+// posetNode is a node of a DAG within the poset.
+type posetNode struct {
+	l, r posetEdge
+}
+
+// posetUndo represents an undo pass to be performed.
+// It's a union of fields that can be used to store information,
+// and typ is the discriminant, that specifies which kind
+// of operation must be performed. Not all fields are always used.
+type posetUndo struct {
+	typ  undoType
+	idx  uint32
+	ID   ID
+	edge posetEdge
+}
+
+const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
+
+const (
+	undoInvalid    undoType = iota
+	undoCheckpoint          // a checkpoint to group undo passes
+	undoSetChl              // change back left child of undo.idx to undo.edge
+	undoSetChr              // change back right child of undo.idx to undo.edge
+	undoNonEqual            // forget that SSA value undo.ID is non-equal to undo.idx (another ID)
+	undoNewNode             // remove new node created for SSA value undo.ID
+	undoAliasNode           // unalias SSA value undo.ID so that it points back to node index undo.idx
+	undoNewRoot             // remove node undo.idx from root list
+	undoChangeRoot          // remove node undo.idx from root list, and put back undo.edge.Target instead
+	undoMergeRoot           // remove node undo.idx from root list, and put back its children instead
+)
+
+type undoType uint8
+
 func (c *Cache) allocBitset(n int) bitset {
-	return bitset(c.allocUintSlice(computeBitsetSize(n)))
+	return bitset(c.AllocUintSlice(computeBitsetSize(n)))
 }
 
 func (c *Cache) freeBitset(bs bitset) {
-	c.freeUintSlice([]uint(bs))
+	c.FreeUintSlice([]uint(bs))
 }
 
 func (bs bitset) Reset() {
@@ -50,51 +152,10 @@ func (bs bitset) Test(idx uint32) bool {
 	return bs[idx/uintSize]&(1<<(idx%uintSize)) != 0
 }
 
-type undoType uint8
-
-const (
-	undoInvalid    undoType = iota
-	undoCheckpoint          // a checkpoint to group undo passes
-	undoSetChl              // change back left child of undo.idx to undo.edge
-	undoSetChr              // change back right child of undo.idx to undo.edge
-	undoNonEqual            // forget that SSA value undo.ID is non-equal to undo.idx (another ID)
-	undoNewNode             // remove new node created for SSA value undo.ID
-	undoAliasNode           // unalias SSA value undo.ID so that it points back to node index undo.idx
-	undoNewRoot             // remove node undo.idx from root list
-	undoChangeRoot          // remove node undo.idx from root list, and put back undo.edge.Target instead
-	undoMergeRoot           // remove node undo.idx from root list, and put back its children instead
-)
-
-// posetUndo represents an undo pass to be performed.
-// It's a union of fields that can be used to store information,
-// and typ is the discriminant, that specifies which kind
-// of operation must be performed. Not all fields are always used.
-type posetUndo struct {
-	typ  undoType
-	idx  uint32
-	ID   ID
-	edge posetEdge
-}
-
-const (
-	// Make poset handle values as unsigned numbers.
-	// (TODO: remove?)
-	posetFlagUnsigned = 1 << iota
-)
-
-// A poset edge. The zero value is the null/empty edge.
-// Packs target node index (31 bits) and strict flag (1 bit).
-type posetEdge uint32
-
-func newedge(t uint32, strict bool) posetEdge {
-	s := uint32(0)
-	if strict {
-		s = 1
-	}
-	return posetEdge(t<<1 | s)
-}
 func (e posetEdge) Target() uint32 { return uint32(e) >> 1 }
-func (e posetEdge) Strict() bool   { return uint32(e)&1 != 0 }
+
+func (e posetEdge) Strict() bool { return uint32(e)&1 != 0 }
+
 func (e posetEdge) String() string {
 	s := fmt.Sprint(e.Target())
 	if e.Strict() {
@@ -103,111 +164,42 @@ func (e posetEdge) String() string {
 	return s
 }
 
-// posetNode is a node of a DAG within the poset.
-type posetNode struct {
-	l, r posetEdge
-}
-
-// poset is a union-find data structure that can represent a partially ordered set
-// of SSA values. Given a binary relation that creates a partial order (eg: '<'),
-// clients can record relations between SSA values using SetOrder, and later
-// check relations (in the transitive closure) with Ordered. For instance,
-// if SetOrder is called to record that A<B and B<C, Ordered will later confirm
-// that A<C.
-//
-// It is possible to record equality relations between SSA values with SetEqual and check
-// equality with Equal. Equality propagates into the transitive closure for the partial
-// order so that if we know that A<B<C and later learn that A==D, Ordered will return
-// true for D<C.
-//
-// It is also possible to record inequality relations between nodes with SetNonEqual;
-// non-equality relations are not transitive, but they can still be useful: for instance
-// if we know that A<=B and later we learn that A!=B, we can deduce that A<B.
-// NonEqual can be used to check whether it is known that the nodes are different, either
-// because SetNonEqual was called before, or because we know that they are strictly ordered.
-//
-// poset will refuse to record new relations that contradict existing relations:
-// for instance if A<B<C, calling SetOrder for C<A will fail returning false; also
-// calling SetEqual for C==A will fail.
-//
-// poset is implemented as a forest of DAGs; in each DAG, if there is a path (directed)
-// from node A to B, it means that A<B (or A<=B). Equality is represented by mapping
-// two SSA values to the same DAG node; when a new equality relation is recorded
-// between two existing nodes, the nodes are merged, adjusting incoming and outgoing edges.
-//
-// poset is designed to be memory efficient and do little allocations during normal usage.
-// Most internal data structures are pre-allocated and flat, so for instance adding a
-// new relation does not cause any allocation. For performance reasons,
-// each node has only up to two outgoing edges (like a binary tree), so intermediate
-// "extra" nodes are required to represent more than two relations. For instance,
-// to record that A<I, A<J, A<K (with no known relation between I,J,K), we create the
-// following DAG:
-//
-//	  A
-//	 / \
-//	I  extra
-//	    /  \
-//	   J    K
-type poset struct {
-	lastidx uint32            // last generated dense index
-	flags   uint8             // internal flags
-	values  map[ID]uint32     // map SSA values to dense indexes
-	nodes   []posetNode       // nodes (in all DAGs)
-	roots   []uint32          // list of root nodes (forest)
-	noneq   map[uint32]bitset // non-equal relations
-	undo    []posetUndo       // undo chain
-}
-
-func newPoset() *poset {
-	return &poset{
-		values: make(map[ID]uint32),
-		nodes:  make([]posetNode, 1, 16),
-		roots:  make([]uint32, 0, 4),
-		noneq:  make(map[uint32]bitset),
-		undo:   make([]posetUndo, 0, 4),
-	}
-}
-
-func (po *poset) SetUnsigned(uns bool) {
-	if uns {
-		po.flags |= posetFlagUnsigned
-	} else {
-		po.flags &^= posetFlagUnsigned
-	}
-}
-
 // Handle children
-func (po *poset) setchl(i uint32, l posetEdge) { po.nodes[i].l = l }
-func (po *poset) setchr(i uint32, r posetEdge) { po.nodes[i].r = r }
-func (po *poset) chl(i uint32) uint32          { return po.nodes[i].l.Target() }
-func (po *poset) chr(i uint32) uint32          { return po.nodes[i].r.Target() }
-func (po *poset) children(i uint32) (posetEdge, posetEdge) {
+func (po *Poset) setchl(i uint32, l posetEdge) { po.nodes[i].l = l }
+
+func (po *Poset) setchr(i uint32, r posetEdge) { po.nodes[i].r = r }
+
+func (po *Poset) chl(i uint32) uint32 { return po.nodes[i].l.Target() }
+
+func (po *Poset) chr(i uint32) uint32 { return po.nodes[i].r.Target() }
+
+func (po *Poset) children(i uint32) (posetEdge, posetEdge) {
 	return po.nodes[i].l, po.nodes[i].r
 }
 
 // upush records a new undo step. It can be used for simple
 // undo passes that record up to one index and one edge.
-func (po *poset) upush(typ undoType, p uint32, e posetEdge) {
+func (po *Poset) upush(typ undoType, p uint32, e posetEdge) {
 	po.undo = append(po.undo, posetUndo{typ: typ, idx: p, edge: e})
 }
 
 // upushnew pushes an undo pass for a new node
-func (po *poset) upushnew(id ID, idx uint32) {
+func (po *Poset) upushnew(id ID, idx uint32) {
 	po.undo = append(po.undo, posetUndo{typ: undoNewNode, ID: id, idx: idx})
 }
 
 // upushneq pushes a new undo pass for a nonequal relation
-func (po *poset) upushneq(idx1 uint32, idx2 uint32) {
+func (po *Poset) upushneq(idx1 uint32, idx2 uint32) {
 	po.undo = append(po.undo, posetUndo{typ: undoNonEqual, ID: ID(idx1), idx: idx2})
 }
 
 // upushalias pushes a new undo pass for aliasing two nodes
-func (po *poset) upushalias(id ID, i2 uint32) {
+func (po *Poset) upushalias(id ID, i2 uint32) {
 	po.undo = append(po.undo, posetUndo{typ: undoAliasNode, ID: id, idx: i2})
 }
 
 // addchild adds i2 as direct child of i1.
-func (po *poset) addchild(i1, i2 uint32, strict bool) {
+func (po *Poset) addchild(i1, i2 uint32, strict bool) {
 	i1l, i1r := po.children(i1)
 	e2 := newedge(i2, strict)
 
@@ -247,7 +239,7 @@ func (po *poset) addchild(i1, i2 uint32, strict bool) {
 
 // newnode allocates a new node bound to SSA value n.
 // If n is nil, this is an extra node (= only used internally).
-func (po *poset) newnode(n *Value) uint32 {
+func (po *Poset) newnode(n *Value) uint32 {
 	i := po.lastidx + 1
 	po.lastidx++
 	po.nodes = append(po.nodes, posetNode{})
@@ -264,14 +256,14 @@ func (po *poset) newnode(n *Value) uint32 {
 }
 
 // lookup searches for a SSA value into the forest of DAGS, and return its node.
-func (po *poset) lookup(n *Value) (uint32, bool) {
+func (po *Poset) lookup(n *Value) (uint32, bool) {
 	i, f := po.values[n.ID]
 	return i, f
 }
 
 // aliasnewnode records that a single node n2 (not in the poset yet) is an alias
 // of the master node n1.
-func (po *poset) aliasnewnode(n1, n2 *Value) {
+func (po *Poset) aliasnewnode(n1, n2 *Value) {
 	i1, i2 := po.values[n1.ID], po.values[n2.ID]
 	if i1 == 0 || i2 != 0 {
 		panic("aliasnewnode invalid arguments")
@@ -286,7 +278,7 @@ func (po *poset) aliasnewnode(n1, n2 *Value) {
 // of nodes in i2s, so that they point to n1 instead.
 // Complexity is O(n) (with n being the total number of nodes in the poset, not just
 // the number of nodes being aliased).
-func (po *poset) aliasnodes(n1 *Value, i2s bitset) {
+func (po *Poset) aliasnodes(n1 *Value, i2s bitset) {
 	i1 := po.values[n1.ID]
 	if i1 == 0 {
 		panic("aliasnode for non-existing node")
@@ -339,7 +331,7 @@ func (po *poset) aliasnodes(n1 *Value, i2s bitset) {
 	}
 }
 
-func (po *poset) isroot(r uint32) bool {
+func (po *Poset) isroot(r uint32) bool {
 	for i := range po.roots {
 		if po.roots[i] == r {
 			return true
@@ -348,7 +340,7 @@ func (po *poset) isroot(r uint32) bool {
 	return false
 }
 
-func (po *poset) changeroot(oldr, newr uint32) {
+func (po *Poset) changeroot(oldr, newr uint32) {
 	for i := range po.roots {
 		if po.roots[i] == oldr {
 			po.roots[i] = newr
@@ -358,7 +350,7 @@ func (po *poset) changeroot(oldr, newr uint32) {
 	panic("changeroot on non-root")
 }
 
-func (po *poset) removeroot(r uint32) {
+func (po *Poset) removeroot(r uint32) {
 	for i := range po.roots {
 		if po.roots[i] == r {
 			po.roots = slices.Delete(po.roots, i, i+1)
@@ -376,7 +368,7 @@ func (po *poset) removeroot(r uint32) {
 // strict edge is found. For instance, for a chain A<=B<=C<D<=E<F,
 // a strict walk visits D,E,F.
 // If the visit ends, false is returned.
-func (po *poset) dfs(r uint32, strict bool, f func(i uint32) bool) bool {
+func (po *Poset) dfs(r uint32, strict bool, f func(i uint32) bool) bool {
 	closed := newBitset(int(po.lastidx + 1))
 	open := make([]uint32, 1, 64)
 	open[0] = r
@@ -444,7 +436,7 @@ func (po *poset) dfs(r uint32, strict bool, f func(i uint32) bool) bool {
 // If strict ==  true: if the function returns true, then i1 <  i2.
 // If strict == false: if the function returns true, then i1 <= i2.
 // If the function returns false, no relation is known.
-func (po *poset) reaches(i1, i2 uint32, strict bool) bool {
+func (po *Poset) reaches(i1, i2 uint32, strict bool) bool {
 	return po.dfs(i1, strict, func(n uint32) bool {
 		return n == i2
 	})
@@ -453,7 +445,7 @@ func (po *poset) reaches(i1, i2 uint32, strict bool) bool {
 // findroot finds i's root, that is which DAG contains i.
 // Returns the root; if i is itself a root, it is returned.
 // Panic if i is not in any DAG.
-func (po *poset) findroot(i uint32) uint32 {
+func (po *Poset) findroot(i uint32) uint32 {
 	// TODO(rasky): if needed, a way to speed up this search is
 	// storing a bitset for each root using it as a mini bloom filter
 	// of nodes present under that root.
@@ -466,7 +458,7 @@ func (po *poset) findroot(i uint32) uint32 {
 }
 
 // mergeroot merges two DAGs into one DAG by creating a new extra root
-func (po *poset) mergeroot(r1, r2 uint32) uint32 {
+func (po *Poset) mergeroot(r1, r2 uint32) uint32 {
 	r := po.newnode(nil)
 	po.setchl(r, newedge(r1, false))
 	po.setchr(r, newedge(r2, false))
@@ -480,7 +472,7 @@ func (po *poset) mergeroot(r1, r2 uint32) uint32 {
 // nodes across all paths between n1 and n2. If a strict edge is
 // found, the function does not modify the DAG and returns false.
 // Complexity is O(n).
-func (po *poset) collapsepath(n1, n2 *Value) bool {
+func (po *Poset) collapsepath(n1, n2 *Value) bool {
 	i1, i2 := po.values[n1.ID], po.values[n2.ID]
 	if po.reaches(i1, i2, true) {
 		return false
@@ -501,7 +493,7 @@ func (po *poset) collapsepath(n1, n2 *Value) bool {
 // We do a DFS from cur (stopping going deep any time we reach dst, if ever),
 // and mark as part of the paths any node that has a children which is already
 // part of the path (or is dst itself).
-func (po *poset) findpaths(cur, dst uint32) bitset {
+func (po *Poset) findpaths(cur, dst uint32) bitset {
 	seen := newBitset(int(po.lastidx + 1))
 	path := newBitset(int(po.lastidx + 1))
 	path.Set(dst)
@@ -509,7 +501,7 @@ func (po *poset) findpaths(cur, dst uint32) bitset {
 	return path
 }
 
-func (po *poset) findpaths1(cur, dst uint32, seen bitset, path bitset) {
+func (po *Poset) findpaths1(cur, dst uint32, seen bitset, path bitset) {
 	if cur == dst {
 		return
 	}
@@ -527,7 +519,7 @@ func (po *poset) findpaths1(cur, dst uint32, seen bitset, path bitset) {
 }
 
 // Check whether it is recorded that i1!=i2
-func (po *poset) isnoneq(i1, i2 uint32) bool {
+func (po *Poset) isnoneq(i1, i2 uint32) bool {
 	if i1 == i2 {
 		return false
 	}
@@ -543,7 +535,7 @@ func (po *poset) isnoneq(i1, i2 uint32) bool {
 }
 
 // Record that i1!=i2
-func (po *poset) setnoneq(n1, n2 *Value) {
+func (po *Poset) setnoneq(n1, n2 *Value) {
 	i1, f1 := po.lookup(n1)
 	i2, f2 := po.lookup(n2)
 
@@ -585,7 +577,7 @@ func (po *poset) setnoneq(n1, n2 *Value) {
 
 // CheckIntegrity verifies internal integrity of a poset. It is intended
 // for debugging purposes.
-func (po *poset) CheckIntegrity() {
+func (po *Poset) CheckIntegrity() {
 	// Verify that each node appears in a single DAG
 	seen := newBitset(int(po.lastidx + 1))
 	for _, r := range po.roots {
@@ -625,7 +617,7 @@ func (po *poset) CheckIntegrity() {
 // CheckEmpty checks that a poset is completely empty.
 // It can be used for debugging purposes, as a poset is supposed to
 // be empty after it's fully rolled back through Undo.
-func (po *poset) CheckEmpty() error {
+func (po *Poset) CheckEmpty() error {
 	if len(po.nodes) != 1 {
 		return fmt.Errorf("non-empty nodes list: %v", po.nodes)
 	}
@@ -652,7 +644,7 @@ func (po *poset) CheckEmpty() error {
 }
 
 // DotDump dumps the poset in graphviz format to file fn, with the specified title.
-func (po *poset) DotDump(fn string, title string) error {
+func (po *Poset) DotDump(fn string, title string) error {
 	f, err := os.Create(fn)
 	if err != nil {
 		return err
@@ -702,8 +694,8 @@ func (po *poset) DotDump(fn string, title string) error {
 // certain that n1<n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n).
-func (po *poset) Ordered(n1, n2 *Value) bool {
-	if debugPoset {
+func (po *Poset) Ordered(n1, n2 *Value) bool {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
@@ -723,8 +715,8 @@ func (po *poset) Ordered(n1, n2 *Value) bool {
 // certain that n1<=n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n).
-func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
-	if debugPoset {
+func (po *Poset) OrderedOrEqual(n1, n2 *Value) bool {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
@@ -744,8 +736,8 @@ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
 // certain that n1==n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(1).
-func (po *poset) Equal(n1, n2 *Value) bool {
-	if debugPoset {
+func (po *Poset) Equal(n1, n2 *Value) bool {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
@@ -762,8 +754,8 @@ func (po *poset) Equal(n1, n2 *Value) bool {
 // to tell.
 // Complexity is O(n) (because it internally calls Ordered to see if we
 // can infer n1!=n2 from n1<n2 or n2<n1).
-func (po *poset) NonEqual(n1, n2 *Value) bool {
-	if debugPoset {
+func (po *Poset) NonEqual(n1, n2 *Value) bool {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
@@ -794,7 +786,7 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
 // setOrder records that n1<n2 or n1<=n2 (depending on strict). Returns false
 // if this is a contradiction.
 // Implements SetOrder() and SetOrderOrEqual()
-func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
+func (po *Poset) setOrder(n1, n2 *Value, strict bool) bool {
 	i1, f1 := po.lookup(n1)
 	i2, f2 := po.lookup(n2)
 
@@ -922,8 +914,8 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 
 // SetOrder records that n1<n2. Returns false if this is a contradiction
 // Complexity is O(1) if n2 was never seen before, or O(n) otherwise.
-func (po *poset) SetOrder(n1, n2 *Value) bool {
-	if debugPoset {
+func (po *Poset) SetOrder(n1, n2 *Value) bool {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
@@ -934,8 +926,8 @@ func (po *poset) SetOrder(n1, n2 *Value) bool {
 
 // SetOrderOrEqual records that n1<=n2. Returns false if this is a contradiction
 // Complexity is O(1) if n2 was never seen before, or O(n) otherwise.
-func (po *poset) SetOrderOrEqual(n1, n2 *Value) bool {
-	if debugPoset {
+func (po *Poset) SetOrderOrEqual(n1, n2 *Value) bool {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
@@ -947,8 +939,8 @@ func (po *poset) SetOrderOrEqual(n1, n2 *Value) bool {
 // SetEqual records that n1==n2. Returns false if this is a contradiction
 // (that is, if it is already recorded that n1<n2 or n2<n1).
 // Complexity is O(1) if n2 was never seen before, or O(n) otherwise.
-func (po *poset) SetEqual(n1, n2 *Value) bool {
-	if debugPoset {
+func (po *Poset) SetEqual(n1, n2 *Value) bool {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
@@ -1007,8 +999,8 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
 // SetNonEqual records that n1!=n2. Returns false if this is a contradiction
 // (that is, if it is already recorded that n1==n2).
 // Complexity is O(n).
-func (po *poset) SetNonEqual(n1, n2 *Value) bool {
-	if debugPoset {
+func (po *Poset) SetNonEqual(n1, n2 *Value) bool {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 	if n1.ID == n2.ID {
@@ -1056,7 +1048,7 @@ func (po *poset) SetNonEqual(n1, n2 *Value) bool {
 // Checkpoint saves the current state of the DAG so that it's possible
 // to later undo this state.
 // Complexity is O(1).
-func (po *poset) Checkpoint() {
+func (po *Poset) Checkpoint() {
 	po.undo = append(po.undo, posetUndo{typ: undoCheckpoint})
 }
 
@@ -1064,11 +1056,11 @@ func (po *poset) Checkpoint() {
 // Complexity depends on the type of operations that were performed
 // since the last checkpoint; each Set* operation creates an undo
 // pass which Undo has to revert with a worst-case complexity of O(n).
-func (po *poset) Undo() {
+func (po *Poset) Undo() {
 	if len(po.undo) == 0 {
 		panic("empty undo stack")
 	}
-	if debugPoset {
+	if DebugPoset {
 		defer po.CheckIntegrity()
 	}
 
@@ -1145,7 +1137,7 @@ func (po *poset) Undo() {
 		}
 	}
 
-	if debugPoset && po.CheckEmpty() != nil {
+	if DebugPoset && po.CheckEmpty() != nil {
 		panic("poset not empty at the end of undo")
 	}
 }

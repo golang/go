@@ -8,4 +8,4 @@
 
 package testdata
 
-// +build other // ERROR "misplaced \+build comment"
+// +build other // ERROR `misplaced \+build comment`

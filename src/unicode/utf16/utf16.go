@@ -69,7 +69,7 @@ func RuneLen(r rune) int {
 func Encode(s []rune) []uint16 {
 	n := len(s)
 	for _, v := range s {
-		if v >= surrSelf {
+		if surrSelf <= v && v <= maxRune {
 			n++
 		}
 	}

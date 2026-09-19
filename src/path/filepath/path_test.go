@@ -115,6 +115,19 @@ var wincleantests = []PathTest{
 	{`\\?\C:\`, `\\?\C:\`},
 	{`\\?\C:\a`, `\\?\C:\a`},
 
+	// A GLOBALROOT path is a link into the NT object namespace, where the
+	// volume is named by the two components that follow it, so a trailing
+	// separator there is the volume root and is kept.
+	{`\\?\GLOBALROOT\Device\HarddiskVolume1\`, `\\?\GLOBALROOT\Device\HarddiskVolume1\`},
+	{`\\?\GLOBALROOT\Device\HarddiskVolume1`, `\\?\GLOBALROOT\Device\HarddiskVolume1`},
+	{`\\?\GLOBALROOT\Device\HarddiskVolume1\a\..\b`, `\\?\GLOBALROOT\Device\HarddiskVolume1\b`},
+	{`\\?\GLOBALROOT\Device\HarddiskVolume1\a\..\..\..\b`, `\\?\GLOBALROOT\Device\HarddiskVolume1\b`},
+	{`\\?\GLOBALROOT\GLOBAL??\C:\`, `\\?\GLOBALROOT\GLOBAL??\C:\`},
+	{`\\.\GLOBALROOT\Device\HarddiskVolume1\`, `\\.\GLOBALROOT\Device\HarddiskVolume1\`},
+	{`\??\GLOBALROOT\Device\HarddiskVolume1\`, `\??\GLOBALROOT\Device\HarddiskVolume1\`},
+	// A .. in the volume position is rejected, as it is for UNC paths.
+	{`\\?\GLOBALROOT\..\x`, `\?\x`},
+
 	// Don't allow cleaning to move an element with a colon to the start of the path.
 	{`a/../c:`, `.\c:`},
 	{`a\..\c:`, `.\c:`},
@@ -1619,6 +1632,17 @@ var volumenametests = []VolumeNameTest{
 	{`//./UNC/`, `\\.\UNC\`},
 	{`\\?\x`, `\\?\x`},
 	{`\??\x`, `\??\x`},
+
+	{`\\?\GLOBALROOT\Device\HarddiskVolume1`, `\\?\GLOBALROOT\Device\HarddiskVolume1`},
+	{`\\?\GLOBALROOT\Device\HarddiskVolume1\`, `\\?\GLOBALROOT\Device\HarddiskVolume1`},
+	{`\\?\GLOBALROOT\Device\HarddiskVolume1\a\b`, `\\?\GLOBALROOT\Device\HarddiskVolume1`},
+	{`\\?\GLOBALROOT\GLOBAL??\C:\`, `\\?\GLOBALROOT\GLOBAL??\C:`},
+	{`\\.\GLOBALROOT\Device\HarddiskVolume1\a`, `\\.\GLOBALROOT\Device\HarddiskVolume1`},
+	{`\??\GLOBALROOT\Device\HarddiskVolume1\a`, `\??\GLOBALROOT\Device\HarddiskVolume1`},
+	{`\\?\GLOBALROOT`, `\\?\GLOBALROOT`},
+	{`\\?\GLOBALROOT\`, `\\?\GLOBALROOT\`},
+	{`\\?\GLOBALROOT\Device`, `\\?\GLOBALROOT\Device`},
+	{`\\?\GLOBALROOT\..\x`, ``},
 }
 
 func TestVolumeName(t *testing.T) {

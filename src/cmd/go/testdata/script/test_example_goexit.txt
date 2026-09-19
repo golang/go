@@ -1,5 +1,4 @@
 # For issue golang.org/issue/41084
-[short] skip
 
 ! go test -v examplegoexit
 stdout '(?s)--- PASS.*--- FAIL.*'

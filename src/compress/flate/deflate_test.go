@@ -494,6 +494,40 @@ func TestWriterDict(t *testing.T) {
 	}
 }
 
+// TestNonCompressedBlockDoesntLeakDict checks that the dictionary isn't sent when
+// sending a non-compressed block. See https://go.dev/issue/80538
+func TestNonCompressedBlockDoesntLeakDict(t *testing.T) {
+	data := make([]byte, 763)
+	rand.New(rand.NewSource(42)).Read(data)
+	dict := []byte("0123456789abcdefghij")
+	for l := range BestCompression + 1 {
+		t.Run(fmt.Sprintf("level=%d", l), func(t *testing.T) {
+			var b bytes.Buffer
+			w, err := NewWriterDict(&b, l, dict)
+			if err != nil {
+				t.Fatalf("NewWriterDict: %v", err)
+			}
+			if _, err := w.Write(data); err != nil {
+				t.Fatalf("Write: %v", err)
+			}
+			if err := w.Close(); err != nil {
+				t.Fatalf("Close: %v", err)
+			}
+			got, err := io.ReadAll(NewReaderDict(&b, dict))
+			if err != nil {
+				t.Fatalf("NewReaderDict: %v", err)
+			}
+			if !bytes.Equal(got, data) {
+				t.Errorf("round trip mismatch: got %d bytes, want %d (dictionary emitted: %v)",
+					len(got), len(data), bytes.HasPrefix(got, dict))
+			}
+			if b.Len() != 0 {
+				t.Errorf("compressed stream not fully consumed: %d bytes left", b.Len())
+			}
+		})
+	}
+}
+
 // See https://golang.org/issue/2508
 func TestRegression2508(t *testing.T) {
 	if testing.Short() {

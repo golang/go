@@ -52,6 +52,9 @@ var ServeFileRangeTests = []struct {
 	{r: "bytes=0-4", code: StatusPartialContent, ranges: []wantRange{{0, 5}}},
 	{r: "bytes=2-", code: StatusPartialContent, ranges: []wantRange{{2, testFileLen}}},
 	{r: "bytes=-5", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 5, testFileLen}}},
+	{r: "Bytes=0-4", code: StatusPartialContent, ranges: []wantRange{{0, 5}}},
+	{r: "BYTES=2-", code: StatusPartialContent, ranges: []wantRange{{2, testFileLen}}},
+	{r: "bYtEs=-5", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 5, testFileLen}}},
 	{r: "bytes=3-7", code: StatusPartialContent, ranges: []wantRange{{3, 8}}},
 	{r: "bytes=0-0,-2", code: StatusPartialContent, ranges: []wantRange{{0, 1}, {testFileLen - 2, testFileLen}}},
 	{r: "bytes=0-1,5-8", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, 9}}},
@@ -338,7 +341,7 @@ func TestFileServerCleans(t *testing.T) {
 
 func TestFileServerEscapesNames(t *testing.T) { run(t, testFileServerEscapesNames) }
 func testFileServerEscapesNames(t *testing.T, mode testMode) {
-	const dirListPrefix = "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<pre>\n"
+	const dirListPrefix = "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<meta name=\"color-scheme\" content=\"light dark\">\n<pre>\n"
 	const dirListSuffix = "\n</pre>\n"
 	tests := []struct {
 		name, escaped string

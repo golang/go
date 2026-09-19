@@ -97,6 +97,7 @@ func FusedSub32_b(x, y, z float32) float32 {
 	// arm64:"FMSUBS"
 	// loong64:"FNMSUBF "
 	// riscv64:"FNMSUBS "
+	// amd64/v3:"VFNMADD231SS "
 	return z - x*y
 }
 
@@ -123,6 +124,7 @@ func FusedSub64_b(x, y, z float64) float64 {
 	// arm64:"FMSUBD"
 	// loong64:"FNMSUBD "
 	// riscv64:"FNMSUBD "
+	// amd64/v3:"VFNMADD231SD "
 	return z - x*y
 }
 
@@ -158,7 +160,7 @@ func CmpWithAdd(a float64, b float64) bool {
 // ---------------- //
 
 func ArrayZero() [16]byte {
-	// amd64:"MOVUPS"
+	// amd64:-"MOVUPS"
 	var a [16]byte
 	return a
 }
@@ -174,47 +176,130 @@ func ArrayCopy(a [16]byte) (b [16]byte) {
 // ---------------- //
 
 func Float64Min(a, b float64) float64 {
+	// FIXME: add WFMINDB on s390x/z14 when GOS390X is added.
+
 	// amd64:"MINSD"
 	// arm64:"FMIND"
 	// loong64:"FMIND"
 	// riscv64:"FMIN"
 	// ppc64/power9:"XSMINJDP"
 	// ppc64/power10:"XSMINJDP"
-	// s390x: "WFMINDB"
 	return min(a, b)
 }
 
 func Float64Max(a, b float64) float64 {
+	// FIXME: add WFMAXDB on s390x/z14 when GOS390X is added.
+
 	// amd64:"MINSD"
 	// arm64:"FMAXD"
 	// loong64:"FMAXD"
 	// riscv64:"FMAX"
 	// ppc64/power9:"XSMAXJDP"
 	// ppc64/power10:"XSMAXJDP"
-	// s390x: "WFMAXDB"
 	return max(a, b)
 }
 
 func Float32Min(a, b float32) float32 {
+	// FIXME: add WFMINSB on s390x/z14 when GOS390X is added.
+
 	// amd64:"MINSS"
 	// arm64:"FMINS"
 	// loong64:"FMINF"
 	// riscv64:"FMINS"
 	// ppc64/power9:"XSMINJDP"
 	// ppc64/power10:"XSMINJDP"
-	// s390x: "WFMINSB"
 	return min(a, b)
 }
 
 func Float32Max(a, b float32) float32 {
+	// FIXME: add WFMAXSB on s390x/z14 when GOS390X is added.
+
 	// amd64:"MINSS"
 	// arm64:"FMAXS"
 	// loong64:"FMAXF"
 	// riscv64:"FMAXS"
 	// ppc64/power9:"XSMAXJDP"
 	// ppc64/power10:"XSMAXJDP"
-	// s390x: "WFMAXSB"
 	return max(a, b)
+}
+
+// The "a < b ? a : b" idiom has the same NaN and signed-zero behavior as a
+// single MINSD/MINSS, so it should compile to one instruction rather than a
+// compare and branch.
+func Float64MinBranch(a, b float64) float64 {
+	r := b
+	if a < b {
+		r = a
+	}
+	// amd64:"MINSD"
+	// arm64:"FCSELD"
+	return r
+}
+
+func Float32MinBranch(a, b float32) float32 {
+	r := b
+	if a < b {
+		r = a
+	}
+	// amd64:"MINSS"
+	// arm64:"FCSELS"
+	return r
+}
+
+func Float64MaxBranch(a, b float64) float64 {
+	r := b
+	if a > b {
+		r = a
+	}
+	// amd64:"MAXSD"
+	// arm64:"FCSELD"
+	return r
+}
+
+func Float32MaxBranch(a, b float32) float32 {
+	r := b
+	if a > b {
+		r = a
+	}
+	// amd64:"MAXSS"
+	// arm64:"FCSELS"
+	return r
+}
+
+// The if/else form lowers the same way as the assign form above.
+func Float64MinIfElse(a, b float64) float64 {
+	var r float64
+	if a < b {
+		r = a
+	} else {
+		r = b
+	}
+	// amd64:"MINSD"
+	// arm64:"FCSELD"
+	return r
+}
+
+// Non-strict comparisons (<=, >=) take the branch on equal operands, so they
+// do NOT match MINSD/MAXSD semantics (which prefer the second operand) and
+// must be left as a compare and branch.
+func Float64MinLeqNotFused(a, b float64) float64 {
+	r := b
+	if a <= b {
+		r = a
+	}
+	// amd64:-"MINSD"
+	// arm64:-"FCSELD"
+	return r
+}
+
+// riscv64 has no FP conditional-select, so the idiom stays a branch there.
+func Float64MinBranchRISCV(a, b float64) float64 {
+	r := b
+	if a < b {
+		r = a
+	}
+	// riscv64:-"FMIN"
+	return r
 }
 
 // ------------------------ //

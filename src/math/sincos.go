@@ -4,7 +4,7 @@
 
 package math
 
-// Coefficients _sin[] and _cos[] are found in pkg/math/sin.go.
+// Coefficients _sin[] and _cos[] are found in sin.go.
 
 // Sincos returns Sin(x), Cos(x).
 //

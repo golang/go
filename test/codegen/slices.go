@@ -190,26 +190,22 @@ func SliceMakeCopyConstPtr(s []*int) []*int {
 	return a
 }
 
-func SliceMakeCopyNoOptNoDeref(s []*int) []*int {
-	a := new([]*int)
-	// amd64:-`.*runtime\.makeslicecopy`
-	// amd64:`.*runtime\.makeslice\(`
-	*a = make([]*int, 4)
-	// amd64:-`.*runtime\.makeslicecopy`
-	// amd64:`.*runtime\.typedslicecopy`
-	copy(*a, s)
-	return *a
+func SliceMakeCopySrcStructField(s struct{ data []*int }) []*int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy`
+	a := make([]*int, len(s.data))
+	copy(a, s.data)
+	return a
 }
 
-func SliceMakeCopyNoOptNoVar(s []*int) []*int {
-	a := make([][]*int, 1)
-	// amd64:-`.*runtime\.makeslicecopy`
-	// amd64:`.*runtime\.makeslice\(`
-	a[0] = make([]*int, 4)
-	// amd64:-`.*runtime\.makeslicecopy`
-	// amd64:`.*runtime\.typedslicecopy`
-	copy(a[0], s)
-	return a[0]
+func SliceMakeCopySrcIndex(s [][]*int) []*int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy`
+	a := make([]*int, len(s[0]))
+	copy(a, s[0])
+	return a
 }
 
 func SliceMakeCopyNoOptBlank(s []*int) []*int {
@@ -220,6 +216,98 @@ func SliceMakeCopyNoOptBlank(s []*int) []*int {
 	// amd64:`.*runtime\.typedslicecopy`
 	copy(a, s)
 	return a
+}
+
+func SliceMakeCopyOptSrcMethod(h interface{ Slice() []*int }) []*int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy`
+	a := make([]*int, len(h.Slice()))
+	copy(a, h.Slice())
+	return a
+}
+
+func SliceMakeCopyOptSrcDeref(p *[]*int) []*int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy`
+	a := make([]*int, len(*p))
+	copy(a, *p)
+	return a
+}
+
+func SliceMakeCopyOptSrcSliceExpr(s []*int) []*int {
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy`
+	a := make([]*int, len(s[:]))
+	copy(a, s[:])
+	return a
+}
+
+func SliceMakeCopyOptDstDeref(s []*int) []*int {
+	var dst []*int
+	p := &dst
+
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy`
+	*p = make([]*int, len(s))
+	copy(*p, s)
+
+	return *p
+}
+
+func SliceMakeCopyOptDstStructField(s []*int) []*int {
+	type holder struct {
+		data []*int
+	}
+
+	h := holder{}
+
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy`
+	h.data = make([]*int, len(s))
+	copy(h.data, s)
+	return h.data
+}
+
+func SliceMakeCopyOptDstIndex(s []*int) []*int {
+	h := make([][]*int, 1)
+
+	// amd64:`.*runtime\.makeslicecopy`
+	// amd64:-`.*runtime\.makeslice\(`
+	// amd64:-`.*runtime\.typedslicecopy`
+	h[0] = make([]*int, len(s))
+	copy(h[0], s)
+	return h[0]
+}
+
+func SliceMakeCopyNoOptBothComplex(src *[][]*int) []*int {
+	dst := make([][]*int, 1)
+
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	dst[0] = make([]*int, len((*src)[0]))
+
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
+	copy(dst[0], (*src)[0])
+
+	return dst[0]
+}
+
+func SliceMakeCopyNoOptDstCall(getDst func() *[]*int, s []*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
+	*getDst() = make([]*int, len(s))
+
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
+	copy(*getDst(), s)
+
+	return *getDst()
 }
 
 func SliceMakeCopyNoOptNoMake(s []*int) []*int {
@@ -338,7 +426,9 @@ func SliceMakeEmptyPointerToZerobase() []int {
 }
 
 // ---------------------- //
-//   Nil check of &s[0]   //
+//
+//	Nil check of &s[0]   //
+//
 // ---------------------- //
 // See issue 30366
 func SliceNilCheck(s []int) {
@@ -348,7 +438,9 @@ func SliceNilCheck(s []int) {
 }
 
 // ---------------------- //
-//   Init slice literal   //
+//
+//	Init slice literal   //
+//
 // ---------------------- //
 // See issue 21561
 func InitSmallSliceLiteral() []int {

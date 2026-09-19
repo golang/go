@@ -449,6 +449,16 @@ func (rb *reorderBuffer) combineHangul(s, i, k int) {
 				// ACxx plus 11Ax to LVT
 				rb.assignRune(s, l+v-jamoTBase)
 			default:
+				// Not a Hangul composition. The segment may still
+				// contain regular canonical compositions, such as
+				// combining marks following a Hangul syllable, so
+				// fall back to the composition table.
+				if b[i].combinesBackward() {
+					if combined := combine(l, v); combined != 0 {
+						rb.assignRune(s, combined)
+						continue
+					}
+				}
 				b[k] = b[i]
 				k++
 			}
@@ -484,25 +494,27 @@ func (rb *reorderBuffer) compose() {
 			return
 		}
 		ii := b[i]
+		// Track the last starter unconditionally: b[i] must be blocked by
+		// any starter between it and s, even one that b[i] itself cannot
+		// combine with, and even if the runes in between never enter the
+		// combinesBackward branch below.
+		cccB := b[k-1].ccc
+		cccC := ii.ccc
+		blocked := false // b[i] blocked by starter or greater or equal CCC?
+		if cccB == 0 {
+			s = k - 1
+		} else {
+			blocked = s != k-1 && cccB >= cccC
+		}
 		// We can only use combineForward as a filter if we later
 		// get the info for the combined character. This is more
 		// expensive than using the filter. Using combinesBackward()
 		// is safe.
-		if ii.combinesBackward() {
-			cccB := b[k-1].ccc
-			cccC := ii.ccc
-			blocked := false // b[i] blocked by starter or greater or equal CCC?
-			if cccB == 0 {
-				s = k - 1
-			} else {
-				blocked = s != k-1 && cccB >= cccC
-			}
-			if !blocked {
-				combined := combine(rb.runeAt(s), rb.runeAt(i))
-				if combined != 0 {
-					rb.assignRune(s, combined)
-					continue
-				}
+		if ii.combinesBackward() && !blocked {
+			combined := combine(rb.runeAt(s), rb.runeAt(i))
+			if combined != 0 {
+				rb.assignRune(s, combined)
+				continue
 			}
 		}
 		b[k] = b[i]

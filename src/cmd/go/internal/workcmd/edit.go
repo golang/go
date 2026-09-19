@@ -110,11 +110,11 @@ for more information.
 }
 
 var (
-	editFmt       = cmdEdit.Flag.Bool("fmt", false, "")
-	editGo        = cmdEdit.Flag.String("go", "", "")
-	editToolchain = cmdEdit.Flag.String("toolchain", "", "")
-	editJSON      = cmdEdit.Flag.Bool("json", false, "")
-	editPrint     = cmdEdit.Flag.Bool("print", false, "")
+	editFmt       = cmdEdit.Flag.Bool("fmt", false, "reformat the go.work file without making other changes")
+	editGo        = cmdEdit.Flag.String("go", "", "set the expected Go language `version`")
+	editToolchain = cmdEdit.Flag.String("toolchain", "", "set the expected Go `toolchain` name")
+	editJSON      = cmdEdit.Flag.Bool("json", false, "print the final go.work file in JSON format")
+	editPrint     = cmdEdit.Flag.Bool("print", false, "print the final go.work in its text format")
 	workedits     []func(file *modfile.WorkFile) // edits specified in flags
 )
 
@@ -126,12 +126,12 @@ func (f flagFunc) Set(s string) error { f(s); return nil }
 func init() {
 	cmdEdit.Run = runEditwork // break init cycle
 
-	cmdEdit.Flag.Var(flagFunc(flagEditworkGodebug), "godebug", "")
-	cmdEdit.Flag.Var(flagFunc(flagEditworkDropGodebug), "dropgodebug", "")
-	cmdEdit.Flag.Var(flagFunc(flagEditworkUse), "use", "")
-	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "")
-	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
-	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
+	cmdEdit.Flag.Var(flagFunc(flagEditworkGodebug), "godebug", "add a godebug `key=value` line")
+	cmdEdit.Flag.Var(flagFunc(flagEditworkDropGodebug), "dropgodebug", "drop godebug lines with the given `key`")
+	cmdEdit.Flag.Var(flagFunc(flagEditworkUse), "use", "add a use directive for the given `directory`")
+	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "drop a use directive for the given `directory`")
+	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "add a replace directive: `old[@v]=new[@v]`")
+	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "drop a replace directive: `old[@v]`")
 	base.AddChdirFlag(&cmdEdit.Flag)
 }
 

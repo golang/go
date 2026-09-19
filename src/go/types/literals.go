@@ -108,9 +108,9 @@ func (check *Checker) funcLit(x *operand, e *ast.FuncLit) {
 	}
 }
 
-func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint Type) {
+func (check *Checker) compositeLit(T *target, x *operand, e *ast.CompositeLit) {
 	var typ, base Type
-	var isElem bool // true if composite literal is an element of an enclosing composite literal
+	var isElem bool // true if composite literal is an untyped element of an enclosing composite literal
 
 	switch {
 	case e.Type != nil:
@@ -122,45 +122,32 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 			// Create a new ArrayType with unknown length (-1)
 			// and finish setting it up after analyzing the literal.
 			typ = &Array{len: -1, elem: check.varType(atyp.Elt)}
-			base = typ
-			break
+		} else {
+			typ = check.typ(e.Type)
 		}
-		typ = check.typ(e.Type)
 		base = typ
 
-	// The hint mechanism is kept around to avoid reporting a false "need Go 1.28" error
-	// for users of a Go 1.27 compiler.
-	case hint != nil:
-		// no composite literal type present - use hint (element type of enclosing type)
-		typ = hint
+	case T != nil:
+		// no composite literal type present - use assignment context
+		assert(T.typ != nil)
+		// report a version error only if we have an inferred type that is not a hint
+		_ = T.hint || check.verifyVersionf(e, go1_28, "missing type in composite literal")
+		typ = T.typ
 		base = typ
 		// *T implies &T{}
 		u, _ := commonUnder(base, nil)
 		if b, ok := deref(u); ok {
 			base = b
 		}
-		isElem = true
+		isElem = T.hint
 
 	default:
-		// no composite literal type or hint present - use assignment context (if available and past Go 1.28)
-		if U != nil {
-			// report a version error only if we have an inferred type
-			check.verifyVersionf(e, go1_28, "missing type in composite literal")
-			// continue with the inferred type regardless of version
-			typ = U
-			base = typ
-			// *T implies &T{}
-			u, _ := commonUnder(base, nil)
-			if b, ok := deref(u); ok {
-				base = b
-			}
-		} else {
-			// TODO(gri) provide better error messages depending on context
-			check.error(e, UntypedLit, "missing type in composite literal")
-			// continue with invalid type so that elements are "used" (go.dev/issue/69092)
-			typ = Typ[Invalid]
-			base = typ
-		}
+		// no composite literal type present
+		// TODO(gri) provide better error messages depending on context
+		check.error(e, UntypedLit, "missing type in composite literal")
+		// continue with invalid type so that elements are "used" (go.dev/issue/69092)
+		typ = Typ[Invalid]
+		base = typ
 	}
 
 	// We cannot create a literal of an incomplete type; make sure it's complete.
@@ -190,13 +177,14 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 				key, _ := kv.Key.(*ast.Ident)
 				// do all possible checks early (before exiting due to errors)
 				// so we don't drop information on the floor
-				check.genericExpr(nil, x, kv.Value, nil)
 				if key == nil {
+					check.genericExpr(nil, x, kv.Value)
 					check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 					continue
 				}
 				obj, index, indirect := lookupFieldOrMethod(utyp, false, check.pkg, key.Name, false)
 				if obj == nil {
+					check.genericExpr(nil, x, kv.Value)
 					alt, _, _ := lookupFieldOrMethod(utyp, false, check.pkg, key.Name, true)
 					msg := check.lookupError(base, key.Name, alt, true)
 					check.error(kv.Key, MissingLitField, msg)
@@ -204,9 +192,13 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 				}
 				fld, _ := obj.(*Var)
 				if fld == nil {
+					check.genericExpr(nil, x, kv.Value)
 					check.errorf(kv.Key, MissingLitField, "%s is not a field", kv.Key)
 					continue
 				}
+				// we can now check the value using the field target type
+				etyp := fld.typ
+				check.genericExpr(newTarget(etyp, "struct field"), x, kv.Value)
 				if len(index) > 1 && !check.verifyVersionf(kv.Key, go1_27, "use of promoted field %s in struct literal of type %s", fieldPath(utyp, index), base) {
 					continue
 				}
@@ -215,7 +207,6 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 					continue
 				}
 				check.recordUse(key, fld)
-				etyp := fld.typ
 				check.assignment(x, etyp, "struct literal")
 				if alt, n := visited.insert(index, fld); n != 0 {
 					if fld == alt {
@@ -234,18 +225,19 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 					check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
 					continue
 				}
-				check.genericExpr(nil, x, e, nil)
 				if i >= len(fields) {
+					check.genericExpr(nil, x, e)
 					check.errorf(x, InvalidStructLit, "too many values in struct literal of type %s", base)
 					break // cannot continue
 				}
 				// i < len(fields)
 				fld := fields[i]
+				etyp := fld.typ
+				check.genericExpr(newTarget(etyp, "struct field"), x, e)
 				if !fld.Exported() && fld.pkg != check.pkg {
 					check.errorf(x, UnexportedLitField, "implicit assignment to unexported field %s in struct literal of type %s", fld.name, base)
 					continue
 				}
-				etyp := fld.typ
 				check.assignment(x, etyp, "struct literal")
 			}
 			if len(e.Elts) < len(fields) {
@@ -297,7 +289,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 				check.error(e, MissingLitKey, "missing key in map literal")
 				continue
 			}
-			check.genericExpr(utyp.key, x, kv.Key, utyp.key)
+			check.genericExpr(newHint(utyp.key, "map key"), x, kv.Key)
 			check.assignment(x, utyp.key, "map literal")
 			if !x.isValid() {
 				continue
@@ -322,7 +314,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 					continue
 				}
 			}
-			check.genericExpr(utyp.elem, x, kv.Value, utyp.elem)
+			check.genericExpr(newHint(utyp.elem, "map value"), x, kv.Value)
 			check.assignment(x, utyp.elem, "map literal")
 		}
 
@@ -399,7 +391,7 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 
 		// check element against composite literal element type
 		var x operand
-		check.genericExpr(typ, &x, eval, typ)
+		check.genericExpr(newHint(typ, "array or slice element"), &x, eval)
 		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max

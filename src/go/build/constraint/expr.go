@@ -66,6 +66,9 @@ func (x *NotExpr) Eval(ok func(tag string) bool) bool {
 }
 
 func (x *NotExpr) String() string {
+	if y := stripDoubleNot(x); y != x {
+		return y.String()
+	}
 	s := x.X.String()
 	switch x.X.(type) {
 	case *AndExpr, *OrExpr:
@@ -75,6 +78,21 @@ func (x *NotExpr) String() string {
 }
 
 func not(x Expr) Expr { return &NotExpr{x} }
+
+// stripDoubleNot removes pairs of leading negations from x.
+func stripDoubleNot(x Expr) Expr {
+	for {
+		n, ok := x.(*NotExpr)
+		if !ok {
+			return x
+		}
+		nn, ok := n.X.(*NotExpr)
+		if !ok {
+			return x
+		}
+		x = nn.X
+	}
+}
 
 // An AndExpr represents the expression X && Y.
 type AndExpr struct {
@@ -95,6 +113,7 @@ func (x *AndExpr) String() string {
 }
 
 func andArg(x Expr) string {
+	x = stripDoubleNot(x)
 	s := x.String()
 	if _, ok := x.(*OrExpr); ok {
 		s = "(" + s + ")"
@@ -125,6 +144,7 @@ func (x *OrExpr) String() string {
 }
 
 func orArg(x Expr) string {
+	x = stripDoubleNot(x)
 	s := x.String()
 	if _, ok := x.(*AndExpr); ok {
 		s = "(" + s + ")"

@@ -1,0 +1,75 @@
+# go.dev/issue/63507: in a module whose go.mod has no go directive, 'go get'
+# synthesizes the version of the go command itself internally. The change must
+# be reported against the version the module implicitly had, go 1.16, not
+# against whichever go command happened to run.
+
+env TESTGO_VERSION=go1.99
+
+# No go directive: 'go get go@1.20' writes one. The module was implicitly at
+# go 1.16, so this is an upgrade from 1.16, not a downgrade from go1.99.
+# Moving past 1.17 expands the requirements, so the existing note applies.
+go get go@1.20
+stderr '^go: upgraded implicit go 1.16 => 1.20$'
+stderr 'note: expanded dependencies to upgrade to go 1.17 or higher'
+! stderr 'downgraded'
+grep '^go 1.20$' go.mod
+
+# The same holds when the new version is the version of the go command: the
+# module still moves from the implicit go 1.16, so the change is reported.
+cp go.mod.none go.mod
+go get go@1.99
+stderr '^go: upgraded implicit go 1.16 => 1.99$'
+grep '^go 1.99$' go.mod
+! grep '^toolchain' go.mod
+
+# Below the implicit version is a real downgrade.
+cp go.mod.none go.mod
+go get go@1.15
+stderr '^go: downgraded implicit go 1.16 => 1.15$'
+grep '^go 1.15$' go.mod
+
+# Writing the implicit version explicitly changes nothing, so it stays silent.
+cp go.mod.none go.mod
+go get go@1.16
+! stderr 'implicit'
+! stderr 'go: (added|upgraded|downgraded) go'
+grep '^go 1.16$' go.mod
+
+# A version go.mod really declared is reported without 'implicit', including
+# when it declares the same 1.16 that the implicit version would have been.
+cp go.mod.116 go.mod
+go get go@1.20
+stderr '^go: upgraded go 1.16 => 1.20$'
+! stderr 'implicit'
+
+cp go.mod.high go.mod
+go get go@1.20
+stderr '^go: downgraded go 1.25 => 1.20$'
+
+cp go.mod.low go.mod
+go get go@1.20
+stderr '^go: upgraded go 1.18 => 1.20$'
+
+# This is not specific to 'go get go@version'. Getting a package writes the
+# directive as a side effect, and that is now reported too.
+cp go.mod.none go.mod
+go get rsc.io/quote@v1.5.2
+stderr '^go: upgraded implicit go 1.16 => 1.99$'
+
+-- go.mod --
+module example.com/m
+
+-- go.mod.none --
+module example.com/m
+
+-- go.mod.116 --
+module example.com/m
+go 1.16
+
+-- go.mod.high --
+module example.com/m
+go 1.25
+
+-- go.mod.low --
+module example.com/m
+go 1.18

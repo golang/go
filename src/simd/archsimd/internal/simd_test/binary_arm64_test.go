@@ -88,3 +88,42 @@ func TestOrNot(t *testing.T) {
 	testUint32x4Binary(t, archsimd.Uint32x4.OrNot, orNotSlice[uint32])
 	testUint64x2Binary(t, archsimd.Uint64x2.OrNot, orNotSlice[uint64])
 }
+
+func cmtst[T integer](x, y T) bool {
+	return (x & y) != 0
+}
+
+func cmtstSlice[T integer](x, y []T) []int64 {
+	return mapCompare[T](cmtst)(x, y)
+}
+
+//go:noinline
+func cmtst8(x, y archsimd.Int8x16) archsimd.Mask8x16 {
+	var z archsimd.Int8x16
+	return x.And(y).Equal(z).Not()
+}
+
+//go:noinline
+func cmtst16(x, y archsimd.Int16x8) archsimd.Mask16x8 {
+	var z archsimd.Int16x8
+	return x.And(y).Equal(z).Not()
+}
+
+//go:noinline
+func cmtst32(x, y archsimd.Int32x4) archsimd.Mask32x4 {
+	z := x.Xor(x)
+	return x.And(y).Equal(z).Not()
+}
+
+//go:noinline
+func cmtst64(x, y archsimd.Int64x2) archsimd.Mask64x2 {
+	var z archsimd.Int64x2
+	return x.And(y).Equal(z).Not()
+}
+
+func TestCmtst(t *testing.T) {
+	testInt8x16Compare(t, cmtst8, cmtstSlice[int8])
+	testInt16x8Compare(t, cmtst16, cmtstSlice[int16])
+	testInt32x4Compare(t, cmtst32, cmtstSlice[int32])
+	testInt64x2Compare(t, cmtst64, cmtstSlice[int64])
+}

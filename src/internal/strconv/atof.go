@@ -213,18 +213,7 @@ func readFloat(s string) (mantissa uint64, exp int, neg, trunc, hex bool, i int,
 loop:
 	for ; i < len(s); i++ {
 		switch c := s[i]; true {
-		case c == '_':
-			underscores = true
-			continue
-
-		case c == '.':
-			if sawdot {
-				break loop
-			}
-			sawdot = true
-			dp = nd
-			continue
-
+		// Digits are by far the most common characters here, so check for them first.
 		case '0' <= c && c <= '9':
 			sawdigits = true
 			if c == '0' && nd == 0 { // ignore leading zeros
@@ -251,6 +240,18 @@ loop:
 			} else {
 				trunc = true
 			}
+			continue
+
+		case c == '.':
+			if sawdot {
+				break loop
+			}
+			sawdot = true
+			dp = nd
+			continue
+
+		case c == '_':
+			underscores = true
 			continue
 		}
 		break

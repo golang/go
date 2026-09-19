@@ -12,6 +12,8 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
+
+	"golang.org/x/mod/module"
 )
 
 var cmdWhy = &base.Command{
@@ -35,6 +37,9 @@ graph, one package per line. If the package or module is not
 referenced from the main module, the stanza will display a single
 parenthesized note indicating that fact.
 
+If any of the listed packages or modules is not referenced from
+the main module, why exits with a non-zero status.
+
 For example:
 
 	$ go mod why golang.org/x/text/language golang.org/x/text/encoding
@@ -52,8 +57,8 @@ See https://go.dev/ref/mod#go-mod-why for more about 'go mod why'.
 }
 
 var (
-	whyM      = cmdWhy.Flag.Bool("m", false, "")
-	whyVendor = cmdWhy.Flag.Bool("vendor", false, "")
+	whyM      = cmdWhy.Flag.Bool("m", false, "treat arguments as a list of modules")
+	whyVendor = cmdWhy.Flag.Bool("vendor", false, "exclude tests of dependencies")
 )
 
 func init() {
@@ -82,7 +87,11 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 			if strings.Contains(arg, "@") {
 				base.Fatalf("go: %s: 'go mod why' requires a module path, not a version query", arg)
 			}
+			if err := checkModulePathPattern(arg); err != nil {
+				base.Errorf("go mod why: %v", err)
+			}
 		}
+		base.ExitIfErrors()
 
 		mods, err := modload.ListModules(moduleLoader, ctx, args, 0, "")
 		if err != nil {
@@ -115,6 +124,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 					vendoring = " to vendor"
 				}
 				why = "(main module does not need" + vendoring + " module " + m.Path + ")\n"
+				base.SetExitStatus(1)
 			}
 			fmt.Printf("%s# %s\n%s", sep, m.Path, why)
 			sep = "\n"
@@ -135,10 +145,41 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 						vendoring = " to vendor"
 					}
 					why = "(main module does not need" + vendoring + " package " + path + ")\n"
+					base.SetExitStatus(1)
 				}
 				fmt.Printf("%s# %s\n%s", sep, path, why)
 				sep = "\n"
 			}
 		}
 	}
+}
+
+func checkModulePathPattern(pattern string) error {
+	parts := strings.Split(pattern, "...")
+	if len(parts) == 1 {
+		return modulePathError(pattern, module.CheckImportPath(pattern))
+	}
+
+	// Add placeholders for the wildcards adjoining each literal part so that
+	// separators at wildcard boundaries form complete paths during validation.
+	if err := module.CheckImportPath(parts[0] + "x"); err != nil {
+		return modulePathError(pattern, err)
+	}
+	for i, part := range parts[1:] {
+		if i < len(parts)-2 {
+			part += "x"
+		}
+		if err := module.CheckFilePath("x" + part); err != nil {
+			return modulePathError(pattern, err)
+		}
+	}
+	return nil
+}
+
+func modulePathError(path string, err error) error {
+	if pathErr, ok := err.(*module.InvalidPathError); ok {
+		pathErr.Kind = "module"
+		pathErr.Path = path
+	}
+	return err
 }

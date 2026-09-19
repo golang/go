@@ -658,8 +658,10 @@ func moduledataverify1(datap *moduledata) {
 	maxpc := datap.maxpc
 	if GOARCH == "wasm" {
 		// On Wasm, the func table contains the function index, whereas
-		// the "PC" is function index << 16 + block index.
-		maxpc = alignUp(maxpc, 1<<16) // round up for end PC
+		// the "PC" is 1<<63 + function index << 16 + block index.
+		// The max we got from the func table is of 1<<16 granularity,
+		// so we round it up.
+		maxpc = alignUp(maxpc, 1<<16)
 	}
 	if minpc != min || maxpc != max {
 		println("minpc=", hex(minpc), "min=", hex(min), "maxpc=", hex(maxpc), "max=", hex(max))
@@ -694,6 +696,11 @@ func moduledataverify1(datap *moduledata) {
 //go:nosplit
 func (md *moduledata) textAddr(off32 uint32) uintptr {
 	off := uintptr(off32)
+	if GOARCH == "wasm" {
+		// On Wasm, a text offset (e.g. in the method table) is function index, whereas
+		// the "PC", relative to md.text, is function index << 16 + block index.
+		off <<= 16
+	}
 	res := md.text + off
 	if len(md.textsectmap) > 1 {
 		for i, sect := range md.textsectmap {
@@ -708,11 +715,6 @@ func (md *moduledata) textAddr(off32 uint32) uintptr {
 			throw("runtime: text offset out of range")
 		}
 	}
-	if GOARCH == "wasm" {
-		// On Wasm, a text offset (e.g. in the method table) is function index, whereas
-		// the "PC" is function index << 16 + block index.
-		res <<= 16
-	}
 	return res
 }
 
@@ -726,7 +728,7 @@ func (md *moduledata) textOff(pc uintptr) (uint32, bool) {
 	off := pc - md.text
 	if GOARCH == "wasm" {
 		// On Wasm, the func table contains the function index, whereas
-		// the "PC" is function index << 16 + block index.
+		// the "PC", relative to md.text, is function index << 16 + block index.
 		off >>= 16
 	}
 	res := uint32(off)
@@ -933,8 +935,8 @@ func findfunc(pc uintptr) funcInfo {
 
 	x := uintptr(pcOff) + datap.text - datap.minpc // TODO: are datap.text and datap.minpc always equal?
 	if GOARCH == "wasm" {
-		// On Wasm, pcOff is the function index, whereas
-		// the "PC" is function index << 16 + block index.
+		// On Wasm, pcOff is the function index, whereas the "PC",
+		// relative to datap.text, is function index << 16 + block index.
 		x = uintptr(pcOff)<<16 + datap.text - datap.minpc
 	}
 	b := x / abi.FuncTabBucketSize

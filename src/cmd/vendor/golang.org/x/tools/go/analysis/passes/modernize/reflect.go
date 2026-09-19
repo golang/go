@@ -30,7 +30,7 @@ var ReflectTypeForAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: reflecttypefor,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#reflecttypefor",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_reflecttypefor",
 }
 
 func reflecttypefor(pass *analysis.Pass) (any, error) {

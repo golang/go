@@ -34,7 +34,7 @@ var StringsBuilderAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stringsbuilder,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringbuilder",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stringsbuilder",
 }
 
 // stringsbuilder replaces string += string in a loop by strings.Builder.

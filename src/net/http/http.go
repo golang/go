@@ -123,19 +123,6 @@ type contextKey struct {
 
 func (k *contextKey) String() string { return "net/http context value " + k.name }
 
-// removePort strips the port while correctly handling IPv6.
-func removePort(host string) string {
-	for i := len(host) - 1; i >= 0; i-- {
-		switch host[i] {
-		case ':':
-			return host[:i]
-		case ']':
-			return host
-		}
-	}
-	return host
-}
-
 // isToken reports whether v is a valid token (https://www.rfc-editor.org/rfc/rfc2616#section-2.2).
 func isToken(v string) bool {
 	// For historical reasons, this function is called ValidHeaderFieldName (see issue #67031).

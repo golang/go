@@ -1,5 +1,4 @@
 # Build something to create the executable, including several cases
-[short] skip
 
 # --------------------- clean executables -------------------------
 

@@ -1,4 +1,3 @@
-[short] skip
 [compiler:gccgo] skip
 
 # Test for issue 24588

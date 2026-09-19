@@ -1,5 +1,3 @@
-[short] skip
-
 go test -trimpath -v .
 ! stdout '[/\\]pkg_test_test[/\\]'
 stdout -count=2 '[/\\]pkg_test[/\\]'

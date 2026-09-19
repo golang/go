@@ -288,9 +288,9 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 	// The handshake goroutine has exited.
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
-	c.hand.Write(c.quic.readbuf)
+	c.handBuf().Write(c.quic.readbuf)
 	c.quic.readbuf = nil
-	for q.conn.hand.Len() >= 4 && q.conn.handshakeErr == nil {
+	for q.conn.handLen() >= 4 && q.conn.handshakeErr == nil {
 		b := q.conn.hand.Bytes()
 		n := int(b[1])<<16 | int(b[2])<<8 | int(b[3])
 		if n > maxHandshake {
@@ -304,6 +304,7 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 			q.conn.handshakeErr = err
 		}
 	}
+	q.conn.releaseHand()
 	if q.conn.handshakeErr != nil {
 		return quicError(q.conn.handshakeErr)
 	}
@@ -394,7 +395,7 @@ func quicError(err error) error {
 }
 
 func (c *Conn) quicReadHandshakeBytes(n int) error {
-	for c.hand.Len() < n {
+	for c.handLen() < n {
 		if err := c.quicWaitForSignal(); err != nil {
 			return err
 		}
@@ -407,7 +408,7 @@ func (c *Conn) quicSetReadSecret(level QUICEncryptionLevel, suite uint16, secret
 	// read keys, since that can cause messages to be parsed that were encrypted
 	// using old keys which are no longer appropriate.
 	// TODO(roland): we should merge this check with the similar one in setReadTrafficSecret.
-	if c.hand.Len() != 0 {
+	if c.handLen() != 0 {
 		c.sendAlert(alertUnexpectedMessage)
 		return errors.New("tls: handshake buffer not empty before setting read traffic secret")
 	}
@@ -520,7 +521,7 @@ func (c *Conn) quicWaitForSignal() error {
 		// The connection has been canceled.
 		return c.sendAlertLocked(alertCloseNotify)
 	}
-	c.hand.Write(c.quic.readbuf)
+	c.handBuf().Write(c.quic.readbuf)
 	c.quic.readbuf = nil
 	return nil
 }

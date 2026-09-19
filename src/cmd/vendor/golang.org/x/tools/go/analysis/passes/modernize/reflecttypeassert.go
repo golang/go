@@ -28,7 +28,7 @@ var reflectTypeAssertAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: reflecttypeassert,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#reflecttypeassert",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_reflecttypeassert",
 }
 
 func reflecttypeassert(pass *analysis.Pass) (any, error) {

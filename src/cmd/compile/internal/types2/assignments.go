@@ -209,7 +209,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	}
 
 	var x operand
-	check.expr(nil, nil, &x, lhs)
+	check.expr(nil, &x, lhs)
 
 	if v != nil {
 		check.usedVars[v] = v_used // restore v.used
@@ -229,7 +229,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	default:
 		if sel, ok := x.expr.(*syntax.SelectorExpr); ok {
 			var op operand
-			check.expr(nil, nil, &op, sel.X)
+			check.expr(nil, &op, sel.X)
 			if op.mode() == mapindex {
 				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", ExprString(x.expr))
 				return Typ[Invalid]
@@ -258,14 +258,16 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 
 	if x == nil {
 		var target *target
-		// avoid calling ExprString if not needed
 		if T != nil {
+			// avoid calling ExprString if not needed
+			var desc string
 			if _, ok := T.Underlying().(*Signature); ok {
-				target = newTarget(T, ExprString(lhs))
+				desc = ExprString(lhs)
 			}
+			target = newTarget(T, desc)
 		}
 		x = new(operand)
-		check.expr(target, T, x, rhs)
+		check.expr(target, x, rhs)
 	}
 
 	if T == nil && context == "assignment" {
@@ -407,7 +409,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 			if returnStmt != nil && desc == "" {
 				desc = "result variable"
 			}
-			check.expr(newTarget(lhs.typ, desc), lhs.typ, &x, orig_rhs[i])
+			check.expr(newTarget(lhs.typ, desc), &x, orig_rhs[i])
 			check.initVar(lhs, &x, context)
 		}
 		return

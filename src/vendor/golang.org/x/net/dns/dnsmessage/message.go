@@ -751,10 +751,7 @@ func (p *Parser) AllAnswers() ([]Resource, error) {
 	//
 	// Pre-allocate up to a certain limit, since p.header is
 	// untrusted data.
-	n := int(p.header.answers)
-	if n > 20 {
-		n = 20
-	}
+	n := min(int(p.header.answers), 20)
 	as := make([]Resource, 0, n)
 	for {
 		a, err := p.Answer()
@@ -804,10 +801,7 @@ func (p *Parser) AllAuthorities() ([]Resource, error) {
 	//
 	// Pre-allocate up to a certain limit, since p.header is
 	// untrusted data.
-	n := int(p.header.authorities)
-	if n > 10 {
-		n = 10
-	}
+	n := min(int(p.header.authorities), 10)
 	as := make([]Resource, 0, n)
 	for {
 		a, err := p.Authority()
@@ -857,10 +851,7 @@ func (p *Parser) AllAdditionals() ([]Resource, error) {
 	//
 	// Pre-allocate up to a certain limit, since p.header is
 	// untrusted data.
-	n := int(p.header.additionals)
-	if n > 10 {
-		n = 10
-	}
+	n := min(int(p.header.additionals), 10)
 	as := make([]Resource, 0, n)
 	for {
 		a, err := p.Additional()

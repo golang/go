@@ -826,4 +826,13 @@ func TestEncoderReset(t *testing.T) {
 			t.Fatalf("encoder buffer aliases bytes.Buffer")
 		}
 	})
+
+	t.Run("Test ability to reset nil writer", func(t *testing.T) {
+		defer func() {
+			if recover() != nil {
+				t.Fatalf("encoder.Reset(nil) shouldn`t panic")
+			}
+		}()
+		enc.Reset(nil)
+	})
 }

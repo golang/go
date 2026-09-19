@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"simd/archsimd/_gen/sgutil"
+	"simd/archsimd/_gen/simdgen/types"
 )
 
 type tplRuleData struct {
@@ -47,7 +48,7 @@ type ruleTemplateMap struct {
 func (rtm *ruleTemplateMap) Add(name string, templ string) *ruleTemplateMap {
 	// Append debugging comment AND end of line
 	templ += " // {{.TplName}}\n"
-	ct := sgutil.TemplateNamed(name, templ)
+	ct := template.Must(template.New(name).Parse(templ))
 	rtm.InsertMap.Put(name, ct)
 	return rtm
 }
@@ -65,8 +66,8 @@ var (
 		Add("maskOut", `({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}}))`).
 		Add("maskIn", `({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask))`).
 		Add("pureVreg", `({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.Asm}} {{.ArgsOut}})`).
-		Add("vregMem", `({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
-		Add("vregMemFeatCheck", `({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
+		Add("vregMem", `({{.Asm}} {{.ArgsLoadAddr}}) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
+		Add("vregMemFeatCheck", `({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
 		Add("asmRule", `({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}`).
 		Add("specialLower", `{{.Rule}}`)
 )
@@ -192,10 +193,127 @@ func expandFormatSpecifiers(s string, elemBits int) string {
 	return s
 }
 
+// sveImplicitPredRule returns the lowering rule for an SVE op whose governing
+// predicate is implicit-all-true: the unpredicated generic op lowers straight to
+// the predicated machine op with a synthesized all-true predicate.
+//
+// The all-true predicate is PWHILELT<letter>(0, lanes) with lanes =
+// MaxVectorBits/elemBits, the lane count at the maximum supported vector length.
+// Since PWHILELT saturates
+// (lane i is set while i < hi), this predicate is all-true at any smaller VL too,
+// so it stands in for the not-yet-available PTRUE.
+//
+// For example, GreaterInt8s lowers to:
+//
+//	(GreaterInt8s x y) => (ZCMPGTB x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
+func sveImplicitPredRule(gOp Operation, asm, args string) string {
+	elemBits := *gOp.Out[0].ElemBits
+	letter := sveArrangementLetter(gOp)
+	lanes := types.MaxVectorBits / elemBits
+	return fmt.Sprintf("(%s %s) => (%s %s (Select0 <types.TypeMask> (PWHILELT%s (MOVDconst [0]) (MOVDconst [%d]))))\n",
+		gOp.GenericName(), args, asm, args, letter, lanes)
+}
+
+// sveFeatureConst maps a def's cpuFeature string to the ssa.CPUfeatures
+// constant the generated rule conditions on.
+func sveFeatureConst(feature string) string {
+	switch feature {
+	case "SVE2":
+		return "CPUsve2"
+	}
+	panic(fmt.Errorf("simdgen: no ssa.CPUfeatures constant for feature %q", feature))
+}
+
+// sveAllTruePattern returns the rule text for the synthesized all-true
+// governing predicate of an operation, the same term sveImplicitPredRule
+// produces. Matching it, rather than a wildcard, is what makes the peepholes
+// below sound: they replace the predicate, so they may only fire on one that
+// selects every lane.
+func sveAllTruePattern(gOp Operation) string {
+	elemBits := *gOp.Out[0].ElemBits
+	return fmt.Sprintf("(Select0 <types.TypeMask> (PWHILELT%s (MOVDconst [0]) (MOVDconst [%d])))",
+		sveArrangementLetter(gOp), types.MaxVectorBits/elemBits)
+}
+
+// sveImplicitPredPeepholes returns the rules that fold a select over an
+// operation whose governing predicate is implicit-all-true into that
+// operation's genuinely predicated forms. The operation computes every lane and
+// the select then throws most of them away, so the predicate the select
+// describes can simply take the place of the all-true one:
+//
+//	(ZSELB (ZABSB x <all-true>) z mask) => (ZABSMergingB z x mask)
+//
+// The select's "else" operand stays in the inactive lanes, which is what merging
+// predication does; naming that operand is something a constructive instruction
+// does natively, so no MOVPRFX is involved. Masked -- a select against zero --
+// folds through the same rule, with the zero vector as the else operand.
+func sveImplicitPredPeepholes(gOp Operation, asm, args string) string {
+	if governingInput(gOp.In) < 0 {
+		return ""
+	}
+	sel := "ZSEL" + sveArrangementLetter(gOp)
+	var rules string
+	for _, pred := range gOp.svePredicatedOps() {
+		if sveMaskSuffix(pred) != "Merging" || !pred.sveMergeSourceIn0 {
+			continue
+		}
+		rules += fmt.Sprintf("(%s (%s %s %s) z mask) => (%s z %s mask)\n",
+			sel, asm, args, sveAllTruePattern(gOp), machineOpName(OneMask, pred), args)
+	}
+	return rules
+}
+
+// sveMergingPeephole returns the rules that fold a select over an unpredicated
+// SVE operation into the operation's merging-predicated form, e.g.
+//
+//	(ZSELB (ZADDB x y) x mask) => (ZADDMergingB x y mask)
+//
+// which is what x.Add(y).IfElse(mask, x) lowers to. Merging predication keeps
+// the destination — and an SVE predicated instruction is destructive, so the
+// destination is the first source — which is why the select's "else" operand
+// must be that same operand for this shortest form to hold. A commutative
+// operation gets the mirrored rule too, since either source can play that role.
+//
+// A commutative operation also gets the general rule, whose "else" operand is
+// unrestricted because the lowering prefixes a MOVPRFX:
+//
+//	(ZSELB (ZADDB x y) z mask) => (ZADDMergingPrefixedB z x y mask)
+//
+// It is emitted last so the two rules above win where they apply and save the
+// prefix. See [Operation.sveMergingPrefixedOp] for why it needs commutativity.
+func sveMergingPeephole(gOp Operation) string {
+	var pred *types.Operand
+	vregs := 0
+	for i := range gOp.In {
+		switch {
+		case gOp.In[i].Class == "mask" && gOp.In[i].Predication != nil && !gOp.In[i].IsGoverning():
+			pred = &gOp.In[i]
+		case gOp.In[i].Class == "vreg":
+			vregs++
+		}
+	}
+	if pred == nil || *pred.Predication != "M" || vregs != 2 {
+		return ""
+	}
+	sel := "ZSEL" + sveArrangementLetter(gOp)
+	unpred := machineOpName(NoMask, gOp)
+	merging := machineOpName(OneMask, gOp)
+	rules := fmt.Sprintf("(%s (%s x y) x mask) => (%s x y mask)\n", sel, unpred, merging)
+	if gOp.Commutative {
+		rules += fmt.Sprintf("(%s (%s x y) y mask) => (%s y x mask)\n", sel, unpred, merging)
+	}
+	if gOp.sveMergingPrefixedOp() != nil {
+		// The general case: any "else" operand, reached by prefixing a MOVPRFX.
+		// It subsumes the two rules above, which come first so that a select
+		// whose "else" is already one of the sources keeps the shorter encoding.
+		rules += fmt.Sprintf("(%s (%s x y) z mask) => (%s z x y mask)\n", sel, unpred, machineOpName(OneMask, *gOp.sveMergingPrefixedOp()))
+	}
+	return rules
+}
+
 // writeSIMDRules generates the lowering and rewrite rules for ssa and writes it to simdAMD64.rules
 // within the specified directory.
-func writeSIMDRules(ops []Operation) *bytes.Buffer {
-	buffer := new(bytes.Buffer)
+func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 	buffer.WriteString(generatedHeader() + "\n")
 
 	// asm -> masked merging rules
@@ -209,10 +327,14 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	memOpSeen := make(map[string]bool)
 	ruleDone := make(map[string]struct{})
 
+	var sveRules []string // SVE implicit-all-true predicated ops, emitted separately.
+
 	for _, opr := range ops {
 		opInShape, opOutShape, maskType, immType, gOp, _ := opr.shape()
 		asm := machineOpName(maskType, gOp)
-		vregInCnt := len(gOp.In)
+		// An implicit-all-true governing predicate is a machine-op input only, so
+		// it is not one of the data-vector args of the (unpredicated) generic op.
+		vregInCnt := len(gOp.In) - opr.implicitPredCount()
 		if maskType == OneMask {
 			vregInCnt--
 		}
@@ -242,6 +364,54 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 		} else if immType == ConstVarImm {
 			data.Args = fmt.Sprintf("[a] %s", data.Args)
 			data.ArgsOut = fmt.Sprintf("[a+%s] %s", *opr.In[0].Const, data.ArgsOut)
+		}
+
+		// An SVE operation whose unpredicated encoding needs a higher feature
+		// level than the operation itself lowers through its merging-predicated
+		// sibling under a synthesized all-true predicate, with the unpredicated
+		// encoding as a feature-gated upgrade in blocks where the cpufeatures
+		// analysis proves the level:
+		//
+		//	(MulInt8s x y) && ...HasFeature(ssa.CPUsve2) => (ZMULB x y)
+		//	(MulInt8s x y) => (ZMULMergingB x y <all-true>)
+		if gOp.UnpredCPUFeature != nil {
+			preds := gOp.svePredicatedOps()
+			if len(preds) == 0 || sveMaskSuffix(preds[0]) != "Merging" {
+				panic(fmt.Errorf("simdgen: %s has unpredCpuFeature but no merging fallback", gOp.Asm))
+			}
+			merging := machineOpName(OneMask, preds[0])
+			sveRules = append(sveRules, fmt.Sprintf("(%s %s) && v.Block.CPUfeatures.HasFeature(ssa.%s) => (%s %s)\n",
+				gOp.GenericName(), data.Args, sveFeatureConst(*gOp.UnpredCPUFeature), asm, data.Args))
+			sveRules = append(sveRules, fmt.Sprintf("(%s %s) => (%s %s %s)\n",
+				gOp.GenericName(), data.Args, merging, data.Args, sveAllTruePattern(gOp)))
+			// A select over the fallback folds by replacing the synthesized
+			// all-true predicate, mirroring sveMergingPeephole's three forms.
+			sel := "ZSEL" + sveArrangementLetter(gOp)
+			allTrue := sveAllTruePattern(gOp)
+			sveRules = append(sveRules, fmt.Sprintf("(%s (%s x y %s) x mask) => (%s x y mask)\n", sel, merging, allTrue, merging))
+			if gOp.Commutative {
+				sveRules = append(sveRules, fmt.Sprintf("(%s (%s x y %s) y mask) => (%s y x mask)\n", sel, merging, allTrue, merging))
+				if preds[0].sveMergingPrefixedOp() != nil {
+					sveRules = append(sveRules, fmt.Sprintf("(%s (%s x y %s) z mask) => (%s z x y mask)\n",
+						sel, merging, allTrue, machineOpName(OneMask, *preds[0].sveMergingPrefixedOp())))
+				}
+			}
+			asmCheck[asm] = true
+			asmCheck[merging] = true
+			continue
+		}
+
+		// SVE ops with an implicit-all-true governing predicate expose an
+		// unpredicated Go API: lower the generic op straight to the predicated
+		// machine op, synthesizing an all-true predicate. This bypasses the AVX
+		// mask-conversion machinery below (SVE predicates are represented as-is).
+		if opr.implicitPredCount() > 0 {
+			sveRules = append(sveRules, sveImplicitPredRule(gOp, asm, data.Args))
+			if r := sveImplicitPredPeepholes(gOp, asm, data.Args); r != "" {
+				sveRules = append(sveRules, r)
+			}
+			asmCheck[asm] = true
+			continue
 		}
 
 		goType := func(op Operation) string {
@@ -393,9 +563,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						origArgs = after
 					}
 					immArg = "[c] "
-					immArgCombineOff = " [makeValAndOff(int32(uint8(c)),off)] "
+					immArgCombineOff = " [ssa.MakeValAndOff(int32(uint8(c)),off)] "
 				}
-				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", *lastVreg.Bits)
+				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", lastVreg.Bits.N())
 				// Remove the last vreg from the arg and change it to "ptr".
 				memOpData.ArgsAddr = "{sym}" + immArgCombineOff + origArgs + "ptr"
 				if maskType == OneMask {
@@ -406,9 +576,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				if gOp.MemFeaturesData != nil {
 					_, feat2 := getVbcstData(*gOp.MemFeaturesData)
 					knownFeatChecks := map[string]string{
-						"AVX":    "v.Block.CPUfeatures.hasFeature(CPUavx)",
-						"AVX2":   "v.Block.CPUfeatures.hasFeature(CPUavx2)",
-						"AVX512": "v.Block.CPUfeatures.hasFeature(CPUavx512)",
+						"AVX":    "v.Block.CPUfeatures.HasFeature(ssa.CPUavx)",
+						"AVX2":   "v.Block.CPUfeatures.HasFeature(ssa.CPUavx2)",
+						"AVX512": "v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)",
 					}
 					memOpData.FeatCheck = knownFeatChecks[feat2]
 					memOpData.TplName = "vregMemFeatCheck"
@@ -423,8 +593,8 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 		if gOp.hasMaskedMerging(maskType, opOutShape) {
 			// TODO: handle customized operand order and special lower.
 			maskElem := gOp.In[len(gOp.In)-1]
-			if maskElem.Bits == nil {
-				panic("mask has no bits")
+			if maskElem.Bits.Scalable {
+				panic("scalable mask not supported in masked merging")
 			}
 			if maskElem.ElemBits == nil {
 				panic("mask has no elemBits")
@@ -432,13 +602,13 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			if maskElem.Lanes == nil {
 				panic("mask has no lanes")
 			}
-			switch *maskElem.Bits {
+			switch maskElem.Bits.N() {
 			case 128, 256:
 				// VPBLENDVB cases.
 				noMaskName := machineOpName(NoMask, gOp)
 				ruleExisting, ok := maskedMergeOpts[noMaskName]
-				rule := fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
-					*maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
+				rule := fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
+					maskElem.Bits.N(), noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
 				if ok && ruleExisting != rule {
 					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 				} else {
@@ -449,7 +619,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				noMaskName := machineOpName(NoMask, gOp)
 				ruleExisting, ok := maskedMergeOpts[noMaskName]
 				rule := fmt.Sprintf("(VPBLENDM%sMasked%d dst (%s %s) mask) => (%sMerging dst %s mask)\n",
-					s2n[*maskElem.ElemBits], *maskElem.Bits, noMaskName, data.Args, data.Asm, data.Args)
+					s2n[*maskElem.ElemBits], maskElem.Bits.N(), noMaskName, data.Args, data.Asm, data.Args)
 				if ok && ruleExisting != rule {
 					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 				} else {
@@ -463,6 +633,11 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			data.ArgsOut = "..."
 		}
 		data.TplName = tplName
+		for _, pred := range gOp.svePredicatedOps() {
+			if r := sveMergingPeephole(pred); r != "" {
+				sveRules = append(sveRules, r)
+			}
+		}
 		if opr.NoGenericOps != nil && *opr.NoGenericOps == "true" ||
 			opr.SkipMaskedMethod() {
 			optData = append(optData, data)
@@ -487,6 +662,14 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 		if err := tpl.Execute(buffer, data); err != nil {
 			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.TplName, data.GoOp+data.GoType, err))
 		}
+	}
+
+	// Signed and unsigned element types share machine ops, so the same rule can
+	// be produced more than once.
+	slices.Sort(sveRules)
+	sveRules = slices.Compact(sveRules)
+	for _, rule := range sveRules {
+		buffer.WriteString(rule)
 	}
 
 	seen := make(map[string]bool)
@@ -523,8 +706,6 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.TplName, data.Asm, err))
 		}
 	}
-
-	return buffer
 }
 
 // Note: SetHi was removed (temporarily?) from 1.27, but may return in some form

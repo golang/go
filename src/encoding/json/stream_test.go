@@ -535,10 +535,18 @@ func TestHTTPDecoding(t *testing.T) {
 	}
 }
 
+// TODO(https://golang.org/issue/25860): Use interface literal.
+type readerFunc func([]byte) (int, error)
+
+func (f readerFunc) Read(b []byte) (int, error) {
+	return f(b)
+}
+
 func TestTokenError(t *testing.T) {
 	tests := []struct {
-		in  string
-		err error
+		in    string
+		inErr error
+		err   error
 	}{
 		{in: ``, err: io.EOF},
 		{in: `{`, err: io.EOF},
@@ -557,9 +565,19 @@ func TestTokenError(t *testing.T) {
 		{in: `fal `, err: &SyntaxError{"invalid character ' ' in literal false (expecting 's')", len64(`fal `)}},
 		{in: `false`, err: io.EOF},
 		{in: `  1e1000`, err: &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64(`  1e100`)}},
+		{in: `{"foo":1}{"bar":2}`, err: io.EOF},
+		{in: `{"foo":1}{"bar":2}`, inErr: io.ErrUnexpectedEOF, err: io.ErrUnexpectedEOF},
+		{in: `{"foo":1}{"bar":2}`, inErr: fmt.Errorf("wrap: %w", io.ErrUnexpectedEOF), err: fmt.Errorf("wrap: %w", io.ErrUnexpectedEOF)},
 	}
 	for _, tt := range tests {
-		d := NewDecoder(strings.NewReader(tt.in))
+		r := strings.NewReader(tt.in)
+		d := NewDecoder(readerFunc(func(b []byte) (int, error) {
+			n, err := r.Read(b)
+			if err == io.EOF && tt.inErr != nil {
+				return n, tt.inErr
+			}
+			return n, err
+		}))
 		for i := 0; true; i++ {
 			if _, err := d.Token(); err != nil {
 				if !reflect.DeepEqual(err, tt.err) {

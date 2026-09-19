@@ -64,7 +64,7 @@ func checkGccgoBin() {
 	base.Exit()
 }
 
-func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, err error) {
+func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, compile *shellCmd, err error) {
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
@@ -85,20 +85,20 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 	if importcfg != nil {
 		if b.gccSupportsFlag(args[:1], "-fgo-importcfg=/dev/null") {
 			if err := sh.writeFile(objdir+"importcfg", importcfg); err != nil {
-				return "", nil, err
+				return "", nil, nil, err
 			}
 			args = append(args, "-fgo-importcfg="+objdir+"importcfg")
 		} else {
 			root := objdir + "_importcfgroot_"
 			if err := buildImportcfgSymlinks(sh, root, importcfg); err != nil {
-				return "", nil, err
+				return "", nil, nil, err
 			}
 			args = append(args, "-I", root)
 		}
 	}
 	if embedcfg != nil && b.gccSupportsFlag(args[:1], "-fgo-embedcfg=/dev/null") {
 		if err := sh.writeFile(objdir+"embedcfg", embedcfg); err != nil {
-			return "", nil, err
+			return "", nil, nil, err
 		}
 		args = append(args, "-fgo-embedcfg="+objdir+"embedcfg")
 	}
@@ -134,7 +134,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 	}
 
 	output, err = sh.runOut(p.Dir, nil, args)
-	return ofile, output, err
+	return ofile, output, nil, err
 }
 
 // buildImportcfgSymlinks builds in root a tree of symlinks

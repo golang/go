@@ -25,6 +25,10 @@ func TooNewStdSymbols(pkg *types.Package, version string) map[types.Object]stdli
 		// requires go1.24 && goexperiment.synctest || go1.25
 		return disallowed
 	}
+	if (pkg.Path() == "encoding/json/v2" || pkg.Path() == "encoding/json/jsontext") && versions.AtLeast(version, "go1.25") {
+		// requires go1.25 && goexperiment.jsonv2 || go1.27
+		return disallowed
+	}
 
 	// Pass 1: package-level symbols.
 	symbols := stdlib.PackageSymbols[pkg.Path()]

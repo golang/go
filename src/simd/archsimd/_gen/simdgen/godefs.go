@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -14,8 +15,12 @@ import (
 	"strings"
 	"unicode"
 
+	"simd/archsimd/_gen/gentools"
+	"simd/archsimd/_gen/simdgen/types"
 	"simd/archsimd/_gen/unify"
 )
+
+type rawOperation = types.RawOperation
 
 type Operation struct {
 	rawOperation
@@ -38,50 +43,20 @@ type Operation struct {
 	// In is the sequence of parameters to the Go method.
 	//
 	// For masked operations, this will have the mask operand appended.
-	In []Operand
-}
+	In []types.Operand
 
-// rawOperation is the unifier representation of an [Operation]. It is
-// translated into a more parsed form after unifier decoding.
-type rawOperation struct {
-	Go string // Base Go method name
+	// sveMergingPrefixed marks the MOVPRFX-prefixed variant of a merging
+	// predicated operation, built by [Operation.sveMergingPrefixedOp]. It exists
+	// only to give that variant a machine-op name of its own.
+	sveMergingPrefixed bool
 
-	GoArch       string  // GOARCH for this definition
-	Asm          string  // Assembly mnemonic
-	Arrangement  *string // optional Arrangement for ARM64 SIMD operations (e.g., "4S", "2D")
-	OperandOrder *string // optional Operand order for better Go declarations
-	// Optional tag to indicate this operation is paired with special generic->machine ssa lowering rules.
-	// Should be paired with special templates in gen_simdrules.go
-	SpecialLower *string
-	// HiHalfAsm is the assembly mnemonic for the hi-half "2" variant of this operation,
-	// specified in go_arm64.yaml (e.g., "VSHRN2", "VUMULL2").
-	// When non-nil, simdgen generates the "2" variant machine op and folding rules.
-	HiHalfAsm *string
-
-	In              []Operand // Parameters
-	InVariant       []Operand // Optional parameters
-	Out             []Operand // Results
-	MemFeatures     *string   // The memory operand feature this operation supports
-	MemFeaturesData *string   // Additional data associated with MemFeatures
-	Commutative     bool      // Commutativity
-	CPUFeature      string    // CPUID/Has* feature name
-	Zeroing         *bool     // nil => use asm suffix ".Z"; false => do not use asm suffix ".Z"
-	Documentation   *string   // Documentation will be appended to the stubs comments.
-	AddDoc          *string   // Additional doc to be appended.
-	// ConstMask is a hack to reduce the size of defs the user writes for const-immediate
-	// If present, it will be copied to [In[0].Const].
-	ConstImm *string
-	// NameAndSizeCheck is used to check [BWDQ] maps to (8|16|32|64) elemBits.
-	NameAndSizeCheck *bool
-	// If non-nil, all generation in gen_simdTypes.go and gen_intrinsics will be skipped.
-	NoTypes *string
-	// If non-nil, all generation in gen_simdGenericOps and gen_simdrules will be skipped.
-	NoGenericOps *string
-	// If non-nil, this string will be attached to the machine ssa op name.  E.g. "const"
-	SSAVariant *string
-	// If true, do not emit method declarations, generic ops, or intrinsics for masked variants
-	// DO emit the architecture-specific opcodes and optimizations.
-	HideMaskMethods *bool
+	// sveMergeSourceIn0 marks a merging predicated operation whose first input
+	// is the value the destination starts out holding, and which therefore has
+	// to share that input's register. Merging predication leaves the inactive
+	// lanes of the destination alone, so that value is an operand of the
+	// operation whether the instruction names it (a constructive one does, as
+	// ABS <Zd>, <Pg>/M, <Zn>) or a MOVPRFX has to put it there.
+	sveMergeSourceIn0 bool
 }
 
 func (o *Operation) IsMasked() bool {
@@ -144,6 +119,13 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	}
 
 	isMasked := o.IsMasked()
+	if CurrentArch().isSVE() {
+		// An SVE inVariant is the operation's predicated encoding, not a separate
+		// masked API. The operation keeps its unpredicated name and inputs; the
+		// predicate is picked up later, by the machine op and peephole generators,
+		// through svePredicated.
+		isMasked = false
+	}
 
 	// Compute full Go method name.
 	o.Go = o.rawOperation.Go
@@ -171,7 +153,10 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 		o.Documentation += "\n" + reForName.ReplaceAllString(*o.rawOperation.AddDoc, o.Go)
 	}
 
-	o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
+	o.In = o.rawOperation.In
+	if !CurrentArch().isSVE() {
+		o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
+	}
 
 	// For operations that read only the lower half of input registers (indicated by hiHalfAsm),
 	// add a doc note showing the compositional pattern for the upper half.
@@ -210,14 +195,18 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	return nil
 }
 
+func (o *Operation) EncodeUnified() *unify.Value {
+	panic("can't encode an Operation; did you mean to encode types.RawOperation?")
+}
+
 func (o *Operation) VectorWidth() int {
 	out := o.Out[0]
 	if out.Class == "vreg" {
-		return *out.Bits
+		return out.Bits.N()
 	} else if out.Class == "greg" || out.Class == "mask" {
 		for i := range o.In {
 			if o.In[i].Class == "vreg" {
-				return *o.In[i].Bits
+				return o.In[i].Bits.N()
 			}
 		}
 	}
@@ -243,13 +232,81 @@ var demotingConvertOps = map[string]bool{
 	"VPMOVWBMasked128": true, "VPMOVSWBMasked128": true, "VPMOVUSWBMasked128": true,
 }
 
+// sveMaskSuffix returns the machine-op name suffix for a masked operation:
+// "Merging" for an SVE /M predicate, "Masked" for /Z and for every other target.
+func sveMaskSuffix(gOp Operation) string {
+	if CurrentArch().isSVE() {
+		for i := range gOp.In {
+			if gOp.In[i].Class == "mask" && gOp.In[i].Predication != nil && *gOp.In[i].Predication == "M" {
+				return "Merging"
+			}
+		}
+	}
+	return "Masked"
+}
+
+// sveArrangementLetter returns the SVE element-size arrangement letter
+// (B=8, H=16, S=32, D=64) that names an SVE machine op, or "" when the target
+// is not SVE. The letter comes from the operation's governing element width:
+// the output vreg's elemBits, else the first vreg/mask operand's elemBits.
+func sveArrangementLetter(gOp Operation) string {
+	if !CurrentArch().isSVE() {
+		return ""
+	}
+	elemBits := 0
+	pick := func(ops []types.Operand) {
+		if elemBits != 0 {
+			return
+		}
+		for i := range ops {
+			if c := ops[i].Class; (c == "vreg" || c == "mask") && ops[i].ElemBits != nil {
+				elemBits = *ops[i].ElemBits
+				return
+			}
+		}
+	}
+	pick(gOp.Out)
+	pick(gOp.In)
+	switch elemBits {
+	case 8:
+		return "B"
+	case 16:
+		return "H"
+	case 32:
+		return "S"
+	case 64:
+		return "D"
+	}
+	panic(fmt.Errorf("SVE op %s has no B/H/S/D element width (elemBits=%d)", gOp.Asm, elemBits))
+}
+
 func machineOpName(maskType maskShape, gOp Operation) string {
 	asm := gOp.Asm
 	if maskType == OneMask {
-		asm += "Masked"
+		// An SVE predicated encoding is either merging (/M) or zeroing (/Z), and
+		// an operation may offer only one of them; name the machine op after the
+		// qualifier so both can coexist and so the peepholes can tell which
+		// (IfElse folds into merging, Masked into zeroing). Elsewhere a mask is
+		// always zeroing, and keeps the historical "Masked" name.
+		asm += sveMaskSuffix(gOp)
+		if gOp.sveMergingPrefixed {
+			asm += "Prefixed"
+		}
 	}
 	// For ARM64, use arrangement to create distinct SSA op names
-	if gOp.Arrangement != nil && *gOp.Arrangement != "" {
+	if letter := sveArrangementLetter(gOp); letter != "" {
+		// SVE: scalable vectors have no fixed width, so distinguish machine ops
+		// by element-size arrangement letter (B/H/S/D), e.g. ZADD -> ZADDB.
+		//
+		// A width-agnostic bitwise operation is one .D instruction serving
+		// every element width, so its unpredicated machine op is always the D
+		// one, shared by all the generic ops; only its predicated forms, which
+		// merge at a real element granularity, stay per width.
+		if maskType == NoMask && gOp.WidthAgnostic != nil && *gOp.WidthAgnostic {
+			letter = "D"
+		}
+		asm += letter
+	} else if gOp.Arrangement != nil && *gOp.Arrangement != "" {
 		asm = fmt.Sprintf("%s%s", asm, *gOp.Arrangement)
 	} else {
 		asm = fmt.Sprintf("%s%d", asm, gOp.VectorWidth())
@@ -260,7 +317,7 @@ func machineOpName(maskType maskShape, gOp Operation) string {
 	if demotingConvertOps[asm] {
 		// Need to append the size of the source as well.
 		// TODO: should be "%sto%d".
-		asm = fmt.Sprintf("%s_%d", asm, *gOp.In[0].Bits)
+		asm = fmt.Sprintf("%s_%d", asm, gOp.In[0].Bits.N())
 	}
 	return asm
 }
@@ -289,6 +346,19 @@ func compareIntPointers(x, y *int) int {
 		return -1
 	}
 	return 1
+}
+
+func compareVectorSizes(x, y types.VectorSize) int {
+	if x.Scalable != y.Scalable {
+		if !x.Scalable {
+			return -1
+		}
+		return 1
+	}
+	if !x.Scalable {
+		return cmp.Compare(x.NRaw, y.NRaw)
+	}
+	return 0
 }
 
 func compareOperations(x, y Operation) int {
@@ -324,7 +394,7 @@ func compareOperations(x, y Operation) int {
 	return 0
 }
 
-func compareOperands(x, y *Operand) int {
+func compareOperands(x, y *types.Operand) int {
 	if c := compareNatural(x.Class, y.Class); c != 0 {
 		return c
 	}
@@ -337,7 +407,7 @@ func compareOperands(x, y *Operand) int {
 		if c := compareIntPointers(x.ElemBits, y.ElemBits); c != 0 {
 			return c
 		}
-		if c := compareIntPointers(x.Bits, y.Bits); c != 0 {
+		if c := compareVectorSizes(x.Bits, y.Bits); c != 0 {
 			return c
 		}
 		if c := compareIntPointers(x.ListNumber, y.ListNumber); c != 0 {
@@ -347,48 +417,177 @@ func compareOperands(x, y *Operand) int {
 	}
 }
 
-type Operand struct {
-	Class string // One of "mask", "immediate", "vreg", "greg", and "mem"
+// isInPlaceRegName reports whether an ARM register symbol names an operand that
+// is written in place: <Zdn>, <Zda> and friends, as opposed to <Zd> or <Zn>.
+func isInPlaceRegName(name string) bool {
+	return len(name) >= 3 && name[1] == 'd'
+}
 
-	Go     *string // Go type of this operand
-	AsmPos int     // Position of this operand in the assembly instruction
+// sveInPlaceInput returns the index in op.In of the input naming the same
+// register as the destination — the operand a destructive instruction
+// overwrites — or -1 when the instruction is constructive.
+//
+// It fails loudly on a destination that is written in place but is not among
+// the inputs, e.g. the accumulator of MLA <Zda>, <Pg>/M, <Zn>, <Zm>: that needs
+// a machine op with an extra input, which simdgen does not build yet, and
+// silently treating it as constructive would generate wrong code.
+func (op Operation) sveInPlaceInput() int {
+	if len(op.Out) != 1 || op.Out[0].RegName == nil {
+		return -1
+	}
+	dst := *op.Out[0].RegName
+	for i := range op.In {
+		if op.In[i].RegName != nil && *op.In[i].RegName == dst {
+			return i
+		}
+	}
+	if isInPlaceRegName(dst) {
+		panic(fmt.Errorf("simdgen: %s writes %s in place but does not read it as an input; "+
+			"this shape is not supported yet: %s", op.Asm, dst, op))
+	}
+	return -1
+}
 
-	Base     *string // Base Go type ("int", "uint", "float")
-	ElemBits *int    // Element bit width
-	Bits     *int    // Total vector bit width
+// svePredicatedOps returns the machine-level operations implied by the
+// operation's inVariant: the same operation with the governing predicate as an
+// ordinary input, once per qualifier the encoding supports. The inVariant
+// implies machine ops only — the API is generated from the unpredicated in/out
+// — and these are what the Masked/IfElse peepholes fold into.
+func (op Operation) svePredicatedOps() []Operation {
+	if !CurrentArch().isSVE() || len(op.InVariant) != 1 || op.InVariant[0].Predication == nil {
+		return nil
+	}
+	var out []Operation
+	for i, predicate := range op.InVariant {
+		if predicate.Predication == nil {
+			continue
+		}
+		for _, qual := range *predicate.Predication {
+			// "M" (merging), "Z" (zeroing), or both: an encoding that offers each
+			// gets a machine op for each, and only the peepholes that apply to it.
+			q := string(qual)
+			p := predicate
+			p.Predication = &q
+			pred := op
+			// Give every operand the symbol it has in this encoding, so the
+			// operation describes the instruction that will be emitted and its
+			// shape can be read off it the same way as an unpredicated one.
+			pred.In = withPredRegNames(op.In, i)
+			pred.Out = withPredRegNames(op.Out, i)
+			// An operation with an unpredicated encoding has no governing
+			// predicate to begin with, so the variant's is a new input. One
+			// without (ABS) already carries its own, hidden behind an all-true
+			// predicate; the variant supplies the real one in its place, rather
+			// than a second one.
+			if idx := governingInput(pred.In); idx >= 0 {
+				pred.In[idx] = p
+			} else {
+				pred.In = append(pred.In, p)
+			}
+			pred.InVariant = nil
+			pred.sortOperand()
+			if q == "M" && pred.sveInPlaceInput() < 0 {
+				// A constructive instruction names its destination separately
+				// from its sources, and merging predication preserves that
+				// destination's inactive lanes, so the value it starts out
+				// holding is a real operand. Without it the machine op would
+				// claim to write a register it in fact only partly writes.
+				merge := pred.Out[0]
+				pred.In = append([]types.Operand{merge}, pred.In...)
+				pred.sveMergeSourceIn0 = true
+			}
+			out = append(out, pred)
+		}
+	}
+	return out
+}
 
-	Const *string // Optional constant value for immediates.
-	// Optional immediate arg offsets. If this field is non-nil,
-	// This operand will be an immediate operand:
-	// The compiler will right-shift the user-passed value by ImmOffset and set it as the AuxInt
-	// field of the operation.
-	ImmOffset *string
-	ImmMax    *int    // optional maximum immediate, also highest case in immediate jump table
-	Name      *string // optional name in the Go intrinsic declaration
-	Lanes     *int    // *Lanes equals Bits/ElemBits except for scalars, when *Lanes == 1
-	// TreatLikeAScalarOfSize means only the lower $TreatLikeAScalarOfSize bits of the vector
-	// is used, so at the API level we can make it just a scalar value of this size; Then we
-	// can overwrite it to a vector of the right size during intrinsics stage.
-	TreatLikeAScalarOfSize *int
-	// If non-nil, it means the [Class] field is overwritten here, right now this is used to
-	// overwrite the results of AVX2 compares to masks.
-	OverwriteClass *string
-	// If non-nil, it means the [Base] field is overwritten here. This field exist solely
-	// because Intel's XED data is inconsistent. e.g. VANDNP[SD] marks its operand int.
-	OverwriteBase *string
-	// If non-nil, it means the [ElementBits] field is overwritten. This field exist solely
-	// because Intel's XED data is inconsistent. e.g. AVX512 VPMADDUBSW marks its operand
-	// elemBits 16, which should be 8.
-	OverwriteElementBits *int
-	// For greg only, specifically VPEXTR[BW], their results are specified by Intel as 32 bits,
-	// but they really are 8/16 bits.
-	OverwriteBits *int
-	// FixedReg is the name of the fixed registers
-	FixedReg *string
-	// If non-nil, marks this vreg as a register list operand (for TBL/TBX).
-	// Currently only list number 0 is supported (we might need to teach regalloc handle register lists
-	// to support more than one register in the list).
-	ListNumber *int
+// sveMergingPrefixedOp returns the MOVPRFX-prefixed variant of a merging
+// predicated operation, or nil when the operation cannot use one.
+//
+// A merging SVE instruction is destructive — it merges into its own first
+// source — so on its own it can only express a select whose "else" operand is
+// that same source. Prefixing MOVPRFX lifts that: given
+//
+//	ZMOVPRFX Zx, Pg/M, Zd
+//	ZADD     Zy, Zd, Pg/M, Zd
+//
+// the destination holds x+y on the active lanes and whatever it already held on
+// the inactive ones, so the "else" operand can be any value. The returned
+// operation carries that value as an extra leading input, which makes it the
+// operand the destination must share a register with (resultInArg0) and gives
+// the operation a three-vreg register shape of its own.
+//
+// It is offered only for a commutative operation. The prefixed instruction must
+// not name the destination in any operand position other than the destructive
+// one, i.e. the ZADD above needs Zy != Zd; a commutative operation can always
+// satisfy that by swapping its two sources, and a non-commutative one cannot.
+func (op Operation) sveMergingPrefixedOp() *Operation {
+	if !CurrentArch().isSVE() || !op.Commutative || op.sveInPlaceInput() != 0 {
+		return nil
+	}
+	if len(op.Out) != 1 || op.Out[0].RegName == nil {
+		return nil
+	}
+	if sveMaskSuffix(op) != "Merging" {
+		return nil
+	}
+	// The extra input is the destination read before the operation, so it takes
+	// the destination's symbol; the source it displaces becomes the MOVPRFX's
+	// Zn, which is the symbol that instruction gives it.
+	merge := op.Out[0]
+	prefixed := op
+	prefixed.In = make([]types.Operand, 0, len(op.In)+1)
+	prefixed.In = append(prefixed.In, merge)
+	prefixed.In = append(prefixed.In, op.In...)
+	movprfxSrc := "Zn"
+	prefixed.In[1].RegName = &movprfxSrc
+	prefixed.sveMergingPrefixed = true
+	prefixed.sveMergeSourceIn0 = true
+	return &prefixed
+}
+
+// governingInput returns the index of the governing predicate in ops, or -1
+// when there is none.
+func governingInput(ops []types.Operand) int {
+	for i := range ops {
+		if ops[i].IsGoverning() {
+			return i
+		}
+	}
+	return -1
+}
+
+// withPredRegNames copies operands with each one's register symbol replaced by
+// the symbol it has in predicated encoding i, where it has one.
+func withPredRegNames(ops []types.Operand, i int) []types.Operand {
+	out := make([]types.Operand, len(ops))
+	copy(out, ops)
+	for j := range out {
+		if names := out[j].PredRegName; names != nil && i < len(*names) {
+			name := (*names)[i]
+			out[j].RegName = &name
+		}
+	}
+	return out
+}
+
+// implicitPredCount reports whether the op has an implicit-all-true governing
+// predicate input, as a count (0 or 1). An instruction has at most one governing
+// predicate — the single mask input carrying a /Z or /M qualifier (see the
+// role=="mask" operand in sve.buildOperandList) — which is a real machine-op
+// input the lowering synthesizes as all-true but which is invisible in the Go
+// API. So the generic op, intrinsic and stub size themselves by len(In) minus
+// this. Source predicates (e.g. Pn, Pm in a predicate-logical op) are ordinary
+// numbered inputs, not governing predicates, and are never counted.
+func (op Operation) implicitPredCount() int {
+	n := 0
+	for i := range op.In {
+		if op.In[i].IsGoverning() {
+			n++
+		}
+	}
+	return n
 }
 
 // isDigit returns true if the byte is an ASCII digit.
@@ -459,7 +658,7 @@ func generatedHeader() string {
 	return CurrentArch().GeneratedHeader
 }
 
-func writeGoDefs(path string, cl unify.Closure) error {
+func writeGoDefs(cl unify.Closure) error {
 	// TODO: Merge operations with the same signature but multiple
 	// implementations (e.g., SSE vs AVX)
 	var ops []Operation
@@ -473,8 +672,6 @@ func writeGoDefs(path string, cl unify.Closure) error {
 			log.Println(def)
 			continue
 		}
-		// TODO: verify that this is safe.
-		op.sortOperand()
 		op.adjustAsm()
 		ops = append(ops, op)
 	}
@@ -525,23 +722,33 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	typeMap := parseSIMDTypes(deduped)
 
 	archInfo := CurrentArch()
+	// Generated files are named by GoTypeArch: the Go API files directly, the
+	// backend files by SIMDTag. For amd64/arm64 these match the
+	// GOARCH, so those filenames are unchanged; only SVE diverges (sve/SVE) so its
+	// output sits alongside the NEON arm64 files instead of overwriting them.
+	simdTag := archInfo.SIMDTag
+	goTypeArch := archInfo.GoTypeArch
 	archLower := archInfo.Arch
-	archUpper := archInfo.ArchUpper
 
-	formatWriteAndClose(writeSIMDTypes(typeMap), path, "src/"+simdPackage+"/types_"+archLower+".go")
+	var files gentools.Files
+	defer files.FlushOrExit()
+
+	writeSIMDTypes(files.NewGoFile(simdPackage+"/types_"+goTypeArch+".go"), typeMap)
 	// TODO: Enable CPU feature generation for non-x86 architectures.
 	if archLower == "amd64" {
-		formatWriteAndClose(writeSIMDFeatures(deduped), path, "src/"+simdPackage+"/cpu.go")
+		writeSIMDFeatures(files.NewGoFile(simdPackage+"/cpu.go"), deduped)
 	}
-	f, fI := writeSIMDStubs(deduped, typeMap, archLower == "amd64")
-	formatWriteAndClose(f, path, "src/"+simdPackage+"/ops_"+archLower+".go")
-	formatWriteAndClose(fI, path, "src/"+simdPackage+"/ops_internal_"+archLower+".go")
-	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simd"+archUpper+"intrinsics.go")
-	const simdGenericOpsFile = "src/cmd/compile/internal/ssa/_gen/simdgenericOps.go"
-	formatWriteAndClose(writeSIMDGenericOps(deduped, path+"/"+simdGenericOpsFile), path, simdGenericOpsFile)
-	formatWriteAndClose(writeSIMDMachineOps(deduped), path, "src/cmd/compile/internal/ssa/_gen/simd"+archUpper+"ops.go")
-	formatWriteAndClose(writeSIMDSSA(deduped), path, "src/cmd/compile/internal/"+archLower+"/simdssa.go")
-	writeAndClose(writeSIMDRules(deduped).Bytes(), path, "src/cmd/compile/internal/ssa/_gen/simd"+archUpper+".rules")
+	writeSIMDStubs(
+		files.NewGoFile(simdPackage+"/ops_"+goTypeArch+".go"),
+		files.NewGoFile(simdPackage+"/ops_internal_"+goTypeArch+".go"),
+		deduped, typeMap, archLower == "amd64",
+	)
+	writeSIMDIntrinsics(files.NewGoFile("cmd/compile/internal/ssagen/simd"+simdTag+"intrinsics.go"), deduped, typeMap)
+	const simdGenericOpsFile = "cmd/compile/internal/ssa/_gen/simdgenericOps.go"
+	writeSIMDGenericOps(files.NewGoFile(simdGenericOpsFile), deduped, genFlags.InputPath(simdGenericOpsFile))
+	writeSIMDMachineOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+"ops.go"), deduped)
+	writeSIMDSSA(files.NewGoFile("cmd/compile/internal/"+archLower+"/"+archInfo.ssaGenFile()), deduped)
+	writeSIMDRules(files.NewRawFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+".rules"), deduped)
 
 	return nil
 }

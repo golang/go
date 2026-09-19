@@ -3,7 +3,6 @@
 # only *after* extracting version information for a locally-cached commit,
 # causing the version information to have incomplete Tags and Version fields.
 
-[short] skip 'constructs a local git repo'
 [!git] skip
 
 # Redirect git to a test-specific .gitconfig.

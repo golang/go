@@ -44,6 +44,7 @@ const (
 	ERROR_IO_INCOMPLETE          syscall.Errno = 996
 	ERROR_NO_TOKEN               syscall.Errno = 1008
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
+	ERROR_NONE_MAPPED            syscall.Errno = 1332
 	ERROR_CANT_ACCESS_FILE       syscall.Errno = 1920
 )
 
@@ -280,7 +281,7 @@ func loadWSASendRecvMsg() error {
 		if sendRecvMsgFunc.err != nil {
 			return
 		}
-		defer syscall.CloseHandle(s)
+		defer syscall.Closesocket(s)
 		var n uint32
 		sendRecvMsgFunc.err = syscall.WSAIoctl(s,
 			syscall.SIO_GET_EXTENSION_FUNCTION_POINTER,

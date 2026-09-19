@@ -6,7 +6,9 @@ package embedtest
 
 import (
 	"embed"
+	"errors"
 	"io"
+	"io/fs"
 	"reflect"
 	"slices"
 	"testing"
@@ -220,6 +222,15 @@ func TestOffset(t *testing.T) {
 		t.Fatal("Seek:", off)
 	}
 
+	// Use Seek with an invalid whence.
+	_, err = seeker.Seek(0, io.SeekEnd+5)
+	if err == nil {
+		t.Fatal("Seek: expected error for invalid whence")
+	}
+	if !errors.Is(err, fs.ErrInvalid) {
+		t.Fatalf("Seek: expected fs.ErrInvalid, got %v", err)
+	}
+
 	// Use ReadAt to read the entire file, ignoring the offset.
 	at := file.(io.ReaderAt)
 	got = make([]byte, len(want))
@@ -236,16 +247,38 @@ func TestOffset(t *testing.T) {
 
 	// Use ReadAt with non-zero offset.
 	off = int64(7)
-	want = want[off:]
-	got = make([]byte, len(want))
+	part := want[off:]
+	got = make([]byte, len(part))
 	n, err = at.ReadAt(got, off)
 	if err != nil {
 		t.Fatal("ReadAt:", err)
 	}
-	if n != len(want) {
-		t.Fatalf("ReadAt: got %d bytes, want %d bytes", n, len(want))
+	if n != len(part) {
+		t.Fatalf("ReadAt: got %d bytes, want %d bytes", n, len(part))
 	}
-	if string(got) != want {
-		t.Fatalf("ReadAt: got %q, want %q", got, want)
+	if string(got) != part {
+		t.Fatalf("ReadAt: got %q, want %q", got, part)
+	}
+
+	// Use ReadAt with an offset at the end of the file.
+	off = int64(len(want))
+	got = make([]byte, 1)
+	n, err = at.ReadAt(got, off)
+	if err != io.EOF {
+		t.Fatalf("ReadAt: expected io.EOF for offset at end of file")
+	}
+	if n != 0 {
+		t.Fatalf("ReadAt: got %d bytes, want 0 bytes", n)
+	}
+
+	// Use ReadAt with an offset beyond the end of the file.
+	off = int64(len(want) + 1)
+	got = make([]byte, 1)
+	n, err = at.ReadAt(got, off)
+	if err != io.EOF {
+		t.Fatalf("ReadAt: expected io.EOF for offset beyond end of file")
+	}
+	if n != 0 {
+		t.Fatalf("ReadAt: got %d bytes, want 0 bytes", n)
 	}
 }

@@ -2363,7 +2363,7 @@ func (fh *FileHandle) Bytes() []byte {
 	if n == 0 {
 		return nil
 	}
-	return unsafe.Slice((*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(&fh.fileHandle.Type))+4)), n)
+	return unsafe.Slice((*byte)(unsafe.Add(unsafe.Pointer(&fh.fileHandle.Type), 4)), n)
 }
 
 // NameToHandleAt wraps the name_to_handle_at system call; it obtains

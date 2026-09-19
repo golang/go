@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
-	"strings"
 )
 
 // A Domain is a non-empty set of values, all of the same kind.
@@ -46,49 +45,11 @@ type Domain interface {
 	decode(reflect.Value) error
 }
 
-type inexactError struct {
-	valueType string
-	goType    string
-}
-
-func (e *inexactError) Error() string {
-	return fmt.Sprintf("cannot store inexact %s value in %s", e.valueType, e.goType)
-}
-
-type decodeError struct {
-	path string
-	err  error
-}
-
-func newDecodeError(path string, err error) *decodeError {
-	if err, ok := err.(*decodeError); ok {
-		return &decodeError{path: path + "." + err.path, err: err.err}
-	}
-	return &decodeError{path: path, err: err}
-}
-
-func (e *decodeError) Unwrap() error {
-	return e.err
-}
-
-func (e *decodeError) Error() string {
-	return fmt.Sprintf("%s: %s", e.path, e.err)
-}
-
 // Top represents all possible values of all possible types.
 type Top struct{}
 
 func (t Top) Exact() bool         { return false }
 func (t Top) WhyNotExact() string { return "is top" }
-
-func (t Top) decode(rv reflect.Value) error {
-	// We can decode Top into a pointer-typed value as nil.
-	if rv.Kind() != reflect.Pointer {
-		return &inexactError{"top", rv.Type().String()}
-	}
-	rv.SetZero()
-	return nil
-}
 
 // A Def is a mapping from field names to [Value]s. Any fields not explicitly
 // listed have [Value] [Top].
@@ -136,49 +97,6 @@ func (d Def) WhyNotExact() string {
 		}
 	}
 	return ""
-}
-
-func (d Def) decode(rv reflect.Value) error {
-	if rv.Kind() != reflect.Struct {
-		return fmt.Errorf("cannot decode Def into %s", rv.Type())
-	}
-
-	var lowered map[string]string // Lower case -> canonical for d.fields.
-	rt := rv.Type()
-	for fi := range rv.NumField() {
-		fType := rt.Field(fi)
-		if fType.PkgPath != "" {
-			continue
-		}
-		v := d.fields[fType.Name]
-		if v == nil {
-			v = topValue
-
-			// Try a case-insensitive match
-			canon, ok := d.fields[strings.ToLower(fType.Name)]
-			if ok {
-				v = canon
-			} else {
-				if lowered == nil {
-					lowered = make(map[string]string, len(d.fields))
-					for k := range d.fields {
-						l := strings.ToLower(k)
-						if k != l {
-							lowered[l] = k
-						}
-					}
-				}
-				canon, ok := lowered[strings.ToLower(fType.Name)]
-				if ok {
-					v = d.fields[canon]
-				}
-			}
-		}
-		if err := decodeReflect(v, rv.Field(fi)); err != nil {
-			return newDecodeError(fType.Name, err)
-		}
-	}
-	return nil
 }
 
 func (d Def) keys() []string {
@@ -243,27 +161,6 @@ func (d Tuple) WhyNotExact() string {
 		}
 	}
 	return ""
-}
-
-func (d Tuple) decode(rv reflect.Value) error {
-	if d.repeat != nil {
-		return &inexactError{"repeated tuple", rv.Type().String()}
-	}
-	// TODO: We could also do arrays.
-	if rv.Kind() != reflect.Slice {
-		return fmt.Errorf("cannot decode Tuple into %s", rv.Type())
-	}
-	if rv.IsNil() || rv.Cap() < len(d.vs) {
-		rv.Set(reflect.MakeSlice(rv.Type(), len(d.vs), len(d.vs)))
-	} else {
-		rv.SetLen(len(d.vs))
-	}
-	for i, v := range d.vs {
-		if err := decodeReflect(v, rv.Index(i)); err != nil {
-			return newDecodeError(fmt.Sprintf("%d", i), err)
-		}
-	}
-	return nil
 }
 
 // A String represents a set of strings. It can represent the intersection of a
@@ -331,29 +228,4 @@ func (d String) WhyNotExact() string {
 		return ""
 	}
 	return "string is not exact"
-}
-
-func (d String) decode(rv reflect.Value) error {
-	if d.kind != stringExact {
-		return &inexactError{"regex", rv.Type().String()}
-	}
-	switch rv.Kind() {
-	default:
-		return fmt.Errorf("cannot decode String into %s", rv.Type())
-	case reflect.String:
-		rv.SetString(d.exact)
-	case reflect.Int:
-		i, err := strconv.Atoi(d.exact)
-		if err != nil {
-			return fmt.Errorf("cannot decode String into %s: %s", rv.Type(), err)
-		}
-		rv.SetInt(int64(i))
-	case reflect.Bool:
-		b, err := strconv.ParseBool(d.exact)
-		if err != nil {
-			return fmt.Errorf("cannot decode String into %s: %s", rv.Type(), err)
-		}
-		rv.SetBool(b)
-	}
-	return nil
 }

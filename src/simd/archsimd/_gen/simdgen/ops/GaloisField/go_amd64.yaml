@@ -3,6 +3,10 @@
   asm: VGF2P8AFFINEQB
   operandOrder: 2I # 2nd operand, then immediate
   in: &AffineArgs
+  - &pureImmVar
+    class: immediate
+    immOffset: 0
+    name: b
   - &uint8
     go: $t
     base: uint
@@ -10,10 +14,6 @@
     go: $t2
     base: uint
     name: A
-  - &pureImmVar
-    class: immediate
-    immOffset: 0
-    name: b
   out:
   - *uint8
 
@@ -42,11 +42,11 @@
     // bit 4 selects the low (0x00) or high (0x10) element of y.
   asm: V?PCLMULQDQ
   in:
-  - go: Uint64x2
-  - go: Uint64x2
   - class: immediate
     immOffset: 0
     name: xyHiLo
+  - go: Uint64x2
+  - go: Uint64x2
   out:
   - go: Uint64x2
     overwriteElementBits: 64
@@ -62,11 +62,11 @@
     // bit 4 selects the low (0x00) or high (0x10) elements of y's lanes.
   asm: V?PCLMULQDQ
   in:
-  - go: Uint64x4
-  - go: Uint64x4
   - class: immediate
     immOffset: 0
     name: xyHiLo
+  - go: Uint64x4
+  - go: Uint64x4
   out:
   - go: Uint64x4
     overwriteElementBits: 64
@@ -82,11 +82,11 @@
     // bit 4 selects the low (0x00) or high (0x10) elements of y's lanes.
   asm: V?PCLMULQDQ
   in:
-  - go: Uint64x8
-  - go: Uint64x8
   - class: immediate
     immOffset: 0
     name: xyHiLo
+  - go: Uint64x8
+  - go: Uint64x8
   out:
   - go: Uint64x8
     overwriteElementBits: 64

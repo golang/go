@@ -135,8 +135,9 @@ func (p *Pool) Get() any {
 	}
 	l, pid := p.pin()
 	x := l.private
-	l.private = nil
-	if x == nil {
+	if x != nil {
+		l.private = nil
+	} else {
 		// Try to pop the head of the local shard. We prefer
 		// the head over the tail for temporal locality of
 		// reuse.

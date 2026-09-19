@@ -1,4 +1,3 @@
-env GO111MODULE=on
 env sumdb=$GOSUMDB
 env proxy=$GOPROXY
 env GOPRIVATE GOPROXY GONOPROXY GOSUMDB GONOSUMDB
@@ -34,8 +33,6 @@ env GONOPROXY=*/fortune
 env GOPROXY=off
 ! go get golang.org/x/text
 stderr '^go: golang.org/x/text: module lookup disabled by GOPROXY=off$'
-
-[short] skip 'the rest of the test uses git'
 
 # GONOPROXY bypasses proxy
 [!git] skip

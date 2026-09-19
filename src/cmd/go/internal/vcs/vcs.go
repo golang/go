@@ -751,6 +751,16 @@ func checkGOVCS(vcs *Cmd, root string) error {
 	return nil
 }
 
+// checkGOINSECURE checks whether the policy defined by the environment variable
+// GOINSECURE allows the given repository URL to be used with the given repository
+// root path.
+func checkGOINSECURE(vcs *Cmd, repoURL, path string) error {
+	if !vcs.IsSecure(repoURL) && !module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
+		return fmt.Errorf("go-import meta tag specifies repository URL %q with insecure scheme, but module path %q is not matched by the GOINSECURE environment variable; see 'go help environment'", repoURL, path)
+	}
+	return nil
+}
+
 // RepoRoot describes the repository root for a tree of source code.
 type RepoRoot struct {
 	Repo     string // repository URL, including scheme
@@ -1064,6 +1074,9 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 	}
 
 	if err := checkGOVCS(vcs, mmi.Prefix); err != nil {
+		return nil, err
+	}
+	if err := checkGOINSECURE(vcs, mmi.RepoRoot, importPath); err != nil {
 		return nil, err
 	}
 

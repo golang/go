@@ -103,9 +103,10 @@ tail:
 	SGTU	$33, R6, R9
 	BNE	R9, move_17through32
 
-	// >= 33 bytes and < 65 bytes
+	// >= 33 bytes and < 65 bytes: dispatch to scalar or vector
+	// (LSX) handling depending on dst/src alignment.
 	SGTU	$65, R6, R9
-	BNE	R9, move_33through64
+	BNE	R9, move_33through64_dispatch
 
 	// >= 65 bytes and < 256 bytes
 	SGTU	$256, R6, R9
@@ -178,6 +179,33 @@ move_33through64:
 	MOVV	R16, -24(R7)
 	MOVV	R17, -16(R7)
 	MOVV	R18, -8(R7)
+	RET
+
+// move_33through64_dispatch only runs for the 33~64 byte bucket.
+// Aligned dst/src (the common case) falls straight through to the
+// original scalar move_33through64 after 3 extra instructions
+// (OR/AND/BEQ). Unaligned dst/src without LSX support falls through
+// after 5 extra instructions (OR/AND/BEQ/MOVBU/BEQ). Unaligned
+// dst/src with LSX available uses four 128-bit vector load/store
+// pairs instead of the eight scalar MOVV load/store pairs used by
+// move_33through64.
+move_33through64_dispatch:
+	OR	R4, R5, R9
+	AND	$7, R9
+	BEQ	R9, move_33through64
+	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R9
+	BEQ	R9, move_33through64
+	JMP	lsx_move_33through64
+
+lsx_move_33through64:
+	VMOVQ	(R5), V0
+	VMOVQ	16(R5), V1
+	VMOVQ	-32(R8), V2
+	VMOVQ	-16(R8), V3
+	VMOVQ	V0, (R4)
+	VMOVQ	V1, 16(R4)
+	VMOVQ	V2, -32(R7)
+	VMOVQ	V3, -16(R7)
 	RET
 
 move_large:

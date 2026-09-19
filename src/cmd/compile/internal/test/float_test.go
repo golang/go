@@ -806,3 +806,95 @@ func BenchmarkMulNeg2(b *testing.B) {
 		sinkFloat = m
 	}
 }
+
+// The "a < b ? a : b" branch idiom lowers to a single min/max instruction
+// (MINSD/MAXSD on amd64, FCSEL on arm64). Unlike the min/max builtins it keeps
+// the branch's own NaN and signed-zero behavior. Test the optimized assign
+// form against an unoptimized reference whose comparison is hidden behind a
+// noinline call (compare1/compare2) so it can't be rewritten to the same
+// instruction.
+
+//go:noinline
+func minBranch64(a, b float64) float64 {
+	r := b
+	if a < b {
+		r = a
+	}
+	return r
+}
+
+//go:noinline
+func maxBranch64(a, b float64) float64 {
+	r := b
+	if a > b {
+		r = a
+	}
+	return r
+}
+
+//go:noinline
+func minBranch32(a, b float32) float32 {
+	r := b
+	if a < b {
+		r = a
+	}
+	return r
+}
+
+//go:noinline
+func maxBranch32(a, b float32) float32 {
+	r := b
+	if a > b {
+		r = a
+	}
+	return r
+}
+
+func minRef64(a, b float64) float64 {
+	if compare1(a, b) {
+		return a
+	}
+	return b
+}
+func maxRef64(a, b float64) float64 {
+	if compare1(b, a) {
+		return a
+	}
+	return b
+}
+func minRef32(a, b float32) float32 {
+	if compare2(a, b) {
+		return a
+	}
+	return b
+}
+func maxRef32(a, b float32) float32 {
+	if compare2(b, a) {
+		return a
+	}
+	return b
+}
+
+func TestFloatMinMaxBranchIdiom(t *testing.T) {
+	vals := []float64{
+		0, math.Copysign(0, -1), 1, -1, 2, -2, 0.5, -0.5,
+		math.Inf(1), math.Inf(-1), math.NaN(),
+	}
+	for _, a := range vals {
+		for _, b := range vals {
+			if got, want := minBranch64(a, b), minRef64(a, b); math.Float64bits(got) != math.Float64bits(want) {
+				t.Errorf("minBranch64(%x, %x) = %x, want %x", a, b, got, want)
+			}
+			if got, want := maxBranch64(a, b), maxRef64(a, b); math.Float64bits(got) != math.Float64bits(want) {
+				t.Errorf("maxBranch64(%x, %x) = %x, want %x", a, b, got, want)
+			}
+			a32, b32 := float32(a), float32(b)
+			if got, want := minBranch32(a32, b32), minRef32(a32, b32); math.Float32bits(got) != math.Float32bits(want) {
+				t.Errorf("minBranch32(%x, %x) = %x, want %x", a32, b32, got, want)
+			}
+			if got, want := maxBranch32(a32, b32), maxRef32(a32, b32); math.Float32bits(got) != math.Float32bits(want) {
+				t.Errorf("maxBranch32(%x, %x) = %x, want %x", a32, b32, got, want)
+			}
+		}
+	}
+}

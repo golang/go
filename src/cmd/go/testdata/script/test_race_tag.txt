@@ -1,6 +1,5 @@
 # Tests Issue #54468
 
-[short] skip 'links a test binary'
 [!race] skip
 
 go mod tidy

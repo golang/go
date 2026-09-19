@@ -32,5 +32,5 @@ func g(x int) func() {
 
 func h(x int) func() {
 	// amd64:"LEAQ command-line-arguments\\.h\\.func1"
-	return func() { recover() }
+	return func() { defer func() {}() } // defer prevents inlining
 }

@@ -2,7 +2,6 @@
 # See https://go.dev/issue/58218.
 
 [!git] skip
-[short] skip
 
 # Create repo with a commit.
 cd repo

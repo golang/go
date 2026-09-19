@@ -105,8 +105,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		// Use EnterModule to make a loader with a single work module.
-		loader := modload.NewLoader()
-		modload.EnterModule(loader, ctx, mms.ModRoot(m))
+		loader := modload.NewForModroot(ctx, mms.ModRoot(m))
 
 		// Edit the build list in the same way that 'go get' would if we
 		// requested the relevant module versions explicitly.
@@ -152,5 +151,18 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	modload.UpdateWorkFile(wf)
 	if err := modload.WriteWorkFile(workFilePath, wf); err != nil {
 		base.Fatal(err)
+	}
+
+	if moduleLoader.HasModRoot() {
+		if err := moduleLoader.Fetcher().ReloadWorkspaceGoSumFiles(); err != nil {
+			base.Fatal(err)
+		}
+		modload.ExplicitWriteGoMod = true
+		if _, err := modload.ListModules(moduleLoader, ctx, []string{"all"}, 0, ""); err != nil {
+			base.Fatal(err)
+		}
+		if err := modload.WriteTidyGoSum(moduleLoader, ctx); err != nil {
+			base.Fatal(err)
+		}
 	}
 }

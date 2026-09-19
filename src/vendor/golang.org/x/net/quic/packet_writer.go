@@ -223,10 +223,7 @@ func (w *packetWriter) avail() int {
 // (including AEAD overhead of the current packet) is n.
 func (w *packetWriter) appendPaddingTo(n int) {
 	n -= aeadOverhead
-	lim := w.pktLim
-	if n < lim {
-		lim = n
-	}
+	lim := min(w.pktLim, n)
 	if len(w.b) >= lim {
 		return
 	}

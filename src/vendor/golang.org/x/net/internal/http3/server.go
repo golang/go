@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net"
 	"net/http"
 	"net/textproto"
 	"os"
@@ -27,16 +28,10 @@ import (
 // A server is an HTTP/3 server.
 // The zero value for server is a valid server.
 type server struct {
-	// handler to invoke for requests, http.DefaultServeMux if nil.
-	handler    http.Handler
-	config     *quic.Config
-	srv1       *http.Server
-	listenQUIC func(addr string, config *quic.Config) (*quic.Endpoint, error)
+	srv1 *http.Server
+	opts ServerOpts
 
 	initOnce sync.Once
-
-	serveCtx       context.Context
-	serveCtxCancel context.CancelFunc
 
 	// connClosed is used to signal that a connection has been unregistered
 	// from activeConns. That way, when shutting down gracefully, the server
@@ -46,29 +41,37 @@ type server struct {
 	activeConns map[*serverConn]struct{}
 }
 
-// netHTTPHandler is an interface that is implemented by
-// net/http.http3ServerHandler in std.
+// netHTTPServer implements the net/http.http3Server interface,
+// allowing our HTTP/3 server to integrate with net/http.
+type netHTTPServer struct {
+	*server
+}
+
+// Implement net.Listener, so we can pass a netHTTPServer to net/http.Server.Serve.
+func (netHTTPServer) Accept() (net.Conn, error) { return nil, net.ErrClosed }
+func (netHTTPServer) Close() error              { return nil }
+func (netHTTPServer) Addr() net.Addr            { return nil }
+
+// ServeHTTP3 starts serving HTTP/3 on a UDP port.
 //
-// It provides a way for information to be passed between x/net and net/http
-// that would otherwise be inaccessible, such as the TLS configs that users
-// have supplied to net/http servers.
-//
-// This allows us to integrate our HTTP/3 server implementation with the
-// net/http server when RegisterServer is called.
-type netHTTPHandler interface {
-	http.Handler
-	TLSConfig() *tls.Config
-	BaseContext() context.Context
-	Addr() string
-	ListenErrHook(err error)
-	ShutdownContext() context.Context
+// The ctx parameter is used as the base context for request handlers
+// for requests receieved via this port.
+func (s netHTTPServer) ServeHTTP3(ctx context.Context, conn net.PacketConn, tlsConfig *tls.Config, h http.Handler) error {
+	s.init()
+	e, err := quic.NewEndpoint(conn, newQUICConfig(s.opts.QUICConfig, tlsConfig))
+	if err != nil {
+		return err
+	}
+	return s.serve(ctx, e, h)
+}
+
+// Shutdown shuts down the server.
+func (s netHTTPServer) Shutdown(ctx context.Context) error {
+	s.shutdown(ctx)
+	return nil
 }
 
 type ServerOpts struct {
-	// ListenQUIC determines how the server will open a QUIC endpoint.
-	// By default, quic.Listen("udp", addr, config) is used.
-	ListenQUIC func(addr string, config *quic.Config) (*quic.Endpoint, error)
-
 	// QUICConfig is the QUIC configuration used by the server.
 	// QUICConfig may be nil and should not be modified after calling
 	// RegisterServer.
@@ -81,79 +84,34 @@ type ServerOpts struct {
 //
 // RegisterServer must be called before s begins serving, and only affects
 // s.ListenAndServeTLS.
-func RegisterServer(s *http.Server, opts ServerOpts) {
-	if s.TLSNextProto == nil {
-		s.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
+func RegisterServer(s *http.Server, opts ServerOpts) error {
+	if err := s.Serve(netHTTPServer{&server{
+		opts: opts,
+		srv1: s,
+	}}); err != nil {
+		return errors.New("http3: net/http does not support HTTP/3")
 	}
-	s.TLSNextProto["http/3"] = func(s *http.Server, c *tls.Conn, h http.Handler) {
-		stdHandler, ok := h.(netHTTPHandler)
-		if !ok {
-			panic("RegisterServer was given a server that does not implement netHTTPHandler")
-		}
-		if opts.QUICConfig == nil {
-			opts.QUICConfig = &quic.Config{}
-		}
-		if opts.QUICConfig.TLSConfig == nil {
-			opts.QUICConfig.TLSConfig = stdHandler.TLSConfig()
-		}
-		s3 := &server{
-			config:     opts.QUICConfig,
-			listenQUIC: opts.ListenQUIC,
-			srv1:       s,
-			handler:    stdHandler,
-			serveCtx:   stdHandler.BaseContext(),
-		}
-		s3.init()
-		s.RegisterOnShutdown(func() {
-			s3.shutdown(stdHandler.ShutdownContext())
-		})
-		stdHandler.ListenErrHook(s3.listenAndServe(stdHandler.Addr()))
-	}
+	return nil
 }
 
 func (s *server) init() {
 	s.initOnce.Do(func() {
-		s.config = initConfig(s.config)
-		if s.handler == nil {
-			s.handler = http.DefaultServeMux
-		}
-		if s.serveCtx == nil {
-			s.serveCtx = context.Background()
-		}
-		if s.listenQUIC == nil {
-			s.listenQUIC = func(addr string, config *quic.Config) (*quic.Endpoint, error) {
-				return quic.Listen("udp", addr, config)
-			}
-		}
-		s.serveCtx, s.serveCtxCancel = context.WithCancel(s.serveCtx)
 		s.activeConns = make(map[*serverConn]struct{})
 		s.connClosed = make(chan any, 1)
 	})
 }
 
-// listenAndServe listens on the UDP network address addr
-// and then calls Serve to handle requests on incoming connections.
-func (s *server) listenAndServe(addr string) error {
-	s.init()
-	e, err := s.listenQUIC(addr, s.config)
-	if err != nil {
-		return err
-	}
-	go s.serve(e)
-	return nil
-}
-
 // serve accepts incoming connections on the QUIC endpoint e,
 // and handles requests from those connections.
-func (s *server) serve(e *quic.Endpoint) error {
+func (s *server) serve(ctx context.Context, e *quic.Endpoint, h http.Handler) error {
 	s.init()
 	defer e.Close(canceledCtx)
 	for {
-		qconn, err := e.Accept(s.serveCtx)
+		qconn, err := e.Accept(ctx)
 		if err != nil {
 			return err
 		}
-		go s.newServerConn(qconn)
+		go s.newServerConn(ctx, qconn, h)
 	}
 }
 
@@ -181,7 +139,6 @@ func (s *server) shutdown(ctx context.Context) {
 	defer func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.serveCtxCancel()
 		for sc := range s.activeConns {
 			sc.abort(&connectionError{
 				code:    errH3NoError,
@@ -254,12 +211,17 @@ func (s *server) idleTimeout() time.Duration {
 }
 
 type serverConn struct {
-	qconn *quic.Conn
-	srv   *server
+	qconn   *quic.Conn
+	srv     *server
+	baseCtx context.Context
+	handler http.Handler
 
 	genericConn // for handleUnidirectionalStream
 	enc         qpackEncoder
 	dec         qpackDecoder
+
+	maxHeaderBytes      int64
+	maxHeaderValueCount int64
 
 	// For handling shutdown.
 	controlStream      *stream
@@ -268,11 +230,28 @@ type serverConn struct {
 	goawaySent         bool
 }
 
-func (s *server) newServerConn(qconn *quic.Conn) {
+// newServerConn handles a new connection.
+// The baseCtx parameter is the base context for request handlers on this connection.
+func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http.Handler) {
 	sc := &serverConn{
-		qconn: qconn,
-		srv:   s,
+		qconn:          qconn,
+		srv:            s,
+		baseCtx:        baseCtx,
+		handler:        h,
+		maxHeaderBytes: int64(s.srv1.MaxHeaderBytes),
+		// TODO: When we only support go1.27.
+		//maxHeaderValueCount: int64(s.srv1.MaxHeaderValueCount),
 	}
+
+	// Should we permit disabling these limits? For now, we do not.
+	if sc.maxHeaderBytes <= 0 {
+		sc.maxHeaderBytes = int64(http.DefaultMaxHeaderBytes)
+	}
+	// TODO: When we only support go1.27.
+	// if sc.maxHeaderValueCount <= 0 {
+	// 	sc.maxHeaderValueCount = int64(http.DefaultMaxHeaderValueCount)
+	// }
+
 	s.registerConn(sc)
 	defer s.unregisterConn(sc)
 	sc.enc.init()
@@ -284,7 +263,9 @@ func (s *server) newServerConn(qconn *quic.Conn) {
 	if err != nil {
 		return
 	}
-	sc.controlStream.writeSettings()
+	sc.controlStream.writeSettings(
+		settingsMaxFieldSectionSize, sc.maxHeaderBytes,
+	)
 	sc.controlStream.Flush()
 
 	sc.acceptStreams(sc.qconn, sc)
@@ -399,13 +380,36 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 	if ftype != frameTypeHeaders {
 		return nil, pseudoHeader{}, &streamError{errH3MessageError, "received other frames when expecting HEADERS"}
 	}
+	if st.lim > sc.maxHeaderBytes {
+		// If the encoded headers exceed the limit, just reject the request out of hand.
+		// This lets us safely check limits in the dec.decode callback below,
+		// since the maximum Huffman expansion factor is only ~1.6x.
+		return nil, pseudoHeader{}, &streamError{errH3RequestRejected, "headers too large"}
+	}
 	header := make(http.Header)
+	valueCount := int64(0)
+	totalSize := int64(0)
 	var pHeader pseudoHeader
 	var dec qpackDecoder
 	var hasMethod, hasScheme, hasPath, hasAuthority bool
 	if err := dec.decode(st, func(_ indexType, name, value string) error {
+		totalSize += int64(len(name)) + int64(len(value)) + 32 // RFC 9114 Section 4.2.2
+		valueCount++
+		if totalSize > sc.maxHeaderBytes {
+			return &streamError{errH3RequestRejected, "headers too large"}
+		}
+		// TODO: When we only support go1.27.
+		//if valueCount > sc.maxHeaderValueCount {
+		//	return &streamError{errH3RequestRejected, "headers too large"}
+		//}
 		if !httpguts.ValidHeaderFieldValue(value) {
 			return &streamError{errH3MessageError, "invalid field value"}
+		}
+		if name == "" || (name[0] == ':' && value == "") {
+			// Reject 0-length pseudo-header values up front,
+			// to avoid any confusion down the line between
+			// "present but zero-length" and "absent".
+			return &streamError{errH3MessageError, "invalid field"}
 		}
 		switch name {
 		case ":method":
@@ -544,14 +548,14 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 	}
 
 	contentLength := int64(-1)
-	if n, err := strconv.Atoi(header.Get("Content-Length")); err == nil {
+	if n, err := strconv.ParseUint(header.Get("Content-Length"), 10, 63); err == nil {
 		contentLength = int64(n)
 	}
 
-	req := &http.Request{
+	req := (&http.Request{
 		Proto:         "HTTP/3.0",
 		Method:        pHeader.method,
-		Host:          pHeader.authority,
+		Host:          reqInfo.Host,
 		URL:           reqInfo.URL,
 		RequestURI:    reqInfo.RequestURI,
 		Trailer:       reqInfo.Trailer,
@@ -559,7 +563,7 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 		RemoteAddr:    sc.qconn.RemoteAddr().String(),
 		Header:        header,
 		ContentLength: contentLength,
-	}
+	}).WithContext(sc.baseCtx)
 
 	rw := &responseWriter{
 		st:             st,
@@ -596,14 +600,14 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 	if t := sc.srv.writeTimeout(); t > 0 {
 		st.writeDeadline.set(time.Now().Add(t))
 	}
-	sc.srv.handler.ServeHTTP(rw, req)
+	sc.handler.ServeHTTP(rw, req)
 	return rw.close()
 }
 
 // abort closes the connection with an error.
 func (sc *serverConn) abort(err error) {
 	if e, ok := err.(*connectionError); ok {
-		sc.qconn.Abort(&quic.ApplicationError{
+		sc.qconn.Abort(&quic.ConnectionCloseError{
 			Code:   uint64(e.code),
 			Reason: e.message,
 		})
@@ -640,11 +644,11 @@ type responseWriter struct {
 	snapHeaders    http.Header // Snapshot of headers at WriteHeader time
 	trailer        http.Header
 	bb             bodyBuffer
-	wroteHeader    bool // Non-1xx header has been (logically) written.
-	statusCode     int  // Non-1xx status of the response that will be sent in HEADERS frame. Zero means none has been set.
-	sent100        bool // Status 100 has been sent by the server.
-	cannotHaveBody bool // Response should not have a body (e.g. response to a HEAD request).
-	bodyLenLeft    int  // How much of the content body is left to be sent, set via "Content-Length" header. -1 if unknown.
+	wroteHeader    bool  // Non-1xx header has been (logically) written.
+	statusCode     int   // Non-1xx status of the response that will be sent in HEADERS frame. Zero means none has been set.
+	sent100        bool  // Status 100 has been sent by the server.
+	cannotHaveBody bool  // Response should not have a body (e.g. response to a HEAD request).
+	bodyLenLeft    int64 // How much of the content body is left to be sent, set via "Content-Length" header. -1 if unknown.
 }
 
 func (rw *responseWriter) Header() http.Header {
@@ -792,13 +796,14 @@ func (rw *responseWriter) WriteHeader(statusCode int) {
 
 	// Non-informational headers should only be set once, and should be
 	// buffered.
-	rw.statusCode = statusCode
-	rw.snapHeaders = rw.headers.Clone()
-	if n, err := strconv.Atoi(rw.Header().Get("Content-Length")); err == nil {
-		rw.bodyLenLeft = n
+	if n, err := strconv.ParseUint(rw.headers.Get("Content-Length"), 10, 63); err == nil {
+		rw.bodyLenLeft = int64(n)
 	} else {
+		rw.headers.Del("Content-Length")
 		rw.bodyLenLeft = -1 // Unknown.
 	}
+	rw.statusCode = statusCode
+	rw.snapHeaders = rw.headers.Clone()
 }
 
 // trimWriteLocked trims a byte slice, b, such that the length of b will not
@@ -809,9 +814,9 @@ func (rw *responseWriter) trimWriteLocked(b []byte) ([]byte, bool) {
 	if rw.bodyLenLeft < 0 {
 		return b, false
 	}
-	n := min(len(b), rw.bodyLenLeft)
+	n := min(int64(len(b)), rw.bodyLenLeft)
 	rw.bodyLenLeft -= n
-	return b[:n], n != len(b)
+	return b[:n], n != int64(len(b))
 }
 
 func (rw *responseWriter) Write(b []byte) (n int, err error) {
@@ -952,7 +957,7 @@ func (bb *bodyBuffer) inferHeader(h http.Header, status int) {
 	}
 	// If the Content-Encoding is non-blank, we shouldn't
 	// sniff the body. See Issue golang.org/issue/31753.
-	_, hasCE := h["Content-Encoding"]
+	hasCE := len(h.Get("Content-Encoding")) > 0
 	_, hasCT := h["Content-Type"]
 	if !hasCE && !hasCT && responseCanHaveBody(status) && len(*bb) > 0 {
 		h.Set("Content-Type", http.DetectContentType(*bb))

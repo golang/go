@@ -341,17 +341,9 @@ type goTest struct {
 	runOnHost bool // When cross-compiling, run this test on the host instead of guest
 
 	// variant, if non-empty, is a name used to distinguish different
-	// configurations of the same test package(s). If set and omitVariant is false,
-	// the Package field in test2json output is rewritten to pkg:variant.
+	// configurations of the same test package(s). If set, the Package field
+	// in test2json output is rewritten to pkg:variant.
 	variant string
-	// omitVariant indicates that variant is used solely for the dist test name and
-	// that the set of test names run by each variant (including empty) of a package
-	// is non-overlapping.
-	//
-	// TODO(mknyszek): Consider removing omitVariant as it is no longer set to true
-	// by any test. It's too valuable to have timing information in ResultDB that
-	// corresponds directly with dist names for tests.
-	omitVariant bool
 
 	// We have both pkg and pkgs as a convenience. Both may be set, in which
 	// case they will be combined. At least one must be set.
@@ -399,10 +391,8 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cm
 
 	cmd = exec.Command(gorootBinGo, args...)
 	setupCmd(cmd)
-	if t.json && opts.variant != "" && !opts.omitVariant {
-		// Rewrite Package in the JSON output to be pkg:variant. When omitVariant
-		// is true, pkg.TestName is already unambiguous, so we don't need to
-		// rewrite the Package field.
+	if t.json && opts.variant != "" {
+		// Rewrite Package in the JSON output to be pkg:variant.
 		//
 		// We only want to process JSON on the child's stdout. Ideally if
 		// stdout==stderr, we would also use the same testJSONFilter for
@@ -610,16 +600,15 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 		defer timelog("end", dt.name)
 		ranGoBench = true
 		return (&goTest{
-			variant: "racebench",
 			// Include the variant even though there's no overlap in test names.
 			// This makes the test targets distinct, allowing our build system to record
 			// elapsed time for each one, which is useful for load-balancing test shards.
-			omitVariant: false,
-			timeout:     20 * time.Minute, // longer timeout for race with benchmarks
-			race:        true,
-			bench:       true,
-			cpu:         "4",
-			pkgs:        benchMatches,
+			variant: "racebench",
+			timeout: 20 * time.Minute, // longer timeout for race with benchmarks
+			race:    true,
+			bench:   true,
+			cpu:     "4",
+			pkgs:    benchMatches,
 		}).run(t)
 	})
 }
@@ -1044,14 +1033,13 @@ func (t *tester) registerTests() {
 			id := fmt.Sprintf("%d_%d", shard, nShards)
 			t.registerTest("../test",
 				&goTest{
-					variant: id,
 					// Include the variant even though there's no overlap in test names.
 					// This makes the test target more clearly distinct in our build
 					// results and is important for load-balancing test shards.
-					omitVariant: false,
-					pkg:         "cmd/internal/testdir",
-					testFlags:   []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
-					runOnHost:   true,
+					variant:   id,
+					pkg:       "cmd/internal/testdir",
+					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
+					runOnHost: true,
 				},
 			)
 		}

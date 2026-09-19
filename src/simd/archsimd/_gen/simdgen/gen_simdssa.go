@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"simd/archsimd/_gen/simdgen/types"
 	"sort"
 	"strings"
 	"text/template"
@@ -22,9 +23,10 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj"
 	"cmd/internal/obj/{{.ObjArch}}"
+	"cmd/compile/internal/ssa/ssaop"
 )
 
-func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
+func ssaGenSIMD{{.FuncInfix}}Value(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {{"{"}}{{end}}
 {{define "case"}}
@@ -62,11 +64,26 @@ type tplSSAHeader struct {
 	Arch            string
 	ObjArch         string
 	GeneratedHeader string
+	// FuncInfix disambiguates the generated ssaGenSIMD<FuncInfix>Value function
+	// name when a target shares another's backend package.
+	// Empty for the primary target.
+	FuncInfix string
 }
 
 // getArrangementFromOp extracts the arrangement constant from an SSA op name for ARM64.
 // For example, "ssa.OpARM64VFADD4S" returns "arm64.ARNG_4S".
 func getArrangementFromOp(archInfo ArchInfo, caseStr string) string {
+	if archInfo.isSVE() {
+		// SVE machine op names end in a single element-size letter (ZADD -> ZADDB,
+		// ZSQADD -> ZSQADDD). Match the suffix, not any occurrence: "ZSQADDD"
+		// contains "S" (from SQADD) but its arrangement is the trailing "D".
+		for _, a := range archInfo.Arrangements {
+			if strings.HasSuffix(caseStr, a) {
+				return archInfo.Arch + ".ARNG_" + a
+			}
+		}
+		return ""
+	}
 	for _, a := range archInfo.Arrangements {
 		if strings.Contains(caseStr, a) {
 			return archInfo.Arch + ".ARNG_" + a
@@ -77,7 +94,7 @@ func getArrangementFromOp(archInfo ArchInfo, caseStr string) string {
 
 // writeSIMDSSA generates the ssa to prog lowering codes and writes it to simdssa.go
 // within the specified directory.
-func writeSIMDSSA(ops []Operation) *bytes.Buffer {
+func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 	archInfo := CurrentArch()
 	var ZeroingMask []string
 	regInfoKeys := archInfo.RegInfoKeys
@@ -147,7 +164,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 			if shapeOut != OneVregOutAtIn {
 				// We have to copy the slice here because the sort will be visible from other
 				// aliases when no reslicing is happening.
-				newIn := make([]Operand, len(op.In), len(op.In)+1)
+				newIn := make([]types.Operand, len(op.In), len(op.In)+1)
 				copy(newIn, op.In)
 				op.In = newIn
 				op.In = append(op.In, op.Out[0])
@@ -174,6 +191,19 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		registerRegShape(regShape, caseStr, op)
 		return nil
 	}
+	// An SVE inVariant implies machine ops that are not operations of their own,
+	// so expand them here too; each needs its own ssa-to-prog case.
+	expanded := make([]Operation, 0, len(ops))
+	for _, op := range ops {
+		expanded = append(expanded, op)
+		for _, pred := range op.svePredicatedOps() {
+			expanded = append(expanded, pred)
+			if prefixed := pred.sveMergingPrefixedOp(); prefixed != nil {
+				expanded = append(expanded, *prefixed)
+			}
+		}
+	}
+	ops = expanded
 	for _, op := range ops {
 		shapeIn, shapeOut, maskType, immType, gOp, immOpArg := op.shape()
 		asm := machineOpName(maskType, gOp)
@@ -181,10 +211,14 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 			continue
 		}
 		seen[asm] = struct{}{}
-		caseStr := fmt.Sprintf("ssa.Op%s%s", archInfo.ArchUpper, asm)
+		caseStr := fmt.Sprintf("ssaop.Op%s%s", archInfo.ArchUpper, asm)
 		isZeroMasking := false
 		if shapeIn == OneKmaskIn || shapeIn == OneKmaskImmIn {
-			if gOp.Zeroing == nil || *gOp.Zeroing {
+			if (gOp.Zeroing == nil || *gOp.Zeroing) && !CurrentArch().isSVE() {
+				// x86 spells the zeroing/merging choice as an assembler suffix on
+				// the masked instruction. SVE encodes it in the governing predicate
+				// operand itself (Pg/Z or Pg/M), which the ssa-to-prog helper
+				// already emits, so there is no suffix to parse.
 				ZeroingMask = append(ZeroingMask, caseStr)
 				isZeroMasking = true
 			}
@@ -200,7 +234,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 			kind := op.hiHalfKind()
 			if kind != "" {
 				asm2 := hiHalfOpName(*gOp.HiHalfAsm, gOp)
-				caseStr2 := fmt.Sprintf("ssa.Op%s%s", archInfo.ArchUpper, asm2)
+				caseStr2 := fmt.Sprintf("ssaop.Op%s%s", archInfo.ArchUpper, asm2)
 				if _, ok2 := seen[asm2]; !ok2 {
 					seen[asm2] = struct{}{}
 					if err := classifyHiHalfOp(op, kind, caseStr2, immOpArg, immType); err != nil {
@@ -233,12 +267,11 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		panic(fmt.Errorf("unsupported register constraint for prog, please update gen_simdssa.go and amd64/ssa.go: %+v\nAll keys: %v\n, cases: %v\n", allUnseen, allKeys, allUnseenCaseStr))
 	}
 
-	buffer := new(bytes.Buffer)
-
 	headerData := tplSSAHeader{
 		Arch:            archInfo.Arch,
 		ObjArch:         archInfo.ObjArch,
 		GeneratedHeader: archInfo.GeneratedHeader,
+		FuncInfix:       archInfo.ssaGenFuncInfix(),
 	}
 	if err := ssaTemplates.ExecuteTemplate(buffer, "header", headerData); err != nil {
 		panic(fmt.Errorf("failed to execute header template: %w", err))
@@ -294,6 +327,4 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 	if err := ssaTemplates.ExecuteTemplate(buffer, "ending", headerData); err != nil {
 		panic(fmt.Errorf("failed to execute ending template: %w", err))
 	}
-
-	return buffer
 }

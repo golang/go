@@ -41,19 +41,27 @@ import (
 
 var testTime = func() time.Time { return time.Unix(1476984729, 0) }
 
-var testConfigServer = &Config{
-	Time: testTime,
-	Certificates: []Certificate{testECDSAP256Cert, testRSA2048Cert, testEd25519Cert, testSNICert,
-		testMLDSA44Cert, testMLDSA65Cert, testMLDSA87Cert},
-	ClientCAs: testClientRootCertPool,
+var testKeyLogWriter io.Writer
+
+func testConfigServer() *Config {
+	return &Config{
+		Time: testTime,
+		Certificates: []Certificate{testECDSAP256Cert, testRSA2048Cert, testEd25519Cert, testSNICert,
+			testMLDSA44Cert, testMLDSA65Cert, testMLDSA87Cert},
+		ClientCAs:    testClientRootCertPool,
+		KeyLogWriter: testKeyLogWriter,
+	}
 }
 
-var testConfigClient = &Config{
-	Time: testTime,
-	Certificates: []Certificate{testClientECDSAP256Cert, testClientRSA2048Cert, testClientEd25519Cert,
-		testClientMLDSA44Cert, testClientMLDSA65Cert, testClientMLDSA87Cert},
-	RootCAs:    testRootCertPool,
-	ServerName: "test.golang.example",
+func testConfigClient() *Config {
+	return &Config{
+		Time: testTime,
+		Certificates: []Certificate{testClientECDSAP256Cert, testClientRSA2048Cert, testClientEd25519Cert,
+			testClientMLDSA44Cert, testClientMLDSA65Cert, testClientMLDSA87Cert},
+		RootCAs:      testRootCertPool,
+		ServerName:   "test.golang.example",
+		KeyLogWriter: testKeyLogWriter,
+	}
 }
 
 func TestX509KeyPair(t *testing.T) {
@@ -321,7 +329,7 @@ func TestDeadlineOnWrite(t *testing.T) {
 			srvCh <- nil
 			return
 		}
-		srv := Server(sconn, testConfigServer.Clone())
+		srv := Server(sconn, testConfigServer())
 		if err := srv.Handshake(); err != nil {
 			srvCh <- nil
 			return
@@ -329,7 +337,7 @@ func TestDeadlineOnWrite(t *testing.T) {
 		srvCh <- srv
 	}()
 
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.MaxVersion = VersionTLS12
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
@@ -459,7 +467,7 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 			srvCh <- nil
 			return
 		}
-		serverConfig := testConfigServer.Clone()
+		serverConfig := testConfigServer()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
@@ -469,7 +477,7 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 		srvCh <- srv
 	}()
 
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	// In TLS 1.3, alerts are encrypted and disguised as application data, so
 	// the opportunistic peek won't work.
 	clientConfig.MaxVersion = VersionTLS12
@@ -509,7 +517,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()
 
-	serverConfig := testConfigServer.Clone()
+	serverConfig := testConfigServer()
 	serverConfig.MaxVersion = VersionTLS12 // TLSUnique is not defined in TLS 1.3
 
 	serverTLSUniques := make(chan []byte)
@@ -537,7 +545,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 		}
 	}()
 
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
@@ -655,7 +663,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 			srvCh <- nil
 			return
 		}
-		serverConfig := testConfigServer.Clone()
+		serverConfig := testConfigServer()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
@@ -675,7 +683,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 		Conn: cconn,
 	}
 
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	tconn := Client(conn, clientConfig)
 	if err := tconn.Handshake(); err != nil {
 		t.Fatal(err)
@@ -732,7 +740,7 @@ func TestConnCloseWrite(t *testing.T) {
 		}
 		defer sconn.Close()
 
-		serverConfig := testConfigServer.Clone()
+		serverConfig := testConfigServer()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			return fmt.Errorf("handshake: %v", err)
@@ -762,7 +770,7 @@ func TestConnCloseWrite(t *testing.T) {
 	clientCloseWrite := func() error {
 		defer close(clientDoneChan)
 
-		clientConfig := testConfigClient.Clone()
+		clientConfig := testConfigClient()
 		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 		if err != nil {
 			return err
@@ -817,7 +825,7 @@ func TestConnCloseWrite(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer netConn.Close()
-		conn := Client(netConn, testConfigClient.Clone())
+		conn := Client(netConn, testConfigClient())
 
 		if err := conn.CloseWrite(); err != errEarlyCloseWrite {
 			t.Errorf("CloseWrite error = %v; want errEarlyCloseWrite", err)
@@ -836,7 +844,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		}
 		defer sconn.Close()
 
-		serverConfig := testConfigServer.Clone()
+		serverConfig := testConfigServer()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			return fmt.Errorf("handshake: %v", err)
@@ -858,7 +866,7 @@ func TestWarningAlertFlood(t *testing.T) {
 	errChan := make(chan error, 1)
 	go func() { errChan <- server() }()
 
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.MaxVersion = VersionTLS12 // there are no warning alerts in TLS 1.3
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
@@ -1060,7 +1068,7 @@ func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSiz
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(sconn, serverConfig)
@@ -1074,7 +1082,7 @@ func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSiz
 	}()
 
 	b.SetBytes(totalBytes)
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 	clientConfig.MaxVersion = version
@@ -1158,7 +1166,7 @@ func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled 
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(&slowConn{sconn, bps}, serverConfig)
 			if err := srv.Handshake(); err != nil {
@@ -1168,7 +1176,7 @@ func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled 
 		}
 	}()
 
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 	clientConfig.MaxVersion = version
 
@@ -1425,7 +1433,7 @@ func TestConnectionState(t *testing.T) {
 // Issue 28744: Ensure that we don't modify memory
 // that Config doesn't own such as Certificates.
 func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
-	config := testConfigServer.Clone()
+	config := testConfigServer()
 	config.Certificates = []Certificate{testRSA2048Cert, testSNICert}
 
 	config.BuildNameToCertificate()
@@ -1866,12 +1874,12 @@ func (s brokenSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts
 // TestPKCS1OnlyCert uses a client certificate with a broken crypto.Signer that
 // always makes PKCS #1 v1.5 signatures, so can't be used with RSA-PSS.
 func TestPKCS1OnlyCert(t *testing.T) {
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.Certificates = []Certificate{{
 		Certificate: testClientRSA2048Cert.Certificate,
 		PrivateKey:  brokenSigner{testClientRSA2048Key},
 	}}
-	serverConfig := testConfigServer.Clone()
+	serverConfig := testConfigServer()
 	serverConfig.MaxVersion = VersionTLS12 // TLS 1.3 doesn't support PKCS #1 v1.5
 	serverConfig.ClientAuth = RequireAnyClientCert
 
@@ -1948,11 +1956,11 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 			var serverVerifyConnection, clientVerifyConnection bool
 			var serverVerifyPeerCertificates, clientVerifyPeerCertificates bool
 
-			clientConfig := testConfigClient.Clone()
+			clientConfig := testConfigClient()
 			clientConfig.MaxVersion = version
 			clientConfig.MinVersion = version
 			clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.MaxVersion = version
 			serverConfig.MinVersion = version
 
@@ -2229,8 +2237,8 @@ func TestHandshakeMLKEM(t *testing.T) {
 		},
 	}
 
-	baseServerConfig := testConfigServer.Clone()
-	baseClientConfig := testConfigClient.Clone()
+	baseServerConfig := testConfigServer()
+	baseClientConfig := testConfigClient()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if fips140tls.Required() && test.expectSelected == X25519 {
@@ -2344,9 +2352,9 @@ func TestHandshakeMLDSA(t *testing.T) {
 	} {
 		t.Run(tt.name+"/ServerAuth", func(t *testing.T) {
 			t.Parallel()
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.Certificates = []Certificate{tt.cert}
-			clientConfig := testConfigClient.Clone()
+			clientConfig := testConfigClient()
 			_, cs, err := testHandshake(t, clientConfig, serverConfig)
 			if fips140.Version() == "v1.0.0" {
 				if err == nil {
@@ -2371,10 +2379,10 @@ func TestHandshakeMLDSA(t *testing.T) {
 		})
 		t.Run(tt.name+"/ClientAuth", func(t *testing.T) {
 			t.Parallel()
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.Certificates = []Certificate{testECDSAP256Cert}
 			serverConfig.ClientAuth = RequireAndVerifyClientCert
-			clientConfig := testConfigClient.Clone()
+			clientConfig := testConfigClient()
 			clientConfig.Certificates = []Certificate{tt.client}
 			ss, _, err := testHandshake(t, clientConfig, serverConfig)
 			if fips140.Version() == "v1.0.0" {
@@ -2400,10 +2408,10 @@ func TestHandshakeMLDSA(t *testing.T) {
 		})
 		t.Run(tt.name+"/MutualAuth", func(t *testing.T) {
 			t.Parallel()
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.Certificates = []Certificate{tt.cert}
 			serverConfig.ClientAuth = RequireAndVerifyClientCert
-			clientConfig := testConfigClient.Clone()
+			clientConfig := testConfigClient()
 			clientConfig.Certificates = []Certificate{tt.client}
 			ss, cs, err := testHandshake(t, clientConfig, serverConfig)
 			if fips140.Version() == "v1.0.0" {
@@ -2432,11 +2440,11 @@ func TestHandshakeMLDSA(t *testing.T) {
 				}
 				cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
 				t.Parallel()
-				serverConfig := testConfigServer.Clone()
+				serverConfig := testConfigServer()
 				serverConfig.MinVersion = VersionTLS10
 				serverConfig.Certificates = []Certificate{tt.cert}
 				serverConfig.MaxVersion = v
-				clientConfig := testConfigClient.Clone()
+				clientConfig := testConfigClient()
 				clientConfig.MinVersion = VersionTLS10
 				if _, _, err := testHandshake(t, clientConfig, serverConfig); err == nil {
 					t.Fatal("expected handshake failure when ML-DSA is the only server cert and the negotiation is not TLS 1.3")
@@ -2455,10 +2463,10 @@ func TestHandshakeMLDSA(t *testing.T) {
 			t.Run(name+"/Client", func(t *testing.T) {
 				cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
 				t.Parallel()
-				serverConfig := testConfigServer.Clone()
+				serverConfig := testConfigServer()
 				serverConfig.MinVersion = VersionTLS10
 				serverConfig.ClientAuth = RequireAndVerifyClientCert
-				clientConfig := testConfigClient.Clone()
+				clientConfig := testConfigClient()
 				clientConfig.MinVersion = VersionTLS10
 				clientConfig.Certificates = []Certificate{tt.client}
 				clientConfig.MaxVersion = v
@@ -2480,12 +2488,12 @@ func TestHandshakeMLDSA(t *testing.T) {
 		t.Run(tt.name+"/CorruptedSignature/Server", func(t *testing.T) {
 			cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
 			t.Parallel()
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.Certificates = []Certificate{{
 				Certificate: tt.cert.Certificate,
 				PrivateKey:  bitFlippingSigner{tt.cert.PrivateKey.(crypto.Signer)},
 			}}
-			clientConfig := testConfigClient.Clone()
+			clientConfig := testConfigClient()
 			_, _, err := testHandshake(t, clientConfig, serverConfig)
 			if err == nil {
 				t.Fatal("handshake unexpectedly succeeded with corrupted ML-DSA signature")
@@ -2500,9 +2508,9 @@ func TestHandshakeMLDSA(t *testing.T) {
 		t.Run(tt.name+"/CorruptedSignature/Client", func(t *testing.T) {
 			cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
 			t.Parallel()
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.ClientAuth = RequireAndVerifyClientCert
-			clientConfig := testConfigClient.Clone()
+			clientConfig := testConfigClient()
 			clientConfig.Certificates = []Certificate{{
 				Certificate: tt.client.Certificate,
 				PrivateKey:  bitFlippingSigner{tt.client.PrivateKey.(crypto.Signer)},
@@ -2560,7 +2568,7 @@ func TestEarlyLargeCertMsg(t *testing.T) {
 	}()
 
 	expectedErr := "tls: handshake message of length 131071 bytes exceeds maximum of 65536 bytes"
-	servConn := Server(server, testConfigServer.Clone())
+	servConn := Server(server, testConfigServer())
 	err := servConn.Handshake()
 	if err == nil {
 		t.Fatal("unexpected success")
@@ -2592,7 +2600,7 @@ func TestLargeCertMsg(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
+	clientConfig, serverConfig := testConfigClient(), testConfigServer()
 	clientConfig.InsecureSkipVerify = true
 	serverConfig.Certificates = []Certificate{
 		{
@@ -2670,7 +2678,7 @@ func TestECH(t *testing.T) {
 	})
 	echConfigList := builder.BytesOrPanic()
 
-	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
+	clientConfig, serverConfig := testConfigClient(), testConfigServer()
 	clientConfig.Time = nil
 	clientConfig.MinVersion = VersionTLS13
 	clientConfig.ServerName = "secret.example"
@@ -2757,7 +2765,7 @@ func TestMessageSigner(t *testing.T) {
 }
 
 func testMessageSigner(t *testing.T, version uint16) {
-	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
+	clientConfig, serverConfig := testConfigClient(), testConfigServer()
 	serverConfig.ClientAuth = RequireAnyClientCert
 	clientConfig.MinVersion = version
 	clientConfig.MaxVersion = version
@@ -2852,11 +2860,11 @@ func TestInvalidHandshakeSignature(t *testing.T) {
 }
 
 func testInvalidHandshakeSignature(t *testing.T, version uint16) {
-	serverConfig := testConfigServer.Clone()
+	serverConfig := testConfigServer()
 	serverConfig.MaxVersion = version
 	serverConfig.MinVersion = version
 	serverConfig.SessionTicketsDisabled = true
-	clientConfig := testConfigClient.Clone()
+	clientConfig := testConfigClient()
 	clientConfig.MaxVersion = version
 	clientConfig.MinVersion = version
 
@@ -2950,7 +2958,7 @@ func TestKeyLogWriterErr(t *testing.T) {
 }
 
 func testLocalCertificate(t *testing.T, version uint16, callback bool) {
-	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
+	clientConfig, serverConfig := testConfigClient(), testConfigServer()
 
 	clientConfig.MinVersion, serverConfig.MinVersion = version, version
 	clientConfig.MaxVersion, serverConfig.MaxVersion = version, version
@@ -2959,7 +2967,7 @@ func testLocalCertificate(t *testing.T, version uint16, callback bool) {
 	}
 	serverConfig.ClientAuth = RequestClientCert
 
-	serverCert, clientCert := testConfigServer.Certificates[0], testConfigClient.Certificates[0]
+	serverCert, clientCert := testConfigServer().Certificates[0], testConfigClient().Certificates[0]
 
 	if callback {
 		clientConfig.GetClientCertificate = func(_ *CertificateRequestInfo) (*Certificate, error) {
@@ -3009,7 +3017,7 @@ func TestLocalCertificate(t *testing.T) {
 }
 
 func testLocalCertificateResumption(t *testing.T, version uint16, callback bool) {
-	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
+	clientConfig, serverConfig := testConfigClient(), testConfigServer()
 
 	clientConfig.MinVersion, serverConfig.MinVersion = version, version
 	clientConfig.MaxVersion, serverConfig.MaxVersion = version, version
@@ -3019,7 +3027,7 @@ func testLocalCertificateResumption(t *testing.T, version uint16, callback bool)
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 	serverConfig.ClientAuth = RequestClientCert
 
-	serverCert, clientCert := testConfigServer.Certificates[0], testConfigClient.Certificates[0]
+	serverCert, clientCert := testConfigServer().Certificates[0], testConfigClient().Certificates[0]
 
 	if callback {
 		clientConfig.GetClientCertificate = func(_ *CertificateRequestInfo) (*Certificate, error) {

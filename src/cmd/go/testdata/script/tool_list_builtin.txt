@@ -1,0 +1,13 @@
+go tool
+
+# Tools already in the tool directory should not be listed twice.
+stdout -count=1 '^compile$'
+
+# Stripped builtin tools should still be listed (go.dev/issue/75960).
+stdout '^nm$'
+stdout '^objdump$'
+stdout '^pprof$'
+
+# Non-main packages should not appear.
+! stdout '^tools$'
+! stdout '^api$'

@@ -17,7 +17,7 @@ import (
 var PlusBuildAnalyzer = &analysis.Analyzer{
 	Name: "plusbuild",
 	Doc:  analyzerutil.MustExtractDoc(doc, "plusbuild"),
-	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#plusbuild",
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_plusbuild",
 	Run:  plusbuild,
 }
 

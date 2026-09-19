@@ -16,14 +16,14 @@ func bitsCheckConstLeftShiftU64(a uint64) (n int) {
 	// amd64:"BTQ [$]63,"
 	// arm64:"TBNZ [$]63,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"MOV [$]-9223372036854775808," "AND " "BNEZ"
+	// riscv64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&(1<<63) != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]60,"
 	// arm64:"TBNZ [$]60,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"MOV [$]1152921504606846976," "AND " "BNEZ"
+	// riscv64:"SRLI [$]60," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&(1<<60) != 0 {
 		return 1
 	}
@@ -69,7 +69,7 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	// amd64:"BTL [$]1,"
 	// arm64:"TBZ [$]1," -"LSR"
 	// loong64:"SRLV [$]1," "AND [$]1," "BEQ"
-	// riscv64:"SRLI [$]1," "ANDI [$]1," "BEQZ"
+	// riscv64:"ANDI [$]2," "BEQZ" -"SRLI"
 	if (a[4]>>1)&1 == 0 {
 		return 1
 	}
@@ -83,7 +83,7 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	// amd64:"BTL [$]7,"
 	// arm64:"TBNZ [$]7," -"LSR"
 	// loong64:"SRLV [$]5," "AND [$]4," "BNE"
-	// riscv64:"SRLI [$]5," "ANDI [$]4," "BNEZ"
+	// riscv64:"ANDI [$]128," "BNEZ" -"SRLI"
 	if (a[6]>>5)&4 == 0 {
 		return 1
 	}
@@ -94,14 +94,14 @@ func bitsCheckVarU64(a, b uint64) (n int) {
 	// amd64:"BTQ"
 	// arm64:"MOVD [$]1," "LSL" "TST"
 	// loong64:"MOVV [$]1," "SLLV R" "AND" "BNE"
-	// riscv64:"ANDI [$]63," "MOV [$]1," "SLL " "AND "
+	// riscv64:"MOV [$]1," "SLL " "AND " -"ANDI"
 	if a&(1<<(b&63)) != 0 {
 		return 1
 	}
 	// amd64:"BTQ" -"BT. [$]0,"
 	// arm64:"LSR" "TBZ [$]0,"
 	// loong64:"SRLV" "AND [$]1," "BEQ"
-	// riscv64:"ANDI [$]63," "SRL " "ANDI [$]1,"
+	// riscv64:"SRL " "ANDI [$]1," -"ANDI [$]63,"
 	if (b>>(a&63))&1 != 0 {
 		return 1
 	}
@@ -112,14 +112,14 @@ func bitsCheckMaskU64(a uint64) (n int) {
 	// amd64:"BTQ [$]63,"
 	// arm64:"TBNZ [$]63,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"MOV [$]-9223372036854775808" "AND " "BNEZ"
+	// riscv64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&0x8000000000000000 != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]59,"
 	// arm64:"TBNZ [$]59,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"MOV [$]576460752303423488" "AND " "BNEZ"
+	// riscv64:"SRLI [$]59," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&0x800000000000000 != 0 {
 		return 1
 	}
@@ -137,7 +137,7 @@ func bitsSetU64(a, b uint64) (n uint64) {
 	// amd64:"BTSQ"
 	// arm64:"MOVD [$]1," "LSL" "ORR"
 	// loong64:"MOVV [$]1," "SLLV" "OR"
-	// riscv64:"ANDI [$]63," "MOV [$]1," "SLL " "OR "
+	// riscv64:"MOV [$]1," "SLL " "OR " -"ANDI"
 	n += b | (1 << (a & 63))
 
 	// amd64:"BTSQ [$]63,"
@@ -165,7 +165,7 @@ func bitsClearU64(a, b uint64) (n uint64) {
 	// amd64:"BTRQ"
 	// arm64:"MOVD [$]1," "LSL" "BIC"
 	// loong64:"MOVV [$]1," "SLLV" "ANDN"
-	// riscv64:"ANDI [$]63," "MOV [$]1," "SLL " "ANDN"
+	// riscv64:"MOV [$]1," "SLL " "ANDN" -"ANDI"
 	n += b &^ (1 << (a & 63))
 
 	// amd64:"BTRQ [$]63,"
@@ -209,7 +209,7 @@ func bitsFlipU64(a, b uint64) (n uint64) {
 	// amd64:"BTCQ"
 	// arm64:"MOVD [$]1," "LSL" "EOR"
 	// loong64:"MOVV [$]1," "SLLV" "XOR"
-	// riscv64:"ANDI [$]63," "MOV [$]1," "SLL " "XOR "
+	// riscv64:"MOV [$]1," "SLL " "XOR " -"ANDI"
 	n += b ^ (1 << (a & 63))
 
 	// amd64:"BTCQ [$]63,"
@@ -241,14 +241,14 @@ func bitsCheckConstShiftLeftU32(a uint32) (n int) {
 	// amd64:"BTL [$]31,"
 	// arm64:"TBNZ [$]31,"
 	// loong64:"AND [$]" "MOVWU" "BNE"
-	// riscv64:"MOV [$]2147483648," "AND " "BNEZ"
+	// riscv64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&(1<<31) != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]28,"
 	// arm64:"TBNZ [$]28,"
 	// loong64:"AND [$]" "BNE"
-	// riscv64:"ANDI [$]268435456," "BNEZ"
+	// riscv64:"SRLI [$]28," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&(1<<28) != 0 {
 		return 1
 	}
@@ -319,14 +319,14 @@ func bitsCheckVarU32(a, b uint32) (n int) {
 	// amd64:"BTL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "TSTW"
 	// loong64:"MOVV [$]1," "SLL R" "AND R" "MOVWU" "BNE"
-	// riscv64:"ANDI [$]31," "MOV [$]1," "SLL " "AND "
+	// riscv64:"MOV [$]1," "SLLW" "AND " -"ANDI"
 	if a&(1<<(b&31)) != 0 {
 		return 1
 	}
 	// amd64:"BTL" -"BT. [$]0"
 	// arm64:"AND [$]31," "LSR" "TBZ"
 	// loong64:"SRL R" "AND [$]1," "BEQ"
-	// riscv64:"ANDI [$]31," "SRLW " "ANDI [$]1,"
+	// riscv64:"SRLW " "ANDI [$]1," -"ANDI [$]31,"
 	if (b>>(a&31))&1 != 0 {
 		return 1
 	}
@@ -337,14 +337,14 @@ func bitsCheckMaskU32(a uint32) (n int) {
 	// amd64:"BTL [$]31,"
 	// arm64:"TBNZ [$]31,"
 	// loong64:"AND [$]" "MOVWU" "BNE"
-	// riscv64:"MOV [$]2147483648," "AND " "BNEZ"
+	// riscv64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&0x80000000 != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]27,"
 	// arm64:"TBNZ [$]27,"
 	// loong64:"AND [$]" "BNE"
-	// riscv64:"ANDI [$]134217728," "BNEZ"
+	// riscv64:"SRLI [$]27," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	if a&0x8000000 != 0 {
 		return 1
 	}
@@ -362,7 +362,7 @@ func bitsSetU32(a, b uint32) (n uint32) {
 	// amd64:"BTSL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "ORR"
 	// loong64:"MOVV [$]1," "SLL " "OR "
-	// riscv64:"ANDI [$]31," "MOV [$]1," "SLL " "OR "
+	// riscv64:"MOV [$]1," "SLLW " "OR " -"ANDI"
 	n += b | (1 << (a & 31))
 
 	// amd64:"ORL [$]-2147483648,"
@@ -390,7 +390,7 @@ func bitsClearU32(a, b uint32) (n uint32) {
 	// amd64:"BTRL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "BIC"
 	// loong64:"MOVV [$]1," "SLL R" "ANDN"
-	// riscv64:"ANDI [$]31," "MOV [$]1," "SLL " "ANDN"
+	// riscv64:"MOV [$]1," "SLLW " "ANDN" -"ANDI"
 	n += b &^ (1 << (a & 31))
 
 	// amd64:"ANDL [$]2147483647,"
@@ -418,7 +418,7 @@ func bitsFlipU32(a, b uint32) (n uint32) {
 	// amd64:"BTCL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "EOR"
 	// loong64:"MOVV [$]1," "SLL R" "XOR"
-	// riscv64:"ANDI [$]31," "MOV [$]1," "SLL " "XOR "
+	// riscv64:"MOV [$]1," "SLLW " "XOR " -"ANDI"
 	n += b ^ (1 << (a & 31))
 
 	// amd64:"XORL [$]-2147483648,"
@@ -669,4 +669,74 @@ func absorptionAndCommuted64(x, y uint64) uint64 {
 func absorptionOrCommuted64(x, y uint64) uint64 {
 	// amd64:-"ORQ" -"ANDQ"
 	return (x & y) | x
+}
+
+// The generic rules canonicalize the unsigned "0 < x" to "x != 0" and, for
+// provably non-negative x, the signed "x <= 0" to "x == 0", so these
+// spellings of a bit test reach the NE/EQ-keyed bit-test recognizers
+// without arch-specific rules.
+
+func bitsGtZeroPow2ConstU64(x uint64) bool {
+	// amd64:"BTL [$]27" -"TESTQ" -"MOVQ [$]134217728"
+	// arm64: "TST [$]134217728," "CSET NE" -"CSET HI"
+	return x&(1<<27) > 0
+}
+
+func bitsGtZeroPow2ConstU32(x uint32) bool {
+	// amd64:"BTL [$]3" -"TESTL"
+	// arm64: "TSTW [$]8," "CSET NE" -"CSET HI"
+	return x&8 > 0
+}
+
+func bitsGtZeroMaskU64(a []uint64, i int) bool {
+	// amd64: "BTQ" -"SHL" -"TESTQ"
+	// arm64: "TST R" "CSET NE" -"CSET HI"
+	return a[i>>6]&(1<<(uint(i)&63)) > 0
+}
+
+func bitsGtZeroU64(x uint64) bool {
+	// arm64: "CSET NE" -"CSET HI" -"CSET LS"
+	return x > 0
+}
+
+func bitsGtZeroU16(x uint16) bool {
+	// amd64:"SETNE" -"SETHI"
+	// arm64: "CSET NE" -"CSET HI"
+	return x > 0
+}
+
+func bitsGtZeroU8(x uint8) bool {
+	// amd64:"SETNE" -"SETHI"
+	// arm64: "CSET NE" -"CSET HI"
+	return x > 0
+}
+
+func bitsLeZeroPow2ConstS64(x int64) bool {
+	// amd64:"BTQ [$]40" -"TESTQ" -"SETLE"
+	// arm64: "TST [$]1099511627776," "CSET EQ" -"CSET LE"
+	return x&(1<<40) <= 0
+}
+
+func bitsLeZeroPow2ConstS32(x int32) bool {
+	// amd64:"BTL [$]3" -"TESTL" -"SETLE"
+	// arm64: "TSTW [$]8," "CSET EQ" -"CSET LE"
+	return x&8 <= 0
+}
+
+func bitsLeZeroPow2ConstS16(x int16) bool {
+	// amd64:"SETEQ" -"SETLE"
+	// arm64: "TSTW [$]8," "CSET EQ" -"CSET LE"
+	return x&8 <= 0
+}
+
+func bitsLeZeroPow2ConstS8(x int8) bool {
+	// amd64:"SETEQ" -"SETLE"
+	// arm64: "TSTW [$]8," "CSET EQ" -"CSET LE"
+	return x&8 <= 0
+}
+
+func bitsLeZeroLen(b []byte) bool {
+	// amd64:"SETEQ" -"SETLE"
+	// arm64: "CSET EQ" -"CSET LE"
+	return len(b) <= 0
 }

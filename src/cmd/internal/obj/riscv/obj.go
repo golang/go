@@ -88,6 +88,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	switch p.As {
 	case obj.AJMP:
 		// Turn JMP into JAL ZERO or JALR ZERO.
+		if p.From.Reg != obj.REG_NONE {
+			ctxt.Diag("%v: too many operands for instruction", p)
+		}
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_ZERO
 
@@ -668,15 +671,51 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	const callTrampSize = 8 // 2 machine instructions.
 	maxTrampSize := int64(callCount * callTrampSize)
 
-	// Compute instruction addresses.  Once we do that, we need to check for
-	// overextended jumps and branches.  Within each iteration, Pc differences
-	// are always lower bounds (since the program gets monotonically longer,
-	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
+	// Compute instruction addresses, checking for overextended jumps and branches.
+	// Compressed control transfer instructions may allow for reduced text size,
+	// hence this is handled first. Overextended jumps or branches will result in
+	// additional instructions being required. Eventually a fixed point will be
+	// reached. No attempt is made to handle functions > 2GiB.
 	for {
 		big, rescan := false, false
 		maxPC := setPCs(cursym.Func().Text, 0, ctxt.CompressInstructions)
 		if maxPC+maxTrampSize > (1 << 20) {
 			big = true
+		}
+
+		if ctxt.CompressInstructions {
+			for p := cursym.Func().Text; p != nil; p = p.Link {
+				switch p.As {
+				case ABEQ, ABNE, ABEQZ, ABNEZ:
+					if p.To.Type != obj.TYPE_BRANCH {
+						ctxt.Diag("%v: instruction with branch-like opcode lacks destination", p)
+						break
+					}
+					offset := p.To.Target().Pc - p.Pc
+					if offset != p.To.Offset {
+						p.To.Offset = offset
+						rescan = true
+					}
+
+				case AJAL:
+					// Linker will handle the intersymbol case and trampolines.
+					if p.To.Target() == nil {
+						break
+					}
+					offset := p.To.Target().Pc - p.Pc
+					if offset != p.To.Offset {
+						p.To.Offset = offset
+						rescan = true
+					}
+				}
+			}
+
+			if ctxt.Errors > 0 {
+				return
+			}
+			if rescan {
+				continue
+			}
 		}
 
 		for p := cursym.Func().Text; p != nil; p = p.Link {
@@ -1009,6 +1048,33 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 // signExtend sign extends val starting at bit bit.
 func signExtend(val int64, bit uint) int64 {
 	return val << (64 - bit) >> (64 - bit)
+}
+
+// splitTwo12BitImmediate splits an immediate into a signed 12-bit base
+// immediate and a signed 12-bit offset immediate to be added to the base.
+// For example, base may be used in an ADDI and off in a following load or
+// store, to reach an offset that does not fit in a single signed 12-bit
+// immediate. A base of zero indicates that the immediate already fits in
+// 12 bits and that no addition is needed.
+func splitTwo12BitImmediate(imm int64) (off, base int64, ok bool) {
+	// Nothing special needs to be done if the immediate fits in 12 bits.
+	if err := immIFits(imm, 12); err == nil {
+		return imm, 0, true
+	}
+
+	// Take the base to the end of the signed 12-bit range, rather than say
+	// half of the immediate, so that the remaining offset is as small as possible.
+	base = 2047
+	if imm < 0 {
+		base = -2048
+	}
+	off = imm - base
+
+	if err := immIFits(off, 12); err != nil {
+		return 0, 0, false
+	}
+
+	return off, base, true
 }
 
 // Split32BitImmediate splits a signed 32-bit immediate into a signed 20-bit
@@ -1542,7 +1608,11 @@ func validateRVVi(ctxt *obj.Link, ins *instruction) {
 }
 
 func validateRVVu(ctxt *obj.Link, ins *instruction) {
-	wantImmU(ctxt, ins, ins.imm, 5)
+	nbits := uint(5)
+	if ins.as == AVRORVI {
+		nbits = 6
+	}
+	wantImmU(ctxt, ins, ins.imm, nbits)
 	wantVectorReg(ctxt, ins, "vd", ins.rd)
 	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
 	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
@@ -2029,7 +2099,13 @@ func encodeRVVi(ins *instruction) uint32 {
 }
 
 func encodeRVVu(ins *instruction) uint32 {
-	return encodeR(ins.as, immU(ins.as, ins.imm, 5), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
+	nbits := uint(5)
+	if ins.as == AVRORVI {
+		nbits = 6
+	}
+	imm := immU(ins.as, ins.imm, nbits)
+	funct7 := ins.funct7 | (imm>>5)<<1
+	return encodeR(ins.as, imm&0x1f, regV(ins.rs2), regV(ins.rd), ins.funct3, funct7)
 }
 
 func encodeRVVV(ins *instruction) uint32 {
@@ -3436,6 +3512,37 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVCLMULHVV & obj.AMask: {enc: rVVVEncoding},
 	AVCLMULHVX & obj.AMask: {enc: rVIVEncoding},
 
+	// 32.2.4: Vector GCM/GMAC
+	AVGHSHVV & obj.AMask: {enc: rVVVEncoding},
+	AVGMULVV & obj.AMask: {enc: rVVEncoding},
+
+	// 32.2.5: NIST Suite: Vector AES Block Cipher
+	AVAESEFVV & obj.AMask:  {enc: rVVEncoding},
+	AVAESEFVS & obj.AMask:  {enc: rVVEncoding},
+	AVAESEMVV & obj.AMask:  {enc: rVVEncoding},
+	AVAESEMVS & obj.AMask:  {enc: rVVEncoding},
+	AVAESDFVV & obj.AMask:  {enc: rVVEncoding},
+	AVAESDFVS & obj.AMask:  {enc: rVVEncoding},
+	AVAESDMVV & obj.AMask:  {enc: rVVEncoding},
+	AVAESDMVS & obj.AMask:  {enc: rVVEncoding},
+	AVAESKF1VI & obj.AMask: {enc: rVVuEncoding},
+	AVAESKF2VI & obj.AMask: {enc: rVVuEncoding},
+	AVAESZVS & obj.AMask:   {enc: rVVEncoding},
+
+	// 32.2.6: NIST Suite: Vector SHA-2 Secure Hash
+	AVSHA2MSVV & obj.AMask: {enc: rVVVEncoding},
+	AVSHA2CHVV & obj.AMask: {enc: rVVVEncoding},
+	AVSHA2CLVV & obj.AMask: {enc: rVVVEncoding},
+
+	// 32.2.7: ShangMi Suite: SM4 Block Cipher
+	AVSM4KVI & obj.AMask: {enc: rVVuEncoding},
+	AVSM4RVV & obj.AMask: {enc: rVVEncoding},
+	AVSM4RVS & obj.AMask: {enc: rVVEncoding},
+
+	// 32.2.8: ShangMi Suite: SM3 Secure Hash
+	AVSM3MEVV & obj.AMask: {enc: rVVVEncoding},
+	AVSM3CVI & obj.AMask:  {enc: rVVuEncoding},
+
 	//
 	// Privileged ISA
 	//
@@ -3629,6 +3736,30 @@ func (ins *instruction) compress() {
 			ins.as, ins.rd, ins.rs1, ins.rs2 = ACFSD, obj.REG_NONE, ins.rd, ins.rs1
 		}
 
+	case AJAL:
+		if ins.rd == REG_ZERO && ins.imm != 0 && isScaledImmI(ins.imm, 12, 2) {
+			ins.as, ins.rd = ACJ, obj.REG_NONE
+		}
+
+	case AJALR:
+		if ins.rd == REG_ZERO && ins.rs1 == REG_LR && ins.imm == 0 {
+			ins.as, ins.rd = ACJR, obj.REG_NONE
+		}
+
+	case ABEQ:
+		if ins.rs1 == REG_X0 && isIntPrimeReg(ins.rs2) && ins.imm != 0 && isScaledImmI(ins.imm, 9, 2) {
+			ins.as, ins.rs1, ins.rs2 = ACBEQZ, ins.rs2, obj.REG_NONE
+		} else if isIntPrimeReg(ins.rs1) && ins.rs2 == REG_X0 && ins.imm != 0 && isScaledImmI(ins.imm, 9, 2) {
+			ins.as, ins.rs2 = ACBEQZ, obj.REG_NONE
+		}
+
+	case ABNE:
+		if ins.rs1 == REG_X0 && isIntPrimeReg(ins.rs2) && ins.imm != 0 && isScaledImmI(ins.imm, 9, 2) {
+			ins.as, ins.rs1, ins.rs2 = ACBNEZ, ins.rs2, obj.REG_NONE
+		} else if isIntPrimeReg(ins.rs1) && ins.rs2 == REG_X0 && ins.imm != 0 && isScaledImmI(ins.imm, 9, 2) {
+			ins.as, ins.rs2 = ACBNEZ, obj.REG_NONE
+		}
+
 	case AADDI:
 		if ins.rd == REG_SP && ins.rs1 == REG_SP && ins.imm != 0 && isScaledImmI(ins.imm, 10, 16) {
 			ins.as = ACADDI16SP
@@ -3759,26 +3890,25 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 	ins := instructionForProg(p)
 	ins.as, ins.rs1, ins.rs2 = as, uint32(rs), obj.REG_NONE
 
-	low, high, err := Split32BitImmediate(ins.imm)
-	if err != nil {
-		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
-		return nil
-	}
-	if high == 0 {
+	off, base, ok := splitTwo12BitImmediate(ins.imm)
+	if ok && base == 0 {
 		return []*instruction{ins}
 	}
 
 	// Split into two additions, if possible.
 	// Do not split SP-writing instructions, as otherwise the recorded SP delta may be wrong.
-	if p.Spadj == 0 && ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
-		imm0 := ins.imm / 2
-		imm1 := ins.imm - imm0
-
-		// ADDI $(imm/2), REG, TO
-		// ADDI $(imm-imm/2), TO, TO
-		ins.imm = imm0
-		insADDI := &instruction{as: AADDI, rd: ins.rd, rs1: ins.rd, imm: imm1}
+	if p.Spadj == 0 && ok && ins.as == AADDI {
+		// ADDI $base, REG, TO
+		// ADDI $off, TO, TO
+		ins.imm = base
+		insADDI := &instruction{as: AADDI, rd: ins.rd, rs1: ins.rd, imm: off}
 		return []*instruction{ins, insADDI}
+	}
+
+	low, high, err := Split32BitImmediate(ins.imm)
+	if err != nil {
+		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
+		return nil
 	}
 
 	// LUI $high, TMP
@@ -3827,13 +3957,26 @@ func instructionsForLoad(p *obj.Prog, as obj.As, rs int16) []*instruction {
 	ins.as, ins.rs1, ins.rs2 = as, uint32(rs), obj.REG_NONE
 	ins.imm = p.From.Offset
 
+	off, base, ok := splitTwo12BitImmediate(ins.imm)
+	if ok && base == 0 {
+		return []*instruction{ins}
+	}
+
+	// An offset that is the sum of two signed 12-bit immediates only needs an
+	// additional ADDI.
+	if ok {
+		// ADDI $base, REG, TMP
+		// <load> $off, TMP, TO
+		insADDI := &instruction{as: AADDI, rd: REG_TMP, rs1: ins.rs1, imm: base}
+		ins.rs1, ins.imm = REG_TMP, off
+
+		return []*instruction{insADDI, ins}
+	}
+
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
 		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm)
 		return nil
-	}
-	if high == 0 {
-		return []*instruction{ins}
 	}
 
 	// LUI $high, TMP
@@ -3867,13 +4010,26 @@ func instructionsForStore(p *obj.Prog, as obj.As, rd int16) []*instruction {
 	ins.as, ins.rd, ins.rs1, ins.rs2 = as, uint32(rd), uint32(p.From.Reg), obj.REG_NONE
 	ins.imm = p.To.Offset
 
+	off, base, ok := splitTwo12BitImmediate(ins.imm)
+	if ok && base == 0 {
+		return []*instruction{ins}
+	}
+
+	// An offset that is the sum of two signed 12-bit immediates only needs an
+	// additional ADDI.
+	if ok {
+		// ADDI $base, TO, TMP
+		// <store> $off, REG, TMP
+		insADDI := &instruction{as: AADDI, rd: REG_TMP, rs1: ins.rd, imm: base}
+		ins.rd, ins.imm = REG_TMP, off
+
+		return []*instruction{insADDI, ins}
+	}
+
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
 		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm)
 		return nil
-	}
-	if high == 0 {
-		return []*instruction{ins}
 	}
 
 	// LUI $high, TMP
@@ -4309,6 +4465,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 
 	switch ins.as {
 	case ACJALR, AJAL, AJALR:
+		if ins.as == AJAL && p.Reg != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.To.Reg), obj.REG_NONE
 		ins.imm = p.To.Offset
 
@@ -4587,6 +4746,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		ins.rd, ins.rs1 = obj.REG_NONE, uint32(p.To.Reg)
 
 	case ACJ:
+		if p.From.Reg != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
 		ins.imm = p.To.Offset
 
 	case ACNOP:
@@ -4794,6 +4956,13 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		}
 		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), obj.REG_NONE
 
+	case AVGHSHVV, AVSHA2MSVV, AVSHA2CHVV, AVSHA2CLVV, AVSM3MEVV:
+		if ins.rs3 != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
+		ins.funct7 |= 1 // unmasked
+		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), obj.REG_NONE
+
 	case AVFMACCVV, AVFMACCVF, AVFNMACCVV, AVFNMACCVF, AVFMSACVV, AVFMSACVF, AVFNMSACVV, AVFNMSACVF,
 		AVFMADDVV, AVFMADDVF, AVFNMADDVV, AVFNMADDVF, AVFMSUBVV, AVFMSUBVF, AVFNMSUBVV, AVFNMSUBVF,
 		AVFWMACCVV, AVFWMACCVF, AVFWNMACCVV, AVFWNMACCVF, AVFWMSACVV, AVFWMSACVF, AVFWNMSACVV, AVFWNMSACVF,
@@ -4819,6 +4988,13 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		}
 		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), obj.REG_NONE, uint32(p.Reg), obj.REG_NONE
 
+	case AVAESKF1VI, AVAESKF2VI, AVSM4KVI, AVSM3CVI:
+		if ins.rs3 != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
+		ins.funct7 |= 1 // unmasked
+		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), obj.REG_NONE, uint32(p.Reg), obj.REG_NONE
+
 	case AVZEXTVF2, AVSEXTVF2, AVZEXTVF4, AVSEXTVF4, AVZEXTVF8, AVSEXTVF8,
 		AVFSQRTV, AVFRSQRT7V, AVFREC7V, AVFCLASSV,
 		AVFCVTXUFV, AVFCVTXFV, AVFCVTRTZXUFV, AVFCVTRTZXFV, AVFCVTFXUV, AVFCVTFXV,
@@ -4833,6 +5009,14 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		case ins.rs1 != REG_V0:
 			p.Ctxt.Diag("%v: invalid vector mask register", p)
 		}
+		ins.rs1 = obj.REG_NONE
+
+	case AVGMULVV, AVAESEFVV, AVAESEFVS, AVAESEMVV, AVAESEMVS, AVAESDFVV, AVAESDFVS, AVAESDMVV,
+		AVAESDMVS, AVAESZVS, AVSM4RVV, AVSM4RVS:
+		if ins.rs1 != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
+		ins.funct7 |= 1 // unmasked
 		ins.rs1 = obj.REG_NONE
 
 	case AVMVVV, AVMVVX:

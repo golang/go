@@ -4,7 +4,6 @@
 # even if it's really just updating the mtime on an existing up-to-date binary.
 
 [compiler:gccgo] skip
-[short] skip
 
 # Install some commands to compare mtimes
 env GOBIN=$WORK/tmp/bin

@@ -29,7 +29,7 @@ as bit masks.
 The zero value of a SIMD vector type is valid and represents a zero vector.
 
 For each SIMD type, "Load<Types>(s []<type>) <Types>"
-loads a full verctor of the type from a long-enough slice.
+loads a full vector of the type from a long-enough slice.
 
 For slices that are not long enough, "Load<Types>Part(s []<type>) (<Types>, int)"
 will load as many elements as are available from the slice, fill the remainder

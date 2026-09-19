@@ -1,5 +1,4 @@
 # Test go commands with no module.
-env GO111MODULE=on
 
 # go mod edit fails unless given explicit mod file argument
 ! go mod edit -json

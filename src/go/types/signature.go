@@ -154,6 +154,23 @@ func (s *Signature) Variadic() bool { return s.variadic }
 func (s *Signature) Underlying() Type { return s }
 func (s *Signature) String() string   { return TypeString(s, nil) }
 
+// argType returns the expected type of the i'th argument in a call to s, or nil.
+func (s *Signature) argType(i int) Type {
+	assert(i >= 0)
+	if s.params == nil {
+		return nil
+	}
+	vars := s.params.vars
+	n := len(vars)
+	if i < n-1 || !s.variadic && i == n-1 {
+		return vars[i].typ
+	}
+	if s.variadic {
+		return vars[n-1].typ.(*Slice).elem
+	}
+	return nil
+}
+
 // ----------------------------------------------------------------------------
 // Implementation
 

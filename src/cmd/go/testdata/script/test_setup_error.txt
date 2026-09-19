@@ -1,5 +1,3 @@
-[short] skip
-
 # Test that a loading error in a test file is reported as a "setup failed" error
 # and doesn't prevent running other tests.
 ! go test -o=$devnull ./t1/p ./t

@@ -75,7 +75,7 @@ type PackagePublic struct {
 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
 	ForTest       string                `json:",omitempty"` // package is only for use in named test
 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
-	BuildID       string                `json:",omitempty"` // build ID of the compiled package (set by go list -export)
+	BuildID       string                `json:",omitempty"` // build ID of the exported package (set by go list -export)
 	Module        *modinfo.ModulePublic `json:",omitempty"` // info about package's module, if any
 	Match         []string              `json:",omitempty"` // command-line patterns matching this package
 	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?
@@ -630,21 +630,6 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 	return false // they are equal
 }
 
-// packageCache is a lookup cache for LoadImport,
-// so that if we look up a package multiple times
-// we return the same pointer each time.
-//
-// TODO: associate the packageCache with the module loader state, so that
-// different module loaders use different caches.
-var packageCache = map[string]*Package{}
-
-// ClearPackageCache clears the package cache.
-// It cannot be used concurrently with calls to LoadImport or other functions
-// that use packageCache without synchronization.
-func ClearPackageCache() {
-	clear(packageCache)
-}
-
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path. It begins with _/ and then contains the full path
 // to the directory. If the package lives in c:\home\gopher\my\pkg then
@@ -769,8 +754,9 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 	}
 
 	importPath := bp.ImportPath
-	p := packageCache[importPath]
-	if p != nil {
+	var p *Package
+	if cp := ld.PackageCache()[importPath]; cp != nil {
+		p = cp.(*Package)
 		stk.Push(ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 		p = reusePackage(p, stk)
 		stk.Pop()
@@ -779,7 +765,7 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 		p = new(Package)
 		p.Internal.Local = build.IsLocalImport(path)
 		p.ImportPath = importPath
-		packageCache[importPath] = p
+		ld.PackageCache()[importPath] = p
 
 		setCmdline(p)
 		setToolFlags(ld, p)
@@ -947,6 +933,20 @@ func loadPackageData(ld *modload.Loader, ctx context.Context, path, parentPath, 
 					modroot = gorootSrcCmd
 				}
 			}
+			if modroot == "" && cfg.BuildMod == "vendor" && ld.Enabled() {
+				// (If an enclosing module was chosen instead, modindex.GetPackage
+				// would return ErrNotIndexed because indexing stops at go.mod
+				// boundaries, silently falling back to slow unindexed ImportDir.)
+				// Find the most specific (longest) module root containing r.dir.
+				// In a workspace, one module might be a subdirectory of another
+				// (for example, /path/to/repo and /path/to/repo/submodule).
+				for _, m := range ld.MainModules.Versions() {
+					root := ld.MainModules.ModRoot(m)
+					if root != "" && str.HasFilePathPrefix(r.dir, root) && len(root) > len(modroot) {
+						modroot = root
+					}
+				}
+			}
 			if modroot != "" {
 				if rp, err := modindex.GetPackage(modroot, r.dir); err == nil {
 					data.p, data.err = rp.Import(cfg.BuildContext, buildMode)
@@ -1070,7 +1070,7 @@ var preloadWorkerCount = runtime.GOMAXPROCS(0)
 // modified by modload.LoadPackages.
 type preload struct {
 	cancel chan struct{}
-	sema   chan struct{}
+	queue  *par.Queue
 }
 
 // newPreload creates a new preloader. flush must be called later to avoid
@@ -1078,7 +1078,7 @@ type preload struct {
 func newPreload() *preload {
 	pre := &preload{
 		cancel: make(chan struct{}),
-		sema:   make(chan struct{}, preloadWorkerCount),
+		queue:  par.NewQueue(preloadWorkerCount),
 	}
 	return pre
 }
@@ -1089,19 +1089,18 @@ func newPreload() *preload {
 func (pre *preload) preloadMatches(ld *modload.Loader, ctx context.Context, opts PackageOpts, matches []*search.Match) {
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
-			select {
-			case <-pre.cancel:
-				return
-			case pre.sema <- struct{}{}:
-				go func(pkg string) {
-					mode := 0 // don't use vendoring or module import resolution
-					bp, loaded, err := loadPackageData(ld, ctx, pkg, "", base.Cwd(), "", false, mode)
-					<-pre.sema
-					if bp != nil && loaded && err == nil && !opts.IgnoreImports {
-						pre.preloadImports(ld, ctx, opts, bp.Imports, bp)
-					}
-				}(pkg)
-			}
+			pre.queue.Add(func() {
+				select {
+				case <-pre.cancel:
+					return
+				default:
+				}
+				mode := 0 // don't use vendoring or module import resolution
+				bp, loaded, err := loadPackageData(ld, ctx, pkg, "", base.Cwd(), "", false, mode)
+				if bp != nil && loaded && err == nil && !opts.IgnoreImports {
+					pre.preloadImports(ld, ctx, opts, bp.Imports, bp)
+				}
+			})
 		}
 	}
 }
@@ -1115,18 +1114,17 @@ func (pre *preload) preloadImports(ld *modload.Loader, ctx context.Context, opts
 		if path == "C" || path == "unsafe" {
 			continue
 		}
-		select {
-		case <-pre.cancel:
-			return
-		case pre.sema <- struct{}{}:
-			go func(path string) {
-				bp, loaded, err := loadPackageData(ld, ctx, path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
-				<-pre.sema
-				if bp != nil && loaded && err == nil && !opts.IgnoreImports {
-					pre.preloadImports(ld, ctx, opts, bp.Imports, bp)
-				}
-			}(path)
-		}
+		pre.queue.Add(func() {
+			select {
+			case <-pre.cancel:
+				return
+			default:
+			}
+			bp, loaded, err := loadPackageData(ld, ctx, path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
+			if bp != nil && loaded && err == nil && !opts.IgnoreImports {
+				pre.preloadImports(ld, ctx, opts, bp.Imports, bp)
+			}
+		})
 	}
 }
 
@@ -1141,9 +1139,7 @@ func (pre *preload) flush() {
 	}
 
 	close(pre.cancel)
-	for i := 0; i < preloadWorkerCount; i++ {
-		pre.sema <- struct{}{}
-	}
+	<-pre.queue.Idle()
 }
 
 func cleanImport(path string) string {
@@ -1708,16 +1704,12 @@ func FindVendor(path string) (index int, ok bool) {
 type TargetDir int
 
 const (
-	ToTool    TargetDir = iota // to GOROOT/pkg/tool (default for cmd/*)
-	ToBin                      // to bin dir inside package root (default for non-cmd/*)
-	StalePath                  // an old import path; fail to build
+	ToTool TargetDir = iota // to GOROOT/pkg/tool (default for cmd/*)
+	ToBin                   // to bin dir inside package root (default for non-cmd/*)
 )
 
 // InstallTargetDir reports the target directory for installing the command p.
 func InstallTargetDir(p *Package) TargetDir {
-	if strings.HasPrefix(p.ImportPath, "code.google.com/p/go.tools/cmd/") {
-		return StalePath
-	}
 	if p.Goroot && strings.HasPrefix(p.ImportPath, "cmd/") && p.Name == "main" {
 		switch p.ImportPath {
 		case "cmd/go", "cmd/gofmt":
@@ -1856,15 +1848,6 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 	}
 
 	if useBindir {
-		// Report an error when the old code.google.com/p/go.tools paths are used.
-		if InstallTargetDir(p) == StalePath {
-			// TODO(matloob): remove this branch, and StalePath itself. code.google.com/p/go is so
-			// old, even this code checking for it is stale now!
-			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
-			e := ImportErrorf(p.ImportPath, "the %v command has moved; use %v instead.", p.ImportPath, newPath)
-			setError(e)
-			return
-		}
 		elem := p.DefaultExecName() + cfg.ExeSuffix
 		full := filepath.Join(cfg.BuildContext.GOOS+"_"+cfg.BuildContext.GOARCH, elem)
 		if cfg.BuildContext.GOOS != runtime.GOOS || cfg.BuildContext.GOARCH != runtime.GOARCH {
@@ -2010,6 +1993,10 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 	// with the position of the import declaration.
 	stk.Push(ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 	defer stk.Pop()
+
+	if p.BinaryOnly {
+		setError(errors.New("binary-only packages are no longer supported"))
+	}
 
 	pkgPath := p.ImportPath
 	if p.Internal.CmdlineFiles {
@@ -2453,12 +2440,22 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 	if buildmode == "default" {
 		if p.Name == "main" {
 			buildmode = "exe"
+			if platform.DefaultPIE(cfg.Goos, cfg.Goarch, cfg.BuildRace) {
+				buildmode = "pie"
+			}
 		} else {
 			buildmode = "archive"
 		}
 	}
 	appendSetting("-buildmode", buildmode)
 	appendSetting("-compiler", cfg.BuildContext.Compiler)
+	if cfg.BuildMod == "vendor" {
+		// https://go.dev/issue/46400
+		// https://go.dev/issue/57782
+		// We can't guarantee that dependencies have been unmodified in vendor mode.
+		// -mod=readonly and -mod=mod are both trusted to the same degree.
+		appendSetting("-mod", "vendor")
+	}
 	if gccgoflags := BuildGccgoflags.String(); gccgoflags != "" && cfg.BuildContext.Compiler == "gccgo" {
 		appendSetting("-gccgoflags", gccgoflags)
 	}
@@ -2670,7 +2667,7 @@ omitVCS:
 // GNU binutils flagfile specifiers, sometimes called "response files").
 // To be conservative, we reject almost any arg beginning with non-alphanumeric ASCII.
 // We accept leading . _ and / as likely in file system paths.
-// There is a copy of this function in cmd/compile/internal/gc/noder.go.
+// There is a copy of this function in cmd/compile/internal/noder/noder.go.
 func SafeArg(name string) bool {
 	if name == "" {
 		return false
@@ -3274,6 +3271,8 @@ func setToolFlags(ld *modload.Loader, pkgs ...*Package) {
 	}
 }
 
+var errFileNotFound = errors.New("file not found")
+
 // GoFilesPackage creates a package for building a collection of Go files
 // (typically named on the command line). The target is named p.a for
 // package p or named after the first Go file for package main.
@@ -3307,6 +3306,11 @@ func GoFilesPackage(ld *modload.Loader, ctx context.Context, opts PackageOpts, g
 	for _, file := range gofiles {
 		fi, err := fsys.Stat(file)
 		if err != nil {
+			if os.IsNotExist(err) {
+				// Canonicalize OS-specific errors to errFileNotFound so that error
+				// messages will be easier for users to search for.
+				err = &fs.PathError{Op: "stat", Path: file, Err: errFileNotFound}
+			}
 			base.Fatalf("%s", err)
 		}
 		if fi.IsDir() {
@@ -3579,6 +3583,27 @@ func SelectCoverPackages(s *modload.Loader, roots []*Package, match []func(*modl
 				haveMatch = true
 			}
 		}
+		// If using the race detector, silently ignore attempts to run
+		// coverage on the runtime packages. It will cause the race
+		// detector to be invoked before it has been initialized. Note
+		// the use of "regonly" instead of just ignoring the package
+		// completely-- we do this due to the requirements of the
+		// package ID numbering scheme. See the comment in
+		// $GOROOT/src/internal/coverage/pkid.go dealing with
+		// hard-coding of runtime package IDs.
+		cmode := cfg.BuildCoverMode
+		if cfg.BuildRace && p.Standard && objabi.LookupPkgSpecial(p.ImportPath).Runtime {
+			cmode = "regonly"
+		}
+
+		// If -coverpkg is in effect and for some reason we don't want
+		// coverage data for the main package, make sure that we at
+		// least process it for registration hooks.
+		if includeMain && p.Name == "main" && !haveMatch {
+			haveMatch = true
+			cmode = "regonly"
+		}
+
 		if !haveMatch {
 			continue
 		}
@@ -3607,27 +3632,6 @@ func SelectCoverPackages(s *modload.Loader, roots []*Package, match []func(*modl
 		if cfg.BuildCoverMode == "atomic" && p.Standard &&
 			(p.ImportPath == "sync/atomic" || p.ImportPath == "internal/runtime/atomic") {
 			continue
-		}
-
-		// If using the race detector, silently ignore attempts to run
-		// coverage on the runtime packages. It will cause the race
-		// detector to be invoked before it has been initialized. Note
-		// the use of "regonly" instead of just ignoring the package
-		// completely-- we do this due to the requirements of the
-		// package ID numbering scheme. See the comment in
-		// $GOROOT/src/internal/coverage/pkid.go dealing with
-		// hard-coding of runtime package IDs.
-		cmode := cfg.BuildCoverMode
-		if cfg.BuildRace && p.Standard && objabi.LookupPkgSpecial(p.ImportPath).Runtime {
-			cmode = "regonly"
-		}
-
-		// If -coverpkg is in effect and for some reason we don't want
-		// coverage data for the main package, make sure that we at
-		// least process it for registration hooks.
-		if includeMain && p.Name == "main" && !haveMatch {
-			haveMatch = true
-			cmode = "regonly"
 		}
 
 		// Mark package for instrumentation.

@@ -90,21 +90,11 @@ func mapaccess1(t *abi.MapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
 //go:linkname mapaccess2
 func mapaccess2(t *abi.MapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool)
 
-func mapaccess1_fat(t *abi.MapType, m *maps.Map, key, zero unsafe.Pointer) unsafe.Pointer {
-	e, ok := mapaccess2(t, m, key)
-	if !ok {
-		return zero
-	}
-	return e
-}
+//go:linkname mapaccess1_fat
+func mapaccess1_fat(t *abi.MapType, m *maps.Map, key, zero unsafe.Pointer) unsafe.Pointer
 
-func mapaccess2_fat(t *abi.MapType, m *maps.Map, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
-	e, ok := mapaccess2(t, m, key)
-	if !ok {
-		return zero, false
-	}
-	return e, true
-}
+//go:linkname mapaccess2_fat
+func mapaccess2_fat(t *abi.MapType, m *maps.Map, key, zero unsafe.Pointer) (unsafe.Pointer, bool)
 
 // mapassign is pushed from internal/runtime/maps. We could just call it, but
 // we want to avoid one layer of call.

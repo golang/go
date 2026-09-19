@@ -4,25 +4,11 @@
 
 package ssa
 
-// This file contains code to compute the dominator tree
-// of a control-flow graph.
-
-// postorder computes a postorder traversal ordering for the
-// basic blocks in f. Unreachable blocks will not appear.
-func postorder(f *Func) []*Block {
-	return postorderWithNumbering(f, nil)
-}
-
-type blockAndIndex struct {
-	b     *Block
-	index int // index is the number of successor edges of b that have already been explored.
-}
-
-// postorderWithNumbering provides a DFS postordering.
+// PostorderWithNumbering provides a DFS postordering.
 // This seems to make loop-finding more robust.
-func postorderWithNumbering(f *Func, ponums []int32) []*Block {
-	seen := f.Cache.allocBoolSlice(f.NumBlocks())
-	defer f.Cache.freeBoolSlice(seen)
+func PostorderWithNumbering(f *Func, ponums []int32) []*Block {
+	seen := f.Cache.AllocBoolSlice(f.NumBlocks())
+	defer f.Cache.FreeBoolSlice(seen)
 
 	// result ordering
 	order := make([]*Block, 0, len(f.Blocks))
@@ -55,10 +41,119 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	return order
 }
 
-func dominators(f *Func) []*Block {
+type blockAndIndex struct {
+	b     *Block
+	index int // index is the number of successor edges of b that have already been explored.
+}
+
+// compressOrig is the "simple" compress function from LT paper.
+func compressOrig(v ID, ancestor, semi, label []ID) {
+	if ancestor[ancestor[v]] != 0 {
+		compressOrig(ancestor[v], ancestor, semi, label)
+		if semi[label[ancestor[v]]] < semi[label[v]] {
+			label[v] = label[ancestor[v]]
+		}
+		ancestor[v] = ancestor[ancestor[v]]
+	}
+}
+
+func Dominators(f *Func) []*Block {
 	// TODO: benchmark and try to find criteria for swapping between
 	// dominatorsSimple and dominatorsLT
 	return f.dominatorsLTOrig(f.Entry)
+}
+
+// DominatorsSimple computes the dominator tree for f. It returns a slice
+// which maps block ID to the immediate dominator of that block.
+// Unreachable blocks map to nil. The entry block maps to nil.
+func DominatorsSimple(f *Func) []*Block {
+	// A simple algorithm for now
+	// Cooper, Harvey, Kennedy
+	idom := make([]*Block, f.NumBlocks())
+
+	// Compute postorder walk
+	post := f.Postorder()
+
+	// Make map from block id to order index (for intersect call)
+	postnum := f.Cache.AllocIntSlice(f.NumBlocks())
+	defer f.Cache.FreeIntSlice(postnum)
+	for i, b := range post {
+		postnum[b.ID] = i
+	}
+
+	// Make the entry block a self-loop
+	idom[f.Entry.ID] = f.Entry
+	if postnum[f.Entry.ID] != len(post)-1 {
+		f.Fatalf("entry block %v not last in postorder", f.Entry)
+	}
+
+	// Compute relaxation of idom entries
+	for {
+		changed := false
+
+		for i := len(post) - 2; i >= 0; i-- {
+			b := post[i]
+			var d *Block
+			for _, e := range b.Preds {
+				p := e.B
+				if idom[p.ID] == nil {
+					continue
+				}
+				if d == nil {
+					d = p
+					continue
+				}
+				d = intersect(d, p, postnum, idom)
+			}
+			if d != idom[b.ID] {
+				idom[b.ID] = d
+				changed = true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	// Set idom of entry block to nil instead of itself.
+	idom[f.Entry.ID] = nil
+	return idom
+}
+
+// evalOrig is the "simple" eval function from LT paper.
+func evalOrig(v ID, ancestor, semi, label []ID) ID {
+	if ancestor[v] == 0 {
+		return v
+	}
+	compressOrig(v, ancestor, semi, label)
+	return label[v]
+}
+
+// intersect finds the closest dominator of both b and c.
+// It requires a postorder numbering of all the blocks.
+func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
+	// TODO: This loop is O(n^2). It used to be used in nilcheck,
+	// see BenchmarkNilCheckDeep*.
+	for b != c {
+		if postnum[b.ID] < postnum[c.ID] {
+			b = idom[b.ID]
+		} else {
+			c = idom[c.ID]
+		}
+	}
+	return b
+}
+
+func linkOrig(v, w ID, ancestor []ID) {
+	ancestor[w] = v
+}
+
+// This file contains code to compute the dominator tree
+// of a control-flow graph.
+
+// postorder computes a postorder traversal ordering for the
+// basic blocks in f. Unreachable blocks will not appear.
+func postorder(f *Func) []*Block {
+	return PostorderWithNumbering(f, nil)
 }
 
 // dominatorsLTOrig runs Lengauer-Tarjan to compute a dominator tree starting at entry.
@@ -66,8 +161,8 @@ func (f *Func) dominatorsLTOrig(entry *Block) []*Block {
 	// Adapted directly from the original TOPLAS article's "simple" algorithm
 
 	maxBlockID := entry.Func.NumBlocks()
-	scratch := f.Cache.allocIDSlice(7 * maxBlockID)
-	defer f.Cache.freeIDSlice(scratch)
+	scratch := f.Cache.AllocIDSlice(7 * maxBlockID)
+	defer f.Cache.FreeIDSlice(scratch)
 	semi := scratch[0*maxBlockID : 1*maxBlockID]
 	vertex := scratch[1*maxBlockID : 2*maxBlockID]
 	label := scratch[2*maxBlockID : 3*maxBlockID]
@@ -79,8 +174,8 @@ func (f *Func) dominatorsLTOrig(entry *Block) []*Block {
 	// This version uses integers for most of the computation,
 	// to make the work arrays smaller and pointer-free.
 	// fromID translates from ID to *Block where that is needed.
-	fromID := f.Cache.allocBlockSlice(maxBlockID)
-	defer f.Cache.freeBlockSlice(fromID)
+	fromID := f.Cache.AllocBlockSlice(maxBlockID)
+	defer f.Cache.FreeBlockSlice(fromID)
 	for _, v := range f.Blocks {
 		fromID[v.ID] = v
 	}
@@ -95,7 +190,7 @@ func (f *Func) dominatorsLTOrig(entry *Block) []*Block {
 
 		// step2 in TOPLAS paper
 		for _, e := range fromID[w].Preds {
-			v := e.b
+			v := e.B
 			if semi[v.ID] == 0 {
 				// skip unreachable predecessor
 				// not in original, but we're using existing pred instead of building one.
@@ -160,7 +255,7 @@ func (f *Func) dfsOrig(entry *Block, semi, vertex, label, parent []ID) ID {
 		label[v.ID] = v.ID
 		// ancestor[v] already zero
 		for _, e := range v.Succs {
-			w := e.b
+			w := e.B
 			// if it has a dfnum, we've already visited it
 			if semi[w.ID] == 0 {
 				// yes, w can be pushed multiple times.
@@ -170,99 +265,4 @@ func (f *Func) dfsOrig(entry *Block, semi, vertex, label, parent []ID) ID {
 		}
 	}
 	return n
-}
-
-// compressOrig is the "simple" compress function from LT paper.
-func compressOrig(v ID, ancestor, semi, label []ID) {
-	if ancestor[ancestor[v]] != 0 {
-		compressOrig(ancestor[v], ancestor, semi, label)
-		if semi[label[ancestor[v]]] < semi[label[v]] {
-			label[v] = label[ancestor[v]]
-		}
-		ancestor[v] = ancestor[ancestor[v]]
-	}
-}
-
-// evalOrig is the "simple" eval function from LT paper.
-func evalOrig(v ID, ancestor, semi, label []ID) ID {
-	if ancestor[v] == 0 {
-		return v
-	}
-	compressOrig(v, ancestor, semi, label)
-	return label[v]
-}
-
-func linkOrig(v, w ID, ancestor []ID) {
-	ancestor[w] = v
-}
-
-// dominatorsSimple computes the dominator tree for f. It returns a slice
-// which maps block ID to the immediate dominator of that block.
-// Unreachable blocks map to nil. The entry block maps to nil.
-func dominatorsSimple(f *Func) []*Block {
-	// A simple algorithm for now
-	// Cooper, Harvey, Kennedy
-	idom := make([]*Block, f.NumBlocks())
-
-	// Compute postorder walk
-	post := f.postorder()
-
-	// Make map from block id to order index (for intersect call)
-	postnum := f.Cache.allocIntSlice(f.NumBlocks())
-	defer f.Cache.freeIntSlice(postnum)
-	for i, b := range post {
-		postnum[b.ID] = i
-	}
-
-	// Make the entry block a self-loop
-	idom[f.Entry.ID] = f.Entry
-	if postnum[f.Entry.ID] != len(post)-1 {
-		f.Fatalf("entry block %v not last in postorder", f.Entry)
-	}
-
-	// Compute relaxation of idom entries
-	for {
-		changed := false
-
-		for i := len(post) - 2; i >= 0; i-- {
-			b := post[i]
-			var d *Block
-			for _, e := range b.Preds {
-				p := e.b
-				if idom[p.ID] == nil {
-					continue
-				}
-				if d == nil {
-					d = p
-					continue
-				}
-				d = intersect(d, p, postnum, idom)
-			}
-			if d != idom[b.ID] {
-				idom[b.ID] = d
-				changed = true
-			}
-		}
-		if !changed {
-			break
-		}
-	}
-	// Set idom of entry block to nil instead of itself.
-	idom[f.Entry.ID] = nil
-	return idom
-}
-
-// intersect finds the closest dominator of both b and c.
-// It requires a postorder numbering of all the blocks.
-func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
-	// TODO: This loop is O(n^2). It used to be used in nilcheck,
-	// see BenchmarkNilCheckDeep*.
-	for b != c {
-		if postnum[b.ID] < postnum[c.ID] {
-			b = idom[b.ID]
-		} else {
-			c = idom[c.ID]
-		}
-	}
-	return b
 }

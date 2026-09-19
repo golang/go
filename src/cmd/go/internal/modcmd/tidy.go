@@ -68,12 +68,12 @@ var (
 )
 
 func init() {
-	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
-	cmdTidy.Flag.BoolVar(&cfg.BuildX, "x", false, "")
-	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
-	cmdTidy.Flag.BoolVar(&tidyDiff, "diff", false, "")
-	cmdTidy.Flag.Var(&tidyGo, "go", "")
-	cmdTidy.Flag.Var(&tidyCompat, "compat", "")
+	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "print the names of packages as they are processed")
+	cmdTidy.Flag.BoolVar(&cfg.BuildX, "x", false, "print the commands")
+	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "report errors but proceed anyway")
+	cmdTidy.Flag.BoolVar(&tidyDiff, "diff", false, "display the diff of the edits that would be mad")
+	cmdTidy.Flag.Var(&tidyGo, "go", "set the expected Go language `version`")
+	cmdTidy.Flag.Var(&tidyCompat, "compat", "set the Go `version` for which the tidied go.mod and go.sum files should be compatible")
 	base.AddChdirFlag(&cmdTidy.Flag)
 	base.AddModCommonFlags(&cmdTidy.Flag)
 }

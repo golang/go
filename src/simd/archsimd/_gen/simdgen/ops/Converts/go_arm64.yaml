@@ -71,7 +71,7 @@
   out:
     - base: float
       elemBits: 32
-      OverwriteBase: int
+      overwriteBase: int
 
 # float32 -> uint32
 - go: ConvertToUint32
@@ -82,7 +82,7 @@
   out:
     - base: float
       elemBits: 32
-      OverwriteBase: uint
+      overwriteBase: uint
 
 # float64 -> int64
 - go: ConvertToInt64
@@ -93,7 +93,7 @@
   out:
     - base: float
       elemBits: 64
-      OverwriteBase: int
+      overwriteBase: int
 
 # float64 -> uint64
 - go: ConvertToUint64
@@ -104,7 +104,7 @@
   out:
     - base: float
       elemBits: 64
-      OverwriteBase: uint
+      overwriteBase: uint
 
 # Int -> Float conversions (same-size)
 # ISA XML has float→float for SCVTF_int/UCVTF_int; use OverwriteBase to correct input type
@@ -114,7 +114,7 @@
   in:
     - base: float
       elemBits: 32
-      OverwriteBase: int
+      overwriteBase: int
   out:
     - base: float
       elemBits: 32
@@ -125,7 +125,7 @@
   in:
     - base: float
       elemBits: 32
-      OverwriteBase: uint
+      overwriteBase: uint
   out:
     - base: float
       elemBits: 32
@@ -136,7 +136,7 @@
   in:
     - base: float
       elemBits: 64
-      OverwriteBase: int
+      overwriteBase: int
   out:
     - base: float
       elemBits: 64
@@ -147,7 +147,7 @@
   in:
     - base: float
       elemBits: 64
-      OverwriteBase: uint
+      overwriteBase: uint
   out:
     - base: float
       elemBits: 64
@@ -297,7 +297,7 @@
     - base: int
       elemBits: 8
       bits: 128
-      OverwriteBase: uint
+      overwriteBase: uint
 
 - go: SaturateToUint16
   asm: "VSQXTUN"
@@ -309,7 +309,7 @@
     - base: int
       elemBits: 16
       bits: 128
-      OverwriteBase: uint
+      overwriteBase: uint
 
 - go: SaturateToUint32
   asm: "VSQXTUN"
@@ -321,7 +321,7 @@
     - base: int
       elemBits: 32
       bits: 128
-      OverwriteBase: uint
+      overwriteBase: uint
 
 # Saturating narrow — unsigned (VUQXTN/VUQXTN2)
 - go: SaturateToUint8

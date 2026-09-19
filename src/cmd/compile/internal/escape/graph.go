@@ -51,25 +51,19 @@ type location struct {
 	// For non-PPARAMOUT variables it's 0.
 	resultIndex int
 
-	// derefs and walkgen are used during walkOne to track the
+	// derefs and walkgen are used during walk to track the
 	// minimal dereferences from the walk root.
 	derefs  int // >= -1
 	walkgen uint32
-
-	// dst and dstEdgeindex track the next immediate assignment
-	// destination location during walkone, along with the index
-	// of the edge pointing back to this location.
-	dst        *location
-	dstEdgeIdx int
 
 	// queuedWalkAll is used by walkAll to track whether this location is
 	// in its work queue.
 	queuedWalkAll bool
 
-	// queuedWalkOne is used by walkOne to track whether this location is
+	// queuedWalk is used by walk to track whether this location is
 	// in its work queue. The value is the walkgen when this location was
-	// last queued for walkOne, or 0 if it's not currently queued.
-	queuedWalkOne uint32
+	// last queued for walk, or 0 if it's not currently queued.
+	queuedWalk uint32
 
 	// attrs is a bitset of location attributes.
 	attrs locAttr

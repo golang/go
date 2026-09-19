@@ -130,13 +130,13 @@
 - go: tern
   asm: "VPTERNLOGD|VPTERNLOGQ"
   in:
+  - class: immediate
+    immOffset: 0
+    name: table
   - &tern_op
     go: $t
   - *tern_op
   - *tern_op
-  - class: immediate
-    immOffset: 0
-    name: table
   inVariant: []
   out:
   - *tern_op

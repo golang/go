@@ -1190,6 +1190,9 @@ func TestPermuteScalarsLoGrouped(t *testing.T) {
 }
 
 func TestClMul(t *testing.T) {
+	if !archsimd.X86.AVXPCLMULQDQ() {
+		t.Skip("Test requires X86.AVXPCLMULQDQ, not available on this hardware")
+	}
 	var x = archsimd.LoadUint64x2([]uint64{1, 5})
 	var y = archsimd.LoadUint64x2([]uint64{3, 9})
 
@@ -1205,6 +1208,25 @@ func TestClMul(t *testing.T) {
 	foo(x.CarrylessMultiplyOdd(y), []uint64{45, 0})
 	foo(y.CarrylessMultiplyEven(y), []uint64{5, 0})
 
+}
+
+func TestClMul256(t *testing.T) {
+	if !archsimd.X86.VPCLMULQDQ() {
+		t.Skip("Test requires X86.VPCLMULQDQ, not available on this hardware")
+	}
+	x := archsimd.LoadUint64x4([]uint64{1, 5, 1 << 63, 5})
+	y := archsimd.LoadUint64x4([]uint64{3, 9, 2, 9})
+
+	check := func(v archsimd.Uint64x4, want []uint64) {
+		t.Helper()
+		var got [4]uint64
+		v.Store(got[:])
+		checkSlices(t, got[:], want)
+	}
+	check(x.CarrylessMultiplyEven(y), []uint64{3, 0, 0, 1})
+	check(x.CarrylessMultiplyEvenOdd(y), []uint64{9, 0, 1 << 63, 4})
+	check(x.CarrylessMultiplyOddEven(y), []uint64{15, 0, 10, 0})
+	check(x.CarrylessMultiplyOdd(y), []uint64{45, 0, 45, 0})
 }
 
 func addPairsSlice[T number](a, b []T) []T {
@@ -1295,56 +1317,56 @@ func convConcatGroupedSlice[T, U number](a, b []T, conv func(T) U) []U {
 }
 
 func TestSaturateConcat(t *testing.T) {
-	// Int32x4.SaturateToInt16Concat
+	// Int32x4.ConcatSaturateToInt16
 	forSlicePair(t, int32s, 4, func(x, y []int32) bool {
 		a, b := archsimd.LoadInt32x4(x), archsimd.LoadInt32x4(y)
 		var out [8]int16
-		a.SaturateToInt16Concat(b).StoreArray(&out)
+		a.ConcatSaturateToInt16(b).StoreArray(&out)
 		want := convConcatSlice(x, y, satToInt16)
 		return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
 	})
-	// Int32x4.SaturateToUint16Concat
+	// Int32x4.ConcatSaturateToUint16
 	forSlicePair(t, int32s, 4, func(x, y []int32) bool {
 		a, b := archsimd.LoadInt32x4(x), archsimd.LoadInt32x4(y)
 		var out [8]uint16
-		a.SaturateToUint16Concat(b).StoreArray(&out)
+		a.ConcatSaturateToUint16(b).StoreArray(&out)
 		want := convConcatSlice(x, y, satToUint16)
 		return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
 	})
 
 	if archsimd.X86.AVX2() {
-		// Int32x8.SaturateToInt16ConcatGrouped
+		// Int32x8.ConcatSaturateToInt16Grouped
 		forSlicePair(t, int32s, 8, func(x, y []int32) bool {
 			a, b := archsimd.LoadInt32x8(x), archsimd.LoadInt32x8(y)
 			var out [16]int16
-			a.SaturateToInt16ConcatGrouped(b).StoreArray(&out)
+			a.ConcatSaturateToInt16Grouped(b).StoreArray(&out)
 			want := convConcatGroupedSlice(x, y, satToInt16)
 			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
 		})
-		// Int32x8.SaturateToUint16ConcatGrouped
+		// Int32x8.ConcatSaturateToUint16Grouped
 		forSlicePair(t, int32s, 8, func(x, y []int32) bool {
 			a, b := archsimd.LoadInt32x8(x), archsimd.LoadInt32x8(y)
 			var out [16]uint16
-			a.SaturateToUint16ConcatGrouped(b).StoreArray(&out)
+			a.ConcatSaturateToUint16Grouped(b).StoreArray(&out)
 			want := convConcatGroupedSlice(x, y, satToUint16)
 			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
 		})
 	}
 
 	if archsimd.X86.AVX512() {
-		// Int32x16.SaturateToInt16ConcatGrouped
+		// Int32x16.ConcatSaturateToInt16Grouped
 		forSlicePair(t, int32s, 16, func(x, y []int32) bool {
 			a, b := archsimd.LoadInt32x16(x), archsimd.LoadInt32x16(y)
 			var out [32]int16
-			a.SaturateToInt16ConcatGrouped(b).StoreArray(&out)
+			a.ConcatSaturateToInt16Grouped(b).StoreArray(&out)
 			want := convConcatGroupedSlice(x, y, satToInt16)
 			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
 		})
-		// Int32x16.SaturateToUint16ConcatGrouped
+		// Int32x16.ConcatSaturateToUint16Grouped
 		forSlicePair(t, int32s, 16, func(x, y []int32) bool {
 			a, b := archsimd.LoadInt32x16(x), archsimd.LoadInt32x16(y)
 			var out [32]uint16
-			a.SaturateToUint16ConcatGrouped(b).StoreArray(&out)
+			a.ConcatSaturateToUint16Grouped(b).StoreArray(&out)
 			want := convConcatGroupedSlice(x, y, satToUint16)
 			return checkSlicesLogInput(t, out[:], want, 0, func() { t.Logf("x=%v, y=%v", x, y) })
 		})
@@ -1564,4 +1586,46 @@ func TestMaskOr(t *testing.T) {
 	testMaskOr16x8(t)
 	testMaskOr32x4(t)
 	testMaskOr64x2(t)
+}
+
+func TestReduceSumAmd64(t *testing.T) {
+	// 256-bit float available with plain AVX
+	testV2S(t, float32s, archsimd.LoadFloat32x8, archsimd.Float32x8.ReduceSum, reduceSum)
+	testV2S(t, float64s, archsimd.LoadFloat64x4, archsimd.Float64x4.ReduceSum, reduceSum)
+}
+
+func TestReduceSumAmd64AVX2(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
+	testV2S(t, float32s, archsimd.LoadFloat32x8, archsimd.Float32x8.ReduceSum, reduceSum)
+	testV2S(t, float64s, archsimd.LoadFloat64x4, archsimd.Float64x4.ReduceSum, reduceSum)
+
+	testV2S(t, int8s, archsimd.LoadInt8x32, archsimd.Int8x32.ReduceSum, reduceSum)
+	testV2S(t, uint8s, archsimd.LoadUint8x32, archsimd.Uint8x32.ReduceSum, reduceSum)
+
+	testV2S(t, int16s, archsimd.LoadInt16x16, archsimd.Int16x16.ReduceSum, reduceSum)
+	testV2S(t, uint16s, archsimd.LoadUint16x16, archsimd.Uint16x16.ReduceSum, reduceSum)
+
+	testV2S(t, int32s, archsimd.LoadInt32x8, archsimd.Int32x8.ReduceSum, reduceSum)
+	testV2S(t, uint32s, archsimd.LoadUint32x8, archsimd.Uint32x8.ReduceSum, reduceSum)
+}
+
+func TestReduceSumAmd64AVX512(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+		return
+	}
+	testV2S(t, float32s, archsimd.LoadFloat32x16, archsimd.Float32x16.ReduceSum, reduceSum)
+	testV2S(t, float64s, archsimd.LoadFloat64x8, archsimd.Float64x8.ReduceSum, reduceSum)
+
+	testV2S(t, int8s, archsimd.LoadInt8x64, archsimd.Int8x64.ReduceSum, reduceSum)
+	testV2S(t, uint8s, archsimd.LoadUint8x64, archsimd.Uint8x64.ReduceSum, reduceSum)
+
+	testV2S(t, int16s, archsimd.LoadInt16x32, archsimd.Int16x32.ReduceSum, reduceSum)
+	testV2S(t, uint16s, archsimd.LoadUint16x32, archsimd.Uint16x32.ReduceSum, reduceSum)
+
+	testV2S(t, int32s, archsimd.LoadInt32x16, archsimd.Int32x16.ReduceSum, reduceSum)
+	testV2S(t, uint32s, archsimd.LoadUint32x16, archsimd.Uint32x16.ReduceSum, reduceSum)
 }

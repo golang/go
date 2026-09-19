@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"simd/archsimd/_gen/simdgen/types"
 	"simd/archsimd/_gen/unify"
 
 	"golang.org/x/arch/x86/xeddata"
@@ -93,7 +94,7 @@ func loadXED(xedPath string) []*unify.Value {
 		case inst.RealOpcode == "N":
 			return // Skip unstable instructions
 		case !(strings.HasPrefix(inst.Extension, "AVX") || strings.HasPrefix(inst.Extension, "SHA") ||
-			inst.Extension == "FMA" || inst.Extension == "VAES"):
+			inst.Extension == "FMA" || inst.Extension == "VAES" || inst.Extension == "VPCLMULQDQ"):
 			// We're only interested in AVX and SHA instructions.
 			return
 		}
@@ -333,83 +334,81 @@ type operandImm struct {
 
 type operand interface {
 	common() operandCommon
-	addToDef(b *unify.DefBuilder)
-}
-
-func strVal(s any) *unify.Value {
-	return unify.NewValue(unify.NewStringExact(fmt.Sprint(s)))
+	encode() types.Operand
 }
 
 func (o operandCommon) common() operandCommon {
 	return o
 }
 
-func (o operandMem) addToDef(b *unify.DefBuilder) {
-	b.Add("class", strVal("memory"))
+func (o operandMem) encode() types.Operand {
+	op := types.Operand{
+		Class: "mem",
+	}
 	if o.unknown {
-		return
+		return op
 	}
-	baseDomain, err := unify.NewStringRegex(o.elemBaseType.regex())
-	if err != nil {
-		panic("parsing baseRe: " + err.Error())
-	}
-	b.Add("base", unify.NewValue(baseDomain))
-	b.Add("bits", strVal(o.bits))
+	op.EncodeBase = scalarBaseTypeRegexps[o.elemBaseType]
+	op.EncodeBits = &types.VectorSize{NRaw: o.bits}
 	if o.elemBits != o.bits {
-		b.Add("elemBits", strVal(o.elemBits))
+		op.ElemBits = &o.elemBits
 	}
+	return op
 }
 
-func (o operandVReg) addToDef(b *unify.DefBuilder) {
-	baseDomain, err := unify.NewStringRegex(o.elemBaseType.regex())
-	if err != nil {
-		panic("parsing baseRe: " + err.Error())
+func (o operandVReg) encode() types.Operand {
+	op := types.Operand{
+		Class:      "vreg",
+		EncodeBase: scalarBaseTypeRegexps[o.elemBaseType],
+		EncodeBits: &types.VectorSize{NRaw: o.bits},
 	}
-	b.Add("class", strVal("vreg"))
-	b.Add("bits", strVal(o.bits))
-	b.Add("base", unify.NewValue(baseDomain))
 	// If elemBits == bits, then the vector can be ANY shape. This happens with,
 	// for example, logical ops.
 	if o.elemBits != o.bits {
-		b.Add("elemBits", strVal(o.elemBits))
+		op.ElemBits = &o.elemBits
 	}
 	if o.fixedName != "" {
-		b.Add("fixedReg", strVal(o.fixedName))
+		op.FixedReg = &o.fixedName
 	}
+	return op
 }
 
-func (o operandGReg) addToDef(b *unify.DefBuilder) {
-	baseDomain, err := unify.NewStringRegex(o.elemBaseType.regex())
-	if err != nil {
-		panic("parsing baseRe: " + err.Error())
+func (o operandGReg) encode() types.Operand {
+	op := types.Operand{
+		Class:      "greg",
+		EncodeBase: scalarBaseTypeRegexps[o.elemBaseType],
+		EncodeBits: &types.VectorSize{NRaw: o.bits},
 	}
-	b.Add("class", strVal("greg"))
-	b.Add("bits", strVal(o.bits))
-	b.Add("base", unify.NewValue(baseDomain))
 	if o.elemBits != o.bits {
-		b.Add("elemBits", strVal(o.elemBits))
+		op.ElemBits = &o.elemBits
 	}
 	if o.fixedName != "" {
-		b.Add("fixedReg", strVal(o.fixedName))
+		op.FixedReg = &o.fixedName
 	}
+	return op
 }
 
-func (o operandMask) addToDef(b *unify.DefBuilder) {
-	b.Add("class", strVal("mask"))
+func (o operandMask) encode() types.Operand {
+	op := types.Operand{
+		Class: "mask",
+	}
 	if o.allMasks {
 		// If all operands are masks, omit sizes and let unification determine mask sizes.
-		return
+		return op
 	}
-	b.Add("elemBits", strVal(o.elemBits))
-	b.Add("bits", strVal(o.bits))
+	op.ElemBits = &o.elemBits
+	op.EncodeBits = &types.VectorSize{NRaw: o.bits}
 	if o.fixedName != "" {
-		b.Add("fixedReg", strVal(o.fixedName))
+		op.FixedReg = &o.fixedName
 	}
+	return op
 }
 
-func (o operandImm) addToDef(b *unify.DefBuilder) {
-	b.Add("class", strVal("immediate"))
-	b.Add("bits", strVal(o.bits))
+func (o operandImm) encode() types.Operand {
+	return types.Operand{
+		Class:      "immediate",
+		EncodeBits: &types.VectorSize{NRaw: o.bits},
+	}
 }
 
 var actionEncoding = map[string]operandAction{
@@ -672,41 +671,40 @@ func inferMaskSizes(ops []operand) error {
 // Optional mask input operands are added to the inVariant field if
 // variant&instVariantMasked, and omitted otherwise.
 func addOperandsToDef(ops []operand, instDB *unify.DefBuilder, variant instVariant) {
-	var inVals, inVar, outVals []*unify.Value
+	var in, inVariant, out []types.Operand
+
 	asmPos := 0
 	for _, op := range ops {
-		var db unify.DefBuilder
-		op.addToDef(&db)
-		db.Add("asmPos", unify.NewValue(unify.NewStringExact(fmt.Sprint(asmPos))))
+		opGen := op.encode()
+		opGen.AsmPos = asmPos
 
 		action := op.common().action
 		asmCount := 1 // # of assembly operands; 0 or 1
 		if action.r {
-			inVal := unify.NewValue(db.Build())
 			// If this is an optional mask, put it in the input variant tuple.
 			if mask, ok := op.(operandMask); ok && mask.optional {
 				if variant&instVariantMasked != 0 {
-					inVar = append(inVar, inVal)
+					inVariant = append(inVariant, opGen)
 				} else {
 					// This operand doesn't appear in the assembly at all.
 					asmCount = 0
 				}
 			} else {
-				// Just a regular input operand.
-				inVals = append(inVals, inVal)
+				in = append(in, opGen)
 			}
 		}
 		if action.w {
-			outVal := unify.NewValue(db.Build())
-			outVals = append(outVals, outVal)
+			out = append(out, opGen)
 		}
 
 		asmPos += asmCount
 	}
 
-	instDB.Add("in", unify.NewValue(unify.NewTuple(inVals...)))
-	instDB.Add("inVariant", unify.NewValue(unify.NewTuple(inVar...)))
-	instDB.Add("out", unify.NewValue(unify.NewTuple(outVals...)))
+	slices.SortStableFunc(in, types.Operand.Compare)
+
+	instDB.Add("in", unify.Encode(in))
+	instDB.Add("inVariant", unify.Encode(inVariant))
+	instDB.Add("out", unify.Encode(out))
 	memFeatures := checkMem(ops)
 	if memFeatures != "noMem" {
 		instDB.Add("memFeatures", unify.NewValue(unify.NewStringExact(memFeatures)))
@@ -795,6 +793,11 @@ func decodeCPUFeature(inst *xeddata.Inst) (string, bool) {
 		// instead.
 		isaSet = inst.Extension
 	}
+	if isaSet == "AVX" && inst.Opcode() == "VPCLMULQDQ" {
+		// XED classifies the VEX.128 form as AVX, but it also requires
+		// PCLMULQDQ. The VEX.256 form has its own VPCLMULQDQ ISA set.
+		isaSet = "AVXPCLMULQDQ"
+	}
 	// We require AVX512VL to use AVX512 at all, so strip off the vector length
 	// suffixes.
 	if strings.HasPrefix(isaSet, "AVX512") {
@@ -824,13 +827,15 @@ var isaSetVL = regexp.MustCompile("_(128N?|256N?|512)$")
 //
 // See XED's datafiles/*/cpuid.xed.txt for how ISA set names map to CPUID flags.
 var cpuFeatureMap = map[string]string{
-	"AVX":      "AVX",
-	"AVX_VNNI": "AVXVNNI",
-	"AVX2":     "AVX2",
-	"AVXAES":   "AVXAES",
-	"SHA":      "SHA",
-	"FMA":      "FMA",
-	"VAES":     "VAES",
+	"AVX":          "AVX",
+	"AVX_VNNI":     "AVXVNNI",
+	"AVX2":         "AVX2",
+	"AVXAES":       "AVXAES",
+	"AVXPCLMULQDQ": "AVXPCLMULQDQ",
+	"SHA":          "SHA",
+	"FMA":          "FMA",
+	"VAES":         "VAES",
+	"VPCLMULQDQ":   "VPCLMULQDQ",
 
 	// AVX-512 foundational features. We combine all of these into one "AVX512" feature.
 	"AVX512F":  "AVX512",
@@ -862,9 +867,11 @@ func init() {
 		"AVX2":   {Implies: []string{"AVX"}},
 		"AVX512": {Implies: []string{"AVX2"}},
 
-		"AVXAES": {Virtual: true, Implies: []string{"AVX", "AES"}},
-		"FMA":    {Implies: []string{"AVX"}},
-		"VAES":   {Implies: []string{"AVX"}},
+		"AVXAES":       {Virtual: true, Implies: []string{"AVX", "AES"}},
+		"AVXPCLMULQDQ": {Virtual: true, Implies: []string{"AVX", "PCLMULQDQ"}},
+		"FMA":          {Implies: []string{"AVX"}},
+		"VAES":         {Implies: []string{"AVX"}},
+		"VPCLMULQDQ":   {Implies: []string{"AVX"}},
 
 		// AVX-512 subfeatures.
 		"AVX512BITALG":    {Implies: []string{"AVX512"}},
@@ -981,24 +988,14 @@ const (
 	scalarBaseHFloat
 )
 
-func (s scalarBaseType) regex() string {
-	switch s {
-	case scalarBaseInt:
-		return "int"
-	case scalarBaseUint:
-		return "uint"
-	case scalarBaseIntOrUint:
-		return "int|uint"
-	case scalarBaseFloat:
-		return "float"
-	case scalarBaseComplex:
-		return "complex"
-	case scalarBaseBFloat:
-		return "BFloat"
-	case scalarBaseHFloat:
-		return "HFloat"
-	}
-	panic(fmt.Sprintf("unknown scalar base type %d", s))
+var scalarBaseTypeRegexps = map[scalarBaseType]*regexp.Regexp{
+	scalarBaseInt:       regexp.MustCompile("int"),
+	scalarBaseUint:      regexp.MustCompile("uint"),
+	scalarBaseIntOrUint: regexp.MustCompile("int|uint"),
+	scalarBaseFloat:     regexp.MustCompile("float"),
+	scalarBaseComplex:   regexp.MustCompile("complex"),
+	scalarBaseBFloat:    regexp.MustCompile("BFloat"),
+	scalarBaseHFloat:    regexp.MustCompile("HFloat"),
 }
 
 func decodeType(op *xeddata.Operand) (base scalarBaseType, bits int, ok bool) {

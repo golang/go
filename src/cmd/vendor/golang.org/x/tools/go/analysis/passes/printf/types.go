@@ -190,6 +190,9 @@ func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
 		case *types.Map: // see below
 		default:
 			// Check whether the rest can print pointers.
+			if m.t&argPointer == 0 && m.t&argInt != 0 {
+				m.reason = "use %p for a pointer"
+			}
 			return m.t&argPointer != 0
 		}
 		// If it's a top-level pointer to a struct, array, slice, type param, or
@@ -262,7 +265,10 @@ func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
 			return m.t&argString != 0
 
 		case types.UnsafePointer:
-			return m.t&(argPointer|argInt) != 0
+			if m.t&argPointer == 0 && m.t&argInt != 0 {
+				m.reason = "use %p for a pointer"
+			}
+			return m.t&argPointer != 0
 
 		case types.UntypedNil:
 			return false

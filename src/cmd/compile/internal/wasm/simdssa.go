@@ -4,6 +4,7 @@ package wasm
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj"
 	"cmd/internal/obj/wasm"
@@ -11,115 +12,115 @@ import (
 
 func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 	switch v.Op {
-	case ssa.OpWasmF32x4ExtractLane, ssa.OpWasmI64x2ExtractLane, ssa.OpWasmF64x2ExtractLane:
+	case ssaop.OpWasmF32x4ExtractLane, ssaop.OpWasmI64x2ExtractLane, ssaop.OpWasmF64x2ExtractLane:
 		getValue128(s, v.Args[0])
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
-	case ssa.OpWasmI8x16ExtractLaneU, ssa.OpWasmI16x8ExtractLaneU:
+	case ssaop.OpWasmI8x16ExtractLaneU, ssaop.OpWasmI16x8ExtractLaneU:
 		getValue128(s, v.Args[0])
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
 		if extend {
 			s.Prog(wasm.AI64ExtendI32U)
 		}
-	case ssa.OpWasmI8x16ExtractLaneS, ssa.OpWasmI16x8ExtractLaneS, ssa.OpWasmI32x4ExtractLane:
+	case ssaop.OpWasmI8x16ExtractLaneS, ssaop.OpWasmI16x8ExtractLaneS, ssaop.OpWasmI32x4ExtractLane:
 		getValue128(s, v.Args[0])
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
 		if extend {
 			s.Prog(wasm.AI64ExtendI32S)
 		}
-	case ssa.OpWasmI8x16ReplaceLane, ssa.OpWasmI16x8ReplaceLane, ssa.OpWasmI32x4ReplaceLane:
+	case ssaop.OpWasmI8x16ReplaceLane, ssaop.OpWasmI16x8ReplaceLane, ssaop.OpWasmI32x4ReplaceLane:
 		getValue128(s, v.Args[0])
 		getValue32(s, v.Args[1])
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
-	case ssa.OpWasmF32x4ReplaceLane, ssa.OpWasmI64x2ReplaceLane, ssa.OpWasmF64x2ReplaceLane:
+	case ssaop.OpWasmF32x4ReplaceLane, ssaop.OpWasmI64x2ReplaceLane, ssaop.OpWasmF64x2ReplaceLane:
 		getValue128(s, v.Args[0])
 		getValue64(s, v.Args[1])
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
-	case ssa.OpWasmI8x16Splat, ssa.OpWasmI16x8Splat, ssa.OpWasmI32x4Splat:
+	case ssaop.OpWasmI8x16Splat, ssaop.OpWasmI16x8Splat, ssaop.OpWasmI32x4Splat:
 		getValue32(s, v.Args[0])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmI64x2Splat:
+	case ssaop.OpWasmI64x2Splat:
 		getValue64(s, v.Args[0])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmF32x4Splat:
+	case ssaop.OpWasmF32x4Splat:
 		getValueFxx(s, v.Args[0])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmF64x2Splat:
+	case ssaop.OpWasmF64x2Splat:
 		getValueFxx(s, v.Args[0])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmI8x16AllTrue, ssa.OpWasmV128AnyTrue, ssa.OpWasmI16x8AllTrue,
-		ssa.OpWasmI32x4AllTrue, ssa.OpWasmI64x2AllTrue, ssa.OpWasmI8x16Abs,
-		ssa.OpWasmI16x8Abs, ssa.OpWasmI32x4Abs, ssa.OpWasmF32x4Abs,
-		ssa.OpWasmI64x2Abs, ssa.OpWasmF64x2Abs, ssa.OpWasmF32x4Ceil,
-		ssa.OpWasmF64x2Ceil, ssa.OpWasmF64x2ConvertLowI32x4S, ssa.OpWasmF64x2ConvertLowI32x4U,
-		ssa.OpWasmF32x4ConvertI32x4S, ssa.OpWasmF32x4ConvertI32x4U, ssa.OpWasmI32x4TruncSatF32x4S,
-		ssa.OpWasmI32x4TruncSatF32x4U, ssa.OpWasmI64x2ExtendHighI32x4S, ssa.OpWasmI64x2ExtendHighI32x4U,
-		ssa.OpWasmI32x4ExtendHighI16x8S, ssa.OpWasmI32x4ExtendHighI16x8U, ssa.OpWasmI16x8ExtendHighI8x16S,
-		ssa.OpWasmI16x8ExtendHighI8x16U, ssa.OpWasmI64x2ExtendLowI32x4S, ssa.OpWasmI64x2ExtendLowI32x4U,
-		ssa.OpWasmI32x4ExtendLowI16x8S, ssa.OpWasmI32x4ExtendLowI16x8U, ssa.OpWasmI16x8ExtendLowI8x16S,
-		ssa.OpWasmI16x8ExtendLowI8x16U, ssa.OpWasmF32x4Floor, ssa.OpWasmF64x2Floor,
-		ssa.OpWasmI8x16Neg, ssa.OpWasmI16x8Neg, ssa.OpWasmI32x4Neg,
-		ssa.OpWasmF32x4Neg, ssa.OpWasmI64x2Neg, ssa.OpWasmF64x2Neg,
-		ssa.OpWasmV128Not, ssa.OpWasmI8x16Popcnt, ssa.OpWasmF32x4Nearest,
-		ssa.OpWasmF64x2Nearest, ssa.OpWasmF32x4Sqrt, ssa.OpWasmF64x2Sqrt,
-		ssa.OpWasmF32x4Trunc, ssa.OpWasmF64x2Trunc:
+	case ssaop.OpWasmI8x16AllTrue, ssaop.OpWasmV128AnyTrue, ssaop.OpWasmI16x8AllTrue,
+		ssaop.OpWasmI32x4AllTrue, ssaop.OpWasmI64x2AllTrue, ssaop.OpWasmI8x16Abs,
+		ssaop.OpWasmI16x8Abs, ssaop.OpWasmI32x4Abs, ssaop.OpWasmF32x4Abs,
+		ssaop.OpWasmI64x2Abs, ssaop.OpWasmF64x2Abs, ssaop.OpWasmF32x4Ceil,
+		ssaop.OpWasmF64x2Ceil, ssaop.OpWasmF64x2ConvertLowI32x4S, ssaop.OpWasmF64x2ConvertLowI32x4U,
+		ssaop.OpWasmF32x4ConvertI32x4S, ssaop.OpWasmF32x4ConvertI32x4U, ssaop.OpWasmI32x4TruncSatF32x4S,
+		ssaop.OpWasmI32x4TruncSatF32x4U, ssaop.OpWasmI64x2ExtendHighI32x4S, ssaop.OpWasmI64x2ExtendHighI32x4U,
+		ssaop.OpWasmI32x4ExtendHighI16x8S, ssaop.OpWasmI32x4ExtendHighI16x8U, ssaop.OpWasmI16x8ExtendHighI8x16S,
+		ssaop.OpWasmI16x8ExtendHighI8x16U, ssaop.OpWasmI64x2ExtendLowI32x4S, ssaop.OpWasmI64x2ExtendLowI32x4U,
+		ssaop.OpWasmI32x4ExtendLowI16x8S, ssaop.OpWasmI32x4ExtendLowI16x8U, ssaop.OpWasmI16x8ExtendLowI8x16S,
+		ssaop.OpWasmI16x8ExtendLowI8x16U, ssaop.OpWasmF32x4Floor, ssaop.OpWasmF64x2Floor,
+		ssaop.OpWasmI8x16Neg, ssaop.OpWasmI16x8Neg, ssaop.OpWasmI32x4Neg,
+		ssaop.OpWasmF32x4Neg, ssaop.OpWasmI64x2Neg, ssaop.OpWasmF64x2Neg,
+		ssaop.OpWasmV128Not, ssaop.OpWasmI8x16Popcnt, ssaop.OpWasmF32x4Nearest,
+		ssaop.OpWasmF64x2Nearest, ssaop.OpWasmF32x4Sqrt, ssaop.OpWasmF64x2Sqrt,
+		ssaop.OpWasmF32x4Trunc, ssaop.OpWasmF64x2Trunc:
 		getValue128(s, v.Args[0])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmI16x8Q15MulrSatS, ssa.OpWasmI16x8RelaxedQ15MulrS, ssa.OpWasmF32x4Pmax,
-		ssa.OpWasmF32x4Pmin, ssa.OpWasmF32x4RelaxedMax, ssa.OpWasmF32x4RelaxedMin,
-		ssa.OpWasmF64x2Pmax, ssa.OpWasmF64x2Pmin, ssa.OpWasmF64x2RelaxedMax,
-		ssa.OpWasmF64x2RelaxedMin, ssa.OpWasmI8x16Add, ssa.OpWasmI16x8Add,
-		ssa.OpWasmI32x4Add, ssa.OpWasmF32x4Add, ssa.OpWasmI64x2Add,
-		ssa.OpWasmF64x2Add, ssa.OpWasmI8x16AddSatS, ssa.OpWasmI8x16AddSatU,
-		ssa.OpWasmI16x8AddSatS, ssa.OpWasmI16x8AddSatU, ssa.OpWasmV128And,
-		ssa.OpWasmV128Andnot, ssa.OpWasmI8x16AvgrU, ssa.OpWasmI16x8AvgrU,
-		ssa.OpWasmF32x4Div, ssa.OpWasmF64x2Div, ssa.OpWasmI8x16Eq,
-		ssa.OpWasmI16x8Eq, ssa.OpWasmI32x4Eq, ssa.OpWasmF32x4Eq,
-		ssa.OpWasmI64x2Eq, ssa.OpWasmF64x2Eq, ssa.OpWasmI8x16GtS,
-		ssa.OpWasmI8x16GtU, ssa.OpWasmI16x8GtS, ssa.OpWasmI16x8GtU,
-		ssa.OpWasmI32x4GtS, ssa.OpWasmI32x4GtU, ssa.OpWasmF32x4Gt,
-		ssa.OpWasmI64x2GtS, ssa.OpWasmF64x2Gt, ssa.OpWasmI8x16GeS,
-		ssa.OpWasmI8x16GeU, ssa.OpWasmI16x8GeS, ssa.OpWasmI16x8GeU,
-		ssa.OpWasmI32x4GeS, ssa.OpWasmI32x4GeU, ssa.OpWasmF32x4Ge,
-		ssa.OpWasmI64x2GeS, ssa.OpWasmF64x2Ge, ssa.OpWasmI8x16LtS,
-		ssa.OpWasmI8x16LtU, ssa.OpWasmI16x8LtS, ssa.OpWasmI16x8LtU,
-		ssa.OpWasmI32x4LtS, ssa.OpWasmI32x4LtU, ssa.OpWasmF32x4Lt,
-		ssa.OpWasmI64x2LtS, ssa.OpWasmF64x2Lt, ssa.OpWasmI8x16LeS,
-		ssa.OpWasmI8x16LeU, ssa.OpWasmI16x8LeS, ssa.OpWasmI16x8LeU,
-		ssa.OpWasmI32x4LeS, ssa.OpWasmI32x4LeU, ssa.OpWasmF32x4Le,
-		ssa.OpWasmI64x2LeS, ssa.OpWasmF64x2Le, ssa.OpWasmI8x16Swizzle,
-		ssa.OpWasmI8x16MaxS, ssa.OpWasmI8x16MaxU, ssa.OpWasmI16x8MaxS,
-		ssa.OpWasmI16x8MaxU, ssa.OpWasmI32x4MaxS, ssa.OpWasmI32x4MaxU,
-		ssa.OpWasmF32x4Max, ssa.OpWasmF64x2Max, ssa.OpWasmI8x16MinS,
-		ssa.OpWasmI8x16MinU, ssa.OpWasmI16x8MinS, ssa.OpWasmI16x8MinU,
-		ssa.OpWasmI32x4MinS, ssa.OpWasmI32x4MinU, ssa.OpWasmF32x4Min,
-		ssa.OpWasmF64x2Min, ssa.OpWasmI16x8Mul, ssa.OpWasmI32x4Mul,
-		ssa.OpWasmF32x4Mul, ssa.OpWasmI64x2Mul, ssa.OpWasmF64x2Mul,
-		ssa.OpWasmI16x8ExtmulHighI8x16S, ssa.OpWasmI16x8ExtmulHighI8x16U, ssa.OpWasmI32x4ExtmulHighI16x8S,
-		ssa.OpWasmI32x4ExtmulHighI16x8U, ssa.OpWasmI64x2ExtmulHighI32x4S, ssa.OpWasmI64x2ExtmulHighI32x4U,
-		ssa.OpWasmI16x8ExtmulLowI8x16S, ssa.OpWasmI16x8ExtmulLowI8x16U, ssa.OpWasmI32x4ExtmulLowI16x8S,
-		ssa.OpWasmI32x4ExtmulLowI16x8U, ssa.OpWasmI64x2ExtmulLowI32x4S, ssa.OpWasmI64x2ExtmulLowI32x4U,
-		ssa.OpWasmI8x16Ne, ssa.OpWasmI16x8Ne, ssa.OpWasmI32x4Ne,
-		ssa.OpWasmF32x4Ne, ssa.OpWasmI64x2Ne, ssa.OpWasmF64x2Ne,
-		ssa.OpWasmV128Or, ssa.OpWasmI8x16Sub, ssa.OpWasmI16x8Sub,
-		ssa.OpWasmI32x4Sub, ssa.OpWasmF32x4Sub, ssa.OpWasmI64x2Sub,
-		ssa.OpWasmF64x2Sub, ssa.OpWasmI8x16SubSatS, ssa.OpWasmI8x16SubSatU,
-		ssa.OpWasmI16x8SubSatS, ssa.OpWasmI16x8SubSatU, ssa.OpWasmV128Xor:
+	case ssaop.OpWasmI16x8Q15MulrSatS, ssaop.OpWasmI16x8RelaxedQ15MulrS, ssaop.OpWasmF32x4Pmax,
+		ssaop.OpWasmF32x4Pmin, ssaop.OpWasmF32x4RelaxedMax, ssaop.OpWasmF32x4RelaxedMin,
+		ssaop.OpWasmF64x2Pmax, ssaop.OpWasmF64x2Pmin, ssaop.OpWasmF64x2RelaxedMax,
+		ssaop.OpWasmF64x2RelaxedMin, ssaop.OpWasmI8x16Add, ssaop.OpWasmI16x8Add,
+		ssaop.OpWasmI32x4Add, ssaop.OpWasmF32x4Add, ssaop.OpWasmI64x2Add,
+		ssaop.OpWasmF64x2Add, ssaop.OpWasmI8x16AddSatS, ssaop.OpWasmI8x16AddSatU,
+		ssaop.OpWasmI16x8AddSatS, ssaop.OpWasmI16x8AddSatU, ssaop.OpWasmV128And,
+		ssaop.OpWasmV128Andnot, ssaop.OpWasmI8x16AvgrU, ssaop.OpWasmI16x8AvgrU,
+		ssaop.OpWasmF32x4Div, ssaop.OpWasmF64x2Div, ssaop.OpWasmI8x16Eq,
+		ssaop.OpWasmI16x8Eq, ssaop.OpWasmI32x4Eq, ssaop.OpWasmF32x4Eq,
+		ssaop.OpWasmI64x2Eq, ssaop.OpWasmF64x2Eq, ssaop.OpWasmI8x16GtS,
+		ssaop.OpWasmI8x16GtU, ssaop.OpWasmI16x8GtS, ssaop.OpWasmI16x8GtU,
+		ssaop.OpWasmI32x4GtS, ssaop.OpWasmI32x4GtU, ssaop.OpWasmF32x4Gt,
+		ssaop.OpWasmI64x2GtS, ssaop.OpWasmF64x2Gt, ssaop.OpWasmI8x16GeS,
+		ssaop.OpWasmI8x16GeU, ssaop.OpWasmI16x8GeS, ssaop.OpWasmI16x8GeU,
+		ssaop.OpWasmI32x4GeS, ssaop.OpWasmI32x4GeU, ssaop.OpWasmF32x4Ge,
+		ssaop.OpWasmI64x2GeS, ssaop.OpWasmF64x2Ge, ssaop.OpWasmI8x16LtS,
+		ssaop.OpWasmI8x16LtU, ssaop.OpWasmI16x8LtS, ssaop.OpWasmI16x8LtU,
+		ssaop.OpWasmI32x4LtS, ssaop.OpWasmI32x4LtU, ssaop.OpWasmF32x4Lt,
+		ssaop.OpWasmI64x2LtS, ssaop.OpWasmF64x2Lt, ssaop.OpWasmI8x16LeS,
+		ssaop.OpWasmI8x16LeU, ssaop.OpWasmI16x8LeS, ssaop.OpWasmI16x8LeU,
+		ssaop.OpWasmI32x4LeS, ssaop.OpWasmI32x4LeU, ssaop.OpWasmF32x4Le,
+		ssaop.OpWasmI64x2LeS, ssaop.OpWasmF64x2Le, ssaop.OpWasmI8x16Swizzle,
+		ssaop.OpWasmI8x16MaxS, ssaop.OpWasmI8x16MaxU, ssaop.OpWasmI16x8MaxS,
+		ssaop.OpWasmI16x8MaxU, ssaop.OpWasmI32x4MaxS, ssaop.OpWasmI32x4MaxU,
+		ssaop.OpWasmF32x4Max, ssaop.OpWasmF64x2Max, ssaop.OpWasmI8x16MinS,
+		ssaop.OpWasmI8x16MinU, ssaop.OpWasmI16x8MinS, ssaop.OpWasmI16x8MinU,
+		ssaop.OpWasmI32x4MinS, ssaop.OpWasmI32x4MinU, ssaop.OpWasmF32x4Min,
+		ssaop.OpWasmF64x2Min, ssaop.OpWasmI16x8Mul, ssaop.OpWasmI32x4Mul,
+		ssaop.OpWasmF32x4Mul, ssaop.OpWasmI64x2Mul, ssaop.OpWasmF64x2Mul,
+		ssaop.OpWasmI16x8ExtmulHighI8x16S, ssaop.OpWasmI16x8ExtmulHighI8x16U, ssaop.OpWasmI32x4ExtmulHighI16x8S,
+		ssaop.OpWasmI32x4ExtmulHighI16x8U, ssaop.OpWasmI64x2ExtmulHighI32x4S, ssaop.OpWasmI64x2ExtmulHighI32x4U,
+		ssaop.OpWasmI16x8ExtmulLowI8x16S, ssaop.OpWasmI16x8ExtmulLowI8x16U, ssaop.OpWasmI32x4ExtmulLowI16x8S,
+		ssaop.OpWasmI32x4ExtmulLowI16x8U, ssaop.OpWasmI64x2ExtmulLowI32x4S, ssaop.OpWasmI64x2ExtmulLowI32x4U,
+		ssaop.OpWasmI8x16Ne, ssaop.OpWasmI16x8Ne, ssaop.OpWasmI32x4Ne,
+		ssaop.OpWasmF32x4Ne, ssaop.OpWasmI64x2Ne, ssaop.OpWasmF64x2Ne,
+		ssaop.OpWasmV128Or, ssaop.OpWasmI8x16Sub, ssaop.OpWasmI16x8Sub,
+		ssaop.OpWasmI32x4Sub, ssaop.OpWasmF32x4Sub, ssaop.OpWasmI64x2Sub,
+		ssaop.OpWasmF64x2Sub, ssaop.OpWasmI8x16SubSatS, ssaop.OpWasmI8x16SubSatU,
+		ssaop.OpWasmI16x8SubSatS, ssaop.OpWasmI16x8SubSatU, ssaop.OpWasmV128Xor:
 		getValue128(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmI8x16Shl, ssa.OpWasmI16x8Shl, ssa.OpWasmI32x4Shl,
-		ssa.OpWasmI64x2Shl, ssa.OpWasmI8x16ShrS, ssa.OpWasmI8x16ShrU,
-		ssa.OpWasmI16x8ShrS, ssa.OpWasmI16x8ShrU, ssa.OpWasmI32x4ShrS,
-		ssa.OpWasmI32x4ShrU, ssa.OpWasmI64x2ShrS, ssa.OpWasmI64x2ShrU:
+	case ssaop.OpWasmI8x16Shl, ssaop.OpWasmI16x8Shl, ssaop.OpWasmI32x4Shl,
+		ssaop.OpWasmI64x2Shl, ssaop.OpWasmI8x16ShrS, ssaop.OpWasmI8x16ShrU,
+		ssaop.OpWasmI16x8ShrS, ssaop.OpWasmI16x8ShrU, ssaop.OpWasmI32x4ShrS,
+		ssaop.OpWasmI32x4ShrU, ssaop.OpWasmI64x2ShrS, ssaop.OpWasmI64x2ShrU:
 		getValue128(s, v.Args[0])
 		getValue32(s, v.Args[1])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmV128Bitselect:
+	case ssaop.OpWasmV128Bitselect:
 		getValue128(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		getValue128(s, v.Args[2])

@@ -1,7 +1,5 @@
 # Regression test for golang.org/issue/31481.
 
-env GO111MODULE=on
-
 # golang.org/issue/31481: an explicit flag should make directories in the module
 # cache writable in order to work around the historical inability of 'rm -rf' to
 # forcibly remove files in unwritable directories.

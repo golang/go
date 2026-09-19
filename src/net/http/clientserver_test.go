@@ -15,6 +15,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"hash"
+	"internal/nettest"
 	"io"
 	"log"
 	"maps"
@@ -24,13 +25,13 @@ import (
 	"net/http/httptest"
 	"net/http/httptrace"
 	"net/http/httputil"
+	"net/netip"
 	"net/textproto"
 	"net/url"
 	"os"
 	"reflect"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,18 +39,16 @@ import (
 	"testing/synctest"
 	"time"
 
-	"golang.org/x/net/quic"
-
 	_ "unsafe" // for linkname
 
 	_ "golang.org/x/net/http3"
 )
 
 //go:linkname registerHTTP3Transport
-func registerHTTP3Transport(*http.Transport) <-chan *quic.Endpoint
+func registerHTTP3Transport(*http.Transport, any) error
 
 //go:linkname registerHTTP3Server
-func registerHTTP3Server(*http.Server) <-chan *quic.Endpoint
+func registerHTTP3Server(*http.Server, any) error
 
 type testMode string
 
@@ -59,6 +58,11 @@ const (
 	http2Mode            = testMode("h2")            // HTTP/2
 	http2UnencryptedMode = testMode("h2unencrypted") // HTTP/2
 	http3Mode            = testMode("h3")            // HTTP/3
+)
+
+type (
+	testAddMode  []testMode // default, plus these
+	testSkipMode []testMode // default, minus these
 )
 
 // http3SkippedMode is a convenient alias for []testMode{http1Mode, http2Mode},
@@ -80,10 +84,14 @@ func (m testMode) Scheme() string {
 	panic("unknown testMode")
 }
 
-type testNotParallelOpt struct{}
+type (
+	testNotParallelOpt struct{}
+	testRealNetOpt     struct{}
+)
 
 var (
 	testNotParallel = testNotParallelOpt{}
+	optRealNet      = testRealNetOpt{}
 )
 
 type TBRun[T any] interface {
@@ -104,6 +112,16 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 	parallel := true
 	for _, opt := range opts {
 		switch opt := opt.(type) {
+		case testAddMode:
+			for _, m := range opt {
+				if !slices.Contains(modes, m) {
+					modes = append(modes, m)
+				}
+			}
+		case testSkipMode:
+			modes = slices.DeleteFunc(modes, func(m testMode) bool {
+				return slices.Contains(opt, m)
+			})
 		case []testMode:
 			modes = opt
 		case testNotParallelOpt:
@@ -116,17 +134,22 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 		setParallel(t)
 	}
 	for _, mode := range modes {
-		// TODO(nsh): re-enable the tests once tree re-opens.
-		if mode == http3Mode {
-			continue
-		}
 		t.Run(string(mode), func(t T) {
+			panicking := false
+			defer func() {
+				if err := recover(); err != nil {
+					panicking = true
+					panic(err)
+				}
+			}()
 			t.Helper()
 			if t, ok := any(t).(*testing.T); ok && parallel {
 				setParallel(t)
 			}
 			t.Cleanup(func() {
-				afterTest(t)
+				if !panicking {
+					afterTest(t)
+				}
 			})
 			f(t, mode)
 		})
@@ -145,13 +168,13 @@ func runSynctest(t *testing.T, f func(t *testing.T, mode testMode), opts ...any)
 }
 
 type clientServerTest struct {
-	t  testing.TB
-	h2 bool
-	h  Handler
-	ts *httptest.Server
-	tr *Transport
-	c  *Client
-	li *fakeNetListener
+	t    testing.TB
+	h2   bool
+	h    Handler
+	ts   *httptest.Server
+	tr   *Transport
+	c    *Client
+	mode testMode
 }
 
 func (t *clientServerTest) close() {
@@ -189,8 +212,6 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 	}
 }
 
-var optFakeNet = new(struct{})
-
 // newClientServerTest creates and starts an httptest.Server.
 //
 // The mode parameter selects the implementation to test:
@@ -203,37 +224,72 @@ var optFakeNet = new(struct{})
 //	func(*httptest.Server) // run before starting the server
 //	func(*http.Transport)
 //
-// The optFakeNet option configures the server and client to use a fake network implementation,
-// suitable for use in testing/synctest tests.
+// The optRealNet option configures the server and client to use a loopback network connection.
+// This is mostly used for tests which predate fake networking support,
+// which haven't been updated yet.
 func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *clientServerTest {
 	if mode == http2Mode || mode == http2UnencryptedMode {
 		CondSkipHTTP2(t)
 	}
 	cst := &clientServerTest{
-		t:  t,
-		h2: mode == http2Mode,
-		h:  h,
+		t:    t,
+		h2:   mode == http2Mode,
+		h:    h,
+		mode: mode,
 	}
 
 	var transportFuncs []func(*Transport)
 
-	switch idx := slices.Index(opts, any(optFakeNet)); {
-	case idx >= 0:
-		opts = slices.Delete(opts, idx, idx+1)
-		cst.li = fakeNetListen()
-		cst.ts = &httptest.Server{
-			Config:   &Server{Handler: h},
-			Listener: cst.li,
-		}
-		transportFuncs = append(transportFuncs, func(tr *Transport) {
-			tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return cst.li.connect(), nil
-			}
-		})
+	type HTTP3TransportOpts struct {
+		ListenPacket func(network, addr string) (net.PacketConn, error)
+	}
+	var http3TransportOpts HTTP3TransportOpts
+
+	fakeNet := true
+	if idx := slices.Index(opts, any(optRealNet)); idx >= 0 {
+		fakeNet = false
+	}
+	switch {
+	case fakeNet && mode != http3Mode:
+		cst.ts = httptest.NewTestServer(t, h)
 	case mode == http3Mode:
-		// TODO: support testing HTTP/3 using fakenet.
 		cst.ts = &httptest.Server{
 			Config: &Server{Handler: h},
+		}
+		if fakeNet {
+			pnet := nettest.NewPacketNet()
+			srvAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:443"))
+			var cliPort atomic.Uint32
+			cliPort.Store(100)
+			pconn, _ := pnet.NewConn(srvAddr)
+			cst.ts.Listener = http3ServeConn{conn: pconn}
+			http3TransportOpts.ListenPacket = func(network, addr string) (net.PacketConn, error) {
+				port := uint16(cliPort.Add(1))
+				cliAddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(
+					netip.MustParseAddr("127.0.0.1"), port))
+				return pnet.NewConn(cliAddr)
+			}
+		} else {
+			pconn := newLocalPacketConn(t)
+			cst.ts.Listener = http3ServeConn{conn: pconn}
+			// Bind the client to the same address as the server, rather than
+			// letting it use the default of the ":0" wildcard address.
+			//
+			// On Darwin, a wildcard bind creates a dual-stack IPv6 socket, and
+			// closing a UDP socket does not immediately free its port. A client
+			// which is coincidentally assigned a port that is still in use on
+			// IPv4 but free on IPv6 still binds successfully, but silently
+			// cannot receive packets sent to its IPv4 address. Since the server
+			// here listens on a loopback address, that leaves the client unable
+			// to receive the server's handshake packets.
+			// See go.dev/issue/78737 and go.dev/issue/81162.
+			host, _, err := net.SplitHostPort(pconn.LocalAddr().String())
+			if err != nil {
+				t.Fatalf("parsing server address %v: %v", pconn.LocalAddr(), err)
+			}
+			http3TransportOpts.ListenPacket = func(network, addr string) (net.PacketConn, error) {
+				return net.ListenPacket(network, net.JoinHostPort(host, "0"))
+			}
 		}
 	default:
 		cst.ts = httptest.NewUnstartedServer(h)
@@ -247,6 +303,7 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 			opt(cst.ts)
 		case func(*Server):
 			opt(cst.ts.Config)
+		case testRealNetOpt:
 		default:
 			t.Fatalf("unhandled option type %T", opt)
 		}
@@ -263,53 +320,50 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	switch mode {
 	case http1Mode:
 		p.SetHTTP1(true)
-		cst.ts.Start()
 	case https1Mode:
 		p.SetHTTP1(true)
-		cst.ts.StartTLS()
 	case http2UnencryptedMode:
 		p.SetUnencryptedHTTP2(true)
-		cst.ts.Start()
 	case http2Mode:
 		p.SetHTTP2(true)
 		cst.ts.EnableHTTP2 = true
 		cst.ts.TLS = cst.ts.Config.TLSConfig
-		cst.ts.StartTLS()
 	case http3Mode:
 		http.ProtocolSetHTTP3(p)
 		cst.ts.TLS = cst.ts.Config.TLSConfig
-		cst.ts.StartTLS()
-		endpointCh := registerHTTP3Server(cst.ts.Config)
-
-		cst.ts.Config.TLSConfig = cst.ts.TLS
-		cst.ts.Config.Addr = ":0"
-		go cst.ts.Config.ListenAndServeTLS("", "")
-
-		endpoint := <-endpointCh
-		port := strconv.Itoa(int(endpoint.LocalAddr().Port()))
-		switch addr := endpoint.LocalAddr().Addr(); {
-		case !addr.IsUnspecified():
-			cst.ts.URL = "https://" + endpoint.LocalAddr().String()
-		case addr.Is4():
-			cst.ts.URL = "https://" + net.JoinHostPort("127.0.0.1", port)
-		case addr.Is6():
-			cst.ts.URL = "https://" + net.JoinHostPort("::1", port)
-		default:
-			t.Fatalf("unknown address family for %v", endpoint.LocalAddr())
+		type HTTP3ServerOpts struct{}
+		if err := registerHTTP3Server(cst.ts.Config, HTTP3ServerOpts{}); err != nil {
+			t.Fatal(err)
 		}
-		t.Cleanup(func() {
-			// Give a relatively generous timeout. If the timeout is too short,
-			// the test might return before QUIC connections can finish closing
-			// asynchronously in some builders. The open connections will cause
-			// TestMain to detect a goroutine leak and fail.
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-			cst.ts.Config.Shutdown(ctx)
-		})
+		cst.ts.StartTLS()
+
+		tr := cst.ts.Client().Transport.(*Transport)
+		if err := registerHTTP3Transport(tr, http3TransportOpts); err != nil {
+			t.Fatal(err)
+		}
 	default:
 		t.Fatalf("unknown test mode %v", mode)
 	}
-	cst.c = cst.ts.Client()
+
+	if !fakeNet {
+		switch mode {
+		case http1Mode, http2UnencryptedMode:
+			cst.ts.Start()
+		case https1Mode, http2Mode:
+			cst.ts.StartTLS()
+		}
+	}
+
+	cst.c = cst.ts.Client() // sets cst.ts.URL if it wasn't already
+
+	// Fakenet httptest servers always set the URL scheme to "http".
+	// Override it in https tests.
+	// Exclude HTTP3, which manages its own PacketNet URL, and lacks the
+	// ability to intercept "example.com".
+	if fakeNet && mode != http3Mode {
+		cst.ts.URL = mode.Scheme() + "://example.com"
+	}
+
 	cst.tr = cst.c.Transport.(*Transport)
 	for _, f := range transportFuncs {
 		f(cst.tr)
@@ -317,36 +371,76 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	if cst.tr.Protocols == nil {
 		cst.tr.Protocols = p
 	}
-	if mode == http3Mode {
-		endpointCh := registerHTTP3Transport(cst.tr)
-		testDoneCh := make(chan any)
-		var wg sync.WaitGroup
-		t.Cleanup(func() {
-			close(testDoneCh)
-			wg.Wait()
-		})
-		wg.Go(func() {
-			for {
-				select {
-				case e := <-endpointCh:
-					t.Cleanup(func() {
-						ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-						defer cancel()
-						if e != nil {
-							e.Close(ctx)
-						}
-					})
-				case <-testDoneCh:
-					return
-				}
-			}
-		})
-	}
 
 	t.Cleanup(func() {
 		cst.close()
 	})
 	return cst
+}
+
+func newLocalPacketConn(t testing.TB) net.PacketConn {
+	t.Helper()
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		if pc, err = net.ListenPacket("udp6", "[::1]:0"); err != nil {
+			t.Fatalf("failed to listen on a port: %v", err)
+		}
+	}
+	return pc
+}
+
+// http3ServeConn provides a HTTP/3 PacketConn to Server.ServeTLS.
+type http3ServeConn struct {
+	conn net.PacketConn
+}
+
+func (c http3ServeConn) Accept() (net.Conn, error) { return nil, net.ErrClosed }
+func (c http3ServeConn) Close() error              { return c.conn.Close() }
+func (c http3ServeConn) Addr() net.Addr            { return c.conn.LocalAddr() }
+
+func (c http3ServeConn) HTTP3PacketConn() net.PacketConn {
+	return c.conn
+}
+
+func (cst *clientServerTest) dialNettest() (net.Conn, *nettest.Conn) {
+	cst.t.Helper()
+	dial := cst.tr.DialContext
+	if cst.mode.Scheme() == "https" {
+		dial = cst.tr.DialTLSContext
+	}
+	if dial == nil {
+		cst.t.Fatalf("tr.Dial(TLS) is not set")
+	}
+	conn, err := dial(cst.t.Context(), "tcp", "example.tld:"+cst.mode.Scheme())
+	if err != nil {
+		cst.t.Fatal(err)
+	}
+	cst.t.Cleanup(func() {
+		conn.Close()
+	})
+	if tlsConn, ok := conn.(*tls.Conn); ok {
+		return tlsConn, tlsConn.NetConn().(*nettest.Conn)
+	}
+	return conn, conn.(*nettest.Conn)
+}
+
+func (cst *clientServerTest) setDialNettestHook(f func(*nettest.Conn)) {
+	dialContext := cst.tr.DialContext
+	cst.tr.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, err := dialContext(ctx, network, address)
+		if err == nil {
+			f(conn.(*nettest.Conn))
+		}
+		return conn, err
+	}
+	dialTLSContext := cst.tr.DialTLSContext
+	cst.tr.DialTLSContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, err := dialTLSContext(ctx, network, address)
+		if err == nil {
+			f(conn.(*tls.Conn).NetConn().(*nettest.Conn))
+		}
+		return conn, err
+	}
 }
 
 type testLogWriter struct {
@@ -368,7 +462,7 @@ func TestNewClientServerTest(t *testing.T) {
 	})
 	t.Run("synctest", func(t *testing.T) {
 		runSynctest(t, func(t *testing.T, mode testMode) {
-			testNewClientServerTest(t, mode, optFakeNet)
+			testNewClientServerTest(t, mode)
 		}, modes)
 	})
 }
@@ -385,7 +479,7 @@ func testNewClientServerTest(t *testing.T, mode testMode, opts ...any) {
 		got.hasTLS = r.TLS != nil
 	})
 	cst := newClientServerTest(t, mode, h, opts...)
-	if _, err := cst.c.Head(cst.ts.URL); err != nil {
+	if _, err := cst.c.Head(mode.Scheme() + "://example.tld/"); err != nil {
 		t.Fatal(err)
 	}
 	var wantProto string
@@ -410,7 +504,7 @@ func testNewClientServerTest(t *testing.T, mode testMode, opts ...any) {
 }
 
 func TestChunkedResponseHeaders(t *testing.T) {
-	run(t, testChunkedResponseHeaders, http3SkippedMode)
+	run(t, testChunkedResponseHeaders)
 }
 func testChunkedResponseHeaders(t *testing.T, mode testMode) {
 	log.SetOutput(io.Discard) // is noisy otherwise
@@ -430,7 +524,7 @@ func testChunkedResponseHeaders(t *testing.T, mode testMode) {
 		t.Errorf("expected ContentLength of %d; got %d", e, g)
 	}
 	wantTE := []string{"chunked"}
-	if mode == http2Mode {
+	if mode == http2Mode || mode == http3Mode {
 		wantTE = nil
 	}
 	if !slices.Equal(res.TransferEncoding, wantTE) {
@@ -462,9 +556,12 @@ func (tt h12Compare) reqFunc() reqFunc {
 
 func (tt h12Compare) run(t *testing.T) {
 	setParallel(t)
-	cst1 := newClientServerTest(t, http1Mode, HandlerFunc(tt.Handler), tt.Opts...)
+	// Using a real network because httptest's fake networking mode doesn't (yet)
+	// support multiple servers on the same fake net.
+	opts := append(tt.Opts, optRealNet)
+	cst1 := newClientServerTest(t, http1Mode, HandlerFunc(tt.Handler), opts...)
 	defer cst1.close()
-	cst2 := newClientServerTest(t, http2Mode, HandlerFunc(tt.Handler), tt.Opts...)
+	cst2 := newClientServerTest(t, http2Mode, HandlerFunc(tt.Handler), opts...)
 	defer cst2.close()
 
 	res1, err := tt.reqFunc()(cst1.c, cst1.ts.URL)
@@ -894,7 +991,7 @@ func testTrailersClientToServer(t *testing.T, mode testMode) {
 func TestTrailersServerToClient(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testTrailersServerToClient(t, mode, false)
-	}, http3SkippedMode)
+	})
 }
 func TestTrailersServerToClientFlush(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
@@ -1093,17 +1190,21 @@ func testConnectRequest(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportUserAgent(t *testing.T) { run(t, testTransportUserAgent, http3SkippedMode) }
+func TestTransportUserAgent(t *testing.T) { run(t, testTransportUserAgent) }
 func testTransportUserAgent(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "%q", r.Header["User-Agent"])
 	}))
 
-	either := func(a, b string) string {
-		if mode == http2Mode {
-			return b
+	defaultUA := func() string {
+		switch mode {
+		case http2Mode, http2UnencryptedMode:
+			return `["Go-http-client/2.0"]`
+		case http3Mode:
+			return `["Go-http-client/3.0"]`
+		default:
+			return `["Go-http-client/1.1"]`
 		}
-		return a
 	}
 
 	tests := []struct {
@@ -1112,7 +1213,7 @@ func testTransportUserAgent(t *testing.T, mode testMode) {
 	}{
 		{
 			func(r *Request) {},
-			either(`["Go-http-client/1.1"]`, `["Go-http-client/2.0"]`),
+			defaultUA(),
 		},
 		{
 			func(r *Request) { r.Header.Set("User-Agent", "foo/1.2.3") },
@@ -1230,7 +1331,7 @@ func TestTransportDiscardsUnneededConns(t *testing.T) {
 func testTransportDiscardsUnneededConns(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "Hello, %v", r.RemoteAddr)
-	}))
+	}), optRealNet)
 	defer cst.close()
 
 	var numOpen, numClose int32 // atomic
@@ -1405,9 +1506,23 @@ func testTransportRejectsInvalidHeaders(t *testing.T, mode testMode) {
 
 func TestInterruptWithPanic(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
-		t.Run("boom", func(t *testing.T) { testInterruptWithPanic(t, mode, "boom") })
-		t.Run("nil", func(t *testing.T) { t.Setenv("GODEBUG", "panicnil=1"); testInterruptWithPanic(t, mode, nil) })
-		t.Run("ErrAbortHandler", func(t *testing.T) { testInterruptWithPanic(t, mode, ErrAbortHandler) })
+		for _, test := range []struct {
+			name       string
+			panicValue any
+		}{
+			{"boom", "boom"},
+			{"nil", nil},
+			{"ErrAbortHandler", ErrAbortHandler},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					if test.panicValue == nil {
+						t.Setenv("GODEBUG", "panicnil=1")
+					}
+					testInterruptWithPanic(t, mode, test.panicValue)
+				})
+			})
+		}
 	}, testNotParallel, http3SkippedMode)
 }
 func testInterruptWithPanic(t *testing.T, mode testMode, panicValue any) {
@@ -1418,7 +1533,8 @@ func testInterruptWithPanic(t *testing.T, mode testMode, panicValue any) {
 
 	var errorLog lockedBytesBuffer
 	gotHeaders := make(chan bool, 1)
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, nil)
+	cst.ts.Config.Handler = HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, msg)
 		w.(Flusher).Flush()
 
@@ -1427,9 +1543,8 @@ func testInterruptWithPanic(t *testing.T, mode testMode, panicValue any) {
 		case <-testDone:
 		}
 		panic(panicValue)
-	}), func(ts *httptest.Server) {
-		ts.Config.ErrorLog = log.New(&errorLog, "", 0)
 	})
+	cst.ts.Config.ErrorLog = log.New(&errorLog, "", 0)
 	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -1450,28 +1565,20 @@ func testInterruptWithPanic(t *testing.T, mode testMode, panicValue any) {
 	}
 	wantStackLogged := panicValue != nil && panicValue != ErrAbortHandler
 
-	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-		gotLog := logOutput()
-		if !wantStackLogged {
-			if gotLog == "" {
-				return true
-			}
+	synctest.Wait()
+	gotLog := logOutput()
+	if !wantStackLogged {
+		if gotLog != "" {
 			t.Fatalf("want no log output; got: %s", gotLog)
 		}
+	} else {
 		if gotLog == "" {
-			if d > 0 {
-				t.Logf("wanted a stack trace logged; got nothing after %v", d)
-			}
-			return false
+			t.Fatalf("wanted a stack trace logged; got nothing")
 		}
 		if !strings.Contains(gotLog, "created by ") && strings.Count(gotLog, "\n") < 6 {
-			if d > 0 {
-				t.Logf("output doesn't look like a panic stack trace after %v. Got: %s", d, gotLog)
-			}
-			return false
+			t.Fatalf("output doesn't look like a panic stack trace. Got: %s", gotLog)
 		}
-		return true
-	})
+	}
 }
 
 type lockedBytesBuffer struct {
@@ -1581,9 +1688,7 @@ func testNoSniffExpectRequestBody(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerUndeclaredTrailers(t *testing.T) {
-	run(t, testServerUndeclaredTrailers, http3SkippedMode)
-}
+func TestServerUndeclaredTrailers(t *testing.T) { run(t, testServerUndeclaredTrailers) }
 func testServerUndeclaredTrailers(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Foo", "Bar")
@@ -1678,7 +1783,7 @@ func testWriteHeader0(t *testing.T, mode testMode) {
 func TestWriteHeaderNoCodeCheck(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testWriteHeaderAfterWrite(t, mode, false)
-	}, http3SkippedMode)
+	})
 }
 func TestWriteHeaderNoCodeCheck_h1hijack(t *testing.T) {
 	testWriteHeaderAfterWrite(t, http1Mode, true)
@@ -1715,7 +1820,7 @@ func testWriteHeaderAfterWrite(t *testing.T, mode testMode, hijack bool) {
 	}
 
 	// Also check the stderr output:
-	if mode == http2Mode {
+	if mode == http2Mode || mode == http3Mode {
 		// TODO: also emit this log message for HTTP/2?
 		// We historically haven't, so don't check.
 		return
@@ -1948,7 +2053,7 @@ func TestClientServerTLSConnWrapper(t *testing.T) {
 		protocols.SetHTTP1(true)
 		protocols.SetHTTP2(true)
 
-		li := fakeNetListen()
+		li := nettest.NewListener()
 		server := &Server{
 			Handler: HandlerFunc(func(w ResponseWriter, r *Request) {
 				if r.TLS == nil {
@@ -1980,7 +2085,7 @@ func TestClientServerTLSConnWrapper(t *testing.T) {
 		tr := &Transport{
 			DialTLS: func(network, address string) (net.Conn, error) {
 				return &testTLSConn{
-					Conn: li.connect(),
+					Conn: li.NewConn(),
 					state: tls.ConnectionState{
 						Version:            tls.VersionTLS13,
 						CipherSuite:        tls.TLS_AES_128_GCM_SHA256,

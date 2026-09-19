@@ -1,7 +1,6 @@
 env GO111MODULE=off
 
 [!compiler:gc] skip
-[short] skip
 
 # Listing GOROOT should only find standard packages.
 cd $GOROOT/src

@@ -55,6 +55,7 @@ type logger = func(string, ...any)
 type Options struct {
 	Logf          logger // log output function, records decision-making process
 	IgnoreEffects bool   // ignore potential side effects of arguments (unsound)
+	Recover       bool   // catch panics from inliner and report as errors (for ill-typed ASTs)
 }
 
 // Result holds the result of code transformation.
@@ -68,12 +69,22 @@ type Result struct {
 // and returns the updated, formatted content of the caller source file.
 //
 // Inline does not mutate any public fields of Caller or Callee.
-func Inline(caller *Caller, callee *Callee, opts *Options) (*Result, error) {
-	copy := *opts // shallow copy
-	opts = &copy
+func Inline(caller *Caller, callee *Callee, opts *Options) (res *Result, err error) {
+	if opts == nil {
+		opts = new(Options)
+	} else {
+		opts = new(*opts)
+	}
 	// Set default options.
 	if opts.Logf == nil {
 		opts.Logf = func(string, ...any) {}
+	}
+	if opts.Recover {
+		defer func() {
+			if x := recover(); x != nil {
+				err = fmt.Errorf("inlining failed (%q), likely because inputs were ill-typed", x)
+			}
+		}()
 	}
 
 	st := &state{
@@ -725,9 +736,15 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 				// ordinary/ellipsis call to variadic
 
 				// simplify decl: func(T...) -> func([]T)
-				lastParamField := last(calleeDecl.Type.Params.List)
-				lastParamField.Type = &ast.ArrayType{
-					Elt: lastParamField.Type.(*ast.Ellipsis).Elt,
+				var lastParamFieldType ast.Expr
+				if len(calleeDecl.Type.Params.List) > 0 {
+					lastParamField := last(calleeDecl.Type.Params.List)
+					if ellipsis, ok := lastParamField.Type.(*ast.Ellipsis); ok {
+						lastParamField.Type = &ast.ArrayType{
+							Elt: ellipsis.Elt,
+						}
+					}
+					lastParamFieldType = lastParamField.Type
 				}
 
 				if caller.Call.Ellipsis.IsValid() {
@@ -752,7 +769,7 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 					}
 					args = append(ordinary, &argument{
 						expr: &ast.CompositeLit{
-							Type: lastParamField.Type,
+							Type: lastParamFieldType,
 							Elts: elts,
 						},
 						typ:        lastParam.obj.Type(),
@@ -1949,7 +1966,7 @@ func checkFalconConstraints(logf logger, params []*parameter, args []*argument, 
 			nconst++
 		} else {
 			v := types.NewVar(token.NoPos, pkg, name, arg.typ)
-			typesinternal.SetVarKind(v, typesinternal.PackageVar)
+			v.SetKind(types.PackageVar)
 			pkg.Scope().Insert(v)
 			logf("falcon env: var %s %s", name, arg.typ)
 		}

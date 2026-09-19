@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/cryptobyte"
 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 )
 
@@ -257,6 +258,59 @@ d5l1tRhScKu2NBgm74nYmJxJYgvuTA38wGhRrGU=
 		if err == nil || err.Error() != "x509: invalid basic constraints" {
 			t.Errorf(`ParseCertificate() = %v; want = "x509: invalid basic constraints"`, err)
 		}
+	}
+}
+
+func TestParseNameConstraintsExtensionEmptySubtrees(t *testing.T) {
+	permittedTag := cryptobyte_asn1.Tag(0).ContextSpecific().Constructed()
+	excludedTag := cryptobyte_asn1.Tag(1).ContextSpecific().Constructed()
+	dnsNameTag := cryptobyte_asn1.Tag(2).ContextSpecific()
+	tests := []struct {
+		name     string
+		emptyTag cryptobyte_asn1.Tag
+	}{
+		{
+			name:     "permittedSubtrees",
+			emptyTag: permittedTag,
+		},
+		{
+			name:     "excludedSubtrees",
+			emptyTag: excludedTag,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var builder cryptobyte.Builder
+			builder.AddASN1(cryptobyte_asn1.SEQUENCE, func(builder *cryptobyte.Builder) {
+				for _, tag := range []cryptobyte_asn1.Tag{permittedTag, excludedTag} {
+					builder.AddASN1(tag, func(builder *cryptobyte.Builder) {
+						if tag == test.emptyTag {
+							return
+						}
+						builder.AddASN1(cryptobyte_asn1.SEQUENCE, func(builder *cryptobyte.Builder) {
+							builder.AddASN1(dnsNameTag, func(builder *cryptobyte.Builder) {
+								builder.AddBytes([]byte("example.com"))
+							})
+						})
+					})
+				}
+			})
+			der, err := builder.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = parseNameConstraintsExtension(&Certificate{}, pkix.Extension{
+				Value: der,
+			})
+			if err == nil {
+				t.Fatal("unexpected success")
+			}
+			if got, want := err.Error(), "x509: empty name constraints subtree sequence"; got != want {
+				t.Fatalf("unexpected error: got %q, want %q", got, want)
+			}
+		})
 	}
 }
 

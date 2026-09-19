@@ -48,14 +48,14 @@ func testResponseControllerFlush(t *testing.T, mode testMode) {
 	}
 }
 
-func TestResponseControllerHijack(t *testing.T) { run(t, testResponseControllerHijack, http3SkippedMode) }
+func TestResponseControllerHijack(t *testing.T) { run(t, testResponseControllerHijack) }
 func testResponseControllerHijack(t *testing.T, mode testMode) {
 	const header = "X-Header"
 	const value = "set"
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
 		c, _, err := ctl.Hijack()
-		if mode == http2Mode {
+		if mode == http2Mode || mode == http3Mode {
 			if err == nil {
 				t.Errorf("ctl.Hijack = nil, want error")
 			}
@@ -78,15 +78,17 @@ func testResponseControllerHijack(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerSetPastWriteDeadline(t *testing.T) {
-	run(t, testResponseControllerSetPastWriteDeadline, http3SkippedMode)
+	run(t, testResponseControllerSetPastWriteDeadline)
 }
 func testResponseControllerSetPastWriteDeadline(t *testing.T, mode testMode) {
+	readOne := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
 		w.Write([]byte("one"))
 		if err := ctl.Flush(); err != nil {
 			t.Errorf("before setting deadline: ctl.Flush() = %v, want nil", err)
 		}
+		<-readOne
 		if err := ctl.SetWriteDeadline(time.Now().Add(-10 * time.Second)); err != nil {
 			t.Errorf("ctl.SetWriteDeadline() = %v, want nil", err)
 		}
@@ -113,14 +115,24 @@ func testResponseControllerSetPastWriteDeadline(t *testing.T, mode testMode) {
 		t.Fatalf("unexpected connection error: %v", err)
 	}
 	defer res.Body.Close()
-	b, _ := io.ReadAll(res.Body)
-	if string(b) != "one" {
-		t.Errorf("unexpected body: %q", string(b))
+
+	buf := make([]byte, 3)
+	if _, err := io.ReadFull(res.Body, buf); err != nil || string(buf) != "one" {
+		t.Fatalf("Body.Read = %q, %v; want %q, nil", string(buf), err, "one")
+	}
+	close(readOne)
+
+	b, err := io.ReadAll(res.Body)
+	if err == nil {
+		t.Errorf("Body.Read error = nil; want non-nil after server write deadline")
+	}
+	if len(b) > 0 {
+		t.Errorf("Body.Read after server write deadline = %q; want empty", string(b))
 	}
 }
 
 func TestResponseControllerSetFutureWriteDeadline(t *testing.T) {
-	run(t, testResponseControllerSetFutureWriteDeadline, http3SkippedMode)
+	run(t, testResponseControllerSetFutureWriteDeadline)
 }
 func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
 	errc := make(chan error, 1)
@@ -156,7 +168,7 @@ func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerSetPastReadDeadline(t *testing.T) {
-	run(t, testResponseControllerSetPastReadDeadline, http3SkippedMode)
+	run(t, testResponseControllerSetPastReadDeadline)
 }
 func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
 	readc := make(chan struct{})
@@ -220,7 +232,7 @@ func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerSetFutureReadDeadline(t *testing.T) {
-	run(t, testResponseControllerSetFutureReadDeadline, http3SkippedMode)
+	run(t, testResponseControllerSetFutureReadDeadline)
 }
 func testResponseControllerSetFutureReadDeadline(t *testing.T, mode testMode) {
 	respBody := "response body"
@@ -256,7 +268,7 @@ func (w wrapWriter) Unwrap() ResponseWriter {
 	return w.ResponseWriter
 }
 
-func TestWrappedResponseController(t *testing.T) { run(t, testWrappedResponseController, http3SkippedMode) }
+func TestWrappedResponseController(t *testing.T) { run(t, testWrappedResponseController) }
 func testWrappedResponseController(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w = wrapWriter{w}
@@ -280,7 +292,7 @@ func testWrappedResponseController(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerEnableFullDuplex(t *testing.T) {
-	run(t, testResponseControllerEnableFullDuplex, http3SkippedMode)
+	run(t, testResponseControllerEnableFullDuplex)
 }
 func testResponseControllerEnableFullDuplex(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, req *Request) {

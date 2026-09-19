@@ -633,11 +633,7 @@ const (
 	// identifier.
 	//
 	// Example:
-	//  type outer struct{
-	//  	inner struct { i int }
-	//  }
-	//
-	//  var _ = outer{inner: {1}}
+	//  var _ = {}
 	UntypedLit
 
 	// InvalidLit occurs when a composite literal expression does not match its

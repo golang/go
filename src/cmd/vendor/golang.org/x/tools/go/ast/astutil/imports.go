@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -473,15 +472,10 @@ func Imports(fset *token.FileSet, f *ast.File) [][]*ast.ImportSpec {
 }
 
 // updateBasicLitPos updates lit.Pos,
-// ensuring that lit.End (if set) is displaced by the same amount.
+// ensuring that lit.End is displaced by the same amount.
 // (See https://go.dev/issue/76395.)
 func updateBasicLitPos(lit *ast.BasicLit, pos token.Pos) {
 	len := lit.End() - lit.Pos()
 	lit.ValuePos = pos
-	// TODO(adonovan): after go1.26, simplify to:
-	//   lit.ValueEnd = pos + len
-	v := reflect.ValueOf(lit).Elem().FieldByName("ValueEnd")
-	if v.IsValid() && v.Int() != 0 {
-		v.SetInt(int64(pos + len))
-	}
+	lit.ValueEnd = pos + len
 }

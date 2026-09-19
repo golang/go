@@ -307,58 +307,58 @@ func CmpLogicalToZero(a, b, c uint32, d, e, f, g uint64) uint64 {
 // var + const
 // 'x-const' might be canonicalized to 'x+(-const)', so we check both
 // CMN and CMP for subtraction expressions to make the pattern robust.
-func CmpToZero_ex1(a int64, e int32) int {
+func CmpToZero_ex1(a [6]int64, e [4]int32) int {
 	// arm64:`CMN` -`ADD` `(BMI|BPL)`
-	if a+3 < 0 {
+	if a[0]+3 < 0 {
 		return 1
 	}
 
 	// arm64:`CMN` -`ADD` `BEQ` `(BMI|BPL)`
-	if a+5 <= 0 {
+	if a[1]+5 <= 0 {
 		return 1
 	}
 
 	// arm64:`CMN` -`ADD` `(BMI|BPL)`
-	if a+13 >= 0 {
+	if a[2]+13 >= 0 {
 		return 2
 	}
 
 	// arm64:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
-	if a-7 < 0 {
+	if a[3]-7 < 0 {
 		return 3
 	}
 
 	// arm64:`SUB` `TBZ`
-	if a-11 >= 0 {
+	if a[4]-11 >= 0 {
 		return 4
 	}
 
 	// arm64:`SUB` `CMP` `BGT`
-	if a-19 > 0 {
+	if a[5]-19 > 0 {
 		return 4
 	}
 
 	// arm64:`CMNW` -`ADDW` `(BMI|BPL)`
 	// arm:`CMN` -`ADD` `(BMI|BPL)`
-	if e+3 < 0 {
+	if e[0]+3 < 0 {
 		return 5
 	}
 
 	// arm64:`CMNW` -`ADDW` `(BMI|BPL)`
 	// arm:`CMN` -`ADD` `(BMI|BPL)`
-	if e+13 >= 0 {
+	if e[1]+13 >= 0 {
 		return 6
 	}
 
 	// arm64:`CMPW|CMNW` `(BMI|BPL)`
 	// arm:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
-	if e-7 < 0 {
+	if e[2]-7 < 0 {
 		return 7
 	}
 
 	// arm64:`SUB` `TBNZ`
 	// arm:`SUB` -`(BMI|BPL)`
-	if e-11 >= 0 {
+	if e[3]-11 >= 0 {
 		return 8
 	}
 
@@ -943,4 +943,111 @@ func bijectiveMul(x uint) bool {
 	// amd64: -"MUL"
 	// arm64: -"MUL"
 	return x*1337 == 42
+}
+
+func scanASCIILess(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMPW [$]128"
+		if b[i] < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeq(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMPW [$]128"
+		if b[i] >= 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIILess64(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMP [$]128"
+		if uint64(b[i]) < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeq64(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMP [$]128"
+		if uint64(b[i]) >= 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIILessSigned32(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMPW [$]128"
+		if int32(b[i]) < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeqSigned64(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMP [$]128"
+		if int64(b[i]) >= 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+// A loaded byte that is both compared and used a second time (here as a table
+// index) must not be copied with a MOVD register move just to feed the
+// comparison: the compare reads the loaded register directly
+// (go.dev/issue/43357). Before the fix, arm64's unsigned narrow comparison
+// inserted a ZeroExt8to32 that the register allocator realized as a redundant
+// MOVD Rx,Ry copy whenever the loaded byte had a second consumer. These are
+// LEAF, bool-return loops so the only reg-reg MOVD that could appear is that
+// copy: a single-consumer compare emits no copy (the extension is elided to a
+// MOVDnop), and a return-value or morestack MOVD would mask the assertion,
+// which is why the natural a[i] < a[j] shape does not exercise this.
+
+var escByteTab [256]bool
+
+// c is compared for equality against a byte constant and then used again as a
+// table index (the second consumer keeps c live). The compare must read the
+// loaded register, not a copy of it.
+func scanByteCmpReuse(b []byte) bool {
+	for i := range b {
+		c := b[i]
+		// arm64:-"MOVD R[0-9]+, R[0-9]+"
+		if c == '"' {
+			return true
+		}
+		if escByteTab[c] {
+			return true
+		}
+	}
+	return false
+}
+
+// The scanner ASCII fast path: c is range-compared (c >= 128) and then reused
+// as a table index. The unsigned compare must read the loaded register
+// directly rather than a copy of it.
+func scanByteHighReuse(b []byte) bool {
+	for i := range b {
+		c := b[i]
+		// arm64:-"MOVD R[0-9]+, R[0-9]+"
+		if c >= 128 {
+			return true
+		}
+		if escByteTab[c] {
+			return true
+		}
+	}
+	return false
 }

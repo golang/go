@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # If the working directory is a different GOROOT, then the 'std' module should be
 # treated as an ordinary module (with an ordinary module prefix).
 # It should not override packages in GOROOT, but should not fail the command.

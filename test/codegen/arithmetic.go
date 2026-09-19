@@ -220,6 +220,17 @@ func AddAddSubSimplify(a, b, c int) int {
 	return r
 }
 
+func AddSubSubSimplify(a, b, c int) int {
+	// amd64:"LEAQ" -"SUBQ"
+	// arm64:"ADD" -"SUB"
+	// loong64:"ADDV" -"SUBV"
+	// mips:"ADD" -"SUB"
+	// mips64:"ADDV" -"SUBV"
+	// ppc64x:-"SUB"
+	// riscv64:"ADD" -"SUB"
+	return a + (b - (a - c))
+}
+
 func NegToInt32(a int) int {
 	// riscv64: "NEGW" -"MOVW"
 	r := int(int32(-a))
@@ -395,7 +406,7 @@ func Pow2Divs(n1 uint, n2 int) (uint, int) {
 
 // Check that constant divisions get turned into MULs
 func ConstDivs(n1 uint, n2 int) (uint, int) {
-	// amd64: "MOVQ [$]-1085102592571150095" "MULQ" -"DIVQ"
+	// amd64: "MOVQ [$]-1085102592571150095" `MULX?Q` -"DIVQ"
 	// 386: "MOVL [$]-252645135" "MULL" -"DIVL"
 	// arm64: `MOVD` `UMULH` -`DIV`
 	// arm: `MOVW` `MUL` -`.*udiv`
@@ -455,7 +466,7 @@ func Pow2DivisibleSigned(n1, n2 int) (bool, bool) {
 
 // Check that constant modulo divs get turned into MULs
 func ConstMods(n1 uint, n2 int) (uint, int) {
-	// amd64: "MOVQ [$]-1085102592571150095" "MULQ" -"DIVQ"
+	// amd64: "MOVQ [$]-1085102592571150095" `MULX?Q` -"DIVQ"
 	// 386: "MOVL [$]-252645135" "MULL" -".*DIVL"
 	// arm64: `MOVD` `UMULH` -`DIV`
 	// arm: `MOVW` `MUL` -`.*udiv`

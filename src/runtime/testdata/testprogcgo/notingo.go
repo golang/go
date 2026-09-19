@@ -64,7 +64,35 @@ import (
 	"runtime"
 	"runtime/metrics"
 	"sync/atomic"
+	"time"
 )
+
+// waitNotInGo waits for /sched/goroutines/not-in-go to read want, and reports
+// whether it got there.
+//
+// A single read of the metric can legitimately disagree with want. It's
+// documented as an approximate count, and while some other thread is partway
+// through taking a P away from a goroutine in a cgo call, that goroutine is
+// briefly counted in neither half of the runtime's accounting, so the reading
+// comes up one short. The skew lasts only as long as the handoff, so reading
+// again converges. See go.dev/issue/78877.
+//
+// The accounting bugs this program exists to catch make the count wrong and
+// keep it wrong, which never converges and still fails here.
+func waitNotInGo(what string, want uint64) bool {
+	s := []metrics.Sample{{Name: "/sched/goroutines/not-in-go:goroutines"}}
+	var n uint64
+	for start := time.Now(); time.Since(start) < 5*time.Second; {
+		metrics.Read(s)
+		n = s[0].Value.Uint64()
+		if n == want {
+			return true
+		}
+		time.Sleep(time.Millisecond)
+	}
+	println(what, "expected", want, "not-in-go goroutines, found", n)
+	return false
+}
 
 func init() {
 	register("NotInGoMetricCgoCall", NotInGoMetricCgoCall)
@@ -88,12 +116,7 @@ func NotInGoMetricCgoCall() {
 	}
 
 	// Read not-in-go before taking the Ps back.
-	s := []metrics.Sample{{Name: "/sched/goroutines/not-in-go:goroutines"}}
-	failed := false
-	metrics.Read(s)
-	if n := s[0].Value.Uint64(); n != N {
-		println("pre-STW: expected", N, "not-in-go goroutines, found", n)
-	}
+	failed := !waitNotInGo("pre-STW:", N)
 
 	// Do something that stops the world to take all the Ps back.
 	//
@@ -102,9 +125,8 @@ func NotInGoMetricCgoCall() {
 	runtime.ReadMemStats(&m)
 
 	// Read not-in-go.
-	metrics.Read(s)
-	if n := s[0].Value.Uint64(); n != N {
-		println("post-STW: expected", N, "not-in-go goroutines, found", n)
+	if !waitNotInGo("post-STW:", N) {
+		failed = true
 	}
 
 	// Fail if we get a bad reading.
@@ -153,10 +175,7 @@ func NotInGoMetricCgoCallback() {
 	}
 
 	// Read not-in-go.
-	s := []metrics.Sample{{Name: "/sched/goroutines/not-in-go:goroutines"}}
-	metrics.Read(s)
-	if n := s[0].Value.Uint64(); n != 0 {
-		println("expected 0 not-in-go goroutines, found", n)
+	if !waitNotInGo("after-callbacks:", 0) {
 		os.Exit(2)
 	}
 	println("OK")
@@ -202,12 +221,7 @@ func NotInGoMetricCgoCallAndCallback() {
 	}
 
 	// Read not-in-go before taking the Ps back.
-	s := []metrics.Sample{{Name: "/sched/goroutines/not-in-go:goroutines"}}
-	failed := false
-	metrics.Read(s)
-	if n := s[0].Value.Uint64(); n != N {
-		println("pre-STW: expected", N, "not-in-go goroutines, found", n)
-	}
+	failed := !waitNotInGo("pre-STW:", N)
 
 	// Do something that stops the world to take all the Ps back.
 	//
@@ -216,9 +230,8 @@ func NotInGoMetricCgoCallAndCallback() {
 	runtime.ReadMemStats(&m)
 
 	// Read not-in-go.
-	metrics.Read(s)
-	if n := s[0].Value.Uint64(); n != N {
-		println("post-STW: expected", N, "not-in-go goroutines, found", n)
+	if !waitNotInGo("post-STW:", N) {
+		failed = true
 	}
 
 	// Fail if we get a bad reading.

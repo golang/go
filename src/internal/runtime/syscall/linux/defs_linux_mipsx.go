@@ -28,6 +28,6 @@ const (
 
 type EpollEvent struct {
 	Events    uint32
-	pad_cgo_0 [4]byte
+	pad_cgo_0 uint32
 	Data      uint64
 }

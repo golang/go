@@ -12,7 +12,7 @@ import (
 	"math/bits"
 )
 
-// VectorSize returns the bit length of the emulated vector (fixed to 128).
+// VectorBitSize returns the bit length of the emulated vector (fixed to 128).
 func VectorBitSize() int {
 	return 128
 }
@@ -625,7 +625,7 @@ func (x Int16s) Or(y Int16s) Int16s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int16s) ShiftAllLeft(y uint8) Int16s {
+func (x Int16s) ShiftAllLeft(y uint64) Int16s {
 	var res Int16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)<<y)
@@ -634,7 +634,7 @@ func (x Int16s) ShiftAllLeft(y uint8) Int16s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Int16s) ShiftAllRight(y uint8) Int16s {
+func (x Int16s) ShiftAllRight(y uint64) Int16s {
 	var res Int16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)>>y)
@@ -974,7 +974,7 @@ func (x Int32s) Or(y Int32s) Int32s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int32s) ShiftAllLeft(y uint8) Int32s {
+func (x Int32s) ShiftAllLeft(y uint64) Int32s {
 	var res Int32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)<<y)
@@ -983,7 +983,7 @@ func (x Int32s) ShiftAllLeft(y uint8) Int32s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Int32s) ShiftAllRight(y uint8) Int32s {
+func (x Int32s) ShiftAllRight(y uint64) Int32s {
 	var res Int32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)>>y)
@@ -1228,7 +1228,7 @@ func (x Int64s) Or(y Int64s) Int64s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int64s) ShiftAllLeft(y uint8) Int64s {
+func (x Int64s) ShiftAllLeft(y uint64) Int64s {
 	return Int64s{a: x.a << y, b: x.b << y}
 }
 
@@ -1786,7 +1786,7 @@ func (x Uint16s) Or(y Uint16s) Uint16s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint16s) ShiftAllLeft(y uint8) Uint16s {
+func (x Uint16s) ShiftAllLeft(y uint64) Uint16s {
 	var res Uint16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)<<y)
@@ -1795,7 +1795,7 @@ func (x Uint16s) ShiftAllLeft(y uint8) Uint16s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint16s) ShiftAllRight(y uint8) Uint16s {
+func (x Uint16s) ShiftAllRight(y uint64) Uint16s {
 	var res Uint16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)>>y)
@@ -2106,7 +2106,7 @@ func (x Uint32s) Or(y Uint32s) Uint32s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint32s) ShiftAllLeft(y uint8) Uint32s {
+func (x Uint32s) ShiftAllLeft(y uint64) Uint32s {
 	var res Uint32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)<<y)
@@ -2115,7 +2115,7 @@ func (x Uint32s) ShiftAllLeft(y uint8) Uint32s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint32s) ShiftAllRight(y uint8) Uint32s {
+func (x Uint32s) ShiftAllRight(y uint64) Uint32s {
 	var res Uint32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)>>y)
@@ -2361,12 +2361,12 @@ func (x Uint64s) Or(y Uint64s) Uint64s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint64s) ShiftAllLeft(y uint8) Uint64s {
+func (x Uint64s) ShiftAllLeft(y uint64) Uint64s {
 	return Uint64s{a: x.a << y, b: x.b << y}
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint64s) ShiftAllRight(y uint8) Uint64s {
+func (x Uint64s) ShiftAllRight(y uint64) Uint64s {
 	return Uint64s{a: x.a >> y, b: x.b >> y}
 }
 
@@ -2685,6 +2685,13 @@ func (x Float32s) NotEqual(y Float32s) Mask32s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float32s) ReduceSum() float32 {
+	// Evaluate with same associativity as the horizontal-add idiom.
+	// It's also perhaps faster, since a shorter expression tree.
+	return (x.get(0) + x.get(1)) + (x.get(2) + x.get(3))
+}
+
 // Sqrt returns the element-wise square root of x.
 func (x Float32s) Sqrt() Float32s {
 	var res Float32s
@@ -2951,6 +2958,15 @@ func (x Float64s) NotEqual(y Float64s) Mask64s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float64s) ReduceSum() float64 {
+	var res float64
+	for i := 0; i < 2; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Sqrt returns the element-wise square root of x.
 func (x Float64s) Sqrt() Float64s {
 	var res Float64s
@@ -3210,65 +3226,65 @@ const (
 	by16 = 0x0001000100010001
 )
 
-// BroadcastInt8 fills the elements of a slice with its argument value.
+// BroadcastInt8s fills the elements of a slice with its argument value.
 func BroadcastInt8s(x int8) Int8s {
 	v := (255 & uint64(x)) * by8
 	return Int8s{a: v, b: v}
 }
 
-// BroadcastInt16 fills the elements of a slice with its argument value.
+// BroadcastInt16s fills the elements of a slice with its argument value.
 func BroadcastInt16s(x int16) Int16s {
 	v := (65535 & uint64(x)) * by16
 	return Int16s{a: v, b: v}
 }
 
-// BroadcastInt32 fills the elements of a slice with its argument value.
+// BroadcastInt32s fills the elements of a slice with its argument value.
 func BroadcastInt32s(x int32) Int32s {
 	v := uint64(x) & 0xffffffff
 	v = v<<32 | v
 	return Int32s{a: v, b: v}
 }
 
-// BroadcastInt64 fills the elements of a slice with its argument value.
+// BroadcastInt64s fills the elements of a slice with its argument value.
 func BroadcastInt64s(x int64) Int64s {
 	v := uint64(x)
 	return Int64s{a: v, b: v}
 }
 
-// BroadcastUint8 fills the elements of a slice with its argument value.
+// BroadcastUint8s fills the elements of a slice with its argument value.
 func BroadcastUint8s(x uint8) Uint8s {
 	v := uint64(x) * by8
 	return Uint8s{a: v, b: v}
 
 }
 
-// BroadcastUint16 fills the elements of a slice with its argument value.
+// BroadcastUint16s fills the elements of a slice with its argument value.
 func BroadcastUint16s(x uint16) Uint16s {
 	v := uint64(x) * by16
 	return Uint16s{a: v, b: v}
 
 }
 
-// BroadcastUint32 fills the elements of a slice with its argument value.
+// BroadcastUint32s fills the elements of a slice with its argument value.
 func BroadcastUint32s(x uint32) Uint32s {
 	v := uint64(x)
 	v = v<<32 | v
 	return Uint32s{a: v, b: v}
 }
 
-// BroadcastUint64 fills the elements of a slice with its argument value.
+// BroadcastUint64s fills the elements of a slice with its argument value.
 func BroadcastUint64s(x uint64) Uint64s {
 	return Uint64s{a: x, b: x}
 }
 
-// BroadcastFloat32 fills the elements of a slice with its argument value.
+// BroadcastFloat32s fills the elements of a slice with its argument value.
 func BroadcastFloat32s(x float32) Float32s {
 	v := uint64(math.Float32bits(x))
 	v = v<<32 | v
 	return Float32s{a: v, b: v}
 }
 
-// BroadcastFloat64 fills the elements of a slice with its argument value.
+// BroadcastFloat64s fills the elements of a slice with its argument value.
 func BroadcastFloat64s(x float64) Float64s {
 	v := math.Float64bits(x)
 	return Float64s{a: v, b: v}

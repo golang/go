@@ -250,6 +250,7 @@ func (d *compressor) fillWindow(b []byte) {
 	// Update window information.
 	d.windowEnd += n
 	s.index = n
+	d.blockStart = d.windowEnd
 }
 
 // findMatch finds the longest match starting at pos in the hash chain starting

@@ -59,6 +59,24 @@ func runtime_mapaccess1(typ *abi.MapType, m *Map, key unsafe.Pointer) unsafe.Poi
 	return p
 }
 
+//go:linkname runtime_mapaccess1_fat runtime.mapaccess1_fat
+func runtime_mapaccess1_fat(t *abi.MapType, m *Map, key, zero unsafe.Pointer) unsafe.Pointer {
+	e, ok := runtime_mapaccess2(t, m, key)
+	if !ok {
+		return zero
+	}
+	return e
+}
+
+//go:linkname runtime_mapaccess2_fat runtime.mapaccess2_fat
+func runtime_mapaccess2_fat(t *abi.MapType, m *Map, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
+	e, ok := runtime_mapaccess2(t, m, key)
+	if !ok {
+		return zero, false
+	}
+	return e, true
+}
+
 //go:linkname runtime_mapaccess2 runtime.mapaccess2
 func runtime_mapaccess2(typ *abi.MapType, m *Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if race.Enabled && m != nil {

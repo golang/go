@@ -6,35 +6,24 @@ package http3
 
 import (
 	"crypto/tls"
+	"slices"
 
 	"golang.org/x/net/quic"
 )
 
-func initConfig(config *quic.Config) *quic.Config {
+func newQUICConfig(config *quic.Config, tlsConfig *tls.Config) *quic.Config {
+	config = config.Clone()
 	if config == nil {
 		config = &quic.Config{}
 	}
-
-	// maybeCloneTLSConfig clones the user-provided tls.Config (but only once)
-	// prior to us modifying it.
-	needCloneTLSConfig := true
-	maybeCloneTLSConfig := func() *tls.Config {
-		if needCloneTLSConfig {
-			config.TLSConfig = config.TLSConfig.Clone()
-			needCloneTLSConfig = false
-		}
-		return config.TLSConfig
+	// tlsConfig may be nil: net/http.Transport.TLSClientConfig is nil
+	// by default, and initEndpoint passes it to us unchanged.
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{NextProtos: []string{"h3"}}
+	} else if !slices.Equal(tlsConfig.NextProtos, []string{"h3"}) {
+		tlsConfig = tlsConfig.Clone()
+		tlsConfig.NextProtos = []string{"h3"}
 	}
-
-	if config.TLSConfig == nil {
-		config.TLSConfig = &tls.Config{}
-		needCloneTLSConfig = false
-	}
-	if config.TLSConfig.MinVersion == 0 {
-		maybeCloneTLSConfig().MinVersion = tls.VersionTLS13
-	}
-	if config.TLSConfig.NextProtos == nil {
-		maybeCloneTLSConfig().NextProtos = []string{"h3"}
-	}
+	config.TLSConfig = tlsConfig
 	return config
 }

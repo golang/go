@@ -247,6 +247,7 @@ func (s *LSym) setFIPSType(ctxt *Link) {
 			// so that it can be allowed to contain data relocations.
 			if strings.Contains(name, ".inittask") ||
 				strings.Contains(name, ".dict") ||
+				strings.Contains(name, ".interfaceSwitch") ||
 				strings.Contains(name, ".typeAssert") ||
 				strings.HasSuffix(name, ".arginfo0") ||
 				strings.HasSuffix(name, ".arginfo1") ||

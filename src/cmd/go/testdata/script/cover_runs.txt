@@ -1,5 +1,4 @@
 [compiler:gccgo] skip 'gccgo has no cover tool'
-[short] skip
 
 go test -short -coverpkg=strings strings regexp
 ! stdout '[^0-9]0\.0%'

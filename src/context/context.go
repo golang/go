@@ -465,7 +465,11 @@ func (c *cancelCtx) Err() error {
 	// An atomic load is ~5x faster than a mutex, which can matter in tight loops.
 	if err := c.err.Load(); err != nil {
 		// Ensure the done channel has been closed before returning a non-nil error.
-		<-c.Done()
+		// closedchan is closed at init and shared by every canceled context, so
+		// receiving from it would take one process-global lock for nothing.
+		if done := c.Done(); done != closedchan {
+			<-done
+		}
 		return err.(error)
 	}
 	return nil

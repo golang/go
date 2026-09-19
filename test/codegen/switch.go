@@ -27,6 +27,10 @@ func squareJump(x int) (int, int) {
 	// amd64:`JMP \(.*\)\(.*\)$`
 	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
 	// loong64: `ALSLV` `MOVV` `JMP`
+	// mips:`SLL` `ADDU` `MOVW` `JMP`
+	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
+	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
+	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`
 	switch x {
 	case 1:
 		return 1, 1
@@ -74,6 +78,64 @@ func squareLookup(x int) int {
 	default:
 		return x * x
 	}
+}
+
+// use lookup tables when cases assign constants to a local variable
+func squareAssignLookup(x int) (int, int) {
+	var n int
+	// amd64:`LEAQ .*\(SB\)` `MOVQ .*\(.*\)\(.*\*8\)` -`JMP \(.*\)\(.*\)$`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` -`JMP \(R.*\)$`
+	// loong64:`SLLV` `MOVV \(R.*\)\(R.*\)` -`ALSLV`
+	switch x {
+	case 1:
+		n = 1
+	case 2:
+		n = 4
+	case 3:
+		n = 9
+	case 4:
+		n = 16
+	case 5:
+		n = 25
+	case 6:
+		n = 36
+	case 7:
+		n = 49
+	case 8:
+		n = 64
+	default:
+		n = x * x
+	}
+	return n, x
+}
+
+// use lookup tables when cases assign constants to a local variable
+func squareAssignLocalLookup(x int) int {
+	var n int
+	// amd64:`LEAQ .*\(SB\)` `MOVQ .*\(.*\)\(.*\*8\)` -`JMP \(.*\)\(.*\*8\)$`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` -`JMP \(R.*\)$`
+	// loong64:`SLLV` `MOVV \(R.*\)\(R.*\)` -`ALSLV`
+	switch x {
+	case 1:
+		n = 1
+	case 2:
+		n = 4
+	case 3:
+		n = 9
+	case 4:
+		n = 16
+	case 5:
+		n = 25
+	case 6:
+		n = 36
+	case 7:
+		n = 49
+	case 8:
+		n = 64
+	default:
+		n = x * x
+	}
+	return n + 1
 }
 
 // lookup tables work even when some cases use fallthrough,
@@ -216,6 +278,10 @@ func length(x string) int {
 	// amd64:`JMP \(.*\)\(.*\)$`
 	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
 	// loong64:`ALSLV` `MOVV` `JMP`
+	// mips:`SLL` `ADDU` `MOVW` `JMP`
+	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
+	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
+	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`
 	switch x {
 	case "a":
 		return 1
@@ -269,6 +335,10 @@ func mimetype(ext string) string {
 func typeSwitch(x any) int {
 	// amd64:`JMP \(.*\)\(.*\)$`
 	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
+	// mips:`SLL` `ADDU` `MOVW` `JMP`
+	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
+	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
+	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`
 	switch x.(type) {
 	case int:
 		return 0

@@ -1,5 +1,3 @@
-[short] skip
-
 # ensure all runs non-default vet
 ! go test -vet=all ./vetall/...
 stderr 'using resp before checking for errors'

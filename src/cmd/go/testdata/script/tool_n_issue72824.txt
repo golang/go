@@ -1,5 +1,3 @@
-[short] skip 'does a build in using an empty cache'
-
 # Start with a fresh cache because we want to verify the behavior
 # when the tool hasn't been cached previously.
 env GOCACHE=$WORK${/}cache

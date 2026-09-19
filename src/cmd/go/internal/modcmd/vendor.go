@@ -54,13 +54,15 @@ See https://go.dev/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 	Run: runVendor,
 }
 
-var vendorE bool   // if true, report errors but proceed anyway
-var vendorO string // if set, overrides the default output directory
+var (
+	vendorE bool   // if true, report errors but proceed anyway
+	vendorO string // if set, overrides the default output directory
+)
 
 func init() {
-	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
-	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
-	cmdVendor.Flag.StringVar(&vendorO, "o", "", "")
+	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "print the names of packages as they are processed")
+	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "report errors but proceed anyway")
+	cmdVendor.Flag.StringVar(&vendorO, "o", "", "the output `directory` to write vendor modules to")
 	base.AddChdirFlag(&cmdVendor.Flag)
 	base.AddModCommonFlags(&cmdVendor.Flag)
 }
@@ -128,7 +130,6 @@ func RunVendor(ld *modload.Loader, ctx context.Context, vendorE bool, vendorO st
 					isExplicit[r.Mod] = true
 				}
 			}
-
 		}
 		includeAllReplacements = true
 	}
@@ -504,7 +505,7 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
 // with go build. If modifying, consider changing load() in
 // src/cmd/go/internal/load/pkg.go
 func checkPathCollisions(modpkgs map[module.Version][]string) {
-	var foldPath = make(map[string]string, len(modpkgs))
+	foldPath := make(map[string]string, len(modpkgs))
 	for m := range modpkgs {
 		fold := str.ToFold(m.Path)
 		if other := foldPath[fold]; other == "" {

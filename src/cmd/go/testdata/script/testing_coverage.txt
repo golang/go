@@ -1,7 +1,4 @@
-
 # Rudimentary test of testing.Coverage().
-
-[short] skip
 
 # Simple test.
 go test -v -cover -count=1

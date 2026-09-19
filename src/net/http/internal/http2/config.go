@@ -34,9 +34,7 @@ func configFromServer(h1 ServerConfig) Config {
 
 func configFromTransport(h2 *Transport) Config {
 	conf := Config{}
-	if h2.t1 != nil {
-		fillNetHTTPConfig(&conf, h2.t1.HTTP2Config())
-	}
+	fillNetHTTPConfig(&conf, h2.t1.HTTP2Config())
 	setConfigDefaults(&conf, false)
 	return conf
 }

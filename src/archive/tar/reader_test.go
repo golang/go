@@ -1702,3 +1702,50 @@ func TestDisableInsecurePathCheck(t *testing.T) {
 		t.Fatalf("tr.Next with tarinsecurepath=1: got name %q, want %q", h.Name, name)
 	}
 }
+
+func TestMergePAXIntegerOverflow(t *testing.T) {
+	vectors := []struct {
+		paxHdrs map[string]string
+		wantErr bool
+	}{
+		{map[string]string{paxUid: "0"}, false},
+		{map[string]string{paxUid: "1000"}, false},
+		{map[string]string{paxUid: "4294967296"}, math.MaxInt < 4294967296},
+		{map[string]string{paxGid: "4294967296"}, math.MaxInt < 4294967296},
+		{map[string]string{paxUid: "2147483648"}, math.MaxInt < 2147483648},
+		{map[string]string{paxGid: "2147483648"}, math.MaxInt < 2147483648},
+		{map[string]string{paxUid: "9223372036854775808"}, true},
+	}
+
+	for _, tt := range vectors {
+		testname := fmt.Sprintf("%v", tt.paxHdrs)
+		t.Run(testname, func(t *testing.T) {
+			hdr := new(Header)
+			err := mergePAX(hdr, tt.paxHdrs)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("Expected a non-nil error")
+				}
+				if !errors.Is(err, ErrHeader) {
+					t.Fatalf("Expected error of type ErrHeader, got instead %v", err)
+				}
+				if hdr.Gid != 0 {
+					t.Fatalf("Gid was unexpectedly set after error: %v", hdr.Gid)
+				}
+				if hdr.Uid != 0 {
+					t.Fatalf("Uid was unexpectedly set after error: %v", hdr.Uid)
+				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if hdr.Gid < 0 {
+				t.Fatalf("Gid was unexpectedly set after overflow: %v", hdr.Gid)
+			}
+			if hdr.Uid < 0 {
+				t.Fatalf("Uid was unexpectedly set after overflow: %v", hdr.Uid)
+			}
+		})
+	}
+}
+

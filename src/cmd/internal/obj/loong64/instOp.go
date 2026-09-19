@@ -9,16 +9,18 @@ import (
 )
 
 var oprrrr = map[obj.As]uint32{
-	AFMADDF:  0x81 << 20,  // fmadd.s
-	AFMADDD:  0x82 << 20,  // fmadd.d
-	AFMSUBF:  0x85 << 20,  // fmsub.s
-	AFMSUBD:  0x86 << 20,  // fmsub.d
-	AFNMADDF: 0x89 << 20,  // fnmadd.f
-	AFNMADDD: 0x8a << 20,  // fnmadd.d
-	AFNMSUBF: 0x8d << 20,  // fnmsub.s
-	AFNMSUBD: 0x8e << 20,  // fnmsub.d
-	AVSHUFB:  0x0d5 << 20, // vshuf.b
-	AXVSHUFB: 0x0d6 << 20, // xvshuf.b
+	AFMADDF:    0x81 << 20, // fmadd.s
+	AFMADDD:    0x82 << 20, // fmadd.d
+	AFMSUBF:    0x85 << 20, // fmsub.s
+	AFMSUBD:    0x86 << 20, // fmsub.d
+	AFNMADDF:   0x89 << 20, // fnmadd.f
+	AFNMADDD:   0x8a << 20, // fnmadd.d
+	AFNMSUBF:   0x8d << 20, // fnmsub.s
+	AFNMSUBD:   0x8e << 20, // fnmsub.d
+	AVSHUFB:    0xd5 << 20, // vshuf.b
+	AXVSHUFB:   0xd6 << 20, // xvshuf.b
+	AVBITSELV:  0xd1 << 20, // vbitsel.v
+	AXVBITSELV: 0xd2 << 20, // xvbitsel.v
 }
 
 var oprrr = map[obj.As]uint32{
@@ -703,6 +705,7 @@ var opi = map[obj.As]uint32{
 	ASYSCALL: 0x56 << 15,   // syscall
 	ABREAK:   0x54 << 15,   // break
 	ADBAR:    0x70e4 << 15, // dbar
+	AIBAR:    0x70e5 << 15, // ibar
 }
 
 var opir = map[obj.As]uint32{
@@ -906,6 +909,8 @@ var opirr = map[obj.As]uint32{
 	AXVBITREVH:  0x1dc6<<18 | 0x1<<14, // xvbitrevi.h
 	AXVBITREVW:  0x1dc6<<18 | 0x1<<15, // xvbitrevi.w
 	AXVBITREVV:  0x1dc6<<18 | 0x1<<16, // xvbitrevi.d
+	AVBITSELB:   0x1cf1 << 18,         // vbitseli.b
+	AXVBITSELB:  0x1df1 << 18,         // xvbitseli.b
 }
 
 var opirrr = map[obj.As]uint32{
@@ -1061,37 +1066,66 @@ func (c *ctxt0) specialLsxMovInst(a obj.As, fReg, tReg int16, offset_flag bool) 
 		}
 
 	case C_ELEM | (C_REG << 16):
-		// vmov Vd.<T>[index], Rn
-		switch a {
-		case AVMOVQ:
-			switch farng {
-			case ARNG_B:
-				return (0x01CBBE << 14), 0xf // vpickve2gr.b
-			case ARNG_H:
-				return (0x03977E << 13), 0x7 // vpickve2gr.h
-			case ARNG_W:
-				return (0x072EFE << 12), 0x3 // vpickve2gr.w
-			case ARNG_V:
-				return (0x0E5DFE << 11), 0x1 // vpickve2gr.d
-			case ARNG_BU:
-				return (0x01CBCE << 14), 0xf // vpickve2gr.bu
-			case ARNG_HU:
-				return (0x03979E << 13), 0x7 // vpickve2gr.hu
-			case ARNG_WU:
-				return (0x072F3E << 12), 0x3 // vpickve2gr.wu
-			case ARNG_VU:
-				return (0x0E5E7E << 11), 0x1 // vpickve2gr.du
+		switch {
+		case offset_flag:
+			// vmov Vd.<T>[index], offset(Rj)
+			switch a {
+			case AVMOVQ:
+				switch farng {
+				case ARNG_B:
+					return (0xc6 << 22), 0xf // vstelm.b
+				case ARNG_H:
+					return (0x18a << 21), 0x7 // vstelm.h
+				case ARNG_W:
+					return (0x312 << 20), 0x3 // vstelm.w
+				case ARNG_V:
+					return (0x622 << 19), 0x1 // vstelm.d
+				}
+			case AXVMOVQ:
+				switch farng {
+				case ARNG_B:
+					return (0x67 << 23), 0x1f // xvstelm.b
+				case ARNG_H:
+					return (0xcd << 22), 0xf // xvstelm.h
+				case ARNG_W:
+					return (0x199 << 21), 0x7 // xvstelm.w
+				case ARNG_V:
+					return (0x331 << 20), 0x3 // xvstelm.d
+				}
 			}
-		case AXVMOVQ:
-			switch farng {
-			case ARNG_W:
-				return (0x03B77E << 13), 0x7 // xvpickve2gr.w
-			case ARNG_V:
-				return (0x076EFE << 12), 0x3 // xvpickve2gr.d
-			case ARNG_WU:
-				return (0x03B79E << 13), 0x7 // xvpickve2gr.wu
-			case ARNG_VU:
-				return (0x076F3E << 12), 0x3 // xvpickve2gr.du
+		default:
+			// vmov Vd.<T>[index], Rn
+			switch a {
+			case AVMOVQ:
+				switch farng {
+				case ARNG_B:
+					return (0x01CBBE << 14), 0xf // vpickve2gr.b
+				case ARNG_H:
+					return (0x03977E << 13), 0x7 // vpickve2gr.h
+				case ARNG_W:
+					return (0x072EFE << 12), 0x3 // vpickve2gr.w
+				case ARNG_V:
+					return (0x0E5DFE << 11), 0x1 // vpickve2gr.d
+				case ARNG_BU:
+					return (0x01CBCE << 14), 0xf // vpickve2gr.bu
+				case ARNG_HU:
+					return (0x03979E << 13), 0x7 // vpickve2gr.hu
+				case ARNG_WU:
+					return (0x072F3E << 12), 0x3 // vpickve2gr.wu
+				case ARNG_VU:
+					return (0x0E5E7E << 11), 0x1 // vpickve2gr.du
+				}
+			case AXVMOVQ:
+				switch farng {
+				case ARNG_W:
+					return (0x03B77E << 13), 0x7 // xvpickve2gr.w
+				case ARNG_V:
+					return (0x076EFE << 12), 0x3 // xvpickve2gr.d
+				case ARNG_WU:
+					return (0x03B79E << 13), 0x7 // xvpickve2gr.wu
+				case ARNG_VU:
+					return (0x076F3E << 12), 0x3 // xvpickve2gr.du
+				}
 			}
 		}
 

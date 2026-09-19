@@ -48,7 +48,7 @@ type Cache interface {
 	// the seek position is not guaranteed to be in any particular state.
 	//
 	// As a special case, if the ReadSeeker is of type noVerifyReadSeeker,
-	// the verification from GODEBUG=goverifycache=1 is skipped.
+	// the verification from GODEBUG=gocacheverify=1 is skipped.
 	//
 	// After a successful call to Put, OutputFile(OutputID) must
 	// exist on disk until Close is called (at the end of the process).
@@ -524,7 +524,7 @@ func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVe
 
 // noVerifyReadSeeker is an io.ReadSeeker wrapper sentinel type
 // that says that Cache.Put should skip the verify check
-// (from GODEBUG=goverifycache=1).
+// (from GODEBUG=gocacheverify=1).
 type noVerifyReadSeeker struct {
 	io.ReadSeeker
 }
@@ -554,7 +554,7 @@ func (c *DiskCache) PutExecutable(id ActionID, name string, file io.ReadSeeker) 
 }
 
 // PutNoVerify is like Put but disables the verify check
-// when GODEBUG=goverifycache=1 is set.
+// when GODEBUG=gocacheverify=1 is set.
 // It is meant for data that is OK to cache but that we expect to vary slightly from run to run,
 // like test output containing times and the like.
 func PutNoVerify(c Cache, id ActionID, file io.ReadSeeker) (OutputID, int64, error) {

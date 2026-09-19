@@ -1,7 +1,5 @@
 [!git] skip
-[short] skip
 
-env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 

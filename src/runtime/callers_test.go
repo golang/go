@@ -471,7 +471,7 @@ func TestFPUnwindAfterRecovery(t *testing.T) {
 			// frame pointer before returning control to this
 			// function, it will point somewhere lower in the stack
 			// from one of the frames of runtime.gopanic() or one of
-			// it's callees prior to recovery.  So, we put some
+			// its callees prior to recovery.  So, we put some
 			// non-zero values on the stack to ensure that frame
 			// pointer unwinding will crash if it sees the old,
 			// invalid frame pointer.
@@ -486,4 +486,28 @@ func TestFPUnwindAfterRecovery(t *testing.T) {
 		}
 	}()
 	panic(1)
+}
+
+//go:noinline
+func deref() int {
+	var i *int
+	runtime.KeepAlive(&i)
+	return *i
+}
+
+func TestFPUnwindStackGrowthAfterRecovery(t *testing.T) {
+	if !runtime.FramePointerEnabled {
+		t.Skip("frame pointers not supported for this architecture")
+	}
+	state := runtime.StackPoisonCopy()
+	defer state.Restore()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("did not recover from panic")
+		}
+		growStack(nil)
+		var pcs [32]uintptr
+		runtime.FPCallers(pcs[:])
+	}()
+	deref()
 }

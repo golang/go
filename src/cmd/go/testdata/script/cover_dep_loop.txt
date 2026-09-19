@@ -1,4 +1,3 @@
-[short] skip
 [compiler:gccgo] skip
 
 # coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.

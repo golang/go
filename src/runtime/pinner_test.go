@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 	"unsafe"
@@ -155,6 +156,78 @@ func TestPinnerTwoPinner(t *testing.T) {
 	}
 	if runtime.GetPinCounter(addr) != nil {
 		t.Fatal("pin counter was not deleted")
+	}
+}
+
+func TestPinnerConcurrent(t *testing.T) {
+	// Small, non-tiny objects exercise updates to different bits in the same
+	// pin-state byte when allocated in the same span.
+	var objects [64]*obj
+	for i := range objects {
+		objects[i] = new(obj)
+	}
+	done := make(chan struct{}, len(objects))
+	for _, p := range objects {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			var pinner runtime.Pinner
+			defer pinner.Unpin()
+			for range 100 {
+				for range 3 {
+					pinner.Pin(p)
+				}
+				if !runtime.IsPinned(unsafe.Pointer(p)) {
+					t.Error("not marked as pinned")
+					return
+				}
+				pinner.Unpin()
+				if runtime.IsPinned(unsafe.Pointer(p)) {
+					t.Error("still marked as pinned")
+					return
+				}
+			}
+		}()
+	}
+	runtime.GC()
+	for range objects {
+		<-done
+	}
+	runtime.KeepAlive(objects)
+}
+
+func TestPinnerUnpinBatch(t *testing.T) {
+	var objects [512]*obj
+	var first, second runtime.Pinner
+	defer first.Unpin()
+	defer second.Unpin()
+	for i := range objects {
+		p := new(obj)
+		objects[i] = p
+		first.Pin(p)
+		if i%3 == 0 {
+			first.Pin(p)
+		}
+		if i%2 == 0 {
+			second.Pin(p)
+		}
+	}
+	runtime.GC()
+	first.Unpin()
+	runtime.GC()
+	for i, p := range objects {
+		addr := unsafe.Pointer(p)
+		if got, want := runtime.IsPinned(addr), i%2 == 0; got != want {
+			t.Errorf("object %d: pinned = %v, want %v", i, got, want)
+		}
+		if runtime.GetPinCounter(addr) != nil {
+			t.Errorf("object %d: pin counter was not deleted", i)
+		}
+	}
+	second.Unpin()
+	for i, p := range objects {
+		if runtime.IsPinned(unsafe.Pointer(p)) {
+			t.Errorf("object %d: still marked as pinned", i)
+		}
 	}
 }
 
@@ -428,6 +501,17 @@ func BenchmarkPinnerPinUnpin(b *testing.B) {
 	}
 }
 
+func BenchmarkPinnerPinUnpinWithGC(b *testing.B) {
+	stop := applyGCLoad(b)
+	defer stop()
+	p := new(obj)
+	for b.Loop() {
+		var pinner runtime.Pinner
+		pinner.Pin(p)
+		pinner.Unpin()
+	}
+}
+
 func BenchmarkPinnerPinUnpinTiny(b *testing.B) {
 	p := new(bool)
 	for n := 0; n < b.N; n++ {
@@ -442,6 +526,35 @@ func BenchmarkPinnerPinUnpinDouble(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		var pinner runtime.Pinner
 		pinner.Pin(p)
+		pinner.Pin(p)
+		pinner.Unpin()
+	}
+}
+
+func BenchmarkPinnerPinUnpinMultiple(b *testing.B) {
+	for _, pins := range []int{3, 10, 100} {
+		b.Run(strconv.Itoa(pins), func(b *testing.B) {
+			p := new(obj)
+			for b.Loop() {
+				var pinner runtime.Pinner
+				for range pins {
+					pinner.Pin(p)
+				}
+				pinner.Unpin()
+			}
+		})
+	}
+}
+
+func BenchmarkPinnerPinUnpinAlreadyMultiPinned(b *testing.B) {
+	p := new(obj)
+	var pinned runtime.Pinner
+	pinned.Pin(p)
+	pinned.Pin(p)
+	defer pinned.Unpin()
+
+	for b.Loop() {
+		var pinner runtime.Pinner
 		pinner.Pin(p)
 		pinner.Unpin()
 	}

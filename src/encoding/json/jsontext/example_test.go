@@ -128,3 +128,30 @@ func ExampleEscapeForHTML() {
 	// 	"Body": "\u003cscript\u003e console.log(\"Hello, world!\"); \u003c/script\u003e"
 	// }
 }
+
+func ExampleMultiline() {
+	type Pet struct {
+		Name    string
+		Species string
+		Breed   string
+	}
+
+	p := Pet{
+		Name:    "Oliver",
+		Species: "Dog",
+		Breed:   "Goldendoodle",
+	}
+
+	b, err := json.Marshal(p, jsontext.Multiline(true))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(b))
+	// Output:
+	// {
+	// 	"Name": "Oliver",
+	// 	"Species": "Dog",
+	// 	"Breed": "Goldendoodle"
+	// }
+}

@@ -1,7 +1,6 @@
 # Test to ensure runtime/debug.ReadBuildInfo parses
 # the modinfo embedded in a binary by the go tool
 # when module is enabled.
-env GO111MODULE=on
 
 cd x
 go mod edit -require=rsc.io/quote@v1.5.2
@@ -16,8 +15,6 @@ stderr 'mod\s+x\s+\(devel\)'
 stderr 'dep\s+rsc.io/quote\s+v1.5.2\s+'
 stderr '=>\s+rsc.io/quote\s+v1.0.0\s+h1:'
 stderr 'Hello, world.'
-
-[short] skip
 
 # Build a binary that accesses its debug info by reading the binary directly
 # (rather than through debug.ReadBuildInfo).

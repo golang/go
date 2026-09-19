@@ -1,7 +1,5 @@
 # Verifies golang.org/issue/37555.
 
-[short] skip
-
 # 'go test -json' should say a test passes if it says it passes.
 go test -json ./pass
 stdout '"Action":"pass","Package":"[^"]*","Elapsed":[^"]*}\n\z'

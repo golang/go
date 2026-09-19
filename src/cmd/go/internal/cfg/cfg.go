@@ -133,6 +133,11 @@ func defaultContext() build.Context {
 	}
 	ctxt.ToolTags = save
 
+	_, archEnv, _ := GetArchEnv()
+	if archEnv != "" {
+		ctxt.ToolTags = append(ctxt.ToolTags, Goarch+"."+archEnv)
+	}
+
 	// The go/build rule for whether cgo is enabled is:
 	//  1. If $CGO_ENABLED is set, respect it.
 	//  2. Otherwise, if this is a cross-compile, disable cgo.

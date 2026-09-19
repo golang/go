@@ -3,8 +3,6 @@ env GO111MODULE=off
 # Test that a main_test of 'package main' imports the package,
 # not the installed binary.
 
-[short] skip
-
 env GOBIN=$WORK/bin
 go test main_test
 go install main_test

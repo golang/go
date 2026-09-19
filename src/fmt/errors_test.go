@@ -114,3 +114,41 @@ func splitErr(err error) []error {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+func TestErrorfSharpWBadVerb(t *testing.T) {
+	noVetErrorf := fmt.Errorf
+
+	for _, test := range []struct {
+		name string
+		err  error
+		want string
+	}{{
+		name: "nil fields",
+		err:  noVetErrorf("%#w", errAttrs{}),
+		want: `fmt_test.errAttrs{Attrs:%!w(map[string]string=map[string]string(nil)), ` +
+			`Path:%!w([]string=[]string(nil))}`,
+	}, {
+		name: "populated fields",
+		err: noVetErrorf("%#w", errAttrs{
+			Attrs: map[string]string{"k": "v"},
+			Path:  []string{"a"},
+		}),
+		want: `fmt_test.errAttrs{Attrs:%!w(map[string]string=map[string]string{"k":"v"}), ` +
+			`Path:%!w([]string=[]string{"a"})}`,
+	}, {
+		name: "%w without # is wrapped, not marked",
+		err:  noVetErrorf("%w", errAttrs{}),
+		want: "attrs",
+	}} {
+		if got := test.err.Error(); got != test.want {
+			t.Errorf("%s: err.Error() = %q, want %q", test.name, got, test.want)
+		}
+	}
+}
+
+type errAttrs struct {
+	Attrs map[string]string
+	Path  []string
+}
+
+func (errAttrs) Error() string { return "attrs" }

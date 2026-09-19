@@ -765,12 +765,12 @@ func (t test) run() error {
 			if err := cmd.Run(); err != nil {
 				lastErr = err
 				t.Log(env, "\n", cmd.Stderr)
-			}
-
-			err := t.asmCheck(buf.String(), long, env, ops[env])
-			if err != nil {
-				lastErr = err
-				t.Log(err)
+			} else {
+				// The compilation succeeded, run the asmCheck
+				if err := t.asmCheck(buf.String(), long, env, ops[env]); err != nil {
+					lastErr = err
+					t.Log(err)
+				}
 			}
 		}
 		// The error(s) have been logged earlier. Pass up a generic one.

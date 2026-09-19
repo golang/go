@@ -97,11 +97,12 @@ func Select(pkg, name string) bool {
 	return true
 }
 
+// Reset restores every implementation registered for the given package to its
+// initial availability.
 func Reset(pkg string) {
 	for _, i := range allImplementations {
 		if i.Package == pkg {
 			*i.Toggle = i.Available
-			return
 		}
 	}
 }

@@ -237,7 +237,7 @@ func TestFloat64Text(t *testing.T) {
 		{1024.0, 'p', 0, "0x.8p+11"},
 		{-1024.0, 'p', 0, "-0x.8p+11"},
 
-		// all test cases below from strconv/ftoa_test.go
+		// all test cases below from internal/strconv/ftoa_test.go
 		{1, 'e', 5, "1.00000e+00"},
 		{1, 'f', 5, "1.00000"},
 		{1, 'g', 5, "1"},

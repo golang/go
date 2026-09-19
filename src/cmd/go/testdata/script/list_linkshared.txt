@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # golang.org/issue/35759: 'go list -linkshared'
 # panicked if invoked on a test-only package.
 

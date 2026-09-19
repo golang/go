@@ -8,8 +8,7 @@
 // RFC 7159. The mapping between JSON and Go values is described
 // in the documentation for the Marshal and Unmarshal functions.
 //
-// See "JSON and Go" for an introduction to this package:
-// https://golang.org/doc/articles/json_and_go.html
+// See [JSON and Go] for an introduction to this package.
 //
 // # Security Considerations
 //
@@ -18,6 +17,8 @@
 // For historical reasons, the default behavior of v1 [encoding/json]
 // unfortunately operates with less secure defaults.
 // New usages of JSON in Go are encouraged to use [encoding/json/v2] instead.
+//
+// [JSON and Go]: https://go.dev/blog/json
 package json
 
 import (
@@ -137,9 +138,9 @@ import (
 // Embedded struct fields are usually marshaled as if their inner exported fields
 // were fields in the outer struct, subject to the usual Go visibility rules amended
 // as described in the next paragraph.
-// An anonymous struct field with a name given in its JSON tag is treated as
+// An embedded struct field with a name given in its JSON tag is treated as
 // having that name, rather than being anonymous.
-// An anonymous struct field of interface type is treated the same as having
+// An embedded struct field of interface type is treated the same as having
 // that type as its name, rather than being anonymous.
 //
 // The Go visibility rules for struct fields are amended for JSON when
@@ -154,11 +155,6 @@ import (
 // 2) If there is exactly one field (tagged or not according to the first rule), that is selected.
 //
 // 3) Otherwise there are multiple fields, and all are ignored; no error occurs.
-//
-// Handling of anonymous struct fields is new in Go 1.1.
-// Prior to Go 1.1, anonymous struct fields were ignored. To force ignoring of
-// an anonymous struct field in both current and earlier versions, give the field
-// a JSON tag of "-".
 //
 // Map values encode as JSON objects. The map's key type must either be a
 // string, an integer type, or implement [encoding.TextMarshaler]. The map keys

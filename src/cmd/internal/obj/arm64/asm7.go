@@ -1220,16 +1220,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
-
-	// Now that we know byte offsets, we can generate jump table entries.
-	for _, jt := range cursym.Func().JumpTables {
-		for i, p := range jt.Targets {
-			// The ith jumptable entry points to the p.Pc'th
-			// byte in the function symbol s.
-			// TODO: try using relative PCs.
-			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
-		}
-	}
 }
 
 type codeBuffer struct {
@@ -1564,7 +1554,8 @@ func isNEGop(op obj.As) bool {
 
 func isLoadStorePairOp(op obj.As) bool {
 	switch op {
-	case AFLDPQ, AFSTPQ, ALDP, ASTP, ALDPW, ASTPW:
+	case ALDP, ALDPW, ALDPSW, ASTP, ASTPW,
+		AFLDPD, AFLDPQ, AFLDPS, AFSTPD, AFSTPQ, AFSTPS:
 		return true
 	}
 	return false

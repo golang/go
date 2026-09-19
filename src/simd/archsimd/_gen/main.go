@@ -8,30 +8,82 @@ package main
 import (
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
-)
 
-const defaultLocalISA = "ISA_A64_xml_A_profile-2026-03_96/ISA_A64_xml_A_profile_2026-03_96-2026-03_rel" // ISA_A64_xml_A_profile-2025-06"
-const defaultXedPath = "$XEDPATH" + string(filepath.ListSeparator) + "./simdgen/xeddata" + string(filepath.ListSeparator) + "$HOME/xed/obj/dgen"
-const defaultArm64Path = "$ARM64_ISA_PATH" + string(filepath.ListSeparator) + "./simdgen/armdata" + string(filepath.ListSeparator) + "$HOME/Downloads/" + defaultLocalISA
+	"simd/archsimd/_gen/gentools"
+	"simd/archsimd/_gen/sgutil"
+)
 
 var (
-	flagTmplgen = flag.Bool("tmplgen", true, "run tmplgen generator")
-	flagSimdgen = flag.Bool("simdgen", true, "run simdgen generator")
-	flagWasmgen = flag.Bool("wasmgen", true, "run wasmgen generator")
-	flagMidway  = flag.Bool("midway", true, "run midway generator")
+	flagTools = flagVar("tools", ToolSet{"tmplgen": true, "simdgen": true, "wasmgen": true, "midway": true, "refgen": true}, "comma-separated list of tools (or +/-tools) to run")
 
 	flagN         = flag.Bool("n", false, "dry run")
-	flagXedPath   = flag.String("xedPath", defaultXedPath, "load XED datafile from `path`, which must be the XED obj/dgen directory")
-	flagArm64Path = flag.String("arm64Path", defaultArm64Path, "load ARM64 ISA XML definitions from `path`")
+	flagXedPath   = sgutil.FlagXEDPath(".")
+	flagArm64Path = sgutil.FlagARM64Path(".")
 
-	flagGoRoot = flag.String("goroot", "", "destination go dev tree for generated files")
+	genFlags = gentools.RegisterFlags(nil)
 )
 
-var goRoot string
+// ToolSet is a [flag.Value] that accepts a comma-separated list of tool names.
+// It rejects any tool names that aren't in the map. A list like "a,c" sets only
+// "a" and "c" to true and all other tools to false. Alternatively, the list
+// items may each start with + or -, which enables or disables (respectively)
+// only the named tools.
+type ToolSet map[string]bool
+
+func (s ToolSet) String() string {
+	var have []string
+	for k, v := range s {
+		if v {
+			have = append(have, k)
+		}
+	}
+	slices.Sort(have)
+	return strings.Join(have, ",")
+}
+
+func (s ToolSet) Set(list string) error {
+	list = strings.TrimSpace(list)
+	isDelta := len(list) > 0 && (list[0] == '+' || list[0] == '-')
+	if !isDelta {
+		for k := range s {
+			s[k] = false
+		}
+	}
+	for item := range strings.SplitSeq(list, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		var itemDelta bool
+		val := true
+		switch item[0] {
+		case '+':
+			val, itemDelta, item = true, true, item[1:]
+		case '-':
+			val, itemDelta, item = false, true, item[1:]
+		}
+		if isDelta != itemDelta {
+			return fmt.Errorf("tool list %q mixes +/- and regular items", list)
+		}
+		if _, ok := s[item]; !ok {
+			all := slices.Sorted(maps.Keys(s))
+			return fmt.Errorf("unknown tool %s; valid tools are: %s", item, strings.Join(all, ", "))
+		}
+		s[item] = val
+	}
+	return nil
+}
+
+func flagVar[T flag.Value](name string, value T, usage string) T {
+	flag.Var(value, name, usage)
+	return value
+}
 
 func main() {
 	flag.Parse()
@@ -40,54 +92,87 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *flagXedPath == defaultXedPath {
-		// In general we want the shell to do variable expansion, but for the
-		// default value we don't get that, so do it ourselves.
-		*flagXedPath = os.ExpandEnv(defaultXedPath)
-	}
-
-	if *flagArm64Path == defaultArm64Path {
-		// In general we want the shell to do variable expansion, but for the
-		// default value we don't get that, so do it ourselves.
-		*flagArm64Path = os.ExpandEnv(defaultArm64Path)
-	}
-
-	var err error
-	goRoot, err = resolveGOROOT()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	if genFlags.GOROOT == "" {
+		fmt.Fprintln(os.Stderr, "failed to find Go dev tree root from current directory")
 		os.Exit(1)
 	}
 
-	if *flagSimdgen {
+	// If we need data paths, resolve them before we start running any tools so
+	// we can report errors immediately.
+	var xedPath, armPath string
+	if flagTools["simdgen"] {
+		var err error
+		resolveError := false
+		xedPath, err = sgutil.ResolveXEDPath(flagXedPath)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			resolveError = true
+		}
+		armPath, err = sgutil.ResolveARM64Path(flagArm64Path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			resolveError = true
+		}
+		if resolveError {
+			os.Exit(1)
+		}
+	}
+
+	if flagTools["simdgen"] {
 		fmt.Fprintln(os.Stderr, "# This may take a few minutes...")
 	}
 
-	if *flagTmplgen {
-		doTmplgen()
+	var files gentools.Files
+	defer files.FlushOrExit()
+
+	if flagTools["tmplgen"] {
+		doGen("tmplgen", &files)
 	}
 
-	if *flagWasmgen || *flagSimdgen {
-		ssaGenPath := prettyPath(".", filepath.Join(goRoot, "src", "cmd", "compile", "internal", "ssa", "_gen"))
+	if flagTools["wasmgen"] || flagTools["simdgen"] {
+		ssaGenPath := prettyPath(".", genFlags.OutputPath("cmd/compile/internal/ssa/_gen"))
 
 		// If there is garbage in ssa/_gen/simdgenericOps.go, it can affect the merge in simdgen/wasmgen.
-		removeSimdGenericOps(ssaGenPath)
+		if genFlags.Write {
+			removeSimdGenericOps(ssaGenPath)
+		}
 
-		if *flagWasmgen {
-			doWasmgen()
+		if flagTools["wasmgen"] {
+			doGen("wasmgen", &files)
 		}
-		if *flagSimdgen {
-			doSimdgen()
+		if flagTools["simdgen"] {
+			doSimdgen(xedPath, armPath, &files)
 		}
-		ssaGen(ssaGenPath)
+
+		// ssaGen doesn't use gentools, so we can only run if it we're writing
+		// to the Go source tree, and we have to flush any file changes before
+		// we do.
+		if genFlags.WritingToInput() {
+			files.FlushOrExit()
+			ssaGen(ssaGenPath)
+		} else {
+			fmt.Fprintf(os.Stderr, "# skipping %s gen because we're not writing to -goroot\n", ssaGenPath)
+		}
 	}
 
-	if *flagMidway {
-		doMidway()
+	if flagTools["refgen"] {
+		doGen("cmd/refgen", &files)
+	}
+
+	if flagTools["midway"] {
+		doGen("midway", &files)
 	}
 }
 
 func removeSimdGenericOps(ssaGenPath string) {
+	if *flagN {
+		// Dry run: keep the file. Without this, `go generate -n` (or any run that
+		// stops before regenerating — e.g. an unset XEDPATH failing the amd64
+		// step even when the arm64 path is valid) still deletes simdgenericOps.go
+		// here, and a later single -arch run recreates it with only that arch's
+		// ops, silently dropping the others.
+		return
+	}
 	ssaSimdGenericOps := filepath.Join(ssaGenPath, "simdgenericOps.go")
 	if _, err := os.Stat(ssaSimdGenericOps); err == nil {
 		if err = os.Remove(ssaSimdGenericOps); err != nil {
@@ -104,86 +189,26 @@ func ssaGen(ssaGenPath string) {
 	fmt.Fprintln(os.Stderr, "# Compiler changed. Consider running \"go install cmd/compile\"")
 }
 
-func doTmplgen() {
-	goRun("-C", "tmplgen", ".")
+func doGen(tool string, files *gentools.Files) {
+	flags := append([]string{"-C", tool, "."}, files.ExecFlags()...)
+	goRun(flags...)
 }
 
-func doWasmgen() {
-	goRun("-C", "wasmgen", ".")
-}
+func doSimdgen(xedPath, armPath string, files *gentools.Files) {
+	armArgs := append([]string{"-C", "simdgen", ".", "-o", "godefs", "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath)}, files.ExecFlags()...)
+	armArgs = append(armArgs, "go_arm64.yaml", "types.yaml", "categories.yaml")
+	goRun(armArgs...)
 
-func doMidway() {
-	goRun("-C", "midway", ".")
-}
-
-func doSimdgen() {
-	xedPath, err := resolveXEDPath(*flagXedPath)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	armPath, err := resolveARMPath(*flagArm64Path)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
+	// Regenerate the ARM64 SVE files. SVE reads the same A64 ISA data as NEON,
+	// but is a separate target with its own generated files.
+	sveArgs := append([]string{"-C", "simdgen", ".", "-o", "godefs", "-arch", "sve", "-arm64Path", prettyPath("./simdgen", armPath)}, files.ExecFlags()...)
+	sveArgs = append(sveArgs, "go_sve.yaml", "types.yaml", "categories.yaml")
+	goRun(sveArgs...)
 
 	// Regenerate the XED-derived SIMD files
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
-}
-
-// simdgen -o godefs -goroot goRoot -arm64Path $ARM64_ISA_PATH arm64/go.yaml arm64/categories.yaml types.yaml
-
-func resolveXEDPath(pathList string) (xedPath string, err error) {
-	for _, path := range filepath.SplitList(pathList) {
-		if path == "" {
-			// Probably an unknown shell variable. Ignore.
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(path, "all-dec-instructions.txt")); err == nil {
-			return filepath.Abs(path)
-		}
-	}
-	return "", fmt.Errorf("set $XEDPATH or -xedPath to the XED obj/dgen directory")
-}
-
-func resolveARMPath(pathList string) (armPath string, err error) {
-	for _, path := range filepath.SplitList(pathList) {
-		if path == "" {
-			// Probably an unknown shell variable. Ignore.
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(path, "abs_advsimd.xml")); err == nil {
-			return filepath.Abs(path)
-		}
-	}
-	return "", fmt.Errorf("set $ARM64_ISA_PATH or -armPath to the ARM64 ISA specification directory")
-}
-
-func resolveGOROOT() (goRoot string, err error) {
-	goRoot = *flagGoRoot
-	if goRoot != "" {
-		return
-	}
-	// Using the current compiler's goroot depends on a working dev compiler,
-	// which is not guaranteed.  Instead, assume
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("Getwd error: %s", err)
-	}
-	goRoot, err = filepath.Abs(filepath.Join(cwd, "..", "..", "..", ".."))
-	if err != nil {
-		return "", fmt.Errorf("Abs path error: %s", err)
-	}
-	_, err = os.Stat(filepath.Join(goRoot, "src", "simd", "archsimd", "_gen"))
-	if err != nil {
-		return "", fmt.Errorf("-goroot not specified and not run in src/simd/archsimd/_gen")
-	}
-
-	return
+	amdArgs := append([]string{"-C", "simdgen", ".", "-o", "godefs", "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath)}, files.ExecFlags()...)
+	amdArgs = append(amdArgs, "go_amd64.yaml", "types.yaml", "categories.yaml")
+	goRun(amdArgs...)
 }
 
 func goRun(args ...string) {

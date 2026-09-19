@@ -32,7 +32,7 @@ import (
 // To make that process easier, the exact name and file location of this constant are known
 // to the [golang.org/x/build/cmd/updatestd] command. If this constant needs to be renamed
 // or moved to another .go file, update that code too.
-const pkgsiteCmdInternalDocVersion = "v0.0.0-20260716130756-7a55b7dd9a2a"
+const pkgsiteCmdInternalDocVersion = "v0.0.0-20260722200430-7c7eca789259"
 
 // pickUnusedPort finds an unused port by trying to listen on port 0
 // and letting the OS pick a port, then closing that connection and
@@ -52,7 +52,6 @@ func pickUnusedPort() (int, error) {
 
 // buildPkgsite builds a pkgsite binary whose build may be cached.
 func buildPkgsite(ctx context.Context) string {
-	load.ClearPackageCache()
 	loader := modload.NewLoader()
 
 	// Set the builder to have no module root so we can build a pkg@version pattern.

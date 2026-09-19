@@ -225,6 +225,11 @@ func TestIssue28429(t *testing.T) {
 }
 
 func TestUnresolved(t *testing.T) {
+	// Don't build library for non-standard target in short mode.
+	if testing.Short() && (runtime.GOOS != "linux" || runtime.GOARCH != "amd64") {
+		t.Skipf("skipping on %s/%s in short mode", runtime.GOOS, runtime.GOARCH)
+	}
+
 	testenv.MustHaveGoBuild(t)
 
 	t.Parallel()
@@ -1081,7 +1086,7 @@ func TestIndexMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
 	}
-	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgWithAFile, "-p=main", "-I", tmpdir, "-o", mObj, mSrc)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgWithAFile, "-p=main", "-o", mObj, mSrc)
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {

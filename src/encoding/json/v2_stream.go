@@ -227,7 +227,9 @@ func (dec *Decoder) Token() (Token, error) {
 		// the stream is a prefix of a valid JSON value.
 		// It reports an unwrapped [io.ErrUnexpectedEOF] if
 		// truncated within a JSON token such as a literal, number, or string.
-		if errors.Is(err, io.ErrUnexpectedEOF) {
+		// If the underlying [io.Reader] produced the [io.ErrUnexpectedEOF],
+		// then return the error as-is (including any wrapping).
+		if errors.Is(err, io.ErrUnexpectedEOF) && !export.IsIOError(err) {
 			if len(bytes.Trim(dec.dec.UnreadBuffer(), " \r\n\t,:")) == 0 {
 				dec.hadEOF = true
 				return nil, io.EOF

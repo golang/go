@@ -7,6 +7,7 @@ package tls
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -115,4 +116,21 @@ func TestECHPadding(t *testing.T) {
 			t.Errorf("got %d distinct encoded sizes for SNI lengths 1..%d, want <= 4", len(sizes), maxNameLength)
 		}
 	})
+}
+
+func TestDecodeECHConfigListOverflow(t *testing.T) {
+	// Craft a 65538-byte payload with an outer length header of 0 (bytes 0-1)
+	// and an inner length of 65532 (bytes 4-5). Previously, both lengths were
+	// handled as uint16 and would overflow:
+	// 1. uint16(65538-2) becomes 0, causing it to erroneously match the
+	// declared outer length header of 0.
+	// 2. uint16(65532+4) becomes 0, making it so that when we advance past the
+	// inner ECHConfig, we would only advance the buffer by 0 bytes, causing an
+	// infinite loop.
+	payload := make([]byte, 65538)
+	payload[4] = 0xFF
+	payload[5] = 0xFC
+	if _, err := parseECHConfigList(payload); !errors.Is(err, errMalformedECHConfigList) {
+		t.Fatalf("got %v when parsing a malformed ECHConfigList; want %v", err, errMalformedECHConfigList)
+	}
 }

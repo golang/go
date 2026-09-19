@@ -528,7 +528,7 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 	// Make sure the client didn't send extra handshake messages alongside
 	// their initial client_hello. If they sent two client_hello messages,
 	// we will consume the second before they respond to the server_hello.
-	if c.hand.Len() != 0 {
+	if c.handLen() != 0 {
 		c.sendAlert(alertUnexpectedMessage)
 		return nil, errors.New("tls: handshake buffer not empty before HelloRetryRequest")
 	}

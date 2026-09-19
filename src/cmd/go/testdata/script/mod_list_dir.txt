@@ -1,5 +1,3 @@
-[short] skip
-
 # go list with path to directory should work
 
 # populate go.sum

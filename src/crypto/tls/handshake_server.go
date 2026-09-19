@@ -536,8 +536,11 @@ func (hs *serverHandshakeState) checkForResumption() error {
 		return errors.New("tls: session supported extended_master_secret but client does not")
 	}
 	if !sessionState.extMasterSecret && fips140tls.Required() {
-		// FIPS 140-3 requires the use of Extended Master Secret.
-		return nil
+		if fips140ems.Value() != "0" {
+			// FIPS 140-3 requires the use of Extended Master Secret.
+			return nil
+		}
+		fips140ems.IncNonDefault()
 	}
 
 	c.peerCertificates = sessionState.peerCertificates
@@ -736,8 +739,11 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			hs.finishedHash.Sum())
 	} else {
 		if fips140tls.Required() {
-			c.sendAlert(alertHandshakeFailure)
-			return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
+			if fips140ems.Value() != "0" {
+				c.sendAlert(alertHandshakeFailure)
+				return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
+			}
+			fips140ems.IncNonDefault()
 		}
 		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
 			hs.clientHello.random, hs.hello.random)
@@ -997,6 +1003,12 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	c.scts = certificate.SignedCertificateTimestamps
 
 	if len(certs) > 0 {
+		if fips140tls.Required() && !isCertificateAllowedFIPS(certs[0]) {
+			c.sendAlert(alertBadCertificate)
+			err := errors.New("client's certificate is not allowed in FIPS 140-3 mode")
+			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+		}
+
 		switch certs[0].PublicKey.(type) {
 		case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
 		case *mldsa.PublicKey:

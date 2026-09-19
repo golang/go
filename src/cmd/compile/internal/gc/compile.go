@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/pgoir"
+	"cmd/compile/internal/ssacompile"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/types"
@@ -148,7 +149,7 @@ func compileFunctions(profile *pgoir.Profile) {
 		// Since we remove from the end of the slice queue,
 		// that means shortest to longest.
 		slices.SortFunc(compilequeue, func(a, b *ir.Func) int {
-			return cmp.Compare(len(a.Body), len(b.Body))
+			return cmp.Compare(a.NumPreWalkNodes, b.NumPreWalkNodes)
 		})
 	}
 
@@ -157,11 +158,7 @@ func compileFunctions(profile *pgoir.Profile) {
 	mu.Lock()
 
 	for workerId := range base.Flag.LowerC {
-		// TODO: replace with wg.Go when the oldest bootstrap has it.
-		// With the current policy, that'd be go1.27.
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			var closures []*ir.Func
 			for {
 				mu.Lock()
@@ -174,10 +171,20 @@ func compileFunctions(profile *pgoir.Profile) {
 				fn := compilequeue[len(compilequeue)-1]
 				compilequeue = compilequeue[:len(compilequeue)-1]
 				mu.Unlock()
-				ssagen.Compile(fn, workerId, profile)
+				ssagen.Compile(ssacompile.Compiler{}, fn, workerId, profile)
 				closures = fn.Closures
+
+				// Free IR data that is no longer needed once machine code has been generated.
+				fn.Body = nil
+				fn.Dcl = nil
+				fn.ClosureVars = nil
+				// We need to retain debug info for inlined functions because it is used to build
+				// DWARF for the functions that this function was inlined into.
+				if !fn.LSym.WasInlined() {
+					fn.DebugInfo = nil
+				}
 			}
-		}()
+		})
 	}
 
 	types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
@@ -189,4 +196,6 @@ func compileFunctions(profile *pgoir.Profile) {
 
 	base.Ctxt.InParallel = false
 	types.CalcSizeDisabled = false
+
+	ssacompile.PostCompile()
 }

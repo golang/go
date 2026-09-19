@@ -101,6 +101,7 @@ type CmdFlags struct {
 	Dynlink            *bool        "help:\"support references to Go symbols defined in other shared libraries\"" // &Ctxt.Flag_dynlink, set below
 	EmbedCfg           func(string) "help:\"read go:embed configuration from `file`\""
 	Env                func(string) "help:\"add `definition` of the form key=value to environment\""
+	ExportFD           int          "help:\"write a byte to file descriptor `fd` once the export data has been written\""
 	GenDwarfInl        int          "help:\"generate DWARF inline info records\"" // 0=disabled, 1=funcs, 2=funcs+formals/locals
 	GoVersion          string       "help:\"required version of the runtime\""
 	ImportCfg          func(string) "help:\"read import configuration from `file`\""
@@ -191,6 +192,7 @@ func ParseFlags() {
 	Debug.ZeroCopy = 1
 	Debug.RangeFuncCheck = 1
 	Debug.MergeLocals = 1
+	Debug.RewriteResults = 1
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 
@@ -359,6 +361,9 @@ func ParseFlags() {
 	if Flag.LowerC < 1 {
 		log.Fatalf("-c must be at least 1, got %d", Flag.LowerC)
 	}
+	if Flag.ExportFD > 0 && Flag.LinkObj == "" {
+		log.Fatalf("-exportfd requires -linkobj")
+	}
 	if !concurrentBackendAllowed() {
 		Flag.LowerC = 1
 	}
@@ -374,6 +379,10 @@ func ParseFlags() {
 
 		// Fuzzing the runtime isn't interesting either.
 		Debug.Libfuzzer = 0
+	}
+
+	if len(Flag.Cfg.ImportDirs) > 0 && Flag.Cfg.PackageFile != nil {
+		log.Fatalf("cannot use both -I and -importcfg")
 	}
 
 	if Debug.Checkptr == -1 { // if not set explicitly

@@ -48,7 +48,7 @@ func addFlags(cmd *base.Command) {
 	// Suppress the build -json flag; we define our own.
 	work.AddBuildFlags(cmd, work.OmitJSONFlag)
 
-	cmd.Flag.StringVar(&toolFlag, cmd.Name()+"tool", "", "") // -vettool or -fixtool
+	cmd.Flag.StringVar(&toolFlag, cmd.Name()+"tool", "", "select a different analysis `tool` with alternative or additional checks") // -vettool or -fixtool
 	cmd.Flag.BoolVar(&diffFlag, "diff", false, "print diff instead of applying it")
 	cmd.Flag.BoolVar(&jsonFlag, "json", false, "print diagnostics and fixes as JSON")
 	cmd.Flag.IntVar(&contextFlag, "c", -1, "display offending line with this many lines of context")
@@ -128,9 +128,9 @@ func toolFlags(cmd *base.Command, args []string) (passToTool, packageNames []str
 		isToolFlag[f.Name] = true
 		if cf.Lookup(f.Name) == nil {
 			if f.Bool {
-				cf.Bool(f.Name, false, "")
+				cf.Bool(f.Name, false, f.Usage)
 			} else {
-				cf.String(f.Name, "", "")
+				cf.String(f.Name, "", f.Usage)
 			}
 		}
 	}
@@ -197,7 +197,9 @@ func toolFlags(cmd *base.Command, args []string) (passToTool, packageNames []str
 
 func exitWithUsage(cmd *base.Command) {
 	fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
-	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", cmd.LongName())
+	fmt.Fprintf(os.Stderr, "\nFlags:\n")
+	cmd.Flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "\nRun 'go help %s' for details.\n", cmd.LongName())
 
 	// This part is additional to what (*Command).Usage does:
 	tool := toolFlag

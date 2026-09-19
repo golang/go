@@ -8,6 +8,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
+	"cmd/internal/par"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -51,7 +53,7 @@ func moduleWalkErr(root string, path string, d fs.DirEntry, err error) error {
 // be indexed because it contains symlinks.
 func indexModule(modroot string) ([]byte, error) {
 	fsys.Trace("indexModule", modroot)
-	var packages []*rawPackage
+	var dirs []string
 
 	// If the root itself is a symlink to a directory,
 	// we want to follow it (see https://go.dev/issue/50807).
@@ -69,12 +71,22 @@ func indexModule(modroot string) ([]byte, error) {
 			panic(fmt.Errorf("path %v in walk doesn't have modroot %v as prefix", path, modroot))
 		}
 		rel := path[len(root):]
-		packages = append(packages, importRaw(modroot, rel))
+		dirs = append(dirs, rel)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	packages := make([]*rawPackage, len(dirs))
+	work := par.NewQueue(runtime.GOMAXPROCS(0))
+	for i, rel := range dirs {
+		work.Add(func() {
+			packages[i] = importRaw(modroot, rel)
+		})
+	}
+	<-work.Idle()
+
 	return encodeModuleBytes(packages), nil
 }
 

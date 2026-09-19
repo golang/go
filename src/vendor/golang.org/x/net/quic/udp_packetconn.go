@@ -37,12 +37,12 @@ func (c *netPacketConn) LocalAddr() netip.AddrPort {
 	return c.localAddr
 }
 
-func (c *netPacketConn) Read(f func(*datagram)) {
+func (c *netPacketConn) Read(f func(*datagram)) error {
 	for {
 		dgram := newDatagram()
 		n, peerAddr, err := c.c.ReadFrom(dgram.b)
 		if err != nil {
-			return
+			return err
 		}
 		dgram.peerAddr, err = addrPortFromAddr(peerAddr)
 		if err != nil {

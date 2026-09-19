@@ -1708,7 +1708,7 @@ return
 
 ### Description
 
-The the lock for the struct svm has already been locked when calling
+The lock for the struct svm has already been locked when calling
 `svm.hotRemoveVHDsAtStart()`.
 
 ## Moby/4951

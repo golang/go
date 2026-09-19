@@ -1,5 +1,3 @@
-[short] skip 'runs go build'
-
 # We're testing cache behavior, so start with a clean GOCACHE.
 env GOCACHE=$WORK/cache
 

@@ -778,7 +778,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	} else {
 		fmt.Fprintf(fgcc, "void\n")
 	}
-	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
+	fmt.Fprintf(fgcc, "_cgo%s%s(void *v __attribute__((unused)))\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fgcc, "{\n")
 	if n.AddError {
 		fmt.Fprintf(fgcc, "\tint _cgo_errno;\n")

@@ -9,8 +9,6 @@ go list ./...
 ! stdout .
 cd ..
 
-[short] skip
-
 # Test that an unparsable .s file is completely ignored when its name
 # has build tags that cause it to be filtered out, but produces an error
 # when it is included

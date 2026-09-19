@@ -619,9 +619,9 @@ func (t Token) Kind() Kind {
 
 // A Kind represents the kind of a JSON token.
 //
-// Kind represents each possible JSON token kind with a single byte,
-// which is conveniently the first byte of that kind's grammar
-// with the restriction that numbers always be represented with '0'.
+// A Kind is a single byte, which is conveniently the first byte of that
+// kind's symbol in the grammar (except for numbers, which are always represented
+// with '0').
 type Kind byte
 
 const (
@@ -639,7 +639,7 @@ const (
 
 const invalidKind Kind = 0
 
-// String prints the kind in a humanly readable fashion.
+// String returns a string representation of k.
 func (k Kind) String() string {
 	switch k {
 	case 0:

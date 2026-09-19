@@ -1,7 +1,6 @@
 # Regression test for https://go.dev/issue/65339.
 # Unnecessary git tree object required
 
-[short] skip 'constructs a local git repo'
 [!git] skip
 
 env GIT_AUTHOR_NAME='Go Gopher'

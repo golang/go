@@ -38,21 +38,26 @@ var (
 
 // Marshaler is implemented by types that can marshal themselves.
 // It is recommended that types implement [MarshalerTo] unless the implementation
-// is trying to avoid a hard dependency on the "jsontext" package.
+// is trying to avoid directly depending on the "jsontext" package.
 //
-// It is recommended that implementations return a buffer that is safe
+// Implementations should return a buffer that is safe
 // for the caller to retain and potentially mutate.
+//
+// Implementations must not return [errors.ErrUnsupported].
 //
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
 // Errors of other types are wrapped within a [SemanticError].
+//
+// Implementations should assume [Deterministic] is true and return
+// deterministic output.
 type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 }
 
 // MarshalerTo is implemented by types that can marshal themselves.
 // It is recommended that types implement MarshalerTo instead of [Marshaler]
-// since this is both more performant and flexible.
+// since it is both more performant and more flexible.
 // If a type implements both Marshaler and MarshalerTo,
 // then MarshalerTo takes precedence. In such a case, both implementations
 // should aim to have equivalent behavior for the default marshal options.
@@ -60,32 +65,53 @@ type Marshaler interface {
 // The implementation must write only one JSON value to the Encoder.
 // Alternatively, it may return [errors.ErrUnsupported] without mutating
 // the Encoder. The "json" package calling the method will
-// use the next available JSON representation for the receiver type.
+// use the next available JSON representation for the receiver type,
+// as described in [Marshal].
 // Implementations must not retain the pointer to [jsontext.Encoder].
 //
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
 // Errors of other types are wrapped within a [SemanticError],
-// unless it is an IO error.
+// except for IO errors.
 //
-// The MarshalJSONTo method should not be directly called as it may
+// The MarshalJSONTo method should not be called directly as it may
 // return sentinel errors that need special handling.
 // Users should instead call [MarshalEncode], which handles such cases.
+//
+// Implementations should inspect the marshal options from
+// [jsontext.Encoder.Options] and adjust behavior to respect the options as
+// necessary.
+//
+// The following options may be relevant to MarshalerTo implementations:
+//
+//   - [Deterministic]: if the implementation may produce non-deterministic output
+//   - [StringifyNumbers]: if the type is represented as a JSON number
+//
+// Several options, such as [FormatNilSliceAsNull], apply only to native Go
+// types. Thus, these options are typically not directly relevant to
+// MarshalerTo implementations. However, types representing a composite type
+// should marshal contained types using [MarshalEncode] to ensure these options
+// apply to the contained types. Similarly, [WithMarshalers] may influence
+// marshaling of any contained type within a composite type.
+//
+// All other options are automatically handled outside of the MarshalerTo
+// implementation, and thus are not relevant to implementations.
 type MarshalerTo interface {
 	MarshalJSONTo(*jsontext.Encoder) error
 }
 
 // Unmarshaler is implemented by types that can unmarshal themselves.
 // It is recommended that types implement [UnmarshalerFrom] unless the implementation
-// is trying to avoid a hard dependency on the "jsontext" package.
+// is trying to avoid a direct dependency on the "jsontext" package.
 //
 // The input can be assumed to be a valid encoding of a JSON value
 // if called from unmarshal functionality in this package.
-// UnmarshalJSON must copy the JSON data if it is retained after returning.
-// It is recommended that UnmarshalJSON implement merge semantics when
-// unmarshaling into a pre-populated value.
+// It is recommended that UnmarshalJSON implement merge semantics
+// when unmarshaling into a pre-populated value, as described in [Unmarshal].
 //
 // Implementations must not retain or mutate the input []byte.
+//
+// Implementations must not return [errors.ErrUnsupported].
 //
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
@@ -96,14 +122,14 @@ type Unmarshaler interface {
 
 // UnmarshalerFrom is implemented by types that can unmarshal themselves.
 // It is recommended that types implement UnmarshalerFrom instead of [Unmarshaler]
-// since this is both more performant and flexible.
+// since this is both more performant and more flexible.
 // If a type implements both Unmarshaler and UnmarshalerFrom,
 // then UnmarshalerFrom takes precedence. In such a case, both implementations
 // should aim to have equivalent behavior for the default unmarshal options.
 //
 // The implementation must read only one JSON value from the Decoder.
 // It is recommended that UnmarshalJSONFrom implement merge semantics when
-// unmarshaling into a pre-populated value.
+// unmarshaling into a pre-populated value, as described in [Unmarshal].
 // Alternatively, it may return [errors.ErrUnsupported] without mutating
 // the Decoder. The "json" package calling the method will
 // use the next available JSON representation for the receiver type.
@@ -112,11 +138,29 @@ type Unmarshaler interface {
 // If the returned error is a [SemanticError], then unpopulated fields
 // of the error may be populated by [json] with additional context.
 // Errors of other types are wrapped within a [SemanticError],
-// unless it is a [jsontext.SyntacticError] or an IO error.
+// except for [jsontext.SyntacticError]s and IO errors.
 //
-// The UnmarshalJSONFrom method should not be directly called as it may
+// The UnmarshalJSONFrom method should not be called directly as it may
 // return sentinel errors that need special handling.
 // Users should instead call [UnmarshalDecode], which handles such cases.
+//
+// Implementations should inspect the unmarshal options from
+// [jsontext.Decoder.Options] and adjust behavior to respect the options as
+// necessary.
+//
+// The following options may be relevant to UnmarshalerFrom implementations:
+//
+//   - [StringifyNumbers]: if the type is represented as a JSON number
+//
+// Several options, such as [FormatNilSliceAsNull], apply only to native Go
+// types. Thus, these options are typically not directly relevant to
+// UnmarshalerFrom implementations. However, types representing a composite
+// type should unmarshal contained types using [UnmarshalDecode] to ensure
+// these options apply to the contained types. Similarly, [WithUnmarshalers]
+// may influence unmarshaling of any contained type within a composite type.
+//
+// All other options are automatically handled outside of the UnmarshalerFrom
+// implementation, and thus are not relevant to implementations.
 type UnmarshalerFrom interface {
 	UnmarshalJSONFrom(*jsontext.Decoder) error
 }
@@ -134,7 +178,9 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		prevMarshal := fncs.marshal
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
-				(needAddr && va.forcedAddr) {
+				((needAddr && va.forcedAddr) ||
+					(export.Encoder(enc).Tokens.Last.NeedObjectName()) && t.Kind() == reflect.String) {
+				// Do not call MarshalText on unaddressable values and map keys of string kind.
 				return prevMarshal(enc, va, mo)
 			}
 			marshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](va.Addr())
@@ -160,7 +206,9 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		prevMarshal := fncs.marshal
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
-				(needAddr && va.forcedAddr) {
+				((needAddr && va.forcedAddr) ||
+					(export.Encoder(enc).Tokens.Last.NeedObjectName()) && t.Kind() == reflect.String) {
+				// Do not call AppendText on unaddressable values and map keys of string kind.
 				return prevMarshal(enc, va, mo)
 			}
 			appender, _ := reflect.TypeAssert[encoding.TextAppender](va.Addr())
@@ -184,6 +232,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) || export.Encoder(enc).Tokens.Last.NeedObjectName()) {
+				// Do not call MarshalJSON on unaddressable values and map keys.
 				return prevMarshal(enc, va, mo)
 			}
 			marshaler, _ := reflect.TypeAssert[Marshaler](va.Addr())
@@ -215,6 +264,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) || export.Encoder(enc).Tokens.Last.NeedObjectName()) {
+				// Do not call MarshalJSONTo on unaddressable values and map keys.
 				return prevMarshal(enc, va, mo)
 			}
 			xe := export.Encoder(enc)
@@ -286,6 +336,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			if uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				export.Decoder(dec).Tokens.Last.NeedObjectName() {
+				// Do not call UnmarshalJSON on map keys.
 				return prevUnmarshal(dec, va, uo)
 			}
 			val, err := dec.ReadValue()
@@ -311,6 +362,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			if uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				export.Decoder(dec).Tokens.Last.NeedObjectName() {
+				// Do not call UnmarshalJSONFrom on map keys.
 				return prevUnmarshal(dec, va, uo)
 			}
 			xd := export.Decoder(dec)

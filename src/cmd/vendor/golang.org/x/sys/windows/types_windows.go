@@ -1065,6 +1065,7 @@ const (
 	SO_BROADCAST              = 32
 	SO_LINGER                 = 128
 	SO_RCVBUF                 = 0x1002
+	SO_SNDTIMEO               = 0x1005
 	SO_RCVTIMEO               = 0x1006
 	SO_SNDBUF                 = 0x1001
 	SO_UPDATE_ACCEPT_CONTEXT  = 0x700b

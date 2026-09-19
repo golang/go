@@ -1,5 +1,4 @@
 [compiler:gccgo] skip 'gccgo has no standard packages'
-[short] skip
 
 [!GOOS:windows] env NONEXE='.exe'
 [GOOS:windows] env NONEXE=''

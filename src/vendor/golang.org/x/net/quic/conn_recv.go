@@ -599,7 +599,7 @@ func (c *Conn) handleConnectionCloseApplicationFrame(now time.Time, payload []by
 	if n < 0 {
 		return -1
 	}
-	c.handlePeerConnectionClose(now, &ApplicationError{Code: code, Reason: reason})
+	c.handlePeerConnectionClose(now, &ConnectionCloseError{Code: code, Reason: reason})
 	return n
 }
 

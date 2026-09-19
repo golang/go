@@ -28,7 +28,7 @@ var StringsSeqAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stringsseq,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringsseq",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stringsseq",
 }
 
 // stringsseq offers a fix to replace a call to strings.Split with
@@ -117,6 +117,8 @@ func stringsseq(pass *analysis.Pass) (any, error) {
 				}
 
 				switch obj := typeutil.Callee(info, call); obj {
+				case nil:
+					// a conversion, not a call
 				case stringsSplit, stringsFields, bytesSplit, bytesFields:
 					oldFnName := obj.Name()
 					seqFnName := fmt.Sprintf("%sSeq", oldFnName)

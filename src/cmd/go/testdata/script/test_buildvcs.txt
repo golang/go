@@ -2,7 +2,7 @@
 # in the build settings. (It isn't worth the latency hit, given that
 # test binaries are almost never distributed to users.)
 
-[short] skip
+[GOEXPERIMENT:boringcrypto] skip 'requires gcc to run with boringcrypto'
 [!git] skip
 
 exec git init

@@ -550,13 +550,17 @@ func TypeLinksymLookup(name string) *obj.LSym {
 
 func TypeLinksym(t *types.Type) *obj.LSym {
 	lsym := TypeSym(t).Linksym()
+	setTypeInfo(lsym, t)
+	return lsym
+}
+
+func setTypeInfo(lsym *obj.LSym, t *types.Type) {
 	signatmu.Lock()
 	if lsym.Extra == nil {
 		ti := lsym.NewTypeInfo()
 		ti.Type = t
 	}
 	signatmu.Unlock()
-	return lsym
 }
 
 // TypePtrAt returns an expression that evaluates to the
@@ -697,10 +701,16 @@ func writeType(t *types.Type) *obj.LSym {
 	s.SetSiggen(true)
 
 	if !tbase.HasShape() {
-		TypeLinksym(t) // ensure lsym.Extra is set
+		setTypeInfo(lsym, t) // ensure lsym.Extra is set
 	}
 
 	if !NeedEmit(tbase) {
+		u := t
+		for u.IsPtr() {
+			u = u.Elem()
+		}
+		typecheck.CalcMethods(types.ReceiverBaseType(u))
+
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
 			lsym.Pkg = tbase.Sym().Pkg.Prefix
 			lsym.SymIdx = int32(i)
@@ -1393,8 +1403,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		rcvr = rcvr.PtrTo()
 	}
 
-	newnam := ir.MethodSym(rcvr, method.Sym)
-	lsym := newnam.Linksym()
+	sym, _ := ir.MethodSym(rcvr, method)
+	lsym := sym.Linksym()
 
 	// Unified IR creates its own wrappers.
 	return lsym

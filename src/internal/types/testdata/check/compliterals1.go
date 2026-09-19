@@ -20,17 +20,17 @@ func _() {
         _ = x // "use" it
 }
 
-// // argument to function call
-// func _() {
-//         f := func(_ T) {}
-//         f({})
-// }
+// argument to function call
+func _() {
+        f := func(_ int, _ T) {}
+        f(42, {})
+}
 
-// // argument to function call with variadic arguments
-// func _() {
-//         f := func(_ ...T) {}
-//         f({}, {})
-// }
+// argument to function call with variadic arguments
+func _() {
+        f := func(_ int, _ ...T) {}
+        f(42, {}, {})
+}
 
 // map index expression
 func _() {
@@ -43,21 +43,21 @@ func _[P map[T]int](x P) {
         _ = x[{}]
 }
 
-// // value of a struct literal with keys / values
-// func _() {
-//         type S struct {
-//                 f T
-//         }
-//         _ = S{f: {}}
-// }
+// value of a struct literal with keys / values
+func _() {
+        type S struct {
+                f T
+        }
+        _ = S{f: {}}
+}
 
-// // value of a struct literal without keys / values
-// func _() {
-//         type S struct {
-//                 f T
-//         }
-//         _ = S{{}}
-// }
+// value of a struct literal without keys / values
+func _() {
+        type S struct {
+                f T
+        }
+        _ = S{{}}
+}
 
 // values sent to a channel
 func _() {

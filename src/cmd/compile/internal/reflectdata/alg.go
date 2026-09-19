@@ -201,6 +201,13 @@ func hashFunc(sig string) *ir.Func {
 			loop := ir.NewForStmt(pos, init, cond, post, []ir.Node{as}, false)
 			fn.Body.Append(loop)
 			off += n * elemSize
+		case sigSubroutineStart:
+			var subSig string
+			subSig, sig = parseSubroutine(sig)
+			subFn := hashFunc(subSig).Nname
+			call := typecheck.Call(pos, subFn, []ir.Node{ptr(), nh}, false)
+			fn.Body.Append(ir.NewAssignStmt(pos, nh, call))
+			off += sigSize(subSig)
 		}
 	}
 
@@ -529,6 +536,17 @@ func eqFunc(sig string) *ir.Func {
 			// second loop with string contents. There is no way to accomplish
 			// this now they way this code works (to call the equality
 			// function of the sub-signature).
+		case sigSubroutineStart:
+			flushStrings()
+			var subSig string
+			subSig, sig = parseSubroutine(sig)
+			subFn := eqFunc(subSig).Nname
+			c := ir.NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(off))
+			p := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, np, c)
+			q := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, nq, c)
+			call := typecheck.Call(pos, subFn, []ir.Node{p, q}, false)
+			test(call)
+			off += sigSize(subSig)
 		}
 	}
 	// Flush any pending tests.
@@ -630,6 +648,7 @@ func EqFor(t *types.Type) (ir.Node, bool) {
 //	I      = non-empty interface
 //	E      = empty interface
 //	[%d%s] = array: repeat signature %s %d times.
+//      <%s>   = subroutine: use equality function of signature %s as a subroutine
 //	A%d    = known alignment of type pointers (defaults to ptrSize)
 //
 // An alignment directive is only needed on platforms that can't do
@@ -643,22 +662,26 @@ func eqSignature(t *types.Type) string {
 			e.r.WriteString(fmt.Sprintf("%c%d", sigAlign, a))
 		}
 	}
-	e.build(t)
+	e.build(t, true)
 	e.flush(true)
 	return e.r.String()
 }
 
 const (
-	sigMemory     = 'M' // followed by an integer number of bytes
-	sigSkip       = 'K' // followed by an integer number of bytes
-	sigFloat32    = 'F'
-	sigFloat64    = 'G'
-	sigString     = 'S'
-	sigIface      = 'I' // non-empty interface
-	sigEface      = 'E' // empty interface
-	sigArrayStart = '[' // followed by an iteration count, element signature, and sigArrayEnd
-	sigArrayEnd   = ']'
-	sigAlign      = 'A' // followed by an integer byte alignment
+	sigMemory          = 'M' // followed by an integer number of bytes
+	sigSkip            = 'K' // followed by an integer number of bytes
+	sigFloat32         = 'F'
+	sigFloat64         = 'G'
+	sigString          = 'S'
+	sigIface           = 'I' // non-empty interface
+	sigEface           = 'E' // empty interface
+	sigArrayStart      = '[' // followed by an iteration count, element signature, and sigArrayEnd
+	sigArrayEnd        = ']'
+	sigSubroutineStart = '<' // followed by an element signature and sigSubroutineEnd
+	sigSubroutineEnd   = '>'
+	sigAlign           = 'A' // followed by an integer byte alignment
+
+	maxExpandSize = 1 << 10 // types bigger than this we do not inline into an equality function
 )
 
 type eqSigBuilder struct {
@@ -712,7 +735,20 @@ func (e *eqSigBuilder) iface() {
 	e.r.WriteByte(sigIface)
 }
 
-func (e *eqSigBuilder) build(t *types.Type) {
+func (e *eqSigBuilder) build(t *types.Type, top bool) {
+	if t.Size() > maxExpandSize && !top && types.AlgType(t) != types.AMEM {
+		// A large interior type. Use its equality function as a subroutine.
+		// See issue 81266.
+		subSig := eqSignature(t)
+		e.flush(false)
+		e.r.WriteByte(sigSubroutineStart)
+		e.r.WriteString(subSig)
+		e.r.WriteByte(sigSubroutineEnd)
+		if k := t.Size() - sigSize(subSig); k > 0 {
+			e.skip(k)
+		}
+		return
+	}
 	switch t.Kind() {
 	case types.TINT8, types.TUINT8, types.TBOOL:
 		e.regular(1)
@@ -751,7 +787,7 @@ func (e *eqSigBuilder) build(t *types.Type) {
 			if off < f.Offset {
 				e.skip(f.Offset - off)
 			}
-			e.build(f.Type)
+			e.build(f.Type, false)
 			off = f.Offset + f.Type.Size()
 		}
 		if off < t.Size() {
@@ -771,7 +807,7 @@ func (e *eqSigBuilder) build(t *types.Type) {
 		switch n {
 		case 0:
 		case 1:
-			e.build(et)
+			e.build(et, false)
 		default:
 			// To keep signatures small, we can't just repeat
 			// the element signature N times. Instead, we issue
@@ -791,7 +827,7 @@ func (e *eqSigBuilder) build(t *types.Type) {
 			unroll := max(1, unrollSize/et.Size())
 			// Do partial loops directly.
 			for n%unroll != 0 {
-				e.build(et)
+				e.build(et, false)
 				n--
 			}
 			if n == 0 {
@@ -800,14 +836,14 @@ func (e *eqSigBuilder) build(t *types.Type) {
 			// If we only have one loop left, do it directly.
 			if n == unroll {
 				for range n {
-					e.build(et)
+					e.build(et, false)
 				}
 				break
 			}
 			e.flush(false)
 			e.r.WriteString(fmt.Sprintf("%c%d", sigArrayStart, n/unroll))
 			for range unroll {
-				e.build(et)
+				e.build(et, false)
 			}
 			e.flush(false)
 			e.r.WriteByte(sigArrayEnd)
@@ -850,6 +886,30 @@ func parseArray(sig string) (int64, string, string) {
 			depth--
 			if depth == 0 {
 				return n, sig[:i], sig[i+1:]
+			}
+		}
+		i++
+	}
+}
+
+// parseSubroutine parses "%s>" from the front of a signature.
+// Returns the subroutine signature (the %s), and any remaining
+// signature after the closing '>'.
+func parseSubroutine(sig string) (string, string) {
+	// Find matching closing bracket.
+	i := 0
+	depth := 1
+	for {
+		if i == len(sig) {
+			base.Fatalf("mismatched brackets in %s", sig)
+		}
+		switch sig[i] {
+		case sigSubroutineStart:
+			depth++
+		case sigSubroutineEnd:
+			depth--
+			if depth == 0 {
+				return sig[:i], sig[i+1:]
 			}
 		}
 		i++

@@ -1,4 +1,3 @@
-[short] skip 'runs go build'
 
 # Tool name can't be empty. Issue #74757.
 ! go tool ''

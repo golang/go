@@ -188,7 +188,7 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	}
 	sa.raw.Len = byte(3 + n) // 2 for Family, Len; 1 for NUL
 	sa.raw.Family = AF_UNIX
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sa.raw.Path[i] = int8(name[i])
 	}
 	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil

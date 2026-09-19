@@ -9,7 +9,6 @@
 # binary that runs the real one as a subprocess.
 
 [!cgo] skip
-[short] skip 'builds and links a fake clang binary'
 [!cc:clang] skip 'test is specific to clang version parsing'
 
 # Save the location of the real clang command for our fake one to use.

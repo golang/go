@@ -1137,7 +1137,7 @@ func zero_byte_2(b1, b2 []byte) {
 func zero_byte_4(b1, b2 []byte) {
 	_, _ = b1[3], b2[3]
 	// arm64:"MOVW ZR" -"MOVB" -"MOVH"
-	// amd64:`MOVL [$]0, \([A-Z]+\)`
+	// amd64:`MOVL X15, \([A-Z]+\)`
 	// 386:`MOVL [$]0, \([A-Z]+\)`
 	// ppc64x:`MOVW `
 	b1[0], b1[1], b1[2], b1[3] = 0, 0, 0, 0
@@ -1185,12 +1185,12 @@ func zero_byte_2_idx2(b []byte, idx int) {
 func zero_uint16_2(h1, h2 []uint16) {
 	_, _ = h1[1], h2[1]
 	// arm64:"MOVW ZR" -"MOVB" -"MOVH"
-	// amd64:`MOVL [$]0, \([A-Z]+\)`
+	// amd64:`MOVL X15, \([A-Z]+\)`
 	// 386:`MOVL [$]0, \([A-Z]+\)`
 	// ppc64x:`MOVW `
 	h1[0], h1[1] = 0, 0
 	// arm64:"MOVW ZR" -"MOVB" -"MOVH"
-	// amd64:`MOVL [$]0, \([A-Z]+\)`
+	// amd64:`MOVL X15, \([A-Z]+\)`
 	// 386:`MOVL [$]0, \([A-Z]+\)`
 	// ppc64x:`MOVW`
 	h2[1], h2[0] = 0, 0
@@ -1199,7 +1199,7 @@ func zero_uint16_2(h1, h2 []uint16) {
 func zero_uint16_4(h1, h2 []uint16) {
 	_, _ = h1[3], h2[3]
 	// arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
-	// amd64:`MOVQ [$]0, \([A-Z]+\)`
+	// amd64:`MOVQ X15, \([A-Z]+\)`
 	// ppc64x:`MOVD `
 	h1[0], h1[1], h1[2], h1[3] = 0, 0, 0, 0
 	// arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
@@ -1216,11 +1216,11 @@ func zero_uint16_8(h []uint16) {
 func zero_uint32_2(w1, w2 []uint32) {
 	_, _ = w1[1], w2[1]
 	// arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
-	// amd64:`MOVQ [$]0, \([A-Z]+\)`
+	// amd64:`MOVQ X15, \([A-Z]+\)`
 	// ppc64x:`MOVD `
 	w1[0], w1[1] = 0, 0
 	// arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
-	// amd64:`MOVQ [$]0, \([A-Z]+\)`
+	// amd64:`MOVQ X15, \([A-Z]+\)`
 	// ppc64x:`MOVD `
 	w2[1], w2[0] = 0, 0
 }

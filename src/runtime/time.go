@@ -383,7 +383,7 @@ func resetForSleep(gp *g, _ unsafe.Pointer) bool {
 // The runtime state is inaccessible to package time.
 type timeTimer struct {
 	c    unsafe.Pointer // <-chan time.Time
-	init bool
+	self *timeTimer     // pointer to self, used by time to detect bad initialization
 	timer
 }
 
@@ -410,7 +410,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 		t.isFake = true
 	}
 	t.modify(when, period, f, arg, 0)
-	t.init = true
+	t.self = t
 	return t
 }
 
@@ -1124,6 +1124,14 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 	} else {
 		next = 0
 	}
+	if t.isChan && bubble == nil {
+		// now is read once per timers.run pass and can be stale by
+		// the time this timer runs. The value sent on the channel is
+		// derived from delay (see time.sendTime), so recompute it
+		// with a fresh clock reading. next above deliberately keeps
+		// the caller's clock so rescheduling is unchanged.
+		delay = nanotime() - t.when
+	}
 	ts := t.ts
 	t.when = next
 	if t.state&timerHeaped != 0 {
@@ -1246,10 +1254,6 @@ func (ts *timers) verify() {
 			print("bad timer heap at ", i, ": ", p, ": ", ts.heap[p].when, ", ", i, ": ", tw.when, "\n")
 			throw("bad timer heap")
 		}
-	}
-	if n := int(ts.len.Load()); len(ts.heap) != n {
-		println("timer heap len", len(ts.heap), "!= atomic len", n)
-		throw("bad timer heap len")
 	}
 }
 

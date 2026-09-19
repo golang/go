@@ -332,3 +332,10 @@ func IoctlLoopSetStatus64(fd int, value *LoopInfo64) error {
 func IoctlLoopConfigure(fd int, value *LoopConfig) error {
 	return ioctlPtr(fd, LOOP_CONFIGURE, unsafe.Pointer(value))
 }
+
+// IoctlPidfdInfo fetches information about a pidfd.
+// The Mask field of the info argument indicates which
+// values to fetch.
+func IoctlPidfdInfo(fd int, info *PidfdInfo) error {
+	return ioctlPtr(fd, PIDFD_GET_INFO, unsafe.Pointer(info))
+}

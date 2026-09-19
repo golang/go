@@ -1,0 +1,2 @@
+pkg go/parser, func ResolveFile //deprecated #79802
+pkg go/parser, func ResolveFile(*ast.File) #79802

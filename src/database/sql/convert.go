@@ -247,6 +247,33 @@ func ConvertAssign(scanCtx driver.ScanContext, dest any, src driver.Value) error
 func convertAssignRows(dest, src any, rows *Rows) error {
 	// Common cases, without reflect.
 	switch s := src.(type) {
+	case int64:
+		switch d := dest.(type) {
+		case *int64:
+			if d == nil {
+				return errNilPtr
+			}
+			*d = s
+			return nil
+		case *int:
+			if d == nil {
+				return errNilPtr
+			}
+			if int64(int(s)) == s {
+				*d = int(s)
+				return nil
+			}
+			// Out of range for int, let the generic path produce the error.
+		}
+	case float64:
+		switch d := dest.(type) {
+		case *float64:
+			if d == nil {
+				return errNilPtr
+			}
+			*d = s
+			return nil
+		}
 	case string:
 		switch d := dest.(type) {
 		case *string:

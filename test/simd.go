@@ -150,10 +150,40 @@ func ternTricky3(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 func vpternlogdPanic() {
 	resultsMask := archsimd.Mask64x8{}
 
-	for { // ERROR "has features avx[+]avx2[+]avx512"
+	// The loop header holds only rematerializable SIMD zeros, which emit
+	// no code, so it claims no features.
+	for {
 		resultsMask = archsimd.Mask64x8FromBits(0).Or( // ERROR "has features avx[+]avx2[+]avx512"
 			archsimd.Float64x8{}.Less(
 				archsimd.BroadcastFloat64x8(0))).Or(resultsMask) // ERROR "Rewriting.*ternInt" "Skipping rewrite"
 		fmt.Print(resultsMask.And(resultsMask.And(archsimd.Mask64x8{})))
 	}
+}
+
+type notSIMD struct {
+	v archsimd.Int8x16
+	n int
+}
+
+var cond bool
+
+// A SIMD-typed zero emits no code (it is just a reference to the fixed
+// all-zeros register), so it must imply no CPU features: this function
+// must stay compilable for machines without AVX and produce no feature
+// diagnostics at all.
+func zeroOnly(p *notSIMD) {
+	p.v = archsimd.Int8x16{}
+	p.n++
+}
+
+// Only the block executing a real SIMD instruction claims features;
+// they do not leak into the unconditionally executed parts of the
+// function through the no-code zero or the merge.
+func zeroMerge(p *notSIMD, s []int8) {
+	x := archsimd.Int8x16{}
+	if cond {
+		x = archsimd.LoadInt8x16(s) // ERROR "has features avx$"
+	}
+	p.v = x
+	p.n++
 }

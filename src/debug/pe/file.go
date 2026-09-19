@@ -437,8 +437,8 @@ func (f *File) ImportedSymbols() ([]string, error) {
 					all = append(all, fn+":"+dt.dll)
 				}
 			} else { // 32bit
-				if len(d) <= 4 {
-					return nil, errors.New("thunk parsing needs at least 5-bytes")
+				if len(d) < 4 {
+					return nil, errors.New("thunk parsing needs at least 4 bytes")
 				}
 				va := binary.LittleEndian.Uint32(d[0:4])
 				d = d[4:]
@@ -500,7 +500,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 		return nil, fmt.Errorf("optional header size is less than optional header magic size")
 	}
 
-	// read reads from io.ReadSeeke, r, into data.
+	// read reads from io.ReadSeeker, r, into data.
 	var err error
 	read := func(data any) bool {
 		err = binary.Read(r, binary.LittleEndian, data)

@@ -29,6 +29,9 @@ var goodCompilerFlags = [][]string{
 	{"-Wp,-Ufoo"},
 	{"-Wp,-Dfoo1"},
 	{"-Wp,-Ufoo1"},
+	{"-fexcess-precision=standard"},
+	{"-fexcess-precision=fast"},
+	{"-fexcess-precision=16"},
 	{"-flto"},
 	{"-fobjc-arc"},
 	{"-fno-objc-arc"},
@@ -300,6 +303,33 @@ func TestCheckLinkerFlags(t *testing.T) {
 	}
 	for _, f := range badLinkerFlags {
 		if err := checkLinkerFlags("test", "test", f); err == nil {
+			t.Errorf("missing error for %q", f)
+		}
+	}
+}
+
+func TestCheckPkgConfigFlags(t *testing.T) {
+	good := [][]string{
+		{"--define-variable=A=b-c"},
+		{"--define-variable=A=b@c"},
+		{"--define-variable=prefix=/opt/my-pkg/lib"},
+	}
+	for _, f := range good {
+		if err := checkPkgConfigFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for %q: %v", f, err)
+		}
+	}
+
+	bad := [][]string{
+		{"--define-variable=A=-b"},
+		{"--define-variable=A=@b"},
+		{"--define-variable=A="},
+		{"--define-variable=1A=b"},
+		{"--define-variable=A"},
+		{"--log-file=/tmp/log"},
+	}
+	for _, f := range bad {
+		if err := checkPkgConfigFlags("test", "test", f); err == nil {
 			t.Errorf("missing error for %q", f)
 		}
 	}

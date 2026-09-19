@@ -26,6 +26,10 @@ var exprStringTests = []struct {
 		out: "!abc",
 	},
 	{
+		x:   not(not(tag("abc"))),
+		out: "abc",
+	},
+	{
 		x:   not(and(tag("abc"), tag("def"))),
 		out: "!(abc && def)",
 	},
@@ -34,7 +38,15 @@ var exprStringTests = []struct {
 		out: "abc && (def || ghi)",
 	},
 	{
+		x:   and(tag("abc"), not(not(or(tag("def"), tag("ghi"))))),
+		out: "abc && (def || ghi)",
+	},
+	{
 		x:   or(and(tag("abc"), tag("def")), tag("ghi")),
+		out: "(abc && def) || ghi",
+	},
+	{
+		x:   or(not(not(and(tag("abc"), tag("def")))), tag("ghi")),
 		out: "(abc && def) || ghi",
 	},
 }

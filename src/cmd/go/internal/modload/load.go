@@ -258,18 +258,24 @@ func LoadPackages(ld *Loader, ctx context.Context, opts PackageOpts, patterns ..
 	}
 
 	updateMatches := func(rs *Requirements, pld *packageLoader) {
+		matchWork := par.NewQueue(runtime.GOMAXPROCS(0))
 		for _, m := range matches {
-			switch {
-			case m.IsLocal():
-				// Evaluate list of file system directories on first iteration.
-				if m.Dirs == nil {
+			if m.IsLocal() && m.Dirs == nil {
+				// only scan the filesystem once
+				matchWork.Add(func() {
 					matchModRoots := ld.modRoots
 					if opts.MainModule != (module.Version{}) {
 						matchModRoots = []string{ld.MainModules.ModRoot(opts.MainModule)}
 					}
 					matchLocalDirs(ld, ctx, matchModRoots, m, rs)
-				}
+				})
+			}
+		}
+		<-matchWork.Idle()
 
+		for _, m := range matches {
+			switch {
+			case m.IsLocal():
 				// Make a copy of the directory list and translate to import paths.
 				// Note that whether a directory corresponds to an import path
 				// changes as the build list is updated, and a directory can change
@@ -277,25 +283,53 @@ func LoadPackages(ld *Loader, ctx context.Context, opts PackageOpts, patterns ..
 				// the exact version of a particular module increases during
 				// the loader iterations.
 				m.Pkgs = m.Pkgs[:0]
-				for _, dir := range m.Dirs {
-					pkg, err := resolveLocalPackage(ld, ctx, dir, rs)
-					if err != nil {
-						if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
-							continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
-						}
-
-						// If we're outside of a module, ensure that the failure mode
-						// indicates that.
-						if !ld.HasModRoot() {
-							die(ld)
-						}
-
-						if pld != nil {
-							m.AddError(err)
-						}
-						continue
+				if len(m.Dirs) > 0 {
+					type result struct {
+						pkg string
+						err error
 					}
-					m.Pkgs = append(m.Pkgs, pkg)
+					results := make([]result, len(m.Dirs))
+					work := par.NewQueue(runtime.GOMAXPROCS(0))
+					for i, dir := range m.Dirs {
+						work.Add(func() {
+							var (
+								pkg string
+								err error
+							)
+							absDir := mkAbs(base.Cwd(), dir)
+							if m.IsLiteral() {
+								pkg, err = resolveLocalPackage(ld, ctx, absDir, rs)
+							} else {
+								// Wildcard matches have already been filtered to directories
+								// that contain packages. Avoid re-reading package files on
+								// every loader iteration just to map directory to import path.
+								pkg, err = localPackagePath(ld, ctx, absDir, rs)
+							}
+							results[i] = result{pkg, err}
+						})
+					}
+					<-work.Idle()
+
+					for _, res := range results {
+						pkg, err := res.pkg, res.err
+						if err != nil {
+							if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
+								continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
+							}
+
+							// If we're outside of a module, ensure that the failure mode
+							// indicates that.
+							if !ld.HasModRoot() {
+								die(ld)
+							}
+
+							if pld != nil {
+								m.AddError(err)
+							}
+							continue
+						}
+						m.Pkgs = append(m.Pkgs, pkg)
+					}
 				}
 
 			case m.IsLiteral():
@@ -529,10 +563,7 @@ func matchLocalDirs(ld *Loader, ctx context.Context, modRoots []string, m *searc
 		// module. Verify that before we walk the filesystem: a filesystem
 		// walk in a directory like /var or /etc can be very expensive!
 		dir := filepath.Dir(filepath.Clean(m.Pattern()[:i+3]))
-		absDir := dir
-		if !filepath.IsAbs(dir) {
-			absDir = filepath.Join(base.Cwd(), dir)
-		}
+		absDir := mkAbs(base.Cwd(), dir)
 
 		modRoot := findModuleRoot(absDir)
 		if !slices.Contains(modRoots, modRoot) && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ld, ctx, absDir, rs) == "" {
@@ -550,14 +581,7 @@ func matchLocalDirs(ld *Loader, ctx context.Context, modRoots []string, m *searc
 }
 
 // resolveLocalPackage resolves a filesystem path to a package path.
-func resolveLocalPackage(ld *Loader, ctx context.Context, dir string, rs *Requirements) (string, error) {
-	var absDir string
-	if filepath.IsAbs(dir) {
-		absDir = filepath.Clean(dir)
-	} else {
-		absDir = filepath.Join(base.Cwd(), dir)
-	}
-
+func resolveLocalPackage(ld *Loader, ctx context.Context, absDir string, rs *Requirements) (string, error) {
 	bp, err := cfg.BuildContext.ImportDir(absDir, 0)
 	if err != nil && (bp == nil || len(bp.IgnoredGoFiles) == 0) {
 		// golang.org/issue/32917: We should resolve a relative path to a
@@ -588,6 +612,19 @@ func resolveLocalPackage(ld *Loader, ctx context.Context, dir string, rs *Requir
 		}
 	}
 
+	return localPackagePath(ld, ctx, absDir, rs)
+}
+
+func mkAbs(wd, path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Join(wd, path)
+}
+
+// localPackagePath resolves an absolute filesystem path to a package path.
+// The caller must have already verified that absDir contains a package.
+func localPackagePath(ld *Loader, ctx context.Context, absDir string, rs *Requirements) (string, error) {
 	for _, mod := range ld.MainModules.Versions() {
 		modRoot := ld.MainModules.ModRoot(mod)
 		if modRoot != "" && absDir == modRoot {

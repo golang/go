@@ -385,6 +385,121 @@ func roundSlice[T float](x []T) []T {
 	return map1[T](round)(x)
 }
 
+func negSlice[T number](x []T) []T {
+	return map1[T](neg)(x)
+}
+
+func absSlice[T number](x []T) []T {
+	return map1[T](abs)(x)
+}
+
+// isSignedInt reports whether T is a signed integer type.
+func isSignedInt[T integer]() bool {
+	var t T
+	return t-1 < 0
+}
+
+// addSaturated adds with saturation to T's range. Lanes narrower than 64 bits
+// compute in 64-bit and clamp; 64-bit lanes detect overflow directly.
+func addSaturated[T integer](a, b T) T {
+	size := uint(unsafe.Sizeof(a)) * 8
+	if size < 64 {
+		if isSignedInt[T]() {
+			s := int64(a) + int64(b)
+			hi := int64(1)<<(size-1) - 1
+			lo := -hi - 1
+			return T(min(max(s, lo), hi))
+		}
+		s := uint64(a) + uint64(b)
+		return T(min(s, uint64(1)<<size-1))
+	}
+	s := a + b
+	if isSignedInt[T]() {
+		// Only reached at 64 bits; variables so the generic conversion is
+		// checked at run time rather than as a constant for every T.
+		maxI, minI := int64(math.MaxInt64), int64(math.MinInt64)
+		if b > 0 && s < a {
+			return T(maxI)
+		}
+		if b < 0 && s > a {
+			return T(minI)
+		}
+		return s
+	}
+	if s < a {
+		return ^T(0)
+	}
+	return s
+}
+
+// subSaturated subtracts with saturation to T's range.
+func subSaturated[T integer](a, b T) T {
+	size := uint(unsafe.Sizeof(a)) * 8
+	if size < 64 {
+		if isSignedInt[T]() {
+			s := int64(a) - int64(b)
+			hi := int64(1)<<(size-1) - 1
+			lo := -hi - 1
+			return T(min(max(s, lo), hi))
+		}
+		if b > a {
+			return 0
+		}
+		return a - b
+	}
+	s := a - b
+	if isSignedInt[T]() {
+		maxI, minI := int64(math.MaxInt64), int64(math.MinInt64)
+		if b < 0 && s < a {
+			return T(maxI)
+		}
+		if b > 0 && s > a {
+			return T(minI)
+		}
+		return s
+	}
+	if b > a {
+		return 0
+	}
+	return s
+}
+
+// mulHigh returns the high half of the full-width product. Lanes narrower than
+// 64 bits widen; 64-bit lanes use bits.Mul64, adjusting for signedness.
+func mulHigh[T integer](a, b T) T {
+	size := uint(unsafe.Sizeof(a)) * 8
+	if size < 64 {
+		if isSignedInt[T]() {
+			return T((int64(a) * int64(b)) >> size)
+		}
+		return T((uint64(a) * uint64(b)) >> size)
+	}
+	hi, _ := bits.Mul64(uint64(a), uint64(b))
+	if isSignedInt[T]() {
+		shi := int64(hi)
+		if a < 0 {
+			shi -= int64(b)
+		}
+		if b < 0 {
+			shi -= int64(a)
+		}
+		return T(shi)
+	}
+	return T(hi)
+}
+
+func addSaturatedSlice[T integer](x, y []T) []T {
+	return map2[T](addSaturated)(x, y)
+}
+
+func subSaturatedSlice[T integer](x, y []T) []T {
+	return map2[T](subSaturated)(x, y)
+}
+
+func mulHighSlice[T integer](x, y []T) []T {
+	return map2[T](mulHigh)(x, y)
+}
+
 // lanewiseSlice is the common helper for interleave, deinterleave, and transpose
 // simulations. It handles lane computation, allocation, and iteration.
 // laneBits is the lane size in bits (128 for NEON/x86 128-bit, 0 for whole-input/SVE).

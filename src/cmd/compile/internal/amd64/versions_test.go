@@ -168,6 +168,9 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 			virtualEdits[addr+uint64(i)] = true
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("scanning objdump output: %v", err)
+	}
 
 	// Figure out where in the binary the edits must be done.
 	physicalEdits := map[uint64]bool{}

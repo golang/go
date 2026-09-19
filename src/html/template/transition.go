@@ -336,11 +336,14 @@ func tJS(c context, s []byte) (context, int) {
 		// We only care about tracking brace depth if we are inside of a
 		// template literal.
 		if len(c.jsBraceDepth) == 0 {
+			c.jsCtx = nextJSCtx(s[i:i+1], c.jsCtx)
 			return c, i + 1
 		}
 		c.jsBraceDepth[len(c.jsBraceDepth)-1]++
+		c.jsCtx = nextJSCtx(s[i:i+1], c.jsCtx)
 	case '}':
 		if len(c.jsBraceDepth) == 0 {
+			c.jsCtx = nextJSCtx(s[i:i+1], c.jsCtx)
 			return c, i + 1
 		}
 		// There are no cases where a brace can be escaped in the JS context
@@ -349,6 +352,7 @@ func tJS(c context, s []byte) (context, int) {
 		// fully fledged parsers will just fail anyway.
 		c.jsBraceDepth[len(c.jsBraceDepth)-1]--
 		if c.jsBraceDepth[len(c.jsBraceDepth)-1] >= 0 {
+			c.jsCtx = nextJSCtx(s[i:i+1], c.jsCtx)
 			return c, i + 1
 		}
 		c.jsBraceDepth = c.jsBraceDepth[:len(c.jsBraceDepth)-1]

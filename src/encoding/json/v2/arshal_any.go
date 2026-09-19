@@ -93,7 +93,7 @@ func unmarshalValueAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (any, error) 
 			}
 			fv, err := strconv.ParseFloat(string(val), 64)
 			if err != nil {
-				return fv, newUnmarshalErrorAfterWithValue(dec, float64Type, errors.Unwrap(err))
+				return 0.0, newUnmarshalErrorAfterWithValue(dec, float64Type, errors.Unwrap(err))
 			}
 			return fv, nil
 		default:

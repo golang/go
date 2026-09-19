@@ -24,7 +24,7 @@ const bitSize16 = 2
 
 // Errno is not used with GOOS plan9.
 //
-// It exists because because the Go 1 API contract
+// It exists because the Go 1 API contract
 // (api/go1.txt's "pkg syscall, type Errno uintptr")
 // says it exists, and so code in the ecosystem often
 // assume it exists. This lets portable code be written

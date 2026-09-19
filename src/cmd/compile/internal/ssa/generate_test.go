@@ -8,8 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -33,14 +36,43 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 
 	tmpdir := t.TempDir()
 
+	mustRel := func(dir, f string) string {
+		rel, err := filepath.Rel(dir, f)
+		if err != nil {
+			t.Fatalf("could not make %s relative to %s: %v", f, dir, err)
+		}
+		return rel
+	}
+
 	// Accumulate a list of all existing files that look generated.
 	// It's an error if this set does not match the set that are
 	// generated into tmpdir.
 	genFiles := make(map[string]bool)
 	genPrefix := []byte(expectedHeader)
-	ssaFiles, err := filepath.Glob(filepath.Join(wd, "*.go"))
-	if err != nil {
-		t.Fatalf("could not glob for .go files in ssa directory: %v", err)
+	var ssaFiles []string
+	roots := []string{
+		wd,
+		filepath.Join(wd, "../ssacompile"),
+	}
+	for _, root := range roots {
+		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if slices.Contains(roots, path) && os.IsNotExist(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if base := filepath.Base(path); base == "_gen" || base == "testdata" {
+				return filepath.SkipDir
+			}
+			if !d.IsDir() && strings.HasSuffix(path, ".go") {
+				ssaFiles = append(ssaFiles, path)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("could not glob for .go files in %s: %v", root, err)
+		}
 	}
 	for _, f := range ssaFiles {
 		contents, err := os.ReadFile(f)
@@ -51,7 +83,7 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 		// (this should cause other failures later, but if this is
 		// the problem, diagnose it here to shorten the treasure hunt.)
 		if bytes.HasPrefix(contents, genPrefix) {
-			genFiles[filepath.Base(f)] = true
+			genFiles[mustRel(wd, f)] = true
 		}
 	}
 
@@ -70,10 +102,10 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 	for _, f := range goFiles {
 		args = append(args, filepath.Base(f))
 	}
-	args = append(args, "-outdir", tmpdir)
+	args = append(args, "-outdir", filepath.Join(tmpdir, "ssa"))
 
 	logArgs := fmt.Sprintf("%v", args)
-	logArgs = logArgs[1 : len(logArgs)-2] // strip '[' and ']'
+	logArgs = logArgs[1 : len(logArgs)-1] // strip '[' and ']'
 	t.Logf("%s %v", testenv.GoToolPath(t), logArgs)
 	output, err := testenv.Command(t, testenv.GoToolPath(t), args...).CombinedOutput()
 
@@ -81,17 +113,23 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 		t.Fatalf("go run in _gen failed: %v\n%s", err, output)
 	}
 
-	// Compare generated files with existing files in the parent directory.
-	files, err := os.ReadDir(tmpdir)
-	if err != nil {
-		t.Fatalf("could not read tmpdir %s: %v", tmpdir, err)
+	// Compare generated files with existing files.
+	genRoots := []string{
+		filepath.Join(tmpdir, "ssa"),
+		filepath.Join(tmpdir, "ssacompile"),
 	}
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
+	compare := func(path string, file fs.DirEntry, err error) error {
+		if slices.Contains(genRoots, path) && os.IsNotExist(err) {
+			// The subpackage hasn't been created yet.
+			return nil
 		}
-		filename := file.Name()
+		if err != nil {
+			return err
+		}
+		if file.IsDir() {
+			return nil
+		}
+		filename := mustRel(filepath.Join(tmpdir, "ssa"), path)
 
 		// filename must be in the generated set,
 		if !genFiles[filename] {
@@ -100,13 +138,13 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 		}
 		genFiles[filename] = false // remove from set
 
-		generatedPath := filepath.Join(tmpdir, filename)
+		generatedPath := path
 		originalPath := filepath.Join(wd, filename)
 
 		generatedData, err := os.ReadFile(generatedPath)
 		if err != nil {
-			t.Errorf("could not read generated file %s: %v", generatedPath, err)
-			continue
+			t.Errorf("could not read generated file %s: %v", path, err)
+			return nil
 		}
 
 		// there should be a corresponding file in the ssa directory,
@@ -117,12 +155,18 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 			} else {
 				t.Errorf("could not read original file %s: %v", originalPath, err)
 			}
-			continue
+			return nil
 		}
 
 		// and the contents of that file should match.
 		if !bytes.Equal(originalData, generatedData) {
 			t.Errorf("%s is out of date. Please run 'go generate'.", filename)
+		}
+		return nil
+	}
+	for _, genRoot := range genRoots {
+		if err := filepath.WalkDir(genRoot, compare); err != nil {
+			t.Fatalf("could not walk generated directory %s: %v", genRoot, err)
 		}
 	}
 

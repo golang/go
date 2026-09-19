@@ -1,5 +1,3 @@
-[short] skip
-
 go test flag_test.go -v -args -v=7 # Two distinct -v flags
 go test -v flag_test.go -args -v=7 # Two distinct -v flags
 

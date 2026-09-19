@@ -145,7 +145,7 @@ func (fsys MapFS) resolveSymlinks(name string) (_ string, ok bool) {
 			if path.IsAbs(target) {
 				return "", false
 			}
-			return fsys.resolveSymlinks(path.Join(path.Dir(dir), target) + name[i:])
+			return fsys.resolveSymlinks(path.Join(path.Dir(dir), target, name[i:]))
 		}
 		i += len("/")
 	}
@@ -285,12 +285,14 @@ func (f *openMapFile) Read(b []byte) (int, error) {
 
 func (f *openMapFile) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
-	case 0:
+	case io.SeekStart:
 		// offset += 0
-	case 1:
+	case io.SeekCurrent:
 		offset += f.offset
-	case 2:
+	case io.SeekEnd:
 		offset += int64(len(f.f.Data))
+	default:
+		return 0, &fs.PathError{Op: "seek", Path: f.path, Err: fs.ErrInvalid}
 	}
 	if offset < 0 || offset > int64(len(f.f.Data)) {
 		return 0, &fs.PathError{Op: "seek", Path: f.path, Err: fs.ErrInvalid}
@@ -300,8 +302,11 @@ func (f *openMapFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (f *openMapFile) ReadAt(b []byte, offset int64) (int, error) {
-	if offset < 0 || offset > int64(len(f.f.Data)) {
+	if offset < 0 {
 		return 0, &fs.PathError{Op: "read", Path: f.path, Err: fs.ErrInvalid}
+	}
+	if offset >= int64(len(f.f.Data)) {
+		return 0, io.EOF
 	}
 	n := copy(b, f.f.Data[offset:])
 	if n < len(b) {

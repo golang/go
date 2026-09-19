@@ -160,6 +160,14 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), REGCTXT
+	BEQ	REGCTXT, nosecret
+	MOVV	R1, REGCTXT
+	JAL	runtime·secretEraseRegistersMcall(SB)
+	MOVV	REGCTXT, R1
+nosecret:
+#endif
 	MOVV	R4, REGCTXT
 	// Save caller state in g->sched
 	MOVV	R3, (g_sched+gobuf_sp)(g)
@@ -193,9 +201,14 @@ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 
 // func systemstack(fn func())
 TEXT runtime·systemstack(SB), NOSPLIT, $0-8
-	MOVV	fn+0(FP), R19	// R19 = fn
-	MOVV	R19, REGCTXT		// context
-	MOVV	g_m(g), R4	// R4 = m
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), REGCTXT
+	BEQ	REGCTXT, nosecret
+	JAL	·secretEraseRegisters(SB)
+nosecret:
+#endif
+	MOVV	fn+0(FP), REGCTXT	// context
+	MOVV	g_m(g), R4		// R4 = m
 
 	MOVV	m_gsignal(R4), R5	// R5 = gsignal
 	BEQ	g, R5, noswitch
@@ -306,6 +319,15 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVV	R3, (m_morebuf+gobuf_sp)(R7)	// f's caller's SP
 	MOVV	g, (m_morebuf+gobuf_g)(R7)
 
+	// If in secret mode, erase registers on transition
+	// from G stack to M stack,
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R8
+	BEQ	R8, nosecret
+	JAL	·secretEraseRegisters(SB)
+	MOVV	g_m(g), R7
+nosecret:
+#endif
 	// Call newstack on m->g0's stack.
 	MOVV	m_g0(R7), g
 	JAL	runtime·save_g(SB)
@@ -487,7 +509,16 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
+TEXT runtime·procyieldAsm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+	BEQ	R4, done
+	RDTIMED	R0, R5
+	IBAR	$0
+delay:
+	NOP
+	RDTIMED	R0, R6
+	SUBV	R5, R6
+	BGEU	R4, R6, delay
+done:
 	RET
 
 // Save state of caller into g->sched.
@@ -512,29 +543,39 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	MOVV	fn+0(FP), R25
-	MOVV	arg+8(FP), R4
-
-	MOVV	R3, R12	// save original stack pointer
-	MOVV	g, R13
-
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	BEQ	g, R0, nosave
 	MOVV	g_m(g), R5
 	MOVV	m_gsignal(R5), R6
-	BEQ	R6, g, g0
+	BEQ	R6, g, nosave
 	MOVV	m_g0(R5), R6
-	BEQ	R6, g, g0
+	BEQ	R6, g, nosave
 
+#ifdef GOEXPERIMENT_runtimesecret
+	// running on a user stack. Figure out if we're running
+	// secret code and clear our registers if so.
+	MOVW	g_secret(g), R14
+	BEQ	R14, nosecret
+	JAL	·secretEraseRegisters(SB)
+	// restore g0 back into R6
+	MOVV	g_m(g), R6
+	MOVV	m_g0(R6), R6
+nosecret:
+#endif
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	MOVV	R3, R12	// save original stack pointer
+	MOVV	g, R13
+
+	// Switch to system stack.
 	JAL	gosave_systemstack_switch<>(SB)
 	MOVV	R6, g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R3
 
 	// Now on a scheduling stack (a pthread-created stack).
-g0:
 	// Save room for two of our pointers.
 	ADDV	$-16, R3
 	MOVV	R13, 0(R3)	// save old g on stack

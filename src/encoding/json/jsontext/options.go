@@ -205,7 +205,7 @@ func SpaceAfterComma(v bool) Options {
 // If [SpaceAfterComma] is not specified, then the default is false.
 // If [WithIndent] is not specified, then the default is "\t".
 //
-// If set to false, then the output is a single-line,
+// If set to false, then the output is a single line,
 // where the only whitespace emitted is determined by the current
 // values of [SpaceAfterColon] and [SpaceAfterComma].
 //
@@ -222,7 +222,7 @@ func Multiline(v bool) Options {
 // where each element in a JSON object or array begins on a new, indented line
 // beginning with the indent prefix (see [WithIndentPrefix])
 // followed by one or more copies of indent according to the nesting depth.
-// The indent must only be composed of space or tab characters.
+// The indent must be composed of only space and tab characters.
 //
 // If the intent is to emit indented output without a preference for
 // the particular indent string, then use [Multiline] instead.
@@ -258,7 +258,7 @@ func WithIndent(indent string) Options {
 // where each element in a JSON object or array begins on a new, indented line
 // beginning with the indent prefix followed by one or more copies of indent
 // (see [WithIndent]) according to the nesting depth.
-// The prefix must only be composed of space or tab characters.
+// The prefix must be composed of only space and tab characters.
 //
 // This only affects encoding and is ignored when decoding.
 // Use of this option implies [Multiline] being set to true.

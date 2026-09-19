@@ -14,7 +14,10 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"runtime"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type sha1Test struct {
@@ -254,17 +257,29 @@ func maybeCloner(h hash.Hash) any {
 	return &h
 }
 
+func TestOutOfBoundsRead(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha1", func(t *testing.T) {
+		start, end := cryptotest.BoundarySlices(t, 1000)
+		for i := range len(start) + 1 {
+			Sum(start[:i])
+			Sum(start[len(start)-i:])
+			Sum(end[:i])
+			Sum(end[len(end)-i:])
+		}
+	})
+}
+
 var bench = New()
-var buf = make([]byte, 8192)
 
 func benchmarkSize(b *testing.B, size int) {
+	buf := make([]byte, size)
 	sum := make([]byte, bench.Size())
 	b.Run("New", func(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
 			bench.Reset()
-			bench.Write(buf[:size])
+			bench.Write(buf)
 			bench.Sum(sum[:0])
 		}
 	})
@@ -272,7 +287,7 @@ func benchmarkSize(b *testing.B, size int) {
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
-			Sum(buf[:size])
+			Sum(buf)
 		}
 	})
 }
@@ -291,4 +306,53 @@ func BenchmarkHash1K(b *testing.B) {
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192)
+}
+
+func BenchmarkHash256K(b *testing.B) {
+	benchmarkSize(b, 256*1024)
+}
+
+func BenchmarkHash1M(b *testing.B) {
+	benchmarkSize(b, 1024*1024)
+}
+
+var sinkSTW []byte
+
+// BenchmarkSTW reports how long a garbage collection had to wait while a hash
+// ran alongside it, as gcwait-ns/op. Assembly is not preemptible, so a call
+// that covers the whole input blocks every goroutine in the process for as
+// long as it runs; bounding the call gives the collector a way in between
+// chunks. Run with GOMAXPROCS>=2 so the two actually overlap.
+func BenchmarkSTW(b *testing.B) {
+	buf := make([]byte, 64<<20)
+	var total time.Duration
+	var iters int
+	b.SetBytes(int64(len(buf)))
+	for b.Loop() {
+		done := make(chan struct{})
+		var began atomic.Int64
+		go func() {
+			defer close(done)
+			began.Store(time.Now().UnixNano())
+			h := New()
+			h.Write(buf)
+			sinkSTW = h.Sum(nil)
+		}()
+		start := time.Now()
+		runtime.GC() // one per iteration, so the mean is well defined
+		end := time.Now()
+		<-done
+
+		// Count the iteration only if the hash had started before the
+		// collection finished. Otherwise there was nothing to overlap and the
+		// sample says nothing about preemptibility.
+		if t := began.Load(); t != 0 && t < end.UnixNano() {
+			total += end.Sub(start)
+			iters++
+		}
+	}
+	if iters == 0 {
+		b.Skip("no iteration overlapped a collection")
+	}
+	b.ReportMetric(float64(total.Nanoseconds())/float64(iters), "gcwait-ns/op")
 }

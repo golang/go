@@ -202,6 +202,7 @@ type Decoder struct {
 	buf            bytes.Buffer
 	saved          *bytes.Buffer
 	stk            *stack
+	stkDepth       int
 	free           *stack
 	needClose      bool
 	toClose        Name
@@ -212,7 +213,7 @@ type Decoder struct {
 	line           int
 	linestart      int64
 	offset         int64
-	unmarshalDepth int
+	inUnmarshalXML bool
 }
 
 // NewDecoder creates a new XML parser reading from r.
@@ -398,6 +399,9 @@ func (d *Decoder) push(kind int) *stack {
 	}
 	s.next = d.stk
 	s.kind = kind
+	if kind == stkStart {
+		d.stkDepth++
+	}
 	d.stk = s
 	return s
 }
@@ -405,6 +409,9 @@ func (d *Decoder) push(kind int) *stack {
 func (d *Decoder) pop() *stack {
 	s := d.stk
 	if s != nil {
+		if s.kind == stkStart {
+			d.stkDepth--
+		}
 		d.stk = s.next
 		s.next = d.free
 		d.free = s
@@ -542,7 +549,7 @@ var errRawToken = errors.New("xml: cannot use RawToken from UnmarshalXML method"
 // start and end elements match and does not translate
 // name space prefixes to their corresponding URLs.
 func (d *Decoder) RawToken() (Token, error) {
-	if d.unmarshalDepth > 0 {
+	if d.inUnmarshalXML {
 		return nil, errRawToken
 	}
 	return d.rawToken()

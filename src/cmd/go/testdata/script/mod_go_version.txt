@@ -1,6 +1,5 @@
 # Test support for declaring needed Go version in module.
 
-env GO111MODULE=on
 env TESTGO_VERSION=go1.21
 
 ! go list

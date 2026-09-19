@@ -20,7 +20,7 @@ const noHTTP2 = "no bundled HTTP/2" // should never see this
 
 func (s *Server) configureHTTP2()                               {}
 func (s *Server) setHTTP2Config(conf http2ExternalServerConfig) {}
-func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte) {
+func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte, onClose func()) {
 }
 
 func (t *Transport) configureHTTP2(protocols Protocols) {}

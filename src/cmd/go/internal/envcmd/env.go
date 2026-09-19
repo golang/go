@@ -70,10 +70,10 @@ func init() {
 }
 
 var (
-	envJson    = CmdEnv.Flag.Bool("json", false, "")
-	envU       = CmdEnv.Flag.Bool("u", false, "")
-	envW       = CmdEnv.Flag.Bool("w", false, "")
-	envChanged = CmdEnv.Flag.Bool("changed", false, "")
+	envJson    = CmdEnv.Flag.Bool("json", false, "print the environment in JSON format instead of as a shell script")
+	envU       = CmdEnv.Flag.Bool("u", false, "unsets the default setting for the named environment variables, if one has been set with 'go env -w'")
+	envW       = CmdEnv.Flag.Bool("w", false, "changes the default settings of the named environment variables to the given values (NAME=VALUE)")
+	envChanged = CmdEnv.Flag.Bool("changed", false, "print only those settings whose effective value differs from the default")
 )
 
 func MkEnv() []cfg.EnvVar {

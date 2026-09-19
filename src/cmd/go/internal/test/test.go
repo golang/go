@@ -1202,9 +1202,9 @@ func builderTest(ld *modload.Loader, b *work.Builder, ctx context.Context, pkgOp
 	// package depend on building the non-test version, so that we
 	// only report build errors once. Issue #44624.
 	if imported && ptest != p {
-		buildTest := b.CompileAction(work.ModeBuild, work.ModeBuild, ptest)
-		buildP := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
-		buildTest.Deps = append(buildTest.Deps, buildP)
+		exportTest := b.BuildExportAction(work.ModeBuild, work.ModeBuild, ptest)
+		exportP := b.BuildExportAction(work.ModeBuild, work.ModeBuild, p)
+		exportTest.Deps = append(exportTest.Deps, exportP)
 	}
 
 	testBinary := testBinaryName(p)

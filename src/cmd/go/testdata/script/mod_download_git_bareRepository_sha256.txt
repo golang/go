@@ -1,4 +1,3 @@
-[short] skip
 [!git] skip
 [!git-sha256] skip
 

@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 	"fmt"
 	"os"
@@ -496,7 +497,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		for _, v := range b.Values {
 			if n, e := affectedVar(v); n != nil {
 				if _, ok := rawcands[n]; ok {
-					if e&ssa.SymAddr != 0 && v.Uses != 0 {
+					if e&ssaop.SymAddr != 0 && v.Uses != 0 {
 						// we're taking the address of candidate var n
 						if _, ok := pendingUses[v.ID]; ok {
 							// should never happen
@@ -513,8 +514,26 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 					}
 				}
 			}
-			for _, arg := range v.Args {
+			for idx, arg := range v.Args {
 				if nc, ok := pendingUses[arg.ID]; ok {
+					if !v.AddrSinkArg(idx) {
+						// If this op may propagate its input address
+						// to somewhere else, we must track where that
+						// somewhere else might be. See issue 80127.
+						if v.Type.IsMemory() {
+							// Might be stored to memory. Give up.
+							continue
+						}
+						// Some sort of address arithmetic.
+						if _, ok := pendingUses[v.ID]; ok {
+							// v has used multiple addresses, which is something
+							// we can't keep track of. Give up.
+							continue
+						}
+						// Treat this op as producing the address of the same variable
+						// that its argument was the address of.
+						pendingUses[v.ID] = nameCount{n: nc.n, count: v.Uses}
+					}
 					// We found a use of some value that took the
 					// address of nc.n. Record this inst as a
 					// potential indirect use.

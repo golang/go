@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Go should reject relative paths in GOMODCACHE environment.
 
 env GOMODCACHE="~/test"

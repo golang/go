@@ -79,3 +79,14 @@
   - *float
   out:
   - *anyToMask
+
+# TestBitsNonzero: (x & y) != 0, per lane — VCMTST.
+# Only want the instruction, for peepholing
+- go: TestPairBitsNonzero
+  asm: "VCMTST"
+  in:
+  - *int
+  - *int
+  out:
+  - *anyToMask
+

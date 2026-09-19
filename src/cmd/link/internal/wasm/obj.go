@@ -30,6 +30,8 @@ func archinit(ctxt *ld.Link) {
 		*ld.FlagRound = 4096
 	}
 	if *ld.FlagTextAddr == -1 {
-		*ld.FlagTextAddr = 0
+		// See asm.go:assignAddress for the meaning of PC on Wasm
+		// and the value here.
+		*ld.FlagTextAddr = pcBase
 	}
 }

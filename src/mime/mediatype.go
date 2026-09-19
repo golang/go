@@ -34,6 +34,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		b.WriteString(strings.ToLower(sub))
 	}
 
+	seenAttrs := make(map[string]struct{}, len(param))
 	for _, attribute := range slices.Sorted(maps.Keys(param)) {
 		value := param[attribute]
 		b.WriteByte(';')
@@ -41,7 +42,12 @@ func FormatMediaType(t string, param map[string]string) string {
 		if !isToken(attribute) {
 			return ""
 		}
-		b.WriteString(strings.ToLower(attribute))
+		attribute = strings.ToLower(attribute)
+		if _, ok := seenAttrs[attribute]; ok {
+			return ""
+		}
+		seenAttrs[attribute] = struct{}{}
+		b.WriteString(attribute)
 
 		needEnc := needsEncoding(value)
 		if needEnc {

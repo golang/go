@@ -233,6 +233,14 @@ func volumeNameLen(path string) int {
 			// component of the path in this space, converting
 			// \\.\unc\a\b\..\c into \\.\unc\a\c.
 			return validVolumeNameLen(path, uncLen(path, len(`\\.\UNC\`)))
+		case pathHasPrefixFold(path[4:], `GLOBALROOT`):
+			// GLOBALROOT links to the root of the NT object namespace. A volume
+			// device path such as \\?\GLOBALROOT\Device\HarddiskVolume1\ has two
+			// components after GLOBALROOT. Treat them as the volume name so Clean
+			// preserves the separator denoting the volume root. This is a lexical
+			// approximation; other object namespace paths can have different layouts.
+			// (See #67880.)
+			return validVolumeNameLen(path, uncLen(path, len(`\\?\GLOBALROOT\`)))
 		}
 		//
 		// We treat the next component after the device prefix as

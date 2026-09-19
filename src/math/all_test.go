@@ -1553,6 +1553,36 @@ var logSC = []float64{
 	NaN(),
 }
 
+// Inputs near 1 and their correctly rounded Log2 values.
+var vflog2NearOne = []float64{
+	0x1.0000000000001p+0,
+	0x1.fffffffffffffp-1,
+	0x1.0000000001p+0,
+	0x1.fffffffffep-1,
+	0x1.00001p+0,
+	0x1.ffffep-1,
+	0x1.004p+0,
+	0x1.ff8p-1,
+	0x1.4p+0,
+	0x1.8p-1,
+	0x1.fffffffffffffp+0,
+	0x1.0000000000001p-1,
+}
+var log2NearOne = []float64{
+	3.203426503814917e-16,
+	-1.6017132519074588e-16,
+	1.3121234959619935e-12,
+	-1.312123495963187e-12,
+	1.375860550841138e-06,
+	-1.3758618629646341e-06,
+	0.0014081943928083889,
+	-0.0014095702546713536,
+	0.32192809488736235,
+	-0.4150374992788438,
+	0.9999999999999999,
+	-0.9999999999999997,
+}
+
 var vflogbSC = []float64{
 	Inf(-1),
 	0,
@@ -2851,6 +2881,11 @@ func TestLog2(t *testing.T) {
 	for i := 0; i < len(vflogSC); i++ {
 		if f := Log2(vflogSC[i]); !alike(logSC[i], f) {
 			t.Errorf("Log2(%g) = %g, want %g", vflogSC[i], f, logSC[i])
+		}
+	}
+	for i := 0; i < len(vflog2NearOne); i++ {
+		if f := Log2(vflog2NearOne[i]); !veryclose(log2NearOne[i], f) {
+			t.Errorf("Log2(%g) = %g, want %g", vflog2NearOne[i], f, log2NearOne[i])
 		}
 	}
 	for i := -1074; i <= 1023; i++ {

@@ -5,7 +5,6 @@
 package http2
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/textproto"
@@ -25,6 +24,7 @@ func init() {
 const (
 	DefaultMaxReadFrameSize     = defaultMaxReadFrameSize
 	DefaultMaxStreams           = defaultMaxStreams
+	HandlerChunkWriteSize       = handlerChunkWriteSize
 	InflowMinRefresh            = inflowMinRefresh
 	InitialHeaderTableSize      = initialHeaderTableSize
 	InitialMaxConcurrentStreams = initialMaxConcurrentStreams
@@ -81,6 +81,7 @@ func (sc *serverConn) TestFlowControlConsumed() (consumed int32) {
 
 func (sc *serverConn) TestStreamExists(id uint32) bool {
 	ch := make(chan bool, 1)
+	sc.beginServeSend()
 	sc.serveMsgCh <- func(int) {
 		ch <- (sc.streams[id] != nil)
 	}
@@ -89,11 +90,18 @@ func (sc *serverConn) TestStreamExists(id uint32) bool {
 
 func (sc *serverConn) TestStreamState(id uint32) streamState {
 	ch := make(chan streamState, 1)
+	sc.beginServeSend()
 	sc.serveMsgCh <- func(int) {
 		state, _ := sc.state(id)
 		ch <- state
 	}
 	return <-ch
+}
+
+// TestServeParked reports whether the connection's serve goroutine has
+// exited because the connection is idle. See serverConn.serveLoop.
+func (sc *serverConn) TestServeParked() bool {
+	return sc.parkState.Load()&parkedBit != 0
 }
 
 func (sc *serverConn) StartGracefulShutdown() { sc.startGracefulShutdown() }
@@ -104,10 +112,6 @@ func (sc *serverConn) TestHPACKEncoder() *hpack.Encoder {
 
 func (sc *serverConn) TestFramerMaxHeaderStringLen() int {
 	return sc.framer.maxHeaderStringLen()
-}
-
-func (t *Transport) DialClientConn(ctx context.Context, addr string, singleUse bool) (*ClientConn, error) {
-	return t.dialClientConn(ctx, addr, singleUse)
 }
 
 func (t *Transport) TestNewClientConn(c net.Conn, singleUse bool, internalStateHook func()) (*ClientConn, error) {
@@ -224,4 +228,16 @@ func InvalidHTTP1LookingFrameHeader() FrameHeader {
 
 func EncodeRequestHeaders(req *ClientRequest, addGzipHeader bool, peerMaxHeaderListSize uint64, headerf func(name, value string)) (httpcommon.EncodeHeadersResult, error) {
 	return encodeRequestHeaders(req, addGzipHeader, peerMaxHeaderListSize, headerf)
+}
+
+func (w *responseWriter) hasWriteBuffer() bool {
+	return w.rws.bw != nil
+}
+
+// ResponseWriterHasWriteBufferForTesting reports whether w (which must
+// be or embed this package's responseWriter) currently holds a write
+// buffer. It is for testing that Flush releases the buffer while a
+// handler is parked mid-response.
+func ResponseWriterHasWriteBufferForTesting(w any) bool {
+	return w.(interface{ hasWriteBuffer() bool }).hasWriteBuffer()
 }

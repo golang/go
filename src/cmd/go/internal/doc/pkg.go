@@ -5,7 +5,6 @@
 package doc
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -1186,9 +1185,9 @@ func (pkg *Package) printFieldDoc(symbol, fieldName string) bool {
 					// a unit before adding the leading // to each line.
 					docBuf := new(bytes.Buffer)
 					pkg.ToText(docBuf, field.Doc.Text(), "", indent)
-					scanner := bufio.NewScanner(docBuf)
-					for scanner.Scan() {
-						fmt.Fprintf(&pkg.buf, "%s// %s\n", indent, scanner.Bytes())
+					for line := range bytes.Lines(docBuf.Bytes()) {
+						line = bytes.TrimSuffix(line, []byte{'\n'})
+						fmt.Fprintf(&pkg.buf, "%s// %s\n", indent, line)
 					}
 				}
 				s := pkg.oneLineNode(field.Type)

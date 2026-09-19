@@ -1,0 +1,50 @@
+!sum
+# Sqrt — floating-point square root, ZFSQRT. Predicated-only: the governing
+# predicate is implicit-all-true and the merging qualifier becomes the
+# predicated machine op.
+- go: Sqrt
+  asm: "ZFSQRT"
+  in:
+  - &float
+    go: $t
+    base: float
+  - class: mask # governing predicate
+  out:
+  - *float
+
+# Ceil — floating-point round (ZFRINTP). Predicated-only, same shape as Sqrt.
+- go: Ceil
+  asm: "ZFRINTP"
+  in:
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float
+
+# Floor — floating-point round (ZFRINTM). Predicated-only, same shape as Sqrt.
+- go: Floor
+  asm: "ZFRINTM"
+  in:
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float
+
+# Trunc — floating-point round (ZFRINTZ). Predicated-only, same shape as Sqrt.
+- go: Trunc
+  asm: "ZFRINTZ"
+  in:
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float
+
+# Round — floating-point round to nearest, ties to even (ZFRINTN).
+# Predicated-only, same shape as Sqrt.
+- go: Round
+  asm: "ZFRINTN"
+  in:
+  - *float
+  - class: mask # governing predicate
+  out:
+  - *float

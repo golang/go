@@ -7,7 +7,6 @@
 # are stale rather than any of them.
 
 [!symlink] skip
-[short] skip
 
 go build net
 ! stale net

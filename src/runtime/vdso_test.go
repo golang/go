@@ -23,7 +23,7 @@ import (
 // the time.
 func TestUsingVDSO(t *testing.T) {
 	if asan.Enabled {
-		t.Skip("test fails with ASAN beause the ASAN leak checker won't run under strace")
+		t.Skip("test fails with ASAN because the ASAN leak checker won't run under strace")
 	}
 
 	const calls = 100

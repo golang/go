@@ -159,6 +159,7 @@ var ArchMIPS = &Arch{
 	MinLC:          4,
 	Alignment:      4,
 	CanMergeLoads:  false,
+	CanJumpTable:   true,
 	HasLR:          true,
 	FixedFrameSize: 4, // LR
 }
@@ -172,6 +173,7 @@ var ArchMIPSLE = &Arch{
 	MinLC:          4,
 	Alignment:      4,
 	CanMergeLoads:  false,
+	CanJumpTable:   true,
 	HasLR:          true,
 	FixedFrameSize: 4, // LR
 }
@@ -185,6 +187,7 @@ var ArchMIPS64 = &Arch{
 	MinLC:          4,
 	Alignment:      8,
 	CanMergeLoads:  false,
+	CanJumpTable:   true,
 	HasLR:          true,
 	FixedFrameSize: 8, // LR
 }
@@ -198,6 +201,7 @@ var ArchMIPS64LE = &Arch{
 	MinLC:          4,
 	Alignment:      8,
 	CanMergeLoads:  false,
+	CanJumpTable:   true,
 	HasLR:          true,
 	FixedFrameSize: 8, // LR
 }
@@ -239,6 +243,7 @@ var ArchRISCV64 = &Arch{
 	MinLC:          2,
 	Alignment:      8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
 	CanMergeLoads:  false,
+	CanJumpTable:   true,
 	HasLR:          true,
 	FixedFrameSize: 8, // LR
 }

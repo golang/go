@@ -179,7 +179,7 @@ func knownBitsNeqFalse(x uint64, cond bool) bool {
 	if cond {
 		x |= 42
 	}
-	x |= 1<<32 - 1
+	x |= 1<<32 - 1      // ERROR "known value of v[0-9]+ \(Or64\): -1$"
 	return x != 1<<64-1 // ERROR "known value of v[0-9]+ \(Neq64\): false$"
 }
 
@@ -222,9 +222,7 @@ func knownBitsCvtBoolToUint8True(x int64, cond bool) uint8 {
 		x |= 1
 		x |= 4
 	}
-	// I would expect "known value of v[0-9]+ \(And64\): 6$" to be required, but somehow it's not there even tho the AND is being folded.
-	// I think it's an issue with the And's LOC meaning known bits prints it without a LOC and errorcheck skips it.
-	r := cvtBoolToUint8(x&6 == 6) // ERROR "known value of v[0-9]+ \(Eq64\): true$" "known value of v[0-9]+ \(CvtBoolToUint8\): 1$"
+	r := cvtBoolToUint8(x&6 == 6) // ERROR "known value of v[0-9]+ \(And64\): 6$" "known value of v[0-9]+ \(Eq64\): true$" "known value of v[0-9]+ \(CvtBoolToUint8\): 1$"
 	if cond {
 		r |= 4 // ERROR "known value of v[0-9]+ \(Or8\): 5$"
 	}
@@ -357,7 +355,7 @@ func knownBitsRshSignCopy(x, y int64) int64 {
 	x |= -1 << 63
 	y |= 128
 
-	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(And64\): 1$"
+	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(And64\): 1$" "known value of v[0-9]+ \(Rsh64x[0-9]+\): -1$"
 }
 
 func unknownBitsRshLeftSideMsb(x int32, y int32) int32 {
@@ -430,4 +428,48 @@ func unknownBitsSextAfterTrunc(x int64, cond1, cond2 bool) int64 {
 	}
 
 	return int64(truncated) & (-1 << 63)
+}
+
+func pruneNoopAnd(x, y uint8) uint8 {
+	//    x & y => is x &= y a noop ?
+	// 1. 0 & 0 => noop
+	// 2. 1 & 0 => keep and
+	// 3. ? & 0 => keep and
+	// 4. 0 & 1 => noop
+	// 5. 1 & 1 => noop
+	// 6. ? & 1 => noop
+	// 7. 0 & ? => noop; can't be handled by prove
+	// 8. 1 & ? => keep and
+	// 9. ? & ? => keep and
+
+	// Test patterns: 76541
+	x &= 0b01000
+	x |= 0b00100
+	y &= 0b10000
+	y |= 0b01110
+
+	return x & y // ERROR "Removed v[0-9]+ no-op And8$"
+}
+
+func pruneNoopOr(x, y uint8) uint8 {
+	//    x | y => is x |= y a noop ?
+	// 1. 0 | 0 => noop
+	// 2. 1 | 0 => noop
+	// 3. ? | 0 => noop
+	// 4. 0 | 1 => keep or
+	// 5. 1 | 1 => noop
+	// 6. ? | 1 => keep or
+	// 7. 0 | ? => keep or
+	// 8. 1 | ? => noop; can't be handled by prove
+	// 9. ? | ? => keep or
+
+	// Test patterns: 85321
+	// invert the and & or in setup otherwise generic.rules reassociate in a
+	// form known bits doesn't for.
+	x |= 0b11010
+	x &= 0b11110
+	y |= 0b01000
+	y &= 0b11000
+
+	return x | y // ERROR "Removed v[0-9]+ no-op Or8$"
 }

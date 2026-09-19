@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Test that go mod edits and related mod flags work.
 # Also test that they can use a dummy name that isn't resolvable. golang.org/issue/24100
 

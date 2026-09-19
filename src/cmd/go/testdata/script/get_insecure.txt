@@ -1,5 +1,4 @@
 # Test for #15410
-[short] skip 'builds a go program and a git repo'
 [!git] skip
 
 env PATH=$WORK/tmp/bin${:}$PATH

@@ -99,7 +99,7 @@ func benchDiv(size int) func() {
 }
 
 func computeThreshold(t *testing.T, name string, set func(int), thresholdLo, thresholdStep, thresholdHi int, bench func(int) func(), sizeLo, sizeStep, sizeHi int) {
-	// Start CSV output; wrapped in txtar framing to separate CSV from other test ouptut.
+	// Start CSV output; wrapped in txtar framing to separate CSV from other test output.
 	fmt.Printf("-- calibrate-%s.csv --\n", name)
 	defer fmt.Printf("-- eof --\n")
 

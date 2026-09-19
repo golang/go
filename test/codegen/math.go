@@ -343,7 +343,7 @@ func outOfBoundsConv(i32 *[2]int32, u32 *[2]uint32, i64 *[2]int64, u64 *[2]uint6
 	u32[0] = uint32(two41())
 	// on arm64, this uses an explicit <0 comparison, so it constant folds.
 	// on amd64, this uses an explicit <0 comparison, so it constant folds.
-	// amd64: "MOVL [$]0,"
+	// amd64: "MOVL X15,"
 	u32[1] = uint32(minus1())
 	// arm64: "FCVTZSD"
 	// amd64: "CVTTSD2SQ"
@@ -356,7 +356,7 @@ func outOfBoundsConv(i32 *[2]int32, u32 *[2]uint32, i64 *[2]int64, u64 *[2]uint6
 	u64[0] = uint64(two81())
 	// arm64: "FCVTZUD"
 	// on amd64, this uses an explicit <0 comparison, so it constant folds.
-	// amd64: "MOVQ [$]0,"
+	// amd64: "MOVQ X15,"
 	u64[1] = uint64(minus1())
 }
 

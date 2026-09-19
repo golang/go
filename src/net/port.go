@@ -36,7 +36,7 @@ func parsePort(service string) (port int, needsLookup bool) {
 		} else {
 			return 0, true
 		}
-		if n >= cutoff {
+		if n > max/10 {
 			n = max
 			break
 		}

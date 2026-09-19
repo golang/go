@@ -34,9 +34,11 @@ import (
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/printf"
+	"golang.org/x/tools/go/analysis/passes/scannererr"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
 	"golang.org/x/tools/go/analysis/passes/slog"
+	"golang.org/x/tools/go/analysis/passes/sqlrowserr"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/stdversion"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
@@ -78,12 +80,12 @@ var Suite = []*analysis.Analyzer{
 	lostcancel.Analyzer,
 	nilfunc.Analyzer,
 	printf.Analyzer,
-	// scannererr.Analyzer, // TODO(adonovan): add to go vet for 1.28 after the freeze (#17747)
+	scannererr.Analyzer,
 	// shadow.Analyzer omitted: too noisy
 	shift.Analyzer,
 	sigchanyzer.Analyzer,
 	slog.Analyzer,
-	// sqlrowserr.Analyzer, // TODO(adonovan): add to go vet for 1.28 after the freeze (#17747)
+	sqlrowserr.Analyzer,
 	stdmethods.Analyzer,
 	stdversion.Analyzer,
 	stringintconv.Analyzer,

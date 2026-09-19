@@ -177,6 +177,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	PXOR	X15, X15
+#ifndef GOAMD64_v3
+#ifndef GOAMD64_v4
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JNE	2(PC)
+#endif
+#endif
+	VXORPS	X15, X15, X15
 
 	// Reserve space for spill slots.
 	NOP	SP		// disable vet stack checking
@@ -608,7 +615,12 @@ TEXT runtime·mach_vm_region_trampoline(SB),NOSPLIT,$0
 	MOVQ	40(DI), R10 // object_name
 	MOVQ	$libc_mach_task_self_(SB), DI
 	MOVL	0(DI), DI
+	// object_name is the 7th integer argument, so per the SysV AMD64 C ABI
+	// it is passed on the stack rather than in a register.
+	SUBQ	$16, SP		// keep 16-byte stack alignment
+	MOVQ	R10, 0(SP)	// arg 7 object_name
 	CALL	libc_mach_vm_region(SB)
+	ADDQ	$16, SP
 	RET
 
 // proc_regionfilename_trampoline calls proc_regionfilename.

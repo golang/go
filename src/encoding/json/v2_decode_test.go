@@ -180,7 +180,7 @@ var (
 	ummapXY = map[unmarshalerText]bool{{"x", "y"}: true}
 )
 
-// Test data structures for anonymous fields.
+// Test data structures for embedded fields.
 
 type Point struct {
 	Z int
@@ -436,6 +436,7 @@ var unmarshalTests = []struct {
 	{CaseName: Name(""), in: `true`, ptr: new(bool), out: true},
 	{CaseName: Name(""), in: `1`, ptr: new(int), out: 1},
 	{CaseName: Name(""), in: `1.2`, ptr: new(float64), out: 1.2},
+	{CaseName: Name(""), in: `1e1000`, ptr: new(float64), out: float64(0), err: &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64("1e1000")}},
 	{CaseName: Name(""), in: `-5`, ptr: new(int16), out: int16(-5)},
 	{CaseName: Name(""), in: `2`, ptr: new(Number), out: Number("2"), useNumber: true},
 	{CaseName: Name(""), in: `2`, ptr: new(Number), out: Number("2")},
@@ -455,6 +456,7 @@ var unmarshalTests = []struct {
 	{CaseName: Name(""), in: `{"T": {"X": 23}}`, ptr: new(TOuter), out: TOuter{}, err: &UnmarshalTypeError{"number", reflect.TypeFor[string](), len64(`{"T": {"`), "T", "X", nil}},
 	{CaseName: Name(""), in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{CaseName: Name(""), in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
+	{CaseName: Name(""), in: `{"F1":"1","F2":2,"F3":"3"}`, ptr: new(V), out: V{F1: "1", F2: int32(2), F3: Number("3")}, useNumber: true},
 	{CaseName: Name(""), in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(any), out: ifaceNumAsFloat64},
 	{CaseName: Name(""), in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(any), out: ifaceNumAsNumber, useNumber: true},
 
@@ -1316,6 +1318,22 @@ var unmarshalTests = []struct {
 		}{C: 321},
 		err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeFor[complex128](), Field: "B", Offset: len64(`{"A":null,"B":[`)},
 	},
+	{
+		CaseName: Name("QuotedNull"),
+		in:       `{"A":"null", "B":"null", "C":"null", "D":"null"}`,
+		ptr: new(struct {
+			A string  `json:"A,string"`
+			B int     `json:"B,string"`
+			C float64 `json:"C,string"`
+			D bool    `json:"D,string"`
+		}),
+		out: struct {
+			A string  `json:"A,string"`
+			B int     `json:"B,string"`
+			C float64 `json:"C,string"`
+			D bool    `json:"D,string"`
+		}{},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -2055,7 +2073,7 @@ func TestNullString(t *testing.T) {
 	case s.B != 1:
 		t.Fatalf("Unmarshal: s.B = %d, want 1", s.B)
 	case s.C != nil:
-		t.Fatalf("Unmarshal: s.C = %d, want non-nil", s.C)
+		t.Fatalf("Unmarshal: s.C = new(%d), want nil", *s.C)
 	}
 }
 
@@ -2509,9 +2527,10 @@ func TestPrefilled(t *testing.T) {
 	// Values here change, cannot reuse table across runs.
 	tests := []struct {
 		CaseName
-		in  string
-		ptr any
-		out any
+		in      string
+		ptr     any
+		out     any
+		wantErr error
 	}{{
 		CaseName: Name(""),
 		in:       `{"X": 1, "Y": 2}`,
@@ -2542,16 +2561,28 @@ func TestPrefilled(t *testing.T) {
 		in:       `[3]`,
 		ptr:      &[...]int{1, 2},
 		out:      &[...]int{3, 0},
+	}, {
+		CaseName: Name(""),
+		in:       `1e1000`,
+		ptr:      addr(float64(math.Pi)),
+		out:      addr(float64(math.Pi)),
+		wantErr:  &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64("1e1000")},
+	}, {
+		CaseName: Name(""),
+		in:       `1e1000`,
+		ptr:      addr(any(float64(0))),
+		out:      addr(any(float64(0))),
+		wantErr:  &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64("1e1000")},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			ptrstr := fmt.Sprintf("%v", tt.ptr)
 			err := Unmarshal([]byte(tt.in), tt.ptr) // tt.ptr edited here
-			if err != nil {
-				t.Errorf("%s: Unmarshal error: %v", tt.Where, err)
-			}
 			if !reflect.DeepEqual(tt.ptr, tt.out) {
 				t.Errorf("%s: Unmarshal(%#q, %T):\n\tgot:  %v\n\twant: %v", tt.Where, tt.in, ptrstr, tt.ptr, tt.out)
+			}
+			if !reflect.DeepEqual(err, tt.wantErr) {
+				t.Errorf("%s: Unmarshal(%#q, %T) error:\n\tgot:  %v\n\twant: %v", tt.Where, tt.in, ptrstr, err, tt.wantErr)
 			}
 		})
 	}

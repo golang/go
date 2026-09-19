@@ -5,16 +5,20 @@
 package ssa
 
 import (
+	"fmt"
+	"math"
+	"strings"
+
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssabase"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"fmt"
-	"math"
-	"strings"
 )
 
 // A Func represents a Go func declaration (or function literal) and its body.
@@ -23,28 +27,29 @@ import (
 type Func struct {
 	Config *Config     // architecture information
 	Cache  *Cache      // re-usable cache
-	fe     Frontend    // frontend state associated with this Func, callbacks into compiler frontend
-	pass   *pass       // current pass information (name, options, etc.)
+	Fe     Frontend    // frontend state associated with this Func, callbacks into compiler frontend
+	Pass   *Pass       // current pass information (name, options, etc.)
 	Name   string      // e.g. NewFunc or (*Func).NumBlocks (no package prefix)
 	Type   *types.Type // type signature of the function.
 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
 	Entry  *Block      // the entry basic block
 
-	bid idAlloc // block ID allocator
-	vid idAlloc // value ID allocator
+	bid IDAlloc // block ID allocator
+	vid IDAlloc // value ID allocator
 
-	HTMLWriter     *HTMLWriter    // html writer, for debugging
+	HTMLWriter     HTMLWriter
+	FatalCleanup   func()         // cleanup function to run before reporting a fatal error
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
-	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+	RuleMatches    map[string]int // number of times countRule was called during compilation for any given string
 	ABI0           *abi.ABIConfig // ABI configuration for ABI0
 	ABI1           *abi.ABIConfig // ABI configuration for ABIInternal
 	ABISelf        *abi.ABIConfig // ABI for function being compiled
 	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
-	maxCPUFeatures CPUfeatures // union of all the CPU features in all the blocks.
+	MaxCPUFeatures CPUfeatures // union of all the CPU features in all the blocks.
 
-	scheduled   bool  // Values in Blocks are in final order
-	laidout     bool  // Blocks are ordered
+	Scheduled   bool  // Values in Blocks are in final order
+	Laidout     bool  // Blocks are ordered
 	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
 	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
 	IsPgoHot    bool
@@ -54,7 +59,7 @@ type Func struct {
 	RegAlloc []Location
 
 	// temporary registers allocated to rare instructions
-	tempRegs map[ID]*Register
+	TempRegs map[ID]*ssabase.Register
 
 	// map from LocalSlot to set of Values that we want to store in that slot.
 	NamedValues map[LocalSlot][]*Value
@@ -74,17 +79,24 @@ type Func struct {
 	// where we spill the closure pointer for range func bodies.
 	CloSlot *ir.Name
 
-	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
-	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
+	FreeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+	FreeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
 	cachedPostorder  []*Block   // cached postorder traversal
 	cachedIdom       []*Block   // cached immediate dominators
 	cachedSdom       SparseTree // cached dominator tree
-	cachedLoopnest   *loopnest  // cached loop nest information
-	cachedLineStarts *xposmap   // cached map/set of xpos to integers
+	cachedLoopnest   *LoopNest  // cached loop nest information
+	CachedLineStarts *XPosMap   // cached map/set of xpos to integers
 
-	auxmap    auxmap             // map from aux values to opaque ids used by CSE
+	Auxmap    AuxMap             // map from aux values to opaque ids used by CSE
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+}
+
+// FuncNameABI returns n followed by a comma and the value of a.
+// This is a separate function to allow a single point encoding
+// of the format, which is used in places where there's not a Func yet.
+func FuncNameABI(n string, a obj.ABI) string {
+	return fmt.Sprintf("%s,%d", n, a)
 }
 
 type LocalSlotSplitKey struct {
@@ -93,11 +105,40 @@ type LocalSlotSplitKey struct {
 	Type   *types.Type // type of slot
 }
 
+// These magic auxint values let us easily cache non-numeric constants
+// using the same constants map while making collisions unlikely.
+// These values are unlikely to occur in regular code and
+// are easy to grep for in case of bugs.
+const (
+	constSliceMagic       = 1122334455
+	constInterfaceMagic   = 2233445566
+	constNilMagic         = 3344556677
+	constEmptyStringMagic = 4455667788
+)
+
+// IsMergeCandidate returns true if variable n could participate in
+// stack slot merging. For now we're restricting the set to things to
+// items larger than what CanSSA would allow (approximateky, we disallow things
+// marked as open defer slots so as to avoid complicating liveness
+// analysis.
+func IsMergeCandidate(n *ir.Name) bool {
+	if base.Debug.MergeLocals == 0 ||
+		base.Flag.N != 0 ||
+		n.Class != ir.PAUTO ||
+		n.Type().Size() <= int64(3*types.PtrSize) ||
+		n.Addrtaken() ||
+		n.NonMergeable() ||
+		n.OpenDeferSlot() {
+		return false
+	}
+	return true
+}
+
 // NewFunc returns a new, empty function object.
 // Caller must reset cache before calling NewFunc.
 func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
 	return &Func{
-		fe:     fe,
+		Fe:     fe,
 		Config: c,
 		Cache:  cache,
 
@@ -110,12 +151,12 @@ func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.
 func (f *Func) NumBlocks() int {
-	return f.bid.num()
+	return f.bid.Num()
 }
 
 // NumValues returns an integer larger than the id of any Value in the Func.
 func (f *Func) NumValues() int {
-	return f.vid.num()
+	return f.vid.Num()
 }
 
 // NameABI returns the function name followed by comma and the ABI number.
@@ -126,48 +167,41 @@ func (f *Func) NameABI() string {
 	return FuncNameABI(f.Name, f.ABISelf.Which())
 }
 
-// FuncNameABI returns n followed by a comma and the value of a.
-// This is a separate function to allow a single point encoding
-// of the format, which is used in places where there's not a Func yet.
-func FuncNameABI(n string, a obj.ABI) string {
-	return fmt.Sprintf("%s,%d", n, a)
+// NewSparseSet returns a sparse set that can store at least up to n integers.
+func (f *Func) NewSparseSet(n int) *SparseSet {
+	return f.Cache.AllocSparseSet(n)
 }
 
-// newSparseSet returns a sparse set that can store at least up to n integers.
-func (f *Func) newSparseSet(n int) *sparseSet {
-	return f.Cache.allocSparseSet(n)
-}
-
-// retSparseSet returns a sparse set to the config's cache of sparse
+// RetSparseSet returns a sparse set to the config's cache of sparse
 // sets to be reused by f.newSparseSet.
-func (f *Func) retSparseSet(ss *sparseSet) {
-	f.Cache.freeSparseSet(ss)
+func (f *Func) RetSparseSet(ss *SparseSet) {
+	f.Cache.FreeSparseSet(ss)
 }
 
-// newSparseMap returns a sparse map that can store at least up to n integers.
-func (f *Func) newSparseMap(n int) *sparseMap {
-	return f.Cache.allocSparseMap(n)
+// NewSparseMap returns a sparse map that can store at least up to n integers.
+func (f *Func) NewSparseMap(n int) *SparseMap {
+	return f.Cache.AllocSparseMap(n)
 }
 
-// retSparseMap returns a sparse map to the config's cache of sparse
+// RetSparseMap returns a sparse map to the config's cache of sparse
 // sets to be reused by f.newSparseMap.
-func (f *Func) retSparseMap(ss *sparseMap) {
-	f.Cache.freeSparseMap(ss)
+func (f *Func) RetSparseMap(ss *SparseMap) {
+	f.Cache.FreeSparseMap(ss)
 }
 
-// newSparseMapPos returns a sparse map that can store at least up to n integers.
-func (f *Func) newSparseMapPos(n int) *sparseMapPos {
-	return f.Cache.allocSparseMapPos(n)
+// NewSparseMapPos returns a sparse map that can store at least up to n integers.
+func (f *Func) NewSparseMapPos(n int) *SparseMapPos {
+	return f.Cache.AllocSparseMapPos(n)
 }
 
-// retSparseMapPos returns a sparse map to the config's cache of sparse
+// RetSparseMapPos returns a sparse map to the config's cache of sparse
 // sets to be reused by f.newSparseMapPos.
-func (f *Func) retSparseMapPos(ss *sparseMapPos) {
-	f.Cache.freeSparseMapPos(ss)
+func (f *Func) RetSparseMapPos(ss *SparseMapPos) {
+	f.Cache.FreeSparseMapPos(ss)
 }
 
-// newPoset returns a new poset from the internal cache
-func (f *Func) newPoset() *poset {
+// NewPoset returns a new poset from the internal cache
+func (f *Func) NewPoset() *Poset {
 	if len(f.Cache.scrPoset) > 0 {
 		po := f.Cache.scrPoset[len(f.Cache.scrPoset)-1]
 		f.Cache.scrPoset = f.Cache.scrPoset[:len(f.Cache.scrPoset)-1]
@@ -176,14 +210,14 @@ func (f *Func) newPoset() *poset {
 	return newPoset()
 }
 
-// retPoset returns a poset to the internal cache
-func (f *Func) retPoset(po *poset) {
+// RetPoset returns a poset to the internal cache
+func (f *Func) RetPoset(po *Poset) {
 	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
 }
 
-// localSlotAddr returns a stable canonical *LocalSlot for slot, created on
+// LocalSlotAddr returns a stable canonical *LocalSlot for slot, created on
 // first use. SplitOf parents need it: f.Names holds values, not pointers.
-func (f *Func) localSlotAddr(slot LocalSlot) *LocalSlot {
+func (f *Func) LocalSlotAddr(slot LocalSlot) *LocalSlot {
 	a, ok := f.CanonicalLocalSlots[slot]
 	if !ok {
 		a = new(LocalSlot)
@@ -255,6 +289,7 @@ func (f *Func) SplitStruct(name *LocalSlot, i int) *LocalSlot {
 	st := name.Type
 	return f.SplitSlot(name, st.FieldName(i), st.FieldOff(i), st.FieldType(i))
 }
+
 func (f *Func) SplitArray(name *LocalSlot) *LocalSlot {
 	n := name.N
 	at := name.Type
@@ -273,20 +308,20 @@ func (f *Func) SplitSlot(name *LocalSlot, sfx string, offset int64, t *types.Typ
 	// Note: the _ field may appear several times.  But
 	// have no fear, identically-named but distinct Autos are
 	// ok, albeit maybe confusing for a debugger.
-	ls := f.fe.SplitSlot(name, sfx, offset, t)
+	ls := f.Fe.SplitSlot(name, sfx, offset, t)
 	f.CanonicalLocalSplits[lssk] = &ls
 	return &ls
 }
 
-// newValue allocates a new Value with the given fields and places it at the end of b.Values.
-func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
+// NewValue allocates a new Value with the given fields and places it at the end of b.Values.
+func (f *Func) NewValue(op ssaop.Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	var v *Value
-	if f.freeValues != nil {
-		v = f.freeValues
-		f.freeValues = v.argstorage[0]
-		v.argstorage[0] = nil
+	if f.FreeValues != nil {
+		v = f.FreeValues
+		f.FreeValues = v.Argstorage[0]
+		v.Argstorage[0] = nil
 	} else {
-		ID := f.vid.get()
+		ID := f.vid.Get()
 		if int(ID) < len(f.Cache.values) {
 			v = &f.Cache.values[ID]
 			v.ID = ID
@@ -297,7 +332,7 @@ func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = b
-	if notStmtBoundary(op) {
+	if NotStmtBoundary(op) {
 		pos = pos.WithNotStmt()
 	}
 	v.Pos = pos
@@ -305,18 +340,18 @@ func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	return v
 }
 
-// newValueNoBlock allocates a new Value with the given fields.
+// NewValueNoBlock allocates a new Value with the given fields.
 // The returned value is not placed in any block.  Once the caller
 // decides on a block b, it must set b.Block and append
 // the returned value to b.Values.
-func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
+func (f *Func) NewValueNoBlock(op ssaop.Op, t *types.Type, pos src.XPos) *Value {
 	var v *Value
-	if f.freeValues != nil {
-		v = f.freeValues
-		f.freeValues = v.argstorage[0]
-		v.argstorage[0] = nil
+	if f.FreeValues != nil {
+		v = f.FreeValues
+		f.FreeValues = v.Argstorage[0]
+		v.Argstorage[0] = nil
 	} else {
-		ID := f.vid.get()
+		ID := f.vid.Get()
 		if int(ID) < len(f.Cache.values) {
 			v = &f.Cache.values[ID]
 			v.ID = ID
@@ -327,7 +362,7 @@ func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = nil // caller must fix this.
-	if notStmtBoundary(op) {
+	if NotStmtBoundary(op) {
 		pos = pos.WithNotStmt()
 	}
 	v.Pos = pos
@@ -346,8 +381,8 @@ func (f *Func) LogStat(key string, args ...any) {
 		value += fmt.Sprintf("\t%v", a)
 	}
 	n := "missing_pass"
-	if f.pass != nil {
-		n = strings.ReplaceAll(f.pass.name, " ", "_")
+	if f.Pass != nil {
+		n = strings.ReplaceAll(f.Pass.Name, " ", "_")
 	}
 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
@@ -369,8 +404,8 @@ func (f *Func) unCacheLine(v *Value, aux int64) bool {
 	return false
 }
 
-// unCache removes v from f's constant cache.
-func (f *Func) unCache(v *Value) {
+// UnCache removes v from f's constant cache.
+func (f *Func) UnCache(v *Value) {
 	if v.InCache {
 		aux := v.AuxInt
 		if f.unCacheLine(v, aux) {
@@ -378,13 +413,13 @@ func (f *Func) unCache(v *Value) {
 		}
 		if aux == 0 {
 			switch v.Op {
-			case OpConstNil:
+			case ssaop.OpConstNil:
 				aux = constNilMagic
-			case OpConstSlice:
+			case ssaop.OpConstSlice:
 				aux = constSliceMagic
-			case OpConstString:
+			case ssaop.OpConstString:
 				aux = constEmptyStringMagic
-			case OpConstInterface:
+			case ssaop.OpConstInterface:
 				aux = constInterfaceMagic
 			}
 			if aux != 0 && f.unCacheLine(v, aux) {
@@ -395,8 +430,8 @@ func (f *Func) unCache(v *Value) {
 	}
 }
 
-// freeValue frees a value. It must no longer be referenced or have any args.
-func (f *Func) freeValue(v *Value) {
+// FreeValue frees a value. It must no longer be referenced or have any args.
+func (f *Func) FreeValue(v *Value) {
 	if v.Block == nil {
 		f.Fatalf("trying to free an already freed value")
 	}
@@ -409,23 +444,23 @@ func (f *Func) freeValue(v *Value) {
 	// Clear everything but ID (which we reuse).
 	id := v.ID
 	if v.InCache {
-		f.unCache(v)
+		f.UnCache(v)
 	}
 	*v = Value{}
 	v.ID = id
-	v.argstorage[0] = f.freeValues
-	f.freeValues = v
+	v.Argstorage[0] = f.FreeValues
+	f.FreeValues = v
 }
 
 // NewBlock allocates a new Block of the given kind and places it at the end of f.Blocks.
-func (f *Func) NewBlock(kind BlockKind) *Block {
+func (f *Func) NewBlock(kind block.BlockKind) *Block {
 	var b *Block
-	if f.freeBlocks != nil {
-		b = f.freeBlocks
-		f.freeBlocks = b.succstorage[0].b
-		b.succstorage[0].b = nil
+	if f.FreeBlocks != nil {
+		b = f.FreeBlocks
+		f.FreeBlocks = b.Succstorage[0].B
+		b.Succstorage[0].B = nil
 	} else {
-		ID := f.bid.get()
+		ID := f.bid.Get()
 		if int(ID) < len(f.Cache.blocks) {
 			b = &f.Cache.blocks[ID]
 			b.ID = ID
@@ -435,15 +470,15 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
 	}
 	b.Kind = kind
 	b.Func = f
-	b.Preds = b.predstorage[:0]
-	b.Succs = b.succstorage[:0]
-	b.Values = b.valstorage[:0]
+	b.Preds = b.Predstorage[:0]
+	b.Succs = b.Succstorage[:0]
+	b.Values = b.Valstorage[:0]
 	f.Blocks = append(f.Blocks, b)
-	f.invalidateCFG()
+	f.InvalidateCFG()
 	return b
 }
 
-func (f *Func) freeBlock(b *Block) {
+func (f *Func) FreeBlock(b *Block) {
 	if b.Func == nil {
 		f.Fatalf("trying to free an already freed block")
 	}
@@ -451,144 +486,144 @@ func (f *Func) freeBlock(b *Block) {
 	id := b.ID
 	*b = Block{}
 	b.ID = id
-	b.succstorage[0].b = f.freeBlocks
-	f.freeBlocks = b
+	b.Succstorage[0].B = f.FreeBlocks
+	f.FreeBlocks = b
 }
 
 // NewValue0 returns a new value in the block with no arguments and zero aux values.
-func (b *Block) NewValue0(pos src.XPos, op Op, t *types.Type) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue0(pos src.XPos, op ssaop.Op, t *types.Type) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
-	v.Args = v.argstorage[:0]
+	v.Args = v.Argstorage[:0]
 	return v
 }
 
 // NewValue0I returns a new value in the block with no arguments and an auxint value.
-func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue0I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
-	v.Args = v.argstorage[:0]
+	v.Args = v.Argstorage[:0]
 	return v
 }
 
 // NewValue0A returns a new value in the block with no arguments and an aux value.
-func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue0A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
-	v.Args = v.argstorage[:0]
+	v.Args = v.Argstorage[:0]
 	return v
 }
 
 // NewValue0IA returns a new value in the block with no arguments and both an auxint and aux values.
-func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue0IA(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, aux Aux) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
-	v.Args = v.argstorage[:0]
+	v.Args = v.Argstorage[:0]
 	return v
 }
 
 // NewValue1 returns a new value in the block with one argument and zero aux values.
-func (b *Block) NewValue1(pos src.XPos, op Op, t *types.Type, arg *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue1(pos src.XPos, op ssaop.Op, t *types.Type, arg *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
-	v.Args = v.argstorage[:1]
-	v.argstorage[0] = arg
+	v.Args = v.Argstorage[:1]
+	v.Argstorage[0] = arg
 	arg.Uses++
 	return v
 }
 
 // NewValue1I returns a new value in the block with one argument and an auxint value.
-func (b *Block) NewValue1I(pos src.XPos, op Op, t *types.Type, auxint int64, arg *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue1I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, arg *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
-	v.Args = v.argstorage[:1]
-	v.argstorage[0] = arg
+	v.Args = v.Argstorage[:1]
+	v.Argstorage[0] = arg
 	arg.Uses++
 	return v
 }
 
 // NewValue1A returns a new value in the block with one argument and an aux value.
-func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux Aux, arg *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue1A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux, arg *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
-	v.Args = v.argstorage[:1]
-	v.argstorage[0] = arg
+	v.Args = v.Argstorage[:1]
+	v.Argstorage[0] = arg
 	arg.Uses++
 	return v
 }
 
 // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
-func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue1IA(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, aux Aux, arg *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
-	v.Args = v.argstorage[:1]
-	v.argstorage[0] = arg
+	v.Args = v.Argstorage[:1]
+	v.Argstorage[0] = arg
 	arg.Uses++
 	return v
 }
 
 // NewValue2 returns a new value in the block with two arguments and zero aux values.
-func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue2(pos src.XPos, op ssaop.Op, t *types.Type, arg0, arg1 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
-	v.Args = v.argstorage[:2]
-	v.argstorage[0] = arg0
-	v.argstorage[1] = arg1
+	v.Args = v.Argstorage[:2]
+	v.Argstorage[0] = arg0
+	v.Argstorage[1] = arg1
 	arg0.Uses++
 	arg1.Uses++
 	return v
 }
 
 // NewValue2A returns a new value in the block with two arguments and one aux values.
-func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue2A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux, arg0, arg1 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
-	v.Args = v.argstorage[:2]
-	v.argstorage[0] = arg0
-	v.argstorage[1] = arg1
+	v.Args = v.Argstorage[:2]
+	v.Argstorage[0] = arg0
+	v.Argstorage[1] = arg1
 	arg0.Uses++
 	arg1.Uses++
 	return v
 }
 
 // NewValue2I returns a new value in the block with two arguments and an auxint value.
-func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue2I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, arg0, arg1 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
-	v.Args = v.argstorage[:2]
-	v.argstorage[0] = arg0
-	v.argstorage[1] = arg1
+	v.Args = v.Argstorage[:2]
+	v.Argstorage[0] = arg0
+	v.Argstorage[1] = arg1
 	arg0.Uses++
 	arg1.Uses++
 	return v
 }
 
 // NewValue2IA returns a new value in the block with two arguments and both an auxint and aux values.
-func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg0, arg1 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue2IA(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, aux Aux, arg0, arg1 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
-	v.Args = v.argstorage[:2]
-	v.argstorage[0] = arg0
-	v.argstorage[1] = arg1
+	v.Args = v.Argstorage[:2]
+	v.Argstorage[0] = arg0
+	v.Argstorage[1] = arg1
 	arg0.Uses++
 	arg1.Uses++
 	return v
 }
 
 // NewValue3 returns a new value in the block with three arguments and zero aux values.
-func (b *Block) NewValue3(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue3(pos src.XPos, op ssaop.Op, t *types.Type, arg0, arg1, arg2 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
-	v.Args = v.argstorage[:3]
-	v.argstorage[0] = arg0
-	v.argstorage[1] = arg1
-	v.argstorage[2] = arg2
+	v.Args = v.Argstorage[:3]
+	v.Argstorage[0] = arg0
+	v.Argstorage[1] = arg1
+	v.Argstorage[2] = arg2
 	arg0.Uses++
 	arg1.Uses++
 	arg2.Uses++
@@ -596,13 +631,13 @@ func (b *Block) NewValue3(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2 *
 }
 
 // NewValue3I returns a new value in the block with three arguments and an auxint value.
-func (b *Block) NewValue3I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue3I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
-	v.Args = v.argstorage[:3]
-	v.argstorage[0] = arg0
-	v.argstorage[1] = arg1
-	v.argstorage[2] = arg2
+	v.Args = v.Argstorage[:3]
+	v.Argstorage[0] = arg0
+	v.Argstorage[1] = arg1
+	v.Argstorage[2] = arg2
 	arg0.Uses++
 	arg1.Uses++
 	arg2.Uses++
@@ -610,14 +645,14 @@ func (b *Block) NewValue3I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue3A returns a new value in the block with three argument and an aux value.
-func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue3A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux, arg0, arg1, arg2 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
-	v.Args = v.argstorage[:3]
-	v.argstorage[0] = arg0
-	v.argstorage[1] = arg1
-	v.argstorage[2] = arg2
+	v.Args = v.Argstorage[:3]
+	v.Argstorage[0] = arg0
+	v.Argstorage[1] = arg1
+	v.Argstorage[2] = arg2
 	arg0.Uses++
 	arg1.Uses++
 	arg2.Uses++
@@ -625,8 +660,8 @@ func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, ar
 }
 
 // NewValue4 returns a new value in the block with four arguments and zero aux values.
-func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, arg3 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue4(pos src.XPos, op ssaop.Op, t *types.Type, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = []*Value{arg0, arg1, arg2, arg3}
 	arg0.Uses++
@@ -637,8 +672,8 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 }
 
 // NewValue4A returns a new value in the block with four arguments and zero aux values.
-func (b *Block) NewValue4A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2, arg3 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue4A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
 	v.Args = []*Value{arg0, arg1, arg2, arg3}
@@ -650,8 +685,8 @@ func (b *Block) NewValue4A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, ar
 }
 
 // NewValue4I returns a new value in the block with four arguments and auxint value.
-func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
-	v := b.Func.newValue(op, t, b, pos)
+func (b *Block) NewValue4I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = []*Value{arg0, arg1, arg2, arg3}
 	arg0.Uses++
@@ -661,8 +696,8 @@ func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 	return v
 }
 
-// constVal returns a constant value for c.
-func (f *Func) constVal(op Op, t *types.Type, c int64, setAuxInt bool) *Value {
+// ConstVal returns a constant value for c.
+func (f *Func) ConstVal(op ssaop.Op, t *types.Type, c int64, setAuxInt bool) *Value {
 	if f.constants == nil {
 		f.constants = make(map[int64][]*Value)
 	}
@@ -686,82 +721,84 @@ func (f *Func) constVal(op Op, t *types.Type, c int64, setAuxInt bool) *Value {
 	return v
 }
 
-// These magic auxint values let us easily cache non-numeric constants
-// using the same constants map while making collisions unlikely.
-// These values are unlikely to occur in regular code and
-// are easy to grep for in case of bugs.
-const (
-	constSliceMagic       = 1122334455
-	constInterfaceMagic   = 2233445566
-	constNilMagic         = 3344556677
-	constEmptyStringMagic = 4455667788
-)
-
 // ConstBool returns an int constant representing its argument.
 func (f *Func) ConstBool(t *types.Type, c bool) *Value {
 	i := int64(0)
 	if c {
 		i = 1
 	}
-	return f.constVal(OpConstBool, t, i, true)
+	return f.ConstVal(ssaop.OpConstBool, t, i, true)
 }
+
 func (f *Func) ConstInt8(t *types.Type, c int8) *Value {
-	return f.constVal(OpConst8, t, int64(c), true)
+	return f.ConstVal(ssaop.OpConst8, t, int64(c), true)
 }
+
 func (f *Func) ConstInt16(t *types.Type, c int16) *Value {
-	return f.constVal(OpConst16, t, int64(c), true)
+	return f.ConstVal(ssaop.OpConst16, t, int64(c), true)
 }
+
 func (f *Func) ConstInt32(t *types.Type, c int32) *Value {
-	return f.constVal(OpConst32, t, int64(c), true)
+	return f.ConstVal(ssaop.OpConst32, t, int64(c), true)
 }
+
 func (f *Func) ConstInt64(t *types.Type, c int64) *Value {
-	return f.constVal(OpConst64, t, c, true)
+	return f.ConstVal(ssaop.OpConst64, t, c, true)
 }
+
 func (f *Func) ConstFloat32(t *types.Type, c float64) *Value {
-	return f.constVal(OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
+	return f.ConstVal(ssaop.OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
 }
+
 func (f *Func) ConstFloat64(t *types.Type, c float64) *Value {
-	return f.constVal(OpConst64F, t, int64(math.Float64bits(c)), true)
+	return f.ConstVal(ssaop.OpConst64F, t, int64(math.Float64bits(c)), true)
 }
 
 func (f *Func) ConstSlice(t *types.Type) *Value {
-	return f.constVal(OpConstSlice, t, constSliceMagic, false)
+	return f.ConstVal(ssaop.OpConstSlice, t, constSliceMagic, false)
 }
+
 func (f *Func) ConstInterface(t *types.Type) *Value {
-	return f.constVal(OpConstInterface, t, constInterfaceMagic, false)
+	return f.ConstVal(ssaop.OpConstInterface, t, constInterfaceMagic, false)
 }
+
 func (f *Func) ConstNil(t *types.Type) *Value {
-	return f.constVal(OpConstNil, t, constNilMagic, false)
+	return f.ConstVal(ssaop.OpConstNil, t, constNilMagic, false)
 }
+
 func (f *Func) ConstEmptyString(t *types.Type) *Value {
-	v := f.constVal(OpConstString, t, constEmptyStringMagic, false)
+	v := f.ConstVal(ssaop.OpConstString, t, constEmptyStringMagic, false)
 	v.Aux = StringToAux("")
 	return v
 }
+
 func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
-	v := f.constVal(OpOffPtr, t, c, true)
+	v := f.ConstVal(ssaop.OpOffPtr, t, c, true)
 	if len(v.Args) == 0 {
 		v.AddArg(sp)
 	}
 	return v
 }
 
-func (f *Func) Frontend() Frontend                          { return f.fe }
-func (f *Func) Warnl(pos src.XPos, msg string, args ...any) { f.fe.Warnl(pos, msg, args...) }
-func (f *Func) Logf(msg string, args ...any)                { f.fe.Logf(msg, args...) }
-func (f *Func) Log() bool                                   { return f.fe.Log() }
+func (f *Func) Frontend() Frontend { return f.Fe }
 
-func (f *Func) Fatalf(msg string, args ...any) {
-	stats := "crashed"
+func (f *Func) Warnl(pos src.XPos, msg string, args ...any) { f.Fe.Warnl(pos, msg, args...) }
+
+func (f *Func) Logf(msg string, args ...any) { f.Fe.Logf(msg, args...) }
+
+func (f *Func) Log() bool { return f.Fe.Log() }
+
+func (f *Func) Fatalf(msg string, args ...any) { f.FatalfWithPos(f.Entry.Pos, msg, args...) }
+
+func (f *Func) FatalfWithPos(pos src.XPos, msg string, args ...any) {
 	if f.Log() {
-		f.Logf("  pass %s end %s\n", f.pass.name, stats)
-		printFunc(f)
+		f.Logf("  pass %s end crashed\n", f.Pass.Name)
+		PrintFunc(f)
 	}
-	if f.HTMLWriter != nil {
-		f.HTMLWriter.WritePhase(f.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", f.pass.name, stats))
-		f.HTMLWriter.flushPhases()
+	if f.FatalCleanup != nil {
+		f.FatalCleanup()
 	}
-	f.fe.Fatalf(f.Entry.Pos, msg, args...)
+	f.Fe.Fatalf(pos, msg, args...)
 }
 
 // postorder returns the reachable blocks in f in a postorder traversal.
@@ -780,7 +817,7 @@ func (f *Func) Postorder() []*Block {
 // f.Entry.ID maps to nil. Unreachable blocks map to nil as well.
 func (f *Func) Idom() []*Block {
 	if f.cachedIdom == nil {
-		f.cachedIdom = dominators(f)
+		f.cachedIdom = Dominators(f)
 	}
 	return f.cachedIdom
 }
@@ -789,21 +826,21 @@ func (f *Func) Idom() []*Block {
 // among the blocks of f.
 func (f *Func) Sdom() SparseTree {
 	if f.cachedSdom == nil {
-		f.cachedSdom = newSparseTree(f, f.Idom())
+		f.cachedSdom = NewSparseTree(f, f.Idom())
 	}
 	return f.cachedSdom
 }
 
-// loopnest returns the loop nest information for f.
-func (f *Func) loopnest() *loopnest {
+// Loopnest returns the loop nest information for f.
+func (f *Func) Loopnest() *LoopNest {
 	if f.cachedLoopnest == nil {
-		f.cachedLoopnest = loopnestfor(f)
+		f.cachedLoopnest = Loopnestfor(f)
 	}
 	return f.cachedLoopnest
 }
 
-// invalidateCFG tells f that its CFG has changed.
-func (f *Func) invalidateCFG() {
+// InvalidateCFG tells f that its CFG has changed.
+func (f *Func) InvalidateCFG() {
 	f.cachedPostorder = nil
 	f.cachedIdom = nil
 	f.cachedSdom = nil
@@ -821,17 +858,17 @@ func (f *Func) DebugHashMatch() bool {
 	if !base.HasDebugHash() {
 		return true
 	}
-	sym := f.fe.Func().Sym()
+	sym := f.Fe.Func().Sym()
 	return base.DebugHashMatchPkgFunc(sym.Pkg.Path, sym.Name)
 }
 
-func (f *Func) spSb() (sp, sb *Value) {
+func (f *Func) SpSb() (sp, sb *Value) {
 	initpos := src.NoXPos // These are originally created with no position in ssa.go; if they are optimized out then recreated, should be the same.
 	for _, v := range f.Entry.Values {
-		if v.Op == OpSB {
+		if v.Op == ssaop.OpSB {
 			sb = v
 		}
-		if v.Op == OpSP {
+		if v.Op == ssaop.OpSP {
 			sp = v
 		}
 		if sb != nil && sp != nil {
@@ -839,17 +876,17 @@ func (f *Func) spSb() (sp, sb *Value) {
 		}
 	}
 	if sb == nil {
-		sb = f.Entry.NewValue0(initpos.WithNotStmt(), OpSB, f.Config.Types.Uintptr)
+		sb = f.Entry.NewValue0(initpos.WithNotStmt(), ssaop.OpSB, f.Config.Types.Uintptr)
 	}
 	if sp == nil {
-		sp = f.Entry.NewValue0(initpos.WithNotStmt(), OpSP, f.Config.Types.Uintptr)
+		sp = f.Entry.NewValue0(initpos.WithNotStmt(), ssaop.OpSP, f.Config.Types.Uintptr)
 	}
 	return
 }
 
-// useFMA allows targeted debugging w/ GOFMAHASH
+// UseFMA allows targeted debugging w/ GOFMAHASH
 // If you have an architecture-dependent FP glitch, this will help you find it.
-func (f *Func) useFMA(v *Value) bool {
+func (f *Func) UseFMA(v *Value) bool {
 	if base.FmaHash == nil {
 		return true
 	}
@@ -858,25 +895,7 @@ func (f *Func) useFMA(v *Value) bool {
 
 // NewLocal returns a new anonymous local variable of the given type.
 func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
-	nn := typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
+	nn := typecheck.TempAt(pos, f.Fe.Func(), typ) // Note: adds new auto to fn.Dcl list
 	nn.SetNonMergeable(true)
 	return nn
-}
-
-// IsMergeCandidate returns true if variable n could participate in
-// stack slot merging. For now we're restricting the set to things to
-// items larger than what CanSSA would allow (approximateky, we disallow things
-// marked as open defer slots so as to avoid complicating liveness
-// analysis.
-func IsMergeCandidate(n *ir.Name) bool {
-	if base.Debug.MergeLocals == 0 ||
-		base.Flag.N != 0 ||
-		n.Class != ir.PAUTO ||
-		n.Type().Size() <= int64(3*types.PtrSize) ||
-		n.Addrtaken() ||
-		n.NonMergeable() ||
-		n.OpenDeferSlot() {
-		return false
-	}
-	return true
 }

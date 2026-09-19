@@ -3,7 +3,6 @@
 # Verifies golang.org/issue/51589
 
 # download the modules first
-env GO111MODULE=on
 env GOPATH=$WORK/gopath
 cd $WORK/x
 go mod tidy

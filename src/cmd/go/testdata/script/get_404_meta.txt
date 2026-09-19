@@ -1,10 +1,8 @@
 # golang.org/issue/13037: 'go get' was not parsing <meta> tags in 404 served over HTTPS.
 
-[short] skip
 [!git] skip
 
 env GONOSUMDB=vcs-test.golang.org
-env GO111MODULE=on
 env GOPROXY=direct
 go get -x vcs-test.golang.org/go/get_404_meta
 stderr 'get https://vcs-test.golang.org/go/get_404_meta\?go-get=1: 404 Not Found'

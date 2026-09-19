@@ -14,7 +14,6 @@
 # SVN_SSH="ssh -o StrictHostKeyChecking=no" didn't avoid the prompt.
 env SVN_SSH="svn_do_not_use_ssh"
 
-env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 

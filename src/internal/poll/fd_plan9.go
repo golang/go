@@ -79,6 +79,9 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 	if isInterrupted(err) {
 		err = ErrDeadlineExceeded
 	}
+	if fd.closing() {
+		err = errClosing(fd.isFile)
+	}
 	return n, err
 }
 

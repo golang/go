@@ -99,11 +99,6 @@ type Client struct {
 	//
 	// The Client cancels requests to the underlying Transport
 	// as if the Request's Context ended.
-	//
-	// For compatibility, the Client will also use the deprecated
-	// CancelRequest method on Transport if found. New
-	// RoundTripper implementations should use the Request's Context
-	// for cancellation instead of implementing CancelRequest.
 	Timeout time.Duration
 }
 
@@ -242,7 +237,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		}
 	}
 
-	// Most the callers of send (Get, Post, et al) don't need
+	// Most of the callers of send (Get, Post, et al) don't need
 	// Headers, leaving it uninitialized. We guarantee to the
 	// Transport that this has been initialized, though.
 	if req.Header == nil {
@@ -347,14 +342,14 @@ func knownRoundTripperImpl(rt RoundTripper, req *Request) bool {
 }
 
 // setRequestCancel sets req.Cancel and adds a deadline context to req
-// if deadline is non-zero. The RoundTripper's type is used to
-// determine whether the legacy CancelRequest behavior should be used.
+// if deadline is non-zero.
 //
-// As background, there are three ways to cancel a request:
-// First was Transport.CancelRequest. (deprecated)
+// As background, there are (or were) three ways to cancel a request:
+// First was Transport.CancelRequest. (deprecated, no longer supported)
 // Second was Request.Cancel.
 // Third was Request.Context.
-// This function populates the second and third, and uses the first if it really needs to.
+//
+// This function populates Request.Cancel and Request.Context.
 func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTimer func(), didTimeout func() bool) {
 	if deadline.IsZero() {
 		return nop, alwaysFalse
@@ -383,17 +378,6 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	cancel := make(chan struct{})
 	req.Cancel = cancel
 
-	doCancel := func() {
-		// The second way in the func comment above:
-		close(cancel)
-		// The first way, used only for RoundTripper
-		// implementations written before Go 1.5 or Go 1.6.
-		type canceler interface{ CancelRequest(*Request) }
-		if v, ok := rt.(canceler); ok {
-			v.CancelRequest(req)
-		}
-	}
-
 	stopTimerCh := make(chan struct{})
 	stopTimer = sync.OnceFunc(func() {
 		close(stopTimerCh)
@@ -408,11 +392,11 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	go func() {
 		select {
 		case <-initialReqCancel:
-			doCancel()
+			close(cancel)
 			timer.Stop()
 		case <-timer.C:
 			timedOut.Store(true)
-			doCancel()
+			close(cancel)
 		case <-stopTimerCh:
 			timer.Stop()
 		}
@@ -518,11 +502,21 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 		shouldRedirect = true
 		includeBody = false
 
-		// RFC 2616 allowed automatic redirection only with GET and
-		// HEAD requests. RFC 7231 lifts this restriction, but we still
-		// restrict other methods to GET to maintain compatibility.
-		// See Issue 18570.
-		if reqMethod != "GET" && reqMethod != "HEAD" {
+		// RFC 10008, Section 2.5: QUERY is safe and idempotent, so 301
+		// and 302 preserve the method and re-send the body (as 307 and
+		// 308 do); only 303 changes the method to GET.
+		if reqMethod == "QUERY" && resp.StatusCode != 303 {
+			includeBody = true
+			if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
+				// We had a request body, and 301/302 require
+				// re-sending it, but GetBody is not defined.
+				shouldRedirect = false
+			}
+		} else if reqMethod != "GET" && reqMethod != "HEAD" {
+			// RFC 2616 allowed automatic redirection only with GET and
+			// HEAD requests. RFC 7231 lifts this restriction, but we still
+			// restrict other methods to GET to maintain compatibility.
+			// See Issue 18570.
 			redirectMethod = "GET"
 		}
 	case 307, 308:

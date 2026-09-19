@@ -6,6 +6,8 @@ package work
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
@@ -13,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
@@ -53,16 +56,18 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, compile *shellCmd, err error) {
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
-	if archive != "" {
-		ofile = archive
-	} else {
-		out := "_go_.o"
-		ofile = objdir + out
+	// TODO(matloob): Support early export on Windows.
+	hasObjectAction := slices.ContainsFunc(a.triggers, func(t *Action) bool { return t.Mode == "build" && t.Package == a.Package })
+	goosSupported := runtime.GOOS != "windows" && runtime.GOOS != "plan9"
+	earlyExport := export != "" && hasObjectAction && goosSupported && !(cfg.BuildN || cfg.BuildX)
+	if export == "" {
+		export = objdir + "_go_.x"
 	}
+	ofile = objdir + "_go_.o"
 
 	pkgpath := pkgPath(a)
 	defaultGcFlags := []string{"-p", pkgpath}
@@ -126,36 +131,50 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Internal.FuzzInstrument {
 		gcflags = append(gcflags, fuzzInstrumentFlags()...)
 	}
+	if importcfg != nil {
+		if err := sh.writeFile(objdir+"importcfg", importcfg); err != nil {
+			return "", nil, nil, err
+		}
+	}
+	if embedcfg != nil {
+		if err := sh.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+			return "", nil, nil, err
+		}
+	}
+	var pipeR, pipeW *os.File
+	var extraFiles []*os.File
+	if earlyExport {
+		pipeR, pipeW, err = os.Pipe()
+		if err != nil {
+			return "", nil, nil, err
+		}
+		defer pipeR.Close()
+		extraFiles = []*os.File{pipeW}
+	}
+
 	// Add -c=N to use concurrent backend compilation, if possible.
 	c, release := compilerConcurrency()
-	defer release()
 	if c > 1 {
 		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
 	}
 
-	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", export, "-linkobj", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
 	if p.Internal.LocalPrefix == "" {
 		args = append(args, "-nolocalimports")
 	} else {
 		args = append(args, "-D", p.Internal.LocalPrefix)
 	}
 	if importcfg != nil {
-		if err := sh.writeFile(objdir+"importcfg", importcfg); err != nil {
-			return "", nil, err
-		}
 		args = append(args, "-importcfg", objdir+"importcfg")
 	}
 	if embedcfg != nil {
-		if err := sh.writeFile(objdir+"embedcfg", embedcfg); err != nil {
-			return "", nil, err
-		}
 		args = append(args, "-embedcfg", objdir+"embedcfg")
-	}
-	if ofile == archive {
-		args = append(args, "-pack")
 	}
 	if asmhdr {
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
+	}
+	if earlyExport {
+		args = append(args, "-exportfd=3")
 	}
 
 	for _, f := range gofiles {
@@ -175,8 +194,22 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		// code that uses those values to expect absolute paths.
 		args = append(args, fsys.Actual(f))
 	}
-	output, err = sh.runOut(base.Cwd(), cfgChangedEnv, args...)
-	return ofile, output, err
+	sc, err := sh.startOut(base.Cwd(), cfgChangedEnv, extraFiles, release, args...)
+	// If -n is provided sc will always be nil because we don't actually start a command.
+	if err != nil || sc == nil {
+		release()
+		return ofile, nil, nil, err
+	}
+	if !earlyExport {
+		output, err = sc.wait()
+		return ofile, output, nil, err
+	}
+	var ping [1]byte
+	if _, err := pipeR.Read(ping[:]); err != nil {
+		output, werr := sc.wait()
+		return ofile, output, nil, errors.Join(err, werr)
+	}
+	return ofile, nil, sc, nil
 }
 
 // compilerConcurrency returns the compiler concurrency level for a package compilation.
@@ -506,6 +539,22 @@ func packInternal(afile string, ofiles []string) error {
 			src.Close()
 			return err
 		}
+		if filepath.Base(ofile) == "_go_.o" {
+			header := []byte("!<arch>\n")
+			b := make([]byte, len(header))
+			// If this is an archive, copy the inner entries over.
+			if _, err := io.ReadFull(src, b[:]); err == nil && bytes.Equal(header, b) {
+				_, err := io.Copy(w, src)
+				src.Close()
+				if err != nil {
+					return fmt.Errorf("copying %s to %s: %v", ofile, afile, err)
+				}
+				continue
+			}
+			// Otherwise, seek back to the beginning and continue to add
+			// the full file to the archive.
+			src.Seek(0, 0)
+		}
 		// Note: Not using %-16.16s format because we care
 		// about bytes, not runes.
 		name := fi.Name()
@@ -571,14 +620,14 @@ func pluginPath(a *Action) string {
 		// For linking, use the main package's build ID instead of
 		// the binary's build ID, so it is the same hash used in
 		// compiling and linking.
-		// When compiling, we use actionID/actionID (instead of
-		// actionID/contentID) as a temporary build ID to compute
+		// When compiling, we use actionID/actionID/actionID, instead of
+		// actionID/contentID(export)/contentID(object), as a temporary build ID to compute
 		// the hash. Do the same here. (See buildid.go:useCache)
 		// The build ID matters because it affects the overall hash
 		// in the plugin's pseudo-import path returned below.
 		// We need to use the same import path when compiling and linking.
 		id := strings.Split(buildID, buildIDSeparator)
-		buildID = id[1] + buildIDSeparator + id[1]
+		buildID = id[1] + buildIDSeparator + id[1] + buildIDSeparator + id[1]
 	}
 	fmt.Fprintf(h, "build ID: %s\n", buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {

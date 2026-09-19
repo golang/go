@@ -1508,6 +1508,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == obj.REG_NONE {
 			r = o.param
 		}
+		if p.From.Reg == REGTMP {
+			c.ctxt.Diag("cannot store REGTMP to large offset (REGTMP needed for address materialization): %v", p)
+		}
 		v := c.regoff(&p.To)
 		o1 = OP_IRR(c.opirr(ALUI), uint32((v+1<<15)>>16), REGZERO, REGTMP)
 		o2 = OP_RRR(c.oprrr(add), r, REGTMP, REGTMP)

@@ -13,16 +13,16 @@ start:
 	// 2.4: Integer Computational Instructions
 	ADDI	$2047, X5				// 9382f27f
 	ADDI	$-2048, X5				// 93820280
-	ADDI	$2048, X5				// 9382024093820240
-	ADDI	$-2049, X5				// 938202c09382f2bf
+	ADDI	$2048, X5				// 9382f27f93821200
+	ADDI	$-2049, X5				// 938202809382f2ff
 	ADDI	$4094, X5				// 9382f27f9382f27f
 	ADDI	$-4096, X5				// 9382028093820280
 	ADDI	$4095, X5				// b71f00009b8fffffb382f201
 	ADDI	$-4097, X5				// b7ffffff9b8fffffb382f201
 	ADDI	$2047, X5, X6				// 1383f27f
 	ADDI	$-2048, X5, X6				// 13830280
-	ADDI	$2048, X5, X6				// 1383024013030340
-	ADDI	$-2049, X5, X6				// 138302c01303f3bf
+	ADDI	$2048, X5, X6				// 1383f27f13031300
+	ADDI	$-2049, X5, X6				// 138302801303f3ff
 	ADDI	$4094, X5, X6				// 1383f27f1303f37f
 	ADDI	$-4096, X5, X6				// 1383028013030380
 	ADDI	$4095, X5, X6				// b71f00009b8fffff3383f201
@@ -2017,6 +2017,10 @@ start:
 	VRORVX		X10, V2, V0, V3			// d7412550
 	VRORVI		$16, V2, V3			// d7312852
 	VRORVI		$16, V2, V0, V3			// d7312850
+	VRORVI		$32, V2, V3			// d7312056
+	VRORVI		$32, V2, V0, V3			// d7312054
+	VRORVI		$63, V2, V3			// d7b12f56
+	VRORVI		$63, V2, V0, V3			// d7b12f54
 	VWSLLVV		V1, V2, V3			// d78120d6
 	VWSLLVV		V1, V2, V0, V3			// d78120d4
 	VWSLLVX		X10, V2, V3			// d74125d6
@@ -2033,6 +2037,37 @@ start:
 	VCLMULHVV	V1, V2, V0, V3			// d7a12034
 	VCLMULHVX	X10, V2, V3			// d7612536
 	VCLMULHVX	X10, V2, V0, V3			// d7612534
+
+	// 32.2.4: Vector GCM/GMAC
+	VGHSHVV		V1, V2, V3			// f7a120b2
+	VGMULVV		V1, V2				// 77a118a2
+
+	// 32.2.5: NIST Suite: Vector AES Block Cipher
+	VAESEFVV	V1, V2				// 77a111a2
+	VAESEFVS	V1, V2				// 77a111a6
+	VAESEMVV	V1, V2				// 772111a2
+	VAESEMVS	V1, V2				// 772111a6
+	VAESDFVV	V1, V2				// 77a110a2
+	VAESDFVS	V1, V2				// 77a110a6
+	VAESDMVV	V1, V2				// 772110a2
+	VAESDMVS	V1, V2				// 772110a6
+	VAESKF1VI	$16, V2, V3			// f721288a
+	VAESKF2VI	$16, V2, V3			// f72128aa
+	VAESZVS		V1, V2				// 77a113a6
+
+	// 32.2.6: NIST Suite: Vector SHA-2 Secure Hash
+	VSHA2MSVV	V1, V2, V3			// f7a120b6
+	VSHA2CHVV	V1, V2, V3			// f7a120ba
+	VSHA2CLVV	V1, V2, V3			// f7a120be
+
+	// 32.2.7: ShangMi Suite: SM4 Block Cipher
+	VSM4KVI		$16, V2, V3			// f7212886
+	VSM4RVV		V1, V2				// 772118a2
+	VSM4RVS		V1, V2				// 772118a6
+
+	// 32.2.8: ShangMi Suite: SM3 Secure Hash
+	VSM3MEVV	V1, V2, V3			// f7a12082
+	VSM3CVI		$16, V2, V3			// f72128ae
 
 	//
 	// Privileged ISA
@@ -2096,6 +2131,25 @@ start:
 	MOVH	X5, 4(X6)				// 23125300
 	MOVW	X5, (X6)				// 23205300
 	MOVW	X5, 4(X6)				// 23225300
+
+	// Offsets that do not fit in a signed 12-bit immediate, but are the sum
+	// of two signed 12-bit immediates, only need an additional ADDI.
+	MOV	2047(X5), X6				// 03b3f27f
+	MOV	2048(X5), X6				// 938ff27f03b31f00
+	MOV	4094(X5), X6				// 938ff27f03b3ff7f
+	MOV	4095(X5), X6				// b71f0000b38f5f0003b3ffff
+	MOV	-2048(X5), X6				// 03b30280
+	MOV	-2049(X5), X6				// 938f028003b3ffff
+	MOV	-4096(X5), X6				// 938f028003b30f80
+	MOV	-4097(X5), X6				// b7ffffffb38f5f0003b3ffff
+	MOV	X5, 2047(X6)				// a33f537e
+	MOV	X5, 2048(X6)				// 930ff37fa3b05f00
+	MOV	X5, 4094(X6)				// 930ff37fa3bf5f7e
+	MOV	X5, 4095(X6)				// b71f0000b38f6f00a3bf5ffe
+	MOV	X5, -2048(X6)				// 23305380
+	MOV	X5, -2049(X6)				// 930f0380a3bf5ffe
+	MOV	X5, -4096(X6)				// 930f038023b05f80
+	MOV	X5, -4097(X6)				// b7ffffffb38f6f00a3bf5ffe
 
 	MOVB	X5, X6					// 1393820313538343 or 13934260
 	MOVH	X5, X6					// 1393020313530343 or 13935260

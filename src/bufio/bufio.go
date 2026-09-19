@@ -745,36 +745,55 @@ func (b *Writer) WriteRune(r rune) (size int, err error) {
 // If the count is less than len(s), it also returns an error explaining
 // why the write is short.
 func (b *Writer) WriteString(s string) (int, error) {
-	var sw io.StringWriter
-	tryStringWriter := true
+	if b.err != nil {
+		return 0, b.err
+	}
 
-	nn := 0
-	for len(s) > b.Available() && b.err == nil {
+	if len(s) <= b.Available() {
+		// Fast path: the whole string fits in the buffer.
+		n := copy(b.buf[b.n:], s)
+		b.n += n
+		return n, nil
+	}
+
+	sw, ok := b.wr.(io.StringWriter)
+
+	total := 0
+	if ok && b.Buffered() == 0 {
+		// Large write, empty buffer, and the underlying writer supports
+		// WriteString: forward the write to the underlying StringWriter.
+		// This avoids an extra copy.
 		var n int
-		if b.Buffered() == 0 && sw == nil && tryStringWriter {
-			// Check at most once whether b.wr is a StringWriter.
-			sw, tryStringWriter = b.wr.(io.StringWriter)
+		n, b.err = sw.WriteString(s)
+		if n == len(s) || b.err != nil {
+			return n, b.err
 		}
-		if b.Buffered() == 0 && tryStringWriter {
-			// Large write, empty buffer, and the underlying writer supports
-			// WriteString: forward the write to the underlying StringWriter.
-			// This avoids an extra copy.
+		total = n
+		s = s[n:]
+	}
+
+	for {
+		var n int
+		if ok && b.Buffered() == 0 {
 			n, b.err = sw.WriteString(s)
 		} else {
 			n = copy(b.buf[b.n:], s)
 			b.n += n
 			b.Flush()
 		}
-		nn += n
+		total += n
 		s = s[n:]
+		if len(s) <= b.Available() || b.err != nil {
+			break
+		}
 	}
 	if b.err != nil {
-		return nn, b.err
+		return total, b.err
 	}
 	n := copy(b.buf[b.n:], s)
 	b.n += n
-	nn += n
-	return nn, nil
+	total += n
+	return total, nil
 }
 
 // ReadFrom implements [io.ReaderFrom]. If the underlying writer

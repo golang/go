@@ -1,5 +1,4 @@
 # For issue 41355
-[short] skip
 
 # This test could fail if the testing package does not wait until
 # a panicking test does the panic. Turn off multithreading and GC

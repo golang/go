@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # get should add modules needed to build packages, even if those
 # dependencies are in sources excluded by build tags.
 # All build tags are considered true except "ignore".

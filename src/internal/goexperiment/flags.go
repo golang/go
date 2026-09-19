@@ -116,9 +116,6 @@ type Flags struct {
 	// RuntimeFreegc enables the runtime to free and reuse memory more eagerly in some circumstances with compiler help.
 	RuntimeFreegc bool
 
-	// SizeSpecializedMalloc enables malloc implementations that are specialized per size class.
-	SizeSpecializedMalloc bool
-
 	// SIMD enables the simd package and the compiler's handling
 	// of SIMD intrinsics.
 	SIMD bool
@@ -130,4 +127,7 @@ type Flags struct {
 	// from interleaved key/elem slots (KVKVKVKV) to split key and elem
 	// arrays (KKKKVVVV).
 	MapSplitGroup bool
+
+	// GoListExportNewFormat enables the new format for go list -export.
+	GoListExportNewFormat bool
 }

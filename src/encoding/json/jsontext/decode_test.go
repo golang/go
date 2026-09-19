@@ -1347,4 +1347,13 @@ func TestDecoderReset(t *testing.T) {
 			t.Fatalf("decoder buffer aliases bytes.Buffer")
 		}
 	})
+
+	t.Run("Test ability to reset nil reader", func(t *testing.T) {
+		defer func() {
+			if recover() != nil {
+				t.Fatalf("decoder.Reset(nil) shouldn`t panic")
+			}
+		}()
+		dec.Reset(nil)
+	})
 }

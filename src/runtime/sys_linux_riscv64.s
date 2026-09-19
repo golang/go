@@ -224,8 +224,8 @@ TEXT runtime·walltime(SB),NOSPLIT,$40-12
 	MOV	(g_sched+gobuf_sp)(T1), X2
 
 noswitch:
-	SUB	$24, X2 // Space for result
-	ANDI	$~7, X2 // Align for C code
+	SUB	$24, X2  // Space for result
+	ANDI	$~15, X2 // Align for C code (16-byte alignment per C ABI)
 	MOV	$8(X2), A1
 
 	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
@@ -296,8 +296,8 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$40-8
 	MOV	(g_sched+gobuf_sp)(T1), X2
 
 noswitch:
-	SUB	$24, X2 // Space for result
-	ANDI	$~7, X2 // Align for C code
+	SUB	$24, X2  // Space for result
+	ANDI	$~15, X2 // Align for C code (16-byte alignment per C ABI)
 	MOV	$8(X2), A1
 
 	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
@@ -347,6 +347,53 @@ fallback:
 	MOV	T0, ret+0(FP)
 	RET
 
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$40-48
+	MOV	X2, X18
+	MOV	runtime·vdsoGetrandomSym(SB), X28
+	MOV	g_m(g), X19
+
+	MOV	m_vdsoPC(X19), X6
+	MOV	X6, 24(X2)
+	MOV	m_vdsoSP(X19), X7
+	MOV	X7, 32(X2)
+
+	MOV	X1, m_vdsoPC(X19)
+	MOV	$ret-8(FP), X6	// caller's SP
+	MOV	X6, m_vdsoSP(X19)
+
+	MOV	m_curg(X19), X7
+	BNE	g, X7, noswitch
+	MOV	m_g0(X19), X7
+	MOV	(g_sched+gobuf_sp)(X7), X2
+noswitch:
+	ANDI	$~15, X2	// 16-byte align SP for vDSO (per RISC-V psABI)
+
+	MOVBU	runtime·iscgo(SB), X20
+	BNEZ	X20, nosaveg
+	MOV	m_gsignal(X19), X20
+	BEQZ	X20, nosaveg
+	BEQ	g, X20, nosaveg
+	MOV	(g_stack+stack_lo)(X20), X20
+	MOV	g, (X20)
+
+	JALR	X1, X28
+
+	MOV	ZERO, (X20)
+	JMP	restore
+
+nosaveg:
+	JALR	X1, X28
+
+restore:
+	MOV	X18, X2
+	MOV	24(X2), X6
+	MOV	X6, m_vdsoPC(X19)
+	MOV	32(X2), X7
+	MOV	X7, m_vdsoSP(X19)
+	ADD	$0, X10, X10 // return value from vDSO
+	RET
+
 // func rtsigprocmask(how int32, new, old *sigset, size int32)
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), A0
@@ -376,10 +423,35 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	RET
 
 // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
-TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$224
 	MOVW	A0, 8(X2)
 	MOV	A1, 16(X2)
 	MOV	A2, 24(X2)
+
+	MOV	X8, 32(X2)
+	MOV	X9, 40(X2)
+	MOV	X18, 48(X2)
+	MOV	X19, 56(X2)
+	MOV	X20, 64(X2)
+	MOV	X21, 72(X2)
+	MOV	X22, 80(X2)
+	MOV	X23, 88(X2)
+	MOV	X24, 96(X2)
+	MOV	X25, 104(X2)
+	MOV	X26, 112(X2)
+	MOV	g, 120(X2)
+	MOVD	F8, 128(X2)
+	MOVD	F9, 136(X2)
+	MOVD	F18, 144(X2)
+	MOVD	F19, 152(X2)
+	MOVD	F20, 160(X2)
+	MOVD	F21, 168(X2)
+	MOVD	F22, 176(X2)
+	MOVD	F23, 184(X2)
+	MOVD	F24, 192(X2)
+	MOVD	F25, 200(X2)
+	MOVD	F26, 208(X2)
+	MOVD	F27, 216(X2)
 
 	// this might be called in external code context,
 	// where g is not set.
@@ -389,6 +461,31 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 
 	MOV	$runtime·sigtrampgo(SB), A0
 	JALR	RA, A0
+
+	MOV	32(X2), X8
+	MOV	40(X2), X9
+	MOV	48(X2), X18
+	MOV	56(X2), X19
+	MOV	64(X2), X20
+	MOV	72(X2), X21
+	MOV	80(X2), X22
+	MOV	88(X2), X23
+	MOV	96(X2), X24
+	MOV	104(X2), X25
+	MOV	112(X2), X26
+	MOV	120(X2), g
+	MOVD	128(X2), F8
+	MOVD	136(X2), F9
+	MOVD	144(X2), F18
+	MOVD	152(X2), F19
+	MOVD	160(X2), F20
+	MOVD	168(X2), F21
+	MOVD	176(X2), F22
+	MOVD	184(X2), F23
+	MOVD	192(X2), F24
+	MOVD	200(X2), F25
+	MOVD	208(X2), F26
+	MOVD	216(X2), F27
 	RET
 
 // func cgoSigtramp()
@@ -398,8 +495,12 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 
 // func callCgoSigaction(sig uintptr, new, old *sigactiont) int32
 TEXT runtime·callCgoSigaction<ABIInternal>(SB),NOSPLIT,$0
+	MOV	X2, X9		// save SP in X9 (callee-saved in C ABI)
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
+	MOV	X0, X8		// clear frame pointer (see asmcgocall)
 	MOV	_cgo_sigaction(SB), A7
 	JALR	X1, A7
+	MOV	X9, X2
 	MOV	X10, X10 // return value from C, NOP OP
 	RET
 
@@ -427,15 +528,23 @@ TEXT runtime·sysMunmap<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 
 // func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr
 TEXT runtime·callCgoMmap<ABIInternal>(SB),NOSPLIT,$0
+	MOV	X2, X9		// save SP in X9 (callee-saved in C ABI)
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
+	MOV	X0, X8		// clear frame pointer (see asmcgocall)
 	MOV	_cgo_mmap(SB), A7
 	JALR	X1, A7
+	MOV	X9, X2
 	MOV	X10, X10 // return value from C, NOP OP
 	RET
 
 // func callCgoMunmap(addr unsafe.Pointer, n uintptr)
 TEXT runtime·callCgoMunmap<ABIInternal>(SB),NOSPLIT,$0
+	MOV	X2, X9		// save SP in X9 (callee-saved in C ABI)
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
+	MOV	X0, X8		// clear frame pointer (see asmcgocall)
 	MOV	_cgo_munmap(SB), A7
 	JALR	X1, A7
+	MOV	X9, X2
 	RET
 
 // func madvise(addr unsafe.Pointer, n uintptr, flags int32)

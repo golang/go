@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/buildcfg"
+	"internal/platform"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,6 +46,7 @@ func scriptConditions(t *testing.T) map[string]script.Cond {
 	add("git-sha256", script.OnceCondition("the local 'git' version is recent enough to support sha256 object/commit hashes", gitSupportsSHA256))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
 	add("default-cgo", lazyBool("when CGO_ENABLED=1|0 was set in make.bash", defaultCgo))
+	add("default-pie", script.Condition("-buildmode=default resolves to -buildmode=pie", defaultPIE))
 
 	return conds
 }
@@ -148,4 +150,15 @@ func gitSupportsSHA256() (bool, error) {
 
 func defaultCgo() bool {
 	return buildcfg.DefaultCGO_ENABLED == "1" || buildcfg.DefaultCGO_ENABLED == "0"
+}
+
+// defaultPIE reports whether -buildmode=default resolves to -buildmode=pie for
+// the script's GOOS/GOARCH. It assumes -race is not in effect, which is the only
+// case where the resolved default buildmode depends on the race flag (PIE is not
+// the default with -race on windows). Scripts that build with -race must not rely
+// on this condition.
+func defaultPIE(s *script.State) (bool, error) {
+	GOOS, _ := s.LookupEnv("GOOS")
+	GOARCH, _ := s.LookupEnv("GOARCH")
+	return platform.DefaultPIE(GOOS, GOARCH, false), nil
 }

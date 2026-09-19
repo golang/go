@@ -43,7 +43,7 @@ func (e *numError) Unwrap() error {
 	return e.err
 }
 
-// SyntacticError is a description of a syntactic error that occurred when
+// SyntacticError is a description of an error that occurred when
 // encoding or decoding JSON according to the grammar.
 //
 // The contents of this error as produced by this package may change over time.

@@ -704,7 +704,7 @@ func TestAnonymousFields(t *testing.T) {
 		},
 		want: `{"MyInt1":1,"MyInt2":3}`,
 	}, {
-		// If an anonymous struct pointer field is nil, we should ignore
+		// If an embedded struct pointer field is nil, we should ignore
 		// the embedded fields behind it. Not properly doing so may
 		// result in the wrong output or reflect panics.
 		CaseName: Name("EmbeddedFieldBehindNilPointer"),
@@ -1111,6 +1111,30 @@ func TestNilMarshalerTextMapKey(t *testing.T) {
 		t.Fatalf("Marshal error: %v", err)
 	}
 	const want = `{"":1,"A:B":2}`
+	if string(got) != want {
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
+	}
+}
+
+// textMarshalerString is a string kind that implements encoding.TextMarshaler.
+type textMarshalerString string
+
+func (s textMarshalerString) MarshalText() ([]byte, error) {
+	return []byte("X_" + string(s)), nil
+}
+
+func (s textMarshalerString) AppendText(b []byte) ([]byte, error) {
+	return append(b, ("X_" + string(s))...), nil
+}
+
+// Issue 81355: string-kind map keys are used directly even if the key type
+// implements encoding.TextMarshaler. MarshalText is still called for values.
+func TestStringKindTextMarshalerMapKey(t *testing.T) {
+	got, err := Marshal(map[textMarshalerString]textMarshalerString{"foo": "bar"})
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+	const want = `{"foo":"X_bar"}`
 	if string(got) != want {
 		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}

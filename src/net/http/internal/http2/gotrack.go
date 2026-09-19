@@ -57,6 +57,33 @@ func (g goroutineLock) checkNotOn() {
 	}
 }
 
+// A goroutineLocker is a goroutineLock whose owning goroutine can be
+// atomically replaced, for values whose owning goroutine changes over
+// their lifetime (such as the server's serve loop, which parks when
+// the connection is idle and resumes on a new goroutine).
+type goroutineLocker struct {
+	v atomic.Uint64
+}
+
+// setOwner records the current goroutine as the owner.
+func (g *goroutineLocker) setOwner() {
+	g.v.Store(uint64(newGoroutineLock()))
+}
+
+func (g *goroutineLocker) check() {
+	if !DebugGoroutines {
+		return
+	}
+	goroutineLock(g.v.Load()).check()
+}
+
+func (g *goroutineLocker) checkNotOn() {
+	if !DebugGoroutines {
+		return
+	}
+	goroutineLock(g.v.Load()).checkNotOn()
+}
+
 var goroutineSpace = []byte("goroutine ")
 
 func curGoroutineID() uint64 {

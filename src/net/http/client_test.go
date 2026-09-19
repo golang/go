@@ -401,6 +401,43 @@ func TestDeleteRedirects(t *testing.T) {
 	}, http3SkippedMode)
 }
 
+func TestQueryRedirects(t *testing.T) {
+	// RFC 10008, Section 2.5: QUERY is safe and idempotent, so it is preserved
+	// (with its body) across 301, 302, 307 and 308; only 303 changes the method
+	// to GET.
+	queryRedirectTests := []redirectTest{
+		{"/", 200, "first"},
+		{"/?code=302&next=302", 200, "c302"},
+		{"/?code=301&next=302,308", 200, "c301"},
+		{"/?code=303&next=301", 200, "c303"},
+		{"/?code=307&next=303,302", 200, "c307"},
+		{"/?code=404", 404, "c404"},
+	}
+
+	wantSegments := []string{
+		`QUERY / "first"`,
+		`QUERY /?code=302&next=302 "c302"`,
+		`QUERY /?code=302 "c302"`,
+		`QUERY / "c302"`,
+		`QUERY /?code=301&next=302,308 "c301"`,
+		`QUERY /?code=302&next=308 "c301"`,
+		`QUERY /?code=308 "c301"`,
+		`QUERY / "c301"`,
+		`QUERY /?code=303&next=301 "c303"`,
+		`GET /?code=301 ""`,
+		`GET / ""`,
+		`QUERY /?code=307&next=303,302 "c307"`,
+		`QUERY /?code=303&next=302 "c307"`,
+		`GET /?code=302 ""`,
+		`GET / ""`,
+		`QUERY /?code=404 "c404"`,
+	}
+	want := strings.Join(wantSegments, "\n")
+	run(t, func(t *testing.T, mode testMode) {
+		testRedirectsByMethod(t, mode, "QUERY", queryRedirectTests, want)
+	}, http3SkippedMode)
+}
+
 func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []redirectTest, want string) {
 	var log struct {
 		sync.Mutex
@@ -820,7 +857,7 @@ func (c *writeCountingConn) Write(p []byte) (int, error) {
 func TestClientWrites(t *testing.T) { run(t, testClientWrites, []testMode{http1Mode}) }
 func testClientWrites(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-	})).ts
+	}), optRealNet).ts
 
 	writes := 0
 	dialer := func(netz string, addr string) (net.Conn, error) {
@@ -857,7 +894,7 @@ func TestClientInsecureTransport(t *testing.T) {
 func testClientInsecureTransport(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Write([]byte("Hello"))
-	}))
+	}), optRealNet)
 	ts := cst.ts
 	errLog := new(strings.Builder)
 	ts.Config.ErrorLog = log.New(errLog, "", 0)
@@ -914,7 +951,7 @@ func testClientWithCorrectTLSServerName(t *testing.T, mode testMode) {
 
 	c := ts.Client()
 	c.Transport.(*Transport).TLSClientConfig.ServerName = serverName
-	if _, err := c.Get(ts.URL); err != nil {
+	if _, err := c.Get("https://" + serverName); err != nil {
 		t.Fatalf("expected successful TLS connection, got error: %v", err)
 	}
 }
@@ -923,7 +960,7 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 	run(t, testClientWithIncorrectTLSServerName, []testMode{https1Mode, http2Mode})
 }
 func testClientWithIncorrectTLSServerName(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optRealNet)
 	ts := cst.ts
 	errLog := new(strings.Builder)
 	ts.Config.ErrorLog = log.New(errLog, "", 0)
@@ -1009,7 +1046,7 @@ func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
 	run(t, testHTTPSClientDetectsHTTPServer, []testMode{http1Mode})
 }
 func testHTTPSClientDetectsHTTPServer(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {})).ts
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optRealNet).ts
 	ts.Config.ErrorLog = quietLog
 
 	_, err := Get(strings.Replace(ts.URL, "http", "https", 1))
@@ -1302,7 +1339,12 @@ func testClientTimeout(t *testing.T, mode testMode) {
 }
 
 // Client.Timeout firing before getting to the body
-func TestClientTimeout_Headers(t *testing.T) { run(t, testClientTimeout_Headers) }
+func TestClientTimeout_Headers(t *testing.T) {
+	// Leaves lingering goroutine that fails the test when tested with -race
+	// flag for HTTP/3. The lingering goroutine will eventually exit, which can
+	// make this test deceptively pass when ran together with many other tests.
+	run(t, testClientTimeout_Headers, http3SkippedMode)
+}
 func testClientTimeout_Headers(t *testing.T, mode testMode) {
 	donec := make(chan bool, 1)
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1519,12 +1561,18 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 		ua   = "some-agent/1.2"
 		xfoo = "foo-val"
 	)
-	var ts2URL string
-	ts1 := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	var (
+		targetHost   = "target.example.com"
+		redirectHost = "example.com"
+		targetURL    = mode.Scheme() + "://" + targetHost + "/"
+		redirectURL  = mode.Scheme() + "://" + redirectHost + "/"
+	)
+	mux := NewServeMux()
+	mux.Handle(targetHost+"/", HandlerFunc(func(w ResponseWriter, r *Request) {
 		want := Header{
 			"User-Agent":      []string{ua},
 			"X-Foo":           []string{xfoo},
-			"Referer":         []string{ts2URL},
+			"Referer":         []string{redirectURL},
 			"Accept-Encoding": []string{"gzip"},
 			"Cookie":          []string{"foo=bar"},
 			"Authorization":   []string{"secretpassword"},
@@ -1537,18 +1585,18 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 		} else {
 			w.Header().Set("Result", "ok")
 		}
-	})).ts
-	ts2 := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		Redirect(w, r, ts1.URL, StatusFound)
-	})).ts
-	ts2URL = ts2.URL
+	}))
+	mux.Handle(redirectHost+"/", HandlerFunc(func(w ResponseWriter, r *Request) {
+		Redirect(w, r, targetURL, StatusFound)
+	}))
+	ts := newClientServerTest(t, mode, mux).ts
 
-	c := ts1.Client()
+	c := ts.Client()
 	c.CheckRedirect = func(r *Request, via []*Request) error {
 		want := Header{
 			"User-Agent":    []string{ua},
 			"X-Foo":         []string{xfoo},
-			"Referer":       []string{ts2URL},
+			"Referer":       []string{redirectURL},
 			"Cookie":        []string{"foo=bar"},
 			"Authorization": []string{"secretpassword"},
 		}
@@ -1558,7 +1606,7 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 		return nil
 	}
 
-	req, _ := NewRequest("GET", ts2.URL, nil)
+	req, _ := NewRequest("GET", redirectURL, nil)
 	req.Header.Add("User-Agent", ua)
 	req.Header.Add("X-Foo", xfoo)
 	req.Header.Add("Cookie", "foo=bar")
@@ -2228,10 +2276,7 @@ func TestClientPopulatesNilResponseBody(t *testing.T) {
 }
 
 // Issue 40382: Client calls Close multiple times on Request.Body.
-func TestClientCallsCloseOnlyOnce(t *testing.T) {
-	// Flaky on HTTP/3.
-	run(t, testClientCallsCloseOnlyOnce, http3SkippedMode)
-}
+func TestClientCallsCloseOnlyOnce(t *testing.T) { run(t, testClientCallsCloseOnlyOnce) }
 func testClientCallsCloseOnlyOnce(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusNoContent)

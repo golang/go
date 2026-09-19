@@ -394,7 +394,12 @@ var sigset_all = ^sigset(0)
 //go:nowritebarrierrec
 func setsig(i uint32, fn uintptr) {
 	var sa usigactiont
-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+
+	sa.sa_flags = _SA_ONSTACK | _SA_RESTART
+	// SA_SIGINFO should not be set when assigning SIG_DFL or SIG_IGN
+	if fn != _SIG_DFL && fn != _SIG_IGN {
+		sa.sa_flags |= _SA_SIGINFO
+	}
 	sa.sa_mask = ^uint32(0)
 	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {

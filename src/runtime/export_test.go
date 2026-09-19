@@ -212,7 +212,9 @@ var (
 	IfaceHash  = ifaceHash
 )
 
-var UseAeshash = &maps.UseAeshash
+var MinAeshashSize = &maps.MinAeshashSize
+
+var AeshashEnabled = maps.AeshashEnabled
 
 func MemclrBytes(b []byte) {
 	s := (*slice)(unsafe.Pointer(&b))
@@ -453,6 +455,16 @@ func ShrinkStackAndVerifyFramePointers() {
 	FPCallers(make([]uintptr, 1024))
 }
 
+type StackPoisonCopyRestore int
+
+func (s StackPoisonCopyRestore) Restore() { stackPoisonCopy = int(s) }
+
+func StackPoisonCopy() StackPoisonCopyRestore {
+	before := stackPoisonCopy
+	stackPoisonCopy = 1
+	return StackPoisonCopyRestore(before)
+}
+
 // BlockOnSystemStack switches to the system stack, prints "x\n" to
 // stderr, and blocks in a stack containing
 // "runtime.blockOnSystemStackInternal".
@@ -560,6 +572,22 @@ func NextArenaHint() (uintptr, bool) {
 		return 0, false
 	}
 	return mheap_.arenaHints.addr, true
+}
+
+const RandomizeHeapBase = randomizeHeapBase
+
+// ArenaHintAddrs returns the heap's remaining arena hint addresses, in
+// chain order.
+func ArenaHintAddrs() []uintptr {
+	// Preallocate: appending while holding the heap lock would allocate
+	// under mheap_.lock. mallocinit generates at most 64 heap hints.
+	out := make([]uintptr, 0, 128)
+	lock(&mheap_.lock)
+	for h := mheap_.arenaHints; h != nil; h = h.next {
+		out = append(out, h.addr)
+	}
+	unlock(&mheap_.lock)
+	return out
 }
 
 type G = g
@@ -2092,6 +2120,15 @@ func DumpPrintQuoted(s string) string {
 	return string(buf)
 }
 
+// PrintBacklog returns a copy of the runtime's print backlog.
+func PrintBacklog() []byte {
+	b := make([]byte, len(printBacklog))
+	printlock()
+	copy(b, printBacklog[:])
+	printunlock()
+	return b
+}
+
 // DumpPrint returns the output of print(v).
 func DumpPrint[T any](v T) string {
 	gp := getg()
@@ -2122,3 +2159,5 @@ func MallocGC(size uintptr, typ *abi.Type, needzero bool) unsafe.Pointer {
 func FuncNamePiecesForPrint(name string) (string, string, string, string, string) {
 	return funcNamePiecesForPrint(name)
 }
+
+var InHeapOrStack = inHeapOrStack

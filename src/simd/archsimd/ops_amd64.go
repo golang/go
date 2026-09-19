@@ -1565,6 +1565,60 @@ func (x Uint32x8) ConcatPermute128Scalars(lo, hi uint8, y Uint32x8) Uint32x8
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint64x4) ConcatPermute128Scalars(lo, hi uint8, y Uint64x4) Uint64x4
 
+/* ConcatSaturateToInt16 */
+
+// ConcatSaturateToInt16 converts element values to int16 with signed saturation.
+// The converted elements from x will be packed to the lower part of the result vector,
+// the converted elements from y will be packed to the upper part of the result vector.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX
+func (x Int32x4) ConcatSaturateToInt16(y Int32x4) Int16x8
+
+/* ConcatSaturateToInt16Grouped */
+
+// ConcatSaturateToInt16Grouped converts element values to int16 with signed saturation.
+// With each 128-bit as a group:
+// The converted elements from x will be packed to the lower part of the group in the result vector,
+// the converted elements from y will be packed to the upper part of the group in the result vector.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX2
+func (x Int32x8) ConcatSaturateToInt16Grouped(y Int32x8) Int16x16
+
+// ConcatSaturateToInt16Grouped converts element values to int16 with signed saturation.
+// With each 128-bit as a group:
+// The converted elements from x will be packed to the lower part of the group in the result vector,
+// the converted elements from y will be packed to the upper part of the group in the result vector.
+//
+// Asm: VPACKSSDW, CPU Feature: AVX512
+func (x Int32x16) ConcatSaturateToInt16Grouped(y Int32x16) Int16x32
+
+/* ConcatSaturateToUint16 */
+
+// ConcatSaturateToUint16 converts element values to uint16 with unsigned saturation.
+// The converted elements from x will be packed to the lower part of the result vector,
+// the converted elements from y will be packed to the upper part of the result vector.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX
+func (x Int32x4) ConcatSaturateToUint16(y Int32x4) Uint16x8
+
+/* ConcatSaturateToUint16Grouped */
+
+// ConcatSaturateToUint16Grouped converts element values to uint16 with unsigned saturation.
+// With each 128-bit as a group:
+// The converted elements from x will be packed to the lower part of the group in the result vector,
+// the converted elements from y will be packed to the upper part of the group in the result vector.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX2
+func (x Int32x8) ConcatSaturateToUint16Grouped(y Int32x8) Uint16x16
+
+// ConcatSaturateToUint16Grouped converts element values to uint16 with unsigned saturation.
+// With each 128-bit as a group:
+// The converted elements from x will be packed to the lower part of the group in the result vector,
+// the converted elements from y will be packed to the upper part of the group in the result vector.
+//
+// Asm: VPACKUSDW, CPU Feature: AVX512
+func (x Int32x16) ConcatSaturateToUint16Grouped(y Int32x16) Uint16x32
+
 /* ConcatShiftBytesRight */
 
 // ConcatShiftBytesRight concatenates x and y and shifts it right by shift bytes.
@@ -3279,6 +3333,11 @@ func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
 
 // InterleaveHi interleaves the elements of the high halves of x and y.
 //
+// Asm: VPUNPCKHBW, CPU Feature: AVX
+func (x Int8x16) InterleaveHi(y Int8x16) Int8x16
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
 // Asm: VPUNPCKHWD, CPU Feature: AVX
 func (x Int16x8) InterleaveHi(y Int16x8) Int16x8
 
@@ -3291,6 +3350,11 @@ func (x Int32x4) InterleaveHi(y Int32x4) Int32x4
 //
 // Asm: VPUNPCKHQDQ, CPU Feature: AVX
 func (x Int64x2) InterleaveHi(y Int64x2) Int64x2
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX
+func (x Uint8x16) InterleaveHi(y Uint8x16) Uint8x16
 
 // InterleaveHi interleaves the elements of the high halves of x and y.
 //
@@ -3308,6 +3372,16 @@ func (x Uint32x4) InterleaveHi(y Uint32x4) Uint32x4
 func (x Uint64x2) InterleaveHi(y Uint64x2) Uint64x2
 
 /* InterleaveHiGrouped */
+
+// InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX2
+func (x Int8x32) InterleaveHiGrouped(y Int8x32) Int8x32
+
+// InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX512
+func (x Int8x64) InterleaveHiGrouped(y Int8x64) Int8x64
 
 // InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
 //
@@ -3338,6 +3412,16 @@ func (x Int64x4) InterleaveHiGrouped(y Int64x4) Int64x4
 //
 // Asm: VPUNPCKHQDQ, CPU Feature: AVX512
 func (x Int64x8) InterleaveHiGrouped(y Int64x8) Int64x8
+
+// InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX2
+func (x Uint8x32) InterleaveHiGrouped(y Uint8x32) Uint8x32
+
+// InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKHBW, CPU Feature: AVX512
+func (x Uint8x64) InterleaveHiGrouped(y Uint8x64) Uint8x64
 
 // InterleaveHiGrouped interleaves the elements of the high half of each 128-bit subvector of x and y.
 //
@@ -3373,6 +3457,11 @@ func (x Uint64x8) InterleaveHiGrouped(y Uint64x8) Uint64x8
 
 // InterleaveLo interleaves the elements of the low halves of x and y.
 //
+// Asm: VPUNPCKLBW, CPU Feature: AVX
+func (x Int8x16) InterleaveLo(y Int8x16) Int8x16
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
 // Asm: VPUNPCKLWD, CPU Feature: AVX
 func (x Int16x8) InterleaveLo(y Int16x8) Int16x8
 
@@ -3385,6 +3474,11 @@ func (x Int32x4) InterleaveLo(y Int32x4) Int32x4
 //
 // Asm: VPUNPCKLQDQ, CPU Feature: AVX
 func (x Int64x2) InterleaveLo(y Int64x2) Int64x2
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX
+func (x Uint8x16) InterleaveLo(y Uint8x16) Uint8x16
 
 // InterleaveLo interleaves the elements of the low halves of x and y.
 //
@@ -3402,6 +3496,16 @@ func (x Uint32x4) InterleaveLo(y Uint32x4) Uint32x4
 func (x Uint64x2) InterleaveLo(y Uint64x2) Uint64x2
 
 /* InterleaveLoGrouped */
+
+// InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX2
+func (x Int8x32) InterleaveLoGrouped(y Int8x32) Int8x32
+
+// InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX512
+func (x Int8x64) InterleaveLoGrouped(y Int8x64) Int8x64
 
 // InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
 //
@@ -3432,6 +3536,16 @@ func (x Int64x4) InterleaveLoGrouped(y Int64x4) Int64x4
 //
 // Asm: VPUNPCKLQDQ, CPU Feature: AVX512
 func (x Int64x8) InterleaveLoGrouped(y Int64x8) Int64x8
+
+// InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX2
+func (x Uint8x32) InterleaveLoGrouped(y Uint8x32) Uint8x32
+
+// InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
+//
+// Asm: VPUNPCKLBW, CPU Feature: AVX512
+func (x Uint8x64) InterleaveLoGrouped(y Uint8x64) Uint8x64
 
 // InterleaveLoGrouped interleaves the elements of the low half of each 128-bit subvector of x and y.
 //
@@ -5309,33 +5423,6 @@ func (x Int64x4) SaturateToInt16() Int16x8
 // Asm: VPMOVSQW, CPU Feature: AVX512
 func (x Int64x8) SaturateToInt16() Int16x8
 
-/* SaturateToInt16Concat */
-
-// SaturateToInt16Concat converts element values to int16 with signed saturation.
-// The converted elements from x will be packed to the lower part of the result vector,
-// the converted elements from y will be packed to the upper part of the result vector.
-//
-// Asm: VPACKSSDW, CPU Feature: AVX
-func (x Int32x4) SaturateToInt16Concat(y Int32x4) Int16x8
-
-/* SaturateToInt16ConcatGrouped */
-
-// SaturateToInt16ConcatGrouped converts element values to int16 with signed saturation.
-// With each 128-bit as a group:
-// The converted elements from x will be packed to the lower part of the group in the result vector,
-// the converted elements from y will be packed to the upper part of the group in the result vector.
-//
-// Asm: VPACKSSDW, CPU Feature: AVX2
-func (x Int32x8) SaturateToInt16ConcatGrouped(y Int32x8) Int16x16
-
-// SaturateToInt16ConcatGrouped converts element values to int16 with signed saturation.
-// With each 128-bit as a group:
-// The converted elements from x will be packed to the lower part of the group in the result vector,
-// the converted elements from y will be packed to the upper part of the group in the result vector.
-//
-// Asm: VPACKSSDW, CPU Feature: AVX512
-func (x Int32x16) SaturateToInt16ConcatGrouped(y Int32x16) Int16x32
-
 /* SaturateToInt32 */
 
 // SaturateToInt32 converts element values to int32 with signed saturation.
@@ -5441,33 +5528,6 @@ func (x Uint64x4) SaturateToUint16() Uint16x8
 //
 // Asm: VPMOVUSQW, CPU Feature: AVX512
 func (x Uint64x8) SaturateToUint16() Uint16x8
-
-/* SaturateToUint16Concat */
-
-// SaturateToUint16Concat converts element values to uint16 with unsigned saturation.
-// The converted elements from x will be packed to the lower part of the result vector,
-// the converted elements from y will be packed to the upper part of the result vector.
-//
-// Asm: VPACKUSDW, CPU Feature: AVX
-func (x Int32x4) SaturateToUint16Concat(y Int32x4) Uint16x8
-
-/* SaturateToUint16ConcatGrouped */
-
-// SaturateToUint16ConcatGrouped converts element values to uint16 with unsigned saturation.
-// With each 128-bit as a group:
-// The converted elements from x will be packed to the lower part of the group in the result vector,
-// the converted elements from y will be packed to the upper part of the group in the result vector.
-//
-// Asm: VPACKUSDW, CPU Feature: AVX2
-func (x Int32x8) SaturateToUint16ConcatGrouped(y Int32x8) Uint16x16
-
-// SaturateToUint16ConcatGrouped converts element values to uint16 with unsigned saturation.
-// With each 128-bit as a group:
-// The converted elements from x will be packed to the lower part of the group in the result vector,
-// the converted elements from y will be packed to the upper part of the group in the result vector.
-//
-// Asm: VPACKUSDW, CPU Feature: AVX512
-func (x Int32x16) SaturateToUint16ConcatGrouped(y Int32x16) Uint16x32
 
 /* SaturateToUint32 */
 

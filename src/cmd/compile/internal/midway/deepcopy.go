@@ -15,23 +15,25 @@ import (
 
 // DeepCopier clones syntax nodes and maintains types2.Info mappings.
 type DeepCopier struct {
-	VecLen   int
-	info     *types2.Info
-	pkg      *types2.Package
-	analyzer *Analyzer
-	suffix   string
+	VecLen          int
+	info            *types2.Info
+	pkg             *types2.Package
+	analyzer        *Analyzer
+	dependentSuffix string
+	variantSuffix   string
 
 	vars map[*types2.Var]*types2.Var
 }
 
-func NewDeepCopier(pkg *types2.Package, info *types2.Info, vecLen int, analyzer *Analyzer, suffix string) *DeepCopier {
+func NewDeepCopier(pkg *types2.Package, info *types2.Info, vecLen int, analyzer *Analyzer, depSuffix, varSuffix string) *DeepCopier {
 	return &DeepCopier{
-		VecLen:   vecLen,
-		info:     info,
-		pkg:      pkg,
-		analyzer: analyzer,
-		suffix:   suffix,
-		vars:     make(map[*types2.Var]*types2.Var),
+		VecLen:          vecLen,
+		info:            info,
+		pkg:             pkg,
+		analyzer:        analyzer,
+		dependentSuffix: depSuffix,
+		variantSuffix:   varSuffix,
+		vars:            make(map[*types2.Var]*types2.Var),
 	}
 }
 
@@ -78,7 +80,7 @@ func (c *DeepCopier) OnName(id *syntax.Name) *syntax.Name {
 	}
 
 	if c.analyzer.isDependentObj[obj] || isBaseSimdTypeObj(obj) {
-		newId := syntax.NewName(id.Pos(), id.Value+c.suffix)
+		newId := syntax.NewName(id.Pos(), id.Value+c.dependentSuffix)
 		// Object link will be handled manually in deepcopier Use/Def mapper
 		if base.Debug.Simd > 0 {
 			base.Warn("%s: rewriting name %s to %s", id.Pos().String(), id.Value, newId.Value)
@@ -119,7 +121,7 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 
 			count := c.VecLen / width
 			base := name[:len(name)-1]
-			newName := fmt.Sprintf("%sx%d", base, count)
+			newName := fmt.Sprintf("%sx%d%s", base, count, c.variantSuffix)
 			newSelId := syntax.NewName(id.Pos(), newName)
 			newSel := &syntax.SelectorExpr{
 				X:   archsimdId,
@@ -131,7 +133,7 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 	}
 
 	if c.analyzer.isDependentObj[obj] {
-		newId := syntax.NewName(id.Pos(), id.Value+c.suffix)
+		newId := syntax.NewName(id.Pos(), id.Value+c.dependentSuffix)
 		// Object link will be handled manually in deepcopier Use/Def mapper
 		if base.Debug.Simd > 0 {
 			base.Warn("%s: rewriting name %s to %s", id.Pos().String(), id.Value, newId.Value)
@@ -183,7 +185,7 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 
 				count := c.VecLen / width
 				base := name[:len(name)-1]
-				newName := fmt.Sprintf("%sx%d", base, count)
+				newName := fmt.Sprintf("%sx%d%s", base, count, c.variantSuffix)
 				newName = prefix + newName + nameSuffix
 
 				newSelId := syntax.NewName(se.Sel.Pos(), newName)
@@ -516,13 +518,13 @@ func (c *DeepCopier) CopySimpleStmt(s syntax.SimpleStmt) syntax.SimpleStmt {
 					newList.ElemList = append(newList.ElemList, c.CopyExpr(el))
 				}
 			}
+			newList.SetPos(list.Pos())
 			newS.Lhs = newList
 		} else if id, ok := s.Lhs.(*syntax.Name); ok && s.Def {
 			newS.Lhs = c.CopyName(id, true)
 		} else {
 			newS.Lhs = c.CopyExpr(s.Lhs)
 		}
-		newS.Lhs.SetPos(s.Lhs.Pos())
 		newS.SetPos(s.Pos())
 		return newS
 	case *syntax.AssignStmt:

@@ -228,6 +228,9 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
 			currentFlow = append(currentFlow, byte(val))
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to parse test data: %v", err)
+	}
 
 	if len(currentFlow) > 0 {
 		flows = append(flows, currentFlow)
@@ -454,9 +457,7 @@ func runMain(m *testing.M) int {
 		if err != nil {
 			panic("failed to open -keylog file: " + err.Error())
 		}
-		testConfigClient.KeyLogWriter = f
-		testConfigServer.KeyLogWriter = f
-		testConfigFIPS140.KeyLogWriter = f
+		testKeyLogWriter = f
 		defer f.Close()
 	}
 
@@ -531,7 +532,7 @@ func TestServerHelloTrailingMessage(t *testing.T) {
 	c, s := localPipe(t)
 	go func() {
 		ctx := context.Background()
-		srv := Server(s, testConfigServer.Clone())
+		srv := Server(s, testConfigServer())
 		clientHello, _, err := srv.readClientHello(ctx)
 		if err != nil {
 			testFatal(t, err)
@@ -560,7 +561,7 @@ func TestServerHelloTrailingMessage(t *testing.T) {
 		srv.Close()
 	}()
 
-	cli := Client(c, testConfigClient.Clone())
+	cli := Client(c, testConfigClient())
 	expectedErr := "tls: handshake buffer not empty before setting read traffic secret"
 	if err := cli.Handshake(); err == nil {
 		t.Fatal("expected error from incomplete handshake, got nil")
@@ -574,7 +575,7 @@ func TestClientHelloTrailingMessage(t *testing.T) {
 
 	c, s := localPipe(t)
 	go func() {
-		cli := Client(c, testConfigClient.Clone())
+		cli := Client(c, testConfigClient())
 
 		hello, _, _, err := cli.makeClientHello()
 		if err != nil {
@@ -592,7 +593,7 @@ func TestClientHelloTrailingMessage(t *testing.T) {
 		cli.Close()
 	}()
 
-	srv := Server(s, testConfigServer.Clone())
+	srv := Server(s, testConfigServer())
 	expectedErr := "tls: handshake buffer not empty before setting read traffic secret"
 	if err := srv.Handshake(); err == nil {
 		t.Fatal("expected error from incomplete handshake, got nil")
@@ -609,7 +610,7 @@ func TestDoubleClientHelloHRR(t *testing.T) {
 	c, s := localPipe(t)
 
 	go func() {
-		cli := Client(c, testConfigClient.Clone())
+		cli := Client(c, testConfigClient())
 
 		hello, _, _, err := cli.makeClientHello()
 		if err != nil {
@@ -628,7 +629,7 @@ func TestDoubleClientHelloHRR(t *testing.T) {
 		cli.Close()
 	}()
 
-	srv := Server(s, testConfigServer.Clone())
+	srv := Server(s, testConfigServer())
 	expectedErr := "tls: handshake buffer not empty before HelloRetryRequest"
 	if err := srv.Handshake(); err == nil {
 		t.Fatal("expected error from incomplete handshake, got nil")
@@ -665,10 +666,10 @@ func TestMultipleKeyUpdate(t *testing.T) {
 		t.Run(fmt.Sprintf("requestUpdate=%t", requestUpdate), func(t *testing.T) {
 
 			c, s := localPipe(t)
-			clientConfig := testConfigClient.Clone()
+			clientConfig := testConfigClient()
 			clientConfig.MinVersion = VersionTLS13
 			clientConfig.MaxVersion = VersionTLS13
-			serverConfig := testConfigServer.Clone()
+			serverConfig := testConfigServer()
 			serverConfig.MinVersion = VersionTLS13
 			serverConfig.MaxVersion = VersionTLS13
 			client := Client(c, clientConfig)

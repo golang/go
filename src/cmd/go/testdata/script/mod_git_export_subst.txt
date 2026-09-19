@@ -2,7 +2,6 @@ env GOPROXY=direct
 env GONOSUMDB=vcs-test.golang.org
 
 # Testing that git export-subst is disabled
-[short] skip 'uses git'
 [!git] skip
 go build
 

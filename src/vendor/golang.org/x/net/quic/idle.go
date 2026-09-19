@@ -34,6 +34,9 @@ type idleState struct {
 	// sentSinceLastReceive is set if we have sent an ack-eliciting packet
 	// since the last time we received and processed a packet from the peer.
 	sentSinceLastReceive bool
+
+	// shouldSendKeepAlive is set when the keep-alive timer expires.
+	shouldSendKeepAlive bool
 }
 
 // receivePeerMaxIdleTimeout handles the peer's max_idle_timeout transport parameter.
@@ -97,6 +100,7 @@ func (c *Conn) restartIdleTimer(now time.Time) {
 	// Set the time of our next event:
 	// The idle timer if no keep-alive is set, or the keep-alive timer if one is.
 	c.idle.nextTimeout = c.idle.idleTimeout
+	c.idle.shouldSendKeepAlive = false
 	keepAlive := c.config.keepAlivePeriod()
 	switch {
 	case !c.handshakeConfirmed.isSet():
@@ -122,21 +126,24 @@ func (c *Conn) restartIdleTimer(now time.Time) {
 	}
 }
 
-func (c *Conn) appendKeepAlive(now time.Time) bool {
-	if c.idle.nextTimeout.IsZero() || c.idle.nextTimeout.After(now) {
-		return true // timer has not expired
+func (c *Conn) appendKeepAlive() bool {
+	if !c.idle.shouldSendKeepAlive {
+		return true
 	}
-	if c.idle.nextTimeout.Equal(c.idle.idleTimeout) {
-		return true // no keepalive timer set, only idle
+	sent := false
+	switch {
+	case c.idle.sentSinceLastReceive:
+		sent = true // already sent an ack-eliciting packet
+	case c.w.sent.ackEliciting:
+		sent = true // this packet is already ack-eliciting
+	default:
+		// Send an ack-eliciting PING frame to the peer to keep the connection alive.
+		sent = c.w.appendPingFrame()
 	}
-	if c.idle.sentSinceLastReceive {
-		return true // already sent an ack-eliciting packet
+	if sent {
+		c.idle.shouldSendKeepAlive = false
 	}
-	if c.w.sent.ackEliciting {
-		return true // this packet is already ack-eliciting
-	}
-	// Send an ack-eliciting PING frame to the peer to keep the connection alive.
-	return c.w.appendPingFrame()
+	return sent
 }
 
 var errHandshakeTimeout error = localTransportError{
@@ -145,24 +152,33 @@ var errHandshakeTimeout error = localTransportError{
 }
 
 func (c *Conn) idleAdvance(now time.Time) (shouldExit bool) {
-	if c.idle.idleTimeout.IsZero() || now.Before(c.idle.idleTimeout) {
+	if idle := c.idle.idleTimeout; !idle.IsZero() && !now.Before(idle) {
+		c.idle.idleTimeout = time.Time{}
+		c.idle.nextTimeout = time.Time{}
+		if !c.handshakeConfirmed.isSet() {
+			// Handshake timeout has expired.
+			// If we're a server, we're refusing the too-slow client.
+			// If we're a client, we're giving up.
+			// In either case, we're going to send a CONNECTION_CLOSE frame and
+			// enter the closing state rather than unceremoniously dropping
+			// the connection, since the peer might still be trying to
+			// complete the handshake.
+			c.abort(now, errHandshakeTimeout)
+			return false
+		}
+		// Idle timeout has expired.
+		//
+		// "[...] the connection is silently closed and its state is discarded [...]"
+		// https://www.rfc-editor.org/rfc/rfc9000#section-10.1-1
+		return true
+	}
+	// If nextTimeout != idleTimeout, then nextTimeout is the keep-alive timeout.
+	if next := c.idle.nextTimeout; !next.Equal(c.idle.idleTimeout) && !next.IsZero() && !now.Before(next) {
+		// Keep-alive timeout has expired.
+		// Queue a keep-alive and switch to the idle timeout.
+		c.idle.shouldSendKeepAlive = true
+		c.idle.nextTimeout = c.idle.idleTimeout
 		return false
 	}
-	c.idle.idleTimeout = time.Time{}
-	c.idle.nextTimeout = time.Time{}
-	if !c.handshakeConfirmed.isSet() {
-		// Handshake timeout has expired.
-		// If we're a server, we're refusing the too-slow client.
-		// If we're a client, we're giving up.
-		// In either case, we're going to send a CONNECTION_CLOSE frame and
-		// enter the closing state rather than unceremoniously dropping the connection,
-		// since the peer might still be trying to complete the handshake.
-		c.abort(now, errHandshakeTimeout)
-		return false
-	}
-	// Idle timeout has expired.
-	//
-	// "[...] the connection is silently closed and its state is discarded [...]"
-	// https://www.rfc-editor.org/rfc/rfc9000#section-10.1-1
-	return true
+	return false
 }

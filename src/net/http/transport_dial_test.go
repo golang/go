@@ -8,10 +8,12 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"internal/nettest"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -61,7 +63,7 @@ func TestTransportPoolConnCannotReuseConnectionInUse(t *testing.T) {
 // a new request is made on a new connection.
 func testTransportPoolConnHTTP2NoStrictMaxConcurrentRequests(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		dt := newTransportDialTester(t, http2Mode, func(srv *http.Server) {
+		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {
 			srv.HTTP2 = &http.HTTP2Config{
 				MaxConcurrentStreams: 2,
 			}
@@ -107,7 +109,7 @@ func TestTransportPoolConnHTTP2StrictMaxConcurrentRequests(t *testing.T) {
 	t.Skip("skipped until h2_bundle.go includes support for StrictMaxConcurrentRequests")
 
 	synctest.Test(t, func(t *testing.T) {
-		dt := newTransportDialTester(t, http2Mode, func(srv *http.Server) {
+		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {
 			srv.HTTP2.MaxConcurrentStreams = 2
 		}, func(tr *http.Transport) {
 			tr.HTTP2 = &http.HTTP2Config{
@@ -140,7 +142,7 @@ func TestTransportPoolConnHTTP2StrictMaxConcurrentRequests(t *testing.T) {
 // A new request made while an HTTP/2 dial is in progress will start a second dial.
 func TestTransportPoolConnHTTP2Startup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		dt := newTransportDialTester(t, http2Mode, func(srv *http.Server) {})
+		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {})
 
 		// Two requests start.
 		// Since the second request starts before the first dial finishes, it starts a second dial.
@@ -269,7 +271,7 @@ func TestTransportPoolConnectionBroken(t *testing.T) {
 		c1 := dt.wantDial()
 		c1.finish(nil)
 		rt1.wantDone(c1, "HTTP/1.1")
-		c1.fakeNetConn.Close() // break the connection
+		c1.Conn.Close() // break the connection
 		rt1.finish()
 
 		// Second request is made on a new connection, since the first is broken.
@@ -277,7 +279,7 @@ func TestTransportPoolConnectionBroken(t *testing.T) {
 		c2 := dt.wantDial()
 		c2.finish(nil)
 		rt2.wantDone(c2, "HTTP/1.1")
-		c2.fakeNetConn.Close()
+		c2.Conn.Close()
 		rt2.finish()
 	})
 }
@@ -329,7 +331,7 @@ func TestTransportPoolMaxIdleConnsPerHostHTTP2(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		t.Skip("skipped until h2_bundle.go includes support for MaxConcurrentStreams")
 
-		dt := newTransportDialTester(t, http2Mode, func(srv *http.Server) {
+		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {
 			srv.HTTP2 = &http.HTTP2Config{
 				MaxConcurrentStreams: 1,
 			}
@@ -360,6 +362,78 @@ func TestTransportPoolMaxIdleConnsPerHostHTTP2(t *testing.T) {
 		rt4 := dt.roundTrip()
 		rt4.wantDone(c2, "HTTP/2.0")
 	})
+}
+
+// Issue #81010: HTTP/2 disagrees with net/http about the authority addr.
+func TestTransportPoolHTTP2CachedIDNAConnection(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http2UnencryptedMode)
+
+		// First request dials an HTTP/2 connection.
+		rt1 := dt.roundTrip("g\u200bo.dev")
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/2.0")
+		rt1.finish()
+		if got, want := c1.addr, "go.dev:80"; got != want {
+			t.Errorf("got dial address %q, want %q", got, want)
+		}
+
+		// Second request uses the cached connection.
+		rt2 := dt.roundTrip("g\u200bo.dev")
+		rt2.wantDone(c1, "HTTP/2.0")
+		rt1.finish()
+	})
+}
+
+func TestTransportPoolIDNAConversions(t *testing.T) {
+	for _, test := range []struct {
+		hostname string
+		wantDial string
+	}{{
+		// Unicode name converted to ASCII.
+		hostname: "gö.dev",
+		wantDial: "xn--g-1ga.dev",
+	}, {
+		// Unicode name case folded and converted to ASCII.
+		hostname: "Gö.dev",
+		wantDial: "xn--g-1ga.dev",
+	}, {
+		// ASCII name left alone.
+		hostname: "xn--g-1ga.dev",
+		wantDial: "xn--g-1ga.dev",
+	}, {
+		// Invalid ASCII name left alone.
+		// Matches WHATWG URL Standard behavior.
+		hostname: "xn--go-.dev",
+		wantDial: "xn--go-.dev",
+	}, {
+		// Invalid Unicode name left alone.
+		// TODO: Weird. Should reject this.
+		hostname: "a⒈com",
+		wantDial: "a⒈com",
+	}, {
+		// Unicode name converted to the empty string.
+		// Conversion rejected, and we leave the name alone.
+		// TODO: Weird. Should reject this.
+		hostname: "\u00ad",
+		wantDial: "\u00ad",
+	}} {
+		synctest.Test(t, func(t *testing.T) {
+			dt := newTransportDialTester(t, http1Mode)
+			rt1 := dt.roundTrip(test.hostname)
+			c1 := dt.wantDial()
+			c1.finish(nil)
+			rt1.wantDone(c1, "HTTP/1.1")
+			rt1.finish()
+			if got, want := c1.addr, test.wantDial+":80"; got != want {
+				t.Errorf("RoundTrip to %v: got dial address %v, want %v",
+					strconv.QuoteToASCII(test.hostname),
+					strconv.QuoteToASCII(got),
+					strconv.QuoteToASCII(want))
+			}
+		})
+	}
 }
 
 // A transportDialTester manages a test of a connection's Dials.
@@ -398,8 +472,9 @@ type transportDialTesterConn struct {
 	ready  chan error // sent on to complete the Dial
 	protos []string
 	closed chan struct{}
+	addr   string
 
-	*fakeNetConn
+	*nettest.Conn
 }
 
 func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transportDialTester {
@@ -407,11 +482,12 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 	dt := &transportDialTester{
 		t: t,
 	}
-	dialContext := func(_ context.Context, network, address string) (*transportDialTesterConn, error) {
+	dialer := func(addr string) (*transportDialTesterConn, error) {
 		c := &transportDialTesterConn{
 			t:      t,
 			ready:  make(chan error),
 			closed: make(chan struct{}),
+			addr:   addr,
 		}
 		// Notify the test that a Dial has started,
 		// and wait for the test to notify us that it should complete.
@@ -429,12 +505,6 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 			return nil, errors.New("test finished")
 		}
 
-		c.fakeNetConn = dt.cst.li.connect()
-		t.Cleanup(func() {
-			c.fakeNetConn.Close()
-		})
-		// Use the *transportDialTesterConn as the net.Conn,
-		// to let tests associate requests with connections.
 		return c, nil
 	}
 	dt.cst = newClientServerTest(t, mode, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -445,27 +515,22 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 		// Wait for the client to send the request body,
 		// to synchronize with the rest of the test.
 		io.ReadAll(r.Body)
-	}), append([]any{optFakeNet, func(tr *http.Transport) {
+	}), append([]any{func(tr *http.Transport) {
+		dialContext := tr.DialContext
 		tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return dialContext(ctx, network, dt.cst.ts.Listener.Addr().String())
-		}
-		tr.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			conn, err := dialContext(ctx, network, dt.cst.ts.Listener.Addr().String())
+			c, err := dialer(addr)
 			if err != nil {
 				return nil, err
 			}
-			config := &tls.Config{
-				InsecureSkipVerify: true,
-				NextProtos:         []string{"h2", "http/1.1"},
-			}
-			if conn.protos != nil {
-				config.NextProtos = conn.protos
-			}
-			tc := tls.Client(conn, config)
-			if err := tc.Handshake(); err != nil {
+			nc, err := dialContext(ctx, network, addr)
+			if err != nil {
 				return nil, err
 			}
-			return tc, nil
+			c.Conn = nc.(*nettest.Conn)
+			return c, nil
+		}
+		tr.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			panic("use unencrypted connections in dial tests")
 		}
 	}}, opts...)...)
 	return dt
@@ -587,7 +652,7 @@ func (dt *transportDialTester) wantDial() *transportDialTesterConn {
 	dt.dials = dt.dials[1:]
 	dt.dialCount++
 	c.connID = dt.dialCount
-	dt.t.Logf("Dial %v: started", c.connID)
+	dt.t.Logf("Dial %v: started (addr:%v)", c.connID, strconv.QuoteToASCII(c.addr))
 	return c
 }
 

@@ -1,5 +1,3 @@
-[short] skip
-
 ! go test -x coverbad
 ! stderr '[\\/]coverbad\.test( |$)' # 'go test' should not claim to have run the test.
 stderr 'undefined: g'

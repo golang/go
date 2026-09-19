@@ -10,7 +10,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"mime/multipart"
 	"net"
 	"net/http/internal"
 	"net/textproto"
@@ -146,7 +145,6 @@ type ServerRequest struct {
 	RemoteAddr    string
 	RequestURI    string
 	TLS           *tls.ConnectionState
-	MultipartForm *multipart.Form
 }
 
 // ConnState is identical to net/http.ConnState.

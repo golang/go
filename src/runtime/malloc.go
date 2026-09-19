@@ -354,9 +354,22 @@ const (
 	// See comment in mallocinit for how the randomization is performed.
 	randomizeHeapBase = goexperiment.RandomizedHeapBase64 && goarch.PtrSize == 8 && !isSbrkPlatform && !raceenabled && !msanenabled && !asanenabled
 
-	// randHeapBasePrefixMask is used to extract the top byte of the randomized
-	// heap base address.
-	randHeapBasePrefixMask = ^uintptr(0xff << (heapAddrBits - 8))
+	// randHeapAddrBits is the number of address bits usable by the randomized
+	// heap base. heapAddrBits is 48 on most platforms, but we only use 47 of
+	// those bits in order to provide a good amount of room for the heap to
+	// grow contiguously. On amd64, there are 48 bits, but the top bit is sign
+	// extended, so we throw away another bit, just to be safe.
+	randHeapAddrBits = heapAddrBits - 1 - goarch.IsAmd64
+
+	// randHeapBasePrefixMask clears the top byte of the randomized heap base
+	// address -- the byte hint generation replaces with randHeapBasePrefix+i.
+	// The prefix occupies bits [randHeapAddrBits-8, randHeapAddrBits), so the
+	// mask must be defined from randHeapAddrBits, not heapAddrBits: a wider
+	// mask would let stray randHeapBase bits overlap the prefix byte in the
+	// OR that hint generation performs, and wherever such a stray bit is 1,
+	// the corresponding bit of every generated prefix is forced to 1,
+	// collapsing distinct prefixes into duplicate hint addresses.
+	randHeapBasePrefixMask = ^uintptr(0xff << (randHeapAddrBits - 8))
 )
 
 // physPageSize is the size in bytes of the OS's physical pages.
@@ -567,11 +580,6 @@ func mallocinit() {
 
 		var randHeapBase uintptr
 		var randHeapBasePrefix byte
-		// heapAddrBits is 48 on most platforms, but we only use 47 of those
-		// bits in order to provide a good amount of room for the heap to grow
-		// contiguously. On amd64, there are 48 bits, but the top bit is sign
-		// extended, so we throw away another bit, just to be safe.
-		randHeapAddrBits := heapAddrBits - 1 - (goarch.IsAmd64 * 1)
 		if randomizeHeapBase {
 			// Generate a random value, and take the bottom heapAddrBits-logHeapArenaBytes
 			// bits, using them as the top bits for randHeapBase.
@@ -1033,10 +1041,10 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, checkGCTrigger 
 const doubleCheckMalloc = false
 
 // sizeSpecializedMallocEnabled is the set of conditions where we enable the size-specialized
-// mallocgc implementation: the experiment must be enabled, and none of the sanitizers should
-// be enabled. The tables used to select the size-specialized malloc function do not compile
-// properly on plan9, so size-specialized malloc is also disabled on plan9.
-const sizeSpecializedMallocEnabled = goexperiment.SizeSpecializedMalloc && GOOS != "plan9" && !asanenabled && !raceenabled && !msanenabled && !valgrindenabled
+// mallocgc implementation: none of the sanitizers should be enabled. The tables used to select
+// the size-specialized malloc function do not compile properly on plan9, so
+// size-specialized malloc is also disabled on plan9.
+const sizeSpecializedMallocEnabled = GOOS != "plan9" && !asanenabled && !raceenabled && !msanenabled && !valgrindenabled
 
 // runtimeFreegcEnabled is the set of conditions where we enable the runtime.freegc
 // implementation and the corresponding allocation-related changes: the experiment must be

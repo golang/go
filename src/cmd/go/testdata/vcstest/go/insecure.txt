@@ -4,3 +4,5 @@ handle dir
 <!DOCTYPE html>
 <html>
 <meta name="go-import" content="vcs-test.golang.org/insecure/go/insecure git https://vcs-test.golang.org/git/insecurerepo">
+-- insecure2/index.html --
+<meta name="go-import" content="vcs-test.golang.org/go/insecure/insecure2 mod http://vcs-test.golang.org/insecure">

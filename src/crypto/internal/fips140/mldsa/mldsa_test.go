@@ -346,7 +346,9 @@ func TestCASTRejectionPaths(t *testing.T) {
 		testingOnlyRejectionReason = nil
 	})
 
-	fips140CAST()
+	if err := fips140CAST(); err != nil {
+		t.Fatal(err)
+	}
 
 	for reason, hit := range reached {
 		if !hit {

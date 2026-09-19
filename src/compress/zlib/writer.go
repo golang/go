@@ -201,5 +201,6 @@ func (z *Writer) Close() error {
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
 	binary.BigEndian.PutUint32(z.scratch[:], checksum)
 	_, z.err = z.w.Write(z.scratch[0:4])
+	z.w = nil
 	return z.err
 }

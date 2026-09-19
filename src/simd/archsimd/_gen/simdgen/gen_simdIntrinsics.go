@@ -34,6 +34,9 @@ func templateNamed(name string, templ string) *template.Template {
 		"GetArchUpper": func() string {
 			return archInfo.ArchUpper
 		},
+		"GetSIMDTag": func() string {
+			return archInfo.SIMDTag
+		},
 		"Hasmask": func() bool {
 			return archInfo.Arch == "amd64"
 		},
@@ -53,7 +56,7 @@ func (rtm *intrinsicTemplateMap) Add(name string, templ string) *intrinsicTempla
 
 // writeSIMDIntrinsics generates the intrinsic mappings and writes it to simdintrinsics.go
 // within the specified directory.
-func writeSIMDIntrinsics(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
+func writeSIMDIntrinsics(buffer *bytes.Buffer, ops []Operation, typeMap simdTypeMap) {
 
 	// These are defined here to avoid init-order problems with GetSysArch GetArchUpper etc which depend on flag values
 
@@ -62,54 +65,62 @@ func writeSIMDIntrinsics(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
 )
 
-func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
+func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
 `)
 
 	var intrinsicTemplates = new(intrinsicTemplateMap).
-		Add("op1", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen1(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op2", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen2(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op2_21", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen2_21(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op2_21Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2_21(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op3", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen3(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op3_21", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen3_21(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op3_21Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3_21(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op3_231Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3_231(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op3_31Zero3", `addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen3_31Zero3(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op4", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen4(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op4_231Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen4_231(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op4_31", `		addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen4_31(ssa.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op1Imm", `		addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen1Imm(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})`).
-		Add("op1Imm8", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen1Imm8(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
-		Add("op2Imm", `		addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})`).
-		Add("op2Imm8", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
-		Add("op2Imm8_2I", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8_2I(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
-		Add("op2Imm_2I", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm_2I(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})`).
-		Add("op2Imm8_II", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8_II(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
-		Add("op2Imm8_SHA1RNDS4", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8_SHA1RNDS4(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
-		Add("op2ImmVecAsScalar", `addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen2Imm(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})`).
-		Add("op3Imm8", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3Imm8(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
-		Add("op3Imm8_2I", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3Imm8_2I(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
-		Add("op4Imm8", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen4Imm8(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`)
+		Add("op1", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen1(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op2", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen2(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op2_21", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen2_21(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op2_21Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2_21(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op3", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen3(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op3_21", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen3_21(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op3_21Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3_21(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op3_231Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3_231(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op3_31Zero3", `addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen3_31Zero3(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op4", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen4(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op4_231Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen4_231(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op4_31", `		addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen4_31(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op1Imm", `		addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen1Imm(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})`).
+		Add("op1Imm8", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen1Imm8(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
+		Add("op2Imm", `		addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})`).
+		Add("op2Imm8", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
+		Add("op2Imm8_2I", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8_2I(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
+		Add("op2Imm_2I", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm_2I(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})`).
+		Add("op2Imm8_II", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8_II(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
+		Add("op2Imm8_SHA1RNDS4", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8_SHA1RNDS4(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
+		Add("op2ImmVecAsScalar", `addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen2Imm(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})`).
+		Add("op3Imm8", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3Imm8(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
+		Add("op3Imm8_2I", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3Imm8_2I(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`).
+		Add("op4Imm8", `	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen4Imm8(ssaop.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})`)
 
 	var loadStore = templateNamed("loadStore", `	addF(simdPackage, "Load{{.Name}}Array", simdLoad(), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.StoreArray", simdStore(), {{GetSysArch}})`)
 
 	var mask = templateNamed("mask", `	addF(simdPackage, "{{.Name}}.To{{.VectorCounterpart}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.VectorCounterpart}}.asMask", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
-	addF(simdPackage, "{{.Name}}.And", opLen2(ssa.OpAnd{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
-	addF(simdPackage, "{{.Name}}.Or", opLen2(ssa.OpOr{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.And", opLen2(ssaop.OpAnd{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.Or", opLen2(ssaop.OpOr{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- if eq GetSysArch "sys.ARM64"}}
-	addF(simdPackage, "{{.Name}}.Not", opLen1(ssa.OpNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.Not", opLen1(ssaop.OpNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- else}}
 	addF(simdPackage, "{{.Name}}FromBits", simdCvtVToMask({{.ElemBits}}, {{.Lanes}}), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.ToBits", simdCvtMaskToV({{.ElemBits}}, {{.Lanes}}), {{GetSysArch}})
 {{- end}}`)
 
-	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssa.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)
+	// SVE predicates are P-registers, moved to/from memory by the hand-written
+	// sveLoadWhole/sveStoreWhole builders (a generic Load/Store of a mask value,
+	// lowered to PLDR/PSTR); only this registration of the raw intrinsics is
+	// generated (the exported Load/Store wrappers are generated Go in types_sve.go).
+	var sveMask = templateNamed("sveMask", `	addF(simdPackage, "{{.Name}}.store", sveStoreWhole(), {{GetSysArch}})
+	addF(simdPackage, "load{{.Name}}", sveLoadWhole(), {{GetSysArch}})`)
+
+	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssaop.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)
 
 	var vectorConversion = templateNamed("vectorConversion", `	addF(simdPackage, "{{.Tsrc.Name}}.As{{.Tdst.Name}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})`)
 
@@ -117,7 +128,6 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 
 	slices.SortFunc(ops, compareOperations)
 
-	buffer := new(bytes.Buffer)
 	buffer.WriteString(generatedHeader())
 
 	doTemplate := func(tpl *template.Template, data any) {
@@ -175,11 +185,11 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 		doTemplate(vectorConversion, conv)
 
 		// New style factored conversion intrinsics always involve at least one unsigned type
-		if from.Name[0] != 'U' && to.Name[0] != 'U' {
+		if from.Name()[0] != 'U' && to.Name()[0] != 'U' {
 			continue
 		}
-		// Only emit the intrinsic if lanes are equal OR both are unsigned
-		if from.Lanes != to.Lanes && (from.Name[0] != 'U' || to.Name[0] != 'U') {
+		// Only emit the intrinsic if element sizes are equal OR both are unsigned
+		if from.ElemBits() != to.ElemBits() && (from.Name()[0] != 'U' || to.Name()[0] != 'U') {
 			continue
 		}
 		var typeDotMethodIntrinsic *template.Template
@@ -195,7 +205,10 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 	}
 
 	for _, typ := range typesFromTypeMap(typeMap) {
-		if typ.Type != "mask" {
+		// Scalable (SVE) types have no fixed-array load/store; their slice-based
+		// LoadPart/StorePart are hand-registered in ssagen for now.
+		// TODO: generate them here once simdgen supports predicates (mask CL).
+		if !typ.IsMask() && !typ.IsScalable() {
 			loadStore.Execute(buffer, typ)
 		}
 	}
@@ -210,11 +223,18 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 		}
 	}
 
+	// The AVX mask template treats a mask as a data vector (no-op To/asMask
+	// conversions, And/Or/Not via reshaped vector ops, FromBits/ToBits); an SVE
+	// predicate is a P-register with just the memory APIs (Store/LoadMask). The
+	// predicate-consuming ops (Masked, IfElse, ...) are peephole optimizations of
+	// the data-vector ops, not mask methods, so they are not generated here.
+	maskTpl := mask
+	if CurrentArch().isSVE() {
+		maskTpl = sveMask
+	}
 	for _, m := range masksFromTypeMap(typeMap) {
-		doTemplate(mask, m)
+		doTemplate(maskTpl, m)
 	}
 
 	buffer.WriteString(footer)
-
-	return buffer
 }

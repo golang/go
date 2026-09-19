@@ -20,7 +20,7 @@ type Z1 struct {
 }
 
 func Zero1(t *Z1) { // Issue #18370
-	// amd64:`MOVUPS X[0-9]+, \(.*\)` `MOVQ \$0, 16\(.*\)`
+	// amd64:`MOVUPS X[0-9]+, \(.*\)` `MOVQ X15, 16\(.*\)`
 	*t = Z1{}
 }
 
@@ -29,7 +29,7 @@ type Z2 struct {
 }
 
 func Zero2(t *Z2) {
-	// amd64:`MOVUPS X[0-9]+, \(.*\)` `MOVQ \$0, 16\(.*\)`
+	// amd64:`MOVUPS X[0-9]+, \(.*\)` `MOVQ X15, 16\(.*\)`
 	// amd64:`.*runtime[.]gcWriteBarrier.*\(SB\)`
 	*t = Z2{}
 }

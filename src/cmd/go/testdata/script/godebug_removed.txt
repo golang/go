@@ -36,8 +36,6 @@ stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 ! go build -n godebugok.go
 stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
-[short] skip
-
 # Using a removed GODEBUG with old value in the environment causes panic at startup.
 cp go.mod.20 go.mod
 env GODEBUG=gotypesalias=0

@@ -183,10 +183,7 @@ func (acks *ackState) acksToSend(now time.Time) (nums rangeset[packetNumber], ac
 	// "[...] the delays intentionally introduced between the time the packet with the
 	// largest packet number is received and the time an acknowledgement is sent."
 	// https://www.rfc-editor.org/rfc/rfc9000#section-13.2.5-1
-	delay := now.Sub(acks.maxRecvTime)
-	if delay < 0 {
-		delay = 0
-	}
+	delay := max(now.Sub(acks.maxRecvTime), 0)
 	return acks.seen, delay
 }
 

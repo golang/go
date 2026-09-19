@@ -320,6 +320,7 @@ var debug struct {
 	scheddetail              int32
 	schedtrace               int32
 	tracebackancestors       int32
+	tracebackcrash           int32
 	updatemaxprocs           int32
 	asyncpreemptoff          int32
 	harddecommit             int32
@@ -385,6 +386,7 @@ var dbgvars = []*dbgVar{
 	{name: "traceallocfree", atomic: &debug.traceallocfree},
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
+	{name: "tracebackcrash", value: &debug.tracebackcrash},
 	{name: "tracebacklabels", atomic: &debug.tracebacklabels, def: 1},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
 	{name: "updatemaxprocs", value: &debug.updatemaxprocs, def: 1},

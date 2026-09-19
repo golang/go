@@ -161,6 +161,10 @@
 //
 // All new usages of "json" in Go should use the v2 package,
 // but the v1 package will forever remain supported.
+//
+// See the [encoding/json/v2 Migration Guide] for additional detail on migration approaches.
+//
+// [encoding/json/v2 Migration Guide]: https://go.dev/doc/jsonv2-migration
 package json
 
 // TODO(https://go.dev/issue/71631): Update the "Migrating to v2" documentation
@@ -498,7 +502,7 @@ func ReportErrorsWithLegacySemantics(v bool) Options {
 // and stringifies the JSON number within a JSON string. In particular,
 // the v2 default does not stringify Go bools and strings.
 // If [ReportErrorsWithLegacySemantics] is false,
-// then incorrect usages of `string` results in a runtime error.
+// then incorrect usages of `string` result in a runtime error.
 //
 // When marshaling, such Go values are serialized as their usual JSON
 // representation, but quoted within a JSON string.

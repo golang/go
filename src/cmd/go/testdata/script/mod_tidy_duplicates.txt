@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # Regression test for golang.org/issue/28456:
 # 'go mod tidy' should not leave duplicate lines when re-writing the file.
 

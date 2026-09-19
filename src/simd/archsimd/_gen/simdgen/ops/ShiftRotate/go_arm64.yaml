@@ -22,7 +22,7 @@
   - &uintAsInt
     go: $t
     base: uint
-    OverwriteBase: int
+    overwriteBase: int
   out:
   - *uint
 
@@ -92,7 +92,7 @@
 - go: shiftLeftSaturatedConst
   signed: true
   asm: "VSQSHL"
-  SSAVariant: "const"
+  ssaVariant: "const"
   specialLower: "if a==0 => x"
   in:
   - *imm
@@ -103,7 +103,7 @@
 - go: shiftLeftSaturatedConst
   signed: false
   asm: "VUQSHL"
-  SSAVariant: "const"
+  ssaVariant: "const"
   specialLower: "if a==0 => x"
   in:
   - *imm
@@ -120,7 +120,7 @@
   signed: true
   asm: "VSSHL"
   specialLower: !string |-
-    earlymatch (%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+    earlymatch (%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 
   in:
   - *int
@@ -134,21 +134,21 @@
 - go: ShiftAllLeft
   signed: false
   asm: "VUSHL"
-  specialLower: !string "earlymatch (%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
+  specialLower: !string "earlymatch (%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
   in:
   - *uint
   - &scalarShiftUnsigned
     go: $t
     base: uint
     treatLikeAScalarOfSize: 64
-    OverwriteBase: int
+    overwriteBase: int
   out:
   - *uint
 
 - go: ShiftAllRight
   signed: true
   asm: "VSSHL"
-  specialLower: !string "earlymatch (%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
+  specialLower: !string "earlymatch (%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
   in:
   - *int
   - *scalarShiftSigned
@@ -158,7 +158,7 @@
 - go: ShiftAllRight
   signed: false
   asm: "VUSHL"
-  specialLower: !string "earlymatch (%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
+  specialLower: !string "earlymatch (%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
   in:
   - *uint
   - *scalarShiftUnsigned

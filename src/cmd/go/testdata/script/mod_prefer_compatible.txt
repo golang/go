@@ -2,7 +2,6 @@
 # @latest, @upgrade, and @patch should prefer compatible versions over
 # +incompatible ones, even if offered by a proxy.
 
-env GO111MODULE=on
 env GOSUMDB=off
 
 # vcs-test.golang.org/git/prefercompatible.git v2.0.0+incompatible exists,

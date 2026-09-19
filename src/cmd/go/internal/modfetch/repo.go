@@ -298,7 +298,6 @@ var (
 
 func lookupDirect(ctx context.Context, path string) (Repo, error) {
 	security := web.SecureOnly
-
 	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
 		security = web.Insecure
 	}

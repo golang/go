@@ -52,7 +52,7 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) *netFD {
 }
 
 func (fd *netFD) init() error {
-	if err := fd.pfd.Init(fd.net, true); err != nil {
+	if err := fd.pfd.Init(fd.net, new(true)); err != nil {
 		return err
 	}
 	switch fd.net {

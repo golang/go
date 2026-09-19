@@ -441,7 +441,7 @@
   out:
     - base: uint
 # Truncating saturated packed
-- go: SaturateToInt16Concat
+- go: ConcatSaturateToInt16
   regexpTag: "convert"
   asm: "VPACKSSDW"
   addDoc: &satDocConcat
@@ -454,7 +454,7 @@
   out:
     - base: int
       bits: 128
-- go: SaturateToInt16ConcatGrouped
+- go: ConcatSaturateToInt16Grouped
   regexpTag: "convert"
   asm: "VPACKSSDW"
   addDoc: &satDocConcatGrouped
@@ -468,7 +468,7 @@
   out:
     - base: int
       bits: 256|512
-- go: SaturateToUint16Concat
+- go: ConcatSaturateToUint16
   regexpTag: "convert"
   asm: "VPACKUSDW"
   addDoc: *satDocConcat
@@ -478,7 +478,7 @@
   out:
     - base: uint
       bits: 128
-- go: SaturateToUint16ConcatGrouped
+- go: ConcatSaturateToUint16Grouped
   regexpTag: "convert"
   asm: "VPACKUSDW"
   addDoc: *satDocConcatGrouped

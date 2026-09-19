@@ -6,6 +6,9 @@
 package importer
 
 import (
+	"cmp"
+	"slices"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
@@ -459,12 +462,26 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 				// about it, so maybe we can avoid worrying about that here.
 				underlying := r.typ().Underlying()
 
-				methods := make([]*types2.Func, r.Len())
-				for i := range methods {
-					methods[i] = r.method(true)
+				type indexedMethod struct {
+					index int // (or -1 in V4)
+					fn    *types2.Func
 				}
+				var methods []indexedMethod
 
 				if r.Version().Has(pkgbits.GenericMethods) {
+					// V4 (go1.27.0) emitted all non-generic methods
+					// before all generic ones, discarding source
+					// order: a bug (go.dev/issue/81188).
+					// V5 (go1.27.x) fixes it by emitting an explicit
+					// index along with each method.
+
+					// ordinary methods
+					for range r.Len() {
+						idx, m := r.method(true)
+						methods = append(methods, indexedMethod{idx, m})
+					}
+
+					// generic methods
 					for range r.Len() {
 						// Careful: objIdx is used to read in package-scoped declarations, which
 						// methods are not. Instead, decode it here. This makes it easier to
@@ -479,17 +496,36 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 						pkg, name := t.selector()
 						rtparams := t.typeParamNames(true, true)
 						recv := t.param()
+						methodIdx := -1
+						if r.Version().Has(pkgbits.PreserveMethodOrder) {
+							methodIdx = t.Len()
+						}
 						tparams := t.typeParamNames(true, false)
 						sig := t.signature(recv, rtparams, tparams)
 
 						r.delayed = append(r.delayed, t.delayed...) // propagate before retiring
-
 						pr.retireReader(t)
-						methods = append(methods, types2.NewFunc(pos, pkg, name, sig))
+						methods = append(methods, indexedMethod{methodIdx, types2.NewFunc(pos, pkg, name, sig)})
+					}
+
+					if r.Version().Has(pkgbits.PreserveMethodOrder) {
+						slices.SortFunc(methods, func(a, b indexedMethod) int {
+							return cmp.Compare(a.index, b.index)
+						})
+					}
+				} else {
+					for range r.Len() {
+						_, m := r.method(true)
+						methods = append(methods, indexedMethod{-1, m})
 					}
 				}
 
-				return tparams, underlying, methods, r.delayed
+				funcs := make([]*types2.Func, len(methods))
+				for i, m := range methods {
+					funcs[i] = m.fn
+				}
+
+				return tparams, underlying, funcs, r.delayed
 			})
 
 		case pkgbits.ObjVar:
@@ -606,8 +642,12 @@ func (r *reader) typeParamNames(isLazy bool, isGenMeth bool) []*types2.TypeParam
 	return tparams
 }
 
-func (r *reader) method(isLazy bool) *types2.Func {
+func (r *reader) method(isLazy bool) (int, *types2.Func) {
 	r.Sync(pkgbits.SyncMethod)
+	idx := -1
+	if r.Version().Has(pkgbits.PreserveMethodOrder) {
+		idx = r.Len()
+	}
 	pos := r.pos()
 	pkg, name := r.selector()
 
@@ -615,7 +655,7 @@ func (r *reader) method(isLazy bool) *types2.Func {
 	sig := r.signature(r.param(), rtparams, nil)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
-	return types2.NewFunc(pos, pkg, name, sig)
+	return idx, types2.NewFunc(pos, pkg, name, sig)
 }
 
 func (r *reader) qualifiedIdent() (*types2.Package, string) { return r.ident(pkgbits.SyncSym) }

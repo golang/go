@@ -22,8 +22,6 @@ import (
 	"sync"
 	"text/template"
 
-	"golang.org/x/sync/semaphore"
-
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
@@ -32,6 +30,8 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+
+	"golang.org/x/sync/semaphore"
 )
 
 var CmdList = &base.Command{
@@ -73,7 +73,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         BinaryOnly     bool     // binary-only package (no longer supported)
         ForTest        string   // package is only for use in named test
         Export         string   // file containing export data (when using -export)
-        BuildID        string   // build ID of the compiled package (when using -export)
+        BuildID        string   // build ID of the exported package (when using -export)
         Module         *Module  // info about package's containing module, if any (can be nil)
         Match          []string // command-line patterns matching this package
         DepOnly        bool     // package is only a dependency, not explicitly listed
@@ -145,6 +145,8 @@ of list -m below.
 
 The template function "join" calls strings.Join.
 
+The template function "json" marshals its arguments to JSON.
+
 The template function "context" returns the build context, defined as:
 
     type Context struct {
@@ -160,6 +162,9 @@ The template function "context" returns the build context, defined as:
         ReleaseTags   []string // releases the current release is compatible with
         InstallSuffix string   // suffix to use in the name of the install dir
     }
+
+The template function "module" takes a module path as a parameter,
+and returns information about the module, defined as the Module struct below.
 
 For more information about the meaning of these fields see the documentation
 for the go/build package's Context type.
@@ -193,8 +198,11 @@ a non-nil Error field; other information may or may not be missing
 (zeroed).
 
 The -export flag causes list to set the Export field to the name of a
-file containing up-to-date export information for the given package,
-and the BuildID field to the build ID of the compiled package.
+file containing up-to-date export data for the given package,
+and the BuildID field to the build ID of the exported package.
+The Export file encodes complete type information for the package's
+public API. To decode it, use the golang.org/x/tools/go/gcexportdata
+package.
 
 The -find flag causes list to identify the named packages but not
 resolve their dependencies: the Imports and Deps lists will be empty.
@@ -348,24 +356,24 @@ func init() {
 	// Omit build -json because list has its own -json
 	work.AddBuildFlags(CmdList, work.OmitJSONFlag)
 	work.AddCoverFlags(CmdList, nil)
-	CmdList.Flag.Var(&listJsonFields, "json", "")
+	CmdList.Flag.Var(&listJsonFields, "json", "print the package data in JSON format; optionally specify a comma-separated list of field names to include")
 }
 
 var (
-	listCompiled   = CmdList.Flag.Bool("compiled", false, "")
-	listDeps       = CmdList.Flag.Bool("deps", false, "")
-	listE          = CmdList.Flag.Bool("e", false, "")
-	listExport     = CmdList.Flag.Bool("export", false, "")
-	listFmt        = CmdList.Flag.String("f", "", "")
-	listFind       = CmdList.Flag.Bool("find", false, "")
+	listCompiled   = CmdList.Flag.Bool("compiled", false, "set CompiledGoFiles to the Go source files presented to the compiler")
+	listDeps       = CmdList.Flag.Bool("deps", false, "iterate through all dependencies, not just those explicitly listed")
+	listE          = CmdList.Flag.Bool("e", false, "change the handling of erroneous packages")
+	listExport     = CmdList.Flag.Bool("export", false, "set Export to the file name of the up-to-date export data for the package")
+	listFmt        = CmdList.Flag.String("f", "", "specify an alternate `format` for the list, using the syntax of package template")
+	listFind       = CmdList.Flag.Bool("find", false, "do not resolve dependencies; print only the matching packages")
 	listJson       bool
 	listJsonFields jsonFlag // If not empty, only output these fields.
-	listM          = CmdList.Flag.Bool("m", false, "")
-	listRetracted  = CmdList.Flag.Bool("retracted", false, "")
-	listReuse      = CmdList.Flag.String("reuse", "", "")
-	listTest       = CmdList.Flag.Bool("test", false, "")
-	listU          = CmdList.Flag.Bool("u", false, "")
-	listVersions   = CmdList.Flag.Bool("versions", false, "")
+	listM          = CmdList.Flag.Bool("m", false, "list modules instead of packages")
+	listRetracted  = CmdList.Flag.Bool("retracted", false, "show retracted modules")
+	listReuse      = CmdList.Flag.String("reuse", "", "reuse output from a previous list run stored in the named `file`")
+	listTest       = CmdList.Flag.Bool("test", false, "show not only the named packages but also their test binaries")
+	listU          = CmdList.Flag.Bool("u", false, "add information about available upgrades")
+	listVersions   = CmdList.Flag.Bool("versions", false, "show the list of all known versions for a module")
 )
 
 // A StringsFlag is a command-line flag that interprets its argument
@@ -419,6 +427,8 @@ func (v *jsonFlag) needAny(fields ...string) bool {
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
+	exp := cfg.Experiment
+
 	for _, arg := range args {
 		if arg == "" {
 			base.Fatalf("go: invalid package: %q", arg)
@@ -484,7 +494,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			return cachedCtxt
 		}
 		fm := template.FuncMap{
-			"join":    strings.Join,
+			"join": strings.Join,
+			"json": func(v any) (string, error) {
+				b, err := json.Marshal(v)
+				return string(b), err
+			},
 			"context": context,
 			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(moduleLoader, ctx, path) },
 		}
@@ -720,7 +734,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	// Do we need to run a build to gather information?
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
 	var buildPkgs []*load.Package
-	if needStale || *listExport || (*listCompiled && cfg.BuildCover) {
+	if needStale || (*listExport && !exp.GoListExportNewFormat) || (*listCompiled && cfg.BuildCover) {
 		buildPkgs = pkgs
 	} else if *listCompiled {
 		// In the non-cover case, for pure-Go packages, package loading already knows the complete set
@@ -746,7 +760,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}()
 
 		b.IsCmdList = true
-		b.NeedExport = *listExport
+		b.NeedExport = *listExport && !exp.GoListExportNewFormat
 		b.NeedCompiledGoFiles = *listCompiled
 		if cfg.BuildCover {
 			load.PrepareForCoverageBuild(moduleLoader, pkgs)
@@ -756,6 +770,29 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		for _, p := range buildPkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
 				a.Deps = append(a.Deps, b.AutoAction(moduleLoader, work.ModeInstall, work.ModeInstall, p))
+			}
+		}
+		b.Do(ctx, a)
+	}
+
+	// Execute any necessary export actions. Export actions only ever interact
+	// with export actions, so putting them on their own builder is fine.
+	if *listExport && exp.GoListExportNewFormat {
+		b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
+		defer func() {
+			if err := b.Close(); err != nil {
+				base.Fatal(err)
+			}
+		}()
+
+		// Setting IsCmdList doesn't do anything special for exports. We only
+		// set it for completeness.
+		b.IsCmdList = true
+		a := &work.Action{}
+		// TODO: Use pkgsFilter?
+		for _, p := range pkgs {
+			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
+				a.Deps = append(a.Deps, b.ExportAction(p))
 			}
 		}
 		b.Do(ctx, a)

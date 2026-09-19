@@ -211,13 +211,13 @@ variable for future go command invocations.
 
 var (
 	getD        dFlag
-	getF        = CmdGet.Flag.Bool("f", false, "")
-	getFix      = CmdGet.Flag.Bool("fix", false, "")
-	getM        = CmdGet.Flag.Bool("m", false, "")
-	getT        = CmdGet.Flag.Bool("t", false, "")
+	getF        = CmdGet.Flag.Bool("f", false, "no-op; formerly forced get of package even if it did not appear to be used")
+	getFix      = CmdGet.Flag.Bool("fix", false, "no-op; formerly ran 'go fix' on downloaded packages")
+	getM        = CmdGet.Flag.Bool("m", false, "no-op; flag is no longer supported")
+	getT        = CmdGet.Flag.Bool("t", false, "consider modules needed to build tests of packages specified on the command line")
 	getU        upgradeFlag
-	getTool     = CmdGet.Flag.Bool("tool", false, "")
-	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+	getTool     = CmdGet.Flag.Bool("tool", false, "add a matching tool line to go.mod for each listed package")
+	getInsecure = CmdGet.Flag.Bool("insecure", false, "no-op; use GOINSECURE instead")
 )
 
 // upgradeFlag is a custom flag.Value for -u.
@@ -269,8 +269,8 @@ func (b *dFlag) String() string { return "" }
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag)
 	CmdGet.Run = runGet // break init loop
-	CmdGet.Flag.Var(&getD, "d", "")
-	CmdGet.Flag.Var(&getU, "u", "")
+	CmdGet.Flag.Var(&getD, "d", "deprecated flag; is a no-op")
+	CmdGet.Flag.Var(&getU, "u", "update modules providing dependencies to use newer minor or patch releases when available; -u=patch selects patch releases")
 }
 
 func runGet(ctx context.Context, cmd *base.Command, args []string) {
@@ -413,6 +413,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile(moduleLoader))
+	// Record whether the main module's go.mod already had a go directive before
+	// WriteGoMod rewrites (and re-indexes) the file. If it did not, the go
+	// command synthesized the current version into oldReqs, which would
+	// otherwise make adding a go directive look like a downgrade.
+	// See go.dev/issue/63507.
+	mainHadGoDirective := modload.MainModuleHasGoDirective(moduleLoader)
 
 	if err := modload.WriteGoMod(moduleLoader, ctx, opts); err != nil {
 		// A TooNewError can happen for 'go get go@newversion'
@@ -424,7 +430,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	newReqs := reqsFromGoMod(modload.ModFile(moduleLoader))
-	r.reportChanges(oldReqs, newReqs)
+	r.reportChanges(oldReqs, newReqs, mainHadGoDirective)
 
 	if gowork := moduleLoader.FindGoWork(base.Cwd()); gowork != "" {
 		wf, err := modload.ReadWorkFile(gowork)
@@ -1635,10 +1641,9 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 	// We'll also report issues for retracted and deprecated modules using the workspace
 	// info, but switch back to single module mode when fetching sums so that we update
 	// the single module's go.sum file.
-	var exitWorkspace func()
 	if r.workspace != nil && r.workspace.hasModule(ld.MainModules.Versions()[0].Path) {
 		var err error
-		exitWorkspace, err = modload.EnterWorkspace(ld, ctx)
+		ld, err = ld.NewForWorkspace(ctx)
 		if err != nil {
 			// A TooNewError can happen for
 			// go get go@newversion when all the required modules
@@ -1769,16 +1774,6 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 		})
 	}
 
-	// exit the workspace if we had entered it earlier. We want to add the sums
-	// to the go.sum file for the module we're running go get from.
-	if exitWorkspace != nil {
-		// Wait for retraction and deprecation checks (that depend on the global
-		// modload state containing the workspace) to finish before we reset the
-		// state back to single module mode.
-		<-r.work.Idle()
-		exitWorkspace()
-	}
-
 	// Load sums for updated modules that had sums before. When we update a
 	// module, we may update another module in the build list that provides a
 	// package in 'all' that wasn't loaded as part of this 'go get' command.
@@ -1858,7 +1853,7 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 // are not relevant to the user and are not logged.
 //
 // reportChanges should be called after WriteGoMod.
-func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+func (r *resolver) reportChanges(oldReqs, newReqs []module.Version, mainHadGoDirective bool) {
 	type change struct {
 		path, old, new string
 	}
@@ -1914,6 +1909,16 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 	}
 	oldGo, oldToolchain := toolchainVersions(oldReqs)
 	newGo, newToolchain := toolchainVersions(newReqs)
+	// A go.mod with no go directive leaves the main module at the implicit
+	// gover.DefaultGoModVersion. The go command synthesizes its own version
+	// into the in-memory go.mod before this point, so without this oldGo would
+	// make a newly written directive look like an up- or downgrade from
+	// whichever version of the go command happened to run.
+	// See go.dev/issue/63507.
+	goImplicit := !mainHadGoDirective
+	if goImplicit {
+		oldGo = gover.DefaultGoModVersion
+	}
 	if oldGo != newGo {
 		changes["go"] = change{"go", oldGo, newGo}
 	}
@@ -1946,18 +1951,24 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 	})
 
 	for _, c := range sortedChanges {
+		// An implicit go version was never written in go.mod, so say so rather
+		// than let it read as a version the module used to declare.
+		what := c.path
+		if c.path == "go" && goImplicit {
+			what = "implicit go"
+		}
 		if c.old == "" {
-			fmt.Fprintf(os.Stderr, "go: added %s %s\n", c.path, c.new)
+			fmt.Fprintf(os.Stderr, "go: added %s %s\n", what, c.new)
 		} else if c.new == "none" || c.new == "" {
-			fmt.Fprintf(os.Stderr, "go: removed %s %s\n", c.path, c.old)
+			fmt.Fprintf(os.Stderr, "go: removed %s %s\n", what, c.old)
 		} else if gover.ModCompare(c.path, c.new, c.old) > 0 {
-			fmt.Fprintf(os.Stderr, "go: upgraded %s %s => %s\n", c.path, c.old, c.new)
+			fmt.Fprintf(os.Stderr, "go: upgraded %s %s => %s\n", what, c.old, c.new)
 			if c.path == "go" && gover.Compare(c.old, gover.ExplicitIndirectVersion) < 0 && gover.Compare(c.new, gover.ExplicitIndirectVersion) >= 0 {
 				fmt.Fprintf(os.Stderr, "\tnote: expanded dependencies to upgrade to go %s or higher; run 'go mod tidy' to clean up\n", gover.ExplicitIndirectVersion)
 			}
 
 		} else {
-			fmt.Fprintf(os.Stderr, "go: downgraded %s %s => %s\n", c.path, c.old, c.new)
+			fmt.Fprintf(os.Stderr, "go: downgraded %s %s => %s\n", what, c.old, c.new)
 		}
 	}
 

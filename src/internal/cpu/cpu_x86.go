@@ -178,7 +178,7 @@ func doinit() {
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
 	X86.HasSHA = isSet(ebx7, cpuid_SHA)
 	X86.HasVAES = isSet(ecx7, cpuid_VAES) && X86.HasAVX
-	X86.HasVPCLMULQDQ = isSet(ecx7, cpuid_VPCLMULQDQ)
+	X86.HasVPCLMULQDQ = isSet(ecx7, cpuid_VPCLMULQDQ) && X86.HasAVX
 
 	X86.HasAVX512F = isSet(ebx7, cpuid_AVX512F) && osSupportsAVX512
 	if X86.HasAVX512F {

@@ -248,6 +248,7 @@ var optab = []Optab{
 	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
 	{AVMOVQ, C_ROFF, C_NONE, C_NONE, C_VREG, C_NONE, 21, 4, 0, 0},
 	{AVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // vldrepl.{b/h/w/d}
+	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_SOREG_12, C_NONE, 43, 4, 0, 0}, // vstelm.{b/h/w/d}
 	// moving data between registers
 	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 1, 4, 0, 0},
 	{AVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},  // vinsgr2vr.{b/h/w/d}
@@ -263,6 +264,7 @@ var optab = []Optab{
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
 	{AXVMOVQ, C_ROFF, C_NONE, C_NONE, C_XREG, C_NONE, 21, 4, 0, 0},
 	{AXVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // xvldrepl.{b/h/w/d}
+	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_SOREG_12, C_NONE, 43, 4, 0, 0}, // xvstelm.{b/h/w/d}
 	// moving data between registers
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 1, 4, 0, 0},
 	{AXVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},  // vinsgr2vr.{b/h/w/d}
@@ -649,15 +651,6 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
-
-	// Now that we know byte offsets, we can generate jump table entries.
-	for _, jt := range cursym.Func().JumpTables {
-		for i, p := range jt.Targets {
-			// The ith jumptable entry points to the p.Pc'th
-			// byte in the function symbol s.
-			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
-		}
-	}
 }
 
 // isUnsafePoint returns whether p is an unsafe point.
@@ -1485,6 +1478,7 @@ func buildop(ctxt *obj.Link) {
 
 		case ASYSCALL:
 			opset(ADBAR, r0)
+			opset(AIBAR, r0)
 			opset(ABREAK, r0)
 
 		case ACMPEQF:
@@ -1507,6 +1501,12 @@ func buildop(ctxt *obj.Link) {
 		case AMOVF:
 			opset(AMOVD, r0)
 
+		case AVSHUFB:
+			opset(AVBITSELV, r0)
+
+		case AXVSHUFB:
+			opset(AXVBITSELV, r0)
+
 		case AMOVW,
 			AMOVV,
 			ARFE,
@@ -1514,8 +1514,6 @@ func buildop(ctxt *obj.Link) {
 			AJMP,
 			AVMOVQ,
 			AXVMOVQ,
-			AVSHUFB,
-			AXVSHUFB,
 			AWORD,
 			APRELD,
 			APRELDX,
@@ -1636,6 +1634,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVEXTRINSH, r0)
 			opset(AVEXTRINSW, r0)
 			opset(AVEXTRINSV, r0)
+			opset(AVBITSELB, r0)
 
 		// xvandi.b xd, xj, ui8
 		case AXVANDB:
@@ -1653,6 +1652,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVEXTRINSH, r0)
 			opset(AXVEXTRINSW, r0)
 			opset(AXVEXTRINSV, r0)
+			opset(AXVBITSELB, r0)
 
 		// vadd.b vd, vj, vk
 		case AVADDB:
@@ -2257,6 +2257,14 @@ func OP_15I(op uint32, i uint32) uint32 {
 	return op | (i&0x7FFF)<<0
 }
 
+func OP_3RRR(op uint32, ca, fk, fj, fd uint32) uint32 {
+	return op | (ca&0x7)<<15 | (fk&0x1F)<<10 | (fj&0x1F)<<5 | (fd & 0x1F)
+}
+
+func OP_5IIRR(op uint32, index, imm, rj, rd uint32) uint32 {
+	return op | (index << 18) | (imm << 10) | (rj << 5) | rd
+}
+
 // i1 -> msb
 // r2 -> rj
 // i3 -> lsb
@@ -2661,7 +2669,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if len(p.RestArgs) > 0 {
 			fj = uint32(p.GetFrom3().Reg)
 		}
-		o1 = 0x340<<18 | (ca&0x7)<<15 | (fk&0x1F)<<10 | (fj&0x1F)<<5 | (fd & 0x1F)
+		o1 = OP_3RRR(0x340<<18, ca, fk, fj, fd)
 
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)
@@ -2713,7 +2721,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		index := uint32(p.To.Index)
 		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (rj << 5) | rd
+		o1 = OP_5IRR(v, index, rj, rd)
 
 	case 40: // vmov Vd.<T>[index], Rn
 		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -2725,7 +2733,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		index := uint32(p.From.Index)
 		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (rj << 5) | rd
+		o1 = OP_5IRR(v, index, rj, rd)
 
 	case 41: // vmov Rn, Vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -2735,7 +2743,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		rj := uint32(p.From.Reg & EXT_REG_MASK)
 		rd := uint32(p.To.Reg & EXT_REG_MASK)
-		o1 = v | (rj << 5) | rd
+		o1 = OP_RR(v, rj, rd)
 
 	case 42: // vmov offset(vj), vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, true)
@@ -2767,6 +2775,38 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				}
 				o1 = OP_9IRR(v, uint32(si>>3), Rj, Vd)
 			}
+		}
+
+	case 43: // vmov Vd.<T>[index], offset(Rj)  ->  [x]vstelm.{b/h/w/d}
+		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, true)
+		if v == 0 {
+			c.ctxt.Diag("illegal arng type combination: %v\n", p)
+		}
+
+		vd := uint32(p.From.Reg & EXT_REG_MASK)
+		rj := uint32(p.To.Reg & EXT_REG_MASK)
+		index := uint32(p.From.Index)
+		c.checkindex(p, index, m)
+
+		si := c.regoff(&p.To)
+		switch v & 0x00F00000 {
+		case 0x00100000: // [x]vstelm.d
+			if si&7 != 0 {
+				c.ctxt.Diag("%v: offset must be a multiple of 8.\n", p)
+			}
+			o1 = OP_5IIRR(v, index, uint32(si>>3)&0xff, rj, vd)
+		case 0x00200000: // [x]vstelm.w
+			if si&3 != 0 {
+				c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
+			}
+			o1 = OP_5IIRR(v, index, uint32(si>>2)&0xff, rj, vd)
+		case 0x00400000: // [x]vstelm.h
+			if si&1 != 0 {
+				c.ctxt.Diag("%v: offset must be a multiple of 2.\n", p)
+			}
+			o1 = OP_5IIRR(v, index, uint32(si>>1)&0xff, rj, vd)
+		case 0x00800000: // [x]vstelm.b
+			o1 = OP_5IIRR(v, index, uint32(si)&0xff, rj, vd)
 		}
 
 	case 45:
@@ -2906,7 +2946,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Sym:  p.To.Sym,
 			Add:  p.To.Offset,
 		})
-		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
+		o3 = OP_RRR(c.oprrr(AADDV), uint32(REGTLS), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 
 	case 54: // lu12i.w + ori + add r2, regtmp + lw o(regtmp)
@@ -2928,7 +2968,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Sym:  p.From.Sym,
 			Add:  p.From.Offset,
 		})
-		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
+		o3 = OP_RRR(c.oprrr(AADDV), uint32(REGTLS), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 
 	case 56: // mov r, tlsvar IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + st.d
@@ -2946,7 +2986,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Siz:  4,
 			Sym:  p.To.Sym,
 		})
-		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REG_R2), uint32(REGTMP))
+		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REGTLS), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 
 	case 57: // mov tlsvar, r IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + ld.d
@@ -2964,7 +3004,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Siz:  4,
 			Sym:  p.From.Sym,
 		})
-		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REG_R2), uint32(REGTMP))
+		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REGTLS), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 
 	case 59: // mov $dcon,r
@@ -3324,4 +3364,34 @@ func vshift(a obj.As) bool {
 		return true
 	}
 	return false
+}
+
+// The following functions are used only within the linker's
+// gentxt, elfsetupplt, addpltsym, gentramp, and gentrampgot.
+
+func OpCodeIR(a obj.As) uint32 {
+	op, ok := opir[a]
+	if ok {
+		return op
+	}
+	log.Fatalf("bad ir opcode %v", a)
+	return 0
+}
+
+func OpCodeIRR(a obj.As) uint32 {
+	op, ok := opirr[a]
+	if ok {
+		return op
+	}
+	log.Fatalf("bad irr opcode %v", a)
+	return 0
+}
+
+func OpCodeRRR(a obj.As) uint32 {
+	op, ok := oprrr[a]
+	if ok {
+		return op
+	}
+	log.Fatalf("bad rrr opcode %v", a)
+	return 0
 }

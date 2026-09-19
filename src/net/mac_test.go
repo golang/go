@@ -5,7 +5,9 @@
 package net
 
 import (
+	"encoding/json"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -117,5 +119,80 @@ func TestParseMAC(t *testing.T) {
 				t.Errorf("%d. ParseMAC(%q) = %v, want %v", i, s, out2, out)
 			}
 		}
+	}
+}
+
+var hardwareAddrJSONTests = []struct {
+	in   HardwareAddr
+	out0 string // expected marshaling with GODEBUG=netmarshal=0
+	out1 string // expected marshaling with GODEBUG=netmarshal=1
+}{
+	{
+		nil,
+		`""`,
+		`""`,
+	},
+	{
+		HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01},
+		`"AABeAFMB"`,
+		`"00:00:5e:00:53:01"`,
+	},
+}
+
+// TestMACJSON tests JSON marshaling for HardwareAddr.
+func TestMACJSON(t *testing.T) {
+	// testReadable tests that we can marshal hw and unmarshal the result.
+	// We will call this with different GODEBUG settings to make
+	// sure that the unmarshaler, which doesn't check GODEBUG,
+	// works in all scenarios.
+	testReadable := func(hw HardwareAddr) {
+		b, err := json.Marshal(hw)
+		if err != nil {
+			t.Errorf("json.Marshal(%s) failed: %v", hw, err)
+			return
+		}
+
+		var hw2 HardwareAddr
+		if err = json.Unmarshal(b, &hw2); err != nil {
+			t.Errorf("json.Unmarshal of %q (from %s) failed: %v", b, hw, err)
+			return
+		}
+
+		if !slices.Equal(hw, hw2) {
+			t.Errorf("%s marshaled to %q, unmarshaled to different value %s", hw, b, hw2)
+		}
+	}
+
+	for _, d := range []string{"unset", "0", "1"} {
+		t.Run("GODEBUG="+d, func(t *testing.T) {
+			if d != "unset" {
+				t.Setenv("GODEBUG", "netmarshal="+d)
+
+				for _, tt := range hardwareAddrJSONTests {
+					b, err := json.Marshal(tt.in)
+					if err != nil {
+						t.Errorf("json.Marshal(%s) failed: %v", tt.in, err)
+						continue
+					}
+					var want string
+					if d == "0" {
+						want = tt.out0
+					} else {
+						want = tt.out1
+					}
+					if string(b) != want {
+						t.Errorf("json.Marshal(%s) = %q, want %q", tt.in, b, want)
+					}
+				}
+			}
+
+			testReadable(nil)
+
+			for _, tt := range parseMACTests {
+				if tt.out != nil {
+					testReadable(tt.out)
+				}
+			}
+		})
 	}
 }
