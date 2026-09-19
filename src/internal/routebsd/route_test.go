@@ -14,7 +14,7 @@ import (
 
 func (m *InterfaceMessage) String() string {
 	var attrs addrAttrs
-	if runtime.GOOS == "openbsd" {
+	if runtime.GOOS == "openbsd" || runtime.GOOS == "dragonfly" {
 		attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
 	} else {
 		attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
@@ -24,7 +24,7 @@ func (m *InterfaceMessage) String() string {
 
 func (m *InterfaceAddrMessage) String() string {
 	var attrs addrAttrs
-	if runtime.GOOS == "openbsd" {
+	if runtime.GOOS == "openbsd" || runtime.GOOS == "dragonfly" {
 		attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
 	} else {
 		attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
@@ -33,6 +33,9 @@ func (m *InterfaceAddrMessage) String() string {
 }
 
 func (m *InterfaceMulticastAddrMessage) String() string {
+	if runtime.GOOS == "dragonfly" {
+		return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[12:16])))
+	}
 	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[4:8])))
 }
 
@@ -80,7 +83,7 @@ func (ms msgs) validate() ([]string, error) {
 		switch m := m.(type) {
 		case *InterfaceMessage:
 			var attrs addrAttrs
-			if runtime.GOOS == "openbsd" {
+			if runtime.GOOS == "openbsd" || runtime.GOOS == "dragonfly" {
 				attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
 			} else {
 				attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
@@ -91,7 +94,7 @@ func (ms msgs) validate() ([]string, error) {
 			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
 		case *InterfaceAddrMessage:
 			var attrs addrAttrs
-			if runtime.GOOS == "openbsd" {
+			if runtime.GOOS == "openbsd" || runtime.GOOS == "dragonfly" {
 				attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
 			} else {
 				attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
@@ -101,7 +104,11 @@ func (ms msgs) validate() ([]string, error) {
 			}
 			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
 		case *InterfaceMulticastAddrMessage:
-			if err := addrs(m.Addrs).match(addrAttrs(nativeEndian.Uint32(m.raw[4:8]))); err != nil {
+			attrs := addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
+			if runtime.GOOS == "dragonfly" {
+				attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
+			}
+			if err := addrs(m.Addrs).match(attrs); err != nil {
 				return nil, err
 			}
 			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
