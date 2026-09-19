@@ -1,0 +1,40 @@
+# GOAUTH=mtls certificate files are loaded only when the configured origin is
+# contacted. A request to another HTTPS origin must not load missing files.
+env GOAUTH='mtls https://mtls.example.com '$WORK'/missing-client-cert.pem '$WORK'/missing-client-key.pem; netrc'
+env GOPROXY=direct
+env GOSUMDB=off
+env NETRC=$WORK/netrc
+cp go.mod.orig go.mod
+go get vcs-test.golang.org/auth/or401
+
+# A server that requires a client certificate rejects an unauthenticated fetch.
+env GOAUTH=off
+cp go.mod.orig go.mod
+! go get vcs-test.golang.org/auth/mtls
+stderr 'client certificate required'
+
+# The same fetch succeeds with the origin-scoped client certificate.
+env GOAUTH=$TESTGO_VCSTEST_MTLS_GOAUTH
+cp go.mod.orig go.mod
+go get vcs-test.golang.org/auth/mtls
+go list -m all
+stdout vcs-test.golang.org/auth/mtls
+
+# GOAUTH=mtls also authenticates requests made directly to an HTTPS GOPROXY.
+go clean -modcache
+env GOPROXY=https://vcs-test.golang.org/auth/mtls
+env GOAUTH=off
+! go mod download vcs-test.golang.org/auth/mtls@v0.0.0-20190405155051-52df474c8a8b
+stderr 'client certificate required'
+
+env GOAUTH=$TESTGO_VCSTEST_MTLS_GOAUTH
+go mod download vcs-test.golang.org/auth/mtls@v0.0.0-20190405155051-52df474c8a8b
+
+-- go.mod.orig --
+module private.example.com
+
+go 1.24
+-- $WORK/netrc --
+machine vcs-test.golang.org
+	login aladdin
+	password opensesame
