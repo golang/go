@@ -15,6 +15,7 @@ import (
 	"internal/godebug"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -354,6 +355,9 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		injectedFlags = append(injectedFlags, "-test.v=test2json")
 		delete(addFromGOFLAGS, "v")
 		delete(addFromGOFLAGS, "test.v")
+		explicitArgs = slices.DeleteFunc(explicitArgs, func(s string) bool {
+			return strings.HasPrefix(s, "-test.v=")
+		})
 
 		if gotestjsonbuildtext.Value() == "1" {
 			gotestjsonbuildtext.IncNonDefault()

@@ -1,0 +1,22 @@
+go test -count=1 -json -v .
+! stdout 'output with no trailing newline--- PASS'
+
+go test -count=1 -json . -v
+! stdout 'output with no trailing newline--- PASS'
+
+go test -count=1 -json . -test.v
+! stdout 'output with no trailing newline--- PASS'
+
+-- go.mod --
+module test
+-- main_test.go --
+package t2jbug
+
+import (
+	"fmt"
+	"testing"
+)
+
+func TestUnterminated(t *testing.T) {
+	fmt.Print("output with no trailing newline")
+}
