@@ -671,3 +671,39 @@ func TestIssue61875(t *testing.T) {
 		t.Errorf("expected error, got nil")
 	}
 }
+
+// TestZip64LFHVersion tests that the Local File Header version is written
+// to 45 for ZIP64 entries to match the Central Directory version.
+func TestZip64LFHVersion(t *testing.T) {
+	buf := new(bytes.Buffer)
+	w := NewWriter(buf)
+	fh := &FileHeader{
+		Name:               "large_file.bin",
+		Method:             Store,
+		CRC32:              0x12345678,
+		CompressedSize64:   uint32max + 1,
+		UncompressedSize64: uint32max + 1,
+	}
+	if _, err := w.CreateRaw(fh); err != nil {
+		t.Fatalf("CreateRaw failed: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+	data := buf.Bytes()
+	// Find Local File Header (signature 0x04034b50)
+	lfhIdx := bytes.Index(data, []byte{0x50, 0x4b, 0x03, 0x04})
+	if lfhIdx == -1 {
+		t.Fatal("local file header not found")
+	}
+	lfhVersion := binary.LittleEndian.Uint16(data[lfhIdx+4 : lfhIdx+6])
+	// Find Central Directory Header (signature 0x02014b50)
+	cdIdx := bytes.Index(data, []byte{0x50, 0x4b, 0x01, 0x02})
+	if cdIdx == -1 {
+		t.Fatal("central directory header not found")
+	}
+	cdVersion := binary.LittleEndian.Uint16(data[cdIdx+6 : cdIdx+8])
+	if lfhVersion != 45 || cdVersion != 45 {
+		t.Errorf("version mismatch: LFH=%d, CD=%d, want both 45", lfhVersion, cdVersion)
+	}
+}
