@@ -26,14 +26,17 @@ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
 length_check:
 	BEQZ	X12, done
 
+#ifndef EnableSmallSizeMemVector
 	MOV	$32, X23
 	BLT	X12, X23, loop4_check
+#endif
 
 #ifndef hasV
 	MOVB	internal∕cpu·RISCV64+const_offsetRISCV64HasV(SB), X5
 	BEQZ	X5, equal_scalar
 #endif
 
+#ifndef EnableSmallSizeMemVector
 	// Use vector if not 8 byte aligned.
 	OR	X10, X11, X5
 	AND	$7, X5
@@ -42,7 +45,52 @@ length_check:
 	// Use scalar if 8 byte aligned and <= 64 bytes.
 	SUB	$64, X12, X6
 	BLEZ	X6, loop32_check
+#endif
 
+#ifdef EnableSmallSizeMemVector
+f_vector_dispatch:
+	MOV $16, X6
+#ifdef VLen_256
+	SLLI	$1, X6
+#endif
+#ifdef VLen_512
+	SLLI	$2, X6
+#endif
+	BGEU	X6, X12, vector_single
+	SLLI	$2, X6
+	BGTU	X12, X6, vector_loop
+	SRLI	$1, X6
+	BGTU	X12, X6, vector_quarter
+
+// (vlen+1)..(2*vlen) bytes
+	PCALIGN	$16
+vector_double:
+	VSETVLI	X12, E8, M2, TA, MA, X5
+	JMP vector
+
+// 1..(vlen) bytes
+	PCALIGN	$16
+vector_single:
+	VSETVLI	X12, E8, M1, TA, MA, X5
+	JMP vector
+
+// (2*vlen+1)..(4*vlen) bytes
+	PCALIGN	$16
+vector_quarter:
+	VSETVLI	X12, E8, M4, TA, MA, X5
+	JMP vector
+
+vector:
+	VLE8V	(X10), V8
+	VLE8V	(X11), V16
+	VMSNEVV	V8, V16, V0
+	VFIRSTM	V0, X6
+	BGEZ	X6, done
+	SUB	X5, X12
+	JMP	done
+#endif
+
+// (4*vlen+1).. bytes
 	PCALIGN	$16
 vector_loop:
 	VSETVLI	X12, E8, M8, TA, MA, X5
@@ -57,6 +105,7 @@ vector_loop:
 	BNEZ	X12, vector_loop
 	JMP	done
 
+#ifndef hasV
 equal_scalar:
 	// Check alignment - if alignment differs we have to do one byte at a time.
 	AND	$7, X10, X9
@@ -76,7 +125,9 @@ align:
 	ADD	$1, X10
 	ADD	$1, X11
 	BNEZ	X9, align
+#endif
 
+#ifndef EnableSmallSizeMemVector
 loop32_check:
 	MOV	$32, X9
 	BLT	X12, X9, loop16_check
@@ -145,6 +196,7 @@ loop1:
 	ADD	$1, X11
 	SUB	$1, X12
 	JMP	loop1
+#endif
 
 done:
 	// If X12 is zero then memory is equivalent.
