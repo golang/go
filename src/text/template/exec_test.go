@@ -1447,6 +1447,37 @@ func (e ErrorWriter) Write(p []byte) (int, error) {
 	return 0, alwaysError
 }
 
+// writeOnlyWriter hides the WriteString method of the embedded writer.
+type writeOnlyWriter struct {
+	io.Writer
+}
+
+type errorStringWriter struct {
+	ErrorWriter
+}
+
+func (e errorStringWriter) WriteString(s string) (int, error) {
+	return 0, alwaysError
+}
+
+func TestPrintString(t *testing.T) {
+	tmpl := Must(New("X").Parse("<{{.}}>"))
+
+	var b strings.Builder
+	if err := tmpl.Execute(writeOnlyWriter{&b}, "hello"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := b.String(), "<hello>"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+
+	tmpl = Must(New("X").Parse("{{.}}"))
+	err := tmpl.Execute(errorStringWriter{}, "hello")
+	if err == nil || err.Error() != alwaysErrorText {
+		t.Errorf("expected %q error; got %v", alwaysErrorText, err)
+	}
+}
+
 func TestExecuteGivesExecError(t *testing.T) {
 	// First, a non-execution error shouldn't be an ExecError.
 	tmpl, err := New("X").Parse("hello")
@@ -2132,6 +2163,18 @@ func TestExecuteBuiltinSignatureFuncs(t *testing.T) {
 			t.Errorf("%s: unexpected error: %v", tt.input, err)
 		} else if b.String() != tt.want {
 			t.Errorf("%s: got %q, want %q", tt.input, b.String(), tt.want)
+		}
+	}
+}
+
+func BenchmarkExecutePrintString(b *testing.B) {
+	type item struct{ Name, Value string }
+	data := []item{{"a", "1"}, {"b", "2"}, {"c", "3"}}
+	tmpl := Must(New("t").Parse(`{{range .}}{{.Name}}={{.Value}} {{end}}`))
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := tmpl.Execute(io.Discard, data); err != nil {
+			b.Fatal(err)
 		}
 	}
 }

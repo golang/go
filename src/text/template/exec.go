@@ -772,6 +772,7 @@ var (
 	errorType        = reflect.TypeFor[error]()
 	fmtStringerType  = reflect.TypeFor[fmt.Stringer]()
 	reflectValueType = reflect.TypeFor[reflect.Value]()
+	stringType       = reflect.TypeFor[string]()
 )
 
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
@@ -1108,6 +1109,17 @@ func indirectInterface(v reflect.Value) reflect.Value {
 // the template.
 func (s *state) printValue(n parse.Node, v reflect.Value) {
 	s.at(n)
+	// Fast path for a plain string, which is what every html/template
+	// action prints. A string has no methods, so fmt.Fprint would write
+	// it unchanged.
+	if v.IsValid() && v.Type() == stringType {
+		if sw, ok := s.wr.(io.StringWriter); ok {
+			if _, err := sw.WriteString(v.String()); err != nil {
+				s.writeError(err)
+			}
+			return
+		}
+	}
 	iface, ok := printableValue(v)
 	if !ok {
 		s.errorf("can't print %s of type %s", n, v.Type())
