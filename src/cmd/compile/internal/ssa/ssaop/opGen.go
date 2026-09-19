@@ -5894,6 +5894,10 @@ const (
 	OpMIPS64LoweredMove
 	OpMIPS64LoweredAtomicAnd32
 	OpMIPS64LoweredAtomicOr32
+	OpMIPS64LoweredAtomicAnd32value
+	OpMIPS64LoweredAtomicAnd64value
+	OpMIPS64LoweredAtomicOr32value
+	OpMIPS64LoweredAtomicOr64value
 	OpMIPS64LoweredAtomicLoad8
 	OpMIPS64LoweredAtomicLoad32
 	OpMIPS64LoweredAtomicLoad64
@@ -99024,6 +99028,78 @@ var OpcodeTable = [...]OpInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 234881023, V2: 0}},           // ZERO R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 				{0, RegMask{V1: 1152921504875282430, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g R31 SB
+			},
+		},
+	},
+	{
+		Name:            "LoweredAtomicAnd32value",
+		ArgLen:          3,
+		ResultNotInArgs: true,
+		FaultOnNilArg0:  true,
+		HasSideEffects:  true,
+		unsafePoint:     true,
+		asm:             mips.AAND,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 234881022, V2: 0}},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
+				{0, RegMask{V1: 1152921504875282430, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g R31 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 167772158, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+			},
+		},
+	},
+	{
+		Name:            "LoweredAtomicAnd64value",
+		ArgLen:          3,
+		ResultNotInArgs: true,
+		FaultOnNilArg0:  true,
+		HasSideEffects:  true,
+		unsafePoint:     true,
+		asm:             mips.AAND,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 234881022, V2: 0}},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
+				{0, RegMask{V1: 1152921504875282430, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g R31 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 167772158, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+			},
+		},
+	},
+	{
+		Name:            "LoweredAtomicOr32value",
+		ArgLen:          3,
+		ResultNotInArgs: true,
+		FaultOnNilArg0:  true,
+		HasSideEffects:  true,
+		unsafePoint:     true,
+		asm:             mips.AOR,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 234881022, V2: 0}},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
+				{0, RegMask{V1: 1152921504875282430, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g R31 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 167772158, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+			},
+		},
+	},
+	{
+		Name:            "LoweredAtomicOr64value",
+		ArgLen:          3,
+		ResultNotInArgs: true,
+		FaultOnNilArg0:  true,
+		HasSideEffects:  true,
+		unsafePoint:     true,
+		asm:             mips.AOR,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 234881022, V2: 0}},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
+				{0, RegMask{V1: 1152921504875282430, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g R31 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 167772158, V2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
 			},
 		},
 	},

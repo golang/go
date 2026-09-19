@@ -380,6 +380,13 @@ func init() {
 		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicOr32", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
+		// Atomic 32/64 bit AND/OR that return the old value.
+		// *arg0 &= (|=) arg1. arg2=mem. returns <old content of *arg0, memory>.
+		{name: "LoweredAtomicAnd32value", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAnd64value", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicOr32value", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "OR", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicOr64value", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "OR", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
 		// atomic loads.
 		// load from arg0. arg1=mem.
 		// returns <value,memory> so they can be properly ordered with other loads.
