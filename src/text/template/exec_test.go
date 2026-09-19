@@ -1779,6 +1779,9 @@ func TestExecutePanicDuringCall(t *testing.T) {
 		"doPanic": func() string {
 			panic("custom panic string")
 		},
+		"doPanicVariadic": func(...any) string {
+			panic("custom panic string")
+		},
 	}
 	tests := []struct {
 		name    string
@@ -1795,6 +1798,16 @@ func TestExecutePanicDuringCall(t *testing.T) {
 			"indirect func call panics",
 			"{{call doPanic}}", (*T)(nil),
 			`template: t:1:7: executing "t" at <doPanic>: error calling doPanic: custom panic string`,
+		},
+		{
+			"variadic func call panics",
+			"{{doPanicVariadic 1}}", (*T)(nil),
+			`template: t:1:2: executing "t" at <doPanicVariadic 1>: error calling doPanicVariadic: custom panic string`,
+		},
+		{
+			"piped variadic func call panics",
+			"{{1 | doPanicVariadic}}", (*T)(nil),
+			`template: t:1:6: executing "t" at <doPanicVariadic>: error calling doPanicVariadic: custom panic string`,
 		},
 		{
 			"direct method call panics",
@@ -2017,5 +2030,16 @@ func TestIssue48215(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "reflect: indirection through nil pointer to embedded struct field A") {
 		t.Fatal(err)
+	}
+}
+
+func BenchmarkExecuteVariadicFunc(b *testing.B) {
+	funcs := FuncMap{"join": func(args ...any) string { return fmt.Sprint(args...) }}
+	tmpl := Must(New("t").Funcs(funcs).Parse(`{{join "a" 1}}{{. | join}}{{join .}}`))
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := tmpl.Execute(io.Discard, "b"); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

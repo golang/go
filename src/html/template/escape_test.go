@@ -2213,6 +2213,25 @@ func BenchmarkEscapedExecute(b *testing.B) {
 	}
 }
 
+func BenchmarkEscapedExecutePage(b *testing.B) {
+	var src strings.Builder
+	src.WriteString(`<h1>{{.Title}}</h1><ul>`)
+	for range 20 {
+		src.WriteString(`<li><a href="/items/{{.ID}}" title="{{.Title}}">{{.Name}}</a></li>`)
+	}
+	src.WriteString(`</ul>`)
+	tmpl := Must(New("t").Parse(src.String()))
+	data := map[string]any{"Title": "Home", "ID": 42, "Name": "Ladies & Gentlemen"}
+	var buf bytes.Buffer
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := tmpl.Execute(&buf, data); err != nil {
+			b.Fatal(err)
+		}
+		buf.Reset()
+	}
+}
+
 // Covers issue 22780.
 func TestOrphanedTemplate(t *testing.T) {
 	t1 := Must(New("foo").Parse(`<a href="{{.}}">link1</a>`))

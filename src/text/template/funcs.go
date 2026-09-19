@@ -363,6 +363,16 @@ func safeCall(fun reflect.Value, args []reflect.Value) (val reflect.Value, err e
 			}
 		}
 	}()
+	// Fast path for func(...any) string, the signature of the html, js and
+	// urlquery builtins and of every html/template escaper. Calling it
+	// directly avoids the allocations of reflect.Value.Call.
+	if f, ok := reflect.TypeAssert[func(...any) string](fun); ok {
+		anyArgs := make([]any, len(args))
+		for i, arg := range args {
+			anyArgs[i] = arg.Interface()
+		}
+		return reflect.ValueOf(f(anyArgs...)), nil
+	}
 	ret := fun.Call(args)
 	if len(ret) == 2 && !ret[1].IsNil() {
 		return ret[0], ret[1].Interface().(error)
