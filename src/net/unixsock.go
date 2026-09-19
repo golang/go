@@ -235,6 +235,7 @@ func dialUnix(ctx context.Context, dialer *Dialer, network string, laddr, raddr 
 type UnixListener struct {
 	fd         *netFD
 	path       string
+	unlinkMu   sync.Mutex
 	unlink     bool
 	unlinkOnce sync.Once
 }
