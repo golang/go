@@ -9,6 +9,7 @@ import (
 	"internal/bytealg"
 	"io/fs"
 	"net/netip"
+	"os"
 	"sync"
 	"time"
 )
@@ -45,8 +46,21 @@ var hosts struct {
 
 	expire time.Time
 	path   string
-	mtime  time.Time
-	size   int64
+	fi     fs.FileInfo
+}
+
+// unchangedHostsFile reports whether fi refers to the same file as the one
+// cached in hosts, still with the same modification time and size. Replacing
+// the hosts file with a rename leaves the modification time and the size of
+// the replacement untouched, so the file identity has to be checked too.
+//
+// The cached fs.FileInfo comes from the open file, not from its path. On
+// Windows os.Stat only records the path and resolves the file identity later,
+// when os.SameFile reopens that path, so a cached os.Stat result would resolve
+// to the replacement file and hide the change.
+func unchangedHostsFile(fi fs.FileInfo) bool {
+	return hosts.fi != nil && os.SameFile(hosts.fi, fi) &&
+		hosts.fi.ModTime().Equal(fi.ModTime()) && hosts.fi.Size() == fi.Size()
 }
 
 func readHosts() {
@@ -56,14 +70,10 @@ func readHosts() {
 	if now.Before(hosts.expire) && hosts.path == hp && len(hosts.byName) > 0 {
 		return
 	}
-	mtime, size, err := stat(hp)
-	if err == nil && hosts.path == hp && hosts.mtime.Equal(mtime) && hosts.size == size {
+	if sfi, err := os.Stat(hp); err == nil && hosts.path == hp && unchangedHostsFile(sfi) {
 		hosts.expire = now.Add(cacheMaxAge)
 		return
 	}
-
-	hs := make(map[string]byName)
-	is := make(map[string][]string)
 
 	file, err := open(hp)
 	if err != nil {
@@ -72,8 +82,15 @@ func readHosts() {
 		}
 	}
 
+	var fi fs.FileInfo
+	hs := make(map[string]byName)
+	is := make(map[string][]string)
+
 	if file != nil {
 		defer file.close()
+		if fi, err = file.stat(); err != nil {
+			fi = nil
+		}
 		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 			if i := bytealg.IndexByteString(line, '#'); i >= 0 {
 				// Discard comments.
@@ -121,8 +138,7 @@ func readHosts() {
 	hosts.path = hp
 	hosts.byName = hs
 	hosts.byAddr = is
-	hosts.mtime = mtime
-	hosts.size = size
+	hosts.fi = fi
 }
 
 // lookupStaticHost looks up the addresses and the canonical name for the given host from /etc/hosts.
