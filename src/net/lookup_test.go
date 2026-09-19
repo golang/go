@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/testenv"
+	"math/rand/v2"
 	"net/netip"
 	"reflect"
 	"runtime"
@@ -17,6 +18,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -1133,10 +1135,41 @@ func TestLookupIPAddrPreservesContextValues(t *testing.T) {
 		if err != nil {
 			t.Errorf("Resolver #%d: unexpected error: %v", i, err)
 		}
-		if !reflect.DeepEqual(gotIPs, wantIPs) {
+		// Ignore order
+		if !reflect.DeepEqual(sortedIPAddrStrings(gotIPs), sortedIPAddrStrings(wantIPs)) {
 			t.Errorf("#%d: mismatched IPAddr results\n\tGot: %v\n\tWant: %v", i, gotIPs, wantIPs)
 		}
 	}
+}
+
+type lockedRand struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
+
+func newLockedRand(seed1, seed2 uint64) *lockedRand {
+	return &lockedRand{r: rand.New(rand.NewPCG(seed1, seed2))}
+}
+
+func (lr *lockedRand) IntN(n int) int {
+	lr.mu.Lock()
+	defer lr.mu.Unlock()
+	return lr.r.IntN(n)
+}
+
+func (lr *lockedRand) Shuffle(n int, swap func(i, j int)) {
+	lr.mu.Lock()
+	defer lr.mu.Unlock()
+	lr.r.Shuffle(n, swap)
+}
+
+func sortedIPAddrStrings(ipAddrs []IPAddr) []string {
+	ret := make([]string, len(ipAddrs))
+	for i, ipAddr := range ipAddrs {
+		ret[i] = ipAddr.String() + "\000" + ipAddr.Zone
+	}
+	slices.Sort(ret)
+	return ret
 }
 
 // Issue 30521: The lookup group should call the resolver for each network.
@@ -1194,12 +1227,70 @@ func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
 				t.Errorf("lookupIPAddr(%v, %v): unexpected error: %v", network, host, err)
 			}
 			wantIPs := results[[2]string{network, host}]
-			if !reflect.DeepEqual(gotIPs, wantIPs) {
+			// Ignore order
+			if !reflect.DeepEqual(sortedIPAddrStrings(gotIPs), sortedIPAddrStrings(wantIPs)) {
 				t.Errorf("lookupIPAddr(%v, %v): mismatched IPAddr results\n\tGot: %v\n\tWant: %v", network, host, gotIPs, wantIPs)
 			}
 		}()
 	}
 	wg.Wait()
+}
+
+// Issue 31698: Concurrent callers do not always receive the same order.
+func TestLookupIPAddrConcurrentCallsForShuffle(t *testing.T) {
+	synctest.Test(t, func(*testing.T) {
+		origTestHookLookupIP := testHookLookupIP
+		defer func() { testHookLookupIP = origTestHookLookupIP }()
+
+		origTestHookShuffleRand := testHookShuffleRand
+		defer func() { testHookShuffleRand = origTestHookShuffleRand }()
+
+		// Both addresses share the same commonPrefixLen, so the RFC 6724 sort calls
+		// Shuffle only once; with a fixed seed the pseudo-random result is predictable.
+		ipv4LocalHost := []IPAddr{
+			{IP: IPv4(127, 0, 0, 2)},
+			{IP: IPv4(127, 0, 0, 3)},
+		}
+		testHookLookupIP = func(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
+			// Simulation for DNS query time cost
+			time.Sleep(50 * time.Millisecond)
+			return ipv4LocalHost, nil
+		}
+		// Use a locked random source so concurrent Shuffle calls do not race on shared state.
+		// With this deliberately chosen fixed seed the two concurrent lookups
+		// stay deterministic, so just two lookups suffice to verify each caller
+		// receives a shuffled result.
+		testHookShuffleRand = newLockedRand(0, 0).Shuffle
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		network := "udp"
+		host := "golang.org"
+		result := make([][]IPAddr, 0, 2)
+		var mu sync.Mutex
+		for range 2 {
+			go func() {
+				gotIPs, err := DefaultResolver.lookupIPAddr(ctx, network, host)
+				if err != nil {
+					t.Errorf("lookupIPAddr(%v, %v): unexpected error: %v", network, host, err)
+				}
+				// Ignore order
+				if !reflect.DeepEqual(sortedIPAddrStrings(gotIPs), sortedIPAddrStrings(ipv4LocalHost)) {
+					t.Errorf("lookupIPAddr(%v, %v): mismatched IPAddr results\n\tGot: %v\n\tWant: %v", network, host, gotIPs, ipv4LocalHost)
+				}
+				mu.Lock()
+				defer mu.Unlock()
+				result = append(result, gotIPs)
+			}()
+		}
+		synctest.Sleep(50 * time.Millisecond)
+		for i := 1; i < len(result); i++ {
+			// Lookups always return the same order (expected shuffled results)
+			if !reflect.DeepEqual(result[i], result[0]) {
+				return
+			}
+		}
+		t.Errorf("Lookups always return the same order (expected shuffled results)")
+	})
 }
 
 // Issue 53995: Resolver.LookupIP should return error for empty host name.
