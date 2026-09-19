@@ -233,6 +233,28 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
+	// Rewrite TEST $c, reg to TESTB $c, bytereg when c is in [0, 127].
+	// TEST has no sign-extended imm8 form, so the wider forms carry a
+	// full 16- or 32-bit immediate. Such a mask confines the AND result
+	// to the low seven bits at every operand width: ZF and PF depend
+	// only on the low byte, CF and OF are always cleared, and SF is
+	// zero either way because bit 7 of the immediate is clear. The byte
+	// form therefore sets identical flags and is 2-4 bytes shorter.
+	// The register is renamed to its byte form here so that the ytab
+	// match sees it on the first pass and picks the short accumulator
+	// encoding for AL. Memory operands are excluded because narrowing
+	// would change the access width. On 386 only AX, CX, DX and BX
+	// have byte forms.
+	switch p.As {
+	case ATESTQ, ATESTL, ATESTW:
+		if p.From.Type == obj.TYPE_CONST && uint64(p.From.Offset) < 128 &&
+			p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg &&
+			(p.To.Reg <= REG_BX || ctxt.Arch.Family == sys.AMD64 && p.To.Reg <= REG_R15) {
+			p.As = ATESTB
+			p.To.Reg += REG_AL - REG_AX
+		}
+	}
+
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
