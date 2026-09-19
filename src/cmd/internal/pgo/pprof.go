@@ -12,8 +12,18 @@ import (
 	"fmt"
 	"internal/profile"
 	"io"
+	"slices"
 	"sort"
 )
+
+// nonCPUSampleTypes are the sample value types from Go's non-CPU profiles
+// (heap, mutex, block). A profile whose selected value type is one of these is
+// not a CPU profile and is rejected.
+var nonCPUSampleTypes = []string{
+	"alloc_objects", "alloc_space",
+	"inuse_objects", "inuse_space",
+	"contentions", "delay",
+}
 
 // FromPProf parses Profile from a pprof profile.
 func FromPProf(r io.Reader) (*Profile, error) {
@@ -31,19 +41,9 @@ func FromPProf(r io.Reader) (*Profile, error) {
 		return emptyProfile(), nil
 	}
 
-	valueIndex := -1
-	for i, s := range p.SampleType {
-		// Samples count is the raw data collected, and CPU nanoseconds is just
-		// a scaled version of it, so either one we can find is fine.
-		if (s.Type == "samples" && s.Unit == "count") ||
-			(s.Type == "cpu" && s.Unit == "nanoseconds") {
-			valueIndex = i
-			break
-		}
-	}
-
-	if valueIndex == -1 {
-		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
+	valueIndex, err := sampleValueIndex(p)
+	if err != nil {
+		return nil, err
 	}
 
 	g := profile.NewGraph(p, &profile.Options{
@@ -69,6 +69,34 @@ func FromPProf(r io.Reader) (*Profile, error) {
 		TotalWeight:  totalWeight,
 		NamedEdgeMap: namedEdgeMap,
 	}, nil
+}
+
+// sampleValueIndex returns the index of the sample value to use as the PGO
+// weight, or an error if the profile is not a CPU profile.
+func sampleValueIndex(p *profile.Profile) (int, error) {
+	for i, s := range p.SampleType {
+		if (s.Type == "samples" && s.Unit == "count") ||
+			(s.Type == "cpu" && s.Unit == "nanoseconds") {
+			return i, nil
+		}
+	}
+
+	// Not a Go CPU profile. Use the default sample type, or the last value
+	// type if there is no default.
+	index := len(p.SampleType) - 1
+	if d := p.DefaultSampleType; d != "" {
+		for i, s := range p.SampleType {
+			if s.Type == d {
+				index = i
+				break
+			}
+		}
+	}
+
+	if index < 0 || slices.Contains(nonCPUSampleTypes, p.SampleType[index].Type) {
+		return 0, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or "cpu/nanoseconds", and does not default to a CPU sample type`)
+	}
+	return index, nil
 }
 
 // createNamedEdgeMap builds a map of callsite-callee edge weights from the
