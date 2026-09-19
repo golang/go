@@ -187,9 +187,6 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err error) {
 	var v uint32
 	var nb int
 	for i, b := range src {
-		if len(dst)-ndst < 4 {
-			return
-		}
 		switch {
 		case b <= ' ':
 			continue
@@ -203,6 +200,9 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err error) {
 			return 0, 0, CorruptInputError(i)
 		}
 		if nb == 5 {
+			if len(dst)-ndst < 4 {
+				return
+			}
 			nsrc = i + 1
 			dst[ndst] = byte(v >> 24)
 			dst[ndst+1] = byte(v >> 16)
@@ -222,6 +222,10 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err error) {
 			// the inefficiency of the encoding for the block.
 			if nb == 1 {
 				return 0, 0, CorruptInputError(len(src))
+			}
+			need := nb - 1
+			if len(dst)-ndst < need {
+				return
 			}
 			for i := nb; i < 5; i++ {
 				// The short encoding truncated the output value.
