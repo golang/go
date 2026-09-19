@@ -135,7 +135,11 @@ TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
 	ADDQ	$8, SP
 
 	// determine index into runtime·cbs table
-	MOVQ	$runtime·callbackasm(SB), DX
+	// LEAQ (rather than MOVQ $...) so that under -dynlink the address
+	// is loaded straight into DX without scribbling on R15. R15 is
+	// used by -dynlink as the GOT scratch register, and its host value
+	// must survive until PUSH_REGS_HOST_TO_ABI0 spills it below.
+	LEAQ	runtime·callbackasm(SB), DX
 	SUBQ	DX, AX
 	MOVQ	$0, DX
 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
