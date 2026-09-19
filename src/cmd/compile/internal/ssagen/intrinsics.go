@@ -735,8 +735,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	alias("internal/runtime/atomic", "CasRel", "internal/runtime/atomic", "Cas", lwatomics...)
 
 	// Aliases for atomic And/Or operations
-	alias("internal/runtime/atomic", "Anduintptr", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchLoong64)
-	alias("internal/runtime/atomic", "Oruintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchLoong64)
+	alias("internal/runtime/atomic", "Anduintptr", "internal/runtime/atomic", "And64", p8...)
+	alias("internal/runtime/atomic", "Oruintptr", "internal/runtime/atomic", "Or64", p8...)
 
 	/******** math ********/
 	addF("math", "sqrt",
