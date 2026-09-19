@@ -12,6 +12,7 @@ import (
 	"go/types"
 	"internal/testenv"
 	"testing"
+	"time"
 )
 
 // findStructType typechecks src and returns the first struct type encountered.
@@ -196,5 +197,35 @@ func TestGCSizes(t *testing.T) {
 			}
 			mustTypecheck(tc.src, &conf, nil)
 		})
+	}
+}
+
+// This test constructs a chain of single-field structs whose Sizeof
+// computation is exponential without memoization: for each level,
+// Offsetsof computes the size of the field type and the Struct case
+// computes it again, so the naive recursion makes two calls per level
+// and expands to 2^depth calls (see go.dev/issue/78342). With the
+// StdSizes cache the second call hits the memo table and the whole
+// computation is linear in depth.
+func TestStdSizesSizeofDeep(t *testing.T) {
+	const depth = 40
+	var typ types.Type = types.Typ[types.Int64]
+	for range depth {
+		typ = types.NewStruct([]*types.Var{
+			types.NewField(token.NoPos, nil, "a", typ, false),
+		}, nil)
+	}
+
+	sizes := &types.StdSizes{WordSize: 8, MaxAlign: 8}
+
+	start := time.Now()
+	got := sizes.Sizeof(typ)
+	if elapsed := time.Since(start); elapsed > 3*time.Second {
+		t.Fatalf("Sizeof took %v to complete; memoization is not effective?", elapsed)
+	}
+
+	// Each struct level simply wraps the previous type in one field.
+	if want := int64(8); got != want {
+		t.Fatalf("Sizeof() = %d, want %d", got, want)
 	}
 }
