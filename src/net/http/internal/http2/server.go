@@ -93,14 +93,19 @@ var (
 
 // Server is an HTTP/2 server.
 type Server struct {
-	mu          sync.Mutex
-	activeConns map[*serverConn]struct{}
+	mu           sync.Mutex
+	activeConns  map[*serverConn]struct{}
+	shuttingDown bool // GracefulShutdown has been called
 }
 
-func (s *Server) registerConn(sc *serverConn) {
+// registerConn adds sc to activeConns. It reports whether the Server
+// is already shutting down, in which case sc missed the GOAWAY sweep
+// in GracefulShutdown and the caller must shut it down.
+func (s *Server) registerConn(sc *serverConn) (shuttingDown bool) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.activeConns[sc] = struct{}{}
-	s.mu.Unlock()
+	return s.shuttingDown
 }
 
 func (s *Server) unregisterConn(sc *serverConn) {
@@ -112,6 +117,7 @@ func (s *Server) unregisterConn(sc *serverConn) {
 func (s *Server) GracefulShutdown() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.shuttingDown = true
 	for sc := range s.activeConns {
 		sc.startGracefulShutdown()
 	}
@@ -294,7 +300,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 		newf(sc)
 	}
 
-	s.registerConn(sc)
+	shuttingDown := s.registerConn(sc)
 	served := false
 	defer func() {
 		if !served {
@@ -420,7 +426,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	}
 
 	served = true
-	sc.serve(conf)
+	sc.serve(conf, shuttingDown)
 }
 
 func serverConnBaseContext(c net.Conn, opts *ServeConnOpts) (ctx context.Context, cancel func()) {
@@ -820,7 +826,7 @@ func (sc *serverConn) notePanic() {
 	}
 }
 
-func (sc *serverConn) serve(conf Config) {
+func (sc *serverConn) serve(conf Config, shuttingDown bool) {
 	sc.serveG.check()
 	defer sc.notePanic()
 	parked := false
@@ -856,6 +862,12 @@ func (sc *serverConn) serve(conf Config) {
 	// If a higher value is configured, we add more tokens.
 	if diff := conf.MaxReceiveBufferPerConnection - initialWindowSize; diff > 0 {
 		sc.sendWindowUpdate(nil, int(diff))
+	}
+
+	if shuttingDown {
+		// We registered after the Server's GOAWAY sweep; send our own,
+		// after the SETTINGS that must start the server preface.
+		sc.startGracefulShutdownInternal()
 	}
 
 	if err := sc.readPreface(); err != nil {
