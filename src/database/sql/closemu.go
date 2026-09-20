@@ -109,6 +109,20 @@ func (m *closingMutex) TryRLock() bool {
 	}
 }
 
+// TryLock attempts to lock m for writing, without blocking.
+// It returns false if m is currently read-locked (x > 1) or write-locked (x < 0).
+func (m *closingMutex) TryLock() bool {
+	for {
+		x := m.state.Load()
+		if x != 0 && x != 1 {
+			return false
+		}
+		if m.state.CompareAndSwap(x, -1) {
+			return true
+		}
+	}
+}
+
 func (m *closingMutex) init() {
 	// Lazily create the read/write Conds.
 	// In the common, uncontended case, we'll never need them.

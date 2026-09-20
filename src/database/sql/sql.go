@@ -1994,6 +1994,13 @@ type Conn struct {
 	// Once done, all operations fail with ErrConnDone.
 	done atomic.Bool
 
+	// pendingCloseErr holds the error a deferred close (see closeBadConn)
+	// must finish with, once closemu can be taken for write. It is set
+	// at most once, by the closeBadConn call that loses the race for
+	// closemu, and consumed by whichever caller of tryFinishPendingClose
+	// (running from a released read lock) manages to take closemu next.
+	pendingCloseErr atomic.Pointer[error]
+
 	releaseConnOnce sync.Once
 	// releaseConnCache is a cache of c.closemuRUnlockCondReleaseConn
 	// to save allocations in a call to grabConn.
@@ -2125,12 +2132,27 @@ func (c *Conn) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 func (c *Conn) closemuRUnlockCondReleaseConn(err error) {
 	c.closemu.RUnlock()
 	if errors.Is(err, driver.ErrBadConn) {
-		c.close(err)
+		c.closeBadConn(err)
+	}
+	// A previous closeBadConn call on this Conn (from this or another
+	// goroutine) may have found closemu held and deferred the actual
+	// release. Now that a read lock has just been dropped, see if it
+	// can be finished.
+	if c.done.Load() {
+		c.tryFinishPendingClose()
 	}
 }
 
 func (c *Conn) txCtx() context.Context {
 	return nil
+}
+
+// releaseAndClear releases c.dc back to the pool (or discards it, per
+// err) and clears it. It must be called with closemu held for write.
+func (c *Conn) releaseAndClear(err error) {
+	c.dc.releaseConn(err)
+	c.dc = nil
+	c.db = nil
 }
 
 func (c *Conn) close(err error) error {
@@ -2143,10 +2165,52 @@ func (c *Conn) close(err error) error {
 	c.closemu.Lock()
 	defer c.closemu.Unlock()
 
-	c.dc.releaseConn(err)
-	c.dc = nil
-	c.db = nil
+	c.releaseAndClear(err)
 	return err
+}
+
+// closeBadConn is called in place of close when a driver operation on
+// this Conn (Raw, Exec, Query, ...) reports driver.ErrBadConn. Unlike
+// close, it must not block waiting for closemu: the caller may be the
+// same goroutine that owns a Tx obtained from this Conn (via BeginTx),
+// which holds closemu for read until it is committed or rolled back.
+// Blocking here would then deadlock, since the goroutine that must
+// finish the Tx is the one now blocked. See go.dev/issue/81606.
+//
+// If closemu cannot be taken immediately, the close is deferred: it
+// completes once the read lock currently held by the Tx (or another
+// in-flight operation) is released, via tryFinishPendingClose.
+func (c *Conn) closeBadConn(err error) {
+	if !c.done.CompareAndSwap(false, true) {
+		return
+	}
+	if c.closemu.TryLock() {
+		defer c.closemu.Unlock()
+		c.releaseAndClear(err)
+		return
+	}
+	c.pendingCloseErr.Store(&err)
+	// The read lock we just failed to acquire for write may be dropped
+	// concurrently with the Store above, in which case its RUnlock
+	// already looked for (and didn't find) a pending close to finish.
+	// Try once more so we don't strand it.
+	c.tryFinishPendingClose()
+}
+
+// tryFinishPendingClose completes a close deferred by closeBadConn, if
+// one is pending and closemu can now be taken for write. It is safe to
+// call unconditionally any time a read lock on closemu is dropped: at
+// most one caller will ever see (and consume) a given pending error,
+// since doing so requires successfully taking closemu for write, which
+// closemu itself arbitrates.
+func (c *Conn) tryFinishPendingClose() {
+	if !c.closemu.TryLock() {
+		return
+	}
+	defer c.closemu.Unlock()
+	if errp := c.pendingCloseErr.Swap(nil); errp != nil {
+		c.releaseAndClear(*errp)
+	}
 }
 
 // Close returns the connection to the connection pool.

@@ -92,6 +92,66 @@ func TestClosingMutex(t *testing.T) {
 	})
 }
 
+func TestClosingMutexTryLock(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var m closingMutex
+
+		// TryLock succeeds on an unlocked mutex, and actually takes it.
+		if !m.TryLock() {
+			t.Fatalf("m.TryLock(): failed on unlocked mutex")
+		}
+		rlocked := false
+		go func() {
+			m.RLock()
+			rlocked = true
+		}()
+		synctest.Wait()
+		if rlocked {
+			t.Fatalf("m.RLock(): succeeded while TryLock-held")
+		}
+		m.Unlock()
+		synctest.Wait()
+		if !rlocked {
+			t.Fatalf("m.RLock(): still blocked after Unlock")
+		}
+		m.RUnlock()
+
+		// TryLock fails while read-locked, and succeeds again right
+		// after the last RUnlock.
+		m.RLock()
+		if m.TryLock() {
+			t.Fatalf("m.TryLock(): succeeded on RLocked mutex")
+		}
+		m.RUnlock()
+		if !m.TryLock() {
+			t.Fatalf("m.TryLock(): failed after last RUnlock")
+		}
+		m.Unlock()
+
+		// TryLock fails while write-locked.
+		m.Lock()
+		if m.TryLock() {
+			t.Fatalf("m.TryLock(): succeeded on Locked mutex")
+		}
+		m.Unlock()
+
+		// TryLock must succeed in state 1 (unlocked, writer-waiting bit
+		// set), the same as Lock's fast path. This is the transient
+		// state RUnlock leaves for a blocked writer to pick up; if
+		// TryLock treated it as locked, a deferred close racing with
+		// that writer (see Conn.tryFinishPendingClose) could
+		// spuriously fail to ever complete.
+		m.state.Store(1)
+		if !m.TryLock() {
+			t.Fatalf("m.TryLock(): failed in state 1 (unlocked, writer waiting)")
+		}
+		if got := m.state.Load(); got != -1 {
+			t.Fatalf("m.state = %d after TryLock from state 1, want -1", got)
+		}
+		m.Unlock()
+	})
+}
+
 func TestClosingMutexLockStarvation(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		// Run this test for a few iterations, to avoid racy successes.

@@ -1557,6 +1557,81 @@ func testTxErrBadConn(t *testing.T) {
 	}
 }
 
+// Tests fix for go.dev/issue/81606: Conn.Raw returning driver.ErrBadConn
+// while a Tx obtained from the same Conn is still open must not block
+// waiting for that Tx to complete. Conn.BeginTx holds Conn.closemu for
+// read for the lifetime of the transaction; historically, an ErrBadConn
+// from Raw caused Conn.close to take Conn.closemu for write from the
+// same goroutine, which can never succeed while that goroutine's own Tx
+// still holds the read lock -- a self-deadlock.
+func TestConnBeginTxRawBadConn(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		finish func(tx *Tx) error
+	}{
+		{"rollback", (*Tx).Rollback},
+		{"commit", (*Tx).Commit},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			testDatabase(t, func(t *testing.T, db *DB) {
+				testConnBeginTxRawBadConn(t, db, tt.finish)
+			})
+		})
+	}
+}
+func testConnBeginTxRawBadConn(t *testing.T, db *DB, finish func(tx *Tx) error) {
+	ctx := t.Context()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var done atomic.Bool
+	var rawErr error
+	go func() {
+		rawErr = conn.Raw(func(driverConn any) error {
+			return driver.ErrBadConn
+		})
+		done.Store(true)
+	}()
+
+	// Conn.Raw must not block on the still-open Tx: doing so risks a
+	// self-deadlock when, as in the reported issue, the goroutine
+	// blocked here is the same one that must finish the Tx.
+	synctest.Wait()
+	if !done.Load() {
+		t.Error("Conn.Raw did not return while its Conn's Tx is still open (go.dev/issue/81606)")
+	}
+
+	// Finish the Tx regardless, so that a still-blocked Conn.Raw
+	// (pre-fix) unblocks and the test does not hang. Both Commit and
+	// Rollback release the Tx's read lock on Conn.closemu the same
+	// way, via Conn.closemuRUnlockCondReleaseConn, so either must
+	// complete the deferred close.
+	if err := finish(tx); err != nil {
+		t.Fatal(err)
+	}
+	synctest.Wait()
+	if !done.Load() {
+		t.Fatal("Conn.Raw still hasn't returned after the Tx finished")
+	}
+	if !errors.Is(rawErr, driver.ErrBadConn) {
+		t.Fatalf("Conn.Raw error = %v, want driver.ErrBadConn", rawErr)
+	}
+
+	// The bad connection must actually have been returned to (and
+	// discarded from) the pool once the Tx released it, not merely
+	// "not deadlocked".
+	if stats := db.Stats(); stats.OpenConnections != 0 {
+		t.Fatalf("OpenConnections = %d, want 0 (bad conn should be discarded from the pool)", stats.OpenConnections)
+	}
+}
+
 func TestConnQuery(t *testing.T) {
 	testDatabase(t, testConnQuery)
 }
