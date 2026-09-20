@@ -388,7 +388,7 @@ If you see a panic like `BUG: The current message never got committed using send
 
 If you see a panic like `called Option::unwrap() on a None value` in `crates/libafl/src/corpus/inmemory.rs` (often while inserting into the corpus), it's a LibAFL `InMemoryCorpus` internal bookkeeping issue. gosentry enables LibAFL's `corpus_btreemap` feature in `golibafl` to avoid the affected code path; rebuild `golibafl` and retry.
 
-If you see a panic like `The testcase is not associated with an id` (often while loading the initial corpus), it's a LibAFL `corpus_btreemap` issue where inserted testcases may not have their `corpus_id` set, and `CachedOnDiskCorpus` expects it when loading inputs back from disk. Rebuild `golibafl` (gosentry sets `corpus_id` on add) and retry.
+If you see a panic like `The testcase is not associated with an id`, rebuild `golibafl` with the current lockfile. The pinned LibAFL fork sets `corpus_id` for both normal and explicit-ID `corpus_btreemap` insertions, as required by `CachedOnDiskCorpus` when it loads inputs from disk.
 
 ## Maintainer notes
 

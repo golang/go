@@ -209,7 +209,7 @@ checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 [[package]]
 name = "build_id2"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "ahash",
  "rustversion",
@@ -388,7 +388,7 @@ dependencies = [
 [[package]]
 name = "core_affinity2"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "libafl_core",
  "libc",
@@ -594,7 +594,7 @@ dependencies = [
 [[package]]
 name = "exceptional"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "libafl_core",
  "libc",
@@ -615,7 +615,7 @@ checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
 [[package]]
 name = "fast_rands"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "rand_core",
  "rustversion",
@@ -837,7 +837,7 @@ dependencies = [
 [[package]]
 name = "libafl"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "ahash",
  "arbitrary-int 2.0.0",
@@ -881,7 +881,7 @@ dependencies = [
 [[package]]
 name = "libafl_bolts"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "ahash",
  "backtrace",
@@ -926,7 +926,7 @@ dependencies = [
 [[package]]
 name = "libafl_core"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "backtrace",
  "nix",
@@ -940,7 +940,7 @@ dependencies = [
 [[package]]
 name = "libafl_derive"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -950,7 +950,7 @@ dependencies = [
 [[package]]
 name = "libafl_targets"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "bindgen",
  "cc",
@@ -1026,7 +1026,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 [[package]]
 name = "ll_mp"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "exceptional",
  "hostname",
@@ -1120,7 +1120,7 @@ dependencies = [
 [[package]]
 name = "minibsod"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "exceptional",
  "libc",
@@ -1181,7 +1181,7 @@ dependencies = [
 [[package]]
 name = "no_std_time"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "rustversion",
 ]
@@ -1199,7 +1199,7 @@ dependencies = [
 [[package]]
 name = "nonzero_macros"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 
 [[package]]
 name = "num-conv"
@@ -1275,7 +1275,7 @@ checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 [[package]]
 name = "ownedref"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "libafl_core",
  "rustversion",
@@ -1580,7 +1580,7 @@ dependencies = [
 [[package]]
 name = "serde_anymap"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "ahash",
  "ctor",
@@ -1659,7 +1659,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 [[package]]
 name = "shmem_providers"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "fast_rands",
  "hashbrown",
@@ -1819,7 +1819,7 @@ checksum = "141fb9f71ee586d956d7d6e4d5a9ef8e946061188520140f7591b668841d502e"
 [[package]]
 name = "tuple_list_ex"
 version = "0.16.0"
-source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#5050f0b410f245bb822419419a79273fa080765f"
+source = "git+https://github.com/kevin-valerio/LibAFL-git-aware?branch=gosentry-libafl-gitaware#82ce902502ccc710844a4d093bc43c28fdcbb23d"
 dependencies = [
  "libafl_core",
  "ownedref",
