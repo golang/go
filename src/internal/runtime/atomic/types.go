@@ -580,15 +580,11 @@ type Uint64Pair struct {
 }
 
 // Load atomically loads and returns the current pair of values.
-//
-//go:nosplit
 func (p *Uint64Pair) Load() (lo, hi uint64) {
 	return load128(&p.value)
 }
 
 // Store atomically stores (lo, hi) into p.
-//
-//go:nosplit
 func (p *Uint64Pair) Store(lo, hi uint64) {
 	store128(&p.value, lo, hi)
 }

@@ -6,8 +6,6 @@ package atomic
 
 // load128 atomically loads the pair stored at *ptr and returns it.
 // ptr must be 16-byte aligned.
-//
-//go:nosplit
 func load128(ptr *[2]uint64) (lo, hi uint64) {
 	for {
 		lo = Load64(&ptr[0])
@@ -20,8 +18,6 @@ func load128(ptr *[2]uint64) (lo, hi uint64) {
 
 // store128 atomically stores (lo, hi) into *ptr.
 // ptr must be 16-byte aligned.
-//
-//go:nosplit
 func store128(ptr *[2]uint64, lo, hi uint64) {
 	for {
 		old0 := Load64(&ptr[0])

@@ -32,6 +32,7 @@ func goCas128(ptr *[2]uint64, old1, old2, new1, new2 uint64) bool {
 }
 
 type pairSpinlock struct {
+	_ [0]int64 // force 8-byte alignment so entries never share a cache line
 	v uint32
 }
 
