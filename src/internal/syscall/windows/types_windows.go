@@ -272,7 +272,14 @@ type FILE_LINK_INFORMATION struct {
 	FileName        [syscall.MAX_PATH]uint16
 }
 
-const FileReplaceCompletionInformation = 61
+const (
+	FileIoCompletionNotificationInformation = 41
+	FileReplaceCompletionInformation        = 61
+)
+
+type FILE_IO_COMPLETION_NOTIFICATION_INFORMATION struct {
+	Flags uint32
+}
 
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_completion_information
 type FILE_COMPLETION_INFORMATION struct {

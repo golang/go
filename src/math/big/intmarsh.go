@@ -40,8 +40,8 @@ func (z *Int) GobDecode(buf []byte) error {
 	if b>>1 != intGobVersion {
 		return fmt.Errorf("Int.GobDecode: encoding version %d not supported", b>>1)
 	}
-	z.neg = b&1 != 0
 	z.abs = z.abs.setBytes(buf[1:])
+	z.neg = len(z.abs) > 0 && b&1 != 0 // 0 has no sign
 	return nil
 }
 

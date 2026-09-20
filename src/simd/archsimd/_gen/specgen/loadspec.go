@@ -7,12 +7,14 @@ package specgen
 import (
 	"fmt"
 	"go/ast"
+	"go/build"
+	"go/importer"
+	"go/parser"
 	"go/token"
 	"go/types"
+	"path/filepath"
 	"simd/archsimd/_gen/specgen/specexpr"
 	"strings"
-
-	"golang.org/x/tools/go/packages"
 )
 
 // specPackage represents the parsed _gen/spec package.
@@ -40,6 +42,8 @@ type specFunc struct {
 	NameTmpl     specTemplate // API name template from `//specgen:name` directive, or same as Name.
 	Pos          token.Pos
 	Doc          specTemplate
+	Category     string
+	Commutative  bool
 	Sig          *types.Signature
 	TypeParams   []*types.TypeParam
 	Params       []*types.Var
@@ -54,49 +58,113 @@ type specTemplate struct {
 	fields [][2]int // start:end ranges of fields, including '{}'s, in ascending order
 }
 
+// specGoVersion is the oldest Go toolchain version that must be able to parse
+// and type-check the spec package.
+const specGoVersion = "go1.26"
+
+// loadAndTypeCheck imports and parses the spec package in dir, ensuring it is
+// target-independent, and type-checks it.
+func loadAndTypeCheck(ctx context, dir string) (*types.Package, *types.Info, []*ast.File) {
+	bp, err := build.ImportDir(dir, 0)
+	if err != nil {
+		ctx.errorf("failed to import spec directory %s: %s", dir, err)
+		return nil, nil, nil
+	}
+	if len(bp.AllTags) > 0 {
+		ctx.errorf("internal/spec must be target-independent, but found build tags: %v", bp.AllTags)
+		return nil, nil, nil
+	}
+
+	var astFiles []*ast.File
+	for _, name := range bp.GoFiles {
+		filePath := filepath.Join(bp.Dir, name)
+		file, err := parser.ParseFile(&ctx.root.fset, filePath, nil, parser.ParseComments)
+		if err != nil {
+			ctx.errorf("failed to parse %s: %s", filePath, err)
+			continue
+		}
+		astFiles = append(astFiles, file)
+	}
+
+	if len(astFiles) == 0 {
+		ctx.errorf("no Go source files found in directory %s", dir)
+		return nil, nil, nil
+	}
+
+	info := &types.Info{
+		Types:      make(map[ast.Expr]types.TypeAndValue),
+		Defs:       make(map[*ast.Ident]types.Object),
+		Uses:       make(map[*ast.Ident]types.Object),
+		Implicits:  make(map[ast.Node]types.Object),
+		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+		Scopes:     make(map[ast.Node]*types.Scope),
+		Instances:  make(map[*ast.Ident]types.Instance),
+	}
+
+	// Note: Imported packages resolve against the running toolchain's standard
+	// library, not the dev tree's. For math and math/bits that is immaterial.
+	// Constraint: internal/spec may import only long-stable standard library packages.
+	conf := types.Config{
+		GoVersion: specGoVersion,
+		Importer:  importer.ForCompiler(&ctx.root.fset, "source", nil),
+		Error: func(err error) {
+			ctx.errorf("%s", err)
+		},
+	}
+
+	typesPkg, err := conf.Check("simd/internal/spec", &ctx.root.fset, astFiles, info)
+	if err != nil && typesPkg == nil {
+		return nil, nil, nil
+	}
+	if len(ctx.root.errors) > 0 {
+		return nil, nil, nil
+	}
+
+	return typesPkg, info, astFiles
+}
+
 // loadSpecPackage parses the spec package in the given directory path.
 func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
-	cfg := &packages.Config{
-		Mode: packages.LoadSyntax,
-		Dir:  dir,
-		Fset: &ctx.root.fset,
-	}
-
-	pkgs, err := packages.Load(cfg, ".")
-	if err != nil {
-		ctx.errorf("failed to load package: %s", err)
+	typesPkg, info, astFiles := loadAndTypeCheck(ctx, dir)
+	if typesPkg == nil {
 		return nil
 	}
-	if len(pkgs) == 0 {
-		ctx.errorf("no package found in directory %s", dir)
-		return nil
-	}
-	if len(pkgs[0].Errors) > 0 {
-		for _, err := range pkgs[0].Errors {
-			ctx.errorf("%s", err)
-		}
-		return nil
-	}
-
-	srcPkg := pkgs[0]
-	fset := srcPkg.Fset
-	info := srcPkg.TypesInfo
 
 	var pkg specPackage
 
 	// Gather exported functions
 	var funcs []*specFunc
-	for _, file := range srcPkg.Syntax {
+	for _, file := range astFiles {
+		// Gather directives
+		var category string
+		directives := make(map[*ast.Comment]ast.Directive)
+		for _, cg := range file.Comments {
+			for _, comment := range cg.List {
+				if dir, ok := ast.ParseDirective(comment.Slash, comment.Text); ok && dir.Tool == "specgen" {
+					switch dir.Name {
+					case "category":
+						// File-level directive
+						if category != "" {
+							ctx.at(dir.Pos()).errorf("multiple category directives in file")
+						}
+						category = dir.Args
+					case "name", "commutative", "require":
+						// Gather other directives to process with decls
+						directives[comment] = dir
+					default:
+						ctx.at(dir.Pos()).errorf("unknown //specgen directive")
+					}
+				}
+			}
+		}
+
 		for _, decl := range file.Decls {
 			d, ok := decl.(*ast.FuncDecl)
 			if !ok || !d.Name.IsExported() {
 				continue
 			}
-			if opts.Filter != nil && !opts.Filter(d) {
-				continue
-			}
 
-			obj := srcPkg.Types.Scope().Lookup(d.Name.Name)
+			obj := typesPkg.Scope().Lookup(d.Name.Name)
 			if obj == nil {
 				continue
 			}
@@ -133,23 +201,31 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 				TypeParams: typeParams,
 				Params:     params,
 				Results:    results,
+				Category:   category,
 			}
 			f.NameTmpl = specTemplate{tmpl: f.Name}
 			if d.Doc != nil {
+				var err error
 				f.Doc, err = newSpecTemplate(d.Doc.Text())
 				if err != nil {
 					ctx.at(d.Doc.Pos()).errorf("malformed doc comment: %s", err)
 				}
 				for _, comment := range d.Doc.List {
-					if dir, ok := ast.ParseDirective(comment.Slash, comment.Text); ok && dir.Tool == "specgen" {
+					if dir, ok := directives[comment]; ok {
+						delete(directives, comment)
 						switch dir.Name {
 						default:
-							ctx.at(dir.Pos()).errorf("unknown //specgen directive")
+							panic("directive lists out of sync")
 						case "name":
 							f.NameTmpl, err = newSpecTemplate(dir.Args)
 							if err != nil {
 								ctx.at(dir.Pos()).errorf("malformed //specgen:name directive: %s", err)
 							}
+						case "commutative":
+							if dir.Args != "" {
+								ctx.at(dir.Pos()).errorf("malformed //specgen:commutative directive: expected no argument")
+							}
+							f.Commutative = true
 						case "require":
 							args, err := dir.ParseArgs()
 							if err != nil {
@@ -169,14 +245,22 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 				}
 			}
 
+			if opts.Filter != nil && !opts.Filter(d) {
+				continue
+			}
+
 			funcs = append(funcs, f)
+		}
+
+		for _, dir := range directives {
+			ctx.at(dir.Pos()).errorf("//%s:%s directive must be attached to a function", dir.Tool, dir.Name)
 		}
 	}
 
 	lookupType := func(name string) types.Type {
-		obj := srcPkg.Types.Scope().Lookup(name)
+		obj := typesPkg.Scope().Lookup(name)
 		if obj == nil {
-			ctx.errorf("type %q missing from package %s", name, srcPkg.PkgPath)
+			ctx.errorf("type %q missing from package %s", name, typesPkg.Path())
 			return nil
 		}
 		tn, ok := obj.(*types.TypeName)
@@ -213,8 +297,8 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 	uintNType := lookupType("UintN")
 
 	pkg = specPackage{
-		Fset:       fset,
-		Pkg:        srcPkg.Types,
+		Fset:       &ctx.root.fset,
+		Pkg:        typesPkg,
 		TypesInfo:  info,
 		Funcs:      funcs,
 		TypeElems:  typeElems,

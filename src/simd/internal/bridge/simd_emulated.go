@@ -2685,6 +2685,13 @@ func (x Float32s) NotEqual(y Float32s) Mask32s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float32s) ReduceSum() float32 {
+	// Evaluate with same associativity as the horizontal-add idiom.
+	// It's also perhaps faster, since a shorter expression tree.
+	return (x.get(0) + x.get(1)) + (x.get(2) + x.get(3))
+}
+
 // Sqrt returns the element-wise square root of x.
 func (x Float32s) Sqrt() Float32s {
 	var res Float32s
@@ -2947,6 +2954,15 @@ func (x Float64s) NotEqual(y Float64s) Mask64s {
 	}
 	if x.get(1) != y.get(1) {
 		res.b = ^uint64(0)
+	}
+	return res
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float64s) ReduceSum() float64 {
+	var res float64
+	for i := 0; i < 2; i++ {
+		res += x.get(i)
 	}
 	return res
 }

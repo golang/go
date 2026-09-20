@@ -9,6 +9,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
 
 // Copy of $GOROOT/src/cmd/internal/archive.ReadHeader.

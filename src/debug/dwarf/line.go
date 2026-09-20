@@ -216,10 +216,11 @@ func (r *LineReader) readHeader(compDir string) error {
 		headerLength = Offset(buf.uint32())
 	}
 	programOffset := buf.off + headerLength
-	if programOffset > r.endOffset {
+	if programOffset < buf.off || programOffset > r.endOffset {
 		return DecodeError{"line", hdrOffset, fmt.Sprintf("malformed line table: program offset %d exceeds end offset %d", programOffset, r.endOffset)}
 	}
 	r.programOffset = programOffset
+	r.buf = makeBuf(buf.dwarf, buf.format, buf.name, buf.off, buf.data[:programOffset-buf.off])
 	r.minInstructionLength = int(buf.uint8())
 	if r.version >= 4 {
 		// [DWARF4 6.2.4]
@@ -290,7 +291,10 @@ func (r *LineReader) readHeader(compDir string) error {
 		}
 	} else {
 		dirFormat := r.readLNCTFormat()
-		c := buf.uint()
+		c, err := r.readLNCTCount()
+		if err != nil {
+			return err
+		}
 		r.directories = make([]string, c)
 		for i := range r.directories {
 			dir, _, _, err := r.readLNCT(dirFormat, dwarf64)
@@ -300,7 +304,10 @@ func (r *LineReader) readHeader(compDir string) error {
 			r.directories[i] = dir
 		}
 		fileFormat := r.readLNCTFormat()
-		c = buf.uint()
+		c, err = r.readLNCTCount()
+		if err != nil {
+			return err
+		}
 		r.fileEntries = make([]*LineFile, c)
 		for i := range r.fileEntries {
 			name, mtime, size, err := r.readLNCT(fileFormat, dwarf64)
@@ -333,6 +340,19 @@ func (r *LineReader) readLNCTFormat() []lnctForm {
 		ret[i].form = format(r.buf.uint())
 	}
 	return ret
+}
+
+// readLNCTCount reads an LNCT count and checks that it cannot result in an
+// unreasonable allocation.
+func (r *LineReader) readLNCTCount() (int, error) {
+	c := r.buf.uint()
+	if r.buf.err != nil {
+		return 0, r.buf.err
+	}
+	if c > uint64(len(r.buf.data)) {
+		return 0, DecodeError{"line", r.buf.off, "directory or file count out of range"}
+	}
+	return int(c), nil
 }
 
 // readLNCT reads a sequence of LNCT entries and returns path information.
@@ -437,7 +457,7 @@ func (r *LineReader) readFileEntry() (bool, error) {
 	off := r.buf.off
 	dirIndex := int(r.buf.uint())
 	if !pathIsAbs(name) {
-		if dirIndex >= len(r.directories) {
+		if dirIndex < 0 || dirIndex >= len(r.directories) {
 			return false, DecodeError{"line", off, "directory index too large"}
 		}
 		name = pathJoin(r.directories[dirIndex], name)
@@ -465,7 +485,7 @@ func (r *LineReader) readFileEntry() (bool, error) {
 // updateFile updates r.state.File after r.fileIndex has
 // changed or r.fileEntries has changed.
 func (r *LineReader) updateFile() {
-	if r.fileIndex < len(r.fileEntries) {
+	if r.fileIndex >= 0 && r.fileIndex < len(r.fileEntries) {
 		r.state.File = r.fileEntries[r.fileIndex]
 	} else {
 		r.state.File = nil

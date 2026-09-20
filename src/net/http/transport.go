@@ -11,8 +11,6 @@ package http
 
 import (
 	"bufio"
-	"compress/flate"
-	"compress/gzip"
 	"container/list"
 	"context"
 	"crypto/tls"
@@ -26,6 +24,7 @@ import (
 	"net/http/httptrace"
 	"net/http/internal"
 	"net/http/internal/ascii"
+	"net/http/internal/httpcommon"
 	"net/textproto"
 	"net/url"
 	"reflect"
@@ -1093,13 +1092,17 @@ func (t *Transport) maxIdleConnsPerHost() int {
 	return DefaultMaxIdleConnsPerHost
 }
 
+func (t *Transport) keepAlivesDisabled() bool {
+	return t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0
+}
+
 // tryPutIdleConn adds pconn to the list of idle persistent connections awaiting
 // a new request.
 // If pconn is no longer needed or not in a good state, tryPutIdleConn returns
 // an error explaining why it wasn't registered.
 // tryPutIdleConn does not close pconn. Use putOrCloseIdleConn instead for that.
 func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
-	if t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0 {
+	if t.keepAlivesDisabled() {
 		return errKeepAlivesDisabled
 	}
 	if pconn.isBroken() {
@@ -2405,10 +2408,16 @@ const maxPostCloseReadBytes = 256 << 10
 // has been closed.
 const maxPostCloseReadTime = 50 * time.Millisecond
 
-func maybeDrainBody(body io.Reader) bool {
+func maybeDrainBody(r io.Reader) bool {
 	drainedCh := make(chan bool, 1)
 	go func() {
-		if _, err := io.CopyN(io.Discard, body, maxPostCloseReadBytes+1); err == io.EOF {
+		// When we drain the body and (hopefully) reach EOF, we might
+		// potentially need to deal with trailers. Make sure they are discarded
+		// so the connection can actually be reused.
+		if b, ok := r.(*body); ok {
+			b.discardTrailer()
+		}
+		if _, err := io.CopyN(io.Discard, r, maxPostCloseReadBytes+1); err == io.EOF {
 			drainedCh <- true
 		} else {
 			drainedCh <- false
@@ -2421,6 +2430,10 @@ func maybeDrainBody(body io.Reader) bool {
 		return false
 	}
 }
+
+// errClosedEarly is an internal-only error used to indicate that a response body
+// was closed early prior to EOF.
+var errClosedEarly = errors.New("net/http: response body closed early")
 
 func (pc *persistConn) readLoop() {
 	closeErr := errReadLoopExiting // default value, if not changed below
@@ -2540,19 +2553,17 @@ func (pc *persistConn) readLoop() {
 			continue
 		}
 
-		waitForBodyRead := make(chan bool, 2)
+		waitForBodyRead := make(chan error, 1)
 		body := &bodyEOFSignal{
 			body: resp.Body,
 			earlyCloseFn: func() error {
-				waitForBodyRead <- false
+				waitForBodyRead <- errClosedEarly
 				<-eofc // will be closed by deferred call at the end of the function
 				return nil
-
 			},
 			fn: func(err error) error {
-				isEOF := err == io.EOF
-				waitForBodyRead <- isEOF
-				if isEOF {
+				waitForBodyRead <- err
+				if err == io.EOF {
 					<-eofc // see comment above eofc declaration
 				} else if err != nil {
 					if cerr := pc.canceled(); cerr != nil {
@@ -2565,7 +2576,7 @@ func (pc *persistConn) readLoop() {
 
 		resp.Body = body
 		if rc.addedGzip && ascii.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
-			resp.Body = &gzipReader{body: body}
+			resp.Body = &httpcommon.GzipReader{Body: body}
 			resp.Header.Del("Content-Encoding")
 			resp.Header.Del("Content-Length")
 			resp.ContentLength = -1
@@ -2582,19 +2593,29 @@ func (pc *persistConn) readLoop() {
 		// the bufio.Reader, wait for the caller goroutine to finish
 		// reading the response body. (or for cancellation or death)
 		select {
-		case bodyEOF := <-waitForBodyRead:
-			tryDrain := !bodyEOF && resp.ContentLength <= maxPostCloseReadBytes
-			if tryDrain {
-				eofc <- struct{}{}
-				bodyEOF = maybeDrainBody(body.body)
+		case err := <-waitForBodyRead:
+			tryPutIdle := func() {
+				alive = alive &&
+					!pc.sawEOF &&
+					pc.wroteRequest() &&
+					tryPutIdleConn(rc.treq)
 			}
-			alive = alive &&
-				bodyEOF &&
-				!pc.sawEOF &&
-				pc.wroteRequest() &&
-				tryPutIdleConn(rc.treq)
-			if !tryDrain && bodyEOF {
+			switch err {
+			case io.EOF:
+				tryPutIdle()
 				eofc <- struct{}{}
+			case errClosedEarly:
+				// Read resp before signaling eofc: the send lets the caller's
+				// Close return, and resp belongs to the caller after that.
+				tryDrain := alive && !pc.t.keepAlivesDisabled() && resp.ContentLength <= maxPostCloseReadBytes
+				eofc <- struct{}{}
+				if tryDrain && maybeDrainBody(body.body) {
+					tryPutIdle()
+				} else {
+					alive = false
+				}
+			default:
+				alive = false
 			}
 		case <-rc.treq.ctx.Done():
 			alive = false
@@ -3190,20 +3211,19 @@ func canonicalAddr(url *url.URL) string {
 // once, right before its final (error-producing) Read or Close call
 // returns. fn should return the new error to return from Read or Close.
 //
-// If earlyCloseFn is non-nil and Close is called before io.EOF is
-// seen, earlyCloseFn is called instead of fn, and its return value is
+// If earlyCloseFn is non-nil and Close is called before any final error from
+// Read is seen, earlyCloseFn is called instead of fn, and its return value is
 // the return value from Close.
 type bodyEOFSignal struct {
 	body         io.ReadCloser
 	mu           sync.Mutex        // guards following 4 fields
 	closed       bool              // whether Close has been called
 	rerr         error             // sticky Read error
-	fn           func(error) error // err will be nil on Read io.EOF
-	earlyCloseFn func() error      // optional alt Close func used if io.EOF not seen
+	fn           func(error) error // called on final body.Read non-nil error (or body.Close if earlyCloseFn is not run)
+	earlyCloseFn func() error      // called if body.Close is called before body.Read ever returns a non-nil error
 }
 
 var errReadOnClosedResBody = errors.New("http: read on closed response body")
-var errConcurrentReadOnResBody = errors.New("http: concurrent read on response body")
 
 func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
 	es.mu.Lock()
@@ -3235,8 +3255,16 @@ func (es *bodyEOFSignal) Close() error {
 		return nil
 	}
 	es.closed = true
-	if es.earlyCloseFn != nil && es.rerr != io.EOF {
-		return es.earlyCloseFn()
+	if es.earlyCloseFn != nil && es.rerr == nil {
+		earlyCloseFn := es.earlyCloseFn
+		es.earlyCloseFn = nil
+		es.fn = nil
+		return earlyCloseFn()
+	}
+	if es.rerr != nil && es.rerr != io.EOF {
+		// Read already returned this error and readLoop gave up the
+		// connection. Draining would only read the same error again.
+		return nil
 	}
 	err := es.body.Close()
 	return es.condfn(err)
@@ -3247,120 +3275,10 @@ func (es *bodyEOFSignal) condfn(err error) error {
 	if es.fn == nil {
 		return err
 	}
-	err = es.fn(err)
+	fn := es.fn
 	es.fn = nil
-	return err
-}
-
-// gzipReader wraps a response body so it can lazily
-// get gzip.Reader from the pool on the first call to Read.
-// After Close is called it puts gzip.Reader to the pool immediately
-// if there is no Read in progress or later when Read completes.
-type gzipReader struct {
-	_    incomparable
-	body *bodyEOFSignal // underlying HTTP/1 response body framing
-	mu   sync.Mutex     // guards zr and zerr
-	zr   *gzip.Reader   // stores gzip reader from the pool between reads
-	zerr error          // sticky gzip reader init error or sentinel value to detect concurrent read and read after close
-}
-
-type eofReader struct{}
-
-func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
-func (eofReader) ReadByte() (byte, error)  { return 0, io.EOF }
-
-var gzipPool = sync.Pool{New: func() any { return new(gzip.Reader) }}
-
-// gzipPoolGet gets a gzip.Reader from the pool and resets it to read from r.
-func gzipPoolGet(r io.Reader) (*gzip.Reader, error) {
-	zr := gzipPool.Get().(*gzip.Reader)
-	if err := zr.Reset(r); err != nil {
-		gzipPoolPut(zr)
-		return nil, err
-	}
-	return zr, nil
-}
-
-// gzipPoolPut puts a gzip.Reader back into the pool.
-func gzipPoolPut(zr *gzip.Reader) {
-	// Reset will allocate bufio.Reader if we pass it anything
-	// other than a flate.Reader, so ensure that it's getting one.
-	var r flate.Reader = eofReader{}
-	zr.Reset(r)
-	gzipPool.Put(zr)
-}
-
-// acquire returns a gzip.Reader for reading response body.
-// The reader must be released after use.
-func (gz *gzipReader) acquire() (*gzip.Reader, error) {
-	gz.mu.Lock()
-	defer gz.mu.Unlock()
-	if gz.zerr != nil {
-		return nil, gz.zerr
-	}
-	if gz.zr == nil {
-		// gzipPoolGet might block indefinitely since it reads the gzip header.
-		// Therefore, drop mu temporarily when using gzipPoolGet.
-		// We set zerr to errConcurrentReadOnResBody to prevent concurrent read
-		// even when mu is temporarily dropped.
-		gz.zerr = errConcurrentReadOnResBody
-		gz.mu.Unlock()
-		zr, err := gzipPoolGet(gz.body)
-		gz.mu.Lock()
-		// Guard against Close being called while gzipPoolGet is running.
-		if gz.zerr != errConcurrentReadOnResBody {
-			if zr != nil {
-				gzipPoolPut(zr)
-			}
-			return nil, gz.zerr
-		}
-		gz.zr, gz.zerr = zr, err
-		if gz.zerr != nil {
-			return nil, gz.zerr
-		}
-	}
-	ret := gz.zr
-	gz.zr, gz.zerr = nil, errConcurrentReadOnResBody
-	return ret, nil
-}
-
-// release returns the gzip.Reader to the pool if Close was called during Read.
-func (gz *gzipReader) release(zr *gzip.Reader) {
-	gz.mu.Lock()
-	defer gz.mu.Unlock()
-	if gz.zerr == errConcurrentReadOnResBody {
-		gz.zr, gz.zerr = zr, nil
-	} else { // errReadOnClosedResBody
-		gzipPoolPut(zr)
-	}
-}
-
-// close returns the gzip.Reader to the pool immediately or
-// signals release to do so after Read completes.
-func (gz *gzipReader) close() {
-	gz.mu.Lock()
-	defer gz.mu.Unlock()
-	if gz.zerr == nil && gz.zr != nil {
-		gzipPoolPut(gz.zr)
-		gz.zr = nil
-	}
-	gz.zerr = errReadOnClosedResBody
-}
-
-func (gz *gzipReader) Read(p []byte) (n int, err error) {
-	zr, err := gz.acquire()
-	if err != nil {
-		return 0, err
-	}
-	defer gz.release(zr)
-
-	return zr.Read(p)
-}
-
-func (gz *gzipReader) Close() error {
-	gz.close()
-
-	return gz.body.Close()
+	es.earlyCloseFn = nil
+	return fn(err)
 }
 
 type tlsHandshakeTimeoutError struct{}

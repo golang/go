@@ -103,27 +103,27 @@ func (e peerTransportError) Error() string {
 	return fmt.Sprintf("peer closed connection: %v: %q", e.code, e.reason)
 }
 
-// A StreamErrorCode is an application protocol error code (RFC 9000, Section 20.2)
+// A StreamError is an application protocol error code (RFC 9000, Section 20.2)
 // indicating why a stream is being closed.
-type StreamErrorCode uint64
+type StreamError uint64
 
-func (e StreamErrorCode) Error() string {
+func (e StreamError) Error() string {
 	return fmt.Sprintf("stream error code %v", uint64(e))
 }
 
-// An ApplicationError is an application protocol error code (RFC 9000, Section 20.2).
-// Application protocol errors may be sent when terminating a stream or connection.
-type ApplicationError struct {
-	Code   uint64
-	Reason string
+// A ConnectionCloseError is a notice that a connection is being closed.
+// It contains the information from a CONNECTION_CLOSE frame (RFC 9000, Section 19.19).
+type ConnectionCloseError struct {
+	Code   uint64 // application protocol error code (RFC 9000, Section 20.2).
+	Reason string // diagnostic information for the closure
 }
 
-func (e *ApplicationError) Error() string {
+func (e *ConnectionCloseError) Error() string {
 	return fmt.Sprintf("peer closed connection: %v: %q", e.Code, e.Reason)
 }
 
-// Is reports a match if err is an *ApplicationError with a matching Code.
-func (e *ApplicationError) Is(err error) bool {
-	e2, ok := err.(*ApplicationError)
+// Is reports a match if err is a *ConnectionCloseError with a matching Code.
+func (e *ConnectionCloseError) Is(err error) bool {
+	e2, ok := err.(*ConnectionCloseError)
 	return ok && e2.Code == e.Code
 }

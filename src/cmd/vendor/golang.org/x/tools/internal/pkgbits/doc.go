@@ -30,3 +30,5 @@
 //
 // This is a copy of internal/pkgbits in the Go implementation.
 package pkgbits
+
+// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.

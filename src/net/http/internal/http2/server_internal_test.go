@@ -58,9 +58,8 @@ func TestCheckValidHTTP2Request(t *testing.T) {
 func TestCanonicalHeaderCacheGrowth(t *testing.T) {
 	for _, size := range []int{1, (1 << 20) - 10} {
 		base := strings.Repeat("X", size)
-		sc := &serverConn{
-			serveG: newGoroutineLock(),
-		}
+		sc := &serverConn{}
+		sc.serveG.setOwner()
 		count := 0
 		added := 0
 		for added < 10*maxCachedCanonicalHeadersKeysSize {

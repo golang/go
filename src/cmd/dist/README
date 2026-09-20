@@ -7,10 +7,9 @@ The approach is to build the current release of Go with an earlier one.
 The process to install Go 1.x, for x ≥ 28, is:
 
 1. Build cmd/dist with Go 1.26.0.
-2. Using dist, build Go 1.x compiler toolchain with Go 1.26.0.
-3. Using dist, rebuild Go 1.x compiler toolchain with itself.
-4. Using dist, build Go 1.x cmd/go (as go_bootstrap) with Go 1.x compiler toolchain.
-5. Using go_bootstrap, build the remaining Go 1.x standard library and commands.
+2. Using dist, build Go 1.x compiler toolchain and Go 1.x cmd/go (as go_bootstrap) with Go 1.26.0.
+3. Using go_bootstrap, rebuild Go 1.x compiler toolchain with itself.
+4. Using go_bootstrap, build the remaining Go 1.x standard library and commands.
 
 Because of backward compatibility, although the steps above say Go 1.26.0,
 in practice any release ≥ Go 1.26.0 but < Go 1.x will work as the bootstrap base.

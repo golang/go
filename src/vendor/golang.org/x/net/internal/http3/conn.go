@@ -74,12 +74,10 @@ func (c *genericConn) handleUnidirectionalStream(st *stream, h streamHandler) {
 		// "Recipients of unknown stream types MUST either abort reading
 		// of the stream or discard incoming data without further processing."
 		// https://www.rfc-editor.org/rfc/rfc9114.html#section-6.2-7
-		//
-		// We should send the H3_STREAM_CREATION_ERROR error code,
-		// but the quic package currently doesn't allow setting error codes
-		// for STOP_SENDING frames.
-		// TODO: Should CloseRead take an error code?
-		err = nil
+		err = &streamError{
+			code:    errH3StreamCreationError,
+			message: "unknown stream type",
+		}
 	}
 	if err == io.EOF {
 		err = &connectionError{
@@ -99,13 +97,13 @@ func (c *genericConn) handleStreamError(st *stream, h streamHandler, err error) 
 	case *connectionError:
 		h.abort(err)
 	case nil:
-		st.CloseRead()
+		st.CloseRead(uint64(errH3NoError))
 		st.CloseWrite()
 	case *streamError:
-		st.CloseRead()
+		st.CloseRead(uint64(err.code))
 		st.Reset(uint64(err.code))
 	default:
-		st.CloseRead()
+		st.CloseRead(uint64(errH3InternalError))
 		st.Reset(uint64(errH3InternalError))
 	}
 }

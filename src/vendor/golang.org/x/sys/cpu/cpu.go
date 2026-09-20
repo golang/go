@@ -182,12 +182,13 @@ var MIPS64X struct {
 // require kernel support to work (DARN, SCV), so there are feature bits for
 // those as well. The struct is padded to avoid false sharing.
 var PPC64 struct {
-	_        CacheLinePad
-	HasDARN  bool // Hardware random number generator (requires kernel enablement)
-	HasSCV   bool // Syscall vectored (requires kernel enablement)
-	IsPOWER8 bool // ISA v2.07 (POWER8)
-	IsPOWER9 bool // ISA v3.00 (POWER9), implies IsPOWER8
-	_        CacheLinePad
+	_         CacheLinePad
+	HasDARN   bool // Hardware random number generator (requires kernel enablement)
+	HasSCV    bool // Syscall vectored (requires kernel enablement)
+	IsPOWER8  bool // ISA v2.07 (POWER8)
+	IsPOWER9  bool // ISA v3.00 (POWER9), implies IsPOWER8
+	IsPOWER10 bool // ISA v3.1 (POWER10 and POWER11; POWER11 did not add a new architected level), implies IsPOWER9
+	_         CacheLinePad
 }
 
 // S390X contains the supported CPU features of the current IBM Z
@@ -248,13 +249,21 @@ var RISCV64 struct {
 	HasZvks           bool // ShangMi Algorithm Suite
 	HasZvksc          bool // ShangMi Algorithm Suite with carryless multiplication
 	HasZvksg          bool // ShangMi Algorithm Suite with GCM
+	VLENB             uint // Vector register length in bytes, 0 if undetected
 	_                 CacheLinePad
 }
+
+// doDerived, if non-nil, is called after processing GODEBUG to set "derived"
+// feature flags.
+var doDerived func()
 
 func init() {
 	archInit()
 	initOptions()
 	processOptions()
+	if doDerived != nil {
+		doDerived()
+	}
 }
 
 // options contains the cpu debug options that can be used in GODEBUG.

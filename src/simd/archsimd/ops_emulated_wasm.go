@@ -207,7 +207,7 @@ func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
 // Emulated
 func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
 	x = x.SetElem(0, x.GetElem(1))
-	y = y.SetElem(0, x.GetElem(1))
+	y = y.SetElem(0, y.GetElem(1))
 	return x.carrylessMultiply(y)
 }
 
@@ -225,4 +225,48 @@ func (x Float32x4) ReduceSum() float32 {
 // Emulated
 func (x Float64x2) ReduceSum() float64 {
 	return x.GetElem(0) + x.GetElem(1)
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated
+func (x Int16x8) ReduceSum() int16 {
+	return ((x.GetElem(0) + x.GetElem(1)) + (x.GetElem(2) + x.GetElem(3))) +
+		((x.GetElem(4) + x.GetElem(5)) + (x.GetElem(6) + x.GetElem(7)))
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated
+func (x Uint16x8) ReduceSum() uint16 {
+	return ((x.GetElem(0) + x.GetElem(1)) + (x.GetElem(2) + x.GetElem(3))) +
+		((x.GetElem(4) + x.GetElem(5)) + (x.GetElem(6) + x.GetElem(7)))
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated
+func (x Int32x4) ReduceSum() int32 {
+	return (x.GetElem(0) + x.GetElem(1)) + (x.GetElem(2) + x.GetElem(3))
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated
+func (x Uint32x4) ReduceSum() uint32 {
+	return (x.GetElem(0) + x.GetElem(1)) + (x.GetElem(2) + x.GetElem(3))
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated
+func (x Int8x16) ReduceSum() int8 {
+	return int8(x.ExtendLo8ToInt16().Add(x.ExtendHi8ToInt16()).ReduceSum())
+}
+
+// ReduceSum returns the sum of all elements in x.
+//
+// Emulated
+func (x Uint8x16) ReduceSum() uint8 {
+	return uint8(x.ExtendLo8ToUint16().Add(x.ExtendHi8ToUint16()).ReduceSum())
 }

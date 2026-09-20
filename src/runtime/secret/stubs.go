@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimesecret && (arm64 || amd64)
+//go:build goexperiment.runtimesecret && (arm64 || amd64 || loong64)
 
 // testing stubs, these are implemented in assembly in
 // asm_$GOARCH.s

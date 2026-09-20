@@ -154,6 +154,11 @@ allg,
   traceTypeTab,
   MPROF;
 
+# Specials: we're allowed to allocate a special while holding
+# an mspanSpecial lock. Special record allocation can grow the stack,
+# so mheapSpecial must be above STACKGROW.
+mspanSpecial < mheapSpecial;
+
 # We can acquire gcBitsArenas for pinner bits, and
 # it's guarded by mspanSpecial.
 MALLOC, mspanSpecial < gcBitsArenas;
@@ -164,6 +169,7 @@ profMemActive < profMemFuture;
 
 # Stack allocation and copying
 gcBitsArenas,
+  mheapSpecial,
   netpollInit,
   profBlock,
   profInsert,
@@ -211,11 +217,7 @@ stackLarge,
 # Above mheap is anything that can call the span allocator.
 < mheap;
 # Below mheap is the span allocator implementation.
-#
-# Specials: we're allowed to allocate a special while holding
-# an mspanSpecial lock, and they're part of the malloc implementation.
-# Pinner bits might be freed by the span allocator.
-mheap, mspanSpecial < mheapSpecial;
+
 # Fixallocs
 mheap, mheapSpecial, xRegAlloc, spanSPMCs < globalAlloc;
 

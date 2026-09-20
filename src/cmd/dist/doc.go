@@ -14,7 +14,6 @@
 //	bootstrap      rebuild everything
 //	clean          deletes all built files
 //	env [-p]       print environment (-p: include $PATH)
-//	install [dir]  install individual directory
 //	list [-json]   list all supported platforms
 //	test [-h]      run Go test(s)
 //	version        print Go version

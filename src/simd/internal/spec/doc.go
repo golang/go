@@ -104,6 +104,16 @@
 //	zB=vB zN=vN*2 zL=vL/2   Constrain each component separately
 //	zE={vB}{vN*2} zW=vW     Constrain the element type and width separately
 //
+// ### Width rounding
+//
+// Some operations would naturally result in an impossible vector size. For
+// example, converting a Float64x2 vector to float32s would naturally result in
+// Float32x2, which is only 64 bits and thus smaller than the smallest vector
+// size. For operations like this, we use "width rounding".
+//
+// Width rounding is applied specifically by the vector expression form BaseNxL.
+// If NxL would be < 128, the result rounds L up to 128/N.
+//
 // ## Name and doc templates
 //
 // For some operations, the API name or documentation depends on type

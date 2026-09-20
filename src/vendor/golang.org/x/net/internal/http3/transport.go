@@ -403,7 +403,7 @@ func (cc *clientConn) handleRequestStream(st *stream) error {
 // abort closes the connection with an error.
 func (cc *clientConn) abort(err error) {
 	if e, ok := err.(*connectionError); ok {
-		cc.qconn.Abort(&quic.ApplicationError{
+		cc.qconn.Abort(&quic.ConnectionCloseError{
 			Code:   uint64(e.code),
 			Reason: e.message,
 		})

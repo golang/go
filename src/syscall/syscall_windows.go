@@ -1102,7 +1102,7 @@ func LoadConnectEx() error {
 		if connectExFunc.err != nil {
 			return
 		}
-		defer CloseHandle(s)
+		defer Closesocket(s)
 		var n uint32
 		connectExFunc.err = WSAIoctl(s,
 			SIO_GET_EXTENSION_FUNCTION_POINTER,

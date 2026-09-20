@@ -19,6 +19,28 @@ import (
 	"unsafe"
 )
 
+func TestRootOpenatFallback(t *testing.T) {
+	windows.TestOpenatFallback = true
+	t.Cleanup(func() { windows.TestOpenatFallback = false })
+
+	// Exercise the existing path traversal and symlink confinement cases
+	// with OBJ_DONT_REPARSE unavailable, as on Windows 10 build 10240.
+	t.Run("OpenFile", TestRootOpen_File)
+	t.Run("OpenDirectory", TestRootOpen_Directory)
+	t.Run("Create", TestRootCreate)
+	t.Run("Stat", TestRootStat)
+	t.Run("Lstat", TestRootLstat)
+	t.Run("RemoveAll", TestRootRemoveAll)
+	t.Run("RemoveAllNoRoot", TestRemoveAll)
+	t.Run("DeleteOnClose", testRootOpenFileDeleteOnClose)
+	t.Run("LegacyDelete", func(t *testing.T) {
+		windows.TestDeleteatFallback = true
+		t.Cleanup(func() { windows.TestDeleteatFallback = false })
+		t.Run("RemoveAll", TestRootRemoveAll)
+		t.Run("RemoveAllNoRoot", TestRemoveAll)
+	})
+}
+
 // Verify that Root.Open rejects Windows reserved names.
 func TestRootWindowsDeviceNames(t *testing.T) {
 	r, err := os.OpenRoot(t.TempDir())
@@ -327,6 +349,10 @@ func TestRootOpenFileFlags(t *testing.T) {
 
 func TestRootOpenFileDeleteOnClose(t *testing.T) {
 	t.Parallel()
+	testRootOpenFileDeleteOnClose(t)
+}
+
+func testRootOpenFileDeleteOnClose(t *testing.T) {
 	dir := t.TempDir()
 	root, err := os.OpenRoot(dir)
 	if err != nil {

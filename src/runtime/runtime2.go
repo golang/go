@@ -840,6 +840,10 @@ type p struct {
 	// pinner creation.
 	pinnerCache *pinner
 
+	// Cache of one unused pin counter. Accessed by this P with preemption
+	// disabled, or during STW. Returned to the allocator when the P is destroyed.
+	pinCounterCache *specialPinCounter
+
 	trace pTraceState
 
 	palloc persistentAlloc // per-P to avoid mutex

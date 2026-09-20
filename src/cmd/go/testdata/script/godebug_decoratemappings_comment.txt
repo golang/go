@@ -10,7 +10,7 @@ go 1.25
 module m
 
 -- main.go --
-//go:debug decoratemappings=1
+//go:debug decoratemappings=0
 package main
 
 import (

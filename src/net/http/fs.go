@@ -15,6 +15,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http/internal"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -1024,7 +1025,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 		return nil, nil // header not present
 	}
 	const b = "bytes="
-	if !strings.HasPrefix(s, b) {
+	if len(s) < len(b) || !ascii.EqualFold(s[:len(b)], b) {
 		return nil, errors.New("invalid range")
 	}
 	var ranges []httpRange

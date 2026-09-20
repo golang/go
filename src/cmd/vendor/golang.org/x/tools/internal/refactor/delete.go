@@ -531,8 +531,7 @@ func DeleteUnusedVars(index *typeindex.Index, info *types.Info, tokFile *token.F
 	delcount := make(map[*types.Var]int)
 	for curId := range curDelend.Preorder((*ast.Ident)(nil)) {
 		id := curId.Node().(*ast.Ident)
-		if v, ok := info.Uses[id].(*types.Var); ok &&
-			typesinternal.GetVarKind(v) == typesinternal.LocalVar { // always false before go1.25
+		if v, ok := info.Uses[id].(*types.Var); ok && v.Kind() == types.LocalVar {
 			delcount[v]++
 		}
 	}

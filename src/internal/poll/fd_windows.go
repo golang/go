@@ -223,6 +223,14 @@ var operationPool = sync.Pool{
 // handling cancellation if necessary.
 func (fd *FD) waitIO(o *operation) error {
 	if o.o.HEvent != 0 {
+		// Close may have tried to cancel I/O before this request was
+		// submitted. Retry cancellation now that the request is pending.
+		if fd.kind == kindPipe && fd.closing() {
+			if err := syscall.CancelIoEx(fd.Sysfd, &o.o); err != nil && err != syscall.ERROR_NOT_FOUND {
+				// TODO: maybe do something else, but panic.
+				panic(err)
+			}
+		}
 		// The overlapped handle is not added to the runtime poller,
 		// the only way to wait for the IO to complete is block until
 		// the overlapped event is signaled.
@@ -259,6 +267,9 @@ func (fd *FD) execIO(
 	submit func(o *operation) (uint32, error),
 	pinPtrs ...any,
 ) (int, error) {
+	if err := fd.ensureInit(); err != nil {
+		return 0, err
+	}
 	// Notify runtime netpoll about starting IO.
 	err := fd.pd.prepare(mode, fd.isFile)
 	if err != nil {
@@ -270,7 +281,6 @@ func (fd *FD) execIO(
 		runtimeCtx: fd.pd.runtimeCtx,
 		mode:       int32(mode),
 	}
-	o.setOffset(fd.offset)
 	if !fd.isBlocking {
 		var pinner *runtime.Pinner
 		if mode == 'r' {
@@ -302,11 +312,14 @@ func (fd *FD) execIO(
 	// Start IO.
 	qty, err := submit(o)
 	var waitErr error
+	// An event-backed operation that succeeds inline is already complete.
+	// Only IOCP may require waiting for a completion packet on success.
+	waitOnSuccess := o.o.HEvent == 0 && fd.waitOnSuccess
 	// Blocking operations shouldn't return ERROR_IO_PENDING.
 	// Continue without waiting if that happens.
-	if !fd.isBlocking && (err == syscall.ERROR_IO_PENDING || (err == nil && fd.waitOnSuccess)) {
+	if !fd.isBlocking && (err == syscall.ERROR_IO_PENDING || (err == nil && waitOnSuccess)) {
 		// IO started asynchronously or completed synchronously but
-		// a sync notification is required. Wait for it to complete.
+		// an IOCP completion packet is expected. Wait for completion.
 		waitErr = fd.waitIO(o)
 		if fd.isFile {
 			err = windows.GetOverlappedResult(fd.Sysfd, &o.o, &qty, false)
@@ -325,7 +338,7 @@ func (fd *FD) execIO(
 			err = waitErr
 		} else if fd.kind == kindPipe && fd.closing() {
 			// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
-			// If the fd is a pipe and the Write was interrupted by CancelIoEx,
+			// If the fd is a pipe and the I/O was interrupted by CancelIoEx,
 			// we assume it is interrupted by Close.
 			err = errClosing(fd.isFile)
 		}
@@ -351,9 +364,20 @@ type FD struct {
 	// I/O poller.
 	pd pollDesc
 
+	// lazyInit is set by Init before the FD is made available to callers.
+	// initOnce serializes first use; initMu protects initialization against
+	// Close and DisassociateIOCP. Close cancels I/O before waiting for initMu,
+	// and DisassociateIOCP only tries to lock it.
+	lazyInit bool
+	initOnce sync.Once
+	initMu   sync.Mutex
+	skipIOCP bool // protected by initMu
+
 	// The file offset for the next read or write.
 	// Overlapped IO operations don't use the real file pointer,
 	// so we need to keep track of the offset ourselves.
+	// Read and Write only use this for kindFile.
+	// Protected by both the read and write locks.
 	offset int64
 
 	// For console I/O.
@@ -365,8 +389,8 @@ type FD struct {
 	// Semaphore signaled when file is closed.
 	csema uint32
 
-	// Don't wait from completion port notifications for successful
-	// operations that complete synchronously.
+	// Whether to wait for an IOCP completion packet for operations that
+	// complete synchronously. Only used while associated is true.
 	waitOnSuccess bool
 
 	// Whether this is a streaming descriptor, as opposed to a
@@ -376,6 +400,10 @@ type FD struct {
 	// Whether a zero byte read indicates EOF. This is false for a
 	// message based socket connection.
 	ZeroReadIsEOF bool
+
+	// KeepFileCompletionModes prevents Init from changing the file object's
+	// completion notification modes.
+	KeepFileCompletionModes bool
 
 	// Whether the handle is owned by os.File.
 	isFile bool
@@ -430,10 +458,12 @@ const (
 // Init initializes the FD. The Sysfd field should already be set.
 // This can be called multiple times on a single FD.
 // The net argument is a network name from the net package (e.g., "tcp"),
-// or "file" or "console" or "dir".
-// Set pollable to true if fd should be managed by runtime netpoll.
-// Pollable must be set to true for overlapped fds.
-func (fd *FD) Init(net string, pollable bool) error {
+// or "file", "console", or "pipe".
+// The overlapped argument reports whether the handle was opened for overlapped I/O.
+// Such handles use the runtime poller when possible, or explicit events otherwise.
+// If overlapped is nil, mode detection and poller initialization are deferred
+// until first use.
+func (fd *FD) Init(net string, overlapped *bool) error {
 	if initErr != nil {
 		return initErr
 	}
@@ -450,50 +480,113 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.kind = kindNet
 	}
 	fd.isFile = fd.kind != kindNet
-	fd.isBlocking = !pollable
+	fd.lazyInit = overlapped == nil
+	fd.isBlocking = overlapped == nil || !*overlapped
 
-	if !pollable {
+	if fd.isBlocking {
 		return nil
 	}
+	return fd.initIOCP()
+}
 
-	// The default behavior of the Windows I/O manager is to queue a completion
-	// port entry for successful operations that complete synchronously when
-	// the handle is opened for overlapped I/O. We will try to disable that
-	// behavior below, as it requires an extra syscall.
-	fd.waitOnSuccess = true
+// ensureInit resolves the I/O mode and attempts poller initialization on first
+// use. The caller must hold an FD reference throughout this call and its I/O.
+func (fd *FD) ensureInit() error {
+	if !fd.lazyInit {
+		return nil
+	}
+	fd.initOnce.Do(func() {
+		fd.initMu.Lock()
+		defer fd.initMu.Unlock()
+		if fd.closing() {
+			return
+		}
+
+		// This query may block behind synchronous I/O, including I/O in
+		// another process. Close cancels I/O before waiting for initMu,
+		// and raw-handle access does not wait for it.
+		overlapped, _ := windows.IsNonblock(fd.Sysfd)
+		fd.isBlocking = !overlapped
+		if overlapped && !fd.skipIOCP && !fd.closing() {
+			// Like os.NewFile's eager initialization, association failures
+			// fall back to event-backed I/O rather than failing the operation.
+			_ = fd.initIOCP()
+		}
+	})
+	if fd.closing() {
+		return errClosing(fd.isFile)
+	}
+	return nil
+}
+
+// initIOCP sets up the runtime poller and completion notification modes for an
+// overlapped handle. If the existing notification modes cannot be determined,
+// it leaves the handle unassociated for event-backed I/O.
+func (fd *FD) initIOCP() error {
+	var modes uint32
+	if fd.KeepFileCompletionModes {
+		// Query before associating: we must know whether inline success
+		// queues a completion packet before using the runtime poller.
+		var err error
+		modes, err = fd.getFileCompletionModes()
+		if err != nil {
+			// Without knowing the modes, neither waiting for a completion
+			// packet on success nor skipping it is safe. Leave the handle
+			// unassociated and use explicit events for pending I/O instead.
+			// Inline success needs no wait, and deadlines are unavailable.
+			return nil
+		}
+	}
 
 	// It is safe to add overlapped handles that also perform I/O
 	// outside of the runtime poller. The runtime poller will ignore
 	// I/O completion notifications not initiated by us.
-	err := fd.pd.init(fd)
-	if err != nil {
+	if err := fd.pd.init(fd); err != nil {
 		return err
 	}
 	fd.associated = true
 
-	// FILE_SKIP_SET_EVENT_ON_HANDLE is always safe to use. We don't use that feature
-	// and it adds some overhead to the Windows I/O manager.
+	if !fd.KeepFileCompletionModes {
+		// Only change notification modes after association succeeds.
+		modes = fd.setFileCompletionModes()
+	}
+	fd.waitOnSuccess = modes&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS == 0
+	return nil
+}
+
+// getFileCompletionModes queries the file object's completion notification modes.
+func (fd *FD) getFileCompletionModes() (uint32, error) {
+	var info windows.FILE_IO_COMPLETION_NOTIFICATION_INFORMATION
+	err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{},
+		unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileIoCompletionNotificationInformation)
+	return info.Flags, err
+}
+
+// setFileCompletionModes enables completion notification optimizations and returns
+// the requested modes on success, or zero if the request fails.
+func (fd *FD) setFileCompletionModes() uint32 {
+	// Suppressing the file object's event saves work for the I/O manager.
+	// Explicit per-operation events are still signaled.
 	// See https://devblogs.microsoft.com/oldnewthing/20200221-00/?p=103466.
 	modes := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
 	if canSkipCompletionPortOnSuccess(fd.Sysfd, fd.kind == kindNet) {
 		modes |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
 	}
-	if syscall.SetFileCompletionNotificationModes(fd.Sysfd, modes) == nil {
-		if modes&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0 {
-			fd.waitOnSuccess = false
-		}
+	if syscall.SetFileCompletionNotificationModes(fd.Sysfd, modes) != nil {
+		// Retain the default policy of waiting for an inline-success packet
+		// unless skip-success was enabled successfully.
+		return 0
 	}
-	return nil
+	return uint32(modes)
 }
 
 // DisassociateIOCP disassociates the file handle from the IOCP.
 // The disassociate operation will not succeed if there is any
 // in-progress I/O operation on the file handle.
 func (fd *FD) DisassociateIOCP() error {
-	// There is a small race window between execIO checking fd.disassociated and
-	// DisassociateIOCP setting it. NtSetInformationFile will fail anyway if
-	// there is any in-progress I/O operation, so just take a read-write lock
-	// to ensure there is no in-progress I/O and fail early if we can't get the lock.
+	// Hold both I/O locks while changing the completion mechanism. Don't wait
+	// for them, since an I/O operation might block indefinitely.
+	// NtSetInformationFile also rejects handles with pending I/O outside this FD.
 	if ok, err := fd.tryReadWriteLock(); err != nil || !ok {
 		if err == nil {
 			err = errors.New("can't disassociate the handle while there is in-progress I/O")
@@ -502,6 +595,16 @@ func (fd *FD) DisassociateIOCP() error {
 	}
 	defer fd.readWriteUnlock()
 
+	if fd.lazyInit {
+		if !fd.initMu.TryLock() {
+			// A deadline setter can initialize without holding the I/O locks.
+			return errors.New("can't disassociate the handle while initialization is in progress")
+		}
+		defer fd.initMu.Unlock()
+		// If initialization has not started, suppress future association
+		// without querying the handle's mode.
+		fd.skipIOCP = true
+	}
 	if !fd.associated {
 		// Nothing to disassociate.
 		return nil
@@ -549,7 +652,14 @@ func (fd *FD) Close() error {
 		syscall.CancelIoEx(fd.Sysfd, nil)
 	}
 	// unblock pending reader and writer
-	fd.pd.evict()
+	if fd.lazyInit {
+		// Cancel before waiting for initialization, then evict its descriptor.
+		fd.initMu.Lock()
+		fd.pd.evict()
+		fd.initMu.Unlock()
+	} else {
+		fd.pd.evict()
+	}
 	err := fd.decref()
 	// Wait until the descriptor is closed. If this was the only
 	// reference, it is already closed.
@@ -594,10 +704,15 @@ func (fd *FD) Read(buf []byte) (int, error) {
 		n, err = fd.readConsole(buf)
 	case kindFile, kindPipe:
 		n, err = fd.execIO('r', func(o *operation) (qty uint32, err error) {
+			if fd.kind == kindFile {
+				o.setOffset(fd.offset)
+			}
 			err = syscall.ReadFile(fd.Sysfd, buf, &qty, fd.overlapped(o))
 			return qty, err
 		}, pinPtrsFromBuf(buf)...)
-		fd.addOffset(n)
+		if fd.kind == kindFile {
+			fd.addOffset(n)
+		}
 		switch err {
 		case syscall.ERROR_HANDLE_EOF:
 			err = io.EOF
@@ -852,10 +967,15 @@ func (fd *FD) Write(buf []byte) (int, error) {
 			n, err = fd.writeConsole(b)
 		case kindPipe, kindFile:
 			n, err = fd.execIO('w', func(o *operation) (qty uint32, err error) {
+				if fd.kind == kindFile {
+					o.setOffset(fd.offset)
+				}
 				err = syscall.WriteFile(fd.Sysfd, b, &qty, fd.overlapped(o))
 				return qty, err
 			}, pinPtrsFromBuf(b)...)
-			fd.addOffset(n)
+			if fd.kind == kindFile {
+				fd.addOffset(n)
+			}
 		case kindNet:
 			if race.Enabled {
 				race.ReleaseMerge(unsafe.Pointer(&ioSync))
@@ -1176,6 +1296,9 @@ func (fd *FD) Seek(offset int64, whence int) (int64, error) {
 	}
 	defer fd.readWriteUnlock()
 
+	if err := fd.ensureInit(); err != nil {
+		return 0, err
+	}
 	if !fd.isBlocking {
 		// Windows doesn't use the file pointer for overlapped file handles,
 		// there is no point on calling syscall.Seek.

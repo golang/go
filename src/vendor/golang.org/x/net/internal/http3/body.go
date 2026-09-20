@@ -225,7 +225,7 @@ func (r *bodyReader) Read(p []byte) (n int, err error) {
 func (r *bodyReader) Close() error {
 	// Unlike the HTTP/1 and HTTP/2 body readers (at the time of this comment being written),
 	// calling Close concurrently with Read will interrupt the read.
-	r.st.CloseRead()
+	r.st.CloseRead(uint64(errH3NoError))
 	// Make sure that any data that has already been written to bodyReader
 	// cannot be read after it has been closed.
 	r.mu.Lock()

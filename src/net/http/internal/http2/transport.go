@@ -9,15 +9,12 @@ package http2
 import (
 	"bufio"
 	"bytes"
-	"compress/flate"
-	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"math"
 	"math/bits"
@@ -68,7 +65,7 @@ const (
 // for concurrent use by multiple goroutines.
 type Transport struct {
 	t1       TransportConfig
-	connPool noDialClientConnPool
+	connPool *clientConnPool
 	*transportTestHooks
 }
 
@@ -98,17 +95,14 @@ func (t *Transport) maxHeaderListSize() uint32 {
 }
 
 func (t *Transport) disableCompression() bool {
-	return t.t1 != nil && t.t1.DisableCompression()
+	return t.t1.DisableCompression()
 }
 
 func NewTransport(t1 TransportConfig) *Transport {
-	connPool := new(clientConnPool)
-	t2 := &Transport{
-		connPool: noDialClientConnPool{connPool},
+	return &Transport{
+		connPool: new(clientConnPool),
 		t1:       t1,
 	}
-	connPool.t = t2
-	return t2
 }
 
 func (t *Transport) AddConn(scheme, authority string, c net.Conn) error {
@@ -125,7 +119,7 @@ func (t *Transport) AddConn(scheme, authority string, c net.Conn) error {
 type unencryptedTransport Transport
 
 func (t *unencryptedTransport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
-	return (*Transport)(t).RoundTripOpt(req, RoundTripOpt{})
+	return (*Transport)(t).RoundTrip(req)
 }
 
 // ClientConn is the state of a single HTTP/2 client connection to an
@@ -373,38 +367,15 @@ func (sew stickyErrWriter) Write(p []byte) (n int, err error) {
 }
 
 // noCachedConnError is the concrete type of ErrNoCachedConn, which
-// needs to be detected by net/http regardless of whether it's its
-// bundled version (in h2_bundle.go with a rewritten type name) or
-// from a user's x/net/http2. As such, as it has a unique method name
-// (IsHTTP2NoCachedConnError) that net/http sniffs for via func
-// isNoCachedConnError.
+// needs to be detected by net/http regardless of whether it comes from
+// here or from a user's x/net/http2. As such, it has a unique method name
+// (IsHTTP2NoCachedConnError) that net/http sniffs for.
 type noCachedConnError struct{}
 
 func (noCachedConnError) IsHTTP2NoCachedConnError() {}
 func (noCachedConnError) Error() string             { return "http2: no cached connection was available" }
 
-// isNoCachedConnError reports whether err is of type noCachedConnError
-// or its equivalent renamed type in net/http2's h2_bundle.go. Both types
-// may coexist in the same running program.
-func isNoCachedConnError(err error) bool {
-	_, ok := err.(interface{ IsHTTP2NoCachedConnError() })
-	return ok
-}
-
 var ErrNoCachedConn error = noCachedConnError{}
-
-// RoundTripOpt are options for the Transport.RoundTripOpt method.
-type RoundTripOpt struct {
-	// OnlyCachedConn controls whether RoundTripOpt may
-	// create a new TCP connection. If set true and
-	// no cached connection is available, RoundTripOpt
-	// will return ErrNoCachedConn.
-	OnlyCachedConn bool
-}
-
-func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
-	return t.RoundTripOpt(req, RoundTripOpt{})
-}
 
 // authorityAddr returns a given authority (a host/IP, or host:port / ip:port)
 // and returns a host:port. The port 443 is added if needed.
@@ -433,8 +404,7 @@ func authorityAddr(scheme string, authority string) (addr string) {
 	return net.JoinHostPort(host, port)
 }
 
-// RoundTripOpt is like RoundTrip, but takes options.
-func (t *Transport) RoundTripOpt(req *ClientRequest, opt RoundTripOpt) (*ClientResponse, error) {
+func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
 	switch req.URL.Scheme {
 	case "https":
 	case "http":
@@ -573,57 +543,13 @@ func canRetryError(err error) bool {
 	return false
 }
 
-func (t *Transport) dialClientConn(ctx context.Context, addr string, singleUse bool) (*ClientConn, error) {
-	if t.transportTestHooks != nil {
-		return t.newClientConn(nil, singleUse, nil)
-	}
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, err
-	}
-	tconn, err := t.dialTLS(ctx, "tcp", addr, t.newTLSConfig(host))
-	if err != nil {
-		return nil, err
-	}
-	return t.newClientConn(tconn, singleUse, nil)
-}
-
-func (t *Transport) newTLSConfig(host string) *tls.Config {
-	cfg := new(tls.Config)
-	if !slices.Contains(cfg.NextProtos, NextProtoTLS) {
-		cfg.NextProtos = append([]string{NextProtoTLS}, cfg.NextProtos...)
-	}
-	if cfg.ServerName == "" {
-		cfg.ServerName = host
-	}
-	return cfg
-}
-
-func (t *Transport) dialTLS(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
-	tlsCn, err := t.dialTLSWithContext(ctx, network, addr, tlsCfg)
-	if err != nil {
-		return nil, err
-	}
-	state := tlsCn.ConnectionState()
-	if p := state.NegotiatedProtocol; p != NextProtoTLS {
-		return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, NextProtoTLS)
-	}
-	if !state.NegotiatedProtocolIsMutual {
-		return nil, errors.New("http2: could not negotiate protocol mutually")
-	}
-	return tlsCn, nil
-}
-
 // disableKeepAlives reports whether connections should be closed as
 // soon as possible after handling the first request.
 func (t *Transport) disableKeepAlives() bool {
-	return t.t1 != nil && t.t1.DisableKeepAlives()
+	return t.t1.DisableKeepAlives()
 }
 
 func (t *Transport) expectContinueTimeout() time.Duration {
-	if t.t1 == nil {
-		return 0
-	}
 	return t.t1.ExpectContinueTimeout()
 }
 
@@ -985,12 +911,6 @@ func (cc *ClientConn) closeIfIdle() {
 	cc.closeConn()
 }
 
-func (cc *ClientConn) isDoNotReuseAndIdle() bool {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-	return cc.doNotReuse && len(cc.streams) == 0
-}
-
 var shutdownEnterWaitStateHook = func() {}
 
 // Shutdown gracefully closes the client connection, waiting for running streams to complete.
@@ -1090,14 +1010,7 @@ func (cc *ClientConn) closeForLostPing() {
 var errRequestCanceled = internal.ErrRequestCanceled
 
 func (cc *ClientConn) responseHeaderTimeout() time.Duration {
-	if cc.t.t1 != nil {
-		return cc.t.t1.ResponseHeaderTimeout()
-	}
-	// No way to do this (yet?) with just an http2.Transport. Probably
-	// no need. Request.Cancel this is the new way. We only need to support
-	// this for compatibility with the old http.Transport fields when
-	// we're doing transparent http2.
-	return 0
+	return cc.t.t1.ResponseHeaderTimeout()
 }
 
 // actualContentLength returns a sanitized version of
@@ -2381,8 +2294,8 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 			// Use the larger limit of MaxHeaderListSize and
 			// net/http.Transport.MaxResponseHeaderBytes.
 			limit := int64(cs.cc.t.maxHeaderListSize())
-			if t1 := cs.cc.t.t1; t1 != nil && t1.MaxResponseHeaderBytes() > limit {
-				limit = t1.MaxResponseHeaderBytes()
+			if n := cs.cc.t.t1.MaxResponseHeaderBytes(); n > limit {
+				limit = n
 			}
 			for _, h := range f.Fields {
 				cs.totalHeaderSize += int64(h.Size())
@@ -2438,11 +2351,11 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 	cs.bytesRemain = res.ContentLength
 	res.Body = transportResponseBody{cs}
 
-	if cs.requestedGzip && asciiEqualFold(res.Header.Get("Content-Encoding"), "gzip") {
+	if cs.requestedGzip && ascii.EqualFold(res.Header.Get("Content-Encoding"), "gzip") {
 		res.Header.Del("Content-Encoding")
 		res.Header.Del("Content-Length")
 		res.ContentLength = -1
-		res.Body = &gzipReader{body: res.Body}
+		res.Body = &httpcommon.GzipReader{Body: res.Body}
 		res.Uncompressed = true
 	}
 	return res, nil
@@ -3093,119 +3006,6 @@ type erringRoundTripper struct{ err error }
 func (rt erringRoundTripper) RoundTripErr() error                               { return rt.err }
 func (rt erringRoundTripper) RoundTrip(*ClientRequest) (*ClientResponse, error) { return nil, rt.err }
 
-var errConcurrentReadOnResBody = errors.New("http2: concurrent read on response body")
-
-// gzipReader wraps a response body so it can lazily
-// get gzip.Reader from the pool on the first call to Read.
-// After Close is called it puts gzip.Reader to the pool immediately
-// if there is no Read in progress or later when Read completes.
-type gzipReader struct {
-	_    incomparable
-	body io.ReadCloser // underlying Response.Body
-	mu   sync.Mutex    // guards zr and zerr
-	zr   *gzip.Reader  // stores gzip reader from the pool between reads
-	zerr error         // sticky gzip reader init error or sentinel value to detect concurrent read and read after close
-}
-
-type eofReader struct{}
-
-func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
-func (eofReader) ReadByte() (byte, error)  { return 0, io.EOF }
-
-var gzipPool = sync.Pool{New: func() any { return new(gzip.Reader) }}
-
-// gzipPoolGet gets a gzip.Reader from the pool and resets it to read from r.
-func gzipPoolGet(r io.Reader) (*gzip.Reader, error) {
-	zr := gzipPool.Get().(*gzip.Reader)
-	if err := zr.Reset(r); err != nil {
-		gzipPoolPut(zr)
-		return nil, err
-	}
-	return zr, nil
-}
-
-// gzipPoolPut puts a gzip.Reader back into the pool.
-func gzipPoolPut(zr *gzip.Reader) {
-	// Reset will allocate bufio.Reader if we pass it anything
-	// other than a flate.Reader, so ensure that it's getting one.
-	var r flate.Reader = eofReader{}
-	zr.Reset(r)
-	gzipPool.Put(zr)
-}
-
-// acquire returns a gzip.Reader for reading response body.
-// The reader must be released after use.
-func (gz *gzipReader) acquire() (*gzip.Reader, error) {
-	gz.mu.Lock()
-	defer gz.mu.Unlock()
-	if gz.zerr != nil {
-		return nil, gz.zerr
-	}
-	if gz.zr == nil {
-		// gzipPoolGet might block indefinitely since it reads the gzip header.
-		// Therefore, drop mu temporarily when using gzipPoolGet.
-		// We set zerr to errConcurrentReadOnResBody to prevent concurrent read
-		// even when mu is temporarily dropped.
-		gz.zerr = errConcurrentReadOnResBody
-		gz.mu.Unlock()
-		zr, err := gzipPoolGet(gz.body)
-		gz.mu.Lock()
-		// Guard against Close being called while gzipPoolGet is running.
-		if gz.zerr != errConcurrentReadOnResBody {
-			if zr != nil {
-				gzipPoolPut(zr)
-			}
-			return nil, gz.zerr
-		}
-		gz.zr, gz.zerr = zr, err
-		if gz.zerr != nil {
-			return nil, gz.zerr
-		}
-	}
-	ret := gz.zr
-	gz.zr, gz.zerr = nil, errConcurrentReadOnResBody
-	return ret, nil
-}
-
-// release returns the gzip.Reader to the pool if Close was called during Read.
-func (gz *gzipReader) release(zr *gzip.Reader) {
-	gz.mu.Lock()
-	defer gz.mu.Unlock()
-	if gz.zerr == errConcurrentReadOnResBody {
-		gz.zr, gz.zerr = zr, nil
-	} else { // fs.ErrClosed
-		gzipPoolPut(zr)
-	}
-}
-
-// close returns the gzip.Reader to the pool immediately or
-// signals release to do so after Read completes.
-func (gz *gzipReader) close() {
-	gz.mu.Lock()
-	defer gz.mu.Unlock()
-	if gz.zerr == nil && gz.zr != nil {
-		gzipPoolPut(gz.zr)
-		gz.zr = nil
-	}
-	gz.zerr = fs.ErrClosed
-}
-
-func (gz *gzipReader) Read(p []byte) (n int, err error) {
-	zr, err := gz.acquire()
-	if err != nil {
-		return 0, err
-	}
-	defer gz.release(zr)
-
-	return zr.Read(p)
-}
-
-func (gz *gzipReader) Close() error {
-	gz.close()
-
-	return gz.body.Close()
-}
-
 // isConnectionCloseRequest reports whether req should use its own
 // connection for a single request and then close the connection.
 func isConnectionCloseRequest(req *ClientRequest) bool {
@@ -3282,11 +3082,7 @@ func (cc *ClientConn) maybeCallStateHook() {
 }
 
 func (t *Transport) idleConnTimeout() time.Duration {
-	if t.t1 != nil {
-		return t.t1.IdleConnTimeout()
-	}
-
-	return 0
+	return t.t1.IdleConnTimeout()
 }
 
 func traceGetConn(req *ClientRequest, hostPort string) {
@@ -3349,18 +3145,4 @@ func traceGot1xxResponseFunc(trace *httptrace.ClientTrace) func(int, textproto.M
 		return trace.Got1xxResponse
 	}
 	return nil
-}
-
-// dialTLSWithContext uses tls.Dialer, added in Go 1.15, to open a TLS
-// connection.
-func (t *Transport) dialTLSWithContext(ctx context.Context, network, addr string, cfg *tls.Config) (*tls.Conn, error) {
-	dialer := &tls.Dialer{
-		Config: cfg,
-	}
-	cn, err := dialer.DialContext(ctx, network, addr)
-	if err != nil {
-		return nil, err
-	}
-	tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
-	return tlsCn, nil
 }

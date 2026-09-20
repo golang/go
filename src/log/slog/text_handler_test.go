@@ -194,6 +194,27 @@ func TestTextHandlerAlloc(t *testing.T) {
 	wantAllocs(t, 0, func() { h.Handle(context.Background(), r) })
 }
 
+func TestTextHandlerTextAppenderNoAlloc(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	r := NewRecord(testTime, LevelInfo, "msg", 0)
+	r.AddAttrs(Any("t", textAppend{"abc"}))
+	h := NewTextHandler(io.Discard, nil)
+	wantAllocs(t, 0, func() { h.Handle(context.Background(), r) })
+}
+
+func BenchmarkTextHandlerTextAppender(b *testing.B) {
+	r := NewRecord(testTime, LevelInfo, "msg", 0)
+	r.AddAttrs(Any("t", textAppend{"abc"}))
+	h := NewTextHandler(io.Discard, nil)
+	ctx := b.Context()
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := h.Handle(ctx, r); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestNeedsQuoting(t *testing.T) {
 	for _, test := range []struct {
 		in   string

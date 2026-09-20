@@ -13,7 +13,8 @@ import (
 
 const archHasHwClmul = true
 
-func archMaxVectorSize() (size, allFeatureSize int) {
+func archMaxVectorSize() (size, allFeatureSize int, arch string) {
+	arch = "amd64"
 	if archsimd.X86.AVX() {
 		size = 128
 		allFeatureSize = 128

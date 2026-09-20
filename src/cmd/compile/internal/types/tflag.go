@@ -17,6 +17,23 @@ const tflagComputed uint8 = 1 << 7
 
 var tflagMu sync.Mutex
 
+// TFlagComputed reports whether TFlag has been computed for t.
+func (t *Type) TFlagComputed() bool {
+	tflagMu.Lock()
+	defer tflagMu.Unlock()
+	return t.tflag&tflagComputed != 0
+}
+
+// CopyTFlagFrom copies src's TFlag to t if src's TFlag has been computed.
+// The caller must ensure t and src are identical types.
+func (t *Type) CopyTFlagFrom(src *Type) {
+	tflagMu.Lock()
+	defer tflagMu.Unlock()
+	if src.tflag&tflagComputed != 0 {
+		t.tflag = src.tflag
+	}
+}
+
 // TFlag returns the abi.TFlag value for t's runtime type. Callers
 // must have run typecheck.CalcMethods on ReceiverBaseType(t).
 func (t *Type) TFlag() abi.TFlag {

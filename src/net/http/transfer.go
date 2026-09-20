@@ -453,11 +453,12 @@ type transferReader struct {
 	ProtoMajor    int
 	ProtoMinor    int
 	// Output
-	Body          io.ReadCloser
-	ContentLength int64
-	Chunked       bool
-	Close         bool
-	Trailer       Header
+	Body           io.ReadCloser
+	RealBodyLength int64 // actual size of body (0 for HEAD requests and the like)
+	ContentLength  int64 // content-length (may be non-0 for HEAD requests)
+	Chunked        bool
+	Close          bool
+	Trailer        Header
 }
 
 func (t *transferReader) protoAtLeast(m, n int) bool {
@@ -530,30 +531,9 @@ func readTransfer(msg any, r *bufio.Reader, maxTrailerHeaders int64) (err error)
 		t.ProtoMajor, t.ProtoMinor = 1, 1
 	}
 
-	if len(t.Header["Transfer-Encoding"]) > 0 && len(t.Header["Content-Length"]) > 0 {
-		// Transfer-Encoding supersedes Content-Length,
-		// but we should close the connection after processing the message.
-		// (RFC 9112 6.3.)
-		t.Close = true
-	}
-
-	// Transfer-Encoding: chunked, and overriding Content-Length.
-	if err := t.parseTransferEncoding(); err != nil {
+	// Content-Length and Transfer-Encoding.
+	if err := t.determineBodyLength(isResponse); err != nil {
 		return err
-	}
-
-	realLength, err := fixLength(isResponse, t.StatusCode, t.RequestMethod, t.Header, t.Chunked)
-	if err != nil {
-		return err
-	}
-	if isResponse && t.RequestMethod == "HEAD" {
-		if n, err := parseContentLength(t.Header["Content-Length"]); err != nil {
-			return err
-		} else {
-			t.ContentLength = n
-		}
-	} else {
-		t.ContentLength = realLength
 	}
 
 	// Trailer
@@ -562,19 +542,8 @@ func readTransfer(msg any, r *bufio.Reader, maxTrailerHeaders int64) (err error)
 		return err
 	}
 
-	// If there is no Content-Length or chunked Transfer-Encoding on a *Response
-	// and the status is not 1xx, 204 or 304, then the body is unbounded.
-	// See RFC 7230, section 3.3.
-	switch msg.(type) {
-	case *Response:
-		if realLength == -1 && !t.Chunked && bodyAllowedForStatus(t.StatusCode) {
-			// Unbounded body.
-			t.Close = true
-		}
-	}
-
-	// Prepare body reader. ContentLength < 0 means chunked encoding
-	// or close connection when finished, since multipart is not supported yet
+	// Prepare body reader. Body length < 0 means chunked encoding
+	// or close connection when finished, since multipart is not supported yet.
 	switch {
 	case t.Chunked:
 		if isResponse && (noResponseBodyExpected(t.RequestMethod) || !bodyAllowedForStatus(t.StatusCode)) {
@@ -582,19 +551,16 @@ func readTransfer(msg any, r *bufio.Reader, maxTrailerHeaders int64) (err error)
 		} else {
 			t.Body = &body{src: internal.NewChunkedReader(r), hdr: msg, r: r, closing: t.Close, maxTrailerHeaders: maxTrailerHeaders}
 		}
-	case realLength == 0:
+	case t.RealBodyLength == 0:
 		t.Body = NoBody
-	case realLength > 0:
-		t.Body = &body{src: io.LimitReader(r, realLength), closing: t.Close}
+	case t.RealBodyLength > 0:
+		t.Body = &body{src: io.LimitReader(r, t.RealBodyLength), closing: t.Close}
+	case t.Close:
+		// Close semantics (no Transfer-Encoding or Content-Length).
+		t.Body = &body{src: r, closing: t.Close}
 	default:
-		// realLength < 0, i.e. "Content-Length" not mentioned in header
-		if t.Close {
-			// Close semantics (i.e. HTTP/1.0)
-			t.Body = &body{src: r, closing: t.Close}
-		} else {
-			// Persistent connection (i.e. HTTP/1.1)
-			t.Body = NoBody
-		}
+		// This shouldn't be possible.
+		return errors.New("http: unexpected body length (bug)")
 	}
 
 	// Unify output
@@ -631,6 +597,13 @@ type unsupportedTEError struct {
 	err string
 }
 
+var (
+	errTooManyTransferEncodings    = &unsupportedTEError{"too many transfer encodings"}
+	errUnsupportedTransferEncoding = &unsupportedTEError{"unsupported transfer encoding"}
+
+	errTooManyContentLengths = errors.New("message cannot contain multiple Content-Length headers")
+)
+
 func (uste *unsupportedTEError) Error() string {
 	return uste.err
 }
@@ -642,119 +615,165 @@ func isUnsupportedTEError(err error) bool {
 	return ok
 }
 
-// parseTransferEncoding sets t.Chunked based on the Transfer-Encoding header.
-func (t *transferReader) parseTransferEncoding() error {
-	raw, present := t.Header["Transfer-Encoding"]
-	if !present {
-		return nil
-	}
+// Determine the expected body length, using RFC 9112 Section 6.3.
+//
+// Sets t.RealBodyLength, t.ContentLength, t.Chunked, and (sometimes) t.Close.
+func (t *transferReader) determineBodyLength(isResponse bool) error {
+	isRequest := !isResponse
+	contentLength, hasContentLength := t.Header["Content-Length"]
+	transferEncoding, hasTransferEncoding := t.Header["Transfer-Encoding"]
+	delete(t.Header, "Content-Length")
 	delete(t.Header, "Transfer-Encoding")
 
-	// Issue 12785; ignore Transfer-Encoding on HTTP/1.0 requests.
-	if !t.protoAtLeast(1, 1) {
+	// Early checks of Transfer-Encoding and Content-Length:
+	// If these headers are present, we require them to be correct,
+	// even if we aren't going to use them.
+	// (This is stricter than RFC 9110 requires.)
+	if hasTransferEncoding && !t.protoAtLeast(1, 1) {
+		// "A server or client that receives an HTTP/1.0 message containing a
+		// Transfer-Encoding header field MUST treat the message as if the framing
+		// is faulty, even if a Content-Length is present, and close
+		// the connection after processing the message."
+		// https://datatracker.ietf.org/doc/html/rfc9112#section-6.1-16
+		t.Close = true
+		transferEncoding = nil
+		hasTransferEncoding = false
+	}
+	if hasTransferEncoding {
+		// Like nginx, we only support a single Transfer-Encoding header field, and
+		// only if set to "chunked". This is one of the most security sensitive
+		// surfaces in HTTP/1.1 due to the risk of request smuggling, so we keep it
+		// strict and simple.
+		if len(transferEncoding) != 1 {
+			return errTooManyTransferEncodings
+		}
+		if !ascii.EqualFold(transferEncoding[0], "chunked") {
+			return errUnsupportedTransferEncoding
+		}
+	}
+	// parsedContentLength >= 0 indicates a valid Content-Length header,
+	// parsedContentLength < 0 is either no Content-Length or an empty one we're ignoring.
+	contentLengthStr, parsedContentLength, err := parseContentLength(contentLength)
+	if err != nil {
+		return err
+	}
+
+	// 1. "Any response to a HEAD request and any response with a
+	//    1xx (Informational), 204 (No Content), or 304 (Not Modified)
+	//    status code is always terminated by the first empty line
+	//    after the header fields, regardless of the header fields
+	//    present in the message, and thus cannot contain a message
+	//    body or trailer section."
+	if isResponse && t.RequestMethod == "HEAD" {
+		t.RealBodyLength = 0
+		if hasTransferEncoding {
+			t.Chunked = true
+			t.ContentLength = -1
+		} else if parsedContentLength >= 0 {
+			t.Header.Set("Content-Length", contentLengthStr)
+			t.ContentLength = parsedContentLength
+		} else {
+			t.ContentLength = -1
+		}
+		return nil
+	}
+	bodyless := isResponse &&
+		((t.StatusCode >= 100 && t.StatusCode < 200) ||
+			t.StatusCode == 204 ||
+			t.StatusCode == 304)
+	if bodyless {
+		// We preserve the Transfer-Encoding and Content-Length headers on
+		// these responses, but we don't set the ContentLength field of
+		// the Request/Response.
+		t.RealBodyLength = 0
+		t.ContentLength = 0
+		if hasTransferEncoding {
+			t.Chunked = true // sets Transfer-Encoding header
+		} else if parsedContentLength >= 0 {
+			t.Header.Set("Content-Length", contentLengthStr)
+		}
 		return nil
 	}
 
-	// Like nginx, we only support a single Transfer-Encoding header field, and
-	// only if set to "chunked". This is one of the most security sensitive
-	// surfaces in HTTP/1.1 due to the risk of request smuggling, so we keep it
-	// strict and simple.
-	if len(raw) != 1 {
-		return &unsupportedTEError{fmt.Sprintf("too many transfer encodings: %q", raw)}
-	}
-	if !ascii.EqualFold(raw[0], "chunked") {
-		return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", raw[0])}
-	}
-
-	t.Chunked = true
-	return nil
-}
-
-// Determine the expected body length, using RFC 7230 Section 3.3. This
-// function is not a method, because ultimately it should be shared by
-// ReadResponse and ReadRequest.
-func fixLength(isResponse bool, status int, requestMethod string, header Header, chunked bool) (n int64, err error) {
-	isRequest := !isResponse
-	contentLens := header["Content-Length"]
-
-	// Hardening against HTTP request smuggling
-	if len(contentLens) > 1 {
-		// Per RFC 7230 Section 3.3.2, prevent multiple
-		// Content-Length headers if they differ in value.
-		// If there are dups of the value, remove the dups.
-		// See Issue 16490.
-		first := textproto.TrimString(contentLens[0])
-		for _, ct := range contentLens[1:] {
-			if first != textproto.TrimString(ct) {
-				return 0, fmt.Errorf("http: message cannot contain multiple Content-Length headers; got %q", contentLens)
-			}
-		}
-
-		// deduplicate Content-Length
-		header.Del("Content-Length")
-		header.Add("Content-Length", first)
-
-		contentLens = header["Content-Length"]
+	// 2. "Any 2xx (Successful) response to a CONNECT request
+	//    implies that the connection will become a tunnel immediately
+	//    after the empty line that concludes the header fields. A
+	//    client MUST ignore any Content-Length or Transfer-Encoding
+	//    header fields received in such a message."
+	if isResponse && t.StatusCode >= 200 && t.StatusCode < 300 && t.RequestMethod == "CONNECT" {
+		t.RealBodyLength = -1
+		t.ContentLength = -1
+		t.Close = true
+		return nil
 	}
 
-	// Reject requests with invalid Content-Length headers.
-	if len(contentLens) > 0 {
-		n, err = parseContentLength(contentLens)
-		if err != nil {
-			return -1, err
-		}
+	// 3. "If a message is received with both a Transfer-Encoding
+	//    and a Content-Length header field, the Transfer-Encoding
+	//    overrides the Content-Length."
+	if hasContentLength && hasTransferEncoding {
+		// "A server MAY reject a request that contains
+		// both Content-Length and Transfer-Encoding or process
+		// such a request in accordance with the Transfer-Encoding
+		// alone. Regardless, the server MUST close the
+		// connection after responding to such a request to
+		// avoid the potential attacks."
+		// https://www.rfc-editor.org/rfc/rfc9112.html#section-6.1-15
+		contentLength = nil
+		hasContentLength = false
+		parsedContentLength = -1
+		t.Close = true
 	}
 
-	// Logic based on response type or status
-	if isResponse && noResponseBodyExpected(requestMethod) {
-		return 0, nil
-	}
-	if status/100 == 1 {
-		return 0, nil
-	}
-	switch status {
-	case 204, 304:
-		return 0, nil
+	// 4. "If a Transfer-Encoding header field is present and
+	//     the chunked transfer coding (Section 7.1) is the final
+	//     encoding, the message body length is determined by reading
+	//     and decoding the chunked data until the transfer coding
+	//     indicates the data is complete."
+	if hasTransferEncoding {
+		// We verified above that the header contains a single value, "chunked".
+		t.Chunked = true
+		t.RealBodyLength = -1
+		t.ContentLength = -1
+		return nil
 	}
 
-	// According to RFC 9112, "If a message is received with both a
-	// Transfer-Encoding and a Content-Length header field, the Transfer-Encoding
-	// overrides the Content-Length. Such a message might indicate an attempt to
-	// perform request smuggling (Section 11.2) or response splitting (Section 11.1)
-	// and ought to be handled as an error. An intermediary that chooses to forward
-	// the message MUST first remove the received Content-Length field and process
-	// the Transfer-Encoding (as described below) prior to forwarding the message downstream."
+	// 5. "If a message is received without Transfer-Encoding
+	//     and with an invalid Content-Length header field, then the
+	//     message framing is invalid and the recipient MUST treat it
+	//     as an unrecoverable error, unless the field value can be
+	//     successfully parsed as a comma-separated list (Section 5.6.1
+	//     of [HTTP]), all values in the list are valid, and all values
+	//     in the list are the same (in which case, the message is
+	//     processed with that single value used as the Content-Length
+	//     field value)."
 	//
-	// Chunked-encoding requests with either valid Content-Length
-	// headers or no Content-Length headers are accepted after removing
-	// the Content-Length field from header.
-	//
-	// Logic based on Transfer-Encoding
-	if chunked {
-		header.Del("Content-Length")
-		return -1, nil
+	// 6. "If a valid Content-Length header field is present
+	//    without Transfer-Encoding, its decimal value defines the
+	//    expected message body length in octets."
+	if parsedContentLength >= 0 {
+		t.Header.Set("Content-Length", contentLengthStr)
+		t.RealBodyLength = parsedContentLength
+		t.ContentLength = parsedContentLength
+		return nil
 	}
 
-	// Logic based on Content-Length
-	if len(contentLens) > 0 {
-		return n, nil
-	}
-
-	header.Del("Content-Length")
-
+	// 7. "If this is a request message and none of the above
+	//    are true, then the message body length is zero (no message
+	//    body is present)."
 	if isRequest {
-		// RFC 7230 neither explicitly permits nor forbids an
-		// entity-body on a GET request so we permit one if
-		// declared, but we default to 0 here (not -1 below)
-		// if there's no mention of a body.
-		// Likewise, all other request methods are assumed to have
-		// no body if neither Transfer-Encoding chunked nor a
-		// Content-Length are set.
-		return 0, nil
+		t.RealBodyLength = 0
+		t.ContentLength = 0
+		return nil
 	}
 
-	// Body-EOF logic based on other methods (like closing, or chunked coding)
-	return -1, nil
+	// 8. "Otherwise, this is a response message without a
+	//    declared message body length, so the message body length
+	//    is determined by the number of octets received prior to the
+	//    server closing the connection."
+	t.RealBodyLength = -1
+	t.ContentLength = -1
+	t.Close = true
+	return nil
 }
 
 // Determine whether to hang up after sending a request and body, or
@@ -831,10 +850,11 @@ type body struct {
 	doEarlyClose      bool          // whether Close should stop early
 	maxTrailerHeaders int64         // how many trailer header values are allowed
 
-	mu       sync.Mutex // guards following, and calls to Read and Close
-	sawEOF   bool
-	closed   bool
-	onHitEOF func() // if non-nil, func to call when EOF is Read
+	mu          sync.Mutex // guards following, and calls to Read and Close
+	sawEOF      bool
+	closed      bool
+	dropTrailer bool   // if true, do not populate hdr.Trailer
+	onHitEOF    func() // if non-nil, func to call when EOF is Read
 }
 
 // ErrBodyReadAfterClose is returned when reading a [Request] or [Response]
@@ -991,6 +1011,13 @@ func (b *body) readTrailer() error {
 		}
 		return err
 	}
+	// When we are automatically draining a response body, let the trailer
+	// still be parsed above (so connection can be reused). However, do not
+	// actually populate b.hdr.Trailer. Doing so is racy as we do not own b.hdr
+	// anymore when automatic draining occurs.
+	if b.dropTrailer {
+		return nil
+	}
 	switch rr := b.hdr.(type) {
 	case *Request:
 		mergeSetHeader(&rr.Trailer, Header(hdr))
@@ -1006,6 +1033,12 @@ func mergeSetHeader(dst *Header, src Header) {
 		return
 	}
 	maps.Copy(*dst, src)
+}
+
+func (b *body) discardTrailer() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.dropTrailer = true
 }
 
 // unreadDataSizeLocked returns the number of bytes of unread input.
@@ -1105,29 +1138,45 @@ func (bl bodyLocked) Read(p []byte) (n int, err error) {
 
 var httplaxcontentlength = godebug.New("httplaxcontentlength")
 
-// parseContentLength checks that the header is valid and then trims
-// whitespace. It returns -1 if no value is set otherwise the value
-// if it's >= 0.
-func parseContentLength(clHeaders []string) (int64, error) {
-	if len(clHeaders) == 0 {
-		return -1, nil
+// parseContentLength checks that the header is valid and then trims whitespace.
+// It returns the parsed header value or an error.
+//
+// When GODEBUG=httplaxcontentlength=1, it returns -1 for an empty Content-Length value.
+func parseContentLength(contentLength []string) (string, int64, error) {
+	if len(contentLength) == 0 {
+		return "", -1, nil
 	}
-	cl := textproto.TrimString(clHeaders[0])
+
+	// RFC 9112 6.3 item 5: Accept multiple Content-Length header values
+	// if they are all identical.
+	//
+	// To be fully RFC-compliant, we should accept identical,
+	// comma-separated Content-Length values here.
+	//
+	// Not doing so doesn't seem to have been a problem in the ~decade
+	// since the deduplication being added (see #16490) and this comment
+	// being written, so we would need a very good reason to change this now.
+	cl := textproto.TrimString(contentLength[0])
+	for _, ct := range contentLength[1:] {
+		if cl != textproto.TrimString(ct) {
+			return "", 0, errTooManyContentLengths
+		}
+	}
 
 	// The Content-Length must be a valid numeric value.
-	// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
+	// See: https://www.rfc-editor.org/info/rfc9110/#section-8.6
 	if cl == "" {
 		if httplaxcontentlength.Value() == "1" {
 			httplaxcontentlength.IncNonDefault()
-			return -1, nil
+			return "", -1, nil
 		}
-		return 0, badStringError("invalid empty Content-Length", cl)
+		return "", 0, badStringError("invalid empty Content-Length", cl)
 	}
 	n, err := strconv.ParseUint(cl, 10, 63)
 	if err != nil {
-		return 0, badStringError("bad Content-Length", cl)
+		return "", 0, badStringError("bad Content-Length", cl)
 	}
-	return int64(n), nil
+	return cl, int64(n), nil
 }
 
 // finishAsyncByteRead finishes reading the 1-byte sniff

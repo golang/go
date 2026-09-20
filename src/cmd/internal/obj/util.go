@@ -307,8 +307,8 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 			fmt.Fprintf(w, "[%d]", a.Index)
 		}
 
-		if (RBaseLOONG64+(1<<10)+(1<<11)) /* loong64.REG_ELEM */ <= a.Reg &&
-			a.Reg < (RBaseLOONG64+(1<<10)+(2<<11)) /* loong64.REG_ELEM_END */ {
+		if (RBaseLOONG64+(1<<12)+(1<<11)) /* loong64.REG_ELEM */ <= a.Reg &&
+			a.Reg < (RBaseLOONG64+(1<<12)+(2<<11)) /* loong64.REG_ELEM_END */ {
 			fmt.Fprintf(w, "[%d]", a.Index)
 		}
 
@@ -578,7 +578,7 @@ const (
 	RBaseS390X   = 19 * 1024 // range [19k, 20k)
 	RBaseRISCV   = 20 * 1024 // range [20k, 21k)
 	RBaseWasm    = 21 * 1024
-	RBaseLOONG64 = 22 * 1024 // range [22K, 25k)
+	RBaseLOONG64 = 22 * 1024 // range [22K, 30k)
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register

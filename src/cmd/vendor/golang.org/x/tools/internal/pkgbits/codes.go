@@ -4,6 +4,8 @@
 
 package pkgbits
 
+// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
+
 // A Code is an enum value that can be encoded into bitstreams.
 //
 // Code types are preferable for enum types, because they allow

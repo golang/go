@@ -220,6 +220,9 @@ type serverConn struct {
 	enc         qpackEncoder
 	dec         qpackDecoder
 
+	maxHeaderBytes      int64
+	maxHeaderValueCount int64
+
 	// For handling shutdown.
 	controlStream      *stream
 	mu                 sync.Mutex // Guards everything below.
@@ -231,11 +234,24 @@ type serverConn struct {
 // The baseCtx parameter is the base context for request handlers on this connection.
 func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http.Handler) {
 	sc := &serverConn{
-		qconn:   qconn,
-		srv:     s,
-		baseCtx: baseCtx,
-		handler: h,
+		qconn:          qconn,
+		srv:            s,
+		baseCtx:        baseCtx,
+		handler:        h,
+		maxHeaderBytes: int64(s.srv1.MaxHeaderBytes),
+		// TODO: When we only support go1.27.
+		//maxHeaderValueCount: int64(s.srv1.MaxHeaderValueCount),
 	}
+
+	// Should we permit disabling these limits? For now, we do not.
+	if sc.maxHeaderBytes <= 0 {
+		sc.maxHeaderBytes = int64(http.DefaultMaxHeaderBytes)
+	}
+	// TODO: When we only support go1.27.
+	// if sc.maxHeaderValueCount <= 0 {
+	// 	sc.maxHeaderValueCount = int64(http.DefaultMaxHeaderValueCount)
+	// }
+
 	s.registerConn(sc)
 	defer s.unregisterConn(sc)
 	sc.enc.init()
@@ -247,7 +263,9 @@ func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http
 	if err != nil {
 		return
 	}
-	sc.controlStream.writeSettings()
+	sc.controlStream.writeSettings(
+		settingsMaxFieldSectionSize, sc.maxHeaderBytes,
+	)
 	sc.controlStream.Flush()
 
 	sc.acceptStreams(sc.qconn, sc)
@@ -362,11 +380,28 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 	if ftype != frameTypeHeaders {
 		return nil, pseudoHeader{}, &streamError{errH3MessageError, "received other frames when expecting HEADERS"}
 	}
+	if st.lim > sc.maxHeaderBytes {
+		// If the encoded headers exceed the limit, just reject the request out of hand.
+		// This lets us safely check limits in the dec.decode callback below,
+		// since the maximum Huffman expansion factor is only ~1.6x.
+		return nil, pseudoHeader{}, &streamError{errH3RequestRejected, "headers too large"}
+	}
 	header := make(http.Header)
+	valueCount := int64(0)
+	totalSize := int64(0)
 	var pHeader pseudoHeader
 	var dec qpackDecoder
 	var hasMethod, hasScheme, hasPath, hasAuthority bool
 	if err := dec.decode(st, func(_ indexType, name, value string) error {
+		totalSize += int64(len(name)) + int64(len(value)) + 32 // RFC 9114 Section 4.2.2
+		valueCount++
+		if totalSize > sc.maxHeaderBytes {
+			return &streamError{errH3RequestRejected, "headers too large"}
+		}
+		// TODO: When we only support go1.27.
+		//if valueCount > sc.maxHeaderValueCount {
+		//	return &streamError{errH3RequestRejected, "headers too large"}
+		//}
 		if !httpguts.ValidHeaderFieldValue(value) {
 			return &streamError{errH3MessageError, "invalid field value"}
 		}
@@ -572,7 +607,7 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 // abort closes the connection with an error.
 func (sc *serverConn) abort(err error) {
 	if e, ok := err.(*connectionError); ok {
-		sc.qconn.Abort(&quic.ApplicationError{
+		sc.qconn.Abort(&quic.ConnectionCloseError{
 			Code:   uint64(e.code),
 			Reason: e.message,
 		})

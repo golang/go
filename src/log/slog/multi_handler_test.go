@@ -24,6 +24,25 @@ func (h *mockFailingHandler) Handle(ctx context.Context, r Record) error {
 	return h.err
 }
 
+type modifyingAttrsHandler struct {
+	Handler
+}
+
+func (h *modifyingAttrsHandler) WithAttrs(attrs []Attr) Handler {
+	attrs[0] = String("modified", "yes")
+	return h
+}
+
+type retainingAttrsHandler struct {
+	Handler
+	attrs []Attr
+}
+
+func (h *retainingAttrsHandler) WithAttrs(attrs []Attr) Handler {
+	h.attrs = attrs
+	return h
+}
+
 func TestMultiHandler(t *testing.T) {
 	t.Run("Handle sends log to all handlers", func(t *testing.T) {
 		var buf1, buf2 bytes.Buffer
@@ -136,4 +155,15 @@ func TestNewMultiHandlerCopy(t *testing.T) {
 		t.Errorf("Expected nil error, but got: %v", err)
 	}
 	checkLogOutput(t, buf1.String(), "time="+textTimeRE+` level=INFO msg="test message"`)
+}
+
+func TestMultiHandlerWithAttrsOwnership(t *testing.T) {
+	retaining := new(retainingAttrsHandler)
+	multi := NewMultiHandler(new(modifyingAttrsHandler), retaining)
+	multi.WithAttrs([]Attr{String("original", "yes")})
+
+	want := String("original", "yes")
+	if len(retaining.attrs) != 1 || !retaining.attrs[0].Equal(want) {
+		t.Fatalf("retained attrs = %v, want [%v]", retaining.attrs, want)
+	}
 }

@@ -118,7 +118,7 @@ func (c *Conn) logConnectionClosed() {
 	err := c.lifetime.finalErr
 	trigger := "error"
 	switch e := err.(type) {
-	case *ApplicationError:
+	case *ConnectionCloseError:
 		// TODO: Distinguish between peer and locally-initiated close.
 		trigger = "application"
 	case localTransportError:

@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/importer"
 	"cmd/compile/internal/types2"
 )
 
@@ -57,7 +59,7 @@ func (imp *Importer) Import(path string) (*types2.Package, error) {
 
 // ImportFrom implements types2.ImportFrom.
 func (imp *Importer) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
-	assert(mode == 0)
+	base.Assert(mode == 0)
 	if path == "unsafe" {
 		return types2.Unsafe, nil
 	}
@@ -67,7 +69,7 @@ func (imp *Importer) ImportFrom(path, srcDir string, mode types2.ImportMode) (*t
 	}
 	// srcDir is only relevant if the package is not in GOROOT.
 	if !bld.Goroot {
-		assert(filepath.IsAbs(srcDir)) // see #14282
+		base.Assert(filepath.IsAbs(srcDir)) // see #14282
 	}
 	path = bld.ImportPath
 	// If the package was already read (fully), avoid reading it again.
@@ -93,7 +95,7 @@ func (imp *Importer) readArchive(path, dir string) (*types2.Package, error) {
 	}
 	defer f.Close()
 	buf := bufio.NewReader(f)
-	data, err := exportdata.ReadUnified(buf)
+	data, err := exportdata.ReadUnified(buf, true)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +104,7 @@ func (imp *Importer) readArchive(path, dir string) (*types2.Package, error) {
 	defer imp.mu.Unlock()
 	// While ReadPackage might populate imp.readPkgs with an incomplete package,
 	// we check for completeness before returning from ImportFrom.
-	return ReadPackage(nil, imp.readPkgs, pkgbits.NewPkgDecoder(path, string(data))), nil
+	return importer.ReadPackage(nil, imp.readPkgs, pkgbits.NewPkgDecoder(path, string(data))), nil
 }
 
 func (imp *Importer) compile(path, dir string) (string, error) {

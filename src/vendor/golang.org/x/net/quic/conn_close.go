@@ -276,7 +276,7 @@ func (c *Conn) Close() error {
 // Wait will return with a non-nil error after the drain period expires.
 //
 // If the peer closes the connection with a NO_ERROR transport error, Wait returns nil.
-// If the peer closes the connection with an application error, Wait returns an ApplicationError
+// If the peer closes the connection with an application error, Wait returns a ConnectionCloseError
 // containing the peer's error code and reason.
 // If the peer closes the connection with any other status, Wait returns a non-nil error.
 func (c *Conn) Wait(ctx context.Context) error {
@@ -289,7 +289,7 @@ func (c *Conn) Wait(ctx context.Context) error {
 // Abort closes the connection and returns immediately.
 //
 // If err is nil, Abort sends a transport error of NO_ERROR to the peer.
-// If err is an ApplicationError, Abort sends its error code and text.
+// If err is a ConnectionCloseError, Abort sends its error code and text.
 // Otherwise, Abort sends a transport error of APPLICATION_ERROR with the error's text.
 func (c *Conn) Abort(err error) {
 	if err == nil {

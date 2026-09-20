@@ -301,7 +301,7 @@ const (
 // bits 5-9 indicates arrangement: <T>
 // bits 10 indicates SMID type: 0: LSX, 1: LASX
 const (
-	REG_ARNG = obj.RBaseLOONG64 + (1 << 10) + (iota << 11) // Vn.<T>
+	REG_ARNG = obj.RBaseLOONG64 + (1 << 12) + (iota << 11) // Vn.<T>
 	REG_ELEM                                               // Vn.<T>[index]
 	REG_ELEM_END
 )

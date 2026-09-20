@@ -82,9 +82,9 @@ func (st *stream) Close() error {
 	return st.stream.Close()
 }
 
-func (st *stream) CloseRead() {
+func (st *stream) CloseRead(code uint64) {
 	st.readDeadline.stop()
-	st.stream.CloseRead()
+	st.stream.StopSending(code)
 }
 
 func (st *stream) CloseWrite() {

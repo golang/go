@@ -145,7 +145,7 @@ func (fsys MapFS) resolveSymlinks(name string) (_ string, ok bool) {
 			if path.IsAbs(target) {
 				return "", false
 			}
-			return fsys.resolveSymlinks(path.Join(path.Dir(dir), target) + name[i:])
+			return fsys.resolveSymlinks(path.Join(path.Dir(dir), target, name[i:]))
 		}
 		i += len("/")
 	}
