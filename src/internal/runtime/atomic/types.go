@@ -579,6 +579,20 @@ type Uint64Pair struct {
 	value  [2]uint64
 }
 
+// Load atomically loads and returns the current pair of values.
+//
+//go:nosplit
+func (p *Uint64Pair) Load() (lo, hi uint64) {
+	return load128(&p.value)
+}
+
+// Store atomically stores (lo, hi) into p.
+//
+//go:nosplit
+func (p *Uint64Pair) Store(lo, hi uint64) {
+	store128(&p.value, lo, hi)
+}
+
 // CompareAndSwap atomically compares p's value with (old1, old2) and,
 // if equal, replaces it with (new1, new2).
 // It reports whether the swap ran.
@@ -586,13 +600,6 @@ type Uint64Pair struct {
 //go:nosplit
 func (p *Uint64Pair) CompareAndSwap(old1, old2, new1, new2 uint64) bool {
 	return cas128(&p.value, old1, old2, new1, new2)
-}
-
-// Addr returns a pointer to the underlying [2]uint64 storage.
-//
-//go:nosplit
-func (p *Uint64Pair) Addr() *[2]uint64 {
-	return &p.value
 }
 
 // noCopy may be embedded into structs which must not be copied

@@ -17,8 +17,8 @@ func TestCas128(t *testing.T) {
 	if !p.CompareAndSwap(0, 0, 1, 2) {
 		t.Fatal("Uint64Pair.CompareAndSwap: should have succeeded from zero")
 	}
-	if pair := p.Addr(); pair[0] != 1 || pair[1] != 2 {
-		t.Fatalf("Uint64Pair.CompareAndSwap corrupt write: got (%d, %d), want (1, 2)", pair[0], pair[1])
+	if lo, hi := p.Load(); lo != 1 || hi != 2 {
+		t.Fatalf("Uint64Pair.CompareAndSwap corrupt write: got (%d, %d), want (1, 2)", lo, hi)
 	}
 
 	// Mismatch on low half: should fail without writing.
@@ -29,16 +29,15 @@ func TestCas128(t *testing.T) {
 	if p.CompareAndSwap(1, 0, 9, 9) {
 		t.Fatal("Uint64Pair.CompareAndSwap: should have failed on high-half mismatch")
 	}
-	if pair := p.Addr(); pair[0] != 1 || pair[1] != 2 {
-		t.Fatalf("Uint64Pair.CompareAndSwap wrote on failed CAS: got (%d, %d), want (1, 2)", pair[0], pair[1])
+	if lo, hi := p.Load(); lo != 1 || hi != 2 {
+		t.Fatalf("Uint64Pair.CompareAndSwap wrote on failed CAS: got (%d, %d), want (1, 2)", lo, hi)
 	}
 
 	// Concurrent test: 32 goroutines each bump (lo, hi) -> (lo+1, hi-1)
 	// 1000 times. The invariant lo + hi == initialHi holds iff every
 	// successful CAS updated both halves together.
 	const initialHi = uint64(0xdeadbeefcafebabe)
-	pair := p.Addr()
-	pair[0], pair[1] = 0, initialHi
+	p.Store(0, initialHi)
 
 	const G, N = 32, 1000
 	done := make(chan struct{})
@@ -46,8 +45,7 @@ func TestCas128(t *testing.T) {
 		go func() {
 			for i := 0; i < N; i++ {
 				for {
-					lo := atomic.Load64(&p.Addr()[0])
-					hi := atomic.Load64(&p.Addr()[1])
+					lo, hi := p.Load()
 					if p.CompareAndSwap(lo, hi, lo+1, hi-1) {
 						break
 					}
@@ -59,11 +57,10 @@ func TestCas128(t *testing.T) {
 	for g := 0; g < G; g++ {
 		<-done
 	}
-	if got, want := atomic.Load64(&p.Addr()[0]), uint64(G*N); got != want {
-		t.Errorf("low half: got %d, want %d", got, want)
-	}
-	if got, want := atomic.Load64(&p.Addr()[1]), initialHi-uint64(G*N); got != want {
-		t.Errorf("high half: got %#x, want %#x", got, want)
+	if lo, hi := p.Load(); lo != uint64(G*N) {
+		t.Errorf("low half: got %d, want %d", lo, uint64(G*N))
+	} else if hi != initialHi-uint64(G*N) {
+		t.Errorf("high half: got %#x, want %#x", hi, initialHi-uint64(G*N))
 	}
 }
 
@@ -72,13 +69,13 @@ func TestCas128Unaligned(t *testing.T) {
 	// safety check. Use a buffer of 3 uint64s and pick a slot that is
 	// 8-byte aligned but not 16-byte aligned.
 	var buf [3]uint64
-	var ptr uintptr
+	var ptr unsafe.Pointer
 	if uintptr(unsafe.Pointer(&buf[0]))&15 == 0 {
-		ptr = uintptr(unsafe.Pointer(&buf[1]))
+		ptr = unsafe.Pointer(&buf[1])
 	} else {
-		ptr = uintptr(unsafe.Pointer(&buf[0]))
+		ptr = unsafe.Pointer(&buf[0])
 	}
-	p := (*atomic.Uint64Pair)(unsafe.Pointer(ptr))
+	p := (*atomic.Uint64Pair)(ptr)
 
 	defer func() {
 		err := recover()
