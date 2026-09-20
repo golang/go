@@ -607,7 +607,14 @@ func (d *Dialer) dialCtx(ctx context.Context) (context.Context, context.CancelFu
 func (d *Dialer) DialTCP(ctx context.Context, network string, laddr netip.AddrPort, raddr netip.AddrPort) (*TCPConn, error) {
 	ctx, cancel := d.dialCtx(ctx)
 	defer cancel()
-	return dialTCP(ctx, d, network, TCPAddrFromAddrPort(laddr), TCPAddrFromAddrPort(raddr))
+	var laddrTCP, raddrTCP *TCPAddr
+	if laddr.IsValid() {
+		laddrTCP = TCPAddrFromAddrPort(laddr)
+	}
+	if raddr.IsValid() {
+		raddrTCP = TCPAddrFromAddrPort(raddr)
+	}
+	return dialTCP(ctx, d, network, laddrTCP, raddrTCP)
 }
 
 // DialUDP acts like Dial for UDP networks using the provided context.
@@ -621,7 +628,14 @@ func (d *Dialer) DialTCP(ctx context.Context, network string, laddr netip.AddrPo
 func (d *Dialer) DialUDP(ctx context.Context, network string, laddr netip.AddrPort, raddr netip.AddrPort) (*UDPConn, error) {
 	ctx, cancel := d.dialCtx(ctx)
 	defer cancel()
-	return dialUDP(ctx, d, network, UDPAddrFromAddrPort(laddr), UDPAddrFromAddrPort(raddr))
+	var laddrUDP, raddrUDP *UDPAddr
+	if laddr.IsValid() {
+		laddrUDP = UDPAddrFromAddrPort(laddr)
+	}
+	if raddr.IsValid() {
+		raddrUDP = UDPAddrFromAddrPort(raddr)
+	}
+	return dialUDP(ctx, d, network, laddrUDP, raddrUDP)
 }
 
 // DialIP acts like Dial for IP networks using the provided context.
@@ -635,7 +649,14 @@ func (d *Dialer) DialUDP(ctx context.Context, network string, laddr netip.AddrPo
 func (d *Dialer) DialIP(ctx context.Context, network string, laddr netip.Addr, raddr netip.Addr) (*IPConn, error) {
 	ctx, cancel := d.dialCtx(ctx)
 	defer cancel()
-	return dialIP(ctx, d, network, ipAddrFromAddr(laddr), ipAddrFromAddr(raddr))
+	var laddrIP, raddrIP *IPAddr
+	if laddr.IsValid() {
+		laddrIP = ipAddrFromAddr(laddr)
+	}
+	if raddr.IsValid() {
+		raddrIP = ipAddrFromAddr(raddr)
+	}
+	return dialIP(ctx, d, network, laddrIP, raddrIP)
 }
 
 // DialUnix acts like Dial for Unix networks using the provided context.
