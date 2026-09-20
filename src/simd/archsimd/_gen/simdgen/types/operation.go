@@ -7,6 +7,7 @@ package types
 import (
 	"cmp"
 	"fmt"
+	"regexp"
 	"simd/archsimd/_gen/specgen/specexpr"
 	"simd/archsimd/_gen/unify"
 )
@@ -73,14 +74,17 @@ type RawOperation struct {
 const MaxVectorBits = 256
 
 type Operand struct {
-	Class string // One of "mask", "immediate", "vreg", "greg", and "mem"
+	Class string // One of "mask", "immediate", "vreg", "greg", "mem", "reglist", and "special"
 
-	Go     *string // Go type of this operand
-	AsmPos int     // Position of this operand in the assembly instruction
+	Go *string // Go type of this operand
 
-	Base     *string    // Base Go type ("int", "uint", "float")
-	ElemBits *int       // Element bit width (omitted for greg)
-	Bits     VectorSize // Total bit width, or scalable
+	AsmPos int // Position of this operand in the assembly instruction
+
+	Base       *string // Base Go type ("int", "uint", "float")
+	EncodeBase *regexp.Regexp
+	ElemBits   *int       // Element bit width (omitted for greg)
+	Bits       VectorSize // Total bit width, or scalable
+	EncodeBits *VectorSize
 
 	Const *string // Optional constant value for immediates.
 	// Optional immediate arg offsets. If this field is non-nil,
@@ -202,9 +206,9 @@ func (o Operand) OpNameAndType(s string) string {
 func (o Operand) Compare(p Operand) int {
 	priority := func(o Operand) int {
 		switch o.Class {
-		case "immediate", "mem":
+		case "immediate", "mem", "special":
 			return 0
-		case "vreg", "greg":
+		case "vreg", "greg", "reglist":
 			return 1
 		case "mask":
 			return 2
@@ -232,4 +236,11 @@ func (vs *VectorSize) DecodeUnified(v *unify.Value) error {
 	}
 
 	return fmt.Errorf("bits must be an integer or \"scalable\"")
+}
+
+func (vs *VectorSize) EncodeUnified() *unify.Value {
+	if vs.Scalable {
+		return unify.NewValue(unify.NewStringExact("scalable"))
+	}
+	return unify.NewValue(unify.NewStringExact(fmt.Sprint(vs.N())))
 }

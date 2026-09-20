@@ -4,6 +4,8 @@
 
 package pkgbits
 
+// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
+
 // Version indicates a version of a unified IR bitstream.
 // Each Version indicates the addition, removal, or change of
 // new data in the bitstream.

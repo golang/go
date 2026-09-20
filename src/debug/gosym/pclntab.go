@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"internal/abi"
+	"internal/saferio"
 	"sort"
 	"sync"
 )
@@ -305,24 +306,31 @@ func (t *LineTable) go12Funcs() []Func {
 	}
 
 	ft := t.funcTab()
-	funcs := make([]Func, ft.Count())
-	syms := make([]Sym, len(funcs))
-	for i := range funcs {
-		f := &funcs[i]
+	funcCount := ft.Count()
+	cf := saferio.SliceCap[Func](uint64(funcCount))
+	cs := saferio.SliceCap[Sym](uint64(funcCount))
+	if cf < 0 || cs < 0 {
+		return nil
+	}
+	funcs := make([]Func, 0, cf)
+	syms := make([]Sym, 0, cs)
+	for i := range funcCount {
+		var f Func
 		f.Entry = ft.pc(i)
 		f.End = ft.pc(i + 1)
 		info := t.funcData(uint32(i))
 		f.LineTable = t
 		f.FrameSize = int(info.deferreturn())
-		syms[i] = Sym{
+		funcs = append(funcs, f)
+		syms = append(syms, Sym{
 			Value:     f.Entry,
 			Type:      'T',
 			Name:      t.funcName(info.nameOff()),
 			GoType:    0,
-			Func:      f,
+			Func:      &funcs[i],
 			goVersion: t.version,
-		}
-		f.Sym = &syms[i]
+		})
+		funcs[i].Sym = &syms[i]
 	}
 	return funcs
 }

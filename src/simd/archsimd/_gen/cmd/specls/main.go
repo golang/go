@@ -31,7 +31,7 @@ func main() {
 	var specDir string
 	switch flag.NArg() {
 	case 0:
-		specDir = specgen.MustFindSpecDir()
+		specDir = specgen.MustFindSpecDir("")
 	case 1:
 		specDir = flag.Arg(0)
 	default:

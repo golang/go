@@ -24,25 +24,20 @@ import (
 )
 
 func main() {
-	gentools.RegisterFlags(nil)
+	genOpts := gentools.RegisterFlags(nil)
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
-		fmt.Fprintf(w, "usage: refgen [flags] [spec dir]\n")
+		fmt.Fprintf(w, "usage: refgen [flags]\n")
 		flag.CommandLine.PrintDefaults()
 	}
 
 	flag.Parse()
-	var specDir string
-	switch flag.NArg() {
-	case 0:
-		specDir = specgen.MustFindSpecDir()
-	case 1:
-		specDir = flag.Arg(0)
-	default:
+	if flag.NArg() != 0 {
 		flag.Usage()
 		os.Exit(1)
 	}
+	specDir := specgen.MustFindSpecDir(genOpts.GOROOT)
 
 	funcs, err := specgen.Load(specDir, nil)
 	if err != nil {

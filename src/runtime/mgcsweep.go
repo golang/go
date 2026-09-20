@@ -471,6 +471,13 @@ func (s *mspan) ensureSwept() {
 		throw("mspan.ensureSwept: m is not locked")
 	}
 
+	// Avoid registering a sweeper if the span is already swept.
+	// Preemption is disabled, so the sweep generation cannot change.
+	sweepgen := mheap_.sweepgen
+	if spangen := atomic.Load(&s.sweepgen); spangen == sweepgen || spangen == sweepgen+3 {
+		return
+	}
+
 	// If this operation fails, then that means that there are
 	// no more spans to be swept. In this case, either s has already
 	// been swept, or is about to be acquired for sweeping and swept.

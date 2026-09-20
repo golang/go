@@ -249,7 +249,7 @@ func readExportData(f *os.File) (data string, err error) {
 		return
 	}
 
-	_, err = exportdata.ReadExportDataHeader(r.Reader)
+	_, err = exportdata.ReadExportDataHeader(r.Reader, true)
 	if err != nil {
 		return
 	}

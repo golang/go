@@ -19,13 +19,12 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
-	"golang.org/x/tools/internal/refactor"
-	"golang.org/x/tools/internal/typesinternal/typeindex"
-
 	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/packagepath"
+	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/stdlib"
 	"golang.org/x/tools/internal/typesinternal"
+	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
 //go:embed doc.go

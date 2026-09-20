@@ -51,6 +51,7 @@ var AppendClippedAnalyzer = &analysis.Analyzer{
 //	append(append(slices.Clip(a), b...)               -> slices.Concat(a, b)
 //	append([]T{}, a...)                               -> slices.Clone(a)
 //	append([]string(nil), os.Environ()...)            -> os.Environ()
+//	append(append([]T{}, slices.Clone(a)...), b...)   -> slices.Concat(a, b)
 //
 // The fix does not always preserve nilness the of base slice when the
 // addends (a, b, c) are all empty (see #73557).
@@ -110,7 +111,27 @@ func appendclipped(pass *analysis.Pass) (any, error) {
 		}
 		slices.Reverse(sliceArgs)
 
-		// TODO(adonovan): simplify sliceArgs[0] further: slices.Clone(s) -> s
+		// The replacement (slices.Concat, or slices.Clone in the
+		// sole-operand degenerate case below) allocates a new slice,
+		// so a slices.Clone or bytes.Clone wrapping any operand is
+		// redundant and can be unwrapped:
+		//
+		//	append(append([]T{}, slices.Clone(x)...), y...) -> slices.Concat(x, y)
+		//	append([]T{}, slices.Clone(x)...)               -> slices.Clone(x)
+		for i, arg := range sliceArgs {
+			if argCall, ok := ast.Unparen(arg).(*ast.CallExpr); ok {
+				obj := typeutil.Callee(info, argCall)
+				// The type check guards against bytes.Clone, whose
+				// result ([]byte) may differ from its argument's
+				// type (e.g. a named []byte type); unwrapping it
+				// would then change the type of the whole expression.
+				if (typesinternal.IsFunctionNamed(obj, "slices", "Clone") ||
+					typesinternal.IsFunctionNamed(obj, "bytes", "Clone")) &&
+					types.Identical(info.TypeOf(argCall.Args[0]), baseType) {
+					sliceArgs[i] = argCall.Args[0]
+				}
+			}
+		}
 
 		// Concat of a single (non-trivial) slice degenerates to Clone.
 		if len(sliceArgs) == 1 {
@@ -118,7 +139,7 @@ func appendclipped(pass *analysis.Pass) (any, error) {
 
 			// Special case for common but redundant clone of os.Environ().
 			// append(zerocap, os.Environ()...) -> os.Environ()
-			if scall, ok := s.(*ast.CallExpr); ok {
+			if scall, ok := ast.Unparen(s).(*ast.CallExpr); ok {
 				obj := typeutil.Callee(info, scall)
 				if typesinternal.IsFunctionNamed(obj, "os", "Environ") {
 					pass.Report(analysis.Diagnostic{
@@ -130,7 +151,7 @@ func appendclipped(pass *analysis.Pass) (any, error) {
 							TextEdits: []analysis.TextEdit{{
 								Pos:     call.Pos(),
 								End:     call.End(),
-								NewText: []byte(astutil.Format(pass.Fset, s)),
+								NewText: []byte(astutil.Format(pass.Fset, scall)),
 							}},
 						}},
 					})

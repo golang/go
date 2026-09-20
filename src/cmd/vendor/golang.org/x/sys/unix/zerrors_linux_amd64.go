@@ -484,7 +484,6 @@ const (
 	TIOCSERGWILD                     = 0x5454
 	TIOCSERSETMULTI                  = 0x545b
 	TIOCSERSWILD                     = 0x5455
-	TIOCSER_TEMT                     = 0x1
 	TIOCSETD                         = 0x5423
 	TIOCSIG                          = 0x40045436
 	TIOCSISO7816                     = 0xc0285443

@@ -1,6 +1,6 @@
 module simd/archsimd/_gen
 
-go 1.26.5
+go 1.26.0
 
 require (
 	golang.org/x/arch v0.26.0

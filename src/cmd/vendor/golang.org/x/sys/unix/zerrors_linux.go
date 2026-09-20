@@ -2048,6 +2048,7 @@ const (
 	MINIX3_SUPER_MAGIC                          = 0x4d5a
 	MINIX_SUPER_MAGIC                           = 0x137f
 	MINIX_SUPER_MAGIC2                          = 0x138f
+	MLOCK_ONFAULT                               = 0x1
 	MNT_DETACH                                  = 0x2
 	MNT_EXPIRE                                  = 0x4
 	MNT_FORCE                                   = 0x1
@@ -3862,6 +3863,7 @@ const (
 	TIOCPKT_NOSTOP                              = 0x10
 	TIOCPKT_START                               = 0x8
 	TIOCPKT_STOP                                = 0x4
+	TIOCSER_TEMT                                = 0x1
 	TIPC_ADDR_ID                                = 0x3
 	TIPC_ADDR_MCAST                             = 0x1
 	TIPC_ADDR_NAME                              = 0x2

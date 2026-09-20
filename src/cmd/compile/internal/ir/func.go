@@ -518,6 +518,24 @@ func closureName(outerfn *Func, pos src.XPos, why Op, gen int) *types.Sym {
 	return pkg.Lookup(name)
 }
 
+// IsInlinedClosure reports whether fn is a function literal that inlining
+// copied, either because it appears in an inlined function body or because it
+// is nested in such a closure.
+//
+// All the copies of such a closure share a single linker symbol, including the
+// copy in the function that was inlined: closureName tells them apart with a
+// hash of the inline call stack, but that hash is stripped when the object
+// file is written, see #60324. Copies are interchangeable as long as they only
+// differ in the variables they capture, so anything that specializes the body
+// of one copy must leave them all alone.
+func (fn *Func) IsInlinedClosure() bool {
+	if fn.OClosure == nil {
+		return false
+	}
+	name := fn.Sym().Name
+	return obj.TrimInlineHash(name) != name
+}
+
 // NewClosureFunc creates a new Func to represent a function literal
 // with the given type.
 //

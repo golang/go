@@ -5,13 +5,19 @@
 package arm64
 
 import (
-	"cmp"
-	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
+	"simd/archsimd/_gen/simdgen/types"
 	"simd/archsimd/_gen/unify"
 )
+
+var baseTypeRegexps = map[string]*regexp.Regexp{
+	"int":   regexp.MustCompile("int"),
+	"uint":  regexp.MustCompile("uint"),
+	"float": regexp.MustCompile("float"),
+}
 
 // asComment formats text as a comment
 func asComment(text string, width int) string {
@@ -37,50 +43,43 @@ func asComment(text string, width int) string {
 	return strings.Join(lines, "\n")
 }
 
-// Emit generates the unify.Value representation of this operand
-func (op *Operand) Emit() *unify.Value {
-	var opDb unify.DefBuilder
-	opDb.Add("class", unify.NewValue(unify.NewStringExact(op.Class)))
-
+// encode generates the types.Operand representation of this operand
+func (op *Operand) encode() types.Operand {
+	out := types.Operand{
+		Class:  op.Class,
+		AsmPos: op.AsmPos,
+	}
 	if op.BaseType != "" {
-		opDb.Add("base", unify.NewValue(unify.NewStringExact(op.BaseType)))
-	}
-
-	if op.Bits > 0 {
-		opDb.Add("bits", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.Bits))))
-	}
-
-	if op.ElemBits > 0 {
-		opDb.Add("elemBits", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.ElemBits))))
-	}
-
-	if op.Lanes > 0 {
-		opDb.Add("lanes", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.Lanes))))
-	}
-
-	if op.Type == OperandImm {
-		opDb.Add("bits", unify.NewValue(unify.NewStringExact("8")))
-		if op.ImmMax == 0 {
-			opDb.Add("const", unify.NewValue(unify.NewStringExact("0")))
+		if re, ok := baseTypeRegexps[op.BaseType]; ok {
+			out.EncodeBase = re
 		} else {
-			opDb.Add("immOffset", unify.NewValue(unify.NewStringExact("0")))
+			out.EncodeBase = regexp.MustCompile(op.BaseType)
+		}
+	}
+	if op.Bits > 0 {
+		out.EncodeBits = &types.VectorSize{NRaw: op.Bits}
+	}
+	if op.ElemBits > 0 {
+		out.ElemBits = new(op.ElemBits)
+	}
+	if op.Lanes > 0 {
+		out.Lanes = new(op.Lanes)
+	}
+	if op.Type == OperandImm {
+		out.EncodeBits = &types.VectorSize{NRaw: 8}
+		if op.ImmMax == 0 {
+			out.Const = new("0")
+		} else {
+			out.ImmOffset = new("0")
 		}
 		if op.ImmMax > 0 {
-			opDb.Add("immMax", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.ImmMax))))
+			out.ImmMax = new(op.ImmMax)
 		}
 	}
-
-	if op.Role != "" {
-		opDb.Add("role", unify.NewValue(unify.NewStringExact(op.Role)))
-	}
-
 	if op.ListNumber >= 0 {
-		opDb.Add("listNumber", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.ListNumber))))
+		out.ListNumber = new(op.ListNumber)
 	}
-
-	opDb.Add("asmPos", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.AsmPos))))
-
-	return unify.NewValue(opDb.Build())
+	return out
 }
 
 // Emit generates a single instruction Definition for the given arrangement.
@@ -116,46 +115,20 @@ func (template *template) Emit(arrangement string) *unify.Value {
 		db.Add("details", unify.NewValue(unify.NewStringExact(asComment(doc, 80))))
 	}
 
-	type inItem struct {
-		val      *unify.Value
-		priority int
-		asmPos   int
-	}
-	var inItems []inItem
-	var outVals []*unify.Value
-
+	var in, out []types.Operand
 	for _, op := range template.operands {
+		opGen := op.encode()
 		if op.Role == "destination" {
-			outVals = append(outVals, op.Emit())
+			out = append(out, opGen)
 		} else {
-			prio := 1
-			if op.Class == "immediate" || op.Type == OperandImm {
-				prio = 0
-			} else if op.Class == "mask" {
-				prio = 2
-			}
-			inItems = append(inItems, inItem{
-				val:      op.Emit(),
-				priority: prio,
-				asmPos:   op.AsmPos,
-			})
+			in = append(in, opGen)
 		}
 	}
 
-	slices.SortStableFunc(inItems, func(a, b inItem) int {
-		if a.priority != b.priority {
-			return cmp.Compare(a.priority, b.priority)
-		}
-		return cmp.Compare(a.asmPos, b.asmPos)
-	})
+	slices.SortStableFunc(in, types.Operand.Compare)
 
-	inVals := make([]*unify.Value, len(inItems))
-	for i, item := range inItems {
-		inVals[i] = item.val
-	}
-
-	db.Add("in", unify.NewValue(unify.NewTuple(inVals...)))
-	db.Add("out", unify.NewValue(unify.NewTuple(outVals...)))
+	db.Add("in", unify.Encode(in))
+	db.Add("out", unify.Encode(out))
 
 	return unify.NewValue(db.Build())
 }

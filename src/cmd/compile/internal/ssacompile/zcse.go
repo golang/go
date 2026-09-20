@@ -21,7 +21,7 @@ func zcse(f *ssa.Func) {
 	for _, b := range f.Blocks {
 		for i := 0; i < len(b.Values); i++ {
 			v := b.Values[i]
-			if ssaop.OpcodeTable[v.Op].ArgLen == 0 {
+			if ssaop.OpcodeTable[v.Op].ArgLen == 0 && ssaop.OpcodeTable[v.Op].EarlyOk {
 				key := vkey{v.Op, keyFor(v), v.Aux, v.Type}
 				if vals[key] == nil {
 					vals[key] = v
@@ -46,7 +46,7 @@ func zcse(f *ssa.Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				if ssaop.OpcodeTable[a.Op].ArgLen == 0 {
+				if ssaop.OpcodeTable[a.Op].ArgLen == 0 && ssaop.OpcodeTable[a.Op].EarlyOk {
 					key := vkey{a.Op, keyFor(a), a.Aux, a.Type}
 					if rv, ok := vals[key]; ok {
 						v.SetArg(i, rv)

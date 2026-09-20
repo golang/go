@@ -23,7 +23,6 @@ import (
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
-	"os"
 	"path"
 	"runtime"
 	"slices"
@@ -307,6 +306,12 @@ type conn struct {
 	// by a Handler with the Hijacker interface.
 	// It is guarded by mu.
 	hijackedv bool
+
+	// http2HandedOff is whether the connection has been handed off to
+	// the HTTP/2 server, which then owns closing the connection and
+	// running the final ConnState hook, possibly after (*conn).serve
+	// has returned. It is only accessed by the (*conn).serve goroutine.
+	http2HandedOff bool
 }
 
 func (c *conn) hijacked() bool {
@@ -711,6 +716,7 @@ type connReader struct {
 	cond    *sync.Cond
 	inRead  bool
 	aborted bool  // set true before conn.rwc deadline is set to past
+	probing bool  // set true during conn.serve's idle probe read, when a timeout is expected
 	remain  int64 // bytes remaining
 }
 
@@ -837,22 +843,49 @@ func (cr *connReader) abortPendingRead() {
 	cr.rwc.SetReadDeadline(time.Time{})
 }
 
+func (cr *connReader) setProbing(v bool) {
+	cr.lock()
+	cr.probing = v
+	cr.unlock()
+}
+
 func (cr *connReader) setReadLimit(remain int64) { cr.remain = remain }
 func (cr *connReader) setInfiniteReadLimit()     { cr.remain = maxInt64 }
 func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
+
+// isNetTimeoutError reports whether err is a net.Error with Timeout()
+// == true, such as an error from an expired connection deadline.
+// It is used instead of checking errors.Is(err, os.ErrDeadlineExceeded)
+// because non-standard net.Conn implementations may return bespoke
+// timeout errors that don't wrap os.ErrDeadlineExceeded as net package
+// connections have since Go 1.15.
+func isNetTimeoutError(err error) bool {
+	ne, ok := errors.AsType[net.Error](err)
+	return ok && ne.Timeout()
+}
 
 // handleReadErrorLocked is called whenever a Read from the client returns a
 // non-nil error.
 //
 // The provided non-nil err is almost always io.EOF or a "use of
-// closed network connection". Any error means the connection is dead and we
-// should shut down its context. An error other than io.EOF or an expired read
-// deadline also means the connection is dead for writing, so any response
-// write still in flight is aborted.
+// closed network connection". Except for an expected timeout during the
+// serve loop's idle probe read, any error means the connection is dead
+// and we should shut down its context. An error other than io.EOF or an
+// expired read deadline also means the connection is dead for writing,
+// so any response write still in flight is aborted.
 //
 // The caller must hold connReader.mu.
 func (cr *connReader) handleReadErrorLocked(err error) {
 	if cr.conn == nil {
+		return
+	}
+	// A timeout during conn.serve's idle probe read means only that the
+	// connection has gone idle; it is otherwise fine. In particular,
+	// don't cancel the connection-level context: it is the parent of
+	// every subsequent request's context on this connection, so
+	// canceling it would deliver already-canceled contexts to all
+	// future requests.
+	if cr.probing && isNetTimeoutError(err) {
 		return
 	}
 	// io.EOF means the client half closed and may still be waiting for a
@@ -864,7 +897,7 @@ func (cr *connReader) handleReadErrorLocked(err error) {
 	// socket as writable again once a read has consumed its pending error,
 	// so a handler blocked writing a large response would otherwise block
 	// forever. See go.dev/issue/78438.
-	if err != io.EOF && !errors.Is(err, os.ErrDeadlineExceeded) {
+	if err != io.EOF && !isNetTimeoutError(err) {
 		cr.conn.rwc.SetWriteDeadline(aLongTimeAgo)
 	}
 	cr.conn.cancelCtx()
@@ -1991,7 +2024,7 @@ func (c *conn) serve(ctx context.Context) {
 			inFlightResponse.cancelCtx()
 			inFlightResponse.disableWriteContinue(true)
 		}
-		if !c.hijacked() {
+		if !c.hijacked() && !c.http2HandedOff {
 			if inFlightResponse != nil {
 				inFlightResponse.conn.r.abortPendingRead()
 				inFlightResponse.reqBody.Close()
@@ -2049,7 +2082,7 @@ func (c *conn) serve(ctx context.Context) {
 			// closing such connections. See issue https://golang.org/issue/39776.
 			c.setState(c.rwc, StateActive, skipHooks)
 			const sawClientPreface = false
-			c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
+			c.serveHTTP2(ctx, sawClientPreface)
 			return
 		}
 		tlsConn, tlsConnOK := c.rwc.(*tls.Conn)
@@ -2075,13 +2108,15 @@ func (c *conn) serve(ctx context.Context) {
 		}
 	}
 
+	// HTTP/2 may outlive this goroutine, so it gets the uncancelable ctx.
+	connCtx := ctx
+
 	ctx, cancelCtx := context.WithCancel(ctx)
 	c.cancelCtx = cancelCtx
 	defer cancelCtx()
 
 	c.r = &connReader{conn: c, rwc: c.rwc}
 	c.bufr = newBufioReader(c.r)
-	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
 	if d := c.server.readHeaderTimeout(); d > 0 {
 		c.rwc.SetReadDeadline(time.Now().Add(d))
@@ -2089,7 +2124,7 @@ func (c *conn) serve(ctx context.Context) {
 
 	protos := c.server.protocols()
 	if c.tlsState == nil && protos.UnencryptedHTTP2() {
-		if c.maybeServeUnencryptedHTTP2(ctx) {
+		if c.maybeServeUnencryptedHTTP2(connCtx) {
 			return
 		}
 	}
@@ -2098,6 +2133,8 @@ func (c *conn) serve(ctx context.Context) {
 	}
 
 	// HTTP/1.x from here on.
+
+	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
 	for {
 		w, err := c.readRequest(ctx)
@@ -2239,8 +2276,10 @@ func (c *conn) serve(ctx context.Context) {
 			shortDeadline = idleDeadline
 		}
 		c.rwc.SetReadDeadline(shortDeadline)
+		c.r.setProbing(true)
 		_, peekErr := c.bufr.Peek(4)
-		if errors.Is(peekErr, os.ErrDeadlineExceeded) && (idleDeadline.IsZero() || time.Now().Before(idleDeadline)) {
+		c.r.setProbing(false)
+		if isNetTimeoutError(peekErr) && (idleDeadline.IsZero() || time.Now().Before(idleDeadline)) {
 			c.rwc.SetReadDeadline(idleDeadline)
 			if c.bufr.Buffered() == 0 && c.bufw.Buffered() == 0 {
 				putBufioReader(c.bufr)
@@ -2332,7 +2371,7 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 	c.setState(c.rwc, StateActive, skipHooks)
 	if c.server.h2 != nil {
 		const sawClientPreface = true
-		c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
+		c.serveHTTP2(ctx, sawClientPreface)
 	} else {
 		c.rwc.SetReadDeadline(time.Time{})
 		c.rwc.SetWriteDeadline(time.Time{})
@@ -2340,6 +2379,26 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 		nextFunc(c.server, unencryptedTLSConn(c.rwc), h)
 	}
 	return true
+}
+
+// serveHTTP2 hands the connection off to the HTTP/2 server, which owns
+// the connection from here on: it closes the connection and runs the
+// final ConnState hook when it's done, possibly after this function has
+// returned, since an idle HTTP/2 connection doesn't hold onto a
+// goroutine.
+func (c *conn) serveHTTP2(ctx context.Context, sawClientPreface bool) {
+	c.http2HandedOff = true
+
+	// HTTP/2 only uses c.rwc, so release the bufio.Reader if we have one.
+	if c.bufr != nil {
+		putBufioReader(c.bufr)
+		c.bufr = nil
+	}
+
+	c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil, func() {
+		c.close()
+		c.setState(c.rwc, StateClosed, runHooks)
+	})
 }
 
 func (w *response) sendExpectationFailed() {

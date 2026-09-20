@@ -75,7 +75,7 @@ func TestInlining(t *testing.T) {
 		"uint128.xor",
 	}
 	switch runtime.GOARCH {
-	case "amd64", "arm64":
+	case "amd64", "arm64", "loong64":
 		// These don't inline on 32-bit.
 		wantInlinable = append(wantInlinable,
 			"Addr.AsSlice",

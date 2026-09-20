@@ -414,7 +414,7 @@ func TestRawBytesAllocs(t *testing.T) {
 	// So only care on amd64 gc for now.
 	measureAllocs := false
 	switch runtime.GOARCH {
-	case "amd64", "arm64":
+	case "amd64", "arm64", "loong64":
 		measureAllocs = runtime.Compiler == "gc"
 	}
 

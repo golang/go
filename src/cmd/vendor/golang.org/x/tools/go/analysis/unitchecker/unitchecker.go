@@ -49,9 +49,9 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
-	"golang.org/x/tools/go/gcexportdata"
 	"golang.org/x/tools/internal/analysis/driverutil"
 	"golang.org/x/tools/internal/facts"
+	"golang.org/x/tools/internal/gcimporter"
 )
 
 // A Config describes a compilation unit to be analyzed.
@@ -316,7 +316,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		if !ok {
 			return nil, fmt.Errorf("no package vetx file for %q", path)
 		}
-		return gcexportdata.Read(bytes.NewReader(entry.types), fset, imports, path)
+		return gcimporter.IImportData(fset, imports, entry.types, path)
 	})
 
 	tc := &types.Config{
@@ -598,7 +598,7 @@ func writeVetxFile(fset *token.FileSet, pkg *types.Package, filename string, fac
 
 	// types
 	startTypes := buf.Len()
-	if err := gcexportdata.Write(&buf, fset, pkg); err != nil {
+	if err := gcimporter.IExportData(&buf, fset, pkg); err != nil {
 		return err
 	}
 	typesLen := buf.Len() - startTypes

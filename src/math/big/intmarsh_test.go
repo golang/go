@@ -74,6 +74,43 @@ func TestGobEncodingNilIntInSlice(t *testing.T) {
 	}
 }
 
+func TestIntGobDecode(t *testing.T) {
+	for _, test := range []struct {
+		buf  []byte
+		want int64
+	}{
+		{nil, 0},
+		{[]byte{}, 0},
+		{[]byte{0x02}, 0},
+		{[]byte{0x03}, 0},
+		{[]byte{0x02, 0}, 0},
+		{[]byte{0x03, 0}, 0},
+		{[]byte{0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0},
+		{[]byte{0x02, 1}, 1},
+		{[]byte{0x03, 1}, -1},
+		{[]byte{0x02, 0, 1}, 1},
+		{[]byte{0x03, 0, 1}, -1},
+	} {
+		for _, initial := range []int64{0, 1, -1} {
+			x := NewInt(initial)
+			if err := x.GobDecode(test.buf); err != nil {
+				t.Errorf("initial %d, GobDecode(%x): %v", initial, test.buf, err)
+				continue
+			}
+			if x.Cmp(NewInt(test.want)) != 0 || !isNormalized(x) {
+				t.Errorf("initial %d, GobDecode(%x) = %s, want normalized %d", initial, test.buf, x, test.want)
+				continue
+			}
+			if test.want == 0 {
+				// A decoded zero must be safe to use in arithmetic.
+				if z := new(Int).Sqrt(x); z.Sign() != 0 {
+					t.Errorf("Sqrt(GobDecode(%x)) = %s, want 0", test.buf, z)
+				}
+			}
+		}
+	}
+}
+
 func TestIntJSONEncoding(t *testing.T) {
 	for _, test := range encodingTests {
 		for _, sign := range []string{"", "+", "-"} {

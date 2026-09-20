@@ -72,17 +72,60 @@ func getNameFromNode(n ir.Node) *ir.Name {
 	return nil
 }
 
-// getAddressableNameFromNode is like getNameFromNode but returns nil if the node is not addressable.
-func getAddressableNameFromNode(n ir.Node) *ir.Name {
-	if name := getNameFromNode(n); name != nil && ir.IsAddressable(name) {
-		return name
+// isIgnoredName reports whether name is a compiler-synthesized
+// bookkeeping variable introduced by the rangefunc rewrite (see
+// cmd/compile/internal/rangefunc), e.g. "#state1", "#yield1", "#next".
+// These variables are not part of any benchmark, and normally should
+// be optimized away whenever possible.
+func isIgnoredName(name *ir.Name) bool {
+	if name == nil || name.Sym() == nil {
+		return false
 	}
-	return nil
+	n := name.Sym().Name
+	if n == "" {
+		return false
+	}
+	return n[0] == '#'
+}
+
+// isIgnoredCall reports whether n is a call to
+// runtime.panicrangestate or runtime.KeepAlive.
+// These calls do not need their inputs preserved;
+// Panicrangestate only receives bookkeeping values,
+// and KeepAlive already preserves its value (i.e.,
+// not ignoring it, would only result in a second
+// KeepAlive).
+func isIgnoredCall(n *ir.CallExpr) bool {
+	name, ok := n.Fun.(*ir.Name)
+	if !ok || name.Class != ir.PFUNC || name.Sym() == nil {
+		return false
+	}
+	sym := name.Sym()
+	return sym.Pkg == ir.Pkgs.Runtime &&
+		(sym.Name == "panicrangestate" || sym.Name == "KeepAlive")
+}
+
+// getAddressableNameFromNode is like getNameFromNode
+// but returns nil if the node is not addressable,
+// and true if the node is one of the ignored bookkeeping names.
+func getAddressableNameFromNode(n ir.Node) (name *ir.Name, ignored bool) {
+	name = getNameFromNode(n)
+	if name == nil {
+		return
+	}
+	ignored = isIgnoredName(name)
+	if !ir.IsAddressable(name) {
+		name = nil
+	}
+	return
 }
 
 // getKeepAliveNodes analyzes an IR node and returns a list of nodes that must be kept alive.
 func getKeepAliveNodes(pos src.XPos, n ir.Node) ir.Nodes {
-	name := getAddressableNameFromNode(n)
+	name, ignored := getAddressableNameFromNode(n)
+	if ignored {
+		return nil
+	}
 	if name != nil {
 		debugName(name, pos)
 		return ir.Nodes{name}
@@ -180,7 +223,11 @@ func preserveCallArgs(curFn *ir.Func, call *ir.CallExpr) ir.Node {
 		return tmp
 	}
 	for i, a := range call.Args {
-		if name := getAddressableNameFromNode(a); name != nil {
+		name, ignored := getAddressableNameFromNode(a)
+		if ignored {
+			continue
+		}
+		if name != nil {
 			// If they are name, keep them alive directly.
 			debugName(name, call.Pos())
 			names = append(names, name)
@@ -189,7 +236,11 @@ func preserveCallArgs(curFn *ir.Func, call *ir.CallExpr) ir.Node {
 			s := a.(*ir.CompLitExpr)
 			var ns ir.Nodes
 			for i, elem := range s.List {
-				if name := getAddressableNameFromNode(elem); name != nil {
+				name, ignored := getAddressableNameFromNode(elem)
+				if ignored {
+					continue
+				}
+				if name != nil {
 					debugName(name, call.Pos())
 					ns = append(ns, name)
 				} else {
@@ -264,6 +315,11 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) ir.Node {
 	case *ir.AssignOpStmt:
 		return keepAliveAt(getKeepAliveNodes(n.Pos(), n.X), n)
 	case *ir.CallExpr:
+		if isIgnoredCall(n) {
+			// KeepAlive is self-preserving, panicRangeState is for rangefunc bookkeeping.
+			// These do-not-need/should-not-be preserved.
+			return stmt
+		}
 		// The function's results are not assigned, preserve them.
 		if n.Fun != nil && n.Fun.Type() != nil && n.Fun.Type().NumResults() != 0 {
 			return preserveCallResults(curFn, n)
@@ -330,6 +386,23 @@ func (e editor) edit(n ir.Node) ir.Node {
 			preserveStmts(e.curFn, n.Body)
 		case *ir.RangeStmt:
 			preserveStmts(e.curFn, n.Body)
+		case *ir.ClosureExpr:
+			// Closures (including the yield-function closures
+			// synthesized by the rangefunc rewrite for range-over-func
+			// loops, see cmd/compile/internal/rangefunc) are compiled
+			// as their own separate *ir.Func, appended independently to
+			// pkg.Funcs. ClosureExpr's generic editChildren does not
+			// descend into Func.Body, so without this case, statements
+			// inside a closure called from a b.Loop() body would never
+			// be visited by this walk.
+			//
+			// Recurse in explicitly, scoping new temps to the
+			// closure's own Func.
+			if n.Func != nil {
+				ce := editor{inBloop: true, curFn: n.Func}
+				ir.EditChildren(n.Func, ce.edit)
+				preserveStmts(n.Func, n.Func.Body)
+			}
 		}
 	}
 	return n

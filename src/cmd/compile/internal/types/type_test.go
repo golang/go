@@ -61,6 +61,34 @@ func TestFormatInterfaceUnexportedMethodUsesGoModeForSignature(t *testing.T) {
 	}
 }
 
+func TestCopyTFlagFrom(t *testing.T) {
+	oldPtr, oldReg, oldMax := PtrSize, RegSize, MaxWidth
+	t.Cleanup(func() {
+		PtrSize, RegSize, MaxWidth = oldPtr, oldReg, oldMax
+	})
+	PtrSize = 8
+	RegSize = 8
+	MaxWidth = 1 << 50
+
+	src := NewStruct(nil)
+	dst := NewStruct(nil)
+	CalcSize(src)
+	CalcSize(dst)
+	src.SetMethodsComputed(true)
+	src.TFlag()
+
+	dst.CopyTFlagFrom(src)
+	if dst.MethodsComputed() {
+		t.Fatal("CopyTFlagFrom copied method-set state")
+	}
+	if !dst.TFlagComputed() {
+		t.Fatal("CopyTFlagFrom did not make TFlag available")
+	}
+	if got, want := dst.TFlag(), src.TFlag(); got != want {
+		t.Fatalf("copied TFlag = %v, want %v", got, want)
+	}
+}
+
 func TestSSACompare(t *testing.T) {
 	a := []*Type{
 		TypeInvalid,

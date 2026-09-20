@@ -6,6 +6,7 @@ package windows
 
 import (
 	"internal/oserror"
+	"internal/stringslite"
 	"runtime"
 	"structs"
 	"syscall"
@@ -141,19 +142,27 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 	}
 
 	var h syscall.Handle
-	err := NtCreateFile(
-		&h,
-		SYNCHRONIZE|access,
-		objAttrs,
-		&IO_STATUS_BLOCK{},
-		nil,
-		fileAttrs,
-		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
-		disposition,
-		FILE_OPEN_FOR_BACKUP_INTENT|options,
-		nil,
-		0,
-	)
+	var err error
+	if TestOpenatFallback && flag&O_NOFOLLOW_ANY != 0 {
+		err = STATUS_INVALID_PARAMETER
+	} else {
+		err = NtCreateFile(
+			&h,
+			SYNCHRONIZE|access,
+			objAttrs,
+			&IO_STATUS_BLOCK{},
+			nil,
+			fileAttrs,
+			FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+			disposition,
+			FILE_OPEN_FOR_BACKUP_INTENT|options,
+			nil,
+			0,
+		)
+	}
+	if err == STATUS_INVALID_PARAMETER && flag&O_NOFOLLOW_ANY != 0 {
+		h, err = openatFallback(name, SYNCHRONIZE|access, *objAttrs, fileAttrs, disposition, FILE_OPEN_FOR_BACKUP_INTENT|options)
+	}
 	if err != nil {
 		return h, ntCreateFileError(err, flag)
 	}
@@ -177,11 +186,78 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 	return h, nil
 }
 
+// TestOpenatFallback should only be used for testing purposes.
+// When set, Openat simulates a system that does not support OBJ_DONT_REPARSE.
+var TestOpenatFallback bool
+
+// openatFallback implements O_NOFOLLOW_ANY for a single path component on
+// Windows versions that do not support OBJ_DONT_REPARSE (including Windows 10
+// build 10240). See go.dev/issue/78131.
+func openatFallback(name string, access uint32, attrs OBJECT_ATTRIBUTES, fileAttrs, disposition, options uint32) (syscall.Handle, error) {
+	// FILE_OPEN_REPARSE_POINT only prevents following the final component.
+	// All current production callers that request O_NOFOLLOW_ANY pass a
+	// single component: os.Root splits paths (including symlink targets)
+	// before opening each component, and RemoveAll passes a basename or a
+	// directory entry name relative to an open parent directory. Thus this
+	// fallback also supports multi-component paths passed to those APIs.
+	// Reject other paths here rather than weaken O_NOFOLLOW_ANY: this is
+	// not a general replacement for OBJ_DONT_REPARSE.
+	if attrs.RootDirectory == 0 || name == ".." ||
+		stringslite.IndexByte(name, '\\') >= 0 || stringslite.IndexByte(name, '/') >= 0 || stringslite.IndexByte(name, ':') >= 0 {
+		return syscall.InvalidHandle, STATUS_INVALID_PARAMETER
+	}
+	attrs.Attributes &^= OBJ_DONT_REPARSE
+	var h syscall.Handle
+	err := NtCreateFile(
+		&h, access, &attrs, &IO_STATUS_BLOCK{}, nil, fileAttrs,
+		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, disposition,
+		(options|FILE_OPEN_REPARSE_POINT)&^FILE_DELETE_ON_CLOSE, nil, 0,
+	)
+	if err != nil {
+		return syscall.InvalidHandle, err
+	}
+	// Inspect the handle, not the path, before truncation or delete-on-close.
+	// Skip this check if opening the reparse point itself was requested,
+	// or if O_CREAT|O_EXCL requires creating a new file without following links.
+	if options&FILE_OPEN_REPARSE_POINT == 0 {
+		var info syscall.ByHandleFileInformation
+		err = syscall.GetFileInformationByHandle(h, &info)
+		if err == nil && info.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+			err = STATUS_REPARSE_POINT_ENCOUNTERED
+		}
+		if err != nil {
+			syscall.CloseHandle(h)
+			return syscall.InvalidHandle, err
+		}
+	}
+	if options&FILE_DELETE_ON_CLOSE == 0 {
+		return h, nil
+	}
+	defer syscall.CloseHandle(h)
+
+	// Only enable deletion after checking for a reparse point. An empty
+	// name relative to h reopens the same file, even if it has been renamed
+	// or its directory entry has been replaced since the first open.
+	// The file already exists, including when created with O_EXCL.
+	attrs.RootDirectory = h
+	attrs.ObjectName = &NTUnicodeString{}
+	var dh syscall.Handle
+	err = NtOpenFile(
+		&dh, access, &attrs, &IO_STATUS_BLOCK{},
+		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+		options|FILE_OPEN_REPARSE_POINT,
+	)
+	if err != nil {
+		return syscall.InvalidHandle, err
+	}
+	return dh, nil
+}
+
 // ntCreateFileError maps error returns from NTCreateFile to user-visible errors.
 func ntCreateFileError(err error, flag uint64) error {
 	s, ok := err.(NTStatus)
 	if !ok {
-		// Shouldn't really be possible, NtCreateFile always returns NTStatus.
+		// The Openat fallback can also return Win32 errors.
 		return err
 	}
 	switch s {

@@ -231,6 +231,8 @@ Go 1.26 added a new `urlstrictcolons` setting that controls whether `net/url.Par
 allows malformed hostnames containing colons outside of a bracketed IPv6 address.
 The default `urlstrictcolons=1` rejects URLs such as `http://localhost:1:2` or `http://::1/`.
 Colons are permitted as part of a bracketed IPv6 address, such as `http://[::1]/`.
+Go 1.27 limited this validation to `http` and `https` URLs, so the setting has no
+effect on URLs with other schemes.
 
 Go 1.26 enabled two additional post-quantum key exchange mechanisms:
 SecP256r1MLKEM768 and SecP384r1MLKEM1024. The default can be reverted using the

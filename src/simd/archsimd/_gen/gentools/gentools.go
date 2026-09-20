@@ -31,7 +31,6 @@ import (
 	"go/format"
 	"go/scanner"
 	"go/token"
-	"internal/diff"
 	"io"
 	"io/fs"
 	"os"
@@ -59,14 +58,14 @@ var globalOptions *Options
 // struct.
 //
 // If fs is nil, the returned options are remembered globally as defaults for
-// zero-value Files instances.
+// zero-value Files instances. This should only be used in the main module.
 func RegisterFlags(fs *flag.FlagSet) *Options {
 	o := new(Options)
 	if fs == nil {
 		fs = flag.CommandLine
 		globalOptions = o
 	}
-	defaultGOROOT := findGOROOT()
+	defaultGOROOT := DefaultGOROOT()
 	fs.StringVar(&o.GOROOT, "goroot", defaultGOROOT, "source Go dev tree")
 	fs.StringVar(&o.outDir, "outdir", "", "output directory (default: set to -goroot)")
 	fs.BoolVar(&o.Write, "w", false, "write generated files directly to disk under -outdir")
@@ -138,7 +137,7 @@ func (f *Files) getOptions() Options {
 	}
 
 	if opts.GOROOT == "" {
-		opts.GOROOT = findGOROOT()
+		opts.GOROOT = DefaultGOROOT()
 	}
 	if opts.Output == nil {
 		opts.Output = os.Stdout
@@ -269,7 +268,7 @@ func (f *Files) Flush() error {
 				return fmt.Errorf("reading %s for diff: %w", pf.relPath, err)
 			}
 			srcPath := filepath.Join("src", pf.relPath)
-			d := diff.Diff(srcPath, onDisk, srcPath, pf.content)
+			d := Diff(srcPath, onDisk, srcPath, pf.content)
 			if len(d) > 0 {
 				hasDiffs = true
 				opts.Output.Write(d)
@@ -373,7 +372,7 @@ func printFormattingError(out io.Writer, relPath string, raw []byte, err error) 
 	}
 }
 
-func findGOROOT() string {
+func DefaultGOROOT() string {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return ""

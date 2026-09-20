@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
 
 // FindExportData positions the reader r at the beginning of the

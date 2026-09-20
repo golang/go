@@ -41,6 +41,25 @@ func cfBundleCopyBundleURL(bundle uintptr) uintptr {
 func cfBundleCopyBundleURL_trampoline()
 
 //go:nosplit
+func cfBundleCopyResourceURL(bundle, resourceName, resourceType, subDirName uintptr) uintptr {
+	args := struct {
+		bundle       uintptr
+		resourceName uintptr
+		resourceType uintptr
+		subDirName   uintptr
+		ret          uintptr
+	}{
+		bundle:       bundle,
+		resourceName: resourceName,
+		resourceType: resourceType,
+		subDirName:   subDirName,
+	}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(cfBundleCopyResourceURL_trampoline)), unsafe.Pointer(&args))
+	return args.ret
+}
+func cfBundleCopyResourceURL_trampoline()
+
+//go:nosplit
 func cfURLGetFileSystemRepresentation(url uintptr, resolveAgainstBase bool, path *byte, pathLen uintptr) bool {
 	args := struct {
 		url, resolveAgainstBase uintptr
@@ -124,6 +143,7 @@ func cfRelease_trampoline()
 
 //go:cgo_import_dynamic libc_CFBundleGetMainBundle CFBundleGetMainBundle "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 //go:cgo_import_dynamic libc_CFBundleCopyBundleURL CFBundleCopyBundleURL "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+//go:cgo_import_dynamic libc_CFBundleCopyResourceURL CFBundleCopyResourceURL "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 //go:cgo_import_dynamic libc_CFURLGetFileSystemRepresentation CFURLGetFileSystemRepresentation "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 //go:cgo_import_dynamic libc_CFStringCreateWithCString CFStringCreateWithCString "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 //go:cgo_import_dynamic libc_CFBundleGetValueForInfoDictionaryKey CFBundleGetValueForInfoDictionaryKey "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"

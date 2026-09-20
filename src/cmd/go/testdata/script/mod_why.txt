@@ -30,7 +30,7 @@ go mod why -m golang...org/.../te...
 cmp stdout why-text-module.txt
 
 # Module paths that are valid only when replaced should be accepted.
-go mod why -m mymodule/nested
+! go mod why -m mymodule/nested
 cmp stdout why-replaced-module.txt
 
 # why a package used only in tests?
@@ -42,28 +42,32 @@ go mod why -m rsc.io/testonly
 cmp stdout why-testonly.txt
 
 # test package not needed
-go mod why golang.org/x/text/unused
+! go mod why golang.org/x/text/unused
 cmp stdout why-unused.txt
 
 # vendor doesn't use packages used only in tests.
-go mod why -vendor rsc.io/testonly
+! go mod why -vendor rsc.io/testonly
 cmp stdout why-vendor.txt
 
 # vendor doesn't use modules used only in tests.
-go mod why -vendor -m rsc.io/testonly
+! go mod why -vendor -m rsc.io/testonly
 cmp stdout why-vendor-module.txt
 
 # test multiple packages
-go mod why golang.org/x/text/language golang.org/x/text/unused
+! go mod why golang.org/x/text/language golang.org/x/text/unused
 cmp stdout why-both.txt
 
 # test multiple modules
 go mod why -m rsc.io/quote rsc.io/sampler
 cmp stdout why-both-module.txt
 
+# test multiple modules with an unused module
+! go mod why -m rsc.io/quote mymodule/nested
+cmp stdout why-both-module-unused.txt
+
 # package in a module that isn't even in the module graph
 # (https://golang.org/issue/26977)
-go mod why rsc.io/fortune
+! go mod why rsc.io/fortune
 cmp stdout why-missing.txt
 
 # None of these command should have changed the go.mod file.
@@ -148,6 +152,14 @@ mymodule/y
 mymodule/y.test
 rsc.io/quote
 rsc.io/sampler
+-- why-both-module-unused.txt --
+# rsc.io/quote
+mymodule/y
+mymodule/y.test
+rsc.io/quote
+
+# mymodule/nested
+(main module does not need module mymodule/nested)
 -- why-missing.txt --
 # rsc.io/fortune
 (main module does not need package rsc.io/fortune)

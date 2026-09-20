@@ -39,6 +39,7 @@ import (
 
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssahtml"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -161,6 +162,7 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
 	// But not both.
 	f := c.config.NewFunc(c.Frontend(), new(ssa.Cache))
 	f.Pass = &emptyPass
+	f.HTMLWriter = (*ssahtml.HTMLWriter)(nil)
 	f.CachedLineStarts = ssa.NewXPosMap(map[int]ssa.LineRange{0: {First: 0, Last: 100}, 1: {First: 0, Last: 100}, 2: {First: 0, Last: 100}, 3: {First: 0, Last: 100}, 4: {First: 0, Last: 100}})
 
 	blocks := make(map[string]*ssa.Block)

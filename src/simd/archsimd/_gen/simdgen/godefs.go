@@ -195,6 +195,10 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	return nil
 }
 
+func (o *Operation) EncodeUnified() *unify.Value {
+	panic("can't encode an Operation; did you mean to encode types.RawOperation?")
+}
+
 func (o *Operation) VectorWidth() int {
 	out := o.Out[0]
 	if out.Class == "vreg" {

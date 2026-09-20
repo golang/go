@@ -19,6 +19,10 @@ func initWorkingDir() {
 		writeErrStr("runtime/cgo: no main bundle\n")
 		return
 	}
+	if !bundleHasInfoPlist(bundle) {
+		// Not an app bundle; keep the inherited working directory.
+		return
+	}
 	url := cfBundleCopyBundleURL(bundle)
 	if url == 0 {
 		// No app bundle URL found.
@@ -61,4 +65,34 @@ func initWorkingDir() {
 		writeErrData(path, int32(findnull(path)))
 		writeErrStr(") failed\n")
 	}
+}
+
+// bundleHasInfoPlist reports whether bundle contains an Info.plist. The main
+// bundle of an executable that is not inside an app bundle is the directory
+// holding the executable, which has no Info.plist. It can also happen on
+// Corellium virtual devices.
+func bundleHasInfoPlist(bundle uintptr) bool {
+	const (
+		infoName = "Info\x00"
+		infoType = "plist\x00"
+	)
+	name := cfStringCreateWithCString(0, unsafe.StringData(infoName), _kCFStringEncodingUTF8)
+	if name == 0 {
+		writeErrStr("runtime/cgo: cannot create Info.plist strings\n")
+		return false
+	}
+	typ := cfStringCreateWithCString(0, unsafe.StringData(infoType), _kCFStringEncodingUTF8)
+	if typ == 0 {
+		cfRelease(name)
+		writeErrStr("runtime/cgo: cannot create Info.plist strings\n")
+		return false
+	}
+	url := cfBundleCopyResourceURL(bundle, name, typ, 0)
+	cfRelease(name)
+	cfRelease(typ)
+	if url == 0 {
+		return false
+	}
+	cfRelease(url)
+	return true
 }

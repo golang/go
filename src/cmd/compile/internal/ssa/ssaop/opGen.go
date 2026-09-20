@@ -42416,11 +42416,11 @@ var OpcodeTable = [...]OpInfo{
 		asm:     x86.AVPCLMULQDQ,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
-				{0, RegMask{V1: 281474976645120, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, RegMask{V1: 281474976645120, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, RegMask{V1: 4294901760, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 			Outputs: []OutputInfo{
-				{0, RegMask{V1: 281472829161472, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -61309,11 +61309,11 @@ var OpcodeTable = [...]OpInfo{
 		asm:       x86.AVPCLMULQDQ,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, RegMask{V1: 72057594037977087, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-				{0, RegMask{V1: 281474976645120, V2: 0}},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			Outputs: []OutputInfo{
-				{0, RegMask{V1: 281472829161472, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -111409,63 +111409,74 @@ var OpcodeTable = [...]OpInfo{
 		Name:    "ConstBool",
 		AuxType: AuxTypeBool,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "ConstString",
 		AuxType: AuxTypeString,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "ConstNil",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const8",
 		AuxType: AuxTypeInt8,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const16",
 		AuxType: AuxTypeInt16,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const32",
 		AuxType: AuxTypeInt32,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const64",
 		AuxType: AuxTypeInt64,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const32F",
 		AuxType: AuxTypeFloat32,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "Const64F",
 		AuxType: AuxTypeFloat64,
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "ConstInterface",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "ConstSlice",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
@@ -111515,6 +111526,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:    0,
 		ZeroWidth: true,
 		FixedReg:  true,
+		EarlyOk:   true,
 		Generic:   true,
 	},
 	{
@@ -111522,6 +111534,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:    0,
 		ZeroWidth: true,
 		FixedReg:  true,
+		EarlyOk:   true,
 		Generic:   true,
 	},
 	{
@@ -111907,11 +111920,13 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "GetClosurePtr",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
 		Name:    "GetCallerPC",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{
@@ -112534,6 +112549,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "Empty",
 		ArgLen:  0,
+		EarlyOk: true,
 		Generic: true,
 	},
 	{

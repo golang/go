@@ -386,17 +386,31 @@ func insideStatement(pos token.Pos, stmts []ast.Stmt) bool {
 // mergeRangesWithinStatements merges consecutive ranges when a later range's
 // start position falls strictly inside a statement. This prevents counter
 // insertion inside multi-line statements such as const (...) blocks.
-func mergeRangesWithinStatements(ranges []Range, stmts []ast.Stmt) []Range {
-	if len(ranges) <= 1 {
-		return ranges
-	}
-	merged := []Range{ranges[0]}
-	for _, r := range ranges[1:] {
-		if insideStatement(r.pos, stmts) {
-			// Extend previous range to cover this one.
-			merged[len(merged)-1].end = r.end
+type rangeWithStatements struct {
+	Range
+	numStmt int
+}
+
+func mergeRangesWithinStatements(ranges []Range, stmts []ast.Stmt) []rangeWithStatements {
+	merged := make([]rangeWithStatements, 0, len(ranges))
+	for _, r := range ranges {
+		// Statements are sorted by source position, so use binary search to
+		// find the statements whose positions fall within this range.
+		first, _ := slices.BinarySearchFunc(stmts, r.pos, func(s ast.Stmt, p token.Pos) int {
+			return cmp.Compare(s.Pos(), p)
+		})
+		last, _ := slices.BinarySearchFunc(stmts, r.end, func(s ast.Stmt, p token.Pos) int {
+			return cmp.Compare(s.Pos(), p)
+		})
+		numStmt := last - first
+
+		if len(merged) > 0 && insideStatement(r.pos, stmts) {
+			// Extend the previous range to cover this one.
+			last := &merged[len(merged)-1]
+			last.end = r.end
+			last.numStmt += numStmt
 		} else {
-			merged = append(merged, r)
+			merged = append(merged, rangeWithStatements{Range: r, numStmt: numStmt})
 		}
 	}
 	return merged
@@ -951,7 +965,7 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 				if i == 0 {
 					insertOffset = f.offset(insertPos)
 				}
-				f.edit.Insert(insertOffset, f.newCounter(r.pos, r.end, last)+";")
+				f.edit.Insert(insertOffset, f.newCounter(r.pos, r.end, r.numStmt)+";")
 			}
 		}
 		list = list[last:]

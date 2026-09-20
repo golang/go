@@ -39,8 +39,8 @@ import (
 // it should do so by copying the result into an allocation created by the caller.
 //
 // Limitations:
-//   - Currently only supported on linux/amd64 and linux/arm64.  On unsupported
-//     platforms, Do will invoke f directly.
+//   - Currently only supported on linux/amd64, linux/arm64 and linux/loong64.
+//     On unsupported platforms, Do will invoke f directly.
 //   - Protection does not extend to any global variables written by f.
 //   - If f calls runtime.Goexit, erasure can be delayed by defers
 //     higher up on the call stack.
@@ -65,7 +65,7 @@ func Do(f func()) {
 		// unsupported, just invoke f directly.
 		f()
 		return
-	case "linux/amd64", "linux/arm64":
+	case "linux/amd64", "linux/arm64", "linux/loong64":
 	}
 
 	// Place to store any panic value.

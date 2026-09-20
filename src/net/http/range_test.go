@@ -35,6 +35,9 @@ var ParseRangeTests = []struct {
 	{"bytes= , , ,   ", 10, nil},
 
 	{"bytes=0-9", 10, []httpRange{{0, 10}}},
+	{"Bytes=0-9", 10, []httpRange{{0, 10}}},
+	{"BYTES=0-9", 10, []httpRange{{0, 10}}},
+	{"bYtEs=0-9", 10, []httpRange{{0, 10}}},
 	{"bytes=0-", 10, []httpRange{{0, 10}}},
 	{"bytes=5-", 10, []httpRange{{5, 5}}},
 	{"bytes=0-20", 10, []httpRange{{0, 10}}},

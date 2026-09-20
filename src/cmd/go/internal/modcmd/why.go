@@ -37,6 +37,9 @@ graph, one package per line. If the package or module is not
 referenced from the main module, the stanza will display a single
 parenthesized note indicating that fact.
 
+If any of the listed packages or modules is not referenced from
+the main module, why exits with a non-zero status.
+
 For example:
 
 	$ go mod why golang.org/x/text/language golang.org/x/text/encoding
@@ -121,6 +124,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 					vendoring = " to vendor"
 				}
 				why = "(main module does not need" + vendoring + " module " + m.Path + ")\n"
+				base.SetExitStatus(1)
 			}
 			fmt.Printf("%s# %s\n%s", sep, m.Path, why)
 			sep = "\n"
@@ -141,6 +145,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 						vendoring = " to vendor"
 					}
 					why = "(main module does not need" + vendoring + " package " + path + ")\n"
+					base.SetExitStatus(1)
 				}
 				fmt.Printf("%s# %s\n%s", sep, path, why)
 				sep = "\n"

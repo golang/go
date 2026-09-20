@@ -29,7 +29,7 @@ var globalPointer *int
 func TestUnsafePoint(t *testing.T) {
 	testenv.MustHaveExec(t)
 	switch runtime.GOARCH {
-	case "amd64", "arm64":
+	case "amd64", "arm64", "loong64":
 	default:
 		t.Skipf("test not enabled for %s", runtime.GOARCH)
 	}
@@ -106,6 +106,17 @@ func TestUnsafePoint(t *testing.T) {
 				startedWB = true
 			}
 			if parts[3] == "MOVQ" && (parts[4] == "$0x0," || parts[4] == "X15,") {
+				doneWB = true
+			}
+		case "loong64":
+			if parts[3] == "MOVWU" {
+				// The unpreemptible region starts after the
+				// load of runtime.writeBarrier.enabled.
+				startedWB = true
+			}
+			if parts[3] == "MOVV" && parts[4] == "R0," {
+				// The unpreemptible region ends after the
+				// write of nil (R0 is the zero register).
 				doneWB = true
 			}
 		}

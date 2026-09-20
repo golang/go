@@ -84,7 +84,7 @@ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
 }
 
 // Cleanup cleans up the file f after any edit operations.
-// To avoid quadratic behavior, modifications like [WorkFile.DropRequire]
+// To avoid quadratic behavior, modifications like [WorkFile.DropUse]
 // clear the entry but do not remove it from the slice.
 // Cleanup cleans out all the cleared entries.
 func (f *WorkFile) Cleanup() {

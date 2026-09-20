@@ -544,6 +544,9 @@ func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
 }
 func testServeWithSlashRedirectKeepsQueryString(t *testing.T, mode testMode) {
 	writeBackQuery := func(w ResponseWriter, r *Request) {
+		if r.Method == "CONNECT" {
+			w.WriteHeader(400) // non-2xx to avoid creating a tunnel for CONNECT responses
+		}
 		fmt.Fprintf(w, "%s", r.URL.RawQuery)
 	}
 
@@ -552,6 +555,7 @@ func testServeWithSlashRedirectKeepsQueryString(t *testing.T, mode testMode) {
 	mux.HandleFunc("/testTwo/", writeBackQuery)
 	mux.HandleFunc("/testThree", writeBackQuery)
 	mux.HandleFunc("/testThree/", func(w ResponseWriter, r *Request) {
+		w.WriteHeader(400) // non-2xx to avoid creating a tunnel for CONNECT responses
 		fmt.Fprintf(w, "%s:bar", r.URL.RawQuery)
 	})
 
@@ -876,6 +880,39 @@ func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
 				}
 			})
 		})
+	}
+}
+
+// The request context on an unencrypted HTTP/2 connection must not be
+// canceled just because the connection's serve goroutine parked while
+// the handler was waiting.
+func TestServerRequestContextOutlivesIdleServeGoroutine(t *testing.T) {
+	runSynctest(t, testServerRequestContextOutlivesIdleServeGoroutine,
+		testAddMode{http2UnencryptedMode})
+}
+func testServerRequestContextOutlivesIdleServeGoroutine(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		// Long-poll: nothing happens on the connection while we wait,
+		// so the HTTP/2 serve goroutine parks in the meantime.
+		select {
+		case <-r.Context().Done():
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "request context done early: %v", r.Context().Err())
+		case <-time.After(5 * time.Second):
+			io.WriteString(w, "ok")
+		}
+	}))
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 200 || string(body) != "ok" {
+		t.Fatalf("got %d %q, want 200 %q", res.StatusCode, body, "ok")
 	}
 }
 
@@ -7041,7 +7078,7 @@ func testTimeoutHandlerSuperfluousLogs(t *testing.T, mode testMode) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		synctest.Subtest(t, tt.name, func(t *testing.T) {
 			exitHandler := make(chan bool, 1)
 			defer close(exitHandler)
 			lastLine := make(chan int, 1)
@@ -7062,13 +7099,9 @@ func testTimeoutHandlerSuperfluousLogs(t *testing.T, mode testMode) {
 
 			logBuf := new(strings.Builder)
 			srvLog := log.New(logBuf, "", 0)
-			// When expecting to timeout, we'll keep the duration short.
-			dur := 20 * time.Millisecond
-			if !tt.mustTimeout {
-				// Otherwise, make it arbitrarily long to reduce the risk of flakes.
-				dur = 10 * time.Second
-			}
-			th := TimeoutHandler(sh, dur, timeoutMsg)
+			// Arbitrary 20ms timeout for all variations of the test because we're using
+			// synctest.
+			th := TimeoutHandler(sh, 20*time.Millisecond, timeoutMsg)
 			cst := newClientServerTest(t, mode, th, optWithServerLog(srvLog))
 			defer cst.close()
 
@@ -8515,5 +8548,108 @@ func TestServerAbortsWriteOnConnReadError(t *testing.T) {
 		if writeErr == nil {
 			t.Errorf("handler wrote response successfully, want error")
 		}
+	})
+}
+
+// bespokeTimeoutError is a timeout error that does not wrap
+// os.ErrDeadlineExceeded, as returned by non-standard net.Conn
+// implementations predating the Go 1.15 convention that deadline
+// errors wrap os.ErrDeadlineExceeded.
+type bespokeTimeoutError struct{}
+
+func (bespokeTimeoutError) Error() string   { return "i/o timeout" }
+func (bespokeTimeoutError) Timeout() bool   { return true }
+func (bespokeTimeoutError) Temporary() bool { return true }
+
+// bespokeTimeoutConn wraps a net.Conn, replacing read errors that wrap
+// os.ErrDeadlineExceeded with bespokeTimeoutError. It emulates
+// non-standard net.Conn implementations such as gVisor's gonet.
+type bespokeTimeoutConn struct {
+	net.Conn
+}
+
+func (c bespokeTimeoutConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		err = bespokeTimeoutError{}
+	}
+	return n, err
+}
+
+type bespokeTimeoutListener struct {
+	net.Listener
+}
+
+func (l bespokeTimeoutListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return bespokeTimeoutConn{c}, nil
+}
+
+// testServerIdleKeepAlive makes two requests on the same keep-alive
+// connection, idling between them (in the bubble's fake time) long
+// enough for the server's idle buffer release probe (after
+// idleBufsReleaseDelay, 50ms) to time out while the connection sits
+// idle. It checks that both requests succeed and that neither handler
+// sees an already-canceled request context. It must be called in a
+// synctest bubble; wrap adapts the server's listener.
+func testServerIdleKeepAlive(t *testing.T, wrap func(net.Listener) net.Listener) {
+	t.Helper()
+	handler := newTestHandler(t)
+	srv := &Server{Handler: handler}
+	li := nettest.NewListener()
+	srvDone := make(chan struct{})
+	go func() {
+		defer close(srvDone)
+		srv.Serve(wrap(li))
+	}()
+	defer func() {
+		srv.Close()
+		<-srvDone
+	}()
+	defer handler.Close()
+
+	conn := li.NewConn()
+	defer conn.Close()
+	tc := &http1TestConn{t: t, conn: conn, bufr: bufio.NewReader(conn)}
+	for i := range 2 {
+		if i == 1 {
+			synctest.Sleep(250 * time.Millisecond)
+		}
+		tc.writeMessage(
+			"GET / HTTP/1.1",
+			"Host: foo",
+			"",
+		)
+		call := handler.nextCall()
+		if err := call.req.Context().Err(); err != nil {
+			t.Errorf("request %d: handler's Request.Context().Err() = %v; want nil", i, err)
+		}
+		call.exit()
+		tc.wantResponse("HTTP/1.1 200 OK", nil)
+	}
+}
+
+// TestServerIdleKeepAliveRequestContext verifies that the idle buffer
+// release probe between keep-alive requests does not cancel the
+// connection-level context that subsequent requests' contexts derive
+// from.
+func TestServerIdleKeepAliveRequestContext(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testServerIdleKeepAlive(t, func(li net.Listener) net.Listener { return li })
+	})
+}
+
+// TestServerIdleKeepAliveNonstandardTimeoutError verifies that an idle
+// HTTP/1 keep-alive connection survives the idle buffer release probe
+// even when the underlying net.Conn returns a timeout error that does
+// not wrap os.ErrDeadlineExceeded.
+func TestServerIdleKeepAliveNonstandardTimeoutError(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testServerIdleKeepAlive(t, func(li net.Listener) net.Listener {
+			return bespokeTimeoutListener{li}
+		})
 	})
 }

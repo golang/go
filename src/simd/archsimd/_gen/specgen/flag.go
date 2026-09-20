@@ -7,17 +7,18 @@ package specgen
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+	"simd/archsimd/_gen/gentools"
 )
 
 // FindSpecDir returns the path to the standard spec package
-// $GOROOT/simd/internal/spec.
-func FindSpecDir() (string, error) {
-	goroot, err := goEnvGoroot()
-	if err != nil {
-		return "", fmt.Errorf("could not find GOROOT: %w", err)
+// GOROOT/simd/internal/spec. If GOROOT is "", it uses gentools.DefaultGOROOT().
+func FindSpecDir(goroot string) (string, error) {
+	if goroot == "" {
+		goroot = gentools.DefaultGOROOT()
+		if goroot == "" {
+			return "", fmt.Errorf("could not find GOROOT")
+		}
 	}
 	path := filepath.Join(goroot, "src/simd/internal/spec")
 	if _, err := os.Stat(path); err != nil {
@@ -26,19 +27,11 @@ func FindSpecDir() (string, error) {
 	return path, nil
 }
 
-func MustFindSpecDir() string {
-	path, err := FindSpecDir()
+func MustFindSpecDir(goroot string) string {
+	path, err := FindSpecDir(goroot)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 	return path
-}
-
-func goEnvGoroot() (string, error) {
-	out, err := exec.Command("go", "env", "GOROOT").Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
 }

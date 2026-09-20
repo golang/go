@@ -72,6 +72,10 @@ func (fd *FD) Init(net string, pollable bool) error {
 	return err
 }
 
+func (fd *FD) ensureInit() error {
+	return nil
+}
+
 // Destroy closes the file descriptor. This is called when there are
 // no remaining references.
 func (fd *FD) destroy() error {

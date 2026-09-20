@@ -87,11 +87,17 @@ func (s *Server) setHTTP2Config(conf http2ExternalServerConfig) {
 		panic("http: HTTP/2 Server already registered")
 	}
 	s.h2Config = conf
-	s.h2Config.ServeConnFunc(s.serveHTTP2Conn)
+	s.h2Config.ServeConnFunc(func(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte) {
+		s.serveHTTP2Conn(ctx, nc, h, sawClientPreface, upgradeReq, settings, nil)
+	})
 	s.configureHTTP2()
 }
 
-func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte) {
+// serveHTTP2Conn serves nc with the HTTP/2 server. It may return before the
+// connection is done being served (an idle HTTP/2 connection doesn't hold
+// onto a goroutine); onClose, if non-nil, runs once the connection is done
+// and has been closed.
+func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte, onClose func()) {
 	s.setupHTTP2_ServeTLS()
 	var serverUpgradeReq *http2.ServerRequest
 	if upgradeReq != nil {
@@ -106,6 +112,7 @@ func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, saw
 		SawClientPreface: sawClientPreface,
 		UpgradeRequest:   serverUpgradeReq,
 		Settings:         settings,
+		OnClose:          onClose,
 	})
 }
 

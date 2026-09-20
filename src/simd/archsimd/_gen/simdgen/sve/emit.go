@@ -5,14 +5,21 @@
 package sve
 
 import (
-	"cmp"
 	"fmt"
 	"log"
+	"regexp"
 	"slices"
 	"strings"
 
+	"simd/archsimd/_gen/simdgen/types"
 	"simd/archsimd/_gen/unify"
 )
+
+var baseTypeRegexps = map[string]*regexp.Regexp{
+	"int":   regexp.MustCompile("int"),
+	"uint":  regexp.MustCompile("uint"),
+	"float": regexp.MustCompile("float"),
+}
 
 // asComment wraps text into // comment lines of at most width columns.
 func asComment(text string, width int) string {
@@ -42,49 +49,55 @@ func asComment(text string, width int) string {
 // conversion family with many encodings logs once per generate run.
 var mixedWidthLogged = map[string]bool{}
 
-// emit renders an operand as a unify value. Z-vectors and predicates are
+// encode renders an operand as a types.Operand. Z-vectors and predicates are
 // scalable (a base type and per-operand element width, no fixed bits/lanes);
 // mem, immediate and special operands are opaque (class and position only).
-func (op *Operand) emit() *unify.Value {
-	var db unify.DefBuilder
-	db.Add("class", unify.NewValue(unify.NewStringExact(op.Class)))
+func (op *Operand) encode() types.Operand {
+	out := types.Operand{
+		Class:  op.Class,
+		AsmPos: op.AsmPos,
+	}
 	if op.BaseType != "" {
-		db.Add("base", unify.NewValue(unify.NewStringExact(op.BaseType)))
+		if re, ok := baseTypeRegexps[op.BaseType]; ok {
+			out.EncodeBase = re
+		} else {
+			out.EncodeBase = regexp.MustCompile(op.BaseType)
+		}
 	}
 	switch {
 	case op.Bits > 0:
 		// A fixed-width SIMD&FP scalar (OperandVFP): a real bit width and lanes.
-		db.Add("bits", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.Bits))))
+		out.EncodeBits = &types.VectorSize{NRaw: op.Bits}
 		if op.Lanes > 0 {
-			db.Add("lanes", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.Lanes))))
+			out.Lanes = new(op.Lanes)
 		}
 	case op.Class == "vreg" || op.Class == "mask":
 		// SVE vectors and predicates are scalable: no fixed total bit width.
 		// The literal "scalable" both marks that and, because it conflicts with
 		// any numeric bits, keeps these operands from unifying with the
 		// fixed-width (NEON/AVX) types that share types.yaml.
-		db.Add("bits", unify.NewValue(unify.NewStringExact("scalable")))
+		out.EncodeBits = &types.VectorSize{Scalable: true}
 	}
 	if op.ElemBits > 0 {
-		db.Add("elemBits", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.ElemBits))))
+		out.ElemBits = new(op.ElemBits)
 	}
 	if op.Predication != "" {
 		// "M" (merging) or "Z" (zeroing) for a governing predicate. Some SVE
 		// instructions support only one; this records which.
-		db.Add("predication", unify.NewValue(unify.NewStringExact(op.Predication)))
+		out.Predication = new(op.Predication)
 	}
 	if op.governing {
 		// This operand is a governing predicate.
-		db.Add("governing", unify.NewValue(unify.NewStringExact("true")))
+		out.Governing = new(true)
 	}
 	if op.isList {
 		// This register came from a single-register list ("{ <Zt>.<T> }"), a
 		// distinct assembler encoding from a bare register.
-		db.Add("listNumber", unify.NewValue(unify.NewStringExact("0")))
+		out.ListNumber = new(0)
 	}
 	if op.regName != "" {
 		// The assembly template's register symbol, e.g. "Zdn", "Zn", "Pg".
-		db.Add("regName", unify.NewValue(unify.NewStringExact(op.regName)))
+		out.RegName = new(op.regName)
 	}
 	// The symbol this operand has in each predicated encoding, indexed to
 	// match the def's inVariant. The symbols can differ from the unpredicated
@@ -94,13 +107,8 @@ func (op *Operand) emit() *unify.Value {
 	//
 	// [groupPredicationForms] folds the two into one def.
 	// simdgen needs these symbols to recognize resultInArg0.
-	names := make([]*unify.Value, len(op.predRegName))
-	for i, n := range op.predRegName {
-		names[i] = unify.NewValue(unify.NewStringExact(n))
-	}
-	db.Add("predRegName", unify.NewValue(unify.NewTuple(names...)))
-	db.Add("asmPos", unify.NewValue(unify.NewStringExact(fmt.Sprint(op.AsmPos))))
-	return unify.NewValue(db.Build())
+	out.PredRegName = new(op.predRegName)
+	return out
 }
 
 // pickRegNames returns operand idx's symbol in each predicated encoding, in
@@ -159,54 +167,39 @@ func (inst *Instruction) emitOne(asm string, ops []Operand, widthAgnostic bool) 
 	// carries the symbol it has in each predicated encoding. The symbols are
 	// matched up in template order, so they must be attached before the sort
 	// below reorders the inputs.
-	var inOps, outOps []Operand
+	var in, out []types.Operand
 	var outIdx, inIdx int
 	for _, op := range ops {
 		switch {
 		case op.governing:
 			// The governing predicate is the operand the paired encodings differ in, so
 			// it is not one of the symbols they are matched up by.
-			inOps = append(inOps, op)
+			in = append(in, op.encode())
 		case op.role == "destination":
 			op.predRegName = pickRegNames(inst.predVariants, outIdx, func(pv predVariant) []string { return pv.outRegNames })
 			outIdx++
-			outOps = append(outOps, op)
+			out = append(out, op.encode())
 		default:
 			op.predRegName = pickRegNames(inst.predVariants, inIdx, func(pv predVariant) []string { return pv.inRegNames })
 			inIdx++
-			inOps = append(inOps, op)
+			in = append(in, op.encode())
 		}
 	}
-	priority := map[string]int{"immediate": 0, "mem": 0, "vreg": 1, "greg": 1, "mask": 2}
-	slices.SortStableFunc(inOps, func(a, b Operand) int {
-		pa := priority[a.Class]
-		pb := priority[b.Class]
-		if pa != pb {
-			return cmp.Compare(pa, pb)
-		}
-		return cmp.Compare(a.AsmPos, b.AsmPos)
-	})
+	slices.SortStableFunc(in, types.Operand.Compare)
 
-	var ins, outs []*unify.Value
-	for i := range inOps {
-		ins = append(ins, inOps[i].emit())
-	}
-	for i := range outOps {
-		outs = append(outs, outOps[i].emit())
-	}
-	db.Add("in", unify.NewValue(unify.NewTuple(ins...)))
-	var inVar []*unify.Value
+	db.Add("in", unify.Encode(in))
+	var inVar []types.Operand
 	for _, pv := range inst.predVariants {
 		// The governing predicate of the paired predicated encoding.
-		var pdb unify.DefBuilder
-		pdb.Add("class", unify.NewValue(unify.NewStringExact("mask")))
-		pdb.Add("bits", unify.NewValue(unify.NewStringExact("scalable")))
-		pdb.Add("predication", unify.NewValue(unify.NewStringExact(pv.quals)))
-		pdb.Add("asmPos", unify.NewValue(unify.NewStringExact(fmt.Sprint(pv.predAsmPos))))
-		inVar = append(inVar, unify.NewValue(pdb.Build()))
+		inVar = append(inVar, types.Operand{
+			Class:       "mask",
+			Bits:        types.VectorSize{Scalable: true},
+			Predication: new(pv.quals),
+			AsmPos:      pv.predAsmPos,
+		})
 	}
-	db.Add("inVariant", unify.NewValue(unify.NewTuple(inVar...)))
-	db.Add("out", unify.NewValue(unify.NewTuple(outs...)))
+	db.Add("inVariant", unify.Encode(inVar))
+	db.Add("out", unify.Encode(out))
 	return unify.NewValue(db.Build())
 }
 

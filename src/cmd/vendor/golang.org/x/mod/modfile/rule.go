@@ -1678,7 +1678,7 @@ func (f *File) AddTool(path string) error {
 	return nil
 }
 
-// RemoveTool removes a tool directive with the given path.
+// DropTool removes a tool directive with the given path.
 // It does nothing if no such tool directive exists.
 func (f *File) DropTool(path string) error {
 	for _, t := range f.Tool {

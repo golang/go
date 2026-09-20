@@ -131,6 +131,16 @@ func (X86Features) AVXAES() bool {
 	return cpu.X86.HasAVX && cpu.X86.HasAES
 }
 
+// AVXPCLMULQDQ returns whether the CPU supports the AVXPCLMULQDQ feature.
+//
+// If it returns true, then the CPU also supports PCLMULQDQ and AVX.
+//
+// AVXPCLMULQDQ is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func (X86Features) AVXPCLMULQDQ() bool {
+	return cpu.X86.HasAVX && cpu.X86.HasPCLMULQDQ
+}
+
 // AVXVNNI returns whether the CPU supports the AVXVNNI feature.
 //
 // If it returns true, then the CPU also supports AVX and AVX2.
@@ -167,4 +177,14 @@ func (X86Features) SHA() bool {
 // GOARCH amd64.
 func (X86Features) VAES() bool {
 	return cpu.X86.HasVAES
+}
+
+// VPCLMULQDQ returns whether the CPU supports the VPCLMULQDQ feature.
+//
+// If it returns true, then the CPU also supports AVX.
+//
+// VPCLMULQDQ is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func (X86Features) VPCLMULQDQ() bool {
+	return cpu.X86.HasVPCLMULQDQ
 }

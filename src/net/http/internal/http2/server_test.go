@@ -449,15 +449,21 @@ func (st *serverTester) Close() {
 // frames may be sent.
 func (st *serverTester) greet() {
 	st.t.Helper()
-	st.greetAndCheckSettings(func(Setting) error { return nil })
+	st.greetAndCheckSettings(nil, func(Setting) error { return nil })
 }
 
-func (st *serverTester) greetAndCheckSettings(checkSetting func(s Setting) error) {
+// greetAndCheckSettings is like greet, but the client sends the
+// provided settings in its initial SETTINGS frame, and the
+// checkSetting callback, if non-nil, is run for each setting in the
+// server's initial SETTINGS frame.
+func (st *serverTester) greetAndCheckSettings(settings []Setting, checkSetting func(s Setting) error) {
 	st.t.Helper()
 	st.writePreface()
-	st.writeSettings()
+	st.writeSettings(settings...)
 	st.sync()
-	readFrame[*SettingsFrame](st.t, st).ForeachSetting(checkSetting)
+	if f := readFrame[*SettingsFrame](st.t, st); checkSetting != nil {
+		f.ForeachSetting(checkSetting)
+	}
 	st.writeSettingsAck()
 
 	// The initial WINDOW_UPDATE and SETTINGS ACK can come in any order.
@@ -2889,7 +2895,7 @@ func testServer_MaxDecoderHeaderTableSize(t *testing.T) {
 	defer st.Close()
 
 	var advHeaderTableSize *uint32
-	st.greetAndCheckSettings(func(s Setting) error {
+	st.greetAndCheckSettings(nil, func(s Setting) error {
 		switch s.ID {
 		case SettingHeaderTableSize:
 			advHeaderTableSize = &s.Val
@@ -3012,7 +3018,7 @@ func testServerDoS_MaxHeaderListSize(t *testing.T) {
 	// shake hands
 	frameSize := DefaultMaxReadFrameSize
 	var advHeaderListSize *uint32
-	st.greetAndCheckSettings(func(s Setting) error {
+	st.greetAndCheckSettings(nil, func(s Setting) error {
 		switch s.ID {
 		case SettingMaxFrameSize:
 			if s.Val < MinMaxFrameSize {
@@ -3797,6 +3803,206 @@ func testServerIdleTimeout_AfterRequest(t *testing.T) {
 	// is done:
 	st.advance(idleTimeout)
 	st.wantGoAway(1, ErrCodeNo)
+}
+
+// wantParked asserts the state of the connection's serve goroutine.
+func (st *serverTester) wantParked(want bool) {
+	st.t.Helper()
+	st.sync()
+	if got := st.sc.TestServeParked(); got != want {
+		st.t.Errorf("serve goroutine parked = %v, want %v", got, want)
+	}
+}
+
+func TestServerParksWhenIdle(t *testing.T) { synctest.Test(t, testServerParksWhenIdle) }
+func testServerParksWhenIdle(t *testing.T) {
+	unblock := make(chan struct{})
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+		<-unblock
+	})
+	defer st.Close()
+
+	// The serve goroutine parks once the connection is established
+	// and idle.
+	st.greet()
+	st.wantParked(true)
+
+	// It parks even while a handler is running, as long as the
+	// handler isn't giving it any work.
+	st.bodylessReq1()
+	st.wantParked(true)
+
+	// It parks again once the request is done.
+	close(unblock)
+	st.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: true,
+	})
+	st.wantParked(true)
+
+	// A PING on the parked connection is acked as usual.
+	st.writePing(false, [8]byte{1, 2, 3, 4, 5, 6, 7, 8})
+	st.wantFrameType(FramePing)
+	st.wantParked(true)
+}
+
+func TestServerParksDuringLongPoll(t *testing.T) { synctest.Test(t, testServerParksDuringLongPoll) }
+func testServerParksDuringLongPoll(t *testing.T) {
+	// An SSE-style handler: write an event, flush, park for a long
+	// time, write another event.
+	events := make(chan string)
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+		for ev := range events {
+			io.WriteString(w, ev)
+			w.(http.Flusher).Flush()
+		}
+	})
+	defer st.Close()
+
+	st.greet()
+	st.bodylessReq1()
+
+	events <- "hello"
+	st.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: false,
+	})
+	st.wantData(wantData{
+		streamID:  1,
+		endStream: false,
+		data:      []byte("hello"),
+	})
+
+	// The handler is parked between events, and so is the serve
+	// goroutine, even though the stream stays open for however long
+	// the long poll lasts.
+	st.wantParked(true)
+	st.advance(24 * time.Hour)
+	st.wantParked(true)
+
+	// The next event revives the serve goroutine.
+	events <- "world"
+	st.wantData(wantData{
+		streamID:  1,
+		endStream: false,
+		data:      []byte("world"),
+	})
+	st.wantParked(true)
+
+	// So does the handler finishing.
+	close(events)
+	st.wantData(wantData{
+		streamID:  1,
+		endStream: true,
+		data:      []byte{},
+	})
+	st.wantParked(true)
+}
+
+func TestServerParkedGracefulShutdown(t *testing.T) {
+	synctest.Test(t, testServerParkedGracefulShutdown)
+}
+func testServerParkedGracefulShutdown(t *testing.T) {
+	st := newServerTester(t, nil)
+	defer st.Close()
+
+	st.greet()
+	st.wantParked(true)
+
+	// Server.Shutdown revives the parked serve goroutine, which sends
+	// a GOAWAY and tears the connection down; it must not park again
+	// mid-shutdown.
+	st.sc.StartGracefulShutdown()
+	st.wantGoAway(0, ErrCodeNo)
+	st.wantParked(false)
+}
+
+func TestServerParkedIdleTimeout(t *testing.T) { synctest.Test(t, testServerParkedIdleTimeout) }
+func testServerParkedIdleTimeout(t *testing.T) {
+	const idleTimeout = 1 * time.Second
+	st := newServerTester(t, nil, func(s *http.Server) {
+		s.IdleTimeout = idleTimeout
+	})
+	defer st.Close()
+
+	// The idle timeout must still fire on a parked connection.
+	st.greet()
+	st.wantParked(true)
+	st.advance(idleTimeout)
+	st.wantGoAway(0, ErrCodeNo)
+}
+
+func TestServerParkingDisabledByGODEBUG(t *testing.T) {
+	t.Setenv("GODEBUG", "http2serveparking=0")
+	synctest.Test(t, testServerParkingDisabledByGODEBUG)
+}
+func testServerParkingDisabledByGODEBUG(t *testing.T) {
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {})
+	defer st.Close()
+
+	st.greet()
+	st.wantParked(false)
+	st.bodylessReq1()
+	st.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: true,
+	})
+	st.wantParked(false)
+}
+
+func TestServerParksWithFlowControlledData(t *testing.T) {
+	synctest.Test(t, testServerParksWithFlowControlledData)
+}
+func testServerParksWithFlowControlledData(t *testing.T) {
+	// A handler whose response exceeds the client's stream flow
+	// control window. The server sends as much DATA as the window
+	// allows and then parks, with the rest of the response queued in
+	// the write scheduler, blocked on flow control. The client's
+	// WINDOW_UPDATE revives the parked serve goroutine to write it.
+	const window = 100
+	const responseSize = 250
+	rest := responseSize - window
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+		w.(http.Flusher).Flush()
+		io.WriteString(w, strings.Repeat("a", responseSize))
+	})
+	defer st.Close()
+
+	st.greetAndCheckSettings(
+		[]Setting{{SettingInitialWindowSize, window}},
+		nil,
+	)
+	st.bodylessReq1()
+
+	// The server sends the response headers and the first window bytes
+	// of DATA, then the write scheduler blocks the rest on the
+	// stream's flow control window.
+	st.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: false,
+	})
+	st.wantData(wantData{
+		streamID:  1,
+		endStream: false,
+		size:      window,
+	})
+
+	// The serve goroutine parks even though its write scheduler still
+	// holds the blocked DATA, and it stays parked, because only an
+	// incoming WINDOW_UPDATE can unblock it.
+	st.wantParked(true)
+	st.advance(24 * time.Hour)
+	st.wantParked(true)
+
+	// The client's WINDOW_UPDATE revives the serve goroutine, which
+	// writes the rest of the response and ends the stream.
+	st.writeWindowUpdate(1, uint32(rest))
+	st.wantData(wantData{
+		streamID:  1,
+		endStream: true,
+		data:      []byte(strings.Repeat("a", rest)),
+	})
+	st.wantParked(true)
 }
 
 // grpc-go closes the Request.Body currently with a Read.
@@ -4944,7 +5150,7 @@ func testServerSettingNoRFC7540Priorities(t *testing.T) {
 	defer st.Close()
 
 	var gotNoRFC7540Setting bool
-	st.greetAndCheckSettings(func(s Setting) error {
+	st.greetAndCheckSettings(nil, func(s Setting) error {
 		if s.ID != SettingNoRFC7540Priorities {
 			return nil
 		}

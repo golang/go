@@ -2,63 +2,44 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package gcexportdata provides functions for reading and writing
-// export data, which is a serialized description of the API of a Go
-// package including the names, kinds, types, and locations of all
-// exported declarations.
+// Package gcexportdata provides functions for writing and reading
+// export data, a serialized representation of a [types.Package].
+// It describes the API of a Go package, including the names,
+// kinds, types, and locations of all exported declarations.
 //
-// The standard Go compiler (cmd/compile) writes an export data file
-// for each package it compiles, which it later reads when compiling
-// packages that import the earlier one. The compiler must thus
-// contain logic to both write and read export data.
-// (See the "Export" section in the cmd/compile/README file.)
+// Files may be written and read using the [Write] and [Read]
+// functions.
+// Alternatively, files may be produced by the "go list -export" command.
+// This command runs the type checker on each specified Go package and
+// writes export data for each package into a file named by the Export
+// field of go list's -json output.
+// The [Read] function may then be used to read those files.
 //
-// The [Read] function in this package can read files produced by the
-// compiler, producing [go/types] data structures. As a matter of
-// policy, Read supports export data files produced by only the last
-// two Go releases plus tip; see https://go.dev/issue/68898. The
-// export data files produced by the compiler contain additional
-// details related to generics, inlining, and other optimizations that
-// cannot be decoded by the [Read] function.
+// The export data format evolves with each Go release. As a matter of
+// policy, [Read] supports reading files produced by only the last two
+// Go releases plus tip; see https://go.dev/issue/68898.
 //
-// In files written by the compiler, the export data is not at the
-// start of the file. Before calling Read, use [NewReader] to locate
-// the desired portion of the file.
-//
-// The [Write] function in this package encodes the exported API of a
-// Go package ([types.Package]) as a file. Such files can be later
-// decoded by Read, but cannot be consumed by the compiler.
-//
-// # Future changes
-//
-// Although Read supports the formats written by both Write and the
-// compiler, the two are quite different, and there is an open
-// proposal (https://go.dev/issue/69491) to separate these APIs.
-//
-// Under that proposal, this package would ultimately provide only the
-// Read operation for compiler export data, which must be defined in
-// this module (golang.org/x/tools), not in the standard library, to
-// avoid version skew for developer tools that need to read compiler
-// export data both before and after a Go release, such as from Go
-// 1.23 to Go 1.24. Because this package lives in the tools module,
-// clients can update their version of the module some time before the
-// Go 1.24 release and rebuild and redeploy their tools, which will
-// then be able to consume both Go 1.23 and Go 1.24 export data files,
-// so they will work before and after the Go update. (See discussion
-// at https://go.dev/issue/15651.)
-//
-// The operations to import and export [go/types] data structures
-// would be defined in the go/types package as Import and Export.
-// [Write] would (eventually) delegate to Export,
-// and [Read], when it detects a file produced by Export,
-// would delegate to Import.
+// The name of this package reflects its origins at a time when
+// cmd/compile was named gc, and [Read] parsed export data
+// from .a archives produced by the Go compiler.
+// However, starting with go1.28, the format of the files
+// produced by "go list -export" will diverge from the format
+// used by the standard Go compiler.
+// Consequently, this package will eventually stop being
+// capable of reading those files.
+// In the meantime, when using [Read] on a .a file written by the
+// compiler, be aware that export data is not at the start of the file.
+// Before calling Read, one must use [NewReader] to locate the export
+// data section of the file.
+// For more information on the compiler's export data, see the
+// "Export" section in the GOROOT/src/cmd/compile/README file.
 //
 // # Deprecations
 //
-// The [NewImporter] and [Find] functions are deprecated and should
-// not be used in new code. The [WriteBundle] and [ReadBundle]
-// functions are experimental, and there is an open proposal to
-// deprecate them (https://go.dev/issue/69573).
+// The [NewImporter], [Find], and [NewReader] functions are deprecated
+// and should not be used in new code.
+// The [WriteBundle] and [ReadBundle] functions are experimental, and
+// there is an open proposal to deprecate them (https://go.dev/issue/69573).
 package gcexportdata
 
 import (
@@ -104,6 +85,9 @@ func Find(importPath, srcDir string) (filename, path string) {
 // NewReader returns a reader for the export data section of an object
 // (.o) or archive (.a) file read from r.  The new reader may provide
 // additional trailing data beyond the end of the export data.
+//
+// Deprecated: This package will stop supporting the reading of export
+// data from compiler-produced archive files in Go 1.29.
 func NewReader(r io.Reader) (io.Reader, error) {
 	buf := bufio.NewReader(r)
 	size, err := gcimporter.FindExportData(buf)
@@ -176,16 +160,7 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 		case 'i':
 			// indexed, produced by cmd/compile till go1.19,
 			// and also by [Write].
-			//
-			// If proposal #69491 is accepted, go/types
-			// serialization will be implemented by
-			// types.Export, to which Write would eventually
-			// delegate (explicitly dropping any pretence at
-			// inter-version Write-Read compatibility).
-			// This [Read] function would delegate to types.Import
-			// when it detects that the file was produced by Export.
-			_, pkg, err := gcimporter.IImportData(fset, imports, data[1:], path)
-			return pkg, err
+			return gcimporter.IImportData(fset, imports, data[1:], path)
 
 		case 'u':
 			// unified, produced by cmd/compile since go1.20

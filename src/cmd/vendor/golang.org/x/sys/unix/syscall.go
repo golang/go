@@ -76,7 +76,7 @@ func BytePtrToString(p *byte) string {
 	// Find NUL terminator.
 	n := 0
 	for ptr := unsafe.Pointer(p); *(*byte)(ptr) != 0; n++ {
-		ptr = unsafe.Pointer(uintptr(ptr) + 1)
+		ptr = unsafe.Add(ptr, 1)
 	}
 
 	return string(unsafe.Slice(p, n))
