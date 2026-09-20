@@ -34,21 +34,28 @@
 //
 // # Rewriting and Idempotence
 //
-// When rewriting a declaration's doc comment, [Fill] replaces existing
-// spec-owned paragraphs with the corresponding spec documentation, while
-// preserving existing implementation notes and directives unchanged. Because
-// spec documentation is guaranteed never to begin with an implementation note
-// prefix, the rewrite operation is idempotent: running [Fill] repeatedly on
-// rewritten source produces byte-identical output.
+// When rewriting a declaration, [Fill] replaces existing spec-owned paragraphs
+// with the corresponding spec documentation (unless [Options.NoFillDoc] is set)
+// and fills unnamed parameters and results with canonical names from spec
+// (unless [Options.NoFillNames] is set), while preserving existing
+// implementation notes and directives unchanged. Because spec documentation is
+// guaranteed never to begin with an implementation note prefix, the rewrite
+// operation is idempotent: running [Fill] repeatedly on rewritten source
+// produces byte-identical output.
 package specdoc
 
 import (
+	"bytes"
+	"cmp"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
-	"simd/archsimd/_gen/specgen"
+	"slices"
 	"strings"
+
+	"simd/archsimd/_gen/specgen"
 )
 
 // Options configures the behavior of [Fill].
@@ -83,9 +90,27 @@ type Options struct {
 	// When true, name mismatches are omitted from the report.
 	AllowNameMismatches bool
 
+	// NoFillDoc disables replacing doc comments with spec-derived comments.
+	//
+	// When false, Fill updates spec-owned doc paragraphs.
+	NoFillDoc bool
+
+	// NoFillNames disables filling unnamed parameters and results with names
+	// from spec.
+	//
+	// When false, Fill fills unnamed parameters and results in exported
+	// declarations from the matching spec function.
+	NoFillNames bool
+
 	// Filename optionally provides the name of the file being processed,
 	// used for positions in report diagnostics.
 	Filename string
+}
+
+type textEdit struct {
+	start int
+	end   int
+	text  string
 }
 
 // Fill parses Go source code, extracts exported declarations, verifies their
@@ -104,6 +129,7 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 	}
 
 	var report Report
+	var edits []textEdit
 
 	for _, d := range file.Decls {
 		fd, ok := d.(*ast.FuncDecl)
@@ -163,8 +189,10 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 		declFn := &specgen.Func{Doc: doc, Recv: recv, Name: decl.Name, In: in, Out: out}
 
 		// Check comment section ordering
+		var orderErr error
 		if len(declFn.Doc) > 0 {
-			if _, orderErr := specgen.FormatComment(doc); orderErr != nil {
+			if _, err := specgen.FormatComment(doc); err != nil {
+				orderErr = err
 				report.DocOrderViolations = append(report.DocOrderViolations, DocOrderViolation{
 					D:   decl,
 					Err: orderErr,
@@ -173,7 +201,7 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 		}
 
 		// Compare function signatures
-		nameDetails, typeDetails := compareFuncs(declFn, specFn)
+		nameDetails, typeDetails := compareFuncs(declFn, specFn, opts.NoFillNames)
 		if len(nameDetails) > 0 && !opts.AllowNameMismatches {
 			report.NameMismatches = append(report.NameMismatches, NameMismatch{
 				D:       decl,
@@ -190,12 +218,40 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 				Details: typeDetails,
 			})
 		}
+
+		// Compose replacement comment and record text edits
+		if !opts.NoFillDoc && orderErr == nil {
+			if edit, ok := rewriteDoc(fset, src, fd, doc, specFn.Doc); ok {
+				edits = append(edits, edit)
+			}
+		}
+
+		// Rewrite parameter and result names
+		if !opts.NoFillNames && len(nameDetails) == 0 && len(typeDetails) == 0 {
+			if edit, ok := rewriteSignature(fset, src, fd, declFn, specFn); ok {
+				edits = append(edits, edit)
+			}
+		}
 	}
 
-	if report.Empty() {
-		return src, nil
+	var repErr error
+	if !report.Empty() {
+		repErr = &report
 	}
-	return src, &report
+
+	if len(edits) == 0 {
+		return src, repErr
+	}
+
+	rewritten := applyEdits(src, edits)
+	formatted, err := format.Source(rewritten)
+	if err != nil {
+		if repErr != nil {
+			return rewritten, repErr
+		}
+		return rewritten, fmt.Errorf("formatting source: %w", err)
+	}
+	return formatted, repErr
 }
 
 func namedArg(arg specgen.Arg) bool {
@@ -204,7 +260,7 @@ func namedArg(arg specgen.Arg) bool {
 
 // compareFuncs compares the receiver, parameters, and results of declFn against
 // specFn and returns details of any mismatches found.
-func compareFuncs(declFn, specFn *specgen.Func) (nameDetails, typeDetails []string) {
+func compareFuncs(declFn, specFn *specgen.Func, noFillNames bool) (nameDetails, typeDetails []string) {
 	if (declFn.Recv.Type != nil) != (specFn.Recv.Type != nil) {
 		// This should never happen because we look up by receiver.
 		panic("cannot compare function and method")
@@ -212,10 +268,15 @@ func compareFuncs(declFn, specFn *specgen.Func) (nameDetails, typeDetails []stri
 
 	compareArg := func(decl, spec specgen.Arg, label string, args ...any) {
 		if namedArg(spec) && decl.Name != spec.Name {
-			var buf strings.Builder
-			fmt.Fprintf(&buf, label, args...)
-			fmt.Fprintf(&buf, ": API name %q != spec name %q", decl.Name, spec.Name)
-			nameDetails = append(nameDetails, buf.String())
+			if !namedArg(decl) && !noFillNames {
+				// An unnamed parameter or result is an opportunity to fill
+				// from spec, not an error, when name filling is active.
+			} else {
+				var buf strings.Builder
+				fmt.Fprintf(&buf, label, args...)
+				fmt.Fprintf(&buf, ": API name %q != spec name %q", decl.Name, spec.Name)
+				nameDetails = append(nameDetails, buf.String())
+			}
 		}
 		if decl.Type != spec.Type {
 			var buf strings.Builder
@@ -271,4 +332,89 @@ func recvTypeName(fl *ast.FieldList) string {
 			return "<unknown>"
 		}
 	}
+}
+
+// rewriteDoc computes the textEdit to replace fd's doc comment with
+// the formatted combination of spec-owned doc paragraphs and existing
+// implementation notes and directives.
+func rewriteDoc(fset *token.FileSet, src []byte, fd *ast.FuncDecl, declDoc, specDoc []specgen.Paragraph) (textEdit, bool) {
+	newParas := append([]specgen.Paragraph(nil), specDoc...)
+	for _, p := range declDoc {
+		if p.Kind == specgen.ImplementationNote || p.Kind == specgen.DirectiveComment {
+			newParas = append(newParas, p)
+		}
+	}
+
+	replacementComment, err := specgen.FormatComment(newParas)
+	if err != nil {
+		return textEdit{}, false
+	}
+
+	if fd.Doc != nil {
+		// Replace existing doc.
+		start := fset.Position(fd.Doc.Pos()).Offset
+		end := fset.Position(fd.Doc.End()).Offset + 1 // Include final \n
+		if string(src[start:end]) != replacementComment {
+			return textEdit{start: start, end: end, text: replacementComment}, true
+		}
+	} else if replacementComment != "" {
+		// Pure insertion.
+		start := fset.Position(fd.Pos()).Offset
+		return textEdit{start: start, end: start, text: replacementComment}, true
+	}
+
+	return textEdit{}, false
+}
+
+// rewriteSignature computes the textEdit to fill unnamed parameter and result
+// names in fd.
+func rewriteSignature(fset *token.FileSet, src []byte, fd *ast.FuncDecl, declFn, specFn *specgen.Func) (textEdit, bool) {
+	// Create a synthetic specgen.Func with merged arguments.
+	mergedFn := &specgen.Func{
+		Recv: declFn.Recv,
+		Name: declFn.Name,
+		In:   mergeArgs(declFn.In, specFn.In),
+		Out:  mergeArgs(declFn.Out, specFn.Out),
+	}
+	newSig := mergedFn.Signature()
+	start := fset.Position(fd.Pos()).Offset
+	end := fset.Position(fd.Type.End()).Offset
+	if string(src[start:end]) != newSig {
+		return textEdit{start: start, end: end, text: newSig}, true
+	}
+	return textEdit{}, false
+}
+
+func mergeArgs(declArgs, specArgs []specgen.Arg) []specgen.Arg {
+	merged := slices.Clone(declArgs)
+	// Fill any unnamed arguments from spec
+	for i := range merged {
+		if namedArg(specArgs[i]) && !namedArg(merged[i]) {
+			merged[i].Name = specArgs[i].Name
+		}
+	}
+	return merged
+}
+
+// applyEdits applies text edits to src in ascending offset order and returns
+// the modified byte slice.
+func applyEdits(src []byte, edits []textEdit) []byte {
+	if len(edits) == 0 {
+		return src
+	}
+
+	// Apply edits in ascending offset order
+	slices.SortFunc(edits, func(a, b textEdit) int {
+		return cmp.Compare(a.start, b.start)
+	})
+
+	var out bytes.Buffer
+	last := 0
+	for _, e := range edits {
+		out.Write(src[last:e.start])
+		out.WriteString(e.text)
+		last = e.end
+	}
+	out.Write(src[last:])
+	return out.Bytes()
 }

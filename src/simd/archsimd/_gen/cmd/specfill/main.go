@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/specdoc"
@@ -21,6 +22,8 @@ import (
 
 func main() {
 	genOpts := gentools.RegisterFlags(nil)
+	noFillDoc := flag.Bool("no-fill-doc", false, "disable filling doc comments from spec")
+	noFillNames := flag.Bool("no-fill-names", false, "disable filling parameter and result names from spec")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -47,6 +50,9 @@ func main() {
 		filepath.Join(genOpts.GOROOT, "src/simd/archsimd"),
 	}
 
+	var files gentools.Files
+	defer files.FlushOrExit()
+
 	var combinedReport specdoc.Report
 
 	for _, dir := range dirs {
@@ -64,6 +70,10 @@ func main() {
 			if err != nil {
 				relPath = filePath
 			}
+			srcRelPath, err := filepath.Rel(filepath.Join(genOpts.GOROOT, "src"), filePath)
+			if err != nil {
+				srcRelPath = strings.TrimPrefix(filepath.ToSlash(relPath), "src/")
+			}
 			src, err := os.ReadFile(filePath)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "reading %s: %v\n", filePath, err)
@@ -77,9 +87,11 @@ func main() {
 			if gen {
 				continue
 			}
-			_, err = specdoc.Fill(src, specIdx, specdoc.Options{
+			rewritten, err := specdoc.Fill(src, specIdx, specdoc.Options{
 				Filename:        filepath.ToSlash(relPath),
 				AllowDocRewrite: true,
+				NoFillDoc:       *noFillDoc,
+				NoFillNames:     *noFillNames,
 			})
 			var rep *specdoc.Report
 			if errors.As(err, &rep) {
@@ -88,10 +100,56 @@ func main() {
 				fmt.Fprintf(os.Stderr, "checking %s: %v\n", filePath, err)
 				os.Exit(1)
 			}
+			if rewritten != nil && !bytes.Equal(src, rewritten) {
+				buf := files.NewGoFile(filepath.ToSlash(srcRelPath))
+				buf.Write(rewritten)
+			}
 		}
 	}
 
 	combinedReport.Print(os.Stderr)
+
+	if genOpts.Write {
+		if err := checkCleanWorkingCopy(genOpts.GOROOT); err != nil {
+			fmt.Fprintf(os.Stderr, "refusing to write: %v\n", err)
+			os.Exit(1)
+		}
+		if !combinedReport.Empty() {
+			fmt.Fprintln(os.Stderr, "errors reported; not writing files")
+			os.Exit(1)
+		}
+	}
+}
+
+// checkCleanWorkingCopy verifies that the working directory has no uncommitted
+// changes before specfill rewrites files in place (-w).
+//
+// We rely on "git status --porcelain" rather than invoking "jj" commands directly.
+// In a standard Git repository or a colocated jj/git repository, "git status"
+// checks disk cleanliness without side-effects.
+//
+// # Interoperation with colocated jj repos
+//
+// Jujutsu keeps Git's HEAD and index in sync with the parent of the working-copy
+// commit (@-). If the user starts from a fresh, empty commit (e.g. via "jj new"),
+// the working copy matches Git's HEAD and git status reports clean. If there are
+// modified or untracked files on disk (or if @ contains changes), git status
+// reports them as uncommitted changes. By querying git rather than running "jj"
+// commands (like "jj diff" or "jj status"), we avoid jj's snapshotting side-effects,
+// such as automatically snapshotting dirty files into @, writing to the operation
+// log, and auto-tracking newly created files.
+func checkCleanWorkingCopy(dir string) error {
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		// Not a git repository or git binary not available; skip the check.
+		return nil
+	}
+	if len(bytes.TrimSpace(out)) > 0 {
+		return fmt.Errorf("working copy has uncommitted changes:\n%s", out)
+	}
+	return nil
 }
 
 // isGenerated reports whether src is a generated Go file.
