@@ -172,12 +172,14 @@ func declOf(fd *ast.FuncDecl, pkg, file, gen string) *decl {
 	d.in = fields(fd.Type.Params)
 	d.out = fields(fd.Type.Results)
 	if fd.Doc != nil {
-		d.doc = strings.TrimRight(fd.Doc.Text(), "\n")
+		var lines []string
 		for _, c := range fd.Doc.List {
+			lines = append(lines, c.Text)
 			if strings.TrimSpace(c.Text) == "//" {
 				d.hasSep = true
 			}
 		}
+		d.doc = strings.Join(lines, "\n")
 	}
 	return d
 }

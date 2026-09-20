@@ -16,8 +16,8 @@ import (
 type Func struct {
 	Name string
 
-	// Doc is the function documentation, without any leading comment markers
-	Doc string
+	// Doc is the function documentation, split into classified paragraphs.
+	Doc []Paragraph
 
 	// Commutative indicates that this operation produces the same result
 	// regardless of the order of its arguments in Recv and In.
@@ -87,11 +87,11 @@ func (f *Func) Signature() string {
 
 func (f *Func) Decl() string {
 	var buf strings.Builder
-	if f.Doc != "" {
-		for line := range strings.SplitSeq(strings.TrimRight(f.Doc, "\n"), "\n") {
-			fmt.Fprintf(&buf, "// %s\n", line)
-		}
+	comment, err := FormatComment(f.Doc)
+	if err != nil {
+		panic(err)
 	}
+	buf.WriteString(comment)
 	buf.WriteString(f.Signature())
 	return buf.String()
 }

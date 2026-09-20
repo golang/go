@@ -39,7 +39,7 @@ type specFunc struct {
 	Name         string       // Source name
 	NameTmpl     specTemplate // API name template from `//specgen:name` directive, or same as Name.
 	Pos          token.Pos
-	Doc          specTemplate
+	Doc          specTemplate // Comment markers removed; \n-terminated unless ""
 	Category     string
 	Commutative  bool
 	Sig          *types.Signature

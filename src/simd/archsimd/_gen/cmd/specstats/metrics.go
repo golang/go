@@ -314,9 +314,13 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 	// a prefix test, because Fill leaves the generator's notes below what it
 	// injects. Prose that disagrees instead is a conflict for doc-triage; a missing
 	// doc is not, since Fill would simply add one.
-	documented := filter(overlap, func(f fact) bool { return m.spec[f.methodKey()].Doc != "" })
+	documented := filter(overlap, func(f fact) bool { return len(m.spec[f.methodKey()].Doc) > 0 })
 	saysSpec := func(f fact) bool {
-		return strings.HasPrefix(f.doc, strings.TrimRight(m.spec[f.methodKey()].Doc, "\n"))
+		specDoc, err := specgen.FormatComment(m.spec[f.methodKey()].Doc)
+		if err != nil {
+			return false
+		}
+		return strings.HasPrefix(f.doc, strings.TrimRight(specDoc, "\n"))
 	}
 	m.fromSpec = tallyBy(documented, fact.declKey, saysSpec)
 	handConflicts := filter(documented, func(f fact) bool {
