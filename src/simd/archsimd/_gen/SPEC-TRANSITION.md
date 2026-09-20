@@ -457,7 +457,7 @@ wherever its prerequisites and track allow.
 | [ ] | A | `convert-lo` | `ExtendLo*`/`ConvertLo*` shape and naming | — | `width` |
 | [ ] | A | `mask-bits` | Mask bitmap load/store shape and naming | — | `width` |
 | [ ] | A | `impl-defined` | Implementation-defined behavior policy | — | — |
-| [ ] | B | `specfill` | API walker + report mode | — | — |
+| [x] | B | `specfill` | API walker + report mode | — | — |
 | [ ] | B | `fill-gen` | Wire `specfill` into the generators | `specfill` | — |
 | [ ] | B | `named-results` | Reconcile parameter and result names with spec | `fill-gen` | — |
 | [ ] | B | `gen-docs` | Inject spec docs into generated output | `fill-gen` | `named-results` |
@@ -737,7 +737,7 @@ Build `specfill`, then make it authoritative. Independent of tracks C, D and F;
 `gen-docs` gates three of track E.
 
 ### `specfill` — API walker + report mode
-**Done:** [ ] · **Needs:** — · **Blocks:** `fill-gen`, `doc-triage`
+**Done:** [x] · **Needs:** — · **Blocks:** `fill-gen`, `doc-triage`
 
 The instrument the rest of the plan reads from.
 
