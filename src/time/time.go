@@ -114,7 +114,7 @@ import (
 // As this time is unlikely to come up in practice, the [Time.IsZero] method gives
 // a simple way of detecting a time that has not been initialized explicitly.
 //
-// Each time has an associated [Location]. The methods [Time.Local], [Time.UTC], and Time.In return a
+// Each time has an associated [Location]. The methods [Time.Local], [Time.UTC], and [Time.In] return a
 // Time with a specific Location. Changing the Location of a Time value with
 // these methods does not change the actual instant it represents, only the time
 // zone in which to interpret it.
