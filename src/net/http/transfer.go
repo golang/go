@@ -550,7 +550,7 @@ func readTransfer(msg any, r *bufio.Reader, maxTrailerHeaders int64) (err error)
 	}
 
 	// Trailer
-	t.Trailer, err = fixTrailer(t.Header, t.Chunked)
+	t.Trailer, err = fixTrailer(t.Header, t.Chunked, maxTrailerHeaders)
 	if err != nil {
 		return err
 	}
@@ -772,7 +772,7 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 }
 
 // Parse the trailer header.
-func fixTrailer(header Header, chunked bool) (Header, error) {
+func fixTrailer(header Header, chunked bool, maxHeaders int64) (Header, error) {
 	vv, ok := header["Trailer"]
 	if !ok {
 		return nil, nil
@@ -788,6 +788,12 @@ func fixTrailer(header Header, chunked bool) (Header, error) {
 		return nil, nil
 	}
 	header.Del("Trailer")
+	for _, v := range vv {
+		maxHeaders -= int64(strings.Count(v, ",") + 1)
+		if maxHeaders < 0 {
+			return nil, errTooLarge
+		}
+	}
 
 	trailer := make(Header)
 	var err error

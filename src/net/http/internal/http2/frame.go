@@ -1723,9 +1723,13 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 	mh := &MetaHeadersFrame{
 		HeadersFrame: hf,
 	}
-	var remainSize = fr.maxHeaderListSize()
+	type headerBudget struct {
+		remainSize uint32
+		count      int
+	}
+	headers := headerBudget{remainSize: fr.maxHeaderListSize()}
+	trailers := headerBudget{remainSize: fr.maxHeaderListSize()}
 	var sawRegular bool
-	var headerCount int
 
 	var invalid error // pseudo header field errors
 	hdec := fr.ReadMetaHeaders
@@ -1734,13 +1738,6 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 	hdec.SetEmitFunc(func(hf hpack.HeaderField) {
 		if VerboseLogs && fr.logReads {
 			fr.debugReadLoggerf("http2: decoded hpack field %+v", hf)
-		}
-		headerCount++
-		if limit := fr.maxHeaderValueCount(); limit > 0 && headerCount > limit {
-			hdec.SetEmitEnabled(false)
-			mh.Truncated = true
-			remainSize = 0
-			return
 		}
 		if !httpguts.ValidHeaderFieldValue(hf.Value) {
 			// Don't include the value in the error, because it may be sensitive.
@@ -1763,14 +1760,31 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 			return
 		}
 
-		size := hf.Size()
-		if size > remainSize {
+		var budget *headerBudget
+		var size uint32
+		if hf.Name == "trailer" {
+			budget = &trailers
+			fieldCount := strings.Count(hf.Value, ",") + 1
+			budget.count += fieldCount
+			// Rather than actually constructing hpack.HeaderField for each
+			// trailer field and cumulatively adding its Size, just do the math
+			// manually to avoid unnecessary work. This does make it so
+			// whitespaces after comma are counted against the budget, but that
+			// should be innocuous.
+			size = uint32(len(hf.Value)-fieldCount+1) + uint32(fieldCount)*hpack.HeaderField{}.Size()
+		} else {
+			budget = &headers
+			budget.count++
+			size = hf.Size()
+		}
+		if countLimit := fr.maxHeaderValueCount(); (countLimit > 0 && budget.count > countLimit) || size > budget.remainSize {
 			hdec.SetEmitEnabled(false)
 			mh.Truncated = true
-			remainSize = 0
+			headers.remainSize = 0
+			trailers.remainSize = 0
 			return
 		}
-		remainSize -= size
+		budget.remainSize -= size
 
 		mh.Fields = append(mh.Fields, hf)
 	})
@@ -1786,10 +1800,10 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 		// skip parsing the fragment and close the connection.
 		//
 		// "Too much" is either any CONTINUATION frame after we've already
-		// exceeded the max header list size (in which case remainSize is 0),
-		// or a frame whose encoded size is more than twice the remaining
-		// header list bytes we're willing to accept.
-		if int64(len(frag)) > int64(2*remainSize) {
+		// exceeded the max header list size (if so, both budgets are 0), or a
+		// frame whose encoded size is more than twice the remaining header
+		// list bytes we're willing to accept.
+		if int64(len(frag)) > 2*int64(headers.remainSize+trailers.remainSize) {
 			if VerboseLogs {
 				log.Printf("http2: header list too large")
 			}
