@@ -9,29 +9,21 @@ import (
 	"syscall"
 )
 
-func hostname() (name string, err error) {
-	// Try uname first, as it's only one system call and reading
-	// from /proc is not allowed on Android.
+func hostname() (string, error) {
+	// Try uname first, as it's only one system call.
 	var un syscall.Utsname
-	err = syscall.Uname(&un)
+	if err := syscall.Uname(&un); err == nil && un.Nodename[0] != 0 {
+		var buf [len(un.Nodename)]byte
+		for i, b := range un.Nodename[:] {
+			buf[i] = byte(b) // b is signed on some platforms
+			if b == 0 {
+				return string(buf[:i]), nil
+			}
+		}
+	}
 
-	var buf [512]byte // Enough for a DNS name.
-	for i, b := range un.Nodename[:] {
-		buf[i] = uint8(b)
-		if b == 0 {
-			name = string(buf[:i])
-			break
-		}
-	}
-	// If we got a name and it's not potentially truncated
-	// (Nodename is 65 bytes), return it.
-	if err == nil && len(name) > 0 && len(name) < 64 {
-		return name, nil
-	}
+	// Fall back to /proc, except on Android where that is not allowed.
 	if runtime.GOOS == "android" {
-		if name != "" {
-			return name, nil
-		}
 		return "localhost", nil
 	}
 
@@ -41,6 +33,7 @@ func hostname() (name string, err error) {
 	}
 	defer f.Close()
 
+	var buf [512]byte // Enough for a DNS name.
 	n, err := f.Read(buf[:])
 	if err != nil {
 		return "", err
