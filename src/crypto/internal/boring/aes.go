@@ -77,7 +77,7 @@ type extraModes interface {
 
 var _ extraModes = (*aesCipher)(nil)
 
-func NewAESCipher(key []byte) (cipher.Block, error) {
+func NewAESCipher(key []byte) (Block, error) {
 	c := &aesCipher{key: bytes.Clone(key)}
 	// Note: 0 is success, contradicting the usual BoringCrypto convention.
 	if C._goboringcrypto_AES_set_decrypt_key((*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.uint(8*len(c.key)), &c.dec) != 0 ||
@@ -237,15 +237,15 @@ const (
 	VersionTLS13 = 0x0304
 )
 
-func NewGCMTLS(c cipher.Block) (cipher.AEAD, error) {
+func NewGCMTLS(c Block) (AEAD, error) {
 	return c.(*aesCipher).newGCM(VersionTLS12)
 }
 
-func NewGCMTLS13(c cipher.Block) (cipher.AEAD, error) {
+func NewGCMTLS13(c Block) (AEAD, error) {
 	return c.(*aesCipher).newGCM(VersionTLS13)
 }
 
-func (c *aesCipher) newGCM(tlsVersion uint16) (cipher.AEAD, error) {
+func (c *aesCipher) newGCM(tlsVersion uint16) (AEAD, error) {
 	var aead *C.GO_EVP_AEAD
 	switch len(c.key) * 8 {
 	case 128:
