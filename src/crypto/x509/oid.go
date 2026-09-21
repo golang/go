@@ -27,7 +27,8 @@ type OID struct {
 // ParseOID parses a Object Identifier string, represented by ASCII numbers separated by dots.
 func ParseOID(oid string) (OID, error) {
 	var o OID
-	return o, o.unmarshalOIDText(oid)
+	err := o.unmarshalOIDText(oid)
+	return o, err
 }
 
 func newOIDFromDER(der []byte) (OID, bool) {
