@@ -25,6 +25,7 @@ func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
 		//           moment we don't have the (go/constant) API for that.
 		//           See also TODO in go/constant/value.go.
 		check.error(atPos(opPos), InvalidConstVal, "constant result is not representable")
+		x.invalidate() // go.dev/issue/81628
 		return
 	}
 
@@ -45,7 +46,7 @@ func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
 			op += " "
 		}
 		check.errorf(atPos(opPos), InvalidConstVal, "constant %soverflow", op)
-		x.val = constant.MakeUnknown()
+		x.invalidate() // go.dev/issue/81628
 		return
 	}
 
@@ -55,7 +56,7 @@ func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
 		len := constant.StringLen(x.val)
 		if len > maxLen {
 			check.errorf(atPos(opPos), InvalidConstVal, "constant string too long (%d bytes > %d bytes)", len, maxLen)
-			x.val = constant.MakeUnknown()
+			x.invalidate() // go.dev/issue/81628
 			return
 		}
 	}
@@ -74,6 +75,10 @@ func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
 // (indirectly) through an exported API call (AssignableTo, ConvertibleTo)
 // because we don't need the Checker's config for those calls.
 func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *constant.Value) bool {
+	if !isConstType(typ) {
+		return false
+	}
+
 	if x.Kind() == constant.Unknown {
 		return true // avoid follow-up errors
 	}
