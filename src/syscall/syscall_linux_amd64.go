@@ -4,6 +4,8 @@
 
 package syscall
 
+import _ "unsafe" // for linkname
+
 const (
 	_SYS_setgroups  = SYS_SETGROUPS
 	_SYS_clone3     = 435
@@ -71,7 +73,10 @@ func Lstat(path string, stat *Stat_t) (err error) {
 
 //sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
 
+// Accessed via assembly in x/sys/unix.
+//
 //go:noescape
+//go:linkname gettimeofday
 func gettimeofday(tv *Timeval) (err Errno)
 
 func Gettimeofday(tv *Timeval) (err error) {

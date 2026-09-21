@@ -8,4 +8,6 @@
 
 package doc
 
-func doPkgsite(string, string) error { return nil }
+import "context"
+
+func doPkgsite(context.Context, string, string) error { return nil }

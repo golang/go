@@ -18,7 +18,7 @@
 
 # Difficult boundary cases, derived from tables given in
 #	Vern Paxson, A Program for Testing IEEE Decimal-Binary Conversion
-#	ftp://ftp.ee.lbl.gov/testbase-report.ps.Z
+#	https://www.icir.org/vern/papers/testbase-report.pdf
 
 # Table 1: Stress Inputs for Conversion to 53-bit Binary, < 1/2 ULP
 float64 %b 5e+125 6653062250012735p+365

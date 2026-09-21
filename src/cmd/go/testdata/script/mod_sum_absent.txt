@@ -1,0 +1,17 @@
+# When the sumdb returns a response which does not
+# include a sum for the requested module,
+# we should report an error.
+# Verifies CVE-2026-42501.
+env sumdb=$GOSUMDB
+env proxy=$GOPROXY
+env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
+
+# /sumdb-redirect/ causes the sumdb to return /lookup/ responses
+# for rsc.io/quote@v1.0.0, not for the requested module.
+env GOSUMDB=$sumdb' '$proxy/sumdb-redirect/rsc.io/quote@v1.0.0:
+
+! go get rsc.io/fortune@v1.0.0
+stderr 'SECURITY ERROR'
+! grep rsc.io go.sum
+-- go.mod --
+module m

@@ -392,7 +392,7 @@ func machoUpdateDwarfHeader(r *imacho.LoadCmdUpdater, compressedSects []*macho.S
 	return machoUpdateSections(*r, &seg, uint64(dwarfstart)-realdwarf.Offset, compressedSects)
 }
 
-func machoUpdateLoadCommand(r imacho.LoadCmdUpdater, linkseg *macho.Segment, linkoffset uint64, cmd interface{}, fields ...string) error {
+func machoUpdateLoadCommand(r imacho.LoadCmdUpdater, linkseg *macho.Segment, linkoffset uint64, cmd any, fields ...string) error {
 	if err := r.ReadAt(0, cmd); err != nil {
 		return err
 	}

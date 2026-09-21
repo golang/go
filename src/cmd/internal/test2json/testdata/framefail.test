@@ -1,0 +1,8 @@
+=== RUN   TestAscii
+foo
+    one line
+bar
+    two
+    lines
+baz    same line
+--- FAIL: TestAscii

@@ -4,7 +4,7 @@
 
 // Package version provides operations on [Go versions]
 // in [Go toolchain name syntax]: strings like
-// "go1.20", "go1.21.0", "go1.22rc2", and "go1.23.4-bigcorp".
+// "go1.20", "go1.21.0", "go1.22rc2", and "go1.23.4-custom".
 //
 // [Go versions]: https://go.dev/doc/toolchain#version
 // [Go toolchain name syntax]: https://go.dev/doc/toolchain#name
@@ -15,10 +15,10 @@ import (
 	"strings"
 )
 
-// stripGo converts from a "go1.21-bigcorp" version to a "1.21" version.
+// stripGo converts from a "go1.21-custom" version to a "1.21" version.
 // If v does not start with "go", stripGo returns the empty string (a known invalid version).
 func stripGo(v string) string {
-	v, _, _ = strings.Cut(v, "-") // strip -bigcorp suffix.
+	v, _, _ = strings.Cut(v, "-") // strip -custom suffix.
 	if len(v) < 2 || v[:2] != "go" {
 		return ""
 	}

@@ -84,6 +84,12 @@ func sniff(r reader) format {
 // The string returned is the format name used during format registration.
 // Format registration is typically done by an init function in the codec-
 // specific package.
+//
+// Decoding may allocate memory proportional to the width and height in the
+// image header before all pixel data is consumed or validated. When
+// decoding untrusted input, call [DecodeConfig] first to inspect dimensions
+// and reject images that would exceed resource limits; see the "Security
+// Considerations" section in the [image] package documentation.
 func Decode(r io.Reader) (Image, string, error) {
 	rr := asReader(r)
 	f := sniff(rr)
@@ -98,6 +104,9 @@ func Decode(r io.Reader) (Image, string, error) {
 // been encoded in a registered format. The string returned is the format name
 // used during format registration. Format registration is typically done by
 // an init function in the codec-specific package.
+//
+// DecodeConfig reads only format headers and does not allocate a full-size
+// pixel buffer, so it can be used to check dimensions before calling [Decode].
 func DecodeConfig(r io.Reader) (Config, string, error) {
 	rr := asReader(r)
 	f := sniff(rr)

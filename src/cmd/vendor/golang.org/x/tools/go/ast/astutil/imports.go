@@ -149,7 +149,7 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, path string) (added 
 	if newImport.Name != nil {
 		newImport.Name.NamePos = pos
 	}
-	newImport.Path.ValuePos = pos
+	updateBasicLitPos(newImport.Path, pos)
 	newImport.EndPos = pos
 
 	// Clean up parens. impDecl contains at least one spec.
@@ -184,7 +184,7 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, path string) (added 
 		first.Lparen = first.Pos()
 		// Move the imports of the other import declaration to the first one.
 		for _, spec := range gen.Specs {
-			spec.(*ast.ImportSpec).Path.ValuePos = first.Pos()
+			updateBasicLitPos(spec.(*ast.ImportSpec).Path, first.Pos())
 			first.Specs = append(first.Specs, spec)
 		}
 		f.Decls = slices.Delete(f.Decls, i, i+1)
@@ -469,4 +469,13 @@ func Imports(fset *token.FileSet, f *ast.File) [][]*ast.ImportSpec {
 	}
 
 	return groups
+}
+
+// updateBasicLitPos updates lit.Pos,
+// ensuring that lit.End is displaced by the same amount.
+// (See https://go.dev/issue/76395.)
+func updateBasicLitPos(lit *ast.BasicLit, pos token.Pos) {
+	len := lit.End() - lit.Pos()
+	lit.ValuePos = pos
+	lit.ValueEnd = pos + len
 }

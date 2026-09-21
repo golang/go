@@ -24,11 +24,12 @@
 // child and its children until the parent is canceled. The go vet tool
 // checks that CancelFuncs are used on all control-flow paths.
 //
-// The [WithCancelCause], [WithDeadlineCause], and [WithTimeoutCause] functions
-// return a [CancelCauseFunc], which takes an error and records it as
-// the cancellation cause. Calling [Cause] on the canceled context
-// or any of its children retrieves the cause. If no cause is specified,
-// Cause(ctx) returns the same value as ctx.Err().
+// The [WithCancelCause] function returns a [CancelCauseFunc], which takes
+// an error and records it as the cancellation cause. [WithDeadlineCause]
+// and [WithTimeoutCause] take a cause to use when the deadline expires.
+// Calling [Cause] on the canceled context or any of its children retrieves
+// the cause. If no cause is specified, Cause(ctx) returns the same value
+// as ctx.Err().
 //
 // Programs that use Contexts should follow these rules to keep interfaces
 // consistent across packages and enable static analysis tools to check context
@@ -286,6 +287,10 @@ func withCancel(parent Context) *cancelCtx {
 // Otherwise Cause(c) returns the same value as c.Err().
 // Cause returns nil if c has not been canceled yet.
 func Cause(c Context) error {
+	err := c.Err()
+	if err == nil {
+		return nil
+	}
 	if cc, ok := c.Value(&cancelCtxKey).(*cancelCtx); ok {
 		cc.mu.Lock()
 		cause := cc.cause
@@ -293,16 +298,12 @@ func Cause(c Context) error {
 		if cause != nil {
 			return cause
 		}
-		// Either this context is not canceled,
-		// or it is canceled and the cancellation happened in a
-		// custom context implementation rather than a *cancelCtx.
+		// The parent cancelCtx doesn't have a cause,
+		// so c must have been canceled in some custom context implementation.
 	}
-	// There is no cancelCtxKey value with a cause, so we know that c is
-	// not a descendant of some canceled Context created by WithCancelCause.
-	// Therefore, there is no specific cause to return.
-	// If this is not one of the standard Context types,
-	// it might still have an error even though it won't have a cause.
-	return c.Err()
+	// We don't have a cause to return from a parent cancelCtx,
+	// so return the context's error.
+	return err
 }
 
 // AfterFunc arranges to call f in its own goroutine after ctx is canceled.
@@ -464,7 +465,11 @@ func (c *cancelCtx) Err() error {
 	// An atomic load is ~5x faster than a mutex, which can matter in tight loops.
 	if err := c.err.Load(); err != nil {
 		// Ensure the done channel has been closed before returning a non-nil error.
-		<-c.Done()
+		// closedchan is closed at init and shared by every canceled context, so
+		// receiving from it would take one process-global lock for nothing.
+		if done := c.Done(); done != closedchan {
+			<-done
+		}
 		return err.(error)
 	}
 	return nil

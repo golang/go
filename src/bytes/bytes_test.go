@@ -323,10 +323,6 @@ func TestIndexByte(t *testing.T) {
 		if pos != tt.i {
 			t.Errorf(`IndexByte(%q, '%c') = %v`, tt.a, b, pos)
 		}
-		posp := IndexBytePortable(a, b)
-		if posp != tt.i {
-			t.Errorf(`indexBytePortable(%q, '%c') = %v`, tt.a, b, posp)
-		}
 	}
 }
 
@@ -617,8 +613,18 @@ func BenchmarkIndexByte(b *testing.B) {
 	benchBytes(b, indexSizes, bmIndexByte(IndexByte))
 }
 
+// indexBytePortable use as the baseline for performance comparisons.
+func indexBytePortable(s []byte, c byte) int {
+	for i, b := range s {
+		if b == c {
+			return i
+		}
+	}
+	return -1
+}
+
 func BenchmarkIndexBytePortable(b *testing.B) {
-	benchBytes(b, indexSizes, bmIndexByte(IndexBytePortable))
+	benchBytes(b, indexSizes, bmIndexByte(indexBytePortable))
 }
 
 func bmIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {
@@ -756,7 +762,7 @@ func BenchmarkEqual(b *testing.B) {
 		}
 	})
 
-	sizes := []int{1, 6, 9, 15, 16, 20, 32, 4 << 10, 4 << 20, 64 << 20}
+	sizes := []int{1, 6, 9, 15, 16, 20, 32, 65, 96, 100, 127, 4 << 10, 4 << 20, 64 << 20}
 
 	b.Run("same", func(b *testing.B) {
 		benchBytes(b, sizes, bmEqual(func(a, b []byte) bool { return Equal(a, a) }))
@@ -961,7 +967,7 @@ func TestSplit(t *testing.T) {
 		if tt.n < 0 {
 			b := sliceOfString(Split([]byte(tt.s), []byte(tt.sep)))
 			if !slices.Equal(result, b) {
-				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+				t.Errorf("Split disagrees with SplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
 		if len(a) > 0 {
@@ -1023,7 +1029,7 @@ func TestSplitAfter(t *testing.T) {
 		if tt.n < 0 {
 			b := sliceOfString(SplitAfter([]byte(tt.s), []byte(tt.sep)))
 			if !slices.Equal(result, b) {
-				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+				t.Errorf("SplitAfter disagrees with SplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
 	}
@@ -1224,7 +1230,7 @@ func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
 
-	// 1.  Grow. This triggers two reallocations in Map.
+	// 1. Grow. This triggers two reallocations in Map.
 	maxRune := func(r rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, []byte(a))
 	expect := tenRunes(unicode.MaxRune)
@@ -1966,6 +1972,27 @@ func TestCut(t *testing.T) {
 	for _, tt := range cutTests {
 		if before, after, found := Cut([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || string(after) != tt.after || found != tt.found {
 			t.Errorf("Cut(%q, %q) = %q, %q, %v, want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
+		}
+	}
+}
+
+func TestCutLast(t *testing.T) {
+	tests := []struct {
+		s, sep        string
+		before, after string
+		found         bool
+	}{
+		{"a/b/c", "/", "a/b", "c", true},
+		{"a//b//c", "//", "a//b", "c", true},
+		{"abc", "/", "abc", "", false},
+		{"abc", "", "abc", "", true},
+		{"", "", "", "", true},
+		{"/abc", "/", "", "abc", true},
+		{"abc/", "/", "abc", "", true},
+	}
+	for _, tt := range tests {
+		if before, after, found := CutLast([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || string(after) != tt.after || found != tt.found {
+			t.Errorf("CutLast(%q, %q) = %q, %q, %v; want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
 		}
 	}
 }

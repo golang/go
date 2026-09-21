@@ -28,6 +28,9 @@ var AllowedInternalPackages = map[string]bool{
 
 	// randutil.MaybeReadByte is used in non-FIPS mode by GenerateKey functions.
 	"crypto/internal/randutil": true,
+
+	// constanttime are the constant-time intrinsics.
+	"crypto/internal/constanttime": true,
 }
 
 func TestImports(t *testing.T) {
@@ -41,7 +44,7 @@ func TestImports(t *testing.T) {
 {{range .XTestImports -}}
 {{$path}} {{.}}
 {{end -}}`, "crypto/internal/fips140/...")
-	bout, err := cmd.CombinedOutput()
+	bout, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list: %v\n%s", err, bout)
 	}

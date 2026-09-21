@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/runtime/sys"
 	"internal/runtime/syscall/windows"
 	"unsafe"
 )
@@ -131,6 +132,13 @@ func sigtrampgo(ep *windows.ExceptionPointers, kind int) int32 {
 	gp := sigFetchG()
 	if gp == nil {
 		return windows.EXCEPTION_CONTINUE_SEARCH
+	}
+
+	// Windows delivers exceptions on the faulting goroutine's own stack. If the
+	// OS wrote past the bottom of that stack, the neighboring goroutine's stack
+	// is already corrupted, so crash now instead of running on bad memory.
+	if gp != gp.m.g0 && gp.stack.lo != 0 && sys.GetCallerSP() < gp.stack.lo {
+		throw("exception dispatched below goroutine stack bottom")
 	}
 
 	var fn func(info *windows.ExceptionRecord, r *windows.Context, gp *g) int32

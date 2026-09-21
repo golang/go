@@ -6,9 +6,9 @@
 
 package time
 
-import "time"
-
-var start = time.Now()
+import (
+	_ "unsafe"
+)
 
 // HighPrecisionNow returns a high-resolution timestamp suitable for measuring
 // small time differences. It uses the time package's monotonic clock.
@@ -17,5 +17,8 @@ var start = time.Now()
 // assumed to be sufficiently precise to measure time differences on the order
 // of tens to hundreds of nanoseconds.
 func HighPrecisionNow() int64 {
-	return int64(time.Since(start))
+	return monoTime()
 }
+
+//go:linkname monoTime
+func monoTime() int64

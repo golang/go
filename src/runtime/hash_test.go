@@ -20,8 +20,19 @@ import (
 	"unsafe"
 )
 
+// Test that unalgined access to memhash32 doesn't cause a problem.
+func TestMemHash32AlignAccess(t *testing.T) {
+	type Key struct {
+		_ [1]byte
+		k [4]byte
+		_ [3]byte
+	}
+	key := Key{}
+	sink = (uint64)(MemHash32(unsafe.Pointer(&key.k), 0))
+}
+
 func TestMemHash32Equality(t *testing.T) {
-	if *UseAeshash {
+	if *MinAeshashSize <= 4 {
 		t.Skip("skipping since AES hash implementation is used")
 	}
 	var b [4]byte
@@ -37,8 +48,19 @@ func TestMemHash32Equality(t *testing.T) {
 	}
 }
 
+// Test that unalgined access to memhash64 doesn't cause a problem.
+func TestMemHash64AlignAccess(t *testing.T) {
+	type Key struct {
+		_ [1]byte
+		k [8]byte
+		_ [7]byte
+	}
+	key := Key{}
+	sink = (uint64)(MemHash64(unsafe.Pointer(&key.k), 0))
+}
+
 func TestMemHash64Equality(t *testing.T) {
-	if *UseAeshash {
+	if *MinAeshashSize <= 8 {
 		t.Skip("skipping since AES hash implementation is used")
 	}
 	var b [8]byte
@@ -636,7 +658,7 @@ func TestSmhasherSeed(t *testing.T) {
 }
 
 func TestIssue66841(t *testing.T) {
-	if *UseAeshash && os.Getenv("TEST_ISSUE_66841") == "" {
+	if AeshashEnabled() && os.Getenv("TEST_ISSUE_66841") == "" {
 		// We want to test the backup hash, so if we're running on a machine
 		// that uses aeshash, exec ourselves while turning aes off.
 		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestIssue66841$"))

@@ -148,7 +148,7 @@ func Atoi(s string) (int, error) {
 	if err != nil {
 		return x, toError("Atoi", s, 0, 0, err)
 	}
-	return strconv.Atoi(s)
+	return x, nil
 }
 
 // FormatComplex converts the complex number c to a string of the

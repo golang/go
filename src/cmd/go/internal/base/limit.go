@@ -63,6 +63,12 @@ func AcquireNet() (release func(), err error) {
 			<-netLimitSem
 		}
 		cleanup.Stop()
+
+		// checker may be dead at the moment after we last access
+		// it in this function, so the cleanup can fire before Stop
+		// completes. Keep checker alive while we call Stop. See
+		// the documentation for runtime.Cleanup.Stop.
+		runtime.KeepAlive(checker)
 	}, nil
 }
 

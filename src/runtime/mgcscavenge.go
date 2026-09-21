@@ -1135,7 +1135,7 @@ func (s *scavengeIndex) alloc(ci chunkIdx, npages uint) {
 	// TODO(mknyszek): Consider eagerly backing memory with huge pages
 	// here and track whether we believe this chunk is backed by huge pages.
 	// In the past we've attempted to use sysHugePageCollapse (which uses
-	// MADV_COLLAPSE on Linux, and is unsupported elswhere) for this purpose,
+	// MADV_COLLAPSE on Linux, and is unsupported elsewhere) for this purpose,
 	// but that caused performance issues in production environments.
 	s.chunks[ci].store(sc)
 }

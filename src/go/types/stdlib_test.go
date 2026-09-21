@@ -263,7 +263,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		}
 
 		// parse and type-check file
-		file, err := parser.ParseFile(fset, filename, nil, 0)
+		file, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
 		if err == nil {
 			conf := Config{
 				GoVersion: goVersion,
@@ -330,12 +330,9 @@ func TestStdFixed(t *testing.T) {
 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
+		"issue78355.go",  // go/types does not have constraints on map element size
 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
 		"issue52697.go",  // go/types does not have constraints on stack size
-		"issue68054.go",  // this test requires GODEBUG=gotypesalias=1
-		"issue68580.go",  // this test requires GODEBUG=gotypesalias=1
-		"issue73309.go",  // this test requires GODEBUG=gotypesalias=1
-		"issue73309b.go", // this test requires GODEBUG=gotypesalias=1
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
 		// However, go/types does not know about build constraints.
@@ -360,7 +357,26 @@ func TestStdKen(t *testing.T) {
 var excluded = map[string]bool{
 	"builtin":                       true,
 	"cmd/compile/internal/ssa/_gen": true,
-	"runtime/_mkmalloc":             true,
+	"crypto/internal/cryptotest/wycheproof/_schema": true,
+	"crypto/internal/cryptotest/x509limbo/_schema":  true,
+	"runtime/_mkmalloc":                             true,
+}
+
+func isExcluded(pkgPath string) bool {
+	if excluded[pkgPath] {
+		return true
+	}
+
+	// Submodules where not all dependencies are available.
+	// See go.dev/issue/46027.
+	if strings.HasPrefix(pkgPath, "simd/archsimd/_gen") {
+		return true
+	}
+	if slices.Contains(strings.Split(pkgPath, "/"), "_asm") {
+		return true
+	}
+
+	return false
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in
@@ -377,7 +393,7 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
 	// Parse package files.
 	var files []*ast.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
+		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors|parser.SkipObjectResolution)
 		if err != nil {
 			return nil, err
 		}
@@ -439,12 +455,7 @@ func pkgFilenames(dir string, includeTest bool) ([]string, error) {
 		}
 		return nil, err
 	}
-	if excluded[pkg.ImportPath] {
-		return nil, nil
-	}
-	if slices.Contains(strings.Split(pkg.ImportPath, "/"), "_asm") {
-		// Submodules where not all dependencies are available.
-		// See go.dev/issue/46027.
+	if isExcluded(pkg.ImportPath) {
 		return nil, nil
 	}
 	var filenames []string

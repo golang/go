@@ -9,10 +9,7 @@
 // primitive data types such as booleans, strings, and numbers,
 // in addition to structured data types such as objects and arrays.
 //
-// This package (encoding/json/v2) is experimental,
-// and not subject to the Go 1 compatibility promise.
-// It only exists when building with the GOEXPERIMENT=jsonv2 environment variable set.
-// Most users should use [encoding/json].
+// See the [Working with JSON] tutorial for an introduction to this package.
 //
 // [Marshal] and [Unmarshal] encode and decode Go values
 // to/from JSON text contained within a []byte.
@@ -58,7 +55,7 @@
 // if [RejectUnknownMembers] is specified.
 //
 // The representation of each struct field can be customized in the
-// "json" struct field tag, where the tag is a comma separated list of options.
+// "json" struct field tag, where the tag is a comma-separated list of options.
 // As a special case, if the entire tag is `json:"-"`,
 // then the field is ignored with regard to its JSON representation.
 // Some options also have equivalent behavior controlled by a caller-specified [Options].
@@ -66,11 +63,7 @@
 //
 // The first option is the JSON object name override for the Go struct field.
 // If the name is not specified, then the Go struct field name
-// is used as the JSON object name. JSON names containing commas or quotes,
-// or names identical to "" or "-", can be specified using
-// a single-quoted string literal, where the syntax is identical to
-// the Go grammar for a double-quoted string literal,
-// but instead uses single quotes as the delimiters.
+// is used as the JSON object name.
 // By default, unmarshaling uses case-sensitive matching to identify
 // the Go struct field associated with a JSON object name.
 //
@@ -87,60 +80,49 @@
 //     encoded as a JSON null, empty string, empty object, or empty array.
 //     This option has no effect when unmarshaling.
 //
-//   - string: The "string" option specifies that [StringifyNumbers]
-//     be set when marshaling or unmarshaling a struct field value.
-//     This causes numeric types to be encoded as a JSON number
-//     within a JSON string, and to be decoded from a JSON string
-//     containing the JSON number without any surrounding whitespace.
-//     This extra level of encoding is often necessary since
-//     many JSON parsers cannot precisely represent 64-bit integers.
+//   - string: The "string" option specifies that [StringifyNumbers] be set
+//     when marshaling or unmarshaling a struct field value.
+//     This causes types that would normally be encoded as a JSON number
+//     to instead be encoded as a JSON number quoted within a JSON string,
+//     and to be decoded from a JSON string containing the JSON number
+//     without any surrounding whitespace.
+//     The "string" option only applies to the top-level of the Go struct field
+//     value. It is an error to apply this option to any type that does not
+//     encode as a JSON number.
+//     Note that composite types such as arrays, slices, structs, and maps do
+//     not encode as a JSON number, so applying this option will cause an error
+//     rather than affecting JSON numbers within such types.
+//     This extra level of encoding is often necessary since many JSON parsers
+//     cannot precisely represent 64-bit integers.
 //
 //   - case: When unmarshaling, the "case" option specifies how
 //     JSON object names are matched with the JSON name for Go struct fields.
 //     The option is a key-value pair specified as "case:value" where
 //     the value must either be 'ignore' or 'strict'.
-//     The 'ignore' value specifies that matching is case-insensitive
-//     where dashes and underscores are also ignored. If multiple fields match,
-//     the first declared field in breadth-first order takes precedence.
+//     The 'ignore' value specifies that matching is case-insensitive,
+//     and also ignores dashes and underscores. If multiple fields match,
+//     then the field with an exact name match is selected, otherwise an error
+//     is reported because the choice of field to unmarshal into is ambiguous.
 //     The 'strict' value specifies that matching is case-sensitive.
 //     This takes precedence over the [MatchCaseInsensitiveNames] option.
 //
-//   - inline: The "inline" option specifies that
+//   - embed: The "embed" option specifies that
 //     the JSON representable content of this field type is to be promoted
-//     as if they were specified in the parent struct.
+//     as if it were specified in the parent struct.
 //     It is the JSON equivalent of Go struct embedding.
-//     A Go embedded field is implicitly inlined unless an explicit JSON name
-//     is specified. The inlined field must be a Go struct
+//     A Go embedded field is implicitly JSON embedded unless
+//     an explicit JSON name is specified. The embedded field must be a Go struct
 //     (that does not implement any JSON methods), [jsontext.Value],
 //     map[~string]T, or an unnamed pointer to such types. When marshaling,
-//     inlined fields from a pointer type are omitted if it is nil.
-//     Inlined fields of type [jsontext.Value] and map[~string]T are called
-//     “inlined fallbacks” as they can represent all possible
+//     embedded fields from a pointer type are omitted if it is nil.
+//     Embedded fields of type [jsontext.Value] and map[~string]T are called
+//     “embedded fallbacks” as they can represent all possible
 //     JSON object members not directly handled by the parent struct.
-//     Only one inlined fallback field may be specified in a struct,
+//     Only one embedded fallback field may be specified in a struct,
 //     while many non-fallback fields may be specified. This option
 //     must not be specified with any other option (including the JSON name).
 //
-//   - unknown: The "unknown" option is a specialized variant
-//     of the inlined fallback to indicate that this Go struct field
-//     contains any number of unknown JSON object members. The field type must
-//     be a [jsontext.Value], map[~string]T, or an unnamed pointer to such types.
-//     If [DiscardUnknownMembers] is specified when marshaling,
-//     the contents of this field are ignored.
-//     If [RejectUnknownMembers] is specified when unmarshaling,
-//     any unknown object members are rejected regardless of whether
-//     an inlined fallback with the "unknown" option exists. This option
-//     must not be specified with any other option (including the JSON name).
-//
-//   - format: The "format" option specifies a format flag
-//     used to specialize the formatting of the field value.
-//     The option is a key-value pair specified as "format:value" where
-//     the value must be either a literal consisting of letters and numbers
-//     (e.g., "format:RFC3339") or a single-quoted string literal
-//     (e.g., "format:'2006-01-02'"). The interpretation of the format flag
-//     is determined by the struct field type.
-//
-// The "omitzero" and "omitempty" options are mostly semantically identical.
+// The "omitzero" and "omitempty" options behave similarly.
 // The former is defined in terms of the Go type system,
 // while the latter in terms of the JSON type system.
 // Consequently they behave differently in some circumstances.
@@ -149,14 +131,14 @@
 // The "omitzero" option is useful for types with a well-defined zero value
 // (e.g., [net/netip.Addr]) or have an IsZero method (e.g., [time.Time.IsZero]).
 //
-// Every Go struct corresponds to a list of JSON representable fields
+// Every Go struct corresponds to a list of JSON-representable fields
 // which is constructed by performing a breadth-first search over
 // all struct fields (excluding unexported or ignored fields),
-// where the search recursively descends into inlined structs.
-// The set of non-inlined fields in a struct must have unique JSON names.
+// where the search recursively descends into embedded structs.
+// The set of non-embedded fields in a struct must have unique JSON names.
 // If multiple fields all have the same JSON name, then the one
 // at shallowest depth takes precedence and the other fields at deeper depths
-// are excluded from the list of JSON representable fields.
+// are excluded from the list of JSON-representable fields.
 // If multiple fields at the shallowest depth have the same JSON name,
 // but exactly one is explicitly tagged with a JSON name,
 // then that field takes precedence and all others are excluded from the list.
@@ -164,7 +146,9 @@
 // with embedded struct types.
 //
 // Marshaling or unmarshaling a non-empty struct
-// without any JSON representable fields results in a [SemanticError].
+// without any JSON-representable fields results in a [SemanticError],
+// unless the Go struct has a field with an explicit `json` tag,
+// which signals that the type has a valid JSON representation (even if empty).
 // Unexported fields must not have any `json` tags except for `json:"-"`.
 //
 // # Security Considerations
@@ -176,8 +160,8 @@
 //
 // [For example, suppose we have two micro-services.]
 // The first service is responsible for authenticating a JSON request,
-// while the second service is responsible for executing the request
-// (having assumed that the prior service authenticated the request).
+// while the second service is responsible for executing the request,
+// assuming that it was authenticated.
 // If an attacker were able to maliciously craft a JSON request such that
 // both services believe that the same request is from different users,
 // it could bypass the authenticator with valid credentials for one user,
@@ -259,6 +243,7 @@
 // The v2 API generally chooses more secure defaults than v1,
 // but care should still be taken with large integers or unknown members.
 //
+// [Working with JSON]: https://go.dev/doc/tutorial/json
 // [For example, suppose we have two micro-services.]: https://www.youtube.com/watch?v=avilmOcHKHE&t=1057s
 package json
 

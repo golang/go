@@ -1,5 +1,3 @@
-// -gotypesalias=0
-
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -137,7 +135,7 @@ type (
 type (
 	a struct{ *b }
 	b = c
-	c struct{ *b /* ERROR "invalid use of type alias" */ }
+	c struct{ *b }
 )
 
 // issue #24939
@@ -147,7 +145,7 @@ type (
 	}
 
 	M interface {
-		F() P // ERROR "invalid use of type alias"
+		F() P
 	}
 
 	P = interface {
@@ -162,7 +160,7 @@ func makeArray() (res T12) { return }
 
 // issue #20770
 var r = newReader()
-func newReader() r // ERROR "r is not a type"
+func newReader() r // ERROR "r (package-level variable) is not a type"
 
 // variations of the theme of #8699 and #20770
 var arr /* ERROR "cycle" */ = f()

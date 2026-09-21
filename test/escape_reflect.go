@@ -56,8 +56,7 @@ func string2(x int) string {
 	return v.String()
 }
 
-// Unfortunate: should only escape to result.
-func interface1(x any) any { // ERROR "leaking param: x$"
+func interface1(x any) any { // ERROR "leaking param: x to result ~r0 level=0"
 	v := reflect.ValueOf(x)
 	return v.Interface()
 }
@@ -67,14 +66,12 @@ func interface2(x int) any {
 	return v.Interface()
 }
 
-// Unfortunate: should not escape.
 func interface3(x int) int {
-	v := reflect.ValueOf(x) // ERROR "x escapes to heap"
+	v := reflect.ValueOf(x) // ERROR "x does not escape"
 	return v.Interface().(int)
 }
 
-// Unfortunate: should only escape to result.
-func interface4(x *int) any { // ERROR "leaking param: x$"
+func interface4(x *int) any { // ERROR "leaking param: x to result ~r0 level=0"
 	v := reflect.ValueOf(x)
 	return v.Interface()
 }
@@ -252,13 +249,13 @@ func index5(x string) byte { // ERROR "x does not escape"
 }
 
 // Unfortunate: x (the interface storage) doesn't need to escape as the function takes a scalar arg.
-func call1(f func(int), x int) { // ERROR "leaking param: f$"
+func call1(f func(int), x int) { // ERROR "leaking param content: f"
 	fv := reflect.ValueOf(f)
 	v := reflect.ValueOf(x)     // ERROR "x escapes to heap"
 	fv.Call([]reflect.Value{v}) // ERROR "\[\]reflect\.Value{\.\.\.} does not escape"
 }
 
-func call2(f func(*int), x *int) { // ERROR "leaking param: f$" "leaking param: x$"
+func call2(f func(*int), x *int) { // ERROR "leaking param content: f" "leaking param: x$"
 	fv := reflect.ValueOf(f)
 	v := reflect.ValueOf(x)
 	fv.Call([]reflect.Value{v}) // ERROR "\[\]reflect.Value{\.\.\.} does not escape"
@@ -370,17 +367,17 @@ func convert2(x []byte) string { // ERROR "leaking param: x$"
 	return v.Convert(stringTyp).String()
 }
 
-// Unfortunate: v doesn't need to leak, x (the interface storage) doesn't need to escape.
-func set1(v reflect.Value, x int) { // ERROR "leaking param: v$"
+// Unfortunate: x (the interface storage) doesn't need to escape.
+func set1(v reflect.Value, x int) { // ERROR "v does not escape"
 	vx := reflect.ValueOf(x) // ERROR "x escapes to heap"
 	v.Set(vx)
 }
 
-// Unfortunate: a can be stack allocated, x (the interface storage) doesn't need to escape.
+// Unfortunate: x (the interface storage) doesn't need to escape.
 func set2(x int) int64 {
-	var a int // ERROR "moved to heap: a"
-	v := reflect.ValueOf(&a).Elem()
-	vx := reflect.ValueOf(x) // ERROR "x escapes to heap"
+	var a int
+	v := reflect.ValueOf(&a).Elem() // a should not escape, no error printed
+	vx := reflect.ValueOf(x)        // ERROR "x escapes to heap"
 	v.Set(vx)
 	return v.Int()
 }
@@ -396,15 +393,19 @@ func set4(x int) int {
 	return int(v.Int())
 }
 
-func set5(v reflect.Value, x string) { // ERROR "v does not escape" "leaking param: x$"
+func set5(v any, x reflect.Value) { // ERROR "v does not escape" "leaking param: x$"
+	reflect.ValueOf(v).Elem().Set(x)
+}
+
+func setstring(v reflect.Value, x string) { // ERROR "v does not escape" "leaking param: x$"
 	v.SetString(x)
 }
 
-func set6(v reflect.Value, x []byte) { // ERROR "v does not escape" "leaking param: x$"
+func setbytes(v reflect.Value, x []byte) { // ERROR "v does not escape" "leaking param: x$"
 	v.SetBytes(x)
 }
 
-func set7(v reflect.Value, x unsafe.Pointer) { // ERROR "v does not escape" "leaking param: x$"
+func setpointer(v reflect.Value, x unsafe.Pointer) { // ERROR "v does not escape" "leaking param: x$"
 	v.SetPointer(x)
 }
 
@@ -447,7 +448,7 @@ func setitervalue2(v reflect.Value, m map[string]string) { // ERROR "leaking par
 // Unfortunate: s doesn't need escape, only leak to result.
 // And x (interface storage) doesn't need to escape.
 func append1(s []int, x int) []int { // ERROR "leaking param: s$"
-	sv := reflect.ValueOf(s)     // ERROR "s escapes to heap"
+	sv := reflect.ValueOf(s)     // ERROR "s does not escape"
 	xv := reflect.ValueOf(x)     // ERROR "x escapes to heap"
 	rv := reflect.Append(sv, xv) // ERROR "... argument does not escape"
 	return rv.Interface().([]int)

@@ -164,9 +164,6 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
 
-		if targType == sym.SDYNIMPORT {
-			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
-		}
 		if target.IsPIE() && target.IsInternal() {
 			// For internal linking PIE, this R_ADDR relocation cannot
 			// be resolved statically. We need to generate a dynamic
@@ -178,6 +175,9 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 				// Can this happen? The object is expected to be PIC.
 				ldr.Errorf(s, "unsupported relocation for PIE: %v", rt)
 			}
+		}
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
 		}
 		return true
 
@@ -419,7 +419,13 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation.
 			// Here we record what are needed and encode them later.
-			ld.MachoAddRebase(s, int64(r.Off()))
+			if targType == sym.SDYNIMPORT {
+				// Dynamic import: the pointer must be bound by
+				// the dynamic linker at load time.
+				ld.MachoAddBind(s, int64(r.Off()), targ)
+			} else {
+				ld.MachoAddRebase(s, int64(r.Off()))
+			}
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically

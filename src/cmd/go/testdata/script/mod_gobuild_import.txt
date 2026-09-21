@@ -1,5 +1,3 @@
-[short] skip
-
 # go/build's Import should find modules by invoking the go command
 
 go build -o $WORK ./testimport ./testfindonly

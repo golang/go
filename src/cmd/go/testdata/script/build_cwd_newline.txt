@@ -36,7 +36,7 @@ stderr 'package example: invalid package directory .*uh-oh'
 stderr 'package command-line-arguments: invalid package directory .*uh-oh'
 
 go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
-! stdout .
+[!cgo] stdout '[main_nocgo.go]'
 ! stderr .
 ! exists obj_
 

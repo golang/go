@@ -15,6 +15,7 @@ import (
 	"math/bits"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"runtime/pprof"
@@ -28,10 +29,103 @@ import (
 // TODO: capitalize these types, so that we can more easily tell variable names
 // apart from type names, and avoid awkward func parameters like "arch arch".
 
+var splitPhase = phase6Rewrites
+
+var splitTitle = identity
+
+var splitOpPkg = "ssa"
+var splitOpFile = "opGen.go"
+var splitOpPrefix = ""
+
+var splitCorePkg = "ssa"
+var splitCorePath = "cmd/compile/internal/ssa"
+var allocatorsFile = "allocators.go"
+var splitCorePrefix = ""
+
+var splitRewritesDir = ""
+var splitRewritesPkg = "ssa"
+
+func rewritesPkg(arch, suff string) string {
+	if splitPhase < phase6Rewrites {
+		return splitRewritesPkg
+	}
+	if arch == "386" {
+		arch = "i386"
+	}
+	return strings.ToLower(arch + suff)
+}
+
+func rewritesDir(arch, suff string) string {
+	if splitPhase < phase6Rewrites {
+		return splitRewritesDir
+	}
+	return "rewrite/" + rewritesPkg(arch, suff) + "/"
+}
+
+func rewriteFuncName(kind, arch, suff, rule string) string {
+	if splitPhase < phase6Rewrites {
+		return "rewrite" + kind + arch + suff + rule
+	}
+	if rule == "" {
+		// Top level Value or Block rule. Exported.
+		return "Rewrite" + kind
+	}
+	return "rewrite" + kind + rule
+}
+
+var registersFile = "opGen.go"
+var registersPkg = "ssa"
+
+func identity(s string) string {
+	return s
+}
+func simpleTitle(s string) string { return strings.ToUpper(s[:1]) + s[1:] } // Unlike title, only title the first letter of the string.
+
+const (
+	phase0Start = iota
+	phase0Export
+	phase1Op
+	phase2Core
+	phase3Compile
+	phase4CoreRename
+	phase5Conv
+	phase6Rewrites
+)
+
+func init() {
+	if splitPhase >= phase0Export {
+		splitTitle = simpleTitle
+	}
+	if splitPhase >= phase1Op {
+		splitOpPkg = "ssaop"
+		splitOpPrefix = "ssaop."
+		splitOpFile = "ssaop/opGen.go"
+	}
+	if splitPhase >= phase2Core {
+		splitCorePrefix = "ssacore."
+		splitCorePkg = "ssacore"
+		splitCorePath = "cmd/compile/internal/ssa/ssacore"
+		allocatorsFile = filepath.Join(splitCorePkg, "allocators.go")
+	}
+	if splitPhase >= phase3Compile {
+		splitRewritesDir = "../ssacompile/"
+		splitRewritesPkg = "ssacompile"
+		registersFile = splitRewritesDir + registersFile
+		registersPkg = splitRewritesPkg
+	}
+	if splitPhase >= phase4CoreRename {
+		splitCorePrefix = "ssa."
+		splitCorePkg = "ssa"
+		splitCorePath = "cmd/compile/internal/ssa"
+		allocatorsFile = "allocators.go"
+	}
+}
+
 type arch struct {
 	name               string
 	pkg                string // obj package to import for this arch.
 	genfile            string // source file containing opcode code generation.
+	genSIMDfile        string // source file containing opcode code generation for SIMD.
 	ops                []opData
 	blocks             []blockData
 	regnames           []string
@@ -41,6 +135,7 @@ type arch struct {
 	fpregmask          regMask
 	fp32regmask        regMask
 	fp64regmask        regMask
+	simdregmask        regMask
 	specialregmask     regMask
 	framepointerreg    int8
 	linkreg            int8
@@ -48,9 +143,8 @@ type arch struct {
 	imports            []string
 }
 
-type opData struct {
+type comparableOpData struct {
 	name              string
-	reg               regInfo
 	asm               string
 	typ               string // default result type
 	aux               string
@@ -70,8 +164,17 @@ type opData struct {
 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
 	fixedReg          bool   // this op will be assigned a fixed register
+	earlyOk           bool   // executing this op in an earlier block is ok
+	addrSinkArg0      bool   // the address in arg0 does not propagate to the result
+	addrSinkArg1      bool   // the address in arg1 does not propagate to the result
 	symEffect         string // effect this op has on symbol in aux
 	scale             uint8  // amd64/386 indexed load scale
+	zeroUpperBits     uint8  // the op writes a 64-bit GPR whose upper N bits are always zero (0, 32, 48 or 56); for a tuple op, this holds for every integer result
+}
+
+type opData struct {
+	reg regInfo
+	comparableOpData
 }
 
 type blockData struct {
@@ -95,19 +198,53 @@ type regInfo struct {
 	outputs []regMask
 }
 
-type regMask uint64
+type regMask struct {
+	v1, v2 uint64
+}
+
+func regMaskAt(i uint) regMask {
+	if i < 64 {
+		return regMask{v1: 1 << i}
+	}
+	return regMask{v2: 1 << (i - 64)}
+}
+
+func (r regMask) empty() bool {
+	return r.v1 == 0 && r.v2 == 0
+}
+
+func (r regMask) hasReg(i uint) bool {
+	if i < 64 {
+		return (r.v1>>i)&1 != 0
+	}
+	return (r.v2>>(i-64))&1 != 0
+}
+
+func (r regMask) addReg(i uint) regMask {
+	if i < 64 {
+		return regMask{r.v1 | 1<<i, r.v2}
+	}
+	return regMask{r.v1, r.v2 | 1<<(i-64)}
+}
+
+func (r regMask) union(s regMask) regMask {
+	return regMask{r.v1 | s.v1, r.v2 | s.v2}
+}
+
+func (r regMask) minus(s regMask) regMask {
+	return regMask{r.v1 &^ s.v1, r.v2 &^ s.v2}
+}
 
 func (a arch) regMaskComment(r regMask) string {
 	var buf strings.Builder
-	for i := uint64(0); r != 0; i++ {
-		if r&1 != 0 {
+	for i := uint(0); i < uint(len(a.regnames)); i++ {
+		if r.hasReg(i) {
 			if buf.Len() == 0 {
 				buf.WriteString(" //")
 			}
 			buf.WriteString(" ")
 			buf.WriteString(a.regnames[i])
 		}
-		r >>= 1
 	}
 	return buf.String()
 }
@@ -156,6 +293,9 @@ func main() {
 		}
 	}
 
+	// call this late so that all genericOps contributors have run their init functions.
+	genericInit()
+
 	slices.SortFunc(archs, func(a, b arch) int {
 		return strings.Compare(a.name, b.name)
 	})
@@ -183,7 +323,6 @@ func main() {
 	}
 	var wg sync.WaitGroup
 	for _, task := range tasks {
-		task := task
 		wg.Add(1)
 		go func() {
 			task()
@@ -209,20 +348,17 @@ func outFile(file string) string {
 	return *outDir + "/" + file
 }
 
+func mkdirOutFile(file string) {
+	if err := os.MkdirAll(filepath.Dir(outFile(file)), 0777); err != nil {
+		log.Fatalf("can't create output directory for %s: %v", file, err)
+	}
+}
+
 func genOp() {
 	w := new(bytes.Buffer)
 	fmt.Fprintf(w, "// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.\n")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "package ssa")
-
-	fmt.Fprintln(w, "import (")
-	fmt.Fprintln(w, "\"cmd/internal/obj\"")
-	for _, a := range archs {
-		if a.pkg != "" {
-			fmt.Fprintf(w, "%q\n", a.pkg)
-		}
-	}
-	fmt.Fprintln(w, ")")
+	fmt.Fprintln(w, "package block")
 
 	// generate Block* declarations
 	fmt.Fprintln(w, "const (")
@@ -263,6 +399,40 @@ func genOp() {
 	fmt.Fprintln(w, "}")
 
 	// generate Op* declarations
+
+	// gofmt result
+	blockb := w.Bytes()
+	var blockerr error
+	blockb, blockerr = format.Source(blockb)
+	if blockerr != nil {
+		fmt.Printf("%s\n", w.Bytes())
+		panic(blockerr)
+	}
+
+	if err := os.MkdirAll(outFile("block"), 0777); err != nil {
+		log.Fatal("can't create block directory")
+	}
+	if err := os.WriteFile(outFile("block/opGen.go"), blockb, 0666); err != nil {
+		log.Fatalf("can't write output: %v\n", err)
+	}
+
+	var opBuf bytes.Buffer
+	w = &opBuf
+	fmt.Fprintf(w, "// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.\n")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "package %s\n", splitOpPkg)
+
+	fmt.Fprintln(w, "import (")
+	if splitPhase < phase1Op {
+		fmt.Fprintln(w, `"cmd/compile/internal/ssa/ssabase"`)
+	}
+	fmt.Fprintln(w, `"cmd/internal/obj"`)
+	for _, a := range archs {
+		if a.pkg != "" {
+			fmt.Fprintf(w, "%q\n", a.pkg)
+		}
+	}
+	fmt.Fprintln(w, ")")
 	fmt.Fprintln(w, "const (")
 	fmt.Fprintln(w, "OpInvalid Op = iota") // make sure OpInvalid is 0.
 	for _, a := range archs {
@@ -276,9 +446,13 @@ func genOp() {
 	}
 	fmt.Fprintln(w, ")")
 
+	auxPrefix := "aux"
+	if splitPhase >= phase0Export {
+		auxPrefix = "AuxType"
+	}
 	// generate OpInfo table
-	fmt.Fprintln(w, "var opcodeTable = [...]opInfo{")
-	fmt.Fprintln(w, " { name: \"OpInvalid\" },")
+	fmt.Fprintf(w, "var %s = [...]%s{\n", splitTitle("opcodeTable"), splitTitle("opInfo"))
+	fmt.Fprintf(w, " { %s: \"OpInvalid\" },\n", splitTitle("name"))
 	for _, a := range archs {
 		fmt.Fprintln(w)
 
@@ -288,28 +462,28 @@ func genOp() {
 				continue
 			}
 			fmt.Fprintln(w, "{")
-			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
+			fmt.Fprintf(w, "%s:\"%s\",\n", splitTitle("name"), v.name)
 
 			// flags
 			if v.aux != "" {
-				fmt.Fprintf(w, "auxType: aux%s,\n", v.aux)
+				fmt.Fprintf(w, "%s: %s%s,\n", splitTitle("auxType"), auxPrefix, splitTitle(v.aux))
 			}
-			fmt.Fprintf(w, "argLen: %d,\n", v.argLength)
+			fmt.Fprintf(w, "%s: %d,\n", splitTitle("argLen"), v.argLength)
 
 			if v.rematerializeable {
-				if v.reg.clobbers != 0 || v.reg.clobbersArg0 || v.reg.clobbersArg1 {
+				if !v.reg.clobbers.empty() || v.reg.clobbersArg0 || v.reg.clobbersArg1 {
 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
 				}
 				if v.clobberFlags {
 					log.Fatalf("%s is rematerializeable and clobbers flags", v.name)
 				}
-				fmt.Fprintln(w, "rematerializeable: true,")
+				fmt.Fprintln(w, splitTitle("rematerializeable: true,"))
 			}
 			if v.commutative {
-				fmt.Fprintln(w, "commutative: true,")
+				fmt.Fprintln(w, splitTitle("commutative: true,"))
 			}
 			if v.resultInArg0 {
-				fmt.Fprintln(w, "resultInArg0: true,")
+				fmt.Fprintln(w, splitTitle("resultInArg0: true,"))
 				// OpConvert's register mask is selected dynamically,
 				// so don't try to check it in the static table.
 				if v.name != "Convert" && v.reg.inputs[0] != v.reg.outputs[0] {
@@ -320,43 +494,52 @@ func genOp() {
 				}
 			}
 			if v.resultNotInArgs {
-				fmt.Fprintln(w, "resultNotInArgs: true,")
+				fmt.Fprintln(w, splitTitle("resultNotInArgs: true,"))
 			}
 			if v.clobberFlags {
-				fmt.Fprintln(w, "clobberFlags: true,")
+				fmt.Fprintln(w, splitTitle("clobberFlags: true,"))
 			}
 			if v.needIntTemp {
-				fmt.Fprintln(w, "needIntTemp: true,")
+				fmt.Fprintln(w, splitTitle("needIntTemp: true,"))
 			}
 			if v.call {
-				fmt.Fprintln(w, "call: true,")
+				fmt.Fprintln(w, splitTitle("call: true,"))
 			}
 			if v.tailCall {
 				fmt.Fprintln(w, "tailCall: true,")
 			}
 			if v.nilCheck {
-				fmt.Fprintln(w, "nilCheck: true,")
+				fmt.Fprintln(w, splitTitle("nilCheck: true,"))
 			}
 			if v.faultOnNilArg0 {
-				fmt.Fprintln(w, "faultOnNilArg0: true,")
-				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+				fmt.Fprintln(w, splitTitle("faultOnNilArg0: true,"))
+				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "SizeAndAlign" && v.aux != "" {
 					log.Fatalf("faultOnNilArg0 with aux %s not allowed", v.aux)
 				}
 			}
 			if v.faultOnNilArg1 {
-				fmt.Fprintln(w, "faultOnNilArg1: true,")
-				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+				fmt.Fprintln(w, splitTitle("faultOnNilArg1: true,"))
+				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "SizeAndAlign" && v.aux != "" {
 					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
 				}
 			}
 			if v.hasSideEffects {
-				fmt.Fprintln(w, "hasSideEffects: true,")
+				fmt.Fprintln(w, splitTitle("hasSideEffects: true,"))
 			}
 			if v.zeroWidth {
-				fmt.Fprintln(w, "zeroWidth: true,")
+				fmt.Fprintln(w, splitTitle("zeroWidth: true,"))
 			}
 			if v.fixedReg {
-				fmt.Fprintln(w, "fixedReg: true,")
+				fmt.Fprintln(w, splitTitle("fixedReg: true,"))
+			}
+			if v.earlyOk {
+				fmt.Fprintln(w, splitTitle("earlyOk: true,"))
+			}
+			if v.addrSinkArg0 {
+				fmt.Fprintln(w, splitTitle("addrSinkArg0: true,"))
+			}
+			if v.addrSinkArg1 {
+				fmt.Fprintln(w, splitTitle("addrSinkArg1: true,"))
 			}
 			if v.unsafePoint {
 				fmt.Fprintln(w, "unsafePoint: true,")
@@ -371,7 +554,7 @@ func genOp() {
 				log.Fatalf("symEffect needed for aux %s", v.aux)
 			}
 			if a.name == "generic" {
-				fmt.Fprintln(w, "generic:true,")
+				fmt.Fprintln(w, splitTitle("generic:true,"))
 				fmt.Fprintln(w, "},") // close op
 				// generic ops have no reg info or asm
 				continue
@@ -382,35 +565,43 @@ func genOp() {
 			if v.scale != 0 {
 				fmt.Fprintf(w, "scale: %d,\n", v.scale)
 			}
-			fmt.Fprintln(w, "reg:regInfo{")
+			if v.zeroUpperBits != 0 {
+				switch v.zeroUpperBits {
+				case 32, 48, 56:
+				default:
+					log.Fatalf("%s: zeroUpperBits must be 0, 32, 48 or 56, have %d", v.name, v.zeroUpperBits)
+				}
+				fmt.Fprintf(w, "%s: %d,\n", splitTitle("zeroUpperBits"), v.zeroUpperBits)
+			}
+			fmt.Fprintf(w, "%s:%s{\n", splitTitle("reg"), splitTitle("regInfo"))
 
 			// Compute input allocation order. We allocate from the
 			// most to the least constrained input. This order guarantees
 			// that we will always be able to find a register.
 			var s []intPair
 			for i, r := range v.reg.inputs {
-				if r != 0 {
+				if !r.empty() {
 					s = append(s, intPair{countRegs(r), i})
 				}
 			}
 			if len(s) > 0 {
 				sort.Sort(byKey(s))
-				fmt.Fprintln(w, "inputs: []inputInfo{")
+				fmt.Fprintf(w, "%s: []%s{\n", splitTitle("inputs"), splitTitle("inputInfo"))
 				for _, p := range s {
 					r := v.reg.inputs[p.val]
-					fmt.Fprintf(w, "{%d,%d},%s\n", p.val, r, a.regMaskComment(r))
+					fmt.Fprintf(w, "{%d,%s{%s: %d, %s: %d}},%s\n", p.val, splitTitle("regMask"), splitTitle("v1"), r.v1, splitTitle("v2"), r.v2, a.regMaskComment(r))
 				}
 				fmt.Fprintln(w, "},")
 			}
 
-			if v.reg.clobbers > 0 {
-				fmt.Fprintf(w, "clobbers: %d,%s\n", v.reg.clobbers, a.regMaskComment(v.reg.clobbers))
+			if !v.reg.clobbers.empty() {
+				fmt.Fprintf(w, "%s: %s{%s: %d, %s: %d},%s\n", splitTitle("clobbers"), splitTitle("regMask"), splitTitle("v1"), v.reg.clobbers.v1, splitTitle("v2"), v.reg.clobbers.v2, a.regMaskComment(v.reg.clobbers))
 			}
 			if v.reg.clobbersArg0 {
-				fmt.Fprintf(w, "clobbersArg0: true,\n")
+				fmt.Fprintf(w, "%s: true,\n", splitTitle("clobbersArg0"))
 			}
 			if v.reg.clobbersArg1 {
-				fmt.Fprintf(w, "clobbersArg1: true,\n")
+				fmt.Fprintf(w, "%s: true,\n", splitTitle("clobbersArg1"))
 			}
 
 			// reg outputs
@@ -420,10 +611,10 @@ func genOp() {
 			}
 			if len(s) > 0 {
 				sort.Sort(byKey(s))
-				fmt.Fprintln(w, "outputs: []outputInfo{")
+				fmt.Fprintf(w, "%s: []%s{\n", splitTitle("outputs"), splitTitle("outputInfo"))
 				for _, p := range s {
 					r := v.reg.outputs[p.val]
-					fmt.Fprintf(w, "{%d,%d},%s\n", p.val, r, a.regMaskComment(r))
+					fmt.Fprintf(w, "{%d,%s{%s: %d, %s: %d}},%s\n", p.val, splitTitle("regMask"), splitTitle("v1"), r.v1, splitTitle("v2"), r.v2, a.regMaskComment(r))
 				}
 				fmt.Fprintln(w, "},")
 			}
@@ -433,25 +624,44 @@ func genOp() {
 	}
 	fmt.Fprintln(w, "}")
 
-	fmt.Fprintln(w, "func (o Op) Asm() obj.As {return opcodeTable[o].asm}")
-	fmt.Fprintln(w, "func (o Op) Scale() int16 {return int16(opcodeTable[o].scale)}")
+	fmt.Fprintf(w, "func (o Op) Asm() obj.As {return %s[o].%s}\n", splitTitle("opcodeTable"), "asm")
+	fmt.Fprintf(w, "func (o Op) Scale() int16 {return int16(%s[o].%s)}\n", splitTitle("opcodeTable"), "scale")
 
 	// generate op string method
-	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
+	fmt.Fprintf(w, "func (o Op) String() string {return %s[o].%s }\n", splitTitle("opcodeTable"), splitTitle("name"))
 
-	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
-	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
-	fmt.Fprintln(w, "func (o Op) IsTailCall() bool { return opcodeTable[o].tailCall }")
-	fmt.Fprintln(w, "func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }")
-	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
-	fmt.Fprintln(w, "func (o Op) ResultInArg0() bool { return opcodeTable[o].resultInArg0 }")
+	fmt.Fprintf(w, "func (o Op) SymEffect() SymEffect { return %s[o].symEffect }\n", splitTitle("opcodeTable"))
+	fmt.Fprintf(w, "func (o Op) IsCall() bool { return %s[o].%s }\n", splitTitle("opcodeTable"), splitTitle("call"))
+	fmt.Fprintf(w, "func (o Op) IsTailCall() bool { return %s[o].tailCall }\n", splitTitle("opcodeTable"))
+	fmt.Fprintf(w, "func (o Op) HasSideEffects() bool { return %s[o].%s }\n", splitTitle("opcodeTable"), splitTitle("hasSideEffects"))
+	fmt.Fprintf(w, "func (o Op) UnsafePoint() bool { return %s[o].unsafePoint }\n", splitTitle("opcodeTable"))
+	fmt.Fprintf(w, "func (o Op) ResultInArg0() bool { return %s[o].%s }\n", splitTitle("opcodeTable"), splitTitle("resultInArg0"))
+
+	var registersBuf bytes.Buffer
+	if registersFile != splitOpFile {
+		w = &registersBuf
+
+		fmt.Fprintf(w, "// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.\n")
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "package "+registersPkg)
+
+		fmt.Fprintln(w, "import (")
+		fmt.Fprintln(w, `"cmd/compile/internal/ssa/ssabase"`)
+		fmt.Fprintln(w, `"cmd/compile/internal/ssa/ssaop"`)
+		for _, a := range archs {
+			if a.pkg != "" {
+				fmt.Fprintf(w, "%q\n", a.pkg)
+			}
+		}
+		fmt.Fprintln(w, ")")
+	}
 
 	// generate registers
 	for _, a := range archs {
 		if a.generic {
 			continue
 		}
-		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
+		fmt.Fprintf(w, "var registers%s = [...]ssabase.Register {\n", a.name)
 		num := map[string]int8{}
 		for i, r := range a.regnames {
 			num[r] = int8(i)
@@ -470,7 +680,7 @@ func genOp() {
 			default:
 				objname = pkg + ".REG_" + r
 			}
-			fmt.Fprintf(w, "  {%d, %s, \"%s\"},\n", i, objname, r)
+			fmt.Fprintf(w, "  {Num: %d, ObjNum: %s, Name: \"%s\"},\n", i, objname, r)
 		}
 		parameterRegisterList := func(paramNamesString string) []int8 {
 			paramNamesString = strings.TrimSpace(paramNamesString)
@@ -500,21 +710,24 @@ func genOp() {
 		fmt.Fprintln(w, "}")
 		fmt.Fprintf(w, "var paramIntReg%s = %#v\n", a.name, paramIntRegs)
 		fmt.Fprintf(w, "var paramFloatReg%s = %#v\n", a.name, paramFloatRegs)
-		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
-		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
-		if a.fp32regmask != 0 {
-			fmt.Fprintf(w, "var fp32RegMask%s = regMask(%d)\n", a.name, a.fp32regmask)
+		fmt.Fprintf(w, "var gpRegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+splitTitle("regMask"), splitTitle("v1"), a.gpregmask.v1, splitTitle("v2"), a.gpregmask.v2)
+		fmt.Fprintf(w, "var fpRegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+splitTitle("regMask"), splitTitle("v1"), a.fpregmask.v1, splitTitle("v2"), a.fpregmask.v2)
+		if !a.fp32regmask.empty() {
+			fmt.Fprintf(w, "var fp32RegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+splitTitle("regMask"), splitTitle("v1"), a.fp32regmask.v1, splitTitle("v2"), a.fp32regmask.v2)
 		}
-		if a.fp64regmask != 0 {
-			fmt.Fprintf(w, "var fp64RegMask%s = regMask(%d)\n", a.name, a.fp64regmask)
+		if !a.fp64regmask.empty() {
+			fmt.Fprintf(w, "var fp64RegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+splitTitle("regMask"), splitTitle("v1"), a.fp64regmask.v1, splitTitle("v2"), a.fp64regmask.v2)
 		}
-		fmt.Fprintf(w, "var specialRegMask%s = regMask(%d)\n", a.name, a.specialregmask)
+		if !a.simdregmask.empty() {
+			fmt.Fprintf(w, "var simdRegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+splitTitle("regMask"), splitTitle("v1"), a.simdregmask.v1, splitTitle("v2"), a.simdregmask.v2)
+		}
+		fmt.Fprintf(w, "var specialRegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+splitTitle("regMask"), splitTitle("v1"), a.specialregmask.v1, splitTitle("v2"), a.specialregmask.v2)
 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
 		fmt.Fprintf(w, "var linkReg%s = int8(%d)\n", a.name, a.linkreg)
 	}
 
 	// gofmt result
-	b := w.Bytes()
+	b := opBuf.Bytes()
 	var err error
 	b, err = format.Source(b)
 	if err != nil {
@@ -522,8 +735,24 @@ func genOp() {
 		panic(err)
 	}
 
-	if err := os.WriteFile(outFile("opGen.go"), b, 0666); err != nil {
+	mkdirOutFile(splitOpFile)
+	if err := os.WriteFile(outFile(splitOpFile), b, 0666); err != nil {
 		log.Fatalf("can't write output: %v\n", err)
+	}
+
+	if registersFile != splitOpFile {
+		b := registersBuf.Bytes()
+		var err error
+		b, err = format.Source(b)
+		if err != nil {
+			fmt.Printf("%s\n", w.Bytes())
+			panic(err)
+		}
+
+		mkdirOutFile(registersFile)
+		if err := os.WriteFile(outFile(registersFile), b, 0666); err != nil {
+			log.Fatalf("can't write output: %v\n", err)
+		}
 	}
 
 	// Check that the arch genfile handles all the arch-specific opcodes.
@@ -537,7 +766,7 @@ func genOp() {
 			continue
 		}
 
-		pattern := fmt.Sprintf(`\Wssa\.Op%s([a-zA-Z0-9_]+)\W`, a.name)
+		pattern := fmt.Sprintf(`\W`+splitOpPkg+`\.Op%s([a-zA-Z0-9_]+)\W`, a.name)
 		rxOp, err := regexp.Compile(pattern)
 		if err != nil {
 			log.Fatalf("bad opcode regexp %s: %v", pattern, err)
@@ -547,6 +776,18 @@ func genOp() {
 		if err != nil {
 			log.Fatalf("can't read %s: %v", a.genfile, err)
 		}
+		// Append the file(s) of simd operations, too. genSIMDfile may list
+		// several space-separated paths (e.g. NEON plus SVE for ARM64).
+		if a.genSIMDfile != "" {
+			for _, f := range strings.Fields(a.genSIMDfile) {
+				simdSrc, err := os.ReadFile(f)
+				if err != nil {
+					log.Fatalf("can't read %s: %v", f, err)
+				}
+				src = append(src, simdSrc...)
+			}
+		}
+
 		seen := make(map[string]bool, len(a.ops))
 		for _, m := range rxOp.FindAllSubmatch(src, -1) {
 			seen[string(m[1])] = true
@@ -570,7 +811,7 @@ func (a arch) Name() string {
 
 // countRegs returns the number of set bits in the register mask.
 func countRegs(r regMask) int {
-	return bits.OnesCount64(uint64(r))
+	return bits.OnesCount64(r.v1) + bits.OnesCount64(r.v2)
 }
 
 // for sorting a pair of integers by key

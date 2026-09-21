@@ -60,6 +60,14 @@ Every non-dead G has a *user stack* associated with it, which is what
 user Go code executes on. User stacks start small (e.g., 2K) and grow
 or shrink dynamically.
 
+When a goroutine exits, its stack memory may be freed immediately or
+retained for reuse by another goroutine. If the stack has the default
+starting size, it is kept with the `g` object for reuse. If the stack
+has grown beyond the starting size, it is freed and a new stack will
+be allocated when the `g` is reused. Note that the `g` object itself
+is never freed (as described above), but its associated stack memory
+is managed separately and can be reclaimed.
+
 Every M has a *system stack* associated with it (also known as the M's
 "g0" stack because it's implemented as a stub G) and, on Unix
 platforms, a *signal stack* (also known as the M's "gsignal" stack).
@@ -271,6 +279,7 @@ Linkname conventions
 
 ```
 //go:linkname localname [importpath.name]
+//go:linknamestd localname [importpath.name]
 ```
 
 `//go:linkname` specifies the symbol name (`importpath.name`) used to a
@@ -278,10 +287,17 @@ reference a local identifier (`localname`). The target symbol name is an
 arbitrary ELF/macho/etc symbol name, but by convention we typically use a
 package-prefixed symbol name to keep things organized.
 
+`//go:linknamestd`, introduced in Go 1.27, is similar. The difference is that
+`linknamestd` allows the symbol to be accessed within the standard library
+only, whereas `linkname` permits external accesses. See "Linker check" below.
+The linkname conventions discussed here apply to `linknamestd` as well.
+
 The full generality of `//go:linkname` is very flexible, so as a convention to
 simplify things, we define three standard forms of `//go:linkname` directives.
 
 When possible, always prefer to use the linkname "handshake" described below.
+If the linkname is needed only within the standard library, `linknamestd` is
+preferred.
 
 "Push linkname"
 ---------------
@@ -380,6 +396,9 @@ package otherpkg
 //go:linkname runtime_foo
 func runtime_foo()
 ```
+
+Linker check
+------------
 
 As of Go 1.23, the linker forbids pull linknames of symbols in the standard
 library unless they participate in a handshake. Since many third-party packages

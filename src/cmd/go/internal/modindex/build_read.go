@@ -46,7 +46,8 @@ func newImportReader(name string, r io.Reader) *importReader {
 		b.Discard(3)
 	}
 	return &importReader{
-		b: b,
+		b:   b,
+		buf: make([]byte, 0, 1024),
 		pos: token.Position{
 			Filename: name,
 			Line:     1,
@@ -304,7 +305,7 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 	}
 
 	// Parse file header & record imports.
-	info.parsed, info.parseErr = parser.ParseFile(info.fset, info.name, info.header, parser.ImportsOnly|parser.ParseComments)
+	info.parsed, info.parseErr = parser.ParseFile(info.fset, info.name, info.header, parser.ImportsOnly|parser.ParseComments|parser.SkipObjectResolution)
 	if info.parseErr != nil {
 		return nil
 	}
@@ -328,7 +329,7 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 			if !isValidImport(path) {
 				// The parser used to return a parse error for invalid import paths, but
 				// no longer does, so check for and create the error here instead.
-				info.parseErr = scanner.Error{Pos: info.fset.Position(spec.Pos()), Msg: "invalid import path: " + path}
+				info.parseErr = &scanner.Error{Pos: info.fset.Position(spec.Pos()), Msg: "invalid import path: " + path}
 				info.imports = nil
 				return nil
 			}
@@ -405,7 +406,7 @@ func isValidImport(s string) bool {
 
 // parseGoEmbed parses a "//go:embed" to extract the glob patterns.
 // It accepts unquoted space-separated patterns as well as double-quoted and back-quoted Go strings.
-// This must match the behavior of cmd/compile/internal/noder.go.
+// This must match the behavior of cmd/compile/internal/noder/noder.go.
 func parseGoEmbed(fset *token.FileSet, pos token.Pos, comment string) ([]fileEmbed, error) {
 	dir, ok := ast.ParseDirective(pos, comment)
 	if !ok || dir.Tool != "go" || dir.Name != "embed" {

@@ -1,0 +1,13 @@
+# Regression test for https://go.dev/issue/74691.
+
+go mod init gonzo
+go get k8s.io/klog/v2@v2.130.1
+go mod tidy
+go build ./...
+go get -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+go build ./...
+
+-- main.go --
+package main
+import _ "k8s.io/klog/v2"
+func main() {}

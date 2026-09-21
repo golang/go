@@ -39,7 +39,7 @@ const (
 	Var                 // "EOF"
 	Const               // "Pi"
 	Field               // "Point.X"
-	Method              // "(*Buffer).Grow"
+	Method              // "(*Buffer).Grow" or "(Reader).Read"
 )
 
 func (kind Kind) String() string {

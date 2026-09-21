@@ -63,7 +63,7 @@ func genExpanders(file *gen.File) {
 		xf := int(ob) / 8
 		log.Printf("size class %d bytes, expansion %dx", ob, xf)
 
-		fn := gen.NewFunc(fmt.Sprintf("expandAVX512_%d<>", xf))
+		fn := gen.NewFunc(fmt.Sprintf("·expandAVX512_%d<>", xf))
 		ptrObjBits := gen.Arg[gen.Ptr[gen.Uint8x64]](fn)
 
 		if xf == 1 {

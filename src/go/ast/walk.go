@@ -370,7 +370,7 @@ func (f inspector) Visit(node Node) Visitor {
 // call of f(nil).
 //
 // In many cases it may be more convenient to use [Preorder], which
-// returns an iterator over the sqeuence of nodes, or [PreorderStack],
+// returns an iterator over the sequence of nodes, or [PreorderStack],
 // which (like [Inspect]) provides control over descent into subtrees,
 // but additionally reports the stack of enclosing nodes.
 func Inspect(node Node, f func(Node) bool) {

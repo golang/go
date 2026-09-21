@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # download with version should print nothing.
 # It should not load retractions from the .mod file from the latest version.
 go mod download rsc.io/quote@v1.5.0
@@ -12,7 +10,6 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 
 # download of an invalid path should report the error
-[short] skip
 ! go mod download this.domain.is.invalid/somemodule@v1.0.0
 stderr 'this.domain.is.invalid'
 ! go mod download -json this.domain.is.invalid/somemodule@v1.0.0

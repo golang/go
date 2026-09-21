@@ -137,15 +137,13 @@ func (x *stringVal) String() string {
 // concatenation. See golang.org/issue/23348.
 func (x *stringVal) string() string {
 	x.mu.Lock()
+	defer x.mu.Unlock()
 	if x.l != nil {
 		x.s = strings.Join(reverse(x.appendReverse(nil)), "")
 		x.l = nil
 		x.r = nil
 	}
-	s := x.s
-	x.mu.Unlock()
-
-	return s
+	return x.s
 }
 
 // reverse reverses x in place and returns it.
@@ -607,6 +605,30 @@ func Val(x Value) any {
 	default:
 		return nil
 	}
+}
+
+// StringLen returns the length of x if x is a [String].
+// If x is [Unknown], the result is 0.
+// In all other cases, the function panics.
+func StringLen(x Value) int64 {
+	switch x := x.(type) {
+	case *stringVal:
+		return x.len()
+	case unknownVal:
+		return 0
+	default:
+		panic(fmt.Sprintf("%v not a String", x))
+	}
+}
+
+// len computes and returns the length of x without constructing the entire string.
+func (x *stringVal) len() int64 {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if x.l != nil {
+		return x.l.len() + x.r.len()
+	}
+	return int64(len(x.s))
 }
 
 // Make returns the [Value] for x.

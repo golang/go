@@ -16,25 +16,26 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/edge"
+	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var TestingContextAnalyzer = &analysis.Analyzer{
 	Name: "testingcontext",
-	Doc:  analysisinternal.MustExtractDoc(doc, "testingcontext"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "testingcontext"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: testingContext,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#testingcontext",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_testingcontext",
 }
 
 // The testingContext pass replaces calls to context.WithCancel from within
@@ -52,12 +53,11 @@ var TestingContextAnalyzer = &analysis.Analyzer{
 // provided:
 //
 //   - ctx and cancel are declared by the assignment
-//   - the deferred call is the only use of cancel
+//   - the deferred call is the only use of cancel and occurs immediately
+//     after the assignment
 //   - the call is within a test or subtest function
 //   - the relevant testing.{T,B,F} is named and not shadowed at the call
 func testingContext(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
 		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
 		info  = pass.TypesInfo
@@ -100,11 +100,11 @@ calls:
 			lhs = append(lhs, obj)
 		}
 
-		next, ok := parent.NextSibling()
+		curDefer, ok := parent.NextSibling()
 		if !ok {
 			continue
 		}
-		defr, ok := next.Node().(*ast.DeferStmt)
+		defr, ok := curDefer.Node().(*ast.DeferStmt)
 		if !ok {
 			continue
 		}
@@ -117,8 +117,12 @@ calls:
 		// defer b()
 
 		// Check that we are in a test func.
-		var testObj types.Object // relevant testing.{T,B,F}, or nil
-		if curFunc, ok := enclosingFunc(cur); ok {
+		var (
+			testObj types.Object     // relevant testing.{T,B,F}, or nil
+			curFunc inspector.Cursor // Cursor for the test func
+		)
+		if fn, ok := enclosingFunc(cur); ok {
+			curFunc = fn
 			switch n := curFunc.Node().(type) {
 			case *ast.FuncLit:
 				if ek, idx := curFunc.ParentEdge(); ek == edge.CallExpr_Args && idx == 1 {
@@ -137,7 +141,23 @@ calls:
 				testObj = isTestFn(info, n)
 			}
 		}
-		if testObj != nil && fileUses(info, astutil.EnclosingFile(cur), "go1.24") {
+
+		// Check for deferred calls within the test func before the call to
+		// "defer cancel()"". If one exists, we should not suggest a fix since it
+		// would change the order that the deferred function calls are executed in.
+		for curOtherDefer := range curFunc.Preorder((*ast.DeferStmt)(nil)) {
+			if curOtherDefer.Index() >= curDefer.Index() {
+				// All subsequent defers will also be after "defer cancel()" so we don't need to inspect them
+				break
+			}
+			// Check that the defer statement is within the test function body. Defer
+			// statements inside func literals are allowed because they are not within
+			// scope of the testing func.
+			if fn, ok := enclosingFunc(curOtherDefer); ok && fn == curFunc {
+				continue calls
+			}
+		}
+		if testObj != nil && analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(cur), versions.Go1_24) {
 			// Have a test function. Check that we can resolve the relevant
 			// testing.{T,B,F} at the current position.
 			if _, obj := lhs[0].Parent().LookupParent(testObj.Name(), lhs[0].Pos()); obj == testObj {
@@ -147,11 +167,17 @@ calls:
 					Message: fmt.Sprintf("context.WithCancel can be modernized using %s.Context", testObj.Name()),
 					SuggestedFixes: []analysis.SuggestedFix{{
 						Message: fmt.Sprintf("Replace context.WithCancel with %s.Context", testObj.Name()),
-						TextEdits: []analysis.TextEdit{{
-							Pos:     assign.Pos(),
-							End:     defr.End(),
-							NewText: fmt.Appendf(nil, "%s := %s.Context()", lhs[0].Name(), testObj.Name()),
-						}},
+						// To avoid deleting comments between "context.WithCancel" and the
+						// "defer cancel()", we return separate text edits to delete the
+						// assignment and then delete the defer statement.
+						TextEdits: append(
+							[]analysis.TextEdit{{
+								Pos:     assign.Pos(),
+								End:     assign.End(),
+								NewText: fmt.Appendf(nil, "%s := %s.Context()", lhs[0].Name(), testObj.Name()),
+							}},
+							refactor.DeleteStmt(pass.Fset.File(defr.Pos()), curDefer)...,
+						),
 					}},
 				})
 			}

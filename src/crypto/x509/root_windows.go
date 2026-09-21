@@ -12,9 +12,8 @@ import (
 	"unsafe"
 )
 
-func loadSystemRoots() (*CertPool, error) {
-	return &CertPool{systemPool: true}, nil
-}
+// Windows has no default SSL_CERT_{FILE,DIR} paths.
+var certFiles, certDirectories []string
 
 // Creates a new *syscall.CertContext representing the leaf certificate in an in-memory
 // certificate store containing itself and all of the intermediate certificates specified

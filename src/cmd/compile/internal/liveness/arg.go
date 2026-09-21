@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/obj"
 )
 
@@ -132,7 +133,7 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
 	}
 
 	nargs := int32(len(lv.args))
-	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2), fn.Pos())
+	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2))
 	for _, b := range f.Blocks {
 		be := &lv.be[b.ID]
 		be.livein = bulk.Next()
@@ -231,7 +232,7 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
 
 // valueEffect applies the effect of v to live, return whether it is changed.
 func (lv *argLiveness) valueEffect(v *ssa.Value, live bitvec.BitVec) bool {
-	if v.Op != ssa.OpStoreReg { // TODO: include other store instructions?
+	if v.Op != ssaop.OpStoreReg { // TODO: include other store instructions?
 		return false
 	}
 	n, off := ssa.AutoVar(v)
@@ -248,10 +249,10 @@ func (lv *argLiveness) valueEffect(v *ssa.Value, live bitvec.BitVec) bool {
 
 func mayFault(v *ssa.Value) bool {
 	switch v.Op {
-	case ssa.OpLoadReg, ssa.OpStoreReg, ssa.OpCopy, ssa.OpPhi,
-		ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive,
-		ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN, ssa.OpMakeResult,
-		ssa.OpConvert, ssa.OpInlMark, ssa.OpGetG:
+	case ssaop.OpLoadReg, ssaop.OpStoreReg, ssaop.OpCopy, ssaop.OpPhi,
+		ssaop.OpVarDef, ssaop.OpVarLive, ssaop.OpKeepAlive,
+		ssaop.OpSelect0, ssaop.OpSelect1, ssaop.OpSelectN, ssaop.OpMakeResult,
+		ssaop.OpConvert, ssaop.OpInlMark, ssaop.OpGetG:
 		return false
 	}
 	if len(v.Args) == 0 {
@@ -316,6 +317,7 @@ func (lv *argLiveness) emit() *obj.LSym {
 
 	lsym := base.Ctxt.Lookup(lv.fn.LSym.Name + ".argliveinfo")
 	lsym.Set(obj.AttrContentAddressable, true)
+	lsym.Align = 1
 
 	off := objw.Uint8(lsym, 0, argOffsets[0]) // smallest offset that needs liveness info.
 	for idx, live := range livenessMaps {

@@ -1,0 +1,19 @@
+!sum
+
+# Count leading zeros per element — VCLZ
+- go: LeadingZeros
+  asm: "VCLZ"
+  in:
+  - &any
+    go: $t
+    elemBits: 8|16|32
+  out:
+  - *any
+
+# Count leading sign bits per element — VCLS
+- go: LeadingSignBits
+  asm: "VCLS"
+  in:
+  - *any
+  out:
+  - *any

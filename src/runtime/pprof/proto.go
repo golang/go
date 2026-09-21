@@ -367,8 +367,8 @@ func (b *profileBuilder) build() error {
 		var labels func()
 		if e.tag != nil {
 			labels = func() {
-				for _, lbl := range (*labelMap)(e.tag).list {
-					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
+				for _, lbl := range (*labelMap)(e.tag).Set.List {
+					b.pbLabel(tagSample_Label, lbl.Key, lbl.Value, 0)
 				}
 			}
 		}

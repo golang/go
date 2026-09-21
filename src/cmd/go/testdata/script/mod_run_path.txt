@@ -2,8 +2,6 @@
 # between go.mod's module path and what you'd
 # expect from GOPATH. golang.org/issue/26046.
 
-env GO111MODULE=on
-
 cd $GOPATH/src/example.com/hello
 go run main.go
 

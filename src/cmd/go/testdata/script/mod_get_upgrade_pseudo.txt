@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # For this test module there are three versions:
 #   * v0.1.1-0.20190429073117-b5426c86b553
 #   * v0.1.0

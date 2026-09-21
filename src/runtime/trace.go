@@ -12,18 +12,18 @@
 //
 // ## Design
 //
-// The basic idea behind the the execution tracer is to have per-M buffers that
-// trace data may be written into. Each M maintains a seqlock indicating whether
+// The basic idea behind the execution tracer is to have per-M buffers that
+// trace data may be written into. Each M maintains a write flag indicating whether
 // its trace buffer is currently in use.
 //
 // Tracing is initiated by StartTrace, and proceeds in "generations," with each
 // generation being marked by a call to traceAdvance, to advance to the next
 // generation. Generations are a global synchronization point for trace data,
 // and we proceed to a new generation by moving forward trace.gen. Each M reads
-// trace.gen under its own seqlock to determine which generation it is writing
+// trace.gen under its own write flag to determine which generation it is writing
 // trace data for. To this end, each M has 2 slots for buffers: one slot for the
 // previous generation, one slot for the current one. It uses tl.gen to select
-// which buffer slot to write to. Simultaneously, traceAdvance uses the seqlock
+// which buffer slot to write to. Simultaneously, traceAdvance uses the write flag
 // to determine whether every thread is guaranteed to observe an updated
 // trace.gen. Once it is sure, it may then flush any buffers that are left over
 // from the previous generation safely, since it knows the Ms will not mutate
@@ -43,7 +43,7 @@
 // appear in pairs: one for the previous generation, and one for the current one.
 // Like the per-M buffers, which of the two is written to is selected using trace.gen,
 // and anything managed this way must similarly be mutated only in traceAdvance or
-// under the M's seqlock.
+// under the M's write flag.
 //
 // Trace events themselves are simple. They consist of a single byte for the event type,
 // followed by zero or more LEB128-encoded unsigned varints. They are decoded using
@@ -173,7 +173,7 @@
 // doesn't do this directly for performance reasons. The runtime implementation instead caches
 // a G on the M created for the C thread. On Linux this M is then cached in the thread's TLS,
 // and on other systems, the M is put on a global list on exit from Go. We need to do some
-// extra work to make sure that this is modeled correctly in the the tracer. For example,
+// extra work to make sure that this is modeled correctly in the tracer. For example,
 // a C thread exiting Go may leave a P hanging off of its M (whether that M is kept in TLS
 // or placed back on a list). In order to correctly model goroutine creation and destruction,
 // we must behave as if the P was at some point stolen by the runtime, if the C thread
@@ -440,11 +440,6 @@ func StartTrace() error {
 
 	// Record the heap goal so we have it at the very beginning of the trace.
 	tl.HeapGoal()
-
-	// Make sure a ProcStatus is emitted for every P, while we're here.
-	for _, pp := range allp {
-		tl.writer().writeProcStatusForP(pp, pp == tl.mp.p.ptr()).end()
-	}
 	traceRelease(tl)
 
 	unlock(&sched.sysmonlock)
@@ -553,14 +548,41 @@ func traceAdvance(stopTrace bool) {
 	// here to minimize the time that we prevent the world from stopping.
 	frequency := traceClockUnitsPerSecond()
 
-	// Now that we've done some of the heavy stuff, prevent the world from stopping.
+	// Prevent the world from stopping.
+	//
 	// This is necessary to ensure the consistency of the STW events. If we're feeling
 	// adventurous we could lift this restriction and add a STWActive event, but the
-	// cost of maintaining this consistency is low. We're not going to hold this semaphore
-	// for very long and most STW periods are very short.
-	// Once we hold worldsema, prevent preemption as well so we're not interrupted partway
-	// through this. We want to get this done as soon as possible.
+	// cost of maintaining this consistency is low.
+	//
+	// This is also a good time to preempt all the Ps and ensure they had a status traced.
 	semacquire(&worldsema)
+
+	// Go over each P and emit a status event for it if necessary.
+	//
+	// TODO(mknyszek): forEachP is very heavyweight. We could do better by integrating
+	// the statusWasTraced check into it, to avoid preempting unnecessarily.
+	forEachP(waitReasonTraceProcStatus, func(pp *p) {
+		tl := traceAcquire()
+		if !pp.trace.statusWasTraced(tl.gen) {
+			tl.writer().writeProcStatusForP(pp, false).end()
+		}
+		traceRelease(tl)
+	})
+
+	// While we're still holding worldsema (preventing a STW and thus a
+	// change in the number of Ps), reset the status on dead Ps.
+	// They just appear as idle.
+	//
+	// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
+	// events to indicate whether a P exists, rather than just making its
+	// existence implicit.
+	for _, pp := range allp[len(allp):cap(allp)] {
+		pp.trace.readyNextGen(gen)
+	}
+
+	// Prevent preemption to make sure we're not interrupted.
+	//
+	// We want to get through the rest as soon as possible.
 	mp := acquirem()
 
 	// Advance the generation or stop the trace.
@@ -629,7 +651,7 @@ func traceAdvance(stopTrace bool) {
 	// while they're still on that list. Removal from sched.freem is serialized with
 	// this snapshot, so either we'll capture an m on sched.freem and race with
 	// the removal to flush its buffers (resolved by traceThreadDestroy acquiring
-	// the thread's seqlock, which one of us must win, so at least its old gen buffer
+	// the thread's write flag, which one of us must win, so at least its old gen buffer
 	// will be flushed in time for the new generation) or it will have flushed its
 	// buffers before we snapshotted it to begin with.
 	lock(&sched.lock)
@@ -645,7 +667,7 @@ func traceAdvance(stopTrace bool) {
 
 	// Iterate over our snapshot, flushing every buffer until we're done.
 	//
-	// Because trace writers read the generation while the seqlock is
+	// Because trace writers read the generation while the write flag is
 	// held, we can be certain that when there are no writers there are
 	// also no stale generation values left. Therefore, it's safe to flush
 	// any buffers that remain in that generation's slot.
@@ -658,7 +680,7 @@ func traceAdvance(stopTrace bool) {
 		for mToFlush != nil {
 			prev := &mToFlush
 			for mp := *prev; mp != nil; {
-				if mp.trace.seqlock.Load()%2 != 0 {
+				if mp.trace.writing.Load() {
 					// The M is writing. Come back to it later.
 					prev = &mp.trace.link
 					mp = mp.trace.link
@@ -742,20 +764,6 @@ func traceAdvance(stopTrace bool) {
 		unlock(&trace.lock)
 	})
 
-	// Perform status reset on dead Ps because they just appear as idle.
-	//
-	// Preventing preemption is sufficient to access allp safely. allp is only
-	// mutated by GOMAXPROCS calls, which require a STW.
-	//
-	// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
-	// events to indicate whether a P exists, rather than just making its
-	// existence implicit.
-	mp = acquirem()
-	for _, pp := range allp[len(allp):cap(allp)] {
-		pp.trace.readyNextGen(traceNextGen(gen))
-	}
-	releasem(mp)
-
 	if stopTrace {
 		// Acquire the shutdown sema to begin the shutdown process.
 		semacquire(&traceShutdownSema)
@@ -772,23 +780,6 @@ func traceAdvance(stopTrace bool) {
 			trace.enabledWithAllocFree = false
 			debug.malloc = trace.debugMalloc
 		}
-	} else {
-		// Go over each P and emit a status event for it if necessary.
-		//
-		// We do this at the beginning of the new generation instead of the
-		// end like we do for goroutines because forEachP doesn't give us a
-		// hook to skip Ps that have already been traced. Since we have to
-		// preempt all Ps anyway, might as well stay consistent with StartTrace
-		// which does this during the STW.
-		semacquire(&worldsema)
-		forEachP(waitReasonTraceProcStatus, func(pp *p) {
-			tl := traceAcquire()
-			if !pp.trace.statusWasTraced(tl.gen) {
-				tl.writer().writeProcStatusForP(pp, false).end()
-			}
-			traceRelease(tl)
-		})
-		semrelease(&worldsema)
 	}
 
 	// Block until the trace reader has finished processing the last generation.

@@ -1,0 +1,7 @@
+-- .info --
+{"Version": "v0.0.2"}
+-- .mod --
+module example.com/increasegoreq
+go 1.23
+-- increasegoreq.go --
+package increasegoreq

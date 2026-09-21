@@ -169,10 +169,6 @@ var bubbleGen atomic.Uint64 // bubble ID counter
 
 //go:linkname synctestRun internal/synctest.Run
 func synctestRun(f func()) {
-	if debug.asynctimerchan.Load() != 0 {
-		panic("synctest.Run not supported with asynctimerchan!=0")
-	}
-
 	gp := getg()
 	if gp.bubble != nil {
 		panic("synctest.Run called from within a synctest bubble")
@@ -261,6 +257,8 @@ type synctestDeadlockError struct {
 	reason string
 	bubble *synctestBubble
 }
+
+var _ error = synctestDeadlockError{}
 
 func (e synctestDeadlockError) Error() string {
 	return e.reason

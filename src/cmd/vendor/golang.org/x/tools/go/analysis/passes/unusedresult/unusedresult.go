@@ -16,7 +16,6 @@ package unusedresult
 import (
 	_ "embed"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"sort"
 	"strings"
@@ -25,7 +24,9 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //go:embed doc.go
@@ -33,7 +34,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "unusedresult",
-	Doc:      analysisinternal.MustExtractDoc(doc, "unusedresult"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "unusedresult"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedresult",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
@@ -138,22 +139,28 @@ func run(pass *analysis.Pass) (any, error) {
 	nodeFilter := []ast.Node{
 		(*ast.ExprStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := ast.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
+	for cur := range inspect.Root().Preorder(nodeFilter...) {
+		call, ok := ast.Unparen(cur.Node().(*ast.ExprStmt).X).(*ast.CallExpr)
 		if !ok {
-			return // not a call statement
+			continue // not a call statement
+		}
+
+		// A call in the body of a "for b.Loop() {…}" benchmark loop
+		// keeps its result alive by design, so it is not a mistake.
+		if inBenchmarkLoop(pass.TypesInfo, cur) {
+			continue
 		}
 
 		// Call to function or method?
 		fn, ok := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
 		if !ok {
-			return // e.g. var or builtin
+			continue // e.g. var or builtin
 		}
-		if sig := fn.Type().(*types.Signature); sig.Recv() != nil {
+		if sig := fn.Signature(); sig.Recv() != nil {
 			// method (e.g. foo.String())
 			if types.Identical(sig, sigNoArgsStringResult) {
 				if stringMethods[fn.Name()] {
-					pass.ReportRangef(analysisinternal.Range(call.Pos(), call.Lparen),
+					pass.ReportRangef(astutil.RangeOf(call.Pos(), call.Lparen),
 						"result of (%s).%s call not used",
 						sig.Recv().Type(), fn.Name())
 				}
@@ -161,17 +168,38 @@ func run(pass *analysis.Pass) (any, error) {
 		} else {
 			// package-level function (e.g. fmt.Errorf)
 			if pkgFuncs[[2]string{fn.Pkg().Path(), fn.Name()}] {
-				pass.ReportRangef(analysisinternal.Range(call.Pos(), call.Lparen),
+				pass.ReportRangef(astutil.RangeOf(call.Pos(), call.Lparen),
 					"result of %s.%s call not used",
 					fn.Pkg().Path(), fn.Name())
 			}
 		}
-	})
+	}
 	return nil, nil
 }
 
+// inBenchmarkLoop reports whether cur, an *ast.ExprStmt, is a statement in
+// the body of a "for b.Loop() {…}" loop, where b has type *testing.B.
+// testing.B.Loop keeps the results of such calls alive, so they are
+// intentionally unused.
+func inBenchmarkLoop(info *types.Info, cur inspector.Cursor) bool {
+	// The statement's parent is the loop body; its grandparent is the loop.
+	if _, ok := cur.Parent().Node().(*ast.BlockStmt); !ok {
+		return false
+	}
+	loop, ok := cur.Parent().Parent().Node().(*ast.ForStmt)
+	if !ok {
+		return false
+	}
+	cond, ok := ast.Unparen(loop.Cond).(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	fn, ok := typeutil.Callee(info, cond).(*types.Func)
+	return ok && typesinternal.IsMethodNamed(fn, "testing", "B", "Loop")
+}
+
 // func() string
-var sigNoArgsStringResult = types.NewSignatureType(nil, nil, nil, nil, types.NewTuple(types.NewParam(token.NoPos, nil, "", types.Typ[types.String])), false)
+var sigNoArgsStringResult = types.NewSignatureType(nil, nil, nil, nil, typesinternal.TupleOf(types.Typ[types.String]), false)
 
 type stringSetFlag map[string]bool
 

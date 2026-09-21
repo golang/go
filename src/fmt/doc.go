@@ -9,6 +9,18 @@ are simpler.
 
 # Printing
 
+There are four families of printing functions defined by their output destination.
+[Print], [Println] and [Printf] write to [os.Stdout];
+[Sprint], [Sprintln] and [Sprintf] return a string;
+[Fprint], [Fprintln] and [Fprintf] write to an [io.Writer]; and
+[Append], [Appendln] and [Appendf] append the output to a byte slice.
+
+The functions within each family do the formatting according to the end of the name.
+Print, Sprint, Fprint and Append use the default format for each argument,
+adding a space between operands when neither is a string.
+Println, Sprintln, Fprintln and Appendln always add spaces and append a newline.
+Printf, Sprintf, Fprintf and Appendf use a sequence of "verbs" to control the formatting.
+
 The verbs:
 
 General:
@@ -31,7 +43,7 @@ Integer:
 	%d	base 10
 	%o	base 8
 	%O	base 8 with 0o prefix
-	%q	a single-quoted character literal safely escaped with Go syntax.
+	%q	a single-quoted rune literal safely escaped with Go syntax.
 	%x	base 16, with lower-case letters for a-f
 	%X	base 16, with upper-case letters for A-F
 	%U	Unicode format: U+1234; same as "U+%04X"
@@ -222,7 +234,7 @@ formatting methods such as Error or String on unexported fields.
 
 # Explicit argument indexes
 
-In [Printf], [Sprintf], and [Fprintf], the default behavior is for each
+In [Printf], [Sprintf], [Fprintf], and [Appendf], the default behavior is for each
 formatting verb to format successive arguments passed in the call.
 However, the notation [n] immediately before the verb indicates that the
 nth one-indexed argument is to be formatted instead. The same notation
@@ -286,6 +298,16 @@ The %!s just shows the print verb in use when the failure
 occurred. If the panic is caused by a nil receiver to an Error,
 String, or GoString method, however, the output is the undecorated
 string, "<nil>".
+
+Many packages whose APIs involve string formatting expose a trio of
+functions similar to [Print], [Printf], and [Println].
+For example, the [log.Print], [log.Printf] and [log.Println] functions
+forward their arguments to the corresponding functions in this package.
+To avoid confusion, other wrapper functions should follow the naming
+and behavioral conventions established by this package.
+In particular, a single function should not choose between literal
+printing (like [Print]) and formatted printing (like [Printf])
+based on the number of arguments; instead, provide separate functions.
 
 # Scanning
 

@@ -24,6 +24,10 @@ import (
 	"cmd/internal/src"
 )
 
+// uirVersion is the unified IR version to use for encoding/decoding.
+// Use V5 for generic method index ordering.
+const uirVersion = pkgbits.V5
+
 // localPkgReader holds the package reader used for reading the local
 // package. It exists so the unified IR linker can refer back to it
 // later.
@@ -76,7 +80,7 @@ func LookupFunc(fullName string) (*ir.Func, error) {
 // readBodies to post-process any funcs on the "todoBodies" list
 // that were added as a result of the lookup operations.
 func PostLookupCleanup() {
-	readBodies(typecheck.Target, false)
+	readBodies(typecheck.Target, false, nil)
 }
 
 func lookupFunction(pkg *types.Pkg, symName string) (*ir.Func, error) {
@@ -201,7 +205,7 @@ func unified(m posMap, noders []*noder) {
 	r := localPkgReader.newReader(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 	r.pkgInit(types.LocalPkg, target)
 
-	readBodies(target, false)
+	readBodies(target, false, nil)
 
 	// Check that nothing snuck past typechecking.
 	for _, fn := range target.Funcs {
@@ -235,7 +239,7 @@ func unified(m posMap, noders []*noder) {
 // If duringInlining is true, then the inline.InlineDecls is called as
 // necessary on instantiations of imported generic functions, so their
 // inlining costs can be computed.
-func readBodies(target *ir.Package, duringInlining bool) {
+func readBodies(target *ir.Package, duringInlining bool, profile *pgoir.Profile) {
 	var inlDecls []*ir.Func
 
 	// Don't use range--bodyIdx can add closures to todoBodies.
@@ -302,7 +306,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
 
 		oldLowerM := base.Flag.LowerM
 		base.Flag.LowerM = 0
-		inline.CanInlineFuncs(inlDecls, nil)
+		inline.CanInlineFuncs(inlDecls, profile)
 		base.Flag.LowerM = oldLowerM
 
 		for _, fn := range inlDecls {
@@ -463,10 +467,8 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 // writeUnifiedExport writes to `out` the finalized, self-contained
 // Unified IR export data file for the current compilation unit.
 func writeUnifiedExport(out io.Writer) {
-	// Use V2 as the encoded version for aliastypeparams.
-	version := pkgbits.V2
 	l := linker{
-		pw: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
+		pw: pkgbits.NewPkgEncoder(uirVersion, base.Debug.SyncFrames),
 
 		pkgs:   make(map[string]index),
 		decls:  make(map[*types.Sym]index),
@@ -486,6 +488,12 @@ func writeUnifiedExport(out io.Writer) {
 
 		r.Sync(pkgbits.SyncPkg)
 		selfPkgIdx = l.relocIdx(pr, pkgbits.SectionPkg, r.Reloc(pkgbits.SectionPkg))
+
+		// Versions must match.
+		// TODO: It seems that we should be able to use r.Version() for NewPkgEncoder
+		// instead of passing uirVersion, but NewPkgEncoder is created before r.
+		// If that is correct, we should make that happen.
+		assert(r.Version() == uirVersion)
 
 		if r.Version().Has(pkgbits.HasInit) {
 			r.Bool()

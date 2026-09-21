@@ -5,7 +5,10 @@
 package tls
 
 import (
+	"bytes"
 	"encoding/hex"
+	"errors"
+	"strings"
 	"testing"
 )
 
@@ -41,8 +44,93 @@ func TestSkipBadConfigs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := pickECHConfig(configs)
+	config, _, _, _ := pickECHConfig(configs)
 	if config != nil {
 		t.Fatal("pickECHConfig picked an invalid config")
+	}
+}
+
+func TestPickECHConfigWithInvalidAEADID(t *testing.T) {
+	b, err := hex.DecodeString("0045fe0d0041590020002092a01233db2218518ccbbbbc24df20686af417b37388de6460e94011974777090004000100010012636c6f7564666c6172652d6563682e636f6d0000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := bytes.Replace(b, []byte{0x00, 0x01, 0x00, 0x01}, []byte{0x00, 0x01, 0xFF, 0xFF}, 1)
+	configs, err := parseECHConfigList(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config, _, _, _ := pickECHConfig(configs); config != nil {
+		t.Fatalf("got %v, want nil", config)
+	}
+}
+
+func TestECHPadding(t *testing.T) {
+	const maxNameLength = 64
+	for _, tc := range []struct {
+		name       string
+		serverName string
+	}{
+		{"Short", "a.test"},
+		{"Medium", strings.Repeat("a", 30) + ".test"},
+		{"MaxLength", strings.Repeat("a", maxNameLength) + ".test"},
+		{"NoSNI", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			inner := &clientHelloMsg{
+				vers:               VersionTLS13,
+				random:             make([]byte, 32),
+				serverName:         tc.serverName,
+				cipherSuites:       []uint16{TLS_AES_128_GCM_SHA256},
+				compressionMethods: []uint8{0},
+				supportedVersions:  []uint16{VersionTLS13},
+			}
+			encoded, err := encodeInnerClientHello(inner, maxNameLength)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(encoded)%32 != 0 {
+				t.Errorf("got %d, want multiple of 32", len(encoded))
+			}
+		})
+	}
+
+	t.Run("SetSizeReduction", func(t *testing.T) {
+		sizes := make(map[int]struct{})
+		for sniLen := 1; sniLen <= maxNameLength; sniLen++ {
+			inner := &clientHelloMsg{
+				vers:               VersionTLS13,
+				random:             make([]byte, 32),
+				serverName:         strings.Repeat("a", sniLen) + ".test",
+				cipherSuites:       []uint16{TLS_AES_128_GCM_SHA256},
+				compressionMethods: []uint8{0},
+				supportedVersions:  []uint16{VersionTLS13},
+			}
+			encoded, err := encodeInnerClientHello(inner, maxNameLength)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sizes[len(encoded)] = struct{}{}
+		}
+		if len(sizes) > 4 {
+			t.Errorf("got %d distinct encoded sizes for SNI lengths 1..%d, want <= 4", len(sizes), maxNameLength)
+		}
+	})
+}
+
+func TestDecodeECHConfigListOverflow(t *testing.T) {
+	// Craft a 65538-byte payload with an outer length header of 0 (bytes 0-1)
+	// and an inner length of 65532 (bytes 4-5). Previously, both lengths were
+	// handled as uint16 and would overflow:
+	// 1. uint16(65538-2) becomes 0, causing it to erroneously match the
+	// declared outer length header of 0.
+	// 2. uint16(65532+4) becomes 0, making it so that when we advance past the
+	// inner ECHConfig, we would only advance the buffer by 0 bytes, causing an
+	// infinite loop.
+	payload := make([]byte, 65538)
+	payload[4] = 0xFF
+	payload[5] = 0xFC
+	if _, err := parseECHConfigList(payload); !errors.Is(err, errMalformedECHConfigList) {
+		t.Fatalf("got %v when parsing a malformed ECHConfigList; want %v", err, errMalformedECHConfigList)
 	}
 }

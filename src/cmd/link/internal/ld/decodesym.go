@@ -120,10 +120,7 @@ func decodetypeNameEmbedded(ldr *loader.Loader, symIdx loader.Sym, relocs *loade
 }
 
 func decodetypeFuncInType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, i int) loader.Sym {
-	uadd := commonsize(arch) + 4
-	if arch.PtrSize == 8 {
-		uadd += 4
-	}
+	uadd := abi.RTypeSize(abi.Func, arch.PtrSize)
 	if decodetypeHasUncommon(arch, ldr.Data(symIdx)) {
 		uadd += uncommonSize(arch)
 	}
@@ -175,7 +172,7 @@ func decodetypeStructFieldCount(ldr *loader.Loader, arch *sys.Arch, symIdx loade
 
 func decodetypeStructFieldArrayOff(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) int {
 	data := ldr.Data(symIdx)
-	off := commonsize(arch) + 4*arch.PtrSize
+	off := abi.RTypeSize(abi.Struct, arch.PtrSize)
 	if decodetypeHasUncommon(arch, data) {
 		off += uncommonSize(arch)
 	}

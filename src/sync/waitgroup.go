@@ -236,7 +236,25 @@ func (wg *WaitGroup) Wait() {
 func (wg *WaitGroup) Go(f func()) {
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			if x := recover(); x != nil {
+				// f panicked, which will be fatal because
+				// this is a new goroutine.
+				//
+				// Calling Done will unblock Wait in the main goroutine,
+				// allowing it to race with the fatal panic and
+				// possibly even exit the process (os.Exit(0))
+				// before the panic completes.
+				//
+				// This is almost certainly undesirable,
+				// so instead avoid calling Done and simply panic.
+				panic(x)
+			}
+
+			// f completed normally, or abruptly using goexit.
+			// Either way, decrement the semaphore.
+			wg.Done()
+		}()
 		f()
 	}()
 }

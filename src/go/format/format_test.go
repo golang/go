@@ -44,7 +44,7 @@ func TestNode(t *testing.T) {
 	}
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, testfile, src, parser.ParseComments)
+	file, err := parser.ParseFile(fset, testfile, src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestNodeNoModify(t *testing.T) {
 	)
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	file, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

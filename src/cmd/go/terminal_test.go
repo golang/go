@@ -16,6 +16,8 @@ import (
 )
 
 func TestTerminalPassthrough(t *testing.T) {
+	t.Parallel()
+
 	// Check that if 'go test' is run with a terminal connected to stdin/stdout,
 	// then the go command passes that terminal down to the test binary
 	// invocation (rather than, e.g., putting a pipe in the way).
@@ -27,6 +29,7 @@ func TestTerminalPassthrough(t *testing.T) {
 	// terminal, the test can correctly detect that. (cmd/go doesn't guarantee
 	// that it won't add a terminal in the middle, but that would be pretty weird.)
 	t.Run("pipe", func(t *testing.T) {
+		t.Parallel()
 		r, w, err := os.Pipe()
 		if err != nil {
 			t.Fatalf("pipe failed: %s", err)
@@ -44,6 +47,7 @@ func TestTerminalPassthrough(t *testing.T) {
 
 	// Now test with a read PTY.
 	t.Run("pty", func(t *testing.T) {
+		t.Parallel()
 		r, processTTY, err := testpty.Open()
 		if errors.Is(err, testpty.ErrNotSupported) {
 			t.Skipf("%s", err)

@@ -141,8 +141,8 @@ var optab = []Optab{
 	{AMVN, C_NCON, C_NONE, C_REG, 12, 4, 0, 0, 0, 0},
 	{AADD, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0, C_SBIT},
 	{AADD, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0, C_SBIT},
-	{AAND, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0, C_SBIT},
-	{AAND, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0, C_SBIT},
+	{AAND, C_NCON, C_REG, C_REG, 114, 4, 0, 0, 0, C_SBIT},
+	{AAND, C_NCON, C_NONE, C_REG, 114, 4, 0, 0, 0, C_SBIT},
 	{AORR, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0, C_SBIT},
 	{AORR, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0, C_SBIT},
 	{ACMP, C_NCON, C_REG, C_NONE, 13, 8, 0, 0, 0, 0},
@@ -2553,6 +2553,21 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal mb option:\n%v", p)
 		}
 		o1 |= mbop
+
+	case 114: /* AND $C_NCON, [R], R -> BIC $~C_NCON, [R], R */
+		// AND with an immediate that is not encodable as a rotated 8-bit
+		// value, but whose bitwise complement is, can be emitted as a
+		// single BIC instruction without a scratch register. This avoids
+		// the MVN+AND synthesis used by case 13, which clobbers REGTMP.
+		c.aclass(&p.From)
+		o1 = c.oprrr(p, ABIC, int(p.Scond))
+		o1 |= uint32(immrot(^uint32(c.instoffset)))
+		rt := int(p.To.Reg)
+		r := int(p.Reg)
+		if r == 0 {
+			r = rt
+		}
+		o1 |= (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
 	}
 
 	out[0] = o1

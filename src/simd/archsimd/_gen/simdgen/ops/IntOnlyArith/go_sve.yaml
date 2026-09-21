@@ -1,0 +1,13 @@
+!sum
+# Abs — signed integer absolute value. ZABS is predicated-only: it has no
+# unpredicated encoding, so its governing predicate is implicit-all-true and
+# its merging qualifier becomes the predicated machine op.
+- go: Abs
+  asm: "ZABS"
+  in:
+  - &int
+    go: $t
+    base: int
+  - class: mask # governing predicate
+  out:
+  - *int

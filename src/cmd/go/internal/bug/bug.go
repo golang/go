@@ -37,22 +37,22 @@ The report includes useful system information.
 }
 
 func init() {
-	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "print warnings about failures to gather information")
 	base.AddChdirFlag(&CmdBug.Flag)
 }
 
 func runBug(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if len(args) > 0 {
 		base.Fatalf("go: bug takes no arguments")
 	}
-	work.BuildInit(moduleLoaderState)
+	work.BuildInit(moduleLoader)
 
 	var buf strings.Builder
 	buf.WriteString(bugHeader)
 	printGoVersion(&buf)
 	buf.WriteString("### Does this issue reproduce with the latest release?\n\n\n")
-	printEnvDetails(moduleLoaderState, &buf)
+	printEnvDetails(moduleLoader, &buf)
 	buf.WriteString(bugFooter)
 
 	body := buf.String()
@@ -76,11 +76,11 @@ A link on go.dev/play is best.
 
 
 
+### What did you see happen?
+
+
+
 ### What did you expect to see?
-
-
-
-### What did you see instead?
 
 `
 
@@ -93,21 +93,21 @@ func printGoVersion(w io.Writer) {
 	fmt.Fprintf(w, "\n")
 }
 
-func printEnvDetails(loaderstate *modload.State, w io.Writer) {
+func printEnvDetails(ld *modload.Loader, w io.Writer) {
 	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env`)?\n\n")
 	fmt.Fprintf(w, "<details><summary><code>go env</code> Output</summary><br><pre>\n")
 	fmt.Fprintf(w, "$ go env\n")
-	printGoEnv(loaderstate, w)
+	printGoEnv(ld, w)
 	printGoDetails(w)
 	printOSDetails(w)
 	printCDetails(w)
 	fmt.Fprintf(w, "</pre></details>\n\n")
 }
 
-func printGoEnv(loaderstate *modload.State, w io.Writer) {
+func printGoEnv(ld *modload.Loader, w io.Writer) {
 	env := envcmd.MkEnv()
-	env = append(env, envcmd.ExtraEnvVars(loaderstate)...)
-	env = append(env, envcmd.ExtraEnvVarsCostly(loaderstate)...)
+	env = append(env, envcmd.ExtraEnvVars(ld)...)
+	env = append(env, envcmd.ExtraEnvVarsCostly(ld)...)
 	envcmd.PrintEnv(w, env, false)
 }
 
@@ -184,14 +184,14 @@ func firstLine(buf []byte) []byte {
 // printGlibcVersion prints information about the glibc version.
 // It ignores failures.
 func printGlibcVersion(w io.Writer) {
-	tempdir := os.TempDir()
-	if tempdir == "" {
+	tempdir, err := os.MkdirTemp("", "")
+	if err != nil {
 		return
 	}
 	src := []byte(`int main() {}`)
 	srcfile := filepath.Join(tempdir, "go-bug.c")
 	outfile := filepath.Join(tempdir, "go-bug")
-	err := os.WriteFile(srcfile, src, 0644)
+	err = os.WriteFile(srcfile, src, 0644)
 	if err != nil {
 		return
 	}

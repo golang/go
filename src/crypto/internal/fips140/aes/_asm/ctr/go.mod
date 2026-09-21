@@ -1,4 +1,4 @@
-module crypto/aes/_asm/ctr
+module crypto/internal/fips140/aes/_asm/ctr
 
 go 1.25
 

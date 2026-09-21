@@ -148,6 +148,7 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 	symname := fmt.Sprintf("%d.%s", len(buf.data), hash)
 	return ctxt.LookupInit("go:sehuw."+symname, func(s *obj.LSym) {
 		s.WriteBytes(ctxt, 0, buf.data)
+		s.Align = 4
 		s.Type = objabi.SSEHUNWINDINFO
 		s.Set(obj.AttrDuplicateOK, true)
 		s.Set(obj.AttrLocal, true)

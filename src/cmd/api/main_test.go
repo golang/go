@@ -17,6 +17,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"internal/buildcfg"
 	"internal/testenv"
 	"io"
 	"log"
@@ -116,12 +117,20 @@ func Check(t *testing.T) {
 
 	for _, c := range contexts {
 		c.Compiler = build.Default.Compiler
+
+		// Include baseline goexperiment.* tool tags.
+		baseline, err := buildcfg.ParseGOEXPERIMENT(c.GOOS, c.GOARCH, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, exp := range baseline.Enabled() {
+			c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
+		}
 	}
 
 	walkers := make([]*Walker, len(contexts))
 	var wg sync.WaitGroup
 	for i, context := range contexts {
-		i, context := i, context
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -390,7 +399,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 		return f, nil
 	}
 
-	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		return nil, err
 	}
@@ -1154,14 +1163,15 @@ func needApproval(filename string) bool {
 
 func (w *Walker) collectDeprecated() {
 	isDeprecated := func(doc *ast.CommentGroup) bool {
-		if doc != nil {
-			for _, c := range doc.List {
-				if strings.HasPrefix(c.Text, "// Deprecated:") {
-					return true
-				}
-			}
-		}
-		return false
+		// Look for "Deprecated:" (case-sensitive) at the beginning (not middle) of a paragraph.
+		// It's typically found in the last paragraph, but it's not required to be the last one.
+		// The colon is typically followed by a space, but it can also be a newline, as was the
+		// case at https://go.dev/pkg/go/build#AllowBinary for example.
+		//
+		// See https://go.dev/wiki/Deprecated and https://go.dev/ref/mod#go-mod-file-module-deprecation.
+		text := doc.Text()
+		return strings.HasPrefix(text, "Deprecated: ") || strings.Contains(text, "\n\nDeprecated: ") ||
+			strings.HasPrefix(text, "Deprecated:\n") || strings.Contains(text, "\n\nDeprecated:\n")
 	}
 
 	w.deprecated = make(map[token.Pos]bool)

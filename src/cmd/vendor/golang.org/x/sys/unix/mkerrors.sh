@@ -226,6 +226,7 @@ struct ltchars {
 #include <linux/cryptouser.h>
 #include <linux/devlink.h>
 #include <linux/dm-ioctl.h>
+#include <linux/elf.h>
 #include <linux/errqueue.h>
 #include <linux/ethtool_netlink.h>
 #include <linux/falloc.h>
@@ -255,6 +256,7 @@ struct ltchars {
 #include <linux/loop.h>
 #include <linux/lwtunnel.h>
 #include <linux/magic.h>
+#include <linux/mei.h>
 #include <linux/memfd.h>
 #include <linux/module.h>
 #include <linux/mount.h>
@@ -288,14 +290,7 @@ struct ltchars {
 #include <mtd/mtd-user.h>
 #include <net/route.h>
 
-#if defined(__sparc__)
-// On sparc{,64}, the kernel defines struct termios2 itself which clashes with the
-// definition in glibc. As only the error constants are needed here, include the
-// generic termibits.h (which is included by termbits.h on sparc).
-#include <asm-generic/termbits.h>
-#else
 #include <asm/termbits.h>
-#endif
 
 #ifndef PTRACE_GETREGS
 #define PTRACE_GETREGS	0xc
@@ -352,6 +347,9 @@ struct ltchars {
 // Renamed in v6.16, commit c6d732c38f93 ("net: ethtool: remove duplicate defines for family info")
 #define ETHTOOL_FAMILY_NAME	ETHTOOL_GENL_NAME
 #define ETHTOOL_FAMILY_VERSION	ETHTOOL_GENL_VERSION
+
+// Removed in v6.17, commit 760e6f7befba ("futex: Remove support for IMMUTABLE")
+#define PR_FUTEX_HASH_GET_IMMUTABLE 3
 '
 
 includes_NetBSD='
@@ -529,6 +527,7 @@ ccflags="$@"
 		$2 ~ /^O[CNPFPL][A-Z]+[^_][A-Z]+$/ ||
 		$2 ~ /^(NL|CR|TAB|BS|VT|FF)DLY$/ ||
 		$2 ~ /^(NL|CR|TAB|BS|VT|FF)[0-9]$/ ||
+		$2 ~ /^(DT|EI|ELF|EV|NN|NT|PF|SHF|SHN|SHT|STB|STT|VER)_/ ||
 		$2 ~ /^O?XTABS$/ ||
 		$2 ~ /^TC[IO](ON|OFF)$/ ||
 		$2 ~ /^IN_/ ||
@@ -538,7 +537,7 @@ ccflags="$@"
 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
 		$2 == "LOOP_CONFIGURE" ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MREMAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MREMAP|MFD|MLOCK|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
 		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
 		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
 		$2 ~ /^PTP_/ ||
@@ -611,7 +610,7 @@ ccflags="$@"
 		$2 !~ /IOC_MAGIC/ &&
 		$2 ~ /^[A-Z][A-Z0-9_]+_MAGIC2?$/ ||
 		$2 ~ /^(VM|VMADDR)_/ ||
-		$2 ~ /^IOCTL_VM_SOCKETS_/ ||
+		$2 ~ /^(IOCTL_VM_SOCKETS_|IOCTL_MEI_)/ ||
 		$2 ~ /^(TASKSTATS|TS)_/ ||
 		$2 ~ /^CGROUPSTATS_/ ||
 		$2 ~ /^GENL_/ ||

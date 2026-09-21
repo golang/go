@@ -13,22 +13,22 @@
 (Select0 (MakeTuple x y)) => x
 (Select1 (MakeTuple x y)) => y
 
-(Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && t.IsSigned() =>
+(Load <t> ptr mem) && ssa.Is64BitInt(t) && !config.BigEndian && t.IsSigned() =>
 	(Int64Make
 		(Load <typ.Int32> (OffPtr <typ.Int32Ptr> [4] ptr) mem)
 		(Load <typ.UInt32> ptr mem))
 
-(Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && !t.IsSigned() =>
+(Load <t> ptr mem) && ssa.Is64BitInt(t) && !config.BigEndian && !t.IsSigned() =>
 	(Int64Make
 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem)
 		(Load <typ.UInt32> ptr mem))
 
-(Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && t.IsSigned() =>
+(Load <t> ptr mem) && ssa.Is64BitInt(t) && config.BigEndian && t.IsSigned() =>
 	(Int64Make
 		(Load <typ.Int32> ptr mem)
 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
 
-(Load <t> ptr mem) && is64BitInt(t) && config.BigEndian && !t.IsSigned() =>
+(Load <t> ptr mem) && ssa.Is64BitInt(t) && config.BigEndian && !t.IsSigned() =>
 	(Int64Make
 		(Load <typ.UInt32> ptr mem)
 		(Load <typ.UInt32> (OffPtr <typ.UInt32Ptr> [4] ptr) mem))
@@ -46,20 +46,20 @@
 		(Store {hi.Type} dst hi mem))
 
 // These are not enabled during decomposeBuiltin if late call expansion, but they are always enabled for softFloat
-(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && ssa.Is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.Int32> {n} [off+4])
     (Arg <typ.UInt32> {n} [off]))
-(Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin")  =>
+(Arg {n} [off]) && ssa.Is64BitInt(v.Type) && !config.BigEndian && !v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin")  =>
   (Int64Make
     (Arg <typ.UInt32> {n} [off+4])
     (Arg <typ.UInt32> {n} [off]))
 
-(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && ssa.Is64BitInt(v.Type) && config.BigEndian && v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.Int32> {n} [off])
     (Arg <typ.UInt32> {n} [off+4]))
-(Arg {n} [off]) && is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.pass.name == "decompose builtin") =>
+(Arg {n} [off]) && ssa.Is64BitInt(v.Type) && config.BigEndian && !v.Type.IsSigned() && !(b.Func.Pass.Name == "decompose builtin") =>
   (Int64Make
     (Arg <typ.UInt32> {n} [off])
     (Arg <typ.UInt32> {n} [off+4]))
@@ -237,29 +237,29 @@
 
 // turn x64 non-constant shifts to x32 shifts
 // if high 32-bit of the shift is nonzero, make a huge shift
-(Lsh64x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Lsh64x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Lsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh64x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh64x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh64Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh64Ux64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh64Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Lsh32x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Lsh32x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Lsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh32x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh32x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh32Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh32Ux64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh32Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Lsh16x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Lsh16x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Lsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh16x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh16x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh16Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh16Ux64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh16Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Lsh8x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Lsh8x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Lsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh8x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh8x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh8Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh8Ux64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh8Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 
 // Most general

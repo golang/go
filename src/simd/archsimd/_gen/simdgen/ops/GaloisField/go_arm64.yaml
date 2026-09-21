@@ -1,0 +1,10 @@
+!sum
+# Polynomial (carryless) multiply long, P64 variant (2D→1Q).
+- go: carrylessMultiplyWidenLo
+  asm: VPMULL
+  hiHalfAsm: VPMULL2
+  in:
+  - go: Uint64x2
+  - go: Uint64x2
+  out:
+  - go: Uint64x2

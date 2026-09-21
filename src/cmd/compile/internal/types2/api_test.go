@@ -1015,13 +1015,13 @@ func (r *N[C]) n() {  }
 		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
 	}
 	if gn != dn {
-		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
+		t.Errorf(`N.Method(...) returns %v for "n", but Info.Defs has %v`, gn, dn)
 	}
-	if dmm != dm {
-		t.Errorf(`Inside "m", r.m uses %v, want the defined func %v`, dmm, dm)
+	if dmm == dm {
+		t.Errorf(`Inside "m", r.m uses %v, want a func distinct from %v`, dmm, dm)
 	}
 	if dmn == dn {
-		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmm, dm)
+		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmn, dn)
 	}
 }
 
@@ -1225,9 +1225,9 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package v0; var (a, b int; _ = a + b)`, `a + b`, `value`},
 		{`package v1; var _ = &[]int{1}`, `[]int{…}`, `value`},
 		{`package v2; var _ = func(){}`, `func() {}`, `value`},
-		{`package v4; func f() { _ = f }`, `f`, `value`},
-		{`package v3; var _ *int = nil`, `nil`, `value, nil`},
-		{`package v3; var _ *int = (nil)`, `(nil)`, `value, nil`},
+		{`package v3; func f() { _ = f }`, `f`, `value`},
+		{`package v4; var _ *int = nil`, `nil`, `value, nil`},
+		{`package v5; var _ *int = (nil)`, `(nil)`, `value, nil`},
 
 		// addressable (and thus assignable) operands
 		{`package a0; var (x int; _ = x)`, `x`, `value, addressable, assignable`},
@@ -1258,8 +1258,8 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package m4; var v int`, `v`, `<missing>`},
 		{`package m5; func f() {}`, `f`, `<missing>`},
 		{`package m6; func _(x int) {}`, `x`, `<missing>`},
-		{`package m6; func _()(x int) { return }`, `x`, `<missing>`},
-		{`package m6; type T int; func (x T) _() {}`, `x`, `<missing>`},
+		{`package m7; func _()(x int) { return }`, `x`, `<missing>`},
+		{`package m8; type T int; func (x T) _() {}`, `x`, `<missing>`},
 	}
 
 	for _, test := range tests {
@@ -2404,6 +2404,12 @@ type J = I[int]
 type Nested[P any] *interface{b(P)}
 
 type K = Nested[string]
+
+type G[T any] struct{}
+
+func (G[T]) M[P interface{ ~*T }](P) {}
+
+type GI = G[int]
 `
 	pkg := mustTypecheck(src, nil, nil)
 
@@ -2419,8 +2425,7 @@ type K = Nested[string]
 			methods [2][]string // method strings
 		)
 		var wg sync.WaitGroup
-		for i := 0; i < 2; i++ {
-			i := i
+		for i := range counts {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -2442,6 +2447,23 @@ type K = Nested[string]
 				t.Errorf("mismatching methods for %s: %s vs %s", inst, m0, m1)
 			}
 		}
+	}
+
+	// Expand a generic method on a Named instance concurrently.
+	named := Unalias(pkg.Scope().Lookup("GI").Type()).(*Named)
+	var bounds [2]string
+	var wg sync.WaitGroup
+	for i := range bounds {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sig := named.Method(0).Type().(*Signature)
+			bounds[i] = sig.TypeParams().At(0).Underlying().String()
+		}()
+	}
+	wg.Wait()
+	if bounds[0] != bounds[1] || bounds[0] != "interface{~*int}" {
+		t.Errorf("mismatching bounds for GI.M: %s vs %s", bounds[0], bounds[1])
 	}
 }
 
@@ -2599,7 +2621,6 @@ func fn() {
 	})
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			if got := len(idents[test.name]); got != 1 {
 				t.Fatalf("found %d identifiers named %s, want 1", got, test.name)
@@ -2979,7 +3000,6 @@ func TestTooNew(t *testing.T) {
 
 // This is a regression test for #66704.
 func TestUnaliasTooSoonInCycle(t *testing.T) {
-	t.Setenv("GODEBUG", "gotypesalias=1")
 	const src = `package a
 
 var x T[B] // this appears to cause Unalias to be called on B while still Invalid
@@ -3005,34 +3025,12 @@ type B = C
 type C = int
 `
 
-	pkg := mustTypecheck(src, &Config{EnableAlias: true}, nil)
+	pkg := mustTypecheck(src, nil, nil)
 	A := pkg.Scope().Lookup("A")
 
 	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
 	if got != want {
 		t.Errorf("A.Rhs = %s, want %s", got, want)
-	}
-}
-
-// Test the hijacking described of "any" described in golang/go#66921, for
-// (concurrent) type checking.
-func TestAnyHijacking_Check(t *testing.T) {
-	for _, enableAlias := range []bool{false, true} {
-		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
-			var wg sync.WaitGroup
-			for i := 0; i < 10; i++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					pkg := mustTypecheck("package p; var x any", &Config{EnableAlias: enableAlias}, nil)
-					x := pkg.Scope().Lookup("x")
-					if _, gotAlias := x.Type().(*Alias); gotAlias != enableAlias {
-						t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, x.Type(), gotAlias, enableAlias)
-					}
-				}()
-			}
-			wg.Wait()
-		})
 	}
 }
 
@@ -3110,5 +3108,58 @@ func (recv T) f(param int) (result int) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestIssue79657(t *testing.T) {
+	src := `package p
+
+type T[P any] struct{}
+func (T[P])  M() {}
+func (T[P])  N[Q any]() {}
+func (*T[P]) L[Q any]() {}
+
+var (
+	x = T[int]{}
+	_ = x.M
+	_ = T[int].M
+	_ = x.N[bool]
+	_ = T[int].N[bool]
+	_ = x.L[bool]
+	_ = (*T[int]).L[bool]
+)
+`
+
+	info := &Info{Instances: make(map[*syntax.Name]Instance)}
+	mustTypecheck(src, nil, info)
+
+	test := func(inst Instance, want string) {
+		if recv := inst.Type.(*Signature).Recv(); recv != nil {
+			if got := recv.Type().String(); got != want {
+				t.Errorf("instance %v has receiver type %s, want %s", inst, got, want)
+			}
+		} else {
+			t.Errorf("instance %v has no receiver", inst)
+		}
+	}
+
+	n, l := 0, 0
+	for id, inst := range info.Instances {
+		switch id.Value {
+		case "M":
+			t.Errorf("unexpected instance %v", inst)
+		case "N":
+			n++
+			test(inst, "p.T[int]")
+		case "L":
+			l++
+			test(inst, "*p.T[int]")
+		}
+	}
+	if n != 2 {
+		t.Errorf("found %d instances of N, want 2", n)
+	}
+	if l != 2 {
+		t.Errorf("found %d instances of L, want 2", l)
 	}
 }

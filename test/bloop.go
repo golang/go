@@ -1,0 +1,76 @@
+// errorcheck -0 -m=2
+
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Test keeping statements results in testing.B.Loop alive.
+// See issue #61515, #73137.
+
+package foo
+
+import "testing"
+
+func caninline(x int) int { // ERROR "can inline caninline"
+	return x
+}
+
+func caninlineMulti(x int) (int, int) { // ERROR "can inline caninlineMulti"
+	return x, x
+}
+
+var something int
+
+func caninlineNoRet(x int) { // ERROR "can inline caninlineNoRet"
+	something = x
+}
+
+func caninlineVariadic(x ...int) { // ERROR "can inline caninlineVariadic" "x does not escape"
+	something = x[0]
+}
+
+func receiver(f func()) { // ERROR "can inline receiver" "f does not escape"
+	f()
+}
+
+func argument() {} // ERROR "can inline argument"
+
+func test(b *testing.B, localsink, cond int) { // ERROR ".*"
+	for i := 0; i < b.N; i++ {
+		caninline(1) // ERROR "inlining call to caninline"
+	}
+	somethingptr := &something
+	for b.Loop() { // ERROR "inlining call to testing\.\(\*B\)\.Loop"
+		caninline(1)                 // ERROR "inlining call to caninline" "function result will be kept alive"
+		caninlineNoRet(1)            // ERROR "inlining call to caninlineNoRet" "function arg will be kept alive"
+		caninlineVariadic(1)         // ERROR "inlining call to caninlineVariadic" "function arg will be kept alive" ".* does not escape"
+		caninlineVariadic(localsink) // ERROR "inlining call to caninlineVariadic" "localsink will be kept alive" ".* does not escape"
+		localsink = caninline(1)     // ERROR "inlining call to caninline" "localsink will be kept alive"
+		localsink += 5               // ERROR "localsink will be kept alive"
+		localsink, cond = 1, 2       // ERROR "localsink will be kept alive" "cond will be kept alive"
+		*somethingptr = 1            // ERROR "dereference will be kept alive"
+		if cond > 0 {
+			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
+		}
+		switch cond {
+		case 2:
+			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
+		}
+		// Case expressions are not statements and should not be rewritten by the bloop pass.
+		switch cond {
+		case caninline(2): // ERROR "inlining call to caninline"
+		}
+		{
+			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
+		}
+
+		_ = caninline(1) // ERROR "inlining call to caninline" ".*autotmp.* will be kept alive"
+
+		// An assign list stmt with a single rhs expression returning multiple values via a tuple.
+		_, _ = caninlineMulti(1) // ERROR "inlining call to caninlineMulti" ".*autotmp.* will be kept alive"
+		// An assign list stmt with multiple rhs expressions.
+		_, _ = caninline(1), caninline(2) // ERROR "inlining call to caninline" ".*autotmp.* will be kept alive"
+
+		receiver(argument) // ERROR inlining call to receiver" "function arg will be kept alive"
+	}
+}

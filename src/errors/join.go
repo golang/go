@@ -27,16 +27,6 @@ func Join(errs ...error) error {
 	if n == 0 {
 		return nil
 	}
-	if n == 1 {
-		for _, err := range errs {
-			if _, ok := err.(interface {
-				Unwrap() []error
-			}); ok {
-				return err
-			}
-		}
-	}
-
 	e := &joinError{
 		errs: make([]error, 0, n),
 	}

@@ -25,6 +25,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 // A Client is an HTTP client. Its zero value ([DefaultClient]) is a
@@ -97,11 +99,6 @@ type Client struct {
 	//
 	// The Client cancels requests to the underlying Transport
 	// as if the Request's Context ended.
-	//
-	// For compatibility, the Client will also use the deprecated
-	// CancelRequest method on Transport if found. New
-	// RoundTripper implementations should use the Request's Context
-	// for cancellation instead of implementing CancelRequest.
 	Timeout time.Duration
 }
 
@@ -240,7 +237,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		}
 	}
 
-	// Most the callers of send (Get, Post, et al) don't need
+	// Most of the callers of send (Get, Post, et al) don't need
 	// Headers, leaving it uninitialized. We guarantee to the
 	// Transport that this has been initialized, though.
 	if req.Header == nil {
@@ -329,7 +326,7 @@ func knownRoundTripperImpl(rt RoundTripper, req *Request) bool {
 			return knownRoundTripperImpl(altRT, req)
 		}
 		return true
-	case *http2Transport, http2noDialH2RoundTripper:
+	case http2RoundTripper:
 		return true
 	}
 	// There's a very minor chance of a false positive with this.
@@ -345,14 +342,14 @@ func knownRoundTripperImpl(rt RoundTripper, req *Request) bool {
 }
 
 // setRequestCancel sets req.Cancel and adds a deadline context to req
-// if deadline is non-zero. The RoundTripper's type is used to
-// determine whether the legacy CancelRequest behavior should be used.
+// if deadline is non-zero.
 //
-// As background, there are three ways to cancel a request:
-// First was Transport.CancelRequest. (deprecated)
+// As background, there are (or were) three ways to cancel a request:
+// First was Transport.CancelRequest. (deprecated, no longer supported)
 // Second was Request.Cancel.
 // Third was Request.Context.
-// This function populates the second and third, and uses the first if it really needs to.
+//
+// This function populates Request.Cancel and Request.Context.
 func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTimer func(), didTimeout func() bool) {
 	if deadline.IsZero() {
 		return nop, alwaysFalse
@@ -381,17 +378,6 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	cancel := make(chan struct{})
 	req.Cancel = cancel
 
-	doCancel := func() {
-		// The second way in the func comment above:
-		close(cancel)
-		// The first way, used only for RoundTripper
-		// implementations written before Go 1.5 or Go 1.6.
-		type canceler interface{ CancelRequest(*Request) }
-		if v, ok := rt.(canceler); ok {
-			v.CancelRequest(req)
-		}
-	}
-
 	stopTimerCh := make(chan struct{})
 	stopTimer = sync.OnceFunc(func() {
 		close(stopTimerCh)
@@ -406,11 +392,11 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	go func() {
 		select {
 		case <-initialReqCancel:
-			doCancel()
+			close(cancel)
 			timer.Stop()
 		case <-timer.C:
 			timedOut.Store(true)
-			doCancel()
+			close(cancel)
 		case <-stopTimerCh:
 			timer.Stop()
 		}
@@ -516,11 +502,21 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 		shouldRedirect = true
 		includeBody = false
 
-		// RFC 2616 allowed automatic redirection only with GET and
-		// HEAD requests. RFC 7231 lifts this restriction, but we still
-		// restrict other methods to GET to maintain compatibility.
-		// See Issue 18570.
-		if reqMethod != "GET" && reqMethod != "HEAD" {
+		// RFC 10008, Section 2.5: QUERY is safe and idempotent, so 301
+		// and 302 preserve the method and re-send the body (as 307 and
+		// 308 do); only 303 changes the method to GET.
+		if reqMethod == "QUERY" && resp.StatusCode != 303 {
+			includeBody = true
+			if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
+				// We had a request body, and 301/302 require
+				// re-sending it, but GetBody is not defined.
+				shouldRedirect = false
+			}
+		} else if reqMethod != "GET" && reqMethod != "HEAD" {
+			// RFC 2616 allowed automatic redirection only with GET and
+			// HEAD requests. RFC 7231 lifts this restriction, but we still
+			// restrict other methods to GET to maintain compatibility.
+			// See Issue 18570.
 			redirectMethod = "GET"
 		}
 	case 307, 308:
@@ -565,6 +561,9 @@ func urlErrorOp(method string) string {
 // read to EOF and closed, the [Client]'s underlying [RoundTripper]
 // (typically [Transport]) may not be able to re-use a persistent TCP
 // connection to the server for a subsequent "keep-alive" request.
+// Note, however, that [Transport] will automatically try to read a
+// [Response] Body to EOF asynchronously up to a conservative limit
+// when a Body is closed.
 //
 // The request Body, if non-nil, will be closed by the underlying
 // Transport, even on errors. The Body may be closed asynchronously after
@@ -585,6 +584,13 @@ func urlErrorOp(method string) string {
 // provided that the [Request.GetBody] function is defined.
 // The [NewRequest] function automatically sets GetBody for common
 // standard library body types.
+//
+// Note that the [Client] redirect behavior does not follow the WHATWG
+// Fetch standard. This is because it was written before established
+// standards existed. As such, by modern standards, [Client] has a
+// rather permissive behavior. For example, sensitive headers are
+// retained on redirect to a subdomain or to a different scheme on the
+// same host.
 //
 // Any returned error will be of type [*url.Error]. The url.Error
 // value's Timeout method will report true if the request timed out.
@@ -1016,9 +1022,14 @@ func shouldCopyHeaderOnRedirect(initial, dest *url.URL) bool {
 	// directly, we don't know their scope, so we assume
 	// it's for *.domain.com.
 
-	ihost := idnaASCIIFromURL(initial)
-	dhost := idnaASCIIFromURL(dest)
-	return isDomainOrSubdomain(dhost, ihost)
+	ihost, err1 := httpguts.PunycodeHostPort(initial.Hostname())
+	dhost, err2 := httpguts.PunycodeHostPort(dest.Hostname())
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	ihost, ok1 := ascii.ToLower(ihost)
+	dhost, ok2 := ascii.ToLower(dhost)
+	return ok1 && ok2 && isDomainOrSubdomain(dhost, ihost)
 }
 
 // isDomainOrSubdomain reports whether sub is a subdomain (or exact

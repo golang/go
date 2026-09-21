@@ -77,7 +77,7 @@ func testEncoder(t *testing.T, where jsontest.CasePos, formatName, typeName stri
 			default:
 				val := Value(tok.String())
 				if tok.Kind() == '"' {
-					val, _ = jsonwire.AppendQuote(nil, tok.String(), &jsonflags.Flags{})
+					val, _ = jsonwire.AppendQuote(nil, []byte(tok.String()), &jsonflags.Flags{})
 				}
 				if err := enc.WriteValue(val); err != nil {
 					t.Fatalf("%s: Encoder.WriteValue error: %v", where, err)
@@ -825,5 +825,14 @@ func TestEncoderReset(t *testing.T) {
 		if cap(enc.s.Buf) == 0 || cap(bb.AvailableBuffer()) == 0 || &enc.s.Buf[:1][0] == &bb.AvailableBuffer()[:1][0] {
 			t.Fatalf("encoder buffer aliases bytes.Buffer")
 		}
+	})
+
+	t.Run("Test ability to reset nil writer", func(t *testing.T) {
+		defer func() {
+			if recover() != nil {
+				t.Fatalf("encoder.Reset(nil) shouldn`t panic")
+			}
+		}()
+		enc.Reset(nil)
 	})
 }

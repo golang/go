@@ -142,3 +142,18 @@ func TestReadDir(t *testing.T) {
 		t.Fatalf("ReadDir %s: exec directory not found", dirname)
 	}
 }
+
+func TestReadDirFD(t *testing.T) {
+	dir := "/dev/fd"
+	if runtime.GOOS == "plan9" {
+		dir = "#f"
+	}
+	if _, err := Stat(dir); err != nil {
+		t.Skipf("skipping on %s: %v", runtime.GOOS, err)
+	}
+
+	_, err := ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -1,0 +1,2 @@
+! go doc -all -short
+stderr 'doc: cannot combine -all and -short'

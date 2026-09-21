@@ -1553,6 +1553,36 @@ var logSC = []float64{
 	NaN(),
 }
 
+// Inputs near 1 and their correctly rounded Log2 values.
+var vflog2NearOne = []float64{
+	0x1.0000000000001p+0,
+	0x1.fffffffffffffp-1,
+	0x1.0000000001p+0,
+	0x1.fffffffffep-1,
+	0x1.00001p+0,
+	0x1.ffffep-1,
+	0x1.004p+0,
+	0x1.ff8p-1,
+	0x1.4p+0,
+	0x1.8p-1,
+	0x1.fffffffffffffp+0,
+	0x1.0000000000001p-1,
+}
+var log2NearOne = []float64{
+	3.203426503814917e-16,
+	-1.6017132519074588e-16,
+	1.3121234959619935e-12,
+	-1.312123495963187e-12,
+	1.375860550841138e-06,
+	-1.3758618629646341e-06,
+	0.0014081943928083889,
+	-0.0014095702546713536,
+	0.32192809488736235,
+	-0.4150374992788438,
+	0.9999999999999999,
+	-0.9999999999999997,
+}
+
 var vflogbSC = []float64{
 	Inf(-1),
 	0,
@@ -2853,6 +2883,11 @@ func TestLog2(t *testing.T) {
 			t.Errorf("Log2(%g) = %g, want %g", vflogSC[i], f, logSC[i])
 		}
 	}
+	for i := 0; i < len(vflog2NearOne); i++ {
+		if f := Log2(vflog2NearOne[i]); !veryclose(log2NearOne[i], f) {
+			t.Errorf("Log2(%g) = %g, want %g", vflog2NearOne[i], f, log2NearOne[i])
+		}
+	}
 	for i := -1074; i <= 1023; i++ {
 		f := Ldexp(1, i)
 		l := Log2(f)
@@ -3336,9 +3371,10 @@ func TestFloat32Sqrt(t *testing.T) {
 // Storing the results in these variables prevents the compiler
 // from completely optimizing the benchmarked functions away.
 var (
-	GlobalI int
-	GlobalB bool
-	GlobalF float64
+	GlobalI   int
+	GlobalB   bool
+	GlobalF   float64
+	GlobalF32 float32
 )
 
 func BenchmarkAcos(b *testing.B) {
@@ -3411,6 +3447,14 @@ func BenchmarkCeil(b *testing.B) {
 		x = Ceil(.5)
 	}
 	GlobalF = x
+}
+
+func BenchmarkCeil32(b *testing.B) {
+	var x, src float32 = 0.0, 0.5
+	for i := 0; i < b.N; i++ {
+		x = float32(Ceil(float64(src)))
+	}
+	GlobalF32 = x
 }
 
 var copysignNeg = -1.0
@@ -3512,6 +3556,7 @@ func BenchmarkExp2Go(b *testing.B) {
 }
 
 var absPos = .5
+var absPos32 float32 = .5
 
 func BenchmarkAbs(b *testing.B) {
 	x := 0.0
@@ -3519,6 +3564,15 @@ func BenchmarkAbs(b *testing.B) {
 		x = Abs(absPos)
 	}
 	GlobalF = x
+
+}
+
+func BenchmarkAbs32(b *testing.B) {
+	var x float32 = 0.0
+	for i := 0; i < b.N; i++ {
+		x = float32(Abs(float64(absPos32)))
+	}
+	GlobalF32 = x
 
 }
 
@@ -3536,6 +3590,14 @@ func BenchmarkFloor(b *testing.B) {
 		x = Floor(.5)
 	}
 	GlobalF = x
+}
+
+func BenchmarkFloor32(b *testing.B) {
+	var x, src float32 = 0.0, .5
+	for i := 0; i < b.N; i++ {
+		x = float32(Floor(float64(src)))
+	}
+	GlobalF32 = x
 }
 
 func BenchmarkMax(b *testing.B) {
@@ -3749,6 +3811,7 @@ func BenchmarkPow10Neg(b *testing.B) {
 }
 
 var roundNeg = float64(-2.5)
+var roundNeg32 float32 = -2.5
 
 func BenchmarkRound(b *testing.B) {
 	x := 0.0
@@ -3758,12 +3821,28 @@ func BenchmarkRound(b *testing.B) {
 	GlobalF = x
 }
 
+func BenchmarkRound32(b *testing.B) {
+	var x float32 = 0.0
+	for i := 0; i < b.N; i++ {
+		x = float32(Round(float64(roundNeg32)))
+	}
+	GlobalF32 = x
+}
+
 func BenchmarkRoundToEven(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
 		x = RoundToEven(roundNeg)
 	}
 	GlobalF = x
+}
+
+func BenchmarkRoundToEven32(b *testing.B) {
+	var x float32 = 0.0
+	for i := 0; i < b.N; i++ {
+		x = float32(RoundToEven(float64(roundNeg32)))
+	}
+	GlobalF32 = x
 }
 
 func BenchmarkRemainder(b *testing.B) {
@@ -3827,6 +3906,14 @@ func BenchmarkSqrtLatency(b *testing.B) {
 	GlobalF = x
 }
 
+func BenchmarkSqrt32Latency(b *testing.B) {
+	var x float32 = 10.0
+	for i := 0; i < b.N; i++ {
+		x = float32(Sqrt(float64(x)))
+	}
+	GlobalF32 = x
+}
+
 func BenchmarkSqrtIndirectLatency(b *testing.B) {
 	x := 10.0
 	f := Sqrt
@@ -3887,6 +3974,14 @@ func BenchmarkTrunc(b *testing.B) {
 		x = Trunc(.5)
 	}
 	GlobalF = x
+}
+
+func BenchmarkTrunc32(b *testing.B) {
+	var x, src float32 = 0.0, .5
+	for i := 0; i < b.N; i++ {
+		x = float32(Trunc(float64(src)))
+	}
+	GlobalF32 = x
 }
 
 func BenchmarkY0(b *testing.B) {

@@ -1,5 +1,3 @@
-[short] skip
-
 # In package list mode, output is buffered.
 # Check that a newline is printed after the buffer's contents.
 cd fail
@@ -23,6 +21,14 @@ cd ../skip
 go test -v .
 ! stderr .
 stdout '^skipping\n'
+stdout '^ok\s+example/skip'
+
+# In package list mode without -v, a passing test's output is discarded, so the
+# 'ok' line must not be preceded by a spurious blank line, even when the
+# discarded output ended without a newline (https://go.dev/issue/79786).
+go test -count=1 .
+! stderr .
+! stdout '^\n'
 stdout '^ok\s+example/skip'
 
 # If the output is streamed and the test passes, we can't tell whether it ended

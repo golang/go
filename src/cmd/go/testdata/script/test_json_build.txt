@@ -1,5 +1,3 @@
-[short] skip
-
 env GODEBUG=gotestjsonbuildtext=0
 
 # There are several places where paths appear in JSON in regexps here.

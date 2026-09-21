@@ -9,13 +9,37 @@ package os_test
 import (
 	"errors"
 	"fmt"
+	"internal/strconv"
 	"internal/syscall/windows"
+	"internal/testenv"
 	"os"
 	"path/filepath"
 	"syscall"
 	"testing"
 	"unsafe"
 )
+
+func TestRootOpenatFallback(t *testing.T) {
+	windows.TestOpenatFallback = true
+	t.Cleanup(func() { windows.TestOpenatFallback = false })
+
+	// Exercise the existing path traversal and symlink confinement cases
+	// with OBJ_DONT_REPARSE unavailable, as on Windows 10 build 10240.
+	t.Run("OpenFile", TestRootOpen_File)
+	t.Run("OpenDirectory", TestRootOpen_Directory)
+	t.Run("Create", TestRootCreate)
+	t.Run("Stat", TestRootStat)
+	t.Run("Lstat", TestRootLstat)
+	t.Run("RemoveAll", TestRootRemoveAll)
+	t.Run("RemoveAllNoRoot", TestRemoveAll)
+	t.Run("DeleteOnClose", testRootOpenFileDeleteOnClose)
+	t.Run("LegacyDelete", func(t *testing.T) {
+		windows.TestDeleteatFallback = true
+		t.Cleanup(func() { windows.TestDeleteatFallback = false })
+		t.Run("RemoveAll", TestRootRemoveAll)
+		t.Run("RemoveAllNoRoot", TestRemoveAll)
+	})
+}
 
 // Verify that Root.Open rejects Windows reserved names.
 func TestRootWindowsDeviceNames(t *testing.T) {
@@ -59,6 +83,8 @@ func TestRootWindowsCaseInsensitivity(t *testing.T) {
 // TestRootSymlinkRelativity tests that symlinks created using Root.Symlink have the
 // same SYMLINK_FLAG_RELATIVE value as ones creates using os.Symlink.
 func TestRootSymlinkRelativity(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
 	dir := t.TempDir()
 	root, err := os.OpenRoot(dir)
 	if err != nil {
@@ -160,6 +186,8 @@ func readSymlinkReparseData(name string) (*windows.SymbolicLinkReparseBuffer, er
 // TestRootSymlinkToDirectory tests that Root.Symlink creates directory links
 // when the target is a directory contained within the root.
 func TestRootSymlinkToDirectory(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
 	dir := t.TempDir()
 	root, err := os.OpenRoot(dir)
 	if err != nil {
@@ -227,4 +255,138 @@ func TestRootSymlinkToDirectory(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRootSymlinkNormalization(t *testing.T) {
+	if !testenv.HasSymlink() {
+		t.Skip("skipping test; no symlink support")
+	}
+	const content = "dir/target" // same as file name
+	dir := makefs(t, []string{
+		"dir/target",
+	})
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := root.Symlink("dir/target", "link"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(dir + "/link")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != content {
+		t.Fatalf("read link contents %q, want %q", got, content)
+	}
+}
+
+func TestRootOpenFileTruncateNamedPipe(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newBytePipe(t, name, false)
+	defer pipe.Close()
+
+	root, err := os.OpenRoot(filepath.Dir(name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	f, err := root.OpenFile(filepath.Base(name), os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+}
+
+func TestRootOpenFileFlags(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	// The only way to retrieve some of the flags passed in CreateFile
+	// is using NtQueryInformationFile, which returns the file flags
+	// NT equivalent. Note that FILE_SYNCHRONOUS_IO_NONALERT is always
+	// set when FILE_FLAG_OVERLAPPED is not passed.
+	// The flags that can't be retrieved using NtQueryInformationFile won't
+	// be tested in here, but we at least know that the logic to handle them is correct.
+	tests := []struct {
+		flag     uint32
+		wantMode uint32
+	}{
+		{0, windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_OVERLAPPED, 0},
+		{windows.O_FILE_FLAG_NO_BUFFERING, windows.FILE_NO_INTERMEDIATE_BUFFERING | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_NO_BUFFERING | windows.O_FILE_FLAG_OVERLAPPED, windows.FILE_NO_INTERMEDIATE_BUFFERING},
+		{windows.O_FILE_FLAG_SEQUENTIAL_SCAN, windows.FILE_SEQUENTIAL_ONLY | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_WRITE_THROUGH, windows.FILE_WRITE_THROUGH | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+	}
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			f, err := root.OpenFile(strconv.Itoa(i)+".txt", syscall.O_RDWR|syscall.O_CREAT|int(tt.flag), 0666)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			var info windows.FILE_MODE_INFORMATION
+			if err := windows.NtQueryInformationFile(syscall.Handle(f.Fd()), &windows.IO_STATUS_BLOCK{},
+				unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode != tt.wantMode {
+				t.Errorf("file mode = 0x%x; want 0x%x", info.Mode, tt.wantMode)
+			}
+		})
+	}
+}
+
+func TestRootOpenFileDeleteOnClose(t *testing.T) {
+	t.Parallel()
+	testRootOpenFileDeleteOnClose(t)
+}
+
+func testRootOpenFileDeleteOnClose(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	const name = "test.txt"
+	f, err := root.OpenFile(name, syscall.O_RDWR|syscall.O_CREAT|windows.O_FILE_FLAG_DELETE_ON_CLOSE, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// The file should be deleted after closing.
+	if _, err := os.Stat(filepath.Join(dir, name)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected file to be deleted, got %v", err)
+	}
+}
+
+func TestRootOpenFileFlagInvalid(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	// invalidFileFlag is the only value in the file flag range that is not supported,
+	// as it is not defined in the Windows API.
+	const invalidFileFlag = 0x00400000
+	f, err := root.OpenFile("test.txt", syscall.O_RDWR|syscall.O_CREAT|invalidFileFlag, 0666)
+	if !errors.Is(err, os.ErrInvalid) {
+		t.Fatalf("expected os.ErrInvalid, got %v", err)
+	}
+	f.Close()
 }

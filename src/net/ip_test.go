@@ -6,9 +6,11 @@ package net
 
 import (
 	"bytes"
+	"encoding/json"
 	"math/rand"
 	"reflect"
 	"runtime"
+	"slices"
 	"testing"
 )
 
@@ -389,6 +391,90 @@ func TestIPMaskString(t *testing.T) {
 	}
 }
 
+var ipMaskJSONTests = []struct {
+	in   IPMask
+	out0 string // expected marshaling with GODEBUG=netmarshal=0
+	out1 string // expected marshaling with GODEBUG=netmarshal=1
+}{
+	{
+		nil,
+		`""`,
+		`""`,
+	},
+	{
+		IPv4Mask(255, 255, 255, 0),
+		`"////AA=="`,
+		`"255.255.255.0"`,
+	},
+	{
+		IPMask(ParseIP("ffff:ff80::")),
+		`"////gAAAAAAAAAAAAAAAAA=="`,
+		`"ffff:ff80::"`,
+	},
+}
+
+func TestIPMaskJSON(t *testing.T) {
+	// testReadable tests that we can marshal m and unmarshal the result.
+	// We will call this with different GODEBUG settings to make
+	// sure that the unmarshaler, which doesn't check GODEBUG,
+	// works in all scenarios.
+	testReadable := func(m IPMask) {
+		b, err := json.Marshal(m)
+		if err != nil {
+			t.Errorf("json.Marshal(%s) failed: %v", m, err)
+			return
+		}
+
+		var m2 IPMask
+		if err = json.Unmarshal(b, &m2); err != nil {
+			t.Errorf("json.Unmarshal of %q (from %s) failed: %v", b, m, err)
+			return
+		}
+
+		if !slices.Equal(m, m2) {
+			t.Errorf("%s marshaled to %q, unmarshaled to different value %s", m, b, m2)
+		}
+	}
+
+	for _, d := range []string{"unset", "0", "1"} {
+		t.Run("GODEBUG="+d, func(t *testing.T) {
+			if d != "unset" {
+				t.Setenv("GODEBUG", "netmarshal="+d)
+
+				for _, tt := range ipMaskJSONTests {
+					b, err := json.Marshal(tt.in)
+					if err != nil {
+						t.Errorf("json.Marshal(%s) failed: %v", tt.in, err)
+						continue
+					}
+					var want string
+					if d == "0" {
+						want = tt.out0
+					} else {
+						want = tt.out1
+					}
+					if string(b) != want {
+						t.Errorf("json.Marshal(%s) = %q, want %q", tt.in, b, want)
+					}
+				}
+			}
+
+			testReadable(nil)
+			testReadable(classAMask)
+			testReadable(classBMask)
+			testReadable(classCMask)
+
+			for _, tt := range ipMaskTests {
+				testReadable(tt.mask)
+			}
+
+			for _, tt := range ipMaskStringTests {
+				testReadable(tt.in)
+			}
+		})
+	}
+}
+
 func BenchmarkIPMaskString(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
@@ -556,6 +642,93 @@ func TestNetworkNumberAndMask(t *testing.T) {
 		if !reflect.DeepEqual(&tt.out, out) {
 			t.Errorf("networkNumberAndMask(%v) = %v, want %v", tt.in, out, &tt.out)
 		}
+	}
+}
+
+var ipNetJSONTests = []struct {
+	in   IPNet
+	out0 string // expected marshaling with GODEBUG=netmarshal=0
+	out1 string // expected marshaling with GODEBUG=netmarshal=1
+}{
+	{
+		IPNet{IP: IPv4(0, 0, 0, 0), Mask: IPv4Mask(255, 255, 255, 0)},
+		`{"IP":"0.0.0.0","Mask":"////AA=="}`,
+		`{"IP":"0.0.0.0","Mask":"255.255.255.0"}`,
+	},
+	{
+		IPNet{IP: IPv4(172, 16, 0, 0), Mask: CIDRMask(12, 32)},
+		`{"IP":"172.16.0.0","Mask":"//AAAA=="}`,
+		`{"IP":"172.16.0.0","Mask":"255.240.0.0"}`,
+	},
+	{
+		IPNet{IP: ParseIP("2001:db8:1::"), Mask: CIDRMask(47, 128)},
+		`{"IP":"2001:db8:1::","Mask":"///////+AAAAAAAAAAAAAA=="}`,
+		`{"IP":"2001:db8:1::","Mask":"ffff:ffff:fffe::"}`,
+	},
+}
+
+func TestIPNetJSON(t *testing.T) {
+	// testReadable tests that we can marshal n and unmarshal the result.
+	// We will call this with different GODEBUG settings to make
+	// sure that the unmarshaler, which doesn't check GODEBUG,
+	// works in all scenarios.
+	testReadable := func(n *IPNet) {
+		b, err := json.Marshal(n)
+		if err != nil {
+			t.Errorf("json.Marshal(%s) failed: %v", n, err)
+			return
+		}
+
+		var n2 IPNet
+		if err = json.Unmarshal(b, &n2); err != nil {
+			t.Errorf("json.Unmarshal of %q (from %s) failed: %v", b, n, err)
+			return
+		}
+
+		var equal bool
+		if n == nil {
+			equal = len(n2.IP) == 0 && len(n2.Mask) == 0
+		} else {
+			equal = n.IP.Equal(n2.IP) && slices.Equal(n.Mask, n2.Mask)
+		}
+		if !equal {
+			t.Errorf("%s marshaled to %q, unmarshaled to different value %s", n, b, n2)
+		}
+	}
+
+	for _, d := range []string{"unset", "0", "1"} {
+		t.Run("GODEBUG="+d, func(t *testing.T) {
+			if d != "unset" {
+				t.Setenv("GODEBUG", "netmarshal="+d)
+
+				for _, tt := range ipNetJSONTests {
+					b, err := json.Marshal(tt.in)
+					if err != nil {
+						t.Errorf("json.Marshal(%s) failed: %v", tt.in, err)
+						continue
+					}
+					var want string
+					if d == "0" {
+						want = tt.out0
+					} else {
+						want = tt.out1
+					}
+					if string(b) != want {
+						t.Errorf("json.Marshal(%s) = %q, want %q", tt.in, b, want)
+					}
+				}
+			}
+
+			for _, tt := range parseCIDRTests {
+				testReadable(tt.net)
+			}
+			for _, tt := range ipNetContainsTests {
+				testReadable(tt.net)
+			}
+			for _, tt := range ipNetStringTests {
+				testReadable(tt.in)
+			}
+		})
 	}
 }
 

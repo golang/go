@@ -2,22 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run gen_encoding_table.go
+
 // Package url parses URLs and implements query escaping.
 //
 // See RFC 3986. This package generally follows RFC 3986, except where
 // it deviates for compatibility reasons.
 // RFC 6874 followed for IPv6 zone literals.
-
-//go:generate go run gen_encoding_table.go
-
 package url
 
 // When sending changes, first  search old issues for history on decisions.
 // Unit tests should also contain references to issue numbers with details.
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"net/netip"
 	"path"
 	"slices"
@@ -25,6 +26,8 @@ import (
 	"strings"
 	_ "unsafe" // for linkname
 )
+
+var urlstrictcolons = godebug.New("urlstrictcolons")
 
 // Error reports an error and the operation and URL that caused it.
 type Error struct {
@@ -409,6 +412,16 @@ func Parse(rawURL string) (*URL, error) {
 	return url, nil
 }
 
+// MustParse calls [Parse](rawURL) and panics on error.
+// It is intended for use with hard-coded strings representing valid urls.
+func MustParse(rawURL string) *URL {
+	url, err := Parse(rawURL)
+	if err != nil {
+		panic(err)
+	}
+	return url
+}
+
 // ParseRequestURI parses a raw url into a [URL] structure. It assumes that
 // url was received in an HTTP request, so the url is interpreted
 // only as an absolute URI or an absolute path.
@@ -486,7 +499,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		if i := strings.Index(authority, "/"); i >= 0 {
 			authority, rest = authority[:i], authority[i:]
 		}
-		url.User, url.Host, err = parseAuthority(authority)
+		url.User, url.Host, err = parseAuthority(url.Scheme, authority)
 		if err != nil {
 			return nil, err
 		}
@@ -506,12 +519,12 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 	return url, nil
 }
 
-func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+func parseAuthority(scheme, authority string) (user *Userinfo, host string, err error) {
 	i := strings.LastIndex(authority, "@")
 	if i < 0 {
-		host, err = parseHost(authority)
+		host, err = parseHost(scheme, authority)
 	} else {
-		host, err = parseHost(authority[i+1:])
+		host, err = parseHost(scheme, authority[i+1:])
 	}
 	if err != nil {
 		return nil, "", err
@@ -543,8 +556,10 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 
 // parseHost parses host as an authority without user
 // information. That is, as host[:port].
-func parseHost(host string) (string, error) {
-	if openBracketIdx := strings.LastIndex(host, "["); openBracketIdx != -1 {
+func parseHost(scheme, host string) (string, error) {
+	if openBracketIdx := strings.LastIndex(host, "["); openBracketIdx > 0 {
+		return "", errors.New("invalid IP-literal")
+	} else if openBracketIdx == 0 {
 		// Parse an IP-Literal in RFC 3986 and RFC 6874.
 		// E.g., "[fe80::1]", "[fe80::1%25en0]", "[fe80::1]:80".
 		closeBracketIdx := strings.LastIndex(host, "]")
@@ -599,7 +614,28 @@ func parseHost(host string) (string, error) {
 			return "", errors.New("invalid IP-literal")
 		}
 		return "[" + unescapedHostname + "]" + unescapedColonPort, nil
-	} else if i := strings.LastIndex(host, ":"); i != -1 {
+	} else if i := strings.Index(host, ":"); i != -1 {
+		lastColon := strings.LastIndex(host, ":")
+		if lastColon != i {
+			// RFC 3986 does not allow colons to appear in the host subcomponent.
+			//
+			// However, a number of databases including PostgreSQL and MongoDB
+			// permit a comma-separated list of hosts (with optional ports) in the
+			// host subcomponent.
+			//
+			// Since we historically permitted colons to appear in the host,
+			// enforce strict colons only for http and https URLs.
+			//
+			// See https://go.dev/issue/75223 and https://go.dev/issue/78077.
+			if scheme == "http" || scheme == "https" {
+				if urlstrictcolons.Value() == "0" {
+					urlstrictcolons.IncNonDefault()
+					i = lastColon
+				}
+			} else {
+				i = lastColon
+			}
+		}
 		colonPort := host[i:]
 		if !validOptionalPort(colonPort) {
 			return "", fmt.Errorf("invalid port %q after host", colonPort)
@@ -811,6 +847,13 @@ func (u *URL) String() string {
 			}
 		}
 		path := u.EscapedPath()
+		if u.OmitHost && u.Host == "" && u.User == nil && strings.HasPrefix(path, "//") {
+			// Escape the first / in a path starting with "//" and no authority
+			// so that re-parsing the URL doesn't turn the path into an authority
+			// (e.g., Path="//host/p" producing "http://host/p").
+			buf.WriteString("%2F")
+			path = path[1:]
+		}
 		if path != "" && path[0] != '/' && u.Host != "" {
 			buf.WriteByte('/')
 		}
@@ -893,6 +936,19 @@ func (v Values) Has(key string) bool {
 	return ok
 }
 
+// Clone creates a deep copy of the subject [Values].
+func (vs Values) Clone() Values {
+	if vs == nil {
+		return nil
+	}
+
+	newVals := make(Values, len(vs))
+	for k, v := range vs {
+		newVals[k] = slices.Clone(v)
+	}
+	return newVals
+}
+
 // ParseQuery parses the URL-encoded query string and returns
 // a map listing the values specified for each key.
 // ParseQuery always returns a non-nil map containing all the
@@ -909,7 +965,31 @@ func ParseQuery(query string) (Values, error) {
 	return m, err
 }
 
+var urlmaxqueryparams = godebug.New("urlmaxqueryparams")
+
+// Keep this in sync with net/http/httputil.
+const defaultMaxParams = 10000
+
+func urlParamsWithinMax(params int) bool {
+	withinDefaultMax := params <= defaultMaxParams
+	if urlmaxqueryparams.Value() == "" {
+		return withinDefaultMax
+	}
+	customMax, err := strconv.Atoi(urlmaxqueryparams.Value())
+	if err != nil {
+		return withinDefaultMax
+	}
+	withinCustomMax := customMax == 0 || params < customMax
+	if withinDefaultMax != withinCustomMax {
+		urlmaxqueryparams.IncNonDefault()
+	}
+	return withinCustomMax
+}
+
 func parseQuery(m Values, query string) (err error) {
+	if !urlParamsWithinMax(strings.Count(query, "&") + 1) {
+		return errors.New("number of URL query parameters exceeded limit")
+	}
 	for query != "" {
 		var key string
 		key, query, _ = strings.Cut(query, "&")
@@ -987,54 +1067,43 @@ func resolvePath(base, ref string) string {
 		return ""
 	}
 
-	var (
-		elem string
-		dst  strings.Builder
-	)
-	first := true
+	dst := make([]byte, 0, len(full)+1)
+	dst = append(dst, '/')
+	elem := ""
 	remaining := full
-	// We want to return a leading '/', so write it now.
-	dst.WriteByte('/')
 	found := true
+	first := true
 	for found {
 		elem, remaining, found = strings.Cut(remaining, "/")
-		if elem == "." {
+		switch elem {
+		case ".":
 			first = false
-			// drop
 			continue
-		}
-
-		if elem == ".." {
-			// Ignore the leading '/' we already wrote.
-			str := dst.String()[1:]
-			index := strings.LastIndexByte(str, '/')
-
-			dst.Reset()
-			dst.WriteByte('/')
-			if index == -1 {
-				first = true
+		case "..":
+			if i := bytes.LastIndexByte(dst[1:], '/'); i >= 0 {
+				dst = dst[:i+1]
 			} else {
-				dst.WriteString(str[:index])
+				dst = dst[:1]
 			}
-		} else {
+			first = len(dst) == 1
+		default:
 			if !first {
-				dst.WriteByte('/')
+				dst = append(dst, '/')
 			}
-			dst.WriteString(elem)
+			dst = append(dst, elem...)
 			first = false
 		}
 	}
 
 	if elem == "." || elem == ".." {
-		dst.WriteByte('/')
+		dst = append(dst, '/')
 	}
 
 	// We wrote an initial '/', but we don't want two.
-	r := dst.String()
-	if len(r) > 1 && r[1] == '/' {
-		r = r[1:]
+	if len(dst) > 1 && dst[1] == '/' {
+		return string(dst[1:])
 	}
-	return r
+	return string(dst)
 }
 
 // IsAbs reports whether the [URL] is absolute.
@@ -1185,7 +1254,13 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 // JoinPath returns a new [URL] with the provided path elements joined to
 // any existing path and the resulting path cleaned of any ./ or ../ elements.
 // Any sequences of multiple / characters will be reduced to a single /.
+// Path elements must already be in escaped form, as produced by [PathEscape].
 func (u *URL) JoinPath(elem ...string) *URL {
+	url, _ := u.joinPath(elem...)
+	return url
+}
+
+func (u *URL) joinPath(elem ...string) (*URL, error) {
 	elem = append([]string{u.EscapedPath()}, elem...)
 	var p string
 	if !strings.HasPrefix(elem[0], "/") {
@@ -1202,8 +1277,8 @@ func (u *URL) JoinPath(elem ...string) *URL {
 		p += "/"
 	}
 	url := *u
-	url.setPath(p)
-	return &url
+	err := url.setPath(p)
+	return &url, err
 }
 
 // validUserinfo reports whether s is a valid userinfo string per RFC 3986
@@ -1261,11 +1336,28 @@ func stringContainsCTLByte(s string) bool {
 
 // JoinPath returns a [URL] string with the provided path elements joined to
 // the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+// Path elements must already be in escaped form, as produced by [PathEscape].
 func JoinPath(base string, elem ...string) (result string, err error) {
 	url, err := Parse(base)
 	if err != nil {
 		return
 	}
-	result = url.JoinPath(elem...).String()
-	return
+	res, err := url.joinPath(elem...)
+	if err != nil {
+		return "", err
+	}
+	return res.String(), nil
+}
+
+// Clone creates a deep copy of the fields of the subject [URL].
+func (u *URL) Clone() *URL {
+	if u == nil {
+		return nil
+	}
+
+	uc := new(*u)
+	if u.User != nil {
+		uc.User = new(*u.User)
+	}
+	return uc
 }

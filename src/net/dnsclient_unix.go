@@ -366,7 +366,11 @@ type resolverConfig struct {
 var resolvConf resolverConfig
 
 func getSystemDNSConfig() *dnsConfig {
-	resolvConf.tryUpdate("/etc/resolv.conf")
+	return getSystemDNSConfigNamed("/etc/resolv.conf")
+}
+
+func getSystemDNSConfigNamed(path string) *dnsConfig {
+	resolvConf.tryUpdate(path)
 	return resolvConf.dnsConfig.Load()
 }
 
@@ -382,13 +386,28 @@ func (conf *resolverConfig) init() {
 	conf.ch = make(chan struct{}, 1)
 }
 
+// distantFuture is a sentinel time used for tests to signal that
+// resolv.conf should not be rechecked.
+var distantFuture = time.Date(3000, 1, 2, 3, 4, 5, 6, time.UTC)
+
 // tryUpdate tries to update conf with the named resolv.conf file.
 // The name variable only exists for testing. It is otherwise always
 // "/etc/resolv.conf".
 func (conf *resolverConfig) tryUpdate(name string) {
 	conf.initOnce.Do(conf.init)
 
-	if conf.dnsConfig.Load().noReload {
+	dc := conf.dnsConfig.Load()
+
+	// Currently we should never have a config that does not have any
+	// available servers to query, since in such cases the servers field
+	// is set to [defaultNS], see dnsReadConfig.
+	// This assertion main purpose is for testing, such that we never set
+	// the mocked dnsConfig in such way.
+	if len(dc.servers) == 0 {
+		panic("unreachable")
+	}
+
+	if dc.noReload {
 		return
 	}
 
@@ -399,7 +418,19 @@ func (conf *resolverConfig) tryUpdate(name string) {
 	defer conf.releaseSema()
 
 	now := time.Now()
-	if conf.lastChecked.After(now.Add(-5 * time.Second)) {
+
+	// Only recheck the resolv.conf when:
+	// - expired (last re-check was more that 5 seconds ago)
+	// - the default nameservers are used (the last parse could not load
+	//   resolv.conf, or it did not contain any nameservers)
+	// - rechecks are not disabled (only possible in case of testing)
+	//
+	// Note: We only do one check at a time. Other concurrent requests might
+	// still use the previous (outdated) version of the configuration file.
+	expired := now.After(conf.lastChecked.Add(5 * time.Second))
+	rechecksEnabled := conf.lastChecked != distantFuture // for testing purposes
+	recheck := (expired || dc.isDefaultNS()) && rechecksEnabled
+	if !recheck {
 		return
 	}
 	conf.lastChecked = now
@@ -448,6 +479,14 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		return dnsmessage.Parser{}, "", newDNSError(errNoSuchHost, name, "")
 	}
 
+	if isLocalhostName(name) {
+		// RFC 6761, section 6.3, says non-address queries for
+		// localhost names should get negative responses without the
+		// query being sent to DNS servers. Address queries never
+		// reach here; goLookupIPCNAMEOrder answers them itself.
+		return dnsmessage.Parser{}, "", newDNSError(errNoSuchHost, name, "")
+	}
+
 	if conf == nil {
 		conf = getSystemDNSConfig()
 	}
@@ -492,12 +531,19 @@ func avoidDNS(name string) bool {
 	return stringsHasSuffixFold(name, ".onion")
 }
 
+// isLocalhostName reports whether name is "localhost" or a name
+// within the ".localhost" domain, which RFC 6761 reserves to mean
+// the IP loopback interface.
+func isLocalhostName(name string) bool {
+	name = stringslite.TrimSuffix(name, ".")
+	return stringsEqualFold(name, "localhost") || stringsHasSuffixFold(name, ".localhost")
+}
+
 // nameList returns a list of names for sequential DNS queries.
 func (conf *dnsConfig) nameList(name string) []string {
 	// Check name length (see isDomainName).
-	l := len(name)
-	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && !rooted {
+	rooted := len(name) > 0 && name[len(name)-1] == '.'
+	if len(name) > 254 || len(name) == 254 && !rooted {
 		return nil
 	}
 
@@ -511,7 +557,6 @@ func (conf *dnsConfig) nameList(name string) []string {
 
 	hasNdots := bytealg.CountString(name, '.') >= conf.ndots
 	name += "."
-	l++
 
 	// Build list of search choices.
 	names := make([]string, 0, 1+len(conf.search))
@@ -570,7 +615,10 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
 			return
 		}
 
-		if order == hostLookupFiles {
+		// Localhost names not in the hosts file fall through to
+		// goLookupIPCNAMEOrder, which resolves them itself, even when
+		// the order permits no DNS.
+		if order == hostLookupFiles && !isLocalhostName(name) {
 			return nil, newDNSError(errNoSuchHost, name, "")
 		}
 	}
@@ -620,7 +668,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 			return addrs, cname, nil
 		}
 
-		if order == hostLookupFiles {
+		if order == hostLookupFiles && !isLocalhostName(name) {
 			return nil, dnsmessage.Name{}, newDNSError(errNoSuchHost, name, "")
 		}
 	}
@@ -629,10 +677,30 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 		// See comment in func lookup above about use of errNoSuchHost.
 		return nil, dnsmessage.Name{}, newDNSError(errNoSuchHost, name, "")
 	}
+
+	if isLocalhostName(name) {
+		// Per RFC 6761, localhost names mean loopback and must never
+		// reach DNS (or be expanded with search domains on the way).
+		// The hosts file, checked above, can still override.
+		// See go.dev/issue/57757 and go.dev/issue/32017.
+		var addrs []IPAddr
+		if ipVersion(network) != '4' {
+			addrs = append(addrs, IPAddr{IP: IPv6loopback})
+		}
+		if ipVersion(network) != '6' {
+			addrs = append(addrs, IPAddr{IP: IPv4(127, 0, 0, 1)})
+		}
+		sortByRFC6724(addrs)
+		cname, err := dnsmessage.NewName(absDomainName(name))
+		if err != nil {
+			return nil, dnsmessage.Name{}, err
+		}
+		return addrs, cname, nil
+	}
 	type result struct {
 		p      dnsmessage.Parser
 		server string
-		error
+		error  error
 	}
 
 	if conf == nil {

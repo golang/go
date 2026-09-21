@@ -7,6 +7,8 @@
 
 package src
 
+import "fmt"
+
 // XPos is a more compact representation of Pos.
 type XPos struct {
 	index int32
@@ -91,6 +93,14 @@ func (p XPos) LineNumber() string {
 		return "?"
 	}
 	return p.lico.lineNumber()
+}
+
+// ColumnNumber returns a string for the column number, "?" if it is not known.
+func (p XPos) ColumnNumber() string {
+	if !p.IsKnown() {
+		return "?"
+	}
+	return fmt.Sprintf("%d", p.lico.Col())
 }
 
 // FileIndex returns a smallish non-negative integer corresponding to the

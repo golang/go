@@ -81,6 +81,8 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
 
 	for {
 		pos, tok, lit := s.Scan()
+		end := s.End()
+
 		switch tok {
 		case token.EOF:
 			return errors
@@ -104,13 +106,7 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
 			fallthrough
 		default:
 			prev = pos
-			var l int // token length
-			if tok.IsLiteral() {
-				l = len(lit)
-			} else {
-				l = len(tok.String())
-			}
-			here = prev + token.Pos(l)
+			here = end
 		}
 	}
 }

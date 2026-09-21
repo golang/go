@@ -4,10 +4,12 @@
 
 //go:build !purego
 
+#include "asm_riscv64.h"
+#include "go_asm.h"
 #include "textflag.h"
 
-// func xorBytes(dst, a, b *byte, n int)
-TEXT ·xorBytes(SB), NOSPLIT|NOFRAME, $0
+// func xorBytesRISCV64(dst, a, b *byte, n int, hasV bool)
+TEXT ·xorBytesRISCV64(SB), NOSPLIT|NOFRAME, $0
 	MOV	dst+0(FP), X10
 	MOV	a+8(FP), X11
 	MOV	b+16(FP), X12
@@ -16,6 +18,35 @@ TEXT ·xorBytes(SB), NOSPLIT|NOFRAME, $0
 	MOV	$32, X15
 	BLT	X13, X15, loop4_check
 
+#ifndef hasV
+	MOVB	hasV+32(FP), X5
+	BEQZ	X5, xorbytes_scalar
+#endif
+
+	// Use vector if not 8 byte aligned.
+	OR	X10, X11, X5
+	AND	$7, X5
+	BNEZ	X5, vector_loop
+
+	// Use scalar if 8 byte aligned and <= 64 bytes.
+	SUB	$64, X12, X6
+	BLEZ	X6, loop64_check
+
+	PCALIGN	$16
+vector_loop:
+	VSETVLI X13, E8, M8, TU, MU, X15
+	VLE8V	(X11), V8
+	VLE8V	(X12), V16
+	VXORVV	V8, V16, V24
+	VSE8V	V24, (X10)
+	ADD	X15, X10
+	ADD	X15, X11
+	ADD	X15, X12
+	SUB	X15, X13
+	BNEZ	X13, vector_loop
+	RET
+
+xorbytes_scalar:
 	// Check alignment - if alignment differs we have to do one byte at a time.
 	AND	$7, X10, X5
 	AND	$7, X11, X6

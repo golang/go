@@ -90,7 +90,7 @@ func configMenu(fname string, u url.URL) []configMenuEntry {
 	result := make([]configMenuEntry, len(configs))
 	lastMatch := -1
 	for i, cfg := range configs {
-		dst, changed := cfg.config.makeURL(u)
+		dst, changed := cfg.makeURL(u)
 		if !changed {
 			lastMatch = i
 		}

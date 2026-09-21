@@ -19,6 +19,7 @@ const (
 	SYS_OPENAT        = 286
 	SYS_PREAD64       = 179
 	SYS_READ          = 3
+	SYS_UNAME         = 122
 
 	EFD_NONBLOCK = 0x800
 
@@ -27,6 +28,6 @@ const (
 
 type EpollEvent struct {
 	Events    uint32
-	pad_cgo_0 [4]byte
-	Data      [8]byte // unaligned uintptr
+	pad_cgo_0 uint32
+	Data      uint64
 }

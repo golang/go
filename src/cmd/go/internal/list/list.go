@@ -22,8 +22,6 @@ import (
 	"sync"
 	"text/template"
 
-	"golang.org/x/sync/semaphore"
-
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
@@ -32,6 +30,8 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+
+	"golang.org/x/sync/semaphore"
 )
 
 var CmdList = &base.Command{
@@ -73,7 +73,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         BinaryOnly     bool     // binary-only package (no longer supported)
         ForTest        string   // package is only for use in named test
         Export         string   // file containing export data (when using -export)
-        BuildID        string   // build ID of the compiled package (when using -export)
+        BuildID        string   // build ID of the exported package (when using -export)
         Module         *Module  // info about package's containing module, if any (can be nil)
         Match          []string // command-line patterns matching this package
         DepOnly        bool     // package is only a dependency, not explicitly listed
@@ -145,6 +145,8 @@ of list -m below.
 
 The template function "join" calls strings.Join.
 
+The template function "json" marshals its arguments to JSON.
+
 The template function "context" returns the build context, defined as:
 
     type Context struct {
@@ -160,6 +162,9 @@ The template function "context" returns the build context, defined as:
         ReleaseTags   []string // releases the current release is compatible with
         InstallSuffix string   // suffix to use in the name of the install dir
     }
+
+The template function "module" takes a module path as a parameter,
+and returns information about the module, defined as the Module struct below.
 
 For more information about the meaning of these fields see the documentation
 for the go/build package's Context type.
@@ -193,8 +198,11 @@ a non-nil Error field; other information may or may not be missing
 (zeroed).
 
 The -export flag causes list to set the Export field to the name of a
-file containing up-to-date export information for the given package,
-and the BuildID field to the build ID of the compiled package.
+file containing up-to-date export data for the given package,
+and the BuildID field to the build ID of the exported package.
+The Export file encodes complete type information for the package's
+public API. To decode it, use the golang.org/x/tools/go/gcexportdata
+package.
 
 The -find flag causes list to identify the named packages but not
 resolve their dependencies: the Imports and Deps lists will be empty.
@@ -339,7 +347,7 @@ For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
-For more about modules, see https://golang.org/ref/mod.
+For more about modules, see https://go.dev/ref/mod.
 	`,
 }
 
@@ -348,24 +356,24 @@ func init() {
 	// Omit build -json because list has its own -json
 	work.AddBuildFlags(CmdList, work.OmitJSONFlag)
 	work.AddCoverFlags(CmdList, nil)
-	CmdList.Flag.Var(&listJsonFields, "json", "")
+	CmdList.Flag.Var(&listJsonFields, "json", "print the package data in JSON format; optionally specify a comma-separated list of field names to include")
 }
 
 var (
-	listCompiled   = CmdList.Flag.Bool("compiled", false, "")
-	listDeps       = CmdList.Flag.Bool("deps", false, "")
-	listE          = CmdList.Flag.Bool("e", false, "")
-	listExport     = CmdList.Flag.Bool("export", false, "")
-	listFmt        = CmdList.Flag.String("f", "", "")
-	listFind       = CmdList.Flag.Bool("find", false, "")
+	listCompiled   = CmdList.Flag.Bool("compiled", false, "set CompiledGoFiles to the Go source files presented to the compiler")
+	listDeps       = CmdList.Flag.Bool("deps", false, "iterate through all dependencies, not just those explicitly listed")
+	listE          = CmdList.Flag.Bool("e", false, "change the handling of erroneous packages")
+	listExport     = CmdList.Flag.Bool("export", false, "set Export to the file name of the up-to-date export data for the package")
+	listFmt        = CmdList.Flag.String("f", "", "specify an alternate `format` for the list, using the syntax of package template")
+	listFind       = CmdList.Flag.Bool("find", false, "do not resolve dependencies; print only the matching packages")
 	listJson       bool
 	listJsonFields jsonFlag // If not empty, only output these fields.
-	listM          = CmdList.Flag.Bool("m", false, "")
-	listRetracted  = CmdList.Flag.Bool("retracted", false, "")
-	listReuse      = CmdList.Flag.String("reuse", "", "")
-	listTest       = CmdList.Flag.Bool("test", false, "")
-	listU          = CmdList.Flag.Bool("u", false, "")
-	listVersions   = CmdList.Flag.Bool("versions", false, "")
+	listM          = CmdList.Flag.Bool("m", false, "list modules instead of packages")
+	listRetracted  = CmdList.Flag.Bool("retracted", false, "show retracted modules")
+	listReuse      = CmdList.Flag.String("reuse", "", "reuse output from a previous list run stored in the named `file`")
+	listTest       = CmdList.Flag.Bool("test", false, "show not only the named packages but also their test binaries")
+	listU          = CmdList.Flag.Bool("u", false, "add information about available upgrades")
+	listVersions   = CmdList.Flag.Bool("versions", false, "show the list of all known versions for a module")
 )
 
 // A StringsFlag is a command-line flag that interprets its argument
@@ -419,8 +427,16 @@ func (v *jsonFlag) needAny(fields ...string) bool {
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	exp := cfg.Experiment
+
+	for _, arg := range args {
+		if arg == "" {
+			base.Fatalf("go: invalid package: %q", arg)
+		}
+	}
+
+	moduleLoader := modload.NewLoader()
+	moduleLoader.InitWorkfile()
 
 	if *listFmt != "" && listJson {
 		base.Fatalf("go list -f cannot be used with -json")
@@ -428,11 +444,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if *listReuse != "" && !*listM {
 		base.Fatalf("go list -reuse cannot be used without -m")
 	}
-	if *listReuse != "" && modload.HasModRoot(moduleLoaderState) {
+	if *listReuse != "" && moduleLoader.HasModRoot() {
 		base.Fatalf("go list -reuse cannot be used inside a module")
 	}
 
-	work.BuildInit(moduleLoaderState)
+	work.BuildInit(moduleLoader)
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
@@ -478,9 +494,13 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			return cachedCtxt
 		}
 		fm := template.FuncMap{
-			"join":    strings.Join,
+			"join": strings.Join,
+			"json": func(v any) (string, error) {
+				b, err := json.Marshal(v)
+				return string(b), err
+			},
 			"context": context,
-			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(moduleLoaderState, ctx, path) },
+			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(moduleLoader, ctx, path) },
 		}
 		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
 		if err != nil {
@@ -497,12 +517,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	modload.Init(moduleLoaderState)
+	modload.Init(moduleLoader)
 	if *listRetracted {
 		if cfg.BuildMod == "vendor" {
 			base.Fatalf("go list -retracted cannot be used when vendoring is enabled")
 		}
-		if !modload.Enabled(moduleLoaderState) {
+		if !moduleLoader.Enabled() {
 			base.Fatalf("go list -retracted can only be used in module-aware mode")
 		}
 	}
@@ -526,11 +546,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -test cannot be used with -m")
 		}
 
-		if modload.Init(moduleLoaderState); !modload.Enabled(moduleLoaderState) {
+		if modload.Init(moduleLoader); !moduleLoader.Enabled() {
 			base.Fatalf("go: list -m cannot be used with GO111MODULE=off")
 		}
 
-		modload.LoadModFile(moduleLoaderState, ctx) // Sets cfg.BuildMod as a side-effect.
+		modload.LoadModFile(moduleLoader, ctx) // Sets cfg.BuildMod as a side-effect.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -570,7 +590,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if *listReuse != "" && len(args) == 0 {
 			base.Fatalf("go: list -m -reuse only has an effect with module@version arguments")
 		}
-		mods, err := modload.ListModules(moduleLoaderState, ctx, args, mode, *listReuse)
+		mods, err := modload.ListModules(moduleLoader, ctx, args, mode, *listReuse)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
@@ -614,7 +634,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		SuppressBuildInfo:  !*listExport && !listJsonFields.needAny("Stale", "StaleReason"),
 		SuppressEmbedFiles: !*listExport && !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
 	}
-	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, args)
+	pkgs := load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, args)
 	if !*listE {
 		w := 0
 		for _, pkg := range pkgs {
@@ -649,10 +669,10 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 						sema.Release(1)
 						wg.Done()
 					}
-					pmain, ptest, pxtest = load.TestPackagesAndErrors(moduleLoaderState, ctx, done, pkgOpts, p, nil)
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(moduleLoader, ctx, done, pkgOpts, p, nil)
 				} else {
 					var perr *load.Package
-					pmain, ptest, pxtest, perr = load.TestPackagesFor(moduleLoaderState, ctx, pkgOpts, p, nil)
+					pmain, ptest, pxtest, perr = load.TestPackagesFor(moduleLoader, ctx, pkgOpts, p, nil)
 					if perr != nil {
 						base.Fatalf("go: can't load test package: %s", perr.Error)
 					}
@@ -713,8 +733,23 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Do we need to run a build to gather information?
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
-	if needStale || *listExport || *listCompiled {
-		b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
+	var buildPkgs []*load.Package
+	if needStale || (*listExport && !exp.GoListExportNewFormat) || (*listCompiled && cfg.BuildCover) {
+		buildPkgs = pkgs
+	} else if *listCompiled {
+		// In the non-cover case, for pure-Go packages, package loading already knows the complete set
+		// of files passed to the compiler, so no build action is needed.
+		for _, p := range pkgs {
+			if p.UsesCgo() || p.UsesSwig() {
+				// Keep using the builder for packages that generate Go sources.
+				buildPkgs = append(buildPkgs, p)
+				continue
+			}
+			p.CompiledGoFiles = str.StringList(p.GoFiles)
+		}
+	}
+	if len(buildPkgs) > 0 {
+		b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
 		if *listE {
 			b.AllowErrors = true
 		}
@@ -725,16 +760,39 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}()
 
 		b.IsCmdList = true
-		b.NeedExport = *listExport
+		b.NeedExport = *listExport && !exp.GoListExportNewFormat
 		b.NeedCompiledGoFiles = *listCompiled
 		if cfg.BuildCover {
-			load.PrepareForCoverageBuild(moduleLoaderState, pkgs)
+			load.PrepareForCoverageBuild(moduleLoader, pkgs)
 		}
+		a := &work.Action{}
+		// TODO: Use pkgsFilter?
+		for _, p := range buildPkgs {
+			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
+				a.Deps = append(a.Deps, b.AutoAction(moduleLoader, work.ModeInstall, work.ModeInstall, p))
+			}
+		}
+		b.Do(ctx, a)
+	}
+
+	// Execute any necessary export actions. Export actions only ever interact
+	// with export actions, so putting them on their own builder is fine.
+	if *listExport && exp.GoListExportNewFormat {
+		b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
+		defer func() {
+			if err := b.Close(); err != nil {
+				base.Fatal(err)
+			}
+		}()
+
+		// Setting IsCmdList doesn't do anything special for exports. We only
+		// set it for completeness.
+		b.IsCmdList = true
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?
 		for _, p := range pkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
-				a.Deps = append(a.Deps, b.AutoAction(moduleLoaderState, work.ModeInstall, work.ModeInstall, p))
+				a.Deps = append(a.Deps, b.ExportAction(p))
 			}
 		}
 		b.Do(ctx, a)
@@ -742,8 +800,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	for _, p := range pkgs {
 		// Show vendor-expanded paths in listing
-		p.TestImports = p.Resolve(moduleLoaderState, p.TestImports)
-		p.XTestImports = p.Resolve(moduleLoaderState, p.XTestImports)
+		p.TestImports = p.Resolve(moduleLoader, p.TestImports)
+		p.XTestImports = p.Resolve(moduleLoader, p.XTestImports)
 		p.DepOnly = !cmdline[p]
 
 		if *listCompiled {
@@ -851,7 +909,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			if *listRetracted {
 				mode |= modload.ListRetracted
 			}
-			rmods, err := modload.ListModules(moduleLoaderState, ctx, args, mode, *listReuse)
+			rmods, err := modload.ListModules(moduleLoader, ctx, args, mode, *listReuse)
 			if err != nil && !*listE {
 				base.Error(err)
 			}

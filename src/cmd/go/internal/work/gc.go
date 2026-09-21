@@ -6,15 +6,18 @@ package work
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -53,16 +56,18 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, compile *shellCmd, err error) {
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
-	if archive != "" {
-		ofile = archive
-	} else {
-		out := "_go_.o"
-		ofile = objdir + out
+	// TODO(matloob): Support early export on Windows.
+	hasObjectAction := slices.ContainsFunc(a.triggers, func(t *Action) bool { return t.Mode == "build" && t.Package == a.Package })
+	goosSupported := runtime.GOOS != "windows" && runtime.GOOS != "plan9"
+	earlyExport := export != "" && hasObjectAction && goosSupported && !(cfg.BuildN || cfg.BuildX)
+	if export == "" {
+		export = objdir + "_go_.x"
 	}
+	ofile = objdir + "_go_.o"
 
 	pkgpath := pkgPath(a)
 	defaultGcFlags := []string{"-p", pkgpath}
@@ -112,8 +117,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if strings.HasPrefix(ToolchainVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
 		defaultGcFlags = append(defaultGcFlags, "-goversion", ToolchainVersion)
 	}
-	if p.Internal.Cover.Cfg != "" {
-		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.Cover.Cfg)
+	if coverCfg != "" {
+		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+coverCfg)
 	}
 	if pgoProfile != "" {
 		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+pgoProfile)
@@ -126,34 +131,50 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Internal.FuzzInstrument {
 		gcflags = append(gcflags, fuzzInstrumentFlags()...)
 	}
+	if importcfg != nil {
+		if err := sh.writeFile(objdir+"importcfg", importcfg); err != nil {
+			return "", nil, nil, err
+		}
+	}
+	if embedcfg != nil {
+		if err := sh.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+			return "", nil, nil, err
+		}
+	}
+	var pipeR, pipeW *os.File
+	var extraFiles []*os.File
+	if earlyExport {
+		pipeR, pipeW, err = os.Pipe()
+		if err != nil {
+			return "", nil, nil, err
+		}
+		defer pipeR.Close()
+		extraFiles = []*os.File{pipeW}
+	}
+
 	// Add -c=N to use concurrent backend compilation, if possible.
-	if c := gcBackendConcurrency(gcflags); c > 1 {
+	c, release := compilerConcurrency()
+	if c > 1 {
 		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
 	}
 
-	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", export, "-linkobj", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
 	if p.Internal.LocalPrefix == "" {
 		args = append(args, "-nolocalimports")
 	} else {
 		args = append(args, "-D", p.Internal.LocalPrefix)
 	}
 	if importcfg != nil {
-		if err := sh.writeFile(objdir+"importcfg", importcfg); err != nil {
-			return "", nil, err
-		}
 		args = append(args, "-importcfg", objdir+"importcfg")
 	}
 	if embedcfg != nil {
-		if err := sh.writeFile(objdir+"embedcfg", embedcfg); err != nil {
-			return "", nil, err
-		}
 		args = append(args, "-embedcfg", objdir+"embedcfg")
-	}
-	if ofile == archive {
-		args = append(args, "-pack")
 	}
 	if asmhdr {
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
+	}
+	if earlyExport {
+		args = append(args, "-exportfd=3")
 	}
 
 	for _, f := range gofiles {
@@ -173,35 +194,27 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		// code that uses those values to expect absolute paths.
 		args = append(args, fsys.Actual(f))
 	}
-	output, err = sh.runOut(base.Cwd(), cfgChangedEnv, args...)
-	return ofile, output, err
+	sc, err := sh.startOut(base.Cwd(), cfgChangedEnv, extraFiles, release, args...)
+	// If -n is provided sc will always be nil because we don't actually start a command.
+	if err != nil || sc == nil {
+		release()
+		return ofile, nil, nil, err
+	}
+	if !earlyExport {
+		output, err = sc.wait()
+		return ofile, output, nil, err
+	}
+	var ping [1]byte
+	if _, err := pipeR.Read(ping[:]); err != nil {
+		output, werr := sc.wait()
+		return ofile, output, nil, errors.Join(err, werr)
+	}
+	return ofile, nil, sc, nil
 }
 
-// gcBackendConcurrency returns the backend compiler concurrency level for a package compilation.
-func gcBackendConcurrency(gcflags []string) int {
-	// First, check whether we can use -c at all for this compilation.
-	canDashC := concurrentGCBackendCompilationEnabledByDefault
-
-	switch e := os.Getenv("GO19CONCURRENTCOMPILATION"); e {
-	case "0":
-		canDashC = false
-	case "1":
-		canDashC = true
-	case "":
-		// Not set. Use default.
-	default:
-		log.Fatalf("GO19CONCURRENTCOMPILATION must be 0, 1, or unset, got %q", e)
-	}
-
-	// TODO: Test and delete these conditions.
-	if cfg.ExperimentErr != nil || cfg.Experiment.FieldTrack || cfg.Experiment.PreemptibleLoops {
-		canDashC = false
-	}
-
-	if !canDashC {
-		return 1
-	}
-
+// compilerConcurrency returns the compiler concurrency level for a package compilation.
+// The returned function must be called after the compile finishes.
+func compilerConcurrency() (int, func()) {
 	// Decide how many concurrent backend compilations to allow.
 	//
 	// If we allow too many, in theory we might end up with p concurrent processes,
@@ -212,29 +225,66 @@ func gcBackendConcurrency(gcflags []string) int {
 	// of the overall compiler execution, so c==1 for much of the build.
 	// So don't worry too much about that interaction for now.
 	//
-	// However, in practice, setting c above 4 tends not to help very much.
-	// See the analysis in CL 41192.
+	// But to keep things reasonable, we maintain a cap on the total number of
+	// concurrent backend compiles. (If we gave each compile action the full GOMAXPROCS, we could
+	// potentially have GOMAXPROCS^2 running compile goroutines) In the past, we'd limit
+	// the number of concurrent backend compiles per process to 4, which would result in a worst-case number
+	// of backend compiles of 4*cfg.BuildP. Because some compile processes benefit from having
+	// a larger number of compiles, especially when the compile action is the only
+	// action running, we'll allow the max value to be larger, but ensure that the
+	// total number of backend compiles never exceeds that previous worst-case number.
+	// This is implemented using a pool of tokens that are given out. We'll set aside enough
+	// tokens to make sure we don't run out, and then give half of the remaining tokens (up to
+	// GOMAXPROCS) to each compile action that requests it.
 	//
-	// TODO(josharian): attempt to detect whether this particular compilation
-	// is likely to be a bottleneck, e.g. when:
-	//   - it has no successor packages to compile (usually package main)
-	//   - all paths through the build graph pass through it
-	//   - critical path scheduling says it is high priority
-	// and in such a case, set c to runtime.GOMAXPROCS(0).
-	// By default this is the same as runtime.NumCPU.
-	// We do this now when p==1.
-	// To limit parallelism, set GOMAXPROCS below numCPU; this may be useful
+	// As a user, to limit parallelism, set GOMAXPROCS below numCPU; this may be useful
 	// on a low-memory builder, or if a deterministic build order is required.
-	c := runtime.GOMAXPROCS(0)
 	if cfg.BuildP == 1 {
 		// No process parallelism, do not cap compiler parallelism.
-		return c
+		return maxCompilerConcurrency, func() {}
 	}
-	// Some process parallelism. Set c to min(4, maxprocs).
-	if c > 4 {
-		c = 4
+
+	// Cap compiler parallelism using the pool.
+	tokensMu.Lock()
+	defer tokensMu.Unlock()
+	concurrentProcesses++
+	// Set aside tokens so that we don't run out if we were running cfg.BuildP concurrent compiles.
+	// We'll set aside one token for each of the action goroutines that aren't currently running a compile.
+	setAside := (cfg.BuildP - concurrentProcesses) * minTokens
+	availableTokens := tokens - setAside
+	// Grab half the remaining tokens: but with a floor of at least minTokens token, and
+	// a ceiling of the max backend concurrency.
+	c := max(min(availableTokens/2, maxCompilerConcurrency), minTokens)
+	tokens -= c
+	// Successfully grabbed the tokens.
+	return c, func() {
+		tokensMu.Lock()
+		defer tokensMu.Unlock()
+		concurrentProcesses--
+		tokens += c
 	}
-	return c
+}
+
+var maxCompilerConcurrency = runtime.GOMAXPROCS(0) // max value we will use for -c
+
+var (
+	tokensMu            sync.Mutex
+	totalTokens         int // total number of tokens: this is used for checking that we get them all back in the end
+	tokens              int // number of available tokens
+	concurrentProcesses int // number of currently running compiles
+	minTokens           int // minimum number of tokens to give out
+)
+
+// initCompilerConcurrencyPool sets the number of tokens in the pool. It needs
+// to be run after init, so that it can use the value of cfg.BuildP.
+func initCompilerConcurrencyPool() {
+	// Size the pool to allow 2*maxCompilerConcurrency extra tokens to
+	// be distributed amongst the compile actions in addition to the minimum
+	// of min(4,GOMAXPROCS) tokens for each of the potentially cfg.BuildP
+	// concurrently running compile actions.
+	minTokens = min(4, maxCompilerConcurrency)
+	tokens = 2*maxCompilerConcurrency + minTokens*cfg.BuildP
+	totalTokens = tokens
 }
 
 // trimpath returns the -trimpath argument to use
@@ -319,6 +369,10 @@ func asmArgs(a *Action, p *load.Package) []any {
 				args = append(args, "-D=GOBUILDMODE_shared=1")
 			}
 		}
+	}
+
+	if p.Standard {
+		args = append(args, "-std")
 	}
 
 	if cfg.Goarch == "386" {
@@ -485,6 +539,22 @@ func packInternal(afile string, ofiles []string) error {
 			src.Close()
 			return err
 		}
+		if filepath.Base(ofile) == "_go_.o" {
+			header := []byte("!<arch>\n")
+			b := make([]byte, len(header))
+			// If this is an archive, copy the inner entries over.
+			if _, err := io.ReadFull(src, b[:]); err == nil && bytes.Equal(header, b) {
+				_, err := io.Copy(w, src)
+				src.Close()
+				if err != nil {
+					return fmt.Errorf("copying %s to %s: %v", ofile, afile, err)
+				}
+				continue
+			}
+			// Otherwise, seek back to the beginning and continue to add
+			// the full file to the archive.
+			src.Seek(0, 0)
+		}
 		// Note: Not using %-16.16s format because we care
 		// about bytes, not runes.
 		name := fi.Name()
@@ -550,14 +620,14 @@ func pluginPath(a *Action) string {
 		// For linking, use the main package's build ID instead of
 		// the binary's build ID, so it is the same hash used in
 		// compiling and linking.
-		// When compiling, we use actionID/actionID (instead of
-		// actionID/contentID) as a temporary build ID to compute
+		// When compiling, we use actionID/actionID/actionID, instead of
+		// actionID/contentID(export)/contentID(object), as a temporary build ID to compute
 		// the hash. Do the same here. (See buildid.go:useCache)
 		// The build ID matters because it affects the overall hash
 		// in the plugin's pseudo-import path returned below.
 		// We need to use the same import path when compiling and linking.
 		id := strings.Split(buildID, buildIDSeparator)
-		buildID = id[1] + buildIDSeparator + id[1]
+		buildID = id[1] + buildIDSeparator + id[1] + buildIDSeparator + id[1]
 	}
 	fmt.Fprintf(h, "build ID: %s\n", buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {

@@ -462,7 +462,7 @@ func GoFunc%d() {}
 
 	// NumberOfNames is the number of functions exported with a unique name.
 	// NumberOfFunctions can be higher than that because it also counts
-	// functions exported only by ordinal, a unique number asigned by the linker,
+	// functions exported only by ordinal, a unique number assigned by the linker,
 	// and linkers might add an unknown number of their own ordinal-only functions.
 	if wantAll {
 		if e.NumberOfNames <= uint32(exportedSymbols) {
@@ -941,4 +941,30 @@ func TestIssue68411(t *testing.T) {
 	if found != len(funcs) {
 		t.Error("missing functions")
 	}
+}
+
+func TestSymbolicFunctions(t *testing.T) {
+	// Test that we can build a c-shared library with -Wl,-Bsymbolic-functions,
+	// see issue 80632.
+	globalSkip(t)
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
+	if GOOS != "linux" {
+		t.Skip("Skipping on non-Linux OS")
+	}
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	libname := filepath.Join(tmpdir, "libbsymbolic.a")
+
+	run(t,
+		nil,
+		"go", "build",
+		"-buildmode=c-shared",
+		"-installsuffix", "testcshared",
+		"-ldflags=-extldflags=-Wl,-Bsymbolic-functions",
+		"-o", libname, "./libgo",
+	)
 }

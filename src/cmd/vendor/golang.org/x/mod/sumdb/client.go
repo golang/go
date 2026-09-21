@@ -244,7 +244,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 		data []byte
 		err  error
 	}
-	result := c.record.Do(file, func() interface{} {
+	result := c.record.Do(file, func() any {
 		// Try the on-disk cache, or else get from web.
 		writeCache := false
 		data, err := c.ops.ReadCache(file)
@@ -274,7 +274,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 			c.ops.WriteCache(file, data)
 		}
 
-		return cached{data, nil}
+		return cached{text, nil}
 	}).(cached)
 	if result.err != nil {
 		return nil, result.err
@@ -284,7 +284,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 	// (with or without /go.mod).
 	prefix := path + " " + vers + " "
 	var hashes []string
-	for _, line := range strings.Split(string(result.data), "\n") {
+	for line := range strings.SplitSeq(string(result.data), "\n") {
 		if strings.HasPrefix(line, prefix) {
 			hashes = append(hashes, line)
 		}
@@ -460,7 +460,7 @@ func (c *Client) checkTrees(older tlog.Tree, olderNote []byte, newer tlog.Tree, 
 	// on the continued availability of the misbehaving server.
 	// Preparing this data only reuses the tiled hashes needed for
 	// tlog.TreeHash(older.N, thr) above, so assuming thr is caching tiles,
-	// there are no new access to the server here, and these operations cannot fail.
+	// there are no new accesses to the server here, and these operations cannot fail.
 	fmt.Fprintf(&buf, "proof of misbehavior:\n\t%v", h)
 	if p, err := tlog.ProveTree(newer.N, older.N, thr); err != nil {
 		fmt.Fprintf(&buf, "\tinternal error: %v\n", err)
@@ -552,7 +552,7 @@ func (c *Client) readTile(tile tlog.Tile) ([]byte, error) {
 		err  error
 	}
 
-	result := c.tileCache.Do(tile, func() interface{} {
+	result := c.tileCache.Do(tile, func() any {
 		// Try the requested tile in on-disk cache.
 		data, err := c.ops.ReadCache(c.tileCacheKey(tile))
 		if err == nil {

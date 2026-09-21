@@ -7,6 +7,7 @@ package tar
 import (
 	"bytes"
 	"io"
+	"math"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -45,8 +46,9 @@ func NewReader(r io.Reader) *Reader {
 // Any remaining data in the current file is automatically discarded.
 // At the end of the archive, Next returns the error io.EOF.
 //
-// If Next encounters a non-local name (as defined by [filepath.IsLocal])
+// If Next encounters a non-local file name (as defined by [filepath.IsLocal])
 // and the GODEBUG environment variable contains `tarinsecurepath=0`,
+// Only file names are validated, not link targets.
 // Next returns the header with an [ErrInsecurePath] error.
 // A future version of Go may introduce this behavior by default.
 // Programs that want to accept non-local names can ignore
@@ -275,10 +277,16 @@ func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
 			hdr.Gname = v
 		case paxUid:
 			id64, err = strconv.ParseInt(v, 10, 64)
-			hdr.Uid = int(id64) // Integer overflow possible
+			if err != nil || id64 > math.MaxInt || id64 < math.MinInt {
+				return ErrHeader
+			}
+			hdr.Uid = int(id64)
 		case paxGid:
 			id64, err = strconv.ParseInt(v, 10, 64)
-			hdr.Gid = int(id64) // Integer overflow possible
+			if err != nil || id64 > math.MaxInt || id64 < math.MinInt {
+				return ErrHeader
+			}
+			hdr.Gid = int(id64)
 		case paxAtime:
 			hdr.AccessTime, err = parsePAXTime(v)
 		case paxMtime:
@@ -404,9 +412,11 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 
 			// For Format detection, check if block is properly formatted since
 			// the parser is more liberal than what USTAR actually permits.
-			notASCII := func(r rune) bool { return r >= 0x80 }
-			if bytes.IndexFunc(tr.blk[:], notASCII) >= 0 {
-				hdr.Format = FormatUnknown // Non-ASCII characters in block.
+			for _, c := range tr.blk[:] {
+				if c >= 0x80 {
+					hdr.Format = FormatUnknown // Non-ASCII characters in block.
+					break
+				}
 			}
 			nul := func(b []byte) bool { return int(b[len(b)-1]) == 0 }
 			if !(nul(v7.size()) && nul(v7.mode()) && nul(v7.uid()) && nul(v7.gid()) &&
@@ -490,7 +500,8 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) (sparseDatas, err
 	}
 	s := blk.toGNU().sparse()
 	spd := make(sparseDatas, 0, s.maxEntries())
-	for {
+	totalSize := len(s)
+	for totalSize < maxSpecialFileSize {
 		for i := 0; i < s.maxEntries(); i++ {
 			// This termination condition is identical to GNU and BSD tar.
 			if s.entry(i).offset()[0] == 0x00 {
@@ -501,7 +512,11 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) (sparseDatas, err
 			if p.err != nil {
 				return nil, p.err
 			}
-			spd = append(spd, sparseEntry{Offset: offset, Length: length})
+			var err error
+			spd, err = appendSparseEntry(spd, sparseEntry{Offset: offset, Length: length})
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		if s.isExtended()[0] > 0 {
@@ -510,10 +525,12 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) (sparseDatas, err
 				return nil, err
 			}
 			s = blk.toSparse()
+			totalSize += len(s)
 			continue
 		}
 		return spd, nil // Done
 	}
+	return nil, errSparseTooLong
 }
 
 // readGNUSparseMap1x0 reads the sparse map as stored in GNU's PAX sparse format
@@ -586,7 +603,10 @@ func readGNUSparseMap1x0(r io.Reader) (sparseDatas, error) {
 		if err1 != nil || err2 != nil {
 			return nil, ErrHeader
 		}
-		spd = append(spd, sparseEntry{Offset: offset, Length: length})
+		spd, err = appendSparseEntry(spd, sparseEntry{Offset: offset, Length: length})
+		if err != nil {
+			return nil, err
+		}
 	}
 	return spd, nil
 }
@@ -620,10 +640,20 @@ func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
 		if err1 != nil || err2 != nil {
 			return nil, ErrHeader
 		}
-		spd = append(spd, sparseEntry{Offset: offset, Length: length})
+		spd, err = appendSparseEntry(spd, sparseEntry{Offset: offset, Length: length})
+		if err != nil {
+			return nil, err
+		}
 		sparseMap = sparseMap[2:]
 	}
 	return spd, nil
+}
+
+func appendSparseEntry(spd sparseDatas, ent sparseEntry) (sparseDatas, error) {
+	if len(spd) >= maxSparseFileEntries {
+		return nil, errSparseTooLong
+	}
+	return append(spd, ent), nil
 }
 
 // Read reads from the current file in the tar archive.

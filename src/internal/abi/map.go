@@ -37,9 +37,27 @@ type MapType struct {
 	// function for hashing keys (ptr to key, seed) -> hash
 	Hasher    func(unsafe.Pointer, uintptr) uintptr
 	GroupSize uintptr // == Group.Size_
-	SlotSize  uintptr // size of key/elem slot
-	ElemOff   uintptr // offset of elem in key/elem slot
-	Flags     uint32
+	// These fields describe how to access keys and elems within a group.
+	// The formulas key(i) = KeysOff + i*KeyStride and
+	// elem(i) = ElemsOff + i*ElemStride work for both group layouts:
+	//
+	// With GOEXPERIMENT=mapsplitgroup (split arrays KKKKVVVV):
+	//   KeysOff    = offset of keys array in group
+	//   KeyStride  = size of a single key
+	//   ElemsOff   = offset of elems array in group
+	//   ElemStride = size of a single elem
+	//
+	// Without (interleaved slots KVKVKVKV):
+	//   KeysOff    = offset of slots array in group
+	//   KeyStride  = size of a key/elem slot (stride between keys)
+	//   ElemsOff   = offset of first elem (slots offset + elem offset within slot)
+	//   ElemStride = size of a key/elem slot (stride between elems)
+	KeysOff    uintptr
+	KeyStride  uintptr
+	ElemsOff   uintptr
+	ElemStride uintptr
+	ElemOff    uintptr // GOEXPERIMENT=nomapsplitgroup only
+	Flags      uint32
 }
 
 // Flag values

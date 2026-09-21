@@ -15,7 +15,7 @@
 // until the script is modified.
 //
 // The script engine includes all of the engine's default commands and
-// conditions, as well as commands for each supported VCS binary (bzr, fossil,
+// conditions, as well as commands for each supported VCS binary (fossil,
 // git, hg, and svn), a "handle" command that informs the script which protocol
 // or handler to use to serve the request, and utilities "at" (which sets
 // environment variables for Git timestamps) and "unquote" (which unquotes its
@@ -129,7 +129,6 @@ func NewServer(scriptDir, workDir string, logger *log.Logger) (*Server, error) {
 		vcsHandlers: map[string]vcsHandler{
 			"auth":     new(authHandler),
 			"dir":      new(dirHandler),
-			"bzr":      new(bzrHandler),
 			"fossil":   new(fossilHandler),
 			"git":      new(gitHandler),
 			"hg":       new(hgHandler),
@@ -199,8 +198,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	defer func() {
 		if v := recover(); v != nil {
-			debug.PrintStack()
-			s.logger.Fatal(v)
+			if v == http.ErrAbortHandler {
+				panic(v)
+			}
+			s.logger.Fatalf("panic serving %s: %v\n%s", req.URL, v, debug.Stack())
 		}
 	}()
 

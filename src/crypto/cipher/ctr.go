@@ -42,7 +42,7 @@ func NewCTR(block Block, iv []byte) Stream {
 	if block, ok := block.(*aes.Block); ok {
 		return aesCtrWrapper{aes.NewCTR(block, iv)}
 	}
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/cipher: use of CTR with non-AES ciphers is not allowed in FIPS 140-only mode")
 	}
 	if ctr, ok := block.(ctrAble); ok {

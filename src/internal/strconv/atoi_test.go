@@ -6,8 +6,8 @@ package strconv_test
 
 import (
 	"fmt"
-	"reflect"
 	. "internal/strconv"
+	"reflect"
 	"testing"
 )
 
@@ -433,7 +433,7 @@ func TestAtoi(t *testing.T) {
 		for i := range parseInt32Tests {
 			test := &parseInt32Tests[i]
 			out, err := Atoi(test.in)
-			if out !=int(test.out) || err != test.err {
+			if out != int(test.out) || err != test.err {
 				t.Errorf("Atoi(%q) = %v, %v, want %v, %v", test.in, out, err, test.out, test.err)
 			}
 		}
@@ -449,7 +449,7 @@ func TestAtoi(t *testing.T) {
 }
 
 type parseErrorTest struct {
-	arg     int
+	arg int
 	err error
 }
 

@@ -5,7 +5,7 @@
 // Package stringslite implements a subset of strings,
 // only using packages that may be imported by "os".
 //
-// Tests for these functions are in the strings package.
+// Most tests for these functions are in the strings package.
 package stringslite
 
 import (
@@ -28,52 +28,15 @@ func IndexByte(s string, c byte) int {
 func Index(s, substr string) int {
 	n := len(substr)
 	switch {
-	case n == 0:
+	case n == 0 || substr == s:
 		return 0
 	case n == 1:
 		return IndexByte(s, substr[0])
-	case n == len(s):
-		if substr == s {
-			return 0
-		}
+	case n >= len(s):
 		return -1
-	case n > len(s):
-		return -1
-	case n <= bytealg.MaxLen:
+	case n <= bytealg.MaxLen && len(s) <= bytealg.MaxBruteForce:
 		// Use brute force when s and substr both are small
-		if len(s) <= bytealg.MaxBruteForce {
-			return bytealg.IndexString(s, substr)
-		}
-		c0 := substr[0]
-		c1 := substr[1]
-		i := 0
-		t := len(s) - n + 1
-		fails := 0
-		for i < t {
-			if s[i] != c0 {
-				// IndexByte is faster than bytealg.IndexString, so use it as long as
-				// we're not getting lots of false positives.
-				o := IndexByte(s[i+1:t], c0)
-				if o < 0 {
-					return -1
-				}
-				i += o + 1
-			}
-			if s[i+1] == c1 && s[i:i+n] == substr {
-				return i
-			}
-			fails++
-			i++
-			// Switch to bytealg.IndexString when IndexByte produces too many false positives.
-			if fails > bytealg.Cutover(i) {
-				r := bytealg.IndexString(s[i:], substr)
-				if r >= 0 {
-					return r + i
-				}
-				return -1
-			}
-		}
-		return -1
+		return bytealg.IndexString(s, substr)
 	}
 	c0 := substr[0]
 	c1 := substr[1]
@@ -82,6 +45,8 @@ func Index(s, substr string) int {
 	fails := 0
 	for i < t {
 		if s[i] != c0 {
+			// IndexByte is faster than bytealg.IndexString, so use it as long as
+			// we're not getting lots of false positives.
 			o := IndexByte(s[i+1:t], c0)
 			if o < 0 {
 				return -1
@@ -93,7 +58,14 @@ func Index(s, substr string) int {
 		}
 		i++
 		fails++
-		if fails >= 4+i>>4 && i < t {
+		if n <= bytealg.MaxLen && fails > bytealg.Cutover(i) {
+			// Switch to bytealg.IndexString when IndexByte produces too many false positives.
+			r := bytealg.IndexString(s[i:], substr)
+			if r >= 0 {
+				return r + i
+			}
+			return -1
+		} else if n > bytealg.MaxLen && fails >= 4+i>>4 && i < t {
 			// See comment in ../bytes/bytes.go.
 			j := bytealg.IndexRabinKarp(s[i:], substr)
 			if j < 0 {
@@ -138,6 +110,35 @@ func TrimSuffix(s, suffix string) string {
 		return s[:len(s)-len(suffix)]
 	}
 	return s
+}
+
+// IsSpace reports whether r is a space character as defined by
+// Unicode's White Space property.
+func IsSpace(r rune) bool {
+	switch r {
+	case '\t', '\n', '\v', '\f', '\r', ' ',
+		0x0085, // NEXT LINE
+		0x00A0, // NO-BREAK SPACE
+		0x1680, // OGHAM SPACE MARK
+		0x2000, // EN QUAD
+		0x2001, // EM QUAD
+		0x2002, // EN SPACE
+		0x2003, // EM SPACE
+		0x2004, // THREE-PER-EM SPACE
+		0x2005, // FOUR-PER-EM SPACE
+		0x2006, // SIX-PER-EM SPACE
+		0x2007, // FIGURE SPACE
+		0x2008, // PUNCTUATION SPACE
+		0x2009, // THIN SPACE
+		0x200A, // HAIR SPACE
+		0x2028, // LINE SEPARATOR
+		0x2029, // PARAGRAPH SEPARATOR
+		0x202F, // NARROW NO-BREAK SPACE
+		0x205F, // MEDIUM MATHEMATICAL SPACE
+		0x3000: // IDEOGRAPHIC SPACE
+		return true
+	}
+	return false
 }
 
 func Clone(s string) string {

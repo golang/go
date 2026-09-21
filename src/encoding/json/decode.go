@@ -19,7 +19,6 @@ import (
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
-	_ "unsafe" // for linkname
 )
 
 // Unmarshal parses the JSON-encoded data and stores the result
@@ -43,14 +42,19 @@ import (
 // and the input is a JSON quoted string, Unmarshal calls
 // [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
 //
-// To unmarshal JSON into a struct, Unmarshal matches incoming object keys to
-// the keys used by [Marshal] (either the struct field name or its tag),
-// ignoring case. If multiple struct fields match an object key, an exact case
-// match is preferred over a case-insensitive one.
+// To unmarshal JSON into a struct, Unmarshal matches incoming object
+// keys to the keys used by [Marshal] (either the struct field name or its tag),
+// preferring an exact match but also accepting a case-insensitive match.
+// If a name matches multiple fields, the field whose name matches exactly
+// is chosen. By default, object keys which don't have a corresponding
+// struct field are ignored (see [Decoder.DisallowUnknownFields] for an alternative).
 //
-// Incoming object members are processed in the order observed. If an object
-// includes duplicate keys, later duplicates will replace or be merged into
-// prior values.
+// Incoming object members are processed in the order they are observed.
+// If an object includes duplicate names, later values will replace or be
+// merged into prior values, depending on the Go value type.
+// Case-insensitive matching provides another vector through which
+// duplicate names can occur: for example, the names "foo" and "Foo"
+// may both match the same Go struct field.
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
@@ -62,8 +66,10 @@ import (
 //   - map[string]any, for JSON objects
 //   - nil for JSON null
 //
-// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
-// to zero and then appends each element to the slice.
+// To unmarshal a JSON array into a slice, Unmarshal decodes each JSON array
+// element into the corresponding slice element, reusing existing slice
+// elements in-place. The slice grows to accommodate additional elements,
+// or is truncated if the JSON array is shorter.
 // As a special case, to unmarshal an empty JSON array into a slice,
 // Unmarshal replaces the slice with a new empty slice.
 //
@@ -188,6 +194,7 @@ func (d *decodeState) unmarshal(v any) error {
 }
 
 // A Number represents a JSON number literal.
+// When unmarshaling, it also accepts JSON numbers encoded within a JSON string.
 type Number string
 
 // String returns the literal text of the number.
@@ -1190,15 +1197,6 @@ func unquote(s []byte) (t string, ok bool) {
 	return
 }
 
-// unquoteBytes should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/bytedance/sonic
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname unquoteBytes
 func unquoteBytes(s []byte) (t []byte, ok bool) {
 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
 		return

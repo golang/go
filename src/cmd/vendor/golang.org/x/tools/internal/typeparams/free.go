@@ -6,8 +6,6 @@ package typeparams
 
 import (
 	"go/types"
-
-	"golang.org/x/tools/internal/aliases"
 )
 
 // Free is a memoization of the set of free type parameters within a
@@ -38,7 +36,7 @@ func (w *Free) Has(typ types.Type) (res bool) {
 		break
 
 	case *types.Alias:
-		if aliases.TypeParams(t).Len() > aliases.TypeArgs(t).Len() {
+		if t.TypeParams().Len() > t.TypeArgs().Len() {
 			return true // This is an uninstantiated Alias.
 		}
 		// The expansion of an alias can have free type parameters,

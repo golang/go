@@ -1,0 +1,10 @@
+written by hand
+
+-- .info --
+{"Version":"v1.5.2"}
+-- .mod --
+module vcs-test.golang.org/git/prefercompatible.git
+
+go 1.12
+-- prefercompatible.go --
+package prefercompatible

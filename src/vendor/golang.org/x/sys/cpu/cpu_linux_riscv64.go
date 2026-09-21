@@ -58,6 +58,7 @@ const (
 	riscv_HWPROBE_EXT_ZBA         = 0x8
 	riscv_HWPROBE_EXT_ZBB         = 0x10
 	riscv_HWPROBE_EXT_ZBS         = 0x20
+	riscv_HWPROBE_EXT_ZBC         = 0x80
 	riscv_HWPROBE_EXT_ZVBB        = 0x20000
 	riscv_HWPROBE_EXT_ZVBC        = 0x40000
 	riscv_HWPROBE_EXT_ZVKB        = 0x80000
@@ -108,6 +109,7 @@ func doinit() {
 			RISCV64.HasZba = isSet(v, riscv_HWPROBE_EXT_ZBA)
 			RISCV64.HasZbb = isSet(v, riscv_HWPROBE_EXT_ZBB)
 			RISCV64.HasZbs = isSet(v, riscv_HWPROBE_EXT_ZBS)
+			RISCV64.HasZbc = isSet(v, riscv_HWPROBE_EXT_ZBC)
 			RISCV64.HasZvbb = isSet(v, riscv_HWPROBE_EXT_ZVBB)
 			RISCV64.HasZvbc = isSet(v, riscv_HWPROBE_EXT_ZVBC)
 			RISCV64.HasZvkb = isSet(v, riscv_HWPROBE_EXT_ZVKB)
@@ -128,6 +130,9 @@ func doinit() {
 			RISCV64.HasFastMisaligned = v == riscv_HWPROBE_MISALIGNED_FAST
 		}
 	}
+	if RISCV64.HasV {
+		RISCV64.VLENB = readVLENB()
+	}
 
 	// Let's double check with HWCAP if the C extension does not appear to be supported.
 	// This may happen if we're running on a kernel older than 6.4.
@@ -135,6 +140,14 @@ func doinit() {
 	if !RISCV64.HasC {
 		RISCV64.HasC = isSet(hwCap, hwcap_RISCV_ISA_C)
 	}
+
+	doDerived = func() {
+		// If the vector extension is disabled by GODEBUG, then the VLENB is zero.
+		if !RISCV64.HasV {
+			RISCV64.VLENB = 0
+		}
+	}
+
 }
 
 func isSet(hwc uint, value uint) bool {

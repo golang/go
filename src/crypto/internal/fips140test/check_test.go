@@ -14,6 +14,7 @@ import (
 	"internal/godebug"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -31,23 +32,56 @@ func TestIntegrityCheck(t *testing.T) {
 		t.Fatalf("GODEBUG=fips140=on but verification did not run")
 	}
 
-	cryptotest.MustSupportFIPS140(t)
-
-	cmd := testenv.Command(t, testenv.Executable(t), "-test.v", "-test.run=^TestIntegrityCheck$")
-	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("GODEBUG=fips140=on %v failed: %v\n%s", cmd.Args, err, out)
-	}
-	t.Logf("exec'ed GODEBUG=fips140=on and succeeded:\n%s", out)
+	cryptotest.RerunWithFIPS140Enabled(t)
 }
 
 func TestIntegrityCheckFailure(t *testing.T) {
 	moduleStatus(t)
-	testenv.MustHaveExec(t)
 	cryptotest.MustSupportFIPS140(t)
 
-	bin, err := os.ReadFile(os.Args[0])
+	t.Logf("running modified binary...")
+	cmd := reexecCommand(t, "fips140=on", true, "-test.v", "-test.run=^TestIntegrityCheck$")
+	out, err := cmd.CombinedOutput()
+	t.Logf("running with GODEBUG=fips140=on:\n%s", out)
+	if err == nil {
+		t.Errorf("modified binary did not fail as expected")
+	}
+	if !bytes.Contains(out, []byte("fips140: verification mismatch")) {
+		t.Errorf("modified binary did not fail with expected message")
+	}
+	if bytes.Contains(out, []byte("verified")) {
+		t.Errorf("modified binary did not exit")
+	}
+}
+
+// browserBridge is the path to the browserbridge client binary, to be used to re-exec
+// self-tests. This lets the tests run on the host while exercising a js/wasm
+// module, which can't exec a subprocess. See crypto/internal/fips140test/_browserbridge.
+var browserBridge = os.Getenv("GOBROWSERBRIDGE")
+
+func reexecCommand(t *testing.T, godebug string, corrupt bool, args ...string) *exec.Cmd {
+	if browserBridge == "" {
+		exe := testenv.Executable(t)
+		if corrupt {
+			exe = corruptExecutable(t)
+		}
+		cmd := testenv.Command(t, exe, args...)
+		cmd.Env = append(cmd.Environ(), "GODEBUG="+godebug)
+		return cmd
+	}
+
+	bridgeArgs := []string{"-run"}
+	if corrupt {
+		bridgeArgs = append(bridgeArgs, "-corrupt")
+	}
+	bridgeArgs = append(append(bridgeArgs, "--"), args...)
+	cmd := testenv.Command(t, browserBridge, bridgeArgs...)
+	cmd.Env = append(cmd.Environ(), "GODEBUG="+godebug)
+	return cmd
+}
+
+func corruptExecutable(t *testing.T) string {
+	bin, err := os.ReadFile(testenv.Executable(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,20 +103,7 @@ func TestIntegrityCheckFailure(t *testing.T) {
 		}
 	}
 
-	t.Logf("running modified binary...")
-	cmd := testenv.Command(t, binPath, "-test.v", "-test.run=^TestIntegrityCheck$")
-	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
-	out, err := cmd.CombinedOutput()
-	t.Logf("%s", out)
-	if err == nil {
-		t.Errorf("modified binary did not fail as expected")
-	}
-	if !bytes.Contains(out, []byte("fips140: verification mismatch")) {
-		t.Errorf("modified binary did not fail with expected message")
-	}
-	if bytes.Contains(out, []byte("verified")) {
-		t.Errorf("modified binary did not exit")
-	}
+	return binPath
 }
 
 func TestIntegrityCheckInfo(t *testing.T) {

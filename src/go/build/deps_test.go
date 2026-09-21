@@ -57,6 +57,8 @@ var depsRules = `
 	  internal/nettrace,
 	  internal/platform,
 	  internal/profilerecord,
+	  internal/runtime/pprof/label,
+	  internal/simd/variants,
 	  internal/syslist,
 	  internal/trace/tracev2,
 	  internal/trace/traceviewer/format,
@@ -71,6 +73,8 @@ var depsRules = `
 	internal/byteorder, internal/cpu, internal/goarch < internal/chacha8rand;
 	internal/goarch, math/bits < internal/strconv;
 
+	internal/cpu, internal/strconv < simd/archsimd;
+
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
 	internal/chacha8rand,
@@ -81,10 +85,12 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos,
 	internal/profilerecord,
+	internal/runtime/pprof/label,
 	internal/strconv,
 	internal/trace/tracev2,
 	math/bits,
-	structs
+	structs,
+	simd/archsimd
 	< internal/bytealg
 	< internal/stringslite
 	< internal/unsafeheader
@@ -102,6 +108,7 @@ var depsRules = `
 	< internal/runtime/cgroup
 	< internal/runtime/gc/scan
 	< runtime
+	< runtime/secret
 	< sync/atomic
 	< internal/sync
 	< weak
@@ -172,6 +179,10 @@ var depsRules = `
 
 	MATH
 	< runtime/metrics;
+
+	MATH
+	< simd/internal/spec
+	< simd/internal/simdref;
 
 	MATH, unicode/utf8
 	< strconv;
@@ -254,6 +265,10 @@ var depsRules = `
 
 	FMT, encoding < flag;
 
+	FMT, simd/archsimd < simd/internal/bridge;
+
+	simd/internal/bridge, internal/simd/variants < simd;
+
 	fmt !< encoding/base32, encoding/base64;
 
 	FMT, encoding, encoding/base32, encoding/base64, encoding/binary,
@@ -284,7 +299,7 @@ var depsRules = `
 	# hashes
 	io
 	< hash
-	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
+	< hash/adler32, hash/crc32, hash/crc64, hash/fnv, hash/maphash;
 
 	# math/big
 	FMT, math/rand
@@ -358,9 +373,6 @@ var depsRules = `
 	FMT, internal/goexperiment
 	< internal/buildcfg;
 
-	container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
-	< go/types;
-
 	# The vast majority of standard library packages should not be resorting to regexp.
 	# go/types is a good chokepoint. It shouldn't use regexp, nor should anything
 	# that is low-enough level to be used by go/types.
@@ -371,13 +383,6 @@ var depsRules = `
 
 	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform, internal/syslist
 	< go/build;
-
-	# databases
-	FMT
-	< database/sql/internal
-	< database/sql/driver;
-
-	database/sql/driver, math/rand/v2 < database/sql;
 
 	# images
 	FMT, compress/lzw, compress/zlib
@@ -430,6 +435,7 @@ var depsRules = `
 	golang.org/x/net/dns/dnsmessage,
 	golang.org/x/net/lif,
 	internal/godebug,
+	internal/goversion,
 	internal/nettrace,
 	internal/poll,
 	internal/routebsd,
@@ -479,6 +485,8 @@ var depsRules = `
 
 	io, math/rand/v2 < crypto/internal/randutil;
 
+	NONE < crypto/internal/constanttime;
+
 	STR < crypto/internal/impl;
 
 	OS < crypto/internal/sysrand
@@ -496,6 +504,7 @@ var depsRules = `
 	crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
+	crypto/internal/constanttime,
 	crypto/internal/entropy/v1.0.0,
 	crypto/internal/fips140deps/byteorder,
 	crypto/internal/fips140deps/cpu,
@@ -514,6 +523,7 @@ var depsRules = `
 	< crypto/internal/fips140/aes/gcm
 	< crypto/internal/fips140/hkdf
 	< crypto/internal/fips140/mlkem
+	< crypto/internal/fips140/mldsa
 	< crypto/internal/fips140/ssh
 	< crypto/internal/fips140/tls12
 	< crypto/internal/fips140/tls13
@@ -526,7 +536,7 @@ var depsRules = `
 	< crypto/internal/fips140/edwards25519
 	< crypto/internal/fips140/ed25519
 	< crypto/internal/fips140/rsa
-	< FIPS < crypto/fips140;
+	< crypto/fips140 < FIPS;
 
 	crypto !< FIPS;
 
@@ -548,6 +558,7 @@ var depsRules = `
 	< crypto/cipher
 	< crypto/internal/boring
 	< crypto/boring
+	< crypto/internal/rand
 	< crypto/aes,
 	  crypto/des,
 	  crypto/rc4,
@@ -559,8 +570,12 @@ var depsRules = `
 	  crypto/hkdf,
 	  crypto/pbkdf2,
 	  crypto/ecdh,
-	  crypto/mlkem
+	  crypto/mlkem,
+	  crypto/mldsa
 	< CRYPTO;
+
+	CRYPTO
+	< golang.org/x/crypto/hkdf;
 
 	CGO, fmt, net !< CRYPTO;
 
@@ -580,6 +595,17 @@ var depsRules = `
 
 	CGO, net !< CRYPTO-MATH;
 
+	# uuids
+	crypto/rand, errors, encoding/binary, encoding/hex
+	< uuid;
+
+	# databases
+	FMT, uuid
+	< database/sql/internal
+	< database/sql/driver;
+
+	database/sql/driver, math/rand/v2 < database/sql;
+
 	# TLS, Prince of Dependencies.
 
 	crypto/fips140, sync/atomic < crypto/tls/internal/fips140tls;
@@ -593,15 +619,23 @@ var depsRules = `
 	< golang.org/x/crypto/internal/poly1305
 	< golang.org/x/crypto/chacha20poly1305;
 
-	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem,
+	CRYPTO-MATH, golang.org/x/crypto/chacha20poly1305
+	< crypto/hpke;
+
+	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem, crypto/hpke,
 	golang.org/x/crypto/chacha20poly1305, crypto/tls/internal/fips140tls
-	< crypto/internal/hpke
 	< crypto/x509/internal/macos
 	< crypto/x509/pkix
 	< crypto/x509
 	< crypto/tls;
 
 	# crypto-aware packages
+
+	FMT, hash/maphash
+	< container/hash;
+
+	hash/maphash, container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
+	< go/types;
 
 	DEBUG, go/build, go/types, text/scanner, crypto/sha256
 	< internal/pkgbits, internal/exportdata
@@ -614,12 +648,12 @@ var depsRules = `
 	crypto/tls
 	< net/smtp;
 
-	crypto/rand
-	< hash/maphash; # for purego implementation
-
 	# HTTP, King of Dependencies.
 
-	FMT
+	context
+	< internal/gate;
+
+	FMT, encoding/binary
 	< golang.org/x/net/http2/hpack
 	< net/http/internal, net/http/internal/ascii, net/http/internal/testcert;
 
@@ -644,8 +678,15 @@ var depsRules = `
 	net/http/httptrace,
 	mime/multipart,
 	log
-	< net/http/internal/httpcommon
+	< net/http/internal/httpcommon, net/http/internal/httpsfv
+	< net/http/internal/http2
 	< net/http;
+
+	net/http, golang.org/x/crypto/hkdf, log/slog
+	< golang.org/x/net/internal/quic/quicwire
+	< golang.org/x/net/quic, golang.org/x/net/internal/httpcommon
+	< golang.org/x/net/internal/http3
+	< golang.org/x/net/http3;
 
 	# HTTP-aware packages
 
@@ -655,15 +696,13 @@ var depsRules = `
 	net/http, net/http/internal/ascii
 	< net/http/cookiejar, net/http/httputil;
 
-	net/http, flag
-	< net/http/httptest;
-
 	net/http, regexp
 	< net/http/cgi
 	< net/http/fcgi;
 
 	# Profiling
-	FMT, compress/gzip, encoding/binary, sort, text/tabwriter
+	internal/runtime/pprof/label, runtime, context < internal/runtime/pprof;
+	FMT, compress/gzip, encoding/binary, sort, text/tabwriter, internal/runtime/pprof, internal/runtime/pprof/label
 	< runtime/pprof;
 
 	OS, compress/gzip, internal/lazyregexp
@@ -692,8 +731,20 @@ var depsRules = `
 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
 
+	testing, math
+	< simd/archsimd/internal/test_helpers;
+
 	log/slog, testing
 	< testing/slogtest;
+
+	testing, crypto/rand
+	< testing/cryptotest;
+
+	NET, internal/gate
+	< internal/nettest;
+
+	net/http, flag, internal/nettest, testing
+	< net/http/httptest;
 
 	FMT, crypto/sha256, encoding/binary, encoding/json,
 	go/ast, go/parser, go/token,
@@ -727,8 +778,17 @@ var depsRules = `
 	testing
 	< internal/testhash;
 
-	CRYPTO-MATH, testing, internal/testenv, internal/testhash, encoding/json
+	CRYPTO-MATH
+	< crypto/mlkem/mlkemtest;
+
+	CRYPTO-MATH, testing, internal/testenv, internal/testhash, encoding/json, regexp
 	< crypto/internal/cryptotest;
+
+	crypto/internal/cryptotest, encoding/hex
+	< crypto/internal/cryptotest/wycheproof;
+
+	FMT, encoding/json, time, regexp
+	< crypto/internal/cryptotest/x509limbo;
 
 	CGO, FMT
 	< crypto/internal/sysrand/internal/seccomp;
@@ -746,7 +806,7 @@ var depsRules = `
 	FMT, internal/trace/version, io, sort, encoding/binary
 	< internal/trace/internal/tracev1;
 
-	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
+	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand, regexp
 	< internal/trace;
 
 	# cmd/trace dependencies.

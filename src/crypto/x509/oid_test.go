@@ -343,3 +343,27 @@ func BenchmarkOIDMarshalUnmarshalText(b *testing.B) {
 		}
 	}
 }
+
+func TestOIDFromASN1OID(t *testing.T) {
+	negativeComponentOID := asn1.ObjectIdentifier{-1}
+	_, err := OIDFromASN1OID(negativeComponentOID)
+	if err == nil || err.Error() != "x509: OID components must be non-negative" {
+		t.Fatalf("OIDFromASN1OID() = %v; want = \"x509: OID components must be non-negative\"", err)
+	}
+
+	shortOID := asn1.ObjectIdentifier{1}
+	_, err = OIDFromASN1OID(shortOID)
+	if err == nil || err != errInvalidOID {
+		t.Fatalf("OIDFromASN1OID() = %v; want = %q", err, errInvalidOID)
+	}
+	invalidOIDFirstComponent := asn1.ObjectIdentifier{255, 1}
+	_, err = OIDFromASN1OID(invalidOIDFirstComponent)
+	if err == nil || err != errInvalidOID {
+		t.Fatalf("OIDFromASN1OID() = %v; want = %q", err, errInvalidOID)
+	}
+	invalidOIDSecondComponent := asn1.ObjectIdentifier{1, 255}
+	_, err = OIDFromASN1OID(invalidOIDSecondComponent)
+	if err == nil || err != errInvalidOID {
+		t.Fatalf("OIDFromASN1OID() = %v; want = %q", err, errInvalidOID)
+	}
+}

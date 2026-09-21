@@ -374,6 +374,7 @@ const (
 	SYS_FSMOUNT                 = 432
 	SYS_FSPICK                  = 433
 	SYS_PIDFD_OPEN              = 434
+	SYS_CLONE3                  = 435
 	SYS_CLOSE_RANGE             = 436
 	SYS_OPENAT2                 = 437
 	SYS_PIDFD_GETFD             = 438
@@ -405,4 +406,8 @@ const (
 	SYS_LISTXATTRAT             = 465
 	SYS_REMOVEXATTRAT           = 466
 	SYS_OPEN_TREE_ATTR          = 467
+	SYS_FILE_GETATTR            = 468
+	SYS_FILE_SETATTR            = 469
+	SYS_LISTNS                  = 470
+	SYS_RSEQ_SLICE_YIELD        = 471
 )

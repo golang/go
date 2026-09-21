@@ -8,10 +8,12 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"internal/runtime/sys"
+	"math/bits"
 	"unsafe"
 )
 
@@ -181,12 +183,10 @@ func stackinit() {
 
 // stacklog2 returns ⌊log_2(n)⌋.
 func stacklog2(n uintptr) int {
-	log2 := 0
-	for n > 1 {
-		n >>= 1
-		log2++
+	if n == 0 {
+		return 0
 	}
-	return log2
+	return bits.Len64(uint64(n))
 }
 
 // Allocates a stack from the free pool. Must be called with
@@ -699,15 +699,6 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 
 // Note: the argument/return area is adjusted by the callee.
 func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
-	if frame.continpc == 0 {
-		// Frame is dead.
-		return
-	}
-	f := frame.fn
-	if stackDebug >= 2 {
-		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
-	}
-
 	// Adjust saved frame pointer if there is one.
 	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64) && frame.argp-frame.varp == 2*goarch.PtrSize {
 		if stackDebug >= 3 {
@@ -728,6 +719,44 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 		// On ARM64, this is the frame pointer of the caller's caller saved
 		// by the caller in its frame (one word below its SP).
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
+	}
+	if goarch.ArchFamily == goarch.ARM64 && isInjectedCall(frame.fn.funcID) {
+		// If this is an injected call on arm64, then we need to adjust
+		// the frame pointer saved by the original function into which
+		// the call was injected. Normally this would be handled when
+		// adjusting the callee's frame or in adjustctxt. But when a
+		// call is injected, the frame is placed 16 bytes below the
+		// original stack pointer to make room to save the link
+		// register, and the frame pointer saved by the original
+		// function isn't inside any call frame. We can adjust that
+		// saved frame pointer here by looking just above frame.fp.
+		//
+		// ^  original call    ^
+		// |  frame above...   |
+		// +-------------------+ <- stack pointer at the time of injection
+		// :  FP saved by      :
+		// :  original func    :
+		// :···················: <- frame pointer register from original function
+		// :  LR saved during  :
+		// :  injection        :
+		// +-------------------+ <- frame.fp (injection decrements SP by 16 bytes)
+		// |  FP saved         |
+		// |  during injection |
+		// +-------------------+
+		// |  injected call    |
+		// V  frame below...   V
+		adjustpointer(adjinfo, unsafe.Pointer(frame.fp+goarch.PtrSize))
+	}
+
+	if frame.continpc == 0 {
+		// Frame is dead. The program might still see the frame pointer
+		// saved in the frame, adjusted above, but we don't need to
+		// adjust the rest of the frame.
+		return
+	}
+	f := frame.fn
+	if stackDebug >= 2 {
+		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
 	}
 
 	locals, args, objs := frame.getStackMap(true)
@@ -986,6 +1015,16 @@ func copystack(gp *g, newsize uintptr) {
 	}
 
 	// free old stack
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// Some portion of the old stack has secret stuff on it.
+		// We don't really know where we entered secret mode,
+		// so just clear the whole thing.
+		// TODO(dmo): traceback until we hit secret.Do? clearing
+		// is fast and optimized, might not be worth it.
+		memclrNoHeapPointers(unsafe.Pointer(old.lo), old.hi-old.lo)
+		// The memmove call above might put secrets from the stack into registers.
+		secretEraseRegisters()
+	}
 	if stackPoisonCopy != 0 {
 		fillstack(old, 0xfc)
 	}
@@ -1027,6 +1066,14 @@ func newstack() {
 	}
 
 	gp := thisg.m.curg
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// If we're entering here from a secret context, clear
+		// all the registers. This is important because we
+		// might context switch to a different goroutine which
+		// is not in secret mode, and it will not be careful
+		// about clearing its registers.
+		secretEraseRegisters()
+	}
 
 	if thisg.m.curg.throwsplit {
 		// Update syscallsp, syscallpc in case traceback uses them.
@@ -1339,7 +1386,13 @@ func (r *stackObjectRecord) gcdata() (uintptr, *byte) {
 	ptr := uintptr(unsafe.Pointer(r))
 	var mod *moduledata
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		if datap.gofunc <= ptr && ptr < datap.end {
+		// The normal case: stackObjectRecord is in funcdata.
+		if datap.gofunc <= ptr && ptr < datap.epclntab {
+			mod = datap
+			break
+		}
+		// A special case: methodValueCallFrameObjs.
+		if datap.noptrbss <= ptr && ptr < datap.enoptrbss {
 			mod = datap
 			break
 		}

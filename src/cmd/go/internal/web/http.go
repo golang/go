@@ -31,6 +31,8 @@ import (
 	"cmd/internal/browser"
 )
 
+const userAgent = "GoCommand/1 (+https://go.dev/cmd/go)"
+
 // impatientInsecureHTTPClient is used with GOINSECURE,
 // when we're connecting to https servers that might not be there
 // or might be using self-signed certificates.
@@ -68,6 +70,13 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
+	hasGoGet1 := via[len(via)-1].URL.Query().Get("go-get") == "1"
+	if hasGoGet1 {
+		if len(req.URL.RawQuery) > 0 {
+			req.URL.RawQuery += "&"
+		}
+		req.URL.RawQuery += "go-get=1"
+	}
 
 	intercept.Request(req)
 	return nil
@@ -82,21 +91,6 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 
 	if intercept.TestHooksEnabled {
 		switch url.Host {
-		case "proxy.golang.org":
-			if os.Getenv("TESTGOPROXY404") == "1" {
-				res := &Response{
-					URL:        url.Redacted(),
-					Status:     "404 testing",
-					StatusCode: 404,
-					Header:     make(map[string][]string),
-					Body:       http.NoBody,
-				}
-				if cfg.BuildX {
-					fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
-				}
-				return res, nil
-			}
-
 		case "localhost.localdev":
 			return nil, fmt.Errorf("no such host localhost.localdev")
 
@@ -146,6 +140,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			req.Host = req.URL.Host
 			req.URL.Host = t.ToHost
 		}
+		req.Header.Set("User-Agent", userAgent)
 
 		release, err := base.AcquireNet()
 		if err != nil {

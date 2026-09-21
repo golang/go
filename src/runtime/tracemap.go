@@ -23,6 +23,13 @@ import (
 	"unsafe"
 )
 
+// traceMap is a map of a variable-sized array of bytes to a unique ID.
+//
+// Because traceMap just operates on raw bytes, this type is used as the
+// backing store for both the trace string table and trace stack table,
+// the latter of which is just an array of PCs.
+//
+// ID 0 is reserved for arrays of bytes of size zero.
 type traceMap struct {
 	root atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
 	_    cpu.CacheLinePad

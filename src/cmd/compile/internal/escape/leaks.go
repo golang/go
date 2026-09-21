@@ -124,3 +124,21 @@ func parseLeaks(s string) leaks {
 	copy(l[:], s[4:])
 	return l
 }
+
+func ParseLeaks(s string) leaks {
+	return parseLeaks(s)
+}
+
+// Any reports whether the value flows anywhere at all.
+func (l leaks) Any() bool {
+	// TODO: do mutator/callee matter?
+	if l.Heap() >= 0 || l.Mutator() >= 0 || l.Callee() >= 0 {
+		return true
+	}
+	for i := range numEscResults {
+		if l.Result(i) >= 0 {
+			return true
+		}
+	}
+	return false
+}

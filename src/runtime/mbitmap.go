@@ -626,10 +626,11 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 	src0 := readUintptr(getGCMask(typ))
 
 	// Create repetitions of the bitmap if we have a small slice backing store.
-	scanSize = typ.PtrBytes
 	src := src0
 	if typ.Size_ == goarch.PtrSize {
 		src = (1 << (dataSize / goarch.PtrSize)) - 1
+		// This object is all pointers, so scanSize is just dataSize.
+		scanSize = dataSize
 	} else {
 		// N.B. We rely on dataSize being an exact multiple of the type size.
 		// The alternative is to be defensive and mask out src to the length
@@ -637,6 +638,7 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 		if doubleCheckHeapSetType && !asanenabled && dataSize%typ.Size_ != 0 {
 			throw("runtime: (*mspan).writeHeapBitsSmall: dataSize is not a multiple of typ.Size_")
 		}
+		scanSize = typ.PtrBytes
 		for i := typ.Size_; i < dataSize; i += typ.Size_ {
 			src |= src0 << (i / goarch.PtrSize)
 			scanSize += typ.Size_
@@ -1209,7 +1211,7 @@ func (s *mspan) isFreeOrNewlyAllocated(index uintptr) bool {
 func (s *mspan) divideByElemSize(n uintptr) uintptr {
 	const doubleCheck = false
 
-	// See explanation in mksizeclasses.go's computeDivMagic.
+	// See explanation in runtime/_mkmalloc/mksizeclasses.go's computeDivMagic.
 	q := uintptr((uint64(n) * uint64(s.divMul)) >> 32)
 
 	if doubleCheck && q != n/s.elemsize {
@@ -1363,11 +1365,14 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	// If s is nil, the virtual address has never been part of the heap.
 	// This pointer may be to some mmap'd region, so we allow it.
 	if s == nil {
-		if (GOARCH == "amd64" || GOARCH == "arm64") && p == clobberdeadPtr && debug.invalidptr != 0 {
-			// Crash if clobberdeadPtr is seen. Only on AMD64 and ARM64 for now,
-			// as they are the only platform where compiler's clobberdead mode is
-			// implemented. On these platforms clobberdeadPtr cannot be a valid address.
-			badPointer(s, p, refBase, refOff)
+		// Crash if clobberdeadPtr is seen. Only on AMD64, ARM64 and Loong64 for now,
+		// as they are the only platform where compiler's clobberdead mode is
+		// implemented. On these platforms clobberdeadPtr cannot be a valid address.
+		switch GOARCH {
+		case "amd64", "arm64", "loong64":
+			if p == clobberdeadPtr && debug.invalidptr != 0 {
+				badPointer(s, p, refBase, refOff)
+			}
 		}
 		return
 	}

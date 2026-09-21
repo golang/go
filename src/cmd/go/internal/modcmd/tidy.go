@@ -55,7 +55,7 @@ file.
 
 The -x flag causes tidy to print the commands download executes.
 
-See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+See https://go.dev/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 	`,
 	Run: runTidy,
 }
@@ -68,12 +68,12 @@ var (
 )
 
 func init() {
-	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
-	cmdTidy.Flag.BoolVar(&cfg.BuildX, "x", false, "")
-	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
-	cmdTidy.Flag.BoolVar(&tidyDiff, "diff", false, "")
-	cmdTidy.Flag.Var(&tidyGo, "go", "")
-	cmdTidy.Flag.Var(&tidyCompat, "compat", "")
+	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "print the names of packages as they are processed")
+	cmdTidy.Flag.BoolVar(&cfg.BuildX, "x", false, "print the commands")
+	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "report errors but proceed anyway")
+	cmdTidy.Flag.BoolVar(&tidyDiff, "diff", false, "display the diff of the edits that would be mad")
+	cmdTidy.Flag.Var(&tidyGo, "go", "set the expected Go language `version`")
+	cmdTidy.Flag.Var(&tidyCompat, "compat", "set the Go `version` for which the tidied go.mod and go.sum files should be compatible")
 	base.AddChdirFlag(&cmdTidy.Flag)
 	base.AddModCommonFlags(&cmdTidy.Flag)
 }
@@ -105,7 +105,7 @@ func (f *goVersionFlag) Set(s string) error {
 }
 
 func runTidy(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if len(args) > 0 {
 		base.Fatalf("go: 'go mod tidy' accepts no arguments")
 	}
@@ -120,18 +120,18 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	// those packages. In order to make 'go test' reproducible for the packages
 	// that are in 'all' but outside of the main module, we must explicitly
 	// request that their test dependencies be included.
-	moduleLoaderState.ForceUseModules = true
-	moduleLoaderState.RootMode = modload.NeedRoot
+	moduleLoader.ForceUseModules = true
+	moduleLoader.RootMode = modload.NeedRoot
 
 	goVersion := tidyGo.String()
 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
-		toolchain.SwitchOrFatal(moduleLoaderState, ctx, &gover.TooNewError{
+		toolchain.SwitchOrFatal(moduleLoader, ctx, &gover.TooNewError{
 			What:      "-go flag",
 			GoVersion: goVersion,
 		})
 	}
 
-	modload.LoadPackages(moduleLoaderState, ctx, modload.PackageOpts{
+	modload.LoadPackages(moduleLoader, ctx, modload.PackageOpts{
 		TidyGoVersion:            tidyGo.String(),
 		Tags:                     imports.AnyTags(),
 		Tidy:                     true,
@@ -142,6 +142,6 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		LoadTests:                true,
 		AllowErrors:              tidyE,
 		SilenceMissingStdImports: true,
-		Switcher:                 toolchain.NewSwitcher(moduleLoaderState),
+		Switcher:                 toolchain.NewSwitcher(moduleLoader),
 	}, "all")
 }

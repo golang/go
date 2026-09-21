@@ -167,8 +167,7 @@ const (
 )
 
 // Type representing all XCOFF symbols.
-type xcoffSym interface {
-}
+type xcoffSym any
 
 // Symbol Table Entry
 type XcoffSymEnt64 struct {
@@ -584,34 +583,30 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	switch stype {
 	default:
 		Errorf("unknown XCOFF outer symbol for type %s", stype.String())
-	case sym.SRODATA, sym.SRODATARELRO, sym.SFUNCTAB, sym.SSTRING:
+	case sym.SRODATA, sym.SRODATARELRO, sym.SSTRING:
 		// Nothing to do
-	case sym.STYPERELRO:
-		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-			// runtime.types size must be removed, as it's a real symbol.
-			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
-			outerSymSize["typerel.*"] = size - tsize
-			return
-		}
-		fallthrough
 	case sym.STYPE:
-		if !ctxt.DynlinkingGo() {
-			// runtime.types size must be removed, as it's a real symbol.
-			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
-			outerSymSize["type:*"] = size - tsize
-		}
+		// runtime.types size must be removed, as it's a real symbol.
+		tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
+		outerSymSize["type:*"] = size - tsize
 	case sym.SGOSTRING:
 		outerSymSize["go:string.*"] = size
 	case sym.SGOFUNC:
 		if !ctxt.DynlinkingGo() {
-			outerSymSize["go:func.*"] = size
+			outerSymSize["go:funcdesc"] = size
 		}
-	case sym.SGOFUNCRELRO:
-		outerSymSize["go:funcrel.*"] = size
 	case sym.SGCBITS:
 		outerSymSize["runtime.gcbits.*"] = size
 	case sym.SPCLNTAB:
-		outerSymSize["runtime.pclntab"] = size
+		// go:func.* size must be removed from pclntab,
+		// as it's a real symbol. Same for runtime.findfunctab.
+		fsize := ldr.SymSize(ldr.Lookup("go:func.*", 0))
+		fft := ldr.Lookup("runtime.findfunctab", 0)
+		fsize = Rnd(fsize, int64(symalign(ldr, fft)))
+		tsize := ldr.SymSize(fft)
+		outerSymSize["runtime.pclntab"] = size - (fsize + tsize)
+	case sym.SGCMASK:
+		outerSymSize["runtime.gcmask.*"] = size
 	}
 }
 
@@ -834,7 +829,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 		Nnumaux: 2,
 	}
 
-	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) || ldr.IsContentHashed(x) {
 		s.Nsclass = C_HIDEXT
 	}
 
@@ -954,7 +949,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			Xscnlenhi: uint32(size >> 32),
 		}
 
-		if ty := ldr.SymType(x); ty >= sym.STYPE && ty <= sym.SPCLNTAB {
+		if ty := ldr.SymType(x); ty >= sym.SSTRING && ty <= sym.SPCLNTAB {
 			if ctxt.IsExternal() && strings.HasPrefix(ldr.SymSect(x).Name, ".data.rel.ro") {
 				// During external linking, read-only datas with relocation
 				// must be in .data.
@@ -1112,7 +1107,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, TLSSym)
 			}
 
-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
+		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SGCMASK, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
 			if ldr.AttrReachable(s) {
 				data := ldr.Data(s)
 				if len(data) > 0 {
@@ -1121,7 +1116,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, BSSSym)
 			}
 
-		case st >= sym.SELFRXSECT && st < sym.SXREF: // data sections handled in dodata
+		case st >= sym.SELFRXSECT && st < sym.SFirstUnallocated: // data sections handled in dodata
 			if ldr.AttrReachable(s) {
 				putaixsym(ctxt, s, DataSym)
 			}
@@ -1255,7 +1250,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 					break
 				}
 			}
-		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
+		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC || t == sym.SMODULEDATA {
 			switch ldr.SymSect(targ).Seg {
 			default:
 				ldr.Errorf(s, "unknown segment for .loader relocation with symbol %s", ldr.SymName(targ))
@@ -1263,7 +1258,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 			case &Segrodata:
 				xldr.symndx = 0 // .text
 			case &Segdata:
-				if targType == sym.SBSS || targType == sym.SNOPTRBSS {
+				if targType == sym.SBSS || targType == sym.SNOPTRBSS || targType == sym.SGCMASK {
 					xldr.symndx = 2 // .bss
 				} else {
 					xldr.symndx = 1 // .data

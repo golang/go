@@ -1,0 +1,124 @@
+handle hg
+
+env user='Russ Cox <rsc@golang.org>'
+
+hg init
+
+env date=2018-07-17T12:41:39-04:00
+cp x_cf92c7b.go x.go
+hg add x.go
+hg commit --user=$user --date=$date -m 'initial commit'
+
+env date=2018-07-17T12:41:57-04:00
+cp x_52853eb.go x.go
+hg commit --user=$user --date=$date -m 'add X' x.go
+
+env date=2018-07-17T12:42:07-04:00
+cp x_7fff7f3.go x.go
+hg commit --user=$user --date=$date -m 'gofmt' x.go
+hg tag --user=$user --date=$date v1.0.0
+
+env date=2018-07-17T12:42:28-04:00
+cp x_fa4f5d6.go x.go
+hg commit --user=$user --date=$date -m 'X->XX' x.go
+
+env date=2018-07-17T12:42:36-04:00
+cp x_d7ae1e4.go x.go
+hg commit --user=$user --date=$date -m 'gofmt' x.go
+hg tag --user=$user --date=$date v2.0.0
+
+env date=2018-07-17T12:42:53-04:00
+cp x_7303f77.go x.go
+hg commit --user=$user --date=$date -m 'add XXX' x.go
+
+env date=2018-07-17T12:47:59-04:00
+hg update v1.0.0
+cp x_1abc5ff.go x.go
+hg commit --user=$user --date=$date -m 'comment' x.go
+
+env date=2018-07-17T12:48:22-04:00
+cp x_731e3b1.go x.go
+hg commit --user=$user --date=$date -m 'prerelease' x.go
+hg tag --user=$user --date=$date v1.1.0-pre
+
+env date=2018-07-17T12:48:49-04:00
+cp x_fb3c628.go x.go
+hg commit --user=$user --date=$date -m 'working' x.go
+
+env date=2018-07-17T12:49:05-04:00
+cp x_9f6f860.go x.go
+hg commit --user=$user --date=$date -m 'v1.2.0' x.go
+hg tag --user=$user --date=$date v1.2.0
+
+env date=2018-07-17T12:49:42-04:00
+cp x_d2d4c3e.go x.go
+hg commit --user=$user --date=$date -m 'more' x.go
+hg tag --user=$user --date=$date morework
+
+hg log -r ':' --template '{node|short} {desc|strip|firstline}\n'
+cmp stdout .hg-log
+
+-- .hg-log --
+9dc9138de2e5 initial commit
+ee0106da3c7c add X
+d6ad170f61d4 gofmt
+90c54d4351ee Added tag v1.0.0 for changeset d6ad170f61d4
+c6260ab8dc3e X->XX
+e64782fcadfd gofmt
+d6ad604046f6 Added tag v2.0.0 for changeset e64782fcadfd
+663753d3ac63 add XXX
+4555a6dd66c0 comment
+90da67a9bf0c prerelease
+d7c15fbd635d Added tag v1.1.0-pre for changeset 90da67a9bf0c
+accb169a3696 working
+07462d11385f v1.2.0
+ed9a22ebb8a1 Added tag v1.2.0 for changeset 07462d11385f
+498b291aa133 more
+2840708d1294 Added tag morework for changeset 498b291aa133
+-- x_1abc5ff.go --
+package legacytest
+
+// add comment
+const X = 1
+-- x_52853eb.go --
+package legacytest
+const X = 1
+-- x_7303f77.go --
+package legacytest
+
+const XX = 2
+
+const XXX = 3
+-- x_731e3b1.go --
+package legacytest
+
+// add comment again
+const X = 1
+-- x_7fff7f3.go --
+package legacytest
+
+const X = 1
+-- x_9f6f860.go --
+package legacytest
+
+// add comment again!!!
+const X = 1
+-- x_cf92c7b.go --
+package legacytest
+-- x_d2d4c3e.go --
+package legacytest
+
+// add comment hack hack hack
+const X = 1
+-- x_d7ae1e4.go --
+package legacytest
+
+const XX = 2
+-- x_fa4f5d6.go --
+package legacytest
+const XX = 2
+-- x_fb3c628.go --
+package legacytest
+
+// add comment fixed
+const X = 1

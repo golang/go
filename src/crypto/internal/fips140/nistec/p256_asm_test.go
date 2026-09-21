@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (amd64 || arm64 || ppc64le || s390x) && !purego && linux
+//go:build (amd64 || arm64 || ppc64le || s390x) && !purego && (linux || darwin)
 
 package nistec
 
@@ -12,26 +12,31 @@ import (
 	"unsafe"
 )
 
-// Lightly adapted from the bytes test package. Allocate a pair of T one at the start of a page, another at the
-// end. Any access beyond or before the page boundary should cause a fault. This is linux specific.
+// dangerousObjs allocates a pair of T one at the start of a page, another at
+// the end. Any access beyond or before the page boundary should cause a fault.
 func dangerousObjs[T any](t *testing.T) (start *T, end *T) {
-	pagesize := syscall.Getpagesize()
-	b, err := syscall.Mmap(0, 0, 3*pagesize, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANONYMOUS|syscall.MAP_PRIVATE)
+	startBuf, endBuf := boundarySlices(t, int(unsafe.Sizeof(*new(T))))
+	return (*T)(unsafe.Pointer(&startBuf[0])), (*T)(unsafe.Pointer(&endBuf[0]))
+}
+
+// boundarySlices is a copy of [crypto/internal/cryptotest.BoundarySlices].
+func boundarySlices(t *testing.T, size int) (start, end []byte) {
+	pageSize := syscall.Getpagesize()
+	needPages := 2 + (2*size+pageSize-1)/pageSize
+	b, err := syscall.Mmap(0, 0, needPages*pageSize, syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_ANON|syscall.MAP_PRIVATE)
 	if err != nil {
-		t.Fatalf("mmap failed %s", err)
+		t.Fatalf("mmap failed: %v", err)
 	}
-	err = syscall.Mprotect(b[:pagesize], syscall.PROT_NONE)
-	if err != nil {
-		t.Fatalf("mprotect low failed %s\n", err)
+	t.Cleanup(func() { syscall.Munmap(b) })
+	if err := syscall.Mprotect(b[:pageSize], syscall.PROT_NONE); err != nil {
+		t.Fatalf("mprotect low failed: %v", err)
 	}
-	err = syscall.Mprotect(b[2*pagesize:], syscall.PROT_NONE)
-	if err != nil {
-		t.Fatalf("mprotect high failed %s\n", err)
+	if err := syscall.Mprotect(b[len(b)-pageSize:], syscall.PROT_NONE); err != nil {
+		t.Fatalf("mprotect high failed: %v", err)
 	}
-	b = b[pagesize : 2*pagesize]
-	end = (*T)(unsafe.Pointer(&b[len(b)-(int)(unsafe.Sizeof(*end))]))
-	start = (*T)(unsafe.Pointer(&b[0]))
-	return start, end
+	return b[pageSize : pageSize+size : pageSize+size],
+		b[len(b)-pageSize-size : len(b)-pageSize : len(b)-pageSize]
 }
 
 func TestP256SelectAffinePageBoundary(t *testing.T) {

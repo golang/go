@@ -428,11 +428,12 @@ func pkeEncrypt(cc *[CiphertextSize768]byte, ex *encryptionKey, m *[messageSize]
 
 	u := make([]ringElement, k) // NTT⁻¹(AT ◦ r) + e1
 	for i := range u {
-		u[i] = e1[i]
+		var uHat nttElement
 		for j := range r {
 			// Note that i and j are inverted, as we need the transposed of A.
-			u[i] = polyAdd(u[i], inverseNTT(nttMul(ex.a[j*k+i], r[j])))
+			uHat = polyAdd(uHat, nttMul(ex.a[j*k+i], r[j]))
 		}
+		u[i] = polyAdd(e1[i], inverseNTT(uHat))
 	}
 
 	μ := ringDecodeAndDecompress1(m)
@@ -468,6 +469,8 @@ func (dk *DecapsulationKey768) Decapsulate(ciphertext []byte) (sharedKey []byte,
 	return kemDecaps(dk, c), nil
 }
 
+var testingOnlyRejectionOutcome func(int)
+
 // kemDecaps produces a shared key from a ciphertext.
 //
 // It implements ML-KEM.Decaps_internal according to FIPS 203, Algorithm 18.
@@ -486,6 +489,10 @@ func kemDecaps(dk *DecapsulationKey768, c *[CiphertextSize768]byte) (K []byte) {
 	J.Read(Kout)
 	var cc [CiphertextSize768]byte
 	c1 := pkeEncrypt(&cc, &dk.encryptionKey, (*[32]byte)(m), r)
+
+	if testingOnlyRejectionOutcome != nil {
+		testingOnlyRejectionOutcome(subtle.ConstantTimeCompare(c[:], c1))
+	}
 
 	subtle.ConstantTimeCopy(subtle.ConstantTimeCompare(c[:], c1), Kout, Kprime)
 	return Kout

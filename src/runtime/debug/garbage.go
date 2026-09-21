@@ -89,7 +89,7 @@ func ReadGCStats(stats *GCStats) {
 // limit.
 // A negative percentage effectively disables garbage collection, unless
 // the memory limit is reached.
-// See SetMemoryLimit for more details.
+// See [SetMemoryLimit] for more details.
 func SetGCPercent(percent int) int {
 	return int(setGCPercent(int32(percent)))
 }
@@ -127,7 +127,7 @@ func SetMaxStack(bytes int) int {
 // The limit controls the number of operating system threads, not the number
 // of goroutines. A Go program creates a new thread only when a goroutine
 // is ready to run but all the existing threads are blocked in system calls, cgo calls,
-// or are locked to other goroutines due to use of runtime.LockOSThread.
+// or are locked to other goroutines due to use of [runtime.LockOSThread].
 //
 // SetMaxThreads is useful mainly for limiting the damage done by
 // programs that create an unbounded number of threads. The idea is
@@ -143,7 +143,7 @@ func SetMaxThreads(threads int) int {
 // manipulation of memory may cause faults at non-nil addresses in less
 // dramatic situations; SetPanicOnFault allows such programs to request
 // that the runtime trigger only a panic, not a crash.
-// The runtime.Error that the runtime panics with may have an additional method:
+// The [runtime.Error] that the runtime panics with may have an additional method:
 //
 //	Addr() uintptr
 //
@@ -184,7 +184,7 @@ func SetTraceback(level string)
 // memory limit, including adjustments to the frequency of garbage
 // collections and returning memory to the underlying system more
 // aggressively. This limit will be respected even if GOGC=off (or,
-// if SetGCPercent(-1) is executed).
+// if [SetGCPercent](-1) is executed).
 //
 // The input limit is provided as bytes, and includes all memory
 // mapped, managed, and not released by the Go runtime. Notably, it
@@ -201,7 +201,7 @@ func SetTraceback(level string)
 //
 //	runtime.MemStats.Sys - runtime.MemStats.HeapReleased
 //
-// or in terms of the runtime/metrics package:
+// or in terms of the [runtime/metrics] package:
 //
 //	/memory/classes/total:bytes - /memory/classes/heap/released:bytes
 //
@@ -220,7 +220,7 @@ func SetTraceback(level string)
 // the soft memory limit in more detail, as well as a variety of common
 // use-cases and scenarios.
 //
-// The initial setting is math.MaxInt64 unless the GOMEMLIMIT
+// The initial setting is [math.MaxInt64] unless the GOMEMLIMIT
 // environment variable is set, in which case it provides the initial
 // setting. GOMEMLIMIT is a numeric value in bytes with an optional
 // unit suffix. The supported suffixes include B, KiB, MiB, GiB, and

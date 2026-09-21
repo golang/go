@@ -117,7 +117,7 @@ func (p *Package) godefs(f *File, args []string) string {
 var gofmtBuf strings.Builder
 
 // gofmt returns the gofmt-formatted string for an AST node.
-func gofmt(n interface{}) string {
+func gofmt(n any) string {
 	gofmtBuf.Reset()
 	err := printer.Fprint(&gofmtBuf, fset, n)
 	if err != nil {

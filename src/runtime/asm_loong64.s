@@ -21,33 +21,15 @@ TEXT _rt0_loong64_lib(SB),NOSPLIT,$168
 	MOVV	R4, _rt0_loong64_lib_argc<>(SB)
 	MOVV	R5, _rt0_loong64_lib_argv<>(SB)
 
-	// Synchronous initialization.
-	MOVV	$runtime·libpreinit(SB), R19
+	MOVV	$runtime·libInit(SB), R19
 	JAL	(R19)
 
-	// Create a new thread to do the runtime initialization and return.
-	MOVV	_cgo_sys_thread_create(SB), R19
-	BEQ	R19, nocgo
-	MOVV	$_rt0_loong64_lib_go(SB), R4
-	MOVV	$0, R5
-	JAL	(R19)
-	JMP	restore
-
-nocgo:
-	MOVV	$0x800000, R4                     // stacksize = 8192KB
-	MOVV	$_rt0_loong64_lib_go(SB), R5
-	MOVV	R4, 8(R3)
-	MOVV	R5, 16(R3)
-	MOVV	$runtime·newosproc0(SB), R19
-	JAL	(R19)
-
-restore:
 	// Restore callee-save registers.
 	RESTORE_R22_TO_R31(3*8)
 	RESTORE_F24_TO_F31(13*8)
 	RET
 
-TEXT _rt0_loong64_lib_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$0
 	MOVV	_rt0_loong64_lib_argc<>(SB), R4
 	MOVV	_rt0_loong64_lib_argv<>(SB), R5
 	MOVV	$runtime·rt0_go(SB),R19
@@ -178,6 +160,14 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), REGCTXT
+	BEQ	REGCTXT, nosecret
+	MOVV	R1, REGCTXT
+	JAL	runtime·secretEraseRegistersMcall(SB)
+	MOVV	REGCTXT, R1
+nosecret:
+#endif
 	MOVV	R4, REGCTXT
 	// Save caller state in g->sched
 	MOVV	R3, (g_sched+gobuf_sp)(g)
@@ -211,9 +201,14 @@ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 
 // func systemstack(fn func())
 TEXT runtime·systemstack(SB), NOSPLIT, $0-8
-	MOVV	fn+0(FP), R19	// R19 = fn
-	MOVV	R19, REGCTXT		// context
-	MOVV	g_m(g), R4	// R4 = m
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), REGCTXT
+	BEQ	REGCTXT, nosecret
+	JAL	·secretEraseRegisters(SB)
+nosecret:
+#endif
+	MOVV	fn+0(FP), REGCTXT	// context
+	MOVV	g_m(g), R4		// R4 = m
 
 	MOVV	m_gsignal(R4), R5	// R5 = gsignal
 	BEQ	g, R5, noswitch
@@ -324,6 +319,15 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVV	R3, (m_morebuf+gobuf_sp)(R7)	// f's caller's SP
 	MOVV	g, (m_morebuf+gobuf_g)(R7)
 
+	// If in secret mode, erase registers on transition
+	// from G stack to M stack,
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R8
+	BEQ	R8, nosecret
+	JAL	·secretEraseRegisters(SB)
+	MOVV	g_m(g), R7
+nosecret:
+#endif
 	// Call newstack on m->g0's stack.
 	MOVV	m_g0(R7), g
 	JAL	runtime·save_g(SB)
@@ -505,7 +509,16 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
+TEXT runtime·procyieldAsm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+	BEQ	R4, done
+	RDTIMED	R0, R5
+	IBAR	$0
+delay:
+	NOP
+	RDTIMED	R0, R6
+	SUBV	R5, R6
+	BGEU	R4, R6, delay
+done:
 	RET
 
 // Save state of caller into g->sched.
@@ -530,28 +543,39 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	MOVV	fn+0(FP), R25
-	MOVV	arg+8(FP), R4
-
-	MOVV	R3, R12	// save original stack pointer
-	MOVV	g, R13
-
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
+	BEQ	g, R0, nosave
 	MOVV	g_m(g), R5
 	MOVV	m_gsignal(R5), R6
-	BEQ	R6, g, g0
+	BEQ	R6, g, nosave
 	MOVV	m_g0(R5), R6
-	BEQ	R6, g, g0
+	BEQ	R6, g, nosave
 
+#ifdef GOEXPERIMENT_runtimesecret
+	// running on a user stack. Figure out if we're running
+	// secret code and clear our registers if so.
+	MOVW	g_secret(g), R14
+	BEQ	R14, nosecret
+	JAL	·secretEraseRegisters(SB)
+	// restore g0 back into R6
+	MOVV	g_m(g), R6
+	MOVV	m_g0(R6), R6
+nosecret:
+#endif
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	MOVV	R3, R12	// save original stack pointer
+	MOVV	g, R13
+
+	// Switch to system stack.
 	JAL	gosave_systemstack_switch<>(SB)
 	MOVV	R6, g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R3
 
 	// Now on a scheduling stack (a pthread-created stack).
-g0:
 	// Save room for two of our pointers.
 	ADDV	$-16, R3
 	MOVV	R13, 0(R3)	// save old g on stack
@@ -569,6 +593,29 @@ g0:
 	MOVV	R5, R3
 
 	MOVW	R4, ret+16(FP)
+	RET
+
+nosave:
+	// Running on a system stack, perhaps even without a g.
+	// Having no g can happen during thread creation or thread teardown.
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	MOVV	R3, R12
+	ADDV	$-16, R3
+	MOVV	R0, 0(R3)	// Where above code stores g, in case someone looks during debugging.
+	MOVV	R12, 8(R3)	// Save original stack pointer.
+	JAL	(R25)
+	MOVV	8(R3), R3	// Restore stack pointer.
+	MOVW	R4, ret+16(FP)
+	RET
+
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet.
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	JAL	(R25)
 	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
@@ -650,20 +697,19 @@ havem:
 	MOVV	m_curg(R12), g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R13 // prepare stack as R13
-	MOVV	(g_sched+gobuf_pc)(g), R4
-	MOVV	R4, -(24+8)(R13) // "saved LR"; must match frame size
-	MOVV    fn+0(FP), R5
-	MOVV    frame+8(FP), R6
-	MOVV    ctxt+16(FP), R7
-	MOVV	$-(24+8)(R13), R3
-	MOVV    R5, 8(R3)
-	MOVV    R6, 16(R3)
-	MOVV    R7, 24(R3)
-	JAL	runtime·cgocallbackg(SB)
+	MOVV	(g_sched+gobuf_pc)(g), R7
+	MOVV	R7, -(24+8)(R13) // "saved LR"; must match frame size
+
+	MOVV    fn+0(FP), R4
+	MOVV    frame+8(FP), R5
+	MOVV    ctxt+16(FP), R6
+	SUBV	$(24+8), R13	// Allocate the same frame size on the g stack
+	MOVV	R13, R3		// switch stack
+	JAL	runtime·cgocallbackg<ABIInternal>(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
-	MOVV	0(R3), R4
-	MOVV	R4, (g_sched+gobuf_pc)(g)
+	MOVV	0(R3), R7
+	MOVV	R7, (g_sched+gobuf_pc)(g)
 	MOVV	$(24+8)(R3), R13 // must match frame size
 	MOVV	R13, (g_sched+gobuf_sp)(g)
 
@@ -719,16 +765,6 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R0
 	UNDEF
 
-// AES hashing not implemented for loong64
-TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
-	JMP	runtime·memhashFallback<ABIInternal>(SB)
-TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·strhashFallback<ABIInternal>(SB)
-TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
-TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
-
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
 TEXT _cgo_topofstack(SB),NOSPLIT,$16
@@ -763,11 +799,6 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	MOVV	R4, runtime·lastmoduledatap(SB)
 	MOVV	8(R3), R30
 	ADDV	$0x10, R3
-	RET
-
-TEXT ·checkASM(SB),NOSPLIT,$0-1
-	MOVW	$1, R19
-	MOVB	R19, ret+0(FP)
 	RET
 
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R25.

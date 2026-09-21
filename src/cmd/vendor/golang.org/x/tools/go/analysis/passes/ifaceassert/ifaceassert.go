@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -21,7 +21,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "ifaceassert",
-	Doc:      analysisinternal.MustExtractDoc(doc, "ifaceassert"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "ifaceassert"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/ifaceassert",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,

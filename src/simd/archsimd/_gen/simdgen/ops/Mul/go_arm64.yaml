@@ -1,0 +1,38 @@
+!sum
+- go: Mul
+  asm: "VMUL|VFMUL"
+  in:
+  - &any
+    go: $t
+    elemBits: 8|16|32|64
+  - *any
+  out:
+  - *any
+
+# Multiply long signed (SMULL)
+- go: MulWidenLo
+  signed: true
+  asm: "VSMULL"
+  hiHalfAsm: "VSMULL2"
+  in:
+  - go: $t
+    base: int
+  - go: $t
+    base: int
+  out:
+  - go: $u
+    base: int
+
+# Multiply long unsigned (UMULL)
+- go: MulWidenLo
+  signed: false
+  asm: "VUMULL"
+  hiHalfAsm: "VUMULL2"
+  in:
+  - go: $t
+    base: uint
+  - go: $t
+    base: uint
+  out:
+  - go: $u
+    base: uint

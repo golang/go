@@ -334,3 +334,7 @@ func (t *Transformer) advanceString(s string) (n int, ok bool) {
 	}
 	return n, true
 }
+
+func (t *Transformer) isFinal() bool {
+	return t.state == ruleLTRFinal || t.state == ruleRTLFinal || t.state == ruleInitial
+}

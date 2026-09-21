@@ -358,3 +358,34 @@ func TestLookupGroupIdServiceAccount(t *testing.T) {
 		}
 	}
 }
+
+func TestLookupUnknownName(t *testing.T) {
+	// A name that resolves to no account makes LookupAccountName fail
+	// with ERROR_NONE_MAPPED. That is the case Lookup and LookupGroup
+	// document as UnknownUserError and UnknownGroupError.
+	const name = "go-test-no-such-account-4a9f2c"
+
+	if _, err := Lookup(name); err == nil {
+		t.Errorf("Lookup(%q) = nil error, want UnknownUserError", name)
+	} else {
+		var unknown UnknownUserError
+		if !errors.As(err, &unknown) {
+			t.Errorf("Lookup(%q) error = %v (%T), want UnknownUserError", name, err, err)
+		}
+		if !errors.Is(err, windows.ERROR_NONE_MAPPED) {
+			t.Errorf("Lookup(%q) error = %v, want it to wrap ERROR_NONE_MAPPED", name, err)
+		}
+	}
+
+	if _, err := LookupGroup(name); err == nil {
+		t.Errorf("LookupGroup(%q) = nil error, want UnknownGroupError", name)
+	} else {
+		var unknown UnknownGroupError
+		if !errors.As(err, &unknown) {
+			t.Errorf("LookupGroup(%q) error = %v (%T), want UnknownGroupError", name, err, err)
+		}
+		if !errors.Is(err, windows.ERROR_NONE_MAPPED) {
+			t.Errorf("LookupGroup(%q) error = %v, want it to wrap ERROR_NONE_MAPPED", name, err)
+		}
+	}
+}

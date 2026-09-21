@@ -7,11 +7,10 @@
 // See memmove Go doc for important implementation constraints.
 
 // func memmove(to, from unsafe.Pointer, n uintptr)
-TEXT runtime·memmove(SB),NOSPLIT|NOFRAME,$0-24
-	MOVD	to+0(FP), R6
-	MOVD	from+8(FP), R4
-	MOVD	n+16(FP), R5
-
+TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	MOVD	R4, R5
+	MOVD	R3, R4
+	MOVD	R2, R6
 	CMPBEQ	R6, R4, done
 
 start:

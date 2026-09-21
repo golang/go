@@ -197,6 +197,36 @@ func TestDecoder(t *testing.T) {
 	}
 }
 
+func TestDecoderChunking(t *testing.T) {
+	// The decoder must behave identically to decoding the whole input at
+	// once, regardless of how the underlying reader chunks the input.
+	// See golang.org/issue/31626.
+	tests := []struct {
+		enc *Encoding
+		in  string
+	}{
+		{StdEncoding, "Rw==bw=="},     // padding inside the stream
+		{StdEncoding, "AAAA####"},     // error offset must not reset per chunk
+		{StdEncoding, "Rw==x"},        // trailing garbage after a padded group
+		{StdEncoding, "Rw===="},       // extra padding after a padded group
+		{StdEncoding, "AAAABBBBCCCC"}, // valid input
+		{StdEncoding, "AAAABB=="},     // valid input with padding
+		{RawStdEncoding, "AAAABB"},    // valid input, no padding
+		{RawStdEncoding, "AAAA#B"},    // invalid byte in final fragment
+	}
+	for _, tt := range tests {
+		want, wantErr := tt.enc.DecodeString(tt.in)
+		for i := 0; i <= len(tt.in); i++ {
+			r := io.MultiReader(strings.NewReader(tt.in[:i]), strings.NewReader(tt.in[i:]))
+			got, gotErr := io.ReadAll(NewDecoder(tt.enc, r))
+			if !bytes.Equal(got, want) || gotErr != wantErr {
+				t.Errorf("Decode(%q) with split at %d = %q, %v; want %q, %v",
+					tt.in, i, got, gotErr, want, wantErr)
+			}
+		}
+	}
+}
+
 func TestDecoderBuffering(t *testing.T) {
 	for bs := 1; bs <= 12; bs++ {
 		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
@@ -305,10 +335,30 @@ func TestEncodedLen(t *testing.T) {
 		tests = append(tests, test{RawStdEncoding, (math.MaxInt-5)/8 + 1, 1537228672809129302})
 		tests = append(tests, test{RawStdEncoding, math.MaxInt/4*3 + 2, math.MaxInt})
 	}
+	tests = append(tests, test{StdEncoding, math.MaxInt / 4 * 3, math.MaxInt - 3})
 	for _, tt := range tests {
 		if got := tt.enc.EncodedLen(tt.n); int64(got) != tt.want {
 			t.Errorf("EncodedLen(%d): got %d, want %d", tt.n, got, tt.want)
 		}
+	}
+}
+
+func TestEncodedLenOverflow(t *testing.T) {
+	for _, tt := range []struct {
+		enc *Encoding
+		n   int
+	}{
+		{StdEncoding, math.MaxInt/4*3 + 1},
+		{RawStdEncoding, math.MaxInt/4*3 + 3},
+	} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("EncodedLen(%d) did not panic", tt.n)
+				}
+			}()
+			tt.enc.EncodedLen(tt.n)
+		}()
 	}
 }
 

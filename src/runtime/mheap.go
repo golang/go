@@ -56,7 +56,7 @@ const (
 )
 
 // Main malloc heap.
-// The heap itself is the "free" and "scav" treaps,
+// The heap use pageAlloc to manage free and scavenged pages,
 // but all the other global data is here too.
 //
 // mheap must not be heap-allocated because it contains mSpanLists,
@@ -225,6 +225,7 @@ type mheap struct {
 	specialPinCounterAlloc     fixalloc // allocator for specialPinCounter
 	specialWeakHandleAlloc     fixalloc // allocator for specialWeakHandle
 	specialBubbleAlloc         fixalloc // allocator for specialBubble
+	specialSecretAlloc         fixalloc // allocator for specialSecret
 	speciallock                mutex    // lock for special record allocators.
 	arenaHintAlloc             fixalloc // allocator for arenaHints
 
@@ -307,8 +308,8 @@ type heapArena struct {
 	// specials (finalizers or other). Like pageInUse, only the bit
 	// corresponding to the first page in each span is used.
 	//
-	// Writes are done atomically whenever a special is added to
-	// a span and whenever the last special is removed from a span.
+	// The bit is set atomically when the first special is added to
+	// a span and cleared when the last special is removed from a span.
 	// Reads are done atomically to find spans containing specials
 	// during marking.
 	pageSpecials [pagesPerArena / 8]uint8
@@ -435,7 +436,7 @@ type mspan struct {
 	// indicating a free object. freeindex is then adjusted so that subsequent scans begin
 	// just past the newly discovered free object.
 	//
-	// If freeindex == nelems, this span has no free objects.
+	// If freeindex == nelems, this span has no free objects, though might have reusable objects.
 	//
 	// allocBits is a bitmap of objects in this span.
 	// If n >= freeindex and allocBits[n/8] & (1<<(n%8)) is 0
@@ -455,12 +456,6 @@ type mspan struct {
 	// initialized (see also the assignment of freeIndexForScan in
 	// mallocgc, and issue 54596).
 	freeIndexForScan uint16
-
-	// Temporary storage for the object index that caused this span to
-	// be queued for scanning.
-	//
-	// Used only with goexperiment.GreenTeaGC.
-	scanIdx uint16
 
 	// Cache of the allocBits at freeindex. allocCache is shifted
 	// such that the lowest bit corresponds to the bit freeindex.
@@ -522,15 +517,6 @@ type mspan struct {
 
 func (s *mspan) base() uintptr {
 	return s.startAddr
-}
-
-func (s *mspan) layout() (size, n, total uintptr) {
-	total = s.npages << gc.PageShift
-	size = s.elemsize
-	if size > 0 {
-		n = total / size
-	}
-	return
 }
 
 // recordspan adds a newly allocated span to h.allspans.
@@ -803,6 +789,7 @@ func (h *mheap) init() {
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
+	h.specialSecretAlloc.init(unsafe.Sizeof(specialSecret{}), nil, nil, &memstats.other_sys)
 	h.specialWeakHandleAlloc.init(unsafe.Sizeof(specialWeakHandle{}), nil, nil, &memstats.gcMiscSys)
 	h.specialBubbleAlloc.init(unsafe.Sizeof(specialBubble{}), nil, nil, &memstats.other_sys)
 	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
@@ -1970,6 +1957,9 @@ const (
 	_KindSpecialCheckFinalizer = 8
 	// _KindSpecialBubble is used to associate objects with synctest bubbles.
 	_KindSpecialBubble = 9
+	// _KindSpecialSecret is a special used to mark an object
+	// as needing zeroing immediately upon freeing.
+	_KindSpecialSecret = 10
 )
 
 type special struct {
@@ -1980,7 +1970,12 @@ type special struct {
 }
 
 // spanHasSpecials marks a span as having specials in the arena bitmap.
+// The caller must hold s.speciallock and have just added one special.
 func spanHasSpecials(s *mspan) {
+	if s.specials.next != nil {
+		// The span already had specials, so its bit is already set.
+		return
+	}
 	arenaPage := (s.base() / pageSize) % pagesPerArena
 	ai := arenaIndex(s.base())
 	ha := mheap_.arenas[ai.l1()][ai.l2()]
@@ -2076,22 +2071,19 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 func (span *mspan) specialFindSplicePoint(offset uintptr, kind byte) (**special, bool) {
 	// Find splice point, check for existing record.
 	iter := &span.specials
-	found := false
-	for {
-		s := *iter
-		if s == nil {
-			break
-		}
-		if offset == s.offset && kind == s.kind {
-			found = true
-			break
-		}
-		if offset < s.offset || (offset == s.offset && kind < s.kind) {
-			break
+	s := *iter
+	for s != nil && s.offset < offset {
+		iter = &s.next
+		s = *iter
+	}
+	for s != nil && s.offset == offset {
+		if s.kind >= kind {
+			return iter, s.kind == kind
 		}
 		iter = &s.next
+		s = *iter
 	}
-	return iter, found
+	return iter, false
 }
 
 // The described object has a finalizer set for it.
@@ -2161,7 +2153,7 @@ func removefinalizer(p unsafe.Pointer) {
 type specialCleanup struct {
 	_       sys.NotInHeap
 	special special
-	fn      *funcval
+	cleanup cleanupFn
 	// Globally unique ID for the cleanup, obtained from mheap_.cleanupID.
 	id uint64
 }
@@ -2170,14 +2162,18 @@ type specialCleanup struct {
 // cleanups are allowed on an object, and even the same pointer.
 // A cleanup id is returned which can be used to uniquely identify
 // the cleanup.
-func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
+func addCleanup(p unsafe.Pointer, c cleanupFn) uint64 {
+	// TODO(mknyszek): Consider pooling specialCleanups on the P
+	// so we don't have to take the lock every time. Just locking
+	// is a considerable part of the cost of AddCleanup. This
+	// would also require reserving some cleanup IDs on the P.
 	lock(&mheap_.speciallock)
 	s := (*specialCleanup)(mheap_.specialCleanupAlloc.alloc())
 	mheap_.cleanupID++ // Increment first. ID 0 is reserved.
 	id := mheap_.cleanupID
 	unlock(&mheap_.speciallock)
 	s.special.kind = _KindSpecialCleanup
-	s.fn = f
+	s.cleanup = c
 	s.id = id
 
 	mp := acquirem()
@@ -2187,17 +2183,16 @@ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
 	// situation where it's possible that markrootSpans
 	// has already run but mark termination hasn't yet.
 	if gcphase != _GCoff {
-		gcw := &mp.p.ptr().gcw
 		// Mark the cleanup itself, since the
 		// special isn't part of the GC'd heap.
-		scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+		gcScanCleanup(s, &mp.p.ptr().gcw)
 	}
 	releasem(mp)
-	// Keep f alive. There's a window in this function where it's
-	// only reachable via the special while the special hasn't been
-	// added to the specials list yet. This is similar to a bug
+	// Keep c and its referents alive. There's a window in this function
+	// where it's only reachable via the special while the special hasn't
+	// been added to the specials list yet. This is similar to a bug
 	// discovered for weak handles, see #70455.
-	KeepAlive(f)
+	KeepAlive(c)
 	return id
 }
 
@@ -2534,7 +2529,15 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	s := (*specialWeakHandle)(mheap_.specialWeakHandleAlloc.alloc())
 	unlock(&mheap_.speciallock)
 
-	handle := new(atomic.Uintptr)
+	// N.B. Pad the weak handle to ensure it doesn't share a tiny
+	// block with any other allocations. This can lead to leaks, such
+	// as in go.dev/issue/76007. As an alternative, we could consider
+	// using the currently-unused 8-byte noscan size class.
+	type weakHandleBox struct {
+		h atomic.Uintptr
+		_ [maxTinySize - unsafe.Sizeof(atomic.Uintptr{})]byte
+	}
+	handle := &(new(weakHandleBox).h)
 	s.special.kind = _KindSpecialWeakHandle
 	s.handle = handle
 	handle.Store(uintptr(p))
@@ -2729,6 +2732,14 @@ type specialPinCounter struct {
 	counter uintptr
 }
 
+// specialSecret tracks whether we need to zero an object immediately
+// upon freeing.
+type specialSecret struct {
+	_       sys.NotInHeap
+	special special
+	size    uintptr
+}
+
 // specialsIter helps iterate over specials lists.
 type specialsIter struct {
 	pprev **special
@@ -2759,6 +2770,12 @@ func (i *specialsIter) unlinkAndNext() *special {
 
 // freeSpecial performs any cleanup on special s and deallocates it.
 // s must already be unlinked from the specials list.
+// TODO(mknyszek): p and size together DO NOT represent a valid allocation.
+// size is the size of the allocation block in the span (mspan.elemsize), and p is
+// whatever pointer the special was attached to, which need not point to the
+// beginning of the block, though it may.
+// Consider passing the arguments differently to avoid giving the impression
+// that p and size together represent an address range.
 func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 	switch s.kind {
 	case _KindSpecialFinalizer:
@@ -2775,7 +2792,7 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		unlock(&mheap_.speciallock)
 	case _KindSpecialProfile:
 		sp := (*specialprofile)(unsafe.Pointer(s))
-		mProf_Free(sp.b, size)
+		mProf_Free(sp.b)
 		lock(&mheap_.speciallock)
 		mheap_.specialprofilealloc.free(unsafe.Pointer(sp))
 		unlock(&mheap_.speciallock)
@@ -2792,7 +2809,7 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		// Cleanups, unlike finalizers, do not resurrect the objects
 		// they're attached to, so we only need to pass the cleanup
 		// function, not the object.
-		gcCleanups.enqueue(sc.fn)
+		gcCleanups.enqueue(sc.cleanup)
 		lock(&mheap_.speciallock)
 		mheap_.specialCleanupAlloc.free(unsafe.Pointer(sc))
 		unlock(&mheap_.speciallock)
@@ -2810,6 +2827,23 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		st := (*specialBubble)(unsafe.Pointer(s))
 		lock(&mheap_.speciallock)
 		mheap_.specialBubbleAlloc.free(unsafe.Pointer(st))
+		unlock(&mheap_.speciallock)
+	case _KindSpecialSecret:
+		ss := (*specialSecret)(unsafe.Pointer(s))
+		// p is the actual byte location that the special was
+		// attached to, but the size argument is the span
+		// element size. If we were to zero out using the size
+		// argument, we'd trounce over adjacent memory in cases
+		// where the allocation contains a header. Hence, we use
+		// the user-visible size which we stash in the special itself.
+		//
+		// p always points to the beginning of the user-visible
+		// allocation since the only way to attach a secret special
+		// is via the allocation path. This isn't universal for
+		// tiny allocs, but we avoid them in mallocgc anyway.
+		memclrNoHeapPointers(p, ss.size)
+		lock(&mheap_.speciallock)
+		mheap_.specialSecretAlloc.free(unsafe.Pointer(s))
 		unlock(&mheap_.speciallock)
 	default:
 		throw("bad special kind")

@@ -2,8 +2,6 @@
 # package regardless of how many other packages are selected
 # (see issue 65570).
 
-[short] skip
-
 go test -count=1 -cover ./a ./b ./main
 stdout '^ok\s+M/main\s+\S+\s+coverage: 75.0% of statements'
 go test -count=1 -cover ./main

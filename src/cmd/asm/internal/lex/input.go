@@ -68,7 +68,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 
 var panicOnError bool // For testing.
 
-func (in *Input) Error(args ...interface{}) {
+func (in *Input) Error(args ...any) {
 	if panicOnError {
 		panic(fmt.Errorf("%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...)))
 	}
@@ -77,7 +77,7 @@ func (in *Input) Error(args ...interface{}) {
 }
 
 // expectText is like Error but adds "got XXX" where XXX is a quoted representation of the most recent token.
-func (in *Input) expectText(args ...interface{}) {
+func (in *Input) expectText(args ...any) {
 	in.Error(append(args, "; got", strconv.Quote(in.Stack.Text()))...)
 }
 

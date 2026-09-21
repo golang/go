@@ -124,6 +124,7 @@ func div7_int8(i int8) int8 {
 	// arm64: "MULW"
 	// arm64: "SBFX [$]10, R[0-9]+, [$]22,"
 	// arm64: "SUB R[0-9]+->31,"
+	// wasm: "I64Const [$]147"
 	return i / 7
 }
 
@@ -136,6 +137,7 @@ func div7_int16(i int16) int16 {
 	// arm64: "MULW"
 	// arm64: "SBFX [$]18, R[0-9]+, [$]14,"
 	// arm64: "SUB R[0-9]+->31,"
+	// wasm: "I64Const [$]37450"
 	return i / 7
 }
 
@@ -145,6 +147,7 @@ func div7_int32(i int32) int32 {
 	// arm64: "MUL "
 	// arm64: "ASR [$]34,"
 	// arm64: "SUB R[0-9]+->63,"
+	// wasm: "I64Const [$]2454267027"
 	return i / 7
 }
 
@@ -160,6 +163,7 @@ func div9_int32(i int32) int32 {
 	// arm64: "MUL "
 	// arm64: "ASR [$]35,"
 	// arm64: "SUB R[0-9]+->63,"
+	// wasm: "I64Const [$]3817748708"
 	return i / 9
 }
 
@@ -170,6 +174,8 @@ func div7_int64(i int64) int64 {
 	// arm64: "SMULH"
 	// arm64: "ASR [$]1,"
 	// arm64: "SUB R[0-9]+->63,"
+	// wasm: "I64Const [$]613566757"
+	// wasm: "I64Const [$]1227133513"
 	return i / 7
 }
 
@@ -185,6 +191,7 @@ func div3_int32(i int32) int32 {
 	// arm64: "MUL"
 	// arm64: "ASR [$]33,"
 	// arm64: "SUB R[0-9]+->63,"
+	// wasm: "I64Const [$]2863311531"
 	return i / 3
 }
 
@@ -195,6 +202,8 @@ func div3_int64(i int64) int64 {
 	// arm64: "ADD"
 	// arm64: "ASR [$]1,"
 	// arm64: "SUB R[0-9]+->63,"
+	// wasm: "I64Const [$]-1431655766"
+	// wasm: "I64Const [$]2863311531"
 	return i / 3
 }
 
@@ -211,6 +220,8 @@ func div7_int16u(i int16) int16 {
 	// arm64: "MULW"
 	// arm64: "UBFX [$]18, R[0-9]+, [$]14,"
 	// arm64: -"SUB"
+	// wasm: "I64Const [$]37450"
+	// wasm: -"I64Sub"
 	return i / 7
 }
 
@@ -226,6 +237,8 @@ func div7_int32u(i int32) int32 {
 	// arm64: "MUL"
 	// arm64: "LSR [$]34,"
 	// arm64: -"SUB"
+	// wasm: "I64Const [$]2454267027"
+	// wasm: -"I64Sub"
 	return i / 7
 }
 
@@ -238,6 +251,9 @@ func div7_int64u(i int64) int64 {
 	// arm64: "UMULH"
 	// arm64: "LSR [$]2,"
 	// arm64: -"SUB"
+	// wasm: "I64Const [$]1227133514"
+	// wasm: "I64Const [$]2454267026"
+	// wasm: -"I64Sub"
 	return i / 7
 }
 
@@ -249,6 +265,7 @@ func div7_uint8(i uint8) uint8 {
 	// arm64: "MOVD [$]293,"
 	// arm64: "MULW"
 	// arm64: "UBFX [$]11, R[0-9]+, [$]21,"
+	// wasm: "I64Const [$]293"
 	return i / 7
 }
 
@@ -257,6 +274,7 @@ func div7_uint16(i uint16) uint16 {
 	// arm64: "MOVD [$]74899,"
 	// arm64: "MUL"
 	// arm64: "LSR [$]19,"
+	// wasm: "I64Const [$]74899"
 	return i / 7
 }
 
@@ -267,14 +285,16 @@ func div3_uint16(i uint16) uint16 {
 	// arm64: "MOVD [$]87382,"
 	// arm64: "MUL"
 	// arm64: "LSR [$]18,"
+	// wasm: "I64Const [$]87382"
 	return i / 3
 }
 
 func div3_uint32(i uint32) uint32 {
-	// 386: "MOVL [$]-1431655765," "MULL", "SHRL [$]1,"
+	// 386: "MOVL [$]-1431655765," "MULL" "SHRL [$]1,"
 	// arm64: "MOVD [$]2863311531,"
 	// arm64: "MUL"
 	// arm64: "LSR [$]33,"
+	// wasm: "I64Const [$]2863311531"
 	return i / 3
 }
 
@@ -286,27 +306,48 @@ func div3_uint64(i uint64) uint64 {
 	// arm64: "MOVD [$]-6148914691236517205,"
 	// arm64: "UMULH"
 	// arm64: "LSR [$]1,"
+	// wasm: "I64Const [$]2863311530"
+	// wasm: "I64Const [$]2863311531"
 	return i / 3
 }
 
-// Case 7. Unsigned divide where c is even.
+// Case 7. Unsigned divide by pre-shifted magic constant.
+// The 386 and wasm checks below exercise the Case 8 path instead.
+
+func div14_uint32(i uint32) uint32 {
+	// 386: "SHRL [$]1,"
+	// 386: "MOVL [$]-1840700269,"
+	// 386: "SHRL [$]2,"
+	// amd64: "MOVQ [$]1317624576808583168,"
+	// amd64: "MULQ"
+	// amd64: -"SHRQ"
+	// arm64: "MOVD [$]1317624576808583168,"
+	// arm64: "UMULH"
+	// arm64: -"UBFX"
+	// arm64: -"LSR"
+	// wasm: "I64Const [$]2454267027"
+	return i / 14
+}
+
+func div28_uint32(i uint32) uint32 {
+	// amd64: "MOVQ [$]658812288404291584,"
+	// amd64: "MULQ"
+	// amd64: -"SHRQ"
+	// arm64: "MOVD [$]658812288404291584,"
+	// arm64: "UMULH"
+	// arm64: -"UBFX"
+	// arm64: -"LSR"
+	// wasm: "I64Const [$]2454267027"
+	return i / 28
+}
+
+// Case 8. Unsigned divide where c is even.
 
 func div14_uint16(i uint16) uint16 {
 	// 32-bit only
 	// 386: "SHRL [$]1,"
 	// 386: "IMUL3L [$]37450,"
 	// 386: "SHRL [$]18,"
-	return i / 14
-}
-
-func div14_uint32(i uint32) uint32 {
-	// 386: "SHRL [$]1,"
-	// 386: "MOVL [$]-1840700269,"
-	// 386: "SHRL [$]2,"
-	// arm64: "UBFX [$]1, R[0-9]+, [$]31,"
-	// arm64: "MOVD [$]2454267027,"
-	// arm64: "MUL"
-	// arm64: "LSR [$]34,"
 	return i / 14
 }
 
@@ -318,10 +359,12 @@ func div14_uint64(i uint64) uint64 {
 	// arm64: "MOVD [$]-7905747460161236406,"
 	// arm64: "UMULH"
 	// arm64: "LSR [$]2,"
+	// wasm: "I64Const [$]1227133514"
+	// wasm: "I64Const [$]2454267026"
 	return i / 14
 }
 
-// Case 8. Unsigned divide on systems with avg.
+// Case 9. Unsigned divide on systems with avg.
 
 func div7_uint16a(i uint16) uint16 {
 	// only 32-bit
@@ -339,12 +382,14 @@ func div7_uint32(i uint32) uint32 {
 	// 386: "ADDL"
 	// 386: "RCRL [$]1,"
 	// 386: "SHRL [$]2,"
-	// arm64: "UBFIZ [$]32, R[0-9]+, [$]32,"
-	// arm64: "MOVD [$]613566757,"
-	// arm64: "MUL"
-	// arm64: "SUB"
-	// arm64: "ADD R[0-9]+>>1,"
-	// arm64: "LSR [$]34,"
+	// amd64: "MOVQ [$]2635249153617166336,"
+	// amd64: "MULQ"
+	// amd64: -"RCR"
+	// arm64: "MOVD [$]2635249153617166336,"
+	// arm64: "UMULH"
+	// arm64: -"UBFIZ"
+	// arm64: -"LSR"
+	// wasm: "I64Const [$]613566757"
 	return i / 7
 }
 
@@ -355,9 +400,11 @@ func div7_uint64(i uint64) uint64 {
 	// 386: -".*CALL"
 	// arm64: "MOVD [$]2635249153387078803,"
 	// arm64: "UMULH"
-	// arm64: "SUB",
+	// arm64: "SUB"
 	// arm64: "ADD R[0-9]+>>1,"
 	// arm64: "LSR [$]2,"
+	// wasm: "I64Const [$]613566756"
+	// wasm: "I64Const [$]2454267027"
 	return i / 7
 }
 
@@ -370,6 +417,8 @@ func div12345_uint64(i uint64) uint64 {
 	// arm64: "MOVD [$]-6205696892516465602,"
 	// arm64: "UMULH"
 	// arm64: "LSR [$]13,"
+	// wasm: "I64Const [$]835683390"
+	// wasm: "I64Const [$]2850090894"
 	return i / 12345
 }
 
@@ -475,168 +524,168 @@ func ndivis32_int64(i int64) bool {
 
 func div_divis32_uint8(i uint8) (uint8, bool) {
 	// 386: "SHRB [$]5,"
-	// 386: "TESTB [$]31,",
+	// 386: "TESTB [$]31,"
 	// 386: "SETEQ"
 	// arm64: "UBFX [$]5, R[0-9]+, [$]3"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET EQ"
-	return i/32, i%32 == 0
+	return i / 32, i%32 == 0
 }
 
 func div_ndivis32_uint8(i uint8) (uint8, bool) {
 	// 386: "SHRB [$]5,"
-	// 386: "TESTB [$]31,",
+	// 386: "TESTB [$]31,"
 	// 386: "SETNE"
 	// arm64: "UBFX [$]5, R[0-9]+, [$]3"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET NE"
-	return i/32, i%32 != 0
+	return i / 32, i%32 != 0
 }
 
 func div_divis32_uint16(i uint16) (uint16, bool) {
 	// 386: "SHRW [$]5,"
-	// 386: "TESTW [$]31,",
+	// 386: "TESTW [$]31,"
 	// 386: "SETEQ"
 	// arm64: "UBFX [$]5, R[0-9]+, [$]11"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET EQ"
-	return i/32, i%32 == 0
+	return i / 32, i%32 == 0
 }
 
 func div_ndivis32_uint16(i uint16) (uint16, bool) {
 	// 386: "SHRW [$]5,"
-	// 386: "TESTW [$]31,",
+	// 386: "TESTW [$]31,"
 	// 386: "SETNE"
 	// arm64: "UBFX [$]5, R[0-9]+, [$]11,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET NE"
-	return i/32, i%32 != 0
+	return i / 32, i%32 != 0
 }
 
 func div_divis32_uint32(i uint32) (uint32, bool) {
 	// 386: "SHRL [$]5,"
-	// 386: "TESTL [$]31,",
+	// 386: "TESTL [$]31,"
 	// 386: "SETEQ"
 	// arm64: "UBFX [$]5, R[0-9]+, [$]27,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET EQ"
-	return i/32, i%32 == 0
+	return i / 32, i%32 == 0
 }
 
 func div_ndivis32_uint32(i uint32) (uint32, bool) {
 	// 386: "SHRL [$]5,"
-	// 386: "TESTL [$]31,",
+	// 386: "TESTL [$]31,"
 	// 386: "SETNE"
 	// arm64: "UBFX [$]5, R[0-9]+, [$]27,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET NE"
-	return i/32, i%32 != 0
+	return i / 32, i%32 != 0
 }
 
 func div_divis32_uint64(i uint64) (uint64, bool) {
 	// 386: "SHRL [$]5,"
 	// 386: "SHLL [$]27,"
-	// 386: "TESTL [$]31,",
+	// 386: "TESTL [$]31,"
 	// 386: "SETEQ"
 	// arm64: "LSR [$]5,"
 	// arm64: "TST [$]31,"
 	// arm64: "CSET EQ"
-	return i/32, i%32 == 0
+	return i / 32, i%32 == 0
 }
 
 func div_ndivis32_uint64(i uint64) (uint64, bool) {
 	// 386: "SHRL [$]5,"
 	// 386: "SHLL [$]27,"
-	// 386: "TESTL [$]31,",
+	// 386: "TESTL [$]31,"
 	// 386: "SETNE"
 	// arm64: "LSR [$]5,"
 	// arm64: "TST [$]31,"
 	// arm64: "CSET NE"
-	return i/32, i%32 != 0
+	return i / 32, i%32 != 0
 }
 
 func div_divis32_int8(i int8) (int8, bool) {
 	// 386: "SARB [$]7,"
 	// 386: "SHRB [$]3,"
 	// 386: "SARB [$]5,"
-	// 386: "TESTB [$]31,",
+	// 386: "TESTB [$]31,"
 	// 386: "SETEQ"
 	// arm64: "SBFX [$]7, R[0-9]+, [$]1,"
 	// arm64: "ADD R[0-9]+>>3,"
 	// arm64: "SBFX [$]5, R[0-9]+, [$]3,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET EQ"
-	return i/32, i%32 == 0
+	return i / 32, i%32 == 0
 }
 
 func div_ndivis32_int8(i int8) (int8, bool) {
 	// 386: "SARB [$]7,"
 	// 386: "SHRB [$]3,"
 	// 386: "SARB [$]5,"
-	// 386: "TESTB [$]31,",
+	// 386: "TESTB [$]31,"
 	// 386: "SETNE"
 	// arm64: "SBFX [$]7, R[0-9]+, [$]1,"
 	// arm64: "ADD R[0-9]+>>3,"
 	// arm64: "SBFX [$]5, R[0-9]+, [$]3,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET NE"
-	return i/32, i%32 != 0
+	return i / 32, i%32 != 0
 }
 
 func div_divis32_int16(i int16) (int16, bool) {
 	// 386: "SARW [$]15,"
 	// 386: "SHRW [$]11,"
 	// 386: "SARW [$]5,"
-	// 386: "TESTW [$]31,",
+	// 386: "TESTW [$]31,"
 	// 386: "SETEQ"
 	// arm64: "SBFX [$]15, R[0-9]+, [$]1,"
 	// arm64: "ADD R[0-9]+>>11,"
 	// arm64: "SBFX [$]5, R[0-9]+, [$]11,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET EQ"
-	return i/32, i%32 == 0
+	return i / 32, i%32 == 0
 }
 
 func div_ndivis32_int16(i int16) (int16, bool) {
 	// 386: "SARW [$]15,"
 	// 386: "SHRW [$]11,"
 	// 386: "SARW [$]5,"
-	// 386: "TESTW [$]31,",
+	// 386: "TESTW [$]31,"
 	// 386: "SETNE"
 	// arm64: "SBFX [$]15, R[0-9]+, [$]1,"
 	// arm64: "ADD R[0-9]+>>11,"
 	// arm64: "SBFX [$]5, R[0-9]+, [$]11,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET NE"
-	return i/32, i%32 != 0
+	return i / 32, i%32 != 0
 }
 
 func div_divis32_int32(i int32) (int32, bool) {
 	// 386: "SARL [$]31,"
 	// 386: "SHRL [$]27,"
 	// 386: "SARL [$]5,"
-	// 386: "TESTL [$]31,",
+	// 386: "TESTL [$]31,"
 	// 386: "SETEQ"
 	// arm64: "SBFX [$]31, R[0-9]+, [$]1,"
 	// arm64: "ADD R[0-9]+>>27,"
 	// arm64: "SBFX [$]5, R[0-9]+, [$]27,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET EQ"
-	return i/32, i%32 == 0
+	return i / 32, i%32 == 0
 }
 
 func div_ndivis32_int32(i int32) (int32, bool) {
 	// 386: "SARL [$]31,"
 	// 386: "SHRL [$]27,"
 	// 386: "SARL [$]5,"
-	// 386: "TESTL [$]31,",
+	// 386: "TESTL [$]31,"
 	// 386: "SETNE"
 	// arm64: "SBFX [$]31, R[0-9]+, [$]1,"
 	// arm64: "ADD R[0-9]+>>27,"
 	// arm64: "SBFX [$]5, R[0-9]+, [$]27,"
 	// arm64: "TSTW [$]31,"
 	// arm64: "CSET NE"
-	return i/32, i%32 != 0
+	return i / 32, i%32 != 0
 }
 
 func div_divis32_int64(i int64) (int64, bool) {
@@ -644,14 +693,14 @@ func div_divis32_int64(i int64) (int64, bool) {
 	// 386: "SHRL [$]27,"
 	// 386: "SARL [$]5,"
 	// 386: "SHLL [$]27,"
-	// 386: "TESTL [$]31,",
+	// 386: "TESTL [$]31,"
 	// 386: "SETEQ"
 	// arm64: "ASR [$]63,"
 	// arm64: "ADD R[0-9]+>>59,"
 	// arm64: "ASR [$]5,"
 	// arm64: "TST [$]31,"
 	// arm64: "CSET EQ"
-	return i/32, i%32 == 0
+	return i / 32, i%32 == 0
 }
 
 func div_ndivis32_int64(i int64) (int64, bool) {
@@ -659,14 +708,14 @@ func div_ndivis32_int64(i int64) (int64, bool) {
 	// 386: "SHRL [$]27,"
 	// 386: "SARL [$]5,"
 	// 386: "SHLL [$]27,"
-	// 386: "TESTL [$]31,",
+	// 386: "TESTL [$]31,"
 	// 386: "SETNE"
 	// arm64: "ASR [$]63,"
 	// arm64: "ADD R[0-9]+>>59,"
 	// arm64: "ASR [$]5,"
 	// arm64: "TST [$]31,"
 	// arm64: "CSET NE"
-	return i/32, i%32 != 0
+	return i / 32, i%32 != 0
 }
 
 // Divisibility and non-divisibility by non-power-of-two.
@@ -923,7 +972,7 @@ func div_divis6_uint8(i uint8) (uint8, bool) {
 	// arm64: "UBFX [$]11, R[0-9]+, [$]21,"
 	// arm64: "CSET EQ"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 == 0
+	return i / 6, i%6 == 0
 }
 
 func div_ndivis6_uint8(i uint8) (uint8, bool) {
@@ -936,7 +985,7 @@ func div_ndivis6_uint8(i uint8) (uint8, bool) {
 	// arm64: "UBFX [$]11, R[0-9]+, [$]21,"
 	// arm64: "CSET NE"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 != 0
+	return i / 6, i%6 != 0
 }
 
 func div_divis6_uint16(i uint16) (uint16, bool) {
@@ -950,7 +999,7 @@ func div_divis6_uint16(i uint16) (uint16, bool) {
 	// arm64: "LSR [$]19,"
 	// arm64: "CSET EQ"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 == 0
+	return i / 6, i%6 == 0
 }
 
 func div_ndivis6_uint16(i uint16) (uint16, bool) {
@@ -964,7 +1013,7 @@ func div_ndivis6_uint16(i uint16) (uint16, bool) {
 	// arm64: "LSR [$]19,"
 	// arm64: "CSET NE"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 != 0
+	return i / 6, i%6 != 0
 }
 
 func div_divis6_uint32(i uint32) (uint32, bool) {
@@ -978,7 +1027,7 @@ func div_divis6_uint32(i uint32) (uint32, bool) {
 	// arm64: "LSR [$]34,"
 	// arm64: "CSET EQ"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 == 0
+	return i / 6, i%6 == 0
 }
 
 func div_ndivis6_uint32(i uint32) (uint32, bool) {
@@ -992,7 +1041,7 @@ func div_ndivis6_uint32(i uint32) (uint32, bool) {
 	// arm64: "LSR [$]34,"
 	// arm64: "CSET NE"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 != 0
+	return i / 6, i%6 != 0
 }
 
 func div_divis6_uint64(i uint64) (uint64, bool) {
@@ -1009,7 +1058,7 @@ func div_divis6_uint64(i uint64) (uint64, bool) {
 	// arm64: "LSR [$]2,"
 	// arm64: "CSET EQ"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 == 0
+	return i / 6, i%6 == 0
 }
 
 func div_ndivis6_uint64(i uint64) (uint64, bool) {
@@ -1026,7 +1075,7 @@ func div_ndivis6_uint64(i uint64) (uint64, bool) {
 	// arm64: "LSR [$]2,"
 	// arm64: "CSET NE"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 != 0
+	return i / 6, i%6 != 0
 }
 
 func div_divis6_int8(i int8) (int8, bool) {
@@ -1042,7 +1091,7 @@ func div_divis6_int8(i int8) (int8, bool) {
 	// arm64: "SUB R[0-9]+->31,"
 	// arm64: "CSET EQ"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 == 0
+	return i / 6, i%6 == 0
 }
 
 func div_ndivis6_int8(i int8) (int8, bool) {
@@ -1058,7 +1107,7 @@ func div_ndivis6_int8(i int8) (int8, bool) {
 	// arm64: "SUB R[0-9]+->31,"
 	// arm64: "CSET NE"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 != 0
+	return i / 6, i%6 != 0
 }
 
 func div_divis6_int16(i int16) (int16, bool) {
@@ -1074,7 +1123,7 @@ func div_divis6_int16(i int16) (int16, bool) {
 	// arm64: "SUB R[0-9]+->31,"
 	// arm64: "CSET EQ"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 == 0
+	return i / 6, i%6 == 0
 }
 
 func div_ndivis6_int16(i int16) (int16, bool) {
@@ -1090,7 +1139,7 @@ func div_ndivis6_int16(i int16) (int16, bool) {
 	// arm64: "SUB R[0-9]+->31,"
 	// arm64: "CSET NE"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 != 0
+	return i / 6, i%6 != 0
 }
 
 func div_divis6_int32(i int32) (int32, bool) {
@@ -1107,7 +1156,7 @@ func div_divis6_int32(i int32) (int32, bool) {
 	// arm64: "SUB R[0-9]+->63,"
 	// arm64: "CSET EQ"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 == 0
+	return i / 6, i%6 == 0
 }
 
 func div_ndivis6_int32(i int32) (int32, bool) {
@@ -1124,7 +1173,7 @@ func div_ndivis6_int32(i int32) (int32, bool) {
 	// arm64: "SUB R[0-9]+->63,"
 	// arm64: "CSET NE"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 != 0
+	return i / 6, i%6 != 0
 }
 
 func div_divis6_int64(i int64) (int64, bool) {
@@ -1145,7 +1194,7 @@ func div_divis6_int64(i int64) (int64, bool) {
 	// arm64: "SUB R[0-9]+->63,"
 	// arm64: "CSET EQ"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 == 0
+	return i / 6, i%6 == 0
 }
 
 func div_ndivis6_int64(i int64) (int64, bool) {
@@ -1166,5 +1215,5 @@ func div_ndivis6_int64(i int64) (int64, bool) {
 	// arm64: "SUB R[0-9]+->63,"
 	// arm64: "CSET NE"
 	// arm64: -"RO[RL]"
-	return i/6, i%6 != 0
+	return i / 6, i%6 != 0
 }

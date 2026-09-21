@@ -24,16 +24,22 @@ func Increment() {
 func incrementConfig() {
 	// TODO(jitsu): Telemetry for the go/mode counters should eventually be
 	// moved to modload.Init()
-	s := modload.NewState()
-	if !modload.WillBeEnabled(s) {
+	s := modload.NewLoader()
+	if !s.WillBeEnabled() {
 		counter.Inc("go/mode:gopath")
-	} else if workfile := modload.FindGoWork(s, base.Cwd()); workfile != "" {
+	} else if workfile := s.FindGoWork(base.Cwd()); workfile != "" {
 		counter.Inc("go/mode:workspace")
 	} else {
 		counter.Inc("go/mode:module")
 	}
-	counter.Inc("go/platform/target/goos:" + cfg.Goos)
-	counter.Inc("go/platform/target/goarch:" + cfg.Goarch)
+
+	if cfg.BuildContext.CgoEnabled {
+		counter.Inc("go/cgo:enabled")
+	} else {
+		counter.Inc("go/cgo:disabled")
+	}
+
+	counter.Inc("go/platform/target/port:" + cfg.Goos + "-" + cfg.Goarch)
 	switch cfg.Goarch {
 	case "386":
 		counter.Inc("go/platform/target/go386:" + cfg.GO386)

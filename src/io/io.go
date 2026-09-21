@@ -707,7 +707,17 @@ func (c nopCloserWriterTo) WriteTo(w Writer) (n int64, err error) {
 // defined to read from src until EOF, it does not treat an EOF from Read
 // as an error to be reported.
 func ReadAll(r Reader) ([]byte, error) {
+	// Build slices of exponentially growing size,
+	// then copy into a perfectly-sized slice at the end.
 	b := make([]byte, 0, 512)
+	// Starting with next equal to 256 (instead of say 512 or 1024)
+	// allows less memory usage for small inputs that finish in the
+	// early growth stages, but we grow the read sizes quickly such that
+	// it does not materially impact medium or large inputs.
+	next := 256
+	chunks := make([][]byte, 0, 4)
+	// Invariant: finalSize = sum(len(c) for c in chunks)
+	var finalSize int
 	for {
 		n, err := r.Read(b[len(b):cap(b)])
 		b = b[:len(b)+n]
@@ -715,12 +725,26 @@ func ReadAll(r Reader) ([]byte, error) {
 			if err == EOF {
 				err = nil
 			}
-			return b, err
+			if len(chunks) == 0 {
+				return b, err
+			}
+
+			// Build our final right-sized slice.
+			finalSize += len(b)
+			final := append([]byte(nil), make([]byte, finalSize)...)[:0]
+			for _, chunk := range chunks {
+				final = append(final, chunk...)
+			}
+			final = append(final, b...)
+			return final, err
 		}
 
-		if len(b) == cap(b) {
-			// Add more capacity (let append pick how much).
-			b = append(b, 0)[:len(b)]
+		if cap(b)-len(b) < cap(b)/16 {
+			// Move to the next intermediate slice.
+			chunks = append(chunks, b)
+			finalSize += len(b)
+			b = append([]byte(nil), make([]byte, next)...)[:0]
+			next += next / 2
 		}
 	}
 }

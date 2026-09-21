@@ -57,6 +57,7 @@ func printuint(uint64)
 func printcomplex128(complex128)
 func printcomplex64(complex64)
 func printstring(string)
+func printquoted(string)
 func printpointer(any)
 func printuintptr(uintptr)
 func printiface(any)
@@ -67,24 +68,24 @@ func printsp()
 func printlock()
 func printunlock()
 
-func concatstring2(*[32]byte, string, string) string
-func concatstring3(*[32]byte, string, string, string) string
-func concatstring4(*[32]byte, string, string, string, string) string
-func concatstring5(*[32]byte, string, string, string, string, string) string
-func concatstrings(*[32]byte, []string) string
+func concatstring2(*[64]byte, string, string) string
+func concatstring3(*[64]byte, string, string, string) string
+func concatstring4(*[64]byte, string, string, string, string) string
+func concatstring5(*[64]byte, string, string, string, string, string) string
+func concatstrings(*[64]byte, []string) string
 
-func concatbyte2(*[32]byte, string, string) []byte
-func concatbyte3(*[32]byte, string, string, string) []byte
-func concatbyte4(*[32]byte, string, string, string, string) []byte
-func concatbyte5(*[32]byte, string, string, string, string, string) []byte
-func concatbytes(*[32]byte, []string) []byte
+func concatbyte2(*[64]byte, string, string) []byte
+func concatbyte3(*[64]byte, string, string, string) []byte
+func concatbyte4(*[64]byte, string, string, string, string) []byte
+func concatbyte5(*[64]byte, string, string, string, string, string) []byte
+func concatbytes(*[64]byte, []string) []byte
 
 func cmpstring(string, string) int
 func intstring(*[4]byte, int64) string
-func slicebytetostring(buf *[32]byte, ptr *byte, n int) string
+func slicebytetostring(buf *[64]byte, ptr *byte, n int) string
 func slicebytetostringtmp(ptr *byte, n int) string
-func slicerunetostring(*[32]byte, []rune) string
-func stringtoslicebyte(*[32]byte, string) []byte
+func slicerunetostring(*[64]byte, []rune) string
+func stringtoslicebyte(*[64]byte, string) []byte
 func stringtoslicerune(*[32]rune, string) []rune
 func slicecopy(toPtr *any, toLen int, fromPtr *any, fromLen int, wid uintptr) int
 
@@ -195,6 +196,9 @@ func makeslice(typ *byte, len int, cap int) unsafe.Pointer
 func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
 func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 func growslice(oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
+func growsliceBuf(oldPtr *any, newLen, oldCap, num int, et *byte, buf *any, bufLen int) (ary []any)
+func growsliceBufNoAlias(oldPtr *any, newLen, oldCap, num int, et *byte, buf *any, bufLen int) (ary []any)
+func growsliceNoAlias(oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
 func unsafeslicecheckptr(typ *byte, ptr unsafe.Pointer, len int64)
 func panicunsafeslicelen()
 func panicunsafeslicenilptr()
@@ -202,17 +206,22 @@ func unsafestringcheckptr(ptr unsafe.Pointer, len int64)
 func panicunsafestringlen()
 func panicunsafestringnilptr()
 
+func moveSlice(typ *byte, old *byte, len, cap int) (*byte, int, int)
+func moveSliceNoScan(elemSize uintptr, old *byte, len, cap int) (*byte, int, int)
+func moveSliceNoCap(typ *byte, old *byte, len int) (*byte, int, int)
+func moveSliceNoCapNoScan(elemSize uintptr, old *byte, len int) (*byte, int, int)
+
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 func memclrHasPointers(ptr unsafe.Pointer, n uintptr)
 
-func memequal(x, y *any, size uintptr) bool
-func memequal0(x, y *any) bool
-func memequal8(x, y *any) bool
-func memequal16(x, y *any) bool
-func memequal32(x, y *any) bool
-func memequal64(x, y *any) bool
-func memequal128(x, y *any) bool
+func memequal(x, y unsafe.Pointer, size uintptr) bool
+func memequal0(x, y unsafe.Pointer) bool
+func memequal8(x, y unsafe.Pointer) bool
+func memequal16(x, y unsafe.Pointer) bool
+func memequal32(x, y unsafe.Pointer) bool
+func memequal64(x, y unsafe.Pointer) bool
+func memequal128(x, y unsafe.Pointer) bool
 func f32equal(p, q unsafe.Pointer) bool
 func f64equal(p, q unsafe.Pointer) bool
 func c64equal(p, q unsafe.Pointer) bool
@@ -221,20 +230,20 @@ func strequal(p, q unsafe.Pointer) bool
 func interequal(p, q unsafe.Pointer) bool
 func nilinterequal(p, q unsafe.Pointer) bool
 
-func memhash(x *any, h uintptr, size uintptr) uintptr
+func memhash(x unsafe.Pointer, h uintptr, size uintptr) uintptr
 func memhash0(p unsafe.Pointer, h uintptr) uintptr
 func memhash8(p unsafe.Pointer, h uintptr) uintptr
 func memhash16(p unsafe.Pointer, h uintptr) uintptr
 func memhash32(p unsafe.Pointer, h uintptr) uintptr
 func memhash64(p unsafe.Pointer, h uintptr) uintptr
 func memhash128(p unsafe.Pointer, h uintptr) uintptr
-func f32hash(p *any, h uintptr) uintptr
-func f64hash(p *any, h uintptr) uintptr
-func c64hash(p *any, h uintptr) uintptr
-func c128hash(p *any, h uintptr) uintptr
-func strhash(a *any, h uintptr) uintptr
-func interhash(p *any, h uintptr) uintptr
-func nilinterhash(p *any, h uintptr) uintptr
+func f32hash(p unsafe.Pointer, h uintptr) uintptr
+func f64hash(p unsafe.Pointer, h uintptr) uintptr
+func c64hash(p unsafe.Pointer, h uintptr) uintptr
+func c128hash(p unsafe.Pointer, h uintptr) uintptr
+func strhash(a unsafe.Pointer, h uintptr) uintptr
+func interhash(p unsafe.Pointer, h uintptr) uintptr
+func nilinterhash(p unsafe.Pointer, h uintptr) uintptr
 
 // only used on 32-bit
 func int64div(int64, int64) int64
@@ -286,14 +295,19 @@ func libfuzzerHookEqualFold(string, string, uint)
 func addCovMeta(p unsafe.Pointer, len uint32, hash [16]byte, pkpath string, pkgId int, cmode uint8, cgran uint8) uint32
 
 // architecture variants
+var x86HasAVX bool
+var x86HasFMA bool
 var x86HasPOPCNT bool
 var x86HasSSE41 bool
-var x86HasFMA bool
 var armHasVFPv4 bool
 var arm64HasATOMICS bool
 var loong64HasLAMCAS bool
 var loong64HasLAM_BH bool
+var loong64HasDBAR_HINTS bool
 var loong64HasLSX bool
 var riscv64HasZbb bool
 
 func asanregisterglobals(unsafe.Pointer, uintptr)
+
+// used by testing.B.Loop
+func KeepAlive(interface{})

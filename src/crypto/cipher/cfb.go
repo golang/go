@@ -61,7 +61,7 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
 // CFB is also unoptimized and not validated as part of the FIPS 140-3 module.
 // If an unauthenticated [Stream] mode is required, use [NewCTR] instead.
 func NewCFBEncrypter(block Block, iv []byte) Stream {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/cipher: use of CFB is not allowed in FIPS 140-only mode")
 	}
 	return newCFB(block, iv, false)
@@ -77,7 +77,7 @@ func NewCFBEncrypter(block Block, iv []byte) Stream {
 // CFB is also unoptimized and not validated as part of the FIPS 140-3 module.
 // If an unauthenticated [Stream] mode is required, use [NewCTR] instead.
 func NewCFBDecrypter(block Block, iv []byte) Stream {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/cipher: use of CFB is not allowed in FIPS 140-only mode")
 	}
 	return newCFB(block, iv, true)

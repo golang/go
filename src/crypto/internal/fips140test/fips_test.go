@@ -36,6 +36,7 @@ import (
 	"crypto/internal/fips140/tls13"
 	"crypto/rand"
 	"encoding/hex"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -50,6 +51,7 @@ func moduleStatus(t *testing.T) {
 
 	t.Logf("Module name: %s", fips140.Name())
 	t.Logf("Module version: %s", fips140.Version())
+	t.Logf("GOOS/GOARCH: %s/%s", runtime.GOOS, runtime.GOARCH)
 
 	if noPAAPAI {
 		t.Log("PAA/PAI disabled")
@@ -100,6 +102,8 @@ func TestFIPS140(t *testing.T) {
 	plaintextSHA256 := decodeHex(t, "06b2614e2ef315832b23f5d0ff70294d8ddd3889527dfbe75707fe41da929325")
 	aesBlock, err := aes.New(aesKey)
 	fatalIfErr(t, err)
+
+	testFIPS140v126(t, plaintext)
 
 	t.Run("AES-CTR", func(t *testing.T) {
 		ensureServiceIndicator(t)

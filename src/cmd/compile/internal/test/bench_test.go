@@ -4,7 +4,10 @@
 
 package test
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 var globl int64
 var globl32 int32
@@ -144,4 +147,114 @@ func BenchmarkMul2Neg(b *testing.B) {
 		}
 		globl = s
 	}
+}
+
+func BenchmarkSimplifyNegMul(b *testing.B) {
+	x := make([]int64, 1024)
+	y := make([]int64, 1024)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var s int64
+		for i := range x {
+			s = -(-x[i] * y[i])
+		}
+		globl = s
+	}
+}
+
+func BenchmarkSimplifyNegDiv(b *testing.B) {
+	x := make([]int64, 1024)
+	y := make([]int64, 1024)
+	for i := range y {
+		y[i] = 42
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var s int64
+		for i := range x {
+			s = -(-x[i] / y[i])
+		}
+		globl = s
+	}
+}
+
+var globbool bool
+
+// containsRight compares strs[i] == str (slice element on left).
+//
+//go:noinline
+func containsRight(strs []string, str string) bool {
+	for i := range strs {
+		if strs[i] == str {
+			return true
+		}
+	}
+	return false
+}
+
+// containsLeft compares str == strs[i] (parameter on left).
+//
+//go:noinline
+func containsLeft(strs []string, str string) bool {
+	for i := range strs {
+		if str == strs[i] {
+			return true
+		}
+	}
+	return false
+}
+
+//go:noinline
+func benchSpillReloadSink() {}
+
+// benchSpillReloadDistinctAutos loads two values from independent pointers,
+// spills both across a call, and returns them as a pair. The spills and
+// reloads do not exist when the SSA pair pass runs (regalloc inserts them
+// later), so only the late pair pass in cmd/compile/internal/arm64 can fuse
+// the reloads into a single LDP.
+//
+//go:noinline
+func benchSpillReloadDistinctAutos(p, q *int) (int, int) {
+	a := *p
+	b := *q
+	benchSpillReloadSink()
+	return a, b
+}
+
+// BenchmarkSpillReloadPair exercises the spill/reload pattern the late
+// arm64 pair pass fuses but the SSA pair pass cannot. The numbers are not
+// meaningful in absolute terms; the benchmark exists so builds with and
+// without the pass can be compared.
+func BenchmarkSpillReloadPair(b *testing.B) {
+	x, y := 1, 2
+	var s int
+	for b.Loop() {
+		a, c := benchSpillReloadDistinctAutos(&x, &y)
+		s += a + c
+	}
+	globl = int64(s)
+}
+
+// BenchmarkStringEqParamOrder tests that the operand order of string
+// equality comparisons does not affect performance. See issue #74471.
+func BenchmarkStringEqParamOrder(b *testing.B) {
+	strs := []string{
+		"12312312", "abcsdsfw", "abcdefgh", "qereqwre",
+		"gwertdsg", "hellowod", "iamgroot", "theiswer",
+		"dg323sdf", "gadsewwe", "g42dg4t3", "4hre2323",
+		"23eg4325", "13234234", "32dfgsdg", "23fgre34",
+		"43rerrer", "hh2s2443", "hhwesded", "1swdf23d",
+		"gwcdrwer", "bfgwertd", "badgwe3g", "lhoejyop",
+	}
+	target := fmt.Sprintf("%s", "notfound")
+	b.Run("ParamRight", func(b *testing.B) {
+		for b.Loop() {
+			globbool = containsRight(strs, target)
+		}
+	})
+	b.Run("ParamLeft", func(b *testing.B) {
+		for b.Loop() {
+			globbool = containsLeft(strs, target)
+		}
+	})
 }

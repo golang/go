@@ -646,12 +646,12 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 
 		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
 			dlen := binary.BigEndian.Uint64(b[4:12])
-			dbuf := make([]byte, dlen)
 			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
 			if err != nil {
 				return nil, err
 			}
-			if _, err := io.ReadFull(r, dbuf); err != nil {
+			dbuf, err := saferio.ReadData(r, dlen)
+			if err != nil {
 				return nil, err
 			}
 			if err := r.Close(); err != nil {

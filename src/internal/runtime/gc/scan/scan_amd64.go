@@ -28,7 +28,7 @@ func CanAVX512() bool {
 }
 
 func ScanSpanPackedAVX512(mem unsafe.Pointer, bufp *uintptr, objMarks *gc.ObjMask, sizeClass uintptr, ptrMask *gc.PtrMask) (count int32) {
-	return FilterNil(bufp, scanSpanPackedAVX512(mem, bufp, objMarks, sizeClass, ptrMask))
+	return FilterNilAVX512(bufp, scanSpanPackedAVX512(mem, bufp, objMarks, sizeClass, ptrMask))
 }
 
 //go:noescape
@@ -38,4 +38,6 @@ var avx512ScanPackedReqsMet = cpu.X86.HasAVX512VL &&
 	cpu.X86.HasAVX512BW &&
 	cpu.X86.HasGFNI &&
 	cpu.X86.HasAVX512BITALG &&
-	cpu.X86.HasAVX512VBMI
+	cpu.X86.HasAVX512DQ && // for kmovb, see #79871
+	cpu.X86.HasAVX512VBMI &&
+	cpu.X86.HasPOPCNT

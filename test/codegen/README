@@ -63,25 +63,26 @@ regexp will be matched against the code found on the same line:
   	   return math.Sqrt(x) // arm:"SQRTD"
   }
 
-It's possible to specify a comma-separated list of regexps to be
+It's possible to specify a space-separated list of regexps to be
 matched. For example, the following test:
 
   func TZ8(n uint8) int {
-  	   // amd64:"BSFQ","ORQ\t\\$256"
+  	   // amd64:"BSFL" "ORL [$]256"
   	   return bits.TrailingZeros8(n)
   }
 
 verifies that the code generated for a bits.TrailingZeros8 call on
-amd64 contains both a "BSFQ" instruction and an "ORQ $256".
+amd64 contains both a "BSFL" instruction and an "ORL $256".
 
-Note how the ORQ regex includes a tab char (\t). In the Go assembly
-syntax, operands are separated from opcodes by a tabulation.
+Note that spaces are special - they will match any sequence of
+whitespace (including tabs) in the printed assembly.
 
 Regexps can be quoted using either " or `. Special characters must be
-escaped accordingly. Both of these are accepted, and equivalent:
+escaped accordingly. All of these are accepted, and equivalent:
 
-  // amd64:"ADDQ\t\\$3"
-  // amd64:`ADDQ\t\$3`
+  // amd64:"ADDQ \\$3"
+  // amd64:`ADDQ \$3`
+  // amd64:"ADDQ [$]3"
 
 and they'll match this assembly line:
 
@@ -102,7 +103,7 @@ The expected number of matches for the regexp can be specified using a
 positive number:
 
   func fb(a [4]int) (r [4]int) {
-  	   // amd64:2`MOVUPS[^,]+, X0$`,2`MOVUPS\sX0,[^\n]+$`
+  	   // amd64:2`MOVUPS[^,]+, X0$` 2`MOVUPS X0,[^\n]+$`
   	   return a
   }
 

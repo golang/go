@@ -1,0 +1,7 @@
+!sum
+- go: Neg
+  commutative: false
+  documentation: !string |-
+    // NAME returns the elementwise negation of x.
+
+# TODO: move Abs here from IntOnlyArith; on ARM64 it applies to float types too.

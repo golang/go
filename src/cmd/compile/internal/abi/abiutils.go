@@ -150,12 +150,12 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
 	if w == 0 {
 		return rts
 	}
-	if t.IsScalar() || t.IsPtrShaped() {
+	if t.IsScalar() || t.IsPtrShaped() || t.IsSIMD() {
 		if t.IsComplex() {
 			c := types.FloatForComplex(t)
 			return append(rts, c, c)
 		} else {
-			if int(t.Size()) <= types.RegSize {
+			if int(t.Size()) <= types.RegSize || t.IsSIMD() {
 				return append(rts, t)
 			}
 			// assume 64bit int on 32-bit machine
@@ -198,6 +198,9 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
 	w := t.Size()
 	if w == 0 {
 		return offsets, at
+	}
+	if t.IsSIMD() {
+		return append(offsets, at), at + w
 	}
 	if t.IsScalar() || t.IsPtrShaped() {
 		if t.IsComplex() || int(t.Size()) > types.RegSize { // complex and *int64 on 32-bit
@@ -273,13 +276,6 @@ type ABIConfig struct {
 // iRegsCount integer/pointer registers and fRegsCount floating point registers.
 func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64, which uint8) *ABIConfig {
 	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}, which: obj.ABI(which)}
-}
-
-// Copy returns config.
-//
-// TODO(mdempsky): Remove.
-func (config *ABIConfig) Copy() *ABIConfig {
-	return config
 }
 
 // Which returns the ABI number
@@ -521,11 +517,11 @@ func (state *assignState) allocateRegs(regs []RegIndex, t *types.Type) []RegInde
 	}
 	ri := state.rUsed.intRegs
 	rf := state.rUsed.floatRegs
-	if t.IsScalar() || t.IsPtrShaped() {
+	if t.IsScalar() || t.IsPtrShaped() || t.IsSIMD() {
 		if t.IsComplex() {
 			regs = append(regs, RegIndex(rf+state.rTotal.intRegs), RegIndex(rf+1+state.rTotal.intRegs))
 			rf += 2
-		} else if t.IsFloat() {
+		} else if t.IsFloat() || t.IsSIMD() {
 			regs = append(regs, RegIndex(rf+state.rTotal.intRegs))
 			rf += 1
 		} else {

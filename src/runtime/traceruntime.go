@@ -25,7 +25,7 @@ func (s *gTraceState) reset() {
 
 // mTraceState is per-M state for the tracer.
 type mTraceState struct {
-	seqlock       atomic.Uintptr                       // seqlock indicating that this M is writing to a trace buffer.
+	writing       atomic.Bool                          // flag indicating that this M is writing to a trace buffer.
 	buf           [2][tracev2.NumExperiments]*traceBuf // Per-M traceBuf for writing. Indexed by trace.gen%2.
 	link          *m                                   // Snapshot of alllink or freelink.
 	reentered     uint32                               // Whether we've reentered tracing from within tracing.
@@ -211,21 +211,18 @@ func traceAcquireEnabled() traceLocker {
 	// Check if we're already tracing. It's safe to be reentrant in general,
 	// because this function (and the invariants of traceLocker.writer) ensure
 	// that it is.
-	if mp.trace.seqlock.Load()%2 == 1 {
+	if mp.trace.writing.Load() {
 		mp.trace.reentered++
 		return traceLocker{mp, mp.trace.entryGen}
 	}
 
-	// Acquire the trace seqlock. This prevents traceAdvance from moving forward
-	// until all Ms are observed to be outside of their seqlock critical section.
+	// Set the write flag. This prevents traceAdvance from moving forward
+	// until all Ms are observed to be outside of a write critical section.
 	//
-	// Note: The seqlock is mutated here and also in traceCPUSample. If you update
-	// usage of the seqlock here, make sure to also look at what traceCPUSample is
+	// Note: The write flag is mutated here and also in traceCPUSample. If you update
+	// usage of the write flag here, make sure to also look at what traceCPUSample is
 	// doing.
-	seq := mp.trace.seqlock.Add(1)
-	if debugTraceReentrancy && seq%2 != 1 {
-		throw("bad use of trace.seqlock")
-	}
+	mp.trace.writing.Store(true)
 
 	// N.B. This load of gen appears redundant with the one in traceEnabled.
 	// However, it's very important that the gen we use for writing to the trace
@@ -237,7 +234,7 @@ func traceAcquireEnabled() traceLocker {
 	// what we did and bail.
 	gen := trace.gen.Load()
 	if gen == 0 {
-		mp.trace.seqlock.Add(1)
+		mp.trace.writing.Store(false)
 		releasem(mp)
 		return traceLocker{}
 	}
@@ -263,11 +260,7 @@ func traceRelease(tl traceLocker) {
 	if tl.mp.trace.reentered > 0 {
 		tl.mp.trace.reentered--
 	} else {
-		seq := tl.mp.trace.seqlock.Add(1)
-		if debugTraceReentrancy && seq%2 != 0 {
-			print("runtime: seq=", seq, "\n")
-			throw("bad use of trace.seqlock")
-		}
+		tl.mp.trace.writing.Store(false)
 	}
 	releasem(tl.mp)
 }
@@ -699,10 +692,10 @@ func traceThreadDestroy(mp *m) {
 	// Perform a traceAcquire/traceRelease on behalf of mp to
 	// synchronize with the tracer trying to flush our buffer
 	// as well.
-	seq := mp.trace.seqlock.Add(1)
-	if debugTraceReentrancy && seq%2 != 1 {
-		throw("bad use of trace.seqlock")
+	if debugTraceReentrancy && mp.trace.writing.Load() {
+		throw("bad use of trace.writing")
 	}
+	mp.trace.writing.Store(true)
 	systemstack(func() {
 		lock(&trace.lock)
 		for i := range mp.trace.buf {
@@ -717,9 +710,5 @@ func traceThreadDestroy(mp *m) {
 		}
 		unlock(&trace.lock)
 	})
-	seq1 := mp.trace.seqlock.Add(1)
-	if seq1 != seq+1 {
-		print("runtime: seq1=", seq1, "\n")
-		throw("bad use of trace.seqlock")
-	}
+	mp.trace.writing.Store(false)
 }

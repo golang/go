@@ -50,6 +50,12 @@ func FromPProf(r io.Reader) (*Profile, error) {
 		SampleValue: func(v []int64) int64 { return v[valueIndex] },
 	})
 
+	if len(g.Nodes) == 0 {
+		// If all sample values are 0, the graph will have no nodes.
+		// In this case, treat it as an empty profile.
+		return emptyProfile(), nil
+	}
+
 	namedEdgeMap, totalWeight, err := createNamedEdgeMap(g)
 	if err != nil {
 		return nil, err

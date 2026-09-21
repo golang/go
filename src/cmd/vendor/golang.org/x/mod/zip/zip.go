@@ -668,7 +668,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 	// techniques like git ls-files, but this approach most closely matches what
 	// the Go command does, which is beneficial.
 	//
-	// Note: some of this code copied from https://go.googlesource.com/go/+/refs/tags/go1.16.5/src/cmd/go/internal/modfetch/codehost/git.go#826.
+	// Note: some of this code is copied from https://go.googlesource.com/go/+/refs/tags/go1.16.5/src/cmd/go/internal/modfetch/codehost/git.go#826.
 	cmd := exec.Command("git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", rev)
 	if subdir != "" {
 		cmd.Args = append(cmd.Args, subdir)
@@ -710,7 +710,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 	}
 
 	if !haveLICENSE && subdir != "" {
-		// Note: this method of extracting the license from the root copied from
+		// Note: this method of extracting the license from the root is copied from
 		// https://go.googlesource.com/go/+/refs/tags/go1.20.4/src/cmd/go/internal/modfetch/coderepo.go#1118
 		// https://go.googlesource.com/go/+/refs/tags/go1.20.4/src/cmd/go/internal/modfetch/codehost/git.go#657
 		cmd := exec.Command("git", "cat-file", "blob", rev+":LICENSE")
@@ -780,7 +780,7 @@ func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
 func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
 func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
 func (fi dataFileInfo) IsDir() bool        { return false }
-func (fi dataFileInfo) Sys() interface{}   { return nil }
+func (fi dataFileInfo) Sys() any           { return nil }
 
 // isVendoredPackage attempts to report whether the given filename is contained
 // in a package whose import path contains (but does not end with) the component

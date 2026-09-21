@@ -97,6 +97,7 @@ func checkInfoFields(info *types.Info) {
 	assert(info.Selections != nil, "types.Info.Selections is nil")
 	assert(info.Types != nil, "types.Info.Types is nil")
 	assert(info.Uses != nil, "types.Info.Uses is nil")
+	assert(info.FileVersions != nil, "types.Info.FileVersions is nil")
 }
 
 // intersects reports whether the maps' key sets intersect.

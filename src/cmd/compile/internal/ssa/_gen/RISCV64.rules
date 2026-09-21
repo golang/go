@@ -39,6 +39,8 @@
 (Select1 (Sub64borrow x y c)) =>
 	(OR (SLTU <typ.UInt64> x s:(SUB <typ.UInt64> x y)) (SLTU <typ.UInt64> s (SUB <typ.UInt64> s c)))
 
+(JumpTable idx) => (JUMPTABLE {ssa.MakeJumpTableSym(b)} idx (MOVaddr <typ.Uintptr> {ssa.MakeJumpTableSym(b)} (SB)))
+
 // (x + y) / 2 => (x / 2) + (y / 2) + (x & y & 1)
 (Avg64u <t> x y) => (ADD (ADD <t> (SRLI <t> [1] x) (SRLI <t> [1] y)) (ANDI <t> [1] (AND <t> x y)))
 
@@ -118,8 +120,9 @@
 
 // Shifts
 
-// SLL only considers the bottom 6 bits of y. If y > 64, the result should
-// always be 0.
+// SLL only considers the bottom 6 bits of y, similarly SLLW only considers the
+// bottom 5 bits of y. Ensure that the result is always zero if the shift exceeds
+// the maximum value.
 //
 // Breaking down the operation:
 //
@@ -128,52 +131,52 @@
 // If y < 64, this is the value we want. Otherwise, we want zero.
 //
 // So, we AND with -1 * uint64(y < 64), which is 0xfffff... if y < 64 and 0 otherwise.
-(Lsh8x8   <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Lsh8x16  <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Lsh8x32  <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Lsh8x64  <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg8  <t> (SLTIU <t> [64] y)))
-(Lsh16x8  <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Lsh16x16 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Lsh16x32 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Lsh16x64 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg16 <t> (SLTIU <t> [64] y)))
-(Lsh32x8  <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Lsh32x16 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Lsh32x32 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg32 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Lsh32x64 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg32 <t> (SLTIU <t> [64] y)))
-(Lsh64x8  <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Lsh64x16 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Lsh64x32 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Lsh64x64 <t> x y) && !shiftIsBounded(v) => (AND (SLL <t> x y) (Neg64 <t> (SLTIU <t> [64] y)))
+(Lsh8x8   <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Lsh8x16  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Lsh8x32  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Lsh8x64  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg8  <t> (SLTIU <t> [64] y)))
+(Lsh16x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Lsh16x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Lsh16x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Lsh16x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg16 <t> (SLTIU <t> [64] y)))
+(Lsh32x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLLW <t> x y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt8to64  y))))
+(Lsh32x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLLW <t> x y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt16to64 y))))
+(Lsh32x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLLW <t> x y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt32to64 y))))
+(Lsh32x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLLW <t> x y) (Neg32 <t> (SLTIU <t> [32] y)))
+(Lsh64x8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Lsh64x16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Lsh64x32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Lsh64x64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SLL  <t> x y) (Neg64 <t> (SLTIU <t> [64] y)))
 
-(Lsh8x(64|32|16|8)  x y) && shiftIsBounded(v) => (SLL x y)
-(Lsh16x(64|32|16|8) x y) && shiftIsBounded(v) => (SLL x y)
-(Lsh32x(64|32|16|8) x y) && shiftIsBounded(v) => (SLL x y)
-(Lsh64x(64|32|16|8) x y) && shiftIsBounded(v) => (SLL x y)
+(Lsh8x(64|32|16|8)  x y) && ssa.ShiftIsBounded(v) => (SLL  x y)
+(Lsh16x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLL  x y)
+(Lsh32x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLLW x y)
+(Lsh64x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SLL  x y)
 
 // SRL only considers the bottom 6 bits of y, similarly SRLW only considers the
 // bottom 5 bits of y. Ensure that the result is always zero if the shift exceeds
 // the maximum value. See Lsh above for a detailed description.
-(Rsh8Ux8   <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Rsh8Ux16  <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Rsh8Ux32  <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Rsh8Ux64  <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] y)))
-(Rsh16Ux8  <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Rsh16Ux16 <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Rsh16Ux32 <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Rsh16Ux64 <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] y)))
-(Rsh32Ux8  <t> x y) && !shiftIsBounded(v) => (AND (SRLW <t>  x                y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt8to64  y))))
-(Rsh32Ux16 <t> x y) && !shiftIsBounded(v) => (AND (SRLW <t>  x                y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt16to64 y))))
-(Rsh32Ux32 <t> x y) && !shiftIsBounded(v) => (AND (SRLW <t>  x                y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt32to64 y))))
-(Rsh32Ux64 <t> x y) && !shiftIsBounded(v) => (AND (SRLW <t>  x                y) (Neg32 <t> (SLTIU <t> [32] y)))
-(Rsh64Ux8  <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t>  x                y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
-(Rsh64Ux16 <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t>  x                y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
-(Rsh64Ux32 <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t>  x                y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
-(Rsh64Ux64 <t> x y) && !shiftIsBounded(v) => (AND (SRL  <t>  x                y) (Neg64 <t> (SLTIU <t> [64] y)))
+(Rsh8Ux8   <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Rsh8Ux16  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Rsh8Ux32  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Rsh8Ux64  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t> (ZeroExt8to64  x) y) (Neg8  <t> (SLTIU <t> [64] y)))
+(Rsh16Ux8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Rsh16Ux16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Rsh16Ux32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Rsh16Ux64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t> (ZeroExt16to64 x) y) (Neg16 <t> (SLTIU <t> [64] y)))
+(Rsh32Ux8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRLW <t>  x                y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt8to64  y))))
+(Rsh32Ux16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRLW <t>  x                y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt16to64 y))))
+(Rsh32Ux32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRLW <t>  x                y) (Neg32 <t> (SLTIU <t> [32] (ZeroExt32to64 y))))
+(Rsh32Ux64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRLW <t>  x                y) (Neg32 <t> (SLTIU <t> [32] y)))
+(Rsh64Ux8  <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t>  x                y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt8to64  y))))
+(Rsh64Ux16 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t>  x                y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt16to64 y))))
+(Rsh64Ux32 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t>  x                y) (Neg64 <t> (SLTIU <t> [64] (ZeroExt32to64 y))))
+(Rsh64Ux64 <t> x y) && !ssa.ShiftIsBounded(v) => (AND (SRL  <t>  x                y) (Neg64 <t> (SLTIU <t> [64] y)))
 
-(Rsh8Ux(64|32|16|8)  x y) && shiftIsBounded(v) => (SRL  (ZeroExt8to64  x) y)
-(Rsh16Ux(64|32|16|8) x y) && shiftIsBounded(v) => (SRL  (ZeroExt16to64 x) y)
-(Rsh32Ux(64|32|16|8) x y) && shiftIsBounded(v) => (SRLW x                 y)
-(Rsh64Ux(64|32|16|8) x y) && shiftIsBounded(v) => (SRL  x                 y)
+(Rsh8Ux(64|32|16|8)  x y) && ssa.ShiftIsBounded(v) => (SRL  (ZeroExt8to64  x) y)
+(Rsh16Ux(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SRL  (ZeroExt16to64 x) y)
+(Rsh32Ux(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SRLW x                 y)
+(Rsh64Ux(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SRL  x                 y)
 
 // SRA only considers the bottom 6 bits of y, similarly SRAW only considers the
 // bottom 5 bits. If y is greater than the maximum value (either 63 or 31
@@ -188,27 +191,27 @@
 //
 // We don't need to sign-extend the OR result, as it will be at minimum 8 bits,
 // more than the 5 or 6 bits SRAW and SRA care about.
-(Rsh8x8   <t> x y) && !shiftIsBounded(v) => (SRA  <t> (SignExt8to64  x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt8to64  y)))))
-(Rsh8x16  <t> x y) && !shiftIsBounded(v) => (SRA  <t> (SignExt8to64  x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt16to64 y)))))
-(Rsh8x32  <t> x y) && !shiftIsBounded(v) => (SRA  <t> (SignExt8to64  x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
-(Rsh8x64  <t> x y) && !shiftIsBounded(v) => (SRA  <t> (SignExt8to64  x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
-(Rsh16x8  <t> x y) && !shiftIsBounded(v) => (SRA  <t> (SignExt16to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt8to64  y)))))
-(Rsh16x16 <t> x y) && !shiftIsBounded(v) => (SRA  <t> (SignExt16to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt16to64 y)))))
-(Rsh16x32 <t> x y) && !shiftIsBounded(v) => (SRA  <t> (SignExt16to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
-(Rsh16x64 <t> x y) && !shiftIsBounded(v) => (SRA  <t> (SignExt16to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
-(Rsh32x8  <t> x y) && !shiftIsBounded(v) => (SRAW <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt8to64  y)))))
-(Rsh32x16 <t> x y) && !shiftIsBounded(v) => (SRAW <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt16to64 y)))))
-(Rsh32x32 <t> x y) && !shiftIsBounded(v) => (SRAW <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt32to64 y)))))
-(Rsh32x64 <t> x y) && !shiftIsBounded(v) => (SRAW <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] y))))
-(Rsh64x8  <t> x y) && !shiftIsBounded(v) => (SRA  <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt8to64  y)))))
-(Rsh64x16 <t> x y) && !shiftIsBounded(v) => (SRA  <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt16to64 y)))))
-(Rsh64x32 <t> x y) && !shiftIsBounded(v) => (SRA  <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
-(Rsh64x64 <t> x y) && !shiftIsBounded(v) => (SRA  <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
+(Rsh8x8   <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> (SignExt8to64  x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt8to64  y)))))
+(Rsh8x16  <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> (SignExt8to64  x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt16to64 y)))))
+(Rsh8x32  <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> (SignExt8to64  x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
+(Rsh8x64  <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> (SignExt8to64  x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
+(Rsh16x8  <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> (SignExt16to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt8to64  y)))))
+(Rsh16x16 <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> (SignExt16to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt16to64 y)))))
+(Rsh16x32 <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> (SignExt16to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
+(Rsh16x64 <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> (SignExt16to64 x) (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
+(Rsh32x8  <t> x y) && !ssa.ShiftIsBounded(v) => (SRAW <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt8to64  y)))))
+(Rsh32x16 <t> x y) && !ssa.ShiftIsBounded(v) => (SRAW <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt16to64 y)))))
+(Rsh32x32 <t> x y) && !ssa.ShiftIsBounded(v) => (SRAW <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] (ZeroExt32to64 y)))))
+(Rsh32x64 <t> x y) && !ssa.ShiftIsBounded(v) => (SRAW <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [32] y))))
+(Rsh64x8  <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt8to64  y)))))
+(Rsh64x16 <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt16to64 y)))))
+(Rsh64x32 <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
+(Rsh64x64 <t> x y) && !ssa.ShiftIsBounded(v) => (SRA  <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
 
-(Rsh8x(64|32|16|8)  x y) && shiftIsBounded(v) => (SRA  (SignExt8to64  x) y)
-(Rsh16x(64|32|16|8) x y) && shiftIsBounded(v) => (SRA  (SignExt16to64 x) y)
-(Rsh32x(64|32|16|8) x y) && shiftIsBounded(v) => (SRAW  x                y)
-(Rsh64x(64|32|16|8) x y) && shiftIsBounded(v) => (SRA   x                y)
+(Rsh8x(64|32|16|8)  x y) && ssa.ShiftIsBounded(v) => (SRA  (SignExt8to64  x) y)
+(Rsh16x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SRA  (SignExt16to64 x) y)
+(Rsh32x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SRAW  x                y)
+(Rsh64x(64|32|16|8) x y) && ssa.ShiftIsBounded(v) => (SRA   x                y)
 
 // Rotates.
 (RotateLeft8  <t> x y) => (OR (SLL  <t> x (ANDI [7]  <y.Type> y)) (SRL <t> (ZeroExt8to64  x) (ANDI [7]  <y.Type> (NEG <y.Type> y))))
@@ -272,15 +275,15 @@
 
 // Loads
 (Load <t> ptr mem) &&  t.IsBoolean()                   => (MOVBUload ptr mem)
-(Load <t> ptr mem) && ( is8BitInt(t) &&  t.IsSigned()) => (MOVBload  ptr mem)
-(Load <t> ptr mem) && ( is8BitInt(t) && !t.IsSigned()) => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload  ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) &&  t.IsSigned()) => (MOVWload  ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
-(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t))      => (MOVDload  ptr mem)
-(Load <t> ptr mem) &&  is32BitFloat(t)                 => (FMOVWload ptr mem)
-(Load <t> ptr mem) &&  is64BitFloat(t)                 => (FMOVDload ptr mem)
+(Load <t> ptr mem) && ( ssa.Is8BitInt(t) &&  t.IsSigned()) => (MOVBload  ptr mem)
+(Load <t> ptr mem) && ( ssa.Is8BitInt(t) && !t.IsSigned()) => (MOVBUload ptr mem)
+(Load <t> ptr mem) && (ssa.Is16BitInt(t) &&  t.IsSigned()) => (MOVHload  ptr mem)
+(Load <t> ptr mem) && (ssa.Is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
+(Load <t> ptr mem) && (ssa.Is32BitInt(t) &&  t.IsSigned()) => (MOVWload  ptr mem)
+(Load <t> ptr mem) && (ssa.Is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
+(Load <t> ptr mem) && (ssa.Is64BitInt(t) ||ssa.IsPtr(t))      => (MOVDload  ptr mem)
+(Load <t> ptr mem) &&  ssa.Is32BitFloat(t)                 => (FMOVWload ptr mem)
+(Load <t> ptr mem) &&  ssa.Is64BitFloat(t)                 => (FMOVDload ptr mem)
 
 // Stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
@@ -293,48 +296,48 @@
 // We need to fold MOVaddr into the LD/MOVDstore ops so that the live variable analysis
 // knows what variables are being read/written by the ops.
 (MOV(B|BU|H|HU|W|WU|D)load [off1] {sym1} (MOVaddr [off2] {sym2} base) mem) &&
-	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
-	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOV(B|BU|H|HU|W|WU|D)load [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2) &&
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
+	(MOV(B|BU|H|HU|W|WU|D)load [off1+off2] {ssa.MergeSym(sym1,sym2)} base mem)
 
 (FMOV(W|D)load [off1] {sym1} (MOVaddr [off2] {sym2} base) mem) &&
-	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
-	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(FMOV(W|D)load [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2) &&
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
+	(FMOV(W|D)load [off1+off2] {ssa.MergeSym(sym1,sym2)} base mem)
 
 (MOV(B|H|W|D)store [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) &&
-	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
-	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOV(B|H|W|D)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+	ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2) &&
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
+	(MOV(B|H|W|D)store [off1+off2] {ssa.MergeSym(sym1,sym2)} base val mem)
 
 (MOV(B|H|W|D)storezero [off1] {sym1} (MOVaddr [off2] {sym2} base) mem) &&
-	canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) &&
-	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOV(B|H|W|D)storezero [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	ssa.CanMergeSym(sym1,sym2) && ssa.Is32Bit(int64(off1)+int64(off2)) &&
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
+	(MOV(B|H|W|D)storezero [off1+off2] {ssa.MergeSym(sym1,sym2)} base mem)
 
 (FMOV(W|D)store [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) &&
-	is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) &&
-	(base.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(FMOV(W|D)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+	ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2) &&
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
+	(FMOV(W|D)store [off1+off2] {ssa.MergeSym(sym1,sym2)} base val mem)
 
-(MOV(B|BU|H|HU|W|WU|D)load [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
+(MOV(B|BU|H|HU|W|WU|D)load [off1] {sym} (ADDI [off2] base) mem) && ssa.Is32Bit(int64(off1)+off2) =>
 	(MOV(B|BU|H|HU|W|WU|D)load [off1+int32(off2)] {sym} base mem)
 
-(FMOV(W|D)load [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
+(FMOV(W|D)load [off1] {sym} (ADDI [off2] base) mem) && ssa.Is32Bit(int64(off1)+off2) =>
 	(FMOV(W|D)load [off1+int32(off2)] {sym} base mem)
 
-(MOV(B|H|W|D)store [off1] {sym} (ADDI [off2] base) val mem) && is32Bit(int64(off1)+off2) =>
+(MOV(B|H|W|D)store [off1] {sym} (ADDI [off2] base) val mem) && ssa.Is32Bit(int64(off1)+off2) =>
 	(MOV(B|H|W|D)store [off1+int32(off2)] {sym} base val mem)
 
-(MOV(B|H|W|D)storezero [off1] {sym} (ADDI [off2] base) mem) && is32Bit(int64(off1)+off2) =>
+(MOV(B|H|W|D)storezero [off1] {sym} (ADDI [off2] base) mem) && ssa.Is32Bit(int64(off1)+off2) =>
 	(MOV(B|H|W|D)storezero [off1+int32(off2)] {sym} base mem)
 
-(FMOV(W|D)store [off1] {sym} (ADDI [off2] base) val mem) && is32Bit(int64(off1)+off2) =>
+(FMOV(W|D)store [off1] {sym} (ADDI [off2] base) val mem) && ssa.Is32Bit(int64(off1)+off2) =>
 	(FMOV(W|D)store [off1+int32(off2)] {sym} base val mem)
 
 // Similarly, fold ADDI into MOVaddr to avoid confusing live variable analysis
 // with OffPtr -> ADDI.
-(ADDI [c] (MOVaddr [d] {s} x)) && is32Bit(c+int64(d)) => (MOVaddr [int32(c)+d] {s} x)
+(ADDI [c] (MOVaddr [d] {s} x)) && ssa.Is32Bit(c+int64(d)) => (MOVaddr [int32(c)+d] {s} x)
 
 // Small zeroing
 (Zero [0] _ mem) => mem
@@ -375,12 +378,12 @@
 			(MOVHstore ptr (MOVDconst [0]) mem)))
 
 // Unroll zeroing in medium size (at most 192 bytes i.e. 3 cachelines)
-(Zero [s] {t} ptr mem) && s <= 24*moveSize(t.Alignment(), config) =>
-	(LoweredZero [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+(Zero [s] {t} ptr mem) && s <= 24*ssa.MoveSize(t.Alignment(), config) =>
+	(LoweredZero [s] {t.Alignment()} ptr mem)
 
 // Generic zeroing uses a loop
-(Zero [s] {t} ptr mem) && s > 24*moveSize(t.Alignment(), config) =>
-	(LoweredZeroLoop [makeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+(Zero [s] {t} ptr mem) && s > 24*ssa.MoveSize(t.Alignment(), config) =>
+	(LoweredZeroLoop [s] {t.Alignment()} ptr mem)
 
 // Checks
 (IsNonNil ...) => (SNEZ ...)
@@ -400,10 +403,10 @@
 (PubBarrier ...) => (LoweredPubBarrier ...)
 
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
-(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
-(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
-(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssa.PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // Small moves
 (Move [0] _ _ mem) => mem
@@ -444,14 +447,14 @@
 			(MOVHstore dst (MOVHload src mem) mem)))
 
 // Generic move
-(Move [s] {t} dst src mem) && s > 0 && s <= 3*8*moveSize(t.Alignment(), config)
-	&& logLargeCopy(v, s) =>
-	(LoweredMove [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+(Move [s] {t} dst src mem) && s > 0 && s <= 3*8*ssa.MoveSize(t.Alignment(), config)
+	&& ssa.LogLargeCopyValue(v, s) =>
+	(LoweredMove [s] {t.Alignment()} dst src mem)
 
 // Generic move uses a loop
-(Move [s] {t} dst src mem) && s > 3*8*moveSize(t.Alignment(), config)
-	&& logLargeCopy(v, s) =>
-	(LoweredMoveLoop [makeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+(Move [s] {t} dst src mem) && s > 3*8*ssa.MoveSize(t.Alignment(), config)
+	&& ssa.LogLargeCopyValue(v, s) =>
+	(LoweredMoveLoop [s] {t.Alignment()} dst src mem)
 
 // Boolean ops; 0=false, 1=true
 (AndB ...) => (AND ...)
@@ -462,14 +465,14 @@
 
 // Lowering pointer arithmetic
 // TODO: Special handling for SP offsets, like ARM
-(OffPtr [off] ptr:(SP)) && is32Bit(off) => (MOVaddr [int32(off)] ptr)
-(OffPtr [off] ptr) && is32Bit(off) => (ADDI [off] ptr)
+(OffPtr [off] ptr:(SP)) && ssa.Is32Bit(off) => (MOVaddr [int32(off)] ptr)
+(OffPtr [off] ptr) && ssa.Is32Bit(off) => (ADDI [off] ptr)
 (OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
 
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(64|32)F ...) => (FMOV(D|F)const ...)
 (ConstNil) => (MOVDconst [0])
-(ConstBool [val]) => (MOVDconst [int64(b2i(val))])
+(ConstBool [val]) => (MOVDconst [int64(ssa.B2i(val))])
 
 (Addr {sym} base) => (MOVaddr {sym} [0] base)
 (LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (MOVaddr {sym} (SPanchored base mem))
@@ -480,6 +483,7 @@
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall   ...) => (CALLinter   ...)
 (TailCall ...) => (CALLtail ...)
+(TailCallInter ...) => (CALLtailinter ...)
 
 // Atomic Intrinsics
 (AtomicLoad(Ptr|64|32|8)  ...) => (LoweredAtomicLoad(64|64|32|8) ...)
@@ -493,6 +497,11 @@
 			(SLLI <typ.UInt64> [3] (ANDI <typ.UInt64> [3] ptr)))) mem)
 
 (AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
+
+(AtomicAnd32value ...) => (LoweredAtomicAnd32value ...)
+(AtomicAnd64value ...) => (LoweredAtomicAnd64value ...)
+(AtomicOr32value ...) => (LoweredAtomicOr32value ...)
+(AtomicOr64value ...) => (LoweredAtomicOr64value ...)
 
 (AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
 (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
@@ -590,6 +599,14 @@
 // Combine negation and sign extension.
 (MOVWreg (NEG x)) => (NEGW x)
 
+// Avoid extending when already sufficiently shifted.
+(MOVBUreg x:(SRLI  [c] y)) && c >= 56 => x
+(MOVHUreg x:(SRLI  [c] y)) && c >= 48 => x
+(MOVWUreg x:(SRLI  [c] y)) && c >= 32 => x
+(MOVBUreg x:(SRLIW [c] y)) && c >= 24 => x
+(MOVHUreg x:(SRLIW [c] y)) && c >= 16 => x
+(MOVWUreg x:(SRLIW [c] y)) => x
+
 // Avoid sign/zero extension for consts.
 (MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(int8(c))])
 (MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(int16(c))])
@@ -621,17 +638,19 @@
 (MOVBUreg x:(Select0 (LoweredAtomicCas64 _ _ _ _))) => (MOVDreg x)
 
 // Avoid sign extension after word arithmetic.
-(MOVWreg x:(ADDIW   _)) => (MOVDreg x)
-(MOVWreg x:(SUBW  _ _)) => (MOVDreg x)
-(MOVWreg x:(NEGW    _)) => (MOVDreg x)
-(MOVWreg x:(MULW  _ _)) => (MOVDreg x)
-(MOVWreg x:(DIVW  _ _)) => (MOVDreg x)
-(MOVWreg x:(DIVUW _ _)) => (MOVDreg x)
-(MOVWreg x:(REMW  _ _)) => (MOVDreg x)
-(MOVWreg x:(REMUW _ _)) => (MOVDreg x)
-(MOVWreg x:(ROLW  _ _)) => (MOVDreg x)
-(MOVWreg x:(RORW  _ _)) => (MOVDreg x)
-(MOVWreg x:(RORIW   _)) => (MOVDreg x)
+// Careful to not omit the sign extension in cases where regalloc
+// might restore without it, see issue 80577.
+(MOVWreg x:(ADDIW   _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(SUBW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(NEGW    _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(MULW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(DIVW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(DIVUW _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(REMW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(REMUW _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(ROLW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(RORW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(RORIW   _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
 
 // Fold double extensions.
 (MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
@@ -664,21 +683,21 @@
 (MOVWstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
 
 // Replace extend after load with alternate load where possible.
-(MOVBreg  <t> x:(MOVBUload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVBload  <t> [off] {sym} ptr mem)
-(MOVHreg  <t> x:(MOVHUload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHload  <t> [off] {sym} ptr mem)
-(MOVWreg  <t> x:(MOVWUload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWload  <t> [off] {sym} ptr mem)
-(MOVBUreg <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVBUload <t> [off] {sym} ptr mem)
-(MOVHUreg <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHUload <t> [off] {sym} ptr mem)
-(MOVWUreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWUload <t> [off] {sym} ptr mem)
+(MOVBreg  <t> x:(MOVBUload [off] {sym} ptr mem)) && x.Uses == 1 && ssa.Clobber(x) => @x.Block (MOVBload  <t> [off] {sym} ptr mem)
+(MOVHreg  <t> x:(MOVHUload [off] {sym} ptr mem)) && x.Uses == 1 && ssa.Clobber(x) => @x.Block (MOVHload  <t> [off] {sym} ptr mem)
+(MOVWreg  <t> x:(MOVWUload [off] {sym} ptr mem)) && x.Uses == 1 && ssa.Clobber(x) => @x.Block (MOVWload  <t> [off] {sym} ptr mem)
+(MOVBUreg <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && ssa.Clobber(x) => @x.Block (MOVBUload <t> [off] {sym} ptr mem)
+(MOVHUreg <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && ssa.Clobber(x) => @x.Block (MOVHUload <t> [off] {sym} ptr mem)
+(MOVWUreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && ssa.Clobber(x) => @x.Block (MOVWUload <t> [off] {sym} ptr mem)
 
 // Replace load from same location as preceding store with copy.
-(MOV(D|W|H|B)load [off] {sym} ptr1 (MOV(D|W|H|B)store [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOV(D|W|H|B)reg x)
-(MOV(W|H|B)Uload  [off] {sym} ptr1 (MOV(W|H|B)store   [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOV(W|H|B)Ureg  x)
-(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVXD x)
-(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVDX x)
-(MOVWload  [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVXS x)
-(MOVWUload [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVWUreg (FMVXS x))
-(FMOVWload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (FMVSX x)
+(MOV(D|W|H|B)load [off] {sym} ptr1 (MOV(D|W|H|B)store [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (MOV(D|W|H|B)reg x)
+(MOV(W|H|B)Uload  [off] {sym} ptr1 (MOV(W|H|B)store   [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (MOV(W|H|B)Ureg  x)
+(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (FMVXD x)
+(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (FMVDX x)
+(MOVWload  [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (FMVXS x)
+(MOVWUload [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (MOVWUreg (FMVXS x))
+(FMOVWload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (FMVSX x)
 
 // If a register move has only 1 use, just use the same register without emitting instruction
 // MOVnop does not emit an instruction, only for ensuring the type.
@@ -689,36 +708,44 @@
 (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
 
 // Avoid unnecessary zero and sign extension when right shifting.
-(SRAI <t> [x] (MOVWreg  y)) && x >= 0 && x <= 31 => (SRAIW <t> [int64(x)] y)
-(SRLI <t> [x] (MOVWUreg y)) && x >= 0 && x <= 31 => (SRLIW <t> [int64(x)] y)
+(SRAI [x] (MOVWreg  y)) && x >= 0 && x <= 31 => (SRAIW [x] y)
+(SRLI [x] (MOVWUreg y)) && x >= 0 && x <= 31 => (SRLIW [x] y)
 
 // Replace right shifts that exceed size of signed type.
 (SRAI <t> [x] (MOVBreg y)) && x >=  8 => (SRAI  [63] (SLLI <t> [56] y))
 (SRAI <t> [x] (MOVHreg y)) && x >= 16 => (SRAI  [63] (SLLI <t> [48] y))
-(SRAI <t> [x] (MOVWreg y)) && x >= 32 => (SRAIW [31] y)
+(SRAI     [x] (MOVWreg y)) && x >= 32 => (SRAIW [31] y)
 
 // Eliminate right shifts that exceed size of unsigned type.
-(SRLI <t> [x] (MOVBUreg y)) && x >=  8 => (MOVDconst <t> [0])
-(SRLI <t> [x] (MOVHUreg y)) && x >= 16 => (MOVDconst <t> [0])
-(SRLI <t> [x] (MOVWUreg y)) && x >= 32 => (MOVDconst <t> [0])
+(SRLI [x] (MOVBUreg y)) && x >=  8 => (MOVDconst [0])
+(SRLI [x] (MOVHUreg y)) && x >= 16 => (MOVDconst [0])
+(SRLI [x] (MOVWUreg y)) && x >= 32 => (MOVDconst [0])
+
+// Remove unnecessary masking with shifts.
+(SLL  x (ANDI [63] y)) => (SLL  x y)
+(SRL  x (ANDI [63] y)) => (SRL  x y)
+(SRA  x (ANDI [63] y)) => (SRA  x y)
+(SLLW x (ANDI [31] y)) => (SLLW x y)
+(SRLW x (ANDI [31] y)) => (SRLW x y)
+(SRAW x (ANDI [31] y)) => (SRAW x y)
 
 // Fold constant into immediate instructions where possible.
-(ADD (MOVDconst <t> [val]) x) && is32Bit(val) && !t.IsPtr() => (ADDI [val] x)
-(AND (MOVDconst [val]) x) && is32Bit(val) => (ANDI [val] x)
-(OR  (MOVDconst [val]) x) && is32Bit(val) => (ORI  [val] x)
-(XOR (MOVDconst [val]) x) && is32Bit(val) => (XORI [val] x)
-(ROL  x (MOVDconst [val])) => (RORI  [int64(int8(-val)&63)] x)
-(ROLW x (MOVDconst [val])) => (RORIW [int64(int8(-val)&31)] x)
-(ROR  x (MOVDconst [val])) => (RORI  [int64(val&63)] x)
-(RORW x (MOVDconst [val])) => (RORIW [int64(val&31)] x)
-(SLL  x (MOVDconst [val])) => (SLLI [int64(val&63)] x)
-(SRL  x (MOVDconst [val])) => (SRLI [int64(val&63)] x)
-(SLLW x (MOVDconst [val])) => (SLLIW [int64(val&31)] x)
-(SRLW x (MOVDconst [val])) => (SRLIW [int64(val&31)] x)
-(SRA  x (MOVDconst [val])) => (SRAI [int64(val&63)] x)
-(SRAW x (MOVDconst [val])) => (SRAIW [int64(val&31)] x)
-(SLT  x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTI  [val] x)
-(SLTU x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTIU [val] x)
+(ADD (MOVDconst <t> [val]) x) && ssa.Is32Bit(val) && !t.IsPtr() => (ADDI [val] x)
+(AND (MOVDconst [val]) x) && ssa.Is32Bit(val) => (ANDI [val] x)
+(OR  (MOVDconst [val]) x) && ssa.Is32Bit(val) => (ORI  [val] x)
+(XOR (MOVDconst [val]) x) && ssa.Is32Bit(val) => (XORI [val] x)
+(ROL  x (MOVDconst [val])) => (RORI  [-val&63] x)
+(ROLW x (MOVDconst [val])) => (RORIW [-val&31] x)
+(ROR  x (MOVDconst [val])) => (RORI  [val&63] x)
+(RORW x (MOVDconst [val])) => (RORIW [val&31] x)
+(SLL  x (MOVDconst [val])) => (SLLI  [val&63] x)
+(SLLW x (MOVDconst [val])) => (SLLIW [val&31] x)
+(SRL  x (MOVDconst [val])) => (SRLI  [val&63] x)
+(SRLW x (MOVDconst [val])) => (SRLIW [val&31] x)
+(SRA  x (MOVDconst [val])) => (SRAI  [val&63] x)
+(SRAW x (MOVDconst [val])) => (SRAIW [val&31] x)
+(SLT  x (MOVDconst [val])) && ssa.Is12Bit(val) => (SLTI  [val] x)
+(SLTU x (MOVDconst [val])) && ssa.Is12Bit(val) => (SLTIU [val] x)
 
 // Replace negated left rotation with right rotation.
 (ROL  x (NEG y)) => (ROR  x y)
@@ -734,8 +761,8 @@
 (XOR x x) => (MOVDconst [0])
 
 // Convert const subtraction into ADDI with negative immediate, where possible.
-(SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)
-(SUB <t> (MOVDconst [val]) y) && is32Bit(-val) => (NEG (ADDI <t> [-val] y))
+(SUB x (MOVDconst [val])) && ssa.Is32Bit(-val) => (ADDI [-val] x)
+(SUB <t> (MOVDconst [val]) y) && ssa.Is32Bit(-val) => (NEG (ADDI <t> [-val] y))
 
 // Subtraction of zero.
 (SUB  x (MOVDconst [0])) => x
@@ -747,15 +774,15 @@
 
 // Fold negation into subtraction.
 (NEG (SUB x y)) => (SUB y x)
-(NEG <t> s:(ADDI [val] (SUB x y))) && s.Uses == 1 && is32Bit(-val) => (ADDI [-val] (SUB <t> y x))
+(NEG <t> s:(ADDI [val] (SUB x y))) && s.Uses == 1 && ssa.Is32Bit(-val) => (ADDI [-val] (SUB <t> y x))
 
 // Double negation.
 (NEG (NEG x)) => x
-(NEG <t> s:(ADDI [val] (NEG x))) && s.Uses == 1 && is32Bit(-val) => (ADDI [-val] x)
+(NEG <t> s:(ADDI [val] (NEG x))) && s.Uses == 1 && ssa.Is32Bit(-val) => (ADDI [-val] x)
 
 // Addition of zero or two constants.
 (ADDI [0] x) => x
-(ADDI [x] (MOVDconst [y])) && is32Bit(x + y) => (MOVDconst [x + y])
+(ADDI [x] (MOVDconst [y])) && ssa.Is32Bit(x + y) => (MOVDconst [x + y])
 
 // ANDI with all zeros, all ones or two constants.
 (ANDI [0]  x) => (MOVDconst [0])
@@ -768,7 +795,7 @@
 (ORI [x] (MOVDconst [y])) => (MOVDconst [x | y])
 
 // Combine operations with immediate.
-(ADDI [x] (ADDI [y] z)) && is32Bit(x + y) => (ADDI [x + y] z)
+(ADDI [x] (ADDI [y] z)) && ssa.Is32Bit(x + y) => (ADDI [x + y] z)
 (ANDI [x] (ANDI [y] z)) => (ANDI [x & y] z)
 (ORI  [x] (ORI  [y] z)) => (ORI  [x | y] z)
 
@@ -777,22 +804,21 @@
 (NEGW (MOVDconst [x])) => (MOVDconst [int64(int32(-x))])
 
 // Shift of a constant.
-(SLLI [x] (MOVDconst [y])) && is32Bit(y << uint32(x)) => (MOVDconst [y << uint32(x)])
+(SLLI [x] (MOVDconst [y])) && ssa.Is32Bit(y << uint32(x)) => (MOVDconst [y << uint32(x)])
 (SRLI [x] (MOVDconst [y])) => (MOVDconst [int64(uint64(y) >> uint32(x))])
 (SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> uint32(x)])
 
 // Combine doubling via addition with shift.
-(SLLI <t> [c] (ADD x x)) && c < t.Size() * 8 - 1 => (SLLI <t> [c+1] x)
+(SLLI <t> [c] (ADD x x)) && c < t.Size() * 8 - 1 => (SLLI [c+1] x)
 (SLLI <t> [c] (ADD x x)) && c >= t.Size() * 8 - 1 => (MOVDconst [0])
 
 // SLTI/SLTIU with constants.
-(SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
-(SLTIU [x] (MOVDconst [y])) => (MOVDconst [b2i(uint64(y) < uint64(x))])
+(SLTI  [x] (MOVDconst [y])) => (MOVDconst [ssa.B2i(int64(y) < int64(x))])
+(SLTIU [x] (MOVDconst [y])) => (MOVDconst [ssa.B2i(uint64(y) < uint64(x))])
 
 // SLTI/SLTIU with known outcomes.
 (SLTI  [x] (ANDI [y] _)) && y >= 0 && int64(y) < int64(x) => (MOVDconst [1])
 (SLTIU [x] (ANDI [y] _)) && y >= 0 && uint64(y) < uint64(x) => (MOVDconst [1])
-(SLTI  [x] (ORI  [y] _)) && y >= 0 && int64(y) >= int64(x) => (MOVDconst [0])
 (SLTIU [x] (ORI  [y] _)) && y >= 0 && uint64(y) >= uint64(x) => (MOVDconst [0])
 
 // SLT/SLTU with known outcomes.
@@ -803,9 +829,19 @@
 (Select0 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MULHU x y)
 (Select1 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MUL x y)
 
-(FADD(S|D) a (FMUL(S|D) x y)) && a.Block.Func.useFMA(v) => (FMADD(S|D) x y a)
-(FSUB(S|D) a (FMUL(S|D) x y)) && a.Block.Func.useFMA(v) => (FNMSUB(S|D) x y a)
-(FSUB(S|D) (FMUL(S|D) x y) a) && a.Block.Func.useFMA(v) => (FMSUB(S|D) x y a)
+// Optimise bit tests with larger than 12 bit values.
+(S(EQ|NE)Z a:(ANDI [x] y)) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
+(B(EQ|NE)Z a:(ANDI [x] y) yes no) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
+(S(EQ|NE)Z a:(AND (MOVDconst [x]) y)) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
+(B(EQ|NE)Z a:(AND (MOVDconst [x]) y) yes no) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
+
+// Combine small shifts into bit tests.
+(S(EQ|NE)Z a:(ANDI [x] (SRLI [y] z))) && ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [x << y] z))
+(B(EQ|NE)Z a:(ANDI [x] (SRLI [y] z)) yes no) && ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [x << y] z) yes no)
+
+(FADD(S|D) a (FMUL(S|D) x y)) && a.Block.Func.UseFMA(v) => (FMADD(S|D) x y a)
+(FSUB(S|D) a (FMUL(S|D) x y)) && a.Block.Func.UseFMA(v) => (FNMSUB(S|D) x y a)
+(FSUB(S|D) (FMUL(S|D) x y) a) && a.Block.Func.UseFMA(v) => (FMSUB(S|D) x y a)
 
 // Merge negation into fused multiply-add and multiply-subtract.
 //
@@ -823,16 +859,31 @@
 (F(MADD|NMADD|MSUB|NMSUB)D x y neg:(FNEGD z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)D x y z)
 
 // Test for -∞ (bit 0) using 64 bit classify instruction.
-(FLTD x (FMOVDconst [c])) && float64ExactBits(c, -math.MaxFloat64) => (ANDI [1] (FCLASSD x))
-(FLED (FMOVDconst [c]) x) && float64ExactBits(c, -math.MaxFloat64) => (SNEZ (ANDI <typ.Int64> [0xff &^ 1] (FCLASSD x)))
-(FEQD x (FMOVDconst [c])) && float64ExactBits(c, math.Inf(-1)) => (ANDI [1] (FCLASSD x))
-(FNED x (FMOVDconst [c])) && float64ExactBits(c, math.Inf(-1)) => (SEQZ (ANDI <typ.Int64> [1] (FCLASSD x)))
+(FLTD x (FMOVDconst [-math.MaxFloat64])) => (ANDI [0b00_0000_0001] (FCLASSD x))
+(FLED (FMOVDconst [-math.MaxFloat64]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1111_1110] (FCLASSD x)))
+(FEQD x (FMOVDconst [math.Inf(-1)])) => (ANDI [0b00_0000_0001] (FCLASSD x))
+(FNED x (FMOVDconst [math.Inf(-1)])) => (SEQZ (ANDI <typ.Int64> [0b00_0000_0001] (FCLASSD x)))
 
 // Test for +∞ (bit 7) using 64 bit classify instruction.
-(FLTD (FMOVDconst [c]) x) && float64ExactBits(c, math.MaxFloat64) => (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
-(FLED x (FMOVDconst [c])) && float64ExactBits(c, math.MaxFloat64) => (SNEZ (ANDI <typ.Int64> [0xff &^ (1<<7)] (FCLASSD x)))
-(FEQD x (FMOVDconst [c])) && float64ExactBits(c, math.Inf(1)) => (SNEZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
-(FNED x (FMOVDconst [c])) && float64ExactBits(c, math.Inf(1)) => (SEQZ (ANDI <typ.Int64> [1<<7] (FCLASSD x)))
+(FLTD (FMOVDconst [math.MaxFloat64]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
+(FLED x (FMOVDconst [math.MaxFloat64])) => (SNEZ (ANDI <typ.Int64> [0b00_0111_1111] (FCLASSD x)))
+(FEQD x (FMOVDconst [math.Inf(1)])) => (SNEZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
+(FNED x (FMOVDconst [math.Inf(1)])) => (SEQZ (ANDI <typ.Int64> [0b00_1000_0000] (FCLASSD x)))
+
+// Test for subnormal numbers using 64 bit classify instruction.
+(FLTD x (FMOVDconst [+0x1p-1022])) => (SNEZ (ANDI <typ.Int64> [0b00_0011_1111] (FCLASSD x)))
+(FLED (FMOVDconst [+0x1p-1022]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1100_0000] (FCLASSD x)))
+(FLED x (FMOVDconst [-0x1p-1022])) => (SNEZ (ANDI <typ.Int64> [0b00_0000_0011] (FCLASSD x)))
+(FLTD (FMOVDconst [-0x1p-1022]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1111_1100] (FCLASSD x)))
+
+// Absorb conversion between 32 bit and 64 bit if both src and dst are 32 bit.
+(FCVTSD (F(ABS|SQRT)D (FCVTDS X))) => (F(ABS|SQRT)S X)
+
+// Absorb unary sign bit operations into 64 bit classify instruction.
+(S(EQ|NE)Z (ANDI [c] (FCLASSD (FNEGD x)))) => (S(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)))
+(S(EQ|NE)Z (ANDI [c] (FCLASSD (FABSD x)))) => (S(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)))
+(B(EQ|NE)Z (ANDI [c] (FCLASSD (FNEGD x))) yes no) => (B(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)) yes no)
+(B(EQ|NE)Z (ANDI [c] (FCLASSD (FABSD x))) yes no) => (B(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)) yes no)
 
 //
 // Optimisations for rva22u64 and above.
@@ -848,3 +899,34 @@
 (Max64  x y) && buildcfg.GORISCV64 >= 22 => (MAX  x y)
 (Min64u x y) && buildcfg.GORISCV64 >= 22 => (MINU x y)
 (Max64u x y) && buildcfg.GORISCV64 >= 22 => (MAXU x y)
+
+// Conditional selection (note that these will only be emitted for rva23u64 and above)
+(CondSelect <t> x y cond) =>
+	(OR (CZEROEQZ <t> x (MOVBUreg <typ.UInt64> cond)) (CZERONEZ <t> y (MOVBUreg <typ.UInt64> cond)))
+(CZERO(EQ|NE)Z x (SNEZ y)) => (CZERO(EQ|NE)Z x y)
+(CZERO(EQ|NE)Z x (SEQZ y)) => (CZERO(NE|EQ)Z x y)
+(CZERO(EQ|NE)Z x (NEG y)) => (CZERO(EQ|NE)Z x y)
+(CZEROEQZ x x) => x
+(CZERONEZ x x) => (MOVDconst [0])
+(CZERO(EQ|NE)Z (MOVDconst [0]) _) => (MOVDconst [0])
+
+// Optimize conditional arithmetic operations
+(OR (CZEROEQZ <t> x cond) (CZERONEZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) cond)) => ((ADD|SUB|OR|XOR|SUBW) x (CZERONEZ <t> y cond))
+(OR (CZEROEQZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) cond) (CZERONEZ <t> x cond)) => ((ADD|SUB|OR|XOR|SUBW) x (CZEROEQZ <t> y cond))
+(OR x:(CZEROEQZ z cond) (CZERONEZ y:(AND z _) cond)) => (OR y x)
+(OR (CZEROEQZ x:(AND z _) cond) y:(CZERONEZ z cond)) => (OR x y)
+(OR x:(CZEROEQZ z cond) (CZERONEZ y:(ANDI <t> [c] z) cond)) => (OR y x)
+(OR (CZEROEQZ x:(ANDI <t> [c] z) cond) y:(CZERONEZ z cond)) => (OR x y)
+(OR (CZEROEQZ <t> x cond) (CZERONEZ <t> ((ADDI|ORI|XORI) [c] x) cond)) => ((ADD|OR|XOR) x (CZERONEZ <t> (MOVDconst [c]) cond))
+(OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) cond) (CZERONEZ <t> x cond)) => ((ADD|OR|XOR) x (CZEROEQZ <t> (MOVDconst [c]) cond))
+
+// Strength reduction for multiplication by a constant.
+(MUL x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22 => (SLLI [ssa.Log64(c/3)] (SH1ADD <x.Type> x x))
+(MUL x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22 => (SLLI [ssa.Log64(c/5)] (SH2ADD <x.Type> x x))
+(MUL x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22 => (SLLI [ssa.Log64(c/9)] (SH3ADD <x.Type> x x))
+
+// 32-bit multiply by constant (int32/uint32).
+(MULW x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22 => (SLLIW [ssa.Log64(c/3)] (SH1ADD <x.Type> x x))
+(MULW x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22 => (SLLIW [ssa.Log64(c/5)] (SH2ADD <x.Type> x x))
+(MULW x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22 => (SLLIW [ssa.Log64(c/9)] (SH3ADD <x.Type> x x))
+

@@ -62,6 +62,8 @@ var (
 	procOpenThreadToken                   = modadvapi32.NewProc("OpenThreadToken")
 	procQueryServiceStatus                = modadvapi32.NewProc("QueryServiceStatus")
 	procRevertToSelf                      = modadvapi32.NewProc("RevertToSelf")
+	procSetEntriesInAclW                  = modadvapi32.NewProc("SetEntriesInAclW")
+	procSetNamedSecurityInfoW             = modadvapi32.NewProc("SetNamedSecurityInfoW")
 	procSetTokenInformation               = modadvapi32.NewProc("SetTokenInformation")
 	procProcessPrng                       = modbcryptprimitives.NewProc("ProcessPrng")
 	procGetAdaptersAddresses              = modiphlpapi.NewProc("GetAdaptersAddresses")
@@ -81,6 +83,7 @@ var (
 	procGetTempPath2W                     = modkernel32.NewProc("GetTempPath2W")
 	procGetVolumeInformationByHandleW     = modkernel32.NewProc("GetVolumeInformationByHandleW")
 	procGetVolumeNameForVolumeMountPointW = modkernel32.NewProc("GetVolumeNameForVolumeMountPointW")
+	procIsProcessorFeaturePresent         = modkernel32.NewProc("IsProcessorFeaturePresent")
 	procLockFileEx                        = modkernel32.NewProc("LockFileEx")
 	procModule32FirstW                    = modkernel32.NewProc("Module32FirstW")
 	procModule32NextW                     = modkernel32.NewProc("Module32NextW")
@@ -232,6 +235,31 @@ func RevertToSelf() (err error) {
 	r1, _, e1 := syscall.SyscallN(procRevertToSelf.Addr())
 	if r1 == 0 {
 		err = errnoErr(e1)
+	}
+	return
+}
+
+func SetEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) {
+	r0, _, _ := syscall.SyscallN(procSetEntriesInAclW.Addr(), uintptr(countExplicitEntries), uintptr(unsafe.Pointer(explicitEntries)), uintptr(unsafe.Pointer(oldACL)), uintptr(unsafe.Pointer(newACL)))
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func SetNamedSecurityInfo(objectName string, objectType uint32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) {
+	var _p0 *uint16
+	_p0, ret = syscall.UTF16PtrFromString(objectName)
+	if ret != nil {
+		return
+	}
+	return _SetNamedSecurityInfo(_p0, objectType, securityInformation, owner, group, dacl, sacl)
+}
+
+func _SetNamedSecurityInfo(objectName *uint16, objectType uint32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) {
+	r0, _, _ := syscall.SyscallN(procSetNamedSecurityInfoW.Addr(), uintptr(unsafe.Pointer(objectName)), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(sacl)))
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
 	}
 	return
 }
@@ -400,6 +428,12 @@ func GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint
 	return
 }
 
+func IsProcessorFeaturePresent(ProcessorFeature uint32) (ret bool) {
+	r0, _, _ := syscall.SyscallN(procIsProcessorFeaturePresent.Addr(), uintptr(ProcessorFeature))
+	ret = r0 != 0
+	return
+}
+
 func LockFileEx(file syscall.Handle, flags uint32, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) {
 	r1, _, e1 := syscall.SyscallN(procLockFileEx.Addr(), uintptr(file), uintptr(flags), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)))
 	if r1 == 0 {
@@ -444,7 +478,7 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
 func ReOpenFile(filehandle syscall.Handle, desiredAccess uint32, shareMode uint32, flagAndAttributes uint32) (handle syscall.Handle, err error) {
 	r0, _, e1 := syscall.SyscallN(procReOpenFile.Addr(), uintptr(filehandle), uintptr(desiredAccess), uintptr(shareMode), uintptr(flagAndAttributes))
 	handle = syscall.Handle(r0)
-	if handle == 0 {
+	if handle == syscall.InvalidHandle {
 		err = errnoErr(e1)
 	}
 	return

@@ -18,6 +18,9 @@ import (
 // A Node is the abstract interface to an IR node.
 type Node interface {
 	// Formatting
+	// For debugging output, use one of
+	//  Dump/FDump/DumpList/FDumplist (in fmt.go)
+	//  DumpAny/FDumpAny (in dump.go)
 	Format(s fmt.State, verb rune)
 
 	// Source position.
@@ -293,6 +296,7 @@ const (
 	OLINKSYMOFFSET   // offset within a name
 	OJUMPTABLE       // A jump table structure for implementing dense expression switches
 	OINTERFACESWITCH // A type switch with interface cases
+	OMOVE2HEAP       // Promote a stack-backed slice to heap
 
 	// opcodes for generics
 	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)

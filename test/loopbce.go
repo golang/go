@@ -17,8 +17,8 @@ func f0a(a []int) int {
 func f0b(a []int) int {
 	x := 0
 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		b := a[i:] // ERROR "Proved IsSliceInBounds$"
-		x += b[0]
+		b := a[i:] // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed \(by limit\)$"
+		x += b[0]  // ERROR "Proved IsInBounds$"
 	}
 	return x
 }
@@ -417,10 +417,10 @@ func bce1() {
 
 func nobce2(a string) {
 	for i := int64(0); i < int64(len(a)); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
+		useString(a[i:]) // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed \(by limit\)$"
 	}
 	for i := int64(0); i < int64(len(a))-31337; i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
+		useString(a[i:]) // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed"
 	}
 	for i := int64(0); i < int64(len(a))+int64(-1<<63); i++ { // ERROR "Disproved Less64$" "Induction variable: limits \[0,\?\), increment 1$"
 		useString(a[i:])
@@ -467,6 +467,34 @@ func stride2(x *[7]int) int {
 		s += x[i] // ERROR "Proved IsInBounds$"
 	}
 	return s
+}
+
+// This loop should not be proved anything.
+func smallIntUp(arr *[128]int) {
+	for i := int8(0); i <= int8(120); i += int8(10) {
+		arr[i] = int(i)
+	}
+}
+
+// This loop should not be proved anything.
+func smallIntDown(arr *[128]int) {
+	for i := int8(0); i >= int8(-120); i -= int8(10) {
+		arr[127+i] = int(i)
+	}
+}
+
+// This loop should not be proved anything.
+func smallUintUp(arr *[128]int) {
+	for i := uint8(0); i <= uint8(250); i += uint8(10) {
+		arr[i] = int(i)
+	}
+}
+
+// This loop should not be proved anything.
+func smallUintDown(arr *[128]int) {
+	for i := uint8(255); i >= uint8(0); i -= uint8(10) {
+		arr[127+i] = int(i)
+	}
 }
 
 //go:noinline

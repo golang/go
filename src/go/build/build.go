@@ -746,7 +746,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				}
 				tried.goroot = dir
 			}
-			if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
+			if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(os.ReadDir, ctxt.GOROOT, ctxt.Compiler, path) {
 				// TODO(bcmills): Setting p.Dir here is misleading, because gccgo
 				// doesn't actually load its standard-library packages from this
 				// directory. See if we can leave it unset.
@@ -1139,7 +1139,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	// we must not being doing special things like AllowBinary or IgnoreVendor,
 	// and all the file system callbacks must be nil (we're meant to use the local file system).
 	if mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
-		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !slices.Equal(ctxt.ToolTags, defaultToolTags) || !slices.Equal(ctxt.ReleaseTags, defaultReleaseTags) {
+		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !slices.Equal(ctxt.ToolTags, defaultToolTags) || !slices.Equal(ctxt.ReleaseTags, defaultReleaseTags) || ctxt.UseAllFiles {
 		return errNoModules
 	}
 

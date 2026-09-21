@@ -22,6 +22,11 @@ const MaxAvgGroupLoad = maxAvgGroupLoad
 // we can't properly test hint alloc overflows with this.
 const maxAllocTest = 1 << 30
 
+// Do not convert to var-of-funcval, these are used in benchmarks and must be
+// inlined.
+func MemHashAES(p unsafe.Pointer, h, s uintptr) uintptr      { return memHashAES(p, h, s) }
+func MemHashFallback(p unsafe.Pointer, h, s uintptr) uintptr { return memHashFallback(p, h, s) }
+
 func newTestMapType[K comparable, V any]() *abi.MapType {
 	var m map[K]V
 	mTyp := abi.TypeOf(m)

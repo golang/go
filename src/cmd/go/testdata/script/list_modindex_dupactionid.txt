@@ -5,7 +5,6 @@
 # This test will use a go program ('check') to check the cache that there are
 # no two action entry files that point to the same object id.
 
-[short] skip 'builds and runs a go program'
 sleep 2s # Sleep so that the unpacked files are > 2 seconds old. The index won't be used if the modified times on the files are newer.
 go build -o check$GOEXE check.go
 cd mod

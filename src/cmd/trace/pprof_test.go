@@ -14,6 +14,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	itrace "internal/trace"
 	"internal/trace/testtrace"
 )
 
@@ -77,6 +78,31 @@ func TestSyscallProfile74850(t *testing.T) {
 	for i, have := range haveSymbols {
 		if !have {
 			t.Errorf("expected %s in syscall profile", wantSymbols[i])
+		}
+	}
+}
+
+// Regression test: pcsForStack must not panic when the stack has more than
+// pprofMaxStack (128) frames. Before the fix, pcs[i] was written before
+// checking i >= len(pcs), causing an index-out-of-range panic.
+func TestFillPCsOverflow(t *testing.T) {
+	var pcs [pprofMaxStack]uint64
+
+	// Build a stack with more frames than pprofMaxStack.
+	n := pprofMaxStack + 10
+	frames := make([]itrace.StackFrame, n)
+	for i := range frames {
+		frames[i].PC = uint64(0x1000 + i)
+	}
+	stack := itrace.MakeStack(frames)
+
+	// This must not panic.
+	pcsForStack(stack, &pcs)
+
+	// Verify the first pprofMaxStack entries were written correctly.
+	for i := 0; i < pprofMaxStack; i++ {
+		if pcs[i] != uint64(0x1000+i) {
+			t.Errorf("pcs[%d] = %#x, want %#x", i, pcs[i], 0x1000+i)
 		}
 	}
 }

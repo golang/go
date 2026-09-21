@@ -20,7 +20,6 @@ banner                  print installation banner
 bootstrap               rebuild everything
 clean                   deletes all built files
 env [-p]                print environment (-p: include $PATH)
-install [dir]           install individual directory
 list [-json] [-broken]  list all supported platforms
 test [-h]               run Go test(s)
 version                 print Go version
@@ -36,7 +35,6 @@ var commands = map[string]func(){
 	"bootstrap": cmdbootstrap,
 	"clean":     cmdclean,
 	"env":       cmdenv,
-	"install":   cmdinstall,
 	"list":      cmdlist,
 	"test":      cmdtest,
 	"version":   cmdversion,
@@ -140,10 +138,6 @@ func main() {
 			}
 		case gohostos == "openbsd" && strings.Contains(out, "powerpc64"):
 			gohostarch = "ppc64"
-		case gohostos == "openbsd":
-			if strings.Contains(run("", CheckExit, "uname", "-p"), "mips64") {
-				gohostarch = "mips64"
-			}
 		default:
 			fatalf("unknown architecture: %s", out)
 		}
@@ -152,13 +146,9 @@ func main() {
 	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
 		maxbg = min(maxbg, runtime.NumCPU())
 	}
-	// For deterministic make.bash debugging and for smallest-possible footprint,
-	// pay attention to GOMAXPROCS=1.  This was a bad idea for 1.4 bootstrap, but
-	// the bootstrap version is now 1.17+ and thus this is fine.
 	if runtime.GOMAXPROCS(0) == 1 {
 		maxbg = 1
 	}
-	bginit()
 
 	if len(os.Args) > 1 && os.Args[1] == "-check-goarm" {
 		useVFPv1() // might fail with SIGILL

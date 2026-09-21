@@ -75,6 +75,8 @@ type importError struct {
 	err error
 }
 
+var _ error = importError{}
+
 func (e importError) Error() string {
 	return fmt.Sprintf("import error %s (byte offset = %d): %s", e.pos, e.pos.Offset, e.err)
 }

@@ -13,7 +13,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/typesinternal"
 )
@@ -23,7 +23,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "atomic",
-	Doc:              analysisinternal.MustExtractDoc(doc, "atomic"),
+	Doc:              analyzerutil.MustExtractDoc(doc, "atomic"),
 	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/atomic",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,

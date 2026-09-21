@@ -1,0 +1,40 @@
+# Adding a tool upgrades the toolchain to 1.24.0 because older go
+# versions fail to parse the tool directive. Issue #74739.
+cp go.mod.go1.23.0 go.mod
+go get -tool ./mytool
+stderr 'go: upgraded go 1.23.0 => 1.24'
+cmp go.mod go.mod.go1.24
+go mod tidy
+cmp go.mod go.mod.go1.24
+
+# No toolchain change if go >= 1.24.0
+cp go.mod.go1.24 go.mod
+cmp go.mod go.mod.go1.24
+go get -tool ./mytool
+cmp go.mod go.mod.go1.24
+go mod tidy
+cmp go.mod go.mod.go1.24
+
+# TODO(#78550): If #78550 is approved, go build should reject
+# the go.mod file if go < 1.24 but there is a tool directive.
+# For now, we will let it through.
+cp go.mod.go1.23.0 go.mod
+go list ./mytool
+go build -n ./mytool
+
+-- go.mod.go1.23.0 --
+module m
+
+go 1.23.0
+
+tool m/mytool
+-- go.mod.go1.24 --
+module m
+
+go 1.24
+
+tool m/mytool
+-- mytool/mytool.go --
+package mytool
+
+func main() {}

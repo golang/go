@@ -421,9 +421,11 @@ func Read(fd int, b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	js.CopyBytesToGo(b, buf)
-
 	n2 := n.Int()
+	if n2 > 0 {
+		js.CopyBytesToGo(b[:n2], buf)
+	}
+
 	f.pos += int64(n2)
 	return n2, err
 }
@@ -465,8 +467,11 @@ func Pread(fd int, b []byte, offset int64) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	js.CopyBytesToGo(b, buf)
-	return n.Int(), nil
+	n2 := n.Int()
+	if n2 > 0 {
+		js.CopyBytesToGo(b[:n2], buf)
+	}
+	return n2, nil
 }
 
 func Pwrite(fd int, b []byte, offset int64) (int, error) {

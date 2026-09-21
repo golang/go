@@ -52,31 +52,18 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 
 	// Move addressing mode into opcode suffix.
 	suffix := ""
-	switch inst.Op {
-	case LDR, LDRB, LDRH, LDRSB, LDRSH, LDRSW, STR, STRB, STRH, STUR, STURB, STURH, LD1, ST1:
-		switch mem := inst.Args[1].(type) {
+	for i := range inst.Args {
+		switch mem := inst.Args[i].(type) {
 		case MemImmediate:
 			switch mem.Mode {
 			case AddrOffset:
 				// no suffix
 			case AddrPreIndex:
-				suffix = ".W"
+				suffix += ".W"
 			case AddrPostIndex, AddrPostReg:
-				suffix = ".P"
+				suffix += ".P"
 			}
-		}
 
-	case STP, LDP:
-		switch mem := inst.Args[2].(type) {
-		case MemImmediate:
-			switch mem.Mode {
-			case AddrOffset:
-				// no suffix
-			case AddrPreIndex:
-				suffix = ".W"
-			case AddrPostIndex:
-				suffix = ".P"
-			}
 		}
 	}
 

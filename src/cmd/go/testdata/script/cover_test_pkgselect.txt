@@ -1,6 +1,3 @@
-
-[short] skip
-
 # Baseline run.
 go test -cover example/foo
 stdout 'coverage: 50.0% of statements$'

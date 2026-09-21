@@ -89,6 +89,14 @@ func (tree *InlTree) InlinedFunction(inlIndex int) *LSym {
 	return tree.nodes[inlIndex].Func
 }
 
+func (tree *InlTree) InlinedFuncName(inlIndex int) string {
+	return tree.nodes[inlIndex].Name
+}
+
+func (tree *InlTree) InlinedFuncPkg(inlIndex int) string {
+	return tree.nodes[inlIndex].Func.Pkg
+}
+
 func (tree *InlTree) CallPos(inlIndex int) src.XPos {
 	return tree.nodes[inlIndex].Pos
 }

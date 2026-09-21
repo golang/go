@@ -40,6 +40,7 @@ func main() {
 		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
 	ctxt := obj.Linknew(architecture.LinkArch)
+	ctxt.CompressInstructions = flags.DebugFlags.CompressInstructions != 0
 	ctxt.Debugasm = flags.PrintOut
 	ctxt.Debugvlog = flags.DebugV
 	ctxt.Flag_dynlink = *flags.Dynlink
@@ -49,6 +50,7 @@ func main() {
 	ctxt.Debugpcln = flags.DebugFlags.PCTab
 	ctxt.IsAsm = true
 	ctxt.Pkgpath = *flags.Importpath
+	ctxt.Std = *flags.Std
 	ctxt.DwTextCount = objabi.DummyDwarfFunctionCountForAssembler()
 	switch *flags.Spectre {
 	default:
@@ -93,7 +95,7 @@ func main() {
 	for _, f := range flag.Args() {
 		lexer := lex.NewLexer(f)
 		parser := asm.NewParser(ctxt, architecture, lexer)
-		ctxt.DiagFunc = func(format string, args ...interface{}) {
+		ctxt.DiagFunc = func(format string, args ...any) {
 			diag = true
 			log.Printf(format, args...)
 		}

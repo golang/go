@@ -11,12 +11,21 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
 var testTime = time.Date(2000, 1, 2, 3, 4, 5, 0, time.UTC)
+
+var marshalerASCII = func() string {
+	b := make([]byte, 128)
+	for i := range b {
+		b[i] = byte(i)
+	}
+	return string(b)
+}()
 
 func TestTextHandler(t *testing.T) {
 	for _, test := range []struct {
@@ -50,9 +59,24 @@ func TestTextHandler(t *testing.T) {
 			`t`, `"text{\"abc\"}"`,
 		},
 		{
+			"TextMarshaler escapes",
+			Any("t", text{marshalerASCII}),
+			`t`, strconv.Quote(fmt.Sprintf("text{%q}", marshalerASCII)),
+		},
+		{
 			"TextMarshaler error",
 			Any("t", text{""}),
 			`t`, `"!ERROR:text: empty string"`,
+		},
+		{
+			"TextAppender",
+			Any("t", textAppend{"abc"}),
+			`t`, `"textAppend{\"abc\"}"`,
+		},
+		{
+			"TextAppender error",
+			Any("t", textAppend{""}),
+			`t`, `"!ERROR:textAppend: empty string"`,
 		},
 		{
 			"nil value",
@@ -122,6 +146,23 @@ func (t text) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("text{%q}", t.s)), nil
 }
 
+// for testing TextAppender
+type textAppend struct {
+	s string
+}
+
+func (t textAppend) String() string               { return t.s }
+func (t textAppend) MarshalText() ([]byte, error) { return []byte(t.s), nil }
+func (t textAppend) AppendText(b []byte) ([]byte, error) {
+	if t.s == "" {
+		return nil, errors.New("textAppend: empty string")
+	}
+	b = append(b, `textAppend{"`...)
+	b = append(b, t.s...)
+	b = append(b, `"}`...)
+	return b, nil
+}
+
 func TestTextHandlerPreformatted(t *testing.T) {
 	var buf bytes.Buffer
 	var h Handler = NewTextHandler(&buf, nil)
@@ -151,6 +192,27 @@ func TestTextHandlerAlloc(t *testing.T) {
 	h = h.WithGroup("s")
 	r.AddAttrs(Group("g", Int("a", 1)))
 	wantAllocs(t, 0, func() { h.Handle(context.Background(), r) })
+}
+
+func TestTextHandlerTextAppenderNoAlloc(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	r := NewRecord(testTime, LevelInfo, "msg", 0)
+	r.AddAttrs(Any("t", textAppend{"abc"}))
+	h := NewTextHandler(io.Discard, nil)
+	wantAllocs(t, 0, func() { h.Handle(context.Background(), r) })
+}
+
+func BenchmarkTextHandlerTextAppender(b *testing.B) {
+	r := NewRecord(testTime, LevelInfo, "msg", 0)
+	r.AddAttrs(Any("t", textAppend{"abc"}))
+	h := NewTextHandler(io.Discard, nil)
+	ctx := b.Context()
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := h.Handle(ctx, r); err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 func TestNeedsQuoting(t *testing.T) {

@@ -1,0 +1,40 @@
+go test -bench=Foo -cpuprofile=default.pgo
+go test -bench=Foo -pgo=default.pgo
+! stdout 'FAIL'
+
+-- main_test.go --
+package main
+
+import (
+	"testing"
+)
+
+var a int
+
+func save(x int) {
+	a = x
+}
+
+func foo() {
+	for i := range yield1 {
+		defer save(i)
+	}
+}
+
+func yield1(yield func(int) bool) {
+	yield(1)
+}
+
+func BenchmarkFoo(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		foo()
+	}
+	if a != 1 {
+		b.Fatalf("a = %d; want 1", a)
+	}
+}
+
+-- go.mod --
+module demo
+
+go 1.24

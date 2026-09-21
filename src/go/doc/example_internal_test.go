@@ -100,7 +100,7 @@ import (
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			fset := token.NewFileSet()
-			file, err := parser.ParseFile(fset, "test.go", strings.NewReader(test.in), parser.ParseComments)
+			file, err := parser.ParseFile(fset, "test.go", strings.NewReader(test.in), parser.ParseComments|parser.SkipObjectResolution)
 			if err != nil {
 				t.Fatal(err)
 			}

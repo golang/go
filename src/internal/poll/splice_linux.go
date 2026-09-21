@@ -234,7 +234,7 @@ func newPipe() *splicePipe {
 	// although it will require more system calls.
 	unix.Fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
 
-	return &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
+	return &splicePipe{rfd: fds[0], wfd: fds[1]}
 }
 
 // destroyPipe destroys a pipe.

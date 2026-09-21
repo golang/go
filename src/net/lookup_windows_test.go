@@ -30,9 +30,7 @@ func toJson(v any) string {
 
 func testLookup(t *testing.T, fn func(*testing.T, *Resolver, string)) {
 	for _, def := range []bool{true, false} {
-		def := def
 		for _, server := range nslookupTestServers {
-			server := server
 			var name string
 			if def {
 				name = "default/"

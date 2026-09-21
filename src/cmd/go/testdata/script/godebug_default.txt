@@ -1,4 +1,3 @@
-env GO111MODULE=on
 env GOTRACEBACK=single
 
 # Go 1.21 work module should leave panicnil with an implicit default.
@@ -48,41 +47,39 @@ rm go.work
 # Go 1.21 go.mod with godebug default=go1.20
 rm go.work
 cp go.mod.21 go.mod
-go mod edit -godebug default=go1.20 -godebug asynctimerchan=0
+go mod edit -godebug default=go1.20 -godebug randseednop=1
 go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
 stdout panicnil=1
-stdout asynctimerchan=0
+stdout randseednop=1
 
 # Go 1.21 go.work with godebug default=go1.20
 cp go.work.21 go.work
 go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
 ! stdout panicnil # go.work wins
-stdout asynctimerchan=1 # go.work wins
-go work edit -godebug default=go1.20 -godebug asynctimerchan=0
+stdout randseednop=0 # go.work wins
+go work edit -godebug default=go1.20 -godebug randseednop=1
 go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
 stdout panicnil=1
-stdout asynctimerchan=0
+stdout randseednop=1
 rm go.work
 
 # Go 1.21 go.mod with //go:debug default=go1.20 in program
 cp go.mod.21 go.mod
 go list -tags godebug -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
 stdout panicnil=1
-stdout asynctimerchan=0
+stdout randseednop=1
 
 # Invalid //go:debug line should be diagnosed at build.
 ! go build -tags godebugbad
 stderr 'invalid //go:debug: value contains space'
 
-[short] skip
-
 # Programs in Go 1.21 work module should trigger run-time error.
 cp go.mod.21 go.mod
 ! go run .
-stderr 'panic: panic called with nil argument'
+stderr 'runtime error: panic called with nil argument'
 
 ! go run rsc.io/panicnil
-stderr 'panic: panic called with nil argument'
+stderr 'runtime error: panic called with nil argument'
 
 # Programs in Go 1.20 work module use old panic nil behavior.
 cp go.mod.20 go.mod
@@ -99,7 +96,7 @@ stderr 'panic: nil'
 
 rm go.mod
 ! go run rsc.io/panicnil@v1.1.0
-stderr 'panic: panic called with nil argument'
+stderr 'runtime error: panic called with nil argument'
 
 -- go.work.21 --
 go 1.21
@@ -137,13 +134,13 @@ func main() {
 -- godebug.go --
 //go:build godebug
 //go:debug default=go1.20
-//go:debug asynctimerchan=0
+//go:debug randseednop=1
 
 package main
 
 -- godebugbad.go --
 //go:build godebugbad
-//go:debug default=go1.20 asynctimerchan=0
+//go:debug default=go1.20 randseednop=1
 
 package main
 

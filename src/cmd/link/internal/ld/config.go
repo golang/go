@@ -213,15 +213,7 @@ func determineLinkMode(ctxt *Link) {
 		}
 	}
 
-	switch ctxt.LinkMode {
-	case LinkInternal:
-		if extNeeded {
-			Exitf("internal linking requested %sbut external linking required: %s", via, extReason)
-		}
-	case LinkExternal:
-		switch {
-		case buildcfg.GOARCH == "ppc64" && buildcfg.GOOS == "linux":
-			Exitf("external linking not supported for %s/ppc64", buildcfg.GOOS)
-		}
+	if ctxt.LinkMode == LinkInternal && extNeeded {
+		Exitf("internal linking requested %sbut external linking required: %s", via, extReason)
 	}
 }

@@ -7,12 +7,14 @@
 // to produce a full mallocgc function that's specialized for a span class
 // or specific size in the case of the tiny allocator.
 //
-// To assemble a mallocgc function, the mallocStub function is cloned, and the call to
-// inlinedMalloc is replaced with the inlined body of smallScanNoHeaderStub,
-// smallNoScanStub or tinyStub, depending on the parameters being specialized.
+// To generate the specialized mallocgc functions, do 'go run .' inside runtime/_mkmalloc.
 //
-// The size_ (for the tiny case) and elemsize_, sizeclass_, and noscanint_ (for all three cases)
-// identifiers are replaced with the value of the parameter in the specialized case.
+// To assemble a mallocgc function, the mallocStub function is cloned, and the call to
+// inlinedMalloc is replaced with the inlined body of smallStub or tinyStub,
+// depending on the parameters being specialized.
+//
+// The size_ (for the tiny case) and elemsize_, sizeclass_, noscanint_, and isNoScan_ (for all
+// three cases) identifiers are replaced with the value of the parameter in the specialized case.
 // The nextFreeFastStub, nextFreeFastTiny, heapSetTypeNoHeaderStub, and writeHeapBitsSmallStub
 // functions are also inlined by _mkmalloc.
 
@@ -20,6 +22,7 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -33,7 +36,10 @@ import (
 const elemsize_ = 8
 const sizeclass_ = 0
 const noscanint_ = 0
+const isNoScan_ = false
 const size_ = 0
+const isTiny_ = false
+const isSlowPath_ = false
 
 func malloc0(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if doubleCheckMalloc {
@@ -50,6 +56,10 @@ func mallocPanic(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	panic("not defined for sizeclass")
 }
 
+func mallocgcSlowPathStub(size uintptr, typ *_type, needzero bool, spc spanClass, elemsize uintptr) unsafe.Pointer {
+	return mallocStub(size, typ, needzero)
+}
+
 // WARNING: mallocStub does not do any work for sanitizers so callers need
 // to steer out of this codepath early if sanitizers are enabled.
 func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
@@ -59,55 +69,125 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	// It's possible for any malloc to trigger sweeping, which may in
-	// turn queue finalizers. Record this dynamic lock edge.
-	// N.B. Compiled away if lockrank experiment is not enabled.
-	lockRankMayQueueFinalizer()
+	var mp *m
+	if !isSlowPath_ {
+		// Fast path.
 
-	// Pre-malloc debug hooks.
-	if debug.malloc {
-		if x := preMallocgcDebug(size, typ); x != nil {
-			return x
+		// The fast path assumes that GC marking is not running. We
+		// must acquirem to ensure the GC does not start after we
+		// check.
+		mp = acquirem()
+
+		// Do we need to fall back to slow path?
+		forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
+
+		if forceSlowPath {
+			releasem(mp) // Slow path will reacquire.
+			if isTiny_ {
+				return mallocgcTinySlowPath(size, typ, needzero)
+			} else {
+				const spc = spanClass(sizeclass_<<1) | spanClass(noscanint_)
+				const elemsize = uintptr(elemsize_)
+				return mallocgcSlowPathStub(size, typ, needzero, spc, elemsize)
+			}
 		}
-	}
 
-	// Assist the GC if needed.
-	if gcBlackenEnabled != 0 {
-		deductAssistCredit(size)
+		// It's possible for any malloc to trigger sweeping, which may
+		// in turn queue finalizers. Record this dynamic lock edge.
+		// N.B. Compiled away if lockrank experiment is not enabled.
+		lockRankMayQueueFinalizer()
+	} else {
+		// Slow path.
+		if isTiny_ {
+			// secret code, need to avoid the tiny allocator since
+			// it might keep co-located values alive longer and
+			// prevent timely zero-ing.
+			//
+			// Call directly into the NoScan allocator.
+			// See go.dev/issue/76356
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+				return mallocgcSmallNoScanSC2(size, typ, needzero)
+			}
+		}
+
+		// It's possible for any malloc to trigger sweeping, which may
+		// in turn queue finalizers. Record this dynamic lock edge.
+		// N.B. Compiled away if lockrank experiment is not enabled.
+		lockRankMayQueueFinalizer()
+
+		// Pre-malloc debug hooks.
+		if debug.malloc {
+			if x := preMallocgcDebug(size, typ); x != nil {
+				return x
+			}
+		}
+
+		// Assist the GC if needed. (On the reuse path, we currently
+		// compensate for this; changes here might require changes
+		// there.)
+		if gcBlackenEnabled != 0 {
+			deductAssistCredit(size)
+		}
+
+		mp = acquirem()
 	}
 
 	// Actually do the allocation.
-	x, elemsize := inlinedMalloc(size, typ, needzero)
+	return inlinedMalloc(mp, size, typ, needzero)
+}
 
-	// Notify valgrind, if enabled.
-	// To allow the compiler to not know about valgrind, we do valgrind instrumentation
-	// unlike the other sanitizers.
-	if valgrindenabled {
-		valgrindMalloc(x, size)
+func postMallocgc(x unsafe.Pointer, typ *_type, size uintptr, elemsize uintptr) {
+	if isSlowPath_ && !isTiny_ {
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
+			// Mark any object allocated while in secret mode as secret.
+			// This ensures we zero it immediately when freeing it.
+			addSecret(x, size)
+		}
 	}
 
 	// Adjust our GC assist debt to account for internal fragmentation.
-	if gcBlackenEnabled != 0 && elemsize != 0 {
+	if isSlowPath_ && gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
 		}
 	}
 
 	// Post-malloc debug hooks.
-	if debug.malloc {
+	if isSlowPath_ && debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
-	return x
+}
+
+// deductAssistCredit reduces the current G's GC assist credit
+// by size bytes, and assists the GC if necessary.
+//
+// Caller must be preemptible.
+//
+// Defined here so it can be inlined by mkmalloc.
+func deductAssistCredit(size uintptr) {
+	assistG := getg()
+	if assistG.m.curg != nil {
+		assistG = assistG.m.curg
+	}
+	assistG.gcAssistBytes -= int64(size)
+	if assistG.gcAssistBytes < 0 {
+		gcAssistAlloc(assistG)
+	}
 }
 
 // inlinedMalloc will never be called. It is defined just so that the compiler can compile
 // the mallocStub function, which will also never be called, but instead used as a template
 // to generate a size-specialized malloc function. The call to inlinedMalloc in mallocStub
-// will be replaced with the inlined body of smallScanNoHeaderStub, smallNoScanStub, or tinyStub
-// when generating the size-specialized malloc function. See the comment at the top of this
-// file for more information.
-func inlinedMalloc(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
-	return unsafe.Pointer(uintptr(0)), 0
+// will be replaced with the inlined body of smallStub or tinyStub when generating the
+// size-specialized malloc function. See the comment at the top of this file for more
+// information.
+//
+// The caller must acquirem prior to calling inlinedMalloc, which will releasem
+// before returning.
+func inlinedMalloc(mp *m, size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(0))
 }
 
 func doubleCheckSmallScanNoHeader(size uintptr, typ *_type, mp *m) {
@@ -125,14 +205,20 @@ func doubleCheckSmallScanNoHeader(size uintptr, typ *_type, mp *m) {
 	}
 }
 
-func smallScanNoHeaderStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+// The caller must acquirem prior to calling smallStub, which will releasem
+// before returning.
+func smallStub(mp *m, size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	const sizeclass = sizeclass_
 	const elemsize = elemsize_
 
 	// Set mp.mallocing to keep from being preempted by GC.
-	mp := acquirem()
 	if doubleCheckMalloc {
-		doubleCheckSmallScanNoHeader(size, typ, mp)
+		if isNoScan_ {
+			doubleCheckSmallNoScan(typ, mp)
+		}
+		if !isNoScan_ {
+			doubleCheckSmallScanNoHeader(size, typ, mp)
+		}
 	}
 	mp.mallocing = 1
 
@@ -140,23 +226,53 @@ func smallScanNoHeaderStub(size uintptr, typ *_type, needzero bool) (unsafe.Poin
 	c := getMCache(mp)
 	const spc = spanClass(sizeclass<<1) | spanClass(noscanint_)
 	span := c.alloc[spc]
-	v := nextFreeFastStub(span)
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
+
+	var v gclinkptr
+	var x unsafe.Pointer
+	if isNoScan_ {
+		// First, check for a reusable object.
+		if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
+			// We have a reusable object, use it.
+			x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+			mp.mallocing = 0
+			releasem(mp)
+			if isSlowPath_ {
+				// postMallocgc only does anything in the slow path.
+				goto post
+			} else {
+				return x
+			}
+		}
 	}
-	x := unsafe.Pointer(v)
-	if span.needzero != 0 {
-		memclrNoHeapPointers(x, elemsize)
+	// This is in a block so that the goto above doesn't jump past the
+	// definition of nextFreeFastResult that's introduced when nextFreeFastStub
+	// is inlined.
+	{
+		v = nextFreeFastStub(span, elemsize)
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	if goarch.PtrSize == 8 && sizeclass == 1 {
-		// initHeapBits already set the pointer bits for the 8-byte sizeclass
-		// on 64-bit platforms.
-		c.scanAlloc += 8
-	} else {
-		dataSize := size // make the inliner happy
-		x := uintptr(x)
-		scanSize := heapSetTypeNoHeaderStub(x, dataSize, typ, span)
-		c.scanAlloc += scanSize
+	if isNoScan_ {
+		if needzero && span.needzero != 0 {
+			memclrNoHeapPointers(x, elemsize)
+		}
+	}
+	if !isNoScan_ {
+		if span.needzero != 0 {
+			memclrNoHeapPointers(x, elemsize)
+		}
+		if goarch.PtrSize == 8 && elemsize == 8 {
+			// initHeapBits already set the pointer bits for the 8-byte sizeclass
+			// on 64-bit platforms.
+			c.scanAlloc += 8
+		} else {
+			dataSize := size // make the inliner happy
+			x := uintptr(x)
+			scanSize := heapSetTypeNoHeaderStub(x, dataSize, typ, span)
+			c.scanAlloc += scanSize
+		}
 	}
 
 	// Ensure that the stores above that initialize x to
@@ -167,7 +283,7 @@ func smallScanNoHeaderStub(size uintptr, typ *_type, needzero bool) (unsafe.Poin
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
 
-	if writeBarrier.enabled {
+	if isSlowPath_ && writeBarrier.enabled {
 		// Allocate black during GC.
 		// All slots hold nil so no scanning is needed.
 		// This may be racing with GC so do it atomically if there can be
@@ -207,7 +323,12 @@ func smallScanNoHeaderStub(size uintptr, typ *_type, needzero bool) (unsafe.Poin
 		}
 	}
 
-	return x, elemsize
+post:
+	if isSlowPath_ {
+		postMallocgc(x, typ, size, elemsize)
+	}
+
+	return x
 }
 
 func doubleCheckSmallNoScan(typ *_type, mp *m) {
@@ -222,85 +343,6 @@ func doubleCheckSmallNoScan(typ *_type, mp *m) {
 	}
 }
 
-func smallNoScanStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
-	// TODO(matloob): Add functionality to mkmalloc to allow us to inline a non-constant
-	// sizeclass_ and elemsize_ value (instead just set to the expressions to look up the size class
-	// and elemsize. We'd also need to teach mkmalloc that values that are touched by these (specifically
-	// spc below) should turn into vars. This would allow us to generate mallocgcSmallNoScan itself,
-	// so that its code could not diverge from the generated functions.
-	const sizeclass = sizeclass_
-	const elemsize = elemsize_
-
-	// Set mp.mallocing to keep from being preempted by GC.
-	mp := acquirem()
-	if doubleCheckMalloc {
-		doubleCheckSmallNoScan(typ, mp)
-	}
-	mp.mallocing = 1
-
-	checkGCTrigger := false
-	c := getMCache(mp)
-	const spc = spanClass(sizeclass<<1) | spanClass(noscanint_)
-	span := c.alloc[spc]
-	v := nextFreeFastStub(span)
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
-	if needzero && span.needzero != 0 {
-		memclrNoHeapPointers(x, elemsize)
-	}
-
-	// Ensure that the stores above that initialize x to
-	// type-safe memory and set the heap bits occur before
-	// the caller can make x observable to the garbage
-	// collector. Otherwise, on weakly ordered machines,
-	// the garbage collector could follow a pointer to x,
-	// but see uninitialized memory or stale heap bits.
-	publicationBarrier()
-
-	if writeBarrier.enabled {
-		// Allocate black during GC.
-		// All slots hold nil so no scanning is needed.
-		// This may be racing with GC so do it atomically if there can be
-		// a race marking the bit.
-		gcmarknewobject(span, uintptr(x))
-	} else {
-		// Track the last free index before the mark phase. This field
-		// is only used by the garbage collector. During the mark phase
-		// this is used by the conservative scanner to filter out objects
-		// that are both free and recently-allocated. It's safe to do that
-		// because we allocate-black if the GC is enabled. The conservative
-		// scanner produces pointers out of thin air, so without additional
-		// synchronization it might otherwise observe a partially-initialized
-		// object, which could crash the program.
-		span.freeIndexForScan = span.freeindex
-	}
-
-	// Note cache c only valid while m acquired; see #47302
-	//
-	// N.B. Use the full size because that matches how the GC
-	// will update the mem profile on the "free" side.
-	//
-	// TODO(mknyszek): We should really count the header as part
-	// of gc_sys or something. The code below just pretends it is
-	// internal fragmentation and matches the GC's accounting by
-	// using the whole allocation slot.
-	c.nextSample -= int64(elemsize)
-	if c.nextSample < 0 || MemProfileRate != c.memProfRate {
-		profilealloc(mp, x, elemsize)
-	}
-	mp.mallocing = 0
-	releasem(mp)
-
-	if checkGCTrigger {
-		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
-			gcStart(t)
-		}
-	}
-	return x, elemsize
-}
-
 func doubleCheckTiny(size uintptr, typ *_type, mp *m) {
 	if mp.mallocing != 0 {
 		throw("malloc deadlock")
@@ -313,14 +355,14 @@ func doubleCheckTiny(size uintptr, typ *_type, mp *m) {
 	}
 }
 
-func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
-	const constsize = size_
+// The caller must acquirem prior to calling tinyStub, which will releasem
+// before returning.
+func tinyStub(mp *m, size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	const elemsize = elemsize_
 
 	// Set mp.mallocing to keep from being preempted by GC.
-	mp := acquirem()
 	if doubleCheckMalloc {
-		doubleCheckTiny(constsize, typ, mp)
+		doubleCheckTiny(size, typ, mp)
 	}
 	mp.mallocing = 1
 
@@ -356,9 +398,9 @@ func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr)
 	c := getMCache(mp)
 	off := c.tinyoffset
 	// Align tiny pointer for required (conservative) alignment.
-	if constsize&7 == 0 {
+	if size&7 == 0 {
 		off = alignUp(off, 8)
-	} else if goarch.PtrSize == 4 && constsize == 12 {
+	} else if goarch.PtrSize == 4 && size == 12 {
 		// Conservatively align 12-byte objects to 8 bytes on 32-bit
 		// systems so that objects whose first field is a 64-bit
 		// value is aligned to 8 bytes and does not cause a fault on
@@ -366,19 +408,21 @@ func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr)
 		// TODO(mknyszek): Remove this workaround if/when issue 36606
 		// is resolved.
 		off = alignUp(off, 8)
-	} else if constsize&3 == 0 {
+	} else if size&3 == 0 {
 		off = alignUp(off, 4)
-	} else if constsize&1 == 0 {
+	} else if size&1 == 0 {
 		off = alignUp(off, 2)
 	}
-	if off+constsize <= maxTinySize && c.tiny != 0 {
+	if off+size <= maxTinySize && c.tiny != 0 {
 		// The object fits into existing tiny block.
 		x := unsafe.Pointer(c.tiny + off)
-		c.tinyoffset = off + constsize
+		c.tinyoffset = off + size
 		c.tinyAllocs++
 		mp.mallocing = 0
 		releasem(mp)
-		return x, 0
+		const elemsize = 0
+		postMallocgc(x, typ, size, elemsize)
+		return x
 	}
 	// Allocate a new maxTinySize block.
 	checkGCTrigger := false
@@ -392,10 +436,10 @@ func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr)
 	(*[2]uint64)(x)[1] = 0
 	// See if we need to replace the existing tiny block with the new one
 	// based on amount of remaining free space.
-	if !raceenabled && (constsize < c.tinyoffset || c.tiny == 0) {
+	if !raceenabled && (size < c.tinyoffset || c.tiny == 0) {
 		// Note: disabled when race detector is on, see comment near end of this function.
 		c.tiny = uintptr(x)
-		c.tinyoffset = constsize
+		c.tinyoffset = size
 	}
 
 	// Ensure that the stores above that initialize x to
@@ -406,7 +450,7 @@ func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr)
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
 
-	if writeBarrier.enabled {
+	if isSlowPath_ && writeBarrier.enabled {
 		// Allocate black during GC.
 		// All slots hold nil so no scanning is needed.
 		// This may be racing with GC so do it atomically if there can be
@@ -445,23 +489,9 @@ func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr)
 			gcStart(t)
 		}
 	}
+	postMallocgc(x, typ, size, elemsize)
 
-	if raceenabled {
-		// Pad tinysize allocations so they are aligned with the end
-		// of the tinyalloc region. This ensures that any arithmetic
-		// that goes off the top end of the object will be detectable
-		// by checkptr (issue 38872).
-		// Note that we disable tinyalloc when raceenabled for this to work.
-		// TODO: This padding is only performed when the race detector
-		// is enabled. It would be nice to enable it if any package
-		// was compiled with checkptr, but there's no easy way to
-		// detect that (especially at compile time).
-		// TODO: enable this padding for all allocations, not just
-		// tinyalloc ones. It's tricky because of pointer maps.
-		// Maybe just all noscan objects?
-		x = add(x, elemsize-constsize)
-	}
-	return x, elemsize
+	return x
 }
 
 // TODO(matloob): Should we let the go compiler inline this instead of using mkmalloc?
@@ -486,7 +516,7 @@ func nextFreeFastTiny(span *mspan) gclinkptr {
 	return nextFreeFastResult
 }
 
-func nextFreeFastStub(span *mspan) gclinkptr {
+func nextFreeFastStub(span *mspan, elemsize uintptr) gclinkptr {
 	var nextFreeFastResult gclinkptr
 	if span.allocCache != 0 {
 		theBit := sys.TrailingZeros64(span.allocCache) // Is there a free object in the allocCache?
@@ -497,7 +527,7 @@ func nextFreeFastStub(span *mspan) gclinkptr {
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize_ + span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
 			}
 		}
 	}
@@ -529,10 +559,12 @@ func writeHeapBitsSmallStub(span *mspan, x, dataSize uintptr, typ *_type) uintpt
 	const elemsize = elemsize_
 
 	// Create repetitions of the bitmap if we have a small slice backing store.
-	scanSize := typ.PtrBytes
+	var scanSize uintptr
 	src := src0
 	if typ.Size_ == goarch.PtrSize {
 		src = (1 << (dataSize / goarch.PtrSize)) - 1
+		// This object is all pointers, so scanSize is just dataSize.
+		scanSize = dataSize
 	} else {
 		// N.B. We rely on dataSize being an exact multiple of the type size.
 		// The alternative is to be defensive and mask out src to the length
@@ -540,6 +572,7 @@ func writeHeapBitsSmallStub(span *mspan, x, dataSize uintptr, typ *_type) uintpt
 		if doubleCheckHeapSetType && !asanenabled && dataSize%typ.Size_ != 0 {
 			throw("runtime: (*mspan).writeHeapBitsSmall: dataSize is not a multiple of typ.Size_")
 		}
+		scanSize = typ.PtrBytes
 		for i := typ.Size_; i < dataSize; i += typ.Size_ {
 			src |= src0 << (i / goarch.PtrSize)
 			scanSize += typ.Size_
@@ -553,7 +586,7 @@ func writeHeapBitsSmallStub(span *mspan, x, dataSize uintptr, typ *_type) uintpt
 	o := (x - span.base()) / goarch.PtrSize
 	i := o / ptrBits
 	j := o % ptrBits
-	const bits uintptr = elemsize / goarch.PtrSize
+	var bits uintptr = elemsize / goarch.PtrSize
 	// In the if statement below, we have to do two uintptr writes if the bits
 	// we need to write straddle across two different memory locations. But if
 	// the number of bits we're writing divides evenly into the number of bits
@@ -562,7 +595,7 @@ func writeHeapBitsSmallStub(span *mspan, x, dataSize uintptr, typ *_type) uintpt
 	// a power of two less than or equal to ptrBits, the compiler can remove the
 	// 'two writes' branch of the if statement and always do only one write without
 	// the check.
-	const bitsIsPowerOfTwo = bits&(bits-1) == 0
+	var bitsIsPowerOfTwo = bits&(bits-1) == 0
 	if bits > ptrBits || (!bitsIsPowerOfTwo && j+bits > ptrBits) {
 		// Two writes.
 		bits0 := ptrBits - j

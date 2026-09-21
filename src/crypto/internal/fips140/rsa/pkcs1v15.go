@@ -22,6 +22,9 @@ import (
 // For performance, we don't use the generic ASN1 encoder. Rather, we
 // precompute a prefix of the digest value that makes a valid ASN1 DER string
 // with the correct contents.
+//
+// For any new entry, also add the size to [hashSize], and if applicable, add
+// the hash name to [checkApprovedHashName].
 var hashPrefixes = map[string][]byte{
 	"MD5":         {0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10},
 	"SHA-1":       {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14},
@@ -68,6 +71,9 @@ func pkcs1v15ConstructEM(pub *PublicKey, hash string, hashed []byte) ([]byte, er
 		prefix, ok = hashPrefixes[hash]
 		if !ok {
 			return nil, errors.New("crypto/rsa: unsupported hash function")
+		}
+		if len(hashed) != hashSize(hash) {
+			return nil, errors.New("crypto/rsa: hashed message length does not match hash function")
 		}
 	}
 
@@ -126,6 +132,27 @@ func verifyPKCS1v15(pub *PublicKey, hash string, hashed []byte, sig []byte) erro
 	}
 
 	return nil
+}
+
+func hashSize(hash string) int {
+	switch hash {
+	case "MD5":
+		return 16
+	case "SHA-1", "RIPEMD-160":
+		return 20
+	case "SHA-224", "SHA-512/224", "SHA3-224":
+		return 28
+	case "SHA-256", "SHA-512/256", "SHA3-256":
+		return 32
+	case "SHA-384", "SHA3-384":
+		return 48
+	case "SHA-512", "SHA3-512":
+		return 64
+	case "MD5+SHA1":
+		return 36
+	default:
+		return -1
+	}
 }
 
 func checkApprovedHashName(hash string) {

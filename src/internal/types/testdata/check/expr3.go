@@ -95,7 +95,7 @@ func indexes() {
 	_ = &s /* ERROR "cannot take address" */ [:10]
 
 	var m map[string]int
-	_ = m[0 /* ERRORx `cannot use .* in map index` */ ]
+	_ = m[0 /* ERRORx `cannot use .* in map key` */ ]
 	_ = m /* ERROR "cannot slice" */ ["foo" : "bar"]
 	_ = m["foo"]
 	// ok is of type bool
@@ -156,7 +156,7 @@ func (*T) m() {}
 
 func method_expressions() {
 	_ = T.a /* ERROR "no field or method" */
-	_ = T.x /* ERROR "has no method" */
+	_ = T /* ERROR "operand for field selector x must be value of type T" */ .x
 	_ = T.m /* ERROR "invalid method expression T.m (needs pointer receiver (*T).m)" */
 	_ = (*T).m
 
@@ -164,8 +164,8 @@ func method_expressions() {
 	var g func(*T) = (*T).m
 	_, _ = f, g
 
-	_ = T.y /* ERROR "has no method" */
-	_ = (*T).y /* ERROR "has no method" */
+	_ = T /* ERROR "operand for field selector y must be value of type T" */ .y
+	_ = ( /* ERROR "operand for field selector y must be value of type *T" */ *T).y
 }
 
 func struct_literals() {
@@ -187,8 +187,8 @@ func struct_literals() {
 	_ = T1{1 /* ERROR "invalid field name" */ : 0}
 	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
 	_ = T1{a: "foo" /* ERRORx `cannot use .* in struct literal` */ }
-	_ = T1{c /* ERROR "unknown field" */ : 0}
-	_ = T1{T0: { /* ERROR "missing type" */ }} // struct literal element type may not be elided
+	_ = T1{c: 0} // not an error anymore since Go 1.27
+	_ = T1{T0: {}} // not an error anymore since Go 1.28
 	_ = T1{T0: T0{}}
 	_ = T1{T0 /* ERROR "invalid field name" */ .a: 0}
 

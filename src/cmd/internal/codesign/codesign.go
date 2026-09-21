@@ -11,6 +11,7 @@
 package codesign
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"debug/macho"
 	"encoding/binary"
@@ -247,21 +248,35 @@ func Sign(out []byte, data io.Reader, id string, codeSize, textOff, textSize int
 	outp = puts(outp, []byte(id+"\000"))
 
 	// emit hashes
+	datab, isBytes := data.(*bytes.Buffer)
 	var buf [pageSize]byte
 	p := 0
 	for p < int(codeSize) {
-		n, err := io.ReadFull(data, buf[:])
-		if err == io.EOF {
-			break
+		var chunk []byte
+		if isBytes {
+			// If it is already a byte slice, we can read without copying
+			chunk = datab.Next(pageSize)
+			if len(chunk) == 0 {
+				break
+			}
+		} else {
+			n, err := io.ReadFull(data, buf[:])
+			if err == io.EOF {
+				break
+			}
+			if err != nil && err != io.ErrUnexpectedEOF {
+				panic(err)
+			}
+			chunk = buf[:n]
 		}
-		if err != nil && err != io.ErrUnexpectedEOF {
-			panic(err)
-		}
+
+		n := len(chunk)
 		if p+n > int(codeSize) {
 			n = int(codeSize) - p
+			chunk = chunk[:n]
 		}
 		p += n
-		b := sha256.Sum256(buf[:n])
+		b := sha256.Sum256(chunk)
 		outp = puts(outp, b[:])
 	}
 }

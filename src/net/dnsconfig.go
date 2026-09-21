@@ -18,13 +18,18 @@ import (
 // Notable members of the hall of shame include:
 //   - github.com/pojntfx/hydrapp/hydrapp
 //   - github.com/mtibben/androiddnsfix
-//   - github.com/metacubex/mihomo
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
 //go:linkname defaultNS
 var defaultNS = []string{"127.0.0.1:53", "[::1]:53"}
+
+// isDefaultNS reports whether the c.servers field is set to [defaultNS], meaning that
+// no nameservers were specified in /etc/resolv.conf, thus the default ones are used.
+func (c *dnsConfig) isDefaultNS() bool {
+	return len(c.servers) == len(defaultNS) && &c.servers[0] == &defaultNS[0]
+}
 
 var getHostname = os.Hostname // variable for testing
 

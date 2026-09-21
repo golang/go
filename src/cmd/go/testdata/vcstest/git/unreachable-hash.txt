@@ -1,0 +1,31 @@
+handle git
+
+env GIT_AUTHOR_NAME='Michael Matloob'
+env GIT_AUTHOR_EMAIL='matloob@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+at 2017-04-24T23:34:10-00:00
+
+git init
+cp go.mod.orig go.mod
+git add go.mod
+git write-tree
+git commit-tree 995c9bbddb810e9fe22d0ba73d661c599eec29e8 -m foo
+git checkout cbd2996c52d20dac558bc3b49c342c7c8320a1fc
+
+git switch --orphan main
+mv go.mod.orig go.mod
+git add go.mod
+git commit -m bar
+
+git log --oneline --decorate=short main cbd2996c52d20dac558bc3b49c342c7c8320a1fc
+cmp stdout .git-log
+
+-- .git-log --
+6c0e37b (HEAD -> main) bar
+cbd2996 foo
+-- go.mod.orig --
+module vcs-test.golang.org/git/ureachable-hash.git
+
+go 1.26

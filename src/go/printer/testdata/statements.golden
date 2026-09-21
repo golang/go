@@ -82,10 +82,10 @@ func _f() {
 		z
 	return func() {}
 	return func() {
-			_ = 0
-		}, T{
-			1, 2,
-		}
+		_ = 0
+	}, T{
+		1, 2,
+	}
 	return func() {
 		_ = 0
 	}

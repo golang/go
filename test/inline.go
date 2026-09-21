@@ -119,13 +119,13 @@ func r(z int) int {
 		return x + z
 	}
 	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
-		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.r.func2.func3"
+		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func2.func1"
 			return 2*y + x*z
 		}(x) // ERROR "inlining call to r.func2.1"
 	}
 	_, _ = foo, bar // prevent simple deadcode elimination after inlining
 
-	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.r.func2.func3"
+	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2$" "inlining call to r.func2.func1"
 }
 
 func s0(x int) int { // ERROR "can inline s0"

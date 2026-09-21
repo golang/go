@@ -65,12 +65,12 @@ func BenchmarkAESGCM(b *testing.B) {
 	}
 }
 
-func benchmarkAESStream(b *testing.B, mode func(cipher.Block, []byte) cipher.Stream, buf []byte) {
+func benchmarkAESStream(b *testing.B, mode func(cipher.Block, []byte) cipher.Stream, buf []byte, keySize int) {
 	b.SetBytes(int64(len(buf)))
 
-	var key [16]byte
+	key := make([]byte, keySize)
 	var iv [16]byte
-	aes, _ := aes.NewCipher(key[:])
+	aes, _ := aes.NewCipher(key)
 	stream := mode(aes, iv[:])
 
 	b.ResetTimer()
@@ -87,15 +87,20 @@ const almost1K = 1024 - 5
 const almost8K = 8*1024 - 5
 
 func BenchmarkAESCTR(b *testing.B) {
-	b.Run("50", func(b *testing.B) {
-		benchmarkAESStream(b, cipher.NewCTR, make([]byte, 50))
-	})
-	b.Run("1K", func(b *testing.B) {
-		benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost1K))
-	})
-	b.Run("8K", func(b *testing.B) {
-		benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost8K))
-	})
+	for _, keyBits := range []int{128, 192, 256} {
+		keySize := keyBits / 8
+		b.Run(strconv.Itoa(keyBits), func(b *testing.B) {
+			b.Run("50", func(b *testing.B) {
+				benchmarkAESStream(b, cipher.NewCTR, make([]byte, 50), keySize)
+			})
+			b.Run("1K", func(b *testing.B) {
+				benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost1K), keySize)
+			})
+			b.Run("8K", func(b *testing.B) {
+				benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost8K), keySize)
+			})
+		})
+	}
 }
 
 func BenchmarkAESCBCEncrypt1K(b *testing.B) {

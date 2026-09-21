@@ -25,9 +25,8 @@ func makeFlags(f ...jsonflags.Bools) (fs jsonflags.Flags) {
 
 func TestJoin(t *testing.T) {
 	tests := []struct {
-		in            Options
-		excludeCoders bool
-		want          *Struct
+		in   Options
+		want *Struct
 	}{{
 		in:   jsonflags.AllowInvalidUTF8 | 1,
 		want: &Struct{Flags: makeFlags(jsonflags.AllowInvalidUTF8 | 1)},
@@ -68,46 +67,7 @@ func TestJoin(t *testing.T) {
 			return &v2
 		}(), // v2 fully replaces before (except for whitespace related flags)
 	}, {
-		in: jsonflags.Deterministic | jsonflags.AllowInvalidUTF8 | 1, excludeCoders: true,
-		want: func() *Struct {
-			v2 := DefaultOptionsV2
-			v2.Flags.Set(jsonflags.Deterministic | 1)
-			v2.Flags.Set(jsonflags.Indent | 1)
-			v2.Flags.Set(jsonflags.Multiline | 0)
-			v2.Indent = "\t"
-			return &v2
-		}(),
-	}, {
-		in: jsontext.WithIndentPrefix("    "), excludeCoders: true,
-		want: func() *Struct {
-			v2 := DefaultOptionsV2
-			v2.Flags.Set(jsonflags.Deterministic | 1)
-			v2.Flags.Set(jsonflags.Indent | 1)
-			v2.Flags.Set(jsonflags.Multiline | 0)
-			v2.Indent = "\t"
-			return &v2
-		}(),
-	}, {
-		in: jsontext.WithIndentPrefix("    "), excludeCoders: false,
-		want: func() *Struct {
-			v2 := DefaultOptionsV2
-			v2.Flags.Set(jsonflags.Deterministic | 1)
-			v2.Flags.Set(jsonflags.Indent | 1)
-			v2.Flags.Set(jsonflags.IndentPrefix | 1)
-			v2.Flags.Set(jsonflags.Multiline | 1)
-			v2.Indent = "\t"
-			v2.IndentPrefix = "    "
-			return &v2
-		}(),
-	}, {
-		in: &Struct{
-			Flags: jsonflags.Flags{
-				Presence: uint64(jsonflags.Deterministic | jsonflags.Indent | jsonflags.IndentPrefix),
-				Values:   uint64(jsonflags.Indent | jsonflags.IndentPrefix),
-			},
-			CoderValues: CoderValues{Indent: "  ", IndentPrefix: "  "},
-		},
-		excludeCoders: true,
+		in: jsontext.WithIndentPrefix("    "),
 		want: func() *Struct {
 			v2 := DefaultOptionsV2
 			v2.Flags.Set(jsonflags.Indent | 1)
@@ -125,7 +85,6 @@ func TestJoin(t *testing.T) {
 			},
 			CoderValues: CoderValues{Indent: "  ", IndentPrefix: "  "},
 		},
-		excludeCoders: false,
 		want: func() *Struct {
 			v2 := DefaultOptionsV2
 			v2.Flags.Set(jsonflags.Indent | 1)
@@ -135,14 +94,34 @@ func TestJoin(t *testing.T) {
 			v2.IndentPrefix = "  "
 			return &v2
 		}(),
+	}, {
+		in: ExperimentalSupportFormatTag(true),
+		want: func() *Struct {
+			v2 := DefaultOptionsV2
+			v2.Flags.Set(jsonflags.Indent | 1)
+			v2.Flags.Set(jsonflags.IndentPrefix | 1)
+			v2.Flags.Set(jsonflags.Multiline | 1)
+			v2.Flags.Set(jsonflags.FormatTagSupported | 1)
+			v2.Indent = "  "
+			v2.IndentPrefix = "  "
+			return &v2
+		}(),
+	}, {
+		in: &Struct{Flags: jsonflags.Flags{Presence: uint64(jsonflags.FormatTagSupported)}},
+		want: func() *Struct {
+			v2 := DefaultOptionsV2
+			v2.Flags.Set(jsonflags.Indent | 1)
+			v2.Flags.Set(jsonflags.IndentPrefix | 1)
+			v2.Flags.Set(jsonflags.Multiline | 1)
+			v2.Flags.Set(jsonflags.FormatTagSupported | 0)
+			v2.Indent = "  "
+			v2.IndentPrefix = "  "
+			return &v2
+		}(),
 	}}
 	got := new(Struct)
 	for i, tt := range tests {
-		if tt.excludeCoders {
-			got.JoinWithoutCoderOptions(tt.in)
-		} else {
-			got.Join(tt.in)
-		}
+		got.Join(tt.in)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Fatalf("%d: Join:\n\tgot:  %+v\n\twant: %+v", i, got, tt.want)
 		}
@@ -151,7 +130,7 @@ func TestJoin(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	opts := &Struct{
-		Flags:        makeFlags(jsonflags.Indent|jsonflags.Deterministic|jsonflags.Marshalers|1, jsonflags.Multiline|0),
+		Flags:        makeFlags(jsonflags.Indent|jsonflags.Deterministic|jsonflags.Marshalers|jsonflags.FormatTagSupported|1, jsonflags.Multiline|0),
 		CoderValues:  CoderValues{Indent: "\t"},
 		ArshalValues: ArshalValues{Marshalers: new(json.Marshalers)},
 	}
@@ -202,6 +181,12 @@ func TestGet(t *testing.T) {
 	}
 	if v, ok := json.GetOption(json.DefaultOptionsV2(), json.WithMarshalers); v != nil || ok {
 		t.Errorf(`GetOption(..., WithMarshalers) = (%v, %v), want (nil, false)`, v, ok)
+	}
+	if v, ok := json.GetOption(opts, ExperimentalSupportFormatTag); !v || !ok {
+		t.Errorf(`GetOption(..., ExperimentalSupportFormatTag) = (%v, %v), want (true, true)`, v, ok)
+	}
+	if v, ok := json.GetOption(json.DefaultOptionsV2(), ExperimentalSupportFormatTag); v || ok {
+		t.Errorf(`GetOption(..., ExperimentalSupportFormatTag) = (%v, %v), want (false, false)`, v, ok)
 	}
 }
 

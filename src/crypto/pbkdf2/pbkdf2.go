@@ -39,7 +39,7 @@ import (
 // Setting keyLength to a value outside of this range will result in an error.
 func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
 	fh := fips140hash.UnwrapNew(h)
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		if keyLength < 112/8 {
 			return nil, errors.New("crypto/pbkdf2: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
 		}

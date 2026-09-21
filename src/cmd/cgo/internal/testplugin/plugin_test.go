@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 var tmpDir string
 
 // prettyPrintf prints lines with tmpDir sanitized.
-func prettyPrintf(format string, args ...interface{}) {
+func prettyPrintf(format string, args ...any) {
 	s := fmt.Sprintf(format, args...)
 	if tmpDir != "" {
 		s = strings.ReplaceAll(s, tmpDir, "$TMPDIR")
@@ -429,4 +429,15 @@ func TestIssue75102(t *testing.T) {
 	goCmd(t, "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", "issue75102.so", "./issue75102/plugin.go")
 	goCmd(t, "build", "-o", "issue75102.exe", "./issue75102/main.go")
 	run(t, "./issue75102.exe")
+}
+
+func TestIssue81303(t *testing.T) {
+	// Issue 81303: the itab copies of a plugin must not hide the itabs
+	// of the host for the same interface/type pairs.
+	globalSkip(t)
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue81303p1.so", "./issue81303/plugin1.go")
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue81303p2.so", "./issue81303/plugin2.go")
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue81303p3.so", "./issue81303/plugin3.go")
+	goCmd(t, "build", "-o", "issue81303.exe", "./issue81303/main.go")
+	run(t, "./issue81303.exe")
 }

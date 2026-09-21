@@ -354,6 +354,14 @@ type Taskstats struct {
 	Wpcopy_delay_min          uint64
 	Irq_delay_max             uint64
 	Irq_delay_min             uint64
+	Cpu_delay_max_ts          KernelTimespec
+	Blkio_delay_max_ts        KernelTimespec
+	Swapin_delay_max_ts       KernelTimespec
+	Freepages_delay_max_ts    KernelTimespec
+	Thrashing_delay_max_ts    KernelTimespec
+	Compact_delay_max_ts      KernelTimespec
+	Wpcopy_delay_max_ts       KernelTimespec
+	Irq_delay_max_ts          KernelTimespec
 }
 
 type cpuMask uint32
@@ -672,7 +680,18 @@ const (
 )
 
 const (
-	PIDFD_NONBLOCK = 0x800
+	PIDFD_NONBLOCK                        = 0x800
+	PIDFD_THREAD                          = 0x80
+	PIDFD_GET_CGROUP_NAMESPACE            = 0xff01
+	PIDFD_GET_IPC_NAMESPACE               = 0xff02
+	PIDFD_GET_MNT_NAMESPACE               = 0xff03
+	PIDFD_GET_NET_NAMESPACE               = 0xff04
+	PIDFD_GET_PID_NAMESPACE               = 0xff05
+	PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE  = 0xff06
+	PIDFD_GET_TIME_NAMESPACE              = 0xff07
+	PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE = 0xff08
+	PIDFD_GET_USER_NAMESPACE              = 0xff09
+	PIDFD_GET_UTS_NAMESPACE               = 0xff0a
 )
 
 type SysvIpcPerm struct {
@@ -702,4 +721,27 @@ type SysvShmDesc struct {
 	Nattch     uint32
 	_          uint32
 	_          uint32
+}
+
+const (
+	GPIO_GET_CHIPINFO_IOCTL = 0x8044b401
+)
+
+const (
+	IPMICTL_SEND_COMMAND = 0x8014690d
+	IPMICTL_RECEIVE_MSG  = 0xc018690c
+)
+
+type IPMIReq struct {
+	Addr  *uint8
+	Len   uint32
+	Msgid int32
+	Msg   IPMIMsg
+}
+type IPMIRecv struct {
+	Recv_type int32
+	Addr      *uint8
+	Addr_len  uint32
+	Msgid     int32
+	Msg       IPMIMsg
 }

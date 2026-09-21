@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"internal/txtar"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,12 +30,9 @@ type ToolReplacement struct {
 	EnvVar          string // env var setting (e.g. "FOO=BAR")
 }
 
-// RunToolScriptTest kicks off a set of script tests runs for
-// a tool of some sort (compiler, linker, etc). The expectation
-// is that we'll be called from the top level cmd/X dir for tool X,
-// and that instead of executing the install tool X we'll use the
-// test binary instead.
-func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string, fixReadme bool) {
+// NewEngine constructs a new [script.Engine] and environment to be used with
+// [RunTests].
+func NewEngine(t *testing.T, repls []ToolReplacement) (*script.Engine, []string) {
 	// Nearly all script tests involve doing builds, so don't
 	// bother here if we don't have "go build".
 	testenv.MustHaveGoBuild(t)
@@ -105,10 +103,12 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string,
 		return env
 	}
 
-	interrupt := func(cmd *exec.Cmd) error {
-		return cmd.Process.Signal(os.Interrupt)
-	}
-	gracePeriod := 60 * time.Second // arbitrary
+	// Customize the subprocess termination grace period to reduce flakes on busy builders (#76685).
+	// The grace period is the max of 100ms or 5% of the time remaining until any t.Deadline.
+	gracePeriod := subprocessGracePeriod(t.Deadline())
+
+	cmdExec := script.Exec(script.InterruptCmd, gracePeriod)
+	cmds["exec"] = cmdExec
 
 	// Set up an alternate go root for running script tests, since it
 	// is possible that we might want to replace one of the installed
@@ -124,9 +124,8 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string,
 
 	// Add in commands for "go" and "cc".
 	testgo := filepath.Join(tgr, "bin", "go")
-	gocmd := script.Program(testgo, interrupt, gracePeriod)
+	gocmd := script.Program(testgo, script.InterruptCmd, gracePeriod)
 	addcmd("go", gocmd)
-	cmdExec := cmds["exec"]
 	addcmd("cc", scriptCC(cmdExec, goEnv("CC")))
 
 	// Add various helpful conditions related to builds and toolchain use.
@@ -137,6 +136,9 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string,
 	env := os.Environ()
 	prependToPath(env, filepath.Join(tgr, "bin"))
 	env = setenv(env, "GOROOT", tgr)
+	// GOOS and GOARCH are expected to be set by the toolchain script conditions.
+	env = setenv(env, "GOOS", runtime.GOOS)
+	env = setenv(env, "GOARCH", runtime.GOARCH)
 	for _, repl := range repls {
 		// consistency check
 		chunks := strings.Split(repl.EnvVar, "=")
@@ -153,6 +155,23 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string,
 		Quiet: !testing.Verbose(),
 	}
 
+	return engine, env
+}
+
+// RunToolScriptTest kicks off a set of script tests runs for
+// a tool of some sort (compiler, linker, etc). The expectation
+// is that we'll be called from the top level cmd/X dir for tool X,
+// and that instead of executing the install tool X we'll use the
+// test binary instead.
+func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string, fixReadme bool) {
+	// Locate our Go tool.
+	gotool, err := testenv.GoTool()
+	if err != nil {
+		t.Fatalf("locating go tool: %v", err)
+	}
+
+	engine, env := NewEngine(t, repls)
+
 	t.Run("README", func(t *testing.T) {
 		checkScriptReadme(t, engine, env, scriptsdir, gotool, fixReadme)
 	})
@@ -163,36 +182,56 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string,
 	RunTests(t, ctx, engine, env, pattern)
 }
 
+// ScriptTestContext returns a context with a grace period for cleaning up
+// subprocesses of a script test.
+//
+// When we run commands that execute subprocesses, we want to reserve two grace
+// periods to clean up. We will send the first termination signal when the
+// context expires, then wait one grace period for the process to produce
+// whatever useful output it can (such as a stack trace). After the first grace
+// period expires, we'll escalate to os.Kill, leaving the second grace period
+// for the test function to record its output before the test process itself
+// terminates.
+//
+// The grace period is 100ms or 5% of the time remaining until
+// [testing.T.Deadline], whichever is greater.
+func ScriptTestContext(t *testing.T, ctx context.Context) context.Context {
+	deadline, ok := t.Deadline()
+	if !ok {
+		return ctx
+	}
+
+	gracePeriod := subprocessGracePeriod(deadline, ok)
+
+	// Reserve two grace periods to clean up
+	timeout := time.Until(deadline)
+	timeout -= 2 * gracePeriod
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	t.Cleanup(cancel)
+	return ctx
+}
+
+// subprocessGracePeriod returns a grace period for terminating subprocesses
+// created by the commands of a script test.
+func subprocessGracePeriod(deadline time.Time, hasDeadline bool) time.Duration {
+	gracePeriod := 100 * time.Millisecond // arbitrary
+	if !hasDeadline {
+		return gracePeriod
+	}
+
+	// If time allows, increase the termination grace period to 5% of the
+	// remaining time.
+	timeout := time.Until(deadline)
+	return max(gracePeriod, timeout/20)
+}
+
 // RunTests kicks off one or more script-based tests using the
 // specified engine, running all test files that match pattern.
 // This function adapted from Russ's rsc.io/script/scripttest#Run
 // function, which was in turn forked off cmd/go's runner.
 func RunTests(t *testing.T, ctx context.Context, engine *script.Engine, env []string, pattern string) {
-	gracePeriod := 100 * time.Millisecond
-	if deadline, ok := t.Deadline(); ok {
-		timeout := time.Until(deadline)
-
-		// If time allows, increase the termination grace period to 5% of the
-		// remaining time.
-		if gp := timeout / 20; gp > gracePeriod {
-			gracePeriod = gp
-		}
-
-		// When we run commands that execute subprocesses, we want to
-		// reserve two grace periods to clean up. We will send the
-		// first termination signal when the context expires, then
-		// wait one grace period for the process to produce whatever
-		// useful output it can (such as a stack trace). After the
-		// first grace period expires, we'll escalate to os.Kill,
-		// leaving the second grace period for the test function to
-		// record its output before the test process itself
-		// terminates.
-		timeout -= 2 * gracePeriod
-
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		t.Cleanup(cancel)
-	}
+	ctx = ScriptTestContext(t, ctx)
 
 	files, _ := filepath.Glob(pattern)
 	if len(files) == 0 {
@@ -210,12 +249,17 @@ func RunTests(t *testing.T, ctx context.Context, engine *script.Engine, env []st
 				t.Fatal(err)
 			}
 
+			// Call fixPermissions at the end of the test case in case
+			// it uses the go modcache, which writes read-only files.
+			// fixPermissions fixes up the permissions so a later removal can succeed.
+			defer fixPermissions(t, workdir)
+
 			// Unpack archive.
 			a, err := txtar.ParseFile(file)
 			if err != nil {
 				t.Fatal(err)
 			}
-			initScriptDirs(t, s)
+			InitScriptDirs(t, s)
 			if err := s.ExtractFiles(a); err != nil {
 				t.Fatal(err)
 			}
@@ -234,7 +278,27 @@ func RunTests(t *testing.T, ctx context.Context, engine *script.Engine, env []st
 	}
 }
 
-func initScriptDirs(t testing.TB, s *script.State) {
+func fixPermissions(t *testing.T, dir string) {
+	t.Helper()
+
+	// module cache has 0444 directories;
+	// make them writable in order to remove content.
+	filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
+		// chmod not only directories, but also things that we couldn't even stat
+		// due to permission errors: they may also be unreadable directories.
+		if err != nil || info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+}
+
+// InitScriptDirs sets up directories for executing a script test.
+//
+//   - WORK (env var) is set to the current working directory.
+//   - TMPDIR (env var; TMP on Windows) is set to $WORK/tmp.
+//   - $TMPDIR is created.
+func InitScriptDirs(t testing.TB, s *script.State) {
 	must := func(err error) {
 		if err != nil {
 			t.Helper()

@@ -197,7 +197,7 @@ func Float64sAreSorted(x []float64) bool { return slices.IsSorted(x) }
 func StringsAreSorted(x []string) bool { return slices.IsSorted(x) }
 
 // Notes on stable sorting:
-// The used algorithms are simple and provable correct on all input and use
+// The used algorithms are simple and provably correct on all input and use
 // only logarithmic additional stack space. They perform well if compared
 // experimentally to other stable in-place sorting algorithms.
 //

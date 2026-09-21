@@ -1,5 +1,3 @@
-[short] skip 'builds test binary'
-
 go list -test -f '{{.ImportPath}} {{.DefaultGODEBUG}}'
 stdout 'example.com/foo\.test.*panicnil=1.*'
 

@@ -38,8 +38,8 @@ func canUseConnectEx(net string) bool {
 	return false
 }
 
-func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error) {
-	ret := &netFD{
+func newFD(sysfd syscall.Handle, family, sotype int, net string) *netFD {
+	return &netFD{
 		pfd: poll.FD{
 			Sysfd:         sysfd,
 			IsStream:      sotype == syscall.SOCK_STREAM,
@@ -49,11 +49,10 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 		sotype: sotype,
 		net:    net,
 	}
-	return ret, nil
 }
 
 func (fd *netFD) init() error {
-	if err := fd.pfd.Init(fd.net, true); err != nil {
+	if err := fd.pfd.Init(fd.net, new(true)); err != nil {
 		return err
 	}
 	switch fd.net {
@@ -211,13 +210,9 @@ func (fd *netFD) accept() (*netFD, error) {
 	}
 
 	// Associate our new socket with IOCP.
-	netfd, err := newFD(s, fd.family, fd.sotype, fd.net)
-	if err != nil {
-		poll.CloseFunc(s)
-		return nil, err
-	}
+	netfd := newFD(s, fd.family, fd.sotype, fd.net)
 	if err := netfd.init(); err != nil {
-		fd.Close()
+		netfd.Close()
 		return nil, err
 	}
 
@@ -248,7 +243,7 @@ func (fd *netFD) dup() (*os.File, error) {
 	err := fd.pfd.RawControl(func(fd uintptr) {
 		h, syserr = dupSocket(syscall.Handle(fd))
 	})
-	if err != nil {
+	if err == nil {
 		err = syserr
 	}
 	if err != nil {

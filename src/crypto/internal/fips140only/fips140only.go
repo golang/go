@@ -5,18 +5,18 @@
 package fips140only
 
 import (
-	"crypto/internal/fips140/drbg"
+	"crypto/fips140"
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140/sha512"
 	"hash"
-	"internal/godebug"
-	"io"
 )
 
-// Enabled reports whether FIPS 140-only mode is enabled, in which non-approved
+// Enforced reports whether FIPS 140-only mode is enabled and enforced, in which non-approved
 // cryptography returns an error or panics.
-var Enabled = godebug.New("fips140").Value() == "only"
+func Enforced() bool {
+	return fips140.Enforced()
+}
 
 func ApprovedHash(h hash.Hash) bool {
 	switch h.(type) {
@@ -25,9 +25,4 @@ func ApprovedHash(h hash.Hash) bool {
 	default:
 		return false
 	}
-}
-
-func ApprovedRandomReader(r io.Reader) bool {
-	_, ok := r.(drbg.DefaultReader)
-	return ok
 }

@@ -157,7 +157,8 @@ The format of the export data file has gone through a number of
 iterations. Its current form is called "unified", and it is a
 serialized representation of an object graph, with an index allowing
 lazy decoding of parts of the whole (since most imports are used to
-provide only a handful of symbols).
+provide only a handful of symbols). See [here](internal/noder/README.md)
+for details on making changes to unified IR.
 
 The GOROOT repository contains a reader and a writer for the unified
 format; it encodes from/decodes to the compiler's IR.

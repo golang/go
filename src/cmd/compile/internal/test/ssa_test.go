@@ -95,7 +95,7 @@ func TestCode(t *testing.T) {
 			t.Fatalf("can't read testdata/%s: %v", f.Name(), err)
 		}
 		fset := token.NewFileSet()
-		code, err := parser.ParseFile(fset, f.Name(), text, 0)
+		code, err := parser.ParseFile(fset, f.Name(), text, parser.SkipObjectResolution)
 		if err != nil {
 			t.Fatalf("can't parse testdata/%s: %v", f.Name(), err)
 		}
@@ -163,7 +163,6 @@ func TestCode(t *testing.T) {
 
 		// Now we have a test binary. Run it with all the tests as subtests of this one.
 		for _, test := range tests {
-			test := test
 			if flag == ",softfloat" && !test.usesFloat {
 				// No point in running the soft float version if the test doesn't use floats.
 				continue

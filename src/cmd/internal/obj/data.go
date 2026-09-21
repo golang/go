@@ -63,21 +63,24 @@ func (s *LSym) GrowCap(c int64) {
 	s.P = b
 }
 
+// MaxDataOffset is the exclusive upper bound on the starting offset of a
+// write into an LSym.
+const MaxDataOffset = 1 << 30
+
 // prepwrite prepares to write data of size siz into s at offset off.
 func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
-	if off < 0 || siz < 0 || off >= 1<<30 {
+	if off < 0 || siz < 0 || off >= MaxDataOffset {
 		ctxt.Diag("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
 	}
 	switch s.Type {
 	case objabi.Sxxx, objabi.SBSS:
 		s.Type = objabi.SDATA
-		s.setFIPSType(ctxt)
 	case objabi.SNOPTRBSS:
 		s.Type = objabi.SNOPTRDATA
-		s.setFIPSType(ctxt)
 	case objabi.STLSBSS:
 		ctxt.Diag("cannot supply data for %v var %v", s.Type, s.Name)
 	}
+	s.setFIPSType(ctxt)
 	l := off + int64(siz)
 	s.Grow(l)
 	if l > s.Size {

@@ -50,9 +50,8 @@ func (c *CgroupV2) SetCPUMax(quota, period int64) error {
 //
 // This must not be used in parallel tests, as it affects the entire process.
 func InCgroupV2(t *testing.T, fn func(*CgroupV2)) {
-	mount, rel := findCurrent(t)
-	parent := findOwnedParent(t, mount, rel)
-	orig := filepath.Join(mount, rel)
+	orig := findCurrent(t)
+	parent := findOwnedParent(t, orig)
 
 	// Make sure the parent allows children to control cpu.
 	b, err := os.ReadFile(filepath.Join(parent, "cgroup.subtree_control"))
@@ -93,34 +92,25 @@ func InCgroupV2(t *testing.T, fn func(*CgroupV2)) {
 	fn(c)
 }
 
-// Returns the mount and relative directory of the current cgroup the process
-// is in.
-func findCurrent(t *testing.T) (string, string) {
+// Returns the filesystem path to the current cgroup the process is in.
+func findCurrent(t *testing.T) string {
 	// Find the path to our current CPU cgroup. Currently this package is
 	// only used for CPU cgroup testing, so the distinction of different
 	// controllers doesn't matter.
 	var scratch [cgroup.ParseSize]byte
 	buf := make([]byte, cgroup.PathSize)
-	n, err := cgroup.FindCPUMountPoint(buf, scratch[:])
+	n, ver, err := cgroup.FindCPU(buf, scratch[:])
 	if err != nil {
 		t.Skipf("cgroup: unable to find current cgroup mount: %v", err)
-	}
-	mount := string(buf[:n])
-
-	n, ver, err := cgroup.FindCPURelativePath(buf, scratch[:])
-	if err != nil {
-		t.Skipf("cgroup: unable to find current cgroup path: %v", err)
 	}
 	if ver != cgroup.V2 {
 		t.Skipf("cgroup: running on cgroup v%d want v2", ver)
 	}
-	rel := string(buf[1:n])       // The returned path always starts with /, skip it.
-	rel = filepath.Join(".", rel) // Make sure this isn't empty string at root.
-	return mount, rel
+	return string(buf[:n])
 }
 
 // Returns a parent directory in which we can create our own cgroup subdirectory.
-func findOwnedParent(t *testing.T, mount, rel string) string {
+func findOwnedParent(t *testing.T, orig string) string {
 	// There are many ways cgroups may be set up on a system. We don't try
 	// to cover all of them, just common ones.
 	//
@@ -142,7 +132,7 @@ func findOwnedParent(t *testing.T, mount, rel string) string {
 
 	// We want to create our own subdirectory that we can migrate into and
 	// then manipulate at will. It is tempting to create a new subdirectory
-	// inside the current cgroup we are already in, however that will likey
+	// inside the current cgroup we are already in, however that will likely
 	// not work. cgroup v2 only allows processes to be in leaf cgroups. Our
 	// current cgroup likely contains multiple processes (at least this one
 	// and the cmd/go test runner). If we make a subdirectory and try to
@@ -166,27 +156,29 @@ func findOwnedParent(t *testing.T, mount, rel string) string {
 	// is empty. As far as I tell, the only purpose of this is to allow
 	// reorganizing processes into a new set of subdirectories and then
 	// adding controllers once done.
-	root, err := os.OpenRoot(mount)
+	var stat syscall.Stat_t
+	err := syscall.Stat(orig, &stat)
 	if err != nil {
-		t.Fatalf("error opening cgroup mount root: %v", err)
+		t.Fatalf("error stating orig cgroup: %v", err)
 	}
 
 	uid := os.Getuid()
 	var prev string
-	for rel != "." {
-		fi, err := root.Stat(rel)
+	cur := filepath.Dir(orig)
+	for cur != "/" {
+		var curStat syscall.Stat_t
+		err = syscall.Stat(cur, &curStat)
 		if err != nil {
 			t.Fatalf("error stating cgroup path: %v", err)
 		}
 
-		st := fi.Sys().(*syscall.Stat_t)
-		if int(st.Uid) != uid {
-			// Stop at first directory we don't own.
+		if int(curStat.Uid) != uid || curStat.Dev != stat.Dev {
+			// Stop at first directory we don't own or filesystem boundary.
 			break
 		}
 
-		prev = rel
-		rel = filepath.Join(rel, "..")
+		prev = cur
+		cur = filepath.Dir(cur)
 	}
 
 	if prev == "" {
@@ -194,7 +186,7 @@ func findOwnedParent(t *testing.T, mount, rel string) string {
 	}
 
 	// We actually want the last directory where we were the owner.
-	return filepath.Join(mount, prev)
+	return prev
 }
 
 // Migrate the current process to the cgroup directory dst.

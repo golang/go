@@ -102,8 +102,10 @@ func TestTimeTimerType(t *testing.T) {
 	// must have time.Timer and time.Ticker as a prefix
 	// (meaning those two must have the same layout).
 	runtimeTimeTimer := reflect.TypeOf(runtime.TimeTimer{})
+	runtimeTimeTimerPtr := reflect.PointerTo(runtimeTimeTimer)
 
 	check := func(name string, typ reflect.Type) {
+		typPtr := reflect.PointerTo(typ)
 		n1 := runtimeTimeTimer.NumField()
 		n2 := typ.NumField()
 		if n1 != n2+1 {
@@ -115,9 +117,25 @@ func TestTimeTimerType(t *testing.T) {
 			f2 := typ.Field(i)
 			t1 := f1.Type
 			t2 := f2.Type
-			if t1 != t2 && !(t1.Kind() == reflect.UnsafePointer && t2.Kind() == reflect.Chan) {
+
+			ok := t1 == t2
+			if !ok {
+				// Special cases.
+
+				// Channel stored as unsafe.Pointer in runtime.
+				if t1.Kind() == reflect.UnsafePointer && t2.Kind() == reflect.Chan {
+					ok = true
+				}
+
+				// Pointer to self uses local type.
+				if t1 == runtimeTimeTimerPtr && t2 == typPtr {
+					ok = true
+				}
+			}
+			if !ok {
 				t.Errorf("runtime.Timer field %s %v incompatible with %s field %s %v", f1.Name, t1, name, f2.Name, t2)
 			}
+
 			if f1.Offset != f2.Offset {
 				t.Errorf("runtime.Timer field %s offset %d incompatible with %s field %s offset %d", f1.Name, f1.Offset, name, f2.Name, f2.Offset)
 			}

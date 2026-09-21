@@ -92,8 +92,8 @@ func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
 		block.off.Store(n)
 		x = (*notInHeap)(unsafe.Pointer(&block.data[0]))
 
-		// Publish the new block.
-		a.current.Store(unsafe.Pointer(block))
+		// Publish the new block. No write barrier as the memory is off heap.
+		a.current.StoreNoWB(unsafe.Pointer(block))
 		unlock(&a.lock)
 	})
 	return x
@@ -112,7 +112,7 @@ func (a *traceRegionAlloc) drop() {
 	}
 	if current := a.current.Load(); current != nil {
 		sysFree(current, unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
-		a.current.Store(nil)
+		a.current.StoreNoWB(nil)
 	}
 	a.dropping.Store(false)
 }

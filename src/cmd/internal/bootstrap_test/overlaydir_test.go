@@ -43,6 +43,9 @@ func overlayDir(dstRoot, srcRoot string) error {
 		dstPath := filepath.Join(dstRoot, suffix)
 
 		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
 		perm := info.Mode() & os.ModePerm
 		if info.Mode()&os.ModeSymlink != 0 {
 			info, err = os.Stat(srcPath)

@@ -113,6 +113,7 @@ func main() {
 		".gitattributes",
 		".github/**",
 		".gitignore",
+		".jj/**",
 		"VERSION.cache",
 		"misc/cgo/*/_obj/**",
 		"**/.DS_Store",
@@ -172,7 +173,7 @@ func main() {
 			default:
 				return false
 			// Keep in sync with toolsIncludedInDistpack in cmd/dist/build.go.
-			case "asm", "cgo", "compile", "cover", "fix", "link", "preprofile", "vet":
+			case "asm", "cgo", "compile", "cover", "export", "fix", "link", "preprofile", "vet":
 			}
 		}
 		return true

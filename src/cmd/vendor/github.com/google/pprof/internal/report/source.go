@@ -1066,15 +1066,16 @@ func trimPath(path, trimPath, searchPath string) string {
 func indentation(line string) int {
 	column := 0
 	for _, c := range line {
-		if c == ' ' {
+		switch c {
+		case ' ':
 			column++
-		} else if c == '\t' {
+		case '\t':
 			column++
 			for column%8 != 0 {
 				column++
 			}
-		} else {
-			break
+		default:
+			return column
 		}
 	}
 	return column

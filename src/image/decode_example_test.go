@@ -6,18 +6,19 @@
 package image_test
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"image"
 	"log"
 	"strings"
 
-	// Package image/jpeg is not used explicitly in the code below,
-	// but is imported for its initialization side-effect, which allows
-	// image.Decode to understand JPEG formatted images. Uncomment these
-	// two lines to also understand GIF and PNG images:
-	// _ "image/gif"
+	// Packages image/gif and image/jpeg are not used explicitly in the code
+	// below, but are imported for their initialization side-effects, which
+	// allow image.Decode and image.DecodeConfig to understand GIF and JPEG
+	// formatted images. Uncomment the line below to also understand PNG:
 	// _ "image/png"
+	_ "image/gif"
 	_ "image/jpeg"
 )
 
@@ -28,6 +29,46 @@ func Example_decodeConfig() {
 		log.Fatal(err)
 	}
 	fmt.Println("Width:", config.Width, "Height:", config.Height, "Format:", format)
+}
+
+// ExampleDecode_untrusted demonstrates decoding an untrusted
+// image file in two steps so that unexpectedly large
+// memory allocations can be safely avoided.
+func ExampleDecode_untrusted() {
+	// This GIF data is a valid 1x1 image (layout matches package gif tests).
+	gifData := []byte{
+		'G', 'I', 'F', '8', '9', 'a',
+		1, 0, 1, 0,
+		128, 0, 0,
+		0, 0, 0, 1, 1, 1,
+		0x21, 0xf9, 0x04, 0x00, 0x00, 0x00, 0xff, 0x00,
+		0x2c,
+		0x00, 0x00, 0x00, 0x00,
+		0x01, 0x00, 0x01, 0x00,
+		0x00,
+		0x02, 0x02, 0x4c, 0x01, 0x00,
+		0x3b,
+	}
+
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(gifData))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Use int64 to avoid overflow on 32-bit platforms.
+	const maxPixels = 10000
+	if int64(cfg.Width)*int64(cfg.Height) > maxPixels {
+		fmt.Println("rejected: dimensions too large")
+		return
+	}
+
+	m, _, err := image.Decode(bytes.NewReader(gifData))
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("decoded", m.Bounds().Dx(), m.Bounds().Dy())
+	// Output:
+	// decoded 1 1
 }
 
 func Example() {

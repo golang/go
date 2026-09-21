@@ -1,0 +1,32 @@
+# Verify that the compiler resolves a relative filename in a //line directive
+# against the directory of the file containing the directive, not against
+# the compiler's working directory.
+# See go.dev/issue/70478.
+
+# Build from the module root: the resolved path should include the package dir.
+! go build ./sub
+stderr 'sub[/\\]README\.md:1: '
+
+# Build from a sibling directory (still inside the module): same resolved path.
+mkdir other
+cd other
+! go build ../sub
+stderr 'sub[/\\]README\.md:1: '
+cd ..
+
+# Build from inside the package directory: the resolved path is anchored at
+# that directory (which would not be the case under the pre-#70478 behavior,
+# where the bare README.md was reported regardless of the build CWD).
+cd sub
+! go build .
+stderr '\.[/\\]README\.md:1: '
+
+-- go.mod --
+module example.com/linedirtest
+
+go 1.21
+-- sub/foo.go --
+package sub
+
+//line README.md:1
+invalid

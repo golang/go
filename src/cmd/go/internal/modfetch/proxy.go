@@ -37,7 +37,7 @@ a site serving from a fixed file system (including a file:/// URL)
 can be a module proxy.
 
 For details on the GOPROXY protocol, see
-https://golang.org/ref/mod#goproxy-protocol.
+https://go.dev/ref/mod#goproxy-protocol.
 `,
 }
 
@@ -238,13 +238,17 @@ func (p *proxyRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error 
 // versionError returns err wrapped in a ModuleError for p.path.
 func (p *proxyRepo) versionError(version string, err error) error {
 	if version != "" && version != module.CanonicalVersion(version) {
-		return &module.ModuleError{
-			Path: p.path,
-			Err: &module.InvalidVersionError{
+		var iv *module.InvalidVersionError
+		if !errors.As(err, &iv) {
+			iv = &module.InvalidVersionError{
 				Version: version,
 				Pseudo:  module.IsPseudoVersion(version),
 				Err:     err,
-			},
+			}
+		}
+		return &module.ModuleError{
+			Path: p.path,
+			Err:  iv,
 		}
 	}
 

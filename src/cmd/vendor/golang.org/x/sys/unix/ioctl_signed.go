@@ -6,9 +6,7 @@
 
 package unix
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 // ioctl itself should not be exposed directly, but additional get/set
 // functions for specific types are permissible.
@@ -26,6 +24,13 @@ func IoctlSetInt(fd int, req int, value int) error {
 func IoctlSetPointerInt(fd int, req int, value int) error {
 	v := int32(value)
 	return ioctlPtr(fd, req, unsafe.Pointer(&v))
+}
+
+// IoctlSetString performs an ioctl operation which sets a string value
+// on fd, using the specified request number.
+func IoctlSetString(fd int, req int, value string) error {
+	bs := append([]byte(value), 0)
+	return ioctlPtr(fd, req, unsafe.Pointer(&bs[0]))
 }
 
 // IoctlSetWinsize performs an ioctl on fd with a *Winsize argument.

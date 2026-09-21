@@ -207,9 +207,9 @@ var invalids = []string{
 
 	`package p; func _[type /* ERROR "found 'type'" */ P, *Q interface{}]()`,
 
-	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B any](a A) B`,
-	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C](a A) B`,
-	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C[A, B]](a A) B`,
+	`package p; func (T) _[A, B any](a A) B`,
+	`package p; func (T) _[A, B C](a A) B`,
+	`package p; func (T) _[A, B C[A, B]](a A) B`,
 
 	`package p; func(*T[e, e /* ERROR "e redeclared" */ ]) _()`,
 

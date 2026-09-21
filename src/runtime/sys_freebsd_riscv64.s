@@ -79,7 +79,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	// set up g
 	MOV	m_g0(A0), g
 	MOV	A0, g_m(g)
-	CALL	emptyfunc<>(SB)	 // fault if stack check is wrong
+	CALL	runtime·stackcheck(SB)	// fault if stack check is wrong
 	CALL	runtime·mstart(SB)
 
 	WORD	$0	// crash
@@ -96,9 +96,9 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOV	wait+0(FP), A0
 	// We're done using the stack.
-	FENCE
+	FENCE	RW, W
 	MOVW	ZERO, (A0)
-	FENCE
+	FENCE	RW, RW
 	MOV	$0, A0	// exit code
 	MOV	$SYS_thr_exit, T0
 	ECALL

@@ -166,6 +166,27 @@ func ui4c(c <-chan uint8) {
 	}
 }
 
+func ui5c(c <-chan uint64) {
+	// amd64:"CMPQ .+, [$]255" "DECQ "
+	// s390x:"CLGIJ [$]4, R[0-9]+, [$]255" "ADD [$]-1,"
+	for x := <-c; x > 0 && x < 256; x = <-c {
+	}
+}
+
+func ui6c(c <-chan uint16) {
+	// amd64:"CMPW .+, [$]39" "DECL "
+	// s390x:"CLIJ [$]12, R[0-9]+, [$]39" "ADDW [$]-1,"
+	for x := <-c; x > 0 && x <= 40; x = <-c {
+	}
+}
+
+func ui7c(c <-chan uint8) {
+	// amd64:"CMPB .+, [$]39" "DECL "
+	// s390x:"CLIJ [$]12, R[0-9]+, [$]39" "ADDW [$]-1,"
+	for x := <-c; x > 0 && x <= 40; x = <-c {
+	}
+}
+
 // ------------------------------------ //
 // unsigned integer range (disjunction) //
 // ------------------------------------ //
@@ -195,6 +216,126 @@ func ui4d(c <-chan uint8) {
 	// amd64:"CMPB .+, [$]2" "ADDL [$]-126,"
 	// s390x:"CLIJ [$]10, R[0-9]+, [$]2" "ADDW [$]-126,"
 	for x := <-c; x < 126 || x >= 128; x = <-c {
+	}
+}
+
+// ------------------------------------ //
+// single bit difference (conjunction)  //
+// ------------------------------------ //
+
+func sisbc64(c <-chan int64) {
+	// amd64: "ORQ [$]2,"
+	// riscv64: "ORI [$]2,"
+	for x := <-c; x != 4 && x != 6; x = <-c {
+	}
+}
+
+func sisbc32(c <-chan int32) {
+	// amd64: "ORL [$]4,"
+	// riscv64: "ORI [$]4,"
+	for x := <-c; x != -1 && x != -5; x = <-c {
+	}
+}
+
+func sisbc16(c <-chan int16) {
+	// amd64: "ORL [$]32,"
+	// riscv64: "ORI [$]32,"
+	for x := <-c; x != 16 && x != 48; x = <-c {
+	}
+}
+
+func sisbc8(c <-chan int8) {
+	// amd64: "ORL [$]16,"
+	// riscv64: "ORI [$]16,"
+	for x := <-c; x != -15 && x != -31; x = <-c {
+	}
+}
+
+func uisbc64(c <-chan uint64) {
+	// amd64: "ORQ [$]4,"
+	// riscv64: "ORI [$]4,"
+	for x := <-c; x != 1 && x != 5; x = <-c {
+	}
+}
+
+func uisbc32(c <-chan uint32) {
+	// amd64: "ORL [$]4,"
+	// riscv64: "ORI [$]4,"
+	for x := <-c; x != 2 && x != 6; x = <-c {
+	}
+}
+
+func uisbc16(c <-chan uint16) {
+	// amd64: "ORL [$]32,"
+	// riscv64: "ORI [$]32,"
+	for x := <-c; x != 16 && x != 48; x = <-c {
+	}
+}
+
+func uisbc8(c <-chan uint8) {
+	// amd64: "ORL [$]64,"
+	// riscv64: "ORI [$]64,"
+	for x := <-c; x != 64 && x != 0; x = <-c {
+	}
+}
+
+// ------------------------------------ //
+// single bit difference (disjunction)  //
+// ------------------------------------ //
+
+func sisbd64(c <-chan int64) {
+	// amd64: "ORQ [$]2,"
+	// riscv64: "ORI [$]2,"
+	for x := <-c; x == 4 || x == 6; x = <-c {
+	}
+}
+
+func sisbd32(c <-chan int32) {
+	// amd64: "ORL [$]4,"
+	// riscv64: "ORI [$]4,"
+	for x := <-c; x == -1 || x == -5; x = <-c {
+	}
+}
+
+func sisbd16(c <-chan int16) {
+	// amd64: "ORL [$]32,"
+	// riscv64: "ORI [$]32,"
+	for x := <-c; x == 16 || x == 48; x = <-c {
+	}
+}
+
+func sisbd8(c <-chan int8) {
+	// amd64: "ORL [$]16,"
+	// riscv64: "ORI [$]16,"
+	for x := <-c; x == -15 || x == -31; x = <-c {
+	}
+}
+
+func uisbd64(c <-chan uint64) {
+	// amd64: "ORQ [$]4,"
+	// riscv64: "ORI [$]4,"
+	for x := <-c; x == 1 || x == 5; x = <-c {
+	}
+}
+
+func uisbd32(c <-chan uint32) {
+	// amd64: "ORL [$]4,"
+	// riscv64: "ORI [$]4,"
+	for x := <-c; x == 2 || x == 6; x = <-c {
+	}
+}
+
+func uisbd16(c <-chan uint16) {
+	// amd64: "ORL [$]32,"
+	// riscv64: "ORI [$]32,"
+	for x := <-c; x == 16 || x == 48; x = <-c {
+	}
+}
+
+func uisbd8(c <-chan uint8) {
+	// amd64: "ORL [$]64,"
+	// riscv64: "ORI [$]64,"
+	for x := <-c; x == 64 || x == 0; x = <-c {
 	}
 }
 

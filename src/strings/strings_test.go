@@ -694,7 +694,7 @@ func rot13(r rune) rune {
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
-	// 1.  Grow. This triggers two reallocations in Map.
+	// 1. Grow. This triggers two reallocations in Map.
 	maxRune := func(rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, a)
 	expect := tenRunes(unicode.MaxRune)
@@ -1822,6 +1822,27 @@ func TestCut(t *testing.T) {
 	for _, tt := range cutTests {
 		if before, after, found := Cut(tt.s, tt.sep); before != tt.before || after != tt.after || found != tt.found {
 			t.Errorf("Cut(%q, %q) = %q, %q, %v, want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
+		}
+	}
+}
+
+func TestCutLast(t *testing.T) {
+	tests := []struct {
+		s, sep        string
+		before, after string
+		found         bool
+	}{
+		{"a/b/c", "/", "a/b", "c", true},
+		{"a//b//c", "//", "a//b", "c", true},
+		{"abc", "/", "abc", "", false},
+		{"abc", "", "abc", "", true},
+		{"", "", "", "", true},
+		{"/abc", "/", "", "abc", true},
+		{"abc/", "/", "abc", "", true},
+	}
+	for _, tt := range tests {
+		if before, after, found := CutLast(tt.s, tt.sep); before != tt.before || after != tt.after || found != tt.found {
+			t.Errorf("CutLast(%q, %q) = %q, %q, %v; want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
 		}
 	}
 }

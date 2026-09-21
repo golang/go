@@ -355,3 +355,7 @@ const (
 	SYS_64_LINUX_SYSCALLS      = 4305
 	SYS_N32_LINUX_SYSCALLS     = 4310
 )
+
+const (
+	_SYS_landlock_restrict_self = 4446
+)

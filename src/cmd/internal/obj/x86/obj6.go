@@ -236,7 +236,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
-	case AMOVSS:
+	case AMOVSS, AVMOVSS:
 		if p.From.Type == obj.TYPE_FCONST {
 			//  f == 0 can't be used here due to -0, so use Float64bits
 			if f := p.From.Val.(float64); math.Float64bits(f) == 0 {
@@ -272,7 +272,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Offset = 0
 		}
 
-	case AMOVSD:
+	case AMOVSD, AVMOVSD:
 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
 		if p.From.Type == obj.TYPE_FCONST {
 			//  f == 0 can't be used here due to -0, so use Float64bits
@@ -423,8 +423,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			q.From.Reg = reg
 		}
 	}
-	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
-		ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	from3 := p.GetFrom3()
+	for i := range p.RestArgs {
+		a := &p.RestArgs[i].Addr
+		if a != from3 && a.Name == obj.NAME_EXTERN && !a.Sym.Local() {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
 	}
 	var source *obj.Addr
 	// MOVx sym, Ry becomes $MOV sym@GOT, R15; MOVx (R15), Ry
@@ -434,9 +438,17 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 		}
+		if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+			ctxt.Diag("cannot handle NAME_EXTERN on multiple operands in %v with -dynlink", p)
+		}
 		source = &p.From
 	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+		if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+			ctxt.Diag("cannot handle NAME_EXTERN on multiple operands in %v with -dynlink", p)
+		}
 		source = &p.To
+	} else if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+		source = from3
 	} else {
 		return
 	}
@@ -501,9 +513,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p2.As = p.As
 	p2.From = p.From
 	p2.To = p.To
-	if from3 := p.GetFrom3(); from3 != nil {
-		p2.AddRestSource(*from3)
-	}
+	p2.RestArgs = p.RestArgs
 	if p.From.Name == obj.NAME_EXTERN {
 		p2.From.Reg = reg
 		p2.From.Name = obj.NAME_NONE
@@ -512,6 +522,11 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p2.To.Reg = reg
 		p2.To.Name = obj.NAME_NONE
 		p2.To.Sym = nil
+	} else if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
+		from3 = p2.GetFrom3()
+		from3.Reg = reg
+		from3.Name = obj.NAME_NONE
+		from3.Sym = nil
 	} else {
 		return
 	}
@@ -610,11 +625,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		autoffset = 0
 	}
 
-	hasCall := false
-	for q := p; q != nil; q = q.Link {
-		if q.As == obj.ACALL || q.As == obj.ADUFFCOPY || q.As == obj.ADUFFZERO {
+	var hasCall, mightCallABI0 bool
+	for q := p; q != nil && !(hasCall && mightCallABI0); q = q.Link {
+		switch q.As {
+		case obj.ACALL:
 			hasCall = true
-			break
+			if q.To.Sym != nil {
+				if q.To.Sym.ABI() == obj.ABI0 {
+					mightCallABI0 = true
+				}
+			} else {
+				if ctxt.IsAsm {
+					// We have no idea what this indirect call looks like, so assume the worst.
+					mightCallABI0 = true
+				} else {
+					// The compiler always use ABIInternal for indirect calls
+					// since otherwise it goes through an ABIInternal → ABI0 wrapper.
+				}
+			}
+		case obj.ADUFFCOPY, obj.ADUFFZERO:
+			hasCall = true
 		}
 	}
 
@@ -808,21 +838,36 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if autoffset != 0 {
 			to := p.To // Keep To attached to RET for retjmp below
 			p.To = obj.Addr{}
-			if localoffset != 0 {
-				p.As = AADJSP
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = int64(-localoffset)
-				p.Spadj = -localoffset
-				p = obj.Appendp(p, newprog)
-			}
 
-			if bpsize > 0 {
-				// Restore caller's BP
-				p.As = APOPQ
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_BP
-				p.Spadj = -int32(bpsize)
+			needSpRestore, needBpRestore := localoffset != 0, bpsize > 0
+			// We can't use LEAVE with ABI0 assembly because the go
+			// asm promise it will insert save and restores for BP.
+			// Thus many pieces of code use BP as a scratch register.
+			// Due to ABI0 NOFRAME functions not restoring BP we can't
+			// use LEAVE there either. See https://go.dev/issue/80710
+			asmSafe := !ctxt.IsAsm || cursym.ABI() == obj.ABIInternal
+			// On Plan 9, BP holds the system call number, not a frame pointer.
+			// See https://go.dev/issue/80910.
+			plan9 := ctxt.Headtype == objabi.Hplan9
+			if asmSafe && !plan9 && !mightCallABI0 && needSpRestore && needBpRestore {
+				p.As = ALEAVEQ
+				p.Spadj = -localoffset - int32(bpsize)
 				p = obj.Appendp(p, newprog)
+			} else {
+				if needSpRestore {
+					p.As = AADJSP
+					p.From.Type = obj.TYPE_CONST
+					p.From.Offset = int64(-localoffset)
+					p.Spadj = -localoffset
+					p = obj.Appendp(p, newprog)
+				}
+				if needBpRestore {
+					p.As = APOPQ
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REG_BP
+					p.Spadj = -int32(bpsize)
+					p = obj.Appendp(p, newprog)
+				}
 			}
 
 			p.As = obj.ARET
@@ -835,7 +880,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.Spadj = +autoffset
 		}
 
-		if p.To.Sym != nil { // retjmp
+		if p.As == obj.ARET && (p.To.Sym != nil || p.To.Type == obj.TYPE_REG) { // retjmp
 			p.As = obj.AJMP
 		}
 	}

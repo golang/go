@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !wasm && !386 && !arm && !mips
+//go:build !wasm && !386 && !arm && !mips && !mipsle
 
 // TODO fix this to work for wasm and 32-bit architectures.
 // Doing more than this, however, expands the change.

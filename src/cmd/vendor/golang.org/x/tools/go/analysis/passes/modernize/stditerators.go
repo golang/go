@@ -14,30 +14,21 @@ import (
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/goplsexport"
-	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/stdlib"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
-var stditeratorsAnalyzer = &analysis.Analyzer{
+var StdIteratorsAnalyzer = &analysis.Analyzer{
 	Name: "stditerators",
-	Doc:  analysisinternal.MustExtractDoc(doc, "stditerators"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "stditerators"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stditerators,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stditerators",
-}
-
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.StdIteratorsModernizer = stditeratorsAnalyzer
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stditerators",
 }
 
 // stditeratorsTable records std types that have legacy T.{Len,At}
@@ -45,23 +36,29 @@ func init() {
 // iter.Seq.
 var stditeratorsTable = [...]struct {
 	pkgpath, typename, lenmethod, atmethod, itermethod, elemname string
+
+	seqn int // 1 or 2 => "for x" or "for _, x"
 }{
 	// Example: in go/types, (*Tuple).Variables returns an
 	// iterator that replaces a loop over (*Tuple).{Len,At}.
 	// The loop variable is named "v".
-	{"go/types", "Interface", "NumEmbeddeds", "EmbeddedType", "EmbeddedTypes", "etyp"},
-	{"go/types", "Interface", "NumExplicitMethods", "ExplicitMethod", "ExplicitMethods", "method"},
-	{"go/types", "Interface", "NumMethods", "Method", "Methods", "method"},
-	{"go/types", "MethodSet", "Len", "At", "Methods", "method"},
-	{"go/types", "Named", "NumMethods", "Method", "Methods", "method"},
-	{"go/types", "Scope", "NumChildren", "Child", "Children", "child"},
-	{"go/types", "Struct", "NumFields", "Field", "Fields", "field"},
-	{"go/types", "Tuple", "Len", "At", "Variables", "v"},
-	{"go/types", "TypeList", "Len", "At", "Types", "t"},
-	{"go/types", "TypeParamList", "Len", "At", "TypeParams", "tparam"},
-	{"go/types", "Union", "Len", "Term", "Terms", "term"},
-	// TODO(adonovan): support Seq2. Bonus: transform uses of both key and value.
-	// {"reflect", "Value", "NumFields", "Field", "Fields", "field"},
+	{"go/types", "Interface", "NumEmbeddeds", "EmbeddedType", "EmbeddedTypes", "etyp", 1},
+	{"go/types", "Interface", "NumExplicitMethods", "ExplicitMethod", "ExplicitMethods", "method", 1},
+	{"go/types", "Interface", "NumMethods", "Method", "Methods", "method", 1},
+	{"go/types", "MethodSet", "Len", "At", "Methods", "method", 1},
+	{"go/types", "Named", "NumMethods", "Method", "Methods", "method", 1},
+	{"go/types", "Scope", "NumChildren", "Child", "Children", "child", 1},
+	{"go/types", "Struct", "NumFields", "Field", "Fields", "field", 1},
+	{"go/types", "Tuple", "Len", "At", "Variables", "v", 1},
+	{"go/types", "TypeList", "Len", "At", "Types", "t", 1},
+	{"go/types", "TypeParamList", "Len", "At", "TypeParams", "tparam", 1},
+	{"go/types", "Union", "Len", "Term", "Terms", "term", 1},
+	{"reflect", "Type", "NumField", "Field", "Fields", "field", 1},
+	{"reflect", "Type", "NumMethod", "Method", "Methods", "method", 1},
+	{"reflect", "Type", "NumIn", "In", "Ins", "in", 1},
+	{"reflect", "Type", "NumOut", "Out", "Outs", "out", 1},
+	{"reflect", "Value", "NumField", "Field", "Fields", "field", 2},
+	{"reflect", "Value", "NumMethod", "Method", "Methods", "method", 2},
 }
 
 // stditerators suggests fixes to replace loops using Len/At-style
@@ -88,9 +85,20 @@ var stditeratorsTable = [...]struct {
 // the user hasn't intentionally chosen not to use an
 // iterator for that reason? We don't want to go fix to
 // undo optimizations. Do we need a suppression mechanism?
+//
+// TODO(adonovan): recognize the more complex patterns that
+// could make full use of both components of an iter.Seq2, e.g.
+//
+//	for i := 0; i < v.NumField(); i++ {
+//		use(v.Field(i), v.Type().Field(i))
+//	}
+//
+// =>
+//
+//	for structField, field := range v.Fields() {
+//		use(structField, field)
+//	}
 func stditerators(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
 		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
 		info  = pass.TypesInfo
@@ -116,6 +124,10 @@ func stditerators(pass *analysis.Pass) (any, error) {
 		//
 		//     for ... { e := x.At(i); use(e) }
 		//
+		// or
+		//
+		//     for ... { if e := x.At(i); cond { use(e) } }
+		//
 		// then chooseName prefers the name e and additionally
 		// returns the var's symbol. We'll transform this to:
 		//
@@ -124,10 +136,11 @@ func stditerators(pass *analysis.Pass) (any, error) {
 		// which leaves a redundant assignment that a
 		// subsequent 'forvar' pass will eliminate.
 		chooseName := func(curBody inspector.Cursor, x ast.Expr, i *types.Var) (string, *types.Var) {
-			// Is body { elem := x.At(i); ... } ?
-			body := curBody.Node().(*ast.BlockStmt)
-			if len(body.List) > 0 {
-				if assign, ok := body.List[0].(*ast.AssignStmt); ok &&
+
+			// isVarAssign reports whether stmt has the form v := x.At(i)
+			// and returns the variable if so.
+			isVarAssign := func(stmt ast.Stmt) *types.Var {
+				if assign, ok := stmt.(*ast.AssignStmt); ok &&
 					assign.Tok == token.DEFINE &&
 					len(assign.Lhs) == 1 &&
 					len(assign.Rhs) == 1 &&
@@ -138,15 +151,34 @@ func stditerators(pass *analysis.Pass) (any, error) {
 						astutil.EqualSyntax(ast.Unparen(call.Fun).(*ast.SelectorExpr).X, x) &&
 						is[*ast.Ident](call.Args[0]) &&
 						info.Uses[call.Args[0].(*ast.Ident)] == i {
-						// Have: { elem := x.At(i); ... }
+						// Have: elem := x.At(i)
 						id := assign.Lhs[0].(*ast.Ident)
-						return id.Name, info.Defs[id].(*types.Var)
+						return info.Defs[id].(*types.Var)
+					}
+				}
+				return nil
+			}
+
+			body := curBody.Node().(*ast.BlockStmt)
+			if len(body.List) > 0 {
+				// Is body { elem := x.At(i); ... } ?
+				if v := isVarAssign(body.List[0]); v != nil {
+					return v.Name(), v
+				}
+
+				// Or { if elem := x.At(i); cond { ... } } ?
+				if ifstmt, ok := body.List[0].(*ast.IfStmt); ok && ifstmt.Init != nil {
+					if v := isVarAssign(ifstmt.Init); v != nil {
+						return v.Name(), v
 					}
 				}
 			}
 
 			loop := curBody.Parent().Node()
-			return refactor.FreshName(info.Scopes[loop], loop.Pos(), row.elemname), nil
+			// We generate a new name only if the preferred name is already declared here
+			// and is used within the loop body.
+			name := freshName(info, index, info.Scopes[loop], loop.Pos(), curBody, curBody, token.NoPos, row.elemname)
+			return name, nil
 		}
 
 		// Process each call of x.Len().
@@ -168,7 +200,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 			)
 
 			// Analyze enclosing loop.
-			switch ek, _ := curLenCall.ParentEdge(); ek {
+			switch curLenCall.ParentEdgeKind() {
 			case edge.BinaryExpr_Y:
 				// pattern 1: for i := 0; i < x.Len(); i++ { ... }
 				var (
@@ -176,7 +208,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 					cmp    = curCmp.Node().(*ast.BinaryExpr)
 				)
 				if cmp.Op != token.LSS ||
-					!astutil.IsChildOf(curCmp, edge.ForStmt_Cond) {
+					curCmp.ParentEdgeKind() != edge.ForStmt_Cond {
 					continue
 				}
 				if id, ok := cmp.X.(*ast.Ident); ok {
@@ -191,19 +223,21 @@ func stditerators(pass *analysis.Pass) (any, error) {
 					}
 					// Have: for i := 0; i < x.Len(); i++ { ... }.
 					//       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-					rng = analysisinternal.Range(loop.For, loop.Post.End())
+					rng = astutil.RangeOf(loop.For, loop.Post.End())
 					indexVar = v
 					curBody = curFor.ChildAt(edge.ForStmt_Body, -1)
 					elem, elemVar = chooseName(curBody, lenSel.X, indexVar)
+					elemPrefix := cond(row.seqn == 2, "_, ", "")
 
-					//	for i    := 0; i < x.Len(); i++ {
-					//          ----    -------  ---  -----
-					//	for elem := range  x.All()      {
+					//	for i       := 0; i < x.Len(); i++ {
+					//          ----       -------  ---  -----
+					//	for elem    := range  x.All()      {
+					// or   for _, elem := ...
 					edits = []analysis.TextEdit{
 						{
 							Pos:     v.Pos(),
 							End:     v.Pos() + token.Pos(len(v.Name())),
-							NewText: []byte(elem),
+							NewText: []byte(elemPrefix + elem),
 						},
 						{
 							Pos:     loop.Init.(*ast.AssignStmt).Rhs[0].Pos(),
@@ -234,10 +268,11 @@ func stditerators(pass *analysis.Pass) (any, error) {
 					// Have: for i := range x.Len() { ... }
 					//                ~~~~~~~~~~~~~
 
-					rng = analysisinternal.Range(loop.Range, loop.X.End())
+					rng = astutil.RangeOf(loop.Range, loop.X.End())
 					indexVar = info.Defs[id].(*types.Var)
 					curBody = curRange.ChildAt(edge.RangeStmt_Body, -1)
 					elem, elemVar = chooseName(curBody, lenSel.X, indexVar)
+					elemPrefix := cond(row.seqn == 2, "_, ", "")
 
 					//	for i    := range x.Len() {
 					//          ----            ---
@@ -246,7 +281,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 						{
 							Pos:     loop.Key.Pos(),
 							End:     loop.Key.End(),
-							NewText: []byte(elem),
+							NewText: []byte(elemPrefix + elem),
 						},
 						{
 							Pos:     lenSel.Sel.Pos(),
@@ -311,9 +346,9 @@ func stditerators(pass *analysis.Pass) (any, error) {
 			// (In the long run, version filters are not highly selective,
 			// so there's no need to do them first, especially as this check
 			// may be somewhat expensive.)
-			if v, ok := methodGoVersion(row.pkgpath, row.typename, row.itermethod); !ok {
-				panic("no version found")
-			} else if file := astutil.EnclosingFile(curLenCall); !fileUses(info, file, v.String()) {
+			if v, err := methodGoVersion(row.pkgpath, row.typename, row.itermethod); err != nil {
+				panic(err)
+			} else if !analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(curLenCall), v.String()) {
 				continue nextCall
 			}
 
@@ -338,7 +373,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 
 // methodGoVersion reports the version at which the method
 // (pkgpath.recvtype).method appeared in the standard library.
-func methodGoVersion(pkgpath, recvtype, method string) (stdlib.Version, bool) {
+func methodGoVersion(pkgpath, recvtype, method string) (stdlib.Version, error) {
 	// TODO(adonovan): opt: this might be inefficient for large packages
 	// like go/types. If so, memoize using a map (and kill two birds with
 	// one stone by also memoizing the 'within' check above).
@@ -346,9 +381,9 @@ func methodGoVersion(pkgpath, recvtype, method string) (stdlib.Version, bool) {
 		if sym.Kind == stdlib.Method {
 			_, recv, name := sym.SplitMethod()
 			if recv == recvtype && name == method {
-				return sym.Version, true
+				return sym.Version, nil
 			}
 		}
 	}
-	return 0, false
+	return 0, fmt.Errorf("methodGoVersion: %s.%s.%s missing from stdlib manifest", pkgpath, recvtype, method)
 }

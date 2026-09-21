@@ -225,6 +225,13 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$24-12
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW 	g_secret(g), R20
+	CBZ 	R20, nosecret
+	BL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 
@@ -309,6 +316,13 @@ finish:
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R20
+	CBZ	R20, nosecret
+	BL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 

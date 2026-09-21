@@ -1052,14 +1052,6 @@ func IoctlSetIntRetInt(fd int, req int, arg int) (int, error) {
 	return ioctlRet(fd, req, uintptr(arg))
 }
 
-func IoctlSetString(fd int, req int, val string) error {
-	bs := make([]byte, len(val)+1)
-	copy(bs[:len(bs)-1], val)
-	err := ioctlPtr(fd, req, unsafe.Pointer(&bs[0]))
-	runtime.KeepAlive(&bs[0])
-	return err
-}
-
 // Lifreq Helpers
 
 func (l *Lifreq) SetName(name string) error {

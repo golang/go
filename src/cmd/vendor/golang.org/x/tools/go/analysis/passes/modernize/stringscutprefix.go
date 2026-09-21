@@ -12,27 +12,26 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var StringsCutPrefixAnalyzer = &analysis.Analyzer{
 	Name: "stringscutprefix",
-	Doc:  analysisinternal.MustExtractDoc(doc, "stringscutprefix"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "stringscutprefix"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stringscutprefix,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringscutprefix",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stringscutprefix",
 }
 
 // stringscutprefix offers a fix to replace an if statement which
@@ -56,12 +55,9 @@ var StringsCutPrefixAnalyzer = &analysis.Analyzer{
 // Variants:
 // - bytes.HasPrefix/HasSuffix usage as pattern 1.
 func stringscutprefix(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
-		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
-		info    = pass.TypesInfo
+		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info  = pass.TypesInfo
 
 		stringsTrimPrefix = index.Object("strings", "TrimPrefix")
 		bytesTrimPrefix   = index.Object("bytes", "TrimPrefix")
@@ -72,12 +68,16 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	for curFile := range filesUsing(inspect, pass.TypesInfo, "go1.20") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_20) {
 		for curIfStmt := range curFile.Preorder((*ast.IfStmt)(nil)) {
 			ifStmt := curIfStmt.Node().(*ast.IfStmt)
 
 			// pattern1
 			if call, ok := ifStmt.Cond.(*ast.CallExpr); ok && ifStmt.Init == nil && len(ifStmt.Body.List) > 0 {
+				if len(call.Args) != 2 {
+					// A multi-valued call may supply the complete argument list.
+					continue
+				}
 
 				obj := typeutil.Callee(info, call)
 				if !typesinternal.IsFunctionNamed(obj, "strings", "HasPrefix", "HasSuffix") &&
@@ -91,6 +91,9 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 				firstStmt := curIfStmt.Child(ifStmt.Body).Child(ifStmt.Body.List[0])
 				for curCall := range firstStmt.Preorder((*ast.CallExpr)(nil)) {
 					call1 := curCall.Node().(*ast.CallExpr)
+					if len(call1.Args) != 2 {
+						continue
+					}
 					obj1 := typeutil.Callee(info, call1)
 					// bytesTrimPrefix or stringsTrimPrefix might be nil if the file doesn't import it,
 					// so we need to ensure the obj1 is not nil otherwise the call1 is not TrimPrefix and cause a panic (ditto Suffix).
@@ -184,6 +187,9 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 				isSimpleAssign(ifStmt.Init) {
 				assign := ifStmt.Init.(*ast.AssignStmt)
 				if call, ok := assign.Rhs[0].(*ast.CallExpr); ok && assign.Tok == token.DEFINE {
+					if len(call.Args) != 2 {
+						continue
+					}
 					lhs := assign.Lhs[0]
 					obj := typeutil.Callee(info, call)
 
@@ -206,7 +212,7 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 
 					if astutil.EqualSyntax(lhs, bin.X) && astutil.EqualSyntax(call.Args[0], bin.Y) ||
 						(astutil.EqualSyntax(lhs, bin.Y) && astutil.EqualSyntax(call.Args[0], bin.X)) {
-						okVarName := refactor.FreshName(info.Scopes[ifStmt], ifStmt.Pos(), "ok")
+						okVarName := freshName(info, index, info.Scopes[ifStmt], ifStmt.Pos(), curIfStmt, curIfStmt, token.NoPos, "ok")
 						// Have one of:
 						//   if rest := TrimPrefix(s, prefix); rest != s { (ditto Suffix)
 						//   if rest := TrimPrefix(s, prefix); s != rest { (ditto Suffix)
@@ -222,34 +228,47 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 							call.Pos(),
 						)
 
+						// if x     := strings.TrimPrefix(s, pre); x != s ...
+						//     ----            ----------          ------
+						// if x, ok := strings.CutPrefix (s, pre); ok     ...
+						// (ditto Suffix)
+						edits := append(importEdits, []analysis.TextEdit{
+							{
+								Pos:     assign.Lhs[0].End(),
+								End:     assign.Lhs[0].End(),
+								NewText: fmt.Appendf(nil, ", %s", okVarName),
+							},
+							{
+								Pos:     call.Fun.Pos(),
+								End:     call.Fun.End(),
+								NewText: fmt.Appendf(nil, "%s%s", prefix, cutFuncName),
+							},
+							{
+								Pos:     ifStmt.Cond.Pos(),
+								End:     ifStmt.Cond.End(),
+								NewText: []byte(okVarName),
+							},
+						}...)
+
+						// Replace the "after" variable with "_" if is unused inside the if statement.
+						if id, ok := lhs.(*ast.Ident); ok {
+							if obj := info.ObjectOf(id); obj != nil && moreiters.Len(index.Uses(obj)) < 2 {
+								edits = append(edits, analysis.TextEdit{
+									Pos:     assign.Lhs[0].Pos(),
+									End:     assign.Lhs[0].End(),
+									NewText: []byte("_"),
+								})
+							}
+						}
+
 						pass.Report(analysis.Diagnostic{
 							// highlight from the init and the condition end.
 							Pos:     ifStmt.Init.Pos(),
 							End:     ifStmt.Cond.End(),
 							Message: message,
 							SuggestedFixes: []analysis.SuggestedFix{{
-								Message: fixMessage,
-								// if x     := strings.TrimPrefix(s, pre); x != s ...
-								//     ----            ----------          ------
-								// if x, ok := strings.CutPrefix (s, pre); ok     ...
-								// (ditto Suffix)
-								TextEdits: append(importEdits, []analysis.TextEdit{
-									{
-										Pos:     assign.Lhs[0].End(),
-										End:     assign.Lhs[0].End(),
-										NewText: fmt.Appendf(nil, ", %s", okVarName),
-									},
-									{
-										Pos:     call.Fun.Pos(),
-										End:     call.Fun.End(),
-										NewText: fmt.Appendf(nil, "%s%s", prefix, cutFuncName),
-									},
-									{
-										Pos:     ifStmt.Cond.Pos(),
-										End:     ifStmt.Cond.End(),
-										NewText: []byte(okVarName),
-									},
-								}...),
+								Message:   fixMessage,
+								TextEdits: edits,
 							}},
 						})
 					}

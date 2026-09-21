@@ -14,21 +14,21 @@ const (
 	ASI_LEON_DFLUSH                  = 0x11
 	ASI_LEON_IFLUSH                  = 0x10
 	ASI_LEON_MMUFLUSH                = 0x18
-	B1000000                         = 0x1008
+	B1000000                         = 0x100c
 	B115200                          = 0x1002
-	B1152000                         = 0x1009
-	B1500000                         = 0x100a
-	B2000000                         = 0x100b
+	B1152000                         = 0x100d
+	B1500000                         = 0x100e
+	B153600                          = 0x1006
+	B2000000                         = 0x100f
 	B230400                          = 0x1003
-	B2500000                         = 0x100c
-	B3000000                         = 0x100d
-	B3500000                         = 0x100e
-	B4000000                         = 0x100f
+	B307200                          = 0x1007
 	B460800                          = 0x1004
-	B500000                          = 0x1005
+	B500000                          = 0x100a
 	B57600                           = 0x1001
-	B576000                          = 0x1006
-	B921600                          = 0x1007
+	B576000                          = 0x100b
+	B614400                          = 0x1008
+	B76800                           = 0x1005
+	B921600                          = 0x1009
 	BLKALIGNOFF                      = 0x2000127a
 	BLKBSZGET                        = 0x40081270
 	BLKBSZSET                        = 0x80081271
@@ -91,7 +91,7 @@ const (
 	FFDLY                            = 0x8000
 	FICLONE                          = 0x80049409
 	FICLONERANGE                     = 0x8020940d
-	FLUSHO                           = 0x1000
+	FLUSHO                           = 0x2000
 	FS_IOC_ENABLE_VERITY             = 0x80806685
 	FS_IOC_GETFLAGS                  = 0x40086601
 	FS_IOC_GET_ENCRYPTION_NONCE      = 0x4010661b
@@ -119,6 +119,8 @@ const (
 	IEXTEN                           = 0x8000
 	IN_CLOEXEC                       = 0x400000
 	IN_NONBLOCK                      = 0x4000
+	IOCTL_MEI_NOTIFY_GET             = 0x40044803
+	IOCTL_MEI_NOTIFY_SET             = 0x80044802
 	IOCTL_VM_SOCKETS_GET_LOCAL_CID   = 0x200007b9
 	IPV6_FLOWINFO_MASK               = 0xfffffff
 	IPV6_FLOWLABEL_MASK              = 0xfffff
@@ -159,6 +161,7 @@ const (
 	NFDBITS                          = 0x40
 	NLDLY                            = 0x100
 	NOFLSH                           = 0x80
+	NS_GET_ID                        = 0x4008b70d
 	NS_GET_MNTNS_ID                  = 0x4008b705
 	NS_GET_NSTYPE                    = 0x2000b703
 	NS_GET_OWNER_UID                 = 0x2000b704
@@ -356,6 +359,7 @@ const (
 	RTC_WKALM_SET                    = 0x8028700f
 	SCM_DEVMEM_DMABUF                = 0x58
 	SCM_DEVMEM_LINEAR                = 0x57
+	SCM_INQ                          = 0x5d
 	SCM_TIMESTAMPING                 = 0x23
 	SCM_TIMESTAMPING_OPT_STATS       = 0x38
 	SCM_TIMESTAMPING_PKTINFO         = 0x3c
@@ -451,6 +455,7 @@ const (
 	SO_ERROR                         = 0x1007
 	SO_INCOMING_CPU                  = 0x33
 	SO_INCOMING_NAPI_ID              = 0x3a
+	SO_INQ                           = 0x5d
 	SO_KEEPALIVE                     = 0x8
 	SO_LINGER                        = 0x80
 	SO_LOCK_FILTER                   = 0x28
@@ -558,6 +563,9 @@ const (
 	TIOCM_CD                         = 0x40
 	TIOCM_CTS                        = 0x20
 	TIOCM_DSR                        = 0x100
+	TIOCM_LOOP                       = 0x8000
+	TIOCM_OUT1                       = 0x2000
+	TIOCM_OUT2                       = 0x4000
 	TIOCM_RI                         = 0x80
 	TIOCM_RNG                        = 0x80
 	TIOCM_SR                         = 0x10
@@ -636,10 +644,11 @@ const (
 	UBI_IOCVOLRMBLK                  = 0x20004f08
 	UBI_IOCVOLUP                     = 0x80084f00
 	VDISCARD                         = 0xd
+	VDSUSP                           = 0xb
 	VEOF                             = 0x4
-	VEOL                             = 0xb
-	VEOL2                            = 0x10
-	VMIN                             = 0x6
+	VEOL                             = 0x5
+	VEOL2                            = 0x6
+	VMIN                             = 0x4
 	VREPRINT                         = 0xc
 	VSTART                           = 0x8
 	VSTOP                            = 0x9
@@ -659,6 +668,7 @@ const (
 	WDIOC_KEEPALIVE                  = 0x40045705
 	WDIOC_SETOPTIONS                 = 0x40045704
 	WORDSIZE                         = 0x40
+	WRAP                             = 0x20000
 	XCASE                            = 0x4
 	XTABS                            = 0x1800
 	_HIDIOCGRAWNAME                  = 0x40804804
@@ -692,6 +702,8 @@ const (
 	EDESTADDRREQ    = syscall.Errno(0x27)
 	EDOTDOT         = syscall.Errno(0x58)
 	EDQUOT          = syscall.Errno(0x45)
+	EFSBADCRC       = syscall.Errno(0x4c)
+	EFSCORRUPTED    = syscall.Errno(0x75)
 	EHOSTDOWN       = syscall.Errno(0x40)
 	EHOSTUNREACH    = syscall.Errno(0x41)
 	EHWPOISON       = syscall.Errno(0x87)
@@ -919,7 +931,7 @@ var errorList = [...]struct {
 	{114, "ELIBACC", "can not access a needed shared library"},
 	{115, "ENOTUNIQ", "name not unique on network"},
 	{116, "ERESTART", "interrupted system call should be restarted"},
-	{117, "EUCLEAN", "structure needs cleaning"},
+	{117, "EFSCORRUPTED", "structure needs cleaning"},
 	{118, "ENOTNAM", "not a XENIX named type file"},
 	{119, "ENAVAIL", "no XENIX semaphores available"},
 	{120, "EISNAM", "is a named type file"},

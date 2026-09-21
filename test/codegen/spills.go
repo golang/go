@@ -6,22 +6,22 @@
 
 package codegen
 
-func i64(a, b int64) int64 { // arm64:`STP\s`,`LDP\s`
+func i64(a, b int64) int64 { // arm64:`STP ` `LDP `
 	g()
 	return a + b
 }
 
-func i32(a, b int32) int32 { // arm64:`STPW`,`LDPW`
+func i32(a, b int32) int32 { // arm64:`STPW` `LDPW`
 	g()
 	return a + b
 }
 
-func f64(a, b float64) float64 { // arm64:`FSTPD`,`FLDPD`
+func f64(a, b float64) float64 { // arm64:`FSTPD` `FLDPD`
 	g()
 	return a + b
 }
 
-func f32(a, b float32) float32 { // arm64:`FSTPS`,`FLDPS`
+func f32(a, b float32) float32 { // arm64:`FSTPS` `FLDPS`
 	g()
 	return a + b
 }

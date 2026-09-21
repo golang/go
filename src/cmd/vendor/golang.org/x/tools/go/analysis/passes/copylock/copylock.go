@@ -328,8 +328,8 @@ func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typ
 
 	ttyp, ok := typ.Underlying().(*types.Tuple)
 	if ok {
-		for i := 0; i < ttyp.Len(); i++ {
-			subpath := lockPath(tpkg, ttyp.At(i).Type(), seen)
+		for v := range ttyp.Variables() {
+			subpath := lockPath(tpkg, v.Type(), seen)
 			if subpath != nil {
 				return append(subpath, typ.String())
 			}

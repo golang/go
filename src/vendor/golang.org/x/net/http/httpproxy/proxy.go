@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package httpproxy provides support for HTTP proxy determination
-// based on environment variables, as provided by net/http's
-// ProxyFromEnvironment function.
+// based on environment variables, as provided by
+// [net/http.ProxyFromEnvironment] function.
 //
 // The API is not subject to the Go 1 compatibility promise and may change at
 // any time.
@@ -56,7 +56,7 @@ type Config struct {
 	// presence of a REQUEST_METHOD environment variable).
 	// When this is set, ProxyForURL will return an error
 	// when HTTPProxy applies, because a client could be
-	// setting HTTP_PROXY maliciously. See https://golang.org/s/cgihttpproxy.
+	// setting HTTP_PROXY maliciously. See https://go.dev/s/cgihttpproxy.
 	CGI bool
 }
 
@@ -80,18 +80,19 @@ type config struct {
 	domainMatchers []matcher
 }
 
-// FromEnvironment returns a Config instance populated from the
-// environment variables HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the
-// lowercase versions thereof).
+// FromEnvironment returns a Config instance populated from the environment
+// variables HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the lowercase versions
+// thereof). When both the uppercase and lowercase versions are provided, the
+// lowercase versions are prioritized.
 //
 // The environment values may be either a complete URL or a
 // "host[:port]", in which case the "http" scheme is assumed. An error
 // is returned if the value is a different form.
 func FromEnvironment() *Config {
 	return &Config{
-		HTTPProxy:  getEnvAny("HTTP_PROXY", "http_proxy"),
-		HTTPSProxy: getEnvAny("HTTPS_PROXY", "https_proxy"),
-		NoProxy:    getEnvAny("NO_PROXY", "no_proxy"),
+		HTTPProxy:  getEnvAny("http_proxy", "HTTP_PROXY"),
+		HTTPSProxy: getEnvAny("https_proxy", "HTTPS_PROXY"),
+		NoProxy:    getEnvAny("no_proxy", "NO_PROXY"),
 		CGI:        os.Getenv("REQUEST_METHOD") != "",
 	}
 }
@@ -113,7 +114,7 @@ func getEnvAny(names ...string) string {
 // environment, or a proxy should not be used for the given request, as
 // defined by NO_PROXY.
 //
-// As a special case, if req.URL.Host is "localhost" or a loopback address
+// As a special case, if reqURL.Host is "localhost" or a loopback address
 // (with or without a port number), then a nil URL and nil error will be returned.
 func (cfg *Config) ProxyFunc() func(reqURL *url.URL) (*url.URL, error) {
 	// Preprocess the Config settings for more efficient evaluation.

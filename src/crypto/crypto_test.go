@@ -9,9 +9,11 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"internal/testenv"
 	"io"
 	"io/fs"
@@ -140,4 +142,43 @@ func TestDisallowedAssemblyInstructions(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestRegisterHashLimits(t *testing.T) {
+	// maxHash is not exported, so we just use its value. If maxHash ever changes
+	// this will need to be updated.
+	for _, h := range []crypto.Hash{0, 21, crypto.MLDSAMu} {
+		t.Run(fmt.Sprintf("h=%d", h), func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("RegisterHash did not panic for %v", h)
+				}
+			}()
+			crypto.RegisterHash(h, sha256.New)
+		})
+	}
+}
+
+func TestMLDSAMu(t *testing.T) {
+	h := crypto.MLDSAMu
+	if got := h.Size(); got != 64 {
+		t.Errorf("MLDSAMu.Size() = %d, want 64", got)
+	}
+	if got := h.String(); got != "ML-DSA μ message representative" {
+		t.Errorf("MLDSAMu.String() = %q", got)
+	}
+	if h.Available() {
+		t.Errorf("MLDSAMu.Available() = true, want false")
+	}
+	if got := h.HashFunc(); got != h {
+		t.Errorf("MLDSAMu.HashFunc() = %v, want itself", got)
+	}
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("MLDSAMu.New() did not panic")
+			}
+		}()
+		_ = h.New()
+	}()
 }

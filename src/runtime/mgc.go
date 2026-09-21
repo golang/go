@@ -5,7 +5,7 @@
 // Garbage collector (GC).
 //
 // The GC runs concurrently with mutator threads, is type accurate (aka precise), allows multiple
-// GC thread to run in parallel. It is a concurrent mark and sweep that uses a write barrier. It is
+// GC threads to run in parallel. It is a concurrent mark and sweep that uses a write barrier. It is
 // non-generational and non-compacting. Allocation is done using size segregated per P allocation
 // areas to minimize fragmentation while eliminating locks in the common case.
 //
@@ -195,10 +195,12 @@ func gcinit() {
 
 	work.startSema = 1
 	work.markDoneSema = 1
+	work.spanSPMCs.list.init(unsafe.Offsetof(spanSPMC{}.allnode))
 	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
 	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
 	lockInit(&work.strongFromWeak.lock, lockRankStrongFromWeakQueue)
 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
+	lockInit(&work.spanSPMCs.lock, lockRankSpanSPMCs)
 	lockInit(&gcCleanups.lock, lockRankCleanupQueue)
 }
 
@@ -314,7 +316,7 @@ func pollFractionalWorkerExit() bool {
 		return true
 	}
 	p := getg().m.p.ptr()
-	selfTime := p.gcFractionalMarkTime + (now - p.gcMarkWorkerStartTime)
+	selfTime := p.gcFractionalMarkTime.Load() + (now - p.gcMarkWorkerStartTime)
 	// Add some slack to the utilization goal so that the
 	// fractional worker isn't behind again the instant it exits.
 	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal
@@ -352,8 +354,8 @@ type workType struct {
 	//
 	// Only used if goexperiment.GreenTeaGC.
 	spanSPMCs struct {
-		lock mutex // no lock rank because it's a leaf lock (see mklockrank.go).
-		all  *spanSPMC
+		lock mutex
+		list listHeadManual // *spanSPMC
 	}
 
 	// Restore 64-bit alignment on 32-bit.
@@ -836,6 +838,15 @@ func gcStart(trigger gcTrigger) {
 	// Accumulate fine-grained stopping time.
 	work.cpuStats.accumulateGCPauseTime(stw.stoppingCPUTime, 1)
 
+	if goexperiment.RuntimeSecret {
+		// The world is stopped, which means every M is either idle, blocked
+		// in a syscall or this M that we are running on now.
+		// The blocked Ms had any secret spill on their signal stacks erased
+		// when they entered their respective states. Now we have to handle
+		// this one.
+		eraseSecretsSignalStk()
+	}
+
 	// Finish sweep before we start concurrent scan.
 	systemstack(func() {
 		finishsweep_m()
@@ -1138,7 +1149,7 @@ top:
 	// endCycle depends on all gcWork cache stats being flushed.
 	// The termination algorithm above ensured that up to
 	// allocations since the ragged barrier.
-	gcController.endCycle(now, int(gomaxprocs), work.userForced)
+	gcController.endCycle(now, int(gomaxprocs))
 
 	// Perform mark termination. This will restart the world.
 	gcMarkTermination(stw)
@@ -1304,6 +1315,40 @@ func findGoroutineLeaks() bool {
 			}
 		}
 	}
+
+	// Do not report the main goroutine if it is waiting on select{}.
+	//
+	// NOTE: We still treat the main goroutine as leaked during the analysis,
+	// but revert its status to _Gwaiting after the analysis to not include
+	// it in the goroutine leak profile.
+	// This preserves the effectiveness of goroutine leak detection
+	// if the main goroutine holds references to concurrency primitives causing
+	// other leaks.
+	//
+	// Example:
+	//
+	// ```go
+	// func main() {
+	// 	ch := make(chan int)
+	// 	go func() {
+	// 		...
+	// 		<-ch // Leaks
+	// 	}()
+	//
+	// 	select {}
+	// }
+	// ```
+	//
+	// The main goroutine is blocked by select{}, but holds a reference to "ch".
+	// Not treating the main goroutine as leaked would cause the analysis to
+	// miss the legitimate leak at the child goroutine.
+	//
+	// The main goroutine should always be allgs[0], but double check
+	// in case that invariant changes in the future.
+	if gp0 := allgs[0]; gp0.goid == 1 && gp0.waitreason == waitReasonSelectNoCases {
+		casgstatus(gp0, _Gleaked, _Gwaiting)
+	}
+
 	// Put the remaining roots as ready for marking and drain them.
 	work.markrootJobs.Add(int32(work.nStackRoots - work.nMaybeRunnableStackRoots))
 	work.nMaybeRunnableStackRoots = work.nStackRoots
@@ -1725,7 +1770,13 @@ func gcBgMarkWorker(ready chan struct{}) {
 	// the stack (see gopark). Prevent deadlock from recursively
 	// starting GC by disabling preemption.
 	gp.m.preemptoff = "GC worker init"
-	node := &new(gcBgMarkWorkerNodePadded).gcBgMarkWorkerNode // TODO: technically not allowed in the heap. See comment in tagptr.go.
+	// TODO: This is technically not allowed in the heap. See comment in tagptr.go.
+	//
+	// It is kept alive simply by virtue of being used in the infinite loop
+	// below. gcBgMarkWorkerPool keeps pointers to nodes that are not
+	// GC-visible, so this must be kept alive indefinitely (even if
+	// GOMAXPROCS decreases).
+	node := &new(gcBgMarkWorkerNodePadded).gcBgMarkWorkerNode
 	gp.m.preemptoff = ""
 
 	node.gp.set(gp)
@@ -1856,7 +1907,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 			pp.limiterEvent.stop(limiterEventIdleMarkWork, now)
 		}
 		if pp.gcMarkWorkerMode == gcMarkWorkerFractionalMode {
-			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
+			pp.gcFractionalMarkTime.Add(duration)
 		}
 
 		// We'll releasem after this point and thus this P may run

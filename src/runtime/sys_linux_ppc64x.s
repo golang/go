@@ -417,7 +417,6 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
 	MOVW	R3, ret+32(FP)
 	RET
 
-#ifdef GOARCH_ppc64le
 // Call the function stored in _cgo_sigaction using the GCC calling convention.
 TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
 	MOVD    sig+0(FP), R3
@@ -435,7 +434,6 @@ TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
 	MOVD    24(R1), R2              // Restore R2
 	MOVW    R3, ret+24(FP)          // Return result
 	RET
-#endif
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVW	sig+8(FP), R3
@@ -447,13 +445,6 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	24(R1), R2
 	RET
 
-#ifdef GO_PPC64X_HAS_FUNCDESC
-DEFINE_PPC64X_FUNCDESC(runtime·sigtramp, sigtramp<>)
-// cgo isn't supported on ppc64, but we need to supply a cgoSigTramp function.
-DEFINE_PPC64X_FUNCDESC(runtime·cgoSigtramp, sigtramp<>)
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
-#else
-// ppc64le doesn't need function descriptors
 // Save callee-save registers in the case of signal forwarding.
 // Same as on ARM64 https://golang.org/issue/31827 .
 //
@@ -461,7 +452,6 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 // a function pointer) as R2 may not be preserved when calling this
 // function. In those cases, the caller preserves their R2.
 TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
-#endif
 	// This is called with ELF calling conventions. Convert to Go.
 	// Allocate space for argument storage to call runtime.sigtrampgo.
 	STACK_AND_SAVE_HOST_TO_GO_ABI(32)
@@ -488,7 +478,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
 	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(32)
 	RET
 
-#ifdef GOARCH_ppc64le
 TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	// The stack unwinder, presumably written in C, may not be able to
 	// handle Go frame correctly. So, this function is NOFRAME, and we
@@ -583,7 +572,6 @@ sigtrampnog:
 	MOVD	R12, CTR
 	MOVD	R10, LR // restore LR
 	JMP	(CTR)
-#endif
 
 // Used by cgoSigtramp to inspect without clobbering R30/R31 via runtime.load_g.
 GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

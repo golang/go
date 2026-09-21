@@ -1,0 +1,1061 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"log"
+	"maps"
+	"reflect"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+
+	"simd/archsimd/_gen/simdgen/types"
+	"simd/archsimd/_gen/unify"
+
+	"golang.org/x/arch/x86/xeddata"
+	"gopkg.in/yaml.v3"
+)
+
+const (
+	NOT_REG_CLASS = iota // not a register
+	VREG_CLASS           // classify as a vector register; see
+	GREG_CLASS           // classify as a general register
+)
+
+// instVariant is a bitmap indicating a variant of an instruction that has
+// optional parameters.
+type instVariant uint8
+
+const (
+	instVariantNone instVariant = 0
+
+	// instVariantMasked indicates that this is the masked variant of an
+	// optionally-masked instruction.
+	instVariantMasked instVariant = 1 << iota
+)
+
+var operandRemarks int
+
+var skipMemOpsInstrs = map[string]bool{
+	// The SHA instructions has confusing semantics which we are too complicated
+	// to support.
+	"SHA1MSG1":    true,
+	"SHA1MSG2":    true,
+	"SHA1RNDS4":   true,
+	"SHA1NEXTE":   true,
+	"SHA256MSG1":  true,
+	"SHA256MSG2":  true,
+	"SHA256RNDS2": true,
+	// We don't support 3 input instructions with a memory operand (this appears
+	// to be the only one).
+	"VPBLENDVB": true,
+}
+
+// TODO: Doc. Returns Values with Def domains.
+func loadXED(xedPath string) []*unify.Value {
+	// TODO: Obviously a bunch more to do here.
+
+	db, err := xeddata.NewDatabase(xedPath)
+	if err != nil {
+		log.Fatalf("open database: %v", err)
+	}
+
+	var defs []*unify.Value
+	type opData struct {
+		inst *xeddata.Inst
+		ops  []operand
+		mem  string
+	}
+	// Maps from opcode to opdata(s).
+	memOps := make(map[string][]opData, 0)
+	otherOps := make(map[string][]opData, 0)
+	appendDefs := func(inst *xeddata.Inst, ops []operand, addFields map[string]string) {
+		applyQuirks(inst, ops)
+
+		defsPos := len(defs)
+		defs = append(defs, instToUVal(inst, ops, addFields)...)
+
+		if *flagDebugXED {
+			for i := defsPos; i < len(defs); i++ {
+				y, _ := yaml.Marshal(defs[i])
+				fmt.Printf("==>\n%s\n", y)
+			}
+		}
+	}
+	err = xeddata.WalkInsts(xedPath, func(inst *xeddata.Inst) {
+		inst.Pattern = xeddata.ExpandStates(db, inst.Pattern)
+
+		switch {
+		case inst.RealOpcode == "N":
+			return // Skip unstable instructions
+		case !(strings.HasPrefix(inst.Extension, "AVX") || strings.HasPrefix(inst.Extension, "SHA") ||
+			inst.Extension == "FMA" || inst.Extension == "VAES" || inst.Extension == "VPCLMULQDQ"):
+			// We're only interested in AVX and SHA instructions.
+			return
+		}
+
+		if *flagDebugXED {
+			fmt.Printf("%s:\n%+v\n", inst.Pos, inst)
+		}
+
+		ops, err := decodeOperands(db, strings.Fields(inst.Operands))
+		if err != nil {
+			operandRemarks++
+			if *Verbose {
+				log.Printf("%s: [%s] %s", inst.Pos, inst.Opcode(), err)
+			}
+			return
+		}
+		var data map[string][]opData
+		opcode := inst.Opcode()
+		mem := checkMem(ops)
+		if mem == "hasMem" && !skipMemOpsInstrs[opcode] {
+			// A pure vreg variant might exist, wait for later to see if we can
+			// merge them
+			data = memOps
+		} else {
+			data = otherOps
+		}
+		if _, ok := data[opcode]; !ok {
+			s := make([]opData, 1)
+			s[0] = opData{inst, ops, mem}
+			data[opcode] = s
+		} else {
+			data[opcode] = append(data[opcode], opData{inst, ops, mem})
+		}
+	})
+	for _, s := range otherOps {
+		for _, o := range s {
+			addFields := map[string]string{}
+			if o.mem == "noMem" {
+				opcode := o.inst.Opcode()
+				// Checking if there is a vbcst variant of this operation exist
+				// First check the opcode
+				// Keep this logic in sync with [decodeOperands]
+				if ms, ok := memOps[opcode]; ok && !strings.HasPrefix(opcode, "VMOV") {
+					feat1, ok1 := decodeCPUFeature(o.inst)
+					// Then check if there exist such an operation that for all vreg
+					// shapes they are the same at the same index
+					var feat1Match, feat2Match string
+					matchIdx := -1
+					var featMismatchCnt int
+				outer:
+					for i, m := range ms {
+						// Their CPU feature should match first
+						var featMismatch bool
+						feat2, ok2 := decodeCPUFeature(m.inst)
+						if !ok1 || !ok2 {
+							continue
+						}
+						if feat1 != feat2 {
+							featMismatch = true
+							featMismatchCnt++
+						}
+						if len(o.ops) == len(m.ops) {
+							for j := range o.ops {
+								if reflect.TypeOf(o.ops[j]) == reflect.TypeOf(m.ops[j]) {
+									v1, ok3 := o.ops[j].(operandVReg)
+									v2, _ := m.ops[j].(operandVReg)
+									if !ok3 {
+										continue
+									}
+									if v1.vecShape != v2.vecShape {
+										// A mismatch, skip this memOp
+										continue outer
+									}
+								} else {
+									_, ok3 := o.ops[j].(operandVReg)
+									_, ok4 := m.ops[j].(operandMem)
+									// The only difference must be the vreg and mem, and the operand must be a read operand.
+									if !ok3 || !ok4 || !o.ops[j].common().action.r {
+										// A mismatch, skip this memOp
+										continue outer
+									}
+								}
+							}
+							// Found a match, break early
+							matchIdx = i
+							feat1Match = feat1
+							feat2Match = feat2
+							if featMismatchCnt > 1 {
+								panic(fmt.Sprintf("multiple feature mismatch vbcst memops detected for %s, simdgen failed to distinguish", opcode))
+							}
+							if !featMismatch {
+								// Mismatch feat is ok but should prioritize matching cases.
+								break
+							}
+						}
+					}
+					// Remove the match from memOps, it's now merged to this pure vreg operation
+					if matchIdx != -1 {
+						memOps[opcode] = append(memOps[opcode][:matchIdx], memOps[opcode][matchIdx+1:]...)
+						// Merge is done by adding a new field
+						// Right now we only have vbcst
+						addFields["memFeatures"] = "vbcst"
+						if feat1Match != feat2Match {
+							addFields["memFeaturesData"] = fmt.Sprintf("feat1=%s;feat2=%s", feat1Match, feat2Match)
+						}
+					}
+				}
+			}
+			appendDefs(o.inst, o.ops, addFields)
+		}
+	}
+	for _, ms := range memOps {
+		for _, m := range ms {
+			if *Verbose {
+				log.Printf("mem op not merged: %s, %v\n", m.inst.Opcode(), m)
+			}
+			appendDefs(m.inst, m.ops, nil)
+		}
+	}
+	if err != nil {
+		log.Fatalf("walk insts: %v", err)
+	}
+
+	if len(unknownFeatures) > 0 {
+		if !*Verbose {
+			nInst := 0
+			for _, insts := range unknownFeatures {
+				nInst += len(insts)
+			}
+			log.Printf("%d unhandled CPU features for %d instructions (use -v for details)", len(unknownFeatures), nInst)
+		} else {
+			keys := slices.Sorted(maps.Keys(unknownFeatures))
+			for _, key := range keys {
+				log.Printf("unhandled ISASet %s", key)
+				log.Printf("  opcodes: %s", slices.Sorted(maps.Keys(unknownFeatures[key])))
+			}
+		}
+	}
+
+	return defs
+}
+
+var (
+	maskRequiredRe = regexp.MustCompile(`VPCOMPRESS[BWDQ]|VCOMPRESSP[SD]|VPEXPAND[BWDQ]|VEXPANDP[SD]`)
+	maskOptionalRe = regexp.MustCompile(`VPCMP(EQ|GT|U)?[BWDQ]|VCMPP[SD]`)
+)
+
+func applyQuirks(inst *xeddata.Inst, ops []operand) {
+	opc := inst.Opcode()
+	switch {
+	case maskRequiredRe.MatchString(opc):
+		// The mask on these instructions is marked optional, but the
+		// instruction is pointless without the mask.
+		for i, op := range ops {
+			if op, ok := op.(operandMask); ok {
+				op.optional = false
+				ops[i] = op
+			}
+		}
+
+	case maskOptionalRe.MatchString(opc):
+		// Conversely, these masks should be marked optional and aren't.
+		for i, op := range ops {
+			if op, ok := op.(operandMask); ok && op.action.r {
+				op.optional = true
+				ops[i] = op
+			}
+		}
+	}
+}
+
+type operandCommon struct {
+	action operandAction
+}
+
+// operandAction defines whether this operand is read and/or written.
+//
+// TODO: Should this live in [xeddata.Operand]?
+type operandAction struct {
+	r  bool // Read
+	w  bool // Written
+	cr bool // Read is conditional (implies r==true)
+	cw bool // Write is conditional (implies w==true)
+}
+
+type operandMem struct {
+	operandCommon
+	vecShape
+	elemBaseType scalarBaseType
+	// The following fields are not flushed to the final output
+	// Supports full-vector broadcasting; implies the operand having a "vv"(vector vector) type specified in width and
+	// the instruction is with attribute TXT=BCASTSTR.
+	vbcst   bool
+	unknown bool // unknown kind
+}
+
+type vecShape struct {
+	elemBits  int    // Element size in bits
+	bits      int    // Register width in bits (total vector bits)
+	fixedName string // the fixed register name
+}
+
+type operandVReg struct { // Vector register
+	operandCommon
+	vecShape
+	elemBaseType scalarBaseType
+}
+
+type operandGReg struct { // Vector register
+	operandCommon
+	vecShape
+	elemBaseType scalarBaseType
+}
+
+// operandMask is a vector mask.
+//
+// Regardless of the actual mask representation, the [vecShape] of this operand
+// corresponds to the "bit for bit" type of mask. That is, elemBits gives the
+// element width covered by each mask element, and bits/elemBits gives the total
+// number of mask elements. (bits gives the total number of bits as if this were
+// a bit-for-bit mask, which may be meaningless on its own.)
+type operandMask struct {
+	operandCommon
+	vecShape
+	// Bits in the mask is w/bits.
+
+	allMasks bool // If set, size cannot be inferred because all operands are masks.
+
+	// Mask can be omitted, in which case it defaults to K0/"no mask"
+	optional bool
+}
+
+type operandImm struct {
+	operandCommon
+	bits int // Immediate size in bits
+}
+
+type operand interface {
+	common() operandCommon
+	encode() types.Operand
+}
+
+func (o operandCommon) common() operandCommon {
+	return o
+}
+
+func (o operandMem) encode() types.Operand {
+	op := types.Operand{
+		Class: "mem",
+	}
+	if o.unknown {
+		return op
+	}
+	op.EncodeBase = scalarBaseTypeRegexps[o.elemBaseType]
+	op.EncodeBits = &types.VectorSize{NRaw: o.bits}
+	if o.elemBits != o.bits {
+		op.ElemBits = &o.elemBits
+	}
+	return op
+}
+
+func (o operandVReg) encode() types.Operand {
+	op := types.Operand{
+		Class:      "vreg",
+		EncodeBase: scalarBaseTypeRegexps[o.elemBaseType],
+		EncodeBits: &types.VectorSize{NRaw: o.bits},
+	}
+	// If elemBits == bits, then the vector can be ANY shape. This happens with,
+	// for example, logical ops.
+	if o.elemBits != o.bits {
+		op.ElemBits = &o.elemBits
+	}
+	if o.fixedName != "" {
+		op.FixedReg = &o.fixedName
+	}
+	return op
+}
+
+func (o operandGReg) encode() types.Operand {
+	op := types.Operand{
+		Class:      "greg",
+		EncodeBase: scalarBaseTypeRegexps[o.elemBaseType],
+		EncodeBits: &types.VectorSize{NRaw: o.bits},
+	}
+	if o.elemBits != o.bits {
+		op.ElemBits = &o.elemBits
+	}
+	if o.fixedName != "" {
+		op.FixedReg = &o.fixedName
+	}
+	return op
+}
+
+func (o operandMask) encode() types.Operand {
+	op := types.Operand{
+		Class: "mask",
+	}
+	if o.allMasks {
+		// If all operands are masks, omit sizes and let unification determine mask sizes.
+		return op
+	}
+	op.ElemBits = &o.elemBits
+	op.EncodeBits = &types.VectorSize{NRaw: o.bits}
+	if o.fixedName != "" {
+		op.FixedReg = &o.fixedName
+	}
+	return op
+}
+
+func (o operandImm) encode() types.Operand {
+	return types.Operand{
+		Class:      "immediate",
+		EncodeBits: &types.VectorSize{NRaw: o.bits},
+	}
+}
+
+var actionEncoding = map[string]operandAction{
+	"r":   {r: true},
+	"cr":  {r: true, cr: true},
+	"w":   {w: true},
+	"cw":  {w: true, cw: true},
+	"rw":  {r: true, w: true},
+	"crw": {r: true, w: true, cr: true},
+	"rcw": {r: true, w: true, cw: true},
+}
+
+func decodeOperand(db *xeddata.Database, operand string) (operand, error) {
+	op, err := xeddata.NewOperand(db, operand)
+	if err != nil {
+		log.Fatalf("parsing operand %q: %v", operand, err)
+	}
+	if *flagDebugXED {
+		fmt.Printf("  %+v\n", op)
+	}
+
+	if strings.HasPrefix(op.Name, "EMX_BROADCAST") {
+		// This refers to a set of macros defined in all-state.txt that set a
+		// BCAST operand to various fixed values. But the BCAST operand is
+		// itself suppressed and "internal", so I think we can just ignore this
+		// operand.
+		return nil, nil
+	}
+
+	// TODO: See xed_decoded_inst_operand_action. This might need to be more
+	// complicated.
+	action, ok := actionEncoding[op.Action]
+	if !ok {
+		return nil, fmt.Errorf("unknown action %q", op.Action)
+	}
+	common := operandCommon{action: action}
+
+	lhs := op.NameLHS()
+	if strings.HasPrefix(lhs, "MEM") {
+		// looks like XED data has an inconsistency on VPADDD, marking attribute
+		// VPBROADCASTD instead of the canonical BCASTSTR.
+		if op.Width == "vv" && (op.Attributes["TXT=BCASTSTR"] ||
+			op.Attributes["TXT=VPBROADCASTD"]) {
+			baseType, elemBits, ok := decodeType(op)
+			if !ok {
+				return nil, fmt.Errorf("failed to decode memory width %q", operand)
+			}
+			// This operand has two possible width([bits]):
+			// 1. the same as the other operands
+			// 2. the element width as the other operands (broaccasting)
+			// left it default to 2, later we will set a new field in the operation
+			// to indicate this dual-width property.
+			shape := vecShape{elemBits: elemBits, bits: elemBits}
+			return operandMem{
+				operandCommon: common,
+				vecShape:      shape,
+				elemBaseType:  baseType,
+				vbcst:         true,
+				unknown:       false,
+			}, nil
+		} else {
+			baseType, elemBits, ok := decodeType(op)
+			if !ok {
+				return nil, fmt.Errorf("failed to decode memory width %q", operand)
+			}
+			sizeStr := db.WidthSize(op.Width, xeddata.OpSize64)
+			bytes, err := strconv.Atoi(sizeStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode memory width %q: %s", operand, err)
+			}
+			if bytes > 0 {
+				memBits := bytes * 8
+				shape := vecShape{elemBits: elemBits, bits: memBits}
+				return operandMem{
+					operandCommon: common,
+					vecShape:      shape,
+					elemBaseType:  baseType,
+					vbcst:         false,
+					unknown:       false,
+				}, nil
+			}
+		}
+		return operandMem{
+			operandCommon: common,
+			unknown:       true,
+		}, nil
+	} else if strings.HasPrefix(lhs, "REG") {
+		if op.Width == "mskw" {
+			// The mask operand doesn't specify a width. We have to infer it.
+			//
+			// XED uses the marker ZEROSTR to indicate that a mask operand is
+			// optional and, if omitted, implies K0, aka "no mask".
+			return operandMask{
+				operandCommon: common,
+				optional:      op.Attributes["TXT=ZEROSTR"],
+			}, nil
+		} else {
+			class, regBits, fixedReg := decodeReg(op)
+			if class == NOT_REG_CLASS {
+				return nil, fmt.Errorf("failed to decode register %q", operand)
+			}
+			baseType, elemBits, ok := decodeType(op)
+			if !ok {
+				return nil, fmt.Errorf("failed to decode register width %q", operand)
+			}
+			shape := vecShape{elemBits: elemBits, bits: regBits, fixedName: fixedReg}
+			if class == VREG_CLASS {
+				return operandVReg{
+					operandCommon: common,
+					vecShape:      shape,
+					elemBaseType:  baseType,
+				}, nil
+			}
+			// general register
+			m := min(shape.bits, shape.elemBits)
+			shape.bits, shape.elemBits = m, m
+			return operandGReg{
+				operandCommon: common,
+				vecShape:      shape,
+				elemBaseType:  baseType,
+			}, nil
+
+		}
+	} else if strings.HasPrefix(lhs, "IMM") {
+		_, bits, ok := decodeType(op)
+		if !ok {
+			return nil, fmt.Errorf("failed to decode register width %q", operand)
+		}
+		return operandImm{
+			operandCommon: common,
+			bits:          bits,
+		}, nil
+	}
+
+	// TODO: BASE and SEG
+	return nil, fmt.Errorf("unknown operand LHS %q in %q", lhs, operand)
+}
+
+func decodeOperands(db *xeddata.Database, operands []string) (ops []operand, err error) {
+	// Decode the XED operand descriptions.
+	for _, o := range operands {
+		op, err := decodeOperand(db, o)
+		if err != nil {
+			return nil, err
+		}
+		if op != nil {
+			ops = append(ops, op)
+		}
+	}
+
+	// XED doesn't encode the size of mask operands. If there are mask operands,
+	// try to infer their sizes from other operands.
+	if err := inferMaskSizes(ops); err != nil {
+		return nil, fmt.Errorf("%w in operands %+v", err, operands)
+	}
+
+	return ops, nil
+}
+
+func inferMaskSizes(ops []operand) error {
+	// This is a heuristic and it falls apart in some cases:
+	//
+	// - Mask operations like KAND[BWDQ] have *nothing* in the XED to indicate
+	// mask size.
+	//
+	// - VINSERT*, VPSLL*, VPSRA*, and VPSRL* and some others naturally have
+	// mixed input sizes and the XED doesn't indicate which operands the mask
+	// applies to.
+	//
+	// - VPDP* and VP4DP* have really complex mixed operand patterns.
+	//
+	// I think for these we may just have to hand-write a table of which
+	// operands each mask applies to.
+	inferMask := func(r, w bool) error {
+		var masks []int
+		var rSizes, wSizes, sizes []vecShape
+		allMasks := true
+		hasWMask := false
+		for i, op := range ops {
+			action := op.common().action
+			if _, ok := op.(operandMask); ok {
+				if action.r && action.w {
+					return fmt.Errorf("unexpected rw mask")
+				}
+				if action.r == r || action.w == w {
+					masks = append(masks, i)
+				}
+				if action.w {
+					hasWMask = true
+				}
+			} else {
+				allMasks = false
+				if reg, ok := op.(operandVReg); ok {
+					if action.r {
+						rSizes = append(rSizes, reg.vecShape)
+					}
+					if action.w {
+						wSizes = append(wSizes, reg.vecShape)
+					}
+				}
+			}
+		}
+		if len(masks) == 0 {
+			return nil
+		}
+
+		if r {
+			sizes = rSizes
+			if len(sizes) == 0 {
+				sizes = wSizes
+			}
+		}
+		if w {
+			sizes = wSizes
+			if len(sizes) == 0 {
+				sizes = rSizes
+			}
+		}
+
+		if len(sizes) == 0 {
+			// If all operands are masks, leave the mask inferrence to the users.
+			if allMasks {
+				for _, i := range masks {
+					m := ops[i].(operandMask)
+					m.allMasks = true
+					ops[i] = m
+				}
+				return nil
+			}
+			return fmt.Errorf("cannot infer mask size: no register operands")
+		}
+		shape, ok := singular(sizes)
+		if !ok {
+			if !hasWMask && len(wSizes) == 1 && len(masks) == 1 {
+				// This pattern looks like predicate mask, so its shape should align with the
+				// output. TODO: verify this is a safe assumption.
+				shape = wSizes[0]
+			} else {
+				return fmt.Errorf("cannot infer mask size: multiple register sizes %v", sizes)
+			}
+		}
+		for _, i := range masks {
+			m := ops[i].(operandMask)
+			m.vecShape = shape
+			ops[i] = m
+		}
+		return nil
+	}
+	if err := inferMask(true, false); err != nil {
+		return err
+	}
+	if err := inferMask(false, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+// addOperandsToDef adds "in", "inVariant", and "out" to an instruction Def.
+//
+// Optional mask input operands are added to the inVariant field if
+// variant&instVariantMasked, and omitted otherwise.
+func addOperandsToDef(ops []operand, instDB *unify.DefBuilder, variant instVariant) {
+	var in, inVariant, out []types.Operand
+
+	asmPos := 0
+	for _, op := range ops {
+		opGen := op.encode()
+		opGen.AsmPos = asmPos
+
+		action := op.common().action
+		asmCount := 1 // # of assembly operands; 0 or 1
+		if action.r {
+			// If this is an optional mask, put it in the input variant tuple.
+			if mask, ok := op.(operandMask); ok && mask.optional {
+				if variant&instVariantMasked != 0 {
+					inVariant = append(inVariant, opGen)
+				} else {
+					// This operand doesn't appear in the assembly at all.
+					asmCount = 0
+				}
+			} else {
+				in = append(in, opGen)
+			}
+		}
+		if action.w {
+			out = append(out, opGen)
+		}
+
+		asmPos += asmCount
+	}
+
+	slices.SortStableFunc(in, types.Operand.Compare)
+
+	instDB.Add("in", unify.Encode(in))
+	instDB.Add("inVariant", unify.Encode(inVariant))
+	instDB.Add("out", unify.Encode(out))
+	memFeatures := checkMem(ops)
+	if memFeatures != "noMem" {
+		instDB.Add("memFeatures", unify.NewValue(unify.NewStringExact(memFeatures)))
+	}
+}
+
+// checkMem checks the shapes of memory operand in the operation and returns the shape.
+// Keep this function in sync with [decodeOperand].
+func checkMem(ops []operand) string {
+	memState := "noMem"
+	var mem *operandMem
+	memCnt := 0
+	for _, op := range ops {
+		if m, ok := op.(operandMem); ok {
+			mem = &m
+			memCnt++
+		}
+	}
+	if mem != nil {
+		if mem.unknown {
+			memState = "unknown"
+		} else if memCnt > 1 {
+			memState = "tooManyMem"
+		} else {
+			// This shape has an indication that [bits] fields has two possible value:
+			// 1. The element broadcast width, which is its peer vreg operand's [elemBits] (default val in the parsed XED data)
+			// 2. The full vector width, which is its peer vreg operand's [bits] (godefs should be aware of this)
+			memState = "hasMem"
+		}
+	}
+	return memState
+}
+
+func instToUVal(inst *xeddata.Inst, ops []operand, addFields map[string]string) []*unify.Value {
+	feature, ok := decodeCPUFeature(inst)
+	if !ok {
+		return nil
+	}
+
+	var vals []*unify.Value
+	vals = append(vals, instToUVal1(inst, ops, feature, instVariantNone, addFields))
+	if hasOptionalMask(ops) {
+		vals = append(vals, instToUVal1(inst, ops, feature, instVariantMasked, addFields))
+	}
+	return vals
+}
+
+func instToUVal1(inst *xeddata.Inst, ops []operand, feature string, variant instVariant, addFields map[string]string) *unify.Value {
+	var db unify.DefBuilder
+	db.Add("goarch", unify.NewValue(unify.NewStringExact("amd64")))
+	db.Add("asm", unify.NewValue(unify.NewStringExact(inst.Opcode())))
+	addOperandsToDef(ops, &db, variant)
+	db.Add("cpuFeature", unify.NewValue(unify.NewStringExact(feature)))
+	for k, v := range addFields {
+		db.Add(k, unify.NewValue(unify.NewStringExact(v)))
+	}
+
+	if strings.Contains(inst.Pattern, "ZEROING=0") {
+		// This is an EVEX instruction, but the ".Z" (zero-merging)
+		// instruction flag is NOT valid. EVEX.z must be zero.
+		//
+		// This can mean a few things:
+		//
+		// - The output of an instruction is a mask, so merging modes don't
+		// make any sense. E.g., VCMPPS.
+		//
+		// - There are no masks involved anywhere. (Maybe MASK=0 is also set
+		// in this case?) E.g., VINSERTPS.
+		//
+		// - The operation inherently performs merging. E.g., VCOMPRESSPS
+		// with a mem operand.
+		//
+		// There may be other reasons.
+		db.Add("zeroing", unify.NewValue(unify.NewStringExact("false")))
+	}
+	pos := unify.Pos{Path: inst.Pos.Path, Line: inst.Pos.Line}
+	return unify.NewValuePos(db.Build(), pos)
+}
+
+// decodeCPUFeature returns the CPU feature name required by inst. These match
+// the names of the "Has*" feature checks in the simd package.
+func decodeCPUFeature(inst *xeddata.Inst) (string, bool) {
+	isaSet := inst.ISASet
+	if isaSet == "" {
+		// Older instructions don't have an ISA set. Use their "extension"
+		// instead.
+		isaSet = inst.Extension
+	}
+	if isaSet == "AVX" && inst.Opcode() == "VPCLMULQDQ" {
+		// XED classifies the VEX.128 form as AVX, but it also requires
+		// PCLMULQDQ. The VEX.256 form has its own VPCLMULQDQ ISA set.
+		isaSet = "AVXPCLMULQDQ"
+	}
+	// We require AVX512VL to use AVX512 at all, so strip off the vector length
+	// suffixes.
+	if strings.HasPrefix(isaSet, "AVX512") {
+		isaSet = isaSetVL.ReplaceAllLiteralString(isaSet, "")
+	}
+
+	feat, ok := cpuFeatureMap[isaSet]
+	if !ok {
+		imap := unknownFeatures[isaSet]
+		if imap == nil {
+			imap = make(map[string]struct{})
+			unknownFeatures[isaSet] = imap
+		}
+		imap[inst.Opcode()] = struct{}{}
+		return "", false
+	}
+	if feat == "ignore" {
+		return "", false
+	}
+	return feat, true
+}
+
+var isaSetVL = regexp.MustCompile("_(128N?|256N?|512)$")
+
+// cpuFeatureMap maps from XED's "ISA_SET" (or "EXTENSION") to a CPU feature
+// name to expose in the SIMD feature check API.
+//
+// See XED's datafiles/*/cpuid.xed.txt for how ISA set names map to CPUID flags.
+var cpuFeatureMap = map[string]string{
+	"AVX":          "AVX",
+	"AVX_VNNI":     "AVXVNNI",
+	"AVX2":         "AVX2",
+	"AVXAES":       "AVXAES",
+	"AVXPCLMULQDQ": "AVXPCLMULQDQ",
+	"SHA":          "SHA",
+	"FMA":          "FMA",
+	"VAES":         "VAES",
+	"VPCLMULQDQ":   "VPCLMULQDQ",
+
+	// AVX-512 foundational features. We combine all of these into one "AVX512" feature.
+	"AVX512F":  "AVX512",
+	"AVX512BW": "AVX512",
+	"AVX512CD": "AVX512",
+	"AVX512DQ": "AVX512",
+	// AVX512VL doesn't appear as its own ISASet; instead, the CPUID flag is
+	// required by the *_128 and *_256 ISASets. We fold it into "AVX512" anyway.
+
+	// AVX-512 extension features
+	"AVX512_BITALG":     "AVX512BITALG",
+	"AVX512_GFNI":       "AVX512GFNI",
+	"AVX512_VBMI":       "AVX512VBMI",
+	"AVX512_VBMI2":      "AVX512VBMI2",
+	"AVX512_VNNI":       "AVX512VNNI",
+	"AVX512_VPOPCNTDQ":  "AVX512VPOPCNTDQ",
+	"AVX512_VAES":       "AVX512VAES",
+	"AVX512_VPCLMULQDQ": "AVX512VPCLMULQDQ",
+
+	// AVX 10.2 (not yet supported)
+	"AVX10_2_RC": "ignore",
+}
+
+func init() {
+	// TODO: In general, Intel doesn't make any guarantees about what flags are
+	// set, so this means our feature checks need to ensure these, just to be
+	// sure.
+	var features = map[string]featureInfo{
+		"AVX2":   {Implies: []string{"AVX"}},
+		"AVX512": {Implies: []string{"AVX2"}},
+
+		"AVXAES":       {Virtual: true, Implies: []string{"AVX", "AES"}},
+		"AVXPCLMULQDQ": {Virtual: true, Implies: []string{"AVX", "PCLMULQDQ"}},
+		"FMA":          {Implies: []string{"AVX"}},
+		"VAES":         {Implies: []string{"AVX"}},
+		"VPCLMULQDQ":   {Implies: []string{"AVX"}},
+
+		// AVX-512 subfeatures.
+		"AVX512BITALG":    {Implies: []string{"AVX512"}},
+		"AVX512GFNI":      {Implies: []string{"AVX512"}},
+		"AVX512VBMI":      {Implies: []string{"AVX512"}},
+		"AVX512VBMI2":     {Implies: []string{"AVX512"}},
+		"AVX512VNNI":      {Implies: []string{"AVX512"}},
+		"AVX512VPOPCNTDQ": {Implies: []string{"AVX512"}},
+		"AVX512VAES":      {Implies: []string{"AVX512"}},
+
+		// AVX-VNNI and AVX-IFMA are "backports" of the AVX512-VNNI/IFMA
+		// instructions to VEX encoding, limited to 256 bit vectors. They're
+		// intended for lower end CPUs that want to support VNNI/IFMA without
+		// supporting AVX-512. As such, they're built on AVX2's VEX encoding.
+		"AVXVNNI": {Implies: []string{"AVX2"}},
+		"AVXIFMA": {Implies: []string{"AVX2"}},
+	}
+	registerFeatureInfo("amd64", goarchFeatures{
+		featureVar: "X86",
+		features:   features,
+	})
+}
+
+var unknownFeatures = map[string]map[string]struct{}{}
+
+// hasOptionalMask returns whether there is an optional mask operand in ops.
+func hasOptionalMask(ops []operand) bool {
+	for _, op := range ops {
+		if op, ok := op.(operandMask); ok && op.optional {
+			return true
+		}
+	}
+	return false
+}
+
+func singular[T comparable](xs []T) (T, bool) {
+	if len(xs) == 0 {
+		return *new(T), false
+	}
+	for _, x := range xs[1:] {
+		if x != xs[0] {
+			return *new(T), false
+		}
+	}
+	return xs[0], true
+}
+
+type fixedReg struct {
+	class int
+	name  string
+	width int
+}
+
+var fixedRegMap = map[string]fixedReg{
+	"XED_REG_XMM0": {VREG_CLASS, "x0", 128},
+}
+
+// decodeReg returns class (NOT_REG_CLASS, VREG_CLASS, GREG_CLASS, VREG_CLASS_FIXED,
+// GREG_CLASS_FIXED), width in bits and reg name(if fixed).
+// If the operand cannot be decided as a register, then the clas is NOT_REG_CLASS.
+func decodeReg(op *xeddata.Operand) (class, width int, name string) {
+	// op.Width tells us the total width, e.g.,:
+	//
+	//    dq => 128 bits (XMM)
+	//    qq => 256 bits (YMM)
+	//    mskw => K
+	//    z[iuf?](8|16|32|...) => 512 bits (ZMM)
+	//
+	// But the encoding is really weird and it's not clear if these *always*
+	// mean XMM/YMM/ZMM or if other irregular things can use these large widths.
+	// Hence, we dig into the register sets themselves.
+
+	if !strings.HasPrefix(op.NameLHS(), "REG") {
+		return NOT_REG_CLASS, 0, ""
+	}
+	// TODO: We shouldn't be relying on the macro naming conventions. We should
+	// use all-dec-patterns.txt, but xeddata doesn't support that table right now.
+	rhs := op.NameRHS()
+	if !strings.HasSuffix(rhs, "()") {
+		if fixedReg, ok := fixedRegMap[rhs]; ok {
+			return fixedReg.class, fixedReg.width, fixedReg.name
+		}
+		return NOT_REG_CLASS, 0, ""
+	}
+	switch {
+	case strings.HasPrefix(rhs, "XMM_"):
+		return VREG_CLASS, 128, ""
+	case strings.HasPrefix(rhs, "YMM_"):
+		return VREG_CLASS, 256, ""
+	case strings.HasPrefix(rhs, "ZMM_"):
+		return VREG_CLASS, 512, ""
+	case strings.HasPrefix(rhs, "GPR64_"), strings.HasPrefix(rhs, "VGPR64_"):
+		return GREG_CLASS, 64, ""
+	case strings.HasPrefix(rhs, "GPR32_"), strings.HasPrefix(rhs, "VGPR32_"):
+		return GREG_CLASS, 32, ""
+	}
+	return NOT_REG_CLASS, 0, ""
+}
+
+var xtypeRe = regexp.MustCompile(`^([iuf])([0-9]+)$`)
+
+// scalarBaseType describes the base type of a scalar element. This is a Go
+// type, but without the bit width suffix (with the exception of
+// scalarBaseIntOrUint).
+type scalarBaseType int
+
+const (
+	scalarBaseInt scalarBaseType = iota
+	scalarBaseUint
+	scalarBaseIntOrUint // Signed or unsigned is unspecified
+	scalarBaseFloat
+	scalarBaseComplex
+	scalarBaseBFloat
+	scalarBaseHFloat
+)
+
+var scalarBaseTypeRegexps = map[scalarBaseType]*regexp.Regexp{
+	scalarBaseInt:       regexp.MustCompile("int"),
+	scalarBaseUint:      regexp.MustCompile("uint"),
+	scalarBaseIntOrUint: regexp.MustCompile("int|uint"),
+	scalarBaseFloat:     regexp.MustCompile("float"),
+	scalarBaseComplex:   regexp.MustCompile("complex"),
+	scalarBaseBFloat:    regexp.MustCompile("BFloat"),
+	scalarBaseHFloat:    regexp.MustCompile("HFloat"),
+}
+
+func decodeType(op *xeddata.Operand) (base scalarBaseType, bits int, ok bool) {
+	// The xtype tells you the element type. i8, i16, i32, i64, f32, etc.
+	//
+	// TODO: Things like AVX2 VPAND have an xtype of u256 because they're
+	// element-width agnostic. Do I map that to all widths, or just omit the
+	// element width and let unification flesh it out? There's no u512
+	// (presumably those are all masked, so elem width matters). These are all
+	// Category: LOGICAL, so maybe we could use that info?
+
+	// Handle some weird ones.
+	switch op.Xtype {
+	// 8-bit float formats as defined by Open Compute Project "OCP 8-bit
+	// Floating Point Specification (OFP8)".
+	case "bf8": // E5M2 float
+		return scalarBaseBFloat, 8, true
+	case "hf8": // E4M3 float
+		return scalarBaseHFloat, 8, true
+	case "bf16": // bfloat16 float
+		return scalarBaseBFloat, 16, true
+	case "2f16":
+		// Complex consisting of 2 float16s. Doesn't exist in Go, but we can say
+		// what it would be.
+		return scalarBaseComplex, 32, true
+	case "2i8", "2I8":
+		// These just use the lower INT8 in each 16 bit field.
+		// As far as I can tell, "2I8" is a typo.
+		return scalarBaseInt, 8, true
+	case "2u16", "2U16":
+		// some VPDP* has it
+		// TODO: does "z" means it has zeroing?
+		return scalarBaseUint, 16, true
+	case "2i16", "2I16":
+		// some VPDP* has it
+		return scalarBaseInt, 16, true
+	case "4u8", "4U8":
+		// some VPDP* has it
+		return scalarBaseUint, 8, true
+	case "4i8", "4I8":
+		// some VPDP* has it
+		return scalarBaseInt, 8, true
+	}
+
+	// The rest follow a simple pattern.
+	m := xtypeRe.FindStringSubmatch(op.Xtype)
+	if m == nil {
+		// TODO: Report unrecognized xtype
+		return 0, 0, false
+	}
+	bits, _ = strconv.Atoi(m[2])
+	switch m[1] {
+	case "i", "u":
+		// XED is rather inconsistent about what's signed, unsigned, or doesn't
+		// matter, so merge them together and let the Go definitions narrow as
+		// appropriate. Maybe there's a better way to do this.
+		return scalarBaseIntOrUint, bits, true
+	case "f":
+		return scalarBaseFloat, bits, true
+	default:
+		panic("unreachable")
+	}
+}

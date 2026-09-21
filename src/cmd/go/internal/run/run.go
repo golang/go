@@ -53,6 +53,10 @@ By default, 'go run' compiles the binary without generating the information
 used by debuggers, to reduce build time. To include debugger information in
 the binary, use 'go build'.
 
+The go command places $GOROOT/bin at the beginning of $PATH in the
+subprocess environment, so that subprocesses that execute 'go' commands
+use the same 'go' as their parent.
+
 The exit status of Run is not the exit status of the compiled binary.
 
 For more about build flags, see 'go help build'.
@@ -67,26 +71,26 @@ func init() {
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
 	work.AddCoverFlags(CmdRun, nil)
-	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "invoke the binary using `xprog`; see 'go help run' for details")
 }
 
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if shouldUseOutsideModuleMode(args) {
 		// Set global module flags for 'go run cmd@version'.
 		// This must be done before modload.Init, but we need to call work.BuildInit
 		// before loading packages, since it affects package locations, e.g.,
 		// for -race and -msan.
-		moduleLoaderState.ForceUseModules = true
-		moduleLoaderState.RootMode = modload.NoRoot
-		modload.AllowMissingModuleImports(moduleLoaderState)
-		modload.Init(moduleLoaderState)
+		moduleLoader.ForceUseModules = true
+		moduleLoader.RootMode = modload.NoRoot
+		moduleLoader.AllowMissingModuleImports()
+		modload.Init(moduleLoader)
 	} else {
-		modload.InitWorkfile(moduleLoaderState)
+		moduleLoader.InitWorkfile()
 	}
 
-	work.BuildInit(moduleLoaderState)
-	b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
+	work.BuildInit(moduleLoader)
+	b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -108,18 +112,18 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 				base.Fatalf("go: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(moduleLoaderState, ctx, pkgOpts, files)
+		p = load.GoFilesPackage(moduleLoader, ctx, pkgOpts, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		arg := args[0]
 		var pkgs []*load.Package
 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
 			var err error
-			pkgs, err = load.PackagesAndErrorsOutsideModule(moduleLoaderState, ctx, pkgOpts, args[:1])
+			pkgs, err = load.PackagesAndErrorsOutsideModule(moduleLoader, ctx, pkgOpts, args[:1])
 			if err != nil {
 				base.Fatal(err)
 			}
 		} else {
-			pkgs = load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, args[:1])
+			pkgs = load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, args[:1])
 		}
 
 		if len(pkgs) == 0 {
@@ -141,13 +145,13 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	load.CheckPackageErrors([]*load.Package{p})
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(moduleLoaderState, []*load.Package{p})
+		load.PrepareForCoverageBuild(moduleLoader, []*load.Package{p})
 	}
 
 	p.Internal.OmitDebug = true
 	p.Target = "" // must build - not up to date
 	if p.Internal.CmdlineFiles {
-		//set executable name if go file is given as cmd-argument
+		// set executable name if go file is given as cmd-argument
 		var src string
 		if len(p.GoFiles) > 0 {
 			src = p.GoFiles[0]
@@ -167,7 +171,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		p.Internal.ExeName = p.DefaultExecName()
 	}
 
-	a1 := b.LinkAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, p)
+	a1 := b.LinkAction(moduleLoader, work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true
 	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)

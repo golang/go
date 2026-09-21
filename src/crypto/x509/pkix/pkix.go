@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 )
 
@@ -38,24 +39,31 @@ var attributeTypeNames = map[string]string{
 // String returns a string representation of the sequence r,
 // roughly following the RFC 2253 Distinguished Names syntax.
 func (r RDNSequence) String() string {
-	s := ""
+	var buf strings.Builder
 	for i := 0; i < len(r); i++ {
 		rdn := r[len(r)-1-i]
 		if i > 0 {
-			s += ","
+			buf.WriteByte(',')
 		}
 		for j, tv := range rdn {
 			if j > 0 {
-				s += "+"
+				buf.WriteByte('+')
 			}
 
 			oidString := tv.Type.String()
 			typeName, ok := attributeTypeNames[oidString]
 			if !ok {
-				derBytes, err := asn1.Marshal(tv.Value)
-				if err == nil {
-					s += oidString + "=#" + hex.EncodeToString(derBytes)
-					continue // No value escaping necessary.
+				// RFC 2253 §2.4: if the value's ASN.1 type has a string
+				// representation, render it as a string; otherwise hex-encode
+				// the DER.
+				if _, ok := tv.Value.(string); !ok {
+					derBytes, err := asn1.Marshal(tv.Value)
+					if err == nil {
+						buf.WriteString(oidString)
+						buf.WriteString("=#")
+						buf.WriteString(hex.EncodeToString(derBytes))
+						continue // No value escaping necessary.
+					}
 				}
 
 				typeName = oidString
@@ -85,17 +93,33 @@ func (r RDNSequence) String() string {
 				}
 			}
 
-			s += typeName + "=" + string(escaped)
+			buf.WriteString(typeName)
+			buf.WriteByte('=')
+			buf.WriteString(string(escaped))
 		}
 	}
 
-	return s
+	return buf.String()
 }
 
 type RelativeDistinguishedNameSET []AttributeTypeAndValue
 
 // AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
 // RFC 5280, Section 4.1.2.4.
+//
+// When parsed as part of a pkix.Name structure in a crypto/x509 type,
+// the Value will be
+//
+//   - a string if the ASN.1 type is PrintableString, IA5String,
+//     NumericString, BMPString, T61String, or UTF8String;
+//   - an int64 if the ASN.1 type is INTEGER;
+//   - an asn1.BitString if the ASN.1 type is BIT STRING;
+//   - a []byte if the ASN.1 type is OCTET STRING;
+//   - an asn1.ObjectIdentifier if the ASN.1 type is OBJECT IDENTIFIER;
+//   - a time.Time if the ASN.1 type is UTCTIME or GENERALIZEDTIME;
+//   - a bool if the ASN.1 type is BOOLEAN;
+//   - nil if the ASN.1 type is NULL;
+//   - an asn1.RawValue otherwise.
 type AttributeTypeAndValue struct {
 	Type  asn1.ObjectIdentifier
 	Value any

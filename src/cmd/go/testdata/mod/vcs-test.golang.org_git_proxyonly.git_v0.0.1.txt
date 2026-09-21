@@ -1,0 +1,8 @@
+This is a module that could exist in a vcstest git repo, but that doesn't.
+
+-- .mod --
+module vcs-test.golang.org/git/proxyonly.git
+-- .info --
+{"Version":"v0.0.1"}
+-- proxyonly.go --
+package proxyonly

@@ -34,7 +34,12 @@
         "TLS-ECH-Server-EarlyDataRejected": "Go does not support early (0-RTT) data",
 
         "MLKEMKeyShareIncludedSecond": "BoGo wants us to order the key shares based on its preference, but we don't support that",
+        "MLKEMKeyShareIncludedSecond-*": "BoGo wants us to order the key shares based on its preference, but we don't support that",
         "MLKEMKeyShareIncludedThird": "BoGo wants us to order the key shares based on its preference, but we don't support that",
+        "MLKEMKeyShareIncludedThird-*": "BoGo wants us to order the key shares based on its preference, but we don't support that",
+        "TwoMLKEMs": "BoGo wants us to order the key shares based on its preference, but we don't support that",
+        "NotJustMLKEMKeyShare-MLKEM1024": "BoringSSL sends an ECC key share for fallback when the main key share is MLKEM1024, we currently don't",
+
         "PostQuantumNotEnabledByDefaultInClients": "We do enable it by default!",
         "*-Kyber-TLS13": "We don't support Kyber, only ML-KEM (BoGo bug ignoring AllCurves?)",
 
@@ -42,7 +47,7 @@
         "*-Verify-RSA_PKCS1_SHA256_LEGACY-TLS12": "Likewise, we don't know how to handle it in TLS 1.2, so we send the wrong alert",
         "*-VerifyDefault-*": "Our signature algorithms are not configurable, so there is no difference between default and supported",
         "Ed25519DefaultDisable-*": "We support Ed25519 by default",
-        "NoCommonSignatureAlgorithms-TLS12-Fallback": "We don't support the legacy RSA exchange (without tlsrsakex=1)",
+        "NoCommonSignatureAlgorithms-TLS12-Fallback": "We don't support the legacy RSA exchange",
 
         "*_SHA1-TLS12": "We don't support SHA-1 in TLS 1.2 (without tlssha1=1)",
         "Agree-Digest-SHA1": "We don't support SHA-1 in TLS 1.2 (without tlssha1=1)",
@@ -58,7 +63,6 @@
         "SendEmptyRecords*": "crypto/tls doesn't implement spam protections",
         "SendWarningAlerts*": "crypto/tls doesn't implement spam protections",
         "SendUserCanceledAlerts-TooMany-TLS13": "crypto/tls doesn't implement spam protections",
-        "TooManyKeyUpdates": "crypto/tls doesn't implement spam protections (TODO: I think?)",
         "KyberNotEnabledByDefaultInClients": "crypto/tls intentionally enables it",
         "JustConfiguringKyberWorks": "we always send a X25519 key share with Kyber",
         "KyberKeyShareIncludedSecond": "we always send the Kyber key share first",
@@ -76,6 +80,12 @@
         "PAKE-Extension-*": "We don't support PAKE",
         "*TicketFlags": "We don't support draft-ietf-tls-tlsflags",
 
+        "MLKEMKeyShareIncludedThird-X25519MLKEM768": "We don't return key shares in client preference order",
+
+        "ECDSAKeyUsage-*": "We don't enforce ECDSA KU",
+
+        "RSAKeyUsage-*": "We don't enforce RSA KU",
+
         "CheckLeafCurve": "TODO: first pass, this should be fixed",
         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
@@ -86,8 +96,6 @@
         "UnsolicitedServerNameAck-TLS-TLS12": "TODO: first pass, this should be fixed",
         "TicketSessionIDLength-33-TLS-TLS12": "TODO: first pass, this should be fixed",
         "UnsolicitedServerNameAck-TLS-TLS13": "TODO: first pass, this should be fixed",
-        "RenegotiationInfo-Forbidden-TLS13": "TODO: first pass, this should be fixed",
-        "EMS-Forbidden-TLS13": "TODO: first pass, this should be fixed",
         "SendUnsolicitedOCSPOnCertificate-TLS13": "TODO: first pass, this should be fixed",
         "SendUnsolicitedSCTOnCertificate-TLS13": "TODO: first pass, this should be fixed",
         "SendUnknownExtensionOnCertificate-TLS13": "TODO: first pass, this should be fixed",
@@ -107,7 +115,6 @@
         "UnknownExtension-Client-TLS13": "TODO: first pass, this should be fixed",
         "SendClientVersion-RSA": "TODO: first pass, this should be fixed",
         "NoCommonCurves": "TODO: first pass, this should be fixed",
-        "PointFormat-EncryptedExtensions-TLS13": "TODO: first pass, this should be fixed",
         "TLS13-SendNoKEMModesWithPSK-Server": "TODO: first pass, this should be fixed",
         "TLS13-DuplicateTicketEarlyDataSupport": "TODO: first pass, this should be fixed",
         "Basic-Client-NoTicket-TLS-Sync": "TODO: first pass, this should be fixed",
@@ -167,19 +174,6 @@
         "HelloRetryRequest-DuplicateCookie-TLS13": "TODO: first pass, this should be fixed",
         "HelloRetryRequest-Unknown-TLS13": "TODO: first pass, this should be fixed",
         "SendPostHandshakeChangeCipherSpec-TLS13": "TODO: first pass, this should be fixed",
-        "ECDSAKeyUsage-Server-TLS12": "TODO: first pass, this should be fixed",
-        "ECDSAKeyUsage-Server-TLS13": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS1": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS1": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS1": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS11": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS11": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS12": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS12": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS11": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS12": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS13": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS13": "TODO: first pass, this should be fixed",
         "EmptyExtensions-ClientHello-TLS1": "TODO: first pass, this should be fixed",
         "OmitExtensions-ClientHello-TLS1": "TODO: first pass, this should be fixed",
         "EmptyExtensions-ClientHello-TLS12": "TODO: first pass, this should be fixed",
@@ -214,13 +208,6 @@
         "KeyUpdate-Requested": "TODO: 2025/06  BoGo update, should be fixed",
         "AppDataBeforeTLS13KeyChange-*": "TODO: 2025/06  BoGo update, should be fixed"
     },
-    "AllCurves": [
-        23,
-        24,
-        25,
-        29,
-        4588
-    ],
     "ErrorMap": {
         ":ECH_REJECTED:": ["tls: server rejected ECH"]
     }

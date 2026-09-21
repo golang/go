@@ -715,17 +715,17 @@ func pthread_attr_setstacksize(attr *pthread_attr, size uint64) int32 {
 func pthread_create1(tid, attr, fn, arg uintptr) int32
 
 //go:nosplit
-func pthread_create(tid *pthread, attr *pthread_attr, fn *funcDescriptor, arg unsafe.Pointer) int32 {
+func pthread_create(tid *pthread, attr *pthread_attr, fn unsafe.Pointer, arg unsafe.Pointer) int32 {
 	gp := getg()
 
 	// Check the validity of g because without a g during
 	// newosproc0.
 	if gp != nil {
-		r, _ := syscall4(&libpthread_create, uintptr(unsafe.Pointer(tid)), uintptr(unsafe.Pointer(attr)), uintptr(unsafe.Pointer(fn)), uintptr(arg))
+		r, _ := syscall4(&libpthread_create, uintptr(unsafe.Pointer(tid)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg))
 		return int32(r)
 	}
 
-	return pthread_create1(uintptr(unsafe.Pointer(tid)), uintptr(unsafe.Pointer(attr)), uintptr(unsafe.Pointer(fn)), uintptr(arg))
+	return pthread_create1(uintptr(unsafe.Pointer(tid)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg))
 }
 
 // On multi-thread program, sigprocmask must not be called.

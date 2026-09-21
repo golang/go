@@ -14,14 +14,6 @@ import (
 	"time"
 )
 
-// zeroSource is an io.Reader that returns an unlimited number of zero bytes.
-type zeroSource struct{}
-
-func (zeroSource) Read(b []byte) (n int, err error) {
-	clear(b)
-	return len(b), nil
-}
-
 func ExampleDial() {
 	// Connecting with a custom root-certificate set.
 
@@ -70,18 +62,16 @@ TBj0/VLZjmmx6BEP3ojY+x1J96relc8geMJgEtslQIxq/H5COEBkEveegeGTLg==
 
 func ExampleConfig_keyLogWriter() {
 	// Debugging TLS applications by decrypting a network traffic capture.
-
 	// WARNING: Use of KeyLogWriter compromises security and should only be
 	// used for debugging.
 
-	// Dummy test HTTP server for the example with insecure random so output is
-	// reproducible.
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	server.TLS = &tls.Config{
-		Rand: zeroSource{}, // for example only; don't do this.
-	}
+	server := httptest.NewUnstartedServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {}))
 	server.StartTLS()
 	defer server.Close()
+
+	pool := x509.NewCertPool()
+	pool.AddCert(server.Certificate())
 
 	// Typically the log would go to an open file:
 	// w, err := os.OpenFile("tls-secrets.txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
@@ -91,9 +81,7 @@ func ExampleConfig_keyLogWriter() {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				KeyLogWriter: w,
-
-				Rand:               zeroSource{}, // for reproducible output; don't do this.
-				InsecureSkipVerify: true,         // test server certificate is not trusted.
+				RootCAs:      pool,
 			},
 		},
 	}

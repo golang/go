@@ -48,7 +48,11 @@ func asmcgocall_landingpad()
 //
 // Spills/loads arguments in registers to/from an internal/abi.RegArgs
 // respectively. Does not follow the Go ABI.
+//
+//go:linknamestd spillArgs
 func spillArgs()
+
+//go:linknamestd unspillArgs
 func unspillArgs()
 
 // getfp returns the frame pointer register of its caller or 0 if not implemented.

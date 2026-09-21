@@ -41,8 +41,6 @@ const intSize = 32 << (^uint(0) >> 63)
 // IntSize is the size in bits of an int or uint value.
 const IntSize = intSize
 
-const maxUint64 = 1<<64 - 1
-
 // ParseUint is like [ParseInt] but for unsigned numbers.
 //
 // A sign prefix is not permitted.
@@ -92,6 +90,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 
 	// Cutoff is the smallest number such that cutoff*base > maxUint64.
 	// Use compile-time constants for common cases.
+	const maxUint64 = 1<<64 - 1
 	var cutoff uint64
 	switch base {
 	case 10:

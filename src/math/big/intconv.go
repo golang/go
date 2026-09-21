@@ -42,11 +42,26 @@ func (x *Int) String() string {
 
 // write count copies of text to s.
 func writeMultiple(s fmt.State, text string, count int) {
-	if len(text) > 0 {
-		b := []byte(text)
-		for ; count > 0; count-- {
-			s.Write(b)
+	if len(text) <= 0 || count <= 0 {
+		return
+	}
+	if len(text) == 1 {
+		if bw, ok := s.(io.ByteWriter); ok {
+			for range count {
+				bw.WriteByte(text[0])
+			}
+			return
 		}
+	}
+	if sw, ok := s.(io.StringWriter); ok {
+		for range count {
+			sw.WriteString(text)
+		}
+		return
+	}
+	b := []byte(text)
+	for range count {
+		s.Write(b)
 	}
 }
 

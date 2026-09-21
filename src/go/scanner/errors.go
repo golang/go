@@ -20,6 +20,8 @@ type Error struct {
 	Msg string
 }
 
+var _ error = (*Error)(nil) // *Error (not Error) is the correct type in error.Is tests.
+
 // Error implements the error interface.
 func (e Error) Error() string {
 	if e.Pos.Filename != "" || e.Pos.IsValid() {

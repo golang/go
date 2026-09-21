@@ -405,15 +405,16 @@ ReadPrefixes:
 			}
 			addrSizeIndex = pos
 
-		//Group 5 - Vex encoding
+		// Group 5 - Vex encoding
 		case 0xC5:
 			if pos == 0 && pos+1 < len(src) && (mode == 64 || (mode == 32 && src[pos+1]&0xc0 == 0xc0)) {
 				vex = p
 				vexIndex = pos
 				inst.Prefix[pos] = p
 				inst.Prefix[pos+1] = Prefix(src[pos+1])
-				pos += 1
-				continue
+				pos += 2
+				nprefix = pos
+				break ReadPrefixes
 			} else {
 				nprefix = pos
 				break ReadPrefixes
@@ -425,8 +426,25 @@ ReadPrefixes:
 				inst.Prefix[pos] = p
 				inst.Prefix[pos+1] = Prefix(src[pos+1])
 				inst.Prefix[pos+2] = Prefix(src[pos+2])
-				pos += 2
-				continue
+				pos += 3
+				nprefix = pos
+				break ReadPrefixes
+			} else {
+				nprefix = pos
+				break ReadPrefixes
+			}
+		// EVEX encoding
+		case 0x62:
+			if pos == 0 && pos+3 < len(src) && (mode == 64 || (mode == 32 && src[pos+1]&0xc0 == 0xc0)) {
+				vex = p
+				vexIndex = pos
+				inst.Prefix[pos] = p
+				inst.Prefix[pos+1] = Prefix(src[pos+1])
+				inst.Prefix[pos+2] = Prefix(src[pos+2])
+				inst.Prefix[pos+3] = Prefix(src[pos+3])
+				pos += 4
+				nprefix = pos
+				break ReadPrefixes
 			} else {
 				nprefix = pos
 				break ReadPrefixes
@@ -461,6 +479,10 @@ ReadPrefixes:
 	// opshift gives the shift to use when saving the next
 	// opcode byte into inst.Opcode.
 	opshift = 24
+
+	if vex != 0 {
+		return decodeAVX(src, pos, vex, vexIndex, inst, mode)
+	}
 
 	// Decode loop, executing decoder program.
 	var oldPC, prevPC int

@@ -39,7 +39,7 @@ func dupFileSocket(f *os.File) (syscall.Handle, error) {
 	err = sc.Control(func(fd uintptr) {
 		h, syserr = dupSocket(syscall.Handle(fd))
 	})
-	if err != nil {
+	if err == nil {
 		err = syserr
 	}
 	if err != nil {

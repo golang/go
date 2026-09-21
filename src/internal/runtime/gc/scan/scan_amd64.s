@@ -12,7 +12,8 @@ TEXT ·ExpandAVX512(SB), NOSPLIT, $0-24
 
 	// Call the expander for this size class
 	LEAQ ·gcExpandersAVX512(SB), BX
-	CALL (BX)(CX*8)
+	MOVQ (BX)(CX*8), DX // Move to register first so -spectre works
+	CALL DX
 
 	MOVQ unpacked+16(FP), DI // Expanded output bitmap pointer
 	VMOVDQU64 Z1, 0(DI)
@@ -25,7 +26,8 @@ TEXT ·scanSpanPackedAVX512(SB), NOSPLIT, $256-44
 	MOVQ objMarks+16(FP), AX
 	MOVQ sizeClass+24(FP), CX
 	LEAQ ·gcExpandersAVX512(SB), BX
-	CALL (BX)(CX*8)
+	MOVQ (BX)(CX*8), DX // Move to register first so -spectre works
+	CALL DX
 
 	// Z3+Z4 = Load the pointer mask
 	MOVQ ptrMask+32(FP), AX

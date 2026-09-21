@@ -224,20 +224,20 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 
 	// We're going to conditionally write to one of two buffers based on the
 	// generation. To make sure we write to the correct one, we need to make
-	// sure this thread's trace seqlock is held. If it already is, then we're
+	// sure this thread's trace write flag is set. If it already is, then we're
 	// in the tracer and we can just take advantage of that. If it isn't, then
 	// we need to acquire it and read the generation.
 	locked := false
-	if mp.trace.seqlock.Load()%2 == 0 {
-		mp.trace.seqlock.Add(1)
+	if !mp.trace.writing.Load() {
+		mp.trace.writing.Store(true)
 		locked = true
 	}
 	gen := trace.gen.Load()
 	if gen == 0 {
-		// Tracing is disabled, as it turns out. Release the seqlock if necessary
+		// Tracing is disabled, as it turns out. Clear the write flag if necessary
 		// and exit.
 		if locked {
-			mp.trace.seqlock.Add(1)
+			mp.trace.writing.Store(false)
 		}
 		return
 	}
@@ -275,8 +275,8 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 
 	trace.signalLock.Store(0)
 
-	// Release the seqlock if we acquired it earlier.
+	// Clear the write flag if we set it earlier.
 	if locked {
-		mp.trace.seqlock.Add(1)
+		mp.trace.writing.Store(false)
 	}
 }

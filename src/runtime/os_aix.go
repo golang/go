@@ -112,7 +112,7 @@ func getCPUCount() int32 {
 // This function is not safe to use after initialization as it does not pass an M as fnarg.
 //
 //go:nosplit
-func newosproc0(stacksize uintptr, fn *funcDescriptor) {
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	var (
 		attr pthread_attr
 		oset sigset
@@ -162,6 +162,10 @@ func newosproc0(stacksize uintptr, fn *funcDescriptor) {
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
+	// On AIX, pthread_create expects a function descriptor pointer,
+	// not a raw code address. Set rt0LibGoFn to the descriptor
+	// so that libInit passes the right value.
+	rt0LibGoFn = uintptr(unsafe.Pointer(&rt0LibGoDesc))
 	initsig(true)
 }
 
@@ -203,6 +207,9 @@ func mdestroy(mp *m) {
 // tstart is a function descriptor to _tstart defined in assembly.
 var tstart funcDescriptor
 
+// rt0LibGoDesc is a function descriptor to rt0_lib_go defined in assembly.
+var rt0LibGoDesc funcDescriptor
+
 func newosproc(mp *m) {
 	var (
 		attr pthread_attr
@@ -226,7 +233,7 @@ func newosproc(mp *m) {
 	// with signals disabled. It will enable them in minit.
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	ret := retryOnEAGAIN(func() int32 {
-		return pthread_create(&tid, &attr, &tstart, unsafe.Pointer(mp))
+		return pthread_create(&tid, &attr, unsafe.Pointer(&tstart), unsafe.Pointer(mp))
 	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret != 0 {

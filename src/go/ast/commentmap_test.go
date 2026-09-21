@@ -103,13 +103,13 @@ func ctext(list []*CommentGroup) string {
 
 func TestCommentMap(t *testing.T) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cmap := NewCommentMap(fset, f, f.Comments)
 
-	// very correct association of comments
+	// verify correct association of comments
 	for n, list := range cmap {
 		key := fmt.Sprintf("%2d: %T", fset.Position(n.Pos()).Line, n)
 		got := ctext(list)
@@ -141,7 +141,7 @@ func TestCommentMap(t *testing.T) {
 
 func TestFilter(t *testing.T) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

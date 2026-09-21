@@ -288,3 +288,45 @@ func TestResponseWrite(t *testing.T) {
 		}
 	}
 }
+
+// Response.Write shares the trailer validation added for Issue #78775 with
+// Request.Write, so an invalid trailer name or value must be rejected rather
+// than written.
+func TestResponseWriteInvalidTrailer(t *testing.T) {
+	tests := []struct {
+		name    string
+		trailer Header
+		wantErr string
+	}{
+		{
+			name:    "key",
+			trailer: Header{"X-Trailer\r\nInjected: 1": {"ok"}},
+			wantErr: `net/http: invalid trailer field name "X-Trailer\r\nInjected: 1"`,
+		},
+		{
+			name:    "value",
+			trailer: Header{"X-Trailer": {"evil\r\nInjected: 1"}},
+			wantErr: `net/http: invalid trailer field value for "X-Trailer"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := Response{
+				StatusCode:       200,
+				ProtoMajor:       1,
+				ProtoMinor:       1,
+				Request:          dummyReq("GET"),
+				Header:           Header{},
+				Body:             io.NopCloser(strings.NewReader("abcdef")),
+				ContentLength:    -1,
+				TransferEncoding: []string{"chunked"},
+				Trailer:          tt.trailer,
+			}
+			var b strings.Builder
+			err := resp.Write(&b)
+			if err == nil || err.Error() != tt.wantErr {
+				t.Fatalf("Response.Write error = %v, want %q", err, tt.wantErr)
+			}
+		})
+	}
+}

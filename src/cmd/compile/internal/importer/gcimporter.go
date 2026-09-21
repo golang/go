@@ -73,7 +73,7 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 	defer rc.Close()
 
 	buf := bufio.NewReader(rc)
-	data, err := exportdata.ReadUnified(buf)
+	data, err := exportdata.ReadUnified(buf, true)
 	if err != nil {
 		err = fmt.Errorf("import %q: %v", path, err)
 		return

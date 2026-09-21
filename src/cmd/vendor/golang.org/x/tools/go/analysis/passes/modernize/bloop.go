@@ -15,25 +15,24 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var BLoopAnalyzer = &analysis.Analyzer{
 	Name: "bloop",
-	Doc:  analysisinternal.MustExtractDoc(doc, "bloop"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "bloop"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: bloop,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#bloop",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_bloop",
 }
 
 // bloop updates benchmarks that use "for range b.N", replacing it
@@ -45,16 +44,13 @@ var BLoopAnalyzer = &analysis.Analyzer{
 //	for i := 0; i < b.N; i++ {}  =>   for b.Loop() {}
 //	for range b.N {}
 func bloop(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	if !typesinternal.Imports(pass.Pkg, "testing") {
 		return nil, nil
 	}
 
 	var (
-		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
-		info    = pass.TypesInfo
+		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info  = pass.TypesInfo
 	)
 
 	// edits computes the text edits for a matched for/range loop
@@ -76,7 +72,9 @@ func bloop(pass *analysis.Pass) (any, error) {
 			}
 			if call, ok := stmt.X.(*ast.CallExpr); ok {
 				obj := typeutil.Callee(info, call)
-				if typesinternal.IsMethodNamed(obj, "testing", "B", "StopTimer", "StartTimer", "ResetTimer") {
+				// Check that this is the same b before deleting the timer call.
+				if typesinternal.IsMethodNamed(obj, "testing", "B", "StopTimer", "StartTimer", "ResetTimer") &&
+					astutil.EqualSyntax(ast.Unparen(call.Fun).(*ast.SelectorExpr).X, b) {
 					// Delete call statement.
 					// TODO(adonovan): delete following newline, or
 					// up to start of next stmt? (May delete a comment.)
@@ -102,7 +100,7 @@ func bloop(pass *analysis.Pass) (any, error) {
 		(*ast.ForStmt)(nil),
 		(*ast.RangeStmt)(nil),
 	}
-	for curFile := range filesUsing(inspect, info, "go1.24") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_24) {
 		for curLoop := range curFile.Preorder(loops...) {
 			switch n := curLoop.Node().(type) {
 			case *ast.ForStmt:
@@ -189,6 +187,7 @@ func enclosingFunc(c inspector.Cursor) (inspector.Cursor, bool) {
 // 2. The only b.N loop in that benchmark function
 //   - b.Loop() can only be called once per benchmark execution
 //   - Multiple calls result in "B.Loop called with timer stopped" error
+//   - Multiple loops may have complex interdependencies that are hard to analyze
 func usesBenchmarkNOnce(c inspector.Cursor, info *types.Info) bool {
 	// Find the enclosing benchmark function
 	curFunc, ok := enclosingFunc(c)
@@ -205,17 +204,14 @@ func usesBenchmarkNOnce(c inspector.Cursor, info *types.Info) bool {
 		return false
 	}
 
-	// Count b.N references in this benchmark function
+	// Count all b.N references in this benchmark function (including nested functions)
 	bnRefCount := 0
-	filter := []ast.Node{(*ast.SelectorExpr)(nil), (*ast.FuncLit)(nil)}
+	filter := []ast.Node{(*ast.SelectorExpr)(nil)}
 	curFunc.Inspect(filter, func(cur inspector.Cursor) bool {
-		switch n := cur.Node().(type) {
-		case *ast.FuncLit:
-			return false // don't descend into nested function literals
-		case *ast.SelectorExpr:
-			if n.Sel.Name == "N" && typesinternal.IsPointerToNamed(info.TypeOf(n.X), "testing", "B") {
-				bnRefCount++
-			}
+		sel := cur.Node().(*ast.SelectorExpr)
+		if sel.Sel.Name == "N" &&
+			typesinternal.IsPointerToNamed(info.TypeOf(sel.X), "testing", "B") {
+			bnRefCount++
 		}
 		return true
 	})
@@ -240,7 +236,7 @@ func isIncrementLoop(info *types.Info, loop *ast.ForStmt) *types.Var {
 	if assign, ok := loop.Init.(*ast.AssignStmt); ok &&
 		assign.Tok == token.DEFINE &&
 		len(assign.Rhs) == 1 &&
-		isZeroIntLiteral(info, assign.Rhs[0]) &&
+		isZeroIntConst(info, assign.Rhs[0]) &&
 		is[*ast.IncDecStmt](loop.Post) &&
 		loop.Post.(*ast.IncDecStmt).Tok == token.INC &&
 		astutil.EqualSyntax(loop.Post.(*ast.IncDecStmt).X, assign.Lhs[0]) {

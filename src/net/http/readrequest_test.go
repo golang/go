@@ -197,6 +197,7 @@ var reqTests = []reqTest{
 			ProtoMajor:       1,
 			ProtoMinor:       1,
 			Header:           Header{},
+			Close:            true,
 			ContentLength:    -1,
 			Host:             "foo.com",
 			RequestURI:       "/",

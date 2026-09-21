@@ -1,0 +1,1008 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package http3
+
+import (
+	"context"
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"maps"
+	"net"
+	"net/http"
+	"net/textproto"
+	"os"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"golang.org/x/net/http/httpguts"
+	"golang.org/x/net/internal/httpcommon"
+	"golang.org/x/net/quic"
+)
+
+// A server is an HTTP/3 server.
+// The zero value for server is a valid server.
+type server struct {
+	srv1 *http.Server
+	opts ServerOpts
+
+	initOnce sync.Once
+
+	// connClosed is used to signal that a connection has been unregistered
+	// from activeConns. That way, when shutting down gracefully, the server
+	// can avoid busy-waiting for activeConns to be empty.
+	connClosed  chan any
+	mu          sync.Mutex // Guards fields below.
+	activeConns map[*serverConn]struct{}
+}
+
+// netHTTPServer implements the net/http.http3Server interface,
+// allowing our HTTP/3 server to integrate with net/http.
+type netHTTPServer struct {
+	*server
+}
+
+// Implement net.Listener, so we can pass a netHTTPServer to net/http.Server.Serve.
+func (netHTTPServer) Accept() (net.Conn, error) { return nil, net.ErrClosed }
+func (netHTTPServer) Close() error              { return nil }
+func (netHTTPServer) Addr() net.Addr            { return nil }
+
+// ServeHTTP3 starts serving HTTP/3 on a UDP port.
+//
+// The ctx parameter is used as the base context for request handlers
+// for requests receieved via this port.
+func (s netHTTPServer) ServeHTTP3(ctx context.Context, conn net.PacketConn, tlsConfig *tls.Config, h http.Handler) error {
+	s.init()
+	e, err := quic.NewEndpoint(conn, newQUICConfig(s.opts.QUICConfig, tlsConfig))
+	if err != nil {
+		return err
+	}
+	return s.serve(ctx, e, h)
+}
+
+// Shutdown shuts down the server.
+func (s netHTTPServer) Shutdown(ctx context.Context) error {
+	s.shutdown(ctx)
+	return nil
+}
+
+type ServerOpts struct {
+	// QUICConfig is the QUIC configuration used by the server.
+	// QUICConfig may be nil and should not be modified after calling
+	// RegisterServer.
+	// If QUICConfig.TLSConfig is nil, the TLSConfig of the net/http Server
+	// given to RegisterServer will be used.
+	QUICConfig *quic.Config
+}
+
+// RegisterServer adds HTTP/3 support to a net/http Server.
+//
+// RegisterServer must be called before s begins serving, and only affects
+// s.ListenAndServeTLS.
+func RegisterServer(s *http.Server, opts ServerOpts) error {
+	if err := s.Serve(netHTTPServer{&server{
+		opts: opts,
+		srv1: s,
+	}}); err != nil {
+		return errors.New("http3: net/http does not support HTTP/3")
+	}
+	return nil
+}
+
+func (s *server) init() {
+	s.initOnce.Do(func() {
+		s.activeConns = make(map[*serverConn]struct{})
+		s.connClosed = make(chan any, 1)
+	})
+}
+
+// serve accepts incoming connections on the QUIC endpoint e,
+// and handles requests from those connections.
+func (s *server) serve(ctx context.Context, e *quic.Endpoint, h http.Handler) error {
+	s.init()
+	defer e.Close(canceledCtx)
+	for {
+		qconn, err := e.Accept(ctx)
+		if err != nil {
+			return err
+		}
+		go s.newServerConn(ctx, qconn, h)
+	}
+}
+
+// shutdown attempts a graceful shutdown for the server.
+func (s *server) shutdown(ctx context.Context) {
+	// Set a reasonable default in case ctx is nil.
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+	}
+
+	// Send GOAWAY frames to all active connections to give a chance for them
+	// to gracefully terminate.
+	s.mu.Lock()
+	for sc := range s.activeConns {
+		// TODO: Modify x/net/quic stream API so that write errors from context
+		// deadline are sticky.
+		go sc.sendGoaway()
+	}
+	s.mu.Unlock()
+
+	// Complete shutdown as soon as there are no more active connections or ctx
+	// is done, whichever comes first.
+	defer func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for sc := range s.activeConns {
+			sc.abort(&connectionError{
+				code:    errH3NoError,
+				message: "server is shutting down",
+			})
+		}
+	}()
+	noMoreConns := func() bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return len(s.activeConns) == 0
+	}
+	for {
+		if noMoreConns() {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-s.connClosed:
+		}
+	}
+}
+
+func (s *server) registerConn(sc *serverConn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.activeConns[sc] = struct{}{}
+}
+
+func (s *server) unregisterConn(sc *serverConn) {
+	s.mu.Lock()
+	delete(s.activeConns, sc)
+	s.mu.Unlock()
+	select {
+	case s.connClosed <- struct{}{}:
+	default:
+		// Channel already full. No need to send more values since we are just
+		// using this channel as a simpler sync.Cond.
+	}
+}
+
+func (s *server) readHeaderTimeout() time.Duration {
+	if s.srv1 == nil || s.srv1.ReadHeaderTimeout == 0 {
+		return s.readTimeout()
+	}
+	return s.srv1.ReadHeaderTimeout
+}
+
+func (s *server) readTimeout() time.Duration {
+	if s.srv1 == nil {
+		return 0
+	}
+	return s.srv1.ReadTimeout
+}
+
+func (s *server) writeTimeout() time.Duration {
+	if s.srv1 == nil {
+		return 0
+	}
+	return s.srv1.WriteTimeout
+}
+
+// TODO: this is currently unused, enforce it.
+func (s *server) idleTimeout() time.Duration {
+	if s.srv1 == nil || s.srv1.IdleTimeout == 0 {
+		return s.readTimeout()
+	}
+	return s.srv1.IdleTimeout
+}
+
+type serverConn struct {
+	qconn   *quic.Conn
+	srv     *server
+	baseCtx context.Context
+	handler http.Handler
+
+	genericConn // for handleUnidirectionalStream
+	enc         qpackEncoder
+	dec         qpackDecoder
+
+	maxHeaderBytes      int64
+	maxHeaderValueCount int64
+
+	// For handling shutdown.
+	controlStream      *stream
+	mu                 sync.Mutex // Guards everything below.
+	maxRequestStreamID int64
+	goawaySent         bool
+}
+
+// newServerConn handles a new connection.
+// The baseCtx parameter is the base context for request handlers on this connection.
+func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http.Handler) {
+	sc := &serverConn{
+		qconn:          qconn,
+		srv:            s,
+		baseCtx:        baseCtx,
+		handler:        h,
+		maxHeaderBytes: int64(s.srv1.MaxHeaderBytes),
+		// TODO: When we only support go1.27.
+		//maxHeaderValueCount: int64(s.srv1.MaxHeaderValueCount),
+	}
+
+	// Should we permit disabling these limits? For now, we do not.
+	if sc.maxHeaderBytes <= 0 {
+		sc.maxHeaderBytes = int64(http.DefaultMaxHeaderBytes)
+	}
+	// TODO: When we only support go1.27.
+	// if sc.maxHeaderValueCount <= 0 {
+	// 	sc.maxHeaderValueCount = int64(http.DefaultMaxHeaderValueCount)
+	// }
+
+	s.registerConn(sc)
+	defer s.unregisterConn(sc)
+	sc.enc.init()
+
+	// Create control stream and send SETTINGS frame.
+	// TODO: Time out on creating stream.
+	var err error
+	sc.controlStream, err = newConnStream(context.Background(), sc.qconn, streamTypeControl)
+	if err != nil {
+		return
+	}
+	sc.controlStream.writeSettings(
+		settingsMaxFieldSectionSize, sc.maxHeaderBytes,
+	)
+	sc.controlStream.Flush()
+
+	sc.acceptStreams(sc.qconn, sc)
+}
+
+func (sc *serverConn) handleControlStream(st *stream) error {
+	// "A SETTINGS frame MUST be sent as the first frame of each control stream [...]"
+	// https://www.rfc-editor.org/rfc/rfc9114.html#section-7.2.4-2
+	if err := st.readSettings(func(settingsType, settingsValue int64) error {
+		switch settingsType {
+		case settingsMaxFieldSectionSize:
+			_ = settingsValue // TODO
+		case settingsQPACKMaxTableCapacity:
+			_ = settingsValue // TODO
+		case settingsQPACKBlockedStreams:
+			_ = settingsValue // TODO
+		default:
+			// Unknown settings types are ignored.
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	for {
+		ftype, err := st.readFrameHeader()
+		if err != nil {
+			return err
+		}
+		switch ftype {
+		case frameTypeCancelPush:
+			// "If a server receives a CANCEL_PUSH frame for a push ID
+			// that has not yet been mentioned by a PUSH_PROMISE frame,
+			// this MUST be treated as a connection error of type H3_ID_ERROR."
+			// https://www.rfc-editor.org/rfc/rfc9114.html#section-7.2.3-8
+			return &connectionError{
+				code:    errH3IDError,
+				message: "CANCEL_PUSH for unsent push ID",
+			}
+		case frameTypeGoaway:
+			return errH3NoError
+		default:
+			// Unknown frames are ignored.
+			if err := st.discardUnknownFrame(ftype); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (sc *serverConn) handleEncoderStream(*stream) error {
+	// TODO
+	return nil
+}
+
+func (sc *serverConn) handleDecoderStream(*stream) error {
+	// TODO
+	return nil
+}
+
+func (sc *serverConn) handlePushStream(*stream) error {
+	// "[...] if a server receives a client-initiated push stream,
+	// this MUST be treated as a connection error of type H3_STREAM_CREATION_ERROR."
+	// https://www.rfc-editor.org/rfc/rfc9114.html#section-6.2.2-3
+	return &connectionError{
+		code:    errH3StreamCreationError,
+		message: "client created push stream",
+	}
+}
+
+// hasDisallowedConnectionHeader reports whether h contains connection headers
+// that are not allowed in HTTP/3:
+//
+// "An endpoint MUST NOT generate an HTTP/3 field section containing
+// connection-specific fields; any message containing connection-specific
+// fields MUST be treated as malformed."
+//
+// "The only exception to this is the TE header field, which MAY be present in
+// an HTTP/3 request header; when it is, it MUST NOT contain any value other
+// than "trailers"."
+func hasDisallowedConnectionHeader(h http.Header) bool {
+	neverAllowed := []string{
+		"Connection",
+		"Keep-Alive",
+		"Proxy-Connection",
+		"Transfer-Encoding",
+		"Upgrade",
+	}
+	for _, k := range neverAllowed {
+		if _, ok := h[k]; ok {
+			return true
+		}
+	}
+	if te, ok := h["Te"]; ok && (len(te) != 1 || te[0] != "trailers") {
+		return true
+	}
+	return false
+}
+
+type pseudoHeader struct {
+	method    string
+	scheme    string
+	path      string
+	authority string
+}
+
+func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error) {
+	ftype, err := st.readFrameHeader()
+	if err != nil {
+		return nil, pseudoHeader{}, err
+	}
+	if ftype != frameTypeHeaders {
+		return nil, pseudoHeader{}, &streamError{errH3MessageError, "received other frames when expecting HEADERS"}
+	}
+	if st.lim > sc.maxHeaderBytes {
+		// If the encoded headers exceed the limit, just reject the request out of hand.
+		// This lets us safely check limits in the dec.decode callback below,
+		// since the maximum Huffman expansion factor is only ~1.6x.
+		return nil, pseudoHeader{}, &streamError{errH3RequestRejected, "headers too large"}
+	}
+	header := make(http.Header)
+	valueCount := int64(0)
+	totalSize := int64(0)
+	var pHeader pseudoHeader
+	var dec qpackDecoder
+	var hasMethod, hasScheme, hasPath, hasAuthority bool
+	if err := dec.decode(st, func(_ indexType, name, value string) error {
+		totalSize += int64(len(name)) + int64(len(value)) + 32 // RFC 9114 Section 4.2.2
+		valueCount++
+		if totalSize > sc.maxHeaderBytes {
+			return &streamError{errH3RequestRejected, "headers too large"}
+		}
+		// TODO: When we only support go1.27.
+		//if valueCount > sc.maxHeaderValueCount {
+		//	return &streamError{errH3RequestRejected, "headers too large"}
+		//}
+		if !httpguts.ValidHeaderFieldValue(value) {
+			return &streamError{errH3MessageError, "invalid field value"}
+		}
+		if name == "" || (name[0] == ':' && value == "") {
+			// Reject 0-length pseudo-header values up front,
+			// to avoid any confusion down the line between
+			// "present but zero-length" and "absent".
+			return &streamError{errH3MessageError, "invalid field"}
+		}
+		switch name {
+		case ":method":
+			if hasMethod {
+				return &streamError{errH3MessageError, "duplicate :method"}
+			}
+			hasMethod = true
+			pHeader.method = value
+		case ":scheme":
+			if hasScheme {
+				return &streamError{errH3MessageError, "duplicate :scheme"}
+			}
+			hasScheme = true
+			pHeader.scheme = value
+		case ":path":
+			if hasPath {
+				return &streamError{errH3MessageError, "duplicate :path"}
+			}
+			hasPath = true
+			pHeader.path = value
+		case ":authority":
+			if hasAuthority {
+				return &streamError{errH3MessageError, "duplicate :authority"}
+			}
+			hasAuthority = true
+			pHeader.authority = value
+		default:
+			if !validWireHeaderFieldName(name) {
+				return &streamError{errH3MessageError, "invalid field name"}
+			}
+			header.Add(name, value)
+		}
+		return nil
+	}); err != nil {
+		return nil, pseudoHeader{}, err
+	}
+	if err := st.endFrame(); err != nil {
+		return nil, pseudoHeader{}, err
+	}
+	if hasDisallowedConnectionHeader(header) {
+		return nil, pseudoHeader{}, &streamError{errH3MessageError, "invalid connection-related header"}
+	}
+
+	// "All HTTP/3 requests MUST include exactly one value for the :method,
+	// :scheme, and :path pseudo-header fields, unless the request is a CONNECT
+	// request"
+	//
+	// "A CONNECT request MUST be constructed as follows:
+	// - The :method pseudo-header field is set to "CONNECT"
+	// - The :scheme and :path pseudo-header fields are omitted
+	// - The :authority pseudo-header field contains the host and port to connect to"
+	if !hasMethod {
+		return nil, pseudoHeader{}, &streamError{errH3MessageError, "missing :method"}
+	}
+	if pHeader.method != "CONNECT" && (!hasScheme || !hasPath) {
+		return nil, pseudoHeader{}, &streamError{errH3MessageError, "missing :scheme or :path for non-CONNECT requests"}
+	}
+	if pHeader.method == "CONNECT" && (hasScheme || hasPath || !hasAuthority) {
+		return nil, pseudoHeader{}, &streamError{
+			errH3MessageError, "CONNECT request must only have :method and :authority pseudo-headers",
+		}
+	}
+	return header, pHeader, nil
+}
+
+func (sc *serverConn) sendGoaway() {
+	sc.mu.Lock()
+	if sc.goawaySent || sc.controlStream == nil {
+		sc.mu.Unlock()
+		return
+	}
+	sc.goawaySent = true
+	sc.mu.Unlock()
+
+	// No lock in this section in case writing to stream blocks. This is safe
+	// since sc.maxRequestStreamID is only updated when sc.goawaySent is false.
+	sc.controlStream.writeVarint(int64(frameTypeGoaway))
+	sc.controlStream.writeVarint(int64(sizeVarint(uint64(sc.maxRequestStreamID))))
+	sc.controlStream.writeVarint(sc.maxRequestStreamID)
+	sc.controlStream.Flush()
+}
+
+// requestShouldGoAway returns true if st has a stream ID that is equal or
+// greater than the ID we have sent in a GOAWAY frame, if any.
+func (sc *serverConn) requestShouldGoaway(st *stream) bool {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	if sc.goawaySent {
+		return st.stream.ID() >= sc.maxRequestStreamID
+	} else {
+		sc.maxRequestStreamID = max(sc.maxRequestStreamID, st.stream.ID())
+		return false
+	}
+}
+
+func (sc *serverConn) handleRequestStream(st *stream) error {
+	if sc.requestShouldGoaway(st) {
+		return &streamError{
+			code:    errH3RequestRejected,
+			message: "GOAWAY request with equal or lower ID than the stream has been sent",
+		}
+	}
+
+	readStartTime := time.Now()
+	if t := sc.srv.readHeaderTimeout(); t > 0 {
+		st.readDeadline.set(readStartTime.Add(t))
+	}
+	header, pHeader, err := sc.parseHeader(st)
+	if err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			return &streamError{
+				code:    errH3RequestRejected,
+				message: "exceeded deadline while parsing header",
+			}
+		}
+		return err
+	}
+
+	if t := sc.srv.readTimeout(); t > 0 {
+		st.readDeadline.set(readStartTime.Add(t))
+	} else {
+		st.readDeadline.set(time.Time{})
+	}
+	reqInfo := httpcommon.NewServerRequest(httpcommon.ServerRequestParam{
+		Method:    pHeader.method,
+		Scheme:    pHeader.scheme,
+		Authority: pHeader.authority,
+		Path:      pHeader.path,
+		Header:    header,
+	})
+	if reqInfo.InvalidReason != "" {
+		return &streamError{
+			code:    errH3MessageError,
+			message: reqInfo.InvalidReason,
+		}
+	}
+
+	contentLength := int64(-1)
+	if n, err := strconv.ParseUint(header.Get("Content-Length"), 10, 63); err == nil {
+		contentLength = int64(n)
+	}
+
+	req := (&http.Request{
+		Proto:         "HTTP/3.0",
+		Method:        pHeader.method,
+		Host:          reqInfo.Host,
+		URL:           reqInfo.URL,
+		RequestURI:    reqInfo.RequestURI,
+		Trailer:       reqInfo.Trailer,
+		ProtoMajor:    3,
+		RemoteAddr:    sc.qconn.RemoteAddr().String(),
+		Header:        header,
+		ContentLength: contentLength,
+	}).WithContext(sc.baseCtx)
+
+	rw := &responseWriter{
+		st:             st,
+		headers:        make(http.Header),
+		trailer:        make(http.Header),
+		bb:             make(bodyBuffer, 0, defaultBodyBufferCap),
+		cannotHaveBody: req.Method == "HEAD",
+		bw: &bodyWriter{
+			st:     st,
+			remain: -1,
+			flush:  false,
+			name:   "response",
+			enc:    &sc.enc,
+		},
+	}
+
+	if contentLength != 0 || len(reqInfo.Trailer) != 0 {
+		req.Body = &serverRequestReader{
+			rw: rw,
+			br: bodyReader{
+				st:            st,
+				remain:        contentLength,
+				trailer:       reqInfo.Trailer,
+				filterTrailer: true,
+			},
+			needsContinue: reqInfo.NeedsContinue,
+		}
+		defer req.Body.Close()
+	} else {
+		req.Body = http.NoBody
+	}
+
+	// TODO: handle panic coming from the HTTP handler.
+	if t := sc.srv.writeTimeout(); t > 0 {
+		st.writeDeadline.set(time.Now().Add(t))
+	}
+	sc.handler.ServeHTTP(rw, req)
+	return rw.close()
+}
+
+// abort closes the connection with an error.
+func (sc *serverConn) abort(err error) {
+	if e, ok := err.(*connectionError); ok {
+		sc.qconn.Abort(&quic.ConnectionCloseError{
+			Code:   uint64(e.code),
+			Reason: e.message,
+		})
+	} else {
+		sc.qconn.Abort(err)
+	}
+}
+
+// responseCanHaveBody reports whether a given response status code permits a
+// body. See RFC 7230, section 3.3.
+func responseCanHaveBody(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204:
+		return false
+	case status == 304:
+		return false
+	}
+	return true
+}
+
+// trailerPrefix is a magic prefix for [responseWriter.Header] map keys that,
+// if present, signals that the map entry is actually for the response
+// trailers, and not the response headers. See [net/http.TrailerPrefix] for
+// details.
+const trailerPrefix = "Trailer:"
+
+type responseWriter struct {
+	st             *stream
+	bw             *bodyWriter
+	mu             sync.Mutex
+	headers        http.Header
+	snapHeaders    http.Header // Snapshot of headers at WriteHeader time
+	trailer        http.Header
+	bb             bodyBuffer
+	wroteHeader    bool  // Non-1xx header has been (logically) written.
+	statusCode     int   // Non-1xx status of the response that will be sent in HEADERS frame. Zero means none has been set.
+	sent100        bool  // Status 100 has been sent by the server.
+	cannotHaveBody bool  // Response should not have a body (e.g. response to a HEAD request).
+	bodyLenLeft    int64 // How much of the content body is left to be sent, set via "Content-Length" header. -1 if unknown.
+}
+
+func (rw *responseWriter) Header() http.Header {
+	return rw.headers
+}
+
+// prepareTrailerForWriteLocked populates any pre-declared trailer header with
+// its value, and passes it to bodyWriter so it can be written after body EOF.
+// Caller must hold rw.mu.
+func (rw *responseWriter) prepareTrailerForWriteLocked() {
+	for name := range rw.trailer {
+		if val, ok := rw.headers[name]; ok {
+			rw.trailer[name] = val
+		} else {
+			delete(rw.trailer, name)
+		}
+	}
+	for name, vals := range rw.headers {
+		if name, found := strings.CutPrefix(name, trailerPrefix); found {
+			name = textproto.CanonicalMIMEHeaderKey(textproto.TrimString(name))
+			rw.trailer[name] = vals
+		}
+	}
+	if len(rw.trailer) > 0 {
+		rw.bw.trailer = rw.trailer
+	}
+}
+
+// writeHeaderLockedOnce writes the final response header. If rw.wroteHeader is
+// true, calling this method is a no-op. Sending informational status headers
+// should be done using writeInfoHeaderLocked, rather than this method.
+// Caller must hold rw.mu.
+func (rw *responseWriter) writeHeaderLockedOnce() {
+	if rw.wroteHeader {
+		return
+	}
+	if !responseCanHaveBody(rw.statusCode) {
+		rw.cannotHaveBody = true
+	}
+	// If there is any Trailer declared, save them so we know which trailers
+	// have been pre-declared. Also, write back the extracted value, which is
+	// canonicalized, for consistency.
+	if _, ok := rw.snapHeaders["Trailer"]; ok {
+		extractTrailerFromHeader(rw.snapHeaders, rw.trailer)
+		rw.snapHeaders.Set("Trailer", strings.Join(slices.Sorted(maps.Keys(rw.trailer)), ", "))
+	}
+
+	rw.bb.inferHeader(rw.snapHeaders, rw.statusCode)
+	encHeaders := rw.bw.enc.encode(func(f func(itype indexType, name, value string)) {
+		f(mayIndex, ":status", strconv.Itoa(rw.statusCode))
+		for name, values := range rw.snapHeaders {
+			if !httpguts.ValidHeaderFieldName(name) {
+				continue
+			}
+			for _, val := range values {
+				if !httpguts.ValidHeaderFieldValue(val) {
+					continue
+				}
+				// Issue #71374: Consider supporting never-indexed fields.
+				f(mayIndex, name, val)
+			}
+		}
+	})
+
+	rw.st.writeVarint(int64(frameTypeHeaders))
+	rw.st.writeVarint(int64(len(encHeaders)))
+	rw.st.Write(encHeaders)
+	rw.wroteHeader = true
+}
+
+// writeHeaderLocked writes informational status headers (i.e. status 1XX).
+// If a non-informational status header has been written via
+// writeHeaderLockedOnce, this method is a no-op.
+// Caller must hold rw.mu.
+func (rw *responseWriter) writeHeaderLocked(statusCode int) {
+	if rw.wroteHeader {
+		return
+	}
+	if statusCode == 100 {
+		if rw.sent100 {
+			return
+		}
+		rw.sent100 = true
+	}
+	encHeaders := rw.bw.enc.encode(func(f func(itype indexType, name, value string)) {
+		f(mayIndex, ":status", strconv.Itoa(statusCode))
+		for name, values := range rw.headers {
+			if name == "Content-Length" || name == "Transfer-Encoding" {
+				continue
+			}
+			if !httpguts.ValidHeaderFieldName(name) {
+				continue
+			}
+			for _, val := range values {
+				if !httpguts.ValidHeaderFieldValue(val) {
+					continue
+				}
+				// Issue #71374: Consider supporting never-indexed fields.
+				f(mayIndex, name, val)
+			}
+		}
+	})
+	rw.st.writeVarint(int64(frameTypeHeaders))
+	rw.st.writeVarint(int64(len(encHeaders)))
+	rw.st.Write(encHeaders)
+}
+
+func isInfoStatus(status int) bool {
+	return status >= 100 && status < 200
+}
+
+// checkWriteHeaderCode is a copy of net/http's checkWriteHeaderCode.
+func checkWriteHeaderCode(code int) {
+	// Issue 22880: require valid WriteHeader status codes.
+	// For now we only enforce that it's three digits.
+	// In the future we might block things over 599 (600 and above aren't defined
+	// at http://httpwg.org/specs/rfc7231.html#status.codes).
+	// But for now any three digits.
+	//
+	// We used to send "HTTP/1.1 000 0" on the wire in responses but there's
+	// no equivalent bogus thing we can realistically send in HTTP/3,
+	// so we'll consistently panic instead and help people find their bugs
+	// early. (We can't return an error from WriteHeader even if we wanted to.)
+	if code < 100 || code > 999 {
+		panic(fmt.Sprintf("invalid WriteHeader code %v", code))
+	}
+}
+
+func (rw *responseWriter) WriteHeader(statusCode int) {
+	// TODO: handle sending informational status headers (e.g. 103).
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
+	if rw.statusCode != 0 {
+		return
+	}
+	checkWriteHeaderCode(statusCode)
+
+	// Informational headers can be sent multiple times, and should be flushed
+	// immediately.
+	if isInfoStatus(statusCode) {
+		rw.writeHeaderLocked(statusCode)
+		rw.st.Flush()
+		return
+	}
+
+	// Non-informational headers should only be set once, and should be
+	// buffered.
+	if n, err := strconv.ParseUint(rw.headers.Get("Content-Length"), 10, 63); err == nil {
+		rw.bodyLenLeft = int64(n)
+	} else {
+		rw.headers.Del("Content-Length")
+		rw.bodyLenLeft = -1 // Unknown.
+	}
+	rw.statusCode = statusCode
+	rw.snapHeaders = rw.headers.Clone()
+}
+
+// trimWriteLocked trims a byte slice, b, such that the length of b will not
+// exceed rw.bodyLenLeft. This method will update rw.bodyLenLeft when trimming
+// b, and will also return whether b was trimmed or not.
+// Caller must hold rw.mu.
+func (rw *responseWriter) trimWriteLocked(b []byte) ([]byte, bool) {
+	if rw.bodyLenLeft < 0 {
+		return b, false
+	}
+	n := min(int64(len(b)), rw.bodyLenLeft)
+	rw.bodyLenLeft -= n
+	return b[:n], n != int64(len(b))
+}
+
+func (rw *responseWriter) Write(b []byte) (n int, err error) {
+	// Calling Write implicitly calls WriteHeader(200) if WriteHeader has not
+	// been called before.
+	rw.WriteHeader(http.StatusOK)
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
+
+	if rw.statusCode == http.StatusNotModified {
+		return 0, http.ErrBodyNotAllowed
+	}
+
+	b, trimmed := rw.trimWriteLocked(b)
+	if trimmed {
+		defer func() {
+			err = http.ErrContentLength
+		}()
+	}
+
+	// If b fits entirely in our body buffer, save it to the buffer and return
+	// early so we can coalesce small writes.
+	// As a special case, we always want to save b to the buffer even when b is
+	// big if we had yet to write our header, so we can infer headers like
+	// "Content-Type" with as much information as possible.
+	initialBLen := len(b)
+	initialBufLen := len(rw.bb)
+	if !rw.wroteHeader || len(b) <= cap(rw.bb)-len(rw.bb) {
+		b = rw.bb.write(b)
+		if len(b) == 0 {
+			return initialBLen, nil
+		}
+	}
+
+	// Reaching this point means that our buffer has been sufficiently filled.
+	// Therefore, we now want to:
+	// 1. Infer and write response headers based on our body buffer, if not
+	// done yet.
+	// 2. Write our body buffer and the rest of b (if any).
+	// 3. Reset the current body buffer so it can be used again.
+	rw.writeHeaderLockedOnce()
+	if rw.cannotHaveBody {
+		return initialBLen, nil
+	}
+	if n, err := rw.bw.write(rw.bb, b); err != nil {
+		return max(0, n-initialBufLen), err
+	}
+	rw.bb.discard()
+	return initialBLen, nil
+}
+
+func (rw *responseWriter) SetReadDeadline(deadline time.Time) error {
+	rw.st.readDeadline.set(deadline)
+	return nil
+}
+
+func (rw *responseWriter) SetWriteDeadline(deadline time.Time) error {
+	rw.st.writeDeadline.set(deadline)
+	return nil
+}
+
+func (rw *responseWriter) EnableFullDuplex() error {
+	return nil
+}
+
+func (rw *responseWriter) Flush() { rw.FlushError() }
+func (rw *responseWriter) FlushError() error {
+	// Calling Flush implicitly calls WriteHeader(200) if WriteHeader has not
+	// been called before.
+	rw.WriteHeader(http.StatusOK)
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
+	rw.writeHeaderLockedOnce()
+	if !rw.cannotHaveBody {
+		_, err := rw.bw.Write(rw.bb)
+		rw.bb.discard()
+		if err != nil {
+			return err
+		}
+	}
+	return rw.st.Flush()
+}
+
+func (rw *responseWriter) close() error {
+	if errors.Is(rw.st.writeDeadline.err(), os.ErrDeadlineExceeded) {
+		return &streamError{
+			code:    errH3RequestCancelled,
+			message: "exceeded deadline while writing response",
+		}
+	}
+
+	retErr := rw.FlushError()
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
+	rw.prepareTrailerForWriteLocked()
+	if err := rw.bw.Close(); retErr == nil {
+		retErr = err
+	}
+	if errors.Is(retErr, os.ErrDeadlineExceeded) {
+		return &streamError{
+			code:    errH3RequestCancelled,
+			message: retErr.Error(),
+		}
+	}
+	return retErr
+}
+
+// defaultBodyBufferCap is the default number of bytes of body that we are
+// willing to save in a buffer for the sake of inferring headers and coalescing
+// small writes. 512 was chosen to be consistent with how much
+// http.DetectContentType is willing to read.
+const defaultBodyBufferCap = 512
+
+// bodyBuffer is a buffer used to store body content of a response.
+type bodyBuffer []byte
+
+// write writes b to the buffer. It returns a new slice of b, which contains
+// any remaining data that could not be written to the buffer, if any.
+func (bb *bodyBuffer) write(b []byte) []byte {
+	n := min(len(b), cap(*bb)-len(*bb))
+	*bb = append(*bb, b[:n]...)
+	return b[n:]
+}
+
+// discard resets the buffer so it can be used again.
+func (bb *bodyBuffer) discard() {
+	*bb = (*bb)[:0]
+}
+
+// inferHeader populates h with the header values that we can infer from our
+// current buffer content, if not already explicitly set. This method should be
+// called only once with as much body content as possible in the buffer, before
+// a HEADERS frame is sent, and before discard has been called. Doing so
+// properly is the responsibility of the caller.
+func (bb *bodyBuffer) inferHeader(h http.Header, status int) {
+	if _, ok := h["Date"]; !ok {
+		h.Set("Date", time.Now().UTC().Format(http.TimeFormat))
+	}
+	// If the Content-Encoding is non-blank, we shouldn't
+	// sniff the body. See Issue golang.org/issue/31753.
+	hasCE := len(h.Get("Content-Encoding")) > 0
+	_, hasCT := h["Content-Type"]
+	if !hasCE && !hasCT && responseCanHaveBody(status) && len(*bb) > 0 {
+		h.Set("Content-Type", http.DetectContentType(*bb))
+	}
+	// We can technically infer Content-Length too here, as long as the entire
+	// response body fits within hi.buf and does not require flushing. However,
+	// we have chosen not to do so for now as Content-Length is not very
+	// important for HTTP/3, and such inconsistent behavior might be confusing.
+}
+
+// serverRequestReader wraps around bodyReader, allowing Read and Close calls
+// done from within a server handler to coordinate correctly with the
+// responseWriter; for example, sending status 100 on Read when appropriate.
+type serverRequestReader struct {
+	rw            *responseWriter
+	br            bodyReader
+	needsContinue bool
+}
+
+// maybeSendContinue attempts to send a 100 Continue status code. It
+// ensures that status 100 will only be sent once and when appropriate. If a
+// non-1xx header has been set before 100 was ever set, it also ensures that
+// all subsequent Read will fail.
+func (srr *serverRequestReader) maybeSendContinue() {
+	if !srr.needsContinue {
+		return
+	}
+	srr.rw.mu.Lock()
+	defer srr.rw.mu.Unlock()
+	if srr.rw.sent100 {
+		return
+	}
+	if srr.rw.statusCode != 0 {
+		srr.br.Close()
+		return
+	}
+	srr.rw.writeHeaderLocked(100)
+	srr.rw.st.Flush()
+}
+
+func (srr *serverRequestReader) Read(p []byte) (int, error) {
+	srr.maybeSendContinue()
+	return srr.br.Read(p)
+}
+
+func (srr *serverRequestReader) Close() error {
+	return srr.br.Close()
+}

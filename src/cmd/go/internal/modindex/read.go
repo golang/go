@@ -138,7 +138,7 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	if !errors.Is(err, errNotFromModuleCache) {
 		return nil, err
 	}
-	if cfg.BuildContext.Compiler == "gccgo" && str.HasPathPrefix(modroot, cfg.GOROOTsrc) {
+	if cfg.BuildContext.Compiler == "gccgo" && str.HasFilePathPrefix(modroot, cfg.GOROOTsrc) {
 		return nil, err // gccgo has no sources for GOROOT packages.
 	}
 	// The pkgdir for fips140 has been replaced in the fsys overlay,
@@ -403,6 +403,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 
 	// goroot and gopath
 	inTestdata := func(sub string) bool {
+		sub = filepath.ToSlash(sub)
 		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
 	}
 	var pkga string
@@ -680,7 +681,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 // and otherwise falling back to internal/goroot.IsStandardPackage
 func IsStandardPackage(goroot_, compiler, path string) bool {
 	if !enabled || compiler != "gc" {
-		return goroot.IsStandardPackage(goroot_, compiler, path)
+		return goroot.IsStandardPackage(fsys.ReadDir, goroot_, compiler, path)
 	}
 
 	reldir := filepath.FromSlash(path) // relative dir path in module index for package
@@ -695,7 +696,7 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
 	} else if errors.Is(err, ErrNotIndexed) {
 		// Fall back because package isn't indexable. (Probably because
 		// a file was modified recently)
-		return goroot.IsStandardPackage(goroot_, compiler, path)
+		return goroot.IsStandardPackage(fsys.ReadDir, goroot_, compiler, path)
 	}
 	return false
 }

@@ -493,15 +493,13 @@ func expandArgs(s *State, rawArgs [][]argFragment, regexpArgs []int) []string {
 }
 
 // quoteArgs returns a string that parse would parse as args when passed to a command.
-//
-// TODO(bcmills): This function should have a fuzz test.
 func quoteArgs(args []string) string {
 	var b strings.Builder
 	for i, arg := range args {
 		if i > 0 {
 			b.WriteString(" ")
 		}
-		if strings.ContainsAny(arg, "'"+argSepChars) {
+		if len(arg) == 0 || strings.ContainsAny(arg, "&'$"+argSepChars) {
 			// Quote the argument to a form that would be parsed as a single argument.
 			b.WriteString("'")
 			b.WriteString(strings.ReplaceAll(arg, "'", "''"))
@@ -580,23 +578,21 @@ func (e *Engine) runCommand(s *State, cmd *command, impl Cmd) error {
 		return nil
 	}
 
-	if wait != nil {
-		stdout, stderr, waitErr := wait(s)
-		s.stdout = stdout
-		s.stderr = stderr
-		if stdout != "" {
-			s.Logf("[stdout]\n%s", stdout)
-		}
-		if stderr != "" {
-			s.Logf("[stderr]\n%s", stderr)
-		}
-		if cmdErr := checkStatus(cmd, waitErr); cmdErr != nil {
-			return cmdErr
-		}
-		if waitErr != nil {
-			// waitErr was expected (by cmd.want), so log it instead of returning it.
-			s.Logf("[%v]\n", waitErr)
-		}
+	stdout, stderr, waitErr := wait(s)
+	s.stdout = stdout
+	s.stderr = stderr
+	if stdout != "" {
+		s.Logf("[stdout]\n%s", stdout)
+	}
+	if stderr != "" {
+		s.Logf("[stderr]\n%s", stderr)
+	}
+	if cmdErr := checkStatus(cmd, waitErr); cmdErr != nil {
+		return cmdErr
+	}
+	if waitErr != nil {
+		// waitErr was expected (by cmd.want), so log it instead of returning it.
+		s.Logf("[%v]\n", waitErr)
 	}
 	return nil
 }

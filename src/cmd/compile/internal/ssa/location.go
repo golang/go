@@ -5,33 +5,13 @@
 package ssa
 
 import (
+	"fmt"
+
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"fmt"
 )
 
-// A place that an ssa variable can reside.
-type Location interface {
-	String() string // name to use in assembly templates: AX, 16(SP), ...
-}
-
-// A Register is a machine register, like AX.
-// They are numbered densely from 0 (for each architecture).
-type Register struct {
-	num    int32 // dense numbering
-	objNum int16 // register number from cmd/internal/obj/$ARCH
-	name   string
-}
-
-func (r *Register) String() string {
-	return r.name
-}
-
-// ObjNum returns the register number from cmd/internal/obj/$ARCH that
-// corresponds to this register.
-func (r *Register) ObjNum() int16 {
-	return r.objNum
-}
+type LocPair [2]Location
 
 // A LocalSlot is a location in the stack frame, which identifies and stores
 // part or all of a PPARAM, PPARAMOUT, or PAUTO ONAME node.
@@ -61,14 +41,25 @@ type LocalSlot struct {
 	SplitOffset int64      // .. at this offset.
 }
 
+// A place that an ssa variable can reside.
+type Location interface {
+	String() string // name to use in assembly templates: AX, 16(SP), ...
+}
+
+type Spill struct {
+	Type   *types.Type
+	Offset int64
+	Reg    int16
+}
+
+type LocResults []Location
+
 func (s LocalSlot) String() string {
 	if s.Off == 0 {
 		return fmt.Sprintf("%v[%v]", s.N, s.Type)
 	}
 	return fmt.Sprintf("%v+%d[%v]", s.N, s.Off, s.Type)
 }
-
-type LocPair [2]Location
 
 func (t LocPair) String() string {
 	n0, n1 := "nil", "nil"
@@ -81,8 +72,6 @@ func (t LocPair) String() string {
 	return fmt.Sprintf("<%s,%s>", n0, n1)
 }
 
-type LocResults []Location
-
 func (t LocResults) String() string {
 	s := ""
 	a := "<"
@@ -93,10 +82,4 @@ func (t LocResults) String() string {
 	}
 	a += ">"
 	return a
-}
-
-type Spill struct {
-	Type   *types.Type
-	Offset int64
-	Reg    int16
 }

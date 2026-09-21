@@ -236,6 +236,50 @@ func TestFlagSetParse(t *testing.T) {
 	testParse(NewFlagSet("test", ContinueOnError), t)
 }
 
+func TestIsSet(t *testing.T) {
+	ResetForTesting(func() {})
+	testIsSet(CommandLine, t)
+}
+
+func TestFlagSetIsSet(t *testing.T) {
+	testIsSet(NewFlagSet("test", ContinueOnError), t)
+}
+
+func testIsSet(f *FlagSet, t *testing.T) {
+	if f.Parsed() {
+		t.Error("f.Parse() = true before Parse")
+	}
+	f.BoolFunc("boolfunc", "boolfunc value", func(s string) error { return fmt.Errorf("%s", s) })
+	f.BoolFunc("boolfunc2", "boolfunc2 value", func(s string) error { return nil })
+	str := f.String("str", "default", "string flag")
+	args := []string{"--boolfunc2", "--str=1", "--boolfunc"}
+	if err := f.Parse(args); err.Error() != "invalid boolean flag boolfunc: true" {
+		t.Fatal(err)
+	}
+	check := func() {
+		for tmp := range f.All() {
+			if tmp.Name == "boolfunc" {
+				if tmp.IsSet {
+					t.Errorf("flag %s should be not set, but is set", tmp.Name)
+				}
+				continue
+			}
+			if !tmp.IsSet {
+				t.Errorf("flag %s should be set, but is not", tmp.Name)
+			}
+		}
+		// Check that the flag Value set when IsSet is true.
+		if *str != "1" {
+			t.Errorf("flag str want 1, got %s", *str)
+		}
+	}
+	check()
+	f.Set("boolfunc", "")
+	f.Set("boolfunc2", "")
+	f.Set("str", "1")
+	check()
+}
+
 // Declare a user-defined flag type.
 type flagVar []string
 

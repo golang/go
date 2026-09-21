@@ -115,6 +115,18 @@ func ExampleCut() {
 	// Cut("Gopher", "Badger") = "Gopher", "", false
 }
 
+func ExampleCutLast() {
+	show := func(s, sep string) {
+		before, after, found := strings.CutLast(s, sep)
+		fmt.Printf("CutLast(%q, %q) = %q, %q, %v\n", s, sep, before, after, found)
+	}
+	show("root/user/docs", "/")
+	show("Gopher", "/")
+	// Output:
+	// CutLast("root/user/docs", "/") = "root/user", "docs", true
+	// CutLast("Gopher", "/") = "Gopher", "", false
+}
+
 func ExampleCutPrefix() {
 	show := func(s, prefix string) {
 		after, found := strings.CutPrefix(s, prefix)

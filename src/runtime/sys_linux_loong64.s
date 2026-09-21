@@ -204,8 +204,13 @@ TEXT runtime·mincore<ABIInternal>(SB),NOSPLIT,$0
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime<ABIInternal>(SB),NOSPLIT,$24
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R23
+	BEQ	R23, nosecret
+	JAL	·secretEraseRegisters(SB)
+nosecret:
+#endif
 	MOVV	R3, R23	// R23 is unchanged by C code
-	MOVV	R3, R25
 
 	MOVV	g_m(g), R24	// R24 = m
 
@@ -222,16 +227,14 @@ TEXT runtime·walltime<ABIInternal>(SB),NOSPLIT,$24
 	MOVV	R11, m_vdsoSP(R24)
 
 	MOVV	m_curg(R24), R4
-	MOVV	g, R5
-	BNE	R4, R5, noswitch
+	BNE	R4, g, noswitch
 
 	MOVV	m_g0(R24), R4
-	MOVV	(g_sched+gobuf_sp)(R4), R25	// Set SP to g0 stack
+	MOVV	(g_sched+gobuf_sp)(R4), R3	// Set SP to g0 stack
 
 noswitch:
-	SUBV	$16, R25
-	AND	$~15, R25	// Align for C code
-	MOVV	R25, R3
+	SUBV	$16, R3
+	AND	$~15, R3	// Align for C code
 
 	MOVW	$CLOCK_REALTIME, R4
 	MOVV	$0(R3), R5
@@ -282,8 +285,13 @@ fallback:
 
 // func nanotime1() int64
 TEXT runtime·nanotime1<ABIInternal>(SB),NOSPLIT,$24
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R23
+	BEQ	R23, nosecret
+	JAL	·secretEraseRegisters(SB)
+nosecret:
+#endif
 	MOVV	R3, R23	// R23 is unchanged by C code
-	MOVV	R3, R25
 
 	MOVV	g_m(g), R24	// R24 = m
 
@@ -300,16 +308,14 @@ TEXT runtime·nanotime1<ABIInternal>(SB),NOSPLIT,$24
 	MOVV	R11, m_vdsoSP(R24)
 
 	MOVV	m_curg(R24), R4
-	MOVV	g, R5
-	BNE	R4, R5, noswitch
+	BNE	R4, g, noswitch
 
 	MOVV	m_g0(R24), R4
-	MOVV	(g_sched+gobuf_sp)(R4), R25	// Set SP to g0 stack
+	MOVV	(g_sched+gobuf_sp)(R4), R3	// Set SP to g0 stack
 
 noswitch:
-	SUBV	$16, R25
-	AND	$~15, R25	// Align for C code
-	MOVV	R25, R3
+	SUBV	$16, R3
+	AND	$~15, R3	// Align for C code
 
 	MOVW	$CLOCK_MONOTONIC, R4
 	MOVV	$0(R3), R5
@@ -689,7 +695,7 @@ TEXT runtime·socket(SB),$0-20
 	RET
 
 // func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
-TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
 	MOVV	R3, R23
 
 	MOVV	runtime·vdsoGetrandomSym(SB), R12

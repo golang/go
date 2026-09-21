@@ -168,6 +168,9 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 			virtualEdits[addr+uint64(i)] = true
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("scanning objdump output: %v", err)
+	}
 
 	// Figure out where in the binary the edits must be done.
 	physicalEdits := map[uint64]bool{}
@@ -247,6 +250,7 @@ func setOf(keys ...string) map[string]bool {
 var runtimeFeatures = setOf(
 	"adx", "aes", "avx", "avx2", "bmi1", "bmi2", "erms", "fma",
 	"pclmulqdq", "popcnt", "rdtscp", "sse3", "sse41", "sse42", "ssse3",
+	"avx512f", "avx512dq",
 )
 
 var featureToOpcodes = map[string][]string{
@@ -279,6 +283,7 @@ var featureToOpcodes = map[string][]string{
 	"fma":   {"vfmadd231sd"},
 	"movbe": {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
 	"lzcnt": {"lzcntq", "lzcntl", "lzcnt"},
+	"avx2":  {"vmovsd", "vpbroadcastq", "vmulpd", "vpextrq"}, // not a complete list
 }
 
 // Test to use POPCNT instruction, if available
@@ -431,4 +436,22 @@ func TestFMA(t *testing.T) {
 			t.Errorf("FMA(%f,%f,%f) = %f, want %f", tt.x, tt.y, tt.z, got, tt.want)
 		}
 	}
+}
+
+func TestLoop(t *testing.T) {
+	// Make sure non-v1 ops are not lifted out of loops (and
+	// hence, out of the cpu feature test that guards them).
+	// See issue 78997.
+	testLoop1(6, 7)
+	testLoop2(6, 7) // in versions_(no)simd_test.go
+	testLoop3(6, 7) // in versions_(no)simd_test.go
+}
+
+//go:noinline
+func testLoop1(n int, x uint64) int {
+	var r int
+	for range n {
+		r += bits.OnesCount64(x)
+	}
+	return r
 }

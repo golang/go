@@ -1,0 +1,95 @@
+go mod init m
+go get rsc.io/quote@latest
+go doc rsc.io/quote
+cmp stdout want-latest.txt
+go doc rsc.io/quote@latest
+cmp stdout want-latest.txt
+go doc rsc.io/quote@v1.0.0
+cmp stdout want-1.0.0.txt
+go doc rsc.io/quote@v1.1.0
+cmp stdout want-1.1.0.txt
+go doc rsc.io/quote@v1.2.0
+cmp stdout want-1.2.0.txt
+# Test short format
+go doc quote@latest
+cmp stdout want-latest.txt
+go doc quote@v1.0.0
+cmp stdout want-1.0.0.txt
+go doc quote@v1.1.0
+cmp stdout want-1.1.0.txt
+go doc quote@v1.2.0
+cmp stdout want-1.2.0.txt
+go doc quote
+cmp stdout want-latest.txt
+go doc quote@v1.0.0 Hello
+cmp stdout hello-1.0.0.txt
+go doc quote@v1.1.0 Glass
+cmp stdout glass-1.1.0.txt
+go doc quote@v1.2.0 Go
+cmp stdout go-1.2.0.txt
+go doc quote@v1.3.0 Opt
+cmp stdout opt-1.3.0.txt
+-- main.go --
+package main
+
+import (
+  "fmt"
+  "rsc.io/quote"
+)
+func main() {
+  fmt.Println(quote.Hello())
+}
+-- want-latest.txt --
+package quote // import "rsc.io/quote"
+
+Package quote collects pithy sayings.
+
+func Glass() string
+func Go() string
+func Hello() string
+func Opt() string
+-- want-1.0.0.txt --
+package quote // import "rsc.io/quote"
+
+Package quote collects pithy sayings.
+
+func Hello() string
+-- want-1.1.0.txt --
+package quote // import "rsc.io/quote"
+
+Package quote collects pithy sayings.
+
+func Glass() string
+func Hello() string
+-- want-1.2.0.txt --
+package quote // import "rsc.io/quote"
+
+Package quote collects pithy sayings.
+
+func Glass() string
+func Go() string
+func Hello() string
+-- hello-1.0.0.txt --
+package quote // import "rsc.io/quote"
+
+func Hello() string
+    Hello returns a greeting.
+
+-- glass-1.1.0.txt --
+package quote // import "rsc.io/quote"
+
+func Glass() string
+    Glass returns a useful phrase for world travelers.
+
+-- go-1.2.0.txt --
+package quote // import "rsc.io/quote"
+
+func Go() string
+    Go returns a Go proverb.
+
+-- opt-1.3.0.txt --
+package quote // import "rsc.io/quote"
+
+func Opt() string
+    Opt returns an optimization truth.
+

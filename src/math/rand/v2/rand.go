@@ -12,6 +12,9 @@
 // Top-level functions, such as [Float64] and [Int],
 // are safe for concurrent use by multiple goroutines.
 //
+// The [ChaCha8] source is a general-purpose source resistant to prediction.
+// The [PCG] source is faster but unfit for security-relevant purposes.
+//
 // This package's outputs might be easily predictable regardless of how it's
 // seeded. For random numbers suitable for security-sensitive work, see the
 // [crypto/rand] package.
@@ -204,6 +207,16 @@ func (r *Rand) UintN(n uint) uint {
 	return uint(r.uint64n(uint64(n)))
 }
 
+// N returns a pseudo-random number in the half-open interval [0,n).
+// The type parameter Int can be any integer type.
+// It panics if n <= 0.
+func (r *Rand) N[Int intType](n Int) Int {
+	if n <= 0 {
+		panic("invalid argument to N")
+	}
+	return Int(r.uint64n(uint64(n)))
+}
+
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func (r *Rand) Float64() float64 {
 	// There are exactly 1<<53 float64s in [0,1). Use Intn(1<<53) / (1<<53).
@@ -321,10 +334,7 @@ func UintN(n uint) uint { return globalRand.UintN(n) }
 // The type parameter Int can be any integer type.
 // It panics if n <= 0.
 func N[Int intType](n Int) Int {
-	if n <= 0 {
-		panic("invalid argument to N")
-	}
-	return Int(globalRand.uint64n(uint64(n)))
+	return globalRand.N(n)
 }
 
 type intType interface {

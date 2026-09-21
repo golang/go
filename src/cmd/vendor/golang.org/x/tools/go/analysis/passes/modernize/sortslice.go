@@ -11,25 +11,25 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
+	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 // (Not to be confused with go/analysis/passes/sortslice.)
 var SlicesSortAnalyzer = &analysis.Analyzer{
 	Name: "slicessort",
-	Doc:  analysisinternal.MustExtractDoc(doc, "slicessort"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "slicessort"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: slicessort,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicessort",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_slicessort",
 }
 
 // The slicessort pass replaces sort.Slice(slice, less) with
@@ -52,8 +52,6 @@ var SlicesSortAnalyzer = &analysis.Analyzer{
 //   - sort.Sort(x) where x has a named slice type whose Less method is the natural order.
 //     -> sort.Slice(x)
 func slicessort(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	// Skip the analyzer in packages where its
 	// fixes would create an import cycle.
 	if within(pass, "slices", "sort", "runtime") {
@@ -67,6 +65,10 @@ func slicessort(pass *analysis.Pass) (any, error) {
 	)
 	for curCall := range index.Calls(sortSlice) {
 		call := curCall.Node().(*ast.CallExpr)
+		if len(call.Args) != 2 {
+			// A multi-valued call may supply the complete argument list.
+			continue
+		}
 		if lit, ok := call.Args[1].(*ast.FuncLit); ok && len(lit.Body.List) == 1 {
 			sig := info.Types[lit.Type].Type.(*types.Signature)
 
@@ -87,7 +89,8 @@ func slicessort(pass *analysis.Pass) (any, error) {
 					}
 					file := astutil.EnclosingFile(curCall)
 					if isIndex(compare.X, i) && isIndex(compare.Y, j) &&
-						fileUses(info, file, "go1.21") {
+						typesinternal.NoEffects(info, s) &&
+						analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_21) {
 						// Have: sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
 
 						prefix, importEdits := refactor.AddImport(

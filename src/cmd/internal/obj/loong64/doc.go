@@ -6,6 +6,18 @@
 Package loong64 implements an LoongArch64 assembler. Go assembly syntax is different from
 GNU LoongArch64 syntax, but we can still follow the general rules to map between them.
 
+# Register Convention
+
+	Name                |  Alias  | Meaning
+	-----------------------------------------------------------------------------------------------------------------------
+	R0                  | REGZERO | Constant zero
+	R1                  | REGLINK | Return address
+	R3                  | REGSP   | Stack pointer
+	R12,R13,R14,R15,R20 |         | For plt and trampoline, use with caution in assembly code, save before calling function
+	R22                 | REGG    | Goroutine pointer
+	R29                 | REGCTXT | Context for closures
+	R30                 | REGTMP  | Tmp register used by assembler
+
 # Instructions mnemonics mapping rules
 
 1. Bit widths represented by various instruction suffixes and prefixes
@@ -203,6 +215,15 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
 	VMOVQ Vj.W[index], Vd.W4  | vreplvei.w vd, vj, ui2 | for i in range(4) : VR[vd].w[i] = VR[vj].w[ui2]
 	VMOVQ Vj.V[index], Vd.V2  | vreplvei.d vd, vj, ui1 | for i in range(2) : VR[vd].d[i] = VR[vj].d[ui1]
 
+3.7 Move vector register to vector register.
+        Instruction format:
+        VMOVQ     Vj, Vd
+
+        Mapping between Go and platform assembly:
+          Go assembly   |   platform assembly   |                         semantics
+        VMOVQ   Vj, Vd  |  vslli.d vd, vj, 0x0  | for i in range(2) : VR[vd].D[i] = SLL(VR[vj].D[i], 0)
+        VXMOVQ  Xj, Xd  | xvslli.d xd, xj, 0x0  | for i in range(4) : XR[xd].D[i] = SLL(XR[xj].D[i], 0)
+
 3.7 Load data from memory and broadcast to each element of a vector register.
 
 	Instruction format:
@@ -228,6 +249,69 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
          VMOVQ  2(R4), V5.H8     |      vldrepl.h  v5, r4, $1
          VMOVQ  8(R4), V5.W4     |      vldrepl.w  v5, r4, $2
          VMOVQ  8(R4), V5.V2     |      vldrepl.d  v5, r4, $1
+
+3.8 Vector permutation instruction
+	Instruction format:
+	VPERMIW    ui8, Vj, Vd
+
+	Mapping between Go and platform assembly:
+	     Go assembly     |   platform assembly   |                                 semantics
+	VPERMIW  ui8, Vj, Vd |  vpermi.w vd, vj, ui8 | VR[vd].W[0] = VR[vj].W[ui8[1:0]], VR[vd].W[1] = VR[vj].W[ui8[3:2]],
+	                     |                       | VR[vd].W[2] = VR[vd].W[ui8[5:4]], VR[vd].W[3] = VR[vd].W[ui8[7:6]]
+	XVPERMIW ui8, Xj, Xd | xvpermi.w xd, xj, ui8 | XR[xd].W[0] = XR[xj].W[ui8[1:0]],   XR[xd].W[1] = XR[xj].W[ui8[3:2]],
+	                     |                       | XR[xd].W[3] = XR[xd].W[ui8[7:6]],   XR[xd].W[2] = XR[xd].W[ui8[5:4]],
+	                     |                       | XR[xd].W[4] = XR[xj].W[ui8[1:0]+4], XR[xd].W[5] = XR[xj].W[ui8[3:2]+4],
+	                     |                       | XR[xd].W[6] = XR[xd].W[ui8[5:4]+4], XR[xd].W[7] = XR[xd].W[ui8[7:6]+4]
+	XVPERMIV ui8, Xj, Xd | xvpermi.d xd, xj, ui8 | XR[xd].D[0] = XR[xj].D[ui8[1:0]], XR[xd].D[1] = XR[xj].D[ui8[3:2]],
+	                     |                       | XR[xd].D[2] = XR[xj].D[ui8[5:4]], XR[xd].D[3] = XR[xj].D[ui8[7:6]]
+	XVPERMIQ ui8, Xj, Xd | xvpermi.q xd, xj, ui8 | vec = {XR[xd], XR[xj]}, XR[xd].Q[0] = vec.Q[ui8[1:0]], XR[xd].Q[1] = vec.Q[ui8[5:4]]
+
+3.9 Vector misc instruction
+
+3.9.1 {,X}VEXTRINS.{B,H,W,V}
+
+	Instruction format:
+	VEXTRINSB   ui8, Vj, Vd
+
+	Mapping between Go and platform assembly:
+	      Go assembly      |    platform assembly    |             semantics
+	 VEXTRINSB ui8, Vj, Vd |  vextrins.b vd, vj, ui8 | VR[vd].B[ui8[7:4]] = VR[vj].B[ui8[3:0]]
+	 VEXTRINSH ui8, Vj, Vd |  vextrins.h vd, vj, ui8 | VR[vd].H[ui8[6:4]] = VR[vj].H[ui8[2:0]]
+	 VEXTRINSW ui8, Vj, Vd |  vextrins.w vd, vj, ui8 | VR[vd].W[ui8[5:4]] = VR[vj].W[ui8[1:0]]
+	 VEXTRINSV ui8, Vj, Vd |  vextrins.d vd, vj, ui8 | VR[vd].D[ui8[4]] = VR[vj].D[ui8[0]]
+	XVEXTRINSB ui8, Vj, Vd | xvextrins.b vd, vj, ui8 | XR[xd].B[ui8[7:4]] = XR[xj].B[ui8[3:0]], XR[xd].B[ui8[7:4]+16] = XR[xj].B[ui8[3:0]+16]
+	XVEXTRINSH ui8, Vj, Vd | xvextrins.h vd, vj, ui8 | XR[xd].H[ui8[6:4]] = XR[xj].H[ui8[2:0]], XR[xd].H[ui8[6:4]+8] = XR[xj].H[ui8[2:0]+8]
+	XVEXTRINSW ui8, Vj, Vd | xvextrins.w vd, vj, ui8 | XR[xd].W[ui8[5:4]] = XR[xj].W[ui8[1:0]], XR[xd].W[ui8[5:4]+4] = XR[xj].W[ui8[1:0]+4]
+	XVEXTRINSV ui8, Vj, Vd | xvextrins.d vd, vj, ui8 | XR[xd].D[ui8[4]] = XR[xj].D[ui8[0]],XR[xd].D[ui8[4]+2] = XR[xj].D[ui8[0]+2]
+
+3.10 Store a vector element to memory.
+
+	Instruction format:
+	        VMOVQ    <Vd>.<T>[index], offset(Rj)
+
+	Mapping between Go and platform assembly:
+	   Go assembly                    |     platform assembly        |                          semantics
+	-------------------------------------------------------------------------------------------------------------------------------------------
+	 VMOVQ   Vd.B[index], offset(Rj)  |  vstelm.b  Vd, Rj, si8, idx  |  store 8  bit VR[vd].b[idx] to (GR[rj]+SignExtend(si8))
+	 VMOVQ   Vd.H[index], offset(Rj)  |  vstelm.h  Vd, Rj, si8, idx  |  store 16 bit VR[vd].h[idx] to (GR[rj]+SignExtend(si8<<1))
+	 VMOVQ   Vd.W[index], offset(Rj)  |  vstelm.w  Vd, Rj, si8, idx  |  store 32 bit VR[vd].w[idx] to (GR[rj]+SignExtend(si8<<2))
+	 VMOVQ   Vd.V[index], offset(Rj)  |  vstelm.d  Vd, Rj, si8, idx  |  store 64 bit VR[vd].d[idx] to (GR[rj]+SignExtend(si8<<3))
+	XVMOVQ   Xd.B[index], offset(Rj)  | xvstelm.b  Xd, Rj, si8, idx  |  store 8  bit XR[xd].b[idx] to (GR[rj]+SignExtend(si8))
+	XVMOVQ   Xd.H[index], offset(Rj)  | xvstelm.h  Xd, Rj, si8, idx  |  store 16 bit XR[xd].h[idx] to (GR[rj]+SignExtend(si8<<1))
+	XVMOVQ   Xd.W[index], offset(Rj)  | xvstelm.w  Xd, Rj, si8, idx  |  store 32 bit XR[xd].w[idx] to (GR[rj]+SignExtend(si8<<2))
+	XVMOVQ   Xd.V[index], offset(Rj)  | xvstelm.d  Xd, Rj, si8, idx  |  store 64 bit XR[xd].d[idx] to (GR[rj]+SignExtend(si8<<3))
+
+	note: As with the "load and broadcast" form above (see 3.7), in Go assembly the offset represents the
+	      actual byte address offset for ease of understanding. During platform encoding it is shifted right
+	      by the element width to fit into si8, as follows:
+
+	   Go assembly               |      platform assembly
+         VMOVQ   V5.B[3], 1(R4)      |      vstelm.b  v5, r4, $1, 3
+         VMOVQ   V5.H[2], 2(R4)      |      vstelm.h  v5, r4, $1, 2
+         VMOVQ   V5.W[1], 4(R4)      |      vstelm.w  v5, r4, $1, 1
+         VMOVQ   V5.V[0], 8(R4)      |      vstelm.d  v5, r4, $1, 0
+        XVMOVQ   X5.B[3], 1(R4)      |     xvstelm.b  x5, r4, $1, 3
+        XVMOVQ   X5.V[1], 8(R4)      |     xvstelm.d  x5, r4, $1, 1
 
 # Special instruction encoding definition and description on LoongArch
 
@@ -326,7 +410,7 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
             Go assembly      |      platform assembly
          MOVWP  8(R4), R5    |      ldptr.w r5, r4, $2
 
-6. Note of special add instrction
+6. Note of special add instruction
     Mapping between Go and platform assembly:
               Go assembly        |      platform assembly
       ADDV16  si16<<16, Rj, Rd   |    addu16i.d  rd, rj, si16

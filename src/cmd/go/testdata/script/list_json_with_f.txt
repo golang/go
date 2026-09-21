@@ -1,5 +1,3 @@
-[short] skip
-
 # list -json should generate output on stdout
 go list -json ./...
 stdout .

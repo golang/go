@@ -44,7 +44,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 
 // 64-bit file system and 32-bit uid calls
 // (16-bit uid calls are not always supported in newer kernels)
-//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
 //sys	Fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
@@ -82,6 +81,9 @@ func Time(t *Time_t) (Time_t, error) {
 }
 
 func Utime(path string, buf *Utimbuf) error {
+	if buf == nil {
+		return Utimes(path, nil)
+	}
 	tv := []Timeval{
 		{Sec: buf.Actime},
 		{Sec: buf.Modtime},

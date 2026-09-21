@@ -19,7 +19,7 @@ func mustHaveFourCPUs(t *testing.T) {
 	// NumCPU.
 	//
 	// cgroup GOMAXPROCS also have a minimum of 2. We need some room above
-	// that to test interesting properies.
+	// that to test interesting properties.
 	if runtime.NumCPU() < 4 {
 		t.Helper()
 		t.Skip("skipping test: fewer than 4 CPUs")

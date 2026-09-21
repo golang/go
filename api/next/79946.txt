@@ -1,0 +1,1 @@
+pkg net/url, func MustParse(string) *URL #79946

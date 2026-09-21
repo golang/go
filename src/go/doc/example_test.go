@@ -29,7 +29,7 @@ func TestExamples(t *testing.T) {
 	for _, filename := range filenames {
 		t.Run(strings.TrimSuffix(filepath.Base(filename), ".go"), func(t *testing.T) {
 			fset := token.NewFileSet()
-			astFile, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+			astFile, err := parser.ParseFile(fset, filename, nil, parser.ParseComments) // requires object resolution
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -228,6 +228,8 @@ func ExampleFunc1_foo()           {}
 func ExampleFunc1_foo_suffix()    {}
 func ExampleFunc1_foo_Suffix()    {} // matches Func1, instead of Func1_foo
 func Examplefunc1()               {} // invalid - cannot match unexported
+func ExampleFunc1_params(a int)   {} // invalid - has parameter
+func ExampleFunc1_results() int   {} // invalid - has results
 
 func ExampleType1_Func1()               {}
 func ExampleType1_Func1_()              {} // invalid - suffix must start with a lower-case letter

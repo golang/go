@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"internal/abi"
 	"internal/asan"
@@ -15,6 +16,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
@@ -824,8 +826,60 @@ func (t testTracebackGenericTyp[P]) M(buf []byte) int {
 	return runtime.Stack(buf[:], false)
 }
 
+//go:noinline
+func (t testTracebackGenericTyp[P]) G[R any](buf []byte) R {
+	var r R
+	switch p := (any(&r)).(type) {
+	case *int:
+		*p = runtime.Stack(buf[:], false)
+	}
+	return r
+}
+
 func (t testTracebackGenericTyp[P]) Inlined(buf []byte) int {
 	return runtime.Stack(buf[:], false)
+}
+
+func (t testTracebackGenericTyp[P]) InlinedGeneric[R any](buf []byte) R {
+	var r R
+	switch p := (any(&r)).(type) {
+	case *int:
+		*p = runtime.Stack(buf[:], false)
+	}
+	return r
+}
+
+func TestTraceBackPieces(t *testing.T) {
+	// FuncNamePiecesForPrint
+	tests := []struct {
+		name   string
+		expect string
+	}{
+		// These are not necessarily "best" results, they are just current practice
+		{"a[b]", "a|[...]|||"},
+		{"a[b]c", "a|[...]|c||"},
+		{"a[[b]]c", "a|[...]|c||"},
+		{"a[b]]c", "a|[...]|c||"}, // malformed input
+		{"a[[]b]c", "a|[...]|c||"},
+		{"a[b].c[d]e", "a|[...]|.c|[...]|e"},
+		{"a[[b]].c[d]e", "a|[...]|.c|[...]|e"},
+		{"a[b].c[[d]]e", "a|[...]|.c|[...]|e"},
+		{"a.c[[d]]e", "a.c|[...]|e||"},
+		{"a[b].c[[d]]e", "a|[...]|.c|[...]|e"},
+		{"a[b].c[d].e[f].g", "a|[...]|.c|[...]|.g"}, // not an expected input; second "..." = "d].e[f". ok?
+		{"a[b[[[].c[[d]]e", "a[b[[[].c[[d]]e||||"},  // malformed, get original back
+		{"a[[b].c[[d]]e", "a[[b].c[[d]]e||||"},      // malformed, get original back
+		{"a[[b]].c[d]]e", "a|[...]|.c|[...]|e"},     // malformed, but digested; second "..." = "d]". ok?
+	}
+
+	for i, test := range tests {
+		a, b, c, d, e := runtime.FuncNamePiecesForPrint(test.name)
+		got := a + "|" + b + "|" + c + "|" + d + "|" + e
+		if test.expect != got {
+			t.Errorf("for %s (test %d) expected %s but got %s", test.name, i, test.expect, got)
+		}
+	}
+
 }
 
 func TestTracebackGeneric(t *testing.T) {
@@ -857,6 +911,16 @@ func TestTracebackGeneric(t *testing.T) {
 			func(buf []byte) int { return x.Inlined(buf) },
 			"testTracebackGenericTyp[...].Inlined(",
 		},
+		// generic method, not inlined
+		{
+			x.G[int],
+			"testTracebackGenericTyp[...].G[...](",
+		},
+		// generic method, inlined
+		{
+			func(buf []byte) int { return x.InlinedGeneric[int](buf) },
+			"testTracebackGenericTyp[...].InlinedGeneric[...](",
+		},
 	}
 	var buf [1000]byte
 	for _, test := range tests {
@@ -881,4 +945,76 @@ func TestSetCgoTracebackNoCgo(t *testing.T) {
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
+}
+
+func TestTracebackGoroutineLabels(t *testing.T) {
+	t.Setenv("GODEBUG", "tracebacklabels=1")
+	for _, tbl := range []struct {
+		l     pprof.LabelSet
+		expTB string
+	}{
+		{l: pprof.Labels("foobar", "baz"), expTB: `{foobar: baz}`},
+		// Make sure the keys are sorted because the runtime/pprof package sorts for consistency
+		{l: pprof.Labels("foobar", "baz", "fizzle", "bit"), expTB: `{fizzle: bit, foobar: baz}`},
+		// allow [./_] as well without quoting
+		{l: pprof.Labels("foo_bar", "baz.", "/fizzle", "bit"), expTB: `{/fizzle: bit, foo_bar: baz.}`},
+		// Make sure the keys & values get quoted if there's a non-alnum character
+		{l: pprof.Labels("foobar:", "baz", "fizzle", "bit"), expTB: `{fizzle: bit, "foobar:": baz}`},
+		// make sure newlines get escaped
+		{l: pprof.Labels("fizzle", "bit", "foobar", "baz\n"), expTB: `{fizzle: bit, foobar: "baz\n"}`},
+		// make sure null and escape bytes are properly escaped
+		{l: pprof.Labels("fizzle", "b\033it", "foo\"ba\x00r", "baz\n"), expTB: `{fizzle: "b\x1bit", "foo\"ba\x00r": "baz\n"}`},
+		// verify that simple 16-bit unicode runes are escaped with \u, including a greek upper-case sigma and an arbitrary unicode character.
+		{l: pprof.Labels("fizzle", "\u1234Σ", "fooba\x00r", "baz\n"), expTB: `{fizzle: "\u1234\u03a3", "fooba\x00r": "baz\n"}`},
+		// verify that 32-bit unicode runes are escaped with \U along with tabs
+		{l: pprof.Labels("fizz\tle", "\U00045678boop", "fooba\x00r", "baz\n"), expTB: `{"fizz\tle": "\U00045678boop", "fooba\x00r": "baz\n"}`},
+		// verify carriage returns and backslashes get escaped along with our nulls, newlines and a 32-bit unicode character
+		{l: pprof.Labels("fiz\\zl\re", "\U00045678boop", "fooba\x00r", "baz\n"), expTB: `{"fiz\\zl\re": "\U00045678boop", "fooba\x00r": "baz\n"}`},
+	} {
+		t.Run(tbl.expTB, func(t *testing.T) {
+			verifyLabels := func() {
+				t.Helper()
+				buf := make([]byte, 1<<10)
+				// We collect the stack only for this goroutine (by passing
+				// false to runtime.Stack). We expect to see the parent's goroutine labels in the traceback.
+				stack := string(buf[:runtime.Stack(buf, false)])
+				if !strings.Contains(stack, tbl.expTB+":") {
+					t.Errorf("failed to find goroutine labels with labels %s (as %s) got:\n%s\n---", tbl.l, tbl.expTB, stack)
+				}
+			}
+			// Use a clean context so the testing package can add whatever goroutine labels it wants to the testing.T context.
+			lblCtx := pprof.WithLabels(context.Background(), tbl.l)
+			pprof.SetGoroutineLabels(lblCtx)
+			var wg sync.WaitGroup
+			// make sure the labels are visible in a child goroutine
+			wg.Go(verifyLabels)
+			// and in this parent goroutine
+			verifyLabels()
+			wg.Wait()
+		})
+	}
+}
+
+func TestTracebackGoroutineLabelsDisabledGODEBUG(t *testing.T) {
+	t.Setenv("GODEBUG", "tracebacklabels=0")
+	lbls := pprof.Labels("foobar", "baz")
+	verifyLabels := func() {
+		t.Helper()
+		buf := make([]byte, 1<<10)
+		// We collect the stack only for this goroutine (by passing
+		// false to runtime.Stack).
+		stack := string(buf[:runtime.Stack(buf, false)])
+		if strings.Contains(stack, " {foobar: baz}:") {
+			t.Errorf("found goroutine labels with labels %s  got:\n%s\n---", lbls, stack)
+		}
+	}
+	// Use a clean context so the testing package can add whatever goroutine labels it wants to the testing.T context.
+	lblCtx := pprof.WithLabels(context.Background(), lbls)
+	pprof.SetGoroutineLabels(lblCtx)
+	var wg sync.WaitGroup
+	// make sure the labels are visible in a child goroutine
+	wg.Go(verifyLabels)
+	// and in this parent goroutine
+	verifyLabels()
+	wg.Wait()
 }

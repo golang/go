@@ -96,15 +96,15 @@ func issue10979() {
 	type _ interface {
 		nosuchpkg /* ERROR "undefined: nosuchpkg" */ .Nosuchtype
 	}
-	type I interface {
-		I.m /* ERROR "I.m is not a type" */
+	type I /* ERROR "invalid recursive type" */ interface {
+		I.m
 		m()
 	}
 }
 
 // issue11347
 // These should not crash.
-var a1, b1, c1 /* ERROR "cycle" */ b1 /* ERROR "b1 is not a type" */ = 0 > 0<<""[""[c1]]>c1
+var a1, b1, c1 /* ERROR "cycle" */ b1 /* ERROR "b1 (package-level variable) is not a type" */ = 0 > 0<<""[""[c1]]>c1
 var a2, b2 /* ERROR "cycle" */ = 0 /* ERROR "assignment mismatch" */ /* ERROR "assignment mismatch" */ > 0<<""[b2]
 var a3, b3 /* ERROR "cycle" */ = int /* ERROR "assignment mismatch" */ /* ERROR "assignment mismatch" */ (1<<""[b3])
 
@@ -199,7 +199,7 @@ func issue15755() {
 	_ = x == y
 
 	// related: we should see an error since the result of f1 is ([]int, int)
-	var u, v []int = f1 /* ERROR "cannot use f1" */ ()
+	var u, v []int = f1 /* ERROR "cannot use 2nd function result" */ ()
 	_ = u
 	_ = v
 }
@@ -351,7 +351,7 @@ func issue26234b(x T) {
 }
 
 func issue26234c() {
-	T.x /* ERROR "T.x undefined (type T has no method x)" */ ()
+	T /* ERROR "operand for field selector x must be value of type T" */ .x()
 }
 
 func issue35895() {

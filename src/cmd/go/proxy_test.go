@@ -172,6 +172,23 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Request for $GOPROXY/sumdb-redirect/module@version:/lookup/...
+	// performs a lookup for module@version rather than the requested module.
+	if strings.HasPrefix(path, "sumdb-redirect/") {
+		redirect, rest, ok := strings.Cut(path[len("sumdb-redirect"):], ":")
+		if !ok {
+			w.WriteHeader(500)
+			return
+		}
+		if strings.HasPrefix(rest, "/lookup/") {
+			r.URL.Path = "/lookup" + redirect
+		} else {
+			r.URL.Path = rest
+		}
+		sumdbServer.ServeHTTP(w, r)
+		return
+	}
+
 	// Request for $GOPROXY/redirect/<count>/... goes to redirects.
 	if strings.HasPrefix(path, "redirect/") {
 		path = path[len("redirect/"):]

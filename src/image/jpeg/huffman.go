@@ -70,6 +70,16 @@ func (d *decoder) ensureNBits(n int32) error {
 
 // receiveExtend is the composition of RECEIVE and EXTEND, specified in section
 // F.2.2.1.
+//
+// It returns the signed integer that's encoded in t bits, where t < 16. The
+// possible return values are:
+//
+//   - t ==  0:   0
+//   - t ==  1:   -1, +1
+//   - t ==  2:   -3, -2, +2, +3
+//   - t ==  3:   -7, -6, -5, -4, +4, +5, +6, +7
+//   - ...
+//   - t == 15:   -32767, -32766, ..., -16384, +16384, ..., +32766, +32767
 func (d *decoder) receiveExtend(t uint8) (int32, error) {
 	if d.bits.n < int32(t) {
 		if err := d.ensureNBits(int32(t)); err != nil {
@@ -80,9 +90,18 @@ func (d *decoder) receiveExtend(t uint8) (int32, error) {
 	d.bits.m >>= t
 	s := int32(1) << t
 	x := int32(d.bits.a>>uint8(d.bits.n)) & (s - 1)
-	if x < s>>1 {
-		x += ((-1) << t) + 1
-	}
+
+	// This adjustment, assuming two's complement, is a branchless equivalent of:
+	//
+	// if x < s>>1 {
+	//   x += ((-1) << t) + 1
+	// }
+	//
+	// sign is either -1 or 0, depending on whether x is in the low or high
+	// half of the range 0 .. 1<<t.
+	sign := (x >> (t - 1)) - 1
+	x += sign & (((-1) << t) + 1)
+
 	return x, nil
 }
 

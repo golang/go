@@ -1,0 +1,2049 @@
+go run main/main.go
+! stdout .
+! stderr .
+
+-- go.mod --
+
+module issue80423
+
+go 1.28
+
+-- main/main.go --
+
+package main
+
+import (
+	_ "issue80423/a"
+	_ "issue80423/b"
+)
+
+func main() {}
+
+-- a/a.go --
+
+package a
+
+import "fmt"
+
+var Registry = make(map[string]bool)
+
+func Register(name string) {
+	if Registry[name] {
+		panic(fmt.Sprintf("setting already defined: %s", name))
+	}
+	Registry[name] = true
+}
+
+-- b/b.go --
+
+package b
+
+import "issue80423/a"
+
+var ConfigMap = map[string]int{
+	"key_1": 1,
+	"key_2": 2,
+	"key_3": 3,
+	"key_4": 4,
+	"key_5": 5,
+	"key_6": 6,
+	"key_7": 7,
+	"key_8": 8,
+	"key_9": 9,
+	"key_10": 10,
+	"key_11": 11,
+	"key_12": 12,
+	"key_13": 13,
+	"key_14": 14,
+	"key_15": 15,
+	"key_16": 16,
+	"key_17": 17,
+	"key_18": 18,
+	"key_19": 19,
+	"key_20": 20,
+	"key_21": 21,
+	"key_22": 22,
+	"key_23": 23,
+	"key_24": 24,
+	"key_25": 25,
+	"key_26": 26,
+	"key_27": 27,
+	"key_28": 28,
+	"key_29": 29,
+	"key_30": 30,
+	"key_31": 31,
+	"key_32": 32,
+	"key_33": 33,
+	"key_34": 34,
+	"key_35": 35,
+	"key_36": 36,
+	"key_37": 37,
+	"key_38": 38,
+	"key_39": 39,
+	"key_40": 40,
+	"key_41": 41,
+	"key_42": 42,
+	"key_43": 43,
+	"key_44": 44,
+	"key_45": 45,
+	"key_46": 46,
+	"key_47": 47,
+	"key_48": 48,
+	"key_49": 49,
+	"key_50": 50,
+	"key_51": 51,
+	"key_52": 52,
+	"key_53": 53,
+	"key_54": 54,
+	"key_55": 55,
+	"key_56": 56,
+	"key_57": 57,
+	"key_58": 58,
+	"key_59": 59,
+	"key_60": 60,
+	"key_61": 61,
+	"key_62": 62,
+	"key_63": 63,
+	"key_64": 64,
+	"key_65": 65,
+	"key_66": 66,
+	"key_67": 67,
+	"key_68": 68,
+	"key_69": 69,
+	"key_70": 70,
+	"key_71": 71,
+	"key_72": 72,
+	"key_73": 73,
+	"key_74": 74,
+	"key_75": 75,
+	"key_76": 76,
+	"key_77": 77,
+	"key_78": 78,
+	"key_79": 79,
+	"key_80": 80,
+	"key_81": 81,
+	"key_82": 82,
+	"key_83": 83,
+	"key_84": 84,
+	"key_85": 85,
+	"key_86": 86,
+	"key_87": 87,
+	"key_88": 88,
+	"key_89": 89,
+	"key_90": 90,
+	"key_91": 91,
+	"key_92": 92,
+	"key_93": 93,
+	"key_94": 94,
+	"key_95": 95,
+	"key_96": 96,
+	"key_97": 97,
+	"key_98": 98,
+	"key_99": 99,
+	"key_100": 100,
+	"key_101": 101,
+	"key_102": 102,
+	"key_103": 103,
+	"key_104": 104,
+	"key_105": 105,
+	"key_106": 106,
+	"key_107": 107,
+	"key_108": 108,
+	"key_109": 109,
+	"key_110": 110,
+	"key_111": 111,
+	"key_112": 112,
+	"key_113": 113,
+	"key_114": 114,
+	"key_115": 115,
+	"key_116": 116,
+	"key_117": 117,
+	"key_118": 118,
+	"key_119": 119,
+	"key_120": 120,
+	"key_121": 121,
+	"key_122": 122,
+	"key_123": 123,
+	"key_124": 124,
+	"key_125": 125,
+	"key_126": 126,
+	"key_127": 127,
+	"key_128": 128,
+	"key_129": 129,
+	"key_130": 130,
+	"key_131": 131,
+	"key_132": 132,
+	"key_133": 133,
+	"key_134": 134,
+	"key_135": 135,
+	"key_136": 136,
+	"key_137": 137,
+	"key_138": 138,
+	"key_139": 139,
+	"key_140": 140,
+	"key_141": 141,
+	"key_142": 142,
+	"key_143": 143,
+	"key_144": 144,
+	"key_145": 145,
+	"key_146": 146,
+	"key_147": 147,
+	"key_148": 148,
+	"key_149": 149,
+	"key_150": 150,
+	"key_151": 151,
+	"key_152": 152,
+	"key_153": 153,
+	"key_154": 154,
+	"key_155": 155,
+	"key_156": 156,
+	"key_157": 157,
+	"key_158": 158,
+	"key_159": 159,
+	"key_160": 160,
+	"key_161": 161,
+	"key_162": 162,
+	"key_163": 163,
+	"key_164": 164,
+	"key_165": 165,
+	"key_166": 166,
+	"key_167": 167,
+	"key_168": 168,
+	"key_169": 169,
+	"key_170": 170,
+	"key_171": 171,
+	"key_172": 172,
+	"key_173": 173,
+	"key_174": 174,
+	"key_175": 175,
+	"key_176": 176,
+	"key_177": 177,
+	"key_178": 178,
+	"key_179": 179,
+	"key_180": 180,
+	"key_181": 181,
+	"key_182": 182,
+	"key_183": 183,
+	"key_184": 184,
+	"key_185": 185,
+	"key_186": 186,
+	"key_187": 187,
+	"key_188": 188,
+	"key_189": 189,
+	"key_190": 190,
+	"key_191": 191,
+	"key_192": 192,
+	"key_193": 193,
+	"key_194": 194,
+	"key_195": 195,
+	"key_196": 196,
+	"key_197": 197,
+	"key_198": 198,
+	"key_199": 199,
+	"key_200": 200,
+	"key_201": 201,
+	"key_202": 202,
+	"key_203": 203,
+	"key_204": 204,
+	"key_205": 205,
+	"key_206": 206,
+	"key_207": 207,
+	"key_208": 208,
+	"key_209": 209,
+	"key_210": 210,
+	"key_211": 211,
+	"key_212": 212,
+	"key_213": 213,
+	"key_214": 214,
+	"key_215": 215,
+	"key_216": 216,
+	"key_217": 217,
+	"key_218": 218,
+	"key_219": 219,
+	"key_220": 220,
+	"key_221": 221,
+	"key_222": 222,
+	"key_223": 223,
+	"key_224": 224,
+	"key_225": 225,
+	"key_226": 226,
+	"key_227": 227,
+	"key_228": 228,
+	"key_229": 229,
+	"key_230": 230,
+	"key_231": 231,
+	"key_232": 232,
+	"key_233": 233,
+	"key_234": 234,
+	"key_235": 235,
+	"key_236": 236,
+	"key_237": 237,
+	"key_238": 238,
+	"key_239": 239,
+	"key_240": 240,
+	"key_241": 241,
+	"key_242": 242,
+	"key_243": 243,
+	"key_244": 244,
+	"key_245": 245,
+	"key_246": 246,
+	"key_247": 247,
+	"key_248": 248,
+	"key_249": 249,
+	"key_250": 250,
+	"key_251": 251,
+	"key_252": 252,
+	"key_253": 253,
+	"key_254": 254,
+	"key_255": 255,
+	"key_256": 256,
+	"key_257": 257,
+	"key_258": 258,
+	"key_259": 259,
+	"key_260": 260,
+	"key_261": 261,
+	"key_262": 262,
+	"key_263": 263,
+	"key_264": 264,
+	"key_265": 265,
+	"key_266": 266,
+	"key_267": 267,
+	"key_268": 268,
+	"key_269": 269,
+	"key_270": 270,
+	"key_271": 271,
+	"key_272": 272,
+	"key_273": 273,
+	"key_274": 274,
+	"key_275": 275,
+	"key_276": 276,
+	"key_277": 277,
+	"key_278": 278,
+	"key_279": 279,
+	"key_280": 280,
+	"key_281": 281,
+	"key_282": 282,
+	"key_283": 283,
+	"key_284": 284,
+	"key_285": 285,
+	"key_286": 286,
+	"key_287": 287,
+	"key_288": 288,
+	"key_289": 289,
+	"key_290": 290,
+	"key_291": 291,
+	"key_292": 292,
+	"key_293": 293,
+	"key_294": 294,
+	"key_295": 295,
+	"key_296": 296,
+	"key_297": 297,
+	"key_298": 298,
+	"key_299": 299,
+	"key_300": 300,
+	"key_301": 301,
+	"key_302": 302,
+	"key_303": 303,
+	"key_304": 304,
+	"key_305": 305,
+	"key_306": 306,
+	"key_307": 307,
+	"key_308": 308,
+	"key_309": 309,
+	"key_310": 310,
+	"key_311": 311,
+	"key_312": 312,
+	"key_313": 313,
+	"key_314": 314,
+	"key_315": 315,
+	"key_316": 316,
+	"key_317": 317,
+	"key_318": 318,
+	"key_319": 319,
+	"key_320": 320,
+	"key_321": 321,
+	"key_322": 322,
+	"key_323": 323,
+	"key_324": 324,
+	"key_325": 325,
+	"key_326": 326,
+	"key_327": 327,
+	"key_328": 328,
+	"key_329": 329,
+	"key_330": 330,
+	"key_331": 331,
+	"key_332": 332,
+	"key_333": 333,
+	"key_334": 334,
+	"key_335": 335,
+	"key_336": 336,
+	"key_337": 337,
+	"key_338": 338,
+	"key_339": 339,
+	"key_340": 340,
+	"key_341": 341,
+	"key_342": 342,
+	"key_343": 343,
+	"key_344": 344,
+	"key_345": 345,
+	"key_346": 346,
+	"key_347": 347,
+	"key_348": 348,
+	"key_349": 349,
+	"key_350": 350,
+	"key_351": 351,
+	"key_352": 352,
+	"key_353": 353,
+	"key_354": 354,
+	"key_355": 355,
+	"key_356": 356,
+	"key_357": 357,
+	"key_358": 358,
+	"key_359": 359,
+	"key_360": 360,
+	"key_361": 361,
+	"key_362": 362,
+	"key_363": 363,
+	"key_364": 364,
+	"key_365": 365,
+	"key_366": 366,
+	"key_367": 367,
+	"key_368": 368,
+	"key_369": 369,
+	"key_370": 370,
+	"key_371": 371,
+	"key_372": 372,
+	"key_373": 373,
+	"key_374": 374,
+	"key_375": 375,
+	"key_376": 376,
+	"key_377": 377,
+	"key_378": 378,
+	"key_379": 379,
+	"key_380": 380,
+	"key_381": 381,
+	"key_382": 382,
+	"key_383": 383,
+	"key_384": 384,
+	"key_385": 385,
+	"key_386": 386,
+	"key_387": 387,
+	"key_388": 388,
+	"key_389": 389,
+	"key_390": 390,
+	"key_391": 391,
+	"key_392": 392,
+	"key_393": 393,
+	"key_394": 394,
+	"key_395": 395,
+	"key_396": 396,
+	"key_397": 397,
+	"key_398": 398,
+	"key_399": 399,
+	"key_400": 400,
+	"key_401": 401,
+	"key_402": 402,
+	"key_403": 403,
+	"key_404": 404,
+	"key_405": 405,
+	"key_406": 406,
+	"key_407": 407,
+	"key_408": 408,
+	"key_409": 409,
+	"key_410": 410,
+	"key_411": 411,
+	"key_412": 412,
+	"key_413": 413,
+	"key_414": 414,
+	"key_415": 415,
+	"key_416": 416,
+	"key_417": 417,
+	"key_418": 418,
+	"key_419": 419,
+	"key_420": 420,
+	"key_421": 421,
+	"key_422": 422,
+	"key_423": 423,
+	"key_424": 424,
+	"key_425": 425,
+	"key_426": 426,
+	"key_427": 427,
+	"key_428": 428,
+	"key_429": 429,
+	"key_430": 430,
+	"key_431": 431,
+	"key_432": 432,
+	"key_433": 433,
+	"key_434": 434,
+	"key_435": 435,
+	"key_436": 436,
+	"key_437": 437,
+	"key_438": 438,
+	"key_439": 439,
+	"key_440": 440,
+	"key_441": 441,
+	"key_442": 442,
+	"key_443": 443,
+	"key_444": 444,
+	"key_445": 445,
+	"key_446": 446,
+	"key_447": 447,
+	"key_448": 448,
+	"key_449": 449,
+	"key_450": 450,
+	"key_451": 451,
+	"key_452": 452,
+	"key_453": 453,
+	"key_454": 454,
+	"key_455": 455,
+	"key_456": 456,
+	"key_457": 457,
+	"key_458": 458,
+	"key_459": 459,
+	"key_460": 460,
+	"key_461": 461,
+	"key_462": 462,
+	"key_463": 463,
+	"key_464": 464,
+	"key_465": 465,
+	"key_466": 466,
+	"key_467": 467,
+	"key_468": 468,
+	"key_469": 469,
+	"key_470": 470,
+	"key_471": 471,
+	"key_472": 472,
+	"key_473": 473,
+	"key_474": 474,
+	"key_475": 475,
+	"key_476": 476,
+	"key_477": 477,
+	"key_478": 478,
+	"key_479": 479,
+	"key_480": 480,
+	"key_481": 481,
+	"key_482": 482,
+	"key_483": 483,
+	"key_484": 484,
+	"key_485": 485,
+	"key_486": 486,
+	"key_487": 487,
+	"key_488": 488,
+	"key_489": 489,
+	"key_490": 490,
+	"key_491": 491,
+	"key_492": 492,
+	"key_493": 493,
+	"key_494": 494,
+	"key_495": 495,
+	"key_496": 496,
+	"key_497": 497,
+	"key_498": 498,
+	"key_499": 499,
+	"key_500": 500,
+	"key_501": 501,
+	"key_502": 502,
+	"key_503": 503,
+	"key_504": 504,
+	"key_505": 505,
+	"key_506": 506,
+	"key_507": 507,
+	"key_508": 508,
+	"key_509": 509,
+	"key_510": 510,
+	"key_511": 511,
+	"key_512": 512,
+	"key_513": 513,
+	"key_514": 514,
+	"key_515": 515,
+	"key_516": 516,
+	"key_517": 517,
+	"key_518": 518,
+	"key_519": 519,
+	"key_520": 520,
+	"key_521": 521,
+	"key_522": 522,
+	"key_523": 523,
+	"key_524": 524,
+	"key_525": 525,
+	"key_526": 526,
+	"key_527": 527,
+	"key_528": 528,
+	"key_529": 529,
+	"key_530": 530,
+	"key_531": 531,
+	"key_532": 532,
+	"key_533": 533,
+	"key_534": 534,
+	"key_535": 535,
+	"key_536": 536,
+	"key_537": 537,
+	"key_538": 538,
+	"key_539": 539,
+	"key_540": 540,
+	"key_541": 541,
+	"key_542": 542,
+	"key_543": 543,
+	"key_544": 544,
+	"key_545": 545,
+	"key_546": 546,
+	"key_547": 547,
+	"key_548": 548,
+	"key_549": 549,
+	"key_550": 550,
+	"key_551": 551,
+	"key_552": 552,
+	"key_553": 553,
+	"key_554": 554,
+	"key_555": 555,
+	"key_556": 556,
+	"key_557": 557,
+	"key_558": 558,
+	"key_559": 559,
+	"key_560": 560,
+	"key_561": 561,
+	"key_562": 562,
+	"key_563": 563,
+	"key_564": 564,
+	"key_565": 565,
+	"key_566": 566,
+	"key_567": 567,
+	"key_568": 568,
+	"key_569": 569,
+	"key_570": 570,
+	"key_571": 571,
+	"key_572": 572,
+	"key_573": 573,
+	"key_574": 574,
+	"key_575": 575,
+	"key_576": 576,
+	"key_577": 577,
+	"key_578": 578,
+	"key_579": 579,
+	"key_580": 580,
+	"key_581": 581,
+	"key_582": 582,
+	"key_583": 583,
+	"key_584": 584,
+	"key_585": 585,
+	"key_586": 586,
+	"key_587": 587,
+	"key_588": 588,
+	"key_589": 589,
+	"key_590": 590,
+	"key_591": 591,
+	"key_592": 592,
+	"key_593": 593,
+	"key_594": 594,
+	"key_595": 595,
+	"key_596": 596,
+	"key_597": 597,
+	"key_598": 598,
+	"key_599": 599,
+	"key_600": 600,
+	"key_601": 601,
+	"key_602": 602,
+	"key_603": 603,
+	"key_604": 604,
+	"key_605": 605,
+	"key_606": 606,
+	"key_607": 607,
+	"key_608": 608,
+	"key_609": 609,
+	"key_610": 610,
+	"key_611": 611,
+	"key_612": 612,
+	"key_613": 613,
+	"key_614": 614,
+	"key_615": 615,
+	"key_616": 616,
+	"key_617": 617,
+	"key_618": 618,
+	"key_619": 619,
+	"key_620": 620,
+	"key_621": 621,
+	"key_622": 622,
+	"key_623": 623,
+	"key_624": 624,
+	"key_625": 625,
+	"key_626": 626,
+	"key_627": 627,
+	"key_628": 628,
+	"key_629": 629,
+	"key_630": 630,
+	"key_631": 631,
+	"key_632": 632,
+	"key_633": 633,
+	"key_634": 634,
+	"key_635": 635,
+	"key_636": 636,
+	"key_637": 637,
+	"key_638": 638,
+	"key_639": 639,
+	"key_640": 640,
+	"key_641": 641,
+	"key_642": 642,
+	"key_643": 643,
+	"key_644": 644,
+	"key_645": 645,
+	"key_646": 646,
+	"key_647": 647,
+	"key_648": 648,
+	"key_649": 649,
+	"key_650": 650,
+	"key_651": 651,
+	"key_652": 652,
+	"key_653": 653,
+	"key_654": 654,
+	"key_655": 655,
+	"key_656": 656,
+	"key_657": 657,
+	"key_658": 658,
+	"key_659": 659,
+	"key_660": 660,
+	"key_661": 661,
+	"key_662": 662,
+	"key_663": 663,
+	"key_664": 664,
+	"key_665": 665,
+	"key_666": 666,
+	"key_667": 667,
+	"key_668": 668,
+	"key_669": 669,
+	"key_670": 670,
+	"key_671": 671,
+	"key_672": 672,
+	"key_673": 673,
+	"key_674": 674,
+	"key_675": 675,
+	"key_676": 676,
+	"key_677": 677,
+	"key_678": 678,
+	"key_679": 679,
+	"key_680": 680,
+	"key_681": 681,
+	"key_682": 682,
+	"key_683": 683,
+	"key_684": 684,
+	"key_685": 685,
+	"key_686": 686,
+	"key_687": 687,
+	"key_688": 688,
+	"key_689": 689,
+	"key_690": 690,
+	"key_691": 691,
+	"key_692": 692,
+	"key_693": 693,
+	"key_694": 694,
+	"key_695": 695,
+	"key_696": 696,
+	"key_697": 697,
+	"key_698": 698,
+	"key_699": 699,
+	"key_700": 700,
+	"key_701": 701,
+	"key_702": 702,
+	"key_703": 703,
+	"key_704": 704,
+	"key_705": 705,
+	"key_706": 706,
+	"key_707": 707,
+	"key_708": 708,
+	"key_709": 709,
+	"key_710": 710,
+	"key_711": 711,
+	"key_712": 712,
+	"key_713": 713,
+	"key_714": 714,
+	"key_715": 715,
+	"key_716": 716,
+	"key_717": 717,
+	"key_718": 718,
+	"key_719": 719,
+	"key_720": 720,
+	"key_721": 721,
+	"key_722": 722,
+	"key_723": 723,
+	"key_724": 724,
+	"key_725": 725,
+	"key_726": 726,
+	"key_727": 727,
+	"key_728": 728,
+	"key_729": 729,
+	"key_730": 730,
+	"key_731": 731,
+	"key_732": 732,
+	"key_733": 733,
+	"key_734": 734,
+	"key_735": 735,
+	"key_736": 736,
+	"key_737": 737,
+	"key_738": 738,
+	"key_739": 739,
+	"key_740": 740,
+	"key_741": 741,
+	"key_742": 742,
+	"key_743": 743,
+	"key_744": 744,
+	"key_745": 745,
+	"key_746": 746,
+	"key_747": 747,
+	"key_748": 748,
+	"key_749": 749,
+	"key_750": 750,
+	"key_751": 751,
+	"key_752": 752,
+	"key_753": 753,
+	"key_754": 754,
+	"key_755": 755,
+	"key_756": 756,
+	"key_757": 757,
+	"key_758": 758,
+	"key_759": 759,
+	"key_760": 760,
+	"key_761": 761,
+	"key_762": 762,
+	"key_763": 763,
+	"key_764": 764,
+	"key_765": 765,
+	"key_766": 766,
+	"key_767": 767,
+	"key_768": 768,
+	"key_769": 769,
+	"key_770": 770,
+	"key_771": 771,
+	"key_772": 772,
+	"key_773": 773,
+	"key_774": 774,
+	"key_775": 775,
+	"key_776": 776,
+	"key_777": 777,
+	"key_778": 778,
+	"key_779": 779,
+	"key_780": 780,
+	"key_781": 781,
+	"key_782": 782,
+	"key_783": 783,
+	"key_784": 784,
+	"key_785": 785,
+	"key_786": 786,
+	"key_787": 787,
+	"key_788": 788,
+	"key_789": 789,
+	"key_790": 790,
+	"key_791": 791,
+	"key_792": 792,
+	"key_793": 793,
+	"key_794": 794,
+	"key_795": 795,
+	"key_796": 796,
+	"key_797": 797,
+	"key_798": 798,
+	"key_799": 799,
+	"key_800": 800,
+	"key_801": 801,
+	"key_802": 802,
+	"key_803": 803,
+	"key_804": 804,
+	"key_805": 805,
+	"key_806": 806,
+	"key_807": 807,
+	"key_808": 808,
+	"key_809": 809,
+	"key_810": 810,
+	"key_811": 811,
+	"key_812": 812,
+	"key_813": 813,
+	"key_814": 814,
+	"key_815": 815,
+	"key_816": 816,
+	"key_817": 817,
+	"key_818": 818,
+	"key_819": 819,
+	"key_820": 820,
+	"key_821": 821,
+	"key_822": 822,
+	"key_823": 823,
+	"key_824": 824,
+	"key_825": 825,
+	"key_826": 826,
+	"key_827": 827,
+	"key_828": 828,
+	"key_829": 829,
+	"key_830": 830,
+	"key_831": 831,
+	"key_832": 832,
+	"key_833": 833,
+	"key_834": 834,
+	"key_835": 835,
+	"key_836": 836,
+	"key_837": 837,
+	"key_838": 838,
+	"key_839": 839,
+	"key_840": 840,
+	"key_841": 841,
+	"key_842": 842,
+	"key_843": 843,
+	"key_844": 844,
+	"key_845": 845,
+	"key_846": 846,
+	"key_847": 847,
+	"key_848": 848,
+	"key_849": 849,
+	"key_850": 850,
+	"key_851": 851,
+	"key_852": 852,
+	"key_853": 853,
+	"key_854": 854,
+	"key_855": 855,
+	"key_856": 856,
+	"key_857": 857,
+	"key_858": 858,
+	"key_859": 859,
+	"key_860": 860,
+	"key_861": 861,
+	"key_862": 862,
+	"key_863": 863,
+	"key_864": 864,
+	"key_865": 865,
+	"key_866": 866,
+	"key_867": 867,
+	"key_868": 868,
+	"key_869": 869,
+	"key_870": 870,
+	"key_871": 871,
+	"key_872": 872,
+	"key_873": 873,
+	"key_874": 874,
+	"key_875": 875,
+	"key_876": 876,
+	"key_877": 877,
+	"key_878": 878,
+	"key_879": 879,
+	"key_880": 880,
+	"key_881": 881,
+	"key_882": 882,
+	"key_883": 883,
+	"key_884": 884,
+	"key_885": 885,
+	"key_886": 886,
+	"key_887": 887,
+	"key_888": 888,
+	"key_889": 889,
+	"key_890": 890,
+	"key_891": 891,
+	"key_892": 892,
+	"key_893": 893,
+	"key_894": 894,
+	"key_895": 895,
+	"key_896": 896,
+	"key_897": 897,
+	"key_898": 898,
+	"key_899": 899,
+	"key_900": 900,
+	"key_901": 901,
+	"key_902": 902,
+	"key_903": 903,
+	"key_904": 904,
+	"key_905": 905,
+	"key_906": 906,
+	"key_907": 907,
+	"key_908": 908,
+	"key_909": 909,
+	"key_910": 910,
+	"key_911": 911,
+	"key_912": 912,
+	"key_913": 913,
+	"key_914": 914,
+	"key_915": 915,
+	"key_916": 916,
+	"key_917": 917,
+	"key_918": 918,
+	"key_919": 919,
+	"key_920": 920,
+	"key_921": 921,
+	"key_922": 922,
+	"key_923": 923,
+	"key_924": 924,
+	"key_925": 925,
+	"key_926": 926,
+	"key_927": 927,
+	"key_928": 928,
+	"key_929": 929,
+	"key_930": 930,
+	"key_931": 931,
+	"key_932": 932,
+	"key_933": 933,
+	"key_934": 934,
+	"key_935": 935,
+	"key_936": 936,
+	"key_937": 937,
+	"key_938": 938,
+	"key_939": 939,
+	"key_940": 940,
+	"key_941": 941,
+	"key_942": 942,
+	"key_943": 943,
+	"key_944": 944,
+	"key_945": 945,
+	"key_946": 946,
+	"key_947": 947,
+	"key_948": 948,
+	"key_949": 949,
+	"key_950": 950,
+	"key_951": 951,
+	"key_952": 952,
+	"key_953": 953,
+	"key_954": 954,
+	"key_955": 955,
+	"key_956": 956,
+	"key_957": 957,
+	"key_958": 958,
+	"key_959": 959,
+	"key_960": 960,
+	"key_961": 961,
+	"key_962": 962,
+	"key_963": 963,
+	"key_964": 964,
+	"key_965": 965,
+	"key_966": 966,
+	"key_967": 967,
+	"key_968": 968,
+	"key_969": 969,
+	"key_970": 970,
+	"key_971": 971,
+	"key_972": 972,
+	"key_973": 973,
+	"key_974": 974,
+	"key_975": 975,
+	"key_976": 976,
+	"key_977": 977,
+	"key_978": 978,
+	"key_979": 979,
+	"key_980": 980,
+	"key_981": 981,
+	"key_982": 982,
+	"key_983": 983,
+	"key_984": 984,
+	"key_985": 985,
+	"key_986": 986,
+	"key_987": 987,
+	"key_988": 988,
+	"key_989": 989,
+	"key_990": 990,
+	"key_991": 991,
+	"key_992": 992,
+	"key_993": 993,
+	"key_994": 994,
+	"key_995": 995,
+	"key_996": 996,
+	"key_997": 997,
+	"key_998": 998,
+	"key_999": 999,
+	"key_1000": 1000,
+	"key_1001": 1001,
+}
+
+var (
+	_ = (func() int { if ConfigMap["key_1"] > 0 { a.Register("setting_1") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_2"] > 0 { a.Register("setting_2") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_3"] > 0 { a.Register("setting_3") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_4"] > 0 { a.Register("setting_4") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_5"] > 0 { a.Register("setting_5") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_6"] > 0 { a.Register("setting_6") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_7"] > 0 { a.Register("setting_7") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_8"] > 0 { a.Register("setting_8") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_9"] > 0 { a.Register("setting_9") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_10"] > 0 { a.Register("setting_10") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_11"] > 0 { a.Register("setting_11") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_12"] > 0 { a.Register("setting_12") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_13"] > 0 { a.Register("setting_13") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_14"] > 0 { a.Register("setting_14") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_15"] > 0 { a.Register("setting_15") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_16"] > 0 { a.Register("setting_16") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_17"] > 0 { a.Register("setting_17") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_18"] > 0 { a.Register("setting_18") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_19"] > 0 { a.Register("setting_19") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_20"] > 0 { a.Register("setting_20") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_21"] > 0 { a.Register("setting_21") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_22"] > 0 { a.Register("setting_22") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_23"] > 0 { a.Register("setting_23") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_24"] > 0 { a.Register("setting_24") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_25"] > 0 { a.Register("setting_25") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_26"] > 0 { a.Register("setting_26") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_27"] > 0 { a.Register("setting_27") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_28"] > 0 { a.Register("setting_28") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_29"] > 0 { a.Register("setting_29") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_30"] > 0 { a.Register("setting_30") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_31"] > 0 { a.Register("setting_31") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_32"] > 0 { a.Register("setting_32") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_33"] > 0 { a.Register("setting_33") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_34"] > 0 { a.Register("setting_34") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_35"] > 0 { a.Register("setting_35") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_36"] > 0 { a.Register("setting_36") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_37"] > 0 { a.Register("setting_37") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_38"] > 0 { a.Register("setting_38") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_39"] > 0 { a.Register("setting_39") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_40"] > 0 { a.Register("setting_40") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_41"] > 0 { a.Register("setting_41") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_42"] > 0 { a.Register("setting_42") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_43"] > 0 { a.Register("setting_43") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_44"] > 0 { a.Register("setting_44") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_45"] > 0 { a.Register("setting_45") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_46"] > 0 { a.Register("setting_46") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_47"] > 0 { a.Register("setting_47") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_48"] > 0 { a.Register("setting_48") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_49"] > 0 { a.Register("setting_49") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_50"] > 0 { a.Register("setting_50") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_51"] > 0 { a.Register("setting_51") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_52"] > 0 { a.Register("setting_52") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_53"] > 0 { a.Register("setting_53") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_54"] > 0 { a.Register("setting_54") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_55"] > 0 { a.Register("setting_55") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_56"] > 0 { a.Register("setting_56") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_57"] > 0 { a.Register("setting_57") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_58"] > 0 { a.Register("setting_58") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_59"] > 0 { a.Register("setting_59") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_60"] > 0 { a.Register("setting_60") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_61"] > 0 { a.Register("setting_61") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_62"] > 0 { a.Register("setting_62") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_63"] > 0 { a.Register("setting_63") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_64"] > 0 { a.Register("setting_64") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_65"] > 0 { a.Register("setting_65") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_66"] > 0 { a.Register("setting_66") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_67"] > 0 { a.Register("setting_67") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_68"] > 0 { a.Register("setting_68") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_69"] > 0 { a.Register("setting_69") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_70"] > 0 { a.Register("setting_70") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_71"] > 0 { a.Register("setting_71") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_72"] > 0 { a.Register("setting_72") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_73"] > 0 { a.Register("setting_73") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_74"] > 0 { a.Register("setting_74") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_75"] > 0 { a.Register("setting_75") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_76"] > 0 { a.Register("setting_76") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_77"] > 0 { a.Register("setting_77") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_78"] > 0 { a.Register("setting_78") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_79"] > 0 { a.Register("setting_79") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_80"] > 0 { a.Register("setting_80") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_81"] > 0 { a.Register("setting_81") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_82"] > 0 { a.Register("setting_82") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_83"] > 0 { a.Register("setting_83") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_84"] > 0 { a.Register("setting_84") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_85"] > 0 { a.Register("setting_85") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_86"] > 0 { a.Register("setting_86") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_87"] > 0 { a.Register("setting_87") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_88"] > 0 { a.Register("setting_88") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_89"] > 0 { a.Register("setting_89") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_90"] > 0 { a.Register("setting_90") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_91"] > 0 { a.Register("setting_91") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_92"] > 0 { a.Register("setting_92") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_93"] > 0 { a.Register("setting_93") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_94"] > 0 { a.Register("setting_94") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_95"] > 0 { a.Register("setting_95") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_96"] > 0 { a.Register("setting_96") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_97"] > 0 { a.Register("setting_97") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_98"] > 0 { a.Register("setting_98") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_99"] > 0 { a.Register("setting_99") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_100"] > 0 { a.Register("setting_100") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_101"] > 0 { a.Register("setting_101") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_102"] > 0 { a.Register("setting_102") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_103"] > 0 { a.Register("setting_103") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_104"] > 0 { a.Register("setting_104") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_105"] > 0 { a.Register("setting_105") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_106"] > 0 { a.Register("setting_106") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_107"] > 0 { a.Register("setting_107") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_108"] > 0 { a.Register("setting_108") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_109"] > 0 { a.Register("setting_109") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_110"] > 0 { a.Register("setting_110") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_111"] > 0 { a.Register("setting_111") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_112"] > 0 { a.Register("setting_112") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_113"] > 0 { a.Register("setting_113") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_114"] > 0 { a.Register("setting_114") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_115"] > 0 { a.Register("setting_115") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_116"] > 0 { a.Register("setting_116") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_117"] > 0 { a.Register("setting_117") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_118"] > 0 { a.Register("setting_118") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_119"] > 0 { a.Register("setting_119") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_120"] > 0 { a.Register("setting_120") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_121"] > 0 { a.Register("setting_121") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_122"] > 0 { a.Register("setting_122") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_123"] > 0 { a.Register("setting_123") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_124"] > 0 { a.Register("setting_124") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_125"] > 0 { a.Register("setting_125") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_126"] > 0 { a.Register("setting_126") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_127"] > 0 { a.Register("setting_127") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_128"] > 0 { a.Register("setting_128") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_129"] > 0 { a.Register("setting_129") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_130"] > 0 { a.Register("setting_130") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_131"] > 0 { a.Register("setting_131") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_132"] > 0 { a.Register("setting_132") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_133"] > 0 { a.Register("setting_133") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_134"] > 0 { a.Register("setting_134") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_135"] > 0 { a.Register("setting_135") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_136"] > 0 { a.Register("setting_136") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_137"] > 0 { a.Register("setting_137") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_138"] > 0 { a.Register("setting_138") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_139"] > 0 { a.Register("setting_139") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_140"] > 0 { a.Register("setting_140") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_141"] > 0 { a.Register("setting_141") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_142"] > 0 { a.Register("setting_142") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_143"] > 0 { a.Register("setting_143") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_144"] > 0 { a.Register("setting_144") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_145"] > 0 { a.Register("setting_145") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_146"] > 0 { a.Register("setting_146") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_147"] > 0 { a.Register("setting_147") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_148"] > 0 { a.Register("setting_148") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_149"] > 0 { a.Register("setting_149") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_150"] > 0 { a.Register("setting_150") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_151"] > 0 { a.Register("setting_151") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_152"] > 0 { a.Register("setting_152") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_153"] > 0 { a.Register("setting_153") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_154"] > 0 { a.Register("setting_154") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_155"] > 0 { a.Register("setting_155") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_156"] > 0 { a.Register("setting_156") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_157"] > 0 { a.Register("setting_157") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_158"] > 0 { a.Register("setting_158") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_159"] > 0 { a.Register("setting_159") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_160"] > 0 { a.Register("setting_160") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_161"] > 0 { a.Register("setting_161") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_162"] > 0 { a.Register("setting_162") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_163"] > 0 { a.Register("setting_163") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_164"] > 0 { a.Register("setting_164") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_165"] > 0 { a.Register("setting_165") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_166"] > 0 { a.Register("setting_166") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_167"] > 0 { a.Register("setting_167") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_168"] > 0 { a.Register("setting_168") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_169"] > 0 { a.Register("setting_169") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_170"] > 0 { a.Register("setting_170") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_171"] > 0 { a.Register("setting_171") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_172"] > 0 { a.Register("setting_172") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_173"] > 0 { a.Register("setting_173") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_174"] > 0 { a.Register("setting_174") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_175"] > 0 { a.Register("setting_175") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_176"] > 0 { a.Register("setting_176") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_177"] > 0 { a.Register("setting_177") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_178"] > 0 { a.Register("setting_178") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_179"] > 0 { a.Register("setting_179") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_180"] > 0 { a.Register("setting_180") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_181"] > 0 { a.Register("setting_181") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_182"] > 0 { a.Register("setting_182") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_183"] > 0 { a.Register("setting_183") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_184"] > 0 { a.Register("setting_184") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_185"] > 0 { a.Register("setting_185") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_186"] > 0 { a.Register("setting_186") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_187"] > 0 { a.Register("setting_187") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_188"] > 0 { a.Register("setting_188") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_189"] > 0 { a.Register("setting_189") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_190"] > 0 { a.Register("setting_190") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_191"] > 0 { a.Register("setting_191") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_192"] > 0 { a.Register("setting_192") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_193"] > 0 { a.Register("setting_193") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_194"] > 0 { a.Register("setting_194") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_195"] > 0 { a.Register("setting_195") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_196"] > 0 { a.Register("setting_196") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_197"] > 0 { a.Register("setting_197") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_198"] > 0 { a.Register("setting_198") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_199"] > 0 { a.Register("setting_199") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_200"] > 0 { a.Register("setting_200") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_201"] > 0 { a.Register("setting_201") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_202"] > 0 { a.Register("setting_202") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_203"] > 0 { a.Register("setting_203") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_204"] > 0 { a.Register("setting_204") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_205"] > 0 { a.Register("setting_205") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_206"] > 0 { a.Register("setting_206") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_207"] > 0 { a.Register("setting_207") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_208"] > 0 { a.Register("setting_208") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_209"] > 0 { a.Register("setting_209") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_210"] > 0 { a.Register("setting_210") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_211"] > 0 { a.Register("setting_211") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_212"] > 0 { a.Register("setting_212") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_213"] > 0 { a.Register("setting_213") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_214"] > 0 { a.Register("setting_214") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_215"] > 0 { a.Register("setting_215") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_216"] > 0 { a.Register("setting_216") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_217"] > 0 { a.Register("setting_217") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_218"] > 0 { a.Register("setting_218") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_219"] > 0 { a.Register("setting_219") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_220"] > 0 { a.Register("setting_220") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_221"] > 0 { a.Register("setting_221") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_222"] > 0 { a.Register("setting_222") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_223"] > 0 { a.Register("setting_223") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_224"] > 0 { a.Register("setting_224") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_225"] > 0 { a.Register("setting_225") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_226"] > 0 { a.Register("setting_226") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_227"] > 0 { a.Register("setting_227") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_228"] > 0 { a.Register("setting_228") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_229"] > 0 { a.Register("setting_229") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_230"] > 0 { a.Register("setting_230") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_231"] > 0 { a.Register("setting_231") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_232"] > 0 { a.Register("setting_232") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_233"] > 0 { a.Register("setting_233") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_234"] > 0 { a.Register("setting_234") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_235"] > 0 { a.Register("setting_235") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_236"] > 0 { a.Register("setting_236") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_237"] > 0 { a.Register("setting_237") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_238"] > 0 { a.Register("setting_238") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_239"] > 0 { a.Register("setting_239") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_240"] > 0 { a.Register("setting_240") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_241"] > 0 { a.Register("setting_241") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_242"] > 0 { a.Register("setting_242") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_243"] > 0 { a.Register("setting_243") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_244"] > 0 { a.Register("setting_244") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_245"] > 0 { a.Register("setting_245") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_246"] > 0 { a.Register("setting_246") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_247"] > 0 { a.Register("setting_247") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_248"] > 0 { a.Register("setting_248") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_249"] > 0 { a.Register("setting_249") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_250"] > 0 { a.Register("setting_250") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_251"] > 0 { a.Register("setting_251") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_252"] > 0 { a.Register("setting_252") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_253"] > 0 { a.Register("setting_253") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_254"] > 0 { a.Register("setting_254") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_255"] > 0 { a.Register("setting_255") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_256"] > 0 { a.Register("setting_256") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_257"] > 0 { a.Register("setting_257") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_258"] > 0 { a.Register("setting_258") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_259"] > 0 { a.Register("setting_259") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_260"] > 0 { a.Register("setting_260") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_261"] > 0 { a.Register("setting_261") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_262"] > 0 { a.Register("setting_262") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_263"] > 0 { a.Register("setting_263") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_264"] > 0 { a.Register("setting_264") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_265"] > 0 { a.Register("setting_265") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_266"] > 0 { a.Register("setting_266") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_267"] > 0 { a.Register("setting_267") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_268"] > 0 { a.Register("setting_268") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_269"] > 0 { a.Register("setting_269") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_270"] > 0 { a.Register("setting_270") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_271"] > 0 { a.Register("setting_271") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_272"] > 0 { a.Register("setting_272") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_273"] > 0 { a.Register("setting_273") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_274"] > 0 { a.Register("setting_274") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_275"] > 0 { a.Register("setting_275") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_276"] > 0 { a.Register("setting_276") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_277"] > 0 { a.Register("setting_277") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_278"] > 0 { a.Register("setting_278") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_279"] > 0 { a.Register("setting_279") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_280"] > 0 { a.Register("setting_280") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_281"] > 0 { a.Register("setting_281") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_282"] > 0 { a.Register("setting_282") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_283"] > 0 { a.Register("setting_283") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_284"] > 0 { a.Register("setting_284") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_285"] > 0 { a.Register("setting_285") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_286"] > 0 { a.Register("setting_286") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_287"] > 0 { a.Register("setting_287") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_288"] > 0 { a.Register("setting_288") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_289"] > 0 { a.Register("setting_289") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_290"] > 0 { a.Register("setting_290") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_291"] > 0 { a.Register("setting_291") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_292"] > 0 { a.Register("setting_292") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_293"] > 0 { a.Register("setting_293") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_294"] > 0 { a.Register("setting_294") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_295"] > 0 { a.Register("setting_295") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_296"] > 0 { a.Register("setting_296") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_297"] > 0 { a.Register("setting_297") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_298"] > 0 { a.Register("setting_298") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_299"] > 0 { a.Register("setting_299") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_300"] > 0 { a.Register("setting_300") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_301"] > 0 { a.Register("setting_301") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_302"] > 0 { a.Register("setting_302") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_303"] > 0 { a.Register("setting_303") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_304"] > 0 { a.Register("setting_304") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_305"] > 0 { a.Register("setting_305") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_306"] > 0 { a.Register("setting_306") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_307"] > 0 { a.Register("setting_307") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_308"] > 0 { a.Register("setting_308") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_309"] > 0 { a.Register("setting_309") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_310"] > 0 { a.Register("setting_310") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_311"] > 0 { a.Register("setting_311") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_312"] > 0 { a.Register("setting_312") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_313"] > 0 { a.Register("setting_313") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_314"] > 0 { a.Register("setting_314") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_315"] > 0 { a.Register("setting_315") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_316"] > 0 { a.Register("setting_316") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_317"] > 0 { a.Register("setting_317") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_318"] > 0 { a.Register("setting_318") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_319"] > 0 { a.Register("setting_319") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_320"] > 0 { a.Register("setting_320") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_321"] > 0 { a.Register("setting_321") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_322"] > 0 { a.Register("setting_322") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_323"] > 0 { a.Register("setting_323") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_324"] > 0 { a.Register("setting_324") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_325"] > 0 { a.Register("setting_325") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_326"] > 0 { a.Register("setting_326") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_327"] > 0 { a.Register("setting_327") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_328"] > 0 { a.Register("setting_328") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_329"] > 0 { a.Register("setting_329") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_330"] > 0 { a.Register("setting_330") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_331"] > 0 { a.Register("setting_331") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_332"] > 0 { a.Register("setting_332") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_333"] > 0 { a.Register("setting_333") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_334"] > 0 { a.Register("setting_334") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_335"] > 0 { a.Register("setting_335") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_336"] > 0 { a.Register("setting_336") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_337"] > 0 { a.Register("setting_337") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_338"] > 0 { a.Register("setting_338") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_339"] > 0 { a.Register("setting_339") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_340"] > 0 { a.Register("setting_340") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_341"] > 0 { a.Register("setting_341") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_342"] > 0 { a.Register("setting_342") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_343"] > 0 { a.Register("setting_343") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_344"] > 0 { a.Register("setting_344") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_345"] > 0 { a.Register("setting_345") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_346"] > 0 { a.Register("setting_346") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_347"] > 0 { a.Register("setting_347") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_348"] > 0 { a.Register("setting_348") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_349"] > 0 { a.Register("setting_349") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_350"] > 0 { a.Register("setting_350") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_351"] > 0 { a.Register("setting_351") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_352"] > 0 { a.Register("setting_352") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_353"] > 0 { a.Register("setting_353") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_354"] > 0 { a.Register("setting_354") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_355"] > 0 { a.Register("setting_355") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_356"] > 0 { a.Register("setting_356") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_357"] > 0 { a.Register("setting_357") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_358"] > 0 { a.Register("setting_358") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_359"] > 0 { a.Register("setting_359") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_360"] > 0 { a.Register("setting_360") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_361"] > 0 { a.Register("setting_361") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_362"] > 0 { a.Register("setting_362") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_363"] > 0 { a.Register("setting_363") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_364"] > 0 { a.Register("setting_364") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_365"] > 0 { a.Register("setting_365") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_366"] > 0 { a.Register("setting_366") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_367"] > 0 { a.Register("setting_367") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_368"] > 0 { a.Register("setting_368") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_369"] > 0 { a.Register("setting_369") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_370"] > 0 { a.Register("setting_370") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_371"] > 0 { a.Register("setting_371") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_372"] > 0 { a.Register("setting_372") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_373"] > 0 { a.Register("setting_373") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_374"] > 0 { a.Register("setting_374") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_375"] > 0 { a.Register("setting_375") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_376"] > 0 { a.Register("setting_376") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_377"] > 0 { a.Register("setting_377") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_378"] > 0 { a.Register("setting_378") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_379"] > 0 { a.Register("setting_379") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_380"] > 0 { a.Register("setting_380") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_381"] > 0 { a.Register("setting_381") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_382"] > 0 { a.Register("setting_382") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_383"] > 0 { a.Register("setting_383") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_384"] > 0 { a.Register("setting_384") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_385"] > 0 { a.Register("setting_385") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_386"] > 0 { a.Register("setting_386") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_387"] > 0 { a.Register("setting_387") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_388"] > 0 { a.Register("setting_388") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_389"] > 0 { a.Register("setting_389") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_390"] > 0 { a.Register("setting_390") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_391"] > 0 { a.Register("setting_391") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_392"] > 0 { a.Register("setting_392") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_393"] > 0 { a.Register("setting_393") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_394"] > 0 { a.Register("setting_394") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_395"] > 0 { a.Register("setting_395") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_396"] > 0 { a.Register("setting_396") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_397"] > 0 { a.Register("setting_397") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_398"] > 0 { a.Register("setting_398") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_399"] > 0 { a.Register("setting_399") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_400"] > 0 { a.Register("setting_400") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_401"] > 0 { a.Register("setting_401") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_402"] > 0 { a.Register("setting_402") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_403"] > 0 { a.Register("setting_403") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_404"] > 0 { a.Register("setting_404") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_405"] > 0 { a.Register("setting_405") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_406"] > 0 { a.Register("setting_406") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_407"] > 0 { a.Register("setting_407") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_408"] > 0 { a.Register("setting_408") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_409"] > 0 { a.Register("setting_409") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_410"] > 0 { a.Register("setting_410") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_411"] > 0 { a.Register("setting_411") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_412"] > 0 { a.Register("setting_412") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_413"] > 0 { a.Register("setting_413") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_414"] > 0 { a.Register("setting_414") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_415"] > 0 { a.Register("setting_415") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_416"] > 0 { a.Register("setting_416") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_417"] > 0 { a.Register("setting_417") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_418"] > 0 { a.Register("setting_418") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_419"] > 0 { a.Register("setting_419") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_420"] > 0 { a.Register("setting_420") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_421"] > 0 { a.Register("setting_421") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_422"] > 0 { a.Register("setting_422") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_423"] > 0 { a.Register("setting_423") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_424"] > 0 { a.Register("setting_424") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_425"] > 0 { a.Register("setting_425") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_426"] > 0 { a.Register("setting_426") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_427"] > 0 { a.Register("setting_427") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_428"] > 0 { a.Register("setting_428") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_429"] > 0 { a.Register("setting_429") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_430"] > 0 { a.Register("setting_430") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_431"] > 0 { a.Register("setting_431") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_432"] > 0 { a.Register("setting_432") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_433"] > 0 { a.Register("setting_433") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_434"] > 0 { a.Register("setting_434") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_435"] > 0 { a.Register("setting_435") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_436"] > 0 { a.Register("setting_436") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_437"] > 0 { a.Register("setting_437") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_438"] > 0 { a.Register("setting_438") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_439"] > 0 { a.Register("setting_439") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_440"] > 0 { a.Register("setting_440") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_441"] > 0 { a.Register("setting_441") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_442"] > 0 { a.Register("setting_442") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_443"] > 0 { a.Register("setting_443") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_444"] > 0 { a.Register("setting_444") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_445"] > 0 { a.Register("setting_445") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_446"] > 0 { a.Register("setting_446") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_447"] > 0 { a.Register("setting_447") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_448"] > 0 { a.Register("setting_448") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_449"] > 0 { a.Register("setting_449") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_450"] > 0 { a.Register("setting_450") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_451"] > 0 { a.Register("setting_451") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_452"] > 0 { a.Register("setting_452") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_453"] > 0 { a.Register("setting_453") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_454"] > 0 { a.Register("setting_454") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_455"] > 0 { a.Register("setting_455") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_456"] > 0 { a.Register("setting_456") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_457"] > 0 { a.Register("setting_457") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_458"] > 0 { a.Register("setting_458") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_459"] > 0 { a.Register("setting_459") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_460"] > 0 { a.Register("setting_460") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_461"] > 0 { a.Register("setting_461") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_462"] > 0 { a.Register("setting_462") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_463"] > 0 { a.Register("setting_463") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_464"] > 0 { a.Register("setting_464") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_465"] > 0 { a.Register("setting_465") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_466"] > 0 { a.Register("setting_466") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_467"] > 0 { a.Register("setting_467") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_468"] > 0 { a.Register("setting_468") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_469"] > 0 { a.Register("setting_469") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_470"] > 0 { a.Register("setting_470") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_471"] > 0 { a.Register("setting_471") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_472"] > 0 { a.Register("setting_472") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_473"] > 0 { a.Register("setting_473") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_474"] > 0 { a.Register("setting_474") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_475"] > 0 { a.Register("setting_475") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_476"] > 0 { a.Register("setting_476") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_477"] > 0 { a.Register("setting_477") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_478"] > 0 { a.Register("setting_478") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_479"] > 0 { a.Register("setting_479") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_480"] > 0 { a.Register("setting_480") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_481"] > 0 { a.Register("setting_481") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_482"] > 0 { a.Register("setting_482") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_483"] > 0 { a.Register("setting_483") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_484"] > 0 { a.Register("setting_484") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_485"] > 0 { a.Register("setting_485") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_486"] > 0 { a.Register("setting_486") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_487"] > 0 { a.Register("setting_487") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_488"] > 0 { a.Register("setting_488") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_489"] > 0 { a.Register("setting_489") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_490"] > 0 { a.Register("setting_490") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_491"] > 0 { a.Register("setting_491") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_492"] > 0 { a.Register("setting_492") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_493"] > 0 { a.Register("setting_493") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_494"] > 0 { a.Register("setting_494") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_495"] > 0 { a.Register("setting_495") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_496"] > 0 { a.Register("setting_496") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_497"] > 0 { a.Register("setting_497") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_498"] > 0 { a.Register("setting_498") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_499"] > 0 { a.Register("setting_499") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_500"] > 0 { a.Register("setting_500") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_501"] > 0 { a.Register("setting_501") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_502"] > 0 { a.Register("setting_502") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_503"] > 0 { a.Register("setting_503") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_504"] > 0 { a.Register("setting_504") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_505"] > 0 { a.Register("setting_505") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_506"] > 0 { a.Register("setting_506") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_507"] > 0 { a.Register("setting_507") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_508"] > 0 { a.Register("setting_508") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_509"] > 0 { a.Register("setting_509") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_510"] > 0 { a.Register("setting_510") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_511"] > 0 { a.Register("setting_511") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_512"] > 0 { a.Register("setting_512") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_513"] > 0 { a.Register("setting_513") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_514"] > 0 { a.Register("setting_514") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_515"] > 0 { a.Register("setting_515") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_516"] > 0 { a.Register("setting_516") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_517"] > 0 { a.Register("setting_517") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_518"] > 0 { a.Register("setting_518") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_519"] > 0 { a.Register("setting_519") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_520"] > 0 { a.Register("setting_520") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_521"] > 0 { a.Register("setting_521") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_522"] > 0 { a.Register("setting_522") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_523"] > 0 { a.Register("setting_523") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_524"] > 0 { a.Register("setting_524") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_525"] > 0 { a.Register("setting_525") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_526"] > 0 { a.Register("setting_526") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_527"] > 0 { a.Register("setting_527") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_528"] > 0 { a.Register("setting_528") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_529"] > 0 { a.Register("setting_529") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_530"] > 0 { a.Register("setting_530") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_531"] > 0 { a.Register("setting_531") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_532"] > 0 { a.Register("setting_532") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_533"] > 0 { a.Register("setting_533") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_534"] > 0 { a.Register("setting_534") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_535"] > 0 { a.Register("setting_535") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_536"] > 0 { a.Register("setting_536") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_537"] > 0 { a.Register("setting_537") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_538"] > 0 { a.Register("setting_538") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_539"] > 0 { a.Register("setting_539") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_540"] > 0 { a.Register("setting_540") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_541"] > 0 { a.Register("setting_541") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_542"] > 0 { a.Register("setting_542") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_543"] > 0 { a.Register("setting_543") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_544"] > 0 { a.Register("setting_544") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_545"] > 0 { a.Register("setting_545") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_546"] > 0 { a.Register("setting_546") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_547"] > 0 { a.Register("setting_547") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_548"] > 0 { a.Register("setting_548") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_549"] > 0 { a.Register("setting_549") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_550"] > 0 { a.Register("setting_550") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_551"] > 0 { a.Register("setting_551") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_552"] > 0 { a.Register("setting_552") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_553"] > 0 { a.Register("setting_553") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_554"] > 0 { a.Register("setting_554") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_555"] > 0 { a.Register("setting_555") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_556"] > 0 { a.Register("setting_556") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_557"] > 0 { a.Register("setting_557") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_558"] > 0 { a.Register("setting_558") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_559"] > 0 { a.Register("setting_559") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_560"] > 0 { a.Register("setting_560") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_561"] > 0 { a.Register("setting_561") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_562"] > 0 { a.Register("setting_562") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_563"] > 0 { a.Register("setting_563") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_564"] > 0 { a.Register("setting_564") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_565"] > 0 { a.Register("setting_565") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_566"] > 0 { a.Register("setting_566") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_567"] > 0 { a.Register("setting_567") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_568"] > 0 { a.Register("setting_568") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_569"] > 0 { a.Register("setting_569") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_570"] > 0 { a.Register("setting_570") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_571"] > 0 { a.Register("setting_571") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_572"] > 0 { a.Register("setting_572") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_573"] > 0 { a.Register("setting_573") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_574"] > 0 { a.Register("setting_574") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_575"] > 0 { a.Register("setting_575") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_576"] > 0 { a.Register("setting_576") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_577"] > 0 { a.Register("setting_577") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_578"] > 0 { a.Register("setting_578") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_579"] > 0 { a.Register("setting_579") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_580"] > 0 { a.Register("setting_580") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_581"] > 0 { a.Register("setting_581") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_582"] > 0 { a.Register("setting_582") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_583"] > 0 { a.Register("setting_583") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_584"] > 0 { a.Register("setting_584") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_585"] > 0 { a.Register("setting_585") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_586"] > 0 { a.Register("setting_586") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_587"] > 0 { a.Register("setting_587") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_588"] > 0 { a.Register("setting_588") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_589"] > 0 { a.Register("setting_589") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_590"] > 0 { a.Register("setting_590") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_591"] > 0 { a.Register("setting_591") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_592"] > 0 { a.Register("setting_592") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_593"] > 0 { a.Register("setting_593") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_594"] > 0 { a.Register("setting_594") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_595"] > 0 { a.Register("setting_595") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_596"] > 0 { a.Register("setting_596") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_597"] > 0 { a.Register("setting_597") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_598"] > 0 { a.Register("setting_598") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_599"] > 0 { a.Register("setting_599") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_600"] > 0 { a.Register("setting_600") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_601"] > 0 { a.Register("setting_601") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_602"] > 0 { a.Register("setting_602") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_603"] > 0 { a.Register("setting_603") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_604"] > 0 { a.Register("setting_604") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_605"] > 0 { a.Register("setting_605") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_606"] > 0 { a.Register("setting_606") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_607"] > 0 { a.Register("setting_607") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_608"] > 0 { a.Register("setting_608") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_609"] > 0 { a.Register("setting_609") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_610"] > 0 { a.Register("setting_610") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_611"] > 0 { a.Register("setting_611") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_612"] > 0 { a.Register("setting_612") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_613"] > 0 { a.Register("setting_613") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_614"] > 0 { a.Register("setting_614") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_615"] > 0 { a.Register("setting_615") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_616"] > 0 { a.Register("setting_616") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_617"] > 0 { a.Register("setting_617") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_618"] > 0 { a.Register("setting_618") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_619"] > 0 { a.Register("setting_619") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_620"] > 0 { a.Register("setting_620") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_621"] > 0 { a.Register("setting_621") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_622"] > 0 { a.Register("setting_622") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_623"] > 0 { a.Register("setting_623") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_624"] > 0 { a.Register("setting_624") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_625"] > 0 { a.Register("setting_625") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_626"] > 0 { a.Register("setting_626") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_627"] > 0 { a.Register("setting_627") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_628"] > 0 { a.Register("setting_628") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_629"] > 0 { a.Register("setting_629") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_630"] > 0 { a.Register("setting_630") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_631"] > 0 { a.Register("setting_631") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_632"] > 0 { a.Register("setting_632") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_633"] > 0 { a.Register("setting_633") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_634"] > 0 { a.Register("setting_634") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_635"] > 0 { a.Register("setting_635") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_636"] > 0 { a.Register("setting_636") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_637"] > 0 { a.Register("setting_637") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_638"] > 0 { a.Register("setting_638") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_639"] > 0 { a.Register("setting_639") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_640"] > 0 { a.Register("setting_640") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_641"] > 0 { a.Register("setting_641") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_642"] > 0 { a.Register("setting_642") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_643"] > 0 { a.Register("setting_643") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_644"] > 0 { a.Register("setting_644") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_645"] > 0 { a.Register("setting_645") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_646"] > 0 { a.Register("setting_646") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_647"] > 0 { a.Register("setting_647") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_648"] > 0 { a.Register("setting_648") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_649"] > 0 { a.Register("setting_649") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_650"] > 0 { a.Register("setting_650") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_651"] > 0 { a.Register("setting_651") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_652"] > 0 { a.Register("setting_652") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_653"] > 0 { a.Register("setting_653") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_654"] > 0 { a.Register("setting_654") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_655"] > 0 { a.Register("setting_655") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_656"] > 0 { a.Register("setting_656") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_657"] > 0 { a.Register("setting_657") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_658"] > 0 { a.Register("setting_658") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_659"] > 0 { a.Register("setting_659") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_660"] > 0 { a.Register("setting_660") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_661"] > 0 { a.Register("setting_661") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_662"] > 0 { a.Register("setting_662") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_663"] > 0 { a.Register("setting_663") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_664"] > 0 { a.Register("setting_664") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_665"] > 0 { a.Register("setting_665") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_666"] > 0 { a.Register("setting_666") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_667"] > 0 { a.Register("setting_667") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_668"] > 0 { a.Register("setting_668") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_669"] > 0 { a.Register("setting_669") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_670"] > 0 { a.Register("setting_670") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_671"] > 0 { a.Register("setting_671") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_672"] > 0 { a.Register("setting_672") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_673"] > 0 { a.Register("setting_673") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_674"] > 0 { a.Register("setting_674") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_675"] > 0 { a.Register("setting_675") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_676"] > 0 { a.Register("setting_676") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_677"] > 0 { a.Register("setting_677") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_678"] > 0 { a.Register("setting_678") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_679"] > 0 { a.Register("setting_679") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_680"] > 0 { a.Register("setting_680") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_681"] > 0 { a.Register("setting_681") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_682"] > 0 { a.Register("setting_682") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_683"] > 0 { a.Register("setting_683") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_684"] > 0 { a.Register("setting_684") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_685"] > 0 { a.Register("setting_685") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_686"] > 0 { a.Register("setting_686") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_687"] > 0 { a.Register("setting_687") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_688"] > 0 { a.Register("setting_688") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_689"] > 0 { a.Register("setting_689") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_690"] > 0 { a.Register("setting_690") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_691"] > 0 { a.Register("setting_691") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_692"] > 0 { a.Register("setting_692") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_693"] > 0 { a.Register("setting_693") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_694"] > 0 { a.Register("setting_694") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_695"] > 0 { a.Register("setting_695") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_696"] > 0 { a.Register("setting_696") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_697"] > 0 { a.Register("setting_697") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_698"] > 0 { a.Register("setting_698") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_699"] > 0 { a.Register("setting_699") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_700"] > 0 { a.Register("setting_700") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_701"] > 0 { a.Register("setting_701") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_702"] > 0 { a.Register("setting_702") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_703"] > 0 { a.Register("setting_703") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_704"] > 0 { a.Register("setting_704") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_705"] > 0 { a.Register("setting_705") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_706"] > 0 { a.Register("setting_706") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_707"] > 0 { a.Register("setting_707") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_708"] > 0 { a.Register("setting_708") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_709"] > 0 { a.Register("setting_709") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_710"] > 0 { a.Register("setting_710") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_711"] > 0 { a.Register("setting_711") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_712"] > 0 { a.Register("setting_712") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_713"] > 0 { a.Register("setting_713") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_714"] > 0 { a.Register("setting_714") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_715"] > 0 { a.Register("setting_715") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_716"] > 0 { a.Register("setting_716") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_717"] > 0 { a.Register("setting_717") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_718"] > 0 { a.Register("setting_718") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_719"] > 0 { a.Register("setting_719") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_720"] > 0 { a.Register("setting_720") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_721"] > 0 { a.Register("setting_721") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_722"] > 0 { a.Register("setting_722") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_723"] > 0 { a.Register("setting_723") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_724"] > 0 { a.Register("setting_724") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_725"] > 0 { a.Register("setting_725") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_726"] > 0 { a.Register("setting_726") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_727"] > 0 { a.Register("setting_727") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_728"] > 0 { a.Register("setting_728") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_729"] > 0 { a.Register("setting_729") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_730"] > 0 { a.Register("setting_730") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_731"] > 0 { a.Register("setting_731") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_732"] > 0 { a.Register("setting_732") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_733"] > 0 { a.Register("setting_733") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_734"] > 0 { a.Register("setting_734") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_735"] > 0 { a.Register("setting_735") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_736"] > 0 { a.Register("setting_736") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_737"] > 0 { a.Register("setting_737") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_738"] > 0 { a.Register("setting_738") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_739"] > 0 { a.Register("setting_739") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_740"] > 0 { a.Register("setting_740") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_741"] > 0 { a.Register("setting_741") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_742"] > 0 { a.Register("setting_742") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_743"] > 0 { a.Register("setting_743") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_744"] > 0 { a.Register("setting_744") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_745"] > 0 { a.Register("setting_745") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_746"] > 0 { a.Register("setting_746") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_747"] > 0 { a.Register("setting_747") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_748"] > 0 { a.Register("setting_748") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_749"] > 0 { a.Register("setting_749") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_750"] > 0 { a.Register("setting_750") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_751"] > 0 { a.Register("setting_751") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_752"] > 0 { a.Register("setting_752") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_753"] > 0 { a.Register("setting_753") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_754"] > 0 { a.Register("setting_754") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_755"] > 0 { a.Register("setting_755") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_756"] > 0 { a.Register("setting_756") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_757"] > 0 { a.Register("setting_757") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_758"] > 0 { a.Register("setting_758") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_759"] > 0 { a.Register("setting_759") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_760"] > 0 { a.Register("setting_760") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_761"] > 0 { a.Register("setting_761") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_762"] > 0 { a.Register("setting_762") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_763"] > 0 { a.Register("setting_763") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_764"] > 0 { a.Register("setting_764") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_765"] > 0 { a.Register("setting_765") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_766"] > 0 { a.Register("setting_766") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_767"] > 0 { a.Register("setting_767") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_768"] > 0 { a.Register("setting_768") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_769"] > 0 { a.Register("setting_769") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_770"] > 0 { a.Register("setting_770") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_771"] > 0 { a.Register("setting_771") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_772"] > 0 { a.Register("setting_772") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_773"] > 0 { a.Register("setting_773") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_774"] > 0 { a.Register("setting_774") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_775"] > 0 { a.Register("setting_775") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_776"] > 0 { a.Register("setting_776") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_777"] > 0 { a.Register("setting_777") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_778"] > 0 { a.Register("setting_778") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_779"] > 0 { a.Register("setting_779") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_780"] > 0 { a.Register("setting_780") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_781"] > 0 { a.Register("setting_781") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_782"] > 0 { a.Register("setting_782") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_783"] > 0 { a.Register("setting_783") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_784"] > 0 { a.Register("setting_784") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_785"] > 0 { a.Register("setting_785") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_786"] > 0 { a.Register("setting_786") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_787"] > 0 { a.Register("setting_787") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_788"] > 0 { a.Register("setting_788") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_789"] > 0 { a.Register("setting_789") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_790"] > 0 { a.Register("setting_790") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_791"] > 0 { a.Register("setting_791") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_792"] > 0 { a.Register("setting_792") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_793"] > 0 { a.Register("setting_793") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_794"] > 0 { a.Register("setting_794") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_795"] > 0 { a.Register("setting_795") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_796"] > 0 { a.Register("setting_796") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_797"] > 0 { a.Register("setting_797") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_798"] > 0 { a.Register("setting_798") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_799"] > 0 { a.Register("setting_799") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_800"] > 0 { a.Register("setting_800") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_801"] > 0 { a.Register("setting_801") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_802"] > 0 { a.Register("setting_802") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_803"] > 0 { a.Register("setting_803") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_804"] > 0 { a.Register("setting_804") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_805"] > 0 { a.Register("setting_805") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_806"] > 0 { a.Register("setting_806") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_807"] > 0 { a.Register("setting_807") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_808"] > 0 { a.Register("setting_808") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_809"] > 0 { a.Register("setting_809") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_810"] > 0 { a.Register("setting_810") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_811"] > 0 { a.Register("setting_811") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_812"] > 0 { a.Register("setting_812") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_813"] > 0 { a.Register("setting_813") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_814"] > 0 { a.Register("setting_814") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_815"] > 0 { a.Register("setting_815") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_816"] > 0 { a.Register("setting_816") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_817"] > 0 { a.Register("setting_817") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_818"] > 0 { a.Register("setting_818") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_819"] > 0 { a.Register("setting_819") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_820"] > 0 { a.Register("setting_820") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_821"] > 0 { a.Register("setting_821") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_822"] > 0 { a.Register("setting_822") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_823"] > 0 { a.Register("setting_823") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_824"] > 0 { a.Register("setting_824") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_825"] > 0 { a.Register("setting_825") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_826"] > 0 { a.Register("setting_826") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_827"] > 0 { a.Register("setting_827") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_828"] > 0 { a.Register("setting_828") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_829"] > 0 { a.Register("setting_829") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_830"] > 0 { a.Register("setting_830") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_831"] > 0 { a.Register("setting_831") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_832"] > 0 { a.Register("setting_832") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_833"] > 0 { a.Register("setting_833") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_834"] > 0 { a.Register("setting_834") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_835"] > 0 { a.Register("setting_835") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_836"] > 0 { a.Register("setting_836") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_837"] > 0 { a.Register("setting_837") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_838"] > 0 { a.Register("setting_838") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_839"] > 0 { a.Register("setting_839") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_840"] > 0 { a.Register("setting_840") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_841"] > 0 { a.Register("setting_841") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_842"] > 0 { a.Register("setting_842") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_843"] > 0 { a.Register("setting_843") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_844"] > 0 { a.Register("setting_844") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_845"] > 0 { a.Register("setting_845") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_846"] > 0 { a.Register("setting_846") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_847"] > 0 { a.Register("setting_847") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_848"] > 0 { a.Register("setting_848") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_849"] > 0 { a.Register("setting_849") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_850"] > 0 { a.Register("setting_850") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_851"] > 0 { a.Register("setting_851") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_852"] > 0 { a.Register("setting_852") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_853"] > 0 { a.Register("setting_853") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_854"] > 0 { a.Register("setting_854") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_855"] > 0 { a.Register("setting_855") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_856"] > 0 { a.Register("setting_856") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_857"] > 0 { a.Register("setting_857") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_858"] > 0 { a.Register("setting_858") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_859"] > 0 { a.Register("setting_859") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_860"] > 0 { a.Register("setting_860") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_861"] > 0 { a.Register("setting_861") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_862"] > 0 { a.Register("setting_862") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_863"] > 0 { a.Register("setting_863") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_864"] > 0 { a.Register("setting_864") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_865"] > 0 { a.Register("setting_865") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_866"] > 0 { a.Register("setting_866") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_867"] > 0 { a.Register("setting_867") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_868"] > 0 { a.Register("setting_868") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_869"] > 0 { a.Register("setting_869") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_870"] > 0 { a.Register("setting_870") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_871"] > 0 { a.Register("setting_871") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_872"] > 0 { a.Register("setting_872") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_873"] > 0 { a.Register("setting_873") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_874"] > 0 { a.Register("setting_874") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_875"] > 0 { a.Register("setting_875") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_876"] > 0 { a.Register("setting_876") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_877"] > 0 { a.Register("setting_877") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_878"] > 0 { a.Register("setting_878") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_879"] > 0 { a.Register("setting_879") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_880"] > 0 { a.Register("setting_880") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_881"] > 0 { a.Register("setting_881") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_882"] > 0 { a.Register("setting_882") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_883"] > 0 { a.Register("setting_883") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_884"] > 0 { a.Register("setting_884") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_885"] > 0 { a.Register("setting_885") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_886"] > 0 { a.Register("setting_886") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_887"] > 0 { a.Register("setting_887") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_888"] > 0 { a.Register("setting_888") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_889"] > 0 { a.Register("setting_889") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_890"] > 0 { a.Register("setting_890") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_891"] > 0 { a.Register("setting_891") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_892"] > 0 { a.Register("setting_892") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_893"] > 0 { a.Register("setting_893") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_894"] > 0 { a.Register("setting_894") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_895"] > 0 { a.Register("setting_895") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_896"] > 0 { a.Register("setting_896") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_897"] > 0 { a.Register("setting_897") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_898"] > 0 { a.Register("setting_898") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_899"] > 0 { a.Register("setting_899") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_900"] > 0 { a.Register("setting_900") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_901"] > 0 { a.Register("setting_901") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_902"] > 0 { a.Register("setting_902") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_903"] > 0 { a.Register("setting_903") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_904"] > 0 { a.Register("setting_904") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_905"] > 0 { a.Register("setting_905") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_906"] > 0 { a.Register("setting_906") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_907"] > 0 { a.Register("setting_907") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_908"] > 0 { a.Register("setting_908") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_909"] > 0 { a.Register("setting_909") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_910"] > 0 { a.Register("setting_910") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_911"] > 0 { a.Register("setting_911") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_912"] > 0 { a.Register("setting_912") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_913"] > 0 { a.Register("setting_913") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_914"] > 0 { a.Register("setting_914") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_915"] > 0 { a.Register("setting_915") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_916"] > 0 { a.Register("setting_916") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_917"] > 0 { a.Register("setting_917") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_918"] > 0 { a.Register("setting_918") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_919"] > 0 { a.Register("setting_919") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_920"] > 0 { a.Register("setting_920") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_921"] > 0 { a.Register("setting_921") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_922"] > 0 { a.Register("setting_922") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_923"] > 0 { a.Register("setting_923") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_924"] > 0 { a.Register("setting_924") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_925"] > 0 { a.Register("setting_925") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_926"] > 0 { a.Register("setting_926") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_927"] > 0 { a.Register("setting_927") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_928"] > 0 { a.Register("setting_928") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_929"] > 0 { a.Register("setting_929") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_930"] > 0 { a.Register("setting_930") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_931"] > 0 { a.Register("setting_931") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_932"] > 0 { a.Register("setting_932") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_933"] > 0 { a.Register("setting_933") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_934"] > 0 { a.Register("setting_934") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_935"] > 0 { a.Register("setting_935") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_936"] > 0 { a.Register("setting_936") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_937"] > 0 { a.Register("setting_937") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_938"] > 0 { a.Register("setting_938") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_939"] > 0 { a.Register("setting_939") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_940"] > 0 { a.Register("setting_940") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_941"] > 0 { a.Register("setting_941") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_942"] > 0 { a.Register("setting_942") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_943"] > 0 { a.Register("setting_943") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_944"] > 0 { a.Register("setting_944") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_945"] > 0 { a.Register("setting_945") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_946"] > 0 { a.Register("setting_946") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_947"] > 0 { a.Register("setting_947") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_948"] > 0 { a.Register("setting_948") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_949"] > 0 { a.Register("setting_949") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_950"] > 0 { a.Register("setting_950") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_951"] > 0 { a.Register("setting_951") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_952"] > 0 { a.Register("setting_952") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_953"] > 0 { a.Register("setting_953") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_954"] > 0 { a.Register("setting_954") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_955"] > 0 { a.Register("setting_955") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_956"] > 0 { a.Register("setting_956") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_957"] > 0 { a.Register("setting_957") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_958"] > 0 { a.Register("setting_958") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_959"] > 0 { a.Register("setting_959") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_960"] > 0 { a.Register("setting_960") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_961"] > 0 { a.Register("setting_961") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_962"] > 0 { a.Register("setting_962") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_963"] > 0 { a.Register("setting_963") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_964"] > 0 { a.Register("setting_964") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_965"] > 0 { a.Register("setting_965") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_966"] > 0 { a.Register("setting_966") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_967"] > 0 { a.Register("setting_967") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_968"] > 0 { a.Register("setting_968") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_969"] > 0 { a.Register("setting_969") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_970"] > 0 { a.Register("setting_970") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_971"] > 0 { a.Register("setting_971") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_972"] > 0 { a.Register("setting_972") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_973"] > 0 { a.Register("setting_973") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_974"] > 0 { a.Register("setting_974") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_975"] > 0 { a.Register("setting_975") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_976"] > 0 { a.Register("setting_976") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_977"] > 0 { a.Register("setting_977") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_978"] > 0 { a.Register("setting_978") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_979"] > 0 { a.Register("setting_979") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_980"] > 0 { a.Register("setting_980") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_981"] > 0 { a.Register("setting_981") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_982"] > 0 { a.Register("setting_982") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_983"] > 0 { a.Register("setting_983") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_984"] > 0 { a.Register("setting_984") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_985"] > 0 { a.Register("setting_985") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_986"] > 0 { a.Register("setting_986") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_987"] > 0 { a.Register("setting_987") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_988"] > 0 { a.Register("setting_988") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_989"] > 0 { a.Register("setting_989") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_990"] > 0 { a.Register("setting_990") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_991"] > 0 { a.Register("setting_991") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_992"] > 0 { a.Register("setting_992") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_993"] > 0 { a.Register("setting_993") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_994"] > 0 { a.Register("setting_994") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_995"] > 0 { a.Register("setting_995") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_996"] > 0 { a.Register("setting_996") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_997"] > 0 { a.Register("setting_997") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_998"] > 0 { a.Register("setting_998") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_999"] > 0 { a.Register("setting_999") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_1000"] > 0 { a.Register("setting_1000") }; return 1 })()
+	_ = (func() int { if ConfigMap["key_1001"] > 0 { a.Register("setting_1001") }; return 1 })()
+)

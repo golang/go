@@ -38,14 +38,15 @@
 .endm
 
 /*
- * void crosscall_ppc64(void (*fn)(void), void *g)
+ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g)
  *
  * Calling into the gc tool chain, where all registers are caller save.
  * Called from standard ppc64 C ABI, where r2, r14-r31, f14-f31 are
  * callee-save, so they must be saved explicitly.
+ * ABI: r3=fn, r4=setg_gcc, r5=g on entry.
  */
-.globl crosscall_ppc64
-crosscall_ppc64:
+.globl crosscall1
+crosscall1:
 	// Start with standard C stack frame layout and linkage
 	mflr	%r0
 	std	%r0, 16(%r1)	// Save LR in caller's frame
@@ -61,12 +62,20 @@ crosscall_ppc64:
 	// Set up Go ABI constant registers
 	li	%r0, 0
 
+	// Save fn in r14 (callee-save) while we call setg_gcc
+	mr	%r14, %r3
 	// Restore g pointer (r30 in Go ABI, which may have been clobbered by C)
-	mr	%r30, %r4
+	mr	%r30, %r5
 
-	// Call fn
-	mr	%r12, %r3
-	mtctr	%r3
+	// Call setg_gcc(g)
+	mr	%r3, %r5        /* arg: g */
+	mr	%r12, %r4       /* setg_gcc */
+	mtctr	%r12
+	bctrl
+
+	// Call fn()
+	mr	%r12, %r14
+	mtctr	%r12
 	bctrl
 
 	FOR_EACH_GPR ld

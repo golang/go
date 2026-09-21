@@ -1,8 +1,6 @@
 # Regression test for https://go.dev/issue/52331: 'go run -mod=mod'
 # failed to write go.mod and go.sum with the resolved dependencies.
 
-[short] skip
-
 ! go run main.go
 # stderr '^main\.go:6:2: no required module provides package example\.com/version; to add it:\n\tgo get example\.com/version\n\z'
 

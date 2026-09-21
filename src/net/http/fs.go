@@ -14,6 +14,8 @@ import (
 	"io/fs"
 	"mime"
 	"mime/multipart"
+	"net/http/internal"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -25,22 +27,19 @@ import (
 	"time"
 )
 
-// A Dir implements [FileSystem] using the native file system restricted to a
-// specific directory tree.
+// A Dir implements [FileSystem] using the local filesystem.
+// Most users should prefer using [FileServerFS] with an [os.Root] rather than Dir.
 //
-// While the [FileSystem.Open] method takes '/'-separated paths, a Dir's string
-// value is a directory path on the native file system, not a URL, so it is separated
-// by [filepath.Separator], which isn't necessarily '/'.
-//
-// Note that Dir could expose sensitive files and directories. Dir will follow
-// symlinks pointing out of the directory tree, which can be especially dangerous
-// if serving from a directory in which users are able to create arbitrary symlinks.
-// Dir will also allow access to files and directories starting with a period,
-// which could expose sensitive directories like .git or sensitive files like
-// .htpasswd. To exclude files with a leading period, remove the files/directories
-// from the server or create a custom FileSystem implementation.
-//
+// Dir's string value names a local directory path to serve.
 // An empty Dir is treated as ".".
+//
+// Dir will follow symbolic links, including links pointing outside its directory.
+//
+// Dir will serve files starting with a dot, which can expose sensitive
+// directories such as .git or sensitive files such as .htpassword.
+//
+// See [FileServerFS] for examples of restricting access to a directory using [os.Root],
+// and of hiding files starting with a dot.
 type Dir string
 
 // mapOpenError maps the provided non-nil error from opening name
@@ -96,6 +95,8 @@ func (d Dir) Open(name string) (File, error) {
 }
 
 // A FileSystem implements access to a collection of named files.
+// Most users should prefer using [FileServerFS] rather than FileSystem.
+//
 // The elements in a file path are separated by slash ('/', U+002F)
 // characters, regardless of host operating system convention.
 // See the [FileServer] function to convert a FileSystem to a [Handler].
@@ -106,10 +107,10 @@ type FileSystem interface {
 	Open(name string) (File, error)
 }
 
-// A File is returned by a [FileSystem]'s Open method and can be
-// served by the [FileServer] implementation.
+// A File is returned by a [FileSystem]'s Open method.
+// Most users should prefer using [FileServerFS] rather than FileSystem.
 //
-// The methods should behave the same as those on an [*os.File].
+// The methods of File behave the same as those on an [*os.File].
 type File interface {
 	io.Closer
 	io.Reader
@@ -162,6 +163,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<!doctype html>\n")
 	fmt.Fprintf(w, "<meta name=\"viewport\" content=\"width=device-width\">\n")
+	fmt.Fprintf(w, "<meta name=\"color-scheme\" content=\"light dark\">\n")
 	fmt.Fprintf(w, "<pre>\n")
 	for i, n := 0, dirs.len(); i < n; i++ {
 		name := dirs.name(i)
@@ -288,7 +290,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		ctype = mime.TypeByExtension(filepath.Ext(name))
 		if ctype == "" {
 			// read a chunk to decide between utf-8 text and binary
-			var buf [sniffLen]byte
+			var buf [internal.SniffLen]byte
 			n, _ := io.ReadFull(content, buf[:])
 			ctype = DetectContentType(buf[:n])
 			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
@@ -783,6 +785,12 @@ func toHTTPError(err error) (msg string, httpStatus int) {
 // localRedirect gives a Moved Permanently response.
 // It does not convert relative paths to absolute paths like Redirect does.
 func localRedirect(w ResponseWriter, r *Request, newPath string) {
+	// There is no reliable way for us to redirect correctly when the path has
+	// escaped slashes, since StripPrefix might be in use. Just return 404.
+	if p := r.URL.EscapedPath(); strings.Contains(p, "%2f") || strings.Contains(p, "%2F") {
+		NotFound(w, r)
+		return
+	}
 	if q := r.URL.RawQuery; q != "" {
 		newPath += "?" + q
 	}
@@ -951,23 +959,19 @@ func (f ioFile) Readdir(count int) ([]fs.FileInfo, error) {
 // FS converts fsys to a [FileSystem] implementation,
 // for use with [FileServer] and [NewFileTransport].
 // The files provided by fsys must implement [io.Seeker].
+//
+// Most users should use [FileServerFS] instead.
 func FS(fsys fs.FS) FileSystem {
 	return ioFS{fsys}
 }
 
 // FileServer returns a handler that serves HTTP requests
 // with the contents of the file system rooted at root.
+// Most users should use [FileServerFS] instead.
 //
 // As a special case, the returned file server redirects any request
 // ending in "/index.html" to the same path, without the final
 // "index.html".
-//
-// To use the operating system's file system implementation,
-// use [http.Dir]:
-//
-//	http.Handle("/", http.FileServer(http.Dir("/tmp")))
-//
-// To use an [fs.FS] implementation, use [http.FileServerFS] instead.
 func FileServer(root FileSystem) Handler {
 	return &fileHandler{root}
 }
@@ -980,9 +984,13 @@ func FileServer(root FileSystem) Handler {
 // ending in "/index.html" to the same path, without the final
 // "index.html".
 //
-//	http.Handle("/", http.FileServerFS(fsys))
-func FileServerFS(root fs.FS) Handler {
-	return FileServer(FS(root))
+// FileServer serves all files contained within the [fs.FS].
+// The examples demonstrate safely serving a local directory
+// while blocking symlinks that lead outside the directory,
+// and serving a local directory while hiding files that
+// start with a dot such as ".git" and ".htpassword".
+func FileServerFS(fsys fs.FS) Handler {
+	return FileServer(FS(fsys))
 }
 
 func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
@@ -1017,7 +1025,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 		return nil, nil // header not present
 	}
 	const b = "bytes="
-	if !strings.HasPrefix(s, b) {
+	if len(s) < len(b) || !ascii.EqualFold(s[:len(b)], b) {
 		return nil, errors.New("invalid range")
 	}
 	var ranges []httpRange

@@ -76,9 +76,10 @@ const p256CompressedLength = 1 + p256ElementLength
 // the curve, it returns nil and an error, and the receiver is unchanged.
 // Otherwise, it returns p.
 func (p *P256Point) SetBytes(b []byte) (*P256Point, error) {
-	// p256Mul operates in the Montgomery domain with R = 2²⁵⁶ mod p. Thus rr
-	// here is R in the Montgomery domain, or R×R mod p. See comment in
-	// P256OrdInverse about how this is used.
+	// This implementation operates in the Montgomery domain with R = 2²⁵⁶ mod
+	// p. Elements in the Montgomery domain take the form a×R and p256Mul
+	// calculates (a × b × R⁻¹) mod p. rr is R in the domain, or R×R mod p, thus
+	// p256Mul(e, RR) gives e×R, i.e. converts e into the Montgomery domain.
 	rr := p256Element{0x0000000000000003, 0xfffffffbffffffff,
 		0xfffffffffffffffe, 0x00000004fffffffd}
 
@@ -282,7 +283,7 @@ func p256Mul(res, in1, in2 *p256Element)
 //go:noescape
 func p256Sqr(res, in *p256Element, n int)
 
-// Montgomery multiplication by R⁻¹, or 1 outside the domain.
+// Montgomery multiplication by R⁻¹, or 1 outside the domain, as R⁻¹×R = 1.
 // Sets res = in * R⁻¹, bringing res out of the Montgomery domain.
 //
 //go:noescape
@@ -365,8 +366,8 @@ func p256PointAddAsm(res, in1, in2 *P256Point) int
 //go:noescape
 func p256PointDoubleAsm(res, in *P256Point)
 
-// p256OrdElement is a P-256 scalar field element in [0, ord(G)-1] in the
-// Montgomery domain (with R 2²⁵⁶) as four uint64 limbs in little-endian order.
+// p256OrdElement is a P-256 scalar field element in [0, ord(G)-1]
+// as four uint64 limbs in little-endian order.
 type p256OrdElement [4]uint64
 
 // p256OrdReduce ensures s is in the range [0, ord(G)-1].

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"math"
 	"math/bits"
 	"slices"
 	"sort"
@@ -20,6 +21,7 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -27,7 +29,7 @@ import (
 )
 
 // walkSwitch walks a switch statement.
-func walkSwitch(sw *ir.SwitchStmt) {
+func (w *walkState) walkSwitch(sw *ir.SwitchStmt) {
 	// Guard against double walk, see #25776.
 	if sw.Walked() {
 		return // Was fatal, but eliminating every possible source of double-walking is hard
@@ -35,15 +37,15 @@ func walkSwitch(sw *ir.SwitchStmt) {
 	sw.SetWalked(true)
 
 	if sw.Tag != nil && sw.Tag.Op() == ir.OTYPESW {
-		walkSwitchType(sw)
+		w.walkSwitchType(sw)
 	} else {
-		walkSwitchExpr(sw)
+		w.walkSwitchExpr(sw)
 	}
 }
 
 // walkSwitchExpr generates an AST implementing sw.  sw is an
 // expression switch.
-func walkSwitchExpr(sw *ir.SwitchStmt) {
+func (w *walkState) walkSwitchExpr(sw *ir.SwitchStmt) {
 	lno := ir.SetPos(sw)
 
 	cond := sw.Tag
@@ -68,12 +70,14 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 		cond.SetOp(ir.OBYTES2STRTMP)
 	}
 
-	cond = walkExpr(cond, sw.PtrInit())
+	cond = w.walkExpr(cond, sw.PtrInit())
 	if cond.Op() != ir.OLITERAL && cond.Op() != ir.ONIL {
-		cond = copyExpr(cond, cond.Type(), &sw.Compiled)
+		cond = w.copyExpr(cond, cond.Type(), &sw.Compiled)
 	}
 
 	base.Pos = lno
+
+	w.tryLookupTable(sw, cond)
 
 	s := exprSwitch{
 		pos:      lno,
@@ -83,7 +87,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 	var defaultGoto ir.Node
 	var body ir.Nodes
 	for _, ncase := range sw.Cases {
-		label := typecheck.AutoLabel(".s")
+		label := w.autoLabel(".s")
 		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, label)
 
 		// Process case dispatch.
@@ -99,7 +103,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 			if i < len(ncase.RTypes) {
 				rtype = ncase.RTypes[i]
 			}
-			s.Add(ncase.Pos(), n1, rtype, jmp)
+			s.Add(w, ncase.Pos(), n1, rtype, jmp)
 		}
 
 		// Process body.
@@ -119,10 +123,10 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 		defaultGoto = br
 	}
 
-	s.Emit(&sw.Compiled)
+	s.Emit(w, &sw.Compiled)
 	sw.Compiled.Append(defaultGoto)
 	sw.Compiled.Append(body.Take()...)
-	walkStmtList(sw.Compiled)
+	w.walkStmtList(sw.Compiled)
 }
 
 // An exprSwitch walks an expression switch.
@@ -141,24 +145,24 @@ type exprClause struct {
 	jmp    ir.Node
 }
 
-func (s *exprSwitch) Add(pos src.XPos, expr, rtype, jmp ir.Node) {
+func (s *exprSwitch) Add(walkstate *walkState, pos src.XPos, expr, rtype, jmp ir.Node) {
 	c := exprClause{pos: pos, lo: expr, hi: expr, rtype: rtype, jmp: jmp}
 	if types.IsOrdered[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
 		s.clauses = append(s.clauses, c)
 		return
 	}
 
-	s.flush()
+	s.flush(walkstate)
 	s.clauses = append(s.clauses, c)
-	s.flush()
+	s.flush(walkstate)
 }
 
-func (s *exprSwitch) Emit(out *ir.Nodes) {
-	s.flush()
+func (s *exprSwitch) Emit(walkstate *walkState, out *ir.Nodes) {
+	s.flush(walkstate)
 	out.Append(s.done.Take()...)
 }
 
-func (s *exprSwitch) flush() {
+func (s *exprSwitch) flush(walkstate *walkState) {
 	cc := s.clauses
 	s.clauses = nil
 	if len(cc) == 0 {
@@ -220,8 +224,8 @@ func (s *exprSwitch) flush() {
 		// }
 		// endLabel:
 
-		outerLabel := typecheck.AutoLabel(".s")
-		endLabel := typecheck.AutoLabel(".s")
+		outerLabel := walkstate.autoLabel(".s")
+		endLabel := walkstate.autoLabel(".s")
 
 		// Jump around all the individual switches for each length.
 		s.done.Append(ir.NewBranchStmt(s.pos, ir.OGOTO, outerLabel))
@@ -232,7 +236,7 @@ func (s *exprSwitch) flush() {
 
 		for _, run := range runs {
 			// Target label to jump to when we match this length.
-			label := typecheck.AutoLabel(".s")
+			label := walkstate.autoLabel(".s")
 
 			// Search within this run of same-length strings.
 			pos := run[0].pos
@@ -243,10 +247,10 @@ func (s *exprSwitch) flush() {
 			// Add length case to outer switch.
 			cas := ir.NewInt(pos, runLen(run))
 			jmp := ir.NewBranchStmt(pos, ir.OGOTO, label)
-			outer.Add(pos, cas, nil, jmp)
+			outer.Add(walkstate, pos, cas, nil, jmp)
 		}
 		s.done.Append(ir.NewLabelStmt(s.pos, outerLabel))
-		outer.Emit(&s.done)
+		outer.Emit(walkstate, &s.done)
 		s.done.Append(ir.NewLabelStmt(s.pos, endLabel))
 		return
 	}
@@ -334,6 +338,339 @@ func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
 	return true
 }
 
+// tryLookupTable attempts to replace cases of an integer switch that produce a
+// constant with a static lookup table. Cases whose bodies are a single return
+// or an assignment to the same local variable are served from a read-only
+// array, eliminating branching. Remaining cases (non-constant bodies, default)
+// are left in sw.Cases for normal switch compilation.
+//
+// For example:
+//
+//	switch x {
+//	case 0: return 10
+//	case 1: return 20
+//	case 2, 3: return 30
+//	default: return -1
+//	}
+//
+// Becomes:
+//
+//	var table = [4]int{10, 20, 30, 30}
+//	if uint(x) < 4 { return table[x] }
+//	// remaining switch for default
+//
+// Partial optimization also works when some cases have non-constant bodies:
+//
+//	switch x {
+//	case 1: return 1
+//	case 2: return 4
+//	case 3: sideEffect(); return 9
+//	...
+//	default: return x * x
+//	}
+//
+// Becomes:
+//
+//	var table = [8]int{1, 4, 0, ...}
+//	var mask  = [8]uint8{1, 1, 0, ...}
+//	if uint(x-1) <= 7 && mask[x-1] != 0 { return table[x-1] }
+//	// remaining switch for case 3 + default
+func (w *walkState) tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
+	const minCases = 4 // need enough cases to justify a table
+
+	if base.Flag.N != 0 {
+		return // optimizations disabled
+	}
+	if !cond.Type().IsInteger() {
+		return
+	}
+	if cond.Type().Size() > int64(types.PtrSize) {
+		return // 64-bit switches on 32-bit archs
+	}
+
+	fn := w.curfunc
+	if fn == nil {
+		return
+	}
+	var resultType *types.Type
+
+	// Classify each case as const-producing or not.
+	constSet := make(map[int64]ir.Node)         // case value → constant literal
+	constCases := make(map[*ir.CaseClause]bool) // const-producing non-default cases
+	excludeSet := make(map[int64]bool)          // case values with non-const bodies
+	var assignTarget *ir.Name                   // nil if table values are returned
+	var defaultTarget *ir.Name
+	var defaultVal ir.Node // non-nil if default produces a constant
+	minVal, maxVal := int64(math.MaxInt64), int64(math.MinInt64)
+	var excludeNextCase bool // true if the previous case ends in fallthrough
+
+	// TODO: Support multiple result actions, such as a mix of returns and
+	// assignments or assignments to different locals. Currently, the first
+	// eligible non-default case selects whether the table returns or assigns and,
+	// for an assignment, its target. Cases with a different action are excluded
+	// from the table and left in sw.Cases for normal switch compilation.
+	for _, ncase := range sw.Cases {
+		// A case that is the target of a fallthrough must be excluded,
+		// since removing it would break the fallthrough chain.
+		isFallthroughTarget := excludeNextCase
+		excludeNextCase, _ = endsInFallthrough(ncase.Body)
+
+		if len(ncase.List) == 0 {
+			// Default case: remember a constant result for gap filling.
+			if target, val, ok := constCaseResult(ncase); ok && !isFallthroughTarget {
+				defaultTarget, defaultVal = target, val
+			}
+			continue
+		}
+
+		vals, ok := constIntCaseVals(ncase)
+		if !ok {
+			// Case has a non-constant case expression (e.g. a variable).
+			// Bail out: we can't determine overlap with the table range.
+			// For example:
+			//   case 1: return 1  // const → would go to table
+			//   case c: return 9  // c is a variable, not a constant
+			//   case 3: return 3  // const → would go to table
+			// At runtime, if c==3 then Go evaluates case c before case 3,
+			// returning 9. But if we put cases 1 and 3 in a table, n==3
+			// would return 3 from the table, skipping the case c check.
+			return
+		}
+
+		target, val, ok := constCaseResult(ncase)
+		if !ok || isFallthroughTarget || excludeNextCase || len(constSet) != 0 && target != assignTarget {
+			// Non-const or incompatible body, fallthrough source, or
+			// fallthrough target: exclude these values from the table so
+			// the mask redirects them to the normal switch, preserving Go's
+			// top-to-bottom case evaluation order.
+			for _, v := range vals {
+				excludeSet[v] = true
+			}
+			continue // will be handled by normal switch
+		}
+
+		if len(constSet) == 0 {
+			// The first eligible case determines whether table values are returned or
+			// assigned. For assignments, the local's type may differ from the function's
+			// result type, so use it as the table element type.
+			assignTarget = target
+			if assignTarget == nil {
+				resultType = fn.Type().Results()[0].Type
+			} else {
+				resultType = assignTarget.Type()
+			}
+		}
+		for _, v := range vals {
+			constSet[v] = val
+			minVal = min(minVal, v)
+			maxVal = max(maxVal, v)
+		}
+		constCases[ncase] = true
+	}
+
+	if len(constSet) < minCases {
+		return
+	}
+	if defaultTarget != assignTarget {
+		// A constant default may have a different result target from the table cases:
+		// one may return while the other assigns, or they may assign to different
+		// locals. Such a default cannot be used to fill gaps in the table.
+		defaultVal = nil
+	}
+
+	tableSize := maxVal - minVal + 1
+	if tableSize <= 0 || !isSwitchDense(int64(len(constSet)), tableSize) {
+		return // too sparse
+	}
+
+	// Build static lookup table and determine which slots are valid.
+	// Also build the bitmask inline if the table is small enough.
+	tabType := types.NewArray(resultType, tableSize)
+	tabName := readonlystaticname(tabType)
+	elemSize := int(resultType.Size())
+	maxBitmaskSize := int64(types.PtrSize * 8) // 32 or 64
+
+	var needMask bool
+	var bitmask uint64
+	validSlots := make([]bool, tableSize)
+	// Pre-size the symbol to cover the full table.
+	tabName.Linksym().WriteInt(base.Ctxt, tableSize*int64(elemSize)-1, 1, 0)
+	for i := range tableSize {
+		caseVal := minVal + i
+		if excludeSet[caseVal] {
+			// Non-const case in range: must fall through to normal switch.
+			needMask = true
+		} else {
+			val := constSet[caseVal]
+			if val == nil {
+				if defaultVal == nil {
+					// Gap with no const default: must fall through to normal switch.
+					needMask = true
+					continue
+				}
+				val = defaultVal // gap filled with default constant value
+			}
+			staticdata.InitConst(tabName, i*int64(elemSize), val, elemSize)
+			validSlots[i] = true
+			bitmask |= 1 << uint(i)
+		}
+	}
+
+	// Build mask if some slots must fall through to normal switch.
+	// When the table fits in a register-width bitmask (≤32 entries on 32-bit,
+	// ≤64 on 64-bit), use the bitmask computed above. For larger tables,
+	// fall back to a byte array.
+	var maskName *ir.Name
+	useBitmask := needMask && tableSize <= maxBitmaskSize
+	if needMask && !useBitmask {
+		maskType := types.NewArray(types.Types[types.TUINT8], tableSize)
+		maskName = readonlystaticname(maskType)
+		maskSym := maskName.Linksym()
+		for i := range tableSize {
+			var v uint8
+			if validSlots[i] {
+				v = 1
+			}
+			maskSym.WriteInt(base.Ctxt, i, 1, int64(v))
+		}
+	}
+
+	// Generate code:
+	//   idx := uint(int(cond) - minVal)
+	//   if idx <= uint(maxVal-minVal) [&& bitmask>>idx&1 != 0] { return table[idx] }
+	pos := sw.Pos()
+
+	// Widen cond to int to avoid overflow in small integer types.
+	intType := types.Types[types.TINT]
+	wideCond := typecheck.Conv(cond, intType)
+
+	// Compute idx = int(cond) - minVal.
+	var idx ir.Node
+	if minVal != 0 {
+		minLit := ir.NewBasicLit(pos, intType, constant.MakeInt64(minVal))
+		idx = typecheck.Expr(ir.NewBinaryExpr(pos, ir.OSUB, wideCond, minLit))
+	} else {
+		idx = wideCond
+	}
+
+	// Convert to uint for the one-sided bounds check and store in a temp
+	// so the index can be shared across the bounds check, table, and mask.
+	uintType := types.Types[types.TUINT]
+	uidx := typecheck.Conv(idx, uintType)
+	uidx = w.copyExpr(uidx, uintType, &sw.Compiled)
+
+	// Bounds check: uint(idx) <= uint(maxVal - minVal).
+	rangeLit := ir.NewBasicLit(pos, uintType, constant.MakeUint64(uint64(maxVal-minVal)))
+	boundsCheck := typecheck.Expr(ir.NewBinaryExpr(pos, ir.OLE, uidx, rangeLit))
+	boundsCheck = typecheck.DefaultLit(boundsCheck, nil)
+
+	// Table lookup: table[idx] with bounds elided (already checked).
+	lookup := ir.NewIndexExpr(pos, tabName, uidx)
+	lookup.SetBounded(true)
+	lookup = typecheck.Expr(lookup).(*ir.IndexExpr)
+
+	var resultBody []ir.Node
+	if assignTarget == nil {
+		resultBody = []ir.Node{ir.NewReturnStmt(pos, []ir.Node{lookup})}
+	} else {
+		assign := typecheck.Stmt(ir.NewAssignStmt(pos, assignTarget, lookup))
+		br := ir.NewBranchStmt(pos, ir.OBREAK, nil)
+		resultBody = []ir.Node{assign, br}
+	}
+
+	if needMask {
+		var maskCheck ir.Node
+		if useBitmask {
+			// Bitmask check: (bitmask >> idx) & 1 != 0.
+			// Use uintptr so the operation is register-width on all architectures.
+			bitmaskType := types.Types[types.TUINTPTR]
+			bitmaskLit := ir.NewBasicLit(pos, bitmaskType, constant.MakeUint64(bitmask))
+			shifted := typecheck.Expr(ir.NewBinaryExpr(pos, ir.ORSH, bitmaskLit, uidx))
+			one := ir.NewOne(pos, bitmaskType)
+			masked := typecheck.Expr(ir.NewBinaryExpr(pos, ir.OAND, shifted, one))
+			zero := ir.NewZero(pos, bitmaskType)
+			maskCheck = typecheck.Expr(ir.NewBinaryExpr(pos, ir.ONE, masked, zero))
+		} else {
+			// Mask array check: mask[idx] != 0.
+			maskLookup := ir.NewIndexExpr(pos, maskName, uidx)
+			maskLookup.SetBounded(true)
+			maskLookup = typecheck.Expr(maskLookup).(*ir.IndexExpr)
+			zero := ir.NewZero(pos, maskLookup.Type())
+			maskCheck = typecheck.Expr(ir.NewBinaryExpr(pos, ir.ONE, maskLookup, zero))
+		}
+		condition := typecheck.DefaultLit(typecheck.Expr(ir.NewLogicalExpr(pos, ir.OANDAND, boundsCheck, maskCheck)), nil)
+		sw.Compiled.Append(ir.NewIfStmt(pos, condition, resultBody, nil))
+	} else {
+		sw.Compiled.Append(ir.NewIfStmt(pos, boundsCheck, resultBody, nil))
+	}
+
+	// Remove handled const cases from sw.Cases.
+	// Keep default and non-const cases for normal switch processing.
+	sw.Cases = slices.DeleteFunc(sw.Cases, func(ncase *ir.CaseClause) bool {
+		return constCases[ncase]
+	})
+}
+
+// isSwitchDense reports whether a lookup table with tableSize entries
+// for numCases cases is dense enough to be worth building.
+// It requires at least 40% of table slots to be used, matching the
+// density threshold used by LLVM's SimplifyCFG.
+func isSwitchDense(numCases, tableSize int64) bool {
+	const minDensity = 40
+	if tableSize >= math.MaxInt64/100 {
+		return false // avoid multiplication overflow below
+	}
+	return numCases*100 >= tableSize*minDensity
+}
+
+// constCaseResult reports whether ncase has a body that is a single constant
+// return or assignment to a local variable. A nil target denotes a return.
+func constCaseResult(ncase *ir.CaseClause) (*ir.Name, ir.Node, bool) {
+	if len(ncase.Body) != 1 {
+		return nil, nil, false
+	}
+
+	switch stmt := ncase.Body[0].(type) {
+	case *ir.ReturnStmt:
+		if len(stmt.Results) == 1 && ir.IsConstNode(stmt.Results[0]) {
+			return nil, stmt.Results[0], true
+		}
+	case *ir.AssignStmt:
+		if stmt.Def || !ir.IsConstNode(stmt.Y) {
+			break
+		}
+		target, ok := stmt.X.(*ir.Name)
+		if !ok || ir.IsBlank(target) {
+			break
+		}
+		// Return-slot optimization may rewrite a local variable to an output
+		// parameter before walk.
+		switch target.Class {
+		case ir.PAUTO, ir.PAUTOHEAP, ir.PPARAMOUT:
+			return target, stmt.Y, true
+		}
+	}
+
+	return nil, nil, false
+}
+
+// constIntCaseVals returns the int64 values of all case expressions in
+// ncase, if they are all integer constants. Returns ok=false if any
+// case expression is not a constant integer.
+func constIntCaseVals(ncase *ir.CaseClause) (vals []int64, ok bool) {
+	for _, n1 := range ncase.List {
+		if !ir.IsConst(n1, constant.Int) {
+			return nil, false
+		}
+		v, fit := constant.Int64Val(n1.Val())
+		if !fit {
+			return nil, false
+		}
+		vals = append(vals, v)
+	}
+	return vals, true
+}
+
 func (c *exprClause) test(exprname ir.Node) ir.Node {
 	// Integer range.
 	if c.hi != c.lo {
@@ -385,13 +722,14 @@ func endsInFallthrough(stmts []ir.Node) (bool, src.XPos) {
 
 // walkSwitchType generates an AST that implements sw, where sw is a
 // type switch.
-func walkSwitchType(sw *ir.SwitchStmt) {
+func (w *walkState) walkSwitchType(sw *ir.SwitchStmt) {
 	var s typeSwitch
-	s.srcName = sw.Tag.(*ir.TypeSwitchGuard).X
-	s.srcName = walkExpr(s.srcName, sw.PtrInit())
-	s.srcName = copyExpr(s.srcName, s.srcName.Type(), &sw.Compiled)
-	s.okName = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
-	s.itabName = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINT8].PtrTo())
+	origSrc := sw.Tag.(*ir.TypeSwitchGuard).X
+	s.srcName = origSrc
+	s.srcName = w.walkExpr(s.srcName, sw.PtrInit())
+	s.srcName = w.copyExpr(s.srcName, s.srcName.Type(), &sw.Compiled)
+	s.okName = typecheck.TempAt(base.Pos, w.curfunc, types.Types[types.TBOOL])
+	s.itabName = typecheck.TempAt(base.Pos, w.curfunc, types.Types[types.TUINT8].PtrTo())
 
 	// Get interface descriptor word.
 	// For empty interfaces this will be the type.
@@ -417,12 +755,12 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 
 	// Load hash from type or itab.
 	dotHash := typeHashFieldOf(base.Pos, srcItab)
-	s.hashName = copyExpr(dotHash, dotHash.Type(), &sw.Compiled)
+	s.hashName = w.copyExpr(dotHash, dotHash.Type(), &sw.Compiled)
 
 	// Make a label for each case body.
 	labels := make([]*types.Sym, len(sw.Cases))
 	for i := range sw.Cases {
-		labels[i] = typecheck.AutoLabel(".s")
+		labels[i] = w.autoLabel(".s")
 	}
 
 	// "jump" to execute if no case matches.
@@ -470,7 +808,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			var val ir.Node
 			// for a single runtime known type with a case var, create the tmpVar
 			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE && ncase.Var != nil {
-				val = typecheck.TempAt(ncase.Pos(), ir.CurFunc, ncase.Var.Type())
+				val = typecheck.TempAt(ncase.Pos(), w.curfunc, ncase.Var.Type())
 				idx = i
 			}
 			cases = append(cases, oneCase{
@@ -510,7 +848,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 					body: []ir.Node{typecheck.Stmt(as), typecheck.Stmt(nif)},
 				})
 			}
-			s.flush(clauses, &sw.Compiled)
+			s.flush(w, clauses, &sw.Compiled)
 			concreteCases = concreteCases[:0]
 		}
 
@@ -550,7 +888,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			} else {
 				typeArg = itabType(srcItab)
 			}
-			caseVar := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+			caseVar := typecheck.TempAt(base.Pos, w.curfunc, types.Types[types.TINT])
 			isw := ir.NewInterfaceSwitchStmt(base.Pos, caseVar, s.itabName, typeArg, dotHash, lsym)
 			sw.Compiled.Append(isw)
 
@@ -615,6 +953,10 @@ caseLoop:
 			//    be satisfied by an infinite set of concrete types.
 			// The correctness of this step also depends on handling
 			// the dynamic type cases separately, as we do above.
+		}
+
+		if w.shapeTypeAssertImpossible(origSrc, c.typ.Type()) {
+			continue
 		}
 
 		if c.typ.Type().IsInterface() {
@@ -689,7 +1031,7 @@ caseLoop:
 		sw.Compiled.Append(br)
 	}
 
-	walkStmtList(sw.Compiled)
+	w.walkStmtList(sw.Compiled)
 	sw.Tag = nil
 	sw.Cases = nil
 }
@@ -736,7 +1078,7 @@ type typeClause struct {
 	body ir.Nodes
 }
 
-func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
+func (s *typeSwitch) flush(walkstate *walkState, cc []typeClause, compiled *ir.Nodes) {
 	if len(cc) == 0 {
 		return
 	}
@@ -755,7 +1097,7 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
 	}
 	cc = merged
 
-	if s.tryJumpTable(cc, compiled) {
+	if s.tryJumpTable(walkstate, cc, compiled) {
 		return
 	}
 	binarySearch(len(cc), compiled,
@@ -773,7 +1115,7 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
 }
 
 // Try to implement the clauses with a jump table. Returns true if successful.
-func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
+func (s *typeSwitch) tryJumpTable(walkstate *walkState, cc []typeClause, out *ir.Nodes) bool {
 	const minCases = 5 // have at least minCases cases in the switch
 	if base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable || base.Ctxt.Retpoline {
 		return false
@@ -819,7 +1161,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
 			out.Append(jt)
 
 			// Start with all hashes going to the didn't-match target.
-			noMatch := typecheck.AutoLabel(".s")
+			noMatch := walkstate.autoLabel(".s")
 			for j := 0; j < 1<<b; j++ {
 				jt.Cases[j] = constant.MakeInt64(int64(j))
 				jt.Targets[j] = noMatch
@@ -831,7 +1173,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
 			// Emit each of the actual cases.
 			for _, c := range cc {
 				h := c.hash >> i & (1<<b - 1)
-				label := typecheck.AutoLabel(".s")
+				label := walkstate.autoLabel(".s")
 				jt.Targets[h] = label
 				out.Append(ir.NewLabelStmt(base.Pos, label))
 				out.Append(c.body...)

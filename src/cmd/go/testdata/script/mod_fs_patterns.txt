@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # File system pattern searches should skip sub-modules and vendor directories.
 cd x
 

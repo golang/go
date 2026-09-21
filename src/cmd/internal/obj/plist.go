@@ -169,10 +169,24 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 		if ctxt.Errors > 0 {
 			continue
 		}
+		writeJumpTables(ctxt, s)
 		linkpcln(ctxt, s)
 		ctxt.populateDWARF(plist.Curfn, s)
 		if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.SEH != nil {
 			s.Func().sehUnwindInfoSym = ctxt.Arch.SEH(ctxt, s)
+		}
+	}
+}
+
+// writeJumpTables fills in the jump table symbols for s.
+// It must run after Arch.Assemble, which is what makes Prog.Pc final.
+func writeJumpTables(ctxt *Link, s *LSym) {
+	entrySize := ctxt.Arch.PtrSize
+	for _, jt := range s.Func().JumpTables {
+		for i, p := range jt.Targets {
+			// The ith jumptable entry points to the p.Pc'th
+			// byte in the function symbol s.
+			jt.Sym.WriteAddr(ctxt, int64(i)*int64(entrySize), entrySize, s, p.Pc)
 		}
 	}
 }
@@ -183,7 +197,11 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 		return
 	}
 	if s.Func() != nil {
-		ctxt.Diag("%s: symbol %s redeclared\n\t%s: other declaration of symbol %s", ctxt.PosTable.Pos(start), s.Name, ctxt.PosTable.Pos(s.Func().Text.Pos), s.Name)
+		otherPos := src.NoPos
+		if s.Func().Text != nil {
+			otherPos = ctxt.PosTable.Pos(s.Func().Text.Pos)
+		}
+		ctxt.Diag("%s: symbol %s redeclared\n\t%s: other declaration of symbol %s", ctxt.PosTable.Pos(start), s.Name, otherPos, s.Name)
 		return
 	}
 	s.NewFuncInfo()

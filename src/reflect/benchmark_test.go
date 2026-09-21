@@ -146,10 +146,8 @@ func BenchmarkIsZero(b *testing.B) {
 	s.ArrayInt_1024_NoZero[512] = 1
 	source := ValueOf(s)
 
-	for i := 0; i < source.NumField(); i++ {
-		name := source.Type().Field(i).Name
-		value := source.Field(i)
-		b.Run(name, func(b *testing.B) {
+	for field, value := range source.Fields() {
+		b.Run(field.Name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				sink = value.IsZero()
 			}
@@ -175,9 +173,8 @@ func BenchmarkSetZero(b *testing.B) {
 		Struct    Value
 	})).Elem()
 
-	for i := 0; i < source.NumField(); i++ {
-		name := source.Type().Field(i).Name
-		value := source.Field(i)
+	for field, value := range source.Fields() {
+		name := field.Name
 		zero := Zero(value.Type())
 		b.Run(name+"/Direct", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -268,6 +265,24 @@ func BenchmarkSelect(b *testing.B) {
 	}
 }
 
+func BenchmarkSelectStaticLit(b *testing.B) {
+	channel := make(chan int)
+	close(channel)
+
+	sc := SelectCase{Dir: SelectRecv, Chan: ValueOf(channel)}
+	b.Run("[4]SelectCase", func(b *testing.B) {
+		for range b.N {
+			_, _, _ = Select([]SelectCase{sc, sc, sc, sc})
+		}
+	})
+
+	b.Run("[8]SelectCase", func(b *testing.B) {
+		for range b.N {
+			_, _, _ = Select([]SelectCase{sc, sc, sc, sc, sc, sc, sc, sc})
+		}
+	})
+}
+
 func BenchmarkCall(b *testing.B) {
 	fv := ValueOf(func(a, b string) {})
 	b.ReportAllocs()
@@ -281,7 +296,7 @@ func BenchmarkCall(b *testing.B) {
 
 type myint int64
 
-func (i *myint) inc() {
+func (i *myint) Inc() {
 	*i = *i + 1
 }
 
@@ -289,7 +304,7 @@ func BenchmarkCallMethod(b *testing.B) {
 	b.ReportAllocs()
 	z := new(myint)
 
-	v := ValueOf(z.inc)
+	v := ValueOf(z.Inc)
 	for i := 0; i < b.N; i++ {
 		v.Call(nil)
 	}
@@ -476,5 +491,14 @@ func BenchmarkMapIterNext(b *testing.B) {
 		for it.Next() {
 		}
 		it.Reset(m)
+	}
+}
+
+func BenchmarkMethodValueCall(b *testing.B) {
+	b.ReportAllocs()
+	z := new(myint)
+	v := ValueOf(z)
+	for i := 0; i < b.N; i++ {
+		v.Method(0).Call(nil)
 	}
 }

@@ -5,7 +5,9 @@
 package fstest
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"strings"
 	"testing"
@@ -121,5 +123,73 @@ func TestMapFSSymlink(t *testing.T) {
 		if got, want := gotInfo.Mode(), fs.ModeDir|0555; got != want {
 			t.Errorf("fs.Stat(m, \"linklink\").Mode() = %v; want %v", got, want)
 		}
+	}
+}
+
+func TestMapFSSymlinkParentDir(t *testing.T) {
+	m := MapFS{
+		"proc/self":      {Mode: fs.ModeDir | 0555},
+		"proc/self/root": {Data: []byte("../.."), Mode: fs.ModeSymlink},
+	}
+	if err := TestFS(m, "proc/self", "proc/self/root"); err != nil {
+		t.Error(err)
+	}
+
+	gotInfo, err := fs.Stat(m, "proc/self/root/proc/self")
+	if err != nil {
+		t.Fatalf("fs.Stat(m, \"proc/self/root/proc/self\") = _, %v; want _, <nil>", err)
+	}
+	if got, want := gotInfo.Name(), "self"; got != want {
+		t.Errorf("fs.Stat(m, \"proc/self/root/proc/self\").Name() = %q; want %q", got, want)
+	}
+}
+
+func TestMapFSReadAt(t *testing.T) {
+	const fileContent = "hello, world\n"
+	m := MapFS{
+		"hello": {Data: []byte(fileContent)},
+	}
+	f, err := m.Open("hello")
+	if err != nil {
+		t.Error(err)
+	}
+	r, ok := f.(io.ReaderAt)
+	if !ok {
+		t.Errorf("Open file does not implement io.ReaderAt")
+	}
+	buf := make([]byte, 1)
+
+	n, err := r.ReadAt(buf, 0)
+	if n != 1 || err != nil {
+		t.Errorf("ReadAt(buf, 0) = %d, %v; want 1, <nil>", n, err)
+	}
+
+	n, err = r.ReadAt(buf, int64(len(fileContent)))
+	if n != 0 || err != io.EOF {
+		t.Errorf("ReadAt(buf, len(fileContent)) = %d, %v; want 0, io.EOF", n, err)
+	}
+
+	n, err = r.ReadAt(buf, int64(len(fileContent)+1))
+	if n != 0 || err != io.EOF {
+		t.Errorf("ReadAt(buf, len(fileContent)+1) = %d, %v; want 0, io.EOF", n, err)
+	}
+}
+
+func TestMapFSSeek(t *testing.T) {
+	m := MapFS{
+		"hello": {Data: []byte("hello, world\n")},
+	}
+	f, err := m.Open("hello")
+	if err != nil {
+		t.Error(err)
+	}
+	defer f.Close()
+	s := f.(io.Seeker)
+	_, err = s.Seek(0, io.SeekEnd+5)
+	if err == nil {
+		t.Errorf("Seek: expected error for invalid whence")
+	}
+	if !errors.Is(err, fs.ErrInvalid) {
+		t.Errorf("Seek: expected fs.ErrInvalid, got %v", err)
 	}
 }

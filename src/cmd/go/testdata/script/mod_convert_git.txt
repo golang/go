@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # We should not create a go.mod file unless the user ran 'go mod init' explicitly.
 # However, we should suggest 'go mod init' if we can find an alternate config file.
 cd $WORK/test/x

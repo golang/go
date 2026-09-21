@@ -186,16 +186,6 @@ type Config struct {
 	// of an error message. ErrorURL must be a format string containing
 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
 	_ErrorURL string
-
-	// If EnableAlias is set, alias declarations produce an Alias type. Otherwise
-	// the alias information is only in the type name, which points directly to
-	// the actual (aliased) type.
-	//
-	// This setting must not differ among concurrent type-checking operations,
-	// since it affects the behavior of Universe.Lookup("any").
-	//
-	// This flag will eventually be removed (with Go 1.24 at the earliest).
-	_EnableAlias bool
 }
 
 // Linkname for use from srcimporter.
@@ -453,6 +443,10 @@ func (tv TypeAndValue) HasOk() bool {
 type Instance struct {
 	TypeArgs *TypeList
 	Type     Type
+}
+
+func (inst Instance) String() string {
+	return fmt.Sprintf("%s%s", inst.TypeArgs, inst.Type)
 }
 
 // An Initializer describes a package-level variable, or a list of variables in case

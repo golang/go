@@ -36,9 +36,19 @@ func CanImport(from, to string) bool {
 	return true
 }
 
-// IsStdPackage reports whether the specified package path belongs to a
-// package in the standard library (including internal dependencies).
-func IsStdPackage(path string) bool {
+// MaybeStdPackage reports whether the specified package path might
+// belong to a package in the standard library (including internal
+// dependencies), based only on its form.
+//
+// It may spuriously return true, but a result of false is definitive:
+//
+//	MaybeStdPackage("fmt")             = true
+//	MaybeStdPackage("maybe/tomorrow")  = true  // false positive
+//	MaybeStdPackage("example.com/foo") = false
+//
+// For a definitive answer, use [stdlib.HasPackage], which consults a
+// huge table.
+func MaybeStdPackage(path string) bool {
 	// A standard package has no dot in its first segment.
 	// (It may yet have a dot, e.g. "vendor/golang.org/x/foo".)
 	slash := strings.IndexByte(path, '/')

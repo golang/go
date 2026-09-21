@@ -2,6 +2,7 @@
 
 env GO111MODULE=off
 env GOARCH=amd64
+env GOOS=linux
 
 ! go vet -asmdecl a
 stderr 'f: invalid MOVW of x'

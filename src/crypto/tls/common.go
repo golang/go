@@ -12,6 +12,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/fips140"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
@@ -22,6 +24,7 @@ import (
 	"internal/godebug"
 	"io"
 	"net"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -145,19 +148,32 @@ const (
 type CurveID uint16
 
 const (
-	CurveP256      CurveID = 23
-	CurveP384      CurveID = 24
-	CurveP521      CurveID = 25
-	X25519         CurveID = 29
-	X25519MLKEM768 CurveID = 4588
+	CurveP256          CurveID = 23
+	CurveP384          CurveID = 24
+	CurveP521          CurveID = 25
+	X25519             CurveID = 29
+	X25519MLKEM768     CurveID = 4588
+	SecP256r1MLKEM768  CurveID = 4587
+	SecP384r1MLKEM1024 CurveID = 4589
+	MLKEM1024          CurveID = 514
 )
 
 func isTLS13OnlyKeyExchange(curve CurveID) bool {
-	return curve == X25519MLKEM768
+	switch curve {
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024, MLKEM1024:
+		return true
+	default:
+		return false
+	}
 }
 
 func isPQKeyExchange(curve CurveID) bool {
-	return curve == X25519MLKEM768
+	switch curve {
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024, MLKEM1024:
+		return true
+	default:
+		return false
+	}
 }
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
@@ -203,11 +219,12 @@ const (
 	signatureRSAPSS
 	signatureECDSA
 	signatureEd25519
+	signatureMLDSA
 )
 
 // directSigning is a standard Hash value that signals that no pre-hashing
 // should be performed, and that the input should be signed directly. It is the
-// hash function associated with the Ed25519 signature scheme.
+// hash function associated with the Ed25519 and ML-DSA signature schemes.
 var directSigning crypto.Hash = 0
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
@@ -304,11 +321,17 @@ type ConnectionState struct {
 	// client side.
 	ECHAccepted bool
 
+	// HelloRetryRequest indicates whether we sent a HelloRetryRequest if we
+	// are a server, or if we received a HelloRetryRequest if we are a client.
+	HelloRetryRequest bool
+
+	// LocalCertificate is the certificate chain presented to the peer, if any,
+	// during the handshake. This field is only populated for connections which
+	// are not resumed (DidResume is false).
+	LocalCertificate [][]byte
+
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
-
-	// testingOnlyDidHRR is true if a HelloRetryRequest was sent/received.
-	testingOnlyDidHRR bool
 
 	// testingOnlyPeerSignatureAlgorithm is the signature algorithm used by the
 	// peer to sign the handshake. It is not set for resumed connections.
@@ -320,11 +343,6 @@ type ConnectionState struct {
 // the seed. If the connection was set to allow renegotiation via
 // Config.Renegotiation, or if the connections supports neither TLS 1.3 nor
 // Extended Master Secret, this function will return an error.
-//
-// Exporting key material without Extended Master Secret or TLS 1.3 was disabled
-// in Go 1.22 due to security issues (see the Security Considerations sections
-// of RFC 5705 and RFC 7627), but can be re-enabled with the GODEBUG setting
-// tlsunsafeekm=1.
 func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
 	return cs.ekm(label, context, length)
 }
@@ -411,6 +429,11 @@ const (
 	// EdDSA algorithms.
 	Ed25519 SignatureScheme = 0x0807
 
+	// ML-DSA algorithms.
+	MLDSA44 SignatureScheme = 0x0904
+	MLDSA65 SignatureScheme = 0x0905
+	MLDSA87 SignatureScheme = 0x0906
+
 	// Legacy signature and hash algorithms for TLS 1.2.
 	PKCS1WithSHA1 SignatureScheme = 0x0201
 	ECDSAWithSHA1 SignatureScheme = 0x0203
@@ -469,9 +492,16 @@ type ClientHelloInfo struct {
 	// connection to fail.
 	Conn net.Conn
 
+	// HelloRetryRequest indicates whether the ClientHello was sent in response
+	// to a HelloRetryRequest message.
+	HelloRetryRequest bool
+
 	// config is embedded by the GetCertificate or GetConfigForClient caller,
 	// for use with SupportsCertificate.
 	config *Config
+
+	// isQUIC indicates whether the connection is a QUIC connection.
+	isQUIC bool
 
 	// ctx is the context of the handshake that is in progress.
 	ctx context.Context
@@ -546,10 +576,13 @@ const (
 // modified. A Config may be reused; the tls package will also not
 // modify it.
 type Config struct {
-	// Rand provides the source of entropy for nonces and RSA blinding.
+	// Rand provides the source of entropy for the connection.
 	// If Rand is nil, TLS uses the cryptographic random reader in package
-	// crypto/rand.
-	// The Reader must be safe for use by multiple goroutines.
+	// crypto/rand. The Reader must be safe for use by multiple goroutines.
+	//
+	// Deprecated: this should be left nil in production. Not all TLS
+	// configurations are guaranteed to use Rand. Test code can use
+	// [testing/cryptotest.SetGlobalRandom] instead.
 	Rand io.Reader
 
 	// Time returns the current time as the number of seconds since the epoch.
@@ -615,10 +648,13 @@ type Config struct {
 	// If GetConfigForClient is nil, the Config passed to Server() will be
 	// used for all connections.
 	//
-	// If SessionTicketKey was explicitly set on the returned Config, or if
-	// SetSessionTicketKeys was called on the returned Config, those keys will
+	// If SessionTicketKey is explicitly set on the returned Config, or if
+	// SetSessionTicketKeys is called on the returned Config, those keys will
 	// be used. Otherwise, the original Config keys will be used (and possibly
-	// rotated if they are automatically managed).
+	// rotated if they are automatically managed). WARNING: this allows session
+	// resumption of connections originally established with the parent (or a
+	// sibling) Config, which may bypass the [Config.VerifyPeerCertificate]
+	// value of the returned Config.
 	GetConfigForClient func(*ClientHelloInfo) (*Config, error)
 
 	// VerifyPeerCertificate, if not nil, is called after normal
@@ -636,8 +672,10 @@ type Config struct {
 	// rawCerts may be empty on the server if ClientAuth is RequestClientCert or
 	// VerifyClientCertIfGiven.
 	//
-	// This callback is not invoked on resumed connections, as certificates are
-	// not re-verified on resumption.
+	// This callback is not invoked on resumed connections. WARNING: this
+	// includes connections resumed across Configs returned by [Config.Clone] or
+	// [Config.GetConfigForClient] and their parents. If that is not intended,
+	// use [Config.VerifyConnection] instead, or set [Config.SessionTicketsDisabled].
 	//
 	// verifiedChains and its contents should not be modified.
 	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
@@ -693,11 +731,7 @@ type Config struct {
 	// the list is ignored. Note that TLS 1.3 ciphersuites are not configurable.
 	//
 	// If CipherSuites is nil, a safe default list is used. The default cipher
-	// suites might change over time. In Go 1.22 RSA key exchange based cipher
-	// suites were removed from the default list, but can be re-added with the
-	// GODEBUG setting tlsrsakex=1. In Go 1.23 3DES cipher suites were removed
-	// from the default list, but can be re-added with the GODEBUG setting
-	// tls3des=1.
+	// suites might change over time.
 	CipherSuites []uint16
 
 	// PreferServerCipherSuites is a legacy field and has no effect.
@@ -762,9 +796,6 @@ type Config struct {
 	//
 	// By default, TLS 1.2 is currently used as the minimum. TLS 1.0 is the
 	// minimum supported by this package.
-	//
-	// The server-side default can be reverted to TLS 1.0 by including the value
-	// "tls10server=1" in the GODEBUG environment variable.
 	MinVersion uint16
 
 	// MaxVersion contains the maximum TLS version that is acceptable.
@@ -782,6 +813,11 @@ type Config struct {
 	// From Go 1.24, the default includes the [X25519MLKEM768] hybrid
 	// post-quantum key exchange. To disable it, set CurvePreferences explicitly
 	// or use the GODEBUG=tlsmlkem=0 environment variable.
+	//
+	// From Go 1.26, the default includes the [SecP256r1MLKEM768] and
+	// [SecP384r1MLKEM1024] hybrid post-quantum key exchanges, too. To disable
+	// them, set CurvePreferences explicitly or use either the
+	// GODEBUG=tlsmlkem=0 or the GODEBUG=tlssecpmlkem=0 environment variable.
 	CurvePreferences []CurveID
 
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
@@ -797,7 +833,7 @@ type Config struct {
 	// KeyLogWriter optionally specifies a destination for TLS master secrets
 	// in NSS key log format that can be used to allow external programs
 	// such as Wireshark to decrypt TLS connections.
-	// See https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format.
+	// See https://datatracker.ietf.org/doc/draft-ietf-tls-keylogfile/.
 	// Use of KeyLogWriter compromises security and should only be
 	// used for debugging.
 	KeyLogWriter io.Writer
@@ -889,13 +925,34 @@ type Config struct {
 // with a specific ECH config known to a client.
 type EncryptedClientHelloKey struct {
 	// Config should be a marshalled ECHConfig associated with PrivateKey. This
-	// must match the config provided to clients byte-for-byte. The config
-	// should only specify the DHKEM(X25519, HKDF-SHA256) KEM ID (0x0020), the
-	// HKDF-SHA256 KDF ID (0x0001), and a subset of the following AEAD IDs:
-	// AES-128-GCM (0x0001), AES-256-GCM (0x0002), ChaCha20Poly1305 (0x0003).
+	// must match the config provided to clients byte-for-byte. The config must
+	// use as KEM one of
+	//
+	//   - DHKEM(P-256, HKDF-SHA256) (0x0010)
+	//   - DHKEM(P-384, HKDF-SHA384) (0x0011)
+	//   - DHKEM(P-521, HKDF-SHA512) (0x0012)
+	//   - DHKEM(X25519, HKDF-SHA256) (0x0020)
+	//   - ML-KEM-768 (0x0041)
+	//   - ML-KEM-1024 (0x0042)
+	//   - MLKEM768-P256 (0x0050)
+	//   - MLKEM1024-P384 (0x0051)
+	//   - MLKEM768-X25519 (0x647a)
+	//
+	// and as KDF one of
+	//
+	//   - HKDF-SHA256 (0x0001)
+	//   - HKDF-SHA384 (0x0002)
+	//   - HKDF-SHA512 (0x0003)
+	//
+	// and as AEAD one of
+	//
+	//   - AES-128-GCM (0x0001)
+	//   - AES-256-GCM (0x0002)
+	//   - ChaCha20Poly1305 (0x0003)
+	//
 	Config []byte
-	// PrivateKey should be a marshalled private key. Currently, we expect
-	// this to be the output of [ecdh.PrivateKey.Bytes].
+	// PrivateKey should be a marshalled private key, in the format expected by
+	// HPKE's DeserializePrivateKey (see RFC 9180), for the KEM used in Config.
 	PrivateKey []byte
 	// SendAsRetry indicates if Config should be sent as part of the list of
 	// retry configs when ECH is requested by the client but rejected by the
@@ -940,8 +997,15 @@ func (c *Config) ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 // ticket, and the lifetime we set for all tickets we send.
 const maxSessionTicketLifetime = 7 * 24 * time.Hour
 
-// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a [Config] that is
-// being used concurrently by a TLS client or server.
+// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a
+// [Config] that is being used concurrently by a TLS client or server.
+//
+// The returned Config can share session ticket keys with the original Config,
+// which means connections could be resumed across the two Configs. WARNING:
+// [Config.VerifyPeerCertificate] does not get called on resumed connections,
+// including connections that were originally established on the parent Config.
+// If that is not intended, use [Config.VerifyConnection] instead, or set
+// [Config.SessionTicketsDisabled].
 func (c *Config) Clone() *Config {
 	if c == nil {
 		return nil
@@ -1017,7 +1081,6 @@ func (c *Config) initLegacySessionTicketKeyRLocked() {
 	} else if !bytes.HasPrefix(c.SessionTicketKey[:], deprecatedSessionTicketKey) && len(c.sessionTicketKeys) == 0 {
 		c.sessionTicketKeys = []ticketKey{c.ticketKeyFromBytes(c.SessionTicketKey)}
 	}
-
 }
 
 // ticketKeys returns the ticketKeys for this connection.
@@ -1165,20 +1228,16 @@ var supportedVersions = []uint16{
 const roleClient = true
 const roleServer = false
 
-var tls10server = godebug.New("tls10server")
-
 // supportedVersions returns the list of supported TLS versions, sorted from
 // highest to lowest (and hence also in preference order).
-func (c *Config) supportedVersions(isClient bool) []uint16 {
+func (c *Config) supportedVersions(isClient, isQUIC bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
 		if fips140tls.Required() && !slices.Contains(allowedSupportedVersionsFIPS, v) {
 			continue
 		}
 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
-			if isClient || tls10server.Value() != "1" {
-				continue
-			}
+			continue
 		}
 		if isClient && c.EncryptedClientHelloConfigList != nil && v < VersionTLS13 {
 			continue
@@ -1189,13 +1248,16 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		if c != nil && c.MaxVersion != 0 && v > c.MaxVersion {
 			continue
 		}
+		if isQUIC && v < VersionTLS13 {
+			continue
+		}
 		versions = append(versions, v)
 	}
 	return versions
 }
 
-func (c *Config) maxSupportedVersion(isClient bool) uint16 {
-	supportedVersions := c.supportedVersions(isClient)
+func (c *Config) maxSupportedVersion(isClient, isQUIC bool) uint16 {
+	supportedVersions := c.supportedVersions(isClient, isQUIC)
 	if len(supportedVersions) == 0 {
 		return 0
 	}
@@ -1217,31 +1279,38 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 }
 
 func (c *Config) curvePreferences(version uint16) []CurveID {
-	curvePreferences := defaultCurvePreferences()
-	if fips140tls.Required() {
-		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
-			return !slices.Contains(allowedCurvePreferencesFIPS, x)
-		})
-	}
-	if c != nil && len(c.CurvePreferences) != 0 {
-		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
-			return !slices.Contains(c.CurvePreferences, x)
-		})
-	}
-	if version < VersionTLS13 {
-		curvePreferences = slices.DeleteFunc(curvePreferences, isTLS13OnlyKeyExchange)
-	}
-	return curvePreferences
+	return slices.DeleteFunc(curvePreferenceOrder(), func(x CurveID) bool {
+		return !c.supportsCurve(version, x)
+	})
 }
 
-func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
-	return slices.Contains(c.curvePreferences(version), curve)
+func (c *Config) supportsCurve(version uint16, x CurveID) bool {
+	if c != nil && len(c.CurvePreferences) != 0 {
+		if !slices.Contains(c.CurvePreferences, x) {
+			return false
+		}
+		// Ignore unimplemented entries in c.CurvePreferences.
+		if !slices.Contains(curvePreferenceOrder(), x) {
+			return false
+		}
+	} else {
+		if !defaultCurveEnabled(x) {
+			return false
+		}
+	}
+	if fips140tls.Required() && !slices.Contains(allowedCurvePreferencesFIPS, x) {
+		return false
+	}
+	if version < VersionTLS13 && isTLS13OnlyKeyExchange(x) {
+		return false
+	}
+	return true
 }
 
 // mutualVersion returns the protocol version to use given the advertised
 // versions of the peer. The highest supported version is preferred.
-func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
-	supportedVersions := c.supportedVersions(isClient)
+func (c *Config) mutualVersion(isClient, isQUIC bool, peerVersions []uint16) (uint16, bool) {
+	supportedVersions := c.supportedVersions(isClient, isQUIC)
 	for _, v := range supportedVersions {
 		if slices.Contains(peerVersions, v) {
 			return v, true
@@ -1327,7 +1396,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	if config == nil {
 		config = &Config{}
 	}
-	vers, ok := config.mutualVersion(roleServer, chi.SupportedVersions)
+	vers, ok := config.mutualVersion(roleServer, chi.isQUIC, chi.SupportedVersions)
 	if !ok {
 		return errors.New("no mutually supported protocol versions")
 	}
@@ -1435,6 +1504,9 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 				return errors.New("connection doesn't support Ed25519")
 			}
 			ecdsaCipherSuite = true
+		case *mldsa.PublicKey:
+			// ML-DSA requires TLS 1.3, which we already excluded above.
+			return errors.New("connection doesn't support ML-DSA")
 		case *rsa.PublicKey:
 		default:
 			return supportsRSAFallback(unsupportedCertificateError(c))
@@ -1548,7 +1620,10 @@ func (c *Config) writeKeyLog(label string, clientRandom, secret []byte) error {
 	_, err := c.KeyLogWriter.Write(logLine)
 	writerMutex.Unlock()
 
-	return err
+	if err != nil {
+		return fmt.Errorf("tls: KeyLogWriter: %w", err)
+	}
+	return nil
 }
 
 // writerMutex protects all KeyLogWriters globally. It is rarely enabled,
@@ -1559,9 +1634,14 @@ var writerMutex sync.Mutex
 type Certificate struct {
 	Certificate [][]byte
 	// PrivateKey contains the private key corresponding to the public key in
-	// Leaf. This must implement crypto.Signer with an RSA, ECDSA or Ed25519 PublicKey.
+	// Leaf. This must implement [crypto.Signer] with an RSA, ECDSA, Ed25519
+	// (TLS 1.2+), or ML-DSA (TLS 1.3) PublicKey.
+	//
 	// For a server up to TLS 1.2, it can also implement crypto.Decrypter with
 	// an RSA PublicKey.
+	//
+	// If it implements [crypto.MessageSigner], SignMessage will be used instead
+	// of Sign for TLS 1.2 and later.
 	PrivateKey crypto.PrivateKey
 	// SupportedSignatureAlgorithms is an optional list restricting what
 	// signature algorithms the PrivateKey can be used for.
@@ -1650,6 +1730,10 @@ func (c *lruSessionCache) Put(sessionKey string, cs *ClientSessionState) {
 		return
 	}
 
+	if cs == nil {
+		return
+	}
+
 	if c.q.Len() < c.capacity {
 		entry := &lruSessionCacheEntry{sessionKey, cs}
 		c.m[sessionKey] = c.q.PushFront(entry)
@@ -1691,15 +1775,21 @@ func unexpectedMessageError(wanted, got any) error {
 var testingOnlySupportedSignatureAlgorithms []SignatureScheme
 
 // supportedSignatureAlgorithms returns the supported signature algorithms for
-// the given minimum TLS version, to advertise in ClientHello and
-// CertificateRequest messages.
-func supportedSignatureAlgorithms(minVers uint16) []SignatureScheme {
+// the given range of TLS versions, to advertise in ClientHello and
+// CertificateRequest messages. An algorithm is included if it is enabled at any
+// version in the range.
+func supportedSignatureAlgorithms(minVers, maxVers uint16) []SignatureScheme {
 	sigAlgs := defaultSupportedSignatureAlgorithms()
 	if testingOnlySupportedSignatureAlgorithms != nil {
 		sigAlgs = slices.Clone(testingOnlySupportedSignatureAlgorithms)
 	}
 	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
-		return isDisabledSignatureAlgorithm(minVers, s, false)
+		for v := minVers; v <= maxVers; v++ {
+			if !isDisabledSignatureAlgorithm(v, s, false) {
+				return false
+			}
+		}
+		return true
 	})
 }
 
@@ -1708,6 +1798,18 @@ var tlssha1 = godebug.New("tlssha1")
 func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool) bool {
 	if fips140tls.Required() && !slices.Contains(allowedSignatureAlgorithmsFIPS, s) {
 		return true
+	}
+
+	switch s {
+	case MLDSA44, MLDSA65, MLDSA87:
+		// ML-DSA is not available in FIPS 140-3 module v1.0.0.
+		if fips140.Version() == "v1.0.0" {
+			return true
+		}
+		// ML-DSA codepoints are only defined for TLS 1.3.
+		if version < VersionTLS13 {
+			return true
+		}
 	}
 
 	// For the _cert extension we include all algorithms, including SHA-1 and
@@ -1739,10 +1841,15 @@ func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool
 
 // supportedSignatureAlgorithmsCert returns the supported algorithms for
 // signatures in certificates.
-func supportedSignatureAlgorithmsCert() []SignatureScheme {
+func supportedSignatureAlgorithmsCert(minVers, maxVers uint16) []SignatureScheme {
 	sigAlgs := defaultSupportedSignatureAlgorithms()
 	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
-		return isDisabledSignatureAlgorithm(0, s, true)
+		for v := minVers; v <= maxVers; v++ {
+			if !isDisabledSignatureAlgorithm(v, s, true) {
+				return false
+			}
+		}
+		return true
 	})
 }
 
@@ -1802,4 +1909,44 @@ func fipsAllowChain(chain []*x509.Certificate) bool {
 	}
 
 	return true
+}
+
+// anyValidVerifiedChain reports if at least one of the chains in verifiedChains
+// is valid, as indicated by none of the certificates being expired and the root
+// being in opts.Roots (or in the system root pool if opts.Roots is nil). If
+// verifiedChains is empty, it returns false.
+func anyValidVerifiedChain(verifiedChains [][]*x509.Certificate, opts x509.VerifyOptions) bool {
+	for _, chain := range verifiedChains {
+		if len(chain) == 0 {
+			continue
+		}
+		if slices.ContainsFunc(chain, func(cert *x509.Certificate) bool {
+			return opts.CurrentTime.Before(cert.NotBefore) || opts.CurrentTime.After(cert.NotAfter)
+		}) {
+			continue
+		}
+		// Since we already validated the chain, we only care that it is rooted
+		// in a CA in opts.Roots. On platforms where we control chain validation
+		// (e.g. not Windows or macOS) this is a simple lookup in the CertPool
+		// internal hash map, which we can simulate by running Verify on the
+		// root. On other platforms, we have to do full verification again,
+		// because EKU handling might differ. We will want to replace this with
+		// CertPool.Contains if/once that is available. See go.dev/issue/77376.
+		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+			opts.Intermediates = x509.NewCertPool()
+			for _, cert := range chain[1:max(1, len(chain)-1)] {
+				opts.Intermediates.AddCert(cert)
+			}
+			leaf := chain[0]
+			if _, err := leaf.Verify(opts); err == nil {
+				return true
+			}
+		} else {
+			root := chain[len(chain)-1]
+			if _, err := root.Verify(opts); err == nil {
+				return true
+			}
+		}
+	}
+	return false
 }

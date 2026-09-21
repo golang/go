@@ -3,8 +3,6 @@
 # ends with '.go', has no version, and either has no slash or refers to an
 # existing file.
 
-env GO111MODULE=on
-
 # argument doesn't have .go suffix and has no version
 ! go get test
 ! stderr 'arguments must be package or module paths'

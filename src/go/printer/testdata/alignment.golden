@@ -170,3 +170,10 @@ var _ = S{
 	F1____:	[]string{},
 	F2:	[]string{},
 }
+
+// Issue #77959: formatting must be consistent across architectures.
+var _ = []any{
+	(expr_size_95_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)(0),	// 0
+	(expr_size_38_xxxxxxxxxxxxxxxxxxxx)(0),	// 1
+	(*expr_size_126_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)(nil),	// 2
+}

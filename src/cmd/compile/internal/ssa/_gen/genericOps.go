@@ -4,6 +4,12 @@
 
 package main
 
+import (
+	"log"
+	"slices"
+	"strings"
+)
+
 // Generic opcodes typically specify a width. The inputs and outputs
 // of that op are the given number of bits wide. There is no notion of
 // "sign", so Add32 can be used both for signed and unsigned 32-bit
@@ -301,6 +307,16 @@ var genericOps = []opData{
 	{name: "Max64F", argLength: 2}, // max(arg0,arg1)
 	{name: "Max32F", argLength: 2}, // max(arg0,arg1)
 
+	// Float min/max with the "arg0 < arg1 ? arg0 : arg1" comparison-select
+	// semantics (min) and "arg0 > arg1 ? arg0 : arg1" (max): ties and NaN
+	// yield arg1. These differ from the IEEE Min/Max ops above and match the
+	// MINSD/MAXSD and FCSEL hardware. branchelim emits them for the float
+	// min/max branch idiom on architectures that lower them unconditionally.
+	{name: "Min64FSel", argLength: 2}, // arg0 < arg1 ? arg0 : arg1
+	{name: "Min32FSel", argLength: 2}, // arg0 < arg1 ? arg0 : arg1
+	{name: "Max64FSel", argLength: 2}, // arg0 > arg1 ? arg0 : arg1
+	{name: "Max32FSel", argLength: 2}, // arg0 > arg1 ? arg0 : arg1
+
 	// 3-input opcode.
 	// Fused-multiply-add, float64 only.
 	// When a*b+c is exactly zero (before rounding), then the result is +0 or -0.
@@ -330,24 +346,24 @@ var genericOps = []opData{
 
 	// constants. Constant values are stored in the aux or
 	// auxint fields.
-	{name: "ConstBool", aux: "Bool"},     // auxint is 0 for false and 1 for true
-	{name: "ConstString", aux: "String"}, // value is aux.(string)
-	{name: "ConstNil", typ: "BytePtr"},   // nil pointer
-	{name: "Const8", aux: "Int8"},        // auxint is sign-extended 8 bits
-	{name: "Const16", aux: "Int16"},      // auxint is sign-extended 16 bits
-	{name: "Const32", aux: "Int32"},      // auxint is sign-extended 32 bits
+	{name: "ConstBool", aux: "Bool", earlyOk: true},     // auxint is 0 for false and 1 for true
+	{name: "ConstString", aux: "String", earlyOk: true}, // value is aux.(string)
+	{name: "ConstNil", typ: "BytePtr", earlyOk: true},   // nil pointer
+	{name: "Const8", aux: "Int8", earlyOk: true},        // auxint is sign-extended 8 bits
+	{name: "Const16", aux: "Int16", earlyOk: true},      // auxint is sign-extended 16 bits
+	{name: "Const32", aux: "Int32", earlyOk: true},      // auxint is sign-extended 32 bits
 	// Note: ConstX are sign-extended even when the type of the value is unsigned.
 	// For instance, uint8(0xaa) is stored as auxint=0xffffffffffffffaa.
-	{name: "Const64", aux: "Int64"}, // value is auxint
+	{name: "Const64", aux: "Int64", earlyOk: true}, // value is auxint
 	// Note: for both Const32F and Const64F, we disallow encoding NaNs.
 	// Signaling NaNs are tricky because if you do anything with them, they become quiet.
 	// Particularly, converting a 32 bit sNaN to 64 bit and back converts it to a qNaN.
 	// See issue 36399 and 36400.
 	// Encodings of +inf, -inf, and -0 are fine.
-	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly representable as float 32
-	{name: "Const64F", aux: "Float64"}, // value is math.Float64frombits(uint64(auxint))
-	{name: "ConstInterface"},           // nil interface
-	{name: "ConstSlice"},               // nil slice
+	{name: "Const32F", aux: "Float32", earlyOk: true}, // value is math.Float64frombits(uint64(auxint)) and is exactly representable as float 32
+	{name: "Const64F", aux: "Float64", earlyOk: true}, // value is math.Float64frombits(uint64(auxint))
+	{name: "ConstInterface", earlyOk: true},           // nil interface
+	{name: "ConstSlice", earlyOk: true},               // nil slice
 
 	// Constant-like things
 	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
@@ -366,8 +382,8 @@ var genericOps = []opData{
 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"},      // Address of a variable.  Arg0=SB.  Aux identifies the variable.
 	{name: "LocalAddr", argLength: 2, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP. Arg1=mem. Aux identifies the variable.
 
-	{name: "SP", zeroWidth: true, fixedReg: true},                 // stack pointer
-	{name: "SB", typ: "Uintptr", zeroWidth: true, fixedReg: true}, // static base pointer (a.k.a. globals pointer)
+	{name: "SP", zeroWidth: true, fixedReg: true, earlyOk: true},                 // stack pointer
+	{name: "SB", typ: "Uintptr", zeroWidth: true, fixedReg: true, earlyOk: true}, // static base pointer (a.k.a. globals pointer)
 	{name: "Invalid"}, // unused value
 	{name: "SPanchored", typ: "Uintptr", argLength: 2, zeroWidth: true}, // arg0 = SP, arg1 = mem. Result is identical to arg0, but cannot be scheduled before memory state arg1.
 
@@ -375,6 +391,18 @@ var genericOps = []opData{
 	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
 	{name: "Dereference", argLength: 2},                   // Load from arg0.  arg1=memory.  Helper op for arg/result passing, result is an otherwise not-SSA-able "value".
 	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+
+	// masked memory operations.
+	// TODO add 16 and 8
+	{name: "LoadMasked8", argLength: 3},                           // Load from arg0, arg1 = mask of 8-bits, arg2 = memory
+	{name: "LoadMasked16", argLength: 3},                          // Load from arg0, arg1 = mask of 16-bits, arg2 = memory
+	{name: "LoadMasked32", argLength: 3},                          // Load from arg0, arg1 = mask of 32-bits, arg2 = memory
+	{name: "LoadMasked64", argLength: 3},                          // Load from arg0, arg1 = mask of 64-bits, arg2 = memory
+	{name: "StoreMasked8", argLength: 4, typ: "Mem", aux: "Typ"},  // Store arg2 to arg0, arg1=mask of 8-bits, arg3 = memory
+	{name: "StoreMasked16", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 16-bits, arg3 = memory
+	{name: "StoreMasked32", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 32-bits, arg3 = memory
+	{name: "StoreMasked64", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 64-bits, arg3 = memory
+
 	// Normally we require that the source and destination of Move do not overlap.
 	// There is an exception when we know all the loads will happen before all
 	// the stores. In that case, overlap is ok. See
@@ -407,7 +435,7 @@ var genericOps = []opData{
 
 	// PanicBounds and PanicExtend generate a runtime panic.
 	// Their arguments provide index values to use in panic messages.
-	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../op.go).
+	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../ssacore/bounds.go).
 	// PanicBounds' index is int sized.
 	// PanicExtend's index is int64 sized. (PanicExtend is only used on 32-bit archs.)
 	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory.
@@ -437,15 +465,17 @@ var genericOps = []opData{
 	//
 	// Subsequent architecture-specific lowering only changes the opcode.
 
-	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true}, // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
-	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},  // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
-	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},   // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
-	{name: "TailCall", argLength: -1, aux: "CallOff", call: true},    // tail call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true},   // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},    // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},     // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "TailCall", argLength: -1, aux: "CallOff", call: true},      // tail call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "TailCallInter", argLength: -1, aux: "CallOff", call: true}, // tail call function arg0=code pointer, arg1..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
 
-	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true}, // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
-	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},  // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
-	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
-	{name: "TailLECall", argLength: -1, aux: "CallOff", call: true},    // late-expanded static tail call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},    // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},     // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "TailLECall", argLength: -1, aux: "CallOff", call: true},      // late-expanded static tail call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "TailLECallInter", argLength: -1, aux: "CallOff", call: true}, // late-expanded static tail call function arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 
 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
 	{name: "SignExt8to16", argLength: 1, typ: "Int16"},
@@ -491,8 +521,8 @@ var genericOps = []opData{
 
 	// Pseudo-ops
 	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
-	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
-	{name: "GetCallerPC"},                         // for GetCallerPC intrinsic
+	{name: "GetClosurePtr", earlyOk: true},        // get closure pointer from dedicated register
+	{name: "GetCallerPC", earlyOk: true},          // for GetCallerPC intrinsic
 	{name: "GetCallerSP", argLength: 1},           // for GetCallerSP intrinsic. arg0=mem.
 
 	// Indexing operations
@@ -525,12 +555,11 @@ var genericOps = []opData{
 	{name: "IData", argLength: 1},                // arg0=interface, returns data field
 
 	// Structs
-	{name: "StructMake", argLength: -1},                // args...=field0..n-1. Returns struct with n fields.
+	{name: "StructMake", argLength: -1},                // args...=field0..n-1. Returns struct with n fields. Must have >0 size (use Empty otherwise).
 	{name: "StructSelect", argLength: 1, aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
 
 	// Arrays
-	{name: "ArrayMake0"},                              // Returns array with 0 elements
-	{name: "ArrayMake1", argLength: 1},                // Returns array with 1 element
+	{name: "ArrayMake1", argLength: 1},                // Returns array with 1 element. Use Empty if the element is zero-sized.
 	{name: "ArraySelect", argLength: 1, aux: "Int64"}, // arg0=array, auxint=index. Returns a[i].
 
 	// Spill&restore ops for the register allocator. These are
@@ -666,6 +695,73 @@ var genericOps = []opData{
 	// Prefetch instruction
 	{name: "PrefetchCache", argLength: 2, hasSideEffects: true},         // Do prefetch arg0 to cache. arg0=addr, arg1=memory.
 	{name: "PrefetchCacheStreamed", argLength: 2, hasSideEffects: true}, // Do non-temporal or streamed prefetch arg0 to cache. arg0=addr, arg1=memory.
+
+	// Helper instruction which is semantically equivalent to calling runtime.memequal, but some targets may prefer to custom lower it later, e.g. for specific constant sizes.
+	{name: "MemEq", argLength: 4, commutative: true, typ: "Bool"}, // arg0=ptr0, arg1=ptr1, arg2=size, arg3=memory.
+
+	// Value of a zero-sized type.
+	{name: "Empty", argLength: 0, earlyOk: true},
+
+	// SIMD
+	{name: "ZeroSIMD", argLength: 0}, // zero value of a vector
+
+	// Convert integers to masks
+	{name: "Cvt16toMask8x16", argLength: 1},  // arg0 = integer mask value
+	{name: "Cvt32toMask8x32", argLength: 1},  // arg0 = integer mask value
+	{name: "Cvt64toMask8x64", argLength: 1},  // arg0 = integer mask value
+	{name: "Cvt8toMask16x8", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt16toMask16x16", argLength: 1}, // arg0 = integer mask value
+	{name: "Cvt32toMask16x32", argLength: 1}, // arg0 = integer mask value
+	{name: "Cvt8toMask32x4", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt8toMask32x8", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt16toMask32x16", argLength: 1}, // arg0 = integer mask value
+	{name: "Cvt8toMask64x2", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt8toMask64x4", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt8toMask64x8", argLength: 1},   // arg0 = integer mask value
+
+	// Convert masks to integers
+	{name: "CvtMask8x16to16", argLength: 1},  // arg0 = mask
+	{name: "CvtMask8x32to32", argLength: 1},  // arg0 = mask
+	{name: "CvtMask8x64to64", argLength: 1},  // arg0 = mask
+	{name: "CvtMask16x8to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask16x16to16", argLength: 1}, // arg0 = mask
+	{name: "CvtMask16x32to32", argLength: 1}, // arg0 = mask
+	{name: "CvtMask32x4to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask32x8to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask32x16to16", argLength: 1}, // arg0 = mask
+	{name: "CvtMask64x2to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask64x4to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask64x8to8", argLength: 1},   // arg0 = mask
+
+	// Returns true if arg0 is all zero.
+	{name: "IsZeroVec", argLength: 1},
+
+	// Returns a mask indicating whether arg0's elements are NaN.
+	{name: "IsNaNFloat32x4", argLength: 1},
+	{name: "IsNaNFloat32x8", argLength: 1},
+	{name: "IsNaNFloat32x16", argLength: 1},
+	{name: "IsNaNFloat64x2", argLength: 1},
+	{name: "IsNaNFloat64x4", argLength: 1},
+	{name: "IsNaNFloat64x8", argLength: 1},
+
+	{name: "ScalableVectorLen", argLength: 0}, // SVE runtime vector length in bytes
+	{name: "Count8s", argLength: 1},           // arg0 = active byte count; builds an SVE predicate over that many byte lanes
+
+	// IfElse selects per element between two scalable vectors under a predicate.
+	// It backs both the IfElse and (against a zero vector) the Masked method, and
+	// is written by hand rather than derived from the ISA because SEL is
+	// bit-pattern-agnostic: there is no float-lane encoding of it to unify with.
+	// arg0 = x, arg1 = predicate, arg2 = y (taken where the predicate is false).
+	{name: "IfElseInt8s", argLength: 3},
+	{name: "IfElseUint8s", argLength: 3},
+	{name: "IfElseInt16s", argLength: 3},
+	{name: "IfElseUint16s", argLength: 3},
+	{name: "IfElseInt32s", argLength: 3},
+	{name: "IfElseUint32s", argLength: 3},
+	{name: "IfElseFloat32s", argLength: 3},
+	{name: "IfElseInt64s", argLength: 3},
+	{name: "IfElseUint64s", argLength: 3},
+	{name: "IfElseFloat64s", argLength: 3},
 }
 
 //     kind          controls          successors   implicit exit
@@ -692,7 +788,62 @@ var genericBlocks = []blockData{
 	{name: "First"}, // 2 successors, always takes the first one (second is dead)
 }
 
-func init() {
+var additionalGenericOps = make(map[string][]opData)
+
+func compareOpData(a, b opData) int {
+	return strings.Compare(a.name, b.name)
+}
+
+func merge(a, b []opData) []opData {
+	m := make([]opData, 0, len(a)+len(b))
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		x, y := a[i], b[j]
+		c := compareOpData(x, y)
+		if c < 0 {
+			m = append(m, x)
+			i++
+			continue
+		}
+		if c > 0 {
+			m = append(m, y)
+			j++
+			continue
+		}
+		if x.comparableOpData == y.comparableOpData {
+			m = append(m, x)
+			i++
+			j++
+			continue
+		}
+		log.Fatalf("Two generic ops have same name but unequal attributes, %v, %v", x, y)
+	}
+	m = append(m, a[i:]...)
+	m = append(m, b[j:]...)
+	return m
+}
+
+func moreGenericOps() []opData {
+	var keys []string
+	for k := range additionalGenericOps {
+		keys = append(keys, k)
+	}
+	g := simdGenericOps()
+	slices.SortFunc(g, compareOpData)
+	for _, k := range keys {
+		s := additionalGenericOps[k]
+		slices.SortFunc(s, compareOpData)
+		g = merge(g, s)
+	}
+	return g
+}
+
+func genericInit() {
+	genericOps = append(genericOps, moreGenericOps()...)
+	// When adding SIMD for another architecture, it may be useful to temporarily
+	// maintain a separate list of generic operations till that work stabilizes.
+	// For example:
+	// genericOps = append(genericOps, simdGenericOpsWasm()...)
 	archs = append(archs, arch{
 		name:    "generic",
 		ops:     genericOps,

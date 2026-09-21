@@ -1,0 +1,26 @@
+# Test downloading a real GOTOOLCHAIN from the network.
+
+[short] skip
+[!net:golang.org] skip
+[!net:proxy.golang.org] skip
+[!net:sum.golang.org] skip
+[!GOOS:darwin] [!GOOS:windows] [!GOOS:linux] skip
+[!GOARCH:amd64] [!GOARCH:arm64] skip
+
+env GOPROXY=proxy.golang.org
+env GOSUMDB=sum.golang.org
+env GOTOOLCHAIN=go1.20.1
+
+	# Avoid resolving a "go1.20.1" from the user's real $PATH.
+	# That would not only cause the "downloading go1.20.1" message
+	# to be suppressed, but may spuriously fail:
+	# golang.org/dl/go1.20.1 expects to find its GOROOT in $HOME/sdk,
+	# but we set HOME=/no-home.
+env GOPATH=$WORK/go
+env HOME=/no-home
+env PATH=
+env path=
+
+go version
+stderr '^go: downloading go1.20.1 '
+stdout go1.20.1

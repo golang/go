@@ -12,6 +12,16 @@
 
 // func now() (sec int64, nsec int32, mono int64)
 TEXT time·now<ABIInternal>(SB),NOSPLIT,$16-24
+#ifdef GOEXPERIMENT_runtimesecret
+	// The kernel might spill our secrets onto g0
+	// erase our registers here.
+	CMPL	g_secret(R14), $0
+	JEQ	nosecret
+	CALL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
+
 	MOVQ	SP, R12 // Save old SP; R12 unchanged by C code.
 
 	MOVQ	g_m(R14), BX // BX unchanged by C code.

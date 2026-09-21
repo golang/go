@@ -31,7 +31,7 @@ cmp go.work go.work.want_dropreplace
 go work edit -print -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
 cmp stdout go.work.want_print
 
-go work edit -json -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+go work edit -json -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0 -toolchain go1.20 -godebug key=value
 cmp stdout go.work.want_json
 
 # go work edit -godebug
@@ -131,6 +131,13 @@ replace x.1 v1.4.0 => ../z
 -- go.work.want_json --
 {
 	"Go": "1.19",
+	"Toolchain": "go1.20",
+	"Godebug": [
+		{
+			"Key": "key",
+			"Value": "value"
+		}
+	],
 	"Use": [
 		{
 			"DiskPath": "../a"

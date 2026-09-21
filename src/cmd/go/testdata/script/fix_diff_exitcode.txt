@@ -1,0 +1,36 @@
+# Test that go fix -diff exits with non-zero status when diffs exist,
+# and exits with zero status when no diffs are needed.
+# This is consistent with gofmt -d (#46289) and go mod tidy -diff (#27005).
+
+# When the source needs fixes, go fix -diff should print the diff
+# and exit with a non-zero code.
+! go fix -diff example.com/needsfix
+stdout 'net.JoinHostPort'
+
+# When the source is already clean, go fix -diff should print nothing
+# and exit with a zero code.
+go fix -diff example.com/clean
+! stdout .
+
+-- go.mod --
+module example.com
+go 1.26
+
+-- needsfix/x.go --
+package needsfix
+
+import (
+	"fmt"
+	"net"
+)
+
+var s string
+var _, _ = net.Dial("tcp", fmt.Sprintf("%s:%d", s, 80))
+
+-- clean/x.go --
+package clean
+
+import "net"
+
+var s string
+var _, _ = net.Dial("tcp", net.JoinHostPort(s, "80"))

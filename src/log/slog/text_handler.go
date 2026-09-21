@@ -9,6 +9,7 @@ import (
 	"encoding"
 	"fmt"
 	"io"
+	"log/slog/internal/buffer"
 	"reflect"
 	"strconv"
 	"sync"
@@ -100,7 +101,18 @@ func appendTextValue(s *handleState, v Value) error {
 	case KindTime:
 		s.appendTime(v.time())
 	case KindAny:
-		if tm, ok := v.any.(encoding.TextMarshaler); ok {
+		if ta, ok := v.any.(encoding.TextAppender); ok {
+			buf := buffer.New()
+			defer buf.Free()
+			var err error
+			*buf, err = ta.AppendText(*buf)
+			if err != nil {
+				return err
+			}
+			// TODO: append directly to buffer when possible
+			s.appendString(buf.String())
+			return nil
+		} else if tm, ok := v.any.(encoding.TextMarshaler); ok {
 			data, err := tm.MarshalText()
 			if err != nil {
 				return err

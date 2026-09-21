@@ -64,12 +64,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = AADD
 		}
 
-	case ASUBU:
-		if p.From.Type == obj.TYPE_CONST {
-			p.From.Offset = -p.From.Offset
-			p.As = AADDU
-		}
-
 	case ASUBV:
 		if p.From.Type == obj.TYPE_CONST {
 			p.From.Offset = -p.From.Offset
@@ -365,9 +359,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			retSym := p.To.Sym
+			retSym, retReg := p.To.Sym, p.To.Reg
+			if retReg == obj.REG_NONE {
+				retReg = REGLINK
+			}
 			p.To.Name = obj.NAME_NONE // clear fields as we may modify p to other instruction
 			p.To.Sym = nil
+			p.To.Reg = obj.REG_NONE
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
@@ -379,7 +377,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 						p.To.Sym = retSym
 					} else {
 						p.To.Type = obj.TYPE_MEM
-						p.To.Reg = REGLINK
+						p.To.Reg = retReg
 						p.To.Offset = 0
 					}
 					p.Mark |= BRANCH
@@ -403,7 +401,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				} else {
 					q.To.Type = obj.TYPE_MEM
 					q.To.Offset = 0
-					q.To.Reg = REGLINK
+					q.To.Reg = retReg
 				}
 				q.Mark |= BRANCH
 				q.Spadj = +autosize
@@ -444,7 +442,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			} else {
 				q1.To.Type = obj.TYPE_MEM
 				q1.To.Offset = 0
-				q1.To.Reg = REGLINK
+				q1.To.Reg = retReg
 			}
 			q1.Mark |= BRANCH
 			q1.Spadj = +autosize
@@ -453,7 +451,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			q.Link = q1
 
 		case AADD,
-			AADDU,
 			AADDV,
 			AADDVU:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
@@ -589,7 +586,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Offset = 3 * int64(c.ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_R20
+	p.To.Reg = REGRT1
 
 	// Mark the stack bound check and morestack call async nonpreemptible.
 	// If we get preempted here, when resumed the preemption request is
@@ -606,9 +603,9 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.As = ASGTU
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGSP
-		p.Reg = REG_R20
+		p.Reg = REGRT1
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R20
+		p.To.Reg = REGRT1
 	} else {
 		// large stack: SP-framesize < stackguard-StackSmall
 		offset := int64(framesize) - abi.StackSmall
@@ -629,13 +626,13 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 			p.From.Offset = offset
 			p.Reg = REGSP
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_R24
+			p.To.Reg = REGRT2
 
 			p = obj.Appendp(p, c.newprog)
 			q = p
 			p.As = ABNE
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = REG_R24
+			p.From.Reg = REGRT2
 			p.To.Type = obj.TYPE_BRANCH
 			p.Mark |= BRANCH
 		}
@@ -647,15 +644,15 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Offset = -offset
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R24
+		p.To.Reg = REGRT2
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ASGTU
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R24
-		p.Reg = REG_R20
+		p.From.Reg = REGRT2
+		p.Reg = REGRT1
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R20
+		p.To.Reg = REGRT1
 	}
 
 	// q1: BEQ	R20, morestack
@@ -664,7 +661,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 	p.As = ABEQ
 	p.From.Type = obj.TYPE_REG
-	p.From.Reg = REG_R20
+	p.From.Reg = REGRT1
 	p.To.Type = obj.TYPE_BRANCH
 	p.Mark |= BRANCH
 

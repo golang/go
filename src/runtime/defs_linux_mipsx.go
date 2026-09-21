@@ -12,7 +12,7 @@ const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
 	_ENOMEM = 0xc
-	_ENOSYS = 0x26
+	_ENOSYS = 0x59
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -109,13 +109,14 @@ func (ts *timespec32) setNsec(ns int64) {
 
 type timespec struct {
 	tv_sec  int64
-	tv_nsec int64
+	tv_nsec int32
+	_       [4]byte // the C ABI aligns int64 to 8 bytes
 }
 
 //go:nosplit
 func (ts *timespec) setNsec(ns int64) {
-	ts.tv_sec = int64(ns / 1e9)
-	ts.tv_nsec = int64(ns % 1e9)
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = int32(ns % 1e9)
 }
 
 type timeval struct {

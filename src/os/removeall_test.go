@@ -6,6 +6,7 @@ package os_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	. "os"
@@ -238,14 +239,7 @@ func TestRemoveReadOnlyDir(t *testing.T) {
 
 // Issue #29983.
 func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
-	switch runtime.GOOS {
-	case "js", "wasip1", "windows":
-		t.Skipf("skipping test on %s", runtime.GOOS)
-	}
-
-	if Getuid() == 0 {
-		t.Skip("skipping test when running as root")
-	}
+	testRequiresPermissions(t)
 
 	t.Parallel()
 
@@ -489,6 +483,38 @@ func TestRemoveAllTrailingSlash(t *testing.T) {
 		if _, err := Stat(path); !IsNotExist(err) {
 			t.Errorf("after RemoveAll(%q), directory still exists", path+slash)
 		}
+	}
+}
+
+func TestRemoveAllSymlinkRemovalFailure(t *testing.T) {
+	testRequiresPermissions(t)
+	dir := makefs(t, []string{
+		"parent/",
+		"parent/link => target",
+	})
+	if err := Chmod(dir+"/parent", 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		Chmod(dir+"/parent", 0o755)
+	}()
+
+	err := RemoveAll(dir + "/parent/link")
+	if !errors.Is(err, ErrPermission) {
+		t.Fatalf("RemoveAll = %v; want ErrPermission", err)
+	}
+	// Issue #78490: RemoveAll leaked errSymlink, which panics when printed.
+	_ = err.Error()
+}
+
+func testRequiresPermissions(t *testing.T) {
+	t.Helper()
+	switch runtime.GOOS {
+	case "js", "wasip1", "windows":
+		t.Skipf("skipping test: %s does not support chmod", runtime.GOOS)
+	}
+	if Getuid() == 0 {
+		t.Skip("skipping test: running as root (which ignores file permissions)")
 	}
 }
 

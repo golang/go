@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"log"
@@ -117,10 +116,7 @@ type S struct { I; m int }
 type I interface { m() byte }
 `
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "celsius.go", input, 0)
-	if err != nil {
-		log.Fatal(err)
-	}
+	f := mustParse(fset, input)
 
 	// Type-check a package consisting of this file.
 	// Type information for the imported packages

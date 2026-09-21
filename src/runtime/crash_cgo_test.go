@@ -15,6 +15,7 @@ import (
 	"internal/testenv"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -100,6 +101,54 @@ func TestCgoCallbackPprof(t *testing.T) {
 	got := runTestProg(t, "testprogcgo", "CgoCallbackPprof")
 	if want := "OK\n"; got != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
+	}
+}
+
+func TestCgoCallbackX15(t *testing.T) {
+	t.Parallel()
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("X15 test only relevant on amd64")
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+
+	got := runTestProg(t, "testprogcgo", "CgoCallbackX15")
+	if want := "OK\n"; got != want {
+		t.Fatalf("expected %q, but got:\n%s", want, got)
+	}
+}
+
+func TestSecretCgo(t *testing.T) {
+	// secret.Do only takes effect on the platforms listed here; everywhere
+	// else it invokes f directly, so there is nothing for this test to
+	// exercise. Skip before paying for a GOEXPERIMENT=runtimesecret build,
+	// which rebuilds the whole dependency graph from scratch. See #79751.
+	switch runtime.GOOS + "/" + runtime.GOARCH {
+	case "linux/amd64", "linux/arm64":
+	default:
+		t.Skipf("runtime/secret not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	t.Parallel()
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	exe := filepath.Join(t.TempDir(), "secretcgo.exe")
+	// Use testenv.Command, not exec.Command: if the build hangs (#76314),
+	// this kills it and dumps its stacks instead of wedging the whole
+	// runtime package until its timeout. See #79751, #79754.
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe)
+	cmd.Dir = "testdata/testprogcgo"
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GOEXPERIMENT=runtimesecret")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building testprogcgo with runtimesecret: %v\n%s", err, out)
+	}
+
+	got := runBuiltTestProg(t, exe, "SecretCgo")
+	if want := "OK\n"; got != want {
+		t.Fatalf("expected %q, got:\n%s", want, got)
 	}
 }
 
@@ -300,6 +349,7 @@ func TestCgoCrashTraceback(t *testing.T) {
 	case "linux/amd64":
 	case "linux/arm64":
 	case "linux/loong64":
+	case "linux/ppc64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -325,6 +375,7 @@ func TestCgoCrashTracebackGo(t *testing.T) {
 	case "linux/amd64":
 	case "linux/arm64":
 	case "linux/loong64":
+	case "linux/ppc64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -379,7 +430,7 @@ func TestCgoTracebackContextProfile(t *testing.T) {
 
 func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64" && runtime.GOARCH != "loong64") {
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64" && runtime.GOARCH != "loong64") {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	if runtime.GOOS == "freebsd" && race.Enabled {

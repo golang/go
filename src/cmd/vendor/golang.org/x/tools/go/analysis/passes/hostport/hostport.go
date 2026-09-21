@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/types/typeutil"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
@@ -170,6 +170,10 @@ func run(pass *analysis.Pass) (any, error) {
 	} {
 		for curCall := range index.Calls(callee) {
 			call := curCall.Node().(*ast.CallExpr)
+			if len(call.Args) < 2 {
+				// A multi-valued call may supply the complete argument list.
+				continue
+			}
 			switch address := call.Args[1].(type) {
 			case *ast.CallExpr:
 				if len(call.Args) == 2 { // avoid spread-call edge case

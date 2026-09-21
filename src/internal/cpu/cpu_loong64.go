@@ -17,8 +17,13 @@ const (
 	cpucfg1_CRC32 = 1 << 25
 
 	// CPUCFG2 bits
-	cpucfg2_LAM_BH = 1 << 27
-	cpucfg2_LAMCAS = 1 << 28
+	cpucfg2_LAM_BH      = 1 << 27
+	cpucfg2_LAMCAS      = 1 << 28
+	cpucfg2_LLACQ_SCREL = 1 << 29
+	cpucfg2_SCQ         = 1 << 30
+
+	// CPUCFG3 bits
+	cpucfg3_DBAR_HINTS = 1 << 17
 )
 
 // get_cpucfg is implemented in cpu_loong64.s.
@@ -31,6 +36,9 @@ func doinit() {
 		{Name: "crc32", Feature: &Loong64.HasCRC32},
 		{Name: "lamcas", Feature: &Loong64.HasLAMCAS},
 		{Name: "lam_bh", Feature: &Loong64.HasLAM_BH},
+		{Name: "llacq_screl", Feature: &Loong64.HasLLACQ_SCREL},
+		{Name: "scq", Feature: &Loong64.HasSCQ},
+		{Name: "dbar_hints", Feature: &Loong64.HasDBAR_HINTS},
 	}
 
 	// The CPUCFG data on Loong64 only reflects the hardware capabilities,
@@ -42,10 +50,14 @@ func doinit() {
 	// through CPUCFG
 	cfg1 := get_cpucfg(1)
 	cfg2 := get_cpucfg(2)
+	cfg3 := get_cpucfg(3)
 
 	Loong64.HasCRC32 = cfgIsSet(cfg1, cpucfg1_CRC32)
 	Loong64.HasLAMCAS = cfgIsSet(cfg2, cpucfg2_LAMCAS)
 	Loong64.HasLAM_BH = cfgIsSet(cfg2, cpucfg2_LAM_BH)
+	Loong64.HasLLACQ_SCREL = cfgIsSet(cfg2, cpucfg2_LLACQ_SCREL)
+	Loong64.HasSCQ = cfgIsSet(cfg2, cpucfg2_SCQ)
+	Loong64.HasDBAR_HINTS = cfgIsSet(cfg3, cpucfg3_DBAR_HINTS)
 
 	osInit()
 }

@@ -93,3 +93,14 @@ func incNonDefaults(t *testing.T) map[string]bool {
 	}
 	return seen
 }
+
+func TestRemoved(t *testing.T) {
+	for _, info := range godebugs.Removed {
+		if godebugs.Lookup(info.Name) != nil {
+			t.Fatalf("GODEBUG: %v exists in both Removed and All", info.Name)
+		}
+		if info.Old == nil {
+			t.Fatalf("GODEBUG: %v is missing Old predicate", info.Name)
+		}
+	}
+}

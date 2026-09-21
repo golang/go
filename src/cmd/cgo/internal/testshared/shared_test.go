@@ -1175,10 +1175,10 @@ func TestStd(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Use a temporary pkgdir to not interfere with other tests, and not write to GOROOT.
 	// Cannot use goCmd as it runs with cloned GOROOT which is incomplete.
-	runWithEnv(t, "building std", []string{"GOROOT=" + oldGOROOT},
+	runWithEnv(t, "building std", []string{"GOROOT=" + oldGOROOT, "GOEXPERIMENT=nosimd"},
 		filepath.Join(oldGOROOT, "bin", "go"), "install", "-buildmode=shared", "-pkgdir="+tmpDir, "std")
 
 	// Issue #58966.
-	runWithEnv(t, "testing issue #58966", []string{"GOROOT=" + oldGOROOT},
+	runWithEnv(t, "testing issue #58966", []string{"GOROOT=" + oldGOROOT, "GOEXPERIMENT=nosimd"},
 		filepath.Join(oldGOROOT, "bin", "go"), "run", "-linkshared", "-pkgdir="+tmpDir, "./issue58966/main.go")
 }

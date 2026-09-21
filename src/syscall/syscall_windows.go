@@ -468,6 +468,14 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if flag&O_TRUNC == O_TRUNC &&
 		(createmode == OPEN_EXISTING || (createmode == OPEN_ALWAYS && err == ERROR_ALREADY_EXISTS)) {
 		err = Ftruncate(h, 0)
+		if err == _ERROR_INVALID_PARAMETER {
+			// ERROR_INVALID_PARAMETER means truncation is not supported on this file handle.
+			// Unix's O_TRUNC specification says to ignore O_TRUNC on named pipes and terminal devices.
+			// We do the same here.
+			if t, err1 := GetFileType(h); err1 == nil && (t == FILE_TYPE_PIPE || t == FILE_TYPE_CHAR) {
+				err = nil
+			}
+		}
 		if err != nil {
 			CloseHandle(h)
 			return InvalidHandle, err
@@ -709,7 +717,7 @@ func Utimes(path string, tv []Timeval) (err error) {
 	if tv[0].Nanoseconds() != 0 {
 		a = NsecToFiletime(tv[0].Nanoseconds())
 	}
-	if tv[0].Nanoseconds() != 0 {
+	if tv[1].Nanoseconds() != 0 {
 		w = NsecToFiletime(tv[1].Nanoseconds())
 	}
 	return SetFileTime(h, nil, &a, &w)
@@ -1094,7 +1102,7 @@ func LoadConnectEx() error {
 		if connectExFunc.err != nil {
 			return
 		}
-		defer CloseHandle(s)
+		defer Closesocket(s)
 		var n uint32
 		connectExFunc.err = WSAIoctl(s,
 			SIO_GET_EXTENSION_FUNCTION_POINTER,
@@ -1311,6 +1319,31 @@ func fdpath(fd Handle, buf []uint16) ([]uint16, error) {
 	return buf, nil
 }
 
+func hasPrefix(path []uint16, prefix string) bool {
+	if len(path) < len(prefix) {
+		return false
+	}
+	for index := range prefix {
+		if path[index] != uint16(prefix[index]) {
+			return false
+		}
+	}
+	return true
+}
+
+// removeExtendedPrefix removes the "\\?\" prefix from path.
+// It converts "\\?\UNC\" to "\\" by rewriting path in place.
+func removeExtendedPrefix(path []uint16) []uint16 {
+	if hasPrefix(path, `\\?\UNC\`) {
+		path[6] = '\\'
+		return path[6:]
+	}
+	if hasPrefix(path, `\\?\`) {
+		return path[4:]
+	}
+	return path
+}
+
 func Fchdir(fd Handle) (err error) {
 	var buf [MAX_PATH + 1]uint16
 	path, err := fdpath(fd, buf[:])
@@ -1326,9 +1359,9 @@ func Fchdir(fd Handle) (err error) {
 	// path with the "\\?\" prefix after Fchdir is called.
 	// The downside is that APIs that do support it will parse the path and try to normalize it,
 	// when it's already normalized.
-	if len(path) >= 4 && path[0] == '\\' && path[1] == '\\' && path[2] == '?' && path[3] == '\\' {
-		path = path[4:]
-	}
+	// GetFinalPathNameByHandle always returns backslashes in the path and uses
+	// uppercase "UNC" in the "\\?\UNC\" prefix.
+	path = removeExtendedPrefix(path)
 	return SetCurrentDirectory(&path[0])
 }
 
@@ -1367,7 +1400,11 @@ func LoadCreateSymbolicLink() error {
 
 // Readlink returns the destination of the named symbolic link.
 func Readlink(path string, buf []byte) (n int, err error) {
-	fd, err := CreateFile(StringToUTF16Ptr(path), GENERIC_READ, 0, nil, OPEN_EXISTING,
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return -1, err
+	}
+	fd, err := CreateFile(pathp, GENERIC_READ, 0, nil, OPEN_EXISTING,
 		FILE_FLAG_OPEN_REPARSE_POINT|FILE_FLAG_BACKUP_SEMANTICS, 0)
 	if err != nil {
 		return -1, err

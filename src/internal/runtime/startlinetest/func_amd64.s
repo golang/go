@@ -24,5 +24,6 @@ TEXT	·AsmFunc<ABIInternal>(SB),NOSPLIT,$8-0
 	NO_LOCAL_POINTERS
 	MOVQ	$0, AX // wantInlined
 	MOVQ	·CallerStartLine(SB), DX
-	CALL	(DX)
+	MOVQ	(DX), DX // Move to a register first for -spectre
+	CALL	DX
 	RET

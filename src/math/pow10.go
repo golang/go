@@ -33,7 +33,7 @@ func Pow10(n int) float64 {
 		return pow10postab32[uint(n)/32] * pow10tab[uint(n)%32]
 	}
 
-	if -323 <= n && n <= 0 {
+	if -323 <= n && n < 0 {
 		return pow10negtab32[uint(-n)/32] / pow10tab[uint(-n)%32]
 	}
 

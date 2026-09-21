@@ -4,15 +4,10 @@
 
 package strconv
 
-type Uint128 = uint128
-
 var (
-	MulLog10_2       = mulLog10_2
-	MulLog2_10       = mulLog2_10
+	Log10Pow2        = log10Pow2
+	Log2Pow10        = log2Pow10
 	ParseFloatPrefix = parseFloatPrefix
-	Pow10            = pow10
-	Umul128          = umul128
-	Umul192          = umul192
 )
 
 func NewDecimal(i uint64) *decimal {

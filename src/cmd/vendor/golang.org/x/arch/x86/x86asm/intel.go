@@ -99,6 +99,12 @@ func IntelSyntax(inst Inst, pc uint64, symname SymLookup) string {
 				inst.Prefix[i] |= PrefixImplicit
 				inst.Prefix[i+1] |= PrefixImplicit
 			}
+			if p.IsEVEX() {
+				inst.Prefix[i] |= PrefixImplicit
+				inst.Prefix[i+1] |= PrefixImplicit
+				inst.Prefix[i+2] |= PrefixImplicit
+				inst.Prefix[i+3] |= PrefixImplicit
+			}
 		}
 	}
 
@@ -256,11 +262,55 @@ func IntelSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	}
 
 	var args []string
-	for _, a := range iargs {
+	for i, a := range iargs {
 		if a == nil {
 			break
 		}
-		args = append(args, intelArg(&inst, pc, symname, a))
+		argStr := intelArg(&inst, pc, symname, a)
+		if i == 1 {
+			r, ok := a.(Reg)
+			if ok && K1 <= r && r <= K7 {
+				if !strings.HasPrefix(inst.Op.String(), "K") {
+					isPF := strings.HasPrefix(inst.Op.String(), "VGATHERPF") || strings.HasPrefix(inst.Op.String(), "VSCATTERPF")
+					if isPF {
+						args = append([]string{fmt.Sprintf("{%s}", argStr)}, args...)
+					} else if len(args) > 0 {
+						args[len(args)-1] += fmt.Sprintf(" {%s}", argStr)
+						if inst.Zeroing {
+							args[len(args)-1] += " {z}"
+						}
+					}
+					continue
+				}
+			} else if ok && r == K0 {
+				if !strings.HasPrefix(inst.Op.String(), "K") {
+					isPF := strings.HasPrefix(inst.Op.String(), "VGATHERPF") || strings.HasPrefix(inst.Op.String(), "VSCATTERPF")
+					if isPF {
+						args = append([]string{fmt.Sprintf("{%s}", argStr)}, args...)
+					} else if inst.Zeroing && len(args) > 0 {
+						args[len(args)-1] += " {z}"
+					}
+					continue
+				}
+			}
+		}
+		if _, ok := a.(Mem); ok && inst.Broadcast && len(args) > 0 {
+			// Find vector size from first argument (destination)
+			if dstReg, ok := iargs[0].(Reg); ok {
+				var vBytes int
+				if X0 <= dstReg && dstReg <= X31 {
+					vBytes = 16
+				} else if Y0 <= dstReg && dstReg <= Y31 {
+					vBytes = 32
+				} else if Z0 <= dstReg && dstReg <= Z31 {
+					vBytes = 64
+				}
+				if vBytes > 0 && inst.MemBytes > 0 {
+					argStr += fmt.Sprintf("{1to%d}", vBytes/inst.MemBytes)
+				}
+			}
+		}
+		args = append(args, argStr)
 	}
 
 	var op string
@@ -286,6 +336,24 @@ func IntelSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	case LCALL, LJMP:
 		if len(args) == 2 {
 			args[0], args[1] = args[1], args[0]
+		}
+
+	case VCMPPD, VCMPPS, VCMPSD, VCMPSS, VCMPPH, VCMPSH, VCMPBF16:
+		for i := len(inst.Args) - 1; i >= 0; i-- {
+			if imm, ok := inst.Args[i].(Imm); ok {
+				if 0 <= imm && imm < 8 {
+					args = args[:len(args)-1]
+					baseOp := intelOp[inst.Op]
+					if baseOp == "" {
+						baseOp = strings.ToLower(inst.Op.String())
+					}
+					op = "v" + cmppsOps[imm] + baseOp[4:]
+				}
+				break
+			}
+			if inst.Args[i] != nil {
+				break
+			}
 		}
 
 	case FCHS, FABS, FTST, FLDPI, FLDL2E, FLDLG2, F2XM1, FXAM, FLD1, FLDL2T, FSQRT, FRNDINT, FCOS, FSIN:
@@ -323,6 +391,23 @@ func IntelSyntax(inst Inst, pc uint64, symname SymLookup) string {
 					break FixSegment
 				}
 			}
+		}
+	}
+
+	if inst.SAE {
+		if hasRC(inst.Op) {
+			switch inst.Rounding {
+			case 0:
+				args = append(args, "{rn-sae}")
+			case 1:
+				args = append(args, "{rd-sae}")
+			case 2:
+				args = append(args, "{ru-sae}")
+			case 3:
+				args = append(args, "{rz-sae}")
+			}
+		} else {
+			args = append(args, "{sae}")
 		}
 	}
 
@@ -375,6 +460,16 @@ func intelArg(inst *Inst, pc uint64, symname SymLookup, arg Arg) string {
 			prefix = "xmmword "
 		case 32:
 			prefix = "ymmword "
+		case 64:
+			prefix = "zmmword "
+		}
+		if isVSIB(inst.Op) {
+			switch inst.Op {
+			case VPGATHERDD, VPSCATTERDD, VPGATHERQD, VPSCATTERQD, VGATHERDPS, VSCATTERDPS, VGATHERQPS, VSCATTERQPS, VGATHERPF0DPS, VGATHERPF1DPS, VSCATTERPF0DPS, VSCATTERPF1DPS, VGATHERPF0QPS, VGATHERPF1QPS, VSCATTERPF0QPS, VSCATTERPF1QPS:
+				prefix = "dword "
+			case VPGATHERDQ, VPSCATTERDQ, VPGATHERQQ, VPSCATTERQQ, VGATHERDPD, VSCATTERDPD, VGATHERQPD, VSCATTERQPD, VGATHERPF0DPD, VGATHERPF1DPD, VSCATTERPF0DPD, VSCATTERPF1DPD, VGATHERPF0QPD, VGATHERPF1QPD, VSCATTERPF0QPD, VSCATTERPF1QPD:
+				prefix = "qword "
+			}
 		}
 		switch inst.Op {
 		case INVLPG:
@@ -448,7 +543,17 @@ func intelArg(inst *Inst, pc uint64, symname SymLookup, arg Arg) string {
 			if a.Base != 0 {
 				prefix += "+"
 			}
-			prefix += fmt.Sprintf("%s*%d", intelArg(inst, pc, symname, a.Index), a.Scale)
+			if a.Scale == 1 {
+				if inst.AddrSize == 16 || inst.Op.String() == "VMOVNTDQA" {
+					prefix += fmt.Sprintf("%s*1", intelArg(inst, pc, symname, a.Index))
+				} else if a.Base == 0 && ((X0 <= a.Index && a.Index <= Z31) || (M0 <= a.Index && a.Index <= M7)) {
+					prefix += fmt.Sprintf("1*%s", intelArg(inst, pc, symname, a.Index))
+				} else {
+					prefix += fmt.Sprintf("%s", intelArg(inst, pc, symname, a.Index))
+				}
+			} else {
+				prefix += fmt.Sprintf("%d*%s", a.Scale, intelArg(inst, pc, symname, a.Index))
+			}
 		}
 		if a.Disp != 0 {
 			if prefix[len(prefix)-1] == '[' && (a.Disp >= 0 || int64(int32(a.Disp)) != a.Disp) {
@@ -473,12 +578,7 @@ func intelArg(inst *Inst, pc uint64, symname SymLookup, arg Arg) string {
 		}
 	case Reg:
 		if int(a) < len(intelReg) && intelReg[a] != "" {
-			switch inst.Op {
-			case VMOVDQA, VMOVDQU, VMOVNTDQA, VMOVNTDQ:
-				return strings.Replace(intelReg[a], "xmm", "ymm", -1)
-			default:
-				return intelReg[a]
-			}
+			return intelReg[a]
 		}
 	}
 	return strings.ToLower(arg.String())
@@ -544,6 +644,94 @@ var intelReg = [...]string{
 	X13: "xmm13",
 	X14: "xmm14",
 	X15: "xmm15",
+	X16: "xmm16",
+	X17: "xmm17",
+	X18: "xmm18",
+	X19: "xmm19",
+	X20: "xmm20",
+	X21: "xmm21",
+	X22: "xmm22",
+	X23: "xmm23",
+	X24: "xmm24",
+	X25: "xmm25",
+	X26: "xmm26",
+	X27: "xmm27",
+	X28: "xmm28",
+	X29: "xmm29",
+	X30: "xmm30",
+	X31: "xmm31",
+	Y0:  "ymm0",
+	Y1:  "ymm1",
+	Y2:  "ymm2",
+	Y3:  "ymm3",
+	Y4:  "ymm4",
+	Y5:  "ymm5",
+	Y6:  "ymm6",
+	Y7:  "ymm7",
+	Y8:  "ymm8",
+	Y9:  "ymm9",
+	Y10: "ymm10",
+	Y11: "ymm11",
+	Y12: "ymm12",
+	Y13: "ymm13",
+	Y14: "ymm14",
+	Y15: "ymm15",
+	Y16: "ymm16",
+	Y17: "ymm17",
+	Y18: "ymm18",
+	Y19: "ymm19",
+	Y20: "ymm20",
+	Y21: "ymm21",
+	Y22: "ymm22",
+	Y23: "ymm23",
+	Y24: "ymm24",
+	Y25: "ymm25",
+	Y26: "ymm26",
+	Y27: "ymm27",
+	Y28: "ymm28",
+	Y29: "ymm29",
+	Y30: "ymm30",
+	Y31: "ymm31",
+	Z0:  "zmm0",
+	Z1:  "zmm1",
+	Z2:  "zmm2",
+	Z3:  "zmm3",
+	Z4:  "zmm4",
+	Z5:  "zmm5",
+	Z6:  "zmm6",
+	Z7:  "zmm7",
+	Z8:  "zmm8",
+	Z9:  "zmm9",
+	Z10: "zmm10",
+	Z11: "zmm11",
+	Z12: "zmm12",
+	Z13: "zmm13",
+	Z14: "zmm14",
+	Z15: "zmm15",
+	Z16: "zmm16",
+	Z17: "zmm17",
+	Z18: "zmm18",
+	Z19: "zmm19",
+	Z20: "zmm20",
+	Z21: "zmm21",
+	Z22: "zmm22",
+	Z23: "zmm23",
+	Z24: "zmm24",
+	Z25: "zmm25",
+	Z26: "zmm26",
+	Z27: "zmm27",
+	Z28: "zmm28",
+	Z29: "zmm29",
+	Z30: "zmm30",
+	Z31: "zmm31",
+	K0:  "k0",
+	K1:  "k1",
+	K2:  "k2",
+	K3:  "k3",
+	K4:  "k4",
+	K5:  "k5",
+	K6:  "k6",
+	K7:  "k7",
 
 	// TODO: Maybe the constants are named wrong.
 	SPB: "spl",

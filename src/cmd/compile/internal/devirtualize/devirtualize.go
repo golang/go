@@ -131,7 +131,7 @@ func StaticCall(s *State, call *ir.CallExpr) {
 		// type assertion that we make here would also have failed, but with a different
 		// panic "pkg.Iface is nil, not *pkg.Impl", where previously we would get a nil panic.
 		// We fix this, by introducing an additional nilcheck on the itab.
-		// Calling a method on an nil interface (in most cases) is a bug in a program, so it is fine
+		// Calling a method on a nil interface (in most cases) is a bug in a program, so it is fine
 		// to devirtualize and further (possibly) inline them, even though we would never reach
 		// the called function.
 		dt.UseNilPanic = true
@@ -182,6 +182,17 @@ const concreteTypeDebug = false
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(s *State, n ir.Node) (typ *types.Type) {
+	if concreteTypeDebug {
+		base.Warn("concreteType(%v) - analyzing", n)
+		defer func() {
+			t := typ.String()
+			if typ == nil {
+				t = "<nil> (unknown static type)"
+			}
+			base.Warn("concreteType(%v) -> %v", n, t)
+		}()
+	}
+
 	typ = concreteType1(s, n, make(map[*ir.Name]struct{}))
 	if typ == &noType {
 		return nil
@@ -197,7 +208,7 @@ var noType types.Type
 
 // concreteType1 analyzes the node n and returns its concrete type if it is statically known.
 // Otherwise, it returns a nil Type, indicating that a concrete type was not determined.
-// When n is known to be statically nil or a self-assignment is detected, in returns a sentinel [noType] type instead.
+// When n is known to be statically nil or a self-assignment is detected, it returns a sentinel [noType] type instead.
 func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types.Type) {
 	nn := n // for debug messages
 
@@ -206,6 +217,9 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 			t := "&noType"
 			if outT != &noType {
 				t = outT.String()
+			}
+			if outT == nil {
+				t = "<nil> (unknown static type)"
 			}
 			base.Warn("concreteType1(%v) -> %v", nn, t)
 		}()
@@ -293,9 +307,22 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 				continue
 			}
 		}
-		if t == nil || (typ != nil && !types.Identical(typ, t)) {
-			return nil
+		if t == nil {
+			return nil // unknown concrete type
 		}
+
+		// Methods are only declared on named types, and each named type
+		// is represented by a unique [*types.Type], thus pointer comparison
+		// is fine here.
+		//
+		// The only scenario where [types.IdenticalStrict] could help here is with
+		// unnamed struct types that embed another type (e.g. foo = struct { Impl }{}).
+		// However, such patterns are uncommon and not worth the additional complexity
+		// in the devirtualizer.
+		if typ != nil && typ != t {
+			return nil // assigned with a different type
+		}
+
 		typ = t
 	}
 
@@ -310,7 +337,7 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 // assignment can be one of:
 // - nil - assignment from an interface type.
 // - *types.Type - assignment from a concrete type (non-interface).
-// - ir.Node - assignment from a ir.Node.
+// - ir.Node - assignment from an ir.Node.
 //
 // In most cases assignment should be an [ir.Node], but in cases where we
 // do not follow the data-flow, we return either a concrete type (*types.Type) or a nil.
@@ -560,8 +587,8 @@ func (s *State) analyze(nodes ir.Nodes) {
 				assign(n.Key, nil)
 				assign(n.Value, nil)
 			} else {
-				// We will not reach here in case of an range-over-func, as it is
-				// rewrtten to function calls in the noder package.
+				// We will not reach here in case of a range-over-func, as it is
+				// rewritten to function calls in the noder package.
 				base.FatalfAt(n.Pos(), "range over unexpected type %v", n.X.Type())
 			}
 		case ir.OSWITCH:

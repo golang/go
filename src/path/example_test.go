@@ -25,6 +25,8 @@ func ExampleClean() {
 		"a//c",
 		"a/c/.",
 		"a/c/b/..",
+		"../a/c",
+		"../a/b/../././/c",
 		"/../a/c",
 		"/../a/b/../././/c",
 		"",
@@ -39,6 +41,8 @@ func ExampleClean() {
 	// Clean("a//c") = "a/c"
 	// Clean("a/c/.") = "a/c"
 	// Clean("a/c/b/..") = "a/c"
+	// Clean("../a/c") = "../a/c"
+	// Clean("../a/b/../././/c") = "../a/c"
 	// Clean("/../a/c") = "/a/c"
 	// Clean("/../a/b/../././/c") = "/a/c"
 	// Clean("") = "."

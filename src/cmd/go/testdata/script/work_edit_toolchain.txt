@@ -1,7 +1,6 @@
 # Test support for go work edit -toolchain to set toolchain to use
 
 env GOTOOLCHAIN=local
-env GO111MODULE=on
 
 ! grep toolchain go.work
 go work edit -toolchain=go1.9

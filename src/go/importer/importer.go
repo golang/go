@@ -41,9 +41,10 @@ type Lookup func(path string) (io.ReadCloser, error)
 // it is assumed that the translation to canonical import paths is being
 // done by the client of the importer.
 //
-// A lookup function must be provided for correct module-aware operation.
-// Deprecated: If lookup is nil, for backwards-compatibility, the importer
-// will attempt to resolve imports in the $GOPATH workspace.
+// A lookup function must be provided for correct module-aware
+// operation. Providing a nil value for lookup is deprecated but, for
+// backwards-compatibility, the importer will in this case attempt to
+// resolve imports in the $GOPATH workspace.
 func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Importer {
 	switch compiler {
 	case "gc":

@@ -33,6 +33,9 @@ type Tree struct {
 	actionLine int // line of left delim starting action
 	rangeDepth int
 	stackDepth int // depth of nested parenthesized expressions
+
+	leftDelim  string
+	rightDelim string
 }
 
 // A Mode value is a set of flags (or 0). Modes control parser behavior.
@@ -60,10 +63,12 @@ func (t *Tree) Copy() *Tree {
 		return nil
 	}
 	return &Tree{
-		Name:      t.Name,
-		ParseName: t.ParseName,
-		Root:      t.Root.CopyList(),
-		text:      t.text,
+		Name:       t.Name,
+		ParseName:  t.ParseName,
+		Root:       t.Root.CopyList(),
+		text:       t.text,
+		leftDelim:  t.leftDelim,
+		rightDelim: t.rightDelim,
 	}
 }
 
@@ -258,7 +263,15 @@ func (t *Tree) stopParse() {
 func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]any) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
-	lexer := lex(t.Name, text, leftDelim, rightDelim)
+	t.leftDelim = leftDelim
+	if t.leftDelim == "" {
+		t.leftDelim = defaultLeftDelim
+	}
+	t.rightDelim = rightDelim
+	if t.rightDelim == "" {
+		t.rightDelim = defaultRightDelim
+	}
+	lexer := lex(t.Name, text, t.leftDelim, t.rightDelim)
 	t.startParse(funcs, lexer, treeSet)
 	t.text = text
 	t.parse()
@@ -318,6 +331,8 @@ func (t *Tree) parse() {
 				newT := New("definition") // name will be updated once we know it.
 				newT.text = t.text
 				newT.Mode = t.Mode
+				newT.leftDelim = t.leftDelim
+				newT.rightDelim = t.rightDelim
 				newT.ParseName = t.ParseName
 				newT.startParse(t.funcs, t.lex, t.treeSet)
 				newT.parseDefinition()
@@ -546,7 +561,7 @@ func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, 
 		t.rangeDepth--
 	}
 	switch next.Type() {
-	case nodeEnd: //done
+	case nodeEnd: // done
 	case nodeElse:
 		// Special case for "else if" and "else with".
 		// If the "else" is followed immediately by an "if" or "with",
@@ -650,6 +665,8 @@ func (t *Tree) blockControl() Node {
 	block := New(name) // name will be updated once we know it.
 	block.text = t.text
 	block.Mode = t.Mode
+	block.leftDelim = t.leftDelim
+	block.rightDelim = t.rightDelim
 	block.ParseName = t.ParseName
 	block.startParse(t.funcs, t.lex, t.treeSet)
 	var end Node

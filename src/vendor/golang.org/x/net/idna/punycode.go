@@ -28,7 +28,7 @@ const (
 	tmin        int32 = 1
 )
 
-func punyError(s string) error { return &labelError{s, "A3"} }
+func punyError(s string) error { return &labelError{s, code16("A3", "P4")} }
 
 // decode decodes a string as specified in section 6.2.
 func decode(encoded string) (string, error) {
@@ -108,6 +108,9 @@ func encode(prefix, s string) (string, error) {
 	delta, n, bias := int32(0), initialN, initialBias
 	b, remaining := int32(0), int32(0)
 	for _, r := range s {
+		if unicode16 && r == 0xfffd {
+			return s, &labelError{s, "A3"}
+		}
 		if r < 0x80 {
 			b++
 			output = append(output, byte(r))

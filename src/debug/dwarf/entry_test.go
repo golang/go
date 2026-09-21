@@ -267,9 +267,10 @@ func Test64Bit(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		data, err := New(nil, nil, nil, test.info, nil, nil, nil, nil)
+		data, err := New([]byte{0}, nil, nil, test.info, nil, nil, nil, nil)
 		if err != nil {
 			t.Errorf("%s: %v", test.name, err)
+			continue
 		}
 
 		r := data.Reader()
@@ -445,12 +446,17 @@ func TestIssue51758(t *testing.T) {
 }
 
 func TestIssue52045(t *testing.T) {
-	var abbrev, aranges, frame, line, pubnames, ranges, str []byte
+	var aranges, frame, line, pubnames, ranges, str []byte
+	abbrev := []byte{0}
 	info := []byte{0x7, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
 
 	// A hand-crafted input corresponding to a minimal-size
 	// .debug_info (header only, no DIEs) and an empty abbrev table.
-	data0, _ := New(abbrev, aranges, frame, info, line, pubnames, ranges, str)
+	data0, err := New(abbrev, aranges, frame, info, line, pubnames, ranges, str)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	reader0 := data0.Reader()
 	entry0, _ := reader0.SeekPC(0x0)
 	// main goal is to make sure we can get here without crashing

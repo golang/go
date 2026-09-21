@@ -20,13 +20,13 @@ type parCache struct {
 type cacheEntry struct {
 	done   uint32
 	mu     sync.Mutex
-	result interface{}
+	result any
 }
 
 // Do calls the function f if and only if Do is being called for the first time with this key.
 // No call to Do with a given key returns until the one call to f returns.
 // Do returns the value returned by the one call to f.
-func (c *parCache) Do(key interface{}, f func() interface{}) interface{} {
+func (c *parCache) Do(key any, f func() any) any {
 	entryIface, ok := c.m.Load(key)
 	if !ok {
 		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry))
@@ -46,7 +46,7 @@ func (c *parCache) Do(key interface{}, f func() interface{}) interface{} {
 // Get returns the cached result associated with key.
 // It returns nil if there is no such result.
 // If the result for key is being computed, Get does not wait for the computation to finish.
-func (c *parCache) Get(key interface{}) interface{} {
+func (c *parCache) Get(key any) any {
 	entryIface, ok := c.m.Load(key)
 	if !ok {
 		return nil

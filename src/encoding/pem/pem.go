@@ -95,6 +95,9 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	for {
 		// If we've already tried parsing a block, skip past the END we already
 		// saw.
+		if endTrailerIndex < 0 || endTrailerIndex > len(rest) {
+			return nil, data
+		}
 		rest = rest[endTrailerIndex:]
 
 		// Find the first END line, and then find the last BEGIN line before
@@ -304,8 +307,12 @@ func Encode(out io.Writer, b *Block) error {
 	if _, err := b64.Write(b.Bytes); err != nil {
 		return err
 	}
-	b64.Close()
-	breaker.Close()
+	if err := b64.Close(); err != nil {
+		return err
+	}
+	if err := breaker.Close(); err != nil {
+		return err
+	}
 
 	if _, err := out.Write(pemEnd[1:]); err != nil {
 		return err

@@ -7,6 +7,7 @@ package maps
 import (
 	"internal/abi"
 	"internal/asan"
+	"internal/goexperiment"
 	"internal/msan"
 	"internal/race"
 	"internal/runtime/sys"
@@ -14,9 +15,12 @@ import (
 )
 
 // Functions below pushed from runtime.
-
+//
 //go:linkname fatal
 func fatal(s string)
+
+//go:linknamestd bootstrapRand runtime.bootstrapRand
+func bootstrapRand() uint64
 
 //go:linkname rand
 func rand() uint64
@@ -38,9 +42,6 @@ func newobject(typ *abi.Type) unsafe.Pointer
 //go:linkname errNilAssign
 var errNilAssign error
 
-// Pull from runtime. It is important that is this the exact same copy as the
-// runtime because runtime.mapaccess1_fat compares the returned pointer with
-// &runtime.zeroVal[0].
 // TODO: move zeroVal to internal/abi?
 //
 //go:linkname zeroVal runtime.zeroVal
@@ -54,84 +55,33 @@ var zeroVal [abi.ZeroValSize]byte
 //
 //go:linkname runtime_mapaccess1 runtime.mapaccess1
 func runtime_mapaccess1(typ *abi.MapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
-	if race.Enabled && m != nil {
-		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
-		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
-		race.ReadObjectPC(typ.Key, key, callerpc, pc)
+	p, _ := runtime_mapaccess2(typ, m, key)
+	return p
+}
+
+//go:linkname runtime_mapaccess1_fat runtime.mapaccess1_fat
+func runtime_mapaccess1_fat(t *abi.MapType, m *Map, key, zero unsafe.Pointer) unsafe.Pointer {
+	e, ok := runtime_mapaccess2(t, m, key)
+	if !ok {
+		return zero
 	}
-	if msan.Enabled && m != nil {
-		msan.Read(key, typ.Key.Size_)
+	return e
+}
+
+//go:linkname runtime_mapaccess2_fat runtime.mapaccess2_fat
+func runtime_mapaccess2_fat(t *abi.MapType, m *Map, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
+	e, ok := runtime_mapaccess2(t, m, key)
+	if !ok {
+		return zero, false
 	}
-	if asan.Enabled && m != nil {
-		asan.Read(key, typ.Key.Size_)
-	}
-
-	if m == nil || m.Used() == 0 {
-		if err := mapKeyError(typ, key); err != nil {
-			panic(err) // see issue 23734
-		}
-		return unsafe.Pointer(&zeroVal[0])
-	}
-
-	if m.writing != 0 {
-		fatal("concurrent map read and map write")
-	}
-
-	hash := typ.Hasher(key, m.seed)
-
-	if m.dirLen <= 0 {
-		_, elem, ok := m.getWithKeySmall(typ, hash, key)
-		if !ok {
-			return unsafe.Pointer(&zeroVal[0])
-		}
-		return elem
-	}
-
-	// Select table.
-	idx := m.directoryIndex(hash)
-	t := m.directoryAt(idx)
-
-	// Probe table.
-	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
-	h2Hash := h2(hash)
-	for ; ; seq = seq.next() {
-		g := t.groups.group(typ, seq.offset)
-
-		match := g.ctrls().matchH2(h2Hash)
-
-		for match != 0 {
-			i := match.first()
-
-			slotKey := g.key(typ, i)
-			slotKeyOrig := slotKey
-			if typ.IndirectKey() {
-				slotKey = *((*unsafe.Pointer)(slotKey))
-			}
-			if typ.Key.Equal(key, slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
-				if typ.IndirectElem() {
-					slotElem = *((*unsafe.Pointer)(slotElem))
-				}
-				return slotElem
-			}
-			match = match.removeFirst()
-		}
-
-		match = g.ctrls().matchEmpty()
-		if match != 0 {
-			// Finding an empty slot means we've reached the end of
-			// the probe sequence.
-			return unsafe.Pointer(&zeroVal[0])
-		}
-	}
+	return e, true
 }
 
 //go:linkname runtime_mapaccess2 runtime.mapaccess2
 func runtime_mapaccess2(typ *abi.MapType, m *Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
+		pc := abi.FuncPCABIInternal(runtime_mapaccess2)
 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
 		race.ReadObjectPC(typ.Key, key, callerpc, pc)
 	}
@@ -184,7 +134,12 @@ func runtime_mapaccess2(typ *abi.MapType, m *Map, key unsafe.Pointer) (unsafe.Po
 				slotKey = *((*unsafe.Pointer)(slotKey))
 			}
 			if typ.Key.Equal(key, slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+				var slotElem unsafe.Pointer
+				if goexperiment.MapSplitGroup {
+					slotElem = g.elem(typ, i)
+				} else {
+					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+				}
 				if typ.IndirectElem() {
 					slotElem = *((*unsafe.Pointer)(slotElem))
 				}
@@ -234,19 +189,23 @@ func runtime_mapassign(typ *abi.MapType, m *Map, key unsafe.Pointer) unsafe.Poin
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.MapGroupSlots {
-			elem := m.putSlotSmall(typ, hash, key)
+		elem := m.putSlotSmall(typ, hash, key)
+		if elem == nil {
+			// Can't fit another entry, grow to full size map.
+			tab := m.growToTable(typ)
 
-			if m.writing == 0 {
-				fatal("concurrent map writes")
-			}
-			m.writing ^= 1
+			elem = tab.uncheckedPutSlotForAssign(typ, hash, key)
+			m.used++
 
-			return elem
+			tab.checkInvariants(typ, m)
 		}
 
-		// Can't fit another entry, grow to full size map.
-		m.growToTable(typ)
+		if m.writing == 0 {
+			fatal("concurrent map writes")
+		}
+		m.writing ^= 1
+
+		return elem
 	}
 
 	var slotElem unsafe.Pointer
@@ -283,7 +242,11 @@ outer:
 						typedmemmove(typ.Key, slotKey, key)
 					}
 
-					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					if goexperiment.MapSplitGroup {
+						slotElem = g.elem(typ, i)
+					} else {
+						slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					}
 					if typ.IndirectElem() {
 						slotElem = *((*unsafe.Pointer)(slotElem))
 					}
@@ -325,7 +288,11 @@ outer:
 					}
 					typedmemmove(typ.Key, slotKey, key)
 
-					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					if goexperiment.MapSplitGroup {
+						slotElem = g.elem(typ, i)
+					} else {
+						slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					}
 					if typ.IndirectElem() {
 						emem := newobject(typ.Elem)
 						*(*unsafe.Pointer)(slotElem) = emem

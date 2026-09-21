@@ -37,6 +37,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
+	"log"
 )
 
 // gentext generates assembly to append the local moduledata to the global
@@ -87,7 +88,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			return false
 		}
 
-		// Handle relocations found in ELF object files.
+	// Handle relocations found in ELF object files.
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_12),
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT12):
 		ldr.Errorf(s, "s390x 12-bit relocations have not been implemented (relocation type %d)", r.Type()-objabi.ElfRelocOffset)
@@ -100,9 +101,14 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if targType == sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected R_390_nn relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
+		if target.IsPIE() && target.IsInternal() {
+			// For internal linking PIE, this R_ADDR relocation cannot
+			// be resolved statically. We need to generate a dynamic
+			// relocation. Let the code below handle it.
+			break
+		}
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC16),
@@ -209,6 +215,101 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ))+int64(r.Siz()))
 		return true
 	}
+
+	// Reread the reloc to incorporate any changes in type above.
+	relocs := ldr.Relocs(s)
+	r = relocs.At(rIdx)
+
+	switch r.Type() {
+	case objabi.R_CALL, objabi.R_PCRELDBL:
+		if targType != sym.SDYNIMPORT {
+			// nothing to do, the relocation will be laid out in reloc
+			return true
+		}
+		if target.IsExternal() {
+			// External linker will do this relocation.
+			return true
+		}
+		// Internal linking: build a PLT entry and redirect to it.
+		addpltsym(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocSym(rIdx, syms.PLT)
+		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
+		return true
+
+	case objabi.R_ADDR:
+		if ldr.SymType(s).IsText() && target.IsElf() {
+			// The code is asking for the address of an external
+			// function. We provide it with the address of the
+			// correspondent GOT symbol.
+			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_390_GLOB_DAT))
+			su := ldr.MakeSymbolUpdater(s)
+			su.SetRelocSym(rIdx, syms.GOT)
+			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+			return true
+		}
+
+		// Process dynamic relocations for the data sections.
+		if target.IsPIE() && target.IsInternal() {
+			// When internally linking, generate dynamic relocations
+			// for all typical R_ADDR relocations. The exception
+			// are those R_ADDR that are created as part of generating
+			// the dynamic relocations and must be resolved statically.
+			//
+			// These synthetic static R_ADDR relocs must be skipped
+			// now, or else we will be caught in an infinite loop
+			// of generating synthetic relocs for our synthetic
+			// relocs.
+			switch ldr.SymName(s) {
+			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
+				return false
+			}
+		} else {
+			// Either internally linking a static executable,
+			// in which case we can resolve these relocations
+			// statically in the 'reloc' phase, or externally
+			// linking, in which case the relocation will be
+			// prepared in the 'reloc' phase and passed to the
+			// external linker in the 'asmb' phase.
+			if t := ldr.SymType(s); !t.IsDATA() && !t.IsRODATA() {
+				break
+			}
+		}
+
+		if target.IsElf() {
+			// Generate R_390_RELATIVE relocations for best
+			// efficiency in the dynamic linker.
+			//
+			// As noted above, symbol addresses have not been
+			// assigned yet, so we can't generate the final reloc
+			// entry yet. We ultimately want:
+			//
+			// r_offset = s + r.Off
+			// r_info = R_390_RELATIVE
+			// r_addend = targ + r.Add
+			//
+			// The dynamic linker will set *offset = base address +
+			// addend.
+			//
+			// AddAddrPlus is used for r_offset and r_addend to
+			// generate new R_ADDR relocations that will update
+			// these fields in the 'reloc' phase.
+			rela := ldr.MakeSymbolUpdater(syms.Rela)
+			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
+			if r.Siz() == 8 {
+				rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_390_RELATIVE)))
+			} else {
+				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+			}
+			rela.AddAddrPlus(target.Arch, targ, r.Add())
+			// Not mark r done here. So we still apply it statically,
+			// so in the file content we'll also have the right offset
+			// to the relocation target. So it can be examined statically
+			// (e.g. go version).
+			return true
+		}
+	}
+
 	// Handle references to ELF symbols from our own object files.
 	return targType != sym.SDYNIMPORT
 }
@@ -309,7 +410,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// stg     %r1,56(%r15)
 		plt.AddUint8(0xe3)
@@ -321,7 +422,7 @@ func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuild
 		// larl    %r1,_GLOBAL_OFFSET_TABLE_
 		plt.AddUint8(0xc0)
 		plt.AddUint8(0x10)
-		plt.AddSymRef(ctxt.Arch, got.Sym(), 6, objabi.R_PCRELDBL, 4)
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 6, objabi.R_PCRELDBL, 4)
 		// mvc     48(8,%r15),8(%r1)
 		plt.AddUint8(0xd2)
 		plt.AddUint8(0x07)
@@ -349,11 +450,11 @@ func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuild
 		plt.AddUint8(0x07)
 		plt.AddUint8(0x00)
 
-		// assume got->size == 0 too
-		got.AddAddrPlus(ctxt.Arch, dynamic, 0)
+		// assume gotplt.size == 0 too
+		gotplt.AddAddrPlus(ctxt.Arch, dynamic, 0)
 
-		got.AddUint64(ctxt.Arch, 0)
-		got.AddUint64(ctxt.Arch, 0)
+		gotplt.AddUint64(ctxt.Arch, 0)
+		gotplt.AddUint64(ctxt.Arch, 0)
 	}
 }
 
@@ -391,7 +492,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 	if target.IsElf() {
 		plt := ldr.MakeSymbolUpdater(syms.PLT)
-		got := ldr.MakeSymbolUpdater(syms.GOT)
+		gotplt := ldr.MakeSymbolUpdater(syms.GOTPLT)
 		rela := ldr.MakeSymbolUpdater(syms.RelaPLT)
 		if plt.Size() == 0 {
 			panic("plt is not set up")
@@ -400,12 +501,12 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 		plt.AddUint8(0xc0)
 		plt.AddUint8(0x10)
-		plt.AddPCRelPlus(target.Arch, got.Sym(), got.Size()+6)
+		plt.AddPCRelPlus(target.Arch, gotplt.Sym(), gotplt.Size()+6)
 		pltrelocs := plt.Relocs()
 		ldr.SetRelocVariant(plt.Sym(), pltrelocs.Count()-1, sym.RV_390_DBL)
 
-		// add to got: pointer to current pos in plt
-		got.AddAddrPlus(target.Arch, plt.Sym(), plt.Size()+8) // weird but correct
+		// add to gotplt: pointer to current pos in plt
+		gotplt.AddAddrPlus(target.Arch, plt.Sym(), plt.Size()+8) // weird but correct
 		// lg      %r1,0(%r1)
 		plt.AddUint8(0xe3)
 		plt.AddUint8(0x10)
@@ -435,7 +536,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		plt.AddUint32(target.Arch, uint32(rela.Size())) // rela size before current entry
 
 		// rela
-		rela.AddAddrPlus(target.Arch, got.Sym(), got.Size()-8)
+		rela.AddAddrPlus(target.Arch, gotplt.Sym(), gotplt.Size()-8)
 
 		sDynid := ldr.SymDynid(s)
 		rela.AddUint64(target.Arch, elf.R_INFO(uint32(sDynid), uint32(elf.R_390_JMP_SLOT)))
@@ -446,4 +547,54 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}
+}
+
+// tlsIEtoLE converts TLS Initial Exec (IE) relocation to TLS Local Exec (LE).
+//
+// On s390x, the TLS IE sequence is:
+//
+//	LARL %rN, <var>@INDNTPOFF   ; 6 bytes - load address of GOT entry
+//	LG   %rN, 0(%rN)            ; 6 bytes - load offset from GOT
+//
+// We convert this to TLS LE by replacing it with:
+//
+//	LGFI %rN, <offset>          ; 6 bytes - load 32-bit sign-extended immediate
+//	BCR  0,0                    ; 2 bytes - NOP
+//	BCR  0,0                    ; 2 bytes - NOP
+//	BCR  0,0                    ; 2 bytes - NOP
+//
+// The relocation offset points to byte 2 of the LARL instruction (the immediate field).
+func tlsIEtoLE(P []byte, off, size int) {
+	// off is the offset of the relocation within the instruction sequence,
+	// which is at byte 2 of the LARL instruction (the 4-byte immediate).
+	// We need to work with the beginning of LARL (off-2) through LG (off+10).
+
+	if off < 2 {
+		log.Fatalf("R_390_TLS_IEENT relocation at offset %d is too small", off)
+	}
+
+	// Verify we have a LARL instruction (opcode 0xC0, second nibble 0x0)
+	// LARL format: C0 R0 I2 I2 I2 I2 (where R is register, I2 is 32-bit immediate)
+	if P[off-2] != 0xc0 || P[off-1]&0x0f != 0x00 {
+		log.Fatalf("R_390_TLS_IEENT relocation not preceded by LARL instruction: %02x %02x", P[off-2], P[off-1])
+	}
+
+	// Extract the register from LARL (upper nibble of second byte)
+	reg := P[off-1] >> 4
+
+	// Convert LARL to LGFI: change opcode from C0x0 to C0x1
+	// LGFI format: C0 R1 I2 I2 I2 I2
+	P[off-1] = (reg << 4) | 0x01
+
+	// The immediate field (bytes off to off+3) will be filled in by the linker
+	// with the TLS offset value.
+
+	// Replace the LG instruction (6 bytes starting at off+4) with NOPs
+	// BCR 0,0 = 0x07 0x00 (2 bytes each, need 3 of them)
+	P[off+4] = 0x07
+	P[off+5] = 0x00
+	P[off+6] = 0x07
+	P[off+7] = 0x00
+	P[off+8] = 0x07
+	P[off+9] = 0x00
 }

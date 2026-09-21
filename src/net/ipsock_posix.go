@@ -70,7 +70,13 @@ func (p *ipStackCapabilities) probe() {
 			continue
 		}
 		if err := syscall.Bind(s, sa); err != nil {
-			continue
+			// If the bind was denied by a security policy (BPF, seccomp,
+			// SELinux, etc.), the kernel still supports IPv6 — the socket
+			// was created and setsockopt succeeded. Only treat errors like
+			// EADDRNOTAVAIL as lack of support. See go.dev/issue/77430.
+			if err != syscall.EPERM && err != syscall.EACCES {
+				continue
+			}
 		}
 		if i == 0 {
 			p.ipv6Enabled = true
@@ -158,7 +164,7 @@ func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (fam
 
 func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) (fd *netFD, err error) {
 	switch runtime.GOOS {
-	case "aix", "windows", "openbsd", "js", "wasip1":
+	case "aix", "freebsd", "windows", "openbsd", "js", "wasip1":
 		if mode == "dial" && raddr.isWildcard() {
 			raddr = raddr.toLocal(net)
 		}
@@ -252,18 +258,17 @@ func addrPortToSockaddrInet4(ap netip.AddrPort) (syscall.SockaddrInet4, error) {
 	return sa, nil
 }
 
-func addrPortToSockaddrInet6(ap netip.AddrPort) (syscall.SockaddrInet6, error) {
+func addrPortToSockaddrInet6(ap netip.AddrPort) syscall.SockaddrInet6 {
 	// ipToSockaddrInet6 has special handling here for zero length slices.
 	// We do not, because netip has no concept of a generic zero IP address.
 	//
 	// addr is allowed to be an IPv4 address, because As16 will convert it
 	// to an IPv4-mapped IPv6 address.
-	// The error message is kept consistent with ipToSockaddrInet6.
 	addr := ap.Addr()
 	sa := syscall.SockaddrInet6{
 		Addr:   addr.As16(),
 		Port:   int(ap.Port()),
 		ZoneId: uint32(zoneCache.index(addr.Zone())),
 	}
-	return sa, nil
+	return sa
 }

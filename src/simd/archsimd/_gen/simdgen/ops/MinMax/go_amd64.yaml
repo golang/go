@@ -1,0 +1,42 @@
+!sum
+- go: Max
+  asm: "V?PMAXS[BWDQ]"
+  in: &2int
+  - &int
+    go: $t
+    base: int
+  - *int
+  out: &1int
+  - *int
+- go: Max
+  asm: "V?PMAXU[BWDQ]"
+  in: &2uint
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out: &1uint
+  - *uint
+
+- go: Min
+  asm: "V?PMINS[BWDQ]"
+  in: *2int
+  out: *1int
+- go: Min
+  asm: "V?PMINU[BWDQ]"
+  in: *2uint
+  out: *1uint
+
+- go: Max
+  asm: "V?MAXP[SD]"
+  in: &2float
+  - &float
+    go: $t
+    base: float
+  - *float
+  out: &1float
+  - *float
+- go: Min
+  asm: "V?MINP[SD]"
+  in: *2float
+  out: *1float

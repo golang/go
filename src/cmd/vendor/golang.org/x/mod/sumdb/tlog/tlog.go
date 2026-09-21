@@ -34,7 +34,7 @@ func (h Hash) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + h.String() + `"`), nil
 }
 
-// UnmarshalJSON unmarshals a hash from JSON string containing the a base64-encoded hash.
+// UnmarshalJSON unmarshals a hash from a JSON string containing a base64-encoded hash.
 func (h *Hash) UnmarshalJSON(data []byte) error {
 	if len(data) != 1+44+1 || data[0] != '"' || data[len(data)-2] != '=' || data[len(data)-1] != '"' {
 		return errors.New("cannot decode hash")
@@ -194,7 +194,7 @@ func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
 	// and consumes a hash from an adjacent subtree.
 	m := int(bits.TrailingZeros64(uint64(n + 1)))
 	indexes := make([]int64, m)
-	for i := 0; i < m; i++ {
+	for i := range m {
 		// We arrange indexes in sorted order.
 		// Note that n>>i is always odd.
 		indexes[m-1-i] = StoredHashIndex(i, n>>uint(i)-1)
@@ -210,7 +210,7 @@ func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
 	}
 
 	// Build new hashes.
-	for i := 0; i < m; i++ {
+	for i := range m {
 		h = NodeHash(old[m-1-i], h)
 		hashes = append(hashes, h)
 	}
@@ -246,7 +246,7 @@ var emptyHash = Hash{
 // TreeHash computes the hash for the root of the tree with n records,
 // using the HashReader to obtain previously stored hashes
 // (those returned by StoredHashes during the writes of those n records).
-// TreeHash makes a single call to ReadHash requesting at most 1 + log₂ n hashes.
+// TreeHash makes a single call to ReadHashes requesting at most 1 + log₂ n hashes.
 func TreeHash(n int64, r HashReader) (Hash, error) {
 	if n == 0 {
 		return emptyHash, nil

@@ -3,8 +3,6 @@
 # subcommands when certain kinds of cycles were present
 # in the build graph.
 
-env GO111MODULE=on
-
 cp go.mod go.mod.orig
 go mod tidy
 cmp go.mod go.mod.orig

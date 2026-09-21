@@ -61,6 +61,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-f(no-)?constant-cfstrings`),
 	re(`-fdebug-prefix-map=([^@]+)=([^@]+)`),
 	re(`-fdiagnostics-show-note-include-stack`),
+	re(`-fexcess-precision=([A-Za-z0-9_]+)`),
 	re(`-ffile-prefix-map=([^@]+)=([^@]+)`),
 	re(`-fno-canonical-system-headers`),
 	re(`-f(no-)?eliminate-unused-debug-types`),
@@ -100,7 +101,6 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-m(abi|arch|cpu|fpu|simd|tls-dialect|tune)=([^@\-].*)`),
 	re(`-m(no-)?v?aes`),
 	re(`-marm`),
-	re(`-m(no-)?avx[0-9a-z]*`),
 	re(`-mcmodel=[0-9a-z-]+`),
 	re(`-mfloat-abi=([^@\-].*)`),
 	re(`-m(soft|single|double)-float`),
@@ -130,6 +130,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-pedantic(-errors)?`),
 	re(`-pipe`),
 	re(`-pthread`),
+	re(`--static`),
 	re(`-?-std=([^@\-].*)`),
 	re(`-?-stdlib=([^@\-].*)`),
 	re(`--sysroot=([^@\-].*)`),
@@ -253,6 +254,58 @@ var validLinkerFlagsWithNextArg = []string{
 	"-Wl,-undefined",
 }
 
+var validPkgConfigFlags = []*lazyregexp.Regexp{
+	re(`--atleast-pkgconfig-version=\d+\.\d+\.\d+`),
+	re(`--atleast-version=\d+\.\d+\.\d+`),
+	re(`--cflags-only-I`),
+	re(`--cflags`),
+	re(`--define-prefix`),
+	re(`--define-variable=[A-Za-z_][A-Za-z0-9_]*=[^@\-].*`),
+	re(`--digraph`),
+	re(`--dont-define-prefix`),
+	re(`--dont-relocate-paths`),
+	re(`--dump-personality`),
+	re(`--env-only`),
+	re(`--errors-to-stdout`),
+	re(`--exact-version=\d+\.\d+\.\d+`),
+	re(`--exists`),
+	re(`--fragment-filter=[A-Za-z_][a-zA-Z0-9_]*`),
+	re(`--ignore-conflicts`),
+	re(`--internal-cflags`),
+	re(`--keep-system-cflags`),
+	re(`--keep-system-libs`),
+	re(`--libs-only-l`),
+	re(`--libs-only-L`),
+	re(`--libs`),
+	re(`--list-all`),
+	re(`--list-package-names`),
+	re(`--max-version=\d+\.\d+\.\d+`),
+	re(`--maximum-traverse-depth=[0-9]+`),
+	re(`--modversion`),
+	re(`--msvc-syntax`),
+	re(`--no-cache`),
+	re(`--no-provides`),
+	re(`--no-uninstalled`),
+	re(`--path`),
+	re(`--personality=(triplet|filename)`),
+	re(`--prefix-variable=[A-Za-z_][a-zA-Z0-9_]*`),
+	re(`--print-errors`),
+	re(`--print-provides`),
+	re(`--print-requires-private`),
+	re(`--print-requires`),
+	re(`--print-variables`),
+	re(`--pure`),
+	re(`--shared`),
+	re(`--short-errors`),
+	re(`--silence-errors`),
+	re(`--simulate`),
+	re(`--static`),
+	re(`--uninstalled`),
+	re(`--validate`),
+	re(`--variable=[A-Za-z_][a-zA-Z0-9_]*`),
+	re(`--with-path=[^@\-].*`),
+}
+
 func checkCompilerFlags(name, source string, list []string) error {
 	checkOverrides := true
 	return checkFlags(name, source, list, nil, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
@@ -261,6 +314,11 @@ func checkCompilerFlags(name, source string, list []string) error {
 func checkLinkerFlags(name, source string, list []string) error {
 	checkOverrides := true
 	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
+}
+
+func checkPkgConfigFlags(name, source string, list []string) error {
+	checkOverrides := false
+	return checkFlags(name, source, list, nil, validPkgConfigFlags, nil, checkOverrides)
 }
 
 // checkCompilerFlagsForInternalLink returns an error if 'list'
@@ -274,8 +332,32 @@ func checkCompilerFlagsForInternalLink(name, source string, list []string) error
 	}
 	// Currently the only flag on the allow list that causes problems
 	// for the linker is "-flto"; check for it manually here.
+	// Also check for -static/--static, which some toolchains accept
+	// as a compiler flag.
 	for _, fl := range list {
 		if strings.HasPrefix(fl, "-flto") {
+			return fmt.Errorf("flag %q triggers external linking", fl)
+		}
+		if fl == "-static" || fl == "--static" {
+			return fmt.Errorf("flag %q triggers external linking", fl)
+		}
+	}
+	return nil
+}
+
+// checkLinkerFlagsForInternalLink returns an error if 'list'
+// contains linker flags that are not compatible with internal linking.
+func checkLinkerFlagsForInternalLink(name, source string, list []string) error {
+	checkOverrides := false
+	if err := checkFlags(name, source, list, nil, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
+		return err
+	}
+	// Flags that force static linking require the external linker
+	// to resolve libc symbols. See #77768.
+	for _, fl := range list {
+		if fl == "-static" || fl == "--static" ||
+			fl == "-Wl,-static" || fl == "-Wl,--static" ||
+			fl == "-Wl,-Bstatic" {
 			return fmt.Errorf("flag %q triggers external linking", fl)
 		}
 	}
@@ -375,13 +457,13 @@ Args:
 				}
 
 				if i+1 < len(list) {
-					return fmt.Errorf("invalid flag in %s: %s %s (see https://golang.org/s/invalidflag)", source, arg, list[i+1])
+					return fmt.Errorf("invalid flag in %s: %s %s (see https://go.dev/s/invalidflag)", source, arg, list[i+1])
 				}
-				return fmt.Errorf("invalid flag in %s: %s without argument (see https://golang.org/s/invalidflag)", source, arg)
+				return fmt.Errorf("invalid flag in %s: %s without argument (see https://go.dev/s/invalidflag)", source, arg)
 			}
 		}
 	Bad:
-		return fmt.Errorf("invalid flag in %s: %s", source, arg)
+		return fmt.Errorf("invalid flag in %s: %s (see https://go.dev/s/invalidflag)", source, arg)
 	}
 	return nil
 }

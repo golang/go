@@ -41,6 +41,7 @@
 //		Test        string
 //		Elapsed     float64 // seconds
 //		Output      string
+//		OutputType  string
 //		FailedBuild string
 //	}
 //
@@ -84,6 +85,14 @@
 // caused by a build failure. It contains the package ID of the package that
 // failed to build. This matches the ImportPath field of the "go list" output,
 // as well as the BuildEvent.ImportPath field as emitted by "go build -json".
+//
+// The OutputType field *may* be set for Action == "output" and indicates the
+// type of output. OutputType will be one of the following:
+//
+//	(blank)        - regular output
+//	frame          - test framing, such as "=== RUN ..." or "--- FAIL: ..."
+//	error          - an error produced by Error(f) or Fatal(f)
+//	error-continue - continuation of a multi-line error
 //
 // When a benchmark runs, it typically produces a single line of output
 // giving timing results. That line is reported in an event with Action == "output"

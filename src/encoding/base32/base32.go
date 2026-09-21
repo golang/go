@@ -7,6 +7,7 @@ package base32
 
 import (
 	"io"
+	"math"
 	"slices"
 	"strconv"
 )
@@ -127,61 +128,59 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	// outside of the loop to speed up the encoder.
 	_ = enc.encode
 
-	di, si := 0, 0
-	n := (len(src) / 5) * 5
-	for si < n {
+	for len(src) >= 5 {
 		// Combining two 32 bit loads allows the same code to be used
 		// for 32 and 64 bit platforms.
-		hi := uint32(src[si+0])<<24 | uint32(src[si+1])<<16 | uint32(src[si+2])<<8 | uint32(src[si+3])
-		lo := hi<<8 | uint32(src[si+4])
+		hi := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+		lo := hi<<8 | uint32(src[4])
 
-		dst[di+0] = enc.encode[(hi>>27)&0x1F]
-		dst[di+1] = enc.encode[(hi>>22)&0x1F]
-		dst[di+2] = enc.encode[(hi>>17)&0x1F]
-		dst[di+3] = enc.encode[(hi>>12)&0x1F]
-		dst[di+4] = enc.encode[(hi>>7)&0x1F]
-		dst[di+5] = enc.encode[(hi>>2)&0x1F]
-		dst[di+6] = enc.encode[(lo>>5)&0x1F]
-		dst[di+7] = enc.encode[(lo)&0x1F]
+		_ = dst[7] // Eliminate bounds checks below.
+		dst[0] = enc.encode[(hi>>27)&0x1F]
+		dst[1] = enc.encode[(hi>>22)&0x1F]
+		dst[2] = enc.encode[(hi>>17)&0x1F]
+		dst[3] = enc.encode[(hi>>12)&0x1F]
+		dst[4] = enc.encode[(hi>>7)&0x1F]
+		dst[5] = enc.encode[(hi>>2)&0x1F]
+		dst[6] = enc.encode[(lo>>5)&0x1F]
+		dst[7] = enc.encode[(lo)&0x1F]
 
-		si += 5
-		di += 8
+		src = src[5:]
+		dst = dst[8:]
 	}
 
 	// Add the remaining small block
-	remain := len(src) - si
-	if remain == 0 {
+	if len(src) == 0 {
 		return
 	}
 
 	// Encode the remaining bytes in reverse order.
 	val := uint32(0)
-	switch remain {
+	switch len(src) {
 	case 4:
-		val |= uint32(src[si+3])
-		dst[di+6] = enc.encode[val<<3&0x1F]
-		dst[di+5] = enc.encode[val>>2&0x1F]
+		val |= uint32(src[3])
+		dst[6] = enc.encode[val<<3&0x1F]
+		dst[5] = enc.encode[val>>2&0x1F]
 		fallthrough
 	case 3:
-		val |= uint32(src[si+2]) << 8
-		dst[di+4] = enc.encode[val>>7&0x1F]
+		val |= uint32(src[2]) << 8
+		dst[4] = enc.encode[val>>7&0x1F]
 		fallthrough
 	case 2:
-		val |= uint32(src[si+1]) << 16
-		dst[di+3] = enc.encode[val>>12&0x1F]
-		dst[di+2] = enc.encode[val>>17&0x1F]
+		val |= uint32(src[1]) << 16
+		dst[3] = enc.encode[val>>12&0x1F]
+		dst[2] = enc.encode[val>>17&0x1F]
 		fallthrough
 	case 1:
-		val |= uint32(src[si+0]) << 24
-		dst[di+1] = enc.encode[val>>22&0x1F]
-		dst[di+0] = enc.encode[val>>27&0x1F]
+		val |= uint32(src[0]) << 24
+		dst[1] = enc.encode[val>>22&0x1F]
+		dst[0] = enc.encode[val>>27&0x1F]
 	}
 
 	// Pad the final quantum
 	if enc.padChar != NoPadding {
-		nPad := (remain * 8 / 5) + 1
+		nPad := (len(src) * 8 / 5) + 1
 		for i := nPad; i < 8; i++ {
-			dst[di+i] = byte(enc.padChar)
+			dst[i] = byte(enc.padChar)
 		}
 	}
 }
@@ -281,9 +280,17 @@ func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
 
 // EncodedLen returns the length in bytes of the base32 encoding
 // of an input buffer of length n.
+// It panics if the encoded length overflows int,
+// which can happen only if n > [math.MaxInt]/8*5.
 func (enc *Encoding) EncodedLen(n int) int {
 	if enc.padChar == NoPadding {
+		if n > math.MaxInt/8*5+4 {
+			panic("encoded length overflows int")
+		}
 		return n/5*8 + (n%5*8+4)/5
+	}
+	if n > math.MaxInt/8*5 {
+		panic("encoded length overflows int")
 	}
 	return (n + 4) / 5 * 8
 }

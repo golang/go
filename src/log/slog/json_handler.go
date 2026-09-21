@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/goexperiment"
 	"io"
 	"log/slog/internal/buffer"
 	"strconv"
@@ -95,6 +96,7 @@ func appendJSONTime(s *handleState, t time.Time) {
 		// RFC 3339 is clear that years are 4 digits exactly.
 		// See golang.org/issue/4556#c15 for more discussion.
 		s.appendError(errors.New("time.Time year outside of range [0,9999]"))
+		return
 	}
 	s.buf.WriteByte('"')
 	*s.buf = t.AppendFormat(*s.buf, time.RFC3339Nano)
@@ -219,7 +221,11 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 			if start < i {
 				str(s[start:i])
 			}
-			str(`\ufffd`)
+			if goexperiment.JSONv2 {
+				str("\ufffd") // see https://go.dev/cl/687116
+			} else {
+				str(`\ufffd`)
+			}
 			i += size
 			start = i
 			continue

@@ -38,7 +38,7 @@ func DefaultConds() map[string]Cond {
 				return true, nil
 			}
 			if _, ok := syslist.KnownArch[suffix]; !ok {
-				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
+				return false, fmt.Errorf("unrecognized GOARCH %q", suffix)
 			}
 			return false, nil
 		})

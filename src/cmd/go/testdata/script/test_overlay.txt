@@ -1,5 +1,3 @@
-[short] skip
-
 cd $WORK/gopath/src/foo
 go test -list=. -overlay=overlay.json .
 stdout 'TestBar'

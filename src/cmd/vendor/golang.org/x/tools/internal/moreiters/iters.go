@@ -45,3 +45,19 @@ func Any[T any](seq iter.Seq[T], pred func(T) bool) bool {
 	}
 	return false
 }
+
+// Len returns the number of elements in the sequence (by iterating).
+func Len[T any](seq iter.Seq[T]) (n int) {
+	for range seq {
+		n++
+	}
+	return
+}
+
+// Empty reports whether the sequence contains no elements.
+func Empty[T any](seq iter.Seq[T]) bool {
+	for range seq {
+		return false
+	}
+	return true
+}

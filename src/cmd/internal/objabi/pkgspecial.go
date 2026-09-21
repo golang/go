@@ -99,6 +99,7 @@ var allowAsmABIPkgs = []string{
 	"internal/runtime/syscall/linux",
 	"internal/runtime/syscall/windows",
 	"internal/runtime/startlinetest",
+	"internal/runtime/maps",
 }
 
 // LookupPkgSpecial returns special build properties for the given package path.

@@ -6,14 +6,15 @@ package vcs
 
 import (
 	"errors"
-	"fmt"
-	"internal/testenv"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"cmd/go/internal/web"
+	"cmd/go/internal/web/intercept"
 )
 
 func init() {
@@ -25,9 +26,20 @@ func init() {
 }
 
 // Test that RepoRootForImportPath determines the correct RepoRoot for a given importPath.
-// TODO(cmang): Add tests for SVN and BZR.
+// TODO(cmang): Add tests for SVN.
 func TestRepoRootForImportPath(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
+	// Intercept requests to external servers to avoid making external network connections from the test.
+	ts := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(ts.Close)
+	var interceptors []intercept.Interceptor
+	for _, d := range []string{"hub.jazz.net", "hubajazz.net", "hub2.jazz.net", "different.example.com"} {
+		interceptors = append(interceptors,
+			intercept.Interceptor{Scheme: "https", FromHost: d, ToHost: ts.Listener.Addr().String()},
+			intercept.Interceptor{Scheme: "http", FromHost: d, ToHost: ts.Listener.Addr().String()},
+		)
+	}
+	intercept.EnableTestHooks(interceptors)
+	t.Cleanup(intercept.DisableTestHooks)
 
 	tests := []struct {
 		path string
@@ -215,40 +227,60 @@ func TestRepoRootForImportPath(t *testing.T) {
 // Test that vcs.FromDir correctly inspects a given directory and returns the
 // right VCS and repo directory.
 func TestFromDir(t *testing.T) {
-	tempDir := t.TempDir()
-
-	for _, vcs := range vcsList {
-		for r, root := range vcs.RootNames {
-			vcsName := fmt.Sprint(vcs.Name, r)
-			dir := filepath.Join(tempDir, "example.com", vcsName, root.filename)
-			if root.isDir {
-				err := os.MkdirAll(dir, 0755)
-				if err != nil {
-					t.Fatal(err)
-				}
-			} else {
-				err := os.MkdirAll(filepath.Dir(dir), 0755)
-				if err != nil {
-					t.Fatal(err)
-				}
-				f, err := os.Create(dir)
-				if err != nil {
-					t.Fatal(err)
-				}
-				f.Close()
-			}
-
-			wantRepoDir := filepath.Dir(dir)
-			gotRepoDir, gotVCS, err := FromDir(dir, tempDir)
-			if err != nil {
-				t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
-				continue
-			}
-			if gotRepoDir != wantRepoDir || gotVCS.Name != vcs.Name {
-				t.Errorf("FromDir(%q, %q) = RepoDir(%s), VCS(%s); want RepoDir(%s), VCS(%s)", dir, tempDir, gotRepoDir, gotVCS.Name, wantRepoDir, vcs.Name)
-			}
-		}
+	tests := []struct {
+		name   string
+		vcs    string
+		root   string
+		create func(path string) error
+	}{
+		{"hg", "Mercurial", ".hg", mkdir},
+		{"git_dir", "Git", ".git", mkdir},
+		{"git_worktree", "Git", ".git", createGitWorktreeFile},
+		{"svn", "Subversion", ".svn", mkdir},
+		{"fossil_fslckout", "Fossil", ".fslckout", touch},
+		{"fossil_FOSSIL_", "Fossil", "_FOSSIL_", touch},
 	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			repoDir := filepath.Join(tempDir, "example.com")
+			if err := mkdir(repoDir); err != nil {
+				t.Fatal(err)
+			}
+			rootPath := filepath.Join(repoDir, tt.root)
+			if err := tt.create(rootPath); err != nil {
+				t.Fatal(err)
+			}
+			gotRepoDir, gotVCS, err := FromDir(repoDir, tempDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gotRepoDir != repoDir {
+				t.Errorf("RepoDir = %q, want %q", gotRepoDir, repoDir)
+			}
+			if gotVCS.Name != tt.vcs {
+				t.Errorf("VCS = %q, want %q", gotVCS.Name, tt.vcs)
+			}
+		})
+	}
+}
+
+func mkdir(path string) error {
+	return os.Mkdir(path, 0o755)
+}
+
+func touch(path string) error {
+	return os.WriteFile(path, nil, 0o644)
+}
+
+func createGitWorktreeFile(path string) error {
+	gitdir := path + ".worktree"
+	// gitdir must point to a real directory
+	if err := mkdir(gitdir); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte("gitdir: "+gitdir+"\n"), 0o644)
 }
 
 func TestIsSecure(t *testing.T) {
@@ -259,8 +291,6 @@ func TestIsSecure(t *testing.T) {
 	}{
 		{vcsGit, "http://example.com/foo.git", false},
 		{vcsGit, "https://example.com/foo.git", true},
-		{vcsBzr, "http://example.com/foo.bzr", false},
-		{vcsBzr, "https://example.com/foo.bzr", true},
 		{vcsSvn, "http://example.com/svn", false},
 		{vcsSvn, "https://example.com/svn", true},
 		{vcsHg, "http://example.com/foo.hg", false},
@@ -294,8 +324,6 @@ func TestIsSecureGitAllowProtocol(t *testing.T) {
 		// Same as TestIsSecure to verify same behavior.
 		{vcsGit, "http://example.com/foo.git", false},
 		{vcsGit, "https://example.com/foo.git", true},
-		{vcsBzr, "http://example.com/foo.bzr", false},
-		{vcsBzr, "https://example.com/foo.bzr", true},
 		{vcsSvn, "http://example.com/svn", false},
 		{vcsSvn, "https://example.com/svn", true},
 		{vcsHg, "http://example.com/foo.hg", false},
@@ -312,7 +340,6 @@ func TestIsSecureGitAllowProtocol(t *testing.T) {
 		{vcsGit, "foo://example.com/bar.git", true},
 		{vcsHg, "foo://example.com/bar.hg", false},
 		{vcsSvn, "foo://example.com/svn", false},
-		{vcsBzr, "foo://example.com/bar.bzr", false},
 	}
 
 	defer os.Unsetenv("GIT_ALLOW_PROTOCOL")
@@ -503,6 +530,42 @@ func TestValidateRepoRoot(t *testing.T) {
 				want = "nil"
 			}
 			t.Errorf("validateRepoRoot(%q) = %q, want %s", test.root, err, want)
+		}
+	}
+}
+
+func TestValidateRepoSubDir(t *testing.T) {
+	tests := []struct {
+		subdir string
+		ok     bool
+	}{
+		{
+			subdir: "",
+			ok:     true,
+		},
+		{
+			subdir: "sub/dir",
+			ok:     true,
+		},
+		{
+			subdir: "/leading/slash",
+			ok:     false,
+		},
+		{
+			subdir: "-leading/hyphen",
+			ok:     false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validateRepoSubDir(test.subdir)
+		ok := err == nil
+		if ok != test.ok {
+			want := "error"
+			if test.ok {
+				want = "nil"
+			}
+			t.Errorf("validateRepoSubDir(%q) = %q, want %s", test.subdir, err, want)
 		}
 	}
 }

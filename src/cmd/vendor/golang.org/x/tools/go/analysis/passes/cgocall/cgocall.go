@@ -350,8 +350,8 @@ func typeOKForCgoCall(t types.Type, m map[types.Type]bool) bool {
 	case *types.Array:
 		return typeOKForCgoCall(t.Elem(), m)
 	case *types.Struct:
-		for i := 0; i < t.NumFields(); i++ {
-			if !typeOKForCgoCall(t.Field(i).Type(), m) {
+		for field := range t.Fields() {
+			if !typeOKForCgoCall(field.Type(), m) {
 				return false
 			}
 		}

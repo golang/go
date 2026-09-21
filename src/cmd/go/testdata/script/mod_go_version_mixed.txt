@@ -1,8 +1,6 @@
 # Test that dependencies can use Go language features newer than the
 # Go version specified by the main module.
 
-env GO111MODULE=on
-
 go build
 
 -- go.mod --

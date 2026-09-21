@@ -34,12 +34,15 @@ func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint
 var supportsAESGCM = cpu.X86HasAES && cpu.X86HasPCLMULQDQ && cpu.X86HasSSE41 && cpu.X86HasSSSE3 ||
 	cpu.ARM64HasAES && cpu.ARM64HasPMULL
 
+var supportsAESGCMEOR3 = supportsAESGCM && cpu.ARM64HasSHA3
+
 func init() {
 	if cpu.AMD64 {
 		impl.Register("gcm", "AES-NI", &supportsAESGCM)
 	}
 	if cpu.ARM64 {
 		impl.Register("gcm", "Armv8.0", &supportsAESGCM)
+		impl.Register("gcm", "Armv8.2", &supportsAESGCMEOR3)
 	}
 }
 
@@ -47,7 +50,7 @@ func init() {
 // sure it is not used when hardware support is available. It shouldn't happen,
 // but this way it's more evidently correct.
 func checkGenericIsExpected() {
-	if supportsAESGCM {
+	if supportsAESGCM || supportsAESGCMEOR3 {
 		panic("gcm: internal error: using generic implementation despite hardware support")
 	}
 }
@@ -57,14 +60,14 @@ type gcmPlatformData struct {
 }
 
 func initGCM(g *GCM) {
-	if !supportsAESGCM {
+	if !(supportsAESGCM || supportsAESGCMEOR3) {
 		return
 	}
 	gcmAesInit(&g.productTable, aes.EncryptionKeySchedule(&g.cipher))
 }
 
 func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
-	if !supportsAESGCM {
+	if !(supportsAESGCM || supportsAESGCMEOR3) {
 		sealGeneric(out, g, nonce, plaintext, data)
 		return
 	}
@@ -94,7 +97,7 @@ func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
 }
 
 func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
-	if !supportsAESGCM {
+	if !(supportsAESGCM || supportsAESGCMEOR3) {
 		return openGeneric(out, g, nonce, ciphertext, data)
 	}
 

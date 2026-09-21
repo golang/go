@@ -3,7 +3,6 @@ env GO111MODULE=off
 # Test that you cannot import a main package.
 # See golang.org/issue/4210 and golang.org/issue/17475.
 
-[short] skip
 cd $WORK
 
 # Importing package main from that package main's test should work.

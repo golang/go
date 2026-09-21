@@ -87,10 +87,7 @@ func MakeTask() {
 
 	// Record user init functions.
 	for _, fn := range typecheck.Target.Inits {
-		if fn.Sym().Name == "init" {
-			// Synthetic init function for initialization of package-scope
-			// variables. We can use staticinit to optimize away static
-			// assignments.
+		if staticinit.CanOptimize(fn) {
 			s := staticinit.Schedule{
 				Plans: make(map[ir.Node]*staticinit.Plan),
 				Temps: make(map[ir.Node]*ir.Name),

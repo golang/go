@@ -3,9 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package maphash provides hash functions on byte sequences and comparable values.
-// These hash functions are intended to be used to implement hash tables or
-// other data structures that need to map arbitrary strings or byte
-// sequences to a uniform distribution on unsigned 64-bit integers.
+// It also defines [Hasher], the interface between a hash function and a hash table.
+//
+// These hash functions are intended to be used to implement hash
+// tables, Bloom filters, and other data structures that need to map
+// arbitrary strings or byte sequences to a uniform distribution on
+// unsigned 64-bit integers.
+//
 // Each different instance of a hash table or data structure should use its own [Seed].
 //
 // The hash functions are not cryptographically secure.
@@ -15,6 +19,8 @@ package maphash
 import (
 	"hash"
 	"internal/abi"
+	"internal/runtime/maps"
+	"unsafe"
 )
 
 // A Seed is a random value that selects the specific hash function
@@ -299,7 +305,7 @@ func Comparable[T comparable](seed Seed, v T) uint64 {
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
 	abi.EscapeNonString(x)
-	// writeComparable (not in purego mode) directly operates on h.state
+	// writeComparable directly operates on h.state
 	// without using h.buf. Mix in the buffer length so it won't
 	// commute with a buffered write, which either changes h.n or changes
 	// h.state.
@@ -307,4 +313,53 @@ func WriteComparable[T comparable](h *Hash, x T) {
 		writeComparable(h, h.n)
 	}
 	writeComparable(h, x)
+}
+
+//go:linkname runtime_rand runtime.rand
+func runtime_rand() uint64
+
+//go:linkname runtime_memhash runtime.memhash
+//go:noescape
+func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
+
+func rthash(buf []byte, seed uint64) uint64 {
+	if len(buf) == 0 {
+		return seed
+	}
+	len := len(buf)
+	// The runtime hasher only works on uintptr. For 64-bit
+	// architectures, we use the hasher directly. Otherwise,
+	// we use two parallel hashers on the lower and upper 32 bits.
+	if maps.Use64BitHash {
+		return uint64(runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed), uintptr(len)))
+	}
+	lo := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(uint32(seed)), uintptr(len))
+	hi := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed>>32), uintptr(len))
+	return uint64(hi)<<32 | uint64(lo)
+}
+
+func rthashString(s string, state uint64) uint64 {
+	buf := unsafe.Slice(unsafe.StringData(s), len(s))
+	return rthash(buf, state)
+}
+
+func randUint64() uint64 {
+	return runtime_rand()
+}
+
+func comparableHash[T comparable](v T, seed Seed) uint64 {
+	s := seed.s
+	var m map[T]struct{}
+	mTyp := abi.TypeOf(m)
+	hasher := (*abi.MapType)(unsafe.Pointer(mTyp)).Hasher
+	if maps.Use64BitHash {
+		return uint64(hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s)))
+	}
+	lo := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(uint32(s)))
+	hi := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s>>32))
+	return uint64(hi)<<32 | uint64(lo)
+}
+
+func writeComparable[T comparable](h *Hash, v T) {
+	h.state.s = comparableHash(v, h.state)
 }

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -94,7 +95,7 @@ func (x *FileSyntax) Span() (start, end Position) {
 // line, the new line is added at the end of the block containing hint,
 // extracting hint into a new block if it is not yet in one.
 //
-// If the hint is non-nil buts its first token does not match,
+// If the hint is non-nil but its first token does not match,
 // the new line is added after the block containing hint
 // (or hint itself, if not in a block).
 //
@@ -105,8 +106,7 @@ func (x *FileSyntax) addLine(hint Expr, tokens ...string) *Line {
 	if hint == nil {
 		// If no hint given, add to the last statement of the given type.
 	Loop:
-		for i := len(x.Stmt) - 1; i >= 0; i-- {
-			stmt := x.Stmt[i]
+		for _, stmt := range slices.Backward(x.Stmt) {
 			switch stmt := stmt.(type) {
 			case *Line:
 				if stmt.Token != nil && stmt.Token[0] == tokens[0] {
@@ -600,7 +600,7 @@ func (in *input) readToken() {
 
 	// Checked all punctuation. Must be identifier token.
 	if c := in.peekRune(); !isIdent(c) {
-		in.Error(fmt.Sprintf("unexpected input character %#q", c))
+		in.Error(fmt.Sprintf("unexpected input character %#q", rune(c)))
 	}
 
 	// Scan over identifier.
@@ -718,9 +718,7 @@ func (in *input) assignComments() {
 	}
 
 	// Assign suffix comments to syntax immediately before.
-	for i := len(in.post) - 1; i >= 0; i-- {
-		x := in.post[i]
-
+	for _, x := range slices.Backward(in.post) {
 		start, end := x.Span()
 		if debug {
 			fmt.Fprintf(os.Stderr, "post %T :%d:%d #%d :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte, end.Line, end.LineRune, end.Byte)
@@ -926,7 +924,7 @@ var (
 	moduleStr  = []byte("module")
 )
 
-// ModulePath returns the module path from the gomod file text.
+// ModulePath returns the module path from the go.mod file text.
 // If it cannot find a module path, it returns an empty string.
 // It is tolerant of unrelated problems in the go.mod file.
 func ModulePath(mod []byte) string {

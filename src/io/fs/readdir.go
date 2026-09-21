@@ -23,9 +23,9 @@ type ReadDirFS interface {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 //
-// If fs implements [ReadDirFS], ReadDir calls fs.ReadDir.
-// Otherwise ReadDir calls fs.Open and uses ReadDir and Close
-// on the returned file.
+// If fsys implements [ReadDirFS], ReadDir calls fsys.ReadDir.
+// Otherwise ReadDir calls fsys.Open and uses ReadDir and Close
+// on the returned [ReadDirFile].
 func ReadDir(fsys FS, name string) ([]DirEntry, error) {
 	if fsys, ok := fsys.(ReadDirFS); ok {
 		return fsys.ReadDir(name)

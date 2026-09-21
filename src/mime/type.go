@@ -115,7 +115,8 @@ var builtinTypesLower = map[string]string{
 	".vtt":   "text/vtt; charset=utf-8",
 	".wasm":  "application/wasm",
 	".wav":   "audio/wav",
-	".webm":  "audio/webm",
+	".weba":  "audio/webm",
+	".webm":  "video/webm",
 	".webp":  "image/webp",
 	".xbl":   "text/xml; charset=utf-8",
 	".xbm":   "image/x-xbitmap",
@@ -156,6 +157,7 @@ func initMime() {
 //	/etc/mime.types
 //	/etc/apache2/mime.types
 //	/etc/apache/mime.types
+//	/etc/httpd/conf/mime.types
 //
 // On Windows, MIME types are extracted from the registry.
 //
@@ -197,6 +199,19 @@ func TypeByExtension(ext string) string {
 // type typ. The returned extensions will each begin with a leading dot, as in
 // ".html". When typ has no associated extensions, ExtensionsByType returns an
 // nil slice.
+//
+// The built-in table is small but on unix it is augmented by the local
+// system's MIME-info database or mime.types file(s) if available under one or
+// more of these names:
+//
+//	/usr/local/share/mime/globs2
+//	/usr/share/mime/globs2
+//	/etc/mime.types
+//	/etc/apache2/mime.types
+//	/etc/apache/mime.types
+//	/etc/httpd/conf/mime.types
+//
+// On Windows, extensions are extracted from the registry.
 func ExtensionsByType(typ string) ([]string, error) {
 	justType, _, err := ParseMediaType(typ)
 	if err != nil {
@@ -231,7 +246,7 @@ func setExtensionType(extension, mimeType string) error {
 	}
 	if strings.HasPrefix(mimeType, "text/") && param["charset"] == "" {
 		param["charset"] = "utf-8"
-		mimeType = FormatMediaType(mimeType, param)
+		mimeType = FormatMediaType(justType, param)
 	}
 	extLower := strings.ToLower(extension)
 

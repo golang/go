@@ -34,7 +34,7 @@ type coro struct {
 	lockedInt uint32 // mp's internal lockOSThread counter at coro creation time.
 }
 
-//go:linkname newcoro
+//go:linknamestd newcoro
 
 // newcoro creates a new coro containing a
 // goroutine blocked waiting to run f
@@ -84,7 +84,7 @@ func coroexit(c *coro) {
 	mcall(coroswitch_m)
 }
 
-//go:linkname coroswitch
+//go:linknamestd coroswitch
 
 // coroswitch switches to the goroutine blocked on c
 // and then blocks the current goroutine on c.

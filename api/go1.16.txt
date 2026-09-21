@@ -538,7 +538,6 @@ pkg encoding/json, type UnmarshalFieldError //deprecated
 pkg go/build, const AllowBinary //deprecated
 pkg go/doc, type Package struct, Bugs //deprecated
 pkg go/importer, func For //deprecated
-pkg go/importer, func ForCompiler //deprecated
 pkg go/types, func NewInterface //deprecated
 pkg go/types, method (*Interface) Embedded //deprecated
 pkg image, var ZP //deprecated

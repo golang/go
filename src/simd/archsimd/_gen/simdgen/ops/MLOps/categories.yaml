@@ -1,0 +1,37 @@
+!sum
+- go: DotProductPairs
+  commutative: false
+  documentation: !string |-
+    // NAME multiplies the elements and add the pairs together,
+    // yielding a vector of half as many elements with twice the input element size.
+# TODO: maybe simplify this name within the receiver-type + method-naming scheme we use.
+- go: DotProductPairsSaturated
+  commutative: false
+  documentation: !string |-
+    // NAME multiplies the elements and add the pairs together with saturation,
+    // yielding a vector of half as many elements with twice the input element size.
+# - go: DotProductBroadcast
+#   commutative: true
+# #   documentation: !string |-
+#     // NAME multiplies all elements and broadcasts the sum.
+- go: AddDotProductPairs
+  commutative: false
+  noTypes: "true"
+  noGenericOps: "true"
+  documentation: !string |-
+    // NAME performs dot products on pairs of elements of y and z and then adds x.
+- go: MulAdd
+  commutative: false
+- go: MulAddEvenSubOdd
+  commutative: false
+  documentation: !string |-
+    // NAME performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+- go: MulAddOddSubEven
+  commutative: false
+  documentation: !string |-
+    // NAME performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+- go: SumOf8AbsDiff
+  commutative: false
+  documentation: !string |-
+    // NAME computes the absolute difference of x and y and sums each group of 8 results.
+    // This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.

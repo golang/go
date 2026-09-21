@@ -5,10 +5,10 @@
 package strconv_test
 
 import (
+	. "internal/strconv"
 	"math"
 	"math/rand"
 	"reflect"
-	. "internal/strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -196,6 +196,9 @@ var atoftests = []atofTest{
 	// way too small
 	{"1e-350", "0", nil},
 	{"1e-400000", "0", nil},
+	{"1e-345", "0", nil}, // picked off in atof64
+	{"1e-343", "0", nil}, // large c.s in parseFloat64
+	{"9.999999999999999999e-343", "0", nil},
 
 	// Near denormals and denormals.
 	{"0x2.00000000000000p-1010", "1.8227805048890994e-304", nil}, // 0x00e0000000000000
@@ -420,6 +423,11 @@ var atof32tests = []atofTest{
 	{"0x0.0000008p-125", "0", nil},             // rounded down
 	{"0x0.0000007p-125", "0", nil},             // rounded down
 
+	{"1e-70", "0", nil}, // picked off in atof32
+	{"1e-65", "0", nil}, // picked off in atof32
+	{"1e-64", "0", nil}, // large c.s in parseFloat32
+	{"9.999999999999999999e-64", "0", nil},
+
 	// 2^92 = 8388608p+69 = 4951760157141521099596496896 (4.9517602e27)
 	// is an exact power of two that needs 8 decimal digits to be correctly
 	// parsed back.
@@ -638,25 +646,25 @@ func TestParseFloatIncorrectBitSize(t *testing.T) {
 }
 
 func BenchmarkAtof64Decimal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParseFloat("33909", 64)
 	}
 }
 
 func BenchmarkAtof64Float(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParseFloat("339.7784", 64)
 	}
 }
 
 func BenchmarkAtof64FloatExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParseFloat("-5.09e75", 64)
 	}
 }
 
 func BenchmarkAtof64Big(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParseFloat("123456789123456789123456789", 64)
 	}
 }
@@ -664,16 +672,20 @@ func BenchmarkAtof64Big(b *testing.B) {
 func BenchmarkAtof64RandomBits(b *testing.B) {
 	initAtof()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		ParseFloat(benchmarksRandomBits[i%1024], 64)
+		i++
 	}
 }
 
 func BenchmarkAtof64RandomFloats(b *testing.B) {
 	initAtof()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		ParseFloat(benchmarksRandomNormal[i%1024], 64)
+		i++
 	}
 }
 
@@ -685,7 +697,7 @@ func BenchmarkAtof64RandomLongFloats(b *testing.B) {
 	}
 	b.ResetTimer()
 	idx := 0
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParseFloat(samples[idx], 64)
 		idx++
 		if idx == len(samples) {
@@ -694,20 +706,32 @@ func BenchmarkAtof64RandomLongFloats(b *testing.B) {
 	}
 }
 
+func BenchmarkAtof64Hex(b *testing.B) {
+	for b.Loop() {
+		ParseFloat("0x1.fp-2", 64)
+	}
+}
+
+func BenchmarkAtof64Underscores(b *testing.B) {
+	for b.Loop() {
+		ParseFloat("1_2_3_4_5_6_7_8.9_1", 64)
+	}
+}
+
 func BenchmarkAtof32Decimal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParseFloat("33909", 32)
 	}
 }
 
 func BenchmarkAtof32Float(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParseFloat("339.778", 32)
 	}
 }
 
 func BenchmarkAtof32FloatExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParseFloat("12.3456e32", 32)
 	}
 }
@@ -720,8 +744,10 @@ func BenchmarkAtof32Random(b *testing.B) {
 		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', -1, 32)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		ParseFloat(float32strings[i%4096], 32)
+		i++
 	}
 }
 
@@ -733,7 +759,9 @@ func BenchmarkAtof32RandomLong(b *testing.B) {
 		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', 20, 32)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		ParseFloat(float32strings[i%4096], 32)
+		i++
 	}
 }

@@ -1,0 +1,63 @@
+From cdfdb06c9155080ec97d6e4f4dd90b6e7cefb0ca Mon Sep 17 00:00:00 2001
+From: Michael Pratt <michael@prattmic.com>
+Date: Fri, 12 Dec 2025 16:31:44 +1100
+Subject: [PATCH] [TSan] Zero-initialize Trace.local_head
+
+Trace.local_head is currently uninitialized when Trace is created. It is
+first initialized when the first event is added to the trace, via the
+first call to TraceSwitchPartImpl.
+
+However, ThreadContext::OnFinished uses local_head, assuming that it is
+initialized. If it has not been initialized, we have undefined behavior,
+likely crashing if the contents are garbage. The allocator (Alloc)
+reuses previously allocations, so the contents of the uninitialized
+memory are arbitrary.
+
+In a C/C++ TSAN binary it is likely very difficult for a thread to start
+and exit without a single event inbetween. For Go programs, code running
+in the Go runtime itself is not TSan-instrumented, so goroutines that
+exclusively run runtime code (such as GC workers) can quite reasonably
+have no TSan events.
+
+The addition of such a goroutine to the Go test.c is sufficient to
+trigger this case, though for reliable failure (segfault) I've found it
+necessary to poison the ThreadContext allocation like so:
+
+(Example patch redacted because patch tries to apply this as a real
+patch. See full commit at
+https://github.com/llvm/llvm-project/commit/cdfdb06c9155080ec97d6e4f4dd90b6e7cefb0ca).
+
+The fix is trivial: local_head should be zero-initialized.
+---
+ compiler-rt/lib/tsan/go/test.c        | 4 ++++
+ compiler-rt/lib/tsan/rtl/tsan_trace.h | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/compiler-rt/lib/tsan/go/test.c b/compiler-rt/lib/tsan/go/test.c
+index d328ab1b331d7..fcd396227a4ab 100644
+--- a/compiler-rt/lib/tsan/go/test.c
++++ b/compiler-rt/lib/tsan/go/test.c
+@@ -91,6 +91,10 @@ int main(void) {
+   __tsan_go_start(thr0, &thr1, (char*)&barfoo + 1);
+   void *thr2 = 0;
+   __tsan_go_start(thr0, &thr2, (char*)&barfoo + 1);
++  // Goroutine that exits without a single event.
++  void *thr3 = 0;
++  __tsan_go_start(thr0, &thr3, (char*)&barfoo + 1);
++  __tsan_go_end(thr3);
+   __tsan_func_exit(thr0);
+   __tsan_func_enter(thr1, (char*)&foobar + 1);
+   __tsan_func_enter(thr1, (char*)&foobar + 1);
+diff --git a/compiler-rt/lib/tsan/rtl/tsan_trace.h b/compiler-rt/lib/tsan/rtl/tsan_trace.h
+index 01bb7b34f43a2..1e791ff765fec 100644
+--- a/compiler-rt/lib/tsan/rtl/tsan_trace.h
++++ b/compiler-rt/lib/tsan/rtl/tsan_trace.h
+@@ -190,7 +190,7 @@ struct Trace {
+   Mutex mtx;
+   IList<TraceHeader, &TraceHeader::trace_parts, TracePart> parts;
+   // First node non-queued into ctx->trace_part_recycle.
+-  TracePart* local_head;
++  TracePart* local_head = nullptr;
+   // Final position in the last part for finished threads.
+   Event* final_pos = nullptr;
+   // Number of trace parts allocated on behalf of this trace specifically.

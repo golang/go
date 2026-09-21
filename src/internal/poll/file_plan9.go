@@ -26,17 +26,17 @@ func (fdmu *FDMutex) IncrefAndClose() bool {
 }
 
 func (fdmu *FDMutex) ReadLock() bool {
-	return fdmu.fdmu.rwlock(true)
+	return fdmu.fdmu.rwlock(readlock, waitLock)
 }
 
 func (fdmu *FDMutex) ReadUnlock() bool {
-	return fdmu.fdmu.rwunlock(true)
+	return fdmu.fdmu.rwunlock(readlock)
 }
 
 func (fdmu *FDMutex) WriteLock() bool {
-	return fdmu.fdmu.rwlock(false)
+	return fdmu.fdmu.rwlock(writeLock, waitLock)
 }
 
 func (fdmu *FDMutex) WriteUnlock() bool {
-	return fdmu.fdmu.rwunlock(false)
+	return fdmu.fdmu.rwunlock(writeLock)
 }

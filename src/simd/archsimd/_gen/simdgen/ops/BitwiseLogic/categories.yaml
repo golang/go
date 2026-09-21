@@ -1,0 +1,33 @@
+!sum
+- go: And
+  commutative: true
+  documentation: !string |-
+    // NAME performs a bitwise x & y.
+- go: Or
+  commutative: true
+  documentation: !string |-
+    // NAME performs a bitwise x | y.
+- go: AndNot
+  commutative: false
+  documentation: !string |-
+    // NAME performs a bitwise x &^ y.
+- go: Xor
+  commutative: true
+  documentation: !string |-
+    // NAME performs a bitwise x ^ y.
+- go: OrNot
+  commutative: false
+  documentation: !string |-
+    // NAME performs a bitwise x | ^y.
+- go: Not
+  commutative: false
+  documentation: !string |-
+    // NAME returns the bitwise complement of x.
+- go: tern
+  commutative: false
+  documentation: !string |-
+    // NAME performs a logical operation on three vectors based on the 8-bit truth table.
+    // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
+
+# We also have PTEST and VPTERNLOG, those should be hidden from the users
+# and only appear in rewrite rules.

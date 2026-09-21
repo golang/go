@@ -265,33 +265,27 @@ func (z nat) mulRange(stk *stack, a, b uint64) nat {
 	return z.mul(stk, nat(nil).mulRange(stk, a, m), nat(nil).mulRange(stk, m+1, b))
 }
 
-// A stack provides temporary storage for complex calculations
+// A stackInner provides temporary storage for complex calculations
 // such as multiplication and division.
-// The stack is a simple slice of words, extended as needed
-// to hold all the temporary storage for a calculation.
-// In general, if a function takes a *stack, it expects a non-nil *stack.
-// However, certain functions may allow passing a nil *stack instead,
-// so that they can handle trivial stack-free cases without forcing the
-// caller to obtain and free a stack that will be unused. These functions
-// document that they accept a nil *stack in their doc comments.
-type stack struct {
+// It should only be used by [stack], below.
+type stackInner struct {
 	w []Word
 }
 
-var stackPool sync.Pool
+var stackPool sync.Pool // pool of *stackInner
 
 // getStack returns a temporary stack.
 // The caller must call [stack.free] to give up use of the stack when finished.
-func getStack() *stack {
-	s, _ := stackPool.Get().(*stack)
+func getStackInner() *stackInner {
+	s, _ := stackPool.Get().(*stackInner)
 	if s == nil {
-		s = new(stack)
+		s = new(stackInner)
 	}
 	return s
 }
 
 // free returns the stack for use by another calculation.
-func (s *stack) free() {
+func (s *stackInner) free() {
 	s.w = s.w[:0]
 	stackPool.Put(s)
 }
@@ -299,7 +293,7 @@ func (s *stack) free() {
 // save returns the current stack pointer.
 // A future call to restore with the same value
 // frees any temporaries allocated on the stack after the call to save.
-func (s *stack) save() int {
+func (s *stackInner) save() int {
 	return len(s.w)
 }
 
@@ -310,12 +304,12 @@ func (s *stack) save() int {
 //
 // which makes sure to pop any temporaries allocated in the current function
 // from the stack before returning.
-func (s *stack) restore(n int) {
+func (s *stackInner) restore(n int) {
 	s.w = s.w[:n]
 }
 
 // nat returns a nat of n words, allocated on the stack.
-func (s *stack) nat(n int) nat {
+func (s *stackInner) nat(n int) nat {
 	nr := (n + 3) &^ 3 // round up to multiple of 4
 	off := len(s.w)
 	s.w = slices.Grow(s.w, nr)
@@ -325,6 +319,63 @@ func (s *stack) nat(n int) nat {
 		x[0] = 0xfedcb
 	}
 	return x
+}
+
+// A stack provides temporary storage for complex calculations
+// such as multiplication and division.
+// In general, if a function takes a *stack, it expects a non-nil *stack.
+// However, certain functions may allow passing a nil *stack instead,
+// so that they can handle trivial stack-free cases without forcing the
+// caller to obtain and free a stack that will be unused. These functions
+// document that they accept a nil *stack in their doc comments.
+type stack struct {
+	si *stackInner
+}
+
+func getStack() *stack {
+	return &stack{}
+}
+func (s *stack) free() {
+	si := s.si
+	if si != nil {
+		si.free()
+	}
+}
+func (s *stack) save() int {
+	si := s.si
+	if si == nil {
+		return 0
+	}
+	return si.save()
+}
+func (s *stack) restore(n int) {
+	si := s.si
+	if si == nil {
+		return
+	}
+	si.restore(n)
+}
+func (s *stack) nat(n int) nat {
+	si := s.si
+	if si == nil {
+		if n <= 4 {
+			// For small allocations, just ask the allocator.
+			// It isn't worth pooling these allocations.
+			// See issue 73999.
+			r := slices.Grow(nat(nil), n)
+			r = r[:n]
+			if n > 0 {
+				r[0] = 0xabcdef
+			}
+			return r
+		}
+		si, _ = stackPool.Get().(*stackInner)
+		if si == nil {
+			si = new(stackInner)
+		}
+		s.si = si
+	}
+	return si.nat(n)
 }
 
 // bitLen returns the length of x in bits.

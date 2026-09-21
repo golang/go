@@ -9,6 +9,7 @@ package syscall_test
 import (
 	"syscall"
 	"testing"
+	"unsafe"
 )
 
 var joinPathTests = [...]struct {
@@ -72,5 +73,14 @@ func BenchmarkJoinPath(b *testing.B) {
 				syscall.JoinPath(test.dir, test.file)
 			}
 		})
+	}
+}
+
+func TestRandomGetOverflow(t *testing.T) {
+	// Use unsafe.Slice to avoid actually allocating ~4GB.
+	var dummy byte
+	b := unsafe.Slice(&dummy, int(1<<32))
+	if err := syscall.RandomGet(b); err != syscall.EINVAL {
+		t.Errorf("syscall.RandomGet succeeds given a slice that is larger than what random_get supports, want %v", syscall.EINVAL)
 	}
 }

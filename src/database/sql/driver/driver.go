@@ -40,6 +40,7 @@ package driver
 
 import (
 	"context"
+	"database/sql/internal"
 	"errors"
 	"reflect"
 )
@@ -436,11 +437,32 @@ type Rows interface {
 	// size as the Columns() are wide.
 	//
 	// Next should return io.EOF when there are no more rows.
-	//
-	// The dest should not be written to outside of Next. Care
-	// should be taken when closing Rows not to modify
-	// a buffer held in dest.
 	Next(dest []Value) error
+}
+
+// ScanContext carries state related to the current query
+// through a [RowsColumnScanner.ScanColumn] function to [database/sql.ConvertAssign].
+type ScanContext internal.ScanContext
+
+// RowsColumnScanner extends the [Rows] interface by providing a way for the driver
+// to scan directly into the user-provided destination.
+//
+// RowsColumnScanner supersedes the [Rows.Next] method.
+//
+// As of Go 1.27, database/sql will not call Next if a Rows implements RowsColumnScanner.
+// Rows implementations may still implement the Next method to support older versions of Go.
+type RowsColumnScanner interface {
+	Rows
+
+	// NextRow advances to the next row of data.
+	// It should return io.EOF when there are no more rows.
+	NextRow() error
+
+	// ScanColumn copies the column at the given index in the current row
+	// into the value pointed to by dest.
+	//
+	// The driver may assign a driver.Value to dest using [database/sql.ConvertAssign].
+	ScanColumn(scanCtx ScanContext, index int, dest any) error
 }
 
 // RowsNextResultSet extends the [Rows] interface by providing a way to signal
@@ -513,18 +535,6 @@ type RowsColumnTypeNullable interface {
 type RowsColumnTypePrecisionScale interface {
 	Rows
 	ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool)
-}
-
-// RowsColumnScanner may be implemented by [Rows]. It allows the driver to completely
-// take responsibility for how values are scanned and replace the normal [database/sql].
-// scanning path. This allows drivers to directly support types that do not implement
-// [database/sql.Scanner].
-type RowsColumnScanner interface {
-	Rows
-
-	// ScanColumn copies the column in the current row into the value pointed at by
-	// dest. It returns [ErrSkip] to fall back to the normal [database/sql] scanning path.
-	ScanColumn(dest any, index int) error
 }
 
 // Tx is a transaction.

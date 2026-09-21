@@ -48,7 +48,7 @@ func TestTypeSetString(t *testing.T) {
 		// parse
 		src := "package p; type T interface" + body
 		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, "p.go", src, parser.AllErrors)
+		file, err := parser.ParseFile(fset, "p.go", src, parser.AllErrors|parser.SkipObjectResolution)
 		if file == nil {
 			t.Fatalf("%s: %v (invalid test case)", body, err)
 		}

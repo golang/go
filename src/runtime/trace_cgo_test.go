@@ -95,7 +95,7 @@ func mustFindLogV2(t *testing.T, trc io.Reader, category string) trace.Event {
 	return candidates[0]
 }
 
-// dumpStack returns e.Stack() as a string.
+// dumpStackV2 returns e.Stack() as a string.
 func dumpStackV2(e *trace.Event) string {
 	var buf bytes.Buffer
 	for f := range e.Stack().Frames() {

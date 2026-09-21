@@ -8,6 +8,8 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
+	"crypto/mlkem"
 	"crypto/rsa"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -27,9 +29,10 @@ type pkcs8 struct {
 
 // ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
 //
-// It returns a *[rsa.PrivateKey], an *[ecdsa.PrivateKey], an [ed25519.PrivateKey] (not
-// a pointer), or an *[ecdh.PrivateKey] (for X25519). More types might be supported
-// in the future.
+// It returns a *[rsa.PrivateKey], an *[ecdsa.PrivateKey], an [ed25519.PrivateKey]
+// (not a pointer), a *[mldsa.PrivateKey], an *[ecdh.PrivateKey] (for X25519), a
+// *[mlkem.DecapsulationKey768], or a *[mlkem.DecapsulationKey1024]. More types
+// might be supported in the future.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
 //
@@ -79,6 +82,36 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 		}
 		return ed25519.NewKeyFromSeed(curvePrivateKey), nil
 
+	case privKey.Algo.Algorithm.Equal(oidPublicKeyMLDSA44),
+		privKey.Algo.Algorithm.Equal(oidPublicKeyMLDSA65),
+		privKey.Algo.Algorithm.Equal(oidPublicKeyMLDSA87):
+		if l := len(privKey.Algo.Parameters.FullBytes); l != 0 {
+			return nil, errors.New("x509: invalid ML-DSA private key parameters")
+		}
+		if l := len(privKey.PrivateKey); l == 0 {
+			return nil, fmt.Errorf("x509: invalid ML-DSA private key length: %d", l)
+		}
+		switch privKey.PrivateKey[0] {
+		case 0x80: // IMPLICIT [0] OCTET STRING (seed)
+		case 0x04: // OCTET STRING (expandedKey)
+			return nil, errors.New("x509: semi-expanded ML-DSA private keys without seed are not supported")
+		case 0x30: // SEQUENCE (both)
+			return nil, errors.New(`x509: ML-DSA private keys with both seed and expanded key are not supported, use e.g. "openssl pkey -provparam ml-dsa.output_formats=seed-only" to convert to a seed-only key`)
+		default:
+			return nil, fmt.Errorf("x509: invalid ML-DSA private key: invalid ASN.1 tag %02x", privKey.PrivateKey[0])
+		}
+		if l := len(privKey.PrivateKey); l != 2+mldsa.PrivateKeySize {
+			return nil, fmt.Errorf("x509: invalid ML-DSA private key length: %d", l)
+		}
+		if privKey.PrivateKey[1] != mldsa.PrivateKeySize {
+			return nil, fmt.Errorf("x509: invalid ML-DSA private key ASN.1 encoding")
+		}
+		params, ok := mldsaParametersFromOID(privKey.Algo.Algorithm)
+		if !ok {
+			return nil, errors.New("x509: unknown ML-DSA parameters")
+		}
+		return mldsa.NewPrivateKey(params, privKey.PrivateKey[2:])
+
 	case privKey.Algo.Algorithm.Equal(oidPublicKeyX25519):
 		if l := len(privKey.Algo.Parameters.FullBytes); l != 0 {
 			return nil, errors.New("x509: invalid X25519 private key parameters")
@@ -89,6 +122,41 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 		}
 		return ecdh.X25519().NewPrivateKey(curvePrivateKey)
 
+	case privKey.Algo.Algorithm.Equal(oidPublicKeyMLKEM768),
+		privKey.Algo.Algorithm.Equal(oidPublicKeyMLKEM1024):
+		// RFC 9935, Section 3
+		// > The parameters field of the AlgorithmIdentifier for the ML-KEM
+		// > public key MUST be absent.
+		if l := len(privKey.Algo.Parameters.FullBytes); l != 0 {
+			return nil, errors.New("x509: invalid ML-KEM private key parameters")
+		}
+		// RFC 9935, Section 6 defines a CHOICE between a seed (IMPLICIT [0]
+		// OCTET STRING), an expandedKey (OCTET STRING), and a SEQUENCE
+		// containing both. Only the seed-only format is supported.
+		if l := len(privKey.PrivateKey); l == 0 {
+			return nil, fmt.Errorf("x509: invalid ML-KEM private key length: %d", l)
+		}
+		switch privKey.PrivateKey[0] {
+		case 0x80: // IMPLICIT [0] OCTET STRING (seed)
+		case 0x04: // OCTET STRING (expandedKey)
+			return nil, errors.New("x509: expanded ML-KEM private keys without seed are not supported")
+		case 0x30: // SEQUENCE (both)
+			return nil, errors.New(`x509: ML-KEM private keys with both seed and expanded key are not supported, use e.g. "openssl pkey -provparam ml-kem.output_formats=seed-only" to convert to a seed-only key`)
+		default:
+			return nil, fmt.Errorf("x509: invalid ML-KEM private key: invalid ASN.1 tag %02x", privKey.PrivateKey[0])
+		}
+		if l := len(privKey.PrivateKey); l != 2+mlkem.SeedSize {
+			return nil, fmt.Errorf("x509: invalid ML-KEM private key length: %d", l)
+		}
+		if privKey.PrivateKey[1] != mlkem.SeedSize {
+			return nil, errors.New("x509: invalid ML-KEM private key ASN.1 encoding")
+		}
+		seed := privKey.PrivateKey[2:]
+		if privKey.Algo.Algorithm.Equal(oidPublicKeyMLKEM768) {
+			return mlkem.NewDecapsulationKey768(seed)
+		}
+		return mlkem.NewDecapsulationKey1024(seed)
+
 	default:
 		return nil, fmt.Errorf("x509: PKCS#8 wrapping contained private key with unknown algorithm: %v", privKey.Algo.Algorithm)
 	}
@@ -97,8 +165,9 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 // MarshalPKCS8PrivateKey converts a private key to PKCS #8, ASN.1 DER form.
 //
 // The following key types are currently supported: *[rsa.PrivateKey],
-// *[ecdsa.PrivateKey], [ed25519.PrivateKey] (not a pointer), and *[ecdh.PrivateKey].
-// Unsupported key types result in an error.
+// *[ecdsa.PrivateKey], [ed25519.PrivateKey] (not a pointer), *[mldsa.PrivateKey],
+// *[ecdh.PrivateKey], *[mlkem.DecapsulationKey768], and
+// *[mlkem.DecapsulationKey1024]. Unsupported key types result in an error.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
 //
@@ -146,6 +215,28 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 			return nil, fmt.Errorf("x509: failed to marshal private key: %v", err)
 		}
 		privKey.PrivateKey = curvePrivateKey
+
+	case *mldsa.PrivateKey:
+		oid, ok := oidFromMLDSAParameters(k.PublicKey().Parameters())
+		if !ok {
+			return nil, errors.New("x509: unknown ML-DSA parameters while marshaling to PKCS#8")
+		}
+		privKey.Algo = pkix.AlgorithmIdentifier{
+			Algorithm: oid,
+		}
+		privKey.PrivateKey = append([]byte{0x80, mldsa.PrivateKeySize}, k.Bytes()...)
+
+	case *mlkem.DecapsulationKey768:
+		privKey.Algo = pkix.AlgorithmIdentifier{
+			Algorithm: oidPublicKeyMLKEM768,
+		}
+		privKey.PrivateKey = append([]byte{0x80, mlkem.SeedSize}, k.Bytes()...)
+
+	case *mlkem.DecapsulationKey1024:
+		privKey.Algo = pkix.AlgorithmIdentifier{
+			Algorithm: oidPublicKeyMLKEM1024,
+		}
+		privKey.PrivateKey = append([]byte{0x80, mlkem.SeedSize}, k.Bytes()...)
 
 	case *ecdh.PrivateKey:
 		if k.Curve() == ecdh.X25519() {

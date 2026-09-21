@@ -97,6 +97,9 @@ import (
 //	func main() {
 //		val := "hello Go"
 //		h := cgo.NewHandle(val)
+//		// In this example, unsafe.Pointer(&h) is valid because myprint
+//		// does not keep a copy of the pointer. If the C code keeps the
+//		// pointer after the call returns, use runtime.Pinner to pin it.
 //		C.myprint(unsafe.Pointer(&h))
 //		// Output: hello Go
 //	}

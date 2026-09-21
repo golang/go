@@ -1,0 +1,7 @@
+handle dir
+status 404
+
+-- index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/get_404_meta git https://vcs-test.golang.org/git/hello">

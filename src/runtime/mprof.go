@@ -120,7 +120,6 @@ type memRecord struct {
 	// of the events from that cycle must be done. Specifically:
 	//
 	// Mallocs are accounted to cycle C+2.
-	// Explicit frees are accounted to cycle C+2.
 	// GC frees (done during sweeping) are accounted to cycle C+1.
 	//
 	// After mark termination, we increment the global heap
@@ -146,16 +145,13 @@ type memRecord struct {
 
 // memRecordCycle
 type memRecordCycle struct {
-	allocs, frees           uintptr
-	alloc_bytes, free_bytes uintptr
+	allocs, frees uintptr
 }
 
 // add accumulates b into a. It does not zero b.
 func (a *memRecordCycle) add(b *memRecordCycle) {
 	a.allocs += b.allocs
 	a.frees += b.frees
-	a.alloc_bytes += b.alloc_bytes
-	a.free_bytes += b.free_bytes
 }
 
 // A blockRecord is the bucket data for a bucket of type blockProfile,
@@ -453,7 +449,6 @@ func mProf_Malloc(mp *m, p unsafe.Pointer, size uintptr) {
 
 	lock(&profMemFutureLock[index])
 	mpc.allocs++
-	mpc.alloc_bytes += size
 	unlock(&profMemFutureLock[index])
 
 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of
@@ -466,7 +461,7 @@ func mProf_Malloc(mp *m, p unsafe.Pointer, size uintptr) {
 }
 
 // Called when freeing a profiled block.
-func mProf_Free(b *bucket, size uintptr) {
+func mProf_Free(b *bucket) {
 	index := (mProfCycle.read() + 1) % uint32(len(memRecord{}.future))
 
 	mp := b.mp()
@@ -474,7 +469,6 @@ func mProf_Free(b *bucket, size uintptr) {
 
 	lock(&profMemFutureLock[index])
 	mpc.frees++
-	mpc.free_bytes += size
 	unlock(&profMemFutureLock[index])
 }
 
@@ -696,8 +690,8 @@ func (prof *mLockProfile) recordUnlock(cycles int64) {
 		if cycles == 0 {
 			return
 		}
-		prevScore := uint64(cheaprand64()) % uint64(prev)
-		thisScore := uint64(cheaprand64()) % uint64(cycles)
+		prevScore := cheaprandu64() % uint64(prev)
+		thisScore := cheaprandu64() % uint64(cycles)
 		if prevScore > thisScore {
 			prof.cyclesLost += cycles
 			return
@@ -731,8 +725,6 @@ func (prof *mLockProfile) captureStack() {
 	}
 	prof.haveStack = true
 
-	prof.stack[0] = logicalStackSentinel
-
 	var nstk int
 	gp := getg()
 	sp := sys.GetCallerSP()
@@ -740,7 +732,7 @@ func (prof *mLockProfile) captureStack() {
 	systemstack(func() {
 		var u unwinder
 		u.initAt(pc, sp, 0, gp, unwindSilentErrors|unwindJumpStack)
-		nstk = 1 + tracebackPCs(&u, skip, prof.stack[1:])
+		nstk = tracebackPCs(&u, skip, prof.stack)
 	})
 	if nstk < len(prof.stack) {
 		prof.stack[nstk] = 0
@@ -753,7 +745,7 @@ func (prof *mLockProfile) captureStack() {
 //
 //go:nowritebarrierrec
 func (prof *mLockProfile) store() {
-	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.haveStack {
+	if gp := getg(); gp.m.locks/mutexMLocksDelta == 1 && gp.m.mLockProfile.haveStack {
 		prof.storeSlow()
 	}
 }
@@ -782,7 +774,6 @@ func (prof *mLockProfile) storeSlow() {
 	saveBlockEventStack(cycles, rate, prof.stack[:nstk], mutexProfile)
 	if lost > 0 {
 		lostStk := [...]uintptr{
-			logicalStackSentinel,
 			abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum,
 		}
 		saveBlockEventStack(lost, rate, lostStk[:], mutexProfile)
@@ -834,7 +825,6 @@ func SetMutexProfileFraction(rate int) int {
 	return int(old)
 }
 
-//go:linkname mutexevent sync.event
 func mutexevent(cycles int64, skip int) {
 	if cycles < 0 {
 		cycles = 0
@@ -964,7 +954,7 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 	head := (*bucket)(mbuckets.Load())
 	for b := head; b != nil; b = b.allnext {
 		mp := b.mp()
-		if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+		if inuseZero || mp.active.allocs != mp.active.frees {
 			n++
 		}
 		if mp.active.allocs != 0 || mp.active.frees != 0 {
@@ -985,7 +975,7 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 				mp.future[c] = memRecordCycle{}
 				unlock(&profMemFutureLock[c])
 			}
-			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+			if inuseZero || mp.active.allocs != mp.active.frees {
 				n++
 			}
 		}
@@ -994,10 +984,9 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 		ok = true
 		for b := head; b != nil; b = b.allnext {
 			mp := b.mp()
-			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+			if inuseZero || mp.active.allocs != mp.active.frees {
 				r := profilerecord.MemProfileRecord{
-					AllocBytes:   int64(mp.active.alloc_bytes),
-					FreeBytes:    int64(mp.active.free_bytes),
+					ObjectSize:   int64(b.size),
 					AllocObjects: int64(mp.active.allocs),
 					FreeObjects:  int64(mp.active.frees),
 					Stack:        b.stk(),
@@ -1011,8 +1000,8 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 }
 
 func copyMemProfileRecord(dst *MemProfileRecord, src profilerecord.MemProfileRecord) {
-	dst.AllocBytes = src.AllocBytes
-	dst.FreeBytes = src.FreeBytes
+	dst.AllocBytes = src.AllocObjects * src.ObjectSize
+	dst.FreeBytes = src.FreeObjects * src.ObjectSize
 	dst.AllocObjects = src.AllocObjects
 	dst.FreeObjects = src.FreeObjects
 	if raceenabled {
@@ -1261,7 +1250,7 @@ func goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.P
 
 //go:linkname pprof_goroutineLeakProfileWithLabels
 func pprof_goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
-	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
+	return goroutineLeakProfileWithLabels(p, labels)
 }
 
 // labels may be nil. If labels is non-nil, it must have the same length as p.
@@ -1323,30 +1312,26 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		return work.goroutineLeak.count, false
 	}
 
-	// Use the same semaphore as goroutineProfileWithLabelsConcurrent,
-	// because ultimately we still use goroutine profiles.
-	semacquire(&goroutineProfile.sema)
-
-	// Unlike in goroutineProfileWithLabelsConcurrent, we don't need to
-	// save the current goroutine stack, because it is obviously not leaked.
-
 	pcbuf := makeProfStack() // see saveg() for explanation
 
 	// Prepare a profile large enough to store all leaked goroutines.
 	n = work.goroutineLeak.count
 
 	if n > len(p) {
-		// There's not enough space in p to store the whole profile, so (per the
-		// contract of runtime.GoroutineProfile) we're not allowed to write to p
-		// at all and must return n, false.
-		semrelease(&goroutineProfile.sema)
+		// There's not enough space in p to store the whole profile, so
+		// we're not allowed to write to p at all and must return n, false.
 		return n, false
 	}
 
 	// Visit each leaked goroutine and try to record its stack.
+	var offset int
 	forEachGRace(func(gp1 *g) {
-		if readgstatus(gp1) == _Gleaked {
-			doRecordGoroutineProfile(gp1, pcbuf)
+		if readgstatus(gp1)&^_Gscan == _Gleaked {
+			systemstack(func() { saveg(^uintptr(0), ^uintptr(0), gp1, &p[offset], pcbuf) })
+			if labels != nil {
+				labels[offset] = gp1.labels
+			}
+			offset++
 		}
 	})
 
@@ -1354,7 +1339,6 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		raceacquire(unsafe.Pointer(&labelSync))
 	}
 
-	semrelease(&goroutineProfile.sema)
 	return n, true
 }
 

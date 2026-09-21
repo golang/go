@@ -12,13 +12,31 @@ import (
 )
 
 // PreorderSeq returns an iterator that visits all the
-// nodes of the files supplied to New in depth-first order.
+// nodes of the files supplied to [New] in depth-first order.
 // It visits each node n before n's children.
 // The complete traversal sequence is determined by ast.Inspect.
 //
-// The types argument, if non-empty, enables type-based
-// filtering of events: only nodes whose type matches an
-// element of the types slice are included in the sequence.
+// The types argument, if non-empty, enables type-based filtering:
+// only nodes whose type matches an element of the types slice are
+// included in the sequence.
+//
+// Example:
+//
+//	for call := range in.PreorderSeq((*ast.CallExpr)(nil)) { ... }
+//
+// The [All] function is more convenient if there is exactly one node type:
+//
+//	for call := range All[*ast.CallExpr](in) { ... }
+//
+// See also the newer and more flexible [Cursor] API, which lets you
+// start the traversal at an arbitrary node, and reports each matching
+// node by its Cursor, enabling easier navigation.
+// The above example would be written thus:
+//
+//	for curCall := range in.Root().Preorder((*ast.CallExpr)(nil)) {
+//		call := curCall.Node().(*ast.CallExpr)
+//		...
+//	}
 func (in *Inspector) PreorderSeq(types ...ast.Node) iter.Seq[ast.Node] {
 
 	// This implementation is identical to Preorder,
@@ -53,6 +71,16 @@ func (in *Inspector) PreorderSeq(types ...ast.Node) iter.Seq[ast.Node] {
 // Example:
 //
 //	for call := range All[*ast.CallExpr](in) { ... }
+//
+// See also the newer and more flexible [Cursor] API, which lets you
+// start the traversal at an arbitrary node, and reports each matching
+// node by its Cursor, enabling easier navigation.
+// The above example would be written thus:
+//
+//	for curCall := range in.Root().Preorder((*ast.CallExpr)(nil)) {
+//		call := curCall.Node().(*ast.CallExpr)
+//		...
+//	}
 func All[N interface {
 	*S
 	ast.Node

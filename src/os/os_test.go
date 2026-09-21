@@ -767,13 +767,12 @@ func TestReaddirStatFailures(t *testing.T) {
 	}
 
 	var xerr error // error to return for x
-	*LstatP = func(path string) (FileInfo, error) {
+	SetStatHook(t, func(f *File, path string) (FileInfo, error) {
 		if xerr != nil && strings.HasSuffix(path, "x") {
 			return nil, xerr
 		}
-		return Lstat(path)
-	}
-	defer func() { *LstatP = Lstat }()
+		return nil, nil
+	})
 
 	dir := t.TempDir()
 	touch(t, filepath.Join(dir, "good1"))
@@ -1192,7 +1191,7 @@ func TestRenameCaseDifference(pt *testing.T) {
 			}
 
 			if dirNamesLen := len(dirNames); dirNamesLen != 1 {
-				t.Fatalf("unexpected dirNames len, got %q, want %q", dirNamesLen, 1)
+				t.Fatalf("unexpected dirNames len, got %d, want %d", dirNamesLen, 1)
 			}
 
 			if dirNames[0] != to {
@@ -1616,6 +1615,84 @@ func TestFileChdir(t *testing.T) {
 	}
 	if !SameFile(wdInfo, newInfo) {
 		t.Fatalf("fd.Chdir failed: got %s, want %s", wdNew, wd)
+	}
+}
+
+func TestFileChdirFromTempDir(t *testing.T) {
+	// This is most useful when the original working directory and TempDir are on
+	// different volumes, such as a network-mounted working directory and a local
+	// system temporary directory.
+	// See https://go.dev/issue/80130.
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	defer func() {
+		if err := Chdir(wd); err != nil {
+			t.Errorf("restore wd: %v", err)
+		}
+	}()
+
+	fd, err := Open(".")
+	if err != nil {
+		t.Fatalf("Open .: %v", err)
+	}
+	defer fd.Close()
+
+	tmp := t.TempDir()
+	if err := Chdir(tmp); err != nil {
+		t.Fatalf("Chdir %s: %v", tmp, err)
+	}
+
+	if err := fd.Chdir(); err != nil {
+		t.Fatalf("fd.Chdir: %v", err)
+	}
+}
+
+// TestFileChdirTestlog verifies that (*File).Chdir notifies the testlog,
+// just like os.Chdir does. cmd/go's test cache relies on every working
+// directory change being recorded so that relative paths logged by later
+// Open/Stat calls can be resolved against the correct directory.
+func TestFileChdirTestlog(t *testing.T) {
+	if Getenv("GO_TEST_FILE_CHDIR_TESTLOG") == "1" {
+		fd, err := Open(".")
+		if err != nil {
+			t.Fatalf("Open .: %s", err)
+		}
+		defer fd.Close()
+		if err := Chdir(TempDir()); err != nil {
+			t.Fatalf("Chdir: %s", err)
+		}
+		if err := fd.Chdir(); err != nil {
+			t.Fatalf("fd.Chdir: %s", err)
+		}
+		return
+	}
+
+	testenv.MustHaveExec(t)
+	exe := testenv.Executable(t)
+	logfile := filepath.Join(t.TempDir(), "testlog.txt")
+	cmd := testenv.Command(t, exe,
+		"-test.run=^TestFileChdirTestlog$",
+		"-test.testlogfile="+logfile)
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_TEST_FILE_CHDIR_TESTLOG=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("helper failed: %v\n%s", err, out)
+	}
+
+	data, err := ReadFile(logfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chdirs := 0
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "chdir ") {
+			chdirs++
+		}
+	}
+	if chdirs < 2 {
+		t.Fatalf("got %d chdir testlog entries, want at least 2; testlog:\n%s", chdirs, data)
 	}
 }
 
@@ -3466,6 +3543,34 @@ func TestWriteStringAlloc(t *testing.T) {
 	if allocs != 0 {
 		t.Errorf("expected 0 allocs for File.WriteString, got %v", allocs)
 	}
+}
+
+// Test that it's OK to have parallel I/O and Close on a file.
+func TestFileIOCloseRace(t *testing.T) {
+	t.Parallel()
+	file, err := Create(filepath.Join(t.TempDir(), "test.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		var tmp [100]byte
+		if _, err := file.Write(tmp[:]); err != nil && !errors.Is(err, ErrClosed) {
+			t.Error(err)
+		}
+	})
+	wg.Go(func() {
+		var tmp [100]byte
+		if _, err := file.Read(tmp[:]); err != nil && err != io.EOF && !errors.Is(err, ErrClosed) {
+			t.Error(err)
+		}
+	})
+	wg.Go(func() {
+		if err := file.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	wg.Wait()
 }
 
 // Test that it's OK to have parallel I/O and Close on a pipe.

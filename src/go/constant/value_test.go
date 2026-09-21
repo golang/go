@@ -437,6 +437,27 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestStringLen(t *testing.T) {
+	tests := []struct {
+		x    Value
+		want int64
+	}{
+		{MakeUnknown(), 0},
+		{val(`""`), 0},
+		{val(`"foo"`), 3},
+		{val(`"世界"`), 6},
+		{BinaryOp(val(`"foo"`), token.ADD, val(`"bar"`)), 6},
+		{BinaryOp(val(`"世界"`), token.ADD, val(`"!"`)), 7},
+		{BinaryOp(val(`"a"`), token.ADD, BinaryOp(val(`"b"`), token.ADD, val(`"c"`))), 3},
+	}
+
+	for _, test := range tests {
+		if got := StringLen(test.x); got != test.want {
+			t.Errorf("StringLen(%v): got %d; want %d", test.x, got, test.want)
+		}
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Support functions
 

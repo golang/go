@@ -341,6 +341,13 @@ func panicmemAddr(addr uintptr) {
 	panic(errorAddressString{msg: "invalid memory address or nil pointer dereference", addr: addr})
 }
 
+var simdImmError = error(errorString("out-of-range immediate for simd intrinsic"))
+
+func panicSimdImm() {
+	panicCheck2("simd immediate error")
+	panic(simdImmError)
+}
+
 // Create a new deferred function fn, which has no arguments and results.
 // The compiler turns a defer statement into a call to this.
 func deferproc(fn func()) {
@@ -549,15 +556,13 @@ func deferprocStack(d *_defer) {
 	d.sp = sys.GetCallerSP()
 	d.pc = sys.GetCallerPC()
 	// The lines below implement:
-	//   d.panic = nil
-	//   d.fd = nil
 	//   d.link = gp._defer
 	//   d.head = nil
 	//   gp._defer = d
-	// But without write barriers. The first three are writes to
+	// But without write barriers. The first two are writes to
 	// the stack so they don't need a write barrier, and furthermore
 	// are to uninitialized memory, so they must not use a write barrier.
-	// The fourth write does not require a write barrier because we
+	// The third write does not require a write barrier because we
 	// explicitly mark all the defer structures, so we don't need to
 	// keep track of pointers to them with a write barrier.
 	*(*uintptr)(unsafe.Pointer(&d.link)) = uintptr(unsafe.Pointer(gp._defer))
@@ -741,7 +746,7 @@ func printpanics(p *_panic) {
 	}
 	print("panic: ")
 	printpanicval(p.arg)
-	if p.repanicked {
+	if p.recovered && p.repanicked {
 		print(" [recovered, repanicked]")
 	} else if p.recovered {
 		print(" [recovered]")
@@ -786,7 +791,7 @@ type PanicNilError struct {
 	_ [0]*PanicNilError
 }
 
-func (*PanicNilError) Error() string { return "panic called with nil argument" }
+func (*PanicNilError) Error() string { return "runtime error: panic called with nil argument" }
 func (*PanicNilError) RuntimeError() {}
 
 var panicnil = &godebugInc{name: "panicnil"}
@@ -795,10 +800,7 @@ var panicnil = &godebugInc{name: "panicnil"}
 // The compiler emits calls to this function.
 //
 // gopanic should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - go.undefinedlabs.com/scopeagent
-//   - github.com/goplus/igop
+// but historically, widely used packages access it using linkname.
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -845,7 +847,6 @@ func gopanic(e any) {
 
 	var p _panic
 	p.arg = e
-	p.gopanicFP = unsafe.Pointer(sys.GetCallerSP())
 
 	runningPanicDefers.Add(1)
 
@@ -918,7 +919,7 @@ func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
 	// caller instead, we avoid needing to unwind through an extra
 	// frame. It also somewhat simplifies the terminating condition for
 	// deferreturn.
-	p.lr, p.fp = pc, sp
+	p.pc, p.sp = pc, sp
 	p.nextFrame()
 }
 
@@ -993,7 +994,7 @@ func (p *_panic) nextDefer() (func(), bool) {
 
 // nextFrame finds the next frame that contains deferred calls, if any.
 func (p *_panic) nextFrame() (ok bool) {
-	if p.lr == 0 {
+	if p.pc == 0 {
 		return false
 	}
 
@@ -1005,10 +1006,10 @@ func (p *_panic) nextFrame() (ok bool) {
 		}
 
 		var u unwinder
-		u.initAt(p.lr, uintptr(p.fp), 0, gp, 0)
+		u.initAt(p.pc, uintptr(p.sp), 0, gp, 0)
 		for {
 			if !u.valid() {
-				p.lr = 0
+				p.pc = 0
 				return // ok == false
 			}
 
@@ -1025,10 +1026,25 @@ func (p *_panic) nextFrame() (ok bool) {
 				break // found a frame with open-coded defers
 			}
 
+			if p.link != nil && uintptr(u.frame.sp) == uintptr(p.link.startSP) && uintptr(p.link.sp) > u.frame.sp {
+				// Skip ahead to where the next panic up the stack was last looking
+				// for defers. See issue 77062.
+				//
+				// The startSP condition is to check when we have walked up the stack
+				// to where the next panic up the stack started. If so, the processing
+				// of that panic has run all the defers up to its current scanning
+				// position.
+				//
+				// The final condition is just to make sure that the line below
+				// is actually helpful.
+				u.initAt(p.link.pc, uintptr(p.link.sp), 0, gp, 0)
+				continue
+			}
+
 			u.next()
 		}
 
-		p.lr = u.frame.lr
+		p.pc = u.frame.pc
 		p.sp = unsafe.Pointer(u.frame.sp)
 		p.fp = unsafe.Pointer(u.frame.fp)
 
@@ -1129,7 +1145,7 @@ func gorecover() any {
 				case abi.FuncIDWrapper:
 					continue
 				case abi.FuncID_gopanic:
-					if u.frame.fp == uintptr(p.gopanicFP) && nonWrapperFrames > 0 {
+					if u.frame.sp == uintptr(p.startSP) && nonWrapperFrames > 0 {
 						canRecover = true
 					}
 					break loop
@@ -1237,10 +1253,12 @@ func throw(s string) {
 //
 //go:nosplit
 func fatal(s string) {
+	p := getg()._panic
 	// Everything fatal does should be recursively nosplit so it
 	// can be called even when it's unsafe to grow the stack.
 	printlock() // Prevent multiple interleaved fatal reports. See issue 69447.
 	systemstack(func() {
+		printPreFatalDeferPanic(p)
 		print("fatal error: ")
 		printindented(s) // logically printpanicval(s), but avoids convTstring write barrier
 		print("\n")
@@ -1248,6 +1266,27 @@ func fatal(s string) {
 
 	fatalthrow(throwTypeUser)
 	printunlock()
+}
+
+// printPreFatalDeferPanic prints the panic
+// when fatal occurs in panics while running defer.
+func printPreFatalDeferPanic(p *_panic) {
+	// Don`t call preprintpanics, because
+	// don't want to call String/Error on the panicked values.
+	// When we fatal we really want to just print and exit,
+	// no more executing user Go code.
+	for x := p; x != nil; x = x.link {
+		if x.link != nil && *efaceOf(&x.link.arg) == *efaceOf(&x.arg) {
+			// This panic contains the same value as the next one in the chain.
+			// Mark it as repanicked. We will skip printing it twice in a row.
+			x.link.repanicked = true
+		}
+	}
+	if p != nil {
+		printpanics(p)
+		// make fatal have the same indentation as non-first panics.
+		print("\t")
+	}
 }
 
 // runningPanicDefers is non-zero while running deferred functions for panic.
@@ -1676,4 +1715,75 @@ func isAbortPC(pc uintptr) bool {
 		return false
 	}
 	return f.funcID == abi.FuncID_abort
+}
+
+// For debugging only.
+//
+//go:noinline
+//go:nosplit
+func dumpPanicDeferState(where string, gp *g) {
+	systemstack(func() {
+		println("DUMPPANICDEFERSTATE", where)
+		p := gp._panic
+		d := gp._defer
+		var u unwinder
+		for u.init(gp, 0); u.valid(); u.next() {
+			// Print frame.
+			println("  frame sp=", hex(u.frame.sp), "fp=", hex(u.frame.fp), "pc=", pcName(u.frame.pc), "+", pcOff(u.frame.pc))
+			// Print panic.
+			for p != nil && uintptr(p.sp) == u.frame.sp {
+				println("    panic", p, "sp=", p.sp, "fp=", p.fp, "arg=", p.arg, "recovered=", p.recovered, "pc=", pcName(p.pc), "+", pcOff(p.pc), "retpc=", pcName(p.retpc), "+", pcOff(p.retpc), "startsp=", p.startSP, "startPC=", hex(p.startPC), pcName(p.startPC), "+", pcOff(p.startPC))
+				p = p.link
+			}
+
+			// Print linked defers.
+			for d != nil && d.sp == u.frame.sp {
+				println("    defer(link)", "heap=", d.heap, "rangefunc=", d.rangefunc, fnName(d.fn))
+				d = d.link
+			}
+
+			// Print open-coded defers.
+			// (A function is all linked or all open-coded, so we don't
+			// need to interleave this loop with the one above.)
+			fd := funcdata(u.frame.fn, abi.FUNCDATA_OpenCodedDeferInfo)
+			if fd != nil {
+				deferBitsOffset, fd := readvarintUnsafe(fd)
+				m := *(*uint8)(unsafe.Pointer(u.frame.varp - uintptr(deferBitsOffset)))
+				slotsOffset, fd := readvarintUnsafe(fd)
+				slots := u.frame.varp - uintptr(slotsOffset)
+				for i := 7; i >= 0; i-- {
+					if m>>i&1 == 0 {
+						continue
+					}
+					fn := *(*func())(unsafe.Pointer(slots + uintptr(i)*goarch.PtrSize))
+					println("    defer(open)", fnName(fn))
+				}
+			}
+
+		}
+		if p != nil {
+			println("  REMAINING PANICS!", p)
+		}
+		if d != nil {
+			println("  REMAINING DEFERS!")
+		}
+	})
+}
+
+func pcName(pc uintptr) string {
+	fn := findfunc(pc)
+	if !fn.valid() {
+		return "<unk>"
+	}
+	return funcname(fn)
+}
+func pcOff(pc uintptr) hex {
+	fn := findfunc(pc)
+	if !fn.valid() {
+		return 0
+	}
+	return hex(pc - fn.entry())
+}
+func fnName(fn func()) string {
+	return pcName(**(**uintptr)(unsafe.Pointer(&fn)))
 }

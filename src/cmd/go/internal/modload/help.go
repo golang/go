@@ -17,9 +17,9 @@ distributed together. Modules may be downloaded directly from version control
 repositories or from module proxy servers.
 
 For a series of tutorials on modules, see
-https://golang.org/doc/tutorial/create-module.
+https://go.dev/doc/tutorial/create-module.
 
-For a detailed reference on modules, see https://golang.org/ref/mod.
+For a detailed reference on modules, see https://go.dev/ref/mod.
 
 By default, the go command may download modules from https://proxy.golang.org.
 It may authenticate modules using the checksum database at
@@ -30,7 +30,7 @@ respectively.
 
 The go command's download behavior may be configured using GOPROXY, GOSUMDB,
 GOPRIVATE, and other environment variables. See 'go help environment'
-and https://golang.org/ref/mod#private-module-privacy for more information.
+and https://go.dev/ref/mod#private-module-privacy for more information.
 	`,
 }
 
@@ -44,21 +44,21 @@ directory and then successive parent directories to find the go.mod
 marking the root of the main (current) module.
 
 The go.mod file format is described in detail at
-https://golang.org/ref/mod#go-mod-file.
+https://go.dev/ref/mod#go-mod-file.
 
 To create a new go.mod file, use 'go mod init'. For details see
-'go help mod init' or https://golang.org/ref/mod#go-mod-init.
+'go help mod init' or https://go.dev/ref/mod#go-mod-init.
 
 To add missing module requirements or remove unneeded requirements,
 use 'go mod tidy'. For details, see 'go help mod tidy' or
-https://golang.org/ref/mod#go-mod-tidy.
+https://go.dev/ref/mod#go-mod-tidy.
 
 To add, upgrade, downgrade, or remove a specific module requirement, use
 'go get'. For details, see 'go help module-get' or
-https://golang.org/ref/mod#go-get.
+https://go.dev/ref/mod#go-get.
 
 To make other changes or to parse go.mod as JSON for use by other tools,
 use 'go mod edit'. See 'go help mod edit' or
-https://golang.org/ref/mod#go-mod-edit.
+https://go.dev/ref/mod#go-mod-edit.
 	`,
 }

@@ -1,0 +1,1013 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"go/format"
+	"log"
+	"os"
+	"path/filepath"
+	"reflect"
+	"simd/archsimd/_gen/simdgen/types"
+	"slices"
+	"strings"
+	"text/template" // NOLINT
+	"unicode"
+)
+
+func templateOf(temp, name string) *template.Template {
+	t, err := template.New(name).Parse(temp)
+	if err != nil {
+		panic(fmt.Errorf("failed to parse template %s: %w", name, err))
+	}
+	return t
+}
+
+func createPath(goroot string, file string) (*os.File, error) {
+	fp := filepath.Join(goroot, file)
+	dir := filepath.Dir(fp)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+	f, err := os.Create(fp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file %s: %w", fp, err)
+	}
+	return f, nil
+}
+
+func formatWriteAndClose(out *bytes.Buffer, goroot string, file string) {
+	b, err := format.Source(out.Bytes())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(os.Stderr, "%s\n", numberLines(out.Bytes()))
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		panic(err)
+	} else {
+		writeAndClose(b, goroot, file)
+	}
+}
+
+func writeAndClose(b []byte, goroot string, file string) {
+	ofile, err := createPath(goroot, file)
+	if err != nil {
+		panic(err)
+	}
+	ofile.Write(b)
+	ofile.Close()
+}
+
+// numberLines takes a slice of bytes, and returns a string where each line
+// is numbered, starting from 1.
+func numberLines(data []byte) string {
+	var buf bytes.Buffer
+	r := bytes.NewReader(data)
+	s := bufio.NewScanner(r)
+	for i := 1; s.Scan(); i++ {
+		fmt.Fprintf(&buf, "%d: %s\n", i, s.Text())
+	}
+	return buf.String()
+}
+
+type inShape uint8
+type outShape uint8
+type maskShape uint8
+type immShape uint8
+type memShape uint8
+
+const (
+	InvalidIn     inShape = iota
+	PureVregIn            // vector register input only
+	OneKmaskIn            // vector and kmask input
+	OneImmIn              // vector and immediate input
+	OneKmaskImmIn         // vector, kmask, and immediate inputs
+	PureKmaskIn           // only mask inputs.
+	VlistIn               // vector list input (e.g. TBL [v1 v2 v3] vidx)
+)
+
+const (
+	InvalidOut       outShape = iota
+	NoOut                     // no output
+	OneVregOut                // (one) vector register output
+	OneGregOut                // (one) general register output
+	OneKmaskOut               // mask output
+	OneVregOutAtIn            // the first input is also the output
+	OneVregOutScalar          // (one) vector register output scalar in lane 0, other lanes zeroed
+)
+
+const (
+	InvalidMask maskShape = iota
+	NoMask                // no mask
+	OneMask               // with mask (K1 to K7)
+	AllMasks              // a K mask instruction (K0-K7)
+)
+
+const (
+	InvalidImm  immShape = iota
+	NoImm                // no immediate
+	ConstImm             // const only immediate
+	VarImm               // pure imm argument provided by the users
+	ConstVarImm          // a combination of user arg and const
+	VarImmLim            // pure imm argument provided by the users, up to maximum in op.ImmMax
+)
+
+const (
+	InvalidMem memShape = iota
+	NoMem
+	VregMemIn // The instruction contains a mem input which is loading a vreg.
+)
+
+// opShape returns the several integers describing the shape of the operation,
+// and modified versions of the op:
+//
+// opNoImm is op with its inputs excluding the const imm.
+//
+// This function does not modify op.
+func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskShape, immType immShape,
+	opNoImm Operation, immOpIdx string) {
+	if len(op.Out) > 1 {
+		panic(fmt.Errorf("simdgen only supports 1 output: %s", op))
+	}
+	var outputReg int
+	if len(op.Out) == 1 {
+		outputReg = op.Out[0].AsmPos
+		if op.Out[0].Class == "vreg" {
+			shapeOut = OneVregOut
+			if op.Out[0].TreatLikeAScalarOfSize != nil {
+				shapeOut = OneVregOutScalar
+			}
+		} else if op.Out[0].Class == "greg" {
+			shapeOut = OneGregOut
+			if op.Out[0].TreatLikeAScalarOfSize != nil {
+				shapeOut = OneVregOutScalar
+			}
+		} else if op.Out[0].Class == "mask" {
+			shapeOut = OneKmaskOut
+		} else {
+			panic(fmt.Errorf("simdgen only supports output of class vreg or mask: %s", op))
+		}
+	} else {
+		shapeOut = NoOut
+		// TODO: are these only Load/Stores?
+		// We manually supported two Load and Store, are those enough?
+		panic(fmt.Errorf("simdgen only supports 1 output: %s", op))
+	}
+	hasImm := false
+	immAsmPos := -1
+	maskCount := 0
+	hasVreg := false
+	hasListIn := false
+	for _, in := range op.In {
+		if in.IsGoverning() {
+			// An SVE implicit-all-true governing predicate is not part of the Go
+			// API: it must not count as a mask input here, so the op classifies as
+			// an unpredicated (PureVregIn/NoMask) op. The machine op and lowering
+			// rule reconstruct it separately (regShape counts it by class; the rule
+			// synthesizes an all-true predicate).
+			continue
+		}
+		if in.ListNumber != nil {
+			hasListIn = true
+		}
+		if in.AsmPos == outputReg {
+			if shapeOut != OneVregOutAtIn && in.AsmPos == 0 && in.Class == "vreg" {
+				shapeOut = OneVregOutAtIn
+			} else if in.Class != "immediate" { // on arm64 immediate may be indexing into output register, e.g. INS greg, vreg[1]
+				panic(fmt.Errorf("simdgen only supports output and input sharing the same position case of \"the first input is vreg and the only output\": %s", op))
+			}
+		}
+		if in.Class == "immediate" {
+			// A manual check on XED data found that AMD64 SIMD instructions at most
+			// have 1 immediates. So we don't need to check this here.
+			if in.Bits.N() != 8 {
+				panic(fmt.Errorf("simdgen only supports immediates of 8 bits: %s", op))
+			}
+			hasImm = true
+			immAsmPos = in.AsmPos
+			if immAsmPos == outputReg {
+				immOpIdx += "Out"
+			}
+		} else if in.Class == "mask" && (!CurrentArch().isSVE() || in.Predication != nil) {
+			maskCount++
+		} else if in.Class == "mask" {
+			// An SVE predicate operand with no /M or /Z qualifier is <Pv>, a plain
+			// data operand (SEL's select predicate) rather than a governing
+			// predicate: the operation is unpredicated and the mask is just an
+			// argument. regShape still counts it as a predicate register.
+			hasVreg = true
+		} else {
+			if immAsmPos == in.AsmPos {
+				immOpIdx += fmt.Sprintf("In%d", in.AsmPos)
+			}
+			hasVreg = true
+		}
+	}
+	opNoImm = *op
+
+	removeImm := func(o *Operation) {
+		o.In = o.In[1:]
+		if o.In[0].Class == "immediate" {
+			o.In = o.In[1:] // e.g. arm64 INS Vn[0], Vd[imm]
+		}
+	}
+	if hasImm {
+		removeImm(&opNoImm)
+		if op.In[0].Const != nil {
+			if op.In[0].ImmOffset != nil {
+				immType = ConstVarImm
+			} else {
+				immType = ConstImm
+			}
+		} else if op.In[0].ImmOffset != nil {
+			if op.In[0].ImmMax != nil {
+				immType = VarImmLim
+			} else {
+				immType = VarImm
+			}
+		} else {
+			panic(fmt.Errorf("simdgen requires imm to have at least one of ImmOffset or Const set: %s", op))
+		}
+	} else {
+		immType = NoImm
+	}
+	if maskCount == 0 {
+		maskType = NoMask
+	} else {
+		maskType = OneMask
+	}
+	checkPureMask := func() bool {
+		if hasImm {
+			panic(fmt.Errorf("simdgen does not support immediates in pure mask operations: %s", op))
+		}
+		if hasVreg {
+			panic(fmt.Errorf("simdgen does not support more than 1 mask in non-pure mask operations: %s", op))
+		}
+		return false
+	}
+	if !hasImm && maskCount == 0 {
+		shapeIn = PureVregIn
+		if hasListIn {
+			shapeIn = VlistIn
+		}
+	} else if !hasImm && maskCount > 0 {
+		if maskCount == 1 {
+			shapeIn = OneKmaskIn
+		} else {
+			if checkPureMask() {
+				return
+			}
+			shapeIn = PureKmaskIn
+			maskType = AllMasks
+		}
+	} else if hasImm && maskCount == 0 {
+		shapeIn = OneImmIn
+	} else {
+		if maskCount == 1 {
+			shapeIn = OneKmaskImmIn
+		} else {
+			checkPureMask()
+			return
+		}
+	}
+	return
+}
+
+// regShape returns a string representation of the register shape.
+func (op *Operation) regShape(mem memShape) (string, error) {
+	_, _, _, _, gOp, _ := op.shape()
+	var regInfo, fixedName string
+	var vRegInCnt, gRegInCnt, kMaskInCnt, vRegOutCnt, gRegOutCnt, kMaskOutCnt, memInCnt, memOutCnt int
+	for i, in := range gOp.In {
+		switch in.Class {
+		case "vreg":
+			vRegInCnt++
+		case "greg":
+			gRegInCnt++
+		case "mask":
+			kMaskInCnt++
+		case "mem":
+			if mem != VregMemIn {
+				panic("simdgen only knows VregMemIn in regShape")
+			}
+			memInCnt++
+			vRegInCnt++
+		}
+		if in.FixedReg != nil {
+			fixedName = fmt.Sprintf("%sAtIn%d", *in.FixedReg, i)
+		}
+	}
+	for i, out := range gOp.Out {
+		// If class overwrite is happening, that's not really a mask but a vreg.
+		if out.Class == "vreg" || out.OverwriteClass != nil {
+			vRegOutCnt++
+		} else if out.Class == "greg" {
+			gRegOutCnt++
+		} else if out.Class == "mask" {
+			kMaskOutCnt++
+		} else if out.Class == "mem" {
+			if mem != VregMemIn {
+				panic("simdgen only knows VregMemIn in regShape")
+			}
+			vRegOutCnt++
+			memOutCnt++
+		}
+		if out.FixedReg != nil {
+			fixedName = fmt.Sprintf("%sAtIn%d", *out.FixedReg, i)
+		}
+	}
+	var inRegs, inMasks, outRegs, outMasks string
+
+	rmAbbrev := func(s string, i int) string {
+		if i == 0 {
+			return ""
+		}
+		if i == 1 {
+			return s
+		}
+		return fmt.Sprintf("%s%d", s, i)
+
+	}
+
+	inRegs = rmAbbrev("v", vRegInCnt)
+	inRegs += rmAbbrev("gp", gRegInCnt)
+	inMasks = rmAbbrev("k", kMaskInCnt)
+
+	outRegs = rmAbbrev("v", vRegOutCnt)
+	outRegs += rmAbbrev("gp", gRegOutCnt)
+	outMasks = rmAbbrev("k", kMaskOutCnt)
+
+	if kMaskInCnt == 0 && kMaskOutCnt == 0 && gRegInCnt == 0 && gRegOutCnt == 0 {
+		// For pure v we can abbreviate it as v%d%d.
+		regInfo = fmt.Sprintf("v%d%d", vRegInCnt, vRegOutCnt)
+	} else if kMaskInCnt == 0 && kMaskOutCnt == 0 {
+		regInfo = fmt.Sprintf("%s%s", inRegs, outRegs)
+	} else {
+		regInfo = fmt.Sprintf("%s%s%s%s", inRegs, inMasks, outRegs, outMasks)
+	}
+	if memInCnt > 0 {
+		if memInCnt == 1 {
+			regInfo += "load"
+		} else {
+			panic("simdgen does not understand more than 1 mem op as of now")
+		}
+	}
+	if memOutCnt > 0 {
+		panic("simdgen does not understand memory as output as of now")
+	}
+	regInfo += fixedName
+	if CurrentArch().isSVE() {
+		// A governing predicate supplied by the caller (/M or /Z, from the paired
+		// predicated encoding) means the instruction is predicated and
+		// destructive; a plain predicate operand (SEL's <Pv>) is not, and an
+		// implicit-all-true predicate is synthesized rather than passed in. They
+		// share register classes but need different ssa-to-prog helpers, so give
+		// the caller-predicated form its own shape name.
+		for i := range gOp.In {
+			if gOp.In[i].Class == "mask" && gOp.In[i].Predication != nil && !gOp.In[i].IsGoverning() {
+				regInfo += "Pred"
+				break
+			}
+		}
+	}
+	if CurrentArch().isSVE() && strings.HasPrefix(regInfo, "v") {
+		// SVE vectors live in the scalable Z bank, not the NEON V bank, so name
+		// their shapes with a "z" (z21, z11, ...). This keeps the generated
+		// lowering helpers (simdZ21) and regInfo keys distinct from NEON's.
+		regInfo = "z" + regInfo[1:]
+	}
+	return regInfo, nil
+}
+
+// sortOperand sorts op.In by putting immediates first, then vreg, and mask the last.
+// TODO: verify that this is a safe assumption of the prog structure.
+// from my observation looks like in asm, imms are always the first,
+// masks are always the last, with vreg in between.
+func (op *Operation) sortOperand() {
+	slices.SortStableFunc(op.In, types.Operand.Compare)
+}
+
+// adjustAsm adjusts the asm to make it align with Go's assembler.
+func (op *Operation) adjustAsm() {
+	if op.Asm == "VCVTTPD2DQ" || op.Asm == "VCVTTPD2UDQ" ||
+		op.Asm == "VCVTQQ2PS" || op.Asm == "VCVTUQQ2PS" ||
+		op.Asm == "VCVTPD2PS" {
+		switch op.In[0].Bits.N() {
+		case 128:
+			op.Asm += "X"
+		case 256:
+			op.Asm += "Y"
+		}
+	}
+}
+
+// goNormalType returns the Go type name for the result of an Op that
+// does not return a vector, i.e., that returns a result in a general
+// register.  Currently there's only one family of Ops in Go's simd library
+// that does this (GetElem), and so this is specialized to work for that,
+// but the problem (mismatch between hardware register width and Go type
+// width) seems likely to recur if there are any other cases.
+func (op Operation) goNormalType() string {
+	if op.Go == "GetElem" {
+		// GetElem returns an element of the vector into a general register
+		// but as far as the hardware is concerned, that result is either 32
+		// or 64 bits wide, no matter what the vector element width is.
+		// This is not "wrong" but it is not the right answer for Go source code.
+		// To get the Go type right, combine the base type ("int", "uint", "float"),
+		// with the input vector element width in bits (8,16,32,64).
+
+		at := 0 // proper value of at depends on whether immediate was stripped or not
+		if op.In[at].Class == "immediate" {
+			at++
+		}
+		return fmt.Sprintf("%s%d", *op.Out[0].Base, *op.In[at].ElemBits)
+	}
+	panic(fmt.Errorf("Implement goNormalType for %v", op))
+}
+
+// SSAType returns the string for the type reference in SSA generation,
+// for example in the intrinsics generating template.
+func (op Operation) SSAType() string {
+	if op.Out[0].Class == "greg" {
+		return fmt.Sprintf("types.Types[types.T%s]", strings.ToUpper(op.goNormalType()))
+	}
+	if op.Out[0].Class == "mask" && CurrentArch().isSVE() {
+		// SVE predicates are represented as-is (a real mask/P-register value),
+		// not as a data vector. On AVX a mask is a vector at the generic-op level
+		// (types.TypeVec*), so this only applies to the scalable target.
+		return "types.TypeMask"
+	}
+	if op.Out[0].Bits.Scalable {
+		return fmt.Sprintf("types.TypeVec%d", types.MaxVectorBits)
+	}
+	return fmt.Sprintf("types.TypeVec%d", op.Out[0].Bits.N())
+}
+
+// GoType returns the Go type returned by this operation (relative to the simd package),
+// for example "int32" or "Int8x16".  This is used in a template.
+func (op Operation) GoType() string {
+	if op.Out[0].Class == "greg" {
+		return op.goNormalType()
+	}
+	return *op.Out[0].Go
+}
+
+// ImmName returns the name to use for an operation's immediate operand.
+// This can be overridden in the yaml with "name" on an operand,
+// otherwise, for now, "constant"
+func (op Operation) ImmName() string {
+	return op.Op0Name("constant")
+}
+
+func (op Operation) ImmType() string {
+	if strings.Contains(op.Go, "Shift") || strings.Contains(op.Go, "Rotate") {
+		return "uint64"
+	}
+	return "uint8"
+}
+
+// GoExported returns [Go] with first character capitalized.
+func (op Operation) GoExported() string {
+	return capitalizeFirst(op.Go)
+}
+
+// DocumentationExported returns [Documentation] with method name capitalized.
+func (op Operation) DocumentationExported() string {
+	return strings.ReplaceAll(op.Documentation, op.Go, op.GoExported())
+}
+
+// Op0Name returns the name to use for the 0 operand,
+// if any is present, otherwise the parameter is used.
+func (op Operation) Op0Name(s string) string {
+	return op.In[0].OpName(s)
+}
+
+// Op1Name returns the name to use for the 1 operand,
+// if any is present, otherwise the parameter is used.
+func (op Operation) Op1Name(s string) string {
+	return op.In[1].OpName(s)
+}
+
+// Op2Name returns the name to use for the 2 operand,
+// if any is present, otherwise the parameter is used.
+func (op Operation) Op2Name(s string) string {
+	return op.In[2].OpName(s)
+}
+
+// Op3Name returns the name to use for the 3 operand,
+// if any is present, otherwise the parameter is used.
+func (op Operation) Op3Name(s string) string {
+	return op.In[3].OpName(s)
+}
+
+// Op0NameAndType returns the name and type to use for
+// the 0 operand, if a name is provided, otherwise
+// the parameter value is used as the default.
+func (op Operation) Op0NameAndType(s string) string {
+	return op.In[0].OpNameAndType(s)
+}
+
+// Op1NameAndType returns the name and type to use for
+// the 1 operand, if a name is provided, otherwise
+// the parameter value is used as the default.
+func (op Operation) Op1NameAndType(s string) string {
+	return op.In[1].OpNameAndType(s)
+}
+
+// Op2NameAndType returns the name and type to use for
+// the 2 operand, if a name is provided, otherwise
+// the parameter value is used as the default.
+func (op Operation) Op2NameAndType(s string) string {
+	return op.In[2].OpNameAndType(s)
+}
+
+// Op3NameAndType returns the name and type to use for
+// the 3 operand, if a name is provided, otherwise
+// the parameter value is used as the default.
+func (op Operation) Op3NameAndType(s string) string {
+	return op.In[3].OpNameAndType(s)
+}
+
+// Op4NameAndType returns the name and type to use for
+// the 4 operand, if a name is provided, otherwise
+// the parameter value is used as the default.
+func (op Operation) Op4NameAndType(s string) string {
+	return op.In[4].OpNameAndType(s)
+}
+
+var immClasses []string = []string{"BAD0Imm", "BAD1Imm", "op1Imm", "op2Imm", "op3Imm", "op4Imm"}
+var classes []string = []string{"BAD0", "op1", "op2", "op3", "op4"}
+
+// classifyOp returns a classification string, modified operation, and perhaps error based
+// on the stub and intrinsic shape for the operation.
+// The classification string is in the regular expression set "op[1234](Imm(8)?)?(_<order>)?"
+// where the "<order>" suffix is optionally attached to the Operation in its input yaml.
+// The classification string is used to select a template or a clause of a template
+// for intrinsics declaration and the ssagen intrinisics glue code in the compiler.
+func classifyOp(op Operation) (string, Operation, error) {
+	_, _, _, immType, gOp, _ := op.shape()
+
+	var class string
+
+	if immType == VarImm || immType == VarImmLim || immType == ConstVarImm {
+		switch l := len(op.In); l {
+		case 1:
+			return "", op, fmt.Errorf("simdgen does not recognize this operation of only immediate input: %s", op)
+		case 2, 3, 4, 5:
+			if immType == VarImmLim {
+				if len(op.In)-len(gOp.In) == 2 {
+					class = immClasses[l-1] // arm64: do not account const 0 imm in INS Vn[0], Vd[imm]
+				} else {
+					class = immClasses[l] // known immediate maximum value
+				}
+			} else {
+				// No known maximum: default to full uint8 range via the "8"-suffixed
+				// template variants (e.g. "op2Imm"+"8" → "op2Imm8", mapping to
+				// opLen2Imm8 which hardcodes immMax=255).
+				class = immClasses[l] + "8"
+			}
+		default:
+			return "", op, fmt.Errorf("simdgen does not recognize this operation of input length %d: %s", len(op.In), op)
+		}
+		if order := op.OperandOrder; order != nil {
+			class += "_" + *order
+		}
+		return class, op, nil
+	} else {
+		// Implicit-all-true predicates are machine-op inputs only; they are absent
+		// from the Go API, so they must not affect which opLenN/stub class is picked.
+		switch l := len(gOp.In) - gOp.implicitPredCount(); l {
+		case 1, 2, 3, 4:
+			class = classes[l]
+		default:
+			return "", op, fmt.Errorf("simdgen does not recognize this operation of input length %d: %s", len(op.In), op)
+		}
+		if order := op.OperandOrder; order != nil {
+			class += "_" + *order
+		}
+		return class, gOp, nil
+	}
+}
+
+func checkVecAsScalar(op Operation) (idx int, err error) {
+	idx = -1
+	sSize := 0
+	for i, o := range op.In {
+		if o.TreatLikeAScalarOfSize != nil {
+			if idx == -1 {
+				idx = i
+				sSize = *o.TreatLikeAScalarOfSize
+				if sSize == 0 && CurrentArch().Arch == "arm64" {
+					sSize = *o.ElemBits // treating lane 0 as element-sized fp scalar, e.g. INS Vn[0], Vd[imm]
+				}
+			} else {
+				err = fmt.Errorf("simdgen only supports one TreatLikeAScalarOfSize in the arg list: %s", op)
+				return
+			}
+		}
+	}
+	if idx >= 0 {
+		if sSize != 8 && sSize != 16 && sSize != 32 && sSize != 64 {
+			err = fmt.Errorf("simdgen does not recognize this uint size: %d, %s", sSize, op)
+			return
+		}
+	}
+	return
+}
+
+func rewriteVecAsScalarRegInfo(op Operation, regInfo string) (string, error) {
+	idx, err := checkVecAsScalar(op)
+	if err != nil {
+		return "", err
+	}
+	if idx != -1 {
+		if regInfo == "v21" {
+			regInfo = "vfpv"
+		} else if regInfo == "v2kv" {
+			regInfo = "vfpkv"
+		} else if regInfo == "v31" {
+			regInfo = "v2fpv"
+		} else if regInfo == "v3kv" {
+			regInfo = "v2fpkv"
+		} else if regInfo == "v21ResultInArg0ImmOutIn1" {
+			regInfo = "vfpvResultInArg0ImmOutIn1"
+		} else {
+			return "", fmt.Errorf("simdgen does not recognize uses of treatLikeAScalarOfSize with op regShape %s in op: %s", regInfo, op)
+		}
+	}
+	return regInfo, nil
+}
+
+func rewriteLastVregToMem(op Operation) Operation {
+	newIn := make([]types.Operand, len(op.In))
+	lastVregIdx := -1
+	for i := range len(op.In) {
+		newIn[i] = op.In[i]
+		if op.In[i].Class == "vreg" {
+			lastVregIdx = i
+		}
+	}
+	// vbcst operations put their mem op always as the last vreg.
+	if lastVregIdx == -1 {
+		panic("simdgen cannot find one vreg in the mem op vreg original")
+	}
+	newIn[lastVregIdx].Class = "mem"
+	op.In = newIn
+
+	return op
+}
+
+// dedup is deduping operations in the full structure level.
+func dedup(ops []Operation) (deduped []Operation) {
+	for _, op := range ops {
+		seen := false
+		for _, dop := range deduped {
+			if reflect.DeepEqual(op, dop) {
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			deduped = append(deduped, op)
+		}
+	}
+	return
+}
+
+func (op Operation) GenericName() string {
+	if op.OperandOrder != nil {
+		switch *op.OperandOrder {
+		case "21Type1", "231Type1":
+			// Permute uses operand[1] for method receiver.
+			return op.Go + *op.In[1].Go
+		}
+	}
+	if op.In[0].Class == "immediate" {
+		if op.In[1].Class == "immediate" {
+			return op.Go + *op.In[2].Go // e.g. arm64 INS Vn[0], Vd[imm]
+		}
+		return op.Go + *op.In[1].Go
+	}
+	return op.Go + *op.In[0].Go
+}
+
+// dedupGodef is deduping operations in [Op.Go]+[*Op.In[0].Go] level.
+// By deduping, it means picking the least advanced architecture that satisfy the requirement:
+// AVX512 will be least preferred.
+// If FlagNoDedup is set, it will report the duplicates to the console.
+func dedupGodef(ops []Operation) ([]Operation, error) {
+	seen := map[string][]Operation{}
+	for _, op := range ops {
+		_, _, _, _, gOp, _ := op.shape()
+
+		gN := gOp.GenericName()
+		seen[gN] = append(seen[gN], op)
+	}
+	if *FlagReportDup {
+		for gName, dup := range seen {
+			if len(dup) > 1 {
+				log.Printf("Duplicate for %s:\n", gName)
+				for _, op := range dup {
+					log.Printf("%s\n", op)
+				}
+			}
+		}
+		return ops, nil
+	}
+	isAVX512 := func(op Operation) bool {
+		return strings.Contains(op.CPUFeature, "AVX512")
+	}
+	deduped := []Operation{}
+	for _, dup := range seen {
+		if len(dup) > 1 {
+			slices.SortFunc(dup, func(i, j Operation) int {
+				// Put non-AVX512 candidates at the beginning
+				if !isAVX512(i) && isAVX512(j) {
+					return -1
+				}
+				if isAVX512(i) && !isAVX512(j) {
+					return 1
+				}
+				if i.CPUFeature != j.CPUFeature {
+					return strings.Compare(i.CPUFeature, j.CPUFeature)
+				}
+				// Weirdly Intel sometimes has duplicated definitions for the same instruction,
+				// this confuses the XED mem-op merge logic: [MemFeature] will only be attached to an instruction
+				// for only once, which means that for essentially duplicated instructions only one will have the
+				// proper [MemFeature] set. We have to make this sort deterministic for [MemFeature].
+				if i.MemFeatures != nil && j.MemFeatures == nil {
+					return -1
+				}
+				if i.MemFeatures == nil && j.MemFeatures != nil {
+					return 1
+				}
+				if i.Commutative != j.Commutative {
+					if j.Commutative {
+						return -1
+					}
+					return 1
+				}
+				// Their order does not matter anymore, at least for now.
+				return 0
+			})
+		}
+		deduped = append(deduped, dup[0])
+	}
+	slices.SortFunc(deduped, compareOperations)
+	return deduped, nil
+}
+
+// Copy op.ConstImm to op.In[0].Const
+// This is a hack to reduce the size of defs we need for const imm operations.
+func copyConstImm(ops []Operation) error {
+	for _, op := range ops {
+		if op.ConstImm == nil {
+			continue
+		}
+		_, _, _, immType, _, _ := op.shape()
+
+		if immType == ConstImm || immType == ConstVarImm {
+			op.In[0].Const = op.ConstImm
+			// If the immediate operand is tagged with name:"@", it is fully constant;
+			// clear ImmOffset to ensure this is treated as ConstImm (no aux field).
+			if op.In[0].Name != nil && *op.In[0].Name == "@" {
+				op.In[0].ImmOffset = nil
+			}
+		}
+		// Otherwise, just not port it - e.g. {VPCMP[BWDQ] imm=0} and {VPCMPEQ[BWDQ]} are
+		// the same operations "Equal", [dedupgodef] should be able to distinguish them.
+	}
+	return nil
+}
+
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return ""
+	}
+	// Convert the string to a slice of runes to handle multi-byte characters correctly.
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
+}
+
+// overwrite corrects some errors due to:
+//   - The XED data is wrong
+//   - Go's SIMD API requirement, for example AVX2 compares should also produce masks.
+//     This rewrite has strict constraints, please see the error message.
+//     These constraints are also explointed in [writeSIMDRules], [writeSIMDMachineOps]
+//     and [writeSIMDSSA], please be careful when updating these constraints.
+func overwrite(ops []Operation) error {
+	hasClassOverwrite := false
+	overwrite := func(op []types.Operand, idx int, o Operation) error {
+		if op[idx].OverwriteElementBits != nil {
+			if op[idx].ElemBits == nil {
+				panic(fmt.Errorf("ElemBits is nil at operand %d of %v", idx, o))
+			}
+			*op[idx].ElemBits = *op[idx].OverwriteElementBits
+			if !op[idx].Bits.Scalable {
+				*op[idx].Lanes = op[idx].Bits.N() / *op[idx].ElemBits
+				*op[idx].Go = fmt.Sprintf("%s%dx%d", capitalizeFirst(*op[idx].Base), *op[idx].ElemBits, *op[idx].Lanes)
+			} else {
+				*op[idx].Go = fmt.Sprintf("%s%ds", capitalizeFirst(*op[idx].Base), *op[idx].ElemBits)
+			}
+		}
+		if CurrentArch().Arch == "arm64" && op[idx].OverwriteClass != nil && *op[idx].OverwriteClass == "greg" {
+			if op[idx].OverwriteBase == nil {
+				panic(fmt.Errorf("simdgen: [OverwriteClass] must be set together with [OverwriteBase]: %v", op[idx]))
+			}
+			oBase := *op[idx].OverwriteBase
+			oClass := *op[idx].OverwriteClass
+			if oBase != "float" {
+				panic(fmt.Errorf("simdgen: [Class] overwrite must set [OverwriteBase] to float: %v", op[idx]))
+			}
+			if op[idx].Class != "vreg" {
+				panic(fmt.Errorf("simdgen: [Class] overwrite must be overwriting [Class] from vreg: %v", op[idx]))
+			}
+			// The low lane of vreg (with other lanes zeroed) also represents a regular floating point greg.
+			// This is supposed to be used only by special instructions like float GetElem
+			// and floating point vector reduction across-lanes to lane 0 like FMINNMV.
+			hasClassOverwrite = true
+			*op[idx].Base = oBase
+			op[idx].Class = oClass
+			*op[idx].Go = fmt.Sprintf("float%d", *op[idx].ElemBits)
+		} else if op[idx].OverwriteClass != nil {
+			if op[idx].OverwriteBase == nil {
+				panic(fmt.Errorf("simdgen: [OverwriteClass] must be set together with [OverwriteBase]: %v", op[idx]))
+			}
+			oBase := *op[idx].OverwriteBase
+			oClass := *op[idx].OverwriteClass
+			if oClass != "mask" {
+				panic(fmt.Errorf("simdgen: [Class] overwrite only supports overwriting to mask: %v", op[idx]))
+			}
+			if oBase != "int" {
+				panic(fmt.Errorf("simdgen: [Class] overwrite must set [OverwriteBase] to int: %v", op[idx]))
+			}
+			if op[idx].Class != "vreg" {
+				panic(fmt.Errorf("simdgen: [Class] overwrite must be overwriting [Class] from vreg: %v", op[idx]))
+			}
+			hasClassOverwrite = true
+			*op[idx].Base = oBase
+			op[idx].Class = oClass
+			*op[idx].Go = fmt.Sprintf("Mask%dx%d", *op[idx].ElemBits, *op[idx].Lanes)
+		} else if op[idx].OverwriteBase != nil {
+			oBase := *op[idx].OverwriteBase
+			*op[idx].Go = strings.ReplaceAll(*op[idx].Go, capitalizeFirst(*op[idx].Base), capitalizeFirst(oBase))
+			if op[idx].Class == "greg" {
+				*op[idx].Go = strings.ReplaceAll(*op[idx].Go, *op[idx].Base, oBase)
+			}
+			*op[idx].Base = oBase
+		} else if op[idx].OverwriteBits != nil {
+			if op[idx].Class != "greg" {
+				panic(fmt.Errorf("simdgen: [OverwriteBits] is only supported for greg int: %v", op[idx]))
+			}
+			op[idx].Bits = types.VectorSize{Scalable: false, NRaw: *op[idx].OverwriteBits}
+			*op[idx].Go = fmt.Sprintf("%s%d", *op[idx].Base, op[idx].Bits.N())
+		}
+		return nil
+	}
+	for i, o := range ops {
+		hasClassOverwrite = false
+		for j := range ops[i].In {
+			if err := overwrite(ops[i].In, j, o); err != nil {
+				return err
+			}
+			if hasClassOverwrite {
+				return fmt.Errorf("simdgen does not support [OverwriteClass] in inputs: %s", ops[i])
+			}
+		}
+		for j := range ops[i].Out {
+			if err := overwrite(ops[i].Out, j, o); err != nil {
+				return err
+			}
+		}
+		if hasClassOverwrite {
+			for _, in := range ops[i].In {
+				if in.Class == "mask" {
+					return fmt.Errorf("simdgen only supports [OverwriteClass] for operations without mask inputs")
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// reportXEDInconsistency reports potential XED inconsistencies.
+// We can add more fields to [Operation] to enable more checks and implement it here.
+// Supported checks:
+// [NameAndSizeCheck]: NAME[BWDQ] should set the elemBits accordingly.
+// This check is useful to find inconsistencies, then we can add overwrite fields to
+// those defs to correct them manually.
+func reportXEDInconsistency(ops []Operation) error {
+	for _, o := range ops {
+		if o.NameAndSizeCheck != nil {
+			suffixSizeMap := map[byte]int{'B': 8, 'W': 16, 'D': 32, 'Q': 64}
+			checkOperand := func(opr types.Operand) error {
+				if opr.ElemBits == nil {
+					return fmt.Errorf("simdgen expects elemBits to be set when performing NameAndSizeCheck")
+				}
+				if v, ok := suffixSizeMap[o.Asm[len(o.Asm)-1]]; !ok {
+					return fmt.Errorf("simdgen expects asm to end with [BWDQ] when performing NameAndSizeCheck")
+				} else {
+					if v != *opr.ElemBits {
+						return fmt.Errorf("simdgen finds NameAndSizeCheck inconsistency in def: %s", o)
+					}
+				}
+				return nil
+			}
+			for _, in := range o.In {
+				if in.Class != "vreg" && in.Class != "mask" {
+					continue
+				}
+				if in.TreatLikeAScalarOfSize != nil {
+					// This is an irregular operand, don't check it.
+					continue
+				}
+				if err := checkOperand(in); err != nil {
+					return err
+				}
+			}
+			for _, out := range o.Out {
+				if err := checkOperand(out); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool {
+	if o.SpecialLower != nil {
+		// asmRule and argsMatchRule/earlyMatchRule should not affect masked merging
+		ok, _, _ := parseAsmRule(*o.SpecialLower)
+		if !ok {
+			ok, _, _ = parseArgsMatchRule(*o.SpecialLower)
+			if !ok {
+				return false
+			}
+		}
+	}
+	if CurrentArch().isSVE() {
+		// AMD64 merging takes the merge source as an extra destination operand.
+		// An SVE predicated instruction is destructive — it merges into its own
+		// first source — so there is no separate operand to add, and the merging
+		// form is just the /M-predicated machine op.
+		return false
+	}
+	// BLEND and VMOVDQU are not user-facing ops so we should filter them out.
+	return o.OperandOrder == nil && maskType == OneMask && outType == OneVregOut &&
+		len(o.InVariant) == 1 && !strings.Contains(o.Asm, "BLEND") && !strings.Contains(o.Asm, "VMOVDQU")
+}
+
+func getVbcstData(s string) (string, string) {
+	feat1, feat2, found := strings.Cut(s, ";")
+	if !found || !strings.HasPrefix(feat1, "feat1=") || !strings.HasPrefix(feat2, "feat2=") {
+		panic(fmt.Sprintf("unexpected format for vbcst data: %s", s))
+	}
+	return strings.TrimPrefix(feat1, "feat1="), strings.TrimPrefix(feat2, "feat2=")
+}
+
+func (o Operation) String() string {
+	return pprints(o)
+}
+
+// hiHalfOpName constructs the SSA machine op name for a hi-half "2" variant.
+// For example: hiHalfAsm="VSHRN2", arrangement="4S" → "VSHRN2_4S".
+func hiHalfOpName(hiHalfAsm string, gOp Operation) string {
+	return hiHalfAsm + "_" + *gOp.Arrangement
+}
+
+// hiHalfRegShape derives the regShape for hi-half "2" variant ops from the base regShape.
+// For narrow "2": the "2" variant has an extra destination input (resultInArg0),
+// so vreg input count increases by 1 (e.g., "v11Imm" → "v21Imm").
+// For long "2": same shape as base.
+func hiHalfRegShape2(baseRegShape string, kind string) string {
+	if kind == "narrow" {
+		if len(baseRegShape) > 2 && baseRegShape[0] == 'v' {
+			inCnt := int(baseRegShape[1] - '0')
+			outCnt := int(baseRegShape[2] - '0')
+			rest := baseRegShape[3:]
+			return fmt.Sprintf("v%d%d%s", inCnt+1, outCnt, rest)
+		}
+		panic(fmt.Sprintf("hiHalfRegShape2: unexpected regShape %q for narrow kind", baseRegShape))
+	}
+	return baseRegShape
+}
+
+// hiHalfLoweringRegShape computes the lowering dispatch regShape for a hi-half operation.
+// Base ops get a suffix like "Narrow" or "Long" appended to their standard regShape.
+// "2" variant ops get a derived regShape + "2" suffix.
+func hiHalfLoweringRegShape(baseRegShape string, kind string, isVariant2 bool) string {
+	suffix := capitalizeFirst(kind)
+	if isVariant2 {
+		suffix += "2"
+		// For narrow "2", the regShape changes (extra vreg input for resultInArg0)
+		baseRegShape = hiHalfRegShape2(baseRegShape, kind)
+	}
+	return baseRegShape + suffix
+}

@@ -1,9 +1,6 @@
-
 # This test is intended to verify that coverage reporting is consistent
 # between "go test -cover" and "go build -cover" with respect to how
 # the "main" package is handled. See issue 57169 for details.
-
-[short] skip
 
 # Build this program with -cover and run to collect a profile.
 

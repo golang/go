@@ -14,11 +14,9 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
@@ -26,19 +24,16 @@ import (
 
 var ReflectTypeForAnalyzer = &analysis.Analyzer{
 	Name: "reflecttypefor",
-	Doc:  analysisinternal.MustExtractDoc(doc, "reflecttypefor"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "reflecttypefor"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: reflecttypefor,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#reflecttypefor",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_reflecttypefor",
 }
 
 func reflecttypefor(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	var (
 		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
 		info  = pass.TypesInfo
@@ -51,6 +46,14 @@ func reflecttypefor(pass *analysis.Pass) (any, error) {
 		// Have: reflect.TypeOf(expr)
 
 		expr := call.Args[0]
+
+		// reflect.TypeFor cannot be instantiated with an untyped nil.
+		// We use type information rather than checking the identifier name
+		// to correctly handle edge cases where "nil" is shadowed (e.g. nil := "nil").
+		if info.Types[expr].IsNil() {
+			continue
+		}
+
 		if !typesinternal.NoEffects(info, expr) {
 			continue // don't eliminate operand: may have effects
 		}
@@ -58,20 +61,20 @@ func reflecttypefor(pass *analysis.Pass) (any, error) {
 		t := info.TypeOf(expr)
 		var edits []analysis.TextEdit
 
-		// Special case for TypeOf((*T)(nil)).Elem(),
-		// needed when T is an interface type.
-		if astutil.IsChildOf(curCall, edge.SelectorExpr_X) {
-			curSel := unparenEnclosing(curCall).Parent()
-			if astutil.IsChildOf(curSel, edge.CallExpr_Fun) {
-				call2 := unparenEnclosing(curSel).Parent().Node().(*ast.CallExpr)
+		// Special cases for TypeOf((*T)(nil)).Elem(), and
+		// TypeOf([]T(nil)).Elem(), needed when T is an interface type.
+		if curCall.ParentEdgeKind() == edge.SelectorExpr_X {
+			curSel := astutil.UnparenEnclosingCursor(curCall).Parent()
+			if curSel.ParentEdgeKind() == edge.CallExpr_Fun {
+				call2 := astutil.UnparenEnclosingCursor(curSel).Parent().Node().(*ast.CallExpr) // potentially .Elem()
 				obj := typeutil.Callee(info, call2)
 				if typesinternal.IsMethodNamed(obj, "reflect", "Type", "Elem") {
-					if ptr, ok := t.(*types.Pointer); ok {
-						// Have: TypeOf(expr).Elem() where expr : *T
-						t = ptr.Elem()
-						// reflect.TypeOf(expr).Elem()
-						//                     -------
-						// reflect.TypeOf(expr)
+					// reflect.TypeOf(expr).Elem()
+					//                     -------
+					// reflect.TypeOf(expr)
+					if typ, hasElem := t.(interface{ Elem() types.Type }); hasElem {
+						// Have: TypeOf(expr).Elem() where expr is *T, []T, [k]T, chan T, map[K]T, etc.
+						t = typ.Elem()
 						edits = []analysis.TextEdit{{
 							Pos: call.End(),
 							End: call2.End(),
@@ -88,11 +91,20 @@ func reflecttypefor(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
+		// Don't offer the fix if it would erase a reference to a
+		// (non-type) symbol, as this may break intended coupling.
+		// Examples:
+		//   TypeOf(0)       -> TypeFor[int]()  // ok
+		//   TypeOf(pkg.Var) -> TypeFor[int]()  // bad: loses connection to pkg.Var
+		//   TypeOf(uint(0)) -> TypeFor[uint]() // ok: (most) type symbols are preserved
+		if usesNonTypeSymbol(info, expr) {
+			continue
+		}
+
 		file := astutil.EnclosingFile(curCall)
-		if versions.Before(info.FileVersions[file], "go1.22") {
+		if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_22) {
 			continue // TypeFor requires go1.22
 		}
-		tokFile := pass.Fset.File(file.Pos())
 
 		// Format the type as valid Go syntax.
 		// TODO(adonovan): FileQualifier needs to respect
@@ -106,13 +118,22 @@ func reflecttypefor(pass *analysis.Pass) (any, error) {
 			continue // e.g. reflect was dot-imported
 		}
 
-		// If the call argument contains the last use
-		// of a variable, as in:
-		//	var zero T
-		//	reflect.TypeOf(zero)
-		// remove the declaration of that variable.
-		curArg0 := curCall.ChildAt(edge.CallExpr_Args, 0)
-		edits = append(edits, refactor.DeleteUnusedVars(index, info, tokFile, curArg0)...)
+		// Don't offer a fix if the type contains an unnamed struct or unnamed
+		// interface because the replacement would be significantly more verbose.
+		// (See golang/go#76698)
+		if isComplicatedType(t) {
+			continue
+		}
+
+		// Don't offer the fix if the type string is too long. We define "too
+		// long" as more than three times the length of the original expression
+		// and at least 16 characters (a 3x length increase of a very
+		// short expression should not be cause for skipping the fix).
+		oldLen := int(expr.End() - expr.Pos())
+		newLen := len(tstr)
+		if newLen >= 16 && newLen > 3*oldLen {
+			continue
+		}
 
 		pass.Report(analysis.Diagnostic{
 			Pos:     call.Fun.Pos(),
@@ -140,4 +161,71 @@ func reflecttypefor(pass *analysis.Pass) (any, error) {
 	}
 
 	return nil, nil
+}
+
+// usesNonTypeSymbol reports whether expr uses a non-type symbol:
+// a value-level object (a var, const, or func) or any other named entity
+// whose identifier would disappear in a TypeFor replacement. We suppress
+// the fix in that case so the rewrite does not erase a symbol the author
+// named on purpose, for example reflect.TypeOf(f), reflect.TypeOf(x.Field),
+// or a named array length such as [arrayLen]byte.
+//
+// Type names, package names, nil, and builtins are not such symbols: they
+// either reappear in the type argument (e.g. T in reflect.TypeOf(T{})) or
+// are irrelevant to it, so the rewrite is allowed.
+func usesNonTypeSymbol(info *types.Info, expr ast.Expr) bool {
+	for n := range ast.Preorder(expr) {
+		id, ok := n.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		switch info.Uses[id].(type) {
+		case *types.TypeName, *types.PkgName, *types.Nil, *types.Builtin:
+			// Type-level names reappear in (or are irrelevant to) the
+			// type argument, so they may be erased safely.
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+// isComplicatedType reports whether type t is complicated, e.g. it is or contains an
+// unnamed struct, interface, or function signature.
+func isComplicatedType(t types.Type) bool {
+	var check func(typ types.Type) bool
+	check = func(typ types.Type) bool {
+		switch t := typ.(type) {
+		case typesinternal.NamedOrAlias:
+			for ta := range t.TypeArgs().Types() {
+				if check(ta) {
+					return true
+				}
+			}
+			return false
+		case *types.Struct, *types.Interface, *types.Signature:
+			// These are complex types with potentially many elements
+			// so we should avoid duplicating their definition.
+			return true
+		case *types.Pointer:
+			return check(t.Elem())
+		case *types.Slice:
+			return check(t.Elem())
+		case *types.Array:
+			return check(t.Elem())
+		case *types.Chan:
+			return check(t.Elem())
+		case *types.Map:
+			return check(t.Key()) || check(t.Elem())
+		case *types.Basic:
+			return false
+		case *types.TypeParam:
+			return false
+		default:
+			// Includes types.Union
+			return true
+		}
+	}
+
+	return check(t)
 }

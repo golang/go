@@ -13,7 +13,7 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
 const Doc = "report assembly that clobbers the frame pointer before saving it"
@@ -98,7 +98,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	for _, fname := range sfiles {
-		content, tf, err := analysisinternal.ReadFile(pass, fname)
+		content, tf, err := analyzerutil.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}

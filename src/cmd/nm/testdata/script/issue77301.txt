@@ -1,0 +1,20 @@
+# Tests the correct symbol placement for initialized vs uninitialized
+# globals in the respective sections: https://go.dev/issues/77301
+go build -o main
+exec go tool nm main
+stdout 'B main.globalUninitialized'
+stdout 'D main.globalInitialized'
+
+-- go.mod --
+module nm_bss_symbol_check
+
+-- main.go --
+package main
+
+var globalUninitialized int64
+var globalInitialized int64 = 42
+
+func main() {
+    println(globalUninitialized)
+    println(globalInitialized)
+}

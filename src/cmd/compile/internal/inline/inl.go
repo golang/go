@@ -179,6 +179,25 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 	})
 }
 
+func simdCreditMultiplier(fn *ir.Func) int32 {
+	for _, field := range fn.Type().RecvParamsResults() {
+		if field.Type.IsSIMD() {
+			return 3
+		}
+	}
+	// Sometimes code uses closures, that do not take simd
+	// parameters, to perform repetitive SIMD operations.
+	// fn.  These really need to be inlined, or the anticipated
+	// awesome SIMD performance will be missed.
+	for _, v := range fn.ClosureVars {
+		if v.Type().IsSIMD() {
+			return 16 // <strike>11</strike> 16 ought to be enough.
+		}
+	}
+
+	return 1
+}
+
 // inlineBudget determines the max budget for function 'fn' prior to
 // analyzing the hairiness of the body of 'fn'. We pass in the pgo
 // profile if available (which can change the budget), also a
@@ -186,9 +205,24 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 // possibility that a call to the function might have its score
 // adjusted downwards. If 'verbose' is set, then print a remark where
 // we boost the budget due to PGO.
+// Note that inlineCostOK has the final say on whether an inline will
+// happen; changes here merely make inlines possible.
 func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose bool) int32 {
 	// Update the budget for profile-guided inlining.
 	budget := int32(inlineMaxBudget)
+
+	budget *= simdCreditMultiplier(fn)
+
+	if strings.HasPrefix(ir.FuncName(fn), "runtime_mapaccess2") &&
+		fn.Sym().Pkg.Path == "internal/runtime/maps" {
+		// Increase budget for mapaccess2* functions so they could be
+		// inlined to mapaccess1* wrappers
+		budget = inlineHotMaxBudget
+		if verbose {
+			fmt.Printf("mapaccess enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
+		}
+	}
+
 	if IsPgoHotFunc(fn, profile) {
 		budget = inlineHotMaxBudget
 		if verbose {
@@ -202,6 +236,7 @@ func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose boo
 		// be very liberal here, if the closure is only called once, the budget is large
 		budget = max(budget, inlineClosureCalledOnceCost)
 	}
+
 	return budget
 }
 
@@ -261,17 +296,27 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 	// locals, and we use this map to produce a pruned Inline.Dcl
 	// list. See issue 25459 for more context.
 
+	dbg := ir.MatchAstDump(fn, "inline")
+
 	visitor := hairyVisitor{
 		curFunc:       fn,
+		debug:         isDebugFn(fn),
 		isBigFunc:     IsBigFunc(fn),
 		budget:        budget,
 		maxBudget:     budget,
 		extraCallCost: cc,
 		profile:       profile,
+		dbg:           dbg, // Useful for downstream debugging
 	}
+
 	if visitor.tooHairy(fn) {
 		reason = visitor.reason
+		if dbg {
+			ir.AstDump(fn, "inline, too hairy because "+visitor.reason+", "+ir.FuncName(fn))
+		}
 		return
+	} else if dbg {
+		ir.AstDump(fn, "inline, OK, "+ir.FuncName(fn))
 	}
 
 	n.Func.Inl = &ir.Inline{
@@ -289,9 +334,9 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 // function is inlinable.
 func noteInlinableFunc(n *ir.Name, fn *ir.Func, cost int32) {
 	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, cost, fn.Type(), fn.Body)
+		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n.DiagName(), cost, fn.Type(), fn.Body)
 	} else if base.Flag.LowerM != 0 {
-		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
+		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n.DiagName())
 	}
 	// JSON optimization log output.
 	if logopt.Enabled() {
@@ -407,6 +452,7 @@ type hairyVisitor struct {
 	// This is needed to access the current caller in the doNode function.
 	curFunc       *ir.Func
 	isBigFunc     bool
+	debug         bool
 	budget        int32
 	maxBudget     int32
 	reason        string
@@ -414,6 +460,17 @@ type hairyVisitor struct {
 	usedLocals    ir.NameSet
 	do            func(ir.Node) bool
 	profile       *pgoir.Profile
+	dbg           bool
+}
+
+func isDebugFn(fn *ir.Func) bool {
+	// if n := fn.Nname; n != nil {
+	// 	if n.Sym().Name == "Int32x8.Transpose8" && n.Sym().Pkg.Path == "simd/archsimd" {
+	// 		fmt.Printf("isDebugFn '%s' DOT '%s'\n", n.Sym().Pkg.Path, n.Sym().Name)
+	// 		return true
+	// 	}
+	// }
+	return false
 }
 
 func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
@@ -433,6 +490,9 @@ func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
 func (v *hairyVisitor) doNode(n ir.Node) bool {
 	if n == nil {
 		return false
+	}
+	if v.debug {
+		fmt.Printf("%v: doNode %v budget is %d\n", ir.Line(n), n.Op(), v.budget)
 	}
 opSwitch:
 	switch n.Op() {
@@ -476,6 +536,9 @@ opSwitch:
 						break opSwitch
 					case "panicrangestate":
 						cheap = true
+					case "deferrangefunc":
+						v.reason = "defer call in range func"
+						return true
 					}
 				}
 			}
@@ -551,12 +614,19 @@ opSwitch:
 		}
 
 		if cheap {
+			if v.debug {
+				if ir.IsIntrinsicCall(n) {
+					fmt.Printf("%v: cheap call is also intrinsic, %v\n", ir.Line(n), n)
+				}
+			}
 			break // treat like any other node, that is, cost of 1
 		}
 
 		if ir.IsIntrinsicCall(n) {
-			// Treat like any other node.
-			break
+			if v.debug {
+				fmt.Printf("%v: intrinsic call, %v\n", ir.Line(n), n)
+			}
+			break // Treat like any other node.
 		}
 
 		if callee := inlCallee(v.curFunc, n.Fun, v.profile, false); callee != nil && typecheck.HaveInlineBody(callee) {
@@ -583,6 +653,10 @@ opSwitch:
 			}
 		}
 
+		if v.debug {
+			fmt.Printf("%v: costly OCALLFUNC %v\n", ir.Line(n), n)
+		}
+
 		// Call cost for non-leaf inlining.
 		v.budget -= extraCost
 
@@ -592,6 +666,9 @@ opSwitch:
 	// Things that are too hairy, irrespective of the budget
 	case ir.OCALL, ir.OCALLINTER:
 		// Call cost for non-leaf inlining.
+		if v.debug {
+			fmt.Printf("%v: costly OCALL %v\n", ir.Line(n), n)
+		}
 		v.budget -= v.extraCallCost
 
 	case ir.OPANIC:
@@ -605,9 +682,9 @@ opSwitch:
 		v.budget -= inlineExtraPanicCost
 
 	case ir.ORECOVER:
-		// TODO: maybe we could allow inlining of recover() now?
-		v.reason = "call to recover"
-		return true
+		// recover matches panics to frames via stack unwinding
+		// (including inlined frames), so it is safe to inline.
+		v.budget -= v.extraCallCost
 
 	case ir.OCLOSURE:
 		if base.Debug.InlFuncsWithClosures == 0 {
@@ -754,7 +831,7 @@ opSwitch:
 	v.budget--
 
 	// When debugging, don't stop early, to get full cost of inlining this function
-	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() {
+	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() && !v.debug {
 		v.reason = "too expensive"
 		return true
 	}
@@ -845,7 +922,7 @@ func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile
 	}
 
 	if fn := inlCallee(callerfn, call.Fun, profile, false); fn != nil && typecheck.HaveInlineBody(fn) {
-		return mkinlcall(callerfn, call, fn, bigCaller, closureCalledOnce)
+		return mkinlcall(callerfn, call, fn, bigCaller, closureCalledOnce, profile)
 	}
 	return nil
 }
@@ -893,7 +970,7 @@ var SSADumpInline = func(*ir.Func) {}
 
 // InlineCall allows the inliner implementation to be overridden.
 // If it returns nil, the function will not be inlined.
-var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int, profile *pgoir.Profile) *ir.InlinedCallExpr {
 	base.Fatalf("inline.InlineCall not overridden")
 	panic("unreachable")
 }
@@ -908,11 +985,19 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
 func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCalledOnce bool) (bool, int32, int32, bool) {
 	maxCost := int32(inlineMaxBudget)
 
+	if strings.HasPrefix(ir.FuncName(caller), "runtime_mapaccess1") && caller.Sym().Pkg.Path == "internal/runtime/maps" &&
+		strings.HasPrefix(ir.FuncName(callee), "runtime_mapaccess2") && callee.Sym().Pkg.Path == "internal/runtime/maps" {
+		// Raise cost to allow inlining of mapaccess2* functions to mapaccess1* wrappers
+		maxCost = inlineHotMaxBudget
+	}
+
 	if bigCaller {
 		// We use this to restrict inlining into very big functions.
 		// See issue 26546 and 17566.
 		maxCost = inlineBigFunctionMaxCost
 	}
+
+	simdMaxCost := simdCreditMultiplier(callee) * maxCost
 
 	if callee.ClosureParent != nil {
 		maxCost *= 2           // favor inlining closures
@@ -920,6 +1005,8 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCal
 			maxCost = max(maxCost, inlineClosureCalledOnceCost)
 		}
 	}
+
+	maxCost = max(maxCost, simdMaxCost)
 
 	metric := callee.Inl.Cost
 	if inlheur.Enabled() {
@@ -1084,7 +1171,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 // The result of mkinlcall MUST be assigned back to n, e.g.
 //
 //	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closureCalledOnce bool) *ir.InlinedCallExpr {
+func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closureCalledOnce bool, profile *pgoir.Profile) *ir.InlinedCallExpr {
 	ok, score, hot := canInlineCallExpr(callerfn, n, fn, bigCaller, closureCalledOnce, true)
 	if !ok {
 		return nil
@@ -1156,19 +1243,19 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closur
 	if base.Flag.LowerM != 0 {
 		if buildcfg.Experiment.NewInliner {
 			fmt.Printf("%v: inlining call to %v with score %d\n",
-				ir.Line(n), fn, score)
+				ir.Line(n), fn.Nname.DiagName(), score)
 		} else {
-			fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn)
+			fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn.Nname.DiagName())
 		}
 	}
 	if base.Flag.LowerM > 2 {
 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
 	}
 
-	res := InlineCall(callerfn, n, fn, inlIndex)
+	res := InlineCall(callerfn, n, fn, inlIndex, profile)
 
 	if res == nil {
-		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn)
+		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn.Nname.DiagName())
 	}
 
 	if base.Flag.LowerM > 2 {

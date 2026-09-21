@@ -1,13 +1,13 @@
 # This test verifies that GOMODCACHE does not affect whether checksums are embedded
 # with vendored files.
 # See issue #46400
-[short] skip 'builds and links a binary twice'
 go mod tidy
 go mod vendor
 
 go build -mod=vendor
 go version -m example$GOEXE
 cp stdout version-m.txt
+stdout -mod=vendor
 
 env GOMODCACHE=$WORK${/}modcache
 go build -mod=vendor

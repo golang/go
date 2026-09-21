@@ -4,8 +4,8 @@
 
 //go:build ignore
 
-// encgen writes the helper functions for encoding. Intended to be
-// used with go generate; see the invocation in encode.go.
+// decgen writes the helper functions for decoding. Intended to be
+// used with go generate; see the invocation in decode.go.
 
 // TODO: We could do more by being unsafe. Add a -unsafe flag?
 

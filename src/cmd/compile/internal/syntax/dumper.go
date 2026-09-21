@@ -89,7 +89,7 @@ type writeError struct {
 }
 
 // printf is a convenience wrapper that takes care of print errors.
-func (p *dumper) printf(format string, args ...interface{}) {
+func (p *dumper) printf(format string, args ...any) {
 	if _, err := fmt.Fprintf(p, format, args...); err != nil {
 		panic(writeError{err})
 	}

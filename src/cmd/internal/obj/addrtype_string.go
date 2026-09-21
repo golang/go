@@ -30,8 +30,9 @@ const _AddrType_name = "TYPE_NONETYPE_BRANCHTYPE_TEXTSIZETYPE_MEMTYPE_CONSTTYPE_
 var _AddrType_index = [...]uint8{0, 9, 20, 33, 41, 51, 62, 73, 81, 90, 100, 111, 123, 133, 145, 157}
 
 func (i AddrType) String() string {
-	if i >= AddrType(len(_AddrType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_AddrType_index)-1 {
 		return "AddrType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _AddrType_name[_AddrType_index[i]:_AddrType_index[i+1]]
+	return _AddrType_name[_AddrType_index[idx]:_AddrType_index[idx+1]]
 }

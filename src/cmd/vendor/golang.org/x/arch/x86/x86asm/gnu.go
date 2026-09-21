@@ -268,7 +268,7 @@ SuffixLoop:
 				}
 			}
 
-			if AL <= a && a <= R15 || ES <= a && a <= GS || X0 <= a && a <= X15 || M0 <= a && a <= M7 {
+			if AL <= a && a <= R15 || ES <= a && a <= GS || X0 <= a && a <= Z31 || M0 <= a && a <= M7 || K0 <= a && a <= K7 {
 				needSuffix = false
 				break SuffixLoop
 			}
@@ -279,7 +279,7 @@ SuffixLoop:
 		switch inst.Op {
 		case CMPXCHG8B, FLDCW, FNSTCW, FNSTSW, LDMXCSR, LLDT, LMSW, LTR, PCLMULQDQ,
 			SETA, SETAE, SETB, SETBE, SETE, SETG, SETGE, SETL, SETLE, SETNE, SETNO, SETNP, SETNS, SETO, SETP, SETS,
-			SLDT, SMSW, STMXCSR, STR, VERR, VERW:
+			SLDT, SMSW, STMXCSR, STR, VERR, VERW, VLDMXCSR, VSTMXCSR:
 			// For various reasons, libopcodes emits no suffix for these instructions.
 
 		case CRC32:
@@ -354,6 +354,74 @@ SuffixLoop:
 		}
 	}
 
+	isVexOrEvex := false
+	for _, p := range inst.Prefix {
+		if p.IsVEX() || p&0xFF == 0x62 {
+			isVexOrEvex = true
+			break
+		}
+	}
+	if isVexOrEvex {
+		hasMem := false
+		for _, a := range inst.Args {
+			if _, ok := a.(Mem); ok {
+				hasMem = true
+				break
+			}
+		}
+		if hasMem {
+			if inst.Op == VFPCLASSPD || inst.Op == VFPCLASSPS || inst.Op == VCVTTPD2DQ || inst.Op == VCVTTPD2UDQ || inst.Op == VCVTTPD2QQ || inst.Op == VCVTTPD2UQQ || inst.Op == VCVTPD2DQ || inst.Op == VCVTPD2UDQ || inst.Op == VCVTPD2QQ || inst.Op == VCVTPD2UQQ || inst.Op == VCVTPD2PS {
+				vexL := 0
+				isEvex := false
+				for i, p := range inst.Prefix {
+					if p.IsEVEX() && i+3 < len(inst.Prefix) && inst.Prefix[i+3] != 0 {
+						vexL = int((inst.Prefix[i+3]&0xFF)>>5) & 3
+						isEvex = true
+						break
+					} else if p.IsVEX() && i+2 < len(inst.Prefix) {
+						if p&0xFF == 0xC4 {
+							vexL = int((inst.Prefix[i+2]&0xFF)>>2) & 1
+						} else if p&0xFF == 0xC5 {
+							vexL = int((inst.Prefix[i+1]&0xFF)>>2) & 1
+						}
+						break
+					}
+				}
+				if !isEvex || inst.Op == VFPCLASSPD || inst.Op == VFPCLASSPS || inst.Op == VCVTPD2DQ {
+					switch vexL {
+					case 0:
+						op += "x"
+					case 1:
+						if inst.Op != VCMPPD && inst.Op != VCMPPS && inst.Op != VCMPPH && inst.Op != VCMPBF16 {
+							op += "y"
+						}
+					case 2:
+						if inst.Op != VCMPPD && inst.Op != VCMPPS && inst.Op != VCMPPH && inst.Op != VCMPBF16 {
+							op += "z"
+						}
+					}
+				}
+			} else if inst.Op == VCVTSI2SD || inst.Op == VCVTSI2SS {
+				is64 := false
+				if (inst.Op == VCVTSI2SD || inst.Op == VCVTSI2SS) && inst.MemBytes == 8 {
+					is64 = true
+				} else {
+					for _, a := range inst.Args {
+						if r, ok := a.(Reg); ok && RAX <= r && r <= R15 {
+							is64 = true
+							break
+						}
+					}
+				}
+				if is64 {
+					op += "q"
+				} else {
+					op += "l"
+				}
+			}
+		}
+	}
+
 	// Adjust special case opcodes.
 	switch inst.Op {
 	case 0:
@@ -372,6 +440,20 @@ SuffixLoop:
 		if ok && 0 <= imm && imm < 8 {
 			inst.Args[2] = nil
 			op = cmppsOps[imm] + op[3:]
+		}
+
+	case VCMPPD, VCMPPS, VCMPSD, VCMPSS, VCMPPH, VCMPSH, VCMPBF16:
+		for i := len(inst.Args) - 1; i >= 0; i-- {
+			if imm, ok := inst.Args[i].(Imm); ok {
+				if 0 <= imm && imm < 8 {
+					inst.Args[i] = nil
+					op = "v" + cmppsOps[imm] + op[4:]
+				}
+				break
+			}
+			if inst.Args[i] != nil {
+				break
+			}
 		}
 
 	case PCLMULQDQ:
@@ -407,7 +489,64 @@ SuffixLoop:
 		if a == Imm(1) && (inst.Opcode>>24)&^1 == 0xD0 {
 			continue
 		}
-		args = append(args, gnuArg(&inst, pc, symname, a, &usedPrefixes))
+		argStr := gnuArg(&inst, pc, symname, a, &usedPrefixes)
+		if i == 1 {
+			r, ok := a.(Reg)
+			// In GNU syntax, the mask register usually appears as the second argument (index 1).
+			if ok && K1 <= r && r <= K7 {
+				if !strings.HasPrefix(inst.Op.String(), "K") {
+					if len(args) > 0 {
+						args[0] += fmt.Sprintf(" {%s}", argStr)
+						if inst.Zeroing {
+							args[0] += " {z}"
+						}
+					}
+					continue
+				}
+			} else if ok && r == K0 {
+				if !strings.HasPrefix(inst.Op.String(), "K") {
+					if inst.Zeroing && len(args) > 0 {
+						args[0] += "{z}"
+					}
+					continue
+				}
+			}
+		}
+		if _, ok := a.(Mem); ok && inst.Broadcast && len(args) > 0 {
+			if dstReg, ok := inst.Args[0].(Reg); ok {
+				var vBytes int
+				if X0 <= dstReg && dstReg <= X31 {
+					vBytes = 16
+				} else if Y0 <= dstReg && dstReg <= Y31 {
+					vBytes = 32
+				} else if Z0 <= dstReg && dstReg <= Z31 {
+					vBytes = 64
+				}
+				if vBytes > 0 && inst.MemBytes > 0 {
+					argStr += fmt.Sprintf("{1to%d}", vBytes/inst.MemBytes)
+				}
+			}
+		}
+		args = append(args, argStr)
+	}
+
+	if inst.SAE {
+		var sae string
+		if hasRC(inst.Op) {
+			switch inst.Rounding {
+			case 0:
+				sae = "{rn-sae}"
+			case 1:
+				sae = "{rd-sae}"
+			case 2:
+				sae = "{ru-sae}"
+			case 3:
+				sae = "{rz-sae}"
+			}
+		} else {
+			sae = "{sae}"
+		}
+		args = append(args, sae)
 	}
 
 	// The default is to print the arguments in reverse Intel order.
@@ -436,7 +575,7 @@ SuffixLoop:
 		}
 	}
 	for _, p := range inst.Prefix {
-		if p == 0 || p.IsVEX() {
+		if p == 0 || p.IsVEX() || p.IsEVEX() {
 			break
 		}
 		if p&PrefixImplicit != 0 {
@@ -534,8 +673,6 @@ func gnuArg(inst *Inst, pc uint64, symname SymLookup, x Arg, usedPrefixes *bool)
 			if x == DX {
 				return "(%dx)"
 			}
-		case VMOVDQA, VMOVDQU, VMOVNTDQA, VMOVNTDQ:
-			return strings.Replace(gccRegName[x], "xmm", "ymm", -1)
 		}
 		return gccRegName[x]
 	case Mem:
@@ -566,6 +703,10 @@ func gnuArg(inst *Inst, pc uint64, symname SymLookup, x Arg, usedPrefixes *bool)
 		case INSB, INSW, INSD, STOSB, STOSW, STOSD, STOSQ, SCASB, SCASW, SCASD, SCASQ:
 			// These do not accept segment prefixes, at least in the GNU rendering.
 		default:
+			if isVSIB(inst.Op) {
+				haveCS, haveDS, haveES, haveSS = false, false, false, false
+				break
+			}
 			if *usedPrefixes {
 				break
 			}
@@ -651,6 +792,14 @@ func gnuArg(inst *Inst, pc uint64, symname SymLookup, x Arg, usedPrefixes *bool)
 		}
 		if AX <= x.Base && x.Base <= DI {
 			// 16-bit addressing - no scale
+			return fmt.Sprintf("%s%s(%s,%s)", seg, disp, base, index)
+		}
+		if x.Scale == 1 {
+			// Special case to match objdump output for explicit scale 1.
+			// XXX is this the only one?
+			if inst.Op.String() == "VMOVNTDQA" {
+				return fmt.Sprintf("%s%s(%s,%s,1)", seg, disp, base, index)
+			}
 			return fmt.Sprintf("%s%s(%s,%s)", seg, disp, base, index)
 		}
 		return fmt.Sprintf("%s%s(%s,%s,%d)", seg, disp, base, index, x.Scale)
@@ -789,6 +938,94 @@ var gccRegName = [...]string{
 	X13:  "%xmm13",
 	X14:  "%xmm14",
 	X15:  "%xmm15",
+	X16:  "%xmm16",
+	X17:  "%xmm17",
+	X18:  "%xmm18",
+	X19:  "%xmm19",
+	X20:  "%xmm20",
+	X21:  "%xmm21",
+	X22:  "%xmm22",
+	X23:  "%xmm23",
+	X24:  "%xmm24",
+	X25:  "%xmm25",
+	X26:  "%xmm26",
+	X27:  "%xmm27",
+	X28:  "%xmm28",
+	X29:  "%xmm29",
+	X30:  "%xmm30",
+	X31:  "%xmm31",
+	Y0:   "%ymm0",
+	Y1:   "%ymm1",
+	Y2:   "%ymm2",
+	Y3:   "%ymm3",
+	Y4:   "%ymm4",
+	Y5:   "%ymm5",
+	Y6:   "%ymm6",
+	Y7:   "%ymm7",
+	Y8:   "%ymm8",
+	Y9:   "%ymm9",
+	Y10:  "%ymm10",
+	Y11:  "%ymm11",
+	Y12:  "%ymm12",
+	Y13:  "%ymm13",
+	Y14:  "%ymm14",
+	Y15:  "%ymm15",
+	Y16:  "%ymm16",
+	Y17:  "%ymm17",
+	Y18:  "%ymm18",
+	Y19:  "%ymm19",
+	Y20:  "%ymm20",
+	Y21:  "%ymm21",
+	Y22:  "%ymm22",
+	Y23:  "%ymm23",
+	Y24:  "%ymm24",
+	Y25:  "%ymm25",
+	Y26:  "%ymm26",
+	Y27:  "%ymm27",
+	Y28:  "%ymm28",
+	Y29:  "%ymm29",
+	Y30:  "%ymm30",
+	Y31:  "%ymm31",
+	Z0:   "%zmm0",
+	Z1:   "%zmm1",
+	Z2:   "%zmm2",
+	Z3:   "%zmm3",
+	Z4:   "%zmm4",
+	Z5:   "%zmm5",
+	Z6:   "%zmm6",
+	Z7:   "%zmm7",
+	Z8:   "%zmm8",
+	Z9:   "%zmm9",
+	Z10:  "%zmm10",
+	Z11:  "%zmm11",
+	Z12:  "%zmm12",
+	Z13:  "%zmm13",
+	Z14:  "%zmm14",
+	Z15:  "%zmm15",
+	Z16:  "%zmm16",
+	Z17:  "%zmm17",
+	Z18:  "%zmm18",
+	Z19:  "%zmm19",
+	Z20:  "%zmm20",
+	Z21:  "%zmm21",
+	Z22:  "%zmm22",
+	Z23:  "%zmm23",
+	Z24:  "%zmm24",
+	Z25:  "%zmm25",
+	Z26:  "%zmm26",
+	Z27:  "%zmm27",
+	Z28:  "%zmm28",
+	Z29:  "%zmm29",
+	Z30:  "%zmm30",
+	Z31:  "%zmm31",
+	K0:   "%k0",
+	K1:   "%k1",
+	K2:   "%k2",
+	K3:   "%k3",
+	K4:   "%k4",
+	K5:   "%k5",
+	K6:   "%k6",
+	K7:   "%k7",
 	CS:   "%cs",
 	SS:   "%ss",
 	DS:   "%ds",

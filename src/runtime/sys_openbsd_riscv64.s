@@ -89,8 +89,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVW	sig+8(FP), X10
 	MOV	info+16(FP), X11
 	MOV	ctx+24(FP), X12
-	MOV	fn+0(FP), X5
-	JALR	X1, X5
+	MOV	fn+0(FP), X6
+	JALR	X1, X6
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$224
@@ -127,8 +127,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$224
 	MOVW	X10, 8(X2)
 	MOV	X11, 16(X2)
 	MOV	X12, 24(X2)
-	MOV	$runtime·sigtrampgo(SB), X5
-	JALR	X1, X5
+	MOV	$runtime·sigtrampgo(SB), X6
+	JALR	X1, X6
 
 	// Restore callee-save registers.
 	MOV	(4*8)(X2), X8
@@ -458,13 +458,13 @@ TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
 TEXT runtime·syscall(SB),NOSPLIT,$8
 	MOV	X10, X9			// pointer to args
 
-	MOV	(0*8)(X9), X5		// fn
+	MOV	(0*8)(X9), X6		// fn
 	MOV	(1*8)(X9), X10		// a1
 	MOV	(2*8)(X9), X11		// a2
 	MOV	(3*8)(X9), X12		// a3
 	MOV	$0, X13			// vararg
 
-	JALR	X1, X5
+	JALR	X1, X6
 
 	MOV	X10, (4*8)(X9)		// r1
 	MOV	X11, (5*8)(X9)		// r2
@@ -502,13 +502,13 @@ ok:
 TEXT runtime·syscallX(SB),NOSPLIT,$8
 	MOV	X10, X9			// pointer to args
 
-	MOV	(0*8)(X9), X5		// fn
+	MOV	(0*8)(X9), X6		// fn
 	MOV	(1*8)(X9), X10		// a1
 	MOV	(2*8)(X9), X11		// a2
 	MOV	(3*8)(X9), X12		// a3
 	MOV	$0, X13			// vararg
 
-	JALR	X1, X5
+	JALR	X1, X6
 
 	MOV	X10, (4*8)(X9)		// r1
 	MOV	X11, (5*8)(X9)		// r2
@@ -548,7 +548,7 @@ ok:
 TEXT runtime·syscall6(SB),NOSPLIT,$8
 	MOV	X10, X9			// pointer to args
 
-	MOV	(0*8)(X9), X5		// fn
+	MOV	(0*8)(X9), X6		// fn
 	MOV	(1*8)(X9), X10		// a1
 	MOV	(2*8)(X9), X11		// a2
 	MOV	(3*8)(X9), X12		// a3
@@ -557,7 +557,7 @@ TEXT runtime·syscall6(SB),NOSPLIT,$8
 	MOV	(6*8)(X9), X15		// a6
 	MOV	$0, X16			// vararg
 
-	JALR	X1, X5
+	JALR	X1, X6
 
 	MOV	X10, (7*8)(X9)		// r1
 	MOV	X11, (8*8)(X9)		// r2
@@ -598,7 +598,7 @@ ok:
 TEXT runtime·syscall6X(SB),NOSPLIT,$8
 	MOV	X10, X9			// pointer to args
 
-	MOV	(0*8)(X9), X5		// fn
+	MOV	(0*8)(X9), X6		// fn
 	MOV	(1*8)(X9), X10		// a1
 	MOV	(2*8)(X9), X11		// a2
 	MOV	(3*8)(X9), X12		// a3
@@ -607,7 +607,7 @@ TEXT runtime·syscall6X(SB),NOSPLIT,$8
 	MOV	(6*8)(X9), X15		// a6
 	MOV	$0, X16			// vararg
 
-	JALR	X1, X5
+	JALR	X1, X6
 
 	MOV	X10, (7*8)(X9)		// r1
 	MOV	X11, (8*8)(X9)		// r2
@@ -652,7 +652,7 @@ TEXT runtime·syscall10(SB),NOSPLIT,$0
 
 	ADD	$-16, X2
 
-	MOV	(0*8)(X9), X5		// fn
+	MOV	(0*8)(X9), X6		// fn
 	MOV	(1*8)(X9), X10		// a1
 	MOV	(2*8)(X9), X11		// a2
 	MOV	(3*8)(X9), X12		// a3
@@ -662,7 +662,7 @@ TEXT runtime·syscall10(SB),NOSPLIT,$0
 	MOV	(7*8)(X9), X16		// a7
 	MOV	(8*8)(X9), X17		// a8
 
-	JALR	X1, X5
+	JALR	X1, X6
 
 	MOV	X10, (11*8)(X9)		// r1
 	MOV	X11, (12*8)(X9)		// r2
@@ -712,7 +712,7 @@ TEXT runtime·syscall10X(SB),NOSPLIT,$0
 
 	ADD	$-16, X2
 
-	MOV	(0*8)(X9), X5		// fn
+	MOV	(0*8)(X9), X6		// fn
 	MOV	(1*8)(X9), X10		// a1
 	MOV	(2*8)(X9), X11		// a2
 	MOV	(3*8)(X9), X12		// a3
@@ -722,7 +722,7 @@ TEXT runtime·syscall10X(SB),NOSPLIT,$0
 	MOV	(7*8)(X9), X16		// a7
 	MOV	(8*8)(X9), X17		// a8
 
-	JALR	X1, X5
+	JALR	X1, X6
 
 	MOV	X10, (11*8)(X9)		// r1
 	MOV	X11, (12*8)(X9)		// r2

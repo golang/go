@@ -14,25 +14,25 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
 )
 
 var SlicesContainsAnalyzer = &analysis.Analyzer{
 	Name: "slicescontains",
-	Doc:  analysisinternal.MustExtractDoc(doc, "slicescontains"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "slicescontains"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: slicescontains,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicescontains",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_slicescontains",
 }
 
 // The slicescontains pass identifies loops that can be replaced by a
@@ -59,15 +59,9 @@ var SlicesContainsAnalyzer = &analysis.Analyzer{
 //     statement is "found = false" (or vice versa), the
 //     loop becomes "found = [!]slices.Contains(...)".
 //
-// It may change cardinality of effects of the "needle" expression.
-// (Mostly this appears to be a desirable optimization, avoiding
-// redundantly repeated evaluation.)
-//
-// TODO(adonovan): Add a check that needle/predicate expression from
-// if-statement has no effects. Now the program behavior may change.
+// It rejects candidates whose needle/predicate expression from the if-statement
+// has side effects to avoid changes in program behavior.
 func slicescontains(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	// Skip the analyzer in packages where its
 	// fixes would create an import cycle.
 	if within(pass, "slices", "runtime") {
@@ -75,9 +69,8 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 	}
 
 	var (
-		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
-		info    = pass.TypesInfo
+		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info  = pass.TypesInfo
 	)
 
 	// check is called for each RangeStmt of this form:
@@ -178,6 +171,11 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 			return
 		}
 
+		// Reject if needle/predicate expression has side effects.
+		if !typesinternal.NoEffects(info, arg2) {
+			return
+		}
+
 		// Reject if the body, needle or predicate references either range variable.
 		usesRangeVar := func(n ast.Node) bool {
 			cur, ok := curRange.FindNode(n)
@@ -235,7 +233,9 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 		// that might affected by melting down the loop.
 		//
 		// TODO(adonovan): relax check by analyzing branch target.
+		numBodyStmts := 0
 		for curBodyStmt := range curBody.Children() {
+			numBodyStmts += 1
 			if curBodyStmt != curLastStmt {
 				for range curBodyStmt.Preorder((*ast.BranchStmt)(nil), (*ast.ReturnStmt)(nil)) {
 					return
@@ -296,7 +296,16 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 		case *ast.BranchStmt:
 			if lastStmt.Tok == token.BREAK && lastStmt.Label == nil { // unlabeled break
 				// Have: for ... { if ... { stmts; break } }
-
+				if numBodyStmts == 1 {
+					// If the only stmt in the body is an unlabeled "break" that
+					// will get deleted in the fix, don't suggest a fix, as it
+					// produces confusing code:
+					//    if slices.Contains(slice, f) {}
+					// Explicitly discarding the result isn't much better:
+					//    _ = slices.Contains(slice, f) // just for effects
+					// See https://go.dev/issue/77677.
+					return
+				}
 				var prevStmt ast.Stmt // previous statement to range (if any)
 				if curPrev, ok := curRange.PrevSibling(); ok {
 					// If the RangeStmt's previous sibling is a Stmt,
@@ -312,7 +321,7 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 
 				// Special case:
 				// prev="lhs = false" body={ lhs = true; break }
-				// => lhs = slices.Contains(...) (or negation)
+				// => lhs = slices.Contains(...) (or its negation)
 				if assign, ok := body.List[0].(*ast.AssignStmt); ok &&
 					len(body.List) == 2 &&
 					assign.Tok == token.ASSIGN &&
@@ -320,13 +329,13 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 					len(assign.Rhs) == 1 {
 
 					// Have: body={ lhs = rhs; break }
-
+					assignBool := isTrueOrFalse(info, assign.Rhs[0])
 					if prevAssign, ok := prevStmt.(*ast.AssignStmt); ok &&
 						len(prevAssign.Lhs) == 1 &&
 						len(prevAssign.Rhs) == 1 &&
+						assignBool != 0 && // non-bool assignments don't apply in this case
 						astutil.EqualSyntax(prevAssign.Lhs[0], assign.Lhs[0]) &&
-						is[*ast.Ident](assign.Rhs[0]) &&
-						info.Uses[assign.Rhs[0].(*ast.Ident)] == builtinTrue {
+						assignBool == -isTrueOrFalse(info, prevAssign.Rhs[0]) {
 
 						// Have:
 						//    lhs = false
@@ -336,15 +345,14 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 						//
 						// TODO(adonovan):
 						// - support "var lhs bool = false" and variants.
-						// - support negation.
-						// Both these variants seem quite significant.
 						// - allow the break to be omitted.
+						neg := cond(assignBool < 0, "!", "")
 						report([]analysis.TextEdit{
-							// Replace "rhs" of previous assignment by slices.Contains(...)
+							// Replace "rhs" of previous assignment by [!]slices.Contains(...)
 							{
 								Pos:     prevAssign.Rhs[0].Pos(),
 								End:     prevAssign.Rhs[0].End(),
-								NewText: []byte(contains),
+								NewText: []byte(neg + contains),
 							},
 							// Delete the loop and preceding space.
 							{
@@ -388,7 +396,7 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 		}
 	}
 
-	for curFile := range filesUsing(inspect, info, "go1.21") {
+	for curFile := range filesUsingGoVersion(pass, versions.Go1_21) {
 		file := curFile.Node().(*ast.File)
 
 		for curRange := range curFile.Preorder((*ast.RangeStmt)(nil)) {
@@ -420,13 +428,19 @@ func slicescontains(pass *analysis.Pass) (any, error) {
 // isReturnTrueOrFalse returns nonzero if stmt returns true (+1) or false (-1).
 func isReturnTrueOrFalse(info *types.Info, stmt ast.Stmt) int {
 	if ret, ok := stmt.(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
-		if id, ok := ret.Results[0].(*ast.Ident); ok {
-			switch info.Uses[id] {
-			case builtinTrue:
-				return +1
-			case builtinFalse:
-				return -1
-			}
+		return isTrueOrFalse(info, ret.Results[0])
+	}
+	return 0
+}
+
+// isTrueOrFalse returns nonzero if expr is literally true (+1) or false (-1).
+func isTrueOrFalse(info *types.Info, expr ast.Expr) int {
+	if id, ok := expr.(*ast.Ident); ok {
+		switch info.Uses[id] {
+		case builtinTrue:
+			return +1
+		case builtinFalse:
+			return -1
 		}
 	}
 	return 0

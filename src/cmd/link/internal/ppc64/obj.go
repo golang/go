@@ -44,7 +44,7 @@ func Init() (*sys.Arch, ld.Arch) {
 
 	if buildcfg.GOARCH == "ppc64" {
 		arch = sys.ArchPPC64
-		dynld = "/lib64/ld64.so.1"
+		dynld = "/lib64/ld64.so.2"
 		musl = "/lib/ld-musl-powerpc64.so.1"
 	}
 

@@ -18,7 +18,7 @@ import (
 // For untyped constants, it checks that the value doesn't become
 // arbitrarily large.
 func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
-	assert(x.mode == constant_)
+	assert(x.mode() == constant_)
 
 	if x.val.Kind() == constant.Unknown {
 		// TODO(gri) We should report exactly what went wrong. At the
@@ -32,8 +32,8 @@ func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
 	// their type after each constant operation.
 	// x.typ cannot be a type parameter (type
 	// parameters cannot be constant types).
-	if isTyped(x.typ) {
-		check.representable(x, x.typ.Underlying().(*Basic))
+	if isTyped(x.typ()) {
+		check.representable(x, x.typ().Underlying().(*Basic))
 		return
 	}
 
@@ -46,6 +46,18 @@ func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
 		}
 		check.errorf(atPos(opPos), InvalidConstVal, "constant %soverflow", op)
 		x.val = constant.MakeUnknown()
+		return
+	}
+
+	// String values must not become arbitrarily long (go.dev/issue/78346).
+	const maxLen = int64(2e9) // cmd/internal/obj.MaxSymSize
+	if x.val.Kind() == constant.String {
+		len := constant.StringLen(x.val)
+		if len > maxLen {
+			check.errorf(atPos(opPos), InvalidConstVal, "constant string too long (%d bytes > %d bytes)", len, maxLen)
+			x.val = constant.MakeUnknown()
+			return
+		}
 	}
 }
 
@@ -238,7 +250,7 @@ func (check *Checker) representable(x *operand, typ *Basic) {
 	v, code := check.representation(x, typ)
 	if code != 0 {
 		check.invalidConversion(code, x, typ)
-		x.mode = invalid
+		x.invalidate()
 		return
 	}
 	assert(v != nil)
@@ -250,10 +262,10 @@ func (check *Checker) representable(x *operand, typ *Basic) {
 //
 // If no such representation is possible, it returns a non-zero error code.
 func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Code) {
-	assert(x.mode == constant_)
+	assert(x.mode() == constant_)
 	v := x.val
 	if !representableConst(x.val, check, typ, &v) {
-		if isNumeric(x.typ) && isNumeric(typ) {
+		if isNumeric(x.typ()) && isNumeric(typ) {
 			// numeric conversion : error msg
 			//
 			// integer -> integer : overflows
@@ -261,7 +273,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Co
 			// float   -> integer : truncated
 			// float   -> float   : overflows
 			//
-			if !isInteger(x.typ) && isInteger(typ) {
+			if !isInteger(x.typ()) && isInteger(typ) {
 				return nil, TruncatedFloat
 			} else {
 				return nil, NumericOverflow
@@ -292,15 +304,15 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 			t = safeUnderlying(target)
 		}
 		check.invalidConversion(code, x, t)
-		x.mode = invalid
+		x.invalidate()
 		return
 	}
 	if val != nil {
 		x.val = val
 		check.updateExprVal(x.expr, val)
 	}
-	if newType != x.typ {
-		x.typ = newType
+	if newType != x.typ() {
+		x.typ_ = newType
 		check.updateExprType(x.expr, newType, false)
 	}
 }

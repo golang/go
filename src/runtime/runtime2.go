@@ -301,8 +301,6 @@ func setMNoWB(mp **m, new *m) {
 }
 
 type gobuf struct {
-	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
-	//
 	// ctxt is unusual with respect to GC: it may be a
 	// heap-allocated funcval, so GC needs to track it, but it
 	// needs to be set and cleared from assembly, where it's
@@ -479,12 +477,12 @@ type g struct {
 	// It is stack.lo+StackGuard on g0 and gsignal stacks.
 	// It is ~0 on other goroutine stacks, to trigger a call to morestackc (and crash).
 	stack       stack   // offset known to runtime/cgo
-	stackguard0 uintptr // offset known to liblink
-	stackguard1 uintptr // offset known to liblink
+	stackguard0 uintptr // offset known to cmd/internal/obj/*
+	stackguard1 uintptr // offset known to cmd/internal/obj/*
 
-	_panic    *_panic // innermost panic - offset known to liblink
+	_panic    *_panic // innermost panic
 	_defer    *_defer // innermost defer
-	m         *m      // current m; offset known to arm liblink
+	m         *m      // current m
 	sched     gobuf
 	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
@@ -545,9 +543,12 @@ type g struct {
 	runnableTime    int64 // the amount of time spent runnable, cleared when running, only used when tracking
 	lockedm         muintptr
 	fipsIndicator   uint8
+	fipsOnlyBypass  bool
+	ditWanted       bool // set if g wants to be executed with DIT enabled
 	syncSafePoint   bool // set if g is stopped at a synchronous safe point.
 	runningCleanups atomic.Bool
 	sig             uint32
+	secret          int32 // current nesting of runtime/secret.Do calls.
 	writebuf        []byte
 	sigcode0        uintptr
 	sigcode1        uintptr
@@ -628,6 +629,10 @@ type m struct {
 	curg       *g       // current running goroutine
 	caughtsig  guintptr // goroutine running during fatal signal
 
+	// Indicates whether we've received a signal while
+	// running in secret mode.
+	signalSecret bool
+
 	// p is the currently attached P for executing Go code, nil if not executing user Go code.
 	//
 	// A non-nil p implies exclusive ownership of the P, unless curg is in _Gsyscall.
@@ -665,11 +670,13 @@ type m struct {
 	park            note
 	alllink         *m // on allm
 	schedlink       muintptr
+	idleNode        listNodeManual
 	lockedg         guintptr
 	createstack     [32]uintptr // stack that created this thread, it's used for StackRecord.Stack0, so it must align with it.
 	lockedExt       uint32      // tracking for external LockOSThread
 	lockedInt       uint32      // tracking for internal lockOSThread
 	mWaitList       mWaitList   // list of runtime lock waiters
+	ditEnabled      bool        // set if DIT is currently enabled on this M
 
 	mLockProfile mLockProfile // fields relating to runtime.lock contention
 	profStack    []uintptr    // used for memory/block/mutex stack traces
@@ -709,12 +716,16 @@ type m struct {
 
 	mOS
 
-	chacha8   chacha8rand.State
-	cheaprand uint64
+	chacha8     chacha8rand.State
+	cheaprand   uint32
+	cheaprand64 uint64
 
 	// Up to 10 locks held by this m, maintained by the lock ranking code.
 	locksHeldLen int
 	locksHeld    [10]heldLockInfo
+
+	// self points this M until mexit clears it to return nil.
+	self mWeakPointer
 }
 
 const mRedZoneSize = (16 << 3) * asanenabledBit // redZoneSize(2048)
@@ -729,6 +740,37 @@ type mPadded struct {
 	_ [(1 - goarch.IsWasm) * (2048 - mallocHeaderSize - mRedZoneSize - unsafe.Sizeof(m{}))]byte
 }
 
+// mWeakPointer is a "weak" pointer to an M. A weak pointer for each M is
+// available as m.self. Users may copy mWeakPointer arbitrarily, and get will
+// return the M if it is still live, or nil after mexit.
+//
+// The zero value is treated as a nil pointer.
+//
+// Note that get may race with M exit. A successful get will keep the m object
+// alive, but the M itself may be exited and thus not actually usable.
+type mWeakPointer struct {
+	m *atomic.Pointer[m]
+}
+
+func newMWeakPointer(mp *m) mWeakPointer {
+	w := mWeakPointer{m: new(atomic.Pointer[m])}
+	w.m.Store(mp)
+	return w
+}
+
+func (w mWeakPointer) get() *m {
+	if w.m == nil {
+		return nil
+	}
+	return w.m.Load()
+}
+
+// clear sets the weak pointer to nil. It cannot be used on zero value
+// mWeakPointers.
+func (w mWeakPointer) clear() {
+	w.m.Store(nil)
+}
+
 type p struct {
 	id          int32
 	status      uint32 // one of pidle/prunning/...
@@ -740,6 +782,17 @@ type p struct {
 	mcache      *mcache
 	pcache      pageCache
 	raceprocctx uintptr
+
+	// oldm is the previous m this p ran on.
+	//
+	// We are not associated with this m, so we have no control over its
+	// lifecycle. This value is an m.self object which points to the m
+	// until the m exits.
+	//
+	// Note that this m may be idle, running, or exiting. It should only be
+	// used with mgetSpecific, which will take ownership of the m only if
+	// it is idle.
+	oldm mWeakPointer
 
 	deferpool    []*_defer // pool of available defer structs (see panic.go)
 	deferpoolbuf [32]*_defer
@@ -787,13 +840,17 @@ type p struct {
 	// pinner creation.
 	pinnerCache *pinner
 
+	// Cache of one unused pin counter. Accessed by this P with preemption
+	// disabled, or during STW. Returned to the allocator when the P is destroyed.
+	pinCounterCache *specialPinCounter
+
 	trace pTraceState
 
 	palloc persistentAlloc // per-P to avoid mutex
 
 	// Per-P GC state
-	gcAssistTime         int64 // Nanoseconds in assistAlloc
-	gcFractionalMarkTime int64 // Nanoseconds in fractional mark worker (atomic)
+	gcAssistTime         int64        // Nanoseconds in assistAlloc
+	gcFractionalMarkTime atomic.Int64 // Nanoseconds in fractional mark worker
 
 	// limiterEvent tracks events for the GC CPU limiter.
 	limiterEvent limiterEvent
@@ -807,6 +864,18 @@ type p struct {
 	// gcMarkWorkerStartTime is the nanotime() at which the most recent
 	// mark worker started.
 	gcMarkWorkerStartTime int64
+
+	// nextGCMarkWorker is the next mark worker to run. This may be set
+	// during start-the-world to assign a worker to this P. The P runs this
+	// worker on the next call to gcController.findRunnableGCWorker. If the
+	// P runs something else or stops, it must release this worker via
+	// gcController.releaseNextGCMarkWorker.
+	//
+	// See comment in gcBgMarkWorker about the lifetime of
+	// gcBgMarkWorkerNode.
+	//
+	// Only accessed by this P or during STW.
+	nextGCMarkWorker *gcBgMarkWorkerNode
 
 	// gcw is this P's GC work buffer cache. The work buffer is
 	// filled by write barriers, drained by mutator assists, and
@@ -875,16 +944,16 @@ type schedt struct {
 	// When increasing nmidle, nmidlelocked, nmsys, or nmfreed, be
 	// sure to call checkdead().
 
-	midle        muintptr // idle m's waiting for work
-	nmidle       int32    // number of idle m's waiting for work
-	nmidlelocked int32    // number of locked m's waiting for work
-	mnext        int64    // number of m's that have been created and next M ID
-	maxmcount    int32    // maximum number of m's allowed (or die)
-	nmsys        int32    // number of system m's not counted for deadlock
-	nmfreed      int64    // cumulative number of freed m's
+	midle        listHeadManual // idle m's waiting for work
+	nmidle       int32          // number of idle m's waiting for work
+	nmidlelocked int32          // number of locked m's waiting for work
+	mnext        int64          // number of m's that have been created and next M ID
+	maxmcount    int32          // maximum number of m's allowed (or die)
+	nmsys        int32          // number of system m's not counted for deadlock
+	nmfreed      int64          // cumulative number of freed m's
 
 	ngsys        atomic.Int32 // number of system goroutines
-	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P
+	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P but whose M is not isExtraInC
 
 	pidle        puintptr // idle p's
 	npidle       atomic.Int32
@@ -1009,7 +1078,7 @@ const (
 type _func struct {
 	sys.NotInHeap // Only in static data
 
-	entryOff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
+	entryOff uint32 // start pc, as offset from moduledata.text
 	nameOff  int32  // function name, as index into moduledata.funcnametab.
 
 	args        int32  // in/out args size
@@ -1112,16 +1181,17 @@ type _panic struct {
 	link *_panic // link to earlier panic
 
 	// startPC and startSP track where _panic.start was called.
+	// (These are the SP and PC of the gopanic frame itself.)
 	startPC uintptr
 	startSP unsafe.Pointer
 
 	// The current stack frame that we're running deferred calls for.
+	pc uintptr
 	sp unsafe.Pointer
-	lr uintptr
 	fp unsafe.Pointer
 
 	// retpc stores the PC where the panic should jump back to, if the
-	// function last returned by _panic.next() recovers the panic.
+	// function last returned by _panic.nextDefer() recovers the panic.
 	retpc uintptr
 
 	// Extra state for handling open-coded defers.
@@ -1132,8 +1202,6 @@ type _panic struct {
 	repanicked  bool // whether this panic repanicked
 	goexit      bool
 	deferreturn bool
-
-	gopanicFP unsafe.Pointer // frame pointer of the gopanic frame
 }
 
 // savedOpenDeferState tracks the extra state from _panic that's
@@ -1379,9 +1447,9 @@ var (
 	// must be set. An idle P (passed to pidleput) cannot add new timers while
 	// idle, so if it has no timers at that time, its mask may be cleared.
 	//
-	// Thus, we get the following effects on timer-stealing in findrunnable:
+	// Thus, we get the following effects on timer-stealing in findRunnable:
 	//
-	//   - Idle Ps with no timers when they go idle are never checked in findrunnable
+	//   - Idle Ps with no timers when they go idle are never checked in findRunnable
 	//     (for work- or timer-stealing; this is the ideal case).
 	//   - Running Ps must always be checked.
 	//   - Idle Ps whose timers are stolen must continue to be checked until they run

@@ -1,0 +1,56 @@
+# Test that checkMultiplePaths reports errors exactly once in a workspace with
+# multiple modules, even though it is called once per workspace module.
+#
+# example.com/a and example.com/b are both replaced by ../shared (which
+# canonicalizes to the same path in workspace mode), triggering a "used for
+# two different module paths" error. With three workspace modules the check
+# is called three times; the error should appear in stderr exactly once.
+
+go work sync
+stderr -count=1 'used for two different module paths'
+
+-- go.work --
+go 1.18
+
+use (
+	./m
+	./n
+	./o
+)
+
+-- m/go.mod --
+module example.com/m
+
+go 1.18
+
+require example.com/a v1.0.0
+
+replace example.com/a v1.0.0 => ../shared
+
+-- m/m.go --
+package m
+
+-- n/go.mod --
+module example.com/n
+
+go 1.18
+
+require example.com/b v1.0.0
+
+replace example.com/b v1.0.0 => ../shared
+
+-- n/n.go --
+package n
+
+-- o/go.mod --
+module example.com/o
+
+go 1.18
+
+-- o/o.go --
+package o
+
+-- shared/go.mod --
+module example.com/shared
+
+go 1.18

@@ -48,3 +48,6 @@ func (s *Signature) RenameResult(results []*syntax.Field, i int) (*Var, *syntax.
 
 	return obj, n
 }
+
+// Comment returns the scope comment, for debugging purposes.
+func (s *Scope) Comment() string { return s.comment }

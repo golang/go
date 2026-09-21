@@ -1,7 +1,5 @@
 # Issue 9737: verify that GOARM affects the computed build ID
 
-[short] skip
-
 # arm
 env GOOS=linux
 env GOARCH=arm

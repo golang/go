@@ -85,6 +85,11 @@ func (p *parser) init(file *token.File, src []byte, mode Mode) {
 	p.next()
 }
 
+// end returns the end position of the current token
+func (p *parser) end() token.Pos {
+	return p.scanner.End()
+}
+
 // ----------------------------------------------------------------------------
 // Parsing support
 
@@ -720,7 +725,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 
 	var tag *ast.BasicLit
 	if p.tok == token.STRING {
-		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		tag = &ast.BasicLit{ValuePos: p.pos, ValueEnd: p.end(), Kind: p.tok, Value: p.lit}
 		p.next()
 	}
 
@@ -1470,13 +1475,15 @@ func (p *parser) parseOperand() ast.Expr {
 
 	switch p.tok {
 	case token.IDENT:
-		x := p.parseIdent()
-		return x
+		return p.parseIdent()
 
 	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
-		x := &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		x := &ast.BasicLit{ValuePos: p.pos, ValueEnd: p.end(), Kind: p.tok, Value: p.lit}
 		p.next()
 		return x
+
+	case token.LBRACE:
+		return p.parseLiteralValue(nil)
 
 	case token.LPAREN:
 		lparen := p.pos
@@ -1643,30 +1650,16 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	return &ast.CallExpr{Fun: fun, Lparen: lparen, Args: list, Ellipsis: ellipsis, Rparen: rparen}
 }
 
-func (p *parser) parseValue() ast.Expr {
-	if p.trace {
-		defer un(trace(p, "Element"))
-	}
-
-	if p.tok == token.LBRACE {
-		return p.parseLiteralValue(nil)
-	}
-
-	x := p.parseExpr()
-
-	return x
-}
-
 func (p *parser) parseElement() ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Element"))
 	}
 
-	x := p.parseValue()
+	x := p.parseExpr()
 	if p.tok == token.COLON {
 		colon := p.pos
 		p.next()
-		x = &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseValue()}
+		x = &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseExpr()}
 	}
 
 	return x
@@ -1772,7 +1765,7 @@ func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 				p.error(t.Pos(), "cannot parenthesize type in composite literal")
 				// already progressed, no need to advance
 			}
-			x = p.parseLiteralValue(x)
+			x = p.parseLiteralValue(t)
 		default:
 			return x
 		}
@@ -2511,9 +2504,11 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	}
 
 	pos := p.pos
+	end := p.pos
 	var path string
 	if p.tok == token.STRING {
 		path = p.lit
+		end = p.end()
 		p.next()
 	} else if p.tok.IsLiteral() {
 		p.error(pos, "import path must be a string")
@@ -2528,7 +2523,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	spec := &ast.ImportSpec{
 		Doc:     doc,
 		Name:    ident,
-		Path:    &ast.BasicLit{ValuePos: pos, Kind: token.STRING, Value: path},
+		Path:    &ast.BasicLit{ValuePos: pos, ValueEnd: end, Kind: token.STRING, Value: path},
 		Comment: comment,
 	}
 	p.imports = append(p.imports, spec)
@@ -2787,12 +2782,6 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	var tparams *ast.FieldList
 	if p.tok == token.LBRACK {
 		tparams = p.parseTypeParameters()
-		if recv != nil && tparams != nil {
-			// Method declarations do not have type parameters. We parse them for a
-			// better error message and improved error recovery.
-			p.error(tparams.Opening, "method must have no type parameters")
-			tparams = nil
-		}
 	}
 	params := p.parseParameters(false)
 	results := p.parseParameters(true)

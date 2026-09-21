@@ -381,6 +381,46 @@ func TestNew(t *testing.T) {
 	})
 }
 
+// TestValueErrorMethod ensures that when a Value method panics with a
+// *js.ValueError, the ValueError reports the name of the method that was
+// actually called, and not the name of some other method.
+func TestValueErrorMethod(t *testing.T) {
+	num := dummys.Get("someInt") // a JavaScript number
+	obj := dummys                // a JavaScript object
+	tests := []struct {
+		method string
+		fn     func()
+	}{
+		{"Value.Get", func() { num.Get("x") }},
+		{"Value.Set", func() { num.Set("x", 1) }},
+		{"Value.Delete", func() { num.Delete("x") }},
+		{"Value.Index", func() { num.Index(0) }},
+		{"Value.SetIndex", func() { num.SetIndex(0, 1) }},
+		{"Value.Length", func() { num.Length() }},
+		{"Value.Call", func() { num.Call("x") }},
+		{"Value.Invoke", func() { num.Invoke() }},
+		{"Value.New", func() { num.New() }},
+		{"Value.Float", func() { obj.Float() }},
+		{"Value.Int", func() { obj.Int() }},
+		{"Value.Bool", func() { obj.Bool() }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.method, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				ve, ok := r.(*js.ValueError)
+				if !ok {
+					t.Fatalf("expected *js.ValueError, got %T (%v)", r, r)
+				}
+				if got, want := ve.Method, tt.method; got != want {
+					t.Fatalf("ValueError.Method = %q, want %q", got, want)
+				}
+			}()
+			tt.fn()
+		})
+	}
+}
+
 func TestInstanceOf(t *testing.T) {
 	someArray := js.Global().Get("Array").New()
 	if got, want := someArray.InstanceOf(js.Global().Get("Array")), true; got != want {

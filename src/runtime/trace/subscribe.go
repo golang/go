@@ -199,6 +199,3 @@ func (t *traceMultiplexer) startLocked() error {
 	t.enabled.Store(true)
 	return nil
 }
-
-//go:linkname runtime_readTrace
-func runtime_readTrace() (buf []byte)

@@ -2,8 +2,6 @@
 # 'mod tidy' removed dependencies if the module root was
 # within a directory named 'testdata' or '_foo'.
 
-env GO111MODULE=on
-
 # A module should be allowed in a directory named testdata.
 cd $WORK/testdata
 go mod init testdata.tld/foo

@@ -147,6 +147,12 @@ const (
 	// Max length of a special file (PAX header, GNU long name or link).
 	// This matches the limit used by libarchive.
 	maxSpecialFileSize = 1 << 20
+
+	// Maximum number of sparse file entries.
+	// We should never actually hit this limit
+	// (every sparse encoding will first be limited by maxSpecialFileSize),
+	// but this adds an additional layer of defense.
+	maxSparseFileEntries = 1 << 20
 )
 
 // blockPadding computes the number of bytes needed to pad offset up to the
@@ -229,10 +235,16 @@ func (b *block) setFormat(format Format) {
 // signed byte values.
 // We compute and return both.
 func (b *block) computeChecksum() (unsigned, signed int64) {
-	for i, c := range b {
-		if 148 <= i && i < 156 {
-			c = ' ' // Treat the checksum field itself as all spaces.
-		}
+	for _, c := range b[:148] {
+		unsigned += int64(c)
+		signed += int64(int8(c))
+	}
+	// Treat the checksum field itself (bytes 148 to 155, inclusive)
+	// as if it were all spaces.
+	const chksumSpaces = 8 * int64(' ')
+	unsigned += chksumSpaces
+	signed += chksumSpaces
+	for _, c := range b[156:] {
 		unsigned += int64(c)
 		signed += int64(int8(c))
 	}

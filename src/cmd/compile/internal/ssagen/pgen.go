@@ -20,6 +20,8 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssadebug"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -152,7 +154,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			if n, ok := v.Aux.(*ir.Name); ok {
 				switch n.Class {
 				case ir.PPARAMOUT:
-					if n.IsOutputParamInRegisters() && v.Op == ssa.OpVarDef {
+					if n.IsOutputParamInRegisters() && v.Op == ssaop.OpVarDef {
 						// ignore VarDef, look for "real" uses.
 						// TODO: maybe do this for PAUTO as well?
 						continue
@@ -228,7 +230,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			continue
 		}
 		if !n.Used() {
-			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
+			fn.DebugInfo.(*ssadebug.FuncDebug).OptDcl = fn.Dcl[i:]
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
@@ -300,8 +302,8 @@ const maxStackSize = 1 << 30
 // uses it to generate a plist,
 // and flushes that plist to machine code.
 // worker indicates which of the backend workers is doing the processing.
-func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
-	f := buildssa(fn, worker, inline.IsPgoHotFunc(fn, profile) || inline.HasPgoHotInline(fn))
+func Compile(ssacompiler ssa.Compiler, fn *ir.Func, worker int, profile *pgoir.Profile) {
+	f, htmlWriter := buildssa(ssacompiler, fn, worker, inline.IsPgoHotFunc(fn, profile) || inline.HasPgoHotInline(fn))
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || f.OwnAux.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
@@ -311,7 +313,7 @@ func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
 	}
 	pp := objw.NewProgs(fn, worker)
 	defer pp.Free()
-	genssa(f, pp)
+	genssa(htmlWriter, f, pp)
 	// Check frame size again.
 	// The check above included only the space needed for local variables.
 	// After genssa, the space needed includes local variables and the callee arg region.

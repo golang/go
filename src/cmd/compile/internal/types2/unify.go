@@ -34,8 +34,9 @@ package types2
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -67,6 +68,7 @@ const (
 // corresponding types inferred for each type parameter.
 // A unifier is created by calling newUnifier.
 type unifier struct {
+	check *Checker
 	// handles maps each type parameter to its inferred type through
 	// an indirection *Type called (inferred type) "handle".
 	// Initially, each type parameter has its own, separate handle,
@@ -85,7 +87,7 @@ type unifier struct {
 // and corresponding type argument lists. The type argument list may be shorter
 // than the type parameter list, and it may contain nil types. Matching type
 // parameters and arguments must have the same index.
-func newUnifier(tparams []*TypeParam, targs []Type, enableInterfaceInference bool) *unifier {
+func newUnifier(check *Checker, tparams []*TypeParam, targs []Type, enableInterfaceInference bool) *unifier {
 	assert(len(tparams) >= len(targs))
 	handles := make(map[*TypeParam]*Type, len(tparams))
 	// Allocate all handles up-front: in a correct program, all type parameters
@@ -99,7 +101,7 @@ func newUnifier(tparams []*TypeParam, targs []Type, enableInterfaceInference boo
 		}
 		handles[x] = &t
 	}
-	return &unifier{handles, 0, enableInterfaceInference}
+	return &unifier{check, handles, 0, enableInterfaceInference}
 }
 
 // unifyMode controls the behavior of the unifier.
@@ -141,7 +143,8 @@ func (u *unifier) unify(x, y Type, mode unifyMode) bool {
 	return u.nify(x, y, mode, nil)
 }
 
-func (u *unifier) tracef(format string, args ...interface{}) {
+func (u *unifier) tracef(format string, args ...any) {
+	// TODO(gri) consider adjusting this to use Checker.trace
 	fmt.Println(strings.Repeat(".  ", u.depth) + sprintf(nil, true, format, args...))
 }
 
@@ -149,13 +152,15 @@ func (u *unifier) tracef(format string, args ...interface{}) {
 // from type parameters to types.
 func (u *unifier) String() string {
 	// sort type parameters for reproducible strings
-	tparams := make(typeParamsById, len(u.handles))
+	tparams := make([]*TypeParam, len(u.handles))
 	i := 0
 	for tpar := range u.handles {
 		tparams[i] = tpar
 		i++
 	}
-	sort.Sort(tparams)
+	slices.SortFunc(tparams, func(a, b *TypeParam) int {
+		return cmp.Compare(a.id, b.id)
+	})
 
 	var buf bytes.Buffer
 	w := newTypeWriter(&buf, nil)
@@ -171,12 +176,6 @@ func (u *unifier) String() string {
 	w.byte(']')
 	return buf.String()
 }
-
-type typeParamsById []*TypeParam
-
-func (s typeParamsById) Len() int           { return len(s) }
-func (s typeParamsById) Less(i, j int) bool { return s[i].id < s[j].id }
-func (s typeParamsById) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // join unifies the given type parameters x and y.
 // If both type parameters already have a type associated with them
@@ -290,6 +289,9 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		}
 		u.depth--
 	}()
+
+	// don't hide bugs
+	assert(x != nil && y != nil)
 
 	// nothing to do if x == y
 	if x == y || Unalias(x) == Unalias(y) {
@@ -534,10 +536,17 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		// the non-interface type, otherwise unification fails.
 		if xi != nil {
 			// All xi methods must exist in y and corresponding signatures must unify.
+			// A generic method never satisfies an interface method, so fail rather
+			// than unify ym's own type parameter into an inference variable.
 			xmethods := xi.typeSet().methods
 			for _, xm := range xmethods {
 				obj, _, _ := LookupFieldOrMethod(y, false, xm.pkg, xm.name)
-				if ym, _ := obj.(*Func); ym == nil || !u.nify(xm.typ, ym.typ, exact, p) {
+				ym, _ := obj.(*Func)
+				if ym == nil {
+					return false
+				}
+				u.check.objDecl(ym) // ensure fully set-up signature
+				if ym.Signature().TypeParams() != nil || !u.nify(xm.typ, ym.typ, exact, p) {
 					return false
 				}
 			}
@@ -785,9 +794,6 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 			}
 		}
 		// x != y and there's nothing to do
-
-	case nil:
-		// avoid a crash in case of nil type
 
 	default:
 		panic(sprintf(nil, true, "u.nify(%s, %s, %d)", xorig, yorig, mode))

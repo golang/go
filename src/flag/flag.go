@@ -87,6 +87,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"os"
 	"reflect"
 	"runtime"
@@ -410,6 +411,7 @@ type Flag struct {
 	Usage    string // help message
 	Value    Value  // value as set
 	DefValue string // default value (as text); for usage message
+	IsSet    bool   // true if the Value was explicitly set by [FlagSet.Parse] or [FlagSet.Set]
 }
 
 // sortFlags returns the flags as a slice in lexicographical sorted order.
@@ -457,6 +459,24 @@ func (f *FlagSet) VisitAll(fn func(*Flag)) {
 	for _, flag := range sortFlags(f.formal) {
 		fn(flag)
 	}
+}
+
+// All yields the flags in lexicographical order.
+// It visits all flags, even those not set.
+func (f *FlagSet) All() iter.Seq[*Flag] {
+	return func(yield func(*Flag) bool) {
+		for _, flag := range sortFlags(f.formal) {
+			if !yield(flag) {
+				break
+			}
+		}
+	}
+}
+
+// All yields all command-line flags, in lexicographical order.
+// It visits all flags, even those not set.
+func All() iter.Seq[*Flag] {
+	return CommandLine.All()
 }
 
 // VisitAll visits the command-line flags in lexicographical order, calling
@@ -521,6 +541,7 @@ func (f *FlagSet) set(name, value string) error {
 	if err != nil {
 		return err
 	}
+	flag.IsSet = true
 	if f.actual == nil {
 		f.actual = make(map[string]*Flag)
 	}
@@ -1016,7 +1037,7 @@ func (f *FlagSet) Var(value Value, name string, usage string) {
 	}
 
 	// Remember the default value as a string; it won't change.
-	flag := &Flag{name, usage, value, value.String()}
+	flag := &Flag{name, usage, value, value.String(), false}
 	_, alreadythere := f.formal[name]
 	if alreadythere {
 		var msg string
@@ -1139,6 +1160,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 			return false, f.failf("invalid value %q for flag -%s: %v", value, name, err)
 		}
 	}
+	flag.IsSet = true
 	if f.actual == nil {
 		f.actual = make(map[string]*Flag)
 	}

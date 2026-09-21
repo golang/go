@@ -32,7 +32,7 @@ func Exit(code int) {
 }
 
 // Exitf logs an error message then calls Exit(2).
-func Exitf(format string, a ...interface{}) {
+func Exitf(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
 	nerrors++
 	if *flagH {
@@ -60,7 +60,7 @@ func afterErrorAction() {
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-func Errorf(format string, args ...interface{}) {
+func Errorf(format string, args ...any) {
 	format += "\n"
 	fmt.Fprintf(os.Stderr, format, args...)
 	afterErrorAction()
@@ -72,7 +72,7 @@ func Errorf(format string, args ...interface{}) {
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-func (ctxt *Link) Errorf(s loader.Sym, format string, args ...interface{}) {
+func (ctxt *Link) Errorf(s loader.Sym, format string, args ...any) {
 	if ctxt.loader != nil {
 		ctxt.loader.Errorf(s, format, args...)
 		return

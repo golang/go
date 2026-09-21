@@ -18,17 +18,27 @@ func xgetbv() (eax, edx uint32)
 func getGOAMD64level() int32
 
 const (
-	// Bits returned in ECX for CPUID EAX=0x1 ECX=0x0
-	cpuid_SSE3      = 1 << 0
-	cpuid_PCLMULQDQ = 1 << 1
-	cpuid_SSSE3     = 1 << 9
-	cpuid_FMA       = 1 << 12
-	cpuid_SSE41     = 1 << 19
-	cpuid_SSE42     = 1 << 20
-	cpuid_POPCNT    = 1 << 23
-	cpuid_AES       = 1 << 25
-	cpuid_OSXSAVE   = 1 << 27
-	cpuid_AVX       = 1 << 28
+	// eax bits
+	cpuid_AVXVNNI = 1 << 4
+
+	// ecx bits
+	cpuid_SSE3            = 1 << 0
+	cpuid_PCLMULQDQ       = 1 << 1
+	cpuid_AVX512VBMI      = 1 << 1
+	cpuid_AVX512VBMI2     = 1 << 6
+	cpuid_SSSE3           = 1 << 9
+	cpuid_AVX512GFNI      = 1 << 8
+	cpuid_VAES            = 1 << 9
+	cpuid_AVX512VNNI      = 1 << 11
+	cpuid_AVX512BITALG    = 1 << 12
+	cpuid_FMA             = 1 << 12
+	cpuid_AVX512VPOPCNTDQ = 1 << 14
+	cpuid_SSE41           = 1 << 19
+	cpuid_SSE42           = 1 << 20
+	cpuid_POPCNT          = 1 << 23
+	cpuid_AES             = 1 << 25
+	cpuid_OSXSAVE         = 1 << 27
+	cpuid_AVX             = 1 << 28
 
 	// "Extended Feature Flag" bits returned in EBX for CPUID EAX=0x7 ECX=0x0
 	cpuid_BMI1     = 1 << 3
@@ -47,6 +57,7 @@ const (
 	cpuid_AVX512_VBMI      = 1 << 1
 	cpuid_AVX512_VBMI2     = 1 << 6
 	cpuid_GFNI             = 1 << 8
+	cpuid_VPCLMULQDQ       = 1 << 10 // applies to not just AVX512
 	cpuid_AVX512VPCLMULQDQ = 1 << 10
 	cpuid_AVX512_BITALG    = 1 << 12
 
@@ -105,6 +116,7 @@ func doinit() {
 	maxID, _, _, _ := cpuid(0, 0)
 
 	if maxID < 1 {
+		osInit()
 		return
 	}
 
@@ -125,12 +137,6 @@ func doinit() {
 	// e.g. setting the xsavedisable boot option on Windows 10.
 	X86.HasOSXSAVE = isSet(ecx1, cpuid_OSXSAVE)
 
-	// The FMA instruction set extension only has VEX prefixed instructions.
-	// VEX prefixed instructions require OSXSAVE to be enabled.
-	// See Intel 64 and IA-32 Architecture Software Developer’s Manual Volume 2
-	// Section 2.4 "AVX and SSE Instruction Exception Specification"
-	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasOSXSAVE
-
 	osSupportsAVX := false
 	osSupportsAVX512 := false
 	// For XGETBV, OSXSAVE bit is required and sufficient.
@@ -148,17 +154,28 @@ func doinit() {
 
 	X86.HasAVX = isSet(ecx1, cpuid_AVX) && osSupportsAVX
 
+	// The FMA instruction set extension requires both the FMA and AVX flags.
+	//
+	// Furthermore, the FMA instructions are all VEX prefixed instructions.
+	// VEX prefixed instructions require OSXSAVE to be enabled.
+	// See Intel 64 and IA-32 Architecture Software Developer’s Manual Volume 2
+	// Section 2.4 "AVX and SSE Instruction Exception Specification"
+	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasAVX && X86.HasOSXSAVE
+
 	if maxID < 7 {
+		osInit()
 		return
 	}
 
-	_, ebx7, ecx7, edx7 := cpuid(7, 0)
+	eax7, ebx7, ecx7, edx7 := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
 	X86.HasSHA = isSet(ebx7, cpuid_SHA)
+	X86.HasVAES = isSet(ecx7, cpuid_VAES) && X86.HasAVX
+	X86.HasVPCLMULQDQ = isSet(ecx7, cpuid_VPCLMULQDQ) && X86.HasAVX
 
 	X86.HasAVX512F = isSet(ebx7, cpuid_AVX512F) && osSupportsAVX512
 	if X86.HasAVX512F {
@@ -166,6 +183,13 @@ func doinit() {
 		X86.HasAVX512BW = isSet(ebx7, cpuid_AVX512BW)
 		X86.HasAVX512DQ = isSet(ebx7, cpuid_AVX512DQ)
 		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
+		X86.HasAVX512GFNI = isSet(ecx7, cpuid_AVX512GFNI)
+		X86.HasAVX512BITALG = isSet(ecx7, cpuid_AVX512BITALG)
+		X86.HasAVX512VPOPCNTDQ = isSet(ecx7, cpuid_AVX512VPOPCNTDQ)
+		X86.HasAVX512VBMI = isSet(ecx7, cpuid_AVX512VBMI)
+		X86.HasAVX512VBMI2 = isSet(ecx7, cpuid_AVX512VBMI2)
+		X86.HasAVX512VAES = isSet(ecx7, cpuid_VAES) && X86.HasAES && isSet(ebx7, cpuid_AVX512VL)
+		X86.HasAVX512VNNI = isSet(ecx7, cpuid_AVX512VNNI)
 		X86.HasAVX512VPCLMULQDQ = isSet(ecx7, cpuid_AVX512VPCLMULQDQ)
 		X86.HasAVX512VBMI = isSet(ecx7, cpuid_AVX512_VBMI)
 		X86.HasAVX512VBMI2 = isSet(ecx7, cpuid_AVX512_VBMI2)
@@ -179,6 +203,7 @@ func doinit() {
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
 
 	if maxExtendedInformation < 0x80000001 {
+		osInit()
 		return
 	}
 
@@ -195,6 +220,15 @@ func doinit() {
 		// included in AVX10.1.
 		X86.HasAVX512 = X86.HasAVX512F && X86.HasAVX512CD && X86.HasAVX512BW && X86.HasAVX512DQ && X86.HasAVX512VL
 	}
+
+	if eax7 >= 1 {
+		eax71, _, _, _ := cpuid(7, 1)
+		if X86.HasAVX {
+			X86.HasAVXVNNI = isSet(eax71, cpuid_AVXVNNI)
+		}
+	}
+
+	osInit()
 }
 
 func isSet(hwc uint32, value uint32) bool {

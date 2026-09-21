@@ -27,6 +27,11 @@ const Size = 20
 // The blocksize of SHA-1 in bytes.
 const BlockSize = 64
 
+// The maximum number of bytes that can be passed to block(). The limit exists
+// because implementations that rely on assembly routines are not preemptible.
+const maxAsmIters = 1024
+const maxAsmSize = chunk * maxAsmIters // 64KiB
+
 const (
 	chunk = 64
 	init0 = 0x67452301
@@ -126,7 +131,7 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return 0, errors.New("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 	boring.Unreachable()
@@ -143,6 +148,11 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	}
 	if len(p) >= chunk {
 		n := len(p) &^ (chunk - 1)
+		for n > maxAsmSize {
+			block(d, p[:maxAsmSize])
+			p = p[maxAsmSize:]
+			n -= maxAsmSize
+		}
 		block(d, p[:n])
 		p = p[n:]
 	}
@@ -161,7 +171,7 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 func (d *digest) checkSum() [Size]byte {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 
@@ -205,7 +215,7 @@ func (d *digest) ConstantTimeSum(in []byte) []byte {
 }
 
 func (d *digest) constSum() [Size]byte {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 
@@ -274,7 +284,7 @@ func Sum(data []byte) [Size]byte {
 	if boring.Enabled {
 		return boring.SHA1(data)
 	}
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
 	var d digest

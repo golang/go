@@ -581,12 +581,20 @@ func (e *encoder) writeIEND() { e.writeChunk(nil, "IEND") }
 
 // Encode writes the Image m to w in PNG format. Any Image may be
 // encoded, but images that are not [image.NRGBA] might be encoded lossily.
+//
+// Note that the exact bytes written to w are not covered by the Go 1
+// compatibility promise. Callers, including tests, should not depend on the
+// exact written bytes.
 func Encode(w io.Writer, m image.Image) error {
 	var e Encoder
 	return e.Encode(w, m)
 }
 
 // Encode writes the Image m to w in PNG format.
+//
+// Note that the exact bytes written to w are not covered by the Go 1
+// compatibility promise. Callers, including tests, should not depend on the
+// exact written bytes.
 func (enc *Encoder) Encode(w io.Writer, m image.Image) error {
 	// Obviously, negative widths and heights are invalid. Furthermore, the PNG
 	// spec section 11.2.2 says that zero is invalid. Excessively large images are

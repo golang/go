@@ -17,9 +17,11 @@ import (
 	"internal/lazytemplate"
 	"maps"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -27,6 +29,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/par"
 )
 
 var TestMainDeps = []string{
@@ -36,6 +39,8 @@ var TestMainDeps = []string{
 	"testing",
 	"testing/internal/testdeps",
 }
+
+var testFileQueue = par.NewQueue(runtime.GOMAXPROCS(0))
 
 type TestCover struct {
 	Mode  string
@@ -48,8 +53,8 @@ type TestCover struct {
 // the package containing an error if the test packages or
 // their dependencies have errors.
 // Only test packages without errors are returned.
-func TestPackagesFor(loaderstate *modload.State, ctx context.Context, opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest, perr *Package) {
-	pmain, ptest, pxtest = TestPackagesAndErrors(loaderstate, ctx, nil, opts, p, cover)
+func TestPackagesFor(ld *modload.Loader, ctx context.Context, opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest, perr *Package) {
+	pmain, ptest, pxtest = TestPackagesAndErrors(ld, ctx, nil, opts, p, cover)
 	for _, p1 := range []*Package{ptest, pxtest, pmain} {
 		if p1 == nil {
 			// pxtest may be nil
@@ -99,7 +104,7 @@ func TestPackagesFor(loaderstate *modload.State, ctx context.Context, opts Packa
 //
 // The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
 // or else there's no point in any of this.
-func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done func(), opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
+func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(), opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
 	ctx, span := trace.StartSpan(ctx, "load.TestPackagesAndErrors")
 	defer span.Done()
 
@@ -107,7 +112,7 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 	defer pre.flush()
 	allImports := append([]string{}, p.TestImports...)
 	allImports = append(allImports, p.XTestImports...)
-	pre.preloadImports(loaderstate, ctx, opts, allImports, p.Internal.Build)
+	pre.preloadImports(ld, ctx, opts, allImports, p.Internal.Build)
 
 	var ptestErr, pxtestErr *PackageError
 	var imports, ximports []*Package
@@ -116,8 +121,9 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 	var incomplete bool
 	stk.Push(ImportInfo{Pkg: p.ImportPath + " (test)"})
 	rawTestImports := str.StringList(p.TestImports)
+
 	for i, path := range p.TestImports {
-		p1, err := loadImport(loaderstate, ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
+		p1, err := loadImport(ld, ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if err != nil && ptestErr == nil {
 			ptestErr = err
 			incomplete = true
@@ -127,6 +133,20 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 		}
 		p.TestImports[i] = p1.ImportPath
 		imports = append(imports, p1)
+	}
+
+	var ptestCompiledImports []string
+	if hasSimd := hasSimd(p.TestImports); hasSimd {
+		p1, err := loadImport(ld, ctx, opts, pre, SimdBridgePkg, p.Dir, p, &stk, nil, ResolveImport|allowSimdInternalBridge)
+		if err != nil && ptestErr == nil {
+			ptestErr = err
+			incomplete = true
+		}
+		if p1.Incomplete {
+			incomplete = true
+		}
+		imports = append(imports, p1)
+		ptestCompiledImports = append(ptestCompiledImports, p1.ImportPath)
 	}
 	var err error
 	p.TestEmbedFiles, testEmbed, err = resolveEmbed(p.Dir, p.TestEmbedPatterns)
@@ -145,8 +165,9 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 	pxtestNeedsPtest := false
 	var pxtestIncomplete bool
 	rawXTestImports := str.StringList(p.XTestImports)
+
 	for i, path := range p.XTestImports {
-		p1, err := loadImport(loaderstate, ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
+		p1, err := loadImport(ld, ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if err != nil && pxtestErr == nil {
 			pxtestErr = err
 		}
@@ -159,6 +180,19 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 			ximports = append(ximports, p1)
 		}
 		p.XTestImports[i] = p1.ImportPath
+	}
+
+	var pxtestCompiledImports []string
+	if hasSimd := hasSimd(p.XTestImports); hasSimd {
+		p1, err := loadImport(ld, ctx, opts, pre, SimdBridgePkg, p.Dir, p, &stk, nil, ResolveImport|allowSimdInternalBridge)
+		if err != nil && pxtestErr == nil {
+			pxtestErr = err
+		}
+		if p1.Incomplete {
+			pxtestIncomplete = true
+		}
+		ximports = append(ximports, p1)
+		pxtestCompiledImports = append(pxtestCompiledImports, p1.ImportPath)
 	}
 	p.XTestEmbedFiles, xtestEmbed, err = resolveEmbed(p.Dir, p.XTestEmbedPatterns)
 	if err != nil && pxtestErr == nil {
@@ -200,6 +234,12 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 		ptest.Imports = str.StringList(p.TestImports, p.Imports)
 		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
 		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
+		ptest.Internal.CompiledImports = slices.Clone(p.Internal.CompiledImports)
+		for _, path := range ptestCompiledImports {
+			if !slices.Contains(ptest.Internal.CompiledImports, path) {
+				ptest.Internal.CompiledImports = append(ptest.Internal.CompiledImports, path)
+			}
+		}
 		ptest.Internal.ForceLibrary = true
 		ptest.Internal.BuildInfo = nil
 		ptest.Internal.Build = new(build.Package)
@@ -248,8 +288,9 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 					ImportPos:  p.Internal.Build.XTestImportPos,
 					Directives: p.Internal.Build.XTestDirectives,
 				},
-				Imports:    ximports,
-				RawImports: rawXTestImports,
+				Imports:         ximports,
+				RawImports:      rawXTestImports,
+				CompiledImports: pxtestCompiledImports,
 
 				Asmflags:       p.Internal.Asmflags,
 				Gcflags:        p.Internal.Gcflags,
@@ -293,16 +334,7 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 	}
 
 	pb := p.Internal.Build
-	pmain.DefaultGODEBUG = defaultGODEBUG(loaderstate, pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
-	if pmain.Internal.BuildInfo == nil || pmain.DefaultGODEBUG != p.DefaultGODEBUG {
-		// Either we didn't generate build info for the package under test (because it wasn't package main), or
-		// the DefaultGODEBUG used to build the test main package is different from the DefaultGODEBUG
-		// used to build the package under test. If we didn't set build info for the package under test
-		// pmain won't have buildinfo set (since we copy it from the package under test). If the default GODEBUG
-		// used for the package under test is different from that of the test main, the BuildInfo assigned above from the package
-		// under test incorrect for the test main package. Either set or correct pmain's build info.
-		pmain.setBuildInfo(ctx, opts.AutoVCS)
-	}
+	pmain.DefaultGODEBUG = defaultGODEBUG(ld, pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
@@ -311,7 +343,7 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 	if cover != nil {
 		deps = append(deps, "internal/coverage/cfile")
 	}
-	ldDeps, err := LinkerDeps(loaderstate, p)
+	ldDeps, err := LinkerDeps(ld, p)
 	if err != nil && pmain.Error == nil {
 		pmain.Error = &PackageError{Err: err}
 	}
@@ -322,7 +354,7 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 		if dep == ptest.ImportPath {
 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		} else {
-			p1, err := loadImport(loaderstate, ctx, opts, pre, dep, "", nil, &stk, nil, 0)
+			p1, err := loadImport(ld, ctx, opts, pre, dep, "", nil, &stk, nil, 0)
 			if err != nil && pmain.Error == nil {
 				pmain.Error = err
 				pmain.Incomplete = true
@@ -333,12 +365,6 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 	stk.Pop()
 
 	parallelizablePart := func() {
-		allTestImports := make([]*Package, 0, len(pmain.Internal.Imports)+len(imports)+len(ximports))
-		allTestImports = append(allTestImports, pmain.Internal.Imports...)
-		allTestImports = append(allTestImports, imports...)
-		allTestImports = append(allTestImports, ximports...)
-		setToolFlags(loaderstate, allTestImports...)
-
 		// Do initial scan for metadata needed for writing _testmain.go
 		// Use that metadata to update the list of imports for package main.
 		// The list of imports is used by recompileForTest and by the loop
@@ -377,6 +403,15 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 		if cycleErr != nil {
 			ptest.Error = cycleErr
 			ptest.Incomplete = true
+		}
+
+		if !opts.SuppressBuildInfo {
+			// Now that pmain.Internal.Imports includes the test dependencies,
+			// regenerate build info for the test binary. We can't reuse p's
+			// build info because the test variants of packages can add
+			// packages from modules that don't already have transitive
+			// imports from p.
+			pmain.setBuildInfo(ctx, ld.Fetcher(), opts.AutoVCS)
 		}
 
 		if cover != nil {
@@ -599,18 +634,64 @@ func loadTestFuncs(ptest *Package) (*testFuncs, error) {
 	t := &testFuncs{
 		Package: ptest,
 	}
-	var err error
-	for _, file := range ptest.TestGoFiles {
-		if lerr := t.load(filepath.Join(ptest.Dir, file), "_test", &t.ImportTest, &t.NeedTest); lerr != nil && err == nil {
-			err = lerr
-		}
+
+	nTest := len(ptest.TestGoFiles)
+	results := make([]testFileResult, nTest+len(ptest.XTestGoFiles))
+	var wg sync.WaitGroup
+	queueFile := func(i int, filename, pkg string) {
+		wg.Add(1)
+		testFileQueue.Add(func() {
+			defer wg.Done()
+			results[i] = loadTestFuncFile(ptest, filename, pkg)
+		})
 	}
-	for _, file := range ptest.XTestGoFiles {
-		if lerr := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.ImportXtest, &t.NeedXtest); lerr != nil && err == nil {
-			err = lerr
+	for i, file := range ptest.TestGoFiles {
+		queueFile(i, filepath.Join(ptest.Dir, file), "_test")
+	}
+	for i, file := range ptest.XTestGoFiles {
+		queueFile(nTest+i, filepath.Join(ptest.Dir, file), "_xtest")
+	}
+	wg.Wait()
+
+	var err error
+	for i := range results {
+		r := &results[i]
+		if r.err != nil && err == nil {
+			err = r.err
 		}
+		t.Tests = append(t.Tests, r.funcs.Tests...)
+		t.Benchmarks = append(t.Benchmarks, r.funcs.Benchmarks...)
+		t.FuzzTargets = append(t.FuzzTargets, r.funcs.FuzzTargets...)
+		t.Examples = append(t.Examples, r.funcs.Examples...)
+		if r.funcs.TestMain != nil {
+			if t.TestMain != nil && err == nil {
+				err = errors.New("multiple definitions of TestMain")
+			} else if t.TestMain == nil {
+				t.TestMain = r.funcs.TestMain
+			}
+		}
+		t.ImportTest = t.ImportTest || r.funcs.ImportTest
+		t.NeedTest = t.NeedTest || r.funcs.NeedTest
+		t.ImportXtest = t.ImportXtest || r.funcs.ImportXtest
+		t.NeedXtest = t.NeedXtest || r.funcs.NeedXtest
 	}
 	return t, err
+}
+
+type testFileResult struct {
+	funcs testFuncs
+	err   error
+}
+
+func loadTestFuncFile(ptest *Package, filename, pkg string) testFileResult {
+	tf := &testFuncs{Package: ptest}
+	var err error
+	if pkg == "_test" {
+		err = tf.load(token.NewFileSet(), filename, pkg, &tf.ImportTest, &tf.NeedTest)
+	} else {
+		err = tf.load(token.NewFileSet(), filename, pkg, &tf.ImportXtest, &tf.NeedXtest)
+	}
+	return testFileResult{*tf, err}
 }
 
 // formatTestmain returns the content of the _testmain.go file for t.
@@ -697,16 +778,14 @@ type testFunc struct {
 	Unordered bool   // output is allowed to be unordered.
 }
 
-var testFileSet = token.NewFileSet()
-
-func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+func (t *testFuncs) load(fset *token.FileSet, filename, pkg string, doImport, seen *bool) error {
 	// Pass in the overlaid source if we have an overlay for this file.
 	src, err := fsys.Open(filename)
 	if err != nil {
 		return err
 	}
 	defer src.Close()
-	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments|parser.SkipObjectResolution)
+	f, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		return err
 	}
@@ -726,7 +805,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 				*doImport, *seen = true, true
 				continue
 			}
-			err := checkTestFunc(n, "M")
+			err := checkTestFunc(fset, n, "M")
 			if err != nil {
 				return err
 			}
@@ -736,21 +815,21 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 			t.TestMain = &testFunc{pkg, name, "", false}
 			*doImport, *seen = true, true
 		case isTest(name, "Test"):
-			err := checkTestFunc(n, "T")
+			err := checkTestFunc(fset, n, "T")
 			if err != nil {
 				return err
 			}
 			t.Tests = append(t.Tests, testFunc{pkg, name, "", false})
 			*doImport, *seen = true, true
 		case isTest(name, "Benchmark"):
-			err := checkTestFunc(n, "B")
+			err := checkTestFunc(fset, n, "B")
 			if err != nil {
 				return err
 			}
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, "", false})
 			*doImport, *seen = true, true
 		case isTest(name, "Fuzz"):
-			err := checkTestFunc(n, "F")
+			err := checkTestFunc(fset, n, "F")
 			if err != nil {
 				return err
 			}
@@ -772,7 +851,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 	return nil
 }
 
-func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+func checkTestFunc(fset *token.FileSet, fn *ast.FuncDecl, arg string) error {
 	var why string
 	if !isTestFunc(fn, arg) {
 		why = fmt.Sprintf("must be: func %s(%s *testing.%s)", fn.Name.String(), strings.ToLower(arg), arg)
@@ -781,7 +860,7 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
 		why = "test functions cannot have type parameters"
 	}
 	if why != "" {
-		pos := testFileSet.Position(fn.Pos())
+		pos := fset.Position(fn.Pos())
 		return fmt.Errorf("%s: wrong signature for %s, %s", pos, fn.Name.String(), why)
 	}
 	return nil

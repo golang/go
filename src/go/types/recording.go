@@ -20,25 +20,25 @@ func (check *Checker) record(x *operand) {
 	// TODO(gri) this code can be simplified
 	var typ Type
 	var val constant.Value
-	switch x.mode {
+	switch x.mode() {
 	case invalid:
 		typ = Typ[Invalid]
 	case novalue:
 		typ = (*Tuple)(nil)
 	case constant_:
-		typ = x.typ
+		typ = x.typ()
 		val = x.val
 	default:
-		typ = x.typ
+		typ = x.typ()
 	}
 	assert(x.expr != nil && typ != nil)
 
 	if isUntyped(typ) {
 		// delay type and value recording until we know the type
 		// or until the end of type checking
-		check.rememberUntyped(x.expr, false, x.mode, typ.(*Basic), val)
+		check.rememberUntyped(x.expr, false, x.mode(), typ.(*Basic), val)
 	} else {
-		check.recordTypeAndValue(x.expr, x.mode, typ, val)
+		check.recordTypeAndValue(x.expr, x.mode(), typ, val)
 	}
 }
 
@@ -97,10 +97,10 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
 func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
 	assert(x != nil)
 	assert(len(a) == 2)
-	if a[0].mode == invalid {
+	if a[0].mode() == invalid {
 		return
 	}
-	t0, t1 := a[0].typ, a[1].typ
+	t0, t1 := a[0].typ(), a[1].typ()
 	assert(isTyped(t0) && isTyped(t1) && (allBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {
@@ -134,6 +134,23 @@ func (check *Checker) recordInstance(expr ast.Expr, targs []Type, typ Type) {
 	assert(ident != nil)
 	assert(typ != nil)
 	if m := check.Instances; m != nil {
+		// If this is an instance of a method value/expression, replace the
+		// receiver for the Signature stored in Instances (go.dev/issue/79657).
+		if sig, _ := typ.(*Signature); sig != nil && sig.recvold != nil {
+			copy := *sig
+			copy.recvold = nil // not strictly necessary
+			if sig.recvold == methodExprSentinel {
+				pars := *copy.params
+				copy.recv = pars.vars[0]
+				pars.vars = pars.vars[1:]
+				copy.params = &pars
+				m[ident] = Instance{newTypeList(targs), &copy}
+				return
+			}
+			copy.recv = sig.recvold
+			m[ident] = Instance{newTypeList(targs), &copy}
+			return
+		}
 		m[ident] = Instance{newTypeList(targs), typ}
 	}
 }

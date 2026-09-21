@@ -1,0 +1,22 @@
+Using requirements of .k8s.io/klog/v2 v2.130.1
+
+Original import done via `go run addmod.go`. Dependencies have been manually
+reduced to the minimum required by the test `get_tool_issue_74691`.
+-- .mod --
+module k8s.io/klog/v2
+
+go 1.21
+
+require github.com/go-logr/logr v1.4.1
+-- .info --
+{"Version":"v2.130.1"}
+-- go.mod --
+module k8s.io/klog/v2
+
+go 1.21
+
+require github.com/go-logr/logr v1.4.1
+-- foo.go --
+package foo
+
+import _ "github.com/go-logr/logr"

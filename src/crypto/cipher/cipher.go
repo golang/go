@@ -79,7 +79,7 @@ type AEAD interface {
 	//
 	// To reuse plaintext's storage for the encrypted output, use plaintext[:0]
 	// as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
-	// dst and additionalData may not overlap.
+	// The remaining capacity of dst must not overlap additionalData.
 	Seal(dst, nonce, plaintext, additionalData []byte) []byte
 
 	// Open decrypts and authenticates ciphertext, authenticates the
@@ -90,7 +90,7 @@ type AEAD interface {
 	//
 	// To reuse ciphertext's storage for the decrypted output, use ciphertext[:0]
 	// as dst. Otherwise, the remaining capacity of dst must not overlap ciphertext.
-	// dst and additionalData may not overlap.
+	// The remaining capacity of dst and additionalData may not overlap.
 	//
 	// Even if the function fails, the contents of dst, up to its capacity,
 	// may be overwritten.

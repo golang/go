@@ -428,9 +428,6 @@ func TestWriteComparableNoncommute(t *testing.T) {
 }
 
 func TestComparableAllocations(t *testing.T) {
-	if purego {
-		t.Skip("skip allocation test in purego mode - reflect-based implementation allocates more")
-	}
 	if asan.Enabled {
 		t.Skip("skip allocation test under -asan")
 	}

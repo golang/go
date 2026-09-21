@@ -458,6 +458,10 @@ var optab = []Optab{
 	// MVC storage and storage
 	{i: 127, as: AMVCLE, a1: C_LOREG, a2: C_REG, a6: C_REG},
 	{i: 127, as: AMVCLE, a1: C_SCON, a2: C_REG, a6: C_REG},
+
+	// VSI store rightmost with length
+	{i: 129, as: AVSTRL, a1: C_VREG, a3: C_SCON, a6: C_SOREG},
+	{i: 129, as: AVSTRL, a1: C_VREG, a3: C_SCON, a6: C_SAUTO},
 }
 
 var oprange [ALAST & obj.AMask][]Optab
@@ -1105,6 +1109,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVLREPH, r)
 			opset(AVLREPF, r)
 			opset(AVLREPG, r)
+			opset(AVLERH, r)
+			opset(AVLERF, r)
+			opset(AVLERG, r)
 		case AVLEG:
 			opset(AVLBB, r)
 			opset(AVLEB, r)
@@ -1112,10 +1119,17 @@ func buildop(ctxt *obj.Link) {
 			opset(AVLEF, r)
 			opset(AVLEG, r)
 			opset(AVLREP, r)
+			opset(AVLLEZ, r)
+			opset(AVLER, r)
+		case AVST:
+			opset(AVSTERH, r)
+			opset(AVSTERF, r)
+			opset(AVSTERG, r)
 		case AVSTEG:
 			opset(AVSTEB, r)
 			opset(AVSTEH, r)
 			opset(AVSTEF, r)
+			opset(AVSTER, r)
 		case AVSCEG:
 			opset(AVSCEF, r)
 		case AVGEG:
@@ -2578,6 +2592,7 @@ const (
 	op_VLEIF  uint32 = 0xE743 // 	VRI-a	VECTOR LOAD ELEMENT IMMEDIATE (32)
 	op_VLEIG  uint32 = 0xE742 // 	VRI-a	VECTOR LOAD ELEMENT IMMEDIATE (64)
 	op_VLEIB  uint32 = 0xE740 // 	VRI-a	VECTOR LOAD ELEMENT IMMEDIATE (8)
+	op_VLER   uint32 = 0xE607 // 	VRX	VECTOR LOAD ELEMENTS REVERSED
 	op_VFI    uint32 = 0xE7C7 // 	VRR-a	VECTOR LOAD FP INTEGER
 	op_VLGV   uint32 = 0xE721 // 	VRS-c	VECTOR LOAD GR FROM VR ELEMENT
 	op_VLLEZ  uint32 = 0xE704 // 	VRX	VECTOR LOAD LOGICAL ELEMENT AND ZERO
@@ -2633,7 +2648,9 @@ const (
 	op_VSTEF  uint32 = 0xE70B // 	VRX	VECTOR STORE ELEMENT (32)
 	op_VSTEG  uint32 = 0xE70A // 	VRX	VECTOR STORE ELEMENT (64)
 	op_VSTEB  uint32 = 0xE708 // 	VRX	VECTOR STORE ELEMENT (8)
+	op_VSTER  uint32 = 0xE60F // 	VRX	VECTOR STORE ELEMENTS REVERSED
 	op_VSTM   uint32 = 0xE73E // 	VRS-a	VECTOR STORE MULTIPLE
+	op_VSTRL  uint32 = 0xE63D // 	VSI	VECTOR STORE RIGHTMOST WITH LENGTH
 	op_VSTL   uint32 = 0xE73F // 	VRS-b	VECTOR STORE WITH LENGTH
 	op_VSTRC  uint32 = 0xE78A // 	VRR-d	VECTOR STRING RANGE COMPARE
 	op_VS     uint32 = 0xE7F7 // 	VRR-c	VECTOR SUBTRACT
@@ -4459,7 +4476,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		zRRF(opcode, uint32(p.Reg), 0, uint32(p.From.Reg), uint32(p.To.Reg), asm)
 
-	case 127:
+	case 127: // RS-a Move Long Extended
 		// NOTE: Mapping MVCLE operands is as follows:
 		// Instruction Format: MVCLE R1,R3,D2(B2)
 		// R1 - prog.To (for Destination)
@@ -4482,6 +4499,17 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		m5 := singleElementMask(p.As)
 		m6 := uint32(c.vregoff(&p.From))
 		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), m6, m5, m4, asm)
+
+	case 129: // VSI Vector Store Rightmost with Length
+		op, _, _ := vop(p.As)
+		v1 := p.From.Reg
+		b2 := p.To.Reg
+		if b2 == 0 {
+			b2 = REGSP
+		}
+		d2 := uint32(c.vregoff(&p.To))
+		i3 := uint32(c.vregoff(p.GetFrom3()))
+		zVSI(op, uint32(v1), uint32(b2), d2, i3, asm)
 	}
 }
 
@@ -4547,7 +4575,7 @@ func (c *ctxtz) zopload(a obj.As) uint32 {
 		return op_LRVH
 	}
 
-	c.ctxt.Diag("unknown store opcode %v", a)
+	c.ctxt.Diag("unknown zopload opcode %v", a)
 	return 0
 }
 
@@ -5079,5 +5107,15 @@ func zVRIe(op, v1, v2, i3, m5, m4 uint32, asm *[]byte) {
 		uint8(i3>>4),
 		(uint8(i3)<<4)|(uint8(m5)&0xf),
 		(uint8(m4)<<4)|rxb(v1, v2, 0, 0),
+		uint8(op))
+}
+
+func zVSI(op, v1, b2, d2, i3 uint32, asm *[]byte) {
+	*asm = append(*asm,
+		uint8(op>>8),
+		uint8(i3),
+		(uint8(b2)<<4)|(uint8(d2>>8)&0xf),
+		uint8(d2),
+		(uint8(v1)<<4)|rxb(v1, 0, 0, 0),
 		uint8(op))
 }

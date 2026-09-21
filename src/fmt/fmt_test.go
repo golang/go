@@ -1442,6 +1442,20 @@ func BenchmarkSprintfStructure(b *testing.B) {
 	})
 }
 
+func BenchmarkSprintfSliceInt(b *testing.B) {
+	s := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	for b.Loop() {
+		_ = Sprintf("%v", s)
+	}
+}
+
+func BenchmarkSprintfSliceStringer(b *testing.B) {
+	s := []I{1, 2, 3, 4, 5, 6, 7, 8}
+	for b.Loop() {
+		_ = Sprintf("%v", s)
+	}
+}
+
 func BenchmarkManyArgs(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var buf bytes.Buffer
@@ -1502,7 +1516,7 @@ var mallocTest = []struct {
 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }},
 	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", noliteral(i)) }},
-	{4, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); s := []int{1, 2}; Fprintf(&mallocBuf, "%v", s) }},
+	{2, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); s := []int{1, 2}; Fprintf(&mallocBuf, "%v", s) }},
 	{0, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", P{1, 2}) }},
 	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", noliteral(P{1, 2})) }},
 	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)

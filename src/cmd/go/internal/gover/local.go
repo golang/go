@@ -5,8 +5,8 @@
 package gover
 
 import (
+	"internal/buildcfg"
 	"internal/goversion"
-	"runtime"
 	"strconv"
 )
 
@@ -28,7 +28,7 @@ func LocalToolchain() string {
 }
 
 func local() (goVers, toolVers string) {
-	toolVers = runtime.Version()
+	toolVers = buildcfg.Version
 	if TestVersion != "" {
 		toolVers = TestVersion
 	}

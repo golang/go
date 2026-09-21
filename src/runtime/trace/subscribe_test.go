@@ -16,11 +16,18 @@ import (
 )
 
 func TestSubscribers(t *testing.T) {
-	validate := func(t *testing.T, source string, tr io.Reader) {
+	validate := func(t *testing.T, source string, tr []byte) {
+		t.Log("validating", source)
+		defer func() {
+			if t.Failed() {
+				testtrace.Dump(t, "TestSubscribers."+source, tr, *dumpTraces)
+			}
+		}()
+
 		// Prepare to read the trace snapshot.
-		r, err := inttrace.NewReader(tr)
+		r, err := inttrace.NewReader(bytes.NewReader(tr))
 		if err != nil {
-			t.Fatalf("unexpected error creating trace reader for %s: %v", source, err)
+			t.Errorf("unexpected error creating trace reader for %s: %v", source, err)
 			return
 		}
 
@@ -38,26 +45,30 @@ func TestSubscribers(t *testing.T) {
 				break
 			}
 			if err != nil {
-				t.Fatalf("unexpected error reading trace for %s: %v", source, err)
+				t.Errorf("unexpected error reading trace for %s: %v", source, err)
+				break
 			}
 			if err := v.Event(ev); err != nil {
-				t.Fatalf("event validation failed: %s", err)
+				t.Errorf("event validation failed: %s", err)
+				break
 			}
 			if ev.Kind() == inttrace.EventSync {
 				syncs = append(syncs, evs)
 			}
 			evs++
 		}
-		ends := []int{syncs[0], syncs[len(syncs)-1]}
-		if wantEnds := []int{0, evs - 1}; !slices.Equal(wantEnds, ends) {
-			t.Errorf("expected a sync event at each end of the trace, found sync events at %d instead of %d for %s",
-				ends, wantEnds, source)
+		if !t.Failed() {
+			ends := []int{syncs[0], syncs[len(syncs)-1]}
+			if wantEnds := []int{0, evs - 1}; !slices.Equal(wantEnds, ends) {
+				t.Errorf("expected a sync event at each end of the trace, found sync events at %d instead of %d for %s",
+					ends, wantEnds, source)
+			}
 		}
 	}
 
-	validateTraces := func(t *testing.T, tReader, frReader io.Reader) {
-		validate(t, "tracer", tReader)
-		validate(t, "flightRecorder", frReader)
+	validateTraces := func(t *testing.T, trace, frTrace *bytes.Buffer) {
+		validate(t, "tracer", trace.Bytes())
+		validate(t, "flightRecorder", frTrace.Bytes())
 	}
 	startFlightRecorder := func(t *testing.T) *trace.FlightRecorder {
 		fr := trace.NewFlightRecorder(trace.FlightRecorderConfig{})

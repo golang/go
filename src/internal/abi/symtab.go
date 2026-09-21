@@ -4,6 +4,36 @@
 
 package abi
 
+// PCLnTabMagic is the version at the start of the PC/line table.
+// This is the start of the .pclntab section, and is also runtime.pcHeader.
+// The magic numbers are chosen such that reading the value with
+// a different endianness does not result in the same value.
+// That lets us the magic number to determine the endianness.
+type PCLnTabMagic uint32
+
+const (
+	// Initial PCLnTabMagic value used in Go 1.2 through Go 1.15.
+	Go12PCLnTabMagic PCLnTabMagic = 0xfffffffb
+	// PCLnTabMagic value used in Go 1.16 through Go 1.17.
+	// Several fields added to header (CL 241598).
+	Go116PCLnTabMagic PCLnTabMagic = 0xfffffffa
+	// PCLnTabMagic value used in Go 1.18 through Go 1.19.
+	// Entry PC of func data changed from address to offset (CL 351463).
+	Go118PCLnTabMagic PCLnTabMagic = 0xfffffff0
+	// PCLnTabMagic value used in Go 1.20 and later.
+	// A ":" was added to generated symbol names (#37762).
+	Go120PCLnTabMagic PCLnTabMagic = 0xfffffff1
+
+	// CurrentPCLnTabMagic is the value emitted by the current toolchain.
+	// This is written by the linker to the pcHeader and read by the
+	// runtime and debug/gosym (and external tools like Delve).
+	//
+	// Change this value when updating the pclntab version.
+	// Changing this exported value is OK because is an
+	// internal package.
+	CurrentPCLnTabMagic = Go120PCLnTabMagic
+)
+
 // A FuncFlag records bits about a function, passed to the runtime.
 type FuncFlag uint8
 

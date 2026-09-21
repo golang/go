@@ -1,6 +1,3 @@
-env GO111MODULE=on
-[short] skip
-
 cd m
 
 # 'go list all' should list all of the packages used (directly or indirectly) by
@@ -38,7 +35,6 @@ go list -deps ./...
 stderr -count=1 '^go: warning: "./..." matched no packages'
 
 # disabling cgo should drop useC
-[short] skip
 env CGO_ENABLED=0
 go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
 ! stdout example.com/m/useC

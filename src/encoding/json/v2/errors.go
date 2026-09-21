@@ -39,6 +39,10 @@ import (
 // This error is only returned if [RejectUnknownMembers] is true.
 var ErrUnknownName = errors.New("unknown object member name")
 
+// errAmbiguousName indicates a JSON object member could be unmarshal
+// into multiple candidate Go struct fields.
+var errAmbiguousName = errors.New("ambiguous object member name")
+
 const errorPrefix = "json: "
 
 func isSemanticError(err error) bool {
@@ -51,7 +55,7 @@ func isSyntacticError(err error) bool {
 	return ok
 }
 
-// isFatalError reports whether this error must terminate asharling.
+// isFatalError reports whether this error must terminate arshaling.
 // All errors are considered fatal unless operating under
 // [jsonflags.ReportErrorsWithLegacySemantics] in which case only
 // syntactic errors and I/O errors are considered fatal.
@@ -61,7 +65,7 @@ func isFatalError(err error, flags jsonflags.Flags) bool {
 }
 
 // SemanticError describes an error determining the meaning
-// of JSON data as Go data or vice-versa.
+// of JSON data as Go data, or vice versa.
 //
 // If a [Marshaler], [MarshalerTo], [Unmarshaler], or [UnmarshalerFrom] method
 // returns a SemanticError when called by the [json] package,
@@ -75,7 +79,7 @@ type SemanticError struct {
 
 	action string // either "marshal" or "unmarshal"
 
-	// ByteOffset indicates that an error occurred after this byte offset.
+	// ByteOffset indicates that an error occurred at or after this byte offset.
 	ByteOffset int64
 	// JSONPointer indicates that an error occurred within this JSON value
 	// as indicated using the JSON Pointer notation (see RFC 6901).
@@ -99,9 +103,9 @@ type coder interface {
 	Options() Options
 }
 
-// newInvalidFormatError wraps err in a SemanticError because
+// newInvalidFormatError constructs a SemanticError because
 // the current type t cannot handle the provided options format.
-// This error must be called before producing or consuming the next value.
+// This function must be called before producing or consuming the next value.
 //
 // If [jsonflags.ReportErrorsWithLegacySemantics] is specified,
 // then this automatically skips the next value when unmarshaling
@@ -159,13 +163,22 @@ func newUnmarshalErrorBeforeWithSkipping(d *jsontext.Decoder, t reflect.Type, er
 // is positioned right after the previous token or value, which caused an error.
 func newUnmarshalErrorAfter(d *jsontext.Decoder, t reflect.Type, err error) error {
 	tokOrVal := export.Decoder(d).PreviousTokenOrValue()
+	byteOffset := d.InputOffset() - int64(len(tokOrVal))
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		// NOTE: In v1, the offset pointed to the end of the bad token or value.
+		if k := jsontext.Value(tokOrVal).Kind(); k == '[' || k == '{' {
+			byteOffset++ // add just the '[' or '{'
+		} else {
+			byteOffset += int64(len(tokOrVal))
+		}
+	}
 	return &SemanticError{action: "unmarshal", GoType: t, Err: toUnexpectedEOF(err),
-		ByteOffset:  d.InputOffset() - int64(len(tokOrVal)),
+		ByteOffset:  byteOffset,
 		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, -1)),
 		JSONKind:    jsontext.Value(tokOrVal).Kind()}
 }
 
-// newUnmarshalErrorAfter wraps err in a SemanticError assuming that d
+// newUnmarshalErrorAfterWithValue wraps err in a SemanticError assuming that d
 // is positioned right after the previous token or value, which caused an error.
 // It also stores a copy of the last JSON value if it is a string or number.
 func newUnmarshalErrorAfterWithValue(d *jsontext.Decoder, t reflect.Type, err error) error {
@@ -299,6 +312,13 @@ func collapseSemanticErrors(err error) error {
 	return err
 }
 
+func wrapErrUnsupported(err error, what string) error {
+	if errors.Is(err, errors.ErrUnsupported) {
+		return errors.New(what + " may not return errors.ErrUnsupported")
+	}
+	return err
+}
+
 // errorModalVerb is a modal verb like "cannot" or "unable to".
 //
 // Once per process, Hyrum-proof the error message by deliberately
@@ -380,9 +400,9 @@ func (e *SemanticError) Error() string {
 	}
 
 	// Special handling for unknown names.
-	if e.Err == ErrUnknownName {
+	if e.Err == ErrUnknownName || e.Err == errAmbiguousName {
 		sb.WriteString(": ")
-		sb.WriteString(ErrUnknownName.Error())
+		sb.WriteString(e.Err.Error())
 		sb.WriteString(" ")
 		sb.WriteString(strconv.Quote(e.JSONPointer.LastToken()))
 		if parent := e.JSONPointer.Parent(); parent != "" {

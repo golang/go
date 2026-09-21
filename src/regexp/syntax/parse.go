@@ -1652,18 +1652,23 @@ var asciiFoldTable = &unicode.RangeTable{
 	},
 }
 
-// categoryAliases is a lazily constructed copy of unicode.CategoryAliases
+// aliases is a lazily constructed copy of unicode.CategoryAliases and unicode.Scripts
 // but with the keys passed through canonicalName, to support inexact matches.
-var categoryAliases struct {
-	once sync.Once
-	m    map[string]string
+var aliases struct {
+	once       sync.Once
+	categories map[string]string
+	scripts    map[string]string
 }
 
-// initCategoryAliases initializes categoryAliases by canonicalizing unicode.CategoryAliases.
-func initCategoryAliases() {
-	categoryAliases.m = make(map[string]string)
+// initAliases initializes categoryAliases by canonicalizing unicode.CategoryAliases.
+func initAliases() {
+	aliases.categories = make(map[string]string)
+	aliases.scripts = make(map[string]string)
 	for name, actual := range unicode.CategoryAliases {
-		categoryAliases.m[canonicalName(name)] = actual
+		aliases.categories[canonicalName(name)] = actual
+	}
+	for name := range unicode.Scripts {
+		aliases.scripts[canonicalName(name)] = name
 	}
 }
 
@@ -1737,10 +1742,14 @@ func unicodeTable(name string) (tab, fold *unicode.RangeTable, sign int) {
 	// unicode.CategoryAliases makes liberal use of underscores in its names
 	// (they are defined that way by Unicode), but we want to match ignoring
 	// the underscores, so make our own map with canonical names.
-	categoryAliases.once.Do(initCategoryAliases)
-	if actual := categoryAliases.m[name]; actual != "" {
+	aliases.once.Do(initAliases)
+	if actual := aliases.categories[name]; actual != "" {
 		t := unicode.Categories[actual]
 		return t, unicode.FoldCategory[actual], +1
+	}
+	if actual := aliases.scripts[name]; actual != "" {
+		t := unicode.Scripts[actual]
+		return t, unicode.FoldScript[actual], +1
 	}
 	return nil, nil, 0
 }

@@ -5,41 +5,40 @@
 package modernize
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
 	"go/types"
+	"maps"
+	"slices"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/analysisinternal/generated"
-	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
-	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
 var StringsBuilderAnalyzer = &analysis.Analyzer{
 	Name: "stringsbuilder",
-	Doc:  analysisinternal.MustExtractDoc(doc, "stringsbuilder"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "stringsbuilder"),
 	Requires: []*analysis.Analyzer{
-		generated.Analyzer,
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stringsbuilder,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringbuilder",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stringsbuilder",
 }
 
 // stringsbuilder replaces string += string in a loop by strings.Builder.
 func stringsbuilder(pass *analysis.Pass) (any, error) {
-	skipGenerated(pass)
-
 	// Skip the analyzer in packages where its
 	// fixes would create an import cycle.
 	if within(pass, "strings", "runtime") {
@@ -49,6 +48,7 @@ func stringsbuilder(pass *analysis.Pass) (any, error) {
 	var (
 		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info    = pass.TypesInfo
 	)
 
 	// Gather all local string variables that appear on the
@@ -57,33 +57,60 @@ func stringsbuilder(pass *analysis.Pass) (any, error) {
 	for curAssign := range inspect.Root().Preorder((*ast.AssignStmt)(nil)) {
 		assign := curAssign.Node().(*ast.AssignStmt)
 		if assign.Tok == token.ADD_ASSIGN && is[*ast.Ident](assign.Lhs[0]) {
-			if v, ok := pass.TypesInfo.Uses[assign.Lhs[0].(*ast.Ident)].(*types.Var); ok &&
-				!typesinternal.IsPackageLevel(v) && // TODO(adonovan): in go1.25, use v.Kind() == types.LocalVar &&
+			if v, ok := info.Uses[assign.Lhs[0].(*ast.Ident)].(*types.Var); ok &&
+				v.Kind() == types.LocalVar &&
 				types.Identical(v.Type(), builtinString.Type()) {
 				candidates[v] = true
 			}
 		}
 	}
 
+	lexicalOrder := func(x, y *types.Var) int { return cmp.Compare(x.Pos(), y.Pos()) }
+
+	// File and Pos of last fix edit,
+	// for overlapping fix span detection.
+	var (
+		lastEditFile *ast.File
+		lastEditEnd  token.Pos
+	)
+
 	// Now check each candidate variable's decl and uses.
 nextcand:
-	for v := range candidates {
-		var edits []analysis.TextEdit
+	for _, v := range slices.SortedFunc(maps.Keys(candidates), lexicalOrder) {
+		var edits, postEdits []analysis.TextEdit // postEdits are emitted last
 
-		// Check declaration of s:
+		// Check declaration of s has one of these forms:
 		//
 		//    s := expr
 		//    var s [string] [= expr]
+		//    var ( ...; s [string] [= expr] )			(s is last)
 		//
-		// and transform to:
+		// and transform to one of:
 		//
-		//    var s strings.Builder; s.WriteString(expr)
+		//    var   s strings.Builder ; s.WriteString(expr)
+		//    var ( s strings.Builder); s.WriteString(expr)
 		//
 		def, ok := index.Def(v)
 		if !ok {
 			continue
 		}
-		ek, _ := def.ParentEdge()
+
+		// To avoid semantic conflicts, do not offer a fix if its edit
+		// range (ignoring import edits) overlaps a previous fix.
+		// This fixes #76983 and is an ad-hoc mitigation of #76476.
+		file := astutil.EnclosingFile(def)
+		if file == lastEditFile && v.Pos() < lastEditEnd {
+			continue
+		}
+		filename := pass.Fset.File(file.FileStart).Name()
+		// Suppress diagnostics in test files, where suggested fixes may increase
+		// verbosity, and performance doesn't matter as much.
+		// See https://go.dev/issue/78613
+		if strings.HasSuffix(filename, "_test.go") {
+			continue
+		}
+
+		ek := def.ParentEdgeKind()
 		if ek == edge.AssignStmt_Lhs &&
 			len(def.Parent().Node().(*ast.AssignStmt).Lhs) == 1 {
 			// Have: s := expr
@@ -103,10 +130,10 @@ nextcand:
 
 			// Add strings import.
 			prefix, importEdits := refactor.AddImport(
-				pass.TypesInfo, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
+				info, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
 			edits = append(edits, importEdits...)
 
-			if isEmptyString(pass.TypesInfo, assign.Rhs[0]) {
+			if isEmptyString(info, assign.Rhs[0]) {
 				// s := ""
 				// ---------------------
 				// var s strings.Builder
@@ -136,13 +163,24 @@ nextcand:
 			}
 
 		} else if ek == edge.ValueSpec_Names &&
-			len(def.Parent().Node().(*ast.ValueSpec).Names) == 1 {
-			// Have: var s [string] [= expr]
+			len(def.Parent().Node().(*ast.ValueSpec).Names) == 1 &&
+			first(def.Parent().Parent().LastChild()) == def.Parent() {
+			// Have: var   s [string] [= expr]
+			//   or: var ( s [string] [= expr] )
 			// => var s strings.Builder; s.WriteString(expr)
+			//
+			// The LastChild check rejects this case:
+			//   var ( s [string] [= expr]; others... )
+			// =>
+			//   var ( s strings.Builder; others... ); s.WriteString(expr)
+			// since it moves 'expr' across 'others', requiring
+			// reformatting of syntax, which in general is lossy
+			// of comments and vertical space.
+			// We expect this to be rare.
 
 			// Add strings import.
 			prefix, importEdits := refactor.AddImport(
-				pass.TypesInfo, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
+				info, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
 			edits = append(edits, importEdits...)
 
 			spec := def.Parent().Node().(*ast.ValueSpec)
@@ -153,6 +191,8 @@ nextcand:
 				init = spec.Type.End()
 			}
 
+			// Replace (possibly absent) type:
+			//
 			// var s [string]
 			//      ----------------
 			// var s strings.Builder
@@ -162,7 +202,26 @@ nextcand:
 				NewText: fmt.Appendf(nil, " %sBuilder", prefix),
 			})
 
-			if len(spec.Values) > 0 && !isEmptyString(pass.TypesInfo, spec.Values[0]) {
+			if len(spec.Values) > 0 && !isEmptyString(info, spec.Values[0]) {
+				if decl.Rparen.IsValid() {
+					// var decl with explicit parens:
+					//
+					// var ( ...  =               expr )
+					//           -                     -
+					// var ( ... ); s.WriteString(expr)
+					edits = append(edits, []analysis.TextEdit{
+						{
+							Pos:     init,
+							End:     init,
+							NewText: []byte(")"),
+						},
+						{
+							Pos: spec.Values[0].End(),
+							End: decl.End(),
+						},
+					}...)
+				}
+
 				// =               expr
 				// ----------------    -
 				// ; s.WriteString(expr)
@@ -173,8 +232,8 @@ nextcand:
 						NewText: fmt.Appendf(nil, "; %s.WriteString(", v.Name()),
 					},
 					{
-						Pos:     decl.End(),
-						End:     decl.End(),
+						Pos:     spec.Values[0].End(),
+						End:     spec.Values[0].End(),
 						NewText: []byte(")"),
 					},
 				}...)
@@ -203,8 +262,8 @@ nextcand:
 		//    var s string
 		//    for ... { s += expr }
 		//
-		// - The final use of s must be as an rvalue (e.g. use(s), not &s).
-		//   This will become s.String().
+		// - All uses of s after the last += must be rvalue uses (e.g. use(s), not &s).
+		//   Each of these will become s.String().
 		//
 		//   Perhaps surprisingly, it is fine for there to be an
 		//   intervening loop or lambda w.r.t. the declaration of s:
@@ -219,20 +278,12 @@ nextcand:
 		var (
 			numLoopAssigns int             // number of += assignments within a loop
 			loopAssign     *ast.AssignStmt // first += assignment within a loop
-			seenRvalueUse  bool            // => we've seen the sole final use of s as an rvalue
+			seenRvalueUse  bool            // => we've seen at least one rvalue use of s
 		)
 		for curUse := range index.Uses(v) {
 			// Strip enclosing parens around Ident.
-			ek, _ := curUse.ParentEdge()
-			for ek == edge.ParenExpr_X {
-				curUse = curUse.Parent()
-				ek, _ = curUse.ParentEdge()
-			}
-
-			// The rvalueUse must be the lexically last use.
-			if seenRvalueUse {
-				continue nextcand
-			}
+			curUse = astutil.UnparenEnclosingCursor(curUse)
+			ek := curUse.ParentEdgeKind()
 
 			// intervening reports whether cur has an ancestor of
 			// one of the given types that is within the scope of v.
@@ -246,6 +297,11 @@ nextcand:
 			}
 
 			if ek == edge.AssignStmt_Lhs {
+				// After an rvalue use, no more assignments are allowed.
+				if seenRvalueUse {
+					continue nextcand
+				}
+
 				assign := curUse.Parent().Node().(*ast.AssignStmt)
 				if assign.Tok != token.ADD_ASSIGN {
 					continue nextcand
@@ -265,20 +321,21 @@ nextcand:
 				// s +=          expr
 				//  -------------    -
 				// s.WriteString(expr)
-				edits = append(edits, []analysis.TextEdit{
-					// replace += with .WriteString()
-					{
-						Pos:     assign.TokPos,
-						End:     assign.Rhs[0].Pos(),
-						NewText: []byte(".WriteString("),
-					},
+				edits = append(edits, analysis.TextEdit{
+					// replace " += " with ".WriteString("
+					Pos:     assign.Lhs[0].End(),
+					End:     assign.Rhs[0].Pos(),
+					NewText: []byte(".WriteString("),
+				})
+
+				// Delay inserting the closing parenthesis, in case it overlaps with a
+				// .String() edit, since it would need to come after.
+				postEdits = append(postEdits, analysis.TextEdit{
 					// insert ")"
-					{
-						Pos:     assign.End(),
-						End:     assign.End(),
-						NewText: []byte(")"),
-					},
-				}...)
+					Pos:     assign.End(),
+					End:     assign.End(),
+					NewText: []byte(")"),
+				})
 
 			} else if ek == edge.UnaryExpr_X &&
 				curUse.Parent().Node().(*ast.UnaryExpr).Op == token.AND {
@@ -306,6 +363,11 @@ nextcand:
 		if numLoopAssigns == 0 {
 			continue nextcand // no += in a loop; reject
 		}
+
+		edits = append(edits, postEdits...)
+
+		lastEditFile = file
+		lastEditEnd = edits[len(edits)-1].End
 
 		pass.Report(analysis.Diagnostic{
 			Pos:     loopAssign.Pos(),

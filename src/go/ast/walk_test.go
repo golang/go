@@ -46,7 +46,7 @@ func g() {
 }
 `
 	fset := token.NewFileSet()
-	f, _ := parser.ParseFile(fset, "a.go", src, 0)
+	f, _ := parser.ParseFile(fset, "a.go", src, parser.SkipObjectResolution)
 
 	str := func(n ast.Node) string {
 		return strings.TrimPrefix(reflect.TypeOf(n).String(), "*ast.")

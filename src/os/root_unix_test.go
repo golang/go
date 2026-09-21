@@ -71,9 +71,8 @@ func TestRootLchown(t *testing.T) {
 	groups = append(groups, os.Getgid())
 	for _, test := range rootTestCases {
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
-			wantError := test.wantError
 			if test.ltarget != "" {
-				wantError = false
+				test.wantError = false
 				target = filepath.Join(root.Name(), test.ltarget)
 			} else if target != "" {
 				if err := os.WriteFile(target, nil, 0o666); err != nil {
@@ -82,7 +81,7 @@ func TestRootLchown(t *testing.T) {
 			}
 			for _, gid := range groups {
 				err := root.Lchown(test.open, -1, gid)
-				if errEndsTest(t, err, wantError, "root.Lchown(%q, -1, %v)", test.open, gid) {
+				if errEndsTest(t, err, test.wantError, "root.Lchown(%q, -1, %v)", test.open, gid) {
 					return
 				}
 				checkUidGid(t, target, int(sys.Uid), gid)

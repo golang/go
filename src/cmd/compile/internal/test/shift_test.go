@@ -916,7 +916,7 @@ func TestShiftGeneric(t *testing.T) {
 		signed     bool
 		shiftWidth int
 		left       bool
-		f          interface{}
+		f          any
 	}{
 		{64, true, 64, true, func(n int64, s uint64) int64 { return n << s }},
 		{64, true, 64, false, func(n int64, s uint64) int64 { return n >> s }},

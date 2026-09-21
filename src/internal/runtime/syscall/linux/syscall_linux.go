@@ -86,3 +86,17 @@ func Pread(fd int, p []byte, offset int64) (n int, errno uintptr) {
 	}
 	return int(r1), e
 }
+
+type Utsname struct {
+	Sysname    [65]byte
+	Nodename   [65]byte
+	Release    [65]byte
+	Version    [65]byte
+	Machine    [65]byte
+	Domainname [65]byte
+}
+
+func Uname(buf *Utsname) (errno uintptr) {
+	_, _, e := Syscall6(SYS_UNAME, uintptr(unsafe.Pointer(buf)), 0, 0, 0, 0, 0)
+	return e
+}

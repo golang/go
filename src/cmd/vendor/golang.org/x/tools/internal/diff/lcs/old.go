@@ -16,10 +16,6 @@ type Diff struct {
 	ReplStart, ReplEnd int // offset of replacement text in B
 }
 
-// DiffStrings returns the differences between two strings.
-// It does not respect rune boundaries.
-func DiffStrings(a, b string) []Diff { return diff(stringSeqs{a, b}) }
-
 // DiffBytes returns the differences between two byte sequences.
 // It does not respect rune boundaries.
 func DiffBytes(a, b []byte) []Diff { return diff(bytesSeqs{a, b}) }
@@ -27,9 +23,13 @@ func DiffBytes(a, b []byte) []Diff { return diff(bytesSeqs{a, b}) }
 // DiffRunes returns the differences between two rune sequences.
 func DiffRunes(a, b []rune) []Diff { return diff(runesSeqs{a, b}) }
 
+// DiffLines returns the differences between two string sequences.
+func DiffLines(a, b []string) []Diff { return diff(linesSeqs{a, b}) }
+
+// A limit on how deeply the LCS algorithm should search. The value is just a guess.
+var maxDiffs = 100
+
 func diff(seqs sequences) []Diff {
-	// A limit on how deeply the LCS algorithm should search. The value is just a guess.
-	const maxDiffs = 100
 	diff, _ := compute(seqs, twosided, maxDiffs/2)
 	return diff
 }

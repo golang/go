@@ -35,41 +35,39 @@ in the go.mod file.
 
 The -x flag causes graph to print the commands graph executes.
 
-See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
+See https://go.dev/ref/mod#go-mod-graph for more about 'go mod graph'.
 	`,
 	Run: runGraph,
 }
 
-var (
-	graphGo goVersionFlag
-)
+var graphGo goVersionFlag
 
 func init() {
-	cmdGraph.Flag.Var(&graphGo, "go", "")
-	cmdGraph.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+	cmdGraph.Flag.Var(&graphGo, "go", "specifies the Go `version` of modules whose graph is listed")
+	cmdGraph.Flag.BoolVar(&cfg.BuildX, "x", false, "print the commands")
 	base.AddChdirFlag(&cmdGraph.Flag)
 	base.AddModCommonFlags(&cmdGraph.Flag)
 }
 
 func runGraph(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoader := modload.NewLoader()
+	moduleLoader.InitWorkfile()
 
 	if len(args) > 0 {
 		base.Fatalf("go: 'go mod graph' accepts no arguments")
 	}
-	moduleLoaderState.ForceUseModules = true
-	moduleLoaderState.RootMode = modload.NeedRoot
+	moduleLoader.ForceUseModules = true
+	moduleLoader.RootMode = modload.NeedRoot
 
 	goVersion := graphGo.String()
 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
-		toolchain.SwitchOrFatal(moduleLoaderState, ctx, &gover.TooNewError{
+		toolchain.SwitchOrFatal(moduleLoader, ctx, &gover.TooNewError{
 			What:      "-go flag",
 			GoVersion: goVersion,
 		})
 	}
 
-	mg, err := modload.LoadModGraph(moduleLoaderState, ctx, goVersion)
+	mg, err := modload.LoadModGraph(moduleLoader, ctx, goVersion)
 	if err != nil {
 		base.Fatal(err)
 	}

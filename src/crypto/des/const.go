@@ -22,7 +22,7 @@ var initialPermutation = [64]byte{
 	1, 9, 17, 25, 33, 41, 49, 57,
 }
 
-// Used to perform a final permutation of a 4-bit preoutput block. This is the
+// Used to perform a final permutation of a 64-bit preoutput block. This is the
 // inverse of initialPermutation
 var finalPermutation = [64]byte{
 	24, 56, 16, 48, 8, 40, 0, 32,

@@ -8,12 +8,15 @@ import (
 	"bytes"
 	"compress/flate"
 	"crypto/internal/cryptotest"
+	"crypto/internal/rand"
 	"errors"
 	"internal/testenv"
 	"io"
 	"os"
+	"reflect"
 	"sync"
 	"testing"
+	"testing/synctest"
 )
 
 // These tests are mostly duplicates of the tests in crypto/internal/sysrand,
@@ -180,7 +183,7 @@ func TestReadError(t *testing.T) {
 		return
 	}
 
-	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestReadError$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestReadError$", "-test.v")
 	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -190,6 +193,14 @@ func TestReadError(t *testing.T) {
 	if !bytes.Contains(out, []byte(exp)) {
 		t.Errorf("subprocess output does not contain %q: %s", exp, out)
 	}
+}
+
+func TestSynctest(t *testing.T) {
+	// https://go.dev/issue/78557
+	synctest.Test(t, func(t *testing.T) {
+		Read(make([]byte, 32))
+		Read(make([]byte, 32))
+	})
 }
 
 func BenchmarkRead(b *testing.B) {
@@ -210,6 +221,28 @@ func benchmarkRead(b *testing.B, size int) {
 	for i := 0; i < b.N; i++ {
 		if _, err := Read(buf); err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+func TestDefaultReader(t *testing.T) {
+	if !rand.IsDefaultReader(Reader) {
+		t.Error("rand.IsDefaultReader(Reader) == False")
+	}
+
+	typ := reflect.ValueOf(Reader).Type()
+	for method := range typ.Methods() {
+		if method.Name == "Read" {
+			continue
+		}
+		if method.IsExported() {
+			t.Fatal("unexpected exported method")
+		}
+	}
+
+	for field := range typ.Fields() {
+		if field.IsExported() {
+			t.Fatal("unexpected exported field")
 		}
 	}
 }

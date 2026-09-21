@@ -15,13 +15,16 @@ causing build breakage. However, these problems are generally
 trivial to fix. We regard any modernizer whose fix changes program
 behavior to have a serious bug and will endeavor to fix it.
 
-To apply all modernization fixes en masse, you can use the
+Since Go 1.26, the 'go fix' command has included the modernize suite,
+so to apply all modernization fixes en masse, you can use the
 following command:
 
-	$ go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...
+	$ go fix ./...
 
-(Do not use "go get -tool" to add gopls as a dependency of your
-module; gopls commands must be built from their release branch.)
+If you need to run a modernizer added or modified since the Go
+release, you can use this standalone command:
+
+	$ go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...
 
 If the tool warns of conflicting fixes, you may need to run it more
 than once until it has applied all fixes cleanly. This command is
@@ -55,6 +58,12 @@ append([]T(nil), s...), the analyzer suggests the more concise slices.Clone(s).
 For byte slices, it will prefer bytes.Clone if the "bytes" package is
 already imported.
 
+Since the replacement (slices.Concat, or slices.Clone) allocates a new
+slice, any slices.Clone or bytes.Clone wrapping one of the operands is
+redundant and is removed, e.g. append(append([]T{}, slices.Clone(s)...),
+t...) becomes slices.Concat(s, t). The clone of os.Environ in
+append([]string(nil), os.Environ()...) is likewise elided.
+
 This fix is only applied when the base of the append tower is a
 "clipped" slice, meaning its length and capacity are equal (e.g.
 x[:0:0] or []T{}). This is to avoid changing program behavior by
@@ -64,6 +73,26 @@ array.
 This analyzer is currently disabled by default as the
 transformation does not preserve the nilness of the base slice in
 all cases; see https://go.dev/issue/73557.
+
+# Analyzer atomictypes
+
+atomictypes: replace basic types in sync/atomic calls with atomic types
+
+The atomictypes analyzer suggests replacing the primitive sync/atomic functions with
+the strongly typed atomic wrapper types introduced in Go1.19 (e.g.
+atomic.Int32). For example,
+
+	var x int32
+	atomic.AddInt32(&x, 1)
+
+would become
+
+	var x atomic.Int32
+	x.Add(1)
+
+The atomic types are safer because they don't allow non-atomic access, which is
+a common source of bugs. These types also resolve memory alignment issues that
+plagued the old atomic functions on 32-bit architectures.
 
 # Analyzer bloop
 
@@ -80,6 +109,8 @@ or b.ResetTimer within the same function will also be removed.
 Caveats: The b.Loop() method is designed to prevent the compiler from
 optimizing away the benchmark loop, which can occasionally result in
 slower execution due to increased allocations in some specific cases.
+Since its fix may change the performance of nanosecond-scale benchmarks,
+bloop is disabled by default in the `go fix` analyzer suite; see golang/go#74967.
 
 # Analyzer any
 
@@ -88,6 +119,31 @@ any: replace interface{} with any
 The any analyzer suggests replacing uses of the empty interface type,
 `interface{}`, with the `any` alias, which was introduced in Go 1.18.
 This is a purely stylistic change that makes code more readable.
+
+# Analyzer embedlit
+
+embedlit: simplify references to embedded fields in composite literals
+
+The embedlit analyzer suggests removing redundant embedded field type specifiers
+from composite literals. Go1.27 introduced the ability to directly initialize
+fields promoted from embedded struct types without a nested literal. For
+example, given the following structs:
+
+	type T struct {
+		U
+	}
+
+	type U struct {
+		x int
+	}
+
+A composite literal such as
+
+	t := T{U: U{x: 1}}
+
+would become
+
+	t := T{x: 1}
 
 # Analyzer errorsastype
 
@@ -120,6 +176,9 @@ The fmtappendf analyzer suggests replacing `[]byte(fmt.Sprintf(...))` with
 by Sprintf, making the code more efficient. The suggestion also applies to
 fmt.Sprint and fmt.Sprintln.
 
+Since its fix is not a Pareto improvement, fmtappendf is disabled by default in
+the `go fix` analyzer suite; see golang/go#77581.
+
 # Analyzer forvar
 
 forvar: remove redundant re-declaration of loop variables
@@ -131,6 +190,19 @@ of `for` loops, making this pattern redundant. This analyzer removes the
 unnecessary `x := x` statement.
 
 This fix only applies to `range` loops.
+
+# Analyzer importcomment
+
+importcomment: remove obsolete comments specifying canonical import path
+
+The importcomment analyzer removes comments specifying the canonical
+import path, such as
+
+	package foo // import "example.com/foo"
+
+The go command enforced these comments in GOPATH mode via "go get", but
+ignores them in module mode, so they are obsolete once the package
+belongs to a module. The fix removes the comment.
 
 # Analyzer mapsloop
 
@@ -176,7 +248,11 @@ This analyzer finds declarations of functions of this form:
 and suggests a fix to turn them into inlinable wrappers around
 go1.26's built-in new(expr) function:
 
+	//go:fix inline
 	func varOf(x int) *int { return new(x) }
+
+(The directive comment causes the 'inline' analyzer to suggest
+that calls to such functions are inlined.)
 
 In addition, this analyzer suggests a fix for each call
 to one of the functions before it is transformed, so that
@@ -187,19 +263,26 @@ is replaced by:
 
 	use(new(123))
 
-(Wrapper functions such as varOf are common when working with Go
+Wrapper functions such as varOf are common when working with Go
 serialization packages such as for JSON or protobuf, where pointers
-are often used to express optionality.)
+are often used to express optionality.
 
 # Analyzer omitzero
 
 omitzero: suggest replacing omitempty with omitzero for struct fields
 
-The omitzero analyzer identifies uses of the `omitempty` JSON struct tag on
-fields that are themselves structs. The `omitempty` tag has no effect on
-struct-typed fields. The analyzer offers two suggestions: either remove the
+The omitzero analyzer identifies uses of the `omitempty` JSON struct
+tag on fields that are themselves structs. For struct-typed fields,
+the `omitempty` tag has no effect on the behavior of json.Marshal and
+json.Unmarshal. The analyzer offers two suggestions: either remove the
 tag, or replace it with `omitzero` (added in Go 1.24), which correctly
 omits the field if the struct value is zero.
+
+However, some other serialization packages (notably kubebuilder, see
+https://book.kubebuilder.io/reference/markers.html) may have their own
+interpretation of the `json:",omitzero"` tag, so removing it may affect
+program behavior. For this reason, the omitzero modernizer will not
+make changes in any package that contains +kubebuilder annotations.
 
 Replacing `omitempty` with `omitzero` is a change in behavior. The
 original code would always encode the struct field, whereas the
@@ -250,10 +333,14 @@ is known at compile time, for example:
 	reflect.TypeOf(uint32(0))        -> reflect.TypeFor[uint32]()
 	reflect.TypeOf((*ast.File)(nil)) -> reflect.TypeFor[*ast.File]()
 
-It also offers a fix to simplify the construction below, which uses
+It also offers a fix to simplify the constructions below, which use
 reflect.TypeOf to return the runtime type for an interface type,
 
 	reflect.TypeOf((*io.Reader)(nil)).Elem()
+
+or:
+
+	reflect.TypeOf([]io.Reader(nil)).Elem()
 
 to:
 
@@ -265,6 +352,59 @@ No fix is offered in cases when the runtime type is dynamic, such as:
 	reflect.TypeOf(r)
 
 or when the operand has potential side effects.
+
+# Analyzer reflecttypeassert
+
+reflecttypeassert: replace v.Interface().(T) with reflect.TypeAssert[T](v)
+
+This analyzer suggests fixes to replace two-valued type assertions on
+the result of (reflect.Value).Interface with reflect.TypeAssert,
+introduced in go1.25, which avoids the intermediate allocation of an
+interface value, for example:
+
+	x, ok := v.Interface().(string)  ->  x, ok := reflect.TypeAssert[string](v)
+
+No fix is offered for single-valued assertions, since they panic when
+the assertion fails whereas reflect.TypeAssert does not. Nor is a fix
+offered for a type switch.
+
+# Analyzer slicesbackward
+
+slicesbackward: replace backward loops over slices with slices.Backward
+
+The slicesbackward analyzer suggests replacing manually-written backward
+loops of the form
+
+	for i := len(s) - 1; i >= 0; i-- {
+	    use(s[i])
+	}
+
+with the more readable Go 1.23 style using slices.Backward:
+
+	for _, v := range slices.Backward(s) {
+	    use(v)
+	}
+
+If the loop index is needed beyond just indexing into the slice, both
+the index and value variables are kept:
+
+	for i, v := range slices.Backward(s) { ... }
+
+# Analyzer slicesclip
+
+slicesclip: replace three-index slice expressions with slices.Clip
+
+The slicesclip analyzer suggests replacing a full slice expression of
+the form
+
+	x[:len(x):len(x)]
+
+which clips the capacity of a slice to its length, with the simpler
+and more readable
+
+	slices.Clip(x)
+
+added in Go 1.21.
 
 # Analyzer slicescontains
 
@@ -322,10 +462,77 @@ or its "for elem := range x.Len()" equivalent by a range loop over an
 iterator offered by the same data type:
 
 	for elem := range x.All() {
-		use(x.At(i)
+		use(elem)
 	}
 
 where x is one of various well-known types in the standard library.
+
+# Analyzer stringscut
+
+stringscut: replace strings.Index etc. with strings.Cut
+
+This analyzer replaces certain patterns of use of [strings.Index] and string slicing by [strings.Cut], added in go1.18.
+It also replaces analogous uses of [strings.LastIndex] by [strings.CutLast], added in go1.27.
+
+For example:
+
+	idx := strings.Index(s, substr)
+	if idx >= 0 {
+	    return s[:idx]
+	}
+
+is replaced by:
+
+	before, _, ok := strings.Cut(s, substr)
+	if ok {
+	    return before
+	}
+
+And:
+
+	idx := strings.LastIndex(s, substr)
+	if idx >= 0 {
+	    return s[:idx]
+	}
+
+is replaced by:
+
+	before, _, ok := strings.CutLast(s, substr)
+	if ok {
+	    return before
+	}
+
+And:
+
+	idx := strings.Index(s, substr)
+	if idx >= 0 {
+	    return
+	}
+
+is replaced by:
+
+	found := strings.Contains(s, substr)
+	if found {
+	    return
+	}
+
+(LastIndex used only as a presence check is also rewritten to Contains.)
+
+It also handles variants using [strings.IndexByte] or [strings.LastIndexByte]
+instead of Index/LastIndex, or the bytes package instead of strings.
+
+Fixes are offered only in cases in which there are no potential modifications of the idx, s, or substr expressions between their definition and use.
+CutLast fixes are offered only when the file's Go version is at least 1.27.
+
+It also replaces [strings.SplitN](s, sep, 2)[0] and [strings.Split](s, sep)[0] with the "before" result of strings.Cut, when sep is a non-empty string constant:
+
+	x := strings.SplitN(s, sep, 2)[0]
+
+is replaced by:
+
+	x, _, _ := strings.Cut(s, sep)
+
+The fix is only offered when sep is a non-empty string literal. When sep is a variable or the empty string, the semantics differ (strings.Split(s, "")[0] returns the first character of s, but strings.Cut(s, "").before is ""), so no fix is suggested.
 
 # Analyzer stringscutprefix
 
@@ -409,14 +616,37 @@ is replaced by:
 
 This avoids quadratic memory allocation and improves performance.
 
-The analyzer requires that all references to s except the final one
+No diagnostics are issued in tests, where data sizes are often
+small and asymptotic performance is not a security concern.
+
+The analyzer requires that all references to s before the final uses
 are += operations. To avoid warning about trivial cases, at least one
 must appear within a loop. The variable s must be a local
 variable, not a global or parameter.
 
-The sole use of the finished string must be the last reference to the
-variable s. (It may appear within an intervening loop or function literal,
-since even s.String() is called repeatedly, it does not allocate memory.)
+All uses of the finished string must come after the last += operation.
+Each such use will be replaced by a call to strings.Builder's String method.
+(These may appear within an intervening loop or function literal, since even
+if s.String() is called repeatedly, it does not allocate memory.)
+
+Often the addend is a call to fmt.Sprintf, as in this example:
+
+	var s string
+	for x := range seq {
+		s += fmt.Sprintf("%v", x)
+	}
+
+which, once the suggested fix is applied, becomes:
+
+	var s strings.Builder
+	for x := range seq {
+		s.WriteString(fmt.Sprintf("%v", x))
+	}
+
+The WriteString call can be further simplified to the more efficient
+fmt.Fprintf(&s, "%v", x), avoiding the allocation of an intermediary.
+However, stringsbuilder does not perform this simplification;
+it requires staticcheck analyzer QF1012. (See https://go.dev/issue/76918.)
 
 # Analyzer testingcontext
 
@@ -433,11 +663,27 @@ with a single call to t.Context(), which was added in Go 1.24.
 This change is only suggested if the `cancel` function is not used
 for any other purpose.
 
-# Analyzer waitgroup
+# Analyzer unsafefuncs
 
-waitgroup: replace wg.Add(1)/go/wg.Done() with wg.Go
+unsafefuncs: replace unsafe pointer arithmetic with function calls
 
-The waitgroup analyzer simplifies goroutine management with `sync.WaitGroup`.
+The unsafefuncs analyzer simplifies pointer arithmetic expressions by
+replacing them with calls to helper functions such as unsafe.Add,
+added in Go 1.17.
+
+Example:
+
+	unsafe.Pointer(uintptr(ptr) + uintptr(n))
+
+where ptr is an unsafe.Pointer, is replaced by:
+
+	unsafe.Add(ptr, n)
+
+# Analyzer waitgroupgo
+
+waitgroupgo: replace wg.Add(1)/go/wg.Done() with wg.Go
+
+The waitgroupgo analyzer simplifies goroutine management with `sync.WaitGroup`.
 It replaces the common pattern
 
 	wg.Add(1)

@@ -6,8 +6,8 @@
 // packages.
 //
 // Syntax trees may be constructed directly, but they are typically
-// produced from Go source code by the parser; see the ParseFile
-// function in package [go/parser].
+// produced from Go source code by the parser; see the
+// [go/parser.ParseFile] function.
 package ast
 
 import (
@@ -312,11 +312,10 @@ type (
 	//
 	// For raw string literals (Kind == token.STRING && Value[0] == '`'),
 	// the Value field contains the string text without carriage returns (\r) that
-	// may have been present in the source. Because the end position is
-	// computed using len(Value), the position reported by [BasicLit.End] does not match the
-	// true source end position for raw string literals containing carriage returns.
+	// may have been present in the source.
 	BasicLit struct {
 		ValuePos token.Pos   // literal position
+		ValueEnd token.Pos   // position immediately after the literal
 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
 		Value    string      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
 	}
@@ -535,7 +534,15 @@ func (x *Ellipsis) End() token.Pos {
 	}
 	return x.Ellipsis + 3 // len("...")
 }
-func (x *BasicLit) End() token.Pos       { return token.Pos(int(x.ValuePos) + len(x.Value)) }
+func (x *BasicLit) End() token.Pos {
+	if !x.ValueEnd.IsValid() {
+		// Not from parser; use a heuristic.
+		// (Incorrect for `...` containing \r\n;
+		// see https://go.dev/issue/76031.)
+		return token.Pos(int(x.ValuePos) + len(x.Value))
+	}
+	return x.ValueEnd
+}
 func (x *FuncLit) End() token.Pos        { return x.Body.End() }
 func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
 func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
@@ -1103,10 +1110,10 @@ func (p *Package) End() token.Pos { return token.NoPos }
 // not handwritten, by detecting the special comment described
 // at https://go.dev/s/generatedcode.
 //
-// The syntax tree must have been parsed with the [parser.ParseComments] flag.
+// The syntax tree must have been parsed with the [go/parser.ParseComments] flag.
 // Example:
 //
-//	f, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.PackageClauseOnly)
+//	f, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.PackageClauseOnly|parser.SkipObjectResolution)
 //	if err != nil { ... }
 //	gen := ast.IsGenerated(f)
 func IsGenerated(file *File) bool {

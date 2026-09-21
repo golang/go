@@ -13,7 +13,7 @@ package codegen
 func lshConst64x64(v int64) int64 {
 	// loong64:"SLLV"
 	// ppc64x:"SLD"
-	// riscv64:"SLLI" -"AND" -"SLTIU"
+	// riscv64:"SLLI " -"AND" -"SLTIU"
 	return v << uint64(33)
 }
 
@@ -68,33 +68,33 @@ func rshConst64x64Overflow8(v int8) int64 {
 }
 
 func lshConst32x1(v int32) int32 {
-	// amd64:"ADDL", -"SHLL"
+	// amd64:"ADDL" -"SHLL"
 	return v << 1
 }
 
 func lshConst64x1(v int64) int64 {
-	// amd64:"ADDQ", -"SHLQ"
+	// amd64:"ADDQ" -"SHLQ"
 	return v << 1
 }
 
 func lshConst32x64(v int32) int32 {
 	// loong64:"SLL "
 	// ppc64x:"SLW"
-	// riscv64:"SLLI" -"AND" -"SLTIU", -"MOVW"
+	// riscv64:"SLLI" -"AND" -"SLTIU" -"MOVW"
 	return v << uint64(29)
 }
 
 func rshConst32Ux64(v uint32) uint32 {
 	// loong64:"SRL "
 	// ppc64x:"SRW"
-	// riscv64:"SRLIW" -"AND" -"SLTIU", -"MOVW"
+	// riscv64:"SRLIW" -"AND" -"SLTIU" -"MOVW"
 	return v >> uint64(29)
 }
 
 func rshConst32x64(v int32) int32 {
 	// loong64:"SRA "
 	// ppc64x:"SRAW"
-	// riscv64:"SRAIW" -"OR" -"SLTIU", -"MOVW"
+	// riscv64:"SRAIW" -"OR" -"SLTIU" -"MOVW"
 	return v >> uint64(29)
 }
 
@@ -120,43 +120,110 @@ func rshConst64x32(v int64) int64 {
 }
 
 func lshConst32x1Add(x int32) int32 {
-	// amd64:"SHLL [$]2"
-	// loong64:"SLL [$]2"
-	// riscv64:"SLLI [$]2"
+	// amd64:-"ADD" "SHLL [$]2"
+	// loong64:-"ADD" "SLL [$]2"
+	// riscv64:-"ADD" "SLLIW [$]2"
+	// ppc64x:-"ADD" "SLW [$]2"
 	return (x + x) << 1
 }
 
 func lshConst64x1Add(x int64) int64 {
-	// amd64:"SHLQ [$]2"
-	// loong64:"SLLV [$]2"
-	// riscv64:"SLLI [$]2"
+	// amd64:-"ADD" "SHLQ [$]2"
+	// loong64:-"ADD" "SLLV [$]2"
+	// riscv64:-"ADD" "SLLI [$]2"
+	// ppc64x:-"ADD" "SLD [$]2"
 	return (x + x) << 1
 }
 
 func lshConst32x2Add(x int32) int32 {
-	// amd64:"SHLL [$]3"
-	// loong64:"SLL [$]3"
-	// riscv64:"SLLI [$]3"
+	// amd64:-"ADD" "SHLL [$]3"
+	// loong64:-"ADD" "SLL [$]3"
+	// riscv64:-"ADD" "SLLIW [$]3"
+	// ppc64x:-"ADD" "SLW [$]3"
 	return (x + x) << 2
 }
 
 func lshConst64x2Add(x int64) int64 {
-	// amd64:"SHLQ [$]3"
-	// loong64:"SLLV [$]3"
-	// riscv64:"SLLI [$]3"
+	// amd64:-"ADD" "SHLQ [$]3"
+	// loong64:-"ADD" "SLLV [$]3"
+	// riscv64:-"ADD" "SLLI [$]3"
+	// ppc64x:-"ADD" "SLD [$]3"
 	return (x + x) << 2
 }
 
 func lshConst32x31Add(x int32) int32 {
-	// loong64:-"SLL " "MOVV R0"
-	// riscv64:-"SLLI" "MOV [$]0"
+	// amd64:-"ADD" -"SHL" "XORL AX, AX"
+	// loong64:-"ADD" -"SLL " "MOVV R0"
+	// riscv64:-"ADD" -"SLLIW" "MOV [$]0"
+	// ppc64x:-"ADD" -"SLW" "MOVD [$]0"
 	return (x + x) << 31
 }
 
 func lshConst64x63Add(x int64) int64 {
-	// loong64:-"SLLV" "MOVV R0"
-	// riscv64:-"SLLI" "MOV [$]0"
+	// amd64:-"ADD" -"SHL" "XORL AX, AX"
+	// loong64:-"ADD" -"SLLV" "MOVV R0"
+	// riscv64:-"ADD" -"SLLI" "MOV [$]0"
 	return (x + x) << 63
+}
+
+func rshConst64Uto32U(v uint64, a []int8) {
+	// riscv64:"SRLI " "MOVWU" -"SLLI"
+	a[1] = a[uint32(v>>31)]
+	// riscv64:"SRLI " -"MOVWU" -"SLLI"
+	a[2] = a[uint32(v>>32)]
+	// riscv64:"SRLI " -"MOVWU" -"SLLI"
+	if uint32(v>>33) < 100 {
+		a[3] = 1
+	}
+}
+
+func rshConst64Uto16U(v uint64, a []int8) {
+	// riscv64:"SRLI " "MOVHU" -"SLLI"
+	a[1] = a[uint16(v>>47)]
+	// riscv64:"SRLI " -"MOVHU" -"SLLI"
+	a[2] = a[uint16(v>>48)]
+	// riscv64:"SRLI " -"MOVHU" -"SLLI"
+	if uint16(v>>49) < 100 {
+		a[3] = 1
+	}
+}
+
+func rshConst64Uto8U(v uint64, a []int8) {
+	// riscv64:"SRLI " "MOVBU" -"SLLI"
+	a[1] = a[uint8(v>>55)]
+	// riscv64:"SRLI " -"MOVBU" -"SLLI"
+	a[2] = a[uint8(v>>56)]
+	// riscv64:"SRLI " -"MOVBU" -"SLLI"
+	if uint8(v>>57) < 100 {
+		a[3] = 1
+	}
+}
+
+func rshConst32Uto32U(v uint32, a []int8) {
+	// riscv64:"SRLIW " -"MOVWU" -"SLLI"
+	a[1] = a[uint32(v>>24)]
+}
+
+func rshConst32Uto16U(v uint32, a []int8) {
+	// riscv64:"SRLIW " "MOVHU" -"SLLI"
+	a[1] = a[uint16(v>>15)]
+	// riscv64:"SRLIW " -"MOVHU" -"SLLI"
+	a[2] = a[uint16(v>>16)]
+	// riscv64:"SRLIW" -"MOVHU" -"SLLI"
+	if uint16(v>>17) < 100 {
+		a[3] = 1
+	}
+}
+
+func rshConst32Uto8U(v uint32, a []int8) {
+	// riscv64:"SRLIW " "MOVBU" -"SLLI"
+	a[1] = a[uint8(v>>22)]
+	// riscv64:"SRLIW " -"MOVBU" -"SLLI"
+	a[2] = a[uint8(v>>24)]
+	// riscv64:"SRLIW" -"MOVBU" -"SLLI"
+	if uint8(v>>25) < 100 {
+		a[3] = 1
+	}
 }
 
 // ------------------ //
@@ -194,13 +261,14 @@ func lshMask32x64(v int32, s uint64) int32 {
 	// arm64:"LSL" -"AND"
 	// loong64:"SLL " "AND" "SGTU" "MASKEQZ"
 	// ppc64x:"ISEL" -"ORN"
-	// riscv64:"SLL" -"AND " -"SLTIU"
+	// riscv64:"SLLW" "AND " "SLTIU"
 	// s390x:-"RISBGZ" -"AND" -"LOCGR"
 	return v << (s & 63)
 }
 
 func lsh5Mask32x64(v int32, s uint64) int32 {
 	// loong64:"SLL " -"AND"
+	// riscv64:"SLLW" -"AND " -"SLTIU"
 	return v << (s & 31)
 }
 
@@ -524,30 +592,30 @@ func checkShiftAndMask32(v []uint32) {
 }
 
 func checkMergedShifts32(a [256]uint32, b [256]uint64, u uint32, v uint32) {
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
 	a[0] = a[uint8(v>>24)]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]11, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]11, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[0] = b[uint8(v>>24)]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[1] = b[(v>>20)&0xFF]
-	// ppc64x: -"SLD", "RLWNM [$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
+	// ppc64x: -"SLD" "RLWNM [$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
 	b[2] = b[v>>25]
 }
 
 func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
 	a[0] = a[uint8(v>>24)]
-	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
+	// ppc64x: "SRD" "CLRLSLDI" -"RLWNM"
 	a[1] = a[uint8(v>>25)]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]9, R[0-9]+, [$]23, [$]29, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]9, R[0-9]+, [$]23, [$]29, R[0-9]+"
 	a[2] = a[v>>25&0x7F]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]3, R[0-9]+, [$]29, [$]29, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]3, R[0-9]+, [$]29, [$]29, R[0-9]+"
 	a[3] = a[(v>>31)&0x01]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]12, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]12, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[0] = b[uint8(v>>23)]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[1] = b[(v>>20)&0xFF]
-	// ppc64x: "RLWNM", -"SLD"
+	// ppc64x: "RLWNM" -"SLD"
 	b[2] = b[((uint64((uint32(v) >> 21)) & 0x3f) << 4)]
 	// ppc64x: -"RLWNM"
 	b[3] = (b[3] << 24) & 0xFFFFFF000000
@@ -568,9 +636,9 @@ func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
 func checkShiftMask(a uint32, b uint64, z []uint32, y []uint64) {
 	_ = y[128]
 	_ = z[128]
-	// ppc64x: -"MOVBZ", -"SRW", "RLWNM"
+	// ppc64x: -"MOVBZ" -"SRW" "RLWNM"
 	z[0] = uint32(uint8(a >> 5))
-	// ppc64x: -"MOVBZ", -"SRW", "RLWNM"
+	// ppc64x: -"MOVBZ" -"SRW" "RLWNM"
 	z[1] = uint32(uint8((a >> 4) & 0x7e))
 	// ppc64x: "RLWNM [$]25, R[0-9]+, [$]27, [$]29, R[0-9]+"
 	z[2] = uint32(uint8(a>>7)) & 0x1c
@@ -578,23 +646,10 @@ func checkShiftMask(a uint32, b uint64, z []uint32, y []uint64) {
 	y[0] = uint64((a >> 6) & 0x1c)
 	// ppc64x: -"MOVWZ"
 	y[1] = uint64(uint32(b)<<6) + 1
-	// ppc64x: -"MOVHZ", -"MOVWZ"
+	// ppc64x: -"MOVHZ" -"MOVWZ"
 	y[2] = uint64((uint16(a) >> 9) & 0x1F)
-	// ppc64x: -"MOVHZ", -"MOVWZ", -"ANDCC"
+	// ppc64x: -"MOVHZ" -"MOVWZ" -"ANDCC"
 	y[3] = uint64(((uint16(a) & 0xFF0) >> 9) & 0x1F)
-}
-
-// 128 bit shifts
-
-func check128bitShifts(x, y uint64, bits uint) (uint64, uint64) {
-	s := bits & 63
-	ŝ := (64 - bits) & 63
-	// check that the shift operation has two commas (three operands)
-	// amd64:"SHRQ.*,.*,"
-	shr := x>>s | y<<ŝ
-	// amd64:"SHLQ.*,.*,"
-	shl := x<<s | y>>ŝ
-	return shr, shl
 }
 
 func checkShiftToMask(u []uint64, s []int64) {
@@ -661,7 +716,7 @@ func rsh64to32(v int64) int32 {
 	x := int32(v)
 	// riscv64:"MOVW"
 	if x > 8 {
-		// riscv64:"SRAIW" -"MOVW" -"SLLI"
+		// riscv64:"SRLIW" -"MOVW" -"SLLI"
 		x >>= 2
 	}
 	return x
@@ -671,7 +726,7 @@ func rsh64to16(v int64) int16 {
 	x := int16(v)
 	// riscv64:"MOVH"
 	if x > 8 {
-		// riscv64:"SLLI" "SRAI"
+		// riscv64:"SLLI" "SRLI"
 		x >>= 2
 	}
 	return x
@@ -681,7 +736,7 @@ func rsh64to8(v int64) int8 {
 	x := int8(v)
 	// riscv64:"MOVB"
 	if x > 8 {
-		// riscv64:"SLLI" "SRAI"
+		// riscv64:"SLLI" "SRLI"
 		x >>= 2
 	}
 	return x

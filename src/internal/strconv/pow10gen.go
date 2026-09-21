@@ -55,7 +55,19 @@ func main() {
 		}
 		d := new(big.Int).Div(r.Num(), r.Denom())
 		hi, lo := new(big.Int).DivMod(d, b1p64, new(big.Int))
-		fmt.Fprintf(&out, "\t{%#016x, %#016x}, // 1e%d * 2**%d\n", hi.Uint64(), lo.Uint64(), e, be)
+		uhi := hi.Uint64()
+		ulo := lo.Uint64()
+		if !r.IsInt() {
+			ulo++
+			if ulo == 0 {
+				uhi++
+			}
+		}
+		if ulo != 0 {
+			uhi++
+			ulo = -ulo
+		}
+		fmt.Fprintf(&out, "\t{%#016x, %#016x}, // 1e%d * 2**%d\n", uhi, ulo, e, be)
 	}
 	fmt.Fprintf(&out, "}\n")
 
@@ -86,6 +98,6 @@ const (
 
 
 // pow10Tab holds 128-bit mantissas of powers of 10.
-// The values are scaled so the high bit is always set; there is no "implicit leading 1 bit".
-var pow10Tab = [...]uint128{
+// The values are scaled so the high bit is always set.
+var pow10Tab = [...]pmHiLo{
 `

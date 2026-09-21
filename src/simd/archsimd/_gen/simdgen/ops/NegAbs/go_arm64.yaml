@@ -1,0 +1,36 @@
+!sum
+# Signed integer Neg — VNEG
+- go: Neg
+  asm: "VNEG"
+  in:
+  - &int
+    go: $t
+    base: int
+  out:
+  - *int
+
+# Float Neg — VFNEG
+- go: Neg
+  asm: "VFNEG"
+  in:
+  - &float
+    go: $t
+    base: float
+  out:
+  - *float
+
+# Signed integer Abs — VABS
+- go: Abs
+  asm: "VABS"
+  in:
+  - *int
+  out:
+  - *int
+
+# Float Abs — VFABS
+- go: Abs
+  asm: "VFABS"
+  in:
+  - *float
+  out:
+  - *float

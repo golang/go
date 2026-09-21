@@ -120,7 +120,7 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 		// Ensure the start/end are consistent,
 		// whether parsing succeeded or not.
 		f.FileStart = token.Pos(file.Base())
-		f.FileEnd = token.Pos(file.Base() + file.Size())
+		f.FileEnd = file.End()
 
 		p.errors.Sort()
 		err = p.errors.Err()

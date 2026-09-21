@@ -258,14 +258,14 @@ func TypeExpr(t types.Type, qual types.Qualifier) ast.Expr {
 
 	case *types.Signature:
 		var params []*ast.Field
-		for i := 0; i < t.Params().Len(); i++ {
+		for v := range t.Params().Variables() {
+			var names []*ast.Ident
+			if v.Name() != "" {
+				names = []*ast.Ident{ast.NewIdent(v.Name())}
+			}
 			params = append(params, &ast.Field{
-				Type: TypeExpr(t.Params().At(i).Type(), qual),
-				Names: []*ast.Ident{
-					{
-						Name: t.Params().At(i).Name(),
-					},
-				},
+				Type:  TypeExpr(v.Type(), qual),
+				Names: names,
 			})
 		}
 		if t.Variadic() {
@@ -273,9 +273,9 @@ func TypeExpr(t types.Type, qual types.Qualifier) ast.Expr {
 			last.Type = &ast.Ellipsis{Elt: last.Type.(*ast.ArrayType).Elt}
 		}
 		var returns []*ast.Field
-		for i := 0; i < t.Results().Len(); i++ {
+		for v := range t.Results().Variables() {
 			returns = append(returns, &ast.Field{
-				Type: TypeExpr(t.Results().At(i).Type(), qual),
+				Type: TypeExpr(v.Type(), qual),
 			})
 		}
 		return &ast.FuncType{
@@ -315,8 +315,8 @@ func TypeExpr(t types.Type, qual types.Qualifier) ast.Expr {
 		if hasTypeArgs, ok := t.(interface{ TypeArgs() *types.TypeList }); ok {
 			if typeArgs := hasTypeArgs.TypeArgs(); typeArgs != nil && typeArgs.Len() > 0 {
 				var indices []ast.Expr
-				for i := range typeArgs.Len() {
-					indices = append(indices, TypeExpr(typeArgs.At(i), qual))
+				for t0 := range typeArgs.Types() {
+					indices = append(indices, TypeExpr(t0, qual))
 				}
 				expr = &ast.IndexListExpr{
 					X:       expr,
@@ -328,10 +328,10 @@ func TypeExpr(t types.Type, qual types.Qualifier) ast.Expr {
 		return expr
 
 	case *types.Struct:
-		return ast.NewIdent(t.String())
+		return ast.NewIdent(types.TypeString(t, qual))
 
 	case *types.Interface:
-		return ast.NewIdent(t.String())
+		return ast.NewIdent(types.TypeString(t, qual))
 
 	case *types.Union:
 		if t.Len() == 0 {

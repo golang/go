@@ -21,24 +21,6 @@ import (
 //
 // Like a defined ([Named]) type, an alias type has a name.
 // Use the [Alias.Obj] method to access its [TypeName] object.
-//
-// Historically, Alias types were not materialized so that, in the example
-// above, A's type was represented by a Basic (int), not an Alias
-// whose [Alias.Rhs] is int. But Go 1.24 allows you to declare an
-// alias type with type parameters or arguments:
-//
-//	type Set[K comparable] = map[K]bool
-//	s := make(Set[String])
-//
-// and this requires that Alias types be materialized. Use the
-// [Alias.TypeParams] and [Alias.TypeArgs] methods to access them.
-//
-// To ease the transition, the Alias type was introduced in go1.22,
-// but the type-checker would not construct values of this type unless
-// the GODEBUG=gotypesalias=1 environment variable was provided.
-// Starting in go1.23, this variable is enabled by default.
-// This setting also causes the predeclared type "any" to be
-// represented as an Alias, not a bare [Interface].
 type Alias struct {
 	obj     *TypeName      // corresponding declared alias object
 	orig    *Alias         // original, uninstantiated alias

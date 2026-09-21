@@ -29,7 +29,7 @@ type traceWriter struct {
 	*traceBuf
 }
 
-// writer returns an a traceWriter that writes into the current M's stream.
+// writer returns a traceWriter that writes into the current M's stream.
 //
 // Once this is called, the caller must guard against stack growth until
 // end is called on it. Therefore, it's highly recommended to use this

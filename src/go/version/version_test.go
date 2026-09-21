@@ -15,6 +15,7 @@ var compareTests = []testCase2[string, string, int]{
 	{"", "", 0},
 	{"x", "x", 0},
 	{"", "x", 0},
+	{"notgo1.21", "go1.21", -1},
 	{"1", "1.1", 0},
 	{"go1", "go1.1", -1},
 	{"go1.5", "go1.6", -1},
@@ -47,6 +48,7 @@ func TestLang(t *testing.T) { test1(t, langTests, "Lang", Lang) }
 
 var langTests = []testCase1[string, string]{
 	{"bad", ""},
+	{"notgo1.21", ""},
 	{"go1.2rc3", "go1.2"},
 	{"go1.2.3", "go1.2"},
 	{"go1.2", "go1.2"},
@@ -60,6 +62,7 @@ func TestIsValid(t *testing.T) { test1(t, isValidTests, "IsValid", IsValid) }
 var isValidTests = []testCase1[string, bool]{
 	{"", false},
 	{"1.2.3", false},
+	{"notgo1.21", false},
 	{"go1.2rc3", true},
 	{"go1.2.3", true},
 	{"go1.999testmod", true},

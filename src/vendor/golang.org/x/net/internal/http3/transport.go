@@ -1,0 +1,413 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package http3
+
+import (
+	"context"
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"math"
+	"net"
+	"net/http"
+	"net/url"
+	"sync"
+
+	"golang.org/x/net/quic"
+)
+
+// A transport is an HTTP/3 transport.
+//
+// It does not manage a pool of connections,
+// and therefore does not implement net/http.RoundTripper.
+//
+// TODO: Provide a way to register an HTTP/3 transport with a net/http.transport's
+// connection pool.
+type transport struct {
+	tr1  *http.Transport
+	opts TransportOpts
+
+	mu sync.Mutex // Guards fields below.
+	// endpoint is the QUIC endpoint used by connections created by the
+	// transport. If CloseIdleConnections is called when activeConns is empty,
+	// endpoint will be unset. If unset, endpoint will be initialized by any
+	// call to dial.
+	endpoint      *quic.Endpoint
+	activeConns   map[*clientConn]struct{}
+	inFlightDials int
+}
+
+// netHTTPTransport implements the net/http.dialClientConner interface,
+// allowing our HTTP/3 transport to integrate with net/http.
+type netHTTPTransport struct {
+	*transport
+}
+
+// Registered is called to record successful registration with a net/http Transport.
+func (t netHTTPTransport) Registered(tr1 *http.Transport) {
+	t.transport.tr1 = tr1
+}
+
+// RoundTrip is defined since Transport.RegisterProtocol takes in a
+// RoundTripper. However, this method will never be used as net/http's
+// dialClientConner interface does not have a RoundTrip method and will only
+// use DialClientConn to create a new RoundTripper.
+func (t netHTTPTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	panic("netHTTPTransport.RoundTrip should never be called")
+}
+
+func (t netHTTPTransport) DialClientConn(ctx context.Context, addr string, _ *url.URL, tlsConfig *tls.Config, stateHook func()) (http.RoundTripper, error) {
+	return t.transport.dial(ctx, addr, tlsConfig, stateHook)
+}
+
+type TransportOpts struct {
+	// ListenQUIC determines how the transport will open a QUIC endpoint.
+	// By default, quic.Listen("udp", addr, config) is used.
+	// ListenQUIC might be called multiple times.
+	ListenQUIC func(addr string, config *quic.Config) (*quic.Endpoint, error)
+
+	// ListenPacket specifies the function for creating a UDP listener.
+	// If ListenPacket is nil, then the transport listens using net.ListenPacket.
+	//
+	// If ListenQUIC and ListenPacket are both set, ListenQUIC takes priority.
+	ListenPacket func(network, addr string) (net.PacketConn, error)
+
+	// QUICConfig is the QUIC configuration used by the transport.
+	// QUICConfig may be nil and should not be modified after calling
+	// RegisterTransport.
+	//
+	// The QUICConfig's TLSConfig is not used.
+	// Set the TLSConfig on the net/http Transport instead.
+	QUICConfig *quic.Config
+}
+
+// RegisterTransport configures a net/http HTTP/1 Transport to use HTTP/3.
+func RegisterTransport(tr *http.Transport, opts TransportOpts) error {
+	tr3 := &transport{
+		opts:        opts,
+		activeConns: make(map[*clientConn]struct{}),
+	}
+	// RegisterProtocol will set tr3.tr1.
+	tr.RegisterProtocol("http/3", netHTTPTransport{tr3})
+	if tr3.tr1 != tr {
+		return errors.New("http3: net/http does not support HTTP/3")
+	}
+	return nil
+}
+
+func (tr *transport) incInFlightDials() {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	tr.inFlightDials++
+}
+
+func (tr *transport) decInFlightDials() {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	tr.inFlightDials--
+}
+
+func (tr *transport) initEndpoint() (err error) {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	// This might cause rare issues on Darwin. Unlike Linux, Darwin kernel
+	// seems to have the following behaviors:
+	// - After closing a UDP socket, the port that was bound to the socket
+	//   might not be immediately usable again.
+	// - When doing IPv6 dual-stack binding (e.g., bind to ":0"), it will
+	//   happily bind the IPv6 port, even when the IPv4 port is unavailable.
+	//
+	// When both of these are combined, in practice, it is possible for the
+	// following to happen:
+	// 1. Transport binds ":0", creating a dual-stack IPv6 UDP socket.
+	//    Everything works as expected.
+	// 2. At some point, CloseIdleConnections is called and the socket is
+	//    closed.
+	// 3. Soon after, a new dial is started, and a new dual-stack IPv6 socket
+	//    is coincidentally assigned the same port as the previous socket.
+	// 4. If the IPv4 port is still unavailable, Darwin's permissive binding
+	//    behavior will cause us to have a socket that silently is unable to
+	//    receive packets on its IPv4 address.
+	// 5. If the dial target is an IPv4 address, transport will be able to send
+	//    packets to the target, but will be unable to receive its reply.
+	//
+	// TransportOpts.ListenQUIC can technically be configured to avoid
+	// dual-stack binding to avoid this issue, and high socket churn is
+	// probably uncommon for regular use cases. However, finding a workaround
+	// for this eventually would be ideal.
+	if tr.endpoint == nil {
+		quicConfig := newQUICConfig(tr.opts.QUICConfig, tr.tr1.TLSClientConfig)
+		if tr.opts.ListenQUIC != nil {
+			tr.endpoint, err = tr.opts.ListenQUIC(":0", quicConfig)
+		} else if tr.opts.ListenPacket != nil {
+			var conn net.PacketConn
+			conn, err = tr.opts.ListenPacket("udp", ":0")
+			if err != nil {
+				return err
+			}
+			tr.endpoint, err = quic.NewEndpoint(conn, quicConfig)
+			if err != nil {
+				conn.Close()
+			}
+		} else {
+			tr.endpoint, err = quic.Listen("udp", ":0", quicConfig)
+		}
+	}
+	return err
+}
+
+// dial creates a new HTTP/3 client connection.
+func (tr *transport) dial(ctx context.Context, target string, tlsConfig *tls.Config, stateHook func()) (*clientConn, error) {
+	tr.incInFlightDials()
+	defer tr.decInFlightDials()
+
+	if err := tr.initEndpoint(); err != nil {
+		return nil, err
+	}
+	qconn, err := tr.endpoint.Dial(ctx, "udp", target, newQUICConfig(tr.opts.QUICConfig, tlsConfig))
+	if err != nil {
+		return nil, err
+	}
+	return tr.newClientConn(ctx, qconn, stateHook)
+}
+
+// CloseIdleConnections is called by net/http.Transport.CloseIdleConnections
+// after all existing idle connections are closed using http3.clientConn.Close.
+//
+// When the transport has no active connections anymore, calling this method
+// will make the transport clean up any shared resources that are no longer
+// required, such as its QUIC endpoint.
+func (tr *transport) CloseIdleConnections() {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	if tr.endpoint == nil || len(tr.activeConns) > 0 || tr.inFlightDials > 0 {
+		return
+	}
+	tr.endpoint.Close(canceledCtx)
+	tr.endpoint = nil
+}
+
+// A clientConn is a client HTTP/3 connection.
+//
+// Multiple goroutines may invoke methods on a clientConn simultaneously.
+type clientConn struct {
+	tr           *transport
+	unregistered chan struct{} // closed when clientConn is unregistered from tr.
+
+	qconn *quic.Conn
+	genericConn
+
+	enc qpackEncoder
+	dec qpackDecoder
+
+	// Guarded by genericConn.mu
+	reserved int
+	active   int
+	closed   bool
+
+	stateHook func()
+}
+
+func (tr *transport) registerConn(cc *clientConn) {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	tr.activeConns[cc] = struct{}{}
+}
+
+func (tr *transport) unregisterConn(cc *clientConn) {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	delete(tr.activeConns, cc)
+	close(cc.unregistered)
+}
+
+func (tr *transport) newClientConn(ctx context.Context, qconn *quic.Conn, stateHook func()) (*clientConn, error) {
+	cc := &clientConn{
+		tr:           tr,
+		unregistered: make(chan struct{}),
+		qconn:        qconn,
+		stateHook:    stateHook,
+	}
+	tr.registerConn(cc)
+	cc.enc.init()
+
+	// Create control stream and send SETTINGS frame.
+	controlStream, err := newConnStream(ctx, cc.qconn, streamTypeControl)
+	if err != nil {
+		tr.unregisterConn(cc)
+		return nil, fmt.Errorf("http3: cannot create control stream: %v", err)
+	}
+	controlStream.writeSettings()
+	controlStream.Flush()
+
+	go func() {
+		cc.acceptStreams(qconn, cc)
+		cc.mu.Lock()
+		cc.closed = true
+		cc.mu.Unlock()
+		cc.maybeCallStateHook()
+		tr.unregisterConn(cc)
+	}()
+	return cc, nil
+}
+
+func (cc *clientConn) Close() error {
+	err := cc.qconn.Close()
+	// Wait until cc is actually unregistered from the transport before
+	// returning. Otherwise, a race condition might occur: CloseIdleConnections
+	// might be called before cc gets a chance to be unregistered; if so,
+	// CloseIdleConnections will unexpectedly not close its QUIC endpoint,
+	// thinking that there is still an active cc.
+	<-cc.unregistered
+	return err
+}
+
+func (cc *clientConn) Err() error {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	if cc.closed {
+		return errors.New("connection closed")
+	}
+	return nil
+}
+
+func (cc *clientConn) Reserve() error {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	if cc.closed {
+		return errors.New("connection closed")
+	}
+	cc.reserved++
+	return nil
+}
+
+func (cc *clientConn) Release() {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	// This is consistent with RoundTrip: both Release and RoundTrip will
+	// consume a reservation iff one exists.
+	if cc.reserved > 0 {
+		cc.reserved--
+	}
+}
+
+func (cc *clientConn) Available() int {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	if cc.closed {
+		return 0
+	}
+	// The general recommendation for HTTP/3 is to reuse the same connection
+	// for multiple requests rather than creating new connections. As of now,
+	// we don't have a good understanding of when one might want to create
+	// multiple HTTP/3 connections to the same server.
+	// Therefore, for ClientConn API, let HTTP/3 connections have no limit.
+	// Starting a new RoundTrip when we are at the connection limit will just
+	// block until a new max stream limit is received.
+	return math.MaxInt
+}
+
+func (cc *clientConn) InFlight() int {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	if cc.closed {
+		return 0
+	}
+	return cc.reserved + cc.active
+}
+
+func (cc *clientConn) maybeCallStateHook() {
+	if cc.stateHook != nil {
+		cc.stateHook()
+	}
+}
+
+func (cc *clientConn) handleControlStream(st *stream) error {
+	// "A SETTINGS frame MUST be sent as the first frame of each control stream [...]"
+	// https://www.rfc-editor.org/rfc/rfc9114.html#section-7.2.4-2
+	if err := st.readSettings(func(settingsType, settingsValue int64) error {
+		switch settingsType {
+		case settingsMaxFieldSectionSize:
+			_ = settingsValue // TODO
+		case settingsQPACKMaxTableCapacity:
+			_ = settingsValue // TODO
+		case settingsQPACKBlockedStreams:
+			_ = settingsValue // TODO
+		default:
+			// Unknown settings types are ignored.
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	for {
+		ftype, err := st.readFrameHeader()
+		if err != nil {
+			return err
+		}
+		switch ftype {
+		case frameTypeCancelPush:
+			// "If a CANCEL_PUSH frame is received that references a push ID
+			// greater than currently allowed on the connection,
+			// this MUST be treated as a connection error of type H3_ID_ERROR."
+			// https://www.rfc-editor.org/rfc/rfc9114.html#section-7.2.3-7
+			return &connectionError{
+				code:    errH3IDError,
+				message: "CANCEL_PUSH received when no MAX_PUSH_ID has been sent",
+			}
+		case frameTypeGoaway:
+			// TODO: Wait for requests to complete before closing connection.
+			return errH3NoError
+		default:
+			// Unknown frames are ignored.
+			if err := st.discardUnknownFrame(ftype); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (cc *clientConn) handleEncoderStream(*stream) error {
+	// TODO
+	return nil
+}
+
+func (cc *clientConn) handleDecoderStream(*stream) error {
+	// TODO
+	return nil
+}
+
+func (cc *clientConn) handlePushStream(*stream) error {
+	// "A client MUST treat receipt of a push stream as a connection error
+	// of type H3_ID_ERROR when no MAX_PUSH_ID frame has been sent [...]"
+	// https://www.rfc-editor.org/rfc/rfc9114.html#section-4.6-3
+	return &connectionError{
+		code:    errH3IDError,
+		message: "push stream created when no MAX_PUSH_ID has been sent",
+	}
+}
+
+func (cc *clientConn) handleRequestStream(st *stream) error {
+	// "Clients MUST treat receipt of a server-initiated bidirectional
+	// stream as a connection error of type H3_STREAM_CREATION_ERROR [...]"
+	// https://www.rfc-editor.org/rfc/rfc9114.html#section-6.1-3
+	return &connectionError{
+		code:    errH3StreamCreationError,
+		message: "server created bidirectional stream",
+	}
+}
+
+// abort closes the connection with an error.
+func (cc *clientConn) abort(err error) {
+	if e, ok := err.(*connectionError); ok {
+		cc.qconn.Abort(&quic.ConnectionCloseError{
+			Code:   uint64(e.code),
+			Reason: e.message,
+		})
+	} else {
+		cc.qconn.Abort(err)
+	}
+}

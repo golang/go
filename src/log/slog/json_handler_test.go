@@ -9,7 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"internal/goexperiment"
 	"io"
 	"log/slog/internal/buffer"
 	"math"
@@ -53,6 +53,39 @@ func TestJSONHandler(t *testing.T) {
 	}
 }
 
+func TestJSONHandlerMarshalerEscaping(t *testing.T) {
+	var buf bytes.Buffer
+	h := NewJSONHandler(&buf, nil)
+	r := NewRecord(testTime, LevelInfo, "m", 0)
+	r.AddAttrs(Any("m", jsonMarshaler{marshalerASCII}))
+	if err := h.Handle(t.Context(), r); err != nil {
+		t.Fatal(err)
+	}
+	got := bytes.TrimSuffix(buf.Bytes(), []byte{'\n'})
+	if !json.Valid(got) {
+		t.Fatalf("output is not valid JSON: %q", got)
+	}
+	for _, escaped := range []string{`\"`, `\\`, `\t`, `\n`, `\u0000`} {
+		if !bytes.Contains(got, []byte(escaped)) {
+			t.Errorf("output %q does not contain JSON escape %q", got, escaped)
+		}
+	}
+	for i := byte(0); i < 0x20; i++ {
+		if bytes.IndexByte(got, i) >= 0 {
+			t.Errorf("output %q contains unescaped control character %#x", got, i)
+		}
+	}
+	var record struct {
+		M []string `json:"m"`
+	}
+	if err := json.Unmarshal(got, &record); err != nil {
+		t.Fatal(err)
+	}
+	if len(record.M) != 1 || record.M[0] != marshalerASCII {
+		t.Errorf("marshaled value = %q, want %q", record.M, []string{marshalerASCII})
+	}
+}
+
 // for testing json.Marshaler
 type jsonMarshaler struct {
 	s string
@@ -64,12 +97,14 @@ func (j jsonMarshaler) MarshalJSON() ([]byte, error) {
 	if j.s == "" {
 		return nil, errors.New("json: empty string")
 	}
-	return []byte(fmt.Sprintf(`[%q]`, j.s)), nil
+	return json.Marshal([]string{j.s})
 }
 
 type jsonMarshalerError struct {
 	jsonMarshaler
 }
+
+var _ error = jsonMarshalerError{}
 
 func (jsonMarshalerError) Error() string { return "oops" }
 
@@ -101,6 +136,7 @@ func TestAppendJSONValue(t *testing.T) {
 		}
 		if got != want {
 			t.Errorf("%v: got %s, want %s", value, got, want)
+			t.Errorf("%v: got %x, want %x", value, got, want)
 		}
 	}
 }
@@ -162,7 +198,11 @@ func TestJSONAllocs(t *testing.T) {
 		})
 	})
 	t.Run("attrs", func(t *testing.T) {
-		wantAllocs(t, 1, func() {
+		// TODO(https://go.dev/issue/74617): JSONv2 heap copies aggressively
+		// to ensure that Go values are addressable in case a pointer method
+		// must be called. This leads to more allocations than necessary,
+		// but as an implementation detail, it can eventually be optimized away.
+		wantAllocs(t, 1+goexperiment.JSONv2Int, func() {
 			l.LogAttrs(ctx, LevelInfo,
 				"hello world",
 				String("component", "subtest"),
@@ -214,8 +254,7 @@ func BenchmarkJSONHandler(b *testing.B) {
 				String("traceID", "2039232309232309"),
 				String("URL", "https://pkg.go.dev/golang.org/x/log/slog"))
 			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				l.LogAttrs(ctx, LevelInfo, "this is a typical log message",
 					String("module", "github.com/google/go-cmp"),
 					String("version", "v1.23.4"),
@@ -276,8 +315,7 @@ func BenchmarkPreformatting(b *testing.B) {
 		b.Run(bench.name, func(b *testing.B) {
 			l := New(NewJSONHandler(bench.wc, nil)).With(bench.attrs...)
 			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				l.LogAttrs(ctx, LevelInfo, "this is a typical log message",
 					String("module", "github.com/google/go-cmp"),
 					String("version", "v1.23.4"),

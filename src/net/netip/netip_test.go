@@ -2049,6 +2049,14 @@ func BenchmarkPrefixMasking(b *testing.B) {
 	}
 }
 
+func BenchmarkPrefixString(b *testing.B) {
+	b.ReportAllocs()
+	ipp := MustParsePrefix("66.55.44.33/22")
+	for i := 0; i < b.N; i++ {
+		sinkString = ipp.String()
+	}
+}
+
 func BenchmarkPrefixMarshalText(b *testing.B) {
 	b.ReportAllocs()
 	ipp := MustParsePrefix("66.55.44.33/22")

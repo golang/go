@@ -3,7 +3,6 @@
 
 env GO111MODULE=off
 
-[short] skip
 [cross] skip # gccgo can't necessarily cross-compile
 
 cd m

@@ -269,7 +269,7 @@ func BenchmarkMarshalCorpusFile(b *testing.B) {
 	}
 }
 
-// BenchmarkUnmarshalCorpusfile measures the time it takes to deserialize
+// BenchmarkUnmarshalCorpusFile measures the time it takes to deserialize
 // files encoding byte slices of various sizes. The slice contains a repeating
 // sequence of bytes 0-255 to mix escaped and non-escaped characters.
 func BenchmarkUnmarshalCorpusFile(b *testing.B) {

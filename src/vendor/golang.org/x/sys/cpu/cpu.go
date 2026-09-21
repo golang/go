@@ -152,13 +152,17 @@ var ARM struct {
 // The booleans in Loong64 contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
 var Loong64 struct {
-	_         CacheLinePad
-	HasLSX    bool // support 128-bit vector extension
-	HasLASX   bool // support 256-bit vector extension
-	HasCRC32  bool // support CRC instruction
-	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
-	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D} instruction
-	_         CacheLinePad
+	_              CacheLinePad
+	HasLSX         bool // support 128-bit vector extension
+	HasLASX        bool // support 256-bit vector extension
+	HasCRC32       bool // support CRC instruction
+	HasLAMCAS      bool // support AMCAS[_DB].{B/H/W/D}
+	HasLAM_BH      bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
+	HasLLACQ_SCREL bool // support LLACQ.{W/D}, SCREL.{W/D} instruction
+	HasSCQ         bool // support SC.Q instruction
+	HasDBAR_HINTS  bool // supports finer-grained DBAR hints
+
+	_ CacheLinePad
 }
 
 // MIPS64X contains the supported CPU features of the current mips64/mips64le
@@ -178,12 +182,13 @@ var MIPS64X struct {
 // require kernel support to work (DARN, SCV), so there are feature bits for
 // those as well. The struct is padded to avoid false sharing.
 var PPC64 struct {
-	_        CacheLinePad
-	HasDARN  bool // Hardware random number generator (requires kernel enablement)
-	HasSCV   bool // Syscall vectored (requires kernel enablement)
-	IsPOWER8 bool // ISA v2.07 (POWER8)
-	IsPOWER9 bool // ISA v3.00 (POWER9), implies IsPOWER8
-	_        CacheLinePad
+	_         CacheLinePad
+	HasDARN   bool // Hardware random number generator (requires kernel enablement)
+	HasSCV    bool // Syscall vectored (requires kernel enablement)
+	IsPOWER8  bool // ISA v2.07 (POWER8)
+	IsPOWER9  bool // ISA v3.00 (POWER9), implies IsPOWER8
+	IsPOWER10 bool // ISA v3.1 (POWER10 and POWER11; POWER11 did not add a new architected level), implies IsPOWER9
+	_         CacheLinePad
 }
 
 // S390X contains the supported CPU features of the current IBM Z
@@ -232,6 +237,7 @@ var RISCV64 struct {
 	HasZba            bool // Address generation instructions extension
 	HasZbb            bool // Basic bit-manipulation extension
 	HasZbs            bool // Single-bit instructions extension
+	HasZbc            bool // Carryless multiplication extension
 	HasZvbb           bool // Vector Basic Bit-manipulation
 	HasZvbc           bool // Vector Carryless Multiplication
 	HasZvkb           bool // Vector Cryptography Bit-manipulation
@@ -243,13 +249,21 @@ var RISCV64 struct {
 	HasZvks           bool // ShangMi Algorithm Suite
 	HasZvksc          bool // ShangMi Algorithm Suite with carryless multiplication
 	HasZvksg          bool // ShangMi Algorithm Suite with GCM
+	VLENB             uint // Vector register length in bytes, 0 if undetected
 	_                 CacheLinePad
 }
+
+// doDerived, if non-nil, is called after processing GODEBUG to set "derived"
+// feature flags.
+var doDerived func()
 
 func init() {
 	archInit()
 	initOptions()
 	processOptions()
+	if doDerived != nil {
+		doDerived()
+	}
 }
 
 // options contains the cpu debug options that can be used in GODEBUG.

@@ -36,7 +36,7 @@ func DefaultCmds() map[string]Cmd {
 		"cp":      Cp(),
 		"echo":    Echo(),
 		"env":     Env(),
-		"exec":    Exec(func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }, 100*time.Millisecond), // arbitrary grace period
+		"exec":    Exec(func(cmd *exec.Cmd) error { return InterruptCmd(cmd) }, 100*time.Millisecond), // arbitrary grace period
 		"exists":  Exists(),
 		"grep":    Grep(),
 		"help":    Help(),
@@ -51,6 +51,19 @@ func DefaultCmds() map[string]Cmd {
 		"symlink": Symlink(),
 		"wait":    Wait(),
 	}
+}
+
+// InterruptCmd interrupts cmd process.
+// InterruptCmd kills the process on Windows, because
+// cmd.Process.Signal(os.Interrupt) is not supported on Windows.
+func InterruptCmd(cmd *exec.Cmd) error {
+	if runtime.GOOS == "windows" {
+		// windows does not implement cmd.Process.Signal
+		return cmd.Process.Kill()
+	}
+	// TODO(thepudds): currently cmd/go/script_test.go uses a platform-specific cancel
+	// that we could consider emulating here.
+	return cmd.Process.Signal(os.Interrupt)
 }
 
 // Command returns a new Cmd with a Usage method that returns a copy of the
@@ -468,6 +481,9 @@ func startCommand(s *State, name, path string, args []string, cancel func(*exec.
 
 	wait := func(s *State) (stdout, stderr string, err error) {
 		err = cmd.Wait()
+		if errors.Is(err, exec.ErrWaitDelay) {
+			err = fmt.Errorf("%w: output pipes not closed after waiting %v", err, cmd.WaitDelay)
+		}
 		return stdoutBuf.String(), stderrBuf.String(), err
 	}
 	return wait, nil

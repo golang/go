@@ -70,7 +70,8 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 	defer rc.Close()
 
 	buf := bufio.NewReader(rc)
-	data, err := exportdata.ReadUnified(buf)
+	// TODO(mark): Check for "i" format.
+	data, err := exportdata.ReadUnified(buf, false)
 	if err != nil {
 		err = fmt.Errorf("import %q: %v", path, err)
 		return

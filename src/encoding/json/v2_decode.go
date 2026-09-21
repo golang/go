@@ -35,18 +35,36 @@ import (
 // the value pointed at by the pointer. If the pointer is nil, Unmarshal
 // allocates a new value for it to point to.
 //
-// To unmarshal JSON into a value implementing [Unmarshaler],
-// Unmarshal calls that value's [Unmarshaler.UnmarshalJSON] method, including
-// when the input is a JSON null.
-// Otherwise, if the value implements [encoding.TextUnmarshaler]
-// and the input is a JSON quoted string, Unmarshal calls
-// [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
+// The JSON input is decoded according the following rules:
+//
+//   - If the value type implements [jsonv2.UnmarshalerFrom],
+//     then the UnmarshalJSONFrom method is called to decode the JSON value.
+//     If the method returns [errors.ErrUnsupported],
+//     then the input is decoded according to subsequent rules.
+//
+//   - If the value type implements [Unmarshaler],
+//     then the UnmarshalJSON method is called to decode the JSON value,
+//     including when the input is a JSON null.
+//
+//   - If the value implements [encoding.TextUnmarshaler] and
+//     the input is a JSON string, then the UnmarshalText method
+//     is called with the unquoted form of the string.
+//
+// Otherwise, Unmarshal uses the following type-dependent default decodings:
 //
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by [Marshal] (either the struct field name or its tag),
-// preferring an exact match but also accepting a case-insensitive match. By
-// default, object keys which don't have a corresponding struct field are
-// ignored (see [Decoder.DisallowUnknownFields] for an alternative).
+// preferring an exact match but also accepting a case-insensitive match.
+// If a name matches multiple fields, the field whose name matches exactly
+// is chosen. By default, object keys which don't have a corresponding
+// struct field are ignored (see [Decoder.DisallowUnknownFields] for an alternative).
+//
+// Incoming object members are processed in the order they are observed.
+// If an object includes duplicate names, later values will replace or be
+// merged into prior values, depending on the Go value type.
+// Case-insensitive matching provides another vector through which
+// duplicate names can occur: for example, the names "foo" and "Foo"
+// may both match the same Go struct field.
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
@@ -58,8 +76,10 @@ import (
 //   - map[string]any, for JSON objects
 //   - nil for JSON null
 //
-// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
-// to zero and then appends each element to the slice.
+// To unmarshal a JSON array into a slice, Unmarshal decodes each JSON array
+// element into the corresponding slice element, reusing existing slice
+// elements in-place. The slice grows to accommodate additional elements,
+// or is truncated if the JSON array is shorter.
 // As a special case, to unmarshal an empty JSON array into a slice,
 // Unmarshal replaces the slice with a new empty slice.
 //
@@ -124,7 +144,7 @@ func (e *UnmarshalTypeError) Error() string {
 		// Go representation for the JSON value.
 		// The logic in jsontext represents paths using a JSON Pointer,
 		// which is agnostic to the Go type system.
-		// Trying to convert a JSON Pointer into a UnmarshalTypeError.Field
+		// Trying to convert a JSON Pointer into an UnmarshalTypeError.Field
 		// is difficult. As a heuristic, if the last path token looks like
 		// an index into a JSON array (e.g., ".foo.bar.0"),
 		// avoid the phrase "Go struct field ".
@@ -179,6 +199,7 @@ func (e *InvalidUnmarshalError) Error() string {
 }
 
 // A Number represents a JSON number literal.
+// When unmarshaling, it also accepts JSON numbers encoded within a JSON string.
 type Number string
 
 // String returns the literal text of the number.

@@ -83,8 +83,18 @@ func (d *digest) Clone() (hash.Cloner, error) {
 	return &r, nil
 }
 
-// Add p to the running checksum d.
+// update adds p to the running checksum d.
 func update(d digest, p []byte) digest {
+	if haveSIMD && len(p) >= minSIMD {
+		return updateSIMD(d, p)
+	}
+	return updateGeneric(d, p)
+}
+
+// updateGeneric adds p to the running checksum d, one byte at a
+// time. It is the fallback for architectures without a vectorized
+// implementation, and for short inputs.
+func updateGeneric(d digest, p []byte) digest {
 	s1, s2 := uint32(d&0xffff), uint32(d>>16)
 	for len(p) > 0 {
 		var q []byte

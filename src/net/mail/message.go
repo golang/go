@@ -81,7 +81,7 @@ func readHeader(r *textproto.Reader) (map[string][]string, error) {
 		if err != nil {
 			return m, err
 		}
-		return m, errors.New("malformed initial line: " + line)
+		return m, fmt.Errorf("malformed initial line: %q", line)
 	}
 
 	for {
@@ -93,7 +93,7 @@ func readHeader(r *textproto.Reader) (map[string][]string, error) {
 		// Key ends at first colon.
 		k, v, ok := strings.Cut(kv, ":")
 		if !ok {
-			return m, errors.New("malformed header line: " + kv)
+			return m, fmt.Errorf("malformed header line: %q", kv)
 		}
 		key := textproto.CanonicalMIMEHeaderKey(k)
 
@@ -321,7 +321,7 @@ func (a *Address) String() string {
 	// Text in an encoded-word in a display-name must not contain certain
 	// characters like quotes or parentheses (see RFC 2047 section 5.3).
 	// When this is the case encode the name using base64 encoding.
-	if strings.ContainsAny(a.Name, "\"#$%&'(),.:;<>@[]^`{|}~") {
+	if strings.ContainsAny(a.Name, "\\\"#$%&'(),.:;<>@[]^`{|}~") {
 		return mime.BEncoding.Encode("utf-8", a.Name) + " " + s
 	}
 	return mime.QEncoding.Encode("utf-8", a.Name) + " " + s
@@ -575,8 +575,10 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 func (p *addrParser) consumePhrase() (phrase string, err error) {
 	debug.Printf("consumePhrase: [%s]", p.s)
 	// phrase = 1*word
-	var words []string
-	var isPrevEncoded bool
+	var (
+		words []string
+		sb    strings.Builder
+	)
 	for {
 		// obs-phrase allows CFWS after one word
 		if len(words) > 0 {
@@ -608,13 +610,22 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 			break
 		}
 		debug.Printf("consumePhrase: consumed %q", word)
-		if isPrevEncoded && isEncoded {
-			words[len(words)-1] += word
-		} else {
+		switch {
+		case isEncoded:
+			sb.WriteString(word)
+		case !isEncoded && sb.Len() > 0:
+			words = append(words, sb.String())
+			sb.Reset()
+			words = append(words, word)
+		default:
 			words = append(words, word)
 		}
-		isPrevEncoded = isEncoded
 	}
+
+	if sb.Len() > 0 {
+		words = append(words, sb.String())
+	}
+
 	// Ignore any error if we got at least one word.
 	if err != nil && len(words) == 0 {
 		debug.Printf("consumePhrase: hit err: %v", err)
@@ -753,7 +764,12 @@ func (p *addrParser) consumeDomainLiteral() (string, error) {
 	}
 
 	// Check if the domain literal is an IP address
-	if net.ParseIP(dtext) == nil {
+	if addr, ok := strings.CutPrefix(dtext, "IPv6:"); ok {
+		if len(net.ParseIP(addr)) != net.IPv6len {
+			return "", fmt.Errorf("mail: invalid IPv6 address in domain-literal: %q", dtext)
+		}
+
+	} else if net.ParseIP(dtext).To4() == nil {
 		return "", fmt.Errorf("mail: invalid IP address in domain-literal: %q", dtext)
 	}
 
@@ -832,7 +848,7 @@ func (p *addrParser) consumeComment() (string, bool) {
 	// '(' already consumed.
 	depth := 1
 
-	var comment string
+	var comment strings.Builder
 	for {
 		if p.empty() || depth == 0 {
 			break
@@ -846,12 +862,12 @@ func (p *addrParser) consumeComment() (string, bool) {
 			depth--
 		}
 		if depth > 0 {
-			comment += p.s[:1]
+			comment.WriteByte(p.s[0])
 		}
 		p.s = p.s[1:]
 	}
 
-	return comment, depth == 0
+	return comment.String(), depth == 0
 }
 
 func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, err error) {

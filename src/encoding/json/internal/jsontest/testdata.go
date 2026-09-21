@@ -25,7 +25,13 @@ import (
 // by other packages such that the location of testdata may change relative
 // to the working directory of the test itself.
 //
-//go:embed testdata/*.json.zst
+// Various tools assume that testdata directories are unnecessary if you don't
+// need to run tests. This includes cmd/internal/bootstrap_test, which runs go
+// install std on a GOROOT excluding testdata directories. Since this is an
+// importable package rather than a test, to avoid breaking that case we must
+// not actually name the directory testdata.
+//
+//go:embed _embed/*.json.zst
 var testdataFS embed.FS
 
 type Entry struct {
@@ -43,7 +49,7 @@ func mustGet[T any](v T, err error) T {
 
 // Data is a list of JSON testdata.
 var Data = func() (entries []Entry) {
-	fis := mustGet(fs.ReadDir(testdataFS, "testdata"))
+	fis := mustGet(fs.ReadDir(testdataFS, "_embed"))
 	slices.SortFunc(fis, func(x, y fs.DirEntry) int { return strings.Compare(x.Name(), y.Name()) })
 	for _, fi := range fis {
 		var entry Entry
@@ -57,7 +63,7 @@ var Data = func() (entries []Entry) {
 
 		// Lazily read and decompress the test data.
 		entry.Data = sync.OnceValue(func() []byte {
-			filePath := path.Join("testdata", fi.Name())
+			filePath := path.Join("_embed", fi.Name())
 			b := mustGet(fs.ReadFile(testdataFS, filePath))
 			zr := zstd.NewReader(bytes.NewReader(b))
 			return mustGet(io.ReadAll(zr))
@@ -494,7 +500,7 @@ type (
 		Coordinates          any             `json:"coordinates"`
 		Place                any             `json:"place"`
 		Contributors         any             `json:"contributors"`
-		RetweeetedStatus     *twitterStatus  `json:"retweeted_status"`
+		RetweetedStatus      *twitterStatus  `json:"retweeted_status"`
 		RetweetCount         int             `json:"retweet_count"`
 		FavoriteCount        int             `json:"favorite_count"`
 		Entities             twitterEntities `json:"entities,omitempty"`

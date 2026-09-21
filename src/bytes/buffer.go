@@ -77,6 +77,18 @@ func (b *Buffer) String() string {
 	return string(b.buf[b.off:])
 }
 
+// Peek returns the next n bytes without advancing the buffer.
+// If Peek returns fewer than n bytes, it also returns [io.EOF].
+// The slice is only valid until the next call to a read or write method.
+// The slice aliases the buffer content at least until the next buffer modification,
+// so immediate changes to the slice will affect the result of future reads.
+func (b *Buffer) Peek(n int) ([]byte, error) {
+	if b.Len() < n {
+		return b.buf[b.off:], io.EOF
+	}
+	return b.buf[b.off : b.off+n], nil
+}
+
 // empty reports whether the unread portion of the buffer is empty.
 func (b *Buffer) empty() bool { return len(b.buf) <= b.off }
 
@@ -299,9 +311,9 @@ func (b *Buffer) WriteByte(c byte) error {
 }
 
 // WriteRune appends the UTF-8 encoding of Unicode code point r to the
-// buffer, returning its length and an error, which is always nil but is
-// included to match [bufio.Writer]'s WriteRune. The buffer is grown as needed;
-// if it becomes too large, WriteRune will panic with [ErrTooLarge].
+// buffer, returning the number of bytes written and a nil error. The nil
+// error is included to match [bufio.Writer]'s WriteRune. The buffer is grown
+// as needed; if it becomes too large, WriteRune will panic with [ErrTooLarge].
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	// Compare as uint32 to correctly handle negative runes.
 	if uint32(r) < utf8.RuneSelf {

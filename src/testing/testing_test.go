@@ -237,43 +237,43 @@ func TestSetenv(t *testing.T) {
 	}
 }
 
-func expectParallelConflict(t *testing.T) {
-	want := testing.ParallelConflict
+func expectParallelConflict(t *testing.T, op string) {
+	want := testing.ParallelConflict(op)
 	if got := recover(); got != want {
 		t.Fatalf("expected panic; got %#v want %q", got, want)
 	}
 }
 
-func testWithParallelAfter(t *testing.T, fn func(*testing.T)) {
-	defer expectParallelConflict(t)
+func testWithParallelAfter(t *testing.T, op string, fn func(*testing.T)) {
+	defer expectParallelConflict(t, op)
 
 	fn(t)
 	t.Parallel()
 }
 
-func testWithParallelBefore(t *testing.T, fn func(*testing.T)) {
-	defer expectParallelConflict(t)
+func testWithParallelBefore(t *testing.T, op string, fn func(*testing.T)) {
+	defer expectParallelConflict(t, op)
 
 	t.Parallel()
 	fn(t)
 }
 
-func testWithParallelParentBefore(t *testing.T, fn func(*testing.T)) {
+func testWithParallelParentBefore(t *testing.T, op string, fn func(*testing.T)) {
 	t.Parallel()
 
 	t.Run("child", func(t *testing.T) {
-		defer expectParallelConflict(t)
+		defer expectParallelConflict(t, op)
 
 		fn(t)
 	})
 }
 
-func testWithParallelGrandParentBefore(t *testing.T, fn func(*testing.T)) {
+func testWithParallelGrandParentBefore(t *testing.T, op string, fn func(*testing.T)) {
 	t.Parallel()
 
 	t.Run("child", func(t *testing.T) {
 		t.Run("grand-child", func(t *testing.T) {
-			defer expectParallelConflict(t)
+			defer expectParallelConflict(t, op)
 
 			fn(t)
 		})
@@ -285,19 +285,19 @@ func tSetenv(t *testing.T) {
 }
 
 func TestSetenvWithParallelAfter(t *testing.T) {
-	testWithParallelAfter(t, tSetenv)
+	testWithParallelAfter(t, "t.Setenv", tSetenv)
 }
 
 func TestSetenvWithParallelBefore(t *testing.T) {
-	testWithParallelBefore(t, tSetenv)
+	testWithParallelBefore(t, "t.Setenv", tSetenv)
 }
 
 func TestSetenvWithParallelParentBefore(t *testing.T) {
-	testWithParallelParentBefore(t, tSetenv)
+	testWithParallelParentBefore(t, "t.Setenv", tSetenv)
 }
 
 func TestSetenvWithParallelGrandParentBefore(t *testing.T) {
-	testWithParallelGrandParentBefore(t, tSetenv)
+	testWithParallelGrandParentBefore(t, "t.Setenv", tSetenv)
 }
 
 func tChdir(t *testing.T) {
@@ -305,19 +305,19 @@ func tChdir(t *testing.T) {
 }
 
 func TestChdirWithParallelAfter(t *testing.T) {
-	testWithParallelAfter(t, tChdir)
+	testWithParallelAfter(t, "t.Chdir", tChdir)
 }
 
 func TestChdirWithParallelBefore(t *testing.T) {
-	testWithParallelBefore(t, tChdir)
+	testWithParallelBefore(t, "t.Chdir", tChdir)
 }
 
 func TestChdirWithParallelParentBefore(t *testing.T) {
-	testWithParallelParentBefore(t, tChdir)
+	testWithParallelParentBefore(t, "t.Chdir", tChdir)
 }
 
 func TestChdirWithParallelGrandParentBefore(t *testing.T) {
-	testWithParallelGrandParentBefore(t, tChdir)
+	testWithParallelGrandParentBefore(t, "t.Chdir", tChdir)
 }
 
 func TestChdir(t *testing.T) {
@@ -1120,6 +1120,101 @@ func TestArtifactDirConsistent(t *testing.T) {
 	b := t.ArtifactDir()
 	if a != b {
 		t.Errorf("t.ArtifactDir is not consistent between calls: %q, %q", a, b)
+	}
+}
+
+func TestArtifactDirectoryPaths(t *testing.T) {
+	testenv.MustHaveExec(t)
+	t.Parallel()
+
+	tempDir := t.TempDir()
+
+	// 1. Setup the temporary module.
+	if err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module example.com/testmod\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	writeTmpl := func(pkgDir string, content string) {
+		fullDir := filepath.Join(tempDir, pkgDir)
+		if err := os.MkdirAll(fullDir, 0777); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(fullDir, "a_test.go"), []byte(content), 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Root package test
+	writeTmpl(".", `package root_test
+import "testing"
+func TestRootNiceName(t *testing.T) { t.ArtifactDir() }
+`)
+
+	// Subpackage test
+	writeTmpl("subpkg", `package subpkg_test
+import "testing"
+func TestSubNiceName(t *testing.T) { t.ArtifactDir() }
+`)
+
+	// Deep subpackage test with various scenarios
+	writeTmpl("deep/nested/pkg", `package pkg_test
+import "testing"
+func TestNiceName(t *testing.T) { t.ArtifactDir() }
+func TestParent(t *testing.T) {
+	t.Run("SubTest", func(t *testing.T) { t.ArtifactDir() })
+}
+func TestVeryLongNameThatExceedsSixtyFourCharactersAndThereforeMustBeTruncatedAndHashed(t *testing.T) { t.ArtifactDir() }
+func TestInvalid_Chars_In_Name(t *testing.T) { t.ArtifactDir() }
+`)
+	// We use "TestInvalid_Chars_In_Name" because go test framework parses functions by ^Test.
+	// But let's actually make it have invalid path chars:
+	writeTmpl("deep/nested/pkg2", `package pkg2_test
+import "testing"
+func TestInvalid_Chars_In_Name(t *testing.T) {
+	t.Run("SubTest:with*stars", func(t *testing.T) { t.ArtifactDir() })
+}
+`)
+
+	// 2. Run the tests.
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-v", "-artifacts", "./...")
+	cmd.Dir = tempDir
+	cmd = testenv.CleanCmdEnv(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v failed: %v\n%s", cmd, err, out)
+	}
+
+	// 3. Parse and verify output.
+	tests := []struct {
+		name       string
+		wantPrefix string
+	}{
+		// Root package tests don't have a package prefix because modulePath == importPath
+		{"TestRootNiceName", "TestRootNiceName"},
+		{"TestSubNiceName", "subpkg/TestSubNiceName"},
+		{"TestNiceName", "deep/nested/pkg/TestNiceName"},
+		{"TestParent/SubTest", "deep/nested/pkg/TestParent__SubTest"},
+		{"TestVeryLongNameThatExceedsSixtyFourCharactersAndThereforeMustBeTruncatedAndHashed", `deep/nested/pkg/TestVeryLongNameThatExceedsSixtyFourCharactersAn[0-9a-f]+`},
+		{`TestInvalid_Chars_In_Name/SubTest:with\*stars`, `deep/nested/pkg2/TestInvalid_Chars_In_Name__SubTestwithstars`},
+	}
+
+	for _, tt := range tests {
+		re := regexp.MustCompile(`=== ARTIFACTS ` + tt.name + ` ([^\n]+)`)
+		match := re.FindSubmatch(out)
+		if match == nil {
+			t.Errorf("expected output matching %q, got\n%q", re, out)
+			continue
+		}
+		artifactDir := string(match[1])
+
+		slashDir := filepath.ToSlash(artifactDir)
+
+		wantSuffixPattern := `_artifacts/` + tt.wantPrefix + `/[^/]+$`
+		wantRegex := regexp.MustCompile(wantSuffixPattern)
+
+		if !wantRegex.MatchString(slashDir) {
+			t.Errorf("artifact directory for %s: got %s, want suffix matching %s", tt.name, slashDir, wantSuffixPattern)
+		}
 	}
 }
 

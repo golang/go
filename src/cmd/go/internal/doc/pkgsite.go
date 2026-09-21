@@ -7,16 +7,32 @@
 package doc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
+	"cmd/go/internal/work"
 )
+
+// pkgsiteCmdInternalDocVersion controls the version of the golang.org/x/pkgsite/cmd/internal/doc
+// module to build in buildPkgsite.
+//
+// This version is maintained, like other golang.org/x dependencies, via the go.dev/issue/36905 process.
+//
+// To make that process easier, the exact name and file location of this constant are known
+// to the [golang.org/x/build/cmd/updatestd] command. If this constant needs to be renamed
+// or moved to another .go file, update that code too.
+const pkgsiteCmdInternalDocVersion = "v0.0.0-20260722200430-7c7eca789259"
 
 // pickUnusedPort finds an unused port by trying to listen on port 0
 // and letting the OS pick a port, then closing that connection and
@@ -34,7 +50,58 @@ func pickUnusedPort() (int, error) {
 	return port, nil
 }
 
-func doPkgsite(urlPath, fragment string) error {
+// buildPkgsite builds a pkgsite binary whose build may be cached.
+func buildPkgsite(ctx context.Context) string {
+	loader := modload.NewLoader()
+
+	// Set the builder to have no module root so we can build a pkg@version pattern.
+	loader.ForceUseModules = true
+	loader.RootMode = modload.NoRoot
+	loader.AllowMissingModuleImports()
+	modload.Init(loader)
+
+	work.BuildInit(loader)
+	b := work.NewBuilder("", loader.VendorDirOrEmpty)
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatal(err)
+		}
+	}()
+
+	version := pkgsiteCmdInternalDocVersion
+	if os.Getenv("TEST_GODOC_BUILD_ONLY") != "" {
+		version = "v0.1.0"
+	}
+	pkgVers := "golang.org/x/pkgsite/cmd/internal/doc@" + version
+	pkgOpts := load.PackageOpts{MainOnly: true}
+	pkgs, err := load.PackagesAndErrorsOutsideModule(loader, ctx, pkgOpts, []string{pkgVers})
+	if err != nil {
+		base.Fatal(err)
+	}
+	if len(pkgs) == 0 {
+		base.Fatalf("go: internal error: no packages loaded for %s", pkgVers)
+	}
+	if len(pkgs) > 1 {
+		base.Fatalf("go: internal error: pattern %s matches multiple packages", pkgVers)
+	}
+	p := pkgs[0]
+	p.Internal.OmitDebug = true
+	p.Internal.ExeName = p.DefaultExecName()
+	load.CheckPackageErrors([]*load.Package{p})
+
+	a := b.LinkAction(loader, work.ModeBuild, work.ModeBuild, p)
+	a.CacheExecutable = true
+	b.Do(ctx, a)
+
+	// Both paths return an executable in GOCACHE: CachedExecutable is set on
+	// fresh builds, while BuiltTarget is set on cache hits.
+	if cached := a.CachedExecutable(); cached != "" {
+		return cached
+	}
+	return a.BuiltTarget()
+}
+
+func doPkgsite(ctx context.Context, urlPath, fragment string) error {
 	port, err := pickUnusedPort()
 	if err != nil {
 		return fmt.Errorf("failed to find port for documentation server: %v", err)
@@ -48,10 +115,14 @@ func doPkgsite(urlPath, fragment string) error {
 		path += "#" + fragment
 	}
 
+	if file := os.Getenv("TEST_GODOC_URL_FILE"); file != "" {
+		return os.WriteFile(file, []byte(path+"\n"), 0666)
+	}
+
 	// Turn off the default signal handler for SIGINT (and SIGQUIT on Unix)
 	// and instead wait for the child process to handle the signal and
 	// exit before exiting ourselves.
-	signal.Ignore(signalsToIgnore...)
+	base.StartSigHandlers()
 
 	// Prepend the local download cache to GOPROXY to get around deprecation checks.
 	env := os.Environ()
@@ -71,11 +142,14 @@ func doPkgsite(urlPath, fragment string) error {
 		env = append(env, "GOPROXY="+gomodcache+","+goproxy)
 	}
 
-	const version = "v0.0.0-20250714212547-01b046e81fe7"
-	cmd := exec.Command(goCmd(), "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
-		"-gorepo", buildCtx.GOROOT,
-		"-http", addr,
-		"-open", path)
+	pkgsite := buildPkgsite(ctx)
+	if os.Getenv("TEST_GODOC_BUILD_ONLY") != "" {
+		if _, err := os.Stat(pkgsite); err != nil {
+			return fmt.Errorf("built pkgsite binary does not exist: %w", err)
+		}
+		return nil
+	}
+	cmd := exec.Command(pkgsite, "-gorepo", cfg.GOROOT, "-http", addr, "-open", path)
 	cmd.Env = env
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr

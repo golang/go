@@ -211,10 +211,15 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	report. This also extends the information returned by runtime.Stack.
 	Setting N to 0 will report no ancestry information.
 
-	tracefpunwindoff: setting tracefpunwindoff=1 forces the execution tracer to
-	use the runtime's default stack unwinder instead of frame pointer unwinding.
-	This increases tracer overhead, but could be helpful as a workaround or for
-	debugging unexpected regressions caused by frame pointer unwinding.
+	tracebackcrash: setting tracebackcrash=1 restores the pre-Go 1.28 behavior of
+	throwing a fatal error on an unrecoverable unwind, even for unwinds such as
+	CPU profiling that otherwise tolerate errors and report a truncated stack.
+
+	tracefpunwindoff: setting tracefpunwindoff=1 forces the execution tracer
+	and block and mutex profilers to use the runtime's default stack
+	unwinder instead of frame pointer unwinding. This increases their
+	overhead, but could be helpful as a workaround or for debugging
+	unexpected regressions caused by frame pointer unwinding.
 
 	traceadvanceperiod: the approximate period in nanoseconds between trace generations. Only
 	applies if a program is built with GOEXPERIMENT=exectracer2. Used primarily for testing
@@ -279,15 +284,17 @@ AT_SECURE flag in the auxiliary vector, on the BSDs and Solaris/Illumos it is
 determined by checking the issetugid syscall, and on AIX it is determined by
 checking if the uid/gid match the effective uid/gid.
 
-When the runtime determines the binary is setuid/setgid-like, it does three main
+When the runtime determines the binary is setuid/setgid-like, it does two main
 things:
-  - The standard input/output file descriptors (0, 1, 2) are checked to be open.
-    If any of them are closed, they are opened pointing at /dev/null.
   - The value of the GOTRACEBACK environment variable is set to 'none'.
   - When a signal is received that terminates the program, or the program
     encounters an unrecoverable panic that would otherwise override the value
     of GOTRACEBACK, the goroutine stack, registers, and other memory related
     information are omitted.
+
+Additinally on Unix platforms the Go runtime automatically checks whether
+the standard input/output file descriptors (0, 1, 2) are open. If any of them are
+closed, they are opened pointing at /dev/null.
 
 [Race Detector article]: https://go.dev/doc/articles/race_detector
 */

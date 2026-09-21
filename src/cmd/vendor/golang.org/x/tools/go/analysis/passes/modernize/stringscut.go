@@ -1,0 +1,870 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package modernize
+
+import (
+	"fmt"
+	"go/ast"
+	"go/constant"
+	"go/token"
+	"go/types"
+	"iter"
+	"strconv"
+	"strings"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/edge"
+	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
+	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/moreiters"
+	"golang.org/x/tools/internal/typesinternal"
+	"golang.org/x/tools/internal/typesinternal/typeindex"
+	"golang.org/x/tools/internal/versions"
+)
+
+var StringsCutAnalyzer = &analysis.Analyzer{
+	Name: "stringscut",
+	Doc:  analyzerutil.MustExtractDoc(doc, "stringscut"),
+	Requires: []*analysis.Analyzer{
+		inspect.Analyzer,
+		typeindexanalyzer.Analyzer,
+	},
+	Run: stringscut,
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stringscut",
+}
+
+// stringscut offers a fix to replace an occurrence of strings.Index{,Byte} with
+// strings.{Cut,Contains}, strings.LastIndex{,Byte} with strings.CutLast (or
+// Contains when only used as a presence check), and similar fixes for
+// functions in the bytes package.
+// Consider some candidate for replacement i := strings.Index(s, substr)
+// or i := strings.LastIndex(s, substr).
+// The following must hold for a replacement to occur:
+//
+//  1. All instances of i and s must be in one of these forms.
+//
+//     Binary expressions must be inequalities equivalent to
+//     "Index failed" (e.g. i < 0) or "Index succeeded" (i >= 0),
+//     or identities such as these (and their negations):
+//
+//     0 > i                 (flips left and right)
+//     i <= -1, -1 >= i      (replace strict inequality by non-strict)
+//     i == -1, -1 == i      (Index() guarantees i < 0 => i == -1)
+//
+//     Slice expressions:
+//     a: s[:i], s[0:i]
+//     b: s[i+len(substr):], s[len(substr) + i:], s[i + const], s[k + i] (where k = len(substr))
+//
+//  2. There can be no uses of s, substr, or i where they are
+//     potentially modified (i.e. in assignments, or function calls with unknown side
+//     effects).
+//
+// Then, the replacement involves the following substitutions:
+//
+//  1. Replace "i := strings.Index(s, substr)" with "before, after, ok := strings.Cut(s, substr)"
+//     (or CutLast when the call is LastIndex/LastIndexByte; requires Go 1.27).
+//
+//  2. Replace instances of binary expressions (a) with !ok and binary expressions (b) with ok.
+//
+//  3. Replace slice expressions (a) with "before" and slice expressions (b) with after.
+//
+//  4. The assignments to before, after, and ok may use the blank identifier "_" if they are unused.
+//
+//     For example:
+//
+//     i := strings.Index(s, substr)
+//     if i >= 0 {
+//     use(s[:i], s[i+len(substr):])
+//     }
+//
+//     Would become:
+//
+//     before, after, ok := strings.Cut(s, substr)
+//     if ok {
+//     use(before, after)
+//     }
+//
+//     And similarly for LastIndex → CutLast:
+//
+//     i := strings.LastIndex(s, substr)
+//     if i >= 0 {
+//     use(s[:i], s[i+len(substr):])
+//     }
+//
+//     Would become:
+//
+//     before, after, ok := strings.CutLast(s, substr)
+//     if ok {
+//     use(before, after)
+//     }
+//
+// If the condition involving `i` is equivalent to i >= 0, then we replace it with
+// `if ok`.
+// If the condition is negated (e.g. equivalent to `i < 0`), we use `if !ok` instead.
+// If the slices of `s` match `s[:i]` or `s[i+len(substr):]` or their variants listed above,
+// then we replace them with before and after.
+//
+// When the index `i` is used only to check for the presence of the substring or byte slice,
+// the suggested fix uses Contains() instead of Cut/CutLast (available since Go 1.18).
+//
+// For example:
+//
+//	i := strings.Index(s, substr)
+//	if i >= 0 {
+//		return
+//	}
+//
+// Would become:
+//
+//	found := strings.Contains(s, substr)
+//	if found {
+//		return
+//	}
+func stringscut(pass *analysis.Pass) (any, error) {
+	var (
+		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info  = pass.TypesInfo
+	)
+
+	candidates := []types.Object{
+		index.Object("strings", "Index"),
+		index.Object("strings", "IndexByte"),
+		index.Object("bytes", "Index"),
+		index.Object("bytes", "IndexByte"),
+		index.Object("strings", "LastIndex"),
+		index.Object("strings", "LastIndexByte"),
+		index.Object("bytes", "LastIndex"),
+		index.Object("bytes", "LastIndexByte"),
+	}
+
+	stringsplitCut(pass, index)
+
+	scopeFixCount := make(map[*types.Scope]int) // the number of times we have offered a fix within a given scope in the current pass
+
+	for _, obj := range candidates {
+		// (obj may be nil)
+	nextcall:
+		for curCall := range index.Calls(obj) {
+			file := astutil.EnclosingFile(curCall)
+			// Check file version. Contains and Cut require Go 1.18.
+			// CutLast requires Go 1.27; that gate is applied after we know
+			// the rewrite is not a presence-only Contains fix.
+			if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_18) {
+				continue
+			}
+			indexCall := curCall.Node().(*ast.CallExpr) // the call to strings.Index, etc.
+			if len(indexCall.Args) != 2 {
+				// A multi-valued call may supply the complete argument list.
+				continue
+			}
+			obj := typeutil.Callee(info, indexCall)
+			if obj == nil {
+				continue
+			}
+			cutName := cond(obj.Name()[0] == 'L', "CutLast", "Cut")
+
+			var iIdent *ast.Ident // defining identifier of i var
+			switch ek, idx := curCall.ParentEdge(); ek {
+			case edge.ValueSpec_Values:
+				// Have: var i = strings.Index(...)
+				// If the call occurs in a multi-value declaration or assignment, don't suggest a fix because it would produce invalid code (See golang/go#78643).
+				spec := curCall.Parent().Node().(*ast.ValueSpec)
+				if len(spec.Names) != 1 {
+					continue
+				}
+				curName := curCall.Parent().ChildAt(edge.ValueSpec_Names, idx)
+				iIdent = curName.Node().(*ast.Ident)
+			case edge.AssignStmt_Rhs:
+				// Have: i := strings.Index(...)
+				// (Must be i's definition.)
+				assign := curCall.Parent().Node().(*ast.AssignStmt)
+				if len(assign.Lhs) != 1 {
+					continue
+				}
+				curLhs := curCall.Parent().ChildAt(edge.AssignStmt_Lhs, idx)
+				iIdent, _ = curLhs.Node().(*ast.Ident) // may be nil
+			}
+
+			if iIdent == nil {
+				continue
+			}
+			// Inv: iIdent is i's definition. The following would be skipped: 'var i int; i = strings.Index(...)'
+			// Get uses of i.
+			iObj := info.ObjectOf(iIdent)
+			if iObj == nil {
+				continue
+			}
+
+			var (
+				s      = indexCall.Args[0]
+				substr = indexCall.Args[1]
+			)
+
+			// Check that there are no statements that alter the value of s
+			// or substr after the call to Index().
+			if !indexArgValid(info, index, s, indexCall.Pos()) ||
+				!indexArgValid(info, index, substr, indexCall.Pos()) {
+				continue nextcall
+			}
+
+			// Next, examine all uses of i. If the only uses are of the
+			// forms mentioned above (e.g. i < 0, i >= 0, s[:i] and s[i +
+			// len(substr)]), then we can replace the call to Index()
+			// with a call to Cut() and use the returned ok, before,
+			// and after variables accordingly.
+			negative, nonnegative, beforeSlice, afterSlice := checkIdxUses(pass.TypesInfo, index.Uses(iObj), s, substr, iObj)
+
+			// Either there are no uses of before, after, or ok, or some use
+			// of i does not match our criteria - don't suggest a fix.
+			if negative == nil && nonnegative == nil && beforeSlice == nil && afterSlice == nil {
+				continue
+			}
+
+			// If the only uses are ok and !ok, don't suggest a Cut() fix - these should be using Contains()
+			isContains := (len(negative) > 0 || len(nonnegative) > 0) && len(beforeSlice) == 0 && len(afterSlice) == 0
+
+			// CutLast requires Go 1.27. Keep this after isContains so
+			// presence-only LastIndex → Contains still works before 1.27.
+			if !isContains && cutName == "CutLast" &&
+				!analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_27) {
+				continue
+			}
+
+			enclosingBlock, ok := moreiters.First(curCall.Enclosing((*ast.BlockStmt)(nil)))
+			if !ok {
+				continue
+			}
+			scope := iObj.Parent()
+			// Generate fresh names for ok, before, after, found, but only if
+			// they are defined by the end of the enclosing block and used
+			// within the enclosing block after the Index call. We need a Cursor
+			// for the end of the enclosing block, but we can't just find the
+			// Cursor at scope.End() because it corresponds to the entire
+			// enclosingBlock. Instead, get the last child of the enclosing
+			// block.
+			lastStmtCur, _ := enclosingBlock.LastChild()
+			lastStmt := lastStmtCur.Node()
+
+			fresh := func(preferred string) string {
+				return freshName(info, index, scope, lastStmt.End(), lastStmtCur, enclosingBlock, iIdent.Pos(), preferred)
+			}
+
+			var okVarName, beforeVarName, afterVarName, foundVarName string
+			if isContains {
+				foundVarName = fresh("found")
+			} else {
+				okVarName = fresh("ok")
+				beforeVarName = fresh("before")
+				afterVarName = fresh("after")
+			}
+
+			// If we are already suggesting a fix within the index's scope, we
+			// must get fresh names for before, after and ok.
+			// This is a specific symptom of the general problem that analyzers
+			// can generate conflicting fixes.
+			if scopeFixCount[scope] > 0 {
+				suffix := scopeFixCount[scope] - 1 // start at 0
+				if isContains {
+					foundVarName = fresh(fmt.Sprintf("%s%d", foundVarName, suffix))
+				} else {
+					okVarName = fresh(fmt.Sprintf("%s%d", okVarName, suffix))
+					beforeVarName = fresh(fmt.Sprintf("%s%d", beforeVarName, suffix))
+					afterVarName = fresh(fmt.Sprintf("%s%d", afterVarName, suffix))
+				}
+			}
+
+			// If there will be no uses of ok, before, or after, use the
+			// blank identifier instead.
+			if len(negative) == 0 && len(nonnegative) == 0 {
+				okVarName = "_"
+			}
+			if len(beforeSlice) == 0 {
+				beforeVarName = "_"
+			}
+			if len(afterSlice) == 0 {
+				afterVarName = "_"
+			}
+
+			var edits []analysis.TextEdit
+			replace := func(exprs []ast.Expr, new string) {
+				for _, expr := range exprs {
+					edits = append(edits, analysis.TextEdit{
+						Pos:     expr.Pos(),
+						End:     expr.End(),
+						NewText: []byte(new),
+					})
+				}
+			}
+			// Get the ident for the call to strings.Index, which could just be
+			// "Index" if the strings package is dot imported.
+			indexCallId := typesinternal.UsedIdent(info, indexCall.Fun)
+			replacedFunc := cutName
+			if isContains {
+				replacedFunc = "Contains"
+				replace(negative, "!"+foundVarName) // idx < 0   ->  !found
+				replace(nonnegative, foundVarName)  // idx > -1  ->   found
+
+				// Replace the assignment with found, and replace the call to
+				// Index or IndexByte with a call to Contains.
+				// i     := strings.Index   (...)
+				// -----            --------
+				// found := strings.Contains(...)
+				edits = append(edits, analysis.TextEdit{
+					Pos:     iIdent.Pos(),
+					End:     iIdent.End(),
+					NewText: []byte(foundVarName),
+				}, analysis.TextEdit{
+					Pos:     indexCallId.Pos(),
+					End:     indexCallId.End(),
+					NewText: []byte("Contains"),
+				})
+			} else {
+				replace(negative, "!"+okVarName)    // idx < 0   ->  !ok
+				replace(nonnegative, okVarName)     // idx > -1  ->   ok
+				replace(beforeSlice, beforeVarName) // s[:idx]   ->   before
+				replace(afterSlice, afterVarName)   // s[idx+k:] ->   after
+
+				// Replace the assignment with before, after, ok, and replace
+				// the call to Index/LastIndex with a call to Cut/CutLast.
+				// i     			 := strings.Index(...)
+				// -----------------            -----
+				// before, after, ok := strings.Cut  (...)
+				edits = append(edits, analysis.TextEdit{
+					Pos:     iIdent.Pos(),
+					End:     iIdent.End(),
+					NewText: fmt.Appendf(nil, "%s, %s, %s", beforeVarName, afterVarName, okVarName),
+				}, analysis.TextEdit{
+					Pos:     indexCallId.Pos(),
+					End:     indexCallId.End(),
+					NewText: []byte(cutName),
+				})
+			}
+
+			// Calls to IndexByte/LastIndexByte have a byte as their second arg,
+			// which must be converted to a string or []byte to be a valid arg
+			// for Cut/CutLast/Contains.
+			if strings.HasSuffix(obj.Name(), "Byte") {
+				switch obj.Pkg().Name() {
+				case "strings":
+					searchByteVal := info.Types[substr].Value
+					if searchByteVal == nil {
+						// substr is a variable, e.g. substr := byte('b')
+						// use string(substr)
+						edits = append(edits, []analysis.TextEdit{
+							{
+								Pos:     substr.Pos(),
+								NewText: []byte("string("),
+							},
+							{
+								Pos:     substr.End(),
+								NewText: []byte(")"),
+							},
+						}...)
+					} else {
+						// substr is a byte constant
+						val, _ := constant.Int64Val(searchByteVal) // inv: must be a valid byte
+						// strings.Cut/CutLast/Contains requires a string, so convert byte literal to string literal; e.g. 'a' -> "a", 55 -> "7"
+						edits = append(edits, analysis.TextEdit{
+							Pos:     substr.Pos(),
+							End:     substr.End(),
+							NewText: strconv.AppendQuote(nil, string(byte(val))),
+						})
+					}
+				case "bytes":
+					// bytes.Cut/CutLast/Contains requires a []byte, so wrap substr in a []byte{}
+					edits = append(edits, []analysis.TextEdit{
+						{
+							Pos:     substr.Pos(),
+							NewText: []byte("[]byte{"),
+						},
+						{
+							Pos:     substr.End(),
+							NewText: []byte("}"),
+						},
+					}...)
+				}
+			}
+			scopeFixCount[scope]++
+			pass.Report(analysis.Diagnostic{
+				Pos: indexCall.Fun.Pos(),
+				End: indexCall.Fun.End(),
+				Message: fmt.Sprintf("%s.%s can be simplified using %s.%s",
+					obj.Pkg().Name(), obj.Name(), obj.Pkg().Name(), replacedFunc),
+				Category: "stringscut",
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message:   fmt.Sprintf("Simplify %s.%s call using %s.%s", obj.Pkg().Name(), obj.Name(), obj.Pkg().Name(), replacedFunc),
+					TextEdits: edits,
+				}},
+			})
+		}
+	}
+
+	return nil, nil
+}
+
+// stringsplitCut reports patterns where strings.Split or strings.SplitN with
+// n=2 is immediately indexed at [0], which can be simplified to strings.Cut,
+// when sep is a non-empty string constant. The transformation is
+// semantics-preserving only for non-empty sep: strings.Split(s, "")[0]
+// returns the first character of s, but strings.Cut(s, "").before is "".
+// For variable sep the value is unknown at analysis time, so we conservatively
+// skip those cases too.
+//
+// For example:
+//
+//	x := strings.SplitN(s, ",", 2)[0]
+//	              ------              --
+//	x, _, _ := strings.Cut(s, ",")
+//
+// Requires Go 1.18 (when strings.Cut was added).
+func stringsplitCut(pass *analysis.Pass, index *typeindex.Index) {
+	info := pass.TypesInfo
+
+	for obj, expectedArgs := range map[types.Object]int{
+		index.Object("strings", "Split"):  2,
+		index.Object("strings", "SplitN"): 3,
+	} {
+		for curCall := range index.Calls(obj) {
+			callExpr := curCall.Node().(*ast.CallExpr)
+			if len(callExpr.Args) != expectedArgs {
+				// A multi-valued call may supply the complete argument list.
+				continue
+			}
+
+			// For SplitN, the third argument must be the integer constant 2.
+			if expectedArgs == 3 && !isIntLiteral(info, callExpr.Args[2], 2) {
+				continue
+			}
+
+			// Sep must be a non-empty constant string.
+			// strings.Split(s, "")[0] returns the first character of s, but
+			// strings.Cut(s, "").before is "", so the semantics differ for
+			// an empty sep. For a variable sep we cannot rule out "" at
+			// analysis time, so we conservatively skip those cases too.
+			sepTV := info.Types[callExpr.Args[1]]
+			if sepTV.Value == nil || constant.StringVal(sepTV.Value) == "" {
+				continue
+			}
+
+			// The call must be the X of an IndexExpr.
+			if curCall.ParentEdgeKind() != edge.IndexExpr_X {
+				continue
+			}
+			parent := curCall.Parent()
+			indexExpr := parent.Node().(*ast.IndexExpr)
+
+			// The index must be the integer constant 0.
+			if !isZeroIntConst(info, indexExpr.Index) {
+				continue
+			}
+
+			// The IndexExpr must be the sole RHS of an assignment statement.
+			if parent.ParentEdgeKind() != edge.AssignStmt_Rhs {
+				continue
+			}
+			assign := parent.Parent().Node().(*ast.AssignStmt)
+			if assign.Tok != token.DEFINE || len(assign.Lhs) != 1 {
+				continue
+			}
+
+			// The LHS must be a single non-blank identifier.
+			lhsIdent, ok := assign.Lhs[0].(*ast.Ident)
+			if !ok || lhsIdent.Name == "_" {
+				continue
+			}
+
+			// strings.Cut requires Go 1.18.
+			if !analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(curCall), versions.Go1_18) {
+				continue
+			}
+
+			// Build the fix.
+			//
+			//  x  := strings.SplitN(s, sep, 2)[0]
+			//  ---           ------             ---
+			//  x, _, _ := strings.Cut(s, sep)
+			callFunIdent := typesinternal.UsedIdent(info, callExpr.Fun)
+
+			var edits []analysis.TextEdit
+
+			// LHS: insert ", _, _" after x
+			edits = append(edits, analysis.TextEdit{
+				Pos:     lhsIdent.End(),
+				End:     lhsIdent.End(),
+				NewText: []byte(", _, _"),
+			})
+
+			// Function name: Split/SplitN → Cut
+			edits = append(edits, analysis.TextEdit{
+				Pos:     callFunIdent.Pos(),
+				End:     callFunIdent.End(),
+				NewText: []byte("Cut"),
+			})
+
+			// For SplitN: remove the ", 2" third argument.
+			if expectedArgs == 3 {
+				edits = append(edits, analysis.TextEdit{
+					Pos: callExpr.Args[1].End(), // after sep
+					End: callExpr.Rparen,        // before )
+				})
+			}
+
+			// Remove the "[0]" index expression.
+			edits = append(edits, analysis.TextEdit{
+				Pos: indexExpr.Lbrack,
+				End: indexExpr.End(),
+			})
+
+			pass.Report(analysis.Diagnostic{
+				Pos:      callExpr.Fun.Pos(),
+				End:      callExpr.Fun.End(),
+				Message:  fmt.Sprintf("strings.%s call can be simplified using strings.Cut", obj.Name()),
+				Category: "stringscut",
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message:   fmt.Sprintf("Simplify strings.%s call using strings.Cut", obj.Name()),
+					TextEdits: edits,
+				}},
+			})
+		}
+	}
+}
+
+// indexArgValid reports whether expr is a valid strings.Index(_, _) arg
+// for the transformation. An arg is valid iff it is:
+// - constant;
+// - a local variable with no modifying uses after the Index() call; or
+// - []byte(x) where x is also valid by this definition.
+// All other expressions are assumed not referentially transparent,
+// so we cannot be sure that all uses are safe to replace.
+func indexArgValid(info *types.Info, index *typeindex.Index, expr ast.Expr, afterPos token.Pos) bool {
+	tv := info.Types[expr]
+	if tv.Value != nil {
+		return true // constant
+	}
+	switch expr := expr.(type) {
+	case *ast.CallExpr:
+		return types.Identical(tv.Type, byteSliceType) &&
+			info.Types[expr.Fun].IsType() && // make sure this isn't a function that returns a byte slice
+			indexArgValid(info, index, expr.Args[0], afterPos) // check s in []byte(s)
+	case *ast.Ident:
+		for use := range index.Uses(info.Uses[expr]) {
+			if typesinternal.IsAssignedOrAddressTaken(info, use) {
+				return false
+			}
+		}
+		return true
+	default:
+		// For now, skip instances where s or substr are not
+		// identifiers, basic lits, or call expressions of the form
+		// []byte(s).
+		// TODO(mkalil): Handle s and substr being expressions like ptr.field[i].
+		// From adonovan: We'd need to analyze s and substr to see
+		// whether they are referentially transparent, and if not,
+		// analyze all code between declaration and use and see if
+		// there are statements or expressions with potential side
+		// effects.
+		return false
+	}
+}
+
+// checkIdxUses inspects the uses of i to make sure they match certain criteria that
+// allows us to suggest a modernization. If all uses of i, s and substr match
+// one of the following four valid formats, it returns a list of occurrences for
+// each format. If any of the uses do not match one of the formats, return nil
+// for all values, since we should not offer a replacement.
+// 1. negative - a condition equivalent to i < 0
+// 2. nonnegative - a condition equivalent to i >= 0
+// 3. beforeSlice - a slice of `s` that matches either s[:i], s[0:i]
+// 4. afterSlice - a slice of `s` that matches one of: s[i+len(substr):], s[len(substr) + i:], s[i + const], s[k + i] (where k = len(substr))
+//
+// Additionally, all beforeSlice and afterSlice uses must be dominated by a
+// nonnegative guard on i (i.e., inside the body of an if whose condition
+// checks i >= 0, or in the else of a negative check, or after an
+// early-return negative check). This ensures that the rewrite from
+// s[i+len(sep):] to "after" preserves semantics, since when i == -1,
+// s[i+len(sep):] may yield a valid substring (e.g. s[0:] for single-byte
+// separators), but "after" would be "".
+//
+// When len(substr)==1, it's safe to use s[i+1:] even when i < 0.
+// Otherwise, each replacement of s[i+1:] must be guarded by a check
+// that i is nonnegative.
+func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr ast.Expr, iObj types.Object) (negative, nonnegative, beforeSlice, afterSlice []ast.Expr) {
+	requireGuard := true
+	if l := constSubstrLen(info, substr); l != -1 && l != 1 {
+		requireGuard = false
+	}
+
+	use := func(cur inspector.Cursor) bool {
+		ek := cur.ParentEdgeKind()
+		n := cur.Parent().Node()
+		switch ek {
+		case edge.BinaryExpr_X, edge.BinaryExpr_Y:
+			check := n.(*ast.BinaryExpr)
+			switch checkIdxComparison(info, check, iObj) {
+			case -1:
+				negative = append(negative, check)
+				return true
+			case 1:
+				nonnegative = append(nonnegative, check)
+				return true
+			}
+			// Check is not equivalent to that i < 0 or i >= 0.
+			// Might be part of an outer slice expression like s[i + k]
+			// which requires a different check.
+			// Check that the thing being sliced is s and that the slice
+			// doesn't have a max index.
+			if slice, ok := cur.Parent().Parent().Node().(*ast.SliceExpr); ok &&
+				sameObject(info, s, slice.X) &&
+				slice.Max == nil {
+				if isBeforeSlice(info, ek, slice) && (!requireGuard || isSliceIndexGuarded(info, cur, iObj)) {
+					beforeSlice = append(beforeSlice, slice)
+					return true
+				} else if isAfterSlice(info, ek, slice, substr) && (!requireGuard || isSliceIndexGuarded(info, cur, iObj)) {
+					afterSlice = append(afterSlice, slice)
+					return true
+				}
+			}
+		case edge.SliceExpr_Low, edge.SliceExpr_High:
+			slice := n.(*ast.SliceExpr)
+			// Check that the thing being sliced is s and that the slice doesn't
+			// have a max index.
+			if sameObject(info, s, slice.X) && slice.Max == nil {
+				if isBeforeSlice(info, ek, slice) && (!requireGuard || isSliceIndexGuarded(info, cur, iObj)) {
+					beforeSlice = append(beforeSlice, slice)
+					return true
+				} else if isAfterSlice(info, ek, slice, substr) && (!requireGuard || isSliceIndexGuarded(info, cur, iObj)) {
+					afterSlice = append(afterSlice, slice)
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	for curIdent := range uses {
+		if !use(curIdent) {
+			return nil, nil, nil, nil
+		}
+	}
+	return negative, nonnegative, beforeSlice, afterSlice
+}
+
+// checkIdxComparison reports whether the check is equivalent to i < 0 or its negation, or neither.
+// For equivalent to i >= 0, we only accept this exact BinaryExpr since
+// expressions like i > 0 or i >= 1 make a stronger statement about the value of i.
+// We avoid suggesting a fix in this case since it may result in an invalid
+// transformation (See golang/go#76687).
+// Since strings.Index returns exactly -1 if the substring is not found, we
+// don't need to handle expressions like i <= -3.
+// We return 0 if the expression does not match any of these options.
+func checkIdxComparison(info *types.Info, check *ast.BinaryExpr, iObj types.Object) int {
+	isI := func(e ast.Expr) bool {
+		id, ok := e.(*ast.Ident)
+		return ok && info.Uses[id] == iObj
+	}
+	if !isI(check.X) && !isI(check.Y) {
+		return 0
+	}
+
+	// Ensure that the constant (if any) is on the right.
+	x, op, y := check.X, check.Op, check.Y
+	if info.Types[x].Value != nil {
+		x, op, y = y, flip(op), x
+	}
+
+	yIsInt := func(k int64) bool {
+		return isIntLiteral(info, y, k)
+	}
+
+	if op == token.LSS && yIsInt(0) || // i < 0
+		op == token.EQL && yIsInt(-1) || // i == -1
+		op == token.LEQ && yIsInt(-1) { // i <= -1
+		return -1 // check <=> i is negative
+	}
+
+	if op == token.GEQ && yIsInt(0) || // i >= 0
+		op == token.NEQ && yIsInt(-1) || // i != -1
+		op == token.GTR && yIsInt(-1) { // i > -1
+		return +1 // check <=> i is non-negative
+	}
+
+	return 0 // unknown
+}
+
+// flip changes the comparison token as if the operands were flipped.
+// It is defined only for == and the four inequalities.
+func flip(op token.Token) token.Token {
+	switch op {
+	case token.EQL:
+		return token.EQL // (same)
+	case token.GEQ:
+		return token.LEQ
+	case token.GTR:
+		return token.LSS
+	case token.LEQ:
+		return token.GEQ
+	case token.LSS:
+		return token.GTR
+	}
+	return op
+}
+
+// isBeforeSlice reports whether the SliceExpr is of the form s[:i] or s[0:i].
+func isBeforeSlice(info *types.Info, ek edge.Kind, slice *ast.SliceExpr) bool {
+	return ek == edge.SliceExpr_High && (slice.Low == nil || isZeroIntConst(info, slice.Low))
+}
+
+// constSubstrLen returns the constant length of substr, or -1 if unknown.
+func constSubstrLen(info *types.Info, substr ast.Expr) int {
+	// Handle len([]byte(substr))
+	if call, ok := substr.(*ast.CallExpr); ok {
+		tv := info.Types[call.Fun]
+		if tv.IsType() && types.Identical(tv.Type, byteSliceType) {
+			// Only one arg in []byte conversion.
+			substr = call.Args[0]
+		}
+	}
+	substrVal := info.Types[substr].Value
+	if substrVal != nil {
+		switch substrVal.Kind() {
+		case constant.String:
+			return len(constant.StringVal(substrVal))
+		case constant.Int:
+			// constant.Value is a byte literal, e.g. bytes.IndexByte(_, 'a')
+			// or a numeric byte literal, e.g. bytes.IndexByte(_, 65)
+			// ([]byte(rune) is not legal.)
+			return 1
+		}
+	}
+	return -1
+}
+
+// isAfterSlice reports whether the SliceExpr is of the form s[i+len(substr):],
+// or s[i + k:] where k is a const is equal to len(substr).
+func isAfterSlice(info *types.Info, ek edge.Kind, slice *ast.SliceExpr, substr ast.Expr) bool {
+	lowExpr, ok := slice.Low.(*ast.BinaryExpr)
+	if !ok || slice.High != nil {
+		return false
+	}
+	// Returns true if the expression is a call to len(substr).
+	isLenCall := func(expr ast.Expr) bool {
+		call, ok := expr.(*ast.CallExpr)
+		if !ok || len(call.Args) != 1 {
+			return false
+		}
+		return sameObject(info, substr, call.Args[0]) && typeutil.Callee(info, call) == builtinLen
+	}
+
+	substrLen := constSubstrLen(info, substr)
+
+	switch ek {
+	case edge.BinaryExpr_X:
+		kVal := info.Types[lowExpr.Y].Value
+		if kVal == nil {
+			// i + len(substr)
+			return lowExpr.Op == token.ADD && isLenCall(lowExpr.Y)
+		} else {
+			// i + k
+			kInt, ok := constant.Int64Val(kVal)
+			return ok && substrLen == int(kInt)
+		}
+	case edge.BinaryExpr_Y:
+		kVal := info.Types[lowExpr.X].Value
+		if kVal == nil {
+			// len(substr) + i
+			return lowExpr.Op == token.ADD && isLenCall(lowExpr.X)
+		} else {
+			// k + i
+			kInt, ok := constant.Int64Val(kVal)
+			return ok && substrLen == int(kInt)
+		}
+	}
+	return false
+}
+
+// isSliceIndexGuarded reports whether a use of the index variable i (at the given cursor)
+// inside a slice expression is dominated by a nonnegative guard.
+// A use is considered guarded if any of the following are true:
+//   - It is inside the Body of an IfStmt whose condition is a nonnegative check on i.
+//   - It is inside the Else of an IfStmt whose condition is a negative check on i.
+//   - It is preceded (in the same block) by an IfStmt whose condition is a
+//     negative check on i with a terminating body (e.g., early return).
+//
+// Conversely, a use is immediately rejected if:
+//   - It is inside the Body of an IfStmt whose condition is a negative check on i.
+//   - It is inside the Else of an IfStmt whose condition is a nonnegative check on i.
+//
+// We have already checked (see [hasModifyingUses]) that there are no
+// intervening uses (incl. via aliases) of i that might alter its value.
+func isSliceIndexGuarded(info *types.Info, cur inspector.Cursor, iObj types.Object) bool {
+	for anc := range cur.Enclosing() {
+		switch anc.ParentEdgeKind() {
+		case edge.IfStmt_Body, edge.IfStmt_Else:
+			ifStmt := anc.Parent().Node().(*ast.IfStmt)
+			check := condChecksIdx(info, ifStmt.Cond, iObj)
+			if anc.ParentEdgeKind() == edge.IfStmt_Else {
+				check = -check
+			}
+			if check > 0 {
+				return true // inside nonnegative-guarded block (i >= 0 here)
+			}
+			if check < 0 {
+				return false // inside negative-guarded block (i < 0 here)
+			}
+		case edge.BlockStmt_List:
+			// Check preceding siblings for early-return negative checks.
+			for sib, ok := anc.PrevSibling(); ok; sib, ok = sib.PrevSibling() {
+				ifStmt, ok := sib.Node().(*ast.IfStmt)
+				if ok && condChecksIdx(info, ifStmt.Cond, iObj) < 0 && bodyTerminates(ifStmt.Body) {
+					return true // preceded by early-return negative check
+				}
+			}
+		case edge.FuncDecl_Body, edge.FuncLit_Body:
+			return false // stop at function boundary
+		}
+	}
+	return false
+}
+
+// condChecksIdx reports whether cond is a BinaryExpr that checks
+// the index variable iObj for negativity or non-negativity.
+// Returns -1 for negative (e.g. i < 0), +1 for nonnegative (e.g. i >= 0), 0 otherwise.
+func condChecksIdx(info *types.Info, cond ast.Expr, iObj types.Object) int {
+	binExpr, ok := cond.(*ast.BinaryExpr)
+	if !ok {
+		return 0
+	}
+	return checkIdxComparison(info, binExpr, iObj)
+}
+
+// bodyTerminates reports whether the given block statement unconditionally
+// terminates execution (via return, break, continue, or goto).
+func bodyTerminates(block *ast.BlockStmt) bool {
+	if len(block.List) == 0 {
+		return false
+	}
+	last := block.List[len(block.List)-1]
+	switch last.(type) {
+	case *ast.ReturnStmt, *ast.BranchStmt:
+		return true // return, break, continue, goto
+	}
+	return false
+}
+
+// sameObject reports whether we know that the expressions resolve to the same object.
+func sameObject(info *types.Info, expr1, expr2 ast.Expr) bool {
+	if ident1, ok := expr1.(*ast.Ident); ok {
+		if ident2, ok := expr2.(*ast.Ident); ok {
+			uses1, ok1 := info.Uses[ident1]
+			uses2, ok2 := info.Uses[ident2]
+			return ok1 && ok2 && uses1 == uses2
+		}
+	}
+	return false
+}

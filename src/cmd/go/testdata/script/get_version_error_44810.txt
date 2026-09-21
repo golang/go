@@ -1,0 +1,10 @@
+# Issue #44810: go get should not produce unnecessarily repetitive
+# "invalid version" error messages.
+
+go mod init m
+
+# A version string containing a slash should produce a concise error
+# without repeating the version information multiple times.
+! go get example.com/mod@branch/with/slash
+stderr '^go: example.com/mod@branch/with/slash: invalid version: disallowed version string$'
+! stderr 'version "branch/with/slash" invalid'

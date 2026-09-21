@@ -1,5 +1,6 @@
-[short] skip
 [!race] skip
+
+[GOARCH:loong64] skip 'broken on loong64: #78219'
 
 go test -race -cover issue.56370/filter
 

@@ -151,11 +151,11 @@ func (d *llvmSymbolizer) readCodeFrames() ([]plugin.Frame, error) {
 		Address    string `json:"Address"`
 		ModuleName string `json:"ModuleName"`
 		Symbol     []struct {
-			Line          int    `json:"Line"`
-			Column        int    `json:"Column"`
-			FunctionName  string `json:"FunctionName"`
-			FileName      string `json:"FileName"`
-			StartLine     int    `json:"StartLine"`
+			Line         int    `json:"Line"`
+			Column       int    `json:"Column"`
+			FunctionName string `json:"FunctionName"`
+			FileName     string `json:"FileName"`
+			StartLine    int    `json:"StartLine"`
 		} `json:"Symbol"`
 	}
 	if err := json.Unmarshal([]byte(line), &frame); err != nil {

@@ -67,7 +67,7 @@ func main() {
 
 func walkCodes(f func(string, *ast.ValueSpec)) {
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "codes.go", nil, parser.ParseComments)
+	file, err := parser.ParseFile(fset, "codes.go", nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		log.Fatalf("ParseFile failed: %s", err)
 	}

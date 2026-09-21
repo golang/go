@@ -2425,6 +2425,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVQ $-249346713, (R11)                 // 49c703674523f1
 	MOVQ $-249346713, DX                    // 48c7c2674523f1
 	MOVQ $-249346713, R11                   // 49c7c3674523f1
+	// Positive immediates that fit in 32 bits use the shorter 5-byte
+	// MOV r64, imm32 (zero-extended) form rather than the 7-byte sign-
+	// extended c7 /0 form. See Ziq_rp in cmd/internal/obj/x86/asm6.go.
+	MOVQ $305419896, DX                     // ba78563412
+	MOVQ $305419896, R11                    // 41bb78563412
+	MOVQ $2147483648, DX                    // ba00000080
+	MOVQ $2147483648, R11                   // 41bb00000080
+	MOVQ $4294967295, DX                    // baffffffff
+	MOVQ $4294967295, R11                   // 41bbffffffff
 	MOVQ DX, (BX)                           // 488913
 	MOVQ R11, (BX)                          // 4c891b
 	MOVQ DX, (R11)                          // 498913

@@ -13,17 +13,17 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
-	"internal/abi"
 	"internal/buildcfg"
 	"io"
 	"regexp"
 )
 
 const (
-	I32 = 0x7F
-	I64 = 0x7E
-	F32 = 0x7D
-	F64 = 0x7C
+	I32  = 0x7F
+	I64  = 0x7E
+	F32  = 0x7D
+	F64  = 0x7C
+	V128 = 0x7B
 )
 
 const (
@@ -40,9 +40,6 @@ const (
 	sectionCode     = 10
 	sectionData     = 11
 )
-
-// funcValueOffset is the offset between the PC_F value of a function and the index of the function in WebAssembly
-const funcValueOffset = 0x1000 // TODO(neelance): make function addresses play nice with heap addresses
 
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 }
@@ -94,6 +91,10 @@ var wasmFuncTypes = map[string]*wasmFuncType{
 	"memchr":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
 }
 
+// pcBase is the base value for PCs on Wasm.
+// We set the highest bit, so PCs are distinct from data addresses.
+const pcBase = -1 << 63
+
 func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64) {
 	// WebAssembly functions do not live in the same address space as the linear memory.
 	// Instead, WebAssembly automatically assigns indices. Imported functions (section "import")
@@ -101,17 +102,15 @@ func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, v
 	// with indices n+1 and following.
 	//
 	// The following rules describe how wasm handles function indices and addresses:
-	//   PC_F = funcValueOffset + WebAssembly function index (not including the imports)
-	//   s.Value = PC = PC_F<<16 + PC_B
+	//   PC_F = WebAssembly function index (not including the imports)
+	//   s.Value = PC = pcBase + PC_F<<16 + PC_B
 	//
-	// The funcValueOffset is necessary to avoid conflicts with expectations
-	// that the Go runtime has about function addresses.
 	// The field "s.Value" corresponds to the concept of PC at runtime.
 	// However, there is no PC register, only PC_F and PC_B. PC_F denotes the function,
 	// PC_B the resume point inside of that function. The entry of the function has PC_B = 0.
 	ldr.SetSymSect(s, sect)
-	ldr.SetSymValue(s, int64(funcValueOffset+va/abi.MINFUNC)<<16) // va starts at zero
-	va += uint64(abi.MINFUNC)
+	ldr.SetSymValue(s, int64(va)) // va already includes pcBase (through FlagTextAddr)
+	va += 1 << 16                 // increment PC_F
 	return sect, n, va
 }
 
@@ -125,9 +124,9 @@ var dataSects []wasmDataSect
 func asmb(ctxt *ld.Link, ldr *loader.Loader) {
 	sections := []*sym.Section{
 		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
-		ldr.SymSect(ldr.Lookup("runtime.typelink", 0)),
-		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
-		ldr.SymSect(ldr.Lookup("runtime.symtab", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.types", 0)),
+		ldr.SymSect(ldr.Lookup("go:funcdesc", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.firstmoduledata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.pclntab", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.noptrdata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.data", 0)),
@@ -207,7 +206,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 				case objabi.R_ADDR:
 					writeSleb128(wfn, ldr.SymValue(rs)+r.Add())
 				case objabi.R_CALL:
-					writeSleb128(wfn, int64(len(hostImports))+ldr.SymValue(rs)>>16-funcValueOffset)
+					writeSleb128(wfn, int64(len(hostImports))+int64(uint32(uint64(ldr.SymValue(rs))>>16)))
 				case objabi.R_WASMIMPORT:
 					writeSleb128(wfn, hostImportMap[rs])
 				default:
@@ -352,7 +351,7 @@ func writeFunctionSec(ctxt *ld.Link, fns []*wasmFunc) {
 func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
 	sizeOffset := writeSecHeader(ctxt, sectionTable)
 
-	numElements := uint64(funcValueOffset + len(fns))
+	numElements := uint64(len(fns))
 	writeUleb128(ctxt.Out, 1)           // number of tables
 	ctxt.Out.WriteByte(0x70)            // type: anyfunc
 	ctxt.Out.WriteByte(0x00)            // no max
@@ -432,12 +431,12 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
 		if s == 0 {
 			ld.Errorf("export symbol %s not defined", entry)
 		}
-		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+		idx := uint32(lenHostImports) + uint32(uint64(ldr.SymValue(s))>>16)
 		writeName(ctxt.Out, entryExpName)   // the wasi entrypoint
 		ctxt.Out.WriteByte(0x00)            // func export
 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
 		for _, s := range ldr.WasmExports {
-			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			idx := uint32(lenHostImports) + uint32(uint64(ldr.SymValue(s))>>16)
 			writeName(ctxt.Out, ldr.SymName(s))
 			ctxt.Out.WriteByte(0x00)            // func export
 			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
@@ -452,13 +451,13 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
 			if s == 0 {
 				ld.Errorf("export symbol %s not defined", "wasm_export_"+name)
 			}
-			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			idx := uint32(lenHostImports) + uint32(uint64(ldr.SymValue(s))>>16)
 			writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
 			ctxt.Out.WriteByte(0x00)            // func export
 			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
 		}
 		for _, s := range ldr.WasmExports {
-			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			idx := uint32(lenHostImports) + uint32(uint64(ldr.SymValue(s))>>16)
 			writeName(ctxt.Out, ldr.SymName(s))
 			ctxt.Out.WriteByte(0x00)            // func export
 			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
@@ -482,7 +481,7 @@ func writeElementSec(ctxt *ld.Link, numImports, numFns uint64) {
 	writeUleb128(ctxt.Out, 1) // number of element segments
 
 	writeUleb128(ctxt.Out, 0) // tableidx
-	writeI32Const(ctxt.Out, funcValueOffset)
+	writeI32Const(ctxt.Out, 0)
 	ctxt.Out.WriteByte(0x0b) // end
 
 	writeUleb128(ctxt.Out, numFns) // number of entries
@@ -698,6 +697,8 @@ func fieldsToTypes(fields []obj.WasmField) []byte {
 			b[i] = F32
 		case obj.WasmF64:
 			b[i] = F64
+		case obj.WasmV128:
+			b[i] = V128
 		default:
 			panic(fmt.Sprintf("fieldsToTypes: unknown field type: %d", f.Type))
 		}

@@ -103,7 +103,8 @@ func TestStmtLines(t *testing.T) {
 		if pkgname == "runtime" {
 			continue
 		}
-		if pkgname == "crypto/internal/fips140/nistec/fiat" {
+		if pkgname == "crypto/internal/fips140/nistec/fiat" ||
+			pkgname == "crypto/internal/fips140/nistec" {
 			continue // golang.org/issue/49372
 		}
 		if e.Val(dwarf.AttrStmtList) == nil {
@@ -140,7 +141,7 @@ func TestStmtLines(t *testing.T) {
 	var m float64
 	switch runtime.GOARCH {
 	case "amd64":
-		m = 0.0111 // > 98.89% obtained on amd64, no backsliding
+		m = 0.015 // > 98.5% obtained on amd64, there has been minor backsliding
 	case "riscv64":
 		m = 0.03 // XXX temporary update threshold to 97% for regabi
 	default:

@@ -10,11 +10,11 @@ import (
 	"crypto"
 	"crypto/hkdf"
 	"crypto/hmac"
-	"crypto/internal/fips140/mlkem"
+	"crypto/hpke"
 	"crypto/internal/fips140/tls13"
-	"crypto/internal/hpke"
 	"crypto/rsa"
 	"crypto/tls/internal/fips140tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"hash"
@@ -132,7 +132,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		if id == TLS_FALLBACK_SCSV {
 			// Use c.vers instead of max(supported_versions) because an attacker
 			// could defeat this by adding an arbitrary high version otherwise.
-			if c.vers < c.config.maxSupportedVersion(roleServer) {
+			if c.vers < c.config.maxSupportedVersion(roleServer, c.quic != nil) {
 				c.sendAlert(alertInappropriateFallback)
 				return errors.New("tls: client using inappropriate protocol fallback")
 			}
@@ -246,54 +246,15 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	}
 	c.curveID = selectedGroup
 
-	ecdhGroup := selectedGroup
-	ecdhData := clientKeyShare.data
-	if selectedGroup == X25519MLKEM768 {
-		ecdhGroup = X25519
-		if len(ecdhData) != mlkem.EncapsulationKeySize768+x25519PublicKeySize {
-			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid X25519MLKEM768 client key share")
-		}
-		ecdhData = ecdhData[mlkem.EncapsulationKeySize768:]
-	}
-	if _, ok := curveForCurveID(ecdhGroup); !ok {
-		c.sendAlert(alertInternalError)
-		return errors.New("tls: CurvePreferences includes unsupported curve")
-	}
-	key, err := generateECDHEKey(c.config.rand(), ecdhGroup)
+	ke, err := keyExchangeForCurveID(selectedGroup)
 	if err != nil {
 		c.sendAlert(alertInternalError)
-		return err
+		return errors.New("tls: internal error: supportsCurve accepted unimplemented curve")
 	}
-	hs.hello.serverShare = keyShare{group: selectedGroup, data: key.PublicKey().Bytes()}
-	peerKey, err := key.Curve().NewPublicKey(ecdhData)
+	hs.sharedKey, hs.hello.serverShare, err = ke.serverSharedSecret(c.config.rand(), clientKeyShare.data)
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid client key share")
-	}
-	hs.sharedKey, err = key.ECDH(peerKey)
-	if err != nil {
-		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: invalid client key share")
-	}
-	if selectedGroup == X25519MLKEM768 {
-		k, err := mlkem.NewEncapsulationKey768(clientKeyShare.data[:mlkem.EncapsulationKeySize768])
-		if err != nil {
-			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid X25519MLKEM768 client key share")
-		}
-		mlkemSharedSecret, ciphertext := k.Encapsulate()
-		// draft-kwiatkowski-tls-ecdhe-mlkem-02, Section 3.1.3: "For
-		// X25519MLKEM768, the shared secret is the concatenation of the ML-KEM
-		// shared secret and the X25519 shared secret. The shared secret is 64
-		// bytes (32 bytes for each part)."
-		hs.sharedKey = append(mlkemSharedSecret, hs.sharedKey...)
-		// draft-kwiatkowski-tls-ecdhe-mlkem-02, Section 3.1.2: "When the
-		// X25519MLKEM768 group is negotiated, the server's key exchange value
-		// is the concatenation of an ML-KEM ciphertext returned from
-		// encapsulation to the client's encapsulation key, and the server's
-		// ephemeral X25519 share."
-		hs.hello.serverShare.data = append(ciphertext, hs.hello.serverShare.data...)
 	}
 
 	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, c.quic != nil)
@@ -409,8 +370,13 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		if sessionHasClientCerts && c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
 			continue
 		}
+		opts := x509.VerifyOptions{
+			CurrentTime: c.config.time(),
+			Roots:       c.config.ClientCAs,
+			KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
 		if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
-			len(sessionState.verifiedChains) == 0 {
+			!anyValidVerifiedChain(sessionState.verifiedChains, opts) {
 			continue
 		}
 
@@ -450,7 +416,9 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 				return err
 			}
 			earlyTrafficSecret := hs.earlySecret.ClientEarlyTrafficSecret(transcript)
-			c.quicSetReadSecret(QUICEncryptionLevelEarly, hs.suite.id, earlyTrafficSecret)
+			if err := c.quicSetReadSecret(QUICEncryptionLevelEarly, hs.suite.id, earlyTrafficSecret); err != nil {
+				return err
+			}
 		}
 
 		c.didResume = true
@@ -525,6 +493,9 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		}
 		return err
 	}
+	if certificate != nil {
+		hs.c.localCertificate = certificate.Certificate
+	}
 	hs.sigAlg, err = selectSignatureScheme(c.vers, certificate, hs.clientHello.supportedSignatureAlgorithms)
 	if err != nil {
 		// getCertificate returned a certificate that is unsupported or
@@ -553,6 +524,14 @@ func (hs *serverHandshakeStateTLS13) sendDummyChangeCipherSpec() error {
 
 func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) (*keyShare, error) {
 	c := hs.c
+
+	// Make sure the client didn't send extra handshake messages alongside
+	// their initial client_hello. If they sent two client_hello messages,
+	// we will consume the second before they respond to the server_hello.
+	if c.handLen() != 0 {
+		c.sendAlert(alertUnexpectedMessage)
+		return nil, errors.New("tls: handshake buffer not empty before HelloRetryRequest")
+	}
 
 	// The first ClientHello gets double-hashed into the transcript upon a
 	// HelloRetryRequest. See RFC 8446, Section 4.4.1.
@@ -773,17 +752,18 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	}
 	hs.handshakeSecret = earlySecret.HandshakeSecret(hs.sharedKey)
 
-	clientSecret := hs.handshakeSecret.ClientHandshakeTrafficSecret(hs.transcript)
-	c.in.setTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, clientSecret)
 	serverSecret := hs.handshakeSecret.ServerHandshakeTrafficSecret(hs.transcript)
-	c.out.setTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, serverSecret)
+	c.setWriteTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, serverSecret)
+	clientSecret := hs.handshakeSecret.ClientHandshakeTrafficSecret(hs.transcript)
+	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, clientSecret, false); err != nil {
+		return err
+	}
 
 	if c.quic != nil {
-		if c.hand.Len() != 0 {
-			c.sendAlert(alertUnexpectedMessage)
-		}
 		c.quicSetWriteSecret(QUICEncryptionLevelHandshake, hs.suite.id, serverSecret)
-		c.quicSetReadSecret(QUICEncryptionLevelHandshake, hs.suite.id, clientSecret)
+		if err := c.quicSetReadSecret(QUICEncryptionLevelHandshake, hs.suite.id, clientSecret); err != nil {
+			return err
+		}
 	}
 
 	err := c.config.writeKeyLog(keyLogLabelClientHandshake, hs.clientHello.random, clientSecret)
@@ -855,8 +835,8 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 		certReq := new(certificateRequestMsgTLS13)
 		certReq.ocspStapling = true
 		certReq.scts = true
-		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(c.vers)
-		certReq.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithmsCert()
+		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(c.vers, c.vers)
+		certReq.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithmsCert(c.vers, c.vers)
 		if c.config.ClientCAs != nil {
 			certReq.certificateAuthorities = c.config.ClientCAs.Subjects()
 		}
@@ -885,12 +865,12 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 		return c.sendAlert(alertInternalError)
 	}
 
-	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
+	signed := signedMessage(serverSignatureContext, hs.transcript)
 	signOpts := crypto.SignerOpts(sigHash)
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := hs.cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), signed, signOpts)
+	sig, err := crypto.SignMessage(hs.cert.PrivateKey.(crypto.Signer), c.config.rand(), signed, signOpts)
 	if err != nil {
 		public := hs.cert.PrivateKey.(crypto.Signer).Public()
 		if rsaKey, ok := public.(*rsa.PublicKey); ok && sigType == signatureRSAPSS &&
@@ -927,13 +907,9 @@ func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 
 	hs.trafficSecret = hs.masterSecret.ClientApplicationTrafficSecret(hs.transcript)
 	serverSecret := hs.masterSecret.ServerApplicationTrafficSecret(hs.transcript)
-	c.out.setTrafficSecret(hs.suite, QUICEncryptionLevelApplication, serverSecret)
+	c.setWriteTrafficSecret(hs.suite, QUICEncryptionLevelApplication, serverSecret)
 
 	if c.quic != nil {
-		if c.hand.Len() != 0 {
-			// TODO: Handle this in setTrafficSecret?
-			c.sendAlert(alertUnexpectedMessage)
-		}
 		c.quicSetWriteSecret(QUICEncryptionLevelApplication, hs.suite.id, serverSecret)
 	}
 
@@ -1109,7 +1085,7 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		// See RFC 8446, Section 4.4.3.
 		// We don't use certReq.supportedSignatureAlgorithms because it would
 		// require keeping the certificateRequestMsgTLS13 around in the hs.
-		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms(c.vers)) ||
+		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms(c.vers, c.vers)) ||
 			!isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, signatureSchemesForPublicKey(c.vers, c.peerCertificates[0].PublicKey)) {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: client certificate used with invalid signature algorithm")
@@ -1121,7 +1097,7 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
 			return c.sendAlert(alertInternalError)
 		}
-		signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
+		signed := signedMessage(clientSignatureContext, hs.transcript)
 		if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
 			sigHash, signed, certVerify.signature); err != nil {
 			c.sendAlert(alertDecryptError)
@@ -1163,7 +1139,9 @@ func (hs *serverHandshakeStateTLS13) readClientFinished() error {
 		return errors.New("tls: invalid client finished hash")
 	}
 
-	c.in.setTrafficSecret(hs.suite, QUICEncryptionLevelApplication, hs.trafficSecret)
+	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelApplication, hs.trafficSecret, false); err != nil {
+		return err
+	}
 
 	return nil
 }

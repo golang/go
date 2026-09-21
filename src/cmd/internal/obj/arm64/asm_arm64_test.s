@@ -37,3 +37,11 @@ TEXT ·testmovk(SB), NOSPLIT, $0-8
 	MOVK	$(40000<<48), R0
 	MOVD	R0, ret+0(FP)
 	RET
+
+// testCombined() (uint64, uint64)
+TEXT ·testCombined(SB), NOSPLIT, $0-16
+	MOVD	$0xaaaaaaaaaaaaaaab, R0
+	MOVD	$0x0ff019940ff00ff0, R1
+	MOVD	R0, a+0(FP)
+	MOVD	R1, b+8(FP)
+	RET

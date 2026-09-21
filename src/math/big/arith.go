@@ -254,7 +254,7 @@ func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
 
 func addMulVVWW_g(z, x, y []Word, m, a Word) (c Word) {
 	if len(x) != len(z) || len(y) != len(z) {
-		panic("rshVU len")
+		panic("addMulVVWW len")
 	}
 
 	c = a

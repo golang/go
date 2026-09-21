@@ -27,10 +27,25 @@ type Signature struct {
 	tparams  *TypeParamList // type parameters from left to right, or nil
 	scope    *Scope         // function scope for package-local and non-instantiated signatures; nil otherwise
 	recv     *Var           // nil if not a method
+	recvold  *Var           // receiver dropped via method selection; or nil
 	params   *Tuple         // (incoming) parameters from left to right; or nil
 	results  *Tuple         // (outgoing) results from left to right; or nil
-	variadic bool           // true if the last parameter's type is of the form ...T (or string, for append built-in only)
+	variadic bool           // true if the last parameter's type is of the form ...T
+
+	// If recvold is the sentinel value [methExpr], then recvold should
+	// instead be sourced from params[0]. Otherwise, recvold points to
+	// the receiver of the original method signature from which this
+	// function signature was cloned via a selector expression.
+
+	// If variadic, the last element of params ordinarily has an
+	// unnamed Slice type. As a special case, in a call to append,
+	// it may be string, or a TypeParam T whose typeset ⊇ {string, []byte}.
+	// It may even be a named []byte type if a client instantiates
+	// T at such a type.
 }
+
+// sentinel value for detecting method expressions
+var methodExprSentinel = &Var{}
 
 // NewSignature returns a new function type for the given receiver, parameters,
 // and results, either of which may be nil. If variadic is set, the function
@@ -46,14 +61,18 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 
 // NewSignatureType creates a new function type for the given receiver,
 // receiver type parameters, type parameters, parameters, and results.
+//
 // If variadic is set, params must hold at least one parameter and the
 // last parameter must be an unnamed slice or a type parameter whose
 // type set has an unnamed slice as common underlying type.
-// As a special case, for variadic signatures the last parameter may
-// also be a string type, or a type parameter containing a mix of byte
-// slices and string types in its type set.
-// If recv is non-nil, typeParams must be empty. If recvTypeParams is
-// non-empty, recv must be non-nil.
+//
+// As a special case, to support append([]byte, str...), for variadic
+// signatures the last parameter may also be a string type, or a type
+// parameter containing a mix of byte slices and string types in its
+// type set. It may even be a named []byte slice type resulting from
+// instantiation of such a type parameter.
+//
+// If recvTypeParams is non-empty, recv must be non-nil.
 func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params, results *Tuple, variadic bool) *Signature {
 	if variadic {
 		n := params.Len()
@@ -63,21 +82,36 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		last := params.At(n - 1).typ
 		var S *Slice
 		for t := range typeset(last) {
+			if t == nil {
+				break
+			}
 			var s *Slice
 			if isString(t) {
 				s = NewSlice(universeByte)
 			} else {
-				s, _ = Unalias(t).(*Slice) // don't accept a named slice type
+				// Variadic Go functions have a last parameter of type []T,
+				// suggesting we should reject a named slice type B here.
+				//
+				// However, a call to built-in append(slice, x...)
+				// where x has a TypeParam type [T ~string | ~[]byte],
+				// has the type func([]byte, T). Since a client may
+				// instantiate this type at T=B, we must permit
+				// named slice types, even when this results in a
+				// signature func([]byte, B) where type B []byte.
+				//
+				// (The caller of NewSignatureType may have no way to
+				// know that it is dealing with the append special case.)
+				s, _ = t.Underlying().(*Slice)
 			}
 			if S == nil {
 				S = s
-			} else if !Identical(S, s) {
+			} else if s == nil || !Identical(S, s) {
 				S = nil
 				break
 			}
 		}
 		if S == nil {
-			panic(fmt.Sprintf("got %s, want variadic parameter of unnamed slice or string type", last))
+			panic(fmt.Sprintf("got %s, want variadic parameter of slice or string type", last))
 		}
 	}
 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
@@ -88,9 +122,6 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		sig.rparams = bindTParams(recvTypeParams)
 	}
 	if len(typeParams) != 0 {
-		if recv != nil {
-			panic("function with type parameters cannot have a receiver")
-		}
 		sig.tparams = bindTParams(typeParams)
 	}
 	return sig
@@ -111,6 +142,7 @@ func (s *Signature) TypeParams() *TypeParamList { return s.tparams }
 func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
 
 // Params returns the parameters of signature s, or nil.
+// See [NewSignatureType] for details of variadic functions.
 func (s *Signature) Params() *Tuple { return s.params }
 
 // Results returns the results of signature s, or nil.
@@ -121,6 +153,23 @@ func (s *Signature) Variadic() bool { return s.variadic }
 
 func (s *Signature) Underlying() Type { return s }
 func (s *Signature) String() string   { return TypeString(s, nil) }
+
+// argType returns the expected type of the i'th argument in a call to s, or nil.
+func (s *Signature) argType(i int) Type {
+	assert(i >= 0)
+	if s.params == nil {
+		return nil
+	}
+	vars := s.params.vars
+	n := len(vars)
+	if i < n-1 || !s.variadic && i == n-1 {
+		return vars[i].typ
+	}
+	if s.variadic {
+		return vars[n-1].typ.(*Slice).elem
+	}
+	return nil
+}
 
 // ----------------------------------------------------------------------------
 // Implementation
@@ -149,12 +198,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 	// collect and declare function type parameters
 	if ftyp.TypeParams != nil {
-		// Always type-check method type parameters but complain that they are not allowed.
-		// (A separate check is needed when type-checking interface method signatures because
-		// they don't have a receiver specification.)
-		if recvPar != nil {
-			check.error(ftyp.TypeParams, InvalidMethodTypeParams, "methods cannot have type parameters")
-		}
 		check.collectTypeParams(&sig.tparams, ftyp.TypeParams)
 	}
 

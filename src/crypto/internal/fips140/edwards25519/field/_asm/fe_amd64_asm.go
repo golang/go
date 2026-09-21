@@ -19,7 +19,6 @@ func main() {
 	Package("crypto/internal/fips140/edwards25519/field")
 	ConstraintExpr("!purego")
 	feMul()
-	feSquare()
 	Generate()
 }
 
@@ -36,95 +35,6 @@ type uint128 struct {
 }
 
 func (c uint128) String() string { return c.name }
-
-func feSquare() {
-	TEXT("feSquare", NOSPLIT, "func(out, a *Element)")
-	Doc("feSquare sets out = a * a. It works like feSquareGeneric.")
-	Pragma("noescape")
-
-	a := Dereference(Param("a"))
-	l0 := namedComponent{a.Field("l0"), "l0"}
-	l1 := namedComponent{a.Field("l1"), "l1"}
-	l2 := namedComponent{a.Field("l2"), "l2"}
-	l3 := namedComponent{a.Field("l3"), "l3"}
-	l4 := namedComponent{a.Field("l4"), "l4"}
-
-	// r0 = l0×l0 + 19×2×(l1×l4 + l2×l3)
-	r0 := uint128{"r0", GP64(), GP64()}
-	mul64(r0, 1, l0, l0)
-	addMul64(r0, 38, l1, l4)
-	addMul64(r0, 38, l2, l3)
-
-	// r1 = 2×l0×l1 + 19×2×l2×l4 + 19×l3×l3
-	r1 := uint128{"r1", GP64(), GP64()}
-	mul64(r1, 2, l0, l1)
-	addMul64(r1, 38, l2, l4)
-	addMul64(r1, 19, l3, l3)
-
-	// r2 = = 2×l0×l2 + l1×l1 + 19×2×l3×l4
-	r2 := uint128{"r2", GP64(), GP64()}
-	mul64(r2, 2, l0, l2)
-	addMul64(r2, 1, l1, l1)
-	addMul64(r2, 38, l3, l4)
-
-	// r3 = = 2×l0×l3 + 2×l1×l2 + 19×l4×l4
-	r3 := uint128{"r3", GP64(), GP64()}
-	mul64(r3, 2, l0, l3)
-	addMul64(r3, 2, l1, l2)
-	addMul64(r3, 19, l4, l4)
-
-	// r4 = = 2×l0×l4 + 2×l1×l3 + l2×l2
-	r4 := uint128{"r4", GP64(), GP64()}
-	mul64(r4, 2, l0, l4)
-	addMul64(r4, 2, l1, l3)
-	addMul64(r4, 1, l2, l2)
-
-	Comment("First reduction chain")
-	maskLow51Bits := GP64()
-	MOVQ(Imm((1<<51)-1), maskLow51Bits)
-	c0, r0lo := shiftRightBy51(&r0)
-	c1, r1lo := shiftRightBy51(&r1)
-	c2, r2lo := shiftRightBy51(&r2)
-	c3, r3lo := shiftRightBy51(&r3)
-	c4, r4lo := shiftRightBy51(&r4)
-	maskAndAdd(r0lo, maskLow51Bits, c4, 19)
-	maskAndAdd(r1lo, maskLow51Bits, c0, 1)
-	maskAndAdd(r2lo, maskLow51Bits, c1, 1)
-	maskAndAdd(r3lo, maskLow51Bits, c2, 1)
-	maskAndAdd(r4lo, maskLow51Bits, c3, 1)
-
-	Comment("Second reduction chain (carryPropagate)")
-	// c0 = r0 >> 51
-	MOVQ(r0lo, c0)
-	SHRQ(Imm(51), c0)
-	// c1 = r1 >> 51
-	MOVQ(r1lo, c1)
-	SHRQ(Imm(51), c1)
-	// c2 = r2 >> 51
-	MOVQ(r2lo, c2)
-	SHRQ(Imm(51), c2)
-	// c3 = r3 >> 51
-	MOVQ(r3lo, c3)
-	SHRQ(Imm(51), c3)
-	// c4 = r4 >> 51
-	MOVQ(r4lo, c4)
-	SHRQ(Imm(51), c4)
-	maskAndAdd(r0lo, maskLow51Bits, c4, 19)
-	maskAndAdd(r1lo, maskLow51Bits, c0, 1)
-	maskAndAdd(r2lo, maskLow51Bits, c1, 1)
-	maskAndAdd(r3lo, maskLow51Bits, c2, 1)
-	maskAndAdd(r4lo, maskLow51Bits, c3, 1)
-
-	Comment("Store output")
-	out := Dereference(Param("out"))
-	Store(r0lo, out.Field("l0"))
-	Store(r1lo, out.Field("l1"))
-	Store(r2lo, out.Field("l2"))
-	Store(r3lo, out.Field("l3"))
-	Store(r4lo, out.Field("l4"))
-
-	RET()
-}
 
 func feMul() {
 	TEXT("feMul", NOSPLIT, "func(out, a, b *Element)")

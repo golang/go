@@ -41,7 +41,7 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%03d %s", e.Code, e.Msg)
+	return fmt.Sprintf("%03d %q", e.Code, e.Msg)
 }
 
 // A ProtocolError describes a protocol violation such

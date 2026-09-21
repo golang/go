@@ -415,22 +415,27 @@ func (check *Checker) collectObjects() {
 
 			case *syntax.FuncDecl:
 				name := s.Name.Value
-				obj := NewFunc(s.Name.Pos(), pkg, name, nil)
-				hasTParamError := false // avoid duplicate type parameter errors
+				obj := NewFunc(s.Name.Pos(), pkg, name, nil) // signature set later
+				var tparam0 *syntax.Field
+				if len(s.TParamList) > 0 {
+					tparam0 = s.TParamList[0]
+				}
 				if s.Recv == nil {
 					// regular function
 					if name == "init" || name == "main" && pkg.name == "main" {
+						// init and main functions must not declare type and ordinary parameters or results
 						code := InvalidInitDecl
 						if name == "main" {
 							code = InvalidMainDecl
 						}
-						if len(s.TParamList) != 0 {
-							check.softErrorf(s.TParamList[0], code, "func %s must have no type parameters", name)
-							hasTParamError = true
+						if tparam0 != nil {
+							check.softErrorf(tparam0, code, "func %s must have no type parameters", name)
 						}
 						if t := s.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
 							check.softErrorf(s.Name, code, "func %s must have no arguments and no return values", name)
 						}
+					} else {
+						_ = tparam0 != nil && check.verifyVersionf(tparam0, go1_18, "type parameter")
 					}
 					// don't declare init functions in the package scope - they are invisible
 					if name == "init" {
@@ -452,9 +457,9 @@ func (check *Checker) collectObjects() {
 					if recv, _ := base.(*syntax.Name); recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
+					_ = tparam0 != nil && check.verifyVersionf(tparam0, go1_27, "generic method")
 					check.recordDef(s.Name, obj)
 				}
-				_ = len(s.TParamList) != 0 && !hasTParamError && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
 				info := &declInfo{file: fileScope, version: check.version, fdecl: s}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
@@ -646,13 +651,12 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if false && check.conf.EnableAlias {
-		// With Alias nodes we can process declarations in any order.
+	if false {
+		// TODO: determine if we can enable this code now or
+		//       if there are still problems with cycles and
+		//       aliases.
 		//
-		// TODO(adonovan): unfortunately, Alias nodes
-		// (GODEBUG=gotypesalias=1) don't entirely resolve
-		// problems with cycles. For example, in
-		// GOROOT/test/typeparam/issue50259.go,
+		// For example, in GOROOT/test/typeparam/issue50259.go,
 		//
 		// 	type T[_ any] struct{}
 		// 	type A T[B]
@@ -664,10 +668,10 @@ func (check *Checker) packageObjects() {
 		//
 		// Investigate and reenable this branch.
 		for _, obj := range check.objList {
-			check.objDecl(obj, nil)
+			check.objDecl(obj)
 		}
 	} else {
-		// Without Alias nodes, we process non-alias type declarations first, followed by
+		// To avoid problems with cycles, process non-alias type declarations first, followed by
 		// alias declarations, and then everything else. This appears to avoid most situations
 		// where the type of an alias is needed before it is available.
 		// There may still be cases where this is not good enough (see also go.dev/issue/25838).
@@ -680,7 +684,7 @@ func (check *Checker) packageObjects() {
 				if check.objMap[tname].tdecl.Alias {
 					aliasList = append(aliasList, tname)
 				} else {
-					check.objDecl(obj, nil)
+					check.objDecl(obj)
 				}
 			} else {
 				othersList = append(othersList, obj)
@@ -688,11 +692,11 @@ func (check *Checker) packageObjects() {
 		}
 		// phase 2: alias type declarations
 		for _, obj := range aliasList {
-			check.objDecl(obj, nil)
+			check.objDecl(obj)
 		}
 		// phase 3: all other declarations
 		for _, obj := range othersList {
-			check.objDecl(obj, nil)
+			check.objDecl(obj)
 		}
 	}
 

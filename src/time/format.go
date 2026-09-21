@@ -1002,6 +1002,9 @@ func skip(value, prefix string) (string, error) {
 // For layouts specifying the two-digit year 06, a value NN >= 69 will be treated
 // as 19NN and a value NN < 69 will be treated as 20NN.
 //
+// Timestamps representing leap seconds (second 60) cannot be parsed.
+// These are not representable by [Time].
+//
 // The remainder of this comment describes the handling of time zones.
 //
 // In the absence of a time zone indicator, Parse returns a time in UTC.

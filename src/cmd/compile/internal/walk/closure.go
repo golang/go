@@ -29,7 +29,7 @@ import (
 //		println(byval)
 //		(*&byref)++
 //	}(byval, &byref, 42)
-func directClosureCall(n *ir.CallExpr) {
+func (w *walkState) directClosureCall(n *ir.CallExpr) {
 	clo := n.Fun.(*ir.ClosureExpr)
 	clofn := clo.Func
 
@@ -88,10 +88,10 @@ func directClosureCall(n *ir.CallExpr) {
 	// Add to Closures for enqueueFunc. It's no longer a proper
 	// closure, but we may have already skipped over it in the
 	// functions list, so this just ensures it's compiled.
-	ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
+	w.curfunc.Closures = append(w.curfunc.Closures, clofn)
 }
 
-func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	clofn := clo.Func
 
 	// If not a closure, don't bother wrapping.
@@ -113,7 +113,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	// compiling a function twice would lead to an ICE.
 	if !clofn.Walked() {
 		clofn.SetWalked(true)
-		ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
+		w.curfunc.Closures = append(w.curfunc.Closures, clofn)
 	}
 
 	typ := typecheck.ClosureType(clo)
@@ -140,7 +140,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 		clo.Prealloc = nil
 	}
 
-	return walkExpr(cfn, init)
+	return w.walkExpr(cfn, init)
 }
 
 // closureArgs returns a slice of expressions that can be used to
@@ -163,7 +163,7 @@ func closureArgs(clo *ir.ClosureExpr) []ir.Node {
 	return args
 }
 
-func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+func (w *walkState) walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
@@ -174,8 +174,8 @@ func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	if n.X.Type().IsInterface() {
 		// Trigger panic for method on nil interface now.
 		// Otherwise it happens in the wrapper and is confusing.
-		n.X = cheapExpr(n.X, init)
-		n.X = walkExpr(n.X, nil)
+		n.X = w.cheapExpr(n.X, init)
+		n.X = w.walkExpr(n.X, nil)
 
 		tab := ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X)
 		check := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
@@ -203,7 +203,7 @@ func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 		n.Prealloc = nil
 	}
 
-	return walkExpr(cfn, init)
+	return w.walkExpr(cfn, init)
 }
 
 // methodValueWrapper returns the ONAME node representing the
@@ -217,7 +217,7 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
 
 	meth := dot.Sel
 	rcvrtype := dot.X.Type()
-	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
+	sym := ir.ReceiverMethodSymSuffix(rcvrtype, meth, "-fm")
 
 	if sym.Uniq() {
 		return sym.Def.(*ir.Name)

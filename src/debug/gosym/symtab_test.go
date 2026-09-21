@@ -15,6 +15,25 @@ func assertString(t *testing.T, dsc, out, tgt string) {
 	}
 }
 
+func TestGenericMethods(t *testing.T) {
+	s1 := Sym{Name: "main.T[go.shape.int].M[go.shape.bool]"}
+	s2 := Sym{Name: "main.(*T[go.shape.int]).M[go.shape.bool]"}
+	s3 := Sym{Name: "main.T.M[go.shape.bool]"}
+	s4 := Sym{Name: "main.(*T).M[go.shape.bool]"}
+	assertString(t, fmt.Sprintf("package of %q", s1.Name), s1.PackageName(), "main")
+	assertString(t, fmt.Sprintf("package of %q", s2.Name), s2.PackageName(), "main")
+	assertString(t, fmt.Sprintf("package of %q", s3.Name), s3.PackageName(), "main")
+	assertString(t, fmt.Sprintf("package of %q", s4.Name), s4.PackageName(), "main")
+	assertString(t, fmt.Sprintf("receiver of %q", s1.Name), s1.ReceiverName(), "T[go.shape.int]")
+	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "(*T[go.shape.int])")
+	assertString(t, fmt.Sprintf("receiver of %q", s3.Name), s3.ReceiverName(), "T")
+	assertString(t, fmt.Sprintf("receiver of %q", s4.Name), s4.ReceiverName(), "(*T)")
+	assertString(t, fmt.Sprintf("base of %q", s1.Name), s1.BaseName(), "M[go.shape.bool]")
+	assertString(t, fmt.Sprintf("base of %q", s2.Name), s2.BaseName(), "M[go.shape.bool]")
+	assertString(t, fmt.Sprintf("base of %q", s3.Name), s3.BaseName(), "M[go.shape.bool]")
+	assertString(t, fmt.Sprintf("base of %q", s4.Name), s4.BaseName(), "M[go.shape.bool]")
+}
+
 func TestStandardLibPackage(t *testing.T) {
 	s1 := Sym{Name: "io.(*LimitedReader).Read"}
 	s2 := Sym{Name: "io.NewSectionReader"}

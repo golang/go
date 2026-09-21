@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"io"
 	"os"
 	"sync"
 	"syscall"
@@ -19,6 +20,13 @@ import (
 // and UnixListener don't work for "unixgram" and "unixpacket".
 
 // UnixAddr represents the address of a Unix domain socket end point.
+//
+// On Linux, a Name beginning with "@" denotes an abstract socket address:
+// the "@" is translated to a NUL byte when the address is passed to the
+// kernel, placing the socket in the abstract namespace rather than the
+// filesystem. Abstract sockets are a Linux-specific feature; on other
+// platforms, a Name beginning with "@" is treated as a literal filesystem
+// path.
 type UnixAddr struct {
 	Name string
 	Net  string
@@ -108,7 +116,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
 		return 0, nil, syscall.EINVAL
 	}
 	n, addr, err := c.readFrom(b)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, addr, err
@@ -120,7 +128,7 @@ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
 		return 0, nil, syscall.EINVAL
 	}
 	n, addr, err := c.readFrom(b)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	if addr == nil {
@@ -141,7 +149,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 		return 0, 0, 0, nil, syscall.EINVAL
 	}
 	n, oobn, flags, addr, err = c.readMsg(b, oob)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return

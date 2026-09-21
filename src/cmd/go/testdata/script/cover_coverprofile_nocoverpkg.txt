@@ -5,8 +5,6 @@
 # only see lines in the output profile for the package whose test is
 # being run).
 
-[short] skip
-
 # Kick off test.
 go test -vet=off -count=1 -coverprofile=cov.p ./...
 

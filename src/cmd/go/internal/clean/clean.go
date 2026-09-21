@@ -105,12 +105,12 @@ func init() {
 	// break init cycle
 	CmdClean.Run = runClean
 
-	CmdClean.Flag.BoolVar(&cleanI, "i", false, "")
-	CmdClean.Flag.BoolVar(&cleanR, "r", false, "")
-	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "")
-	CmdClean.Flag.BoolVar(&cleanFuzzcache, "fuzzcache", false, "")
-	CmdClean.Flag.BoolVar(&cleanModcache, "modcache", false, "")
-	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "")
+	CmdClean.Flag.BoolVar(&cleanI, "i", false, "remove the corresponding installed archive or binary (what 'go install' would create)")
+	CmdClean.Flag.BoolVar(&cleanR, "r", false, "apply clean recursively to all the dependencies of the packages named by the import paths")
+	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "remove the entire go build cache")
+	CmdClean.Flag.BoolVar(&cleanFuzzcache, "fuzzcache", false, "remove all cached fuzzing values")
+	CmdClean.Flag.BoolVar(&cleanModcache, "modcache", false, "remove the entire module download cache, including unpacked source code of versioned dependencies")
+	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "expire all test results in the go build cache")
 
 	// -n and -x are important enough to be
 	// mentioned explicitly in the docs but they
@@ -120,8 +120,8 @@ func init() {
 }
 
 func runClean(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoader := modload.NewLoader()
+	moduleLoader.InitWorkfile()
 	if len(args) > 0 {
 		cacheFlag := ""
 		switch {
@@ -143,13 +143,13 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	// either the flags and arguments explicitly imply a package,
 	// or no other target (such as a cache) was requested to be cleaned.
 	cleanPkg := len(args) > 0 || cleanI || cleanR
-	if (!modload.Enabled(moduleLoaderState) || modload.HasModRoot(moduleLoaderState)) &&
+	if (!moduleLoader.Enabled() || moduleLoader.HasModRoot()) &&
 		!cleanCache && !cleanModcache && !cleanTestcache && !cleanFuzzcache {
 		cleanPkg = true
 	}
 
 	if cleanPkg {
-		for _, pkg := range load.PackagesAndErrors(moduleLoaderState, ctx, load.PackageOpts{}, args) {
+		for _, pkg := range load.PackagesAndErrors(moduleLoader, ctx, load.PackageOpts{}, args) {
 			clean(pkg)
 		}
 	}
@@ -272,13 +272,6 @@ func logFilesInGOMODCACHE() {
 
 var cleaned = map[*load.Package]bool{}
 
-// TODO: These are dregs left by Makefile-based builds.
-// Eventually, can stop deleting these.
-var cleanDir = map[string]bool{
-	"_test": true,
-	"_obj":  true,
-}
-
 var cleanFile = map[string]bool{
 	"_testmain.go": true,
 	"test.out":     true,
@@ -329,25 +322,21 @@ func clean(p *load.Package) {
 	}
 
 	_, elem := filepath.Split(p.Dir)
-	var allRemove []string
+	toRemove := map[string]bool{}
 
 	// Remove dir-named executable only if this is package main.
 	if p.Name == "main" {
-		allRemove = append(allRemove,
-			elem,
-			elem+".exe",
-			p.DefaultExecName(),
-			p.DefaultExecName()+".exe",
-		)
+		toRemove[elem] = true
+		toRemove[elem+".exe"] = true
+		toRemove[p.DefaultExecName()] = true
+		toRemove[p.DefaultExecName()+".exe"] = true
 	}
 
 	// Remove package test executables.
-	allRemove = append(allRemove,
-		elem+".test",
-		elem+".test.exe",
-		p.DefaultExecName()+".test",
-		p.DefaultExecName()+".test.exe",
-	)
+	toRemove[elem+".test"] = true
+	toRemove[elem+".test.exe"] = true
+	toRemove[p.DefaultExecName()+".test"] = true
+	toRemove[p.DefaultExecName()+".test.exe"] = true
 
 	// Remove a potential executable, test executable for each .go file in the directory that
 	// is not part of the directory's package.
@@ -362,53 +351,31 @@ func clean(p *load.Package) {
 		}
 
 		if base, found := strings.CutSuffix(name, "_test.go"); found {
-			allRemove = append(allRemove, base+".test", base+".test.exe")
+			toRemove[base+".test"] = true
+			toRemove[base+".test.exe"] = true
 		}
 
 		if base, found := strings.CutSuffix(name, ".go"); found {
 			// TODO(adg,rsc): check that this .go file is actually
 			// in "package main", and therefore capable of building
 			// to an executable file.
-			allRemove = append(allRemove, base, base+".exe")
+			toRemove[base] = true
+			toRemove[base+".exe"] = true
 		}
 	}
 
-	if cfg.BuildN || cfg.BuildX {
-		sh.ShowCmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
-	}
-
-	toRemove := map[string]bool{}
-	for _, name := range allRemove {
-		toRemove[name] = true
-	}
 	for _, dir := range dirs {
 		name := dir.Name()
 		if dir.IsDir() {
-			// TODO: Remove once Makefiles are forgotten.
-			if cleanDir[name] {
-				if err := sh.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
-					base.Error(err)
-				}
-			}
 			continue
 		}
-
-		if cfg.BuildN {
-			continue
-		}
-
 		if cleanFile[name] || cleanExt[filepath.Ext(name)] || toRemove[name] {
-			removeFile(filepath.Join(p.Dir, name))
+			removeFile(sh, filepath.Join(p.Dir, name))
 		}
 	}
 
 	if cleanI && p.Target != "" {
-		if cfg.BuildN || cfg.BuildX {
-			sh.ShowCmd("", "rm -f %s", p.Target)
-		}
-		if !cfg.BuildN {
-			removeFile(p.Target)
-		}
+		removeFile(sh, p.Target)
 	}
 
 	if cleanR {
@@ -420,7 +387,13 @@ func clean(p *load.Package) {
 
 // removeFile tries to remove file f, if error other than file doesn't exist
 // occurs, it will report the error.
-func removeFile(f string) {
+func removeFile(sh *work.Shell, f string) {
+	if cfg.BuildN || cfg.BuildX {
+		sh.ShowCmd("", "rm -f %s", f)
+	}
+	if cfg.BuildN {
+		return
+	}
 	err := os.Remove(f)
 	if err == nil || os.IsNotExist(err) {
 		return

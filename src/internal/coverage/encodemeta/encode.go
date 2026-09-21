@@ -110,7 +110,7 @@ func (b *CoverageMetaDataBuilder) emitFunc(w io.WriteSeeker, off int64, f funcDe
 }
 
 func (b *CoverageMetaDataBuilder) reportWriteError(err error) {
-	if b.werr != nil {
+	if b.werr == nil {
 		b.werr = err
 	}
 }

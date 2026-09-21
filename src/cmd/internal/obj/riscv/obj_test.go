@@ -17,12 +17,13 @@ func TestSplitShiftConst(t *testing.T) {
 		wantRsh int
 		wantOk  bool
 	}{
-		{0x100000000, 1, 32, 0, true},
-		{0xfffff001, 0, 0, 0, false},
+		{0xfffff001, -4095, 32, 32, true},
 		{0xfffff801, -2047, 32, 32, true},
 		{0xfffffff1, -15, 32, 32, true},
 		{0xffffffff, -1, 0, 32, true},
 		{0xfffffffe, 0x7fffffff, 1, 0, true},
+		{0x80a9b553, -2136361645, 32, 32, true},
+		{0x100000000, 1, 32, 0, true},
 		{0xfffffffffffda, -19, 13, 12, true},
 		{0xfffffffffffde, -17, 13, 12, true},
 		{0x000003ffffffffff, -1, 0, 22, true},
@@ -31,7 +32,7 @@ func TestSplitShiftConst(t *testing.T) {
 		{0x7fffffffffffffff, -1, 0, 1, true},
 		{0x7f7f7f7f7f7f7f7f, 0, 0, 0, false},
 		{0x0080000010000000, 0x8000001, 28, 0, true},
-		{0x0abcdabcd0000000, 0, 0, 0, false},
+		{0x0abcdabcd0000000, -1412584499, 32, 4, true},
 		{-4503599610593281, 0, 0, 0, false}, // 0x8abcdabcd0000000
 		{-7543254330000000, 0, 0, 0, false}, // 0xfff0000000ffffff
 	}

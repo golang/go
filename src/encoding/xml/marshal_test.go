@@ -899,13 +899,13 @@ var marshalTests = []struct {
 			`</EmbedA>`,
 	},
 
-	// Anonymous struct pointer field which is nil
+	// Embedded struct pointer field which is nil
 	{
 		Value:     &EmbedB{},
 		ExpectXML: `<EmbedB><FieldB></FieldB></EmbedB>`,
 	},
 
-	// Other kinds of nil anonymous fields
+	// Other kinds of nil embedded fields
 	{
 		Value:     &PointerAnonFields{},
 		ExpectXML: `<PointerAnonFields></PointerAnonFields>`,
@@ -2006,7 +2006,19 @@ var encodeTokenTests = []struct {
 	toks: []Token{
 		Comment("foo-->"),
 	},
-	err: "xml: EncodeToken of Comment containing --> marker",
+	err: "xml: EncodeToken of Comment containing -- marker",
+}, {
+	desc: "comment with double hyphen",
+	toks: []Token{
+		Comment("foo--bar"),
+	},
+	err: "xml: EncodeToken of Comment containing -- marker",
+}, {
+	desc: "comment ending in hyphen",
+	toks: []Token{
+		Comment("foo-"),
+	},
+	want: `<!--foo- -->`,
 }, {
 	desc: "proc instruction",
 	toks: []Token{

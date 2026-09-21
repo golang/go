@@ -1,4 +1,3 @@
-[short] skip
 go test -cover coverblank
 stdout 'coverage: 100.0% of statements'
 

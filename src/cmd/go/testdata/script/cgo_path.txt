@@ -1,5 +1,3 @@
-[short] skip 'runs build'
-
 [!cgo] skip
 
 # Require that CC is something that requires a PATH lookup.

@@ -1,0 +1,44 @@
+
+go env GOBIN
+stdout $WORK${/}gopath${/}bin
+go env -changed GOBIN
+! stdout $WORK
+
+# report explicit settings
+env GOBIN=/tmp/gobin
+go env GOBIN
+stdout /tmp/gobin
+go env -changed GOBIN
+stdout /tmp/gobin
+
+# reset
+env GOBIN=
+go env -changed GOBIN
+! stdout $WORK
+
+# In GOPATH mode
+# the default install directory depends on the GOPATH
+# technically it also depends on the install target
+# but that's not something we can report.
+env GO111MODULE=off
+env GOPATH=$WORK${/}a${:}$WORK${/}b
+
+# report GOPATH[0]/bin outside of GOPATH
+cd $WORK
+go env GOBIN
+stdout $WORK${/}a${/}bin
+
+# report the current GOPATH/bin inside of a GOPATH
+cd $WORK/a/src/example1.com
+go env GOBIN
+stdout $WORK${/}a${/}bin
+
+cd $WORK/b/src/example2.com
+go env GOBIN
+stdout $WORK${/}b${/}bin
+
+-- $WORK/a/src/example1.com/main.go --
+package main
+
+-- $WORK/b/src/example2.com/main.go --
+package main

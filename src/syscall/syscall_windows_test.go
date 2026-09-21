@@ -219,6 +219,34 @@ func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
 	syscall.Getwd()
 }
 
+func TestRemoveExtendedPrefix(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{`\\?\`, ``},
+		{`\\?\C:\dir`, `C:\dir`},
+		{`\\?\Volume{01234567-89ab-cdef-0123-456789abcdef}\dir`, `Volume{01234567-89ab-cdef-0123-456789abcdef}\dir`},
+		{`\\?\UNC\`, `\\`},
+		{`\\?\UNC\server\share\dir`, `\\server\share\dir`},
+		{`\\?\Unc\server\share\dir`, `Unc\server\share\dir`},
+		{`//?/UNC/server/share/dir`, `//?/UNC/server/share/dir`},
+		{`\\`, `\\`},
+		{`\\?`, `\\?`},
+		{`C:\dir`, `C:\dir`},
+	}
+	for _, tt := range tests {
+		path, err := syscall.UTF16FromString(tt.path)
+		if err != nil {
+			t.Fatalf("UTF16FromString(%q): %v", tt.path, err)
+		}
+		got := syscall.UTF16ToString(syscall.RemoveExtendedPrefix(path[:len(path)-1]))
+		if got != tt.want {
+			t.Errorf("removeExtendedPrefix(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
 func TestGetStartupInfo(t *testing.T) {
 	var si syscall.StartupInfo
 	err := syscall.GetStartupInfo(&si)

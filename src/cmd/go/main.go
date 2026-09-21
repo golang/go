@@ -61,13 +61,13 @@ func init() {
 		work.CmdInstall,
 		list.CmdList,
 		modcmd.CmdMod,
-		workcmd.CmdWork,
 		run.CmdRun,
 		telemetrycmd.CmdTelemetry,
 		test.CmdTest,
 		tool.CmdTool,
 		version.CmdVersion,
 		vet.CmdVet,
+		workcmd.CmdWork,
 
 		help.HelpBuildConstraint,
 		help.HelpBuildJSON,
@@ -184,7 +184,7 @@ func main() {
 	cmd, used := lookupCmd(args)
 	cfg.CmdName = strings.Join(args[:used], " ")
 	if len(cmd.Commands) > 0 {
-		if used >= len(args) {
+		if used >= len(args) || strings.HasPrefix(args[used], "-") {
 			help.PrintUsage(os.Stderr, cmd)
 			base.SetExitStatus(2)
 			base.Exit()

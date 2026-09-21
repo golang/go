@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -29,7 +29,7 @@ var doc string
 // Analyzer describes sigchanyzer analysis function detector.
 var Analyzer = &analysis.Analyzer{
 	Name:     "sigchanyzer",
-	Doc:      analysisinternal.MustExtractDoc(doc, "sigchanyzer"),
+	Doc:      analyzerutil.MustExtractDoc(doc, "sigchanyzer"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sigchanyzer",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,

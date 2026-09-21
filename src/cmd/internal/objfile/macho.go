@@ -43,6 +43,10 @@ func (f *machoFile) symbols() ([]Sym, error) {
 			addrs = append(addrs, s.Value)
 		}
 	}
+	// Add section ends as markers. See issue 78811.
+	for _, sect := range f.macho.Sections {
+		addrs = append(addrs, sect.Addr+sect.Size)
+	}
 	slices.Sort(addrs)
 
 	var syms []Sym
@@ -79,21 +83,16 @@ func (f *machoFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *machoFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+func (f *machoFile) pcln() (textStart uint64, pclntab []byte, err error) {
 	if sect := f.macho.Section("__text"); sect != nil {
 		textStart = sect.Addr
 	}
-	if sect := f.macho.Section("__gosymtab"); sect != nil {
-		if symtab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
-		}
-	}
 	if sect := f.macho.Section("__gopclntab"); sect != nil {
 		if pclntab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
+			return 0, nil, err
 		}
 	}
-	return textStart, symtab, pclntab, nil
+	return textStart, pclntab, nil
 }
 
 func (f *machoFile) text() (textStart uint64, text []byte, err error) {

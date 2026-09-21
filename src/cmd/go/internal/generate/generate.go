@@ -177,13 +177,13 @@ var (
 
 func init() {
 	work.AddBuildFlags(CmdGenerate, work.OmitBuildOnlyFlags)
-	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
-	CmdGenerate.Flag.StringVar(&generateSkipFlag, "skip", "", "")
+	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "process only those directives matching the regular `expression`")
+	CmdGenerate.Flag.StringVar(&generateSkipFlag, "skip", "", "skip directives matching the regular `expression`")
 }
 
 func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
-	modload.InitWorkfile(moduleLoaderState)
+	moduleLoader := modload.NewLoader()
+	moduleLoader.InitWorkfile()
 
 	if generateRunFlag != "" {
 		var err error
@@ -205,8 +205,8 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 	// Even if the arguments are .go files, this loop suffices.
 	printed := false
 	pkgOpts := load.PackageOpts{IgnoreImports: true}
-	for _, pkg := range load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, args) {
-		if modload.Enabled(moduleLoaderState) && pkg.Module != nil && !pkg.Module.Main {
+	for _, pkg := range load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, args) {
+		if moduleLoader.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
 				fmt.Fprintf(os.Stderr, "go: not generating in packages in dependency modules\n")
 				printed = true
@@ -244,7 +244,7 @@ func generate(absFile string) bool {
 	}
 
 	// Parse package clause
-	filePkg, err := parser.ParseFile(token.NewFileSet(), "", src, parser.PackageClauseOnly)
+	filePkg, err := parser.ParseFile(token.NewFileSet(), "", src, parser.PackageClauseOnly|parser.SkipObjectResolution)
 	if err != nil {
 		// Invalid package clause - ignore file.
 		return true
@@ -436,7 +436,7 @@ Words:
 		// Force a copy of the command definition to
 		// ensure words doesn't end up as a reference
 		// to the g.commands content.
-		tmpCmdWords := append([]string(nil), (g.commands[words[0]])...)
+		tmpCmdWords := append([]string(nil), g.commands[words[0]]...)
 		words = append(tmpCmdWords, words[1:]...)
 	}
 	// Substitute environment variables.

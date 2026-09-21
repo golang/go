@@ -19,7 +19,7 @@ type T struct{ M string }
 
 var b bool
 
-func f1(q *Q, xx []byte) interface{} { // ERROR "live at call to mallocgcSmallScanNoHeaderSC[0-9]+: xx$" "live at entry to f1: xx$"
+func f1(q *Q, xx []byte) interface{} { // ERROR "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): xx$" "live at entry to f1: xx$"
 	// xx was copied from the stack to the heap on the previous line:
 	// xx was live for the first two prints but then it switched to &xx
 	// being live. We should not see plain xx again.
@@ -36,7 +36,7 @@ func f1(q *Q, xx []byte) interface{} { // ERROR "live at call to mallocgcSmallSc
 //go:noinline
 func f2(d []byte, n int) (odata, res []byte, e interface{}) { // ERROR "live at entry to f2: d$"
 	if n > len(d) {
-		return d, nil, &T{M: "hello"} // ERROR "live at call to mallocgcSmallScanNoHeaderSC[0-9]+: d"
+		return d, nil, &T{M: "hello"} // ERROR "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+)+: d"
 	}
 	res = d[:n]
 	odata = d[n:]

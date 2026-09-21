@@ -100,3 +100,43 @@ func TestSums(t *testing.T) {
 		t.Errorf("GOROOT/lib/fips140/fips140.sum out of date. changes needed:\n%s", strings.Join(diff, ""))
 	}
 }
+
+func TestVerifyZipSum(t *testing.T) {
+	dir := t.TempDir()
+	zipfile := filepath.Join(dir, "v1.2.3.zip")
+	data := []byte("not really a zip, but it does not matter here")
+	if err := os.WriteFile(zipfile, data, 0666); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+
+	sumfile := filepath.Join(dir, "fips140.sum")
+	write := func(contents string) {
+		if err := os.WriteFile(sumfile, []byte(contents), 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Matching hash with comments and a second entry passes.
+	write(fmt.Sprintf("# comment\n\nv1.2.3.zip %x\nother.zip 0000000000000000000000000000000000000000000000000000000000000000\n", sum[:]))
+	if err := verifyZipSum(zipfile, sumfile); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// Missing entry for this zip fails.
+	write("# only comments\n")
+	if err := verifyZipSum(zipfile, sumfile); err == nil {
+		t.Errorf("expected error when hash entry is missing")
+	}
+
+	// Wrong hash fails.
+	write("v1.2.3.zip 0000000000000000000000000000000000000000000000000000000000000000\n")
+	if err := verifyZipSum(zipfile, sumfile); err == nil {
+		t.Errorf("expected error when hash does not match")
+	}
+
+	// Missing sum file fails.
+	if err := verifyZipSum(zipfile, filepath.Join(dir, "does-not-exist.sum")); err == nil {
+		t.Errorf("expected error when sum file is missing")
+	}
+}

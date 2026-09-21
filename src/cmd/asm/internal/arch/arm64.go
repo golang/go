@@ -137,7 +137,10 @@ func IsARM64TBL(op obj.As) bool {
 // destination is a register pair that require special handling.
 func IsARM64CASP(op obj.As) bool {
 	switch op {
-	case arm64.ACASPD, arm64.ACASPW:
+	case arm64.ACASPD, arm64.ACASPW,
+		arm64.ACASPAD, arm64.ACASPAW,
+		arm64.ACASPALD, arm64.ACASPALW,
+		arm64.ACASPLD, arm64.ACASPLW:
 		return true
 	}
 	return false
@@ -182,6 +185,18 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
 		if 0 <= n && n <= 31 {
 			return arm64.REG_V0 + n, true
 		}
+	case "Z":
+		if 0 <= n && n <= 31 {
+			return arm64.REG_Z0 + n, true
+		}
+	case "P":
+		if 0 <= n && n <= 15 {
+			return arm64.REG_P0 + n, true
+		}
+	case "PN":
+		if 0 <= n && n <= 15 {
+			return arm64.REG_PN0 + n, true
+		}
 	}
 	return 0, false
 }
@@ -197,9 +212,17 @@ func ARM64RegisterShift(reg, op, count int16) (int64, error) {
 
 // ARM64RegisterArrangement constructs an ARM64 vector register arrangement.
 func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
-	var curQ, curSize uint16
-	if name[0] != 'V' {
-		return 0, errors.New("expect V0 through V31; found: " + name)
+	var curQ, curSize, prefix uint16
+	if name[0] != 'V' && name[0] != 'Z' && name[0] != 'P' {
+		return 0, errors.New("expect V0-V31, Z0-Z31, or P0-P15; found: " + name)
+	}
+	switch name[0] {
+	case 'V':
+		prefix = 0
+	case 'Z':
+		prefix = 1
+	case 'P':
+		prefix = 2
 	}
 	if reg < 0 {
 		return 0, errors.New("invalid register number: " + name)
@@ -229,30 +252,23 @@ func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
 	case "D2":
 		curSize = 3
 		curQ = 1
+	case "B":
+		curSize = 1
+		curQ = 2
+	case "H":
+		curSize = 2
+		curQ = 2
+	case "S":
+		curSize = 3
+		curQ = 2
+	case "D":
+		curSize = 1
+		curQ = 3
+	case "Q":
+		curSize = 2
+		curQ = 3
 	default:
 		return 0, errors.New("invalid arrangement in ARM64 register list")
 	}
-	return (int64(curQ) & 1 << 30) | (int64(curSize&3) << 10), nil
-}
-
-// ARM64RegisterListOffset generates offset encoding according to AArch64 specification.
-func ARM64RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
-	offset := int64(firstReg)
-	switch regCnt {
-	case 1:
-		offset |= 0x7 << 12
-	case 2:
-		offset |= 0xa << 12
-	case 3:
-		offset |= 0x6 << 12
-	case 4:
-		offset |= 0x2 << 12
-	default:
-		return 0, errors.New("invalid register numbers in ARM64 register list")
-	}
-	offset |= arrangement
-	// arm64 uses the 60th bit to differentiate from other archs
-	// For more details, refer to: obj/arm64/list7.go
-	offset |= 1 << 60
-	return offset, nil
+	return (int64(prefix) << 32) | (int64(curQ) & 3 << 30) | (int64(curSize&3) << 10), nil
 }

@@ -1,0 +1,59 @@
+# Test that go work sync writes a complete and tidy go.work.sum.
+
+cp a/go.mod a/go.mod.orig
+cp a/go.sum a/go.sum.orig
+go work sync
+cmp a/go.mod a/go.mod.orig
+cmp a/go.sum a/go.sum.orig
+cmp go.work.sum want.sum
+
+# go list -m all should not add checksums that go work sync omitted.
+go list -m all
+cmp go.work.sum want.sum
+
+# Removing go.work.sum and regenerating it should produce the same file,
+# even though the module zip files are now cached.
+rm go.work.sum
+go work sync
+cmp a/go.mod a/go.mod.orig
+cmp a/go.sum a/go.sum.orig
+cmp go.work.sum want.sum
+
+-- go.work --
+go 1.18
+
+use (
+	./a
+	./b
+)
+-- go.work.sum --
+rsc.io/quote v1.0.0/go.mod h1:v83Ri/njykPcgJltBc/gEkJTmjTsNgtO1Y7vyIK1CQA=
+-- want.sum --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
+rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+
+require rsc.io/quote v1.5.2
+
+require (
+	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+	rsc.io/sampler v1.3.0 // indirect
+)
+-- a/go.sum --
+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+-- a/a.go --
+package a
+
+import _ "rsc.io/quote"
+-- b/go.mod --
+module example.com/b
+
+go 1.18
+-- b/b.go --
+package b

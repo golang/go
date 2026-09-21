@@ -193,8 +193,8 @@ var decoderErrorTestdata = []struct {
 	name: jsontest.Name("InvalidStart"),
 	in:   ` #`,
 	calls: []decoderMethodCall{
-		{'#', zeroToken, newInvalidCharacterError("#", "at start of value").withPos(" ", ""), ""},
-		{'#', zeroValue, newInvalidCharacterError("#", "at start of value").withPos(" ", ""), ""},
+		{0, zeroToken, newInvalidCharacterError("#", "at start of value").withPos(" ", ""), ""},
+		{0, zeroValue, newInvalidCharacterError("#", "at start of value").withPos(" ", ""), ""},
 	},
 }, {
 	name: jsontest.Name("StreamN0"),
@@ -1346,5 +1346,14 @@ func TestDecoderReset(t *testing.T) {
 		if len(dec.s.buf) == 0 || len(bbBuf) == 0 || &dec.s.buf[0] == &bbBuf[0] {
 			t.Fatalf("decoder buffer aliases bytes.Buffer")
 		}
+	})
+
+	t.Run("Test ability to reset nil reader", func(t *testing.T) {
+		defer func() {
+			if recover() != nil {
+				t.Fatalf("decoder.Reset(nil) shouldn`t panic")
+			}
+		}()
+		dec.Reset(nil)
 	})
 }

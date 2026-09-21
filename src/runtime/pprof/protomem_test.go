@@ -27,9 +27,9 @@ func TestConvertMemProfile(t *testing.T) {
 	a1, a2 := uintptr(addr1)+1, uintptr(addr2)+1
 	rate := int64(512 * 1024)
 	rec := []profilerecord.MemProfileRecord{
-		{AllocBytes: 4096, FreeBytes: 1024, AllocObjects: 4, FreeObjects: 1, Stack: []uintptr{a1, a2}},
-		{AllocBytes: 512 * 1024, FreeBytes: 0, AllocObjects: 1, FreeObjects: 0, Stack: []uintptr{a2 + 1, a2 + 2}},
-		{AllocBytes: 512 * 1024, FreeBytes: 512 * 1024, AllocObjects: 1, FreeObjects: 1, Stack: []uintptr{a1 + 1, a1 + 2, a2 + 3}},
+		{ObjectSize: 1024, AllocObjects: 4, FreeObjects: 1, Stack: []uintptr{a1, a2}},
+		{ObjectSize: 512 * 1024, AllocObjects: 1, FreeObjects: 0, Stack: []uintptr{a2 + 1, a2 + 2}},
+		{ObjectSize: 512 * 1024, AllocObjects: 1, FreeObjects: 1, Stack: []uintptr{a1 + 1, a1 + 2, a2 + 3}},
 	}
 
 	periodType := &profile.ValueType{Type: "space", Unit: "bytes"}

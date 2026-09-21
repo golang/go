@@ -39,7 +39,7 @@ func (w *recorder) Write(b []byte) (n int, err error) {
 		w.headerReceived = true
 	}
 	if len(b) == n {
-		return 0, nil
+		return n, nil
 	}
 	ba, nb, err := readBatch(b[n:]) // Every write from the runtime is guaranteed to be a complete batch.
 	if err != nil {
@@ -112,7 +112,7 @@ func runtime_traceClockNow() uint64
 // frequency is nanoseconds per timestamp unit.
 type frequency float64
 
-// mul multiplies an unprocessed to produce a time in nanoseconds.
+// mul multiplies an unprocessed timestamp to produce a time in nanoseconds.
 func (f frequency) mul(t timestamp) eventTime {
 	return eventTime(float64(t) * float64(f))
 }

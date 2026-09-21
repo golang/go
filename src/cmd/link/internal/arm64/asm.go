@@ -211,9 +211,6 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 	// Handle relocations found in Mach-O object files.
 	case objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_UNSIGNED*2:
-		if targType == sym.SDYNIMPORT {
-			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
-		}
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
 		if target.IsPIE() && target.IsInternal() {
@@ -221,6 +218,9 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// be resolved statically. We need to generate a dynamic
 			// relocation. Let the code below handle it.
 			break
+		}
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
 		}
 		return true
 
@@ -469,7 +469,13 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation.
 			// Here we record what are needed and encode them later.
-			ld.MachoAddRebase(s, int64(r.Off()))
+			if targType == sym.SDYNIMPORT {
+				// Dynamic import: the pointer must be bound by
+				// the dynamic linker at load time.
+				ld.MachoAddBind(s, int64(r.Off()), targ)
+			} else {
+				ld.MachoAddRebase(s, int64(r.Off()))
+			}
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically
@@ -1267,9 +1273,6 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 	// addend. For large symbols, we generate "label" symbols in the middle, so
 	// that relocations can target them with smaller addends.
 	// On Windows, we only get 21 bits, again (presumably) signed.
-	// Also, on Windows (always) and Darwin (for very large binaries), the external
-	// linker doesn't support CALL relocations with addend, so we generate "label"
-	// symbols for functions of which we can target the middle (Duff's devices).
 	if !ctxt.IsDarwin() && !ctxt.IsWindows() || !ctxt.IsExternal() {
 		return
 	}
@@ -1281,6 +1284,9 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 
 	// addLabelSyms adds "label" symbols at s+limit, s+2*limit, etc.
 	addLabelSyms := func(s loader.Sym, limit, sz int64) {
+		if ldr.SymSect(s) == nil {
+			log.Fatalf("gensymlate: symbol %s has no section (type=%v)", ldr.SymName(s), ldr.SymType(s))
+		}
 		v := ldr.SymValue(s)
 		for off := limit; off < sz; off += limit {
 			p := ldr.LookupOrCreateSym(offsetLabelName(ldr, s, off), ldr.SymVersion(s))
@@ -1296,14 +1302,6 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 			}
 			// fmt.Printf("gensymlate %s %x\n", ldr.SymName(p), ldr.SymValue(p))
 		}
-	}
-
-	// Generate symbol names for every offset we need in duffcopy/duffzero (only 64 each).
-	if s := ldr.Lookup("runtime.duffcopy", sym.SymVerABIInternal); s != 0 && ldr.AttrReachable(s) {
-		addLabelSyms(s, 8, 8*64)
-	}
-	if s := ldr.Lookup("runtime.duffzero", sym.SymVerABIInternal); s != 0 && ldr.AttrReachable(s) {
-		addLabelSyms(s, 4, 4*64)
 	}
 
 	if ctxt.IsDarwin() {
@@ -1325,12 +1323,15 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 		}
 		t := ldr.SymType(s)
 		if t.IsText() {
-			// Except for Duff's devices (handled above), we don't
-			// target the middle of a function.
+			// We don't target the middle of a function.
 			continue
 		}
 		if t >= sym.SDWARFSECT {
 			continue // no need to add label for DWARF symbols
+		}
+		if ldr.AttrSpecial(s) || !ldr.TopLevelSym(s) {
+			// no need to add label for special symbols and non-top-level symbols
+			continue
 		}
 		sz := ldr.SymSize(s)
 		if sz <= limit {

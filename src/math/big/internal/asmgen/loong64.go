@@ -40,6 +40,8 @@ var ArchLoong64 = &Arch{
 	or:    "OR",
 	xor:   "XOR",
 
+	addWords: "ALSLV $3, %[1]s, %[2]s, %[3]s",
+
 	jmpZero:    "BEQ %s, %s",
 	jmpNonZero: "BNE %s, %s",
 }

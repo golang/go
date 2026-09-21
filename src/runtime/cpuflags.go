@@ -23,22 +23,25 @@ const (
 
 	offsetLOONG64HasLSX  = unsafe.Offsetof(cpu.Loong64.HasLSX)
 	offsetLOONG64HasLASX = unsafe.Offsetof(cpu.Loong64.HasLASX)
+	offsetARM64HasSVE    = unsafe.Offsetof(cpu.ARM64.HasSVE)
 )
 
 var (
 	// Set in runtime.cpuinit.
 	// TODO: deprecate these; use internal/cpu directly.
+	x86HasAVX    bool
+	x86HasFMA    bool
 	x86HasPOPCNT bool
 	x86HasSSE41  bool
-	x86HasFMA    bool
 
 	armHasVFPv4 bool
 
 	arm64HasATOMICS bool
 
-	loong64HasLAMCAS bool
-	loong64HasLAM_BH bool
-	loong64HasLSX    bool
+	loong64HasLAMCAS     bool
+	loong64HasLAM_BH     bool
+	loong64HasDBAR_HINTS bool
+	loong64HasLSX        bool
 
 	riscv64HasZbb bool
 )

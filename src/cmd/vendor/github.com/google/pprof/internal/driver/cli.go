@@ -37,6 +37,7 @@ type source struct {
 	HTTPHostport       string
 	HTTPDisableBrowser bool
 	Comment            string
+	AllFrames          bool
 }
 
 // parseFlags parses the command lines through the specified flags package
@@ -51,7 +52,8 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	flagSymbolize := flag.String("symbolize", "", "Options for profile symbolization")
 	flagBuildID := flag.String("buildid", "", "Override build id for first mapping")
 	flagTimeout := flag.Int("timeout", -1, "Timeout in seconds for fetching a profile")
-	flagAddComment := flag.String("add_comment", "", "Annotation string to record in the profile")
+	flagAddComment := flag.String("add_comment", "", "Free-form annotation to add to the profile")
+	flagAllFrames := flag.Bool("all_frames", false, "Ignore drop_frames and keep_frames regexps")
 	// CPU profile options
 	flagSeconds := flag.Int("seconds", -1, "Length of time for dynamic profiles")
 	// Heap profile options
@@ -145,6 +147,7 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 		HTTPHostport:       *flagHTTP,
 		HTTPDisableBrowser: *flagNoBrowser,
 		Comment:            *flagAddComment,
+		AllFrames:          *flagAllFrames,
 	}
 
 	if err := source.addBaseProfiles(*flagBase, *flagDiffBase); err != nil {
@@ -338,6 +341,8 @@ var usageMsgVars = "\n\n" +
 	"                      Port is optional and a randomly available port by default.\n" +
 	"   -no_browser        Skip opening a browser for the interactive web UI.\n" +
 	"   -tools             Search path for object tools\n" +
+	"   -all_frames        Ignore drop_frames and keep_frames regexps in the profile\n" +
+	"                      Rarely needed, mainly used for debugging pprof itself\n" +
 	"\n" +
 	"  Legacy convenience options:\n" +
 	"   -inuse_space           Same as -sample_index=inuse_space\n" +

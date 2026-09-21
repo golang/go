@@ -5,7 +5,6 @@ env GO111MODULE=off
 [compiler:gccgo] skip  # gccgo does not use -gcflags
 [!cgo] skip
 [!GOOS:linux] skip  # test only works if c-archive implies -shared
-[short] skip
 
 env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
 go build -x -n -buildmode=c-archive -gcflags=all=-shared=false ./override.go

@@ -177,6 +177,25 @@ import (
 // For (b), we must adjust the current directory index when the directory
 // grows. This is more straightforward, as the directory orders remains the
 // same after grow, so we just double the index if the directory size doubles.
+//
+// Hashing Pointers
+//
+// Keys in Go maps can be pointers, or contain pointers.  The hash of
+// a pointer is a somewhat tricky concept, as pointers to stack
+// objects can change during a stack copy. Because we hash a pointer
+// by just hashing its uintptr-converted value, the hash of a key can
+// potentially become stale across any stack copy.
+//
+// For keys that are stored into maps, we must avoid this. All key
+// arguments to map assignments must have their pointer targets marked
+// as escaping so that the hash of the key in the map is stable. This
+// is true even when the map itself does not escape and can live on
+// the stack.
+//
+// For keys that are used for lookup (or delete), it turns out that
+// escaping is not required. If we are looking up a pointer which
+// points to the stack, the hash value is ~irrelevant, as the key is
+// guaranteed to not be in the map (due to the previous paragraph).
 
 // Extracts the H1 portion of a hash: the 57 upper bits.
 // TODO(prattmic): what about 32-bit systems?
@@ -246,7 +265,7 @@ type Map struct {
 }
 
 // Use 64-bit hash on 64-bit systems, except on Wasm, where we use
-// 32-bit hash (see runtime/hash32.go).
+// 32-bit hash (see runtime_hash32.go).
 const Use64BitHash = goarch.PtrSize == 8 && goarch.IsWasm == 0
 
 func depthToShift(depth uint8) uint8 {
@@ -499,22 +518,23 @@ func (m *Map) PutSlot(typ *abi.MapType, key unsafe.Pointer) unsafe.Pointer {
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.MapGroupSlots {
-			elem := m.putSlotSmall(typ, hash, key)
+		elem := m.putSlotSmall(typ, hash, key)
+		if elem == nil {
+			// Can't fit another entry, grow to full size map.
+			tab := m.growToTable(typ)
 
-			if m.writing == 0 {
-				fatal("concurrent map writes")
-			}
-			m.writing ^= 1
+			elem = tab.uncheckedPutSlotForAssign(typ, hash, key)
+			m.used++
 
-			return elem
+			tab.checkInvariants(typ, m)
 		}
 
-		// Can't fit another entry, grow to full size map.
-		//
-		// TODO(prattmic): If this is an update to an existing key then
-		// we actually don't need to grow.
-		m.growToTable(typ)
+		if m.writing == 0 {
+			fatal("concurrent map writes")
+		}
+		m.writing ^= 1
+
+		return elem
 	}
 
 	for {
@@ -568,7 +588,7 @@ func (m *Map) putSlotSmall(typ *abi.MapType, hash uintptr, key unsafe.Pointer) u
 	// more efficient than matchEmpty.
 	match = g.ctrls().matchEmptyOrDeleted()
 	if match == 0 {
-		fatal("small map with no empty slot (concurrent map writes?)")
+		// No empty slot found. Need to grow the map.
 		return nil
 	}
 
@@ -605,7 +625,7 @@ func (m *Map) growToSmall(typ *abi.MapType) {
 	g.ctrls().setEmpty()
 }
 
-func (m *Map) growToTable(typ *abi.MapType) {
+func (m *Map) growToTable(typ *abi.MapType) *table {
 	tab := newTable(typ, 2*abi.MapGroupSlots, 0, 0)
 
 	g := groupReference{
@@ -642,6 +662,7 @@ func (m *Map) growToTable(typ *abi.MapType) {
 
 	m.globalDepth = 0
 	m.globalShift = depthToShift(m.globalDepth)
+	return tab
 }
 
 func (m *Map) Delete(typ *abi.MapType, key unsafe.Pointer) {

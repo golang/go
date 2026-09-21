@@ -74,24 +74,29 @@ type _Plink uintptr
 
 func sigpanic() {
 	gp := getg()
-	if !canpanic() {
-		throw("unexpected signal during runtime execution")
-	}
-
 	note := gostringnocopy((*byte)(unsafe.Pointer(gp.m.notesig)))
-	switch gp.sig {
-	case _SIGRFAULT, _SIGWFAULT:
+
+	haveAddr := false
+	if gp.sig == _SIGRFAULT || gp.sig == _SIGWFAULT {
 		i := indexNoFloat(note, "addr=")
 		if i >= 0 {
 			i += 5
 		} else if i = indexNoFloat(note, "va="); i >= 0 {
 			i += 3
-		} else {
-			panicmem()
 		}
-		addr := note[i:]
-		gp.sigcode1 = uintptr(atolwhex(addr))
-		if gp.sigcode1 < 0x1000 {
+		if i >= 0 {
+			gp.sigcode1 = uintptr(atolwhex(note[i:]))
+			haveAddr = true
+		}
+	}
+
+	if !canpanic() {
+		throw("unexpected signal during runtime execution")
+	}
+
+	switch gp.sig {
+	case _SIGRFAULT, _SIGWFAULT:
+		if !haveAddr || gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
 		if gp.paniconfault {
@@ -593,4 +598,14 @@ func walltime() (sec int64, nsec int32) {
 	var t [1]uint64
 	readtime(&t[0], 1, 1)
 	return timesplit(frombe(t[0]))
+}
+
+//go:nowritebarrierrec
+//go:nosplit
+func libpreinit() {}
+
+//go:nowritebarrierrec
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	throw("bad newosproc0")
 }

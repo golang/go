@@ -50,6 +50,7 @@ func Compact(dst *bytes.Buffer, src []byte) error {
 	dst.Grow(len(src))
 	b := dst.AvailableBuffer()
 	b, err := jsontext.AppendFormat(b, src,
+		ReportErrorsWithLegacySemantics(true),
 		jsontext.AllowDuplicateNames(true),
 		jsontext.AllowInvalidUTF8(true),
 		jsontext.PreserveRawStrings(true))
@@ -111,6 +112,7 @@ func appendIndent(dst, src []byte, prefix, indent string) ([]byte, error) {
 	}
 
 	dst, err := jsontext.AppendFormat(dst, src,
+		ReportErrorsWithLegacySemantics(true),
 		jsontext.AllowDuplicateNames(true),
 		jsontext.AllowInvalidUTF8(true),
 		jsontext.PreserveRawStrings(true),

@@ -446,18 +446,21 @@ func TestDecodeInStream(t *testing.T) {
 		{CaseName: Name(""), json: ` [{"a": 1} {"a": 2}] `, expTokens: []any{
 			Delim('['),
 			decodeThis{map[string]any{"a": float64(1)}},
-			decodeThis{&SyntaxError{"expected comma after array element", 11}},
+			decodeThis{&SyntaxError{"expected comma after array element", len64(` [{"a": 1} `)}},
 		}},
 		{CaseName: Name(""), json: `{ "` + strings.Repeat("a", 513) + `" 1 }`, expTokens: []any{
 			Delim('{'), strings.Repeat("a", 513),
-			decodeThis{&SyntaxError{"expected colon after object key", 518}},
+			decodeThis{&SyntaxError{"expected colon after object key", len64(`{ "`) + 513 + len64(`" `)}},
 		}},
 		{CaseName: Name(""), json: `{ "\a" }`, expTokens: []any{
 			Delim('{'),
-			&SyntaxError{"invalid character 'a' in string escape code", 3},
+			&SyntaxError{"invalid character 'a' in string escape code", len64(`{ "`)},
 		}},
 		{CaseName: Name(""), json: ` \a`, expTokens: []any{
-			&SyntaxError{"invalid character '\\\\' looking for beginning of value", 1},
+			&SyntaxError{"invalid character '\\\\' looking for beginning of value", len64(` `)},
+		}},
+		{CaseName: Name(""), json: `,`, expTokens: []any{
+			&SyntaxError{"invalid character ',' looking for beginning of value", 0},
 		}},
 	}
 	for _, tt := range tests {
@@ -466,6 +469,15 @@ func TestDecodeInStream(t *testing.T) {
 			for i, want := range tt.expTokens {
 				var got any
 				var err error
+
+				wantMore := true
+				switch want {
+				case Delim(']'), Delim('}'):
+					wantMore = false
+				}
+				if got := dec.More(); got != wantMore {
+					t.Fatalf("%s:\n\tinput: %s\n\tdec.More() = %v, want %v (next token: %T(%v))", tt.Where, tt.json, got, wantMore, want, want)
+				}
 
 				if dt, ok := want.(decodeThis); ok {
 					want = dt.v
@@ -523,34 +535,53 @@ func TestHTTPDecoding(t *testing.T) {
 	}
 }
 
-func TestTokenTruncation(t *testing.T) {
+// TODO(https://golang.org/issue/25860): Use interface literal.
+type readerFunc func([]byte) (int, error)
+
+func (f readerFunc) Read(b []byte) (int, error) {
+	return f(b)
+}
+
+func TestTokenError(t *testing.T) {
 	tests := []struct {
-		in  string
-		err error
+		in    string
+		inErr error
+		err   error
 	}{
 		{in: ``, err: io.EOF},
 		{in: `{`, err: io.EOF},
 		{in: `{"`, err: io.ErrUnexpectedEOF},
 		{in: `{"k"`, err: io.EOF},
 		{in: `{"k":`, err: io.EOF},
-		{in: `{"k",`, err: &SyntaxError{"invalid character ',' after object key", int64(len(`{"k"`))}},
-		{in: `{"k"}`, err: &SyntaxError{"invalid character '}' after object key", int64(len(`{"k"`))}},
+		{in: `{"k",`, err: &SyntaxError{"invalid character ',' after object key", len64(`{"k"`)}},
+		{in: `{"k"}`, err: &SyntaxError{"invalid character '}' after object key", len64(`{"k"`)}},
 		{in: ` [0`, err: io.EOF},
 		{in: `[0.`, err: io.ErrUnexpectedEOF},
-		{in: `[0. `, err: &SyntaxError{"invalid character ' ' after decimal point in numeric literal", int64(len(`[0.`))}},
+		{in: `[0. `, err: &SyntaxError{"invalid character ' ' after decimal point in numeric literal", len64(`[0.`)}},
 		{in: `[0,`, err: io.EOF},
-		{in: `[0:`, err: &SyntaxError{"invalid character ':' after array element", int64(len(`[0`))}},
+		{in: `[0:`, err: &SyntaxError{"invalid character ':' after array element", len64(`[0`)}},
 		{in: `n`, err: io.ErrUnexpectedEOF},
 		{in: `nul`, err: io.ErrUnexpectedEOF},
-		{in: `fal `, err: &SyntaxError{"invalid character ' ' in literal false (expecting 's')", int64(len(`fal `))}},
+		{in: `fal `, err: &SyntaxError{"invalid character ' ' in literal false (expecting 's')", len64(`fal `)}},
 		{in: `false`, err: io.EOF},
+		{in: `  1e1000`, err: &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64(`  1e100`)}},
+		{in: `{"foo":1}{"bar":2}`, err: io.EOF},
+		{in: `{"foo":1}{"bar":2}`, inErr: io.ErrUnexpectedEOF, err: io.ErrUnexpectedEOF},
+		{in: `{"foo":1}{"bar":2}`, inErr: fmt.Errorf("wrap: %w", io.ErrUnexpectedEOF), err: fmt.Errorf("wrap: %w", io.ErrUnexpectedEOF)},
 	}
 	for _, tt := range tests {
-		d := NewDecoder(strings.NewReader(tt.in))
+		r := strings.NewReader(tt.in)
+		d := NewDecoder(readerFunc(func(b []byte) (int, error) {
+			n, err := r.Read(b)
+			if err == io.EOF && tt.inErr != nil {
+				return n, tt.inErr
+			}
+			return n, err
+		}))
 		for i := 0; true; i++ {
 			if _, err := d.Token(); err != nil {
 				if !reflect.DeepEqual(err, tt.err) {
-					t.Errorf("`%s`: %d.Token error = %#v, want %v", tt.in, i, err, tt.err)
+					t.Errorf("`%s`: %d.Token error = %#v, want %#v", tt.in, i, err, tt.err)
 				}
 				break
 			}
@@ -620,4 +651,36 @@ func TestDecoderInputOffset(t *testing.T) {
 	if len(wantOffsets)+len(wantMores) > 0 {
 		t.Fatal("unconsumed testdata")
 	}
+
+	t.Run("ArrayEOF", func(t *testing.T) {
+		d := NewDecoder(strings.NewReader(` [ "fizz" , `))
+		for {
+			if _, err := d.Token(); err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatalf("Token error: %v", err)
+			}
+		}
+		got := d.InputOffset()
+		want := len64(` [ "fizz" ,`)
+		if got != want {
+			t.Errorf("InputOffset = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("ObjectEOF", func(t *testing.T) {
+		d := NewDecoder(strings.NewReader(` { "fizz" : `))
+		for {
+			if _, err := d.Token(); err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatalf("Token error: %v", err)
+			}
+		}
+		got := d.InputOffset()
+		want := len64(` { "fizz" :`)
+		if got != want {
+			t.Errorf("InputOffset = %v, want %v", got, want)
+		}
+	})
 }

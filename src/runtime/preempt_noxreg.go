@@ -25,3 +25,5 @@ func xRegSave(gp *g) {}
 func xRegRestore(gp *g) {}
 
 func (*xRegPerP) free() {}
+
+func xRegScan(gp *g, gcw *gcWork, state *stackScanState) {}

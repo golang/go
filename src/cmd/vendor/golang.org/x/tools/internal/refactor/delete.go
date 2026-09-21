@@ -13,7 +13,6 @@ import (
 	"go/types"
 	"slices"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/astutil"
@@ -32,8 +31,8 @@ import (
 //
 // If it cannot make the necessary edits, such as for a function
 // parameter or result, it returns nil.
-func DeleteVar(tokFile *token.File, info *types.Info, curId inspector.Cursor) []analysis.TextEdit {
-	switch ek, _ := curId.ParentEdge(); ek {
+func DeleteVar(tokFile *token.File, info *types.Info, curId inspector.Cursor) []Edit {
+	switch curId.ParentEdgeKind() {
 	case edge.ValueSpec_Names:
 		return deleteVarFromValueSpec(tokFile, info, curId)
 
@@ -52,7 +51,7 @@ func DeleteVar(tokFile *token.File, info *types.Info, curId inspector.Cursor) []
 // Precondition: curId is Ident beneath ValueSpec.Names beneath GenDecl.
 //
 // See also [deleteVarFromAssignStmt], which has parallel structure.
-func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent inspector.Cursor) []analysis.TextEdit {
+func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent inspector.Cursor) []Edit {
 	var (
 		id      = curIdent.Node().(*ast.Ident)
 		curSpec = curIdent.Parent()
@@ -75,7 +74,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 	// at least one LHS, or for effects on RHS.
 	// Blank out or delete just one LHS.
 
-	_, index := curIdent.ParentEdge() // index of LHS within ValueSpec.Names
+	index := curIdent.ParentEdgeIndex() // index of LHS within ValueSpec.Names
 
 	// If there is no RHS, we can delete the LHS.
 	if len(spec.Values) == 0 {
@@ -95,7 +94,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 			pos = spec.Names[index].Pos()
 			end = spec.Names[index+1].Pos()
 		}
-		return []analysis.TextEdit{{
+		return []Edit{{
 			Pos: pos,
 			End: end,
 		}}
@@ -111,7 +110,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 			//
 			// var _, lhs1 = rhs0, rhs1
 			//      ------       ------
-			return []analysis.TextEdit{
+			return []Edit{
 				{
 					Pos: spec.Names[index-1].End(),
 					End: spec.Names[index].End(),
@@ -126,7 +125,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 			//
 			// var lhs0, _ = rhs0, rhs1
 			//     ------    ------
-			return []analysis.TextEdit{
+			return []Edit{
 				{
 					Pos: spec.Names[index].Pos(),
 					End: spec.Names[index+1].Pos(),
@@ -141,7 +140,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 
 	// We cannot delete the RHS.
 	// Blank out the LHS.
-	return []analysis.TextEdit{{
+	return []Edit{{
 		Pos:     id.Pos(),
 		End:     id.End(),
 		NewText: []byte("_"),
@@ -151,7 +150,7 @@ func deleteVarFromValueSpec(tokFile *token.File, info *types.Info, curIdent insp
 // Precondition: curId is Ident beneath AssignStmt.Lhs.
 //
 // See also [deleteVarFromValueSpec], which has parallel structure.
-func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent inspector.Cursor) []analysis.TextEdit {
+func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent inspector.Cursor) []Edit {
 	var (
 		id      = curIdent.Node().(*ast.Ident)
 		curStmt = curIdent.Parent()
@@ -182,7 +181,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 
 	// If the assignment is 1:1 and the RHS has no effects,
 	// we can delete the LHS and its corresponding RHS.
-	_, index := curIdent.ParentEdge()
+	index := curIdent.ParentEdgeIndex()
 	if len(assign.Lhs) > 1 &&
 		len(assign.Lhs) == len(assign.Rhs) &&
 		typesinternal.NoEffects(info, assign.Rhs[index]) {
@@ -192,7 +191,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 			//
 			// _, lhs1 := rhs0, rhs1
 			//  ------        ------
-			return []analysis.TextEdit{
+			return []Edit{
 				{
 					Pos: assign.Lhs[index-1].End(),
 					End: assign.Lhs[index].End(),
@@ -207,7 +206,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 			//
 			// lhs0, _ := rhs0, rhs1
 			// ------     ------
-			return []analysis.TextEdit{
+			return []Edit{
 				{
 					Pos: assign.Lhs[index].Pos(),
 					End: assign.Lhs[index+1].Pos(),
@@ -222,7 +221,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 
 	// We cannot delete the RHS.
 	// Blank out the LHS.
-	edits := []analysis.TextEdit{{
+	edits := []Edit{{
 		Pos:     id.Pos(),
 		End:     id.End(),
 		NewText: []byte("_"),
@@ -233,7 +232,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 	// assignment to avoid a "no new variables on left
 	// side of :=" error.
 	if !declaresOtherNames {
-		edits = append(edits, analysis.TextEdit{
+		edits = append(edits, Edit{
 			Pos:     assign.TokPos,
 			End:     assign.TokPos + token.Pos(len(":=")),
 			NewText: []byte("="),
@@ -246,7 +245,7 @@ func deleteVarFromAssignStmt(tokFile *token.File, info *types.Info, curIdent ins
 // DeleteSpec returns edits to delete the {Type,Value}Spec identified by curSpec.
 //
 // TODO(adonovan): add test suite. Test for consts as well.
-func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []analysis.TextEdit {
+func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []Edit {
 	var (
 		spec    = curSpec.Node().(ast.Spec)
 		curDecl = curSpec.Parent()
@@ -260,7 +259,7 @@ func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []analysis.TextEd
 	}
 
 	// Delete the spec and its comments.
-	_, index := curSpec.ParentEdge() // index of ValueSpec within GenDecl.Specs
+	index := curSpec.ParentEdgeIndex() // index of ValueSpec within GenDecl.Specs
 	pos, end := spec.Pos(), spec.End()
 	if doc := astutil.DocComment(spec); doc != nil {
 		pos = doc.Pos() // leading comment
@@ -277,7 +276,7 @@ func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []analysis.TextEd
 		//         -----
 		end = decl.Specs[index+1].Pos()
 	}
-	return []analysis.TextEdit{{
+	return []Edit{{
 		Pos: pos,
 		End: end,
 	}}
@@ -286,10 +285,10 @@ func DeleteSpec(tokFile *token.File, curSpec inspector.Cursor) []analysis.TextEd
 // DeleteDecl returns edits to delete the ast.Decl identified by curDecl.
 //
 // TODO(adonovan): add test suite.
-func DeleteDecl(tokFile *token.File, curDecl inspector.Cursor) []analysis.TextEdit {
+func DeleteDecl(tokFile *token.File, curDecl inspector.Cursor) []Edit {
 	decl := curDecl.Node().(ast.Decl)
 
-	ek, _ := curDecl.ParentEdge()
+	ek := curDecl.ParentEdgeKind()
 	switch ek {
 	case edge.DeclStmt_Decl:
 		return DeleteStmt(tokFile, curDecl.Parent())
@@ -321,7 +320,7 @@ func DeleteDecl(tokFile *token.File, curDecl inspector.Cursor) []analysis.TextEd
 			}
 		}
 
-		return []analysis.TextEdit{{
+		return []Edit{{
 			Pos: pos,
 			End: end,
 		}}
@@ -331,115 +330,198 @@ func DeleteDecl(tokFile *token.File, curDecl inspector.Cursor) []analysis.TextEd
 	}
 }
 
+// find leftmost Pos bigger than start and rightmost less than end
+func filterPos(nds []*ast.Comment, start, end token.Pos) (token.Pos, token.Pos, bool) {
+	l, r := end, token.NoPos
+	ok := false
+	for _, n := range nds {
+		if n.Pos() > start && n.Pos() < l {
+			l = n.Pos()
+			ok = true
+		}
+		if n.End() <= end && n.End() > r {
+			r = n.End()
+			ok = true
+		}
+	}
+	return l, r, ok
+}
+
 // DeleteStmt returns the edits to remove the [ast.Stmt] identified by
-// curStmt, if it is contained within a BlockStmt, CaseClause,
-// CommClause, or is the STMT in switch STMT; ... {...}. It returns nil otherwise.
-func DeleteStmt(tokFile *token.File, curStmt inspector.Cursor) []analysis.TextEdit {
-	stmt := curStmt.Node().(ast.Stmt)
-	// if the stmt is on a line by itself delete the whole line
-	// otherwise just delete the statement.
+// curStmt if it recognizes the context. It returns nil otherwise.
+// TODO(pjw, adonovan): it should not return nil, it should return an error
+//
+// DeleteStmt is called with just the AST so it has trouble deciding if
+// a comment is associated with the statement to be deleted. For instance,
+//
+//	for /*A*/ init()/*B*/;/*C/cond()/*D/;/*E*/post() /*F*/ { /*G*/}
+//
+// comment B and C are indistinguishable, as are D and E. That is, as the
+// AST does not say where the semicolons are, B and C could go either
+// with the init() or the cond(), so cannot be removed safely. The same
+// is true for D, E, and the post(). (And there are other similar cases.)
+// But the other comments can be removed as they are unambiguously
+// associated with the statement being deleted. In particular,
+// it removes whole lines like
+//
+//	stmt // comment
+func DeleteStmt(file *token.File, curStmt inspector.Cursor) []Edit {
+	// if the stmt is on a line by itself, or a range of lines, delete the whole thing
+	// including comments. Except for the heads of switches, type
+	// switches, and for-statements that's the usual case. Complexity occurs where
+	// there are multiple statements on the same line, and adjacent comments.
 
-	// this logic would be a lot simpler with the file contents, and somewhat simpler
-	// if the cursors included the comments.
+	// In that case we remove some adjacent comments:
+	// In me()/*A*/;b(), comment A cannot be removed, because the ast
+	// is indistinguishable from me();/*A*/b()
+	// and the same for cases like switch me()/*A*/; x.(type) {
 
-	lineOf := tokFile.Line
-	stmtStartLine, stmtEndLine := lineOf(stmt.Pos()), lineOf(stmt.End())
+	// this would be more precise with the file contents, or if the ast
+	// contained the location of semicolons
+	var (
+		stmt          = curStmt.Node().(ast.Stmt)
+		tokFile       = file
+		lineOf        = tokFile.Line
+		stmtStartLine = lineOf(stmt.Pos())
+		stmtEndLine   = lineOf(stmt.End())
 
-	var from, to token.Pos
-	// bounds of adjacent syntax/comments on same line, if any
-	limits := func(left, right token.Pos) {
+		leftSyntax, rightSyntax     token.Pos      // pieces of parent node on stmt{Start,End}Line
+		leftComments, rightComments []*ast.Comment // comments before/after stmt on the same line
+	)
+
+	// remember the Pos that are on the same line as stmt
+	use := func(left, right token.Pos) {
 		if lineOf(left) == stmtStartLine {
-			from = left
+			leftSyntax = left
 		}
 		if lineOf(right) == stmtEndLine {
-			to = right
+			rightSyntax = right
 		}
-	}
-	// TODO(pjw): there are other places a statement might be removed:
-	// IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
-	// (removing the blocks requires more rewriting than this routine would do)
-	// CommCase   = "case" ( SendStmt | RecvStmt ) | "default" .
-	// (removing the stmt requires more rewriting, and it's unclear what the user means)
-	switch parent := curStmt.Parent().Node().(type) {
-	case *ast.SwitchStmt:
-		limits(parent.Switch, parent.Body.Lbrace)
-	case *ast.TypeSwitchStmt:
-		limits(parent.Switch, parent.Body.Lbrace)
-		if parent.Assign == stmt {
-			return nil // don't let the user break the type switch
-		}
-	case *ast.BlockStmt:
-		limits(parent.Lbrace, parent.Rbrace)
-	case *ast.CommClause:
-		limits(parent.Colon, curStmt.Parent().Parent().Node().(*ast.BlockStmt).Rbrace)
-		if parent.Comm == stmt {
-			return nil // maybe the user meant to remove the entire CommClause?
-		}
-	case *ast.CaseClause:
-		limits(parent.Colon, curStmt.Parent().Parent().Node().(*ast.BlockStmt).Rbrace)
-	case *ast.ForStmt:
-		limits(parent.For, parent.Body.Lbrace)
-
-	default:
-		return nil // not one of ours
 	}
 
-	if prev, found := curStmt.PrevSibling(); found && lineOf(prev.Node().End()) == stmtStartLine {
-		from = prev.Node().End() // preceding statement ends on same line
-	}
-	if next, found := curStmt.NextSibling(); found && lineOf(next.Node().Pos()) == stmtEndLine {
-		to = next.Node().Pos() // following statement begins on same line
-	}
-	// and now for the comments
-Outer:
+	// find the comments, if any, on the same line
+Big:
 	for _, cg := range astutil.EnclosingFile(curStmt).Comments {
 		for _, co := range cg.List {
 			if lineOf(co.End()) < stmtStartLine {
 				continue
 			} else if lineOf(co.Pos()) > stmtEndLine {
-				break Outer // no more are possible
+				break Big // no more are possible
 			}
-			if lineOf(co.End()) == stmtStartLine && co.End() < stmt.Pos() {
-				if !from.IsValid() || co.End() > from {
-					from = co.End()
-					continue // maybe there are more
-				}
-			}
-			if lineOf(co.Pos()) == stmtEndLine && co.Pos() > stmt.End() {
-				if !to.IsValid() || co.Pos() < to {
-					to = co.Pos()
-					continue // maybe there are more
-				}
+			if lineOf(co.End()) == stmtStartLine && co.End() <= stmt.Pos() {
+				// comment is before the statement
+				leftComments = append(leftComments, co)
+			} else if lineOf(co.Pos()) == stmtEndLine && co.Pos() >= stmt.End() {
+				// comment is after the statement
+				rightComments = append(rightComments, co)
 			}
 		}
 	}
-	// if either from or to is valid, just remove the statement
-	// otherwise remove the line
-	edit := analysis.TextEdit{Pos: stmt.Pos(), End: stmt.End()}
-	if from.IsValid() || to.IsValid() {
-		// remove just the statement.
-		// we can't tell if there is a ; or whitespace right after the statement
-		// ideally we'd like to remove the former and leave the latter
-		// (if gofmt has run, there likely won't be a ;)
-		// In type switches we know there's a semicolon somewhere after the statement,
-		// but the extra work for this special case is not worth it, as gofmt will fix it.
-		return []analysis.TextEdit{edit}
+
+	// find any other syntax on the same line
+	var (
+		leftStmt, rightStmt token.Pos // end/start positions of sibling statements in a []Stmt list
+		inStmtList          = false
+		curParent           = curStmt.Parent()
+	)
+	switch parent := curParent.Node().(type) {
+	case *ast.BlockStmt:
+		use(parent.Lbrace, parent.Rbrace)
+		inStmtList = true
+	case *ast.CaseClause:
+		use(parent.Colon, curStmt.Parent().Parent().Node().(*ast.BlockStmt).Rbrace)
+		inStmtList = true
+	case *ast.CommClause:
+		if parent.Comm == stmt {
+			return nil // maybe the user meant to remove the entire CommClause?
+		}
+		use(parent.Colon, curStmt.Parent().Parent().Node().(*ast.BlockStmt).Rbrace)
+		inStmtList = true
+	case *ast.ForStmt:
+		use(parent.For, parent.Body.Lbrace)
+		// special handling, as init;cond;post BlockStmt is not a statement list
+		if parent.Init != nil && parent.Cond != nil && stmt == parent.Init && lineOf(parent.Cond.Pos()) == lineOf(stmt.End()) {
+			rightStmt = parent.Cond.Pos()
+		} else if parent.Post != nil && parent.Cond != nil && stmt == parent.Post && lineOf(parent.Cond.End()) == lineOf(stmt.Pos()) {
+			leftStmt = parent.Cond.End()
+		}
+	case *ast.IfStmt:
+		switch stmt {
+		case parent.Init:
+			use(parent.If, parent.Body.Lbrace)
+		case parent.Else:
+			// stmt is the {...} in "if cond {} else {...}" and removing
+			// it would require removing the 'else' keyword, but the ast
+			// does not contain its position.
+			return nil
+		}
+	case *ast.SwitchStmt:
+		use(parent.Switch, parent.Body.Lbrace)
+	case *ast.TypeSwitchStmt:
+		if stmt == parent.Assign {
+			return nil // don't remove .(type)
+		}
+		use(parent.Switch, parent.Body.Lbrace)
+	default:
+		return nil // not one of ours
 	}
-	// remove the whole line
-	for lineOf(edit.Pos) == stmtStartLine {
-		edit.Pos--
+
+	if inStmtList {
+		// find the siblings, if any, on the same line
+		if prev, found := curStmt.PrevSibling(); found && lineOf(prev.Node().End()) == stmtStartLine {
+			if _, ok := prev.Node().(ast.Stmt); ok {
+				leftStmt = prev.Node().End() // preceding statement ends on same line
+			}
+		}
+		if next, found := curStmt.NextSibling(); found && lineOf(next.Node().Pos()) == stmtEndLine {
+			rightStmt = next.Node().Pos() // following statement begins on same line
+		}
 	}
-	edit.Pos++ // get back tostmtStartLine
-	for lineOf(edit.End) == stmtEndLine {
-		edit.End++
+
+	// compute the left and right limits of the edit
+	var leftEdit, rightEdit token.Pos
+	if leftStmt.IsValid() {
+		leftEdit = stmt.Pos() // can't remove preceding comments: a()/*A*/; me()
+	} else if leftSyntax.IsValid() {
+		// remove intervening leftComments
+		if a, _, ok := filterPos(leftComments, leftSyntax, stmt.Pos()); ok {
+			leftEdit = a
+		} else {
+			leftEdit = stmt.Pos()
+		}
+	} else { // remove whole line
+		for leftEdit = stmt.Pos(); lineOf(leftEdit) == stmtStartLine; leftEdit-- {
+		}
+		if leftEdit < stmt.Pos() {
+			leftEdit++ // beginning of line
+		}
 	}
-	return []analysis.TextEdit{edit}
+	if rightStmt.IsValid() {
+		rightEdit = stmt.End() // can't remove following comments
+	} else if rightSyntax.IsValid() {
+		// remove intervening rightComments
+		if _, b, ok := filterPos(rightComments, stmt.End(), rightSyntax); ok {
+			rightEdit = b
+		} else {
+			rightEdit = stmt.End()
+		}
+	} else { // remove whole line
+		fend := token.Pos(file.Base()) + token.Pos(file.Size())
+		for rightEdit = stmt.End(); fend >= rightEdit && lineOf(rightEdit) == stmtEndLine; rightEdit++ {
+		}
+		// don't remove \n if there was other stuff earlier
+		if leftSyntax.IsValid() || leftStmt.IsValid() {
+			rightEdit--
+		}
+	}
+
+	return []Edit{{Pos: leftEdit, End: rightEdit}}
 }
 
 // DeleteUnusedVars computes the edits required to delete the
 // declarations of any local variables whose last uses are in the
 // curDelend subtree, which is about to be deleted.
-func DeleteUnusedVars(index *typeindex.Index, info *types.Info, tokFile *token.File, curDelend inspector.Cursor) []analysis.TextEdit {
+func DeleteUnusedVars(index *typeindex.Index, info *types.Info, tokFile *token.File, curDelend inspector.Cursor) []Edit {
 	// TODO(adonovan): we might want to generalize this by
 	// splitting the two phases below, so that we can gather
 	// across a whole sequence of deletions then finally compute the
@@ -449,14 +531,13 @@ func DeleteUnusedVars(index *typeindex.Index, info *types.Info, tokFile *token.F
 	delcount := make(map[*types.Var]int)
 	for curId := range curDelend.Preorder((*ast.Ident)(nil)) {
 		id := curId.Node().(*ast.Ident)
-		if v, ok := info.Uses[id].(*types.Var); ok &&
-			typesinternal.GetVarKind(v) == typesinternal.LocalVar { // always false before go1.25
+		if v, ok := info.Uses[id].(*types.Var); ok && v.Kind() == types.LocalVar {
 			delcount[v]++
 		}
 	}
 
 	// Delete declaration of each var that became unused.
-	var edits []analysis.TextEdit
+	var edits []Edit
 	for v, count := range delcount {
 		if len(slices.Collect(index.Uses(v))) == count {
 			if curDefId, ok := index.Def(v); ok {

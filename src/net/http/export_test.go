@@ -29,10 +29,11 @@ var (
 	ExportErrServerClosedIdle         = errServerClosedIdle
 	ExportServeFile                   = serveFile
 	ExportScanETag                    = scanETag
-	ExportHttp2ConfigureServer        = http2ConfigureServer
 	Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
 	Export_writeStatusLine            = writeStatusLine
 	Export_is408Message               = is408Message
+	MaxPostCloseReadTime              = maxPostCloseReadTime
+	ProtocolSetHTTP3                  = protocolSetHTTP3
 )
 
 var MaxWriteWaitBeforeConnReuse = &maxWriteWaitBeforeConnReuse
@@ -105,12 +106,6 @@ func ResetCachedEnvironment() {
 	resetProxyConfig()
 }
 
-func (t *Transport) NumPendingRequestsForTesting() int {
-	t.reqMu.Lock()
-	defer t.reqMu.Unlock()
-	return len(t.reqCanceler)
-}
-
 func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	keys = make([]string, 0)
 	t.idleMu.Lock()
@@ -134,29 +129,15 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 	defer t.idleMu.Unlock()
 	for _, conns := range t.idleConn {
 		for _, pc := range conns {
+			if pc.conn == nil {
+				continue
+			}
 			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
 		}
 	}
-	slices.Sort(ret)
-	return ret
-}
-
-func (t *Transport) IdleConnStrsForTesting_h2() []string {
-	var ret []string
-	noDialPool := t.h2transport.(*http2Transport).ConnPool.(http2noDialClientConnPool)
-	pool := noDialPool.http2clientConnPool
-
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-
-	for k, ccs := range pool.conns {
-		for _, cc := range ccs {
-			if cc.idleState().canTakeNewRequest {
-				ret = append(ret, k)
-			}
-		}
+	if t.h2Transport != nil {
+		ret = append(ret, t.h2Transport.IdleConnStrsForTesting()...)
 	}
-
 	slices.Sort(ret)
 	return ret
 }
@@ -255,15 +236,6 @@ func hookSetter(dst *func()) func(func()) {
 	}
 }
 
-func ExportHttp2ConfigureTransport(t *Transport) error {
-	t2, err := http2configureTransports(t)
-	if err != nil {
-		return err
-	}
-	t.h2transport = t2
-	return nil
-}
-
 func (s *Server) ExportAllConnsIdle() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -289,12 +261,6 @@ func (s *Server) ExportAllConnsByState() map[ConnState]int {
 
 func (r *Request) WithT(t *testing.T) *Request {
 	return r.WithContext(context.WithValue(r.Context(), tLogKey{}, t.Logf))
-}
-
-func ExportSetH2GoawayTimeout(d time.Duration) (restore func()) {
-	old := http2goAwayTimeout
-	http2goAwayTimeout = d
-	return func() { http2goAwayTimeout = old }
 }
 
 func (r *Request) ExportIsReplayable() bool { return r.isReplayable() }

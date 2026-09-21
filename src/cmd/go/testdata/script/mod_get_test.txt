@@ -1,5 +1,3 @@
-env GO111MODULE=on
-
 # By default, 'go get' should ignore tests
 cp go.mod.empty go.mod
 go get m/a

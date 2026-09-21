@@ -1,5 +1,3 @@
-[short] skip  # sleeps to make mtime cacheable
-
 go mod init example
 
 cd subdir

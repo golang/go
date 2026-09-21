@@ -1,5 +1,4 @@
 # Tests issue #18778
-[short] skip
 
 cd pkgs
 

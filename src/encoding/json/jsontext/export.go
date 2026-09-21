@@ -12,6 +12,20 @@ import (
 	"encoding/json/internal"
 )
 
+// TODO(https://go.dev/issue/73435): Remove the Internal symbol.
+//
+// The Go language lacks a 3rd category of visibility where
+// certain symbols can only be referenced from within the same module.
+// One solution to this is to put the entirety of a package with
+// both public and module-only symbols exposed as an internal package.
+// A separate, public package can re-export all of the public symbols
+// via type aliases and thus ensuring module-only symbols cannot be
+// referenced by the end-user. While this works, it unfortunately
+// leads to a poor user experience since the Go pkgsite is unable to
+// forward the documentation for symbols like methods and fields.
+// We need to improve the pkgsite experience before we can delete
+// the Internal symbol.
+
 // Internal is for internal use only.
 // This is exempt from the Go compatibility agreement.
 var Internal exporter

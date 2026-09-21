@@ -393,7 +393,7 @@ func freeOnePassMachine(m *onePassMachine) {
 	onePassPool.Put(m)
 }
 
-// doOnePass implements r.doExecute using the one-pass execution engine.
+// doOnePass implements r.find using the one-pass execution engine.
 func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap int, dstCap []int) []int {
 	startCond := re.cond
 	if startCond == ^syntax.EmptyOp(0) { // impossible
@@ -511,14 +511,14 @@ Return:
 
 // doMatch reports whether either r, b or s match the regexp.
 func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
-	return re.doExecute(r, b, s, 0, 0, nil) != nil
+	return re.find(r, b, s, 0, 0, nil) != nil
 }
 
-// doExecute finds the leftmost match in the input, appends the position
+// find finds the leftmost match in the input, appends the position
 // of its subexpressions to dstCap and returns dstCap.
 //
 // nil is returned if no matches are found and non-nil if matches are found.
-func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
+func (re *Regexp) find(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
 	if dstCap == nil {
 		// Make sure 'return dstCap' is non-nil.
 		dstCap = arrayNoInts[:0:0]
@@ -549,6 +549,6 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 	return dstCap
 }
 
-// arrayNoInts is returned by doExecute match if nil dstCap is passed
+// arrayNoInts is returned by find match if nil dstCap is passed
 // to it with ncap=0.
 var arrayNoInts [0]int

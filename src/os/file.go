@@ -428,9 +428,6 @@ func openDir(name string) (*File, error) {
 	return openDirNolog(name)
 }
 
-// lstat is overridden in tests.
-var lstat = Lstat
-
 // Rename renames (moves) oldpath to newpath.
 // If newpath already exists and is not a directory, Rename replaces it.
 // If newpath already exists and is a directory, Rename returns an error.
@@ -842,7 +839,13 @@ func (dir dirFS) ReadLink(name string) (string, error) {
 	if err != nil {
 		return "", &PathError{Op: "readlink", Path: name, Err: err}
 	}
-	return Readlink(fullname)
+	f, err := Readlink(fullname)
+	if err != nil {
+		// See comment in dirFS.Open.
+		err.(*PathError).Path = name
+		return "", err
+	}
+	return f, nil
 }
 
 // join returns the path for name in dir.
@@ -864,6 +867,7 @@ func (dir dirFS) join(name string) (string, error) {
 // A successful call returns err == nil, not err == EOF.
 // Because ReadFile reads the whole file, it does not treat an EOF from Read
 // as an error to be reported.
+// If there is an error, it will be of type [*PathError].
 func ReadFile(name string) ([]byte, error) {
 	f, err := Open(name)
 	if err != nil {

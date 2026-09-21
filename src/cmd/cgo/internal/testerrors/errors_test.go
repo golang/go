@@ -72,7 +72,7 @@ func expect(t *testing.T, errors []*regexp.Regexp, files ...string) {
 	defer os.RemoveAll(dir)
 
 	dst := filepath.Join(dir, strings.TrimSuffix(files[0], ".go"))
-	args := []string{"build", "-gcflags=-L -e", "-o=" + dst} // TODO(gri) no need for -gcflags=-L if go tool is adjusted
+	args := []string{"build", "-gcflags=-e", "-o=" + dst}
 	for _, file := range files {
 		args = append(args, path(file))
 	}
@@ -152,7 +152,6 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 		"",
 		"-O",
 	} {
-		cflags := cflags
 		t.Run(cflags, func(t *testing.T) {
 			testenv.MustHaveGoBuild(t)
 			testenv.MustHaveCGO(t)

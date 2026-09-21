@@ -944,6 +944,12 @@ func Pipe(fd []int) error {
 }
 
 func RandomGet(b []byte) error {
+	// random_get in WASI preview1 takes a 32-bit length.
+	// If b is larger than 32-bit, return EINVAL. Otherwise overflow occurs,
+	// e.g. if b is exactly 2^32 byte long, no data will be written to b.
+	if uint64(len(b)) > uint64(^size(0)) {
+		return EINVAL
+	}
 	errno := random_get(unsafe.SliceData(b), size(len(b)))
 	return errnoErr(errno)
 }

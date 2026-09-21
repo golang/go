@@ -20,7 +20,6 @@ go vet m/onlytest
 
 # With only cgo files (tests issue #24193)
 [!cgo] skip
-[short] skip
 go vet m/onlycgo
 ! stderr .
 

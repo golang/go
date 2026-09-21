@@ -14,6 +14,8 @@ package json
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -480,4 +482,20 @@ func BenchmarkEncoderEncode(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkNewEncoderEncode(b *testing.B) {
+	m := make(map[string]string)
+	for i := range 100_000 {
+		k := fmt.Sprintf("key%d", i)
+		v := fmt.Sprintf("%x", sha256.Sum256([]byte(k)))
+		m[k] = v
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := NewEncoder(io.Discard).Encode(m); err != nil {
+			b.Fatalf("Encode error: %v", err)
+		}
+	}
 }

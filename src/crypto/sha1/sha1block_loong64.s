@@ -22,16 +22,47 @@
 // The register rotation is implemented by rotating the arguments to
 // the round macros instead of by explicit move instructions.
 
+// REGTMP1 and REGTMP3 are scratch registers that also carry values
+// between macros within a single round: they are not purely local to
+// the macro that sets them.
+//
+//   REGTMP3 is set by LOAD/LOAD1 to w[index] and is consumed by the
+//     MIX macro that follows later in the same round, as an extra
+//     input (the message word for this round).
+//
+//   REGTMP1 is set by FUNC1/FUNC2/FUNC3/FUNC4 to f(b,c,d) and is
+//     consumed by the MIX macro that immediately follows it, as an
+//     extra input (the per-round function result). Note: LOAD also
+//     writes REGTMP1, but there it is pure local scratch (dead on
+//     exit) consumed only by LOAD itself, not by the macro that
+//     follows it (FUNC1/FUNC2/FUNC3/FUNC4 unconditionally overwrite
+//     REGTMP1 before it could be read).
+//
+// REGTMP and REGTMP2 are used only as pure local scratch (by LOAD,
+// FUNC3, and MIX) and never carry a value across a macro boundary.
+
 #define REGTMP	R30
 #define REGTMP1	R17
 #define REGTMP2	R18
 #define REGTMP3	R19
+#define KEYREG1	R25
+#define KEYREG2	R26
+#define KEYREG3	R27
+#define KEYREG4	R28
 
+// LOAD1 loads w[index] from the input block, byte-swaps it, stores it
+// into the message schedule ring buffer, and leaves it in REGTMP3 for
+// the MIX macro that follows it in the same round (output: REGTMP3).
 #define LOAD1(index) \
 	MOVW	(index*4)(R5), REGTMP3; \
 	REVB2W	REGTMP3, REGTMP3; \
 	MOVW	REGTMP3, (index*4)(R3)
 
+// LOAD computes w[index] from the ring buffer (message schedule
+// expansion), using REGTMP/REGTMP1/REGTMP2 as local scratch, and
+// leaves the result in REGTMP3 for the MIX macro that follows it in
+// the same round (output: REGTMP3; REGTMP/REGTMP1/REGTMP2 are dead
+// on exit).
 #define LOAD(index) \
 	MOVW	(((index)&0xf)*4)(R3), REGTMP3; \
 	MOVW	(((index-3)&0xf)*4)(R3), REGTMP; \
@@ -44,17 +75,24 @@
 	MOVW	REGTMP3, (((index)&0xf)*4)(R3)
 
 // f = d ^ (b & (c ^ d))
+// Output: REGTMP1 = f, consumed by the MIX macro that follows it in
+// the same round.
 #define FUNC1(a, b, c, d, e) \
 	XOR	c, d, REGTMP1; \
 	AND	b, REGTMP1; \
 	XOR	d, REGTMP1
 
 // f = b ^ c ^ d
+// Output: REGTMP1 = f, consumed by the MIX macro that follows it in
+// the same round.
 #define FUNC2(a, b, c, d, e) \
 	XOR	b, c, REGTMP1; \
 	XOR	d, REGTMP1
 
 // f = (b & c) | ((b | c) & d)
+// REGTMP, REGTMP2: local scratch only.
+// Output: REGTMP1 = f, consumed by the MIX macro that follows it in
+// the same round.
 #define FUNC3(a, b, c, d, e) \
 	OR	b, c, REGTMP2; \
 	AND	b, c, REGTMP; \
@@ -63,38 +101,44 @@
 
 #define FUNC4 FUNC2
 
-#define MIX(a, b, c, d, e, const) \
-	ROTR	$2, b; \	// b << 30
-	ADD	REGTMP1, e; \	// e = e + f
+// MIX combines the per-round function result and message word computed
+// by the preceding FUNC* and LOAD/LOAD1 macros into e, and rotates b.
+// Inputs (set by the preceding macros earlier in the same round, not
+// local to MIX): REGTMP1 = f(b,c,d), REGTMP3 = w[index].
+// REGTMP2 is local scratch (holds a<<<5) and is dead on exit; REGTMP
+// is not used by this macro.
+#define MIX(a, b, c, d, e, key) \
+	ROTR	$2, b; \		// b << 30
 	ROTR	$27, a, REGTMP2; \	// a << 5
-	ADD	REGTMP3, e; \	// e = e + w[i]
-	ADDV	$const, e; \	// e = e + k
-	ADD	REGTMP2, e	// e = e + a<<5
+	ADD	REGTMP3, REGTMP1; \	// t1 = f + w[i]  (independent of e)
+	ADDV	key, REGTMP2; \		// t2 = k + a<<5  (independent of e)
+	ADD	REGTMP1, e; \		// e += t1
+	ADD	REGTMP2, e		// e += t2
 
 #define ROUND1(a, b, c, d, e, index) \
 	LOAD1(index); \
 	FUNC1(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0x5A827999)
+	MIX(a, b, c, d, e, KEYREG1)
 
 #define ROUND1x(a, b, c, d, e, index) \
 	LOAD(index); \
 	FUNC1(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0x5A827999)
+	MIX(a, b, c, d, e, KEYREG1)
 
 #define ROUND2(a, b, c, d, e, index) \
 	LOAD(index); \
 	FUNC2(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0x6ED9EBA1)
+	MIX(a, b, c, d, e, KEYREG2)
 
 #define ROUND3(a, b, c, d, e, index) \
 	LOAD(index); \
 	FUNC3(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0x8F1BBCDC)
+	MIX(a, b, c, d, e, KEYREG3)
 
 #define ROUND4(a, b, c, d, e, index) \
 	LOAD(index); \
 	FUNC4(a, b, c, d, e); \
-	MIX(a, b, c, d, e, 0xCA62C1D6)
+	MIX(a, b, c, d, e, KEYREG4)
 
 // A stack frame size of 64 bytes is required here, because
 // the frame size used for data expansion is 64 bytes.
@@ -108,12 +152,18 @@ TEXT ·block(SB),NOSPLIT,$64-32
 	BEQ	R6, zero
 
 	// p_len >= 64
-	ADDV    R5, R6, R24
+	ADDV	R5, R6, R24
 	MOVW	(0*4)(R4), R7
 	MOVW	(1*4)(R4), R8
 	MOVW	(2*4)(R4), R9
 	MOVW	(3*4)(R4), R10
 	MOVW	(4*4)(R4), R11
+
+	MOVV	$·_K(SB), R21
+	MOVW	(0*4)(R21), KEYREG1
+	MOVW	(1*4)(R21), KEYREG2
+	MOVW	(2*4)(R21), KEYREG3
+	MOVW	(3*4)(R21), KEYREG4
 
 loop:
 	MOVW	R7,	R12
@@ -224,3 +274,9 @@ end:
 	MOVW	R11, (4*4)(R4)
 zero:
 	RET
+
+GLOBL	·_K(SB),RODATA,$16
+DATA	·_K+0(SB)/4, $0x5A827999
+DATA	·_K+4(SB)/4, $0x6ED9EBA1
+DATA	·_K+8(SB)/4, $0x8F1BBCDC
+DATA	·_K+12(SB)/4, $0xCA62C1D6

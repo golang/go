@@ -106,7 +106,7 @@ func test() {
 		_, _ = mi, ms
 	}
 	for mi, ms := range f8 {
-		i, s = mi /* ERROR "cannot use mi (variable of int32 type MyInt) as int value in assignment" */, ms /* ERROR "cannot use ms (variable of string type MyString) as string value in assignment" */
+		i, s = mi /* ERROR "cannot use mi (variable of int32 type MyInt) as int value in multiple assignment" */, ms /* ERROR "cannot use ms (variable of string type MyString) as string value in multiple assignment" */
 	}
 	for mi, ms = range f8 {
 		_, _ = mi, ms

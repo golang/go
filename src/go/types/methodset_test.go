@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"go/ast"
-	"go/parser"
 	"go/token"
 	. "go/types"
 )
@@ -144,10 +143,8 @@ type Instance = *Tree[int]
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "foo.go", src, 0)
-	if err != nil {
-		panic(err)
-	}
+	f := mustParse(fset, src)
+
 	pkg := NewPackage("pkg", f.Name.Name)
 	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
 		panic(err)
@@ -165,10 +162,7 @@ func (T) m() {} // expected error: invalid receiver type
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "p.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, src)
 
 	var conf Config
 	pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)

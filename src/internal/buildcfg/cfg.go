@@ -35,7 +35,14 @@ var (
 	ToolTags  = toolTags()
 	GO_LDSO   = defaultGO_LDSO
 	GOFIPS140 = gofips140()
-	Version   = version
+	// Version holds the local toolchain name.
+	//
+	// Its value is determined at the time the toolchain is built,
+	// during its bootstrap process. See [cmd/dist.findgoversion].
+	//
+	// Note that this string doesn't include "X:<GOEXPERIMENT>" when any
+	// non-default GOEXPERIMENT values are set while [runtime.Version] does.
+	Version = version
 )
 
 // Error is one of the errors found (if any) in the build configuration.
@@ -80,32 +87,42 @@ func gofips140() string {
 	if isFIPSVersion(v) {
 		return v
 	}
-	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or vX.Y.Z")
+	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or v1.Y.Z")
 	return DefaultGOFIPS140
 }
 
 // isFIPSVersion reports whether v is a valid FIPS version,
-// of the form vX.Y.Z or vX.Y.Z-hash.
+// of the form v1.Y.Z or v1.Y.Z-hhhhhhhh or v1.Y.Z-rcN.
 func isFIPSVersion(v string) bool {
-	if !strings.HasPrefix(v, "v") {
+	v, ok := strings.CutPrefix(v, "v1.")
+	if !ok {
 		return false
 	}
-	v, ok := skipNum(v[len("v"):])
-	if !ok || !strings.HasPrefix(v, ".") {
+	if v, ok = cutNum(v); !ok {
 		return false
 	}
-	v, ok = skipNum(v[len("."):])
-	if !ok || !strings.HasPrefix(v, ".") {
+	if v, ok = strings.CutPrefix(v, "."); !ok {
 		return false
 	}
-	v, ok = skipNum(v[len("."):])
-	hasHash := strings.HasPrefix(v, "-") && len(v) == len("-")+8
-	return ok && (v == "" || hasHash)
+	if v, ok = cutNum(v); !ok {
+		return false
+	}
+	if v == "" {
+		return true
+	}
+	if v, ok = strings.CutPrefix(v, "-rc"); ok {
+		v, ok = cutNum(v)
+		return ok && v == ""
+	}
+	if v, ok = strings.CutPrefix(v, "-"); ok {
+		return len(v) == 8
+	}
+	return false
 }
 
-// skipNum skips the leading text matching [0-9]+
+// cutNum skips the leading text matching [0-9]+
 // in s, returning the rest and whether such text was found.
-func skipNum(s string) (rest string, ok bool) {
+func cutNum(s string) (rest string, ok bool) {
 	i := 0
 	for i < len(s) && '0' <= s[i] && s[i] <= '9' {
 		i++

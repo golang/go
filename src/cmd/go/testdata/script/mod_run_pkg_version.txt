@@ -2,7 +2,6 @@
 # Most of 'go run' is covered in other tests.
 # mod_install_pkg_version covers most of the package loading functionality.
 # This test focuses on 'go run' behavior specific to this mode.
-[short] skip
 
 # 'go run pkg@version' works outside a module.
 env GO111MODULE=auto

@@ -5,9 +5,9 @@
 package strconv_test
 
 import (
+	. "internal/strconv"
 	"math"
 	"math/rand"
-	. "internal/strconv"
 	"testing"
 )
 
@@ -41,6 +41,29 @@ var ftoatests = []ftoaTest{
 	{200000, 'X', -1, "0X1.86AP+17"},
 	{2000000, 'g', -1, "2e+06"},
 	{1e10, 'g', -1, "1e+10"},
+
+	// f conversion basic cases
+	{12345, 'f', 2, "12345.00"},
+	{1234.5, 'f', 2, "1234.50"},
+	{123.45, 'f', 2, "123.45"},
+	{12.345, 'f', 2, "12.35"},
+	{1.2345, 'f', 2, "1.23"},
+	{0.12345, 'f', 2, "0.12"},
+	{0.12945, 'f', 2, "0.13"},
+	{0.012345, 'f', 2, "0.01"},
+	{0.015, 'f', 2, "0.01"},
+	{0.016, 'f', 2, "0.02"},
+	{0.0052345, 'f', 2, "0.01"},
+	{0.0012345, 'f', 2, "0.00"},
+	{0.00012345, 'f', 2, "0.00"},
+	{0.000012345, 'f', 2, "0.00"},
+
+	{0.996644984, 'f', 6, "0.996645"},
+	{0.996644984, 'f', 5, "0.99664"},
+	{0.996644984, 'f', 4, "0.9966"},
+	{0.996644984, 'f', 3, "0.997"},
+	{0.996644984, 'f', 2, "1.00"},
+	{0.996644984, 'f', 1, "1.0"},
 
 	// g conversion and zero suppression
 	{400, 'g', 2, "4e+02"},
@@ -113,6 +136,7 @@ var ftoatests = []ftoaTest{
 
 	{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
 	{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
+	{fdiv(5e-304, 1e20), 'e', -1, "5e-324"},
 
 	{32, 'g', -1, "32"},
 	{32, 'g', 0, "3e+01"},
@@ -177,6 +201,26 @@ var ftoatests = []ftoaTest{
 	{1.801439850948199e+16, 'g', -1, "1.801439850948199e+16"},
 	{5.960464477539063e-08, 'g', -1, "5.960464477539063e-08"},
 	{1.012e-320, 'g', -1, "1.012e-320"},
+
+	// Cases from TestFtoaRandom that caught bugs in fixedFtoa.
+	{8177880169308380. * (1 << 1), 'e', 14, "1.63557603386168e+16"},
+	{8393378656576888. * (1 << 1), 'e', 15, "1.678675731315378e+16"},
+	{8738676561280626. * (1 << 4), 'e', 16, "1.3981882498049002e+17"},
+	{8291032395191335. / (1 << 30), 'e', 5, "7.72163e+06"},
+	{8880392441509914. / (1 << 80), 'e', 16, "7.3456884594794477e-09"},
+
+	// Exercise divisiblePow5 case in fixedFtoa
+	{2384185791015625. * (1 << 12), 'e', 5, "9.76562e+18"},
+	{2384185791015625. * (1 << 13), 'e', 5, "1.95312e+19"},
+
+	// Exercise potential mistakes in fixedFtoa.
+	// Found by introducing mistakes and running 'go test -testbase'.
+	{0x1.000000000005p+71, 'e', 16, "2.3611832414348645e+21"},
+	{0x1.0000p-27, 'e', 17, "7.45058059692382812e-09"},
+	{0x1.0000p-41, 'e', 17, "4.54747350886464119e-13"},
+
+	// go.dev/issue/79591; used NULs instead of trailing zeros
+	{0.00000000000000000093564868367555, 'f', 150, "0.000000000000000000935648683675550014820074270847655141588693848715273682775661612254225474316626787185668945312500000000000000000000000000000000000000"},
 }
 
 func TestFtoa(t *testing.T) {
@@ -253,7 +297,7 @@ func TestFtoaRandom(t *testing.T) {
 		shortSlow = FormatFloat(x, 'e', prec, 64)
 		SetOptimize(true)
 		if shortSlow != shortFast {
-			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
+			t.Errorf("%b printed with %%.%de as %s, want %s", x, prec, shortFast, shortSlow)
 		}
 	}
 }
@@ -294,14 +338,20 @@ var ftoaBenches = []struct {
 
 	{"64Fixed1", 123456, 'e', 3, 64},
 	{"64Fixed2", 123.456, 'e', 3, 64},
+	{"64Fixed2.5", 1.2345e+06, 'e', 3, 64},
 	{"64Fixed3", 1.23456e+78, 'e', 3, 64},
 	{"64Fixed4", 1.23456e-78, 'e', 3, 64},
+	{"64Fixed5Hard", 4.096e+25, 'e', 5, 64}, // needs divisiblePow5(..., 20)
 	{"64Fixed12", 1.23456e-78, 'e', 12, 64},
 	{"64Fixed16", 1.23456e-78, 'e', 16, 64},
 	// From testdata/testfp.txt
 	{"64Fixed12Hard", math.Ldexp(6965949469487146, -249), 'e', 12, 64},
 	{"64Fixed17Hard", math.Ldexp(8887055249355788, 665), 'e', 17, 64},
 	{"64Fixed18Hard", math.Ldexp(6994187472632449, 690), 'e', 18, 64},
+
+	{"64FixedF1", 123.456, 'f', 6, 64},
+	{"64FixedF2", 0.0123, 'f', 6, 64},
+	{"64FixedF3", 12.3456, 'f', 2, 64},
 
 	// Trigger slow path (see issue #15672).
 	// The shortest is: 8.034137530808823e+43
@@ -312,6 +362,10 @@ var ftoaBenches = []struct {
 	// 622666234635.321497e-320 ~= 622666234635.3215e-320
 	// making it hard to find the 3rd digit
 	{"SlowpathDenormal64", 622666234635.3213e-320, 'e', -1, 64},
+
+	// Trigger the shorter interval case (3.90625e-3 = 1/256).
+	{"ShorterIntervalCase32", 3.90625e-3, 'e', -1, 32},
+	{"ShorterIntervalCase64", 3.90625e-3, 'e', -1, 64},
 }
 
 func BenchmarkFormatFloat(b *testing.B) {

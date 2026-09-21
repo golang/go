@@ -86,6 +86,15 @@ func TestItoa(t *testing.T) {
 			}
 		}
 
+		if test.base == 10 && test.in >= 0 {
+			buf := make([]byte, 32)
+			i := RuntimeFormatBase10(buf[:], uint64(test.in))
+			s := string(buf[i:])
+			if s != test.out {
+				t.Errorf("RuntimeFormatBase10(%d) = %q, want %q", test.in, s, test.out)
+			}
+		}
+
 		if test.base == 10 && int64(int(test.in)) == test.in {
 			s := Itoa(int(test.in))
 			if s != test.out {
@@ -131,7 +140,14 @@ func TestUitoa(t *testing.T) {
 			t.Errorf("AppendUint(%q, %v, %v) = %q want %v",
 				"abc", test.in, test.base, x, test.out)
 		}
-
+		if test.base == 10 {
+			buf := make([]byte, 32)
+			i := RuntimeFormatBase10(buf[:], test.in)
+			s := string(buf[i:])
+			if s != test.out {
+				t.Errorf("RuntimeFormatBase10(%d) = %q, want %q", test.in, s, test.out)
+			}
+		}
 	}
 }
 

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"syscall"
 	"testing"
 )
@@ -20,13 +19,12 @@ func TestSetFallbackRoots(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
-	testenv.MustHaveExec(t)
 
 	test := func(t *testing.T, name string, f func(t *testing.T)) {
 		t.Run(name, func(t *testing.T) {
 			if os.Getenv("CRYPTO_X509_SETFALLBACKROOTS_TEST") != "1" {
 				// Execute test in a separate process with CRYPTO_X509_SETFALBACKROOTS_TEST env.
-				cmd := exec.Command(os.Args[0], fmt.Sprintf("-test.run=^%v$", t.Name()))
+				cmd := testenv.Command(t, testenv.Executable(t), fmt.Sprintf("-test.run=^%v$", t.Name()), "-test.v")
 				cmd.Env = append(os.Environ(), "CRYPTO_X509_SETFALLBACKROOTS_TEST=1")
 				cmd.SysProcAttr = &syscall.SysProcAttr{
 					Cloneflags:  syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
@@ -34,11 +32,12 @@ func TestSetFallbackRoots(t *testing.T) {
 					GidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getgid(), Size: 1}},
 				}
 				out, err := cmd.CombinedOutput()
+				if testenv.SyscallIsNotSupported(err) {
+					t.Skipf("skipping: could not start process with CLONE_NEWNS and CLONE_NEWUSER: %v", err)
+				}
+				t.Logf("running with CRYPTO_X509_SETFALLBACKROOTS_TEST=1:\n%s", out)
 				if err != nil {
-					if testenv.SyscallIsNotSupported(err) {
-						t.Skipf("skipping: could not start process with CLONE_NEWNS and CLONE_NEWUSER: %v", err)
-					}
-					t.Errorf("%v\n%s", err, out)
+					t.Errorf("CRYPTO_X509_SETFALLBACKROOTS_TEST=1 subprocess failed: %v", err)
 				}
 				return
 			}
@@ -233,9 +232,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 	})
 
 	test(t, "before_first_load_force_godebug", func(t *testing.T) {
-		if err := os.Setenv("GODEBUG", "x509usefallbackroots=1"); err != nil {
-			t.Fatal(err)
-		}
+		testenv.SetGODEBUG(t, "x509usefallbackroots=1")
 
 		installSystemRootCAs(t)
 
@@ -251,9 +248,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 	})
 
 	test(t, "after_first_load_force_godebug", func(t *testing.T) {
-		if err := os.Setenv("GODEBUG", "x509usefallbackroots=1"); err != nil {
-			t.Fatal(err)
-		}
+		testenv.SetGODEBUG(t, "x509usefallbackroots=1")
 
 		installSystemRootCAs(t)
 		SystemCertPool() // load system certs, before setting fallbacks
@@ -270,9 +265,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 	})
 
 	test(t, "after_first_load_force_godebug_no_system_certs", func(t *testing.T) {
-		if err := os.Setenv("GODEBUG", "x509usefallbackroots=1"); err != nil {
-			t.Fatal(err)
-		}
+		testenv.SetGODEBUG(t, "x509usefallbackroots=1")
 
 		SystemCertPool() // load system certs, before setting fallbacks
 

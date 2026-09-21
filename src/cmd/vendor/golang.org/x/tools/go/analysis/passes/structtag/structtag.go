@@ -222,7 +222,7 @@ var (
 // in the canonical format, which is a space-separated list of key:"value"
 // settings. The value may contain spaces.
 func validateStructTag(tag string) error {
-	// This code is based on the StructTag.Get code in package reflect.
+	// This code is based on the StructTag.Lookup code in package reflect.
 
 	n := 0
 	for ; tag != ""; n++ {

@@ -1,0 +1,27 @@
+! go test -json
+
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"=== RUN   Test\\n","OutputType":"frame"'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"    x_test.go:11: \\u0000\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\b\\t\\n"}'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"        \\u000b\\f\\r\\u000e\\u000f\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\u0016\\u0017\\u0018\\u0019\\u001a\\u001b\\u001c\\u001d\\u001e\\u001f\\n"}'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"    x_test.go:12: \\u0000\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\b\\t\\n","OutputType":"error"'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"        \\u000b\\f\\r\\u000e\\u000f\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\u0016\\u0017\\u0018\\u0019\\u001a\\u001b\\u001c\\u001d\\u001e\\u001f\\n","OutputType":"error-continue"'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"--- FAIL: Test \([\d.]+s\)\\n","OutputType":"frame"'
+
+-- go.mod --
+module p
+
+-- x_test.go --
+package p
+
+import "testing"
+
+func Test(t *testing.T) {
+	var s string
+	for i := rune(0); i < ' '; i++ {
+		s += string(i)
+	}
+
+    t.Log(s)
+	t.Error(s)
+}
+

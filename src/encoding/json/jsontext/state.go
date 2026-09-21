@@ -86,12 +86,12 @@ func (s *state) reset() {
 // either a JSON object name or an index to a JSON array element
 // encoded as a base-10 integer value.
 // It is impossible to distinguish between an array index and an object name
-// (that happens to be an base-10 encoded integer) without also knowing
+// (that happens to be a base-10 encoded integer) without also knowing
 // the structure of the top-level JSON value that the pointer refers to.
 //
 // There is exactly one representation of a pointer to a particular value,
 // so comparability of Pointer values is equivalent to checking whether
-// they both point to the exact same value.
+// they both point to the same value.
 type Pointer string
 
 // IsValid reports whether p is a valid JSON Pointer according to RFC 6901.
@@ -117,13 +117,13 @@ func (p Pointer) Contains(pc Pointer) bool {
 }
 
 // Parent strips off the last token and returns the remaining pointer.
-// The parent of an empty p is an empty string.
+// The parent of an empty Pointer is the empty string.
 func (p Pointer) Parent() Pointer {
 	return p[:max(strings.LastIndexByte(string(p), '/'), 0)]
 }
 
 // LastToken returns the last token in the pointer.
-// The last token of an empty p is an empty string.
+// The last token of an empty Pointer is the empty string.
 func (p Pointer) LastToken() string {
 	last := p[max(strings.LastIndexByte(string(p), '/'), 0):]
 	return unescapePointerToken(strings.TrimPrefix(string(last), "/"))
@@ -131,14 +131,14 @@ func (p Pointer) LastToken() string {
 
 // AppendToken appends a token to the end of p and returns the full pointer.
 func (p Pointer) AppendToken(tok string) Pointer {
-	return Pointer(appendEscapePointerName([]byte(p+"/"), tok))
+	return Pointer(appendEscapePointerName([]byte(p+"/"), []byte(tok)))
 }
 
 // TODO: Add Pointer.AppendTokens,
 // but should this take in a ...string or an iter.Seq[string]?
 
 // Tokens returns an iterator over the reference tokens in the JSON pointer,
-// starting from the first token until the last token (unless stopped early).
+// from first to last.
 func (p Pointer) Tokens() iter.Seq[string] {
 	return func(yield func(string) bool) {
 		for len(p) > 0 {
@@ -202,7 +202,7 @@ func (s state) appendStackPointer(b []byte, where int) []byte {
 	return b
 }
 
-func appendEscapePointerName[Bytes ~[]byte | ~string](b []byte, name Bytes) []byte {
+func appendEscapePointerName(b, name []byte) []byte {
 	for _, r := range string(name) {
 		// Per RFC 6901, section 3, escape '~' and '/' characters.
 		switch r {
@@ -439,7 +439,7 @@ const (
 	stateTypeObject stateEntry = 0x8000_0000_0000_0000
 	stateTypeArray  stateEntry = 0x0000_0000_0000_0000
 
-	// The name check mask (2 bit) records whether to update
+	// The name check mask (2 bits) records whether to update
 	// the namespaces for the current JSON object and
 	// whether the namespace is valid.
 	stateNamespaceMask    stateEntry = 0x6000_0000_0000_0000
@@ -475,7 +475,7 @@ func (e stateEntry) NeedObjectName() bool {
 	return e&(stateTypeMask|stateCountLSBMask) == stateTypeObject|stateCountEven
 }
 
-// needImplicitColon reports whether an colon should occur next,
+// needImplicitColon reports whether a colon should occur next,
 // which always occurs after JSON object names.
 func (e stateEntry) needImplicitColon() bool {
 	return e.needObjectValue()
@@ -487,7 +487,7 @@ func (e stateEntry) needObjectValue() bool {
 	return e&(stateTypeMask|stateCountLSBMask) == stateTypeObject|stateCountOdd
 }
 
-// needImplicitComma reports whether an comma should occur next,
+// needImplicitComma reports whether a comma should occur next,
 // which always occurs after a value in a JSON object or array
 // before the next value (or name).
 func (e stateEntry) needImplicitComma(next Kind) bool {
@@ -502,7 +502,7 @@ func (e *stateEntry) Increment() {
 }
 
 // decrement decrements the number of elements for the current object or array.
-// It is the callers responsibility to ensure that e.length > 0.
+// It is the caller's responsibility to ensure that e.length > 0.
 func (e *stateEntry) decrement() {
 	(*e)--
 }
@@ -575,7 +575,7 @@ func (ns *objectNameStack) getUnquoted(i int) []byte {
 	if i == 0 {
 		return ns.unquotedNames[:ns.offsets[0]]
 	} else {
-		return ns.unquotedNames[ns.offsets[i-1]:ns.offsets[i-0]]
+		return ns.unquotedNames[ns.offsets[i-1]:ns.offsets[i]]
 	}
 }
 
@@ -706,7 +706,7 @@ func (nss *objectNamespaceStack) pop() {
 }
 
 // objectNamespace is the namespace for a JSON object.
-// In contrast to objectNameStack, this needs to remember a all names
+// In contrast to objectNameStack, this needs to remember all names
 // per JSON object.
 //
 // The zero value is an empty namespace ready for use.
@@ -747,7 +747,7 @@ func (ns *objectNamespace) getUnquoted(i int) []byte {
 	if i == 0 {
 		return ns.allUnquotedNames[:ns.endOffsets[0]]
 	} else {
-		return ns.allUnquotedNames[ns.endOffsets[i-1]:ns.endOffsets[i-0]]
+		return ns.allUnquotedNames[ns.endOffsets[i-1]:ns.endOffsets[i]]
 	}
 }
 

@@ -15,7 +15,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
-	"cmd/compile/internal/compare"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/rttype"
@@ -57,7 +56,7 @@ type typeSig struct {
 func commonSize() int { return int(rttype.Type.Size()) } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
-	if t.Sym() == nil && len(methods(t)) == 0 {
+	if t.TFlag()&abi.TFlagUncommon == 0 {
 		return 0
 	}
 	return int(rttype.UncommonType.Size())
@@ -184,6 +183,7 @@ func dimportpath(p *types.Pkg) {
 	ot := dnameData(s, 0, p.Path, "", nil, false, false)
 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
 	s.Set(obj.AttrContentAddressable, true)
+	s.Align = 1
 	p.Pathsym = s
 }
 
@@ -308,6 +308,7 @@ func dname(name, tag string, pkg *types.Pkg, exported, embedded bool) *obj.LSym 
 	ot := dnameData(s, 0, name, tag, pkg, exported, embedded)
 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
 	s.Set(obj.AttrContentAddressable, true)
+	s.Align = 1
 	return s
 }
 
@@ -462,20 +463,6 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("PtrBytes").WriteUintptr(uint64(ptrdata))
 	c.Field("Hash").WriteUint32(types.TypeHash(t))
 
-	var tflag abi.TFlag
-	if uncommonSize(t) != 0 {
-		tflag |= abi.TFlagUncommon
-	}
-	if t.Sym() != nil && t.Sym().Name != "" {
-		tflag |= abi.TFlagNamed
-	}
-	if compare.IsRegularMemory(t) {
-		tflag |= abi.TFlagRegularMemory
-	}
-	if onDemand {
-		tflag |= abi.TFlagGCMaskOnDemand
-	}
-
 	exported := false
 	p := t.NameString()
 	// If we're writing out type T,
@@ -483,9 +470,8 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	// Use the string "*T"[1:] for "T", so that the two
 	// share storage. This is a cheap way to reduce the
 	// amount of space taken up by reflect strings.
-	if !strings.HasPrefix(p, "*") {
+	if t.TFlag()&abi.TFlagExtraStar != 0 {
 		p = "*" + p
-		tflag |= abi.TFlagExtraStar
 		if t.Sym() != nil {
 			exported = types.IsExported(t.Sym().Name)
 		}
@@ -494,15 +480,8 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 			exported = types.IsExported(t.Elem().Sym().Name)
 		}
 	}
-	if types.IsDirectIface(t) {
-		tflag |= abi.TFlagDirectIface
-	}
 
-	if tflag != abi.TFlag(uint8(tflag)) {
-		// this should optimize away completely
-		panic("Unexpected change in size of abi.TFlag")
-	}
-	c.Field("TFlag").WriteUint8(uint8(tflag))
+	c.Field("TFlag").WriteUint8(uint8(t.TFlag()))
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(uint8(t.Alignment()))
@@ -571,13 +550,17 @@ func TypeLinksymLookup(name string) *obj.LSym {
 
 func TypeLinksym(t *types.Type) *obj.LSym {
 	lsym := TypeSym(t).Linksym()
+	setTypeInfo(lsym, t)
+	return lsym
+}
+
+func setTypeInfo(lsym *obj.LSym, t *types.Type) {
 	signatmu.Lock()
 	if lsym.Extra == nil {
 		ti := lsym.NewTypeInfo()
 		ti.Type = t
 	}
 	signatmu.Unlock()
-	return lsym
 }
 
 // TypePtrAt returns an expression that evaluates to the
@@ -718,10 +701,16 @@ func writeType(t *types.Type) *obj.LSym {
 	s.SetSiggen(true)
 
 	if !tbase.HasShape() {
-		TypeLinksym(t) // ensure lsym.Extra is set
+		setTypeInfo(lsym, t) // ensure lsym.Extra is set
 	}
 
 	if !NeedEmit(tbase) {
+		u := t
+		for u.IsPtr() {
+			u = u.Elem()
+		}
+		typecheck.CalcMethods(types.ReceiverBaseType(u))
+
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
 			lsym.Pkg = tbase.Sym().Pkg.Prefix
 			lsym.SymIdx = int32(i)
@@ -755,6 +744,9 @@ func writeType(t *types.Type) *obj.LSym {
 	// +--------------------------------+                            - D
 	// | method list, if any            |   dextratype
 	// +--------------------------------+                            - E
+
+	// internal/abi.Type.DescriptorSize is aware of this type layout,
+	// and must be changed if the layout change.
 
 	// UncommonType section is included if we have a name or a method.
 	extra := t.Sym() != nil || len(methods(t)) != 0
@@ -960,6 +952,7 @@ func writeType(t *types.Type) *obj.LSym {
 		keep = false
 	}
 	lsym.Set(obj.AttrMakeTypelink, keep)
+	lsym.Align = int16(types.PtrSize)
 
 	return lsym
 }
@@ -1079,6 +1072,7 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	// Nothing writes static itabs, so they are read only.
 	objw.Global(lsym, int32(rttype.ITab.Size()+delta), int16(obj.DUPOK|obj.RODATA))
 	lsym.Set(obj.AttrContentAddressable, true)
+	lsym.Align = int16(types.PtrSize)
 }
 
 func WritePluginTable() {
@@ -1247,7 +1241,7 @@ func GCSym(t *types.Type, onDemandAllowed bool) (lsym *obj.LSym, ptrdata int64) 
 // When write is true, it writes the symbol data.
 func dgcsym(t *types.Type, write, onDemandAllowed bool) (lsym *obj.LSym, onDemand bool, ptrdata int64) {
 	ptrdata = types.PtrDataSize(t)
-	if !onDemandAllowed || ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
+	if !onDemandAllowed || t.TFlag()&abi.TFlagGCMaskOnDemand == 0 {
 		lsym = dgcptrmask(t, write)
 		return
 	}
@@ -1274,6 +1268,9 @@ func dgcptrmask(t *types.Type, write bool) *obj.LSym {
 		}
 		objw.Global(lsym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
 		lsym.Set(obj.AttrContentAddressable, true)
+		// The runtime expects ptrmasks to be aligned
+		// as a uintptr.
+		lsym.Align = int16(types.PtrSize)
 	}
 	return lsym
 }
@@ -1282,7 +1279,6 @@ func dgcptrmask(t *types.Type, write bool) *obj.LSym {
 // word offsets in t that hold pointers.
 // ptrmask is assumed to fit at least types.PtrDataSize(t)/PtrSize bits.
 func fillptrmask(t *types.Type, ptrmask []byte) {
-	clear(ptrmask)
 	if !t.HasPointers() {
 		return
 	}
@@ -1305,8 +1301,8 @@ func dgcptrmaskOnDemand(t *types.Type, write bool) *obj.LSym {
 	if write && !lsym.OnList() {
 		// Note: contains a pointer, but a pointer to a
 		// persistentalloc allocation. Starts with nil.
-		objw.Uintptr(lsym, 0, 0)
-		objw.Global(lsym, int32(types.PtrSize), obj.DUPOK|obj.NOPTR|obj.LOCAL) // TODO:bss?
+		// Allocated in BSS.
+		objw.Global(lsym, int32(types.PtrSize), obj.DUPOK|obj.NOPTR|obj.LOCAL)
 	}
 	return lsym
 }
@@ -1407,8 +1403,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		rcvr = rcvr.PtrTo()
 	}
 
-	newnam := ir.MethodSym(rcvr, method.Sym)
-	lsym := newnam.Linksym()
+	sym, _ := ir.MethodSym(rcvr, method)
+	lsym := sym.Linksym()
 
 	// Unified IR creates its own wrappers.
 	return lsym

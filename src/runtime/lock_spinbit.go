@@ -68,6 +68,15 @@ const (
 	mutexPassiveSpinCount = 1
 
 	mutexTailWakePeriod = 16
+
+	// mutexMLocksDelta is the change in gp.m.locks for each lock/unlock of a
+	// mutex. The gp.m.locks field is shared with acquirem/releasem, and with
+	// other code that needs to disable preemption, which changes its value by
+	// 1. Using a different delta for mutex in particular lets us notice when
+	// the M is releasing its last mutex (so it can safely acquire another
+	// mutex, for profiling), even if the M has preemption disabled for other
+	// reasons.
+	mutexMLocksDelta = 16
 )
 
 //go:nosplit
@@ -157,7 +166,7 @@ func lock2(l *mutex) {
 	if gp.m.locks < 0 {
 		throw("runtime·lock: lock count")
 	}
-	gp.m.locks++
+	gp.m.locks += mutexMLocksDelta
 
 	k8 := key8(&l.key)
 
@@ -315,7 +324,7 @@ func unlock2(l *mutex) {
 	}
 
 	gp.m.mLockProfile.store()
-	gp.m.locks--
+	gp.m.locks -= mutexMLocksDelta
 	if gp.m.locks < 0 {
 		throw("runtime·unlock: lock count")
 	}
@@ -327,16 +336,8 @@ func unlock2(l *mutex) {
 // mutexSampleContention returns whether the current mutex operation should
 // report any contention it discovers.
 func mutexSampleContention() bool {
-	if rate := int64(atomic.Load64(&mutexprofilerate)); rate <= 0 {
-		return false
-	} else {
-		// TODO: have SetMutexProfileFraction do the clamping
-		rate32 := uint32(rate)
-		if int64(rate32) != rate {
-			rate32 = ^uint32(0)
-		}
-		return cheaprandn(rate32) == 0
-	}
+	rate := atomic.Load64(&mutexprofilerate)
+	return rate > 0 && cheaprandu64()%rate == 0
 }
 
 // unlock2Wake updates the list of Ms waiting on l, waking an M if necessary.

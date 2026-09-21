@@ -7,6 +7,7 @@
 package vcstest
 
 import (
+	"bytes"
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/vcweb"
 	"cmd/go/internal/web/intercept"
@@ -70,7 +71,9 @@ func NewServer() (srv *Server, err error) {
 		}
 	}()
 
-	srvHTTP := httptest.NewServer(handler)
+	srvHTTP := httptest.NewUnstartedServer(handler)
+	srvHTTP.Config.ErrorLog = testLogger()
+	srvHTTP.Start()
 	httpURL, err := url.Parse(srvHTTP.URL)
 	if err != nil {
 		return nil, err
@@ -81,7 +84,9 @@ func NewServer() (srv *Server, err error) {
 		}
 	}()
 
-	srvHTTPS := httptest.NewTLSServer(handler)
+	srvHTTPS := httptest.NewUnstartedServer(handler)
+	srvHTTPS.Config.ErrorLog = testLogger()
+	srvHTTPS.StartTLS()
 	httpsURL, err := url.Parse(srvHTTPS.URL)
 	if err != nil {
 		return nil, err
@@ -113,6 +118,19 @@ func NewServer() (srv *Server, err error) {
 	fmt.Fprintln(os.Stderr, "https://vcs-test.golang.org rerouted to "+srv.HTTPS.URL)
 
 	return srv, nil
+}
+
+func testLogger() *log.Logger {
+	return log.New(httpLogger{}, "vcweb: ", 0)
+}
+
+type httpLogger struct{}
+
+func (httpLogger) Write(b []byte) (int, error) {
+	if bytes.Contains(b, []byte("TLS handshake error")) {
+		return len(b), nil
+	}
+	return os.Stdout.Write(b)
 }
 
 func (srv *Server) Close() error {

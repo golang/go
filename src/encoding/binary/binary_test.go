@@ -716,7 +716,7 @@ func TestAppendAllocs(t *testing.T) {
 	}
 	buf := make([]byte, 0, Size(&s))
 	var err error
-	allocs := testing.AllocsPerRun(1, func() {
+	allocs := testing.AllocsPerRun(10, func() {
 		_, err = Append(buf, LittleEndian, &s)
 	})
 	if err != nil {

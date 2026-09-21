@@ -244,6 +244,10 @@ func slice(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) 
 	if !item.IsValid() {
 		return reflect.Value{}, fmt.Errorf("slice of untyped nil")
 	}
+	var isNil bool
+	if item, isNil = indirect(item); isNil {
+		return reflect.Value{}, fmt.Errorf("slice of nil pointer")
+	}
 	if len(indexes) > 3 {
 		return reflect.Value{}, fmt.Errorf("too many slice indexes: %d", len(indexes))
 	}

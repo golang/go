@@ -32,83 +32,65 @@ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
 	CMP	$16, R2
 	// handle specially if length < 16
 	BLO	tail
-	BIC	$0x3f, R2, R3
-	CBZ	R3, chunk16
-	// work with 64-byte chunks
-	ADD	R3, R0, R6	// end of chunks
-chunk64_loop:
-	VLD1.P	(R0), [V0.D2, V1.D2, V2.D2, V3.D2]
-	VLD1.P	(R1), [V4.D2, V5.D2, V6.D2, V7.D2]
-	VCMEQ	V0.D2, V4.D2, V8.D2
-	VCMEQ	V1.D2, V5.D2, V9.D2
-	VCMEQ	V2.D2, V6.D2, V10.D2
-	VCMEQ	V3.D2, V7.D2, V11.D2
-	VAND	V8.B16, V9.B16, V8.B16
-	VAND	V8.B16, V10.B16, V8.B16
-	VAND	V8.B16, V11.B16, V8.B16
-	CMP	R0, R6
-	VMOV	V8.D[0], R4
-	VMOV	V8.D[1], R5
-	CBZ	R4, not_equal
-	CBZ	R5, not_equal
-	BNE	chunk64_loop
-	AND	$0x3f, R2, R2
-	CBZ	R2, equal
-chunk16:
-	// work with 16-byte chunks
-	BIC	$0xf, R2, R3
-	CBZ	R3, tail
-	ADD	R3, R0, R6	// end of chunks
-chunk16_loop:
-	LDP.P	16(R0), (R4, R5)
-	LDP.P	16(R1), (R7, R9)
-	EOR	R4, R7
-	CBNZ	R7, not_equal
-	EOR	R5, R9
-	CBNZ	R9, not_equal
-	CMP	R0, R6
-	BNE	chunk16_loop
-	AND	$0xf, R2, R2
-	CBZ	R2, equal
+	CMP	$33, R2
+	BHS	large
+pairwise_16_32:
+	// use pairwise loads for 16 <= len <= 32
+	LDP	(R0), (R16, R17)
+	LDP	(R1), (R24, R26)
+	CMP	R16, R24
+	CCMP	EQ, R17, R26, $0
+	BNE	not_equal
+	SUB	$16, R2, R16
+	CBZ	R16, equal
+	ADD	R0, R16, R24
+	ADD	R1, R16, R25
+	LDP	(R24), (R16, R17)
+	LDP	(R25), (R24, R26)
+	CMP	R16, R24
+	CCMP	EQ, R17, R26, $0
+	CSET	EQ, R0
+	RET
+	PCALIGN	$16
 tail:
 	// special compare of tail with length < 16
 	TBZ	$3, R2, lt_8
-	MOVD	(R0), R4
-	MOVD	(R1), R5
-	EOR	R4, R5
-	CBNZ	R5, not_equal
-	SUB	$8, R2, R6	// offset of the last 8 bytes
-	MOVD	(R0)(R6), R4
-	MOVD	(R1)(R6), R5
-	EOR	R4, R5
-	CBNZ	R5, not_equal
-	B	equal
+	MOVD	(R0), R16
+	MOVD	(R1), R17
+	CMP	R16, R17
+	BNE	not_equal
+	SUB	$8, R2, R26	// offset of the last 8 bytes
+	MOVD	(R0)(R26), R16
+	MOVD	(R1)(R26), R17
+	CMP	R16, R17
+	CSET	EQ, R0
+	RET
 	PCALIGN	$16
 lt_8:
 	TBZ	$2, R2, lt_4
-	MOVWU	(R0), R4
-	MOVWU	(R1), R5
-	EOR	R4, R5
-	CBNZ	R5, not_equal
-	SUB	$4, R2, R6	// offset of the last 4 bytes
-	MOVWU	(R0)(R6), R4
-	MOVWU	(R1)(R6), R5
-	EOR	R4, R5
-	CBNZ	R5, not_equal
-	B	equal
+	MOVWU	(R0), R16
+	MOVWU	(R1), R17
+	CMP	R16, R17
+	BNE	not_equal
+	SUB	$4, R2, R26	// offset of the last 4 bytes
+	MOVWU	(R0)(R26), R16
+	MOVWU	(R1)(R26), R17
+	CMP	R16, R17
+	CSET	EQ, R0
+	RET
 	PCALIGN	$16
 lt_4:
 	TBZ	$1, R2, lt_2
-	MOVHU.P	2(R0), R4
-	MOVHU.P	2(R1), R5
-	CMP	R4, R5
+	MOVHU.P	2(R0), R16
+	MOVHU.P	2(R1), R17
+	CMP	R16, R17
 	BNE	not_equal
 lt_2:
 	TBZ	$0, R2, equal
 one:
-	MOVBU	(R0), R4
-	MOVBU	(R1), R5
-	CMP	R4, R5
+	MOVBU	(R0), R16
+	MOVBU	(R1), R17
+	CMP	R16, R17
 	BNE	not_equal
 equal:
 	MOVD	$1, R0
@@ -116,3 +98,54 @@ equal:
 not_equal:
 	MOVB	ZR, R0
 	RET
+large:
+	BIC	$0x3f, R2, R26
+	CBZ	R26, remainder_33_64
+	// work with 64-byte chunks
+	ADD	R0, R26		// end of chunks
+chunk64_loop:
+	VLD1.P	(R0), [V21.D2, V22.D2, V23.D2, V24.D2]
+	VLD1.P	(R1), [V25.D2, V26.D2, V27.D2, V28.D2]
+	VCMEQ	V21.D2, V25.D2, V21.D2
+	VCMEQ	V22.D2, V26.D2, V22.D2
+	VCMEQ	V23.D2, V27.D2, V23.D2
+	VCMEQ	V24.D2, V28.D2, V24.D2
+	VAND	V21.B16, V22.B16, V21.B16
+	VAND	V23.B16, V24.B16, V23.B16
+	VAND	V21.B16, V23.B16, V21.B16
+	CMP	R0, R26
+	VMOV	V21.D[0], R16
+	VMOV	V21.D[1], R17
+	CBZ	R16, not_equal
+	CBZ	R17, not_equal
+	BNE	chunk64_loop
+	AND	$0x3f, R2, R2
+	CBZ	R2, equal
+	CMP	$16, R2
+	BLO	tail
+	CMP	$33, R2
+	BLO	pairwise_16_32
+remainder_33_64:
+	// 33 <= len < 64
+	VLD1	(R0), [V21.D2, V22.D2]
+	VLD1	(R1), [V23.D2, V24.D2]
+	SUB	$32, R2, R26
+	ADD	R0, R26, R24
+	ADD	R1, R26, R25
+	VEOR	V23.B16, V21.B16, V21.B16
+	VEOR	V24.B16, V22.B16, V22.B16
+	VORR	V22.B16, V21.B16, V21.B16
+	VMOV	V21.D[0], R16
+	VMOV	V21.D[1], R17
+	ORR	R17, R16, R16
+	CBNZ	R16, not_equal
+	VLD1	(R24), [V21.D2, V22.D2]
+	VLD1	(R25), [V23.D2, V24.D2]
+	VEOR	V23.B16, V21.B16, V21.B16
+	VEOR	V24.B16, V22.B16, V22.B16
+	VORR	V22.B16, V21.B16, V21.B16
+	VMOV	V21.D[0], R16
+	VMOV	V21.D[1], R17
+	ORR	R17, R16, R16
+	CBNZ	R16, not_equal
+	B	equal

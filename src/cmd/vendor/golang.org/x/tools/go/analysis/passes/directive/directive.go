@@ -14,7 +14,7 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
 const Doc = `check Go toolchain directives such as //go:debug
@@ -86,7 +86,7 @@ func checkGoFile(pass *analysis.Pass, f *ast.File) {
 func checkOtherFile(pass *analysis.Pass, filename string) error {
 	// We cannot use the Go parser, since is not a Go source file.
 	// Read the raw bytes instead.
-	content, tf, err := analysisinternal.ReadFile(pass, filename)
+	content, tf, err := analyzerutil.ReadFile(pass, filename)
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (check *checker) nonGoFile(pos token.Pos, fullText string) {
 				inStar = false
 				continue
 			}
-			line, inStar = stringsCutPrefix(line, "/*")
+			line, inStar = strings.CutPrefix(line, "/*")
 			if !inStar {
 				break
 			}
@@ -193,12 +193,4 @@ func (check *checker) comment(pos token.Pos, line string) {
 			check.pass.Reportf(pos, "//go:debug directive only valid before package declaration")
 		}
 	}
-}
-
-// Go 1.20 strings.CutPrefix.
-func stringsCutPrefix(s, prefix string) (after string, found bool) {
-	if !strings.HasPrefix(s, prefix) {
-		return s, false
-	}
-	return s[len(prefix):], true
 }

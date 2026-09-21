@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux && (amd64 || arm64 || arm64be || ppc64 || ppc64le || loong64 || s390x)
+//go:build linux && (amd64 || arm64 || arm64be || ppc64 || ppc64le || loong64 || s390x || riscv64)
 
 package runtime
 
 import (
 	"internal/cpu"
+	"internal/goexperiment"
 	"unsafe"
 )
 
@@ -93,6 +94,13 @@ func vgetrandomDestroy(mp *m) {
 func vgetrandom(p []byte, flags uint32) (ret int, supported bool) {
 	if vgetrandomAlloc.stateSize == 0 {
 		return -1, false
+	}
+
+	// vDSO code may spill registers to the stack
+	// Make sure they're zeroed if we're running in secret mode
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		secretEraseRegisters()
 	}
 
 	// We use getg().m instead of acquirem() here, because always taking

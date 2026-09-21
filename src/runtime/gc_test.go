@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/abi"
 	"internal/asan"
 	"internal/msan"
 	"internal/race"
@@ -901,4 +902,26 @@ func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
 	if strings.Count(sp[0], "main.DetectFinalizerAndCleanupLeaks()") != wantSymbolizedLocations {
 		t.Fatalf("expected %d symbolized locations, got:\n%s", wantSymbolizedLocations, got)
 	}
+}
+
+func TestPCAsPointer(t *testing.T) {
+	// Test that a PC is distinct from a heap address, and the
+	// GC can handle a PC as a pointer.
+	// On Wasm, in the old layout, a PC is at a somewhat high
+	// address, but not high enough to completely avoid overlap
+	// with the heap. In this test, we allocate a large slice
+	// to grow the heap so the overlap may occur.
+	pc := abi.FuncPCABIInternal(runtime.GC)
+	t.Logf("pc=%x\n", pc)
+	sinkSlice = make([]byte, 300<<20)
+	if runtime.InHeapOrStack(pc) {
+		t.Errorf("pc=%x is in heap or stack", pc)
+	}
+	// Free the slice. Make a (scannable) pointer from the PC.
+	// If the PC points to the freed memory, the GC will fail.
+	sinkSlice = nil
+	runtime.GC()
+	ptr := unsafe.Pointer(pc)
+	runtime.GC()
+	runtime.KeepAlive(ptr)
 }

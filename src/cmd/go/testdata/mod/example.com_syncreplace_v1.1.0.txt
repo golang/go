@@ -1,0 +1,12 @@
+-- .mod --
+module example.com/syncreplace
+
+go 1.27
+
+require rsc.io/quote v1.1.0
+-- syncreplace.go --
+package syncreplace
+
+import _ "rsc.io/quote"
+-- .info --
+{"Version":"v1.1.0"}

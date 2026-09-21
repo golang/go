@@ -11,10 +11,10 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -37,7 +37,7 @@ var tests = []struct {
 }
 
 func main() {
-	f, err := ioutil.TempFile("", "issue22662b.go")
+	f, err := os.CreateTemp("", "issue22662b.go")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func main() {
 	defer os.Remove(f.Name())
 
 	for _, test := range tests {
-		if err := ioutil.WriteFile(f.Name(), []byte(test.src), 0660); err != nil {
+		if err := os.WriteFile(f.Name(), []byte(test.src), 0660); err != nil {
 			log.Fatal(err)
 		}
 
@@ -54,7 +54,12 @@ func main() {
 			log.Fatalf("expected compiling\n---\n%s\n---\nto fail", test.src)
 		}
 
-		errmsg := strings.Replace(string(out), f.Name(), "filename", -1) // use "filename" instead of actual (long) filename
+		// Replace the temp filename (used when the line directive inherits
+		// it via the empty-filename form), and strip the temp directory
+		// prefix that is now joined onto relative line-directive filenames
+		// since go.dev/issue/70478.
+		errmsg := strings.Replace(string(out), f.Name(), "filename", -1)
+		errmsg = strings.Replace(errmsg, filepath.Dir(f.Name())+string(filepath.Separator), "", -1)
 		if !strings.HasPrefix(errmsg, test.pos) {
 			log.Fatalf("%q: got %q; want position %q", test.src, errmsg, test.pos)
 		}

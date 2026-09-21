@@ -5,8 +5,10 @@
 package ssa
 
 import (
-	"cmd/internal/src"
 	"fmt"
+
+	"cmd/compile/internal/ssa/block"
+	"cmd/internal/src"
 )
 
 // Block represents a basic block in the control flow graph of a function.
@@ -18,8 +20,11 @@ type Block struct {
 	// Source position for block's control operation
 	Pos src.XPos
 
+	// What cpu features (AVXnnn, SVEyyy) are implied to reach/execute this block?
+	CPUfeatures CPUfeatures
+
 	// The kind of block this is.
-	Kind BlockKind
+	Kind block.BlockKind
 
 	// Likely direction for branches.
 	// If BranchLikely, Succs[0] is the most likely branch taken.
@@ -66,10 +71,38 @@ type Block struct {
 	Func *Func
 
 	// Storage for Succs, Preds and Values.
-	succstorage [2]Edge
-	predstorage [4]Edge
-	valstorage  [9]*Value
+	Succstorage [2]Edge
+	Predstorage [4]Edge
+	Valstorage  [9]*Value
 }
+
+const (
+	BranchUnlikely = BranchPrediction(-1)
+	BranchUnknown  = BranchPrediction(0)
+	BranchLikely   = BranchPrediction(+1)
+)
+
+type BranchPrediction int8
+
+const (
+	CPUNone CPUfeatures = 0
+	CPUAll  CPUfeatures = ^CPUfeatures(0)
+	CPUavx  CPUfeatures = 1 << iota
+	CPUavx2
+	CPUavxvnni
+	CPUavx512
+	CPUbitalg
+	CPUgfni
+	CPUvbmi
+	CPUvbmi2
+	CPUvpopcntdq
+	CPUavx512vnni
+
+	CPUneon
+	CPUsve2
+)
+
+type CPUfeatures uint32
 
 // Edge represents a CFG edge.
 // Example edges for b branching to either c or d.
@@ -96,26 +129,40 @@ type Block struct {
 // means x is chosen if k is true.
 type Edge struct {
 	// block edge goes to (in a Succs list) or from (in a Preds list)
-	b *Block
+	B *Block
 	// index of reverse edge.  Invariant:
 	//   e := x.Succs[idx]
-	//   e.b.Preds[e.i] = Edge{x,idx}
+	//   e.b.Preds[e.I] = Edge{x,idx}
 	// and similarly for predecessors.
-	i int
+	I int
 }
+
+const (
+	// These values are arranged in what seems to be order of increasing alignment importance.
+	// Currently only a few are relevant.  Implicitly, they are all in a loop.
+	HotNotFlowIn Hotness = 1 << iota // This block is only reached by branches
+	HotInitial                       // In the block order, the first one for a given loop.  Not necessarily topological header.
+	HotPgo                           // By PGO-based heuristics, this block occurs in a hot loop
+
+	HotNot                 = 0
+	HotInitialNotFlowIn    = HotInitial | HotNotFlowIn          // typically first block of a rotated loop, loop is entered with a branch (not to this block).  No PGO
+	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
+	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
+)
+
+type Hotness int8 // Could use negative numbers for specifically non-hot blocks, but don't, yet.
 
 func (e Edge) Block() *Block {
-	return e.b
-}
-func (e Edge) Index() int {
-	return e.i
-}
-func (e Edge) String() string {
-	return fmt.Sprintf("{%v,%d}", e.b, e.i)
+	return e.B
 }
 
-// BlockKind is the kind of SSA block.
-type BlockKind uint8
+func (e Edge) Index() int {
+	return e.I
+}
+
+func (e Edge) String() string {
+	return fmt.Sprintf("{%v,%d}", e.B, e.I)
+}
 
 // short form print
 func (b *Block) String() string {
@@ -137,7 +184,7 @@ func (b *Block) LongString() string {
 	if len(b.Succs) > 0 {
 		s += " ->"
 		for _, c := range b.Succs {
-			s += " " + c.b.String()
+			s += " " + c.B.String()
 		}
 	}
 	switch b.Likely {
@@ -225,18 +272,18 @@ func (b *Block) CopyControls(from *Block) {
 // Reset sets the block to the provided kind and clears all the blocks control
 // and auxiliary values. Other properties of the block, such as its successors,
 // predecessors and values are left unmodified.
-func (b *Block) Reset(kind BlockKind) {
+func (b *Block) Reset(kind block.BlockKind) {
 	b.Kind = kind
 	b.ResetControls()
 	b.Aux = nil
 	b.AuxInt = 0
 }
 
-// resetWithControl resets b and adds control v.
+// ResetWithControl resets b and adds control v.
 // It is equivalent to b.Reset(kind); b.AddControl(v),
 // except that it is one call instead of two and avoids a bounds check.
 // It is intended for use by rewrite rules, where this matters.
-func (b *Block) resetWithControl(kind BlockKind, v *Value) {
+func (b *Block) ResetWithControl(kind block.BlockKind, v *Value) {
 	b.Kind = kind
 	b.ResetControls()
 	b.Aux = nil
@@ -245,11 +292,11 @@ func (b *Block) resetWithControl(kind BlockKind, v *Value) {
 	v.Uses++
 }
 
-// resetWithControl2 resets b and adds controls v and w.
+// ResetWithControl2 resets b and adds controls v and w.
 // It is equivalent to b.Reset(kind); b.AddControl(v); b.AddControl(w),
 // except that it is one call instead of three and avoids two bounds checks.
 // It is intended for use by rewrite rules, where this matters.
-func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
+func (b *Block) ResetWithControl2(kind block.BlockKind, v, w *Value) {
 	b.Kind = kind
 	b.ResetControls()
 	b.Aux = nil
@@ -260,10 +307,10 @@ func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
 	w.Uses++
 }
 
-// truncateValues truncates b.Values at the ith element, zeroing subsequent elements.
+// TruncateValues truncates b.Values at the ith element, zeroing subsequent elements.
 // The values in b.Values after i must already have had their args reset,
 // to maintain correct value uses counts.
-func (b *Block) truncateValues(i int) {
+func (b *Block) TruncateValues(i int) {
 	clear(b.Values[i:])
 	b.Values = b.Values[:i]
 }
@@ -274,45 +321,45 @@ func (b *Block) AddEdgeTo(c *Block) {
 	j := len(c.Preds)
 	b.Succs = append(b.Succs, Edge{c, j})
 	c.Preds = append(c.Preds, Edge{b, i})
-	b.Func.invalidateCFG()
+	b.Func.InvalidateCFG()
 }
 
-// removePred removes the ith input edge from b.
+// RemovePred removes the ith input edge from b.
 // It is the responsibility of the caller to remove
 // the corresponding successor edge, and adjust any
 // phi values by calling b.removePhiArg(v, i).
-func (b *Block) removePred(i int) {
+func (b *Block) RemovePred(i int) {
 	n := len(b.Preds) - 1
 	if i != n {
 		e := b.Preds[n]
 		b.Preds[i] = e
 		// Update the other end of the edge we moved.
-		e.b.Succs[e.i].i = i
+		e.B.Succs[e.I].I = i
 	}
 	b.Preds[n] = Edge{}
 	b.Preds = b.Preds[:n]
-	b.Func.invalidateCFG()
+	b.Func.InvalidateCFG()
 }
 
-// removeSucc removes the ith output edge from b.
+// RemoveSucc removes the ith output edge from b.
 // It is the responsibility of the caller to remove
 // the corresponding predecessor edge.
 // Note that this potentially reorders successors of b, so it
 // must be used very carefully.
-func (b *Block) removeSucc(i int) {
+func (b *Block) RemoveSucc(i int) {
 	n := len(b.Succs) - 1
 	if i != n {
 		e := b.Succs[n]
 		b.Succs[i] = e
 		// Update the other end of the edge we moved.
-		e.b.Preds[e.i].i = i
+		e.B.Preds[e.I].I = i
 	}
 	b.Succs[n] = Edge{}
 	b.Succs = b.Succs[:n]
-	b.Func.invalidateCFG()
+	b.Func.InvalidateCFG()
 }
 
-func (b *Block) swapSuccessors() {
+func (b *Block) SwapSuccessors() {
 	if len(b.Succs) != 2 {
 		b.Fatalf("swapSuccessors with len(Succs)=%d", len(b.Succs))
 	}
@@ -320,13 +367,13 @@ func (b *Block) swapSuccessors() {
 	e1 := b.Succs[1]
 	b.Succs[0] = e1
 	b.Succs[1] = e0
-	e0.b.Preds[e0.i].i = 1
-	e1.b.Preds[e1.i].i = 0
+	e0.B.Preds[e0.I].I = 1
+	e1.B.Preds[e1.I].I = 0
 	b.Likely *= -1
 }
 
 // Swaps b.Succs[x] and b.Succs[y].
-func (b *Block) swapSuccessorsByIdx(x, y int) {
+func (b *Block) SwapSuccessorsByIdx(x, y int) {
 	if x == y {
 		return
 	}
@@ -334,11 +381,11 @@ func (b *Block) swapSuccessorsByIdx(x, y int) {
 	ey := b.Succs[y]
 	b.Succs[x] = ey
 	b.Succs[y] = ex
-	ex.b.Preds[ex.i].i = y
-	ey.b.Preds[ey.i].i = x
+	ex.B.Preds[ex.I].I = y
+	ey.B.Preds[ey.I].I = x
 }
 
-// removePhiArg removes the ith arg from phi.
+// RemovePhiArg removes the ith arg from phi.
 // It must be called after calling b.removePred(i) to
 // adjust the corresponding phi value of the block:
 //
@@ -348,10 +395,10 @@ func (b *Block) swapSuccessorsByIdx(x, y int) {
 //	if v.Op != OpPhi {
 //	    continue
 //	}
-//	b.removePhiArg(v, i)
+//	b.RemovePhiArg(v, i)
 //
 // }
-func (b *Block) removePhiArg(phi *Value, i int) {
+func (b *Block) RemovePhiArg(phi *Value, i int) {
 	n := len(b.Preds)
 	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
 		b.Fatalf("inconsistent state for %v, num predecessors: %d, num phi args: %d", phi, n, numPhiArgs)
@@ -360,16 +407,16 @@ func (b *Block) removePhiArg(phi *Value, i int) {
 	phi.Args[i] = phi.Args[n]
 	phi.Args[n] = nil
 	phi.Args = phi.Args[:n]
-	phielimValue(phi)
+	PhiElimValue(phi)
 }
 
-// uniquePred returns the predecessor of b, if there is exactly one.
+// UniquePred returns the predecessor of b, if there is exactly one.
 // Returns nil otherwise.
-func (b *Block) uniquePred() *Block {
+func (b *Block) UniquePred() *Block {
 	if len(b.Preds) != 1 {
 		return nil
 	}
-	return b.Preds[0].b
+	return b.Preds[0].B
 }
 
 // LackingPos indicates whether b is a block whose position should be inherited
@@ -380,7 +427,7 @@ func (b *Block) LackingPos() bool {
 	// Non-plain predecessors are If or Defer, which both (1) have two successors,
 	// which might have different line numbers and (2) correspond to statements
 	// in the source code that have positions, so this case ought not occur anyway.
-	if b.Kind != BlockPlain {
+	if b.Kind != block.BlockPlain {
 		return false
 	}
 	if b.Pos != src.NoXPos {
@@ -408,15 +455,15 @@ func (b *Block) AuxIntString() string {
 	}
 }
 
-// likelyBranch reports whether block b is the likely branch of all of its predecessors.
-func (b *Block) likelyBranch() bool {
+// LikelyBranch reports whether block b is the likely branch of all of its predecessors.
+func (b *Block) LikelyBranch() bool {
 	if len(b.Preds) == 0 {
 		return false
 	}
 	for _, e := range b.Preds {
-		p := e.b
-		if len(p.Succs) == 1 || len(p.Succs) == 2 && (p.Likely == BranchLikely && p.Succs[0].b == b ||
-			p.Likely == BranchUnlikely && p.Succs[1].b == b) {
+		p := e.B
+		if len(p.Succs) == 1 || len(p.Succs) == 2 && (p.Likely == BranchLikely && p.Succs[0].B == b ||
+			p.Likely == BranchUnlikely && p.Succs[1].B == b) {
 			continue
 		}
 		return false
@@ -424,28 +471,44 @@ func (b *Block) likelyBranch() bool {
 	return true
 }
 
-func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }
-func (b *Block) Log() bool                              { return b.Func.Log() }
-func (b *Block) Fatalf(msg string, args ...interface{}) { b.Func.Fatalf(msg, args...) }
+func (b *Block) Logf(msg string, args ...any) { b.Func.Logf(msg, args...) }
 
-type BranchPrediction int8
+func (b *Block) Log() bool { return b.Func.Log() }
 
-const (
-	BranchUnlikely = BranchPrediction(-1)
-	BranchUnknown  = BranchPrediction(0)
-	BranchLikely   = BranchPrediction(+1)
-)
+func (b *Block) Fatalf(msg string, args ...any) { b.Func.FatalfWithPos(b.Pos, msg, args...) }
 
-type Hotness int8 // Could use negative numbers for specifically non-hot blocks, but don't, yet.
-const (
-	// These values are arranged in what seems to be order of increasing alignment importance.
-	// Currently only a few are relevant.  Implicitly, they are all in a loop.
-	HotNotFlowIn Hotness = 1 << iota // This block is only reached by branches
-	HotInitial                       // In the block order, the first one for a given loop.  Not necessarily topological header.
-	HotPgo                           // By PGO-based heuristics, this block occurs in a hot loop
+func (f CPUfeatures) HasFeature(x CPUfeatures) bool {
+	return f&x == x
+}
 
-	HotNot                 = 0
-	HotInitialNotFlowIn    = HotInitial | HotNotFlowIn          // typically first block of a rotated loop, loop is entered with a branch (not to this block).  No PGO
-	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
-	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
-)
+func (f CPUfeatures) String() string {
+	if f == CPUNone {
+		return "none"
+	}
+	if f == CPUAll {
+		return "all"
+	}
+	s := ""
+	foo := func(what string, feat CPUfeatures) {
+		if feat&f != 0 {
+			if s != "" {
+				s += "+"
+			}
+			s += what
+		}
+	}
+	foo("avx", CPUavx)
+	foo("avx2", CPUavx2)
+	foo("avx512", CPUavx512)
+	foo("avxvnni", CPUavxvnni)
+	foo("bitalg", CPUbitalg)
+	foo("gfni", CPUgfni)
+	foo("vbmi", CPUvbmi)
+	foo("vbmi2", CPUvbmi2)
+	foo("popcntdq", CPUvpopcntdq)
+	foo("avx512vnni", CPUavx512vnni)
+	foo("neon", CPUneon)
+	foo("sve2", CPUsve2)
+
+	return s
+}

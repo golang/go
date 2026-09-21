@@ -58,10 +58,12 @@ func (v Value) String() string {
 	return "Value{Bad}"
 }
 
-func uint64Value(x uint64) Value {
+// Uint64Value creates a value of kind ValueUint64.
+func Uint64Value(x uint64) Value {
 	return Value{kind: ValueUint64, scalar: x}
 }
 
-func stringValue(s string) Value {
+// StringValue creates a value of kind ValueString.
+func StringValue(s string) Value {
 	return Value{kind: ValueString, scalar: uint64(len(s)), pointer: unsafe.Pointer(unsafe.StringData(s))}
 }

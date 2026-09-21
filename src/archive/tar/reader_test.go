@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"internal/obscuretestdata"
 	"io"
 	"maps"
 	"math"
@@ -25,10 +26,11 @@ import (
 
 func TestReader(t *testing.T) {
 	vectors := []struct {
-		file    string    // Test input file
-		headers []*Header // Expected output headers
-		chksums []string  // CRC32 checksum of files, leave as nil if not checked
-		err     error     // Expected error to occur
+		file     string    // Test input file
+		obscured bool      // Obscured with obscuretestdata package
+		headers  []*Header // Expected output headers
+		chksums  []string  // CRC32 checksum of files, leave as nil if not checked
+		err      error     // Expected error to occur
 	}{{
 		file: "testdata/gnu.tar",
 		headers: []*Header{{
@@ -523,8 +525,9 @@ func TestReader(t *testing.T) {
 		file: "testdata/pax-nul-path.tar",
 		err:  ErrHeader,
 	}, {
-		file: "testdata/neg-size.tar",
-		err:  ErrHeader,
+		file:     "testdata/neg-size.tar.base64",
+		obscured: true,
+		err:      ErrHeader,
 	}, {
 		file: "testdata/issue10968.tar",
 		err:  ErrHeader,
@@ -629,15 +632,24 @@ func TestReader(t *testing.T) {
 	}}
 
 	for _, v := range vectors {
-		t.Run(path.Base(v.file), func(t *testing.T) {
-			f, err := os.Open(v.file)
+		t.Run(strings.TrimSuffix(path.Base(v.file), ".base64"), func(t *testing.T) {
+			path := v.file
+			if v.obscured {
+				tf, err := obscuretestdata.DecodeToTempFile(path)
+				if err != nil {
+					t.Fatalf("obscuredtestdata.DecodeToTempFile(%s): %v", path, err)
+				}
+				path = tf
+			}
+
+			f, err := os.Open(path)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			defer f.Close()
 
 			var fr io.Reader = f
-			if strings.HasSuffix(v.file, ".bz2") {
+			if strings.HasSuffix(v.file, ".bz2") || strings.HasSuffix(v.file, ".bz2.base64") {
 				fr = bzip2.NewReader(fr)
 			}
 
@@ -775,7 +787,7 @@ type readBadSeeker struct{ io.ReadSeeker }
 
 func (rbs *readBadSeeker) Seek(int64, int) (int64, error) { return 0, fmt.Errorf("illegal seek") }
 
-// TestReadTruncation test the ending condition on various truncated files and
+// TestReadTruncation tests the ending condition on various truncated files and
 // that truncated files are still detected even if the underlying io.Reader
 // satisfies io.Seeker.
 func TestReadTruncation(t *testing.T) {
@@ -1133,6 +1145,17 @@ func TestReadOldGNUSparseMap(t *testing.T) {
 		input: makeInput(FormatGNU, "",
 			makeSparseStrings(sparseDatas{{10 << 30, 512}, {20 << 30, 512}})...),
 		wantMap: sparseDatas{{10 << 30, 512}, {20 << 30, 512}},
+	}, {
+		input: makeInput(FormatGNU, "",
+			makeSparseStrings(func() sparseDatas {
+				var datas sparseDatas
+				// This is more than enough entries to exceed our limit.
+				for i := range int64(1 << 20) {
+					datas = append(datas, sparseEntry{i * 2, (i * 2) + 1})
+				}
+				return datas
+			}())...),
+		wantErr: errSparseTooLong,
 	}}
 
 	for i, v := range vectors {
@@ -1679,3 +1702,50 @@ func TestDisableInsecurePathCheck(t *testing.T) {
 		t.Fatalf("tr.Next with tarinsecurepath=1: got name %q, want %q", h.Name, name)
 	}
 }
+
+func TestMergePAXIntegerOverflow(t *testing.T) {
+	vectors := []struct {
+		paxHdrs map[string]string
+		wantErr bool
+	}{
+		{map[string]string{paxUid: "0"}, false},
+		{map[string]string{paxUid: "1000"}, false},
+		{map[string]string{paxUid: "4294967296"}, math.MaxInt < 4294967296},
+		{map[string]string{paxGid: "4294967296"}, math.MaxInt < 4294967296},
+		{map[string]string{paxUid: "2147483648"}, math.MaxInt < 2147483648},
+		{map[string]string{paxGid: "2147483648"}, math.MaxInt < 2147483648},
+		{map[string]string{paxUid: "9223372036854775808"}, true},
+	}
+
+	for _, tt := range vectors {
+		testname := fmt.Sprintf("%v", tt.paxHdrs)
+		t.Run(testname, func(t *testing.T) {
+			hdr := new(Header)
+			err := mergePAX(hdr, tt.paxHdrs)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("Expected a non-nil error")
+				}
+				if !errors.Is(err, ErrHeader) {
+					t.Fatalf("Expected error of type ErrHeader, got instead %v", err)
+				}
+				if hdr.Gid != 0 {
+					t.Fatalf("Gid was unexpectedly set after error: %v", hdr.Gid)
+				}
+				if hdr.Uid != 0 {
+					t.Fatalf("Uid was unexpectedly set after error: %v", hdr.Uid)
+				}
+			} else if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if hdr.Gid < 0 {
+				t.Fatalf("Gid was unexpectedly set after overflow: %v", hdr.Gid)
+			}
+			if hdr.Uid < 0 {
+				t.Fatalf("Uid was unexpectedly set after overflow: %v", hdr.Uid)
+			}
+		})
+	}
+}
+

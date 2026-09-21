@@ -8,6 +8,8 @@ package net
 
 import "io"
 
+var testHookSupportsSendfile func() bool
+
 func supportsSendfile() bool {
 	return false
 }
