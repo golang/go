@@ -3245,6 +3245,40 @@ func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) Uint64s {
 	return x.clmul(y)
 }
 
+func (v Int8s) OnesCount() Int8s {
+	a0, a1 := v.a, v.b
+	m1 := uint64(0x5555555555555555)
+	m2 := uint64(0x3333333333333333)
+	m4 := uint64(0x0f0f0f0f0f0f0f0f)
+	a0 = (a0 & m1) + ((a0 >> 1) & m1)
+	a1 = (a1 & m1) + ((a1 >> 1) & m1)
+
+	a0 = (a0 & m2) + ((a0 >> 2) & m2)
+	a1 = (a1 & m2) + ((a1 >> 2) & m2)
+
+	a0 = (a0 & m4) + ((a0 >> 4) & m4)
+	a1 = (a1 & m4) + ((a1 >> 4) & m4)
+
+	return Int8s{a: a0, b: a1}
+}
+
+func (v Uint8s) OnesCount() Uint8s {
+	a0, a1 := v.a, v.b
+	m1 := uint64(0x5555555555555555)
+	m2 := uint64(0x3333333333333333)
+	m4 := uint64(0x0f0f0f0f0f0f0f0f)
+	a0 = (a0 & m1) + ((a0 >> 1) & m1)
+	a1 = (a1 & m1) + ((a1 >> 1) & m1)
+
+	a0 = (a0 & m2) + ((a0 >> 2) & m2)
+	a1 = (a1 & m2) + ((a1 >> 2) & m2)
+
+	a0 = (a0 & m4) + ((a0 >> 4) & m4)
+	a1 = (a1 & m4) + ((a1 >> 4) & m4)
+
+	return Uint8s{a: a0, b: a1}
+}
+
 const (
 	by8  = 0x0101010101010101
 	by16 = 0x0001000100010001

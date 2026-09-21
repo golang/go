@@ -22,6 +22,7 @@
   Neg: "Neg returns the element-wise negation of x."
   Not: "Not returns the bitwise NOT of x."
   NotEqual: "NotEqual returns a mask indicating where x and y are not equal."
+  OnesCount: "OnesCount counts the number of set bits in each element."
   Or: "Or returns the bitwise OR of x and y."
   ReduceSum: "ReduceSum returns the scalar sum of the elements of x."
   RotateAllLeft: "RotatesAllLeft rotates all elements left by y bits."

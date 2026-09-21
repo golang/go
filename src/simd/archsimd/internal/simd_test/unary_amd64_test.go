@@ -320,13 +320,15 @@ func TestSaturate(t *testing.T) {
 }
 
 func TestOnesCountAMD64(t *testing.T) {
+	if archsimd.X86.AVX2() {
+		testInt8x32Unary(t, archsimd.Int8x32.OnesCount, map1[int8](onesCount))
+	}
 	if archsimd.X86.AVX512BITALG() {
 		// 128-bit
 		testInt16x8Unary(t, archsimd.Int16x8.OnesCount, map1[int16](onesCount))
 		testUint16x8Unary(t, archsimd.Uint16x8.OnesCount, map1[uint16](onesCount))
 
 		// 256-bit
-		testInt8x32Unary(t, archsimd.Int8x32.OnesCount, map1[int8](onesCount))
 		testUint8x32Unary(t, archsimd.Uint8x32.OnesCount, map1[uint8](onesCount))
 		testInt16x16Unary(t, archsimd.Int16x16.OnesCount, map1[int16](onesCount))
 		testUint16x16Unary(t, archsimd.Uint16x16.OnesCount, map1[uint16](onesCount))

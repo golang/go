@@ -75,6 +75,9 @@ func (x Int8s) Not() Int8s
 // NotEqual returns a mask indicating where x and y are not equal.
 func (x Int8s) NotEqual(y Int8s) Mask8s
 
+// OnesCount counts the number of set bits in each element.
+func (x Int8s) OnesCount() Int8s
+
 // Or returns the bitwise OR of x and y.
 func (x Int8s) Or(y Int8s) Int8s
 
@@ -467,6 +470,9 @@ func (x Uint8s) Not() Uint8s
 
 // NotEqual returns a mask indicating where x and y are not equal.
 func (x Uint8s) NotEqual(y Uint8s) Mask8s
+
+// OnesCount counts the number of set bits in each element.
+func (x Uint8s) OnesCount() Uint8s
 
 // Or returns the bitwise OR of x and y.
 func (x Uint8s) Or(y Uint8s) Uint8s

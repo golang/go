@@ -737,9 +737,6 @@
 (NotEqualUint16x32 x y) => (VPMOVMToVec16x32 (VPCMPUW512 [4] x y)) // maskOut
 (NotEqualUint32x16 x y) => (VPMOVMToVec32x16 (VPCMPUD512 [4] x y)) // maskOut
 (NotEqualUint64x8 x y) => (VPMOVMToVec64x8 (VPCMPUQ512 [4] x y)) // maskOut
-(OnesCountInt8x16 ...) => (VPOPCNTB128 ...) // pureVreg
-(OnesCountInt8x32 ...) => (VPOPCNTB256 ...) // pureVreg
-(OnesCountInt8x64 ...) => (VPOPCNTB512 ...) // pureVreg
 (OnesCountInt16x8 ...) => (VPOPCNTW128 ...) // pureVreg
 (OnesCountInt16x16 ...) => (VPOPCNTW256 ...) // pureVreg
 (OnesCountInt16x32 ...) => (VPOPCNTW512 ...) // pureVreg
@@ -749,9 +746,6 @@
 (OnesCountInt64x2 ...) => (VPOPCNTQ128 ...) // pureVreg
 (OnesCountInt64x4 ...) => (VPOPCNTQ256 ...) // pureVreg
 (OnesCountInt64x8 ...) => (VPOPCNTQ512 ...) // pureVreg
-(OnesCountUint8x16 ...) => (VPOPCNTB128 ...) // pureVreg
-(OnesCountUint8x32 ...) => (VPOPCNTB256 ...) // pureVreg
-(OnesCountUint8x64 ...) => (VPOPCNTB512 ...) // pureVreg
 (OnesCountUint16x8 ...) => (VPOPCNTW128 ...) // pureVreg
 (OnesCountUint16x16 ...) => (VPOPCNTW256 ...) // pureVreg
 (OnesCountUint16x32 ...) => (VPOPCNTW512 ...) // pureVreg
@@ -1378,6 +1372,12 @@
 (concatSelectedConstantGroupedUint32x16 ...) => (VSHUFPS512 ...) // pureVreg
 (concatSelectedConstantGroupedUint64x4 ...) => (VSHUFPD256 ...) // pureVreg
 (concatSelectedConstantGroupedUint64x8 ...) => (VSHUFPD512 ...) // pureVreg
+(onesCountInt8x16 ...) => (VPOPCNTB128 ...) // pureVreg
+(onesCountInt8x32 ...) => (VPOPCNTB256 ...) // pureVreg
+(onesCountInt8x64 ...) => (VPOPCNTB512 ...) // pureVreg
+(onesCountUint8x16 ...) => (VPOPCNTB128 ...) // pureVreg
+(onesCountUint8x32 ...) => (VPOPCNTB256 ...) // pureVreg
+(onesCountUint8x64 ...) => (VPOPCNTB512 ...) // pureVreg
 (permuteScalarsInt32x4 ...) => (VPSHUFD128 ...) // pureVreg
 (permuteScalarsUint32x4 ...) => (VPSHUFD128 ...) // pureVreg
 (permuteScalarsGroupedInt32x8 ...) => (VPSHUFD256 ...) // pureVreg
@@ -1764,9 +1764,6 @@
 (VMOVDQU64Masked128 (VPMULLQ128 x y) mask) => (VPMULLQMasked128 x y mask)
 (VMOVDQU64Masked256 (VPMULLQ256 x y) mask) => (VPMULLQMasked256 x y mask)
 (VMOVDQU64Masked512 (VPMULLQ512 x y) mask) => (VPMULLQMasked512 x y mask)
-(VMOVDQU8Masked128 (VPOPCNTB128 x) mask) => (VPOPCNTBMasked128 x mask)
-(VMOVDQU8Masked256 (VPOPCNTB256 x) mask) => (VPOPCNTBMasked256 x mask)
-(VMOVDQU8Masked512 (VPOPCNTB512 x) mask) => (VPOPCNTBMasked512 x mask)
 (VMOVDQU16Masked128 (VPOPCNTW128 x) mask) => (VPOPCNTWMasked128 x mask)
 (VMOVDQU16Masked256 (VPOPCNTW256 x) mask) => (VPOPCNTWMasked256 x mask)
 (VMOVDQU16Masked512 (VPOPCNTW512 x) mask) => (VPOPCNTWMasked512 x mask)
@@ -2003,6 +2000,9 @@
 (VMOVDQU64Masked256 (VPMOVQD256 x) mask) => (VPMOVQDMasked256 x mask)
 (VMOVDQU32Masked512 (VPXORD512 x y) mask) => (VPXORDMasked512 x y mask)
 (VMOVDQU64Masked512 (VPXORQ512 x y) mask) => (VPXORQMasked512 x y mask)
+(VMOVDQU8Masked128 (VPOPCNTB128 x) mask) => (VPOPCNTBMasked128 x mask)
+(VMOVDQU8Masked256 (VPOPCNTB256 x) mask) => (VPOPCNTBMasked256 x mask)
+(VMOVDQU8Masked512 (VPOPCNTB512 x) mask) => (VPOPCNTBMasked512 x mask)
 (VMOVDQU32Masked256 (VPSHUFD256 [a] x) mask) => (VPSHUFDMasked256 [a] x mask)
 (VMOVDQU32Masked512 (VPSHUFD512 [a] x) mask) => (VPSHUFDMasked512 [a] x mask)
 (VMOVDQU16Masked256 (VPSHUFHW256 [a] x) mask) => (VPSHUFHWMasked256 [a] x mask)
@@ -3213,8 +3213,6 @@
 (VPMULDQ256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPMULDQ256load {sym} [off] x ptr mem) // vregMem
 (VPMULUDQ128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPMULUDQ128load {sym} [off] x ptr mem) // vregMem
 (VPMULUDQ256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPMULUDQ256load {sym} [off] x ptr mem) // vregMem
-(VPOPCNTB128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTB128load {sym} [off] ptr mem) // vregMem
-(VPOPCNTB256 l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTB256load {sym} [off] ptr mem) // vregMem
 (VPOPCNTW128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTW128load {sym} [off] ptr mem) // vregMem
 (VPOPCNTW256 l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTW256load {sym} [off] ptr mem) // vregMem
 (VPOPCNTD128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTD128load {sym} [off] ptr mem) // vregMem
@@ -3223,8 +3221,6 @@
 (VPOPCNTQ128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTQ128load {sym} [off] ptr mem) // vregMem
 (VPOPCNTQ256 l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTQ256load {sym} [off] ptr mem) // vregMem
 (VPOPCNTQ512 l:(VMOVDQUload512 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTQ512load {sym} [off] ptr mem) // vregMem
-(VPOPCNTBMasked128 l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTBMasked128load {sym} [off] ptr mask mem) // vregMem
-(VPOPCNTBMasked256 l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTBMasked256load {sym} [off] ptr mask mem) // vregMem
 (VPOPCNTWMasked128 l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTWMasked128load {sym} [off] ptr mask mem) // vregMem
 (VPOPCNTWMasked256 l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTWMasked256load {sym} [off] ptr mask mem) // vregMem
 (VPOPCNTDMasked128 l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTDMasked128load {sym} [off] ptr mask mem) // vregMem
@@ -3559,6 +3555,10 @@
 (VSHUFPS512 [c]  x l:(VMOVDQUload512 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VSHUFPS512load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mem) // vregMem
 (VSHUFPD256 [c]  x l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VSHUFPD256load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mem) // vregMem
 (VSHUFPD512 [c]  x l:(VMOVDQUload512 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VSHUFPD512load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mem) // vregMem
+(VPOPCNTB128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTB128load {sym} [off] ptr mem) // vregMem
+(VPOPCNTB256 l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTB256load {sym} [off] ptr mem) // vregMem
+(VPOPCNTBMasked128 l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTBMasked128load {sym} [off] ptr mask mem) // vregMem
+(VPOPCNTBMasked256 l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTBMasked256load {sym} [off] ptr mask mem) // vregMem
 (VPSHUFD128 [c]  l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPSHUFD128load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  ptr mem) // vregMem
 (VPSHUFD256 [c]  l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPSHUFD256load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  ptr mem) // vregMem
 (VPSHUFD512 [c]  l:(VMOVDQUload512 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPSHUFD512load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  ptr mem) // vregMem

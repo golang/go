@@ -4471,21 +4471,6 @@ func (x Uint64x8) NotEqual(y Uint64x8) Mask64x8
 
 // OnesCount counts the number of set bits in each element.
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x16) OnesCount() Int8x16
-
-// OnesCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x32) OnesCount() Int8x32
-
-// OnesCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x64) OnesCount() Int8x64
-
-// OnesCount counts the number of set bits in each element.
-//
 // Asm: VPOPCNTW, CPU Feature: AVX512BITALG
 func (x Int16x8) OnesCount() Int16x8
 
@@ -4528,21 +4513,6 @@ func (x Int64x4) OnesCount() Int64x4
 //
 // Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
 func (x Int64x8) OnesCount() Int64x8
-
-// OnesCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x16) OnesCount() Uint8x16
-
-// OnesCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x32) OnesCount() Uint8x32
-
-// OnesCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x64) OnesCount() Uint8x64
 
 // OnesCount counts the number of set bits in each element.
 //

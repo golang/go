@@ -16,3 +16,7 @@
   commutative: false
   documentation: !string |-
     // NAME counts the number of set bits in each element.
+- go: onesCount # amd64 emulates on AVX and AVX2, access AVX512 through feature check
+  commutative: false
+  documentation: !string |-
+    // NAME counts the number of set bits in each element.

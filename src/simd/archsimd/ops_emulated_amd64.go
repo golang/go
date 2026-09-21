@@ -204,6 +204,82 @@ func (x Uint8x64) Mul(y Uint8x64) Uint8x64 {
 	return pe.Or(po).ReshapeToUint8s()
 }
 
+var popcnt4x16 = [16]int8{0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4}
+var popcnt4x32 = [32]int8{
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+}
+
+// OnesCount counts the number of set bits in each element.
+//
+// Emulated, CPU Feature: AVX
+func (x Int8x16) OnesCount() Int8x16 {
+	if X86.AVX512BITALG() {
+		return x.onesCount()
+	}
+	lut := LoadInt8x16Array(&popcnt4x16)
+	mask0f := BroadcastInt8x16(0x0f)
+	lo := x.And(mask0f)
+	hi := x.ToBits().ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().BitsToInt8().And(mask0f)
+	return lut.PermuteOrZero(lo).Add(lut.PermuteOrZero(hi))
+}
+
+// OnesCount counts the number of set bits in each element.
+//
+// Emulated, CPU Feature: AVX
+func (x Uint8x16) OnesCount() Uint8x16 {
+	if X86.AVX512BITALG() {
+		return x.BitsToInt8().onesCount().ToBits()
+	}
+	lut := LoadInt8x16Array(&popcnt4x16).ToBits()
+	mask0f := BroadcastInt8x16(0x0f).ToBits()
+	lo := x.And(mask0f)
+	hi := x.ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().And(mask0f)
+	return lut.PermuteOrZero(lo.BitsToInt8()).Add(lut.PermuteOrZero(hi.BitsToInt8()))
+}
+
+// OnesCount counts the number of set bits in each element.
+//
+// Emulated, CPU Feature: AVX2
+func (x Int8x32) OnesCount() Int8x32 {
+	if X86.AVX512BITALG() {
+		return x.onesCount()
+	}
+	lut := LoadInt8x32Array(&popcnt4x32)
+	mask0f := BroadcastInt8x32(0x0f)
+	lo := x.And(mask0f)
+	hi := x.ToBits().ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().BitsToInt8().And(mask0f)
+	return lut.PermuteOrZeroGrouped(lo).Add(lut.PermuteOrZeroGrouped(hi))
+}
+
+// OnesCount counts the number of set bits in each element.
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint8x32) OnesCount() Uint8x32 {
+	if X86.AVX512BITALG() {
+		return x.BitsToInt8().onesCount().ToBits()
+	}
+	lut := LoadInt8x32Array(&popcnt4x32).ToBits()
+	mask0f := BroadcastInt8x32(0x0f).ToBits()
+	lo := x.And(mask0f)
+	hi := x.ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().And(mask0f)
+	return lut.PermuteOrZeroGrouped(lo.BitsToInt8()).Add(lut.PermuteOrZeroGrouped(hi.BitsToInt8()))
+}
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x64) OnesCount() Int8x64 {
+	return x.onesCount()
+}
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x64) OnesCount() Uint8x64 {
+	return x.onesCount()
+}
+
 // ReduceSum returns the sum of all elements in x.
 //
 // Emulated, CPU Feature: AVX

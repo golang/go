@@ -652,6 +652,18 @@ func (x Int8x64) NotEqual(y Int8x64) Mask8x64 {
 	return Mask8x64((archsimd.Int8x64(x)).NotEqual(archsimd.Int8x64(y)))
 }
 
+func (x Int8x16) OnesCount() Int8x16 {
+	return Int8x16((archsimd.Int8x16(x)).OnesCount())
+}
+
+func (x Int8x32) OnesCount() Int8x32 {
+	return Int8x32((archsimd.Int8x32(x)).OnesCount())
+}
+
+func (x Int8x64) OnesCount() Int8x64 {
+	return Int8x64((archsimd.Int8x64(x)).OnesCount())
+}
+
 func (x Int8x16) Or(y Int8x16) Int8x16 {
 	return Int8x16((archsimd.Int8x16(x)).Or(archsimd.Int8x16(y)))
 }
@@ -2078,6 +2090,18 @@ func (x Uint8x32) NotEqual(y Uint8x32) Mask8x32 {
 
 func (x Uint8x64) NotEqual(y Uint8x64) Mask8x64 {
 	return Mask8x64((archsimd.Uint8x64(x)).NotEqual(archsimd.Uint8x64(y)))
+}
+
+func (x Uint8x16) OnesCount() Uint8x16 {
+	return Uint8x16((archsimd.Uint8x16(x)).OnesCount())
+}
+
+func (x Uint8x32) OnesCount() Uint8x32 {
+	return Uint8x32((archsimd.Uint8x32(x)).OnesCount())
+}
+
+func (x Uint8x64) OnesCount() Uint8x64 {
+	return Uint8x64((archsimd.Uint8x64(x)).OnesCount())
 }
 
 func (x Uint8x16) Or(y Uint8x16) Uint8x16 {

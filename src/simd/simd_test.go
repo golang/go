@@ -37,6 +37,9 @@ type number interface {
 func TestInt8s(t *testing.T) {
 	values := test_helpers.Int8s()
 	load := simd.LoadInt8s
+
+	test_helpers.TestV2Ve(t, values, load, simd.Int8s.OnesCount, test_helpers.OnesCount)
+
 	test_helpers.TestV2Ve(t, values, load, simd.Int8s.Neg, test_helpers.Neg)
 	test_helpers.TestV2Ve(t, values, load, simd.Int8s.Abs, test_helpers.Abs)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.Add, test_helpers.Add)
@@ -150,6 +153,9 @@ func TestInt64s(t *testing.T) {
 func TestUint8s(t *testing.T) {
 	values := test_helpers.Uint8s()
 	load := simd.LoadUint8s
+
+	test_helpers.TestV2Ve(t, values, load, simd.Uint8s.OnesCount, test_helpers.OnesCount)
+
 	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Add, test_helpers.Add)
 	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Sub, test_helpers.Sub)
 	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Mul, test_helpers.Mul)

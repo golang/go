@@ -224,6 +224,10 @@ func (x Int8x16) NotEqual(y Int8x16) Mask8x16 {
 	return Mask8x16((archsimd.Int8x16(x)).NotEqual(archsimd.Int8x16(y)))
 }
 
+func (x Int8x16) OnesCount() Int8x16 {
+	return Int8x16((archsimd.Int8x16(x)).OnesCount())
+}
+
 func (x Int8x16) Or(y Int8x16) Int8x16 {
 	return Int8x16((archsimd.Int8x16(x)).Or(archsimd.Int8x16(y)))
 }
@@ -698,6 +702,10 @@ func (x Uint8x16) Not() Uint8x16 {
 
 func (x Uint8x16) NotEqual(y Uint8x16) Mask8x16 {
 	return Mask8x16((archsimd.Uint8x16(x)).NotEqual(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16) OnesCount() Uint8x16 {
+	return Uint8x16((archsimd.Uint8x16(x)).OnesCount())
 }
 
 func (x Uint8x16) Or(y Uint8x16) Uint8x16 {

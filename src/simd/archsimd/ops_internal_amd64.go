@@ -823,6 +823,38 @@ func (x Uint64x4) concatSelectedConstantGrouped(hilos uint8, y Uint64x4) Uint64x
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Uint64x8) concatSelectedConstantGrouped(hilos uint8, y Uint64x8) Uint64x8
 
+/* onesCount */
+
+// onesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x16) onesCount() Int8x16
+
+// onesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x32) onesCount() Int8x32
+
+// onesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x64) onesCount() Int8x64
+
+// onesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x16) onesCount() Uint8x16
+
+// onesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x32) onesCount() Uint8x32
+
+// onesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x64) onesCount() Uint8x64
+
 /* permuteScalars */
 
 // permuteScalars performs a permutation of vector x using constant indices:

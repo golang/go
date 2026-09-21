@@ -35,8 +35,20 @@
 # Population Count (count set bits in each element)
 # Instructions: VPOPCNTB, VPOPCNTW (AVX512_BITALG)
 #               VPOPCNTD, VPOPCNTQ (AVX512_VPOPCNTDQ)
+- go: onesCount # lower case to coexist with feature-checking emulation
+  asm: "VPOPCNTB"
+  hideMaskMethods: true
+  in:
+  - &any
+    go: $t
+  out:
+  - *any
+
+# Population Count (count set bits in each element)
+# Instructions: VPOPCNTB, VPOPCNTW (AVX512_BITALG)
+#               VPOPCNTD, VPOPCNTQ (AVX512_VPOPCNTDQ)
 - go: OnesCount
-  asm: "VPOPCNT[BWDQ]"
+  asm: "VPOPCNT[WDQ]"
   in:
   - &any
     go: $t
