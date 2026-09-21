@@ -601,6 +601,38 @@ package simd
 		pw("%s contains %s.%s missing from intersected methods\n", emulatedFile, x.t, x.m)
 	}
 
+	twv := func(arch string) []typeWithVariants {
+		var typesForArch []typeWithVariants
+		for t := range knownReceivers {
+			if methodsByType[combine(arch, t)] != nil {
+				typesForArch = append(typesForArch, typeWithVariants{t, nil})
+			}
+		}
+		tfa0 := typesForArch
+		for _, tv := range tfa0 {
+			key := variants.Key{Arch: arch, Size: sizeForType[tv.t]}
+			if v := variants.Variants[key]; v != nil {
+				typesForArch = append(typesForArch, typeWithVariants{tv.t, v})
+			}
+		}
+		slices.SortFunc(typesForArch, func(a, b typeWithVariants) int {
+			if c := sgutil.CompareNatural(a.t, b.t); c != 0 {
+				return c
+			}
+			if a.v == nil && b.v == nil {
+				return 0
+			}
+			if a.v == nil && b.v != nil {
+				return -1
+			}
+			if a.v != nil && b.v == nil {
+				return 1
+			}
+			return sgutil.CompareNatural(a.v.Suffix, b.v.Suffix)
+		})
+		return typesForArch
+	}
+
 	for _, aaf := range archAndFiles {
 		arch := aaf.arch
 		// This is what writes the bridge.  The rewriter in the compiler will target these types.
@@ -619,34 +651,7 @@ package simd
 			pf("// also allows additional useful exported declarations that would weirdly pollute archsimd.\n")
 			pf("\n")
 
-			var typesForArch []typeWithVariants
-			for t := range knownReceivers {
-				if methodsByType[combine(arch, t)] != nil {
-					typesForArch = append(typesForArch, typeWithVariants{t, nil})
-				}
-			}
-			tfa0 := typesForArch
-			for _, tv := range tfa0 {
-				key := variants.Key{Arch: arch, Size: sizeForType[tv.t]}
-				if v := variants.Variants[key]; v != nil {
-					typesForArch = append(typesForArch, typeWithVariants{tv.t, v})
-				}
-			}
-			slices.SortFunc(typesForArch, func(a, b typeWithVariants) int {
-				if c := sgutil.CompareNatural(a.t, b.t); c != 0 {
-					return c
-				}
-				if a.v == nil && b.v == nil {
-					return 0
-				}
-				if a.v == nil && b.v != nil {
-					return -1
-				}
-				if a.v != nil && b.v == nil {
-					return 1
-				}
-				return sgutil.CompareNatural(a.v.Suffix, b.v.Suffix)
-			})
+			typesForArch := twv(arch)
 
 			for _, t := range typesForArch {
 				at := t.aName()
@@ -836,6 +841,14 @@ package simd
 
 				for _, t := range archTypes {
 					pf("\tcase archsimd.%s:\n", t)
+					key := variants.Key{Arch: arch, Size: sizeForType[t]}
+					if v := variants.Variants[key]; v != nil {
+						vt := v.Name(t)
+						pf("\t\tif !%s() {\n", v.DefaultRequires)
+						pf("\t\t\tvar t bridge.%s = bridge.%s(a)\n", vt, vt)
+						pf("\t\t\treturn (any(t)).(%ss)\n", elem)
+						pf("\t\t}\n")
+					}
 					pf("\t\tvar t bridge.%s = bridge.%s(a)\n", t, t)
 					pf("\t\treturn (any(t)).(%ss)\n", elem)
 				}

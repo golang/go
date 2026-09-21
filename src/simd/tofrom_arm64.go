@@ -23,6 +23,10 @@ func Int8sFromArch[T archSimdInt8s](x T) Int8s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Int8x16:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Int8x16nclm = bridge.Int8x16nclm(a)
+			return (any(t)).(Int8s)
+		}
 		var t bridge.Int8x16 = bridge.Int8x16(a)
 		return (any(t)).(Int8s)
 	}
@@ -43,6 +47,10 @@ func Int16sFromArch[T archSimdInt16s](x T) Int16s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Int16x8:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Int16x8nclm = bridge.Int16x8nclm(a)
+			return (any(t)).(Int16s)
+		}
 		var t bridge.Int16x8 = bridge.Int16x8(a)
 		return (any(t)).(Int16s)
 	}
@@ -63,6 +71,10 @@ func Int32sFromArch[T archSimdInt32s](x T) Int32s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Int32x4:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Int32x4nclm = bridge.Int32x4nclm(a)
+			return (any(t)).(Int32s)
+		}
 		var t bridge.Int32x4 = bridge.Int32x4(a)
 		return (any(t)).(Int32s)
 	}
@@ -83,6 +95,10 @@ func Int64sFromArch[T archSimdInt64s](x T) Int64s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Int64x2:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Int64x2nclm = bridge.Int64x2nclm(a)
+			return (any(t)).(Int64s)
+		}
 		var t bridge.Int64x2 = bridge.Int64x2(a)
 		return (any(t)).(Int64s)
 	}
@@ -103,6 +119,10 @@ func Uint8sFromArch[T archSimdUint8s](x T) Uint8s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Uint8x16:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Uint8x16nclm = bridge.Uint8x16nclm(a)
+			return (any(t)).(Uint8s)
+		}
 		var t bridge.Uint8x16 = bridge.Uint8x16(a)
 		return (any(t)).(Uint8s)
 	}
@@ -123,6 +143,10 @@ func Uint16sFromArch[T archSimdUint16s](x T) Uint16s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Uint16x8:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Uint16x8nclm = bridge.Uint16x8nclm(a)
+			return (any(t)).(Uint16s)
+		}
 		var t bridge.Uint16x8 = bridge.Uint16x8(a)
 		return (any(t)).(Uint16s)
 	}
@@ -143,6 +167,10 @@ func Uint32sFromArch[T archSimdUint32s](x T) Uint32s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Uint32x4:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Uint32x4nclm = bridge.Uint32x4nclm(a)
+			return (any(t)).(Uint32s)
+		}
 		var t bridge.Uint32x4 = bridge.Uint32x4(a)
 		return (any(t)).(Uint32s)
 	}
@@ -163,6 +191,10 @@ func Uint64sFromArch[T archSimdUint64s](x T) Uint64s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Uint64x2:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Uint64x2nclm = bridge.Uint64x2nclm(a)
+			return (any(t)).(Uint64s)
+		}
 		var t bridge.Uint64x2 = bridge.Uint64x2(a)
 		return (any(t)).(Uint64s)
 	}
@@ -183,6 +215,10 @@ func Float32sFromArch[T archSimdFloat32s](x T) Float32s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Float32x4:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Float32x4nclm = bridge.Float32x4nclm(a)
+			return (any(t)).(Float32s)
+		}
 		var t bridge.Float32x4 = bridge.Float32x4(a)
 		return (any(t)).(Float32s)
 	}
@@ -203,6 +239,10 @@ func Float64sFromArch[T archSimdFloat64s](x T) Float64s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Float64x2:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Float64x2nclm = bridge.Float64x2nclm(a)
+			return (any(t)).(Float64s)
+		}
 		var t bridge.Float64x2 = bridge.Float64x2(a)
 		return (any(t)).(Float64s)
 	}
@@ -223,6 +263,10 @@ func Mask8sFromArch[T archSimdMask8s](x T) Mask8s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Mask8x16:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Mask8x16nclm = bridge.Mask8x16nclm(a)
+			return (any(t)).(Mask8s)
+		}
 		var t bridge.Mask8x16 = bridge.Mask8x16(a)
 		return (any(t)).(Mask8s)
 	}
@@ -243,6 +287,10 @@ func Mask16sFromArch[T archSimdMask16s](x T) Mask16s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Mask16x8:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Mask16x8nclm = bridge.Mask16x8nclm(a)
+			return (any(t)).(Mask16s)
+		}
 		var t bridge.Mask16x8 = bridge.Mask16x8(a)
 		return (any(t)).(Mask16s)
 	}
@@ -263,6 +311,10 @@ func Mask32sFromArch[T archSimdMask32s](x T) Mask32s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Mask32x4:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Mask32x4nclm = bridge.Mask32x4nclm(a)
+			return (any(t)).(Mask32s)
+		}
 		var t bridge.Mask32x4 = bridge.Mask32x4(a)
 		return (any(t)).(Mask32s)
 	}
@@ -283,6 +335,10 @@ func Mask64sFromArch[T archSimdMask64s](x T) Mask64s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Mask64x2:
+		if !HasHardwareCarrylessMultiply() {
+			var t bridge.Mask64x2nclm = bridge.Mask64x2nclm(a)
+			return (any(t)).(Mask64s)
+		}
 		var t bridge.Mask64x2 = bridge.Mask64x2(a)
 		return (any(t)).(Mask64s)
 	}
