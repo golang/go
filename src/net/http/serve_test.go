@@ -3452,6 +3452,24 @@ func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
 			},
 			wantStatus: 431,
 		},
+		{
+			// Comma separated Trailer values are counted as multiple, because
+			// each value becomes its own field / a key in Request.Trailer.
+			// This is different from TestRequestTrailerHeaderValueCountLimit
+			// which tests the actual sending of the trailer, this just tests
+			// the Trailer header declaration.
+			name:  "comma separated trailer values count as multiple",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Body = NoBody
+				req.TransferEncoding = []string{"chunked"}
+				req.Trailer = make(Header)
+				for i := range 16 {
+					req.Trailer[fmt.Sprintf("X-Trailer-%d", i)] = nil
+				}
+			},
+			wantStatus: 431,
+		},
 	}
 	for _, tt := range tests {
 		synctest.Subtest(t, tt.name, func(t *testing.T) {

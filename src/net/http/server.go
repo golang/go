@@ -3264,9 +3264,12 @@ type Server struct {
 	// MaxHeaderValueCount controls the maximum number of header
 	// values that the server is willing to parse from a request.
 	// If zero, DefaultMaxHeaderValueCount is used.
-	// Note that comma-separated values in a single header line are
-	// counted once, while values sent as multiple header lines are
-	// counted multiple times.
+	// Comma-separated values in a single header line are counted
+	// once, while values sent as multiple header lines are
+	// counted multiple times. An exception to this is the Trailer
+	// header, whose comma-separated values are counted separately,
+	// as each of them is expected to be received later as an
+	// individual trailer header line.
 	MaxHeaderValueCount int
 
 	// TLSNextProto optionally specifies a function to take over
