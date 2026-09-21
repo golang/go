@@ -286,6 +286,18 @@ func analyze(fn *ir.Func) {
 		}
 	}
 
+	// do walks n and everything below it, recording what happens to the
+	// slice variables we are tracking. It counts every mention of such a
+	// variable in allUses, and the subset of those mentions that this pass
+	// understands to preserve exclusivity in okUses. A variable whose two
+	// counts end up equal is only ever used in ways we understand; any
+	// other variable is dropped at the end of the analysis. Uses that
+	// definitely destroy exclusivity, like &s[i], stop the tracking right
+	// away by clearing s.Opt, which makes tracking report the variable as
+	// no longer being considered.
+	//
+	// It is always used as an ir.DoChildren visitor and always returns
+	// false, so that the whole function body is walked.
 	var do func(ir.Node) bool
 	do = func(n ir.Node) bool {
 		if n == nil {
@@ -324,13 +336,34 @@ func analyze(fn *ir.Func) {
 			}
 		case ir.OADDR:
 			n := n.(*ir.AddrExpr)
-			if n.X.Op() == ir.OINDEX {
-				n := n.X.(*ir.IndexExpr)
-				if i := tracking(n.X); i != nil {
-					// &s[i] is definitely a nonexclusive transition.
-					// (We need this case because s[i] is ok, but &s[i] is not.)
-					i.s.Opt = nil
+			// Walk down to the object whose interior we're taking the
+			// address of. Field selectors and array indexes don't leave
+			// that object, so &s[i], &s[i].f, and &s[i].f[j] all end up
+			// pointing into s's backing store.
+			// (We need this because s[i] is ok, but &s[i] is not.)
+			x := n.X
+			for x != nil {
+				switch x.Op() {
+				case ir.ODOT:
+					// &x.f points into x.
+					x = x.(*ir.SelectorExpr).X
+					continue
+				case ir.OINDEX:
+					idx := x.(*ir.IndexExpr)
+					if idx.X.Type().IsArray() {
+						// &a[i] points into a.
+						// Note: for a pointer to an array, or for a
+						// slice, the address points into a different
+						// object instead, so we stop here.
+						x = idx.X
+						continue
+					}
+					if i := tracking(idx.X); i != nil {
+						// &s[i] is definitely a nonexclusive transition.
+						i.s.Opt = nil
+					}
 				}
+				break
 			}
 		case ir.ORETURN:
 			n := n.(*ir.ReturnStmt)
