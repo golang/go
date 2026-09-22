@@ -135,10 +135,12 @@ var filemap = map[string]action{
 		renameSelectorExprs(f, "syntax.Name->ast.Ident", "rhs.Value->rhs.Name")
 		renameSelectors(f, "Trace->_Trace")
 	},
-	"errors_test.go":  func(f *ast.File) { renameIdents(f, "nopos->noposn") },
-	"errsupport.go":   nil,
-	"gccgosizes.go":   nil,
-	"gcsizes.go":      func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64", "IsSyncAtomicAlign128->_IsSyncAtomicAlign128") },
+	"errors_test.go": func(f *ast.File) { renameIdents(f, "nopos->noposn") },
+	"errsupport.go":  nil,
+	"gccgosizes.go":  nil,
+	"gcsizes.go": func(f *ast.File) {
+		renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64", "IsSyncAtomicAlign128->_IsSyncAtomicAlign128")
+	},
 	"hilbert_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
 	"initorder.go":    nil,
@@ -191,9 +193,12 @@ var filemap = map[string]action{
 		renameIdents(f, "syntax->ast")
 		fixAtPosCall(f)
 	},
-	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
-	"selection.go":     nil,
-	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64", "IsSyncAtomicAlign128->_IsSyncAtomicAlign128") },
+	"scope.go":      func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
+	"scope_test.go": func(f *ast.File) { fixTokenPos(f) },
+	"selection.go":  nil,
+	"sizes.go": func(f *ast.File) {
+		renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64", "IsSyncAtomicAlign128->_IsSyncAtomicAlign128")
+	},
 	"slice.go":         nil,
 	"subst.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"termlist.go":      nil,

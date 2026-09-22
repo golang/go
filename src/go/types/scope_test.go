@@ -5,19 +5,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types_test
+package types
 
 import (
 	"fmt"
-	"go/token"
-	. "go/types"
 	"slices"
 	"testing"
 )
 
 // TestScopeObjects tests that Scope.Objects yields elements in sorted name order, handles empty scopes, and supports early break.
 func TestScopeObjects(t *testing.T) {
-	s := NewScope(nil, token.NoPos, token.NoPos, "test")
+	s := NewScope(nil, nopos, nopos, "test")
 
 	// Empty scope
 	var gotNames []string
@@ -31,7 +29,7 @@ func TestScopeObjects(t *testing.T) {
 	// Insert objects out of order
 	names := []string{"e", "c", "a", "b", "d"}
 	for _, name := range names {
-		v := NewVar(token.NoPos, nil, name, Typ[Int])
+		v := NewVar(nopos, nil, name, Typ[Int])
 		if alt := s.Insert(v); alt != nil {
 			t.Fatalf("Insert(%s) failed", name)
 		}
@@ -69,9 +67,9 @@ func TestScopeObjects(t *testing.T) {
 
 // TestScopeMutationReflectsChanges tests that Scope.Insert clears the name cache so subsequent calls reflect mutations.
 func TestScopeMutationReflectsChanges(t *testing.T) {
-	s := NewScope(nil, token.NoPos, token.NoPos, "test")
+	s := NewScope(nil, nopos, nopos, "test")
 
-	v1 := NewVar(token.NoPos, nil, "b", Typ[Int])
+	v1 := NewVar(nopos, nil, "b", Typ[Int])
 	s.Insert(v1)
 
 	// Prime cache
@@ -80,7 +78,7 @@ func TestScopeMutationReflectsChanges(t *testing.T) {
 	}
 
 	// Insert before existing name
-	v0 := NewVar(token.NoPos, nil, "a", Typ[Int])
+	v0 := NewVar(nopos, nil, "a", Typ[Int])
 	s.Insert(v0)
 
 	// Names() must reflect new object
@@ -99,7 +97,7 @@ func TestScopeMutationReflectsChanges(t *testing.T) {
 	}
 
 	// Insert after existing names
-	v2 := NewVar(token.NoPos, nil, "c", Typ[Int])
+	v2 := NewVar(nopos, nil, "c", Typ[Int])
 	s.Insert(v2)
 
 	wantNames = []string{"a", "b", "c"}
@@ -115,7 +113,7 @@ func TestScopeMutationReflectsChanges(t *testing.T) {
 	}
 
 	// Duplicate insert should not mutate or break cache
-	dup := NewVar(token.NoPos, nil, "b", Typ[String])
+	dup := NewVar(nopos, nil, "b", Typ[String])
 	if alt := s.Insert(dup); alt != v1 {
 		t.Errorf("Insert duplicate: got %v, want %v", alt, v1)
 	}
@@ -127,9 +125,9 @@ func TestScopeMutationReflectsChanges(t *testing.T) {
 // TestScopeNoAllocations tests that repeated calls to Scope.Names
 // and Scope.Objects do not allocate once cached.
 func TestScopeNoAllocations(t *testing.T) {
-	s := NewScope(nil, token.NoPos, token.NoPos, "test")
+	s := NewScope(nil, nopos, nopos, "test")
 	for i := range 10 {
-		s.Insert(NewVar(token.NoPos, nil, fmt.Sprintf("v%d", i), Typ[Int]))
+		s.Insert(NewVar(nopos, nil, fmt.Sprintf("v%d", i), Typ[Int]))
 	}
 
 	// Prime the cache.
