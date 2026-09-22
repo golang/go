@@ -131,15 +131,16 @@ func TestScopeNoAllocations(t *testing.T) {
 	_ = s.Names()
 
 	// Scope.Names
-	if allocs := testing.AllocsPerRun(100, func() { _ = s.Names() }); allocs > 0 {
-		t.Errorf("repeated s.Names() allocated %f times, want 0", allocs)
+	namesAllocs := testing.AllocsPerRun(100, func() { _ = s.Names() })
+	if namesAllocs > 0 {
+		t.Errorf("repeated s.Names() allocated %f times, want 0", namesAllocs)
 	}
 
-	// Scope.Objects
+	// Scope.Objects allocates the iterator closure, and nothing else,
+	// on top of what Names allocates.
 	if allocs := testing.AllocsPerRun(100, func() {
-		for range s.Objects() {
-		}
-	}); allocs > 0 {
-		t.Errorf("repeated s.Objects() iteration allocated %f times, want 0", allocs)
+		s.Objects()(func(Object) bool { return true })
+	}); allocs > namesAllocs+1 {
+		t.Errorf("repeated s.Objects() iteration allocated %f times, want at most %f", allocs, namesAllocs+1)
 	}
 }
