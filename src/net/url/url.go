@@ -493,7 +493,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		}
 	}
 
-	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
+	if (url.Scheme != "" || !viaRequest) && strings.HasPrefix(rest, "//") {
 		var authority string
 		authority, rest = rest[2:], ""
 		if i := strings.Index(authority, "/"); i >= 0 {

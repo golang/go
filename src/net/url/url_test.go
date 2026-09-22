@@ -214,15 +214,13 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// Three leading slashes is an empty authority,
-	// but historically we've parsed it as a path.
-	// See: https://go.dev/issue/46277
+	// https://go.dev/issue/46277
 	{
 		"///threeslashes",
 		&URL{
-			Path: "///threeslashes",
+			Path: "/threeslashes",
 		},
-		"%2F//threeslashes",
+		"/threeslashes",
 	},
 	{
 		"http://user:password@google.com",
