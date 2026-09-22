@@ -2699,7 +2699,7 @@ func (p *parser) stmtOrNil() Stmt {
 }
 
 // StatementList = { Statement ";" } .
-func (p *parser) stmtList() (l []Stmt) {
+func (p *parser) stmtList() (list []Stmt) {
 	if trace {
 		defer p.trace("stmtList")()
 	}
@@ -2710,7 +2710,7 @@ func (p *parser) stmtList() (l []Stmt) {
 		if s == nil {
 			break
 		}
-		l = append(l, s)
+		list = append(list, s)
 		// ";" is optional before "}"
 		if !p.got(_Semi) && p.tok != _Rbrace {
 			p.syntaxError("at end of statement")
