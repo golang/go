@@ -1557,7 +1557,7 @@ func (r *Request) closeBody() error {
 func (r *Request) isReplayable() bool {
 	if r.Body == nil || r.Body == NoBody || r.GetBody != nil {
 		switch valueOrDefault(r.Method, "GET") {
-		case "GET", "HEAD", "OPTIONS", "TRACE":
+		case "GET", "HEAD", "OPTIONS", "TRACE", "QUERY":
 			return true
 		}
 		// The Idempotency-Key, while non-standard, is widely used to

@@ -3986,6 +3986,17 @@ func testRetryRequestsOnError(t *testing.T, mode testMode) {
 			reqString: `GET / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 4\r\nAccept-Encoding: gzip\r\n\r\nfoo\n`,
 		},
 		{
+			name: "IdempotentQueryGetBodySomeWritten",
+			// QUERY is idempotent (RFC 10008, Section 2), so it is retried
+			// like GET when the body can be rewound.
+			failureN:   1,
+			failureErr: ExportErrServerClosedIdle,
+			req: func() *Request {
+				return newRequest("QUERY", "http://fake.golang", strings.NewReader("foo\n"))
+			},
+			reqString: `QUERY / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 4\r\nAccept-Encoding: gzip\r\n\r\nfoo\n`,
+		},
+		{
 			name: "NothingWrittenNoBody",
 			// It's key that we return 0 here -- that's what enables Transport to know
 			// that nothing was written, even though this is a non-idempotent request.
@@ -6439,6 +6450,21 @@ func TestTransportRequestReplayable(t *testing.T) {
 			name: "POST",
 			req:  &Request{Method: "POST"},
 			want: false,
+		},
+		{
+			name: "QUERY",
+			req:  &Request{Method: "QUERY"},
+			want: true,
+		},
+		{
+			name: "QUERY_body",
+			req:  &Request{Method: "QUERY", Body: someBody},
+			want: false,
+		},
+		{
+			name: "QUERY_body_GetBody",
+			req:  &Request{Method: "QUERY", Body: someBody, GetBody: func() (io.ReadCloser, error) { return someBody, nil }},
+			want: true,
 		},
 		{
 			name: "POST_idempotency-key",
