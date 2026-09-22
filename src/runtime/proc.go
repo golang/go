@@ -1670,7 +1670,6 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	start := nanotime() // exclude time waiting for sched.lock from start and total time metrics.
 	sched.stopwait = gomaxprocs
 	sched.gcwaiting.Store(true)
-	preemptall()
 
 	// Stop current P.
 	gp.m.p.ptr().status = _Pgcstop // Pgcstop is only diagnostic.
@@ -1697,10 +1696,11 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 		sched.stopwait--
 	}
 	wait := sched.stopwait > 0
-	unlock(&sched.lock)
+	unlock(&sched.lock) // available to preempted threads
 
 	// Wait for remaining Ps to stop voluntarily.
 	if wait {
+		preemptall()
 		for {
 			// wait for 100us, then try to re-preempt in case of any races
 			if notetsleep(&sched.stopnote, 100*1000) {
@@ -2173,7 +2173,6 @@ func forEachPInternal(fn func(*p)) {
 			atomic.Store(&p2.runSafePointFn, 1)
 		}
 	}
-	preemptall()
 
 	// Any P entering _Pidle or a system call from now on will observe
 	// p.runSafePointFn == 1 and will call runSafePointFn when
@@ -2189,7 +2188,11 @@ func forEachPInternal(fn func(*p)) {
 	}
 
 	wait := sched.safePointWait > 0
-	unlock(&sched.lock)
+	unlock(&sched.lock) // available to preempted threads
+
+	if wait {
+		preemptall()
+	}
 
 	// Run fn for the current P.
 	fn(pp)
