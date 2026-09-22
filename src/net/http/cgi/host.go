@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -309,7 +310,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if loc := headers.Get("Location"); loc != "" {
-		if strings.HasPrefix(loc, "/") && h.PathLocationHandler != nil {
+		// If the Location starts with //, this is a protocol-relative redirect.
+		if strings.HasPrefix(loc, "/") && !strings.HasPrefix(loc, "//") && h.PathLocationHandler != nil {
 			h.handleInternalRedirect(rw, req, loc)
 			return
 		}
@@ -361,7 +363,7 @@ func (h *Handler) printf(format string, v ...any) {
 }
 
 func (h *Handler) handleInternalRedirect(rw http.ResponseWriter, req *http.Request, path string) {
-	url, err := req.URL.Parse(path)
+	u, err := url.ParseRequestURI(path)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		h.printf("cgi: error resolving local URI path %q: %v", path, err)
@@ -378,12 +380,12 @@ func (h *Handler) handleInternalRedirect(rw http.ResponseWriter, req *http.Reque
 	// second request?
 	newReq := &http.Request{
 		Method:     "GET",
-		URL:        url,
+		URL:        u,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,
 		Header:     make(http.Header),
-		Host:       url.Host,
+		Host:       req.Host,
 		RemoteAddr: req.RemoteAddr,
 		TLS:        req.TLS,
 	}

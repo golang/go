@@ -343,6 +343,24 @@ func TestRedirect(t *testing.T) {
 	}
 }
 
+func TestProtocolRelativeRedirect(t *testing.T) {
+	testenv.MustHaveExec(t)
+	h := &Handler{
+		Path: os.Args[0],
+		Root: "/test.cgi",
+		PathLocationHandler: http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			t.Errorf("PathLocationHandler unexpectedly called")
+		}),
+	}
+	rec := runCgiTest(t, h, "GET /test.cgi?loc=//foo.com/ HTTP/1.0\nHost: example.com\n\n", nil)
+	if e, g := 302, rec.Code; e != g {
+		t.Errorf("expected status code %d; got %d", e, g)
+	}
+	if e, g := "//foo.com/", rec.Header().Get("Location"); e != g {
+		t.Errorf("expected Location header of %q; got %q", e, g)
+	}
+}
+
 func TestInternalRedirect(t *testing.T) {
 	testenv.MustHaveExec(t)
 	baseHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
