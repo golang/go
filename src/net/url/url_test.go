@@ -214,17 +214,15 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// Three leading slashes isn't an authority, but doesn't return an error.
-	// (We can't return an error, as this code is also used via
-	// ServeHTTP -> ReadRequest -> Parse, which is arguably a
-	// different URL parsing context, but currently shares the
-	// same codepath)
+	// Three leading slashes is an empty authority,
+	// but historically we've parsed it as a path.
+	// See: https://go.dev/issue/46277
 	{
 		"///threeslashes",
 		&URL{
 			Path: "///threeslashes",
 		},
-		"",
+		"%2F//threeslashes",
 	},
 	{
 		"http://user:password@google.com",
@@ -660,6 +658,43 @@ var urltests = []URLTest{
 		},
 		"http:%2F/host/path",
 	},
+	// User with no Host and Path with no leading slash (issue 81665)
+	{
+		"",
+		&URL{
+			Scheme: "https",
+			User:   User("user"),
+			Path:   "example.com/path",
+		},
+		"https://user@/example.com/path",
+	},
+	{
+		"https://user@/example.com/path",
+		&URL{
+			Scheme: "https",
+			User:   User("user"),
+			Host:   "",
+			Path:   "/example.com/path",
+		},
+		"",
+	},
+	// Scheme with empty Host, nil User, and Path with no leading slash
+	{
+		"",
+		&URL{
+			Scheme: "http",
+			Path:   "example.com/path",
+		},
+		"http:///example.com/path",
+	},
+	// Relative path starting with //
+	{
+		"",
+		&URL{
+			Path: "//host/path",
+		},
+		"%2F/host/path",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -889,6 +924,35 @@ var stringURLTests = []struct {
 			Path:   "this:that",
 		},
 		want: "http://www.google.com/this:that",
+	},
+	// User with no Host and Path with no leading slash (issue 81665)
+	{
+		url: URL{
+			Scheme: "https",
+			User:   User("user"),
+			Path:   "example.com/path",
+		},
+		want: "https://user@/example.com/path",
+	},
+	{
+		url: URL{
+			User: User("user"),
+			Path: "path",
+		},
+		want: "//user@/path",
+	},
+	{
+		url: URL{
+			Scheme: "http",
+			Path:   "example.com/path",
+		},
+		want: "http:///example.com/path",
+	},
+	{
+		url: URL{
+			Path: "//host/path",
+		},
+		want: "%2F/host/path",
 	},
 }
 
