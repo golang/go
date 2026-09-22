@@ -525,7 +525,9 @@ func (p *printer) printRawNode(n Node) {
 
 	// statements
 	case *DeclStmt:
-		p.printDecl(n.DeclList)
+		if len(n.DeclList) > 0 {
+			p.printDecl(n.DeclList)
+		}
 
 	case *EmptyStmt:
 		// nothing to print
@@ -874,7 +876,9 @@ func (p *printer) printDeclList(list []Decl) {
 			tok, group = s, g
 		}
 	}
-	p.printDecl(list[i0:])
+	if i0 < len(list) {
+		p.printDecl(list[i0:])
+	}
 }
 
 func (p *printer) printSignature(sig *FuncType) {
