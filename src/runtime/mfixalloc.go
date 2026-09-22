@@ -20,7 +20,7 @@ import (
 // Memory returned by fixalloc.alloc is zeroed by default, but the
 // caller may take responsibility for zeroing allocations by setting
 // the zero flag to false. This is only safe if the memory never
-// contains heap pointers.
+// contains heap pointers, or is fully written before the GC can see it.
 //
 // The caller is responsible for locking around FixAlloc calls.
 // Callers can keep state in the object but the first word is

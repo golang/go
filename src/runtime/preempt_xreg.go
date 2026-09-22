@@ -63,6 +63,8 @@ var xRegAlloc struct {
 func xRegInitAlloc() {
 	lockInit(&xRegAlloc.lock, lockRankXRegAlloc)
 	xRegAlloc.alloc.init(unsafe.Sizeof(xRegState{}), nil, nil, &memstats.other_sys)
+	// xRegSave overwrites the whole block before the GC can see it.
+	xRegAlloc.alloc.zero = false
 }
 
 // xRegSave saves the extended register state on this P to gp.
