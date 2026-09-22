@@ -34,6 +34,9 @@ import (
 // fields traversed to get to the found entry, starting at depth 0.
 //
 // See also [LookupFieldOrMethod], which returns the components separately.
+//
+// Selections should generally be passed and returned by pointer.
+// The lack of a pointer here was an unfortunate mistake.
 func LookupSelection(T Type, addressable bool, pkg *Package, name string) (Selection, bool) {
 	obj, index, indirect := LookupFieldOrMethod(T, addressable, pkg, name)
 	var kind SelectionKind
@@ -47,7 +50,7 @@ func LookupSelection(T Type, addressable bool, pkg *Package, name string) (Selec
 	default:
 		panic(obj) // can't happen
 	}
-	return Selection{kind, T, obj, index, indirect}, true
+	return Selection{int8(kind), indirect, T, obj, index}, true
 }
 
 // Internal use of LookupFieldOrMethod: If the obj result is a method

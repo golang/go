@@ -182,7 +182,7 @@ func (check *Checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, r
 	assert(obj != nil && (recv == nil || len(index) > 0))
 	check.recordUse(x.Sel, obj)
 	if m := check.Selections; m != nil {
-		m[x] = &Selection{kind, recv, obj, index, indirect}
+		m[x] = &Selection{int8(kind), indirect, recv, obj, index}
 	}
 }
 

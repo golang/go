@@ -237,7 +237,7 @@ func (s methodSet) addOne(f *Func, index []int, indirect bool, multiples bool) m
 		// set and may not collide with the first one, thus leading to a false positive.
 		// Is that possible? Investigate.
 		if _, found := s[key]; !found && (indirect || !f.hasPtrRecv()) {
-			s[key] = &Selection{MethodVal, nil, f, index, indirect}
+			s[key] = &Selection{int8(MethodVal), indirect, nil, f, index}
 			return s
 		}
 	}

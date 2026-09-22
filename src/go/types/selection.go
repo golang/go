@@ -73,15 +73,19 @@ const (
 //	p.m         MethodVal     *T      m      func()     {1, 0}    true
 //	T.m         MethodExpr    T       m      func(T)    {1, 0}    false
 type Selection struct {
-	kind     SelectionKind
+	kind     int8   // SelectionKind
+	indirect bool   // set if there was any pointer indirection on the path
 	recv     Type   // type of x
 	obj      Object // object denoted by x.f
 	index    []int  // path from x to x.f
-	indirect bool   // set if there was any pointer indirection on the path
+
+	// TODO(adonovan): opt: <3% of Selections have >1 index.
+	// Replace the slice by 'index0 [1]int' plus an optional *[]int
+	// for the few longer ones.
 }
 
 // Kind returns the selection kind.
-func (s *Selection) Kind() SelectionKind { return s.kind }
+func (s *Selection) Kind() SelectionKind { return SelectionKind(s.kind) }
 
 // Recv returns the type of x in x.f.
 func (s *Selection) Recv() Type { return s.recv }
@@ -93,7 +97,7 @@ func (s *Selection) Obj() Object { return s.obj }
 // Type returns the type of x.f, which may be different from the type of f.
 // See Selection for more information.
 func (s *Selection) Type() Type {
-	switch s.kind {
+	switch s.Kind() {
 	case MethodVal:
 		// TODO(mark) Align this with call.go if possible.
 		// The type of x.f is a method with its receiver type set
@@ -160,7 +164,7 @@ func (s *Selection) String() string { return SelectionString(s, nil) }
 //	"method expr (T) f(X) Y"
 func SelectionString(s *Selection, qf Qualifier) string {
 	var k string
-	switch s.kind {
+	switch s.Kind() {
 	case FieldVal:
 		k = "field "
 	case MethodVal:
@@ -175,7 +179,7 @@ func SelectionString(s *Selection, qf Qualifier) string {
 	buf.WriteByte('(')
 	WriteType(&buf, s.Recv(), qf)
 	fmt.Fprintf(&buf, ") %s", s.obj.Name())
-	if T := s.Type(); s.kind == FieldVal {
+	if T := s.Type(); s.Kind() == FieldVal {
 		buf.WriteByte(' ')
 		WriteType(&buf, T, qf)
 	} else {
