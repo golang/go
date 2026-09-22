@@ -45,7 +45,7 @@ go run ./list-dwarf hello_overlay.exe
 -- go.mod --
 module m
 
-go 1.18
+go 1.14
 -- overlay.json --
 {
 	"Replace": {

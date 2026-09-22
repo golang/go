@@ -23,8 +23,6 @@ stderr no-such-warning
 -- go.mod --
 module ldflag
 
-go 1.18
-
 -- bad/bad.go --
 package bad
 

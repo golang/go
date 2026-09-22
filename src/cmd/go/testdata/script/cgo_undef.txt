@@ -37,8 +37,6 @@ stderr 'test for internal linking'
 -- go.mod --
 module m
 
-go 1.18
-
 -- a/a.go --
 package a
 

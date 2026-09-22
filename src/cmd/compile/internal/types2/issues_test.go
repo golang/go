@@ -899,10 +899,10 @@ func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }
 //go:linkname _Cgo_always_false runtime.cgoAlwaysFalse
 var _Cgo_always_false bool
 //go:linkname _Cgo_use runtime.cgoUse
-func _Cgo_use(any)
+func _Cgo_use(interface{})
 //go:linkname _Cgo_keepalive runtime.cgoKeepAlive
 //go:noescape
-func _Cgo_keepalive(any)
+func _Cgo_keepalive(interface{})
 //go:linkname _Cgo_no_callback runtime.cgoNoCallback
 func _Cgo_no_callback(bool)
 type _Ctype_struct_layout struct {
@@ -915,11 +915,11 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
 //go:noescape
-func _cgoCheckPointer(any, any)
+func _cgoCheckPointer(interface{}, interface{})
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
 //go:noescape
-func _cgoCheckResult(any)
+func _cgoCheckResult(interface{})
 `
 	testFiles(t, []string{"p.go", "_cgo_gotypes.go"}, [][]byte{[]byte(src), []byte(cgoTypes)}, 0, false, func(cfg *Config) {
 		*boolFieldAddr(cfg, "go115UsesCgo") = true

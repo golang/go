@@ -12,8 +12,6 @@ go version hello$GOEXE
 
 -- go.mod --
 module hello
-
-go 1.18
 -- hello.go --
 package main
 

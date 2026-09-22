@@ -27,7 +27,7 @@ stdout 1
 -- go.mod --
 module test
 
-go 1.18
+go 1.17
 -- which cc/which cc.go --
 package main
 

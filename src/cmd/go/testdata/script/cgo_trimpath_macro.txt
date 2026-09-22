@@ -20,8 +20,6 @@ stdout '(\\_\\_|/_)[\\/]GOPATH[\\/]src[\\/]c[\\/]bar.h'
 -- go.mod --
 module m
 
-go 1.18
-
 require v.com v1.0.0
 -- go.sum --
 v.com v1.0.0 h1:xxx

@@ -212,7 +212,7 @@ func testGoLib(t *testing.T, iscgo bool) {
 		err = e
 	}
 	if err == nil {
-		err = os.WriteFile(filepath.Join(libpath, "go.mod"), []byte("module mylib\ngo 1.18\n"), 0666)
+		err = os.WriteFile(filepath.Join(libpath, "go.mod"), []byte("module mylib\n"), 0666)
 	}
 	if err != nil {
 		t.Fatal(err)

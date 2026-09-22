@@ -31,7 +31,7 @@ go build -x .
 -- go.mod --
 module example.com/m
 
-go 1.18
+go 1.17
 -- m.go --
 package m
 

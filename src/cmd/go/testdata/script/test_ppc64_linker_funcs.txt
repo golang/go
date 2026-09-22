@@ -21,8 +21,6 @@ stdout success
 -- go.mod --
 module abitest
 
-go 1.18
-
 -- abitest.go --
 package main
 

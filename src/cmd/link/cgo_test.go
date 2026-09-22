@@ -103,7 +103,7 @@ func testCGOLTO(t *testing.T, cc, cgoCflags string, test int) {
 		}
 	}
 
-	writeTempFile("go.mod", "module cgolto\ngo 1.18\n")
+	writeTempFile("go.mod", "module cgolto\n")
 
 	switch test {
 	case 0:
