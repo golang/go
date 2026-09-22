@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 	"unicode/utf16"
 	"unsafe"
@@ -1924,6 +1925,102 @@ func TestPipe(t *testing.T) {
 		}
 	}()
 	testReadWrite(t, r, w)
+}
+
+func TestPipeCloseRaceThreadReuse(t *testing.T) {
+	// A read can finish while Close is still canceling it. Starting a blocking
+	// operation on the same thread must not prevent that Close from returning.
+	// See go.dev/issue/74754.
+	t.Parallel()
+
+	for range 100 {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		r2, w2, err := os.Pipe()
+		if err != nil {
+			r.Close()
+			w.Close()
+			t.Fatal(err)
+		}
+		var wg sync.WaitGroup
+		wg.Go(func() {
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+			defer r2.Close()
+			if _, err := io.Copy(io.Discard, r); !errors.Is(err, os.ErrClosed) {
+				t.Errorf("Read interrupted by Close = %v; want ErrClosed", err)
+			}
+			// Reuse the thread before waiting for Close to finish.
+			var b [1]byte
+			if _, err := r2.Read(b[:]); err != io.EOF {
+				t.Errorf("Read from second pipe = %v; want EOF", err)
+			}
+		})
+		wg.Go(func() {
+			defer w.Close()
+			for {
+				if _, err := w.Write([]byte("x")); err != nil {
+					return
+				}
+			}
+		})
+		time.Sleep(time.Millisecond) // Let reads and writes race with Close.
+		if err := r.Close(); err != nil {
+			t.Error(err)
+		}
+		// Release the second read only after Close returns.
+		w2.Close()
+		wg.Wait()
+	}
+}
+
+func TestPipeConcurrentReadWrite(t *testing.T) {
+	test := func(t *testing.T) {
+		t.Helper()
+		writers := make([]*os.File, 32)
+		started := make(chan struct{}, len(writers))
+		var wg sync.WaitGroup
+		defer wg.Wait()
+		for i := range writers {
+			r, w, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer r.Close()
+			defer w.Close()
+			writers[i] = w
+			wg.Go(func() {
+				started <- struct{}{}
+				var b [1]byte
+				if _, err := io.ReadFull(r, b[:]); err != nil {
+					t.Error(err)
+				} else if b[0] != byte(i) {
+					t.Errorf("Read = %d; want %d", b[0], i)
+				}
+			})
+		}
+		for range writers {
+			<-started
+		}
+		runtime.GC()
+		for i, w := range writers {
+			if _, err := w.Write([]byte{byte(i)}); err != nil {
+				t.Error(err)
+			}
+			w.Close()
+		}
+		wg.Wait()
+	}
+	// Pipe I/O must keep working across GC and successive synctest bubbles.
+	for range 2 {
+		test(t)
+		runtime.GC()
+		runtime.GC()
+		synctest.Test(t, test)
+	}
+	test(t)
 }
 
 func TestNamedPipe(t *testing.T) {
