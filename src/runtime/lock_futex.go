@@ -161,3 +161,27 @@ func semawakeup(mp *m) {
 		futexwakeup(&mp.waitsema, 1)
 	}
 }
+
+// stealRunnextSleep sleeps for up to ns nanoseconds (plus the OS's timer
+// slack), returning early if another thread calls stealRunnextWake. If a
+// stop-the-world is pending, it does not sleep at all.
+//
+//go:systemstack
+func stealRunnextSleep(ns int64) {
+	if !sched.gcwaiting.Load() {
+		futexsleep(sched.gcwaiting.Addr(), 0, ns)
+	}
+}
+
+// stealRunnextWake wakes every (spinning) M that is in stealRunnextSleep. The
+// caller is responsible for setting gcwaiting first.
+func stealRunnextWake() {
+	if sched.nmspinning.Load() == 0 {
+		// Threads only sleep on the gcwaiting word when they're spinning, and
+		// we see here that there are no spinning Ms. Any M that starts spinning
+		// after our load will find gcwaiting set and won't sleep.
+		return
+	}
+	const maxInt32 = 1<<31 - 1 // wake all
+	futexwakeup(sched.gcwaiting.Addr(), maxInt32)
+}

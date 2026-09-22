@@ -993,7 +993,9 @@ type schedt struct {
 	// m.exited is set. Linked through m.freelink.
 	freem *m
 
-	gcwaiting  gcWaitingWord // gc is waiting to run
+	// gcwaiting indicates that the gc is waiting to run. When runqgrab delays
+	// before stealing runnext, platforms with futex sleep on this address.
+	gcwaiting  gcWaitingWord
 	stopwait   int32
 	stopnote   note
 	sysmonwait atomic.Bool

@@ -1285,6 +1285,10 @@ func PageCachePagesLeaked() (leaked uintptr) {
 var ProcYield = procyield
 var OSYield = osyield
 
+func StealRunnextSleep(ns int64) {
+	systemstack(func() { stealRunnextSleep(ns) })
+}
+
 type Note = note
 
 var NoteClear = noteclear

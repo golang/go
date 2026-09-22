@@ -183,3 +183,23 @@ func beforeIdle(int64, int64) (*g, bool) {
 }
 
 func checkTimeouts() {}
+
+// stealRunnextSleep sleeps for up to ns nanoseconds (plus the OS's timer
+// slack). If a stop-the-world is pending, it does not sleep at all.
+func stealRunnextSleep(ns int64) {
+	if sched.gcwaiting.Load() {
+		return
+	}
+
+	if osHasLowResTimer {
+		// On some platforms system timer granularity is 1-15ms, which is way
+		// too much for the sleep-before-stealing-runnext optimization. So just
+		// yield.
+		osyield()
+	} else {
+		usleep(uint32(ns / 1000))
+	}
+}
+
+func stealRunnextWake() {
+}

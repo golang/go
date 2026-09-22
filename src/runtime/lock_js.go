@@ -311,3 +311,5 @@ var eventHandler func() bool
 func setEventHandler(fn func() bool) {
 	eventHandler = fn
 }
+func stealRunnextSleep(ns int64) {}
+func stealRunnextWake()          {}

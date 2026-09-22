@@ -534,6 +534,18 @@ func BenchmarkUsleep(b *testing.B) {
 	b.Run("10000", benchN(10*1000)) // sysmon max
 }
 
+func BenchmarkStealRunnextSleep(b *testing.B) {
+	benchN := func(ns int64) func(*testing.B) {
+		return func(b *testing.B) {
+			for b.Loop() {
+				StealRunnextSleep(ns)
+			}
+		}
+	}
+
+	b.Run("3us", benchN(3000))
+}
+
 func BenchmarkNoteTSleep(b *testing.B) {
 	benchN := func(ns int64, fn func(n *Note, ns int64) bool) func(*testing.B) {
 		return func(b *testing.B) {
