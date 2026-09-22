@@ -93,17 +93,16 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	// The relationship between these parameters, as well as the overly-large and
 	// unconfigurable 10 MB added on to maxMemory, is unfortunate but difficult to change
 	// within the constraints of the API as documented.
+	if maxMemory < 0 {
+		maxMemory = 0
+	}
 	maxFileMemoryBytes := maxMemory
 	if maxFileMemoryBytes == math.MaxInt64 {
 		maxFileMemoryBytes--
 	}
 	maxMemoryBytes := maxMemory + int64(10<<20)
 	if maxMemoryBytes <= 0 {
-		if maxMemory < 0 {
-			maxMemoryBytes = 0
-		} else {
-			maxMemoryBytes = math.MaxInt64
-		}
+		maxMemoryBytes = math.MaxInt64
 	}
 	var copyBuf []byte
 	for {

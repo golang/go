@@ -344,6 +344,31 @@ func TestReadMIMEHeaderAllocations(t *testing.T) {
 	}
 }
 
+type testReader struct {
+	read func([]byte) (int, error)
+}
+
+func (r testReader) Read(p []byte) (n int, err error) { return r.read(p) }
+
+func TestReadMIMEHeaderShortLimitLongLine(t *testing.T) {
+	// Small limit, long first line.
+	r := NewReader(bufio.NewReader(
+		io.MultiReader(
+			strings.NewReader("K:"),
+			testReader{
+				read: func(p []byte) (n int, err error) {
+					for i := range p {
+						p[i] = ' '
+					}
+					return len(p), nil
+				},
+			})))
+	_, err := readMIMEHeader(r, 1, 1)
+	if err != errMessageTooLarge {
+		t.Fatalf("readMIMEHeader = %v, want errMessageTooLarge", err)
+	}
+}
+
 type readResponseTest struct {
 	in       string
 	inCode   int

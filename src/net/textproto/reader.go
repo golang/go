@@ -180,7 +180,7 @@ func (r *Reader) readContinuedLineSlice(lim int64, validateFirstLine func([]byte
 		}
 		line, err := r.readLineSlice(lim - int64(len(r.buf)))
 		if err != nil {
-			break
+			return nil, err
 		}
 		r.buf = append(r.buf, trim(line)...)
 	}
@@ -521,6 +521,10 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 // readMIMEHeader is a version of ReadMIMEHeader which takes a limit on the header size.
 // It is called by the mime/multipart and net/http package.
 func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) {
+	if maxMemory < 0 {
+		return nil, errMessageTooLarge
+	}
+
 	// Avoid lots of small slice allocations later by allocating one
 	// large one ahead of time which we'll cut up into smaller
 	// slices. If this isn't big enough later, we allocate small ones.
@@ -534,12 +538,6 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 	}
 
 	m := make(MIMEHeader, hint)
-
-	// Account for 400 bytes of overhead for the MIMEHeader, plus 200 bytes per entry.
-	// Benchmarking map creation as of go1.20, a one-entry MIMEHeader is 416 bytes and large
-	// MIMEHeaders average about 200 bytes per entry.
-	maxMemory -= 400
-	const mapEntryOverhead = 200
 
 	// The first line cannot start with a leading space.
 	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
@@ -582,6 +580,10 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 
 		vv := m[key]
 		if vv == nil {
+			// Account for per-entry overhead.
+			// 200 bytes is based on benchmarks circa Go 1.20.
+			const mapEntryOverhead = 200
+
 			maxMemory -= int64(len(key))
 			maxMemory -= mapEntryOverhead
 		}
