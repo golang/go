@@ -80,16 +80,23 @@ func (z *Float) GobDecode(buf []byte) error {
 	oldMode := z.mode
 
 	b := buf[1]
-	z.mode = RoundingMode((b >> 5) & 7)
-	z.acc = Accuracy((b>>3)&3) - 1
-	z.form = form((b >> 1) & 3)
+	mode := RoundingMode((b >> 5) & 7)
+	acc := Accuracy((b>>3)&3) - 1
+	f := form((b >> 1) & 3)
+	if mode > ToPositiveInf || acc > Above || f > inf {
+		return errors.New("Float.GobDecode: invalid encoding")
+	}
+	if f == finite && len(buf) < 10 {
+		return errors.New("Float.GobDecode: buffer too small for finite form float")
+	}
+
+	z.mode = mode
+	z.acc = acc
+	z.form = f
 	z.neg = b&1 != 0
 	z.prec = byteorder.BEUint32(buf[2:])
 
 	if z.form == finite {
-		if len(buf) < 10 {
-			return errors.New("Float.GobDecode: buffer too small for finite form float")
-		}
 		z.exp = int32(byteorder.BEUint32(buf[6:]))
 		z.mant = z.mant.setBytes(buf[10:])
 	}

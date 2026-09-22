@@ -164,6 +164,18 @@ func TestFloatGobDecodeInvalid(t *testing.T) {
 			[]byte{1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			"Float.GobDecode: nonzero finite number with empty mantissa",
 		},
+		{
+			[]byte{1, 0xe0, 0, 0, 0, 64}, // rounding mode 7
+			"Float.GobDecode: invalid encoding",
+		},
+		{
+			[]byte{1, 0x18, 0, 0, 0, 64}, // accuracy 2
+			"Float.GobDecode: invalid encoding",
+		},
+		{
+			[]byte{1, 6, 0, 0, 0, 64}, // form 3
+			"Float.GobDecode: invalid encoding",
+		},
 	} {
 		err := NewFloat(0).GobDecode(tc.buf)
 		if err == nil || !strings.HasPrefix(err.Error(), tc.msg) {
