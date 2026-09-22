@@ -137,6 +137,40 @@ func TestRatGobDecodeShortBuffer(t *testing.T) {
 	}
 }
 
+func TestRatGobDecode(t *testing.T) {
+	for _, test := range []struct {
+		buf  []byte
+		want *Rat
+	}{
+		{[]byte{0x02, 0, 0, 0, 0}, NewRat(0, 1)},
+		{[]byte{0x03, 0, 0, 0, 0}, NewRat(0, 1)},
+		{[]byte{0x02, 0, 0, 0, 1, 0}, NewRat(0, 1)},
+		{[]byte{0x03, 0, 0, 0, 1, 0}, NewRat(0, 1)},
+		{[]byte{0x02, 0, 0, 0, 1, 1}, NewRat(1, 1)},
+		{[]byte{0x03, 0, 0, 0, 1, 1}, NewRat(-1, 1)},
+		{[]byte{0x02, 0, 0, 0, 1, 1, 2}, NewRat(1, 2)},
+		{[]byte{0x03, 0, 0, 0, 1, 1, 2}, NewRat(-1, 2)},
+	} {
+		for _, initial := range []*Rat{NewRat(0, 1), NewRat(1, 1), NewRat(-1, 1)} {
+			x := new(Rat).Set(initial)
+			if err := x.GobDecode(test.buf); err != nil {
+				t.Errorf("initial %s, GobDecode(%x): %v", initial, test.buf, err)
+				continue
+			}
+			if x.Cmp(test.want) != 0 || !isNormalized(&x.a) {
+				t.Errorf("initial %s, GobDecode(%x) = %s, want normalized %s", initial, test.buf, x, test.want)
+				continue
+			}
+			if test.want.Sign() == 0 {
+				// A decoded zero must be safe to use in arithmetic.
+				if z := new(Int).Sqrt(x.Num()); z.Sign() != 0 {
+					t.Errorf("Sqrt(GobDecode(%x).Num()) = %s, want 0", test.buf, z)
+				}
+			}
+		}
+	}
+}
+
 func TestRatAppendText(t *testing.T) {
 	for _, num := range ratNums {
 		for _, denom := range ratDenoms {

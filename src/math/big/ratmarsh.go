@@ -62,8 +62,8 @@ func (z *Rat) GobDecode(buf []byte) error {
 	if len(buf) < i {
 		return errors.New("Rat.GobDecode: buffer too small")
 	}
-	z.a.neg = b&1 != 0
 	z.a.abs = z.a.abs.setBytes(buf[j:i])
+	z.a.neg = len(z.a.abs) > 0 && b&1 != 0 // 0 has no sign
 	z.b.abs = z.b.abs.setBytes(buf[i:])
 	return nil
 }
