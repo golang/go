@@ -2504,7 +2504,7 @@ In an alias declaration the given type cannot be a type parameter declared in th
 type A[P any] = P   // illegal: P is a type parameter declared in the declaration of A
 
 func f[P any]() {
-	type A = P  // ok: T is a type parameter declared by the enclosing function
+	type A = P  // ok: P is a type parameter declared by the enclosing function
 }
 </pre>
 
