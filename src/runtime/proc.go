@@ -2157,6 +2157,11 @@ func forEachP(reason waitReason, fn func(*p)) {
 //
 //go:systemstack
 func forEachPInternal(fn func(*p)) {
+	if atomic.Load(&worldsema) != 0 {
+		// Not held by anyone, so certainly not held by our caller
+		throw("worldsema not held")
+	}
+
 	mp := acquirem()
 	pp := getg().m.p.ptr()
 
