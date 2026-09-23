@@ -167,18 +167,21 @@ func (n nat) probablyPrimeLucas(stk *stack) bool {
 	// The search is expected to succeed for non-square n after just a few trials.
 	// After more than expected failures, check whether n is square
 	// (which would cause Jacobi(D, n) = 1 for all D not dividing n).
+	//
+	// The number of trials has no fixed bound: n can be constructed so that
+	// Jacobi(D, n) = 1 for every P up to a given limit (go.dev/issue/81487).
+	// The search still terminates, because once P+2 reaches the smallest
+	// prime factor of n, D shares that factor with n and Jacobi(D, n) = 0.
 	p := Word(3)
-	d := nat{1}
+	d := make(nat, 0, 2)
 	t1 := nat(nil) // temp
-	intD := &Int{abs: d}
+	intD := new(Int)
 	intN := &Int{abs: n}
 	for ; ; p++ {
-		if p > 10000 {
-			// This is widely believed to be impossible.
-			// If we get a report, we'll want the exact number n.
-			panic("math/big: internal error: cannot find (D/n) = -1 for " + intN.String())
-		}
-		d[0] = p*p - 4
+		// d = p²-4 = (p-2)(p+2), which needs two words once p is large.
+		hi, lo := mulWW(p-2, p+2)
+		d = append(d[:0], lo, hi).norm()
+		intD.abs = d
 		j := Jacobi(intD, intN)
 		if j == -1 {
 			break
