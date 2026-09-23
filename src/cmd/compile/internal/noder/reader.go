@@ -1004,13 +1004,63 @@ func Shapify(targ *types.Type, basic bool) *types.Type {
 		under = types.NewPtr(types.Types[types.TUINT8])
 	}
 
-	// Hash long type names to bound symbol name length seen by users,
-	// particularly for large protobuf structs (#65030).
+	// Bound the length of the shape name seen by users. Shape names are
+	// embedded in the names of every function and method instantiated with
+	// them, so a single unwieldy type argument (a large protobuf struct
+	// (#65030), or an interface with many methods (#71535)) makes a mess of
+	// nm output, stack traces and pprof graphs.
+	//
+	// The name is only ever used as a unique key for under; nothing parses
+	// it. So anything that tells distinct shapes apart will do, and we can
+	// pick whichever one reads best.
+	//
+	// Whatever we pick has to keep Shapify idempotent, that is
+	// Shapify(Shapify(T)) == Shapify(T). An instantiation's shaped object is
+	// found by shapifying its type arguments again, and a generic function
+	// instantiated with a shape passes that shape on when it calls another
+	// generic function, so Shapify is routinely applied to a type that is
+	// already a shape. Without shortening that holds for free: the key is
+	// under.LinkString(), and a shape has the same underlying type as the
+	// type it was made from. Shortening derives the name from targ instead,
+	// so the first case below has to recognize a shape and hand back the
+	// name it already has.
 	uls := under.LinkString()
-	if base.Debug.MaxShapeLen != 0 &&
-		len(uls) > base.Debug.MaxShapeLen {
-		h := hash.Sum32([]byte(uls))
-		uls = hex.EncodeToString(h[:])
+	if base.Debug.MaxShapeLen != 0 && len(uls) > base.Debug.MaxShapeLen {
+		switch targLS := targ.LinkString(); {
+		case targ.IsShape():
+			// targ is a shape this function already named. Reuse that name
+			// verbatim.
+			//
+			// This is not subsumed by the case below. A shape is a named
+			// type, so targ.Sym() != nil holds there too, but the two cases
+			// use different strings: Sym().Name is unqualified, say
+			// "main.Big", while LinkString is qualified by the shape
+			// package, "go.shape.main.Big". The lookup below adds that
+			// qualifier back, so falling through would name the shape of a
+			// shape "go.shape.go.shape.main.Big" - or, if that is too long
+			// in turn, hash it over the underlying type and merge it with
+			// every other shape sharing that underlying type. Either way
+			// the second Shapify lands on a different type than the first.
+			uls = targ.Sym().Name
+
+		case targ.Sym() != nil && len(targLS) <= base.Debug.MaxShapeLen:
+			// LinkString is what makes this safe to use as the shape's
+			// identity: it is unique for each distinct type, qualified by
+			// package path, and it keeps the ·N suffix that distinguishes
+			// function-scope types. An unqualified name would collide.
+			//
+			// Naming a shape after the type argument means two named types
+			// that share an underlying type no longer share a shape. That
+			// only applies to underlying types over the length limit, where
+			// having two copies is a fair price for a legible name.
+			uls = targLS
+
+		default:
+			// Nothing to borrow: the type argument has no name of its own,
+			// or its name is too long as well, thus fall back to a hash.
+			h := hash.Sum32([]byte(uls))
+			uls = hex.EncodeToString(h[:])
+		}
 	}
 
 	sym := types.ShapePkg.Lookup(uls)
