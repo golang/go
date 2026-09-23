@@ -292,6 +292,7 @@ by making copies of the data. In pseudo-Go definitions:
 	func C.CBytes([]byte) unsafe.Pointer
 
 	// C string to Go string
+	// If the pointer is nil, C.GoString returns the empty string.
 	func C.GoString(*C.char) string
 
 	// C data with explicit length to Go string
