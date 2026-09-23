@@ -136,6 +136,7 @@ var (
 	builtinTrue    = types.Universe.Lookup("true")
 	byteSliceType  = types.NewSlice(types.Typ[types.Byte])
 	omitemptyRegex = regexp.MustCompile(`(?:^json| json):"[^"]*(,omitempty)(?:"|,[^"]*")\s?`)
+	errorType      = types.Universe.Lookup("error").Type()
 )
 
 // lookup returns the symbol denoted by name at the position of the cursor.

@@ -32,7 +32,7 @@ var ErrorsAsTypeAnalyzer = &analysis.Analyzer{
 	Run:      errorsastype,
 }
 
-// errorsastype offers a fix to replace error.As with the newer
+// errorsastype offers a fix to replace errors.As with the newer
 // errors.AsType[T] following this pattern:
 //
 //	var myerr *MyErr
@@ -227,6 +227,11 @@ func canUseErrorsAsType(info *types.Info, index *typeindex.Index, curCall inspec
 	if len(spec.Names) != 1 || len(spec.Values) != 0 ||
 		len(curDecl.Node().(*ast.GenDecl).Specs) != 1 {
 		return // not a simple "var v T" decl
+	}
+	// AsType requires that its type argument implements error.
+	// Reject if v does not implement error.
+	if !types.AssignableTo(v.Type(), errorType) {
+		return
 	}
 
 	// Have:
