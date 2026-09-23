@@ -28786,6 +28786,7 @@ func rewriteValue_OpRotateLeft16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft16 (Const16 [x]) (Const64 [y]))
 	// result: (Const16 [int16(bits.RotateLeft16(uint16(x), int(y)))])
 	for {
@@ -29259,21 +29260,20 @@ func rewriteValue_OpRotateLeft16(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (RotateLeft16 x (Const64 <t> [c]))
+	// match: (RotateLeft16 x (Const64 [c]))
 	// cond: config.PtrSize == 4
-	// result: (RotateLeft16 x (Const32 <t> [int32(c)]))
+	// result: (RotateLeft16 x (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		x := v_0
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		t := v_1.Type
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.Reset(ssaop.OpRotateLeft16)
-		v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
+		v0 := b.NewValue0(v.Pos, ssaop.OpConst32, typ.UInt32)
 		v0.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg2(x, v0)
 		return true
@@ -29361,6 +29361,7 @@ func rewriteValue_OpRotateLeft32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft32 (Const32 [x]) (Const64 [y]))
 	// result: (Const32 [int32(bits.RotateLeft32(uint32(x), int(y)))])
 	for {
@@ -29834,21 +29835,20 @@ func rewriteValue_OpRotateLeft32(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (RotateLeft32 x (Const64 <t> [c]))
+	// match: (RotateLeft32 x (Const64 [c]))
 	// cond: config.PtrSize == 4
-	// result: (RotateLeft32 x (Const32 <t> [int32(c)]))
+	// result: (RotateLeft32 x (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		x := v_0
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		t := v_1.Type
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.Reset(ssaop.OpRotateLeft32)
-		v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
+		v0 := b.NewValue0(v.Pos, ssaop.OpConst32, typ.UInt32)
 		v0.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg2(x, v0)
 		return true
@@ -29936,6 +29936,7 @@ func rewriteValue_OpRotateLeft64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft64 (Const64 [x]) (Const64 [y]))
 	// result: (Const64 [int64(bits.RotateLeft64(uint64(x), int(y)))])
 	for {
@@ -30409,21 +30410,20 @@ func rewriteValue_OpRotateLeft64(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (RotateLeft64 x (Const64 <t> [c]))
+	// match: (RotateLeft64 x (Const64 [c]))
 	// cond: config.PtrSize == 4
-	// result: (RotateLeft64 x (Const32 <t> [int32(c)]))
+	// result: (RotateLeft64 x (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		x := v_0
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		t := v_1.Type
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.Reset(ssaop.OpRotateLeft64)
-		v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
+		v0 := b.NewValue0(v.Pos, ssaop.OpConst32, typ.UInt32)
 		v0.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg2(x, v0)
 		return true
@@ -30511,6 +30511,7 @@ func rewriteValue_OpRotateLeft8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft8 (Const8 [x]) (Const64 [y]))
 	// result: (Const8 [int8(bits.RotateLeft8(uint8(x), int(y)))])
 	for {
@@ -30984,21 +30985,20 @@ func rewriteValue_OpRotateLeft8(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (RotateLeft8 x (Const64 <t> [c]))
+	// match: (RotateLeft8 x (Const64 [c]))
 	// cond: config.PtrSize == 4
-	// result: (RotateLeft8 x (Const32 <t> [int32(c)]))
+	// result: (RotateLeft8 x (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		x := v_0
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
-		t := v_1.Type
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.Reset(ssaop.OpRotateLeft8)
-		v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t)
+		v0 := b.NewValue0(v.Pos, ssaop.OpConst32, typ.UInt32)
 		v0.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg2(x, v0)
 		return true

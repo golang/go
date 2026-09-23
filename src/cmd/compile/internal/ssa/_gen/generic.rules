@@ -2283,10 +2283,7 @@
 (RotateLeft8  x (Sub(64|32|16|8) (Const(64|32|16|8) [c]) y)) && c&7  == 0 => (RotateLeft8  x (Neg(64|32|16|8) <y.Type> y))
 
 // Ensure we don't do Const64 rotates in a 32-bit system.
-(RotateLeft64 x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft64 x (Const32 <t> [int32(c)]))
-(RotateLeft32 x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft32 x (Const32 <t> [int32(c)]))
-(RotateLeft16 x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft16 x (Const32 <t> [int32(c)]))
-(RotateLeft8  x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft8  x (Const32 <t> [int32(c)]))
+(RotateLeft(64|32|16|8) x (Const64 [c])) && config.PtrSize == 4 => (RotateLeft(64|32|16|8) x (Const32 <typ.UInt32> [int32(c)]))
 
 // Rotating by c, then by d, is the same as rotating by c+d.
 // We're trading a rotate for an add, which seems generally a good choice. It is especially good when c and d are constants.
