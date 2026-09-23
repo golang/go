@@ -35,8 +35,10 @@ type Alias struct {
 // If rhs is nil, the alias is incomplete.
 func NewAlias(obj *TypeName, rhs Type) *Alias {
 	alias := (*Checker)(nil).newAlias(obj, rhs)
-	// Ensure that alias.actual is set (#65455).
-	alias.cleanup()
+	// Ensure that alias.actual is set (go.dev/issue/65455).
+	if rhs != nil {
+		alias.cleanup()
+	}
 	return alias
 }
 
@@ -117,9 +119,12 @@ func unalias(a0 *Alias) Type {
 	for a := a0; a != nil; a, _ = t.(*Alias) {
 		t = a.fromRHS
 	}
-	// It's fine to memoize nil types since it's the zero value for actual.
-	// It accomplishes nothing.
-	a0.actual = t
+	// Memoize during type checking (single-threaded) avoids future
+	// quadratic chain traversal. Once a0.check becomes nil, unalias
+	// is a pure getter to prevent concurrent write races (go.dev/issue/81138).
+	if a0.check != nil && t != nil {
+		a0.actual = t
+	}
 	return t
 }
 
@@ -161,6 +166,14 @@ func (check *Checker) newAliasInstance(pos syntax.Pos, orig *Alias, targs []Type
 	res.orig = orig
 	res.tparams = orig.tparams
 	res.targs = newTypeList(targs)
+	// Ensure that res.actual is set before returning an instance constructed
+	// outside of package type checking (e.g. via types.Instantiate). When check != nil,
+	// res was added to check.cleanups by newAlias and will be cleaned up at the end
+	// of checking. But when check == nil, no cleanup pass will run, so we must clean
+	// up eagerly to prevent concurrent calls to Unalias from racing on res.actual (go.dev/issue/81138).
+	if check == nil {
+		res.cleanup()
+	}
 	return res
 }
 
@@ -176,14 +189,14 @@ func (a *Alias) cleanup() {
 	// Invariant: The type checker must never return Typ[Invalid] unless an error was
 	// reported. If an alias created during package checking has a nil RHS at
 	// cleanup time, ensure an error is reported.
-	if a.fromRHS == nil && a.check != nil {
-		if a.check.firstErr == nil {
+	if a.fromRHS == nil {
+		if a.check != nil && a.check.firstErr == nil {
 			a.check.internalErrorf(a.obj, "alias %v has nil RHS", a.obj.name)
 		}
 		a.fromRHS = Typ[Invalid]
 	}
 	// Ensure a.actual is set before types are published,
 	// so unalias is a pure "getter", not a "setter".
-	unalias(a)
+	a.actual = unalias(a)
 	a.check = nil
 }

@@ -6,6 +6,7 @@ package types2_test
 
 import (
 	"cmd/compile/internal/types2"
+	"sync"
 	"testing"
 )
 
@@ -58,4 +59,45 @@ type A = B // undeclared
 		return
 	}
 	t.Errorf("unexpected type for A: %v", a)
+}
+
+func TestIssue81138(t *testing.T) {
+	// type A[T any] = func(T)
+	T := types2.NewTypeParam(types2.NewTypeName(nopos, nil, "T", nil), types2.Universe.Lookup("any").Type())
+	rhs := types2.NewSignatureType(nil, nil, nil,
+		types2.NewTuple(types2.NewParam(nopos, nil, "", T)), nil, false)
+	A := types2.NewAlias(types2.NewTypeName(nopos, nil, "A", nil), rhs)
+	A.SetTypeParams([]*types2.TypeParam{T})
+
+	// Check calling Unalias concurrently on a newly instantiated alias
+	// does not race on Alias.actual or observe a partially written interface
+	// value (a non-nil itab with a nil data pointer, i.e. (*Signature)(nil)).
+	for i := range 1000 {
+		inst, err := types2.Instantiate(types2.NewContext(), A, []types2.Type{types2.Typ[types2.Int]}, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ch := make(chan types2.Type, 1)
+		go func() { ch <- types2.Unalias(inst) }()
+		for _, u := range []types2.Type{types2.Unalias(inst), <-ch} {
+			if sig, ok := u.(*types2.Signature); ok && sig == nil {
+				t.Fatalf("round %d: Unalias returned (*Signature)(nil)", i)
+			}
+		}
+	}
+
+	// Incomplete aliases must not race or overwrite actual when Unalias is called concurrently.
+	incomplete := types2.NewAlias(types2.NewTypeName(nopos, nil, "Incomplete", nil), nil)
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if got := types2.Unalias(incomplete); got != nil {
+				t.Errorf("Unalias(incomplete) = %v, want nil", got)
+			}
+		}()
+	}
+	wg.Wait()
 }
