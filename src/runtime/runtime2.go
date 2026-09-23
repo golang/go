@@ -993,7 +993,7 @@ type schedt struct {
 	// m.exited is set. Linked through m.freelink.
 	freem *m
 
-	gcwaiting  atomic.Bool // gc is waiting to run
+	gcwaiting  gcWaitingWord // gc is waiting to run
 	stopwait   int32
 	stopnote   note
 	sysmonwait atomic.Bool
@@ -1056,6 +1056,31 @@ type schedt struct {
 	// goroutinesCreated (plus the value of goroutinesCreated on each P in allp)
 	// is the sum of all goroutines created by the program.
 	goroutinesCreated atomic.Uint64
+}
+
+// gcWaitingWord is an atomic boolean, whose address is also available as a
+// *uint32 for futexsleep.
+type gcWaitingWord struct {
+	val uint32
+}
+
+//go:nosplit
+func (p *gcWaitingWord) Store(v bool) {
+	var val uint32
+	if v {
+		val = 1
+	}
+	atomic.Store(&p.val, val)
+}
+
+//go:nosplit
+func (p *gcWaitingWord) Load() bool {
+	return atomic.Load(&p.val) != 0
+}
+
+//go:nosplit
+func (p *gcWaitingWord) Addr() *uint32 {
+	return &p.val
 }
 
 // Values for the flags field of a sigTabT.
