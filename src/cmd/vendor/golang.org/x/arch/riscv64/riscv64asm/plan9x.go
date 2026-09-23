@@ -49,7 +49,9 @@ goSyntaxSwitch:
 
 	case AMOADD_D, AMOADD_D_AQ, AMOADD_D_RL, AMOADD_D_AQRL, AMOADD_W, AMOADD_W_AQ,
 		AMOADD_W_RL, AMOADD_W_AQRL, AMOAND_D, AMOAND_D_AQ, AMOAND_D_RL, AMOAND_D_AQRL,
-		AMOAND_W, AMOAND_W_AQ, AMOAND_W_RL, AMOAND_W_AQRL, AMOMAXU_D, AMOMAXU_D_AQ,
+		AMOAND_W, AMOAND_W_AQ, AMOAND_W_RL, AMOAND_W_AQRL, AMOCAS_D, AMOCAS_D_AQ,
+		AMOCAS_D_AQRL, AMOCAS_D_RL, AMOCAS_Q, AMOCAS_Q_AQ, AMOCAS_Q_AQRL, AMOCAS_Q_RL,
+		AMOCAS_W, AMOCAS_W_AQ, AMOCAS_W_AQRL, AMOCAS_W_RL, AMOMAXU_D, AMOMAXU_D_AQ,
 		AMOMAXU_D_RL, AMOMAXU_D_AQRL, AMOMAXU_W, AMOMAXU_W_AQ, AMOMAXU_W_RL, AMOMAXU_W_AQRL,
 		AMOMAX_D, AMOMAX_D_AQ, AMOMAX_D_RL, AMOMAX_D_AQRL, AMOMAX_W, AMOMAX_W_AQ, AMOMAX_W_RL,
 		AMOMAX_W_AQRL, AMOMINU_D, AMOMINU_D_AQ, AMOMINU_D_RL, AMOMINU_D_AQRL, AMOMINU_W,
@@ -413,11 +415,14 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 	case Simm:
 		imm, _ := strconv.Atoi(a.String())
 		if a.Width == 13 || a.Width == 21 {
-			addr := int64(pc) + int64(imm)
-			if s, base := symname(uint64(addr)); s != "" && uint64(addr) == base {
+			addr := pc + uint64(imm)
+			if s, base := symname(addr); s != "" && addr == base {
 				return fmt.Sprintf("%s(SB)", s)
 			}
-			return fmt.Sprintf("%d(PC)", imm/4)
+			// As RISC-V instructions do not have a fixed size,
+			// we cannot use the n(PC) syntax. There's no way to compute
+			// n here, so we have to fall back to using absolute addresses.
+			return fmt.Sprintf("%#x", addr)
 		}
 		return fmt.Sprintf("$%d", int32(imm))
 
