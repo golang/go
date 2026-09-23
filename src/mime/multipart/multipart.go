@@ -146,12 +146,18 @@ func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
 }
 
 func newPart(mr *Reader, rawPart bool, maxMIMEHeaderSize, maxMIMEHeaders int64) (*Part, error) {
-	bp := &Part{
-		Header: make(map[string][]string),
-		mr:     mr,
-	}
-	if err := bp.populateHeaders(maxMIMEHeaderSize, maxMIMEHeaders); err != nil {
+	r := textproto.NewReader(mr.bufReader)
+	header, err := readMIMEHeader(r, maxMIMEHeaderSize, maxMIMEHeaders)
+	if err != nil {
+		// TODO: Add a distinguishable error to net/textproto.
+		if err.Error() == "message too large" {
+			err = ErrMessageTooLarge
+		}
 		return nil, err
+	}
+	bp := &Part{
+		Header: header,
+		mr:     mr,
 	}
 	bp.r = partReader{bp}
 
@@ -164,19 +170,6 @@ func newPart(mr *Reader, rawPart bool, maxMIMEHeaderSize, maxMIMEHeaders int64) 
 		}
 	}
 	return bp, nil
-}
-
-func (p *Part) populateHeaders(maxMIMEHeaderSize, maxMIMEHeaders int64) error {
-	r := textproto.NewReader(p.mr.bufReader)
-	header, err := readMIMEHeader(r, maxMIMEHeaderSize, maxMIMEHeaders)
-	if err == nil {
-		p.Header = header
-	}
-	// TODO: Add a distinguishable error to net/textproto.
-	if err != nil && err.Error() == "message too large" {
-		err = ErrMessageTooLarge
-	}
-	return err
 }
 
 // Read reads the body of a part, after its headers and before the
