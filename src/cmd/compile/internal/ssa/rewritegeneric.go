@@ -27987,6 +27987,7 @@ func rewriteValuegeneric_OpRotateLeft16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft16 x (Const16 [c]))
 	// cond: c%16 == 0
 	// result: x
@@ -28430,21 +28431,20 @@ func rewriteValuegeneric_OpRotateLeft16(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (RotateLeft16 x (Const64 <t> [c]))
+	// match: (RotateLeft16 x (Const64 [c]))
 	// cond: config.PtrSize == 4
-	// result: (RotateLeft16 x (Const32 <t> [int32(c)]))
+	// result: (RotateLeft16 x (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		t := v_1.Type
 		c := auxIntToInt64(v_1.AuxInt)
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.reset(OpRotateLeft16)
-		v0 := b.NewValue0(v.Pos, OpConst32, t)
+		v0 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
 		v0.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg2(x, v0)
 		return true
@@ -28532,6 +28532,7 @@ func rewriteValuegeneric_OpRotateLeft32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft32 x (Const32 [c]))
 	// cond: c%32 == 0
 	// result: x
@@ -28975,21 +28976,20 @@ func rewriteValuegeneric_OpRotateLeft32(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (RotateLeft32 x (Const64 <t> [c]))
+	// match: (RotateLeft32 x (Const64 [c]))
 	// cond: config.PtrSize == 4
-	// result: (RotateLeft32 x (Const32 <t> [int32(c)]))
+	// result: (RotateLeft32 x (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		t := v_1.Type
 		c := auxIntToInt64(v_1.AuxInt)
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.reset(OpRotateLeft32)
-		v0 := b.NewValue0(v.Pos, OpConst32, t)
+		v0 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
 		v0.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg2(x, v0)
 		return true
@@ -29077,6 +29077,7 @@ func rewriteValuegeneric_OpRotateLeft64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft64 x (Const64 [c]))
 	// cond: c%64 == 0
 	// result: x
@@ -29520,21 +29521,20 @@ func rewriteValuegeneric_OpRotateLeft64(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (RotateLeft64 x (Const64 <t> [c]))
+	// match: (RotateLeft64 x (Const64 [c]))
 	// cond: config.PtrSize == 4
-	// result: (RotateLeft64 x (Const32 <t> [int32(c)]))
+	// result: (RotateLeft64 x (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		t := v_1.Type
 		c := auxIntToInt64(v_1.AuxInt)
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.reset(OpRotateLeft64)
-		v0 := b.NewValue0(v.Pos, OpConst32, t)
+		v0 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
 		v0.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg2(x, v0)
 		return true
@@ -29622,6 +29622,7 @@ func rewriteValuegeneric_OpRotateLeft8(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (RotateLeft8 x (Const8 [c]))
 	// cond: c%8 == 0
 	// result: x
@@ -30065,21 +30066,20 @@ func rewriteValuegeneric_OpRotateLeft8(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (RotateLeft8 x (Const64 <t> [c]))
+	// match: (RotateLeft8 x (Const64 [c]))
 	// cond: config.PtrSize == 4
-	// result: (RotateLeft8 x (Const32 <t> [int32(c)]))
+	// result: (RotateLeft8 x (Const32 <typ.UInt32> [int32(c)]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		t := v_1.Type
 		c := auxIntToInt64(v_1.AuxInt)
 		if !(config.PtrSize == 4) {
 			break
 		}
 		v.reset(OpRotateLeft8)
-		v0 := b.NewValue0(v.Pos, OpConst32, t)
+		v0 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
 		v0.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg2(x, v0)
 		return true
