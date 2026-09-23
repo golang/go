@@ -2538,16 +2538,21 @@ func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
 			}
 			downwardDef[d.Block.ID] = d
 		}
+		// collect iterated dominance frontier of all definitions
 		varDF.Clear()
-		pluckBlocks := func(yield func(*ssa.Block) bool) {
-			for _, d := range homed.defs {
-				if !yield(d.Block) {
-					return
+		if b := commonMergeBlock(sdom, homed.uses, homed.defs); b != nil {
+			varDF.Add(b.ID)
+		} else {
+			pluckBlocks := func(yield func(*ssa.Block) bool) {
+				for _, d := range homed.defs {
+					if !yield(d.Block) {
+						return
+					}
 				}
 			}
-		}
-		for d := range f.IterDomFrontierPlus(pluckBlocks) {
-			varDF.Add(d.ID)
+			for d := range f.IterDomFrontierPlus(pluckBlocks) {
+				varDF.Add(d.ID)
+			}
 		}
 		// We append to homed.uses, so we use C-style loops here
 		for i := 0; i < len(homed.uses); i++ {
@@ -2626,6 +2631,37 @@ func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
 			})
 		}
 	}
+}
+
+// commonMergeBlock returns the singular dominance frontier block for simple
+// cases. This avoids running the full dominance frontier algorithm over the CFG
+// when re-establishing SSA form. These simple cases are quite common at write
+// barriers and when paired with large map initialization, can bloat the runtime
+// of re-establish (see https://go.dev/issue/81663 )
+func commonMergeBlock(sdom ssa.SparseTree, uses []useSpec, defs []*ssa.Value) *ssa.Block {
+	if len(uses) != 1 {
+		return nil
+	}
+	use := uses[0]
+	if len(defs) != 2 {
+		return nil
+	}
+	b := use.block()
+	if len(b.Preds) != 2 {
+		return nil
+	}
+	x, y := b.Preds[0].B, b.Preds[1].B
+	// don't know if this is possible, but be conservative.
+	if x == y {
+		return nil
+	}
+	match := func(a, b *ssa.Block) bool {
+		return defs[0].Block == a && defs[1].Block == b
+	}
+	if match(x, y) || match(y, x) {
+		return b
+	}
+	return nil
 }
 
 // useSpec represents a use of a value. We represent it this way so that the
