@@ -162,7 +162,7 @@ TEXT ·Xaddint64(SB),NOSPLIT,$0-24
 	MOV	delta+8(FP), A1
 	AMOADDD A1, (A0), A0
 	ADD	A0, A1, A0
-	MOVW	A0, ret+16(FP)
+	MOV	A0, ret+16(FP)
 	RET
 
 TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
