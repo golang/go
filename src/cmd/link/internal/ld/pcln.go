@@ -542,7 +542,7 @@ func (state *pclntab) generateFuncdata(ctxt *Link, funcs []loader.Sym, inlsyms m
 			continue
 		}
 		fi.Preload()
-		fd := funcData(ldr, s, fi, inlsyms[s], fd)
+		fd = funcData(ldr, s, fi, inlsyms[s], fd)
 		for j, fdSym := range fd {
 			if ignoreFuncData(ldr, s, j, fdSym) {
 				continue
