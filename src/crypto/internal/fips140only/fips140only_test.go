@@ -5,6 +5,7 @@
 package fips140only_test
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
@@ -14,6 +15,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	cryptofips140 "crypto/fips140"
 	"crypto/hkdf"
 	"crypto/hmac"
 	"crypto/hpke"
@@ -263,6 +265,37 @@ bXVL8iKLrG91IYQByUHZIn3WVAd2bfi4MfKagRt0ggd4
 	expectNoErr(t, rsa.VerifyPSS(&rsaKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPSS, nil))
 	expectErr(t, rsa.VerifyPSS(&smallKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPSS, nil))
 	expectErr(t, rsa.VerifyPSS(&rsaKey.PublicKey, crypto.SHA1, make([]byte, 20), sigPSS, nil))
+
+	// Salts longer than the hash are not approved, including when
+	// VerifyPSS detects the salt length from the signature. Make such a
+	// signature without enforcement, in a separate goroutine so that this
+	// goroutine's service indicator is unaffected.
+	longSalt := &rsa.PSSOptions{SaltLength: sha256.Size + 1}
+	expectErr(t, errRet2(rsa.SignPSS(rand.Reader, rsaKey, crypto.SHA256, make([]byte, 32), longSalt)))
+	var sigPSSLongSalt []byte
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cryptofips140.WithoutEnforcement(func() {
+			sigPSSLongSalt, err = rsa.SignPSS(rand.Reader, rsaKey, crypto.SHA256, make([]byte, 32), longSalt)
+		})
+	}()
+	<-done
+	expectNoErr(t, err)
+	expectErr(t, rsa.VerifyPSS(&rsaKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPSSLongSalt, longSalt))
+	sigPSSBad := bytes.Clone(sigPSS)
+	sigPSSBad[len(sigPSSBad)/2] ^= 1
+	for _, opts := range []*rsa.PSSOptions{nil, {SaltLength: rsa.PSSSaltLengthAuto}} {
+		for _, sig := range [][]byte{sigPSSLongSalt, sigPSSBad} {
+			if err := rsa.VerifyPSS(&rsaKey.PublicKey, crypto.SHA256, make([]byte, 32), sig, opts); err != rsa.ErrVerification {
+				t.Errorf("VerifyPSS with auto salt length: got %v, want %v", err, rsa.ErrVerification)
+			}
+		}
+	}
+	// Shorter salts are approved, and are detected too.
+	sigPSSShortSalt, err := rsa.SignPSS(rand.Reader, rsaKey, crypto.SHA256, make([]byte, 32), &rsa.PSSOptions{SaltLength: 16})
+	expectNoErr(t, err)
+	expectNoErr(t, rsa.VerifyPSS(&rsaKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPSSShortSalt, nil))
 
 	k, err := mlkem.GenerateKey768()
 	expectNoErr(t, err)
