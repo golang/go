@@ -85,6 +85,16 @@ func genAllocators() {
 			minLog:   5,
 			maxLog:   32,
 		},
+		{
+			name:     "SparseMapValue",
+			typ:      "*SparseMapValue",
+			capacity: "%s.cap()",
+			mak:      "NewSparseMapValue(%s)",
+			resize:   "", // larger-sized sparse maps are ok
+			clear:    "%s.ClearDense()",
+			minLog:   5,
+			maxLog:   32,
+		},
 	}
 	deriveds := []derived{
 		{

@@ -2523,15 +2523,15 @@ func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
 	// downwardDef is the downward exposed value for a given block.
 	// Because we do this operation one homed value at a time,
 	// there is only ever one per block
-	downwardDef := f.Cache.AllocValueSlice(f.NumBlocks())
-	defer f.Cache.FreeValueSlice(downwardDef)
+	downwardDef := f.Cache.AllocSparseMapValue(f.NumBlocks())
+	defer f.Cache.FreeSparseMapValue(downwardDef)
 
 	// topDef is the definition that is available within a block.
 	// Because the previous passes make sure that intra-block
 	// references are valid, this will only contain a value
 	// if we break this assumption by inserting a phi value.
-	topDef := f.Cache.AllocValueSlice(f.NumBlocks())
-	defer f.Cache.FreeValueSlice(topDef)
+	topDef := f.Cache.AllocSparseMapValue(f.NumBlocks())
+	defer f.Cache.FreeSparseMapValue(topDef)
 
 	varDF := f.NewSparseSet(f.NumBlocks())
 	defer f.RetSparseSet(varDF)
@@ -2551,13 +2551,13 @@ func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
 			}
 			fmt.Printf("variable: %v(%s) defs: %v uses: %v\n", homed.orig, homed.loc, defv, homed.uses)
 		}
-		clear(downwardDef)
-		clear(topDef)
+		downwardDef.Clear()
+		topDef.Clear()
 		for _, d := range homed.defs {
-			if downwardDef[d.Block.ID] != nil {
-				f.Fatalf("already set a downward def for b%d\nprev: %s\nreplace: %s", d.Block.ID, downwardDef[d.Block.ID].LongString(), d.LongString())
+			if ddef, ok := downwardDef.Get(d.Block.ID); ok {
+				f.Fatalf("already set a downward def for b%d\nprev: %s\nreplace: %s", d.Block.ID, ddef.LongString(), d.LongString())
 			}
-			downwardDef[d.Block.ID] = d
+			downwardDef.Set(d.Block.ID, d)
 		}
 		// collect iterated dominance frontier of all definitions
 		varDF.Clear()
@@ -2582,12 +2582,12 @@ func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
 			search := use.block()
 			if use.op() == ssaop.OpPhi {
 				search = search.Preds[use.index].B
-				if downwardDef[search.ID] != nil {
-					use.replace(downwardDef[search.ID])
+				if ddef, _ := downwardDef.Get(search.ID); ddef != nil {
+					use.replace(ddef)
 					continue
 				}
-			} else if topDef[search.ID] != nil {
-				use.replace(topDef[search.ID])
+			} else if tdef, _ := topDef.Get(search.ID); tdef != nil {
+				use.replace(tdef)
 				continue
 			}
 
@@ -2595,13 +2595,13 @@ func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
 				if varDF.Contains(search.ID) {
 					phi := search.NewValue0(homed.orig.Pos, ssaop.OpPhi, homed.orig.Type)
 					f.SetHome(phi, homed.loc)
-					if downwardDef[search.ID] == nil {
-						downwardDef[search.ID] = phi
+					if ddef, _ := downwardDef.Get(search.ID); ddef == nil {
+						downwardDef.Set(search.ID, phi)
 					}
-					if topDef[search.ID] != nil {
+					if _, ok := topDef.Get(search.ID); ok {
 						f.Fatalf("double insert of phi")
 					}
-					topDef[search.ID] = phi
+					topDef.Set(search.ID, phi)
 					if f.Pass.Debug > ssa.RegDebug {
 						fmt.Printf("inserting phi v%d in b%d for %v use\n", phi.ID, search.ID, use)
 					}
@@ -2621,14 +2621,15 @@ func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
 				if search == nil {
 					f.Fatalf("did not find reaching definition for %v in b%d", use, use.block().ID)
 				}
-				if downwardDef[search.ID] != nil {
+				if _, ok := downwardDef.Get(search.ID); ok {
 					break
 				}
 			}
-			if f.Pass.Debug > ssa.RegDebug && downwardDef[search.ID] != use.value() {
-				fmt.Printf("replacing v%d with v%d in %#s\n", use.value().ID, downwardDef[search.ID].ID, use)
+			ddef, _ := downwardDef.Get(search.ID)
+			if f.Pass.Debug > ssa.RegDebug && ddef != use.value() {
+				fmt.Printf("replacing v%d with v%d in %#s\n", use.value().ID, ddef.ID, use)
 			}
-			use.replace(downwardDef[search.ID])
+			use.replace(ddef)
 		}
 	}
 

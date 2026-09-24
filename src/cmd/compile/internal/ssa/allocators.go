@@ -149,6 +149,29 @@ func (c *Cache) FreeSparseMapPos(s *SparseMapPos) {
 	b := bits.Len(uint(s.cap()) - 1)
 	poolFreeSparseMapPos[b-5].Put(s)
 }
+
+var poolFreeSparseMapValue [27]sync.Pool
+
+func (c *Cache) AllocSparseMapValue(n int) *SparseMapValue {
+	var s *SparseMapValue
+	n2 := n
+	if n2 < 32 {
+		n2 = 32
+	}
+	b := bits.Len(uint(n2 - 1))
+	v := poolFreeSparseMapValue[b-5].Get()
+	if v == nil {
+		s = NewSparseMapValue(1 << b)
+	} else {
+		s = v.(*SparseMapValue)
+	}
+	return s
+}
+func (c *Cache) FreeSparseMapValue(s *SparseMapValue) {
+	s.ClearDense()
+	b := bits.Len(uint(s.cap()) - 1)
+	poolFreeSparseMapValue[b-5].Put(s)
+}
 func (c *Cache) AllocBlockSlice(n int) []*Block {
 	var base *Value
 	var derived *Block

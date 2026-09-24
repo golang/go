@@ -10,6 +10,10 @@ func NewSparseMap(n int) *SparseMap {
 	return newGenericSparseMap[ID, int32](n)
 }
 
+func NewSparseMapValue(n int) *SparseMapValue {
+	return newGenericSparseMap[ID, *Value](n)
+}
+
 type genericSparseMap[K sparseKey, V any] struct {
 	dense  []sparseEntry[K, V]
 	sparse []int32
@@ -33,6 +37,8 @@ type sparseEntry[K sparseKey, V any] struct {
 type sparseKey interface{ ~int | ~int32 }
 
 type SparseMap = genericSparseMap[ID, int32]
+
+type SparseMapValue = genericSparseMap[ID, *Value]
 
 func (s *genericSparseMap[K, V]) cap() int {
 	return len(s.sparse)
@@ -79,6 +85,14 @@ func (s *genericSparseMap[K, V]) remove(k K) {
 }
 
 func (s *genericSparseMap[K, V]) Clear() {
+	s.dense = s.dense[:0]
+}
+
+// ClearDense zeroes out the dense slice and then truncates it. This is useful for
+// making sure that maps that contain pointer data doesn't keep values live longer
+// than necessary.
+func (s *genericSparseMap[K, V]) ClearDense() {
+	clear(s.dense[:cap(s.dense)])
 	s.dense = s.dense[:0]
 }
 
