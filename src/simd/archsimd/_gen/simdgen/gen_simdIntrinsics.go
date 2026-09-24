@@ -120,7 +120,8 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	var sveMask = templateNamed("sveMask", `	addF(simdPackage, "{{.Name}}.store", sveStoreWhole(), {{GetSysArch}})
 	addF(simdPackage, "load{{.Name}}", sveLoadWhole(), {{GetSysArch}})`)
 
-	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssaop.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)
+	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "load{{.Name}}ArrayMasked", simdMaskedLoad(ssaop.OpLoadMasked{{.ElemBits}}), sys.AMD64)
+	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssaop.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)
 
 	var vectorConversion = templateNamed("vectorConversion", `	addF(simdPackage, "{{.Tsrc.Name}}.As{{.Tdst.Name}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})`)
 

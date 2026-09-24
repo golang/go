@@ -28,6 +28,17 @@ func LoadFloat32x4Array(y *[4]float32) Float32x4
 //go:noescape
 func (x Float32x4) StoreArray(y *[4]float32)
 
+// loadFloat32x4ArrayMasked loads a Float32x4 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
+//go:noescape
+func loadFloat32x4ArrayMasked(y *[4]float32, mask Mask32x4) Float32x4
+
 // StoreArrayMasked stores a Float32x4 to an array,
 // at those elements enabled by mask.
 //
@@ -54,6 +65,17 @@ func LoadFloat64x2Array(y *[2]float64) Float64x2
 //
 //go:noescape
 func (x Float64x2) StoreArray(y *[2]float64)
+
+// loadFloat64x2ArrayMasked loads a Float64x2 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
+//go:noescape
+func loadFloat64x2ArrayMasked(y *[2]float64, mask Mask64x2) Float64x2
 
 // StoreArrayMasked stores a Float64x2 to an array,
 // at those elements enabled by mask.
@@ -120,6 +142,17 @@ func LoadInt32x4Array(y *[4]int32) Int32x4
 //go:noescape
 func (x Int32x4) StoreArray(y *[4]int32)
 
+// loadInt32x4ArrayMasked loads an Int32x4 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
+//go:noescape
+func loadInt32x4ArrayMasked(y *[4]int32, mask Mask32x4) Int32x4
+
 // StoreArrayMasked stores an Int32x4 to an array,
 // at those elements enabled by mask.
 //
@@ -146,6 +179,17 @@ func LoadInt64x2Array(y *[2]int64) Int64x2
 //
 //go:noescape
 func (x Int64x2) StoreArray(y *[2]int64)
+
+// loadInt64x2ArrayMasked loads an Int64x2 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
+//go:noescape
+func loadInt64x2ArrayMasked(y *[2]int64, mask Mask64x2) Int64x2
 
 // StoreArrayMasked stores an Int64x2 to an array,
 // at those elements enabled by mask.
@@ -212,6 +256,17 @@ func LoadUint32x4Array(y *[4]uint32) Uint32x4
 //go:noescape
 func (x Uint32x4) StoreArray(y *[4]uint32)
 
+// loadUint32x4ArrayMasked loads a Uint32x4 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
+//go:noescape
+func loadUint32x4ArrayMasked(y *[4]uint32, mask Mask32x4) Uint32x4
+
 // StoreArrayMasked stores a Uint32x4 to an array,
 // at those elements enabled by mask.
 //
@@ -238,6 +293,17 @@ func LoadUint64x2Array(y *[2]uint64) Uint64x2
 //
 //go:noescape
 func (x Uint64x2) StoreArray(y *[2]uint64)
+
+// loadUint64x2ArrayMasked loads a Uint64x2 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
+//go:noescape
+func loadUint64x2ArrayMasked(y *[2]uint64, mask Mask64x2) Uint64x2
 
 // StoreArrayMasked stores a Uint64x2 to an array,
 // at those elements enabled by mask.
@@ -339,6 +405,17 @@ func LoadFloat32x8Array(y *[8]float32) Float32x8
 //go:noescape
 func (x Float32x8) StoreArray(y *[8]float32)
 
+// loadFloat32x8ArrayMasked loads a Float32x8 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
+//go:noescape
+func loadFloat32x8ArrayMasked(y *[8]float32, mask Mask32x8) Float32x8
+
 // StoreArrayMasked stores a Float32x8 to an array,
 // at those elements enabled by mask.
 //
@@ -365,6 +442,17 @@ func LoadFloat64x4Array(y *[4]float64) Float64x4
 //
 //go:noescape
 func (x Float64x4) StoreArray(y *[4]float64)
+
+// loadFloat64x4ArrayMasked loads a Float64x4 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
+//go:noescape
+func loadFloat64x4ArrayMasked(y *[4]float64, mask Mask64x4) Float64x4
 
 // StoreArrayMasked stores a Float64x4 to an array,
 // at those elements enabled by mask.
@@ -431,6 +519,17 @@ func LoadInt32x8Array(y *[8]int32) Int32x8
 //go:noescape
 func (x Int32x8) StoreArray(y *[8]int32)
 
+// loadInt32x8ArrayMasked loads an Int32x8 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
+//go:noescape
+func loadInt32x8ArrayMasked(y *[8]int32, mask Mask32x8) Int32x8
+
 // StoreArrayMasked stores an Int32x8 to an array,
 // at those elements enabled by mask.
 //
@@ -457,6 +556,17 @@ func LoadInt64x4Array(y *[4]int64) Int64x4
 //
 //go:noescape
 func (x Int64x4) StoreArray(y *[4]int64)
+
+// loadInt64x4ArrayMasked loads an Int64x4 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
+//go:noescape
+func loadInt64x4ArrayMasked(y *[4]int64, mask Mask64x4) Int64x4
 
 // StoreArrayMasked stores an Int64x4 to an array,
 // at those elements enabled by mask.
@@ -523,6 +633,17 @@ func LoadUint32x8Array(y *[8]uint32) Uint32x8
 //go:noescape
 func (x Uint32x8) StoreArray(y *[8]uint32)
 
+// loadUint32x8ArrayMasked loads a Uint32x8 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
+//go:noescape
+func loadUint32x8ArrayMasked(y *[8]uint32, mask Mask32x8) Uint32x8
+
 // StoreArrayMasked stores a Uint32x8 to an array,
 // at those elements enabled by mask.
 //
@@ -549,6 +670,17 @@ func LoadUint64x4Array(y *[4]uint64) Uint64x4
 //
 //go:noescape
 func (x Uint64x4) StoreArray(y *[4]uint64)
+
+// loadUint64x4ArrayMasked loads a Uint64x4 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
+//go:noescape
+func loadUint64x4ArrayMasked(y *[4]uint64, mask Mask64x4) Uint64x4
 
 // StoreArrayMasked stores a Uint64x4 to an array,
 // at those elements enabled by mask.
@@ -648,6 +780,17 @@ func LoadFloat32x16Array(y *[16]float32) Float32x16
 //go:noescape
 func (x Float32x16) StoreArray(y *[16]float32)
 
+// loadFloat32x16ArrayMasked loads a Float32x16 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU32.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadFloat32x16ArrayMasked(y *[16]float32, mask Mask32x16) Float32x16
+
 // StoreArrayMasked stores a Float32x16 to an array,
 // at those elements enabled by mask.
 //
@@ -674,6 +817,17 @@ func LoadFloat64x8Array(y *[8]float64) Float64x8
 //
 //go:noescape
 func (x Float64x8) StoreArray(y *[8]float64)
+
+// loadFloat64x8ArrayMasked loads a Float64x8 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU64.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadFloat64x8ArrayMasked(y *[8]float64, mask Mask64x8) Float64x8
 
 // StoreArrayMasked stores a Float64x8 to an array,
 // at those elements enabled by mask.
@@ -702,6 +856,17 @@ func LoadInt8x64Array(y *[64]int8) Int8x64
 //go:noescape
 func (x Int8x64) StoreArray(y *[64]int8)
 
+// loadInt8x64ArrayMasked loads an Int8x64 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU8.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadInt8x64ArrayMasked(y *[64]int8, mask Mask8x64) Int8x64
+
 // StoreArrayMasked stores an Int8x64 to an array,
 // at those elements enabled by mask.
 //
@@ -728,6 +893,17 @@ func LoadInt16x32Array(y *[32]int16) Int16x32
 //
 //go:noescape
 func (x Int16x32) StoreArray(y *[32]int16)
+
+// loadInt16x32ArrayMasked loads an Int16x32 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU16.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadInt16x32ArrayMasked(y *[32]int16, mask Mask16x32) Int16x32
 
 // StoreArrayMasked stores an Int16x32 to an array,
 // at those elements enabled by mask.
@@ -756,6 +932,17 @@ func LoadInt32x16Array(y *[16]int32) Int32x16
 //go:noescape
 func (x Int32x16) StoreArray(y *[16]int32)
 
+// loadInt32x16ArrayMasked loads an Int32x16 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU32.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadInt32x16ArrayMasked(y *[16]int32, mask Mask32x16) Int32x16
+
 // StoreArrayMasked stores an Int32x16 to an array,
 // at those elements enabled by mask.
 //
@@ -782,6 +969,17 @@ func LoadInt64x8Array(y *[8]int64) Int64x8
 //
 //go:noescape
 func (x Int64x8) StoreArray(y *[8]int64)
+
+// loadInt64x8ArrayMasked loads an Int64x8 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU64.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadInt64x8ArrayMasked(y *[8]int64, mask Mask64x8) Int64x8
 
 // StoreArrayMasked stores an Int64x8 to an array,
 // at those elements enabled by mask.
@@ -810,6 +1008,17 @@ func LoadUint8x64Array(y *[64]uint8) Uint8x64
 //go:noescape
 func (x Uint8x64) StoreArray(y *[64]uint8)
 
+// loadUint8x64ArrayMasked loads a Uint8x64 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU8.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadUint8x64ArrayMasked(y *[64]uint8, mask Mask8x64) Uint8x64
+
 // StoreArrayMasked stores a Uint8x64 to an array,
 // at those elements enabled by mask.
 //
@@ -836,6 +1045,17 @@ func LoadUint16x32Array(y *[32]uint16) Uint16x32
 //
 //go:noescape
 func (x Uint16x32) StoreArray(y *[32]uint16)
+
+// loadUint16x32ArrayMasked loads a Uint16x32 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU16.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadUint16x32ArrayMasked(y *[32]uint16, mask Mask16x32) Uint16x32
 
 // StoreArrayMasked stores a Uint16x32 to an array,
 // at those elements enabled by mask.
@@ -864,6 +1084,17 @@ func LoadUint32x16Array(y *[16]uint32) Uint32x16
 //go:noescape
 func (x Uint32x16) StoreArray(y *[16]uint32)
 
+// loadUint32x16ArrayMasked loads a Uint32x16 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU32.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadUint32x16ArrayMasked(y *[16]uint32, mask Mask32x16) Uint32x16
+
 // StoreArrayMasked stores a Uint32x16 to an array,
 // at those elements enabled by mask.
 //
@@ -890,6 +1121,17 @@ func LoadUint64x8Array(y *[8]uint64) Uint64x8
 //
 //go:noescape
 func (x Uint64x8) StoreArray(y *[8]uint64)
+
+// loadUint64x8ArrayMasked loads a Uint64x8 from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+// Asm: VMOVDQU64.Z, CPU Feature: AVX512
+//
+//go:noescape
+func loadUint64x8ArrayMasked(y *[8]uint64, mask Mask64x8) Uint64x8
 
 // StoreArrayMasked stores a Uint64x8 to an array,
 // at those elements enabled by mask.

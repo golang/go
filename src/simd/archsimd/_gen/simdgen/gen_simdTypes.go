@@ -556,6 +556,17 @@ func (x {{.Name}}) ToBits() uint{{.LanesContainer}}
 `
 
 const simdMaskedLoadStoreTemplate = `
+// load{{.Name}}ArrayMasked loads {{.Article}} {{.Name}} from an array,
+// at those elements enabled by mask, and zeroes the other elements.
+// The memory of the elements that are not enabled need not be
+// accessible: the load does not fault on it. The Part loads use this to
+// avoid reading past the end of a slice shorter than the vector.
+//
+{{.MaskedLoadDoc}}
+//
+//go:noescape
+func load{{.Name}}ArrayMasked(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}}) {{.Name}}
+
 // StoreArrayMasked stores {{.Article}} {{.Name}} to an array,
 // at those elements enabled by mask.
 //

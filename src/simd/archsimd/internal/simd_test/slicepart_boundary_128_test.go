@@ -55,12 +55,6 @@ func testLoadPartPageBoundary[T number, V HasLenAndStore[T]](t *testing.T, load 
 		var zero V
 		n := zero.Len()
 		size := int(unsafe.Sizeof(T(0)))
-		// TODO: Remove this once the amd64 Part loads that are generated from
-		// the masked-load templates (those for 32- and 64-bit elements, and
-		// all 512-bit ones) stop loading the whole vector.
-		if runtime.GOARCH == "amd64" && (size >= 4 || n*size == 64) {
-			t.Skipf("skipping: %s is known to read past the end of its slice", name)
-		}
 		page := guardedPage(t)
 		for l := 1; l <= n; l++ {
 			for _, off := range []int{0, len(page) - l*size} {

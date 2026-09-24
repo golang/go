@@ -796,7 +796,7 @@ func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 		return x, 0
 	}
 	mask := Mask{{.WxC}}FromBits({{.OxFF}} >> ({{.Count}} - l))
-	return Load{{.VType}}Array(pa{{.VType}}(s)).Masked(mask), l
+	return load{{.VType}}ArrayMasked(pa{{.VType}}(s), mask), l
 }
 
 // StorePart stores the {{.Count}} elements of x into the slice s.
@@ -832,7 +832,7 @@ func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 		return x, 0
 	}
 	mask := vecMask{{.EWidth}}[len(vecMask{{.EWidth}})/2-l:]
-	return Load{{.VType}}Array(pa{{.VType}}(s)).Masked(LoadInt{{.WxC}}(mask).asMask()), l
+	return load{{.VType}}ArrayMasked(pa{{.VType}}(s), LoadInt{{.WxC}}(mask).asMask()), l
 }
 
 // StorePart stores the {{.Count}} elements of x into the slice s.
