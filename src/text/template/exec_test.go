@@ -1782,6 +1782,12 @@ func TestExecutePanicDuringCall(t *testing.T) {
 		"doPanicVariadic": func(...any) string {
 			panic("custom panic string")
 		},
+		"doPanicCompare": func(reflect.Value, reflect.Value) (bool, error) {
+			panic("custom panic string")
+		},
+		"doPanicFormat": func(string, ...any) string {
+			panic("custom panic string")
+		},
 	}
 	tests := []struct {
 		name    string
@@ -1808,6 +1814,16 @@ func TestExecutePanicDuringCall(t *testing.T) {
 			"piped variadic func call panics",
 			"{{1 | doPanicVariadic}}", (*T)(nil),
 			`template: t:1:6: executing "t" at <doPanicVariadic>: error calling doPanicVariadic: custom panic string`,
+		},
+		{
+			"compare-like func call panics",
+			"{{doPanicCompare 1 2}}", (*T)(nil),
+			`template: t:1:2: executing "t" at <doPanicCompare 1 2>: error calling doPanicCompare: custom panic string`,
+		},
+		{
+			"printf-like func call panics",
+			`{{2 | doPanicFormat "%d"}}`, (*T)(nil),
+			`template: t:1:6: executing "t" at <doPanicFormat "%d">: error calling doPanicFormat: custom panic string`,
 		},
 		{
 			"direct method call panics",
@@ -2040,6 +2056,82 @@ func BenchmarkExecuteVariadicFunc(b *testing.B) {
 	for b.Loop() {
 		if err := tmpl.Execute(io.Discard, "b"); err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkExecuteBuiltins(b *testing.B) {
+	data := map[string]any{
+		"S": "active",
+		"N": 3,
+		"L": []int{1, 2, 3},
+		"M": map[string]string{"k": "v"},
+	}
+	tmpls := []struct{ name, text string }{
+		{"eq", `{{if eq .S "active"}}y{{end}}`},
+		{"eqMulti", `{{if eq .S "a" "b" "active"}}y{{end}}`},
+		{"lt", `{{if lt .N 5}}y{{end}}`},
+		{"not", `{{if not .S}}y{{end}}`},
+		{"printf", `{{printf "%s-%d" .S .N}}`},
+		{"userFunc", `{{double .N}}`},
+	}
+	for _, tt := range tmpls {
+		tmpl := Must(New("t").Funcs(FuncMap{"double": func(n int) int { return 2 * n }}).Parse(tt.text))
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if err := tmpl.Execute(io.Discard, data); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func TestExecuteBuiltinSignatureFuncs(t *testing.T) {
+	funcs := FuncMap{
+		"same": func(a, b reflect.Value) (bool, error) {
+			if a.Kind() != b.Kind() {
+				return false, fmt.Errorf("kinds differ: %s, %s", a.Kind(), b.Kind())
+			}
+			return a.Interface() == b.Interface(), nil
+		},
+		"anyOf": func(x reflect.Value, ys ...reflect.Value) (bool, error) {
+			for _, y := range ys {
+				if x.Interface() == y.Interface() {
+					return true, nil
+				}
+			}
+			return false, nil
+		},
+		"isStr": func(x reflect.Value) bool { return x.Kind() == reflect.String },
+		"fmt":   func(format string, args ...any) string { return fmt.Sprintf(format, args...) },
+	}
+	tests := []struct {
+		input, want, wantErr string
+	}{
+		{`{{same 1 1}} {{same "a" "b"}} {{1 | same 1}}`, "true false true", ""},
+		{`{{same 1 "a"}}`, "", "error calling same: kinds differ: int, string"},
+		{`{{anyOf 3 1 2 3}} {{anyOf 3}} {{3 | anyOf 1 2}}`, "true false false", ""},
+		{`{{isStr "a"}} {{isStr 1}} {{"a" | isStr}}`, "true false true", ""},
+		{`{{same .RV "s"}} {{isStr .RV}}`, "true true", ""},
+		{`{{eq nil nil}} {{not nil}}`, "true true", ""},
+		{`{{fmt "%s=%d" "a" 1}} {{1 | fmt "%d"}} {{"%%" | fmt}}`, "a=1 1 %", ""},
+	}
+	for _, tt := range tests {
+		tmpl := Must(New("t").Funcs(funcs).Parse(tt.input))
+		var b strings.Builder
+		err := tmpl.Execute(&b, struct{ RV reflect.Value }{reflect.ValueOf("s")})
+		if tt.wantErr != "" {
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("%s: got error %v, want %q", tt.input, err, tt.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", tt.input, err)
+		} else if b.String() != tt.want {
+			t.Errorf("%s: got %q, want %q", tt.input, b.String(), tt.want)
 		}
 	}
 }

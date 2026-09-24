@@ -2213,6 +2213,28 @@ func BenchmarkEscapedExecute(b *testing.B) {
 	}
 }
 
+func BenchmarkEscapedExecuteBuiltinsPage(b *testing.B) {
+	type item struct {
+		Name   string
+		Status string
+		Tags   []string
+	}
+	items := make([]item, 20)
+	for i := range items {
+		items[i] = item{Name: "Item", Status: "active", Tags: []string{"new", "sale"}}
+	}
+	tmpl := Must(New("t").Parse(`<ul>{{range .}}<li{{if eq .Status "active"}} class="on"{{end}}>` +
+		`{{.Name}}{{if not .Tags}}-{{else}} ({{printf "%d tags" 2}}){{end}}</li>{{end}}</ul>`))
+	var buf bytes.Buffer
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := tmpl.Execute(&buf, items); err != nil {
+			b.Fatal(err)
+		}
+		buf.Reset()
+	}
+}
+
 func BenchmarkEscapedExecutePage(b *testing.B) {
 	var src strings.Builder
 	src.WriteString(`<h1>{{.Title}}</h1><ul>`)

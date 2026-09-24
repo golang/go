@@ -373,11 +373,57 @@ func safeCall(fun reflect.Value, args []reflect.Value) (val reflect.Value, err e
 		}
 		return reflect.ValueOf(f(anyArgs...)), nil
 	}
+	// Fast paths for eq, not, printf and the ne/lt/le/gt/ge comparisons.
+	switch fun.Type() {
+	case eqFuncType:
+		f, _ := reflect.TypeAssert[func(reflect.Value, ...reflect.Value) (bool, error)](fun)
+		r, err := f(unwrapArg(args[0]), unwrapArgs(args[1:])...)
+		return reflect.ValueOf(r), err
+	case notFuncType:
+		f, _ := reflect.TypeAssert[func(reflect.Value) bool](fun)
+		return reflect.ValueOf(f(unwrapArg(args[0]))), nil
+	case cmpFuncType:
+		f, _ := reflect.TypeAssert[func(reflect.Value, reflect.Value) (bool, error)](fun)
+		r, err := f(unwrapArg(args[0]), unwrapArg(args[1]))
+		return reflect.ValueOf(r), err
+	case printfFuncType:
+		f, _ := reflect.TypeAssert[func(string, ...any) string](fun)
+		anyArgs := make([]any, len(args)-1)
+		for i, arg := range args[1:] {
+			anyArgs[i] = arg.Interface()
+		}
+		return reflect.ValueOf(f(args[0].String(), anyArgs...)), nil
+	}
 	ret := fun.Call(args)
 	if len(ret) == 2 && !ret[1].IsNil() {
 		return ret[0], ret[1].Interface().(error)
 	}
 	return ret[0], nil
+}
+
+var (
+	eqFuncType     = reflect.TypeFor[func(reflect.Value, ...reflect.Value) (bool, error)]()
+	notFuncType    = reflect.TypeFor[func(reflect.Value) bool]()
+	cmpFuncType    = reflect.TypeFor[func(reflect.Value, reflect.Value) (bool, error)]()
+	printfFuncType = reflect.TypeFor[func(string, ...any) string]()
+)
+
+// unwrapArg returns the reflect.Value that evalCall wraps in another
+// reflect.Value for parameters of type reflect.Value.
+func unwrapArg(arg reflect.Value) reflect.Value {
+	v, ok := reflect.TypeAssert[reflect.Value](arg)
+	if !ok {
+		panic("text/template: argument is not a wrapped reflect.Value")
+	}
+	return v
+}
+
+func unwrapArgs(args []reflect.Value) []reflect.Value {
+	vs := make([]reflect.Value, len(args))
+	for i, arg := range args {
+		vs[i] = unwrapArg(arg)
+	}
+	return vs
 }
 
 // Boolean logic.
