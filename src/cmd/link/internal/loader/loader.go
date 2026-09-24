@@ -460,10 +460,25 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 	oldsym := oldr.Sym(oldli)
 	if osym.Dupok() {
 		if oldsym.Dupok() {
-			if l.flags&FlagStrictDups != 0 {
+			// Two definitions that differ in weakness are expected to
+			// differ in content: the descriptor of a noalg type leaves out
+			// the type's hash and equality algorithms, and says so in its
+			// TFlag. Only report duplicates that are meant to match.
+			if l.flags&FlagStrictDups != 0 && oldsym.WeakDef() == osym.WeakDef() {
 				l.checkdup(name, r, li, oldi)
 			}
-			if oldsz < sz {
+			// A definition that is not marked weak wins over one that is,
+			// whatever their sizes. cmd/compile marks the descriptor of a
+			// noalg type weak: it describes the same type as a descriptor
+			// emitted by a package that does need the type's hash and
+			// equality algorithms, but leaves those out, so the other one
+			// has to win.
+			if oldsym.WeakDef() != osym.WeakDef() {
+				if oldsym.WeakDef() {
+					// new symbol overwrites old symbol.
+					l.objSyms[oldi] = objSym{r.objidx, li}
+				}
+			} else if oldsz < sz {
 				// new symbol overwrites old symbol.
 				l.objSyms[oldi] = objSym{r.objidx, li}
 			}

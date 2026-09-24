@@ -265,6 +265,7 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
 func (w *walkState) slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	// make an array type corresponding the number of elements we have
 	t := types.NewArray(n.Type().Elem(), n.Len)
+	t.SetNoalg(true)
 	types.CalcSize(t)
 
 	// recipe for var = []t{...}
@@ -391,10 +392,9 @@ func (w *walkState) maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 
 		// build types [count]Tindex and [count]Tvalue
 		tk := types.NewArray(n.Type().Key(), int64(len(entries)))
+		tk.SetNoalg(true)
 		te := types.NewArray(n.Type().Elem(), int64(len(entries)))
-
-		// TODO(#47904): mark tk and te NoAlg here once the
-		// compiler/linker can handle NoAlg types correctly.
+		te.SetNoalg(true)
 
 		types.CalcSize(tk)
 		types.CalcSize(te)

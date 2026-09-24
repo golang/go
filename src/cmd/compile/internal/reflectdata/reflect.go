@@ -696,6 +696,15 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 
 	if s.Siggen() {
+		// The descriptor has already been written. If it was written for a
+		// noalg instance of the same type, it left out the algorithms this
+		// instance needs, so fill them in.
+		if lsym.WeakDef() && !types.TypeHasNoAlg(t) {
+			lsym.Set(obj.AttrWeakDef, false)
+			if eqfunc := geneq(t); eqfunc != nil {
+				objw.SymPtr(lsym, int(rttype.Type.OffsetOf("Equal")), eqfunc, 0)
+			}
+		}
 		return lsym
 	}
 	s.SetSiggen(true)
@@ -929,6 +938,17 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 
 	objw.Global(lsym, int32(E), int16(dupok|obj.RODATA))
+
+	// A noalg type gets a descriptor without the type's hash and equality
+	// algorithms, because this package has no use for them. Another package
+	// may well have one, and emit a descriptor for the same type that does
+	// link them. Both describe the same type and carry the same name, so
+	// mark this one weak: the descriptor with the algorithms is usable
+	// everywhere this one is, and has to be the one the linker keeps.
+	// See cmd/internal/obj.AttrWeakDef.
+	if types.TypeHasNoAlg(t) {
+		lsym.Set(obj.AttrWeakDef, true)
+	}
 
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
