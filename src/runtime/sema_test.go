@@ -17,6 +17,9 @@ import (
 // P directly to the first waiter in line.
 // See issue 33747 for discussion.
 func TestSemaHandoff(t *testing.T) {
+	if GOMAXPROCS(-1) > 8 {
+		defer GOMAXPROCS(GOMAXPROCS(8))
+	}
 	const iter = 10000
 	ok := 0
 	for i := 0; i < iter; i++ {
