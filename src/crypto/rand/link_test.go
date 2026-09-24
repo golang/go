@@ -53,10 +53,14 @@ func TestLinker(t *testing.T) {
 		t.Error("unexpected output:", out)
 	}
 
+	// In a snapshot, all the paths are crypto/internal/fips140/v1.2.3/...
+	// Remove the version number for the checks below.
+	snapshot := regexp.MustCompile(`^crypto/internal/fips140/v[^/]+/`)
+
 	var consistent bool
 	nm := run(testenv.GoToolPath(t), "tool", "nm", "hello.exe")
 	for _, match := range regexp.MustCompile(`(?m)T (crypto/.*)$`).FindAllStringSubmatch(nm, -1) {
-		symbol := match[1]
+		symbol := snapshot.ReplaceAllString(match[1], "crypto/internal/fips140/")
 		if strings.HasPrefix(symbol, "crypto/internal/fips140/drbg.") {
 			consistent = true
 		}
