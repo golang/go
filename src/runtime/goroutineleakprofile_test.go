@@ -22,6 +22,7 @@ func TestGoroutineLeakProfile(t *testing.T) {
 			testenv.SkipFlaky(t, 75729)
 		}
 	}
+	t.Parallel()
 
 	// Goroutine leak test case.
 	//

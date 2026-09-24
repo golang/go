@@ -643,6 +643,7 @@ func TestPanicLoop(t *testing.T) {
 
 func TestMemPprof(t *testing.T) {
 	testenv.MustHaveGoRun(t)
+	t.Parallel()
 
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
@@ -736,6 +737,7 @@ func TestConcurrentMapWritesIssue69447(t *testing.T) {
 	if race.Enabled {
 		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
 	}
+	t.Parallel()
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
 		t.Fatal(err)
@@ -859,6 +861,7 @@ func TestTimePprof(t *testing.T) {
 	if race.Enabled || asan.Enabled || msan.Enabled {
 		t.Skip("skipping on sanitizers because the sanitizer runtime is external code")
 	}
+	t.Parallel()
 
 	// Pass GOTRACEBACK for issue #41120 to try to get more
 	// information on timeout.

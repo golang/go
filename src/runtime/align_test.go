@@ -24,6 +24,7 @@ import (
 // are aligned to 8 bytes. This can be a problem on 32-bit systems.
 func TestAtomicAlignment(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // go command needed to resolve std .a files for importer.Default().
+	t.Parallel()
 
 	// Read the code making the tables above, to see which fields and
 	// variables we are currently checking.

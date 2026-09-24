@@ -335,6 +335,7 @@ func TestCgoPprofCallback(t *testing.T) {
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
+	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "CgoPprofCallback")
 	want := "OK\n"
 	if got != want {
@@ -581,6 +582,7 @@ func TestRaceProf(t *testing.T) {
 	}
 
 	testenv.MustHaveGoRun(t)
+	t.Parallel()
 
 	exe, err := buildTestProg(t, "testprogcgo")
 	if err != nil {
@@ -1012,6 +1014,7 @@ func TestCgoTracebackGoroutineProfile(t *testing.T) {
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
+	t.Parallel()
 	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
 	want := "OK\n"
 	if output != want {

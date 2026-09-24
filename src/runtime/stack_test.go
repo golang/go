@@ -81,6 +81,7 @@ func TestStackGrowth(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
+	t.Parallel()
 
 	var wg sync.WaitGroup
 
@@ -242,6 +243,7 @@ func set(p *int, x int) {
 	*p = x
 }
 func TestDeferPtrs(t *testing.T) {
+	t.Parallel()
 	var y int
 
 	defer func() {
@@ -873,6 +875,7 @@ func TestDeferLiveness(t *testing.T) {
 }
 
 func TestDeferHeapAndStack(t *testing.T) {
+	t.Parallel()
 	P := 4     // processors
 	N := 10000 //iterations
 	D := 200   // stack depth

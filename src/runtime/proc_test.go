@@ -375,6 +375,7 @@ func TestAsyncPreempt(t *testing.T) {
 	if !runtime.PreemptMSupported {
 		t.Skip("asynchronous preemption not supported on this platform")
 	}
+	t.Parallel()
 	output := runTestProg(t, "testprog", "AsyncPreempt")
 	want := "OK\n"
 	if output != want {
@@ -1020,6 +1021,7 @@ func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
 
 func TestLockOSThreadTemplateThreadRace(t *testing.T) {
 	testenv.MustHaveGoRun(t)
+	t.Parallel()
 
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {

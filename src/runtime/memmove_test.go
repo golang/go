@@ -375,6 +375,7 @@ func BenchmarkMemmoveUnalignedSrcOverlap(b *testing.B) {
 }
 
 func TestMemclr(t *testing.T) {
+	t.Parallel()
 	size := 512
 	if testing.Short() {
 		size = 128 + 16

@@ -82,8 +82,9 @@ func TestLFStack(t *testing.T) {
 }
 
 func TestLFStackStress(t *testing.T) {
+	t.Parallel()
 	const K = 100
-	P := 4 * GOMAXPROCS(-1)
+	P := 4 * min(GOMAXPROCS(-1), 16)
 	N := 100000
 	if testing.Short() {
 		N /= 10

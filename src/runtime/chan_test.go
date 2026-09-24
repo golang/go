@@ -238,6 +238,7 @@ func TestNonblockRecvRace(t *testing.T) {
 // is always ready for receiving, so the select in the second goroutine must
 // always receive from one or the other. It must never execute the default case.
 func TestNonblockSelectRace(t *testing.T) {
+	t.Parallel()
 	n := 100000
 	if testing.Short() {
 		n = 1000
@@ -270,6 +271,7 @@ func TestNonblockSelectRace(t *testing.T) {
 
 // Same as TestNonblockSelectRace, but close(c2) replaces c2 <- 1.
 func TestNonblockSelectRace2(t *testing.T) {
+	t.Parallel()
 	n := 100000
 	if testing.Short() {
 		n = 1000
@@ -542,6 +544,7 @@ func TestPseudoRandomSend(t *testing.T) {
 }
 
 func TestMultiConsumer(t *testing.T) {
+	t.Parallel()
 	const nwork = 23
 	const niter = 271828
 

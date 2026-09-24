@@ -7,6 +7,7 @@ package runtime_test
 import "testing"
 
 func TestFreeBSDNumCPU(t *testing.T) {
+	t.Parallel()
 	got := runTestProg(t, "testprog", "FreeBSDNumCPU")
 	want := "OK\n"
 	if got != want {

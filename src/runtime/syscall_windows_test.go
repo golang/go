@@ -770,6 +770,7 @@ func TestSyscallN(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
 	}
+	t.Parallel()
 
 	var nargs = 64
 	if testing.Short() {

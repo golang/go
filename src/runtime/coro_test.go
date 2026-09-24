@@ -39,6 +39,7 @@ func TestCoroCgoCallback(t *testing.T) {
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
+	t.Parallel()
 	for _, test := range []string{
 		"CoroCgoIterCallback",
 		"CoroCgoIterCallbackYield",

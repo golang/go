@@ -15,6 +15,7 @@ func TestSyscallArgs(t *testing.T) {
 		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
 	}
 	testenv.MustHaveCGO(t)
+	t.Parallel()
 
 	exe, err := buildTestProg(t, "testsyscall")
 	if err != nil {

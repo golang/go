@@ -13,6 +13,7 @@ func TestGOMAXPROCSUpdate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test: long sleeps")
 	}
+	t.Parallel()
 
 	got := runTestProg(t, "testprog", "WindowsUpdateGOMAXPROCS")
 	if strings.Contains(got, "SKIP") {
@@ -27,6 +28,7 @@ func TestCgroupGOMAXPROCSDontUpdate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test: long sleeps")
 	}
+	t.Parallel()
 
 	// Two ways to disable updates: explicit GOMAXPROCS or GODEBUG for
 	// update feature.

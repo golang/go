@@ -75,6 +75,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 	}
 
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	if strings.Contains(os.Getenv("GOFLAGS"), "mayMoreStackPreempt") {
 		// This test occasionally times out in this debug mode. This is probably
@@ -266,6 +267,7 @@ func TestSignalIgnoreSIGTRAP(t *testing.T) {
 	if runtime.GOOS == "openbsd" {
 		testenv.SkipFlaky(t, 49725)
 	}
+	t.Parallel()
 
 	output := runTestProg(t, "testprognet", "SignalIgnoreSIGTRAP")
 	want := "OK\n"

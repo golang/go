@@ -11,6 +11,7 @@ import (
 )
 
 func TestSynctest(t *testing.T) {
+	t.Parallel()
 	output := runTestProg(t, "testsynctest", "")
 	want := "success\n"
 	if output != want {

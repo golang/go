@@ -11,6 +11,7 @@ import (
 )
 
 func TestFastLog2(t *testing.T) {
+	t.Parallel()
 	// Compute the euclidean distance between math.Log2 and the FastLog2
 	// implementation over the range of interest for heap sampling.
 	const randomBitCount = 26

@@ -14,6 +14,7 @@ func TestExitHooks(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping due to -short")
 	}
+	t.Parallel()
 
 	scenarios := []struct {
 		mode     string

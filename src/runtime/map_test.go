@@ -1116,6 +1116,7 @@ func TestMemHashGlobalSeed(t *testing.T) {
 }
 
 func TestMapIterDeleteReplace(t *testing.T) {
+	t.Parallel()
 	inc := 1
 	if testing.Short() {
 		inc = 100
