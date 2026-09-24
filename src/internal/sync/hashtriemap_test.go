@@ -16,6 +16,7 @@ import (
 )
 
 func TestHashTrieMap(t *testing.T) {
+	t.Parallel()
 	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
 		var m isync.HashTrieMap[string, int]
 		return &m
@@ -23,12 +24,14 @@ func TestHashTrieMap(t *testing.T) {
 }
 
 func TestHashTrieMapBadHash(t *testing.T) {
+	t.Parallel()
 	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
 		return isync.NewBadHashTrieMap[string, int]()
 	})
 }
 
 func TestHashTrieMapTruncHash(t *testing.T) {
+	t.Parallel()
 	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
 		// Stub out the good hash function with a different terrible one
 		// (truncated hash). Everything should still work as expected.
@@ -90,7 +93,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 				expectMissing(t, s, 0)(m.Load(s))
 				expectStored(t, s, i)(m.LoadOrStore(s, i))
 			}
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -197,7 +200,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 		t.Run("ConcurrentUnsharedKeys", func(t *testing.T) {
 			m := newMap()
 
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -236,7 +239,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 				expectMissing(t, s, 0)(m.Load(s))
 				expectStored(t, s, i)(m.LoadOrStore(s, i))
 			}
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -325,7 +328,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 		t.Run("ConcurrentUnsharedKeys", func(t *testing.T) {
 			m := newMap()
 
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -359,7 +362,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 		t.Run("ConcurrentUnsharedKeysWithDelete", func(t *testing.T) {
 			m := newMap()
 
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -402,7 +405,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 				expectMissing(t, s, 0)(m.Load(s))
 				expectStored(t, s, i)(m.LoadOrStore(s, i))
 			}
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -484,7 +487,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 		t.Run("ConcurrentUnsharedKeys", func(t *testing.T) {
 			m := newMap()
 
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -518,7 +521,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 		t.Run("ConcurrentUnsharedKeysWithDelete", func(t *testing.T) {
 			m := newMap()
 
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -560,7 +563,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 				expectMissing(t, s, 0)(m.Load(s))
 				expectStored(t, s, i)(m.LoadOrStore(s, i))
 			}
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -659,7 +662,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 		t.Run("ConcurrentUnsharedKeys", func(t *testing.T) {
 			m := newMap()
 
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -698,7 +701,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 				expectMissing(t, s, 0)(m.Load(s))
 				expectStored(t, s, i)(m.LoadOrStore(s, i))
 			}
-			gmp := runtime.GOMAXPROCS(-1)
+			gmp := min(runtime.GOMAXPROCS(-1), 16)
 			var wg sync.WaitGroup
 			for i := range gmp {
 				wg.Add(1)
@@ -931,6 +934,7 @@ func init() {
 //
 // This test is a regression test for issue #70970.
 func TestConcurrentCache(t *testing.T) {
+	t.Parallel()
 	type dummy [32]byte
 
 	var m isync.HashTrieMap[int, weak.Pointer[dummy]]
