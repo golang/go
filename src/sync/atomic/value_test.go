@@ -80,6 +80,10 @@ func TestValuePanic(t *testing.T) {
 }
 
 func TestValueConcurrent(t *testing.T) {
+	// #47246: This test does not scale well to high GOMAXPROCS values.
+	if runtime.GOMAXPROCS(0) > 8 {
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+	}
 	tests := [][]any{
 		{uint16(0), ^uint16(0), uint16(1 + 2<<8), uint16(3 + 4<<8)},
 		{uint32(0), ^uint32(0), uint32(1 + 2<<16), uint32(3 + 4<<16)},
@@ -176,6 +180,10 @@ func TestValue_Swap(t *testing.T) {
 }
 
 func TestValueSwapConcurrent(t *testing.T) {
+	// #47246: This test does not scale well to high GOMAXPROCS values.
+	if runtime.GOMAXPROCS(0) > 8 {
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+	}
 	var v Value
 	var count uint64
 	var g sync.WaitGroup
@@ -246,6 +254,10 @@ func TestValue_CompareAndSwap(t *testing.T) {
 }
 
 func TestValueCompareAndSwapConcurrent(t *testing.T) {
+	// #47246: This test does not scale well to high GOMAXPROCS values.
+	if runtime.GOMAXPROCS(0) > 8 {
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+	}
 	var v Value
 	var w sync.WaitGroup
 	v.Store(0)
