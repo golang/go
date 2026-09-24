@@ -253,6 +253,11 @@ func ExtraEnvVarsCostly(ld *modload.Loader) []cfg.EnvVar {
 		return nil
 	}
 	cmd := b.GccCmd(".", "")
+	// b.WorkDir is a fresh temporary directory, so the -ffile-prefix-map
+	// (or -fdebug-prefix-map) flag naming it would differ on every run.
+	gccflags := slices.DeleteFunc(cmd[3:], func(flag string) bool {
+		return strings.Contains(flag, b.WorkDir)
+	})
 
 	join := func(s []string) string {
 		q, err := quoted.Join(s)
@@ -270,7 +275,7 @@ func ExtraEnvVarsCostly(ld *modload.Loader) []cfg.EnvVar {
 		{Name: "CGO_FFLAGS", Value: join(fflags)},
 		{Name: "CGO_LDFLAGS", Value: join(ldflags)},
 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
-		{Name: "GOGCCFLAGS", Value: join(cmd[3:])},
+		{Name: "GOGCCFLAGS", Value: join(gccflags)},
 	}
 
 	for i := range ret {
