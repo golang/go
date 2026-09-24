@@ -375,6 +375,28 @@ func TestParseCPUMount(t *testing.T) {
 			want:    "/sys/fs/cgroup",
 		},
 		{
+			// nsfs mounts have a root that is not a path. They should
+			// be skipped like any other non-cgroup mount.
+			name: "v1-nsfs",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+30 22 0:4 net:[4026532000] /run/netns/foo rw - nsfs nsfs rw
+56 22 0:40 / /sys/fs/cgroup/cpu rw - cgroup cgroup rw,cpu,cpuacct
+`,
+			cgroup:  "/",
+			version: cgroup.V1,
+			want:    "/sys/fs/cgroup/cpu",
+		},
+		{
+			name: "v2-nsfs",
+			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
+30 22 0:4 net:[4026532000] /run/netns/foo rw - nsfs nsfs rw
+25 21 0:22 / /sys/fs/cgroup rw,nosuid,nodev,noexec - cgroup2 cgroup2 rw
+`,
+			cgroup:  "/",
+			version: cgroup.V2,
+			want:    "/sys/fs/cgroup",
+		},
+		{
 			name: "mixed",
 			contents: `22 1 8:1 / / rw,relatime - ext4 /dev/root rw
 20 22 0:19 / /proc rw,nosuid,nodev,noexec - proc proc rw
