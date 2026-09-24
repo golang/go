@@ -1043,6 +1043,9 @@ func (x Mask8s) String() string
 // ToInt8s converts the mask to an Int8s vector.
 func (x Mask8s) ToInt8s() (to Int8s)
 
+// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+func (x Mask8s) TrailingZeros() int
+
 // All returns true when all positions in mask x are true.
 func (x Mask16s) All() bool
 

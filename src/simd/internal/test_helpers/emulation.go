@@ -131,6 +131,15 @@ func OnesCount[T integer](x T) T {
 	return T(bits.OnesCount64(uint64(x) & ((1 << size) - 1)))
 }
 
+func TrailingZeros[T integer](x T) T {
+	size := int(unsafe.Sizeof(x)) * 8
+	tz := bits.TrailingZeros64(uint64(x))
+	if tz > size {
+		tz = size
+	}
+	return T(tz)
+}
+
 type Vec[E number] interface {
 	Store(s []E)
 	Len() int

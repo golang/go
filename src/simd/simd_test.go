@@ -424,3 +424,35 @@ func TestMask32Range(t *testing.T) {
 func TestMask64Range(t *testing.T) {
 	test_helpers.TestMaskAllAny(t, simd.LoadUint64s)
 }
+
+func TestMaskTrailingZeros(t *testing.T) {
+	var zero simd.Uint8s
+	lanes := zero.Len()
+	vz := simd.LoadUint8s(make([]uint8, lanes))
+
+	if got := vz.NotEqual(vz).TrailingZeros(); got != lanes {
+		t.Errorf("all-zeros TrailingZeros(): want %d, got %d", lanes, got)
+	}
+	if got := vz.Equal(vz).TrailingZeros(); got != 0 {
+		t.Errorf("all-ones TrailingZeros(): want 0, got %d", got)
+	}
+
+	for i := range lanes {
+		// Single lane i set
+		s := make([]uint8, lanes)
+		s[i] = 1
+		m := simd.LoadUint8s(s).NotEqual(vz)
+		if got := m.TrailingZeros(); got != i {
+			t.Errorf("single lane %d TrailingZeros(): want %d, got %d", i, i, got)
+		}
+
+		// All lanes >= i set
+		for j := i; j < lanes; j++ {
+			s[j] = 1
+		}
+		m = simd.LoadUint8s(s).NotEqual(vz)
+		if got := m.TrailingZeros(); got != i {
+			t.Errorf("lanes >= %d TrailingZeros(): want %d, got %d", i, i, got)
+		}
+	}
+}

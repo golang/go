@@ -69,6 +69,9 @@
   ToInt32s: "ToInt32s converts the mask to an Int32s vector."
   ToInt64s: "ToInt64s converts the mask to an Int64s vector."
 
+  # Mask-to-scalar; but can also be defined for vectors....
+  TrailingZeros: "TrailingZeros returns the number of low-order false (zero) elements in mask x."
+
   CarrylessMultiplyEven: |-
     CarrylessMultiplyOdd computes the carryless
     // multiplications of selected even indexed elements of x and y.

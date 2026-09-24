@@ -6,6 +6,8 @@
 
 package archsimd
 
+import "math/bits"
+
 // 128-bit masks
 
 // All returns true when all positions in mask x are true.
@@ -262,4 +264,40 @@ func (x Mask64x8) Any() bool {
 // Emulated, CPU Feature AVX512
 func (x Mask64x8) None() bool {
 	return x.ToBits() == 0
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX
+func (m Mask8x16) TrailingZeros() int {
+	word := uint64(m.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 16 {
+		return 16
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX
+func (m Mask8x32) TrailingZeros() int {
+	word := uint64(m.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 32 {
+		return 32
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX
+func (m Mask8x64) TrailingZeros() int {
+	word := uint64(m.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 64 {
+		return 64
+	}
+	return lane
 }

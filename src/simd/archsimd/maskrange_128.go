@@ -6,6 +6,8 @@
 
 package archsimd
 
+import "math/bits"
+
 // All returns true when all positions in mask x are true.
 //
 // Emulated
@@ -124,4 +126,21 @@ func (x Mask64x2) None() bool {
 	a0 := word.GetElem(0)
 	b0 := word.GetElem(1)
 	return a0 == 0 && b0 == 0
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated
+func (m Mask8x16) TrailingZeros() int {
+	word := m.ToInt8x16().ToBits().ReshapeToUint64s()
+	a0 := word.GetElem(0)
+	a := a0 & 0x0101010101010101
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 3
+	}
+	a0 = word.GetElem(1)
+	a = a0 & 0x0101010101010101
+	lane = bits.TrailingZeros64(a)
+	return lane>>3 + 8
 }

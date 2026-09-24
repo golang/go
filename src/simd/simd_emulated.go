@@ -3395,3 +3395,17 @@ func (x Mask64s) Any() bool {
 func (x Mask64s) None() bool {
 	return x.a|x.b == 0
 }
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+func (m Mask8s) TrailingZeros() int {
+	a0 := m.a
+	a := a0 & 0x0101010101010101
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 3
+	}
+	a0 = m.b
+	a = a0 & 0x0101010101010101
+	lane = bits.TrailingZeros64(a)
+	return lane>>3 + 8
+}

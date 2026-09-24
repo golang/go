@@ -2726,6 +2726,14 @@ func (x Mask8x16nclm) ToInt8s() Int8x16nclm {
 	return Int8x16nclm((archsimd.Mask8x16(x)).ToInt8x16())
 }
 
+func (x Mask8x16) TrailingZeros() int {
+	return (archsimd.Mask8x16(x)).TrailingZeros()
+}
+
+func (x Mask8x16nclm) TrailingZeros() int {
+	return (archsimd.Mask8x16(x)).TrailingZeros()
+}
+
 func (x Mask16x8) All() bool {
 	return (archsimd.Mask16x8(x)).All()
 }
