@@ -31,19 +31,9 @@ func FromPProf(r io.Reader) (*Profile, error) {
 		return emptyProfile(), nil
 	}
 
-	valueIndex := -1
-	for i, s := range p.SampleType {
-		// Samples count is the raw data collected, and CPU nanoseconds is just
-		// a scaled version of it, so either one we can find is fine.
-		if (s.Type == "samples" && s.Unit == "count") ||
-			(s.Type == "cpu" && s.Unit == "nanoseconds") {
-			valueIndex = i
-			break
-		}
-	}
-
-	if valueIndex == -1 {
-		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
+	valueIndex, err := sampleValueIndex(p)
+	if err != nil {
+		return nil, err
 	}
 
 	g := profile.NewGraph(p, &profile.Options{
@@ -69,6 +59,46 @@ func FromPProf(r io.Reader) (*Profile, error) {
 		TotalWeight:  totalWeight,
 		NamedEdgeMap: namedEdgeMap,
 	}, nil
+}
+
+// sampleValueIndex returns the index of the sample value to use as the PGO
+// weight. Non-Go CPU profiles (e.g., from Linux perf) use arbitrary sample
+// types, so we accept the default sample type unless it indicates a Go
+// non-CPU profile (heap, mutex, block, or goroutine) passed by mistake.
+func sampleValueIndex(p *profile.Profile) (int, error) {
+	if len(p.SampleType) == 0 {
+		return 0, fmt.Errorf("profile has no sample types")
+	}
+
+	// Prefer runtime/pprof's CPU profile sample types.
+	for i, s := range p.SampleType {
+		if (s.Type == "samples" && s.Unit == "count") ||
+			(s.Type == "cpu" && s.Unit == "nanoseconds") {
+			return i, nil
+		}
+	}
+
+	// Use the default sample type, or the last sample type if there is no
+	// default, as pprof does.
+	index := len(p.SampleType) - 1
+	if d := p.DefaultSampleType; d != "" {
+		for i, s := range p.SampleType {
+			if s.Type == d {
+				index = i
+				break
+			}
+		}
+	}
+
+	switch t := p.SampleType[index].Type; t {
+	case "alloc_objects", "alloc_space", "inuse_objects", "inuse_space":
+		return 0, fmt.Errorf("profile must be a CPU profile (default sample type %q indicates that this is a Go heap profile)", t)
+	case "contentions", "delay":
+		return 0, fmt.Errorf("profile must be a CPU profile (default sample type %q indicates that this is a Go mutex or block profile)", t)
+	case "goroutine":
+		return 0, fmt.Errorf("profile must be a CPU profile (default sample type %q indicates that this is a Go goroutine profile)", t)
+	}
+	return index, nil
 }
 
 // createNamedEdgeMap builds a map of callsite-callee edge weights from the
