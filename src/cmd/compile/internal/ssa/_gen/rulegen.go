@@ -240,7 +240,7 @@ func genRulesSuffix(arch arch, suff string) {
 		}
 		fn.add(declReserved("b", "v.Block"))
 		fn.add(declReserved("config", "b.Func.Config"))
-		fn.add(declReserved("fe", "b.Func."+splitTitle("fe")))
+		fn.add(declReserved("fe", "b.Func."+simpleTitle("fe")))
 		fn.add(declReserved("typ", "&b.Func.Config.Types"))
 		for _, rule := range rules {
 			if rr != nil && !rr.CanFail {
@@ -611,12 +611,9 @@ func fprint(w io.Writer, n Node) {
 		fmt.Fprintf(w, "// Code generated from _gen/%s%s.rules using 'go generate'; DO NOT EDIT.\n", n.Arch.name, n.Suffix)
 		fmt.Fprintf(w, "\npackage %s\n", rewritesPkg(n.Arch.name, n.Suffix))
 		additionalImports := slices.Clip(n.Arch.imports)
-		if splitPhase >= phase1Op {
-			additionalImports = append(additionalImports, "cmd/compile/internal/ssa/ssaop")
-		}
-		if splitPhase >= phase2Core {
-			additionalImports = append(additionalImports, splitCorePath)
-		}
+		additionalImports = append(additionalImports, "cmd/compile/internal/ssa/ssaop")
+		additionalImports = append(additionalImports, splitCorePath)
+
 		allImports := append([]string{
 			"fmt",
 			"internal/buildcfg",
@@ -1011,9 +1008,9 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	case 0:
 		rr.add(stmtf("b.Reset(%s)", blockName))
 	case 1:
-		rr.add(stmtf("b.%s(%s, %s)", splitTitle("resetWithControl"), blockName, genControls[0]))
+		rr.add(stmtf("b.%s(%s, %s)", simpleTitle("resetWithControl"), blockName, genControls[0]))
 	case 2:
-		rr.add(stmtf("b.%s(%s, %s, %s)", splitTitle("resetWithControl2"), blockName, genControls[0], genControls[1]))
+		rr.add(stmtf("b.%s(%s, %s, %s)", simpleTitle("resetWithControl2"), blockName, genControls[0], genControls[1]))
 	default:
 		log.Fatalf("too many controls: %d", outdata.controls)
 	}
@@ -1040,7 +1037,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		if succs[0] != newsuccs[1] || succs[1] != newsuccs[0] {
 			log.Fatalf("can only handle swapped successors in %s", rule)
 		}
-		rr.add(stmtf("b.%s()", splitTitle("swapSuccessors")))
+		rr.add(stmtf("b.%s()", simpleTitle("swapSuccessors")))
 	}
 
 	if *genLog {
@@ -1050,11 +1047,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 }
 
 func convFunc(name string) string {
-	var prefix string
-	if splitPhase >= phase5Conv || name == "boolToAuxInt" {
-		prefix = splitCorePrefix
-	}
-	return prefix + splitTitle(name)
+	return splitCorePrefix + simpleTitle(name)
 }
 
 // genMatch returns the variable whose source position should be used for the
@@ -1234,7 +1227,7 @@ func genResult(rr *RuleRewrite, arch arch, result, pos string) {
 	}
 	if result[0] == '{' {
 		// Arbitrary code used to make the result
-		rr.add(stmtf("v.%s(%s)", splitTitle("copyOf"), result[1:len(result)-1]))
+		rr.add(stmtf("v.%s(%s)", simpleTitle("copyOf"), result[1:len(result)-1]))
 		return
 	}
 	cse := make(map[string]string)
@@ -1252,7 +1245,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 			// It in not safe in general to move a variable between blocks
 			// (and particularly not a phi node).
 			// Introduce a copy.
-			rr.add(stmtf("v.%s(%s)", splitTitle("copyOf"), result))
+			rr.add(stmtf("v.%s(%s)", simpleTitle("copyOf"), result))
 		}
 		return result
 	}
@@ -1272,7 +1265,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 
 	v := "v"
 	if top && !move {
-		rr.add(stmtf("v.%s(%sOp%s%s)", splitTitle("reset"), splitOpPrefix, oparch, op.name))
+		rr.add(stmtf("v.%s(%sOp%s%s)", simpleTitle("reset"), splitOpPrefix, oparch, op.name))
 		if typeOverride {
 			rr.add(stmtf("v.Type = %s", typ))
 		}
@@ -1289,7 +1282,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		rr.add(declf(rr.Loc, v, "b.NewValue0(%s, %sOp%s%s, %s)", pos, splitOpPrefix, oparch, op.name, typ))
 		if move && top {
 			// Rewrite original into a copy
-			rr.add(stmtf("v.%s(%s)", splitTitle("copyOf"), v))
+			rr.add(stmtf("v.%s(%s)", simpleTitle("copyOf"), v))
 		}
 	}
 
