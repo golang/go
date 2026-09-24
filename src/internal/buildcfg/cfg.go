@@ -341,10 +341,14 @@ type gowasmFeatures struct {
 	// Legacy features, now always enabled
 	//SatConv bool
 	//SignExt bool
+	StackSwitch bool
 }
 
 func (f gowasmFeatures) String() string {
 	var flags []string
+	if f.StackSwitch {
+		flags = append(flags, "stackswitch")
+	}
 	return strings.Join(flags, ",")
 }
 
@@ -355,6 +359,8 @@ func gowasm() (f gowasmFeatures) {
 			// ignore, always enabled
 		case "signext":
 			// ignore, always enabled
+		case "stackswitch":
+			f.StackSwitch = true
 		case "":
 			// ignore
 		default:
@@ -468,6 +474,9 @@ func gogoarchTags() []string {
 		list = append(list, GOARCH+".satconv")
 		// SignExt is always enabled
 		list = append(list, GOARCH+".signext")
+		if GOWASM.StackSwitch {
+			list = append(list, GOARCH+".stackswitch")
+		}
 		return list
 	}
 	return nil

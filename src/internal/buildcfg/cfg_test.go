@@ -76,6 +76,15 @@ func TestConfigFlags(t *testing.T) {
 	if goarm64().Version != "v9.0" || goarm64().LSE != true || goarm64().Crypto != false {
 		t.Errorf("Wrong parsing of GOARM64=v9.0")
 	}
+	os.Setenv("GOWASM", "stackswitch")
+	if !gowasm().StackSwitch {
+		t.Errorf("Wrong parsing of GOWASM=stackswitch")
+	}
+	Error = nil
+	os.Setenv("GOWASM", "invalid")
+	if _ = gowasm(); Error == nil {
+		t.Errorf("Wrong parsing of GOWASM=invalid")
+	}
 }
 
 func TestGoarm64FeaturesSupports(t *testing.T) {
