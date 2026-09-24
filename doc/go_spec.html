@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.28 (October 6, 2026)",
+	"Subtitle": "Language version go1.28 (October 7, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -1971,21 +1971,31 @@ A value <code>x</code> of type <code>V</code> is <i>assignable</i> to a <a href=
 <li>
 <code>V</code> and <code>T</code> are identical.
 </li>
+
 <li>
 <code>V</code> and <code>T</code> have identical
 <a href="#Underlying_types">underlying types</a>
 but are not type parameters and at least one of <code>V</code>
 or <code>T</code> is not a <a href="#Types">named type</a>.
 </li>
+
 <li>
 <code>V</code> and <code>T</code> are channel types with
 identical element types, <code>V</code> is a bidirectional channel,
 and at least one of <code>V</code> or <code>T</code> is not a <a href="#Types">named type</a>.
 </li>
+
 <li>
 <code>T</code> is an interface type, but not a type parameter, and
 <code>x</code> <a href="#Implementing_an_interface">implements</a> <code>T</code>.
 </li>
+
+<li>
+<code>x</code> is a literal value of the form <code>{ … }</code> of a
+<a href="#Composite_literals">composite literal</a> and <code>T x</code> is a
+valid composite literal of type <code>T</code>.
+</li>
+
 <li>
 <code>x</code> is a (possibly partially instantiated) generic function, <code>T</code>
 is a function type, and any type arguments not provided explicitly for <code>x</code>
@@ -1993,11 +2003,13 @@ can be <a href="#Type_inference">inferred</a> such that (after full instantiatio
 <code>x</code> and <code>T</code> have identical underlying types
 [<a href="#Go_1.27">Go 1.27</a>].
 </li>
+
 <li>
 <code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code>
 is a pointer, function, slice, map, channel, or interface type,
 but not a type parameter.
 </li>
+
 <li>
 <code>x</code> is an untyped <a href="#Constants">constant</a>
 <a href="#Representability">representable</a>
@@ -3174,21 +3186,19 @@ math.Sin // denotes the Sin function in package math
 <p>
 Composite literals construct new values for structs, arrays, slices, and maps
 each time they are evaluated.
-They consist of the type of the literal followed by a (possibly empty)
-brace-bound list of elements.
+They consist of the (<a href="#Omitting_composite_literal_types">optional</a>)
+type of the literal followed by a (possibly empty) brace-bound list of elements.
 Each element may optionally be preceded by a corresponding key.
 </p>
 
 <pre class="ebnf">
-CompositeLit = LiteralType LiteralValue .
+CompositeLit = [ LiteralType ] LiteralValue .
 LiteralType  = StructType | ArrayType | "[" "..." "]" ElementType |
                SliceType | MapType | TypeName [ TypeArgs ] .
 LiteralValue = "{" [ ElementList [ "," ] ] "}" .
-ElementList  = KeyedElement { "," KeyedElement } .
-KeyedElement = [ Key ":" ] Element .
-Key          = FieldName | Expression | LiteralValue .
-FieldName    = identifier .
-Element      = Expression | LiteralValue .
+ElementList  = [ Key ":" ] Element { "," [ Key ":" ] Element } .
+Key          = Expression .
+Value        = Expression .
 </pre>
 
 <p>
@@ -3226,8 +3236,8 @@ the composite literal must appear within parentheses.
 </p>
 
 <pre>
-if x == (T{a,b,c}[i]) { … }
-if (x == T{a,b,c}[i]) { … }
+if x == (T{a, b, c}[i]) { … }
+if (x == T{a, b, c}[i]) { … }
 </pre>
 
 <h4>Struct literals</h4>
@@ -3241,7 +3251,8 @@ for each struct field in the order in which the fields are declared.
 For struct literals with keys the following rules apply:
 </p>
 <ul>
-	<li>Every element must have a key.
+	<li>Every element must have a key and the keys must be
+	    <a href="#Uniqueness_of_identifiers">unique</a>.
 	</li>
 	<li>Each key must be a valid field <a href="#Selectors">selector</a>
 	    [<a href="#Go_1.27">Go 1.27</a>] for a (possibly promoted) field
@@ -3251,7 +3262,7 @@ For struct literals with keys the following rules apply:
 	    to reach a selected field must not be pointer types.
 	</li>
 	<li>A key must not denote a promoted field inside an embedded struct if
-	    that struct is also specified by another key.
+	    that struct is also specified by another key [<a href="#Go_1.27">Go 1.27</a>].
 	</li>
 	<li>The element list does not need to have an element for each struct field.
 	    Omitted fields get the zero value for that field.
@@ -3272,9 +3283,9 @@ one may write
 </p>
 
 <pre>
-origin := Point3D{}                                       // zero value for Point3D
-line1 := Line{Object{}, origin, Point3D{y: -4, z: 12.3}}  // zero value for line1.q.x
-line2 := Line{name: "diagonal", q: Point3D{1, 1, 1}}      // zero value for line2.Object.color, line2.p
+origin := Point3D{}                                        // zero value for Point3D
+line1  := Line{Object{}, origin, Point3D{y: -4, z: 12.3}}  // zero value for line1.q.x
+line2  := Line{name: "diagonal", q: Point3D{1, 1, 1}}      // zero value for line2.Object.color, line2.p
 </pre>
 
 <p>
@@ -3283,7 +3294,7 @@ but field selectors may not denote overlapping fields:
 
 <pre>
 obj   := Object{"edge", "black"}
-line3 := Line{Object: obj, name: "diagonal"}              // invalid: name denotes a field inside Object
+line3 := Line{Object: obj, name: "diagonal"}  // invalid: name denotes a field inside Object
 </pre>
 
 <h4>Array and slice literals</h4>
@@ -3305,29 +3316,6 @@ For array and slice literals the following rules apply:
 	    If the first element has no key, its index is zero.
 	</li>
 </ul>
-
-<p>
-<a href="#Address_operators">Taking the address</a> of a composite literal
-generates a pointer to a unique <a href="#Variables">variable</a> initialized
-with the literal's value.
-</p>
-
-<pre>
-var pointer *Point3D = &amp;Point3D{y: 1000}
-</pre>
-
-<p>
-Note that the <a href="#The_zero_value">zero value</a> for a slice or map
-type is not the same as an initialized but empty value of the same type.
-Consequently, taking the address of an empty slice or map composite literal
-does not have the same effect as allocating a new slice or map value with
-<a href="#Allocation">new</a>.
-</p>
-
-<pre>
-p1 := &amp;[]int{}    // p1 points to an initialized, empty slice with value []int{} and length 0
-p2 := new([]int)  // p2 points to an uninitialized slice with value nil and length 0
-</pre>
 
 <p>
 The length of an array literal is the length specified in the literal type.
@@ -3363,38 +3351,8 @@ tmp := [n]T{x1, x2, … xn}
 tmp[0 : n]
 </pre>
 
-<h4>Map literals</h4>
-
 <p>
-For map literals, each element must have a key.
-For non-constant map keys, see the section on
-<a href="#Order_of_evaluation">evaluation order</a>.
-</p>
-
-<h4>Elision of element types</h4>
-
-<p>
-Within a composite literal of array, slice, or map type <code>T</code>,
-elements or map keys that are themselves composite literals may elide the respective
-literal type if it is identical to the element or key type of <code>T</code>.
-Similarly, elements or keys that are addresses of composite literals may elide
-the <code>&amp;T</code> when the element or key type is <code>*T</code>.
-</p>
-
-<pre>
-[...]Point{{1.5, -3.5}, {0, 0}}     // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
-[][]int{{1, 2, 3}, {4, 5}}          // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
-[][]Point{{{0, 1}, {1, 2}}}         // same as [][]Point{[]Point{Point{0, 1}, Point{1, 2}}}
-map[string]Point{"orig": {0, 0}}    // same as map[string]Point{"orig": Point{0, 0}}
-map[Point]string{{0, 0}: "orig"}    // same as map[Point]string{Point{0, 0}: "orig"}
-
-type PPoint *Point
-[2]*Point{{1.5, -3.5}, {}}          // same as [2]*Point{&amp;Point{1.5, -3.5}, &amp;Point{}}
-[2]PPoint{{1.5, -3.5}, {}}          // same as [2]PPoint{PPoint(&amp;Point{1.5, -3.5}), PPoint(&amp;Point{})}
-</pre>
-
-<p>
-Examples of valid array, slice, and map literals:
+Examples of array and slice literals:
 </p>
 
 <pre>
@@ -3406,12 +3364,97 @@ vowels := [128]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': 
 
 // the array [10]float32{-1, 0, 0, 0, -0.1, -0.1, 0, 0, 0, -1}
 filter := [10]float32{-1, 4: -0.1, -0.1, 9: -1}
+</pre>
 
+<h4>Map literals</h4>
+
+<p>
+For map literals, each element must have a key.
+For non-constant map keys, see the section on
+<a href="#Order_of_evaluation">evaluation order</a>.
+</p>
+
+<pre>
 // frequencies in Hz for equal-tempered scale (A4 = 440Hz)
 noteFrequency := map[string]float32{
 	"C0": 16.35, "D0": 18.35, "E0": 20.60, "F0": 21.83,
 	"G0": 24.50, "A0": 27.50, "B0": 30.87,
 }
+</pre>
+
+<h4 id="Address_of_composite_literals">Address of composite literals</h4>
+
+<p>
+<a href="#Address_operators">Taking the address</a> of a composite literal
+generates a pointer to a unique <a href="#Variables">variable</a> initialized
+with the literal's value.
+</p>
+
+<pre>
+var ptr *T = &amp;T{a, b, c}  // *ptr is a variable of type T initialized with T{a, b, c}
+</pre>
+
+<p>
+Note that the <a href="#The_zero_value">zero value</a> for a slice or map
+type is not the same as an initialized but empty value of the same type.
+Consequently, taking the address of an empty slice or map composite literal
+does not have the same effect as allocating a new slice or map value with
+<a href="#Allocation">new</a> taking a <i>type</i> argument:
+</p>
+
+<pre>
+p1 := &amp;[]int{}      // p1 points to an initialized, empty slice with value []int{} and length 0
+p2 := new([]int)    // p2 points to an uninitialized slice with value nil and length 0
+</pre>
+
+<p>
+However, calling <code>new</code> with a composite literal <i>value</i> (rather than its type)
+as argument [<a href="#Go_1.26">Go 1.26</a>] is equivalent to taking the address of that composite literal:
+</p>
+
+<pre>
+p3 := new([]int{})  // equivalent to &amp;[]int{}
+</pre>
+
+<h4 id="Omitting_composite_literal_types">Omitting composite literal types</h4>
+
+<p>
+The LiteralType of a composite literal may be omitted if the type can be
+<a href="#Assignability">inferred</a> from context [<a href="#Go_1.28">Go 1.28</a>].
+</p>
+
+<pre>
+var p Point
+var plist []Point
+p = {1, 2}                           // same as p = Point{1, 2}
+plist = {p, {3, 4}}                  // same as plist = []Point{p, Point{3, 4}}
+
+[...]Point{{1.5, -3.5}, {0, 0}}      // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
+[][]int{{1, 2, 3}, {4, 5}}           // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
+[][]Point{{{0, 1}, p}}               // same as [][]Point{[]Point{Point{0, 1}, p}}
+map[string]Point{"orig": {0, 0}}     // same as map[string]Point{"orig": Point{0, 0}}
+map[Point]string{{0, 0}: "orig"}     // same as map[Point]string{Point{0, 0}: "orig"}
+
+type Triangle struct{a, b, c Point}
+Triangle{{}, {0, 2}, {1, 1}}         // same as Triangle{Point{0, 0}, Point{0, 2}, Point{1, 1}}
+
+q := {1, 2}                          // illegal: context provides no type since q has no type
+var r Point = ({1, 2}) 	             // illegal: Point({1, 2}) is not a valid composite literal
+</pre>
+
+<p>
+Analogously, if the context expects a pointer type, both the <a href="#Address_operators">address operator</a>
+and the LiteralType of a composite literal may be omitted.
+</p>
+
+<pre>
+var pp *Point
+pp = {1, 2}                 // same as pp = &Point{1, 2}
+pp = &{}                    // illegal: address operator requires a typed composite literal
+
+type PPoint *Point
+[2]*Point{{1.5, -3.5}, {}}  // same as [2]*Point{&amp;Point{1.5, -3.5}, &amp;Point{}}
+[2]PPoint{{1.5, -3.5}, {}}  // same as [2]PPoint{PPoint(&amp;Point{1.5, -3.5}), PPoint(&amp;Point{})}
 </pre>
 
 <h3 id="Function_literals">Function literals</h3>
@@ -5316,8 +5359,7 @@ that is, either a variable, pointer indirection, or slice indexing
 operation; or a field selector of an addressable struct operand;
 or an array indexing operation of an addressable array.
 As an exception to the addressability requirement, <code>x</code> may also be a
-(possibly parenthesized)
-<a href="#Composite_literals">composite literal</a>.
+(possibly parenthesized) typed <a href="#Address_of_composite_literals">composite literal</a>.
 If the evaluation of <code>x</code> would cause a <a href="#Run_time_panics">run-time panic</a>,
 then the evaluation of <code>&amp;x</code> does too.
 </p>
@@ -8879,10 +8921,16 @@ not just a (top-level) field name of the struct.
 <h4 id="Go_1.28">Go 1.28</h4>
 <ul>
 <li>
+The type of a <a href="#Composite_literals">composite literal</a> may be omitted
+if the type can be inferred from <a href="#Assignability">assignment context</a>.
+The requirement that the composite literal be an element or a map key within a
+composite literal of array, slice, or map type has been removed.
+</li>
+<li>
 An integer value may be <a href="#Conversions_to_and_from_a_string_type">converted</a>
 to a string type only if the value's underlying type is <code>byte</code> or <code>rune</code>,
 or if it is an untyped rune constant.
-Prior to [<a href="#Go_1.28">Go 1.28</a>], any integer value could be converted to a string type.
+The ability to convert any integer value to a string type has been removed.
 </li>
 </ul>
 
