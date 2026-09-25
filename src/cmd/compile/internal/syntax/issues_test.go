@@ -49,3 +49,19 @@ func TestIssue67866(t *testing.T) {
 		})
 	}
 }
+
+func TestIssue81632(t *testing.T) {
+	// A NUL byte in the source must be reported no matter where it appears,
+	// including as the first byte read after the scanner's buffer is refilled
+	// while scanning a long literal (in which case the ASCII fast path in
+	// (*source).nextch does not see it).
+	for _, n := range []int{0, 1, 100, 4075, 8190, 16382, 100000} {
+		src := "package p\n\nvar s = \"" + strings.Repeat("a", n) + "\x00\"\n"
+		_, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
+		if err == nil {
+			t.Errorf("NUL after %d bytes: no error reported", n)
+		} else if !strings.Contains(err.Error(), "invalid NUL character") {
+			t.Errorf("NUL after %d bytes: got %v, want invalid NUL character", n, err)
+		}
+	}
+}
