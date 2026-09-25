@@ -439,6 +439,24 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 		r.Sync(pkgbits.SyncEOF)
 	}
 
+	if base.Debug.RetDevirt != 0 {
+		// Return-value devirtualization records reference concrete
+		// types that are often unexported, and the loop above only
+		// indexes the public root's objects. Index every object in
+		// the data, so that the linker can re-export the rest when a
+		// record in this compilation's own output refers to one.
+		for idx, n := index(0), index(pr.NumElems(pkgbits.SectionObj)); idx < n; idx++ {
+			path, name, code := pr.PeekObj(idx)
+			if code == pkgbits.ObjStub {
+				continue
+			}
+			sym := types.NewPkg(path, "").Lookup(name)
+			if _, ok := objReader[sym]; !ok {
+				objReader[sym] = pkgReaderIndex{pr, idx, nil, nil, nil}
+			}
+		}
+	}
+
 	if !localStub {
 		r := pr.newReader(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 
