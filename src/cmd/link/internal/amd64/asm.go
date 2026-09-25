@@ -291,7 +291,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.R_PCREL:
-		if targType == sym.SDYNIMPORT && ldr.SymType(s).IsText() && target.IsDarwin() {
+		if targType == sym.SDYNIMPORT && ldr.SymType(s).IsText() && (target.IsDarwin() || target.IsElf()) {
 			// Loading the address of a dynamic symbol. Rewrite to use GOT.
 			// turn LEAQ symbol address to MOVQ of GOT entry
 			if r.Add() != 0 {
@@ -303,7 +303,11 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 				su.MakeWritable()
 				su.Data()[r.Off()-2] = 0x8b
 				if target.IsInternal() {
-					ld.AddGotSym(target, ldr, syms, targ, 0)
+					var elfRelocTyp uint32
+					if target.IsElf() {
+						elfRelocTyp = uint32(elf.R_X86_64_GLOB_DAT)
+					}
+					ld.AddGotSym(target, ldr, syms, targ, elfRelocTyp)
 					su.SetRelocSym(rIdx, syms.GOT)
 					su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
 				} else {
@@ -377,12 +381,27 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// linking, in which case the relocation will be
 			// prepared in the 'reloc' phase and passed to the
 			// external linker in the 'asmb' phase.
-			if t := ldr.SymType(s); !t.IsDATA() && !t.IsRODATA() {
+			if t := ldr.SymType(s); !t.IsDATA() && !t.IsNOPTRDATA() && !t.IsRODATA() {
 				break
 			}
 		}
 
 		if target.IsElf() {
+			rela := ldr.MakeSymbolUpdater(syms.Rela)
+			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
+			if r.Siz() != 8 {
+				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+			}
+
+			if targType == sym.SDYNIMPORT {
+				ld.Adddynsym(ldr, target, syms, targ)
+				rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_X86_64_64)))
+				rela.AddUint64(target.Arch, uint64(r.Add()))
+				su := ldr.MakeSymbolUpdater(s)
+				su.SetRelocType(rIdx, objabi.ElfRelocOffset)
+				return true
+			}
+
 			// Generate R_X86_64_RELATIVE relocations for best
 			// efficiency in the dynamic linker.
 			//
@@ -400,13 +419,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// AddAddrPlus is used for r_offset and r_addend to
 			// generate new R_ADDR relocations that will update
 			// these fields in the 'reloc' phase.
-			rela := ldr.MakeSymbolUpdater(syms.Rela)
-			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
-			if r.Siz() == 8 {
-				rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
-			} else {
-				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
-			}
+			rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
 			rela.AddAddrPlus(target.Arch, targ, r.Add())
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset

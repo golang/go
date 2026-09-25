@@ -5,11 +5,13 @@
 package ld
 
 import (
+	"debug/elf"
 	"internal/testenv"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"testing"
 
 	"cmd/internal/bio"
@@ -269,6 +271,79 @@ func TestPEImportedDLLsValidation(t *testing.T) {
 	for _, arg := range dlls {
 		if arg == "-l../../../../../../tmp/evil" {
 			t.Errorf("peimporteddlls emitted unsafe -l path traversal flag: %q", arg)
+		}
+	}
+}
+
+func TestLinuxInternalLinkSDYNIMPORT(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	const baseSrc = `package main
+
+import "unsafe"
+
+//go:cgo_import_dynamic dynPuts puts "libc.so.6"
+//go:linkname dynPuts dynPuts
+var dynPuts [2]uintptr
+
+var dataPtr = &dynPuts[0]
+var dataOff = &dynPuts[1]
+var noptrAddr = uintptr(unsafe.Pointer(&dynPuts))
+
+func main() {
+	if *dataPtr == 0 && *dataOff == 0 && noptrAddr == 0 {
+		println("unreachable")
+	}
+	checkText()
+}
+`
+	const textDirect = `package main
+import "unsafe"
+func checkText() {
+	if uintptr(unsafe.Pointer(&dynPuts)) == 0 {
+		println("unreachable")
+	}
+}
+`
+
+	arches := []string{"amd64", "arm64"}
+	modes := []string{"exe", "pie"}
+	for _, goarch := range arches {
+		for _, mode := range modes {
+			t.Run(goarch+"_"+mode, func(t *testing.T) {
+				t.Parallel()
+				dir := t.TempDir()
+				if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(baseSrc), 0644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "text.go"), []byte(textDirect), 0644); err != nil {
+					t.Fatal(err)
+				}
+				exe := filepath.Join(dir, "dyn.exe")
+				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-linkmode=internal", "-o", exe, filepath.Join(dir, "main.go"), filepath.Join(dir, "text.go"))
+				cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux", "GOARCH="+goarch)
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("build failed on linux/%s (%s): %v\n%s", goarch, mode, err, out)
+				}
+
+				ef, err := elf.Open(exe)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer ef.Close()
+
+				libs, err := ef.ImportedLibraries()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Contains(libs, "libc.so.6") {
+					t.Errorf("DT_NEEDED = %v, want libc.so.6", libs)
+				}
+				if textrel, err := ef.DynValue(elf.DT_TEXTREL); err == nil && len(textrel) != 0 {
+					t.Errorf("unexpected DT_TEXTREL in linux/%s (%s) binary", goarch, mode)
+				}
+			})
 		}
 	}
 }
