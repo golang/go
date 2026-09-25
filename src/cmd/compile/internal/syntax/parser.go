@@ -1003,10 +1003,10 @@ func (p *parser) callStmt() *CallStmt {
 	return s
 }
 
-// Operand     = Literal | OperandName | MethodExpr | "(" Expression ")" .
-// Literal     = BasicLit | [ TypeName ] CompositeLit | FunctionLit .
+// Operand     = Literal | OperandName [ TypeArgs ] | "(" Expression ")" .
+// Literal     = BasicLit | CompositeLit | FunctionLit .
 // BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
-// OperandName = identifier | QualifiedIdent.
+// OperandName = identifier | QualifiedIdent .
 func (p *parser) operand(keep_parens bool) Expr {
 	if trace {
 		defer p.trace("operand " + p.tok.String())()
@@ -1020,7 +1020,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		return p.oliteral()
 
 	case _Lbrace:
-		return p.compositeLit()
+		return p.literalVal()
 
 	case _Lparen:
 		pos := p.pos()
@@ -1246,7 +1246,7 @@ loop:
 				p.syntaxError("cannot parenthesize type in composite literal")
 				// already progressed, no need to advance
 			}
-			n := p.compositeLit()
+			n := p.literalVal()
 			n.Type = x
 			x = n
 
@@ -1274,7 +1274,8 @@ func isValue(x Expr) bool {
 }
 
 // LiteralValue = "{" [ ElementList [ "," ] ] "}" .
-func (p *parser) compositeLit() *CompositeLit {
+// ElementList  = [ Expression ":" ] Expression { "," [ Expression ":" ] Expression } .
+func (p *parser) literalVal() *CompositeLit {
 	if trace {
 		defer p.trace("compositeLit")()
 	}
