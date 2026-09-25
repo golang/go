@@ -4145,10 +4145,11 @@ func actualFiles(files []string) []string {
 // certain programs, long arguments are passed in "response files", a
 // file on disk with the arguments, with one arg per line. An actual
 // argument starting with '@' means that the rest of the argument is
-// a filename of arguments to expand.
+// a filename of arguments to expand. toolIndex is the index of the
+// underlying Go tool in cmd.Args, after any -toolexec wrapper arguments.
 //
-// See issues 18468 (Windows) and 37768 (Darwin).
-func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
+// See issues 18468 (Windows), 37768 (Darwin), and 70046 (-toolexec).
+func passLongArgsInResponseFiles(cmd *exec.Cmd, toolIndex int) (cleanup func()) {
 	cleanup = func() {} // no cleanup by default
 
 	var argLen int
@@ -4156,9 +4157,13 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 		argLen += len(arg)
 	}
 
-	// If we're not approaching 32KB of args, just pass args normally.
-	// (use 30KB instead to be conservative; not sure how accounting is done)
-	if !useResponseFile(cmd.Path, argLen) {
+	// Wrappers need to interpret response files themselves. Only pass one
+	// when the command would otherwise be too long, not during the builder's
+	// random response-file testing of Go tools.
+	if toolIndex > 0 && argLen <= sys.ExecArgLengthLimit {
+		return
+	}
+	if !useResponseFile(cmd.Args[toolIndex], argLen) {
 		return
 	}
 
@@ -4168,7 +4173,7 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	}
 	cleanup = func() { os.Remove(tf.Name()) }
 	var buf bytes.Buffer
-	for _, arg := range cmd.Args[1:] {
+	for _, arg := range cmd.Args[toolIndex+1:] {
 		fmt.Fprintf(&buf, "%s\n", encodeArg(arg))
 	}
 	if _, err := tf.Write(buf.Bytes()); err != nil {
@@ -4180,7 +4185,7 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 		cleanup()
 		log.Fatalf("error writing long arguments to response file: %v", err)
 	}
-	cmd.Args = []string{cmd.Args[0], "@" + tf.Name()}
+	cmd.Args = append(append([]string(nil), cmd.Args[:toolIndex+1]...), "@"+tf.Name())
 	return cleanup
 }
 
