@@ -1968,5 +1968,10 @@
 (Mask32sAll m) => (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask32sAllTrue <types.TypeMask>) t m)))
 (Mask64sAll m) => (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask64sAllTrue <types.TypeMask>) t m)))
 
+(Mask8sNone m) => (Equal (PPTEST (Mask8sAllTrue <types.TypeMask>) m))
+(Mask16sNone m) => (Equal (PPTEST (Mask16sAllTrue <types.TypeMask>) m))
+(Mask32sNone m) => (Equal (PPTEST (Mask32sAllTrue <types.TypeMask>) m))
+(Mask64sNone m) => (Equal (PPTEST (Mask64sAllTrue <types.TypeMask>) m))
+
 (LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
 (StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)

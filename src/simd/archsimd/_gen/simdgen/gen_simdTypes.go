@@ -350,6 +350,11 @@ func (m {{.Name}}) Next() {{.Name}}
 //
 // Asm: BICS (predicate), CPU Feature: SVE
 func (m {{.Name}}) All() bool
+
+// None reports whether no lane of m is active.
+//
+// Asm: PTEST, CPU Feature: SVE
+func (m {{.Name}}) None() bool
 {{end}}
 
 {{define "sveIfElseTmpl"}}

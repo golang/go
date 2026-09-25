@@ -4727,6 +4727,7 @@ const (
 	OpARM64PPNEXTS
 	OpARM64PPNEXTD
 	OpARM64PBICSB
+	OpARM64PPTEST
 	OpARM64ZDUPBconst
 	OpARM64ZDUPHconst
 	OpARM64ZDUPSconst
@@ -7297,6 +7298,10 @@ const (
 	OpMask16sAll
 	OpMask32sAll
 	OpMask64sAll
+	OpMask8sNone
+	OpMask16sNone
+	OpMask32sNone
+	OpMask64sNone
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
 	OpAESDecryptLastRoundUint8x64
@@ -81713,6 +81718,17 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "PPTEST",
+		ArgLen: 2,
+		asm:    arm64.APPTEST,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+		},
+	},
+	{
 		Name:    "ZDUPBconst",
 		AuxType: AuxTypeInt8,
 		ArgLen:  0,
@@ -114782,6 +114798,26 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "Mask64sAll",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask8sNone",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask16sNone",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask32sNone",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask64sNone",
 		ArgLen:  1,
 		Generic: true,
 	},

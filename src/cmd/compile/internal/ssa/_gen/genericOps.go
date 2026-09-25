@@ -813,6 +813,12 @@ var genericOps = []opData{
 	{name: "Mask16sAll", argLength: 1},
 	{name: "Mask32sAll", argLength: 1},
 	{name: "Mask64sAll", argLength: 1},
+
+	// None reports whether no lane of arg0 is active.
+	{name: "Mask8sNone", argLength: 1},
+	{name: "Mask16sNone", argLength: 1},
+	{name: "Mask32sNone", argLength: 1},
+	{name: "Mask64sNone", argLength: 1},
 }
 
 //     kind          controls          successors   implicit exit
