@@ -794,6 +794,12 @@ var genericOps = []opData{
 	{name: "Mask16sAllTrue", argLength: 0},
 	{name: "Mask32sAllTrue", argLength: 0},
 	{name: "Mask64sAllTrue", argLength: 0},
+
+	// First returns a mask with only the first active lane of arg0 active.
+	{name: "Mask8sFirst", argLength: 1},
+	{name: "Mask16sFirst", argLength: 1},
+	{name: "Mask32sFirst", argLength: 1},
+	{name: "Mask64sFirst", argLength: 1},
 }
 
 //     kind          controls          successors   implicit exit

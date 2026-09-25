@@ -318,7 +318,11 @@ func simdARM64SVEIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFa
 	addF(simdPackage, "Uint64s.AsUint32s", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.ARM64)
 	addF(simdPackage, "Uint64s.ReshapeToUint32s", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.ARM64)
 	addF(simdPackage, "Mask8sAllTrue", opLen0(ssaop.OpMask8sAllTrue, types.TypeMask), sys.ARM64)
+	addF(simdPackage, "Mask8s.First", opLen1(ssaop.OpMask8sFirst, types.TypeMask), sys.ARM64)
 	addF(simdPackage, "Mask16sAllTrue", opLen0(ssaop.OpMask16sAllTrue, types.TypeMask), sys.ARM64)
+	addF(simdPackage, "Mask16s.First", opLen1(ssaop.OpMask16sFirst, types.TypeMask), sys.ARM64)
 	addF(simdPackage, "Mask32sAllTrue", opLen0(ssaop.OpMask32sAllTrue, types.TypeMask), sys.ARM64)
+	addF(simdPackage, "Mask32s.First", opLen1(ssaop.OpMask32sFirst, types.TypeMask), sys.ARM64)
 	addF(simdPackage, "Mask64sAllTrue", opLen0(ssaop.OpMask64sAllTrue, types.TypeMask), sys.ARM64)
+	addF(simdPackage, "Mask64s.First", opLen1(ssaop.OpMask64sFirst, types.TypeMask), sys.ARM64)
 }

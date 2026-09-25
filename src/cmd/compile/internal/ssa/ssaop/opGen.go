@@ -4722,6 +4722,10 @@ const (
 	OpARM64PLDRload
 	OpARM64PSTRstore
 	OpARM64PPFALSEB
+	OpARM64PPNEXTB
+	OpARM64PPNEXTH
+	OpARM64PPNEXTS
+	OpARM64PPNEXTD
 	OpARM64ZDUPBconst
 	OpARM64ZDUPHconst
 	OpARM64ZDUPSconst
@@ -7280,6 +7284,10 @@ const (
 	OpMask16sAllTrue
 	OpMask32sAllTrue
 	OpMask64sAllTrue
+	OpMask8sFirst
+	OpMask16sFirst
+	OpMask32sFirst
+	OpMask64sFirst
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
 	OpAESDecryptLastRoundUint8x64
@@ -81617,6 +81625,70 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "PPNEXTB",
+		ArgLen:       2,
+		ResultInArg0: true,
+		ClobberFlags: true,
+		asm:          arm64.APPNEXT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+		},
+	},
+	{
+		Name:         "PPNEXTH",
+		ArgLen:       2,
+		ResultInArg0: true,
+		ClobberFlags: true,
+		asm:          arm64.APPNEXT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+		},
+	},
+	{
+		Name:         "PPNEXTS",
+		ArgLen:       2,
+		ResultInArg0: true,
+		ClobberFlags: true,
+		asm:          arm64.APPNEXT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+		},
+	},
+	{
+		Name:         "PPNEXTD",
+		ArgLen:       2,
+		ResultInArg0: true,
+		ClobberFlags: true,
+		asm:          arm64.APPNEXT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+		},
+	},
+	{
 		Name:    "ZDUPBconst",
 		AuxType: AuxTypeInt8,
 		ArgLen:  0,
@@ -114627,6 +114699,26 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "Mask64sAllTrue",
 		ArgLen:  0,
+		Generic: true,
+	},
+	{
+		Name:    "Mask8sFirst",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask16sFirst",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask32sFirst",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask64sFirst",
+		ArgLen:  1,
 		Generic: true,
 	},
 	{

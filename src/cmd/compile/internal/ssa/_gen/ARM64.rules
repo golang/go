@@ -1950,5 +1950,12 @@
 (Mask32sAllTrue) => (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))
 (Mask64sAllTrue) => (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))
 
+// The first active lane is the one that follows the last active lane of an
+// all-false mask.
+(Mask8sFirst m) => (PPNEXTB (PPFALSEB) m)
+(Mask16sFirst m) => (PPNEXTH (PPFALSEB) m)
+(Mask32sFirst m) => (PPNEXTS (PPFALSEB) m)
+(Mask64sFirst m) => (PPNEXTD (PPFALSEB) m)
+
 (LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
 (StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)

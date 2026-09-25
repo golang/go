@@ -1772,12 +1772,20 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpMask16sAllTrue:
 		return rewriteValue_OpMask16sAllTrue(v)
+	case ssaop.OpMask16sFirst:
+		return rewriteValue_OpMask16sFirst(v)
 	case ssaop.OpMask32sAllTrue:
 		return rewriteValue_OpMask32sAllTrue(v)
+	case ssaop.OpMask32sFirst:
+		return rewriteValue_OpMask32sFirst(v)
 	case ssaop.OpMask64sAllTrue:
 		return rewriteValue_OpMask64sAllTrue(v)
+	case ssaop.OpMask64sFirst:
+		return rewriteValue_OpMask64sFirst(v)
 	case ssaop.OpMask8sAllTrue:
 		return rewriteValue_OpMask8sAllTrue(v)
+	case ssaop.OpMask8sFirst:
+		return rewriteValue_OpMask8sFirst(v)
 	case ssaop.OpMax32F:
 		v.Op = ssaop.OpARM64FMAXS
 		return true
@@ -28905,6 +28913,20 @@ func rewriteValue_OpMask16sAllTrue(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpMask16sFirst(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mask16sFirst m)
+	// result: (PPNEXTH (PPFALSEB) m)
+	for {
+		m := v_0
+		v.Reset(ssaop.OpARM64PPNEXTH)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64PPFALSEB, typ.Mask)
+		v.AddArg2(v0, m)
+		return true
+	}
+}
 func rewriteValue_OpMask32sAllTrue(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -28920,6 +28942,20 @@ func rewriteValue_OpMask32sAllTrue(v *ssa.Value) bool {
 		v2.AuxInt = ssa.Int64ToAuxInt(8)
 		v0.AddArg2(v1, v2)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpMask32sFirst(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mask32sFirst m)
+	// result: (PPNEXTS (PPFALSEB) m)
+	for {
+		m := v_0
+		v.Reset(ssaop.OpARM64PPNEXTS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64PPFALSEB, typ.Mask)
+		v.AddArg2(v0, m)
 		return true
 	}
 }
@@ -28941,6 +28977,20 @@ func rewriteValue_OpMask64sAllTrue(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpMask64sFirst(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mask64sFirst m)
+	// result: (PPNEXTD (PPFALSEB) m)
+	for {
+		m := v_0
+		v.Reset(ssaop.OpARM64PPNEXTD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64PPFALSEB, typ.Mask)
+		v.AddArg2(v0, m)
+		return true
+	}
+}
 func rewriteValue_OpMask8sAllTrue(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -28956,6 +29006,20 @@ func rewriteValue_OpMask8sAllTrue(v *ssa.Value) bool {
 		v2.AuxInt = ssa.Int64ToAuxInt(32)
 		v0.AddArg2(v1, v2)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpMask8sFirst(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mask8sFirst m)
+	// result: (PPNEXTB (PPFALSEB) m)
+	for {
+		m := v_0
+		v.Reset(ssaop.OpARM64PPNEXTB)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64PPFALSEB, typ.Mask)
+		v.AddArg2(v0, m)
 		return true
 	}
 }

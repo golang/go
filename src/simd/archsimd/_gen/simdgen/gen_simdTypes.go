@@ -332,6 +332,12 @@ type {{.Name}} struct {
 //
 // Asm: PWHILELT, CPU Feature: SVE
 func {{.Name}}AllTrue() {{.Name}}
+
+// First returns a mask with only the first active lane of m active, or no
+// lanes active if m has none.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m {{.Name}}) First() {{.Name}}
 {{end}}
 
 {{define "sveIfElseTmpl"}}

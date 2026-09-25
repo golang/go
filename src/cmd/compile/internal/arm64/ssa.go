@@ -801,6 +801,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Scale = simdSVEVectorLengthScaled
 		ssagen.AddAux(&p.To, v)
+	case ssaop.OpARM64PPNEXTB:
+		simdPNext(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64PPNEXTH:
+		simdPNext(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64PPNEXTS:
+		simdPNext(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64PPNEXTD:
+		simdPNext(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64PPFALSEB:
 		// Zero value of a mask: every lane false, e.g. PPFALSE P0.B.
 		p := s.Prog(v.Op.Asm())
@@ -2304,6 +2312,19 @@ func simdZ3kvPredResultInArg0(s *ssagen.State, v *ssa.Value, arng int16) *obj.Pr
 	p.AddRestSourceReg(pregMask(pg, arm64.PRED_M)) // Pg/M
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = zregArng(d, arng) // Zdn
+	return p
+}
+
+// simdPNext emits a PNEXT with the given element arrangement, e.g.
+// PPNEXT P0.H, P1, P0.H. SSA provides arg0=the predicate the destination
+// overwrites (resultInArg0) and arg1=the candidate lanes.
+func simdPNext(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = pregArng(v.Args[0].Reg(), arng)
+	p.AddRestSourceReg(v.Args[1].Reg())
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = pregArng(v.Reg(), arng)
 	return p
 }
 

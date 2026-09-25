@@ -1015,6 +1015,12 @@ type Mask8s struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask8sAllTrue() Mask8s
 
+// First returns a mask with only the first active lane of m active, or no
+// lanes active if m has none.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m Mask8s) First() Mask8s
+
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() lanes that exist at the runtime
 // vector length are shown.
@@ -1048,6 +1054,12 @@ type Mask16s struct {
 //
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask16sAllTrue() Mask16s
+
+// First returns a mask with only the first active lane of m active, or no
+// lanes active if m has none.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m Mask16s) First() Mask16s
 
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 2 lanes that exist at the runtime
@@ -1083,6 +1095,12 @@ type Mask32s struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask32sAllTrue() Mask32s
 
+// First returns a mask with only the first active lane of m active, or no
+// lanes active if m has none.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m Mask32s) First() Mask32s
+
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 4 lanes that exist at the runtime
 // vector length are shown.
@@ -1116,6 +1134,12 @@ type Mask64s struct {
 //
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask64sAllTrue() Mask64s
+
+// First returns a mask with only the first active lane of m active, or no
+// lanes active if m has none.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m Mask64s) First() Mask64s
 
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 8 lanes that exist at the runtime

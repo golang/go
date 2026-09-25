@@ -195,6 +195,7 @@ func init() {
 		gpcas          = regInfo{inputs: []regMask{gpspsbg, gpg.union(rz), gpg.union(rz)}, outputs: []regMask{gp}}
 		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
 		pred01         = regInfo{inputs: nil, outputs: []regMask{pred}}
+		pred2pred      = regInfo{inputs: []regMask{pred, pred}, outputs: []regMask{pred}}
 		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
 		fpgpfp         = regInfo{inputs: []regMask{fp, gp}, outputs: []regMask{fp}}
@@ -850,6 +851,13 @@ func init() {
 		{name: "PSTRstore", argLength: 3, reg: predstore, aux: "SymOff", asm: "PSTR", faultOnNilArg0: true, symEffect: "Write"},           // store predicate arg1 to arg0 + auxInt + aux.  arg2=mem.
 		// PPFALSEB sets every bit of a predicate false, it's the zero value of a predicate.
 		{name: "PPFALSEB", argLength: 0, reg: pred01, asm: "PPFALSE", typ: "Mask"},
+		// PPNEXT{B,H,S,D} set only the first active element of arg1 that follows
+		// the last active element of arg0 (or the first active element of arg1
+		// when arg0 has none), at the given element size.
+		{name: "PPNEXTB", argLength: 2, reg: pred2pred, asm: "PPNEXT", typ: "Mask", resultInArg0: true, clobberFlags: true}, // arg0=predicate, arg1=candidates
+		{name: "PPNEXTH", argLength: 2, reg: pred2pred, asm: "PPNEXT", typ: "Mask", resultInArg0: true, clobberFlags: true}, // arg0=predicate, arg1=candidates
+		{name: "PPNEXTS", argLength: 2, reg: pred2pred, asm: "PPNEXT", typ: "Mask", resultInArg0: true, clobberFlags: true}, // arg0=predicate, arg1=candidates
+		{name: "PPNEXTD", argLength: 2, reg: pred2pred, asm: "PPNEXT", typ: "Mask", resultInArg0: true, clobberFlags: true}, // arg0=predicate, arg1=candidates
 		// ZDUPBconst broadcasts an 8-bit immediate to every byte lane; with [0] it
 		// zeroes a whole scalable vector, lowering ZeroSIMD for a 256-bit value.
 		{name: "ZDUPBconst", argLength: 0, aux: "Int8", reg: fp01, asm: "ZDUP", typ: "Vec256"},
