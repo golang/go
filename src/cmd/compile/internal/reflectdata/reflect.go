@@ -698,11 +698,15 @@ func writeType(t *types.Type) *obj.LSym {
 	if s.Siggen() {
 		// The descriptor has already been written. If it was written for a
 		// noalg instance of the same type, it left out the algorithms this
-		// instance needs, so fill them in.
+		// instance needs, so fill them in, including TFlagRegularMemory.
 		if lsym.WeakDef() && !types.TypeHasNoAlg(t) {
 			lsym.Set(obj.AttrWeakDef, false)
 			if eqfunc := geneq(t); eqfunc != nil {
 				objw.SymPtr(lsym, int(rttype.Type.OffsetOf("Equal")), eqfunc, 0)
+			}
+			if types.AlgType(t) == types.AMEM {
+				off := int(rttype.Type.OffsetOf("TFlag"))
+				objw.Uint8(lsym, off, lsym.P[off]|uint8(abi.TFlagRegularMemory))
 			}
 		}
 		return lsym

@@ -255,7 +255,9 @@ func isFixedLoad(v *ssa.Value, sym ssa.Sym, off int64) bool {
 				case "Size_", "PtrBytes", "Hash", "Kind_", "GCData":
 					return true
 				case "TFlag":
-					return t.TFlagComputed()
+					// A noalg descriptor can be replaced by one with
+					// algorithms, changing TFlagRegularMemory.
+					return t.TFlagComputed() && !types.TypeHasNoAlg(t)
 				default:
 					// fmt.Println("unknown field", f.Sym.Name)
 					return false
