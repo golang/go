@@ -16,6 +16,7 @@ func TestMaskAllAny[E integer, V interface {
 	All() bool
 	Any() bool
 	None() bool
+	TrailingZeros() int
 }](t *testing.T, load func([]E) V) {
 	t.Helper()
 	var zero V
@@ -49,6 +50,9 @@ func TestMaskAllAny[E integer, V interface {
 	if mAllOnes.None() {
 		t.Errorf("mAllOnes.None(): want false, got true")
 	}
+	if got := mAllOnes.TrailingZeros(); got != 0 {
+		t.Errorf("mAllOnes.TrailingZeros(): want 0, got %d", got)
+	}
 	mAllZeros := va.NotEqual(va)
 	if mAllZeros.All() {
 		t.Errorf("mAllZeros.All(): want false, got true")
@@ -58,6 +62,9 @@ func TestMaskAllAny[E integer, V interface {
 	}
 	if !mAllZeros.None() {
 		t.Errorf("mAllZeros.None(): want true, got false")
+	}
+	if got := mAllZeros.TrailingZeros(); got != lanes {
+		t.Errorf("mAllZeros.TrailingZeros(): want %d, got %d", lanes, got)
 	}
 	vz := load(make([]E, lanes))
 	for i := range lanes {
@@ -72,6 +79,9 @@ func TestMaskAllAny[E integer, V interface {
 		}
 		if m1.None() {
 			t.Errorf("single-1 lane %d None: want false, got true", i)
+		}
+		if got := m1.TrailingZeros(); got != i {
+			t.Errorf("single-1 lane %d TrailingZeros: want %d, got %d", i, i, got)
 		}
 		s0 := make([]E, lanes)
 		for j := range lanes {
@@ -88,6 +98,13 @@ func TestMaskAllAny[E integer, V interface {
 		}
 		if m0.None() {
 			t.Errorf("single-0 lane %d None: want false, got true", i)
+		}
+		wantTZ := 0
+		if i == 0 {
+			wantTZ = 1
+		}
+		if got := m0.TrailingZeros(); got != wantTZ {
+			t.Errorf("single-0 lane %d TrailingZeros: want %d, got %d", i, wantTZ, got)
 		}
 	}
 }

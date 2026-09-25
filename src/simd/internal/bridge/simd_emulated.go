@@ -3409,3 +3409,42 @@ func (m Mask8s) TrailingZeros() int {
 	lane = bits.TrailingZeros64(a)
 	return lane>>3 + 8
 }
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+func (m Mask16s) TrailingZeros() int {
+	a0 := m.a
+	a := a0 & 0x0001000100010001
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 4
+	}
+	a0 = m.b
+	a = a0 & 0x0001000100010001
+	lane = bits.TrailingZeros64(a)
+	return lane>>4 + 4
+}
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+func (m Mask32s) TrailingZeros() int {
+	a0 := m.a
+	a := a0 & 0x0000000100000001
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 5
+	}
+	a0 = m.b
+	a = a0 & 0x0000000100000001
+	lane = bits.TrailingZeros64(a)
+	return lane>>5 + 2
+}
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+func (m Mask64s) TrailingZeros() int {
+	if m.a != 0 {
+		return 0
+	}
+	if m.b != 0 {
+		return 1
+	}
+	return 2
+}

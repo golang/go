@@ -301,3 +301,111 @@ func (m Mask8x64) TrailingZeros() int {
 	}
 	return lane
 }
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX
+func (x Mask16x8) TrailingZeros() int {
+	word := uint64(x.ToInt16x8().AsInt8x16().asMask().ToBits() & 0x5555)
+	lane := bits.TrailingZeros64(word) >> 1
+	if lane >= 8 {
+		return 8
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX2
+func (x Mask16x16) TrailingZeros() int {
+	word := uint64(x.ToInt16x16().AsInt8x32().asMask().ToBits() & 0x55555555)
+	lane := bits.TrailingZeros64(word) >> 1
+	if lane >= 16 {
+		return 16
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX512
+func (x Mask16x32) TrailingZeros() int {
+	word := uint64(x.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 32 {
+		return 32
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX
+func (x Mask32x4) TrailingZeros() int {
+	word := uint64(x.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 4 {
+		return 4
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX2
+func (x Mask32x8) TrailingZeros() int {
+	word := uint64(x.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 8 {
+		return 8
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX512
+func (x Mask32x16) TrailingZeros() int {
+	word := uint64(x.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 16 {
+		return 16
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX
+func (x Mask64x2) TrailingZeros() int {
+	word := uint64(x.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 2 {
+		return 2
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX2
+func (x Mask64x4) TrailingZeros() int {
+	word := uint64(x.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 4 {
+		return 4
+	}
+	return lane
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+//
+// Emulated, CPU Feature AVX512
+func (x Mask64x8) TrailingZeros() int {
+	word := uint64(x.ToBits())
+	lane := bits.TrailingZeros64(word)
+	if lane >= 8 {
+		return 8
+	}
+	return lane
+}

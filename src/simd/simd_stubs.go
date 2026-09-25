@@ -1067,6 +1067,9 @@ func (x Mask16s) String() string
 // ToInt16s converts the mask to an Int16s vector.
 func (x Mask16s) ToInt16s() (to Int16s)
 
+// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+func (x Mask16s) TrailingZeros() int
+
 // All returns true when all positions in mask x are true.
 func (x Mask32s) All() bool
 
@@ -1088,6 +1091,9 @@ func (x Mask32s) String() string
 // ToInt32s converts the mask to an Int32s vector.
 func (x Mask32s) ToInt32s() (to Int32s)
 
+// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+func (x Mask32s) TrailingZeros() int
+
 // All returns true when all positions in mask x are true.
 func (x Mask64s) All() bool
 
@@ -1108,3 +1114,6 @@ func (x Mask64s) String() string
 
 // ToInt64s converts the mask to an Int64s vector.
 func (x Mask64s) ToInt64s() (to Int64s)
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+func (x Mask64s) TrailingZeros() int

@@ -1404,6 +1404,10 @@ func (x Mask16x8) ToInt16s() Int16x8 {
 	return Int16x8((archsimd.Mask16x8(x)).ToInt16x8())
 }
 
+func (x Mask16x8) TrailingZeros() int {
+	return (archsimd.Mask16x8(x)).TrailingZeros()
+}
+
 func (x Mask32x4) All() bool {
 	return (archsimd.Mask32x4(x)).All()
 }
@@ -1432,6 +1436,10 @@ func (x Mask32x4) ToInt32s() Int32x4 {
 	return Int32x4((archsimd.Mask32x4(x)).ToInt32x4())
 }
 
+func (x Mask32x4) TrailingZeros() int {
+	return (archsimd.Mask32x4(x)).TrailingZeros()
+}
+
 func (x Mask64x2) All() bool {
 	return (archsimd.Mask64x2(x)).All()
 }
@@ -1458,4 +1466,8 @@ func (x Mask64x2) String() string {
 
 func (x Mask64x2) ToInt64s() Int64x2 {
 	return Int64x2((archsimd.Mask64x2(x)).ToInt64x2())
+}
+
+func (x Mask64x2) TrailingZeros() int {
+	return (archsimd.Mask64x2(x)).TrailingZeros()
 }

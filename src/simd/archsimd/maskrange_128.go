@@ -144,3 +144,51 @@ func (m Mask8x16) TrailingZeros() int {
 	lane = bits.TrailingZeros64(a)
 	return lane>>3 + 8
 }
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+//
+// Emulated
+func (m Mask16x8) TrailingZeros() int {
+	word := m.ToInt16x8().ToBits().ReshapeToUint64s()
+	a0 := word.GetElem(0)
+	a := a0 & 0x0001000100010001
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 4
+	}
+	a0 = word.GetElem(1)
+	a = a0 & 0x0001000100010001
+	lane = bits.TrailingZeros64(a)
+	return lane>>4 + 4
+}
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+//
+// Emulated
+func (m Mask32x4) TrailingZeros() int {
+	word := m.ToInt32x4().ToBits().ReshapeToUint64s()
+	a0 := word.GetElem(0)
+	a := a0 & 0x0000000100000001
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 5
+	}
+	a0 = word.GetElem(1)
+	a = a0 & 0x0000000100000001
+	lane = bits.TrailingZeros64(a)
+	return lane>>5 + 2
+}
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+//
+// Emulated
+func (m Mask64x2) TrailingZeros() int {
+	word := m.ToInt64x2().ToBits()
+	if word.GetElem(0) != 0 {
+		return 0
+	}
+	if word.GetElem(1) != 0 {
+		return 1
+	}
+	return 2
+}
