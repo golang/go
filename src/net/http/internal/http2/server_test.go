@@ -181,10 +181,13 @@ func newServerTester(t *testing.T, handler http.HandlerFunc, opts ...any) *serve
 
 	h1server := &http.Server{}
 	var tlsState *tls.ConnectionState
+	var wrapServerConn func(net.Conn) net.Conn
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case func(*http.Server):
 			v(h1server)
+		case func(net.Conn) net.Conn:
+			wrapServerConn = v
 		case func(*http.HTTP2Config):
 			if h1server.HTTP2 == nil {
 				h1server.HTTP2 = &http.HTTP2Config{}
@@ -226,16 +229,21 @@ func newServerTester(t *testing.T, handler http.HandlerFunc, opts ...any) *serve
 		srvListener.Close()
 	})
 	cliPipe := srvListener.NewConn()
+	srv = srvListener
+	if wrapServerConn != nil {
+		srv = &filterListener{srv, func(c net.Conn) (net.Conn, error) {
+			return wrapServerConn(c), nil
+		}}
+	}
 
 	if h1server.Protocols != nil && h1server.Protocols.UnencryptedHTTP2() {
 		cli = cliPipe
-		srv = srvListener
 	} else {
 		cli = tls.Client(cliPipe, &tls.Config{
 			InsecureSkipVerify: true,
 			NextProtos:         []string{"h2"},
 		})
-		srv = tls.NewListener(srvListener, tlsConfig)
+		srv = tls.NewListener(srv, tlsConfig)
 	}
 
 	st := &serverTester{
@@ -4984,6 +4992,126 @@ func testServerRequestCancelOnError(t *testing.T) {
 	})
 	<-donec
 }
+
+// holdTeardownUntil blocks connection teardown, after armed is closed, until done
+// is closed. Teardown reports StateIdle before it cancels the last stream's context.
+func holdTeardownUntil(armed, done <-chan struct{}) func(*http.Server) {
+	return func(s *http.Server) {
+		s.ConnState = func(_ net.Conn, cs http.ConnState) {
+			select {
+			case <-armed:
+				if cs == http.StateIdle {
+					<-done
+				}
+			default:
+			}
+		}
+	}
+}
+
+// Issue 52183.
+func TestServerWriteErrorOnDisconnectCancelsContext(t *testing.T) {
+	synctest.Test(t, testServerWriteErrorOnDisconnectCancelsContext)
+}
+func testServerWriteErrorOnDisconnectCancelsContext(t *testing.T) {
+	disconnecting := make(chan struct{})
+	checked := make(chan struct{})
+	ctxErrc := make(chan error, 1)
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+		for {
+			if _, err := w.Write([]byte("some data.\n")); err != nil {
+				ctxErrc <- r.Context().Err()
+				close(checked)
+				return
+			}
+		}
+	}, holdTeardownUntil(disconnecting, checked))
+	defer st.Close()
+	st.greet()
+
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: st.encodeHeader(),
+		EndStream:     false,
+		EndHeaders:    true,
+	})
+	st.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: false,
+	})
+	close(disconnecting)
+	st.cc.Close()
+	if err := <-ctxErrc; err == nil {
+		t.Errorf("Write failed after client disconnect, but r.Context().Err() = nil; want non-nil")
+	}
+}
+
+// Issue 52183.
+func TestServerReadErrorOnDisconnectCancelsContext(t *testing.T) {
+	synctest.Test(t, testServerReadErrorOnDisconnectCancelsContext)
+}
+func testServerReadErrorOnDisconnectCancelsContext(t *testing.T) {
+	ctxErrc := make(chan error, 1)
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+		if _, err := io.Copy(io.Discard, r.Body); err == nil {
+			t.Errorf("reading request body after client disconnect: got nil error, want non-nil")
+		}
+		ctxErrc <- r.Context().Err()
+	})
+	defer st.Close()
+	st.greet()
+
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: st.encodeHeader(":method", "POST"),
+		EndStream:     false,
+		EndHeaders:    true,
+	})
+	synctest.Wait()
+	st.cc.Close()
+	if err := <-ctxErrc; err == nil {
+		t.Errorf("Body.Read failed after client disconnect, but r.Context().Err() = nil; want non-nil")
+	}
+}
+
+// Issue 52183.
+func TestServerConnWriteErrorCancelsContext(t *testing.T) {
+	synctest.Test(t, testServerConnWriteErrorCancelsContext)
+}
+func testServerConnWriteErrorCancelsContext(t *testing.T) {
+	ctxErrc := make(chan error, 1)
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+		for {
+			if _, err := w.Write([]byte("some data.\n")); err != nil {
+				ctxErrc <- r.Context().Err()
+				return
+			}
+		}
+	}, func(s *http.Server) {
+		s.Protocols = protocols("h2c")
+	}, func(c net.Conn) net.Conn {
+		return closeWriteOnlyConn{c.(*nettest.Conn)}
+	})
+	defer st.Close()
+	st.greet()
+
+	st.testconn.Peer().SetWriteError(errors.New("broken pipe"))
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: st.encodeHeader(),
+		EndStream:     true,
+		EndHeaders:    true,
+	})
+	if err := <-ctxErrc; err == nil {
+		t.Errorf("Write failed on a broken connection, but r.Context().Err() = nil; want non-nil")
+	}
+}
+
+// closeWriteOnlyConn's Close only shuts down the write side, so the server
+// doesn't tear down the connection until the peer closes it.
+type closeWriteOnlyConn struct{ *nettest.Conn }
+
+func (c closeWriteOnlyConn) Close() error { return c.CloseWrite() }
 
 func TestServerSetReadWriteDeadlineRace(t *testing.T) {
 	synctest.Test(t, testServerSetReadWriteDeadlineRace)
