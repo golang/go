@@ -2047,7 +2047,14 @@ func (s *state) stmt(n ir.Node) {
 		}
 
 		b := s.endBlock()
-		b.Pos = s.lastPos.WithIsStmt() // Do this even if b is an empty block.
+		if n.Pos().IsStmt() == src.PosNotStmt {
+			// The front end generated this branch, and it is
+			// not a statement in the source (for example, the
+			// implicit default case of a switch). See issue 81705.
+			b.Pos = s.lastPos.WithNotStmt()
+		} else {
+			b.Pos = s.lastPos.WithIsStmt() // Do this even if b is an empty block.
+		}
 		b.AddEdgeTo(to)
 
 	case ir.OFOR:
@@ -2147,6 +2154,20 @@ func (s *state) stmt(n ir.Node) {
 			// labeled
 			lab = s.label(sym)
 			lab.breakTarget = bEnd
+		}
+
+		// With -N, end the current block at the position of the
+		// switch or select statement. The jump at the end of the
+		// block gives the statement an instruction that executes
+		// before any case is evaluated. Without this, a switch with
+		// no tag has no such instruction, and a breakpoint on the
+		// switch line stops only after all cases fail. See issue 81705.
+		if base.Flag.N != 0 && s.curBlock != nil && n.Pos().IsStmt() != src.PosNotStmt {
+			b := s.endBlock()
+			b.Pos = n.Pos().WithIsStmt()
+			bStart := s.f.NewBlock(block.BlockPlain)
+			b.AddEdgeTo(bStart)
+			s.startBlock(bStart)
 		}
 
 		// generate body code

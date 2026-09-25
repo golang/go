@@ -115,6 +115,14 @@ func TestDebugLines_53456(t *testing.T) {
 	testDebugLinesDefault(t, "-N -l", "b53456.go", "(*T).Inc", []int{15, 16, 17, 18}, true)
 }
 
+func TestDebugLines_81705(t *testing.T) {
+	unixOnly(t)
+
+	// A switch with no tag must have a statement on its own line
+	// before the cases, and none after all cases fail.
+	testDebugLines(t, "-N -l", "i81705.go", "main", []int{8, 9, 10, 11, 12}, true)
+}
+
 func TestDebugLines_74576(t *testing.T) {
 	unixOnly(t)
 
