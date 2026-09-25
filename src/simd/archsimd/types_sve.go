@@ -1021,6 +1021,13 @@ func Mask8sAllTrue() Mask8s
 // Asm: PNEXT, CPU Feature: SVE
 func (m Mask8s) First() Mask8s
 
+// Next returns a mask with only the lane after the last active lane of m
+// active. If m has no active lanes, lane 0 is active; if its last active lane
+// is the last lane, no lanes are active.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m Mask8s) Next() Mask8s
+
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() lanes that exist at the runtime
 // vector length are shown.
@@ -1060,6 +1067,13 @@ func Mask16sAllTrue() Mask16s
 //
 // Asm: PNEXT, CPU Feature: SVE
 func (m Mask16s) First() Mask16s
+
+// Next returns a mask with only the lane after the last active lane of m
+// active. If m has no active lanes, lane 0 is active; if its last active lane
+// is the last lane, no lanes are active.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m Mask16s) Next() Mask16s
 
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 2 lanes that exist at the runtime
@@ -1101,6 +1115,13 @@ func Mask32sAllTrue() Mask32s
 // Asm: PNEXT, CPU Feature: SVE
 func (m Mask32s) First() Mask32s
 
+// Next returns a mask with only the lane after the last active lane of m
+// active. If m has no active lanes, lane 0 is active; if its last active lane
+// is the last lane, no lanes are active.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m Mask32s) Next() Mask32s
+
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 4 lanes that exist at the runtime
 // vector length are shown.
@@ -1140,6 +1161,13 @@ func Mask64sAllTrue() Mask64s
 //
 // Asm: PNEXT, CPU Feature: SVE
 func (m Mask64s) First() Mask64s
+
+// Next returns a mask with only the lane after the last active lane of m
+// active. If m has no active lanes, lane 0 is active; if its last active lane
+// is the last lane, no lanes are active.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m Mask64s) Next() Mask64s
 
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 8 lanes that exist at the runtime

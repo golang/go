@@ -338,6 +338,13 @@ func {{.Name}}AllTrue() {{.Name}}
 //
 // Asm: PNEXT, CPU Feature: SVE
 func (m {{.Name}}) First() {{.Name}}
+
+// Next returns a mask with only the lane after the last active lane of m
+// active. If m has no active lanes, lane 0 is active; if its last active lane
+// is the last lane, no lanes are active.
+//
+// Asm: PNEXT, CPU Feature: SVE
+func (m {{.Name}}) Next() {{.Name}}
 {{end}}
 
 {{define "sveIfElseTmpl"}}

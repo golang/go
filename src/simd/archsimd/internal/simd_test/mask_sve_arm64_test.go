@@ -129,3 +129,27 @@ func TestMaskFirstSVE(t *testing.T) {
 	testMaskToMask(t, "Mask32s.First", 4, archsimd.Mask32s.First, firstWant)
 	testMaskToMask(t, "Mask64s.First", 8, archsimd.Mask64s.First, firstWant)
 }
+
+func nextWant(lanes []bool) []bool {
+	last := -1
+	for i, l := range lanes {
+		if l {
+			last = i
+		}
+	}
+	out := make([]bool, len(lanes))
+	if last+1 < len(lanes) {
+		out[last+1] = true
+	}
+	return out
+}
+
+func TestMaskNextSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testMaskToMask(t, "Mask8s.Next", 1, archsimd.Mask8s.Next, nextWant)
+	testMaskToMask(t, "Mask16s.Next", 2, archsimd.Mask16s.Next, nextWant)
+	testMaskToMask(t, "Mask32s.Next", 4, archsimd.Mask32s.Next, nextWant)
+	testMaskToMask(t, "Mask64s.Next", 8, archsimd.Mask64s.Next, nextWant)
+}

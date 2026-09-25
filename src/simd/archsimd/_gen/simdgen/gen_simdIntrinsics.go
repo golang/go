@@ -114,7 +114,8 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 {{- end}}`)
 
 	var sveMask = templateNamed("sveMask", `	addF(simdPackage, "{{.Name}}AllTrue", opLen0(ssaop.Op{{.Name}}AllTrue, types.TypeMask), {{GetSysArch}})
-	addF(simdPackage, "{{.Name}}.First", opLen1(ssaop.Op{{.Name}}First, types.TypeMask), {{GetSysArch}})`)
+	addF(simdPackage, "{{.Name}}.First", opLen1(ssaop.Op{{.Name}}First, types.TypeMask), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.Next", opLen1(ssaop.Op{{.Name}}Next, types.TypeMask), {{GetSysArch}})`)
 
 	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "load{{.Name}}ArrayMasked", simdMaskedLoad(ssaop.OpLoadMasked{{.ElemBits}}), sys.AMD64)
 	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssaop.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)

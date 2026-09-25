@@ -1957,5 +1957,10 @@
 (Mask32sFirst m) => (PPNEXTS (PPFALSEB) m)
 (Mask64sFirst m) => (PPNEXTD (PPFALSEB) m)
 
+(Mask8sNext m) => (PPNEXTB m (Mask8sAllTrue <types.TypeMask>))
+(Mask16sNext m) => (PPNEXTH m (Mask16sAllTrue <types.TypeMask>))
+(Mask32sNext m) => (PPNEXTS m (Mask32sAllTrue <types.TypeMask>))
+(Mask64sNext m) => (PPNEXTD m (Mask64sAllTrue <types.TypeMask>))
+
 (LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
 (StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)
