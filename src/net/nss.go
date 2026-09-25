@@ -152,13 +152,13 @@ func parseNSSConfFile(file string) *nssConf {
 		return &nssConf{err: err}
 	}
 	defer f.close()
-	mtime, _, err := f.stat()
+	fi, err := f.stat()
 	if err != nil {
 		return &nssConf{err: err}
 	}
 
 	conf := parseNSSConf(f)
-	conf.mtime = mtime
+	conf.mtime = fi.ModTime()
 	return conf
 }
 
