@@ -2467,9 +2467,8 @@ func slicePtrLen(s *state, slice *ssa.Value) (ptr, length *ssa.Value) {
 	return
 }
 
-// sveLoadWhole builds a raw whole-register load loadT(s) / loadMask*s(bits): a
-// generic Load of the return type from the slice's data pointer, lowered to ZLDR
-// (a 32-byte scalable vector) or PLDR (an 8-byte predicate). The exported wrapper
+// sveLoadWhole builds a raw whole-register load loadT(s): a generic Load of the
+// return type from the slice's data pointer, lowered to ZLDR. The exported wrapper
 // (generated Go) bounds-checks the slice — and panics if it is too short — so
 // this raw intrinsic never reads past it. args are (s).
 func sveLoadWhole() intrinsicBuilder {
@@ -2479,8 +2478,8 @@ func sveLoadWhole() intrinsicBuilder {
 	}
 }
 
-// sveStoreWhole is the store counterpart of sveLoadWhole: x.store(s) /
-// m.store(bits). args are (x, s).
+// sveStoreWhole is the store counterpart of sveLoadWhole: x.store(s).
+// args are (x, s).
 func sveStoreWhole() intrinsicBuilder {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		ptr, _ := slicePtrLen(s, args[1])

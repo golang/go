@@ -105,13 +105,6 @@ func (x simdType) ReshapedVectorWithAndOr() string {
 	return v.String()
 }
 
-// PredUint16s is the number of uint16s that hold a whole SVE predicate: one bit
-// per vector byte, at the maximum vector length. It bounds the scratch buffer a
-// mask's String needs to read its own bits.
-func (x simdType) PredUint16s() int {
-	return (types.MaxVectorBits/8 + 15) / 16
-}
-
 // IsScalable reports whether this vector type's length is only known at run time.
 func (x simdType) IsScalable() bool {
 	return x.Shape.Scalable()
@@ -321,6 +314,10 @@ type {{.Name}} struct {
 // An SVE predicate holds one bit per byte of the vector it governs, so a
 // {{.Name}} carries one bit for each byte of the runtime vector length, and
 // lane i is governed by bit {{if gt .ElemBytes 1}}{{.ElemBytes}}*i. The bits in between are ignored{{else}}i{{end}}.
+//
+// In memory a {{.Name}} is a uint64 holding those bits, bit 0 first; the bits
+// beyond the runtime vector length are zero. So the bits of m can be read with
+// *(*uint64)(unsafe.Pointer(&m)).
 {{- else}}
 // {{.Name}} is a scalable SIMD vector of {{.Base}}s.
 {{- end}}
@@ -330,44 +327,7 @@ type {{.Name}} struct {
 
 {{end}}
 
-{{define "sveMaskLoadStore"}}
-// Load{{.Name}} loads a {{.Name}} from the predicate bits packed into bits.
-// The bits are concatenated in little-endian order: bit i of bits[j] governs
-// vector byte 16*j+i, and so lane k is governed by bit {{if gt .ElemBytes 1}}{{.ElemBytes}}*k{{else}}k{{end}}.
-//
-// One uint16 covers 16 bytes of vector, the length of the smallest vector SVE
-// defines, so bits must hold one uint16 per 16 bytes of the runtime vector
-// length. Load{{.Name}} panics if bits is shorter than that.
-//
-// Asm: Emulated (a length check that can panic, then PLDR (predicate)).
-func Load{{.Name}}(bits []uint16) {{.Name}} {
-	if len(bits) < (vl()+15)/16 {
-		panic("simd: Load{{.Name}}: bits is too short to hold the predicate")
-	}
-	return load{{.Name}}(bits)
-}
-
-//go:noescape
-func load{{.Name}}(bits []uint16) {{.Name}}
-
-// Store stores m's predicate bits into bits, concatenated in little-endian
-// order: bit i of bits[j] governs vector byte 16*j+i, and so lane k is
-// governed by bit {{if gt .ElemBytes 1}}{{.ElemBytes}}*k{{else}}k{{end}}.
-//
-// bits must hold one uint16 per 16 bytes of the runtime vector length; Store
-// panics if it is shorter.
-//
-// Asm: Emulated (a length check that can panic, then PSTR (predicate)).
-func (m {{.Name}}) Store(bits []uint16) {
-	if len(bits) < (vl()+15)/16 {
-		panic("simd: {{.Name}}.Store: bits is too short to hold the predicate")
-	}
-	m.store(bits)
-}
-
-//go:noescape
-func (m {{.Name}}) store(bits []uint16)
-
+{{define "sveMaskTmpl"}}
 // {{.Name}}AllTrue returns a mask with every lane true.
 //
 // Asm: PWHILELT, CPU Feature: SVE
@@ -405,12 +365,11 @@ func Broadcast{{.Name}}(x {{.Base}}) {{.Name}}
 // 0 for an inactive one. Only the {{.LenExpr}} lanes that exist at the runtime
 // vector length are shown.
 func (m {{.Name}}) String() string {
-	var bits [{{.PredUint16s}}]uint16
-	m.Store(bits[:])
+	bits := *(*uint64)(unsafe.Pointer(&m))
 	var s [{{.MaxLanes}}]{{.Base}}
 	n := {{.LenExpr}}
 	for i := range n {
-		if b := i{{if gt .ElemBytes 1}} * {{.ElemBytes}}{{end}}; bits[b/16]>>(b%16)&1 != 0 {
+		if bits>>{{if gt .ElemBytes 1}}(i*{{.ElemBytes}}){{else}}i{{end}}&1 != 0 {
 			s[i] = 1
 		}
 	}
@@ -791,7 +750,7 @@ func (x {{.Name}}) Not() {{.Name}}
 
 func structFields(shape specexpr.Vector) string {
 	if shape.Elem.Base == "mask" && CurrentArch().isSVE() {
-		return fmt.Sprintf("\t%s psve\n\tvals uint%d", strings.ToLower(shape.String()), types.MaxVectorBits/8)
+		return fmt.Sprintf("\t%s psve\n\tvals uint64", strings.ToLower(shape.String()))
 	}
 	elemBits := int(shape.Elem.Bits)
 	base := strings.ToLower(shape.Elem.Base)
@@ -927,6 +886,8 @@ func writeSIMDTypes(buffer *bytes.Buffer, typeMap simdTypeMap) {
 		// SVE predicates are represented as-is (a P register), not as data vectors,
 		// so their Go types are tagged with psve rather than a v<N> vector tag.
 		buffer.WriteString(`
+import "unsafe"
+
 // psve is a tag type that tells the compiler that this is an SVE predicate.
 type psve struct {
 	_sve [0]func() // uncomparable
@@ -971,10 +932,8 @@ type psve struct {
 					}
 				}
 			} else if CurrentArch().isSVE() {
-				// SVE predicates expose raw-bit memory APIs: exported wrappers that
-				// bounds-check (and may panic) around unexported PLDR/PSTR intrinsics.
-				if err := t.ExecuteTemplate(buffer, "sveMaskLoadStore", typeDef); err != nil {
-					panic(fmt.Errorf("failed to execute sveMaskLoadStore template for type %s: %w", typeDef.Name(), err))
+				if err := t.ExecuteTemplate(buffer, "sveMaskTmpl", typeDef); err != nil {
+					panic(fmt.Errorf("failed to execute sveMaskTmpl template for type %s: %w", typeDef.Name(), err))
 				}
 			} else {
 				// ARM64 NEON comparisons produce all-0/all-1 per lane, so

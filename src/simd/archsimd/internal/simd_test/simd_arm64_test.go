@@ -75,8 +75,7 @@ func greaterInt8sNoinline(a, b archsimd.Int8s) archsimd.Mask8s { return a.Greate
 
 // TestGreaterSVEMaskRoundTrip returns a mask across a non-inlined call, exercising
 // the predicate memory round-trip (PSTR to return it, PLDR to reload it) that the
-// mask ABI relies on. It then stores the mask, reloads it with LoadMask8s, and
-// checks both agree with a > b lane by lane.
+// mask ABI relies on, and checks it against a > b lane by lane.
 func TestGreaterSVEMaskRoundTrip(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no sve")
@@ -88,21 +87,16 @@ func TestGreaterSVEMaskRoundTrip(t *testing.T) {
 	}
 	var z archsimd.Int8s
 	m := greaterInt8sNoinline(archsimd.LoadInt8s(a[:]), archsimd.LoadInt8s(b[:]))
-	bits := make([]uint16, sveMaskUint16s)
-	m.Store(bits)
-
-	reloaded := make([]uint16, sveMaskUint16s)
-	archsimd.LoadMask8s(bits).Store(reloaded)
-
+	bits := maskBits(m)
 	for i := 0; i < z.Len(); i++ {
 		want := a[i] > b[i]
-		got := bits[i/16]>>uint(i%16)&1 == 1
+		got := bits>>i&1 == 1
 		if got != want {
 			t.Errorf("lane %d: got %v, want %v (a=%d b=%d)", i, got, want, a[i], b[i])
 		}
-		if reloaded[i/16] != bits[i/16] {
-			t.Errorf("LoadMask8s round-trip mismatch at uint16 %d: %#x vs %#x", i/16, reloaded[i/16], bits[i/16])
-		}
+	}
+	if bits>>z.Len() != 0 {
+		t.Errorf("bits beyond the vector length are set: %#x", bits)
 	}
 }
 

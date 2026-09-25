@@ -33457,6 +33457,8 @@ func rewriteValue_OpStore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (Store {t} ptr val mem)
 	// cond: t.Size() == 1
 	// result: (MOVBstore ptr val mem)
@@ -33579,7 +33581,7 @@ func rewriteValue_OpStore(v *ssa.Value) bool {
 	}
 	// match: (Store {t} ptr val mem)
 	// cond: t.Size() == 8 && t.IsSIMD()
-	// result: (PSTRstore ptr val mem)
+	// result: (PSTRstore ptr val (MOVDstore ptr (MOVDconst [0]) mem))
 	for {
 		t := ssa.AuxToType(v.Aux)
 		ptr := v_0
@@ -33589,7 +33591,11 @@ func rewriteValue_OpStore(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpARM64PSTRstore)
-		v.AddArg3(ptr, val, mem)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDstore, types.TypeMem)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v1.AuxInt = ssa.Int64ToAuxInt(0)
+		v0.AddArg3(ptr, v1, mem)
+		v.AddArg3(ptr, val, v0)
 		return true
 	}
 	return false
