@@ -1693,6 +1693,11 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	}
 	if underlying.flags&typeIsSIMD != 0 {
 		simdify(t, underlying.flags&typeIsSIMDTag != 0)
+		// simdify assigns the register counts of a vector; keep the
+		// underlying type's, which differ for an SVE predicate (passed in
+		// memory, see CalcStructSize).
+		t.intRegs = underlying.intRegs
+		t.floatRegs = underlying.floatRegs
 	}
 
 	// spec: "The declared type does not inherit any methods bound
