@@ -355,6 +355,11 @@ func (m {{.Name}}) All() bool
 //
 // Asm: PTEST, CPU Feature: SVE
 func (m {{.Name}}) None() bool
+
+// Any reports whether some lane of m is active.
+//
+// Asm: PTEST, CPU Feature: SVE
+func (m {{.Name}}) Any() bool
 {{end}}
 
 {{define "sveIfElseTmpl"}}

@@ -191,3 +191,15 @@ func TestMaskNoneSVE(t *testing.T) {
 	testMaskToBool(t, "Mask32s.None", 4, archsimd.Mask32s.None, noneWant)
 	testMaskToBool(t, "Mask64s.None", 8, archsimd.Mask64s.None, noneWant)
 }
+
+func anyWant(lanes []bool) bool { return !noneWant(lanes) }
+
+func TestMaskAnySVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testMaskToBool(t, "Mask8s.Any", 1, archsimd.Mask8s.Any, anyWant)
+	testMaskToBool(t, "Mask16s.Any", 2, archsimd.Mask16s.Any, anyWant)
+	testMaskToBool(t, "Mask32s.Any", 4, archsimd.Mask32s.Any, anyWant)
+	testMaskToBool(t, "Mask64s.Any", 8, archsimd.Mask64s.Any, anyWant)
+}
