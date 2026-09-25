@@ -1962,5 +1962,11 @@
 (Mask32sNext m) => (PPNEXTS m (Mask32sAllTrue <types.TypeMask>))
 (Mask64sNext m) => (PPNEXTD m (Mask64sAllTrue <types.TypeMask>))
 
+// Every lane is active when no lane survives all-true AND NOT m.
+(Mask8sAll m) => (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask8sAllTrue <types.TypeMask>) t m)))
+(Mask16sAll m) => (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask16sAllTrue <types.TypeMask>) t m)))
+(Mask32sAll m) => (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask32sAllTrue <types.TypeMask>) t m)))
+(Mask64sAll m) => (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask64sAllTrue <types.TypeMask>) t m)))
+
 (LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
 (StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)

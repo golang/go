@@ -1770,24 +1770,32 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpLsh8x8:
 		v.Op = ssaop.OpLsh64x8
 		return true
+	case ssaop.OpMask16sAll:
+		return rewriteValue_OpMask16sAll(v)
 	case ssaop.OpMask16sAllTrue:
 		return rewriteValue_OpMask16sAllTrue(v)
 	case ssaop.OpMask16sFirst:
 		return rewriteValue_OpMask16sFirst(v)
 	case ssaop.OpMask16sNext:
 		return rewriteValue_OpMask16sNext(v)
+	case ssaop.OpMask32sAll:
+		return rewriteValue_OpMask32sAll(v)
 	case ssaop.OpMask32sAllTrue:
 		return rewriteValue_OpMask32sAllTrue(v)
 	case ssaop.OpMask32sFirst:
 		return rewriteValue_OpMask32sFirst(v)
 	case ssaop.OpMask32sNext:
 		return rewriteValue_OpMask32sNext(v)
+	case ssaop.OpMask64sAll:
+		return rewriteValue_OpMask64sAll(v)
 	case ssaop.OpMask64sAllTrue:
 		return rewriteValue_OpMask64sAllTrue(v)
 	case ssaop.OpMask64sFirst:
 		return rewriteValue_OpMask64sFirst(v)
 	case ssaop.OpMask64sNext:
 		return rewriteValue_OpMask64sNext(v)
+	case ssaop.OpMask8sAll:
+		return rewriteValue_OpMask8sAll(v)
 	case ssaop.OpMask8sAllTrue:
 		return rewriteValue_OpMask8sAllTrue(v)
 	case ssaop.OpMask8sFirst:
@@ -28903,6 +28911,24 @@ func rewriteValue_OpLsh64x8(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpMask16sAll(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mask16sAll m)
+	// result: (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask16sAllTrue <types.TypeMask>) t m)))
+	for {
+		m := v_0
+		v.Reset(ssaop.OpARM64Equal)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PBICSB, types.NewTuple(typ.Mask, types.TypeFlags))
+		t := b.NewValue0(v.Pos, ssaop.OpMask16sAllTrue, types.TypeMask)
+		v1.AddArg3(t, t, m)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValue_OpMask16sAllTrue(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -28945,6 +28971,24 @@ func rewriteValue_OpMask16sNext(v *ssa.Value) bool {
 		v.Reset(ssaop.OpARM64PPNEXTH)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMask16sAllTrue, types.TypeMask)
 		v.AddArg2(m, v0)
+		return true
+	}
+}
+func rewriteValue_OpMask32sAll(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mask32sAll m)
+	// result: (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask32sAllTrue <types.TypeMask>) t m)))
+	for {
+		m := v_0
+		v.Reset(ssaop.OpARM64Equal)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PBICSB, types.NewTuple(typ.Mask, types.TypeFlags))
+		t := b.NewValue0(v.Pos, ssaop.OpMask32sAllTrue, types.TypeMask)
+		v1.AddArg3(t, t, m)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -28993,6 +29037,24 @@ func rewriteValue_OpMask32sNext(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpMask64sAll(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mask64sAll m)
+	// result: (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask64sAllTrue <types.TypeMask>) t m)))
+	for {
+		m := v_0
+		v.Reset(ssaop.OpARM64Equal)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PBICSB, types.NewTuple(typ.Mask, types.TypeFlags))
+		t := b.NewValue0(v.Pos, ssaop.OpMask64sAllTrue, types.TypeMask)
+		v1.AddArg3(t, t, m)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValue_OpMask64sAllTrue(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -29035,6 +29097,24 @@ func rewriteValue_OpMask64sNext(v *ssa.Value) bool {
 		v.Reset(ssaop.OpARM64PPNEXTD)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMask64sAllTrue, types.TypeMask)
 		v.AddArg2(m, v0)
+		return true
+	}
+}
+func rewriteValue_OpMask8sAll(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mask8sAll m)
+	// result: (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask8sAllTrue <types.TypeMask>) t m)))
+	for {
+		m := v_0
+		v.Reset(ssaop.OpARM64Equal)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PBICSB, types.NewTuple(typ.Mask, types.TypeFlags))
+		t := b.NewValue0(v.Pos, ssaop.OpMask8sAllTrue, types.TypeMask)
+		v1.AddArg3(t, t, m)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }

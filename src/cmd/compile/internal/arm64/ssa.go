@@ -809,6 +809,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		simdPNext(s, v, arm64.ARNG_S)
 	case ssaop.OpARM64PPNEXTD:
 		simdPNext(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64PBICSB:
+		// PBICS P2.B, P1.B, P0.Z, P3.B: P3 = P1 AND NOT P2 on the lanes of P0.
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = pregArng(v.Args[2].Reg(), arm64.ARNG_B)
+		p.AddRestSourceReg(pregArng(v.Args[1].Reg(), arm64.ARNG_B))
+		p.AddRestSourceReg(pregMask(v.Args[0].Reg(), arm64.PRED_Z))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pregArng(v.Reg0(), arm64.ARNG_B)
 	case ssaop.OpARM64PPFALSEB:
 		// Zero value of a mask: every lane false, e.g. PPFALSE P0.B.
 		p := s.Prog(v.Op.Asm())

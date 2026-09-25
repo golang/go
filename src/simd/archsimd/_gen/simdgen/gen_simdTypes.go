@@ -345,6 +345,11 @@ func (m {{.Name}}) First() {{.Name}}
 //
 // Asm: PNEXT, CPU Feature: SVE
 func (m {{.Name}}) Next() {{.Name}}
+
+// All reports whether every lane of m is active.
+//
+// Asm: BICS (predicate), CPU Feature: SVE
+func (m {{.Name}}) All() bool
 {{end}}
 
 {{define "sveIfElseTmpl"}}

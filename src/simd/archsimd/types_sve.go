@@ -1028,6 +1028,11 @@ func (m Mask8s) First() Mask8s
 // Asm: PNEXT, CPU Feature: SVE
 func (m Mask8s) Next() Mask8s
 
+// All reports whether every lane of m is active.
+//
+// Asm: BICS (predicate), CPU Feature: SVE
+func (m Mask8s) All() bool
+
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() lanes that exist at the runtime
 // vector length are shown.
@@ -1074,6 +1079,11 @@ func (m Mask16s) First() Mask16s
 //
 // Asm: PNEXT, CPU Feature: SVE
 func (m Mask16s) Next() Mask16s
+
+// All reports whether every lane of m is active.
+//
+// Asm: BICS (predicate), CPU Feature: SVE
+func (m Mask16s) All() bool
 
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 2 lanes that exist at the runtime
@@ -1122,6 +1132,11 @@ func (m Mask32s) First() Mask32s
 // Asm: PNEXT, CPU Feature: SVE
 func (m Mask32s) Next() Mask32s
 
+// All reports whether every lane of m is active.
+//
+// Asm: BICS (predicate), CPU Feature: SVE
+func (m Mask32s) All() bool
+
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 4 lanes that exist at the runtime
 // vector length are shown.
@@ -1168,6 +1183,11 @@ func (m Mask64s) First() Mask64s
 //
 // Asm: PNEXT, CPU Feature: SVE
 func (m Mask64s) Next() Mask64s
+
+// All reports whether every lane of m is active.
+//
+// Asm: BICS (predicate), CPU Feature: SVE
+func (m Mask64s) All() bool
 
 // String returns a string representation of SIMD mask m: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 8 lanes that exist at the runtime
