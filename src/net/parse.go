@@ -10,8 +10,8 @@ package net
 import (
 	"internal/bytealg"
 	"io"
+	"io/fs"
 	"os"
-	"time"
 )
 
 type file struct {
@@ -64,12 +64,8 @@ func (f *file) readLine() (s string, ok bool) {
 	return
 }
 
-func (f *file) stat() (mtime time.Time, size int64, err error) {
-	st, err := f.file.Stat()
-	if err != nil {
-		return time.Time{}, 0, err
-	}
-	return st.ModTime(), st.Size(), nil
+func (f *file) stat() (fs.FileInfo, error) {
+	return f.file.Stat()
 }
 
 func open(name string) (*file, error) {
@@ -80,12 +76,8 @@ func open(name string) (*file, error) {
 	return &file{fd, make([]byte, 0, 64*1024), false}, nil
 }
 
-func stat(name string) (mtime time.Time, size int64, err error) {
-	st, err := os.Stat(name)
-	if err != nil {
-		return time.Time{}, 0, err
-	}
-	return st.ModTime(), st.Size(), nil
+func stat(name string) (fs.FileInfo, error) {
+	return os.Stat(name)
 }
 
 // Count occurrences in s of any bytes in t.
