@@ -233,7 +233,12 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 				continue
 			}
 
-			// Clean signature -> Replace body with dispatcher
+			// Clean signature -> Replace body with dispatcher.
+			// For methods, ensure the receiver has a name so the dispatcher
+			// can forward the call to the specialized method on the receiver.
+			if d.Recv != nil && d.Recv.Name == nil {
+				d.Recv.Name = syntax.NewName(d.Recv.Pos(), "_simdRecv")
+			}
 			d.Body = r.createDispatcherBody(d, sig)
 			newDecls = append(newDecls, d)
 
@@ -361,10 +366,26 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 		fnName := fmt.Sprintf("%s@simd%d%s", d.Name.Value, k, variantSuffix)
 		fnIdent := syntax.NewName(d.Pos(), fnName)
 
-		callExpr := pe(&syntax.CallExpr{
-			Fun:     pe(fnIdent),
+		var fun syntax.Expr
+		if d.Recv != nil && d.Recv.Name != nil {
+			// For methods, call the specialized method on the receiver rather
+			// than as a plain function, so the type-checker can resolve it.
+			recvIdent := syntax.NewName(d.Pos(), d.Recv.Name.Value)
+			selExpr := &syntax.SelectorExpr{X: recvIdent, Sel: fnIdent}
+			selExpr.SetPos(d.Pos())
+			fun = selExpr
+		} else {
+			fun = pe(fnIdent)
+		}
+
+		callExpr := &syntax.CallExpr{
+			Fun:     fun,
 			ArgList: args(),
-		})
+		}
+		if n := len(d.Type.ParamList); n > 0 {
+			_, callExpr.HasDots = d.Type.ParamList[n-1].Type.(*syntax.DotsType)
+		}
+		pe(callExpr)
 
 		// callReturnStmt is either `return call(...)` or `call(...); return`
 		var callReturnStmt syntax.Stmt
