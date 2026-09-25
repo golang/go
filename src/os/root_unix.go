@@ -110,12 +110,30 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 }
 
 func rootOpenDir(parent int, name string) (int, error) {
+	return openDirNoFollow(parent, name, rootOpenDirFlags)
+}
+
+// openReadableDir opens the subdirectory name of parent for reading,
+// for use by os.RemoveAll. Unlike rootOpenDir, the returned file
+// descriptor supports reading directory entries.
+func openReadableDir(parent int, name string) (int, error) {
+	return openDirNoFollow(parent, name, 0)
+}
+
+// openDirNoFollow opens the subdirectory name of parent, refusing to
+// follow symlinks.
+//
+// The flags argument carries extra open flags: rootOpenDir passes
+// rootOpenDirFlags (O_PATH on Linux, where intermediate directories
+// only need to support *at operations), while os.RemoveAll needs a
+// directory it can read and passes 0.
+func openDirNoFollow(parent int, name string, flags int) (int, error) {
 	var (
 		fd  int
 		err error
 	)
 	ignoringEINTR(func() error {
-		fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
+		fd, err = unix.Openat(parent, name, flags|syscall.O_NOFOLLOW|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
 		if isNoFollowErr(err) || err == syscall.ENOTDIR {
 			err = checkSymlink(parent, name, err)
 		} else if err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP {
