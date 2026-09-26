@@ -316,6 +316,11 @@ func Publish(name string, v Var) {
 	slices.Sort(vars.keys)
 }
 
+// Delete removes a named exported variable.
+func Delete(name string) {
+	vars.Delete(name)
+}
+
 // Get retrieves a named exported variable. It returns nil if the name has
 // not been registered.
 func Get(name string) Var {
