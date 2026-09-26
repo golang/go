@@ -60,7 +60,8 @@ func marshalValueAny(enc *jsontext.Encoder, val any, mo *jsonopts.Struct) error 
 // unmarshalValueAny unmarshals a JSON value as a Go any.
 // This assumes that there are no special formatting directives
 // for any possible nested value.
-// Duplicate names must be rejected since this does not implement merging.
+// A duplicate name discards the previously unmarshaled value rather than
+// merging into it, so callers must only use this when that is acceptable.
 func unmarshalValueAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (any, error) {
 	switch k := dec.PeekKind(); k {
 	case '{':
@@ -196,7 +197,7 @@ func unmarshalObjectAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (map[string]
 		name := tok.String()
 
 		// Manually check for duplicate names.
-		if _, ok := obj[name]; ok {
+		if _, ok := obj[name]; ok && !uo.Flags.Get(jsonflags.AllowDuplicateNames) {
 			// TODO: Unread the object name.
 			name := export.Decoder(dec).PreviousTokenOrValue()
 			err := newDuplicateNameError(dec.StackPointer(), nil, dec.InputOffset()-len64(name))
@@ -209,7 +210,7 @@ func unmarshalObjectAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (map[string]
 			if isFatalError(err, uo.Flags) {
 				return obj, err
 			}
-			errUnmarshal = cmp.Or(err, errUnmarshal)
+			errUnmarshal = cmp.Or(errUnmarshal, err)
 		}
 	}
 	if _, err := dec.ReadToken(); err != nil {

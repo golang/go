@@ -827,6 +827,85 @@ func TestDuplicateNames(t *testing.T) {
 	}
 }
 
+// TestDuplicateNamesAny is the [TestDuplicateNames] case for an any target.
+//
+// It is kept separate because unmarshaling into any does not use the
+// reflect-based arshaler that a struct target uses. Under v1 semantics it
+// takes a hand-written fast path that implements last-one-wins rather than
+// merge semantics, so both targets need coverage to keep them in agreement.
+func TestDuplicateNamesAny(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want any // v1 only; v2 must report an error
+	}{
+		{"Flat", `{"N":1,"N":2}`, map[string]any{"N": 2.0}},
+		{"TypeChanges", `{"N":"x","N":true}`, map[string]any{"N": true}},
+		{"LastIsNull", `{"N":1,"N":null}`, map[string]any{"N": nil}},
+		{"FirstIsNull", `{"N":null,"N":1}`, map[string]any{"N": 1.0}},
+		// v1 discards the earlier value entirely rather than merging into it,
+		// so "A" from the first object must not survive.
+		{"Objects", `{"N":{"A":1},"N":{"B":2}}`, map[string]any{"N": map[string]any{"B": 2.0}}},
+		{"Nested", `{"N":{"A":1,"A":2}}`, map[string]any{"N": map[string]any{"A": 2.0}}},
+		{"InArray", `[{"N":1,"N":2}]`, []any{map[string]any{"N": 2.0}}},
+	}
+	for _, json := range jsonPackages {
+		for _, tt := range tests {
+			t.Run(path.Join("Unmarshal", tt.name, json.Version), func(t *testing.T) {
+				var got any
+				err := json.Unmarshal([]byte(tt.in), &got)
+				switch {
+				case json.Version == "v2":
+					if err == nil {
+						t.Fatal("json.Unmarshal error is nil, want non-nil")
+					}
+				case err != nil:
+					t.Fatalf("json.Unmarshal error: %v", err)
+				case !reflect.DeepEqual(got, tt.want):
+					t.Fatalf("json.Unmarshal = %v, want %v", got, tt.want)
+				}
+			})
+		}
+	}
+}
+
+// TestReportFirstErrorAny checks that unmarshaling into an any reports the
+// first non-fatal error in a JSON object rather than the last.
+//
+// Under v1 semantics a value that cannot be represented is not fatal, so
+// decoding continues and the errors accumulate. Arrays, maps and structs all
+// keep the first one; an any target must agree with them.
+func TestReportFirstErrorAny(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string // substring identifying which value is reported
+	}{
+		{"Object", `{"a":1e1000,"b":2e1000}`, "1e1000"},
+		{"ObjectNested", `{"o":{"a":1e1000,"b":2e1000}}`, "1e1000"},
+		{"ObjectCrossLevel", `{"o":{"a":1e1000},"b":2e1000}`, "1e1000"},
+		{"Array", `[1e1000,2e1000]`, "1e1000"},
+		{"ArrayOfObjects", `[{"a":1e1000},{"b":2e1000}]`, "1e1000"},
+	}
+	for _, json := range jsonPackages {
+		for _, tt := range tests {
+			t.Run(path.Join("Unmarshal", tt.name, json.Version), func(t *testing.T) {
+				var got any
+				err := json.Unmarshal([]byte(tt.in), &got)
+				if err == nil {
+					t.Fatal("json.Unmarshal error is nil, want non-nil")
+				}
+				if !strings.Contains(err.Error(), tt.want) {
+					t.Fatalf("json.Unmarshal error = %v, want it to mention %s", err, tt.want)
+				}
+				if strings.Contains(err.Error(), "2e1000") {
+					t.Fatalf("json.Unmarshal error = %v, want it to report only the first error", err)
+				}
+			})
+		}
+	}
+}
+
 // In v1, unmarshaling a JSON null into a non-empty value was inconsistent
 // in that sometimes it would be ignored and other times clear the value.
 // In v2, unmarshaling a JSON null into a non-empty value would consistently
