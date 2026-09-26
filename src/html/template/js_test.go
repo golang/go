@@ -65,6 +65,12 @@ func TestNextJsCtx(t *testing.T) {
 		{jsCtxRegexp, "return\t"},
 		{jsCtxRegexp, "return\n"},
 		{jsCtxRegexp, "return\u2028"},
+		// The contextual keywords await, in async functions, and
+		// yield, in generators, precede regexps too.
+		{jsCtxRegexp, "await"},
+		{jsCtxRegexp, "await "},
+		{jsCtxRegexp, "yield"},
+		{jsCtxRegexp, "yield\n"},
 		// Identifiers can be divided and cannot validly be preceded by
 		// a regular expressions. Semicolon insertion cannot happen
 		// between an identifier and a regular expression on a new line
@@ -77,6 +83,8 @@ func TestNextJsCtx(t *testing.T) {
 		{jsCtxDivOp, "x\n"},
 		{jsCtxDivOp, "x\u2028"},
 		{jsCtxDivOp, "preturn"},
+		{jsCtxDivOp, "xyield"},
+		{jsCtxDivOp, "awaits"},
 		// Numbers precede div ops.
 		{jsCtxDivOp, "0"},
 		// Dots that are part of a number are div preceders.
