@@ -22,6 +22,7 @@ import _ "unsafe"
 
 // used in plugin
 //go:linkname doInit
+//go:linkname pluginAddmoduledata
 
 // used in math/bits
 //go:linkname overflowError
