@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"time"
 )
 
 var finalizerDeadlockMode = flag.String("finalizer-deadlock-mode", "panic", "Trigger mode of FinalizerDeadlock")
@@ -39,8 +40,11 @@ func FinalizerOrCleanupDeadlock(useCleanup bool) {
 
 	<-started
 	// We know the finalizer has started running. The goroutine might still
-	// be running or it may now be blocked. Either is fine, the goroutine
-	// should appear in stacks either way.
+	// be running or it may now be blocked.
+	// For the "panic" mode, panic traceback does not stop the world. If the
+	// finalizer goroutine is still running on another thread, its stack will
+	// be unavailable. Give it a moment to block in select {}.
+	time.Sleep(10 * time.Millisecond)
 
 	mode := os.Getenv("GO_TEST_FINALIZER_DEADLOCK")
 	switch mode {
