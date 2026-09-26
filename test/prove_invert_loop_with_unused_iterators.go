@@ -9,3 +9,15 @@ func invert(b func(), n int) {
 		b()
 	}
 }
+
+func invertu(b func(), n uint) {
+	for i := uint(0); i < n; i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+		b()
+	}
+}
+
+func invertudown(b func(), n uint) {
+	for i := n; i > 0; i-- { // ERROR "Induction variable: limits \(0,\?\], increment 1"
+		b()
+	}
+}

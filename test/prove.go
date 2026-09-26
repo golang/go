@@ -74,10 +74,17 @@ func f2(a []int) int {
 }
 
 func f3(a []uint) int {
-	for i := uint(0); i < uint(len(a)); i++ {
+	for i := uint(0); i < uint(len(a)); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		a[i] = i // ERROR "Proved IsInBounds$"
 	}
 	return 41
+}
+
+func f3step(a []uint) int {
+	for i := uint(0); i < uint(len(a))-1; i += 2 { // ERROR "Induction variable: limits \[0,\?\), increment 2$"
+		a[i] = i // ERROR "Proved IsInBounds$"
+	}
+	return 42
 }
 
 func f4a(a, b, c int) int {
