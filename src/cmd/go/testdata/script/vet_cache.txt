@@ -13,6 +13,14 @@ stderr 'fmt.Sprint call has possible Printf formatting directive'
 ! go vet example.com/a
 stderr 'fmt.Sprint call has possible Printf formatting directive'
 
+# Vetting example.com/a only as a dependency of example.com/b
+# records facts but reports no diagnostics. A later
+# 'go vet example.com/a' must not reuse that result.
+env GOCACHE=$WORK/gocache2
+go vet example.com/b
+! go vet example.com/a
+stderr 'fmt.Sprint call has possible Printf formatting directive'
+
 -- go.mod --
 module example.com
 
@@ -22,3 +30,8 @@ package a
 import "fmt"
 
 var _ = fmt.Sprint("%s") // oops!
+
+-- b/b.go --
+package b
+
+import _ "example.com/a"
