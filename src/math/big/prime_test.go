@@ -6,6 +6,7 @@ package big
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"unicode"
@@ -142,9 +143,9 @@ func TestProbablyPrime(t *testing.T) {
 		}
 	}
 
-	// check that ProbablyPrime panics if n <= 0
+	// check that ProbablyPrime panics if n < 0
 	c := NewInt(11) // a prime
-	for _, n := range []int{-1, 0, 1} {
+	for _, n := range []int{math.MinInt, -1, 0, 1} {
 		func() {
 			defer func() {
 				if n < 0 && recover() == nil {
@@ -155,6 +156,37 @@ func TestProbablyPrime(t *testing.T) {
 				t.Fatalf("%v should be a prime", c)
 			}
 		}()
+	}
+}
+
+func TestProbablyPrimeMaxInt(t *testing.T) {
+	// Only small primes handled by the early check are used here:
+	// testing other primes with these round counts would take too long.
+	for _, test := range []struct {
+		x    int64
+		want bool
+	}{
+		{-2, false},
+		{0, false},
+		{1, false},
+		{2, true},
+		{61, true},
+		{63, false},
+		{64, false},
+		{65, false},
+		// Lucas pseudoprimes must still be rejected when adding the
+		// extra base-2 Miller-Rabin round would overflow an int.
+		{10877, false},
+		{27971, false},
+		{29681, false},
+		{30739, false},
+		{31631, false},
+	} {
+		for _, n := range []int{math.MaxInt - 1, math.MaxInt} {
+			if got := NewInt(test.x).ProbablyPrime(n); got != test.want {
+				t.Errorf("%d.ProbablyPrime(%d) = %v, want %v", test.x, n, got, test.want)
+			}
+		}
 	}
 }
 
