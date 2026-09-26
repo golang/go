@@ -59,6 +59,7 @@ func TestInlining(t *testing.T) {
 		"AddrFrom4",
 		"IPv6LinkLocalAllNodes",
 		"IPv6Unspecified",
+		"ParseAddr",
 		"MustParseAddr",
 		"MustParseAddrPort",
 		"MustParsePrefix",

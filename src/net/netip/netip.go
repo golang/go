@@ -112,6 +112,16 @@ func AddrFrom16(addr [16]byte) Addr {
 // s can be in dotted decimal ("192.0.2.1"), IPv6 ("2001:db8::68"),
 // or IPv6 with a scoped addressing zone ("fe80::1cc0:3e8c:119f:c2e1%ens18").
 func ParseAddr(s string) (Addr, error) {
+	// This implementation is inlineable and does not allocate
+	// when callers use the error result only in nil checks.
+	addr, err := parseAddrNoAlloc(s)
+	if (err != parseAddrError{}) {
+		return addr, err
+	}
+	return addr, nil
+}
+
+func parseAddrNoAlloc(s string) (Addr, parseAddrError) {
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '.':
@@ -130,8 +140,8 @@ func ParseAddr(s string) (Addr, error) {
 // MustParseAddr calls [ParseAddr](s) and panics on error.
 // It is intended for use in tests with hard-coded strings.
 func MustParseAddr(s string) Addr {
-	ip, err := ParseAddr(s)
-	if err != nil {
+	ip, err := parseAddrNoAlloc(s)
+	if (err != parseAddrError{}) {
 		panic(err)
 	}
 	return ip
@@ -151,7 +161,7 @@ func (err parseAddrError) Error() string {
 	return "ParseAddr(" + q(err.in) + "): " + err.msg
 }
 
-func parseIPv4Fields(in string, off, end int, fields []uint8) error {
+func parseIPv4Fields(in string, off, end int, fields []uint8) parseAddrError {
 	var val, pos int
 	var digLen int // number of digits in current octet
 	s := in[off:end]
@@ -188,21 +198,21 @@ func parseIPv4Fields(in string, off, end int, fields []uint8) error {
 		return parseAddrError{in: in, msg: "IPv4 address too short"}
 	}
 	fields[3] = uint8(val)
-	return nil
+	return parseAddrError{}
 }
 
 // parseIPv4 parses s as an IPv4 address (in form "192.168.0.1").
-func parseIPv4(s string) (ip Addr, err error) {
+func parseIPv4(s string) (ip Addr, err parseAddrError) {
 	var fields [4]uint8
 	err = parseIPv4Fields(s, 0, len(s), fields[:])
-	if err != nil {
+	if (err != parseAddrError{}) {
 		return Addr{}, err
 	}
-	return AddrFrom4(fields), nil
+	return AddrFrom4(fields), parseAddrError{}
 }
 
 // parseIPv6 parses s as an IPv6 address (in form "2001:db8::68").
-func parseIPv6(in string) (Addr, error) {
+func parseIPv6(in string) (Addr, parseAddrError) {
 	s := in
 
 	// Split off the zone right from the start. Yes it's a second scan
@@ -228,7 +238,7 @@ func parseIPv6(in string) (Addr, error) {
 		s = s[2:]
 		// Might be only ellipsis
 		if len(s) == 0 {
-			return IPv6Unspecified().WithZone(zone), nil
+			return IPv6Unspecified().WithZone(zone), parseAddrError{}
 		}
 	}
 
@@ -280,7 +290,7 @@ func parseIPv6(in string) (Addr, error) {
 				end -= len(zone) + 1
 			}
 			err := parseIPv4Fields(in, end-len(s), end, ip[i:i+4])
-			if err != nil {
+			if (err != parseAddrError{}) {
 				return Addr{}, err
 			}
 			s = ""
@@ -339,7 +349,7 @@ func parseIPv6(in string) (Addr, error) {
 		// Ellipsis must represent at least one 0 group.
 		return Addr{}, parseAddrError{in: in, msg: "the :: must expand to at least one field of zeros"}
 	}
-	return AddrFrom16(ip).WithZone(zone), nil
+	return AddrFrom16(ip).WithZone(zone), parseAddrError{}
 }
 
 // AddrFromSlice parses the 4- or 16-byte byte slice as an IPv4 or IPv6 address.
