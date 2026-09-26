@@ -1,0 +1,13 @@
+//gofmt -r=a->p.a
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 52145: a wildcard may match an expression that cannot
+// appear where the wildcard is used in the replacement. Such a
+// rewrite is skipped rather than applied.
+
+package p
+
+var _ = 1
