@@ -35,17 +35,6 @@ var finalPermutation = [64]byte{
 	31, 63, 23, 55, 15, 47, 7, 39,
 }
 
-// Used to expand an input block of 32 bits, producing an output block of 48
-// bits.
-var expansionFunction = [48]byte{
-	0, 31, 30, 29, 28, 27, 28, 27,
-	26, 25, 24, 23, 24, 23, 22, 21,
-	20, 19, 20, 19, 18, 17, 16, 15,
-	16, 15, 14, 13, 12, 11, 12, 11,
-	10, 9, 8, 7, 8, 7, 6, 5,
-	4, 3, 4, 3, 2, 1, 0, 31,
-}
-
 // Yields a 32-bit output from a 32-bit input
 var permutationFunction = [32]byte{
 	16, 25, 12, 11, 3, 20, 4, 15,
