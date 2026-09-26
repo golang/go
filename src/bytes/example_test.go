@@ -309,6 +309,26 @@ func ExampleCutSuffix() {
 	// CutSuffix("Gopher", "er") = "Goph", true
 }
 
+func ExampleCutLast() {
+	show := func(s, sep string) {
+		before, after, found := bytes.CutLast([]byte(s), []byte(sep))
+		fmt.Printf("CutLast(%q, %q) = %q, %q, %v\n", s, sep, before, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	show("Gopher", "er")
+	show("Gopher", "Badger")
+	show("path/to/file.txt", "/")
+	show("one:two:three", ":")
+	// Output:
+	// CutLast("Gopher", "Go") = "", "pher", true
+	// CutLast("Gopher", "ph") = "Go", "er", true
+	// CutLast("Gopher", "er") = "Goph", "", true
+	// CutLast("Gopher", "Badger") = "Gopher", "", false
+	// CutLast("path/to/file.txt", "/") = "path/to", "file.txt", true
+	// CutLast("one:two:three", ":") = "one:two", "three", true
+}
+
 func ExampleEqual() {
 	fmt.Println(bytes.Equal([]byte("Go"), []byte("Go")))
 	fmt.Println(bytes.Equal([]byte("Go"), []byte("C++")))
