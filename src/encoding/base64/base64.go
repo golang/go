@@ -152,18 +152,14 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	// outside of the loop to speed up the encoder.
 	_ = enc.encode
 
-	for len(src) >= 3 {
-		// Convert 3x 8bit source bytes into 4 bytes
-		val := uint(src[0])<<16 | uint(src[1])<<8 | uint(src[2])
-
-		_ = dst[3] // Eliminate bounds checks below.
-		dst[0] = enc.encode[val>>18&0x3F]
-		dst[1] = enc.encode[val>>12&0x3F]
-		dst[2] = enc.encode[val>>6&0x3F]
-		dst[3] = enc.encode[val&0x3F]
-
-		src = src[3:]
-		dst = dst[4:]
+	n := (len(src) / 3) * 3
+	if n > 0 {
+		// encodeChunk does not check the destination length; validate it
+		// here so a short dst panics like the Go loop below would.
+		_ = dst[n/3*4-1]
+		encodeChunk(&enc.encode, &dst[0], &src[0], n)
+		src = src[n:]
+		dst = dst[n/3*4:]
 	}
 
 	// Add the remaining small block (if any).
