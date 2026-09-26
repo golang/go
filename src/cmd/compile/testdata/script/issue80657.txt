@@ -1,0 +1,32 @@
+# Regression test for ICE in SIMD lowering of methods on named struct types.
+
+[!GOEXPERIMENT:simd] skip
+
+go tool compile -p example -I ${GOROOT}/pkg/${GOOS}_${GOARCH} -o out.o method.go
+! stderr .
+! stdout .
+
+-- method.go --
+//go:build goexperiment.simd
+
+package example
+
+import "simd"
+
+type Implementation struct{}
+
+func (Implementation) Foo(x []float64) {
+	for _i := 0; _i < len(x); {
+		_v1, _n := simd.LoadFloat64sPart(x[_i:])
+		_ = _v1
+		_i += _n
+	}
+}
+
+func (impl Implementation) Bar(x []float32) {
+	for _i := 0; _i < len(x); {
+		_v1, _n := simd.LoadFloat32sPart(x[_i:])
+		_ = _v1
+		_i += _n
+	}
+}
