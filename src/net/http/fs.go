@@ -1026,7 +1026,10 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	}
 	const b = "bytes="
 	if len(s) < len(b) || !ascii.EqualFold(s[:len(b)], b) {
-		return nil, errors.New("invalid range")
+		// RFC 7233, Section 3.1: an origin server MUST ignore a Range
+		// header field that contains a range unit it does not understand.
+		// Treat the header as if it was not present.
+		return nil, nil
 	}
 	var ranges []httpRange
 	noOverlap := false
