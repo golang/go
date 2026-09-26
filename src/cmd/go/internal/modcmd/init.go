@@ -24,6 +24,11 @@ Init accepts one optional argument, the module path for the new module. If the
 module path argument is omitted, init will attempt to infer the module path
 using import comments in .go files and the current directory (if in GOPATH).
 
+The go directive in the new go.mod file will be set to one minor version
+below the current toolchain version (for example, go 1.25.0 when using
+the Go 1.26 toolchain). Use 'go get go@version' to change the go version
+after initialization.
+
 See https://go.dev/ref/mod#go-mod-init for more about 'go mod init'.
 `,
 	Run: runInit,
