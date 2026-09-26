@@ -120,7 +120,32 @@ func TestDebugLines_81705(t *testing.T) {
 
 	// A switch with no tag must have a statement on its own line
 	// before the cases, and none after all cases fail.
-	testDebugLines(t, "-N -l", "i81705.go", "main", []int{8, 9, 10, 11, 12}, true)
+	testDebugLines(t, "-N -l", "i81705a.go", "main", []int{12, 13, 14, 15, 16}, true)
+}
+
+func TestDebugLines_81705TypeSwitch(t *testing.T) {
+	unixOnly(t)
+	switch testGoArch() {
+	default:
+		t.Skip("statement marker counts are architecture-specific")
+	case "amd64":
+	}
+
+	// An internal switch generated while lowering a type switch must not
+	// add another statement marker to the source type-switch line.
+	tests := []struct {
+		name      string
+		gcflags   string
+		wantStmts []int
+	}{
+		{"debug", "-N -l", []int{7, 8, 8, 9, 10, 11, 11, 12}},
+		{"optimized", "-l", []int{8, 12, 12, 10}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testDebugLines(t, test.gcflags, "i81705b.go", "typeSwitch", test.wantStmts, false)
+		})
+	}
 }
 
 func TestDebugLines_74576(t *testing.T) {
