@@ -540,7 +540,7 @@ func parseECHExt(ext []byte) (echType echExtType, cs echCipher, configID uint8, 
 		err = errMalformedECHExt
 		return
 	}
-	if !readUint16LengthPrefixed(&s, &payload) {
+	if !readUint16LengthPrefixed(&s, &payload) || !s.Empty() {
 		err = errMalformedECHExt
 		return
 	}
