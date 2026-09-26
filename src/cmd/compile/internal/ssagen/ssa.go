@@ -2048,7 +2048,7 @@ func (s *state) stmt(n ir.Node) {
 
 		b := s.endBlock()
 		if n.Pos().IsStmt() == src.PosNotStmt {
-			// The front end generated this branch, and it is
+			// the front end generated this branch, and it is
 			// not a statement in the source (for example, the
 			// implicit default case of a switch). See issue 81705.
 			b.Pos = s.lastPos.WithNotStmt()
@@ -2156,7 +2156,7 @@ func (s *state) stmt(n ir.Node) {
 			lab.breakTarget = bEnd
 		}
 
-		// With -N, end the current block at the position of the
+		// with -N, end the current block at the position of the
 		// switch or select statement. The jump at the end of the
 		// block gives the statement an instruction that executes
 		// before any case is evaluated. Without this, a switch with
