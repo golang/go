@@ -2340,6 +2340,48 @@ func TestSupportedSignatureAlgorithmsMLDSAGating(t *testing.T) {
 	}
 }
 
+// TestSupportedSignatureAlgorithmsTLSMLDSA checks that tlsmldsa=0 removes
+// ML-DSA from what's advertised and accepted, and nothing else, while a local
+// ML-DSA certificate can still be selected.
+func TestSupportedSignatureAlgorithmsTLSMLDSA(t *testing.T) {
+	cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
+
+	isMLDSA := func(s SignatureScheme) bool {
+		return s == MLDSA44 || s == MLDSA65 || s == MLDSA87
+	}
+	want := supportedSignatureAlgorithms(VersionTLS12, VersionTLS13)
+	wantCert := supportedSignatureAlgorithmsCert(VersionTLS12, VersionTLS13)
+	if !slices.ContainsFunc(want, isMLDSA) || !slices.ContainsFunc(wantCert, isMLDSA) {
+		if fips140tls.Required() {
+			t.Skip("ML-DSA is not allowed by the FIPS 140-3 policy")
+		}
+		t.Fatal("ML-DSA is not advertised by default")
+	}
+	want = slices.DeleteFunc(want, isMLDSA)
+	wantCert = slices.DeleteFunc(wantCert, isMLDSA)
+
+	testenv.SetGODEBUG(t, "tlsmldsa=0")
+
+	if got := supportedSignatureAlgorithms(VersionTLS12, VersionTLS13); !slices.Equal(got, want) {
+		t.Errorf("supportedSignatureAlgorithms = %v, want %v", got, want)
+	}
+	if got := supportedSignatureAlgorithmsCert(VersionTLS12, VersionTLS13); !slices.Equal(got, wantCert) {
+		t.Errorf("supportedSignatureAlgorithmsCert = %v, want %v", got, wantCert)
+	}
+
+	if got, err := selectSignatureScheme(VersionTLS13, &testMLDSA44Cert, []SignatureScheme{MLDSA44}); err != nil || got != MLDSA44 {
+		t.Errorf("selectSignatureScheme with a local ML-DSA certificate = %v, %v; want MLDSA44, nil", got, err)
+	}
+
+	serverConfig := testConfigServer()
+	serverConfig.Certificates = []Certificate{testMLDSA44Cert}
+	if _, _, err := testHandshake(t, testConfigClient(), serverConfig); err == nil {
+		t.Error("handshake with an ML-DSA certificate unexpectedly succeeded")
+	} else if !strings.Contains(err.Error(), "signature algorithms") {
+		t.Errorf("handshake with an ML-DSA certificate failed with %v; want a signature algorithms error", err)
+	}
+}
+
 func TestHandshakeMLDSA(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
