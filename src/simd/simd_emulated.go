@@ -84,9 +84,9 @@ func LoadInt8s(s []int8) Int8s {
 }
 
 // LoadInt8sPart loads a partial slice of int8 into an Int8s vector.
-func LoadInt8sPart(s []int8) (Int8s, int) {
+func LoadInt8sPart(s []int8) (_ Int8s, n int) {
 	var a, b uint64
-	n := len(s)
+	n = len(s)
 	if n > 16 {
 		n = 16
 	}
@@ -407,9 +407,9 @@ func LoadInt16s(s []int16) Int16s {
 }
 
 // LoadInt16sPart loads a partial slice of int16 into an Int16s vector.
-func LoadInt16sPart(s []int16) (Int16s, int) {
+func LoadInt16sPart(s []int16) (_ Int16s, n int) {
 	var a, b uint64
-	n := len(s)
+	n = len(s)
 	if n > 8 {
 		n = 8
 	}
@@ -748,9 +748,9 @@ func LoadInt32s(s []int32) Int32s {
 }
 
 // LoadInt32sPart loads a partial slice of int32 into an Int32s vector.
-func LoadInt32sPart(s []int32) (Int32s, int) {
+func LoadInt32sPart(s []int32) (_ Int32s, n int) {
 	var a, b uint64
-	n := len(s)
+	n = len(s)
 	if n > 4 {
 		n = 4
 	}
@@ -1279,9 +1279,9 @@ func LoadUint8s(s []uint8) Uint8s {
 }
 
 // LoadUint8sPart loads a partial slice of uint8 into an Uint8s vector.
-func LoadUint8sPart(s []uint8) (Uint8s, int) {
+func LoadUint8sPart(s []uint8) (_ Uint8s, n int) {
 	var a, b uint64
-	n := len(s)
+	n = len(s)
 	if n > 16 {
 		n = 16
 	}
@@ -1545,9 +1545,9 @@ func LoadUint16s(s []uint16) Uint16s {
 }
 
 // LoadUint16sPart loads a partial slice of uint16 into an Uint16s vector.
-func LoadUint16sPart(s []uint16) (Uint16s, int) {
+func LoadUint16sPart(s []uint16) (_ Uint16s, n int) {
 	var a, b uint64
-	n := len(s)
+	n = len(s)
 	if n > 8 {
 		n = 8
 	}
@@ -1897,9 +1897,9 @@ func LoadUint32s(s []uint32) Uint32s {
 }
 
 // LoadUint32sPart loads a partial slice of uint32 into an Uint32s vector.
-func LoadUint32sPart(s []uint32) (Uint32s, int) {
+func LoadUint32sPart(s []uint32) (_ Uint32s, n int) {
 	var a, b uint64
-	n := len(s)
+	n = len(s)
 	if n > 4 {
 		n = 4
 	}
@@ -2210,8 +2210,8 @@ func LoadUint64s(s []uint64) Uint64s {
 }
 
 // LoadUint64sPart loads a partial slice of uint64 into an Uint64s vector.
-func LoadUint64sPart(s []uint64) (Uint64s, int) {
-	n := len(s)
+func LoadUint64sPart(s []uint64) (_ Uint64s, n int) {
+	n = len(s)
 	var a, b uint64
 	if n > 0 {
 		a = s[0]
@@ -2452,9 +2452,9 @@ func LoadFloat32s(s []float32) Float32s {
 }
 
 // LoadFloat32sPart loads a partial slice of float32 into an Float32s vector.
-func LoadFloat32sPart(s []float32) (Float32s, int) {
+func LoadFloat32sPart(s []float32) (_ Float32s, n int) {
 	var a, b uint64
-	n := len(s)
+	n = len(s)
 	if n > 4 {
 		n = 4
 	}
@@ -2723,8 +2723,8 @@ func LoadFloat64s(s []float64) Float64s {
 }
 
 // LoadFloat64sPart loads a partial slice of float64 into an Float64s vector.
-func LoadFloat64sPart(s []float64) (Float64s, int) {
-	n := len(s)
+func LoadFloat64sPart(s []float64) (_ Float64s, n int) {
+	n = len(s)
 	var a, b uint64
 	if n > 0 {
 		a = math.Float64bits(s[0])
