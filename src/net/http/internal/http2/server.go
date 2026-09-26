@@ -932,12 +932,12 @@ func (sc *serverConn) teardown() {
 	if t := sc.idleTimer; t != nil {
 		t.Stop()
 	}
+	sc.baseCtxCancel()    // before any handler can observe the conn is gone
 	close(sc.doneServing) // unblocks handlers trying to send
 	sc.stopShutdownTimer()
 	sc.closeAllStreamsOnConnClose()
 	sc.conn.Close()
 	sc.srv.unregisterConn(sc)
-	sc.baseCtxCancel()
 	if f := sc.onClose; f != nil {
 		f()
 	}
@@ -1460,6 +1460,7 @@ func (sc *serverConn) wroteFrame(res frameWriteResult) {
 	sc.writingFrameAsync = false
 
 	if res.err != nil {
+		sc.baseCtxCancel()
 		sc.conn.Close()
 	}
 
