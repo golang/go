@@ -72,16 +72,19 @@ func (c *ChaCha8) Read(p []byte) (n int, err error) {
 
 // UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
 func (c *ChaCha8) UnmarshalBinary(data []byte) error {
+	var buf []byte
 	data, ok := cutPrefix(data, []byte("readbuf:"))
 	if ok {
-		var buf []byte
 		buf, data, ok = readUint8LengthPrefixed(data)
-		if !ok {
+		if !ok || len(buf) > len(c.readBuf) {
 			return errors.New("invalid ChaCha8 Read buffer encoding")
 		}
-		c.readLen = copy(c.readBuf[len(c.readBuf)-len(buf):], buf)
 	}
-	return chacha8rand.Unmarshal(&c.state, data)
+	if err := chacha8rand.Unmarshal(&c.state, data); err != nil {
+		return err
+	}
+	c.readLen = copy(c.readBuf[len(c.readBuf)-len(buf):], buf)
+	return nil
 }
 
 func cutPrefix(s, prefix []byte) (after []byte, found bool) {
@@ -92,10 +95,10 @@ func cutPrefix(s, prefix []byte) (after []byte, found bool) {
 }
 
 func readUint8LengthPrefixed(b []byte) (buf, rest []byte, ok bool) {
-	if len(b) == 0 || len(b) < int(1+b[0]) {
+	if len(b) == 0 || len(b) < 1+int(b[0]) {
 		return nil, nil, false
 	}
-	return b[1 : 1+b[0]], b[1+b[0]:], true
+	return b[1 : 1+int(b[0])], b[1+int(b[0]):], true
 }
 
 // AppendBinary implements the [encoding.BinaryAppender] interface.
