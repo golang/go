@@ -13,6 +13,11 @@ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
 	// X13 = byte to find
 	AND	$0xff, X13, X12		// x12 byte to look for
 
+#ifdef EnableSmallSizeMemVector
+	JMP	indexByteVector<>(SB)
+#endif
+
+#ifndef EnableSmallSizeMemVector
 	SLTI	$24, X11, X14
 	BNEZ	X14, small
 	JMP	indexByteBig<>(SB)
@@ -33,6 +38,7 @@ loop:
 notfound:
 	MOV	$-1, X10
 	RET
+#endif
 
 TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	// X10 = b_base
@@ -40,6 +46,11 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	// X12 = byte to find
 	AND	$0xff, X12		// x12 byte to look for
 
+#ifdef EnableSmallSizeMemVector
+	JMP	indexByteVector<>(SB)
+#endif
+
+#ifndef EnableSmallSizeMemVector
 	SLTI	$24, X11, X14
 	BNEZ	X14, small
 	JMP	indexByteBig<>(SB)
@@ -55,6 +66,62 @@ loop:
 	BNE	X12, X14, loop
 
 	SUB	X13, X10		// remove base
+	RET
+
+notfound:
+	MOV	$-1, X10
+	RET
+#endif
+
+TEXT indexByteVector<>(SB),NOSPLIT|NOFRAME,$0
+	// On entry:
+	// X10 = b_base
+	// X11 = b_len
+	// X12 = byte to find
+	// On exit:
+	// X10 = index of first instance of sought byte, if found, or -1 otherwise
+
+	MOV $16, X13
+#ifdef VLen_256
+	SLLI	$1, X13
+#endif
+#ifdef VLen_512
+	SLLI	$2, X13
+#endif
+	BGEU	X13, X11, vector_single
+	SLLI	$1, X13
+	BGEU	X13, X11, vector_double
+	SLLI	$1, X13
+	BGEU	X13, X11, vector_quarter
+	JMP	indexByteBig<>(SB)
+
+// 1..(vlen) bytes
+	PCALIGN	$16
+vector_single:
+	VSETVLI	X11, E8, M1, TA, MA, X5
+	JMP vector
+
+// (vlen+1)..(2*vlen) bytes
+	PCALIGN	$16
+vector_double:
+	VSETVLI	X11, E8, M2, TA, MA, X5
+	JMP vector
+
+// (2*vlen+1)..(4*vlen) bytes
+	PCALIGN	$16
+vector_quarter:
+	VSETVLI	X11, E8, M4, TA, MA, X5
+	JMP vector
+
+vector:
+	VLE8V	(X10), V8
+	VMSEQVX	X12, V8, V0
+	VFIRSTM	V0, X6
+	BGEZ	X6, found
+	JMP	notfound
+
+found:
+	MOV	X6, X10
 	RET
 
 notfound:
@@ -93,6 +160,7 @@ vector_found:
 	ADD	X6, X10
 	RET
 
+#ifndef hasV
 indexbyte_scalar:
 	ADD	X10, X11		// end
 
@@ -155,7 +223,7 @@ loop:
 found:
 	SUB	X13, X10		// remove base
 	RET
+#endif
 
 notfound:
 	MOV	$-1, X10
-	RET
