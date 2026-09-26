@@ -1009,6 +1009,19 @@ func TestExecError(t *testing.T) {
 	}
 }
 
+func TestExecErrorPercentInTemplateName(t *testing.T) {
+	tmpl := Must(New("%s.tmpl").Option("missingkey=error").Parse("{{ .MissingKey }}"))
+	var b bytes.Buffer
+	err := tmpl.Execute(&b, map[string]string{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	const want = `template: %s.tmpl:1:3: executing "%s.tmpl" at <.MissingKey>: map has no entry for key "MissingKey"`
+	if got := err.Error(); got != want {
+		t.Errorf("expected\n%q\ngot\n%q", want, got)
+	}
+}
+
 type CustomError struct{}
 
 func (*CustomError) Error() string { return "heyo !" }
