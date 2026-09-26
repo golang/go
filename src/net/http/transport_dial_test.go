@@ -139,27 +139,128 @@ func TestTransportPoolConnHTTP2StrictMaxConcurrentRequests(t *testing.T) {
 	})
 }
 
-// A new request made while an HTTP/2 dial is in progress will start a second dial.
+// Requests made while an HTTP/2 dial is in progress share that dial.
 func TestTransportPoolConnHTTP2Startup(t *testing.T) {
+	for _, mode := range []testMode{http2Mode, http2UnencryptedMode} {
+		t.Run(string(mode), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				dt := newTransportDialTester(t, mode)
+				rt1 := dt.roundTrip()
+				c1 := dt.wantDial()
+				rt2 := dt.roundTrip()
+				dt.wantNoDial()
+				c1.finish(nil)
+				rt1.wantDone(c1, "HTTP/2.0")
+				rt2.wantDone(c1, "HTTP/2.0")
+				rt1.finish()
+				rt2.finish()
+			})
+		})
+	}
+}
+
+func TestTransportPoolConnHTTP2DialError(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {})
-
-		// Two requests start.
-		// Since the second request starts before the first dial finishes, it starts a second dial.
+		dt := newTransportDialTester(t, http2UnencryptedMode)
 		rt1 := dt.roundTrip()
-		rt2 := dt.roundTrip()
 		c1 := dt.wantDial()
-		c2 := dt.wantDial()
+		rt2 := dt.roundTrip()
+		dt.wantNoDial()
+		wantErr := errors.New("dial failed")
+		c1.finish(wantErr)
+		for _, rt := range []*transportDialTesterRoundTrip{rt1, rt2} {
+			rt.wantError()
+			if !errors.Is(rt.err, wantErr) {
+				t.Errorf("RoundTrip error = %v, want %v", rt.err, wantErr)
+			}
+		}
 
-		// Both requests use the conn of the first dial to complete.
+		// A failed dial does not prevent a later request from dialing again.
+		rt3 := dt.roundTrip()
+		c2 := dt.wantDial()
+		c2.finish(nil)
+		rt3.wantDone(c2, "HTTP/2.0")
+		rt3.finish()
+	})
+}
+
+func TestTransportPoolConnHTTP2DialCancel(t *testing.T) {
+	for _, maxConns := range []int{0, 1, 2} {
+		t.Run(strconv.Itoa(maxConns), func(t *testing.T) {
+			for _, cancelFirst := range []bool{false, true} {
+				t.Run(strconv.FormatBool(cancelFirst), func(t *testing.T) {
+					synctest.Test(t, func(t *testing.T) {
+						dt := newTransportDialTester(t, http2UnencryptedMode, func(tr *http.Transport) {
+							tr.MaxConnsPerHost = maxConns
+						})
+						rt1 := dt.roundTrip()
+						c1 := dt.wantDial()
+						rt2 := dt.roundTrip()
+						dt.wantNoDial()
+						canceled, remaining := rt2, rt1
+						if cancelFirst {
+							canceled, remaining = rt1, rt2
+						}
+						canceled.cancel()
+						canceled.wantError()
+						if !errors.Is(canceled.err, context.Canceled) {
+							t.Errorf("RoundTrip error = %v, want context.Canceled", canceled.err)
+						}
+						dt.cst.tr.CloseIdleConnections()
+						c1.finish(nil)
+						remaining.wantDone(c1, "HTTP/2.0")
+						remaining.finish()
+						dt.wantNoDial()
+					})
+				})
+			}
+		})
+	}
+}
+
+func TestTransportPoolConnHTTP2DialPerHost(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http2UnencryptedMode)
+		rt1 := dt.roundTrip("one.example")
+		c1 := dt.wantDial()
+		rt2 := dt.roundTrip("two.example")
+		c2 := dt.wantDial()
+		c2.finish(nil)
+		rt2.wantDone(c2, "HTTP/2.0")
 		c1.finish(nil)
 		rt1.wantDone(c1, "HTTP/2.0")
-		rt2.wantDone(c1, "HTTP/2.0")
-
 		rt1.finish()
 		rt2.finish()
-		c2.finish(nil)
 	})
+}
+
+func TestTransportPoolConnHTTP2DialMaxConns(t *testing.T) {
+	for _, maxConns := range []int{0, 1, 2, 10} {
+		t.Run(strconv.Itoa(maxConns), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				dt := newTransportDialTester(t, http2UnencryptedMode, func(tr *http.Transport) {
+					tr.MaxConnsPerHost = maxConns
+				})
+				var requests []*transportDialTesterRoundTrip
+				for range 10 {
+					requests = append(requests, dt.roundTrip())
+				}
+				c1 := dt.wantDial()
+				dt.wantNoDial()
+				c1.finish(nil)
+				for _, rt := range requests {
+					rt.wantDone(c1, "HTTP/2.0")
+					rt.finish()
+				}
+				dt.cst.tr.CloseIdleConnections()
+				rt := dt.roundTrip()
+				c2 := dt.wantDial()
+				c2.finish(nil)
+				rt.wantDone(c2, "HTTP/2.0")
+				rt.finish()
+			})
+		})
+	}
 }
 
 // When a request finishes using an HTTP/1 connection,
@@ -482,7 +583,7 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 	dt := &transportDialTester{
 		t: t,
 	}
-	dialer := func(addr string) (*transportDialTesterConn, error) {
+	dialer := func(ctx context.Context, addr string) (*transportDialTesterConn, error) {
 		c := &transportDialTesterConn{
 			t:      t,
 			ready:  make(chan error),
@@ -500,6 +601,8 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 			if err != nil {
 				return nil, err
 			}
+		case <-ctx.Done():
+			return nil, context.Cause(ctx)
 		case <-t.Context().Done():
 			t.Errorf("test finished with dial in progress")
 			return nil, errors.New("test finished")
@@ -518,7 +621,7 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 	}), append([]any{func(tr *http.Transport) {
 		dialContext := tr.DialContext
 		tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			c, err := dialer(addr)
+			c, err := dialer(ctx, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -529,8 +632,18 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 			c.Conn = nc.(*nettest.Conn)
 			return c, nil
 		}
+		dialTLSContext := tr.DialTLSContext
 		tr.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			panic("use unencrypted connections in dial tests")
+			c, err := dialer(ctx, addr)
+			if err != nil {
+				return nil, err
+			}
+			nc, err := dialTLSContext(ctx, network, addr)
+			if err != nil {
+				return nil, err
+			}
+			c.Conn = nc.(*tls.Conn).NetConn().(*nettest.Conn)
+			return tls.Client(c, tr.TLSClientConfig), nil
 		}
 	}}, opts...)...)
 	return dt
@@ -677,4 +790,96 @@ func (c *transportDialTesterConn) Close() error {
 		close(c.closed)
 	}
 	return nil
+}
+
+// wantNoDial checks that no additional dial is in progress.
+func (dt *transportDialTester) wantNoDial() {
+	dt.t.Helper()
+	synctest.Wait()
+	dt.dialsMu.Lock()
+	defer dt.dialsMu.Unlock()
+	if len(dt.dials) != 0 {
+		dt.t.Errorf("got %v additional dials, want none", len(dt.dials))
+		for _, c := range dt.dials {
+			c.ready <- errors.New("unexpected dial")
+		}
+		dt.dials = nil
+	}
+}
+
+// Even with HTTP/2-only Protocols, servers without ALPN can select HTTP/1.
+func TestTransportPoolConnHTTP2DialHTTP1Fallback(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, https1Mode, func(tr *http.Transport) {
+			tr.Protocols = new(http.Protocols)
+			tr.Protocols.SetHTTP2(true)
+		})
+		// ServeTLS has already configured NextProtos. Clear it before dialing.
+		dt.cst.ts.TLS.NextProtos = nil
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		rt2 := dt.roundTrip()
+		dt.wantNoDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/1.1")
+		c2 := dt.wantDial()
+		c2.finish(nil)
+		rt2.wantDone(c2, "HTTP/1.1")
+		rt1.finish()
+		rt2.finish()
+	})
+}
+
+func TestTransportPoolConnHTTP2DialCancelAll(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http2UnencryptedMode)
+		rt1 := dt.roundTrip()
+		_ = dt.wantDial()
+		rt2 := dt.roundTrip()
+		dt.wantNoDial()
+		rt1.cancel()
+		rt2.cancel()
+		rt1.wantError()
+		rt2.wantError()
+		dt.cst.tr.CloseIdleConnections()
+		synctest.Wait()
+
+		// A new request must not join the canceled dial.
+		rt3 := dt.roundTrip()
+		c2 := dt.wantDial()
+		c2.finish(nil)
+		rt3.wantDone(c2, "HTTP/2.0")
+		rt3.finish()
+	})
+}
+
+func TestTransportPoolConnHTTP2DialStreamLimit(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {
+			srv.HTTP2 = &http.HTTP2Config{MaxConcurrentStreams: 2}
+		})
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/2.0")
+		rt2 := dt.roundTrip()
+		rt2.wantDone(c1, "HTTP/2.0")
+
+		// The first connection is full. Share the next dial, but permit
+		// an additional connection when that one reaches its stream limit.
+		rt3 := dt.roundTrip()
+		c2 := dt.wantDial()
+		rt4 := dt.roundTrip()
+		dt.wantNoDial()
+		c2.finish(nil)
+		rt3.wantDone(c2, "HTTP/2.0")
+		rt4.wantDone(c2, "HTTP/2.0")
+		rt5 := dt.roundTrip()
+		c3 := dt.wantDial()
+		c3.finish(nil)
+		rt5.wantDone(c3, "HTTP/2.0")
+		for _, rt := range []*transportDialTesterRoundTrip{rt1, rt2, rt3, rt4, rt5} {
+			rt.finish()
+		}
+	})
 }
