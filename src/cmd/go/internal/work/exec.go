@@ -1321,6 +1321,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 
 	h := cache.NewHash("vet " + a.Package.ImportPath)
 	fmt.Fprintf(h, "vet %q\n", b.toolID("vet"))
+	fmt.Fprintf(h, "vetxonly %v\n", vcfg.VetxOnly)
 
 	vetFlags := VetFlags
 
