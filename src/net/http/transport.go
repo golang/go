@@ -109,6 +109,7 @@ type Transport struct {
 	connsPerHost     map[connectMethodKey]int
 	connsPerHostWait map[connectMethodKey]wantConnQueue // waiting getConns
 	dialsInProgress  wantConnQueue
+	coalescedDials   map[connectMethodKey]*coalescedDial
 
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
@@ -965,6 +966,23 @@ func (t *Transport) CloseIdleConnections() {
 	t.connsPerHostMu.Lock()
 	t.dialsInProgress.all(func(w *wantConn) {
 		if w.cancelCtx != nil && !w.waiting() {
+			if call := w.dialCall; call != nil {
+				for _, other := range call.waiters {
+					if other.waiting() {
+						return // The dial is still needed by another request.
+					}
+				}
+				// Requests blocked by MaxConnsPerHost also need this dial.
+				q := t.connsPerHostWait[w.key]
+				waiting := false
+				q.all(func(other *wantConn) { waiting = waiting || other.waiting() })
+				if waiting {
+					return
+				}
+				if t.coalescedDials[w.key] == call {
+					delete(t.coalescedDials, w.key)
+				}
+			}
 			w.cancelCtx()
 		}
 	})
@@ -1373,6 +1391,9 @@ type wantConn struct {
 	cm  connectMethod
 	key connectMethodKey // cm.key()
 
+	coalesce bool
+	dialCall *coalescedDial // protected by Transport.connsPerHostMu
+
 	// hooks for testing to know when dials are done
 	// beforeDial is called in the getConn goroutine when the dial is queued.
 	// afterDial is called when the dial is completed or canceled.
@@ -1579,6 +1600,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (_ *persis
 		result:     make(chan connOrError, 1),
 		beforeDial: testHookPrePendingDial,
 		afterDial:  testHookPostPendingDial,
+		coalesce:   !req.Close && t.shouldCoalesceDial(ctx, cm),
 	}
 	defer func() {
 		if err != nil {
@@ -1687,12 +1709,23 @@ func (t *Transport) dialConnFor(w *wantConn) {
 		return
 	}
 
-	const isClientConn = false
-	pc, err := t.dialConn(ctx, w.cm, isClientConn, nil)
-	if err == nil && pc.alt != nil {
-		// HTTP/2 and HTTP/3 connections can be shared.
-		// Add to the idle connection pool before trying to deliver to w.
-		t.putOrCloseIdleConn(pc)
+	dial := func() (*persistConn, error) {
+		const isClientConn = false
+		pc, err := t.dialConn(ctx, w.cm, isClientConn, nil)
+		if err == nil && pc.alt != nil {
+			// HTTP/2 and HTTP/3 connections can be shared.
+			// Add to the idle connection pool before trying to deliver to w.
+			t.putOrCloseIdleConn(pc)
+		}
+		return pc, err
+	}
+	var pc *persistConn
+	var err error
+	didDial := true
+	if w.coalesce {
+		pc, err, didDial = t.coalescedDialConn(ctx, w, dial)
+	} else {
+		pc, err = dial()
 	}
 	delivered := w.tryDeliver(pc, err, time.Time{})
 	if err == nil && !delivered && pc.alt == nil {
@@ -1700,9 +1733,83 @@ func (t *Transport) dialConnFor(w *wantConn) {
 		// Add to the idle connection pool.
 		t.putOrCloseIdleConn(pc)
 	}
-	if err != nil {
+	if err != nil || !didDial {
 		t.decConnsPerHost(w.key)
 	}
+}
+
+// shouldCoalesceDial reports whether a new connection is known to use HTTP/2.
+// When HTTP/1 is also possible, requests need their own dials.
+func (t *Transport) shouldCoalesceDial(ctx context.Context, cm connectMethod) bool {
+	if t.keepAlivesDisabled() || cm.onlyH1 {
+		return false
+	}
+	// Newer x/net/http2 versions identify calls to http2.Transport.RoundTrip,
+	// including when the underlying http.Transport also supports HTTP/1.
+	if c, ok := t.h2Config.(interface {
+		UsesDialFromContext(context.Context) bool
+	}); ok && c.UsesDialFromContext(ctx) {
+		return true
+	}
+	p := t.protocols()
+	return !p.HTTP1() && ((cm.targetScheme == "https" && p.HTTP2()) ||
+		(cm.targetScheme == "http" && p.UnencryptedHTTP2()))
+}
+
+// coalescedDial is a dial shared by requests for the same connection key.
+// waiters is protected by Transport.connsPerHostMu.
+// pc and err may be read after done is closed.
+type coalescedDial struct {
+	waiters []*wantConn
+	done    chan struct{}
+	pc      *persistConn
+	err     error
+}
+
+func (t *Transport) coalescedDialConn(ctx context.Context, w *wantConn, dial func() (*persistConn, error)) (pc *persistConn, err error, didDial bool) {
+	t.connsPerHostMu.Lock()
+	// CloseIdleConnections may have canceled this dial before it joined a call.
+	if err := ctx.Err(); err != nil {
+		t.connsPerHostMu.Unlock()
+		return nil, err, false
+	}
+	if call := t.coalescedDials[w.key]; call != nil {
+		call.waiters = append(call.waiters, w)
+		w.dialCall = call
+		t.connsPerHostMu.Unlock()
+		<-call.done
+		if call.err == nil && call.pc.alt == nil {
+			// A server without ALPN support or a custom dialer may still
+			// fall back to HTTP/1. Such a connection cannot be shared.
+			pc, err := dial()
+			return pc, err, true
+		}
+		return call.pc, call.err, false
+	}
+	call := &coalescedDial{
+		waiters: []*wantConn{w},
+		done:    make(chan struct{}),
+	}
+	if t.coalescedDials == nil {
+		t.coalescedDials = make(map[connectMethodKey]*coalescedDial)
+	}
+	t.coalescedDials[w.key] = call
+	w.dialCall = call
+	t.connsPerHostMu.Unlock()
+
+	// dial publishes a shared connection before releasing the waiting dials.
+	call.pc, call.err = dial()
+	t.connsPerHostMu.Lock()
+	if t.coalescedDials[w.key] == call {
+		delete(t.coalescedDials, w.key)
+	}
+	for _, waiter := range call.waiters {
+		waiter.dialCall = nil
+	}
+	call.waiters = nil
+	close(call.done)
+	t.connsPerHostMu.Unlock()
+	return call.pc, call.err, true
 }
 
 // decConnsPerHost decrements the per-host connection count for key,
