@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// package goos contains GOOS-specific constants.
+// Package goos contains GOOS-specific constants.
 package goos
 
 // The next line makes 'go generate' write the zgoos*.go files with
