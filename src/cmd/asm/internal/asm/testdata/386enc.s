@@ -36,5 +36,16 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	RDPID AX                                // f30fc7f8
 
+	// TEST with an immediate in [0, 127] against AX, CX, DX or BX
+	// narrows to the flag-identical byte form; SI, DI, BP and SP
+	// have no byte registers on 386. See progedit in
+	// cmd/internal/obj/x86/obj6.go.
+	TESTL $7, AX                            // a807
+	TESTL $7, BX                            // f6c307
+	TESTW $63, DX                           // f6c23f
+	TESTL $7, SI                            // f7c607000000
+	TESTL $128, AX                          // a980000000
+	TESTW $63, (BX)                         // 66f7033f00
+
 	// End of tests.
 	RET
