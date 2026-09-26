@@ -21,7 +21,8 @@ const (
 	// as possible when signing, and to be auto-detected when verifying.
 	//
 	// When signing in FIPS 140-3 mode, the salt length is capped at the length
-	// of the hash function used in the signature.
+	// of the hash function used in the signature. When verifying in FIPS
+	// 140-only mode, signatures with a salt longer than the hash are rejected.
 	PSSSaltLengthAuto = 0
 	// PSSSaltLengthEqualsHash causes the salt length to equal the length
 	// of the hash used in the signature.
@@ -173,12 +174,30 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 	}
 	switch saltLength {
 	case PSSSaltLengthAuto:
+		if fips140only.Enforced() {
+			return verifyPSSFIPS140Only(k, h, digest, sig)
+		}
 		return fipsError(rsa.VerifyPSS(k, h, digest, sig))
 	case PSSSaltLengthEqualsHash:
 		return fipsError(rsa.VerifyPSSWithSaltLength(k, h, digest, sig, h.Size()))
 	default:
 		return fipsError(rsa.VerifyPSSWithSaltLength(k, h, digest, sig, saltLength))
 	}
+}
+
+// verifyPSSFIPS140Only verifies a PSS signature with an unknown salt length,
+// accepting only salts no longer than the hash, as FIPS 140-only mode requires.
+// The module's salt length detection records a non-approved operation when it
+// finds a longer salt, so instead each allowed length is tried in turn,
+// starting with the most common one.
+func verifyPSSFIPS140Only(k *rsa.PublicKey, h hash.Hash, digest, sig []byte) error {
+	for saltLength := h.Size(); saltLength >= 0; saltLength-- {
+		err := rsa.VerifyPSSWithSaltLength(k, h, digest, sig, saltLength)
+		if err != rsa.ErrVerification {
+			return fipsError(err)
+		}
+	}
+	return ErrVerification
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.
