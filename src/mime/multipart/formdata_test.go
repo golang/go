@@ -159,7 +159,7 @@ Content-Disposition: form-data; name="texta"
 Content-Type: text/plain
 
 ` + textaValue + `
---MyBoundary
+--MyBoundary--
 `
 
 const message = `
