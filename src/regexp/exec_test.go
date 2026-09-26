@@ -734,3 +734,25 @@ func TestProgramTooLongForBacktrack(t *testing.T) {
 		t.Errorf("longRegex.MatchString(\"xxx\") was true, want false")
 	}
 }
+
+func TestNFAFastForwardStaleFlag(t *testing.T) {
+	// Compile a regex that requires a word boundary.
+	// Normally, the Go compiler leaves re.prefix empty because of the \b.
+	re := MustCompile(`\bfoo`)
+
+	// Artificially inject a prefix to simulate a smarter compiler (e.g., one that
+	// extracts literal prefixes after empty-width assertions) and force the
+	// NFA fast-forward loop to activate.
+	re.prefix = "foo"
+	re.prefixBytes = []byte("foo")
+	re.prefixRune = 'f'
+
+	// Create a string large enough to bypass the Backtracker (routes to NFA).
+	longString := strings.Repeat("a", 500000) + "foo"
+
+	// The context at index 500000 ('a' to 'f') is NO_WORD_BOUNDARY.
+	// Therefore, \b (Word Boundary) should FAIL.
+	if re.MatchString(longString) {
+		t.Errorf("BUG: \\bfoo falsely matched inside an unbroken word due to stale flag.")
+	}
+}
