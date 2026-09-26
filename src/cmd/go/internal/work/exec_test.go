@@ -10,10 +10,45 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"math/rand"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
 )
+
+func TestToolexecLongArgsResponseFile(t *testing.T) {
+	tool := filepath.Join(t.TempDir(), "compile")
+	wrapper := filepath.Join(t.TempDir(), "wrapper")
+	args := []string{tool, "-o", "out file", strings.Repeat("source.go", sys.ExecArgLengthLimit/8)}
+	cmd := exec.Command(wrapper, args...)
+	cleanup := passLongArgsInResponseFiles(cmd, 1)
+	defer cleanup()
+	if len(cmd.Args) != 3 || cmd.Args[1] != tool || !strings.HasPrefix(cmd.Args[2], "@") {
+		t.Fatalf("toolexec args = %q, want wrapper, tool, @response-file", cmd.Args)
+	}
+	content, err := os.ReadFile(strings.TrimPrefix(cmd.Args[2], "@"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := objabi.ParseArgs(content), args[1:]; !slices.Equal(got, want) {
+		t.Fatalf("response-file args = %q, want %q", got, want)
+	}
+}
+
+func TestToolexecShortArgsUnchanged(t *testing.T) {
+	wrapper := filepath.Join(t.TempDir(), "wrapper")
+	tool := filepath.Join(t.TempDir(), "compile")
+	cmd := exec.Command(wrapper, "-verbose", tool, "-o", "out")
+	cleanup := passLongArgsInResponseFiles(cmd, 2)
+	defer cleanup()
+	if got, want := cmd.Args, []string{wrapper, "-verbose", tool, "-o", "out"}; !slices.Equal(got, want) {
+		t.Fatalf("short toolexec args = %q, want %q", got, want)
+	}
+}
 
 func TestEncodeArgs(t *testing.T) {
 	t.Parallel()
