@@ -726,6 +726,20 @@ func Utimes(path string, tv []Timeval) (err error) {
 // This matches the value in os/file_windows.go.
 const _UTIME_OMIT = -1
 
+// timespecToFiletime converts a Timespec to a Filetime without computing
+// Sec * 1e9 which can overflow int64 for extreme timestamps. See #75542.
+func timespecToFiletime(ts Timespec) Filetime {
+	// Windows FILETIME is 100-nanosecond intervals since January 1, 1601.
+	// Compute from Sec and Nsec separately to avoid int64 overflow.
+	ticks := ts.Sec*1e7 + ts.Nsec/100
+	// Shift epoch from 1970 to 1601.
+	ticks += 116444736000000000
+	return Filetime{
+		LowDateTime:  uint32(ticks & 0xffffffff),
+		HighDateTime: uint32(ticks >> 32 & 0xffffffff),
+	}
+}
+
 func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
 		return EINVAL
@@ -744,10 +758,10 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 	a := Filetime{}
 	w := Filetime{}
 	if ts[0].Nsec != _UTIME_OMIT {
-		a = NsecToFiletime(TimespecToNsec(ts[0]))
+		a = timespecToFiletime(ts[0])
 	}
 	if ts[1].Nsec != _UTIME_OMIT {
-		w = NsecToFiletime(TimespecToNsec(ts[1]))
+		w = timespecToFiletime(ts[1])
 	}
 	return SetFileTime(h, nil, &a, &w)
 }
@@ -1182,6 +1196,14 @@ func NsecToTimespec(nsec int64) (ts Timespec) {
 	ts.Sec = nsec / 1e9
 	ts.Nsec = nsec % 1e9
 	return
+}
+
+// SecNsecToTimespec converts separate seconds and nanoseconds values
+// into a [Timespec]. This avoids the int64 overflow that can occur
+// when using [NsecToTimespec] with very large or very small timestamps,
+// since it does not require computing seconds * 1e9.
+func SecNsecToTimespec(sec int64, nsec int64) Timespec {
+	return Timespec{Sec: sec, Nsec: nsec}
 }
 
 // TODO(brainman): fix all needed for net
