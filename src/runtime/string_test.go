@@ -214,6 +214,57 @@ func TestStringW(t *testing.T) {
 	}
 }
 
+// TestFindnull tests the findnull function which finds the index of the
+// first NUL byte in a NUL-terminated byte slice. This tests the byte-by-byte
+// fallback path used on Plan 9 and iOS
+func TestFindnull(t *testing.T) {
+	// Test various sizes that might exercise different code paths
+	sizes := []int{
+		0, 1, 2, 7, 8, 15, 16, 17, 31, 32, 33, 47, 48, 49,
+		63, 64, 65, 127, 128, 129, 255, 256, 257, 1023, 1024, 1025,
+	}
+
+	for _, size := range sizes {
+		// Create a NUL-terminated byte slice
+		b := make([]byte, size+1) // +1 for NUL terminator
+		for i := 0; i < size; i++ {
+			b[i] = 'a'
+		}
+		b[size] = 0
+
+		got := runtime.Findnull(b)
+		if got != size {
+			t.Errorf("Findnull(size=%d) = %d; want %d", size, got, size)
+		}
+	}
+
+	// Test with NUL at various positions
+	for _, total := range []int{64, 128, 256} {
+		for pos := 0; pos < total; pos++ {
+			b := make([]byte, total+1)
+			for i := 0; i < total; i++ {
+				b[i] = 'a'
+			}
+			b[pos] = 0 // Place NUL at position pos
+			b[total] = 0
+
+			got := runtime.Findnull(b)
+			if got != pos {
+				t.Errorf("Findnull(total=%d, nul_at=%d) = %d; want %d", total, pos, got, pos)
+			}
+
+			// Restore for next iteration
+			b[pos] = 'a'
+		}
+	}
+
+	// Test empty slice (nil pointer behavior)
+	got := runtime.Findnull(nil)
+	if got != 0 {
+		t.Errorf("Findnull(nil) = %d; want 0", got)
+	}
+}
+
 func TestLargeStringConcat(t *testing.T) {
 	output := runTestProg(t, "testprog", "stringconcat")
 	want := "panic: " + strings.Repeat("0", 1<<10) + strings.Repeat("1", 1<<10) +
