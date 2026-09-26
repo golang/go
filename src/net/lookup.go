@@ -373,18 +373,30 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 			addrs, _ := r.Val.([]IPAddr)
 			trace.DNSDone(ipAddrsEface(addrs), r.Shared, err)
 		}
-		return lookupIPReturn(r.Val, err, r.Shared)
+		// Shuffled before sorting per RFC 6724, so concurrent callers do not always receive the same order.
+		// See https://go.dev/issue/34511.
+		// See https://go.dev/issue/31698.
+		addrs, err := lookupIPReturn(r.Val, err, r.Shared)
+		testHookShuffleRand(len(addrs), func(i, j int) {
+			addrs[i], addrs[j] = addrs[j], addrs[i]
+		})
+		sortByRFC6724(addrs)
+		return addrs, err
 	}
 }
 
 // lookupIPReturn turns the return values from singleflight.Do into
 // the return values from LookupIP.
+//
+// The caller may shuffle and sort the result in place,
+// and the underlying slice is shared among all concurrent singleflight callers,
+// so it must not be mutated directly.
 func lookupIPReturn(addrsi any, err error, shared bool) ([]IPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
 	addrs := addrsi.([]IPAddr)
-	if shared {
+	if len(addrs) > 1 && shared {
 		clone := make([]IPAddr, len(addrs))
 		copy(clone, addrs)
 		addrs = clone
