@@ -162,6 +162,65 @@ func randomRingElement() ringElement {
 	return r
 }
 
+// ringCompressAndEncode appends an encoding of a ring element to s,
+// compressing each coefficient to d bits.
+//
+// It implements Compress, according to FIPS 203, Definition 4.7,
+// followed by ByteEncode, according to FIPS 203, Algorithm 5.
+func ringCompressAndEncode(s []byte, f ringElement, d uint8) []byte {
+	var b byte
+	var bIdx uint8
+	for i := 0; i < n; i++ {
+		c := compress(f[i], d)
+		var cIdx uint8
+		for cIdx < d {
+			b |= byte(c>>cIdx) << bIdx
+			bits := min(8-bIdx, d-cIdx)
+			bIdx += bits
+			cIdx += bits
+			if bIdx == 8 {
+				s = append(s, b)
+				b = 0
+				bIdx = 0
+			}
+		}
+	}
+	if bIdx != 0 {
+		panic("mlkem: internal error: bitsFilled != 0")
+	}
+	return s
+}
+
+// ringDecodeAndDecompress decodes an encoding of a ring element where
+// each d bits are mapped to an equidistant distribution.
+//
+// It implements ByteDecode, according to FIPS 203, Algorithm 6,
+// followed by Decompress, according to FIPS 203, Definition 4.8.
+func ringDecodeAndDecompress(b []byte, d uint8) ringElement {
+	var f ringElement
+	var bIdx uint8
+	for i := 0; i < n; i++ {
+		var c uint16
+		var cIdx uint8
+		for cIdx < d {
+			c |= uint16(b[0]>>bIdx) << cIdx
+			c &= (1 << d) - 1
+			bits := min(8-bIdx, d-cIdx)
+			bIdx += bits
+			cIdx += bits
+			if bIdx == 8 {
+				b = b[1:]
+				bIdx = 0
+			}
+		}
+		f[i] = fieldElement(decompress(c, d))
+	}
+	if len(b) != 0 {
+		panic("mlkem: internal error: leftover bytes")
+	}
+	return f
+}
+
 func TestEncodeDecode(t *testing.T) {
 	f := randomRingElement()
 	b := make([]byte, 12*n/8)
@@ -183,6 +242,16 @@ func TestEncodeDecode(t *testing.T) {
 	if !bytes.Equal(e1, e2) {
 		t.Errorf("ringCompressAndEncode = %x, ringCompressAndEncode1 = %x", e1, e2)
 	}
+	e1 = ringCompressAndEncode(nil, f, 11)
+	e2 = ringCompressAndEncode11(nil, f)
+	if !bytes.Equal(e1, e2) {
+		t.Errorf("ringCompressAndEncode = %x, ringCompressAndEncode11 = %x", e1, e2)
+	}
+	e1 = ringCompressAndEncode(nil, f, 5)
+	e2 = ringCompressAndEncode5(nil, f)
+	if !bytes.Equal(e1, e2) {
+		t.Errorf("ringCompressAndEncode = %x, ringCompressAndEncode5 = %x", e1, e2)
+	}
 
 	// Compare ringDecodeAndDecompress to ringDecodeAndDecompressN.
 	g1 := ringDecodeAndDecompress(b[:encodingSize10], 10)
@@ -199,6 +268,16 @@ func TestEncodeDecode(t *testing.T) {
 	g2 = ringDecodeAndDecompress1((*[encodingSize1]byte)(b))
 	if g1 != g2 {
 		t.Errorf("ringDecodeAndDecompress = %v, ringDecodeAndDecompress1 = %v", g1, g2)
+	}
+	g1 = ringDecodeAndDecompress(b[:encodingSize11], 11)
+	g2 = ringDecodeAndDecompress11((*[encodingSize11]byte)(b))
+	if g1 != g2 {
+		t.Errorf("ringDecodeAndDecompress = %v, ringDecodeAndDecompress11 = %v", g1, g2)
+	}
+	g1 = ringDecodeAndDecompress(b[:encodingSize5], 5)
+	g2 = ringDecodeAndDecompress5((*[encodingSize5]byte)(b))
+	if g1 != g2 {
+		t.Errorf("ringDecodeAndDecompress = %v, ringDecodeAndDecompress5 = %v", g1, g2)
 	}
 
 	// Round-trip ringCompressAndEncode and ringDecodeAndDecompress.
@@ -226,6 +305,16 @@ func TestEncodeDecode(t *testing.T) {
 	out = ringCompressAndEncode1(nil, g)
 	if !bytes.Equal(out, b[:encodingSize1]) {
 		t.Errorf("roundtrip failed for specialized 1")
+	}
+	g = ringDecodeAndDecompress11((*[encodingSize11]byte)(b))
+	out = ringCompressAndEncode11(nil, g)
+	if !bytes.Equal(out, b[:encodingSize11]) {
+		t.Errorf("roundtrip failed for specialized 11")
+	}
+	g = ringDecodeAndDecompress5((*[encodingSize5]byte)(b))
+	out = ringCompressAndEncode5(nil, g)
+	if !bytes.Equal(out, b[:encodingSize5]) {
+		t.Errorf("roundtrip failed for specialized 5")
 	}
 }
 
