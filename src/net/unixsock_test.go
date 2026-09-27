@@ -216,6 +216,9 @@ func testUnixgramWriteConn(t *testing.T, raddr *UnixAddr) {
 	if _, err := c.Write(b); err != nil {
 		t.Fatal(err)
 	}
+	if _, _, err := c.(*UnixConn).WriteMsgUnix(b, nil, nil); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func testUnixgramWritePacketConn(t *testing.T, raddr *UnixAddr) {
