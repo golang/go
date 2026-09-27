@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -718,6 +719,13 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 		r := &n.Cap
 		if n.Cap == nil {
 			r = &n.Len
+		}
+
+		// Rewriting the capacity hoists it into n's init list, which runs
+		// before the length is evaluated, so only rewrite it when the length
+		// do not have side effects. See #81696.
+		if r == &n.Cap && staticinit.AnySideEffects(n.Len) {
+			return
 		}
 
 		if (*r).Op() != ir.OLITERAL {
