@@ -6,6 +6,7 @@ package work
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -102,6 +103,7 @@ var goodCompilerFlags = [][]string{
 	{"-isystem", "/usr/include/mozjs-68"},
 	{"-include", "/usr/include/mozjs-68/RequiredDefines.h"},
 	{"-framework", "Chocolate"},
+	{"-isysroot", "/tmp"},
 	{"-x", "c"},
 	{"-v"},
 }
@@ -145,6 +147,13 @@ var badCompilerFlags = [][]string{
 	{"-framework", "@Home"},
 	{"-x", "--c"},
 	{"-x", "@obj"},
+	{"-xada"},
+	{"-x", "ada"},
+	{"-x", "none"},
+	{"--sysroot=/tmp"},
+	{"--sysroot", "/tmp"},
+	{"-target", "x86_64-scei-ps4"},
+	{"-target", "x86_64-linux-gnu"},
 }
 
 func TestCheckCompilerFlags(t *testing.T) {
@@ -293,6 +302,10 @@ var badLinkerFlags = [][]string{
 	{"-Wl,--push-state,@foo"},
 	{"-fplugin=./-Wl,--push-state,-R.so"},
 	{"./-Wl,--push-state,-R.c"},
+	{"--sysroot=/tmp"},
+	{"--sysroot", "/tmp"},
+	{"-target", "x86_64-scei-ps4"},
+	{"-target", "x86_64-linux-gnu"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {
@@ -302,6 +315,33 @@ func TestCheckLinkerFlags(t *testing.T) {
 		}
 	}
 	for _, f := range badLinkerFlags {
+		if err := checkLinkerFlags("test", "test", f); err == nil {
+			t.Errorf("missing error for %q", f)
+		}
+	}
+}
+
+func TestCheckLinkerSysrootFlags(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "script.ld")
+	if err := os.WriteFile(script, []byte("PLUGIN(\"/tmp/pwn.so\")\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range [][]string{
+		{"-isysroot", dir},
+		{"-Wl,-syslibroot," + dir},
+		{"-Wl,-syslibroot=" + dir},
+	} {
+		if err := checkLinkerFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for %q: %v", f, err)
+		}
+	}
+	for _, f := range [][]string{
+		{"-isysroot", script},
+		{"-Wl,-syslibroot," + script},
+		{"-Wl,-syslibroot=" + script},
+		{"-Wl,--push-state,-syslibroot=" + script},
+	} {
 		if err := checkLinkerFlags("test", "test", f); err == nil {
 			t.Errorf("missing error for %q", f)
 		}
