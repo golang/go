@@ -6,6 +6,7 @@ package mlkem_test
 
 import (
 	"bytes"
+	"crypto/internal/cryptotest"
 	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/sha3"
 	. "crypto/mlkem"
@@ -95,6 +96,52 @@ func testRoundTrip[E encapsulationKey, D decapsulationKey[E]](
 	if bytes.Equal(Ke, Ke2) {
 		t.Fail()
 	}
+}
+
+func TestSharedKeyCapacity(t *testing.T) {
+	cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
+	check := func(t *testing.T, K []byte) {
+		t.Helper()
+		if len(K) != SharedKeySize || cap(K) != SharedKeySize {
+			t.Errorf("len, cap = %d, %d; want %d, %d", len(K), cap(K), SharedKeySize, SharedKeySize)
+		}
+	}
+	t.Run("768", func(t *testing.T) {
+		dk, err := GenerateKey768()
+		if err != nil {
+			t.Fatal(err)
+		}
+		Ke, c := dk.EncapsulationKey().Encapsulate()
+		Kd, err := dk.Decapsulate(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		Kt, _, err := mlkemtest.Encapsulate768(dk.EncapsulationKey(), make([]byte, 32))
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(t, Ke)
+		check(t, Kd)
+		check(t, Kt)
+	})
+	t.Run("1024", func(t *testing.T) {
+		dk, err := GenerateKey1024()
+		if err != nil {
+			t.Fatal(err)
+		}
+		Ke, c := dk.EncapsulationKey().Encapsulate()
+		Kd, err := dk.Decapsulate(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		Kt, _, err := mlkemtest.Encapsulate1024(dk.EncapsulationKey(), make([]byte, 32))
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(t, Ke)
+		check(t, Kd)
+		check(t, Kt)
+	})
 }
 
 func TestBadLengths(t *testing.T) {
