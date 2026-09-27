@@ -14,8 +14,9 @@ import (
 
 type CTR struct {
 	b          Block
-	ivlo, ivhi uint64 // start counter as 64-bit limbs
-	offset     uint64 // for XORKeyStream only
+	ivlo, ivhi uint64          // start counter as 64-bit limbs
+	offset     uint64          // for XORKeyStream only
+	keybuf     [BlockSize]byte // keystream from offset to the end of its block
 }
 
 func NewCTR(b *Block, iv []byte) *CTR {
@@ -25,6 +26,7 @@ func NewCTR(b *Block, iv []byte) *CTR {
 	c := newCTR(b, iv)
 	return &c
 }
+
 func newCTR(b *Block, iv []byte) CTR {
 	if len(iv) != BlockSize {
 		panic("bad IV length")
@@ -39,7 +41,7 @@ func newCTR(b *Block, iv []byte) CTR {
 }
 
 func (c *CTR) XORKeyStream(dst, src []byte) {
-	c.XORKeyStreamAt(dst, src, c.offset)
+	c.xorKeyStreamAt(dst, src, c.offset, &c.keybuf)
 
 	var carry uint64
 	c.offset, carry = bits.Add64(c.offset, uint64(len(src)), 0)
@@ -65,6 +67,19 @@ func RoundToBlock(c *CTR) {
 // any XORKetStream calls). This allows for random access into the keystream, up
 // to 16 EiB from the start.
 func (c *CTR) XORKeyStreamAt(dst, src []byte, offset uint64) {
+	var keybuf [BlockSize]byte
+	if offset%BlockSize != 0 {
+		ivlo, ivhi := add128(c.ivlo, c.ivhi, offset/BlockSize)
+		ctrBlocks1(&c.b, &keybuf, &keybuf, ivlo, ivhi)
+	}
+	c.xorKeyStreamAt(dst, src, offset, &keybuf)
+}
+
+// xorKeyStreamAt implements XORKeyStreamAt. If offset is not a multiple of
+// BlockSize, keybuf[offset%BlockSize:] must hold the keystream from offset to
+// the end of its block. If the input ends mid-block, keybuf is overwritten so
+// that the same holds for the advanced offset.
+func (c *CTR) xorKeyStreamAt(dst, src []byte, offset uint64, keybuf *[BlockSize]byte) {
 	if len(dst) < len(src) {
 		panic("crypto/aes: len(dst) < len(src)")
 	}
@@ -78,10 +93,11 @@ func (c *CTR) XORKeyStreamAt(dst, src []byte, offset uint64) {
 
 	if blockOffset := offset % BlockSize; blockOffset != 0 {
 		// We have a partial block at the beginning.
-		var in, out [BlockSize]byte
-		copy(in[blockOffset:], src)
-		ctrBlocks1(&c.b, &out, &in, ivlo, ivhi)
-		n := copy(dst, out[blockOffset:])
+		n := min(len(src), BlockSize-int(blockOffset))
+		d, s, k := dst[:n], src[:n], keybuf[blockOffset:][:n]
+		for i := range k {
+			d[i] = s[i] ^ k[i]
+		}
 		src = src[n:]
 		dst = dst[n:]
 		ivlo, ivhi = add128(ivlo, ivhi, 1)
@@ -116,10 +132,10 @@ func (c *CTR) XORKeyStreamAt(dst, src []byte, offset uint64) {
 
 	if len(src) != 0 {
 		// We have a partial block at the end.
-		var in, out [BlockSize]byte
+		var in [BlockSize]byte
 		copy(in[:], src)
-		ctrBlocks1(&c.b, &out, &in, ivlo, ivhi)
-		copy(dst, out[:])
+		ctrBlocks1(&c.b, keybuf, &in, ivlo, ivhi)
+		copy(dst, keybuf[:])
 	}
 }
 
