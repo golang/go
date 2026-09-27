@@ -3359,6 +3359,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 // strings may lose information when stringifying. In general, scan
 // floating point columns into *float64.
 //
+// Scan also converts into pointers to user-defined types, such as
+// *UserID for "type UserID int64". When the underlying type is an
+// integer or floating-point type, the conversion is the same as into
+// that type. A user-defined string type accepts string and []byte values.
+//
 // If a dest argument has type *[]byte, Scan saves in that argument a
 // copy of the corresponding data. The copy is owned by the caller and
 // can be modified and held indefinitely. The copy can be avoided by
