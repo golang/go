@@ -1,0 +1,73 @@
+# The test binary skips inputs it has already written to its test log
+# since the last change of directory (testing/internal/testdeps).
+# Check that inputs read many times, before and after a chdir, still
+# invalidate the cache.
+
+[short] skip
+[!exec:sleep] skip
+
+env GOCACHE=$WORK/gocache
+env TESTKEY=1
+
+# The go command refuses to cache access to files younger than 2s.
+exec sleep 2
+
+go test .
+! stdout '(cached)'
+go test .
+stdout '(cached)'
+
+# a.txt read before the chdir.
+cp new.txt a.txt
+exec sleep 2
+go test .
+! stdout '(cached)'
+go test .
+stdout '(cached)'
+
+# The same name read after the chdir is a different file.
+cp new.txt sub/a.txt
+exec sleep 2
+go test .
+! stdout '(cached)'
+go test .
+stdout '(cached)'
+
+# An environment variable read more than once.
+env TESTKEY=2
+go test .
+! stdout '(cached)'
+
+-- go.mod --
+module example.com/repeat
+
+go 1.26
+-- repeat_test.go --
+package repeat
+
+import (
+	"os"
+	"testing"
+)
+
+func read(t *testing.T, name string) {
+	for range 3 {
+		if _, err := os.ReadFile(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestRepeat(t *testing.T) {
+	read(t, "a.txt")
+	os.Getenv("TESTKEY")
+	os.Getenv("TESTKEY")
+	t.Chdir("sub")
+	read(t, "a.txt")
+}
+-- a.txt --
+a
+-- sub/a.txt --
+sub a
+-- new.txt --
+new

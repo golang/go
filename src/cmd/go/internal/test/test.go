@@ -2017,6 +2017,10 @@ var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/
 // computeTestInputsID computes the "test inputs ID"
 // (see comment in tryCacheWithID above) for the
 // test log.
+//
+// testing/internal/testdeps omits an entry it has already written
+// since the last chdir, so what an entry contributes here must not
+// depend on how many times the test used that input.
 func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error) {
 	testlog = bytes.TrimPrefix(testlog, testlogMagic)
 	h := cache.NewHash("testInputs")
