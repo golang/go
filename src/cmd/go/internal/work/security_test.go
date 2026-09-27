@@ -284,6 +284,21 @@ var badLinkerFlags = [][]string{
 	{"-I", "-foo"},
 	{"-l", "@foo"},
 	{"-l", "-foo"},
+	{"-l", "to_library"},
+	{"-l", "azy_library"},
+	{"-l", "azy_framework"},
+	{"-l", "oad_hidden"},
+	{"-l", "ibrary"},
+	{"-l", "ibrary=:pwn.ld"},
+	{"-l", "ibrary-path"},
+	{"-l", "ibrary-path=/tmp"},
+	{"-lazy_library"},
+	{"-lazy_framework"},
+	{"-load_hidden"},
+	{"-library"},
+	{"-library=:pwn.ld"},
+	{"-library-path"},
+	{"-library-path=/tmp"},
 	{"-framework", "-Caffeine"},
 	{"-framework", "@Home"},
 	{"-Wl,-framework,-Caffeine"},
@@ -545,6 +560,18 @@ func TestCheckFlagAllowDisallow(t *testing.T) {
 	if err := checkCompilerFlags("TEST", "test", []string{"-fplugin=lint.so"}); err == nil {
 		t.Fatalf("missing error for -fplugin=lint.so: %v", err)
 	}
+
+	os.Setenv("CGO_TEST_DISALLOW", "-lfoo")
+	os.Unsetenv("CGO_TEST_ALLOW")
+	if err := checkLinkerFlags("TEST", "test", []string{"-l", "foo"}); err == nil {
+		t.Fatalf("missing error for -l foo with CGO_TEST_DISALLOW=-lfoo")
+	}
+	os.Setenv("CGO_TEST_ALLOW", "-lto_library")
+	os.Unsetenv("CGO_TEST_DISALLOW")
+	if err := checkLinkerFlags("TEST", "test", []string{"-l", "to_library"}); err != nil {
+		t.Fatalf("unexpected error for -l to_library with CGO_TEST_ALLOW=-lto_library: %v", err)
+	}
+	os.Unsetenv("CGO_TEST_ALLOW")
 }
 
 func TestCheckCompilerFlagsForInternalLink(t *testing.T) {

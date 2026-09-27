@@ -35,6 +35,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"cmd/go/internal/cfg"
@@ -167,6 +168,11 @@ var invalidLinkerFlags = []*lazyregexp.Regexp{
 	// On macOS this means the linker loads and executes the next argument.
 	// Have to exclude separately because -lfoo is allowed in general.
 	re(`-lto_library`),
+	re(`-lazy_library`),
+	re(`-lazy_framework`),
+	re(`-load_hidden`),
+	// GNU gold and LLD accept single-dash -library and -library-path.
+	re(`-library(-path)?(=.*)?`),
 	re(`-gen-.*`),
 	re(`-gnat.*`),
 }
@@ -263,6 +269,13 @@ var validLinkerFlagsWithNextArg = []string{
 	"-Wl,-undefined",
 }
 
+// recombinedLinkerFlagsWithNextArg lists flags in validLinkerFlagsWithNextArg
+// that GCC and Clang recombine with their following argument (e.g., "-l" "foo"
+// becomes "-lfoo"), which must also be checked against invalidLinkerFlags.
+var recombinedLinkerFlagsWithNextArg = []string{
+	"-l",
+}
+
 var validPkgConfigFlags = []*lazyregexp.Regexp{
 	re(`--atleast-pkgconfig-version=\d+\.\d+\.\d+`),
 	re(`--atleast-version=\d+\.\d+\.\d+`),
@@ -338,12 +351,12 @@ func hasGCCSpecFlags(list []string) bool {
 
 func checkCompilerFlags(name, source string, list []string) error {
 	checkOverrides := true
-	return checkFlags(name, source, list, invalidCompilerFlags, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
+	return checkFlags(name, source, list, invalidCompilerFlags, validCompilerFlags, nil, validCompilerFlagsWithNextArg, checkOverrides)
 }
 
 func checkLinkerFlags(name, source string, list []string) error {
 	checkOverrides := true
-	if err := checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
+	if err := checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, recombinedLinkerFlagsWithNextArg, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
 		return err
 	}
 	if hasGCCSpecFlags(list) {
@@ -540,7 +553,7 @@ func checkLinkerSpec(source, rawDir string, checkMultilib bool) error {
 
 func checkPkgConfigFlags(name, source string, list []string) error {
 	checkOverrides := false
-	return checkFlags(name, source, list, nil, validPkgConfigFlags, nil, checkOverrides)
+	return checkFlags(name, source, list, nil, validPkgConfigFlags, nil, nil, checkOverrides)
 }
 
 // checkCompilerFlagsForInternalLink returns an error if 'list'
@@ -549,7 +562,7 @@ func checkPkgConfigFlags(name, source string, list []string) error {
 // external linker).
 func checkCompilerFlagsForInternalLink(name, source string, list []string) error {
 	checkOverrides := false
-	if err := checkFlags(name, source, list, invalidCompilerFlags, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
+	if err := checkFlags(name, source, list, invalidCompilerFlags, validCompilerFlags, nil, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
 		return err
 	}
 	// Currently the only flag on the allow list that causes problems
@@ -571,7 +584,7 @@ func checkCompilerFlagsForInternalLink(name, source string, list []string) error
 // contains linker flags that are not compatible with internal linking.
 func checkLinkerFlagsForInternalLink(name, source string, list []string) error {
 	checkOverrides := false
-	if err := checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
+	if err := checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, recombinedLinkerFlagsWithNextArg, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
 		return err
 	}
 	// Flags that force static linking require the external linker
@@ -586,7 +599,7 @@ func checkLinkerFlagsForInternalLink(name, source string, list []string) error {
 	return nil
 }
 
-func checkFlags(name, source string, list []string, invalid, valid []*lazyregexp.Regexp, validNext []string, checkOverrides bool) error {
+func checkFlags(name, source string, list []string, invalid, valid []*lazyregexp.Regexp, recombineNext, validNext []string, checkOverrides bool) error {
 	// Let users override rules with $CGO_CFLAGS_ALLOW, $CGO_CFLAGS_DISALLOW, etc.
 	var (
 		allow    *regexp.Regexp
@@ -650,6 +663,19 @@ Args:
 					}
 				}
 				continue Args
+			}
+		}
+		if slices.Contains(recombineNext, arg) && i+1 < len(list) {
+			combined := arg + list[i+1]
+			if disallow != nil && disallow.FindString(combined) == combined {
+				goto Bad
+			}
+			if allow == nil || allow.FindString(combined) != combined {
+				for _, re := range invalid {
+					if re.FindString(combined) == combined {
+						goto Bad
+					}
+				}
 			}
 		}
 		for _, x := range validNext {
