@@ -59,7 +59,6 @@ type PrivateKey struct {
 	seed [32]byte
 	pub  PublicKey
 	a    [maxK * maxL]nttElement
-	t1   [maxK]nttElement // NTT(t₁ ⋅ 2ᵈ)
 	s1   [maxL]nttElement
 	s2   [maxK]nttElement
 	t0   [maxK]nttElement
@@ -221,7 +220,6 @@ func newPrivateKey(seed *[32]byte, p parameters) *PrivateKey {
 
 	pk := pkEncode(priv.pub.raw[:0], ρ, t1, p)
 	priv.pub.tr = computePublicKeyHash(pk)
-	computeT1Hat(priv.t1[:k], t1) // NTT(t₁ ⋅ 2ᵈ)
 
 	return priv
 }

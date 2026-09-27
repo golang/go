@@ -114,7 +114,6 @@ func TestingOnlyNewPrivateKeyFromSemiExpanded(sk []byte) (*PrivateKey, error) {
 	if computePublicKeyHash(pk) != tr {
 		return nil, errors.New("mldsa: semi-expanded private key inconsistent with public key hash")
 	}
-	computeT1Hat(priv.t1[:k], t1) // NTT(t₁ ⋅ 2ᵈ)
 
 	return priv, nil
 }
