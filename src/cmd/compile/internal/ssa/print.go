@@ -132,9 +132,13 @@ func (f *Func) String() string {
 }
 
 // RewriteHash returns a hash of f suitable for detecting rewrite cycles.
+//
+// Dead and unreachable code is included in the hash. Rewriting keeps working
+// on such code, so leaving it out would let the hash repeat while rewriting
+// was still making progress elsewhere, which looks just like a cycle.
 func (f *Func) RewriteHash() string {
 	h := hash.New32()
-	p := StringFuncPrinter{w: h, printDead: false}
+	p := StringFuncPrinter{w: h, printDead: true}
 	FprintFunc(p, f)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }

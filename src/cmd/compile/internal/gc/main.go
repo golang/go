@@ -28,6 +28,7 @@ import (
 	"cmd/compile/internal/ssacompile"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
+	"cmd/compile/internal/stats"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
@@ -363,6 +364,14 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 
 		break
+	}
+
+	if base.Flag.Stats {
+		s := new(stats.Stats)
+		for _, fn := range typecheck.Target.Funcs {
+			s.Merge(fn.Stats)
+		}
+		s.Print()
 	}
 
 	base.Timer.AddEvent(int64(len(typecheck.Target.Funcs)), "funcs")

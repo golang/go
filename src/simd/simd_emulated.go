@@ -310,6 +310,15 @@ func (x Int8s) Or(y Int8s) Int8s {
 	return Int8s{a: x.a | y.a, b: x.b | y.b}
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int8s) ReduceSum() int8 {
+	var res int8
+	for i := 0; i < 16; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Int8s) Store(s []int8) {
 	for i := 0; i < 16 && i < len(s); i++ {
@@ -666,6 +675,15 @@ func (x Int16s) RotateAllRight(dist uint64) Int16s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int16s) ReduceSum() int16 {
+	var res int16
+	for i := 0; i < 8; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Int16s) Store(s []int16) {
 	for i := 0; i < 8 && i < len(s); i++ {
@@ -781,10 +799,10 @@ func (x Int32s) get(i int) int32 {
 func (x *Int32s) set(i int, v int32) {
 	val := uint64(uint32(v))
 	if i < 2 {
-		mask := uint64(0xffffffff) << (32 * i)
+		mask := uint64(0xffff_ffff) << (32 * i)
 		x.a = (x.a &^ mask) | (val << (32 * i))
 	} else {
-		mask := uint64(0xffffffff) << (32 * (i - 2))
+		mask := uint64(0xffff_ffff) << (32 * (i - 2))
 		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
 	}
 }
@@ -1011,6 +1029,15 @@ func (x Int32s) RotateAllRight(dist uint64) Int32s {
 		u := uint32(x.get(i))
 		r := (u >> d) | (u << ((32 - d) & 31))
 		res.set(i, int32(r))
+	}
+	return res
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int32s) ReduceSum() int32 {
+	var res int32
+	for i := 0; i < 4; i++ {
+		res += x.get(i)
 	}
 	return res
 }
@@ -1484,6 +1511,15 @@ func (x Uint8s) Or(y Uint8s) Uint8s {
 	return Uint8s{a: x.a | y.a, b: x.b | y.b}
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint8s) ReduceSum() uint8 {
+	var res uint8
+	for i := 0; i < 16; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Uint8s) Store(s []uint8) {
 	for i := 0; i < 16 && i < len(s); i++ {
@@ -1827,6 +1863,15 @@ func (x Uint16s) RotateAllRight(dist uint64) Uint16s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint16s) ReduceSum() uint16 {
+	var res uint16
+	for i := 0; i < 8; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Uint16s) Store(s []uint16) {
 	for i := 0; i < 8 && i < len(s); i++ {
@@ -1945,10 +1990,10 @@ func (x Uint32s) get(i int) uint32 {
 func (x *Uint32s) set(i int, v uint32) {
 	val := uint64(v)
 	if i < 2 {
-		mask := uint64(0xffffffff) << (32 * i)
+		mask := uint64(0xffff_ffff) << (32 * i)
 		x.a = (x.a &^ mask) | (val << (32 * i))
 	} else {
-		mask := uint64(0xffffffff) << (32 * (i - 2))
+		mask := uint64(0xffff_ffff) << (32 * (i - 2))
 		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
 	}
 }
@@ -2143,6 +2188,15 @@ func (x Uint32s) RotateAllRight(dist uint64) Uint32s {
 		u := x.get(i)
 		r := (u >> d) | (u << ((32 - d) & 31))
 		res.set(i, r)
+	}
+	return res
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint32s) ReduceSum() uint32 {
+	var res uint32
+	for i := 0; i < 4; i++ {
+		res += x.get(i)
 	}
 	return res
 }
@@ -2491,10 +2545,10 @@ func (x Float32s) get(i int) float32 {
 func (x *Float32s) set(i int, v float32) {
 	val := uint64(math.Float32bits(v))
 	if i < 2 {
-		mask := uint64(0xffffffff) << (32 * i)
+		mask := uint64(0xffff_ffff) << (32 * i)
 		x.a = (x.a &^ mask) | (val << (32 * i))
 	} else {
-		mask := uint64(0xffffffff) << (32 * (i - 2))
+		mask := uint64(0xffff_ffff) << (32 * (i - 2))
 		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
 	}
 }
@@ -2504,11 +2558,8 @@ func (x Float32s) Abs() Float32s {
 	var res Float32s
 	for i := 0; i < 4; i++ {
 		v := x.get(i)
-		if v < 0 {
-			res.set(i, -v)
-		} else {
-			res.set(i, v)
-		}
+		v = float32(math.Abs(float64(v)))
+		res.set(i, v)
 	}
 	return res
 }
@@ -2612,11 +2663,7 @@ func (x Float32s) Max(y Float32s) Float32s {
 	for i := 0; i < 4; i++ {
 		vx := x.get(i)
 		vy := y.get(i)
-		if vx > vy {
-			res.set(i, vx)
-		} else {
-			res.set(i, vy)
-		}
+		res.set(i, max(vx, vy))
 	}
 	return res
 }
@@ -2629,17 +2676,13 @@ func (x Float32s) IfElse(mask Mask32s, y Float32s) Float32s {
 	}
 }
 
-// Min returns the element-wise minimum of x and y.
+// Min returns the element-wise maximum of x and y.
 func (x Float32s) Min(y Float32s) Float32s {
 	var res Float32s
 	for i := 0; i < 4; i++ {
 		vx := x.get(i)
 		vy := y.get(i)
-		if vx < vy {
-			res.set(i, vx)
-		} else {
-			res.set(i, vy)
-		}
+		res.set(i, min(vx, vy))
 	}
 	return res
 }
@@ -2778,11 +2821,8 @@ func (x Float64s) Abs() Float64s {
 	var res Float64s
 	for i := 0; i < 4; i++ {
 		v := x.get(i)
-		if v < 0 {
-			res.set(i, -v)
-		} else {
-			res.set(i, v)
-		}
+		v = math.Abs(v)
+		res.set(i, v)
 	}
 	return res
 }
@@ -2878,18 +2918,10 @@ func (x Float64s) Max(y Float64s) Float64s {
 	var res Float64s
 	vx := x.get(0)
 	vy := y.get(0)
-	if vx > vy {
-		res.set(0, vx)
-	} else {
-		res.set(0, vy)
-	}
+	res.set(0, max(vx, vy))
 	vx = x.get(1)
 	vy = y.get(1)
-	if vx > vy {
-		res.set(1, vx)
-	} else {
-		res.set(1, vy)
-	}
+	res.set(1, max(vx, vy))
 	return res
 }
 
@@ -2906,18 +2938,10 @@ func (x Float64s) Min(y Float64s) Float64s {
 	var res Float64s
 	vx := x.get(0)
 	vy := y.get(0)
-	if vx < vy {
-		res.set(0, vx)
-	} else {
-		res.set(0, vy)
-	}
+	res.set(0, min(vx, vy))
 	vx = x.get(1)
 	vy = y.get(1)
-	if vx < vy {
-		res.set(1, vx)
-	} else {
-		res.set(1, vy)
-	}
+	res.set(1, min(vx, vy))
 	return res
 }
 
@@ -3080,10 +3104,10 @@ func (x Mask16s) ToInt16s() Int16s {
 func (x *Mask32s) set(i int, v bool) {
 	if v {
 		if i < 2 {
-			mask := uint64(0xffffffff) << (32 * i)
+			mask := uint64(0xffff_ffff) << (32 * i)
 			x.a |= mask
 		} else {
-			mask := uint64(0xffffffff) << (32 * (i - 2))
+			mask := uint64(0xffff_ffff) << (32 * (i - 2))
 			x.b |= mask
 		}
 	}
@@ -3240,7 +3264,7 @@ func BroadcastInt16s(x int16) Int16s {
 
 // BroadcastInt32s fills the elements of a slice with its argument value.
 func BroadcastInt32s(x int32) Int32s {
-	v := uint64(x) & 0xffffffff
+	v := uint64(x) & 0xffff_ffff
 	v = v<<32 | v
 	return Int32s{a: v, b: v}
 }

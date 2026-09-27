@@ -7171,6 +7171,10 @@ const (
 	OpIfElseInt64s
 	OpIfElseUint64s
 	OpIfElseFloat64s
+	OpI32AsF32
+	OpF32AsI32
+	OpI64AsF64
+	OpF64AsI64
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
 	OpAESDecryptLastRoundUint8x64
@@ -112973,6 +112977,26 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "IfElseFloat64s",
 		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "I32AsF32",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "F32AsI32",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "I64AsF64",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "F64AsI64",
+		ArgLen:  1,
 		Generic: true,
 	},
 	{

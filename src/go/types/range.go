@@ -28,16 +28,22 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *ast.RangeStmt, noN
 	var x operand
 
 	// From the spec:
+	//   If the last iteration variable is the blank identifier, the range
+	//   clause is equivalent to the same clause without that identifier.
+	//
 	//   The range expression x is evaluated before beginning the loop,
 	//   with one exception: if at most one iteration variable is present
 	//   and x or len(x) is constant, the range expression is not evaluated.
 	// So we have to be careful not to evaluate the arg in the
-	// described situation.
+	// described situation, and a blank sValue must not count as present.
 
 	check.hasCallOrRecv = false
 	check.expr(nil, &x, rangeVar)
 
-	if isTypes2 && x.isValid() && sValue == nil && !check.hasCallOrRecv {
+	ident, _ := ast.Unparen(sValue).(*ast.Ident)
+	noValue := sValue == nil || ident != nil && ident.Name == "_"
+
+	if isTypes2 && x.isValid() && noValue && !check.hasCallOrRecv {
 		if t, ok := arrayPtrDeref(x.typ().Underlying()).(*Array); ok {
 			for {
 				// Put constant info on the thing inside parentheses.

@@ -1975,12 +1975,7 @@ func TypeSymLookup(name string) *Sym {
 }
 
 func TypeSymName(t *Type) string {
-	name := t.LinkString()
-	// Use a separate symbol name for Noalg types for #17752.
-	if TypeHasNoAlg(t) {
-		name = "noalg." + name
-	}
-	return name
+	return t.LinkString()
 }
 
 // Fake package for runtime type info (headers)

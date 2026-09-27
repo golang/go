@@ -981,6 +981,14 @@ const (
 	// LinknameStd indicates this is a go:linknamestd'd symbol.
 	AttrLinknameStd
 
+	// WeakDef indicates that this definition of a dupok symbol is to be
+	// used only if no other object defines the symbol without it. The
+	// compiler marks the type descriptor of a noalg type this way: it
+	// describes the same type as the descriptor emitted by a package that
+	// does need the type's hash and equality algorithms, but it leaves
+	// those out, so the other one has to win. See reflectdata.writeType.
+	AttrWeakDef
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -1009,6 +1017,7 @@ func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface 
 func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
 func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
 func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
+func (a *Attribute) WeakDef() bool            { return a.load()&AttrWeakDef != 0 }
 func (a *Attribute) IsPkgInit() bool          { return a.load()&AttrPkgInit != 0 }
 func (a *Attribute) IsLinkname() bool         { return a.load()&AttrLinkname != 0 }
 func (a *Attribute) IsLinknameStd() bool      { return a.load()&AttrLinknameStd != 0 }
@@ -1059,6 +1068,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrWasInlined, s: ""},
 	{bit: AttrIndexed, s: ""},
 	{bit: AttrContentAddressable, s: ""},
+	{bit: AttrWeakDef, s: ""},
 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
 	{bit: AttrPkgInit, s: "PKGINIT"},
 	{bit: AttrLinkname, s: "LINKNAME"},

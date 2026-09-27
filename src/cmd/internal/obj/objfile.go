@@ -358,6 +358,9 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(s.Name, "type:") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
 		flag |= goobj.SymFlagGoType
 	}
+	if s.WeakDef() {
+		flag |= goobj.SymFlagWeakDef
+	}
 	flag2 := uint8(0)
 	if s.UsedInIface() {
 		flag2 |= goobj.SymFlagUsedInIface
@@ -887,6 +890,9 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	}
 	if s.DuplicateOK() {
 		fmt.Fprintf(ctxt.Bso, "dupok ")
+	}
+	if s.WeakDef() {
+		fmt.Fprintf(ctxt.Bso, "weakdef ")
 	}
 	if s.CFunc() {
 		fmt.Fprintf(ctxt.Bso, "cfunc ")

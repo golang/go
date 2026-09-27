@@ -4,6 +4,12 @@ package x86asm
 
 const (
 	_ Op = iota + maxNonAVXOp
+	ANDN
+	BEXTR
+	BLSI
+	BLSMSK
+	BLSR
+	BZHI
 	KADDB
 	KADDD
 	KADDQ
@@ -55,6 +61,13 @@ const (
 	KXORD
 	KXORQ
 	KXORW
+	MULX
+	PDEP
+	PEXT
+	RORX
+	SARX
+	SHLX
+	SHRX
 	V4FMADDPS
 	V4FMADDSS
 	V4FNMADDPS
@@ -912,6 +925,12 @@ const (
 )
 
 var avxOpNames = []string{
+	ANDN:              "ANDN",
+	BEXTR:             "BEXTR",
+	BLSI:              "BLSI",
+	BLSMSK:            "BLSMSK",
+	BLSR:              "BLSR",
+	BZHI:              "BZHI",
 	KADDB:             "KADDB",
 	KADDD:             "KADDD",
 	KADDQ:             "KADDQ",
@@ -963,6 +982,13 @@ var avxOpNames = []string{
 	KXORD:             "KXORD",
 	KXORQ:             "KXORQ",
 	KXORW:             "KXORW",
+	MULX:              "MULX",
+	PDEP:              "PDEP",
+	PEXT:              "PEXT",
+	RORX:              "RORX",
+	SARX:              "SARX",
+	SHLX:              "SHLX",
+	SHRX:              "SHRX",
 	V4FMADDPS:         "V4FMADDPS",
 	V4FMADDSS:         "V4FMADDSS",
 	V4FNMADDPS:        "V4FNMADDPS",
@@ -6591,6 +6617,88 @@ var avxMap0F38 = [256][]*avxOptab{
 		{op: VAESDECLAST, args: [6]argType{argZmm_R, argZmm_N, argZmm_B}, vexP: 1, vexL: 2, opdigit: -1, evex: true},
 		{op: VAESDECLAST, args: [6]argType{argZmm_R, argZmm_N, argM}, vexP: 1, vexL: 2, opdigit: -1, ismem: 1, evex: true, dispScale: 64, memBytes: 64},
 	},
+	242: {
+		{op: ANDN, args: [6]argType{argGPR32_R, argGPR32_N, argM}, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: ANDN, args: [6]argType{argGPR32_R, argGPR32_N, argM}, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: ANDN, args: [6]argType{argGPR32_R, argGPR32_N, argGPR32_B}, opdigit: -1},
+		{op: ANDN, args: [6]argType{argGPR32_R, argGPR32_N, argGPR32_B}, opdigit: -1},
+		{op: ANDN, args: [6]argType{argGPR64_R, argGPR64_N, argM}, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+		{op: ANDN, args: [6]argType{argGPR64_R, argGPR64_N, argGPR64_B}, vexW: 1, opdigit: -1},
+	},
+	243: {
+		{op: BLSR, args: [6]argType{argGPR32_N, argM}, opdigit: 1, ismem: 1, memBytes: 4},
+		{op: BLSR, args: [6]argType{argGPR32_N, argM}, opdigit: 1, ismem: 1, memBytes: 4},
+		{op: BLSR, args: [6]argType{argGPR32_N, argGPR32_B}, opdigit: 1},
+		{op: BLSR, args: [6]argType{argGPR32_N, argGPR32_B}, opdigit: 1},
+		{op: BLSR, args: [6]argType{argGPR64_N, argM}, vexW: 1, opdigit: 1, ismem: 1, memBytes: 8},
+		{op: BLSR, args: [6]argType{argGPR64_N, argGPR64_B}, vexW: 1, opdigit: 1},
+		{op: BLSMSK, args: [6]argType{argGPR32_N, argM}, opdigit: 2, ismem: 1, memBytes: 4},
+		{op: BLSMSK, args: [6]argType{argGPR32_N, argM}, opdigit: 2, ismem: 1, memBytes: 4},
+		{op: BLSMSK, args: [6]argType{argGPR32_N, argGPR32_B}, opdigit: 2},
+		{op: BLSMSK, args: [6]argType{argGPR32_N, argGPR32_B}, opdigit: 2},
+		{op: BLSMSK, args: [6]argType{argGPR64_N, argM}, vexW: 1, opdigit: 2, ismem: 1, memBytes: 8},
+		{op: BLSMSK, args: [6]argType{argGPR64_N, argGPR64_B}, vexW: 1, opdigit: 2},
+		{op: BLSI, args: [6]argType{argGPR32_N, argM}, opdigit: 3, ismem: 1, memBytes: 4},
+		{op: BLSI, args: [6]argType{argGPR32_N, argM}, opdigit: 3, ismem: 1, memBytes: 4},
+		{op: BLSI, args: [6]argType{argGPR32_N, argGPR32_B}, opdigit: 3},
+		{op: BLSI, args: [6]argType{argGPR32_N, argGPR32_B}, opdigit: 3},
+		{op: BLSI, args: [6]argType{argGPR64_N, argM}, vexW: 1, opdigit: 3, ismem: 1, memBytes: 8},
+		{op: BLSI, args: [6]argType{argGPR64_N, argGPR64_B}, vexW: 1, opdigit: 3},
+	},
+	245: {
+		{op: PDEP, args: [6]argType{argGPR32_R, argGPR32_N, argM}, vexP: 2, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: PDEP, args: [6]argType{argGPR32_R, argGPR32_N, argM}, vexP: 2, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: PDEP, args: [6]argType{argGPR32_R, argGPR32_N, argGPR32_B}, vexP: 2, opdigit: -1},
+		{op: PDEP, args: [6]argType{argGPR32_R, argGPR32_N, argGPR32_B}, vexP: 2, opdigit: -1},
+		{op: PDEP, args: [6]argType{argGPR64_R, argGPR64_N, argM}, vexP: 2, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+		{op: PDEP, args: [6]argType{argGPR64_R, argGPR64_N, argGPR64_B}, vexP: 2, vexW: 1, opdigit: -1},
+		{op: PEXT, args: [6]argType{argGPR32_R, argGPR32_N, argM}, vexP: 3, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: PEXT, args: [6]argType{argGPR32_R, argGPR32_N, argM}, vexP: 3, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: PEXT, args: [6]argType{argGPR32_R, argGPR32_N, argGPR32_B}, vexP: 3, opdigit: -1},
+		{op: PEXT, args: [6]argType{argGPR32_R, argGPR32_N, argGPR32_B}, vexP: 3, opdigit: -1},
+		{op: PEXT, args: [6]argType{argGPR64_R, argGPR64_N, argM}, vexP: 3, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+		{op: PEXT, args: [6]argType{argGPR64_R, argGPR64_N, argGPR64_B}, vexP: 3, vexW: 1, opdigit: -1},
+		{op: BZHI, args: [6]argType{argGPR32_R, argM, argGPR32_N}, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: BZHI, args: [6]argType{argGPR32_R, argM, argGPR32_N}, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: BZHI, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, opdigit: -1},
+		{op: BZHI, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, opdigit: -1},
+		{op: BZHI, args: [6]argType{argGPR64_R, argM, argGPR64_N}, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+		{op: BZHI, args: [6]argType{argGPR64_R, argGPR64_B, argGPR64_N}, vexW: 1, opdigit: -1},
+	},
+	246: {
+		{op: MULX, args: [6]argType{argGPR32_R, argGPR32_N, argGPR32_B}, vexP: 2, opdigit: -1},
+		{op: MULX, args: [6]argType{argGPR32_R, argGPR32_N, argGPR32_B}, vexP: 2, opdigit: -1},
+		{op: MULX, args: [6]argType{argGPR32_R, argGPR32_N, argM}, vexP: 2, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: MULX, args: [6]argType{argGPR32_R, argGPR32_N, argM}, vexP: 2, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: MULX, args: [6]argType{argGPR64_R, argGPR64_N, argGPR64_B}, vexP: 2, vexW: 1, opdigit: -1},
+		{op: MULX, args: [6]argType{argGPR64_R, argGPR64_N, argM}, vexP: 2, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+	},
+	247: {
+		{op: BEXTR, args: [6]argType{argGPR32_R, argM, argGPR32_N}, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: BEXTR, args: [6]argType{argGPR32_R, argM, argGPR32_N}, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: BEXTR, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, opdigit: -1},
+		{op: BEXTR, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, opdigit: -1},
+		{op: BEXTR, args: [6]argType{argGPR64_R, argM, argGPR64_N}, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+		{op: BEXTR, args: [6]argType{argGPR64_R, argGPR64_B, argGPR64_N}, vexW: 1, opdigit: -1},
+		{op: SHLX, args: [6]argType{argGPR32_R, argM, argGPR32_N}, vexP: 1, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: SHLX, args: [6]argType{argGPR32_R, argM, argGPR32_N}, vexP: 1, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: SHLX, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, vexP: 1, opdigit: -1},
+		{op: SHLX, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, vexP: 1, opdigit: -1},
+		{op: SHLX, args: [6]argType{argGPR64_R, argM, argGPR64_N}, vexP: 1, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+		{op: SHLX, args: [6]argType{argGPR64_R, argGPR64_B, argGPR64_N}, vexP: 1, vexW: 1, opdigit: -1},
+		{op: SARX, args: [6]argType{argGPR32_R, argM, argGPR32_N}, vexP: 3, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: SARX, args: [6]argType{argGPR32_R, argM, argGPR32_N}, vexP: 3, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: SARX, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, vexP: 3, opdigit: -1},
+		{op: SARX, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, vexP: 3, opdigit: -1},
+		{op: SARX, args: [6]argType{argGPR64_R, argM, argGPR64_N}, vexP: 3, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+		{op: SARX, args: [6]argType{argGPR64_R, argGPR64_B, argGPR64_N}, vexP: 3, vexW: 1, opdigit: -1},
+		{op: SHRX, args: [6]argType{argGPR32_R, argM, argGPR32_N}, vexP: 2, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: SHRX, args: [6]argType{argGPR32_R, argM, argGPR32_N}, vexP: 2, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: SHRX, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, vexP: 2, opdigit: -1},
+		{op: SHRX, args: [6]argType{argGPR32_R, argGPR32_B, argGPR32_N}, vexP: 2, opdigit: -1},
+		{op: SHRX, args: [6]argType{argGPR64_R, argM, argGPR64_N}, vexP: 2, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
+		{op: SHRX, args: [6]argType{argGPR64_R, argGPR64_B, argGPR64_N}, vexP: 2, vexW: 1, opdigit: -1},
+	},
 }
 
 var avxMap0F3A = [256][]*avxOptab{
@@ -7378,5 +7486,13 @@ var avxMap0F3A = [256][]*avxOptab{
 	223: {
 		{op: VAESKEYGENASSIST, args: [6]argType{argXmm_R, argXmm_B, argImm8u}, vexP: 1, opdigit: -1},
 		{op: VAESKEYGENASSIST, args: [6]argType{argXmm_R, argM, argImm8u}, vexP: 1, opdigit: -1, ismem: 1, memBytes: 16},
+	},
+	240: {
+		{op: RORX, args: [6]argType{argGPR32_R, argGPR32_B, argImm8u}, vexP: 2, opdigit: -1},
+		{op: RORX, args: [6]argType{argGPR32_R, argGPR32_B, argImm8u}, vexP: 2, opdigit: -1},
+		{op: RORX, args: [6]argType{argGPR32_R, argM, argImm8u}, vexP: 2, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: RORX, args: [6]argType{argGPR32_R, argM, argImm8u}, vexP: 2, opdigit: -1, ismem: 1, memBytes: 4},
+		{op: RORX, args: [6]argType{argGPR64_R, argGPR64_B, argImm8u}, vexP: 2, vexW: 1, opdigit: -1},
+		{op: RORX, args: [6]argType{argGPR64_R, argM, argImm8u}, vexP: 2, vexW: 1, opdigit: -1, ismem: 1, memBytes: 8},
 	},
 }

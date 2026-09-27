@@ -1285,6 +1285,20 @@ func PageCachePagesLeaked() (leaked uintptr) {
 var ProcYield = procyield
 var OSYield = osyield
 
+type Note = note
+
+var NoteClear = noteclear
+var NoteTSleepG = notetsleepg
+
+// NoteTSleepG0 calls notetsleep on the system stack
+func NoteTSleepG0(n *Note, ns int64) bool {
+	var ok bool
+	systemstack(func() {
+		ok = notetsleep(n, ns)
+	})
+	return ok
+}
+
 type Mutex = mutex
 
 var Lock = lock

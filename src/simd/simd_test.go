@@ -7,7 +7,9 @@
 package simd_test
 
 import (
+	"runtime"
 	"simd"
+	"simd/internal/test_helpers"
 	"slices"
 	"testing"
 )
@@ -33,388 +35,278 @@ type number interface {
 }
 
 func TestInt8s(t *testing.T) {
-	// 64 elements = 512 bits
-	in1 := []int8{
-		1, -2, 3, -4, 5, -6, 7, -8, 9, -10, 11, -12, 13, -14, 15, -16,
-		17, -18, 19, -20, 21, -22, 23, -24, 25, -26, 27, -28, 29, -30, 31, -32,
-		33, -34, 35, -36, 37, -38, 39, -40, 41, -42, 43, -44, 45, -46, 47, -48,
-		49, -50, 51, -52, 53, -54, 55, -56, 57, -58, 59, -60, 61, -62, 63, -64,
-	}
-	in2 := make([]int8, 64)
-	for i := range in2 {
-		in2[i] = 2
-	}
+	values := test_helpers.Int8s()
+	load := simd.LoadInt8s
+	test_helpers.TestV2Ve(t, values, load, simd.Int8s.Neg, test_helpers.Neg)
+	test_helpers.TestV2Ve(t, values, load, simd.Int8s.Abs, test_helpers.Abs)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.Mul, test_helpers.Mul)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.And, test_helpers.And)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.Or, test_helpers.Or)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.Xor, test_helpers.Xor)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.AndNot, test_helpers.AndNot)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.Max, test_helpers.Max)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int8s.Min, test_helpers.Min)
+	test_helpers.TestVV2Me(t, values, load, simd.Int8s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Int8s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Int8s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Int8s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Int8s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Int8s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadInt8s(in1)
-	y := simd.LoadInt8s(in2)
-
-	if x.Len() <= 0 {
-		t.Errorf("Int8s.Len() returned <= 0")
-	}
-
-	sum := x.Add(y)
-	diff := x.Sub(y)
-	neg := x.Neg()
-	abs := x.Abs()
-
-	buf := make([]int8, x.Len())
-	sum.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] + in2[i]
-		if buf[i] != expected {
-			t.Errorf("Add at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	diff.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] - in2[i]
-		if buf[i] != expected {
-			t.Errorf("Sub at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	neg.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := -in1[i]
-		if buf[i] != expected {
-			t.Errorf("Neg at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	abs.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i]
-		if expected < 0 {
-			expected = -expected
-		}
-		if buf[i] != expected {
-			t.Errorf("Abs at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: AddSaturated, ConvertToUint8, IfElse, Len,
+	// Masked, Not, ReduceSum (tested in TestReduceSum), Store, StorePart,
+	// String, SubSaturated, ToBits, ToMask.
 }
 
 func TestInt16s(t *testing.T) {
-	// 32 elements = 512 bits
-	in1 := make([]int16, 32)
-	in2 := make([]int16, 32)
-	for i := range in1 {
-		in1[i] = int16((i + 1) * 100)
-		if i%2 != 0 {
-			in1[i] = -in1[i]
-		}
-		in2[i] = 10
-	}
+	values := test_helpers.Int16s()
+	load := simd.LoadInt16s
+	shifts := test_helpers.Shift16s()
+	test_helpers.TestV2Ve(t, values, load, simd.Int16s.Neg, test_helpers.Neg)
+	test_helpers.TestV2Ve(t, values, load, simd.Int16s.Abs, test_helpers.Abs)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.Mul, test_helpers.Mul)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.And, test_helpers.And)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.Or, test_helpers.Or)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.Xor, test_helpers.Xor)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.AndNot, test_helpers.AndNot)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.Max, test_helpers.Max)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int16s.Min, test_helpers.Min)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int16s.ShiftAllLeft, test_helpers.ShiftLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int16s.ShiftAllRight, test_helpers.ShiftRight)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int16s.RotateAllLeft, test_helpers.RotateLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int16s.RotateAllRight, test_helpers.RotateRight)
+	test_helpers.TestVV2Me(t, values, load, simd.Int16s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Int16s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Int16s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Int16s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Int16s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Int16s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadInt16s(in1)
-	y := simd.LoadInt16s(in2)
-
-	sum := x.Add(y)
-	buf := make([]int16, x.Len())
-	sum.Store(buf)
-
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] + in2[i]
-		if buf[i] != expected {
-			t.Errorf("Int16s Add at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllLeft
-	rotLeft := x.RotateAllLeft(3)
-	rotLeft.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := uint16(in1[i])
-		expected := int16((val << 3) | (val >> 13))
-		if buf[i] != expected {
-			t.Errorf("Int16s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllRight with large distance
-	rotRight := x.RotateAllRight(19)
-	rotRight.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := uint16(in1[i])
-		expected := int16((val >> 3) | (val << 13))
-		if buf[i] != expected {
-			t.Errorf("Int16s RotateAllRight(19) at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: AddSaturated, ConvertToUint16, IfElse, Len,
+	// Masked, Not, ReduceSum (tested in TestReduceSum), Store, StorePart,
+	// String, SubSaturated, ToBits, ToMask.
 }
 
 func TestInt32s(t *testing.T) {
-	// 16 elements = 512 bits
-	in1 := make([]int32, 16)
-	in2 := make([]int32, 16)
-	for i := range in1 {
-		in1[i] = int32((i + 1) * 1000)
-		if i%2 != 0 {
-			in1[i] = -in1[i]
-		}
-		in2[i] = 100
-	}
+	values := test_helpers.Int32s()
+	load := simd.LoadInt32s
+	shifts := test_helpers.Shift32s()
+	test_helpers.TestV2Ve(t, values, load, simd.Int32s.Neg, test_helpers.Neg)
+	test_helpers.TestV2Ve(t, values, load, simd.Int32s.Abs, test_helpers.Abs)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.Mul, test_helpers.Mul)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.And, test_helpers.And)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.Or, test_helpers.Or)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.Xor, test_helpers.Xor)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.AndNot, test_helpers.AndNot)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.Max, test_helpers.Max)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int32s.Min, test_helpers.Min)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int32s.ShiftAllLeft, test_helpers.ShiftLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int32s.ShiftAllRight, test_helpers.ShiftRight)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int32s.RotateAllLeft, test_helpers.RotateLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int32s.RotateAllRight, test_helpers.RotateRight)
+	test_helpers.TestVV2Me(t, values, load, simd.Int32s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Int32s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Int32s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Int32s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Int32s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Int32s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadInt32s(in1)
-	y := simd.LoadInt32s(in2)
-
-	sum := x.Add(y)
-	buf := make([]int32, x.Len())
-	sum.Store(buf)
-
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] + in2[i]
-		if buf[i] != expected {
-			t.Errorf("Int32s Add at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllLeft
-	rotLeft := x.RotateAllLeft(5)
-	rotLeft.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := uint32(in1[i])
-		expected := int32((val << 5) | (val >> 27))
-		if buf[i] != expected {
-			t.Errorf("Int32s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllRight with large distance
-	rotRight := x.RotateAllRight(37)
-	rotRight.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := uint32(in1[i])
-		expected := int32((val >> 5) | (val << 27))
-		if buf[i] != expected {
-			t.Errorf("Int32s RotateAllRight(37) at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: ConvertToFloat32, ConvertToUint32, IfElse, Len,
+	// Masked, Not, ReduceSum (tested in TestReduceSum), Store, StorePart,
+	// String, ToBits, ToMask.
 }
 
 func TestInt64s(t *testing.T) {
-	// 8 elements = 512 bits
-	in1 := make([]int64, 8)
-	in2 := make([]int64, 8)
-	for i := range in1 {
-		in1[i] = int64((i + 1) * 10000)
-		if i%2 != 0 {
-			in1[i] = -in1[i]
-		}
-		in2[i] = 1000
-	}
+	values := test_helpers.Int64s()
+	load := simd.LoadInt64s
+	shifts := test_helpers.Shift64s()
+	test_helpers.TestV2Ve(t, values, load, simd.Int64s.Neg, test_helpers.Neg)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.And, test_helpers.And)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Or, test_helpers.Or)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Xor, test_helpers.Xor)
+	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.AndNot, test_helpers.AndNot)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int64s.ShiftAllLeft, test_helpers.ShiftLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int64s.RotateAllLeft, test_helpers.RotateLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int64s.RotateAllRight, test_helpers.RotateRight)
+	test_helpers.TestVV2Me(t, values, load, simd.Int64s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Int64s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Int64s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Int64s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Int64s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Int64s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadInt64s(in1)
-	y := simd.LoadInt64s(in2)
-
-	sum := x.Add(y)
-	buf := make([]int64, x.Len())
-	sum.Store(buf)
-
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] + in2[i]
-		if buf[i] != expected {
-			t.Errorf("Int64s Add at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllLeft
-	rotLeft := x.RotateAllLeft(7)
-	rotLeft.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := uint64(in1[i])
-		expected := int64((val << 7) | (val >> 57))
-		if buf[i] != expected {
-			t.Errorf("Int64s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllRight with large distance
-	rotRight := x.RotateAllRight(71)
-	rotRight.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := uint64(in1[i])
-		expected := int64((val >> 7) | (val << 57))
-		if buf[i] != expected {
-			t.Errorf("Int64s RotateAllRight(71) at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: ConvertToUint64, IfElse, Len, Masked, Not, Store,
+	// StorePart, String, ToBits, ToMask.
 }
 
 func TestUint8s(t *testing.T) {
-	// 64 elements = 512 bits
-	in1 := make([]uint8, 64)
-	in2 := make([]uint8, 64)
-	for i := range in1 {
-		in1[i] = uint8(i + 1)
-		in2[i] = 10
-	}
+	values := test_helpers.Uint8s()
+	load := simd.LoadUint8s
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Mul, test_helpers.Mul)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.And, test_helpers.And)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Or, test_helpers.Or)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Xor, test_helpers.Xor)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.AndNot, test_helpers.AndNot)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Max, test_helpers.Max)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Min, test_helpers.Min)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.NotEqual, test_helpers.NotEqual)
 
-	x := simd.LoadUint8s(in1)
-	y := simd.LoadUint8s(in2)
-
-	avg := x.Average(y)
-	buf := make([]uint8, x.Len())
-	avg.Store(buf)
-
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := uint8((int(in1[i]) + int(in2[i]) + 1) >> 1)
-		if buf[i] != expected {
-			t.Errorf("Uint8s Average at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: AddSaturated, Average, BitsToInt8, ConvertToInt8,
+	// IfElse, Len, Masked, Not, ReduceSum (tested in TestReduceSum),
+	// ReshapeToUint16s, ReshapeToUint32s, ReshapeToUint64s, Store, StorePart,
+	// String, SubSaturated.
 }
 
 func TestFloat32s(t *testing.T) {
-	// 16 elements = 512 bits
-	in1 := make([]float32, 16)
-	in2 := make([]float32, 16)
-	for i := range in1 {
-		val := float32(i) + 1.5
-		if i%2 != 0 {
-			val = -val
-		}
-		in1[i] = val
-		in2[i] = 0.5
+	values := test_helpers.Float32s()
+	load := simd.LoadFloat32s
+	test_helpers.TestV2Ve(t, values, load, simd.Float32s.Neg, test_helpers.Neg)
+	test_helpers.TestV2Ve(t, values, load, simd.Float32s.Abs, test_helpers.Abs)
+	test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Mul, test_helpers.Mul)
+	test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Div, test_helpers.Div)
+	if runtime.GOARCH != "amd64" {
+		test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Max, test_helpers.Max)
+		test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Min, test_helpers.Min)
+	} else {
+		t.Logf("Skipping FP min/max on %s because of NaN anomalies", runtime.GOARCH)
 	}
+	test_helpers.TestVV2Me(t, values, load, simd.Float32s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Float32s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Float32s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Float32s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Float32s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Float32s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadFloat32s(in1)
-	y := simd.LoadFloat32s(in2)
-
-	sum := x.Add(y)
-	buf := make([]float32, x.Len())
-	sum.Store(buf)
-
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] + in2[i]
-		if buf[i] != expected {
-			t.Errorf("Float32s Add at %d: got %f, want %f", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: ConvertToInt32, IfElse, Len, Masked, MulAdd,
+	// ReduceSum (tested in TestReduceSum), Sqrt, Store, StorePart, String,
+	// ToBits.
 }
 
 func TestFloat64s(t *testing.T) {
-	// 8 elements = 512 bits
-	in1 := make([]float64, 8)
-	in2 := make([]float64, 8)
-	for i := range in1 {
-		val := float64(i)*10.0 + 10.25
-		if i%2 != 0 {
-			val = -val
-		}
-		in1[i] = val
-		in2[i] = 1.0
+	values := test_helpers.Float64s()
+	load := simd.LoadFloat64s
+	test_helpers.TestV2Ve(t, values, load, simd.Float64s.Neg, test_helpers.Neg)
+	test_helpers.TestV2Ve(t, values, load, simd.Float64s.Abs, test_helpers.Abs)
+	test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Mul, test_helpers.Mul)
+	test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Div, test_helpers.Div)
+	if runtime.GOARCH != "amd64" {
+		test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Max, test_helpers.Max)
+		test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Min, test_helpers.Min)
+	} else {
+		t.Logf("Skipping FP min/max on %s because of NaN anomalies", runtime.GOARCH)
 	}
+	test_helpers.TestVV2Me(t, values, load, simd.Float64s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Float64s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Float64s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Float64s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Float64s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Float64s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadFloat64s(in1)
-	y := simd.LoadFloat64s(in2)
-
-	mul := x.Mul(y)
-	buf := make([]float64, x.Len())
-	mul.Store(buf)
-
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		expected := in1[i] * in2[i]
-		if buf[i] != expected {
-			t.Errorf("Float64s Mul at %d: got %f, want %f", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: IfElse, Len, Masked, MulAdd,
+	// ReduceSum (tested in TestReduceSum), Sqrt, Store, StorePart, String,
+	// ToBits.
 }
 
 func TestUint16s(t *testing.T) {
-	in1 := make([]uint16, 32)
-	for i := range in1 {
-		in1[i] = uint16((i + 1) * 100)
-	}
+	values := test_helpers.Uint16s()
+	load := simd.LoadUint16s
+	shifts := test_helpers.Shift16s()
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.Mul, test_helpers.Mul)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.And, test_helpers.And)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.Or, test_helpers.Or)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.Xor, test_helpers.Xor)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.AndNot, test_helpers.AndNot)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.Max, test_helpers.Max)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint16s.Min, test_helpers.Min)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint16s.ShiftAllLeft, test_helpers.ShiftLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint16s.ShiftAllRight, test_helpers.ShiftRight)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint16s.RotateAllLeft, test_helpers.RotateLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint16s.RotateAllRight, test_helpers.RotateRight)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint16s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint16s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint16s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint16s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint16s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint16s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadUint16s(in1)
-	buf := make([]uint16, x.Len())
-
-	// Test RotateAllLeft
-	rotLeft := x.RotateAllLeft(3)
-	rotLeft.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := in1[i]
-		expected := (val << 3) | (val >> 13)
-		if buf[i] != expected {
-			t.Errorf("Uint16s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllRight with large distance
-	rotRight := x.RotateAllRight(19)
-	rotRight.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := in1[i]
-		expected := (val >> 3) | (val << 13)
-		if buf[i] != expected {
-			t.Errorf("Uint16s RotateAllRight(19) at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: AddSaturated, Average, BitsToInt16,
+	// ConvertToInt16, IfElse, Len, Masked, Not,
+	// ReduceSum (tested in TestReduceSum), ReshapeToUint32s, ReshapeToUint64s,
+	// ReshapeToUint8s, Store, StorePart, String, SubSaturated.
 }
 
 func TestUint32s(t *testing.T) {
-	in1 := make([]uint32, 16)
-	for i := range in1 {
-		in1[i] = uint32((i + 1) * 1000)
-	}
+	values := test_helpers.Uint32s()
+	load := simd.LoadUint32s
+	shifts := test_helpers.Shift32s()
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.Mul, test_helpers.Mul)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.And, test_helpers.And)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.Or, test_helpers.Or)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.Xor, test_helpers.Xor)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.AndNot, test_helpers.AndNot)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.Max, test_helpers.Max)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint32s.Min, test_helpers.Min)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint32s.ShiftAllLeft, test_helpers.ShiftLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint32s.ShiftAllRight, test_helpers.ShiftRight)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint32s.RotateAllLeft, test_helpers.RotateLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint32s.RotateAllRight, test_helpers.RotateRight)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint32s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint32s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint32s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint32s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint32s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint32s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadUint32s(in1)
-	buf := make([]uint32, x.Len())
-
-	// Test RotateAllLeft
-	rotLeft := x.RotateAllLeft(5)
-	rotLeft.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := in1[i]
-		expected := (val << 5) | (val >> 27)
-		if buf[i] != expected {
-			t.Errorf("Uint32s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllRight with large distance
-	rotRight := x.RotateAllRight(37)
-	rotRight.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := in1[i]
-		expected := (val >> 5) | (val << 27)
-		if buf[i] != expected {
-			t.Errorf("Uint32s RotateAllRight(37) at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: BitsToFloat32, BitsToInt32, ConvertToInt32,
+	// IfElse, Len, Masked, Not, ReduceSum (tested in TestReduceSum),
+	// ReshapeToUint16s, ReshapeToUint64s, ReshapeToUint8s, Store, StorePart,
+	// String.
 }
 
 func TestUint64s(t *testing.T) {
-	in1 := make([]uint64, 8)
-	for i := range in1 {
-		in1[i] = uint64((i + 1) * 10000)
-	}
+	values := test_helpers.Uint64s()
+	load := simd.LoadUint64s
+	shifts := test_helpers.Shift64s()
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint64s.Add, test_helpers.Add)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint64s.Sub, test_helpers.Sub)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint64s.And, test_helpers.And)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint64s.Or, test_helpers.Or)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint64s.Xor, test_helpers.Xor)
+	test_helpers.TestVV2Ve(t, values, load, simd.Uint64s.AndNot, test_helpers.AndNot)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint64s.ShiftAllLeft, test_helpers.ShiftLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint64s.ShiftAllRight, test_helpers.ShiftRight)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint64s.RotateAllLeft, test_helpers.RotateLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Uint64s.RotateAllRight, test_helpers.RotateRight)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint64s.Equal, test_helpers.Equal)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint64s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint64s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint64s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint64s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint64s.GreaterEqual, test_helpers.GreaterEqual)
 
-	x := simd.LoadUint64s(in1)
-	buf := make([]uint64, x.Len())
-
-	// Test RotateAllLeft
-	rotLeft := x.RotateAllLeft(7)
-	rotLeft.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := in1[i]
-		expected := (val << 7) | (val >> 57)
-		if buf[i] != expected {
-			t.Errorf("Uint64s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
-
-	// Test RotateAllRight with large distance
-	rotRight := x.RotateAllRight(71)
-	rotRight.Store(buf)
-	for i := 0; i < x.Len() && i < len(in1); i++ {
-		val := in1[i]
-		expected := (val >> 7) | (val << 57)
-		if buf[i] != expected {
-			t.Errorf("Uint64s RotateAllRight(71) at %d: got %d, want %d", i, buf[i], expected)
-		}
-	}
+	// TODO: untested methods: BitsToFloat64, BitsToInt64, CarrylessMultiplyEven,
+	// CarrylessMultiplyOdd, ConvertToInt64, IfElse, Len, Masked, Not,
+	// ReshapeToUint16s, ReshapeToUint32s, ReshapeToUint8s, Store, StorePart,
+	// String.
 }
 
 type HasStoreLen[E number] interface {
@@ -501,47 +393,12 @@ func TestShiftAllLeft(t *testing.T) {
 }
 
 func TestReduceSum(t *testing.T) {
-	t.Run("Float32s", func(t *testing.T) {
-		tests := [][]float32{
-			{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-			{1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8},
-			{0.5, -0.5, 1.25, -1.25, 2.125, -2.125, 4, 8, 0.25, -0.25, 0.75, -0.75, 1.5, -1.5, 16, 32},
-			make([]float32, 16),
-			{-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16},
-		}
-		for _, in := range tests {
-			v := simd.LoadFloat32s(in)
-			got := v.ReduceSum()
-			var want float32
-			// Note the test does not associate the same as the implementations,
-			// fortunately the test case is small integers.
-			for _, x := range in[:v.Len()] {
-				want += x
-			}
-			if got != want {
-				t.Errorf("%v[:%d].ReduceSum() = %v, want %v", in, v.Len(), got, want)
-			}
-		}
-	})
-
-	t.Run("Float64s", func(t *testing.T) {
-		tests := [][]float64{
-			{1, 2, 3, 4, 5, 6, 7, 8},
-			{1, -1, 2, -2, 3, -3, 4, -4},
-			{1.125, 2.25, 3.5, 4.0, 5.5, 6.25, 7.125, 8.0},
-			make([]float64, 8),
-			{-10, -20, -30, -40, -50, -60, -70, -80},
-		}
-		for _, in := range tests {
-			v := simd.LoadFloat64s(in)
-			got := v.ReduceSum()
-			var want float64
-			for _, x := range in[:v.Len()] {
-				want += x
-			}
-			if got != want {
-				t.Errorf("%v[:%d].ReduceSum() = %v, want %v", in, v.Len(), got, want)
-			}
-		}
-	})
+	test_helpers.TestV2S(t, test_helpers.Float32s(), simd.LoadFloat32s, simd.Float32s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Float64s(), simd.LoadFloat64s, simd.Float64s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Int32s(), simd.LoadInt32s, simd.Int32s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Uint32s(), simd.LoadUint32s, simd.Uint32s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Int16s(), simd.LoadInt16s, simd.Int16s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Uint16s(), simd.LoadUint16s, simd.Uint16s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.ReduceSum, test_helpers.ReduceSum)
+	test_helpers.TestV2S(t, test_helpers.Uint8s(), simd.LoadUint8s, simd.Uint8s.ReduceSum, test_helpers.ReduceSum)
 }

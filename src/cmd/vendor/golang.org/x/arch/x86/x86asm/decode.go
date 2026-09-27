@@ -481,6 +481,14 @@ ReadPrefixes:
 	opshift = 24
 
 	if vex != 0 {
+		// The VEX.W bit selects 64 bit registers.
+		switch vex & 0xFF {
+		case PrefixVEX3Bytes, PrefixEVEX:
+			if inst.Prefix[vexIndex+2]&0x80 != 0 {
+				dataMode = 64
+			}
+		}
+		inst.DataSize = dataMode
 		return decodeAVX(src, pos, vex, vexIndex, inst, mode)
 	}
 

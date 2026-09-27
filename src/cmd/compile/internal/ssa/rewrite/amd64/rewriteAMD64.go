@@ -4475,6 +4475,12 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpExtendToUint64Uint32x8:
 		v.Op = ssaop.OpAMD64VPMOVZXDQ512
 		return true
+	case ssaop.OpF32AsI32:
+		v.Op = ssaop.OpAMD64MOVLf2i
+		return true
+	case ssaop.OpF64AsI64:
+		v.Op = ssaop.OpAMD64MOVQf2i
+		return true
 	case ssaop.OpFMA:
 		return rewriteValue_OpFMA(v)
 	case ssaop.OpFloor:
@@ -4752,6 +4758,12 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpHmul64u:
 		v.Op = ssaop.OpAMD64HMULQU
+		return true
+	case ssaop.OpI32AsF32:
+		v.Op = ssaop.OpAMD64MOVLi2f
+		return true
+	case ssaop.OpI64AsF64:
+		v.Op = ssaop.OpAMD64MOVQi2f
 		return true
 	case ssaop.OpInterCall:
 		v.Op = ssaop.OpAMD64CALLinter

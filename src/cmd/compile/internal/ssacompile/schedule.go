@@ -313,7 +313,7 @@ func schedule(f *ssa.Func) {
 			}
 		}
 		if len(b.Values) != nv {
-			f.Fatalf("schedule does not include all values in block %s", b)
+			f.Fatalf("schedule does not include all values in block %s\n%+v", b, f)
 		}
 	}
 

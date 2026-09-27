@@ -76,6 +76,9 @@ func decodeAVX(src []byte, pos int, vex Prefix, vexIndex int, inst Inst, mode in
 
 	_ = evex_z // TODO: use zeroing mask if needed for output
 
+	if pos >= len(src) {
+		return inst, errors.New("truncated")
+	}
 	opbyte := src[pos]
 	pos++
 

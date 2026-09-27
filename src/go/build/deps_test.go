@@ -748,7 +748,7 @@ var depsRules = `
 	< testing;
 
 	testing, math
-	< simd/archsimd/internal/test_helpers;
+	< simd/archsimd/internal/test_helpers, simd/internal/test_helpers;
 
 	log/slog, testing
 	< testing/slogtest;

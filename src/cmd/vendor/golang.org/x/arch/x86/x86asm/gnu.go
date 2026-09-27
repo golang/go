@@ -253,6 +253,13 @@ SuffixLoop:
 				// but libopcodes still always puts a suffix on crc32.
 				continue
 
+			case ANDN, BEXTR, BLSI, BLSMSK, BLSR,
+				BZHI, MULX, PDEP, PEXT, RORX, SARX, SHLX, SHRX:
+				// The register arguments do tell us operand size, but
+				// libopcodes still always puts a suffix on the BMI1 and
+				// BMI2 instructions.
+				continue
+
 			case PUSH, POP:
 				// Even though segment registers are 16-bit, push and pop
 				// can save/restore them from 32-bit slots, so they
@@ -284,6 +291,9 @@ SuffixLoop:
 
 		case CRC32:
 			op += byteSizeSuffix(argBytes(&inst, inst.Args[1]))
+
+		case ANDN, BEXTR, BLSI, BLSMSK, BLSR, BZHI, MULX, PDEP, PEXT, RORX, SARX, SHLX, SHRX:
+			op += byteSizeSuffix(inst.DataSize / 8)
 
 		case LGDT, LIDT, SGDT, SIDT:
 			op += byteSizeSuffix(inst.DataSize / 8)
