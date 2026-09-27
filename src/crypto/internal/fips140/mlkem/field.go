@@ -483,7 +483,7 @@ func ntt(f ringElement) nttElement {
 // It implements NTT⁻¹, according to FIPS 203, Algorithm 10.
 func inverseNTT(f nttElement) ringElement {
 	k := 127
-	for len := 2; len <= 128; len *= 2 {
+	for len := 2; len < 128; len *= 2 {
 		for start := 0; start < 256; start += 2 * len {
 			zeta := zetas[k]
 			k--
@@ -496,8 +496,15 @@ func inverseNTT(f nttElement) ringElement {
 			}
 		}
 	}
-	for i := range f {
-		f[i] = fieldMul(f[i], 3303) // 3303 = 128⁻¹ mod q
+	// The first six stages consume zetas[127] through zetas[2].
+	// Fuse the final stage (zeta = zetas[1]) with scaling by 128⁻¹.
+	const scale = 3303
+	const zetaScaled = 1729 * scale % q // zetas[1] * 128⁻¹ mod q
+	for i := 0; i < 128; i++ {
+		a, b := f[i], f[i+128]
+		// a+b < 2q, so (a+b)*scale < 2q², within fieldReduce's bound.
+		f[i] = fieldReduce(uint32(a+b) * scale)
+		f[i+128] = fieldMulSub(zetaScaled, b, a)
 	}
 	return ringElement(f)
 }
