@@ -7,6 +7,7 @@ package pbkdf2
 import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/hmac"
+	"crypto/internal/fips140/subtle"
 	"errors"
 	"hash"
 )
@@ -60,9 +61,7 @@ func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyL
 			prf.Write(U)
 			U = U[:0]
 			U = prf.Sum(U)
-			for x := range U {
-				T[x] ^= U[x]
-			}
+			subtle.XORBytes(T, T, U)
 		}
 	}
 	return dk[:keyLength], nil
