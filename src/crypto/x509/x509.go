@@ -2505,11 +2505,9 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 		}
 	}
 
-	subject, err := parseName(in.TBSCSR.Subject.FullBytes)
-	if err != nil {
+	if err := parseName(in.TBSCSR.Subject.FullBytes, &out.Subject); err != nil {
 		return nil, err
 	}
-	out.Subject.FillFromRDNSequence(subject)
 
 	if out.Extensions, err = parseCSRExtensions(in.TBSCSR.RawAttributes); err != nil {
 		return nil, err

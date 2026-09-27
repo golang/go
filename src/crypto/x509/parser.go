@@ -204,41 +204,39 @@ func readASN1Any(der *cryptobyte.String) (any, error) {
 	}
 }
 
-// parseName parses a DER encoded Name as defined in RFC 5280. We may
-// want to export this function in the future for use in crypto/tls.
-func parseName(raw cryptobyte.String) (*pkix.RDNSequence, error) {
+// parseName parses a DER encoded Name as defined in RFC 5280 and
+// adds its attributes to name.
+func parseName(raw cryptobyte.String, name *pkix.Name) error {
 	if !raw.ReadASN1(&raw, cryptobyte_asn1.SEQUENCE) {
-		return nil, errors.New("x509: invalid RDNSequence")
+		return errors.New("x509: invalid RDNSequence")
 	}
 
-	var rdnSeq pkix.RDNSequence
 	for !raw.Empty() {
-		var rdnSet pkix.RelativeDistinguishedNameSET
 		var set cryptobyte.String
 		if !raw.ReadASN1(&set, cryptobyte_asn1.SET) {
-			return nil, errors.New("x509: invalid RDNSequence")
+			return errors.New("x509: invalid RDNSequence")
 		}
 		for !set.Empty() {
 			var atav cryptobyte.String
 			if !set.ReadASN1(&atav, cryptobyte_asn1.SEQUENCE) {
-				return nil, errors.New("x509: invalid RDNSequence: invalid attribute")
+				return errors.New("x509: invalid RDNSequence: invalid attribute")
 			}
 			var attr pkix.AttributeTypeAndValue
 			if !atav.ReadASN1ObjectIdentifier(&attr.Type) {
-				return nil, errors.New("x509: invalid RDNSequence: invalid attribute type")
+				return errors.New("x509: invalid RDNSequence: invalid attribute type")
 			}
 			var err error
 			attr.Value, err = readASN1Any(&atav)
 			if err != nil {
-				return nil, fmt.Errorf("x509: invalid RDNSequence: invalid attribute value: %s", err)
+				return fmt.Errorf("x509: invalid RDNSequence: invalid attribute value: %s", err)
 			}
-			rdnSet = append(rdnSet, attr)
+			// pkix.Name flattens multi-valued RDNs, so each attribute can be
+			// added on its own without building the whole RDNSequence.
+			name.FillFromRDNSequence(&pkix.RDNSequence{{attr}})
 		}
-
-		rdnSeq = append(rdnSeq, rdnSet)
 	}
 
-	return &rdnSeq, nil
+	return nil
 }
 
 func parseAI(der cryptobyte.String) (pkix.AlgorithmIdentifier, error) {
@@ -1102,11 +1100,9 @@ func parseCertificate(der []byte) (*Certificate, error) {
 		return nil, errors.New("x509: malformed issuer")
 	}
 	cert.RawIssuer = issuerSeq
-	issuerRDNs, err := parseName(issuerSeq)
-	if err != nil {
+	if err := parseName(issuerSeq, &cert.Issuer); err != nil {
 		return nil, err
 	}
-	cert.Issuer.FillFromRDNSequence(issuerRDNs)
 
 	var validity cryptobyte.String
 	if !tbs.ReadASN1(&validity, cryptobyte_asn1.SEQUENCE) {
@@ -1122,11 +1118,9 @@ func parseCertificate(der []byte) (*Certificate, error) {
 		return nil, errors.New("x509: malformed issuer")
 	}
 	cert.RawSubject = subjectSeq
-	subjectRDNs, err := parseName(subjectSeq)
-	if err != nil {
+	if err := parseName(subjectSeq, &cert.Subject); err != nil {
 		return nil, err
 	}
-	cert.Subject.FillFromRDNSequence(subjectRDNs)
 
 	var spki cryptobyte.String
 	if !tbs.ReadASN1Element(&spki, cryptobyte_asn1.SEQUENCE) {
@@ -1319,11 +1313,9 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 		return nil, errors.New("x509: malformed issuer")
 	}
 	rl.RawIssuer = issuerSeq
-	issuerRDNs, err := parseName(issuerSeq)
-	if err != nil {
+	if err := parseName(issuerSeq, &rl.Issuer); err != nil {
 		return nil, err
 	}
-	rl.Issuer.FillFromRDNSequence(issuerRDNs)
 
 	rl.ThisUpdate, err = readASN1Time(&tbs)
 	if err != nil {
