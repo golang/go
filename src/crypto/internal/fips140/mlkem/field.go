@@ -5,6 +5,7 @@
 package mlkem
 
 import (
+	"crypto/internal/constanttime"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140deps/byteorder"
 	"errors"
@@ -23,10 +24,9 @@ func fieldCheckReduced(a uint16) (fieldElement, error) {
 
 // fieldReduceOnce reduces a value a < 2q.
 func fieldReduceOnce(a uint16) fieldElement {
-	x := a - q
-	// If x underflowed, then x >= 2¹⁶ - q > 2¹⁵, so the top bit is set.
-	x += (x >> 15) * q
-	return fieldElement(x)
+	// a and q-1 are non-negative and fit int32, as LessOrEq requires.
+	v := constanttime.LessOrEq(int(a), q-1)
+	return fieldElement(constanttime.Select(v, int(a), int(a)-q))
 }
 
 func fieldAdd(a, b fieldElement) fieldElement {

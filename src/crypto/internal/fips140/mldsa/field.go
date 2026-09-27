@@ -9,7 +9,6 @@ import (
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140deps/byteorder"
 	"errors"
-	"math/bits"
 	"unsafe"
 )
 
@@ -75,8 +74,9 @@ func fieldInfinityNorm(r fieldElement) uint32 {
 
 // fieldReduceOnce reduces a value a < 2q.
 func fieldReduceOnce(a fieldElementPartiallyReduced) fieldElement {
-	x, b := bits.Sub64(uint64(a), uint64(q), 0)
-	return fieldElement(x + b*q)
+	// a and q-1 are non-negative and fit int32, as LessOrEq requires.
+	v := constanttime.LessOrEq(int(a), q-1)
+	return fieldElement(constanttime.Select(v, int(a), int(a)-q))
 }
 
 // fieldPartialReduce reduces an arbitrary uint32 to a value less than 2q.
