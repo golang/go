@@ -356,3 +356,88 @@ func TestGammas(t *testing.T) {
 		}
 	}
 }
+
+// nttMul multiplies two nttElements.
+//
+// It implements MultiplyNTTs, according to FIPS 203, Algorithm 11.
+func nttMul(f, g nttElement) nttElement {
+	var h nttElement
+	for i := 0; i < n; i += 2 {
+		a0, a1 := f[i], f[i+1]
+		b0, b1 := g[i], g[i+1]
+		h[i] = fieldAddMul(a0, b0, fieldMul(a1, b1), gammas[i/2])
+		h[i+1] = fieldAddMul(a0, b1, a1, b0)
+	}
+	return h
+}
+
+func TestNTTMulAdd(t *testing.T) {
+	impls := []struct {
+		name string
+		fn   func(h, f, g *nttElement)
+	}{
+		{"nttMulAdd", nttMulAdd},
+		{"nttMulAddPrecomputed", func(h, f, g *nttElement) {
+			var gamma [n / 2]fieldElement
+			nttMulPrecompute(&gamma, g)
+			nttMulAddPrecomputed(h, f, g, &gamma)
+		}},
+	}
+
+	var zero, one, max nttElement
+	for i := range max {
+		one[i] = 1
+		max[i] = q - 1
+	}
+	inputs := [][3]nttElement{
+		{max, max, max},
+		{zero, zero, zero},
+		{one, one, one},
+		{
+			nttElement(randomRingElement()),
+			nttElement(randomRingElement()),
+			nttElement(randomRingElement()),
+		},
+	}
+
+	for _, impl := range impls {
+		t.Run(impl.name, func(t *testing.T) {
+			for _, in := range inputs {
+				h, f, g := in[0], in[1], in[2]
+
+				x, y, z := h, f, g
+				impl.fn(&x, &y, &z)
+				if exp := polyAdd(h, nttMul(f, g)); x != exp {
+					t.Fatalf("h += f*g: got %v, expected %v", x, exp)
+				}
+				if y != f || z != g {
+					t.Errorf("h += f*g: inputs were modified")
+				}
+
+				x, z = f, g
+				impl.fn(&x, &x, &z)
+				if exp := polyAdd(f, nttMul(f, g)); x != exp {
+					t.Fatalf("f += f*g: got %v, expected %v", x, exp)
+				}
+				if z != g {
+					t.Errorf("f += f*g: g was modified")
+				}
+
+				x, y = g, f
+				impl.fn(&x, &y, &x)
+				if exp := polyAdd(g, nttMul(f, g)); x != exp {
+					t.Fatalf("g += f*g: got %v, expected %v", x, exp)
+				}
+				if y != f {
+					t.Errorf("g += f*g: f was modified")
+				}
+
+				x = f
+				impl.fn(&x, &x, &x)
+				if exp := polyAdd(f, nttMul(f, f)); x != exp {
+					t.Fatalf("f += f*f: got %v, expected %v", x, exp)
+				}
+			}
+		})
+	}
+}
