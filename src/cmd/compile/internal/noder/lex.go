@@ -95,6 +95,12 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf(`usage: //go:%s local [remote]`, verb)})
 			return
 		}
+		for _, symName := range f[1:] {
+			if strings.Contains(symName, ",") {
+				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid symbol name %q in //go:%s", symName, verb)})
+				return
+			}
+		}
 	case "cgo_import_dynamic":
 		switch {
 		case len(f) == 2 && !isQuoted(f[1]):
@@ -114,11 +120,25 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["library"]]`})
 			return
 		}
+		end := len(f)
+		if end > 3 {
+			end = 3
+		}
+		for _, symName := range f[1:end] {
+			if strings.Contains(symName, ",") {
+				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid symbol name %q in //go:%s", symName, verb)})
+				return
+			}
+		}
 	case "cgo_import_static":
 		switch {
 		case len(f) == 2 && !isQuoted(f[1]):
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_static local`})
+			return
+		}
+		if strings.Contains(f[1], ",") {
+			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid symbol name %q in //go:%s", f[1], verb)})
 			return
 		}
 	case "cgo_dynamic_linker":
@@ -127,6 +147,10 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 			f[1] = strings.Trim(f[1], `"`)
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_dynamic_linker "path"`})
+			return
+		}
+		if strings.Contains(f[1], ",") {
+			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid path %q in //go:%s", f[1], verb)})
 			return
 		}
 	case "cgo_ldflag":

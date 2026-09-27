@@ -179,3 +179,70 @@ func TestLdobjRejectsGoObjectAndUnknownSyso(t *testing.T) {
 		t.Errorf("ldobj accepted unrecognized .syso format (unknownObjFormat=%v, hobj=%v)", unknownObjFormat, hobj)
 	}
 }
+
+func TestSetCgoAttrValidatesExtnameAndDynlinker(t *testing.T) {
+	oldErrors := nerrors
+	oldInterp := interpreter
+	defer func() {
+		nerrors = oldErrors
+		interpreter = oldInterp
+	}()
+
+	er := loader.ErrorReporter{}
+	ctxt := &Link{
+		loader: loader.NewLoader(0, &er),
+	}
+	hostObjSyms := make(map[loader.Sym]struct{})
+
+	// 1. Exported symbol must not have its SymExtname overwritten by a subsequent cgo_import_dynamic.
+	s := ctxt.loader.LookupOrCreateSym("_cgo_panic", 0)
+	su := ctxt.loader.MakeSymbolUpdater(s)
+	su.SetType(sym.SBSS)
+	setCgoAttr(ctxt, "test.a", "runtime/cgo", [][]string{
+		{"cgo_export_dynamic", "_cgo_panic", "_cgo_panic"},
+		{"cgo_import_dynamic", "_cgo_panic", "overwritten_panic"},
+	}, hostObjSyms)
+	if got := ctxt.loader.SymExtname(s); got != "_cgo_panic" {
+		t.Errorf("cgo_import_dynamic overwrote exported symbol SymExtname: got %q, want %q", got, "_cgo_panic")
+	}
+
+	// Also verify that when cgo_import_dynamic (without a library) precedes
+	// cgo_export_dynamic, the export overrides the import and clears SDYNIMPORT.
+	s2 := ctxt.loader.LookupOrCreateSym("_cgo_export_after_import", 0)
+	setCgoAttr(ctxt, "test.a", "runtime/cgo", [][]string{
+		{"cgo_import_dynamic", "_cgo_export_after_import", "imported_name"},
+		{"cgo_export_dynamic", "_cgo_export_after_import", "_cgo_export_after_import"},
+	}, hostObjSyms)
+	if got := ctxt.loader.SymExtname(s2); got != "_cgo_export_after_import" {
+		t.Errorf("cgo_export_dynamic did not override prior cgo_import_dynamic SymExtname: got %q, want %q", got, "_cgo_export_after_import")
+	}
+	if got := ctxt.loader.SymType(s2); got == sym.SDYNIMPORT {
+		t.Errorf("cgo_export_dynamic did not clear SDYNIMPORT from prior cgo_import_dynamic")
+	}
+
+	// 2. Comma injection in cgo_import_dynamic / cgo_export_dynamic / cgo_dynamic_linker must be rejected.
+	nerrors = 0
+	interpreter = ""
+	setCgoAttr(ctxt, "test.a", "main", [][]string{
+		{"cgo_import_dynamic", "foo", "foo,--plugin=/tmp/pwn.so"},
+	}, hostObjSyms)
+	if nerrors == 0 {
+		t.Errorf("expected error for comma in cgo_import_dynamic remote symbol, got nerrors=0")
+	}
+
+	nerrors = 0
+	setCgoAttr(ctxt, "test.a", "main", [][]string{
+		{"cgo_export_dynamic", "bar", "bar,--plugin=/tmp/pwn.so"},
+	}, hostObjSyms)
+	if nerrors == 0 {
+		t.Errorf("expected error for comma in cgo_export_dynamic remote symbol, got nerrors=0")
+	}
+
+	nerrors = 0
+	setCgoAttr(ctxt, "test.a", "main", [][]string{
+		{"cgo_dynamic_linker", "/lib64/ld.so,--plugin=/tmp/pwn.so"},
+	}, hostObjSyms)
+	if nerrors == 0 || interpreter != "" {
+		t.Errorf("expected error for comma in cgo_dynamic_linker, got nerrors=%d interpreter=%q", nerrors, interpreter)
+	}
+}
