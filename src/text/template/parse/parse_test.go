@@ -341,6 +341,7 @@ var parseTests = []parseTest{
 	{"paren nesting in pipeline exceeds limit", "{{ (((( 1 )))) | printf }}", hasError, "template: test:1: max expression depth exceeded"},
 	{"paren nesting with other constructs", "{{ if ((( true ))) }}YES{{ end }}", noError, "{{if (((true)))}}\"YES\"{{end}}"},
 	{"paren nesting with other constructs exceeds limit", "{{ if (((( true )))) }}YES{{ end }}", hasError, "template: test:1: max expression depth exceeded"},
+	{"control structure nesting at limit", "{{if .X}}{{with .Y}}{{range .Z}}x{{end}}{{end}}{{end}}", noError, `{{if .X}}{{with .Y}}{{range .Z}}"x"{{end}}{{end}}{{end}}`},
 }
 
 var builtins = map[string]any{
@@ -638,6 +639,24 @@ var errorTests = []parseTest{
 	{"rangenotvariable2",
 		"{{range $k, 123 := .}}{{end}}",
 		hasError, `range can only initialize variables`},
+	{"ifnesting",
+		"{{if .}}{{if .}}{{if .}}{{if .}}{{end}}{{end}}{{end}}{{end}}",
+		hasError, `max control structure depth exceeded`},
+	{"rangenesting",
+		"{{range .}}{{range .}}{{range .}}{{range .}}{{end}}{{end}}{{end}}{{end}}",
+		hasError, `max control structure depth exceeded`},
+	{"withnesting",
+		"{{with .}}{{with .}}{{with .}}{{with .}}{{end}}{{end}}{{end}}{{end}}",
+		hasError, `max control structure depth exceeded`},
+	{"elseifnesting",
+		"{{if .}}{{else if .}}{{else if .}}{{else if .}}{{end}}",
+		hasError, `max control structure depth exceeded`},
+	{"blocknesting",
+		"{{block `a` .}}{{block `b` .}}{{block `c` .}}{{block `d` .}}{{end}}{{end}}{{end}}{{end}}",
+		hasError, `max control structure depth exceeded`},
+	{"parennesting",
+		"{{if .}}{{with .}}{{range .}}{{(.)}}{{end}}{{end}}{{end}}",
+		hasError, `max expression depth exceeded`},
 }
 
 func TestErrors(t *testing.T) {
