@@ -279,11 +279,12 @@ func (d *Digest) Sum(in []byte) []byte {
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := new(Digest)
 	*d0 = *d
-	hash := d0.checkSum()
+	var hash [size512]byte
+	d0.checkSum(&hash)
 	return append(in, hash[:d.size]...)
 }
 
-func (d *Digest) checkSum() [size512]byte {
+func (d *Digest) checkSum(digest *[size512]byte) {
 	// Padding. Add a 1 bit and 0 bits until 112 bytes mod 128.
 	len := d.len
 	var tmp [128 + 16]byte // padding + length buffer
@@ -308,7 +309,6 @@ func (d *Digest) checkSum() [size512]byte {
 		panic("d.nx != 0")
 	}
 
-	var digest [size512]byte
 	byteorder.BEPutUint64(digest[0:], d.h[0])
 	byteorder.BEPutUint64(digest[8:], d.h[1])
 	byteorder.BEPutUint64(digest[16:], d.h[2])
@@ -319,6 +319,4 @@ func (d *Digest) checkSum() [size512]byte {
 		byteorder.BEPutUint64(digest[48:], d.h[6])
 		byteorder.BEPutUint64(digest[56:], d.h[7])
 	}
-
-	return digest
 }

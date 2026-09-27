@@ -166,11 +166,12 @@ func (d *digest) Sum(in []byte) []byte {
 	boring.Unreachable()
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
-	hash := d0.checkSum()
+	var hash [Size]byte
+	d0.checkSum(&hash)
 	return append(in, hash[:]...)
 }
 
-func (d *digest) checkSum() [Size]byte {
+func (d *digest) checkSum(digest *[Size]byte) {
 	if fips140only.Enforced() {
 		panic("crypto/sha1: use of SHA-1 is not allowed in FIPS 140-only mode")
 	}
@@ -196,15 +197,11 @@ func (d *digest) checkSum() [Size]byte {
 		panic("d.nx != 0")
 	}
 
-	var digest [Size]byte
-
 	byteorder.BEPutUint32(digest[0:], d.h[0])
 	byteorder.BEPutUint32(digest[4:], d.h[1])
 	byteorder.BEPutUint32(digest[8:], d.h[2])
 	byteorder.BEPutUint32(digest[12:], d.h[3])
 	byteorder.BEPutUint32(digest[16:], d.h[4])
-
-	return digest
 }
 
 // ConstantTimeSum computes the same result of [Sum] but in constant time
@@ -290,5 +287,7 @@ func Sum(data []byte) [Size]byte {
 	var d digest
 	d.Reset()
 	d.Write(data)
-	return d.checkSum()
+	var hash [Size]byte
+	d.checkSum(&hash)
+	return hash
 }

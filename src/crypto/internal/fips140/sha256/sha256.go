@@ -208,14 +208,15 @@ func (d *Digest) Sum(in []byte) []byte {
 	fips140.RecordApproved()
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
-	hash := d0.checkSum()
+	var hash [size]byte
+	d0.checkSum(&hash)
 	if d0.is224 {
 		return append(in, hash[:size224]...)
 	}
 	return append(in, hash[:]...)
 }
 
-func (d *Digest) checkSum() [size]byte {
+func (d *Digest) checkSum(digest *[size]byte) {
 	len := d.len
 	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
 	var tmp [64 + 8]byte // padding + length buffer
@@ -237,8 +238,6 @@ func (d *Digest) checkSum() [size]byte {
 		panic("d.nx != 0")
 	}
 
-	var digest [size]byte
-
 	byteorder.BEPutUint32(digest[0:], d.h[0])
 	byteorder.BEPutUint32(digest[4:], d.h[1])
 	byteorder.BEPutUint32(digest[8:], d.h[2])
@@ -249,6 +248,4 @@ func (d *Digest) checkSum() [size]byte {
 	if !d.is224 {
 		byteorder.BEPutUint32(digest[28:], d.h[7])
 	}
-
-	return digest
 }

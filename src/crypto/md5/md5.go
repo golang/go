@@ -168,11 +168,12 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 func (d *digest) Sum(in []byte) []byte {
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
-	hash := d0.checkSum()
+	var hash [Size]byte
+	d0.checkSum(&hash)
 	return append(in, hash[:]...)
 }
 
-func (d *digest) checkSum() [Size]byte {
+func (d *digest) checkSum(digest *[Size]byte) {
 	if fips140only.Enforced() {
 		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
 	}
@@ -193,12 +194,10 @@ func (d *digest) checkSum() [Size]byte {
 		panic("d.nx != 0")
 	}
 
-	var digest [Size]byte
 	byteorder.LEPutUint32(digest[0:], d.s[0])
 	byteorder.LEPutUint32(digest[4:], d.s[1])
 	byteorder.LEPutUint32(digest[8:], d.s[2])
 	byteorder.LEPutUint32(digest[12:], d.s[3])
-	return digest
 }
 
 // Sum returns the MD5 checksum of the data.
@@ -206,5 +205,7 @@ func Sum(data []byte) [Size]byte {
 	var d digest
 	d.Reset()
 	d.Write(data)
-	return d.checkSum()
+	var hash [Size]byte
+	d.checkSum(&hash)
+	return hash
 }
