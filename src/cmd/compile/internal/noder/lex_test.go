@@ -71,6 +71,9 @@ func TestPragcgo(t *testing.T) {
 		{`go:cgo_dynamic_linker "/p ath/"`, []string{`cgo_dynamic_linker`, `/p ath/`}},
 		{`go:cgo_ldflag "arg"`, []string{`cgo_ldflag`, `arg`}},
 		{`go:cgo_ldflag "a rg"`, []string{`cgo_ldflag`, `a rg`}},
+		{`go:cgo_import_dynamic _cgo_panic _cgo_panic,--plugin=/tmp/pwn.so`, []string{`<unknown position>: invalid symbol name "_cgo_panic,--plugin=/tmp/pwn.so" in //go:cgo_import_dynamic`}},
+		{`go:cgo_export_dynamic main main,--plugin=/tmp/pwn.so`, []string{`<unknown position>: invalid symbol name "main,--plugin=/tmp/pwn.so" in //go:cgo_export_dynamic`}},
+		{`go:cgo_dynamic_linker "/lib64/ld.so,--plugin=/tmp/pwn.so"`, []string{`<unknown position>: invalid path "/lib64/ld.so,--plugin=/tmp/pwn.so" in //go:cgo_dynamic_linker`}},
 	}
 
 	if runtime.GOOS != "aix" {
@@ -89,9 +92,9 @@ func TestPragcgo(t *testing.T) {
 
 	}
 
-	var p noder
-	var nopos syntax.Pos
 	for _, tt := range tests {
+		var p noder
+		var nopos syntax.Pos
 
 		p.err = make(chan syntax.Error)
 		gotch := make(chan [][]string, 1)
