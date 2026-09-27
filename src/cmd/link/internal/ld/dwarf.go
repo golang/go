@@ -1069,18 +1069,13 @@ func (d *dwctxt) synthesizeTrampolineDIEs() {
 			continue
 		}
 
-		name := d.ldr.SymName(trampoline.sym)
 		size := int64(len(d.ldr.Data(trampoline.sym)))
 		if size == 0 {
 			continue
 		}
-		// Include the loader symbol index in the DIE symbol name. Linker symbols
-		// with different versions can have the same display name, but each DIE
-		// still needs distinct storage in .debug_info.
-		die := d.newdie(unit.DWInfo, dwarf.DW_ABRV_LINKER_TRAMPOLINE, fmt.Sprintf("%s.%d", name, trampoline.sym))
-		nameAttr := getattr(die, dwarf.DW_AT_name)
-		nameAttr.Value = int64(len(name))
-		nameAttr.Data = name
+		// Include the loader symbol index in the internal DIE symbol name.
+		// Each DIE needs distinct storage in .debug_info.
+		die := d.newdie(unit.DWInfo, dwarf.DW_ABRV_LINKER_TRAMPOLINE, fmt.Sprintf("trampoline.%d", trampoline.sym))
 		newattr(die, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, 0, dwSym(trampoline.sym))
 		newattr(die, dwarf.DW_AT_high_pc, dwarf.DW_CLS_CONSTANT, size, nil)
 		// Preserve the exact branch destination. For targets such as the Duff

@@ -1981,12 +1981,15 @@ func buildLinkerTrampolineProg(t *testing.T, ldflags string) *builtFile {
 	if err := os.Mkdir(targetDir, 0777); err != nil {
 		t.Fatal(err)
 	}
-	for name, contents := range map[string]string{
-		"go.mod":           "module trampoline.test\n\ngo 1.25\n",
-		"main.go":          linkerTrampolineProg,
-		"target/target.go": linkerTrampolineTargetProg,
+	for _, file := range []struct {
+		name     string
+		contents string
+	}{
+		{"go.mod", "module trampoline.test\n\ngo 1.25\n"},
+		{"main.go", linkerTrampolineProg},
+		{"target/target.go", linkerTrampolineTargetProg},
 	} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(contents), 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, file.name), []byte(file.contents), 0666); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -2039,35 +2042,37 @@ func collectLinkerTrampolineDIEs(t *testing.T, d *dwarf.Data) []linkerTrampoline
 func checkLinkerTrampolineDIE(t *testing.T, d *dwarf.Data, trampoline linkerTrampolineDIE, symbols []objfilepkg.Sym, targetPC uint64) (uint64, uint64) {
 	t.Helper()
 
-	name, _ := trampoline.entry.Val(dwarf.AttrName).(string)
 	if trampoline.entry.Children {
-		t.Errorf("%s DIE unexpectedly has children", name)
+		t.Error("trampoline DIE unexpectedly has children")
 	}
 	if trampoline.compileUnit == nil {
-		t.Fatalf("%s DIE has no compilation unit", name)
+		t.Fatal("trampoline DIE has no compilation unit")
 	}
 
 	lowPC, ok := trampoline.entry.Val(dwarf.AttrLowpc).(uint64)
 	if !ok {
-		t.Fatalf("%s DW_AT_low_pc has unexpected value %v", name, trampoline.entry.Val(dwarf.AttrLowpc))
+		t.Fatalf("DW_AT_low_pc has unexpected value %v", trampoline.entry.Val(dwarf.AttrLowpc))
 	}
 	foundSymbol := false
 	for _, symbol := range symbols {
-		if symbol.Name == name && symbol.Addr == lowPC {
+		if symbol.Addr == lowPC {
 			foundSymbol = true
 			break
 		}
 	}
 	if !foundSymbol {
-		t.Errorf("%s DW_AT_low_pc %#x does not match its linker symbol", name, lowPC)
+		t.Errorf("DW_AT_low_pc %#x does not match a linker symbol", lowPC)
+	}
+	if got := trampoline.entry.Val(dwarf.AttrName); got != nil {
+		t.Errorf("DW_AT_name = %q, want omitted", got)
 	}
 
 	size, ok := trampoline.entry.Val(dwarf.AttrHighpc).(int64)
 	if !ok || size <= 0 {
-		t.Fatalf("%s DW_AT_high_pc has unexpected value %v", name, trampoline.entry.Val(dwarf.AttrHighpc))
+		t.Fatalf("DW_AT_high_pc has unexpected value %v", trampoline.entry.Val(dwarf.AttrHighpc))
 	}
 	if got := trampoline.entry.Val(dwarf.AttrTrampoline); got != targetPC {
-		t.Errorf("%s DW_AT_trampoline = %#x, want %#x", name, got, targetPC)
+		t.Errorf("DW_AT_trampoline = %#x, want %#x", got, targetPC)
 	}
 
 	for _, attr := range []dwarf.Attr{
@@ -2078,7 +2083,7 @@ func checkLinkerTrampolineDIE(t *testing.T, d *dwarf.Data, trampoline linkerTram
 		dwarf.AttrLinkageName,
 	} {
 		if got := trampoline.entry.Val(attr); got != nil {
-			t.Errorf("%s %s = %v, want omitted", name, attr, got)
+			t.Errorf("%s = %v, want omitted", attr, got)
 		}
 	}
 
@@ -2095,7 +2100,7 @@ func checkLinkerTrampolineDIE(t *testing.T, d *dwarf.Data, trampoline linkerTram
 		}
 	}
 	if !covered {
-		t.Errorf("%s compilation unit does not cover [%#x, %#x)", name, lowPC, highPC)
+		t.Errorf("compilation unit does not cover [%#x, %#x)", lowPC, highPC)
 	}
 	return lowPC, highPC
 }
