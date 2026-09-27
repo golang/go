@@ -75,6 +75,8 @@ func TestPragcgo(t *testing.T) {
 		{`go:cgo_import_dynamic _cgo_panic _cgo_panic,--plugin=/tmp/pwn.so`, []string{`<unknown position>: invalid symbol name "_cgo_panic,--plugin=/tmp/pwn.so" in //go:cgo_import_dynamic`}},
 		{`go:cgo_export_dynamic main main,--plugin=/tmp/pwn.so`, []string{`<unknown position>: invalid symbol name "main,--plugin=/tmp/pwn.so" in //go:cgo_export_dynamic`}},
 		{`go:cgo_dynamic_linker "/lib64/ld.so,--plugin=/tmp/pwn.so"`, []string{`<unknown position>: invalid path "/lib64/ld.so,--plugin=/tmp/pwn.so" in //go:cgo_dynamic_linker`}},
+		{`go:cgo_ldflag "-L\"foo\""`, []string{`cgo_ldflag`, `-L"foo"`}},
+		{`go:cgo_ldflag "-L\q\"foo\""`, []string{`<unknown position>: usage: //go:cgo_ldflag "arg"`}},
 	}
 
 	if runtime.GOOS != "aix" {

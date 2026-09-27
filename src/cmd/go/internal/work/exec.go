@@ -3793,7 +3793,10 @@ func (b *Builder) processCgoOutputs(a *Action, runCgoProvider *runCgoProvider, c
 					// This is what the compiler does.
 					flag := string(src[idx+len(cgoLdflag) : end])
 					flag = strings.TrimSpace(flag)
-					flag = strings.Trim(flag, `"`)
+					flag, err = strconv.Unquote(flag)
+					if err != nil {
+						return nil, nil, err
+					}
 					flags = append(flags, flag)
 				}
 				src = src[end:]
@@ -3802,15 +3805,15 @@ func (b *Builder) processCgoOutputs(a *Action, runCgoProvider *runCgoProvider, c
 		}
 
 		// We expect to find the contents of cgoLDFLAGS used when running the CGO action in flags.
-		if len(runCgoProvider.LDFLAGS) > 0 {
+		if n := len(runCgoProvider.LDFLAGS); n > 0 {
 		outer:
-			for i := range flags {
+			for i := 0; i+n <= len(flags); i++ {
 				for j, f := range runCgoProvider.LDFLAGS {
 					if f != flags[i+j] {
 						continue outer
 					}
 				}
-				flags = append(flags[:i], flags[i+len(runCgoProvider.LDFLAGS):]...)
+				flags = append(flags[:i], flags[i+n:]...)
 				break
 			}
 		}
