@@ -7,6 +7,7 @@ package noder
 import (
 	"fmt"
 	"internal/buildcfg"
+	"strconv"
 	"strings"
 
 	"cmd/compile/internal/ir"
@@ -106,7 +107,12 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 		case len(f) == 2 && !isQuoted(f[1]):
 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
 		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
-			f[3] = strings.Trim(f[3], `"`)
+			var err error
+			f[3], err = strconv.Unquote(f[3])
+			if err != nil {
+				p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["library"]]`})
+				return
+			}
 			if buildcfg.GOOS == "aix" && f[3] != "" {
 				// On Aix, library pattern must be "lib.a/object.o"
 				// or "lib.a/libname.so.X"
@@ -144,7 +150,12 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 	case "cgo_dynamic_linker":
 		switch {
 		case len(f) == 2 && isQuoted(f[1]):
-			f[1] = strings.Trim(f[1], `"`)
+			var err error
+			f[1], err = strconv.Unquote(f[1])
+			if err != nil {
+				p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_dynamic_linker "path"`})
+				return
+			}
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_dynamic_linker "path"`})
 			return
@@ -156,7 +167,12 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 	case "cgo_ldflag":
 		switch {
 		case len(f) == 2 && isQuoted(f[1]):
-			f[1] = strings.Trim(f[1], `"`)
+			var err error
+			f[1], err = strconv.Unquote(f[1])
+			if err != nil {
+				p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_ldflag "arg"`})
+				return
+			}
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_ldflag "arg"`})
 			return
@@ -170,13 +186,22 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 // pragmaFields is similar to strings.FieldsFunc(s, isSpace)
 // but does not split when inside double quoted regions and always
 // splits before the start and after the end of a double quoted region.
-// pragmaFields does not recognize escaped quotes. If a quote in s is not
-// closed the part after the opening quote will not be returned as a field.
+// If a quote in s is not closed the part after the opening quote will
+// not be returned as a field.
 func pragmaFields(s string) []string {
 	var a []string
 	inQuote := false
+	escaped := false
 	fieldStart := -1 // Set to -1 when looking for start of field.
 	for i, c := range s {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if inQuote && c == '\\' {
+			escaped = true
+			continue
+		}
 		switch {
 		case c == '"':
 			if inQuote {
