@@ -246,8 +246,7 @@ func checkPrivateKey(priv *PrivateKey) error {
 		return errors.New("crypto/rsa: invalid CRT exponent")
 	}
 	de := bigmod.NewNat()
-	de.SetUint(uint(priv.pub.E)).ExpandFor(pMinus1)
-	de.Mul(dP, pMinus1)
+	de.SetBits(dP.Bits()).MulShort(uint(priv.pub.E), pMinus1)
 	if de.IsOne() != 1 {
 		return errors.New("crypto/rsa: invalid CRT exponent")
 	}
@@ -260,8 +259,7 @@ func checkPrivateKey(priv *PrivateKey) error {
 	if err != nil {
 		return errors.New("crypto/rsa: invalid CRT exponent")
 	}
-	de.SetUint(uint(priv.pub.E)).ExpandFor(qMinus1)
-	de.Mul(dQ, qMinus1)
+	de.SetBits(dQ.Bits()).MulShort(uint(priv.pub.E), qMinus1)
 	if de.IsOne() != 1 {
 		return errors.New("crypto/rsa: invalid CRT exponent")
 	}

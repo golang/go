@@ -523,6 +523,69 @@ func modulusFromBytes(b []byte) *Modulus {
 	return m
 }
 
+func TestMulShort(t *testing.T) {
+	for _, size := range []int{64, 760, 1024, 1032, 1536, 2048} {
+		for _, odd := range []bool{true, false} {
+			name := fmt.Sprintf("%d/even", size)
+			if odd {
+				name = fmt.Sprintf("%d/odd", size)
+			}
+			t.Run(name, func(t *testing.T) { testMulShort(t, size/8, odd) })
+		}
+	}
+}
+
+func testMulShort(t *testing.T, n int, odd bool) {
+	m := make([]byte, n)
+	cryptorand.Read(m)
+	m[0] |= 0x80
+	if odd {
+		m[n-1] |= 1
+	} else {
+		m[n-1] &^= 1
+	}
+	M, err := NewModulus(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mBig := new(big.Int).SetBytes(m)
+
+	xs := []*big.Int{
+		big.NewInt(0),
+		big.NewInt(1),
+		new(big.Int).Sub(mBig, big.NewInt(1)),
+	}
+	for range 5 {
+		x, err := cryptorand.Int(cryptorand.Reader, mBig)
+		if err != nil {
+			t.Fatal(err)
+		}
+		xs = append(xs, x)
+	}
+	ys := []uint{0, 1, 2, 3, 65537, 1<<(_W-1) + 1, ^uint(0)}
+	for range 5 {
+		ys = append(ys, uint(rand.Uint64()))
+	}
+
+	for _, x := range xs {
+		for _, y := range ys {
+			X, err := NewNat().SetBytes(x.Bytes(), M)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := X.MulShort(y, M).Bytes(M)
+
+			want := new(big.Int).SetUint64(uint64(y))
+			want.Mul(want, x).Mod(want, mBig)
+			wantBytes := want.FillBytes(make([]byte, len(got)))
+
+			if !bytes.Equal(got, wantBytes) {
+				t.Errorf("%x * %d mod %x = %x, want %x", x, y, mBig, got, wantBytes)
+			}
+		}
+	}
+}
+
 // maxModulus returns the biggest modulus that can fit in n limbs.
 func maxModulus(n uint) *Modulus {
 	b := big.NewInt(1)
