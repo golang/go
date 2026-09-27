@@ -158,6 +158,10 @@ var badCompilerFlags = [][]string{
 	{"-target", "x86_64-linux-gnu"},
 	{"-fsanitize=@foo"},
 	{"-fsanitize=-foo"},
+	{"-gnatO"},
+	{"-gnatO", "foo.o"},
+	{"-gen-cdb-fragment-path"},
+	{"-gen-cdb-fragment-path", "."},
 }
 
 func TestCheckCompilerFlags(t *testing.T) {
@@ -312,6 +316,10 @@ var badLinkerFlags = [][]string{
 	{"-target", "x86_64-linux-gnu"},
 	{"-fsanitize=@foo"},
 	{"-fsanitize=-foo"},
+	{"-gnatO"},
+	{"-gnatO", "-L", "foo.ld"},
+	{"-gen-cdb-fragment-path"},
+	{"-gen-cdb-fragment-path", "-Wl,-framework", "-Wl,foo.so"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {

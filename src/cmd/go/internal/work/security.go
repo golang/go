@@ -155,10 +155,21 @@ var validCompilerFlagsWithNextArg = []string{
 	"-x",
 }
 
+var invalidCompilerFlags = []*lazyregexp.Regexp{
+	// Clang's -gen-cdb-fragment-path takes a directory argument and writes
+	// compilation database fragments there; have to exclude separately because
+	// -g* is allowed in general. GCC's -gnatO similarly takes a separate
+	// output filename argument in the GCC driver.
+	re(`-gen-.*`),
+	re(`-gnat.*`),
+}
+
 var invalidLinkerFlags = []*lazyregexp.Regexp{
 	// On macOS this means the linker loads and executes the next argument.
 	// Have to exclude separately because -lfoo is allowed in general.
 	re(`-lto_library`),
+	re(`-gen-.*`),
+	re(`-gnat.*`),
 }
 
 var validLinkerFlags = []*lazyregexp.Regexp{
@@ -328,7 +339,7 @@ func hasGCCSpecFlags(list []string) bool {
 
 func checkCompilerFlags(name, source string, list []string) error {
 	checkOverrides := true
-	return checkFlags(name, source, list, nil, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
+	return checkFlags(name, source, list, invalidCompilerFlags, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
 }
 
 func checkLinkerFlags(name, source string, list []string) error {
@@ -539,7 +550,7 @@ func checkPkgConfigFlags(name, source string, list []string) error {
 // external linker).
 func checkCompilerFlagsForInternalLink(name, source string, list []string) error {
 	checkOverrides := false
-	if err := checkFlags(name, source, list, nil, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
+	if err := checkFlags(name, source, list, invalidCompilerFlags, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
 		return err
 	}
 	// Currently the only flag on the allow list that causes problems
@@ -561,7 +572,7 @@ func checkCompilerFlagsForInternalLink(name, source string, list []string) error
 // contains linker flags that are not compatible with internal linking.
 func checkLinkerFlagsForInternalLink(name, source string, list []string) error {
 	checkOverrides := false
-	if err := checkFlags(name, source, list, nil, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
+	if err := checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
 		return err
 	}
 	// Flags that force static linking require the external linker
