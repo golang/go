@@ -203,6 +203,26 @@ func TestEscape(t *testing.T) {
 			`<button onclick='alert(&#34;\u003cHello\u003e&#34;)'>`,
 		},
 		{
+			"jsStrValueAfterSlash",
+			"<svg/onload='alert({{.H}})'>",
+			`<svg/onload='alert(&#34;\u003cHello\u003e&#34;)'>`,
+		},
+		{
+			"urlAfterSlash",
+			`<a/href="{{.C}}">`,
+			`<a/href="%3cCincinnati%3e">`,
+		},
+		{
+			"jsStrValueAfterDynamicAttrAndSlash",
+			`<a {{.N}}/onclick="alert({{.H}})">`,
+			`<a 42/onclick="alert(&#34;\u003cHello\u003e&#34;)">`,
+		},
+		{
+			"scriptTypeNotCarriedPastSlash",
+			`<script type/{{.N}}="text/template">{{.H}}</script>`,
+			`<script type/42="text/template">"\u003cHello\u003e"</script>`,
+		},
+		{
 			"jsNumericValue",
 			"<button onclick='alert({{.N}})'>",
 			`<button onclick='alert( 42 )'>`,
@@ -1195,6 +1215,10 @@ func TestErrors(t *testing.T) {
 			`: expected space, attr name, or end of tag, but got "=foo>"`,
 		},
 		{
+			`<a href/=foo>`,
+			`: expected space, attr name, or end of tag, but got "=foo>"`,
+		},
+		{
 			`Hello, {{. | urlquery | print}}!`,
 			// urlquery is disallowed if it is not the last command in the pipeline.
 			`predefined escaper "urlquery" disallowed in template`,
@@ -1794,6 +1818,38 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			`<svg:a svg:onclick="x()">`,
+			context{},
+		},
+		{
+			`<a/href=`,
+			context{state: stateBeforeValue, attr: attrURL},
+		},
+		{
+			`<a/ href=`,
+			context{state: stateBeforeValue, attr: attrURL},
+		},
+		{
+			`<script type/`,
+			context{state: stateTag, element: elementScript},
+		},
+		{
+			`<svg/onload="`,
+			context{state: stateJS, delim: delimDoubleQuote, attr: attrScript},
+		},
+		{
+			`<a title="x"/onclick="`,
+			context{state: stateJS, delim: delimDoubleQuote, attr: attrScript},
+		},
+		{
+			`<a//style='`,
+			context{state: stateCSS, delim: delimSingleQuote, attr: attrStyle},
+		},
+		{
+			`<br/>`,
+			context{},
+		},
+		{
+			`<img src=/x/y/>`,
 			context{},
 		},
 		{
