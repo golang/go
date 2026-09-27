@@ -3159,6 +3159,86 @@ func TestRSAPSAParameters(t *testing.T) {
 	}
 }
 
+var (
+	oidSHA256 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
+	oidSHA384 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 2}
+	oidSHA512 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 3}
+
+	oidMGF1 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 8}
+)
+
+// pssParameters reflects the parameters in an AlgorithmIdentifier that
+// specifies RSA PSS. See RFC 3447, Appendix A.2.3.
+type pssParameters struct {
+	// The following three fields are not marked as
+	// optional because the default values specify SHA-1,
+	// which is no longer suitable for use in signatures.
+	Hash         pkix.AlgorithmIdentifier `asn1:"explicit,tag:0"`
+	MGF          pkix.AlgorithmIdentifier `asn1:"explicit,tag:1"`
+	SaltLength   int                      `asn1:"explicit,tag:2"`
+	TrailerField int                      `asn1:"optional,explicit,tag:3,default:1"`
+}
+
+// parsePSSParameters parses the parameters of an RSA PSS AlgorithmIdentifier
+// with encoding/asn1, as an independent check of
+// acceptablePSSParametersEncodings.
+func parsePSSParameters(ai pkix.AlgorithmIdentifier) SignatureAlgorithm {
+	var params pssParameters
+	if _, err := asn1.Unmarshal(ai.Parameters.FullBytes, &params); err != nil {
+		return UnknownSignatureAlgorithm
+	}
+
+	var mgf1HashFunc pkix.AlgorithmIdentifier
+	if _, err := asn1.Unmarshal(params.MGF.Parameters.FullBytes, &mgf1HashFunc); err != nil {
+		return UnknownSignatureAlgorithm
+	}
+
+	// PSS is greatly overburdened with options. This code forces them into
+	// three buckets by requiring that the MGF1 hash function always match the
+	// message hash function (as recommended in RFC 3447, Section 8.1), that the
+	// salt length matches the hash length, and that the trailer field has the
+	// default value.
+	if (len(params.Hash.Parameters.FullBytes) != 0 && !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes)) ||
+		!params.MGF.Algorithm.Equal(oidMGF1) ||
+		!mgf1HashFunc.Algorithm.Equal(params.Hash.Algorithm) ||
+		(len(mgf1HashFunc.Parameters.FullBytes) != 0 && !bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1.NullBytes)) ||
+		params.TrailerField != 1 {
+		return UnknownSignatureAlgorithm
+	}
+
+	switch {
+	case params.Hash.Algorithm.Equal(oidSHA256) && params.SaltLength == 32:
+		return SHA256WithRSAPSS
+	case params.Hash.Algorithm.Equal(oidSHA384) && params.SaltLength == 48:
+		return SHA384WithRSAPSS
+	case params.Hash.Algorithm.Equal(oidSHA512) && params.SaltLength == 64:
+		return SHA512WithRSAPSS
+	}
+
+	return UnknownSignatureAlgorithm
+}
+
+func TestAcceptablePSSParametersEncodings(t *testing.T) {
+	seen := make(map[string]bool)
+	for _, enc := range acceptablePSSParametersEncodings {
+		if seen[enc.params] {
+			t.Errorf("duplicate encoding %x", enc.params)
+		}
+		seen[enc.params] = true
+
+		ai := pkix.AlgorithmIdentifier{
+			Algorithm:  oidSignatureRSAPSS,
+			Parameters: asn1.RawValue{FullBytes: []byte(enc.params)},
+		}
+		if got := parsePSSParameters(ai); got != enc.algo {
+			t.Errorf("parsePSSParameters(%x) = %v, want %v", enc.params, got, enc.algo)
+		}
+		if got := getSignatureAlgorithmFromAI(ai); got != enc.algo {
+			t.Errorf("getSignatureAlgorithmFromAI(%x) = %v, want %v", enc.params, got, enc.algo)
+		}
+	}
+}
+
 func TestUnknownExtKey(t *testing.T) {
 	const errorContains = "unknown extended key usage"
 

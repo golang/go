@@ -370,12 +370,6 @@ var (
 	oidSignatureECDSAWithSHA512 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 4}
 	oidSignatureEd25519         = asn1.ObjectIdentifier{1, 3, 101, 112}
 
-	oidSHA256 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
-	oidSHA384 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 2}
-	oidSHA512 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 3}
-
-	oidMGF1 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 8}
-
 	// oidISOSignatureSHA1WithRSA means the same as oidSignatureSHA1WithRSA
 	// but it's specified by ISO. Microsoft's makecert.exe has been known
 	// to produce certificates with this OID.
@@ -418,83 +412,175 @@ var emptyRawValue = asn1.RawValue{}
 // SHA256, SHA384, and SHA512 hashes as defined in RFC 3447, Appendix A.2.3.
 // The parameters contain the following values:
 //   - hashAlgorithm contains the associated hash identifier with NULL parameters
-//   - maskGenAlgorithm always contains the default mgf1SHA1 identifier
+//   - maskGenAlgorithm contains MGF1 with the associated hash identifier with NULL parameters
 //   - saltLength contains the length of the associated hash
-//   - trailerField always contains the default trailerFieldBC value
+//   - trailerField is omitted, indicating the default trailerFieldBC value
 var (
-	pssParametersSHA256 = asn1.RawValue{FullBytes: []byte{48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 161, 28, 48, 26, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 162, 3, 2, 1, 32}}
-	pssParametersSHA384 = asn1.RawValue{FullBytes: []byte{48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 2, 5, 0, 161, 28, 48, 26, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 2, 5, 0, 162, 3, 2, 1, 48}}
-	pssParametersSHA512 = asn1.RawValue{FullBytes: []byte{48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3, 5, 0, 161, 28, 48, 26, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 3, 5, 0, 162, 3, 2, 1, 64}}
+	pssParametersSHA256 = asn1.RawValue{FullBytes: []byte("\x30\x34" + pssHashSHA256NULL + pssMGF1SHA256NULL + pssSalt32)}
+	pssParametersSHA384 = asn1.RawValue{FullBytes: []byte("\x30\x34" + pssHashSHA384NULL + pssMGF1SHA384NULL + pssSalt48)}
+	pssParametersSHA512 = asn1.RawValue{FullBytes: []byte("\x30\x34" + pssHashSHA512NULL + pssMGF1SHA512NULL + pssSalt64)}
 )
 
-// pssParameters reflects the parameters in an AlgorithmIdentifier that
-// specifies RSA PSS. See RFC 3447, Appendix A.2.3.
-type pssParameters struct {
-	// The following three fields are not marked as
-	// optional because the default values specify SHA-1,
-	// which is no longer suitable for use in signatures.
-	Hash         pkix.AlgorithmIdentifier `asn1:"explicit,tag:0"`
-	MGF          pkix.AlgorithmIdentifier `asn1:"explicit,tag:1"`
-	SaltLength   int                      `asn1:"explicit,tag:2"`
-	TrailerField int                      `asn1:"optional,explicit,tag:3,default:1"`
+// DER fragments of RSASSA-PSS-params (RFC 4055, Section 3.1).
+const (
+	pssNULL = "\x05\x00"
+
+	// RFC 4055, Section 2.1 and 2.2
+	//
+	//	id-mgf1  OBJECT IDENTIFIER  ::=  { pkcs-1 8 }
+	//
+	//	id-sha256  OBJECT IDENTIFIER  ::=  { joint-iso-itu-t(2)
+	//		country(16) us(840) organization(1) gov(101)
+	//		csor(3) nistalgorithm(4) hashalgs(2) 1 }
+	//
+	//	id-sha384  OBJECT IDENTIFIER  ::=  { joint-iso-itu-t(2)
+	//		country(16) us(840) organization(1) gov(101)
+	//		csor(3) nistalgorithm(4) hashalgs(2) 2 }
+	//
+	//	id-sha512  OBJECT IDENTIFIER  ::=  { joint-iso-itu-t(2)
+	//		country(16) us(840) organization(1) gov(101)
+	//		csor(3) nistalgorithm(4) hashalgs(2) 3 }
+	pssOIDMGF1   = "\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x08"
+	pssOIDSHA256 = "\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01"
+	pssOIDSHA384 = "\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02"
+	pssOIDSHA512 = "\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03"
+
+	// hashAlgorithm [0] HashAlgorithm, with NULL or absent parameters.
+	pssHashNULLPrefix   = "\xa0\x0f\x30\x0d"
+	pssHashAbsentPrefix = "\xa0\x0d\x30\x0b"
+	pssHashSHA256NULL   = pssHashNULLPrefix + pssOIDSHA256 + pssNULL
+	pssHashSHA256Absent = pssHashAbsentPrefix + pssOIDSHA256
+	pssHashSHA384NULL   = pssHashNULLPrefix + pssOIDSHA384 + pssNULL
+	pssHashSHA384Absent = pssHashAbsentPrefix + pssOIDSHA384
+	pssHashSHA512NULL   = pssHashNULLPrefix + pssOIDSHA512 + pssNULL
+	pssHashSHA512Absent = pssHashAbsentPrefix + pssOIDSHA512
+
+	// maskGenAlgorithm [1] MaskGenAlgorithm, MGF1 with a HashAlgorithm with
+	// NULL or absent parameters.
+	pssMGF1NULLPrefix   = "\xa1\x1c\x30\x1a" + pssOIDMGF1 + "\x30\x0d"
+	pssMGF1AbsentPrefix = "\xa1\x1a\x30\x18" + pssOIDMGF1 + "\x30\x0b"
+	pssMGF1SHA256NULL   = pssMGF1NULLPrefix + pssOIDSHA256 + pssNULL
+	pssMGF1SHA256Absent = pssMGF1AbsentPrefix + pssOIDSHA256
+	pssMGF1SHA384NULL   = pssMGF1NULLPrefix + pssOIDSHA384 + pssNULL
+	pssMGF1SHA384Absent = pssMGF1AbsentPrefix + pssOIDSHA384
+	pssMGF1SHA512NULL   = pssMGF1NULLPrefix + pssOIDSHA512 + pssNULL
+	pssMGF1SHA512Absent = pssMGF1AbsentPrefix + pssOIDSHA512
+
+	// saltLength [2] INTEGER.
+	pssSaltPrefix = "\xa2\x03\x02\x01"
+	pssSalt32     = pssSaltPrefix + "\x20"
+	pssSalt48     = pssSaltPrefix + "\x30"
+	pssSalt64     = pssSaltPrefix + "\x40"
+
+	// trailerField [3] INTEGER, explicitly encoded with its DEFAULT value.
+	pssTrailer = "\xa3\x03\x02\x01\x01"
+)
+
+// acceptablePSSParametersEncodings lists every RSASSA-PSS-params encoding
+// accepted when parsing a signature AlgorithmIdentifier.
+//
+// PSS is greatly overburdened with options. These force them into three
+// buckets by requiring that the MGF1 hash function always match the message
+// hash function (as recommended in RFC 3447, Section 8.1), that the salt length
+// matches the hash length, and that the trailer field has the default value.
+//
+// RFC 4055, Section 2.1 requires accepting both NULL and absent parameters in
+// the hash AlgorithmIdentifiers, and RFC 4055, Section 3.1 requires accepting
+// both an absent and an explicitly encoded trailerField, so each bucket has
+// eight encodings. The first one of each bucket is the DER encoding generated
+// by this package.
+var acceptablePSSParametersEncodings = []struct {
+	algo   SignatureAlgorithm
+	params string
+}{
+	{SHA256WithRSAPSS, "\x30\x34" + pssHashSHA256NULL + pssMGF1SHA256NULL + pssSalt32},
+	{SHA256WithRSAPSS, "\x30\x32" + pssHashSHA256NULL + pssMGF1SHA256Absent + pssSalt32},
+	{SHA256WithRSAPSS, "\x30\x32" + pssHashSHA256Absent + pssMGF1SHA256NULL + pssSalt32},
+	{SHA256WithRSAPSS, "\x30\x30" + pssHashSHA256Absent + pssMGF1SHA256Absent + pssSalt32},
+	{SHA256WithRSAPSS, "\x30\x39" + pssHashSHA256NULL + pssMGF1SHA256NULL + pssSalt32 + pssTrailer},
+	{SHA256WithRSAPSS, "\x30\x37" + pssHashSHA256NULL + pssMGF1SHA256Absent + pssSalt32 + pssTrailer},
+	{SHA256WithRSAPSS, "\x30\x37" + pssHashSHA256Absent + pssMGF1SHA256NULL + pssSalt32 + pssTrailer},
+	{SHA256WithRSAPSS, "\x30\x35" + pssHashSHA256Absent + pssMGF1SHA256Absent + pssSalt32 + pssTrailer},
+
+	{SHA384WithRSAPSS, "\x30\x34" + pssHashSHA384NULL + pssMGF1SHA384NULL + pssSalt48},
+	{SHA384WithRSAPSS, "\x30\x32" + pssHashSHA384NULL + pssMGF1SHA384Absent + pssSalt48},
+	{SHA384WithRSAPSS, "\x30\x32" + pssHashSHA384Absent + pssMGF1SHA384NULL + pssSalt48},
+	{SHA384WithRSAPSS, "\x30\x30" + pssHashSHA384Absent + pssMGF1SHA384Absent + pssSalt48},
+	{SHA384WithRSAPSS, "\x30\x39" + pssHashSHA384NULL + pssMGF1SHA384NULL + pssSalt48 + pssTrailer},
+	{SHA384WithRSAPSS, "\x30\x37" + pssHashSHA384NULL + pssMGF1SHA384Absent + pssSalt48 + pssTrailer},
+	{SHA384WithRSAPSS, "\x30\x37" + pssHashSHA384Absent + pssMGF1SHA384NULL + pssSalt48 + pssTrailer},
+	{SHA384WithRSAPSS, "\x30\x35" + pssHashSHA384Absent + pssMGF1SHA384Absent + pssSalt48 + pssTrailer},
+
+	{SHA512WithRSAPSS, "\x30\x34" + pssHashSHA512NULL + pssMGF1SHA512NULL + pssSalt64},
+	{SHA512WithRSAPSS, "\x30\x32" + pssHashSHA512NULL + pssMGF1SHA512Absent + pssSalt64},
+	{SHA512WithRSAPSS, "\x30\x32" + pssHashSHA512Absent + pssMGF1SHA512NULL + pssSalt64},
+	{SHA512WithRSAPSS, "\x30\x30" + pssHashSHA512Absent + pssMGF1SHA512Absent + pssSalt64},
+	{SHA512WithRSAPSS, "\x30\x39" + pssHashSHA512NULL + pssMGF1SHA512NULL + pssSalt64 + pssTrailer},
+	{SHA512WithRSAPSS, "\x30\x37" + pssHashSHA512NULL + pssMGF1SHA512Absent + pssSalt64 + pssTrailer},
+	{SHA512WithRSAPSS, "\x30\x37" + pssHashSHA512Absent + pssMGF1SHA512NULL + pssSalt64 + pssTrailer},
+	{SHA512WithRSAPSS, "\x30\x35" + pssHashSHA512Absent + pssMGF1SHA512Absent + pssSalt64 + pssTrailer},
 }
 
 func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm {
-	if ai.Algorithm.Equal(oidSignatureEd25519) ||
-		ai.Algorithm.Equal(oidPublicKeyMLDSA44) ||
-		ai.Algorithm.Equal(oidPublicKeyMLDSA65) ||
-		ai.Algorithm.Equal(oidPublicKeyMLDSA87) {
-		// RFC 8410, Section 3
-		// > For all of the OIDs, the parameters MUST be absent.
-		// RFC 9881, Section 2
-		// > The contents of the parameters component for each algorithm MUST be absent.
-		if len(ai.Parameters.FullBytes) != 0 {
+	switch params := ai.Parameters.FullBytes; {
+	// RFC 8410, Section 3
+	// > For all of the OIDs, the parameters MUST be absent.
+	case ai.Algorithm.Equal(oidSignatureEd25519):
+		if len(params) != 0 {
+			return UnknownSignatureAlgorithm
+		}
+
+	// RFC 9881, Section 2
+	// > The contents of the parameters component for each algorithm MUST be absent.
+	case ai.Algorithm.Equal(oidPublicKeyMLDSA44),
+		ai.Algorithm.Equal(oidPublicKeyMLDSA65),
+		ai.Algorithm.Equal(oidPublicKeyMLDSA87):
+		if len(params) != 0 {
+			return UnknownSignatureAlgorithm
+		}
+
+	// RFC 3279, Section 2.2.2 and RFC 5758, Section 3.1
+	// > the encoding SHALL omit the parameters field
+	case ai.Algorithm.Equal(oidSignatureDSAWithSHA1),
+		ai.Algorithm.Equal(oidSignatureDSAWithSHA256):
+		if len(params) != 0 {
+			return UnknownSignatureAlgorithm
+		}
+
+	// RFC 3279, Section 2.2.3 and RFC 5758, Section 3.2
+	// > the encoding MUST omit the parameters field
+	case ai.Algorithm.Equal(oidSignatureECDSAWithSHA1),
+		ai.Algorithm.Equal(oidSignatureECDSAWithSHA256),
+		ai.Algorithm.Equal(oidSignatureECDSAWithSHA384),
+		ai.Algorithm.Equal(oidSignatureECDSAWithSHA512):
+		if len(params) != 0 {
+			return UnknownSignatureAlgorithm
+		}
+
+	// RSA PSS is special because it encodes the actual algorithm in the
+	// Parameters, which in turn can be encoded in a myriad of ways.
+	case ai.Algorithm.Equal(oidSignatureRSAPSS):
+		for _, enc := range acceptablePSSParametersEncodings {
+			if string(params) == enc.params {
+				return enc.algo
+			}
+		}
+		return UnknownSignatureAlgorithm
+
+	// RFC 4055, Section 5 (and similarly RFC 3279, Section 2.2.1)
+	// > When any of these four object identifiers appears within an
+	// > AlgorithmIdentifier, the parameters MUST be NULL.  Implementations MUST
+	// > accept the parameters being absent as well as present.
+	default:
+		if len(params) != 0 && !bytes.Equal(params, asn1.NullBytes) {
 			return UnknownSignatureAlgorithm
 		}
 	}
 
-	if !ai.Algorithm.Equal(oidSignatureRSAPSS) {
-		for _, details := range signatureAlgorithmDetails {
-			if ai.Algorithm.Equal(details.oid) {
-				return details.algo
-			}
+	for _, details := range signatureAlgorithmDetails {
+		if ai.Algorithm.Equal(details.oid) {
+			return details.algo
 		}
-		return UnknownSignatureAlgorithm
-	}
-
-	// RSA PSS is special because it encodes important parameters
-	// in the Parameters.
-
-	var params pssParameters
-	if _, err := asn1.Unmarshal(ai.Parameters.FullBytes, &params); err != nil {
-		return UnknownSignatureAlgorithm
-	}
-
-	var mgf1HashFunc pkix.AlgorithmIdentifier
-	if _, err := asn1.Unmarshal(params.MGF.Parameters.FullBytes, &mgf1HashFunc); err != nil {
-		return UnknownSignatureAlgorithm
-	}
-
-	// PSS is greatly overburdened with options. This code forces them into
-	// three buckets by requiring that the MGF1 hash function always match the
-	// message hash function (as recommended in RFC 3447, Section 8.1), that the
-	// salt length matches the hash length, and that the trailer field has the
-	// default value.
-	if (len(params.Hash.Parameters.FullBytes) != 0 && !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes)) ||
-		!params.MGF.Algorithm.Equal(oidMGF1) ||
-		!mgf1HashFunc.Algorithm.Equal(params.Hash.Algorithm) ||
-		(len(mgf1HashFunc.Parameters.FullBytes) != 0 && !bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1.NullBytes)) ||
-		params.TrailerField != 1 {
-		return UnknownSignatureAlgorithm
-	}
-
-	switch {
-	case params.Hash.Algorithm.Equal(oidSHA256) && params.SaltLength == 32:
-		return SHA256WithRSAPSS
-	case params.Hash.Algorithm.Equal(oidSHA384) && params.SaltLength == 48:
-		return SHA384WithRSAPSS
-	case params.Hash.Algorithm.Equal(oidSHA512) && params.SaltLength == 64:
-		return SHA512WithRSAPSS
 	}
 
 	return UnknownSignatureAlgorithm
