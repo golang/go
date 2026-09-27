@@ -32,6 +32,7 @@ package work
 import (
 	"fmt"
 	"internal/lazyregexp"
+	"os"
 	"regexp"
 	"strings"
 
@@ -132,11 +133,12 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`--static`),
 	re(`-?-std=([^@\-].*)`),
 	re(`-?-stdlib=([^@\-].*)`),
-	re(`--sysroot=([^@\-].*)`),
 	re(`-w`),
-	re(`-x([^@\-].*)`),
+	re(`-x(c|c-header|cpp-output|c\+\+|c\+\+-header|c\+\+-cpp-output|objective-c|objective-c-header|objective-c-cpp-output|objective-c\+\+|objective-c\+\+-header|objective-c\+\+-cpp-output|assembler|assembler-with-cpp)`),
 	re(`-v`),
 }
+
+var validCompilerXLang = re(`^(c|c-header|cpp-output|c\+\+|c\+\+-header|c\+\+-cpp-output|objective-c|objective-c-header|objective-c-cpp-output|objective-c\+\+|objective-c\+\+-header|objective-c\+\+-cpp-output|assembler|assembler-with-cpp)$`)
 
 var validCompilerFlagsWithNextArg = []string{
 	"-arch",
@@ -148,8 +150,6 @@ var validCompilerFlagsWithNextArg = []string{
 	"-include",
 	"-isysroot",
 	"-isystem",
-	"--sysroot",
-	"-target",
 	"-x",
 }
 
@@ -244,8 +244,6 @@ var validLinkerFlagsWithNextArg = []string{
 	"-L",
 	"-framework",
 	"-isysroot",
-	"--sysroot",
-	"-target",
 	"-Wl,-framework",
 	"-Wl,-rpath",
 	"-Wl,-R",
@@ -312,7 +310,56 @@ func checkCompilerFlags(name, source string, list []string) error {
 
 func checkLinkerFlags(name, source string, list []string) error {
 	checkOverrides := true
-	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
+	if err := checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
+		return err
+	}
+	for i := 0; i < len(list); i++ {
+		arg := list[i]
+		// Although -isysroot is a preprocessor/compiler option in GCC, clang on
+		// Darwin also accepts it as a linker flag (forwarding it as -syslibroot)
+		// and we include it in validLinkerFlagsWithNextArg on all platforms.
+		if arg == "-isysroot" && i+1 < len(list) {
+			i++
+			if err := checkLinkerSysroot(source, arg+" "+list[i], list[i]); err != nil {
+				return err
+			}
+			continue
+		}
+		if strings.HasPrefix(arg, "-Wl,") {
+			if err := checkLinkerWlFlag(source, arg, arg); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// checkLinkerSysroot verifies that the target of -isysroot or -Wl,-syslibroot
+// does not name a regular file on disk, which GNU ld.bfd would treat as a
+// positional linker script.
+func checkLinkerSysroot(source, flag, dir string) error {
+	if fi, err := os.Stat(dir); err == nil && !fi.IsDir() {
+		return fmt.Errorf("invalid flag in %s: %s (not a directory)", source, flag)
+	}
+	return nil
+}
+
+func checkLinkerWlFlag(source, raw, arg string) error {
+	wargs := []string{arg}
+	if strings.HasPrefix(arg, "-Wl,--push-state,") {
+		for _, sub := range strings.Split(arg, ",")[2:] {
+			wargs = append(wargs, "-Wl,"+sub)
+		}
+	}
+	for _, warg := range wargs {
+		if strings.HasPrefix(warg, "-Wl,-syslibroot,") || strings.HasPrefix(warg, "-Wl,-syslibroot=") {
+			dir := warg[len("-Wl,-syslibroot,"):]
+			if err := checkLinkerSysroot(source, raw, dir); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func checkPkgConfigFlags(name, source string, list []string) error {
@@ -431,6 +478,16 @@ Args:
 		}
 		for _, x := range validNext {
 			if arg == x {
+				if arg == "-x" {
+					if i+1 < len(list) && validCompilerXLang.MatchString(list[i+1]) {
+						i++
+						continue Args
+					}
+					if i+1 < len(list) {
+						return fmt.Errorf("invalid flag in %s: %s %s (see https://go.dev/s/invalidflag)", source, arg, list[i+1])
+					}
+					return fmt.Errorf("invalid flag in %s: %s without argument (see https://go.dev/s/invalidflag)", source, arg)
+				}
 				if i+1 < len(list) && load.SafeArg(list[i+1]) {
 					i++
 					continue Args
