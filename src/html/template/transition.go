@@ -382,7 +382,7 @@ func tJSTmpl(c context, s []byte) (context, int) {
 		case '$':
 			if len(s) >= i+2 && s[i+1] == '{' {
 				c.jsBraceDepth = append(c.jsBraceDepth, 0)
-				c.state = stateJS
+				c.state, c.jsCtx = stateJS, jsCtxRegexp
 				return c, i + 2
 			}
 		case '`':

@@ -1883,6 +1883,14 @@ func TestEscapeText(t *testing.T) {
 			"<script>`${ `}",
 			context{state: stateJSTmplLit, element: elementScript, jsBraceDepth: []int{0}},
 		},
+		{
+			"<script>`${1}${",
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxRegexp, jsBraceDepth: []int{0}},
+		},
+		{
+			"<script>`${`${1}${",
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxRegexp, jsBraceDepth: []int{0, 0}},
+		},
 	}
 
 	for _, test := range tests {
@@ -2275,6 +2283,18 @@ func TestMetaContentEscapeGODEBUG(t *testing.T) {
 	want := `<meta http-equiv="refresh" content="asd; url=javascript:alert(1); asd; url=vbscript:alert(1); asd">`
 	if got := b.String(); got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestIssue81821(t *testing.T) {
+	tmpl := Must(New("test").Parse("<script>const s = `${1}${/{{.}}/g}`</script>"))
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, `x/.exec(alert(1))}`); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	want := "<script>const s = `${1}${/x\\/\\.exec\\(alert\\(1\\)\\)\\}/g}`</script>"
+	if got := buf.String(); got != want {
+		t.Errorf("got:  %s\nwant: %s", got, want)
 	}
 }
 
