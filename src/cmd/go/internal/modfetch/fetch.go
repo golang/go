@@ -795,17 +795,20 @@ func checkModSum(f *Fetcher, mod module.Version, h string) error {
 	}
 	f.mu.Unlock()
 
-	if done {
+	if done && mod.Path != "golang.org/toolchain" {
 		return nil
 	}
 
-	// Not listed, so we want to add them.
 	// Consult checksum database if appropriate.
 	if useSumDB(mod) {
 		// Calls base.Fatalf if mismatch detected.
 		if err := checkSumDB(mod, h); err != nil {
 			return err
 		}
+	}
+
+	if done {
+		return nil
 	}
 
 	// Add mod+h to go.sum, if it hasn't appeared already.

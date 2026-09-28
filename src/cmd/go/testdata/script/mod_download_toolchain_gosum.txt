@@ -1,0 +1,34 @@
+# A matching line in go.sum must not bypass checksum database verification
+# for a downloaded toolchain, since useSumDB requires the checksum database
+# for golang.org/toolchain even when GOSUMDB=off.
+
+env GOTOOLCHAIN=local
+env sumdb=$GOSUMDB
+env proxy=$GOPROXY
+env dbname=localhost.localdev/sumdb
+
+go get golang.org/toolchain@v0.0.1-go1.999testmod.$GOOS-$GOARCH
+grep '^golang.org/toolchain v0.0.1-go1.999testmod.[a-z0-9\-]* h1:' go.sum
+grep '^golang.org/toolchain v0.0.1-go1.999testmod.[a-z0-9\-]*/go.mod h1:' go.sum
+
+# With the checksum database disabled, the matching go.sum entry
+# must not be accepted on its own.
+env GOSUMDB=off
+! go mod download golang.org/toolchain
+stderr 'checksum database disabled by GOSUMDB=off'
+
+# With a checksum database that disagrees with go.sum, the download
+# must be rejected even though go.sum matches the downloaded bits.
+# Clear cached lookups and the cached tree head so the server is consulted.
+go clean -modcache
+rm $GOPATH/pkg/sumdb/$dbname/latest
+env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+! go mod download golang.org/toolchain
+stderr 'verifying (module|go.mod): checksum mismatch'
+stderr 'localhost.localdev/sumdb: h1:wrong'
+stderr 'SECURITY ERROR'
+
+-- go.mod --
+module example.com/m
+
+go 1.21
