@@ -1943,31 +1943,6 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	// If we can't parse the cached result, don't use it.
 	data, entry, err = cache.GetBytes(cache.Default(), testAndInputKey(testID, testInputsID))
 
-	// Merge cached cover profile data to cover profile.
-	if testCoverProfile != "" {
-		// Specifically ignore entry as it will be the same as above.
-		cpData, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID, c.covMeta))
-		if err != nil {
-			if cache.DebugTest {
-				fmt.Fprintf(os.Stderr, "testcache: %s: cached cover profile missing: %v\n", a.Package.ImportPath, err)
-			}
-			return false
-		}
-		mergeCoverProfile(cpData)
-	} else if c.covMeta != (cache.ActionID{}) {
-		// If we have a coverage metadata hash but no testCoverProfile, we're collecting
-		// coverage for out-of-band packages. Check if the coverage profile cache is still
-		// valid. If c.covMeta changed (meaning a covered package changed), the coverage
-		// profile cache will miss and we need to re-run the test.
-		_, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID, c.covMeta))
-		if err != nil {
-			if cache.DebugTest {
-				fmt.Fprintf(os.Stderr, "testcache: %s: coverage metadata changed, re-running test: %v\n", a.Package.ImportPath, err)
-			}
-			return false
-		}
-	}
-
 	if len(data) == 0 || data[len(data)-1] != '\n' {
 		if cache.DebugTest {
 			if err != nil {
@@ -1999,6 +1974,32 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		return false
 	}
 	j += i + len("ok  \t") + 1
+
+	// Merge cached cover profile data to cover profile.
+	// Do this only after the checks above: if one fails, the test runs again.
+	if testCoverProfile != "" {
+		// Specifically ignore entry as it will be the same as above.
+		cpData, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID, c.covMeta))
+		if err != nil {
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: cached cover profile missing: %v\n", a.Package.ImportPath, err)
+			}
+			return false
+		}
+		mergeCoverProfile(cpData)
+	} else if c.covMeta != (cache.ActionID{}) {
+		// If we have a coverage metadata hash but no testCoverProfile, we're collecting
+		// coverage for out-of-band packages. Check if the coverage profile cache is still
+		// valid. If c.covMeta changed (meaning a covered package changed), the coverage
+		// profile cache will miss and we need to re-run the test.
+		_, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID, c.covMeta))
+		if err != nil {
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: coverage metadata changed, re-running test: %v\n", a.Package.ImportPath, err)
+			}
+			return false
+		}
+	}
 
 	// Committed to printing.
 	c.buf = new(bytes.Buffer)
