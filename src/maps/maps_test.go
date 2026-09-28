@@ -121,6 +121,139 @@ func TestCopy(t *testing.T) {
 	Copy(make(M1), make(M2))
 }
 
+// rangeMap returns a map with keys [lo, hi), each mapped to k+off.
+func rangeMap(lo, hi, off int) map[int]int {
+	m := make(map[int]int)
+	for k := lo; k < hi; k++ {
+		m[k] = k + off
+	}
+	return m
+}
+
+// Copy presizes dst when src is larger; the result must not depend on
+// how the keys overlap.
+func TestCopyPresize(t *testing.T) {
+	const srcOff = 1_000_000
+	tests := []struct {
+		name         string
+		dstLo, dstHi int
+		srcLo, srcHi int
+	}{
+		{"empty dst", 0, 0, 0, 1000},
+		{"small dst, disjoint", 0, 10, 10, 1010},
+		{"src superset", 0, 10, 0, 1000},
+		{"src subset", 0, 1000, 0, 10},
+		{"identical keys", 0, 1000, 0, 1000},
+		{"disjoint, equal size", 0, 500, 500, 1000},
+		{"partial overlap", 0, 600, 300, 1300},
+		{"small maps", 0, 3, 3, 6},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dst := rangeMap(tt.dstLo, tt.dstHi, 0)
+			src := rangeMap(tt.srcLo, tt.srcHi, srcOff)
+			want := Clone(dst)
+			for k, v := range src {
+				want[k] = v
+			}
+			Copy(dst, src)
+			if !Equal(dst, want) {
+				t.Errorf("Copy result has len %d, want len %d with src values winning", len(dst), len(want))
+			}
+		})
+	}
+}
+
+// Copy presizes dst, which must not disturb an iteration over dst:
+// NaN keys cannot be looked up, so each must stay on the same side of
+// the iterator.
+func TestCopyNaNDuringRange(t *testing.T) {
+	const nans = 64
+	dst := make(map[float64]int)
+	for i := range nans {
+		dst[math.NaN()] = i
+	}
+	for i := range 5000 {
+		dst[float64(-1-i)] = -1
+	}
+	src := make(map[float64]int)
+	for i := range 20000 {
+		src[float64(i)] = -1
+	}
+
+	var seen [nans]int
+	copied := false
+	for k, v := range dst {
+		if !copied {
+			copied = true
+			Copy(dst, src)
+		}
+		if k != k {
+			seen[v]++
+		}
+	}
+	for i, n := range seen {
+		if n != 1 {
+			t.Errorf("NaN %d seen %d times, want 1", i, n)
+		}
+	}
+}
+
+func TestCopyNilDst(t *testing.T) {
+	// Nothing to copy: no panic, as before presizing.
+	Copy(map[int]int(nil), map[int]int{})
+
+	defer func() {
+		if recover() == nil {
+			t.Error("Copy(nil, non-empty) did not panic")
+		}
+	}()
+	Copy(map[int]int(nil), map[int]int{1: 2})
+}
+
+func BenchmarkCopy(b *testing.B) {
+	for _, n := range []int{4, 64, 1024, 65536} {
+		for _, bm := range []struct {
+			name     string
+			dst, src map[int]int
+		}{
+			// Copy presizes: len(src) > len(dst).
+			{"empty", nil, rangeMap(0, n, 0)},
+			{"small+disjoint", rangeMap(0, 4, 0), rangeMap(4, n+4, 0)},
+			{"half-overlap", rangeMap(0, n/2, 0), rangeMap(0, n, 0)},
+			// No presizing: len(src) <= len(dst).
+			{"identical", rangeMap(0, n, 0), rangeMap(0, n, 0)},
+			{"disjoint-equal", rangeMap(0, n, 0), rangeMap(n, 2*n, 0)},
+		} {
+			b.Run(bm.name+"/n="+strconv.Itoa(n), func(b *testing.B) {
+				// Build fresh destinations in batches outside the
+				// timer: stopping it per iteration costs far more
+				// than a small Copy.
+				dsts := make([]map[int]int, max(1, min(1000, (1<<20)/n)))
+				fill := func() {
+					b.StopTimer()
+					for i := range dsts {
+						if bm.dst == nil {
+							dsts[i] = make(map[int]int)
+						} else {
+							dsts[i] = Clone(bm.dst)
+						}
+					}
+					b.StartTimer()
+				}
+				fill()
+				for i := 0; i < b.N; i++ {
+					j := i % len(dsts)
+					if j == 0 && i > 0 {
+						fill()
+					}
+					Copy(dsts[j], bm.src)
+				}
+			})
+		}
+	}
+}
+
 func TestDeleteFunc(t *testing.T) {
 	mc := Clone(m1)
 	DeleteFunc(mc, func(int, int) bool { return false })

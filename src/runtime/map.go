@@ -64,7 +64,7 @@ func makemap(t *abi.MapType, hint int, m *maps.Map) *maps.Map {
 		hint = 0
 	}
 
-	return maps.NewMap(t, uintptr(hint), m, maxAlloc)
+	return maps.NewMap(t, uintptr(hint), m)
 }
 
 // mapaccess1 returns a pointer to h[key].  Never returns nil, instead
@@ -316,4 +316,21 @@ func mapclone(m any) any {
 	map_ = map_.Clone(typ)
 	e.data = (unsafe.Pointer)(map_)
 	return m
+}
+
+// mapgrow for implementing maps.Copy's presizing. n must be
+// non-negative.
+//
+//go:linkname mapgrow maps.grow
+func mapgrow(m any, n int) {
+	if n == 0 {
+		return
+	}
+	e := efaceOf(&m)
+	typ := (*abi.MapType)(unsafe.Pointer(e._type))
+	map_ := (*maps.Map)(e.data)
+	if map_ == nil {
+		panic(maps_errNilAssign)
+	}
+	map_.Grow(typ, uintptr(n))
 }

@@ -276,11 +276,12 @@ func depthToShift(depth uint8) uint8 {
 }
 
 // If m is non-nil, it should be used rather than allocating.
-//
-// maxAlloc should be runtime.maxAlloc.
-//
-// TODO(prattmic): Put maxAlloc somewhere accessible.
-func NewMap(mt *abi.MapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
+func NewMap(mt *abi.MapType, hint uintptr, m *Map) *Map {
+	return newMap(mt, hint, m, sys.MaxAlloc)
+}
+
+// newMap is NewMap with an explicit allocation limit, for tests.
+func newMap(mt *abi.MapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
 	if m == nil {
 		m = new(Map)
 	}
@@ -307,28 +308,9 @@ func NewMap(mt *abi.MapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
 
 	// Full size map.
 
-	// Set initial capacity to hold hint entries without growing in the
-	// average case.
-	targetCapacity := (hint * abi.MapGroupSlots) / maxAvgGroupLoad
-	if targetCapacity < hint { // overflow
+	dirSize, targetCapacity, ok := mapCapacityFor(mt, hint, maxAlloc)
+	if !ok {
 		return m // return an empty map.
-	}
-
-	dirSize := (uint64(targetCapacity) + maxTableCapacity - 1) / maxTableCapacity
-	dirSize, overflow := alignUpPow2(dirSize)
-	if overflow || dirSize > uint64(math.MaxUintptr) {
-		return m // return an empty map.
-	}
-
-	// Reject hints that are obviously too large.
-	groups, overflow := math.MulUintptr(uintptr(dirSize), maxTableCapacity)
-	if overflow {
-		return m // return an empty map.
-	} else {
-		mem, overflow := math.MulUintptr(groups, mt.GroupSize)
-		if overflow || mem > maxAlloc {
-			return m // return an empty map.
-		}
 	}
 
 	m.globalDepth = uint8(sys.TrailingZeros64(dirSize))
@@ -347,11 +329,202 @@ func NewMap(mt *abi.MapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
 	return m
 }
 
+// mapCapacityFor computes the directory size and total target slot
+// capacity needed to hold hint entries at the standard load factor.
+// Shared sizing logic for NewMap and Map.Grow; callers must have already
+// handled hint <= abi.MapGroupSlots. ok is false if hint is too large.
+func mapCapacityFor(mt *abi.MapType, hint uintptr, maxAlloc uintptr) (dirSize uint64, targetCapacity uintptr, ok bool) {
+	// Set initial capacity to hold hint entries without growing in the
+	// average case.
+	targetCapacity = (hint * abi.MapGroupSlots) / maxAvgGroupLoad
+	if targetCapacity < hint { // overflow
+		return 0, 0, false
+	}
+
+	dirSize = (uint64(targetCapacity) + maxTableCapacity - 1) / maxTableCapacity
+	var overflow bool
+	dirSize, overflow = alignUpPow2(dirSize)
+	if overflow || dirSize > uint64(math.MaxUintptr) {
+		return 0, 0, false
+	}
+
+	// Reject hints that are obviously too large.
+	groups, overflow := math.MulUintptr(uintptr(dirSize), maxTableCapacity)
+	if overflow {
+		return 0, 0, false
+	}
+	mem, overflow := math.MulUintptr(groups, mt.GroupSize)
+	if overflow || mem > maxAlloc {
+		return 0, 0, false
+	}
+
+	return dirSize, targetCapacity, true
+}
+
 func NewEmptyMap() *Map {
 	m := new(Map)
 	m.seed = uintptr(rand())
 	// See comment in NewMap. No need to eager allocate a group.
 	return m
+}
+
+// totalCapacity returns m's total slot count, summed across distinct
+// tables in the directory. A small map reports abi.MapGroupSlots.
+func (m *Map) totalCapacity() uint64 {
+	if m.dirLen == 0 {
+		return abi.MapGroupSlots
+	}
+
+	var total uint64
+	var lastTab *table
+	for i := range m.dirLen {
+		t := m.directoryAt(uintptr(i))
+		if t == lastTab {
+			continue
+		}
+		lastTab = t
+		total += uint64(t.capacity)
+	}
+	return total
+}
+
+// Grow increases m's capacity, if necessary, so that at least n more
+// entries can be added without further growth in the typical case, as if
+// allocated via NewMap(typ, m.Used()+n, ...). Never shrinks m.
+func (m *Map) Grow(typ *abi.MapType, n uintptr) {
+	m.grow(typ, n, sys.MaxAlloc)
+}
+
+// grow is Grow with an explicit allocation limit, for tests.
+func (m *Map) grow(typ *abi.MapType, n uintptr, maxAlloc uintptr) {
+	if m.writing != 0 {
+		fatal("concurrent map writes")
+	}
+
+	if n == 0 {
+		return
+	}
+
+	used := uintptr(m.Used())
+	hint := used + n
+	if hint < used { // overflow
+		hint = math.MaxUintptr
+	}
+
+	if hint <= abi.MapGroupSlots {
+		return // small map already has room; see NewMap.
+	}
+
+	dirSize, targetCapacity, ok := mapCapacityFor(typ, hint, maxAlloc)
+	if !ok {
+		return
+	}
+
+	if m.totalCapacity() >= uint64(targetCapacity) {
+		return // already enough room.
+	}
+
+	// Never shrink the directory: growTo only subdivides existing
+	// tables, and merging them could overload a new table's headroom.
+	if oldDirLen := uint64(m.dirLen); dirSize < oldDirLen {
+		dirSize = oldDirLen
+	}
+
+	m.writing ^= 1 // toggle, see comment on writing
+
+	m.growTo(typ, dirSize, targetCapacity)
+
+	if m.writing == 0 {
+		fatal("concurrent map writes")
+	}
+	m.writing ^= 1
+}
+
+// growTo replaces m's storage with a fresh directory of dirSize tables
+// totaling targetCapacity slots, and moves every entry into it. Callers
+// must size dirSize/targetCapacity via mapCapacityFor.
+func (m *Map) growTo(typ *abi.MapType, dirSize uint64, targetCapacity uintptr) {
+	newGlobalDepth := uint8(sys.TrailingZeros64(dirSize))
+	newGlobalShift := depthToShift(newGlobalDepth)
+
+	// Splitting into multiple tables may not divide evenly; give each
+	// full headroom, like table.split, rather than risk overloading
+	// uncheckedPutSlot below.
+	tableCapacity := uint64(targetCapacity)
+	if dirSize > 1 {
+		tableCapacity = maxTableCapacity
+	}
+
+	newDir := make([]*table, dirSize)
+	for i := range newDir {
+		newDir[i] = newTable(typ, tableCapacity, i, newGlobalDepth)
+	}
+
+	// Keep every entry within its old table's directory range, as
+	// table.split does. A regular key lands there anyway, but a NaN gets
+	// a new random hash, and iterators rely on it staying on the same
+	// side of them: they skip the ranges of tables already visited.
+	orders := newGlobalDepth - m.globalDepth
+
+	putGroup := func(g groupReference, oldIndex int, oldDepth uint8) {
+		base := uintptr(oldIndex) << orders
+		mask := uintptr(1)<<(newGlobalDepth-oldDepth) - 1
+		for j := uintptr(0); j < abi.MapGroupSlots; j++ {
+			if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+				// Empty or deleted.
+				continue
+			}
+
+			key := g.key(typ, j)
+			if typ.IndirectKey() {
+				key = *((*unsafe.Pointer)(key))
+			}
+
+			elem := g.elem(typ, j)
+			if typ.IndirectElem() {
+				elem = *((*unsafe.Pointer)(elem))
+			}
+
+			hash := typ.Hasher(key, m.seed)
+			idx := base | hash>>(newGlobalShift&63)&mask
+			newDir[idx].uncheckedPutSlot(typ, hash, key, elem)
+		}
+	}
+
+	switch {
+	case m.dirPtr == nil:
+		// Empty small map; nothing to move.
+	case m.dirLen == 0:
+		// Small map: a single group.
+		putGroup(groupReference{data: m.dirPtr}, 0, 0)
+	default:
+		var lastTab *table
+		for i := range m.dirLen {
+			t := m.directoryAt(uintptr(i))
+			if t == lastTab {
+				continue
+			}
+			lastTab = t
+
+			for gi := uint64(0); gi <= t.groups.lengthMask; gi++ {
+				putGroup(t.groups.group(typ, gi), t.index, t.localDepth)
+			}
+
+			// Mark t stale, like table.grow/split, so a live
+			// iterator notices and falls back to key lookups.
+			t.index = -1
+		}
+	}
+
+	for _, t := range newDir {
+		t.checkInvariants(typ, m)
+	}
+
+	m.dirPtr = unsafe.Pointer(&newDir[0])
+	m.dirLen = len(newDir)
+	m.globalDepth = newGlobalDepth
+	m.globalShift = newGlobalShift
+	m.tombstonePossible = false // tables were rebuilt fresh, no tombstones
 }
 
 func (m *Map) directoryIndex(hash uintptr) uintptr {
