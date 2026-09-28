@@ -46,6 +46,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -298,7 +300,7 @@ var validPkgConfigFlags = []*lazyregexp.Regexp{
 	re(`--cflags-only-I`),
 	re(`--cflags`),
 	re(`--define-prefix`),
-	re(`--define-variable=[A-Za-z_][A-Za-z0-9_]*=[^@\-].*`),
+	re(`--define-variable=[A-Za-z_][A-Za-z0-9_]*=[^@\-=$][^$]*`),
 	re(`--digraph`),
 	re(`--dont-define-prefix`),
 	re(`--dont-relocate-paths`),
@@ -325,7 +327,6 @@ var validPkgConfigFlags = []*lazyregexp.Regexp{
 	re(`--no-provides`),
 	re(`--no-uninstalled`),
 	re(`--path`),
-	re(`--personality=(triplet|filename)`),
 	re(`--prefix-variable=[A-Za-z_][a-zA-Z0-9_]*`),
 	re(`--print-errors`),
 	re(`--print-provides`),
@@ -341,7 +342,6 @@ var validPkgConfigFlags = []*lazyregexp.Regexp{
 	re(`--uninstalled`),
 	re(`--validate`),
 	re(`--variable=[A-Za-z_][a-zA-Z0-9_]*`),
-	re(`--with-path=[^@\-].*`),
 }
 
 // hasGCCSpecFlags reports whether list contains linker flags that cause GCC's
@@ -1417,6 +1417,33 @@ func isAllowedDrectve(tok string) bool {
 func checkPkgConfigFlags(name, source string, list []string) error {
 	checkOverrides := false
 	return checkFlags(name, source, list, nil, validPkgConfigFlags, nil, nil, checkOverrides)
+}
+
+func validPkgConfigName(pkg string) bool {
+	if !load.SafeArg(pkg) || !utf8.ValidString(pkg) {
+		return false
+	}
+	if strings.ContainsAny(pkg, `/\:`) || strings.Contains(pkg, "..") {
+		return false
+	}
+	fields := strings.FieldsFunc(pkg, func(r rune) bool {
+		return r == ',' || unicode.IsSpace(r)
+	})
+	if len(fields) == 0 {
+		return false
+	}
+	for _, field := range fields {
+		lower := strings.ToLower(field)
+		if strings.HasSuffix(lower, ".pc") {
+			return false
+		}
+		for i := range len(lower) {
+			if strings.IndexByte("<>=!", lower[i]) >= 0 && strings.HasSuffix(lower[:i], ".pc") {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // checkCompilerFlagsForInternalLink returns an error if 'list'
