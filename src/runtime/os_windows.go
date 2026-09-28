@@ -754,7 +754,13 @@ func semacreate(mp *m) {
 //
 //go:nowritebarrierrec
 func newosproc(mp *m) {
-	thandle, err := createThread(0, unsafe.Pointer(abi.FuncPCABI0(tstart_stdcall)), unsafe.Pointer(mp))
+	// LockOSThread can reach newosproc on a goroutine stack when starting
+	// the template thread. createThread does not switch stacks itself.
+	var thandle uintptr
+	var err uint32
+	systemstack(func() {
+		thandle, err = createThread(0, unsafe.Pointer(abi.FuncPCABI0(tstart_stdcall)), unsafe.Pointer(mp))
+	})
 	if thandle == 0 {
 		if atomic.Load(&exiting) != 0 {
 			// CreateThread may fail if called
