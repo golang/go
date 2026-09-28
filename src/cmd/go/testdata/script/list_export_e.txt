@@ -1,3 +1,7 @@
+# This test depends on the -e flag, which is not yet supported for Go
+# 1.28's "go list -export".
+env GOEXPERIMENT=nogolistexportnewformat
+
 ! go list -export ./...
 stderr '^# example.com/p2\np2'${/}'main\.go:7:.*'
 ! stderr '^go build '

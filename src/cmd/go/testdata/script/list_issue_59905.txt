@@ -1,3 +1,7 @@
+# This test depends on the -e flag, which is not yet supported for Go
+# 1.28's "go list -export".
+env GOEXPERIMENT=nogolistexportnewformat
+
 # Expect no panic
 go list -f '{{if .DepsErrors}}{{.DepsErrors}}{{end}}' -export -e -deps
 cmpenv stdout wanterr_59905
