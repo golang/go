@@ -7,6 +7,15 @@ package modfetch
 import (
 	"archive/zip"
 	"bytes"
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
+	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
+	"cmd/internal/par"
+	"cmd/internal/robustio"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -20,22 +29,15 @@ import (
 	"strings"
 	"sync"
 
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/fsys"
-	"cmd/go/internal/gover"
-	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/str"
-	"cmd/go/internal/trace"
-	"cmd/internal/par"
-	"cmd/internal/robustio"
-
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
 	modzip "golang.org/x/mod/zip"
 )
 
-var ErrToolchain = errors.New("internal error: invalid operation on toolchain module")
+var (
+	ErrToolchain = errors.New("internal error: invalid operation on toolchain module")
+	ErrFIPS140   = errors.New("golang.org/fips140 is bundled with the Go distribution and cannot be downloaded")
+)
 
 // Download downloads the specific module version to the
 // local download cache and returns the name of the directory
@@ -43,6 +45,9 @@ var ErrToolchain = errors.New("internal error: invalid operation on toolchain mo
 func (f *Fetcher) Download(ctx context.Context, mod module.Version) (dir string, err error) {
 	if gover.IsToolchain(mod.Path) {
 		return "", ErrToolchain
+	}
+	if mod.Path == "golang.org/fips140" {
+		return "", ErrFIPS140
 	}
 	if err := checkCacheDir(ctx); err != nil {
 		base.Fatal(err)
@@ -70,10 +75,29 @@ func (f *Fetcher) Download(ctx context.Context, mod module.Version) (dir string,
 	})
 }
 
-// Unzip is like Download but is given the explicit zip file to use,
-// rather than downloading it. This is used for the GOFIPS140 zip files,
-// which ship in the Go distribution itself.
-func (f *Fetcher) Unzip(ctx context.Context, mod module.Version, zipfile string) (dir string, err error) {
+// Unzip is like Download but for GOFIPS140 zip files which ship with
+// the Go distribution itself.
+//
+// Unzip performs a check like the go.sum check for downloaded modules:
+// A cached copy of mod is used only if the module cache records ziphash
+// as its module zip hash. As with go.sum, this rejects a cached copy
+// that was populated from some other source; it does not detect
+// modifications made to the module cache directory itself.
+//
+// Otherwise, any existing copy is discarded, zipfile is unpacked
+// again, and ziphash is stamped upon success.
+//
+// If verify is non-nil, it is called before zipfile is unpacked.
+// Unzip does not call verify when it returns a cached copy.
+//
+// If verify returns an error, the module cache is left untouched and
+// Unzip returns that error.
+//
+// ziphash must be non-empty.
+func (f *Fetcher) Unzip(ctx context.Context, mod module.Version, zipfile, ziphash string, verify func() error) (dir string, err error) {
+	if ziphash == "" {
+		return "", module.VersionError(mod, errors.New("internal error: Unzip called with empty module zip hash"))
+	}
 	if err := checkCacheDir(ctx); err != nil {
 		base.Fatal(err)
 	}
@@ -85,13 +109,45 @@ func (f *Fetcher) Unzip(ctx context.Context, mod module.Version, zipfile string)
 		dir, err = DownloadDir(ctx, mod)
 		if err == nil {
 			// The directory has already been completely extracted (no .partial file exists).
-			return dir, nil
+			ok, err := haveZipHash(ctx, mod, ziphash)
+			if err != nil {
+				return "", err
+			}
+			if ok {
+				return dir, nil
+			}
 		} else if dir == "" || !errors.Is(err, fs.ErrNotExist) {
 			return "", err
 		}
 
-		return unzip(ctx, mod, zipfile)
+		return unzip(ctx, mod, zipfile, ziphash, verify)
 	})
+}
+
+func haveZipHash(ctx context.Context, mod module.Version, ziphash string) (bool, error) {
+	path, err := CachePath(ctx, mod, "ziphash")
+	if err != nil {
+		return false, err
+	}
+	data, err := lockedfile.Read(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(string(data)) == ziphash, nil
+}
+
+func writeZipHash(ctx context.Context, mod module.Version, ziphash string) error {
+	path, err := CachePath(ctx, mod, "ziphash")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o777); err != nil {
+		return err
+	}
+	return lockedfile.Write(path, strings.NewReader(ziphash), 0o666)
 }
 
 func (f *Fetcher) download(ctx context.Context, mod module.Version) (dir string, err error) {
@@ -114,10 +170,16 @@ func (f *Fetcher) download(ctx context.Context, mod module.Version) (dir string,
 		return "", err
 	}
 
-	return unzip(ctx, mod, zipfile)
+	return unzip(ctx, mod, zipfile, "", nil)
 }
 
-func unzip(ctx context.Context, mod module.Version, zipfile string) (dir string, err error) {
+// unzip extracts zipfile into the module cache directory for mod,
+// unless a complete copy is already there (and, if ziphash is non-empty,
+// the module cache records ziphash for it).
+//
+// If verify is non-nil, it is called once the decision to extract has
+// been made, before any existing copy is discarded.
+func unzip(ctx context.Context, mod module.Version, zipfile, ziphash string, verify func() error) (dir string, err error) {
 	unlock, err := lockVersion(ctx, mod)
 	if err != nil {
 		return "", err
@@ -130,9 +192,28 @@ func unzip(ctx context.Context, mod module.Version, zipfile string) (dir string,
 	// Check whether the directory was populated while we were waiting on the lock.
 	dir, dirErr := DownloadDir(ctx, mod)
 	if dirErr == nil {
-		return dir, nil
+		if ziphash == "" {
+			return dir, nil
+		}
+		ok, err := haveZipHash(ctx, mod, ziphash)
+		if err != nil {
+			return "", err
+		}
+		if ok {
+			return dir, nil
+		}
+		dirErr = &DownloadDirPartialError{dir, errors.New("ziphash file does not match")}
 	}
 	_, dirExists := dirErr.(*DownloadDirPartialError)
+
+	// We are going to extract zipfile. Verify it first, while the module
+	// cache is still untouched, so that a bad zip file never costs us a
+	// cached copy and a good one is verified at most once per extraction.
+	if verify != nil {
+		if err := verify(); err != nil {
+			return "", err
+		}
+	}
 
 	// Clean up any remaining temporary directories created by old versions
 	// (before 1.16), as well as partially extracted directories (indicated by
@@ -148,6 +229,19 @@ func unzip(ctx context.Context, mod module.Version, zipfile string) (dir string,
 	}
 	if dirExists {
 		if err := RemoveAll(dir); err != nil {
+			return "", err
+		}
+	}
+	// Remove any recorded module zip hash before extracting, and record the
+	// new one only after the .partial file is removed (below). That way a
+	// .ziphash file for the module exists only beside a completely extracted
+	// directory, no matter where an unpack is interrupted.
+	if ziphash != "" {
+		hashPath, err := CachePath(ctx, mod, "ziphash")
+		if err != nil {
+			return "", err
+		}
+		if err := robustio.RemoveAll(hashPath); err != nil {
 			return "", err
 		}
 	}
@@ -187,6 +281,13 @@ func unzip(ctx context.Context, mod module.Version, zipfile string) (dir string,
 	if err := os.Remove(partialPath); err != nil {
 		return "", err
 	}
+	// The directory is complete: record the module zip hash of the zip
+	// file it was extracted from. See the removal above.
+	if ziphash != "" {
+		if err := writeZipHash(ctx, mod, ziphash); err != nil {
+			return "", err
+		}
+	}
 
 	if !cfg.ModCacheRW {
 		makeDirsReadOnly(dir)
@@ -199,6 +300,10 @@ var downloadZipCache par.ErrCache[module.Version, string]
 // DownloadZip downloads the specific module version to the
 // local zip cache and returns the name of the zip file.
 func (f *Fetcher) DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
+	if mod.Path == "golang.org/fips140" {
+		return "", ErrFIPS140
+	}
+
 	// The par.Cache here avoids duplicate work.
 	return downloadZipCache.Do(mod, func() (string, error) {
 		zipfile, err := CachePath(ctx, mod, "zip")
