@@ -410,6 +410,65 @@ func TestPreload(t *testing.T) {
 	}
 }
 
+// TestPreloadCostlyConstant checks that a constant needing several
+// instructions to build is loaded before a loop rather than rebuilt inside it,
+// while single-instruction constants are still rematerialized at their use.
+func TestPreloadCostlyConstant(t *testing.T) {
+	for _, tc := range []struct {
+		k      int64
+		inLoop bool
+	}{
+		{k: 7, inLoop: true},                    // MOVD
+		{k: -0x1234, inLoop: true},              // MOVN
+		{k: -0x30e44323485a9b9d, inLoop: false}, // MOVD + 3×MOVK (0xcf1bbcdcb7a56463)
+		{k: 0x12340000_5678, inLoop: false},     // MOVD + MOVK
+	} {
+		t.Run(fmt.Sprintf("%#x", uint64(tc.k)), func(t *testing.T) {
+			c := testConfigARM64(t)
+			i64 := c.config.Types.Int64
+			f := c.Fun("entry",
+				Bloc("entry",
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("addr", ssaop.OpArg, i64.PtrTo(), 0, c.Temp(i64.PtrTo())),
+					Valu("k", ssaop.OpARM64MOVDconst, i64, tc.k, nil),
+					Valu("init", ssaop.OpARM64MOVDconst, i64, 1, nil),
+					Goto("loopHead"),
+				),
+				Bloc("loopHead",
+					Valu("i", ssaop.OpPhi, i64, 0, nil, "init", "next"),
+					Valu("acc", ssaop.OpPhi, i64, 0, nil, "init", "prod"),
+					Valu("test", ssaop.OpARM64CMPconst, types.TypeFlags, 10, nil, "i"),
+					Eq("test", "exit", "loopBody"),
+				),
+				Bloc("loopBody",
+					Valu("next", ssaop.OpARM64ADDconst, i64, 1, nil, "i"),
+					Valu("prod", ssaop.OpARM64MUL, i64, 0, nil, "acc", "k"),
+					Goto("loopHead"),
+				),
+				Bloc("exit",
+					Valu("store", ssaop.OpARM64MOVDstore, types.TypeMem, 0, nil, "addr", "acc", "mem"),
+					Exit("store"),
+				),
+			)
+			f.f.Blocks[1].Likely = ssa.BranchUnlikely
+			regalloc(f.f)
+			checkFunc(f.f)
+
+			n := 0
+			for _, b := range []string{"loopHead", "loopBody"} {
+				for _, v := range f.blocks[b].Values {
+					if v.Op == ssaop.OpARM64MOVDconst && v.AuxInt == tc.k {
+						n++
+					}
+				}
+			}
+			if got := n > 0; got != tc.inLoop {
+				t.Errorf("constant materialized in loop = %v, want %v:\n%v", got, tc.inLoop, f.f)
+			}
+		})
+	}
+}
+
 // TestStartRegsDrop tests dropping physical register bits from startRegs preventing
 // unnecessary OpLoadReg on edges, such as edge right->merge in this example.
 //

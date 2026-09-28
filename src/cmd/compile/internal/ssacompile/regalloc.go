@@ -157,6 +157,25 @@ func countRegs(r ssaop.RegMask) int {
 	return bits.OnesCount64(r.V1) + bits.OnesCount64(r.V2)
 }
 
+// costlyRemat reports whether rematerializing v takes more than one
+// instruction.
+// TODO: logical immediates (bitcon) are also one instruction on arm64.
+func costlyRemat(v *ssa.Value) bool {
+	if v.Op != ssaop.OpARM64MOVDconst {
+		return false
+	}
+	zeros, ones := 0, 0
+	for i := 0; i < 64; i += 16 {
+		switch uint16(v.AuxInt >> i) {
+		case 0:
+			zeros++
+		case 0xffff:
+			ones++
+		}
+	}
+	return zeros < 3 && ones < 3
+}
+
 // pickReg picks a register from the register mask.
 func (s *regAllocState) pickReg(rm ssaop.RegMask) ssaop.Register {
 	if s.f.Config.Ctxt.Arch.Arch == sys.ArchRISCV64 {
@@ -2014,14 +2033,15 @@ func (s *regAllocState) regalloc(f *ssa.Func) {
 					if !vi.Regs.Empty() {
 						continue
 					}
-					if vi.Rematerializeable {
-						// TODO: maybe we should not skip rematerializeable
-						// values here. One rematerialization outside the loop
-						// is better than N in the loop. But rematerializations
-						// are cheap, and spilling another value may not be.
-						// And we don't want to materialize the zero register
-						// into a different register when it is just the
-						// argument to a store.
+					if vi.Rematerializeable && !costlyRemat(v) {
+						// Most rematerializations are a single instruction,
+						// and spilling another value to make room is not
+						// worth it. Nor do we want to materialize the zero
+						// register into a different register when it is just
+						// the argument to a store. Multi-instruction
+						// constants are worth building once outside the loop
+						// if a register is free (m below excludes registers
+						// holding likely-used values).
 						continue
 					}
 				}
