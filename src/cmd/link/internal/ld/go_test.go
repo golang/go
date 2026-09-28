@@ -246,3 +246,29 @@ func TestSetCgoAttrValidatesExtnameAndDynlinker(t *testing.T) {
 		t.Errorf("expected error for comma in cgo_dynamic_linker, got nerrors=%d interpreter=%q", nerrors, interpreter)
 	}
 }
+
+func TestPEImportedDLLsValidation(t *testing.T) {
+	oldDr := dr
+	oldErrors := nerrors
+	defer func() {
+		dr = oldDr
+		nerrors = oldErrors
+	}()
+
+	dr = &Dll{
+		name: "../../../../../../tmp/evil.dll",
+		next: &Dll{
+			name: "kernel32.dll",
+		},
+	}
+	nerrors = 0
+	dlls := peimporteddlls()
+	if nerrors == 0 {
+		t.Errorf("expected error for path traversal in PE imported DLL name, got nerrors=0 (dlls=%v)", dlls)
+	}
+	for _, arg := range dlls {
+		if arg == "-l../../../../../../tmp/evil" {
+			t.Errorf("peimporteddlls emitted unsafe -l path traversal flag: %q", arg)
+		}
+	}
+}
