@@ -486,6 +486,14 @@ func (a *Archive) AddEntry(typ EntryType, name string, mtime int64, uid, gid int
 // then pads the result with spaces to be exactly 16 bytes.
 // Fmt uses runes for its width calculation, but we need bytes in the entry header.
 func exactly16Bytes(s string) string {
+	if len(s) > 16 && strings.HasSuffix(s, ".syso") {
+		s = s[:len(s)-len(".syso")]
+		for len(s) > 16-len(".syso") {
+			_, wid := utf8.DecodeLastRuneInString(s)
+			s = s[:len(s)-wid]
+		}
+		s += ".syso"
+	}
 	for len(s) > 16 {
 		_, wid := utf8.DecodeLastRuneInString(s)
 		s = s[:len(s)-wid]

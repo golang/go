@@ -2529,6 +2529,16 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
+	// .syso files are copied directly into package archives without being
+	// compiled. Reject .syso files that do not match a recognized host
+	// object format above so they cannot be parsed below as Go object files
+	// (which could inject untrusted cgo directives) or fall through to
+	// unknownObjFormat (which would force external linking).
+	if strings.HasSuffix(file, ".syso") || strings.HasSuffix(pn, ".syso") || strings.HasSuffix(pn, ".syso)") {
+		Errorf("%s: unsupported object format in .syso file", pn)
+		return nil
+	}
+
 	if c1 != 'g' || c2 != 'o' || c3 != ' ' || c4 != 'o' {
 		// An unrecognized object is just passed to the external linker.
 		// If we try to read symbols from this object, we will
