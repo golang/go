@@ -35,9 +35,8 @@ import (
 func useSumDB(mod module.Version) bool {
 	if mod.Path == "golang.org/toolchain" {
 		must := true
-		// Downloaded toolchains cannot be listed in go.sum,
-		// so we require checksum database lookups even if
-		// GOSUMDB=off or GONOSUMDB matches the pattern.
+		// Toolchain downloads must be verified against the checksum database,
+		// even if GOSUMDB=off or GONOSUMDB matches the pattern.
 		// If GOSUMDB=off, then the eventual lookup will fail
 		// with a good error message.
 
