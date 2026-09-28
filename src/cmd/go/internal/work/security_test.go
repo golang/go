@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 )
 
 var goodCompilerFlags = [][]string{
@@ -623,6 +624,101 @@ func TestCheckLinkerWlFlags(t *testing.T) {
 		if err := checkLinkerFlags("test", "test", []string{"-Wl,--subsystem,console"}); err != nil {
 			t.Errorf("unexpected error for -Wl,--subsystem,console: %v", err)
 		}
+	}
+}
+
+func TestCheckPkgConfigFlags(t *testing.T) {
+	good := [][]string{
+		{"--define-variable=prefix=/opt/mypkg/lib"},
+		{"--prefix-variable=prefix"},
+	}
+	for _, f := range good {
+		if err := checkPkgConfigFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for %q: %v", f, err)
+		}
+	}
+
+	bad := [][]string{
+		{"--define-variable=A=-b"},
+		{"--define-variable=A=@b"},
+		{"--define-variable=A=b-c"},
+		{"--define-variable=A=b@c"},
+		{"--define-variable=libdir==/tmp/sub"},
+		{"--define-variable=libdir=$SYSROOT/tmp/sub"},
+		{"--define-variable=A=b$c"},
+		{"--define-variable=A="},
+		{"--define-variable=1A=b"},
+		{"--define-variable=A"},
+		{"--log-file=/tmp/log"},
+		{"--with-path=."},
+		{"--with-path=/tmp"},
+		{"--personality=triplet"},
+		{"--personality=filename"},
+	}
+	for _, f := range bad {
+		if err := checkPkgConfigFlags("test", "test", f); err == nil {
+			t.Errorf("missing error for %q", f)
+		}
+	}
+}
+
+func TestGetPkgConfigFlagsPackageNames(t *testing.T) {
+	for _, pkg := range []string{
+		"zlib",
+		"libfoo.pc2",
+		"glib-2.0,gobject-2.0",
+		"glib-2.0,",
+		"png cairo",
+		"foo = 1.0",
+		"foo != 1.0",
+		"foo >= 1.0, bar <= 2.0",
+		"foo>=1.0",
+	} {
+		if !validPkgConfigName(pkg) {
+			t.Errorf("validPkgConfigName(%q) = false, want true", pkg)
+		}
+	}
+
+	b := Builder{backgroundSh: &Shell{}}
+	for _, pkg := range []string{
+		"pwn.pc",
+		"PWN.PC",
+		".pc",
+		"pwn.pc>=0",
+		"pwn.pc=1.0",
+		"a!b.pc>=0",
+		"foo=pwn.pc",
+		"./pwn.pc",
+		"sub/pwn",
+		`sub\pwn`,
+		"C:pwn",
+		"..",
+		"../pwn",
+		"pwn.pc,pkg-config",
+		"pkg-config,pwn.pc",
+		"pwn.pc,",
+		"pkg-config pwn.pc",
+		"pkg-config\tpwn.pc",
+		"pwn.pc = 1.0",
+		"pkg-config = 1.0 pwn.pc",
+		"\u00a0pwn.pc",
+		"pwn.pc\xa0pkg-config",
+	} {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("missing invalid package name error for %q (panicked in getPkgConfigFlags: %v)", pkg, r)
+				}
+			}()
+			_, _, err := b.getPkgConfigFlags(&Action{}, &load.Package{
+				PackagePublic: load.PackagePublic{
+					CgoPkgConfig: []string{pkg},
+				},
+			})
+			if err == nil || !strings.Contains(err.Error(), "invalid pkg-config package name") {
+				t.Errorf("expected invalid pkg-config package name error for %q, got %v", pkg, err)
+			}
+		}()
 	}
 }
 

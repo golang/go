@@ -1791,7 +1791,7 @@ func (b *Builder) getPkgConfigFlags(a *Action, p *load.Package) (cflags, ldflags
 			}
 		}
 		for _, pkg := range pkgs {
-			if !load.SafeArg(pkg) {
+			if !validPkgConfigName(pkg) {
 				return nil, nil, fmt.Errorf("invalid pkg-config package name: %s", pkg)
 			}
 		}
@@ -2961,8 +2961,8 @@ func (b *Builder) runCgo(ctx context.Context, a *Action) error {
 	// documented (although coming up with a simple explanation of the
 	// flag might be challenging). For more context see issues #58619,
 	// #58620, and #58848.
-	flagSources := []string{"CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_FFLAGS"}
-	flagLists := [][]string{cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS}
+	flagSources := []string{"CGO_CPPFLAGS", "CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_FFLAGS"}
+	flagLists := [][]string{cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS}
 	notCompatibleWithInternalLinking := flagsNotCompatibleWithInternalLinking(flagSources, flagLists)
 
 	if cfg.BuildMSan {
