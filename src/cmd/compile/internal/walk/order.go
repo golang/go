@@ -864,7 +864,7 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 
 		// discard results; double-check for no side effects
 		for _, result := range n.ReturnVars {
-			if staticinit.AnySideEffects(result) {
+			if ir.AnySideEffects(result) {
 				base.FatalfAt(result.Pos(), "inlined call result has side effects: %v", result)
 			}
 		}

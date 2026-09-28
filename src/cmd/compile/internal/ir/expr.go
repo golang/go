@@ -1360,3 +1360,92 @@ func NewMoveToHeapExpr(pos src.XPos, slice Node) *MoveToHeapExpr {
 	n.op = OMOVE2HEAP
 	return n
 }
+
+func IsSideEffect(n Node) bool {
+	switch n.Op() {
+	// Assume side effects unless we know otherwise.
+	default:
+		return true
+
+	// No side effects here (arguments are checked separately).
+	case ONAME,
+		ONONAME,
+		OTYPE,
+		OLITERAL,
+		ONIL,
+		OADD,
+		OSUB,
+		OOR,
+		OXOR,
+		OADDSTR,
+		OADDR,
+		OANDAND,
+		OBYTES2STR,
+		ORUNES2STR,
+		OSTR2BYTES,
+		OSTR2RUNES,
+		OCAP,
+		OCOMPLIT,
+		OMAPLIT,
+		OSTRUCTLIT,
+		OARRAYLIT,
+		OSLICELIT,
+		OPTRLIT,
+		OCONV,
+		OCONVIFACE,
+		OCONVNOP,
+		ODOT,
+		OEQ,
+		ONE,
+		OLT,
+		OLE,
+		OGT,
+		OGE,
+		OKEY,
+		OSTRUCTKEY,
+		OLEN,
+		OMUL,
+		OLSH,
+		ORSH,
+		OAND,
+		OANDNOT,
+		ONEW,
+		ONOT,
+		OBITNOT,
+		OPLUS,
+		ONEG,
+		OOROR,
+		OPAREN,
+		ORUNESTR,
+		OREAL,
+		OIMAG,
+		OCOMPLEX:
+		return false
+
+	// Only possible side effect is division by zero.
+	case ODIV, OMOD:
+		n := n.(*BinaryExpr)
+		if n.Y.Op() != OLITERAL || constant.Sign(n.Y.Val()) == 0 {
+			return true
+		}
+
+	// Only possible side effect is panic on invalid size,
+	// but many makechan and makemap use size zero, which is definitely OK.
+	case OMAKECHAN, OMAKEMAP:
+		n := n.(*MakeExpr)
+		if !IsConst(n.Len, constant.Int) || constant.Sign(n.Len.Val()) != 0 {
+			return true
+		}
+
+	// Only possible side effect is panic on invalid size.
+	// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
+	case OMAKESLICE, OMAKESLICECOPY:
+		return true
+	}
+	return false
+}
+
+// AnySideEffects reports whether n contains any operations that could have observable side effects.
+func AnySideEffects(n Node) bool {
+	return Any(n, IsSideEffect)
+}

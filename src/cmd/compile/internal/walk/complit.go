@@ -214,7 +214,7 @@ func (w *walkState) fixedlit(kind initKind, n *ir.CompLitExpr, var_ ir.Node, ini
 
 	for _, r := range n.List {
 		a, value := splitnode(r)
-		if a == ir.BlankNode && !staticinit.AnySideEffects(value) {
+		if a == ir.BlankNode && !ir.AnySideEffects(value) {
 			// Discard.
 			continue
 		}

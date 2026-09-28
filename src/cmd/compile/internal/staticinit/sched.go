@@ -143,7 +143,7 @@ func (s *Schedule) tryStaticInit(curfunc *ir.Func, n ir.Node) bool {
 		s.seenMutation = mayModifyPkgVar(rhs)
 	}
 
-	if allBlank(lhs) && !AnySideEffects(rhs) {
+	if allBlank(lhs) && !ir.AnySideEffects(rhs) {
 		return true // discard
 	}
 
@@ -698,7 +698,7 @@ func (s *Schedule) staticAssignInlinedCall(curfunc *ir.Func, l *ir.Name, loff in
 	}
 	// Can't move the computation of the args if they have side effects.
 	for _, r := range as2init.Rhs {
-		if AnySideEffects(r) {
+		if ir.AnySideEffects(r) {
 			return false
 		}
 	}
@@ -837,95 +837,6 @@ func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
 	return nil, 0, false
 }
 
-func isSideEffect(n ir.Node) bool {
-	switch n.Op() {
-	// Assume side effects unless we know otherwise.
-	default:
-		return true
-
-	// No side effects here (arguments are checked separately).
-	case ir.ONAME,
-		ir.ONONAME,
-		ir.OTYPE,
-		ir.OLITERAL,
-		ir.ONIL,
-		ir.OADD,
-		ir.OSUB,
-		ir.OOR,
-		ir.OXOR,
-		ir.OADDSTR,
-		ir.OADDR,
-		ir.OANDAND,
-		ir.OBYTES2STR,
-		ir.ORUNES2STR,
-		ir.OSTR2BYTES,
-		ir.OSTR2RUNES,
-		ir.OCAP,
-		ir.OCOMPLIT,
-		ir.OMAPLIT,
-		ir.OSTRUCTLIT,
-		ir.OARRAYLIT,
-		ir.OSLICELIT,
-		ir.OPTRLIT,
-		ir.OCONV,
-		ir.OCONVIFACE,
-		ir.OCONVNOP,
-		ir.ODOT,
-		ir.OEQ,
-		ir.ONE,
-		ir.OLT,
-		ir.OLE,
-		ir.OGT,
-		ir.OGE,
-		ir.OKEY,
-		ir.OSTRUCTKEY,
-		ir.OLEN,
-		ir.OMUL,
-		ir.OLSH,
-		ir.ORSH,
-		ir.OAND,
-		ir.OANDNOT,
-		ir.ONEW,
-		ir.ONOT,
-		ir.OBITNOT,
-		ir.OPLUS,
-		ir.ONEG,
-		ir.OOROR,
-		ir.OPAREN,
-		ir.ORUNESTR,
-		ir.OREAL,
-		ir.OIMAG,
-		ir.OCOMPLEX:
-		return false
-
-	// Only possible side effect is division by zero.
-	case ir.ODIV, ir.OMOD:
-		n := n.(*ir.BinaryExpr)
-		if n.Y.Op() != ir.OLITERAL || constant.Sign(n.Y.Val()) == 0 {
-			return true
-		}
-
-	// Only possible side effect is panic on invalid size,
-	// but many makechan and makemap use size zero, which is definitely OK.
-	case ir.OMAKECHAN, ir.OMAKEMAP:
-		n := n.(*ir.MakeExpr)
-		if !ir.IsConst(n.Len, constant.Int) || constant.Sign(n.Len.Val()) != 0 {
-			return true
-		}
-
-	// Only possible side effect is panic on invalid size.
-	// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
-	case ir.OMAKESLICE, ir.OMAKESLICECOPY:
-		return true
-	}
-	return false
-}
-
-// AnySideEffects reports whether n contains any operations that could have observable side effects.
-func AnySideEffects(n ir.Node) bool {
-	return ir.Any(n, isSideEffect)
-}
-
 // mayModifyPkgVar reports whether expression n may modify any
 // package-scope variables declared within the current package.
 func mayModifyPkgVar(n ir.Node) bool {
@@ -979,7 +890,7 @@ func mayModifyPkgVar(n ir.Node) bool {
 // assigning n to a single variable and using that variable multiple times.
 func canRepeat(n ir.Node) bool {
 	bad := func(n ir.Node) bool {
-		if isSideEffect(n) {
+		if ir.IsSideEffect(n) {
 			return true
 		}
 		switch n.Op() {
@@ -1166,7 +1077,7 @@ func tryWrapGlobalInit(n ir.Node) *ir.Func {
 	}
 
 	// Reject right hand sides with side effects.
-	if AnySideEffects(as.Y) {
+	if ir.AnySideEffects(as.Y) {
 		if base.Debug.WrapGlobalMapDbg > 0 {
 			fmt.Fprintf(os.Stderr, "=-= rejected %v due to side effects\n", nm)
 		}
