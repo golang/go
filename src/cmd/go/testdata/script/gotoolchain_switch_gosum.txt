@@ -1,0 +1,40 @@
+# A toolchain switch triggered by a dependency must verify the downloaded
+# toolchain against the checksum database, even when the main module's go.sum
+# already lists a matching entry for golang.org/toolchain.
+
+[!exec:/bin/sh] skip 'the fake proxy serves shell scripts instead of binaries'
+env TESTGO_VERSION=go1.21.0
+env GOTOOLCHAIN=local
+env sumdb=$GOSUMDB
+env proxy=$GOPROXY
+env dbname=localhost.localdev/sumdb
+
+# Record the toolchain in go.sum, then drop it from go.mod so that only
+# the go.sum line remains, as it would in an attacker-supplied repository.
+go get golang.org/toolchain@v0.0.1-go1.999testmod.$GOOS-$GOARCH
+go mod edit -droprequire golang.org/toolchain
+grep '^golang.org/toolchain v0.0.1-go1.999testmod.[a-z0-9\-]* h1:' go.sum
+go mod edit -require rsc.io/future@v1.0.0
+
+# Point at a checksum database that disagrees with go.sum and the download.
+# GONOSUMDB keeps rsc.io/future out of the way; it does not apply to the toolchain.
+# Clear cached lookups and the cached tree head so the server is consulted.
+go clean -modcache
+rm $GOPATH/pkg/sumdb/$dbname/latest
+env GOTOOLCHAIN=auto
+env GONOSUMDB=rsc.io
+env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+! go get .
+stderr 'switching to go1.999testmod'
+stderr 'golang.org/toolchain@v0.0.1-go1.999testmod.[a-z0-9\-]*: verifying (module|go.mod): checksum mismatch'
+stderr 'localhost.localdev/sumdb: h1:wrong'
+stderr 'SECURITY ERROR'
+
+-- go.mod --
+module example
+
+go 1.21
+-- example.go --
+package example
+
+import _ "rsc.io/future"
