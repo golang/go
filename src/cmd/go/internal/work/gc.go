@@ -510,7 +510,11 @@ func packInternal(afile string, ofiles []string) error {
 		// about bytes, not runes.
 		name := fi.Name()
 		if len(name) > 16 {
-			name = name[:16]
+			if strings.HasSuffix(name, ".syso") {
+				name = name[:16-len(".syso")] + ".syso"
+			} else {
+				name = name[:16]
+			}
 		} else {
 			name += strings.Repeat(" ", 16-len(name))
 		}
