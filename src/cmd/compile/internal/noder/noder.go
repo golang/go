@@ -318,7 +318,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 		fields := pragmaFields(text)
 		if len(fields) >= 4 {
 			lib := strings.Trim(fields[3], `"`)
-			if lib != "" && !safeArg(lib) && !isCgoGeneratedFile(pos) {
+			if lib != "" && !safeArg(lib) && (!isCgoGeneratedFile(pos) || buildcfg.GOOS == "windows") {
 				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
 			}
 			p.pragcgo(pos, text)
@@ -377,13 +377,25 @@ func isCgoGeneratedFile(pos syntax.Pos) bool {
 // safeArg reports whether arg is a "safe" command-line argument,
 // meaning that when it appears in a command-line, it probably
 // doesn't have some special meaning other than its own name.
-// This is copied from SafeArg in cmd/go/internal/load/pkg.go.
+// This is based on SafeArg in cmd/go/internal/load/pkg.go, but is stricter:
+// it checks every character of name and rejects ".." path traversal.
 func safeArg(name string) bool {
 	if name == "" {
 		return false
 	}
-	c := name[0]
-	return '0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || c == '.' || c == '_' || c == '/' || c >= utf8.RuneSelf
+	var last byte
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		if c == '.' && last == '.' {
+			return false
+		}
+		last = c
+		if '0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || c == '.' || c == '_' || c == '/' || (c == '-' || c == '+') && i > 0 || c == '@' && buildcfg.GOOS != "windows" || c >= utf8.RuneSelf {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // parseGoEmbed parses the text following "//go:embed" to extract the glob patterns.
