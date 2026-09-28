@@ -731,10 +731,13 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		pkgs = loadPackageList(pkgs)
 	}
 
+	// TODO(mark): Remove use of TESTGO_EXPORT_ARCHIVE once tests no longer depend on "go list -export" for archives.
+	exportNewFormat := exp.GoListExportNewFormat && os.Getenv("TESTGO_EXPORT_ARCHIVE") != "1"
+
 	// Do we need to run a build to gather information?
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
 	var buildPkgs []*load.Package
-	if needStale || (*listExport && !exp.GoListExportNewFormat) || (*listCompiled && cfg.BuildCover) {
+	if needStale || (*listExport && !exportNewFormat) || (*listCompiled && cfg.BuildCover) {
 		buildPkgs = pkgs
 	} else if *listCompiled {
 		// In the non-cover case, for pure-Go packages, package loading already knows the complete set
@@ -760,7 +763,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}()
 
 		b.IsCmdList = true
-		b.NeedExport = *listExport && !exp.GoListExportNewFormat
+		b.NeedExport = *listExport && !exportNewFormat
 		b.NeedCompiledGoFiles = *listCompiled
 		if cfg.BuildCover {
 			load.PrepareForCoverageBuild(moduleLoader, pkgs)
@@ -777,7 +780,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Execute any necessary export actions. Export actions only ever interact
 	// with export actions, so putting them on their own builder is fine.
-	if *listExport && exp.GoListExportNewFormat {
+	if *listExport && exportNewFormat {
 		b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
 		defer func() {
 			if err := b.Close(); err != nil {

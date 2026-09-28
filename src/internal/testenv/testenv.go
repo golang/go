@@ -499,6 +499,7 @@ func WriteImportcfg(t testing.TB, dstPath string, packageFiles map[string]string
 		// Use 'go list' to resolve any missing packages and rewrite the import map.
 		cmd := Command(t, GoToolPath(t), "list", "-export", "-deps", "-f", `{{if ne .ImportPath "command-line-arguments"}}{{if .Export}}{{.ImportPath}}={{.Export}}{{end}}{{end}}`)
 		cmd.Args = append(cmd.Args, pkgs...)
+		cmd.Env = append(cmd.Environ(), "TESTGO_EXPORT_ARCHIVE=1")
 		cmd.Stderr = new(strings.Builder)
 		out, err := cmd.Output()
 		if err != nil {
