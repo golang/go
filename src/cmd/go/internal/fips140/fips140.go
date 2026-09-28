@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fips implements support for the GOFIPS140 build setting.
+// Package fips140 implements support for the GOFIPS140 build setting.
 //
 // The GOFIPS140 build setting controls two aspects of the build:
 //
@@ -230,48 +230,62 @@ func initDir() {
 	file := filepath.Join(cfg.GOROOT, "lib/fips140", v+".zip")
 	ctx := context.Background()
 
-	// The FIPS 140-3 Security Policy require checking the SHA-256 hash of the
-	// zip file. Verify it once against fips140.sum before unpacking it.
-	if _, err := modfetch.DownloadDir(ctx, mod); err != nil {
-		sumfile := filepath.Join(cfg.GOROOT, "lib/fips140/fips140.sum")
-		if err := verifyZipSum(file, sumfile); err != nil {
-			base.Fatalf("go: verifying GOFIPS140=%v: %v", v, err)
-		}
+	sumfile := filepath.Join(cfg.GOROOT, "lib/fips140/fips140.sum")
+	_, ziphash, err := lookupZipSum(sumfile, filepath.Base(file))
+	if err != nil {
+		base.Fatalf("go: verifying GOFIPS140=%v: %v", v, err)
 	}
 
-	zdir, err := modfetch.NewFetcher().Unzip(ctx, mod, file)
+	// fips140.sum records both the SHA-256 hash of the zip file and its
+	// go.sum-style module zip hash. Unzip uses the cached copy in the
+	// module cache only if the cache records that module zip hash for it,
+	// and otherwise discards the copy and unpacks the snapshot again.
+	//
+	// The FIPS 140-3 Security Policy requires checking the SHA-256 hash
+	// of the zip file. Unzip calls verify exactly when it is about to
+	// unpack the zip file, so the hash is checked once per unpacking
+	// (whatever the reason for it) rather than on every go command.
+	verify := func() error { return verifyZipSum(file, sumfile) }
+	zdir, err := modfetch.NewFetcher().Unzip(ctx, mod, file, ziphash, verify)
 	if err != nil {
 		base.Fatalf("go: unpacking GOFIPS140=%v: %v", v, err)
 	}
 	dir = filepath.Join(zdir, "fips140")
 }
 
-// verifyZipSum checks that the SHA-256 hash of zipfile matches the entry
-// for its base name in sumfile, which is expected to be in the format of
-// GOROOT/lib/fips140/fips140.sum: "NAME SHA256HEX" lines, with "#" comments.
-func verifyZipSum(zipfile, sumfile string) error {
+// lookupZipSum returns the SHA-256 hash and module zip hash recorded for
+// name in sumfile, which is expected to be in the format of
+// GOROOT/lib/fips140/fips140.sum: "NAME SHA256HEX H1HASH" lines, with "#"
+// comments. H1HASH is the module zip hash in the format used by go.sum.
+func lookupZipSum(sumfile, name string) (sha256hex, ziphash string, err error) {
 	sums, err := os.ReadFile(sumfile)
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	name := filepath.Base(zipfile)
-	var want string
 	for line := range strings.SplitSeq(string(sums), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		n, h, ok := strings.Cut(line, " ")
-		if !ok {
+		f := strings.Fields(line)
+		if len(f) != 3 || f[0] != name {
 			continue
 		}
-		if n == name {
-			want = strings.TrimSpace(h)
-			break
+		if !strings.HasPrefix(f[2], "h1:") {
+			return "", "", fmt.Errorf("malformed module zip hash %q for %s in %s", f[2], name, sumfile)
 		}
+		return f[1], f[2], nil
 	}
-	if want == "" {
-		return fmt.Errorf("no SHA-256 hash for %s in %s", name, sumfile)
+	return "", "", fmt.Errorf("no entry for %s in %s", name, sumfile)
+}
+
+// verifyZipSum checks that the SHA-256 hash of zipfile matches the entry
+// for its base name in sumfile.
+func verifyZipSum(zipfile, sumfile string) error {
+	name := filepath.Base(zipfile)
+	want, _, err := lookupZipSum(sumfile, name)
+	if err != nil {
+		return err
 	}
 	f, err := os.Open(zipfile)
 	if err != nil {

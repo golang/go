@@ -1,4 +1,7 @@
-# SHA256 checksums of snapshot zip files in this directory.
+# Checksums of snapshot zip files in this directory.
+# Each line is "NAME SHA256HEX H1HASH", where SHA256HEX is the SHA256
+# checksum of the zip file and H1HASH is the module zip hash of its
+# contents, as recorded in go.sum files and the module cache.
 # These checksums are included in the FIPS security policy
 # (validation instructions sent to the lab) and MUST NOT CHANGE.
 # That is, the zip files themselves must not change.
@@ -9,5 +12,5 @@
 #
 #	go test cmd/go/internal/fips140 -update
 #
-v1.0.0-c2097c7c.zip daf3614e0406f67ae6323c902db3f953a1effb199142362a039e7526dfb9368b
-v1.26.0.zip 9b28f847fdf1db4a36cb2b2f8ec09443c039383f085630a03ecfaddf6db7ea23
+v1.0.0-c2097c7c.zip daf3614e0406f67ae6323c902db3f953a1effb199142362a039e7526dfb9368b h1:YapsF69QWGwygaBqdI0rp7IfE5a6tAwepNAHONVcWqQ=
+v1.26.0.zip 9b28f847fdf1db4a36cb2b2f8ec09443c039383f085630a03ecfaddf6db7ea23 h1:dtoPX1ALGGp4rMLzyh6oqIkYRXnXxRkpPWu56l5DFpM=

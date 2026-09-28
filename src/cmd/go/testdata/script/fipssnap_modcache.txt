@@ -1,0 +1,61 @@
+# The module cache copy of a FIPS snapshot is used only if the module
+# cache records the module zip hash from GOROOT/lib/fips140/fips140.sum
+# for it, the way downloaded modules are checked against go.sum.
+# Otherwise it is discarded and the snapshot is unpacked again.
+#
+# This detects a cache entry that was not unpacked from the bundled
+# snapshot (or whose hash record is missing). Like go.sum, it does not
+# protect the module cache from being modified in place: the replaced
+# source file below stands in for stale contents, not an attacker.
+
+env snap=v1.26.0
+env GOFIPS140=$snap
+env GOMODCACHE=$WORK/modcache
+env GOFLAGS=-modcacherw
+
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
+env ziphash=$GOMODCACHE/cache/download/golang.org/fips140/@v/$snap.ziphash
+env srcfile=$GOMODCACHE/golang.org/fips140@$snap/fips140/$snap/sha256/sha256.go
+
+# unpacking the snapshot records its module zip hash in the module cache
+go list -f '{{.DefaultGODEBUG}}'
+stdout fips140=on
+exists $ziphash
+exists $srcfile
+grep '^h1:dtoPX1ALGGp4rMLzyh6oqIkYRXnXxRkpPWu56l5DFpM=$' $ziphash
+cp $ziphash good.ziphash
+
+# a recorded hash that does not match fips140.sum
+# discards the cached copy and unpacks the snapshot again
+cp bad.ziphash $ziphash
+rm $srcfile
+cp stale/sha256.go $srcfile
+go list -f '{{.DefaultGODEBUG}}'
+stdout fips140=on
+exists $srcfile
+! grep stale $srcfile
+cmp $ziphash good.ziphash
+
+# so does a missing hash
+rm $ziphash
+rm $srcfile
+cp stale/sha256.go $srcfile
+go list -f '{{.DefaultGODEBUG}}'
+stdout fips140=on
+exists $srcfile
+! grep stale $srcfile
+cmp $ziphash good.ziphash
+
+-- go.mod --
+module m
+-- x.go --
+package main
+import _ "crypto/sha256"
+func main() {
+}
+-- bad.ziphash --
+h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+-- stale/sha256.go --
+package sha256 // stale
