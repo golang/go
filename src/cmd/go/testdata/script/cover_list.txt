@@ -1,6 +1,9 @@
-
 # This test is intended to verify that "go list" accepts coverage related
 # build arguments (such as -cover, -covermode). See issue #57785.
+
+# This test depends on the BuildID field, which behaves differently for
+# "go list -export" in Go 1.28.
+env GOEXPERIMENT=nogolistexportnewformat
 
 env GOBIN=$WORK/bin
 
