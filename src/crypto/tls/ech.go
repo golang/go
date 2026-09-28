@@ -313,6 +313,7 @@ func decodeInnerClientHello(outer *clientHelloMsg, encoded []byte) (*clientHello
 			recon.AddBytes(compressionMethods)
 		})
 		recon.AddUint16LengthPrefixed(func(recon *cryptobyte.Builder) {
+			var outerExtensionsSeen bool
 			for !extensions.Empty() {
 				var extension uint16
 				var extData cryptobyte.String
@@ -322,18 +323,30 @@ func decodeInnerClientHello(outer *clientHelloMsg, encoded []byte) (*clientHello
 					return
 				}
 				if extension == extensionECHOuterExtensions {
-					if !extData.ReadUint8LengthPrefixed(&extData) {
+					if outerExtensionsSeen {
+						recon.SetError(errors.New("tls: invalid outer extensions"))
+						return
+					}
+					outerExtensionsSeen = true
+					var outerExtensions cryptobyte.String
+					if !extData.ReadUint8LengthPrefixed(&outerExtensions) || !extData.Empty() ||
+						outerExtensions.Empty() {
 						recon.SetError(errors.New("tls: invalid inner client hello"))
 						return
 					}
+					// OuterExtensions reconstruction per RFC 9849, Appendix A.
+					// i scans the outer extensions in order and never rewinds,
+					// so a referenced type that is out of order or duplicated
+					// cannot be found again and is rejected.
 					var i int
-					for !extData.Empty() {
+					for !outerExtensions.Empty() {
 						var extType uint16
-						if !extData.ReadUint16(&extType) {
+						if !outerExtensions.ReadUint16(&extType) {
 							recon.SetError(errors.New("tls: invalid inner client hello"))
 							return
 						}
-						if extType == extensionEncryptedClientHello {
+						if extType == extensionEncryptedClientHello ||
+							extType == extensionECHOuterExtensions {
 							recon.SetError(errors.New("tls: invalid outer extensions"))
 							return
 						}
@@ -350,6 +363,7 @@ func decodeInnerClientHello(outer *clientHelloMsg, encoded []byte) (*clientHello
 						recon.AddUint16LengthPrefixed(func(recon *cryptobyte.Builder) {
 							recon.AddBytes(rawOuterExts[i].data)
 						})
+						i++
 					}
 				} else {
 					recon.AddUint16(extension)

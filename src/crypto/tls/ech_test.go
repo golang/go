@@ -9,6 +9,8 @@ import (
 	"encoding/hex"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
 func TestDecodeECHConfigLists(t *testing.T) {
@@ -115,4 +117,131 @@ func TestECHPadding(t *testing.T) {
 			t.Errorf("got %d distinct encoded sizes for SNI lengths 1..%d, want <= 4", len(sizes), maxNameLength)
 		}
 	})
+}
+
+func TestDecodeInnerClientHelloOuterExtensions(t *testing.T) {
+	outer := &clientHelloMsg{
+		vers:                 VersionTLS12,
+		random:               make([]byte, 32),
+		cipherSuites:         []uint16{TLS_AES_128_GCM_SHA256},
+		compressionMethods:   []uint8{compressionNone},
+		ocspStapling:         true,
+		supportedCurves:      []CurveID{CurveP256},
+		encryptedClientHello: []byte{byte(innerECHExt)},
+	}
+	outer.original = mustMarshal(t, outer)
+
+	encodeInner := func(buildExts func(*cryptobyte.Builder)) []byte {
+		var b cryptobyte.Builder
+		b.AddUint16(VersionTLS12)
+		b.AddBytes(make([]byte, 32))
+		b.AddUint8(0)
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddUint16(TLS_AES_128_GCM_SHA256)
+		})
+		b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddUint8(compressionNone)
+		})
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			buildExts(b)
+			b.AddUint16(extensionEncryptedClientHello)
+			b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+				b.AddUint8(uint8(innerECHExt))
+			})
+			b.AddUint16(extensionSupportedVersions)
+			b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+				b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+					b.AddUint16(VersionTLS13)
+				})
+			})
+		})
+		return b.BytesOrPanic()
+	}
+
+	outerExts := func(b *cryptobyte.Builder, extTypes ...uint16) {
+		b.AddUint16(extensionECHOuterExtensions)
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+				for _, extType := range extTypes {
+					b.AddUint16(extType)
+				}
+			})
+		})
+	}
+
+	for _, tc := range []struct {
+		name      string
+		buildExts func(*cryptobyte.Builder)
+		wantErr   string
+	}{
+		{
+			name: "valid order",
+			buildExts: func(b *cryptobyte.Builder) {
+				outerExts(b, extensionStatusRequest, extensionSupportedCurves)
+			},
+		},
+		{
+			name: "duplicate reference",
+			buildExts: func(b *cryptobyte.Builder) {
+				outerExts(b, extensionStatusRequest, extensionStatusRequest)
+			},
+			wantErr: "tls: invalid outer extensions",
+		},
+		{
+			name: "references encrypted_client_hello",
+			buildExts: func(b *cryptobyte.Builder) {
+				outerExts(b, extensionEncryptedClientHello)
+			},
+			wantErr: "tls: invalid outer extensions",
+		},
+		{
+			name: "references ech_outer_extensions",
+			buildExts: func(b *cryptobyte.Builder) {
+				outerExts(b, extensionECHOuterExtensions)
+			},
+			wantErr: "tls: invalid outer extensions",
+		},
+		{
+			name: "multiple ech_outer_extensions",
+			buildExts: func(b *cryptobyte.Builder) {
+				outerExts(b, extensionStatusRequest)
+				outerExts(b, extensionSupportedCurves)
+			},
+			wantErr: "tls: invalid outer extensions",
+		},
+		{
+			name: "odd-length reference list",
+			buildExts: func(b *cryptobyte.Builder) {
+				b.AddUint16(extensionECHOuterExtensions)
+				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+					b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+						b.AddUint8(0)
+					})
+				})
+			},
+			wantErr: "tls: invalid inner client hello",
+		},
+		{
+			name: "empty reference list",
+			buildExts: func(b *cryptobyte.Builder) {
+				b.AddUint16(extensionECHOuterExtensions)
+				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+					b.AddUint8(0)
+				})
+			},
+			wantErr: "tls: invalid inner client hello",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded := encodeInner(tc.buildExts)
+			_, err := decodeInnerClientHello(outer, encoded)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("decodeInnerClientHello returned %v, want nil", err)
+				}
+			} else if err == nil || err.Error() != tc.wantErr {
+				t.Fatalf("decodeInnerClientHello returned %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
 }
