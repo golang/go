@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"golang.org/x/mod/sumdb/dirhash"
 )
 
 var update = flag.Bool("update", false, "update GOROOT/lib/fips140/fips140.sum")
@@ -33,8 +35,8 @@ func TestSums(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	format := func(name string, sum [32]byte) string {
-		return fmt.Sprintf("%s %x\n", name, sum[:])
+	format := func(name string, sum [32]byte, ziphash string) string {
+		return fmt.Sprintf("%s %x %s\n", name, sum[:], ziphash)
 	}
 
 	want := make(map[string]string)
@@ -43,8 +45,12 @@ func TestSums(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		ziphash, err := dirhash.HashZip(zip, dirhash.DefaultHash)
+		if err != nil {
+			t.Fatal(err)
+		}
 		name := filepath.Base(zip)
-		want[name] = format(name, sha256.Sum256(data))
+		want[name] = format(name, sha256.Sum256(data), ziphash)
 	}
 
 	// Process diff, deleting or correcting stale lines.
@@ -117,8 +123,13 @@ func TestVerifyZipSum(t *testing.T) {
 		}
 	}
 
+	const (
+		zeroSum = "0000000000000000000000000000000000000000000000000000000000000000"
+		ziphash = "h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	)
+
 	// Matching hash with comments and a second entry passes.
-	write(fmt.Sprintf("# comment\n\nv1.2.3.zip %x\nother.zip 0000000000000000000000000000000000000000000000000000000000000000\n", sum[:]))
+	write(fmt.Sprintf("# comment\n\nv1.2.3.zip %x %s\nother.zip %s h1:other=\n", sum[:], ziphash, zeroSum))
 	if err := verifyZipSum(zipfile, sumfile); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -130,7 +141,7 @@ func TestVerifyZipSum(t *testing.T) {
 	}
 
 	// Wrong hash fails.
-	write("v1.2.3.zip 0000000000000000000000000000000000000000000000000000000000000000\n")
+	write(fmt.Sprintf("v1.2.3.zip %s %s\n", zeroSum, ziphash))
 	if err := verifyZipSum(zipfile, sumfile); err == nil {
 		t.Errorf("expected error when hash does not match")
 	}
