@@ -331,7 +331,14 @@ func tJS(c context, s []byte) (context, int) {
 	case '#':
 		if i+1 < len(s) && s[i+1] == '!' {
 			c.state, i = stateJSLineCmt, i+1
+			break
 		}
+		// A private identifier such as #yield is never a keyword, and
+		// precedes a div op.
+		for i+1 < len(s) && isJSIdentPart(rune(s[i+1])) {
+			i++
+		}
+		c.jsCtx = jsCtxDivOp
 	case '{':
 		// We only care about tracking brace depth if we are inside of a
 		// template literal.

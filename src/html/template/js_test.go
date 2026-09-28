@@ -65,6 +65,12 @@ func TestNextJsCtx(t *testing.T) {
 		{jsCtxRegexp, "return\t"},
 		{jsCtxRegexp, "return\n"},
 		{jsCtxRegexp, "return\u2028"},
+		{jsCtxRegexp, "yield"},
+		// A keyword after property access is a property name.
+		{jsCtxDivOp, "x.yield"},
+		{jsCtxDivOp, "x?.yield"},
+		{jsCtxDivOp, "x.\nyield"},
+		{jsCtxDivOp, "x.in"},
 		// Identifiers can be divided and cannot validly be preceded by
 		// a regular expressions. Semicolon insertion cannot happen
 		// between an identifier and a regular expression on a new line

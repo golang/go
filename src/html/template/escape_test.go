@@ -2347,3 +2347,49 @@ func TestCVE202656858(t *testing.T) {
 		})
 	}
 }
+
+func TestIssue81823(t *testing.T) {
+	tests := []struct {
+		name  string
+		tmpl  string
+		input string
+		want  string
+	}{
+		{
+			name:  "yield",
+			tmpl:  `<script>function* rules(){yield /{{.}}/g}</script>`,
+			input: `/;alert(1)//`,
+			want:  `<script>function* rules(){yield /\/;alert\(1\)\/\//g}</script>`,
+		},
+		{
+			name:  "property yield",
+			tmpl:  "<script>const pct = bond.yield / 100;\nconst user = {{.}}; // state\n</script>",
+			input: `1;pwned=1;0`,
+			want:  "<script>const pct = bond.yield / 100;\nconst user = \"1;pwned=1;0\"; \n</script>",
+		},
+		{
+			name:  "private yield",
+			tmpl:  "<script>class Bond { #yield = 4; pct() { return this.#yield / 100; } }\nconst user = {{.}}; // state\n</script>",
+			input: `1;pwned=1;0`,
+			want:  "<script>class Bond { #yield = 4; pct() { return this.#yield / 100; } }\nconst user = \"1;pwned=1;0\"; \n</script>",
+		},
+		{
+			name:  "property in",
+			tmpl:  "<script>const kb = traffic.in / 1024;\nconst user = {{.}}; // state\n</script>",
+			input: `1;pwned=1;0`,
+			want:  "<script>const kb = traffic.in / 1024;\nconst user = \"1;pwned=1;0\"; \n</script>",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpl := Must(New("test").Parse(tt.tmpl))
+			var buf strings.Builder
+			if err := tmpl.Execute(&buf, tt.input); err != nil {
+				t.Fatalf("Execute: %v", err)
+			}
+			if got := buf.String(); got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
