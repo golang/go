@@ -2156,13 +2156,13 @@ func (s *state) stmt(n ir.Node) {
 			lab.breakTarget = bEnd
 		}
 
-		// with -N, end the current block at the position of the
-		// switch or select statement. The jump at the end of the
-		// block gives the statement an instruction that executes
-		// before any case is evaluated. Without this, a switch with
-		// no tag has no such instruction, and a breakpoint on the
-		// switch line stops only after all cases fail. See issue 81705.
-		if base.Flag.N != 0 && s.curBlock != nil && n.Pos().IsStmt() != src.PosNotStmt {
+		// End the current block at the position of the switch or select
+		// statement. The jump at the end of the block gives the statement
+		// an instruction that executes before any case is evaluated. In
+		// optimized builds, the empty block is fused away. Without this, a
+		// switch with no tag has no such instruction, and a breakpoint on
+		// the switch line stops only after all cases fail. See issue 81705.
+		if s.curBlock != nil && n.Pos().IsStmt() != src.PosNotStmt {
 			b := s.endBlock()
 			b.Pos = n.Pos().WithIsStmt()
 			bStart := s.f.NewBlock(block.BlockPlain)
