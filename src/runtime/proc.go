@@ -1702,6 +1702,19 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	if wait {
 		preemptall()
 		for {
+			// The sweep above skips a P whose goroutine in a system call
+			// has its scan bit held by someone else, such as sysmon's
+			// retake, and misses one that enters a system call just after
+			// it. preemptall skips such Ps, and sysmon sleeps while
+			// gcwaiting is set, so retake them before each wait; handoffp
+			// stops them.
+			for _, pp := range allp {
+				if thread, ok := setBlockOnExitSyscall(pp); ok {
+					thread.takeP()
+					thread.resume()
+					handoffp(pp)
+				}
+			}
 			// wait for 100us, then try to re-preempt in case of any races
 			if notetsleep(&sched.stopnote, 100*1000) {
 				noteclear(&sched.stopnote)
@@ -2219,6 +2232,18 @@ func forEachPInternal(fn func(*p)) {
 	// Wait for remaining Ps to run fn.
 	if wait {
 		for {
+			// As in stopTheWorldWithSema, retake the Ps in a system call
+			// that the sweep above skipped or missed, before each wait.
+			for _, p2 := range allp {
+				if atomic.Load(&p2.runSafePointFn) != 1 {
+					continue
+				}
+				if thread, ok := setBlockOnExitSyscall(p2); ok {
+					thread.takeP()
+					thread.resume()
+					handoffp(p2)
+				}
+			}
 			// Wait for 100us, then try to re-preempt in
 			// case of any races.
 			//
