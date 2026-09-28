@@ -3012,6 +3012,64 @@ func testServer_MaxEncoderHeaderTableSize(t *testing.T) {
 	}
 }
 
+// TestServer_HeaderTableSizeDuringWrite tests that a
+// SETTINGS_HEADER_TABLE_SIZE change from the client is not applied to the
+// server's HPACK encoder while a frame write, which may be using the encoder
+// on another goroutine, is in progress.
+func TestServer_HeaderTableSizeDuringWrite(t *testing.T) {
+	synctest.Test(t, testServer_HeaderTableSizeDuringWrite)
+}
+func testServer_HeaderTableSizeDuringWrite(t *testing.T) {
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {})
+	defer st.Close()
+	st.greet()
+	enc := st.sc.TestHPACKEncoder()
+
+	// Leave the response HEADERS write for stream 1 in progress while the
+	// client changes SETTINGS_HEADER_TABLE_SIZE twice.
+	st.blockServerWrites()
+	st.bodylessReq1()
+	synctest.Wait()
+	st.writeSettings(Setting{SettingHeaderTableSize, 0})
+	st.writeSettings(Setting{SettingHeaderTableSize, 2048})
+	synctest.Wait()
+	// Table size should not be changed immediately. To avoid concurrent use of
+	// the encoder, we apply the size change right before we use the encoder to
+	// write frames.
+	if got, want := enc.MaxDynamicTableSize(), uint32(InitialHeaderTableSize); got != want {
+		t.Errorf("during frame write: encoder header table size = %d, want %d", got, want)
+	}
+	st.unblockServerWrites()
+	st.wantHeaders(wantHeader{streamID: 1, endStream: true})
+	st.wantSettingsAck()
+
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      3,
+		BlockFragment: st.encodeHeader(),
+		EndStream:     true,
+		EndHeaders:    true,
+	})
+	synctest.Wait()
+	hf := readFrame[*HeadersFrame](t, st)
+	if hf.StreamID != 3 {
+		t.Fatalf("got HEADERS for stream %d, want stream 3", hf.StreamID)
+	}
+	// The response must signal both the smallest (0) and the final (2048)
+	// table size (RFC 7541, Section 4.2), just like an encoder that saw both
+	// size changes directly.
+	var want bytes.Buffer
+	wantEnc := hpack.NewEncoder(&want)
+	wantEnc.SetMaxDynamicTableSize(0)
+	wantEnc.SetMaxDynamicTableSize(2048)
+	wantEnc.WriteField(hpack.HeaderField{Name: ":status", Value: "200"})
+	if got := hf.HeaderBlockFragment(); !bytes.HasPrefix(got, want.Bytes()) {
+		t.Errorf("stream 3 header block = %x, want prefix %x", got, want.Bytes())
+	}
+	if got, want := enc.MaxDynamicTableSize(), uint32(2048); got != want {
+		t.Errorf("after frame write: encoder header table size = %d, want %d", got, want)
+	}
+}
+
 // Issue 12843
 func TestServerDoS_MaxHeaderListSize(t *testing.T) { synctest.Test(t, testServerDoS_MaxHeaderListSize) }
 func testServerDoS_MaxHeaderListSize(t *testing.T) {

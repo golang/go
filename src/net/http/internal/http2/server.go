@@ -493,6 +493,9 @@ type serverConn struct {
 	needToSendSettingsAck       bool
 	unackedSettings             int    // how many SETTINGS have we sent without ACKs?
 	pendingDecoderTableSize     uint32 // if non-zero, HPACK decoder table size to apply on SETTINGS ack
+	pendingEncoderTableSize     bool   // peer changed SETTINGS_HEADER_TABLE_SIZE; apply to hpackEncoder before the next frame write
+	encoderTableSizeMin         uint32 // smallest SETTINGS_HEADER_TABLE_SIZE since the last apply
+	encoderTableSize            uint32 // latest SETTINGS_HEADER_TABLE_SIZE
 	queuedControlFrames         int    // control frames in the writeSched queue
 	clientMaxStreams            uint32 // SETTINGS_MAX_CONCURRENT_STREAMS from client (our PUSH_PROMISE limit)
 	advMaxStreams               uint32 // our SETTINGS_MAX_CONCURRENT_STREAMS advertised the client
@@ -1426,6 +1429,16 @@ func (sc *serverConn) startFrameWrite(wr FrameWriteRequest) {
 
 	sc.writingFrame = true
 	sc.needsFrameFlush = true
+	if sc.pendingEncoderTableSize {
+		// hpackEncoder may be in use by writeFrameAsync, so SETTINGS
+		// changes to it are deferred until no frame is being written.
+		// Replaying the smallest size before the latest one keeps the
+		// encoder's view identical to having applied every change
+		// (RFC 7541, Section 4.2).
+		sc.pendingEncoderTableSize = false
+		sc.hpackEncoder.SetMaxDynamicTableSize(sc.encoderTableSizeMin)
+		sc.hpackEncoder.SetMaxDynamicTableSize(sc.encoderTableSize)
+	}
 	if wr.write.staysWithinBuffer(sc.bw.Available()) {
 		sc.writingFrameAsync = false
 		err := wr.write.writeFrame(sc)
@@ -1915,7 +1928,12 @@ func (sc *serverConn) processSetting(s Setting) error {
 	}
 	switch s.ID {
 	case SettingHeaderTableSize:
-		sc.hpackEncoder.SetMaxDynamicTableSize(s.Val)
+		// Applied by startFrameWrite; see comment there.
+		if !sc.pendingEncoderTableSize || s.Val < sc.encoderTableSizeMin {
+			sc.encoderTableSizeMin = s.Val
+		}
+		sc.encoderTableSize = s.Val
+		sc.pendingEncoderTableSize = true
 	case SettingEnablePush:
 		sc.pushEnabled = s.Val != 0
 	case SettingMaxConcurrentStreams:
