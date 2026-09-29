@@ -6,6 +6,7 @@ package nettest
 
 import (
 	"context"
+	"errors"
 	"internal/gate"
 	"net"
 	"net/netip"
@@ -41,6 +42,7 @@ func (li *Listener) Close() error {
 	li.closed = true
 	li.acceptErr = net.ErrClosed
 	li.closeErr = net.ErrClosed
+	li.drainQueueLocked()
 	if err != nil {
 		return &net.OpError{
 			Op:   "close",
@@ -50,6 +52,18 @@ func (li *Listener) Close() error {
 		}
 	}
 	return err
+}
+
+var errClosedListener = errors.New("nettest: listener is closed")
+
+func (li *Listener) drainQueueLocked() {
+	for li.queue.len() > 0 {
+		conn := li.queue.pop()
+		conn.SetReadError(errClosedListener)
+		conn.SetWriteError(errClosedListener)
+		conn.Peer().SetReadError(errClosedListener)
+		conn.Peer().SetWriteError(errClosedListener)
+	}
 }
 
 // Addr returns the listener's network address.
@@ -95,6 +109,9 @@ func (li *Listener) NewConnConfig(f func(*Conn)) *Conn {
 	li.nextaddr = netip.AddrPortFrom(li.nextaddr.Addr(), li.nextaddr.Port()+1)
 	f(cli)
 	li.queue.push(srv)
+	if li.closed {
+		li.drainQueueLocked()
+	}
 	return cli
 }
 
