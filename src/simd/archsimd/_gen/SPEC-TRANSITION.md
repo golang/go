@@ -459,7 +459,7 @@ wherever its prerequisites and track allow.
 | [ ] | A | `impl-defined` | Implementation-defined behavior policy | — | — |
 | [x] | B | `specfill` | API walker + report mode | — | — |
 | [x] | B | `fill-gen` | Wire `specfill` into the generators | `specfill` | — |
-| [ ] | B | `named-results` | Reconcile parameter and result names with spec | `fill-gen` | — |
+| [x] | B | `named-results` | Reconcile parameter and result names with spec | `fill-gen` | — |
 | [ ] | B | `gen-docs` | Inject spec docs into generated output | `fill-gen` | `named-results` |
 | [ ] | B | `fill-enforce` | Signature + name mismatch becomes an error | `named-results` | — |
 | [ ] | C | `ci-audit` | CI/hardware audit | — | — |
@@ -871,7 +871,7 @@ wasmgen, midway.
 output is byte-identical to the previous tree.
 
 ### `named-results` — Reconcile parameter and result names with spec
-**Done:** [ ] · **Needs:** `fill-gen` · **Blocks:** `fill-enforce`
+**Done:** [x] · **Needs:** `fill-gen` · **Blocks:** `fill-enforce`
 
 Every declaration spec covers carries spec's parameter and result names. See
 §1.8. Declarations spec does not cover are out of scope; they gain names when
