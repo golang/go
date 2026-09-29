@@ -26,36 +26,19 @@ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
 length_check:
 	BEQZ	X12, done
 
-#ifndef EnableSmallSizeMemVector
-	MOV	$32, X23
-	BLT	X12, X23, loop4_check
-#endif
-
 #ifndef hasV
 	MOVB	internal∕cpu·RISCV64+const_offsetRISCV64HasV(SB), X5
 	BEQZ	X5, equal_scalar
 #endif
 
-#ifndef EnableSmallSizeMemVector
-	// Use vector if not 8 byte aligned.
-	OR	X10, X11, X5
-	AND	$7, X5
-	BNEZ	X5, vector_loop
-
-	// Use scalar if 8 byte aligned and <= 64 bytes.
-	SUB	$64, X12, X6
-	BLEZ	X6, loop32_check
-#endif
-
-#ifdef EnableSmallSizeMemVector
+	// Dispatch on the runtime VLEN to select the smallest vector LMUL
+	// that still covers the whole input, so that small comparisons
+	// are not penalised by using a wide vector.
 f_vector_dispatch:
-	MOV $16, X6
-#ifdef VLen_256
-	SLLI	$1, X6
-#endif
-#ifdef VLen_512
-	SLLI	$2, X6
-#endif
+	// X6 = VLEN in bytes (1*VLEN for LMUL=1), read at runtime so that
+	// the vector length of the target hardware does not need to be
+	// known at compile time.
+	MOV	internal∕cpu·RISCV64+const_offsetRISCV64VLENB(SB), X6
 	BGEU	X6, X12, vector_single
 	SLLI	$2, X6
 	BGTU	X12, X6, vector_loop
@@ -88,7 +71,6 @@ vector:
 	BGEZ	X6, done
 	SUB	X5, X12
 	JMP	done
-#endif
 
 // (4*vlen+1).. bytes
 	PCALIGN	$16
@@ -127,7 +109,6 @@ align:
 	BNEZ	X9, align
 #endif
 
-#ifndef EnableSmallSizeMemVector
 loop32_check:
 	MOV	$32, X9
 	BLT	X12, X9, loop16_check
@@ -196,7 +177,6 @@ loop1:
 	ADD	$1, X11
 	SUB	$1, X12
 	JMP	loop1
-#endif
 
 done:
 	// If X12 is zero then memory is equivalent.
