@@ -8,7 +8,7 @@ import "unsafe"
 
 // LoadInt8x16 loads an Int8x16 from a slice of elements.
 // If s does not have at least 16 elements, it panics.
-func LoadInt8x16(s []int8) Int8x16 {
+func LoadInt8x16(s []int8) (z Int8x16) {
 	return LoadInt8x16Array((*[16]int8)(s))
 }
 
@@ -20,7 +20,7 @@ func (x Int8x16) Store(s []int8) {
 
 // LoadInt16x8 loads an Int16x8 from a slice of elements.
 // If s does not have at least 8 elements, it panics.
-func LoadInt16x8(s []int16) Int16x8 {
+func LoadInt16x8(s []int16) (z Int16x8) {
 	return LoadInt16x8Array((*[8]int16)(s))
 }
 
@@ -32,7 +32,7 @@ func (x Int16x8) Store(s []int16) {
 
 // LoadInt32x4 loads an Int32x4 from a slice of elements.
 // If s does not have at least 4 elements, it panics.
-func LoadInt32x4(s []int32) Int32x4 {
+func LoadInt32x4(s []int32) (z Int32x4) {
 	return LoadInt32x4Array((*[4]int32)(s))
 }
 
@@ -44,7 +44,7 @@ func (x Int32x4) Store(s []int32) {
 
 // LoadInt64x2 loads an Int64x2 from a slice of elements.
 // If s does not have at least 2 elements, it panics.
-func LoadInt64x2(s []int64) Int64x2 {
+func LoadInt64x2(s []int64) (z Int64x2) {
 	return LoadInt64x2Array((*[2]int64)(s))
 }
 
@@ -56,7 +56,7 @@ func (x Int64x2) Store(s []int64) {
 
 // LoadUint8x16 loads an Uint8x16 from a slice of elements.
 // If s does not have at least 16 elements, it panics.
-func LoadUint8x16(s []uint8) Uint8x16 {
+func LoadUint8x16(s []uint8) (z Uint8x16) {
 	return LoadUint8x16Array((*[16]uint8)(s))
 }
 
@@ -68,7 +68,7 @@ func (x Uint8x16) Store(s []uint8) {
 
 // LoadUint16x8 loads an Uint16x8 from a slice of elements.
 // If s does not have at least 8 elements, it panics.
-func LoadUint16x8(s []uint16) Uint16x8 {
+func LoadUint16x8(s []uint16) (z Uint16x8) {
 	return LoadUint16x8Array((*[8]uint16)(s))
 }
 
@@ -80,7 +80,7 @@ func (x Uint16x8) Store(s []uint16) {
 
 // LoadUint32x4 loads an Uint32x4 from a slice of elements.
 // If s does not have at least 4 elements, it panics.
-func LoadUint32x4(s []uint32) Uint32x4 {
+func LoadUint32x4(s []uint32) (z Uint32x4) {
 	return LoadUint32x4Array((*[4]uint32)(s))
 }
 
@@ -92,7 +92,7 @@ func (x Uint32x4) Store(s []uint32) {
 
 // LoadUint64x2 loads an Uint64x2 from a slice of elements.
 // If s does not have at least 2 elements, it panics.
-func LoadUint64x2(s []uint64) Uint64x2 {
+func LoadUint64x2(s []uint64) (z Uint64x2) {
 	return LoadUint64x2Array((*[2]uint64)(s))
 }
 
@@ -104,7 +104,7 @@ func (x Uint64x2) Store(s []uint64) {
 
 // LoadFloat32x4 loads a Float32x4 from a slice of elements.
 // If s does not have at least 4 elements, it panics.
-func LoadFloat32x4(s []float32) Float32x4 {
+func LoadFloat32x4(s []float32) (z Float32x4) {
 	return LoadFloat32x4Array((*[4]float32)(s))
 }
 
@@ -116,7 +116,7 @@ func (x Float32x4) Store(s []float32) {
 
 // LoadFloat64x2 loads a Float64x2 from a slice of elements.
 // If s does not have at least 2 elements, it panics.
-func LoadFloat64x2(s []float64) Float64x2 {
+func LoadFloat64x2(s []float64) (z Float64x2) {
 	return LoadFloat64x2Array((*[2]float64)(s))
 }
 
@@ -128,7 +128,7 @@ func (x Float64x2) Store(s []float64) {
 
 // LoadInt8x32 loads an Int8x32 from a slice of elements.
 // If s does not have at least 32 elements, it panics.
-func LoadInt8x32(s []int8) Int8x32 {
+func LoadInt8x32(s []int8) (z Int8x32) {
 	return LoadInt8x32Array((*[32]int8)(s))
 }
 
@@ -140,7 +140,7 @@ func (x Int8x32) Store(s []int8) {
 
 // LoadInt16x16 loads an Int16x16 from a slice of elements.
 // If s does not have at least 16 elements, it panics.
-func LoadInt16x16(s []int16) Int16x16 {
+func LoadInt16x16(s []int16) (z Int16x16) {
 	return LoadInt16x16Array((*[16]int16)(s))
 }
 
@@ -152,7 +152,7 @@ func (x Int16x16) Store(s []int16) {
 
 // LoadInt32x8 loads an Int32x8 from a slice of elements.
 // If s does not have at least 8 elements, it panics.
-func LoadInt32x8(s []int32) Int32x8 {
+func LoadInt32x8(s []int32) (z Int32x8) {
 	return LoadInt32x8Array((*[8]int32)(s))
 }
 
@@ -164,7 +164,7 @@ func (x Int32x8) Store(s []int32) {
 
 // LoadInt64x4 loads an Int64x4 from a slice of elements.
 // If s does not have at least 4 elements, it panics.
-func LoadInt64x4(s []int64) Int64x4 {
+func LoadInt64x4(s []int64) (z Int64x4) {
 	return LoadInt64x4Array((*[4]int64)(s))
 }
 
@@ -176,7 +176,7 @@ func (x Int64x4) Store(s []int64) {
 
 // LoadUint8x32 loads an Uint8x32 from a slice of elements.
 // If s does not have at least 32 elements, it panics.
-func LoadUint8x32(s []uint8) Uint8x32 {
+func LoadUint8x32(s []uint8) (z Uint8x32) {
 	return LoadUint8x32Array((*[32]uint8)(s))
 }
 
@@ -188,7 +188,7 @@ func (x Uint8x32) Store(s []uint8) {
 
 // LoadUint16x16 loads an Uint16x16 from a slice of elements.
 // If s does not have at least 16 elements, it panics.
-func LoadUint16x16(s []uint16) Uint16x16 {
+func LoadUint16x16(s []uint16) (z Uint16x16) {
 	return LoadUint16x16Array((*[16]uint16)(s))
 }
 
@@ -200,7 +200,7 @@ func (x Uint16x16) Store(s []uint16) {
 
 // LoadUint32x8 loads an Uint32x8 from a slice of elements.
 // If s does not have at least 8 elements, it panics.
-func LoadUint32x8(s []uint32) Uint32x8 {
+func LoadUint32x8(s []uint32) (z Uint32x8) {
 	return LoadUint32x8Array((*[8]uint32)(s))
 }
 
@@ -212,7 +212,7 @@ func (x Uint32x8) Store(s []uint32) {
 
 // LoadUint64x4 loads an Uint64x4 from a slice of elements.
 // If s does not have at least 4 elements, it panics.
-func LoadUint64x4(s []uint64) Uint64x4 {
+func LoadUint64x4(s []uint64) (z Uint64x4) {
 	return LoadUint64x4Array((*[4]uint64)(s))
 }
 
@@ -224,7 +224,7 @@ func (x Uint64x4) Store(s []uint64) {
 
 // LoadFloat32x8 loads a Float32x8 from a slice of elements.
 // If s does not have at least 8 elements, it panics.
-func LoadFloat32x8(s []float32) Float32x8 {
+func LoadFloat32x8(s []float32) (z Float32x8) {
 	return LoadFloat32x8Array((*[8]float32)(s))
 }
 
@@ -236,7 +236,7 @@ func (x Float32x8) Store(s []float32) {
 
 // LoadFloat64x4 loads a Float64x4 from a slice of elements.
 // If s does not have at least 4 elements, it panics.
-func LoadFloat64x4(s []float64) Float64x4 {
+func LoadFloat64x4(s []float64) (z Float64x4) {
 	return LoadFloat64x4Array((*[4]float64)(s))
 }
 
@@ -248,7 +248,7 @@ func (x Float64x4) Store(s []float64) {
 
 // LoadInt8x64 loads an Int8x64 from a slice of elements.
 // If s does not have at least 64 elements, it panics.
-func LoadInt8x64(s []int8) Int8x64 {
+func LoadInt8x64(s []int8) (z Int8x64) {
 	return LoadInt8x64Array((*[64]int8)(s))
 }
 
@@ -260,7 +260,7 @@ func (x Int8x64) Store(s []int8) {
 
 // LoadInt16x32 loads an Int16x32 from a slice of elements.
 // If s does not have at least 32 elements, it panics.
-func LoadInt16x32(s []int16) Int16x32 {
+func LoadInt16x32(s []int16) (z Int16x32) {
 	return LoadInt16x32Array((*[32]int16)(s))
 }
 
@@ -272,7 +272,7 @@ func (x Int16x32) Store(s []int16) {
 
 // LoadInt32x16 loads an Int32x16 from a slice of elements.
 // If s does not have at least 16 elements, it panics.
-func LoadInt32x16(s []int32) Int32x16 {
+func LoadInt32x16(s []int32) (z Int32x16) {
 	return LoadInt32x16Array((*[16]int32)(s))
 }
 
@@ -284,7 +284,7 @@ func (x Int32x16) Store(s []int32) {
 
 // LoadInt64x8 loads an Int64x8 from a slice of elements.
 // If s does not have at least 8 elements, it panics.
-func LoadInt64x8(s []int64) Int64x8 {
+func LoadInt64x8(s []int64) (z Int64x8) {
 	return LoadInt64x8Array((*[8]int64)(s))
 }
 
@@ -296,7 +296,7 @@ func (x Int64x8) Store(s []int64) {
 
 // LoadUint8x64 loads an Uint8x64 from a slice of elements.
 // If s does not have at least 64 elements, it panics.
-func LoadUint8x64(s []uint8) Uint8x64 {
+func LoadUint8x64(s []uint8) (z Uint8x64) {
 	return LoadUint8x64Array((*[64]uint8)(s))
 }
 
@@ -308,7 +308,7 @@ func (x Uint8x64) Store(s []uint8) {
 
 // LoadUint16x32 loads an Uint16x32 from a slice of elements.
 // If s does not have at least 32 elements, it panics.
-func LoadUint16x32(s []uint16) Uint16x32 {
+func LoadUint16x32(s []uint16) (z Uint16x32) {
 	return LoadUint16x32Array((*[32]uint16)(s))
 }
 
@@ -320,7 +320,7 @@ func (x Uint16x32) Store(s []uint16) {
 
 // LoadUint32x16 loads an Uint32x16 from a slice of elements.
 // If s does not have at least 16 elements, it panics.
-func LoadUint32x16(s []uint32) Uint32x16 {
+func LoadUint32x16(s []uint32) (z Uint32x16) {
 	return LoadUint32x16Array((*[16]uint32)(s))
 }
 
@@ -332,7 +332,7 @@ func (x Uint32x16) Store(s []uint32) {
 
 // LoadUint64x8 loads an Uint64x8 from a slice of elements.
 // If s does not have at least 8 elements, it panics.
-func LoadUint64x8(s []uint64) Uint64x8 {
+func LoadUint64x8(s []uint64) (z Uint64x8) {
 	return LoadUint64x8Array((*[8]uint64)(s))
 }
 
@@ -344,7 +344,7 @@ func (x Uint64x8) Store(s []uint64) {
 
 // LoadFloat32x16 loads a Float32x16 from a slice of elements.
 // If s does not have at least 16 elements, it panics.
-func LoadFloat32x16(s []float32) Float32x16 {
+func LoadFloat32x16(s []float32) (z Float32x16) {
 	return LoadFloat32x16Array((*[16]float32)(s))
 }
 
@@ -356,7 +356,7 @@ func (x Float32x16) Store(s []float32) {
 
 // LoadFloat64x8 loads a Float64x8 from a slice of elements.
 // If s does not have at least 8 elements, it panics.
-func LoadFloat64x8(s []float64) Float64x8 {
+func LoadFloat64x8(s []float64) (z Float64x8) {
 	return LoadFloat64x8Array((*[8]float64)(s))
 }
 
@@ -370,7 +370,7 @@ func (x Float64x8) Store(s []float64) {
 // number of elements loaded.
 // If s has fewer than 64 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 64 or more elements, the function is equivalent to LoadInt8x64.
-func LoadInt8x64Part(s []int8) (Int8x64, int) {
+func LoadInt8x64Part(s []int8) (z Int8x64, n int) {
 	l := len(s)
 	if l >= 64 {
 		return LoadInt8x64(s), 64
@@ -404,7 +404,7 @@ func (x Int8x64) StorePart(s []int8) int {
 // number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 32 or more elements, the function is equivalent to LoadInt16x32.
-func LoadInt16x32Part(s []int16) (Int16x32, int) {
+func LoadInt16x32Part(s []int16) (z Int16x32, n int) {
 	l := len(s)
 	if l >= 32 {
 		return LoadInt16x32(s), 32
@@ -438,7 +438,7 @@ func (x Int16x32) StorePart(s []int16) int {
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadInt32x16.
-func LoadInt32x16Part(s []int32) (Int32x16, int) {
+func LoadInt32x16Part(s []int32) (z Int32x16, n int) {
 	l := len(s)
 	if l >= 16 {
 		return LoadInt32x16(s), 16
@@ -472,7 +472,7 @@ func (x Int32x16) StorePart(s []int32) int {
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadInt64x8.
-func LoadInt64x8Part(s []int64) (Int64x8, int) {
+func LoadInt64x8Part(s []int64) (z Int64x8, n int) {
 	l := len(s)
 	if l >= 8 {
 		return LoadInt64x8(s), 8
@@ -506,7 +506,7 @@ func (x Int64x8) StorePart(s []int64) int {
 // number of elements loaded.
 // If s has fewer than 64 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 64 or more elements, the function is equivalent to LoadUint8x64.
-func LoadUint8x64Part(s []uint8) (Uint8x64, int) {
+func LoadUint8x64Part(s []uint8) (z Uint8x64, n int) {
 	l := len(s)
 	if l >= 64 {
 		return LoadUint8x64(s), 64
@@ -540,7 +540,7 @@ func (x Uint8x64) StorePart(s []uint8) int {
 // number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 32 or more elements, the function is equivalent to LoadUint16x32.
-func LoadUint16x32Part(s []uint16) (Uint16x32, int) {
+func LoadUint16x32Part(s []uint16) (z Uint16x32, n int) {
 	l := len(s)
 	if l >= 32 {
 		return LoadUint16x32(s), 32
@@ -574,7 +574,7 @@ func (x Uint16x32) StorePart(s []uint16) int {
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadUint32x16.
-func LoadUint32x16Part(s []uint32) (Uint32x16, int) {
+func LoadUint32x16Part(s []uint32) (z Uint32x16, n int) {
 	l := len(s)
 	if l >= 16 {
 		return LoadUint32x16(s), 16
@@ -608,7 +608,7 @@ func (x Uint32x16) StorePart(s []uint32) int {
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadUint64x8.
-func LoadUint64x8Part(s []uint64) (Uint64x8, int) {
+func LoadUint64x8Part(s []uint64) (z Uint64x8, n int) {
 	l := len(s)
 	if l >= 8 {
 		return LoadUint64x8(s), 8
@@ -642,7 +642,7 @@ func (x Uint64x8) StorePart(s []uint64) int {
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadFloat32x16.
-func LoadFloat32x16Part(s []float32) (Float32x16, int) {
+func LoadFloat32x16Part(s []float32) (z Float32x16, n int) {
 	l := len(s)
 	if l >= 16 {
 		return LoadFloat32x16(s), 16
@@ -676,7 +676,7 @@ func (x Float32x16) StorePart(s []float32) int {
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadFloat64x8.
-func LoadFloat64x8Part(s []float64) (Float64x8, int) {
+func LoadFloat64x8Part(s []float64) (z Float64x8, n int) {
 	l := len(s)
 	if l >= 8 {
 		return LoadFloat64x8(s), 8
@@ -710,7 +710,7 @@ func (x Float64x8) StorePart(s []float64) int {
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadInt32x4.
-func LoadInt32x4Part(s []int32) (Int32x4, int) {
+func LoadInt32x4Part(s []int32) (z Int32x4, n int) {
 	l := len(s)
 	if l >= 4 {
 		return LoadInt32x4(s), 4
@@ -744,7 +744,7 @@ func (x Int32x4) StorePart(s []int32) int {
 // number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 2 or more elements, the function is equivalent to LoadInt64x2.
-func LoadInt64x2Part(s []int64) (Int64x2, int) {
+func LoadInt64x2Part(s []int64) (z Int64x2, n int) {
 	l := len(s)
 	if l >= 2 {
 		return LoadInt64x2(s), 2
@@ -778,7 +778,7 @@ func (x Int64x2) StorePart(s []int64) int {
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadUint32x4.
-func LoadUint32x4Part(s []uint32) (Uint32x4, int) {
+func LoadUint32x4Part(s []uint32) (z Uint32x4, n int) {
 	l := len(s)
 	if l >= 4 {
 		return LoadUint32x4(s), 4
@@ -812,7 +812,7 @@ func (x Uint32x4) StorePart(s []uint32) int {
 // number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 2 or more elements, the function is equivalent to LoadUint64x2.
-func LoadUint64x2Part(s []uint64) (Uint64x2, int) {
+func LoadUint64x2Part(s []uint64) (z Uint64x2, n int) {
 	l := len(s)
 	if l >= 2 {
 		return LoadUint64x2(s), 2
@@ -846,7 +846,7 @@ func (x Uint64x2) StorePart(s []uint64) int {
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadFloat32x4.
-func LoadFloat32x4Part(s []float32) (Float32x4, int) {
+func LoadFloat32x4Part(s []float32) (z Float32x4, n int) {
 	l := len(s)
 	if l >= 4 {
 		return LoadFloat32x4(s), 4
@@ -880,7 +880,7 @@ func (x Float32x4) StorePart(s []float32) int {
 // number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 2 or more elements, the function is equivalent to LoadFloat64x2.
-func LoadFloat64x2Part(s []float64) (Float64x2, int) {
+func LoadFloat64x2Part(s []float64) (z Float64x2, n int) {
 	l := len(s)
 	if l >= 2 {
 		return LoadFloat64x2(s), 2
@@ -914,7 +914,7 @@ func (x Float64x2) StorePart(s []float64) int {
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadInt32x8.
-func LoadInt32x8Part(s []int32) (Int32x8, int) {
+func LoadInt32x8Part(s []int32) (z Int32x8, n int) {
 	l := len(s)
 	if l >= 8 {
 		return LoadInt32x8(s), 8
@@ -948,7 +948,7 @@ func (x Int32x8) StorePart(s []int32) int {
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadInt64x4.
-func LoadInt64x4Part(s []int64) (Int64x4, int) {
+func LoadInt64x4Part(s []int64) (z Int64x4, n int) {
 	l := len(s)
 	if l >= 4 {
 		return LoadInt64x4(s), 4
@@ -982,7 +982,7 @@ func (x Int64x4) StorePart(s []int64) int {
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadUint32x8.
-func LoadUint32x8Part(s []uint32) (Uint32x8, int) {
+func LoadUint32x8Part(s []uint32) (z Uint32x8, n int) {
 	l := len(s)
 	if l >= 8 {
 		return LoadUint32x8(s), 8
@@ -1016,7 +1016,7 @@ func (x Uint32x8) StorePart(s []uint32) int {
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadUint64x4.
-func LoadUint64x4Part(s []uint64) (Uint64x4, int) {
+func LoadUint64x4Part(s []uint64) (z Uint64x4, n int) {
 	l := len(s)
 	if l >= 4 {
 		return LoadUint64x4(s), 4
@@ -1050,7 +1050,7 @@ func (x Uint64x4) StorePart(s []uint64) int {
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadFloat32x8.
-func LoadFloat32x8Part(s []float32) (Float32x8, int) {
+func LoadFloat32x8Part(s []float32) (z Float32x8, n int) {
 	l := len(s)
 	if l >= 8 {
 		return LoadFloat32x8(s), 8
@@ -1084,7 +1084,7 @@ func (x Float32x8) StorePart(s []float32) int {
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadFloat64x4.
-func LoadFloat64x4Part(s []float64) (Float64x4, int) {
+func LoadFloat64x4Part(s []float64) (z Float64x4, n int) {
 	l := len(s)
 	if l >= 4 {
 		return LoadFloat64x4(s), 4
@@ -1118,7 +1118,7 @@ func (x Float64x4) StorePart(s []float64) int {
 // number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 32 or more elements, the function is equivalent to LoadUint8x32.
-func LoadUint8x32Part(s []uint8) (Uint8x32, int) {
+func LoadUint8x32Part(s []uint8) (z Uint8x32, n int) {
 	if len(s) == 0 {
 		var zero Uint8x32
 		return zero, 0
@@ -1143,7 +1143,7 @@ func (x Uint8x32) StorePart(s []uint8) int {
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadUint16x16.
-func LoadUint16x16Part(s []uint16) (Uint16x16, int) {
+func LoadUint16x16Part(s []uint16) (z Uint16x16, n int) {
 	if len(s) == 0 {
 		var zero Uint16x16
 		return zero, 0

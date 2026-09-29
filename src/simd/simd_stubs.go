@@ -7,22 +7,22 @@
 package simd
 
 // LoadInt8s loads a slice of int8 into an Int8s vector.
-func LoadInt8s([]int8) Int8s
+func LoadInt8s(s []int8) (z Int8s)
 
 // LoadInt8sPart loads a partial slice of int8 into an Int8s vector, returning the vector and the number of elements loaded.
-func LoadInt8sPart([]int8) (Int8s, int)
+func LoadInt8sPart(s []int8) (z Int8s, n int)
 
 // BroadcastInt8s fills the elements of a slice with its argument value.
-func BroadcastInt8s(int8) Int8s
+func BroadcastInt8s(x int8) (z Int8s)
 
 // Abs returns the element-wise absolute value of x.
 func (x Int8s) Abs() Uint8s
 
 // Add returns the element-wise sum of x and y.
-func (x Int8s) Add(y Int8s) Int8s
+func (x Int8s) Add(y Int8s) (z Int8s)
 
 // AddSaturated returns the element-wise saturated sum of x and y.
-func (x Int8s) AddSaturated(y Int8s) Int8s
+func (x Int8s) AddSaturated(y Int8s) (z Int8s)
 
 // And returns the bitwise AND of x and y.
 func (x Int8s) And(y Int8s) Int8s
@@ -31,7 +31,7 @@ func (x Int8s) And(y Int8s) Int8s
 func (x Int8s) AndNot(y Int8s) Int8s
 
 // ConvertToUint8 converts the vector elements to uint8.
-func (x Int8s) ConvertToUint8() Uint8s
+func (x Int8s) ConvertToUint8() (z Uint8s)
 
 // Equal returns a mask indicating where x and y are equal.
 func (x Int8s) Equal(y Int8s) Mask8s
@@ -94,13 +94,13 @@ func (x Int8s) StorePart(s []int8) int
 func (x Int8s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Int8s) Sub(y Int8s) Int8s
+func (x Int8s) Sub(y Int8s) (z Int8s)
 
 // SubSaturated returns the element-wise saturated difference of x and y.
-func (x Int8s) SubSaturated(y Int8s) Int8s
+func (x Int8s) SubSaturated(y Int8s) (z Int8s)
 
 // ToBits reinterprets the vector bits as an unsigned integer vector.
-func (x Int8s) ToBits() Uint8s
+func (x Int8s) ToBits() (z Uint8s)
 
 // ToMask returns a mask representation of the vector.
 func (x Int8s) ToMask() (to Mask8s)
@@ -109,22 +109,22 @@ func (x Int8s) ToMask() (to Mask8s)
 func (x Int8s) Xor(y Int8s) Int8s
 
 // LoadInt16s loads a slice of int16 into an Int16s vector.
-func LoadInt16s([]int16) Int16s
+func LoadInt16s(s []int16) (z Int16s)
 
 // LoadInt16sPart loads a partial slice of int16 into an Int16s vector, returning the vector and the number of elements loaded.
-func LoadInt16sPart([]int16) (Int16s, int)
+func LoadInt16sPart(s []int16) (z Int16s, n int)
 
 // BroadcastInt16s fills the elements of a slice with its argument value.
-func BroadcastInt16s(int16) Int16s
+func BroadcastInt16s(x int16) (z Int16s)
 
 // Abs returns the element-wise absolute value of x.
 func (x Int16s) Abs() Uint16s
 
 // Add returns the element-wise sum of x and y.
-func (x Int16s) Add(y Int16s) Int16s
+func (x Int16s) Add(y Int16s) (z Int16s)
 
 // AddSaturated returns the element-wise saturated sum of x and y.
-func (x Int16s) AddSaturated(y Int16s) Int16s
+func (x Int16s) AddSaturated(y Int16s) (z Int16s)
 
 // And returns the bitwise AND of x and y.
 func (x Int16s) And(y Int16s) Int16s
@@ -133,7 +133,7 @@ func (x Int16s) And(y Int16s) Int16s
 func (x Int16s) AndNot(y Int16s) Int16s
 
 // ConvertToUint16 converts the vector elements to uint16.
-func (x Int16s) ConvertToUint16() Uint16s
+func (x Int16s) ConvertToUint16() (z Uint16s)
 
 // Equal returns a mask indicating where x and y are equal.
 func (x Int16s) Equal(y Int16s) Mask16s
@@ -184,10 +184,10 @@ func (x Int16s) Or(y Int16s) Int16s
 func (x Int16s) ReduceSum() int16
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int16s) ShiftAllLeft(shift uint64) Int16s
+func (x Int16s) ShiftAllLeft(shift uint64) (z Int16s)
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Int16s) ShiftAllRight(shift uint64) Int16s
+func (x Int16s) ShiftAllRight(shift uint64) (z Int16s)
 
 // Store stores the vector elements into the slice s.
 func (x Int16s) Store(s []int16)
@@ -199,13 +199,13 @@ func (x Int16s) StorePart(s []int16) int
 func (x Int16s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Int16s) Sub(y Int16s) Int16s
+func (x Int16s) Sub(y Int16s) (z Int16s)
 
 // SubSaturated returns the element-wise saturated difference of x and y.
-func (x Int16s) SubSaturated(y Int16s) Int16s
+func (x Int16s) SubSaturated(y Int16s) (z Int16s)
 
 // ToBits reinterprets the vector bits as an unsigned integer vector.
-func (x Int16s) ToBits() Uint16s
+func (x Int16s) ToBits() (z Uint16s)
 
 // ToMask returns a mask representation of the vector.
 func (x Int16s) ToMask() (to Mask16s)
@@ -214,19 +214,19 @@ func (x Int16s) ToMask() (to Mask16s)
 func (x Int16s) Xor(y Int16s) Int16s
 
 // LoadInt32s loads a slice of int32 into an Int32s vector.
-func LoadInt32s([]int32) Int32s
+func LoadInt32s(s []int32) (z Int32s)
 
 // LoadInt32sPart loads a partial slice of int32 into an Int32s vector, returning the vector and the number of elements loaded.
-func LoadInt32sPart([]int32) (Int32s, int)
+func LoadInt32sPart(s []int32) (z Int32s, n int)
 
 // BroadcastInt32s fills the elements of a slice with its argument value.
-func BroadcastInt32s(int32) Int32s
+func BroadcastInt32s(x int32) (z Int32s)
 
 // Abs returns the element-wise absolute value of x.
 func (x Int32s) Abs() Uint32s
 
 // Add returns the element-wise sum of x and y.
-func (x Int32s) Add(y Int32s) Int32s
+func (x Int32s) Add(y Int32s) (z Int32s)
 
 // And returns the bitwise AND of x and y.
 func (x Int32s) And(y Int32s) Int32s
@@ -235,10 +235,10 @@ func (x Int32s) And(y Int32s) Int32s
 func (x Int32s) AndNot(y Int32s) Int32s
 
 // ConvertToFloat32 converts the vector elements to float32.
-func (x Int32s) ConvertToFloat32() Float32s
+func (x Int32s) ConvertToFloat32() (z Float32s)
 
 // ConvertToUint32 converts the vector elements to uint32.
-func (x Int32s) ConvertToUint32() Uint32s
+func (x Int32s) ConvertToUint32() (z Uint32s)
 
 // Equal returns a mask indicating where x and y are equal.
 func (x Int32s) Equal(y Int32s) Mask32s
@@ -289,10 +289,10 @@ func (x Int32s) Or(y Int32s) Int32s
 func (x Int32s) ReduceSum() int32
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int32s) ShiftAllLeft(shift uint64) Int32s
+func (x Int32s) ShiftAllLeft(shift uint64) (z Int32s)
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Int32s) ShiftAllRight(shift uint64) Int32s
+func (x Int32s) ShiftAllRight(shift uint64) (z Int32s)
 
 // Store stores the vector elements into the slice s.
 func (x Int32s) Store(s []int32)
@@ -304,10 +304,10 @@ func (x Int32s) StorePart(s []int32) int
 func (x Int32s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Int32s) Sub(y Int32s) Int32s
+func (x Int32s) Sub(y Int32s) (z Int32s)
 
 // ToBits reinterprets the vector bits as an unsigned integer vector.
-func (x Int32s) ToBits() Uint32s
+func (x Int32s) ToBits() (z Uint32s)
 
 // ToMask returns a mask representation of the vector.
 func (x Int32s) ToMask() (to Mask32s)
@@ -316,16 +316,16 @@ func (x Int32s) ToMask() (to Mask32s)
 func (x Int32s) Xor(y Int32s) Int32s
 
 // LoadInt64s loads a slice of int64 into an Int64s vector.
-func LoadInt64s([]int64) Int64s
+func LoadInt64s(s []int64) (z Int64s)
 
 // LoadInt64sPart loads a partial slice of int64 into an Int64s vector, returning the vector and the number of elements loaded.
-func LoadInt64sPart([]int64) (Int64s, int)
+func LoadInt64sPart(s []int64) (z Int64s, n int)
 
 // BroadcastInt64s fills the elements of a slice with its argument value.
-func BroadcastInt64s(int64) Int64s
+func BroadcastInt64s(x int64) (z Int64s)
 
 // Add returns the element-wise sum of x and y.
-func (x Int64s) Add(y Int64s) Int64s
+func (x Int64s) Add(y Int64s) (z Int64s)
 
 // And returns the bitwise AND of x and y.
 func (x Int64s) And(y Int64s) Int64s
@@ -334,7 +334,7 @@ func (x Int64s) And(y Int64s) Int64s
 func (x Int64s) AndNot(y Int64s) Int64s
 
 // ConvertToUint64 converts the vector elements to uint64.
-func (x Int64s) ConvertToUint64() Uint64s
+func (x Int64s) ConvertToUint64() (z Uint64s)
 
 // Equal returns a mask indicating where x and y are equal.
 func (x Int64s) Equal(y Int64s) Mask64s
@@ -373,7 +373,7 @@ func (x Int64s) NotEqual(y Int64s) Mask64s
 func (x Int64s) Or(y Int64s) Int64s
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int64s) ShiftAllLeft(shift uint64) Int64s
+func (x Int64s) ShiftAllLeft(shift uint64) (z Int64s)
 
 // Store stores the vector elements into the slice s.
 func (x Int64s) Store(s []int64)
@@ -385,10 +385,10 @@ func (x Int64s) StorePart(s []int64) int
 func (x Int64s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Int64s) Sub(y Int64s) Int64s
+func (x Int64s) Sub(y Int64s) (z Int64s)
 
 // ToBits reinterprets the vector bits as an unsigned integer vector.
-func (x Int64s) ToBits() Uint64s
+func (x Int64s) ToBits() (z Uint64s)
 
 // ToMask returns a mask representation of the vector.
 func (x Int64s) ToMask() (to Mask64s)
@@ -397,19 +397,19 @@ func (x Int64s) ToMask() (to Mask64s)
 func (x Int64s) Xor(y Int64s) Int64s
 
 // LoadUint8s loads a slice of uint8 into an Uint8s vector.
-func LoadUint8s([]uint8) Uint8s
+func LoadUint8s(s []uint8) (z Uint8s)
 
 // LoadUint8sPart loads a partial slice of uint8 into an Uint8s vector, returning the vector and the number of elements loaded.
-func LoadUint8sPart([]uint8) (Uint8s, int)
+func LoadUint8sPart(s []uint8) (z Uint8s, n int)
 
 // BroadcastUint8s fills the elements of a slice with its argument value.
-func BroadcastUint8s(uint8) Uint8s
+func BroadcastUint8s(x uint8) (z Uint8s)
 
 // Add returns the element-wise sum of x and y.
-func (x Uint8s) Add(y Uint8s) Uint8s
+func (x Uint8s) Add(y Uint8s) (z Uint8s)
 
 // AddSaturated returns the element-wise saturated sum of x and y.
-func (x Uint8s) AddSaturated(y Uint8s) Uint8s
+func (x Uint8s) AddSaturated(y Uint8s) (z Uint8s)
 
 // And returns the bitwise AND of x and y.
 func (x Uint8s) And(y Uint8s) Uint8s
@@ -424,7 +424,7 @@ func (x Uint8s) Average(y Uint8s) Uint8s
 func (x Uint8s) BitsToInt8() Int8s
 
 // ConvertToInt8 converts the vector elements to int8.
-func (x Uint8s) ConvertToInt8() Int8s
+func (x Uint8s) ConvertToInt8() (z Int8s)
 
 // Equal returns a mask indicating where x and y are equal.
 func (x Uint8s) Equal(y Uint8s) Mask8s
@@ -463,13 +463,13 @@ func (x Uint8s) Or(y Uint8s) Uint8s
 func (x Uint8s) ReduceSum() uint8
 
 // ReshapeToUint16s reinterprets the vector bits as a Uint16s vector.
-func (x Uint8s) ReshapeToUint16s() Uint16s
+func (x Uint8s) ReshapeToUint16s() (z Uint16s)
 
 // ReshapeToUint32s reinterprets the vector bits as a Uint32s vector.
-func (x Uint8s) ReshapeToUint32s() Uint32s
+func (x Uint8s) ReshapeToUint32s() (z Uint32s)
 
 // ReshapeToUint64s reinterprets the vector bits as a Uint64s vector.
-func (x Uint8s) ReshapeToUint64s() Uint64s
+func (x Uint8s) ReshapeToUint64s() (z Uint64s)
 
 // Store stores the vector elements into the slice s.
 func (x Uint8s) Store(s []uint8)
@@ -481,28 +481,28 @@ func (x Uint8s) StorePart(s []uint8) int
 func (x Uint8s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Uint8s) Sub(y Uint8s) Uint8s
+func (x Uint8s) Sub(y Uint8s) (z Uint8s)
 
 // SubSaturated returns the element-wise saturated difference of x and y.
-func (x Uint8s) SubSaturated(y Uint8s) Uint8s
+func (x Uint8s) SubSaturated(y Uint8s) (z Uint8s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Uint8s) Xor(y Uint8s) Uint8s
 
 // LoadUint16s loads a slice of uint16 into an Uint16s vector.
-func LoadUint16s([]uint16) Uint16s
+func LoadUint16s(s []uint16) (z Uint16s)
 
 // LoadUint16sPart loads a partial slice of uint16 into an Uint16s vector, returning the vector and the number of elements loaded.
-func LoadUint16sPart([]uint16) (Uint16s, int)
+func LoadUint16sPart(s []uint16) (z Uint16s, n int)
 
 // BroadcastUint16s fills the elements of a slice with its argument value.
-func BroadcastUint16s(uint16) Uint16s
+func BroadcastUint16s(x uint16) (z Uint16s)
 
 // Add returns the element-wise sum of x and y.
-func (x Uint16s) Add(y Uint16s) Uint16s
+func (x Uint16s) Add(y Uint16s) (z Uint16s)
 
 // AddSaturated returns the element-wise saturated sum of x and y.
-func (x Uint16s) AddSaturated(y Uint16s) Uint16s
+func (x Uint16s) AddSaturated(y Uint16s) (z Uint16s)
 
 // And returns the bitwise AND of x and y.
 func (x Uint16s) And(y Uint16s) Uint16s
@@ -517,7 +517,7 @@ func (x Uint16s) Average(y Uint16s) Uint16s
 func (x Uint16s) BitsToInt16() Int16s
 
 // ConvertToInt16 converts the vector elements to int16.
-func (x Uint16s) ConvertToInt16() Int16s
+func (x Uint16s) ConvertToInt16() (z Int16s)
 
 // Equal returns a mask indicating where x and y are equal.
 func (x Uint16s) Equal(y Uint16s) Mask16s
@@ -565,13 +565,13 @@ func (x Uint16s) Or(y Uint16s) Uint16s
 func (x Uint16s) ReduceSum() uint16
 
 // ReshapeToUint32s reinterprets the vector bits as a Uint32s vector.
-func (x Uint16s) ReshapeToUint32s() Uint32s
+func (x Uint16s) ReshapeToUint32s() (z Uint32s)
 
 // ReshapeToUint64s reinterprets the vector bits as a Uint64s vector.
-func (x Uint16s) ReshapeToUint64s() Uint64s
+func (x Uint16s) ReshapeToUint64s() (z Uint64s)
 
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
-func (x Uint16s) ReshapeToUint8s() Uint8s
+func (x Uint16s) ReshapeToUint8s() (z Uint8s)
 
 // RotatesAllLeft rotates all elements left by y bits.
 func (x Uint16s) RotateAllLeft(dist uint64) Uint16s
@@ -580,10 +580,10 @@ func (x Uint16s) RotateAllLeft(dist uint64) Uint16s
 func (x Uint16s) RotateAllRight(dist uint64) Uint16s
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint16s) ShiftAllLeft(shift uint64) Uint16s
+func (x Uint16s) ShiftAllLeft(shift uint64) (z Uint16s)
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint16s) ShiftAllRight(shift uint64) Uint16s
+func (x Uint16s) ShiftAllRight(shift uint64) (z Uint16s)
 
 // Store stores the vector elements into the slice s.
 func (x Uint16s) Store(s []uint16)
@@ -595,25 +595,25 @@ func (x Uint16s) StorePart(s []uint16) int
 func (x Uint16s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Uint16s) Sub(y Uint16s) Uint16s
+func (x Uint16s) Sub(y Uint16s) (z Uint16s)
 
 // SubSaturated returns the element-wise saturated difference of x and y.
-func (x Uint16s) SubSaturated(y Uint16s) Uint16s
+func (x Uint16s) SubSaturated(y Uint16s) (z Uint16s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Uint16s) Xor(y Uint16s) Uint16s
 
 // LoadUint32s loads a slice of uint32 into an Uint32s vector.
-func LoadUint32s([]uint32) Uint32s
+func LoadUint32s(s []uint32) (z Uint32s)
 
 // LoadUint32sPart loads a partial slice of uint32 into an Uint32s vector, returning the vector and the number of elements loaded.
-func LoadUint32sPart([]uint32) (Uint32s, int)
+func LoadUint32sPart(s []uint32) (z Uint32s, n int)
 
 // BroadcastUint32s fills the elements of a slice with its argument value.
-func BroadcastUint32s(uint32) Uint32s
+func BroadcastUint32s(x uint32) (z Uint32s)
 
 // Add returns the element-wise sum of x and y.
-func (x Uint32s) Add(y Uint32s) Uint32s
+func (x Uint32s) Add(y Uint32s) (z Uint32s)
 
 // And returns the bitwise AND of x and y.
 func (x Uint32s) And(y Uint32s) Uint32s
@@ -628,7 +628,7 @@ func (x Uint32s) BitsToFloat32() Float32s
 func (x Uint32s) BitsToInt32() Int32s
 
 // ConvertToInt32 converts the vector elements to int32.
-func (x Uint32s) ConvertToInt32() Int32s
+func (x Uint32s) ConvertToInt32() (z Int32s)
 
 // Equal returns a mask indicating where x and y are equal.
 func (x Uint32s) Equal(y Uint32s) Mask32s
@@ -676,13 +676,13 @@ func (x Uint32s) Or(y Uint32s) Uint32s
 func (x Uint32s) ReduceSum() uint32
 
 // ReshapeToUint16s reinterprets the vector bits as a Uint16s vector.
-func (x Uint32s) ReshapeToUint16s() Uint16s
+func (x Uint32s) ReshapeToUint16s() (z Uint16s)
 
 // ReshapeToUint64s reinterprets the vector bits as a Uint64s vector.
-func (x Uint32s) ReshapeToUint64s() Uint64s
+func (x Uint32s) ReshapeToUint64s() (z Uint64s)
 
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
-func (x Uint32s) ReshapeToUint8s() Uint8s
+func (x Uint32s) ReshapeToUint8s() (z Uint8s)
 
 // RotatesAllLeft rotates all elements left by y bits.
 func (x Uint32s) RotateAllLeft(dist uint64) Uint32s
@@ -691,10 +691,10 @@ func (x Uint32s) RotateAllLeft(dist uint64) Uint32s
 func (x Uint32s) RotateAllRight(dist uint64) Uint32s
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint32s) ShiftAllLeft(shift uint64) Uint32s
+func (x Uint32s) ShiftAllLeft(shift uint64) (z Uint32s)
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint32s) ShiftAllRight(shift uint64) Uint32s
+func (x Uint32s) ShiftAllRight(shift uint64) (z Uint32s)
 
 // Store stores the vector elements into the slice s.
 func (x Uint32s) Store(s []uint32)
@@ -706,22 +706,22 @@ func (x Uint32s) StorePart(s []uint32) int
 func (x Uint32s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Uint32s) Sub(y Uint32s) Uint32s
+func (x Uint32s) Sub(y Uint32s) (z Uint32s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Uint32s) Xor(y Uint32s) Uint32s
 
 // LoadUint64s loads a slice of uint64 into an Uint64s vector.
-func LoadUint64s([]uint64) Uint64s
+func LoadUint64s(s []uint64) (z Uint64s)
 
 // LoadUint64sPart loads a partial slice of uint64 into an Uint64s vector, returning the vector and the number of elements loaded.
-func LoadUint64sPart([]uint64) (Uint64s, int)
+func LoadUint64sPart(s []uint64) (z Uint64s, n int)
 
 // BroadcastUint64s fills the elements of a slice with its argument value.
-func BroadcastUint64s(uint64) Uint64s
+func BroadcastUint64s(x uint64) (z Uint64s)
 
 // Add returns the element-wise sum of x and y.
-func (x Uint64s) Add(y Uint64s) Uint64s
+func (x Uint64s) Add(y Uint64s) (z Uint64s)
 
 // And returns the bitwise AND of x and y.
 func (x Uint64s) And(y Uint64s) Uint64s
@@ -768,7 +768,7 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) Uint64s
 func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) Uint64s
 
 // ConvertToInt64 converts the vector elements to int64.
-func (x Uint64s) ConvertToInt64() Int64s
+func (x Uint64s) ConvertToInt64() (z Int64s)
 
 // Equal returns a mask indicating where x and y are equal.
 func (x Uint64s) Equal(y Uint64s) Mask64s
@@ -804,13 +804,13 @@ func (x Uint64s) NotEqual(y Uint64s) Mask64s
 func (x Uint64s) Or(y Uint64s) Uint64s
 
 // ReshapeToUint16s reinterprets the vector bits as a Uint16s vector.
-func (x Uint64s) ReshapeToUint16s() Uint16s
+func (x Uint64s) ReshapeToUint16s() (z Uint16s)
 
 // ReshapeToUint32s reinterprets the vector bits as a Uint32s vector.
-func (x Uint64s) ReshapeToUint32s() Uint32s
+func (x Uint64s) ReshapeToUint32s() (z Uint32s)
 
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
-func (x Uint64s) ReshapeToUint8s() Uint8s
+func (x Uint64s) ReshapeToUint8s() (z Uint8s)
 
 // RotatesAllLeft rotates all elements left by y bits.
 func (x Uint64s) RotateAllLeft(dist uint64) Uint64s
@@ -819,10 +819,10 @@ func (x Uint64s) RotateAllLeft(dist uint64) Uint64s
 func (x Uint64s) RotateAllRight(dist uint64) Uint64s
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint64s) ShiftAllLeft(shift uint64) Uint64s
+func (x Uint64s) ShiftAllLeft(shift uint64) (z Uint64s)
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint64s) ShiftAllRight(shift uint64) Uint64s
+func (x Uint64s) ShiftAllRight(shift uint64) (z Uint64s)
 
 // Store stores the vector elements into the slice s.
 func (x Uint64s) Store(s []uint64)
@@ -834,28 +834,28 @@ func (x Uint64s) StorePart(s []uint64) int
 func (x Uint64s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Uint64s) Sub(y Uint64s) Uint64s
+func (x Uint64s) Sub(y Uint64s) (z Uint64s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Uint64s) Xor(y Uint64s) Uint64s
 
 // LoadFloat32s loads a slice of float32 into an Float32s vector.
-func LoadFloat32s([]float32) Float32s
+func LoadFloat32s(s []float32) (z Float32s)
 
 // LoadFloat32sPart loads a partial slice of float32 into an Float32s vector, returning the vector and the number of elements loaded.
-func LoadFloat32sPart([]float32) (Float32s, int)
+func LoadFloat32sPart(s []float32) (z Float32s, n int)
 
 // BroadcastFloat32s fills the elements of a slice with its argument value.
-func BroadcastFloat32s(float32) Float32s
+func BroadcastFloat32s(x float32) (z Float32s)
 
 // Abs returns the element-wise absolute value of x.
 func (x Float32s) Abs() Float32s
 
 // Add returns the element-wise sum of x and y.
-func (x Float32s) Add(y Float32s) Float32s
+func (x Float32s) Add(y Float32s) (z Float32s)
 
 // ConvertToInt32 converts the vector elements to int32.
-func (x Float32s) ConvertToInt32() Int32s
+func (x Float32s) ConvertToInt32() (z Int32s)
 
 // Div returns the element-wise quotient of x and y.
 func (x Float32s) Div(y Float32s) Float32s
@@ -918,25 +918,25 @@ func (x Float32s) StorePart(s []float32) int
 func (x Float32s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Float32s) Sub(y Float32s) Float32s
+func (x Float32s) Sub(y Float32s) (z Float32s)
 
 // ToBits reinterprets the vector bits as an unsigned integer vector.
-func (x Float32s) ToBits() Uint32s
+func (x Float32s) ToBits() (z Uint32s)
 
 // LoadFloat64s loads a slice of float64 into an Float64s vector.
-func LoadFloat64s([]float64) Float64s
+func LoadFloat64s(s []float64) (z Float64s)
 
 // LoadFloat64sPart loads a partial slice of float64 into an Float64s vector, returning the vector and the number of elements loaded.
-func LoadFloat64sPart([]float64) (Float64s, int)
+func LoadFloat64sPart(s []float64) (z Float64s, n int)
 
 // BroadcastFloat64s fills the elements of a slice with its argument value.
-func BroadcastFloat64s(float64) Float64s
+func BroadcastFloat64s(x float64) (z Float64s)
 
 // Abs returns the element-wise absolute value of x.
 func (x Float64s) Abs() Float64s
 
 // Add returns the element-wise sum of x and y.
-func (x Float64s) Add(y Float64s) Float64s
+func (x Float64s) Add(y Float64s) (z Float64s)
 
 // Div returns the element-wise quotient of x and y.
 func (x Float64s) Div(y Float64s) Float64s
@@ -999,10 +999,10 @@ func (x Float64s) StorePart(s []float64) int
 func (x Float64s) String() string
 
 // Sub returns the element-wise difference of x and y.
-func (x Float64s) Sub(y Float64s) Float64s
+func (x Float64s) Sub(y Float64s) (z Float64s)
 
 // ToBits reinterprets the vector bits as an unsigned integer vector.
-func (x Float64s) ToBits() Uint64s
+func (x Float64s) ToBits() (z Uint64s)
 
 // All returns true when all positions in mask x are true.
 func (x Mask8s) All() bool

@@ -755,10 +755,8 @@ func writeGoDefs(cl unify.Closure) error {
 
 	var files gentools.Files
 	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
-		AllowDocRewrite:     true,
-		AllowNameMismatches: true,
-		NoFillDoc:           true,
-		NoFillNames:         true,
+		AllowDocRewrite: true,
+		NoFillDoc:       true,
 	}))
 	defer files.FlushOrExit()
 

@@ -199,152 +199,152 @@ func (x Int64x8) Abs() Uint64x8
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VADDPS, CPU Feature: AVX
-func (x Float32x4) Add(y Float32x4) Float32x4
+func (x Float32x4) Add(y Float32x4) (z Float32x4)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VADDPS, CPU Feature: AVX
-func (x Float32x8) Add(y Float32x8) Float32x8
+func (x Float32x8) Add(y Float32x8) (z Float32x8)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VADDPS, CPU Feature: AVX512
-func (x Float32x16) Add(y Float32x16) Float32x16
+func (x Float32x16) Add(y Float32x16) (z Float32x16)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VADDPD, CPU Feature: AVX
-func (x Float64x2) Add(y Float64x2) Float64x2
+func (x Float64x2) Add(y Float64x2) (z Float64x2)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VADDPD, CPU Feature: AVX
-func (x Float64x4) Add(y Float64x4) Float64x4
+func (x Float64x4) Add(y Float64x4) (z Float64x4)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VADDPD, CPU Feature: AVX512
-func (x Float64x8) Add(y Float64x8) Float64x8
+func (x Float64x8) Add(y Float64x8) (z Float64x8)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX
-func (x Int8x16) Add(y Int8x16) Int8x16
+func (x Int8x16) Add(y Int8x16) (z Int8x16)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX2
-func (x Int8x32) Add(y Int8x32) Int8x32
+func (x Int8x32) Add(y Int8x32) (z Int8x32)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX512
-func (x Int8x64) Add(y Int8x64) Int8x64
+func (x Int8x64) Add(y Int8x64) (z Int8x64)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX
-func (x Int16x8) Add(y Int16x8) Int16x8
+func (x Int16x8) Add(y Int16x8) (z Int16x8)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX2
-func (x Int16x16) Add(y Int16x16) Int16x16
+func (x Int16x16) Add(y Int16x16) (z Int16x16)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX512
-func (x Int16x32) Add(y Int16x32) Int16x32
+func (x Int16x32) Add(y Int16x32) (z Int16x32)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX
-func (x Int32x4) Add(y Int32x4) Int32x4
+func (x Int32x4) Add(y Int32x4) (z Int32x4)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX2
-func (x Int32x8) Add(y Int32x8) Int32x8
+func (x Int32x8) Add(y Int32x8) (z Int32x8)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX512
-func (x Int32x16) Add(y Int32x16) Int32x16
+func (x Int32x16) Add(y Int32x16) (z Int32x16)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX
-func (x Int64x2) Add(y Int64x2) Int64x2
+func (x Int64x2) Add(y Int64x2) (z Int64x2)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX2
-func (x Int64x4) Add(y Int64x4) Int64x4
+func (x Int64x4) Add(y Int64x4) (z Int64x4)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX512
-func (x Int64x8) Add(y Int64x8) Int64x8
+func (x Int64x8) Add(y Int64x8) (z Int64x8)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX
-func (x Uint8x16) Add(y Uint8x16) Uint8x16
+func (x Uint8x16) Add(y Uint8x16) (z Uint8x16)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX2
-func (x Uint8x32) Add(y Uint8x32) Uint8x32
+func (x Uint8x32) Add(y Uint8x32) (z Uint8x32)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX512
-func (x Uint8x64) Add(y Uint8x64) Uint8x64
+func (x Uint8x64) Add(y Uint8x64) (z Uint8x64)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX
-func (x Uint16x8) Add(y Uint16x8) Uint16x8
+func (x Uint16x8) Add(y Uint16x8) (z Uint16x8)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX2
-func (x Uint16x16) Add(y Uint16x16) Uint16x16
+func (x Uint16x16) Add(y Uint16x16) (z Uint16x16)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX512
-func (x Uint16x32) Add(y Uint16x32) Uint16x32
+func (x Uint16x32) Add(y Uint16x32) (z Uint16x32)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX
-func (x Uint32x4) Add(y Uint32x4) Uint32x4
+func (x Uint32x4) Add(y Uint32x4) (z Uint32x4)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX2
-func (x Uint32x8) Add(y Uint32x8) Uint32x8
+func (x Uint32x8) Add(y Uint32x8) (z Uint32x8)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX512
-func (x Uint32x16) Add(y Uint32x16) Uint32x16
+func (x Uint32x16) Add(y Uint32x16) (z Uint32x16)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX
-func (x Uint64x2) Add(y Uint64x2) Uint64x2
+func (x Uint64x2) Add(y Uint64x2) (z Uint64x2)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX2
-func (x Uint64x4) Add(y Uint64x4) Uint64x4
+func (x Uint64x4) Add(y Uint64x4) (z Uint64x4)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX512
-func (x Uint64x8) Add(y Uint64x8) Uint64x8
+func (x Uint64x8) Add(y Uint64x8) (z Uint64x8)
 
 /* AddOddSubEven */
 
@@ -373,62 +373,62 @@ func (x Float64x4) AddOddSubEven(y Float64x4) Float64x4
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX
-func (x Int8x16) AddSaturated(y Int8x16) Int8x16
+func (x Int8x16) AddSaturated(y Int8x16) (z Int8x16)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX2
-func (x Int8x32) AddSaturated(y Int8x32) Int8x32
+func (x Int8x32) AddSaturated(y Int8x32) (z Int8x32)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX512
-func (x Int8x64) AddSaturated(y Int8x64) Int8x64
+func (x Int8x64) AddSaturated(y Int8x64) (z Int8x64)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX
-func (x Int16x8) AddSaturated(y Int16x8) Int16x8
+func (x Int16x8) AddSaturated(y Int16x8) (z Int16x8)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX2
-func (x Int16x16) AddSaturated(y Int16x16) Int16x16
+func (x Int16x16) AddSaturated(y Int16x16) (z Int16x16)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX512
-func (x Int16x32) AddSaturated(y Int16x32) Int16x32
+func (x Int16x32) AddSaturated(y Int16x32) (z Int16x32)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDUSB, CPU Feature: AVX
-func (x Uint8x16) AddSaturated(y Uint8x16) Uint8x16
+func (x Uint8x16) AddSaturated(y Uint8x16) (z Uint8x16)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDUSB, CPU Feature: AVX2
-func (x Uint8x32) AddSaturated(y Uint8x32) Uint8x32
+func (x Uint8x32) AddSaturated(y Uint8x32) (z Uint8x32)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDUSB, CPU Feature: AVX512
-func (x Uint8x64) AddSaturated(y Uint8x64) Uint8x64
+func (x Uint8x64) AddSaturated(y Uint8x64) (z Uint8x64)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDUSW, CPU Feature: AVX
-func (x Uint16x8) AddSaturated(y Uint16x8) Uint16x8
+func (x Uint16x8) AddSaturated(y Uint16x8) (z Uint16x8)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDUSW, CPU Feature: AVX2
-func (x Uint16x16) AddSaturated(y Uint16x16) Uint16x16
+func (x Uint16x16) AddSaturated(y Uint16x16) (z Uint16x16)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDUSW, CPU Feature: AVX512
-func (x Uint16x32) AddSaturated(y Uint16x32) Uint16x32
+func (x Uint16x32) AddSaturated(y Uint16x32) (z Uint16x32)
 
 /* And */
 
@@ -1004,37 +1004,37 @@ func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VHADDPS, CPU Feature: AVX
-func (x Float32x4) ConcatAddPairs(y Float32x4) Float32x4
+func (x Float32x4) ConcatAddPairs(y Float32x4) (z Float32x4)
 
 // ConcatAddPairs horizontally adds adjacent pairs of elements.
 // For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
 //
 // Asm: VHADDPD, CPU Feature: AVX
-func (x Float64x2) ConcatAddPairs(y Float64x2) Float64x2
+func (x Float64x2) ConcatAddPairs(y Float64x2) (z Float64x2)
 
 // ConcatAddPairs horizontally adds adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX
-func (x Int16x8) ConcatAddPairs(y Int16x8) Int16x8
+func (x Int16x8) ConcatAddPairs(y Int16x8) (z Int16x8)
 
 // ConcatAddPairs horizontally adds adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX
-func (x Int32x4) ConcatAddPairs(y Int32x4) Int32x4
+func (x Int32x4) ConcatAddPairs(y Int32x4) (z Int32x4)
 
 // ConcatAddPairs horizontally adds adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX
-func (x Uint16x8) ConcatAddPairs(y Uint16x8) Uint16x8
+func (x Uint16x8) ConcatAddPairs(y Uint16x8) (z Uint16x8)
 
 // ConcatAddPairs horizontally adds adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX
-func (x Uint32x4) ConcatAddPairs(y Uint32x4) Uint32x4
+func (x Uint32x4) ConcatAddPairs(y Uint32x4) (z Uint32x4)
 
 /* ConcatAddPairsGrouped */
 
@@ -1043,42 +1043,42 @@ func (x Uint32x4) ConcatAddPairs(y Uint32x4) Uint32x4
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VHADDPS, CPU Feature: AVX
-func (x Float32x8) ConcatAddPairsGrouped(y Float32x8) Float32x8
+func (x Float32x8) ConcatAddPairsGrouped(y Float32x8) (z Float32x8)
 
 // ConcatAddPairsGrouped horizontally adds adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
 //
 // Asm: VHADDPD, CPU Feature: AVX
-func (x Float64x4) ConcatAddPairsGrouped(y Float64x4) Float64x4
+func (x Float64x4) ConcatAddPairsGrouped(y Float64x4) (z Float64x4)
 
 // ConcatAddPairsGrouped horizontally adds adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX2
-func (x Int16x16) ConcatAddPairsGrouped(y Int16x16) Int16x16
+func (x Int16x16) ConcatAddPairsGrouped(y Int16x16) (z Int16x16)
 
 // ConcatAddPairsGrouped horizontally adds adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX2
-func (x Int32x8) ConcatAddPairsGrouped(y Int32x8) Int32x8
+func (x Int32x8) ConcatAddPairsGrouped(y Int32x8) (z Int32x8)
 
 // ConcatAddPairsGrouped horizontally adds adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX2
-func (x Uint16x16) ConcatAddPairsGrouped(y Uint16x16) Uint16x16
+func (x Uint16x16) ConcatAddPairsGrouped(y Uint16x16) (z Uint16x16)
 
 // ConcatAddPairsGrouped horizontally adds adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX2
-func (x Uint32x8) ConcatAddPairsGrouped(y Uint32x8) Uint32x8
+func (x Uint32x8) ConcatAddPairsGrouped(y Uint32x8) (z Uint32x8)
 
 /* ConcatAddPairsSaturated */
 
@@ -1086,7 +1086,7 @@ func (x Uint32x8) ConcatAddPairsGrouped(y Uint32x8) Uint32x8
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDSW, CPU Feature: AVX
-func (x Int16x8) ConcatAddPairsSaturated(y Int16x8) Int16x8
+func (x Int16x8) ConcatAddPairsSaturated(y Int16x8) (z Int16x8)
 
 /* ConcatAddPairsSaturatedGrouped */
 
@@ -1095,7 +1095,7 @@ func (x Int16x8) ConcatAddPairsSaturated(y Int16x8) Int16x8
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VPHADDSW, CPU Feature: AVX2
-func (x Int16x16) ConcatAddPairsSaturatedGrouped(y Int16x16) Int16x16
+func (x Int16x16) ConcatAddPairsSaturatedGrouped(y Int16x16) (z Int16x16)
 
 /* ConcatPermute */
 
@@ -1655,37 +1655,37 @@ func (x Uint8x64) ConcatShiftBytesRightGrouped(y Uint8x64, shift uint64) Uint8x6
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VHSUBPS, CPU Feature: AVX
-func (x Float32x4) ConcatSubPairs(y Float32x4) Float32x4
+func (x Float32x4) ConcatSubPairs(y Float32x4) (z Float32x4)
 
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements.
 // For x = [x0, x1] and y = [y0, y1], the result is [x0-x1, y0-y1].
 //
 // Asm: VHSUBPD, CPU Feature: AVX
-func (x Float64x2) ConcatSubPairs(y Float64x2) Float64x2
+func (x Float64x2) ConcatSubPairs(y Float64x2) (z Float64x2)
 
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX
-func (x Int16x8) ConcatSubPairs(y Int16x8) Int16x8
+func (x Int16x8) ConcatSubPairs(y Int16x8) (z Int16x8)
 
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX
-func (x Int32x4) ConcatSubPairs(y Int32x4) Int32x4
+func (x Int32x4) ConcatSubPairs(y Int32x4) (z Int32x4)
 
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX
-func (x Uint16x8) ConcatSubPairs(y Uint16x8) Uint16x8
+func (x Uint16x8) ConcatSubPairs(y Uint16x8) (z Uint16x8)
 
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX
-func (x Uint32x4) ConcatSubPairs(y Uint32x4) Uint32x4
+func (x Uint32x4) ConcatSubPairs(y Uint32x4) (z Uint32x4)
 
 /* ConcatSubPairsGrouped */
 
@@ -1694,42 +1694,42 @@ func (x Uint32x4) ConcatSubPairs(y Uint32x4) Uint32x4
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VHSUBPS, CPU Feature: AVX
-func (x Float32x8) ConcatSubPairsGrouped(y Float32x8) Float32x8
+func (x Float32x8) ConcatSubPairsGrouped(y Float32x8) (z Float32x8)
 
 // ConcatSubPairsGrouped horizontally subtracts adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1] and y = [y0, y1], the result is [x0-x1, y0-y1].
 //
 // Asm: VHSUBPD, CPU Feature: AVX
-func (x Float64x4) ConcatSubPairsGrouped(y Float64x4) Float64x4
+func (x Float64x4) ConcatSubPairsGrouped(y Float64x4) (z Float64x4)
 
 // ConcatSubPairsGrouped horizontally subtracts adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX2
-func (x Int16x16) ConcatSubPairsGrouped(y Int16x16) Int16x16
+func (x Int16x16) ConcatSubPairsGrouped(y Int16x16) (z Int16x16)
 
 // ConcatSubPairsGrouped horizontally subtracts adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX2
-func (x Int32x8) ConcatSubPairsGrouped(y Int32x8) Int32x8
+func (x Int32x8) ConcatSubPairsGrouped(y Int32x8) (z Int32x8)
 
 // ConcatSubPairsGrouped horizontally subtracts adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX2
-func (x Uint16x16) ConcatSubPairsGrouped(y Uint16x16) Uint16x16
+func (x Uint16x16) ConcatSubPairsGrouped(y Uint16x16) (z Uint16x16)
 
 // ConcatSubPairsGrouped horizontally subtracts adjacent pairs of elements.
 // With each 128-bit as a group:
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX2
-func (x Uint32x8) ConcatSubPairsGrouped(y Uint32x8) Uint32x8
+func (x Uint32x8) ConcatSubPairsGrouped(y Uint32x8) (z Uint32x8)
 
 /* ConcatSubPairsSaturated */
 
@@ -1737,7 +1737,7 @@ func (x Uint32x8) ConcatSubPairsGrouped(y Uint32x8) Uint32x8
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBSW, CPU Feature: AVX
-func (x Int16x8) ConcatSubPairsSaturated(y Int16x8) Int16x8
+func (x Int16x8) ConcatSubPairsSaturated(y Int16x8) (z Int16x8)
 
 /* ConcatSubPairsSaturatedGrouped */
 
@@ -1746,7 +1746,7 @@ func (x Int16x8) ConcatSubPairsSaturated(y Int16x8) Int16x8
 // for x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0-x1, x2-x3, ..., y0-y1, y2-y3, ...].
 //
 // Asm: VPHSUBSW, CPU Feature: AVX2
-func (x Int16x16) ConcatSubPairsSaturatedGrouped(y Int16x16) Int16x16
+func (x Int16x16) ConcatSubPairsSaturatedGrouped(y Int16x16) (z Int16x16)
 
 /* ConvertToFloat32 */
 
@@ -1754,141 +1754,141 @@ func (x Int16x16) ConcatSubPairsSaturatedGrouped(y Int16x16) Int16x16
 // The result vector's elements are rounded to the nearest value.
 //
 // Asm: VCVTPD2PSX, CPU Feature: AVX
-func (x Float64x2) ConvertToFloat32() Float32x4
+func (x Float64x2) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts element values to float32.
 // The result vector's elements are rounded to the nearest value.
 //
 // Asm: VCVTPD2PSY, CPU Feature: AVX
-func (x Float64x4) ConvertToFloat32() Float32x4
+func (x Float64x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts element values to float32.
 // The result vector's elements are rounded to the nearest value.
 //
 // Asm: VCVTPD2PS, CPU Feature: AVX512
-func (x Float64x8) ConvertToFloat32() Float32x8
+func (x Float64x8) ConvertToFloat32() (z Float32x8)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTDQ2PS, CPU Feature: AVX
-func (x Int32x4) ConvertToFloat32() Float32x4
+func (x Int32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTDQ2PS, CPU Feature: AVX
-func (x Int32x8) ConvertToFloat32() Float32x8
+func (x Int32x8) ConvertToFloat32() (z Float32x8)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTDQ2PS, CPU Feature: AVX512
-func (x Int32x16) ConvertToFloat32() Float32x16
+func (x Int32x16) ConvertToFloat32() (z Float32x16)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTQQ2PSX, CPU Feature: AVX512
-func (x Int64x2) ConvertToFloat32() Float32x4
+func (x Int64x2) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTQQ2PSY, CPU Feature: AVX512
-func (x Int64x4) ConvertToFloat32() Float32x4
+func (x Int64x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTQQ2PS, CPU Feature: AVX512
-func (x Int64x8) ConvertToFloat32() Float32x8
+func (x Int64x8) ConvertToFloat32() (z Float32x8)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTUDQ2PS, CPU Feature: AVX512
-func (x Uint32x4) ConvertToFloat32() Float32x4
+func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTUDQ2PS, CPU Feature: AVX512
-func (x Uint32x8) ConvertToFloat32() Float32x8
+func (x Uint32x8) ConvertToFloat32() (z Float32x8)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTUDQ2PS, CPU Feature: AVX512
-func (x Uint32x16) ConvertToFloat32() Float32x16
+func (x Uint32x16) ConvertToFloat32() (z Float32x16)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTUQQ2PSX, CPU Feature: AVX512
-func (x Uint64x2) ConvertToFloat32() Float32x4
+func (x Uint64x2) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTUQQ2PSY, CPU Feature: AVX512
-func (x Uint64x4) ConvertToFloat32() Float32x4
+func (x Uint64x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts element values to float32.
 //
 // Asm: VCVTUQQ2PS, CPU Feature: AVX512
-func (x Uint64x8) ConvertToFloat32() Float32x8
+func (x Uint64x8) ConvertToFloat32() (z Float32x8)
 
 /* ConvertToFloat64 */
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTPS2PD, CPU Feature: AVX
-func (x Float32x4) ConvertToFloat64() Float64x4
+func (x Float32x4) ConvertToFloat64() (z Float64x4)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTPS2PD, CPU Feature: AVX512
-func (x Float32x8) ConvertToFloat64() Float64x8
+func (x Float32x8) ConvertToFloat64() (z Float64x8)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTDQ2PD, CPU Feature: AVX
-func (x Int32x4) ConvertToFloat64() Float64x4
+func (x Int32x4) ConvertToFloat64() (z Float64x4)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTDQ2PD, CPU Feature: AVX512
-func (x Int32x8) ConvertToFloat64() Float64x8
+func (x Int32x8) ConvertToFloat64() (z Float64x8)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTQQ2PD, CPU Feature: AVX512
-func (x Int64x2) ConvertToFloat64() Float64x2
+func (x Int64x2) ConvertToFloat64() (z Float64x2)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTQQ2PD, CPU Feature: AVX512
-func (x Int64x4) ConvertToFloat64() Float64x4
+func (x Int64x4) ConvertToFloat64() (z Float64x4)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTQQ2PD, CPU Feature: AVX512
-func (x Int64x8) ConvertToFloat64() Float64x8
+func (x Int64x8) ConvertToFloat64() (z Float64x8)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTUDQ2PD, CPU Feature: AVX512
-func (x Uint32x4) ConvertToFloat64() Float64x4
+func (x Uint32x4) ConvertToFloat64() (z Float64x4)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTUDQ2PD, CPU Feature: AVX512
-func (x Uint32x8) ConvertToFloat64() Float64x8
+func (x Uint32x8) ConvertToFloat64() (z Float64x8)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTUQQ2PD, CPU Feature: AVX512
-func (x Uint64x2) ConvertToFloat64() Float64x2
+func (x Uint64x2) ConvertToFloat64() (z Float64x2)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTUQQ2PD, CPU Feature: AVX512
-func (x Uint64x4) ConvertToFloat64() Float64x4
+func (x Uint64x4) ConvertToFloat64() (z Float64x4)
 
 // ConvertToFloat64 converts element values to float64.
 //
 // Asm: VCVTUQQ2PD, CPU Feature: AVX512
-func (x Uint64x8) ConvertToFloat64() Float64x8
+func (x Uint64x8) ConvertToFloat64() (z Float64x8)
 
 /* ConvertToInt32 */
 
@@ -1898,7 +1898,7 @@ func (x Uint64x8) ConvertToFloat64() Float64x8
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX
-func (x Float32x4) ConvertToInt32() Int32x4
+func (x Float32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1906,7 +1906,7 @@ func (x Float32x4) ConvertToInt32() Int32x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX
-func (x Float32x8) ConvertToInt32() Int32x8
+func (x Float32x8) ConvertToInt32() (z Int32x8)
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1914,7 +1914,7 @@ func (x Float32x8) ConvertToInt32() Int32x8
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX512
-func (x Float32x16) ConvertToInt32() Int32x16
+func (x Float32x16) ConvertToInt32() (z Int32x16)
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1922,7 +1922,7 @@ func (x Float32x16) ConvertToInt32() Int32x16
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2DQX, CPU Feature: AVX
-func (x Float64x2) ConvertToInt32() Int32x4
+func (x Float64x2) ConvertToInt32() (z Int32x4)
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1930,7 +1930,7 @@ func (x Float64x2) ConvertToInt32() Int32x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2DQY, CPU Feature: AVX
-func (x Float64x4) ConvertToInt32() Int32x4
+func (x Float64x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToInt32 converts element values to int32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1938,7 +1938,7 @@ func (x Float64x4) ConvertToInt32() Int32x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2DQ, CPU Feature: AVX512
-func (x Float64x8) ConvertToInt32() Int32x8
+func (x Float64x8) ConvertToInt32() (z Int32x8)
 
 /* ConvertToInt64 */
 
@@ -1948,7 +1948,7 @@ func (x Float64x8) ConvertToInt32() Int32x8
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2QQ, CPU Feature: AVX512
-func (x Float32x4) ConvertToInt64() Int64x4
+func (x Float32x4) ConvertToInt64() (z Int64x4)
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1956,7 +1956,7 @@ func (x Float32x4) ConvertToInt64() Int64x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2QQ, CPU Feature: AVX512
-func (x Float32x8) ConvertToInt64() Int64x8
+func (x Float32x8) ConvertToInt64() (z Int64x8)
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1964,7 +1964,7 @@ func (x Float32x8) ConvertToInt64() Int64x8
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
-func (x Float64x2) ConvertToInt64() Int64x2
+func (x Float64x2) ConvertToInt64() (z Int64x2)
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1972,7 +1972,7 @@ func (x Float64x2) ConvertToInt64() Int64x2
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
-func (x Float64x4) ConvertToInt64() Int64x4
+func (x Float64x4) ConvertToInt64() (z Int64x4)
 
 // ConvertToInt64 converts element values to int64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1980,7 +1980,7 @@ func (x Float64x4) ConvertToInt64() Int64x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
-func (x Float64x8) ConvertToInt64() Int64x8
+func (x Float64x8) ConvertToInt64() (z Int64x8)
 
 /* ConvertToUint32 */
 
@@ -1990,7 +1990,7 @@ func (x Float64x8) ConvertToInt64() Int64x8
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
-func (x Float32x4) ConvertToUint32() Uint32x4
+func (x Float32x4) ConvertToUint32() (z Uint32x4)
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -1998,7 +1998,7 @@ func (x Float32x4) ConvertToUint32() Uint32x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
-func (x Float32x8) ConvertToUint32() Uint32x8
+func (x Float32x8) ConvertToUint32() (z Uint32x8)
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -2006,7 +2006,7 @@ func (x Float32x8) ConvertToUint32() Uint32x8
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
-func (x Float32x16) ConvertToUint32() Uint32x16
+func (x Float32x16) ConvertToUint32() (z Uint32x16)
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -2014,7 +2014,7 @@ func (x Float32x16) ConvertToUint32() Uint32x16
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UDQX, CPU Feature: AVX512
-func (x Float64x2) ConvertToUint32() Uint32x4
+func (x Float64x2) ConvertToUint32() (z Uint32x4)
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -2022,7 +2022,7 @@ func (x Float64x2) ConvertToUint32() Uint32x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UDQY, CPU Feature: AVX512
-func (x Float64x4) ConvertToUint32() Uint32x4
+func (x Float64x4) ConvertToUint32() (z Uint32x4)
 
 // ConvertToUint32 converts element values to uint32.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -2030,7 +2030,7 @@ func (x Float64x4) ConvertToUint32() Uint32x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UDQ, CPU Feature: AVX512
-func (x Float64x8) ConvertToUint32() Uint32x8
+func (x Float64x8) ConvertToUint32() (z Uint32x8)
 
 /* ConvertToUint64 */
 
@@ -2040,7 +2040,7 @@ func (x Float64x8) ConvertToUint32() Uint32x8
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UQQ, CPU Feature: AVX512
-func (x Float32x4) ConvertToUint64() Uint64x4
+func (x Float32x4) ConvertToUint64() (z Uint64x4)
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -2048,7 +2048,7 @@ func (x Float32x4) ConvertToUint64() Uint64x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPS2UQQ, CPU Feature: AVX512
-func (x Float32x8) ConvertToUint64() Uint64x8
+func (x Float32x8) ConvertToUint64() (z Uint64x8)
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -2056,7 +2056,7 @@ func (x Float32x8) ConvertToUint64() Uint64x8
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
-func (x Float64x2) ConvertToUint64() Uint64x2
+func (x Float64x2) ConvertToUint64() (z Uint64x2)
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -2064,7 +2064,7 @@ func (x Float64x2) ConvertToUint64() Uint64x2
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
-func (x Float64x4) ConvertToUint64() Uint64x4
+func (x Float64x4) ConvertToUint64() (z Uint64x4)
 
 // ConvertToUint64 converts element values to uint64.
 // When a conversion is inexact, a truncated (round toward zero) value is returned.
@@ -2072,7 +2072,7 @@ func (x Float64x4) ConvertToUint64() Uint64x4
 // architecture-specific value is returned.
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
-func (x Float64x8) ConvertToUint64() Uint64x8
+func (x Float64x8) ConvertToUint64() (z Uint64x8)
 
 /* Div */
 
@@ -2112,19 +2112,19 @@ func (x Float64x8) Div(y Float64x8) Float64x8
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX
-func (x Int16x8) DotProductPairs(y Int16x8) Int32x4
+func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4)
 
 // DotProductPairs multiplies the elements and add the pairs together,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX2
-func (x Int16x16) DotProductPairs(y Int16x16) Int32x8
+func (x Int16x16) DotProductPairs(y Int16x16) (z Int32x8)
 
 // DotProductPairs multiplies the elements and add the pairs together,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512
-func (x Int16x32) DotProductPairs(y Int16x32) Int32x16
+func (x Int16x32) DotProductPairs(y Int16x32) (z Int32x16)
 
 /* DotProductPairsSaturated */
 
@@ -2132,19 +2132,19 @@ func (x Int16x32) DotProductPairs(y Int16x32) Int32x16
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX
-func (x Uint8x16) DotProductPairsSaturated(y Int8x16) Int16x8
+func (x Uint8x16) DotProductPairsSaturated(y Int8x16) (z Int16x8)
 
 // DotProductPairsSaturated multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX2
-func (x Uint8x32) DotProductPairsSaturated(y Int8x32) Int16x16
+func (x Uint8x32) DotProductPairsSaturated(y Int8x32) (z Int16x16)
 
 // DotProductPairsSaturated multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512
-func (x Uint8x64) DotProductPairsSaturated(y Int8x64) Int16x32
+func (x Uint8x64) DotProductPairsSaturated(y Int8x64) (z Int16x32)
 
 /* Equal */
 
@@ -2455,46 +2455,46 @@ func (x Uint64x8) Expand(mask Mask64x8) Uint64x8
 // ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
 //
 // Asm: VPMOVSXBQ, CPU Feature: AVX
-func (x Int8x16) ExtendLo2ToInt64() Int64x2
+func (x Int8x16) ExtendLo2ToInt64() (z Int64x2)
 
 // ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
 //
 // Asm: VPMOVSXWQ, CPU Feature: AVX
-func (x Int16x8) ExtendLo2ToInt64() Int64x2
+func (x Int16x8) ExtendLo2ToInt64() (z Int64x2)
 
 // ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
 //
 // Asm: VPMOVSXDQ, CPU Feature: AVX
-func (x Int32x4) ExtendLo2ToInt64() Int64x2
+func (x Int32x4) ExtendLo2ToInt64() (z Int64x2)
 
 /* ExtendLo2ToUint64 */
 
 // ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXBQ, CPU Feature: AVX
-func (x Uint8x16) ExtendLo2ToUint64() Uint64x2
+func (x Uint8x16) ExtendLo2ToUint64() (z Uint64x2)
 
 // ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXWQ, CPU Feature: AVX
-func (x Uint16x8) ExtendLo2ToUint64() Uint64x2
+func (x Uint16x8) ExtendLo2ToUint64() (z Uint64x2)
 
 // ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
 //
 // Asm: VPMOVZXDQ, CPU Feature: AVX
-func (x Uint32x4) ExtendLo2ToUint64() Uint64x2
+func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2)
 
 /* ExtendLo4ToInt32 */
 
 // ExtendLo4ToInt32 sign-extends 4 lowest vector element values to int32.
 //
 // Asm: VPMOVSXBD, CPU Feature: AVX
-func (x Int8x16) ExtendLo4ToInt32() Int32x4
+func (x Int8x16) ExtendLo4ToInt32() (z Int32x4)
 
 // ExtendLo4ToInt32 sign-extends 4 lowest vector element values to int32.
 //
 // Asm: VPMOVSXWD, CPU Feature: AVX
-func (x Int16x8) ExtendLo4ToInt32() Int32x4
+func (x Int16x8) ExtendLo4ToInt32() (z Int32x4)
 
 /* ExtendLo4ToInt64 */
 
@@ -2513,12 +2513,12 @@ func (x Int16x8) ExtendLo4ToInt64() Int64x4
 // ExtendLo4ToUint32 zero-extends 4 lowest vector element values to uint32.
 //
 // Asm: VPMOVZXBD, CPU Feature: AVX
-func (x Uint8x16) ExtendLo4ToUint32() Uint32x4
+func (x Uint8x16) ExtendLo4ToUint32() (z Uint32x4)
 
 // ExtendLo4ToUint32 zero-extends 4 lowest vector element values to uint32.
 //
 // Asm: VPMOVZXWD, CPU Feature: AVX
-func (x Uint16x8) ExtendLo4ToUint32() Uint32x4
+func (x Uint16x8) ExtendLo4ToUint32() (z Uint32x4)
 
 /* ExtendLo4ToUint64 */
 
@@ -2537,7 +2537,7 @@ func (x Uint16x8) ExtendLo4ToUint64() Uint64x4
 // ExtendLo8ToInt16 sign-extends 8 lowest vector element values to int16.
 //
 // Asm: VPMOVSXBW, CPU Feature: AVX
-func (x Int8x16) ExtendLo8ToInt16() Int16x8
+func (x Int8x16) ExtendLo8ToInt16() (z Int16x8)
 
 /* ExtendLo8ToInt32 */
 
@@ -2558,7 +2558,7 @@ func (x Int8x16) ExtendLo8ToInt64() Int64x8
 // ExtendLo8ToUint16 zero-extends 8 lowest vector element values to uint16.
 //
 // Asm: VPMOVZXBW, CPU Feature: AVX
-func (x Uint8x16) ExtendLo8ToUint16() Uint16x8
+func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
 
 /* ExtendLo8ToUint32 */
 
@@ -4688,168 +4688,168 @@ func (x Uint64x2) Or(y Uint64x2) Uint64x2
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Int8x16) Permute(indices Uint8x16) Int8x16
+func (x Int8x16) Permute(indices Uint8x16) (z Int8x16)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Uint8x16) Permute(indices Uint8x16) Uint8x16
+func (x Uint8x16) Permute(indices Uint8x16) (z Uint8x16)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Int8x32) Permute(indices Uint8x32) Int8x32
+func (x Int8x32) Permute(indices Uint8x32) (z Int8x32)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Uint8x32) Permute(indices Uint8x32) Uint8x32
+func (x Uint8x32) Permute(indices Uint8x32) (z Uint8x32)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Int8x64) Permute(indices Uint8x64) Int8x64
+func (x Int8x64) Permute(indices Uint8x64) (z Int8x64)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Uint8x64) Permute(indices Uint8x64) Uint8x64
+func (x Uint8x64) Permute(indices Uint8x64) (z Uint8x64)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
-func (x Int16x8) Permute(indices Uint16x8) Int16x8
+func (x Int16x8) Permute(indices Uint16x8) (z Int16x8)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
-func (x Uint16x8) Permute(indices Uint16x8) Uint16x8
+func (x Uint16x8) Permute(indices Uint16x8) (z Uint16x8)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
-func (x Int16x16) Permute(indices Uint16x16) Int16x16
+func (x Int16x16) Permute(indices Uint16x16) (z Int16x16)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
-func (x Uint16x16) Permute(indices Uint16x16) Uint16x16
+func (x Uint16x16) Permute(indices Uint16x16) (z Uint16x16)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
-func (x Int16x32) Permute(indices Uint16x32) Int16x32
+func (x Int16x32) Permute(indices Uint16x32) (z Int16x32)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
-func (x Uint16x32) Permute(indices Uint16x32) Uint16x32
+func (x Uint16x32) Permute(indices Uint16x32) (z Uint16x32)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMPS, CPU Feature: AVX2
-func (x Float32x8) Permute(indices Uint32x8) Float32x8
+func (x Float32x8) Permute(indices Uint32x8) (z Float32x8)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMD, CPU Feature: AVX2
-func (x Int32x8) Permute(indices Uint32x8) Int32x8
+func (x Int32x8) Permute(indices Uint32x8) (z Int32x8)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMD, CPU Feature: AVX2
-func (x Uint32x8) Permute(indices Uint32x8) Uint32x8
+func (x Uint32x8) Permute(indices Uint32x8) (z Uint32x8)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMPS, CPU Feature: AVX512
-func (x Float32x16) Permute(indices Uint32x16) Float32x16
+func (x Float32x16) Permute(indices Uint32x16) (z Float32x16)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMD, CPU Feature: AVX512
-func (x Int32x16) Permute(indices Uint32x16) Int32x16
+func (x Int32x16) Permute(indices Uint32x16) (z Int32x16)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMD, CPU Feature: AVX512
-func (x Uint32x16) Permute(indices Uint32x16) Uint32x16
+func (x Uint32x16) Permute(indices Uint32x16) (z Uint32x16)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMPD, CPU Feature: AVX512
-func (x Float64x4) Permute(indices Uint64x4) Float64x4
+func (x Float64x4) Permute(indices Uint64x4) (z Float64x4)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMQ, CPU Feature: AVX512
-func (x Int64x4) Permute(indices Uint64x4) Int64x4
+func (x Int64x4) Permute(indices Uint64x4) (z Int64x4)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMQ, CPU Feature: AVX512
-func (x Uint64x4) Permute(indices Uint64x4) Uint64x4
+func (x Uint64x4) Permute(indices Uint64x4) (z Uint64x4)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMPD, CPU Feature: AVX512
-func (x Float64x8) Permute(indices Uint64x8) Float64x8
+func (x Float64x8) Permute(indices Uint64x8) (z Float64x8)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMQ, CPU Feature: AVX512
-func (x Int64x8) Permute(indices Uint64x8) Int64x8
+func (x Int64x8) Permute(indices Uint64x8) (z Int64x8)
 
 // Permute permutes x.
 //
 //	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMQ, CPU Feature: AVX512
-func (x Uint64x8) Permute(indices Uint64x8) Uint64x8
+func (x Uint64x8) Permute(indices Uint64x8) (z Uint64x8)
 
 /* PermuteOrZero */
 
@@ -5777,109 +5777,109 @@ func (x Uint64x8) SetLo(y Uint64x4) Uint64x8
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX
-func (x Int16x8) ShiftAllLeft(shift uint64) Int16x8
+func (x Int16x8) ShiftAllLeft(shift uint64) (z Int16x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX2
-func (x Int16x16) ShiftAllLeft(shift uint64) Int16x16
+func (x Int16x16) ShiftAllLeft(shift uint64) (z Int16x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX512
-func (x Int16x32) ShiftAllLeft(shift uint64) Int16x32
+func (x Int16x32) ShiftAllLeft(shift uint64) (z Int16x32)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX
-func (x Int32x4) ShiftAllLeft(shift uint64) Int32x4
+func (x Int32x4) ShiftAllLeft(shift uint64) (z Int32x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX2
-func (x Int32x8) ShiftAllLeft(shift uint64) Int32x8
+func (x Int32x8) ShiftAllLeft(shift uint64) (z Int32x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX512
-func (x Int32x16) ShiftAllLeft(shift uint64) Int32x16
+func (x Int32x16) ShiftAllLeft(shift uint64) (z Int32x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX
-func (x Int64x2) ShiftAllLeft(shift uint64) Int64x2
+func (x Int64x2) ShiftAllLeft(shift uint64) (z Int64x2)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX2
-func (x Int64x4) ShiftAllLeft(shift uint64) Int64x4
+func (x Int64x4) ShiftAllLeft(shift uint64) (z Int64x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512
-func (x Int64x8) ShiftAllLeft(shift uint64) Int64x8
+func (x Int64x8) ShiftAllLeft(shift uint64) (z Int64x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX
-func (x Uint16x8) ShiftAllLeft(shift uint64) Uint16x8
+func (x Uint16x8) ShiftAllLeft(shift uint64) (z Uint16x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX2
-func (x Uint16x16) ShiftAllLeft(shift uint64) Uint16x16
+func (x Uint16x16) ShiftAllLeft(shift uint64) (z Uint16x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX512
-func (x Uint16x32) ShiftAllLeft(shift uint64) Uint16x32
+func (x Uint16x32) ShiftAllLeft(shift uint64) (z Uint16x32)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX
-func (x Uint32x4) ShiftAllLeft(shift uint64) Uint32x4
+func (x Uint32x4) ShiftAllLeft(shift uint64) (z Uint32x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX2
-func (x Uint32x8) ShiftAllLeft(shift uint64) Uint32x8
+func (x Uint32x8) ShiftAllLeft(shift uint64) (z Uint32x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX512
-func (x Uint32x16) ShiftAllLeft(shift uint64) Uint32x16
+func (x Uint32x16) ShiftAllLeft(shift uint64) (z Uint32x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX
-func (x Uint64x2) ShiftAllLeft(shift uint64) Uint64x2
+func (x Uint64x2) ShiftAllLeft(shift uint64) (z Uint64x2)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX2
-func (x Uint64x4) ShiftAllLeft(shift uint64) Uint64x4
+func (x Uint64x4) ShiftAllLeft(shift uint64) (z Uint64x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512
-func (x Uint64x8) ShiftAllLeft(shift uint64) Uint64x8
+func (x Uint64x8) ShiftAllLeft(shift uint64) (z Uint64x8)
 
 /* ShiftAllLeftConcatMod16 */
 
@@ -6073,109 +6073,109 @@ func (x Uint64x8) ShiftAllLeftConcatMod64(y Uint64x8, shift uint64) Uint64x8
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAW, CPU Feature: AVX
-func (x Int16x8) ShiftAllRight(shift uint64) Int16x8
+func (x Int16x8) ShiftAllRight(shift uint64) (z Int16x8)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAW, CPU Feature: AVX2
-func (x Int16x16) ShiftAllRight(shift uint64) Int16x16
+func (x Int16x16) ShiftAllRight(shift uint64) (z Int16x16)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAW, CPU Feature: AVX512
-func (x Int16x32) ShiftAllRight(shift uint64) Int16x32
+func (x Int16x32) ShiftAllRight(shift uint64) (z Int16x32)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAD, CPU Feature: AVX
-func (x Int32x4) ShiftAllRight(shift uint64) Int32x4
+func (x Int32x4) ShiftAllRight(shift uint64) (z Int32x4)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAD, CPU Feature: AVX2
-func (x Int32x8) ShiftAllRight(shift uint64) Int32x8
+func (x Int32x8) ShiftAllRight(shift uint64) (z Int32x8)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAD, CPU Feature: AVX512
-func (x Int32x16) ShiftAllRight(shift uint64) Int32x16
+func (x Int32x16) ShiftAllRight(shift uint64) (z Int32x16)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
-func (x Int64x2) ShiftAllRight(shift uint64) Int64x2
+func (x Int64x2) ShiftAllRight(shift uint64) (z Int64x2)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
-func (x Int64x4) ShiftAllRight(shift uint64) Int64x4
+func (x Int64x4) ShiftAllRight(shift uint64) (z Int64x4)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
-func (x Int64x8) ShiftAllRight(shift uint64) Int64x8
+func (x Int64x8) ShiftAllRight(shift uint64) (z Int64x8)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLW, CPU Feature: AVX
-func (x Uint16x8) ShiftAllRight(shift uint64) Uint16x8
+func (x Uint16x8) ShiftAllRight(shift uint64) (z Uint16x8)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLW, CPU Feature: AVX2
-func (x Uint16x16) ShiftAllRight(shift uint64) Uint16x16
+func (x Uint16x16) ShiftAllRight(shift uint64) (z Uint16x16)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLW, CPU Feature: AVX512
-func (x Uint16x32) ShiftAllRight(shift uint64) Uint16x32
+func (x Uint16x32) ShiftAllRight(shift uint64) (z Uint16x32)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLD, CPU Feature: AVX
-func (x Uint32x4) ShiftAllRight(shift uint64) Uint32x4
+func (x Uint32x4) ShiftAllRight(shift uint64) (z Uint32x4)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLD, CPU Feature: AVX2
-func (x Uint32x8) ShiftAllRight(shift uint64) Uint32x8
+func (x Uint32x8) ShiftAllRight(shift uint64) (z Uint32x8)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLD, CPU Feature: AVX512
-func (x Uint32x16) ShiftAllRight(shift uint64) Uint32x16
+func (x Uint32x16) ShiftAllRight(shift uint64) (z Uint32x16)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLQ, CPU Feature: AVX
-func (x Uint64x2) ShiftAllRight(shift uint64) Uint64x2
+func (x Uint64x2) ShiftAllRight(shift uint64) (z Uint64x2)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLQ, CPU Feature: AVX2
-func (x Uint64x4) ShiftAllRight(shift uint64) Uint64x4
+func (x Uint64x4) ShiftAllRight(shift uint64) (z Uint64x4)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512
-func (x Uint64x8) ShiftAllRight(shift uint64) Uint64x8
+func (x Uint64x8) ShiftAllRight(shift uint64) (z Uint64x8)
 
 /* ShiftAllRightConcatMod16 */
 
@@ -6369,109 +6369,109 @@ func (x Uint64x8) ShiftAllRightConcatMod64(y Uint64x8, shift uint64) Uint64x8
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
-func (x Int16x8) ShiftLeft(shift Uint16x8) Int16x8
+func (x Int16x8) ShiftLeft(shift Uint16x8) (z Int16x8)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
-func (x Int16x16) ShiftLeft(shift Uint16x16) Int16x16
+func (x Int16x16) ShiftLeft(shift Uint16x16) (z Int16x16)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
-func (x Int16x32) ShiftLeft(shift Uint16x32) Int16x32
+func (x Int16x32) ShiftLeft(shift Uint16x32) (z Int16x32)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
-func (x Int32x4) ShiftLeft(shift Uint32x4) Int32x4
+func (x Int32x4) ShiftLeft(shift Uint32x4) (z Int32x4)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
-func (x Int32x8) ShiftLeft(shift Uint32x8) Int32x8
+func (x Int32x8) ShiftLeft(shift Uint32x8) (z Int32x8)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512
-func (x Int32x16) ShiftLeft(shift Uint32x16) Int32x16
+func (x Int32x16) ShiftLeft(shift Uint32x16) (z Int32x16)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
-func (x Int64x2) ShiftLeft(shift Uint64x2) Int64x2
+func (x Int64x2) ShiftLeft(shift Uint64x2) (z Int64x2)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
-func (x Int64x4) ShiftLeft(shift Uint64x4) Int64x4
+func (x Int64x4) ShiftLeft(shift Uint64x4) (z Int64x4)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512
-func (x Int64x8) ShiftLeft(shift Uint64x8) Int64x8
+func (x Int64x8) ShiftLeft(shift Uint64x8) (z Int64x8)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
-func (x Uint16x8) ShiftLeft(shift Uint16x8) Uint16x8
+func (x Uint16x8) ShiftLeft(shift Uint16x8) (z Uint16x8)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
-func (x Uint16x16) ShiftLeft(shift Uint16x16) Uint16x16
+func (x Uint16x16) ShiftLeft(shift Uint16x16) (z Uint16x16)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
-func (x Uint16x32) ShiftLeft(shift Uint16x32) Uint16x32
+func (x Uint16x32) ShiftLeft(shift Uint16x32) (z Uint16x32)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
-func (x Uint32x4) ShiftLeft(shift Uint32x4) Uint32x4
+func (x Uint32x4) ShiftLeft(shift Uint32x4) (z Uint32x4)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
-func (x Uint32x8) ShiftLeft(shift Uint32x8) Uint32x8
+func (x Uint32x8) ShiftLeft(shift Uint32x8) (z Uint32x8)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512
-func (x Uint32x16) ShiftLeft(shift Uint32x16) Uint32x16
+func (x Uint32x16) ShiftLeft(shift Uint32x16) (z Uint32x16)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
-func (x Uint64x2) ShiftLeft(shift Uint64x2) Uint64x2
+func (x Uint64x2) ShiftLeft(shift Uint64x2) (z Uint64x2)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
-func (x Uint64x4) ShiftLeft(shift Uint64x4) Uint64x4
+func (x Uint64x4) ShiftLeft(shift Uint64x4) (z Uint64x4)
 
 // ShiftLeft shifts x[i] left by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512
-func (x Uint64x8) ShiftLeft(shift Uint64x8) Uint64x8
+func (x Uint64x8) ShiftLeft(shift Uint64x8) (z Uint64x8)
 
 /* ShiftLeftConcatMod16 */
 
@@ -6629,109 +6629,109 @@ func (x Uint64x8) ShiftLeftConcatMod64(y Uint64x8, shift Uint64x8) Uint64x8
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
-func (x Int16x8) ShiftRight(shift Uint16x8) Int16x8
+func (x Int16x8) ShiftRight(shift Uint16x8) (z Int16x8)
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
-func (x Int16x16) ShiftRight(shift Uint16x16) Int16x16
+func (x Int16x16) ShiftRight(shift Uint16x16) (z Int16x16)
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
-func (x Int16x32) ShiftRight(shift Uint16x32) Int16x32
+func (x Int16x32) ShiftRight(shift Uint16x32) (z Int16x32)
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVD, CPU Feature: AVX2
-func (x Int32x4) ShiftRight(shift Uint32x4) Int32x4
+func (x Int32x4) ShiftRight(shift Uint32x4) (z Int32x4)
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVD, CPU Feature: AVX2
-func (x Int32x8) ShiftRight(shift Uint32x8) Int32x8
+func (x Int32x8) ShiftRight(shift Uint32x8) (z Int32x8)
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512
-func (x Int32x16) ShiftRight(shift Uint32x16) Int32x16
+func (x Int32x16) ShiftRight(shift Uint32x16) (z Int32x16)
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
-func (x Int64x2) ShiftRight(shift Uint64x2) Int64x2
+func (x Int64x2) ShiftRight(shift Uint64x2) (z Int64x2)
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
-func (x Int64x4) ShiftRight(shift Uint64x4) Int64x4
+func (x Int64x4) ShiftRight(shift Uint64x4) (z Int64x4)
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
-func (x Int64x8) ShiftRight(shift Uint64x8) Int64x8
+func (x Int64x8) ShiftRight(shift Uint64x8) (z Int64x8)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
-func (x Uint16x8) ShiftRight(shift Uint16x8) Uint16x8
+func (x Uint16x8) ShiftRight(shift Uint16x8) (z Uint16x8)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
-func (x Uint16x16) ShiftRight(shift Uint16x16) Uint16x16
+func (x Uint16x16) ShiftRight(shift Uint16x16) (z Uint16x16)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
-func (x Uint16x32) ShiftRight(shift Uint16x32) Uint16x32
+func (x Uint16x32) ShiftRight(shift Uint16x32) (z Uint16x32)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVD, CPU Feature: AVX2
-func (x Uint32x4) ShiftRight(shift Uint32x4) Uint32x4
+func (x Uint32x4) ShiftRight(shift Uint32x4) (z Uint32x4)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVD, CPU Feature: AVX2
-func (x Uint32x8) ShiftRight(shift Uint32x8) Uint32x8
+func (x Uint32x8) ShiftRight(shift Uint32x8) (z Uint32x8)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512
-func (x Uint32x16) ShiftRight(shift Uint32x16) Uint32x16
+func (x Uint32x16) ShiftRight(shift Uint32x16) (z Uint32x16)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX2
-func (x Uint64x2) ShiftRight(shift Uint64x2) Uint64x2
+func (x Uint64x2) ShiftRight(shift Uint64x2) (z Uint64x2)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX2
-func (x Uint64x4) ShiftRight(shift Uint64x4) Uint64x4
+func (x Uint64x4) ShiftRight(shift Uint64x4) (z Uint64x4)
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
 // If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512
-func (x Uint64x8) ShiftRight(shift Uint64x8) Uint64x8
+func (x Uint64x8) ShiftRight(shift Uint64x8) (z Uint64x8)
 
 /* ShiftRightConcatMod16 */
 
@@ -6920,214 +6920,214 @@ func (x Float64x8) Sqrt() Float64x8
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPS, CPU Feature: AVX
-func (x Float32x4) Sub(y Float32x4) Float32x4
+func (x Float32x4) Sub(y Float32x4) (z Float32x4)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPS, CPU Feature: AVX
-func (x Float32x8) Sub(y Float32x8) Float32x8
+func (x Float32x8) Sub(y Float32x8) (z Float32x8)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPS, CPU Feature: AVX512
-func (x Float32x16) Sub(y Float32x16) Float32x16
+func (x Float32x16) Sub(y Float32x16) (z Float32x16)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPD, CPU Feature: AVX
-func (x Float64x2) Sub(y Float64x2) Float64x2
+func (x Float64x2) Sub(y Float64x2) (z Float64x2)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPD, CPU Feature: AVX
-func (x Float64x4) Sub(y Float64x4) Float64x4
+func (x Float64x4) Sub(y Float64x4) (z Float64x4)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPD, CPU Feature: AVX512
-func (x Float64x8) Sub(y Float64x8) Float64x8
+func (x Float64x8) Sub(y Float64x8) (z Float64x8)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX
-func (x Int8x16) Sub(y Int8x16) Int8x16
+func (x Int8x16) Sub(y Int8x16) (z Int8x16)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX2
-func (x Int8x32) Sub(y Int8x32) Int8x32
+func (x Int8x32) Sub(y Int8x32) (z Int8x32)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX512
-func (x Int8x64) Sub(y Int8x64) Int8x64
+func (x Int8x64) Sub(y Int8x64) (z Int8x64)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX
-func (x Int16x8) Sub(y Int16x8) Int16x8
+func (x Int16x8) Sub(y Int16x8) (z Int16x8)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX2
-func (x Int16x16) Sub(y Int16x16) Int16x16
+func (x Int16x16) Sub(y Int16x16) (z Int16x16)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX512
-func (x Int16x32) Sub(y Int16x32) Int16x32
+func (x Int16x32) Sub(y Int16x32) (z Int16x32)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX
-func (x Int32x4) Sub(y Int32x4) Int32x4
+func (x Int32x4) Sub(y Int32x4) (z Int32x4)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX2
-func (x Int32x8) Sub(y Int32x8) Int32x8
+func (x Int32x8) Sub(y Int32x8) (z Int32x8)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX512
-func (x Int32x16) Sub(y Int32x16) Int32x16
+func (x Int32x16) Sub(y Int32x16) (z Int32x16)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX
-func (x Int64x2) Sub(y Int64x2) Int64x2
+func (x Int64x2) Sub(y Int64x2) (z Int64x2)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX2
-func (x Int64x4) Sub(y Int64x4) Int64x4
+func (x Int64x4) Sub(y Int64x4) (z Int64x4)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX512
-func (x Int64x8) Sub(y Int64x8) Int64x8
+func (x Int64x8) Sub(y Int64x8) (z Int64x8)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX
-func (x Uint8x16) Sub(y Uint8x16) Uint8x16
+func (x Uint8x16) Sub(y Uint8x16) (z Uint8x16)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX2
-func (x Uint8x32) Sub(y Uint8x32) Uint8x32
+func (x Uint8x32) Sub(y Uint8x32) (z Uint8x32)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX512
-func (x Uint8x64) Sub(y Uint8x64) Uint8x64
+func (x Uint8x64) Sub(y Uint8x64) (z Uint8x64)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX
-func (x Uint16x8) Sub(y Uint16x8) Uint16x8
+func (x Uint16x8) Sub(y Uint16x8) (z Uint16x8)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX2
-func (x Uint16x16) Sub(y Uint16x16) Uint16x16
+func (x Uint16x16) Sub(y Uint16x16) (z Uint16x16)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX512
-func (x Uint16x32) Sub(y Uint16x32) Uint16x32
+func (x Uint16x32) Sub(y Uint16x32) (z Uint16x32)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX
-func (x Uint32x4) Sub(y Uint32x4) Uint32x4
+func (x Uint32x4) Sub(y Uint32x4) (z Uint32x4)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX2
-func (x Uint32x8) Sub(y Uint32x8) Uint32x8
+func (x Uint32x8) Sub(y Uint32x8) (z Uint32x8)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX512
-func (x Uint32x16) Sub(y Uint32x16) Uint32x16
+func (x Uint32x16) Sub(y Uint32x16) (z Uint32x16)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX
-func (x Uint64x2) Sub(y Uint64x2) Uint64x2
+func (x Uint64x2) Sub(y Uint64x2) (z Uint64x2)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX2
-func (x Uint64x4) Sub(y Uint64x4) Uint64x4
+func (x Uint64x4) Sub(y Uint64x4) (z Uint64x4)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX512
-func (x Uint64x8) Sub(y Uint64x8) Uint64x8
+func (x Uint64x8) Sub(y Uint64x8) (z Uint64x8)
 
 /* SubSaturated */
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX
-func (x Int8x16) SubSaturated(y Int8x16) Int8x16
+func (x Int8x16) SubSaturated(y Int8x16) (z Int8x16)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX2
-func (x Int8x32) SubSaturated(y Int8x32) Int8x32
+func (x Int8x32) SubSaturated(y Int8x32) (z Int8x32)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX512
-func (x Int8x64) SubSaturated(y Int8x64) Int8x64
+func (x Int8x64) SubSaturated(y Int8x64) (z Int8x64)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX
-func (x Int16x8) SubSaturated(y Int16x8) Int16x8
+func (x Int16x8) SubSaturated(y Int16x8) (z Int16x8)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX2
-func (x Int16x16) SubSaturated(y Int16x16) Int16x16
+func (x Int16x16) SubSaturated(y Int16x16) (z Int16x16)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX512
-func (x Int16x32) SubSaturated(y Int16x32) Int16x32
+func (x Int16x32) SubSaturated(y Int16x32) (z Int16x32)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBUSB, CPU Feature: AVX
-func (x Uint8x16) SubSaturated(y Uint8x16) Uint8x16
+func (x Uint8x16) SubSaturated(y Uint8x16) (z Uint8x16)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBUSB, CPU Feature: AVX2
-func (x Uint8x32) SubSaturated(y Uint8x32) Uint8x32
+func (x Uint8x32) SubSaturated(y Uint8x32) (z Uint8x32)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBUSB, CPU Feature: AVX512
-func (x Uint8x64) SubSaturated(y Uint8x64) Uint8x64
+func (x Uint8x64) SubSaturated(y Uint8x64) (z Uint8x64)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBUSW, CPU Feature: AVX
-func (x Uint16x8) SubSaturated(y Uint16x8) Uint16x8
+func (x Uint16x8) SubSaturated(y Uint16x8) (z Uint16x8)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBUSW, CPU Feature: AVX2
-func (x Uint16x16) SubSaturated(y Uint16x16) Uint16x16
+func (x Uint16x16) SubSaturated(y Uint16x16) (z Uint16x16)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBUSW, CPU Feature: AVX512
-func (x Uint16x32) SubSaturated(y Uint16x32) Uint16x32
+func (x Uint16x32) SubSaturated(y Uint16x32) (z Uint16x32)
 
 /* SumOf8AbsDiff */
 
@@ -9082,13 +9082,13 @@ func (x Uint8x16) AsInt8x16() Int8x16 {
 func (x Uint8x16) BitsToInt8() Int8x16
 
 // ConvertToInt8 converts a Uint8x16 vector to a Int8x16 vector
-func (x Uint8x16) ConvertToInt8() Int8x16
+func (x Uint8x16) ConvertToInt8() (z Int8x16)
 
 // ConvertToUint8 converts a Int8x16 vector to a Uint8x16 vector
-func (x Int8x16) ConvertToUint8() Uint8x16
+func (x Int8x16) ConvertToUint8() (z Uint8x16)
 
 // ToBits reinterprets the bits of a Int8x16 vector as a Uint8x16 vector
-func (x Int8x16) ToBits() Uint8x16
+func (x Int8x16) ToBits() (z Uint8x16)
 
 // AsInt16x8 reinterprets the bits of a Uint8x16 vector as a Int16x8 vector
 //
@@ -9127,7 +9127,7 @@ func (x Uint8x16) AsUint16x8() Uint16x8 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint8x16 vector as a Uint16x8 vector
-func (x Uint8x16) ReshapeToUint16s() Uint16x8
+func (x Uint8x16) ReshapeToUint16s() (z Uint16x8)
 
 // AsUint32x4 reinterprets the bits of a Uint8x16 vector as a Uint32x4 vector
 //
@@ -9139,7 +9139,7 @@ func (x Uint8x16) AsUint32x4() Uint32x4 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint8x16 vector as a Uint32x4 vector
-func (x Uint8x16) ReshapeToUint32s() Uint32x4
+func (x Uint8x16) ReshapeToUint32s() (z Uint32x4)
 
 // AsUint64x2 reinterprets the bits of a Uint8x16 vector as a Uint64x2 vector
 //
@@ -9151,7 +9151,7 @@ func (x Uint8x16) AsUint64x2() Uint64x2 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint8x16 vector as a Uint64x2 vector
-func (x Uint8x16) ReshapeToUint64s() Uint64x2
+func (x Uint8x16) ReshapeToUint64s() (z Uint64x2)
 
 // AsFloat32x8 reinterprets the bits of a Uint8x32 vector as a Float32x8 vector
 //
@@ -9184,13 +9184,13 @@ func (x Uint8x32) AsInt8x32() Int8x32 {
 func (x Uint8x32) BitsToInt8() Int8x32
 
 // ConvertToInt8 converts a Uint8x32 vector to a Int8x32 vector
-func (x Uint8x32) ConvertToInt8() Int8x32
+func (x Uint8x32) ConvertToInt8() (z Int8x32)
 
 // ConvertToUint8 converts a Int8x32 vector to a Uint8x32 vector
-func (x Int8x32) ConvertToUint8() Uint8x32
+func (x Int8x32) ConvertToUint8() (z Uint8x32)
 
 // ToBits reinterprets the bits of a Int8x32 vector as a Uint8x32 vector
-func (x Int8x32) ToBits() Uint8x32
+func (x Int8x32) ToBits() (z Uint8x32)
 
 // AsInt16x16 reinterprets the bits of a Uint8x32 vector as a Int16x16 vector
 //
@@ -9229,7 +9229,7 @@ func (x Uint8x32) AsUint16x16() Uint16x16 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint8x32 vector as a Uint16x16 vector
-func (x Uint8x32) ReshapeToUint16s() Uint16x16
+func (x Uint8x32) ReshapeToUint16s() (z Uint16x16)
 
 // AsUint32x8 reinterprets the bits of a Uint8x32 vector as a Uint32x8 vector
 //
@@ -9241,7 +9241,7 @@ func (x Uint8x32) AsUint32x8() Uint32x8 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint8x32 vector as a Uint32x8 vector
-func (x Uint8x32) ReshapeToUint32s() Uint32x8
+func (x Uint8x32) ReshapeToUint32s() (z Uint32x8)
 
 // AsUint64x4 reinterprets the bits of a Uint8x32 vector as a Uint64x4 vector
 //
@@ -9253,7 +9253,7 @@ func (x Uint8x32) AsUint64x4() Uint64x4 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint8x32 vector as a Uint64x4 vector
-func (x Uint8x32) ReshapeToUint64s() Uint64x4
+func (x Uint8x32) ReshapeToUint64s() (z Uint64x4)
 
 // AsFloat32x16 reinterprets the bits of a Uint8x64 vector as a Float32x16 vector
 //
@@ -9286,13 +9286,13 @@ func (x Uint8x64) AsInt8x64() Int8x64 {
 func (x Uint8x64) BitsToInt8() Int8x64
 
 // ConvertToInt8 converts a Uint8x64 vector to a Int8x64 vector
-func (x Uint8x64) ConvertToInt8() Int8x64
+func (x Uint8x64) ConvertToInt8() (z Int8x64)
 
 // ConvertToUint8 converts a Int8x64 vector to a Uint8x64 vector
-func (x Int8x64) ConvertToUint8() Uint8x64
+func (x Int8x64) ConvertToUint8() (z Uint8x64)
 
 // ToBits reinterprets the bits of a Int8x64 vector as a Uint8x64 vector
-func (x Int8x64) ToBits() Uint8x64
+func (x Int8x64) ToBits() (z Uint8x64)
 
 // AsInt16x32 reinterprets the bits of a Uint8x64 vector as a Int16x32 vector
 //
@@ -9331,7 +9331,7 @@ func (x Uint8x64) AsUint16x32() Uint16x32 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint8x64 vector as a Uint16x32 vector
-func (x Uint8x64) ReshapeToUint16s() Uint16x32
+func (x Uint8x64) ReshapeToUint16s() (z Uint16x32)
 
 // AsUint32x16 reinterprets the bits of a Uint8x64 vector as a Uint32x16 vector
 //
@@ -9343,7 +9343,7 @@ func (x Uint8x64) AsUint32x16() Uint32x16 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint8x64 vector as a Uint32x16 vector
-func (x Uint8x64) ReshapeToUint32s() Uint32x16
+func (x Uint8x64) ReshapeToUint32s() (z Uint32x16)
 
 // AsUint64x8 reinterprets the bits of a Uint8x64 vector as a Uint64x8 vector
 //
@@ -9355,7 +9355,7 @@ func (x Uint8x64) AsUint64x8() Uint64x8 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint8x64 vector as a Uint64x8 vector
-func (x Uint8x64) ReshapeToUint64s() Uint64x8
+func (x Uint8x64) ReshapeToUint64s() (z Uint64x8)
 
 // AsFloat32x4 reinterprets the bits of a Uint16x8 vector as a Float32x4 vector
 //
@@ -9397,13 +9397,13 @@ func (x Uint16x8) AsInt16x8() Int16x8 {
 func (x Uint16x8) BitsToInt16() Int16x8
 
 // ConvertToInt16 converts a Uint16x8 vector to a Int16x8 vector
-func (x Uint16x8) ConvertToInt16() Int16x8
+func (x Uint16x8) ConvertToInt16() (z Int16x8)
 
 // ConvertToUint16 converts a Int16x8 vector to a Uint16x8 vector
-func (x Int16x8) ConvertToUint16() Uint16x8
+func (x Int16x8) ConvertToUint16() (z Uint16x8)
 
 // ToBits reinterprets the bits of a Int16x8 vector as a Uint16x8 vector
-func (x Int16x8) ToBits() Uint16x8
+func (x Int16x8) ToBits() (z Uint16x8)
 
 // AsInt32x4 reinterprets the bits of a Uint16x8 vector as a Int32x4 vector
 //
@@ -9433,7 +9433,7 @@ func (x Uint16x8) AsUint8x16() Uint8x16 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint16x8 vector as a Uint8x16 vector
-func (x Uint16x8) ReshapeToUint8s() Uint8x16
+func (x Uint16x8) ReshapeToUint8s() (z Uint8x16)
 
 // AsUint32x4 reinterprets the bits of a Uint16x8 vector as a Uint32x4 vector
 //
@@ -9445,7 +9445,7 @@ func (x Uint16x8) AsUint32x4() Uint32x4 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint16x8 vector as a Uint32x4 vector
-func (x Uint16x8) ReshapeToUint32s() Uint32x4
+func (x Uint16x8) ReshapeToUint32s() (z Uint32x4)
 
 // AsUint64x2 reinterprets the bits of a Uint16x8 vector as a Uint64x2 vector
 //
@@ -9457,7 +9457,7 @@ func (x Uint16x8) AsUint64x2() Uint64x2 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint16x8 vector as a Uint64x2 vector
-func (x Uint16x8) ReshapeToUint64s() Uint64x2
+func (x Uint16x8) ReshapeToUint64s() (z Uint64x2)
 
 // AsFloat32x8 reinterprets the bits of a Uint16x16 vector as a Float32x8 vector
 //
@@ -9499,13 +9499,13 @@ func (x Uint16x16) AsInt16x16() Int16x16 {
 func (x Uint16x16) BitsToInt16() Int16x16
 
 // ConvertToInt16 converts a Uint16x16 vector to a Int16x16 vector
-func (x Uint16x16) ConvertToInt16() Int16x16
+func (x Uint16x16) ConvertToInt16() (z Int16x16)
 
 // ConvertToUint16 converts a Int16x16 vector to a Uint16x16 vector
-func (x Int16x16) ConvertToUint16() Uint16x16
+func (x Int16x16) ConvertToUint16() (z Uint16x16)
 
 // ToBits reinterprets the bits of a Int16x16 vector as a Uint16x16 vector
-func (x Int16x16) ToBits() Uint16x16
+func (x Int16x16) ToBits() (z Uint16x16)
 
 // AsInt32x8 reinterprets the bits of a Uint16x16 vector as a Int32x8 vector
 //
@@ -9535,7 +9535,7 @@ func (x Uint16x16) AsUint8x32() Uint8x32 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint16x16 vector as a Uint8x32 vector
-func (x Uint16x16) ReshapeToUint8s() Uint8x32
+func (x Uint16x16) ReshapeToUint8s() (z Uint8x32)
 
 // AsUint32x8 reinterprets the bits of a Uint16x16 vector as a Uint32x8 vector
 //
@@ -9547,7 +9547,7 @@ func (x Uint16x16) AsUint32x8() Uint32x8 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint16x16 vector as a Uint32x8 vector
-func (x Uint16x16) ReshapeToUint32s() Uint32x8
+func (x Uint16x16) ReshapeToUint32s() (z Uint32x8)
 
 // AsUint64x4 reinterprets the bits of a Uint16x16 vector as a Uint64x4 vector
 //
@@ -9559,7 +9559,7 @@ func (x Uint16x16) AsUint64x4() Uint64x4 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint16x16 vector as a Uint64x4 vector
-func (x Uint16x16) ReshapeToUint64s() Uint64x4
+func (x Uint16x16) ReshapeToUint64s() (z Uint64x4)
 
 // AsFloat32x16 reinterprets the bits of a Uint16x32 vector as a Float32x16 vector
 //
@@ -9601,13 +9601,13 @@ func (x Uint16x32) AsInt16x32() Int16x32 {
 func (x Uint16x32) BitsToInt16() Int16x32
 
 // ConvertToInt16 converts a Uint16x32 vector to a Int16x32 vector
-func (x Uint16x32) ConvertToInt16() Int16x32
+func (x Uint16x32) ConvertToInt16() (z Int16x32)
 
 // ConvertToUint16 converts a Int16x32 vector to a Uint16x32 vector
-func (x Int16x32) ConvertToUint16() Uint16x32
+func (x Int16x32) ConvertToUint16() (z Uint16x32)
 
 // ToBits reinterprets the bits of a Int16x32 vector as a Uint16x32 vector
-func (x Int16x32) ToBits() Uint16x32
+func (x Int16x32) ToBits() (z Uint16x32)
 
 // AsInt32x16 reinterprets the bits of a Uint16x32 vector as a Int32x16 vector
 //
@@ -9637,7 +9637,7 @@ func (x Uint16x32) AsUint8x64() Uint8x64 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint16x32 vector as a Uint8x64 vector
-func (x Uint16x32) ReshapeToUint8s() Uint8x64
+func (x Uint16x32) ReshapeToUint8s() (z Uint8x64)
 
 // AsUint32x16 reinterprets the bits of a Uint16x32 vector as a Uint32x16 vector
 //
@@ -9649,7 +9649,7 @@ func (x Uint16x32) AsUint32x16() Uint32x16 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint16x32 vector as a Uint32x16 vector
-func (x Uint16x32) ReshapeToUint32s() Uint32x16
+func (x Uint16x32) ReshapeToUint32s() (z Uint32x16)
 
 // AsUint64x8 reinterprets the bits of a Uint16x32 vector as a Uint64x8 vector
 //
@@ -9661,7 +9661,7 @@ func (x Uint16x32) AsUint64x8() Uint64x8 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint16x32 vector as a Uint64x8 vector
-func (x Uint16x32) ReshapeToUint64s() Uint64x8
+func (x Uint16x32) ReshapeToUint64s() (z Uint64x8)
 
 // AsFloat32x4 reinterprets the bits of a Uint32x4 vector as a Float32x4 vector
 //
@@ -9676,7 +9676,7 @@ func (x Uint32x4) AsFloat32x4() Float32x4 {
 func (x Uint32x4) BitsToFloat32() Float32x4
 
 // ToBits reinterprets the bits of a Float32x4 vector as a Uint32x4 vector
-func (x Float32x4) ToBits() Uint32x4
+func (x Float32x4) ToBits() (z Uint32x4)
 
 // AsFloat64x2 reinterprets the bits of a Uint32x4 vector as a Float64x2 vector
 //
@@ -9718,13 +9718,13 @@ func (x Uint32x4) AsInt32x4() Int32x4 {
 func (x Uint32x4) BitsToInt32() Int32x4
 
 // ConvertToInt32 converts a Uint32x4 vector to a Int32x4 vector
-func (x Uint32x4) ConvertToInt32() Int32x4
+func (x Uint32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToUint32 converts a Int32x4 vector to a Uint32x4 vector
-func (x Int32x4) ConvertToUint32() Uint32x4
+func (x Int32x4) ConvertToUint32() (z Uint32x4)
 
 // ToBits reinterprets the bits of a Int32x4 vector as a Uint32x4 vector
-func (x Int32x4) ToBits() Uint32x4
+func (x Int32x4) ToBits() (z Uint32x4)
 
 // AsInt64x2 reinterprets the bits of a Uint32x4 vector as a Int64x2 vector
 //
@@ -9745,7 +9745,7 @@ func (x Uint32x4) AsUint8x16() Uint8x16 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint32x4 vector as a Uint8x16 vector
-func (x Uint32x4) ReshapeToUint8s() Uint8x16
+func (x Uint32x4) ReshapeToUint8s() (z Uint8x16)
 
 // AsUint16x8 reinterprets the bits of a Uint32x4 vector as a Uint16x8 vector
 //
@@ -9757,7 +9757,7 @@ func (x Uint32x4) AsUint16x8() Uint16x8 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint32x4 vector as a Uint16x8 vector
-func (x Uint32x4) ReshapeToUint16s() Uint16x8
+func (x Uint32x4) ReshapeToUint16s() (z Uint16x8)
 
 // AsUint64x2 reinterprets the bits of a Uint32x4 vector as a Uint64x2 vector
 //
@@ -9769,7 +9769,7 @@ func (x Uint32x4) AsUint64x2() Uint64x2 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint32x4 vector as a Uint64x2 vector
-func (x Uint32x4) ReshapeToUint64s() Uint64x2
+func (x Uint32x4) ReshapeToUint64s() (z Uint64x2)
 
 // AsFloat32x8 reinterprets the bits of a Uint32x8 vector as a Float32x8 vector
 //
@@ -9784,7 +9784,7 @@ func (x Uint32x8) AsFloat32x8() Float32x8 {
 func (x Uint32x8) BitsToFloat32() Float32x8
 
 // ToBits reinterprets the bits of a Float32x8 vector as a Uint32x8 vector
-func (x Float32x8) ToBits() Uint32x8
+func (x Float32x8) ToBits() (z Uint32x8)
 
 // AsFloat64x4 reinterprets the bits of a Uint32x8 vector as a Float64x4 vector
 //
@@ -9826,13 +9826,13 @@ func (x Uint32x8) AsInt32x8() Int32x8 {
 func (x Uint32x8) BitsToInt32() Int32x8
 
 // ConvertToInt32 converts a Uint32x8 vector to a Int32x8 vector
-func (x Uint32x8) ConvertToInt32() Int32x8
+func (x Uint32x8) ConvertToInt32() (z Int32x8)
 
 // ConvertToUint32 converts a Int32x8 vector to a Uint32x8 vector
-func (x Int32x8) ConvertToUint32() Uint32x8
+func (x Int32x8) ConvertToUint32() (z Uint32x8)
 
 // ToBits reinterprets the bits of a Int32x8 vector as a Uint32x8 vector
-func (x Int32x8) ToBits() Uint32x8
+func (x Int32x8) ToBits() (z Uint32x8)
 
 // AsInt64x4 reinterprets the bits of a Uint32x8 vector as a Int64x4 vector
 //
@@ -9853,7 +9853,7 @@ func (x Uint32x8) AsUint8x32() Uint8x32 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint32x8 vector as a Uint8x32 vector
-func (x Uint32x8) ReshapeToUint8s() Uint8x32
+func (x Uint32x8) ReshapeToUint8s() (z Uint8x32)
 
 // AsUint16x16 reinterprets the bits of a Uint32x8 vector as a Uint16x16 vector
 //
@@ -9865,7 +9865,7 @@ func (x Uint32x8) AsUint16x16() Uint16x16 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint32x8 vector as a Uint16x16 vector
-func (x Uint32x8) ReshapeToUint16s() Uint16x16
+func (x Uint32x8) ReshapeToUint16s() (z Uint16x16)
 
 // AsUint64x4 reinterprets the bits of a Uint32x8 vector as a Uint64x4 vector
 //
@@ -9877,7 +9877,7 @@ func (x Uint32x8) AsUint64x4() Uint64x4 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint32x8 vector as a Uint64x4 vector
-func (x Uint32x8) ReshapeToUint64s() Uint64x4
+func (x Uint32x8) ReshapeToUint64s() (z Uint64x4)
 
 // AsFloat32x16 reinterprets the bits of a Uint32x16 vector as a Float32x16 vector
 //
@@ -9892,7 +9892,7 @@ func (x Uint32x16) AsFloat32x16() Float32x16 {
 func (x Uint32x16) BitsToFloat32() Float32x16
 
 // ToBits reinterprets the bits of a Float32x16 vector as a Uint32x16 vector
-func (x Float32x16) ToBits() Uint32x16
+func (x Float32x16) ToBits() (z Uint32x16)
 
 // AsFloat64x8 reinterprets the bits of a Uint32x16 vector as a Float64x8 vector
 //
@@ -9934,13 +9934,13 @@ func (x Uint32x16) AsInt32x16() Int32x16 {
 func (x Uint32x16) BitsToInt32() Int32x16
 
 // ConvertToInt32 converts a Uint32x16 vector to a Int32x16 vector
-func (x Uint32x16) ConvertToInt32() Int32x16
+func (x Uint32x16) ConvertToInt32() (z Int32x16)
 
 // ConvertToUint32 converts a Int32x16 vector to a Uint32x16 vector
-func (x Int32x16) ConvertToUint32() Uint32x16
+func (x Int32x16) ConvertToUint32() (z Uint32x16)
 
 // ToBits reinterprets the bits of a Int32x16 vector as a Uint32x16 vector
-func (x Int32x16) ToBits() Uint32x16
+func (x Int32x16) ToBits() (z Uint32x16)
 
 // AsInt64x8 reinterprets the bits of a Uint32x16 vector as a Int64x8 vector
 //
@@ -9961,7 +9961,7 @@ func (x Uint32x16) AsUint8x64() Uint8x64 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint32x16 vector as a Uint8x64 vector
-func (x Uint32x16) ReshapeToUint8s() Uint8x64
+func (x Uint32x16) ReshapeToUint8s() (z Uint8x64)
 
 // AsUint16x32 reinterprets the bits of a Uint32x16 vector as a Uint16x32 vector
 //
@@ -9973,7 +9973,7 @@ func (x Uint32x16) AsUint16x32() Uint16x32 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint32x16 vector as a Uint16x32 vector
-func (x Uint32x16) ReshapeToUint16s() Uint16x32
+func (x Uint32x16) ReshapeToUint16s() (z Uint16x32)
 
 // AsUint64x8 reinterprets the bits of a Uint32x16 vector as a Uint64x8 vector
 //
@@ -9985,7 +9985,7 @@ func (x Uint32x16) AsUint64x8() Uint64x8 {
 }
 
 // ReshapeToUint64s reinterprets the bits of a Uint32x16 vector as a Uint64x8 vector
-func (x Uint32x16) ReshapeToUint64s() Uint64x8
+func (x Uint32x16) ReshapeToUint64s() (z Uint64x8)
 
 // AsFloat32x4 reinterprets the bits of a Uint64x2 vector as a Float32x4 vector
 //
@@ -10009,7 +10009,7 @@ func (x Uint64x2) AsFloat64x2() Float64x2 {
 func (x Uint64x2) BitsToFloat64() Float64x2
 
 // ToBits reinterprets the bits of a Float64x2 vector as a Uint64x2 vector
-func (x Float64x2) ToBits() Uint64x2
+func (x Float64x2) ToBits() (z Uint64x2)
 
 // AsInt8x16 reinterprets the bits of a Uint64x2 vector as a Int8x16 vector
 //
@@ -10051,13 +10051,13 @@ func (x Uint64x2) AsInt64x2() Int64x2 {
 func (x Uint64x2) BitsToInt64() Int64x2
 
 // ConvertToInt64 converts a Uint64x2 vector to a Int64x2 vector
-func (x Uint64x2) ConvertToInt64() Int64x2
+func (x Uint64x2) ConvertToInt64() (z Int64x2)
 
 // ConvertToUint64 converts a Int64x2 vector to a Uint64x2 vector
-func (x Int64x2) ConvertToUint64() Uint64x2
+func (x Int64x2) ConvertToUint64() (z Uint64x2)
 
 // ToBits reinterprets the bits of a Int64x2 vector as a Uint64x2 vector
-func (x Int64x2) ToBits() Uint64x2
+func (x Int64x2) ToBits() (z Uint64x2)
 
 // AsUint8x16 reinterprets the bits of a Uint64x2 vector as a Uint8x16 vector
 //
@@ -10069,7 +10069,7 @@ func (x Uint64x2) AsUint8x16() Uint8x16 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint64x2 vector as a Uint8x16 vector
-func (x Uint64x2) ReshapeToUint8s() Uint8x16
+func (x Uint64x2) ReshapeToUint8s() (z Uint8x16)
 
 // AsUint16x8 reinterprets the bits of a Uint64x2 vector as a Uint16x8 vector
 //
@@ -10081,7 +10081,7 @@ func (x Uint64x2) AsUint16x8() Uint16x8 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint64x2 vector as a Uint16x8 vector
-func (x Uint64x2) ReshapeToUint16s() Uint16x8
+func (x Uint64x2) ReshapeToUint16s() (z Uint16x8)
 
 // AsUint32x4 reinterprets the bits of a Uint64x2 vector as a Uint32x4 vector
 //
@@ -10093,7 +10093,7 @@ func (x Uint64x2) AsUint32x4() Uint32x4 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint64x2 vector as a Uint32x4 vector
-func (x Uint64x2) ReshapeToUint32s() Uint32x4
+func (x Uint64x2) ReshapeToUint32s() (z Uint32x4)
 
 // AsFloat32x8 reinterprets the bits of a Uint64x4 vector as a Float32x8 vector
 //
@@ -10117,7 +10117,7 @@ func (x Uint64x4) AsFloat64x4() Float64x4 {
 func (x Uint64x4) BitsToFloat64() Float64x4
 
 // ToBits reinterprets the bits of a Float64x4 vector as a Uint64x4 vector
-func (x Float64x4) ToBits() Uint64x4
+func (x Float64x4) ToBits() (z Uint64x4)
 
 // AsInt8x32 reinterprets the bits of a Uint64x4 vector as a Int8x32 vector
 //
@@ -10159,13 +10159,13 @@ func (x Uint64x4) AsInt64x4() Int64x4 {
 func (x Uint64x4) BitsToInt64() Int64x4
 
 // ConvertToInt64 converts a Uint64x4 vector to a Int64x4 vector
-func (x Uint64x4) ConvertToInt64() Int64x4
+func (x Uint64x4) ConvertToInt64() (z Int64x4)
 
 // ConvertToUint64 converts a Int64x4 vector to a Uint64x4 vector
-func (x Int64x4) ConvertToUint64() Uint64x4
+func (x Int64x4) ConvertToUint64() (z Uint64x4)
 
 // ToBits reinterprets the bits of a Int64x4 vector as a Uint64x4 vector
-func (x Int64x4) ToBits() Uint64x4
+func (x Int64x4) ToBits() (z Uint64x4)
 
 // AsUint8x32 reinterprets the bits of a Uint64x4 vector as a Uint8x32 vector
 //
@@ -10177,7 +10177,7 @@ func (x Uint64x4) AsUint8x32() Uint8x32 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint64x4 vector as a Uint8x32 vector
-func (x Uint64x4) ReshapeToUint8s() Uint8x32
+func (x Uint64x4) ReshapeToUint8s() (z Uint8x32)
 
 // AsUint16x16 reinterprets the bits of a Uint64x4 vector as a Uint16x16 vector
 //
@@ -10189,7 +10189,7 @@ func (x Uint64x4) AsUint16x16() Uint16x16 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint64x4 vector as a Uint16x16 vector
-func (x Uint64x4) ReshapeToUint16s() Uint16x16
+func (x Uint64x4) ReshapeToUint16s() (z Uint16x16)
 
 // AsUint32x8 reinterprets the bits of a Uint64x4 vector as a Uint32x8 vector
 //
@@ -10201,7 +10201,7 @@ func (x Uint64x4) AsUint32x8() Uint32x8 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint64x4 vector as a Uint32x8 vector
-func (x Uint64x4) ReshapeToUint32s() Uint32x8
+func (x Uint64x4) ReshapeToUint32s() (z Uint32x8)
 
 // AsFloat32x16 reinterprets the bits of a Uint64x8 vector as a Float32x16 vector
 //
@@ -10225,7 +10225,7 @@ func (x Uint64x8) AsFloat64x8() Float64x8 {
 func (x Uint64x8) BitsToFloat64() Float64x8
 
 // ToBits reinterprets the bits of a Float64x8 vector as a Uint64x8 vector
-func (x Float64x8) ToBits() Uint64x8
+func (x Float64x8) ToBits() (z Uint64x8)
 
 // AsInt8x64 reinterprets the bits of a Uint64x8 vector as a Int8x64 vector
 //
@@ -10267,13 +10267,13 @@ func (x Uint64x8) AsInt64x8() Int64x8 {
 func (x Uint64x8) BitsToInt64() Int64x8
 
 // ConvertToInt64 converts a Uint64x8 vector to a Int64x8 vector
-func (x Uint64x8) ConvertToInt64() Int64x8
+func (x Uint64x8) ConvertToInt64() (z Int64x8)
 
 // ConvertToUint64 converts a Int64x8 vector to a Uint64x8 vector
-func (x Int64x8) ConvertToUint64() Uint64x8
+func (x Int64x8) ConvertToUint64() (z Uint64x8)
 
 // ToBits reinterprets the bits of a Int64x8 vector as a Uint64x8 vector
-func (x Int64x8) ToBits() Uint64x8
+func (x Int64x8) ToBits() (z Uint64x8)
 
 // AsUint8x64 reinterprets the bits of a Uint64x8 vector as a Uint8x64 vector
 //
@@ -10285,7 +10285,7 @@ func (x Uint64x8) AsUint8x64() Uint8x64 {
 }
 
 // ReshapeToUint8s reinterprets the bits of a Uint64x8 vector as a Uint8x64 vector
-func (x Uint64x8) ReshapeToUint8s() Uint8x64
+func (x Uint64x8) ReshapeToUint8s() (z Uint8x64)
 
 // AsUint16x32 reinterprets the bits of a Uint64x8 vector as a Uint16x32 vector
 //
@@ -10297,7 +10297,7 @@ func (x Uint64x8) AsUint16x32() Uint16x32 {
 }
 
 // ReshapeToUint16s reinterprets the bits of a Uint64x8 vector as a Uint16x32 vector
-func (x Uint64x8) ReshapeToUint16s() Uint16x32
+func (x Uint64x8) ReshapeToUint16s() (z Uint16x32)
 
 // AsUint32x16 reinterprets the bits of a Uint64x8 vector as a Uint32x16 vector
 //
@@ -10309,7 +10309,7 @@ func (x Uint64x8) AsUint32x16() Uint32x16 {
 }
 
 // ReshapeToUint32s reinterprets the bits of a Uint64x8 vector as a Uint32x16 vector
-func (x Uint64x8) ReshapeToUint32s() Uint32x16
+func (x Uint64x8) ReshapeToUint32s() (z Uint32x16)
 
 // ToInt8x16 converts from Mask8x16 to Int8x16.
 // If element i in the mask is "true", all bits in element i of the resulting

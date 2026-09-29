@@ -37,72 +37,72 @@ func (x Float64x2) Abs() Float64x2
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: I8x16Add
-func (x Int8x16) Add(y Int8x16) Int8x16
+func (x Int8x16) Add(y Int8x16) (z Int8x16)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: I8x16Add
-func (x Uint8x16) Add(y Uint8x16) Uint8x16
+func (x Uint8x16) Add(y Uint8x16) (z Uint8x16)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: I16x8Add
-func (x Int16x8) Add(y Int16x8) Int16x8
+func (x Int16x8) Add(y Int16x8) (z Int16x8)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: I16x8Add
-func (x Uint16x8) Add(y Uint16x8) Uint16x8
+func (x Uint16x8) Add(y Uint16x8) (z Uint16x8)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: I32x4Add
-func (x Int32x4) Add(y Int32x4) Int32x4
+func (x Int32x4) Add(y Int32x4) (z Int32x4)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: I32x4Add
-func (x Uint32x4) Add(y Uint32x4) Uint32x4
+func (x Uint32x4) Add(y Uint32x4) (z Uint32x4)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: F32x4Add
-func (x Float32x4) Add(y Float32x4) Float32x4
+func (x Float32x4) Add(y Float32x4) (z Float32x4)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: I64x2Add
-func (x Int64x2) Add(y Int64x2) Int64x2
+func (x Int64x2) Add(y Int64x2) (z Int64x2)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: I64x2Add
-func (x Uint64x2) Add(y Uint64x2) Uint64x2
+func (x Uint64x2) Add(y Uint64x2) (z Uint64x2)
 
 // Add returns the result of adding x and y, elementwise.
 //
 // Asm: F64x2Add
-func (x Float64x2) Add(y Float64x2) Float64x2
+func (x Float64x2) Add(y Float64x2) (z Float64x2)
 
 // AddSaturated returns the result of adding x and y, saturating instead of overflowing, elementwise.
 //
 // Asm: I8x16AddSatS
-func (x Int8x16) AddSaturated(y Int8x16) Int8x16
+func (x Int8x16) AddSaturated(y Int8x16) (z Int8x16)
 
 // AddSaturated returns the result of adding x and y, saturating instead of overflowing, elementwise.
 //
 // Asm: I8x16AddSatU
-func (x Uint8x16) AddSaturated(y Uint8x16) Uint8x16
+func (x Uint8x16) AddSaturated(y Uint8x16) (z Uint8x16)
 
 // AddSaturated returns the result of adding x and y, saturating instead of overflowing, elementwise.
 //
 // Asm: I16x8AddSatS
-func (x Int16x8) AddSaturated(y Int16x8) Int16x8
+func (x Int16x8) AddSaturated(y Int16x8) (z Int16x8)
 
 // AddSaturated returns the result of adding x and y, saturating instead of overflowing, elementwise.
 //
 // Asm: I16x8AddSatU
-func (x Uint16x8) AddSaturated(y Uint16x8) Uint16x8
+func (x Uint16x8) AddSaturated(y Uint16x8) (z Uint16x8)
 
 // And returns the bitwise AND of x and y.
 //
@@ -287,32 +287,32 @@ func (x Float64x2) Ceil() Float64x2
 // ConvertLo2ToFloat64 converts the first two elements of x to Float64x2.
 //
 // Asm: F64x2ConvertLowI32x4S
-func (x Int32x4) ConvertLo2ToFloat64() Float64x2
+func (x Int32x4) ConvertLo2ToFloat64() (z Float64x2)
 
 // ConvertLo2ToFloat64 converts the first two elements of x to Float64x2.
 //
 // Asm: F64x2ConvertLowI32x4U
-func (x Uint32x4) ConvertLo2ToFloat64() Float64x2
+func (x Uint32x4) ConvertLo2ToFloat64() (z Float64x2)
 
 // ConvertToFloat32 converts elements of x to Float32x4.
 //
 // Asm: F32x4ConvertI32x4S
-func (x Int32x4) ConvertToFloat32() Float32x4
+func (x Int32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts elements of x to Float32x4.
 //
 // Asm: F32x4ConvertI32x4U
-func (x Uint32x4) ConvertToFloat32() Float32x4
+func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToInt32 converts elements of x to Int32x4.
 //
 // Asm: I32x4TruncSatF32x4S
-func (x Float32x4) ConvertToInt32() Int32x4
+func (x Float32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToUint32 converts elements of x to Uint32x4.
 //
 // Asm: I32x4TruncSatF32x4U
-func (x Float32x4) ConvertToUint32() Uint32x4
+func (x Float32x4) ConvertToUint32() (z Uint32x4)
 
 // Div returns the result of dividing x by y, elementwise.
 //
@@ -407,32 +407,32 @@ func (x Uint8x16) ExtendHi8ToUint16() Uint16x8
 // ExtendLo2ToInt64
 //
 // Asm: I64x2ExtendLowI32x4S
-func (x Int32x4) ExtendLo2ToInt64() Int64x2
+func (x Int32x4) ExtendLo2ToInt64() (z Int64x2)
 
 // ExtendLo2ToUint64
 //
 // Asm: I64x2ExtendLowI32x4U
-func (x Uint32x4) ExtendLo2ToUint64() Uint64x2
+func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2)
 
 // ExtendLo4ToInt32
 //
 // Asm: I32x4ExtendLowI16x8S
-func (x Int16x8) ExtendLo4ToInt32() Int32x4
+func (x Int16x8) ExtendLo4ToInt32() (z Int32x4)
 
 // ExtendLo4ToUint32
 //
 // Asm: I32x4ExtendLowI16x8U
-func (x Uint16x8) ExtendLo4ToUint32() Uint32x4
+func (x Uint16x8) ExtendLo4ToUint32() (z Uint32x4)
 
 // ExtendLo8ToInt16 extends the lower 8 elements of x to 16-bit integers.
 //
 // Asm: I16x8ExtendLowI8x16S
-func (x Int8x16) ExtendLo8ToInt16() Int16x8
+func (x Int8x16) ExtendLo8ToInt16() (z Int16x8)
 
 // ExtendLo8ToUint16 extends the lower 8 elements of x to 16-bit unsigned integers.
 //
 // Asm: I16x8ExtendLowI8x16U
-func (x Uint8x16) ExtendLo8ToUint16() Uint16x8
+func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
 
 // Floor returns the elementwise floor of x.
 //
@@ -1177,82 +1177,82 @@ func (x Float64x2) SetElem(index uint8, y float64) Float64x2
 // ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I8x16Shl
-func (x Int8x16) ShiftAllLeft(shift uint64) Int8x16
+func (x Int8x16) ShiftAllLeft(shift uint64) (z Int8x16)
 
 // ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I8x16Shl
-func (x Uint8x16) ShiftAllLeft(shift uint64) Uint8x16
+func (x Uint8x16) ShiftAllLeft(shift uint64) (z Uint8x16)
 
 // ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I16x8Shl
-func (x Int16x8) ShiftAllLeft(shift uint64) Int16x8
+func (x Int16x8) ShiftAllLeft(shift uint64) (z Int16x8)
 
 // ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I16x8Shl
-func (x Uint16x8) ShiftAllLeft(shift uint64) Uint16x8
+func (x Uint16x8) ShiftAllLeft(shift uint64) (z Uint16x8)
 
 // ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I32x4Shl
-func (x Int32x4) ShiftAllLeft(shift uint64) Int32x4
+func (x Int32x4) ShiftAllLeft(shift uint64) (z Int32x4)
 
 // ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I32x4Shl
-func (x Uint32x4) ShiftAllLeft(shift uint64) Uint32x4
+func (x Uint32x4) ShiftAllLeft(shift uint64) (z Uint32x4)
 
 // ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I64x2Shl
-func (x Int64x2) ShiftAllLeft(shift uint64) Int64x2
+func (x Int64x2) ShiftAllLeft(shift uint64) (z Int64x2)
 
 // ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I64x2Shl
-func (x Uint64x2) ShiftAllLeft(shift uint64) Uint64x2
+func (x Uint64x2) ShiftAllLeft(shift uint64) (z Uint64x2)
 
 // ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I8x16ShrS
-func (x Int8x16) ShiftAllRight(shift uint64) Int8x16
+func (x Int8x16) ShiftAllRight(shift uint64) (z Int8x16)
 
 // ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I8x16ShrU
-func (x Uint8x16) ShiftAllRight(shift uint64) Uint8x16
+func (x Uint8x16) ShiftAllRight(shift uint64) (z Uint8x16)
 
 // ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I16x8ShrS
-func (x Int16x8) ShiftAllRight(shift uint64) Int16x8
+func (x Int16x8) ShiftAllRight(shift uint64) (z Int16x8)
 
 // ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I16x8ShrU
-func (x Uint16x8) ShiftAllRight(shift uint64) Uint16x8
+func (x Uint16x8) ShiftAllRight(shift uint64) (z Uint16x8)
 
 // ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I32x4ShrS
-func (x Int32x4) ShiftAllRight(shift uint64) Int32x4
+func (x Int32x4) ShiftAllRight(shift uint64) (z Int32x4)
 
 // ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I32x4ShrU
-func (x Uint32x4) ShiftAllRight(shift uint64) Uint32x4
+func (x Uint32x4) ShiftAllRight(shift uint64) (z Uint32x4)
 
 // ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I64x2ShrS
-func (x Int64x2) ShiftAllRight(shift uint64) Int64x2
+func (x Int64x2) ShiftAllRight(shift uint64) (z Int64x2)
 
 // ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I64x2ShrU
-func (x Uint64x2) ShiftAllRight(shift uint64) Uint64x2
+func (x Uint64x2) ShiftAllRight(shift uint64) (z Uint64x2)
 
 // Sqrt returns the elementwise square root of x.
 //
@@ -1267,72 +1267,72 @@ func (x Float64x2) Sqrt() Float64x2
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: I8x16Sub
-func (x Int8x16) Sub(y Int8x16) Int8x16
+func (x Int8x16) Sub(y Int8x16) (z Int8x16)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: I8x16Sub
-func (x Uint8x16) Sub(y Uint8x16) Uint8x16
+func (x Uint8x16) Sub(y Uint8x16) (z Uint8x16)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: I16x8Sub
-func (x Int16x8) Sub(y Int16x8) Int16x8
+func (x Int16x8) Sub(y Int16x8) (z Int16x8)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: I16x8Sub
-func (x Uint16x8) Sub(y Uint16x8) Uint16x8
+func (x Uint16x8) Sub(y Uint16x8) (z Uint16x8)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: I32x4Sub
-func (x Int32x4) Sub(y Int32x4) Int32x4
+func (x Int32x4) Sub(y Int32x4) (z Int32x4)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: I32x4Sub
-func (x Uint32x4) Sub(y Uint32x4) Uint32x4
+func (x Uint32x4) Sub(y Uint32x4) (z Uint32x4)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: F32x4Sub
-func (x Float32x4) Sub(y Float32x4) Float32x4
+func (x Float32x4) Sub(y Float32x4) (z Float32x4)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: I64x2Sub
-func (x Int64x2) Sub(y Int64x2) Int64x2
+func (x Int64x2) Sub(y Int64x2) (z Int64x2)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: I64x2Sub
-func (x Uint64x2) Sub(y Uint64x2) Uint64x2
+func (x Uint64x2) Sub(y Uint64x2) (z Uint64x2)
 
 // Sub returns the result of subtracting y from x, elementwise.
 //
 // Asm: F64x2Sub
-func (x Float64x2) Sub(y Float64x2) Float64x2
+func (x Float64x2) Sub(y Float64x2) (z Float64x2)
 
 // SubSaturated returns the result of subtracting x and y, saturating instead of overflowing, elementwise.
 //
 // Asm: I8x16SubSatS
-func (x Int8x16) SubSaturated(y Int8x16) Int8x16
+func (x Int8x16) SubSaturated(y Int8x16) (z Int8x16)
 
 // SubSaturated returns the result of subtracting x and y, saturating instead of overflowing, elementwise.
 //
 // Asm: I8x16SubSatU
-func (x Uint8x16) SubSaturated(y Uint8x16) Uint8x16
+func (x Uint8x16) SubSaturated(y Uint8x16) (z Uint8x16)
 
 // SubSaturated returns the result of subtracting x and y, saturating instead of overflowing, elementwise.
 //
 // Asm: I16x8SubSatS
-func (x Int16x8) SubSaturated(y Int16x8) Int16x8
+func (x Int16x8) SubSaturated(y Int16x8) (z Int16x8)
 
 // SubSaturated returns the result of subtracting x and y, saturating instead of overflowing, elementwise.
 //
 // Asm: I16x8SubSatU
-func (x Uint16x8) SubSaturated(y Uint16x8) Uint16x8
+func (x Uint16x8) SubSaturated(y Uint16x8) (z Uint16x8)
 
 // Trunc returns the elementwise truncation of x.
 //
@@ -1410,7 +1410,7 @@ func (x Int8x16) ToMask() Mask8x16
 
 // ToInt8x16 translates a Mask8x16 mask vector to an Int8x16 int vector
 // false becomes zero, true becomes -1
-func (x Mask8x16) ToInt8x16() Int8x16
+func (x Mask8x16) ToInt8x16() (z Int8x16)
 
 // ToMask translates an Int16x8 vector to a Mask16x8 mask vector
 // zero becomes false, not-zero becomes true
@@ -1418,7 +1418,7 @@ func (x Int16x8) ToMask() Mask16x8
 
 // ToInt16x8 translates a Mask16x8 mask vector to an Int16x8 int vector
 // false becomes zero, true becomes -1
-func (x Mask16x8) ToInt16x8() Int16x8
+func (x Mask16x8) ToInt16x8() (z Int16x8)
 
 // ToMask translates an Int32x4 vector to a Mask32x4 mask vector
 // zero becomes false, not-zero becomes true
@@ -1426,7 +1426,7 @@ func (x Int32x4) ToMask() Mask32x4
 
 // ToInt32x4 translates a Mask32x4 mask vector to an Int32x4 int vector
 // false becomes zero, true becomes -1
-func (x Mask32x4) ToInt32x4() Int32x4
+func (x Mask32x4) ToInt32x4() (z Int32x4)
 
 // ToMask translates an Int64x2 vector to a Mask64x2 mask vector
 // zero becomes false, not-zero becomes true
@@ -1434,7 +1434,7 @@ func (x Int64x2) ToMask() Mask64x2
 
 // ToInt64x2 translates a Mask64x2 mask vector to an Int64x2 int vector
 // false becomes zero, true becomes -1
-func (x Mask64x2) ToInt64x2() Int64x2
+func (x Mask64x2) ToInt64x2() (z Int64x2)
 
 // Masked returns x but with elements zeroed where mask is false.
 func (x Int8x16) Masked(mask Mask8x16) Int8x16 {
@@ -1662,94 +1662,94 @@ func (x Mask64x2) String() string {
 func (x Uint32x4) BitsToFloat32() Float32x4
 
 // ToBits reinterprets the bits of a Float32x4 vector as a Uint32x4 vector
-func (x Float32x4) ToBits() Uint32x4
+func (x Float32x4) ToBits() (z Uint32x4)
 
 // BitsToFloat64 reinterprets the bits of a Uint64x2 vector as a Float64x2 vector
 func (x Uint64x2) BitsToFloat64() Float64x2
 
 // ToBits reinterprets the bits of a Float64x2 vector as a Uint64x2 vector
-func (x Float64x2) ToBits() Uint64x2
+func (x Float64x2) ToBits() (z Uint64x2)
 
 // BitsToInt8 reinterprets the bits of a Uint8x16 vector as a Int8x16 vector
 func (x Uint8x16) BitsToInt8() Int8x16
 
 // ConvertToInt8 converts a Uint8x16 vector to a Int8x16 vector
-func (x Uint8x16) ConvertToInt8() Int8x16
+func (x Uint8x16) ConvertToInt8() (z Int8x16)
 
 // ConvertToUint8 converts a Int8x16 vector to a Uint8x16 vector
-func (x Int8x16) ConvertToUint8() Uint8x16
+func (x Int8x16) ConvertToUint8() (z Uint8x16)
 
 // ToBits reinterprets the bits of a Int8x16 vector as a Uint8x16 vector
-func (x Int8x16) ToBits() Uint8x16
+func (x Int8x16) ToBits() (z Uint8x16)
 
 // BitsToInt16 reinterprets the bits of a Uint16x8 vector as a Int16x8 vector
 func (x Uint16x8) BitsToInt16() Int16x8
 
 // ConvertToInt16 converts a Uint16x8 vector to a Int16x8 vector
-func (x Uint16x8) ConvertToInt16() Int16x8
+func (x Uint16x8) ConvertToInt16() (z Int16x8)
 
 // ConvertToUint16 converts a Int16x8 vector to a Uint16x8 vector
-func (x Int16x8) ConvertToUint16() Uint16x8
+func (x Int16x8) ConvertToUint16() (z Uint16x8)
 
 // ToBits reinterprets the bits of a Int16x8 vector as a Uint16x8 vector
-func (x Int16x8) ToBits() Uint16x8
+func (x Int16x8) ToBits() (z Uint16x8)
 
 // BitsToInt32 reinterprets the bits of a Uint32x4 vector as a Int32x4 vector
 func (x Uint32x4) BitsToInt32() Int32x4
 
 // ConvertToInt32 converts a Uint32x4 vector to a Int32x4 vector
-func (x Uint32x4) ConvertToInt32() Int32x4
+func (x Uint32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToUint32 converts a Int32x4 vector to a Uint32x4 vector
-func (x Int32x4) ConvertToUint32() Uint32x4
+func (x Int32x4) ConvertToUint32() (z Uint32x4)
 
 // ToBits reinterprets the bits of a Int32x4 vector as a Uint32x4 vector
-func (x Int32x4) ToBits() Uint32x4
+func (x Int32x4) ToBits() (z Uint32x4)
 
 // BitsToInt64 reinterprets the bits of a Uint64x2 vector as a Int64x2 vector
 func (x Uint64x2) BitsToInt64() Int64x2
 
 // ConvertToInt64 converts a Uint64x2 vector to a Int64x2 vector
-func (x Uint64x2) ConvertToInt64() Int64x2
+func (x Uint64x2) ConvertToInt64() (z Int64x2)
 
 // ConvertToUint64 converts a Int64x2 vector to a Uint64x2 vector
-func (x Int64x2) ConvertToUint64() Uint64x2
+func (x Int64x2) ConvertToUint64() (z Uint64x2)
 
 // ToBits reinterprets the bits of a Int64x2 vector as a Uint64x2 vector
-func (x Int64x2) ToBits() Uint64x2
+func (x Int64x2) ToBits() (z Uint64x2)
 
 // ReshapeToUint16s reinterprets the bits of a Uint8x16 vector as a Uint16x8 vector
-func (x Uint8x16) ReshapeToUint16s() Uint16x8
+func (x Uint8x16) ReshapeToUint16s() (z Uint16x8)
 
 // ReshapeToUint32s reinterprets the bits of a Uint8x16 vector as a Uint32x4 vector
-func (x Uint8x16) ReshapeToUint32s() Uint32x4
+func (x Uint8x16) ReshapeToUint32s() (z Uint32x4)
 
 // ReshapeToUint64s reinterprets the bits of a Uint8x16 vector as a Uint64x2 vector
-func (x Uint8x16) ReshapeToUint64s() Uint64x2
+func (x Uint8x16) ReshapeToUint64s() (z Uint64x2)
 
 // ReshapeToUint8s reinterprets the bits of a Uint16x8 vector as a Uint8x16 vector
-func (x Uint16x8) ReshapeToUint8s() Uint8x16
+func (x Uint16x8) ReshapeToUint8s() (z Uint8x16)
 
 // ReshapeToUint32s reinterprets the bits of a Uint16x8 vector as a Uint32x4 vector
-func (x Uint16x8) ReshapeToUint32s() Uint32x4
+func (x Uint16x8) ReshapeToUint32s() (z Uint32x4)
 
 // ReshapeToUint64s reinterprets the bits of a Uint16x8 vector as a Uint64x2 vector
-func (x Uint16x8) ReshapeToUint64s() Uint64x2
+func (x Uint16x8) ReshapeToUint64s() (z Uint64x2)
 
 // ReshapeToUint8s reinterprets the bits of a Uint32x4 vector as a Uint8x16 vector
-func (x Uint32x4) ReshapeToUint8s() Uint8x16
+func (x Uint32x4) ReshapeToUint8s() (z Uint8x16)
 
 // ReshapeToUint16s reinterprets the bits of a Uint32x4 vector as a Uint16x8 vector
-func (x Uint32x4) ReshapeToUint16s() Uint16x8
+func (x Uint32x4) ReshapeToUint16s() (z Uint16x8)
 
 // ReshapeToUint64s reinterprets the bits of a Uint32x4 vector as a Uint64x2 vector
-func (x Uint32x4) ReshapeToUint64s() Uint64x2
+func (x Uint32x4) ReshapeToUint64s() (z Uint64x2)
 
 // ReshapeToUint8s reinterprets the bits of a Uint64x2 vector as a Uint8x16 vector
-func (x Uint64x2) ReshapeToUint8s() Uint8x16
+func (x Uint64x2) ReshapeToUint8s() (z Uint8x16)
 
 // ReshapeToUint16s reinterprets the bits of a Uint64x2 vector as a Uint16x8 vector
-func (x Uint64x2) ReshapeToUint16s() Uint16x8
+func (x Uint64x2) ReshapeToUint16s() (z Uint16x8)
 
 // ReshapeToUint32s reinterprets the bits of a Uint64x2 vector as a Uint32x4 vector
-func (x Uint64x2) ReshapeToUint32s() Uint32x4
+func (x Uint64x2) ReshapeToUint32s() (z Uint32x4)

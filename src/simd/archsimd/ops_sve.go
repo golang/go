@@ -41,94 +41,94 @@ func (x Int64s) Abs() Uint64s
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZFADD, CPU Feature: SVE
-func (x Float32s) Add(y Float32s) Float32s
+func (x Float32s) Add(y Float32s) (z Float32s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZFADD, CPU Feature: SVE
-func (x Float64s) Add(y Float64s) Float64s
+func (x Float64s) Add(y Float64s) (z Float64s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZADD, CPU Feature: SVE
-func (x Int8s) Add(y Int8s) Int8s
+func (x Int8s) Add(y Int8s) (z Int8s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZADD, CPU Feature: SVE
-func (x Int16s) Add(y Int16s) Int16s
+func (x Int16s) Add(y Int16s) (z Int16s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZADD, CPU Feature: SVE
-func (x Int32s) Add(y Int32s) Int32s
+func (x Int32s) Add(y Int32s) (z Int32s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZADD, CPU Feature: SVE
-func (x Int64s) Add(y Int64s) Int64s
+func (x Int64s) Add(y Int64s) (z Int64s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZADD, CPU Feature: SVE
-func (x Uint8s) Add(y Uint8s) Uint8s
+func (x Uint8s) Add(y Uint8s) (z Uint8s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZADD, CPU Feature: SVE
-func (x Uint16s) Add(y Uint16s) Uint16s
+func (x Uint16s) Add(y Uint16s) (z Uint16s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZADD, CPU Feature: SVE
-func (x Uint32s) Add(y Uint32s) Uint32s
+func (x Uint32s) Add(y Uint32s) (z Uint32s)
 
 // Add adds corresponding elements of two vectors.
 //
 // Asm: ZADD, CPU Feature: SVE
-func (x Uint64s) Add(y Uint64s) Uint64s
+func (x Uint64s) Add(y Uint64s) (z Uint64s)
 
 /* AddSaturated */
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: ZSQADD, CPU Feature: SVE
-func (x Int8s) AddSaturated(y Int8s) Int8s
+func (x Int8s) AddSaturated(y Int8s) (z Int8s)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: ZSQADD, CPU Feature: SVE
-func (x Int16s) AddSaturated(y Int16s) Int16s
+func (x Int16s) AddSaturated(y Int16s) (z Int16s)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: ZSQADD, CPU Feature: SVE
-func (x Int32s) AddSaturated(y Int32s) Int32s
+func (x Int32s) AddSaturated(y Int32s) (z Int32s)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: ZSQADD, CPU Feature: SVE
-func (x Int64s) AddSaturated(y Int64s) Int64s
+func (x Int64s) AddSaturated(y Int64s) (z Int64s)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: ZUQADD, CPU Feature: SVE
-func (x Uint8s) AddSaturated(y Uint8s) Uint8s
+func (x Uint8s) AddSaturated(y Uint8s) (z Uint8s)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: ZUQADD, CPU Feature: SVE
-func (x Uint16s) AddSaturated(y Uint16s) Uint16s
+func (x Uint16s) AddSaturated(y Uint16s) (z Uint16s)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: ZUQADD, CPU Feature: SVE
-func (x Uint32s) AddSaturated(y Uint32s) Uint32s
+func (x Uint32s) AddSaturated(y Uint32s) (z Uint32s)
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
 // Asm: ZUQADD, CPU Feature: SVE
-func (x Uint64s) AddSaturated(y Uint64s) Uint64s
+func (x Uint64s) AddSaturated(y Uint64s) (z Uint64s)
 
 /* And */
 
@@ -839,94 +839,94 @@ func (x Float64s) Sqrt() Float64s
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZFSUB, CPU Feature: SVE
-func (x Float32s) Sub(y Float32s) Float32s
+func (x Float32s) Sub(y Float32s) (z Float32s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZFSUB, CPU Feature: SVE
-func (x Float64s) Sub(y Float64s) Float64s
+func (x Float64s) Sub(y Float64s) (z Float64s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZSUB, CPU Feature: SVE
-func (x Int8s) Sub(y Int8s) Int8s
+func (x Int8s) Sub(y Int8s) (z Int8s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZSUB, CPU Feature: SVE
-func (x Int16s) Sub(y Int16s) Int16s
+func (x Int16s) Sub(y Int16s) (z Int16s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZSUB, CPU Feature: SVE
-func (x Int32s) Sub(y Int32s) Int32s
+func (x Int32s) Sub(y Int32s) (z Int32s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZSUB, CPU Feature: SVE
-func (x Int64s) Sub(y Int64s) Int64s
+func (x Int64s) Sub(y Int64s) (z Int64s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZSUB, CPU Feature: SVE
-func (x Uint8s) Sub(y Uint8s) Uint8s
+func (x Uint8s) Sub(y Uint8s) (z Uint8s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZSUB, CPU Feature: SVE
-func (x Uint16s) Sub(y Uint16s) Uint16s
+func (x Uint16s) Sub(y Uint16s) (z Uint16s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZSUB, CPU Feature: SVE
-func (x Uint32s) Sub(y Uint32s) Uint32s
+func (x Uint32s) Sub(y Uint32s) (z Uint32s)
 
 // Sub subtracts corresponding elements of two vectors.
 //
 // Asm: ZSUB, CPU Feature: SVE
-func (x Uint64s) Sub(y Uint64s) Uint64s
+func (x Uint64s) Sub(y Uint64s) (z Uint64s)
 
 /* SubSaturated */
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: ZSQSUB, CPU Feature: SVE
-func (x Int8s) SubSaturated(y Int8s) Int8s
+func (x Int8s) SubSaturated(y Int8s) (z Int8s)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: ZSQSUB, CPU Feature: SVE
-func (x Int16s) SubSaturated(y Int16s) Int16s
+func (x Int16s) SubSaturated(y Int16s) (z Int16s)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: ZSQSUB, CPU Feature: SVE
-func (x Int32s) SubSaturated(y Int32s) Int32s
+func (x Int32s) SubSaturated(y Int32s) (z Int32s)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: ZSQSUB, CPU Feature: SVE
-func (x Int64s) SubSaturated(y Int64s) Int64s
+func (x Int64s) SubSaturated(y Int64s) (z Int64s)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: ZUQSUB, CPU Feature: SVE
-func (x Uint8s) SubSaturated(y Uint8s) Uint8s
+func (x Uint8s) SubSaturated(y Uint8s) (z Uint8s)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: ZUQSUB, CPU Feature: SVE
-func (x Uint16s) SubSaturated(y Uint16s) Uint16s
+func (x Uint16s) SubSaturated(y Uint16s) (z Uint16s)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: ZUQSUB, CPU Feature: SVE
-func (x Uint32s) SubSaturated(y Uint32s) Uint32s
+func (x Uint32s) SubSaturated(y Uint32s) (z Uint32s)
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: ZUQSUB, CPU Feature: SVE
-func (x Uint64s) SubSaturated(y Uint64s) Uint64s
+func (x Uint64s) SubSaturated(y Uint64s) (z Uint64s)
 
 /* Trunc */
 
@@ -986,94 +986,94 @@ func (x Uint64s) Xor(y Uint64s) Uint64s
 func (x Uint8s) BitsToInt8() Int8s
 
 // ConvertToInt8 converts a Uint8s vector to a Int8s vector
-func (x Uint8s) ConvertToInt8() Int8s
+func (x Uint8s) ConvertToInt8() (z Int8s)
 
 // ConvertToUint8 converts a Int8s vector to a Uint8s vector
-func (x Int8s) ConvertToUint8() Uint8s
+func (x Int8s) ConvertToUint8() (z Uint8s)
 
 // ToBits reinterprets the bits of a Int8s vector as a Uint8s vector
-func (x Int8s) ToBits() Uint8s
+func (x Int8s) ToBits() (z Uint8s)
 
 // ReshapeToUint16s reinterprets the bits of a Uint8s vector as a Uint16s vector
-func (x Uint8s) ReshapeToUint16s() Uint16s
+func (x Uint8s) ReshapeToUint16s() (z Uint16s)
 
 // ReshapeToUint32s reinterprets the bits of a Uint8s vector as a Uint32s vector
-func (x Uint8s) ReshapeToUint32s() Uint32s
+func (x Uint8s) ReshapeToUint32s() (z Uint32s)
 
 // ReshapeToUint64s reinterprets the bits of a Uint8s vector as a Uint64s vector
-func (x Uint8s) ReshapeToUint64s() Uint64s
+func (x Uint8s) ReshapeToUint64s() (z Uint64s)
 
 // BitsToInt16 reinterprets the bits of a Uint16s vector as a Int16s vector
 func (x Uint16s) BitsToInt16() Int16s
 
 // ConvertToInt16 converts a Uint16s vector to a Int16s vector
-func (x Uint16s) ConvertToInt16() Int16s
+func (x Uint16s) ConvertToInt16() (z Int16s)
 
 // ConvertToUint16 converts a Int16s vector to a Uint16s vector
-func (x Int16s) ConvertToUint16() Uint16s
+func (x Int16s) ConvertToUint16() (z Uint16s)
 
 // ToBits reinterprets the bits of a Int16s vector as a Uint16s vector
-func (x Int16s) ToBits() Uint16s
+func (x Int16s) ToBits() (z Uint16s)
 
 // ReshapeToUint8s reinterprets the bits of a Uint16s vector as a Uint8s vector
-func (x Uint16s) ReshapeToUint8s() Uint8s
+func (x Uint16s) ReshapeToUint8s() (z Uint8s)
 
 // ReshapeToUint32s reinterprets the bits of a Uint16s vector as a Uint32s vector
-func (x Uint16s) ReshapeToUint32s() Uint32s
+func (x Uint16s) ReshapeToUint32s() (z Uint32s)
 
 // ReshapeToUint64s reinterprets the bits of a Uint16s vector as a Uint64s vector
-func (x Uint16s) ReshapeToUint64s() Uint64s
+func (x Uint16s) ReshapeToUint64s() (z Uint64s)
 
 // BitsToFloat32 reinterprets the bits of a Uint32s vector as a Float32s vector
 func (x Uint32s) BitsToFloat32() Float32s
 
 // ToBits reinterprets the bits of a Float32s vector as a Uint32s vector
-func (x Float32s) ToBits() Uint32s
+func (x Float32s) ToBits() (z Uint32s)
 
 // BitsToInt32 reinterprets the bits of a Uint32s vector as a Int32s vector
 func (x Uint32s) BitsToInt32() Int32s
 
 // ConvertToInt32 converts a Uint32s vector to a Int32s vector
-func (x Uint32s) ConvertToInt32() Int32s
+func (x Uint32s) ConvertToInt32() (z Int32s)
 
 // ConvertToUint32 converts a Int32s vector to a Uint32s vector
-func (x Int32s) ConvertToUint32() Uint32s
+func (x Int32s) ConvertToUint32() (z Uint32s)
 
 // ToBits reinterprets the bits of a Int32s vector as a Uint32s vector
-func (x Int32s) ToBits() Uint32s
+func (x Int32s) ToBits() (z Uint32s)
 
 // ReshapeToUint8s reinterprets the bits of a Uint32s vector as a Uint8s vector
-func (x Uint32s) ReshapeToUint8s() Uint8s
+func (x Uint32s) ReshapeToUint8s() (z Uint8s)
 
 // ReshapeToUint16s reinterprets the bits of a Uint32s vector as a Uint16s vector
-func (x Uint32s) ReshapeToUint16s() Uint16s
+func (x Uint32s) ReshapeToUint16s() (z Uint16s)
 
 // ReshapeToUint64s reinterprets the bits of a Uint32s vector as a Uint64s vector
-func (x Uint32s) ReshapeToUint64s() Uint64s
+func (x Uint32s) ReshapeToUint64s() (z Uint64s)
 
 // BitsToFloat64 reinterprets the bits of a Uint64s vector as a Float64s vector
 func (x Uint64s) BitsToFloat64() Float64s
 
 // ToBits reinterprets the bits of a Float64s vector as a Uint64s vector
-func (x Float64s) ToBits() Uint64s
+func (x Float64s) ToBits() (z Uint64s)
 
 // BitsToInt64 reinterprets the bits of a Uint64s vector as a Int64s vector
 func (x Uint64s) BitsToInt64() Int64s
 
 // ConvertToInt64 converts a Uint64s vector to a Int64s vector
-func (x Uint64s) ConvertToInt64() Int64s
+func (x Uint64s) ConvertToInt64() (z Int64s)
 
 // ConvertToUint64 converts a Int64s vector to a Uint64s vector
-func (x Int64s) ConvertToUint64() Uint64s
+func (x Int64s) ConvertToUint64() (z Uint64s)
 
 // ToBits reinterprets the bits of a Int64s vector as a Uint64s vector
-func (x Int64s) ToBits() Uint64s
+func (x Int64s) ToBits() (z Uint64s)
 
 // ReshapeToUint8s reinterprets the bits of a Uint64s vector as a Uint8s vector
-func (x Uint64s) ReshapeToUint8s() Uint8s
+func (x Uint64s) ReshapeToUint8s() (z Uint8s)
 
 // ReshapeToUint16s reinterprets the bits of a Uint64s vector as a Uint16s vector
-func (x Uint64s) ReshapeToUint16s() Uint16s
+func (x Uint64s) ReshapeToUint16s() (z Uint16s)
 
 // ReshapeToUint32s reinterprets the bits of a Uint64s vector as a Uint32s vector
-func (x Uint64s) ReshapeToUint32s() Uint32s
+func (x Uint64s) ReshapeToUint32s() (z Uint32s)

@@ -29,9 +29,9 @@ func (x Float32s) Len() int { return vl() / 4 }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadFloat32s(s []float32) Float32s {
-	var z Float32s
-	if len(s) < z.Len() {
+func LoadFloat32s(s []float32) (z Float32s) {
+	var v Float32s
+	if len(s) < v.Len() {
 		panic("simd: LoadFloat32s: slice shorter than the vector")
 	}
 	return loadFloat32s(s)
@@ -59,7 +59,7 @@ func (x Float32s) store(s []float32)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadFloat32sPart(s []float32) (Float32s, int) {
+func LoadFloat32sPart(s []float32) (z Float32s, n int) {
 	if len(s) == 0 {
 		return Float32s{}, 0
 	}
@@ -103,7 +103,7 @@ func (x Float32s) Masked(mask Mask32s) Float32s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastFloat32s(x float32) Float32s
+func BroadcastFloat32s(x float32) (z Float32s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -127,9 +127,9 @@ func (x Float64s) Len() int { return vl() / 8 }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadFloat64s(s []float64) Float64s {
-	var z Float64s
-	if len(s) < z.Len() {
+func LoadFloat64s(s []float64) (z Float64s) {
+	var v Float64s
+	if len(s) < v.Len() {
 		panic("simd: LoadFloat64s: slice shorter than the vector")
 	}
 	return loadFloat64s(s)
@@ -157,7 +157,7 @@ func (x Float64s) store(s []float64)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadFloat64sPart(s []float64) (Float64s, int) {
+func LoadFloat64sPart(s []float64) (z Float64s, n int) {
 	if len(s) == 0 {
 		return Float64s{}, 0
 	}
@@ -201,7 +201,7 @@ func (x Float64s) Masked(mask Mask64s) Float64s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastFloat64s(x float64) Float64s
+func BroadcastFloat64s(x float64) (z Float64s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -225,9 +225,9 @@ func (x Int8s) Len() int { return vl() }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadInt8s(s []int8) Int8s {
-	var z Int8s
-	if len(s) < z.Len() {
+func LoadInt8s(s []int8) (z Int8s) {
+	var v Int8s
+	if len(s) < v.Len() {
 		panic("simd: LoadInt8s: slice shorter than the vector")
 	}
 	return loadInt8s(s)
@@ -255,7 +255,7 @@ func (x Int8s) store(s []int8)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadInt8sPart(s []int8) (Int8s, int) {
+func LoadInt8sPart(s []int8) (z Int8s, n int) {
 	if len(s) == 0 {
 		return Int8s{}, 0
 	}
@@ -299,7 +299,7 @@ func (x Int8s) Masked(mask Mask8s) Int8s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastInt8s(x int8) Int8s
+func BroadcastInt8s(x int8) (z Int8s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -323,9 +323,9 @@ func (x Int16s) Len() int { return vl() / 2 }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadInt16s(s []int16) Int16s {
-	var z Int16s
-	if len(s) < z.Len() {
+func LoadInt16s(s []int16) (z Int16s) {
+	var v Int16s
+	if len(s) < v.Len() {
 		panic("simd: LoadInt16s: slice shorter than the vector")
 	}
 	return loadInt16s(s)
@@ -353,7 +353,7 @@ func (x Int16s) store(s []int16)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadInt16sPart(s []int16) (Int16s, int) {
+func LoadInt16sPart(s []int16) (z Int16s, n int) {
 	if len(s) == 0 {
 		return Int16s{}, 0
 	}
@@ -397,7 +397,7 @@ func (x Int16s) Masked(mask Mask16s) Int16s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastInt16s(x int16) Int16s
+func BroadcastInt16s(x int16) (z Int16s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -421,9 +421,9 @@ func (x Int32s) Len() int { return vl() / 4 }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadInt32s(s []int32) Int32s {
-	var z Int32s
-	if len(s) < z.Len() {
+func LoadInt32s(s []int32) (z Int32s) {
+	var v Int32s
+	if len(s) < v.Len() {
 		panic("simd: LoadInt32s: slice shorter than the vector")
 	}
 	return loadInt32s(s)
@@ -451,7 +451,7 @@ func (x Int32s) store(s []int32)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadInt32sPart(s []int32) (Int32s, int) {
+func LoadInt32sPart(s []int32) (z Int32s, n int) {
 	if len(s) == 0 {
 		return Int32s{}, 0
 	}
@@ -495,7 +495,7 @@ func (x Int32s) Masked(mask Mask32s) Int32s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastInt32s(x int32) Int32s
+func BroadcastInt32s(x int32) (z Int32s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -519,9 +519,9 @@ func (x Int64s) Len() int { return vl() / 8 }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadInt64s(s []int64) Int64s {
-	var z Int64s
-	if len(s) < z.Len() {
+func LoadInt64s(s []int64) (z Int64s) {
+	var v Int64s
+	if len(s) < v.Len() {
 		panic("simd: LoadInt64s: slice shorter than the vector")
 	}
 	return loadInt64s(s)
@@ -549,7 +549,7 @@ func (x Int64s) store(s []int64)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadInt64sPart(s []int64) (Int64s, int) {
+func LoadInt64sPart(s []int64) (z Int64s, n int) {
 	if len(s) == 0 {
 		return Int64s{}, 0
 	}
@@ -593,7 +593,7 @@ func (x Int64s) Masked(mask Mask64s) Int64s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastInt64s(x int64) Int64s
+func BroadcastInt64s(x int64) (z Int64s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -617,9 +617,9 @@ func (x Uint8s) Len() int { return vl() }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadUint8s(s []uint8) Uint8s {
-	var z Uint8s
-	if len(s) < z.Len() {
+func LoadUint8s(s []uint8) (z Uint8s) {
+	var v Uint8s
+	if len(s) < v.Len() {
 		panic("simd: LoadUint8s: slice shorter than the vector")
 	}
 	return loadUint8s(s)
@@ -647,7 +647,7 @@ func (x Uint8s) store(s []uint8)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadUint8sPart(s []uint8) (Uint8s, int) {
+func LoadUint8sPart(s []uint8) (z Uint8s, n int) {
 	if len(s) == 0 {
 		return Uint8s{}, 0
 	}
@@ -691,7 +691,7 @@ func (x Uint8s) Masked(mask Mask8s) Uint8s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastUint8s(x uint8) Uint8s
+func BroadcastUint8s(x uint8) (z Uint8s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -715,9 +715,9 @@ func (x Uint16s) Len() int { return vl() / 2 }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadUint16s(s []uint16) Uint16s {
-	var z Uint16s
-	if len(s) < z.Len() {
+func LoadUint16s(s []uint16) (z Uint16s) {
+	var v Uint16s
+	if len(s) < v.Len() {
 		panic("simd: LoadUint16s: slice shorter than the vector")
 	}
 	return loadUint16s(s)
@@ -745,7 +745,7 @@ func (x Uint16s) store(s []uint16)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadUint16sPart(s []uint16) (Uint16s, int) {
+func LoadUint16sPart(s []uint16) (z Uint16s, n int) {
 	if len(s) == 0 {
 		return Uint16s{}, 0
 	}
@@ -789,7 +789,7 @@ func (x Uint16s) Masked(mask Mask16s) Uint16s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastUint16s(x uint16) Uint16s
+func BroadcastUint16s(x uint16) (z Uint16s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -813,9 +813,9 @@ func (x Uint32s) Len() int { return vl() / 4 }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadUint32s(s []uint32) Uint32s {
-	var z Uint32s
-	if len(s) < z.Len() {
+func LoadUint32s(s []uint32) (z Uint32s) {
+	var v Uint32s
+	if len(s) < v.Len() {
 		panic("simd: LoadUint32s: slice shorter than the vector")
 	}
 	return loadUint32s(s)
@@ -843,7 +843,7 @@ func (x Uint32s) store(s []uint32)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadUint32sPart(s []uint32) (Uint32s, int) {
+func LoadUint32sPart(s []uint32) (z Uint32s, n int) {
 	if len(s) == 0 {
 		return Uint32s{}, 0
 	}
@@ -887,7 +887,7 @@ func (x Uint32s) Masked(mask Mask32s) Uint32s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastUint32s(x uint32) Uint32s
+func BroadcastUint32s(x uint32) (z Uint32s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -911,9 +911,9 @@ func (x Uint64s) Len() int { return vl() / 8 }
 // It panics if len(s) < Len().
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
-func LoadUint64s(s []uint64) Uint64s {
-	var z Uint64s
-	if len(s) < z.Len() {
+func LoadUint64s(s []uint64) (z Uint64s) {
+	var v Uint64s
+	if len(s) < v.Len() {
 		panic("simd: LoadUint64s: slice shorter than the vector")
 	}
 	return loadUint64s(s)
@@ -941,7 +941,7 @@ func (x Uint64s) store(s []uint64)
 // zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
-func LoadUint64sPart(s []uint64) (Uint64s, int) {
+func LoadUint64sPart(s []uint64) (z Uint64s, n int) {
 	if len(s) == 0 {
 		return Uint64s{}, 0
 	}
@@ -985,7 +985,7 @@ func (x Uint64s) Masked(mask Mask64s) Uint64s {
 // elements of the output.
 //
 // Asm: ZDUP, CPU Feature: SVE
-func BroadcastUint64s(x uint64) Uint64s
+func BroadcastUint64s(x uint64) (z Uint64s)
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.

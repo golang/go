@@ -482,8 +482,8 @@ func (x {{.Name}}) Len() int { return {{.LenExpr}} }
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func Load{{.Name}}(s []{{.Base}}) {{.Name}} {
-	var z {{.Name}}
-	if len(s) < z.Len() {
+	var v {{.Name}}
+	if len(s) < v.Len() {
 		panic("simd: Load{{.Name}}: slice shorter than the vector")
 	}
 	return load{{.Name}}(s)

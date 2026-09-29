@@ -1155,8 +1155,8 @@ var broadcastTemplate = templateOf("Broadcast functions", `
 //
 // Emulated, CPU Feature: {{.CPUfeatureBC}}
 func Broadcast{{.VType}}(x {{.Etype}}) {{.VType}} {
-	var z {{.As128BitVec }}
-	return z.SetElem(0, x).broadcast1To{{.Count}}()
+	var v {{.As128BitVec }}
+	return v.SetElem(0, x).broadcast1To{{.Count}}()
 }
 `)
 
@@ -1164,8 +1164,8 @@ var broadcastTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_broadcast", `
 // Broadcast{{.VType}} returns a vector with the input
 // x assigned to all elements of the output.
 func Broadcast{{.VType}}(x {{.Etype}}) {{.VType}} {
-	var z {{.VType}}
-	return z.SetElem(0, x).broadcast1To{{.Count}}()
+	var v {{.VType}}
+	return v.SetElem(0, x).broadcast1To{{.Count}}()
 }
 `)
 
@@ -1182,20 +1182,20 @@ var getHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_HiToLo methods", `
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x {{.VType}}) HiToLo() {{.VType}} {
-	var z {{.VType}}
+	var v {{.VType}}
 {{- if and (eq .Base "Float") (eq .EWidth 64)}}
-	return z.SetElem(0, x.GetElem(1))
+	return v.SetElem(0, x.GetElem(1))
 {{- else if (eq .EWidth 64)}}
 {{-  if (eq .Base "Uint")}}
-	return z.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
+	return v.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
 {{-  else}}
-	return z.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsTo{{.Base}}{{.EWidth}}()
+	return v.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsTo{{.Base}}{{.EWidth}}()
 {{-  end}}
 {{- else}}
 {{-  if (eq .Base "Uint")}}
-	return z.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint{{.EWidth}}s()
+	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint{{.EWidth}}s()
 {{-  else}}
-	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
 {{-  end}}
 {{- end}}
 }
@@ -1389,10 +1389,8 @@ func main() {
 	}
 	specIdx := specgen.NewIndex(specFuncs)
 	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
-		AllowDocRewrite:     true,
-		AllowNameMismatches: true,
-		NoFillDoc:           true,
-		NoFillNames:         true,
+		AllowDocRewrite: true,
+		NoFillDoc:       true,
 	}))
 
 	defer files.FlushOrExit()

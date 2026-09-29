@@ -6,72 +6,72 @@ package archsimd
 
 // BroadcastInt8x16 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastInt8x16(x int8) Int8x16 {
-	var z Int8x16
-	return z.SetElem(0, x).broadcast1To16()
+func BroadcastInt8x16(x int8) (z Int8x16) {
+	var v Int8x16
+	return v.SetElem(0, x).broadcast1To16()
 }
 
 // BroadcastInt16x8 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastInt16x8(x int16) Int16x8 {
-	var z Int16x8
-	return z.SetElem(0, x).broadcast1To8()
+func BroadcastInt16x8(x int16) (z Int16x8) {
+	var v Int16x8
+	return v.SetElem(0, x).broadcast1To8()
 }
 
 // BroadcastInt32x4 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastInt32x4(x int32) Int32x4 {
-	var z Int32x4
-	return z.SetElem(0, x).broadcast1To4()
+func BroadcastInt32x4(x int32) (z Int32x4) {
+	var v Int32x4
+	return v.SetElem(0, x).broadcast1To4()
 }
 
 // BroadcastInt64x2 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastInt64x2(x int64) Int64x2 {
-	var z Int64x2
-	return z.SetElem(0, x).broadcast1To2()
+func BroadcastInt64x2(x int64) (z Int64x2) {
+	var v Int64x2
+	return v.SetElem(0, x).broadcast1To2()
 }
 
 // BroadcastUint8x16 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastUint8x16(x uint8) Uint8x16 {
-	var z Uint8x16
-	return z.SetElem(0, x).broadcast1To16()
+func BroadcastUint8x16(x uint8) (z Uint8x16) {
+	var v Uint8x16
+	return v.SetElem(0, x).broadcast1To16()
 }
 
 // BroadcastUint16x8 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastUint16x8(x uint16) Uint16x8 {
-	var z Uint16x8
-	return z.SetElem(0, x).broadcast1To8()
+func BroadcastUint16x8(x uint16) (z Uint16x8) {
+	var v Uint16x8
+	return v.SetElem(0, x).broadcast1To8()
 }
 
 // BroadcastUint32x4 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastUint32x4(x uint32) Uint32x4 {
-	var z Uint32x4
-	return z.SetElem(0, x).broadcast1To4()
+func BroadcastUint32x4(x uint32) (z Uint32x4) {
+	var v Uint32x4
+	return v.SetElem(0, x).broadcast1To4()
 }
 
 // BroadcastUint64x2 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastUint64x2(x uint64) Uint64x2 {
-	var z Uint64x2
-	return z.SetElem(0, x).broadcast1To2()
+func BroadcastUint64x2(x uint64) (z Uint64x2) {
+	var v Uint64x2
+	return v.SetElem(0, x).broadcast1To2()
 }
 
 // BroadcastFloat32x4 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastFloat32x4(x float32) Float32x4 {
-	var z Float32x4
-	return z.SetElem(0, x).broadcast1To4()
+func BroadcastFloat32x4(x float32) (z Float32x4) {
+	var v Float32x4
+	return v.SetElem(0, x).broadcast1To4()
 }
 
 // BroadcastFloat64x2 returns a vector with the input
 // x assigned to all elements of the output.
-func BroadcastFloat64x2(x float64) Float64x2 {
-	var z Float64x2
-	return z.SetElem(0, x).broadcast1To2()
+func BroadcastFloat64x2(x float64) (z Float64x2) {
+	var v Float64x2
+	return v.SetElem(0, x).broadcast1To2()
 }
 
 // String returns a string representation of SIMD vector x.
@@ -147,71 +147,71 @@ func (x Float64x2) String() string {
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Int8x16) HiToLo() Int8x16 {
-	var z Int8x16
-	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s().BitsToInt8()
+	var v Int8x16
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s().BitsToInt8()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Int16x8) HiToLo() Int16x8 {
-	var z Int16x8
-	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s().BitsToInt16()
+	var v Int16x8
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s().BitsToInt16()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Int32x4) HiToLo() Int32x4 {
-	var z Int32x4
-	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToInt32()
+	var v Int32x4
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToInt32()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Int64x2) HiToLo() Int64x2 {
-	var z Int64x2
-	return z.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsToInt64()
+	var v Int64x2
+	return v.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsToInt64()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Uint8x16) HiToLo() Uint8x16 {
-	var z Uint8x16
-	return z.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s()
+	var v Uint8x16
+	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Uint16x8) HiToLo() Uint16x8 {
-	var z Uint16x8
-	return z.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s()
+	var v Uint16x8
+	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Uint32x4) HiToLo() Uint32x4 {
-	var z Uint32x4
-	return z.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s()
+	var v Uint32x4
+	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Uint64x2) HiToLo() Uint64x2 {
-	var z Uint64x2
-	return z.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
+	var v Uint64x2
+	return v.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Float32x4) HiToLo() Float32x4 {
-	var z Float32x4
-	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToFloat32()
+	var v Float32x4
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToFloat32()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Float64x2) HiToLo() Float64x2 {
-	var z Float64x2
-	return z.SetElem(0, x.GetElem(1))
+	var v Float64x2
+	return v.SetElem(0, x.GetElem(1))
 }
 
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
