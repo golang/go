@@ -458,7 +458,7 @@ wherever its prerequisites and track allow.
 | [ ] | A | `mask-bits` | Mask bitmap load/store shape and naming | — | `width` |
 | [ ] | A | `impl-defined` | Implementation-defined behavior policy | — | — |
 | [x] | B | `specfill` | API walker + report mode | — | — |
-| [ ] | B | `fill-gen` | Wire `specfill` into the generators | `specfill` | — |
+| [x] | B | `fill-gen` | Wire `specfill` into the generators | `specfill` | — |
 | [ ] | B | `named-results` | Reconcile parameter and result names with spec | `fill-gen` | — |
 | [ ] | B | `gen-docs` | Inject spec docs into generated output | `fill-gen` | `named-results` |
 | [ ] | B | `fill-enforce` | Signature + name mismatch becomes an error | `named-results` | — |
@@ -848,7 +848,7 @@ relations stay in `specstats` as transition metrics; once they reach their
 targets, `specstats` can be retired.
 
 ### `fill-gen` — Wire `specfill` into the generators
-**Done:** [ ] · **Needs:** `specfill` · **Blocks:** `named-results`, `gen-docs`
+**Done:** [x] · **Needs:** `specfill` · **Blocks:** `named-results`, `gen-docs`
 
 Each generator passes its buffer through `specfill` before writing, with all
 rewriting off for now: `NoFillNames` (`named-results` turns name filling on) and
