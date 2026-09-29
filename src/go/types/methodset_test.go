@@ -190,3 +190,126 @@ func (T) m() {} // expected error: invalid receiver type
 		}
 	}
 }
+
+func BenchmarkMethodSet(b *testing.B) {
+	// T's method set has exported and unexported methods from
+	// two packages, so that comparisons of Ids span all cases.
+	const src = `
+package p
+
+import "bytes"
+
+type T struct{ *bytes.Buffer }
+
+func (T) A() {}
+func (T) B() {}
+func (T) C() {}
+func (T) D() {}
+func (T) a() {}
+func (T) b() {}
+func (T) c() {}
+func (T) d() {}
+`
+	pkg := mustTypecheck(src, nil, nil)
+	bytesPkg := pkg.Imports()[0]
+	T := NewPointer(pkg.Scope().Lookup("T").Type())
+
+	b.Run("NewMethodSet", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			NewMethodSet(T)
+		}
+	})
+
+	mset := NewMethodSet(T)
+	for _, test := range []struct {
+		pkg  *Package
+		name string
+	}{
+		{pkg, "C"},
+		{pkg, "c"},
+		{bytesPkg, "grow"},
+		{bytesPkg, "WriteString"},
+		{pkg, "missing"},
+	} {
+		if mset.Lookup(test.pkg, test.name) == nil && test.name != "missing" {
+			b.Fatalf("Lookup(%s, %s) failed", test.pkg.Path(), test.name)
+		}
+		b.Run("Lookup/"+test.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				mset.Lookup(test.pkg, test.name)
+			}
+		})
+	}
+}
+
+// TestMethodSetLookupOrder checks that NewMethodSet orders methods by
+// Id and that Lookup finds each one, for pairs of methods whose
+// packages and names exercise the corner cases of Id ordering.
+func TestMethodSetLookupOrder(t *testing.T) {
+	var pkgs []*Package
+	for _, path := range []string{"", "_", "a", "a/b", "a-b", "a.b", "ab", "A", "Z", "~", "é", "example.com/p"} {
+		pkgs = append(pkgs, NewPackage(path, "p"))
+	}
+	// A nil package has the same Ids as one with path "", but it
+	// can't be used to construct an interface with unexported
+	// methods, so we use it only as a Lookup query.
+	pkgs = append(pkgs, nil)
+
+	type key struct {
+		pkg  *Package
+		name string
+	}
+	var (
+		keys    []key // all Lookup queries
+		methods []key // subset of keys with distinct Ids
+		seen    = make(map[string]bool)
+	)
+	for _, pkg := range pkgs {
+		for _, name := range []string{"a", "ab", "b", "z", "_", "_a", "A", "AB", "B", "Z", "Ä", "ä", "é"} {
+			k := key{pkg, name}
+			keys = append(keys, k)
+			// Exported Ids are independent of the package.
+			if id := Id(pkg, name); !seen[id] {
+				seen[id] = true
+				methods = append(methods, k)
+			}
+		}
+	}
+
+	sig := NewSignatureType(nil, nil, nil, nil, nil, false)
+	for _, x := range methods {
+		for _, y := range methods {
+			if !(Id(x.pkg, x.name) < Id(y.pkg, y.name)) {
+				continue
+			}
+			// Methods must be fresh as NewInterfaceType mutates them.
+			fx := NewFunc(nopos, x.pkg, x.name, sig)
+			fy := NewFunc(nopos, y.pkg, y.name, sig)
+			mset := NewMethodSet(NewInterfaceType([]*Func{fy, fx}, nil))
+			if mset.Len() != 2 || mset.At(0).Obj() != fx || mset.At(1).Obj() != fy {
+				t.Errorf("NewMethodSet(%s, %s) = %v, want order %s, %s",
+					fx.Id(), fy.Id(), mset, fx.Id(), fy.Id())
+				continue
+			}
+			for _, k := range keys {
+				var want Object
+				switch Id(k.pkg, k.name) {
+				case fx.Id():
+					want = fx
+				case fy.Id():
+					want = fy
+				}
+				var got Object
+				if sel := mset.Lookup(k.pkg, k.name); sel != nil {
+					got = sel.Obj()
+				}
+				if got != want {
+					t.Errorf("in method set {%s, %s}, Lookup(%s) = %v, want %v",
+						fx.Id(), fy.Id(), Id(k.pkg, k.name), got, want)
+				}
+			}
+		}
+	}
+}

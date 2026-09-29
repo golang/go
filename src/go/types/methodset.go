@@ -7,7 +7,9 @@
 package types
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -16,7 +18,14 @@ import (
 // a method is a [MethodVal] selection, and they are ordered by ascending m.Obj().Id().
 // The zero value for a MethodSet is a ready-to-use empty method set.
 type MethodSet struct {
-	list []*Selection
+	list []methodSetEntry
+}
+
+// A methodSetEntry is a method of a MethodSet, along with its Id,
+// so that sorting and searching need not recompute it.
+type methodSetEntry struct {
+	id  string // = sel.Obj().Id()
+	sel *Selection
 }
 
 func (s *MethodSet) String() string {
@@ -26,8 +35,8 @@ func (s *MethodSet) String() string {
 
 	var buf strings.Builder
 	fmt.Fprintln(&buf, "MethodSet {")
-	for _, f := range s.list {
-		fmt.Fprintf(&buf, "\t%s\n", f)
+	for _, e := range s.list {
+		fmt.Fprintf(&buf, "\t%s\n", e.sel)
 	}
 	fmt.Fprintln(&buf, "}")
 	return buf.String()
@@ -37,7 +46,7 @@ func (s *MethodSet) String() string {
 func (s *MethodSet) Len() int { return len(s.list) }
 
 // At returns the i'th method in s for 0 <= i < s.Len().
-func (s *MethodSet) At(i int) *Selection { return s.list[i] }
+func (s *MethodSet) At(i int) *Selection { return s.list[i].sel }
 
 // Lookup returns the method with matching package and name, or nil if not found.
 func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
@@ -45,18 +54,36 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 		return nil
 	}
 
-	key := Id(pkg, name)
+	// Search for Id(pkg, name) without constructing it,
+	// as it must allocate for unexported names.
+	path := idPath(pkg, name)
 	i := sort.Search(len(s.list), func(i int) bool {
-		m := s.list[i]
-		return m.obj.Id() >= key
+		return compareId(s.list[i].id, path, name) >= 0
 	})
-	if i < len(s.list) {
-		m := s.list[i]
-		if m.obj.Id() == key {
-			return m
-		}
+	if i < len(s.list) && compareId(s.list[i].id, path, name) == 0 {
+		return s.list[i].sel
 	}
 	return nil
+}
+
+// compareId returns strings.Compare(id, key) without allocating, where
+// key is path + "." + name if path is non-empty, or name otherwise.
+func compareId(id, path, name string) int {
+	if path == "" {
+		return strings.Compare(id, name)
+	}
+	n := min(len(id), len(path))
+	if c := strings.Compare(id[:n], path[:n]); c != 0 {
+		return c
+	}
+	if len(id) == n {
+		return -1 // id is a prefix of path, and so of key
+	}
+	// id has the prefix path.
+	if id[n] != '.' {
+		return cmp.Compare(id[n], '.')
+	}
+	return strings.Compare(id[n+1:], name)
 }
 
 // Shared empty method set.
@@ -192,17 +219,16 @@ func NewMethodSet(T Type) *MethodSet {
 		return &emptyMethodSet
 	}
 
-	// collect methods
-	var list []*Selection
-	for _, m := range base {
+	// collect methods, sorted by unique name
+	var list []methodSetEntry
+	for id, m := range base {
 		if m != nil {
 			m.recv = T
-			list = append(list, m)
+			list = append(list, methodSetEntry{id, m})
 		}
 	}
-	// sort by unique name
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].obj.Id() < list[j].obj.Id()
+	slices.SortFunc(list, func(x, y methodSetEntry) int {
+		return strings.Compare(x.id, y.id)
 	})
 	return &MethodSet{list}
 }
