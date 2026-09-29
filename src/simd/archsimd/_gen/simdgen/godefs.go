@@ -17,6 +17,8 @@ import (
 
 	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/simdgen/types"
+	"simd/archsimd/_gen/specdoc"
+	"simd/archsimd/_gen/specgen"
 	"simd/archsimd/_gen/unify"
 )
 
@@ -730,7 +732,20 @@ func writeGoDefs(cl unify.Closure) error {
 	goTypeArch := archInfo.GoTypeArch
 	archLower := archInfo.Arch
 
+	specDir := specgen.MustFindSpecDir(genFlags.GOROOT)
+	specFuncs, err := specgen.Load(specDir, nil)
+	if err != nil {
+		return fmt.Errorf("loading spec: %w", err)
+	}
+	specIdx := specgen.NewIndex(specFuncs)
+
 	var files gentools.Files
+	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
+		AllowDocRewrite:     true,
+		AllowNameMismatches: true,
+		NoFillDoc:           true,
+		NoFillNames:         true,
+	}))
 	defer files.FlushOrExit()
 
 	writeSIMDTypes(files.NewGoFile(simdPackage+"/types_"+goTypeArch+".go"), typeMap)

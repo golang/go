@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"slices"
 	"strings"
 	"text/template"
@@ -16,6 +17,8 @@ import (
 
 	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/sgutil"
+	"simd/archsimd/_gen/specdoc"
+	"simd/archsimd/_gen/specgen"
 )
 
 var (
@@ -1066,7 +1069,21 @@ func main() {
 		return
 	}
 
+	specDir := specgen.MustFindSpecDir(genFlags.GOROOT)
+	specFuncs, err := specgen.Load(specDir, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "loading spec: %v\n", err)
+		os.Exit(1)
+	}
+	specIdx := specgen.NewIndex(specFuncs)
+
 	var files gentools.Files
+	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
+		AllowDocRewrite:     true,
+		AllowNameMismatches: true,
+		NoFillDoc:           true,
+		NoFillNames:         true,
+	}))
 	defer files.FlushOrExit()
 
 	genTypes(files.NewGoFile(*genTypesFile))

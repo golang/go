@@ -11,8 +11,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/sgutil"
+	"simd/archsimd/_gen/specdoc"
+	"simd/archsimd/_gen/specgen"
 	"strings"
 	"text/template"
 )
@@ -1385,7 +1388,7 @@ const (
 var files gentools.Files
 
 func main() {
-	gentools.RegisterFlags(nil)
+	genFlags := gentools.RegisterFlags(nil)
 
 	sl := flag.String("sl", SIMD+"slice_gen_amd64.go", "file name for slice operations")
 	cm := flag.String("cm", SIMD+"compare_gen_amd64.go", "file name for comparison operations")
@@ -1407,6 +1410,20 @@ func main() {
 	mmArm64 := flag.String("mmArm64", SIMD+"maskmerge_gen_arm64.go", "file name for ARM64 mask/merge operations")
 	rhArm64 := flag.String("rhArm64", TD+"reduce_helpers_arm64_test.go", "file name for ARM64 reduce test helpers")
 	flag.Parse()
+
+	specDir := specgen.MustFindSpecDir(genFlags.GOROOT)
+	specFuncs, err := specgen.Load(specDir, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "loading spec: %v\n", err)
+		os.Exit(1)
+	}
+	specIdx := specgen.NewIndex(specFuncs)
+	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
+		AllowDocRewrite:     true,
+		AllowNameMismatches: true,
+		NoFillDoc:           true,
+		NoFillNames:         true,
+	}))
 
 	defer files.FlushOrExit()
 

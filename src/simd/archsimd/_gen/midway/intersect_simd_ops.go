@@ -25,6 +25,8 @@ import (
 	"unicode/utf8"
 
 	"simd/archsimd/_gen/gentools"
+	"simd/archsimd/_gen/specdoc"
+	"simd/archsimd/_gen/specgen"
 
 	"gopkg.in/yaml.v3"
 )
@@ -97,6 +99,20 @@ func main() {
 	minorProblem := false
 
 	flag.Parse()
+
+	specDir := specgen.MustFindSpecDir(genFlags.GOROOT)
+	specFuncs, err := specgen.Load(specDir, nil)
+	if err != nil {
+		log.Fatalf("loading spec: %v", err)
+	}
+	specIdx := specgen.NewIndex(specFuncs)
+	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
+		AllowDocRewrite:     true,
+		AllowNameMismatches: true,
+		NoFillDoc:           true,
+		NoFillNames:         true,
+	}))
+
 	defer files.FlushOrExit()
 
 	var comments Comments

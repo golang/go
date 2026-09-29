@@ -52,6 +52,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -111,6 +112,23 @@ type textEdit struct {
 	start int
 	end   int
 	text  string
+}
+
+// Filler returns a post-processing hook that runs [Fill] on generated Go source files.
+// The returned function satisfies [gentools.PostProcessor].
+func Filler(idx *specgen.Index, opts Options) func(relPath string, isGo bool, content []byte) ([]byte, error) {
+	return func(relPath string, isGo bool, src []byte) ([]byte, error) {
+		if !isGo {
+			return src, nil
+		}
+		dir := filepath.ToSlash(filepath.Dir(relPath))
+		if dir != "simd" && dir != "simd/archsimd" {
+			return src, nil
+		}
+		fileOpts := opts
+		fileOpts.Filename = filepath.ToSlash(relPath)
+		return Fill(src, idx, fileOpts)
+	}
 }
 
 // Fill parses Go source code, extracts exported declarations, verifies their
