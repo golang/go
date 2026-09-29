@@ -533,12 +533,13 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		fatal("receive on synctest channel from outside bubble")
 	}
 
-	if c.timer != nil {
-		c.timer.maybeRunChan(c)
-	}
-
-	// Fast path: check for failed non-blocking operation without acquiring the lock.
-	if !block && empty(c) {
+	if block {
+		if c.timer != nil {
+			c.timer.maybeRunChan(c)
+		}
+	} else if empty(c) {
+		// Fast path: check for failed non-blocking operation without acquiring the lock.
+		//
 		// After observing that the channel is not ready for receiving, we observe whether the
 		// channel is closed.
 		//

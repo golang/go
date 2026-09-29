@@ -233,6 +233,56 @@ func BenchmarkAfter(b *testing.B) {
 	})
 }
 
+func BenchmarkTimerFuture(b *testing.B) {
+	// A single receive case plus default exercises the non-blocking receive path.
+	b.ReportAllocs()
+	benchmark(b, func(pb *testing.PB) {
+		timer := NewTimer(Hour)
+		defer timer.Stop()
+		for pb.Next() {
+			select {
+			case <-timer.C:
+				b.Error("timer fired early")
+				return
+			default:
+			}
+		}
+	})
+}
+
+func BenchmarkTimerStopped(b *testing.B) {
+	b.ReportAllocs()
+	benchmark(b, func(pb *testing.PB) {
+		timer := NewTimer(Hour)
+		timer.Stop()
+		for pb.Next() {
+			select {
+			case <-timer.C:
+				b.Error("stopped timer fired")
+				return
+			default:
+			}
+		}
+	})
+}
+
+func BenchmarkTimerExpired(b *testing.B) {
+	b.ReportAllocs()
+	benchmark(b, func(pb *testing.PB) {
+		timer := NewTimer(Hour)
+		defer timer.Stop()
+		for pb.Next() {
+			timer.Reset(0)
+			select {
+			case <-timer.C:
+			default:
+				b.Error("expired timer not ready")
+				return
+			}
+		}
+	})
+}
+
 func BenchmarkStop(b *testing.B) {
 	b.Run("impl=chan", func(b *testing.B) {
 		benchmark(b, func(pb *testing.PB) {
