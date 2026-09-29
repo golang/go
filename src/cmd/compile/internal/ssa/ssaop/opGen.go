@@ -98826,9 +98826,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:   "DIVD",
-		ArgLen: 2,
-		asm:    ppc64.ADIVD,
+		Name:         "DIVD",
+		ArgLen:       2,
+		ClobberFlags: true,
+		asm:          ppc64.ADIVD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 1073733630, V2: 0}}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -98840,9 +98841,10 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:   "DIVW",
-		ArgLen: 2,
-		asm:    ppc64.ADIVW,
+		Name:         "DIVW",
+		ArgLen:       2,
+		ClobberFlags: true,
+		asm:          ppc64.ADIVW,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 1073733630, V2: 0}}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29

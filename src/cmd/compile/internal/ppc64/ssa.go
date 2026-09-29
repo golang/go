@@ -492,6 +492,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// b over
 		// ahead: v = - arg0
 		// over: nop
+		//
+		// The compare writes CR0, so DIVD and DIVW must stay marked
+		// clobberFlags in PPC64Ops.go.
 		r := v.Reg()
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()

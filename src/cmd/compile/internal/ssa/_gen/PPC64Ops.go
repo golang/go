@@ -267,10 +267,13 @@ func init() {
 		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV", earlyOk: true},   // arg0/arg1
 		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", earlyOk: true}, // arg0/arg1
 
-		{name: "DIVD", argLength: 2, reg: gp21, asm: "DIVD", typ: "Int64"},   // arg0/arg1 (signed 64-bit)
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32"},   // arg0/arg1 (signed 32-bit)
-		{name: "DIVDU", argLength: 2, reg: gp21, asm: "DIVDU", typ: "Int64"}, // arg0/arg1 (unsigned 64-bit)
-		{name: "DIVWU", argLength: 2, reg: gp21, asm: "DIVWU", typ: "Int32"}, // arg0/arg1 (unsigned 32-bit)
+		// DIVD and DIVW clobber flags: the instructions do not write CR0, but
+		// ssaGenValue compares arg1 with -1 in CR0 before dividing, to handle
+		// MinInt / -1.
+		{name: "DIVD", argLength: 2, reg: gp21, asm: "DIVD", clobberFlags: true, typ: "Int64"}, // arg0/arg1 (signed 64-bit)
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", clobberFlags: true, typ: "Int32"}, // arg0/arg1 (signed 32-bit)
+		{name: "DIVDU", argLength: 2, reg: gp21, asm: "DIVDU", typ: "Int64"},                   // arg0/arg1 (unsigned 64-bit)
+		{name: "DIVWU", argLength: 2, reg: gp21, asm: "DIVWU", typ: "Int32"},                   // arg0/arg1 (unsigned 32-bit)
 
 		{name: "MODUD", argLength: 2, reg: gp21, asm: "MODUD", typ: "UInt64"}, // arg0 % arg1 (unsigned 64-bit)
 		{name: "MODSD", argLength: 2, reg: gp21, asm: "MODSD", typ: "Int64"},  // arg0 % arg1 (signed 64-bit)
