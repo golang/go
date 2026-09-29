@@ -169,15 +169,13 @@
 //			defer cancel()
 //
 //			// Wait just less than the timeout.
-//			time.Sleep(timeout - time.Nanosecond)
-//			synctest.Wait()
+//			synctest.Sleep(timeout - time.Nanosecond)
 //			if err := ctx.Err(); err != nil {
 //				t.Fatalf("before timeout: ctx.Err() = %v, want nil\n", err)
 //			}
 //
 //			// Wait the rest of the way until the timeout.
-//			time.Sleep(time.Nanosecond)
-//			synctest.Wait()
+//			synctest.Sleep(time.Nanosecond)
 //			if err := ctx.Err(); err != context.DeadlineExceeded {
 //				t.Fatalf("after timeout: ctx.Err() = %v, want DeadlineExceeded\n", err)
 //			}
