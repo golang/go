@@ -120,7 +120,8 @@ type Files struct {
 	// If nil, the globally registered options from RegisterFlags are used automatically.
 	Options *Options
 
-	files []*fileInfo
+	files          []*fileInfo
+	postProcessors []PostProcessor
 
 	// tmpDir is a temporary directory used for communicating with subprocess
 	// gentools.
@@ -174,6 +175,20 @@ func (f *Files) NewRawFile(relPath string) *bytes.Buffer {
 	}
 	f.files = append(f.files, info)
 	return &info.buf
+}
+
+// PostProcessor is a function that inspects or transforms file content before
+// it is written, diffed, or packed into a txtar archive.
+//
+// relPath is the file path relative to GOROOT/src. isGo indicates whether the
+// file was registered as a Go file (via NewGoFile).
+type PostProcessor func(relPath string, isGo bool, content []byte) ([]byte, error)
+
+// AddPostProcessor registers a post-processing hook to be run on generated
+// files during Flush before writing or diffing. Post-processors are called in
+// registration order.
+func (f *Files) AddPostProcessor(fn PostProcessor) {
+	f.postProcessors = append(f.postProcessors, fn)
 }
 
 // ExecFlags returns a sequence of flags that can be passed to a gentools
@@ -240,17 +255,23 @@ func (f *Files) Flush() error {
 	}
 
 	for i, fi := range f.files {
-		raw := fi.buf.Bytes()
-		var content []byte
-		if fi.isGo {
-			formatted, err := format.Source(raw)
+		content := fi.buf.Bytes()
+
+		for _, pp := range f.postProcessors {
+			var err error
+			content, err = pp(fi.relPath, fi.isGo, content)
 			if err != nil {
-				printFormattingError(opts.ErrOutput, fi.relPath, raw, err)
+				return err
+			}
+		}
+
+		if fi.isGo {
+			formatted, err := format.Source(content)
+			if err != nil {
+				printFormattingError(opts.ErrOutput, fi.relPath, content, err)
 				return fmt.Errorf("error formatting %s: %w", fi.relPath, err)
 			}
 			content = formatted
-		} else {
-			content = raw
 		}
 
 		prepared[i] = preparedFile{
