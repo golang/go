@@ -1093,6 +1093,18 @@ git dir
 	Runs 'git credential fill' in dir and uses its credentials. The
 	go command will run 'git credential approve/reject' to update
 	the credential helper's cache.
+mtls https-origin cert-file [key-file]
+	Uses the client certificate and private key in the named files to
+	authenticate HTTPS requests to https-origin. The origin must not contain
+	user information, a non-root path, a query, or a fragment. If its port is
+	omitted, port 443 is used. Its hostname must use ASCII or Punycode. The file
+	paths must be absolute. If key-file is omitted, cert-file must contain both
+	the certificate and private key. The files must contain PEM-encoded data,
+	and the private key must not be encrypted.
+	The files are read only when a request is made to the matching origin.
+	This method configures client authentication only; server certificates are
+	verified using the go command's usual trust configuration.
+	This method cannot be used with GOINSECURE or an HTTPS proxy.
 command
 	Executes the given command (a space-separated argument list) and attaches
 	the provided headers to HTTPS requests.
