@@ -525,6 +525,36 @@ backend and will cause the backend to compile the defer using
 deferprocat instead of an ordinary deferproc.
 
 TODO: Could call runtime.deferrangefuncend after f.
+
+# Recover
+
+A call to recover has the same problem. In
+
+	for range f {
+		recover()
+	}
+
+the call is in the body of the loop, so it runs in the frame of the func
+literal the body is rewritten into, called from the iterator, rather than
+in the frame of the function containing the loop. The runtime decides
+whether a recover takes effect by looking at the frame it was called in,
+so left alone the recover would never take effect, even though in the
+source it sits directly in a function that a panicking caller deferred.
+
+Whether such a recover takes effect depends only on the frame the loop is
+in, so the runtime can decide that part on entry to the function, while
+that frame is the current one, and hand back the panic the body would
+recover:
+
+	var #recover = runtime.recoverrangefunc()
+	f(func() {
+		runtime.gorecoverat(#recover)
+	})
+
+The token is the panic itself, or nil if a recover in the body would not
+take effect. Unlike the frame it stands for, it does not move when the
+stack grows, so the body can hold onto it. gorecoverat recovers that panic
+if it is still the one being processed.
 */
 package rangefunc
 
@@ -570,6 +600,7 @@ type rewriter struct {
 	declStmt         *syntax.DeclStmt
 	nextVar          types2.Object
 	defers           types2.Object
+	recovers         types2.Object
 	stateVarCount    int // stateVars are referenced from their respective loops
 	bodyClosureCount int // to help the debugger, the closures generated for loop bodies get names
 
@@ -667,6 +698,9 @@ func (r *rewriter) inspect(n syntax.Node) bool {
 	default:
 		// Push n onto stack.
 		r.stack = append(r.stack, n)
+		if call, ok := n.(*syntax.CallExpr); ok {
+			r.editRecover(call)
+		}
 		if nfor, ok := forRangeFunc(n); ok {
 			loop := &forLoop{nfor: nfor, depth: 1 + len(r.forStack)}
 			r.forStack = append(r.forStack, loop)
@@ -772,6 +806,55 @@ func (r *rewriter) editDefer(x *syntax.CallStmt) syntax.Stmt {
 	x.DeferAt = r.useObj(r.defers)
 	setPos(x.DeferAt, x.Pos())
 	return x
+}
+
+// editRecover rewrites a call to the predeclared recover in a loop body.
+// See the "Recover" section in the package doc comment above for more context.
+func (r *rewriter) editRecover(x *syntax.CallExpr) {
+	if len(r.forStack) == 0 {
+		return
+	}
+	name, ok := x.Fun.(*syntax.Name)
+	if !ok {
+		return
+	}
+	if b, ok := r.info.Uses[name].(*types2.Builtin); !ok || b.Name() != "recover" {
+		return
+	}
+
+	// "defer recover()" and "go recover()" do not recover, whether or not
+	// they appear in a loop body: the call is not made by the body but by
+	// the runtime later, or on another goroutine. Leave them alone, so that
+	// they keep meaning what they mean outside a loop.
+	if len(r.stack) >= 2 {
+		if call, ok := r.stack[len(r.stack)-2].(*syntax.CallStmt); ok && call.Call == syntax.Expr(x) {
+			return
+		}
+	}
+
+	// The call is in the body of a range-over-func loop, which runs in a
+	// frame of its own. Hand the runtime the token for the frame of the
+	// function the loop is written in, so that it can decide whether to
+	// recover as if the call were made where it is in the source.
+	x.Fun = runtimeSym(r.info, "gorecoverat")
+	setPos(x.Fun, x.Pos())
+	x.ArgList = []syntax.Expr{r.recoverToken()}
+	setPos(x.ArgList[0], x.Pos())
+}
+
+// recoverToken returns a reference to the #recover token for the current
+// function, declaring and initializing it if it does not exist yet.
+func (r *rewriter) recoverToken() *syntax.Name {
+	if r.recovers == nil {
+		init := &syntax.CallExpr{
+			Fun: runtimeSym(r.info, "recoverrangefunc"),
+		}
+		tv := syntax.TypeAndValue{Type: r.any.Type()}
+		tv.SetIsValue()
+		init.SetTypeInfo(tv)
+		r.recovers = r.declOuterVar("#recover", r.any.Type(), init)
+	}
+	return r.useObj(r.recovers)
 }
 
 func (r *rewriter) stateVar(pos syntax.Pos) (*types2.Var, *syntax.VarDecl) {
@@ -1107,6 +1190,7 @@ func (r *rewriter) endLoop(loop *forLoop) {
 		r.declStmt = nil
 		r.nextVar = nil
 		r.defers = nil
+		r.recovers = nil
 	}
 
 	r.rewritten[nfor] = block
@@ -1498,6 +1582,14 @@ var runtimePkg = func() *types2.Package {
 
 	// func panicrangestate()
 	obj = types2.NewFunc(nopos, pkg, "panicrangestate", types2.NewSignatureType(nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "state", intType)), nil, false))
+	pkg.Scope().Insert(obj)
+
+	// func gorecoverat(frame any) any
+	obj = types2.NewFunc(nopos, pkg, "gorecoverat", types2.NewSignatureType(nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "frame", anyType)), types2.NewTuple(types2.NewParam(nopos, pkg, "", anyType)), false))
+	pkg.Scope().Insert(obj)
+
+	// func recoverrangefunc() any
+	obj = types2.NewFunc(nopos, pkg, "recoverrangefunc", types2.NewSignatureType(nil, nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "frame", anyType)), false))
 	pkg.Scope().Insert(obj)
 
 	return pkg
