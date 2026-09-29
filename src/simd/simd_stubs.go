@@ -1023,7 +1023,7 @@ func (x Mask8s) Or(y Mask8s) Mask8s
 func (x Mask8s) String() string
 
 // ToInt8s converts the mask to an Int8s vector.
-func (x Mask8s) ToInt8s() (to Int8s)
+func (x Mask8s) ToInt8s() (z Int8s)
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask x.
 func (x Mask8s) TrailingZeros() int
@@ -1047,7 +1047,7 @@ func (x Mask16s) Or(y Mask16s) Mask16s
 func (x Mask16s) String() string
 
 // ToInt16s converts the mask to an Int16s vector.
-func (x Mask16s) ToInt16s() (to Int16s)
+func (x Mask16s) ToInt16s() (z Int16s)
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask x.
 func (x Mask16s) TrailingZeros() int
@@ -1071,7 +1071,7 @@ func (x Mask32s) Or(y Mask32s) Mask32s
 func (x Mask32s) String() string
 
 // ToInt32s converts the mask to an Int32s vector.
-func (x Mask32s) ToInt32s() (to Int32s)
+func (x Mask32s) ToInt32s() (z Int32s)
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask x.
 func (x Mask32s) TrailingZeros() int
@@ -1095,7 +1095,7 @@ func (x Mask64s) Or(y Mask64s) Mask64s
 func (x Mask64s) String() string
 
 // ToInt64s converts the mask to an Int64s vector.
-func (x Mask64s) ToInt64s() (to Int64s)
+func (x Mask64s) ToInt64s() (z Int64s)
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask x.
 func (x Mask64s) TrailingZeros() int

@@ -65,8 +65,8 @@ a named argument whose name differs from spec's is a mismatch; an unnamed
 one (or _) is not, and is counted below as a name Fill fills in instead:
 
   type mismatches                                   0 -> 0       [fill-enforce]
-  parameter-name mismatches                        62 -> 0       [named-results]
-  result-name mismatches                           20 -> 0       [named-results]
+  parameter-name mismatches                         0 -> 0       [named-results]
+  result-name mismatches                            0 -> 0       [named-results]
 
 Names spec gives that the API leaves unnamed, for declarations spec covers:
 

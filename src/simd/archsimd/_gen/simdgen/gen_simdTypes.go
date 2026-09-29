@@ -459,7 +459,7 @@ func (x {{.Name}}) Len() int { return {{.LenExpr}} }
 // Load{{.Name}}Array loads {{.Article}} {{.Name}} from an array.
 //
 //go:noescape
-func Load{{.Name}}Array(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
+func Load{{.Name}}Array(x *[{{.Lanes}}]{{.Base}}) {{.Name}}
 
 // StoreArray stores {{.Article}} {{.Name}} to an array.
 //
@@ -540,11 +540,11 @@ func (x {{.Name}}) storePart(s []{{.Base}})
 const simdMaskFromValTemplate = `
 // {{.Name}}FromBits constructs a {{.Name}} from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 {{- if ne .Lanes .LanesContainer}}
-// Only the lower {{.Lanes}} bits of y are used.
+// Only the lower {{.Lanes}} bits of x are used.
 {{- end}}
 //
 // Asm: KMOV{{.IntelSizeSuffix}}, CPU Feature: AVX512
-func {{.Name}}FromBits(y uint{{.LanesContainer}}) {{.Name}}
+func {{.Name}}FromBits(x uint{{.LanesContainer}}) {{.Name}}
 
 // ToBits constructs a bitmap from a {{.Name}}, where 1 means set for the indexed element, 0 means unset.
 {{- if ne .Lanes .LanesContainer}}
@@ -762,7 +762,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndT
 	st.Add("mask", `// To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}.
 // If element i in the mask is "true", all bits in element i of the resulting
 // vector will be set.
-func (from {{.Name}}) To{{.VectorCounterpart}}() (to {{.VectorCounterpart}})
+func (x {{.Name}}) To{{.VectorCounterpart}}() (z {{.VectorCounterpart}})
 
 // asMask converts from {{.VectorCounterpart}} to {{.Name}}.
 func (from {{.VectorCounterpart}}) asMask() (to {{.Name}})

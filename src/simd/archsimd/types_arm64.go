@@ -21,7 +21,7 @@ func (x Float32x4) Len() int { return 4 }
 // LoadFloat32x4Array loads a Float32x4 from an array.
 //
 //go:noescape
-func LoadFloat32x4Array(y *[4]float32) Float32x4
+func LoadFloat32x4Array(x *[4]float32) Float32x4
 
 // StoreArray stores a Float32x4 to an array.
 //
@@ -40,7 +40,7 @@ func (x Float64x2) Len() int { return 2 }
 // LoadFloat64x2Array loads a Float64x2 from an array.
 //
 //go:noescape
-func LoadFloat64x2Array(y *[2]float64) Float64x2
+func LoadFloat64x2Array(x *[2]float64) Float64x2
 
 // StoreArray stores a Float64x2 to an array.
 //
@@ -59,7 +59,7 @@ func (x Int8x16) Len() int { return 16 }
 // LoadInt8x16Array loads an Int8x16 from an array.
 //
 //go:noescape
-func LoadInt8x16Array(y *[16]int8) Int8x16
+func LoadInt8x16Array(x *[16]int8) Int8x16
 
 // StoreArray stores an Int8x16 to an array.
 //
@@ -78,7 +78,7 @@ func (x Int16x8) Len() int { return 8 }
 // LoadInt16x8Array loads an Int16x8 from an array.
 //
 //go:noescape
-func LoadInt16x8Array(y *[8]int16) Int16x8
+func LoadInt16x8Array(x *[8]int16) Int16x8
 
 // StoreArray stores an Int16x8 to an array.
 //
@@ -97,7 +97,7 @@ func (x Int32x4) Len() int { return 4 }
 // LoadInt32x4Array loads an Int32x4 from an array.
 //
 //go:noescape
-func LoadInt32x4Array(y *[4]int32) Int32x4
+func LoadInt32x4Array(x *[4]int32) Int32x4
 
 // StoreArray stores an Int32x4 to an array.
 //
@@ -116,7 +116,7 @@ func (x Int64x2) Len() int { return 2 }
 // LoadInt64x2Array loads an Int64x2 from an array.
 //
 //go:noescape
-func LoadInt64x2Array(y *[2]int64) Int64x2
+func LoadInt64x2Array(x *[2]int64) Int64x2
 
 // StoreArray stores an Int64x2 to an array.
 //
@@ -135,7 +135,7 @@ func (x Uint8x16) Len() int { return 16 }
 // LoadUint8x16Array loads a Uint8x16 from an array.
 //
 //go:noescape
-func LoadUint8x16Array(y *[16]uint8) Uint8x16
+func LoadUint8x16Array(x *[16]uint8) Uint8x16
 
 // StoreArray stores a Uint8x16 to an array.
 //
@@ -154,7 +154,7 @@ func (x Uint16x8) Len() int { return 8 }
 // LoadUint16x8Array loads a Uint16x8 from an array.
 //
 //go:noescape
-func LoadUint16x8Array(y *[8]uint16) Uint16x8
+func LoadUint16x8Array(x *[8]uint16) Uint16x8
 
 // StoreArray stores a Uint16x8 to an array.
 //
@@ -173,7 +173,7 @@ func (x Uint32x4) Len() int { return 4 }
 // LoadUint32x4Array loads a Uint32x4 from an array.
 //
 //go:noescape
-func LoadUint32x4Array(y *[4]uint32) Uint32x4
+func LoadUint32x4Array(x *[4]uint32) Uint32x4
 
 // StoreArray stores a Uint32x4 to an array.
 //
@@ -192,7 +192,7 @@ func (x Uint64x2) Len() int { return 2 }
 // LoadUint64x2Array loads a Uint64x2 from an array.
 //
 //go:noescape
-func LoadUint64x2Array(y *[2]uint64) Uint64x2
+func LoadUint64x2Array(x *[2]uint64) Uint64x2
 
 // StoreArray stores a Uint64x2 to an array.
 //

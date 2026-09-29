@@ -1106,7 +1106,7 @@ var loadDecl = templateOf("load from array", `
 // Load{{.Name}}Array loads {{.Article}} {{.Name}} from a [{{.Count}}]{{.Elem}}.
 //
 //go:noescape
-func Load{{.Name}}Array(y *[{{.Count}}]{{.Elem}}) {{.Name}}
+func Load{{.Name}}Array(x *[{{.Count}}]{{.Elem}}) {{.Name}}
 
 // Load{{.Name}} loads {{.Article}} {{.Name}} from a slice of at least {{.Count}} {{.Elem}}s.
 func Load{{.Name}}(s []{{.Elem}}) {{.Name}} {

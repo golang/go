@@ -21,7 +21,7 @@ func (x Int8x16) Len() int { return 16 }
 // LoadInt8x16Array loads an Int8x16 from a [16]int8.
 //
 //go:noescape
-func LoadInt8x16Array(y *[16]int8) Int8x16
+func LoadInt8x16Array(x *[16]int8) Int8x16
 
 // LoadInt8x16 loads an Int8x16 from a slice of at least 16 int8s.
 func LoadInt8x16(s []int8) Int8x16 {
@@ -53,7 +53,7 @@ func (x Int16x8) Len() int { return 8 }
 // LoadInt16x8Array loads an Int16x8 from a [8]int16.
 //
 //go:noescape
-func LoadInt16x8Array(y *[8]int16) Int16x8
+func LoadInt16x8Array(x *[8]int16) Int16x8
 
 // LoadInt16x8 loads an Int16x8 from a slice of at least 8 int16s.
 func LoadInt16x8(s []int16) Int16x8 {
@@ -85,7 +85,7 @@ func (x Int32x4) Len() int { return 4 }
 // LoadInt32x4Array loads an Int32x4 from a [4]int32.
 //
 //go:noescape
-func LoadInt32x4Array(y *[4]int32) Int32x4
+func LoadInt32x4Array(x *[4]int32) Int32x4
 
 // LoadInt32x4 loads an Int32x4 from a slice of at least 4 int32s.
 func LoadInt32x4(s []int32) Int32x4 {
@@ -117,7 +117,7 @@ func (x Int64x2) Len() int { return 2 }
 // LoadInt64x2Array loads an Int64x2 from a [2]int64.
 //
 //go:noescape
-func LoadInt64x2Array(y *[2]int64) Int64x2
+func LoadInt64x2Array(x *[2]int64) Int64x2
 
 // LoadInt64x2 loads an Int64x2 from a slice of at least 2 int64s.
 func LoadInt64x2(s []int64) Int64x2 {
@@ -149,7 +149,7 @@ func (x Uint8x16) Len() int { return 16 }
 // LoadUint8x16Array loads a Uint8x16 from a [16]uint8.
 //
 //go:noescape
-func LoadUint8x16Array(y *[16]uint8) Uint8x16
+func LoadUint8x16Array(x *[16]uint8) Uint8x16
 
 // LoadUint8x16 loads a Uint8x16 from a slice of at least 16 uint8s.
 func LoadUint8x16(s []uint8) Uint8x16 {
@@ -181,7 +181,7 @@ func (x Uint16x8) Len() int { return 8 }
 // LoadUint16x8Array loads a Uint16x8 from a [8]uint16.
 //
 //go:noescape
-func LoadUint16x8Array(y *[8]uint16) Uint16x8
+func LoadUint16x8Array(x *[8]uint16) Uint16x8
 
 // LoadUint16x8 loads a Uint16x8 from a slice of at least 8 uint16s.
 func LoadUint16x8(s []uint16) Uint16x8 {
@@ -213,7 +213,7 @@ func (x Uint32x4) Len() int { return 4 }
 // LoadUint32x4Array loads a Uint32x4 from a [4]uint32.
 //
 //go:noescape
-func LoadUint32x4Array(y *[4]uint32) Uint32x4
+func LoadUint32x4Array(x *[4]uint32) Uint32x4
 
 // LoadUint32x4 loads a Uint32x4 from a slice of at least 4 uint32s.
 func LoadUint32x4(s []uint32) Uint32x4 {
@@ -245,7 +245,7 @@ func (x Uint64x2) Len() int { return 2 }
 // LoadUint64x2Array loads a Uint64x2 from a [2]uint64.
 //
 //go:noescape
-func LoadUint64x2Array(y *[2]uint64) Uint64x2
+func LoadUint64x2Array(x *[2]uint64) Uint64x2
 
 // LoadUint64x2 loads a Uint64x2 from a slice of at least 2 uint64s.
 func LoadUint64x2(s []uint64) Uint64x2 {
@@ -277,7 +277,7 @@ func (x Float32x4) Len() int { return 4 }
 // LoadFloat32x4Array loads a Float32x4 from a [4]float32.
 //
 //go:noescape
-func LoadFloat32x4Array(y *[4]float32) Float32x4
+func LoadFloat32x4Array(x *[4]float32) Float32x4
 
 // LoadFloat32x4 loads a Float32x4 from a slice of at least 4 float32s.
 func LoadFloat32x4(s []float32) Float32x4 {
@@ -309,7 +309,7 @@ func (x Float64x2) Len() int { return 2 }
 // LoadFloat64x2Array loads a Float64x2 from a [2]float64.
 //
 //go:noescape
-func LoadFloat64x2Array(y *[2]float64) Float64x2
+func LoadFloat64x2Array(x *[2]float64) Float64x2
 
 // LoadFloat64x2 loads a Float64x2 from a slice of at least 2 float64s.
 func LoadFloat64x2(s []float64) Float64x2 {

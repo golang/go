@@ -2244,7 +2244,7 @@ func (x Uint64x2) ReshapeToUint32s() Uint32x4
 // ToInt8x16 converts from Mask8x16 to Int8x16.
 // If element i in the mask is "true", all bits in element i of the resulting
 // vector will be set.
-func (from Mask8x16) ToInt8x16() (to Int8x16)
+func (x Mask8x16) ToInt8x16() (z Int8x16)
 
 // asMask converts from Int8x16 to Mask8x16.
 func (from Int8x16) asMask() (to Mask8x16)
@@ -2258,7 +2258,7 @@ func (x Mask8x16) Not() Mask8x16
 // ToInt16x8 converts from Mask16x8 to Int16x8.
 // If element i in the mask is "true", all bits in element i of the resulting
 // vector will be set.
-func (from Mask16x8) ToInt16x8() (to Int16x8)
+func (x Mask16x8) ToInt16x8() (z Int16x8)
 
 // asMask converts from Int16x8 to Mask16x8.
 func (from Int16x8) asMask() (to Mask16x8)
@@ -2272,7 +2272,7 @@ func (x Mask16x8) Not() Mask16x8
 // ToInt32x4 converts from Mask32x4 to Int32x4.
 // If element i in the mask is "true", all bits in element i of the resulting
 // vector will be set.
-func (from Mask32x4) ToInt32x4() (to Int32x4)
+func (x Mask32x4) ToInt32x4() (z Int32x4)
 
 // asMask converts from Int32x4 to Mask32x4.
 func (from Int32x4) asMask() (to Mask32x4)
@@ -2286,7 +2286,7 @@ func (x Mask32x4) Not() Mask32x4
 // ToInt64x2 converts from Mask64x2 to Int64x2.
 // If element i in the mask is "true", all bits in element i of the resulting
 // vector will be set.
-func (from Mask64x2) ToInt64x2() (to Int64x2)
+func (x Mask64x2) ToInt64x2() (z Int64x2)
 
 // asMask converts from Int64x2 to Mask64x2.
 func (from Int64x2) asMask() (to Mask64x2)
