@@ -1342,7 +1342,7 @@ func Peinit(ctxt *Link) {
 
 	if ctxt.LinkMode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
-		for _, name := range [2]string{"__image_base__", "_image_base__"} {
+		for _, name := range [...]string{"__image_base__", "_image_base__", "__ImageBase"} {
 			sb := ctxt.loader.CreateSymForUpdate(name, 0)
 			sb.SetType(sym.SDATA)
 			sb.SetValue(PEBASE)
