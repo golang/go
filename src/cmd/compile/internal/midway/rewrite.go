@@ -314,11 +314,13 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 	args := func() []syntax.Expr {
 		var args []syntax.Expr
 		if d.Type.ParamList != nil {
-			for _, field := range d.Type.ParamList {
-				if field.Name != nil {
-					paramName := syntax.NewName(field.Pos(), field.Name.Value)
-					args = append(args, paramName)
+			for i, field := range d.Type.ParamList {
+				if field.Name == nil || field.Name.Value == "_" {
+					// Blank and unnamed parameters cannot be passed along, so name them.
+					field.Name = syntax.NewName(field.Pos(), fmt.Sprintf("p@%d", i))
 				}
+				paramName := syntax.NewName(field.Pos(), field.Name.Value)
+				args = append(args, paramName)
 			}
 		}
 		return args
