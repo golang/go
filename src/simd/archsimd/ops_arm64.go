@@ -1662,60 +1662,60 @@ func (x Uint64x2) SaturateToUint32() Uint32x4
 /* ScaleSaturated */
 
 // ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
+// of scale's corresponding element (positive shifts left, negative shifts right).
 // Results are saturated to the signed range on overflow.
 //
 // Asm: VSQSHL, CPU Feature: NEON
-func (x Int8x16) ScaleSaturated(y Int8x16) Int8x16
+func (x Int8x16) ScaleSaturated(scale Int8x16) Int8x16
 
 // ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
+// of scale's corresponding element (positive shifts left, negative shifts right).
 // Results are saturated to the signed range on overflow.
 //
 // Asm: VSQSHL, CPU Feature: NEON
-func (x Int16x8) ScaleSaturated(y Int16x8) Int16x8
+func (x Int16x8) ScaleSaturated(scale Int16x8) Int16x8
 
 // ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
+// of scale's corresponding element (positive shifts left, negative shifts right).
 // Results are saturated to the signed range on overflow.
 //
 // Asm: VSQSHL, CPU Feature: NEON
-func (x Int32x4) ScaleSaturated(y Int32x4) Int32x4
+func (x Int32x4) ScaleSaturated(scale Int32x4) Int32x4
 
 // ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
+// of scale's corresponding element (positive shifts left, negative shifts right).
 // Results are saturated to the signed range on overflow.
 //
 // Asm: VSQSHL, CPU Feature: NEON
-func (x Int64x2) ScaleSaturated(y Int64x2) Int64x2
+func (x Int64x2) ScaleSaturated(scale Int64x2) Int64x2
 
 // ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
+// of scale's corresponding element (positive shifts left, negative shifts right).
 // Results are saturated to the unsigned range on overflow.
 //
 // Asm: VUQSHL, CPU Feature: NEON
-func (x Uint8x16) ScaleSaturated(y Int8x16) Uint8x16
+func (x Uint8x16) ScaleSaturated(scale Int8x16) Uint8x16
 
 // ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
+// of scale's corresponding element (positive shifts left, negative shifts right).
 // Results are saturated to the unsigned range on overflow.
 //
 // Asm: VUQSHL, CPU Feature: NEON
-func (x Uint16x8) ScaleSaturated(y Int16x8) Uint16x8
+func (x Uint16x8) ScaleSaturated(scale Int16x8) Uint16x8
 
 // ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
+// of scale's corresponding element (positive shifts left, negative shifts right).
 // Results are saturated to the unsigned range on overflow.
 //
 // Asm: VUQSHL, CPU Feature: NEON
-func (x Uint32x4) ScaleSaturated(y Int32x4) Uint32x4
+func (x Uint32x4) ScaleSaturated(scale Int32x4) Uint32x4
 
 // ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
+// of scale's corresponding element (positive shifts left, negative shifts right).
 // Results are saturated to the unsigned range on overflow.
 //
 // Asm: VUQSHL, CPU Feature: NEON
-func (x Uint64x2) ScaleSaturated(y Int64x2) Uint64x2
+func (x Uint64x2) ScaleSaturated(scale Int64x2) Uint64x2
 
 /* SetElem */
 
@@ -1839,103 +1839,103 @@ func (x Uint64x2) Shift(y Int64x2) Uint64x2
 
 /* ShiftAllLeft */
 
-// ShiftAllLeft shifts each element of x left by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int8x16) ShiftAllLeft(y uint64) Int8x16
+func (x Int8x16) ShiftAllLeft(shift uint64) Int8x16
 
-// ShiftAllLeft shifts each element of x left by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int16x8) ShiftAllLeft(y uint64) Int16x8
+func (x Int16x8) ShiftAllLeft(shift uint64) Int16x8
 
-// ShiftAllLeft shifts each element of x left by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int32x4) ShiftAllLeft(y uint64) Int32x4
+func (x Int32x4) ShiftAllLeft(shift uint64) Int32x4
 
-// ShiftAllLeft shifts each element of x left by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int64x2) ShiftAllLeft(y uint64) Int64x2
+func (x Int64x2) ShiftAllLeft(shift uint64) Int64x2
 
-// ShiftAllLeft shifts each element of x left by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint8x16) ShiftAllLeft(y uint64) Uint8x16
+func (x Uint8x16) ShiftAllLeft(shift uint64) Uint8x16
 
-// ShiftAllLeft shifts each element of x left by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint16x8) ShiftAllLeft(y uint64) Uint16x8
+func (x Uint16x8) ShiftAllLeft(shift uint64) Uint16x8
 
-// ShiftAllLeft shifts each element of x left by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint32x4) ShiftAllLeft(y uint64) Uint32x4
+func (x Uint32x4) ShiftAllLeft(shift uint64) Uint32x4
 
-// ShiftAllLeft shifts each element of x left by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint64x2) ShiftAllLeft(y uint64) Uint64x2
+func (x Uint64x2) ShiftAllLeft(shift uint64) Uint64x2
 
 /* ShiftAllRight */
 
-// ShiftAllRight arithmetically shifts each element of x right by y bits.
-// If y is greater than the element width, the result is 0 or -1.
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int8x16) ShiftAllRight(y uint64) Int8x16
+func (x Int8x16) ShiftAllRight(shift uint64) Int8x16
 
-// ShiftAllRight arithmetically shifts each element of x right by y bits.
-// If y is greater than the element width, the result is 0 or -1.
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int16x8) ShiftAllRight(y uint64) Int16x8
+func (x Int16x8) ShiftAllRight(shift uint64) Int16x8
 
-// ShiftAllRight arithmetically shifts each element of x right by y bits.
-// If y is greater than the element width, the result is 0 or -1.
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int32x4) ShiftAllRight(y uint64) Int32x4
+func (x Int32x4) ShiftAllRight(shift uint64) Int32x4
 
-// ShiftAllRight arithmetically shifts each element of x right by y bits.
-// If y is greater than the element width, the result is 0 or -1.
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int64x2) ShiftAllRight(y uint64) Int64x2
+func (x Int64x2) ShiftAllRight(shift uint64) Int64x2
 
-// ShiftAllRight logically shifts each element of x right by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllRight logically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint8x16) ShiftAllRight(y uint64) Uint8x16
+func (x Uint8x16) ShiftAllRight(shift uint64) Uint8x16
 
-// ShiftAllRight logically shifts each element of x right by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllRight logically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint16x8) ShiftAllRight(y uint64) Uint16x8
+func (x Uint16x8) ShiftAllRight(shift uint64) Uint16x8
 
-// ShiftAllRight logically shifts each element of x right by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllRight logically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint32x4) ShiftAllRight(y uint64) Uint32x4
+func (x Uint32x4) ShiftAllRight(shift uint64) Uint32x4
 
-// ShiftAllRight logically shifts each element of x right by y bits.
-// If y is greater than the element width, the result is 0.
+// ShiftAllRight logically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint64x2) ShiftAllRight(y uint64) Uint64x2
+func (x Uint64x2) ShiftAllRight(shift uint64) Uint64x2
 
 /* Sqrt */
 

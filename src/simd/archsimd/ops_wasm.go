@@ -1174,85 +1174,85 @@ func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
 // Asm: F64x2ReplaceLane
 func (x Float64x2) SetElem(index uint8, y float64) Float64x2
 
-// ShiftAllLeft returns the elementwise left shift of x by y bits.
+// ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I8x16Shl
-func (x Int8x16) ShiftAllLeft(y uint64) Int8x16
+func (x Int8x16) ShiftAllLeft(shift uint64) Int8x16
 
-// ShiftAllLeft returns the elementwise left shift of x by y bits.
+// ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I8x16Shl
-func (x Uint8x16) ShiftAllLeft(y uint64) Uint8x16
+func (x Uint8x16) ShiftAllLeft(shift uint64) Uint8x16
 
-// ShiftAllLeft returns the elementwise left shift of x by y bits.
+// ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I16x8Shl
-func (x Int16x8) ShiftAllLeft(y uint64) Int16x8
+func (x Int16x8) ShiftAllLeft(shift uint64) Int16x8
 
-// ShiftAllLeft returns the elementwise left shift of x by y bits.
+// ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I16x8Shl
-func (x Uint16x8) ShiftAllLeft(y uint64) Uint16x8
+func (x Uint16x8) ShiftAllLeft(shift uint64) Uint16x8
 
-// ShiftAllLeft returns the elementwise left shift of x by y bits.
+// ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I32x4Shl
-func (x Int32x4) ShiftAllLeft(y uint64) Int32x4
+func (x Int32x4) ShiftAllLeft(shift uint64) Int32x4
 
-// ShiftAllLeft returns the elementwise left shift of x by y bits.
+// ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I32x4Shl
-func (x Uint32x4) ShiftAllLeft(y uint64) Uint32x4
+func (x Uint32x4) ShiftAllLeft(shift uint64) Uint32x4
 
-// ShiftAllLeft returns the elementwise left shift of x by y bits.
+// ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I64x2Shl
-func (x Int64x2) ShiftAllLeft(y uint64) Int64x2
+func (x Int64x2) ShiftAllLeft(shift uint64) Int64x2
 
-// ShiftAllLeft returns the elementwise left shift of x by y bits.
+// ShiftAllLeft returns the elementwise left shift of x by shift bits.
 //
 // Asm: I64x2Shl
-func (x Uint64x2) ShiftAllLeft(y uint64) Uint64x2
+func (x Uint64x2) ShiftAllLeft(shift uint64) Uint64x2
 
-// ShiftAllRight returns the elementwise right shift of x by y bits.
+// ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I8x16ShrS
-func (x Int8x16) ShiftAllRight(y uint64) Int8x16
+func (x Int8x16) ShiftAllRight(shift uint64) Int8x16
 
-// ShiftAllRight returns the elementwise right shift of x by y bits.
+// ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I8x16ShrU
-func (x Uint8x16) ShiftAllRight(y uint64) Uint8x16
+func (x Uint8x16) ShiftAllRight(shift uint64) Uint8x16
 
-// ShiftAllRight returns the elementwise right shift of x by y bits.
+// ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I16x8ShrS
-func (x Int16x8) ShiftAllRight(y uint64) Int16x8
+func (x Int16x8) ShiftAllRight(shift uint64) Int16x8
 
-// ShiftAllRight returns the elementwise right shift of x by y bits.
+// ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I16x8ShrU
-func (x Uint16x8) ShiftAllRight(y uint64) Uint16x8
+func (x Uint16x8) ShiftAllRight(shift uint64) Uint16x8
 
-// ShiftAllRight returns the elementwise right shift of x by y bits.
+// ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I32x4ShrS
-func (x Int32x4) ShiftAllRight(y uint64) Int32x4
+func (x Int32x4) ShiftAllRight(shift uint64) Int32x4
 
-// ShiftAllRight returns the elementwise right shift of x by y bits.
+// ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I32x4ShrU
-func (x Uint32x4) ShiftAllRight(y uint64) Uint32x4
+func (x Uint32x4) ShiftAllRight(shift uint64) Uint32x4
 
-// ShiftAllRight returns the elementwise right shift of x by y bits.
+// ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I64x2ShrS
-func (x Int64x2) ShiftAllRight(y uint64) Int64x2
+func (x Int64x2) ShiftAllRight(shift uint64) Int64x2
 
-// ShiftAllRight returns the elementwise right shift of x by y bits.
+// ShiftAllRight returns the elementwise right shift of x by shift bits.
 //
 // Asm: I64x2ShrU
-func (x Uint64x2) ShiftAllRight(y uint64) Uint64x2
+func (x Uint64x2) ShiftAllRight(shift uint64) Uint64x2
 
 // Sqrt returns the elementwise square root of x.
 //

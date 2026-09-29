@@ -22,7 +22,7 @@ type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
 hand-written doc conflicts with spec (§3)         157 -> 0       [doc-triage]
-simd mirror drift (§3)                             53 -> 0       [comments-yaml]
+simd mirror drift (§3)                             64 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
 midway/comments.yaml entries spec covers (§4)      26 -> 0       [comments-yaml, spec-all]
 
@@ -65,7 +65,7 @@ a named argument whose name differs from spec's is a mismatch; an unnamed
 one (or _) is not, and is counted below as a name Fill fills in instead:
 
   type mismatches                                   0 -> 0       [fill-enforce]
-  parameter-name mismatches                       113 -> 0       [named-results]
+  parameter-name mismatches                        62 -> 0       [named-results]
   result-name mismatches                           20 -> 0       [named-results]
 
 Names spec gives that the API leaves unnamed, for declarations spec covers:
@@ -78,7 +78,7 @@ API consistency across targets (the "one meaning" invariant), for
 argument agrees with any name:
 
   divergent parameter or result types               0 -> 0       [fill-enforce]
-  divergent parameter names                        34 -> 0       [fill-enforce, spec-all]
+  divergent parameter names                        11 -> 0       [fill-enforce, spec-all]
   divergent result names                            0 -> 0       [named-results]
 
 
@@ -97,7 +97,7 @@ hand-written doc conflicts with spec              157 -> 0       [doc-triage]
     archsimd/slicepart_arm64.go                    12 -> 0       [doc-triage]
     archsimd/slicepart_wasm.go                     12 -> 0       [doc-triage]
     simd_emulated.go                              121 -> 0       [doc-triage]
-drifted docs in simd mirror (stubs vs emulated)    53 -> 0       [comments-yaml]
+drifted docs in simd mirror (stubs vs emulated)    64 -> 0       [comments-yaml]
   mirrored declarations                           356
 
 

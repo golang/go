@@ -31,7 +31,9 @@
   asm: "VSQSHL"
   in:
   - *int
-  - *int
+  - go: $t
+    base: int
+    name: scale
   out:
   - *int
 
@@ -40,7 +42,10 @@
   asm: "VUQSHL"
   in:
   - *uint
-  - *uintAsInt
+  - go: $t
+    base: uint
+    overwriteBase: int
+    name: scale
   out:
   - *uint
 
@@ -128,6 +133,7 @@
     go: $t
     base: int
     treatLikeAScalarOfSize: 64
+    name: shift
   out:
   - *int
 
@@ -142,6 +148,7 @@
     base: uint
     treatLikeAScalarOfSize: 64
     overwriteBase: int
+    name: shift
   out:
   - *uint
 

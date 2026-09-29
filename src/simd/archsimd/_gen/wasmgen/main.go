@@ -928,6 +928,7 @@ func initWasmOps() {
 	shift := func(op *wasmOp) {
 		op.argType = "uint64"
 		op.opFlags = IsShift
+		op.arg1Name = "shift"
 	}
 	addWasmOpsDetail(signed, s_s, 2, shift)
 	addWasmOpsDetail(unsigned, u_s, 2, shift)
@@ -1200,8 +1201,8 @@ var docForOp map[string]string = map[string]string{
 	"LessEqual":           " returns true if x is less than or equal to y, elementwise.",
 	"GreaterEqual":        " returns true if x is greater than or equal to y, elementwise.",
 	"MulAdd":              " returns the elementwise multiply-add of x, y, and z.",
-	"ShiftAllLeft":        " returns the elementwise left shift of x by y bits.",
-	"ShiftAllRight":       " returns the elementwise right shift of x by y bits.",
+	"ShiftAllLeft":        " returns the elementwise left shift of x by shift bits.",
+	"ShiftAllRight":       " returns the elementwise right shift of x by shift bits.",
 	"Ceil":                " returns the elementwise ceiling of x.",
 	"Floor":               " returns the elementwise floor of x.",
 	"Trunc":               " returns the elementwise truncation of x.",

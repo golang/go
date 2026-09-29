@@ -633,20 +633,20 @@ func (x Int16s) Or(y Int16s) Int16s {
 	return Int16s{a: x.a | y.a, b: x.b | y.b}
 }
 
-// ShiftAllLeft shifts all elements left by y bits.
-func (x Int16s) ShiftAllLeft(y uint64) Int16s {
+// ShiftAllLeft shifts all elements left by shift bits.
+func (x Int16s) ShiftAllLeft(shift uint64) Int16s {
 	var res Int16s
 	for i := 0; i < 8; i++ {
-		res.set(i, x.get(i)<<y)
+		res.set(i, x.get(i)<<shift)
 	}
 	return res
 }
 
-// ShiftAllRight shifts all elements right by y bits.
-func (x Int16s) ShiftAllRight(y uint64) Int16s {
+// ShiftAllRight shifts all elements right by shift bits.
+func (x Int16s) ShiftAllRight(shift uint64) Int16s {
 	var res Int16s
 	for i := 0; i < 8; i++ {
-		res.set(i, x.get(i)>>y)
+		res.set(i, x.get(i)>>shift)
 	}
 	return res
 }
@@ -967,20 +967,20 @@ func (x Int32s) Or(y Int32s) Int32s {
 	return Int32s{a: x.a | y.a, b: x.b | y.b}
 }
 
-// ShiftAllLeft shifts all elements left by y bits.
-func (x Int32s) ShiftAllLeft(y uint64) Int32s {
+// ShiftAllLeft shifts all elements left by shift bits.
+func (x Int32s) ShiftAllLeft(shift uint64) Int32s {
 	var res Int32s
 	for i := 0; i < 4; i++ {
-		res.set(i, x.get(i)<<y)
+		res.set(i, x.get(i)<<shift)
 	}
 	return res
 }
 
-// ShiftAllRight shifts all elements right by y bits.
-func (x Int32s) ShiftAllRight(y uint64) Int32s {
+// ShiftAllRight shifts all elements right by shift bits.
+func (x Int32s) ShiftAllRight(shift uint64) Int32s {
 	var res Int32s
 	for i := 0; i < 4; i++ {
-		res.set(i, x.get(i)>>y)
+		res.set(i, x.get(i)>>shift)
 	}
 	return res
 }
@@ -1206,9 +1206,9 @@ func (x Int64s) Or(y Int64s) Int64s {
 	return Int64s{a: x.a | y.a, b: x.b | y.b}
 }
 
-// ShiftAllLeft shifts all elements left by y bits.
-func (x Int64s) ShiftAllLeft(y uint64) Int64s {
-	return Int64s{a: x.a << y, b: x.b << y}
+// ShiftAllLeft shifts all elements left by shift bits.
+func (x Int64s) ShiftAllLeft(shift uint64) Int64s {
+	return Int64s{a: x.a << shift, b: x.b << shift}
 }
 
 // Store stores the vector elements into the slice s.
@@ -1755,20 +1755,20 @@ func (x Uint16s) Or(y Uint16s) Uint16s {
 	return Uint16s{a: x.a | y.a, b: x.b | y.b}
 }
 
-// ShiftAllLeft shifts all elements left by y bits.
-func (x Uint16s) ShiftAllLeft(y uint64) Uint16s {
+// ShiftAllLeft shifts all elements left by shift bits.
+func (x Uint16s) ShiftAllLeft(shift uint64) Uint16s {
 	var res Uint16s
 	for i := 0; i < 8; i++ {
-		res.set(i, x.get(i)<<y)
+		res.set(i, x.get(i)<<shift)
 	}
 	return res
 }
 
-// ShiftAllRight shifts all elements right by y bits.
-func (x Uint16s) ShiftAllRight(y uint64) Uint16s {
+// ShiftAllRight shifts all elements right by shift bits.
+func (x Uint16s) ShiftAllRight(shift uint64) Uint16s {
 	var res Uint16s
 	for i := 0; i < 8; i++ {
-		res.set(i, x.get(i)>>y)
+		res.set(i, x.get(i)>>shift)
 	}
 	return res
 }
@@ -2084,20 +2084,20 @@ func (x Uint32s) Or(y Uint32s) Uint32s {
 	return Uint32s{a: x.a | y.a, b: x.b | y.b}
 }
 
-// ShiftAllLeft shifts all elements left by y bits.
-func (x Uint32s) ShiftAllLeft(y uint64) Uint32s {
+// ShiftAllLeft shifts all elements left by shift bits.
+func (x Uint32s) ShiftAllLeft(shift uint64) Uint32s {
 	var res Uint32s
 	for i := 0; i < 4; i++ {
-		res.set(i, x.get(i)<<y)
+		res.set(i, x.get(i)<<shift)
 	}
 	return res
 }
 
-// ShiftAllRight shifts all elements right by y bits.
-func (x Uint32s) ShiftAllRight(y uint64) Uint32s {
+// ShiftAllRight shifts all elements right by shift bits.
+func (x Uint32s) ShiftAllRight(shift uint64) Uint32s {
 	var res Uint32s
 	for i := 0; i < 4; i++ {
-		res.set(i, x.get(i)>>y)
+		res.set(i, x.get(i)>>shift)
 	}
 	return res
 }
@@ -2348,14 +2348,14 @@ func (x Uint64s) Or(y Uint64s) Uint64s {
 	return Uint64s{a: x.a | y.a, b: x.b | y.b}
 }
 
-// ShiftAllLeft shifts all elements left by y bits.
-func (x Uint64s) ShiftAllLeft(y uint64) Uint64s {
-	return Uint64s{a: x.a << y, b: x.b << y}
+// ShiftAllLeft shifts all elements left by shift bits.
+func (x Uint64s) ShiftAllLeft(shift uint64) Uint64s {
+	return Uint64s{a: x.a << shift, b: x.b << shift}
 }
 
-// ShiftAllRight shifts all elements right by y bits.
-func (x Uint64s) ShiftAllRight(y uint64) Uint64s {
-	return Uint64s{a: x.a >> y, b: x.b >> y}
+// ShiftAllRight shifts all elements right by shift bits.
+func (x Uint64s) ShiftAllRight(shift uint64) Uint64s {
+	return Uint64s{a: x.a >> shift, b: x.b >> shift}
 }
 
 // RotateAllLeft rotates all elements left by dist bits.

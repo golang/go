@@ -10,14 +10,14 @@
   commutative: false
   documentation: !string |-
     // NAME shifts each element in x by the signed value of the least significant byte
-    // of y's corresponding element (positive shifts left, negative shifts right).
+    // of scale's corresponding element (positive shifts left, negative shifts right).
     // Results are saturated to the signed range on overflow.
 - go: ScaleSaturated
   signed: false
   commutative: false
   documentation: !string |-
     // NAME shifts each element in x by the signed value of the least significant byte
-    // of y's corresponding element (positive shifts left, negative shifts right).
+    // of scale's corresponding element (positive shifts left, negative shifts right).
     // Results are saturated to the unsigned range on overflow.
 - go: shiftLeftSaturatedConst
   noGenericOps: "true"
@@ -59,20 +59,20 @@
 - go: ShiftAllLeft
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x left by y bits.
-    // If y is greater than the element width, the result is 0.
+    // NAME shifts each element of x left by shift bits.
+    // If shift is greater than the element width, the result is 0.
 - go: ShiftAllRight
   signed: false
   commutative: false
   documentation: !string |-
-    // NAME logically shifts each element of x right by y bits.
-    // If y is greater than the element width, the result is 0.
+    // NAME logically shifts each element of x right by shift bits.
+    // If shift is greater than the element width, the result is 0.
 - go: ShiftAllRight
   signed: true
   commutative: false
   documentation: !string |-
-    // NAME arithmetically shifts each element of x right by y bits.
-    // If y is greater than the element width, the result is 0 or -1.
+    // NAME arithmetically shifts each element of x right by shift bits.
+    // If shift is greater than the element width, the result is 0 or -1.
 - go: shiftAllLeftConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
