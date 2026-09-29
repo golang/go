@@ -176,7 +176,7 @@ func (t *Transport) NewClientConn(ctx context.Context, scheme, address string) (
 	// Since there's no need to change the persistConn's hook, we set it at creation time.
 	cc := &ClientConn{}
 	const isClientConn = true
-	pconn, err := t.dialConn(ctx, cm, isClientConn, cc.maybeRunStateHook)
+	pconn, err := t.dialConn(ctx, cm, isClientConn, nil, cc.maybeRunStateHook)
 	if err != nil {
 		return nil, err
 	}

@@ -108,33 +108,32 @@ func ResetCachedEnvironment() {
 }
 
 func (t *Transport) IdleConnKeysForTesting() (keys []string) {
-	keys = make([]string, 0)
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
-	for key := range t.idleConn {
-		keys = append(keys, key.String())
+	for _, ent := range t.poolCopyEntries() {
+		ent.lock()
+		if len(ent.idleConns) > 0 {
+			keys = append(keys, ent.key.String())
+		}
+		ent.unlock(t)
 	}
 	slices.Sort(keys)
 	return
 }
 
 func (t *Transport) IdleConnKeyCountForTesting() int {
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
-	return len(t.idleConn)
+	return len(t.IdleConnKeysForTesting())
 }
 
 func (t *Transport) IdleConnStrsForTesting() []string {
 	var ret []string
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
-	for _, conns := range t.idleConn {
-		for _, pc := range conns {
+	for _, ent := range t.poolCopyEntries() {
+		ent.lock()
+		for _, pc := range ent.idleConns {
 			if pc.conn == nil {
 				continue
 			}
 			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
 		}
+		ent.unlock(t)
 	}
 	if t.h2Transport != nil {
 		ret = append(ret, t.h2Transport.IdleConnStrsForTesting()...)
@@ -144,22 +143,16 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 }
 
 func (t *Transport) IdleConnCountForTesting(scheme, addr string) int {
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
 	key := connectMethodKey{"", scheme, addr, false}
-	cacheKey := key.String()
-	for k, conns := range t.idleConn {
-		if k.String() == cacheKey {
-			return len(conns)
-		}
-	}
-	return 0
+	ent := t.getLockedPoolEntry(key, false)
+	defer ent.unlock(t)
+	return len(ent.idleConns)
 }
 
-func (t *Transport) IdleConnWaitMapSizeForTesting() int {
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
-	return len(t.idleConnWait)
+func (t *Transport) PoolEntryCountForTesting() int {
+	t.pool.mu.Lock()
+	defer t.pool.mu.Unlock()
+	return len(t.pool.ents)
 }
 
 // All test hooks must be non-nil so they can be called directly,
@@ -212,13 +205,12 @@ func (r *Request) ExportIsReplayable() bool { return r.isReplayable() }
 // that it's doing so. This is to simulate the server closing connections
 // on the Transport.
 func ExportCloseTransportConnsAbruptly(tr *Transport) {
-	tr.idleMu.Lock()
-	for _, pcs := range tr.idleConn {
-		for _, pc := range pcs {
-			pc.conn.Close()
-		}
+	tr.pool.mu.Lock()
+	pcs := slices.Collect(tr.pool.lru.all())
+	tr.pool.mu.Unlock()
+	for _, pc := range pcs {
+		pc.conn.Close()
 	}
-	tr.idleMu.Unlock()
 }
 
 // ResponseWriterConnForTesting returns w's underlying connection, if w

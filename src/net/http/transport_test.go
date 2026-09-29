@@ -3519,62 +3519,6 @@ func TestProxyFromEnvironmentLowerCase(t *testing.T) {
 	}
 }
 
-func TestIdleConnChannelLeak(t *testing.T) {
-	runNoSynctest(t, testIdleConnChannelLeak, []testMode{http1Mode}, testNotParallel)
-}
-func testIdleConnChannelLeak(t *testing.T, mode testMode) {
-	// Not parallel: uses global test hooks.
-	var mu sync.Mutex
-	var n int
-
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		mu.Lock()
-		n++
-		mu.Unlock()
-	}), optRealNet).ts
-
-	const nReqs = 5
-	didRead := make(chan bool, nReqs)
-	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
-	defer SetReadLoopBeforeNextReadHook(nil)
-
-	c := ts.Client()
-	tr := c.Transport.(*Transport)
-	tr.Dial = func(netw, addr string) (net.Conn, error) {
-		return net.Dial(netw, ts.Listener.Addr().String())
-	}
-
-	// First, without keep-alives.
-	for _, disableKeep := range []bool{true, false} {
-		tr.DisableKeepAlives = disableKeep
-		for i := 0; i < nReqs; i++ {
-			_, err := c.Get(fmt.Sprintf("http://foo-host-%d.tld/", i))
-			if err != nil {
-				t.Fatal(err)
-			}
-			// Note: no res.Body.Close is needed here, since the
-			// response Content-Length is zero. Perhaps the test
-			// should be more explicit and use a HEAD, but tests
-			// elsewhere guarantee that zero byte responses generate
-			// a "Content-Length: 0" instead of chunking.
-		}
-
-		// At this point, each of the 5 Transport.readLoop goroutines
-		// are scheduling noting that there are no response bodies (see
-		// earlier comment), and are then calling putIdleConn, which
-		// decrements this count. Usually that happens quickly, which is
-		// why this test has seemed to work for ages. But it's still
-		// racey: we have wait for them to finish first. See Issue 10427
-		for i := 0; i < nReqs; i++ {
-			<-didRead
-		}
-
-		if got := tr.IdleConnWaitMapSizeForTesting(); got != 0 {
-			t.Fatalf("for DisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
-		}
-	}
-}
-
 // Verify the status quo: that the Client.Post function coerces its
 // body into a ReadCloser if it's a Closer, and that the Transport
 // then closes it.
@@ -5401,78 +5345,71 @@ func TestTransportIdleConnTimeout(t *testing.T) {
 }
 func testTransportIdleConnTimeout(t *testing.T, mode testMode) {
 	timeout := 1 * time.Millisecond
-timeoutLoop:
-	for {
-		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-			// No body for convenience.
-		}))
-		tr := cst.tr
-		tr.IdleConnTimeout = timeout
-		defer tr.CloseIdleConnections()
-		c := &Client{Transport: tr}
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		// No body for convenience.
+	}))
+	tr := cst.tr
+	tr.IdleConnTimeout = timeout
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
 
-		idleConns := func() []string {
-			return tr.IdleConnStrsForTesting()
-		}
-
-		var conn string
-		doReq := func(n int) (timeoutOk bool) {
-			req, _ := NewRequest("GET", cst.ts.URL, nil)
-			req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
-				PutIdleConn: func(err error) {
-					if err != nil {
-						t.Errorf("failed to keep idle conn: %v", err)
-					}
-				},
-			}))
-			res, err := c.Do(req)
-			if err != nil {
-				if strings.Contains(err.Error(), "use of closed network connection") {
-					t.Logf("req %v: connection closed prematurely", n)
-					return false
-				}
-			}
-			if err == nil {
-				res.Body.Close()
-			}
-			conns := idleConns()
-			if len(conns) != 1 {
-				if len(conns) == 0 {
-					t.Logf("req %v: no idle conns", n)
-					return false
-				}
-				t.Fatalf("req %v: unexpected number of idle conns: %q", n, conns)
-			}
-			if conn == "" {
-				conn = conns[0]
-			}
-			if conn != conns[0] {
-				t.Logf("req %v: cached connection changed; expected the same one throughout the test", n)
-				return false
-			}
-			return true
-		}
-		for i := 0; i < 3; i++ {
-			if !doReq(i) {
-				t.Logf("idle conn timeout %v appears to be too short; retrying with longer", timeout)
-				timeout *= 2
-				cst.close()
-				continue timeoutLoop
-			}
-			time.Sleep(timeout / 2)
-		}
-
-		waitCondition(t, timeout/2, func(d time.Duration) bool {
-			if got := idleConns(); len(got) != 0 {
-				if d >= timeout*3/2 {
-					t.Logf("after %v, idle conns = %q", d, got)
-				}
-				return false
-			}
-			return true
-		})
-		break
+	idleConns := func() []string {
+		return tr.IdleConnStrsForTesting()
 	}
+
+	var conn string
+	doReq := func(n int) (timeoutOk bool) {
+		req, _ := NewRequest("GET", cst.ts.URL, nil)
+		req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			PutIdleConn: func(err error) {
+				if err != nil {
+					t.Errorf("failed to keep idle conn: %v", err)
+				}
+			},
+		}))
+		res, err := c.Do(req)
+		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				t.Logf("req %v: connection closed prematurely", n)
+				return false
+			}
+		}
+		if err == nil {
+			res.Body.Close()
+		}
+		conns := idleConns()
+		if len(conns) != 1 {
+			if len(conns) == 0 {
+				t.Logf("req %v: no idle conns", n)
+				return false
+			}
+			t.Fatalf("req %v: unexpected number of idle conns: %q", n, conns)
+		}
+		if conn == "" {
+			conn = conns[0]
+		}
+		if conn != conns[0] {
+			t.Logf("req %v: cached connection changed; expected the same one throughout the test", n)
+			return false
+		}
+		return true
+	}
+	for i := 0; i < 3; i++ {
+		if !doReq(i) {
+			t.Fatalf("request %v failed", i)
+		}
+		time.Sleep(timeout / 2)
+	}
+
+	waitCondition(t, timeout/2, func(d time.Duration) bool {
+		if got := idleConns(); len(got) != 0 {
+			if d >= timeout*3/2 {
+				t.Logf("after %v, idle conns = %q", d, got)
+			}
+			return false
+		}
+		return true
+	})
 }
 
 // Issue 16208: Go 1.7 crashed after Transport.IdleConnTimeout if an

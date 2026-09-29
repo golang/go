@@ -581,6 +581,43 @@ func TestTransportPoolTraceGotConnH2IdleConns(t *testing.T) {
 	})
 }
 
+// Pool entries do not leak after connections close.
+// Issue #10427.
+func TestTransportPoolEntryCleanup(t *testing.T) {
+	for _, disableKeepAlives := range []bool{true, false} {
+		synctest.Test(t, func(t *testing.T) {
+			dt := newTransportDialTester(t, http1Mode, func(tr *http.Transport) {
+				tr.DisableKeepAlives = disableKeepAlives
+			})
+
+			const nHosts = 5
+			for i := range nHosts {
+				rt := dt.roundTrip("host" + strconv.Itoa(i) + ".fake.tld")
+				c := dt.wantDial()
+				c.finish(nil)
+				rt.wantDone(c, "HTTP/1.1")
+				rt.finish()
+			}
+			synctest.Wait()
+
+			if disableKeepAlives {
+				if got := dt.cst.tr.PoolEntryCountForTesting(); got != 0 {
+					t.Fatalf("with DisableKeepAlives=true, pool entries = %d, want 0", got)
+				}
+			} else {
+				if got := dt.cst.tr.PoolEntryCountForTesting(); got != nHosts {
+					t.Fatalf("with DisableKeepAlives=false, pool entries = %d, want %d", got, nHosts)
+				}
+				dt.cst.tr.CloseIdleConnections()
+				synctest.Wait()
+				if got := dt.cst.tr.PoolEntryCountForTesting(); got != 0 {
+					t.Fatalf("after CloseIdleConnections, pool entries = %d, want 0", got)
+				}
+			}
+		})
+	}
+}
+
 // A transportDialTester manages a test of a connection's Dials.
 type transportDialTester struct {
 	t   *testing.T
@@ -744,11 +781,11 @@ func (rt *transportDialTesterRoundTrip) wantDone(c *transportDialTesterConn, wan
 	if rt.err != nil {
 		rt.t.Fatalf("RoundTrip %v: want success, got err %v", rt.roundTripID, rt.err)
 	}
+	if rt.conn == nil {
+		rt.t.Fatalf("RoundTrip %v: conn is nil (GotConn not called?)", rt.roundTripID)
+	}
 	if rt.conn != c {
 		rt.t.Fatalf("RoundTrip %v: want on conn %v, got conn %v", rt.roundTripID, c.connID, rt.conn.connID)
-	}
-	if got, want := rt.conn, c; got != want {
-		rt.t.Fatalf("RoundTrip %v: sent on conn %v, want conn %v", rt.roundTripID, got.connID, want.connID)
 	}
 	if got, want := rt.res.Proto, wantProto; got != want {
 		rt.t.Fatalf("RoundTrip %v: got protocol %q, want %q", rt.roundTripID, got, want)
