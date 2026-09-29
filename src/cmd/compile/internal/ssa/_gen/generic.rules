@@ -864,10 +864,18 @@
 	=> x
 
 // Load from a region just copied by Move can read directly from the source.
+// The load at offset zero is written without an OffPtr, so it needs a rule
+// of its own. Without it, a group of loads covering the copy would be split
+// between the source and the destination, which stops them from being
+// recombined into one wider load.
 (Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
 	&& o1 >= 0 && o1+t1.Size() <= n && ssa.IsSamePtr(p1, p2)
 	&& !ssa.IsVolatile(src)
 	=> @move.Block (Load <t1> (OffPtr <op1.Type> [o1] src) mem)
+(Load <t1> p1 move:(Move [n] p2 src mem))
+	&& t1.Size() <= n && ssa.IsSamePtr(p1, p2)
+	&& !ssa.IsVolatile(src)
+	=> @move.Block (Load <t1> src mem)
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
 (Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && ssa.IsSamePtr(p1,p2) && t2.Size() == 8 && ssa.Is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])

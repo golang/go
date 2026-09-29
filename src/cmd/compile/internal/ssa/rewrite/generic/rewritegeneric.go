@@ -14783,6 +14783,29 @@ func rewriteValue_OpLoad(v *ssa.Value) bool {
 		v0.AddArg2(v1, mem)
 		return true
 	}
+	// match: (Load <t1> p1 move:(Move [n] p2 src mem))
+	// cond: t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src)
+	// result: @move.Block (Load <t1> src mem)
+	for {
+		t1 := v.Type
+		p1 := v_0
+		move := v_1
+		if move.Op != ssaop.OpMove {
+			break
+		}
+		n := ssa.AuxIntToInt64(move.AuxInt)
+		mem := move.Args[2]
+		p2 := move.Args[0]
+		src := move.Args[1]
+		if !(t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src)) {
+			break
+		}
+		b = move.Block
+		v0 := b.NewValue0(v.Pos, ssaop.OpLoad, t1)
+		v.CopyOf(v0)
+		v0.AddArg2(src, mem)
+		return true
+	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64 [x]) _))
 	// cond: ssa.IsSamePtr(p1,p2) && t2.Size() == 8 && ssa.Is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))
 	// result: (Const64F [math.Float64frombits(uint64(x))])
