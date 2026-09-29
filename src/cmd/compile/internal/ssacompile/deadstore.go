@@ -331,8 +331,8 @@ func elimDeadAutosGeneric(f *ssa.Func) {
 
 		// If the address of the auto reaches a memory or control
 		// operation not covered above then we probably need to keep it.
-		// We also need to keep autos if they reach Phis (issue #26153).
-		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == ssaop.OpPhi || v.MemoryArg() != nil {
+		// We also need to keep autos if they reach Phis or CondSelects (issues #26153, #81863).
+		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == ssaop.OpPhi || v.Op == ssaop.OpCondSelect || v.MemoryArg() != nil {
 			for _, a := range args {
 				if n, ok := addr[a]; ok {
 					// If the addr of n is used by an OpMove as its source arg,
