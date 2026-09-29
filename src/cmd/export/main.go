@@ -84,7 +84,13 @@ func export(configFile string) error {
 	fset := token.NewFileSet()
 	var files []*ast.File
 	for _, name := range cfg.GoFiles {
-		f, err := parser.ParseFile(fset, name, nil, parser.SkipObjectResolution)
+		// cmd/compile prefixes paths in std with "$GOROOT"; do the same here.
+		src, err := os.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		name = objabi.AbsFile("", name, "") // name is an absolute path
+		f, err := parser.ParseFile(fset, name, src, parser.SkipObjectResolution)
 		if err != nil {
 			return err
 		}
