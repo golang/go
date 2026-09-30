@@ -364,9 +364,9 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 			return nop, alwaysFalse
 		}
 
-		var cancelCtx func()
-		req.ctx, cancelCtx = context.WithDeadline(oldCtx, deadline)
-		return cancelCtx, func() bool { return time.Now().After(deadline) }
+		ctx, cancelCtx := context.WithDeadline(oldCtx, deadline)
+		req.ctx = ctx
+		return cancelCtx, func() bool { return ctx.Err() == context.DeadlineExceeded }
 	}
 	initialReqCancel := req.Cancel // the user's original Request.Cancel, if any
 
