@@ -6,9 +6,11 @@ package http_test
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"internal/nettest"
+	"io"
 	"net"
 	"net/http"
 	"slices"
@@ -252,5 +254,26 @@ func (rt *testRoundTrip) wantStatus(want int) {
 	t.Helper()
 	if got := rt.response().StatusCode; got != want {
 		t.Fatalf("got response status %v, want %v", got, want)
+	}
+}
+
+// readBody reads the contents of the response body.
+func (rt *testRoundTrip) readBody() ([]byte, error) {
+	t := rt.t
+	t.Helper()
+	return io.ReadAll(rt.response().Body)
+}
+
+// wantBody indicates the expected response body.
+// (Note that this consumes the body.)
+func (rt *testRoundTrip) wantBody(want []byte) {
+	t := rt.t
+	t.Helper()
+	got, err := rt.readBody()
+	if err != nil {
+		t.Fatalf("unexpected error reading response body: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("unexpected response body:\ngot:  %q\nwant: %q", got, want)
 	}
 }

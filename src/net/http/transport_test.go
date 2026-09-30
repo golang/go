@@ -4827,77 +4827,89 @@ func (c *wgReadCloser) Close() error {
 
 // Issue 11745.
 func TestTransportPrefersResponseOverWriteError(t *testing.T) {
-	// Not parallel: modifies the global rstAvoidanceDelay.
-	run(t, testTransportPrefersResponseOverWriteError, testNotParallel)
-}
-func testTransportPrefersResponseOverWriteError(t *testing.T, mode testMode) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
+	writeFailedRoundTrip := func(t *testing.T) (*testRoundTrip, *http1TestConn) {
+		tt := newHTTP1TransportTest(t)
+
+		r, w := io.Pipe()
+		sentReq, _ := http.NewRequest("POST", "http://example.tld/", r)
+		sentReq.ContentLength = 1000
+		rt := tt.roundTrip(sentReq)
+		if rt.done() {
+			t.Fatalf("RoundTrip unexpectedly returned before reading response")
+		}
+
+		dial := tt.wantDial("tcp", "example.tld:80")
+		conn := dial.connect()
+		_ = conn.readRequest()
+
+		// Transport writes to connection. Write blocks.
+		conn.conn.SetReadBufferSize(5)
+		go w.Write([]byte("hello, world"))
+		conn.wantBytes([]byte("hello"))
+
+		// Write fails.
+		conn.conn.CloseRead()
+		synctest.Wait()
+
+		return rt, conn
 	}
 
-	runTimeSensitiveTest(t, []time.Duration{
-		1 * time.Millisecond,
-		5 * time.Millisecond,
-		10 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		500 * time.Millisecond,
-		time.Second,
-		5 * time.Second,
-	}, func(t *testing.T, timeout time.Duration) error {
-		SetRSTAvoidanceDelay(t, timeout)
-		t.Logf("set RST avoidance delay to %v", timeout)
+	synctest.Subtest(t, "empty body", func(t *testing.T) {
+		rt, conn := writeFailedRoundTrip(t)
 
-		const contentLengthLimit = 1024 * 1024 // 1MB
-		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-			if r.ContentLength >= contentLengthLimit {
-				w.WriteHeader(StatusBadRequest)
-				r.Body.Close()
-				return
-			}
-			w.WriteHeader(StatusOK)
-		}))
-		// We need to close cst explicitly here so that in-flight server
-		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
-		defer cst.close()
-		ts := cst.ts
-		c := ts.Client()
-
-		count := 100
-
-		bigBody := strings.Repeat("a", contentLengthLimit*2)
-		var wg sync.WaitGroup
-		defer wg.Wait()
-		getBody := func() (io.ReadCloser, error) {
-			wg.Add(1)
-			body := &wgReadCloser{
-				Reader: strings.NewReader(bigBody),
-				wg:     &wg,
-			}
-			return body, nil
+		synctest.Sleep(1 * time.Millisecond)
+		if rt.done() {
+			t.Fatalf("RoundTrip unexpectedly done 1ms after write failure")
 		}
 
-		for i := 0; i < count; i++ {
-			reqBody, _ := getBody()
-			req, err := NewRequest("PUT", ts.URL, reqBody)
-			if err != nil {
-				reqBody.Close()
-				t.Fatal(err)
-			}
-			req.ContentLength = int64(len(bigBody))
-			req.GetBody = getBody
+		conn.writeMessage(
+			"HTTP/1.1 405 OK",
+			"Content-Length: 0",
+			"",
+		)
+		rt.wantStatus(405)
+	})
 
-			resp, err := c.Do(req)
-			if err != nil {
-				return fmt.Errorf("Do %d: %v", i, err)
-			} else {
-				resp.Body.Close()
-				if resp.StatusCode != 400 {
-					t.Errorf("Expected status code 400, got %v", resp.Status)
-				}
-			}
+	synctest.Subtest(t, "response body", func(t *testing.T) {
+		rt, conn := writeFailedRoundTrip(t)
+
+		synctest.Sleep(1 * time.Millisecond)
+		if rt.done() {
+			t.Fatalf("RoundTrip unexpectedly done 1ms after write failure")
 		}
-		return nil
+
+		conn.writeMessage(
+			"HTTP/1.1 405 OK",
+			"Content-Length: 2",
+			"",
+			"no",
+		)
+		rt.wantStatus(405)
+		rt.wantBody([]byte("no"))
+	})
+
+	synctest.Subtest(t, "conn closed", func(t *testing.T) {
+		rt, conn := writeFailedRoundTrip(t)
+
+		conn.conn.CloseWrite() // server fully closes connection
+		if rt.err() == nil {
+			t.Fatalf("RoundTrip unexpectedly succeeded after write failure")
+		}
+
+	})
+
+	synctest.Subtest(t, "no response", func(t *testing.T) {
+		rt, _ := writeFailedRoundTrip(t)
+
+		const timeout = 50 * time.Millisecond
+		synctest.Sleep(timeout - time.Nanosecond)
+		if rt.done() {
+			t.Fatalf("RoundTrip unexpectedly done %v-1ns after write failure", timeout)
+		}
+		synctest.Sleep(time.Nanosecond)
+		if rt.err() == nil {
+			t.Fatalf("RoundTrip unexpectedly succeeded after write failure")
+		}
 	})
 }
 
@@ -7410,7 +7422,9 @@ func TestTransportReqCancelerCleanupOnRequestBodyWriteError(t *testing.T) {
 		// Transport fails to write the rest of the body.
 		netConn.conn.Peer().SetWriteError(errors.New("write error"))
 		go bodyw.Write([]byte("write fails with an error"))
-		synctest.Wait()
+
+		// Transport will wait 50ms to see if it is going to get a response.
+		synctest.Sleep(51 * time.Millisecond)
 		if got, want := clientConn.InFlight(), 0; got != want {
 			t.Fatalf("after body write error: InFlight = %v, want %v", got, want)
 		}
