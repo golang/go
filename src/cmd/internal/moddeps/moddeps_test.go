@@ -217,7 +217,8 @@ func TestAllDependencies(t *testing.T) {
 			}
 			// TODO(golang.org/issue/43440): Check anything else influenced by dependency versions.
 
-			diff, err := testenv.Command(t, "diff", "--recursive", "--unified", r.Dir, m.Dir).CombinedOutput()
+			// h2_bundle.go is bundled out-of-band.
+			diff, err := testenv.Command(t, "diff", "--recursive", "--unified", "--exclude=h2_bundle.go", r.Dir, m.Dir).CombinedOutput()
 			if err != nil || len(diff) != 0 {
 				t.Errorf(`Module %s in %s is not tidy (-want +got):
 
