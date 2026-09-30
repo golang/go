@@ -269,6 +269,13 @@ func TestTraceFutileWakeup(t *testing.T) {
 				continue
 			}
 			_, new := st.Goroutine()
+			if new == trace.GoWaiting && st.Reason == "preempted" {
+				// suspendG (from the GC, or the tracer advancing a generation)
+				// parks a running goroutine this way. That's not the goroutine
+				// blocking, so it's neither a block nor a futile wakeup.
+				gs[id] = entered
+				continue
+			}
 			switch state {
 			case entered:
 				if new == trace.GoWaiting {
@@ -290,7 +297,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 				}
 			case running:
 				if new == trace.GoWaiting {
-					t.Fatalf("found futile wakeup on goroutine %d", id)
+					t.Fatalf("found futile wakeup on goroutine %d (block reason %q)", id, st.Reason)
 				} else {
 					state = entered
 				}
