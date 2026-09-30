@@ -1102,7 +1102,7 @@ func writeBlocks(ctxt *Link, out *OutBuf, sem chan int, ldr *loader.Loader, syms
 		}
 
 		// Start the block output operator.
-		if ctxt.Out.isMmapped() {
+		if out.isMmapped() {
 			o := out.View(uint64(out.Offset() + written))
 			sem <- 1
 			wg.Add(1)
@@ -1181,17 +1181,17 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 type writeFn func(*Link, *OutBuf, int64, int64)
 
 // writeParallel handles scheduling parallel execution of data write functions.
-func writeParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, length uint64) {
-	if ctxt.Out.isMmapped() {
-		out := ctxt.Out.View(seek)
+func writeParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, out *OutBuf, seek, vaddr, length uint64) {
+	if out.isMmapped() {
+		out := out.View(seek)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			fn(ctxt, out, int64(vaddr), int64(length))
 		}()
 	} else {
-		ctxt.Out.SeekSet(int64(seek))
-		fn(ctxt, ctxt.Out, int64(vaddr), int64(length))
+		out.SeekSet(int64(seek))
+		fn(ctxt, out, int64(vaddr), int64(length))
 	}
 }
 
@@ -3333,6 +3333,12 @@ func (ctxt *Link) address() []*sym.Segment {
 func (ctxt *Link) layout(order []*sym.Segment) uint64 {
 	var prev *sym.Segment
 	for _, seg := range order {
+		if seg == &Segdwarf && *FlagSplitDWARF && ctxt.IsInternal() {
+			// Segdwarf is written to a separate file, starting after the Mach-O header.
+			seg.Fileoff = uint64(Rnd(int64(HEADR), *FlagRound))
+			seg.Filelen = seg.Length
+			continue
+		}
 		if prev == nil {
 			seg.Fileoff = uint64(HEADR)
 		} else {

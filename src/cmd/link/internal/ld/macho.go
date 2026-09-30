@@ -19,6 +19,7 @@ import (
 	"internal/buildcfg"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -126,6 +127,7 @@ const (
 
 	MH_OBJECT  = 0x1
 	MH_EXECUTE = 0x2
+	MH_DSYM    = 0xa
 
 	MH_NOUNDEFS = 0x1
 	MH_DYLDLINK = 0x4
@@ -307,7 +309,9 @@ func machowrite(ctxt *Link, arch *sys.Arch, out *OutBuf, linkmode LinkMode) int 
 	out.Write32(MH_MAGIC_64)
 	out.Write32(machohdr.cpu)
 	out.Write32(machohdr.subcpu)
-	if linkmode == LinkExternal {
+	if out == ctxt.OutDWARF {
+		out.Write32(MH_DSYM)
+	} else if linkmode == LinkExternal {
 		out.Write32(MH_OBJECT) /* file type - mach object */
 	} else {
 		out.Write32(MH_EXECUTE) /* file type - mach executable */
@@ -315,11 +319,13 @@ func machowrite(ctxt *Link, arch *sys.Arch, out *OutBuf, linkmode LinkMode) int 
 	out.Write32(uint32(len(load)) + uint32(nseg) + uint32(ndebug))
 	out.Write32(uint32(loadsize))
 	flags := uint32(0)
-	if nkind[SymKindUndef] == 0 {
-		flags |= MH_NOUNDEFS
-	}
-	if ctxt.IsPIE() && linkmode == LinkInternal {
-		flags |= MH_PIE | MH_DYLDLINK
+	if out != ctxt.OutDWARF {
+		if nkind[SymKindUndef] == 0 {
+			flags |= MH_NOUNDEFS
+		}
+		if ctxt.IsPIE() && linkmode == LinkInternal {
+			flags |= MH_PIE | MH_DYLDLINK
+		}
 	}
 	out.Write32(flags) /* flags */
 	out.Write32(0)     /* reserved */
@@ -705,7 +711,7 @@ func asmbMacho(ctxt *Link) {
 	}
 
 	/* dwarf */
-	if !*FlagW {
+	if !*FlagW && !(*FlagSplitDWARF && ctxt.IsInternal()) {
 		if ctxt.LinkMode != LinkExternal {
 			ms = newMachoSeg("__DWARF", 20)
 			ms.vaddr = Segdwarf.Vaddr
@@ -838,6 +844,50 @@ func asmbMacho(ctxt *Link) {
 		codesign.Sign(ldr.Data(cs), bytes.NewBuffer(data), "a.out", codesigOff, int64(mstext.fileoffset), int64(mstext.filesize), ctxt.IsExe() || ctxt.IsPIE())
 		ctxt.Out.SeekSet(codesigOff)
 		ctxt.Out.Write(ldr.Data(cs))
+	}
+
+	if *FlagSplitDWARF && ctxt.IsInternal() {
+		ctxt.OutDWARF.SeekSet(0)
+
+		// The split DWARF file does not need the content of the segments,
+		// only their headers. Also remove the __LINKEDIT segment.
+		for i := range seg[:nseg] {
+			s := &seg[i]
+			if s.name == "__LINKEDIT" {
+				if i != nseg-1 {
+					panic("__LINKEDIT is not the last segment")
+				}
+				nseg--
+				continue
+			}
+			s.fileoffset = 0
+			s.filesize = 0
+			for j := range s.nsect {
+				s.sect[j].off = 0
+			}
+		}
+
+		ms := newMachoSeg("__DWARF", 20)
+		ms.vaddr = Segdwarf.Vaddr
+		ms.vsize = Segdwarf.Length
+		ms.fileoffset = Segdwarf.Fileoff
+		ms.filesize = Segdwarf.Filelen
+		ms.prot1 = 7
+		ms.prot2 = 3
+		for _, sect := range Segdwarf.Sections {
+			machoshbits(ctxt, ms, sect, "__DWARF")
+		}
+
+		// Keep only LC_BUILD_VERSION and LC_UUID, dropping load commands
+		// specific to the executable (LC_MAIN, LC_SYMTAB, etc.).
+		load = slices.DeleteFunc(load, func(l MachoLoad) bool {
+			return l.type_ != imacho.LC_BUILD_VERSION && l.type_ != imacho.LC_UUID
+		})
+
+		a := machowrite(ctxt, ctxt.Arch, ctxt.OutDWARF, ctxt.LinkMode)
+		if int32(a) > HEADR {
+			Exitf("HEADR too small: %d > %d", a, HEADR)
+		}
 	}
 }
 
@@ -1154,7 +1204,10 @@ func doMachoLink(ctxt *Link) int64 {
 	}
 
 	if size > 0 {
-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound) + Rnd(int64(Segrelrodata.Filelen), *FlagRound) + Rnd(int64(Segdata.Filelen), *FlagRound) + Rnd(int64(Segdwarf.Filelen), *FlagRound)
+		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound) + Rnd(int64(Segrelrodata.Filelen), *FlagRound) + Rnd(int64(Segdata.Filelen), *FlagRound)
+		if !(*FlagSplitDWARF && ctxt.IsInternal()) {
+			linkoff += Rnd(int64(Segdwarf.Filelen), *FlagRound)
+		}
 		ctxt.Out.SeekSet(linkoff)
 
 		ctxt.Out.Write(ldr.Data(s1))

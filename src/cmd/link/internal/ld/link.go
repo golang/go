@@ -77,8 +77,9 @@ type Link struct {
 	ErrorReporter
 	ArchSyms
 
-	outSem chan int // limits the number of output writers
-	Out    *OutBuf
+	outSem   chan int // limits the number of output writers
+	Out      *OutBuf
+	OutDWARF *OutBuf // for split DWARF file
 
 	version int // current version number for static/file-local symbols
 

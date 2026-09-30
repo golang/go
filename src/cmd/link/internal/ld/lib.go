@@ -376,6 +376,9 @@ func mayberemoveoutfile() {
 		return
 	}
 	os.Remove(*flagOutfile)
+	if *flagOutfile != "" {
+		os.RemoveAll(*flagOutfile + ".dSYM")
+	}
 }
 
 func libinit(ctxt *Link) {
@@ -1471,9 +1474,11 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	// On darwin, whether to combine DWARF into executable.
+	// On darwin, whether to generate DWARF with dsymutil, and whether to
+	// combine it into the executable.
 	// Only macOS supports unmapped segments such as our __DWARF segment.
-	combineDwarf := ctxt.IsDarwin() && !*FlagW && machoPlatform == PLATFORM_MACOS
+	machoDwarf := ctxt.IsDarwin() && !*FlagW && (*FlagSplitDWARF || machoPlatform == PLATFORM_MACOS)
+	combineDwarf := machoDwarf && !*FlagSplitDWARF
 
 	var isMSVC, isLLD bool // used on Windows
 	wlPrefix := "-Wl,--"
@@ -1501,7 +1506,7 @@ func (ctxt *Link) hostlink() {
 				argv = append(argv, "-Wl,-no_fixup_chains")
 			}
 		}
-		if !combineDwarf {
+		if !machoDwarf {
 			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols
 			if debug_s {
 				// We are generating a binary with symbol table suppressed.
@@ -2110,13 +2115,26 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	uuidUpdated := false
-	if combineDwarf {
+	if ctxt.IsDarwin() && !combineDwarf && len(buildinfo) > 0 {
+		// If we're not combinding DWARF, update UUID now.
+		// Otherwise the code below takes care of it when combinding DWARF.
+		updateMachoOutFile("rewriting uuid",
+			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+				return machoRewriteUuid(ctxt, exef, exem, outexe)
+			})
+	}
+	if machoDwarf {
 		// Find "dsymutils" and "strip" tools using CC --print-prog-name.
 		dsymutilCmd := ctxt.findExtLinkTool("dsymutil")
 		stripCmd := ctxt.findExtLinkTool("strip")
 
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
+		if *FlagSplitDWARF {
+			dsym = filepath.Join(*flagOutfile+".dSYM", "Contents", "Resources", "DWARF", filepath.Base(*flagOutfile))
+			if err := os.MkdirAll(filepath.Dir(dsym), 0777); err != nil {
+				Exitf("fail to create dSYM dir: %v", err)
+			}
+		}
 		cmd := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym)
 		// dsymutil may not clean up its temp directory at exit.
 		// Set DSYMUTIL_REPRODUCER_PATH to work around. see issue 59026.
@@ -2160,20 +2178,25 @@ func (ctxt *Link) hostlink() {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			Exitf("%s: running strip failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
-		// Skip combining if `dsymutil` didn't generate a file. See #11994.
-		if _, err := os.Stat(dsym); err == nil {
-			updateMachoOutFile("combining dwarf",
-				func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
-					return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
-				})
-			uuidUpdated = true
+		if combineDwarf {
+			// Skip combining if `dsymutil` didn't generate a file. See #11994.
+			if _, err := os.Stat(dsym); err == nil {
+				updateMachoOutFile("combining dwarf",
+					func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+						return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
+					})
+			} else if len(buildinfo) > 0 {
+				updateMachoOutFile("rewriting uuid",
+					func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+						return machoRewriteUuid(ctxt, exef, exem, outexe)
+					})
+			}
+		} else {
+			// Remove dSYM directory if dsymutil didn't generate a file. See #11994.
+			if _, err := os.Stat(dsym); err != nil {
+				os.RemoveAll(*flagOutfile + ".dSYM")
+			}
 		}
-	}
-	if ctxt.IsDarwin() && !uuidUpdated && len(buildinfo) > 0 {
-		updateMachoOutFile("rewriting uuid",
-			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
-				return machoRewriteUuid(ctxt, exef, exem, outexe)
-			})
 	}
 	hostlinkfips(ctxt, *flagOutfile, *flagFipso)
 	if ctxt.NeedCodeSign() {
