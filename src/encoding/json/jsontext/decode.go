@@ -111,7 +111,8 @@ type decodeBuffer struct {
 	// the absolute offset relative to the start of io.Reader stream.
 	baseOffset int64
 
-	rd io.Reader
+	rd    io.Reader
+	rdErr error // deferred read error until next fetch operation
 }
 
 // NewDecoder constructs a new streaming decoder reading from r.
@@ -234,12 +235,17 @@ func (d *decoderState) fetch() error {
 	d.prevStart = 0
 
 	// Read more data into the internal buffer.
+	if err := d.rdErr; err != nil && err != io.EOF {
+		d.rdErr = nil
+		return &ioError{action: "read", err: err} // surface previous read error, but assume it as intermittent
+	}
 	for {
 		n, err := d.rd.Read(d.buf[len(d.buf):cap(d.buf)])
 		switch {
 		case n > 0:
 			d.buf = d.buf[:len(d.buf)+n]
-			return nil // ignore errors if any bytes are read
+			d.rdErr = err // defer read error until next fetch
+			return nil
 		case err == io.EOF:
 			return io.ErrUnexpectedEOF
 		case err != nil:
