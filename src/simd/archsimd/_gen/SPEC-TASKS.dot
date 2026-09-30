@@ -20,7 +20,7 @@ digraph spectransition {
   "impl-defined" [label="impl-defined\nImplementation-defined\nbehavior policy", fillcolor="#dce9f7", color="#999999"];
   "mask-bits" [label="mask-bits\nMask bitmap load/store\nshape and naming", fillcolor="#dce9f7", color="#999999"];
   "width" [label="width\nResolve scalable width", fillcolor="#dce9f7", color="#999999"];
-  "fill-enforce" [label="fill-enforce\nSignature + name\nmismatch becomes an\nerror", fillcolor="#d9f2e2", color="#999999"];
+  "fill-enforce" [label="fill-enforce\nSignature + name\nmismatch becomes an\nerror", fillcolor="#d9f2e2", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "fill-gen" [label="fill-gen\nWire specfill into the\ngenerators", fillcolor="#d9f2e2", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "gen-docs" [label="gen-docs\nInject spec docs into\ngenerated output", fillcolor="#d9f2e2", color="#999999"];
   "named-results" [label="named-results\nReconcile parameter\nand result names with\nspec", fillcolor="#d9f2e2", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
@@ -84,7 +84,7 @@ digraph spectransition {
   "sig-refactor" -> "sig-from-spec";
   "sig-from-spec" -> "cat-delete" [color="#c0392b", penwidth=1.8];
 
-  m0 [label="M1 — Enforced", shape=box, style="filled,bold", fillcolor="#fff8dc", color="#8a6d3b"];
+  m0 [label="M1 — Enforced", shape=box, style="filled,bold", fillcolor="#d7d7d7", color="#8a6d3b"];
   "fill-enforce" -> m0 [color="#8a6d3b", style=bold, arrowsize=0.7];
   m1 [label="M2 — Documented", shape=box, style="filled,bold", fillcolor="#fff8dc", color="#8a6d3b"];
   "comments-yaml" -> m1 [color="#8a6d3b", style=bold, arrowsize=0.7];
