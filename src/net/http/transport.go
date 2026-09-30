@@ -464,7 +464,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	if !protocols.HTTP2() && !protocols.UnencryptedHTTP2() {
 		return
 	}
-	if omitBundledHTTP2 {
+	if omitHTTP2Client {
 		return
 	}
 

@@ -60,8 +60,8 @@ func init() {
 }
 
 func CondSkipHTTP2(t testing.TB) {
-	if omitBundledHTTP2 {
-		t.Skip("skipping HTTP/2 test when nethttpomithttp2 build tag in use")
+	if omitHTTP2Server || omitHTTP2Client {
+		t.Skip("skipping HTTP/2 test when HTTP/2 server or client is omitted by build tag")
 	}
 }
 

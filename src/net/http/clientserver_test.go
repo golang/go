@@ -2035,6 +2035,7 @@ func testEarlyHintsRequest(t *testing.T, mode testMode) {
 // negotiate an HTTP/2 connection using a net.Conn that has a
 // "ConnectionState() tls.ConnectionState" method but is not a *tls.Conn.
 func TestClientServerTLSConnWrapper(t *testing.T) {
+	CondSkipHTTP2(t)
 	synctest.Test(t, func(t *testing.T) {
 		protocols := &Protocols{}
 		protocols.SetHTTP1(true)

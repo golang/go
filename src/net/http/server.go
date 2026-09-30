@@ -4125,7 +4125,7 @@ var http2server = godebug.New("http2server")
 // configured otherwise. (by setting s.TLSNextProto non-nil)
 // It must only be called via s.nextProtoOnce (use s.setupHTTP2_*).
 func (s *Server) onceSetNextProtoDefaults() {
-	if omitBundledHTTP2 {
+	if omitHTTP2Server {
 		return
 	}
 	p := s.protocols()
