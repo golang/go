@@ -1313,89 +1313,49 @@ func testStarRequest(t *testing.T, method string, mode testMode) {
 
 // Issue 13957
 func TestTransportDiscardsUnneededConns(t *testing.T) {
-	run(t, testTransportDiscardsUnneededConns, []testMode{http2Mode})
+	runSynctest(t, testTransportDiscardsUnneededConns, []testMode{http2Mode})
 }
 func testTransportDiscardsUnneededConns(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "Hello, %v", r.RemoteAddr)
-	}), optRealNet)
+	}))
 	defer cst.close()
 
-	var numOpen, numClose int32 // atomic
+	var connsMu sync.Mutex
+	var conns []*nettest.Conn
+	cst.setDialNettestHook(func(nc *nettest.Conn) {
+		connsMu.Lock()
+		defer connsMu.Unlock()
+		conns = append(conns, nc)
+	})
 
-	tlsConfig := &tls.Config{InsecureSkipVerify: true}
-	tr := &Transport{
-		TLSClientConfig: tlsConfig,
-		DialTLS: func(_, addr string) (net.Conn, error) {
-			time.Sleep(10 * time.Millisecond)
-			rc, err := net.Dial("tcp", addr)
-			if err != nil {
-				return nil, err
-			}
-			atomic.AddInt32(&numOpen, 1)
-			c := noteCloseConn{rc, func() { atomic.AddInt32(&numClose, 1) }}
-			return tls.Client(c, tlsConfig), nil
-		},
-		Protocols: &Protocols{},
-	}
-	tr.Protocols.SetHTTP2(true)
-	defer tr.CloseIdleConnections()
-
-	c := &Client{Transport: tr}
-
-	const N = 10
-	gotBody := make(chan string, N)
 	var wg sync.WaitGroup
-	for i := 0; i < N; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			resp, err := c.Get(cst.ts.URL)
+	for range 10 {
+		wg.Go(func() {
+			resp, err := cst.c.Get(cst.ts.URL)
 			if err != nil {
-				// Try to work around spurious connection reset on loaded system.
-				// See golang.org/issue/33585 and golang.org/issue/36797.
-				time.Sleep(10 * time.Millisecond)
-				resp, err = c.Get(cst.ts.URL)
-				if err != nil {
-					t.Errorf("Get: %v", err)
-					return
-				}
+				t.Errorf("Get: %v", err)
 			}
 			defer resp.Body.Close()
-			slurp, err := io.ReadAll(resp.Body)
+			_, err = io.ReadAll(resp.Body)
 			if err != nil {
 				t.Error(err)
 			}
-			gotBody <- string(slurp)
-		}()
+		})
 	}
 	wg.Wait()
-	close(gotBody)
 
-	var last string
-	for got := range gotBody {
-		if last == "" {
-			last = got
-			continue
-		}
-		if got != last {
-			t.Errorf("Response body changed: %q -> %q", last, got)
+	synctest.Wait()
+	open := len(conns)
+	close := 0
+	for _, nc := range conns {
+		if nc.IsClosed() {
+			close++
 		}
 	}
-
-	var open, close int32
-	for i := 0; i < 150; i++ {
-		open, close = atomic.LoadInt32(&numOpen), atomic.LoadInt32(&numClose)
-		if open < 1 {
-			t.Fatalf("open = %d; want at least", open)
-		}
-		if close == open-1 {
-			// Success
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
+	if close != open-1 {
+		t.Errorf("%d connections opened, %d closed; want %d to close", open, close, open-1)
 	}
-	t.Errorf("%d connections opened, %d closed; want %d to close", open, close, open-1)
 }
 
 // tests that Transport doesn't retain a pointer to the provided request.
