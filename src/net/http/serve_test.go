@@ -7255,106 +7255,84 @@ func TestMaxBytesHandler(t *testing.T) {
 		for _, requestSize := range []int64{100, 1_000, 1_000_000} {
 			t.Run(fmt.Sprintf("max size %d request size %d", maxSize, requestSize),
 				func(t *testing.T) {
-					run(t, func(t *testing.T, mode testMode) {
+					runSynctest(t, func(t *testing.T, mode testMode) {
 						testMaxBytesHandler(t, mode, maxSize, requestSize)
-					}, testNotParallel)
+					})
 				})
 		}
 	}
 }
 
 func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64) {
-	runTimeSensitiveTest(t, []time.Duration{
-		1 * time.Millisecond,
-		5 * time.Millisecond,
-		10 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		500 * time.Millisecond,
-		time.Second,
-		5 * time.Second,
-	}, func(t *testing.T, timeout time.Duration) error {
-		SetRSTAvoidanceDelay(t, timeout)
-		t.Logf("set RST avoidance delay to %v", timeout)
-
-		var (
-			mu         sync.Mutex // guards below
-			handlerN   int64
-			handlerErr error
-		)
-		echo := HandlerFunc(func(w ResponseWriter, r *Request) {
-			mu.Lock()
-			defer mu.Unlock()
-			var buf bytes.Buffer
-			handlerN, handlerErr = io.Copy(&buf, r.Body)
-			io.Copy(w, &buf)
-		})
-
-		cst := newClientServerTest(t, mode, MaxBytesHandler(echo, maxSize))
-		// We need to close cst explicitly here so that in-flight server
-		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
-		defer cst.close()
-		ts := cst.ts
-		c := ts.Client()
-
-		body := strings.Repeat("a", int(requestSize))
-		var wg sync.WaitGroup
-		defer wg.Wait()
-		getBody := func() (io.ReadCloser, error) {
-			wg.Add(1)
-			body := &wgReadCloser{
-				Reader: strings.NewReader(body),
-				wg:     &wg,
-			}
-			return body, nil
-		}
-		reqBody, _ := getBody()
-		req, err := NewRequest("POST", ts.URL, reqBody)
-		if err != nil {
-			reqBody.Close()
-			t.Fatal(err)
-		}
-		req.ContentLength = int64(len(body))
-		req.GetBody = getBody
-		req.Header.Set("Content-Type", "text/plain")
-
-		var buf strings.Builder
-		res, err := c.Do(req)
-		if err != nil {
-			return fmt.Errorf("unexpected connection error: %v", err)
-		} else {
-			_, err = io.Copy(&buf, res.Body)
-			res.Body.Close()
-			if err != nil {
-				return fmt.Errorf("unexpected read error: %v", err)
-			}
-		}
-		// We don't expect any of the errors after this point to occur due
-		// to rstAvoidanceDelay being too short, so we use t.Errorf for those
-		// instead of returning a (retriable) error.
-
+	var (
+		mu         sync.Mutex // guards below
+		handlerN   int64
+		handlerErr error
+	)
+	echo := HandlerFunc(func(w ResponseWriter, r *Request) {
 		mu.Lock()
 		defer mu.Unlock()
-		if handlerN > maxSize {
-			t.Errorf("expected max request body %d; got %d", maxSize, handlerN)
-		}
-		if requestSize > maxSize && handlerErr == nil {
-			t.Error("expected error on handler side; got nil")
-		}
-		if requestSize <= maxSize {
-			if handlerErr != nil {
-				t.Errorf("%d expected nil error on handler side; got %v", requestSize, handlerErr)
-			}
-			if handlerN != requestSize {
-				t.Errorf("expected request of size %d; got %d", requestSize, handlerN)
-			}
-		}
-		if buf.Len() != int(handlerN) {
-			t.Errorf("expected echo of size %d; got %d", handlerN, buf.Len())
-		}
-
-		return nil
+		var buf bytes.Buffer
+		handlerN, handlerErr = io.Copy(&buf, r.Body)
+		io.Copy(w, &buf)
 	})
+
+	cst := newClientServerTest(t, mode, MaxBytesHandler(echo, maxSize))
+	ts := cst.ts
+	c := ts.Client()
+
+	body := strings.Repeat("a", int(requestSize))
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	getBody := func() (io.ReadCloser, error) {
+		wg.Add(1)
+		body := &wgReadCloser{
+			Reader: strings.NewReader(body),
+			wg:     &wg,
+		}
+		return body, nil
+	}
+	reqBody, _ := getBody()
+	req, err := NewRequest("POST", ts.URL, reqBody)
+	if err != nil {
+		reqBody.Close()
+		t.Fatal(err)
+	}
+	req.ContentLength = int64(len(body))
+	req.GetBody = getBody
+	req.Header.Set("Content-Type", "text/plain")
+
+	var buf strings.Builder
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected connection error: %v", err)
+	} else {
+		_, err = io.Copy(&buf, res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatalf("unexpected read error: %v", err)
+		}
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if handlerN > maxSize {
+		t.Errorf("expected max request body %d; got %d", maxSize, handlerN)
+	}
+	if requestSize > maxSize && handlerErr == nil {
+		t.Error("expected error on handler side; got nil")
+	}
+	if requestSize <= maxSize {
+		if handlerErr != nil {
+			t.Errorf("%d expected nil error on handler side; got %v", requestSize, handlerErr)
+		}
+		if handlerN != requestSize {
+			t.Errorf("expected request of size %d; got %d", requestSize, handlerN)
+		}
+	}
+	if buf.Len() != int(handlerN) {
+		t.Errorf("expected echo of size %d; got %d", handlerN, buf.Len())
+	}
 }
 
 func TestEarlyHints(t *testing.T) {
