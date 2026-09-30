@@ -28,6 +28,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -1238,103 +1239,54 @@ func TestStripPasswordFromError(t *testing.T) {
 	}
 }
 
-func TestClientTimeout(t *testing.T) { run(t, testClientTimeout, http3SkippedMode) }
+func TestClientTimeout(t *testing.T) { runSynctest(t, testClientTimeout, http3SkippedMode) }
 func testClientTimeout(t *testing.T, mode testMode) {
-	var (
-		mu           sync.Mutex
-		nonce        string // a unique per-request string
-		sawSlowNonce bool   // true if the handler saw /slow?nonce=<nonce>
-	)
+	sawSlow := false
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		_ = r.ParseForm()
-		if r.URL.Path == "/" {
-			Redirect(w, r, "/slow?nonce="+r.Form.Get("nonce"), StatusFound)
-			return
-		}
-		if r.URL.Path == "/slow" {
-			mu.Lock()
-			if r.Form.Get("nonce") == nonce {
-				sawSlowNonce = true
-			} else {
-				t.Logf("mismatched nonce: received %s, want %s", r.Form.Get("nonce"), nonce)
-			}
-			mu.Unlock()
-
-			w.Write([]byte("Hello"))
-			w.(Flusher).Flush()
+		switch r.URL.Path {
+		case "/":
+			Redirect(w, r, "/slow", StatusFound)
+		case "/slow":
+			w.WriteHeader(200)
+			w.Write([]byte("hello"))
+			NewResponseController(w).Flush()
+			sawSlow = true
 			<-r.Context().Done()
 			return
 		}
 	}))
 
-	// Try to trigger a timeout after reading part of the response body.
-	// The initial timeout is empirically usually long enough on a decently fast
-	// machine, but if we undershoot we'll retry with exponentially longer
-	// timeouts until the test either passes or times out completely.
-	// This keeps the test reasonably fast in the typical case but allows it to
-	// also eventually succeed on arbitrarily slow machines.
-	timeout := 10 * time.Millisecond
-	nextNonce := 0
-	for ; ; timeout *= 2 {
-		if timeout <= 0 {
-			// The only way we can feasibly hit this while the test is running is if
-			// the request fails without actually waiting for the timeout to occur.
-			t.Fatalf("timeout overflow")
-		}
-		if deadline, ok := t.Deadline(); ok && !time.Now().Add(timeout).Before(deadline) {
-			t.Fatalf("failed to produce expected timeout before test deadline")
-		}
-		t.Logf("attempting test with timeout %v", timeout)
-		cst.c.Timeout = timeout
+	// Trigger a timeout after reading part of the response body.
+	timeout := 10 * time.Second
+	cst.c.Timeout = timeout
 
-		mu.Lock()
-		nonce = fmt.Sprint(nextNonce)
-		nextNonce++
-		sawSlowNonce = false
-		mu.Unlock()
-		res, err := cst.c.Get(cst.ts.URL + "/?nonce=" + nonce)
-		if err != nil {
-			if strings.Contains(err.Error(), "Client.Timeout") {
-				// Timed out before handler could respond.
-				t.Logf("timeout before response received")
-				continue
-			}
-			if runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
-				testenv.SkipFlaky(t, 43120)
-			}
-			t.Fatal(err)
-		}
+	res, err := cst.c.Get(cst.ts.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		mu.Lock()
-		ok := sawSlowNonce
-		mu.Unlock()
-		if !ok {
-			t.Fatal("handler never got /slow request, but client returned response")
-		}
+	synctest.Wait()
+	if !sawSlow {
+		t.Fatal("handler never got /slow request, but client returned response")
+	}
 
-		_, err = io.ReadAll(res.Body)
-		res.Body.Close()
+	_, err = io.ReadAll(res.Body)
+	res.Body.Close()
 
-		if err == nil {
-			t.Fatal("expected error from ReadAll")
-		}
-		ne, ok := err.(net.Error)
-		if !ok {
-			t.Errorf("error value from ReadAll was %T; expected some net.Error", err)
-		} else if !ne.Timeout() {
-			t.Errorf("net.Error.Timeout = false; want true")
-		}
-		if !errors.Is(err, context.DeadlineExceeded) {
-			t.Errorf("ReadAll error = %q; expected some context.DeadlineExceeded", err)
-		}
-		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
-			if runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
-				testenv.SkipFlaky(t, 43120)
-			}
-			t.Errorf("error string = %q; missing timeout substring", got)
-		}
-
-		break
+	if err == nil {
+		t.Fatal("expected error from ReadAll")
+	}
+	ne, ok := err.(net.Error)
+	if !ok {
+		t.Errorf("error value from ReadAll was %T; expected some net.Error", err)
+	} else if !ne.Timeout() {
+		t.Errorf("net.Error.Timeout = false; want true")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("ReadAll error = %q; expected some context.DeadlineExceeded", err)
+	}
+	if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
+		t.Errorf("error string = %q; missing timeout substring", got)
 	}
 }
 
