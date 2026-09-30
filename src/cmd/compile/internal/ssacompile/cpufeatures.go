@@ -6,7 +6,6 @@ package ssacompile
 
 import (
 	"fmt"
-	"internal/buildcfg"
 	"internal/goarch"
 
 	"cmd/compile/internal/ssa"
@@ -140,14 +139,6 @@ func cpufeatures(f *ssa.Func) {
 		return
 	}
 
-	var baseFeat ssa.CPUfeatures
-	if buildcfg.GOAMD64 >= 3 {
-		baseFeat |= ssa.CPUavx | ssa.CPUavx2
-	}
-	if buildcfg.GOAMD64 >= 4 {
-		baseFeat |= ssa.CPUavx512
-	}
-
 	po := f.Postorder()
 
 	effects := make([]localEffect, 1+f.NumBlocks(), 1+f.NumBlocks())
@@ -176,9 +167,8 @@ func cpufeatures(f *ssa.Func) {
 		var feat ssa.CPUfeatures
 
 		if b == f.Entry {
-			feat |= baseFeat
 			// Check the types of inputs and outputs, as well as annotations.
-			// Start with base features and union all that is implied by all the types seen.
+			// Start with none and union all that is implied by all the types seen.
 			if f.Type != nil { // a problem for SSA tests
 				for _, field := range f.Type.RecvParamsResults() {
 					feat |= features(field.Type)
