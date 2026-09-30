@@ -1478,6 +1478,14 @@ func (ctxt *Link) hostlink() {
 			// resolving a lazy binding. See issue 38824.
 			// Force eager resolution to work around.
 			argv = append(argv, "-Wl,-flat_namespace", "-Wl,-bind_at_load")
+			if combineDwarf && linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,-no_fixup_chains") {
+				// As of macOS 27, the dynamic linker checks the number of segments
+				// in recorded in LC_DYLD_CHAINED_FIXUPS and reject the shared object
+				// with a mismatch. When combining DWARF, we add a segment but
+				// currently don't fix up the recorded number. Pass -no_fixup_chains to
+				// the C linker as a workaround. See issue 81793.
+				argv = append(argv, "-Wl,-no_fixup_chains")
+			}
 		}
 		if !combineDwarf {
 			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols
