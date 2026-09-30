@@ -1305,15 +1305,12 @@ func testIdentityResponse(t *testing.T, mode testMode) {
 			if err != ErrContentLength {
 				t.Errorf("expected ErrContentLength; got %v", err)
 			}
-		case req.FormValue("underwrite") == "1":
-			rw.Header().Set("Content-Length", "500")
-			rw.Write([]byte("too short"))
 		default:
 			rw.Write([]byte("foo"))
 		}
 	})
 
-	ts := newClientServerTest(t, mode, handler, optRealNet).ts
+	ts := newClientServerTest(t, mode, handler).ts
 	c := ts.Client()
 
 	// Note: this relies on the assumption (which is true) that
@@ -1346,29 +1343,27 @@ func testIdentityResponse(t *testing.T, mode testMode) {
 		t.Fatalf("error with Get of %s: %v", url, err)
 	}
 	res.Body.Close()
+}
 
-	if mode != http1Mode {
-		return
-	}
+func TestHTTP1ServerIdentityResponse(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Verify that the connection is closed when the declared Content-Length
+		// is larger than what the handler wrote.
+		st := newHTTP1ServerTest(t, func(w ResponseWriter, req *Request) {
+			w.Header().Set("Content-Length", "500")
+			w.Write([]byte("too short"))
+		})
 
-	// Verify that the connection is closed when the declared Content-Length
-	// is larger than what the handler wrote.
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("error dialing: %v", err)
-	}
-	_, err = conn.Write([]byte("GET /?underwrite=1 HTTP/1.1\r\nHost: foo\r\n\r\n"))
-	if err != nil {
-		t.Fatalf("error writing: %v", err)
-	}
-
-	// The ReadAll will hang for a failing test.
-	got, _ := io.ReadAll(conn)
-	expectedSuffix := "\r\n\r\ntoo short"
-	if !strings.HasSuffix(string(got), expectedSuffix) {
-		t.Errorf("Expected output to end with %q; got response body %q",
-			expectedSuffix, string(got))
-	}
+		conn := st.dial()
+		conn.writeMessage(
+			"GET / HTTP/1.1",
+			"Host: foo",
+			"",
+		)
+		conn.readResponse()
+		conn.wantBytes([]byte("too short"))
+		conn.wantClosed()
+	})
 }
 
 func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
