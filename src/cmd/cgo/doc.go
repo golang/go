@@ -421,6 +421,10 @@ entirely using GODEBUG=cgocheck=0. Complete checking of pointer
 handling, at some cost in run time, is available by setting
 GOEXPERIMENT=cgocheck2 at build time.
 
+C compiler optimizations may introduce memory accesses that are not
+apparent from the C source code. The generated C code must still obey
+these rules.
+
 It is possible to defeat this enforcement by using the unsafe package,
 and of course there is nothing stopping the C code from doing anything
 it likes. However, programs that break these rules are likely to fail
