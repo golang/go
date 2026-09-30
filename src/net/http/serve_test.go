@@ -3742,70 +3742,34 @@ func TestServerBufferedChunking(t *testing.T) {
 // closing the TCP connection, causing the client to get a RST.
 // See https://golang.org/issue/3595
 func TestServerGracefulClose(t *testing.T) {
-	// Not parallel: modifies the global rstAvoidanceDelay.
-	run(t, testServerGracefulClose, []testMode{http1Mode}, testNotParallel)
-}
-func testServerGracefulClose(t *testing.T, mode testMode) {
-	runTimeSensitiveTest(t, []time.Duration{
-		1 * time.Millisecond,
-		5 * time.Millisecond,
-		10 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		500 * time.Millisecond,
-		time.Second,
-		5 * time.Second,
-	}, func(t *testing.T, timeout time.Duration) error {
+	synctest.Test(t, func(t *testing.T) {
+		timeout := 50 * time.Millisecond
 		SetRSTAvoidanceDelay(t, timeout)
-		t.Logf("set RST avoidance delay to %v", timeout)
 
-		const bodySize = 5 << 20
-		req := []byte(fmt.Sprintf("POST / HTTP/1.1\r\nHost: foo.com\r\nContent-Length: %d\r\n\r\n", bodySize))
-		for i := 0; i < bodySize; i++ {
-			req = append(req, 'x')
-		}
-
-		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		st := newHTTP1ServerTest(t, HandlerFunc(func(w ResponseWriter, r *Request) {
 			Error(w, "bye", StatusUnauthorized)
-		}), optRealNet)
-		// We need to close cst explicitly here so that in-flight server
-		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
-		defer cst.close()
-		ts := cst.ts
+		}))
 
-		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-		if err != nil {
-			return err
-		}
-		writeErr := make(chan error)
-		go func() {
-			_, err := conn.Write(req)
-			writeErr <- err
-		}()
-		defer func() {
-			conn.Close()
-			// Wait for write to finish. This is a broken pipe on both
-			// Darwin and Linux, but checking this isn't the point of
-			// the test.
-			<-writeErr
-		}()
+		conn := st.dial()
+		conn.writeMessage(joinCRLF(
+			"POST / HTTP/1.1",
+			"Host: foo.com",
+			"Content-Length: 1000000",
+			"",
+		))
+		conn.wantResponse("HTTP/1.1 401 Unauthorized", nil)
+		conn.wantBytes([]byte("bye\n"))
+		conn.wantClosed() // peer write-closed the connection
 
-		br := bufio.NewReader(conn)
-		lineNum := 0
-		for {
-			line, err := br.ReadString('\n')
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return fmt.Errorf("ReadLine: %v", err)
-			}
-			lineNum++
-			if lineNum == 1 && !strings.Contains(line, "401 Unauthorized") {
-				t.Errorf("Response line = %q; want a 401", line)
-			}
+		synctest.Sleep(timeout - time.Nanosecond)
+		if conn.conn.Peer().IsClosed() {
+			t.Fatalf("peer closed connection before RSTAvoidanceDelay")
 		}
-		return nil
+
+		synctest.Sleep(time.Nanosecond)
+		if !conn.conn.Peer().IsClosed() {
+			t.Fatalf("peer did not close connection after RSTAvoidanceDelay")
+		}
 	})
 }
 
