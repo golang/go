@@ -36,6 +36,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"slices"
@@ -6466,50 +6467,41 @@ func TestTransportRequestReplayable(t *testing.T) {
 // testMockTCPConn is a mock TCP connection used to test that
 // ReadFrom is called when sending the request body.
 type testMockTCPConn struct {
-	*net.TCPConn
+	*nettest.Conn
 
 	ReadFromCalled bool
 }
 
 func (c *testMockTCPConn) ReadFrom(r io.Reader) (int64, error) {
 	c.ReadFromCalled = true
-	return c.TCPConn.ReadFrom(r)
+	return io.Copy(c.Conn, r)
 }
 
-func TestTransportRequestWriteRoundTrip(t *testing.T) {
-	runNoSynctest(t, testTransportRequestWriteRoundTrip)
-}
-func testTransportRequestWriteRoundTrip(t *testing.T, mode testMode) {
-	nBytes := int64(1 << 10)
-	newFileFunc := func() (r io.Reader, done func(), err error) {
-		f, err := os.CreateTemp("", "net-http-newfilefunc")
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Write some bytes to the file to enable reading.
-		if _, err := io.CopyN(f, rand.Reader, nBytes); err != nil {
-			return nil, nil, fmt.Errorf("failed to write data to file: %v", err)
-		}
-		if _, err := f.Seek(0, 0); err != nil {
-			return nil, nil, fmt.Errorf("failed to seek to front: %v", err)
-		}
-
-		done = func() {
-			f.Close()
-			os.Remove(f.Name())
-		}
-
-		return f, done, nil
+func TestTransportRequestWriteUsesReadFrom(t *testing.T) {
+	const nBytes = 1 << 10
+	content := make([]byte, nBytes)
+	rand.Read(content[:])
+	fname := filepath.Join(t.TempDir(), "tempfile")
+	if err := os.WriteFile(fname, content, 0600); err != nil {
+		t.Fatal(err)
 	}
-
-	newBufferFunc := func() (io.Reader, func(), error) {
-		return bytes.NewBuffer(make([]byte, nBytes)), func() {}, nil
+	newFileFunc := func(t *testing.T) io.Reader {
+		f, err := os.Open(fname)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			f.Close()
+		})
+		return f
+	}
+	newBufferFunc := func(t *testing.T) io.Reader {
+		return bytes.NewBuffer(content)
 	}
 
 	cases := []struct {
 		name             string
-		readerFunc       func() (io.Reader, func(), error)
+		readerFunc       func(*testing.T) io.Reader
 		contentLength    int64
 		expectedReadFrom bool
 	}{
@@ -6545,63 +6537,29 @@ func testTransportRequestWriteRoundTrip(t *testing.T, mode testMode) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			r, cleanup, err := tc.readerFunc()
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer cleanup()
+		synctest.Subtest(t, tc.name, func(t *testing.T) {
+			tt := newHTTP1TransportTest(t)
 
-			tConn := &testMockTCPConn{}
-			trFunc := func(tr *Transport) {
-				tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-					var d net.Dialer
-					conn, err := d.DialContext(ctx, network, addr)
-					if err != nil {
-						return nil, err
-					}
-
-					tcpConn, ok := conn.(*net.TCPConn)
-					if !ok {
-						return nil, fmt.Errorf("%s/%s does not provide a *net.TCPConn", network, addr)
-					}
-
-					tConn.TCPConn = tcpConn
-					return tConn, nil
-				}
-			}
-
-			cst := newClientServerTest(
-				t,
-				mode,
-				HandlerFunc(func(w ResponseWriter, r *Request) {
-					io.Copy(io.Discard, r.Body)
-					r.Body.Close()
-					w.WriteHeader(200)
-				}),
-				trFunc,
-				optRealNet,
-			)
-
-			req, err := NewRequest("PUT", cst.ts.URL, r)
+			req, err := NewRequest("PUT", "http://example.tld/", tc.readerFunc(t))
 			if err != nil {
 				t.Fatal(err)
 			}
 			req.ContentLength = tc.contentLength
 			req.Header.Set("Content-Type", "application/octet-stream")
-			resp, err := cst.c.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode != 200 {
-				t.Fatalf("status code = %d; want 200", resp.StatusCode)
-			}
+			_ = tt.roundTrip(req)
+
+			dial := tt.wantDial("tcp", "example.tld:80")
+
+			tConn := &testMockTCPConn{}
+			conn := dial.connectConfig(func(nc *nettest.Conn) net.Conn {
+				tConn.Conn = nc
+				return tConn
+			})
+
+			_ = conn.readRequest()
+			io.Copy(io.Discard, conn.conn)
 
 			expectedReadFrom := tc.expectedReadFrom
-			if mode != http1Mode {
-				expectedReadFrom = false
-			}
 			if !tConn.ReadFromCalled && expectedReadFrom {
 				t.Fatalf("did not call ReadFrom")
 			}
