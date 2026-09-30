@@ -290,9 +290,7 @@ func ResponseWriterConnForTesting(w ResponseWriter) (c net.Conn, ok bool) {
 
 func init() {
 	// Set the default rstAvoidanceDelay to the minimum possible value to shake
-	// out tests that unexpectedly depend on it. Such tests should use
-	// runTimeSensitiveTest and SetRSTAvoidanceDelay to explicitly raise the delay
-	// if needed.
+	// out tests that unexpectedly depend on it.
 	rstAvoidanceDelay = 1 * time.Nanosecond
 }
 

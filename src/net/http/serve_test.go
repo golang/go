@@ -6311,68 +6311,40 @@ func testServerCancelsReadTimeoutWhenIdle(t *testing.T, mode testMode) {
 // beginning of a request has been received, rather than including time the
 // connection spent idle.
 func TestServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T) {
-	run(t, testServerCancelsReadHeaderTimeoutWhenIdle, []testMode{http1Mode})
+	runSynctest(t, testServerCancelsReadHeaderTimeoutWhenIdle, []testMode{http1Mode})
 }
 func testServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T, mode testMode) {
-	runTimeSensitiveTest(t, []time.Duration{
-		10 * time.Millisecond,
-		50 * time.Millisecond,
-		250 * time.Millisecond,
-		time.Second,
-		2 * time.Second,
-	}, func(t *testing.T, timeout time.Duration) error {
-		cst := newClientServerTest(t, mode, serve(200), func(ts *httptest.Server) {
-			ts.Config.ReadHeaderTimeout = timeout
-			ts.Config.IdleTimeout = 0 // disable idle timeout
-		}, optRealNet)
-		defer cst.close()
-		ts := cst.ts
-
-		// rather than using an http.Client, create a single connection, so that
-		// we can ensure this connection is not closed.
-		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-		if err != nil {
-			t.Fatalf("dial failed: %v", err)
-		}
-		br := bufio.NewReader(conn)
-		defer conn.Close()
-
-		if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
-			return fmt.Errorf("writing first request failed: %v", err)
-		}
-
-		if _, err := ReadResponse(br, nil); err != nil {
-			return fmt.Errorf("first response (before timeout) failed: %v", err)
-		}
-
-		// wait for longer than the server's ReadHeaderTimeout, and then send
-		// another request
-		time.Sleep(timeout * 3 / 2)
-
-		if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
-			return fmt.Errorf("writing second request failed: %v", err)
-		}
-
-		if _, err := ReadResponse(br, nil); err != nil {
-			return fmt.Errorf("second response (after timeout) failed: %v", err)
-		}
-
-		return nil
+	timeout := time.Second
+	cst := newClientServerTest(t, mode, serve(200), func(ts *httptest.Server) {
+		ts.Config.ReadHeaderTimeout = timeout
+		ts.Config.IdleTimeout = 0 // disable idle timeout
 	})
-}
+	defer cst.close()
 
-// runTimeSensitiveTest runs test with the provided durations until one passes.
-// If they all fail, t.Fatal is called with the last one's duration and error value.
-func runTimeSensitiveTest(t *testing.T, durations []time.Duration, test func(t *testing.T, d time.Duration) error) {
-	for i, d := range durations {
-		err := test(t, d)
-		if err == nil {
-			return
-		}
-		if i == len(durations)-1 || t.Failed() {
-			t.Fatalf("failed with duration %v: %v", d, err)
-		}
-		t.Logf("retrying after error with duration %v: %v", d, err)
+	// rather than using an http.Client, create a single connection, so that
+	// we can ensure this connection is not closed.
+	conn, _ := cst.dialNettest()
+	br := bufio.NewReader(conn)
+	defer conn.Close()
+
+	if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
+		t.Fatalf("writing first request failed: %v", err)
+	}
+
+	if _, err := ReadResponse(br, nil); err != nil {
+		t.Fatalf("first response (before timeout) failed: %v", err)
+	}
+
+	// wait for longer than the server's ReadHeaderTimeout, and then send
+	// another request
+	synctest.Sleep(timeout * 3 / 2)
+
+	if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
+		t.Fatalf("writing second request failed: %v", err)
+	}
+
+	if _, err := ReadResponse(br, nil); err != nil {
+		t.Fatalf("second response (after timeout) failed: %v", err)
 	}
 }
 
