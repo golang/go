@@ -65,6 +65,12 @@ func TestDefaultHandle(t *testing.T) {
 			want:  "INFO message pre=0 s.a=1 s.b=two",
 		},
 		{
+			name:  "empty group",
+			with:  func(h Handler) Handler { return h.WithAttrs(preAttrs).WithGroup("") },
+			attrs: attrs,
+			want:  "INFO message pre=0 a=1 b=two",
+		},
+		{
 			name: "preformatted groups",
 			with: func(h Handler) Handler {
 				return h.WithAttrs([]Attr{Int("p1", 1)}).
@@ -321,6 +327,14 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			attrs:    attrs,
 			wantText: "msg=message pre=3 x=y s.a=one s.b=2",
 			wantJSON: `{"msg":"message","pre":3,"x":"y","s":{"a":"one","b":2}}`,
+		},
+		{
+			name:     "with-group empty name",
+			replace:  removeKeys(TimeKey, LevelKey),
+			with:     func(h Handler) Handler { return h.WithAttrs(preAttrs).WithGroup("") },
+			attrs:    attrs,
+			wantText: "msg=message pre=3 x=y a=one b=2",
+			wantJSON: `{"msg":"message","pre":3,"x":"y","a":"one","b":2}`,
 		},
 		{
 			name:    "preformatted with-groups",

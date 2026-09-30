@@ -259,6 +259,9 @@ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
 }
 
 func (h *commonHandler) withGroup(name string) *commonHandler {
+	if name == "" {
+		return h
+	}
 	h2 := h.clone()
 	h2.groups = append(h2.groups, name)
 	return h2

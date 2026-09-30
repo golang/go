@@ -111,6 +111,23 @@ func TestMultiHandler(t *testing.T) {
 		checkLogOutput(t, buf2.String(), `{"time":"`+jsonTimeRE+`","level":"INFO","msg":"user login","req":{"user_id":42}}`)
 	})
 
+	t.Run("WithGroup with empty name is a no-op", func(t *testing.T) {
+		var buf1, buf2 bytes.Buffer
+		h1 := NewTextHandler(&buf1, &HandlerOptions{AddSource: false})
+		h2 := NewJSONHandler(&buf2, &HandlerOptions{AddSource: false})
+
+		multi := NewMultiHandler(h1, h2)
+		if got := multi.WithGroup(""); got != multi {
+			t.Errorf("got %v, want %v", got, multi)
+		}
+		logger := New(multi.WithGroup(""))
+
+		logger.Info("user login", "user_id", 42)
+
+		checkLogOutput(t, buf1.String(), "time="+textTimeRE+` level=INFO msg="user login" user_id=42`)
+		checkLogOutput(t, buf2.String(), `{"time":"`+jsonTimeRE+`","level":"INFO","msg":"user login","user_id":42}`)
+	})
+
 	t.Run("Handle propagates errors from handlers", func(t *testing.T) {
 		errFail := errors.New("mock failing")
 

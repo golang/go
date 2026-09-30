@@ -58,6 +58,9 @@ func (h *MultiHandler) WithAttrs(attrs []Attr) Handler {
 }
 
 func (h *MultiHandler) WithGroup(name string) Handler {
+	if name == "" {
+		return h
+	}
 	handlers := make([]Handler, 0, len(h.multi))
 	for i := range h.multi {
 		handlers = append(handlers, h.multi[i].WithGroup(name))
