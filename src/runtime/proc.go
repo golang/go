@@ -3399,6 +3399,16 @@ func execute(gp *g, inheritTime bool) {
 		traceRelease(trace)
 	}
 
+	// A safe-point request may have arrived after findRunnable checked
+	// for it, while this M had no running G for preemptone to preempt.
+	// Handle it before executing gp instead of waiting for a retry.
+	//
+	// Keep this after trace.GoStart: the safe-point function may itself
+	// emit trace events that assume gp has already been traced as running.
+	if mp.p.ptr().runSafePointFn != 0 {
+		runSafePointFn()
+	}
+
 	gogo(&gp.sched)
 }
 
