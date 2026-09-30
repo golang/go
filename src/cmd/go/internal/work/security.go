@@ -175,6 +175,10 @@ var invalidLinkerFlags = []*lazyregexp.Regexp{
 	re(`-library(-path)?(=.*)?`),
 	re(`-gen-.*`),
 	re(`-gnat.*`),
+	// In lld, --warn-backrefs-exclude takes a separate <glob> argument when not
+	// joined with '='; exclude the bare form because -Wl,--(no-)?warn-([^,]+) is
+	// allowed in general.
+	re(`-Wl,--warn-backrefs-exclude`),
 }
 
 var validLinkerFlags = []*lazyregexp.Regexp{
@@ -235,7 +239,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,--no-undefined`),
 	re(`-Wl,--pop-state`),
 	re(`-Wl,--push-state`),
-	re(`-Wl,-R,?([^@\-,][^,@]*$)`),
+	re(`-Wl,-R[,=]?([^@\-,=][^,@]*$)`),
 	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]*)`),
 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]*)`),
 	re(`-Wl,-s`),
@@ -386,8 +390,21 @@ func checkLinkerFlags(name, source string, list []string) error {
 			if err := checkLinkerSysroot(source, arg+" "+list[i], list[i]); err != nil {
 				return err
 			}
+		case arg == "-framework" && i+1 < len(list):
+			i++
+			if err := checkLinkerNonPathNonFile(source, arg+" "+list[i], list[i]); err != nil {
+				return err
+			}
+			continue
 		case strings.HasPrefix(arg, "-Wl,"):
-			if err := checkLinkerWlFlag(source, arg, arg); err != nil {
+			raw := arg
+			warg := arg
+			if slices.Contains(validLinkerFlagsWithNextArg, arg) && i+1 < len(list) {
+				i++
+				raw = arg + " " + list[i]
+				warg = arg + "," + strings.TrimPrefix(list[i], "-Wl,")
+			}
+			if err := checkLinkerWlFlag(source, raw, warg); err != nil {
 				return err
 			}
 		}
@@ -405,6 +422,34 @@ func checkLinkerSysroot(source, flag, dir string) error {
 	return checkLinkerSpecDir(source, dir)
 }
 
+// checkLinkerNonPathNonFile verifies that val (such as a framework or symbol
+// name) is not a path and does not name a regular file in the current working
+// directory. If a Darwin-only or symbol flag is misinterpreted by GNU ld.bfd
+// (for example, -framework <val> parsed as -f ramework <val>, or -undefined
+// <val> parsed as -u ndefined <val>), ld.bfd treats <val> as a positional
+// input file and will execute it as a linker script if it is a regular file.
+// Directories (such as "." in existing tests or subdirectories in the working
+// directory that happen to share a framework or symbol name) are allowed
+// because ld.bfd only parses regular files as linker scripts.
+func checkLinkerNonPathNonFile(source, raw, val string) error {
+	if strings.ContainsAny(val, `/\`) {
+		return fmt.Errorf("invalid flag in %s: %s (see https://go.dev/s/invalidflag)", source, raw)
+	}
+	if fi, err := os.Stat(val); err == nil && !fi.IsDir() {
+		return fmt.Errorf("invalid flag in %s: %s (see https://go.dev/s/invalidflag)", source, raw)
+	}
+	return nil
+}
+
+func checkLinkerObjOrDir(source, raw, val string) error {
+	if fi, err := os.Stat(val); err == nil && !fi.IsDir() {
+		if !isObject(val) {
+			return fmt.Errorf("invalid flag in %s: %s (not a binary object file)", source, raw)
+		}
+	}
+	return nil
+}
+
 func checkLinkerWlFlag(source, raw, arg string) error {
 	wargs := []string{arg}
 	if strings.HasPrefix(arg, "-Wl,--push-state,") {
@@ -413,10 +458,63 @@ func checkLinkerWlFlag(source, raw, arg string) error {
 		}
 	}
 	for _, warg := range wargs {
-		if strings.HasPrefix(warg, "-Wl,-syslibroot,") || strings.HasPrefix(warg, "-Wl,-syslibroot=") {
+		switch {
+		case strings.HasPrefix(warg, "-Wl,-syslibroot,"), strings.HasPrefix(warg, "-Wl,-syslibroot="):
 			dir := warg[len("-Wl,-syslibroot,"):]
 			if err := checkLinkerSysroot(source, raw, dir); err != nil {
 				return err
+			}
+		case strings.HasPrefix(warg, "-Wl,-framework,"):
+			if err := checkLinkerNonPathNonFile(source, raw, warg[len("-Wl,-framework,"):]); err != nil {
+				return err
+			}
+		case strings.HasPrefix(warg, "-Wl,-undefined,"), strings.HasPrefix(warg, "-Wl,-undefined="):
+			if err := checkLinkerNonPathNonFile(source, raw, warg[len("-Wl,-undefined,"):]); err != nil {
+				return err
+			}
+		case strings.HasPrefix(warg, "-Wl,--just-symbols,"), strings.HasPrefix(warg, "-Wl,--just-symbols="):
+			if err := checkLinkerObjOrDir(source, raw, warg[len("-Wl,--just-symbols,"):]); err != nil {
+				return err
+			}
+		case strings.HasPrefix(warg, "-Wl,-R"):
+			val := warg[len("-Wl,-R"):]
+			if after, ok := strings.CutPrefix(val, ","); ok {
+				val = after
+			} else if after, ok := strings.CutPrefix(val, "="); ok {
+				val = after
+			}
+			if err := checkLinkerObjOrDir(source, raw, val); err != nil {
+				return err
+			}
+		case strings.HasPrefix(warg, "-Wl,-subsystem,"):
+			// On non-Windows targets, GNU ld.gold (and older non-PE ld.bfd) parses
+			// single-dash -subsystem as -s -u bsystem and treats the following
+			// comma-split argument as a positional input file / linker script.
+			if cfg.Goos != "windows" {
+				if err := checkLinkerNonPathNonFile(source, raw, warg[len("-Wl,-subsystem,"):]); err != nil {
+					return err
+				}
+			}
+		case strings.HasPrefix(warg, "-Wl,-sectcreate,"):
+			// -sectcreate <seg> <sect> <file> is an Apple linker flag whose
+			// third argument is legitimately a regular file on Darwin/iOS.
+			// On other platforms, GNU ld.bfd parses -sectcreate as -s -e ctcreate
+			// and treats all three arguments as positional linker scripts; we still
+			// allow non-existent file arguments on non-Darwin so cross-platform
+			// flag validation tests continue to work.
+			parts := strings.SplitN(warg[len("-Wl,-sectcreate,"):], ",", 3)
+			if len(parts) == 3 {
+				if err := checkLinkerNonPathNonFile(source, raw, parts[0]); err != nil {
+					return err
+				}
+				if err := checkLinkerNonPathNonFile(source, raw, parts[1]); err != nil {
+					return err
+				}
+				if cfg.Goos != "darwin" && cfg.Goos != "ios" {
+					if fi, err := os.Stat(parts[2]); err == nil && !fi.IsDir() {
+						return fmt.Errorf("invalid flag in %s: %s (see https://go.dev/s/invalidflag)", source, raw)
+					}
+				}
 			}
 		}
 	}
@@ -690,17 +788,26 @@ Args:
 					}
 					return fmt.Errorf("invalid flag in %s: %s without argument (see https://go.dev/s/invalidflag)", source, arg)
 				}
-				if i+1 < len(list) && load.SafeArg(list[i+1]) {
-					i++
-					continue Args
+				if strings.HasPrefix(arg, "-Wl,") {
+					// Permit -Wl,-framework -Wl,name.
+					if i+1 < len(list) &&
+						strings.HasPrefix(list[i+1], "-Wl,") &&
+						load.SafeArg(list[i+1][4:]) &&
+						!strings.Contains(list[i+1][4:], ",") {
+						i++
+						continue Args
+					}
+					// Permit -Wl,-R /foo and -Wl,-R foo.
+					if arg == "-Wl,-R" && i+1 < len(list) && load.SafeArg(list[i+1]) {
+						i++
+						continue Args
+					}
+					if i+1 < len(list) {
+						return fmt.Errorf("invalid flag in %s: %s %s (see https://go.dev/s/invalidflag)", source, arg, list[i+1])
+					}
+					return fmt.Errorf("invalid flag in %s: %s without argument (see https://go.dev/s/invalidflag)", source, arg)
 				}
-
-				// Permit -Wl,-framework -Wl,name.
-				if i+1 < len(list) &&
-					strings.HasPrefix(arg, "-Wl,") &&
-					strings.HasPrefix(list[i+1], "-Wl,") &&
-					load.SafeArg(list[i+1][4:]) &&
-					!strings.Contains(list[i+1][4:], ",") {
+				if i+1 < len(list) && load.SafeArg(list[i+1]) {
 					i++
 					continue Args
 				}

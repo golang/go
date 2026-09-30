@@ -201,10 +201,14 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,-R", "/foo"},
 	{"-Wl,-R", "foo"},
 	{"-Wl,-R,foo"},
+	{"-Wl,-R=foo"},
 	{"-Wl,--just-symbols=foo"},
 	{"-Wl,--just-symbols,foo"},
 	{"-Wl,--warn-error"},
 	{"-Wl,--no-warn-error"},
+	{"-Wl,--warn-backrefs-exclude=foo*"},
+	{"-Wl,-subsystem,console"},
+	{"-Wl,--subsystem,console"},
 	{"foo.so"},
 	{"_世界.dll"},
 	{"./x.o"},
@@ -304,20 +308,38 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-framework,-Caffeine"},
 	{"-Wl,-framework", "-Wl,@Home"},
 	{"-Wl,-framework", "@Home"},
+	{"-Wl,-framework", "Chocolate"},
+	{"-Wl,-framework,/tmp/pwn.ld"},
+	{"-Wl,-framework", "-Wl,/tmp/pwn.ld"},
+	{"-framework", "./pwn.ld"},
+	{"-framework", "/tmp/pwn.ld"},
 	{"-Wl,-framework,Chocolate,@Home"},
 	{"-Wl,--hash-style=foo"},
 	{"-x", "--c"},
 	{"-x", "@obj"},
 	{"-Wl,-rpath,@foo"},
+	{"-Wl,-rpath", "foo"},
 	{"-Wl,-R,foo,bar"},
 	{"-Wl,-R,@foo"},
 	{"-Wl,--just-symbols,@foo"},
+	{"-Wl,--just-symbols", "foo"},
+	{"-Wl,-undefined", "foo"},
+	{"-Wl,-undefined,/tmp/pwn.ld"},
+	{"-Wl,-undefined", "-Wl,/tmp/pwn.ld"},
+	{"-Wl,--push-state,-undefined=/tmp/pwn.ld"},
 	{"../x.o"},
 	{"-Wl,-R,"},
+	{"-Wl,-R="},
 	{"-Wl,-O"},
 	{"-Wl,-e="},
 	{"-Wl,-e,"},
 	{"-Wl,-R,-flag"},
+	{"-Wl,-R=-flag"},
+	{"-Wl,-R=@foo"},
+	{"-Wl,-R==foo"},
+	{"-Wl,-R,=foo"},
+	{"-Wl,--warn-backrefs-exclude"},
+	{"-Wl,--push-state,--warn-backrefs-exclude"},
 	{"-Wl,--push-state,"},
 	{"-Wl,--push-state,@foo"},
 	{"-fplugin=./-Wl,--push-state,-R.so"},
@@ -522,6 +544,71 @@ func TestCheckGCCSpecFiles(t *testing.T) {
 			if err := checkLinkerFlags("test", "test", sysFlag); err != nil {
 				t.Errorf("unexpected error for host system %q: %v", sysFlag, err)
 			}
+		}
+	}
+}
+
+func TestCheckLinkerWlFlags(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "script.ld")
+	if err := os.WriteFile(script, []byte("PLUGIN(\"/tmp/pwn.so\")\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	elfObj := filepath.Join(dir, "valid.o")
+	if err := os.WriteFile(elfObj, append([]byte{'\x7f', 'E', 'L', 'F'}, make([]byte, 60)...), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range [][]string{
+		{"-Wl,-rpath", "-Wl,foo"},
+		{"-Wl,-undefined", "-Wl,dynamic_lookup"},
+		{"-Wl,--just-symbols", "-Wl," + elfObj},
+		{"-Wl,--just-symbols=" + elfObj},
+		{"-Wl,-R", dir},
+		{"-Wl,-R," + dir},
+		{"-Wl,-R=" + dir},
+		{"-Wl,-R=" + elfObj},
+	} {
+		if err := checkLinkerFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for %q: %v", f, err)
+		}
+	}
+	for _, f := range [][]string{
+		{"-Wl,--just-symbols=" + script},
+		{"-Wl,--just-symbols," + script},
+		{"-Wl,--just-symbols", "-Wl," + script},
+		{"-Wl,--push-state,--just-symbols=" + script},
+		{"-Wl,-R," + script},
+		{"-Wl,-R=" + script},
+		{"-Wl,-R" + script},
+		{"-Wl,-R", script},
+		{"-Wl,-R", "-Wl," + script},
+		{"-Wl,--push-state,-R" + script},
+		{"-Wl,--push-state,-R=" + script},
+		{"-Wl,-sectcreate," + script + ",__info_plist,foo"},
+		{"-Wl,-sectcreate,__TEXT," + script + ",foo"},
+	} {
+		if err := checkLinkerFlags("test", "test", f); err == nil {
+			t.Errorf("missing error for %q", f)
+		}
+	}
+	if cfg.Goos != "darwin" && cfg.Goos != "ios" {
+		if err := checkLinkerFlags("test", "test", []string{"-Wl,-sectcreate,__TEXT,__info_plist," + script}); err == nil {
+			t.Errorf("missing error for -Wl,-sectcreate with existing file on %s", cfg.Goos)
+		}
+	}
+	if cfg.Goos != "windows" {
+		if err := os.WriteFile(filepath.Join(dir, "console"), []byte("OUTPUT(/tmp/pwn)\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		t.Chdir(dir)
+		if err := checkLinkerFlags("test", "test", []string{"-Wl,-subsystem,console"}); err == nil {
+			t.Errorf("missing error for -Wl,-subsystem,console with existing file in CWD on %s", cfg.Goos)
+		}
+		if err := checkLinkerFlags("test", "test", []string{"-Wl,-subsystem,windows"}); err != nil {
+			t.Errorf("unexpected error for -Wl,-subsystem,windows without matching file in CWD: %v", err)
+		}
+		if err := checkLinkerFlags("test", "test", []string{"-Wl,--subsystem,console"}); err != nil {
+			t.Errorf("unexpected error for -Wl,--subsystem,console: %v", err)
 		}
 	}
 }
