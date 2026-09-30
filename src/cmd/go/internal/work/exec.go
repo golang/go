@@ -1011,7 +1011,13 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 
 	// Add system object files.
 	for _, syso := range p.SysoFiles {
-		objects = append(objects, filepath.Join(p.Dir, syso))
+		sysoPath := filepath.Join(p.Dir, syso)
+		if !cfg.BuildN {
+			if err := checkLinkerInputFile(".syso", sysoPath); err != nil {
+				return err
+			}
+		}
+		objects = append(objects, sysoPath)
 	}
 
 	// Pack into archive in objdir directory.
@@ -3260,6 +3266,13 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 	gatherSyso(a)
 	sort.Strings(syso)
 	str.Uniq(&syso)
+	if !cfg.BuildN {
+		for _, f := range syso {
+			if err := checkLinkerInputFile(".syso", f); err != nil {
+				return "", "", err
+			}
+		}
+	}
 	linkobj := str.StringList(ofile, outObj, syso)
 	dynobj := objdir + "_cgo_.o"
 
