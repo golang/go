@@ -378,14 +378,11 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 			fun = pe(fnIdent)
 		}
 
-		callExpr := &syntax.CallExpr{
+		callExpr := pe(&syntax.CallExpr{
 			Fun:     fun,
 			ArgList: args(),
-		}
-		if n := len(d.Type.ParamList); n > 0 {
-			_, callExpr.HasDots = d.Type.ParamList[n-1].Type.(*syntax.DotsType)
-		}
-		pe(callExpr)
+			HasDots: sig.Variadic(),
+		})
 
 		// callReturnStmt is either `return call(...)` or `call(...); return`
 		var callReturnStmt syntax.Stmt

@@ -224,6 +224,44 @@ func TestStringSVE(t *testing.T) {
 //go:noinline
 func keepAliveInt8s(archsimd.Int8s) {}
 
+// namedMask8s and maxVia pass masks through types other than archsimd.Mask8s
+// itself: a defined type, and the GC shape of a generic instantiation. Both
+// must use the memory ABI of the mask they are made from, to agree with the
+// concrete functions they call and to reach a P register when used.
+type namedMask8s archsimd.Mask8s
+
+//go:noinline
+func greaterNamed(x, y archsimd.Int8s) namedMask8s { return namedMask8s(x.Greater(y)) }
+
+//go:noinline
+func maxVia[M archsimd.Mask8s](greater func(x, y archsimd.Int8s) M, x, y archsimd.Int8s) archsimd.Int8s {
+	return x.IfElse(archsimd.Mask8s(greater(x, y)), y)
+}
+
+func TestMaskABISVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no sve")
+	}
+	n := archsimd.Int8s{}.Len()
+	xs, ys := make([]int8, n), make([]int8, n)
+	for i := range xs {
+		xs[i], ys[i] = int8(i%5), int8(i%3)
+	}
+	x, y := archsimd.LoadInt8s(xs), archsimd.LoadInt8s(ys)
+	check := func(name string, v archsimd.Int8s) {
+		t.Helper()
+		got := make([]int8, n)
+		v.Store(got)
+		for i := range got {
+			if want := max(xs[i], ys[i]); got[i] != want {
+				t.Errorf("%s: lane %d = %d, want %d", name, i, got[i], want)
+			}
+		}
+	}
+	check("generic", maxVia(archsimd.Int8s.Greater, x, y))
+	check("named", x.IfElse(archsimd.Mask8s(greaterNamed(x, y)), y))
+}
+
 // TestIfElseSVE checks IfElse and Masked, and that the merging peephole keeps
 // the same semantics whether or not it fires: x.Add(y).IfElse(m, x) folds into a
 // predicated add, x.Add(y).IfElse(m, z) does not, and both must agree with a

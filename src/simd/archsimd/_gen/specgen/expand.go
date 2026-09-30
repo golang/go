@@ -106,7 +106,9 @@ func (sFn *specFunc) instantiate(ctx context, b *specexpr.Bindings, argGet map[*
 	}
 
 	// Instantiate name and doc
-	f.Name, f.Doc = sFn.expandNameAndDoc(ctx, b)
+	var rawDoc string
+	f.Name, rawDoc = sFn.expandNameAndDoc(ctx, b)
+	f.Doc = parseSpecDoc(ctx.at(sFn.Pos), rawDoc)
 
 	// Instantiate parameter and result types
 	//

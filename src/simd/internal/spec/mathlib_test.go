@@ -169,3 +169,38 @@ func TestSubSaturated(t *testing.T) {
 		{math.MaxUint64 - 2, 1, math.MaxUint64 - 3},
 		{5, 10, 0})
 }
+
+func TestScaleSaturated(t *testing.T) {
+	// Signed int8
+	assertFn2[int8, int, int8](t, scaleSaturated, "scaleSaturated[int8]",
+		{10, 0, 10}, {10, 1, 20}, {10, -1, 5}, {-10, -1, -5}, {-60, 1, -120},
+		{0, 10, 0}, {10, -8, 0}, {-10, -8, -1}, {10, -100, 0}, {-10, -100, -1},
+		// Overflow
+		{100, 1, math.MaxInt8}, {1, 10, math.MaxInt8},
+		// Underflow
+		{-70, 1, math.MinInt8}, {-1, 10, math.MinInt8})
+
+	// Unsigned uint8
+	assertFn2[uint8, int, uint8](t, scaleSaturated, "scaleSaturated[uint8]",
+		{10, 0, 10}, {10, 1, 20}, {20, -1, 10}, {0, 10, 0},
+		{10, -8, 0}, {10, -100, 0},
+		// Overflow
+		{200, 1, math.MaxUint8}, {1, 10, math.MaxUint8})
+
+	// Signed int64
+	assertFn2[int64, int, int64](t, scaleSaturated, "scaleSaturated[int64]",
+		{1, 62, 1 << 62}, {-1, 63, math.MinInt64}, {0, 100, 0},
+		{10, -64, 0}, {-10, -64, -1}, {10, -100, 0}, {-10, -100, -1},
+		{10, math.MinInt, 0}, {-10, math.MinInt, -1},
+		// Overflow
+		{1, 63, math.MaxInt64}, {10, 100, math.MaxInt64},
+		// Underflow
+		{-2, 63, math.MinInt64})
+
+	// Unsigned uint64
+	assertFn2[uint64, int, uint64](t, scaleSaturated, "scaleSaturated[uint64]",
+		{1, 63, 1 << 63}, {0, 100, 0},
+		{10, -64, 0}, {10, -100, 0}, {10, math.MinInt, 0},
+		// Overflow
+		{2, 63, math.MaxUint64}, {5, 100, math.MaxUint64})
+}

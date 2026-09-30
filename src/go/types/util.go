@@ -56,3 +56,19 @@ func endPos(n ast.Node) token.Pos { return n.End() }
 func makeFromLiteral(lit string, kind token.Token) constant.Value {
 	return constant.MakeFromLiteral(lit, kind, 0)
 }
+
+// unTilde returns the operand of ~x and true, or x and false.
+func unTilde(x ast.Expr) (ast.Expr, bool) {
+	if op, _ := x.(*ast.UnaryExpr); op != nil && op.Op == token.TILDE {
+		return op.X, true
+	}
+	return x, false
+}
+
+// splitOr returns the operands of x | y, or nil, nil.
+func splitOr(e ast.Expr) (x, y ast.Expr) {
+	if op, _ := e.(*ast.BinaryExpr); op != nil && op.Op == token.OR {
+		return op.X, op.Y
+	}
+	return nil, nil
+}

@@ -5,14 +5,14 @@
   documentation: !string |-
     // NAME shifts each element in x by the signed value of the least significant byte
     // of y's corresponding element: positive values shift left, negative values shift right.
-- go: ShiftSaturated
+- go: ScaleSaturated
   signed: true
   commutative: false
   documentation: !string |-
     // NAME shifts each element in x by the signed value of the least significant byte
     // of y's corresponding element (positive shifts left, negative shifts right).
     // Results are saturated to the signed range on overflow.
-- go: ShiftSaturated
+- go: ScaleSaturated
   signed: false
   commutative: false
   documentation: !string |-

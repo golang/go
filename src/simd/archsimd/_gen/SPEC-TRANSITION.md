@@ -465,7 +465,7 @@ wherever its prerequisites and track allow.
 | [ ] | C | `ci-audit` | CI/hardware audit | — | — |
 | [ ] | C | `conform-fixed` | Conformance harness, fixed-width types | `ci-audit` | `specfill` |
 | [ ] | C | `conform-scalable` | Conformance harness, scalable types | `width`, `conform-fixed` | — |
-| [ ] | D | `doc-explore` | Doc-mechanism exploration on a hard family | — | — |
+| [x] | D | `doc-explore` | Doc-mechanism exploration on a hard family | — | — |
 | [ ] | D | `spec-common` | Spec the common operations | `width`, `doc-explore` | `specfill` |
 | [ ] | C | `validate-amd64` | Validate spec bodies against amd64 | `conform-fixed`, `spec-common`, `impl-defined` | — |
 | [ ] | C | `conform-flip` | Flip conformance direction | `validate-amd64`, `conform-scalable` | — |
@@ -1046,7 +1046,7 @@ Writing spec functions, docs, and bodies. The shared bottleneck the other tracks
 draw on.
 
 ### `doc-explore` — Doc-mechanism exploration on a hard family
-**Done:** [ ] · **Needs:** — · **Blocks:** `spec-common` · **Risk:** `risk-doc-template-ceiling`
+**Done:** [x] · **Needs:** — · **Blocks:** `spec-common` · **Risk:** `risk-doc-template-ceiling`
 
 As of CL 831485, roughly one doc line in eight in `categories.yaml` carries
 shape-specific literals — `[x0, x1, x2, x3, ...]`, `128-bit`, `0b_11_01_00_10` —
@@ -1348,7 +1348,7 @@ each is far cheaper to settle before the bodies are written than after.
 | **[ ]** | `risk-spec-defects` | Known spec defects | `convert-lo`, `mask-bits` |
 | **[ ]** | `risk-concrete-width` | Executing spec at a concrete width | `width` |
 | **[ ]** | `risk-impl-defined-behavior` | Implementation-defined behavior | `impl-defined` |
-| **[ ]** | `risk-doc-template-ceiling` | Doc-template ceiling — the fallback is a mechanism change affecting every doc written so far | `doc-explore` |
+| **[x]** | `risk-doc-template-ceiling` | Doc-template ceiling — the fallback is a mechanism change affecting every doc written so far | `doc-explore` |
 | **[ ]** | `risk-ref-impl-effort` | Reference-implementation effort — every migrated operation needs a body that is *correct*, because conformance tests against it; the distribution of difficulty is unknown | `spec-common`, `spec-all` |
 | **[ ]** | `risk-conformance-env` | Conformance execution environment — can CI run arm64/SVE/wasm, and at what cost? | `ci-audit` |
 | **[ ]** | `risk-sig-refactor-convergence` | `sig-refactor` may not converge — if it does not, §1.1 needs revisiting | `sig-refactor` |

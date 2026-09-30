@@ -164,11 +164,10 @@ var filemap = map[string]action{
 		insertImportPath(f, `"go/ast"`)
 		renameSelectorExprs(f, "syntax.Expr->ast.Expr")
 	},
-	"named.go":  func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
-	"object.go": func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
-	// TODO(gri) needs adjustments for TestObjectString - disabled for now
-	// "object_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
-	"objset.go": nil,
+	"named.go":       func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"object.go":      func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
+	"object_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
+	"objset.go":      nil,
 	"operand.go": func(f *ast.File) {
 		insertImportPath(f, `"go/token"`)
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
@@ -193,31 +192,37 @@ var filemap = map[string]action{
 		renameIdents(f, "syntax->ast")
 		fixAtPosCall(f)
 	},
-	"scope.go":      func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
-	"scope_test.go": func(f *ast.File) { fixTokenPos(f) },
-	"selection.go":  nil,
+	"scope.go":       func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
+	"scope_test.go":  func(f *ast.File) { fixTokenPos(f) },
+	"selection.go":   nil,
+	"sizeof_test.go": nil,
 	"sizes.go": func(f *ast.File) {
 		renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64", "IsSyncAtomicAlign128->_IsSyncAtomicAlign128")
 	},
-	"slice.go":         nil,
-	"subst.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
-	"termlist.go":      nil,
-	"termlist_test.go": nil,
-	"trie.go":          nil,
-	"trie_test.go":     nil,
-	"tuple.go":         nil,
-	"typelists.go":     nil,
-	"typeset.go":       func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
-	"typeparam.go":     nil,
-	"typeterm_test.go": nil,
-	"typeterm.go":      nil,
-	"typestring.go":    nil,
-	"under.go":         nil,
-	"unify.go":         fixSprintf,
-	"universe.go":      fixGlobalTypVarDecl,
-	"util_test.go":     fixTokenPos,
-	"validtype.go":     func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
-	"version.go":       func(f *ast.File) { renameIdents(f, "poser->positioner") },
+	"slice.go":           nil,
+	"subst.go":           func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"termlist.go":        nil,
+	"termlist_test.go":   nil,
+	"trie.go":            nil,
+	"trie_test.go":       nil,
+	"tuple.go":           nil,
+	"typelists.go":       nil,
+	"typeset.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"typeparam.go":       nil,
+	"typeterm_test.go":   nil,
+	"typeterm.go":        nil,
+	"typestring.go":      nil,
+	"typestring_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
+	"under.go":           nil,
+	"unify.go":           fixSprintf,
+	"union.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f, "syntax.Expr->ast.Expr")
+	},
+	"universe.go":  fixGlobalTypVarDecl,
+	"util_test.go": fixTokenPos,
+	"validtype.go": func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"version.go":   func(f *ast.File) { renameIdents(f, "poser->positioner") },
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.

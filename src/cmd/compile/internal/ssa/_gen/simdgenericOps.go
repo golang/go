@@ -1147,6 +1147,14 @@ func simdGenericOps() []opData {
 		{name: "ScaleFloat64x2", argLength: 2},                                          // ARCH:amd64
 		{name: "ScaleFloat64x4", argLength: 2},                                          // ARCH:amd64
 		{name: "ScaleFloat64x8", argLength: 2},                                          // ARCH:amd64
+		{name: "ScaleSaturatedInt8x16", argLength: 2},                                   // ARCH:arm64
+		{name: "ScaleSaturatedInt16x8", argLength: 2},                                   // ARCH:arm64
+		{name: "ScaleSaturatedInt32x4", argLength: 2},                                   // ARCH:arm64
+		{name: "ScaleSaturatedInt64x2", argLength: 2},                                   // ARCH:arm64
+		{name: "ScaleSaturatedUint8x16", argLength: 2},                                  // ARCH:arm64
+		{name: "ScaleSaturatedUint16x8", argLength: 2},                                  // ARCH:arm64
+		{name: "ScaleSaturatedUint32x4", argLength: 2},                                  // ARCH:arm64
+		{name: "ScaleSaturatedUint64x2", argLength: 2},                                  // ARCH:arm64
 		{name: "SetHiFloat32x8", argLength: 2},                                          // ARCH:amd64
 		{name: "SetHiFloat32x16", argLength: 2},                                         // ARCH:amd64
 		{name: "SetHiFloat64x4", argLength: 2},                                          // ARCH:amd64
@@ -1303,14 +1311,6 @@ func simdGenericOps() []opData {
 		{name: "ShiftRightUint64x2", argLength: 2},                                      // ARCH:amd64
 		{name: "ShiftRightUint64x4", argLength: 2},                                      // ARCH:amd64
 		{name: "ShiftRightUint64x8", argLength: 2},                                      // ARCH:amd64
-		{name: "ShiftSaturatedInt8x16", argLength: 2},                                   // ARCH:arm64
-		{name: "ShiftSaturatedInt16x8", argLength: 2},                                   // ARCH:arm64
-		{name: "ShiftSaturatedInt32x4", argLength: 2},                                   // ARCH:arm64
-		{name: "ShiftSaturatedInt64x2", argLength: 2},                                   // ARCH:arm64
-		{name: "ShiftSaturatedUint8x16", argLength: 2},                                  // ARCH:arm64
-		{name: "ShiftSaturatedUint16x8", argLength: 2},                                  // ARCH:arm64
-		{name: "ShiftSaturatedUint32x4", argLength: 2},                                  // ARCH:arm64
-		{name: "ShiftSaturatedUint64x2", argLength: 2},                                  // ARCH:arm64
 		{name: "ShiftUint8x16", argLength: 2},                                           // ARCH:arm64
 		{name: "ShiftUint16x8", argLength: 2},                                           // ARCH:arm64
 		{name: "ShiftUint32x4", argLength: 2},                                           // ARCH:arm64

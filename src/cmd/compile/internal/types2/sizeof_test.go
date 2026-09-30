@@ -14,6 +14,13 @@ import (
 func TestSizeof(t *testing.T) {
 	const _64bit = ^uint(0)>>32 != 0
 
+	// Objects and Scope each have two position fields (syntax.Pos vs token.Pos),
+	// which accounts for 16 extra bytes in types2 on both 32-bit and 64-bit platforms.
+	var extra uintptr
+	if isTypes2 {
+		extra = 16
+	}
+
 	var tests = []struct {
 		val    any     // type as a value
 		_32bit uintptr // size on 32bit platforms
@@ -36,17 +43,17 @@ func TestSizeof(t *testing.T) {
 		{term{}, 12, 24},
 
 		// Objects
-		{PkgName{}, 56, 96},
-		{Const{}, 60, 104},
-		{TypeName{}, 52, 88},
-		{Var{}, 60, 104},
-		{Func{}, 60, 104},
-		{Label{}, 56, 96},
-		{Builtin{}, 56, 96},
-		{Nil{}, 52, 88},
+		{PkgName{}, 40 + extra, 80 + extra},
+		{Const{}, 44 + extra, 88 + extra},
+		{TypeName{}, 36 + extra, 72 + extra},
+		{Var{}, 44 + extra, 88 + extra},
+		{Func{}, 44 + extra, 88 + extra},
+		{Label{}, 40 + extra, 80 + extra},
+		{Builtin{}, 40 + extra, 80 + extra},
+		{Nil{}, 36 + extra, 72 + extra},
 
 		// Misc
-		{Scope{}, 64, 112},
+		{Scope{}, 48 + extra, 96 + extra},
 		{Package{}, 44, 88},
 		{_TypeSet{}, 28, 56},
 	}

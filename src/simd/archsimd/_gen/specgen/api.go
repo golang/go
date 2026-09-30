@@ -16,8 +16,8 @@ import (
 type Func struct {
 	Name string
 
-	// Doc is the function documentation, without any leading comment markers
-	Doc string
+	// Doc is the function documentation, split into classified paragraphs.
+	Doc []Paragraph
 
 	// Commutative indicates that this operation produces the same result
 	// regardless of the order of its arguments in Recv and In.
@@ -52,29 +52,49 @@ type Arg struct {
 func (f *Func) Signature() string {
 	var buf strings.Builder
 	buf.WriteString("func ")
-	argList := func(args []Arg, canShort bool) {
-		if canShort {
+	argList := func(args []Arg, isResults bool) {
+		if isResults {
 			if len(args) == 0 {
 				return
 			} else if len(args) == 1 && args[0].Name == "" {
+				// "if there is exactly one unnamed result it may be written as
+				// an unparenthesized type"
 				buf.WriteString(args[0].Type.String())
 				return
 			}
 		}
+
+		// "Within a list of parameters or results, the names (IdentifierList)
+		// must either all be present or all be absent." If any are named, we
+		// must replace empty names with "_".
+		anyNamed := false
+		for _, arg := range args {
+			if arg.Name != "" {
+				anyNamed = true
+				break
+			}
+		}
+
 		buf.WriteByte('(')
 		for i, arg := range args {
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			if arg.Name == "" {
-				panic("empty parameter/result name")
+			name := arg.Name
+			if anyNamed && name == "" {
+				name = "_"
 			}
-			fmt.Fprintf(&buf, "%s %s", arg.Name, arg.Type)
+			if name != "" {
+				buf.WriteString(name)
+				buf.WriteByte(' ')
+			}
+			buf.WriteString(arg.Type.String())
 		}
 		buf.WriteByte(')')
 	}
 	if f.Recv.Type != nil {
-		fmt.Fprintf(&buf, "(%s %s) ", f.Recv.Name, f.Recv.Type)
+		argList([]Arg{f.Recv}, false)
+		buf.WriteByte(' ')
 	}
 	buf.WriteString(f.Name)
 	argList(f.In, false)
@@ -87,11 +107,11 @@ func (f *Func) Signature() string {
 
 func (f *Func) Decl() string {
 	var buf strings.Builder
-	if f.Doc != "" {
-		for line := range strings.SplitSeq(strings.TrimRight(f.Doc, "\n"), "\n") {
-			fmt.Fprintf(&buf, "// %s\n", line)
-		}
+	comment, err := FormatComment(f.Doc)
+	if err != nil {
+		panic(err)
 	}
+	buf.WriteString(comment)
 	buf.WriteString(f.Signature())
 	return buf.String()
 }

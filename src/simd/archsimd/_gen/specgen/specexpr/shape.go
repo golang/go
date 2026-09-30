@@ -6,6 +6,8 @@ package specexpr
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -126,4 +128,79 @@ var MakeSlice = MakeFunc1("Slice", func(elem Type) (any, error) {
 func (t Slice) isType() {}
 func (t Slice) String() string {
 	return "[]" + t.Elem.String()
+}
+
+var vecTypeRe = regexp.MustCompile(`^(Int|Uint|Float|Mask)([0-9]+)(x[0-9]+|s)$`)
+
+var basicTypes = map[string]Basic{
+	"bool":       {Base: "bool", Bits: 0},
+	"string":     {Base: "string", Bits: 0},
+	"int":        {Base: "int", Bits: 0},
+	"int8":       {Base: "int", Bits: 8},
+	"int16":      {Base: "int", Bits: 16},
+	"int32":      {Base: "int", Bits: 32},
+	"int64":      {Base: "int", Bits: 64},
+	"uint":       {Base: "uint", Bits: 0},
+	"uint8":      {Base: "uint", Bits: 8},
+	"uint16":     {Base: "uint", Bits: 16},
+	"uint32":     {Base: "uint", Bits: 32},
+	"uint64":     {Base: "uint", Bits: 64},
+	"uintptr":    {Base: "uintptr", Bits: 0},
+	"byte":       {Base: "uint", Bits: 8},
+	"rune":       {Base: "int", Bits: 32},
+	"float32":    {Base: "float", Bits: 32},
+	"float64":    {Base: "float", Bits: 64},
+	"complex64":  {Base: "complex", Bits: 64},
+	"complex128": {Base: "complex", Bits: 128},
+}
+
+// ParseTypeName parses a Go type identifier into a [Type]. It recognizes basic
+// types (e.g. "int", "uint32", "float64", "bool") and SIMD vector types (e.g.
+// "Int32x4", "Float64s", "Mask8x16"). It does not parse composite type
+// expressions such as pointers, slices, or arrays.
+func ParseTypeName(name string) (Type, error) {
+	if m := vecTypeRe.FindStringSubmatch(name); m != nil {
+		var base string
+		switch m[1] {
+		case "Int":
+			base = "int"
+		case "Uint":
+			base = "uint"
+		case "Float":
+			base = "float"
+		case "Mask":
+			base = "Mask"
+		}
+
+		bits, err := strconv.Atoi(m[2])
+		if err != nil {
+			return nil, fmt.Errorf("invalid vector element size in %q: %s", name, err)
+		}
+
+		var width Num
+		if m[3] == "s" {
+			width = VW()
+		} else {
+			lanes, err := strconv.Atoi(m[3][1:])
+			if err != nil {
+				return nil, fmt.Errorf("invalid vector lane count in %q: %s", name, err)
+			}
+			width = Int(bits * lanes)
+		}
+
+		if !width.ValidWidth() {
+			return nil, fmt.Errorf("invalid vector width %s in %q", width, name)
+		}
+
+		return Vector{
+			Elem:  Basic{Base: base, Bits: Int(bits)},
+			Width: width,
+		}, nil
+	}
+
+	if basic, ok := basicTypes[name]; ok {
+		return basic, nil
+	}
+
+	return nil, fmt.Errorf("unknown type name %q", name)
 }

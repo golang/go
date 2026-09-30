@@ -1559,6 +1559,64 @@ func (x Int64x2) SaturateToUint32() Uint32x4
 // Asm: VUQXTN, CPU Feature: NEON
 func (x Uint64x2) SaturateToUint32() Uint32x4
 
+/* ScaleSaturated */
+
+// ScaleSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the signed range on overflow.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int8x16) ScaleSaturated(y Int8x16) Int8x16
+
+// ScaleSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the signed range on overflow.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int16x8) ScaleSaturated(y Int16x8) Int16x8
+
+// ScaleSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the signed range on overflow.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int32x4) ScaleSaturated(y Int32x4) Int32x4
+
+// ScaleSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the signed range on overflow.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int64x2) ScaleSaturated(y Int64x2) Int64x2
+
+// ScaleSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the unsigned range on overflow.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint8x16) ScaleSaturated(y Int8x16) Uint8x16
+
+// ScaleSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the unsigned range on overflow.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint16x8) ScaleSaturated(y Int16x8) Uint16x8
+
+// ScaleSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the unsigned range on overflow.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint32x4) ScaleSaturated(y Int32x4) Uint32x4
+
+// ScaleSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the unsigned range on overflow.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint64x2) ScaleSaturated(y Int64x2) Uint64x2
+
 /* SetElem */
 
 // SetElem returns x with the index'th element set to y.
@@ -1778,64 +1836,6 @@ func (x Uint32x4) ShiftAllRight(y uint64) Uint32x4
 //
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint64x2) ShiftAllRight(y uint64) Uint64x2
-
-/* ShiftSaturated */
-
-// ShiftSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the signed range on overflow.
-//
-// Asm: VSQSHL, CPU Feature: NEON
-func (x Int8x16) ShiftSaturated(y Int8x16) Int8x16
-
-// ShiftSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the signed range on overflow.
-//
-// Asm: VSQSHL, CPU Feature: NEON
-func (x Int16x8) ShiftSaturated(y Int16x8) Int16x8
-
-// ShiftSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the signed range on overflow.
-//
-// Asm: VSQSHL, CPU Feature: NEON
-func (x Int32x4) ShiftSaturated(y Int32x4) Int32x4
-
-// ShiftSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the signed range on overflow.
-//
-// Asm: VSQSHL, CPU Feature: NEON
-func (x Int64x2) ShiftSaturated(y Int64x2) Int64x2
-
-// ShiftSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the unsigned range on overflow.
-//
-// Asm: VUQSHL, CPU Feature: NEON
-func (x Uint8x16) ShiftSaturated(y Int8x16) Uint8x16
-
-// ShiftSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the unsigned range on overflow.
-//
-// Asm: VUQSHL, CPU Feature: NEON
-func (x Uint16x8) ShiftSaturated(y Int16x8) Uint16x8
-
-// ShiftSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the unsigned range on overflow.
-//
-// Asm: VUQSHL, CPU Feature: NEON
-func (x Uint32x4) ShiftSaturated(y Int32x4) Uint32x4
-
-// ShiftSaturated shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the unsigned range on overflow.
-//
-// Asm: VUQSHL, CPU Feature: NEON
-func (x Uint64x2) ShiftSaturated(y Int64x2) Uint64x2
 
 /* Sqrt */
 
