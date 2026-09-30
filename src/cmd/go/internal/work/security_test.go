@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"cmd/go/internal/cfg"
 )
 
 var goodCompilerFlags = [][]string{
@@ -151,6 +153,8 @@ var badCompilerFlags = [][]string{
 	{"--sysroot", "/tmp"},
 	{"-target", "x86_64-scei-ps4"},
 	{"-target", "x86_64-linux-gnu"},
+	{"-fsanitize=@foo"},
+	{"-fsanitize=-foo"},
 }
 
 func TestCheckCompilerFlags(t *testing.T) {
@@ -303,6 +307,8 @@ var badLinkerFlags = [][]string{
 	{"--sysroot", "/tmp"},
 	{"-target", "x86_64-scei-ps4"},
 	{"-target", "x86_64-linux-gnu"},
+	{"-fsanitize=@foo"},
+	{"-fsanitize=-foo"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {
@@ -341,6 +347,158 @@ func TestCheckLinkerSysrootFlags(t *testing.T) {
 	} {
 		if err := checkLinkerFlags("test", "test", f); err == nil {
 			t.Errorf("missing error for %q", f)
+		}
+	}
+}
+
+func TestCheckGCCSpecFiles(t *testing.T) {
+	// Compiler invocations always pass -c, which never evaluates GCC's
+	// *link_command spec (%:include(libsanitizer.spec) / %:include(libgomp.spec)).
+	cwdSpecDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(cwdSpecDir, "libsanitizer.spec"), []byte("*link_libubsan:\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(cwdSpecDir)
+	for _, f := range [][]string{
+		{"-fsanitize=memory"},
+		{"-fsanitize=undefined"},
+		{"-fopenmp"},
+	} {
+		if err := checkCompilerFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for compiler flag %q with libsanitizer.spec in CWD: %v", f, err)
+		}
+	}
+
+	// Verify -L, -isysroot, and -Wl,-syslibroot reject directories containing
+	// GCC spec files (directly, in subdirectories, or in multilib sibling dirs).
+	specDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(specDir, "libgomp.spec"), []byte("*link_gomp: %{!static:}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range [][]string{
+		{"-L" + specDir, "-fopenmp"},
+		{"-L", specDir, "-fopenmp"},
+		{"-L=" + specDir, "-fopenmp"},
+		{"-L$SYSROOT" + specDir, "-fopenmp"},
+		{"-isysroot", specDir, "-fopenmp"},
+		{"-Wl,-syslibroot," + specDir, "-fopenmp"},
+		{"-Wl,--push-state,-syslibroot=" + specDir, "-fopenmp"},
+	} {
+		if err := checkLinkerFlags("test", "test", f); err == nil {
+			t.Errorf("expected error for GCC spec file in %q, got nil", f)
+		}
+	}
+
+	// Subdirectory spec file inside sysroot or -L directory.
+	nestedRoot := t.TempDir()
+	nestedLib := filepath.Join(nestedRoot, "usr", "lib")
+	if err := os.MkdirAll(nestedLib, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nestedLib, "libsanitizer.spec"), []byte("*link_libasan: -lasan\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkLinkerFlags("test", "test", []string{"-L" + nestedRoot, "-fsanitize=address"}); err == nil {
+		t.Errorf("expected error for nested spec file in -L directory, got nil")
+	}
+
+	// Multilib sibling directory (../lib64/libgomp.spec relative to -L<dir>/sub,
+	// both when <dir>/sub exists and when <dir>/nonexistent does not exist).
+	multiRoot := t.TempDir()
+	subDir := filepath.Join(multiRoot, "sub")
+	lib64Dir := filepath.Join(multiRoot, "lib64")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(lib64Dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(lib64Dir, "libgomp.spec"), []byte("*link_gomp:\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkLinkerFlags("test", "test", []string{"-L" + subDir, "-fopenmp"}); err == nil {
+		t.Errorf("expected error for multilib sibling spec file in ../lib64, got nil")
+	}
+	if err := checkLinkerFlags("test", "test", []string{"-L" + filepath.Join(multiRoot, "nonexistent"), "-fopenmp"}); err == nil {
+		t.Errorf("expected error for multilib sibling spec file via nonexistent child dir, got nil")
+	}
+
+	// Symlinked directory pointing to a directory with a spec file, and
+	// subdirectory symlink inside a -L directory (N-2).
+	linkParent := t.TempDir()
+	symDir := filepath.Join(linkParent, "symlink-lib")
+	if err := os.Symlink(specDir, symDir); err == nil {
+		if err := checkLinkerFlags("test", "test", []string{"-L" + symDir, "-fopenmp"}); err == nil {
+			t.Errorf("expected error for symlinked -L directory containing spec file, got nil")
+		}
+		if err := checkLinkerFlags("test", "test", []string{"-L" + linkParent, "-fopenmp"}); err == nil {
+			t.Errorf("expected error for -L directory with subdirectory symlink to spec file, got nil")
+		}
+	}
+	// Symlinked directory pointing to a child directory whose real parent has ../lib64/libgomp.spec.
+	symSub := filepath.Join(linkParent, "symlink-sub")
+	if err := os.Symlink(subDir, symSub); err == nil {
+		if err := checkLinkerFlags("test", "test", []string{"-L" + symSub, "-fopenmp"}); err == nil {
+			t.Errorf("expected error for symlinked -L directory with multilib sibling spec file, got nil")
+		}
+	}
+
+	// CWD fallback when -fsanitize= is combined with -static/-static-lib* or
+	// when -fopenmp is used without -L (N-3), while preserving standalone
+	// -fsanitize=memory, -fsanitize=address, -fno-openmp, -fopenmp-simd, and -static.
+	t.Chdir(specDir)
+	for _, f := range [][]string{
+		{"-fsanitize=memory"},
+		{"-fsanitize=address"},
+		{"-fsanitize=undefined"},
+		{"-fno-openmp"},
+		{"-fopenmp-simd"},
+		{"-static"},
+	} {
+		if err := checkLinkerFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for safe flag %q with spec file in CWD: %v", f, err)
+		}
+	}
+	for _, f := range [][]string{
+		{"-fsanitize=undefined", "-static-libubsan"},
+		{"-fsanitize=address", "-static"},
+		{"-fopenmp"},
+	} {
+		if err := checkLinkerFlags("test", "test", f); err == nil {
+			t.Errorf("expected error for %q with spec file in CWD and no -L, got nil", f)
+		}
+	}
+
+	// CWD/package-dir spec checks must not walk ../lib* multilib siblings
+	// (e.g. ./../lib -> host /lib when CWD is a depth-1 directory).
+	cwdParent := t.TempDir()
+	cwdChild := filepath.Join(cwdParent, "app")
+	cwdSiblingLib := filepath.Join(cwdParent, "lib")
+	if err := os.MkdirAll(cwdChild, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(cwdSiblingLib, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cwdSiblingLib, "libgomp.spec"), []byte("*link_gomp: -lgomp\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(cwdChild)
+	if err := checkLinkerFlags("test", "test", []string{"-fopenmp"}); err != nil {
+		t.Errorf("unexpected error for CWD check with ../lib/libgomp.spec sibling: %v", err)
+	}
+
+	// Host default library trees (/lib*, /usr/lib*) must be skipped when passed
+	// without a sysroot prefix (e.g. -L/usr/lib or -L/usr/local/../lib), while
+	// sysroot-prefixed -L= paths are still scanned.
+	if cfg.Goos != "windows" {
+		for _, sysFlag := range [][]string{
+			{"-L/usr/lib", "-fopenmp"},
+			{"-L/usr/lib64", "-fopenmp"},
+		} {
+			if err := checkLinkerFlags("test", "test", sysFlag); err != nil {
+				t.Errorf("unexpected error for host system %q: %v", sysFlag, err)
+			}
 		}
 	}
 }

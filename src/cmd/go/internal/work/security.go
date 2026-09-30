@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"internal/lazyregexp"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -90,7 +91,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-f(un)signed-char`),
 	re(`-f(no-)?use-linker-plugin`), // safe if -B is not used; we don't permit -B
 	re(`-f(no-)?visibility-inlines-hidden`),
-	re(`-fsanitize=(.+)`),
+	re(`-fsanitize=([^@\-].*)`),
 	re(`-fsanitize-undefined-strip-path-components=(-)?[0-9]+`),
 	re(`-ftemplate-depth-(.+)`),
 	re(`-ftls-model=(global-dynamic|local-dynamic|initial-exec|local-exec)`),
@@ -303,6 +304,27 @@ var validPkgConfigFlags = []*lazyregexp.Regexp{
 	re(`--with-path=[^@\-].*`),
 }
 
+// hasGCCSpecFlags reports whether list contains linker flags that cause GCC's
+// built-in *link_command spec to evaluate %:include(libgomp.spec) (-fopenmp or
+// -fopenacc) or %:include(libsanitizer.spec) (-fsanitize=* combined with
+// -static or -static-lib*).
+func hasGCCSpecFlags(list []string) bool {
+	hasSanitize := false
+	hasStatic := false
+	for _, arg := range list {
+		if arg == "-fopenmp" || arg == "-fopenacc" {
+			return true
+		}
+		if strings.HasPrefix(arg, "-fsanitize=") {
+			hasSanitize = true
+		}
+		if arg == "-static" || arg == "--static" || strings.HasPrefix(arg, "-static-") || strings.HasPrefix(arg, "--static-") {
+			hasStatic = true
+		}
+	}
+	return hasSanitize && hasStatic
+}
+
 func checkCompilerFlags(name, source string, list []string) error {
 	checkOverrides := true
 	return checkFlags(name, source, list, nil, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
@@ -313,19 +335,34 @@ func checkLinkerFlags(name, source string, list []string) error {
 	if err := checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
 		return err
 	}
+	if hasGCCSpecFlags(list) {
+		if err := checkLinkerSpecDir(source, "."); err != nil {
+			return err
+		}
+	}
 	for i := 0; i < len(list); i++ {
 		arg := list[i]
+		switch {
+		case strings.HasPrefix(arg, "-L"):
+			dir := arg[2:]
+			if dir == "" && i+1 < len(list) {
+				i++
+				dir = list[i]
+			}
+			if dir != "" {
+				if err := checkLinkerSpec(source, dir, true); err != nil {
+					return err
+				}
+			}
 		// Although -isysroot is a preprocessor/compiler option in GCC, clang on
 		// Darwin also accepts it as a linker flag (forwarding it as -syslibroot)
 		// and we include it in validLinkerFlagsWithNextArg on all platforms.
-		if arg == "-isysroot" && i+1 < len(list) {
-			i++
+		case arg == "-isysroot" && i+1 < len(list):
+			i++ // consume next argument
 			if err := checkLinkerSysroot(source, arg+" "+list[i], list[i]); err != nil {
 				return err
 			}
-			continue
-		}
-		if strings.HasPrefix(arg, "-Wl,") {
+		case strings.HasPrefix(arg, "-Wl,"):
 			if err := checkLinkerWlFlag(source, arg, arg); err != nil {
 				return err
 			}
@@ -341,7 +378,7 @@ func checkLinkerSysroot(source, flag, dir string) error {
 	if fi, err := os.Stat(dir); err == nil && !fi.IsDir() {
 		return fmt.Errorf("invalid flag in %s: %s (not a directory)", source, flag)
 	}
-	return nil
+	return checkLinkerSpecDir(source, dir)
 }
 
 func checkLinkerWlFlag(source, raw, arg string) error {
@@ -355,6 +392,134 @@ func checkLinkerWlFlag(source, raw, arg string) error {
 		if strings.HasPrefix(warg, "-Wl,-syslibroot,") || strings.HasPrefix(warg, "-Wl,-syslibroot=") {
 			dir := warg[len("-Wl,-syslibroot,"):]
 			if err := checkLinkerSysroot(source, raw, dir); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func trimLinkerSysrootPrefix(dir string) string {
+	if strings.HasPrefix(dir, "=") {
+		return dir[1:]
+	}
+	if strings.HasPrefix(dir, "$SYSROOT") {
+		return dir[len("$SYSROOT"):]
+	}
+	return dir
+}
+
+func isDefaultSystemLinkerDir(dir string) bool {
+	if cfg.Goos == "windows" {
+		return false
+	}
+	dir = filepath.ToSlash(filepath.Clean(dir))
+	for _, prefix := range []string{
+		"/lib", "/lib32", "/lib64", "/libx32",
+		"/usr/lib", "/usr/lib32", "/usr/lib64", "/usr/libx32",
+	} {
+		if dir == prefix || strings.HasPrefix(dir, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// checkLinkerSpecDir walks the directory rooted at dir and looks for .spec files,
+// which can inject arbitrary linker flags, or cause execution of arbitrary
+// commands.
+//
+// When GCC evaluates %:include(libgomp.spec) or %:include(libsanitizer.spec),
+// which can be caused by -fopenmp, -fopenacc, or -fsanitize=..., it looks for the specific
+// spec file in a number of places, including the current working directory and
+// sysroot or -L directories. GCC uses a search strategy that looks for target-triple
+// directories and GCC version directories inside of these directories, but since
+// we don't want to hard code those values, we use a much less targeted approach,
+// and just walk the directory looking for a spec file. In theory this can cause
+// failure when we find a spec file that GCC wouldn't load, but it seems better to
+// be safe here.
+func checkLinkerSpecDir(source, dir string) error {
+	return checkLinkerSpec(source, dir, false)
+}
+
+func checkLinkerSpec(source, rawDir string, checkMultilib bool) error {
+	dir := trimLinkerSysrootPrefix(rawDir)
+	if dir == "" {
+		return nil
+	}
+	hasSysrootPrefix := dir != rawDir
+	visited := make(map[string]bool)
+	var checkTree func(root string) error
+	checkTree = func(root string) error {
+		if abs, err := filepath.Abs(root); err == nil {
+			root = abs
+		} else {
+			root = filepath.Clean(root)
+		}
+		if resolved, err := filepath.EvalSymlinks(root); err == nil {
+			root = resolved
+		}
+		if visited[root] || (!hasSysrootPrefix && isDefaultSystemLinkerDir(root)) {
+			return nil
+		}
+		visited[root] = true
+		if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
+			return nil
+		}
+		return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if path != root && !hasSysrootPrefix && isDefaultSystemLinkerDir(path) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if d.Type()&os.ModeSymlink != 0 {
+				if fi, err := os.Stat(path); err == nil && fi.IsDir() {
+					return checkTree(path)
+				}
+			}
+			name := strings.ToLower(d.Name())
+			if name == "specs" || strings.HasSuffix(name, ".spec") {
+				return fmt.Errorf("disallowed GCC spec file in %s: %s", source, path)
+			}
+			return nil
+		})
+	}
+	if err := checkTree(dir); err != nil {
+		return err
+	}
+	if !checkMultilib {
+		return nil
+	}
+	// GCC also searches multilib sibling directories (such as ../lib64)
+	// relative to each -L directory. Because filepath.Join cleans ".."
+	// lexically, if dir is a symlink its lexical parent and its resolved
+	// parent on disk may differ; check both.
+	absDir := filepath.Clean(dir)
+	if abs, err := filepath.Abs(dir); err == nil {
+		absDir = abs
+	}
+	bases := []string{absDir}
+	if resolved, err := filepath.EvalSymlinks(absDir); err == nil {
+		if abs, err := filepath.Abs(resolved); err == nil {
+			resolved = abs
+		}
+		if resolved != absDir {
+			bases = append(bases, resolved)
+		}
+	}
+	for _, base := range bases {
+		// Avoid walking host top-level /lib, /lib64, C:\lib, etc. when base is a
+		// filesystem root or depth-1 directory such as /tmp, /app, or C:\app
+		// (where filepath.Join(base, "..", "lib") would resolve to /lib or C:\lib).
+		if parent := filepath.Dir(base); parent == base || filepath.Dir(parent) == parent {
+			continue
+		}
+		for _, sub := range []string{"lib", "lib32", "lib64", "libx32"} {
+			if err := checkTree(filepath.Join(base, "..", sub)); err != nil {
 				return err
 			}
 		}
