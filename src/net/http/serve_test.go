@@ -1731,6 +1731,8 @@ func testReaderFromTooLong(t *testing.T, mode testMode) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			// Uses optRealNet because this depends on the underlying net.Conn
+			// implementing ReadFrom, which nettest.Conn currently does not.
 			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 				w.Header().Set("Content-Length", strconv.Itoa(contentLen))
 				n, err := w.(io.ReaderFrom).ReadFrom(tc.reader)
@@ -3828,12 +3830,12 @@ For:
 //
 // Issue 13165 (where it used to deadlock), but behavior changed in Issue 23921.
 func TestCloseNotifierPipelined(t *testing.T) {
-	run(t, testCloseNotifierPipelined, []testMode{http1Mode})
+	runSynctest(t, testCloseNotifierPipelined, []testMode{http1Mode})
 }
 func testCloseNotifierPipelined(t *testing.T, mode testMode) {
 	gotReq := make(chan bool, 2)
 	sawClose := make(chan bool, 2)
-	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		gotReq <- true
 		cc := rw.(CloseNotifier).CloseNotify()
 		select {
@@ -3842,16 +3844,13 @@ func testCloseNotifierPipelined(t *testing.T, mode testMode) {
 		case <-time.After(100 * time.Millisecond):
 		}
 		sawClose <- true
-	}), optRealNet).ts
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("error dialing: %v", err)
-	}
+	}))
+	conn, _ := cst.dialNettest()
 	diec := make(chan bool, 1)
 	defer close(diec)
 	go func() {
 		const req = "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n"
-		_, err = io.WriteString(conn, req+req) // two requests
+		_, err := io.WriteString(conn, req+req) // two requests
 		if err != nil {
 			t.Error(err)
 			return
@@ -4532,34 +4531,26 @@ func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
 // cause the Handler goroutine's Request.Body.Close to block.
 // See issue 7121.
 func TestRequestBodyCloseDoesntBlock(t *testing.T) {
-	run(t, testRequestBodyCloseDoesntBlock, []testMode{http1Mode})
+	runSynctest(t, testRequestBodyCloseDoesntBlock, []testMode{http1Mode})
 }
 func testRequestBodyCloseDoesntBlock(t *testing.T, mode testMode) {
-	if testing.Short() {
-		t.Skip("skipping in -short mode")
-	}
-
 	readErrCh := make(chan error, 1)
 	errCh := make(chan error, 2)
 
-	server := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		go func(body io.Reader) {
 			_, err := body.Read(make([]byte, 100))
 			readErrCh <- err
 		}(req.Body)
 		time.Sleep(500 * time.Millisecond)
-	}), optRealNet).ts
+	}))
 
 	closeConn := make(chan bool)
 	defer close(closeConn)
 	go func() {
-		conn, err := net.Dial("tcp", server.Listener.Addr().String())
-		if err != nil {
-			errCh <- err
-			return
-		}
+		conn, _ := cst.dialNettest()
 		defer conn.Close()
-		_, err = conn.Write([]byte("POST / HTTP/1.1\r\nConnection: close\r\nHost: foo\r\nContent-Length: 100000\r\n\r\n"))
+		_, err := conn.Write([]byte("POST / HTTP/1.1\r\nConnection: close\r\nHost: foo\r\nContent-Length: 100000\r\n\r\n"))
 		if err != nil {
 			errCh <- err
 			return
@@ -4901,12 +4892,9 @@ func testServerFlushAndHijack(t *testing.T, mode testMode) {
 // To test, verify we don't timeout or see fewer unique client
 // addresses (== unique connections) than requests.
 func TestServerKeepAliveAfterWriteError(t *testing.T) {
-	run(t, testServerKeepAliveAfterWriteError, []testMode{http1Mode})
+	runSynctest(t, testServerKeepAliveAfterWriteError, []testMode{http1Mode})
 }
 func testServerKeepAliveAfterWriteError(t *testing.T, mode testMode) {
-	if testing.Short() {
-		t.Skip("skipping in -short mode")
-	}
 	const numReq = 3
 	addrc := make(chan string, numReq)
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -4915,13 +4903,13 @@ func testServerKeepAliveAfterWriteError(t *testing.T, mode testMode) {
 		w.(Flusher).Flush()
 	}), func(ts *httptest.Server) {
 		ts.Config.WriteTimeout = 250 * time.Millisecond
-	}, optRealNet).ts
+	}).ts
 
 	errc := make(chan error, numReq)
 	go func() {
 		defer close(errc)
 		for i := 0; i < numReq; i++ {
-			res, err := Get(ts.URL)
+			res, err := ts.Client().Get(ts.URL)
 			if res != nil {
 				res.Body.Close()
 			}
