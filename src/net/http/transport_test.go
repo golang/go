@@ -2411,47 +2411,31 @@ func testIssue3644(t *testing.T, mode testMode) {
 
 // Test that a client receives a server's reply, even if the server doesn't read
 // the entire request body.
-func TestIssue3595(t *testing.T) { run(t, testIssue3595, testNotParallel) }
+func TestIssue3595(t *testing.T) { runSynctest(t, testIssue3595) }
 func testIssue3595(t *testing.T, mode testMode) {
-	runTimeSensitiveTest(t, []time.Duration{
-		1 * time.Millisecond,
-		5 * time.Millisecond,
-		10 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		500 * time.Millisecond,
-		time.Second,
-		5 * time.Second,
-	}, func(t *testing.T, timeout time.Duration) error {
-		SetRSTAvoidanceDelay(t, timeout)
-		t.Logf("set RST avoidance delay to %v", timeout)
+	const deniedMsg = "sorry, denied."
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		Error(w, deniedMsg, StatusUnauthorized)
+	}))
+	ts := cst.ts
+	c := ts.Client()
 
-		const deniedMsg = "sorry, denied."
-		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-			Error(w, deniedMsg, StatusUnauthorized)
-		}), optRealNet)
-		// We need to close cst explicitly here so that in-flight server
-		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
-		defer cst.close()
-		ts := cst.ts
-		c := ts.Client()
-
-		res, err := c.Post(ts.URL, "application/octet-stream", neverEnding('a'))
-		if err != nil {
-			return fmt.Errorf("Post: %v", err)
-		}
-		got, err := io.ReadAll(res.Body)
-		if err != nil {
-			return fmt.Errorf("Body ReadAll: %v", err)
-		}
-		t.Logf("server response:\n%s", got)
-		if !strings.Contains(string(got), deniedMsg) {
-			// If we got an RST packet too early, we should have seen an error
-			// from io.ReadAll, not a silently-truncated body.
-			t.Errorf("Known bug: response %q does not contain %q", got, deniedMsg)
-		}
-		return nil
+	cst.setDialNettestHook(func(nc *nettest.Conn) {
+		nc.Peer().SetReadBufferSize(1000) // bytes until client body write blocks
 	})
+
+	res, err := c.Post(ts.URL, "application/octet-stream", neverEnding('a'))
+	if err != nil {
+		t.Fatalf("Post: %v", err)
+	}
+	got, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("Body ReadAll: %v", err)
+	}
+	t.Logf("server response:\n%s", got)
+	if !strings.Contains(string(got), deniedMsg) {
+		t.Errorf("response %q does not contain %q", got, deniedMsg)
+	}
 }
 
 // From https://golang.org/issue/4454 ,
