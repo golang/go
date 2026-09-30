@@ -270,6 +270,9 @@ type http2ExternalTransportConfig interface {
 	// DialFromContext is used to dial new connections, overriding Transport.DialContext etc.
 	// This is used when the user calls x/net/http2.Transport.RoundTrip directly,
 	// in which case the historical behavior is to use the http2.Transport's dial functions.
+	// Implementations may also provide UsesDialFromContext(context.Context) bool
+	// to identify such calls before dialing, allowing their dials to be coalesced.
+	// This method is optional for compatibility with older x/net/http2 versions.
 	DialFromContext(ctx context.Context, network, addr string) (net.Conn, error)
 
 	// ExternalRoundTrip reports whether Transport.RoundTrip should call the
