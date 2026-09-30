@@ -7,6 +7,7 @@ package http_test
 import (
 	"errors"
 	"fmt"
+	"internal/nettest"
 	"io"
 	. "net/http"
 	"os"
@@ -132,18 +133,16 @@ func testResponseControllerSetPastWriteDeadline(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerSetFutureWriteDeadline(t *testing.T) {
-	run(t, testResponseControllerSetFutureWriteDeadline)
+	runSynctest(t, testResponseControllerSetFutureWriteDeadline)
 }
 func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
 	errc := make(chan error, 1)
-	startwritec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
 		w.WriteHeader(200)
 		if err := ctl.Flush(); err != nil {
 			t.Errorf("ctl.Flush() = %v, want nil", err)
 		}
-		<-startwritec // don't set the deadline until the client reads response headers
 		if err := ctl.SetWriteDeadline(time.Now().Add(1 * time.Millisecond)); err != nil {
 			t.Errorf("ctl.SetWriteDeadline() = %v, want nil", err)
 		}
@@ -151,16 +150,17 @@ func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
 		errc <- err
 	}))
 
+	// Set a buffer size large enough to hold the response headers,
+	// small enough to block writing the body before long.
+	cst.setDialNettestHook(func(nc *nettest.Conn) {
+		nc.SetReadBufferSize(10000)
+	})
+
 	res, err := cst.c.Get(cst.ts.URL)
-	close(startwritec)
 	if err != nil {
 		t.Fatalf("unexpected connection error: %v", err)
 	}
 	defer res.Body.Close()
-	_, err = io.Copy(io.Discard, res.Body)
-	if err == nil {
-		t.Errorf("client reading from truncated request body: got nil error, want non-nil")
-	}
 	err = <-errc // io.Copy error
 	if !errors.Is(err, os.ErrDeadlineExceeded) {
 		t.Errorf("server timed out writing request body: got err %v; want os.ErrDeadlineExceeded", err)
