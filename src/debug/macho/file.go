@@ -26,6 +26,7 @@ import (
 	"internal/saferio"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -39,6 +40,7 @@ type File struct {
 	Symtab   *Symtab
 	Dysymtab *Dysymtab
 
+	name   string
 	closer io.Closer
 }
 
@@ -228,6 +230,9 @@ func (f *File) Close() error {
 // The Mach-O binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
+	if rf, ok := r.(*os.File); ok {
+		f.name = rf.Name()
+	}
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
 
 	// Read and decode Mach magic to determine byte order, size.
@@ -683,6 +688,21 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 
 	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, dat["ranges"], dat["str"])
 	if err != nil {
+		// Loading DWARF failed. Try loading it from a split DWARF file in
+		// <file>.dSYM/Contents/Resources/DWARF. Check UUID to ensure it is
+		// for the same binary.
+		if f.name != "" {
+			if u := f.uuid(); u != nil {
+				dsym := filepath.Join(f.name+".dSYM", "Contents", "Resources", "DWARF", filepath.Base(f.name))
+				if df, err := Open(dsym); err == nil {
+					defer df.Close()
+					if bytes.Equal(u, df.uuid()) {
+						df.name = ""
+						return df.DWARF()
+					}
+				}
+			}
+		}
 		return nil, err
 	}
 
@@ -713,6 +733,17 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	}
 
 	return d, nil
+}
+
+func (f *File) uuid() []byte {
+	const loadCmdUUID = 0x1b // LC_UUID
+	for _, l := range f.Loads {
+		raw := l.Raw()
+		if len(raw) >= 24 && f.ByteOrder.Uint32(raw[:4]) == loadCmdUUID {
+			return raw[8:24]
+		}
+	}
+	return nil
 }
 
 // ImportedSymbols returns the names of all symbols
