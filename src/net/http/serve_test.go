@@ -6264,53 +6264,47 @@ func testServerKeepAlivesEnabled(t *testing.T, mode testMode) {
 // Issue 18447: test that the Server's ReadTimeout is stopped while
 // the server's doing its 1-byte background read between requests,
 // waiting for the connection to maybe close.
-func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) { run(t, testServerCancelsReadTimeoutWhenIdle) }
+func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
+	runSynctest(t, testServerCancelsReadTimeoutWhenIdle)
+}
 func testServerCancelsReadTimeoutWhenIdle(t *testing.T, mode testMode) {
-	runTimeSensitiveTest(t, []time.Duration{
-		10 * time.Millisecond,
-		50 * time.Millisecond,
-		250 * time.Millisecond,
-		time.Second,
-		2 * time.Second,
-	}, func(t *testing.T, timeout time.Duration) error {
-		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-			select {
-			case <-time.After(2 * timeout):
-				fmt.Fprint(w, "ok")
-			case <-r.Context().Done():
-				fmt.Fprint(w, r.Context().Err())
-			}
-		}), func(ts *httptest.Server) {
-			ts.Config.ReadTimeout = timeout
-			t.Logf("Server.Config.ReadTimeout = %v", timeout)
-		})
-		defer cst.close()
-		ts := cst.ts
-
-		var retries atomic.Int32
-		cst.c.Transport.(*Transport).Proxy = func(*Request) (*url.URL, error) {
-			if retries.Add(1) != 1 {
-				return nil, errors.New("too many retries")
-			}
-			return nil, nil
+	timeout := time.Second
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		select {
+		case <-time.After(2 * timeout):
+			fmt.Fprint(w, "ok")
+		case <-r.Context().Done():
+			fmt.Fprint(w, r.Context().Err())
 		}
-
-		c := ts.Client()
-
-		res, err := c.Get(ts.URL)
-		if err != nil {
-			return fmt.Errorf("Get: %v", err)
-		}
-		slurp, err := io.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			return fmt.Errorf("Body ReadAll: %v", err)
-		}
-		if string(slurp) != "ok" {
-			return fmt.Errorf("got: %q, want ok", slurp)
-		}
-		return nil
+	}), func(ts *httptest.Server) {
+		ts.Config.ReadTimeout = timeout
+		t.Logf("Server.Config.ReadTimeout = %v", timeout)
 	})
+	defer cst.close()
+	ts := cst.ts
+
+	var retries atomic.Int32
+	cst.c.Transport.(*Transport).Proxy = func(*Request) (*url.URL, error) {
+		if retries.Add(1) != 1 {
+			return nil, errors.New("too many retries")
+		}
+		return nil, nil
+	}
+
+	c := ts.Client()
+
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	slurp, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatalf("Body ReadAll: %v", err)
+	}
+	if string(slurp) != "ok" {
+		t.Fatalf("got: %q, want ok", slurp)
+	}
 }
 
 // Issue 54784: test that the Server's ReadHeaderTimeout only starts once the
