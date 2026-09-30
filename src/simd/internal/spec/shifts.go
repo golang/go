@@ -8,10 +8,10 @@ package spec
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down ({{if eq .xB "int"}}arithmetic{{else}}logical{{end}} shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 //specgen:require scale=Int{xN}x{xL}
 func ScaleSaturated[E Ints | Uints, W Width, yE Ints](x Vec[E, W], scale Vec[yE, W]) (z Vec[E, W]) {
@@ -26,7 +26,7 @@ func ScaleSaturated[E Ints | Uints, W Width, yE Ints](x Vec[E, W], scale Vec[yE,
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 // {{- else -}}
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 // {{- end}}
 //
@@ -37,7 +37,7 @@ func ShiftAllRight[E Ints | Uints, W Width](x Vec[E, W], shift uint64) (z Vec[E,
 	})
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift

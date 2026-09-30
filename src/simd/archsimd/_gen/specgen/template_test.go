@@ -205,3 +205,87 @@ func TestCleanDocNewlines(t *testing.T) {
 		}
 	}
 }
+
+func TestReshapeDiagram(t *testing.T) {
+	vec := func(n, l int) specexpr.Vector {
+		return specexpr.Vector{Elem: specexpr.Basic{Base: "uint", Bits: specexpr.Int(n)}, Width: specexpr.Int(n * l)}
+	}
+	u8s := specexpr.Vector{Elem: specexpr.Basic{Base: "uint", Bits: 8}, Width: specexpr.VW()}
+	u16s := specexpr.Vector{Elem: specexpr.Basic{Base: "uint", Bits: 16}, Width: specexpr.VW()}
+
+	tests := []struct {
+		name string
+		x, z specexpr.Vector
+		want string
+	}{
+		{
+			// Basic, no elision case
+			name: "Uint32x4 -> Uint64x2",
+			x:    vec(32, 4),
+			z:    vec(64, 2),
+			want: "\t      x[3]      x[2]      x[1]      x[0]\n" +
+				"\t  | 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |\n" +
+				"\t  | 63     ....     0 | 63     ....     0 |\n" +
+				"\t           z[1]                z[0]",
+		},
+		{
+			// Small to big, with elided middle
+			name: "Uint32x8 -> Uint64x4",
+			x:    vec(32, 8),
+			z:    vec(64, 4),
+			want: "\t      x[7]      x[6]    ⋯     x[1]      x[0]\n" +
+				"\t  | 31 .. 0 | 31 .. 0 | ⋯ | 31 .. 0 | 31 .. 0 |\n" +
+				"\t  | 63     ....     0 | ⋯ | 63     ....     0 |\n" +
+				"\t           z[3]         ⋯          z[0]",
+		},
+		{
+			// Big to small, with elided middle
+			name: "Uint64x4 -> Uint32x8",
+			x:    vec(64, 4),
+			z:    vec(32, 8),
+			want: "\t           x[3]         ⋯          x[0]\n" +
+				"\t  | 63     ....     0 | ⋯ | 63     ....     0 |\n" +
+				"\t  | 31 .. 0 | 31 .. 0 | ⋯ | 31 .. 0 | 31 .. 0 |\n" +
+				"\t      z[7]      z[6]    ⋯     z[1]      z[0]",
+		},
+		{
+			// Eliding elements within each big element
+			name: "Uint64x2 -> Uint8x16",
+			x:    vec(64, 2),
+			z:    vec(8, 16),
+			want: "\t                       x[1]                                        x[0]\n" +
+				"\t  | 63                 ....                 0 | 63                 ....                 0 |\n" +
+				"\t  | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |\n" +
+				"\t     z[15]     z[14]    ⋯     z[9]      z[8]      z[7]      z[6]    ⋯     z[1]      z[0]",
+		},
+		{
+			// Eliding elements within each big element, and elided middle
+			name: "Uint8x64 -> Uint64x8",
+			x:    vec(8, 64),
+			z:    vec(64, 8),
+			want: "\t     x[63]     x[62]    ⋯    x[57]     x[56]    ⋯     x[7]      x[6]    ⋯     x[1]      x[0]\n" +
+				"\t  | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |\n" +
+				"\t  | 63                 ....                 0 | ⋯ | 63                 ....                 0 |\n" +
+				"\t                       z[7]                     ⋯                      z[0]",
+		},
+		{
+			// Scalable
+			name: "Uint8s -> Uint16s (Scalable)",
+			x:    u8s,
+			z:    u16s,
+			want: "\t  ⋯     x[3]      x[2]      x[1]      x[0]\n" +
+				"\t  ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |\n" +
+				"\t  ⋯ | 15     ....     0 | 15     ....     0 |\n" +
+				"\t  ⋯          z[1]                z[0]",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := reshapeDiagram(tc.x, tc.z)
+			if got != tc.want {
+				t.Errorf("reshapeDiagram(%s, %s):\ngot:\n%s\nwant:\n%s", tc.x, tc.z, got, tc.want)
+			}
+		})
+	}
+}

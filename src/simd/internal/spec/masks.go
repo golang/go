@@ -17,8 +17,8 @@ package spec
 // This type is known to specgen.
 type UintN uint64
 
-// MaskFromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// MaskFromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 //
 //specgen:name {{.z}}FromBits
 //specgen:require x=uint{zL}
@@ -32,8 +32,8 @@ func MaskFromBits[E MaskElt, W FixedWidth](x UintN) (z Vec[E, W]) {
 	return z
 }
 
-// MaskToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// MaskToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 //
 //specgen:name ToBits
 //specgen:require z=uint{xL}
@@ -47,7 +47,7 @@ func MaskToBits[E MaskElt, W FixedWidth](x Vec[E, W]) (z UintN) {
 }
 
 // MaskToZ converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
 //specgen:name To{{.z}}
 //specgen:require z=Int{xN}x{xL}

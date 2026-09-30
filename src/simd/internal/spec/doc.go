@@ -29,7 +29,7 @@
 //
 // Consider a simple example, the Add operation:
 //
-//	// Add adds corresponding elements of two vectors.
+//	// Add adds x and y elementwise.
 //	func Add[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 //	    ...
 //	}
@@ -118,8 +118,8 @@
 //
 // For some operations, the API name or documentation depends on type
 // parameters. For these we use Go's text/template system where constraint
-// variables can be referenced in double curly braces, like {{.vE}}.
-// For doc comments, template actions can be included directly in the doc comment
+// variables can be referenced in double curly braces, like {{.vE}}. For doc
+// comments, template actions can be included directly in the doc comment
 // (including conditionals like {{if lt .zL .xL}}). For names, we use a
 // `//specgen:name` directive, such as
 //
@@ -130,9 +130,9 @@
 // exported), and the API name is generated from the directive. For example,
 // when LoadZ is instantiated on uint32 and Width128, the API name generated
 // from the template will be LoadUint32x4. When interpolating element types into
-// identifiers, the title filter can be used: ConvertTo{{.zE | title}}.
-// This is particularly useful for constructor functions and conversion
-// functions where types must appear in the name, such as LoadZ.
+// identifiers, the title filter can be used: ConvertTo{{.zE | title}}. This is
+// particularly useful for constructor functions and conversion functions where
+// types must appear in the name, such as LoadZ.
 //
 // ## The spec type system
 //
@@ -153,4 +153,29 @@
 // constraints.
 //
 // Pointer and slice types translate directly to the API.
+//
+// ## Documentation conventions
+//
+// Look at other functions in this package and try to follow their example.
+//
+// When feasible, doc comments should include a mathematical statement of the
+// operation. This should balance precision and clarity. We follow various
+// conventions for this:
+//
+// - Vectors are written in a succinct variant of Go slice syntax. For example,
+// to refer to element i of vector x, use "x[i]". To construct a whole vector,
+// use syntax like "{x[0]+y[0], x[1]+y[1], ...}".
+//
+// - Expressions can be quantified over all elements of a vector without
+// explicitly saying so. E.g., "z[i] = x[i] + y[i]" implicitly "loops" over all
+// indexes of z.
+//
+// - Operators like +, *, etc have infinite precision, and assignment to a
+// fixed-width type behaves like a Go cast (wrapping for int/uint, rounding for
+// float). When this matters, it should generally be clarified in a comment. For
+// example, the intermediate step of dot-product is written "w[i] = x[i] * y[i]
+// // Double width" to clarify the precision.
+//
+// - Saturating operations are common and are written like "sat(expr)", where
+// "sat" saturates the result to the appropriate range, rather than wrapping it.
 package spec

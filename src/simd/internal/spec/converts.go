@@ -9,7 +9,20 @@ package spec
 // TODO: The note on ConvertToZ applies to anything that does width rounding.
 // Should we have a quick template for that? Or even just add it automatically?
 
-// ConvertToZ converts element values to {{.zE}}.
+// ConvertToZ converts each element of x to {{.zE}}.
+//
+// {{/* float -> int/uint rounding */}}
+// {{ if and (eq .xB "float") (or (eq .zB "int") (eq .zB "uint")) }}
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
+// {{ end }}
+//
+// {{/* float -> float rounding */}}
+// {{ if and (eq .xB "float") (eq .zB "float") (lt .zN .xN) }}
+// The results are rounded to the nearest representable value, or ±inf if they
+// cannot be represented.
+// {{ end }}
 //
 // {{if lt .xL .zL}}
 // The low {{.xL}} elements of the result are set. The rest are zero.
@@ -31,7 +44,8 @@ func ConvertToZ[xE Nums, xW Width, zE Nums, zW Width](x Vec[xE, xW]) (z Vec[zE, 
 // Uint8x16.ExtendLo2ToUint64 is the low eighth, but that's implied by going
 // from uint8 to uint64 without changing the width.
 
-// ExtendLoLToZ extends the lowest {{.zL}} vector elements to {{.zE}}.
+// ExtendLoLToZ {{if eq .xB "int"}}sign-{{else}}zero-{{end}}extends
+// the lowest {{.zL}} vector elements to {{.zE}}.
 //
 //specgen:name ExtendLo{{.zL}}To{{.zE | title}}
 //specgen:require zB=xB zN>xN

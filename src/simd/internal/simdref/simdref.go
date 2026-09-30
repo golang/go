@@ -63,1429 +63,1674 @@ type (
 	Uint8x64   struct{ v []uint8 }
 )
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Float32x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[float32, spec.Width128, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Float32x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float32, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Float32x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float32, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[float32, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[float32, spec.Width128, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Float32x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float32, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Float32x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float32, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[float32, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[float32, spec.Width128, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Float32x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[float32, spec.Width256, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Float32x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float32, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float32, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[float32, spec.Width256, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[float32, spec.Width256, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Float32x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float32, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float32, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[float32, spec.Width256, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[float32, spec.Width256, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float32, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[float32, spec.Width512, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[float32, spec.Width512, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float32, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[float32, spec.Width512, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[float32, spec.Width512, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32s) ConvertToInt32() (z Int32s) {
 	return Int32s{spec.ConvertToZ[float32, spec.WidthScalable, int32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float32s) ConvertToUint32() (z Uint32s) {
 	return Uint32s{spec.ConvertToZ[float32, spec.WidthScalable, uint32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
+//
+// The results are rounded to the nearest representable value, or ±inf if they
+// cannot be represented.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[float64, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float64, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float64, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[float64, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x2) ConvertToInt64() (z Int64x2) {
 	return Int64x2{spec.ConvertToZ[float64, spec.Width128, int64, spec.Width128](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float64, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float64, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Float64x2) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[float64, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x2) ConvertToUint64() (z Uint64x2) {
 	return Uint64x2{spec.ConvertToZ[float64, spec.Width128, uint64, spec.Width128](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
+//
+// The results are rounded to the nearest representable value, or ±inf if they
+// cannot be represented.
 func (x Float64x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[float64, spec.Width256, float32, spec.Width128](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Float64x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float64, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Float64x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float64, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[float64, spec.Width256, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[float64, spec.Width256, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Float64x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float64, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Float64x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float64, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[float64, spec.Width256, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[float64, spec.Width256, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
+//
+// The results are rounded to the nearest representable value, or ±inf if they
+// cannot be represented.
 func (x Float64x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[float64, spec.Width512, float32, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Float64x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[float64, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[float64, spec.Width512, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[float64, spec.Width512, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[float64, spec.Width512, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Float64x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[float64, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[float64, spec.Width512, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[float64, spec.Width512, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[float64, spec.Width512, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64s) ConvertToInt64() (z Int64s) {
 	return Int64s{spec.ConvertToZ[float64, spec.WidthScalable, int64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 func (x Float64s) ConvertToUint64() (z Uint64s) {
 	return Uint64s{spec.ConvertToZ[float64, spec.WidthScalable, uint64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int8x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[int8, spec.Width128, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Int8x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[int8, spec.Width128, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Int8x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[int8, spec.Width128, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int8x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int8, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int8x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[int8, spec.Width128, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int8x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[int8, spec.Width128, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Int8x32) ConvertToInt16() (z Int16x32) {
 	return Int16x32{spec.ConvertToZ[int8, spec.Width256, int16, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int8x32) ConvertToUint8() (z Uint8x32) {
 	return Uint8x32{spec.ConvertToZ[int8, spec.Width256, uint8, spec.Width256](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int8x32) ConvertToUint16() (z Uint16x32) {
 	return Uint16x32{spec.ConvertToZ[int8, spec.Width256, uint16, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int8x64) ConvertToUint8() (z Uint8x64) {
 	return Uint8x64{spec.ConvertToZ[int8, spec.Width512, uint8, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int8s) ConvertToUint8() (z Uint8s) {
 	return Uint8s{spec.ConvertToZ[int8, spec.WidthScalable, uint8, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int16x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[int16, spec.Width128, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Int16x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[int16, spec.Width128, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Int16x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int16, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Int16x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[int16, spec.Width128, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Int16x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[int16, spec.Width128, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Int16x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int16, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int16x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int16, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int16x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[int16, spec.Width128, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int16x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[int16, spec.Width128, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int16x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[int16, spec.Width256, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Int16x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int16, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Int16x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[int16, spec.Width256, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int16x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int16, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int16x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[int16, spec.Width256, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int16x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[int16, spec.Width256, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Int16x32) ConvertToInt8() (z Int8x32) {
 	return Int8x32{spec.ConvertToZ[int16, spec.Width512, int8, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int16x32) ConvertToUint8() (z Uint8x32) {
 	return Uint8x32{spec.ConvertToZ[int16, spec.Width512, uint8, spec.Width256](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int16x32) ConvertToUint16() (z Uint16x32) {
 	return Uint16x32{spec.ConvertToZ[int16, spec.Width512, uint16, spec.Width512](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int16s) ConvertToUint16() (z Uint16s) {
 	return Uint16s{spec.ConvertToZ[int16, spec.WidthScalable, uint16, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int32x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[int32, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Int32x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[int32, spec.Width128, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Int32x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int32, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Int32x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int32, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Int32x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[int32, spec.Width128, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Int32x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int32, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Int32x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int32, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int32x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[int32, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int32x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[int32, spec.Width128, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int32x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[int32, spec.Width256, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Int32x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[int32, spec.Width256, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Int32x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int32, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Int32x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int32, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Int32x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[int32, spec.Width256, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Int32x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int32, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int32x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int32, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int32x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[int32, spec.Width256, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int32x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[int32, spec.Width256, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int32x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[int32, spec.Width512, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Int32x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int32, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Int32x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[int32, spec.Width512, int16, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int32x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int32, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int32x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[int32, spec.Width512, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int32x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[int32, spec.Width512, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int32s) ConvertToFloat32() (z Float32s) {
 	return Float32s{spec.ConvertToZ[int32, spec.WidthScalable, float32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int32s) ConvertToUint32() (z Uint32s) {
 	return Uint32s{spec.ConvertToZ[int32, spec.WidthScalable, uint32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[int64, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Int64x2) ConvertToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertToZ[int64, spec.Width128, float64, spec.Width128](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int64, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int64, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[int64, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int64, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int64, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Int64x2) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[int64, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int64x2) ConvertToUint64() (z Uint64x2) {
 	return Uint64x2{spec.ConvertToZ[int64, spec.Width128, uint64, spec.Width128](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int64x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[int64, spec.Width256, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Int64x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[int64, spec.Width256, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Int64x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int64, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Int64x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int64, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Int64x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[int64, spec.Width256, int32, spec.Width128](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Int64x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int64, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Int64x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int64, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int64x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[int64, spec.Width256, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int64x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[int64, spec.Width256, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Int64x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[int64, spec.Width512, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Int64x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[int64, spec.Width512, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Int64x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[int64, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Int64x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[int64, spec.Width512, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Int64x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[int64, spec.Width512, int32, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Int64x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[int64, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int64x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[int64, spec.Width512, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int64x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[int64, spec.Width512, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int64x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[int64, spec.Width512, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Int64s) ConvertToFloat64() (z Float64s) {
 	return Float64s{spec.ConvertToZ[int64, spec.WidthScalable, float64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int64s) ConvertToUint64() (z Uint64s) {
 	return Uint64s{spec.ConvertToZ[int64, spec.WidthScalable, uint64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint8x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[uint8, spec.Width128, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint8x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint8, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint8x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[uint8, spec.Width128, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint8x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[uint8, spec.Width128, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Uint8x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[uint8, spec.Width128, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Uint8x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[uint8, spec.Width128, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint8x32) ConvertToInt8() (z Int8x32) {
 	return Int8x32{spec.ConvertToZ[uint8, spec.Width256, int8, spec.Width256](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint8x32) ConvertToInt16() (z Int16x32) {
 	return Int16x32{spec.ConvertToZ[uint8, spec.Width256, int16, spec.Width512](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Uint8x32) ConvertToUint16() (z Uint16x32) {
 	return Uint16x32{spec.ConvertToZ[uint8, spec.Width256, uint16, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint8x64) ConvertToInt8() (z Int8x64) {
 	return Int8x64{spec.ConvertToZ[uint8, spec.Width512, int8, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint8s) ConvertToInt8() (z Int8s) {
 	return Int8s{spec.ConvertToZ[uint8, spec.WidthScalable, int8, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint16x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[uint16, spec.Width128, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Uint16x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[uint16, spec.Width128, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Uint16x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint16, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint16x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint16, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint16x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[uint16, spec.Width128, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint16x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[uint16, spec.Width128, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Uint16x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint16, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Uint16x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[uint16, spec.Width128, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Uint16x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[uint16, spec.Width128, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint16x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[uint16, spec.Width256, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint16x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint16, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint16x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[uint16, spec.Width256, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint16x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[uint16, spec.Width256, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Uint16x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint16, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Uint16x16) ConvertToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ConvertToZ[uint16, spec.Width256, uint32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint16x32) ConvertToInt8() (z Int8x32) {
 	return Int8x32{spec.ConvertToZ[uint16, spec.Width512, int8, spec.Width256](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint16x32) ConvertToInt16() (z Int16x32) {
 	return Int16x32{spec.ConvertToZ[uint16, spec.Width512, int16, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Uint16x32) ConvertToUint8() (z Uint8x32) {
 	return Uint8x32{spec.ConvertToZ[uint16, spec.Width512, uint8, spec.Width256](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint16s) ConvertToInt16() (z Int16s) {
 	return Int16s{spec.ConvertToZ[uint16, spec.WidthScalable, int16, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint32x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[uint32, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Uint32x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[uint32, spec.Width128, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Uint32x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint32, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Uint32x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint32, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint32x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[uint32, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint32x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[uint32, spec.Width128, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Uint32x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint32, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Uint32x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint32, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Uint32x4) ConvertToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ConvertToZ[uint32, spec.Width128, uint64, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint32x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[uint32, spec.Width256, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Uint32x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[uint32, spec.Width256, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Uint32x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint32, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint32x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint32, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint32x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[uint32, spec.Width256, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint32x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[uint32, spec.Width256, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Uint32x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint32, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Uint32x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint32, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint64 converts element values to uint64.
+// ConvertToUint64 converts each element of x to uint64.
 func (x Uint32x8) ConvertToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ConvertToZ[uint32, spec.Width256, uint64, spec.Width512](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint32x16) ConvertToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertToZ[uint32, spec.Width512, float32, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint32x16) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint32, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint32x16) ConvertToInt16() (z Int16x16) {
 	return Int16x16{spec.ConvertToZ[uint32, spec.Width512, int16, spec.Width256](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint32x16) ConvertToInt32() (z Int32x16) {
 	return Int32x16{spec.ConvertToZ[uint32, spec.Width512, int32, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 func (x Uint32x16) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint32, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Uint32x16) ConvertToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ConvertToZ[uint32, spec.Width512, uint16, spec.Width256](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint32s) ConvertToFloat32() (z Float32s) {
 	return Float32s{spec.ConvertToZ[uint32, spec.WidthScalable, float32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint32s) ConvertToInt32() (z Int32s) {
 	return Int32s{spec.ConvertToZ[uint32, spec.WidthScalable, int32, spec.WidthScalable](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[uint64, spec.Width128, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Uint64x2) ConvertToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertToZ[uint64, spec.Width128, float64, spec.Width128](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint64, spec.Width128, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint64, spec.Width128, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[uint64, spec.Width128, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint64x2) ConvertToInt64() (z Int64x2) {
 	return Int64x2{spec.ConvertToZ[uint64, spec.Width128, int64, spec.Width128](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint64, spec.Width128, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint64, spec.Width128, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 //
 // The low 2 elements of the result are set. The rest are zero.
 func (x Uint64x2) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[uint64, spec.Width128, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint64x4) ConvertToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertToZ[uint64, spec.Width256, float32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Uint64x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[uint64, spec.Width256, float64, spec.Width256](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Uint64x4) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint64, spec.Width256, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Uint64x4) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint64, spec.Width256, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint64x4) ConvertToInt32() (z Int32x4) {
 	return Int32x4{spec.ConvertToZ[uint64, spec.Width256, int32, spec.Width128](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint64x4) ConvertToInt64() (z Int64x4) {
 	return Int64x4{spec.ConvertToZ[uint64, spec.Width256, int64, spec.Width256](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Uint64x4) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint64, spec.Width256, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 //
 // The low 4 elements of the result are set. The rest are zero.
 func (x Uint64x4) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint64, spec.Width256, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Uint64x4) ConvertToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ConvertToZ[uint64, spec.Width256, uint32, spec.Width128](x.v)}
 }
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 func (x Uint64x8) ConvertToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertToZ[uint64, spec.Width512, float32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Uint64x8) ConvertToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertToZ[uint64, spec.Width512, float64, spec.Width512](x.v)}
 }
 
-// ConvertToInt8 converts element values to int8.
+// ConvertToInt8 converts each element of x to int8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Uint64x8) ConvertToInt8() (z Int8x16) {
 	return Int8x16{spec.ConvertToZ[uint64, spec.Width512, int8, spec.Width128](x.v)}
 }
 
-// ConvertToInt16 converts element values to int16.
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint64x8) ConvertToInt16() (z Int16x8) {
 	return Int16x8{spec.ConvertToZ[uint64, spec.Width512, int16, spec.Width128](x.v)}
 }
 
-// ConvertToInt32 converts element values to int32.
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint64x8) ConvertToInt32() (z Int32x8) {
 	return Int32x8{spec.ConvertToZ[uint64, spec.Width512, int32, spec.Width256](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint64x8) ConvertToInt64() (z Int64x8) {
 	return Int64x8{spec.ConvertToZ[uint64, spec.Width512, int64, spec.Width512](x.v)}
 }
 
-// ConvertToUint8 converts element values to uint8.
+// ConvertToUint8 converts each element of x to uint8.
 //
 // The low 8 elements of the result are set. The rest are zero.
 func (x Uint64x8) ConvertToUint8() (z Uint8x16) {
 	return Uint8x16{spec.ConvertToZ[uint64, spec.Width512, uint8, spec.Width128](x.v)}
 }
 
-// ConvertToUint16 converts element values to uint16.
+// ConvertToUint16 converts each element of x to uint16.
 func (x Uint64x8) ConvertToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ConvertToZ[uint64, spec.Width512, uint16, spec.Width128](x.v)}
 }
 
-// ConvertToUint32 converts element values to uint32.
+// ConvertToUint32 converts each element of x to uint32.
 func (x Uint64x8) ConvertToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ConvertToZ[uint64, spec.Width512, uint32, spec.Width256](x.v)}
 }
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 func (x Uint64s) ConvertToFloat64() (z Float64s) {
 	return Float64s{spec.ConvertToZ[uint64, spec.WidthScalable, float64, spec.WidthScalable](x.v)}
 }
 
-// ConvertToInt64 converts element values to int64.
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint64s) ConvertToInt64() (z Int64s) {
 	return Int64s{spec.ConvertToZ[uint64, spec.WidthScalable, int64, spec.WidthScalable](x.v)}
 }
 
-// ExtendLo8ToInt16 extends the lowest 8 vector elements to int16.
+// ExtendLo8ToInt16 sign-extends
+// the lowest 8 vector elements to int16.
 func (x Int8x16) ExtendLo8ToInt16() (z Int16x8) {
 	return Int16x8{spec.ExtendLoLToZ[int8, spec.Width128, int16](x.v)}
 }
 
-// ExtendLo4ToInt32 extends the lowest 4 vector elements to int32.
+// ExtendLo4ToInt32 sign-extends
+// the lowest 4 vector elements to int32.
 func (x Int8x16) ExtendLo4ToInt32() (z Int32x4) {
 	return Int32x4{spec.ExtendLoLToZ[int8, spec.Width128, int32](x.v)}
 }
 
-// ExtendLo2ToInt64 extends the lowest 2 vector elements to int64.
+// ExtendLo2ToInt64 sign-extends
+// the lowest 2 vector elements to int64.
 func (x Int8x16) ExtendLo2ToInt64() (z Int64x2) {
 	return Int64x2{spec.ExtendLoLToZ[int8, spec.Width128, int64](x.v)}
 }
 
-// ExtendLo16ToInt16 extends the lowest 16 vector elements to int16.
+// ExtendLo16ToInt16 sign-extends
+// the lowest 16 vector elements to int16.
 func (x Int8x32) ExtendLo16ToInt16() (z Int16x16) {
 	return Int16x16{spec.ExtendLoLToZ[int8, spec.Width256, int16](x.v)}
 }
 
-// ExtendLo8ToInt32 extends the lowest 8 vector elements to int32.
+// ExtendLo8ToInt32 sign-extends
+// the lowest 8 vector elements to int32.
 func (x Int8x32) ExtendLo8ToInt32() (z Int32x8) {
 	return Int32x8{spec.ExtendLoLToZ[int8, spec.Width256, int32](x.v)}
 }
 
-// ExtendLo4ToInt64 extends the lowest 4 vector elements to int64.
+// ExtendLo4ToInt64 sign-extends
+// the lowest 4 vector elements to int64.
 func (x Int8x32) ExtendLo4ToInt64() (z Int64x4) {
 	return Int64x4{spec.ExtendLoLToZ[int8, spec.Width256, int64](x.v)}
 }
 
-// ExtendLo32ToInt16 extends the lowest 32 vector elements to int16.
+// ExtendLo32ToInt16 sign-extends
+// the lowest 32 vector elements to int16.
 func (x Int8x64) ExtendLo32ToInt16() (z Int16x32) {
 	return Int16x32{spec.ExtendLoLToZ[int8, spec.Width512, int16](x.v)}
 }
 
-// ExtendLo16ToInt32 extends the lowest 16 vector elements to int32.
+// ExtendLo16ToInt32 sign-extends
+// the lowest 16 vector elements to int32.
 func (x Int8x64) ExtendLo16ToInt32() (z Int32x16) {
 	return Int32x16{spec.ExtendLoLToZ[int8, spec.Width512, int32](x.v)}
 }
 
-// ExtendLo8ToInt64 extends the lowest 8 vector elements to int64.
+// ExtendLo8ToInt64 sign-extends
+// the lowest 8 vector elements to int64.
 func (x Int8x64) ExtendLo8ToInt64() (z Int64x8) {
 	return Int64x8{spec.ExtendLoLToZ[int8, spec.Width512, int64](x.v)}
 }
 
-// ExtendLo4ToInt32 extends the lowest 4 vector elements to int32.
+// ExtendLo4ToInt32 sign-extends
+// the lowest 4 vector elements to int32.
 func (x Int16x8) ExtendLo4ToInt32() (z Int32x4) {
 	return Int32x4{spec.ExtendLoLToZ[int16, spec.Width128, int32](x.v)}
 }
 
-// ExtendLo2ToInt64 extends the lowest 2 vector elements to int64.
+// ExtendLo2ToInt64 sign-extends
+// the lowest 2 vector elements to int64.
 func (x Int16x8) ExtendLo2ToInt64() (z Int64x2) {
 	return Int64x2{spec.ExtendLoLToZ[int16, spec.Width128, int64](x.v)}
 }
 
-// ExtendLo8ToInt32 extends the lowest 8 vector elements to int32.
+// ExtendLo8ToInt32 sign-extends
+// the lowest 8 vector elements to int32.
 func (x Int16x16) ExtendLo8ToInt32() (z Int32x8) {
 	return Int32x8{spec.ExtendLoLToZ[int16, spec.Width256, int32](x.v)}
 }
 
-// ExtendLo4ToInt64 extends the lowest 4 vector elements to int64.
+// ExtendLo4ToInt64 sign-extends
+// the lowest 4 vector elements to int64.
 func (x Int16x16) ExtendLo4ToInt64() (z Int64x4) {
 	return Int64x4{spec.ExtendLoLToZ[int16, spec.Width256, int64](x.v)}
 }
 
-// ExtendLo16ToInt32 extends the lowest 16 vector elements to int32.
+// ExtendLo16ToInt32 sign-extends
+// the lowest 16 vector elements to int32.
 func (x Int16x32) ExtendLo16ToInt32() (z Int32x16) {
 	return Int32x16{spec.ExtendLoLToZ[int16, spec.Width512, int32](x.v)}
 }
 
-// ExtendLo8ToInt64 extends the lowest 8 vector elements to int64.
+// ExtendLo8ToInt64 sign-extends
+// the lowest 8 vector elements to int64.
 func (x Int16x32) ExtendLo8ToInt64() (z Int64x8) {
 	return Int64x8{spec.ExtendLoLToZ[int16, spec.Width512, int64](x.v)}
 }
 
-// ExtendLo2ToInt64 extends the lowest 2 vector elements to int64.
+// ExtendLo2ToInt64 sign-extends
+// the lowest 2 vector elements to int64.
 func (x Int32x4) ExtendLo2ToInt64() (z Int64x2) {
 	return Int64x2{spec.ExtendLoLToZ[int32, spec.Width128, int64](x.v)}
 }
 
-// ExtendLo4ToInt64 extends the lowest 4 vector elements to int64.
+// ExtendLo4ToInt64 sign-extends
+// the lowest 4 vector elements to int64.
 func (x Int32x8) ExtendLo4ToInt64() (z Int64x4) {
 	return Int64x4{spec.ExtendLoLToZ[int32, spec.Width256, int64](x.v)}
 }
 
-// ExtendLo8ToInt64 extends the lowest 8 vector elements to int64.
+// ExtendLo8ToInt64 sign-extends
+// the lowest 8 vector elements to int64.
 func (x Int32x16) ExtendLo8ToInt64() (z Int64x8) {
 	return Int64x8{spec.ExtendLoLToZ[int32, spec.Width512, int64](x.v)}
 }
 
-// ExtendLo8ToUint16 extends the lowest 8 vector elements to uint16.
+// ExtendLo8ToUint16 zero-extends
+// the lowest 8 vector elements to uint16.
 func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8) {
 	return Uint16x8{spec.ExtendLoLToZ[uint8, spec.Width128, uint16](x.v)}
 }
 
-// ExtendLo4ToUint32 extends the lowest 4 vector elements to uint32.
+// ExtendLo4ToUint32 zero-extends
+// the lowest 4 vector elements to uint32.
 func (x Uint8x16) ExtendLo4ToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ExtendLoLToZ[uint8, spec.Width128, uint32](x.v)}
 }
 
-// ExtendLo2ToUint64 extends the lowest 2 vector elements to uint64.
+// ExtendLo2ToUint64 zero-extends
+// the lowest 2 vector elements to uint64.
 func (x Uint8x16) ExtendLo2ToUint64() (z Uint64x2) {
 	return Uint64x2{spec.ExtendLoLToZ[uint8, spec.Width128, uint64](x.v)}
 }
 
-// ExtendLo16ToUint16 extends the lowest 16 vector elements to uint16.
+// ExtendLo16ToUint16 zero-extends
+// the lowest 16 vector elements to uint16.
 func (x Uint8x32) ExtendLo16ToUint16() (z Uint16x16) {
 	return Uint16x16{spec.ExtendLoLToZ[uint8, spec.Width256, uint16](x.v)}
 }
 
-// ExtendLo8ToUint32 extends the lowest 8 vector elements to uint32.
+// ExtendLo8ToUint32 zero-extends
+// the lowest 8 vector elements to uint32.
 func (x Uint8x32) ExtendLo8ToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ExtendLoLToZ[uint8, spec.Width256, uint32](x.v)}
 }
 
-// ExtendLo4ToUint64 extends the lowest 4 vector elements to uint64.
+// ExtendLo4ToUint64 zero-extends
+// the lowest 4 vector elements to uint64.
 func (x Uint8x32) ExtendLo4ToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ExtendLoLToZ[uint8, spec.Width256, uint64](x.v)}
 }
 
-// ExtendLo32ToUint16 extends the lowest 32 vector elements to uint16.
+// ExtendLo32ToUint16 zero-extends
+// the lowest 32 vector elements to uint16.
 func (x Uint8x64) ExtendLo32ToUint16() (z Uint16x32) {
 	return Uint16x32{spec.ExtendLoLToZ[uint8, spec.Width512, uint16](x.v)}
 }
 
-// ExtendLo16ToUint32 extends the lowest 16 vector elements to uint32.
+// ExtendLo16ToUint32 zero-extends
+// the lowest 16 vector elements to uint32.
 func (x Uint8x64) ExtendLo16ToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ExtendLoLToZ[uint8, spec.Width512, uint32](x.v)}
 }
 
-// ExtendLo8ToUint64 extends the lowest 8 vector elements to uint64.
+// ExtendLo8ToUint64 zero-extends
+// the lowest 8 vector elements to uint64.
 func (x Uint8x64) ExtendLo8ToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ExtendLoLToZ[uint8, spec.Width512, uint64](x.v)}
 }
 
-// ExtendLo4ToUint32 extends the lowest 4 vector elements to uint32.
+// ExtendLo4ToUint32 zero-extends
+// the lowest 4 vector elements to uint32.
 func (x Uint16x8) ExtendLo4ToUint32() (z Uint32x4) {
 	return Uint32x4{spec.ExtendLoLToZ[uint16, spec.Width128, uint32](x.v)}
 }
 
-// ExtendLo2ToUint64 extends the lowest 2 vector elements to uint64.
+// ExtendLo2ToUint64 zero-extends
+// the lowest 2 vector elements to uint64.
 func (x Uint16x8) ExtendLo2ToUint64() (z Uint64x2) {
 	return Uint64x2{spec.ExtendLoLToZ[uint16, spec.Width128, uint64](x.v)}
 }
 
-// ExtendLo8ToUint32 extends the lowest 8 vector elements to uint32.
+// ExtendLo8ToUint32 zero-extends
+// the lowest 8 vector elements to uint32.
 func (x Uint16x16) ExtendLo8ToUint32() (z Uint32x8) {
 	return Uint32x8{spec.ExtendLoLToZ[uint16, spec.Width256, uint32](x.v)}
 }
 
-// ExtendLo4ToUint64 extends the lowest 4 vector elements to uint64.
+// ExtendLo4ToUint64 zero-extends
+// the lowest 4 vector elements to uint64.
 func (x Uint16x16) ExtendLo4ToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ExtendLoLToZ[uint16, spec.Width256, uint64](x.v)}
 }
 
-// ExtendLo16ToUint32 extends the lowest 16 vector elements to uint32.
+// ExtendLo16ToUint32 zero-extends
+// the lowest 16 vector elements to uint32.
 func (x Uint16x32) ExtendLo16ToUint32() (z Uint32x16) {
 	return Uint32x16{spec.ExtendLoLToZ[uint16, spec.Width512, uint32](x.v)}
 }
 
-// ExtendLo8ToUint64 extends the lowest 8 vector elements to uint64.
+// ExtendLo8ToUint64 zero-extends
+// the lowest 8 vector elements to uint64.
 func (x Uint16x32) ExtendLo8ToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ExtendLoLToZ[uint16, spec.Width512, uint64](x.v)}
 }
 
-// ExtendLo2ToUint64 extends the lowest 2 vector elements to uint64.
+// ExtendLo2ToUint64 zero-extends
+// the lowest 2 vector elements to uint64.
 func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2) {
 	return Uint64x2{spec.ExtendLoLToZ[uint32, spec.Width128, uint64](x.v)}
 }
 
-// ExtendLo4ToUint64 extends the lowest 4 vector elements to uint64.
+// ExtendLo4ToUint64 zero-extends
+// the lowest 4 vector elements to uint64.
 func (x Uint32x8) ExtendLo4ToUint64() (z Uint64x4) {
 	return Uint64x4{spec.ExtendLoLToZ[uint32, spec.Width256, uint64](x.v)}
 }
 
-// ExtendLo8ToUint64 extends the lowest 8 vector elements to uint64.
+// ExtendLo8ToUint64 zero-extends
+// the lowest 8 vector elements to uint64.
 func (x Uint32x16) ExtendLo8ToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ExtendLoLToZ[uint32, spec.Width512, uint64](x.v)}
 }
@@ -1895,242 +2140,202 @@ func BroadcastUint64s(x uint64) (z Uint64s) {
 	return Uint64s{spec.BroadcastZ[uint64, spec.WidthScalable](x)}
 }
 
-// LoadFloat32x4 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadFloat32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadFloat32x4(s []float32) (z Float32x4) {
 	return Float32x4{spec.LoadZ[float32, spec.Width128](s)}
 }
 
-// LoadFloat32x8 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadFloat32x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadFloat32x8(s []float32) (z Float32x8) {
 	return Float32x8{spec.LoadZ[float32, spec.Width256](s)}
 }
 
-// LoadFloat32x16 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadFloat32x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadFloat32x16(s []float32) (z Float32x16) {
 	return Float32x16{spec.LoadZ[float32, spec.Width512](s)}
 }
 
-// LoadFloat32s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadFloat32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadFloat32s(s []float32) (z Float32s) {
 	return Float32s{spec.LoadZ[float32, spec.WidthScalable](s)}
 }
 
-// LoadFloat64x2 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadFloat64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadFloat64x2(s []float64) (z Float64x2) {
 	return Float64x2{spec.LoadZ[float64, spec.Width128](s)}
 }
 
-// LoadFloat64x4 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadFloat64x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadFloat64x4(s []float64) (z Float64x4) {
 	return Float64x4{spec.LoadZ[float64, spec.Width256](s)}
 }
 
-// LoadFloat64x8 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadFloat64x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadFloat64x8(s []float64) (z Float64x8) {
 	return Float64x8{spec.LoadZ[float64, spec.Width512](s)}
 }
 
-// LoadFloat64s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadFloat64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadFloat64s(s []float64) (z Float64s) {
 	return Float64s{spec.LoadZ[float64, spec.WidthScalable](s)}
 }
 
-// LoadInt8x16 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt8x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadInt8x16(s []int8) (z Int8x16) {
 	return Int8x16{spec.LoadZ[int8, spec.Width128](s)}
 }
 
-// LoadInt8x32 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt8x32 loads a slice into a vector. If len(s) < 32, it panics.
 func LoadInt8x32(s []int8) (z Int8x32) {
 	return Int8x32{spec.LoadZ[int8, spec.Width256](s)}
 }
 
-// LoadInt8x64 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt8x64 loads a slice into a vector. If len(s) < 64, it panics.
 func LoadInt8x64(s []int8) (z Int8x64) {
 	return Int8x64{spec.LoadZ[int8, spec.Width512](s)}
 }
 
-// LoadInt8s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt8s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt8s(s []int8) (z Int8s) {
 	return Int8s{spec.LoadZ[int8, spec.WidthScalable](s)}
 }
 
-// LoadInt16x8 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt16x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadInt16x8(s []int16) (z Int16x8) {
 	return Int16x8{spec.LoadZ[int16, spec.Width128](s)}
 }
 
-// LoadInt16x16 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt16x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadInt16x16(s []int16) (z Int16x16) {
 	return Int16x16{spec.LoadZ[int16, spec.Width256](s)}
 }
 
-// LoadInt16x32 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt16x32 loads a slice into a vector. If len(s) < 32, it panics.
 func LoadInt16x32(s []int16) (z Int16x32) {
 	return Int16x32{spec.LoadZ[int16, spec.Width512](s)}
 }
 
-// LoadInt16s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt16s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt16s(s []int16) (z Int16s) {
 	return Int16s{spec.LoadZ[int16, spec.WidthScalable](s)}
 }
 
-// LoadInt32x4 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadInt32x4(s []int32) (z Int32x4) {
 	return Int32x4{spec.LoadZ[int32, spec.Width128](s)}
 }
 
-// LoadInt32x8 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt32x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadInt32x8(s []int32) (z Int32x8) {
 	return Int32x8{spec.LoadZ[int32, spec.Width256](s)}
 }
 
-// LoadInt32x16 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt32x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadInt32x16(s []int32) (z Int32x16) {
 	return Int32x16{spec.LoadZ[int32, spec.Width512](s)}
 }
 
-// LoadInt32s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt32s(s []int32) (z Int32s) {
 	return Int32s{spec.LoadZ[int32, spec.WidthScalable](s)}
 }
 
-// LoadInt64x2 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadInt64x2(s []int64) (z Int64x2) {
 	return Int64x2{spec.LoadZ[int64, spec.Width128](s)}
 }
 
-// LoadInt64x4 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt64x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadInt64x4(s []int64) (z Int64x4) {
 	return Int64x4{spec.LoadZ[int64, spec.Width256](s)}
 }
 
-// LoadInt64x8 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt64x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadInt64x8(s []int64) (z Int64x8) {
 	return Int64x8{spec.LoadZ[int64, spec.Width512](s)}
 }
 
-// LoadInt64s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadInt64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt64s(s []int64) (z Int64s) {
 	return Int64s{spec.LoadZ[int64, spec.WidthScalable](s)}
 }
 
-// LoadUint8x16 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint8x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadUint8x16(s []uint8) (z Uint8x16) {
 	return Uint8x16{spec.LoadZ[uint8, spec.Width128](s)}
 }
 
-// LoadUint8x32 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint8x32 loads a slice into a vector. If len(s) < 32, it panics.
 func LoadUint8x32(s []uint8) (z Uint8x32) {
 	return Uint8x32{spec.LoadZ[uint8, spec.Width256](s)}
 }
 
-// LoadUint8x64 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint8x64 loads a slice into a vector. If len(s) < 64, it panics.
 func LoadUint8x64(s []uint8) (z Uint8x64) {
 	return Uint8x64{spec.LoadZ[uint8, spec.Width512](s)}
 }
 
-// LoadUint8s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint8s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadUint8s(s []uint8) (z Uint8s) {
 	return Uint8s{spec.LoadZ[uint8, spec.WidthScalable](s)}
 }
 
-// LoadUint16x8 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint16x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadUint16x8(s []uint16) (z Uint16x8) {
 	return Uint16x8{spec.LoadZ[uint16, spec.Width128](s)}
 }
 
-// LoadUint16x16 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint16x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadUint16x16(s []uint16) (z Uint16x16) {
 	return Uint16x16{spec.LoadZ[uint16, spec.Width256](s)}
 }
 
-// LoadUint16x32 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint16x32 loads a slice into a vector. If len(s) < 32, it panics.
 func LoadUint16x32(s []uint16) (z Uint16x32) {
 	return Uint16x32{spec.LoadZ[uint16, spec.Width512](s)}
 }
 
-// LoadUint16s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint16s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadUint16s(s []uint16) (z Uint16s) {
 	return Uint16s{spec.LoadZ[uint16, spec.WidthScalable](s)}
 }
 
-// LoadUint32x4 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadUint32x4(s []uint32) (z Uint32x4) {
 	return Uint32x4{spec.LoadZ[uint32, spec.Width128](s)}
 }
 
-// LoadUint32x8 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint32x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadUint32x8(s []uint32) (z Uint32x8) {
 	return Uint32x8{spec.LoadZ[uint32, spec.Width256](s)}
 }
 
-// LoadUint32x16 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint32x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadUint32x16(s []uint32) (z Uint32x16) {
 	return Uint32x16{spec.LoadZ[uint32, spec.Width512](s)}
 }
 
-// LoadUint32s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadUint32s(s []uint32) (z Uint32s) {
 	return Uint32s{spec.LoadZ[uint32, spec.WidthScalable](s)}
 }
 
-// LoadUint64x2 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadUint64x2(s []uint64) (z Uint64x2) {
 	return Uint64x2{spec.LoadZ[uint64, spec.Width128](s)}
 }
 
-// LoadUint64x4 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint64x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadUint64x4(s []uint64) (z Uint64x4) {
 	return Uint64x4{spec.LoadZ[uint64, spec.Width256](s)}
 }
 
-// LoadUint64x8 loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint64x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadUint64x8(s []uint64) (z Uint64x8) {
 	return Uint64x8{spec.LoadZ[uint64, spec.Width512](s)}
 }
 
-// LoadUint64s loads a slice into a vector. If len(s) is less than the number of
-// elements in the vector, it panics.
+// LoadUint64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadUint64s(s []uint64) (z Uint64s) {
 	return Uint64s{spec.LoadZ[uint64, spec.WidthScalable](s)}
 }
@@ -2315,562 +2520,522 @@ func LoadUint64x8Array(x *[8]uint64) (z Uint64x8) {
 	return Uint64x8{spec.LoadZArray[uint64, spec.Width512](&tmp0)}
 }
 
-// LoadFloat32x4Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadFloat32x4Part loads n=min(len(s), 4) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 4, the
+// remaining vector elements will be zero.
 func LoadFloat32x4Part(s []float32) (z Float32x4, n int) {
 	r1, r2 := spec.LoadZPart[float32, spec.Width128](s)
 	return Float32x4{r1}, r2
 }
 
-// LoadFloat32x8Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadFloat32x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadFloat32x8Part(s []float32) (z Float32x8, n int) {
 	r1, r2 := spec.LoadZPart[float32, spec.Width256](s)
 	return Float32x8{r1}, r2
 }
 
-// LoadFloat32x16Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadFloat32x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadFloat32x16Part(s []float32) (z Float32x16, n int) {
 	r1, r2 := spec.LoadZPart[float32, spec.Width512](s)
 	return Float32x16{r1}, r2
 }
 
-// LoadFloat32sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadFloat32sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadFloat32sPart(s []float32) (z Float32s, n int) {
 	r1, r2 := spec.LoadZPart[float32, spec.WidthScalable](s)
 	return Float32s{r1}, r2
 }
 
-// LoadFloat64x2Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadFloat64x2Part loads n=min(len(s), 2) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 2, the
+// remaining vector elements will be zero.
 func LoadFloat64x2Part(s []float64) (z Float64x2, n int) {
 	r1, r2 := spec.LoadZPart[float64, spec.Width128](s)
 	return Float64x2{r1}, r2
 }
 
-// LoadFloat64x4Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadFloat64x4Part loads n=min(len(s), 4) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 4, the
+// remaining vector elements will be zero.
 func LoadFloat64x4Part(s []float64) (z Float64x4, n int) {
 	r1, r2 := spec.LoadZPart[float64, spec.Width256](s)
 	return Float64x4{r1}, r2
 }
 
-// LoadFloat64x8Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadFloat64x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadFloat64x8Part(s []float64) (z Float64x8, n int) {
 	r1, r2 := spec.LoadZPart[float64, spec.Width512](s)
 	return Float64x8{r1}, r2
 }
 
-// LoadFloat64sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadFloat64sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadFloat64sPart(s []float64) (z Float64s, n int) {
 	r1, r2 := spec.LoadZPart[float64, spec.WidthScalable](s)
 	return Float64s{r1}, r2
 }
 
-// LoadInt8x16Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt8x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadInt8x16Part(s []int8) (z Int8x16, n int) {
 	r1, r2 := spec.LoadZPart[int8, spec.Width128](s)
 	return Int8x16{r1}, r2
 }
 
-// LoadInt8x32Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt8x32Part loads n=min(len(s), 32) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 32, the
+// remaining vector elements will be zero.
 func LoadInt8x32Part(s []int8) (z Int8x32, n int) {
 	r1, r2 := spec.LoadZPart[int8, spec.Width256](s)
 	return Int8x32{r1}, r2
 }
 
-// LoadInt8x64Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt8x64Part loads n=min(len(s), 64) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 64, the
+// remaining vector elements will be zero.
 func LoadInt8x64Part(s []int8) (z Int8x64, n int) {
 	r1, r2 := spec.LoadZPart[int8, spec.Width512](s)
 	return Int8x64{r1}, r2
 }
 
-// LoadInt8sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt8sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadInt8sPart(s []int8) (z Int8s, n int) {
 	r1, r2 := spec.LoadZPart[int8, spec.WidthScalable](s)
 	return Int8s{r1}, r2
 }
 
-// LoadInt16x8Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt16x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadInt16x8Part(s []int16) (z Int16x8, n int) {
 	r1, r2 := spec.LoadZPart[int16, spec.Width128](s)
 	return Int16x8{r1}, r2
 }
 
-// LoadInt16x16Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt16x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadInt16x16Part(s []int16) (z Int16x16, n int) {
 	r1, r2 := spec.LoadZPart[int16, spec.Width256](s)
 	return Int16x16{r1}, r2
 }
 
-// LoadInt16x32Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt16x32Part loads n=min(len(s), 32) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 32, the
+// remaining vector elements will be zero.
 func LoadInt16x32Part(s []int16) (z Int16x32, n int) {
 	r1, r2 := spec.LoadZPart[int16, spec.Width512](s)
 	return Int16x32{r1}, r2
 }
 
-// LoadInt16sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt16sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadInt16sPart(s []int16) (z Int16s, n int) {
 	r1, r2 := spec.LoadZPart[int16, spec.WidthScalable](s)
 	return Int16s{r1}, r2
 }
 
-// LoadInt32x4Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt32x4Part loads n=min(len(s), 4) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 4, the
+// remaining vector elements will be zero.
 func LoadInt32x4Part(s []int32) (z Int32x4, n int) {
 	r1, r2 := spec.LoadZPart[int32, spec.Width128](s)
 	return Int32x4{r1}, r2
 }
 
-// LoadInt32x8Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt32x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadInt32x8Part(s []int32) (z Int32x8, n int) {
 	r1, r2 := spec.LoadZPart[int32, spec.Width256](s)
 	return Int32x8{r1}, r2
 }
 
-// LoadInt32x16Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt32x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadInt32x16Part(s []int32) (z Int32x16, n int) {
 	r1, r2 := spec.LoadZPart[int32, spec.Width512](s)
 	return Int32x16{r1}, r2
 }
 
-// LoadInt32sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt32sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadInt32sPart(s []int32) (z Int32s, n int) {
 	r1, r2 := spec.LoadZPart[int32, spec.WidthScalable](s)
 	return Int32s{r1}, r2
 }
 
-// LoadInt64x2Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt64x2Part loads n=min(len(s), 2) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 2, the
+// remaining vector elements will be zero.
 func LoadInt64x2Part(s []int64) (z Int64x2, n int) {
 	r1, r2 := spec.LoadZPart[int64, spec.Width128](s)
 	return Int64x2{r1}, r2
 }
 
-// LoadInt64x4Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt64x4Part loads n=min(len(s), 4) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 4, the
+// remaining vector elements will be zero.
 func LoadInt64x4Part(s []int64) (z Int64x4, n int) {
 	r1, r2 := spec.LoadZPart[int64, spec.Width256](s)
 	return Int64x4{r1}, r2
 }
 
-// LoadInt64x8Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt64x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadInt64x8Part(s []int64) (z Int64x8, n int) {
 	r1, r2 := spec.LoadZPart[int64, spec.Width512](s)
 	return Int64x8{r1}, r2
 }
 
-// LoadInt64sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadInt64sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadInt64sPart(s []int64) (z Int64s, n int) {
 	r1, r2 := spec.LoadZPart[int64, spec.WidthScalable](s)
 	return Int64s{r1}, r2
 }
 
-// LoadUint8x16Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint8x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadUint8x16Part(s []uint8) (z Uint8x16, n int) {
 	r1, r2 := spec.LoadZPart[uint8, spec.Width128](s)
 	return Uint8x16{r1}, r2
 }
 
-// LoadUint8x32Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint8x32Part loads n=min(len(s), 32) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 32, the
+// remaining vector elements will be zero.
 func LoadUint8x32Part(s []uint8) (z Uint8x32, n int) {
 	r1, r2 := spec.LoadZPart[uint8, spec.Width256](s)
 	return Uint8x32{r1}, r2
 }
 
-// LoadUint8x64Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint8x64Part loads n=min(len(s), 64) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 64, the
+// remaining vector elements will be zero.
 func LoadUint8x64Part(s []uint8) (z Uint8x64, n int) {
 	r1, r2 := spec.LoadZPart[uint8, spec.Width512](s)
 	return Uint8x64{r1}, r2
 }
 
-// LoadUint8sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint8sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadUint8sPart(s []uint8) (z Uint8s, n int) {
 	r1, r2 := spec.LoadZPart[uint8, spec.WidthScalable](s)
 	return Uint8s{r1}, r2
 }
 
-// LoadUint16x8Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint16x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadUint16x8Part(s []uint16) (z Uint16x8, n int) {
 	r1, r2 := spec.LoadZPart[uint16, spec.Width128](s)
 	return Uint16x8{r1}, r2
 }
 
-// LoadUint16x16Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint16x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadUint16x16Part(s []uint16) (z Uint16x16, n int) {
 	r1, r2 := spec.LoadZPart[uint16, spec.Width256](s)
 	return Uint16x16{r1}, r2
 }
 
-// LoadUint16x32Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint16x32Part loads n=min(len(s), 32) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 32, the
+// remaining vector elements will be zero.
 func LoadUint16x32Part(s []uint16) (z Uint16x32, n int) {
 	r1, r2 := spec.LoadZPart[uint16, spec.Width512](s)
 	return Uint16x32{r1}, r2
 }
 
-// LoadUint16sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint16sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadUint16sPart(s []uint16) (z Uint16s, n int) {
 	r1, r2 := spec.LoadZPart[uint16, spec.WidthScalable](s)
 	return Uint16s{r1}, r2
 }
 
-// LoadUint32x4Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint32x4Part loads n=min(len(s), 4) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 4, the
+// remaining vector elements will be zero.
 func LoadUint32x4Part(s []uint32) (z Uint32x4, n int) {
 	r1, r2 := spec.LoadZPart[uint32, spec.Width128](s)
 	return Uint32x4{r1}, r2
 }
 
-// LoadUint32x8Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint32x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadUint32x8Part(s []uint32) (z Uint32x8, n int) {
 	r1, r2 := spec.LoadZPart[uint32, spec.Width256](s)
 	return Uint32x8{r1}, r2
 }
 
-// LoadUint32x16Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint32x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadUint32x16Part(s []uint32) (z Uint32x16, n int) {
 	r1, r2 := spec.LoadZPart[uint32, spec.Width512](s)
 	return Uint32x16{r1}, r2
 }
 
-// LoadUint32sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint32sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadUint32sPart(s []uint32) (z Uint32s, n int) {
 	r1, r2 := spec.LoadZPart[uint32, spec.WidthScalable](s)
 	return Uint32s{r1}, r2
 }
 
-// LoadUint64x2Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint64x2Part loads n=min(len(s), 2) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 2, the
+// remaining vector elements will be zero.
 func LoadUint64x2Part(s []uint64) (z Uint64x2, n int) {
 	r1, r2 := spec.LoadZPart[uint64, spec.Width128](s)
 	return Uint64x2{r1}, r2
 }
 
-// LoadUint64x4Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint64x4Part loads n=min(len(s), 4) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 4, the
+// remaining vector elements will be zero.
 func LoadUint64x4Part(s []uint64) (z Uint64x4, n int) {
 	r1, r2 := spec.LoadZPart[uint64, spec.Width256](s)
 	return Uint64x4{r1}, r2
 }
 
-// LoadUint64x8Part loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint64x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadUint64x8Part(s []uint64) (z Uint64x8, n int) {
 	r1, r2 := spec.LoadZPart[uint64, spec.Width512](s)
 	return Uint64x8{r1}, r2
 }
 
-// LoadUint64sPart loads a slice into a vector and returns the vector and the number
-// of elements loaded from s. If len(s) is less than the number of elements in
-// the vector, the remaining vector elements will be zero-filled.
+// LoadUint64sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 func LoadUint64sPart(s []uint64) (z Uint64s, n int) {
 	r1, r2 := spec.LoadZPart[uint64, spec.WidthScalable](s)
 	return Uint64s{r1}, r2
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Float32x4) Store(s []float32) {
 	spec.Store[float32, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Float32x8) Store(s []float32) {
 	spec.Store[float32, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Float32x16) Store(s []float32) {
 	spec.Store[float32, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Float32s) Store(s []float32) {
 	spec.Store[float32, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Float64x2) Store(s []float64) {
 	spec.Store[float64, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Float64x4) Store(s []float64) {
 	spec.Store[float64, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Float64x8) Store(s []float64) {
 	spec.Store[float64, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Float64s) Store(s []float64) {
 	spec.Store[float64, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Int8x16) Store(s []int8) {
 	spec.Store[int8, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 32, it panics.
 func (x Int8x32) Store(s []int8) {
 	spec.Store[int8, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 64, it panics.
 func (x Int8x64) Store(s []int8) {
 	spec.Store[int8, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int8s) Store(s []int8) {
 	spec.Store[int8, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Int16x8) Store(s []int16) {
 	spec.Store[int16, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Int16x16) Store(s []int16) {
 	spec.Store[int16, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 32, it panics.
 func (x Int16x32) Store(s []int16) {
 	spec.Store[int16, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int16s) Store(s []int16) {
 	spec.Store[int16, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Int32x4) Store(s []int32) {
 	spec.Store[int32, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Int32x8) Store(s []int32) {
 	spec.Store[int32, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Int32x16) Store(s []int32) {
 	spec.Store[int32, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int32s) Store(s []int32) {
 	spec.Store[int32, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Int64x2) Store(s []int64) {
 	spec.Store[int64, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Int64x4) Store(s []int64) {
 	spec.Store[int64, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Int64x8) Store(s []int64) {
 	spec.Store[int64, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int64s) Store(s []int64) {
 	spec.Store[int64, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Uint8x16) Store(s []uint8) {
 	spec.Store[uint8, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 32, it panics.
 func (x Uint8x32) Store(s []uint8) {
 	spec.Store[uint8, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 64, it panics.
 func (x Uint8x64) Store(s []uint8) {
 	spec.Store[uint8, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Uint8s) Store(s []uint8) {
 	spec.Store[uint8, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Uint16x8) Store(s []uint16) {
 	spec.Store[uint16, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Uint16x16) Store(s []uint16) {
 	spec.Store[uint16, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 32, it panics.
 func (x Uint16x32) Store(s []uint16) {
 	spec.Store[uint16, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Uint16s) Store(s []uint16) {
 	spec.Store[uint16, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Uint32x4) Store(s []uint32) {
 	spec.Store[uint32, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Uint32x8) Store(s []uint32) {
 	spec.Store[uint32, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Uint32x16) Store(s []uint32) {
 	spec.Store[uint32, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Uint32s) Store(s []uint32) {
 	spec.Store[uint32, spec.WidthScalable](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Uint64x2) Store(s []uint64) {
 	spec.Store[uint64, spec.Width128](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Uint64x4) Store(s []uint64) {
 	spec.Store[uint64, spec.Width256](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Uint64x8) Store(s []uint64) {
 	spec.Store[uint64, spec.Width512](x.v, s)
 }
 
-// Store stores the elements of x into a slice. If len(s) is less than x.Len(),
-// it panics.
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Uint64s) Store(s []uint64) {
 	spec.Store[uint64, spec.WidthScalable](x.v, s)
 }
@@ -3265,1490 +3430,1450 @@ func (x Uint64x8) StoreArrayMasked(y *[8]uint64, mask Mask64x8) {
 	spec.StoreArrayMasked[uint64, spec.Width512, spec.Mask64](x.v, &tmp0, mask.v)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 4) elements of x into s and returns n.
 func (x Float32x4) StorePart(s []float32) (n int) {
 	return spec.StorePart[float32, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Float32x8) StorePart(s []float32) (n int) {
 	return spec.StorePart[float32, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Float32x16) StorePart(s []float32) (n int) {
 	return spec.StorePart[float32, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Float32s) StorePart(s []float32) (n int) {
 	return spec.StorePart[float32, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 2) elements of x into s and returns n.
 func (x Float64x2) StorePart(s []float64) (n int) {
 	return spec.StorePart[float64, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 4) elements of x into s and returns n.
 func (x Float64x4) StorePart(s []float64) (n int) {
 	return spec.StorePart[float64, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Float64x8) StorePart(s []float64) (n int) {
 	return spec.StorePart[float64, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Float64s) StorePart(s []float64) (n int) {
 	return spec.StorePart[float64, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Int8x16) StorePart(s []int8) (n int) {
 	return spec.StorePart[int8, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 32) elements of x into s and returns n.
 func (x Int8x32) StorePart(s []int8) (n int) {
 	return spec.StorePart[int8, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 64) elements of x into s and returns n.
 func (x Int8x64) StorePart(s []int8) (n int) {
 	return spec.StorePart[int8, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int8s) StorePart(s []int8) (n int) {
 	return spec.StorePart[int8, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Int16x8) StorePart(s []int16) (n int) {
 	return spec.StorePart[int16, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Int16x16) StorePart(s []int16) (n int) {
 	return spec.StorePart[int16, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 32) elements of x into s and returns n.
 func (x Int16x32) StorePart(s []int16) (n int) {
 	return spec.StorePart[int16, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int16s) StorePart(s []int16) (n int) {
 	return spec.StorePart[int16, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 4) elements of x into s and returns n.
 func (x Int32x4) StorePart(s []int32) (n int) {
 	return spec.StorePart[int32, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Int32x8) StorePart(s []int32) (n int) {
 	return spec.StorePart[int32, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Int32x16) StorePart(s []int32) (n int) {
 	return spec.StorePart[int32, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int32s) StorePart(s []int32) (n int) {
 	return spec.StorePart[int32, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 2) elements of x into s and returns n.
 func (x Int64x2) StorePart(s []int64) (n int) {
 	return spec.StorePart[int64, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 4) elements of x into s and returns n.
 func (x Int64x4) StorePart(s []int64) (n int) {
 	return spec.StorePart[int64, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Int64x8) StorePart(s []int64) (n int) {
 	return spec.StorePart[int64, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int64s) StorePart(s []int64) (n int) {
 	return spec.StorePart[int64, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Uint8x16) StorePart(s []uint8) (n int) {
 	return spec.StorePart[uint8, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 32) elements of x into s and returns n.
 func (x Uint8x32) StorePart(s []uint8) (n int) {
 	return spec.StorePart[uint8, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 64) elements of x into s and returns n.
 func (x Uint8x64) StorePart(s []uint8) (n int) {
 	return spec.StorePart[uint8, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint8s) StorePart(s []uint8) (n int) {
 	return spec.StorePart[uint8, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Uint16x8) StorePart(s []uint16) (n int) {
 	return spec.StorePart[uint16, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Uint16x16) StorePart(s []uint16) (n int) {
 	return spec.StorePart[uint16, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 32) elements of x into s and returns n.
 func (x Uint16x32) StorePart(s []uint16) (n int) {
 	return spec.StorePart[uint16, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint16s) StorePart(s []uint16) (n int) {
 	return spec.StorePart[uint16, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 4) elements of x into s and returns n.
 func (x Uint32x4) StorePart(s []uint32) (n int) {
 	return spec.StorePart[uint32, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Uint32x8) StorePart(s []uint32) (n int) {
 	return spec.StorePart[uint32, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Uint32x16) StorePart(s []uint32) (n int) {
 	return spec.StorePart[uint32, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint32s) StorePart(s []uint32) (n int) {
 	return spec.StorePart[uint32, spec.WidthScalable](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 2) elements of x into s and returns n.
 func (x Uint64x2) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.Width128](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 4) elements of x into s and returns n.
 func (x Uint64x4) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.Width256](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Uint64x8) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.Width512](x.v, s)
 }
 
-// StorePart stores at most len(s) elements of x into s and returns the number
-// of elements stored.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint64s) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.WidthScalable](x.v, s)
 }
 
-// Mask8x16FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask8x16FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask8x16FromBits(x uint16) (z Mask8x16) {
 	return Mask8x16{spec.MaskFromBits[spec.Mask8, spec.Width128](spec.UintN(x))}
 }
 
-// Mask8x32FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask8x32FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask8x32FromBits(x uint32) (z Mask8x32) {
 	return Mask8x32{spec.MaskFromBits[spec.Mask8, spec.Width256](spec.UintN(x))}
 }
 
-// Mask8x64FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask8x64FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask8x64FromBits(x uint64) (z Mask8x64) {
 	return Mask8x64{spec.MaskFromBits[spec.Mask8, spec.Width512](spec.UintN(x))}
 }
 
-// Mask16x8FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask16x8FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask16x8FromBits(x uint8) (z Mask16x8) {
 	return Mask16x8{spec.MaskFromBits[spec.Mask16, spec.Width128](spec.UintN(x))}
 }
 
-// Mask16x16FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask16x16FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask16x16FromBits(x uint16) (z Mask16x16) {
 	return Mask16x16{spec.MaskFromBits[spec.Mask16, spec.Width256](spec.UintN(x))}
 }
 
-// Mask16x32FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask16x32FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask16x32FromBits(x uint32) (z Mask16x32) {
 	return Mask16x32{spec.MaskFromBits[spec.Mask16, spec.Width512](spec.UintN(x))}
 }
 
-// Mask32x4FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask32x4FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask32x4FromBits(x uint8) (z Mask32x4) {
 	return Mask32x4{spec.MaskFromBits[spec.Mask32, spec.Width128](spec.UintN(x))}
 }
 
-// Mask32x8FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask32x8FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask32x8FromBits(x uint8) (z Mask32x8) {
 	return Mask32x8{spec.MaskFromBits[spec.Mask32, spec.Width256](spec.UintN(x))}
 }
 
-// Mask32x16FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask32x16FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask32x16FromBits(x uint16) (z Mask32x16) {
 	return Mask32x16{spec.MaskFromBits[spec.Mask32, spec.Width512](spec.UintN(x))}
 }
 
-// Mask64x2FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask64x2FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask64x2FromBits(x uint8) (z Mask64x2) {
 	return Mask64x2{spec.MaskFromBits[spec.Mask64, spec.Width128](spec.UintN(x))}
 }
 
-// Mask64x4FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask64x4FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask64x4FromBits(x uint8) (z Mask64x4) {
 	return Mask64x4{spec.MaskFromBits[spec.Mask64, spec.Width256](spec.UintN(x))}
 }
 
-// Mask64x8FromBits constructs a mask from a bitmap value. If bit i of y is set,
-// then mask element i of the result is set.
+// Mask64x8FromBits returns bitmap x as a mask. If bit i of x is set, then mask
+// element i of the result is true.
 func Mask64x8FromBits(x uint8) (z Mask64x8) {
 	return Mask64x8{spec.MaskFromBits[spec.Mask64, spec.Width512](spec.UintN(x))}
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask8x16) ToBits() (z uint16) {
 	return uint16(spec.MaskToBits[spec.Mask8, spec.Width128](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask8x32) ToBits() (z uint32) {
 	return uint32(spec.MaskToBits[spec.Mask8, spec.Width256](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask8x64) ToBits() (z uint64) {
 	return uint64(spec.MaskToBits[spec.Mask8, spec.Width512](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask16x8) ToBits() (z uint8) {
 	return uint8(spec.MaskToBits[spec.Mask16, spec.Width128](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask16x16) ToBits() (z uint16) {
 	return uint16(spec.MaskToBits[spec.Mask16, spec.Width256](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask16x32) ToBits() (z uint32) {
 	return uint32(spec.MaskToBits[spec.Mask16, spec.Width512](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask32x4) ToBits() (z uint8) {
 	return uint8(spec.MaskToBits[spec.Mask32, spec.Width128](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask32x8) ToBits() (z uint8) {
 	return uint8(spec.MaskToBits[spec.Mask32, spec.Width256](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask32x16) ToBits() (z uint16) {
 	return uint16(spec.MaskToBits[spec.Mask32, spec.Width512](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask64x2) ToBits() (z uint8) {
 	return uint8(spec.MaskToBits[spec.Mask64, spec.Width128](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask64x4) ToBits() (z uint8) {
 	return uint8(spec.MaskToBits[spec.Mask64, spec.Width256](x.v))
 }
 
-// ToBits constructs a bitmap from mask x, where bit i is set if mask
-// element i is set.
+// ToBits returns x as a bitmap, where bit i is set if mask element i is
+// true.
 func (x Mask64x8) ToBits() (z uint8) {
 	return uint8(spec.MaskToBits[spec.Mask64, spec.Width512](x.v))
 }
 
 // ToInt8x16 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask8x16) ToInt8x16() (z Int8x16) {
 	return Int8x16{spec.MaskToZ[spec.Mask8, spec.Width128, int8](x.v)}
 }
 
 // ToInt8x32 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask8x32) ToInt8x32() (z Int8x32) {
 	return Int8x32{spec.MaskToZ[spec.Mask8, spec.Width256, int8](x.v)}
 }
 
 // ToInt8x64 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask8x64) ToInt8x64() (z Int8x64) {
 	return Int8x64{spec.MaskToZ[spec.Mask8, spec.Width512, int8](x.v)}
 }
 
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask8s) ToInt8s() (z Int8s) {
 	return Int8s{spec.MaskToZ[spec.Mask8, spec.WidthScalable, int8](x.v)}
 }
 
 // ToInt16x8 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask16x8) ToInt16x8() (z Int16x8) {
 	return Int16x8{spec.MaskToZ[spec.Mask16, spec.Width128, int16](x.v)}
 }
 
 // ToInt16x16 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask16x16) ToInt16x16() (z Int16x16) {
 	return Int16x16{spec.MaskToZ[spec.Mask16, spec.Width256, int16](x.v)}
 }
 
 // ToInt16x32 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask16x32) ToInt16x32() (z Int16x32) {
 	return Int16x32{spec.MaskToZ[spec.Mask16, spec.Width512, int16](x.v)}
 }
 
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask16s) ToInt16s() (z Int16s) {
 	return Int16s{spec.MaskToZ[spec.Mask16, spec.WidthScalable, int16](x.v)}
 }
 
 // ToInt32x4 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask32x4) ToInt32x4() (z Int32x4) {
 	return Int32x4{spec.MaskToZ[spec.Mask32, spec.Width128, int32](x.v)}
 }
 
 // ToInt32x8 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask32x8) ToInt32x8() (z Int32x8) {
 	return Int32x8{spec.MaskToZ[spec.Mask32, spec.Width256, int32](x.v)}
 }
 
 // ToInt32x16 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask32x16) ToInt32x16() (z Int32x16) {
 	return Int32x16{spec.MaskToZ[spec.Mask32, spec.Width512, int32](x.v)}
 }
 
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask32s) ToInt32s() (z Int32s) {
 	return Int32s{spec.MaskToZ[spec.Mask32, spec.WidthScalable, int32](x.v)}
 }
 
 // ToInt64x2 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask64x2) ToInt64x2() (z Int64x2) {
 	return Int64x2{spec.MaskToZ[spec.Mask64, spec.Width128, int64](x.v)}
 }
 
 // ToInt64x4 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask64x4) ToInt64x4() (z Int64x4) {
 	return Int64x4{spec.MaskToZ[spec.Mask64, spec.Width256, int64](x.v)}
 }
 
 // ToInt64x8 converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask64x8) ToInt64x8() (z Int64x8) {
 	return Int64x8{spec.MaskToZ[spec.Mask64, spec.Width512, int64](x.v)}
 }
 
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits
-// set, e.g., -1) if mask element i is "true".
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask64s) ToInt64s() (z Int64s) {
 	return Int64s{spec.MaskToZ[spec.Mask64, spec.WidthScalable, int64](x.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Float32x4) Add(y Float32x4) (z Float32x4) {
 	return Float32x4{spec.Add[float32, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Float32x8) Add(y Float32x8) (z Float32x8) {
 	return Float32x8{spec.Add[float32, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Float32x16) Add(y Float32x16) (z Float32x16) {
 	return Float32x16{spec.Add[float32, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Float32s) Add(y Float32s) (z Float32s) {
 	return Float32s{spec.Add[float32, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Float64x2) Add(y Float64x2) (z Float64x2) {
 	return Float64x2{spec.Add[float64, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Float64x4) Add(y Float64x4) (z Float64x4) {
 	return Float64x4{spec.Add[float64, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Float64x8) Add(y Float64x8) (z Float64x8) {
 	return Float64x8{spec.Add[float64, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Float64s) Add(y Float64s) (z Float64s) {
 	return Float64s{spec.Add[float64, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int8x16) Add(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.Add[int8, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int8x32) Add(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.Add[int8, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int8x64) Add(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.Add[int8, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int8s) Add(y Int8s) (z Int8s) {
 	return Int8s{spec.Add[int8, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int16x8) Add(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.Add[int16, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int16x16) Add(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.Add[int16, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int16x32) Add(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.Add[int16, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int16s) Add(y Int16s) (z Int16s) {
 	return Int16s{spec.Add[int16, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int32x4) Add(y Int32x4) (z Int32x4) {
 	return Int32x4{spec.Add[int32, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int32x8) Add(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.Add[int32, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int32x16) Add(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.Add[int32, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int32s) Add(y Int32s) (z Int32s) {
 	return Int32s{spec.Add[int32, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int64x2) Add(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.Add[int64, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int64x4) Add(y Int64x4) (z Int64x4) {
 	return Int64x4{spec.Add[int64, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int64x8) Add(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.Add[int64, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Int64s) Add(y Int64s) (z Int64s) {
 	return Int64s{spec.Add[int64, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint8x16) Add(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.Add[uint8, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint8x32) Add(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.Add[uint8, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint8x64) Add(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.Add[uint8, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint8s) Add(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.Add[uint8, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint16x8) Add(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.Add[uint16, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint16x16) Add(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.Add[uint16, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint16x32) Add(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.Add[uint16, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint16s) Add(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.Add[uint16, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint32x4) Add(y Uint32x4) (z Uint32x4) {
 	return Uint32x4{spec.Add[uint32, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint32x8) Add(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.Add[uint32, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint32x16) Add(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.Add[uint32, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint32s) Add(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.Add[uint32, spec.WidthScalable](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint64x2) Add(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.Add[uint64, spec.Width128](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint64x4) Add(y Uint64x4) (z Uint64x4) {
 	return Uint64x4{spec.Add[uint64, spec.Width256](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint64x8) Add(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.Add[uint64, spec.Width512](x.v, y.v)}
 }
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint64s) Add(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.Add[uint64, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Float32x4) Sub(y Float32x4) (z Float32x4) {
 	return Float32x4{spec.Sub[float32, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Float32x8) Sub(y Float32x8) (z Float32x8) {
 	return Float32x8{spec.Sub[float32, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Float32x16) Sub(y Float32x16) (z Float32x16) {
 	return Float32x16{spec.Sub[float32, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Float32s) Sub(y Float32s) (z Float32s) {
 	return Float32s{spec.Sub[float32, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Float64x2) Sub(y Float64x2) (z Float64x2) {
 	return Float64x2{spec.Sub[float64, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Float64x4) Sub(y Float64x4) (z Float64x4) {
 	return Float64x4{spec.Sub[float64, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Float64x8) Sub(y Float64x8) (z Float64x8) {
 	return Float64x8{spec.Sub[float64, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Float64s) Sub(y Float64s) (z Float64s) {
 	return Float64s{spec.Sub[float64, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int8x16) Sub(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.Sub[int8, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int8x32) Sub(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.Sub[int8, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int8x64) Sub(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.Sub[int8, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int8s) Sub(y Int8s) (z Int8s) {
 	return Int8s{spec.Sub[int8, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int16x8) Sub(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.Sub[int16, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int16x16) Sub(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.Sub[int16, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int16x32) Sub(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.Sub[int16, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int16s) Sub(y Int16s) (z Int16s) {
 	return Int16s{spec.Sub[int16, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int32x4) Sub(y Int32x4) (z Int32x4) {
 	return Int32x4{spec.Sub[int32, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int32x8) Sub(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.Sub[int32, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int32x16) Sub(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.Sub[int32, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int32s) Sub(y Int32s) (z Int32s) {
 	return Int32s{spec.Sub[int32, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int64x2) Sub(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.Sub[int64, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int64x4) Sub(y Int64x4) (z Int64x4) {
 	return Int64x4{spec.Sub[int64, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int64x8) Sub(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.Sub[int64, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int64s) Sub(y Int64s) (z Int64s) {
 	return Int64s{spec.Sub[int64, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint8x16) Sub(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.Sub[uint8, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint8x32) Sub(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.Sub[uint8, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint8x64) Sub(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.Sub[uint8, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint8s) Sub(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.Sub[uint8, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint16x8) Sub(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.Sub[uint16, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint16x16) Sub(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.Sub[uint16, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint16x32) Sub(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.Sub[uint16, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint16s) Sub(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.Sub[uint16, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint32x4) Sub(y Uint32x4) (z Uint32x4) {
 	return Uint32x4{spec.Sub[uint32, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint32x8) Sub(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.Sub[uint32, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint32x16) Sub(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.Sub[uint32, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint32s) Sub(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.Sub[uint32, spec.WidthScalable](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint64x2) Sub(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.Sub[uint64, spec.Width128](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint64x4) Sub(y Uint64x4) (z Uint64x4) {
 	return Uint64x4{spec.Sub[uint64, spec.Width256](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint64x8) Sub(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.Sub[uint64, spec.Width512](x.v, y.v)}
 }
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint64s) Sub(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.Sub[uint64, spec.WidthScalable](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int8x16) AddSaturated(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.AddSaturated[int8, spec.Width128](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int8x32) AddSaturated(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.AddSaturated[int8, spec.Width256](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int8x64) AddSaturated(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.AddSaturated[int8, spec.Width512](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int8s) AddSaturated(y Int8s) (z Int8s) {
 	return Int8s{spec.AddSaturated[int8, spec.WidthScalable](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int16x8) AddSaturated(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.AddSaturated[int16, spec.Width128](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int16x16) AddSaturated(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.AddSaturated[int16, spec.Width256](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int16x32) AddSaturated(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.AddSaturated[int16, spec.Width512](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int16s) AddSaturated(y Int16s) (z Int16s) {
 	return Int16s{spec.AddSaturated[int16, spec.WidthScalable](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int32x4) AddSaturated(y Int32x4) (z Int32x4) {
 	return Int32x4{spec.AddSaturated[int32, spec.Width128](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int32x8) AddSaturated(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.AddSaturated[int32, spec.Width256](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int32x16) AddSaturated(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.AddSaturated[int32, spec.Width512](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int32s) AddSaturated(y Int32s) (z Int32s) {
 	return Int32s{spec.AddSaturated[int32, spec.WidthScalable](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int64x2) AddSaturated(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.AddSaturated[int64, spec.Width128](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int64x4) AddSaturated(y Int64x4) (z Int64x4) {
 	return Int64x4{spec.AddSaturated[int64, spec.Width256](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int64x8) AddSaturated(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.AddSaturated[int64, spec.Width512](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Int64s) AddSaturated(y Int64s) (z Int64s) {
 	return Int64s{spec.AddSaturated[int64, spec.WidthScalable](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint8x16) AddSaturated(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.AddSaturated[uint8, spec.Width128](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint8x32) AddSaturated(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.AddSaturated[uint8, spec.Width256](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint8x64) AddSaturated(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.AddSaturated[uint8, spec.Width512](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint8s) AddSaturated(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.AddSaturated[uint8, spec.WidthScalable](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint16x8) AddSaturated(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.AddSaturated[uint16, spec.Width128](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint16x16) AddSaturated(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.AddSaturated[uint16, spec.Width256](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint16x32) AddSaturated(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.AddSaturated[uint16, spec.Width512](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint16s) AddSaturated(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.AddSaturated[uint16, spec.WidthScalable](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint32x4) AddSaturated(y Uint32x4) (z Uint32x4) {
 	return Uint32x4{spec.AddSaturated[uint32, spec.Width128](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint32x8) AddSaturated(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.AddSaturated[uint32, spec.Width256](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint32x16) AddSaturated(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.AddSaturated[uint32, spec.Width512](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint32s) AddSaturated(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.AddSaturated[uint32, spec.WidthScalable](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint64x2) AddSaturated(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.AddSaturated[uint64, spec.Width128](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint64x4) AddSaturated(y Uint64x4) (z Uint64x4) {
 	return Uint64x4{spec.AddSaturated[uint64, spec.Width256](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint64x8) AddSaturated(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.AddSaturated[uint64, spec.Width512](x.v, y.v)}
 }
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
 //
-//	z[i] = saturated(x[i] + y[i])
+//	z[i] = sat(x[i] + y[i])
 func (x Uint64s) AddSaturated(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.AddSaturated[uint64, spec.WidthScalable](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int8x16) SubSaturated(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.SubSaturated[int8, spec.Width128](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int8x32) SubSaturated(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.SubSaturated[int8, spec.Width256](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int8x64) SubSaturated(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.SubSaturated[int8, spec.Width512](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int8s) SubSaturated(y Int8s) (z Int8s) {
 	return Int8s{spec.SubSaturated[int8, spec.WidthScalable](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int16x8) SubSaturated(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.SubSaturated[int16, spec.Width128](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int16x16) SubSaturated(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.SubSaturated[int16, spec.Width256](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int16x32) SubSaturated(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.SubSaturated[int16, spec.Width512](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int16s) SubSaturated(y Int16s) (z Int16s) {
 	return Int16s{spec.SubSaturated[int16, spec.WidthScalable](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int32x4) SubSaturated(y Int32x4) (z Int32x4) {
 	return Int32x4{spec.SubSaturated[int32, spec.Width128](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int32x8) SubSaturated(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.SubSaturated[int32, spec.Width256](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int32x16) SubSaturated(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.SubSaturated[int32, spec.Width512](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int32s) SubSaturated(y Int32s) (z Int32s) {
 	return Int32s{spec.SubSaturated[int32, spec.WidthScalable](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int64x2) SubSaturated(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.SubSaturated[int64, spec.Width128](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int64x4) SubSaturated(y Int64x4) (z Int64x4) {
 	return Int64x4{spec.SubSaturated[int64, spec.Width256](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int64x8) SubSaturated(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.SubSaturated[int64, spec.Width512](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Int64s) SubSaturated(y Int64s) (z Int64s) {
 	return Int64s{spec.SubSaturated[int64, spec.WidthScalable](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint8x16) SubSaturated(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.SubSaturated[uint8, spec.Width128](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint8x32) SubSaturated(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.SubSaturated[uint8, spec.Width256](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint8x64) SubSaturated(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.SubSaturated[uint8, spec.Width512](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint8s) SubSaturated(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.SubSaturated[uint8, spec.WidthScalable](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint16x8) SubSaturated(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.SubSaturated[uint16, spec.Width128](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint16x16) SubSaturated(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.SubSaturated[uint16, spec.Width256](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint16x32) SubSaturated(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.SubSaturated[uint16, spec.Width512](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint16s) SubSaturated(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.SubSaturated[uint16, spec.WidthScalable](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint32x4) SubSaturated(y Uint32x4) (z Uint32x4) {
 	return Uint32x4{spec.SubSaturated[uint32, spec.Width128](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint32x8) SubSaturated(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.SubSaturated[uint32, spec.Width256](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint32x16) SubSaturated(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.SubSaturated[uint32, spec.Width512](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint32s) SubSaturated(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.SubSaturated[uint32, spec.WidthScalable](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint64x2) SubSaturated(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.SubSaturated[uint64, spec.Width128](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint64x4) SubSaturated(y Uint64x4) (z Uint64x4) {
 	return Uint64x4{spec.SubSaturated[uint64, spec.Width256](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint64x8) SubSaturated(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.SubSaturated[uint64, spec.Width512](x.v, y.v)}
 }
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
 //
-//	z[i] = saturated(x[i] - y[i])
+//	z[i] = sat(x[i] - y[i])
 func (x Uint64s) SubSaturated(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.SubSaturated[uint64, spec.WidthScalable](x.v, y.v)}
 }
@@ -4756,7 +4881,7 @@ func (x Uint64s) SubSaturated(y Uint64s) (z Uint64s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 func (x Float32x4) ConcatAddPairs(y Float32x4) (z Float32x4) {
 	return Float32x4{spec.ConcatAddPairs[float32, spec.Width128](x.v, y.v)}
 }
@@ -4764,7 +4889,7 @@ func (x Float32x4) ConcatAddPairs(y Float32x4) (z Float32x4) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Float32x8) ConcatAddPairs(y Float32x8) (z Float32x8) {
 	return Float32x8{spec.ConcatAddPairs[float32, spec.Width256](x.v, y.v)}
 }
@@ -4772,7 +4897,7 @@ func (x Float32x8) ConcatAddPairs(y Float32x8) (z Float32x8) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Float32x16) ConcatAddPairs(y Float32x16) (z Float32x16) {
 	return Float32x16{spec.ConcatAddPairs[float32, spec.Width512](x.v, y.v)}
 }
@@ -4780,7 +4905,7 @@ func (x Float32x16) ConcatAddPairs(y Float32x16) (z Float32x16) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Float32s) ConcatAddPairs(y Float32s) (z Float32s) {
 	return Float32s{spec.ConcatAddPairs[float32, spec.WidthScalable](x.v, y.v)}
 }
@@ -4788,7 +4913,7 @@ func (x Float32s) ConcatAddPairs(y Float32s) (z Float32s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], y[0]+y[1]}
+//	z = {x[0]+x[1], y[0]+y[1]}
 func (x Float64x2) ConcatAddPairs(y Float64x2) (z Float64x2) {
 	return Float64x2{spec.ConcatAddPairs[float64, spec.Width128](x.v, y.v)}
 }
@@ -4796,7 +4921,7 @@ func (x Float64x2) ConcatAddPairs(y Float64x2) (z Float64x2) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 func (x Float64x4) ConcatAddPairs(y Float64x4) (z Float64x4) {
 	return Float64x4{spec.ConcatAddPairs[float64, spec.Width256](x.v, y.v)}
 }
@@ -4804,7 +4929,7 @@ func (x Float64x4) ConcatAddPairs(y Float64x4) (z Float64x4) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Float64x8) ConcatAddPairs(y Float64x8) (z Float64x8) {
 	return Float64x8{spec.ConcatAddPairs[float64, spec.Width512](x.v, y.v)}
 }
@@ -4812,7 +4937,7 @@ func (x Float64x8) ConcatAddPairs(y Float64x8) (z Float64x8) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Float64s) ConcatAddPairs(y Float64s) (z Float64s) {
 	return Float64s{spec.ConcatAddPairs[float64, spec.WidthScalable](x.v, y.v)}
 }
@@ -4820,7 +4945,7 @@ func (x Float64s) ConcatAddPairs(y Float64s) (z Float64s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int8x16) ConcatAddPairs(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.ConcatAddPairs[int8, spec.Width128](x.v, y.v)}
 }
@@ -4828,7 +4953,7 @@ func (x Int8x16) ConcatAddPairs(y Int8x16) (z Int8x16) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int8x32) ConcatAddPairs(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.ConcatAddPairs[int8, spec.Width256](x.v, y.v)}
 }
@@ -4836,7 +4961,7 @@ func (x Int8x32) ConcatAddPairs(y Int8x32) (z Int8x32) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int8x64) ConcatAddPairs(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.ConcatAddPairs[int8, spec.Width512](x.v, y.v)}
 }
@@ -4844,7 +4969,7 @@ func (x Int8x64) ConcatAddPairs(y Int8x64) (z Int8x64) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int8s) ConcatAddPairs(y Int8s) (z Int8s) {
 	return Int8s{spec.ConcatAddPairs[int8, spec.WidthScalable](x.v, y.v)}
 }
@@ -4852,7 +4977,7 @@ func (x Int8s) ConcatAddPairs(y Int8s) (z Int8s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int16x8) ConcatAddPairs(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.ConcatAddPairs[int16, spec.Width128](x.v, y.v)}
 }
@@ -4860,7 +4985,7 @@ func (x Int16x8) ConcatAddPairs(y Int16x8) (z Int16x8) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int16x16) ConcatAddPairs(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.ConcatAddPairs[int16, spec.Width256](x.v, y.v)}
 }
@@ -4868,7 +4993,7 @@ func (x Int16x16) ConcatAddPairs(y Int16x16) (z Int16x16) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int16x32) ConcatAddPairs(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.ConcatAddPairs[int16, spec.Width512](x.v, y.v)}
 }
@@ -4876,7 +5001,7 @@ func (x Int16x32) ConcatAddPairs(y Int16x32) (z Int16x32) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int16s) ConcatAddPairs(y Int16s) (z Int16s) {
 	return Int16s{spec.ConcatAddPairs[int16, spec.WidthScalable](x.v, y.v)}
 }
@@ -4884,7 +5009,7 @@ func (x Int16s) ConcatAddPairs(y Int16s) (z Int16s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 func (x Int32x4) ConcatAddPairs(y Int32x4) (z Int32x4) {
 	return Int32x4{spec.ConcatAddPairs[int32, spec.Width128](x.v, y.v)}
 }
@@ -4892,7 +5017,7 @@ func (x Int32x4) ConcatAddPairs(y Int32x4) (z Int32x4) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int32x8) ConcatAddPairs(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.ConcatAddPairs[int32, spec.Width256](x.v, y.v)}
 }
@@ -4900,7 +5025,7 @@ func (x Int32x8) ConcatAddPairs(y Int32x8) (z Int32x8) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int32x16) ConcatAddPairs(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.ConcatAddPairs[int32, spec.Width512](x.v, y.v)}
 }
@@ -4908,7 +5033,7 @@ func (x Int32x16) ConcatAddPairs(y Int32x16) (z Int32x16) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int32s) ConcatAddPairs(y Int32s) (z Int32s) {
 	return Int32s{spec.ConcatAddPairs[int32, spec.WidthScalable](x.v, y.v)}
 }
@@ -4916,7 +5041,7 @@ func (x Int32s) ConcatAddPairs(y Int32s) (z Int32s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], y[0]+y[1]}
+//	z = {x[0]+x[1], y[0]+y[1]}
 func (x Int64x2) ConcatAddPairs(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.ConcatAddPairs[int64, spec.Width128](x.v, y.v)}
 }
@@ -4924,7 +5049,7 @@ func (x Int64x2) ConcatAddPairs(y Int64x2) (z Int64x2) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 func (x Int64x4) ConcatAddPairs(y Int64x4) (z Int64x4) {
 	return Int64x4{spec.ConcatAddPairs[int64, spec.Width256](x.v, y.v)}
 }
@@ -4932,7 +5057,7 @@ func (x Int64x4) ConcatAddPairs(y Int64x4) (z Int64x4) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int64x8) ConcatAddPairs(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.ConcatAddPairs[int64, spec.Width512](x.v, y.v)}
 }
@@ -4940,7 +5065,7 @@ func (x Int64x8) ConcatAddPairs(y Int64x8) (z Int64x8) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Int64s) ConcatAddPairs(y Int64s) (z Int64s) {
 	return Int64s{spec.ConcatAddPairs[int64, spec.WidthScalable](x.v, y.v)}
 }
@@ -4948,7 +5073,7 @@ func (x Int64s) ConcatAddPairs(y Int64s) (z Int64s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint8x16) ConcatAddPairs(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.ConcatAddPairs[uint8, spec.Width128](x.v, y.v)}
 }
@@ -4956,7 +5081,7 @@ func (x Uint8x16) ConcatAddPairs(y Uint8x16) (z Uint8x16) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint8x32) ConcatAddPairs(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.ConcatAddPairs[uint8, spec.Width256](x.v, y.v)}
 }
@@ -4964,7 +5089,7 @@ func (x Uint8x32) ConcatAddPairs(y Uint8x32) (z Uint8x32) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint8x64) ConcatAddPairs(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.ConcatAddPairs[uint8, spec.Width512](x.v, y.v)}
 }
@@ -4972,7 +5097,7 @@ func (x Uint8x64) ConcatAddPairs(y Uint8x64) (z Uint8x64) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint8s) ConcatAddPairs(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.ConcatAddPairs[uint8, spec.WidthScalable](x.v, y.v)}
 }
@@ -4980,7 +5105,7 @@ func (x Uint8s) ConcatAddPairs(y Uint8s) (z Uint8s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint16x8) ConcatAddPairs(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.ConcatAddPairs[uint16, spec.Width128](x.v, y.v)}
 }
@@ -4988,7 +5113,7 @@ func (x Uint16x8) ConcatAddPairs(y Uint16x8) (z Uint16x8) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint16x16) ConcatAddPairs(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.ConcatAddPairs[uint16, spec.Width256](x.v, y.v)}
 }
@@ -4996,7 +5121,7 @@ func (x Uint16x16) ConcatAddPairs(y Uint16x16) (z Uint16x16) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint16x32) ConcatAddPairs(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.ConcatAddPairs[uint16, spec.Width512](x.v, y.v)}
 }
@@ -5004,7 +5129,7 @@ func (x Uint16x32) ConcatAddPairs(y Uint16x32) (z Uint16x32) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint16s) ConcatAddPairs(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.ConcatAddPairs[uint16, spec.WidthScalable](x.v, y.v)}
 }
@@ -5012,7 +5137,7 @@ func (x Uint16s) ConcatAddPairs(y Uint16s) (z Uint16s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 func (x Uint32x4) ConcatAddPairs(y Uint32x4) (z Uint32x4) {
 	return Uint32x4{spec.ConcatAddPairs[uint32, spec.Width128](x.v, y.v)}
 }
@@ -5020,7 +5145,7 @@ func (x Uint32x4) ConcatAddPairs(y Uint32x4) (z Uint32x4) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint32x8) ConcatAddPairs(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.ConcatAddPairs[uint32, spec.Width256](x.v, y.v)}
 }
@@ -5028,7 +5153,7 @@ func (x Uint32x8) ConcatAddPairs(y Uint32x8) (z Uint32x8) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint32x16) ConcatAddPairs(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.ConcatAddPairs[uint32, spec.Width512](x.v, y.v)}
 }
@@ -5036,7 +5161,7 @@ func (x Uint32x16) ConcatAddPairs(y Uint32x16) (z Uint32x16) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint32s) ConcatAddPairs(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.ConcatAddPairs[uint32, spec.WidthScalable](x.v, y.v)}
 }
@@ -5044,7 +5169,7 @@ func (x Uint32s) ConcatAddPairs(y Uint32s) (z Uint32s) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], y[0]+y[1]}
+//	z = {x[0]+x[1], y[0]+y[1]}
 func (x Uint64x2) ConcatAddPairs(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.ConcatAddPairs[uint64, spec.Width128](x.v, y.v)}
 }
@@ -5052,7 +5177,7 @@ func (x Uint64x2) ConcatAddPairs(y Uint64x2) (z Uint64x2) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 func (x Uint64x4) ConcatAddPairs(y Uint64x4) (z Uint64x4) {
 	return Uint64x4{spec.ConcatAddPairs[uint64, spec.Width256](x.v, y.v)}
 }
@@ -5060,7 +5185,7 @@ func (x Uint64x4) ConcatAddPairs(y Uint64x4) (z Uint64x4) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint64x8) ConcatAddPairs(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.ConcatAddPairs[uint64, spec.Width512](x.v, y.v)}
 }
@@ -5068,7 +5193,7 @@ func (x Uint64x8) ConcatAddPairs(y Uint64x8) (z Uint64x8) {
 // ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
 // returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 func (x Uint64s) ConcatAddPairs(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.ConcatAddPairs[uint64, spec.WidthScalable](x.v, y.v)}
 }
@@ -5076,7 +5201,7 @@ func (x Uint64s) ConcatAddPairs(y Uint64s) (z Uint64s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], y[0]-y[1], y[2]-y[3]}
 func (x Float32x4) ConcatSubPairs(y Float32x4) (z Float32x4) {
 	return Float32x4{spec.ConcatSubPairs[float32, spec.Width128](x.v, y.v)}
 }
@@ -5084,7 +5209,7 @@ func (x Float32x4) ConcatSubPairs(y Float32x4) (z Float32x4) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Float32x8) ConcatSubPairs(y Float32x8) (z Float32x8) {
 	return Float32x8{spec.ConcatSubPairs[float32, spec.Width256](x.v, y.v)}
 }
@@ -5092,7 +5217,7 @@ func (x Float32x8) ConcatSubPairs(y Float32x8) (z Float32x8) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Float32x16) ConcatSubPairs(y Float32x16) (z Float32x16) {
 	return Float32x16{spec.ConcatSubPairs[float32, spec.Width512](x.v, y.v)}
 }
@@ -5100,7 +5225,7 @@ func (x Float32x16) ConcatSubPairs(y Float32x16) (z Float32x16) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Float32s) ConcatSubPairs(y Float32s) (z Float32s) {
 	return Float32s{spec.ConcatSubPairs[float32, spec.WidthScalable](x.v, y.v)}
 }
@@ -5108,7 +5233,7 @@ func (x Float32s) ConcatSubPairs(y Float32s) (z Float32s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], y[0]-y[1]}
+//	z = {x[0]-x[1], y[0]-y[1]}
 func (x Float64x2) ConcatSubPairs(y Float64x2) (z Float64x2) {
 	return Float64x2{spec.ConcatSubPairs[float64, spec.Width128](x.v, y.v)}
 }
@@ -5116,7 +5241,7 @@ func (x Float64x2) ConcatSubPairs(y Float64x2) (z Float64x2) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], y[0]-y[1], y[2]-y[3]}
 func (x Float64x4) ConcatSubPairs(y Float64x4) (z Float64x4) {
 	return Float64x4{spec.ConcatSubPairs[float64, spec.Width256](x.v, y.v)}
 }
@@ -5124,7 +5249,7 @@ func (x Float64x4) ConcatSubPairs(y Float64x4) (z Float64x4) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Float64x8) ConcatSubPairs(y Float64x8) (z Float64x8) {
 	return Float64x8{spec.ConcatSubPairs[float64, spec.Width512](x.v, y.v)}
 }
@@ -5132,7 +5257,7 @@ func (x Float64x8) ConcatSubPairs(y Float64x8) (z Float64x8) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Float64s) ConcatSubPairs(y Float64s) (z Float64s) {
 	return Float64s{spec.ConcatSubPairs[float64, spec.WidthScalable](x.v, y.v)}
 }
@@ -5140,7 +5265,7 @@ func (x Float64s) ConcatSubPairs(y Float64s) (z Float64s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int8x16) ConcatSubPairs(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.ConcatSubPairs[int8, spec.Width128](x.v, y.v)}
 }
@@ -5148,7 +5273,7 @@ func (x Int8x16) ConcatSubPairs(y Int8x16) (z Int8x16) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int8x32) ConcatSubPairs(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.ConcatSubPairs[int8, spec.Width256](x.v, y.v)}
 }
@@ -5156,7 +5281,7 @@ func (x Int8x32) ConcatSubPairs(y Int8x32) (z Int8x32) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int8x64) ConcatSubPairs(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.ConcatSubPairs[int8, spec.Width512](x.v, y.v)}
 }
@@ -5164,7 +5289,7 @@ func (x Int8x64) ConcatSubPairs(y Int8x64) (z Int8x64) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int8s) ConcatSubPairs(y Int8s) (z Int8s) {
 	return Int8s{spec.ConcatSubPairs[int8, spec.WidthScalable](x.v, y.v)}
 }
@@ -5172,7 +5297,7 @@ func (x Int8s) ConcatSubPairs(y Int8s) (z Int8s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int16x8) ConcatSubPairs(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.ConcatSubPairs[int16, spec.Width128](x.v, y.v)}
 }
@@ -5180,7 +5305,7 @@ func (x Int16x8) ConcatSubPairs(y Int16x8) (z Int16x8) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int16x16) ConcatSubPairs(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.ConcatSubPairs[int16, spec.Width256](x.v, y.v)}
 }
@@ -5188,7 +5313,7 @@ func (x Int16x16) ConcatSubPairs(y Int16x16) (z Int16x16) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int16x32) ConcatSubPairs(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.ConcatSubPairs[int16, spec.Width512](x.v, y.v)}
 }
@@ -5196,7 +5321,7 @@ func (x Int16x32) ConcatSubPairs(y Int16x32) (z Int16x32) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int16s) ConcatSubPairs(y Int16s) (z Int16s) {
 	return Int16s{spec.ConcatSubPairs[int16, spec.WidthScalable](x.v, y.v)}
 }
@@ -5204,7 +5329,7 @@ func (x Int16s) ConcatSubPairs(y Int16s) (z Int16s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], y[0]-y[1], y[2]-y[3]}
 func (x Int32x4) ConcatSubPairs(y Int32x4) (z Int32x4) {
 	return Int32x4{spec.ConcatSubPairs[int32, spec.Width128](x.v, y.v)}
 }
@@ -5212,7 +5337,7 @@ func (x Int32x4) ConcatSubPairs(y Int32x4) (z Int32x4) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int32x8) ConcatSubPairs(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.ConcatSubPairs[int32, spec.Width256](x.v, y.v)}
 }
@@ -5220,7 +5345,7 @@ func (x Int32x8) ConcatSubPairs(y Int32x8) (z Int32x8) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int32x16) ConcatSubPairs(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.ConcatSubPairs[int32, spec.Width512](x.v, y.v)}
 }
@@ -5228,7 +5353,7 @@ func (x Int32x16) ConcatSubPairs(y Int32x16) (z Int32x16) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int32s) ConcatSubPairs(y Int32s) (z Int32s) {
 	return Int32s{spec.ConcatSubPairs[int32, spec.WidthScalable](x.v, y.v)}
 }
@@ -5236,7 +5361,7 @@ func (x Int32s) ConcatSubPairs(y Int32s) (z Int32s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], y[0]-y[1]}
+//	z = {x[0]-x[1], y[0]-y[1]}
 func (x Int64x2) ConcatSubPairs(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.ConcatSubPairs[int64, spec.Width128](x.v, y.v)}
 }
@@ -5244,7 +5369,7 @@ func (x Int64x2) ConcatSubPairs(y Int64x2) (z Int64x2) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], y[0]-y[1], y[2]-y[3]}
 func (x Int64x4) ConcatSubPairs(y Int64x4) (z Int64x4) {
 	return Int64x4{spec.ConcatSubPairs[int64, spec.Width256](x.v, y.v)}
 }
@@ -5252,7 +5377,7 @@ func (x Int64x4) ConcatSubPairs(y Int64x4) (z Int64x4) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int64x8) ConcatSubPairs(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.ConcatSubPairs[int64, spec.Width512](x.v, y.v)}
 }
@@ -5260,7 +5385,7 @@ func (x Int64x8) ConcatSubPairs(y Int64x8) (z Int64x8) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int64s) ConcatSubPairs(y Int64s) (z Int64s) {
 	return Int64s{spec.ConcatSubPairs[int64, spec.WidthScalable](x.v, y.v)}
 }
@@ -5268,7 +5393,7 @@ func (x Int64s) ConcatSubPairs(y Int64s) (z Int64s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint8x16) ConcatSubPairs(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.ConcatSubPairs[uint8, spec.Width128](x.v, y.v)}
 }
@@ -5276,7 +5401,7 @@ func (x Uint8x16) ConcatSubPairs(y Uint8x16) (z Uint8x16) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint8x32) ConcatSubPairs(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.ConcatSubPairs[uint8, spec.Width256](x.v, y.v)}
 }
@@ -5284,7 +5409,7 @@ func (x Uint8x32) ConcatSubPairs(y Uint8x32) (z Uint8x32) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint8x64) ConcatSubPairs(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.ConcatSubPairs[uint8, spec.Width512](x.v, y.v)}
 }
@@ -5292,7 +5417,7 @@ func (x Uint8x64) ConcatSubPairs(y Uint8x64) (z Uint8x64) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint8s) ConcatSubPairs(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.ConcatSubPairs[uint8, spec.WidthScalable](x.v, y.v)}
 }
@@ -5300,7 +5425,7 @@ func (x Uint8s) ConcatSubPairs(y Uint8s) (z Uint8s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint16x8) ConcatSubPairs(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.ConcatSubPairs[uint16, spec.Width128](x.v, y.v)}
 }
@@ -5308,7 +5433,7 @@ func (x Uint16x8) ConcatSubPairs(y Uint16x8) (z Uint16x8) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint16x16) ConcatSubPairs(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.ConcatSubPairs[uint16, spec.Width256](x.v, y.v)}
 }
@@ -5316,7 +5441,7 @@ func (x Uint16x16) ConcatSubPairs(y Uint16x16) (z Uint16x16) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint16x32) ConcatSubPairs(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.ConcatSubPairs[uint16, spec.Width512](x.v, y.v)}
 }
@@ -5324,7 +5449,7 @@ func (x Uint16x32) ConcatSubPairs(y Uint16x32) (z Uint16x32) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint16s) ConcatSubPairs(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.ConcatSubPairs[uint16, spec.WidthScalable](x.v, y.v)}
 }
@@ -5332,7 +5457,7 @@ func (x Uint16s) ConcatSubPairs(y Uint16s) (z Uint16s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], y[0]-y[1], y[2]-y[3]}
 func (x Uint32x4) ConcatSubPairs(y Uint32x4) (z Uint32x4) {
 	return Uint32x4{spec.ConcatSubPairs[uint32, spec.Width128](x.v, y.v)}
 }
@@ -5340,7 +5465,7 @@ func (x Uint32x4) ConcatSubPairs(y Uint32x4) (z Uint32x4) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint32x8) ConcatSubPairs(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.ConcatSubPairs[uint32, spec.Width256](x.v, y.v)}
 }
@@ -5348,7 +5473,7 @@ func (x Uint32x8) ConcatSubPairs(y Uint32x8) (z Uint32x8) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint32x16) ConcatSubPairs(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.ConcatSubPairs[uint32, spec.Width512](x.v, y.v)}
 }
@@ -5356,7 +5481,7 @@ func (x Uint32x16) ConcatSubPairs(y Uint32x16) (z Uint32x16) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint32s) ConcatSubPairs(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.ConcatSubPairs[uint32, spec.WidthScalable](x.v, y.v)}
 }
@@ -5364,7 +5489,7 @@ func (x Uint32s) ConcatSubPairs(y Uint32s) (z Uint32s) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], y[0]-y[1]}
+//	z = {x[0]-x[1], y[0]-y[1]}
 func (x Uint64x2) ConcatSubPairs(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.ConcatSubPairs[uint64, spec.Width128](x.v, y.v)}
 }
@@ -5372,7 +5497,7 @@ func (x Uint64x2) ConcatSubPairs(y Uint64x2) (z Uint64x2) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], y[0]-y[1], y[2]-y[3]}
 func (x Uint64x4) ConcatSubPairs(y Uint64x4) (z Uint64x4) {
 	return Uint64x4{spec.ConcatSubPairs[uint64, spec.Width256](x.v, y.v)}
 }
@@ -5380,7 +5505,7 @@ func (x Uint64x4) ConcatSubPairs(y Uint64x4) (z Uint64x4) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint64x8) ConcatSubPairs(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.ConcatSubPairs[uint64, spec.Width512](x.v, y.v)}
 }
@@ -5388,7 +5513,7 @@ func (x Uint64x8) ConcatSubPairs(y Uint64x8) (z Uint64x8) {
 // ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
 // and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint64s) ConcatSubPairs(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.ConcatSubPairs[uint64, spec.WidthScalable](x.v, y.v)}
 }
@@ -5396,7 +5521,7 @@ func (x Uint64s) ConcatSubPairs(y Uint64s) (z Uint64s) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int8x16) ConcatAddPairsSaturated(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.ConcatAddPairsSaturated[int8, spec.Width128](x.v, y.v)}
 }
@@ -5404,7 +5529,7 @@ func (x Int8x16) ConcatAddPairsSaturated(y Int8x16) (z Int8x16) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int8x32) ConcatAddPairsSaturated(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.ConcatAddPairsSaturated[int8, spec.Width256](x.v, y.v)}
 }
@@ -5412,7 +5537,7 @@ func (x Int8x32) ConcatAddPairsSaturated(y Int8x32) (z Int8x32) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int8x64) ConcatAddPairsSaturated(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.ConcatAddPairsSaturated[int8, spec.Width512](x.v, y.v)}
 }
@@ -5420,7 +5545,7 @@ func (x Int8x64) ConcatAddPairsSaturated(y Int8x64) (z Int8x64) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int8s) ConcatAddPairsSaturated(y Int8s) (z Int8s) {
 	return Int8s{spec.ConcatAddPairsSaturated[int8, spec.WidthScalable](x.v, y.v)}
 }
@@ -5428,7 +5553,7 @@ func (x Int8s) ConcatAddPairsSaturated(y Int8s) (z Int8s) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int16x8) ConcatAddPairsSaturated(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.ConcatAddPairsSaturated[int16, spec.Width128](x.v, y.v)}
 }
@@ -5436,7 +5561,7 @@ func (x Int16x8) ConcatAddPairsSaturated(y Int16x8) (z Int16x8) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int16x16) ConcatAddPairsSaturated(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.ConcatAddPairsSaturated[int16, spec.Width256](x.v, y.v)}
 }
@@ -5444,7 +5569,7 @@ func (x Int16x16) ConcatAddPairsSaturated(y Int16x16) (z Int16x16) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int16x32) ConcatAddPairsSaturated(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.ConcatAddPairsSaturated[int16, spec.Width512](x.v, y.v)}
 }
@@ -5452,7 +5577,7 @@ func (x Int16x32) ConcatAddPairsSaturated(y Int16x32) (z Int16x32) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int16s) ConcatAddPairsSaturated(y Int16s) (z Int16s) {
 	return Int16s{spec.ConcatAddPairsSaturated[int16, spec.WidthScalable](x.v, y.v)}
 }
@@ -5460,7 +5585,7 @@ func (x Int16s) ConcatAddPairsSaturated(y Int16s) (z Int16s) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), sat(y[0]+y[1]), sat(y[2]+y[3])}
 func (x Int32x4) ConcatAddPairsSaturated(y Int32x4) (z Int32x4) {
 	return Int32x4{spec.ConcatAddPairsSaturated[int32, spec.Width128](x.v, y.v)}
 }
@@ -5468,7 +5593,7 @@ func (x Int32x4) ConcatAddPairsSaturated(y Int32x4) (z Int32x4) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int32x8) ConcatAddPairsSaturated(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.ConcatAddPairsSaturated[int32, spec.Width256](x.v, y.v)}
 }
@@ -5476,7 +5601,7 @@ func (x Int32x8) ConcatAddPairsSaturated(y Int32x8) (z Int32x8) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int32x16) ConcatAddPairsSaturated(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.ConcatAddPairsSaturated[int32, spec.Width512](x.v, y.v)}
 }
@@ -5484,7 +5609,7 @@ func (x Int32x16) ConcatAddPairsSaturated(y Int32x16) (z Int32x16) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int32s) ConcatAddPairsSaturated(y Int32s) (z Int32s) {
 	return Int32s{spec.ConcatAddPairsSaturated[int32, spec.WidthScalable](x.v, y.v)}
 }
@@ -5492,7 +5617,7 @@ func (x Int32s) ConcatAddPairsSaturated(y Int32s) (z Int32s) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], y[0]+y[1]}
+//	z = {sat(x[0]+x[1]), sat(y[0]+y[1])}
 func (x Int64x2) ConcatAddPairsSaturated(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.ConcatAddPairsSaturated[int64, spec.Width128](x.v, y.v)}
 }
@@ -5500,7 +5625,7 @@ func (x Int64x2) ConcatAddPairsSaturated(y Int64x2) (z Int64x2) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), sat(y[0]+y[1]), sat(y[2]+y[3])}
 func (x Int64x4) ConcatAddPairsSaturated(y Int64x4) (z Int64x4) {
 	return Int64x4{spec.ConcatAddPairsSaturated[int64, spec.Width256](x.v, y.v)}
 }
@@ -5508,7 +5633,7 @@ func (x Int64x4) ConcatAddPairsSaturated(y Int64x4) (z Int64x4) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int64x8) ConcatAddPairsSaturated(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.ConcatAddPairsSaturated[int64, spec.Width512](x.v, y.v)}
 }
@@ -5516,7 +5641,7 @@ func (x Int64x8) ConcatAddPairsSaturated(y Int64x8) (z Int64x8) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Int64s) ConcatAddPairsSaturated(y Int64s) (z Int64s) {
 	return Int64s{spec.ConcatAddPairsSaturated[int64, spec.WidthScalable](x.v, y.v)}
 }
@@ -5524,7 +5649,7 @@ func (x Int64s) ConcatAddPairsSaturated(y Int64s) (z Int64s) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint8x16) ConcatAddPairsSaturated(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.ConcatAddPairsSaturated[uint8, spec.Width128](x.v, y.v)}
 }
@@ -5532,7 +5657,7 @@ func (x Uint8x16) ConcatAddPairsSaturated(y Uint8x16) (z Uint8x16) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint8x32) ConcatAddPairsSaturated(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.ConcatAddPairsSaturated[uint8, spec.Width256](x.v, y.v)}
 }
@@ -5540,7 +5665,7 @@ func (x Uint8x32) ConcatAddPairsSaturated(y Uint8x32) (z Uint8x32) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint8x64) ConcatAddPairsSaturated(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.ConcatAddPairsSaturated[uint8, spec.Width512](x.v, y.v)}
 }
@@ -5548,7 +5673,7 @@ func (x Uint8x64) ConcatAddPairsSaturated(y Uint8x64) (z Uint8x64) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint8s) ConcatAddPairsSaturated(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.ConcatAddPairsSaturated[uint8, spec.WidthScalable](x.v, y.v)}
 }
@@ -5556,7 +5681,7 @@ func (x Uint8s) ConcatAddPairsSaturated(y Uint8s) (z Uint8s) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint16x8) ConcatAddPairsSaturated(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.ConcatAddPairsSaturated[uint16, spec.Width128](x.v, y.v)}
 }
@@ -5564,7 +5689,7 @@ func (x Uint16x8) ConcatAddPairsSaturated(y Uint16x8) (z Uint16x8) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint16x16) ConcatAddPairsSaturated(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.ConcatAddPairsSaturated[uint16, spec.Width256](x.v, y.v)}
 }
@@ -5572,7 +5697,7 @@ func (x Uint16x16) ConcatAddPairsSaturated(y Uint16x16) (z Uint16x16) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint16x32) ConcatAddPairsSaturated(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.ConcatAddPairsSaturated[uint16, spec.Width512](x.v, y.v)}
 }
@@ -5580,7 +5705,7 @@ func (x Uint16x32) ConcatAddPairsSaturated(y Uint16x32) (z Uint16x32) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint16s) ConcatAddPairsSaturated(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.ConcatAddPairsSaturated[uint16, spec.WidthScalable](x.v, y.v)}
 }
@@ -5588,7 +5713,7 @@ func (x Uint16s) ConcatAddPairsSaturated(y Uint16s) (z Uint16s) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), sat(y[0]+y[1]), sat(y[2]+y[3])}
 func (x Uint32x4) ConcatAddPairsSaturated(y Uint32x4) (z Uint32x4) {
 	return Uint32x4{spec.ConcatAddPairsSaturated[uint32, spec.Width128](x.v, y.v)}
 }
@@ -5596,7 +5721,7 @@ func (x Uint32x4) ConcatAddPairsSaturated(y Uint32x4) (z Uint32x4) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint32x8) ConcatAddPairsSaturated(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.ConcatAddPairsSaturated[uint32, spec.Width256](x.v, y.v)}
 }
@@ -5604,7 +5729,7 @@ func (x Uint32x8) ConcatAddPairsSaturated(y Uint32x8) (z Uint32x8) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint32x16) ConcatAddPairsSaturated(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.ConcatAddPairsSaturated[uint32, spec.Width512](x.v, y.v)}
 }
@@ -5612,7 +5737,7 @@ func (x Uint32x16) ConcatAddPairsSaturated(y Uint32x16) (z Uint32x16) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint32s) ConcatAddPairsSaturated(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.ConcatAddPairsSaturated[uint32, spec.WidthScalable](x.v, y.v)}
 }
@@ -5620,7 +5745,7 @@ func (x Uint32s) ConcatAddPairsSaturated(y Uint32s) (z Uint32s) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], y[0]+y[1]}
+//	z = {sat(x[0]+x[1]), sat(y[0]+y[1])}
 func (x Uint64x2) ConcatAddPairsSaturated(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.ConcatAddPairsSaturated[uint64, spec.Width128](x.v, y.v)}
 }
@@ -5628,7 +5753,7 @@ func (x Uint64x2) ConcatAddPairsSaturated(y Uint64x2) (z Uint64x2) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), sat(y[0]+y[1]), sat(y[2]+y[3])}
 func (x Uint64x4) ConcatAddPairsSaturated(y Uint64x4) (z Uint64x4) {
 	return Uint64x4{spec.ConcatAddPairsSaturated[uint64, spec.Width256](x.v, y.v)}
 }
@@ -5636,7 +5761,7 @@ func (x Uint64x4) ConcatAddPairsSaturated(y Uint64x4) (z Uint64x4) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint64x8) ConcatAddPairsSaturated(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.ConcatAddPairsSaturated[uint64, spec.Width512](x.v, y.v)}
 }
@@ -5644,7 +5769,7 @@ func (x Uint64x8) ConcatAddPairsSaturated(y Uint64x8) (z Uint64x8) {
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
-// z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
+//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
 func (x Uint64s) ConcatAddPairsSaturated(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.ConcatAddPairsSaturated[uint64, spec.WidthScalable](x.v, y.v)}
 }
@@ -5652,7 +5777,7 @@ func (x Uint64s) ConcatAddPairsSaturated(y Uint64s) (z Uint64s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int8x16) ConcatSubPairsSaturated(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.ConcatSubPairsSaturated[int8, spec.Width128](x.v, y.v)}
 }
@@ -5660,7 +5785,7 @@ func (x Int8x16) ConcatSubPairsSaturated(y Int8x16) (z Int8x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int8x32) ConcatSubPairsSaturated(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.ConcatSubPairsSaturated[int8, spec.Width256](x.v, y.v)}
 }
@@ -5668,7 +5793,7 @@ func (x Int8x32) ConcatSubPairsSaturated(y Int8x32) (z Int8x32) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int8x64) ConcatSubPairsSaturated(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.ConcatSubPairsSaturated[int8, spec.Width512](x.v, y.v)}
 }
@@ -5676,7 +5801,7 @@ func (x Int8x64) ConcatSubPairsSaturated(y Int8x64) (z Int8x64) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int8s) ConcatSubPairsSaturated(y Int8s) (z Int8s) {
 	return Int8s{spec.ConcatSubPairsSaturated[int8, spec.WidthScalable](x.v, y.v)}
 }
@@ -5684,7 +5809,7 @@ func (x Int8s) ConcatSubPairsSaturated(y Int8s) (z Int8s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int16x8) ConcatSubPairsSaturated(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.ConcatSubPairsSaturated[int16, spec.Width128](x.v, y.v)}
 }
@@ -5692,7 +5817,7 @@ func (x Int16x8) ConcatSubPairsSaturated(y Int16x8) (z Int16x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int16x16) ConcatSubPairsSaturated(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.ConcatSubPairsSaturated[int16, spec.Width256](x.v, y.v)}
 }
@@ -5700,7 +5825,7 @@ func (x Int16x16) ConcatSubPairsSaturated(y Int16x16) (z Int16x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int16x32) ConcatSubPairsSaturated(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.ConcatSubPairsSaturated[int16, spec.Width512](x.v, y.v)}
 }
@@ -5708,7 +5833,7 @@ func (x Int16x32) ConcatSubPairsSaturated(y Int16x32) (z Int16x32) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int16s) ConcatSubPairsSaturated(y Int16s) (z Int16s) {
 	return Int16s{spec.ConcatSubPairsSaturated[int16, spec.WidthScalable](x.v, y.v)}
 }
@@ -5716,7 +5841,7 @@ func (x Int16s) ConcatSubPairsSaturated(y Int16s) (z Int16s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), sat(y[0]-y[1]), sat(y[2]-y[3])}
 func (x Int32x4) ConcatSubPairsSaturated(y Int32x4) (z Int32x4) {
 	return Int32x4{spec.ConcatSubPairsSaturated[int32, spec.Width128](x.v, y.v)}
 }
@@ -5724,7 +5849,7 @@ func (x Int32x4) ConcatSubPairsSaturated(y Int32x4) (z Int32x4) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int32x8) ConcatSubPairsSaturated(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.ConcatSubPairsSaturated[int32, spec.Width256](x.v, y.v)}
 }
@@ -5732,7 +5857,7 @@ func (x Int32x8) ConcatSubPairsSaturated(y Int32x8) (z Int32x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int32x16) ConcatSubPairsSaturated(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.ConcatSubPairsSaturated[int32, spec.Width512](x.v, y.v)}
 }
@@ -5740,7 +5865,7 @@ func (x Int32x16) ConcatSubPairsSaturated(y Int32x16) (z Int32x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int32s) ConcatSubPairsSaturated(y Int32s) (z Int32s) {
 	return Int32s{spec.ConcatSubPairsSaturated[int32, spec.WidthScalable](x.v, y.v)}
 }
@@ -5748,7 +5873,7 @@ func (x Int32s) ConcatSubPairsSaturated(y Int32s) (z Int32s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], y[0]-y[1]}
+//	z = {x[0]-x[1], y[0]-y[1]}
 func (x Int64x2) ConcatSubPairsSaturated(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.ConcatSubPairsSaturated[int64, spec.Width128](x.v, y.v)}
 }
@@ -5756,7 +5881,7 @@ func (x Int64x2) ConcatSubPairsSaturated(y Int64x2) (z Int64x2) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), sat(y[0]-y[1]), sat(y[2]-y[3])}
 func (x Int64x4) ConcatSubPairsSaturated(y Int64x4) (z Int64x4) {
 	return Int64x4{spec.ConcatSubPairsSaturated[int64, spec.Width256](x.v, y.v)}
 }
@@ -5764,7 +5889,7 @@ func (x Int64x4) ConcatSubPairsSaturated(y Int64x4) (z Int64x4) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int64x8) ConcatSubPairsSaturated(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.ConcatSubPairsSaturated[int64, spec.Width512](x.v, y.v)}
 }
@@ -5772,7 +5897,7 @@ func (x Int64x8) ConcatSubPairsSaturated(y Int64x8) (z Int64x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Int64s) ConcatSubPairsSaturated(y Int64s) (z Int64s) {
 	return Int64s{spec.ConcatSubPairsSaturated[int64, spec.WidthScalable](x.v, y.v)}
 }
@@ -5780,7 +5905,7 @@ func (x Int64s) ConcatSubPairsSaturated(y Int64s) (z Int64s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint8x16) ConcatSubPairsSaturated(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.ConcatSubPairsSaturated[uint8, spec.Width128](x.v, y.v)}
 }
@@ -5788,7 +5913,7 @@ func (x Uint8x16) ConcatSubPairsSaturated(y Uint8x16) (z Uint8x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint8x32) ConcatSubPairsSaturated(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.ConcatSubPairsSaturated[uint8, spec.Width256](x.v, y.v)}
 }
@@ -5796,7 +5921,7 @@ func (x Uint8x32) ConcatSubPairsSaturated(y Uint8x32) (z Uint8x32) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint8x64) ConcatSubPairsSaturated(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.ConcatSubPairsSaturated[uint8, spec.Width512](x.v, y.v)}
 }
@@ -5804,7 +5929,7 @@ func (x Uint8x64) ConcatSubPairsSaturated(y Uint8x64) (z Uint8x64) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint8s) ConcatSubPairsSaturated(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.ConcatSubPairsSaturated[uint8, spec.WidthScalable](x.v, y.v)}
 }
@@ -5812,7 +5937,7 @@ func (x Uint8s) ConcatSubPairsSaturated(y Uint8s) (z Uint8s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint16x8) ConcatSubPairsSaturated(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.ConcatSubPairsSaturated[uint16, spec.Width128](x.v, y.v)}
 }
@@ -5820,7 +5945,7 @@ func (x Uint16x8) ConcatSubPairsSaturated(y Uint16x8) (z Uint16x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint16x16) ConcatSubPairsSaturated(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.ConcatSubPairsSaturated[uint16, spec.Width256](x.v, y.v)}
 }
@@ -5828,7 +5953,7 @@ func (x Uint16x16) ConcatSubPairsSaturated(y Uint16x16) (z Uint16x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint16x32) ConcatSubPairsSaturated(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.ConcatSubPairsSaturated[uint16, spec.Width512](x.v, y.v)}
 }
@@ -5836,7 +5961,7 @@ func (x Uint16x32) ConcatSubPairsSaturated(y Uint16x32) (z Uint16x32) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint16s) ConcatSubPairsSaturated(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.ConcatSubPairsSaturated[uint16, spec.WidthScalable](x.v, y.v)}
 }
@@ -5844,7 +5969,7 @@ func (x Uint16s) ConcatSubPairsSaturated(y Uint16s) (z Uint16s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), sat(y[0]-y[1]), sat(y[2]-y[3])}
 func (x Uint32x4) ConcatSubPairsSaturated(y Uint32x4) (z Uint32x4) {
 	return Uint32x4{spec.ConcatSubPairsSaturated[uint32, spec.Width128](x.v, y.v)}
 }
@@ -5852,7 +5977,7 @@ func (x Uint32x4) ConcatSubPairsSaturated(y Uint32x4) (z Uint32x4) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint32x8) ConcatSubPairsSaturated(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.ConcatSubPairsSaturated[uint32, spec.Width256](x.v, y.v)}
 }
@@ -5860,7 +5985,7 @@ func (x Uint32x8) ConcatSubPairsSaturated(y Uint32x8) (z Uint32x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint32x16) ConcatSubPairsSaturated(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.ConcatSubPairsSaturated[uint32, spec.Width512](x.v, y.v)}
 }
@@ -5868,7 +5993,7 @@ func (x Uint32x16) ConcatSubPairsSaturated(y Uint32x16) (z Uint32x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint32s) ConcatSubPairsSaturated(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.ConcatSubPairsSaturated[uint32, spec.WidthScalable](x.v, y.v)}
 }
@@ -5876,7 +6001,7 @@ func (x Uint32s) ConcatSubPairsSaturated(y Uint32s) (z Uint32s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], y[0]-y[1]}
+//	z = {x[0]-x[1], y[0]-y[1]}
 func (x Uint64x2) ConcatSubPairsSaturated(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.ConcatSubPairsSaturated[uint64, spec.Width128](x.v, y.v)}
 }
@@ -5884,7 +6009,7 @@ func (x Uint64x2) ConcatSubPairsSaturated(y Uint64x2) (z Uint64x2) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), sat(y[0]-y[1]), sat(y[2]-y[3])}
 func (x Uint64x4) ConcatSubPairsSaturated(y Uint64x4) (z Uint64x4) {
 	return Uint64x4{spec.ConcatSubPairsSaturated[uint64, spec.Width256](x.v, y.v)}
 }
@@ -5892,7 +6017,7 @@ func (x Uint64x4) ConcatSubPairsSaturated(y Uint64x4) (z Uint64x4) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint64x8) ConcatSubPairsSaturated(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.ConcatSubPairsSaturated[uint64, spec.Width512](x.v, y.v)}
 }
@@ -5900,7 +6025,7 @@ func (x Uint64x8) ConcatSubPairsSaturated(y Uint64x8) (z Uint64x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-// z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
 func (x Uint64s) ConcatSubPairsSaturated(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.ConcatSubPairsSaturated[uint64, spec.WidthScalable](x.v, y.v)}
 }
@@ -6770,401 +6895,401 @@ func (x Uint64s) ConcatSubPairsSaturatedGrouped(y Uint64s) (z Uint64s) {
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Float32x4) DotProductPairs(y Float32x4) (z Float64x2) {
 	return Float64x2{spec.DotProductPairs[float32, spec.Width128, float64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Float32x8) DotProductPairs(y Float32x8) (z Float64x4) {
 	return Float64x4{spec.DotProductPairs[float32, spec.Width256, float64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Float32x16) DotProductPairs(y Float32x16) (z Float64x8) {
 	return Float64x8{spec.DotProductPairs[float32, spec.Width512, float64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Float32s) DotProductPairs(y Float32s) (z Float64s) {
 	return Float64s{spec.DotProductPairs[float32, spec.WidthScalable, float64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int8x16) DotProductPairs(y Int8x16) (z Int16x8) {
 	return Int16x8{spec.DotProductPairs[int8, spec.Width128, int16](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int8x32) DotProductPairs(y Int8x32) (z Int16x16) {
 	return Int16x16{spec.DotProductPairs[int8, spec.Width256, int16](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int8x64) DotProductPairs(y Int8x64) (z Int16x32) {
 	return Int16x32{spec.DotProductPairs[int8, spec.Width512, int16](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int8s) DotProductPairs(y Int8s) (z Int16s) {
 	return Int16s{spec.DotProductPairs[int8, spec.WidthScalable, int16](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4) {
 	return Int32x4{spec.DotProductPairs[int16, spec.Width128, int32](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int16x16) DotProductPairs(y Int16x16) (z Int32x8) {
 	return Int32x8{spec.DotProductPairs[int16, spec.Width256, int32](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int16x32) DotProductPairs(y Int16x32) (z Int32x16) {
 	return Int32x16{spec.DotProductPairs[int16, spec.Width512, int32](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int16s) DotProductPairs(y Int16s) (z Int32s) {
 	return Int32s{spec.DotProductPairs[int16, spec.WidthScalable, int32](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int32x4) DotProductPairs(y Int32x4) (z Int64x2) {
 	return Int64x2{spec.DotProductPairs[int32, spec.Width128, int64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int32x8) DotProductPairs(y Int32x8) (z Int64x4) {
 	return Int64x4{spec.DotProductPairs[int32, spec.Width256, int64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int32x16) DotProductPairs(y Int32x16) (z Int64x8) {
 	return Int64x8{spec.DotProductPairs[int32, spec.Width512, int64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Int32s) DotProductPairs(y Int32s) (z Int64s) {
 	return Int64s{spec.DotProductPairs[int32, spec.WidthScalable, int64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint8x16) DotProductPairs(y Uint8x16) (z Uint16x8) {
 	return Uint16x8{spec.DotProductPairs[uint8, spec.Width128, uint16](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint8x32) DotProductPairs(y Uint8x32) (z Uint16x16) {
 	return Uint16x16{spec.DotProductPairs[uint8, spec.Width256, uint16](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint8x64) DotProductPairs(y Uint8x64) (z Uint16x32) {
 	return Uint16x32{spec.DotProductPairs[uint8, spec.Width512, uint16](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint8s) DotProductPairs(y Uint8s) (z Uint16s) {
 	return Uint16s{spec.DotProductPairs[uint8, spec.WidthScalable, uint16](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint16x8) DotProductPairs(y Uint16x8) (z Uint32x4) {
 	return Uint32x4{spec.DotProductPairs[uint16, spec.Width128, uint32](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint16x16) DotProductPairs(y Uint16x16) (z Uint32x8) {
 	return Uint32x8{spec.DotProductPairs[uint16, spec.Width256, uint32](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint16x32) DotProductPairs(y Uint16x32) (z Uint32x16) {
 	return Uint32x16{spec.DotProductPairs[uint16, spec.Width512, uint32](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint16s) DotProductPairs(y Uint16s) (z Uint32s) {
 	return Uint32s{spec.DotProductPairs[uint16, spec.WidthScalable, uint32](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint32x4) DotProductPairs(y Uint32x4) (z Uint64x2) {
 	return Uint64x2{spec.DotProductPairs[uint32, spec.Width128, uint64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint32x8) DotProductPairs(y Uint32x8) (z Uint64x4) {
 	return Uint64x4{spec.DotProductPairs[uint32, spec.Width256, uint64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint32x16) DotProductPairs(y Uint32x16) (z Uint64x8) {
 	return Uint64x8{spec.DotProductPairs[uint32, spec.Width512, uint64](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, yielding a vector of half as many elements with twice the
-// input element size.
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
 //
 //	w[i] = x[i] * y[i]        // Double width
-//	z[i] = w[2*i] + w[2*i+1]
+//	z[j] = w[2*j] + w[2*j+1]
 func (x Uint32s) DotProductPairs(y Uint32s) (z Uint64s) {
 	return Uint64s{spec.DotProductPairs[uint32, spec.WidthScalable, uint64](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint8x16) DotProductPairsSaturated(y Int8x16) (z Int16x8) {
 	return Int16x8{spec.DotProductPairsSaturated[uint8, spec.Width128, int8, int16](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint8x32) DotProductPairsSaturated(y Int8x32) (z Int16x16) {
 	return Int16x16{spec.DotProductPairsSaturated[uint8, spec.Width256, int8, int16](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint8x64) DotProductPairsSaturated(y Int8x64) (z Int16x32) {
 	return Int16x32{spec.DotProductPairsSaturated[uint8, spec.Width512, int8, int16](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint8s) DotProductPairsSaturated(y Int8s) (z Int16s) {
 	return Int16s{spec.DotProductPairsSaturated[uint8, spec.WidthScalable, int8, int16](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint16x8) DotProductPairsSaturated(y Int16x8) (z Int32x4) {
 	return Int32x4{spec.DotProductPairsSaturated[uint16, spec.Width128, int16, int32](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint16x16) DotProductPairsSaturated(y Int16x16) (z Int32x8) {
 	return Int32x8{spec.DotProductPairsSaturated[uint16, spec.Width256, int16, int32](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint16x32) DotProductPairsSaturated(y Int16x32) (z Int32x16) {
 	return Int32x16{spec.DotProductPairsSaturated[uint16, spec.Width512, int16, int32](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint16s) DotProductPairsSaturated(y Int16s) (z Int32s) {
 	return Int32s{spec.DotProductPairsSaturated[uint16, spec.WidthScalable, int16, int32](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint32x4) DotProductPairsSaturated(y Int32x4) (z Int64x2) {
 	return Int64x2{spec.DotProductPairsSaturated[uint32, spec.Width128, int32, int64](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint32x8) DotProductPairsSaturated(y Int32x8) (z Int64x4) {
 	return Int64x4{spec.DotProductPairsSaturated[uint32, spec.Width256, int32, int64](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint32x16) DotProductPairsSaturated(y Int32x16) (z Int64x8) {
 	return Int64x8{spec.DotProductPairsSaturated[uint32, spec.Width512, int32, int64](x.v, y.v)}
 }
 
 // DotProductPairsSaturated multiplies corresponding elements of x and y, and
-// sums adjacent pairs, all with saturation. It yields a vector of half as many
-// elements with twice the input element size.
+// sums adjacent pairs, all with saturation. It returns a vector of half as many
+// elements, each with twice the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width, saturated
-//	z[i] = w[2*i] + w[2*i+1]  // Saturated
+//	w[i] = sat(x[i] * y[i])        // Double width
+//	z[j] = sat(w[2*j] + w[2*j+1])
 func (x Uint32s) DotProductPairsSaturated(y Int32s) (z Int64s) {
 	return Int64s{spec.DotProductPairsSaturated[uint32, spec.WidthScalable, int32, int64](x.v, y.v)}
 }
@@ -7289,610 +7414,946 @@ func (x Float64s) ToBits() (z Uint64s) {
 	return Uint64s{spec.ToBitsFloat[float64, spec.WidthScalable, uint64](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]    ⋯     x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	| 15     ....     0 | ⋯ | 15     ....     0 |
+//	         z[7]         ⋯          z[0]
 func (x Uint8x16) ReshapeToUint16s() (z Uint16x8) {
 	return Uint16x8{spec.ReshapeToUints[uint8, spec.Width128, uint16](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]     x[13]     x[12]    ⋯     x[3]      x[2]      x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	| 31               ....               0 | ⋯ | 31               ....               0 |
+//	                   z[3]                   ⋯                    z[0]
 func (x Uint8x16) ReshapeToUint32s() (z Uint32x4) {
 	return Uint32x4{spec.ReshapeToUints[uint8, spec.Width128, uint32](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]    ⋯     x[9]      x[8]      x[7]      x[6]    ⋯     x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	| 63                 ....                 0 | 63                 ....                 0 |
+//	                     z[1]                                        z[0]
 func (x Uint8x16) ReshapeToUint64s() (z Uint64x2) {
 	return Uint64x2{spec.ReshapeToUints[uint8, spec.Width128, uint64](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[31]     x[30]    ⋯     x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	| 15     ....     0 | ⋯ | 15     ....     0 |
+//	        z[15]         ⋯          z[0]
 func (x Uint8x32) ReshapeToUint16s() (z Uint16x16) {
 	return Uint16x16{spec.ReshapeToUints[uint8, spec.Width256, uint16](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[31]     x[30]     x[29]     x[28]    ⋯     x[3]      x[2]      x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	| 31               ....               0 | ⋯ | 31               ....               0 |
+//	                   z[7]                   ⋯                    z[0]
 func (x Uint8x32) ReshapeToUint32s() (z Uint32x8) {
 	return Uint32x8{spec.ReshapeToUints[uint8, spec.Width256, uint32](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x4 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[31]     x[30]    ⋯    x[25]     x[24]    ⋯     x[7]      x[6]    ⋯     x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	| 63                 ....                 0 | ⋯ | 63                 ....                 0 |
+//	                     z[3]                     ⋯                      z[0]
 func (x Uint8x32) ReshapeToUint64s() (z Uint64x4) {
 	return Uint64x4{spec.ReshapeToUints[uint8, spec.Width256, uint64](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x32 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x32 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[63]     x[62]    ⋯     x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	| 15     ....     0 | ⋯ | 15     ....     0 |
+//	        z[31]         ⋯          z[0]
 func (x Uint8x64) ReshapeToUint16s() (z Uint16x32) {
 	return Uint16x32{spec.ReshapeToUints[uint8, spec.Width512, uint16](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[63]     x[62]     x[61]     x[60]    ⋯     x[3]      x[2]      x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	| 31               ....               0 | ⋯ | 31               ....               0 |
+//	                  z[15]                   ⋯                    z[0]
 func (x Uint8x64) ReshapeToUint32s() (z Uint32x16) {
 	return Uint32x16{spec.ReshapeToUints[uint8, spec.Width512, uint32](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[63]     x[62]    ⋯    x[57]     x[56]    ⋯     x[7]      x[6]    ⋯     x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	| 63                 ....                 0 | ⋯ | 63                 ....                 0 |
+//	                     z[7]                     ⋯                      z[0]
 func (x Uint8x64) ReshapeToUint64s() (z Uint64x8) {
 	return Uint64x8{spec.ReshapeToUints[uint8, spec.Width512, uint64](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[3]      x[2]      x[1]      x[0]
+//	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	⋯ | 15     ....     0 | 15     ....     0 |
+//	⋯          z[1]                z[0]
 func (x Uint8s) ReshapeToUint16s() (z Uint16s) {
 	return Uint16s{spec.ReshapeToUints[uint8, spec.WidthScalable, uint16](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[7]      x[6]      x[5]      x[4]      x[3]      x[2]      x[1]      x[0]
+//	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	⋯ | 31               ....               0 | 31               ....               0 |
+//	⋯                    z[1]                                    z[0]
 func (x Uint8s) ReshapeToUint32s() (z Uint32s) {
 	return Uint32s{spec.ReshapeToUints[uint8, spec.WidthScalable, uint32](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯    x[15]     x[14]    ⋯     x[9]      x[8]      x[7]      x[6]    ⋯     x[1]      x[0]
+//	⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	⋯ | 63                 ....                 0 | 63                 ....                 0 |
+//	⋯                      z[1]                                        z[0]
 func (x Uint8s) ReshapeToUint64s() (z Uint64s) {
 	return Uint64s{spec.ReshapeToUints[uint8, spec.WidthScalable, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[7]         ⋯          x[0]
+//	| 15     ....     0 | ⋯ | 15     ....     0 |
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	   z[15]     z[14]    ⋯     z[1]      z[0]
 func (x Uint16x8) ReshapeToUint8s() (z Uint8x16) {
 	return Uint8x16{spec.ReshapeToUints[uint16, spec.Width128, uint8](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	    x[7]      x[6]    ⋯     x[1]      x[0]
+//	| 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 |
+//	| 31     ....     0 | ⋯ | 31     ....     0 |
+//	         z[3]         ⋯          z[0]
 func (x Uint16x8) ReshapeToUint32s() (z Uint32x4) {
 	return Uint32x4{spec.ReshapeToUints[uint16, spec.Width128, uint32](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	    x[7]      x[6]      x[5]      x[4]      x[3]      x[2]      x[1]      x[0]
+//	| 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	| 63               ....               0 | 63               ....               0 |
+//	                   z[1]                                    z[0]
 func (x Uint16x8) ReshapeToUint64s() (z Uint64x2) {
 	return Uint64x2{spec.ReshapeToUints[uint16, spec.Width128, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x32 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x32 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	        x[15]         ⋯          x[0]
+//	| 15     ....     0 | ⋯ | 15     ....     0 |
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	   z[31]     z[30]    ⋯     z[1]      z[0]
 func (x Uint16x16) ReshapeToUint8s() (z Uint8x32) {
 	return Uint8x32{spec.ReshapeToUints[uint16, spec.Width256, uint8](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]    ⋯     x[1]      x[0]
+//	| 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 |
+//	| 31     ....     0 | ⋯ | 31     ....     0 |
+//	         z[7]         ⋯          z[0]
 func (x Uint16x16) ReshapeToUint32s() (z Uint32x8) {
 	return Uint32x8{spec.ReshapeToUints[uint16, spec.Width256, uint32](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x4 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]     x[13]     x[12]    ⋯     x[3]      x[2]      x[1]      x[0]
+//	| 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	| 63               ....               0 | ⋯ | 63               ....               0 |
+//	                   z[3]                   ⋯                    z[0]
 func (x Uint16x16) ReshapeToUint64s() (z Uint64x4) {
 	return Uint64x4{spec.ReshapeToUints[uint16, spec.Width256, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x64 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x64 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	        x[31]         ⋯          x[0]
+//	| 15     ....     0 | ⋯ | 15     ....     0 |
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	   z[63]     z[62]    ⋯     z[1]      z[0]
 func (x Uint16x32) ReshapeToUint8s() (z Uint8x64) {
 	return Uint8x64{spec.ReshapeToUints[uint16, spec.Width512, uint8](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[31]     x[30]    ⋯     x[1]      x[0]
+//	| 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 |
+//	| 31     ....     0 | ⋯ | 31     ....     0 |
+//	        z[15]         ⋯          z[0]
 func (x Uint16x32) ReshapeToUint32s() (z Uint32x16) {
 	return Uint32x16{spec.ReshapeToUints[uint16, spec.Width512, uint32](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[31]     x[30]     x[29]     x[28]    ⋯     x[3]      x[2]      x[1]      x[0]
+//	| 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	| 63               ....               0 | ⋯ | 63               ....               0 |
+//	                   z[7]                   ⋯                    z[0]
 func (x Uint16x32) ReshapeToUint64s() (z Uint64x8) {
 	return Uint64x8{spec.ReshapeToUints[uint16, spec.Width512, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯          x[1]                x[0]
+//	⋯ | 15     ....     0 | 15     ....     0 |
+//	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint16s) ReshapeToUint8s() (z Uint8s) {
 	return Uint8s{spec.ReshapeToUints[uint16, spec.WidthScalable, uint8](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[3]      x[2]      x[1]      x[0]
+//	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	⋯ | 31     ....     0 | 31     ....     0 |
+//	⋯          z[1]                z[0]
 func (x Uint16s) ReshapeToUint32s() (z Uint32s) {
 	return Uint32s{spec.ReshapeToUints[uint16, spec.WidthScalable, uint32](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[7]      x[6]      x[5]      x[4]      x[3]      x[2]      x[1]      x[0]
+//	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	⋯ | 63               ....               0 | 63               ....               0 |
+//	⋯                    z[1]                                    z[0]
 func (x Uint16s) ReshapeToUint64s() (z Uint64s) {
 	return Uint64s{spec.ReshapeToUints[uint16, spec.WidthScalable, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                   x[3]                   ⋯                    x[0]
+//	| 31               ....               0 | ⋯ | 31               ....               0 |
+//	| 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	   z[15]     z[14]     z[13]     z[12]    ⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint32x4) ReshapeToUint8s() (z Uint8x16) {
 	return Uint8x16{spec.ReshapeToUints[uint32, spec.Width128, uint8](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[3]         ⋯          x[0]
+//	| 31     ....     0 | ⋯ | 31     ....     0 |
+//	| 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 |
+//	    z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint32x4) ReshapeToUint16s() (z Uint16x8) {
 	return Uint16x8{spec.ReshapeToUints[uint32, spec.Width128, uint16](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	    x[3]      x[2]      x[1]      x[0]
+//	| 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
+//	| 63     ....     0 | 63     ....     0 |
+//	         z[1]                z[0]
 func (x Uint32x4) ReshapeToUint64s() (z Uint64x2) {
 	return Uint64x2{spec.ReshapeToUints[uint32, spec.Width128, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x32 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x32 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                   x[7]                   ⋯                    x[0]
+//	| 31               ....               0 | ⋯ | 31               ....               0 |
+//	| 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	   z[31]     z[30]     z[29]     z[28]    ⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint32x8) ReshapeToUint8s() (z Uint8x32) {
 	return Uint8x32{spec.ReshapeToUints[uint32, spec.Width256, uint8](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[7]         ⋯          x[0]
+//	| 31     ....     0 | ⋯ | 31     ....     0 |
+//	| 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 |
+//	   z[15]     z[14]    ⋯     z[1]      z[0]
 func (x Uint32x8) ReshapeToUint16s() (z Uint16x16) {
 	return Uint16x16{spec.ReshapeToUints[uint32, spec.Width256, uint16](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x4 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	    x[7]      x[6]    ⋯     x[1]      x[0]
+//	| 31 .. 0 | 31 .. 0 | ⋯ | 31 .. 0 | 31 .. 0 |
+//	| 63     ....     0 | ⋯ | 63     ....     0 |
+//	         z[3]         ⋯          z[0]
 func (x Uint32x8) ReshapeToUint64s() (z Uint64x4) {
 	return Uint64x4{spec.ReshapeToUints[uint32, spec.Width256, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x64 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x64 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                  x[15]                   ⋯                    x[0]
+//	| 31               ....               0 | ⋯ | 31               ....               0 |
+//	| 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	   z[63]     z[62]     z[61]     z[60]    ⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint32x16) ReshapeToUint8s() (z Uint8x64) {
 	return Uint8x64{spec.ReshapeToUints[uint32, spec.Width512, uint8](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x32 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x32 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	        x[15]         ⋯          x[0]
+//	| 31     ....     0 | ⋯ | 31     ....     0 |
+//	| 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 |
+//	   z[31]     z[30]    ⋯     z[1]      z[0]
 func (x Uint32x16) ReshapeToUint16s() (z Uint16x32) {
 	return Uint16x32{spec.ReshapeToUints[uint32, spec.Width512, uint16](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]    ⋯     x[1]      x[0]
+//	| 31 .. 0 | 31 .. 0 | ⋯ | 31 .. 0 | 31 .. 0 |
+//	| 63     ....     0 | ⋯ | 63     ....     0 |
+//	         z[7]         ⋯          z[0]
 func (x Uint32x16) ReshapeToUint64s() (z Uint64x8) {
 	return Uint64x8{spec.ReshapeToUints[uint32, spec.Width512, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯                    x[1]                                    x[0]
+//	⋯ | 31               ....               0 | 31               ....               0 |
+//	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	⋯     z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint32s) ReshapeToUint8s() (z Uint8s) {
 	return Uint8s{spec.ReshapeToUints[uint32, spec.WidthScalable, uint8](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯          x[1]                x[0]
+//	⋯ | 31     ....     0 | 31     ....     0 |
+//	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint32s) ReshapeToUint16s() (z Uint16s) {
 	return Uint16s{spec.ReshapeToUints[uint32, spec.WidthScalable, uint16](x.v)}
 }
 
-// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[3]      x[2]      x[1]      x[0]
+//	⋯ | 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
+//	⋯ | 63     ....     0 | 63     ....     0 |
+//	⋯          z[1]                z[0]
 func (x Uint32s) ReshapeToUint64s() (z Uint64s) {
 	return Uint64s{spec.ReshapeToUints[uint32, spec.WidthScalable, uint64](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                     x[1]                                        x[0]
+//	| 63                 ....                 0 | 63                 ....                 0 |
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	   z[15]     z[14]    ⋯     z[9]      z[8]      z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64x2) ReshapeToUint8s() (z Uint8x16) {
 	return Uint8x16{spec.ReshapeToUints[uint64, spec.Width128, uint8](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                   x[1]                                    x[0]
+//	| 63               ....               0 | 63               ....               0 |
+//	| 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	    z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint64x2) ReshapeToUint16s() (z Uint16x8) {
 	return Uint16x8{spec.ReshapeToUints[uint64, spec.Width128, uint16](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[1]                x[0]
+//	| 63     ....     0 | 63     ....     0 |
+//	| 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
+//	    z[3]      z[2]      z[1]      z[0]
 func (x Uint64x2) ReshapeToUint32s() (z Uint32x4) {
 	return Uint32x4{spec.ReshapeToUints[uint64, spec.Width128, uint32](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x32 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x32 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                     x[3]                     ⋯                      x[0]
+//	| 63                 ....                 0 | ⋯ | 63                 ....                 0 |
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	   z[31]     z[30]    ⋯    z[25]     z[24]    ⋯     z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64x4) ReshapeToUint8s() (z Uint8x32) {
 	return Uint8x32{spec.ReshapeToUints[uint64, spec.Width256, uint8](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                   x[3]                   ⋯                    x[0]
+//	| 63               ....               0 | ⋯ | 63               ....               0 |
+//	| 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	   z[15]     z[14]     z[13]     z[12]    ⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint64x4) ReshapeToUint16s() (z Uint16x16) {
 	return Uint16x16{spec.ReshapeToUints[uint64, spec.Width256, uint16](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x8 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[3]         ⋯          x[0]
+//	| 63     ....     0 | ⋯ | 63     ....     0 |
+//	| 31 .. 0 | 31 .. 0 | ⋯ | 31 .. 0 | 31 .. 0 |
+//	    z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64x4) ReshapeToUint32s() (z Uint32x8) {
 	return Uint32x8{spec.ReshapeToUints[uint64, spec.Width256, uint32](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8x64 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x64 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                     x[7]                     ⋯                      x[0]
+//	| 63                 ....                 0 | ⋯ | 63                 ....                 0 |
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	   z[63]     z[62]    ⋯    z[57]     z[56]    ⋯     z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64x8) ReshapeToUint8s() (z Uint8x64) {
 	return Uint8x64{spec.ReshapeToUints[uint64, spec.Width512, uint8](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16x32 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x32 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                   x[7]                   ⋯                    x[0]
+//	| 63               ....               0 | ⋯ | 63               ....               0 |
+//	| 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	   z[31]     z[30]     z[29]     z[28]    ⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint64x8) ReshapeToUint16s() (z Uint16x32) {
 	return Uint16x32{spec.ReshapeToUints[uint64, spec.Width512, uint16](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32x16 vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[7]         ⋯          x[0]
+//	| 63     ....     0 | ⋯ | 63     ....     0 |
+//	| 31 .. 0 | 31 .. 0 | ⋯ | 31 .. 0 | 31 .. 0 |
+//	   z[15]     z[14]    ⋯     z[1]      z[0]
 func (x Uint64x8) ReshapeToUint32s() (z Uint32x16) {
 	return Uint32x16{spec.ReshapeToUints[uint64, spec.Width512, uint32](x.v)}
 }
 
-// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯                      x[1]                                        x[0]
+//	⋯ | 63                 ....                 0 | 63                 ....                 0 |
+//	⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	⋯    z[15]     z[14]    ⋯     z[9]      z[8]      z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64s) ReshapeToUint8s() (z Uint8s) {
 	return Uint8s{spec.ReshapeToUints[uint64, spec.WidthScalable, uint8](x.v)}
 }
 
-// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯                    x[1]                                    x[0]
+//	⋯ | 63               ....               0 | 63               ....               0 |
+//	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	⋯     z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint64s) ReshapeToUint16s() (z Uint16s) {
 	return Uint16s{spec.ReshapeToUints[uint64, spec.WidthScalable, uint16](x.v)}
 }
 
-// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector. The least
-// significant bit of element 0 is bit 0
+// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯          x[1]                x[0]
+//	⋯ | 63     ....     0 | 63     ....     0 |
+//	⋯ | 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
+//	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint64s) ReshapeToUint32s() (z Uint32s) {
 	return Uint32s{spec.ReshapeToUints[uint64, spec.WidthScalable, uint32](x.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int8x16) ScaleSaturated(scale Int8x16) (z Int8x16) {
 	return Int8x16{spec.ScaleSaturated[int8, spec.Width128, int8](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int8x32) ScaleSaturated(scale Int8x32) (z Int8x32) {
 	return Int8x32{spec.ScaleSaturated[int8, spec.Width256, int8](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int8x64) ScaleSaturated(scale Int8x64) (z Int8x64) {
 	return Int8x64{spec.ScaleSaturated[int8, spec.Width512, int8](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int8s) ScaleSaturated(scale Int8s) (z Int8s) {
 	return Int8s{spec.ScaleSaturated[int8, spec.WidthScalable, int8](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int16x8) ScaleSaturated(scale Int16x8) (z Int16x8) {
 	return Int16x8{spec.ScaleSaturated[int16, spec.Width128, int16](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int16x16) ScaleSaturated(scale Int16x16) (z Int16x16) {
 	return Int16x16{spec.ScaleSaturated[int16, spec.Width256, int16](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int16x32) ScaleSaturated(scale Int16x32) (z Int16x32) {
 	return Int16x32{spec.ScaleSaturated[int16, spec.Width512, int16](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int16s) ScaleSaturated(scale Int16s) (z Int16s) {
 	return Int16s{spec.ScaleSaturated[int16, spec.WidthScalable, int16](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int32x4) ScaleSaturated(scale Int32x4) (z Int32x4) {
 	return Int32x4{spec.ScaleSaturated[int32, spec.Width128, int32](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int32x8) ScaleSaturated(scale Int32x8) (z Int32x8) {
 	return Int32x8{spec.ScaleSaturated[int32, spec.Width256, int32](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int32x16) ScaleSaturated(scale Int32x16) (z Int32x16) {
 	return Int32x16{spec.ScaleSaturated[int32, spec.Width512, int32](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int32s) ScaleSaturated(scale Int32s) (z Int32s) {
 	return Int32s{spec.ScaleSaturated[int32, spec.WidthScalable, int32](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int64x2) ScaleSaturated(scale Int64x2) (z Int64x2) {
 	return Int64x2{spec.ScaleSaturated[int64, spec.Width128, int64](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int64x4) ScaleSaturated(scale Int64x4) (z Int64x4) {
 	return Int64x4{spec.ScaleSaturated[int64, spec.Width256, int64](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int64x8) ScaleSaturated(scale Int64x8) (z Int64x8) {
 	return Int64x8{spec.ScaleSaturated[int64, spec.Width512, int64](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Int64s) ScaleSaturated(scale Int64s) (z Int64s) {
 	return Int64s{spec.ScaleSaturated[int64, spec.WidthScalable, int64](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint8x16) ScaleSaturated(scale Int8x16) (z Uint8x16) {
 	return Uint8x16{spec.ScaleSaturated[uint8, spec.Width128, int8](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint8x32) ScaleSaturated(scale Int8x32) (z Uint8x32) {
 	return Uint8x32{spec.ScaleSaturated[uint8, spec.Width256, int8](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint8x64) ScaleSaturated(scale Int8x64) (z Uint8x64) {
 	return Uint8x64{spec.ScaleSaturated[uint8, spec.Width512, int8](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint8s) ScaleSaturated(scale Int8s) (z Uint8s) {
 	return Uint8s{spec.ScaleSaturated[uint8, spec.WidthScalable, int8](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint16x8) ScaleSaturated(scale Int16x8) (z Uint16x8) {
 	return Uint16x8{spec.ScaleSaturated[uint16, spec.Width128, int16](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint16x16) ScaleSaturated(scale Int16x16) (z Uint16x16) {
 	return Uint16x16{spec.ScaleSaturated[uint16, spec.Width256, int16](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint16x32) ScaleSaturated(scale Int16x32) (z Uint16x32) {
 	return Uint16x32{spec.ScaleSaturated[uint16, spec.Width512, int16](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint16s) ScaleSaturated(scale Int16s) (z Uint16s) {
 	return Uint16s{spec.ScaleSaturated[uint16, spec.WidthScalable, int16](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint32x4) ScaleSaturated(scale Int32x4) (z Uint32x4) {
 	return Uint32x4{spec.ScaleSaturated[uint32, spec.Width128, int32](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint32x8) ScaleSaturated(scale Int32x8) (z Uint32x8) {
 	return Uint32x8{spec.ScaleSaturated[uint32, spec.Width256, int32](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint32x16) ScaleSaturated(scale Int32x16) (z Uint32x16) {
 	return Uint32x16{spec.ScaleSaturated[uint32, spec.Width512, int32](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint32s) ScaleSaturated(scale Int32s) (z Uint32s) {
 	return Uint32s{spec.ScaleSaturated[uint32, spec.WidthScalable, int32](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint64x2) ScaleSaturated(scale Int64x2) (z Uint64x2) {
 	return Uint64x2{spec.ScaleSaturated[uint64, spec.Width128, int64](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint64x4) ScaleSaturated(scale Int64x4) (z Uint64x4) {
 	return Uint64x4{spec.ScaleSaturated[uint64, spec.Width256, int64](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint64x8) ScaleSaturated(scale Int64x8) (z Uint64x8) {
 	return Uint64x8{spec.ScaleSaturated[uint64, spec.Width512, int64](x.v, scale.v)}
 }
 
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
-// Positive exponents scale up (shift left with saturation); negative exponents
-// scale down (shift right; arithmetic for signed types, logical for unsigned types).
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
 //
-//	z[i] = saturated(x[i] * 2^scale[i])
+//	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint64s) ScaleSaturated(scale Int64s) (z Uint64s) {
 	return Uint64s{spec.ScaleSaturated[uint64, spec.WidthScalable, int64](x.v, scale.v)}
 }
@@ -8025,7 +8486,7 @@ func (x Int64s) ShiftAllRight(shift uint64) (z Int64s) {
 	return Int64s{spec.ShiftAllRight[int64, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8033,7 +8494,7 @@ func (x Uint8x16) ShiftAllRight(shift uint64) (z Uint8x16) {
 	return Uint8x16{spec.ShiftAllRight[uint8, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8041,7 +8502,7 @@ func (x Uint8x32) ShiftAllRight(shift uint64) (z Uint8x32) {
 	return Uint8x32{spec.ShiftAllRight[uint8, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8049,7 +8510,7 @@ func (x Uint8x64) ShiftAllRight(shift uint64) (z Uint8x64) {
 	return Uint8x64{spec.ShiftAllRight[uint8, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8057,7 +8518,7 @@ func (x Uint8s) ShiftAllRight(shift uint64) (z Uint8s) {
 	return Uint8s{spec.ShiftAllRight[uint8, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8065,7 +8526,7 @@ func (x Uint16x8) ShiftAllRight(shift uint64) (z Uint16x8) {
 	return Uint16x8{spec.ShiftAllRight[uint16, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8073,7 +8534,7 @@ func (x Uint16x16) ShiftAllRight(shift uint64) (z Uint16x16) {
 	return Uint16x16{spec.ShiftAllRight[uint16, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8081,7 +8542,7 @@ func (x Uint16x32) ShiftAllRight(shift uint64) (z Uint16x32) {
 	return Uint16x32{spec.ShiftAllRight[uint16, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8089,7 +8550,7 @@ func (x Uint16s) ShiftAllRight(shift uint64) (z Uint16s) {
 	return Uint16s{spec.ShiftAllRight[uint16, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8097,7 +8558,7 @@ func (x Uint32x4) ShiftAllRight(shift uint64) (z Uint32x4) {
 	return Uint32x4{spec.ShiftAllRight[uint32, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8105,7 +8566,7 @@ func (x Uint32x8) ShiftAllRight(shift uint64) (z Uint32x8) {
 	return Uint32x8{spec.ShiftAllRight[uint32, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8113,7 +8574,7 @@ func (x Uint32x16) ShiftAllRight(shift uint64) (z Uint32x16) {
 	return Uint32x16{spec.ShiftAllRight[uint32, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8121,7 +8582,7 @@ func (x Uint32s) ShiftAllRight(shift uint64) (z Uint32s) {
 	return Uint32s{spec.ShiftAllRight[uint32, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8129,7 +8590,7 @@ func (x Uint64x2) ShiftAllRight(shift uint64) (z Uint64x2) {
 	return Uint64x2{spec.ShiftAllRight[uint64, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8137,7 +8598,7 @@ func (x Uint64x4) ShiftAllRight(shift uint64) (z Uint64x4) {
 	return Uint64x4{spec.ShiftAllRight[uint64, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8145,7 +8606,7 @@ func (x Uint64x8) ShiftAllRight(shift uint64) (z Uint64x8) {
 	return Uint64x8{spec.ShiftAllRight[uint64, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllRight logically shifts each element of x right by y bits.
+// ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] >> shift
@@ -8153,7 +8614,7 @@ func (x Uint64s) ShiftAllRight(shift uint64) (z Uint64s) {
 	return Uint64s{spec.ShiftAllRight[uint64, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8161,7 +8622,7 @@ func (x Int8x16) ShiftAllLeft(shift uint64) (z Int8x16) {
 	return Int8x16{spec.ShiftAllLeft[int8, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8169,7 +8630,7 @@ func (x Int8x32) ShiftAllLeft(shift uint64) (z Int8x32) {
 	return Int8x32{spec.ShiftAllLeft[int8, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8177,7 +8638,7 @@ func (x Int8x64) ShiftAllLeft(shift uint64) (z Int8x64) {
 	return Int8x64{spec.ShiftAllLeft[int8, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8185,7 +8646,7 @@ func (x Int8s) ShiftAllLeft(shift uint64) (z Int8s) {
 	return Int8s{spec.ShiftAllLeft[int8, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8193,7 +8654,7 @@ func (x Int16x8) ShiftAllLeft(shift uint64) (z Int16x8) {
 	return Int16x8{spec.ShiftAllLeft[int16, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8201,7 +8662,7 @@ func (x Int16x16) ShiftAllLeft(shift uint64) (z Int16x16) {
 	return Int16x16{spec.ShiftAllLeft[int16, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8209,7 +8670,7 @@ func (x Int16x32) ShiftAllLeft(shift uint64) (z Int16x32) {
 	return Int16x32{spec.ShiftAllLeft[int16, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8217,7 +8678,7 @@ func (x Int16s) ShiftAllLeft(shift uint64) (z Int16s) {
 	return Int16s{spec.ShiftAllLeft[int16, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8225,7 +8686,7 @@ func (x Int32x4) ShiftAllLeft(shift uint64) (z Int32x4) {
 	return Int32x4{spec.ShiftAllLeft[int32, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8233,7 +8694,7 @@ func (x Int32x8) ShiftAllLeft(shift uint64) (z Int32x8) {
 	return Int32x8{spec.ShiftAllLeft[int32, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8241,7 +8702,7 @@ func (x Int32x16) ShiftAllLeft(shift uint64) (z Int32x16) {
 	return Int32x16{spec.ShiftAllLeft[int32, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8249,7 +8710,7 @@ func (x Int32s) ShiftAllLeft(shift uint64) (z Int32s) {
 	return Int32s{spec.ShiftAllLeft[int32, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8257,7 +8718,7 @@ func (x Int64x2) ShiftAllLeft(shift uint64) (z Int64x2) {
 	return Int64x2{spec.ShiftAllLeft[int64, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8265,7 +8726,7 @@ func (x Int64x4) ShiftAllLeft(shift uint64) (z Int64x4) {
 	return Int64x4{spec.ShiftAllLeft[int64, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8273,7 +8734,7 @@ func (x Int64x8) ShiftAllLeft(shift uint64) (z Int64x8) {
 	return Int64x8{spec.ShiftAllLeft[int64, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8281,7 +8742,7 @@ func (x Int64s) ShiftAllLeft(shift uint64) (z Int64s) {
 	return Int64s{spec.ShiftAllLeft[int64, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8289,7 +8750,7 @@ func (x Uint8x16) ShiftAllLeft(shift uint64) (z Uint8x16) {
 	return Uint8x16{spec.ShiftAllLeft[uint8, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8297,7 +8758,7 @@ func (x Uint8x32) ShiftAllLeft(shift uint64) (z Uint8x32) {
 	return Uint8x32{spec.ShiftAllLeft[uint8, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8305,7 +8766,7 @@ func (x Uint8x64) ShiftAllLeft(shift uint64) (z Uint8x64) {
 	return Uint8x64{spec.ShiftAllLeft[uint8, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8313,7 +8774,7 @@ func (x Uint8s) ShiftAllLeft(shift uint64) (z Uint8s) {
 	return Uint8s{spec.ShiftAllLeft[uint8, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8321,7 +8782,7 @@ func (x Uint16x8) ShiftAllLeft(shift uint64) (z Uint16x8) {
 	return Uint16x8{spec.ShiftAllLeft[uint16, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8329,7 +8790,7 @@ func (x Uint16x16) ShiftAllLeft(shift uint64) (z Uint16x16) {
 	return Uint16x16{spec.ShiftAllLeft[uint16, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8337,7 +8798,7 @@ func (x Uint16x32) ShiftAllLeft(shift uint64) (z Uint16x32) {
 	return Uint16x32{spec.ShiftAllLeft[uint16, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8345,7 +8806,7 @@ func (x Uint16s) ShiftAllLeft(shift uint64) (z Uint16s) {
 	return Uint16s{spec.ShiftAllLeft[uint16, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8353,7 +8814,7 @@ func (x Uint32x4) ShiftAllLeft(shift uint64) (z Uint32x4) {
 	return Uint32x4{spec.ShiftAllLeft[uint32, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8361,7 +8822,7 @@ func (x Uint32x8) ShiftAllLeft(shift uint64) (z Uint32x8) {
 	return Uint32x8{spec.ShiftAllLeft[uint32, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8369,7 +8830,7 @@ func (x Uint32x16) ShiftAllLeft(shift uint64) (z Uint32x16) {
 	return Uint32x16{spec.ShiftAllLeft[uint32, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8377,7 +8838,7 @@ func (x Uint32s) ShiftAllLeft(shift uint64) (z Uint32s) {
 	return Uint32s{spec.ShiftAllLeft[uint32, spec.WidthScalable](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8385,7 +8846,7 @@ func (x Uint64x2) ShiftAllLeft(shift uint64) (z Uint64x2) {
 	return Uint64x2{spec.ShiftAllLeft[uint64, spec.Width128](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8393,7 +8854,7 @@ func (x Uint64x4) ShiftAllLeft(shift uint64) (z Uint64x4) {
 	return Uint64x4{spec.ShiftAllLeft[uint64, spec.Width256](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift
@@ -8401,7 +8862,7 @@ func (x Uint64x8) ShiftAllLeft(shift uint64) (z Uint64x8) {
 	return Uint64x8{spec.ShiftAllLeft[uint64, spec.Width512](x.v, shift)}
 }
 
-// ShiftAllLeft shifts each element of x left by y bits.
+// ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
 //	z[i] = x[i] << shift

@@ -89,6 +89,13 @@ func (t Vector) Scalable() bool {
 	sw, ok := t.Width.(ScalableWidth)
 	return ok && sw.ValidWidth()
 }
+func (t Vector) Elems() Num {
+	elems, err := t.Width.Div(t.Elem.Bits)
+	if err != nil {
+		panic(fmt.Sprintf("malformed Vector, cannot compute Elems: %s", err))
+	}
+	return elems
+}
 
 type Pointer struct {
 	Elem Type

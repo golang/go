@@ -14,7 +14,7 @@ String and Len are excluded throughout (§2.7).
 Heading for 100%:
 
 spec coverage, by (receiver, name) (§1)           777 / 2893   27%  [spec-common, spec-all]
-docs sourced from spec (§3)                        76 / 1301    6%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+docs sourced from spec (§3)                        24 / 1301    2%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
@@ -87,7 +87,7 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec     76 / 1301    6%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec     24 / 1301    2%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 simd ∩ archsimd methods with matching docs          0 / 253     0%  [gen-docs, comments-yaml]
 
