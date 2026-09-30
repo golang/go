@@ -3412,6 +3412,11 @@ func (b *Builder) CFlags(p *load.Package) (cppflags, cflags, cxxflags, fflags, l
 	if ldflags, err = buildFlags("LDFLAGS", DefaultCFlags, p.CgoLDFLAGS, checkLinkerFlags); err != nil {
 		return
 	}
+	if p.Dir != "" && hasGCCSpecFlags(p.CgoLDFLAGS) {
+		if err = checkLinkerSpecDir("#cgo LDFLAGS", p.Dir); err != nil {
+			return
+		}
+	}
 
 	return
 }
