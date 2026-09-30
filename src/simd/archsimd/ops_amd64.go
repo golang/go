@@ -127,7 +127,7 @@ func (x Uint32x4) AESInvMixColumns() Uint32x4
 // result[2] = XOR(SubWord(RotWord(x[2])), r)
 // result[3] = SubWord(x[3])
 //
-// A non-constant value of rconVal may result in significantly worse performance for this operation.
+// Performance: A non-constant value of rconVal may result in significantly worse performance for this operation.
 //
 // Asm: VAESKEYGENASSIST, CPU Feature: AVXAES
 func (x Uint32x4) AESRoundKeyGenAssist(rconVal uint8) Uint32x4
@@ -732,42 +732,42 @@ func (x Float64x4) Ceil() Float64x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x4) CeilScaled(prec uint8) Float32x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x8) CeilScaled(prec uint8) Float32x8
 
 // CeilScaled rounds elements up with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x16) CeilScaled(prec uint8) Float32x16
 
 // CeilScaled rounds elements up with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x2) CeilScaled(prec uint8) Float64x2
 
 // CeilScaled rounds elements up with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x4) CeilScaled(prec uint8) Float64x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x8) CeilScaled(prec uint8) Float64x8
@@ -776,42 +776,42 @@ func (x Float64x8) CeilScaled(prec uint8) Float64x8
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x4) CeilScaledResidue(prec uint8) Float32x4
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x8) CeilScaledResidue(prec uint8) Float32x8
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x16) CeilScaledResidue(prec uint8) Float32x16
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x2) CeilScaledResidue(prec uint8) Float64x2
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x4) CeilScaledResidue(prec uint8) Float64x4
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) CeilScaledResidue(prec uint8) Float64x8
@@ -1412,7 +1412,7 @@ func (x Uint64x8) ConcatPermute(y Uint64x8, indices Uint64x8) Uint64x8
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2F128, CPU Feature: AVX
 func (x Float32x8) ConcatPermute128Scalars(lo, hi uint8, y Float32x8) Float32x8
@@ -1428,7 +1428,7 @@ func (x Float32x8) ConcatPermute128Scalars(lo, hi uint8, y Float32x8) Float32x8
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2F128, CPU Feature: AVX
 func (x Float64x4) ConcatPermute128Scalars(lo, hi uint8, y Float64x4) Float64x4
@@ -1445,7 +1445,7 @@ func (x Float64x4) ConcatPermute128Scalars(lo, hi uint8, y Float64x4) Float64x4
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int8x32) ConcatPermute128Scalars(lo, hi uint8, y Int8x32) Int8x32
@@ -1462,7 +1462,7 @@ func (x Int8x32) ConcatPermute128Scalars(lo, hi uint8, y Int8x32) Int8x32
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int16x16) ConcatPermute128Scalars(lo, hi uint8, y Int16x16) Int16x16
@@ -1478,7 +1478,7 @@ func (x Int16x16) ConcatPermute128Scalars(lo, hi uint8, y Int16x16) Int16x16
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int32x8) ConcatPermute128Scalars(lo, hi uint8, y Int32x8) Int32x8
@@ -1494,7 +1494,7 @@ func (x Int32x8) ConcatPermute128Scalars(lo, hi uint8, y Int32x8) Int32x8
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int64x4) ConcatPermute128Scalars(lo, hi uint8, y Int64x4) Int64x4
@@ -1511,7 +1511,7 @@ func (x Int64x4) ConcatPermute128Scalars(lo, hi uint8, y Int64x4) Int64x4
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint8x32) ConcatPermute128Scalars(lo, hi uint8, y Uint8x32) Uint8x32
@@ -1528,7 +1528,7 @@ func (x Uint8x32) ConcatPermute128Scalars(lo, hi uint8, y Uint8x32) Uint8x32
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint16x16) ConcatPermute128Scalars(lo, hi uint8, y Uint16x16) Uint16x16
@@ -1544,7 +1544,7 @@ func (x Uint16x16) ConcatPermute128Scalars(lo, hi uint8, y Uint16x16) Uint16x16
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint32x8) ConcatPermute128Scalars(lo, hi uint8, y Uint32x8) Uint32x8
@@ -1560,7 +1560,7 @@ func (x Uint32x8) ConcatPermute128Scalars(lo, hi uint8, y Uint32x8) Uint32x8
 //
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of lo, hi may result in significantly worse performance for this operation.
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint64x4) ConcatPermute128Scalars(lo, hi uint8, y Uint64x4) Uint64x4
@@ -1624,7 +1624,7 @@ func (x Int32x16) ConcatSaturateToUint16Grouped(y Int32x16) Uint16x32
 // ConcatShiftBytesRight concatenates x and y and shifts it right by shift bytes.
 // The result vector will be the lower half of the concatenated vector.
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX
 func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
@@ -1635,7 +1635,7 @@ func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
 // The result vector will be the lower half of the concatenated vector.
 // This operation is performed grouped by each 16 byte.
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX2
 func (x Uint8x32) ConcatShiftBytesRightGrouped(y Uint8x32, shift uint64) Uint8x32
@@ -1644,7 +1644,7 @@ func (x Uint8x32) ConcatShiftBytesRightGrouped(y Uint8x32, shift uint64) Uint8x3
 // The result vector will be the lower half of the concatenated vector.
 // This operation is performed grouped by each 16 byte.
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX512
 func (x Uint8x64) ConcatShiftBytesRightGrouped(y Uint8x64, shift uint64) Uint8x64
@@ -2692,42 +2692,42 @@ func (x Float64x4) Floor() Float64x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x4) FloorScaled(prec uint8) Float32x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x8) FloorScaled(prec uint8) Float32x8
 
 // FloorScaled rounds elements down with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x16) FloorScaled(prec uint8) Float32x16
 
 // FloorScaled rounds elements down with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x2) FloorScaled(prec uint8) Float64x2
 
 // FloorScaled rounds elements down with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x4) FloorScaled(prec uint8) Float64x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x8) FloorScaled(prec uint8) Float64x8
@@ -2736,42 +2736,42 @@ func (x Float64x8) FloorScaled(prec uint8) Float64x8
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x4) FloorScaledResidue(prec uint8) Float32x4
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x8) FloorScaledResidue(prec uint8) Float32x8
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x16) FloorScaledResidue(prec uint8) Float32x16
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x2) FloorScaledResidue(prec uint8) Float64x2
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x4) FloorScaledResidue(prec uint8) Float64x4
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) FloorScaledResidue(prec uint8) Float64x8
@@ -2784,7 +2784,7 @@ func (x Float64x8) FloorScaledResidue(prec uint8) Float64x8
 // The b argument is likewise an 8-element vector of bits.
 // The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
 //
-// A non-constant value of b may result in significantly worse performance for this operation.
+// Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldAffineTransform(A Uint64x2, b uint8) Uint8x16
@@ -2795,7 +2795,7 @@ func (x Uint8x16) GaloisFieldAffineTransform(A Uint64x2, b uint8) Uint8x16
 // The b argument is likewise an 8-element vector of bits.
 // The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
 //
-// A non-constant value of b may result in significantly worse performance for this operation.
+// Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldAffineTransform(A Uint64x4, b uint8) Uint8x32
@@ -2806,7 +2806,7 @@ func (x Uint8x32) GaloisFieldAffineTransform(A Uint64x4, b uint8) Uint8x32
 // The b argument is likewise an 8-element vector of bits.
 // The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
 //
-// A non-constant value of b may result in significantly worse performance for this operation.
+// Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x64) GaloisFieldAffineTransform(A Uint64x8, b uint8) Uint8x64
@@ -2820,7 +2820,7 @@ func (x Uint8x64) GaloisFieldAffineTransform(A Uint64x8, b uint8) Uint8x64
 // The b argument is likewise an 8-element vector of bits.
 // The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
 //
-// A non-constant value of b may result in significantly worse performance for this operation.
+// Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldAffineTransformInverse(A Uint64x2, b uint8) Uint8x16
@@ -2832,7 +2832,7 @@ func (x Uint8x16) GaloisFieldAffineTransformInverse(A Uint64x2, b uint8) Uint8x1
 // The b argument is likewise an 8-element vector of bits.
 // The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
 //
-// A non-constant value of b may result in significantly worse performance for this operation.
+// Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldAffineTransformInverse(A Uint64x4, b uint8) Uint8x32
@@ -2844,7 +2844,7 @@ func (x Uint8x32) GaloisFieldAffineTransformInverse(A Uint64x4, b uint8) Uint8x3
 // The b argument is likewise an 8-element vector of bits.
 // The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
 //
-// A non-constant value of b may result in significantly worse performance for this operation.
+// Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x64) GaloisFieldAffineTransformInverse(A Uint64x8, b uint8) Uint8x64
@@ -2873,70 +2873,70 @@ func (x Uint8x64) GaloisFieldMul(y Uint8x64) Uint8x64
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
 func (x Float32x4) GetElem(index uint8) float32
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Float64x2) GetElem(index uint8) float64
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRB, CPU Feature: AVX
 func (x Int8x16) GetElem(index uint8) int8
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRW, CPU Feature: AVX
 func (x Int16x8) GetElem(index uint8) int16
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
 func (x Int32x4) GetElem(index uint8) int32
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Int64x2) GetElem(index uint8) int64
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRB, CPU Feature: AVX
 func (x Uint8x16) GetElem(index uint8) uint8
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRW, CPU Feature: AVX
 func (x Uint16x8) GetElem(index uint8) uint16
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
 func (x Uint32x4) GetElem(index uint8) uint32
 
 // GetElem returns the index'th element of x.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Uint64x2) GetElem(index uint8) uint64
@@ -5079,42 +5079,42 @@ func (x Float64x4) Round() Float64x4
 
 // RoundScaled rounds elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x4) RoundScaled(prec uint8) Float32x4
 
 // RoundScaled rounds elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x8) RoundScaled(prec uint8) Float32x8
 
 // RoundScaled rounds elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x16) RoundScaled(prec uint8) Float32x16
 
 // RoundScaled rounds elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x2) RoundScaled(prec uint8) Float64x2
 
 // RoundScaled rounds elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x4) RoundScaled(prec uint8) Float64x4
 
 // RoundScaled rounds elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x8) RoundScaled(prec uint8) Float64x8
@@ -5123,42 +5123,42 @@ func (x Float64x8) RoundScaled(prec uint8) Float64x8
 
 // RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x4) RoundScaledResidue(prec uint8) Float32x4
 
 // RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x8) RoundScaledResidue(prec uint8) Float32x8
 
 // RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x16) RoundScaledResidue(prec uint8) Float32x16
 
 // RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x2) RoundScaledResidue(prec uint8) Float64x2
 
 // RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x4) RoundScaledResidue(prec uint8) Float64x4
 
 // RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) RoundScaledResidue(prec uint8) Float64x8
@@ -5171,7 +5171,7 @@ func (x Float64x8) RoundScaledResidue(prec uint8) Float64x8
 // result = the state variables a', b', c', d' updated after 4 rounds.
 // constant = 0 for the first 20 rounds of the loop, 1 for the next 20 rounds of the loop..., 3 for the last 20 rounds of the loop.
 //
-// A non-constant value of constant may result in significantly worse performance for this operation.
+// Performance: A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: SHA1RNDS4, CPU Feature: SHA
 func (x Uint32x4) SHA1FourRounds(constant uint8, y Uint32x4) Uint32x4
@@ -5499,70 +5499,70 @@ func (x Float64x8) Scale(y Float64x8) Float64x8
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Float32x4) SetElem(index uint8, y float32) Float32x4
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Float64x2) SetElem(index uint8, y float64) Float64x2
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRB, CPU Feature: AVX
 func (x Int8x16) SetElem(index uint8, y int8) Int8x16
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRW, CPU Feature: AVX
 func (x Int16x8) SetElem(index uint8, y int16) Int16x8
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Int32x4) SetElem(index uint8, y int32) Int32x4
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Int64x2) SetElem(index uint8, y int64) Int64x2
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRB, CPU Feature: AVX
 func (x Uint8x16) SetElem(index uint8, y uint8) Uint8x16
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRW, CPU Feature: AVX
 func (x Uint16x8) SetElem(index uint8, y uint16) Uint16x8
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
 
 // SetElem returns x with the index'th element set to y.
 //
-// A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
@@ -5888,7 +5888,7 @@ func (x Uint64x8) ShiftAllLeft(shift uint64) (z Uint64x8)
 //
 //	z[i] = concat(x[i], y[i]) << (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllLeftConcatMod16(y Int16x8, shift uint64) Int16x8
@@ -5898,7 +5898,7 @@ func (x Int16x8) ShiftAllLeftConcatMod16(y Int16x8, shift uint64) Int16x8
 //
 //	z[i] = concat(x[i], y[i]) << (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllLeftConcatMod16(y Int16x16, shift uint64) Int16x16
@@ -5908,7 +5908,7 @@ func (x Int16x16) ShiftAllLeftConcatMod16(y Int16x16, shift uint64) Int16x16
 //
 //	z[i] = concat(x[i], y[i]) << (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllLeftConcatMod16(y Int16x32, shift uint64) Int16x32
@@ -5918,7 +5918,7 @@ func (x Int16x32) ShiftAllLeftConcatMod16(y Int16x32, shift uint64) Int16x32
 //
 //	z[i] = concat(x[i], y[i]) << (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllLeftConcatMod16(y Uint16x8, shift uint64) Uint16x8
@@ -5928,7 +5928,7 @@ func (x Uint16x8) ShiftAllLeftConcatMod16(y Uint16x8, shift uint64) Uint16x8
 //
 //	z[i] = concat(x[i], y[i]) << (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllLeftConcatMod16(y Uint16x16, shift uint64) Uint16x16
@@ -5938,7 +5938,7 @@ func (x Uint16x16) ShiftAllLeftConcatMod16(y Uint16x16, shift uint64) Uint16x16
 //
 //	z[i] = concat(x[i], y[i]) << (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllLeftConcatMod16(y Uint16x32, shift uint64) Uint16x32
@@ -5950,7 +5950,7 @@ func (x Uint16x32) ShiftAllLeftConcatMod16(y Uint16x32, shift uint64) Uint16x32
 //
 //	z[i] = concat(x[i], y[i]) << (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllLeftConcatMod32(y Int32x4, shift uint64) Int32x4
@@ -5960,7 +5960,7 @@ func (x Int32x4) ShiftAllLeftConcatMod32(y Int32x4, shift uint64) Int32x4
 //
 //	z[i] = concat(x[i], y[i]) << (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllLeftConcatMod32(y Int32x8, shift uint64) Int32x8
@@ -5970,7 +5970,7 @@ func (x Int32x8) ShiftAllLeftConcatMod32(y Int32x8, shift uint64) Int32x8
 //
 //	z[i] = concat(x[i], y[i]) << (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllLeftConcatMod32(y Int32x16, shift uint64) Int32x16
@@ -5980,7 +5980,7 @@ func (x Int32x16) ShiftAllLeftConcatMod32(y Int32x16, shift uint64) Int32x16
 //
 //	z[i] = concat(x[i], y[i]) << (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllLeftConcatMod32(y Uint32x4, shift uint64) Uint32x4
@@ -5990,7 +5990,7 @@ func (x Uint32x4) ShiftAllLeftConcatMod32(y Uint32x4, shift uint64) Uint32x4
 //
 //	z[i] = concat(x[i], y[i]) << (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllLeftConcatMod32(y Uint32x8, shift uint64) Uint32x8
@@ -6000,7 +6000,7 @@ func (x Uint32x8) ShiftAllLeftConcatMod32(y Uint32x8, shift uint64) Uint32x8
 //
 //	z[i] = concat(x[i], y[i]) << (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllLeftConcatMod32(y Uint32x16, shift uint64) Uint32x16
@@ -6012,7 +6012,7 @@ func (x Uint32x16) ShiftAllLeftConcatMod32(y Uint32x16, shift uint64) Uint32x16
 //
 //	z[i] = concat(x[i], y[i]) << (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllLeftConcatMod64(y Int64x2, shift uint64) Int64x2
@@ -6022,7 +6022,7 @@ func (x Int64x2) ShiftAllLeftConcatMod64(y Int64x2, shift uint64) Int64x2
 //
 //	z[i] = concat(x[i], y[i]) << (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllLeftConcatMod64(y Int64x4, shift uint64) Int64x4
@@ -6032,7 +6032,7 @@ func (x Int64x4) ShiftAllLeftConcatMod64(y Int64x4, shift uint64) Int64x4
 //
 //	z[i] = concat(x[i], y[i]) << (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllLeftConcatMod64(y Int64x8, shift uint64) Int64x8
@@ -6042,7 +6042,7 @@ func (x Int64x8) ShiftAllLeftConcatMod64(y Int64x8, shift uint64) Int64x8
 //
 //	z[i] = concat(x[i], y[i]) << (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllLeftConcatMod64(y Uint64x2, shift uint64) Uint64x2
@@ -6052,7 +6052,7 @@ func (x Uint64x2) ShiftAllLeftConcatMod64(y Uint64x2, shift uint64) Uint64x2
 //
 //	z[i] = concat(x[i], y[i]) << (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllLeftConcatMod64(y Uint64x4, shift uint64) Uint64x4
@@ -6062,7 +6062,7 @@ func (x Uint64x4) ShiftAllLeftConcatMod64(y Uint64x4, shift uint64) Uint64x4
 //
 //	z[i] = concat(x[i], y[i]) << (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftAllLeftConcatMod64(y Uint64x8, shift uint64) Uint64x8
@@ -6184,7 +6184,7 @@ func (x Uint64x8) ShiftAllRight(shift uint64) (z Uint64x8)
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllRightConcatMod16(y Int16x8, shift uint64) Int16x8
@@ -6194,7 +6194,7 @@ func (x Int16x8) ShiftAllRightConcatMod16(y Int16x8, shift uint64) Int16x8
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllRightConcatMod16(y Int16x16, shift uint64) Int16x16
@@ -6204,7 +6204,7 @@ func (x Int16x16) ShiftAllRightConcatMod16(y Int16x16, shift uint64) Int16x16
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllRightConcatMod16(y Int16x32, shift uint64) Int16x32
@@ -6214,7 +6214,7 @@ func (x Int16x32) ShiftAllRightConcatMod16(y Int16x32, shift uint64) Int16x32
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllRightConcatMod16(y Uint16x8, shift uint64) Uint16x8
@@ -6224,7 +6224,7 @@ func (x Uint16x8) ShiftAllRightConcatMod16(y Uint16x8, shift uint64) Uint16x8
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllRightConcatMod16(y Uint16x16, shift uint64) Uint16x16
@@ -6234,7 +6234,7 @@ func (x Uint16x16) ShiftAllRightConcatMod16(y Uint16x16, shift uint64) Uint16x16
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%16)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllRightConcatMod16(y Uint16x32, shift uint64) Uint16x32
@@ -6246,7 +6246,7 @@ func (x Uint16x32) ShiftAllRightConcatMod16(y Uint16x32, shift uint64) Uint16x32
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllRightConcatMod32(y Int32x4, shift uint64) Int32x4
@@ -6256,7 +6256,7 @@ func (x Int32x4) ShiftAllRightConcatMod32(y Int32x4, shift uint64) Int32x4
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllRightConcatMod32(y Int32x8, shift uint64) Int32x8
@@ -6266,7 +6266,7 @@ func (x Int32x8) ShiftAllRightConcatMod32(y Int32x8, shift uint64) Int32x8
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllRightConcatMod32(y Int32x16, shift uint64) Int32x16
@@ -6276,7 +6276,7 @@ func (x Int32x16) ShiftAllRightConcatMod32(y Int32x16, shift uint64) Int32x16
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllRightConcatMod32(y Uint32x4, shift uint64) Uint32x4
@@ -6286,7 +6286,7 @@ func (x Uint32x4) ShiftAllRightConcatMod32(y Uint32x4, shift uint64) Uint32x4
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllRightConcatMod32(y Uint32x8, shift uint64) Uint32x8
@@ -6296,7 +6296,7 @@ func (x Uint32x8) ShiftAllRightConcatMod32(y Uint32x8, shift uint64) Uint32x8
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%32)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllRightConcatMod32(y Uint32x16, shift uint64) Uint32x16
@@ -6308,7 +6308,7 @@ func (x Uint32x16) ShiftAllRightConcatMod32(y Uint32x16, shift uint64) Uint32x16
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllRightConcatMod64(y Int64x2, shift uint64) Int64x2
@@ -6318,7 +6318,7 @@ func (x Int64x2) ShiftAllRightConcatMod64(y Int64x2, shift uint64) Int64x2
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllRightConcatMod64(y Int64x4, shift uint64) Int64x4
@@ -6328,7 +6328,7 @@ func (x Int64x4) ShiftAllRightConcatMod64(y Int64x4, shift uint64) Int64x4
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllRightConcatMod64(y Int64x8, shift uint64) Int64x8
@@ -6338,7 +6338,7 @@ func (x Int64x8) ShiftAllRightConcatMod64(y Int64x8, shift uint64) Int64x8
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllRightConcatMod64(y Uint64x2, shift uint64) Uint64x2
@@ -6348,7 +6348,7 @@ func (x Uint64x2) ShiftAllRightConcatMod64(y Uint64x2, shift uint64) Uint64x2
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllRightConcatMod64(y Uint64x4, shift uint64) Uint64x4
@@ -6358,7 +6358,7 @@ func (x Uint64x4) ShiftAllRightConcatMod64(y Uint64x4, shift uint64) Uint64x4
 //
 //	z[i] = concat(y[i], x[i]) >> (shift%64)
 //
-// A non-constant value of shift may result in significantly worse performance for this operation.
+// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftAllRightConcatMod64(y Uint64x8, shift uint64) Uint64x8
@@ -7175,42 +7175,42 @@ func (x Float64x4) Trunc() Float64x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x4) TruncScaled(prec uint8) Float32x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x8) TruncScaled(prec uint8) Float32x8
 
 // TruncScaled truncates elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x16) TruncScaled(prec uint8) Float32x16
 
 // TruncScaled truncates elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x2) TruncScaled(prec uint8) Float64x2
 
 // TruncScaled truncates elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x4) TruncScaled(prec uint8) Float64x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x8) TruncScaled(prec uint8) Float64x8
@@ -7219,42 +7219,42 @@ func (x Float64x8) TruncScaled(prec uint8) Float64x8
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x4) TruncScaledResidue(prec uint8) Float32x4
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x8) TruncScaledResidue(prec uint8) Float32x8
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x16) TruncScaledResidue(prec uint8) Float32x16
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x2) TruncScaledResidue(prec uint8) Float64x2
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x4) TruncScaledResidue(prec uint8) Float64x4
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// A non-constant value of prec may result in significantly worse performance for this operation.
+// Performance: A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) TruncScaledResidue(prec uint8) Float64x8

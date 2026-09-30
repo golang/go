@@ -326,7 +326,7 @@ func Mask8x16FromBits(x uint16) (z Mask8x16)
 
 // ToBits constructs a bitmap from a Mask8x16, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: VPMOVMSKB, CPU Features: AVX
+// Asm: VPMOVMSKB, CPU Feature: AVX
 func (x Mask8x16) ToBits() (z uint16)
 
 // Mask16x8 is a mask for a SIMD vector of 8 16-bit elements.
@@ -342,7 +342,7 @@ func Mask16x8FromBits(x uint8) (z Mask16x8)
 
 // ToBits constructs a bitmap from a Mask16x8, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVW, CPU Features: AVX512
+// Asm: KMOVW, CPU Feature: AVX512
 func (x Mask16x8) ToBits() (z uint8)
 
 // Mask32x4 is a mask for a SIMD vector of 4 32-bit elements.
@@ -360,7 +360,7 @@ func Mask32x4FromBits(x uint8) (z Mask32x4)
 // ToBits constructs a bitmap from a Mask32x4, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
 //
-// Asm: VMOVMSKPS, CPU Features: AVX
+// Asm: VMOVMSKPS, CPU Feature: AVX
 func (x Mask32x4) ToBits() (z uint8)
 
 // Mask64x2 is a mask for a SIMD vector of 2 64-bit elements.
@@ -378,7 +378,7 @@ func Mask64x2FromBits(x uint8) (z Mask64x2)
 // ToBits constructs a bitmap from a Mask64x2, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 2 bits of y are used.
 //
-// Asm: VMOVMSKPD, CPU Features: AVX
+// Asm: VMOVMSKPD, CPU Feature: AVX
 func (x Mask64x2) ToBits() (z uint8)
 
 // v256 is a tag type that tells the compiler that this is really 256-bit SIMD
@@ -703,7 +703,7 @@ func Mask8x32FromBits(x uint32) (z Mask8x32)
 
 // ToBits constructs a bitmap from a Mask8x32, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: VPMOVMSKB, CPU Features: AVX2
+// Asm: VPMOVMSKB, CPU Feature: AVX2
 func (x Mask8x32) ToBits() (z uint32)
 
 // Mask16x16 is a mask for a SIMD vector of 16 16-bit elements.
@@ -719,7 +719,7 @@ func Mask16x16FromBits(x uint16) (z Mask16x16)
 
 // ToBits constructs a bitmap from a Mask16x16, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVW, CPU Features: AVX512
+// Asm: KMOVW, CPU Feature: AVX512
 func (x Mask16x16) ToBits() (z uint16)
 
 // Mask32x8 is a mask for a SIMD vector of 8 32-bit elements.
@@ -735,7 +735,7 @@ func Mask32x8FromBits(x uint8) (z Mask32x8)
 
 // ToBits constructs a bitmap from a Mask32x8, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: VMOVMSKPS, CPU Features: AVX
+// Asm: VMOVMSKPS, CPU Feature: AVX
 func (x Mask32x8) ToBits() (z uint8)
 
 // Mask64x4 is a mask for a SIMD vector of 4 64-bit elements.
@@ -753,7 +753,7 @@ func Mask64x4FromBits(x uint8) (z Mask64x4)
 // ToBits constructs a bitmap from a Mask64x4, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
 //
-// Asm: VMOVMSKPD, CPU Features: AVX
+// Asm: VMOVMSKPD, CPU Feature: AVX
 func (x Mask64x4) ToBits() (z uint8)
 
 // v512 is a tag type that tells the compiler that this is really 512-bit SIMD
@@ -1154,7 +1154,7 @@ func Mask8x64FromBits(x uint64) (z Mask8x64)
 
 // ToBits constructs a bitmap from a Mask8x64, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVB, CPU Features: AVX512
+// Asm: KMOVB, CPU Feature: AVX512
 func (x Mask8x64) ToBits() (z uint64)
 
 // Mask16x32 is a mask for a SIMD vector of 32 16-bit elements.
@@ -1170,7 +1170,7 @@ func Mask16x32FromBits(x uint32) (z Mask16x32)
 
 // ToBits constructs a bitmap from a Mask16x32, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVW, CPU Features: AVX512
+// Asm: KMOVW, CPU Feature: AVX512
 func (x Mask16x32) ToBits() (z uint32)
 
 // Mask32x16 is a mask for a SIMD vector of 16 32-bit elements.
@@ -1186,7 +1186,7 @@ func Mask32x16FromBits(x uint16) (z Mask32x16)
 
 // ToBits constructs a bitmap from a Mask32x16, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVD, CPU Features: AVX512
+// Asm: KMOVD, CPU Feature: AVX512
 func (x Mask32x16) ToBits() (z uint16)
 
 // Mask64x8 is a mask for a SIMD vector of 8 64-bit elements.
@@ -1202,5 +1202,5 @@ func Mask64x8FromBits(x uint8) (z Mask64x8)
 
 // ToBits constructs a bitmap from a Mask64x8, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVQ, CPU Features: AVX512
+// Asm: KMOVQ, CPU Feature: AVX512
 func (x Mask64x8) ToBits() (z uint8)

@@ -200,7 +200,7 @@ func (x simdType) ToBitsDoc() string {
 		panic("ToBitsDoc is not supported for scalable types")
 	}
 	if x.Size() == 512 || x.ElemBits() == 16 {
-		return fmt.Sprintf("// Asm: KMOV%s, CPU Features: AVX512", x.IntelSizeSuffix())
+		return fmt.Sprintf("// Asm: KMOV%s, CPU Feature: AVX512", x.IntelSizeSuffix())
 	}
 	// 128/256 bit vectors with 8, 32, 64 bit elements
 	var asm string
@@ -222,7 +222,7 @@ func (x simdType) ToBitsDoc() string {
 	default:
 		panic("unexpected ElemBits")
 	}
-	return fmt.Sprintf("// Asm: %s, CPU Features: %s", asm, feat)
+	return fmt.Sprintf("// Asm: %s, CPU Feature: %s", asm, feat)
 }
 
 func compareWidths(a, b specexpr.Num) int {
@@ -650,7 +650,8 @@ func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).Trea
 
 	st.Add("op2ImmVecAsScalar", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// Performance: {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, v float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}`)
 
@@ -676,28 +677,28 @@ func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op0NameAndTyp
 
 	st.Add("op1Imm", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}) {{.GoType}}`)
 
 	st.Add("op1Imm8", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}) {{.GoType}}`)
 
 	st.Add("op2Imm", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}`)
 
 	st.Add("op2Imm8", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}`)
@@ -710,14 +711,14 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}(dist uint64) {{.GoType}}`)
 
 	st.Add("op2Imm8_2I", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}`)
 
 	st.Add("op2Imm_2I", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}`)
@@ -726,35 +727,35 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.
 //{{end}}
 // {{.ImmName}} should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}`)
 
 	st.Add("op2Imm8_SHA1RNDS4", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}`)
 
 	st.Add("op3Imm8", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}) {{.GoType}}`)
 
 	st.Add("op3Imm8_2I", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}, {{.Op3NameAndType "z"}}) {{.GoType}}`)
 
 	st.Add("op4Imm8", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
-// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}, {{.Op4NameAndType "u"}}) {{.GoType}}`)
