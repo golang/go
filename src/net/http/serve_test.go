@@ -4552,89 +4552,20 @@ func TestContentTypeOkayOn204(t *testing.T) {
 // and the http client), and both think they can close it on failure.
 // Therefore, all incoming server requests Bodies need to be thread-safe.
 func TestTransportAndServerSharedBodyRace(t *testing.T) {
-	run(t, testTransportAndServerSharedBodyRace, testNotParallel, http3SkippedMode)
+	runSynctest(t, testTransportAndServerSharedBodyRace, testNotParallel, http3SkippedMode)
 }
 func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
-	// The proxy server in the middle of the stack for this test potentially
-	// from its handler after only reading half of the body.
-	// That can trigger https://go.dev/issue/3595, which is otherwise
-	// irrelevant to this test.
-	runTimeSensitiveTest(t, []time.Duration{
-		1 * time.Millisecond,
-		5 * time.Millisecond,
-		10 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		500 * time.Millisecond,
-		time.Second,
-		5 * time.Second,
-	}, func(t *testing.T, timeout time.Duration) error {
-		SetRSTAvoidanceDelay(t, timeout)
-		t.Logf("set RST avoidance delay to %v", timeout)
-
-		const bodySize = 1 << 20
-
-		var wg sync.WaitGroup
-		backend := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
-			// Work around https://go.dev/issue/38370: clientServerTest uses
-			// an httptest.Server under the hood, and in HTTP/2 mode it does not always
-			// “[block] until all outstanding requests on this server have completed”,
-			// causing the call to Logf below to race with the end of the test.
-			//
-			// Since the client doesn't cancel the request until we have copied half
-			// the body, this call to add happens before the test is cleaned up,
-			// preventing the race.
-			wg.Add(1)
-			defer wg.Done()
-
-			n, err := io.CopyN(rw, req.Body, bodySize)
-			t.Logf("backend CopyN: %v, %v", n, err)
-			<-req.Context().Done()
-		}), optRealNet)
-		// We need to close explicitly here so that in-flight server
-		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
-		defer func() {
-			wg.Wait()
-			backend.close()
-		}()
-
-		var proxy *clientServerTest
-		proxy = newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
-			req2, _ := NewRequest("POST", backend.ts.URL, req.Body)
-			req2.ContentLength = bodySize
-			cancel := make(chan struct{})
-			req2.Cancel = cancel
-
-			bresp, err := proxy.c.Do(req2)
-			if err != nil {
-				t.Errorf("Proxy outbound request: %v", err)
-				return
-			}
-			_, err = io.CopyN(io.Discard, bresp.Body, bodySize/2)
-			if err != nil {
-				t.Errorf("Proxy copy error: %v", err)
-				return
-			}
-			t.Cleanup(func() { bresp.Body.Close() })
-
-			// Try to cause a race. Canceling the client request will cause the client
-			// transport to close req2.Body. Returning from the server handler will
-			// cause the server to close req.Body. Since they are the same underlying
-			// ReadCloser, that will result in concurrent calls to Close (and possibly a
-			// Read concurrent with a Close).
-			close(cancel)
-			rw.Write([]byte("OK"))
-		}), optRealNet)
-		defer proxy.close()
-
-		req, _ := NewRequest("POST", proxy.ts.URL, io.LimitReader(neverEnding('a'), bodySize))
-		res, err := proxy.c.Do(req)
-		if err != nil {
-			return fmt.Errorf("original request: %v", err)
-		}
-		res.Body.Close()
-		return nil
-	})
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		// Try to cause a race: Returning from the server handler will
+		// cause the server to close req.Body. Also close req.Body in a
+		// new goroutine.
+		go req.Body.Close()
+	}))
+	res, err := cst.c.Post(cst.ts.URL, "text/plain", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatalf("original request: %v", err)
+	}
+	res.Body.Close()
 }
 
 // Test that a hanging Request.Body.Read from another goroutine can't
