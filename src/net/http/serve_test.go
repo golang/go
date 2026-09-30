@@ -253,7 +253,7 @@ var vtests = []struct {
 	{"http://someHost.com/someDir", "/someDir/"},
 }
 
-func TestHostHandlers(t *testing.T) { run(t, testHostHandlers, []testMode{http1Mode}) }
+func TestHostHandlers(t *testing.T) { runNoSynctest(t, testHostHandlers, []testMode{http1Mode}) }
 func testHostHandlers(t *testing.T, mode testMode) {
 	mux := NewServeMux()
 	for _, h := range handlers {
@@ -540,7 +540,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 // properly sets the query string in the redirect URL.
 // See Issue 17841.
 func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
-	run(t, testServeWithSlashRedirectKeepsQueryString, []testMode{http1Mode})
+	runSynctest(t, testServeWithSlashRedirectKeepsQueryString, []testMode{http1Mode})
 }
 func testServeWithSlashRedirectKeepsQueryString(t *testing.T, mode testMode) {
 	writeBackQuery := func(w ResponseWriter, r *Request) {
@@ -688,7 +688,7 @@ func TestMuxNoSlash405WithTrailingSlash(t *testing.T) {
 	}
 }
 
-func TestShouldRedirectConcurrency(t *testing.T) { run(t, testShouldRedirectConcurrency) }
+func TestShouldRedirectConcurrency(t *testing.T) { runSynctest(t, testShouldRedirectConcurrency) }
 func testShouldRedirectConcurrency(t *testing.T, mode testMode) {
 	mux := NewServeMux()
 	newClientServerTest(t, mode, mux)
@@ -928,7 +928,7 @@ func testServerReadHeaderTimeoutIsCleared(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout) }
+func TestServerReadTimeout(t *testing.T) { runSynctest(t, testServerReadTimeout) }
 func testServerReadTimeout(t *testing.T, mode testMode) {
 	respBody := "response body"
 	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
@@ -969,7 +969,7 @@ func testServerReadTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerNoReadTimeout(t *testing.T) { run(t, testServerNoReadTimeout) }
+func TestServerNoReadTimeout(t *testing.T) { runSynctest(t, testServerNoReadTimeout) }
 func testServerNoReadTimeout(t *testing.T, mode testMode) {
 	reqBody := "Hello, Gophers!"
 	resBody := "Hi, Gophers!"
@@ -1108,12 +1108,9 @@ func testServerNoWriteTimeout(t *testing.T, mode testMode) {
 
 // Test that the HTTP/2 server handles Server.WriteTimeout (Issue 18437)
 func TestWriteDeadlineExtendedOnNewRequest(t *testing.T) {
-	run(t, testWriteDeadlineExtendedOnNewRequest)
+	runSynctest(t, testWriteDeadlineExtendedOnNewRequest)
 }
 func testWriteDeadlineExtendedOnNewRequest(t *testing.T, mode testMode) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
 	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {}),
 		func(ts *httptest.Server) {
 			ts.Config.WriteTimeout = 250 * time.Millisecond
@@ -1290,7 +1287,7 @@ func (l trackLastConnListener) Accept() (c net.Conn, err error) {
 }
 
 // TestIdentityResponse verifies that a handler can unset
-func TestIdentityResponse(t *testing.T) { run(t, testIdentityResponse) }
+func TestIdentityResponse(t *testing.T) { runSynctest(t, testIdentityResponse) }
 func testIdentityResponse(t *testing.T, mode testMode) {
 	if mode == http2Mode {
 		t.Skip("https://go.dev/issue/56019")
@@ -1475,7 +1472,7 @@ func TestHTTP10KeepAlive304Response(t *testing.T) {
 }
 
 // Issue 15703
-func TestKeepAliveFinalChunkWithEOF(t *testing.T) { run(t, testKeepAliveFinalChunkWithEOF) }
+func TestKeepAliveFinalChunkWithEOF(t *testing.T) { runSynctest(t, testKeepAliveFinalChunkWithEOF) }
 func testKeepAliveFinalChunkWithEOF(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.(Flusher).Flush() // force chunked encoding
@@ -1503,7 +1500,7 @@ func testKeepAliveFinalChunkWithEOF(t *testing.T, mode testMode) {
 	}
 }
 
-func TestSetsRemoteAddr(t *testing.T) { run(t, testSetsRemoteAddr) }
+func TestSetsRemoteAddr(t *testing.T) { runSynctest(t, testSetsRemoteAddr) }
 func testSetsRemoteAddr(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "%s", r.RemoteAddr)
@@ -1630,7 +1627,7 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
 
 // TestHeadResponses verifies that all MIME type sniffing and Content-Length
 // counting of GET requests also happens on HEAD requests.
-func TestHeadResponses(t *testing.T) { run(t, testHeadResponses) }
+func TestHeadResponses(t *testing.T) { runSynctest(t, testHeadResponses) }
 func testHeadResponses(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		_, err := w.Write([]byte("<html>"))
@@ -1669,7 +1666,7 @@ func testHeadResponses(t *testing.T, mode testMode) {
 
 // Ensure ResponseWriter.ReadFrom doesn't write a body in response to a HEAD request.
 // https://go.dev/issue/68609
-func TestHeadReaderFrom(t *testing.T) { run(t, testHeadReaderFrom, []testMode{http1Mode}) }
+func TestHeadReaderFrom(t *testing.T) { runSynctest(t, testHeadReaderFrom, []testMode{http1Mode}) }
 func testHeadReaderFrom(t *testing.T, mode testMode) {
 	// Body is large enough to exceed the content-sniffing length.
 	wantBody := strings.Repeat("a", 4096)
@@ -1697,7 +1694,9 @@ func testHeadReaderFrom(t *testing.T, mode testMode) {
 
 // Ensure ResponseWriter.ReadFrom respects declared Content-Length header.
 // https://go.dev/issue/78179.
-func TestReaderFromTooLong(t *testing.T) { run(t, testReaderFromTooLong, []testMode{http1Mode}) }
+func TestReaderFromTooLong(t *testing.T) {
+	runNoSynctest(t, testReaderFromTooLong, []testMode{http1Mode})
+}
 func testReaderFromTooLong(t *testing.T, mode testMode) {
 	contentLen := 600 // Longer than content-sniffing length.
 	tests := []struct {
@@ -1757,7 +1756,7 @@ func testReaderFromTooLong(t *testing.T, mode testMode) {
 }
 
 func TestTLSHandshakeTimeout(t *testing.T) {
-	run(t, testTLSHandshakeTimeout, []testMode{https1Mode, http2Mode})
+	runNoSynctest(t, testTLSHandshakeTimeout, []testMode{https1Mode, http2Mode})
 }
 func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
 	errLog := new(strings.Builder)
@@ -1787,7 +1786,7 @@ func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTLSServer(t *testing.T) { run(t, testTLSServer, []testMode{https1Mode, http2Mode}) }
+func TestTLSServer(t *testing.T) { runNoSynctest(t, testTLSServer, []testMode{https1Mode, http2Mode}) }
 func testTLSServer(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.TLS != nil {
@@ -1936,7 +1935,7 @@ func TestServeTLS(t *testing.T) {
 
 // Test that the HTTPS server nicely rejects plaintext HTTP/1.x requests.
 func TestTLSServerRejectHTTPRequests(t *testing.T) {
-	run(t, testTLSServerRejectHTTPRequests, []testMode{https1Mode, http2Mode})
+	runNoSynctest(t, testTLSServerRejectHTTPRequests, []testMode{https1Mode, http2Mode})
 }
 func testTLSServerRejectHTTPRequests(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2154,7 +2153,7 @@ var serverExpectTests = []serverExpectTest{
 
 // Tests that the server responds to the "Expect" request header
 // correctly.
-func TestServerExpect(t *testing.T) { run(t, testServerExpect, []testMode{http1Mode}) }
+func TestServerExpect(t *testing.T) { runNoSynctest(t, testServerExpect, []testMode{http1Mode}) }
 func testServerExpect(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		// Note using r.FormValue("readbody") because for POST
@@ -2664,9 +2663,9 @@ func (c *slowTestConn) Write(b []byte) (int, error) {
 }
 
 func TestRequestBodyTimeoutClosesConnection(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in -short mode")
-	}
+	synctest.Test(t, testRequestBodyTimeoutClosesConnection)
+}
+func testRequestBodyTimeoutClosesConnection(t *testing.T) {
 	defer afterTest(t)
 	for _, handler := range testHandlerBodyConsumers {
 		conn := &slowTestConn{
@@ -2717,7 +2716,7 @@ func (c cancelableTimeoutContext) Err() error {
 	return nil
 }
 
-func TestTimeoutHandler(t *testing.T) { run(t, testTimeoutHandler) }
+func TestTimeoutHandler(t *testing.T) { runSynctest(t, testTimeoutHandler) }
 func testTimeoutHandler(t *testing.T, mode testMode) {
 	sendHi := make(chan bool, 1)
 	writeErrors := make(chan error, 1)
@@ -2774,7 +2773,7 @@ func testTimeoutHandler(t *testing.T, mode testMode) {
 }
 
 // See issues 8209 and 8414.
-func TestTimeoutHandlerRace(t *testing.T) { run(t, testTimeoutHandlerRace) }
+func TestTimeoutHandlerRace(t *testing.T) { runSynctest(t, testTimeoutHandlerRace) }
 func testTimeoutHandlerRace(t *testing.T, mode testMode) {
 	delayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
 		ms, _ := strconv.Atoi(r.URL.Path[1:])
@@ -2812,11 +2811,12 @@ func testTimeoutHandlerRace(t *testing.T, mode testMode) {
 		}()
 	}
 	wg.Wait()
+	time.Sleep(50 * time.Millisecond) // wait for handlers
 }
 
 // See issues 8209 and 8414.
 // Both issues involved panics in the implementation of TimeoutHandler.
-func TestTimeoutHandlerRaceHeader(t *testing.T) { run(t, testTimeoutHandlerRaceHeader) }
+func TestTimeoutHandlerRaceHeader(t *testing.T) { runSynctest(t, testTimeoutHandlerRaceHeader) }
 func testTimeoutHandlerRaceHeader(t *testing.T, mode testMode) {
 	delay204 := HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(204)
@@ -2853,7 +2853,9 @@ func testTimeoutHandlerRaceHeader(t *testing.T, mode testMode) {
 }
 
 // Issue 9162
-func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) { run(t, testTimeoutHandlerRaceHeaderTimeout) }
+func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
+	runSynctest(t, testTimeoutHandlerRaceHeaderTimeout)
+}
 func testTimeoutHandlerRaceHeaderTimeout(t *testing.T, mode testMode) {
 	sendHi := make(chan bool, 1)
 	writeErrors := make(chan error, 1)
@@ -2909,12 +2911,9 @@ func testTimeoutHandlerRaceHeaderTimeout(t *testing.T, mode testMode) {
 
 // Issue 14568.
 func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
-	run(t, testTimeoutHandlerStartTimerWhenServing)
+	runSynctest(t, testTimeoutHandlerStartTimerWhenServing)
 }
 func testTimeoutHandlerStartTimerWhenServing(t *testing.T, mode testMode) {
-	if testing.Short() {
-		t.Skip("skipping sleeping test in -short mode")
-	}
 	var handler HandlerFunc = func(w ResponseWriter, _ *Request) {
 		w.WriteHeader(StatusNoContent)
 	}
@@ -2938,7 +2937,9 @@ func testTimeoutHandlerStartTimerWhenServing(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTimeoutHandlerContextCanceled(t *testing.T) { run(t, testTimeoutHandlerContextCanceled) }
+func TestTimeoutHandlerContextCanceled(t *testing.T) {
+	runSynctest(t, testTimeoutHandlerContextCanceled)
+}
 func testTimeoutHandlerContextCanceled(t *testing.T, mode testMode) {
 	writeErrors := make(chan error, 1)
 	sayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2979,7 +2980,7 @@ func testTimeoutHandlerContextCanceled(t *testing.T, mode testMode) {
 }
 
 // https://golang.org/issue/15948
-func TestTimeoutHandlerEmptyResponse(t *testing.T) { run(t, testTimeoutHandlerEmptyResponse) }
+func TestTimeoutHandlerEmptyResponse(t *testing.T) { runSynctest(t, testTimeoutHandlerEmptyResponse) }
 func testTimeoutHandlerEmptyResponse(t *testing.T, mode testMode) {
 	var handler HandlerFunc = func(w ResponseWriter, _ *Request) {
 		// No response.
@@ -3004,7 +3005,7 @@ func TestTimeoutHandlerPanicRecovery(t *testing.T) {
 	wrapper := func(h Handler) Handler {
 		return TimeoutHandler(h, time.Second, "")
 	}
-	run(t, func(t *testing.T, mode testMode) {
+	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, wrapper, ErrAbortHandler)
 	}, testNotParallel, http3SkippedMode)
 }
@@ -3137,7 +3138,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
 // connection immediately. But when it re-uses the connection, it typically closes
 // the previous request's body, which is not optimal for zero-lengthed bodies,
 // as the client would then see http.ErrBodyReadAfterClose and not 0, io.EOF.
-func TestZeroLengthPostAndResponse(t *testing.T) { run(t, testZeroLengthPostAndResponse) }
+func TestZeroLengthPostAndResponse(t *testing.T) { runSynctest(t, testZeroLengthPostAndResponse) }
 
 func testZeroLengthPostAndResponse(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, r *Request) {
@@ -3177,20 +3178,20 @@ func testZeroLengthPostAndResponse(t *testing.T, mode testMode) {
 }
 
 func TestHandlerPanicNil(t *testing.T) {
-	run(t, func(t *testing.T, mode testMode) {
+	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, nil, nil)
 	}, testNotParallel, http3SkippedMode)
 }
 
 func TestHandlerPanic(t *testing.T) {
-	run(t, func(t *testing.T, mode testMode) {
+	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, nil, "intentional death for testing")
 	}, testNotParallel, http3SkippedMode)
 }
 
 func TestHandlerPanicWithHijack(t *testing.T) {
 	// Only testing HTTP/1, and our http2 server doesn't support hijacking.
-	run(t, func(t *testing.T, mode testMode) {
+	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, true, mode, nil, "intentional death for testing")
 	}, []testMode{http1Mode})
 }
@@ -3246,7 +3247,7 @@ func (w terrorWriter) Write(p []byte) (int, error) {
 // Issue 16456: allow writing 0 bytes on hijacked conn to test hijack
 // without any log spam.
 func TestServerWriteHijackZeroBytes(t *testing.T) {
-	run(t, testServerWriteHijackZeroBytes, []testMode{http1Mode})
+	runSynctest(t, testServerWriteHijackZeroBytes, []testMode{http1Mode})
 }
 func testServerWriteHijackZeroBytes(t *testing.T, mode testMode) {
 	done := make(chan struct{})
@@ -3277,13 +3278,13 @@ func testServerWriteHijackZeroBytes(t *testing.T, mode testMode) {
 }
 
 func TestServerNoDate(t *testing.T) {
-	run(t, func(t *testing.T, mode testMode) {
+	runSynctest(t, func(t *testing.T, mode testMode) {
 		testServerNoHeader(t, mode, "Date")
 	})
 }
 
 func TestServerContentType(t *testing.T) {
-	run(t, func(t *testing.T, mode testMode) {
+	runSynctest(t, func(t *testing.T, mode testMode) {
 		testServerNoHeader(t, mode, "Content-Type")
 	})
 }
@@ -3303,16 +3304,8 @@ func testServerNoHeader(t *testing.T, mode testMode, header string) {
 	}
 }
 
-func TestStripPrefix(t *testing.T) { run(t, testStripPrefix) }
+func TestStripPrefix(t *testing.T) { runNoSynctest(t, testStripPrefix) }
 func testStripPrefix(t *testing.T, mode testMode) {
-	h := HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Header().Set("X-Path", r.URL.Path)
-		w.Header().Set("X-RawPath", r.URL.RawPath)
-	})
-	ts := newClientServerTest(t, mode, StripPrefix("/foo/bar", h)).ts
-
-	c := ts.Client()
-
 	cases := []struct {
 		reqPath string
 		path    string // If empty we want a 404.
@@ -3324,8 +3317,14 @@ func testStripPrefix(t *testing.T, mode testMode) {
 		{"/bar", "", ""},           // No prefix match.
 	}
 	for _, tc := range cases {
-		t.Run(tc.reqPath, func(t *testing.T) {
-			res, err := c.Get(ts.URL + tc.reqPath)
+		synctest.Subtest(t, tc.reqPath, func(t *testing.T) {
+			h := HandlerFunc(func(w ResponseWriter, r *Request) {
+				w.Header().Set("X-Path", r.URL.Path)
+				w.Header().Set("X-RawPath", r.URL.RawPath)
+			})
+			ts := newClientServerTest(t, mode, StripPrefix("/foo/bar", h)).ts
+
+			res, err := ts.Client().Get(ts.URL + tc.reqPath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3359,7 +3358,7 @@ func TestStripPrefixNotModifyRequest(t *testing.T) {
 	}
 }
 
-func TestRequestLimit(t *testing.T) { run(t, testRequestLimit, http3SkippedMode) }
+func TestRequestLimit(t *testing.T) { runSynctest(t, testRequestLimit, http3SkippedMode) }
 func testRequestLimit(t *testing.T, mode testMode) {
 	bytesPerHeader := len("header12345: val12345\r\n")
 	numHeaders := ((DefaultMaxHeaderBytes + 4096) / bytesPerHeader) + 1
@@ -3400,7 +3399,7 @@ func testRequestLimit(t *testing.T, mode testMode) {
 }
 
 func TestRequestHeaderValueCountLimit(t *testing.T) {
-	run(t, testRequestHeaderValueCountLimit, http3SkippedMode)
+	runNoSynctest(t, testRequestHeaderValueCountLimit, http3SkippedMode)
 }
 func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
 	tests := []struct {
@@ -3456,7 +3455,7 @@ func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		synctest.Subtest(t, tt.name, func(t *testing.T) {
 			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 				w.WriteHeader(StatusOK)
 			}), func(s *Server) {
@@ -3479,7 +3478,7 @@ func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
 }
 
 func TestRequestTrailerHeaderValueCountLimit(t *testing.T) {
-	run(t, testRequestTrailerHeaderValueCountLimit, http3SkippedMode)
+	runNoSynctest(t, testRequestTrailerHeaderValueCountLimit, http3SkippedMode)
 }
 func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
 	tests := []struct {
@@ -3534,7 +3533,7 @@ func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		synctest.Subtest(t, tt.name, func(t *testing.T) {
 			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 				_, err := io.Copy(io.Discard, r.Body)
 				if (err != nil) != tt.wantErr {
@@ -3602,7 +3601,7 @@ func (r *bodyLimitReader) Close() error {
 	return nil
 }
 
-func TestRequestBodyLimit(t *testing.T) { run(t, testRequestBodyLimit) }
+func TestRequestBodyLimit(t *testing.T) { runSynctest(t, testRequestBodyLimit) }
 func testRequestBodyLimit(t *testing.T, mode testMode) {
 	const limit = 1 << 20
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -3654,7 +3653,7 @@ func testRequestBodyLimit(t *testing.T, mode testMode) {
 
 // TestClientWriteShutdown tests that if the client shuts down the write
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
-func TestClientWriteShutdown(t *testing.T) { run(t, testClientWriteShutdown, http3SkippedMode) }
+func TestClientWriteShutdown(t *testing.T) { runNoSynctest(t, testClientWriteShutdown, http3SkippedMode) }
 func testClientWriteShutdown(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/17906")
@@ -3735,7 +3734,7 @@ func TestServerGracefulClose(t *testing.T) {
 	})
 }
 
-func TestCaseSensitiveMethod(t *testing.T) { run(t, testCaseSensitiveMethod) }
+func TestCaseSensitiveMethod(t *testing.T) { runSynctest(t, testCaseSensitiveMethod) }
 func testCaseSensitiveMethod(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.Method != "get" {
@@ -3758,7 +3757,7 @@ func testCaseSensitiveMethod(t *testing.T, mode testMode) {
 // response, the net/http package adds a "Content-Length: 0" response
 // header.
 func TestContentLengthZero(t *testing.T) {
-	run(t, testContentLengthZero, []testMode{http1Mode})
+	runNoSynctest(t, testContentLengthZero, []testMode{http1Mode})
 }
 func testContentLengthZero(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {}), optRealNet).ts
@@ -3788,7 +3787,7 @@ func testContentLengthZero(t *testing.T, mode testMode) {
 }
 
 func TestCloseNotifier(t *testing.T) {
-	run(t, testCloseNotifier, []testMode{http1Mode})
+	runNoSynctest(t, testCloseNotifier, []testMode{http1Mode})
 }
 func testCloseNotifier(t *testing.T, mode testMode) {
 	gotReq := make(chan bool, 1)
@@ -3908,7 +3907,7 @@ func TestCloseNotifierChanLeak(t *testing.T) {
 // Issue 9763.
 // HTTP/1-only test. (http2 doesn't have Hijack)
 func TestHijackAfterCloseNotifier(t *testing.T) {
-	run(t, testHijackAfterCloseNotifier, []testMode{http1Mode})
+	runSynctest(t, testHijackAfterCloseNotifier, []testMode{http1Mode})
 }
 func testHijackAfterCloseNotifier(t *testing.T, mode testMode) {
 	script := make(chan string, 2)
@@ -3955,7 +3954,7 @@ func testHijackAfterCloseNotifier(t *testing.T, mode testMode) {
 }
 
 func TestHijackBeforeRequestBodyRead(t *testing.T) {
-	run(t, testHijackBeforeRequestBodyRead, []testMode{http1Mode})
+	runNoSynctest(t, testHijackBeforeRequestBodyRead, []testMode{http1Mode})
 }
 func testHijackBeforeRequestBodyRead(t *testing.T, mode testMode) {
 	var requestBody = bytes.Repeat([]byte("a"), 1<<20)
@@ -4002,7 +4001,7 @@ func testHijackBeforeRequestBodyRead(t *testing.T, mode testMode) {
 	<-gotCloseNotify
 }
 
-func TestOptions(t *testing.T) { run(t, testOptions, []testMode{http1Mode}) }
+func TestOptions(t *testing.T) { runNoSynctest(t, testOptions, []testMode{http1Mode}) }
 func testOptions(t *testing.T, mode testMode) {
 	uric := make(chan string, 2) // only expect 1, but leave space for 2
 	mux := NewServeMux()
@@ -4054,7 +4053,7 @@ func testOptions(t *testing.T, mode testMode) {
 	}
 }
 
-func TestOptionsHandler(t *testing.T) { run(t, testOptionsHandler, []testMode{http1Mode}) }
+func TestOptionsHandler(t *testing.T) { runNoSynctest(t, testOptionsHandler, []testMode{http1Mode}) }
 func testOptionsHandler(t *testing.T, mode testMode) {
 	rc := make(chan *Request, 1)
 
@@ -4361,7 +4360,7 @@ func TestDoubleHijack(t *testing.T) {
 // optimization and is pointless if dealing with a
 // badly behaved client.
 func TestHTTP10ConnectionHeader(t *testing.T) {
-	run(t, testHTTP10ConnectionHeader, []testMode{http1Mode})
+	runNoSynctest(t, testHTTP10ConnectionHeader, []testMode{http1Mode})
 }
 func testHTTP10ConnectionHeader(t *testing.T, mode testMode) {
 	mux := NewServeMux()
@@ -4413,7 +4412,7 @@ func testHTTP10ConnectionHeader(t *testing.T, mode testMode) {
 }
 
 // See golang.org/issue/5660
-func TestServerReaderFromOrder(t *testing.T) { run(t, testServerReaderFromOrder) }
+func TestServerReaderFromOrder(t *testing.T) { runSynctest(t, testServerReaderFromOrder) }
 func testServerReaderFromOrder(t *testing.T, mode testMode) {
 	pr, pw := io.Pipe()
 	const size = 3 << 20
@@ -4587,7 +4586,7 @@ func TestResponseWriterWriteString(t *testing.T) {
 	}
 }
 
-func TestServerConnState(t *testing.T) { run(t, testServerConnState, []testMode{http1Mode}) }
+func TestServerConnState(t *testing.T) { runNoSynctest(t, testServerConnState, []testMode{http1Mode}) }
 func testServerConnState(t *testing.T, mode testMode) {
 	handler := map[string]func(w ResponseWriter, r *Request){
 		"/": func(w ResponseWriter, r *Request) {
@@ -4752,7 +4751,7 @@ func testServerConnState(t *testing.T, mode testMode) {
 }
 
 func TestServerKeepAlivesEnabledResultClose(t *testing.T) {
-	run(t, testServerKeepAlivesEnabledResultClose, []testMode{http1Mode})
+	runSynctest(t, testServerKeepAlivesEnabledResultClose, []testMode{http1Mode})
 }
 func testServerKeepAlivesEnabledResultClose(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -4770,7 +4769,7 @@ func testServerKeepAlivesEnabledResultClose(t *testing.T, mode testMode) {
 }
 
 // golang.org/issue/7856
-func TestServerEmptyBodyRace(t *testing.T) { run(t, testServerEmptyBodyRace) }
+func TestServerEmptyBodyRace(t *testing.T) { runSynctest(t, testServerEmptyBodyRace) }
 func testServerEmptyBodyRace(t *testing.T, mode testMode) {
 	var n int32
 	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -4857,7 +4856,9 @@ func TestCloseWrite(t *testing.T) {
 // fixed.
 //
 // So add an explicit test for this.
-func TestServerFlushAndHijack(t *testing.T) { run(t, testServerFlushAndHijack, []testMode{http1Mode}) }
+func TestServerFlushAndHijack(t *testing.T) {
+	runSynctest(t, testServerFlushAndHijack, []testMode{http1Mode})
+}
 func testServerFlushAndHijack(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, "Hello, ")
@@ -4943,7 +4944,7 @@ func testServerKeepAliveAfterWriteError(t *testing.T, mode testMode) {
 // Issue 9987: shouldn't add automatic Content-Length (or
 // Content-Type) if a Transfer-Encoding was set by the handler.
 func TestNoContentLengthIfTransferEncoding(t *testing.T) {
-	run(t, testNoContentLengthIfTransferEncoding, []testMode{http1Mode})
+	runNoSynctest(t, testNoContentLengthIfTransferEncoding, []testMode{http1Mode})
 }
 func testNoContentLengthIfTransferEncoding(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -5097,7 +5098,7 @@ func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
 	}
 }
 
-func TestHandlerSetsBodyNil(t *testing.T) { run(t, testHandlerSetsBodyNil) }
+func TestHandlerSetsBodyNil(t *testing.T) { runSynctest(t, testHandlerSetsBodyNil) }
 func testHandlerSetsBodyNil(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		r.Body = nil
@@ -5192,7 +5193,7 @@ func TestServerValidatesHostHeader(t *testing.T) {
 }
 
 func TestServerHandlersCanHandleH2PRI(t *testing.T) {
-	run(t, testServerHandlersCanHandleH2PRI, []testMode{http1Mode})
+	runNoSynctest(t, testServerHandlersCanHandleH2PRI, []testMode{http1Mode})
 }
 func testServerHandlersCanHandleH2PRI(t *testing.T, mode testMode) {
 	const upgradeResponse = "upgrade here"
@@ -5296,7 +5297,7 @@ func TestServerValidatesHeaders(t *testing.T) {
 }
 
 func TestServerRequestContextCancel_ServeHTTPDone(t *testing.T) {
-	run(t, testServerRequestContextCancel_ServeHTTPDone, http3SkippedMode)
+	runSynctest(t, testServerRequestContextCancel_ServeHTTPDone, http3SkippedMode)
 }
 func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, mode testMode) {
 	ctxc := make(chan context.Context, 1)
@@ -5327,7 +5328,7 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, mode testMode) {
 // is always blocked in a Read call so it notices the EOF from the client.
 // See issues 15927 and 15224.
 func TestServerRequestContextCancel_ConnClose(t *testing.T) {
-	run(t, testServerRequestContextCancel_ConnClose, []testMode{http1Mode})
+	runNoSynctest(t, testServerRequestContextCancel_ConnClose, []testMode{http1Mode})
 }
 func testServerRequestContextCancel_ConnClose(t *testing.T, mode testMode) {
 	inHandler := make(chan struct{})
@@ -5349,7 +5350,7 @@ func testServerRequestContextCancel_ConnClose(t *testing.T, mode testMode) {
 }
 
 func TestServerContext_ServerContextKey(t *testing.T) {
-	run(t, testServerContext_ServerContextKey)
+	runSynctest(t, testServerContext_ServerContextKey)
 }
 func testServerContext_ServerContextKey(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -5367,7 +5368,7 @@ func testServerContext_ServerContextKey(t *testing.T, mode testMode) {
 }
 
 func TestServerContext_LocalAddrContextKey(t *testing.T) {
-	run(t, testServerContext_LocalAddrContextKey, http3SkippedMode)
+	runNoSynctest(t, testServerContext_LocalAddrContextKey, http3SkippedMode)
 }
 func testServerContext_LocalAddrContextKey(t *testing.T, mode testMode) {
 	ch := make(chan any, 1)
@@ -5422,7 +5423,7 @@ func TestHandlerSetTransferEncodingGzip(t *testing.T) {
 }
 
 func BenchmarkClientServer(b *testing.B) {
-	run(b, benchmarkClientServer, []testMode{http1Mode, https1Mode, http2Mode})
+	runNoSynctest(b, benchmarkClientServer, []testMode{http1Mode, https1Mode, http2Mode})
 }
 func benchmarkClientServer(b *testing.B, mode testMode) {
 	b.ReportAllocs()
@@ -5455,7 +5456,7 @@ func benchmarkClientServer(b *testing.B, mode testMode) {
 func BenchmarkClientServerParallel(b *testing.B) {
 	for _, parallelism := range []int{4, 64} {
 		b.Run(fmt.Sprint(parallelism), func(b *testing.B) {
-			run(b, func(b *testing.B, mode testMode) {
+			runNoSynctest(b, func(b *testing.B, mode testMode) {
 				benchmarkClientServerParallel(b, parallelism, mode)
 			}, []testMode{http1Mode, https1Mode, http2Mode})
 		})
@@ -5888,7 +5889,9 @@ Host: golang.org
 	}
 }
 
-func BenchmarkCloseNotifier(b *testing.B) { run(b, benchmarkCloseNotifier, []testMode{http1Mode}) }
+func BenchmarkCloseNotifier(b *testing.B) {
+	runNoSynctest(b, benchmarkCloseNotifier, []testMode{http1Mode})
+}
 func benchmarkCloseNotifier(b *testing.B, mode testMode) {
 	b.ReportAllocs()
 	b.StopTimer()
@@ -6004,7 +6007,7 @@ func get(t *testing.T, c *Client, url string) string {
 // Tests that calls to Server.SetKeepAlivesEnabled(false) closes any
 // currently-open connections.
 func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
-	run(t, testServerSetKeepAlivesEnabledClosesConns, []testMode{http1Mode})
+	runSynctest(t, testServerSetKeepAlivesEnabledClosesConns, []testMode{http1Mode})
 }
 func testServerSetKeepAlivesEnabledClosesConns(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -6049,7 +6052,7 @@ func testServerSetKeepAlivesEnabledClosesConns(t *testing.T, mode testMode) {
 	// exact same ports from the previous connection.
 }
 
-func TestServerShutdown(t *testing.T) { run(t, testServerShutdown, http3SkippedMode) }
+func TestServerShutdown(t *testing.T) { runNoSynctest(t, testServerShutdown, http3SkippedMode) }
 func testServerShutdown(t *testing.T, mode testMode) {
 	var cst *clientServerTest
 
@@ -6299,7 +6302,7 @@ func testServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T, mode testMode) {
 // Issue 18535: test that the Server doesn't try to do a background
 // read if it's already done one.
 func TestServerDuplicateBackgroundRead(t *testing.T) {
-	run(t, testServerDuplicateBackgroundRead, []testMode{http1Mode})
+	runNoSynctest(t, testServerDuplicateBackgroundRead, []testMode{http1Mode})
 }
 func testServerDuplicateBackgroundRead(t *testing.T, mode testMode) {
 	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm" {
@@ -6356,7 +6359,7 @@ func testServerDuplicateBackgroundRead(t *testing.T, mode testMode) {
 // bufio.Reader.Buffered(), without resorting to Reading it
 // (potentially blocking) to get at it.
 func TestServerHijackGetsBackgroundByte(t *testing.T) {
-	run(t, testServerHijackGetsBackgroundByte, []testMode{http1Mode})
+	runNoSynctest(t, testServerHijackGetsBackgroundByte, []testMode{http1Mode})
 }
 func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
@@ -6410,7 +6413,7 @@ func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 
 // Test that the bufio.Reader returned by Hijack yields the entire body.
 func TestServerHijackGetsFullBody(t *testing.T) {
-	run(t, testServerHijackGetsFullBody, []testMode{http1Mode})
+	runNoSynctest(t, testServerHijackGetsFullBody, []testMode{http1Mode})
 }
 func testServerHijackGetsFullBody(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
@@ -6456,7 +6459,7 @@ func testServerHijackGetsFullBody(t *testing.T, mode testMode) {
 // immediate 1MB of data to the server to fill up the server's 4KB
 // buffer.
 func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
-	run(t, testServerHijackGetsBackgroundByte_big, []testMode{http1Mode})
+	runNoSynctest(t, testServerHijackGetsBackgroundByte_big, []testMode{http1Mode})
 }
 func testServerHijackGetsBackgroundByte_big(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
@@ -6624,7 +6627,7 @@ func TestStripPortFromHost(t *testing.T) {
 	}
 }
 
-func TestServerContexts(t *testing.T) { run(t, testServerContexts, http3SkippedMode) }
+func TestServerContexts(t *testing.T) { runSynctest(t, testServerContexts, http3SkippedMode) }
 func testServerContexts(t *testing.T, mode testMode) {
 	type baseKey struct{}
 	type connKey struct{}
@@ -6661,7 +6664,7 @@ func testServerContexts(t *testing.T, mode testMode) {
 
 // Issue 35750: check ConnContext not modifying context for other connections
 func TestConnContextNotModifyingAllContexts(t *testing.T) {
-	run(t, testConnContextNotModifyingAllContexts)
+	runSynctest(t, testConnContextNotModifyingAllContexts)
 }
 func testConnContextNotModifyingAllContexts(t *testing.T, mode testMode) {
 	type connKey struct{}
@@ -6695,7 +6698,7 @@ func testConnContextNotModifyingAllContexts(t *testing.T, mode testMode) {
 // Issue 30710: ensure that as per the spec, a server responds
 // with 501 Not Implemented for unsupported transfer-encodings.
 func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
-	run(t, testUnsupportedTransferEncodingsReturn501, []testMode{http1Mode})
+	runSynctest(t, testUnsupportedTransferEncodingsReturn501, []testMode{http1Mode})
 }
 func testUnsupportedTransferEncodingsReturn501(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -6731,7 +6734,7 @@ func testUnsupportedTransferEncodingsReturn501(t *testing.T, mode testMode) {
 }
 
 // Issue 31753: don't sniff when Content-Encoding is set
-func TestContentEncodingNoSniffing(t *testing.T) { run(t, testContentEncodingNoSniffing) }
+func TestContentEncodingNoSniffing(t *testing.T) { runNoSynctest(t, testContentEncodingNoSniffing) }
 func testContentEncodingNoSniffing(t *testing.T, mode testMode) {
 	type setting struct {
 		name string
@@ -6794,7 +6797,7 @@ func testContentEncodingNoSniffing(t *testing.T, mode testMode) {
 	}
 
 	for _, tt := range settings {
-		t.Run(tt.name, func(t *testing.T) {
+		synctest.Subtest(t, tt.name, func(t *testing.T) {
 			cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, r *Request) {
 				if tt.contentEncoding != nil {
 					rw.Header().Set("Content-Encoding", tt.contentEncoding.(string))
@@ -6826,7 +6829,7 @@ func testContentEncodingNoSniffing(t *testing.T, mode testMode) {
 // Issue 30803: ensure that TimeoutHandler logs spurious
 // WriteHeader calls, for consistency with other Handlers.
 func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
-	run(t, testTimeoutHandlerSuperfluousLogs, []testMode{http1Mode})
+	runNoSynctest(t, testTimeoutHandlerSuperfluousLogs, []testMode{http1Mode})
 }
 func testTimeoutHandlerSuperfluousLogs(t *testing.T, mode testMode) {
 	if testing.Short() {
@@ -6950,13 +6953,9 @@ func BenchmarkResponseStatusLine(b *testing.B) {
 }
 
 func TestDisableKeepAliveUpgrade(t *testing.T) {
-	run(t, testDisableKeepAliveUpgrade, []testMode{http1Mode})
+	runSynctest(t, testDisableKeepAliveUpgrade, []testMode{http1Mode})
 }
 func testDisableKeepAliveUpgrade(t *testing.T, mode testMode) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-
 	s := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Connection", "Upgrade")
 		w.Header().Set("Upgrade", "someProto")
@@ -7016,7 +7015,7 @@ func (w tlogWriter) Write(p []byte) (int, error) {
 }
 
 func TestWriteHeaderSwitchingProtocols(t *testing.T) {
-	run(t, testWriteHeaderSwitchingProtocols, []testMode{http1Mode})
+	runNoSynctest(t, testWriteHeaderSwitchingProtocols, []testMode{http1Mode})
 }
 func testWriteHeaderSwitchingProtocols(t *testing.T, mode testMode) {
 	const wantBody = "want"
@@ -7110,13 +7109,13 @@ func TestQuerySemicolon(t *testing.T) {
 		{"?a=1;x=good;x=bad", "", "good", true},
 	}
 
-	run(t, func(t *testing.T, mode testMode) {
+	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		for _, tt := range tests {
-			t.Run(tt.query+"/allow=false", func(t *testing.T) {
+			synctest.Subtest(t, tt.query+"/allow=false", func(t *testing.T) {
 				allowSemicolons := false
 				testQuerySemicolon(t, mode, tt.query, tt.xNoSemicolons, allowSemicolons, tt.expectParseFormErr)
 			})
-			t.Run(tt.query+"/allow=true", func(t *testing.T) {
+			synctest.Subtest(t, tt.query+"/allow=true", func(t *testing.T) {
 				allowSemicolons, expectParseFormErr := true, false
 				testQuerySemicolon(t, mode, tt.query, tt.xWithSemicolons, allowSemicolons, expectParseFormErr)
 			})
@@ -7287,7 +7286,7 @@ func TestProcessing(t *testing.T) {
 	}
 }
 
-func TestParseFormCleanup(t *testing.T) { run(t, testParseFormCleanup) }
+func TestParseFormCleanup(t *testing.T) { runSynctest(t, testParseFormCleanup) }
 func testParseFormCleanup(t *testing.T, mode testMode) {
 	const maxMemory = 1024
 	const key = "file"
@@ -7347,18 +7346,18 @@ func testParseFormCleanup(t *testing.T, mode testMode) {
 func TestHeadBody(t *testing.T) {
 	const identityMode = false
 	const chunkedMode = true
-	run(t, func(t *testing.T, mode testMode) {
-		t.Run("identity", func(t *testing.T) { testHeadBody(t, mode, identityMode, "HEAD") })
-		t.Run("chunked", func(t *testing.T) { testHeadBody(t, mode, chunkedMode, "HEAD") })
+	runNoSynctest(t, func(t *testing.T, mode testMode) {
+		synctest.Subtest(t, "identity", func(t *testing.T) { testHeadBody(t, mode, identityMode, "HEAD") })
+		synctest.Subtest(t, "chunked", func(t *testing.T) { testHeadBody(t, mode, chunkedMode, "HEAD") })
 	})
 }
 
 func TestGetBody(t *testing.T) {
 	const identityMode = false
 	const chunkedMode = true
-	run(t, func(t *testing.T, mode testMode) {
-		t.Run("identity", func(t *testing.T) { testHeadBody(t, mode, identityMode, "GET") })
-		t.Run("chunked", func(t *testing.T) { testHeadBody(t, mode, chunkedMode, "GET") })
+	runNoSynctest(t, func(t *testing.T, mode testMode) {
+		synctest.Subtest(t, "identity", func(t *testing.T) { testHeadBody(t, mode, identityMode, "GET") })
+		synctest.Subtest(t, "chunked", func(t *testing.T) { testHeadBody(t, mode, chunkedMode, "GET") })
 	})
 }
 
@@ -7406,7 +7405,7 @@ func testHeadBody(t *testing.T, mode testMode, chunked bool, method string) {
 
 // TestDisableContentLength verifies that the Content-Length is set by default
 // or disabled when the header is set to nil.
-func TestDisableContentLength(t *testing.T) { run(t, testDisableContentLength) }
+func TestDisableContentLength(t *testing.T) { runSynctest(t, testDisableContentLength) }
 func testDisableContentLength(t *testing.T, mode testMode) {
 	noCL := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header()["Content-Length"] = nil // disable the default Content-Length response
@@ -7441,7 +7440,7 @@ func testDisableContentLength(t *testing.T, mode testMode) {
 	}
 }
 
-func TestErrorContentLength(t *testing.T) { run(t, testErrorContentLength) }
+func TestErrorContentLength(t *testing.T) { runSynctest(t, testErrorContentLength) }
 func testErrorContentLength(t *testing.T, mode testMode) {
 	const errorBody = "an error occurred"
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -7484,7 +7483,7 @@ func TestError(t *testing.T) {
 }
 
 func TestServerReadAfterWriteHeader100Continue(t *testing.T) {
-	run(t, testServerReadAfterWriteHeader100Continue)
+	runSynctest(t, testServerReadAfterWriteHeader100Continue)
 }
 func testServerReadAfterWriteHeader100Continue(t *testing.T, mode testMode) {
 	t.Skip("https://go.dev/issue/67555")
@@ -7515,7 +7514,7 @@ func testServerReadAfterWriteHeader100Continue(t *testing.T, mode testMode) {
 }
 
 func TestServerReadAfterHandlerDone100Continue(t *testing.T) {
-	run(t, testServerReadAfterHandlerDone100Continue)
+	runSynctest(t, testServerReadAfterHandlerDone100Continue)
 }
 func testServerReadAfterHandlerDone100Continue(t *testing.T, mode testMode) {
 	t.Skip("https://go.dev/issue/67555")
@@ -7542,7 +7541,7 @@ func testServerReadAfterHandlerDone100Continue(t *testing.T, mode testMode) {
 }
 
 func TestServerReadAfterHandlerAbort100Continue(t *testing.T) {
-	run(t, testServerReadAfterHandlerAbort100Continue)
+	runSynctest(t, testServerReadAfterHandlerAbort100Continue)
 }
 func testServerReadAfterHandlerAbort100Continue(t *testing.T, mode testMode) {
 	t.Skip("https://go.dev/issue/67555")
@@ -7570,7 +7569,7 @@ func testServerReadAfterHandlerAbort100Continue(t *testing.T, mode testMode) {
 
 // Issue 75933.
 func TestServerExpect100ContinueUnreadBody(t *testing.T) {
-	run(t, testServerExpect100ContinueUnreadBody)
+	runSynctest(t, testServerExpect100ContinueUnreadBody)
 }
 func testServerExpect100ContinueUnreadBody(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -7664,7 +7663,7 @@ func TestInvalidChunkedBodies(t *testing.T) {
 
 // Issue #72100: Verify that we don't modify the caller's TLS.Config.NextProtos slice.
 func TestServerTLSNextProtos(t *testing.T) {
-	run(t, testServerTLSNextProtos, []testMode{https1Mode, http2Mode})
+	runSynctest(t, testServerTLSNextProtos, []testMode{https1Mode, http2Mode})
 }
 func testServerTLSNextProtos(t *testing.T, mode testMode) {
 	CondSkipHTTP2(t)

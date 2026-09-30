@@ -293,7 +293,7 @@ Content-Type: text/plain
 // the payload size and the internal leeway buffer size of 10MiB overflows, that we
 // correctly return an error.
 func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
-	run(t, testMaxInt64ForMultipartFormMaxMemoryOverflow)
+	runSynctest(t, testMaxInt64ForMultipartFormMaxMemoryOverflow)
 }
 func testMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T, mode testMode) {
 	payloadSize := 1 << 10
@@ -333,7 +333,7 @@ func testMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T, mode testMode) 
 	}
 }
 
-func TestRequestRedirect(t *testing.T) { run(t, testRequestRedirect) }
+func TestRequestRedirect(t *testing.T) { runSynctest(t, testRequestRedirect) }
 func testRequestRedirect(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		switch r.URL.Path {
@@ -1083,7 +1083,7 @@ func TestRequestClonePathValue(t *testing.T) {
 }
 
 // Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
-func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { run(t, testNoPanicWithBasicAuth) }
+func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { runSynctest(t, testNoPanicWithBasicAuth) }
 func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
 
@@ -1463,7 +1463,7 @@ func benchmarkFileAndServer(b *testing.B, n int64) {
 		b.Fatalf("Failed to copy %d bytes: %v", n, err)
 	}
 
-	run(b, func(b *testing.B, mode testMode) {
+	runNoSynctest(b, func(b *testing.B, mode testMode) {
 		runFileAndServerBenchmarks(b, mode, f, n)
 	}, []testMode{http1Mode, https1Mode, http2Mode})
 }

@@ -159,11 +159,19 @@ type http1TestDial struct {
 }
 
 func (dial *http1TestDial) connect() *http1TestConn {
+	return dial.connectConfig(nil)
+}
+
+func (dial *http1TestDial) connectConfig(f func(cliConn *nettest.Conn) net.Conn) *http1TestConn {
 	cliConn, srvConn := nettest.NewConnPair()
 	dial.t.Cleanup(func() {
 		srvConn.Close()
 	})
-	dial.resultc <- connOrError{conn: cliConn}
+	if f == nil {
+		dial.resultc <- connOrError{conn: cliConn}
+	} else {
+		dial.resultc <- connOrError{conn: f(cliConn)}
+	}
 	srvConn.SetReadError(errWouldBlock) // effectively make reads non-blocking
 	return &http1TestConn{
 		t:    dial.t,

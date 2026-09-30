@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func TestResponseControllerFlush(t *testing.T) { run(t, testResponseControllerFlush) }
+func TestResponseControllerFlush(t *testing.T) { runSynctest(t, testResponseControllerFlush) }
 func testResponseControllerFlush(t *testing.T, mode testMode) {
 	continuec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -49,7 +49,7 @@ func testResponseControllerFlush(t *testing.T, mode testMode) {
 	}
 }
 
-func TestResponseControllerHijack(t *testing.T) { run(t, testResponseControllerHijack) }
+func TestResponseControllerHijack(t *testing.T) { runSynctest(t, testResponseControllerHijack) }
 func testResponseControllerHijack(t *testing.T, mode testMode) {
 	const header = "X-Header"
 	const value = "set"
@@ -79,7 +79,7 @@ func testResponseControllerHijack(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerSetPastWriteDeadline(t *testing.T) {
-	run(t, testResponseControllerSetPastWriteDeadline)
+	runSynctest(t, testResponseControllerSetPastWriteDeadline)
 }
 func testResponseControllerSetPastWriteDeadline(t *testing.T, mode testMode) {
 	readOne := make(chan struct{})
@@ -168,7 +168,7 @@ func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerSetPastReadDeadline(t *testing.T) {
-	run(t, testResponseControllerSetPastReadDeadline)
+	runSynctest(t, testResponseControllerSetPastReadDeadline)
 }
 func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
 	readc := make(chan struct{})
@@ -232,7 +232,7 @@ func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerSetFutureReadDeadline(t *testing.T) {
-	run(t, testResponseControllerSetFutureReadDeadline)
+	runSynctest(t, testResponseControllerSetFutureReadDeadline)
 }
 func testResponseControllerSetFutureReadDeadline(t *testing.T, mode testMode) {
 	respBody := "response body"
@@ -268,7 +268,7 @@ func (w wrapWriter) Unwrap() ResponseWriter {
 	return w.ResponseWriter
 }
 
-func TestWrappedResponseController(t *testing.T) { run(t, testWrappedResponseController) }
+func TestWrappedResponseController(t *testing.T) { runSynctest(t, testWrappedResponseController) }
 func testWrappedResponseController(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w = wrapWriter{w}
@@ -292,7 +292,7 @@ func testWrappedResponseController(t *testing.T, mode testMode) {
 }
 
 func TestResponseControllerEnableFullDuplex(t *testing.T) {
-	run(t, testResponseControllerEnableFullDuplex)
+	runSynctest(t, testResponseControllerEnableFullDuplex)
 }
 func testResponseControllerEnableFullDuplex(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, req *Request) {

@@ -17,7 +17,7 @@ import (
 )
 
 func TestTransportNewClientConnRoundTrip(t *testing.T) {
-	run(t, testTransportNewClientConnRoundTrip, http3SkippedMode)
+	runSynctest(t, testTransportNewClientConnRoundTrip, http3SkippedMode)
 }
 func testTransportNewClientConnRoundTrip(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
