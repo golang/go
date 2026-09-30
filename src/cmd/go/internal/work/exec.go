@@ -1919,7 +1919,8 @@ func (b *Builder) export(ctx context.Context, a *Action) error {
 		return err
 	}
 	tool := base.Tool("export")
-	if err := sh.run(a.Package.Dir, a.Package.ImportPath, nil, cfg.BuildToolexec, tool, in); err != nil {
+	// Use b.WorkDir since a.Package.Dir might not exist on disk (e.g. for overlay packages).
+	if err := sh.run(b.WorkDir, a.Package.ImportPath, nil, cfg.BuildToolexec, tool, in); err != nil {
 		return err
 	}
 	// Update a.buildID and a.built.
