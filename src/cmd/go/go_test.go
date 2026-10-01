@@ -1124,7 +1124,7 @@ func TestGoListExport(t *testing.T) {
 	}
 
 	// In this experiment, "go list -export" produces export data using
-	// cmd/export, which does not include a Build ID in its output.
+	// cmd/export, which does not include a build ID in its output.
 	if !goexperiment.GoListExportNewFormat {
 		tg.run("tool", "buildid", file)
 		toolBuildID := strings.TrimSpace(tg.stdout.String())
