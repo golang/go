@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go/format"
 	"internal/godebug"
+	"internal/goexperiment"
 	"internal/platform"
 	"internal/testenv"
 	"io"
@@ -1122,10 +1123,14 @@ func TestGoListExport(t *testing.T) {
 		t.Fatalf(".BuildID with -export was empty")
 	}
 
-	tg.run("tool", "buildid", file)
-	toolBuildID := strings.TrimSpace(tg.stdout.String())
-	if buildID != toolBuildID {
-		t.Fatalf(".BuildID with -export %q disagrees with 'go tool buildid' %q", buildID, toolBuildID)
+	// In this experiment, "go list -export" produces export data using
+	// cmd/export, which does not include a Build ID in its output.
+	if !goexperiment.GoListExportNewFormat {
+		tg.run("tool", "buildid", file)
+		toolBuildID := strings.TrimSpace(tg.stdout.String())
+		if buildID != toolBuildID {
+			t.Fatalf(".BuildID with -export %q disagrees with 'go tool buildid' %q", buildID, toolBuildID)
+		}
 	}
 }
 
