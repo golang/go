@@ -223,8 +223,11 @@ func suspendG(gp *g) suspendGState {
 				// can lead to live-lock.
 				now := nanotime()
 				if now >= nextPreemptM {
-					nextPreemptM = now + yieldDelay/2
 					preemptM(gp)
+					// Start the delay after preemptM returns. On Windows,
+					// the call can take longer than the delay, so using now
+					// could immediately suspend the target again.
+					nextPreemptM = nanotime() + yieldDelay/2
 					break
 				}
 			}
