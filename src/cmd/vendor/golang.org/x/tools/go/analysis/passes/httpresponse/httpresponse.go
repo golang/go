@@ -117,8 +117,7 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 	if res.Len() != 2 {
 		return false // the function called does not return two values.
 	}
-	isPtr, named := typesinternal.ReceiverNamed(res.At(0))
-	if !isPtr || named == nil || !typesinternal.IsTypeNamed(named, "net/http", "Response") {
+	if !typesinternal.IsPointerToNamed(res.At(0).Type(), "net/http", "Response") {
 		return false // the first return type is not *http.Response.
 	}
 

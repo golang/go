@@ -92,9 +92,7 @@ func run(pass *analysis.Pass) (any, error) {
 								//
 								// The inliner will not inline a newer callee body into an
 								// older Go file; see https://go.dev/issue/75726.
-								//
-								// TODO(adonovan): use ast.ParseDirective when go1.26 is assured.
-								if !slices.ContainsFunc(astutil.Directives(decl.Doc), func(d *astutil.Directive) bool {
+								if !slices.ContainsFunc(astutil.Directives(decl.Doc), func(d ast.Directive) bool {
 									return d.Tool == "go" && d.Name == "fix" && d.Args == "inline"
 								}) {
 									edits = append(edits, analysis.TextEdit{

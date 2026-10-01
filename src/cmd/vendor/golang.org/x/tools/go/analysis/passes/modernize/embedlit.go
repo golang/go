@@ -92,6 +92,16 @@ func embedlitUnnest(pass *analysis.Pass, info *types.Info, curLit inspector.Curs
 					if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_27) {
 						return
 					}
+
+					tokFile := pass.Fset.File(kv.Pos())
+					fileEnd := token.Pos(tokFile.Base() + tokFile.Size())
+					// Skip if brace positions are missing or invalid (golang/go#81590).
+					if !innerLit.Lbrace.IsValid() || !innerLit.Rbrace.IsValid() ||
+						kv.Pos() > innerLit.Lbrace || closingPos > innerLit.Rbrace ||
+						innerLit.Rbrace >= fileEnd {
+						continue
+					}
+
 					// If any comments overlap with the range to delete, don't suggest a fix.
 					if !moreiters.Empty(astutil.Comments(file, kv.Pos(), innerLit.Lbrace+1)) ||
 						!moreiters.Empty(astutil.Comments(file, closingPos, innerLit.Rbrace+1)) {
@@ -113,7 +123,6 @@ func embedlitUnnest(pass *analysis.Pass, info *types.Info, curLit inspector.Curs
 					//		}
 					//	}
 					//
-					tokFile := pass.Fset.File(kv.Pos())
 					lineOf := func(pos token.Pos) int {
 						return tokFile.PositionFor(pos, false).Line
 					}
@@ -139,6 +148,10 @@ func embedlitUnnest(pass *analysis.Pass, info *types.Info, curLit inspector.Curs
 							startPos = tokFile.LineStart(curLine)
 							endPos = nextLineStart
 						}
+					}
+
+					if !(startPos < endPos && endPos <= closingPos) {
+						continue
 					}
 
 					edits := []analysis.TextEdit{

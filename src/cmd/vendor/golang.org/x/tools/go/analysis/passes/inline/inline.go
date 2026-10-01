@@ -285,8 +285,7 @@ func (a *analyzer) withinTestOf(curUse inspector.Cursor, target types.Object) bo
 	// TODO(adonovan): use a proper Test function parser.
 	symbol := target.Name()
 	if fn, ok := target.(*types.Func); ok {
-		if recv := fn.Signature().Recv(); recv != nil {
-			_, named := typesinternal.ReceiverNamed(recv)
+		if _, named := typesinternal.RecvBase(fn); named != nil {
 			symbol = named.Obj().Name() + "_" + symbol
 		}
 	}

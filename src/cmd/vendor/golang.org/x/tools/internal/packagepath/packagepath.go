@@ -7,7 +7,10 @@
 package packagepath
 
 // (This package should not depend on go/ast.)
-import "strings"
+import (
+	pathpkg "path"
+	"strings"
+)
 
 // CanImport reports whether one package is allowed to import another.
 //
@@ -56,4 +59,25 @@ func MaybeStdPackage(path string) bool {
 		slash = len(path)
 	}
 	return !strings.Contains(path[:slash], ".") && path != "testdata"
+}
+
+// TrimVersionSuffix removes a possible trailing "/v2" (etc) suffix from a
+// package or module path.
+//
+// This is only a heuristic as to the package's declared name, and
+// should only be used for stylistic decisions, such as whether it
+// would be clearer to use an explicit local name in the import
+// because the declared name differs from the result of this function.
+//
+// TODO(hxjiang): consider trim ".v3" when using gopkg.in/foo.v2/path/to/package.v3.
+func TrimVersionSuffix(path string) string {
+	dir, base := pathpkg.Split(path)
+	if dir == "" {
+		return path
+	}
+
+	if len(base) > 1 && base[0] == 'v' && strings.Trim(base[1:], "0123456789") == "" {
+		return strings.TrimSuffix(dir, "/") // sans "/v2"
+	}
+	return path
 }

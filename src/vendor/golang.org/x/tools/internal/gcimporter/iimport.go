@@ -616,7 +616,7 @@ func (r *importReader) obj(pkg *types.Package, name string) {
 				// rparams of the method (since those are the
 				// typeparams being used in the method sig/body).
 				//
-				// Avoid dependency on typesinternal.ReceiverNamed here.
+				// Avoid dependency on typesinternal.RecvBase here.
 				t := recv.Type()
 				if ptr, ok := types.Unalias(t).(*types.Pointer); ok {
 					t = ptr.Elem()

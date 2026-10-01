@@ -691,7 +691,7 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
 		return "", false
 	}
 
-	// Avoid dependency on typesinternal.ReceiverNamed here.
+	// Avoid dependency on typesinternal.RecvBase here.
 	t := meth.Signature().Recv().Type()
 	if ptr, ok := types.Unalias(t).(*types.Pointer); ok {
 		t = ptr.Elem()

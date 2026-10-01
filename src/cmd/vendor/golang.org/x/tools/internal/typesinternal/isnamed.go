@@ -60,12 +60,10 @@ func IsFunctionNamed(obj types.Object, pkgPath string, names ...string) bool {
 // which is important for the performance of syntax matching.
 func IsMethodNamed(obj types.Object, pkgPath string, typeName string, names ...string) bool {
 	if fn, ok := obj.(*types.Func); ok {
-		if recv := fn.Signature().Recv(); recv != nil {
-			_, T := ReceiverNamed(recv)
-			return T != nil &&
-				IsTypeNamed(T, pkgPath, typeName) &&
-				slices.Contains(names, fn.Name())
-		}
+		_, T := RecvBase(fn)
+		return T != nil &&
+			IsTypeNamed(T, pkgPath, typeName) &&
+			slices.Contains(names, fn.Name())
 	}
 	return false
 }

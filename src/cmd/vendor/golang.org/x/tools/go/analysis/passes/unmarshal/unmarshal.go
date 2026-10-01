@@ -70,7 +70,7 @@ func run(pass *analysis.Pass) (any, error) {
 			// (*"encoding/json".Decoder).Decode
 			// (* "encoding/gob".Decoder).Decode
 			// (* "encoding/xml".Decoder).Decode
-			_, named := typesinternal.ReceiverNamed(recv)
+			_, named := typesinternal.RecvBase(fn)
 			if tname := named.Obj(); tname.Name() == "Decoder" {
 				switch tname.Pkg().Path() {
 				case "encoding/json", "encoding/xml", "encoding/gob":

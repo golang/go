@@ -500,7 +500,7 @@ func (i *importState) localName(pkgPath, pkgName, calleePkgName string, shadow s
 	i.newImports = append(i.newImports, newImport{
 		name:     name,
 		path:     pkgPath,
-		explicit: name != pkgName || name != pathpkg.Base(pkgPath),
+		explicit: name != pkgName || name != pathpkg.Base(packagepath.TrimVersionSuffix(pkgPath)),
 	})
 	i.importMap[pkgPath] = append(i.importMap[pkgPath], name)
 	return name

@@ -96,6 +96,19 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 	defer rc.Close()
 
 	buf := bufio.NewReader(rc)
+	peek, err := buf.Peek(1)
+	if err != nil {
+		return
+	}
+	if peek[0] == 'i' {
+		var data []byte // avoid redeclaring err
+		data, err = io.ReadAll(buf)
+		if err != nil {
+			return
+		}
+		pkg, err = IImportData(fset, packages, data[1:], path)
+		return
+	}
 	data, err := ReadUnified(buf)
 	if err != nil {
 		err = fmt.Errorf("import %q: %v", path, err)

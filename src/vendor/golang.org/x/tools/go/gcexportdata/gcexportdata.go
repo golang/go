@@ -82,14 +82,30 @@ func Find(importPath, srcDir string) (filename, path string) {
 	return data.Export, data.ImportPath
 }
 
-// NewReader returns a reader for the export data section of an object
-// (.o) or archive (.a) file read from r.  The new reader may provide
-// additional trailing data beyond the end of the export data.
+// NewReader returns a reader for export data read from r. Export data
+// may be read from:
+//
+//   - The export data section of an object (.o) or archive file (.a).
+//     In this case, the new reader may provide additional trailing data
+//     beyond the end of the export data.
+//   - The output of the cmd/export tool (e.g. via "go list -export").
+//     In this case, the new reader contains no trailing data.
 //
 // Deprecated: This package will stop supporting the reading of export
-// data from compiler-produced archive files in Go 1.29.
+// data from compiler-produced archive files in Go 1.29. To read
+// cmd/export files, use [Read] directly instead.
 func NewReader(r io.Reader) (io.Reader, error) {
 	buf := bufio.NewReader(r)
+	peek, err := buf.Peek(1)
+	if err != nil {
+		return nil, err
+	}
+	if peek[0] == 'i' {
+		// We were given an output of cmd/export. The entire file is
+		// export data.
+		return buf, nil
+	}
+
 	size, err := gcimporter.FindExportData(buf)
 	if err != nil {
 		return nil, err

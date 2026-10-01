@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.50.1-0.20260909225150-e75ea804503b
+# golang.org/x/tools v0.50.1-0.20260929192349-98444708d405
 ## explicit; go 1.26.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
@@ -133,6 +133,7 @@ golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
 golang.org/x/tools/internal/analysis/analyzerutil
 golang.org/x/tools/internal/analysis/driverutil
+golang.org/x/tools/internal/analysis/intconv
 golang.org/x/tools/internal/analysis/typeindex
 golang.org/x/tools/internal/astutil
 golang.org/x/tools/internal/astutil/free
