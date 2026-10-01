@@ -191,10 +191,16 @@ func suspendG(gp *g) suspendGState {
 			return suspendGState{g: gp, stopped: stopped}
 
 		case _Grunning:
-			// Optimization: if there is already a pending preemption request
-			// (from the previous loop iteration), don't bother with the atomics.
-			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && asyncM.preemptGen.Load() == asyncGen {
-				break
+			// Avoid taking the scan bit while a preemption request is pending
+			// or its retry deadline has not expired. The synchronous request
+			// must still be set so the target can stop while we wait.
+			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt {
+				if asyncM != nil && asyncM == gp.m && asyncM.preemptGen.Load() == asyncGen {
+					break
+				}
+				if nextPreemptM != 0 && nanotime() < nextPreemptM {
+					break
+				}
 			}
 
 			// Temporarily block state transitions.
@@ -230,6 +236,9 @@ func suspendG(gp *g) suspendGState {
 					nextPreemptM = nanotime() + yieldDelay/2
 					break
 				}
+				// No request was sent. Don't let the pending-request
+				// check above suppress retries after the delay expires.
+				asyncM = nil
 			}
 			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 		}
