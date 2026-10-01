@@ -721,7 +721,10 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 				serveError(w, msg, StatusInternalServerError)
 				return
 			}
-			localRedirect(w, r, "../"+base)
+			// Each trailing slash is a path segment the client resolves
+			// the redirect against.
+			up := strings.Repeat("../", len(url)-len(strings.TrimRight(url, "/")))
+			localRedirect(w, r, up+base)
 			return
 		}
 	}
@@ -998,6 +1001,9 @@ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	if !strings.HasPrefix(upath, "/") {
 		upath = "/" + upath
 		r.URL.Path = upath
+		if r.URL.RawPath != "" {
+			r.URL.RawPath = "/" + r.URL.RawPath
+		}
 	}
 	serveFile(w, r, f.root, path.Clean(upath), true)
 }
