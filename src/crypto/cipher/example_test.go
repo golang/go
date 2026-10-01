@@ -310,7 +310,7 @@ func ExampleStreamReader() {
 	// If the key is unique for each ciphertext, then it's ok to use a zero
 	// IV.
 	var iv [aes.BlockSize]byte
-	stream := cipher.NewOFB(block, iv[:])
+	stream := cipher.NewCTR(block, iv[:])
 
 	reader := &cipher.StreamReader{S: stream, R: bReader}
 	// Copy the input to the output stream, decrypting as we go.
@@ -343,7 +343,7 @@ func ExampleStreamWriter() {
 	// If the key is unique for each ciphertext, then it's ok to use a zero
 	// IV.
 	var iv [aes.BlockSize]byte
-	stream := cipher.NewOFB(block, iv[:])
+	stream := cipher.NewCTR(block, iv[:])
 
 	var out bytes.Buffer
 
