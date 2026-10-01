@@ -657,6 +657,10 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 	if err != nil {
 		return err
 	}
+	if parsedContentLength >= 0 {
+		contentLength = contentLength[:1]   // Handle duplicate Content-Length headers.
+		contentLength[0] = contentLengthStr // Reuse existing slice to avoid extra alloc.
+	}
 
 	// 1. "Any response to a HEAD request and any response with a
 	//    1xx (Informational), 204 (No Content), or 304 (Not Modified)
@@ -670,7 +674,7 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 			t.Chunked = true
 			t.ContentLength = -1
 		} else if parsedContentLength >= 0 {
-			t.Header.Set("Content-Length", contentLengthStr)
+			t.Header["Content-Length"] = contentLength
 			t.ContentLength = parsedContentLength
 		} else {
 			t.ContentLength = -1
@@ -690,7 +694,7 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 		if hasTransferEncoding {
 			t.Chunked = true // sets Transfer-Encoding header
 		} else if parsedContentLength >= 0 {
-			t.Header.Set("Content-Length", contentLengthStr)
+			t.Header["Content-Length"] = contentLength
 		}
 		return nil
 	}
@@ -751,7 +755,7 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 	//    without Transfer-Encoding, its decimal value defines the
 	//    expected message body length in octets."
 	if parsedContentLength >= 0 {
-		t.Header.Set("Content-Length", contentLengthStr)
+		t.Header["Content-Length"] = contentLength
 		t.RealBodyLength = parsedContentLength
 		t.ContentLength = parsedContentLength
 		return nil
