@@ -2519,7 +2519,31 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 		defer b.cleanup(a1)
 	}
 
-	return sh.moveOrCopyFile(a.Target, a1.built, perm, false)
+	if err := sh.moveOrCopyFile(a.Target, a1.built, perm, false); err != nil {
+		return err
+	}
+
+	// Move the split DWARF file to the output directory, except for "go install"
+	// (so we don't clutter the install directory).
+	if a1.Mode == "link" && cfg.CmdName != "install" && a.Target != os.DevNull {
+		dsym := filepath.Join(a1.built+".dSYM", "Contents", "Resources", "DWARF", filepath.Base(a1.built))
+		if _, err := os.Stat(dsym); err == nil {
+			hdr := filepath.Join(a.Target+".dSYM", "Contents", "Resources", "DWARF")
+			if err := sh.Mkdir(hdr); err != nil {
+				return err
+			}
+			if err := sh.moveOrCopyFile(filepath.Join(hdr, filepath.Base(a.Target)), dsym, 0666, false); err != nil {
+				return err
+			}
+		} else if !cfg.BuildN {
+			// If the build does not produce a dSYM directory, delete it.
+			if err := sh.RemoveAll(a.Target + ".dSYM"); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // AllowInstall returns a non-nil error if this invocation of the go command is

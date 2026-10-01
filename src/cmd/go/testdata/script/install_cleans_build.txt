@@ -1,17 +1,23 @@
 env GO111MODULE=off
+# Temporary: enable -splitdwarf explicitly until it is on by default.
+[GOOS:darwin] env GOFLAGS=-ldflags=-splitdwarf
 
 # 'go install' with no arguments should clean up after go build
 cd mycmd
 go build
 exists mycmd$GOEXE
+[GOOS:darwin] exists mycmd$GOEXE.dSYM
 go install
 ! exists mycmd$GOEXE
+! exists mycmd$GOEXE.dSYM
 
 # 'go install mycmd' does not clean up, even in the mycmd directory
 go build
 exists mycmd$GOEXE
+[GOOS:darwin] exists mycmd$GOEXE.dSYM
 go install mycmd
 exists mycmd$GOEXE
+[GOOS:darwin] exists mycmd$GOEXE.dSYM
 
 # 'go install mycmd' should not clean up in an unrelated current directory either
 cd ..

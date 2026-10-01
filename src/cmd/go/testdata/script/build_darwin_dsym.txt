@@ -1,0 +1,62 @@
+[!GOOS:darwin] skip
+[short] skip
+
+# go build should emit executable and .dSYM directory.
+go build -ldflags=-splitdwarf
+exists m
+exists m.dSYM/Contents/Resources/DWARF/m
+
+# go build -o should use the target executable name for .dSYM.
+go build -o sub/x -ldflags=-splitdwarf
+exists sub/x
+exists sub/x.dSYM/Contents/Resources/DWARF/x
+
+# Cached no-op rebuild should keep the existing .dSYM directory.
+go build -ldflags=-splitdwarf
+exists m
+exists m.dSYM/Contents/Resources/DWARF/m
+
+# Rebuilding with -ldflags=-splitdwarf=0 should remove the existing .dSYM directory.
+go build -ldflags=-splitdwarf=0
+exists m
+! exists m.dSYM
+
+# Rebuilding with -ldflags=-splitdwarf should recreate the .dSYM directory.
+go build -ldflags=-splitdwarf
+exists m
+exists m.dSYM/Contents/Resources/DWARF/m
+
+# Rebuilding with -ldflags=-w should remove the existing .dSYM directory.
+go build -ldflags=-w
+exists m
+! exists m.dSYM
+
+# go test -c should emit test executable and .dSYM directory.
+go test -c -ldflags=-splitdwarf
+exists m.test
+exists m.test.dSYM/Contents/Resources/DWARF/m.test
+
+go test -c -o sub/t.test -ldflags=-w
+exists sub/t.test
+! exists sub/t.test.dSYM
+
+# go install should not install the .dSYM directory.
+env GOBIN=$WORK/bin
+go install -ldflags=-splitdwarf .
+exists $GOBIN/m
+! exists $GOBIN/m.dSYM
+
+-- go.mod --
+module m
+
+go 1.21
+-- main.go --
+package main
+
+func main() {}
+-- main_test.go --
+package main
+
+import "testing"
+
+func TestMain(t *testing.T) {}
