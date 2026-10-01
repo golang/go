@@ -79,3 +79,46 @@ func BenchmarkSortFuncStruct(b *testing.B) {
 		})
 	}
 }
+
+type entry struct {
+	id  string
+	val *int
+}
+
+var list = func() []entry {
+	var list []entry
+	for _, id := range []string{
+		"A", "B", "C", "D", "Grow", "Len", "Read", "Reset",
+		"String", "Write", "WriteString", "p.a", "p.b", "p.c", "p.d", "q.grow",
+	} {
+		list = append(list, entry{id, new(int)})
+	}
+	if !slices.IsSortedFunc(list, func(x, y entry) int { return strings.Compare(x.id, y.id) }) {
+		panic("unsorted")
+	}
+	return list
+}()
+
+//go:noinline
+func lookupSlices(list []entry, key string) *int {
+	i, found := slices.BinarySearchFunc(list, key, func(e entry, key string) int {
+		return strings.Compare(e.id, key)
+	})
+	if found {
+		return list[i].val
+	}
+	return nil
+}
+
+var keys = []string{"C", "WriteString", "p.c", "q.grow", "missing"}
+var sink *int
+
+func BenchmarkSlicesBinarySearchFunc(b *testing.B) {
+	for _, key := range keys {
+		b.Run(fmt.Sprint(key), func(b *testing.B) {
+			for b.Loop() {
+				sink = lookupSlices(list, key)
+			}
+		})
+	}
+}
