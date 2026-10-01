@@ -60,10 +60,15 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
-	// TODO(matloob): Support early export on Windows.
+
+	// earlyExport indicates we will create an os.Pipe and pass the -exportfd flag to
+	// the compiler for it to signal when it is done writing the export data. The compiler
+	// writes the same output files independent of this.
+	// TODO(matloob,thepudds): Give a more precise description of exactly what earlyExport controls.
+	// TODO(matloob): Support early export on Windows, and likely with -toolexec, -x, and possibly other flags.
 	hasObjectAction := slices.ContainsFunc(a.triggers, func(t *Action) bool { return t.Mode == "build" && t.Package == a.Package })
 	goosSupported := runtime.GOOS != "windows" && runtime.GOOS != "plan9"
-	earlyExport := export != "" && hasObjectAction && goosSupported && !(cfg.BuildN || cfg.BuildX)
+	earlyExport := export != "" && hasObjectAction && goosSupported && !(cfg.BuildN || cfg.BuildX || len(cfg.BuildToolexec) > 0)
 	if export == "" {
 		export = objdir + "_go_.x"
 	}

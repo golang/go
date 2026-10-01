@@ -13,8 +13,8 @@ env GOCACHE=$WORK/gocache
 env TOOLEXEC_CDRIVER_LOG=$WORK/cdriver.log
 
 # Build the main package with our toolexec program. For each action, it will
-# print the tool's name and the TOOLEXEC_IMPORTPATH value. We expect to compile
-# each package once, and link the main package once.
+# print the tool's name, the TOOLEXEC_IMPORTPATH, and the arguments.
+# We expect to compile each package once, and link the main package once.
 # Don't check the entire output at once, because the order in which the tools
 # are run is irrelevant here.
 # Finally, note that asm and cgo are run twice.
@@ -26,6 +26,12 @@ stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
 [cgo] stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withcgo"$'
 stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main"$'
 stderr -count=1 '^link'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main"$'
+
+# For the compiler, also confirm we see -linkobj but not -exportfd (which is disabled
+# for -toolexec, likely temporarily). See #15734 and https://go.dev/cl/842645.
+# TODO(matloob,thepudds): update this if -exportfd is replaced with something else.
+stderr '^compile'${GOEXE}' ARGS=.*"-linkobj" '
+! stderr '^compile'${GOEXE}' ARGS=.*-exportfd'
 
 # The C compiler used by cgo is not run under -toolexec, so the -### probe
 # used to compute its tool ID must not be run under -toolexec either.
@@ -140,6 +146,7 @@ func main() {
 	} else {
 		// Print which tool we're running, and on what package.
 		fmt.Fprintf(os.Stdout, "%s TOOLEXEC_IMPORTPATH=%q\n", toolName, os.Getenv("TOOLEXEC_IMPORTPATH"))
+		fmt.Fprintf(os.Stdout, "%s ARGS=%q\n", toolName, args)
 	}
 
 	// Simply run the tool.
