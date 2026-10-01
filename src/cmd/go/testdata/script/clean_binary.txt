@@ -1,5 +1,8 @@
 # Build something to create the executable, including several cases
 
+# Temporary: enable -splitdwarf explicitly until it is on by default.
+[GOOS:darwin] env GOFLAGS=-ldflags=-splitdwarf
+
 # --------------------- clean executables -------------------------
 
 # case1: test file-named executable 'main'
@@ -8,15 +11,19 @@ env GO111MODULE=on
 ! exists main$GOEXE
 go build main.go
 exists -exec main$GOEXE
+[GOOS:darwin] exists main$GOEXE.dSYM
 go clean
 ! exists main$GOEXE
+! exists main$GOEXE.dSYM
 
 # case2: test module-named executable 'a.b.c'
 ! exists a.b.c$GOEXE
 go build
 exists -exec a.b.c$GOEXE
+[GOOS:darwin] exists a.b.c$GOEXE.dSYM
 go clean
 ! exists a.b.c$GOEXE
+! exists a.b.c$GOEXE.dSYM
 
 # case3: directory-named executable 'src'
 env GO111MODULE=off
@@ -24,8 +31,10 @@ env GO111MODULE=off
 ! exists src$GOEXE
 go build
 exists -exec src$GOEXE
+[GOOS:darwin] exists src$GOEXE.dSYM
 go clean
 ! exists src$GOEXE
+! exists src$GOEXE.dSYM
 
 # --------------------- clean test files -------------------------
 
@@ -35,15 +44,19 @@ env GO111MODULE=on
 ! exists main.test$GOEXE
 go test -c main_test.go
 exists -exec main.test$GOEXE
+[GOOS:darwin] exists main.test$GOEXE.dSYM
 go clean
 ! exists main.test$GOEXE
+! exists main.test$GOEXE.dSYM
 
 # case2: test module-named test file
 ! exists a.b.c.test$GOEXE
 go test -c
 exists -exec a.b.c.test$GOEXE
+[GOOS:darwin] exists a.b.c.test$GOEXE.dSYM
 go clean
 ! exists a.b.c.test$GOEXE
+! exists a.b.c.test$GOEXE.dSYM
 
 # case3: test directory-based test file
 env GO111MODULE=off
@@ -51,8 +64,10 @@ env GO111MODULE=off
 ! exists src.test$GOEXE
 go test -c
 exists -exec src.test$GOEXE
+[GOOS:darwin] exists src.test$GOEXE.dSYM
 go clean
 ! exists src.test$GOEXE
+! exists src.test$GOEXE.dSYM
 
 -- main.go --
 package main

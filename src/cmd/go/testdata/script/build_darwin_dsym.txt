@@ -46,6 +46,13 @@ go install -ldflags=-splitdwarf .
 exists $GOBIN/m
 ! exists $GOBIN/m.dSYM
 
+# go clean should remove executables and .dSYM directories.
+go clean
+! exists m
+! exists m.dSYM
+! exists m.test
+! exists m.test.dSYM
+
 -- go.mod --
 module m
 
