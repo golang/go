@@ -2,20 +2,26 @@
 - go: GaloisFieldAffineTransform
   commutative: false
   documentation: !string |-
-    // NAME returns the affine transformation A * x + b in GF(2^8).
-    // Each element of A is interpreted as an 8x8 matrix of bits.
-    // Each element of x is interpreted as an 8-element vector of bits.
-    // The b argument is likewise an 8-element vector of bits.
-    // The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
+    // NAME returns the affine transformation A * x + b in GF(2)^8.
+    // Each element of A is interpreted as a matrix of 8 rows of vectors of 8 bits.
+    // Each element of x is interpreted as a vector of 8 bits.
+    // The b argument is likewise a vector of 8 bits.
+    // Each 8-bit vector here can be seen as 8 GF(2) elements packed together.
+    // The * and + operators in GF(2) are defined as AND and XOR.
+    // The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF(2).
 - go: GaloisFieldAffineTransformInverse
   commutative: false
   documentation: !string |-
-    // NAME returns the affine transformation A * (x⁻¹ mod P) + b in GF(2^8),
-    // where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
-    // Each element of A is interpreted as an 8x8 matrix of bits.
-    // Each element of x is interpreted as an 8-element vector of bits.
-    // The b argument is likewise an 8-element vector of bits.
-    // The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
+    // NAME returns the affine transformation A * inv(x) + b,
+    // where inv(x) is the multiplicative inverse of x in GF(2^8) modulo
+    // P = x^8 + x^4 + x^3 + x + 1, and the affine
+    // transformation is performed in GF(2)^8.
+    // Each element of A is interpreted as a matrix of 8 rows of vectors of 8 bits.
+    // Each element of inv(x) is interpreted as a vector of 8 bits.
+    // The b argument is likewise a vector of 8 bits.
+    // Each 8-bit vector here can be seen as 8 GF(2) elements packed together.
+    // The * and + operators in GF(2) are defined as AND and XOR.
+    // The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF(2).
 - go: GaloisFieldMul
   commutative: false
   documentation: !string |-

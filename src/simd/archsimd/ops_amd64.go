@@ -3094,33 +3094,39 @@ func (x Float64x8) FloorScaledResidue(prec uint8) Float64x8
 
 /* GaloisFieldAffineTransform */
 
-// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2^8).
-// Each element of A is interpreted as an 8x8 matrix of bits.
-// Each element of x is interpreted as an 8-element vector of bits.
-// The b argument is likewise an 8-element vector of bits.
-// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
+// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2)^8.
+// Each element of A is interpreted as a matrix of 8 rows of vectors of 8 bits.
+// Each element of x is interpreted as a vector of 8 bits.
+// The b argument is likewise a vector of 8 bits.
+// Each 8-bit vector here can be seen as 8 GF(2) elements packed together.
+// The * and + operators in GF(2) are defined as AND and XOR.
+// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF(2).
 //
 // Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldAffineTransform(A Uint64x2, b uint8) Uint8x16
 
-// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2^8).
-// Each element of A is interpreted as an 8x8 matrix of bits.
-// Each element of x is interpreted as an 8-element vector of bits.
-// The b argument is likewise an 8-element vector of bits.
-// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
+// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2)^8.
+// Each element of A is interpreted as a matrix of 8 rows of vectors of 8 bits.
+// Each element of x is interpreted as a vector of 8 bits.
+// The b argument is likewise a vector of 8 bits.
+// Each 8-bit vector here can be seen as 8 GF(2) elements packed together.
+// The * and + operators in GF(2) are defined as AND and XOR.
+// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF(2).
 //
 // Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldAffineTransform(A Uint64x4, b uint8) Uint8x32
 
-// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2^8).
-// Each element of A is interpreted as an 8x8 matrix of bits.
-// Each element of x is interpreted as an 8-element vector of bits.
-// The b argument is likewise an 8-element vector of bits.
-// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
+// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2)^8.
+// Each element of A is interpreted as a matrix of 8 rows of vectors of 8 bits.
+// Each element of x is interpreted as a vector of 8 bits.
+// The b argument is likewise a vector of 8 bits.
+// Each 8-bit vector here can be seen as 8 GF(2) elements packed together.
+// The * and + operators in GF(2) are defined as AND and XOR.
+// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF(2).
 //
 // Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
@@ -3129,36 +3135,48 @@ func (x Uint8x64) GaloisFieldAffineTransform(A Uint64x8, b uint8) Uint8x64
 
 /* GaloisFieldAffineTransformInverse */
 
-// GaloisFieldAffineTransformInverse returns the affine transformation A * (x⁻¹ mod P) + b in GF(2^8),
-// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
-// Each element of A is interpreted as an 8x8 matrix of bits.
-// Each element of x is interpreted as an 8-element vector of bits.
-// The b argument is likewise an 8-element vector of bits.
-// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
+// GaloisFieldAffineTransformInverse returns the affine transformation A * inv(x) + b,
+// where inv(x) is the multiplicative inverse of x in GF(2^8) modulo
+// P = x^8 + x^4 + x^3 + x + 1, and the affine
+// transformation is performed in GF(2)^8.
+// Each element of A is interpreted as a matrix of 8 rows of vectors of 8 bits.
+// Each element of inv(x) is interpreted as a vector of 8 bits.
+// The b argument is likewise a vector of 8 bits.
+// Each 8-bit vector here can be seen as 8 GF(2) elements packed together.
+// The * and + operators in GF(2) are defined as AND and XOR.
+// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF(2).
 //
 // Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldAffineTransformInverse(A Uint64x2, b uint8) Uint8x16
 
-// GaloisFieldAffineTransformInverse returns the affine transformation A * (x⁻¹ mod P) + b in GF(2^8),
-// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
-// Each element of A is interpreted as an 8x8 matrix of bits.
-// Each element of x is interpreted as an 8-element vector of bits.
-// The b argument is likewise an 8-element vector of bits.
-// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
+// GaloisFieldAffineTransformInverse returns the affine transformation A * inv(x) + b,
+// where inv(x) is the multiplicative inverse of x in GF(2^8) modulo
+// P = x^8 + x^4 + x^3 + x + 1, and the affine
+// transformation is performed in GF(2)^8.
+// Each element of A is interpreted as a matrix of 8 rows of vectors of 8 bits.
+// Each element of inv(x) is interpreted as a vector of 8 bits.
+// The b argument is likewise a vector of 8 bits.
+// Each 8-bit vector here can be seen as 8 GF(2) elements packed together.
+// The * and + operators in GF(2) are defined as AND and XOR.
+// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF(2).
 //
 // Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldAffineTransformInverse(A Uint64x4, b uint8) Uint8x32
 
-// GaloisFieldAffineTransformInverse returns the affine transformation A * (x⁻¹ mod P) + b in GF(2^8),
-// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
-// Each element of A is interpreted as an 8x8 matrix of bits.
-// Each element of x is interpreted as an 8-element vector of bits.
-// The b argument is likewise an 8-element vector of bits.
-// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
+// GaloisFieldAffineTransformInverse returns the affine transformation A * inv(x) + b,
+// where inv(x) is the multiplicative inverse of x in GF(2^8) modulo
+// P = x^8 + x^4 + x^3 + x + 1, and the affine
+// transformation is performed in GF(2)^8.
+// Each element of A is interpreted as a matrix of 8 rows of vectors of 8 bits.
+// Each element of inv(x) is interpreted as a vector of 8 bits.
+// The b argument is likewise a vector of 8 bits.
+// Each 8-bit vector here can be seen as 8 GF(2) elements packed together.
+// The * and + operators in GF(2) are defined as AND and XOR.
+// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF(2).
 //
 // Performance: A non-constant value of b may result in significantly worse performance for this operation.
 //
