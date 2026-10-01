@@ -15,9 +15,11 @@ import (
 	"testing"
 )
 
-// TestIntendedInlining tests that specific functions are inlined.
-// This allows refactoring for code clarity and re-use without fear that
-// changes to the compiler will cause silent performance regressions.
+// TestIntendedInlining tests that specific functions can be inlined,
+// as determined by parsing the compiler's -m diagnostic output when
+// building each function's package. This allows refactoring for code
+// clarity and re-use without fear that changes to the compiler will
+// cause silent performance regressions.
 func TestIntendedInlining(t *testing.T) {
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in short mode")
@@ -175,6 +177,10 @@ func TestIntendedInlining(t *testing.T) {
 		},
 		"regexp": {
 			"(*bitState).push",
+		},
+		"sort": {
+			"Find",
+			"Search",
 		},
 		"math/big": {
 			"bigEndianWord",
