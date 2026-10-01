@@ -1,10 +1,11 @@
-# Test go build -pgo flag.
-# Specifically, the build cache handles profile content correctly.
+# This is a near copy of build_pgo.txt that does not require build IDs
+# from the new "go list -export" and "go build" to match.
+# TODO(mark): Delete one of these files once the experiment concludes.
 
 [short] skip 'compiles and links executables'
 
-# Ensure the build ID from "go list -export" matches that of "go build".
-env GOEXPERIMENT=nogolistexportnewformat
+# Permit the build IDs from "go list -export" and "go build" to differ.
+env GOEXPERIMENT=golistexportnewformat
 
 # Set up fresh GOCACHE.
 env GOCACHE=$WORK/gocache
@@ -33,10 +34,6 @@ cp stdout list.out
 # build again with the same profile, should be cached
 go build -x -pgo=prof -o triv.exe triv.go
 ! stderr 'compile.*triv.go'
-
-# check that the build ID is the same
-go list -export -json=BuildID -pgo=prof triv.go
-cmp stdout list.out
 
 # overwrite the prof
 go run overwrite.go
