@@ -266,6 +266,22 @@ func BenchmarkTimerStopped(b *testing.B) {
 	})
 }
 
+func BenchmarkTimerDrained(b *testing.B) {
+	b.ReportAllocs()
+	benchmark(b, func(pb *testing.PB) {
+		timer := NewTimer(0)
+		<-timer.C
+		for pb.Next() {
+			select {
+			case <-timer.C:
+				b.Error("drained timer fired again")
+				return
+			default:
+			}
+		}
+	})
+}
+
 func BenchmarkTimerExpired(b *testing.B) {
 	b.ReportAllocs()
 	benchmark(b, func(pb *testing.PB) {

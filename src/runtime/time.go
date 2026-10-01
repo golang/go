@@ -1417,13 +1417,19 @@ func (t *timer) maybeRunChan(c *hchan) {
 	}
 
 	t.lock()
-	now := nanotime()
+	if t.state&timerHeaped != 0 || t.when == 0 {
+		t.trace("maybeRunChan-")
+		t.unlock()
+		return
+	}
+	var now int64
 	if t.isFake {
 		now = getg().bubble.now
+	} else {
+		now = nanotime()
 	}
-	if t.state&timerHeaped != 0 || t.when == 0 || t.when > now {
+	if t.when > now {
 		t.trace("maybeRunChan-")
-		// Timer in the heap, or not running at all, or not triggered.
 		t.unlock()
 		return
 	}
