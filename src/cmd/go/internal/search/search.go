@@ -513,7 +513,8 @@ func ImportPathsQuiet(patterns []string) []*Match {
 // CleanPatterns returns the patterns to use for the given command line. It
 // canonicalizes the patterns but does not evaluate any matches. For patterns
 // that are not local or absolute paths, it preserves text after '@' to avoid
-// modifying version queries.
+// modifying version queries. It exits with an error if cleaning a pattern
+// would remove a "..." wildcard, as in ".../..".
 func CleanPatterns(patterns []string) []string {
 	if len(patterns) == 0 {
 		return []string{"."}
@@ -529,6 +530,8 @@ func CleanPatterns(patterns []string) []string {
 			p = a[:i]
 			v = a[i:]
 		}
+
+		wildcards := strings.Count(p, "...")
 
 		// Arguments may be either file paths or import paths.
 		// As a courtesy to Windows developers, rewrite \ to /
@@ -548,6 +551,9 @@ func CleanPatterns(patterns []string) []string {
 			} else {
 				p = path.Clean(p)
 			}
+		}
+		if strings.Count(p, "...") != wildcards {
+			base.Fatalf("go: invalid pattern %q: \"..\" element cancels \"...\" wildcard", a)
 		}
 
 		out = append(out, p+v)
