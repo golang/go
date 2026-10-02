@@ -1,0 +1,18 @@
+[!cgo] skip
+
+# cgo-generated code must use syntax supported by the module's Go version.
+go build
+
+-- go.mod --
+module example.com/cgo
+
+go 1.0
+-- cgo.go --
+package cgo
+
+// #include <stdlib.h>
+import "C"
+
+func malloc() {
+	C.malloc(0)
+}
