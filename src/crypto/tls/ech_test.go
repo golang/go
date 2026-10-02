@@ -6,11 +6,154 @@ package tls
 
 import (
 	"bytes"
+	"crypto/ecdh"
+	"crypto/hpke"
 	"encoding/hex"
 	"errors"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/cryptobyte"
 )
+
+func TestParseECHExt(t *testing.T) {
+	for _, tc := range []struct {
+		name, encoded string
+		wantErr       error
+	}{
+		{"empty", "", errMalformedECHExt},
+		{"inner", "01", nil},
+		{"innerTrailingData", "0100", errMalformedECHExt},
+		{"unknownType", "02", errInvalidECHExt},
+		{"outer", "000001000107000201020003030405", nil},
+		{"outerEmptyEnc", "00000100010700000003030405", nil},
+		{"outerTrailingByte", "00000100010700020102000303040500", errMalformedECHExt},
+		{"outerTrailingBytes", "00000100010700020102000303040500ff", errMalformedECHExt},
+		{"outerEmptyEncTrailingData", "0000010001070000000303040500", errMalformedECHExt},
+		{"truncatedEnc", "000001000107000201", errMalformedECHExt},
+		{"truncatedPayload", "0000010001070002010200030304", errMalformedECHExt},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ext, err := hex.DecodeString(tc.encoded)
+			if err != nil {
+				t.Fatal(err)
+			}
+			echType, cs, id, enc, payload, err := parseECHExt(ext)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("parseECHExt: got %v, want %v", err, tc.wantErr)
+			}
+			if err != nil || echType == innerECHExt {
+				return
+			}
+			if cs != (echCipher{KDFID: 1, AEADID: 1}) || id != 7 || !bytes.Equal(payload, []byte{3, 4, 5}) {
+				t.Fatalf("unexpected outer extension: ciphersuite=%v id=%v payload=%x", cs, id, payload)
+			}
+			if tc.name == "outer" && !bytes.Equal(enc, []byte{1, 2}) || tc.name == "outerEmptyEnc" && len(enc) != 0 {
+				t.Fatalf("unexpected encapsulated key: %x", enc)
+			}
+			// Parsed slices must not alias the extension on the wire.
+			original := bytes.Clone(ext)
+			clear(enc)
+			clear(payload)
+			if !bytes.Equal(ext, original) {
+				t.Fatal("mutating parsed fields changed the raw extension")
+			}
+		})
+	}
+}
+
+func TestECHOuterTrailingData(t *testing.T) {
+	key, err := hpke.DHKEM(ecdh.X25519()).GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateKey, err := key.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b cryptobyte.Builder
+	b.AddUint16(extensionEncryptedClientHello)
+	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+		b.AddUint8(7) // config_id
+		b.AddUint16(key.KEM().ID())
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) { b.AddBytes(key.PublicKey().Bytes()) })
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddUint16(hpke.HKDFSHA256().ID())
+			b.AddUint16(hpke.AES128GCM().ID())
+		})
+		b.AddUint8(0) // maximum_name_length
+		b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) { b.AddBytes([]byte("public.example")) })
+		b.AddUint16(0) // extensions
+	})
+	config := b.BytesOrPanic()
+	for _, trailing := range []bool{false, true} {
+		name := "valid"
+		if trailing {
+			name = "trailingData"
+		}
+		t.Run(name, func(t *testing.T) {
+			enc, sender, err := hpke.NewSender(key.PublicKey(), hpke.HKDFSHA256(), hpke.AES128GCM(), append([]byte("tls ech\x00"), config...))
+			if err != nil {
+				t.Fatal(err)
+			}
+			inner := &clientHelloMsg{
+				vers:                 VersionTLS12,
+				random:               make([]byte, 32),
+				serverName:           "secret.example",
+				cipherSuites:         []uint16{TLS_AES_128_GCM_SHA256},
+				compressionMethods:   []uint8{0},
+				supportedVersions:    []uint16{VersionTLS13},
+				encryptedClientHello: []byte{uint8(innerECHExt)},
+			}
+			encodedInner, err := encodeInnerClientHello(inner, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			outer := inner.clone()
+			outer.serverName = "public.example"
+			setPayload := func(payload []byte) {
+				t.Helper()
+				ext, err := generateOuterECHExt(7, hpke.HKDFSHA256().ID(), hpke.AES128GCM().ID(), enc, payload)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if trailing {
+					ext = append(ext, 0xff)
+				}
+				outer.encryptedClientHello = ext
+			}
+			// Seal against the outer hello including the suffix. Merely appending
+			// a byte after sealing would instead cause HPKE decryption to fail.
+			setPayload(make([]byte, len(encodedInner)+16)) // AES-GCM tag length
+			aad, err := outer.marshal()
+			if err != nil {
+				t.Fatal(err)
+			}
+			payload, err := sender.Seal(aad[4:], encodedInner)
+			if err != nil {
+				t.Fatal(err)
+			}
+			setPayload(payload)
+			wire, err := outer.marshal()
+			if err != nil {
+				t.Fatal(err)
+			}
+			outer = new(clientHelloMsg)
+			if !outer.unmarshal(wire) {
+				t.Fatal("failed to unmarshal outer ClientHello")
+			}
+			server := Server(&discardConn{}, testConfigServer())
+			got, _, err := server.processECHClientHello(outer, []EncryptedClientHelloKey{{Config: config, PrivateKey: privateKey}})
+			if trailing {
+				if !errors.Is(err, errInvalidECHExt) || !errors.Is(server.out.err, alertDecodeError) || server.echAccepted {
+					t.Fatalf("trailing data: error=%v alert=%v ECHAccepted=%v", err, server.out.err, server.echAccepted)
+				}
+			} else if err != nil || !server.echAccepted || got.serverName != inner.serverName {
+				t.Fatalf("valid ECH: hello=%v error=%v ECHAccepted=%v", got, err, server.echAccepted)
+			}
+		})
+	}
+}
 
 func TestDecodeECHConfigLists(t *testing.T) {
 	for _, tc := range []struct {
