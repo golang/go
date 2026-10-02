@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"cmd/internal/browser"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -45,6 +46,9 @@ func htmlOutput(profile, outfile string) error {
 		}
 		src, err := os.ReadFile(file)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
 			return fmt.Errorf("can't read %q: %v", fn, err)
 		}
 		var buf strings.Builder
