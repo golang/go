@@ -251,7 +251,7 @@ func getMachoHdr() *MachoHdr {
 // Create a new Mach-O load command. ndata is the number of 32-bit words for
 // the data (not including the load command header).
 func newMachoLoad(arch *sys.Arch, type_ uint32, ndata uint32) *MachoLoad {
-	if arch.PtrSize == 8 && (ndata&1 != 0) {
+	if ndata&1 != 0 {
 		ndata++
 	}
 
@@ -301,19 +301,10 @@ func machowrite(ctxt *Link, arch *sys.Arch, out *OutBuf, linkmode LinkMode) int 
 	for i := range load {
 		loadsize += 4 * (len(load[i].data) + 2)
 	}
-	if arch.PtrSize == 8 {
-		loadsize += 18 * 4 * nseg
-		loadsize += 20 * 4 * nsect
-	} else {
-		loadsize += 14 * 4 * nseg
-		loadsize += 17 * 4 * nsect
-	}
+	loadsize += 18 * 4 * nseg
+	loadsize += 20 * 4 * nsect
 
-	if arch.PtrSize == 8 {
-		out.Write32(MH_MAGIC_64)
-	} else {
-		out.Write32(MH_MAGIC)
-	}
+	out.Write32(MH_MAGIC_64)
 	out.Write32(machohdr.cpu)
 	out.Write32(machohdr.subcpu)
 	if linkmode == LinkExternal {
@@ -331,66 +322,36 @@ func machowrite(ctxt *Link, arch *sys.Arch, out *OutBuf, linkmode LinkMode) int 
 		flags |= MH_PIE | MH_DYLDLINK
 	}
 	out.Write32(flags) /* flags */
-	if arch.PtrSize == 8 {
-		out.Write32(0) /* reserved */
-	}
+	out.Write32(0)     /* reserved */
 
 	for i := 0; i < nseg; i++ {
 		s := &seg[i]
-		if arch.PtrSize == 8 {
-			out.Write32(imacho.LC_SEGMENT_64)
-			out.Write32(72 + 80*s.nsect)
-			out.WriteStringN(s.name, 16)
-			out.Write64(s.vaddr)
-			out.Write64(s.vsize)
-			out.Write64(s.fileoffset)
-			out.Write64(s.filesize)
-			out.Write32(s.prot1)
-			out.Write32(s.prot2)
-			out.Write32(s.nsect)
-			out.Write32(s.flag)
-		} else {
-			out.Write32(imacho.LC_SEGMENT)
-			out.Write32(56 + 68*s.nsect)
-			out.WriteStringN(s.name, 16)
-			out.Write32(uint32(s.vaddr))
-			out.Write32(uint32(s.vsize))
-			out.Write32(uint32(s.fileoffset))
-			out.Write32(uint32(s.filesize))
-			out.Write32(s.prot1)
-			out.Write32(s.prot2)
-			out.Write32(s.nsect)
-			out.Write32(s.flag)
-		}
+		out.Write32(imacho.LC_SEGMENT_64)
+		out.Write32(72 + 80*s.nsect)
+		out.WriteStringN(s.name, 16)
+		out.Write64(s.vaddr)
+		out.Write64(s.vsize)
+		out.Write64(s.fileoffset)
+		out.Write64(s.filesize)
+		out.Write32(s.prot1)
+		out.Write32(s.prot2)
+		out.Write32(s.nsect)
+		out.Write32(s.flag)
 
 		for j := uint32(0); j < s.nsect; j++ {
 			t := &s.sect[j]
-			if arch.PtrSize == 8 {
-				out.WriteStringN(t.name, 16)
-				out.WriteStringN(t.segname, 16)
-				out.Write64(t.addr)
-				out.Write64(t.size)
-				out.Write32(t.off)
-				out.Write32(t.align)
-				out.Write32(t.reloc)
-				out.Write32(t.nreloc)
-				out.Write32(t.flag)
-				out.Write32(t.res1) /* reserved */
-				out.Write32(t.res2) /* reserved */
-				out.Write32(0)      /* reserved */
-			} else {
-				out.WriteStringN(t.name, 16)
-				out.WriteStringN(t.segname, 16)
-				out.Write32(uint32(t.addr))
-				out.Write32(uint32(t.size))
-				out.Write32(t.off)
-				out.Write32(t.align)
-				out.Write32(t.reloc)
-				out.Write32(t.nreloc)
-				out.Write32(t.flag)
-				out.Write32(t.res1) /* reserved */
-				out.Write32(t.res2) /* reserved */
-			}
+			out.WriteStringN(t.name, 16)
+			out.WriteStringN(t.segname, 16)
+			out.Write64(t.addr)
+			out.Write64(t.size)
+			out.Write32(t.off)
+			out.Write32(t.align)
+			out.Write32(t.reloc)
+			out.Write32(t.nreloc)
+			out.Write32(t.flag)
+			out.Write32(t.res1) /* reserved */
+			out.Write32(t.res2) /* reserved */
+			out.Write32(0)      /* reserved */
 		}
 	}
 
