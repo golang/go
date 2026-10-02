@@ -179,8 +179,10 @@ func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) ||
-					(export.Encoder(enc).Tokens.Last.NeedObjectName()) && t.Kind() == reflect.String) {
+					(va.forcedAddr && export.Encoder(enc).Tokens.Last.NeedObjectName() && t.Kind() == reflect.String)) {
 				// Do not call MarshalText on unaddressable values and map keys of string kind.
+				// A map key of pointer kind is dereferenced before reaching here,
+				// in which case va.forcedAddr is false and MarshalText is still called.
 				return prevMarshal(enc, va, mo)
 			}
 			marshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](va.Addr())
@@ -207,8 +209,10 @@ func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) ||
-					(export.Encoder(enc).Tokens.Last.NeedObjectName()) && t.Kind() == reflect.String) {
+					(va.forcedAddr && export.Encoder(enc).Tokens.Last.NeedObjectName() && t.Kind() == reflect.String)) {
 				// Do not call AppendText on unaddressable values and map keys of string kind.
+				// A map key of pointer kind is dereferenced before reaching here,
+				// in which case va.forcedAddr is false and AppendText is still called.
 				return prevMarshal(enc, va, mo)
 			}
 			appender, _ := reflect.TypeAssert[encoding.TextAppender](va.Addr())

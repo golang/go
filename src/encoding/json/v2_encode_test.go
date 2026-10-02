@@ -1227,6 +1227,40 @@ func TestStringKindTextMarshalerMapKey(t *testing.T) {
 	}
 }
 
+// ptrTextMarshalerString is a string kind that implements encoding.TextMarshaler
+// with a pointer receiver.
+type ptrTextMarshalerString string
+
+func (s *ptrTextMarshalerString) MarshalText() ([]byte, error) {
+	return []byte("P_" + string(*s)), nil
+}
+
+// Map keys of pointer kind are not used directly, so MarshalText is called
+// even if they point to a string kind, including when held in an interface.
+func TestPointerToStringKindTextMarshalerMapKey(t *testing.T) {
+	k1 := textMarshalerString("foo")
+	k2 := ptrTextMarshalerString("foo")
+	tests := []struct {
+		in   any
+		want string
+	}{
+		{map[*textMarshalerString]int{&k1: 1}, `{"X_foo":1}`},
+		{map[*ptrTextMarshalerString]int{&k2: 1}, `{"P_foo":1}`},
+		{map[ptrTextMarshalerString]int{"foo": 1}, `{"foo":1}`},
+		{map[encoding.TextMarshaler]int{&k1: 1}, `{"X_foo":1}`},
+		{map[encoding.TextMarshaler]int{&k2: 1}, `{"P_foo":1}`},
+	}
+	for _, tt := range tests {
+		got, err := Marshal(tt.in)
+		if err != nil {
+			t.Fatalf("Marshal(%T) error: %v", tt.in, err)
+		}
+		if string(got) != tt.want {
+			t.Errorf("Marshal(%T):\n\tgot:  %s\n\twant: %s", tt.in, got, tt.want)
+		}
+	}
+}
+
 var re = regexp.MustCompile
 
 // syntactic checks on form of marshaled floating point numbers.
