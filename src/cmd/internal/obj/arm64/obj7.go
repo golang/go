@@ -706,6 +706,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				retReg = REGLINK
 			}
 			p.To = obj.Addr{}
+			p.Pos = p.Pos.WithXlogue(src.PosEpilogueBegin)
 			aoffset := c.autosize
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if aoffset != 0 {
