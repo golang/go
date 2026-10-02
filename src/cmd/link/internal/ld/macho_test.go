@@ -234,6 +234,9 @@ func TestMachoSplitDWARF(t *testing.T) {
 					if df.Symtab == nil || len(df.Symtab.Syms) == 0 {
 						t.Errorf("expected symbol table in dSYM file")
 					}
+					if df.Section("__zdebug_aranges") == nil && df.Section("__debug_aranges") == nil {
+						t.Errorf("expected debug_aranges section in dSYM file")
+					}
 				} else {
 					if !hasDWARFSeg {
 						t.Errorf("expected __DWARF segment in executable with -splitdwarf=false, but found none")
