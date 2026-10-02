@@ -1,0 +1,8 @@
+pkg regexp, method (*Regexp) All([]uint8) iter.Seq[[]uint8] #61902
+pkg regexp, method (*Regexp) AllIndex([]uint8) iter.Seq[[]int] #61902
+pkg regexp, method (*Regexp) AllString(string) iter.Seq[string] #61902
+pkg regexp, method (*Regexp) AllStringIndex(string) iter.Seq[[]int] #61902
+pkg regexp, method (*Regexp) AllStringSubmatch(string) iter.Seq[[]string] #61902
+pkg regexp, method (*Regexp) AllStringSubmatchIndex(string) iter.Seq[[]int] #61902
+pkg regexp, method (*Regexp) AllSubmatch([]uint8) iter.Seq[[][]uint8] #61902
+pkg regexp, method (*Regexp) AllSubmatchIndex([]uint8) iter.Seq[[]int] #61902

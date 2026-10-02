@@ -1027,22 +1027,22 @@ func (re *Regexp) allStringSubmatchIndex(s string, n int) iter.Seq[[]int] {
 }
 
 // All returns all the matches for re in b.
-func (re *Regexp) _All(b []byte) iter.Seq[[]byte] {
+func (re *Regexp) All(b []byte) iter.Seq[[]byte] {
 	return re.all(b, -1)
 }
 
 // AllString returns all the matches for re in s.
-func (re *Regexp) _AllString(s string) iter.Seq[string] {
+func (re *Regexp) AllString(s string) iter.Seq[string] {
 	return re.allString(s, -1)
 }
 
 // AllIndex returns the locations of all matches for re in b.
-func (re *Regexp) _AllIndex(b []byte) iter.Seq[[]int] {
+func (re *Regexp) AllIndex(b []byte) iter.Seq[[]int] {
 	return re.allIndex(b, -1)
 }
 
 // AllStringIndex returns the locations of all matches for re in s.
-func (re *Regexp) _AllStringIndex(s string) iter.Seq[[]int] {
+func (re *Regexp) AllStringIndex(s string) iter.Seq[[]int] {
 	return re.allStringIndex(s, -1)
 }
 
@@ -1050,7 +1050,7 @@ func (re *Regexp) _AllStringIndex(s string) iter.Seq[[]int] {
 // including submatch locations.
 // In each returned match m, the overall match is m[0],
 // the first submatch is m[1], and so on.
-func (re *Regexp) _AllSubmatch(b []byte) iter.Seq[[][]byte] {
+func (re *Regexp) AllSubmatch(b []byte) iter.Seq[[][]byte] {
 	return re.allSubmatch(b, -1)
 }
 
@@ -1058,7 +1058,7 @@ func (re *Regexp) _AllSubmatch(b []byte) iter.Seq[[][]byte] {
 // including submatch locations.
 // In each returned match m, m[0] is the overall match,
 // m[1] is the first submatch, and so on.
-func (re *Regexp) _AllStringSubmatch(s string) iter.Seq[[]string] {
+func (re *Regexp) AllStringSubmatch(s string) iter.Seq[[]string] {
 	return re.allStringSubmatch(s, -1)
 }
 
@@ -1066,7 +1066,7 @@ func (re *Regexp) _AllStringSubmatch(s string) iter.Seq[[]string] {
 // including submatch locations.
 // In each returned match m, the overall match is b[m[0]:m[1]],
 // the first submatch is b[m[2]:m[3]], and so on.
-func (re *Regexp) _AllSubmatchIndex(b []byte) iter.Seq[[]int] {
+func (re *Regexp) AllSubmatchIndex(b []byte) iter.Seq[[]int] {
 	return re.allSubmatchIndex(b, -1)
 }
 
@@ -1074,7 +1074,7 @@ func (re *Regexp) _AllSubmatchIndex(b []byte) iter.Seq[[]int] {
 // including submatch locations.
 // In each returned match m, the overall match is s[m[0]:m[1]],
 // the first submatch is s[m[2]:m[3]], and so on.
-func (re *Regexp) _AllStringSubmatchIndex(s string) iter.Seq[[]int] {
+func (re *Regexp) AllStringSubmatchIndex(s string) iter.Seq[[]int] {
 	return re.allStringSubmatchIndex(s, -1)
 }
 
