@@ -513,12 +513,17 @@ func (s *handleState) appendAttr(a Attr) bool {
 			// So remember where we are in the buffer, to restore the position
 			// later if necessary.
 			pos := s.buf.Len()
+			sep := s.sep
 			// Inline a group with an empty key.
 			if a.Key != "" {
 				s.openGroup(a.Key)
 			}
 			if !s.appendAttrs(attrs) {
+				if a.Key != "" {
+					s.closeGroup(a.Key)
+				}
 				s.buf.SetLen(pos)
+				s.sep = sep
 				return false
 			}
 			if a.Key != "" {

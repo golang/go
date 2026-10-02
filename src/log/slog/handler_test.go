@@ -277,6 +277,18 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantJSON: `{"msg":"message"}`,
 		},
 		{
+			name:    "empty group with empty attr",
+			replace: removeKeys(TimeKey, LevelKey),
+			attrs: []Attr{
+				Int("a", 1),
+				Group("g", Attr{}),
+				Group("h", Group("i", Attr{}), Int("b", 2)),
+				Int("c", 3),
+			},
+			wantText: "msg=message a=1 h.b=2 c=3",
+			wantJSON: `{"msg":"message","a":1,"h":{"b":2},"c":3}`,
+		},
+		{
 			name:    "nested non-empty group",
 			replace: removeKeys(TimeKey, LevelKey),
 			attrs: []Attr{
@@ -456,6 +468,13 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			attrs:    []Attr{Group("g", Int("a", 1))},
 			wantText: "",
 			wantJSON: `{}`,
+		},
+		{
+			name:     "replace empty followed by attr",
+			replace:  removeKeys(TimeKey, LevelKey, "a"),
+			attrs:    []Attr{Group("g", Int("a", 1)), Group("h", Group("i", Int("a", 1)), Int("b", 2)), Int("c", 3)},
+			wantText: "msg=message h.b=2 c=3",
+			wantJSON: `{"msg":"message","h":{"b":2},"c":3}`,
 		},
 		{
 			name: "replace empty 1",
