@@ -457,28 +457,68 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 
 // LimitReader returns a Reader that reads from r
 // but stops with EOF after n bytes.
-// The underlying implementation is a *LimitedReader.
-func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
+// To return a custom error when the limit is reached, construct
+// a *LimitedReader directly with the desired Err field.
+func LimitReader(r Reader, n int64) Reader { return &LimitedReader{R: r, N: n} }
 
 // A LimitedReader reads from R but limits the amount of
 // data returned to just N bytes. Each call to Read
 // updates N to reflect the new amount remaining.
-// Read returns EOF when N <= 0 or when the underlying R returns EOF.
+//
+// Negative values of N mean that the limit has been exceeded.
+// Read returns Err when more than N bytes are read from R.
+// If Err is nil, Read returns EOF.
 type LimitedReader struct {
-	R Reader // underlying reader
-	N int64  // max bytes remaining
+	R   Reader // underlying reader
+	N   int64  // max bytes remaining
+	Err error  // error to return when limit is exceeded
 }
 
 func (l *LimitedReader) Read(p []byte) (n int, err error) {
-	if l.N <= 0 {
+	// We use negative l.N values to signal that we've exceeded the limit and cached the result.
+	const sentinelExceeded = -1   // Probed and found more data available
+	const sentinelExactMatch = -2 // Probed and found EOF (exactly N bytes)
+
+	if len(p) == 0 && l.N <= 0 {
+		return 0, nil
+	}
+
+	if l.N > 0 {
+		if int64(len(p)) > l.N {
+			p = p[0:l.N]
+		}
+		n, err = l.R.Read(p)
+		l.N -= int64(n)
+		return
+	}
+
+	// Sentinel
+	if l.N < 0 {
+		if l.N == sentinelExceeded && l.Err != nil {
+			return 0, l.Err
+		}
+
 		return 0, EOF
 	}
-	if int64(len(p)) > l.N {
-		p = p[0:l.N]
+
+	// At limit (N == 0) - need to determine if stream has more data
+
+	if l.Err == nil {
+		return 0, EOF
 	}
-	n, err = l.R.Read(p)
-	l.N -= int64(n)
-	return
+
+	// Probe with one byte to distinguish two sentinels.
+	// We can't tell without reading ahead. This probe permanently consumes
+	// a byte from R, so we cache the result in N to avoid re-probing.
+	var probe [1]byte
+	probeN, probeErr := l.R.Read(probe[:])
+	if probeN > 0 || probeErr != EOF {
+		l.N = sentinelExceeded
+		return 0, l.Err
+	}
+
+	l.N = sentinelExactMatch
+	return 0, EOF
 }
 
 // NewSectionReader returns a [SectionReader] that reads from r

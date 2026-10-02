@@ -5,6 +5,7 @@
 package io_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -119,6 +120,27 @@ func ExampleLimitReader() {
 
 	// Output:
 	// some
+}
+
+func ExampleLimitedReader_Err() {
+	r := strings.NewReader("some io.Reader stream to be read\n")
+	sentinel := errors.New("read limit reached")
+	lr := &io.LimitedReader{R: r, N: 4, Err: sentinel}
+
+	buf := make([]byte, 10)
+	n, err := lr.Read(buf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%d; %q\n", n, buf[:n])
+
+	// try to read more and get the custom error
+	n, err = lr.Read(buf)
+	fmt.Printf("%d; error: %v\n", n, err)
+
+	// Output:
+	// 4; "some"
+	// 0; error: read limit reached
 }
 
 func ExampleMultiReader() {
