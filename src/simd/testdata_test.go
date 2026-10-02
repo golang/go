@@ -18,10 +18,51 @@ func common(t *testing.T, dir, what, failWith string, moreEnv ...string) {
 	t.Helper()
 	t.Logf("subprocess test in testdata")
 	testenv.MustHaveGoRun(t)
-	args := []string{"test", "-C", dir}
+	args := []string{"test", "-C", dir, "-a"}
 	if testing.Verbose() {
 		args = append(args, "-v")
 	}
+	args = append(args, what)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+
+	goexp := os.Getenv("GOEXPERIMENT")
+	if !strings.Contains(","+goexp+",", ",simd,") {
+		if goexp != "" {
+			goexp += ","
+		}
+		goexp += "simd"
+	}
+	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+goexp)
+	cmd.Env = append(cmd.Env, moreEnv...)
+
+	if failWith == "" {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			t.Error(err)
+		}
+	} else {
+		combined, err := cmd.CombinedOutput()
+		combinedString := string(combined)
+		sawFailure := strings.Contains(combinedString, failWith)
+		if err == nil && !sawFailure {
+			t.Errorf("Saw no error and did not see expected failure string '%s' in '%s'", failWith, combinedString)
+		} else if err == nil && sawFailure {
+			t.Errorf("Saw no error but did see expected failure string '%s'", failWith)
+		} else if err != nil && !sawFailure {
+			t.Errorf("Saw error %v but did see expected failure string '%s' in '%s'", err, failWith, combinedString)
+		} else /* err != nil && sawFailure */ {
+			t.Logf("Saw error %v and expected failure string '%s'", err, failWith)
+		}
+	}
+}
+
+func run(t *testing.T, dir, what, failWith string, moreEnv ...string) {
+	t.Helper()
+	t.Logf("subprocess test in testdata")
+	testenv.MustHaveGoRun(t)
+	args := []string{"run", "-C", dir}
+
 	args = append(args, what)
 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 
@@ -78,4 +119,11 @@ func TestToString(t *testing.T) {
 	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
 		common(t, "testdata", "tostring_test.go", "", "GODEBUG=simd=0")
 	}
+}
+
+func TestB81614(t *testing.T) {
+	run(t, "testdata/b81614a", "./main", "")
+	run(t, "testdata/b81614b", "./main", "")
+	run(t, "testdata/b81614c", "./main", "")
+	run(t, "testdata/b81614d", "./main", "")
 }

@@ -17,6 +17,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/midway"
 	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -32,6 +33,16 @@ const uirVersion = pkgbits.V5
 // package. It exists so the unified IR linker can refer back to it
 // later.
 var localPkgReader *pkgReader
+
+// bridgePkgReader is used to read export data for "simd/internal/bridge"
+// bundled into "simd".
+// This is the direct case described in import.go.
+var bridgePkgReader *pkgReader
+
+// simdPkgReader is used to read export data for both "simd" and
+// "simd/internal/bridge" bundled into some other package.
+// This is the indirect case described in import.go
+var simdPkgReader *pkgReader
 
 // LookupFunc returns the ir.Func for an arbitrary full symbol name if
 // that function exists in the set of available export data.
@@ -433,6 +444,10 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 			path, name, code := r.p.PeekObj(idx)
 			if code != pkgbits.ObjStub {
 				objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil, nil, nil}
+				// Remember the first imported package with bundled export data for "simd".
+				if !localStub && path == midway.SimdPkg && base.Ctxt.Pkgpath != midway.SimdPkg && simdPkgReader == nil {
+					simdPkgReader = pr
+				}
 			}
 		}
 
@@ -440,6 +455,11 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 	}
 
 	if !localStub {
+		// When compiling "simd", remember the package reader for "simd/internal/bridge".
+		if base.Ctxt.Pkgpath == midway.SimdPkg && importpkg.Path == midway.SimdBridgePkg {
+			bridgePkgReader = pr
+		}
+
 		r := pr.newReader(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 
 		if r.Bool() {
@@ -517,6 +537,86 @@ func writeUnifiedExport(out io.Writer) {
 		}
 
 		r.Sync(pkgbits.SyncEOF)
+	}
+
+	// Ensure that downstream importers have access to the full export data for
+	// both "simd" and "simd/internal/bridge" even when their build system
+	// (-importcfg) does not include "simd/internal/bridge" (or "simd" itself,
+	// in the case of transitive SIMD dependencies):
+	//
+	// 1. When compiling "simd", bundle all of "simd/internal/bridge" into
+	//    "simd"'s export data (from bridgePkgReader).
+	// 2. When compiling any other package, the loop above has populated l.decls
+	//    with the local package's exported declarations and all objects they
+	//    transitively reference. If any of those referenced objects belong to
+	//    "simd" or "simd/internal/bridge", re-export the full "simd" and
+	//    "simd/internal/bridge" definitions and inline bodies from
+	//    simdPkgReader so that any package importing this one receives them too.
+	var extraPkgReader *pkgReader
+	if base.Ctxt.Pkgpath == midway.SimdPkg {
+		extraPkgReader = bridgePkgReader
+	} else if simdPkgReader != nil {
+		for sym := range l.decls {
+			if sym.Pkg.Path == midway.SimdPkg || sym.Pkg.Path == midway.SimdBridgePkg {
+				extraPkgReader = simdPkgReader
+				break
+			}
+		}
+	}
+
+	if extraPkgReader != nil {
+		pr := extraPkgReader
+		// Copy all public declarations from "simd" and "simd/internal/bridge"
+		// into l.decls so they are emitted in the public root below.
+		{
+			r := pr.NewDecoder(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+
+			r.Sync(pkgbits.SyncPkg)
+			l.relocIdx(pr, pkgbits.SectionPkg, r.Reloc(pkgbits.SectionPkg))
+
+			assert(r.Version() == uirVersion)
+
+			if r.Version().Has(pkgbits.HasInit) {
+				r.Bool()
+			}
+
+			for i, n := 0, r.Len(); i < n; i++ {
+				r.Sync(pkgbits.SyncObject)
+				if r.Version().Has(pkgbits.DerivedFuncInstance) {
+					assert(!r.Bool())
+				}
+				idx := r.Reloc(pkgbits.SectionObj)
+				assert(r.Len() == 0)
+
+				if xpath, _, xtag := pr.PeekObj(idx); xtag != pkgbits.ObjStub && (xpath == midway.SimdPkg || xpath == midway.SimdBridgePkg) {
+					l.relocIdx(pr, pkgbits.SectionObj, idx)
+				}
+			}
+
+			r.Sync(pkgbits.SyncEOF)
+		}
+		// Also copy any inlinable function/method bodies for "simd" and
+		// "simd/internal/bridge" into l.bodies for the private root below.
+		{
+			r := pr.NewDecoder(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+
+			r.Bool() // skip has init
+
+			for i, n := 0, r.Len(); i < n; i++ {
+				path := r.String()
+				name := r.String()
+				idx := r.Reloc(pkgbits.SectionBody)
+
+				if path == midway.SimdPkg || path == midway.SimdBridgePkg {
+					sym := types.NewPkg(path, "").Lookup(name)
+					if _, ok := l.bodies[sym]; !ok {
+						l.bodies[sym] = l.relocIdx(pr, pkgbits.SectionBody, idx)
+					}
+				}
+			}
+
+			r.Sync(pkgbits.SyncEOF)
+		}
 	}
 
 	{

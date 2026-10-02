@@ -29,7 +29,7 @@ func NewAnalyzer(pkg *types2.Package, info *types2.Info) *Analyzer {
 		isDependentMethod:  make(map[types2.Object]bool),
 		hasDependentMethod: make(map[types2.Type]bool),
 		visited:            make(map[types2.Type]bool),
-		inSimd:             pkg.Path() == simdPkg,
+		inSimd:             pkg.Path() == SimdPkg,
 	}
 }
 
@@ -144,7 +144,7 @@ func (a *Analyzer) markIfDependent(obj types2.Object) bool {
 	isDepMeth := false
 	switch obj := obj.(type) {
 	case *types2.Var:
-		if obj.Pkg() == a.pkg && obj.Parent() == a.pkg.Scope() {
+		if obj.Kind() == types2.PackageVar {
 			isDep = a.isDependentType(obj.Type())
 		}
 	case *types2.TypeName:
@@ -282,7 +282,7 @@ func isBaseSimdTypeObj(obj types2.Object) bool {
 	if obj == nil || obj.Pkg() == nil {
 		return false
 	}
-	if obj.Pkg().Path() != simdPkg {
+	if obj.Pkg().Path() != SimdPkg {
 		return false
 	}
 	return isSimdTypeName(obj.Name())
