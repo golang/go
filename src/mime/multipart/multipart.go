@@ -331,6 +331,11 @@ func (p *Part) Close() error {
 // Reader's underlying parser consumes its input as needed. Seeking
 // isn't supported.
 type Reader struct {
+	// MaxMIMEHeaderSize is the maximum size of a MIME header we will parse,
+	// including header keys, values, and map overhead. If not set, then the
+	// default value of 10 << 20 is used.
+	MaxMIMEHeaderSize int64
+
 	bufReader *bufio.Reader
 	tempDir   string // used in tests
 
@@ -362,6 +367,17 @@ func maxMIMEHeaders() int64 {
 	return 10000
 }
 
+// maxMIMEHeaderSize returns the maximum size of a MIME header we will parse.
+// It uses the value of Reader.MaxMIMEHeaderSize if it is not 0, otherwise the
+// value of maxMIMEHeaderSize constant is used.
+func (r *Reader) maxMIMEHeaderSize() int64 {
+	if r.MaxMIMEHeaderSize != 0 {
+		return r.MaxMIMEHeaderSize
+	} else {
+		return maxMIMEHeaderSize
+	}
+}
+
 // NextPart returns the next part in the multipart or an error.
 // When there are no more parts, the error [io.EOF] is returned.
 //
@@ -369,7 +385,7 @@ func maxMIMEHeaders() int64 {
 // has a value of "quoted-printable", that header is instead
 // hidden and the body is transparently decoded during Read calls.
 func (r *Reader) NextPart() (*Part, error) {
-	return r.nextPart(false, maxMIMEHeaderSize, maxMIMEHeaders())
+	return r.nextPart(false, r.maxMIMEHeaderSize(), maxMIMEHeaders())
 }
 
 // NextRawPart returns the next part in the multipart or an error.
@@ -378,7 +394,7 @@ func (r *Reader) NextPart() (*Part, error) {
 // Unlike [Reader.NextPart], it does not have special handling for
 // "Content-Transfer-Encoding: quoted-printable".
 func (r *Reader) NextRawPart() (*Part, error) {
-	return r.nextPart(true, maxMIMEHeaderSize, maxMIMEHeaders())
+	return r.nextPart(true, r.maxMIMEHeaderSize(), maxMIMEHeaders())
 }
 
 func (r *Reader) nextPart(rawPart bool, maxMIMEHeaderSize, maxMIMEHeaders int64) (*Part, error) {
