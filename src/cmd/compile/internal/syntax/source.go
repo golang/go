@@ -154,6 +154,14 @@ redo:
 		goto redo
 	}
 
+	// A NUL byte may arrive as the first byte read after the buffer
+	// was refilled, in which case the ASCII fast path above does not
+	// see it (see issue #81632).
+	if s.ch == 0 {
+		s.error("invalid NUL character")
+		goto redo
+	}
+
 	// BOM's are only allowed as the first character in a file
 	const BOM = 0xfeff
 	if s.ch == BOM {
