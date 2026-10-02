@@ -304,6 +304,7 @@ var parseTests = []ParseTest{
 
 	// GMT with offset.
 	{"GMT-8", UnixDate, "Fri Feb  5 05:00:57 GMT-8 2010", true, true, 1, 0},
+	{"GMT-0800", UnixDate, "Fri Feb  5 05:00:57 GMT-0800 2010", true, true, 1, 0},
 
 	// Accept any number of fractional second digits (including none) for .999...
 	// In Go 1, .999... was completely ignored in the format, meaning the first two
@@ -617,6 +618,20 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
 	{"+14", 3, true},
 	{"+23", 3, true},
 	{"+24", 0, false},
+	{"+0000", 5, true},
+	{"+0430", 5, true},
+	{"-0930", 5, true},
+	{"-2359", 5, true},
+	{"+000", 0, false},
+	{"+001", 0, false},
+	{"-2400", 0, false},
+	{"+2400", 0, false},
+	{"+2530", 0, false},
+	{"+00451", 0, false},
+	{"+09999", 0, false},
+	{"+999999", 0, false},
+	{"-000999999", 0, false},
+	{"0bbb", 0, false},
 }
 
 func TestParseTimeZone(t *testing.T) {
@@ -627,6 +642,41 @@ func TestParseTimeZone(t *testing.T) {
 		} else if length != test.length {
 			t.Errorf("expected %d for %q got %d", test.length, test.value, length)
 		}
+	}
+}
+
+func TestParseGMTHHMMOffset(t *testing.T) {
+	// A GMT zone may carry an hour or hour-minute offset; the resulting
+	// fixed zone must record the correct number of seconds east of UTC,
+	// and malformed offsets must be rejected. See #26032.
+	for _, tt := range []struct {
+		zone    string
+		offset  int
+		wantErr bool
+	}{
+		{zone: "GMT+7", offset: 7 * 3600},
+		{zone: "GMT-5", offset: -5 * 3600},
+		{zone: "GMT+0630", offset: 6*3600 + 30*60},
+		{zone: "GMT-0930", offset: -(9*3600 + 30*60)},
+		{zone: "GMT+09999", wantErr: true},
+		{zone: "GMT-000999999", wantErr: true},
+		{zone: "GMT+999999", wantErr: true},
+	} {
+		t.Run(tt.zone, func(t *testing.T) {
+			tm, err := Parse("2006 MST", "2010 "+tt.zone)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("Parse(%q) = %v, want error", tt.zone, tm)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tt.zone, err)
+			}
+			if _, offset := tm.Zone(); offset != tt.offset {
+				t.Errorf("offset = %d, want %d", offset, tt.offset)
+			}
+		})
 	}
 }
 
