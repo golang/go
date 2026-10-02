@@ -1701,18 +1701,29 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	// Wait for remaining Ps to stop voluntarily.
 	if wait {
 		preemptall()
+	waitLoop:
 		for {
 			// The sweep above skips a P whose goroutine in a system call
 			// has its scan bit held by someone else, such as sysmon's
 			// retake, and misses one that enters a system call just after
 			// it. preemptall skips such Ps, and sysmon sleeps while
-			// gcwaiting is set, so retake them before each wait; handoffp
-			// stops them.
+			// gcwaiting is set, so retake them before each wait. gcstopP
+			// needs sched.lock, which ranks below _Gscan, so let go of the
+			// scan bit and take it again under the lock.
 			for _, pp := range allp {
 				if thread, ok := setBlockOnExitSyscall(pp); ok {
-					thread.takeP()
 					thread.resume()
-					handoffp(pp)
+					lock(&sched.lock)
+					stoppedLast := false
+					if thread, ok := setBlockOnExitSyscall(pp); ok {
+						thread.gcstopP()
+						thread.resume()
+						stoppedLast = sched.stopwait == 0
+					}
+					unlock(&sched.lock)
+					if stoppedLast {
+						break waitLoop // nothing has woken stopnote
+					}
 				}
 			}
 			// wait for 100us, then try to re-preempt in case of any races
