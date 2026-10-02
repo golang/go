@@ -865,6 +865,23 @@ func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
 	tr := c.Transport.(*Transport)
 	tr.MaxConnsPerHost = 1
 
+	// Hold all dials until the first request has returned. Canceling a
+	// request does not cancel its dial (go.dev/issue/59017), and on the
+	// test's in-memory network a dial completes at once, so it could
+	// otherwise win the race and complete the canceled request.
+	dialRelease := make(chan struct{})
+	holdDial := func(dial func(context.Context, string, string) (net.Conn, error)) func(context.Context, string, string) (net.Conn, error) {
+		if dial == nil {
+			return nil
+		}
+		return func(ctx context.Context, network, addr string) (net.Conn, error) {
+			<-dialRelease
+			return dial(ctx, network, addr)
+		}
+	}
+	tr.DialContext = holdDial(tr.DialContext)
+	tr.DialTLSContext = holdDial(tr.DialTLSContext)
+
 	// This request is canceled when dial is queued, which preempts dialing.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -873,6 +890,7 @@ func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
 
 	req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 	_, err := c.Do(req)
+	close(dialRelease)
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("expected error %v, got %v", context.Canceled, err)
 	}
