@@ -96,7 +96,7 @@
 //
 // A channel, [time.Timer], or [time.Ticker] created within a bubble
 // is associated with it. Operating on a bubbled channel, timer, or
-// ticker from outside the bubble panics.
+// ticker from outside the bubble is a fatal error.
 //
 // A [sync.WaitGroup] becomes associated with a bubble on the first
 // call to Add or Go. Once a WaitGroup is associated with a bubble,
