@@ -779,9 +779,20 @@ func testInvalidPublicKeys(t *testing.T, curve elliptic.Curve) {
 	})
 	t.Run("NotOnCurve", func(t *testing.T) {
 		k, _ := GenerateKey(curve, rand.Reader)
-		k.X = k.X.Add(k.X, big.NewInt(1))
+		hash := []byte("testing")
+		sig, err := SignASN1(rand.Reader, k, hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+		k.X = new(big.Int).Add(k.X, big.NewInt(1))
 		if _, err := k.Bytes(); err == nil {
 			t.Errorf("PublicKey.Bytes accepted not on curve")
+		}
+		if _, err := SignASN1(rand.Reader, k, hash); err == nil {
+			t.Errorf("SignASN1 accepted not on curve")
+		}
+		if VerifyASN1(&k.PublicKey, hash, sig) {
+			t.Errorf("VerifyASN1 accepted not on curve")
 		}
 
 		b := make([]byte, 1+2*(curve.Params().BitSize+7)/8)
@@ -811,6 +822,11 @@ func testInvalidPrivateKeys(t *testing.T, curve elliptic.Curve) {
 		if _, err := k.Bytes(); err == nil {
 			t.Errorf("PrivateKey.Bytes accepted zero key")
 		}
+		valid, _ := GenerateKey(curve, rand.Reader)
+		valid.D = new(big.Int)
+		if _, err := SignASN1(rand.Reader, valid, []byte("testing")); err == nil {
+			t.Errorf("SignASN1 accepted zero key")
+		}
 
 		b := make([]byte, (curve.Params().BitSize+7)/8)
 		if _, err := ParseRawPrivateKey(curve, b); err == nil {
@@ -829,6 +845,16 @@ func testInvalidPrivateKeys(t *testing.T, curve elliptic.Curve) {
 		k.D.FillBytes(b)
 		if _, err := ParseRawPrivateKey(curve, b); err == nil {
 			t.Errorf("ParseRawPrivateKey accepted overflow key")
+		}
+		if _, err := SignASN1(rand.Reader, k, []byte("testing")); err == nil {
+			t.Errorf("SignASN1 accepted overflow key")
+		}
+	})
+	t.Run("Negative", func(t *testing.T) {
+		k, _ := GenerateKey(curve, rand.Reader)
+		k.D = big.NewInt(-1)
+		if _, err := SignASN1(rand.Reader, k, []byte("testing")); err == nil {
+			t.Errorf("SignASN1 accepted negative key")
 		}
 	})
 	t.Run("Length", func(t *testing.T) {
