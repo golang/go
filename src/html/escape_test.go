@@ -49,11 +49,23 @@ var unescapeTests = []unescapeTest{
 		"Delta = &#916; ",
 		"Delta = Δ ",
 	},
+	// Handle single-digit decimal numeric entities.
+	{
+		"singleDigitDecimalEntity",
+		"Tab = &#9; = &#9 ",
+		"Tab = \t = \t ",
+	},
 	// Handle hexadecimal numeric entities.
 	{
 		"hexadecimalEntity",
 		"Lambda = &#x3bb; = &#X3Bb ",
 		"Lambda = λ = λ ",
+	},
+	// Handle single-digit hexadecimal numeric entities.
+	{
+		"singleDigitHexadecimalEntity",
+		"Tab = &#x9; = &#x9 ",
+		"Tab = \t = \t ",
 	},
 	// Handle numeric early termination.
 	{
@@ -109,6 +121,7 @@ func TestUnescapeEscape(t *testing.T) {
 		`&quot;&lt;&amp;&gt;&quot;`,
 		`3&5==1 && 0<1, "0&lt;1", a+acute=&aacute;`,
 		`The special characters are: <, >, &, ' and "`,
+		`&#9; &#9 &#x9; &#x9`,
 	}
 	for _, s := range ss {
 		if got := UnescapeString(EscapeString(s)); got != s {
