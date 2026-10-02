@@ -1,0 +1,51 @@
+# Issue #38244: when building for Windows with -buildmode=c-shared
+# and no -o flag, the output file should have a .dll extension.
+
+[compiler:gccgo] skip 'gccgo does not cross-compile to windows here'
+
+# Cross-compile with -n so that no C toolchain for Windows is needed.
+env GOOS=windows
+env GOARCH=amd64
+env CGO_ENABLED=1
+
+go build -n -buildmode=c-shared
+stderr ' -o mylib\.dll '
+stderr '^mv \$WORK[/\\]b001[/\\]exe[/\\]mylib\.dll mylib\.dll$'
+
+# An explicit -o name is used as is.
+go build -n -buildmode=c-shared -o other.dll
+stderr ' -o other\.dll '
+stderr '^mv \$WORK[/\\]b001[/\\]exe[/\\]other\.dll other\.dll$'
+
+go build -n -buildmode=c-shared -o noext
+stderr ' -o noext '
+stderr '^mv \$WORK[/\\]b001[/\\]exe[/\\]noext noext$'
+
+# Build for real on Windows hosts that support c-shared.
+[!GOOS:windows] stop
+[short] stop
+[!cgo] stop
+[!buildmode:c-shared] stop
+
+env GOOS=
+env GOARCH=
+env CGO_ENABLED=
+
+go build -buildmode=c-shared
+exists mylib.dll
+exists mylib.h
+! exists mylib
+
+-- go.mod --
+module example.com/mylib
+
+go 1.27
+-- main.go --
+package main
+
+import "C"
+
+//export Hello
+func Hello() {}
+
+func main() {}
