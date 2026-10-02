@@ -80,7 +80,7 @@ func fileListener(f *os.File) (Listener, error) {
 	case *TCPAddr:
 		return &TCPListener{fd: fd}, nil
 	case *UnixAddr:
-		return &UnixListener{fd: fd, path: laddr.Name, unlink: false}, nil
+		return &UnixListener{fd: fd, path: laddr.Name}, nil
 	}
 	fd.Close()
 	return nil, syscall.EINVAL
