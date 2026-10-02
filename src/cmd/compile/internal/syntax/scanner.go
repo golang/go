@@ -36,7 +36,7 @@ type scanner struct {
 	line, col uint
 	blank     bool // line is blank up to col
 	tok       token
-	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF"); may be malformed if bad is true
+	lit       string   // valid if tok is _Name, _Literal, _Semi ("semicolon", "newline", or "EOF"), or a keyword; may be malformed if bad is true
 	bad       bool     // valid if tok is _Literal, true if a syntax error occurred, lit may be malformed
 	kind      LitKind  // valid if tok is _Literal
 	op        Operator // valid if tok is _Operator, _Star, _AssignOp, or _IncOp
@@ -378,19 +378,17 @@ func (s *scanner) ident() {
 		}
 	}
 
+	s.nlsemi = true
+	s.tok = _Name
+	s.lit = s.segment()
+
 	// possibly a keyword
-	lit := s.segment()
-	if len(lit) >= 2 {
-		if tok := keywordMap[hash(lit)]; tok != 0 && tokStrFast(tok) == lit {
+	if len(s.lit) >= 2 {
+		if tok := keywordMap[hash(s.lit)]; tok != 0 && tokStrFast(tok) == s.lit {
 			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
 			s.tok = tok
-			return
 		}
 	}
-
-	s.nlsemi = true
-	s.lit = lit
-	s.tok = _Name
 }
 
 // tokStrFast is a faster version of token.String, which assumes that tok
