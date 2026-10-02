@@ -507,3 +507,293 @@ func BenchmarkPull2(b *testing.B) {
 		stop()
 	}
 }
+
+// Example demonstrates basic iterator usage with range loops.
+func Example() {
+	// Create an iterator that yields numbers 0-4
+	numbers := func(yield func(int) bool) {
+		for i := range 5 {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+
+	// Use the iterator in a range loop
+	for n := range numbers {
+		fmt.Println(n)
+	}
+
+	// Output:
+	// 0
+	// 1
+	// 2
+	// 3
+	// 4
+}
+
+// ExampleSeq demonstrates creating and using a Seq iterator.
+func ExampleSeq() {
+	// Create an iterator over even numbers
+	evens := func(max int) Seq[int] {
+		return func(yield func(int) bool) {
+			for i := 0; i < max; i += 2 {
+				if !yield(i) {
+					return
+				}
+			}
+		}
+	}
+
+	// Iterate over even numbers up to 10
+	for n := range evens(10) {
+		fmt.Println(n)
+	}
+
+	// Output:
+	// 0
+	// 2
+	// 4
+	// 6
+	// 8
+}
+
+// ExampleSeq2 demonstrates creating and using a Seq2 iterator for key-value pairs.
+func ExampleSeq2() {
+	// Create an iterator over index-value pairs
+	indexed := func(values []string) Seq2[int, string] {
+		return func(yield func(int, string) bool) {
+			for i, v := range values {
+				if !yield(i, v) {
+					return
+				}
+			}
+		}
+	}
+
+	// Iterate over indexed values
+	words := []string{"hello", "world", "from", "Go"}
+	for i, word := range indexed(words) {
+		fmt.Printf("%d: %s\n", i, word)
+	}
+
+	// Output:
+	// 0: hello
+	// 1: world
+	// 2: from
+	// 3: Go
+}
+
+// ExamplePull demonstrates converting a push iterator to a pull iterator.
+func ExamplePull() {
+	// Create a push-style iterator
+	numbers := func(yield func(int) bool) {
+		for i := range 5 {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+
+	// Convert to pull-style
+	next, stop := Pull(numbers)
+	defer stop()
+
+	// Pull values one at a time
+	for {
+		v, ok := next()
+		if !ok {
+			break
+		}
+		fmt.Println(v)
+	}
+
+	// Output:
+	// 0
+	// 1
+	// 2
+	// 3
+	// 4
+}
+
+// ExamplePull_pairs demonstrates using Pull to create pairs from a sequence.
+func ExamplePull_pairs() {
+	// Create an iterator that yields pairs of consecutive values
+	pairs := func(seq Seq[int]) Seq2[int, int] {
+		return func(yield func(int, int) bool) {
+			next, stop := Pull(seq)
+			defer stop()
+			for {
+				v1, ok1 := next()
+				if !ok1 {
+					return
+				}
+				v2, ok2 := next()
+				if !yield(v1, v2) {
+					return
+				}
+				if !ok2 {
+					return
+				}
+			}
+		}
+	}
+
+	// Create a sequence of numbers
+	numbers := func(yield func(int) bool) {
+		for i := range 6 {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+
+	// Print pairs
+	for a, b := range pairs(numbers) {
+		fmt.Printf("(%d, %d)\n", a, b)
+	}
+
+	// Output:
+	// (0, 1)
+	// (2, 3)
+	// (4, 5)
+}
+
+// ExamplePull2 demonstrates converting a Seq2 to a pull iterator.
+func ExamplePull2() {
+	// Create a push-style iterator for key-value pairs
+	squares := func(yield func(int, int) bool) {
+		for i := range 5 {
+			if !yield(i, i*i) {
+				return
+			}
+		}
+	}
+
+	// Convert to pull-style
+	next, stop := Pull2(squares)
+	defer stop()
+
+	// Pull pairs one at a time
+	for {
+		k, v, ok := next()
+		if !ok {
+			break
+		}
+		fmt.Printf("%d² = %d\n", k, v)
+	}
+
+	// Output:
+	// 0² = 0
+	// 1² = 1
+	// 2² = 4
+	// 3² = 9
+	// 4² = 16
+}
+
+// Example_earlyStop demonstrates stopping iteration early.
+func Example_earlyStop() {
+	// Create an iterator
+	numbers := func(yield func(int) bool) {
+		for i := range 10 {
+			if !yield(i) {
+				fmt.Println("Iterator stopped early")
+				return
+			}
+		}
+		fmt.Println("Iterator completed")
+	}
+
+	// Stop after finding 5
+	for n := range numbers {
+		fmt.Println(n)
+		if n == 5 {
+			break
+		}
+	}
+
+	// Output:
+	// 0
+	// 1
+	// 2
+	// 3
+	// 4
+	// 5
+	// Iterator stopped early
+}
+
+// Example_filter demonstrates filtering values in an iterator.
+func Example_filter() {
+	// Filter function that creates a new iterator
+	filter := func(seq Seq[int], predicate func(int) bool) Seq[int] {
+		return func(yield func(int) bool) {
+			for v := range seq {
+				if predicate(v) {
+					if !yield(v) {
+						return
+					}
+				}
+			}
+		}
+	}
+
+	// Create a sequence of numbers
+	numbers := func(yield func(int) bool) {
+		for i := range 10 {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+
+	// Filter for even numbers
+	evens := filter(numbers, func(n int) bool { return n%2 == 0 })
+
+	for n := range evens {
+		fmt.Println(n)
+	}
+
+	// Output:
+	// 0
+	// 2
+	// 4
+	// 6
+	// 8
+}
+
+// Example_map demonstrates transforming values in an iterator.
+func Example_map() {
+	// Map function that transforms values
+	mapSeq := func(seq Seq[int], transform func(int) string) Seq[string] {
+		return func(yield func(string) bool) {
+			for v := range seq {
+				if !yield(transform(v)) {
+					return
+				}
+			}
+		}
+	}
+
+	// Create a sequence of numbers
+	numbers := func(yield func(int) bool) {
+		for i := 1; i <= 3; i++ {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+
+	// Transform numbers to strings
+	strings := mapSeq(numbers, func(n int) string {
+		return fmt.Sprintf("Number: %d", n)
+	})
+
+	for s := range strings {
+		fmt.Println(s)
+	}
+
+	// Output:
+	// Number: 1
+	// Number: 2
+	// Number: 3
+}
