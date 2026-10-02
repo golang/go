@@ -75,7 +75,7 @@ func TestConstantMultiplies(t *testing.T) {
 	}
 	fmt.Fprintf(&code, "}\n")
 
-	fmt.Printf("CODE:\n%s\n", string(code.Bytes()))
+	t.Logf("CODE:\n%s\n", string(code.Bytes()))
 
 	// Make test file
 	tmpdir := t.TempDir()
