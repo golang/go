@@ -447,6 +447,48 @@ QUIT
 		}
 	})
 
+	t.Run("ehlo case-insensitive extensions", func(t *testing.T) {
+		const (
+			basicServer = `250-mx.google.com at your service
+250-size 35651584
+250-8bitmime
+250 smtputf8
+250 Sender OK
+221 Goodbye
+`
+
+			basicClient = `EHLO localhost
+MAIL FROM:<user+📧@gmail.com> BODY=8BITMIME SMTPUTF8
+QUIT
+`
+		)
+
+		c, bcmdbuf, cmdbuf := fake(basicServer)
+
+		if err := c.Hello("localhost"); err != nil {
+			t.Fatalf("EHLO failed: %s", err)
+		}
+		if ok, _ := c.Extension("8BITMIME"); !ok {
+			t.Fatalf("Should support 8BITMIME")
+		}
+		if ok, _ := c.Extension("SMTPUTF8"); !ok {
+			t.Fatalf("Should support SMTPUTF8")
+		}
+		if err := c.Mail("user+📧@gmail.com"); err != nil {
+			t.Fatalf("MAIL FROM failed: %s", err)
+		}
+		if err := c.Quit(); err != nil {
+			t.Fatalf("QUIT failed: %s", err)
+		}
+
+		bcmdbuf.Flush()
+		actualcmds := cmdbuf.String()
+		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
+		if client != actualcmds {
+			t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+		}
+	})
+
 	t.Run("ehlo smtputf8", func(t *testing.T) {
 		const (
 			basicServer = `250-mx.google.com at your service
@@ -1073,7 +1115,7 @@ func serverHandle(c net.Conn, t *testing.T) error {
 		switch s.Text() {
 		case "EHLO localhost":
 			send("250-127.0.0.1 ESMTP offers a warm hug of welcome")
-			send("250-STARTTLS")
+			send("250-starttls")
 			send("250 Ok")
 		case "STARTTLS":
 			send("220 Go ahead")
