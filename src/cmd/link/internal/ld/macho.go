@@ -751,18 +751,19 @@ func asmbMacho(ctxt *Link) {
 	s4 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
 	s5 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
 	s6 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
+	padding := Rnd(s1+s2+s3+s4+s5+s6, 16) - (s1 + s2 + s3 + s4 + s5 + s6) // 16-byte alignment for code signature, see doMachoLink below
 	s7 := ldr.SymSize(ldr.Lookup(".machocodesig", 0))
 
 	if ctxt.LinkMode != LinkExternal {
 		ms := newMachoSeg("__LINKEDIT", 0)
 		ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), *FlagRound))
-		ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + s7)
+		ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + padding + s7)
 		ms.fileoffset = uint64(linkoff)
 		ms.filesize = ms.vsize
 		ms.prot1 = 1
 		ms.prot2 = 1
 
-		codesigOff = linkoff + s1 + s2 + s3 + s4 + s5 + s6
+		codesigOff = linkoff + s1 + s2 + s3 + s4 + s5 + s6 + padding
 	}
 
 	if ctxt.LinkMode != LinkExternal && ctxt.IsPIE() {
@@ -847,19 +848,41 @@ func asmbMacho(ctxt *Link) {
 	}
 
 	if *FlagSplitDWARF && ctxt.IsInternal() {
+		// Segment order when split DWARF is used, in both virtual address
+		// and file layout:
+		// - Mapped segments (__PAGEZERO, __TEXT, __DATA, etc.)
+		//   - Main binary: contains content in file.
+		//   - DWARF file: no content, just header listing virtual address.
+		// - __LINKEDIT
+		//   - Main binary: symbol table, dyld info, etc.
+		//   - DWARF file: start at same virtual address, but shorter,
+		//     contains only symbol table.
+		// - __DWARF
+		//   - DWARF file only.
+
+		// Write the __LINKEDIT segment (symbol table).
+		symtab := ldr.Lookup(".machosymtab", 0)
+		symstr := ldr.Lookup(".machosymstr", 0)
+		symtabSz := ldr.SymSize(symtab)
+		symstrSz := ldr.SymSize(symstr)
+		linkeditOff := Rnd(int64(HEADR), *FlagRound)
+		ctxt.OutDWARF.SeekSet(linkeditOff)
+		ctxt.OutDWARF.Write(ldr.Data(symtab))
+		ctxt.OutDWARF.Write(ldr.Data(symstr))
+		if Rnd(ctxt.OutDWARF.Offset(), *FlagRound) != int64(Segdwarf.Fileoff) {
+			panic("splitdwarf __LINKEDIT size mismatch")
+		}
 		ctxt.OutDWARF.SeekSet(0)
 
-		// The split DWARF file does not need the content of the segments,
-		// only their headers. Also remove the __LINKEDIT segment.
 		for i := range seg[:nseg] {
 			s := &seg[i]
 			if s.name == "__LINKEDIT" {
-				if i != nseg-1 {
-					panic("__LINKEDIT is not the last segment")
-				}
-				nseg--
+				s.vsize = uint64(symtabSz + symstrSz)
+				s.fileoffset = uint64(linkeditOff)
+				s.filesize = s.vsize
 				continue
 			}
+			// The split DWARF file does not need the content of the segments
 			s.fileoffset = 0
 			s.filesize = 0
 			for j := range s.nsect {
@@ -878,11 +901,19 @@ func asmbMacho(ctxt *Link) {
 			machoshbits(ctxt, ms, sect, "__DWARF")
 		}
 
-		// Keep only LC_BUILD_VERSION and LC_UUID, dropping load commands
-		// specific to the executable (LC_MAIN, LC_SYMTAB, etc.).
+		// Keep only LC_BUILD_VERSION, LC_UUID, and LC_SYMTAB, dropping load
+		// commands specific to the executable (LC_MAIN, LC_DYLD_INFO_ONLY, etc.).
 		load = slices.DeleteFunc(load, func(l MachoLoad) bool {
-			return l.type_ != imacho.LC_BUILD_VERSION && l.type_ != imacho.LC_UUID
+			return l.type_ != imacho.LC_BUILD_VERSION && l.type_ != imacho.LC_UUID && l.type_ != imacho.LC_SYMTAB
 		})
+		for i := range load {
+			if load[i].type_ == imacho.LC_SYMTAB {
+				load[i].data[0] = uint32(linkeditOff)            /* symoff */
+				load[i].data[1] = uint32(nsortsym)               /* nsyms */
+				load[i].data[2] = uint32(linkeditOff + symtabSz) /* stroff */
+				load[i].data[3] = uint32(symstrSz)               /* strsize */
+			}
+		}
 
 		a := machowrite(ctxt, ctxt.Arch, ctxt.OutDWARF, ctxt.LinkMode)
 		if int32(a) > HEADR {
@@ -1039,11 +1070,15 @@ func machosymorder(ctxt *Link) {
 
 // AddMachoSym adds s to Mach-O symbol table, used in GenSymLate.
 // Currently only used on ARM64 when external linking.
-func AddMachoSym(ldr *loader.Loader, s loader.Sym) {
+func AddMachoSym(ctxt *Link, s loader.Sym) {
+	ldr := ctxt.loader
 	ldr.SetSymDynid(s, int32(nsortsym))
 	sortsym = append(sortsym, s)
 	nsortsym++
 	nkind[symkind(ldr, s)]++
+	symtab := ldr.CreateSymForUpdate(".machosymtab", 0)
+	symstr := ldr.CreateSymForUpdate(".machosymstr", 0)
+	machosymtab1(ctxt, symtab, symstr, s)
 }
 
 // machoShouldExport reports whether a symbol needs to be exported.
@@ -1079,49 +1114,54 @@ func machosymtab(ctxt *Link) {
 	symstr := ldr.CreateSymForUpdate(".machosymstr", 0)
 
 	for _, s := range sortsym[:nsortsym] {
-		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size()))
+		machosymtab1(ctxt, symtab, symstr, s)
+	}
+}
 
-		export := machoShouldExport(ctxt, ldr, s)
+func machosymtab1(ctxt *Link, symtab, symstr *loader.SymbolBuilder, s loader.Sym) {
+	ldr := ctxt.loader
+	symtab.AddUint32(ctxt.Arch, uint32(symstr.Size()))
 
-		// Prefix symbol names with "_" to match the system toolchain.
-		// (We used to only prefix C symbols, which is all required for the build.
-		// But some tools don't recognize Go symbols as symbols, so we prefix them
-		// as well.)
-		symstr.AddUint8('_')
+	export := machoShouldExport(ctxt, ldr, s)
 
-		// replace "·" as ".", because DTrace cannot handle it.
-		name := strings.ReplaceAll(ldr.SymExtname(s), "·", ".")
+	// Prefix symbol names with "_" to match the system toolchain.
+	// (We used to only prefix C symbols, which is all required for the build.
+	// But some tools don't recognize Go symbols as symbols, so we prefix them
+	// as well.)
+	symstr.AddUint8('_')
 
-		name = mangleABIName(ctxt, ldr, s, name)
-		symstr.Addstring(name)
+	// replace "·" as ".", because DTrace cannot handle it.
+	name := strings.ReplaceAll(ldr.SymExtname(s), "·", ".")
 
-		if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
-			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
-			symtab.AddUint8(0)                                // no section
-			symtab.AddUint16(ctxt.Arch, 0)                    // desc
-			symtab.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
+	name = mangleABIName(ctxt, ldr, s, name)
+	symstr.Addstring(name)
+
+	if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
+		symtab.AddUint8(0x01)                             // type N_EXT, external symbol
+		symtab.AddUint8(0)                                // no section
+		symtab.AddUint16(ctxt.Arch, 0)                    // desc
+		symtab.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize) // no value
+	} else {
+		if export || ldr.AttrCgoExportDynamic(s) {
+			symtab.AddUint8(0x0f) // N_SECT | N_EXT
+		} else if ldr.AttrCgoExportStatic(s) {
+			// Only export statically, not dynamically. (N_PEXT is like hidden visibility)
+			symtab.AddUint8(0x1f) // N_SECT | N_EXT | N_PEXT
 		} else {
-			if export || ldr.AttrCgoExportDynamic(s) {
-				symtab.AddUint8(0x0f) // N_SECT | N_EXT
-			} else if ldr.AttrCgoExportStatic(s) {
-				// Only export statically, not dynamically. (N_PEXT is like hidden visibility)
-				symtab.AddUint8(0x1f) // N_SECT | N_EXT | N_PEXT
-			} else {
-				symtab.AddUint8(0x0e) // N_SECT
-			}
-			o := s
-			if outer := ldr.OuterSym(o); outer != 0 {
-				o = outer
-			}
-			if ldr.SymSect(o) == nil {
-				ldr.Errorf(s, "missing section for symbol")
-				symtab.AddUint8(0)
-			} else {
-				symtab.AddUint8(uint8(ldr.SymSect(o).Extnum))
-			}
-			symtab.AddUint16(ctxt.Arch, 0) // desc
-			symtab.AddUintXX(ctxt.Arch, uint64(ldr.SymAddr(s)), ctxt.Arch.PtrSize)
+			symtab.AddUint8(0x0e) // N_SECT
 		}
+		o := s
+		if outer := ldr.OuterSym(o); outer != 0 {
+			o = outer
+		}
+		if ldr.SymSect(o) == nil {
+			ldr.Errorf(s, "missing section for symbol")
+			symtab.AddUint8(0)
+		} else {
+			symtab.AddUint8(uint8(ldr.SymSect(o).Extnum))
+		}
+		symtab.AddUint16(ctxt.Arch, 0) // desc
+		symtab.AddUintXX(ctxt.Arch, uint64(ldr.SymAddr(s)), ctxt.Arch.PtrSize)
 	}
 }
 
@@ -1163,7 +1203,6 @@ func machodysymtab(ctxt *Link, base int64) {
 }
 
 func doMachoLink(ctxt *Link) int64 {
-	machosymtab(ctxt)
 	machoDyldInfo(ctxt)
 
 	ldr := ctxt.loader
@@ -1178,31 +1217,6 @@ func doMachoLink(ctxt *Link) int64 {
 
 	size := ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4) + ldr.SymSize(s5) + ldr.SymSize(s6)
 
-	// Force the linkedit section to end on a 16-byte
-	// boundary. This allows pure (non-cgo) Go binaries
-	// to be code signed correctly.
-	//
-	// Apple's codesign_allocate (a helper utility for
-	// the codesign utility) can do this fine itself if
-	// it is run on a dynamic Mach-O binary. However,
-	// when it is run on a pure (non-cgo) Go binary, where
-	// the linkedit section is mostly empty, it fails to
-	// account for the extra padding that it itself adds
-	// when adding the LC_CODE_SIGNATURE load command
-	// (which must be aligned on a 16-byte boundary).
-	//
-	// By forcing the linkedit section to end on a 16-byte
-	// boundary, codesign_allocate will not need to apply
-	// any alignment padding itself, working around the
-	// issue.
-	if size%16 != 0 {
-		n := 16 - size%16
-		s6b := ldr.MakeSymbolUpdater(s6)
-		s6b.Grow(s6b.Size() + n)
-		s6b.SetSize(s6b.Size() + n)
-		size += n
-	}
-
 	if size > 0 {
 		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound) + Rnd(int64(Segrelrodata.Filelen), *FlagRound) + Rnd(int64(Segdata.Filelen), *FlagRound)
 		if !(*FlagSplitDWARF && ctxt.IsInternal()) {
@@ -1216,6 +1230,29 @@ func doMachoLink(ctxt *Link) int64 {
 		ctxt.Out.Write(ldr.Data(s4))
 		ctxt.Out.Write(ldr.Data(s5))
 		ctxt.Out.Write(ldr.Data(s6))
+
+		// Force the linkedit section to end on a 16-byte
+		// boundary. This allows pure (non-cgo) Go binaries
+		// to be code signed correctly.
+		//
+		// Apple's codesign_allocate (a helper utility for
+		// the codesign utility) can do this fine itself if
+		// it is run on a dynamic Mach-O binary. However,
+		// when it is run on a pure (non-cgo) Go binary, where
+		// the linkedit section is mostly empty, it fails to
+		// account for the extra padding that it itself adds
+		// when adding the LC_CODE_SIGNATURE load command
+		// (which must be aligned on a 16-byte boundary).
+		//
+		// By forcing the linkedit section to end on a 16-byte
+		// boundary, codesign_allocate will not need to apply
+		// any alignment padding itself, working around the
+		// issue.
+		if size%16 != 0 {
+			n := 16 - size%16
+			ctxt.Out.Write(zeros[:n])
+			size += n
+		}
 
 		// Add code signature if necessary. This must be the last.
 		s7 := machoCodeSigSym(ctxt, linkoff+size)

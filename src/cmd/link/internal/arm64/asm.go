@@ -1294,7 +1294,7 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 			ldr.SetSymValue(p, v+off)
 			ldr.SetSymSect(p, ldr.SymSect(s))
 			if ctxt.IsDarwin() {
-				ld.AddMachoSym(ldr, p)
+				ld.AddMachoSym(ctxt, p)
 			} else if ctxt.IsWindows() {
 				ld.AddPELabelSym(ldr, p)
 			} else {
