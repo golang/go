@@ -64,7 +64,7 @@ Flags:
 	-cpuprofile file
 		Write CPU profile to file.
 	-d
-		Disable generation of dynamic executables.
+		Disable generation of dynamic executables (ELF only).
 		The emitted code is the same in either case; the option
 		controls only whether a dynamic header is included.
 		The dynamic header is on by default, even without any

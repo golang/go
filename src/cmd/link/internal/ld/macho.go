@@ -412,10 +412,6 @@ var (
 )
 
 func (ctxt *Link) domacho() {
-	if *FlagD {
-		return
-	}
-
 	// Copy platform load command.
 	for _, h := range hostobj {
 		load, err := hostobjMachoPlatform(&h)
@@ -742,90 +738,88 @@ func asmbMacho(ctxt *Link) {
 	}
 
 	var codesigOff int64
-	if !*FlagD {
-		// must match doMachoLink below
-		s1 := ldr.SymSize(ldr.Lookup(".machorebase", 0))
-		s2 := ldr.SymSize(ldr.Lookup(".machobind", 0))
-		s3 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
-		s4 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
-		s5 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
-		s6 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
-		s7 := ldr.SymSize(ldr.Lookup(".machocodesig", 0))
+	// must match doMachoLink below
+	s1 := ldr.SymSize(ldr.Lookup(".machorebase", 0))
+	s2 := ldr.SymSize(ldr.Lookup(".machobind", 0))
+	s3 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
+	s4 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
+	s5 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
+	s6 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
+	s7 := ldr.SymSize(ldr.Lookup(".machocodesig", 0))
 
-		if ctxt.LinkMode != LinkExternal {
-			ms := newMachoSeg("__LINKEDIT", 0)
-			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), *FlagRound))
-			ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + s7)
-			ms.fileoffset = uint64(linkoff)
-			ms.filesize = ms.vsize
-			ms.prot1 = 1
-			ms.prot2 = 1
+	if ctxt.LinkMode != LinkExternal {
+		ms := newMachoSeg("__LINKEDIT", 0)
+		ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), *FlagRound))
+		ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + s7)
+		ms.fileoffset = uint64(linkoff)
+		ms.filesize = ms.vsize
+		ms.prot1 = 1
+		ms.prot2 = 1
 
-			codesigOff = linkoff + s1 + s2 + s3 + s4 + s5 + s6
+		codesigOff = linkoff + s1 + s2 + s3 + s4 + s5 + s6
+	}
+
+	if ctxt.LinkMode != LinkExternal && ctxt.IsPIE() {
+		ml := newMachoLoad(ctxt.Arch, imacho.LC_DYLD_INFO_ONLY, 10)
+		ml.data[0] = uint32(linkoff)      // rebase off
+		ml.data[1] = uint32(s1)           // rebase size
+		ml.data[2] = uint32(linkoff + s1) // bind off
+		ml.data[3] = uint32(s2)           // bind size
+		ml.data[4] = 0                    // weak bind off
+		ml.data[5] = 0                    // weak bind size
+		ml.data[6] = 0                    // lazy bind off
+		ml.data[7] = 0                    // lazy bind size
+		ml.data[8] = 0                    // export
+		ml.data[9] = 0                    // export size
+	}
+
+	ml := newMachoLoad(ctxt.Arch, imacho.LC_SYMTAB, 4)
+	ml.data[0] = uint32(linkoff + s1 + s2)                /* symoff */
+	ml.data[1] = uint32(nsortsym)                         /* nsyms */
+	ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
+	ml.data[3] = uint32(s6)                               /* strsize */
+
+	if ctxt.LinkMode != LinkExternal {
+		machodysymtab(ctxt, linkoff+s1+s2)
+
+		ml := newMachoLoad(ctxt.Arch, imacho.LC_LOAD_DYLINKER, 6)
+		ml.data[0] = 12 /* offset to string */
+		stringtouint32(ml.data[1:], "/usr/lib/dyld")
+
+		for _, lib := range dylib {
+			ml = newMachoLoad(ctxt.Arch, imacho.LC_LOAD_DYLIB, 4+(uint32(len(lib))+1+7)/8*2)
+			ml.data[0] = 24 /* offset of string from beginning of load */
+			ml.data[1] = 0  /* time stamp */
+			ml.data[2] = 0  /* version */
+			ml.data[3] = 0  /* compatibility version */
+			stringtouint32(ml.data[4:], lib)
 		}
+	}
 
-		if ctxt.LinkMode != LinkExternal && ctxt.IsPIE() {
-			ml := newMachoLoad(ctxt.Arch, imacho.LC_DYLD_INFO_ONLY, 10)
-			ml.data[0] = uint32(linkoff)      // rebase off
-			ml.data[1] = uint32(s1)           // rebase size
-			ml.data[2] = uint32(linkoff + s1) // bind off
-			ml.data[3] = uint32(s2)           // bind size
-			ml.data[4] = 0                    // weak bind off
-			ml.data[5] = 0                    // weak bind size
-			ml.data[6] = 0                    // lazy bind off
-			ml.data[7] = 0                    // lazy bind size
-			ml.data[8] = 0                    // export
-			ml.data[9] = 0                    // export size
+	if ctxt.IsInternal() && *flagHostBuildid != "none" {
+		ml := newMachoLoad(ctxt.Arch, imacho.LC_UUID, 4)
+		var uuid [16]byte
+		if len(buildinfo) >= 16 {
+			copy(uuid[:], buildinfo)
+		} else {
+			// Note: When setting macSDK to 26.2, dyld refuses to run any
+			// binary without an LC_UUID, which makes bootstrap fail.
+			// To work around that situation, if buildinfo is missing we
+			// construct a hash of the binary written so far and use that.
+			// Using -B none will bypass this if desired,
+			// but the resulting binary may not be runnable.
+			copy(uuid[:], uuidFromHash(hash.Sum32(ctxt.Out.Data())))
 		}
+		ml.data[0] = ctxt.Arch.ByteOrder.Uint32(uuid[0:])
+		ml.data[1] = ctxt.Arch.ByteOrder.Uint32(uuid[4:])
+		ml.data[2] = ctxt.Arch.ByteOrder.Uint32(uuid[8:])
+		ml.data[3] = ctxt.Arch.ByteOrder.Uint32(uuid[12:])
+	}
 
-		ml := newMachoLoad(ctxt.Arch, imacho.LC_SYMTAB, 4)
-		ml.data[0] = uint32(linkoff + s1 + s2)                /* symoff */
-		ml.data[1] = uint32(nsortsym)                         /* nsyms */
-		ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
-		ml.data[3] = uint32(s6)                               /* strsize */
-
-		if ctxt.LinkMode != LinkExternal {
-			machodysymtab(ctxt, linkoff+s1+s2)
-
-			ml := newMachoLoad(ctxt.Arch, imacho.LC_LOAD_DYLINKER, 6)
-			ml.data[0] = 12 /* offset to string */
-			stringtouint32(ml.data[1:], "/usr/lib/dyld")
-
-			for _, lib := range dylib {
-				ml = newMachoLoad(ctxt.Arch, imacho.LC_LOAD_DYLIB, 4+(uint32(len(lib))+1+7)/8*2)
-				ml.data[0] = 24 /* offset of string from beginning of load */
-				ml.data[1] = 0  /* time stamp */
-				ml.data[2] = 0  /* version */
-				ml.data[3] = 0  /* compatibility version */
-				stringtouint32(ml.data[4:], lib)
-			}
-		}
-
-		if ctxt.IsInternal() && *flagHostBuildid != "none" {
-			ml := newMachoLoad(ctxt.Arch, imacho.LC_UUID, 4)
-			var uuid [16]byte
-			if len(buildinfo) >= 16 {
-				copy(uuid[:], buildinfo)
-			} else {
-				// Note: When setting macSDK to 26.2, dyld refuses to run any
-				// binary without an LC_UUID, which makes bootstrap fail.
-				// To work around that situation, if buildinfo is missing we
-				// construct a hash of the binary written so far and use that.
-				// Using -B none will bypass this if desired,
-				// but the resulting binary may not be runnable.
-				copy(uuid[:], uuidFromHash(hash.Sum32(ctxt.Out.Data())))
-			}
-			ml.data[0] = ctxt.Arch.ByteOrder.Uint32(uuid[0:])
-			ml.data[1] = ctxt.Arch.ByteOrder.Uint32(uuid[4:])
-			ml.data[2] = ctxt.Arch.ByteOrder.Uint32(uuid[8:])
-			ml.data[3] = ctxt.Arch.ByteOrder.Uint32(uuid[12:])
-		}
-
-		if ctxt.IsInternal() && ctxt.NeedCodeSign() {
-			ml := newMachoLoad(ctxt.Arch, imacho.LC_CODE_SIGNATURE, 2)
-			ml.data[0] = uint32(codesigOff)
-			ml.data[1] = uint32(s7)
-		}
+	if ctxt.IsInternal() && ctxt.NeedCodeSign() {
+		ml := newMachoLoad(ctxt.Arch, imacho.LC_CODE_SIGNATURE, 2)
+		ml.data[0] = uint32(codesigOff)
+		ml.data[1] = uint32(s7)
 	}
 
 	a := machowrite(ctxt, ctxt.Arch, ctxt.Out, ctxt.LinkMode)

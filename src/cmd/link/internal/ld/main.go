@@ -91,7 +91,7 @@ var (
 
 	flagA             = flag.Bool("a", false, "no-op (deprecated)")
 	FlagC             = flag.Bool("c", false, "dump call graph")
-	FlagD             = flag.Bool("d", false, "disable dynamic executable")
+	FlagD             = flag.Bool("d", false, "disable dynamic executable (ELF only)")
 	flagF             = flag.Bool("f", false, "ignore version mismatch")
 	flagG             = flag.Bool("g", false, "disable go package data checks")
 	flagH             = flag.Bool("h", false, "halt on error")
