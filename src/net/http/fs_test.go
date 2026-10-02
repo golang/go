@@ -270,6 +270,32 @@ func TestServeContentWithEmptyContentIgnoreRanges(t *testing.T) {
 	}
 }
 
+// TestServeContentIgnoresUnknownRangeUnit checks that ServeContent ignores a
+// Range header with a range unit it does not understand, serving the full
+// content with a 200 status as required by RFC 7233, Section 3.1, instead of
+// responding 416.
+// See https://github.com/golang/go/issues/81508.
+func TestServeContentIgnoresUnknownRangeUnit(t *testing.T) {
+	const content = "0123456789"
+	for _, r := range []string{
+		"items=0-3",
+		"ITEMS=0-3",
+		"pages=1-2",
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Range", r)
+		ServeContent(rec, req, "test.txt", time.Now(), strings.NewReader(content))
+		res := rec.Result()
+		if res.StatusCode != 200 {
+			t.Errorf("Range %q: code = %v; want 200", r, res.Status)
+		}
+		if body := rec.Body.String(); body != content {
+			t.Errorf("Range %q: body = %q; want full content %q", r, body, content)
+		}
+	}
+}
+
 var fsRedirectTestData = []struct {
 	original, redirect string
 	status             int

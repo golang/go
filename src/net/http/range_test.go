@@ -80,3 +80,25 @@ func TestParseRange(t *testing.T) {
 		}
 	}
 }
+
+// TestParseRangeIgnoresUnknownRangeUnit checks that a Range header with a
+// range unit the server does not understand is ignored rather than rejected,
+// as required by RFC 7233, Section 3.1.
+// See https://github.com/golang/go/issues/81508.
+func TestParseRangeIgnoresUnknownRangeUnit(t *testing.T) {
+	for _, s := range []string{
+		"items=0-3",
+		"ITEMS=0-3",
+		"pages=1-2",
+		"bytes2=0-3",
+		"foo",
+	} {
+		ranges, err := parseRange(s, 10)
+		if err != nil {
+			t.Errorf("parseRange(%q) returned error %q, want nil", s, err)
+		}
+		if ranges != nil {
+			t.Errorf("parseRange(%q) = %v, want nil (header must be ignored)", s, ranges)
+		}
+	}
+}
