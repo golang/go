@@ -537,6 +537,31 @@ func TestSplit(t *testing.T) {
 	}
 }
 
+func TestSplitAll(t *testing.T) {
+	for i, test := range splitTests {
+		re, err := Compile(test.r)
+		if err != nil {
+			t.Errorf("#%d: %q: compile error: %s", i, test.r, err.Error())
+			continue
+		}
+		if test.n >= 0 {
+			continue
+		}
+
+		split := slices.Collect(re.SplitSeq(test.s))
+		if !slices.Equal(split, test.out) {
+			t.Errorf("#%d: %q: got %q; want %q", i, test.r, split, test.out)
+		}
+
+		if QuoteMeta(test.r) == test.r {
+			strsplit := strings.SplitN(test.s, test.r, test.n)
+			if !slices.Equal(split, strsplit) {
+				t.Errorf("#%d: SplitSeq(%q, %q): regexp vs strings mismatch\nregexp=%q\nstrings=%q", i, test.s, test.r, split, strsplit)
+			}
+		}
+	}
+}
+
 // The following sequence of Match calls used to panic. See issue #12980.
 func TestParseAndCompile(t *testing.T) {
 	expr := "a$"

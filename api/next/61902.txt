@@ -6,3 +6,4 @@ pkg regexp, method (*Regexp) AllStringSubmatch(string) iter.Seq[[]string] #61902
 pkg regexp, method (*Regexp) AllStringSubmatchIndex(string) iter.Seq[[]int] #61902
 pkg regexp, method (*Regexp) AllSubmatch([]uint8) iter.Seq[[][]uint8] #61902
 pkg regexp, method (*Regexp) AllSubmatchIndex([]uint8) iter.Seq[[]int] #61902
+pkg regexp, method (*Regexp) SplitSeq(string) iter.Seq[string] #61902
