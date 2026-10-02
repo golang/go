@@ -886,8 +886,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 			v |= 0x3F << 8
 		}
 		emitReloc(v, 0)
-	case objabi.R_ADDRPOWER_TOCREL:
-	case objabi.R_ADDRPOWER_TOCREL_DS:
+	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
 		emitReloc(ld.XCOFF_R_TOCU|(0x0F<<8), 2)
 		emitReloc(ld.XCOFF_R_TOCL|(0x0F<<8), 6)
 	case objabi.R_POWER_TLS_LE:
