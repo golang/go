@@ -539,6 +539,28 @@ func bitsSetTest(x int) bool {
 	return x&9 == 9
 }
 
+func bitsAndConst64Test(x int64) bool {
+	// amd64:"TESTB [$]7" -"TESTQ"
+	return x&7 != 0
+}
+
+func bitsAndConst32Test(x int32) bool {
+	// amd64:"TESTB [$]5" -"TESTL"
+	return x&5 == 0
+}
+
+func bitsAndConst16Test(x int16) bool {
+	// amd64:"TESTB [$]6" -"TESTW"
+	return x&6 != 0
+}
+
+func bitsAndConst64WideTest(x int64) bool {
+	// Bit 7 of the immediate is set, so narrowing to TESTB would
+	// change SF; the wide TEST must be kept.
+	// amd64:"TESTQ [$]129" -"TESTB"
+	return x&129 != 0
+}
+
 func bitsMaskContiguousOnes64U(x uint64) uint64 {
 	// s390x:"RISBGZ [$]16, [$]47, [$]0,"
 	return x & 0x0000ffffffff0000
