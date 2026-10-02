@@ -386,8 +386,9 @@ func tJSTmpl(c context, s []byte) (context, int) {
 				return c, i + 2
 			}
 		case '`':
-			// end
-			c.state = stateJS
+			// End of the template literal. A template literal is a value,
+			// so a '/' after it starts a division, not a regexp literal.
+			c.state, c.jsCtx = stateJS, jsCtxDivOp
 			return c, i + 1
 		}
 		k = i + 1
