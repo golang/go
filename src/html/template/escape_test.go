@@ -203,6 +203,16 @@ func TestEscape(t *testing.T) {
 			`<button onclick='alert(&#34;\u003cHello\u003e&#34;)'>`,
 		},
 		{
+			"jsStrValueAfterSlash",
+			"<svg/onload='alert({{.H}})'>",
+			`<svg/onload='alert(&#34;\u003cHello\u003e&#34;)'>`,
+		},
+		{
+			"urlAfterSlash",
+			`<a/href="{{.C}}">`,
+			`<a/href="%3cCincinnati%3e">`,
+		},
+		{
 			"jsNumericValue",
 			"<button onclick='alert({{.N}})'>",
 			`<button onclick='alert( 42 )'>`,
@@ -1794,6 +1804,30 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			`<svg:a svg:onclick="x()">`,
+			context{},
+		},
+		{
+			`<a/href=`,
+			context{state: stateBeforeValue, attr: attrURL},
+		},
+		{
+			`<svg/onload="`,
+			context{state: stateJS, delim: delimDoubleQuote, attr: attrScript},
+		},
+		{
+			`<a title="x"/onclick="`,
+			context{state: stateJS, delim: delimDoubleQuote, attr: attrScript},
+		},
+		{
+			`<a//style='`,
+			context{state: stateCSS, delim: delimSingleQuote, attr: attrStyle},
+		},
+		{
+			`<br/>`,
+			context{},
+		},
+		{
+			`<img src=/x/y/>`,
 			context{},
 		},
 		{
