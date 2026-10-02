@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -734,6 +735,45 @@ func testGCMAEAD(t *testing.T, newCipher func(key []byte) cipher.Block) {
 			})
 		})
 	}
+}
+
+// Test that a single AEAD is safe for concurrent use; meaningful under -race.
+func TestGCMConcurrency(t *testing.T) {
+	testAllImplementations(t, testGCMConcurrency)
+}
+
+func testGCMConcurrency(t *testing.T, newCipher func(key []byte) cipher.Block) {
+	const goroutines, iterations = 16, 256
+
+	aead, err := cipher.NewGCM(newCipher(make([]byte, 16)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for g := 0; g < goroutines; g++ {
+		go func() {
+			defer wg.Done()
+			nonce := make([]byte, aead.NonceSize())
+			nonce[0] = byte(g)
+			for i := 0; i < iterations; i++ {
+				nonce[len(nonce)-1] = byte(i)
+				plaintext := []byte(fmt.Sprintf("message %d-%d", g, i))
+				ct := aead.Seal(nil, nonce, plaintext, nil)
+				got, err := aead.Open(nil, nonce, ct, nil)
+				if err != nil {
+					t.Errorf("goroutine %d, iteration %d: Open failed: %v", g, i, err)
+					return
+				}
+				if !bytes.Equal(got, plaintext) {
+					t.Errorf("goroutine %d, iteration %d: got %x, want %x", g, i, got, plaintext)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func TestGCMExtraMethods(t *testing.T) {
