@@ -32,7 +32,7 @@ type Tree struct {
 	treeSet    map[string]*Tree
 	actionLine int // line of left delim starting action
 	rangeDepth int
-	stackDepth int // depth of nested parenthesized expressions
+	stackDepth int // depth of nested parenthesized expressions and control structures
 
 	leftDelim  string
 	rightDelim string
@@ -47,7 +47,7 @@ const (
 )
 
 // maxStackDepth is the maximum depth permitted for nested
-// parenthesized expressions.
+// parenthesized expressions and control structures.
 var maxStackDepth = 10000
 
 // init reduces maxStackDepth for WebAssembly due to its smaller stack size.
@@ -552,6 +552,11 @@ func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
 func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
 	defer t.popVars(len(t.vars))
 	pipe = t.pipeline(context, itemRightDelim)
+	if t.stackDepth >= maxStackDepth {
+		t.errorf("max control structure depth exceeded")
+	}
+	t.stackDepth++
+	defer func() { t.stackDepth-- }()
 	if context == "range" {
 		t.rangeDepth++
 	}
@@ -661,6 +666,9 @@ func (t *Tree) blockControl() Node {
 	token := t.nextNonSpace()
 	name := t.parseTemplateName(token, context)
 	pipe := t.pipeline(context, itemRightDelim)
+	if t.stackDepth >= maxStackDepth {
+		t.errorf("max control structure depth exceeded")
+	}
 
 	block := New(name) // name will be updated once we know it.
 	block.text = t.text
@@ -669,6 +677,7 @@ func (t *Tree) blockControl() Node {
 	block.rightDelim = t.rightDelim
 	block.ParseName = t.ParseName
 	block.startParse(t.funcs, t.lex, t.treeSet)
+	block.stackDepth = t.stackDepth + 1
 	var end Node
 	block.Root, end = block.itemList()
 	if end.Type() != nodeEnd {
