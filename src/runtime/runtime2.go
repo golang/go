@@ -503,7 +503,6 @@ type g struct {
 	//    param may point to a savedOpenDeferState.
 	param        unsafe.Pointer
 	atomicstatus atomic.Uint32
-	stackLock    uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
 	goid         uint64
 	schedlink    guintptr
 	waitsince    int64      // approx time when the g become blocked
