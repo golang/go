@@ -1,0 +1,46 @@
+[!cgo] skip 'test verifies vendoring behavior for cgo includes in subdirectories'
+
+# Regression test for golang.org/issue/57529:
+# 'go mod vendor' copies package files, not complete source trees,
+# so a subdirectory with no Go package files is omitted.
+
+go build -mod=mod ./...
+go mod vendor
+! exists vendor/example.com/dep/subdir/dep.h
+! go build -mod=vendor ./...
+
+-- go.mod --
+module example.com/main
+
+go 1.17
+
+require example.com/dep v0.1.0
+
+replace example.com/dep v0.1.0 => ./dep
+-- main.go --
+package main
+
+import "example.com/dep"
+
+func main() {
+	println(dep.F())
+}
+-- dep/go.mod --
+module example.com/dep
+
+go 1.17
+-- dep/dep.go --
+package dep
+
+/*
+#include "subdir/dep.h"
+*/
+import "C"
+
+func F() int {
+	return int(C.dep())
+}
+-- dep/subdir/dep.h --
+static inline int dep(void) {
+	return 42;
+}
