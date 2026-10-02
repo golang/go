@@ -1494,7 +1494,15 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	}
 
 	// Look for go:build comments to accept or reject the file.
-	ok, sawBinaryOnly, err := ctxt.shouldBuild(info.header, allTags)
+	// For non-Go source files we also recognise language-specific comment
+	// prefixes (e.g. "% go:build" for MATLAB .m files) so that those files
+	// can carry build constraints without the //go:build syntax, which is
+	// invalid in their respective languages.
+	var commentPrefix []byte
+	if !strings.HasSuffix(name, ".go") {
+		commentPrefix = goBuildCommentForExt(ext)
+	}
+	ok, sawBinaryOnly, err := ctxt.shouldBuildWithPrefix(info.header, allTags, commentPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", name, err)
 	}
@@ -1536,12 +1544,60 @@ var (
 	errMultipleGoBuild = errors.New("multiple //go:build comments")
 )
 
+// extCommentPrefix maps non-Go file extensions to their line-comment prefix.
+// This is used so that files in languages other than Go can carry
+// "go:build" constraints using their own comment syntax, without
+// requiring the //go:build form which is invalid in those languages.
+//
+// For example, a MATLAB .m file can use:
+//
+//	% go:build ignore
+//
+// and a Python/Shell/R file can use:
+//
+//	# go:build ignore
+//
+// The map covers only the extensions that Go itself recognises via
+// fileListForExt; any extension not listed here falls back to the
+// standard //go:build parser (which will simply find nothing and
+// therefore not exclude the file).
+var extCommentPrefix = map[string][]byte{
+	// MATLAB / Objective-C shares .m but only MATLAB needs a different prefix.
+	// We support % go:build for .m files so that MATLAB source files can
+	// opt out of Go's build system without needing //go:build (which is
+	// not valid MATLAB syntax and which would cause MATLAB to reject the file).
+	".m": []byte("% go:build"),
+	// Fortran (free-form) uses ! as its comment character.
+	".f90": []byte("! go:build"),
+	// Assembler files already use // but also accept ; or # on some arches;
+	// they are handled by the default //go:build path, so not listed here.
+}
+
+// goBuildCommentForExt returns the go:build comment prefix for the given
+// file extension, e.g. "% go:build" for .m (MATLAB) files.
+// It returns nil for extensions that should use the default //go:build form.
+func goBuildCommentForExt(ext string) []byte {
+	return extCommentPrefix[ext]
+}
+
 func isGoBuildComment(line []byte) bool {
-	if !bytes.HasPrefix(line, goBuildComment) {
+	return isGoBuildCommentWithPrefix(line, goBuildComment)
+}
+
+// isGoBuildCommentWithPrefix reports whether line is a go:build comment
+// introduced by the given comment prefix (e.g. []byte("//go:build") for Go,
+// []byte("% go:build") for MATLAB .m files, []byte("# go:build") for
+// Python/shell/R files).
+//
+// The rule mirrors the standard isGoBuildComment: the prefix must be present
+// and must be followed by whitespace (or be the entire line), so that e.g.
+// "% go:buildmore" is not mistaken for a constraint.
+func isGoBuildCommentWithPrefix(line, prefix []byte) bool {
+	if !bytes.HasPrefix(line, prefix) {
 		return false
 	}
 	line = bytes.TrimSpace(line)
-	rest := line[len(goBuildComment):]
+	rest := line[len(prefix):]
 	return len(rest) == 0 || len(bytes.TrimSpace(rest)) < len(rest)
 }
 
@@ -1568,45 +1624,73 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
 // shouldBuild reports whether the file should be built
 // and whether a //go:binary-only-package comment was found.
 func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild, binaryOnly bool, err error) {
-	// Identify leading run of // comments and blank lines,
-	// which must be followed by a blank line.
-	// Also identify any //go:build comments.
-	content, goBuild, sawBinaryOnly, err := parseFileHeader(content)
+	return ctxt.shouldBuildWithPrefix(content, allTags, nil)
+}
+
+// shouldBuildWithPrefix is like shouldBuild but accepts an explicit line-comment
+// prefix for non-Go source languages.  When commentPrefix is non-nil it is used
+// instead of "//go:build" when scanning for build constraints.
+//
+// For example, MATLAB .m files use "% go:build" as their constraint prefix,
+// and Python/shell/R files use "# go:build".  Passing the appropriate prefix
+// here lets those files opt in or out of a build without requiring "//go:build",
+// which is syntactically invalid in those languages.
+//
+// When commentPrefix is nil the function behaves exactly like shouldBuild and
+// uses the standard "//go:build" prefix together with the legacy "// +build" form.
+func (ctxt *Context) shouldBuildWithPrefix(content []byte, allTags map[string]bool, commentPrefix []byte) (shouldBuild, binaryOnly bool, err error) {
+	var goBuild []byte
+	var sawBinaryOnly bool
+	if commentPrefix == nil {
+		// Standard Go path: parseFileHeader also handles legacy // +build.
+		content, goBuild, sawBinaryOnly, err = parseFileHeader(content)
+	} else {
+		// Non-Go path: use the language-specific comment prefix.
+		content, goBuild, sawBinaryOnly, err = parseFileHeaderWithPrefix(content, commentPrefix)
+	}
 	if err != nil {
 		return false, false, err
 	}
 
-	// If //go:build line is present, it controls.
-	// Otherwise fall back to +build processing.
 	switch {
 	case goBuild != nil:
-		x, err := constraint.Parse(string(goBuild))
+		// Strip the comment prefix so constraint.Parse sees only the expression.
+		// Re-wrap it as "//go:build <expr>" which constraint.Parse understands.
+		prefix := goBuildComment
+		if commentPrefix != nil {
+			prefix = commentPrefix
+		}
+		expr := string(bytes.TrimSpace(goBuild[len(prefix):]))
+		x, err := constraint.Parse("//go:build " + expr)
 		if err != nil {
-			return false, false, fmt.Errorf("parsing //go:build line: %v", err)
+			return false, false, fmt.Errorf("parsing go:build line: %v", err)
 		}
 		shouldBuild = ctxt.eval(x, allTags)
 
 	default:
 		shouldBuild = true
-		p := content
-		for len(p) > 0 {
-			line := p
-			if i := bytes.IndexByte(line, '\n'); i >= 0 {
-				line, p = line[:i], p[i+1:]
-			} else {
-				p = p[len(p):]
-			}
-			line = bytes.TrimSpace(line)
-			if !bytes.HasPrefix(line, slashSlash) || !bytes.Contains(line, plusBuild) {
-				continue
-			}
-			text := string(line)
-			if !constraint.IsPlusBuild(text) {
-				continue
-			}
-			if x, err := constraint.Parse(text); err == nil {
-				if !ctxt.eval(x, allTags) {
-					shouldBuild = false
+		if commentPrefix == nil {
+			// Legacy // +build processing is only meaningful for Go-style // comments.
+			p := content
+			for len(p) > 0 {
+				line := p
+				if i := bytes.IndexByte(line, '\n'); i >= 0 {
+					line, p = line[:i], p[i+1:]
+				} else {
+					p = p[len(p):]
+				}
+				line = bytes.TrimSpace(line)
+				if !bytes.HasPrefix(line, slashSlash) || !bytes.Contains(line, plusBuild) {
+					continue
+				}
+				text := string(line)
+				if !constraint.IsPlusBuild(text) {
+					continue
+				}
+				if x, err := constraint.Parse(text); err == nil {
+					if !ctxt.eval(x, allTags) {
+						shouldBuild = false
+					}
 				}
 			}
 		}
@@ -1686,6 +1770,61 @@ Lines:
 			// Found non-comment text.
 			break Lines
 		}
+	}
+
+	return content[:end], goBuild, sawBinaryOnly, nil
+}
+
+// parseFileHeaderWithPrefix is like parseFileHeader but is intended for
+// non-Go source files that use a different line-comment syntax.
+//
+// commentPrefix is the language-specific line-comment prefix that introduces a
+// go:build constraint in that language, e.g.:
+//
+//   - []byte("% go:build")  for MATLAB .m files
+//   - []byte("# go:build")  for Python / shell / R files
+//   - []byte("! go:build")  for free-form Fortran files
+//
+// The function scans the leading lines of content for a line that matches
+// commentPrefix followed by a build expression.  Because non-Go languages
+// don't have /* */ block comments the slash-star tracking used by
+// parseFileHeader is omitted here; each line is inspected independently.
+//
+// Only one go:build line is accepted; a second one is an error, consistent
+// with parseFileHeader.
+func parseFileHeaderWithPrefix(content []byte, commentPrefix []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
+	end := 0
+	p := content
+	ended := false // found a non-blank, non-comment line
+
+Lines:
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 && !ended {
+			// Blank line: update the candidate end position.
+			end = len(content) - len(p)
+			continue Lines
+		}
+		if !bytes.HasPrefix(line, commentPrefix[:1]) {
+			// First byte of the comment prefix doesn't match → not a comment line.
+			ended = true
+			continue Lines
+		}
+		// It starts with the comment character; check for the full prefix.
+		if isGoBuildCommentWithPrefix(line, commentPrefix) {
+			if goBuild != nil {
+				return nil, nil, false, errMultipleGoBuild
+			}
+			goBuild = line
+		}
+		// Non-Go files don't have //go:binary-only-package, so sawBinaryOnly
+		// stays false.
 	}
 
 	return content[:end], goBuild, sawBinaryOnly, nil
