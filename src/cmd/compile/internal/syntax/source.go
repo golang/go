@@ -92,7 +92,7 @@ func (s *source) error(msg string) {
 // bytes (excluding s.ch) may be retrieved by calling segment.
 func (s *source) start()          { s.b = s.r - s.chw }
 func (s *source) stop()           { s.b = -1 }
-func (s *source) segment() []byte { return s.buf[s.b : s.r-s.chw] }
+func (s *source) segment() string { return string(s.buf[s.b : s.r-s.chw]) }
 
 // rewind rewinds the scanner's read position and character s.ch
 // to the start of the currently active segment, which must not
