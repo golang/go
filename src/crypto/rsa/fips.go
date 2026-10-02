@@ -173,12 +173,27 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 	}
 	switch saltLength {
 	case PSSSaltLengthAuto:
+		if fips140only.Enforced() {
+			return verifyPSSFIPS140Only(k, h, digest, sig)
+		}
 		return fipsError(rsa.VerifyPSS(k, h, digest, sig))
 	case PSSSaltLengthEqualsHash:
 		return fipsError(rsa.VerifyPSSWithSaltLength(k, h, digest, sig, h.Size()))
 	default:
 		return fipsError(rsa.VerifyPSSWithSaltLength(k, h, digest, sig, saltLength))
 	}
+}
+
+// verifyPSSFIPS140Only tries each approved salt length in turn, since
+// detecting a longer salt is itself a non-approved operation.
+func verifyPSSFIPS140Only(k *rsa.PublicKey, h hash.Hash, digest, sig []byte) error {
+	for saltLength := h.Size(); saltLength >= 0; saltLength-- {
+		err := rsa.VerifyPSSWithSaltLength(k, h, digest, sig, saltLength)
+		if err != rsa.ErrVerification {
+			return fipsError(err)
+		}
+	}
+	return ErrVerification
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.
