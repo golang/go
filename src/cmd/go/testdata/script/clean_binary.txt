@@ -1,8 +1,5 @@
 # Build something to create the executable, including several cases
 
-# Temporary: enable -splitdwarf explicitly until it is on by default.
-[GOOS:darwin] env GOFLAGS=-ldflags=-splitdwarf
-
 # --------------------- clean executables -------------------------
 
 # case1: test file-named executable 'main'

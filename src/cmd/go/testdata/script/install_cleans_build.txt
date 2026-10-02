@@ -1,6 +1,4 @@
 env GO111MODULE=off
-# Temporary: enable -splitdwarf explicitly until it is on by default.
-[GOOS:darwin] env GOFLAGS=-ldflags=-splitdwarf
 
 # 'go install' with no arguments should clean up after go build
 cd mycmd

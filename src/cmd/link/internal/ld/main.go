@@ -119,7 +119,7 @@ var (
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
-	FlagSplitDWARF    = flag.Bool("splitdwarf", false, "emit DWARF in a separate file (darwin only)")
+	FlagSplitDWARF    = flag.Bool("splitdwarf", true, "emit DWARF in a separate file (darwin only)")
 
 	flagW ternaryFlag
 	FlagW = new(bool) // the -w flag, computed in main from flagW
