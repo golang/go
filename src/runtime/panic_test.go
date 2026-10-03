@@ -155,18 +155,19 @@ func TestPanicNilErrorPrefix(t *testing.T) {
 		})
 	}
 }
+// These types force the compiler to emit a promoted-method wrapper for
+// (*panic81959W).m. See issue 81959.
+type panic81959I interface{ m() panic81959I }
+type panic81959T struct{}
+type panic81959W struct{ panic81959T }
+
+func (*panic81959T) m() panic81959I { return nil }
+
 // TestPromotedMethodPanicWithRace checks that a nil-pointer panic in a
 // compiler-generated promoted-method wrapper can unwind to a recover in a
 // caller that has a defer. This is a regression test for issue 81959.
 func TestPromotedMethodPanicWithRace(t *testing.T) {
-	type I interface{ m() I }
-	type T struct{}
-	type W struct{ T }
-	func() {
-		// Keep this helper separate so the compiler emits the promoted wrapper.
-	}() // ensure this test also exercises a deferred frame below
-
-	call := func(i I) I {
+	call := func(i panic81959I) panic81959I {
 		defer func() {}
 		return i.m()
 	}
@@ -176,6 +177,5 @@ func TestPromotedMethodPanicWithRace(t *testing.T) {
 			t.Fatal("panic was not recovered")
 		}
 	}()
-	var i I = (*W)(nil)
-	call(i)
+	call((*panic81959W)(nil))
 }
