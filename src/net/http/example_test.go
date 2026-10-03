@@ -228,7 +228,7 @@ func ExampleProtocols_http1() {
 func ExampleProtocols_http1or2() {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 
-	// Use either HTTP/1 and HTTP/2.
+	// Use either HTTP/1 or HTTP/2.
 	t.Protocols = new(http.Protocols)
 	t.Protocols.SetHTTP1(true)
 	t.Protocols.SetHTTP2(true)
