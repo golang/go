@@ -13,45 +13,45 @@ String and Len are excluded throughout (§2.7).
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)           777 / 2829   27%  [spec-common, spec-all]
-docs sourced from spec (§3)                        76 / 1291    6%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+spec coverage, by (receiver, name) (§1)           777 / 2931   27%  [spec-common, spec-all]
+docs sourced from spec (§3)                        76 / 1301    6%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
 type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
-spec coverage gaps in defined names (§5)           12 -> 0       [spec-all, convert-lo, mask-bits]
+spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
 hand-written doc conflicts with spec (§3)         157 -> 0       [doc-triage]
-simd mirror drift (§3)                             41 -> 0       [comments-yaml]
-categories.yaml entries (§4)                      217 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
+simd mirror drift (§3)                             59 -> 0       [comments-yaml]
+categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
 midway/comments.yaml entries spec covers (§4)      26 -> 0       [comments-yaml, spec-all]
 
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      1549 / 4967   31%
-by (receiver, name)                               777 / 2829   27%
-by name                                           230 / 465    49%
+by (target, receiver, name)                      1559 / 5197   30%
+by (receiver, name)                               777 / 2931   27%
+by name                                           230 / 473    49%
 
 By build configuration:
 
-  amd64                                           742 / 2626   28%
-  arm64                                           409 / 1184   35%
-  wasm                                            277 / 813    34%
-  portable                                        121 / 344    35%
+  amd64                                           742 / 2692   28%
+  arm64                                           419 / 1296   32%
+  wasm                                            277 / 847    33%
+  portable                                        121 / 362    33%
 
 By generator (declarations per tool, counted once per tool per pair):
 
-  hand-written                                    145 / 480    30%
-  midway                                          121 / 348    35%
-  simdgen                                         598 / 2149   28%
+  hand-written                                    145 / 551    26%
+  midway                                          121 / 366    33%
+  simdgen                                         608 / 2223   27%
   tmplgen                                         138 / 424    33%
   wasmgen                                         136 / 392    35%
 
 High-drift-risk names (emitted by >1 generator):
 
-  covered                                          84 / 125    67%  [spec-all]
-  portable core (comments.yaml .common_methods)    26 / 60     43%  [spec-common]
+  covered                                          94 / 138    68%  [spec-all]
+  portable core (comments.yaml .common_methods)    26 / 65     40%  [spec-common]
 
 spec operations written so far                     37
   expanding to distinct names                     241
@@ -71,7 +71,7 @@ one (or _) is not, and is counted below as a name Fill fills in instead:
 Names spec gives that the API leaves unnamed, for declarations spec covers:
 
   declarations with unnamed parameters             30 -> 0       [named-results]
-  declarations with unnamed results              1047 -> 0       [named-results]
+  declarations with unnamed results              1057 -> 0       [named-results]
 
 API consistency across targets (the "one meaning" invariant), for
 (receiver, name) pairs declared for more than one target. An unnamed
@@ -87,9 +87,9 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec     76 / 1291    6%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec     76 / 1301    6%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
-simd ∩ archsimd methods with matching docs          0 / 211     0%  [gen-docs, comments-yaml]
+simd ∩ archsimd methods with matching docs          0 / 253     0%  [gen-docs, comments-yaml]
 
 hand-written doc conflicts with spec              157 -> 0       [doc-triage]
     archsimd/slicepart_128.go                       8 -> 0       [doc-triage]
@@ -97,8 +97,8 @@ hand-written doc conflicts with spec              157 -> 0       [doc-triage]
     archsimd/slicepart_arm64.go                    12 -> 0       [doc-triage]
     archsimd/slicepart_wasm.go                     12 -> 0       [doc-triage]
     simd_emulated.go                              121 -> 0       [doc-triage]
-drifted docs in simd mirror (stubs vs emulated)    41 -> 0       [comments-yaml]
-  mirrored declarations                           344
+drifted docs in simd mirror (stubs vs emulated)    59 -> 0       [comments-yaml]
+  mirrored declarations                           362
 
 
 ## 4. Retiring the old inputs
@@ -109,17 +109,18 @@ removes documentation, cat-rehome removes the rest, sig-from-spec removes
 commutative, and cat-delete removes the file. Compiler-only entries are
 handled wholesale by compiler-ops-impl.
 
-categories.yaml entries                           217 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
-    unique operation names                        195
-      exported                                    163
-compiler-only categories.yaml entries              41 -> 0       [compiler-ops-impl]
+categories.yaml entries                           227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
+    unique operation names                        198
+      exported                                    165
+compiler-only categories.yaml entries              42 -> 0       [compiler-ops-impl]
 
   exported entries, by field:
-    commutative                                   176 -> 0       [sig-from-spec]
+    base                                            6 -> 0       [cat-rehome]
+    commutative                                   185 -> 0       [sig-from-spec]
     constImm                                       22 -> 0       [cat-rehome]
-    documentation                                 175 -> 0       [cat-rehome]
-    elemBits                                        8 -> 0       [cat-rehome]
-    out                                             8 -> 0       [cat-rehome]
+    documentation                                 184 -> 0       [cat-rehome]
+    elemBits                                       14 -> 0       [cat-rehome]
+    out                                            20 -> 0       [cat-rehome]
     regexpTag                                      25 -> 0       [cat-rehome]
     signed                                          6 -> 0       [cat-rehome]
 
@@ -134,23 +135,23 @@ Where both sides define a name, receivers only the API declares are spec
 bugs (a constraint is wrong or a sibling function is missing). Receivers
 only spec generates are a review queue -- spec is deliberately maximal.
 
-spec misses receivers of a name it defines         12 -> 0       [spec-all, convert-lo, mask-bits]
-    declarations affected, counting each target    12 -> 0       [spec-all, convert-lo, mask-bits]
+spec misses receivers of a name it defines          8 -> 0       [spec-all, convert-lo, mask-bits]
+    declarations affected, counting each target     8 -> 0       [spec-all, convert-lo, mask-bits]
 spec operations implemented nowhere                 0 -> 0       [spec-all]
     (none)
 
-Every name either side defines, less the 235 spec has never defined at all
-(2040 receivers, counted as coverage in §1 rather than disagreement):
+Every name either side defines, less the 243 spec has never defined at all
+(2146 receivers, counted as coverage in §1 rather than disagreement):
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)
-  api = spec         193              0              0
+  api = spec         194              0              0
   api ⊂ spec          30              0            541
-  api ⊃ spec           1              4              0
+  api ⊃ spec           0              0              0
   overlapping          0              0              0
   disjoint             6              8             16
   api = ∅             11              0             34
-  total              241             12            591
+  total              241              8            591
 
 Names that disagree, with api - spec receivers (the defects):
 
@@ -206,7 +207,5 @@ Names that disagree, with api - spec receivers (the defects):
   ShiftAllRight              api ⊂ spec     25     32            0            7
   ShiftLeft                  api ⊂ spec     18     32            0           14
   ShiftRight                 api ⊂ spec     18     32            0           14
-  Store                      api ⊃ spec     44     40            4            0
-      api - spec = Mask16s Mask32s Mask64s Mask8s
   StoreArrayMasked           api ⊂ spec     22     30            0            8
   SubSaturated               api ⊂ spec     24     32            0            8

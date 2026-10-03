@@ -19,6 +19,8 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"gopkg.in/yaml.v3"
+
+	"simd/archsimd/_gen/gentools"
 )
 
 // buildConfigs are the configurations we report API coverage for. The API is spread
@@ -101,19 +103,56 @@ func (f fact) tool() string { t, _, _ := strings.Cut(f.gen, "/"); return t }
 // so from every denominator. See SPEC-TRANSITION.md §2.7.
 var nonSpecOps = map[string]bool{"String": true, "Len": true}
 
-func loadAPI(simdDir string) []*decl {
+// loadOverlay builds a packages.Config.Overlay map from the scratch overlay
+// directory if one is active.
+func loadOverlay(genOpts *gentools.Options) map[string][]byte {
+	if genOpts == nil {
+		return nil
+	}
+	dir := genOpts.OverlayDir()
+	if dir == "" {
+		return nil
+	}
+	root := filepath.Join(dir, "src")
+	overlay := make(map[string][]byte)
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return nil
+		}
+		slashRel := filepath.ToSlash(rel)
+		if !strings.HasPrefix(slashRel, "simd/") {
+			return nil
+		}
+		b, err := genOpts.ReadFile(rel)
+		if err != nil {
+			return nil
+		}
+		gorootPath := filepath.Join(genOpts.GOROOT, "src", filepath.FromSlash(rel))
+		overlay[gorootPath] = b
+		return nil
+	})
+	return overlay
+}
+
+func loadAPI(genOpts *gentools.Options, simdDir string) []*decl {
 	fset := token.NewFileSet()
 	byKey := map[declKey]*decl{}
+	overlay := loadOverlay(genOpts)
 
 	for _, bc := range buildConfigs {
 		cfg := &packages.Config{
 			// Syntax only: we compare declarations across configurations, which
 			// type-checking would not help with and would slow down. See
 			// SPEC-TRANSITION.md §2.4.
-			Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedSyntax,
-			Dir:  simdDir,
-			Fset: fset,
-			Env:  append(os.Environ(), "GOOS="+bc.goos, "GOARCH="+bc.goarch, "GOEXPERIMENT=simd"),
+			Mode:    packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedSyntax,
+			Dir:     simdDir,
+			Fset:    fset,
+			Env:     append(os.Environ(), "GOOS="+bc.goos, "GOARCH="+bc.goarch, "GOEXPERIMENT=simd"),
+			Overlay: overlay,
 		}
 		pkgs, err := packages.Load(cfg, ".", "./archsimd")
 		if err != nil {

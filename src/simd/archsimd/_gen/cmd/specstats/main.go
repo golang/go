@@ -57,5 +57,5 @@ func main() {
 	defer files.FlushOrExit()
 
 	buf := files.NewRawFile("simd/archsimd/_gen/SPEC-STATS.txt")
-	measure(loadAPI(simdDir), spec, genDir).report(buf)
+	measure(loadAPI(genOpts, simdDir), spec, genDir).report(buf)
 }

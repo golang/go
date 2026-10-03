@@ -106,6 +106,15 @@ func (o *Options) WritingToInput() bool {
 	return o.Write && (o.outDir == "" || o.outDir == o.GOROOT)
 }
 
+// OverlayDir returns the root directory containing overlay files if an overlay
+// is active (i.e. -outdir is set and different from -goroot), or "" otherwise.
+func (o *Options) OverlayDir() string {
+	if o != nil && o.outDir != "" && o.outDir != o.GOROOT {
+		return o.outDir
+	}
+	return ""
+}
+
 type fileInfo struct {
 	relPath string
 	isGo    bool
