@@ -5901,3 +5901,46 @@ func testTransportRequestGoroutineExitsRespHeaderTimeout(t *testing.T) {
 	tc.writeData(rt.streamID(), true, []byte("hello"))
 	rt.wantBody([]byte("hello"))
 }
+
+// A single-use conn can be reserved by several requests before its first
+// stream starts. The ones that lose find it used and return their
+// reservation; the last one to do so must close the conn.
+func TestTransportSingleUseConnClosedAfterLastReservation(t *testing.T) {
+	synctest.Test(t, testTransportSingleUseConnClosedAfterLastReservation)
+}
+func testTransportSingleUseConnClosedAfterLastReservation(t *testing.T) {
+	tt := newTestTransport(t)
+	tr := transportFromH1Transport(tt.tr1).(*Transport)
+	const singleUse = true
+	if _, err := tr.TestNewClientConn(nil, singleUse, nil); err != nil {
+		t.Fatalf("newClientConn: %v", err)
+	}
+	tc := tt.getConn()
+	tc.greet()
+
+	if !tc.cc.ReserveNewRequest() || !tc.cc.ReserveNewRequest() {
+		t.Fatalf("could not reserve two requests on a fresh single-use conn")
+	}
+
+	rt1 := tc.roundTrip(Must(http.NewRequest("GET", "https://dummy.tld/", nil)))
+	tc.wantFrameType(FrameHeaders)
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:      rt1.streamID(),
+		EndHeaders:    true,
+		EndStream:     true,
+		BlockFragment: tc.makeHeaderBlockFragment(":status", "200"),
+	})
+	rt1.wantStatus(200)
+	rt1.response().Body.Close()
+	if tc.isClosed() {
+		t.Fatalf("conn closed while a reservation was still held")
+	}
+
+	rt2 := tc.roundTrip(Must(http.NewRequest("GET", "https://dummy.tld/", nil)))
+	if err := rt2.err(); err == nil {
+		t.Fatalf("second request on a used single-use conn succeeded")
+	}
+	if !tc.isClosed() {
+		t.Errorf("single-use conn left open after its last reservation was returned")
+	}
+}
