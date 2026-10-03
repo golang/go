@@ -426,6 +426,13 @@ func (b *Builder) addCToolchainIDs(h io.Writer, p *load.Package) {
 
 		ccExe := b.ccExe()
 		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
+		if len(p.CgoPkgConfig) > 0 {
+			// The flags that pkg-config reports are part of the result of
+			// running cgo. They depend on the arguments of the #cgo pkg-config
+			// directives that apply, which the build tags that -static sets
+			// can change, and on -static itself. See getPkgConfigFlags.
+			fmt.Fprintf(h, "pkg-config %q static=%v\n", p.CgoPkgConfig, cfg.BuildStatic)
+		}
 		// Include the C compiler tool ID so that if the C
 		// compiler changes we rebuild the package.
 		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
@@ -2080,6 +2087,11 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 
 	case "gc":
 		fmt.Fprintf(h, "link %s %q %s\n", b.toolID("link"), forcedLdflags, ldBuildmode)
+		if cfg.BuildStatic {
+			// The linker flags that -static adds are not in forcedLdflags,
+			// because they depend on the program. See gcToolchain.ld.
+			fmt.Fprintf(h, "static\n")
+		}
 		if p != nil {
 			fmt.Fprintf(h, "linkflags %q\n", p.Internal.Ldflags)
 		}
@@ -2318,6 +2330,11 @@ func (b *Builder) getPkgConfigFlags(a *Action, p *load.Package) (cflags, ldflags
 
 		if err := checkPkgConfigFlags("", "pkg-config", pcflags); err != nil {
 			return nil, nil, err
+		}
+		if cfg.BuildStatic && !slices.Contains(pcflags, "--static") {
+			// Ask for the flags needed to link the libraries statically,
+			// which include the libraries that they depend on in turn.
+			pcflags = append(pcflags, "--static")
 		}
 
 		var out []byte
