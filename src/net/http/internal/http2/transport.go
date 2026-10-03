@@ -1028,8 +1028,21 @@ func actualContentLength(req *ClientRequest) int64 {
 
 func (cc *ClientConn) decrStreamReservations() {
 	cc.mu.Lock()
-	defer cc.mu.Unlock()
 	cc.decrStreamReservationsLocked()
+	// forgetStreamID leaves a connection that should close on idle open
+	// while another request holds a reservation on it. If that was the
+	// last reservation, close the connection now.
+	closeOnIdle := cc.singleUse || cc.doNotReuse || cc.t.disableKeepAlives() || cc.goAway != nil
+	if !closeOnIdle || cc.closed || cc.nextStreamID == 1 || cc.streamsReserved != 0 || len(cc.streams) != 0 {
+		cc.mu.Unlock()
+		return
+	}
+	if VerboseLogs {
+		cc.vlogf("http2: Transport closing idle conn %p (forSingleUse=%v, maxStream=%v)", cc, cc.singleUse, cc.nextStreamID-2)
+	}
+	cc.closed = true
+	cc.mu.Unlock()
+	cc.closeConn()
 }
 
 func (cc *ClientConn) decrStreamReservationsLocked() {
