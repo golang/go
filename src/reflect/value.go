@@ -1932,11 +1932,11 @@ func (v Value) MethodByName(name string) Value {
 	if v.typ() == nil {
 		panic(&ValueError{"reflect.Value.MethodByName", Invalid})
 	}
-	m, ok := toRType(v.typ()).MethodByName(name)
-	if !ok {
+	i := toRType(v.typ()).methodIndex(name)
+	if i < 0 {
 		return Value{}
 	}
-	return v.Method(m.Index)
+	return v.Method(i)
 }
 
 // NumField returns the number of fields in the struct v.

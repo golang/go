@@ -526,3 +526,19 @@ func BenchmarkMethodByName(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkValueMethodByName(b *testing.B) {
+	v := ValueOf(new(myint))
+	b.Run("Found", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			v.MethodByName("Inc")
+		}
+	})
+	b.Run("Missing", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			v.MethodByName("Missing")
+		}
+	})
+}

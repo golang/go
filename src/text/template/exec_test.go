@@ -2178,3 +2178,22 @@ func BenchmarkExecutePrintString(b *testing.B) {
 		}
 	}
 }
+
+type benchLocale interface {
+	Tr(key string, args ...any) string
+}
+
+type benchLocaleImpl struct{}
+
+func (*benchLocaleImpl) Tr(key string, args ...any) string { return key }
+
+func BenchmarkExecuteMethodCall(b *testing.B) {
+	tmpl := Must(New("t").Parse(strings.Repeat(`<span>{{.Locale.Tr "key"}}</span>`, 20)))
+	data := &struct{ Locale benchLocale }{&benchLocaleImpl{}}
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := tmpl.Execute(io.Discard, data); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

@@ -677,13 +677,27 @@ func (t *rtype) Method(i int) (m Method) {
 }
 
 func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+	if i := t.methodIndex(name); i >= 0 {
+		return t.Method(i), true
+	}
+	return Method{}, false
+}
+
+// methodIndex returns the index of the method with the given name in t's
+// method set, or -1.
+func (t *rtype) methodIndex(name string) int {
 	if t.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(t))
-		return tt.MethodByName(name)
+		for i := range tt.Methods {
+			if tt.nameOff(tt.Methods[i].Name).Name() == name {
+				return i
+			}
+		}
+		return -1
 	}
 	ut := t.uncommon()
 	if ut == nil {
-		return Method{}, false
+		return -1
 	}
 
 	methods := ut.ExportedMethods()
@@ -712,10 +726,9 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 	// i == j, cmp(i-1) < 0, and cmp(j) (= cmp(i)) >= 0  =>  answer is i,
 	// and found reports whether methods[i] is the method we want.
 	if found {
-		return t.Method(i), true
+		return i
 	}
-
-	return Method{}, false
+	return -1
 }
 
 func (t *rtype) PkgPath() string {
