@@ -596,6 +596,43 @@ type Sudog = sudog
 
 type XRegPerG = xRegPerG
 
+// AdjustSudogsForTest constructs semaphore and channel wait lists and adjusts
+// their stack pointers. It reports which list entries were adjusted.
+func AdjustSudogsForTest() (semaHead, semaTail, chanHead, chanTail bool) {
+	marker := new(byte)
+	oldp := uintptr(unsafe.Pointer(marker))
+	adjinfo := adjustinfo{
+		old:   stack{lo: oldp, hi: oldp + 1},
+		delta: 1,
+	}
+
+	newSudog := func(gp *g, c *hchan) *sudog {
+		s := &sudog{g: gp}
+		s.elem.set(unsafe.Pointer(marker))
+		s.elem.setUntraceable()
+		s.c.set(c)
+		return s
+	}
+
+	// Semaphore waitlink connects sudogs belonging to different goroutines.
+	semaG, otherG := &g{}, &g{}
+	semaG.waiting = newSudog(semaG, nil)
+	otherG.waiting = newSudog(otherG, nil)
+	semaG.waiting.waitlink = otherG.waiting
+	adjustsudogs(semaG, &adjinfo)
+	semaHead = semaG.waiting.elem.uintptr() != oldp
+	semaTail = otherG.waiting.elem.uintptr() != oldp
+
+	// Channel select waitlink connects multiple sudogs owned by one goroutine.
+	chanG, c := &g{}, &hchan{}
+	chanG.waiting = newSudog(chanG, c)
+	chanG.waiting.waitlink = newSudog(chanG, c)
+	adjustsudogs(chanG, &adjinfo)
+	chanHead = chanG.waiting.elem.uintptr() != oldp
+	chanTail = chanG.waiting.waitlink.elem.uintptr() != oldp
+	return
+}
+
 func Getg() *G {
 	return getg()
 }

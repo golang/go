@@ -849,9 +849,18 @@ func adjustpanics(gp *g, adjinfo *adjustinfo) {
 func adjustsudogs(gp *g, adjinfo *adjustinfo) {
 	// the data elements pointed to by a SudoG structure
 	// might be in the stack.
-	for s := gp.waiting; s != nil; s = s.waitlink {
+	for s := gp.waiting; s != nil; {
 		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vu))
 		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vp))
+		// For channels, waitlink links sudogs owned by the same goroutine.
+		// For semaphores, it links other goroutines waiting on the same
+		// semaphore. Don't follow it in that case: it isn't protected by
+		// the semaphore lock here, and there's only one semaphore sudog
+		// per goroutine.
+		if s.c.get() == nil {
+			break
+		}
+		s = s.waitlink
 	}
 }
 
