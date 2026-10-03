@@ -58,6 +58,7 @@ func BuildInit(ld *modload.Loader) {
 	base.AtExit(closeBuilders)
 
 	modload.Init(ld)
+	staticInit()
 	instrumentInit()
 	buildModeInit()
 	initCompilerConcurrencyPool()
@@ -210,6 +211,58 @@ func instrumentInit() {
 	}
 	cfg.BuildContext.InstallSuffix += mode
 	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, mode)
+}
+
+// staticInit checks that the -static flag can be used with the target
+// and the other build flags, and sets the build tags that it implies.
+// The linker flags that it implies depend on the program being linked;
+// see addStaticLdflags.
+func staticInit() {
+	if !cfg.BuildStatic {
+		return
+	}
+	if cfg.BuildToolchainName == "gccgo" {
+		base.Fatalf("go: -static is not supported with -compiler=gccgo")
+	}
+	// Leave an unknown GOOS/GOARCH pair to be reported as that.
+	if CheckGOOSARCHPair(cfg.Goos, cfg.Goarch) == nil && !platform.StaticLinkSupported(cfg.Goos, cfg.Goarch) {
+		base.Fatalf("go: -static is not supported on %s/%s", cfg.Goos, cfg.Goarch)
+	}
+	// The sanitizers' runtime libraries and shared Go libraries
+	// can only be linked dynamically.
+	switch {
+	case cfg.BuildRace:
+		base.Fatalf("go: -static cannot be used with -race")
+	case cfg.BuildMSan:
+		base.Fatalf("go: -static cannot be used with -msan")
+	case cfg.BuildASan:
+		base.Fatalf("go: -static cannot be used with -asan")
+	case cfg.BuildLinkshared:
+		base.Fatalf("go: -static cannot be used with -linkshared")
+	}
+	// On the systems that support -static, the default build mode is exe.
+	// The position-independent executables that the linker builds need
+	// a dynamic linker to relocate them, and the remaining modes do not
+	// build executables. Leave an unknown mode to be reported as that.
+	switch cfg.BuildBuildmode {
+	case "archive", "c-archive", "c-shared", "pie", "plugin", "shared":
+		base.Fatalf("go: -static cannot be used with -buildmode=%s", cfg.BuildBuildmode)
+	}
+
+	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "static")
+	if cfg.Goos == "linux" {
+		// The C library's functions for looking up hosts, users and
+		// groups cannot be relied on in a statically linked program:
+		// glibc implements them by loading shared libraries at run time.
+		// Use the pure Go implementations in packages net and os/user,
+		// which also means that those packages do not need cgo.
+		// The netcgo build tag asks for the opposite, and conflicts
+		// with netgo, so leave package net alone if it is set.
+		if !slices.Contains(cfg.BuildContext.BuildTags, "netcgo") {
+			cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "netgo")
+		}
+		cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "osusergo")
+	}
 }
 
 func buildModeInit() {

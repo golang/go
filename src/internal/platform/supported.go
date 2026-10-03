@@ -241,6 +241,27 @@ func InternalLinkPIESupported(goos, goarch string) bool {
 	return false
 }
 
+// StaticLinkSupported reports whether goos/goarch supports building
+// statically linked executables: ones that depend at run time neither
+// on shared libraries nor on a dynamic linker.
+func StaticLinkSupported(goos, goarch string) bool {
+	switch goos {
+	case "dragonfly", "freebsd", "linux", "netbsd":
+		// Go programs make system calls directly on these systems,
+		// and so need the C library only if they use cgo,
+		// in which case they can be linked against a static one.
+		return true
+	case "js", "plan9", "wasip1":
+		// These systems have no dynamic linking.
+		return true
+	}
+	// On the remaining systems, Go programs make system calls by way of
+	// the C library, which they normally link dynamically, or else they
+	// must be position-independent executables, which as built by the
+	// Go linker need a dynamic linker.
+	return false
+}
+
 // DefaultPIE reports whether goos/goarch produces a PIE binary when using the
 // "default" buildmode. On Windows this is affected by -race,
 // so force the caller to pass that in to centralize that choice.
