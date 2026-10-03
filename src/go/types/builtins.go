@@ -819,7 +819,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if x.mode() == variable || indirect {
 				mode = variable
 			}
-			check.record(&operand{mode, selx, obj.Type(), nil, 0})
+			check.record(&operand{mode, selx, nopos, obj.Type(), nil, 0})
 		}
 
 		// The field offset is considered a variable even if the field is declared before
