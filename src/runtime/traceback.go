@@ -342,7 +342,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 	if flag&abi.FuncFlagTopFrame != 0 {
 		// This function marks the top of the stack. Stop the traceback.
 		frame.lr = 0
-	} else if flag&abi.FuncFlagSPWrite != 0 && (!innermost || u.flags&(unwindPrintErrors|unwindSilentErrors) != 0) {
+	} else if flag&abi.FuncFlagSPWrite != 0 && f.funcID != abi.FuncIDWrapper && (!innermost || u.flags&(unwindPrintErrors|unwindSilentErrors) != 0) {
 		// The function we are in does a write to SP that we don't know
 		// how to encode in the spdelta table. Examples include context
 		// switch routines like runtime.gogo but also any code that switches
