@@ -10,7 +10,7 @@ import "math/bits"
 
 // All returns true when all positions in mask x are true.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask8x16) All() bool {
 	word := x.ToInt8x16().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -20,7 +20,7 @@ func (x Mask8x16) All() bool {
 
 // Any returns true when any position in mask x is true.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask8x16) Any() bool {
 	word := x.ToInt8x16().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -30,7 +30,7 @@ func (x Mask8x16) Any() bool {
 
 // None returns true when no positions in mask x are set.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask8x16) None() bool {
 	word := x.ToInt8x16().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -40,7 +40,7 @@ func (x Mask8x16) None() bool {
 
 // All returns true when all positions in mask x are true.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask16x8) All() bool {
 	word := x.ToInt16x8().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -50,7 +50,7 @@ func (x Mask16x8) All() bool {
 
 // Any returns true when any position in mask x is true.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask16x8) Any() bool {
 	word := x.ToInt16x8().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -60,7 +60,7 @@ func (x Mask16x8) Any() bool {
 
 // None returns true when no positions in mask x are set.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask16x8) None() bool {
 	word := x.ToInt16x8().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -70,7 +70,7 @@ func (x Mask16x8) None() bool {
 
 // All returns true when all positions in mask x are true.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask32x4) All() bool {
 	word := x.ToInt32x4().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -80,7 +80,7 @@ func (x Mask32x4) All() bool {
 
 // Any returns true when any position in mask x is true.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask32x4) Any() bool {
 	word := x.ToInt32x4().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -90,7 +90,7 @@ func (x Mask32x4) Any() bool {
 
 // None returns true when no positions in mask x are set.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask32x4) None() bool {
 	word := x.ToInt32x4().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -100,7 +100,7 @@ func (x Mask32x4) None() bool {
 
 // All returns true when all positions in mask x are true.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask64x2) All() bool {
 	word := x.ToInt64x2().ToBits()
 	a0 := word.GetElem(0)
@@ -110,7 +110,7 @@ func (x Mask64x2) All() bool {
 
 // Any returns true when any position in mask x is true.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask64x2) Any() bool {
 	word := x.ToInt64x2().ToBits()
 	a0 := word.GetElem(0)
@@ -120,7 +120,7 @@ func (x Mask64x2) Any() bool {
 
 // None returns true when no positions in mask x are set.
 //
-// Emulated
+// Emulated: GetElem
 func (x Mask64x2) None() bool {
 	word := x.ToInt64x2().ToBits()
 	a0 := word.GetElem(0)
@@ -130,7 +130,7 @@ func (x Mask64x2) None() bool {
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask m.
 //
-// Emulated
+// Emulated: GetElem
 func (m Mask8x16) TrailingZeros() int {
 	word := m.ToInt8x16().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -147,7 +147,7 @@ func (m Mask8x16) TrailingZeros() int {
 
 // TrailingZeros returns the number of trailing (low-order) zeroes in mask m
 //
-// Emulated
+// Emulated: GetElem
 func (m Mask16x8) TrailingZeros() int {
 	word := m.ToInt16x8().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -164,7 +164,7 @@ func (m Mask16x8) TrailingZeros() int {
 
 // TrailingZeros returns the number of trailing (low-order) zeroes in mask m
 //
-// Emulated
+// Emulated: GetElem
 func (m Mask32x4) TrailingZeros() int {
 	word := m.ToInt32x4().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
@@ -181,7 +181,7 @@ func (m Mask32x4) TrailingZeros() int {
 
 // TrailingZeros returns the number of trailing (low-order) zeroes in mask m
 //
-// Emulated
+// Emulated: GetElem
 func (m Mask64x2) TrailingZeros() int {
 	word := m.ToInt64x2().ToBits()
 	if word.GetElem(0) != 0 {

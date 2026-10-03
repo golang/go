@@ -8,9 +8,69 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"reflect"
 	"simd/archsimd/_gen/specgen"
 	"testing"
 )
+
+func TestEmulationDependencies(t *testing.T) {
+	const src = `package p
+
+import "math/bits"
+
+// Emulated, CPU Feature: AVX
+func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16 {
+	_ = bits.TrailingZeros64(0)
+	_ = X86.AVX2()
+	return y.Greater(x).ToInt8x16().Not().asMask()
+}
+`
+	f, err := parser.ParseFile(token.NewFileSet(), "test.go", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fd := f.Decls[1].(*ast.FuncDecl)
+	imports := importNames(f)
+	if got, want := emulationDependencies(fd, imports), []string{"Greater", "Not"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("emulationDependencies() = %v, want %v", got, want)
+	}
+
+	doc := fillEmulationNote(parseCommentGroup(fd.Doc), fd, imports)
+	if got, want := doc[0].Text, "Emulated: Greater, Not"; got != want {
+		t.Fatalf("emulation note = %q, want %q", got, want)
+	}
+	if got, want := doc[1].Text, "CPU Feature: AVX"; got != want {
+		t.Fatalf("CPU feature note = %q, want %q", got, want)
+	}
+
+	rewritten, err := Fill([]byte(src), specgen.NewIndex(nil), Options{NoFillDoc: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `package p
+
+import "math/bits"
+
+// Emulated: Greater, Not
+//
+// CPU Feature: AVX
+func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16 {
+	_ = bits.TrailingZeros64(0)
+	_ = X86.AVX2()
+	return y.Greater(x).ToInt8x16().Not().asMask()
+}
+`
+	if string(rewritten) != want {
+		t.Fatalf("Fill() =\n%s\nwant:\n%s", rewritten, want)
+	}
+	rewrittenAgain, err := Fill(rewritten, specgen.NewIndex(nil), Options{NoFillDoc: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(rewrittenAgain) != want {
+		t.Fatalf("second Fill() =\n%s\nwant:\n%s", rewrittenAgain, want)
+	}
+}
 
 func TestParseCommentAndFormat(t *testing.T) {
 	doc := `// Add adds elements of
