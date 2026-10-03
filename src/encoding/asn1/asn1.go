@@ -168,7 +168,7 @@ type BitString struct {
 // At returns the bit at the given index. If the index is out of range it
 // returns 0.
 func (b BitString) At(i int) int {
-	if i < 0 || i >= b.BitLength {
+	if i < 0 || i >= b.BitLength || i/8 >= len(b.Bytes) {
 		return 0
 	}
 	x := i / 8
@@ -180,7 +180,7 @@ func (b BitString) At(i int) int {
 // slice may share memory with the BitString.
 func (b BitString) RightAlign() []byte {
 	shift := uint(8 - (b.BitLength % 8))
-	if shift == 8 || len(b.Bytes) == 0 {
+	if b.BitLength <= 0 || shift == 8 || len(b.Bytes) == 0 {
 		return b.Bytes
 	}
 
