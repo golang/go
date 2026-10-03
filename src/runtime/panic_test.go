@@ -155,3 +155,27 @@ func TestPanicNilErrorPrefix(t *testing.T) {
 		})
 	}
 }
+// TestPromotedMethodPanicWithRace checks that a nil-pointer panic in a
+// compiler-generated promoted-method wrapper can unwind to a recover in a
+// caller that has a defer. This is a regression test for issue 81959.
+func TestPromotedMethodPanicWithRace(t *testing.T) {
+	type I interface{ m() I }
+	type T struct{}
+	type W struct{ T }
+	func() {
+		// Keep this helper separate so the compiler emits the promoted wrapper.
+	}() // ensure this test also exercises a deferred frame below
+
+	call := func(i I) I {
+		defer func() {}
+		return i.m()
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("panic was not recovered")
+		}
+	}()
+	var i I = (*W)(nil)
+	call(i)
+}
