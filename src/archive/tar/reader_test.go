@@ -1749,3 +1749,91 @@ func TestMergePAXIntegerOverflow(t *testing.T) {
 	}
 }
 
+func TestHeaderNumericIDIntegerOverflow(t *testing.T) {
+	makeHeader := func(uidVal, gidVal int64) []byte {
+		h := make([]byte, 512)
+		copy(h[0:], "testfile")
+		copy(h[100:], "0000644\x00")
+
+		if uidVal > 07777777 {
+			h[108] = 0x80
+			u := uidVal
+			for i := 7; i >= 1; i-- {
+				h[108+i] = byte(u)
+				u >>= 8
+			}
+		} else {
+			copy(h[108:], fmt.Sprintf("%07o\x00", uidVal))
+		}
+
+		if gidVal > 07777777 {
+			h[116] = 0x80
+			g := gidVal
+			for i := 7; i >= 1; i-- {
+				h[116+i] = byte(g)
+				g >>= 8
+			}
+		} else {
+			copy(h[116:], fmt.Sprintf("%07o\x00", gidVal))
+		}
+
+		copy(h[124:], "00000000000\x00")
+		copy(h[136:], "14000000000\x00")
+		h[156] = '0'
+		copy(h[257:], "ustar\x0000")
+
+		copy(h[148:], "        ")
+		sum := 0
+		for _, c := range h {
+			sum += int(c)
+		}
+		copy(h[148:], fmt.Sprintf("%06o\x00 ", sum))
+		return h
+	}
+
+	vectors := []struct {
+		name    string
+		uid     int64
+		gid     int64
+		wantErr bool
+	}{
+		{"Normal", 1000, 1000, false},
+		{"OverflowUID_4294967296", 4294967296, 1000, math.MaxInt < 4294967296},
+		{"OverflowGID_4294967296", 1000, 4294967296, math.MaxInt < 4294967296},
+		{"OverflowUID_2147483648", 2147483648, 1000, math.MaxInt < 2147483648},
+		{"OverflowGID_2147483648", 1000, 2147483648, math.MaxInt < 2147483648},
+	}
+
+	for _, tt := range vectors {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := makeHeader(tt.uid, tt.gid)
+			var buf bytes.Buffer
+			buf.Write(raw)
+			buf.Write(make([]byte, 1024))
+
+			tr := NewReader(&buf)
+			hdr, err := tr.Next()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("Expected non-nil error")
+				}
+				if !errors.Is(err, ErrHeader) {
+					t.Fatalf("Expected error of type ErrHeader, got %v", err)
+				}
+				if hdr != nil {
+					t.Fatalf("Expected nil header on error, got %+v", hdr)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if hdr.Uid != int(tt.uid) {
+					t.Fatalf("hdr.Uid = %d, want %d", hdr.Uid, tt.uid)
+				}
+				if hdr.Gid != int(tt.gid) {
+					t.Fatalf("hdr.Gid = %d, want %d", hdr.Gid, tt.gid)
+				}
+			}
+		})
+	}
+}
