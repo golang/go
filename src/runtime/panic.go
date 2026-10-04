@@ -1001,8 +1001,10 @@ func (p *_panic) nextFrame() (ok bool) {
 	gp := getg()
 	systemstack(func() {
 		var limit uintptr
+		var limitFn funcInfo
 		if d := gp._defer; d != nil {
 			limit = d.sp
+			limitFn = findfunc(d.pc)
 		}
 
 		var u unwinder
@@ -1018,7 +1020,7 @@ func (p *_panic) nextFrame() (ok bool) {
 			// then we can simply loop until we find the next frame where
 			// it's non-zero.
 
-			if u.frame.sp == limit {
+			if u.frame.sp == limit && u.frame.fn == limitFn {
 				break // found a frame with linked defers
 			}
 
