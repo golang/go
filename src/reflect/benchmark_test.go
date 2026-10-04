@@ -502,3 +502,27 @@ func BenchmarkMethodValueCall(b *testing.B) {
 		v.Method(0).Call(nil)
 	}
 }
+
+func BenchmarkMethodByName(b *testing.B) {
+	// time.Time has enough exported methods for the search to take
+	// several steps.
+	typ := TypeOf(time.Time{})
+	for _, bb := range []struct {
+		desc  string
+		names []string
+	}{
+		// Names spread across the method set.
+		{"found", []string{"Add", "Format", "Month", "Unix", "ZoneBounds"}},
+		// Names that are absent but sort within the method set, so the
+		// lookup pays for the search without then building a Method.
+		{"missing", []string{"Addx", "Formatx", "Monthx", "Unixx", "Yearx"}},
+	} {
+		b.Run(bb.desc, func(b *testing.B) {
+			for b.Loop() {
+				for _, name := range bb.names {
+					typ.MethodByName(name)
+				}
+			}
+		})
+	}
+}
