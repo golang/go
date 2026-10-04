@@ -18,14 +18,15 @@ import (
 
 func TestSizeof(t *testing.T) {
 	const _64bit = unsafe.Sizeof(uintptr(0)) == 8
-	const xreg = unsafe.Sizeof(runtime.XRegPerG{}) // Varies per architecture
+	const xreg = unsafe.Sizeof(runtime.XRegPerG{})         // Varies per architecture
+	const valgrind = unsafe.Sizeof(runtime.ValgrindPerG{}) // Non-zero only with the valgrind build tag
 	var tests = []struct {
 		val    any     // type as a value
 		_32bit uintptr // size on 32bit platforms
 		_64bit uintptr // size on 64bit platforms
 	}{
-		{runtime.G{}, 284 + xreg, 448 + xreg}, // g, but exported for testing
-		{runtime.Sudog{}, 64, 104},            // sudog, but exported for testing
+		{runtime.G{}, 280 + xreg + valgrind, 440 + xreg + valgrind}, // g, but exported for testing
+		{runtime.Sudog{}, 64, 104},                                  // sudog, but exported for testing
 	}
 
 	if xreg > runtime.PtrSize {

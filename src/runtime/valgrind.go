@@ -69,22 +69,41 @@ const (
 //go:noescape
 func valgrindClientRequest(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) uintptr
 
+// valgrindPerG is the Valgrind state of a G's stack.
+type valgrindPerG struct {
+	// stackID identifies the G's stack to Valgrind. It is 0 if the
+	// stack is not registered.
+	stackID uintptr
+}
+
+// valgrindRegisterStack tells Valgrind that gp.stack is a stack.
+//
 //go:nosplit
-func valgrindRegisterStack(start, end unsafe.Pointer) uintptr {
+func valgrindRegisterStack(gp *g) {
 	// VALGRIND_STACK_REGISTER
-	return valgrindClientRequest(vg_userreq__stack_register, uintptr(start), uintptr(end), 0, 0, 0)
+	gp.valgrind.stackID = valgrindClientRequest(vg_userreq__stack_register, gp.stack.lo, gp.stack.hi, 0, 0, 0)
 }
 
+// valgrindDeregisterStack tells Valgrind that gp's stack is no longer a stack.
+//
 //go:nosplit
-func valgrindDeregisterStack(id uintptr) {
+func valgrindDeregisterStack(gp *g) {
 	// VALGRIND_STACK_DEREGISTER
-	valgrindClientRequest(vg_userreq__stack_deregister, id, 0, 0, 0, 0)
+	valgrindClientRequest(vg_userreq__stack_deregister, gp.valgrind.stackID, 0, 0, 0, 0)
+	gp.valgrind.stackID = 0
 }
 
+// valgrindChangeStack tells Valgrind that gp's stack moved to gp.stack,
+// registering it if it is not registered yet.
+//
 //go:nosplit
-func valgrindChangeStack(id uintptr, start, end unsafe.Pointer) {
+func valgrindChangeStack(gp *g) {
+	if gp.valgrind.stackID == 0 {
+		valgrindRegisterStack(gp)
+		return
+	}
 	// VALGRIND_STACK_CHANGE
-	valgrindClientRequest(vg_userreq__stack_change, id, uintptr(start), uintptr(end), 0, 0)
+	valgrindClientRequest(vg_userreq__stack_change, gp.valgrind.stackID, gp.stack.lo, gp.stack.hi, 0, 0)
 }
 
 //go:nosplit

@@ -1019,11 +1019,7 @@ func copystack(gp *g, newsize uintptr) {
 	adjustpanics(gp, &adjinfo)
 
 	if valgrindenabled {
-		if gp.valgrindStackID == 0 {
-			gp.valgrindStackID = valgrindRegisterStack(unsafe.Pointer(new.lo), unsafe.Pointer(new.hi))
-		} else {
-			valgrindChangeStack(gp.valgrindStackID, unsafe.Pointer(new.lo), unsafe.Pointer(new.hi))
-		}
+		valgrindChangeStack(gp)
 	}
 
 	// free old stack

@@ -596,6 +596,8 @@ type Sudog = sudog
 
 type XRegPerG = xRegPerG
 
+type ValgrindPerG = valgrindPerG
+
 func Getg() *G {
 	return getg()
 }

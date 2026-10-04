@@ -374,8 +374,7 @@ func markrootFreeGStacks() {
 		gp.stack.lo = 0
 		gp.stack.hi = 0
 		if valgrindenabled {
-			valgrindDeregisterStack(gp.valgrindStackID)
-			gp.valgrindStackID = 0
+			valgrindDeregisterStack(gp)
 		}
 	}
 

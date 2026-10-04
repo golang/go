@@ -12,9 +12,11 @@ import "unsafe"
 
 const valgrindenabled = false
 
-func valgrindRegisterStack(start, end unsafe.Pointer) uintptr       { return 0 }
-func valgrindDeregisterStack(id uintptr)                            {}
-func valgrindChangeStack(id uintptr, start, end unsafe.Pointer)     {}
+type valgrindPerG struct{}
+
+func valgrindRegisterStack(gp *g)                                   {}
+func valgrindDeregisterStack(gp *g)                                 {}
+func valgrindChangeStack(gp *g)                                     {}
 func valgrindMalloc(addr unsafe.Pointer, size uintptr)              {}
 func valgrindFree(addr unsafe.Pointer)                              {}
 func valgrindCreateMempool(addr unsafe.Pointer)                     {}
