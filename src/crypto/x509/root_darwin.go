@@ -8,12 +8,17 @@ import (
 	"crypto/x509/internal/macos"
 	"errors"
 	"fmt"
+	"unicode/utf8"
 )
 
 // macOS has no default SSL_CERT_{FILE,DIR} paths.
 var certFiles, certDirectories []string
 
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+	if !utf8.ValidString(opts.DNSName) {
+		return nil, HostnameError{c, opts.DNSName}
+	}
+
 	certs := macos.CFArrayCreateMutable()
 	defer macos.ReleaseCFArray(certs)
 	leaf, err := macos.SecCertificateCreateWithData(c.Raw)

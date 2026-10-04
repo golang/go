@@ -72,6 +72,9 @@ func SecPolicyCreateSSL(name string) (CFRef, error) {
 	var hostname CFString
 	if name != "" {
 		hostname = StringToCFString(name)
+		if hostname == 0 {
+			return 0, errors.New("SecPolicyCreateSSL: invalid hostname")
+		}
 		defer CFRelease(CFRef(hostname))
 	}
 	ret := syscall(abi.FuncPCABI0(x509_SecPolicyCreateSSL_trampoline), 1 /* true */, uintptr(hostname), 0, 0, 0, 0)
