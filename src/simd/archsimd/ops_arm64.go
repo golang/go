@@ -38,94 +38,130 @@ func (x Int64x2) Abs() Uint64x2
 
 /* Add */
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VFADD, CPU Feature: NEON
 func (x Float32x4) Add(y Float32x4) (z Float32x4)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VFADD, CPU Feature: NEON
 func (x Float64x2) Add(y Float64x2) (z Float64x2)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VADD, CPU Feature: NEON
 func (x Int8x16) Add(y Int8x16) (z Int8x16)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VADD, CPU Feature: NEON
 func (x Int16x8) Add(y Int16x8) (z Int16x8)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VADD, CPU Feature: NEON
 func (x Int32x4) Add(y Int32x4) (z Int32x4)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VADD, CPU Feature: NEON
 func (x Int64x2) Add(y Int64x2) (z Int64x2)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VADD, CPU Feature: NEON
 func (x Uint8x16) Add(y Uint8x16) (z Uint8x16)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VADD, CPU Feature: NEON
 func (x Uint16x8) Add(y Uint16x8) (z Uint16x8)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VADD, CPU Feature: NEON
 func (x Uint32x4) Add(y Uint32x4) (z Uint32x4)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: VADD, CPU Feature: NEON
 func (x Uint64x2) Add(y Uint64x2) (z Uint64x2)
 
 /* AddSaturated */
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: VSQADD, CPU Feature: NEON
 func (x Int8x16) AddSaturated(y Int8x16) (z Int8x16)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: VSQADD, CPU Feature: NEON
 func (x Int16x8) AddSaturated(y Int16x8) (z Int16x8)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: VSQADD, CPU Feature: NEON
 func (x Int32x4) AddSaturated(y Int32x4) (z Int32x4)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: VSQADD, CPU Feature: NEON
 func (x Int64x2) AddSaturated(y Int64x2) (z Int64x2)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: VUQADD, CPU Feature: NEON
 func (x Uint8x16) AddSaturated(y Uint8x16) (z Uint8x16)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: VUQADD, CPU Feature: NEON
 func (x Uint16x8) AddSaturated(y Uint16x8) (z Uint16x8)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: VUQADD, CPU Feature: NEON
 func (x Uint32x4) AddSaturated(y Uint32x4) (z Uint32x4)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: VUQADD, CPU Feature: NEON
 func (x Uint64x2) AddSaturated(y Uint64x2) (z Uint64x2)
@@ -260,62 +296,82 @@ func (x Float64x2) Ceil() Float64x2
 
 /* ConcatAddPairs */
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 //
 // Asm: VFADDP, CPU Feature: NEON
 func (x Float32x4) ConcatAddPairs(y Float32x4) (z Float32x4)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], y[0]+y[1]}
 //
 // Asm: VFADDP, CPU Feature: NEON
 func (x Float64x2) ConcatAddPairs(y Float64x2) (z Float64x2)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Int8x16) ConcatAddPairs(y Int8x16) (z Int8x16)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Int16x8) ConcatAddPairs(y Int16x8) (z Int16x8)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Int32x4) ConcatAddPairs(y Int32x4) (z Int32x4)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], y[0]+y[1]}
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Int64x2) ConcatAddPairs(y Int64x2) (z Int64x2)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Uint8x16) ConcatAddPairs(y Uint8x16) (z Uint8x16)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Uint16x8) ConcatAddPairs(y Uint16x8) (z Uint16x8)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Uint32x4) ConcatAddPairs(y Uint32x4) (z Uint32x4)
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements.
-// For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
+// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
+// returns the concatenated result.
+//
+//	z = {x[0]+x[1], y[0]+y[1]}
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Uint64x2) ConcatAddPairs(y Uint64x2) (z Uint64x2)
@@ -532,79 +588,85 @@ func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
 
 /* ConvertLo2ToFloat64 */
 
-// ConvertLo2ToFloat64 converts low-indexed float32 element values to float64.
-// For the high-indexed elements, use HiToLo:
-//
-//	x.HiToLo().ConvertLo2ToFloat64(...)
+// ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
 //
 // Asm: VFCVTL, CPU Feature: NEON
 func (x Float32x4) ConvertLo2ToFloat64() (z Float64x2)
 
 /* ConvertToFloat32 */
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
+//
+// The results are rounded to the nearest representable value, or ±inf if they
+// cannot be represented.
+//
+// The low 2 elements of the result are set. The rest are zero.
 //
 // Asm: VFCVTN, CPU Feature: NEON
 func (x Float64x2) ConvertToFloat32() (z Float32x4)
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 //
 // Asm: VSCVTF, CPU Feature: NEON
 func (x Int32x4) ConvertToFloat32() (z Float32x4)
 
-// ConvertToFloat32 converts element values to float32.
+// ConvertToFloat32 converts each element of x to float32.
 //
 // Asm: VUCVTF, CPU Feature: NEON
 func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 
 /* ConvertToFloat64 */
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 //
 // Asm: VSCVTF, CPU Feature: NEON
 func (x Int64x2) ConvertToFloat64() (z Float64x2)
 
-// ConvertToFloat64 converts element values to float64.
+// ConvertToFloat64 converts each element of x to float64.
 //
 // Asm: VUCVTF, CPU Feature: NEON
 func (x Uint64x2) ConvertToFloat64() (z Float64x2)
 
 /* ConvertToInt32 */
 
-// ConvertToInt32 converts element values to int32.
-// When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result cannot be represented in int32, an implementation-defined
-// architecture-specific value is returned.
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // Asm: VFCVTZS, CPU Feature: NEON
 func (x Float32x4) ConvertToInt32() (z Int32x4)
 
 /* ConvertToInt64 */
 
-// ConvertToInt64 converts element values to int64.
-// When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result cannot be represented in int64, an implementation-defined
-// architecture-specific value is returned.
+// ConvertToInt64 converts each element of x to int64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // Asm: VFCVTZS, CPU Feature: NEON
 func (x Float64x2) ConvertToInt64() (z Int64x2)
 
 /* ConvertToUint32 */
 
-// ConvertToUint32 converts element values to uint32.
-// When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result cannot be represented in uint32, an implementation-defined
-// architecture-specific value is returned.
+// ConvertToUint32 converts each element of x to uint32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // Asm: VFCVTZU, CPU Feature: NEON
 func (x Float32x4) ConvertToUint32() (z Uint32x4)
 
 /* ConvertToUint64 */
 
-// ConvertToUint64 converts element values to uint64.
-// When a conversion is inexact, a truncated (round toward zero) value is returned.
-// If a converted result cannot be represented in uint64, an implementation-defined
-// architecture-specific value is returned.
+// ConvertToUint64 converts each element of x to uint64.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
 //
 // Asm: VFCVTZU, CPU Feature: NEON
 func (x Float64x2) ConvertToUint64() (z Uint64x2)
@@ -675,60 +737,48 @@ func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 
 /* ExtendLo2ToInt64 */
 
-// ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
-// For the high-indexed elements, use HiToLo:
-//
-//	x.HiToLo().ExtendLo2ToInt64(...)
+// ExtendLo2ToInt64 sign-extends
+// the lowest 2 vector elements to int64.
 //
 // Asm: VSXTL, CPU Feature: NEON
 func (x Int32x4) ExtendLo2ToInt64() (z Int64x2)
 
 /* ExtendLo2ToUint64 */
 
-// ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
-// For the high-indexed elements, use HiToLo:
-//
-//	x.HiToLo().ExtendLo2ToUint64(...)
+// ExtendLo2ToUint64 zero-extends
+// the lowest 2 vector elements to uint64.
 //
 // Asm: VUXTL, CPU Feature: NEON
 func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2)
 
 /* ExtendLo4ToInt32 */
 
-// ExtendLo4ToInt32 sign-extends 4 lowest vector element values to int32.
-// For the high-indexed elements, use HiToLo:
-//
-//	x.HiToLo().ExtendLo4ToInt32(...)
+// ExtendLo4ToInt32 sign-extends
+// the lowest 4 vector elements to int32.
 //
 // Asm: VSXTL, CPU Feature: NEON
 func (x Int16x8) ExtendLo4ToInt32() (z Int32x4)
 
 /* ExtendLo4ToUint32 */
 
-// ExtendLo4ToUint32 zero-extends 4 lowest vector element values to uint32.
-// For the high-indexed elements, use HiToLo:
-//
-//	x.HiToLo().ExtendLo4ToUint32(...)
+// ExtendLo4ToUint32 zero-extends
+// the lowest 4 vector elements to uint32.
 //
 // Asm: VUXTL, CPU Feature: NEON
 func (x Uint16x8) ExtendLo4ToUint32() (z Uint32x4)
 
 /* ExtendLo8ToInt16 */
 
-// ExtendLo8ToInt16 sign-extends 8 lowest vector element values to int16.
-// For the high-indexed elements, use HiToLo:
-//
-//	x.HiToLo().ExtendLo8ToInt16(...)
+// ExtendLo8ToInt16 sign-extends
+// the lowest 8 vector elements to int16.
 //
 // Asm: VSXTL, CPU Feature: NEON
 func (x Int8x16) ExtendLo8ToInt16() (z Int16x8)
 
 /* ExtendLo8ToUint16 */
 
-// ExtendLo8ToUint16 zero-extends 8 lowest vector element values to uint16.
-// For the high-indexed elements, use HiToLo:
-//
-//	x.HiToLo().ExtendLo8ToUint16(...)
+// ExtendLo8ToUint16 zero-extends
+// the lowest 8 vector elements to uint16.
 //
 // Asm: VUXTL, CPU Feature: NEON
 func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
@@ -1661,58 +1711,82 @@ func (x Uint64x2) SaturateToUint32() Uint32x4
 
 /* ScaleSaturated */
 
-// ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of scale's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the signed range on overflow.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+//
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
+//
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 // Asm: VSQSHL, CPU Feature: NEON
 func (x Int8x16) ScaleSaturated(scale Int8x16) (z Int8x16)
 
-// ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of scale's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the signed range on overflow.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+//
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
+//
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 // Asm: VSQSHL, CPU Feature: NEON
 func (x Int16x8) ScaleSaturated(scale Int16x8) (z Int16x8)
 
-// ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of scale's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the signed range on overflow.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+//
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
+//
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 // Asm: VSQSHL, CPU Feature: NEON
 func (x Int32x4) ScaleSaturated(scale Int32x4) (z Int32x4)
 
-// ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of scale's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the signed range on overflow.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+//
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (arithmetic shift right).
+//
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 // Asm: VSQSHL, CPU Feature: NEON
 func (x Int64x2) ScaleSaturated(scale Int64x2) (z Int64x2)
 
-// ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of scale's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the unsigned range on overflow.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+//
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
+//
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 // Asm: VUQSHL, CPU Feature: NEON
 func (x Uint8x16) ScaleSaturated(scale Int8x16) (z Uint8x16)
 
-// ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of scale's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the unsigned range on overflow.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+//
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
+//
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 // Asm: VUQSHL, CPU Feature: NEON
 func (x Uint16x8) ScaleSaturated(scale Int16x8) (z Uint16x8)
 
-// ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of scale's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the unsigned range on overflow.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+//
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
+//
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 // Asm: VUQSHL, CPU Feature: NEON
 func (x Uint32x4) ScaleSaturated(scale Int32x4) (z Uint32x4)
 
-// ScaleSaturated shifts each element in x by the signed value of the least significant byte
-// of scale's corresponding element (positive shifts left, negative shifts right).
-// Results are saturated to the unsigned range on overflow.
+// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+//
+// Positive exponents scale up (shift left with saturation). Negative exponents
+// scale down (logical shift right).
+//
+//	z[i] = sat(x[i] * 2^scale[i])
 //
 // Asm: VUQSHL, CPU Feature: NEON
 func (x Uint64x2) ScaleSaturated(scale Int64x2) (z Uint64x2)
@@ -1844,11 +1918,15 @@ func (x Uint64x2) Shift(y Int64x2) Uint64x2
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
+//	z[i] = x[i] << shift
+//
 // Asm: VSSHL, CPU Feature: NEON
 func (x Int8x16) ShiftAllLeft(shift uint64) (z Int8x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
 //
 // Asm: VSSHL, CPU Feature: NEON
 func (x Int16x8) ShiftAllLeft(shift uint64) (z Int16x8)
@@ -1856,11 +1934,15 @@ func (x Int16x8) ShiftAllLeft(shift uint64) (z Int16x8)
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
+//	z[i] = x[i] << shift
+//
 // Asm: VSSHL, CPU Feature: NEON
 func (x Int32x4) ShiftAllLeft(shift uint64) (z Int32x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
 //
 // Asm: VSSHL, CPU Feature: NEON
 func (x Int64x2) ShiftAllLeft(shift uint64) (z Int64x2)
@@ -1868,11 +1950,15 @@ func (x Int64x2) ShiftAllLeft(shift uint64) (z Int64x2)
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
+//	z[i] = x[i] << shift
+//
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint8x16) ShiftAllLeft(shift uint64) (z Uint8x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
 //
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint16x8) ShiftAllLeft(shift uint64) (z Uint16x8)
@@ -1880,11 +1966,15 @@ func (x Uint16x8) ShiftAllLeft(shift uint64) (z Uint16x8)
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
+//	z[i] = x[i] << shift
+//
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint32x4) ShiftAllLeft(shift uint64) (z Uint32x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
 //
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint64x2) ShiftAllLeft(shift uint64) (z Uint64x2)
@@ -1894,11 +1984,15 @@ func (x Uint64x2) ShiftAllLeft(shift uint64) (z Uint64x2)
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
+//	z[i] = x[i] >> shift
+//
 // Asm: VSSHL, CPU Feature: NEON
 func (x Int8x16) ShiftAllRight(shift uint64) (z Int8x16)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
+//
+//	z[i] = x[i] >> shift
 //
 // Asm: VSSHL, CPU Feature: NEON
 func (x Int16x8) ShiftAllRight(shift uint64) (z Int16x8)
@@ -1906,11 +2000,15 @@ func (x Int16x8) ShiftAllRight(shift uint64) (z Int16x8)
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
 //
+//	z[i] = x[i] >> shift
+//
 // Asm: VSSHL, CPU Feature: NEON
 func (x Int32x4) ShiftAllRight(shift uint64) (z Int32x4)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.
+//
+//	z[i] = x[i] >> shift
 //
 // Asm: VSSHL, CPU Feature: NEON
 func (x Int64x2) ShiftAllRight(shift uint64) (z Int64x2)
@@ -1918,11 +2016,15 @@ func (x Int64x2) ShiftAllRight(shift uint64) (z Int64x2)
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
+//	z[i] = x[i] >> shift
+//
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint8x16) ShiftAllRight(shift uint64) (z Uint8x16)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] >> shift
 //
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint16x8) ShiftAllRight(shift uint64) (z Uint16x8)
@@ -1930,11 +2032,15 @@ func (x Uint16x8) ShiftAllRight(shift uint64) (z Uint16x8)
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
+//	z[i] = x[i] >> shift
+//
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint32x4) ShiftAllRight(shift uint64) (z Uint32x4)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] >> shift
 //
 // Asm: VUSHL, CPU Feature: NEON
 func (x Uint64x2) ShiftAllRight(shift uint64) (z Uint64x2)
@@ -1953,94 +2059,130 @@ func (x Float64x2) Sqrt() Float64x2
 
 /* Sub */
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VFSUB, CPU Feature: NEON
 func (x Float32x4) Sub(y Float32x4) (z Float32x4)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VFSUB, CPU Feature: NEON
 func (x Float64x2) Sub(y Float64x2) (z Float64x2)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Int8x16) Sub(y Int8x16) (z Int8x16)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Int16x8) Sub(y Int16x8) (z Int16x8)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Int32x4) Sub(y Int32x4) (z Int32x4)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Int64x2) Sub(y Int64x2) (z Int64x2)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Uint8x16) Sub(y Uint8x16) (z Uint8x16)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Uint16x8) Sub(y Uint16x8) (z Uint16x8)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Uint32x4) Sub(y Uint32x4) (z Uint32x4)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Uint64x2) Sub(y Uint64x2) (z Uint64x2)
 
 /* SubSaturated */
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: VSQSUB, CPU Feature: NEON
 func (x Int8x16) SubSaturated(y Int8x16) (z Int8x16)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: VSQSUB, CPU Feature: NEON
 func (x Int16x8) SubSaturated(y Int16x8) (z Int16x8)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: VSQSUB, CPU Feature: NEON
 func (x Int32x4) SubSaturated(y Int32x4) (z Int32x4)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: VSQSUB, CPU Feature: NEON
 func (x Int64x2) SubSaturated(y Int64x2) (z Int64x2)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: VUQSUB, CPU Feature: NEON
 func (x Uint8x16) SubSaturated(y Uint8x16) (z Uint8x16)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: VUQSUB, CPU Feature: NEON
 func (x Uint16x8) SubSaturated(y Uint16x8) (z Uint16x8)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: VUQSUB, CPU Feature: NEON
 func (x Uint32x4) SubSaturated(y Uint32x4) (z Uint32x4)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: VUQSUB, CPU Feature: NEON
 func (x Uint64x2) SubSaturated(y Uint64x2) (z Uint64x2)
@@ -2150,102 +2292,197 @@ func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 // BitsToInt8 reinterprets the bits of a Uint8x16 vector as a Int8x16 vector
 func (x Uint8x16) BitsToInt8() Int8x16
 
-// ConvertToInt8 converts a Uint8x16 vector to a Int8x16 vector
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint8x16) ConvertToInt8() (z Int8x16)
 
-// ConvertToUint8 converts a Int8x16 vector to a Uint8x16 vector
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int8x16) ConvertToUint8() (z Uint8x16)
 
-// ToBits reinterprets the bits of a Int8x16 vector as a Uint8x16 vector
+// ToBits reinterprets the bits of each element of x as type uint8.
 func (x Int8x16) ToBits() (z Uint8x16)
 
-// ReshapeToUint16s reinterprets the bits of a Uint8x16 vector as a Uint16x8 vector
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]    ⋯     x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	| 15     ....     0 | ⋯ | 15     ....     0 |
+//	         z[7]         ⋯          z[0]
 func (x Uint8x16) ReshapeToUint16s() (z Uint16x8)
 
-// ReshapeToUint32s reinterprets the bits of a Uint8x16 vector as a Uint32x4 vector
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]     x[13]     x[12]    ⋯     x[3]      x[2]      x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	| 31               ....               0 | ⋯ | 31               ....               0 |
+//	                   z[3]                   ⋯                    z[0]
 func (x Uint8x16) ReshapeToUint32s() (z Uint32x4)
 
-// ReshapeToUint64s reinterprets the bits of a Uint8x16 vector as a Uint64x2 vector
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	   x[15]     x[14]    ⋯     x[9]      x[8]      x[7]      x[6]    ⋯     x[1]      x[0]
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	| 63                 ....                 0 | 63                 ....                 0 |
+//	                     z[1]                                        z[0]
 func (x Uint8x16) ReshapeToUint64s() (z Uint64x2)
 
 // BitsToInt16 reinterprets the bits of a Uint16x8 vector as a Int16x8 vector
 func (x Uint16x8) BitsToInt16() Int16x8
 
-// ConvertToInt16 converts a Uint16x8 vector to a Int16x8 vector
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint16x8) ConvertToInt16() (z Int16x8)
 
-// ConvertToUint16 converts a Int16x8 vector to a Uint16x8 vector
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int16x8) ConvertToUint16() (z Uint16x8)
 
-// ToBits reinterprets the bits of a Int16x8 vector as a Uint16x8 vector
+// ToBits reinterprets the bits of each element of x as type uint16.
 func (x Int16x8) ToBits() (z Uint16x8)
 
-// ReshapeToUint8s reinterprets the bits of a Uint16x8 vector as a Uint8x16 vector
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[7]         ⋯          x[0]
+//	| 15     ....     0 | ⋯ | 15     ....     0 |
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	   z[15]     z[14]    ⋯     z[1]      z[0]
 func (x Uint16x8) ReshapeToUint8s() (z Uint8x16)
 
-// ReshapeToUint32s reinterprets the bits of a Uint16x8 vector as a Uint32x4 vector
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	    x[7]      x[6]    ⋯     x[1]      x[0]
+//	| 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 |
+//	| 31     ....     0 | ⋯ | 31     ....     0 |
+//	         z[3]         ⋯          z[0]
 func (x Uint16x8) ReshapeToUint32s() (z Uint32x4)
 
-// ReshapeToUint64s reinterprets the bits of a Uint16x8 vector as a Uint64x2 vector
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	    x[7]      x[6]      x[5]      x[4]      x[3]      x[2]      x[1]      x[0]
+//	| 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	| 63               ....               0 | 63               ....               0 |
+//	                   z[1]                                    z[0]
 func (x Uint16x8) ReshapeToUint64s() (z Uint64x2)
 
 // BitsToFloat32 reinterprets the bits of a Uint32x4 vector as a Float32x4 vector
 func (x Uint32x4) BitsToFloat32() Float32x4
 
-// ToBits reinterprets the bits of a Float32x4 vector as a Uint32x4 vector
+// ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float32x4) ToBits() (z Uint32x4)
 
 // BitsToInt32 reinterprets the bits of a Uint32x4 vector as a Int32x4 vector
 func (x Uint32x4) BitsToInt32() Int32x4
 
-// ConvertToInt32 converts a Uint32x4 vector to a Int32x4 vector
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint32x4) ConvertToInt32() (z Int32x4)
 
-// ConvertToUint32 converts a Int32x4 vector to a Uint32x4 vector
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int32x4) ConvertToUint32() (z Uint32x4)
 
-// ToBits reinterprets the bits of a Int32x4 vector as a Uint32x4 vector
+// ToBits reinterprets the bits of each element of x as type uint32.
 func (x Int32x4) ToBits() (z Uint32x4)
 
-// ReshapeToUint8s reinterprets the bits of a Uint32x4 vector as a Uint8x16 vector
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                   x[3]                   ⋯                    x[0]
+//	| 31               ....               0 | ⋯ | 31               ....               0 |
+//	| 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	   z[15]     z[14]     z[13]     z[12]    ⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint32x4) ReshapeToUint8s() (z Uint8x16)
 
-// ReshapeToUint16s reinterprets the bits of a Uint32x4 vector as a Uint16x8 vector
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[3]         ⋯          x[0]
+//	| 31     ....     0 | ⋯ | 31     ....     0 |
+//	| 15 .. 0 | 15 .. 0 | ⋯ | 15 .. 0 | 15 .. 0 |
+//	    z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint32x4) ReshapeToUint16s() (z Uint16x8)
 
-// ReshapeToUint64s reinterprets the bits of a Uint32x4 vector as a Uint64x2 vector
+// ReshapeToUint64s reinterprets the bits of x as a Uint64x2 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	    x[3]      x[2]      x[1]      x[0]
+//	| 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
+//	| 63     ....     0 | 63     ....     0 |
+//	         z[1]                z[0]
 func (x Uint32x4) ReshapeToUint64s() (z Uint64x2)
 
 // BitsToFloat64 reinterprets the bits of a Uint64x2 vector as a Float64x2 vector
 func (x Uint64x2) BitsToFloat64() Float64x2
 
-// ToBits reinterprets the bits of a Float64x2 vector as a Uint64x2 vector
+// ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float64x2) ToBits() (z Uint64x2)
 
 // BitsToInt64 reinterprets the bits of a Uint64x2 vector as a Int64x2 vector
 func (x Uint64x2) BitsToInt64() Int64x2
 
-// ConvertToInt64 converts a Uint64x2 vector to a Int64x2 vector
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint64x2) ConvertToInt64() (z Int64x2)
 
-// ConvertToUint64 converts a Int64x2 vector to a Uint64x2 vector
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int64x2) ConvertToUint64() (z Uint64x2)
 
-// ToBits reinterprets the bits of a Int64x2 vector as a Uint64x2 vector
+// ToBits reinterprets the bits of each element of x as type uint64.
 func (x Int64x2) ToBits() (z Uint64x2)
 
-// ReshapeToUint8s reinterprets the bits of a Uint64x2 vector as a Uint8x16 vector
+// ReshapeToUint8s reinterprets the bits of x as a Uint8x16 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                     x[1]                                        x[0]
+//	| 63                 ....                 0 | 63                 ....                 0 |
+//	| 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	   z[15]     z[14]    ⋯     z[9]      z[8]      z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64x2) ReshapeToUint8s() (z Uint8x16)
 
-// ReshapeToUint16s reinterprets the bits of a Uint64x2 vector as a Uint16x8 vector
+// ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	                   x[1]                                    x[0]
+//	| 63               ....               0 | 63               ....               0 |
+//	| 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	    z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint64x2) ReshapeToUint16s() (z Uint16x8)
 
-// ReshapeToUint32s reinterprets the bits of a Uint64x2 vector as a Uint32x4 vector
+// ReshapeToUint32s reinterprets the bits of x as a Uint32x4 vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	         x[1]                x[0]
+//	| 63     ....     0 | 63     ....     0 |
+//	| 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
+//	    z[3]      z[2]      z[1]      z[0]
 func (x Uint64x2) ReshapeToUint32s() (z Uint32x4)
 
-// ToInt8x16 converts from Mask8x16 to Int8x16.
-// If element i in the mask is "true", all bits in element i of the resulting
-// vector will be set.
+// ToInt8x16 converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask8x16) ToInt8x16() (z Int8x16)
 
 // asMask converts from Int8x16 to Mask8x16.
@@ -2257,9 +2494,8 @@ func (x Mask8x16) Or(y Mask8x16) Mask8x16
 
 func (x Mask8x16) Not() Mask8x16
 
-// ToInt16x8 converts from Mask16x8 to Int16x8.
-// If element i in the mask is "true", all bits in element i of the resulting
-// vector will be set.
+// ToInt16x8 converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask16x8) ToInt16x8() (z Int16x8)
 
 // asMask converts from Int16x8 to Mask16x8.
@@ -2271,9 +2507,8 @@ func (x Mask16x8) Or(y Mask16x8) Mask16x8
 
 func (x Mask16x8) Not() Mask16x8
 
-// ToInt32x4 converts from Mask32x4 to Int32x4.
-// If element i in the mask is "true", all bits in element i of the resulting
-// vector will be set.
+// ToInt32x4 converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask32x4) ToInt32x4() (z Int32x4)
 
 // asMask converts from Int32x4 to Mask32x4.
@@ -2285,9 +2520,8 @@ func (x Mask32x4) Or(y Mask32x4) Mask32x4
 
 func (x Mask32x4) Not() Mask32x4
 
-// ToInt64x2 converts from Mask64x2 to Int64x2.
-// If element i in the mask is "true", all bits in element i of the resulting
-// vector will be set.
+// ToInt64x2 converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask64x2) ToInt64x2() (z Int64x2)
 
 // asMask converts from Int64x2 to Mask64x2.

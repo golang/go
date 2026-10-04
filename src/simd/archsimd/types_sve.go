@@ -25,8 +25,7 @@ type Float32s struct {
 // Len returns the number of elements in a Float32s.
 func (x Float32s) Len() int { return vl() / 4 }
 
-// LoadFloat32s loads a Float32s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadFloat32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadFloat32s(s []float32) (z Float32s) {
@@ -40,8 +39,7 @@ func LoadFloat32s(s []float32) (z Float32s) {
 //go:noescape
 func loadFloat32s(s []float32) Float32s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Float32s) Store(s []float32) {
@@ -54,9 +52,9 @@ func (x Float32s) Store(s []float32) {
 //go:noescape
 func (x Float32s) store(s []float32)
 
-// LoadFloat32sPart loads a Float32s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadFloat32sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadFloat32sPart(s []float32) (z Float32s, n int) {
@@ -69,8 +67,7 @@ func LoadFloat32sPart(s []float32) (z Float32s, n int) {
 //go:noescape
 func loadFloat32sPart(s []float32) Float32s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Float32s) StorePart(s []float32) (n int) {
@@ -99,8 +96,8 @@ func (x Float32s) Masked(mask Mask32s) Float32s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastFloat32s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastFloat32s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastFloat32s(x float32) (z Float32s)
@@ -123,8 +120,7 @@ type Float64s struct {
 // Len returns the number of elements in a Float64s.
 func (x Float64s) Len() int { return vl() / 8 }
 
-// LoadFloat64s loads a Float64s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadFloat64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadFloat64s(s []float64) (z Float64s) {
@@ -138,8 +134,7 @@ func LoadFloat64s(s []float64) (z Float64s) {
 //go:noescape
 func loadFloat64s(s []float64) Float64s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Float64s) Store(s []float64) {
@@ -152,9 +147,9 @@ func (x Float64s) Store(s []float64) {
 //go:noescape
 func (x Float64s) store(s []float64)
 
-// LoadFloat64sPart loads a Float64s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadFloat64sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadFloat64sPart(s []float64) (z Float64s, n int) {
@@ -167,8 +162,7 @@ func LoadFloat64sPart(s []float64) (z Float64s, n int) {
 //go:noescape
 func loadFloat64sPart(s []float64) Float64s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Float64s) StorePart(s []float64) (n int) {
@@ -197,8 +191,8 @@ func (x Float64s) Masked(mask Mask64s) Float64s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastFloat64s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastFloat64s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastFloat64s(x float64) (z Float64s)
@@ -221,8 +215,7 @@ type Int8s struct {
 // Len returns the number of elements in an Int8s.
 func (x Int8s) Len() int { return vl() }
 
-// LoadInt8s loads an Int8s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadInt8s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadInt8s(s []int8) (z Int8s) {
@@ -236,8 +229,7 @@ func LoadInt8s(s []int8) (z Int8s) {
 //go:noescape
 func loadInt8s(s []int8) Int8s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Int8s) Store(s []int8) {
@@ -250,9 +242,9 @@ func (x Int8s) Store(s []int8) {
 //go:noescape
 func (x Int8s) store(s []int8)
 
-// LoadInt8sPart loads an Int8s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadInt8sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadInt8sPart(s []int8) (z Int8s, n int) {
@@ -265,8 +257,7 @@ func LoadInt8sPart(s []int8) (z Int8s, n int) {
 //go:noescape
 func loadInt8sPart(s []int8) Int8s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Int8s) StorePart(s []int8) (n int) {
@@ -295,8 +286,8 @@ func (x Int8s) Masked(mask Mask8s) Int8s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastInt8s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastInt8s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastInt8s(x int8) (z Int8s)
@@ -319,8 +310,7 @@ type Int16s struct {
 // Len returns the number of elements in an Int16s.
 func (x Int16s) Len() int { return vl() / 2 }
 
-// LoadInt16s loads an Int16s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadInt16s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadInt16s(s []int16) (z Int16s) {
@@ -334,8 +324,7 @@ func LoadInt16s(s []int16) (z Int16s) {
 //go:noescape
 func loadInt16s(s []int16) Int16s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Int16s) Store(s []int16) {
@@ -348,9 +337,9 @@ func (x Int16s) Store(s []int16) {
 //go:noescape
 func (x Int16s) store(s []int16)
 
-// LoadInt16sPart loads an Int16s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadInt16sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadInt16sPart(s []int16) (z Int16s, n int) {
@@ -363,8 +352,7 @@ func LoadInt16sPart(s []int16) (z Int16s, n int) {
 //go:noescape
 func loadInt16sPart(s []int16) Int16s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Int16s) StorePart(s []int16) (n int) {
@@ -393,8 +381,8 @@ func (x Int16s) Masked(mask Mask16s) Int16s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastInt16s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastInt16s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastInt16s(x int16) (z Int16s)
@@ -417,8 +405,7 @@ type Int32s struct {
 // Len returns the number of elements in an Int32s.
 func (x Int32s) Len() int { return vl() / 4 }
 
-// LoadInt32s loads an Int32s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadInt32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadInt32s(s []int32) (z Int32s) {
@@ -432,8 +419,7 @@ func LoadInt32s(s []int32) (z Int32s) {
 //go:noescape
 func loadInt32s(s []int32) Int32s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Int32s) Store(s []int32) {
@@ -446,9 +432,9 @@ func (x Int32s) Store(s []int32) {
 //go:noescape
 func (x Int32s) store(s []int32)
 
-// LoadInt32sPart loads an Int32s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadInt32sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadInt32sPart(s []int32) (z Int32s, n int) {
@@ -461,8 +447,7 @@ func LoadInt32sPart(s []int32) (z Int32s, n int) {
 //go:noescape
 func loadInt32sPart(s []int32) Int32s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Int32s) StorePart(s []int32) (n int) {
@@ -491,8 +476,8 @@ func (x Int32s) Masked(mask Mask32s) Int32s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastInt32s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastInt32s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastInt32s(x int32) (z Int32s)
@@ -515,8 +500,7 @@ type Int64s struct {
 // Len returns the number of elements in an Int64s.
 func (x Int64s) Len() int { return vl() / 8 }
 
-// LoadInt64s loads an Int64s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadInt64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadInt64s(s []int64) (z Int64s) {
@@ -530,8 +514,7 @@ func LoadInt64s(s []int64) (z Int64s) {
 //go:noescape
 func loadInt64s(s []int64) Int64s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Int64s) Store(s []int64) {
@@ -544,9 +527,9 @@ func (x Int64s) Store(s []int64) {
 //go:noescape
 func (x Int64s) store(s []int64)
 
-// LoadInt64sPart loads an Int64s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadInt64sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadInt64sPart(s []int64) (z Int64s, n int) {
@@ -559,8 +542,7 @@ func LoadInt64sPart(s []int64) (z Int64s, n int) {
 //go:noescape
 func loadInt64sPart(s []int64) Int64s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Int64s) StorePart(s []int64) (n int) {
@@ -589,8 +571,8 @@ func (x Int64s) Masked(mask Mask64s) Int64s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastInt64s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastInt64s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastInt64s(x int64) (z Int64s)
@@ -613,8 +595,7 @@ type Uint8s struct {
 // Len returns the number of elements in a Uint8s.
 func (x Uint8s) Len() int { return vl() }
 
-// LoadUint8s loads a Uint8s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadUint8s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadUint8s(s []uint8) (z Uint8s) {
@@ -628,8 +609,7 @@ func LoadUint8s(s []uint8) (z Uint8s) {
 //go:noescape
 func loadUint8s(s []uint8) Uint8s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Uint8s) Store(s []uint8) {
@@ -642,9 +622,9 @@ func (x Uint8s) Store(s []uint8) {
 //go:noescape
 func (x Uint8s) store(s []uint8)
 
-// LoadUint8sPart loads a Uint8s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadUint8sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadUint8sPart(s []uint8) (z Uint8s, n int) {
@@ -657,8 +637,7 @@ func LoadUint8sPart(s []uint8) (z Uint8s, n int) {
 //go:noescape
 func loadUint8sPart(s []uint8) Uint8s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Uint8s) StorePart(s []uint8) (n int) {
@@ -687,8 +666,8 @@ func (x Uint8s) Masked(mask Mask8s) Uint8s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastUint8s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastUint8s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint8s(x uint8) (z Uint8s)
@@ -711,8 +690,7 @@ type Uint16s struct {
 // Len returns the number of elements in a Uint16s.
 func (x Uint16s) Len() int { return vl() / 2 }
 
-// LoadUint16s loads a Uint16s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadUint16s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadUint16s(s []uint16) (z Uint16s) {
@@ -726,8 +704,7 @@ func LoadUint16s(s []uint16) (z Uint16s) {
 //go:noescape
 func loadUint16s(s []uint16) Uint16s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Uint16s) Store(s []uint16) {
@@ -740,9 +717,9 @@ func (x Uint16s) Store(s []uint16) {
 //go:noescape
 func (x Uint16s) store(s []uint16)
 
-// LoadUint16sPart loads a Uint16s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadUint16sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadUint16sPart(s []uint16) (z Uint16s, n int) {
@@ -755,8 +732,7 @@ func LoadUint16sPart(s []uint16) (z Uint16s, n int) {
 //go:noescape
 func loadUint16sPart(s []uint16) Uint16s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Uint16s) StorePart(s []uint16) (n int) {
@@ -785,8 +761,8 @@ func (x Uint16s) Masked(mask Mask16s) Uint16s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastUint16s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastUint16s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint16s(x uint16) (z Uint16s)
@@ -809,8 +785,7 @@ type Uint32s struct {
 // Len returns the number of elements in a Uint32s.
 func (x Uint32s) Len() int { return vl() / 4 }
 
-// LoadUint32s loads a Uint32s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadUint32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadUint32s(s []uint32) (z Uint32s) {
@@ -824,8 +799,7 @@ func LoadUint32s(s []uint32) (z Uint32s) {
 //go:noescape
 func loadUint32s(s []uint32) Uint32s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Uint32s) Store(s []uint32) {
@@ -838,9 +812,9 @@ func (x Uint32s) Store(s []uint32) {
 //go:noescape
 func (x Uint32s) store(s []uint32)
 
-// LoadUint32sPart loads a Uint32s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadUint32sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadUint32sPart(s []uint32) (z Uint32s, n int) {
@@ -853,8 +827,7 @@ func LoadUint32sPart(s []uint32) (z Uint32s, n int) {
 //go:noescape
 func loadUint32sPart(s []uint32) Uint32s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Uint32s) StorePart(s []uint32) (n int) {
@@ -883,8 +856,8 @@ func (x Uint32s) Masked(mask Mask32s) Uint32s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastUint32s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastUint32s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint32s(x uint32) (z Uint32s)
@@ -907,8 +880,7 @@ type Uint64s struct {
 // Len returns the number of elements in a Uint64s.
 func (x Uint64s) Len() int { return vl() / 8 }
 
-// LoadUint64s loads a Uint64s from the first Len() elements of s.
-// It panics if len(s) < Len().
+// LoadUint64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZLDR).
 func LoadUint64s(s []uint64) (z Uint64s) {
@@ -922,8 +894,7 @@ func LoadUint64s(s []uint64) (z Uint64s) {
 //go:noescape
 func loadUint64s(s []uint64) Uint64s
 
-// Store stores x's Len() elements into the first Len() elements of s. It panics
-// if len(s) < Len().
+// Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 //
 // Asm: Emulated (a length check that can panic, then ZSTR).
 func (x Uint64s) Store(s []uint64) {
@@ -936,9 +907,9 @@ func (x Uint64s) Store(s []uint64) {
 //go:noescape
 func (x Uint64s) store(s []uint64)
 
-// LoadUint64sPart loads a Uint64s from s, reading n = min(len(s),
-// Len()) elements and returning the vector and n; the remaining elements are
-// zero.
+// LoadUint64sPart loads n=min(len(s), z.Len()) elements from slice s as a
+// vector and returns the vector and n. If len(s) < z.Len(), the
+// remaining vector elements will be zero.
 //
 // Asm: Emulated (predicate construction + LD1B).
 func LoadUint64sPart(s []uint64) (z Uint64s, n int) {
@@ -951,8 +922,7 @@ func LoadUint64sPart(s []uint64) (z Uint64s, n int) {
 //go:noescape
 func loadUint64sPart(s []uint64) Uint64s
 
-// StorePart stores the low n = min(len(s), Len()) elements of x into s and
-// returns n.
+// StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
 func (x Uint64s) StorePart(s []uint64) (n int) {
@@ -981,8 +951,8 @@ func (x Uint64s) Masked(mask Mask64s) Uint64s {
 	return x.IfElse(mask, zero)
 }
 
-// BroadcastUint64s returns a vector with the input x assigned to all
-// elements of the output.
+// BroadcastUint64s returns a vector with the input x assigned to all elements of the
+// result.
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint64s(x uint64) (z Uint64s)

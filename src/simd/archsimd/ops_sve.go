@@ -38,94 +38,130 @@ func (x Int64s) Abs() Uint64s
 
 /* Add */
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZFADD, CPU Feature: SVE
 func (x Float32s) Add(y Float32s) (z Float32s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZFADD, CPU Feature: SVE
 func (x Float64s) Add(y Float64s) (z Float64s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZADD, CPU Feature: SVE
 func (x Int8s) Add(y Int8s) (z Int8s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZADD, CPU Feature: SVE
 func (x Int16s) Add(y Int16s) (z Int16s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZADD, CPU Feature: SVE
 func (x Int32s) Add(y Int32s) (z Int32s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZADD, CPU Feature: SVE
 func (x Int64s) Add(y Int64s) (z Int64s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZADD, CPU Feature: SVE
 func (x Uint8s) Add(y Uint8s) (z Uint8s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZADD, CPU Feature: SVE
 func (x Uint16s) Add(y Uint16s) (z Uint16s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZADD, CPU Feature: SVE
 func (x Uint32s) Add(y Uint32s) (z Uint32s)
 
-// Add adds corresponding elements of two vectors.
+// Add adds x and y elementwise.
+//
+//	z[i] = x[i] + y[i]
 //
 // Asm: ZADD, CPU Feature: SVE
 func (x Uint64s) Add(y Uint64s) (z Uint64s)
 
 /* AddSaturated */
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: ZSQADD, CPU Feature: SVE
 func (x Int8s) AddSaturated(y Int8s) (z Int8s)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: ZSQADD, CPU Feature: SVE
 func (x Int16s) AddSaturated(y Int16s) (z Int16s)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: ZSQADD, CPU Feature: SVE
 func (x Int32s) AddSaturated(y Int32s) (z Int32s)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: ZSQADD, CPU Feature: SVE
 func (x Int64s) AddSaturated(y Int64s) (z Int64s)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: ZUQADD, CPU Feature: SVE
 func (x Uint8s) AddSaturated(y Uint8s) (z Uint8s)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: ZUQADD, CPU Feature: SVE
 func (x Uint16s) AddSaturated(y Uint16s) (z Uint16s)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: ZUQADD, CPU Feature: SVE
 func (x Uint32s) AddSaturated(y Uint32s) (z Uint32s)
 
-// AddSaturated adds corresponding elements of two vectors with saturation.
+// AddSaturated adds x and y elementwise with saturation.
+//
+//	z[i] = sat(x[i] + y[i])
 //
 // Asm: ZUQADD, CPU Feature: SVE
 func (x Uint64s) AddSaturated(y Uint64s) (z Uint64s)
@@ -836,94 +872,130 @@ func (x Float64s) Sqrt() Float64s
 
 /* Sub */
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZFSUB, CPU Feature: SVE
 func (x Float32s) Sub(y Float32s) (z Float32s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZFSUB, CPU Feature: SVE
 func (x Float64s) Sub(y Float64s) (z Float64s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZSUB, CPU Feature: SVE
 func (x Int8s) Sub(y Int8s) (z Int8s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZSUB, CPU Feature: SVE
 func (x Int16s) Sub(y Int16s) (z Int16s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZSUB, CPU Feature: SVE
 func (x Int32s) Sub(y Int32s) (z Int32s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZSUB, CPU Feature: SVE
 func (x Int64s) Sub(y Int64s) (z Int64s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZSUB, CPU Feature: SVE
 func (x Uint8s) Sub(y Uint8s) (z Uint8s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZSUB, CPU Feature: SVE
 func (x Uint16s) Sub(y Uint16s) (z Uint16s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZSUB, CPU Feature: SVE
 func (x Uint32s) Sub(y Uint32s) (z Uint32s)
 
-// Sub subtracts corresponding elements of two vectors.
+// Sub subtracts y from x elementwise.
+//
+//	z[i] = x[i] - y[i]
 //
 // Asm: ZSUB, CPU Feature: SVE
 func (x Uint64s) Sub(y Uint64s) (z Uint64s)
 
 /* SubSaturated */
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: ZSQSUB, CPU Feature: SVE
 func (x Int8s) SubSaturated(y Int8s) (z Int8s)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: ZSQSUB, CPU Feature: SVE
 func (x Int16s) SubSaturated(y Int16s) (z Int16s)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: ZSQSUB, CPU Feature: SVE
 func (x Int32s) SubSaturated(y Int32s) (z Int32s)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: ZSQSUB, CPU Feature: SVE
 func (x Int64s) SubSaturated(y Int64s) (z Int64s)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: ZUQSUB, CPU Feature: SVE
 func (x Uint8s) SubSaturated(y Uint8s) (z Uint8s)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: ZUQSUB, CPU Feature: SVE
 func (x Uint16s) SubSaturated(y Uint16s) (z Uint16s)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: ZUQSUB, CPU Feature: SVE
 func (x Uint32s) SubSaturated(y Uint32s) (z Uint32s)
 
-// SubSaturated subtracts corresponding elements of two vectors with saturation.
+// SubSaturated subtracts y from x elementwise with saturation.
+//
+//	z[i] = sat(x[i] - y[i])
 //
 // Asm: ZUQSUB, CPU Feature: SVE
 func (x Uint64s) SubSaturated(y Uint64s) (z Uint64s)
@@ -985,95 +1057,191 @@ func (x Uint64s) Xor(y Uint64s) Uint64s
 // BitsToInt8 reinterprets the bits of a Uint8s vector as a Int8s vector
 func (x Uint8s) BitsToInt8() Int8s
 
-// ConvertToInt8 converts a Uint8s vector to a Int8s vector
+// ConvertToInt8 converts each element of x to int8.
 func (x Uint8s) ConvertToInt8() (z Int8s)
 
-// ConvertToUint8 converts a Int8s vector to a Uint8s vector
+// ConvertToUint8 converts each element of x to uint8.
 func (x Int8s) ConvertToUint8() (z Uint8s)
 
-// ToBits reinterprets the bits of a Int8s vector as a Uint8s vector
+// ToBits reinterprets the bits of each element of x as type uint8.
 func (x Int8s) ToBits() (z Uint8s)
 
-// ReshapeToUint16s reinterprets the bits of a Uint8s vector as a Uint16s vector
+// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[3]      x[2]      x[1]      x[0]
+//	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	⋯ | 15     ....     0 | 15     ....     0 |
+//	⋯          z[1]                z[0]
 func (x Uint8s) ReshapeToUint16s() (z Uint16s)
 
-// ReshapeToUint32s reinterprets the bits of a Uint8s vector as a Uint32s vector
+// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[7]      x[6]      x[5]      x[4]      x[3]      x[2]      x[1]      x[0]
+//	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	⋯ | 31               ....               0 | 31               ....               0 |
+//	⋯                    z[1]                                    z[0]
 func (x Uint8s) ReshapeToUint32s() (z Uint32s)
 
-// ReshapeToUint64s reinterprets the bits of a Uint8s vector as a Uint64s vector
+// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯    x[15]     x[14]    ⋯     x[9]      x[8]      x[7]      x[6]    ⋯     x[1]      x[0]
+//	⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	⋯ | 63                 ....                 0 | 63                 ....                 0 |
+//	⋯                      z[1]                                        z[0]
 func (x Uint8s) ReshapeToUint64s() (z Uint64s)
 
 // BitsToInt16 reinterprets the bits of a Uint16s vector as a Int16s vector
 func (x Uint16s) BitsToInt16() Int16s
 
-// ConvertToInt16 converts a Uint16s vector to a Int16s vector
+// ConvertToInt16 converts each element of x to int16.
 func (x Uint16s) ConvertToInt16() (z Int16s)
 
-// ConvertToUint16 converts a Int16s vector to a Uint16s vector
+// ConvertToUint16 converts each element of x to uint16.
 func (x Int16s) ConvertToUint16() (z Uint16s)
 
-// ToBits reinterprets the bits of a Int16s vector as a Uint16s vector
+// ToBits reinterprets the bits of each element of x as type uint16.
 func (x Int16s) ToBits() (z Uint16s)
 
-// ReshapeToUint8s reinterprets the bits of a Uint16s vector as a Uint8s vector
+// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯          x[1]                x[0]
+//	⋯ | 15     ....     0 | 15     ....     0 |
+//	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint16s) ReshapeToUint8s() (z Uint8s)
 
-// ReshapeToUint32s reinterprets the bits of a Uint16s vector as a Uint32s vector
+// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[3]      x[2]      x[1]      x[0]
+//	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	⋯ | 31     ....     0 | 31     ....     0 |
+//	⋯          z[1]                z[0]
 func (x Uint16s) ReshapeToUint32s() (z Uint32s)
 
-// ReshapeToUint64s reinterprets the bits of a Uint16s vector as a Uint64s vector
+// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[7]      x[6]      x[5]      x[4]      x[3]      x[2]      x[1]      x[0]
+//	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	⋯ | 63               ....               0 | 63               ....               0 |
+//	⋯                    z[1]                                    z[0]
 func (x Uint16s) ReshapeToUint64s() (z Uint64s)
 
 // BitsToFloat32 reinterprets the bits of a Uint32s vector as a Float32s vector
 func (x Uint32s) BitsToFloat32() Float32s
 
-// ToBits reinterprets the bits of a Float32s vector as a Uint32s vector
+// ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float32s) ToBits() (z Uint32s)
 
 // BitsToInt32 reinterprets the bits of a Uint32s vector as a Int32s vector
 func (x Uint32s) BitsToInt32() Int32s
 
-// ConvertToInt32 converts a Uint32s vector to a Int32s vector
+// ConvertToInt32 converts each element of x to int32.
 func (x Uint32s) ConvertToInt32() (z Int32s)
 
-// ConvertToUint32 converts a Int32s vector to a Uint32s vector
+// ConvertToUint32 converts each element of x to uint32.
 func (x Int32s) ConvertToUint32() (z Uint32s)
 
-// ToBits reinterprets the bits of a Int32s vector as a Uint32s vector
+// ToBits reinterprets the bits of each element of x as type uint32.
 func (x Int32s) ToBits() (z Uint32s)
 
-// ReshapeToUint8s reinterprets the bits of a Uint32s vector as a Uint8s vector
+// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯                    x[1]                                    x[0]
+//	⋯ | 31               ....               0 | 31               ....               0 |
+//	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
+//	⋯     z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint32s) ReshapeToUint8s() (z Uint8s)
 
-// ReshapeToUint16s reinterprets the bits of a Uint32s vector as a Uint16s vector
+// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯          x[1]                x[0]
+//	⋯ | 31     ....     0 | 31     ....     0 |
+//	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint32s) ReshapeToUint16s() (z Uint16s)
 
-// ReshapeToUint64s reinterprets the bits of a Uint32s vector as a Uint64s vector
+// ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯     x[3]      x[2]      x[1]      x[0]
+//	⋯ | 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
+//	⋯ | 63     ....     0 | 63     ....     0 |
+//	⋯          z[1]                z[0]
 func (x Uint32s) ReshapeToUint64s() (z Uint64s)
 
 // BitsToFloat64 reinterprets the bits of a Uint64s vector as a Float64s vector
 func (x Uint64s) BitsToFloat64() Float64s
 
-// ToBits reinterprets the bits of a Float64s vector as a Uint64s vector
+// ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float64s) ToBits() (z Uint64s)
 
 // BitsToInt64 reinterprets the bits of a Uint64s vector as a Int64s vector
 func (x Uint64s) BitsToInt64() Int64s
 
-// ConvertToInt64 converts a Uint64s vector to a Int64s vector
+// ConvertToInt64 converts each element of x to int64.
 func (x Uint64s) ConvertToInt64() (z Int64s)
 
-// ConvertToUint64 converts a Int64s vector to a Uint64s vector
+// ConvertToUint64 converts each element of x to uint64.
 func (x Int64s) ConvertToUint64() (z Uint64s)
 
-// ToBits reinterprets the bits of a Int64s vector as a Uint64s vector
+// ToBits reinterprets the bits of each element of x as type uint64.
 func (x Int64s) ToBits() (z Uint64s)
 
-// ReshapeToUint8s reinterprets the bits of a Uint64s vector as a Uint8s vector
+// ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯                      x[1]                                        x[0]
+//	⋯ | 63                 ....                 0 | 63                 ....                 0 |
+//	⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
+//	⋯    z[15]     z[14]    ⋯     z[9]      z[8]      z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64s) ReshapeToUint8s() (z Uint8s)
 
-// ReshapeToUint16s reinterprets the bits of a Uint64s vector as a Uint16s vector
+// ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯                    x[1]                                    x[0]
+//	⋯ | 63               ....               0 | 63               ....               0 |
+//	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
+//	⋯     z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint64s) ReshapeToUint16s() (z Uint16s)
 
-// ReshapeToUint32s reinterprets the bits of a Uint64s vector as a Uint32s vector
+// ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
+//
+// Both the vector elements and the bits of each element are interpreted in
+// little endian order.
+//
+//	⋯          x[1]                x[0]
+//	⋯ | 63     ....     0 | 63     ....     0 |
+//	⋯ | 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
+//	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint64s) ReshapeToUint32s() (z Uint32s)
