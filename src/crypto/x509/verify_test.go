@@ -3219,3 +3219,18 @@ func TestVerifyHostnameIPAddresses(t *testing.T) {
 		})
 	}
 }
+
+func TestSystemVerifyInvalidUTF8DNSName(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
+		t.Skip("only relevant to the macOS platform verifier")
+	}
+	c, err := certificateFromPEM(selfSigned)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Leaving Roots nil selects the platform verifier.
+	_, err = c.Verify(VerifyOptions{DNSName: "\xff.example.com"})
+	if _, ok := errors.AsType[HostnameError](err); !ok {
+		t.Errorf("Verify with invalid UTF-8 DNSName: got error %v, want HostnameError", err)
+	}
+}
