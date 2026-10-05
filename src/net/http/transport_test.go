@@ -2529,37 +2529,27 @@ func testTransportConcurrency(t *testing.T, mode testMode) {
 }
 
 func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
-	runNoSynctest(t, testIssue4191_InfiniteGetTimeout, http3SkippedMode)
+	runSynctest(t, testIssue4191_InfiniteGetTimeout, http3SkippedMode)
 }
 func testIssue4191_InfiniteGetTimeout(t *testing.T, mode testMode) {
 	mux := NewServeMux()
 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
-		io.Copy(w, neverEnding('a'))
+		w.Write([]byte("a"))
+		NewResponseController(w).Flush()
+		<-r.Context().Done()
 	})
-	ts := newClientServerTest(t, mode, mux, optRealNet).ts
+	cst := newClientServerTest(t, mode, mux)
 
-	connc := make(chan net.Conn, 1)
-	c := ts.Client()
-	c.Transport.(*Transport).Dial = func(n, addr string) (net.Conn, error) {
-		conn, err := net.Dial(n, addr)
-		if err != nil {
-			return nil, err
-		}
-		select {
-		case connc <- conn:
-		default:
-		}
-		return conn, nil
-	}
+	cst.setDialNettestHook(func(c *nettest.Conn) {
+		c.SetDeadline(time.Now().Add(1 * time.Millisecond))
+	})
 
-	res, err := c.Get(ts.URL + "/get")
+	res, err := cst.c.Get(cst.ts.URL + "/get")
 	if err != nil {
 		t.Fatalf("Error issuing GET: %v", err)
 	}
 	defer res.Body.Close()
 
-	conn := <-connc
-	conn.SetDeadline(time.Now().Add(1 * time.Millisecond))
 	_, err = io.Copy(io.Discard, res.Body)
 	if err == nil {
 		t.Errorf("Unexpected successful copy")
@@ -2567,69 +2557,45 @@ func testIssue4191_InfiniteGetTimeout(t *testing.T, mode testMode) {
 }
 
 func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
-	runNoSynctest(t, testIssue4191_InfiniteGetToPutTimeout, []testMode{http1Mode})
+	runSynctest(t, testIssue4191_InfiniteGetToPutTimeout, []testMode{http1Mode})
 }
 func testIssue4191_InfiniteGetToPutTimeout(t *testing.T, mode testMode) {
-	const debug = false
 	mux := NewServeMux()
 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
-		io.Copy(w, neverEnding('a'))
+		w.Write([]byte("a"))
+		NewResponseController(w).Flush()
+		<-r.Context().Done()
 	})
 	mux.HandleFunc("/put", func(w ResponseWriter, r *Request) {
 		defer r.Body.Close()
 		io.Copy(io.Discard, r.Body)
 	})
-	ts := newClientServerTest(t, mode, mux, optRealNet).ts
-	timeout := 100 * time.Millisecond
+	cst := newClientServerTest(t, mode, mux)
 
-	c := ts.Client()
-	c.Transport.(*Transport).Dial = func(n, addr string) (net.Conn, error) {
-		conn, err := net.Dial(n, addr)
-		if err != nil {
-			return nil, err
+	var getConn *nettest.Conn
+	cst.setDialNettestHook(func(c *nettest.Conn) {
+		if getConn == nil {
+			getConn = c
 		}
-		conn.SetDeadline(time.Now().Add(timeout))
-		if debug {
-			conn = NewLoggingConn("client", conn)
-		}
-		return conn, nil
+	})
+
+	sres, err := cst.c.Get(cst.ts.URL + "/get")
+	if err != nil {
+		t.Fatalf("Error issuing GET: %v", err)
 	}
 
-	getFailed := false
-	nRuns := 5
-	if testing.Short() {
-		nRuns = 1
-	}
-	for i := 0; i < nRuns; i++ {
-		if debug {
-			println("run", i+1, "of", nRuns)
-		}
-		sres, err := c.Get(ts.URL + "/get")
-		if err != nil {
-			if !getFailed {
-				// Make the timeout longer, once.
-				getFailed = true
-				t.Logf("increasing timeout")
-				i--
-				timeout *= 10
-				continue
-			}
-			t.Errorf("Error issuing GET: %v", err)
-			break
-		}
-		req, _ := NewRequest("PUT", ts.URL+"/put", sres.Body)
-		_, err = c.Do(req)
-		if err == nil {
-			sres.Body.Close()
-			t.Errorf("Unexpected successful PUT")
-			break
-		}
+	getConn.SetDeadline(time.Now().Add(5 * time.Millisecond))
+
+	req, err := NewRequestWithContext(t.Context(), "PUT", cst.ts.URL+"/put", sres.Body)
+	if err != nil {
 		sres.Body.Close()
+		t.Fatalf("NewRequest: %v", err)
 	}
-	if debug {
-		println("tests complete; waiting for handlers to finish")
+	_, err = cst.c.Do(req)
+	sres.Body.Close()
+	if err == nil {
+		t.Errorf("Unexpected successful PUT")
 	}
-	ts.Close()
 }
 
 func TestTransportResponseHeaderTimeout(t *testing.T) {
