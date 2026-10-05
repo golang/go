@@ -434,22 +434,16 @@ var optabBase = []Optab{
 	{as: AMTVSRD, a1: C_REG, a6: C_FREG, type_: 104, size: 4},
 	{as: AMTVSRDD, a1: C_REG, a2: C_REG, a6: C_VSREG, type_: 104, size: 4},
 
-	/* VSX xx3-form */
+	/* VSX xx3-form: logical, merge, permute, and vector double-precision arithmetic */
 	{as: AXXLAND, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 90, size: 4},    /* vsx xx3-form (FPR usage) */
 	{as: AXXLAND, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4}, /* vsx xx3-form */
 
 	/* VSX select */
 	{as: AXXSEL, a1: C_VSREG, a2: C_VSREG, a3: C_VSREG, a6: C_VSREG, type_: 91, size: 4}, /* vsx select, xx4-form */
 
-	/* VSX merge */
-	{as: AXXMRGHW, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4}, /* vsx merge, xx3-form */
-
 	/* VSX splat */
 	{as: AXXSPLTW, a1: C_VSREG, a3: C_U15CON, a6: C_VSREG, type_: 89, size: 4}, /* vsx splat, xx2-form */
 	{as: AXXSPLTIB, a1: C_U15CON, a6: C_VSREG, type_: 100, size: 4},            /* vsx splat, xx2-form */
-
-	/* VSX permute */
-	{as: AXXPERM, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4}, /* vsx permute, xx3-form */
 
 	/* VSX shift */
 	{as: AXXSLDWI, a1: C_VSREG, a2: C_VSREG, a3: C_U15CON, a6: C_VSREG, type_: 90, size: 4}, /* vsx shift immediate, xx3-form */
@@ -457,23 +451,9 @@ var optabBase = []Optab{
 	/* VSX reverse bytes */
 	{as: AXXBRQ, a1: C_VSREG, a6: C_VSREG, type_: 101, size: 4}, /* vsx reverse bytes */
 
-	/* VSX scalar FP-FP conversion */
-	{as: AXSCVDPSP, a1: C_VSREG, a6: C_VSREG, type_: 89, size: 4}, /* vsx scalar fp-fp conversion, xx2-form */
-
-	/* VSX vector FP-FP conversion */
-	{as: AXVCVDPSP, a1: C_VSREG, a6: C_VSREG, type_: 89, size: 4}, /* vsx vector fp-fp conversion, xx2-form */
-
-	/* VSX scalar FP-integer conversion */
-	{as: AXSCVDPSXDS, a1: C_VSREG, a6: C_VSREG, type_: 89, size: 4}, /* vsx scalar fp-integer conversion, xx2-form */
-
-	/* VSX scalar integer-FP conversion */
-	{as: AXSCVSXDDP, a1: C_VSREG, a6: C_VSREG, type_: 89, size: 4}, /* vsx scalar integer-fp conversion, xx2-form */
-
-	/* VSX vector FP-integer conversion */
-	{as: AXVCVDPSXDS, a1: C_VSREG, a6: C_VSREG, type_: 89, size: 4}, /* vsx vector fp-integer conversion, xx2-form */
-
-	/* VSX vector integer-FP conversion */
-	{as: AXVCVSXDDP, a1: C_VSREG, a6: C_VSREG, type_: 89, size: 4}, /* vsx vector integer-fp conversion, xx2-form */
+	/* VSX xx2-form: FP-FP and FP-integer conversions, and vector double-precision square root */
+	{as: AXSCVDPSP, a1: C_FREG, a6: C_FREG, type_: 89, size: 4},   /* vsx xx2-form (FPR usage) */
+	{as: AXSCVDPSP, a1: C_VSREG, a6: C_VSREG, type_: 89, size: 4}, /* vsx xx2-form */
 
 	{as: ACMP, a1: C_REG, a6: C_REG, type_: 70, size: 4},
 	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_REG, type_: 70, size: 4},
@@ -1686,7 +1666,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AMTVSRWZ, r0)
 			opset(AMTVSRWS, r0)
 
-		case AXXLAND:
+		case AXXLAND: /* xx3-form 3 operand opcodes */
 			opset(AXXLANDC, r0)
 			opset(AXXLEQV, r0)
 			opset(AXXLNAND, r0)
@@ -1697,21 +1677,25 @@ func buildop(ctxt *obj.Link) {
 			opset(AXXLOR, r0)
 			opset(AXSMAXJDP, r0)
 			opset(AXSMINJDP, r0)
+			opset(AXXMRGHW, r0)
+			opset(AXXMRGLW, r0)
+			opset(AXXPERM, r0)
+			opset(AXVADDDP, r0)
+			opset(AXVSUBDP, r0)
+			opset(AXVMULDP, r0)
+			opset(AXVDIVDP, r0)
+			opset(AXVMADDADP, r0)
+			opset(AXVMAXDP, r0)
+			opset(AXVMINDP, r0)
 
 		case AXXSEL: /* xxsel */
 			opset(AXXSEL, r0)
-
-		case AXXMRGHW: /* xxmrghw, xxmrglw */
-			opset(AXXMRGLW, r0)
 
 		case AXXSPLTW: /* xxspltw */
 			opset(AXXSPLTW, r0)
 
 		case AXXSPLTIB: /* xxspltib */
 			opset(AXXSPLTIB, r0)
-
-		case AXXPERM: /* xxpermdi */
-			opset(AXXPERM, r0)
 
 		case AXXSLDWI: /* xxsldwi */
 			opset(AXXPERMDI, r0)
@@ -1722,25 +1706,20 @@ func buildop(ctxt *obj.Link) {
 			opset(AXXBRW, r0)
 			opset(AXXBRH, r0)
 
-		case AXSCVDPSP: /* xscvdpsp, xscvspdp, xscvdpspn, xscvspdpn */
+		case AXSCVDPSP: /* xx2-form 2 operand opcodes */
 			opset(AXSCVSPDP, r0)
 			opset(AXSCVDPSPN, r0)
 			opset(AXSCVSPDPN, r0)
-
-		case AXVCVDPSP: /* xvcvdpsp, xvcvspdp */
+			opset(AXVCVDPSP, r0)
 			opset(AXVCVSPDP, r0)
-
-		case AXSCVDPSXDS: /* xscvdpsxds, xscvdpsxws, xscvdpuxds, xscvdpuxws */
+			opset(AXSCVDPSXDS, r0)
 			opset(AXSCVDPSXWS, r0)
 			opset(AXSCVDPUXDS, r0)
 			opset(AXSCVDPUXWS, r0)
-
-		case AXSCVSXDDP: /* xscvsxddp, xscvuxddp, xscvsxdsp, xscvuxdsp */
+			opset(AXSCVSXDDP, r0)
 			opset(AXSCVUXDDP, r0)
 			opset(AXSCVSXDSP, r0)
 			opset(AXSCVUXDSP, r0)
-
-		case AXVCVDPSXDS: /* xvcvdpsxds, xvcvdpsxws, xvcvdpuxds, xvcvdpuxws, xvcvspsxds, xvcvspsxws, xvcvspuxds, xvcvspuxws */
 			opset(AXVCVDPSXDS, r0)
 			opset(AXVCVDPSXWS, r0)
 			opset(AXVCVDPUXDS, r0)
@@ -1749,8 +1728,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVCVSPSXWS, r0)
 			opset(AXVCVSPUXDS, r0)
 			opset(AXVCVSPUXWS, r0)
-
-		case AXVCVSXDDP: /* xvcvsxddp, xvcvsxwdp, xvcvuxddp, xvcvuxwdp, xvcvsxdsp, xvcvsxwsp, xvcvuxdsp, xvcvuxwsp */
+			opset(AXVCVSXDDP, r0)
 			opset(AXVCVSXWDP, r0)
 			opset(AXVCVUXDDP, r0)
 			opset(AXVCVUXWDP, r0)
@@ -1758,6 +1736,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVCVSXWSP, r0)
 			opset(AXVCVUXDSP, r0)
 			opset(AXVCVUXWSP, r0)
+			opset(AXVSQRTDP, r0)
 
 		case AAND: /* logical op Rb,Rs,Ra; no literal */
 			opset(AANDN, r0)
@@ -4965,6 +4944,23 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVXX2(60, 424, 0) /* xvcvuxdsp - v2.06 */
 	case AXVCVUXWSP:
 		return OPVXX2(60, 168, 0) /* xvcvuxwsp - v2.06 */
+
+	case AXVADDDP:
+		return OPVXX3(60, 96, 0) /* xvadddp - v2.06 */
+	case AXVSUBDP:
+		return OPVXX3(60, 104, 0) /* xvsubdp - v2.06 */
+	case AXVMULDP:
+		return OPVXX3(60, 112, 0) /* xvmuldp - v2.06 */
+	case AXVDIVDP:
+		return OPVXX3(60, 120, 0) /* xvdivdp - v2.06 */
+	case AXVMADDADP:
+		return OPVXX3(60, 97, 0) /* xvmaddadp - v2.06 */
+	case AXVMAXDP:
+		return OPVXX3(60, 224, 0) /* xvmaxdp - v2.06 */
+	case AXVMINDP:
+		return OPVXX3(60, 232, 0) /* xvmindp - v2.06 */
+	case AXVSQRTDP:
+		return OPVXX2(60, 203, 0) /* xvsqrtdp - v2.06 */
 	/* End of VSX instructions */
 
 	case AMADDHD:

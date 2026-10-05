@@ -1200,4 +1200,47 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XSMAXJDP VS1,VS2,VS3            // f0611480
 	XSMINJDP VS1,VS2,VS3            // f06114c0
 
+	// VSX vector double-precision arithmetic. Golden encodings from GNU as 2.44.
+	XVADDDP VS1, VS34, VS63         // f3e11303
+	XVADDDP F1, F2, F3              // f0611300
+	XVADDDP V1, V2, V3              // f0611307
+
+	XVSUBDP VS1, VS34, VS63         // f3e11343
+	XVSUBDP F1, F2, F3              // f0611340
+	XVSUBDP V1, V2, V3              // f0611347
+
+	XVMULDP VS1, VS34, VS63         // f3e11383
+	XVMULDP F1, F2, F3              // f0611380
+	XVMULDP V1, V2, V3              // f0611387
+
+	XVDIVDP VS1, VS34, VS63         // f3e113c3
+	XVDIVDP F1, F2, F3              // f06113c0
+	XVDIVDP V1, V2, V3              // f06113c7
+
+	XVMADDADP VS1, VS34, VS63       // f3e1130b
+	XVMADDADP F1, F2, F3            // f0611308
+	XVMADDADP V1, V2, V3            // f061130f
+
+	XVMAXDP VS1, VS34, VS63         // f3e11703
+	XVMAXDP F1, F2, F3              // f0611700
+	XVMAXDP V1, V2, V3              // f0611707
+
+	XVMINDP VS1, VS34, VS63         // f3e11743
+	XVMINDP F1, F2, F3              // f0611740
+	XVMINDP V1, V2, V3              // f0611747
+
+	XVSQRTDP VS33, VS62             // f3c00b2f
+	XVSQRTDP F2, F3                 // f060132c
+	XVSQRTDP V2, V3                 // f060132f
+
+	// FPR usage of the shapes shared with XXLAND (xx3) and XSCVDPSP (xx2).
+	XXMRGHW F1, F2, F3              // f0611090
+	XXPERM F1, F2, F3               // f06110d0
+	XSCVDPSP F2, F3                 // f0601424
+	XVCVDPSP F2, F3                 // f0601624
+	XSCVDPSXDS F2, F3               // f0601560
+	XSCVSXDDP F2, F3                // f06015e0
+	XVCVDPSXDS F2, F3               // f0601760
+	XVCVSXDDP F2, F3                // f06017e0
+
 	RET
