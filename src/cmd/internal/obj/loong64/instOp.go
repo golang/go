@@ -21,6 +21,22 @@ var oprrrr = map[obj.As]uint32{
 	AXVSHUFB:   0xd6 << 20, // xvshuf.b
 	AVBITSELV:  0xd1 << 20, // vbitsel.v
 	AXVBITSELV: 0xd2 << 20, // xvbitsel.v
+	AVFMADDF:   0x91 << 20, // vfmadd.s
+	AVFMADDD:   0x92 << 20, // vfmadd.d
+	AVFMSUBF:   0x95 << 20, // vfmsub.s
+	AVFMSUBD:   0x96 << 20, // vfmsub.d
+	AVFNMADDF:  0x99 << 20, // vfnmadd.s
+	AVFNMADDD:  0x9a << 20, // vfnmadd.d
+	AVFNMSUBF:  0x9d << 20, // vfnmsub.s
+	AVFNMSUBD:  0x9e << 20, // vfnmsub.d
+	AXVFMADDF:  0xa1 << 20, // xvfmadd.s
+	AXVFMADDD:  0xa2 << 20, // xvfmadd.d
+	AXVFMSUBF:  0xa5 << 20, // xvfmsub.s
+	AXVFMSUBD:  0xa6 << 20, // xvfmsub.d
+	AXVFNMADDF: 0xa9 << 20, // xvfnmadd.s
+	AXVFNMADDD: 0xaa << 20, // xvfnmadd.d
+	AXVFNMSUBF: 0xad << 20, // xvfnmsub.s
+	AXVFNMSUBD: 0xae << 20, // xvfnmsub.d
 }
 
 var oprrr = map[obj.As]uint32{

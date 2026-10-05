@@ -240,7 +240,7 @@ var optab = []Optab{
 	{AVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_VREG, C_NONE, 8, 4, REGZERO, 0},
 	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
 	{AVMOVQ, C_ROFF, C_NONE, C_NONE, C_VREG, C_NONE, 21, 4, 0, 0},
-	{AVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // vldrepl.{b/h/w/d}
+	{AVMOVQ, C_SOREG_16, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // vldrepl.{b/h/w/d}
 	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_SOREG_12, C_NONE, 43, 4, 0, 0}, // vstelm.{b/h/w/d}
 	// moving data between registers
 	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 1, 4, 0, 0},
@@ -256,7 +256,7 @@ var optab = []Optab{
 	{AXVMOVQ, C_SAUTO, C_NONE, C_NONE, C_XREG, C_NONE, 8, 4, REGSP, 0},
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
 	{AXVMOVQ, C_ROFF, C_NONE, C_NONE, C_XREG, C_NONE, 21, 4, 0, 0},
-	{AXVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // xvldrepl.{b/h/w/d}
+	{AXVMOVQ, C_SOREG_16, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // xvldrepl.{b/h/w/d}
 	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_SOREG_12, C_NONE, 43, 4, 0, 0}, // xvstelm.{b/h/w/d}
 	// moving data between registers
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 1, 4, 0, 0},
@@ -1534,9 +1534,25 @@ func buildop(ctxt *obj.Link) {
 
 		case AVSHUFB:
 			opset(AVBITSELV, r0)
+			opset(AVFMADDF, r0)
+			opset(AVFMADDD, r0)
+			opset(AVFMSUBF, r0)
+			opset(AVFMSUBD, r0)
+			opset(AVFNMADDF, r0)
+			opset(AVFNMADDD, r0)
+			opset(AVFNMSUBF, r0)
+			opset(AVFNMSUBD, r0)
 
 		case AXVSHUFB:
 			opset(AXVBITSELV, r0)
+			opset(AXVFMADDF, r0)
+			opset(AXVFMADDD, r0)
+			opset(AXVFMSUBF, r0)
+			opset(AXVFMSUBD, r0)
+			opset(AXVFNMADDF, r0)
+			opset(AXVFNMADDD, r0)
+			opset(AXVFNMSUBF, r0)
+			opset(AXVFNMSUBD, r0)
 
 		case AMOVW,
 			AMOVV,
@@ -2862,28 +2878,24 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
 
+		// C_SOREG_12 stops at -2046; the range is checked here instead.
 		si := c.regoff(&p.From)
 		Rj := uint32(p.From.Reg & EXT_REG_MASK)
 		Vd := uint32(p.To.Reg & EXT_REG_MASK)
 		switch v & 0xc00000 {
 		case 0x800000: // [x]vldrepl.b
+			c.checkldreploff(p, si, 0)
 			o1 = OP_12IRR(v, uint32(si), Rj, Vd)
 		case 0x400000: // [x]vldrepl.h
-			if si&1 != 0 {
-				c.ctxt.Diag("%v: offset must be a multiple of 2.\n", p)
-			}
+			c.checkldreploff(p, si, 1)
 			o1 = OP_11IRR(v, uint32(si>>1), Rj, Vd)
 		case 0x0:
 			switch v & 0x300000 {
 			case 0x200000: // [x]vldrepl.w
-				if si&3 != 0 {
-					c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
-				}
+				c.checkldreploff(p, si, 2)
 				o1 = OP_10IRR(v, uint32(si>>2), Rj, Vd)
 			case 0x100000: // [x]vldrepl.d
-				if si&7 != 0 {
-					c.ctxt.Diag("%v: offset must be a multiple of 8.\n", p)
-				}
+				c.checkldreploff(p, si, 3)
 				o1 = OP_9IRR(v, uint32(si>>3), Rj, Vd)
 			}
 		}
@@ -3383,6 +3395,17 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 func (c *ctxt0) checkoperand(p *obj.Prog, operand uint32, mask uint32) {
 	if (operand & ^mask) != 0 {
 		c.ctxt.Diag("operand out of range 0 to %d: %v", mask, p)
+	}
+}
+
+// checkldreploff checks a [x]vldrepl offset for 1<<shift byte elements.
+func (c *ctxt0) checkldreploff(p *obj.Prog, offset int32, shift uint) {
+	size := int32(1) << shift
+	if offset&(size-1) != 0 {
+		c.ctxt.Diag("%v: offset must be a multiple of %d.\n", p, size)
+	}
+	if offset < -2048 || offset > 2048-size {
+		c.ctxt.Diag("%v: offset out of range [-2048, %d].\n", p, 2048-size)
 	}
 }
 
