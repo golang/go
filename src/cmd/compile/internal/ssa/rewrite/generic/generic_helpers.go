@@ -520,15 +520,14 @@ func rewriteFixedLoad(v *ssa.Value, sym ssa.Sym, sb *ssa.Value, off int64) *ssa.
 	if (v.Type.IsPtrShaped() || v.Type.IsUintptr()) && lsym.Type == objabi.SRODATA {
 		for _, r := range lsym.R {
 			if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
-				if strings.HasPrefix(r.Sym.Name, "type:") && !strings.HasPrefix(r.Sym.Name, "type:.") {
+				if r.Sym.IsGoType() {
 					// In case we're loading a type out of a dictionary, we need to record
 					// that the containing function might put that type in an interface.
 					// That information is currently recorded in relocations in the dictionary,
 					// but if we perform this load at compile time then the dictionary
 					// might be dead.
-					// Symbols named "type:.*" (e.g. type:.eqfunc.*, the closure loaded
-					// from a type descriptor's Equal field) are not type descriptors.
-					// See issue 81990.
+					// The loaded symbol may also be a type:.eqfunc.* closure from a type
+					// descriptor's Equal field, which is not a type. See issue 81990.
 					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.Fe.Func().Linksym())
 				} else if strings.HasPrefix(r.Sym.Name, "go:itab") {
 					// Same, but if we're using an itab we need to record that the

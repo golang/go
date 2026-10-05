@@ -41,6 +41,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -1116,6 +1117,17 @@ func (s *LSym) TextAttrString() string {
 
 func (s *LSym) String() string {
 	return s.Name
+}
+
+// IsGoType reports whether s is a Go type descriptor symbol.
+//
+// Other kinds of symbol share the "type:" prefix, in particular the generated
+// equality and hash functions, type:.eqfunc.* and type:.hashfunc.*. Those are
+// code, not type descriptors; what tells them apart is the "." that follows
+// the prefix.
+func (s *LSym) IsGoType() bool {
+	const prefix = "type:"
+	return len(s.Name) > len(prefix) && strings.HasPrefix(s.Name, prefix) && s.Name[len(prefix)] != '.'
 }
 
 // The compiler needs *LSym to be assignable to cmd/compile/internal/ssa.Sym.
