@@ -4,122 +4,102 @@
 
 package archsimd
 
-// LoadInt8x16 loads an Int8x16 from a slice of elements.
-// If s does not have at least 16 elements, it panics.
+// LoadInt8x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadInt8x16(s []int8) (z Int8x16) {
 	return LoadInt8x16Array((*[16]int8)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 16 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Int8x16) Store(s []int8) {
 	x.StoreArray((*[16]int8)(s))
 }
 
-// LoadInt16x8 loads an Int16x8 from a slice of elements.
-// If s does not have at least 8 elements, it panics.
+// LoadInt16x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadInt16x8(s []int16) (z Int16x8) {
 	return LoadInt16x8Array((*[8]int16)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 8 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Int16x8) Store(s []int16) {
 	x.StoreArray((*[8]int16)(s))
 }
 
-// LoadInt32x4 loads an Int32x4 from a slice of elements.
-// If s does not have at least 4 elements, it panics.
+// LoadInt32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadInt32x4(s []int32) (z Int32x4) {
 	return LoadInt32x4Array((*[4]int32)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 4 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Int32x4) Store(s []int32) {
 	x.StoreArray((*[4]int32)(s))
 }
 
-// LoadInt64x2 loads an Int64x2 from a slice of elements.
-// If s does not have at least 2 elements, it panics.
+// LoadInt64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadInt64x2(s []int64) (z Int64x2) {
 	return LoadInt64x2Array((*[2]int64)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 2 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Int64x2) Store(s []int64) {
 	x.StoreArray((*[2]int64)(s))
 }
 
-// LoadUint8x16 loads an Uint8x16 from a slice of elements.
-// If s does not have at least 16 elements, it panics.
+// LoadUint8x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadUint8x16(s []uint8) (z Uint8x16) {
 	return LoadUint8x16Array((*[16]uint8)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 16 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Uint8x16) Store(s []uint8) {
 	x.StoreArray((*[16]uint8)(s))
 }
 
-// LoadUint16x8 loads an Uint16x8 from a slice of elements.
-// If s does not have at least 8 elements, it panics.
+// LoadUint16x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadUint16x8(s []uint16) (z Uint16x8) {
 	return LoadUint16x8Array((*[8]uint16)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 8 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Uint16x8) Store(s []uint16) {
 	x.StoreArray((*[8]uint16)(s))
 }
 
-// LoadUint32x4 loads an Uint32x4 from a slice of elements.
-// If s does not have at least 4 elements, it panics.
+// LoadUint32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadUint32x4(s []uint32) (z Uint32x4) {
 	return LoadUint32x4Array((*[4]uint32)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 4 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Uint32x4) Store(s []uint32) {
 	x.StoreArray((*[4]uint32)(s))
 }
 
-// LoadUint64x2 loads an Uint64x2 from a slice of elements.
-// If s does not have at least 2 elements, it panics.
+// LoadUint64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadUint64x2(s []uint64) (z Uint64x2) {
 	return LoadUint64x2Array((*[2]uint64)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 2 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Uint64x2) Store(s []uint64) {
 	x.StoreArray((*[2]uint64)(s))
 }
 
-// LoadFloat32x4 loads a Float32x4 from a slice of elements.
-// If s does not have at least 4 elements, it panics.
+// LoadFloat32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadFloat32x4(s []float32) (z Float32x4) {
 	return LoadFloat32x4Array((*[4]float32)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 4 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Float32x4) Store(s []float32) {
 	x.StoreArray((*[4]float32)(s))
 }
 
-// LoadFloat64x2 loads a Float64x2 from a slice of elements.
-// If s does not have at least 2 elements, it panics.
+// LoadFloat64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadFloat64x2(s []float64) (z Float64x2) {
 	return LoadFloat64x2Array((*[2]float64)(s))
 }
 
-// Store stores the elements of x into a slice.
-// If s does not have at least 2 elements, it panics.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Float64x2) Store(s []float64) {
 	x.StoreArray((*[2]float64)(s))
 }

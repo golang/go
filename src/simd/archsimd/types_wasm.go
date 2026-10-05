@@ -18,27 +18,28 @@ type Int8x16 struct {
 // Len returns the number of elements in an Int8x16.
 func (x Int8x16) Len() int { return 16 }
 
-// LoadInt8x16Array loads an Int8x16 from a [16]int8.
+// LoadInt8x16Array loads an array into a vector.
 //
 //go:noescape
 func LoadInt8x16Array(x *[16]int8) (z Int8x16)
 
-// LoadInt8x16 loads an Int8x16 from a slice of at least 16 int8s.
+// LoadInt8x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadInt8x16(s []int8) (z Int8x16) {
 	return LoadInt8x16Array((*[16]int8)(s))
 }
 
-// StoreArray stores an Int8x16 to a [16]int8.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Int8x16) StoreArray(y *[16]int8)
 
-// Store stores x into a slice of at least 16 int8s.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Int8x16) Store(s []int8) {
 	x.StoreArray((*[16]int8)(s))
 }
 
-// BroadcastInt8x16 broadcasts an int8 to all elements of an Int8x16 vector.
+// BroadcastInt8x16 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastInt8x16(x int8) (z Int8x16)
 
 // Int16x8 is a 128-bit SIMD vector of 8 int16s.
@@ -50,27 +51,28 @@ type Int16x8 struct {
 // Len returns the number of elements in an Int16x8.
 func (x Int16x8) Len() int { return 8 }
 
-// LoadInt16x8Array loads an Int16x8 from a [8]int16.
+// LoadInt16x8Array loads an array into a vector.
 //
 //go:noescape
 func LoadInt16x8Array(x *[8]int16) (z Int16x8)
 
-// LoadInt16x8 loads an Int16x8 from a slice of at least 8 int16s.
+// LoadInt16x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadInt16x8(s []int16) (z Int16x8) {
 	return LoadInt16x8Array((*[8]int16)(s))
 }
 
-// StoreArray stores an Int16x8 to a [8]int16.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Int16x8) StoreArray(y *[8]int16)
 
-// Store stores x into a slice of at least 8 int16s.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Int16x8) Store(s []int16) {
 	x.StoreArray((*[8]int16)(s))
 }
 
-// BroadcastInt16x8 broadcasts an int16 to all elements of an Int16x8 vector.
+// BroadcastInt16x8 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastInt16x8(x int16) (z Int16x8)
 
 // Int32x4 is a 128-bit SIMD vector of 4 int32s.
@@ -82,27 +84,28 @@ type Int32x4 struct {
 // Len returns the number of elements in an Int32x4.
 func (x Int32x4) Len() int { return 4 }
 
-// LoadInt32x4Array loads an Int32x4 from a [4]int32.
+// LoadInt32x4Array loads an array into a vector.
 //
 //go:noescape
 func LoadInt32x4Array(x *[4]int32) (z Int32x4)
 
-// LoadInt32x4 loads an Int32x4 from a slice of at least 4 int32s.
+// LoadInt32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadInt32x4(s []int32) (z Int32x4) {
 	return LoadInt32x4Array((*[4]int32)(s))
 }
 
-// StoreArray stores an Int32x4 to a [4]int32.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Int32x4) StoreArray(y *[4]int32)
 
-// Store stores x into a slice of at least 4 int32s.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Int32x4) Store(s []int32) {
 	x.StoreArray((*[4]int32)(s))
 }
 
-// BroadcastInt32x4 broadcasts an int32 to all elements of an Int32x4 vector.
+// BroadcastInt32x4 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastInt32x4(x int32) (z Int32x4)
 
 // Int64x2 is a 128-bit SIMD vector of 2 int64s.
@@ -114,27 +117,28 @@ type Int64x2 struct {
 // Len returns the number of elements in an Int64x2.
 func (x Int64x2) Len() int { return 2 }
 
-// LoadInt64x2Array loads an Int64x2 from a [2]int64.
+// LoadInt64x2Array loads an array into a vector.
 //
 //go:noescape
 func LoadInt64x2Array(x *[2]int64) (z Int64x2)
 
-// LoadInt64x2 loads an Int64x2 from a slice of at least 2 int64s.
+// LoadInt64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadInt64x2(s []int64) (z Int64x2) {
 	return LoadInt64x2Array((*[2]int64)(s))
 }
 
-// StoreArray stores an Int64x2 to a [2]int64.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Int64x2) StoreArray(y *[2]int64)
 
-// Store stores x into a slice of at least 2 int64s.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Int64x2) Store(s []int64) {
 	x.StoreArray((*[2]int64)(s))
 }
 
-// BroadcastInt64x2 broadcasts an int64 to all elements of an Int64x2 vector.
+// BroadcastInt64x2 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastInt64x2(x int64) (z Int64x2)
 
 // Uint8x16 is a 128-bit SIMD vector of 16 uint8s.
@@ -146,27 +150,28 @@ type Uint8x16 struct {
 // Len returns the number of elements in a Uint8x16.
 func (x Uint8x16) Len() int { return 16 }
 
-// LoadUint8x16Array loads a Uint8x16 from a [16]uint8.
+// LoadUint8x16Array loads an array into a vector.
 //
 //go:noescape
 func LoadUint8x16Array(x *[16]uint8) (z Uint8x16)
 
-// LoadUint8x16 loads a Uint8x16 from a slice of at least 16 uint8s.
+// LoadUint8x16 loads a slice into a vector. If len(s) < 16, it panics.
 func LoadUint8x16(s []uint8) (z Uint8x16) {
 	return LoadUint8x16Array((*[16]uint8)(s))
 }
 
-// StoreArray stores a Uint8x16 to a [16]uint8.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Uint8x16) StoreArray(y *[16]uint8)
 
-// Store stores x into a slice of at least 16 uint8s.
+// Store stores the elements of x into a slice. If len(s) < 16, it panics.
 func (x Uint8x16) Store(s []uint8) {
 	x.StoreArray((*[16]uint8)(s))
 }
 
-// BroadcastUint8x16 broadcasts a uint8 to all elements of a Uint8x16 vector.
+// BroadcastUint8x16 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastUint8x16(x uint8) (z Uint8x16)
 
 // Uint16x8 is a 128-bit SIMD vector of 8 uint16s.
@@ -178,27 +183,28 @@ type Uint16x8 struct {
 // Len returns the number of elements in a Uint16x8.
 func (x Uint16x8) Len() int { return 8 }
 
-// LoadUint16x8Array loads a Uint16x8 from a [8]uint16.
+// LoadUint16x8Array loads an array into a vector.
 //
 //go:noescape
 func LoadUint16x8Array(x *[8]uint16) (z Uint16x8)
 
-// LoadUint16x8 loads a Uint16x8 from a slice of at least 8 uint16s.
+// LoadUint16x8 loads a slice into a vector. If len(s) < 8, it panics.
 func LoadUint16x8(s []uint16) (z Uint16x8) {
 	return LoadUint16x8Array((*[8]uint16)(s))
 }
 
-// StoreArray stores a Uint16x8 to a [8]uint16.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Uint16x8) StoreArray(y *[8]uint16)
 
-// Store stores x into a slice of at least 8 uint16s.
+// Store stores the elements of x into a slice. If len(s) < 8, it panics.
 func (x Uint16x8) Store(s []uint16) {
 	x.StoreArray((*[8]uint16)(s))
 }
 
-// BroadcastUint16x8 broadcasts a uint16 to all elements of a Uint16x8 vector.
+// BroadcastUint16x8 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastUint16x8(x uint16) (z Uint16x8)
 
 // Uint32x4 is a 128-bit SIMD vector of 4 uint32s.
@@ -210,27 +216,28 @@ type Uint32x4 struct {
 // Len returns the number of elements in a Uint32x4.
 func (x Uint32x4) Len() int { return 4 }
 
-// LoadUint32x4Array loads a Uint32x4 from a [4]uint32.
+// LoadUint32x4Array loads an array into a vector.
 //
 //go:noescape
 func LoadUint32x4Array(x *[4]uint32) (z Uint32x4)
 
-// LoadUint32x4 loads a Uint32x4 from a slice of at least 4 uint32s.
+// LoadUint32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadUint32x4(s []uint32) (z Uint32x4) {
 	return LoadUint32x4Array((*[4]uint32)(s))
 }
 
-// StoreArray stores a Uint32x4 to a [4]uint32.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Uint32x4) StoreArray(y *[4]uint32)
 
-// Store stores x into a slice of at least 4 uint32s.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Uint32x4) Store(s []uint32) {
 	x.StoreArray((*[4]uint32)(s))
 }
 
-// BroadcastUint32x4 broadcasts a uint32 to all elements of a Uint32x4 vector.
+// BroadcastUint32x4 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastUint32x4(x uint32) (z Uint32x4)
 
 // Uint64x2 is a 128-bit SIMD vector of 2 uint64s.
@@ -242,27 +249,28 @@ type Uint64x2 struct {
 // Len returns the number of elements in a Uint64x2.
 func (x Uint64x2) Len() int { return 2 }
 
-// LoadUint64x2Array loads a Uint64x2 from a [2]uint64.
+// LoadUint64x2Array loads an array into a vector.
 //
 //go:noescape
 func LoadUint64x2Array(x *[2]uint64) (z Uint64x2)
 
-// LoadUint64x2 loads a Uint64x2 from a slice of at least 2 uint64s.
+// LoadUint64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadUint64x2(s []uint64) (z Uint64x2) {
 	return LoadUint64x2Array((*[2]uint64)(s))
 }
 
-// StoreArray stores a Uint64x2 to a [2]uint64.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Uint64x2) StoreArray(y *[2]uint64)
 
-// Store stores x into a slice of at least 2 uint64s.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Uint64x2) Store(s []uint64) {
 	x.StoreArray((*[2]uint64)(s))
 }
 
-// BroadcastUint64x2 broadcasts a uint64 to all elements of a Uint64x2 vector.
+// BroadcastUint64x2 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastUint64x2(x uint64) (z Uint64x2)
 
 // Float32x4 is a 128-bit SIMD vector of 4 float32s.
@@ -274,27 +282,28 @@ type Float32x4 struct {
 // Len returns the number of elements in a Float32x4.
 func (x Float32x4) Len() int { return 4 }
 
-// LoadFloat32x4Array loads a Float32x4 from a [4]float32.
+// LoadFloat32x4Array loads an array into a vector.
 //
 //go:noescape
 func LoadFloat32x4Array(x *[4]float32) (z Float32x4)
 
-// LoadFloat32x4 loads a Float32x4 from a slice of at least 4 float32s.
+// LoadFloat32x4 loads a slice into a vector. If len(s) < 4, it panics.
 func LoadFloat32x4(s []float32) (z Float32x4) {
 	return LoadFloat32x4Array((*[4]float32)(s))
 }
 
-// StoreArray stores a Float32x4 to a [4]float32.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Float32x4) StoreArray(y *[4]float32)
 
-// Store stores x into a slice of at least 4 float32s.
+// Store stores the elements of x into a slice. If len(s) < 4, it panics.
 func (x Float32x4) Store(s []float32) {
 	x.StoreArray((*[4]float32)(s))
 }
 
-// BroadcastFloat32x4 broadcasts a float32 to all elements of a Float32x4 vector.
+// BroadcastFloat32x4 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastFloat32x4(x float32) (z Float32x4)
 
 // Float64x2 is a 128-bit SIMD vector of 2 float64s.
@@ -306,27 +315,28 @@ type Float64x2 struct {
 // Len returns the number of elements in a Float64x2.
 func (x Float64x2) Len() int { return 2 }
 
-// LoadFloat64x2Array loads a Float64x2 from a [2]float64.
+// LoadFloat64x2Array loads an array into a vector.
 //
 //go:noescape
 func LoadFloat64x2Array(x *[2]float64) (z Float64x2)
 
-// LoadFloat64x2 loads a Float64x2 from a slice of at least 2 float64s.
+// LoadFloat64x2 loads a slice into a vector. If len(s) < 2, it panics.
 func LoadFloat64x2(s []float64) (z Float64x2) {
 	return LoadFloat64x2Array((*[2]float64)(s))
 }
 
-// StoreArray stores a Float64x2 to a [2]float64.
+// StoreArray stores the elements of x to an array.
 //
 //go:noescape
 func (x Float64x2) StoreArray(y *[2]float64)
 
-// Store stores x into a slice of at least 2 float64s.
+// Store stores the elements of x into a slice. If len(s) < 2, it panics.
 func (x Float64x2) Store(s []float64) {
 	x.StoreArray((*[2]float64)(s))
 }
 
-// BroadcastFloat64x2 broadcasts a float64 to all elements of a Float64x2 vector.
+// BroadcastFloat64x2 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastFloat64x2(x float64) (z Float64x2)
 
 // Mask8x16 is a 128-bit SIMD mask of 16 int8s.

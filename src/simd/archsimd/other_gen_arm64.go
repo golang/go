@@ -4,71 +4,71 @@
 
 package archsimd
 
-// BroadcastInt8x16 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastInt8x16 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastInt8x16(x int8) (z Int8x16) {
 	var v Int8x16
 	return v.SetElem(0, x).broadcast1To16()
 }
 
-// BroadcastInt16x8 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastInt16x8 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastInt16x8(x int16) (z Int16x8) {
 	var v Int16x8
 	return v.SetElem(0, x).broadcast1To8()
 }
 
-// BroadcastInt32x4 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastInt32x4 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastInt32x4(x int32) (z Int32x4) {
 	var v Int32x4
 	return v.SetElem(0, x).broadcast1To4()
 }
 
-// BroadcastInt64x2 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastInt64x2 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastInt64x2(x int64) (z Int64x2) {
 	var v Int64x2
 	return v.SetElem(0, x).broadcast1To2()
 }
 
-// BroadcastUint8x16 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastUint8x16 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastUint8x16(x uint8) (z Uint8x16) {
 	var v Uint8x16
 	return v.SetElem(0, x).broadcast1To16()
 }
 
-// BroadcastUint16x8 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastUint16x8 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastUint16x8(x uint16) (z Uint16x8) {
 	var v Uint16x8
 	return v.SetElem(0, x).broadcast1To8()
 }
 
-// BroadcastUint32x4 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastUint32x4 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastUint32x4(x uint32) (z Uint32x4) {
 	var v Uint32x4
 	return v.SetElem(0, x).broadcast1To4()
 }
 
-// BroadcastUint64x2 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastUint64x2 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastUint64x2(x uint64) (z Uint64x2) {
 	var v Uint64x2
 	return v.SetElem(0, x).broadcast1To2()
 }
 
-// BroadcastFloat32x4 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastFloat32x4 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastFloat32x4(x float32) (z Float32x4) {
 	var v Float32x4
 	return v.SetElem(0, x).broadcast1To4()
 }
 
-// BroadcastFloat64x2 returns a vector with the input
-// x assigned to all elements of the output.
+// BroadcastFloat64x2 returns a vector with the input x assigned to all elements of the
+// result.
 func BroadcastFloat64x2(x float64) (z Float64x2) {
 	var v Float64x2
 	return v.SetElem(0, x).broadcast1To2()

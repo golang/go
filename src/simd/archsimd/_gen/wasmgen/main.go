@@ -1083,7 +1083,6 @@ func main() {
 	var files gentools.Files
 	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
 		AllowDocRewrite: true,
-		NoFillDoc:       true,
 	}))
 	defer files.FlushOrExit()
 

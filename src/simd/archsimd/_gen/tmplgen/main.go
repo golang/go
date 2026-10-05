@@ -1390,7 +1390,6 @@ func main() {
 	specIdx := specgen.NewIndex(specFuncs)
 	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
 		AllowDocRewrite: true,
-		NoFillDoc:       true,
 	}))
 
 	defer files.FlushOrExit()

@@ -14,7 +14,7 @@ String and Len are excluded throughout (§2.7).
 Heading for 100%:
 
 spec coverage, by (receiver, name) (§1)           777 / 2893   27%  [spec-common, spec-all]
-docs sourced from spec (§3)                       659 / 1301   51%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+docs sourced from spec (§3)                      1060 / 1301   81%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
@@ -22,7 +22,7 @@ type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
 hand-written doc conflicts with spec (§3)         157 -> 0       [doc-triage]
-simd mirror drift (§3)                             64 -> 0       [comments-yaml]
+simd mirror drift (§3)                            148 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
 midway/comments.yaml entries spec covers (§4)      26 -> 0       [comments-yaml, spec-all]
 
@@ -87,9 +87,9 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec    659 / 1301   51%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   1060 / 1301   81%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
-simd ∩ archsimd methods with matching docs          0 / 253     0%  [gen-docs, comments-yaml]
+simd ∩ archsimd methods with matching docs        104 / 253    41%  [gen-docs, comments-yaml]
 
 hand-written doc conflicts with spec              157 -> 0       [doc-triage]
     archsimd/slicepart_128.go                       8 -> 0       [doc-triage]
@@ -97,7 +97,7 @@ hand-written doc conflicts with spec              157 -> 0       [doc-triage]
     archsimd/slicepart_arm64.go                    12 -> 0       [doc-triage]
     archsimd/slicepart_wasm.go                     12 -> 0       [doc-triage]
     simd_emulated.go                              121 -> 0       [doc-triage]
-drifted docs in simd mirror (stubs vs emulated)    64 -> 0       [comments-yaml]
+drifted docs in simd mirror (stubs vs emulated)   148 -> 0       [comments-yaml]
   mirrored declarations                           356
 
 
