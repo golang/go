@@ -477,6 +477,24 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantJSON: `{"msg":"message","h":{"b":2},"c":3}`,
 		},
 		{
+			name: "empty group from LogValuer and ReplaceAttr",
+			with: func(h Handler) Handler {
+				return h.WithGroup("w").WithAttrs([]Attr{Group("wg"), Attr{}})
+			},
+			replace: func(gs []string, a Attr) Attr {
+				if a.Key == "a" {
+					return Group("h")
+				}
+				return removeKeys(TimeKey, LevelKey)(gs, a)
+			},
+			attrs: []Attr{
+				Group("g1", Int("a", 1)),
+				Group("g2", Any("b", &replace{GroupValue()})),
+			},
+			wantText: "msg=message",
+			wantJSON: `{"msg":"message"}`,
+		},
+		{
 			name: "replace empty 1",
 			with: func(h Handler) Handler {
 				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)})
