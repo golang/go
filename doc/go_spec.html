@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.28 (September 24, 2026)",
+	"Subtitle": "Language version go1.28 (October 6, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -7883,7 +7883,8 @@ allocates a variable of type <code>T</code> initialized to its
 
 <p>
 If the argument is an expression <code>x</code>, then <code>new(x)</code>
-allocates a variable of the type of <code>x</code> initialized to the value of <code>x</code>.
+allocates a variable of the type of <code>x</code> initialized to the value of <code>x</code>
+[<a href="#Go_1.26">Go 1.26</a>].
 If that value is an untyped constant, it is first implicitly <a href="#Conversions">converted</a>
 to its <a href="#Constants">default type</a>;
 if it is an untyped boolean value, it is first implicitly converted to type bool.
@@ -8844,6 +8845,17 @@ function as range expression.
 <li>
 An <a href="#Alias_declarations">alias declaration</a> may declare
 <a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+</ul>
+
+<h4 id="Go_1.26">Go 1.26</h4>
+<ul>
+<li>
+The predeclared function <a href="#Allocation"><code>new</code></a> may also be used
+with an expression (rather than a type) argument.
+</li>
+<li>
+Generic type declarations may refer to themselves in their own type parameter list.
 </li>
 </ul>
 
