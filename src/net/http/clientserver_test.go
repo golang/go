@@ -1366,8 +1366,8 @@ func testTransportDiscardsUnneededConns(t *testing.T, mode testMode) {
 // tests that Transport doesn't retain a pointer to the provided request.
 func TestTransportGCRequest(t *testing.T) {
 	runNoSynctest(t, func(t *testing.T, mode testMode) {
-		t.Run("Body", func(t *testing.T) { testTransportGCRequest(t, mode, true) })
-		t.Run("NoBody", func(t *testing.T) { testTransportGCRequest(t, mode, false) })
+		synctest.Subtest(t, "Body", func(t *testing.T) { testTransportGCRequest(t, mode, true) })
+		synctest.Subtest(t, "NoBody", func(t *testing.T) { testTransportGCRequest(t, mode, false) })
 	})
 }
 func testTransportGCRequest(t *testing.T, mode testMode, body bool) {
@@ -1378,11 +1378,11 @@ func testTransportGCRequest(t *testing.T, mode testMode, body bool) {
 		}
 	}))
 
-	didGC := make(chan struct{})
+	var didGC atomic.Bool
 	(func() {
 		body := strings.NewReader("some body")
 		req, _ := NewRequest("POST", cst.ts.URL, body)
-		runtime.AddCleanup(req, func(ch chan struct{}) { close(ch) }, didGC)
+		runtime.AddCleanup(req, func(v *atomic.Bool) { v.Store(true) }, &didGC)
 		res, err := cst.c.Do(req)
 		if err != nil {
 			t.Fatal(err)
@@ -1394,13 +1394,9 @@ func testTransportGCRequest(t *testing.T, mode testMode, body bool) {
 			t.Fatal(err)
 		}
 	})()
-	for {
-		select {
-		case <-didGC:
-			return
-		case <-time.After(1 * time.Millisecond):
-			runtime.GC()
-		}
+	for !didGC.Load() {
+		runtime.Gosched()
+		runtime.GC()
 	}
 }
 
