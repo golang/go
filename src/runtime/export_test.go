@@ -576,6 +576,10 @@ func NextArenaHint() (uintptr, bool) {
 
 const RandomizeHeapBase = randomizeHeapBase
 
+func ValidArenaAddr(p uintptr) bool {
+	return arenaIndex(p) < 1<<arenaBits
+}
+
 // ArenaHintAddrs returns the heap's remaining arena hint addresses, in
 // chain order.
 func ArenaHintAddrs() []uintptr {

@@ -529,6 +529,9 @@ func mallocinit() {
 			topBits := (randHeapAddrBits - logHeapArenaBytes)
 			randHeapBase = nextHeapRandBits(topBits) << (randHeapAddrBits - topBits)
 			randHeapBase = alignUp(randHeapBase, heapArenaBytes)
+			if GOOS == "aix" {
+				randHeapBase += arenaBaseOffset
+			}
 			randHeapBasePrefix = byte(randHeapBase >> (randHeapAddrBits - 8))
 		}
 
@@ -564,7 +567,11 @@ func mallocinit() {
 				}
 			case randomizeHeapBase:
 				prefix := uintptr(randHeapBasePrefix+byte(i)) << (randHeapAddrBits - 8)
-				p = prefix | (randHeapBase & randHeapBasePrefixMask)
+				if GOOS == "aix" {
+					p = arenaBaseOffset + (prefix | ((randHeapBase - arenaBaseOffset) & randHeapBasePrefixMask))
+				} else {
+					p = prefix | (randHeapBase & randHeapBasePrefixMask)
+				}
 			case GOARCH == "arm64" && GOOS == "ios":
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
@@ -721,7 +728,7 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 		} else {
 			v = sysReserve(unsafe.Pointer(p), n, "heap reservation")
 		}
-		if p == uintptr(v) {
+		if p == uintptr(v) && v != nil {
 			// Success. Update the hint.
 			if !hint.down {
 				p += n

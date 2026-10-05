@@ -903,6 +903,12 @@ func TestArenaHintChainGeneration(t *testing.T) {
 	seen := make(map[uintptr]bool, len(addrs))
 	descents := 0
 	for i, a := range addrs {
+		if a == 0 {
+			t.Errorf("zero arena hint address at index %d", i)
+		}
+		if !ValidArenaAddr(a) {
+			t.Errorf("arena hint address %#x outside valid arena address space", a)
+		}
 		if seen[a] {
 			t.Errorf("duplicate arena hint address %#x", a)
 		}
