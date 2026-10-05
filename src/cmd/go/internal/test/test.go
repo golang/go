@@ -1943,7 +1943,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		}
 		return false
 	}
-	testInputsID, err := computeTestInputsID(a, data)
+	testInputsID, err := computeTestInputsID(a, data, nil)
 	if err != nil {
 		return false
 	}
@@ -2038,12 +2038,13 @@ var testInputsQueue = par.NewQueue(runtime.GOMAXPROCS(0))
 
 // computeTestInputsID computes the "test inputs ID"
 // (see comment in tryCacheWithID above) for the
-// test log.
+// test log. If inputs is not nil, computeTestInputsID writes
+// to it a test log of just the entries that the ID depends on.
 //
 // testing/internal/testdeps omits an entry it has already written
 // since the last chdir, so what an entry contributes here must not
 // depend on how many times the test used that input.
-func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error) {
+func computeTestInputsID(a *work.Action, testlog []byte, inputs *bytes.Buffer) (cache.ActionID, error) {
 	testlog = bytes.TrimPrefix(testlog, testlogMagic)
 	h := cache.NewHash("testInputs")
 	// The runtime always looks at GODEBUG, without telling us in the testlog.
@@ -2134,6 +2135,9 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 
 	// We have all the test log op results now.
 	// Next, combine them in the original order for the final hash.
+	if inputs != nil {
+		inputs.Write(testlogMagic)
+	}
 	for _, l := range logOps {
 		op, name := l.op, l.name
 		actionID, err := logOpCache.Get(logOp{op: op, name: name})
@@ -2150,6 +2154,9 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 		}
 
 		fmt.Fprintf(h, "%s %s %x\n", op, name, actionID)
+		if inputs != nil {
+			fmt.Fprintf(inputs, "%s %s\n", op, name)
+		}
 	}
 
 	sum := h.Sum()
@@ -2263,10 +2270,15 @@ func (c *runCache) saveOutput(a *work.Action) {
 		}
 		return
 	}
-	testInputsID, err := computeTestInputsID(a, testlog)
+	// Store only the entries that went into testInputsID: the rest are
+	// outside the package root, and checking them again on every cache
+	// lookup can take longer than running the test (go.dev/issue/26562).
+	var inputs bytes.Buffer
+	testInputsID, err := computeTestInputsID(a, testlog, &inputs)
 	if err != nil {
 		return
 	}
+	testlog = inputs.Bytes()
 	var coverProfile []byte
 	if testCoverProfile != "" {
 		coverProfile, err = os.ReadFile(coverProfTempFile(a))
