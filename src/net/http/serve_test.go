@@ -1756,7 +1756,7 @@ func testReaderFromTooLong(t *testing.T, mode testMode) {
 }
 
 func TestTLSHandshakeTimeout(t *testing.T) {
-	runNoSynctest(t, testTLSHandshakeTimeout, []testMode{https1Mode, http2Mode})
+	runSynctest(t, testTLSHandshakeTimeout, []testMode{https1Mode, http2Mode})
 }
 func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
 	errLog := new(strings.Builder)
@@ -1765,20 +1765,19 @@ func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
 			ts.Config.ReadTimeout = 250 * time.Millisecond
 			ts.Config.ErrorLog = log.New(errLog, "", 0)
 		},
-		optRealNet,
 	)
-	ts := cst.ts
 
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("Dial: %v", err)
-	}
+	start := time.Now()
+	_, conn := cst.dialNettest()
 	var buf [1]byte
 	n, err := conn.Read(buf[:])
 	if err == nil || n != 0 {
 		t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
 	}
 	conn.Close()
+	if got, want := time.Since(start), cst.ts.Config.ReadTimeout; got != want {
+		t.Errorf("read took %v, want TLS handshake timeout after %v", got, want)
+	}
 
 	cst.close()
 	if v := errLog.String(); !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
@@ -3653,7 +3652,9 @@ func testRequestBodyLimit(t *testing.T, mode testMode) {
 
 // TestClientWriteShutdown tests that if the client shuts down the write
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
-func TestClientWriteShutdown(t *testing.T) { runNoSynctest(t, testClientWriteShutdown, http3SkippedMode) }
+func TestClientWriteShutdown(t *testing.T) {
+	runNoSynctest(t, testClientWriteShutdown, http3SkippedMode)
+}
 func testClientWriteShutdown(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/17906")
