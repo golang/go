@@ -526,8 +526,8 @@ func rewriteFixedLoad(v *ssa.Value, sym ssa.Sym, sb *ssa.Value, off int64) *ssa.
 					// That information is currently recorded in relocations in the dictionary,
 					// but if we perform this load at compile time then the dictionary
 					// might be dead.
-					// The loaded symbol may also be a type:.eqfunc.* closure from a type
-					// descriptor's Equal field, which is not a type. See issue 81990.
+					// IsGoType excludes the type:.eqfunc.* closure that a type descriptor's
+					// Equal field points to, which is not a type. See issue 81990.
 					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.Fe.Func().Linksym())
 				} else if strings.HasPrefix(r.Sym.Name, "go:itab") {
 					// Same, but if we're using an itab we need to record that the
