@@ -3615,53 +3615,35 @@ func testTransportClosesRequestBody(t *testing.T, mode testMode) {
 }
 
 func TestTransportTLSHandshakeTimeout(t *testing.T) {
-	defer afterTest(t)
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-	ln := newLocalListener(t)
-	defer ln.Close()
-	testdonec := make(chan struct{})
-	defer close(testdonec)
+	synctest.Test(t, func(t *testing.T) {
+		tt := newHTTP1TransportTest(t)
+		tt.tr.TLSHandshakeTimeout = 250 * time.Millisecond
 
-	go func() {
-		c, err := ln.Accept()
-		if err != nil {
-			t.Error(err)
-			return
+		start := time.Now()
+		req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+		rt := tt.roundTrip(req)
+		dial := tt.wantDial("tcp", "dummy.tld:443")
+		dial.connect()
+
+		<-rt.donec
+		if got, want := time.Since(start), tt.tr.TLSHandshakeTimeout; got != want {
+			t.Errorf("Get took %v, want %v", got, want)
 		}
-		<-testdonec
-		c.Close()
-	}()
-
-	tr := &Transport{
-		Dial: func(_, _ string) (net.Conn, error) {
-			return net.Dial("tcp", ln.Addr().String())
-		},
-		TLSHandshakeTimeout: 250 * time.Millisecond,
-	}
-	cl := &Client{Transport: tr}
-	_, err := cl.Get("https://dummy.tld/")
-	if err == nil {
-		t.Error("expected error")
-		return
-	}
-	ue, ok := err.(*url.Error)
-	if !ok {
-		t.Errorf("expected url.Error; got %#v", err)
-		return
-	}
-	ne, ok := ue.Err.(net.Error)
-	if !ok {
-		t.Errorf("expected net.Error; got %#v", err)
-		return
-	}
-	if !ne.Timeout() {
-		t.Errorf("expected timeout error; got %v", err)
-	}
-	if !strings.Contains(err.Error(), "handshake timeout") {
-		t.Errorf("expected 'handshake timeout' in error; got %v", err)
-	}
+		err := rt.err()
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		ne, ok := err.(net.Error)
+		if !ok {
+			t.Fatalf("expected net.Error; got %#v", err)
+		}
+		if !ne.Timeout() {
+			t.Fatalf("expected timeout error; got %v", err)
+		}
+		if !strings.Contains(err.Error(), "handshake timeout") {
+			t.Fatalf("expected 'handshake timeout' in error; got %v", err)
+		}
+	})
 }
 
 // Trying to repro golang.org/issue/3514
