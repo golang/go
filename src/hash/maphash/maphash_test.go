@@ -354,6 +354,25 @@ func TestWriteComparable(t *testing.T) {
 	testWriteComparableNoEqual(t, struct{ a, b any }{int(0), struct{}{}}, struct{ a, b any }{struct{}{}, int(0)})
 }
 
+func TestWriteComparableUnseeded(t *testing.T) {
+	for _, n := range []int{0, 1, bufSize} {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			s := strings.Repeat("a", n)
+			var h1, h2 Hash
+			h1.WriteString(s)
+			WriteComparable(&h1, 123)
+
+			h2.SetSeed(h1.Seed())
+			h2.WriteString(s)
+			WriteComparable(&h2, 123)
+
+			if got, want := h1.Sum64(), h2.Sum64(); got != want {
+				t.Errorf("unseeded hash = %#x, want %#x", got, want)
+			}
+		})
+	}
+}
+
 func testWriteComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
 	seed := MakeSeed()
 	h1 := Hash{}

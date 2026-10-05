@@ -85,9 +85,10 @@ func String(seed Seed, s string) uint64 {
 // A Hash computes a seeded hash of a byte sequence.
 //
 // The zero Hash is a valid Hash ready to use.
-// A zero Hash chooses a random seed for itself during
-// the first call to a Reset, Write, Seed, Clone, or Sum64 method.
+//
 // For control over the seed, use SetSeed.
+// If [Hash.SetSeed] is not called, the Hash
+// chooses a random seed as needed.
 //
 // The computed hash values depend only on the initial seed and
 // the sequence of bytes provided to the Hash object, not on the way
@@ -305,6 +306,7 @@ func Comparable[T comparable](seed Seed, v T) uint64 {
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
 	abi.EscapeNonString(x)
+	h.initSeed()
 	// writeComparable directly operates on h.state
 	// without using h.buf. Mix in the buffer length so it won't
 	// commute with a buffered write, which either changes h.n or changes
