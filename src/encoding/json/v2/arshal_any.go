@@ -109,7 +109,7 @@ func marshalObjectAny(enc *jsontext.Encoder, obj map[string]any, mo *jsonopts.St
 	xe := export.Encoder(enc)
 	if xe.Tokens.Depth() > startDetectingCyclesAfter {
 		v := reflect.ValueOf(obj)
-		if err := visitPointer(&xe.SeenPointers, v); err != nil {
+		if err := visitPointer(&xe.SeenPointers, v, mo); err != nil {
 			return newMarshalErrorBefore(enc, mapStringAnyType, err)
 		}
 		defer leavePointer(&xe.SeenPointers, v)
@@ -225,7 +225,7 @@ func marshalArrayAny(enc *jsontext.Encoder, arr []any, mo *jsonopts.Struct) erro
 	xe := export.Encoder(enc)
 	if xe.Tokens.Depth() > startDetectingCyclesAfter {
 		v := reflect.ValueOf(arr)
-		if err := visitPointer(&xe.SeenPointers, v); err != nil {
+		if err := visitPointer(&xe.SeenPointers, v, mo); err != nil {
 			return newMarshalErrorBefore(enc, sliceAnyType, err)
 		}
 		defer leavePointer(&xe.SeenPointers, v)
