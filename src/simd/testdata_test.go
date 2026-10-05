@@ -127,3 +127,10 @@ func TestB81614(t *testing.T) {
 	run(t, "testdata/b81614c", "./main", "")
 	run(t, "testdata/b81614d", "./main", "")
 }
+
+func TestLoadPart(t *testing.T) {
+	common(t, "testdata", "loadpart_test.go", "")
+	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
+		common(t, "testdata", "loadpart_test.go", "", "GODEBUG=simd=0")
+	}
+}
