@@ -354,6 +354,27 @@ func TestWriteComparable(t *testing.T) {
 	testWriteComparableNoEqual(t, struct{ a, b any }{int(0), struct{}{}}, struct{ a, b any }{struct{}{}, int(0)})
 }
 
+// TestWriteComparableZeroHash verifies that WriteComparable on a zero-value Hash
+// initializes the seed before updating state, so later Seed/Sum64 do not wipe
+// the comparable input (issue #81988).
+func TestWriteComparableZeroHash(t *testing.T) {
+	var uninitialized Hash
+	WriteComparable(&uninitialized, 123)
+	seed := uninitialized.Seed()
+
+	var initialized, empty Hash
+	initialized.SetSeed(seed)
+	WriteComparable(&initialized, 123)
+	empty.SetSeed(seed)
+
+	if uninitialized.Sum64() == empty.Sum64() {
+		t.Errorf("WriteComparable on zero-value Hash matched empty Hash with same seed")
+	}
+	if uninitialized.Sum64() != initialized.Sum64() {
+		t.Errorf("WriteComparable on zero-value Hash did not match initialized Hash with same seed and input")
+	}
+}
+
 func testWriteComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
 	seed := MakeSeed()
 	h1 := Hash{}

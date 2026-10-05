@@ -305,6 +305,7 @@ func Comparable[T comparable](seed Seed, v T) uint64 {
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
 	abi.EscapeNonString(x)
+	h.initSeed()
 	// writeComparable directly operates on h.state
 	// without using h.buf. Mix in the buffer length so it won't
 	// commute with a buffered write, which either changes h.n or changes
