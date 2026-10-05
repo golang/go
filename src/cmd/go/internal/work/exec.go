@@ -1964,7 +1964,6 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 
 	ecfg := &exportConfig{
 		ImportPath:  a.Package.ImportPath,
-		Compiler:    cfg.BuildToolchainName,
 		GoVersion:   "go" + v,
 		GoFiles:     srcs,
 		ImportMap:   make(map[string]string),
