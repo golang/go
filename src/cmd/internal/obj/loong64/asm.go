@@ -2835,24 +2835,37 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		index := uint32(p.From.Index)
 		c.checkindex(p, index, m)
 
+		// The offset field is si8 scaled by the element size.
 		si := c.regoff(&p.To)
 		switch v & 0x00F00000 {
 		case 0x00100000: // [x]vstelm.d
 			if si&7 != 0 {
 				c.ctxt.Diag("%v: offset must be a multiple of 8.\n", p)
 			}
+			if si < -1024 || si > 1016 {
+				c.ctxt.Diag("%v: offset out of range [-1024, 1016].\n", p)
+			}
 			o1 = OP_5IIRR(v, index, uint32(si>>3)&0xff, rj, vd)
 		case 0x00200000: // [x]vstelm.w
 			if si&3 != 0 {
 				c.ctxt.Diag("%v: offset must be a multiple of 4.\n", p)
+			}
+			if si < -512 || si > 508 {
+				c.ctxt.Diag("%v: offset out of range [-512, 508].\n", p)
 			}
 			o1 = OP_5IIRR(v, index, uint32(si>>2)&0xff, rj, vd)
 		case 0x00400000: // [x]vstelm.h
 			if si&1 != 0 {
 				c.ctxt.Diag("%v: offset must be a multiple of 2.\n", p)
 			}
+			if si < -256 || si > 254 {
+				c.ctxt.Diag("%v: offset out of range [-256, 254].\n", p)
+			}
 			o1 = OP_5IIRR(v, index, uint32(si>>1)&0xff, rj, vd)
 		case 0x00800000: // [x]vstelm.b
+			if si < -128 || si > 127 {
+				c.ctxt.Diag("%v: offset out of range [-128, 127].\n", p)
+			}
 			o1 = OP_5IIRR(v, index, uint32(si)&0xff, rj, vd)
 		}
 
