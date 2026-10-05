@@ -59,9 +59,12 @@ type typedPointer struct {
 
 // visitPointer visits pointer p of type t, reporting an error if seen before.
 // If successfully visited, then the caller must eventually call leave.
-func visitPointer(m *seenPointers, v reflect.Value) error {
+func visitPointer(m *seenPointers, v reflect.Value, mo *jsonopts.Struct) error {
 	p := typedPointer{v.Type(), v.UnsafePointer(), sliceLen(v)}
 	if _, ok := (*m)[p]; ok {
+		if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+			return &internal.ValueError{Val: v.Interface(), Err: internal.ErrCycle}
+		}
 		return internal.ErrCycle
 	}
 	if *m == nil {
@@ -897,7 +900,7 @@ func makeMapMarshaler(t reflect.Type) *marshaler {
 		// Check for cycles.
 		xe := export.Encoder(enc)
 		if xe.Tokens.Depth() > startDetectingCyclesAfter {
-			if err := visitPointer(&xe.SeenPointers, va.Value); err != nil {
+			if err := visitPointer(&xe.SeenPointers, va.Value, mo); err != nil {
 				return newMarshalErrorBefore(enc, t, err)
 			}
 			defer leavePointer(&xe.SeenPointers, va.Value)
@@ -1636,7 +1639,7 @@ func makeSliceMarshaler(t reflect.Type) *marshaler {
 		// Check for cycles.
 		xe := export.Encoder(enc)
 		if xe.Tokens.Depth() > startDetectingCyclesAfter {
-			if err := visitPointer(&xe.SeenPointers, va.Value); err != nil {
+			if err := visitPointer(&xe.SeenPointers, va.Value, mo); err != nil {
 				return newMarshalErrorBefore(enc, t, err)
 			}
 			defer leavePointer(&xe.SeenPointers, va.Value)
@@ -1911,7 +1914,7 @@ func makePointerMarshaler(t reflect.Type) *marshaler {
 		// Check for cycles.
 		xe := export.Encoder(enc)
 		if xe.Tokens.Depth() > startDetectingCyclesAfter {
-			if err := visitPointer(&xe.SeenPointers, va.Value); err != nil {
+			if err := visitPointer(&xe.SeenPointers, va.Value, mo); err != nil {
 				return newMarshalErrorBefore(enc, t, err)
 			}
 			defer leavePointer(&xe.SeenPointers, va.Value)

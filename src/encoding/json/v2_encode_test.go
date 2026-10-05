@@ -471,6 +471,39 @@ func TestUnsupportedValueErrorValue(t *testing.T) {
 	}
 }
 
+// Issue 82079: UnsupportedValueError.Value should hold the value with the cycle.
+func TestUnsupportedValueErrorValueCycle(t *testing.T) {
+	tests := []struct {
+		CaseName
+		in   any
+		want reflect.Type
+	}{
+		{Name(""), pointerCycle, reflect.TypeFor[*PointerCycle]()},
+		{Name(""), pointerCycleIndirect, reflect.TypeFor[*PointerCycleIndirect]()},
+		{Name(""), mapCycle, reflect.TypeFor[map[string]any]()},
+		{Name(""), sliceCycle, reflect.TypeFor[[]any]()},
+		{Name(""), recursiveSliceCycle, reflect.TypeFor[RecursiveSlice]()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			_, err := Marshal(tt.in)
+			uve, ok := err.(*UnsupportedValueError)
+			if !ok {
+				t.Fatalf("%s: Marshal error:\n\tgot:  %T\n\twant: %T", tt.Where, err, new(UnsupportedValueError))
+			}
+			if !uve.Value.IsValid() {
+				t.Fatalf("%s: UnsupportedValueError.Value is invalid", tt.Where)
+			}
+			if got := uve.Value.Type(); got != tt.want {
+				t.Fatalf("%s: UnsupportedValueError.Value.Type = %v, want %v", tt.Where, got, tt.want)
+			}
+			if got, want := uve.Str, "encountered a cycle via "+tt.want.String(); got != want {
+				t.Fatalf("%s: UnsupportedValueError.Str = %q, want %q", tt.Where, got, want)
+			}
+		})
+	}
+}
+
 // Issue 43207
 func TestMarshalTextFloatMap(t *testing.T) {
 	m := map[textfloat]string{
