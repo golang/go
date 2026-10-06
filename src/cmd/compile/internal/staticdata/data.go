@@ -288,6 +288,11 @@ func WriteFuncSyms() {
 		if target.ABI() != obj.ABIInternal {
 			base.Fatalf("expected ABIInternal: %v has %v", target, target.ABI())
 		}
+		// A function value of reflect.Value.Method or MethodByName may be
+		// called with a method name the compiler cannot see; see usemethod.
+		if s.Pkg.Path == "reflect" && (s.Name == "Value.Method" || s.Name == "Value.MethodByName") {
+			sf.Set(obj.AttrReflectMethod, true)
+		}
 		objw.SymPtr(sf, 0, target, 0)
 		objw.Global(sf, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
 	}

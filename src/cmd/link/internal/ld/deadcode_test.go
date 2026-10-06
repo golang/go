@@ -30,6 +30,11 @@ func TestDeadcode(t *testing.T) {
 		{"ifacemethod5", []string{"main.S.M"}, nil},
 		{"ifacemethod6", []string{"main.S.M"}, []string{"main.S.N"}},
 		{"structof_funcof", []string{"main.S.M"}, []string{"main.S.N"}},
+		{"methexpr_local", []string{"main.T.M"}, nil},
+		{"methexpr_pkgvar", []string{"main.T.M"}, nil},
+		{"methexpr_complit", []string{"main.T.M"}, nil},
+		{"methexpr_static", []string{"main.T.M"}, nil},
+		{"methexpr_method", []string{"main.T.M"}, nil},
 		{"globalmap", []string{"main.small", "main.effect"},
 			[]string{"main.large"}},
 	}
