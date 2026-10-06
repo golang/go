@@ -344,6 +344,8 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 		fact.declKey, func(f fact) bool { return f.hasSep })
 
 	// simd and archsimd document the same operations from different sources.
+	// Target-specific implementation notes (such as Asm: and CPU Feature:)
+	// and directives are ignored when comparing docs.
 	m.crossPkg = new(tally[methodKey])
 	docs := map[string]map[methodKey]string{"simd": {}, "archsimd": {}}
 	for _, d := range m.decls {
@@ -353,7 +355,8 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 	}
 	for p, sd := range docs["simd"] {
 		if ad, ok := docs["archsimd"][p]; ok {
-			m.crossPkg.add(p, sd == ad)
+			ssd, sad := stripDocNotes(sd), stripDocNotes(ad)
+			m.crossPkg.add(p, ssd != "" && ssd == sad)
 		}
 	}
 
@@ -490,4 +493,47 @@ func specPair(f *specgen.Func) methodKey {
 		recv = f.Recv.Type.String()
 	}
 	return methodKey{recv, f.Name}
+}
+
+// stripDocNotes returns doc with target-specific implementation notes and
+// directives removed, leaving only spec-owned paragraphs.
+func stripDocNotes(doc string) string {
+	var keptParas []string
+	var curPara []string
+	flush := func() bool {
+		if len(curPara) == 0 {
+			return true
+		}
+		first := strings.TrimSpace(curPara[0])
+		if strings.HasPrefix(first, "//go:") || strings.HasPrefix(first, "//line ") {
+			return false
+		}
+		text := strings.TrimPrefix(first, "// ")
+		text = strings.TrimPrefix(text, "//")
+		if specgen.HasNotePrefix(text) {
+			return false
+		}
+		keptParas = append(keptParas, strings.Join(curPara, "\n"))
+		curPara = nil
+		return true
+	}
+
+	for _, line := range strings.Split(doc, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//go:") || strings.HasPrefix(trimmed, "//line ") {
+			if !flush() {
+				return strings.Join(keptParas, "\n//\n")
+			}
+			break
+		}
+		if trimmed == "//" {
+			if !flush() {
+				return strings.Join(keptParas, "\n//\n")
+			}
+			continue
+		}
+		curPara = append(curPara, line)
+	}
+	flush()
+	return strings.Join(keptParas, "\n//\n")
 }
