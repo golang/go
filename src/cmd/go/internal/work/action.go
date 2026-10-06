@@ -899,7 +899,9 @@ func (b *Builder) vetAction(s *modload.Loader, mode, depMode BuildMode, p *load.
 			// Built-in packages like unsafe.
 			return a
 		}
-		deps[0].needVet = true
+		if p.UsesCgo() || p.UsesSwig() {
+			a.Deps = append(a.Deps, b.runCgoAction(p, false))
+		}
 		a.Actor = ActorFunc((*Builder).vet)
 		b.addTransitiveCompileActions(a, a1)
 		return a

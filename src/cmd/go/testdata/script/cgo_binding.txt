@@ -50,6 +50,8 @@ stdout 'dual/nocgoonly'
 
 env CGO_ENABLED=bindings
 go build -C withcfile -o withcfileb$GOEXE . &
+go vet -C withcfile . &
+go test -C withcfile -cover . &
 go build -C dual -o dualb$GOEXE . &
 go build -C checks -o checks$GOEXE . &
 

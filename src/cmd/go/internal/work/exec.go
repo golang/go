@@ -17,6 +17,8 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"internal/buildcfg"
+	"internal/goversion"
 	"internal/lazyregexp"
 	"io"
 	"io/fs"
@@ -697,7 +699,7 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 	// If we are going to do a full build anyway,
 	// we're going to regenerate the files in the build action anyway.
 	if need == needVet {
-		if err := b.loadCachedVet(a, a.Deps); err == nil {
+		if err := b.loadCachedVet(a); err == nil {
 			need &^= needVet
 		}
 	}
@@ -705,7 +707,6 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 	if need == 0 {
 		return
 	}
-	defer b.flushOutput(a)
 
 	if cfg.BuildN {
 		// In -n mode, print a banner between packages.
@@ -764,7 +765,7 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 		return &load.NoGoError{Package: p}
 	}
 
-	// Prepare Go vet config if needed.
+	// Prepare Go vet config if needed (used by analysisvet).
 	if need&needVet != 0 {
 		vetSrcFiles := slices.Clone(srcfiles)
 		workPrefix := b.WorkDir + string(filepath.Separator)
@@ -777,9 +778,10 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 				vetSrcFiles[i] = dst
 			}
 		}
-		buildVetConfig(a, vetSrcFiles, a.Deps)
+		buildVetConfigFromSrcFiles(a, vetSrcFiles)
 		need &^= needVet
 	}
+
 	if need&needCompiledGoFiles != 0 {
 		if err := b.loadCachedCompiledGoFiles(a); err != nil {
 			return fmt.Errorf("loading compiled Go files from cache: %w", err)
@@ -1535,12 +1537,12 @@ func (b *Builder) loadCachedSrcFiles(a *Action) ([]string, error) {
 	return srcfiles, nil
 }
 
-func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
+func (b *Builder) loadCachedVet(a *Action) error {
 	srcfiles, err := b.loadCachedSrcFiles(a)
 	if err != nil {
 		return err
 	}
-	buildVetConfig(a, srcfiles, vetDeps)
+	buildVetConfigFromSrcFiles(a, srcfiles)
 	return nil
 }
 
@@ -1583,7 +1585,6 @@ type vetConfig struct {
 
 	Module      *vetModule        // module information, if any
 	ImportMap   map[string]string // map import path in source code to package path
-	PackageFile map[string]string // map package path to .a file with export data
 	Standard    map[string]bool   // map package path to whether it's in the standard library
 	PackageVetx map[string]string // map package path to vetx data from earlier vet run
 	VetxOnly    bool              // only compute vetx data; don't report detected problems
@@ -1591,8 +1592,6 @@ type vetConfig struct {
 	Stdout      string            // write stdout (JSON, unified diff) to this output file
 	GoVersion   string            // Go version for package
 	FixArchive  string            // write fixed files to this zip archive, if non-empty
-
-	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
 }
 
 // exportConfig is the configuration passed to the export tool describing a single package.
@@ -1651,7 +1650,7 @@ func analysisModuleFromModulePublic(m *modinfo.ModulePublic) *vetModule {
 	return vm
 }
 
-func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
+func buildVetConfigFromSrcFiles(a *Action, srcfiles []string) {
 	// Classify files based on .go extension.
 	// srcfiles does not include raw cgo files.
 	var gofiles, nongofiles []string
@@ -1662,36 +1661,61 @@ func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
 			nongofiles = append(nongofiles, name)
 		}
 	}
+	a.vetCfg = buildVetConfigFiles(a, a.Objdir, gofiles, nongofiles)
+}
 
-	ignored := slices.Concat(a.Package.IgnoredGoFiles, a.Package.IgnoredOtherFiles)
+func buildVetConfig(a *Action) (vcfg *vetConfig, objdir string) {
+	srcs := packageSources(a)
+	objdir = a.Objdir
+	if srcs.runCgoPr != nil {
+		objdir = srcs.runCgoPr.objdir
+	}
+	nongofiles := slices.Concat(srcs.sFiles, srcs.cFiles)
+	vcfg = buildVetConfigFiles(a, objdir, srcs.goFiles, nongofiles)
+	vcfg.PackageVetx = make(map[string]string)
+	vcfg.VetxOnly = a.VetxOnly
+	vcfg.VetxOutput = a.Objdir + "vet.out"
+	vcfg.Stdout = a.Objdir + "vet.stdout"
+	if a.needFix {
+		vcfg.FixArchive = a.Objdir + "vet.fix.zip"
+	}
+	return vcfg, objdir
+}
+
+func buildVetConfigFiles(a *Action, objdir string, gofiles, nongofiles []string) *vetConfig {
+	p := a.Package
+	ignored := slices.Concat(p.IgnoredGoFiles, p.IgnoredOtherFiles)
 
 	// Pass list of absolute paths to vet,
 	// so that vet's error messages will use absolute paths,
 	// so that we can reformat them relative to the directory
 	// in which the go command is invoked.
-	// (The exception is files in a.Objdir; see trimObjdir.)
+	// (The exception is files in objdir; see trimObjdir.)
+	// We use "vet" terminology even when building action graphs for go fix.
 	vcfg := &vetConfig{
-		ID:           a.Package.ImportPath,
+		ID:           p.ImportPath,
 		Compiler:     cfg.BuildToolchainName,
-		Dir:          a.Package.Dir,
-		GoFiles:      trimObjdir(a, actualFiles(mkAbsFiles(a.Package.Dir, gofiles))),
-		NonGoFiles:   trimObjdir(a, actualFiles(mkAbsFiles(a.Package.Dir, nongofiles))),
-		IgnoredFiles: trimObjdir(a, actualFiles(mkAbsFiles(a.Package.Dir, ignored))),
-		ImportPath:   a.Package.ImportPath,
+		Dir:          p.Dir,
+		GoFiles:      trimObjdir(objdir, actualFiles(mkAbsFiles(p.Dir, gofiles))),
+		NonGoFiles:   trimObjdir(objdir, actualFiles(mkAbsFiles(p.Dir, nongofiles))),
+		IgnoredFiles: trimObjdir(objdir, actualFiles(mkAbsFiles(p.Dir, ignored))),
+		ImportPath:   p.ImportPath,
 		ImportMap:    make(map[string]string),
-		PackageFile:  make(map[string]string),
 		Standard:     make(map[string]bool),
 	}
 	v := gover.Local()
-	if a.Package.Module != nil {
-		v = cmp.Or(a.Package.Module.GoVersion, gover.DefaultGoModVersion)
-		vcfg.Module = analysisModuleFromModulePublic(a.Package.Module)
+	if p.Module != nil {
+		v = cmp.Or(p.Module.GoVersion, gover.DefaultGoModVersion)
+		vcfg.Module = analysisModuleFromModulePublic(p.Module)
+	} else if p.Standard && gover.TestVersion != "" {
+		// Standard library packages belong to the real GOROOT toolchain,
+		// not a TESTGO_VERSION override used in toolchain-switching tests.
+		v = cmp.Or(gover.FromToolchain(buildcfg.Version), "1."+strconv.Itoa(goversion.Version))
 	}
 	vcfg.GoVersion = "go" + v
 
-	a.vetCfg = vcfg
-	for i, raw := range a.Package.Internal.RawImports {
-		final := a.Package.Imports[i]
+	for i, raw := range p.Internal.RawImports {
+		final := p.Imports[i]
 		vcfg.ImportMap[raw] = final
 	}
 
@@ -1702,9 +1726,8 @@ func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
 		vcfgMapped[p] = true
 	}
 
-	for _, a1 := range vetDeps {
-		p1 := a1.Package
-		if p1 == nil || p1.ImportPath == "" || p1 == a.Package {
+	for _, p1 := range p.Internal.Imports {
+		if p1 == nil || p1.ImportPath == "" || p1 == p {
 			continue
 		}
 		// Add import mapping if needed
@@ -1712,13 +1735,12 @@ func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
 		if !vcfgMapped[p1.ImportPath] {
 			vcfg.ImportMap[p1.ImportPath] = p1.ImportPath
 		}
-		if a1.built != "" {
-			vcfg.PackageFile[p1.ImportPath] = a1.built
-		}
 		if p1.Standard {
 			vcfg.Standard[p1.ImportPath] = true
 		}
 	}
+
+	return vcfg
 }
 
 // VetTool is the path to the effective vet or fix tool binary.
@@ -1740,33 +1762,31 @@ var VetHandleStdout = copyToStdout
 var VetExplicit bool
 
 func (b *Builder) vet(ctx context.Context, a *Action) error {
-	// a.Deps[0] is the build of the package being vetted.
-
 	a.Failed = nil // vet of dependency may have failed but we can still succeed
-
-	if a.Deps[0].Failed != nil {
-		// The build of the package has failed. Skip vet check.
-		// Vet could return export data for non-typecheck errors,
-		// but we ignore it because the package cannot be compiled.
-		return nil
+	for _, a1 := range a.Deps {
+		if a1.Failed != nil && (a1.Mode != "vet" || a1.built == "") {
+			// The build of the package or a dependency has failed. Skip vet check.
+			return nil
+		}
 	}
 
-	vcfg := a.Deps[0].vetCfg
-	if vcfg == nil {
-		// Vet config should only be missing if the build failed.
-		return fmt.Errorf("vet config not found")
+	p := a.Package
+	if p.Error != nil {
+		return p.Error
+	}
+	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+		return errors.New("module requires Go " + p.Module.GoVersion + " or later")
+	}
+	if err := b.checkDirectives(a); err != nil {
+		return err
+	}
+
+	vcfg, vetDir := buildVetConfig(a)
+	if len(vcfg.GoFiles) == 0 {
+		return &load.NoGoError{Package: p}
 	}
 
 	sh := b.Shell(a)
-
-	// We use "vet" terminology even when building action graphs for go fix.
-	vcfg.VetxOnly = a.VetxOnly
-	vcfg.VetxOutput = a.Objdir + "vet.out"
-	vcfg.Stdout = a.Objdir + "vet.stdout"
-	if a.needFix {
-		vcfg.FixArchive = a.Objdir + "vet.fix.zip"
-	}
-	vcfg.PackageVetx = make(map[string]string)
 
 	h := cache.NewHash("vet " + a.Package.ImportPath)
 	fmt.Fprintf(h, "vet %q\n", b.toolID("vet"))
@@ -1895,6 +1915,9 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		return nil
 	}
 cachemiss:
+	if err := sh.Mkdir(a.Objdir); err != nil {
+		return err
+	}
 
 	js, err := json.Marshal(vcfg)
 	if err != nil {
@@ -1904,23 +1927,18 @@ cachemiss:
 		return err
 	}
 
-	// TODO(rsc): Why do we pass $GCCGO to go vet?
 	env := b.cCompilerEnv()
-	if cfg.BuildToolchainName == "gccgo" {
-		env = append(env, "GCCGO="+BuildToolchain.compiler())
-	}
 
-	p := a.Package
 	tool := VetTool
 	if tool == "" {
 		panic("VetTool unset")
 	}
 
-	// Run vet in the work directory of the package's build, relative
-	// to which the files generated by cgo are named (see trimObjdir);
+	// Run vet in vetDir (a.Objdir, or the cgo action's Objdir when using cgo),
+	// relative to which the files generated by cgo are named (see trimObjdir);
 	// all other file names in the config are absolute. Report its
 	// output relative to the directory of the package.
-	out, runErr := sh.runOut(a.Deps[0].Objdir, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
+	out, runErr := sh.runOut(vetDir, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
 	runErr = sh.reportCmd(p.ImportPath, p.Dir, out, runErr)
 
 	// Save facts and export data.
@@ -4398,17 +4416,17 @@ func mkAbsFiles(dir string, files []string) []string {
 	return abs
 }
 
-// trimObjdir returns the list of files, with the names of those in the
-// work directory of action a made relative to it.
+// trimObjdir returns the list of files, with the names of those in
+// objdir made relative to it.
 //
-// Files generated by cgo live in a.Objdir, whose name varies from run
+// Files generated by cgo live in objdir, whose name varies from run
 // to run. Vet records the names of the files it parses in the export
-// data of its .vetx file, so naming them relative to a.Objdir, and
+// data of its .vetx file, so naming them relative to objdir, and
 // running vet in that directory, makes the .vetx file deterministic
 // (as with the compiler's -trimpath). See go.dev/issue/82758.
-func trimObjdir(a *Action, files []string) []string {
+func trimObjdir(objdir string, files []string) []string {
 	for i, f := range files {
-		if rel, ok := strings.CutPrefix(f, a.Objdir); ok && a.Objdir != "" {
+		if rel, ok := strings.CutPrefix(f, objdir); ok && objdir != "" {
 			files[i] = rel
 		}
 	}
