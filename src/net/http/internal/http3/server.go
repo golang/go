@@ -598,10 +598,12 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 		req.Body = &serverRequestReader{
 			rw: rw,
 			br: bodyReader{
-				st:            st,
-				remain:        contentLength,
-				trailer:       reqInfo.Trailer,
-				filterTrailer: true,
+				st:                  st,
+				remain:              contentLength,
+				trailer:             reqInfo.Trailer,
+				filterTrailer:       true,
+				maxHeaderBytes:      sc.maxHeaderBytes,
+				maxHeaderValueCount: sc.maxHeaderValueCount,
 			},
 			needsContinue: reqInfo.NeedsContinue,
 		}

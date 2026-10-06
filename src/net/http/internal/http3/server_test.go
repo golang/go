@@ -545,27 +545,48 @@ func TestServerInvalidStatus(t *testing.T) {
 func TestServerHeaderLimits(t *testing.T) {
 	for _, test := range []struct {
 		name                string
-		h                   http.Header
+		header              http.Header
+		trailer             http.Header
 		valid               bool
 		maxHeaderBytes      int
 		maxHeaderValueCount int
 	}{{
 		name: "within limits",
-		h: http.Header{
+		header: {
 			"x-foo": {strings.Repeat("x", 1000)},
 		},
 		maxHeaderBytes: 1500,
 		valid:          true,
 	}, {
 		name: "too many header bytes",
-		h: http.Header{
+		header: {
+			"x-foo": {strings.Repeat("x", 1000)},
+			"x-bar": {strings.Repeat("x", 1000)},
+		},
+		maxHeaderBytes: 1500,
+	}, {
+		name: "sent trailer within limits",
+		header: {
+			"trailer": {"x-foo"},
+		},
+		trailer: http.Header{
+			"x-foo": {strings.Repeat("x", 1000)},
+		},
+		maxHeaderBytes: 1500,
+		valid:          true,
+	}, {
+		name: "too many sent trailer bytes",
+		header: {
+			"trailer": {"x-foo, x-bar"},
+		},
+		trailer: http.Header{
 			"x-foo": {strings.Repeat("x", 1000)},
 			"x-bar": {strings.Repeat("x", 1000)},
 		},
 		maxHeaderBytes: 1500,
 	}, {
 		name: "field count within limit",
-		h: http.Header{
+		header: {
 			// :method, :scheme, :path, plus:
 			"x-foo": {"4"},
 			"x-bar": {"5"},
@@ -575,7 +596,7 @@ func TestServerHeaderLimits(t *testing.T) {
 		valid:               true,
 	}, {
 		name: "field count over limit",
-		h: http.Header{
+		header: {
 			// :method, :scheme, :path, plus:
 			"x-foo": {"4"},
 			"x-bar": {"5"},
@@ -591,17 +612,28 @@ func TestServerHeaderLimits(t *testing.T) {
 			tc.greet()
 
 			reqStream := tc.newStream(streamTypeRequest)
-			reqStream.writeHeaders(requestHeader(test.h))
-			if test.valid {
-				call := tc.nextHandlerCall()
-				if call == nil {
-					t.Fatal("no server handler call; want one")
-				}
-			} else {
+			reqStream.writeHeaders(requestHeader(test.header))
+
+			if test.trailer == nil && !test.valid {
 				reqStream.wantSomeHeaders(http.Header{
 					":status": {"431"},
 				})
 				reqStream.wantClosed("request is complete")
+				return
+			}
+
+			call := tc.nextHandlerCall()
+			if call == nil {
+				t.Fatal("no server handler call; want one")
+			}
+			if test.trailer == nil {
+				return
+			}
+
+			reqStream.writeHeaders(test.trailer)
+			_, err := io.ReadAll(call.req.Body)
+			if (err == nil) != test.valid {
+				t.Fatalf("io.ReadAll(req.Body) = %v, want valid=%v", err, test.valid)
 			}
 		})
 	}

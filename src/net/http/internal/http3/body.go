@@ -127,8 +127,10 @@ type bodyReader struct {
 	// canonicalized.
 	// If filterTrailer is true, headers that are not already in the map will
 	// be ignored; otherwise, all headers will be added to the map.
-	trailer       http.Header
-	filterTrailer bool
+	trailer             http.Header
+	filterTrailer       bool
+	maxHeaderBytes      int64
+	maxHeaderValueCount int64
 }
 
 func (r *bodyReader) Read(p []byte) (n int, err error) {
@@ -181,8 +183,20 @@ func (r *bodyReader) Read(p []byte) (n int, err error) {
 					message: "body shorter than content-length",
 				}
 			}
+			// The QPACK decoder will happily allocate an unbounded buffer, so
+			// check the stream read limit prior to decoding.
+			if r.maxHeaderBytes > 0 && r.st.lim > r.maxHeaderBytes {
+				return 0, errHeadersTooLarge
+			}
 			var dec qpackDecoder
+			var totalSize, valueCount int64
 			if err := dec.decode(r.st, func(_ indexType, name, value string) error {
+				totalSize += int64(len(name)) + int64(len(value)) + 32 // RFC 9114 Section 4.2.2
+				valueCount++
+				if (r.maxHeaderBytes > 0 && totalSize > r.maxHeaderBytes) ||
+					(r.maxHeaderValueCount > 0 && valueCount > r.maxHeaderValueCount) {
+					return errHeadersTooLarge
+				}
 				if r.trailer == nil {
 					return nil
 				}

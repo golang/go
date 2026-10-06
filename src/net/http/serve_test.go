@@ -3495,7 +3495,7 @@ func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
 }
 
 func TestRequestTrailerHeaderValueCountLimit(t *testing.T) {
-	runNoSynctest(t, testRequestTrailerHeaderValueCountLimit, http3SkippedMode)
+	runNoSynctest(t, testRequestTrailerHeaderValueCountLimit)
 }
 func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
 	tests := []struct {
