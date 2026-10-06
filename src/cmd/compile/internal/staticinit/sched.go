@@ -62,8 +62,8 @@ func (s *Schedule) append(n ir.Node) {
 }
 
 // StaticInit adds an initialization statement n to the schedule.
-func (s *Schedule) StaticInit(curfunc_ *ir.Func, n ir.Node) {
-	if !s.tryStaticInit(curfunc_, n) {
+func (s *Schedule) StaticInit(curfunc *ir.Func, n ir.Node) {
+	if !s.tryStaticInit(curfunc, n) {
 		if base.Flag.Percent != 0 {
 			ir.Dump("StaticInit failed", n)
 		}
@@ -105,7 +105,7 @@ func allBlank(exprs []ir.Node) bool {
 
 // tryStaticInit attempts to statically execute an initialization
 // statement and reports whether it succeeded.
-func (s *Schedule) tryStaticInit(curfunc_ *ir.Func, n ir.Node) bool {
+func (s *Schedule) tryStaticInit(curfunc *ir.Func, n ir.Node) bool {
 	var lhs []ir.Node
 	var rhs ir.Node
 
@@ -157,12 +157,12 @@ func (s *Schedule) tryStaticInit(curfunc_ *ir.Func, n ir.Node) bool {
 	defer func() { base.Pos = lno }()
 
 	nam := lhs[0].(*ir.Name)
-	return s.StaticAssign(curfunc_, nam, 0, rhs, nam.Type())
+	return s.StaticAssign(curfunc, nam, 0, rhs, nam.Type())
 }
 
 // like staticassign but we are copying an already
 // initialized value r.
-func (s *Schedule) staticcopy(curfunc_ *ir.Func, l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
+func (s *Schedule) staticcopy(curfunc *ir.Func, l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
 	if !canWriteStatic(loff, typ) {
 		return false
 	}
@@ -214,7 +214,7 @@ func (s *Schedule) staticcopy(curfunc_ *ir.Func, l *ir.Name, loff int64, rn *ir.
 		fallthrough
 	case ir.ONAME:
 		r := r.(*ir.Name)
-		if s.staticcopy(curfunc_, l, loff, r, typ) {
+		if s.staticcopy(curfunc, l, loff, r, typ) {
 			return true
 		}
 		// We may have skipped past one or more OCONVNOPs, so
@@ -223,7 +223,7 @@ func (s *Schedule) staticcopy(curfunc_ *ir.Func, l *ir.Name, loff int64, rn *ir.
 		if loff != 0 || !types.Identical(typ, l.Type()) {
 			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
 		}
-		s.append(ir.NewAssignStmt(base.Pos, dst, typecheck.Conv(curfunc_, r, typ)))
+		s.append(ir.NewAssignStmt(base.Pos, dst, typecheck.Conv(curfunc, r, typ)))
 		return true
 
 	case ir.ONIL:
@@ -276,7 +276,7 @@ func (s *Schedule) staticcopy(curfunc_ *ir.Func, l *ir.Name, loff int64, rn *ir.
 			if x.Op() == ir.OMETHEXPR {
 				x = x.(*ir.SelectorExpr).FuncName()
 			}
-			if x.Op() == ir.ONAME && s.staticcopy(curfunc_, l, off, x.(*ir.Name), typ) {
+			if x.Op() == ir.ONAME && s.staticcopy(curfunc, l, off, x.(*ir.Name), typ) {
 				continue
 			}
 			// Requires computation, but we're
@@ -293,7 +293,7 @@ func (s *Schedule) staticcopy(curfunc_ *ir.Func, l *ir.Name, loff int64, rn *ir.
 	return false
 }
 
-func (s *Schedule) StaticAssign(curfunc_ *ir.Func, l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
+func (s *Schedule) StaticAssign(curfunc *ir.Func, l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
 	// If we're building for FIPS, avoid global data relocations
 	// by treating all address-of operations as non-static.
 	// See ../../../internal/obj/fips.go for more context.
@@ -315,7 +315,7 @@ func (s *Schedule) StaticAssign(curfunc_ *ir.Func, l *ir.Name, loff int64, r ir.
 	}
 
 	assign := func(pos src.XPos, a *ir.Name, aoff int64, v ir.Node) {
-		if s.StaticAssign(curfunc_, a, aoff, v, v.Type()) {
+		if s.StaticAssign(curfunc, a, aoff, v, v.Type()) {
 			return
 		}
 		var lhs ir.Node
@@ -334,14 +334,14 @@ func (s *Schedule) StaticAssign(curfunc_ *ir.Func, l *ir.Name, loff int64, r ir.
 			return false
 		}
 		r := r.(*ir.Name)
-		return s.staticcopy(curfunc_, l, loff, r, typ)
+		return s.staticcopy(curfunc, l, loff, r, typ)
 
 	case ir.OMETHEXPR:
 		if disableGlobalAddrs {
 			return false
 		}
 		r := r.(*ir.SelectorExpr)
-		return s.staticcopy(curfunc_, l, loff, r.FuncName(), typ)
+		return s.staticcopy(curfunc, l, loff, r.FuncName(), typ)
 
 	case ir.ONIL:
 		return true
@@ -485,9 +485,9 @@ func (s *Schedule) StaticAssign(curfunc_ *ir.Func, l *ir.Name, loff int64, r ir.
 
 		var itab *ir.AddrExpr
 		if typ.IsEmptyInterface() {
-			itab = reflectdata.TypePtrAt(curfunc_, base.Pos, val.Type())
+			itab = reflectdata.TypePtrAt(curfunc, base.Pos, val.Type())
 		} else {
-			itab = reflectdata.ITabAddrAt(curfunc_, base.Pos, val.Type(), typ)
+			itab = reflectdata.ITabAddrAt(curfunc, base.Pos, val.Type(), typ)
 		}
 
 		// Create a copy of l to modify while we emit data.
@@ -519,7 +519,7 @@ func (s *Schedule) StaticAssign(curfunc_ *ir.Func, l *ir.Name, loff int64, r ir.
 			return false
 		}
 		r := r.(*ir.InlinedCallExpr)
-		return s.staticAssignInlinedCall(curfunc_, l, loff, r, typ)
+		return s.staticAssignInlinedCall(curfunc, l, loff, r, typ)
 	}
 
 	if base.Flag.Percent != 0 {
@@ -598,7 +598,7 @@ func (s *Schedule) addvalue(p *Plan, xoffset int64, n ir.Node) {
 	p.E = append(p.E, Entry{Xoffset: xoffset, Expr: n})
 }
 
-func (s *Schedule) staticAssignInlinedCall(curfunc_ *ir.Func, l *ir.Name, loff int64, call *ir.InlinedCallExpr, typ *types.Type) bool {
+func (s *Schedule) staticAssignInlinedCall(curfunc *ir.Func, l *ir.Name, loff int64, call *ir.InlinedCallExpr, typ *types.Type) bool {
 	if base.Debug.InlStaticInit == 0 {
 		return false
 	}
@@ -748,7 +748,7 @@ func (s *Schedule) staticAssignInlinedCall(curfunc_ *ir.Func, l *ir.Name, loff i
 	if !ok {
 		return false
 	}
-	ok = s.StaticAssign(curfunc_, l, loff, r, typ)
+	ok = s.StaticAssign(curfunc, l, loff, r, typ)
 
 	if ok && base.Flag.Percent != 0 {
 		ir.Dump("static inlined-LEFT", l)
