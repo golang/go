@@ -40,10 +40,13 @@ type Config struct {
 	Fp64RegMask    ssaop.RegMask      // floating point register mask
 	SimdRegMask    ssaop.RegMask      // simd register mask; may be same as fpRegMask
 	PredRegMask    ssaop.RegMask      // predicate register mask; empty if the arch has no predicate registers
-	SpecialRegMask ssaop.RegMask      // special register mask
-	IntParamRegs   []int8             // register numbers of integer param (in/out) registers
-	FloatParamRegs []int8             // register numbers of floating param (in/out) registers
-	ABI1           *abi.ABIConfig     // "ABIInternal" under development // TODO change comment when this becomes current
+	// SpecialRegMask is the set of registers that are allocatable only where
+	// an operation's register mask names them explicitly. The register allocator
+	// must not place a value in one of these merely because of its type.
+	SpecialRegMask ssaop.RegMask
+	IntParamRegs   []int8         // register numbers of integer param (in/out) registers
+	FloatParamRegs []int8         // register numbers of floating param (in/out) registers
+	ABI1           *abi.ABIConfig // "ABIInternal" under development // TODO change comment when this becomes current
 	ABI0           *abi.ABIConfig
 	FPReg          int8      // register number of frame pointer, -1 if not used
 	LinkReg        int8      // register number of link register if it is a general purpose register, -1 if not used

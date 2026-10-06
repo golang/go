@@ -863,6 +863,7 @@ func (s *regAllocState) setState(regs []endReg) {
 }
 
 // compatRegs returns the set of registers which can store a type t.
+// It must never return Config.SpecialRegMask; see its documentation.
 func (s *regAllocState) compatRegs(t *types.Type) ssaop.RegMask {
 	var m ssaop.RegMask
 	if t.IsTuple() || t.IsFlags() {

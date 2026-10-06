@@ -84,7 +84,7 @@ type arch struct {
 	fp64regmask        regMask
 	simdregmask        regMask
 	predregmask        regMask
-	specialregmask     regMask
+	specialregmask     regMask // see Config.SpecialRegMask
 	framepointerreg    int8
 	linkreg            int8
 	generic            bool
