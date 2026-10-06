@@ -249,20 +249,22 @@ func staticInit() {
 		base.Fatalf("go: -static cannot be used with -buildmode=%s", cfg.BuildBuildmode)
 	}
 
+	// The C library's functions for looking up hosts, users and
+	// groups cannot be relied on in a statically linked program on any
+	// system: they go through the name service switch (or an equivalent),
+	// which loads its modules as shared libraries at run time.
+	// Use the pure Go implementations in packages net and os/user,
+	// which also means that those packages do not need cgo.
+	// The tags are set on every system that supports -static, including
+	// those where packages net and os/user never use the C library,
+	// so that the tags that -static sets do not vary from system to system.
+	// The netcgo build tag asks for the opposite, and conflicts
+	// with netgo, so leave package net alone if it is set.
 	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "static")
-	if cfg.Goos == "linux" {
-		// The C library's functions for looking up hosts, users and
-		// groups cannot be relied on in a statically linked program:
-		// glibc implements them by loading shared libraries at run time.
-		// Use the pure Go implementations in packages net and os/user,
-		// which also means that those packages do not need cgo.
-		// The netcgo build tag asks for the opposite, and conflicts
-		// with netgo, so leave package net alone if it is set.
-		if !slices.Contains(cfg.BuildContext.BuildTags, "netcgo") {
-			cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "netgo")
-		}
-		cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "osusergo")
+	if !slices.Contains(cfg.BuildContext.BuildTags, "netcgo") {
+		cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "netgo")
 	}
+	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "osusergo")
 }
 
 func buildModeInit() {

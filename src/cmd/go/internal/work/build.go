@@ -198,10 +198,10 @@ and test commands:
 		-static flag, which requires static versions of the C libraries
 		that the program uses, and pkg-config is run with --static.
 		C code that loads shared libraries at run time may not work.
-		The "static" build tag is set. On Linux, the "netgo" and
-		"osusergo" build tags are set too, so that packages net and
-		os/user use their pure Go implementations instead of the C library,
-		except that "netgo" is not set if the "netcgo" build tag is given.
+		The "static", "netgo", and "osusergo" build tags are set,
+		so that packages net and os/user use their pure Go implementations
+		instead of the C library, except that "netgo" is not set if the
+		"netcgo" build tag is given.
 		Supported only on dragonfly, freebsd, linux, and netbsd, as well as
 		on js, plan9, and wasip1, where all executables are statically linked.
 		The build mode must be exe, and -static cannot be used with

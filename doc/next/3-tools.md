@@ -8,7 +8,7 @@ which do not depend on shared libraries at run time.
 It replaces the combination of build tags, linker flags, and environment
 settings that used to be needed, and that varied from system to system.
 A program that uses cgo is linked against static versions of the C libraries
-that it uses. On Linux, packages [net] and [os/user] use their pure Go
+that it uses, and packages [net] and [os/user] use their pure Go
 implementations. The flag is supported on DragonFly BSD, FreeBSD, Linux,
 and NetBSD.
 
