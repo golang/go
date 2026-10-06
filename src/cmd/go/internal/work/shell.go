@@ -7,7 +7,6 @@ package work
 import (
 	"bytes"
 	"cmd/go/internal/base"
-	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
@@ -129,9 +128,9 @@ func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) e
 	// If we can update the mode and rename to the dst, do it.
 	// Otherwise fall back to standard copy.
 
-	// If the source is in the build cache, we need to copy it.
-	dir, _, _ := cache.DefaultDir()
-	if strings.HasPrefix(src, dir) {
+	// Only move files from our work directory. Other files may belong to
+	// the build cache, including a GOCACHEPROG outside GOCACHE.
+	if sh.workDir == "" || !str.HasFilePathPrefix(src, sh.workDir) {
 		return sh.CopyFile(dst, src, perm, force)
 	}
 
