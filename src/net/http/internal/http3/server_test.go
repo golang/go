@@ -584,13 +584,9 @@ func TestServerHeaderLimits(t *testing.T) {
 		maxHeaderValueCount: 4,
 	}} {
 		synctestSubtest(t, test.name, func(t *testing.T) {
-			if test.maxHeaderValueCount != 0 {
-				t.Skip("TODO: when we support only go1.27")
-			}
 			ts := newTestServer(t, nil)
 			ts.s.srv1.MaxHeaderBytes = test.maxHeaderBytes
-			// TODO: When we only support go1.27.
-			//ts.s.srv1.MaxHeaderValueCount = test.maxHeaderValueCount
+			ts.s.srv1.MaxHeaderValueCount = test.maxHeaderValueCount
 			tc := ts.connect()
 			tc.greet()
 
@@ -602,7 +598,10 @@ func TestServerHeaderLimits(t *testing.T) {
 					t.Fatal("no server handler call; want one")
 				}
 			} else {
-				reqStream.wantError(quic.StreamError(errH3RequestRejected))
+				reqStream.wantSomeHeaders(http.Header{
+					":status": {"431"},
+				})
+				reqStream.wantClosed("request is complete")
 			}
 		})
 	}

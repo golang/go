@@ -20,8 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/http/httpguts"
 	"net/http/internal/httpcommon"
+
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/quic"
 )
 
@@ -234,23 +235,21 @@ type serverConn struct {
 // The baseCtx parameter is the base context for request handlers on this connection.
 func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http.Handler) {
 	sc := &serverConn{
-		qconn:          qconn,
-		srv:            s,
-		baseCtx:        baseCtx,
-		handler:        h,
-		maxHeaderBytes: int64(s.srv1.MaxHeaderBytes),
-		// TODO: When we only support go1.27.
-		//maxHeaderValueCount: int64(s.srv1.MaxHeaderValueCount),
+		qconn:               qconn,
+		srv:                 s,
+		baseCtx:             baseCtx,
+		handler:             h,
+		maxHeaderBytes:      int64(s.srv1.MaxHeaderBytes),
+		maxHeaderValueCount: int64(s.srv1.MaxHeaderValueCount),
 	}
 
 	// Should we permit disabling these limits? For now, we do not.
 	if sc.maxHeaderBytes <= 0 {
 		sc.maxHeaderBytes = int64(http.DefaultMaxHeaderBytes)
 	}
-	// TODO: When we only support go1.27.
-	// if sc.maxHeaderValueCount <= 0 {
-	// 	sc.maxHeaderValueCount = int64(http.DefaultMaxHeaderValueCount)
-	// }
+	if sc.maxHeaderValueCount <= 0 {
+		sc.maxHeaderValueCount = int64(http.DefaultMaxHeaderValueCount)
+	}
 
 	s.registerConn(sc)
 	defer s.unregisterConn(sc)
@@ -372,6 +371,8 @@ type pseudoHeader struct {
 	authority string
 }
 
+var errHeadersTooLarge = &streamError{errH3MessageError, "headers too large"}
+
 func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error) {
 	ftype, err := st.readFrameHeader()
 	if err != nil {
@@ -384,7 +385,7 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 		// If the encoded headers exceed the limit, just reject the request out of hand.
 		// This lets us safely check limits in the dec.decode callback below,
 		// since the maximum Huffman expansion factor is only ~1.6x.
-		return nil, pseudoHeader{}, &streamError{errH3RequestRejected, "headers too large"}
+		return nil, pseudoHeader{}, errHeadersTooLarge
 	}
 	header := make(http.Header)
 	valueCount := int64(0)
@@ -396,12 +397,11 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 		totalSize += int64(len(name)) + int64(len(value)) + 32 // RFC 9114 Section 4.2.2
 		valueCount++
 		if totalSize > sc.maxHeaderBytes {
-			return &streamError{errH3RequestRejected, "headers too large"}
+			return errHeadersTooLarge
 		}
-		// TODO: When we only support go1.27.
-		//if valueCount > sc.maxHeaderValueCount {
-		//	return &streamError{errH3RequestRejected, "headers too large"}
-		//}
+		if valueCount > sc.maxHeaderValueCount {
+			return errHeadersTooLarge
+		}
 		if !httpguts.ValidHeaderFieldValue(value) {
 			return &streamError{errH3MessageError, "invalid field value"}
 		}
@@ -505,6 +505,23 @@ func (sc *serverConn) requestShouldGoaway(st *stream) bool {
 	}
 }
 
+func (sc *serverConn) newResponseWriter(st *stream, hasBody bool) *responseWriter {
+	return &responseWriter{
+		st:             st,
+		headers:        make(http.Header),
+		trailer:        make(http.Header),
+		bb:             make(bodyBuffer, 0, defaultBodyBufferCap),
+		cannotHaveBody: !hasBody,
+		bw: &bodyWriter{
+			st:     st,
+			remain: -1,
+			flush:  false,
+			name:   "response",
+			enc:    &sc.enc,
+		},
+	}
+}
+
 func (sc *serverConn) handleRequestStream(st *stream) error {
 	if sc.requestShouldGoaway(st) {
 		return &streamError{
@@ -524,6 +541,16 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 				code:    errH3RequestRejected,
 				message: "exceeded deadline while parsing header",
 			}
+		}
+		// To be consistent with HTTP/1 and HTTP/2, send status 431 when
+		// headers are too large, rather than just resetting the stream.
+		if err == errHeadersTooLarge {
+			if t := sc.srv.writeTimeout(); t > 0 {
+				st.writeDeadline.set(time.Now().Add(t))
+			}
+			rw := sc.newResponseWriter(st, false)
+			rw.WriteHeader(http.StatusRequestHeaderFieldsTooLarge)
+			return rw.close()
 		}
 		return err
 	}
@@ -565,20 +592,7 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 		ContentLength: contentLength,
 	}).WithContext(sc.baseCtx)
 
-	rw := &responseWriter{
-		st:             st,
-		headers:        make(http.Header),
-		trailer:        make(http.Header),
-		bb:             make(bodyBuffer, 0, defaultBodyBufferCap),
-		cannotHaveBody: req.Method == "HEAD",
-		bw: &bodyWriter{
-			st:     st,
-			remain: -1,
-			flush:  false,
-			name:   "response",
-			enc:    &sc.enc,
-		},
-	}
+	rw := sc.newResponseWriter(st, req.Method != "HEAD")
 
 	if contentLength != 0 || len(reqInfo.Trailer) != 0 {
 		req.Body = &serverRequestReader{
