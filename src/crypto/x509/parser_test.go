@@ -477,3 +477,121 @@ OjUhiZoowYvborSS1EBK
 		t.Errorf("unexpected marshaled RDNSequence: got %x, want %x", got, cert.RawSubject)
 	}
 }
+
+func TestParseAITrailingData(t *testing.T) {
+	var b cryptobyte.Builder
+	b.AddASN1ObjectIdentifier(oidPublicKeyRSA)
+	b.AddASN1NULL()
+	good, err := b.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseAI(good); err != nil {
+		t.Fatalf("parseAI(valid) = %v, want nil", err)
+	}
+	// A second element after the parameters.
+	bad := append(append([]byte{}, good...), 0x05, 0x00)
+	want := "x509: trailing data after AlgorithmIdentifier parameters"
+	if _, err := parseAI(bad); err == nil || err.Error() != want {
+		t.Errorf("parseAI(trailing) = %v, want %q", err, want)
+	}
+}
+
+func TestParsePKIXPublicKeyRSATrailingData(t *testing.T) {
+	spki := func(mod func(*cryptobyte.Builder)) []byte {
+		var b cryptobyte.Builder
+		b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+			b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+				b.AddASN1ObjectIdentifier(oidPublicKeyRSA)
+				b.AddASN1NULL()
+			})
+			var key cryptobyte.Builder
+			mod(&key)
+			keyBytes, err := key.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			b.AddASN1BitString(keyBytes)
+		})
+		out, err := b.Bytes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	pub := &testPrivateKey.PublicKey
+	rsaPublicKey := func(b *cryptobyte.Builder, extra func(*cryptobyte.Builder)) {
+		b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+			b.AddASN1BigInt(pub.N)
+			b.AddASN1Int64(int64(pub.E))
+			if extra != nil {
+				extra(b)
+			}
+		})
+	}
+
+	valid := spki(func(b *cryptobyte.Builder) { rsaPublicKey(b, nil) })
+	if _, err := ParsePKIXPublicKey(valid); err != nil {
+		t.Fatalf("ParsePKIXPublicKey(valid) = %v, want nil", err)
+	}
+
+	tests := []struct {
+		name string
+		der  []byte
+		want string
+	}{
+		{
+			name: "element after the public exponent",
+			der:  spki(func(b *cryptobyte.Builder) { rsaPublicKey(b, (*cryptobyte.Builder).AddASN1NULL) }),
+			want: "x509: trailing data after RSA public exponent",
+		},
+		{
+			name: "element after the RSAPublicKey SEQUENCE",
+			der: spki(func(b *cryptobyte.Builder) {
+				rsaPublicKey(b, nil)
+				b.AddASN1NULL()
+			}),
+			want: "x509: trailing data after RSA public key",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := ParsePKIXPublicKey(test.der); err == nil || err.Error() != test.want {
+				t.Errorf("ParsePKIXPublicKey() = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestParsePublicKeyECDSATrailingData(t *testing.T) {
+	// The parameters value reaching parsePublicKey is always a single DER
+	// element, so this is a defense-in-depth check on the function itself.
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	point, err := k.PublicKey.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyInfo := func(params []byte) *publicKeyInfo {
+		return &publicKeyInfo{
+			Algorithm: pkix.AlgorithmIdentifier{Algorithm: oidPublicKeyECDSA, Parameters: asn1.RawValue{FullBytes: params}},
+			PublicKey: asn1.BitString{Bytes: point, BitLength: len(point) * 8},
+		}
+	}
+	var b cryptobyte.Builder
+	b.AddASN1ObjectIdentifier(oidNamedCurveP256)
+	good, err := b.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parsePublicKey(keyInfo(good)); err != nil {
+		t.Fatalf("parsePublicKey(valid) = %v, want nil", err)
+	}
+	bad := append(append([]byte{}, good...), 0x05, 0x00)
+	want := "x509: trailing data after ECDSA parameters"
+	if _, err := parsePublicKey(keyInfo(bad)); err == nil || err.Error() != want {
+		t.Errorf("parsePublicKey(trailing) = %v, want %q", err, want)
+	}
+}

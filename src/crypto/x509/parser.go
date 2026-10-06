@@ -256,6 +256,9 @@ func parseAI(der cryptobyte.String) (pkix.AlgorithmIdentifier, error) {
 	}
 	ai.Parameters.Tag = int(tag)
 	ai.Parameters.FullBytes = params
+	if !der.Empty() {
+		return ai, errors.New("x509: trailing data after AlgorithmIdentifier parameters")
+	}
 	return ai, nil
 }
 
@@ -321,14 +324,21 @@ func parsePublicKey(keyData *publicKeyInfo) (any, error) {
 
 		der := cryptobyte.String(data)
 		p := &pkcs1PublicKey{N: new(big.Int)}
-		if !der.ReadASN1(&der, cryptobyte_asn1.SEQUENCE) {
+		var seq cryptobyte.String
+		if !der.ReadASN1(&seq, cryptobyte_asn1.SEQUENCE) {
 			return nil, errors.New("x509: invalid RSA public key")
 		}
-		if !der.ReadASN1Integer(p.N) {
+		if !der.Empty() {
+			return nil, errors.New("x509: trailing data after RSA public key")
+		}
+		if !seq.ReadASN1Integer(p.N) {
 			return nil, errors.New("x509: invalid RSA modulus")
 		}
-		if !der.ReadASN1Integer(&p.E) {
+		if !seq.ReadASN1Integer(&p.E) {
 			return nil, errors.New("x509: invalid RSA public exponent")
+		}
+		if !seq.Empty() {
+			return nil, errors.New("x509: trailing data after RSA public exponent")
 		}
 
 		if p.N.Sign() <= 0 {
@@ -348,6 +358,9 @@ func parsePublicKey(keyData *publicKeyInfo) (any, error) {
 		namedCurveOID := new(asn1.ObjectIdentifier)
 		if !paramsDer.ReadASN1ObjectIdentifier(namedCurveOID) {
 			return nil, errors.New("x509: invalid ECDSA parameters")
+		}
+		if !paramsDer.Empty() {
+			return nil, errors.New("x509: trailing data after ECDSA parameters")
 		}
 		namedCurve := namedCurveFromOID(*namedCurveOID)
 		if namedCurve == nil {
