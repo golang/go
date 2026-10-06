@@ -52,6 +52,11 @@ func TestFill(t *testing.T) {
 				t.Fatalf("reading %s: %v", relPath, err)
 			}
 
+			isGen, err := isGenerated(src)
+			if err != nil {
+				t.Fatalf("%s: %v", relPath, err)
+			}
+
 			filled, err := specdoc.Fill(src, specIdx, specdoc.Options{
 				Filename: filepath.ToSlash(relPath),
 				// Since we're checking generator output files, we expect there
@@ -61,7 +66,7 @@ func TestFill(t *testing.T) {
 				// TODO: Docs aren't yet filled by spec in the generators, so
 				// leave them alone in the check. Once they are filled by the
 				// generators and in hand-written files, drop this flag.
-				NoFillDoc: true,
+				NoFillDoc: !isGen,
 			})
 			var rep *specdoc.Report
 			if errors.As(err, &rep) {
