@@ -452,7 +452,7 @@ wherever its prerequisites and track allow.
 
 | ✓ | T | Task | What it is | Needs | Prefers |
 |---|---|---|---|---|---|
-| [ ] | A | `width` | Resolve scalable width | — | — |
+| [x] | A | `width` | Resolve scalable width | — | — |
 | [ ] | A | `compiler-ops` | Compiler-only ops decision | — | — |
 | [ ] | A | `convert-lo` | `ExtendLo*`/`ConvertLo*` shape and naming | — | `width` |
 | [ ] | A | `mask-bits` | Mask bitmap load/store shape and naming | — | `width` |
@@ -565,7 +565,7 @@ Human judgment calls. None has prerequisites, and each blocks downstream work �
 which is why they lead. Each is small in code and large in consequence.
 
 ### `width` — Resolve scalable width
-**Done:** [ ] · **Needs:** — · **Blocks:** `spec-common`, `conform-scalable` · **Risk:** `risk-concrete-width`
+**Done:** [x] · **Needs:** — · **Blocks:** `spec-common`, `conform-scalable` · **Risk:** `risk-concrete-width`
 
 `simd/internal/spec/types.go` hardcodes `scalableWidth = 4096`, and `simdref` is
 built at that width, while `archsimd`'s SVE uses the runtime `vl()`. A
@@ -1348,7 +1348,7 @@ each is far cheaper to settle before the bodies are written than after.
 | | Risk | What it is | Owner |
 |---|---|---|---|
 | **[ ]** | `risk-spec-defects` | Known spec defects | `convert-lo`, `mask-bits` |
-| **[ ]** | `risk-concrete-width` | Executing spec at a concrete width | `width` |
+| **[x]** | `risk-concrete-width` | Executing spec at a concrete width | `width` |
 | **[ ]** | `risk-impl-defined-behavior` | Implementation-defined behavior | `impl-defined` |
 | **[x]** | `risk-doc-template-ceiling` | Doc-template ceiling — the fallback is a mechanism change affecting every doc written so far | `doc-explore` |
 | **[ ]** | `risk-ref-impl-effort` | Reference-implementation effort — every migrated operation needs a body that is *correct*, because conformance tests against it; the distribution of difficulty is unknown | `spec-common`, `spec-all` |

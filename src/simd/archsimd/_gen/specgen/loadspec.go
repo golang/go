@@ -154,6 +154,10 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 			if !ok || !d.Name.IsExported() {
 				continue
 			}
+			switch d.Name.Name {
+			case "ScalableWidth", "SetScalableWidth":
+				continue
+			}
 
 			obj := typesPkg.Scope().Lookup(d.Name.Name)
 			if obj == nil {

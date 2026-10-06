@@ -154,6 +154,18 @@
 //
 // Pointer and slice types translate directly to the API.
 //
+// ### Vector widths and scalable execution
+//
+// Fixed vector widths are represented by [Width128], [Width256], and [Width512].
+// Scalable vectors are represented by [WidthScalable]. At the specification level,
+// scalable vector width is symbolic. To execute scalable operations in the spec
+// (for example, as an oracle or via simdref), the concrete bit width must be
+// configured via [SetScalableWidth] (up to 2048 bits, matching the architectural
+// maximum of ARM SVE); executing without setting the width panics.
+//
+// Calls to [SetScalableWidth] return a restore function and must follow a
+// strict set/restore sequence. Concurrency or nested sets panic.
+//
 // ## Documentation conventions
 //
 // Look at other functions in this package and try to follow their example.
