@@ -314,6 +314,88 @@ func TestParseNameConstraintsExtensionEmptySubtrees(t *testing.T) {
 	}
 }
 
+func TestParseExtensionTrailingData(t *testing.T) {
+	// extnValue is the DER encoding of a single value (RFC 5280, Section
+	// 4.1), so bytes after the top-level value are rejected. Unknown
+	// elements inside a SEQUENCE (RFC 5280, Appendix B) stay tolerated.
+	tests := []struct {
+		name  string
+		value []byte
+		parse func([]byte) error
+		want  string
+	}{
+		{
+			name:  "KeyUsage",
+			value: []byte{0x03, 0x02, 0x07, 0x80},
+			parse: func(der []byte) error { _, err := parseKeyUsageExtension(der); return err },
+			want:  "x509: trailing data after key usage",
+		},
+		{
+			name:  "BasicConstraints",
+			value: []byte{0x30, 0x03, 0x01, 0x01, 0xff},
+			parse: func(der []byte) error { _, _, err := parseBasicConstraintsExtension(der); return err },
+			want:  "x509: trailing data after basic constraints",
+		},
+		{
+			name:  "SubjectAltName",
+			value: []byte{0x30, 0x05, 0x82, 0x03, 'a', 'b', 'c'},
+			parse: func(der []byte) error { _, _, _, _, err := parseSANExtension(der); return err },
+			want:  "x509: trailing data after subject alternative names",
+		},
+		{
+			name:  "ExtKeyUsage",
+			value: []byte{0x30, 0x0a, 0x06, 0x08, 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07, 0x03, 0x01},
+			parse: func(der []byte) error { _, _, err := parseExtKeyUsageExtension(der); return err },
+			want:  "x509: trailing data after extended key usages",
+		},
+		{
+			name:  "CertificatePolicies",
+			value: []byte{0x30, 0x08, 0x30, 0x06, 0x06, 0x04, 0x55, 0x1d, 0x20, 0x00},
+			parse: func(der []byte) error { _, err := parseCertificatePoliciesExtension(der); return err },
+			want:  "x509: trailing data after certificate policies",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.parse(test.value); err != nil {
+				t.Fatalf("parse(valid) = %v, want nil", err)
+			}
+			trailing := append(append([]byte{}, test.value...), 0x00)
+			if err := test.parse(trailing); err == nil || err.Error() != test.want {
+				t.Errorf("parse(trailing) = %v, want %q", err, test.want)
+			}
+		})
+	}
+
+	// An unknown element inside the BasicConstraints SEQUENCE is still accepted.
+	extensible := []byte{0x30, 0x05, 0x01, 0x01, 0xff, 0x05, 0x00}
+	if _, _, err := parseBasicConstraintsExtension(extensible); err != nil {
+		t.Errorf("parseBasicConstraintsExtension(extensible) = %v, want nil", err)
+	}
+}
+
+func TestParseCertificateExtensionTrailingData(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &Certificate{
+		ExtraExtensions: []pkix.Extension{{
+			Id:       asn1.ObjectIdentifier{2, 5, 29, 19},
+			Critical: true,
+			Value:    []byte{0x30, 0x03, 0x01, 0x01, 0xff, 0x00},
+		}},
+	}
+	der, err := CreateCertificate(rand.Reader, tmpl, tmpl, &k.PublicKey, k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "x509: trailing data after basic constraints"
+	if _, err := ParseCertificate(der); err == nil || err.Error() != want {
+		t.Errorf("ParseCertificate() = %v, want %q", err, want)
+	}
+}
+
 func TestDomainNameValid(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
