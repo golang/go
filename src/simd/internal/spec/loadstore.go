@@ -84,6 +84,6 @@ func StoreArrayMasked[E Elt, W FixedWidth, mE MaskElt](x Vec[E, W], y *Array[E, 
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func StorePart[E Elt, W Width](x Vec[E, W], s []E) int {
+func StorePart[E Elt, W Width](x Vec[E, W], s []E) (n int) {
 	return copy(s, x)
 }

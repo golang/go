@@ -88,7 +88,7 @@ func (x Int8s) ReduceSum() int8
 func (x Int8s) Store(s []int8)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Int8s) StorePart(s []int8) int
+func (x Int8s) StorePart(s []int8) (n int)
 
 // String returns a string representation of the vector.
 func (x Int8s) String() string
@@ -193,7 +193,7 @@ func (x Int16s) ShiftAllRight(shift uint64) (z Int16s)
 func (x Int16s) Store(s []int16)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Int16s) StorePart(s []int16) int
+func (x Int16s) StorePart(s []int16) (n int)
 
 // String returns a string representation of the vector.
 func (x Int16s) String() string
@@ -298,7 +298,7 @@ func (x Int32s) ShiftAllRight(shift uint64) (z Int32s)
 func (x Int32s) Store(s []int32)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Int32s) StorePart(s []int32) int
+func (x Int32s) StorePart(s []int32) (n int)
 
 // String returns a string representation of the vector.
 func (x Int32s) String() string
@@ -379,7 +379,7 @@ func (x Int64s) ShiftAllLeft(shift uint64) (z Int64s)
 func (x Int64s) Store(s []int64)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Int64s) StorePart(s []int64) int
+func (x Int64s) StorePart(s []int64) (n int)
 
 // String returns a string representation of the vector.
 func (x Int64s) String() string
@@ -475,7 +475,7 @@ func (x Uint8s) ReshapeToUint64s() (z Uint64s)
 func (x Uint8s) Store(s []uint8)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Uint8s) StorePart(s []uint8) int
+func (x Uint8s) StorePart(s []uint8) (n int)
 
 // String returns a string representation of the vector.
 func (x Uint8s) String() string
@@ -589,7 +589,7 @@ func (x Uint16s) ShiftAllRight(shift uint64) (z Uint16s)
 func (x Uint16s) Store(s []uint16)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Uint16s) StorePart(s []uint16) int
+func (x Uint16s) StorePart(s []uint16) (n int)
 
 // String returns a string representation of the vector.
 func (x Uint16s) String() string
@@ -700,7 +700,7 @@ func (x Uint32s) ShiftAllRight(shift uint64) (z Uint32s)
 func (x Uint32s) Store(s []uint32)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Uint32s) StorePart(s []uint32) int
+func (x Uint32s) StorePart(s []uint32) (n int)
 
 // String returns a string representation of the vector.
 func (x Uint32s) String() string
@@ -828,7 +828,7 @@ func (x Uint64s) ShiftAllRight(shift uint64) (z Uint64s)
 func (x Uint64s) Store(s []uint64)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Uint64s) StorePart(s []uint64) int
+func (x Uint64s) StorePart(s []uint64) (n int)
 
 // String returns a string representation of the vector.
 func (x Uint64s) String() string
@@ -912,7 +912,7 @@ func (x Float32s) Sqrt() Float32s
 func (x Float32s) Store(s []float32)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Float32s) StorePart(s []float32) int
+func (x Float32s) StorePart(s []float32) (n int)
 
 // String returns a string representation of the vector.
 func (x Float32s) String() string
@@ -993,7 +993,7 @@ func (x Float64s) Sqrt() Float64s
 func (x Float64s) Store(s []float64)
 
 // StorePart stores a partial vector into the slice s and returns the number actually stored.
-func (x Float64s) StorePart(s []float64) int
+func (x Float64s) StorePart(s []float64) (n int)
 
 // String returns a string representation of the vector.
 func (x Float64s) String() string

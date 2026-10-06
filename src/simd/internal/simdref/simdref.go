@@ -3267,241 +3267,241 @@ func (x Uint64x8) StoreArrayMasked(y *[8]uint64, mask Mask64x8) {
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Float32x4) StorePart(s []float32) int {
+func (x Float32x4) StorePart(s []float32) (n int) {
 	return spec.StorePart[float32, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Float32x8) StorePart(s []float32) int {
+func (x Float32x8) StorePart(s []float32) (n int) {
 	return spec.StorePart[float32, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Float32x16) StorePart(s []float32) int {
+func (x Float32x16) StorePart(s []float32) (n int) {
 	return spec.StorePart[float32, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Float32s) StorePart(s []float32) int {
+func (x Float32s) StorePart(s []float32) (n int) {
 	return spec.StorePart[float32, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Float64x2) StorePart(s []float64) int {
+func (x Float64x2) StorePart(s []float64) (n int) {
 	return spec.StorePart[float64, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Float64x4) StorePart(s []float64) int {
+func (x Float64x4) StorePart(s []float64) (n int) {
 	return spec.StorePart[float64, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Float64x8) StorePart(s []float64) int {
+func (x Float64x8) StorePart(s []float64) (n int) {
 	return spec.StorePart[float64, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Float64s) StorePart(s []float64) int {
+func (x Float64s) StorePart(s []float64) (n int) {
 	return spec.StorePart[float64, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int8x16) StorePart(s []int8) int {
+func (x Int8x16) StorePart(s []int8) (n int) {
 	return spec.StorePart[int8, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int8x32) StorePart(s []int8) int {
+func (x Int8x32) StorePart(s []int8) (n int) {
 	return spec.StorePart[int8, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int8x64) StorePart(s []int8) int {
+func (x Int8x64) StorePart(s []int8) (n int) {
 	return spec.StorePart[int8, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int8s) StorePart(s []int8) int {
+func (x Int8s) StorePart(s []int8) (n int) {
 	return spec.StorePart[int8, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int16x8) StorePart(s []int16) int {
+func (x Int16x8) StorePart(s []int16) (n int) {
 	return spec.StorePart[int16, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int16x16) StorePart(s []int16) int {
+func (x Int16x16) StorePart(s []int16) (n int) {
 	return spec.StorePart[int16, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int16x32) StorePart(s []int16) int {
+func (x Int16x32) StorePart(s []int16) (n int) {
 	return spec.StorePart[int16, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int16s) StorePart(s []int16) int {
+func (x Int16s) StorePart(s []int16) (n int) {
 	return spec.StorePart[int16, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int32x4) StorePart(s []int32) int {
+func (x Int32x4) StorePart(s []int32) (n int) {
 	return spec.StorePart[int32, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int32x8) StorePart(s []int32) int {
+func (x Int32x8) StorePart(s []int32) (n int) {
 	return spec.StorePart[int32, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int32x16) StorePart(s []int32) int {
+func (x Int32x16) StorePart(s []int32) (n int) {
 	return spec.StorePart[int32, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int32s) StorePart(s []int32) int {
+func (x Int32s) StorePart(s []int32) (n int) {
 	return spec.StorePart[int32, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int64x2) StorePart(s []int64) int {
+func (x Int64x2) StorePart(s []int64) (n int) {
 	return spec.StorePart[int64, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int64x4) StorePart(s []int64) int {
+func (x Int64x4) StorePart(s []int64) (n int) {
 	return spec.StorePart[int64, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int64x8) StorePart(s []int64) int {
+func (x Int64x8) StorePart(s []int64) (n int) {
 	return spec.StorePart[int64, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Int64s) StorePart(s []int64) int {
+func (x Int64s) StorePart(s []int64) (n int) {
 	return spec.StorePart[int64, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint8x16) StorePart(s []uint8) int {
+func (x Uint8x16) StorePart(s []uint8) (n int) {
 	return spec.StorePart[uint8, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint8x32) StorePart(s []uint8) int {
+func (x Uint8x32) StorePart(s []uint8) (n int) {
 	return spec.StorePart[uint8, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint8x64) StorePart(s []uint8) int {
+func (x Uint8x64) StorePart(s []uint8) (n int) {
 	return spec.StorePart[uint8, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint8s) StorePart(s []uint8) int {
+func (x Uint8s) StorePart(s []uint8) (n int) {
 	return spec.StorePart[uint8, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint16x8) StorePart(s []uint16) int {
+func (x Uint16x8) StorePart(s []uint16) (n int) {
 	return spec.StorePart[uint16, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint16x16) StorePart(s []uint16) int {
+func (x Uint16x16) StorePart(s []uint16) (n int) {
 	return spec.StorePart[uint16, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint16x32) StorePart(s []uint16) int {
+func (x Uint16x32) StorePart(s []uint16) (n int) {
 	return spec.StorePart[uint16, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint16s) StorePart(s []uint16) int {
+func (x Uint16s) StorePart(s []uint16) (n int) {
 	return spec.StorePart[uint16, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint32x4) StorePart(s []uint32) int {
+func (x Uint32x4) StorePart(s []uint32) (n int) {
 	return spec.StorePart[uint32, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint32x8) StorePart(s []uint32) int {
+func (x Uint32x8) StorePart(s []uint32) (n int) {
 	return spec.StorePart[uint32, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint32x16) StorePart(s []uint32) int {
+func (x Uint32x16) StorePart(s []uint32) (n int) {
 	return spec.StorePart[uint32, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint32s) StorePart(s []uint32) int {
+func (x Uint32s) StorePart(s []uint32) (n int) {
 	return spec.StorePart[uint32, spec.WidthScalable](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint64x2) StorePart(s []uint64) int {
+func (x Uint64x2) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.Width128](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint64x4) StorePart(s []uint64) int {
+func (x Uint64x4) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.Width256](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint64x8) StorePart(s []uint64) int {
+func (x Uint64x8) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.Width512](x.v, s)
 }
 
 // StorePart stores at most len(s) elements of x into s and returns the number
 // of elements stored.
-func (x Uint64s) StorePart(s []uint64) int {
+func (x Uint64s) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.WidthScalable](x.v, s)
 }
 

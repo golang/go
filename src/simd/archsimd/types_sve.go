@@ -73,7 +73,7 @@ func loadFloat32sPart(s []float32) Float32s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Float32s) StorePart(s []float32) int {
+func (x Float32s) StorePart(s []float32) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -171,7 +171,7 @@ func loadFloat64sPart(s []float64) Float64s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Float64s) StorePart(s []float64) int {
+func (x Float64s) StorePart(s []float64) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -269,7 +269,7 @@ func loadInt8sPart(s []int8) Int8s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Int8s) StorePart(s []int8) int {
+func (x Int8s) StorePart(s []int8) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -367,7 +367,7 @@ func loadInt16sPart(s []int16) Int16s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Int16s) StorePart(s []int16) int {
+func (x Int16s) StorePart(s []int16) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -465,7 +465,7 @@ func loadInt32sPart(s []int32) Int32s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Int32s) StorePart(s []int32) int {
+func (x Int32s) StorePart(s []int32) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -563,7 +563,7 @@ func loadInt64sPart(s []int64) Int64s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Int64s) StorePart(s []int64) int {
+func (x Int64s) StorePart(s []int64) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -661,7 +661,7 @@ func loadUint8sPart(s []uint8) Uint8s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Uint8s) StorePart(s []uint8) int {
+func (x Uint8s) StorePart(s []uint8) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -759,7 +759,7 @@ func loadUint16sPart(s []uint16) Uint16s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Uint16s) StorePart(s []uint16) int {
+func (x Uint16s) StorePart(s []uint16) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -857,7 +857,7 @@ func loadUint32sPart(s []uint32) Uint32s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Uint32s) StorePart(s []uint32) int {
+func (x Uint32s) StorePart(s []uint32) (n int) {
 	if len(s) == 0 {
 		return 0
 	}
@@ -955,7 +955,7 @@ func loadUint64sPart(s []uint64) Uint64s
 // returns n.
 //
 // Asm: Emulated (predicate construction + ST1B).
-func (x Uint64s) StorePart(s []uint64) int {
+func (x Uint64s) StorePart(s []uint64) (n int) {
 	if len(s) == 0 {
 		return 0
 	}

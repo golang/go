@@ -71,7 +71,7 @@ one (or _) is not, and is counted below as a name Fill fills in instead:
 Names spec gives that the API leaves unnamed, for declarations spec covers:
 
   declarations with unnamed parameters              0 -> 0       [named-results]
-  declarations with unnamed results               119 -> 0       [named-results]
+  declarations with unnamed results               147 -> 0       [named-results]
 
 API consistency across targets (the "one meaning" invariant), for
 (receiver, name) pairs declared for more than one target. An unnamed
