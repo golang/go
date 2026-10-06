@@ -83,6 +83,7 @@ type arch struct {
 	fp32regmask        regMask
 	fp64regmask        regMask
 	simdregmask        regMask
+	predregmask        regMask
 	specialregmask     regMask
 	framepointerreg    int8
 	linkreg            int8
@@ -662,6 +663,9 @@ func genOp() {
 		}
 		if !a.simdregmask.empty() {
 			fmt.Fprintf(w, "var simdRegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+simpleTitle("regMask"), simpleTitle("v1"), a.simdregmask.v1, simpleTitle("v2"), a.simdregmask.v2)
+		}
+		if !a.predregmask.empty() {
+			fmt.Fprintf(w, "var predRegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+simpleTitle("regMask"), simpleTitle("v1"), a.predregmask.v1, simpleTitle("v2"), a.predregmask.v2)
 		}
 		fmt.Fprintf(w, "var specialRegMask%s = %s{%s: %d, %s: %d}\n", a.name, splitOpPrefix+simpleTitle("regMask"), simpleTitle("v1"), a.specialregmask.v1, simpleTitle("v2"), a.specialregmask.v2)
 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)

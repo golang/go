@@ -39,6 +39,7 @@ type Config struct {
 	Fp32RegMask    ssaop.RegMask      // floating point register mask
 	Fp64RegMask    ssaop.RegMask      // floating point register mask
 	SimdRegMask    ssaop.RegMask      // simd register mask; may be same as fpRegMask
+	PredRegMask    ssaop.RegMask      // predicate register mask; empty if the arch has no predicate registers
 	SpecialRegMask ssaop.RegMask      // special register mask
 	IntParamRegs   []int8             // register numbers of integer param (in/out) registers
 	FloatParamRegs []int8             // register numbers of floating param (in/out) registers
