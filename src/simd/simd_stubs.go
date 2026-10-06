@@ -16,7 +16,7 @@ func LoadInt8sPart([]int8) (Int8s, int)
 func BroadcastInt8s(int8) Int8s
 
 // Abs returns the element-wise absolute value of x.
-func (x Int8s) Abs() Int8s
+func (x Int8s) Abs() Uint8s
 
 // Add returns the element-wise sum of x and y.
 func (x Int8s) Add(y Int8s) Int8s
@@ -118,7 +118,7 @@ func LoadInt16sPart([]int16) (Int16s, int)
 func BroadcastInt16s(int16) Int16s
 
 // Abs returns the element-wise absolute value of x.
-func (x Int16s) Abs() Int16s
+func (x Int16s) Abs() Uint16s
 
 // Add returns the element-wise sum of x and y.
 func (x Int16s) Add(y Int16s) Int16s
@@ -229,7 +229,7 @@ func LoadInt32sPart([]int32) (Int32s, int)
 func BroadcastInt32s(int32) Int32s
 
 // Abs returns the element-wise absolute value of x.
-func (x Int32s) Abs() Int32s
+func (x Int32s) Abs() Uint32s
 
 // Add returns the element-wise sum of x and y.
 func (x Int32s) Add(y Int32s) Int32s

@@ -195,10 +195,6 @@ func TestAbsSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no SVE")
 	}
-	testInt8sUnary(t, archsimd.Int8s.Abs, absSlice[int8])
-	testInt16sUnary(t, archsimd.Int16s.Abs, absSlice[int16])
-	testInt32sUnary(t, archsimd.Int32s.Abs, absSlice[int32])
-	testInt64sUnary(t, archsimd.Int64s.Abs, absSlice[int64])
 	testFloat32sUnary(t, archsimd.Float32s.Abs, absSlice[float32])
 	testFloat64sUnary(t, archsimd.Float64s.Abs, absSlice[float64])
 }

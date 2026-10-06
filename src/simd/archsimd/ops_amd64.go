@@ -137,62 +137,62 @@ func (x Uint32x4) AESRoundKeyGenAssist(rconVal uint8) Uint32x4
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX
-func (x Int8x16) Abs() Int8x16
+func (x Int8x16) Abs() Uint8x16
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX2
-func (x Int8x32) Abs() Int8x32
+func (x Int8x32) Abs() Uint8x32
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX512
-func (x Int8x64) Abs() Int8x64
+func (x Int8x64) Abs() Uint8x64
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX
-func (x Int16x8) Abs() Int16x8
+func (x Int16x8) Abs() Uint16x8
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX2
-func (x Int16x16) Abs() Int16x16
+func (x Int16x16) Abs() Uint16x16
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX512
-func (x Int16x32) Abs() Int16x32
+func (x Int16x32) Abs() Uint16x32
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX
-func (x Int32x4) Abs() Int32x4
+func (x Int32x4) Abs() Uint32x4
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX2
-func (x Int32x8) Abs() Int32x8
+func (x Int32x8) Abs() Uint32x8
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX512
-func (x Int32x16) Abs() Int32x16
+func (x Int32x16) Abs() Uint32x16
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512
-func (x Int64x2) Abs() Int64x2
+func (x Int64x2) Abs() Uint64x2
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512
-func (x Int64x4) Abs() Int64x4
+func (x Int64x4) Abs() Uint64x4
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512
-func (x Int64x8) Abs() Int64x8
+func (x Int64x8) Abs() Uint64x8
 
 /* Add */
 

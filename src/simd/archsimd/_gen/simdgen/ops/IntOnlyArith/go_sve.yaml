@@ -10,7 +10,10 @@
     base: int
   - class: mask # governing predicate
   out:
-  - *int
+  # ZABS "wraps" in the signed domain for MinIntN, which is equivalent to just
+  # producing the full range in the unsigned domain.
+  - base: int
+    overwriteBase: uint
 
 # Div — signed and unsigned integer divide (ZSDIV/ZUDIV), 32- and 64-bit
 # elements only (the narrower widths have no encoding). Predicated-only and

@@ -412,16 +412,16 @@ func BroadcastUint64x8(x uint64) Uint64x8 {
 	return Uint64x8(archsimd.BroadcastUint64x8(x))
 }
 
-func (x Int8x16) Abs() Int8x16 {
-	return Int8x16((archsimd.Int8x16(x)).Abs())
+func (x Int8x16) Abs() Uint8x16 {
+	return Uint8x16((archsimd.Int8x16(x)).Abs())
 }
 
-func (x Int8x32) Abs() Int8x32 {
-	return Int8x32((archsimd.Int8x32(x)).Abs())
+func (x Int8x32) Abs() Uint8x32 {
+	return Uint8x32((archsimd.Int8x32(x)).Abs())
 }
 
-func (x Int8x64) Abs() Int8x64 {
-	return Int8x64((archsimd.Int8x64(x)).Abs())
+func (x Int8x64) Abs() Uint8x64 {
+	return Uint8x64((archsimd.Int8x64(x)).Abs())
 }
 
 func (x Int8x16) Add(y Int8x16) Int8x16 {
@@ -784,16 +784,16 @@ func (x Int8x64) Xor(y Int8x64) Int8x64 {
 	return Int8x64((archsimd.Int8x64(x)).Xor(archsimd.Int8x64(y)))
 }
 
-func (x Int16x8) Abs() Int16x8 {
-	return Int16x8((archsimd.Int16x8(x)).Abs())
+func (x Int16x8) Abs() Uint16x8 {
+	return Uint16x8((archsimd.Int16x8(x)).Abs())
 }
 
-func (x Int16x16) Abs() Int16x16 {
-	return Int16x16((archsimd.Int16x16(x)).Abs())
+func (x Int16x16) Abs() Uint16x16 {
+	return Uint16x16((archsimd.Int16x16(x)).Abs())
 }
 
-func (x Int16x32) Abs() Int16x32 {
-	return Int16x32((archsimd.Int16x32(x)).Abs())
+func (x Int16x32) Abs() Uint16x32 {
+	return Uint16x32((archsimd.Int16x32(x)).Abs())
 }
 
 func (x Int16x8) Add(y Int16x8) Int16x8 {
@@ -1192,16 +1192,16 @@ func (x Int16x32) Xor(y Int16x32) Int16x32 {
 	return Int16x32((archsimd.Int16x32(x)).Xor(archsimd.Int16x32(y)))
 }
 
-func (x Int32x4) Abs() Int32x4 {
-	return Int32x4((archsimd.Int32x4(x)).Abs())
+func (x Int32x4) Abs() Uint32x4 {
+	return Uint32x4((archsimd.Int32x4(x)).Abs())
 }
 
-func (x Int32x8) Abs() Int32x8 {
-	return Int32x8((archsimd.Int32x8(x)).Abs())
+func (x Int32x8) Abs() Uint32x8 {
+	return Uint32x8((archsimd.Int32x8(x)).Abs())
 }
 
-func (x Int32x16) Abs() Int32x16 {
-	return Int32x16((archsimd.Int32x16(x)).Abs())
+func (x Int32x16) Abs() Uint32x16 {
+	return Uint32x16((archsimd.Int32x16(x)).Abs())
 }
 
 func (x Int32x4) Add(y Int32x4) Int32x4 {

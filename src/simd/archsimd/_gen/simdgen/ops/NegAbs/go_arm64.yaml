@@ -25,7 +25,10 @@
   in:
   - *int
   out:
-  - *int
+  # VABS "wraps" in the signed domain for MinIntN, which is equivalent to just
+  # producing the full range in the unsigned domain.
+  - base: int
+    overwriteBase: uint
 
 # Float Abs — VFABS
 - go: Abs

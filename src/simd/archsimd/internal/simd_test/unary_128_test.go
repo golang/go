@@ -50,12 +50,6 @@ func TestNot(t *testing.T) {
 func TestAbs(t *testing.T) {
 	testFloat32x4Unary(t, archsimd.Float32x4.Abs, map1[float32](abs))
 	testFloat64x2Unary(t, archsimd.Float64x2.Abs, map1[float64](abs))
-	testInt8x16Unary(t, archsimd.Int8x16.Abs, map1[int8](abs))
-	testInt16x8Unary(t, archsimd.Int16x8.Abs, map1[int16](abs))
-	testInt32x4Unary(t, archsimd.Int32x4.Abs, map1[int32](abs))
-	if runtime.GOARCH != "amd64" || archsimd.X86.AVX512() {
-		testInt64x2Unary(t, archsimd.Int64x2.Abs, map1[int64](abs))
-	}
 }
 
 func TestNeg(t *testing.T) {

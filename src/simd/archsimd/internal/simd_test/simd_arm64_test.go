@@ -385,19 +385,19 @@ func TestIfElseSVE(t *testing.T) {
 		}
 		return v
 	}
-	check("Abs.IfElse(z)", x.Abs().IfElse(m, z), func(i int, active bool) int8 {
+	check("Abs.IfElse(z)", x.Abs().ConvertToInt8().IfElse(m, z), func(i int, active bool) int8 {
 		if active {
 			return absLane(xs[i])
 		}
 		return zs[i]
 	})
-	check("Abs.IfElse(x)", x.Abs().IfElse(m, x), func(i int, active bool) int8 {
+	check("Abs.IfElse(x)", x.Abs().ConvertToInt8().IfElse(m, x), func(i int, active bool) int8 {
 		if active {
 			return absLane(xs[i])
 		}
 		return xs[i]
 	})
-	check("Abs.Masked", x.Abs().Masked(m), func(i int, active bool) int8 {
+	check("Abs.Masked", x.Abs().Masked(m).ConvertToInt8(), func(i int, active bool) int8 {
 		if active {
 			return absLane(xs[i])
 		}

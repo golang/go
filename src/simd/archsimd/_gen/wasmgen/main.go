@@ -281,8 +281,8 @@ type wasmOp struct {
 	t          *simdType // the receiver and default arg type
 	op         string    // the basic Op type, e.g. "load", "add"
 	argCount   int       // Number of arguments (inputs)
-	argType    string    // (Binary) arg type (e.g., "v128", "i32", "void") -- defaults to t
-	resultType string    // Result type (e.g., "v128", "i32", "void") -- defaults to t
+	argType    string    // Go argument type (e.g. "Int32x4" for vector, or "int32" for lane replacement) -- defaults to t.Name
+	resultType string    // Go result type (e.g. "Uint32x4", or element type "int32" for lane extraction) -- defaults to t.Name
 	opFlags    OpFlags
 	doc        string
 
@@ -406,7 +406,7 @@ func (o *wasmOp) SsaResultType() string {
 
 func (o *wasmOp) RegInfo() string {
 	if o.argType == "" {
-		if o.resultType == "" {
+		if o.resultType == "" || (o.resultType[0] >= 'A' && o.resultType[0] <= 'Z') {
 			switch o.argCount {
 			case 1:
 				return "v11"
@@ -414,13 +414,6 @@ func (o *wasmOp) RegInfo() string {
 				return "v21"
 			case 3:
 				return "v31"
-			}
-		} else if o.Flag(IsConversion) {
-			if o.argCount == 1 {
-				return "v11"
-			} else if o.argCount == 2 {
-				// widening multiplies
-				return "v21"
 			}
 		} else {
 			if o.argCount == 1 {
@@ -636,7 +629,8 @@ var (
 
 	v_t = []string{"any_true"} // vector, test (scalar result)
 
-	s_1  = []string{"abs", "neg"}                                              // integer, unary
+	s_1  = []string{"neg"}                                                     // integer, unary
+	su_1 = []string{"abs"}                                                     // signed->unsigned integer, unary
 	f_1  = []string{"abs", "neg", "sqrt", "ceil", "floor", "trunc", "nearest"} // float, unary
 	i8_1 = []string{"popcnt"}                                                  // int8, unary
 
@@ -879,6 +873,9 @@ func initWasmOps() {
 	addWasmOpsDetail(ints, v_3, 3, bitSelect)
 	addWasmOps(allTypes, v_t, 1, isTest)
 	addWasmOps(signed, s_1, 1, unShape)
+	addWasmOpsDetail(signed, su_1, 1, func(op *wasmOp) {
+		op.resultType = op.T().UintShaped.Name
+	})
 	addWasmOps(floats, f_1, 1, unShape)
 	addWasmOps([]*simdType{vi8}, i8_1, 1, nil)
 

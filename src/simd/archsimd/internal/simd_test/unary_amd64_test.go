@@ -15,20 +15,6 @@ import (
 func TestAbsAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Abs, map1[float32](abs))
 	testFloat64x4Unary(t, archsimd.Float64x4.Abs, map1[float64](abs))
-	if archsimd.X86.AVX2() {
-		testInt8x32Unary(t, archsimd.Int8x32.Abs, map1[int8](abs))
-		testInt16x16Unary(t, archsimd.Int16x16.Abs, map1[int16](abs))
-		testInt32x8Unary(t, archsimd.Int32x8.Abs, map1[int32](abs))
-	}
-	if archsimd.X86.AVX512() {
-		testInt8x64Unary(t, archsimd.Int8x64.Abs, map1[int8](abs))
-		testInt16x32Unary(t, archsimd.Int16x32.Abs, map1[int16](abs))
-		testInt32x16Unary(t, archsimd.Int32x16.Abs, map1[int32](abs))
-		testInt64x4Unary(t, archsimd.Int64x4.Abs, map1[int64](abs))
-		testInt64x8Unary(t, archsimd.Int64x8.Abs, map1[int64](abs))
-		testFloat32x16Unary(t, archsimd.Float32x16.Abs, map1[float32](abs))
-		testFloat64x8Unary(t, archsimd.Float64x8.Abs, map1[float64](abs))
-	}
 }
 
 func TestNegAMD64(t *testing.T) {

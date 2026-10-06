@@ -7,17 +7,17 @@ package archsimd
 // Abs returns the elementwise absolute value of x.
 //
 // Asm: I8x16Abs
-func (x Int8x16) Abs() Int8x16
+func (x Int8x16) Abs() Uint8x16
 
 // Abs returns the elementwise absolute value of x.
 //
 // Asm: I16x8Abs
-func (x Int16x8) Abs() Int16x8
+func (x Int16x8) Abs() Uint16x8
 
 // Abs returns the elementwise absolute value of x.
 //
 // Asm: I32x4Abs
-func (x Int32x4) Abs() Int32x4
+func (x Int32x4) Abs() Uint32x4
 
 // Abs returns the elementwise absolute value of x.
 //
@@ -27,7 +27,7 @@ func (x Float32x4) Abs() Float32x4
 // Abs returns the elementwise absolute value of x.
 //
 // Asm: I64x2Abs
-func (x Int64x2) Abs() Int64x2
+func (x Int64x2) Abs() Uint64x2
 
 // Abs returns the elementwise absolute value of x.
 //

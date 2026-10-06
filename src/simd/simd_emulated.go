@@ -120,14 +120,14 @@ func (x *Int8s) set(i int, v int8) {
 }
 
 // Abs returns the element-wise absolute value of x.
-func (x Int8s) Abs() Int8s {
-	var res Int8s
+func (x Int8s) Abs() Uint8s {
+	var res Uint8s
 	for i := 0; i < 16; i++ {
 		v := x.get(i)
 		if v < 0 {
-			res.set(i, -v)
+			res.set(i, uint8(-v))
 		} else {
-			res.set(i, v)
+			res.set(i, uint8(v))
 		}
 	}
 	return res
@@ -443,14 +443,14 @@ func (x *Int16s) set(i int, v int16) {
 }
 
 // Abs returns the element-wise absolute value of x.
-func (x Int16s) Abs() Int16s {
-	var res Int16s
+func (x Int16s) Abs() Uint16s {
+	var res Uint16s
 	for i := 0; i < 8; i++ {
 		v := x.get(i)
 		if v < 0 {
-			res.set(i, -v)
+			res.set(i, uint16(-v))
 		} else {
-			res.set(i, v)
+			res.set(i, uint16(v))
 		}
 	}
 	return res
@@ -808,14 +808,14 @@ func (x *Int32s) set(i int, v int32) {
 }
 
 // Abs returns the element-wise absolute value of x.
-func (x Int32s) Abs() Int32s {
-	var res Int32s
+func (x Int32s) Abs() Uint32s {
+	var res Uint32s
 	for i := 0; i < 4; i++ {
 		v := x.get(i)
 		if v < 0 {
-			res.set(i, -v)
+			res.set(i, uint32(-v))
 		} else {
-			res.set(i, v)
+			res.set(i, uint32(v))
 		}
 	}
 	return res

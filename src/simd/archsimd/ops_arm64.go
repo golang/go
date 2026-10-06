@@ -19,22 +19,22 @@ func (x Float64x2) Abs() Float64x2
 // Abs computes the absolute value of each element.
 //
 // Asm: VABS, CPU Feature: NEON
-func (x Int8x16) Abs() Int8x16
+func (x Int8x16) Abs() Uint8x16
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VABS, CPU Feature: NEON
-func (x Int16x8) Abs() Int16x8
+func (x Int16x8) Abs() Uint16x8
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VABS, CPU Feature: NEON
-func (x Int32x4) Abs() Int32x4
+func (x Int32x4) Abs() Uint32x4
 
 // Abs computes the absolute value of each element.
 //
 // Asm: VABS, CPU Feature: NEON
-func (x Int64x2) Abs() Int64x2
+func (x Int64x2) Abs() Uint64x2
 
 /* Add */
 

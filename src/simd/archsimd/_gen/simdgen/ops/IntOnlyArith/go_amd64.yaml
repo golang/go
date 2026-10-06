@@ -20,7 +20,7 @@
     go: $t
     base: int
   out:
-  - *int_t # Output is magnitude, fits in the same signed type
+  - base: uint # Output is magnitude, requires uint for full range
 
 # Sign Operation (signed byte, word, dword)
 # Instructions: VPSIGNB, VPSIGNW, VPSIGND

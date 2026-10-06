@@ -19,22 +19,22 @@ func (x Float64s) Abs() Float64s
 // Abs computes the absolute value of each element.
 //
 // Asm: ZABS, CPU Feature: SVE
-func (x Int8s) Abs() Int8s
+func (x Int8s) Abs() Uint8s
 
 // Abs computes the absolute value of each element.
 //
 // Asm: ZABS, CPU Feature: SVE
-func (x Int16s) Abs() Int16s
+func (x Int16s) Abs() Uint16s
 
 // Abs computes the absolute value of each element.
 //
 // Asm: ZABS, CPU Feature: SVE
-func (x Int32s) Abs() Int32s
+func (x Int32s) Abs() Uint32s
 
 // Abs computes the absolute value of each element.
 //
 // Asm: ZABS, CPU Feature: SVE
-func (x Int64s) Abs() Int64s
+func (x Int64s) Abs() Uint64s
 
 /* Add */
 
