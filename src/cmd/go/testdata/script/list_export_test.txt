@@ -1,0 +1,9 @@
+# Regression test for https://go.dev/issue/82042:
+# "go list -test -export" should not fail for packages with tests.
+
+env GOEXPERIMENT=golistexportnewformat
+
+go list -test -export p_test.go
+
+-- p_test.go --
+package p

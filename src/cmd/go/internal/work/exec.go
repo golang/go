@@ -1949,10 +1949,8 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 		v = cmp.Or(a.Package.Module.GoVersion, gover.DefaultGoModVersion)
 	}
 
-	srcs := make([]string, len(a.Package.GoFiles))
-	for i := range srcs {
-		srcs[i] = filepath.Join(a.Package.Dir, a.Package.GoFiles[i])
-	}
+	// Careful, a.Package.GoFiles can be relative or absolute paths (see #82042).
+	srcs := mkAbsFiles(a.Package.Dir, a.Package.GoFiles)
 	// Collect output source files from any cgo dependencies.
 	if a.Package.UsesCgo() {
 		for _, dep := range a.Deps {
