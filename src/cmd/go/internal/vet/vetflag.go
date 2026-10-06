@@ -44,7 +44,6 @@ var (
 )
 
 func addFlags(cmd *base.Command) {
-	// We run the compiler for export data.
 	// Suppress the build -json flag; we define our own.
 	work.AddBuildFlags(cmd, work.OmitJSONFlag)
 

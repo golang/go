@@ -31,6 +31,23 @@ stdout 'ok\s+m/vetfail/p2'
 go test -a m/vetfail/p2
 ! stderr 'invalid.*constraint'
 
+# An invalid //go:debug directive is reported only once when build and vet
+# run concurrently during 'go test'.
+! go test m/baddebug
+stderr -count=1 'invalid //go:debug'
+
+# If the vet tool fails without producing vet.out while the build succeeds,
+# both 'go test' and 'go test -c' must report the error and fail.
+go build -o $WORK/failvet$GOEXE ./failvet
+! go test -toolexec=$WORK/failvet$GOEXE m/okpkg
+stderr 'vet tool crashed'
+stdout 'FAIL\tm/okpkg \[build failed\]'
+! go test -c -toolexec=$WORK/failvet$GOEXE m/okpkg
+stderr 'vet tool crashed'
+! exists okpkg.test$GOEXE
+! go test -c -o $devnull -toolexec=$WORK/failvet$GOEXE m/okpkg
+stderr 'vet tool crashed'
+
 -- go.mod --
 module m
 
@@ -89,4 +106,50 @@ import "testing"
 
 func TestF(t *testing.T) {
 	F()
+}
+-- baddebug/p.go --
+//go:debug invalid
+package baddebug
+-- baddebug/p_test.go --
+package baddebug
+
+import "testing"
+
+func TestBad(t *testing.T) {}
+-- okpkg/p.go --
+package okpkg
+-- okpkg/p_test.go --
+package okpkg
+
+import "testing"
+
+func TestOK(t *testing.T) {}
+-- failvet/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	tool := strings.TrimSuffix(filepath.Base(os.Args[1]), ".exe")
+	if tool == "vet" && (len(os.Args) < 3 || os.Args[2] != "-V=full") {
+		fmt.Fprintln(os.Stderr, "vet tool crashed")
+		os.Exit(1)
+	}
+	cmd := exec.Command(os.Args[1], os.Args[2:]...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			os.Exit(ee.ExitCode())
+		}
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

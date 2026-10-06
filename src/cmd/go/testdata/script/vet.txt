@@ -18,6 +18,14 @@ go vet -printf=false m/vetpkg
 go vet m/onlytest
 ! stderr .
 
+# Vet does not invoke the compiler.
+go vet -a -x m/onlytest
+! stderr '[/\\]compile'$GOEXE'["]? '
+
+# Typecheck errors in a VetxOnly dependency are reported cleanly.
+! go vet m/baddepuser
+stderr 'baddep[/\\]baddep\.go:.*undefined: nonexistent'
+
 # With only cgo files (tests issue #24193)
 [!cgo] skip
 go vet m/onlycgo
@@ -53,6 +61,14 @@ package p
 import "testing"
 
 func TestMe(*testing.T) {}
+-- baddep/baddep.go --
+package baddep
+
+var _ = nonexistent
+-- baddepuser/u.go --
+package baddepuser
+
+import _ "m/baddep"
 -- onlycgo/p.go --
 package p
 

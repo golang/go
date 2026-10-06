@@ -632,7 +632,7 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 	)
 
 	cachedBuild := false
-	need := bit(needBuild, !b.IsCmdList && a.needBuild || b.NeedExport) |
+	need := bit(needBuild, !b.IsCmdList || b.NeedExport) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
 	actionID := b.buildActionID(a)
@@ -1695,29 +1695,72 @@ var VetHandleStdout = copyToStdout
 // -{vet,fix}tool) were set explicitly on the command line.
 var VetExplicit bool
 
+// vetProvider holds information produced by a vet action.
+type vetProvider struct {
+	err error // deferred error during 'go test' until build result is known
+}
+
+// ReportDeferredVetError reports a deferred vet error recorded on a, if any.
+// During 'go test', vet actions that fail before producing vet.out defer
+// error reporting so syntax and type errors are not printed twice when the
+// compiler also fails. Callers invoke this when the build itself succeeded.
+func (b *Builder) ReportDeferredVetError(a *Action) {
+	if a == nil {
+		return
+	}
+	b.exec.Lock()
+	pr, ok := a.Provider.(*vetProvider)
+	if ok {
+		a.Provider = nil
+	}
+	b.exec.Unlock()
+	if !ok || pr.err == nil {
+		return
+	}
+	err := pr.err
+	if a.Package != nil {
+		if ipe, ok := errors.AsType[load.ImportPathError](err); !ok || ipe.ImportPath() != a.Package.ImportPath {
+			err = fmt.Errorf("%s: %v", a.Package.ImportPath, err)
+		}
+	}
+	b.Shell(a).Errorf("%s", err)
+}
+
 func (b *Builder) vet(ctx context.Context, a *Action) error {
 	a.Failed = nil // vet of dependency may have failed but we can still succeed
 	for _, a1 := range a.Deps {
 		if a1.Failed != nil && (a1.Mode != "vet" || a1.built == "") {
-			// The build of the package or a dependency has failed. Skip vet check.
+			// A dependency failed to produce export data or cgo outputs. Skip vet check.
+			a.Failed = a1.Failed
 			return nil
 		}
 	}
 
+	deferErr := func(err error) error {
+		if cfg.CmdName == "test" {
+			a.Provider = &vetProvider{
+				err: err,
+			}
+			a.Failed = a
+			return nil
+		}
+		return err
+	}
+
 	p := a.Package
 	if p.Error != nil {
-		return p.Error
+		return deferErr(p.Error)
 	}
 	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
-		return errors.New("module requires Go " + p.Module.GoVersion + " or later")
+		return deferErr(errors.New("module requires Go " + p.Module.GoVersion + " or later"))
 	}
 	if err := b.checkDirectives(a); err != nil {
-		return err
+		return deferErr(err)
 	}
 
 	vcfg, vetDir := buildVetConfig(a)
 	if len(vcfg.GoFiles) == 0 {
-		return &load.NoGoError{Package: p}
+		return deferErr(&load.NoGoError{Package: p})
 	}
 
 	sh := b.Shell(a)
@@ -1913,7 +1956,6 @@ cachemiss:
 	// all other file names in the config are absolute. Report its
 	// output relative to the directory of the package.
 	out, runErr := sh.runOut(vetDir, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
-	runErr = sh.reportCmd(p.ImportPath, p.Dir, out, runErr)
 
 	// Save facts and export data.
 	// Even if vet reported diagnostics and exited non-zero, it may have
@@ -1935,7 +1977,34 @@ cachemiss:
 	}
 
 	if runErr != nil {
-		return runErr
+		if a.built == "" {
+			if cfg.CmdName == "test" {
+				// Vet failed before producing vet.out. Defer reporting so
+				// syntax and type errors are not printed twice when the
+				// compiler also fails; the test runner reports it if the
+				// build succeeds.
+				return deferErr(sh.reportCmd(p.ImportPath, p.Dir, out, runErr))
+			}
+			if vcfg.VetxOnly && len(out) == 0 {
+				// unitchecker suppresses parse/typecheck errors when VetxOnly
+				// is set. Re-run with VetxOnly=false to obtain the diagnostic;
+				// parse/typecheck fails before analyzers run.
+				vcfg.VetxOnly = false
+				vcfg.Stdout = ""
+				if js2, err := json.Marshal(vcfg); err == nil {
+					errCfg := a.Objdir + "vet.err.cfg"
+					if err := sh.writeFile(errCfg, js2); err == nil {
+						if out2, err2 := sh.runOut(vetDir, env, cfg.BuildToolexec, tool, vetFlags, errCfg); err2 != nil && len(out2) > 0 {
+							out, runErr = out2, err2
+						}
+					}
+				}
+			}
+		}
+		return sh.reportCmd(p.ImportPath, p.Dir, out, runErr)
+	}
+	if err := sh.reportCmd(p.ImportPath, p.Dir, out, nil); err != nil {
+		return err
 	}
 
 	// Save fix archive (if any).

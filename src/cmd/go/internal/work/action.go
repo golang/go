@@ -112,7 +112,6 @@ type Action struct {
 	buildID          string         // build ID of action output
 
 	VetxOnly   bool   // Mode=="vet": only being called to supply info about dependencies
-	needBuild  bool   // Mode=="build-export": need to do actual build
 	needFix    bool   // Mode=="vet": need secondary target, a .zip file containing fixes
 	FixArchive string // the created .zip file containing fixes (if needFix)
 	output     []byte // output redirect buffer (nil means use b.Print)
@@ -185,7 +184,6 @@ type actionJSON struct {
 	Failed     bool      `json:",omitempty"`
 	Built      string    `json:",omitempty"`
 	VetxOnly   bool      `json:",omitempty"`
-	NeedBuild  bool      `json:",omitempty"`
 	ActionID   string    `json:",omitempty"`
 	BuildID    string    `json:",omitempty"`
 	TimeReady  time.Time `json:",omitempty"`
@@ -237,7 +235,6 @@ func actionGraphJSON(a *Action) string {
 				Priority:   a.priority,
 				Built:      a.built,
 				VetxOnly:   a.VetxOnly,
-				NeedBuild:  a.needBuild,
 			}
 			if a.Package != nil {
 				// TODO(rsc): Make this a unique key for a.Package somehow.
@@ -266,8 +263,6 @@ const (
 	ModeBuild BuildMode = iota
 	ModeInstall
 	ModeBuggyInstall
-
-	ModeVetOnly = 1 << 8
 )
 
 // NewBuilder returns a new Builder ready for use.
@@ -597,10 +592,7 @@ func (c cgoCompileActor) Act(b *Builder, ctx context.Context, a *Action) error {
 // the build action completing signifies that the complete archive for
 // a package is ready.
 func (b *Builder) BuildExportAction(mode, depMode BuildMode, p *load.Package) *Action {
-	vetOnly := mode&ModeVetOnly != 0
-	mode &^= ModeVetOnly
-
-	a := b.cacheAction("build-export", p, func() *Action {
+	return b.cacheAction("build-export", p, func() *Action {
 		a := &Action{
 			Mode:    "build-export",
 			Package: p,
@@ -665,8 +657,6 @@ func (b *Builder) BuildExportAction(mode, depMode BuildMode, p *load.Package) *A
 
 		return a
 	})
-	a.needBuild = a.needBuild || !vetOnly
-	return a
 }
 
 // CompileAction returns the action for compiling and possibly installing
@@ -854,52 +844,47 @@ func (b *Builder) cgoAction(p *load.Package, objdir string) *Action {
 }
 
 // VetAction returns the action for running go vet on package p.
-// It depends on the action for compiling p.
 // If the caller may be causing p to be installed, it is up to the caller
 // to make sure that the install depends on (runs after) vet.
-func (b *Builder) VetAction(s *modload.Loader, mode, depMode BuildMode, needFix bool, p *load.Package) *Action {
-	a := b.vetAction(s, mode, depMode, p)
+func (b *Builder) VetAction(p *load.Package, needFix bool) *Action {
+	a := b.vetAction(p)
 	a.VetxOnly = false
 	a.needFix = needFix
 	return a
 }
 
-func (b *Builder) vetAction(s *modload.Loader, mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) vetAction(p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
-		a1 := b.BuildExportAction(mode|ModeVetOnly, depMode, p)
-
 		var deps []*Action
-		if a1.buggyInstall {
-			// (*Builder).vet expects deps[0] to be the package.
-			// If we see buggyInstall
-			// here then a1 is an install of a shared library,
-			// and the real package is a1.Deps[0].
-			deps = []*Action{a1.Deps[0], a1}
-		} else {
-			deps = []*Action{a1}
-		}
-		for _, p1 := range p.Internal.Imports {
-			deps = append(deps, b.vetAction(s, mode, depMode, p1))
+		if p.Error == nil || !p.Error.IsImportCycle {
+			for _, p1 := range p.Internal.Imports {
+				deps = append(deps, b.vetAction(p1))
+			}
 		}
 
 		a := &Action{
 			Mode:       "vet",
 			Package:    p,
 			Deps:       deps,
-			Objdir:     a1.Objdir,
+			Objdir:     b.NewObjdir(),
 			VetxOnly:   true,
 			IgnoreFail: true, // it's OK if vet of dependencies "fails" (reports problems)
 		}
-		if a1.Actor == nil {
-			// Built-in packages like unsafe.
-			return a
+		if p.Standard {
+			switch p.ImportPath {
+			case "builtin", "unsafe":
+				// Built-in packages like unsafe.
+				return a
+			}
+			if cfg.BuildToolchainName == "gccgo" {
+				return a
+			}
 		}
 		if p.UsesCgo() || p.UsesSwig() {
 			a.Deps = append(a.Deps, b.runCgoAction(p, false))
 		}
 		a.Actor = ActorFunc((*Builder).vet)
-		b.addTransitiveCompileActions(a, a1)
 		return a
 	})
 	return a

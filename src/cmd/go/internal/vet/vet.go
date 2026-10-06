@@ -247,7 +247,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	root := &work.Action{Mode: "go " + cmd.Name()}
 
 	addVetAction := func(p *load.Package) {
-		act := b.VetAction(moduleLoader, work.ModeBuild, work.ModeBuild, applyFixes, p)
+		act := b.VetAction(p, applyFixes)
 		root.Deps = append(root.Deps, act)
 	}
 
