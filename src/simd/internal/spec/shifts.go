@@ -6,6 +6,8 @@
 
 package spec
 
+import "math/bits"
+
 // ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
@@ -78,4 +80,88 @@ func ShiftLeft[E Ints | Uints, W Width, yE Uints](x Vec[E, W], shift Vec[yE, W])
 		z[i] = x[i] << shift[i]
 	}
 	return z
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func RotateAllLeft[E Uints, W Width](x Vec[E, W], shift uint64) (z Vec[E, W]) {
+	// Compute mod before casting to int.
+	k := int(shift % uint64(elemBits[E]()))
+	return map1[E, W, E, W](x, func(x E) E {
+		switch any(x).(type) {
+		case int8, uint8:
+			return E(bits.RotateLeft8(uint8(x), k))
+		case int16, uint16:
+			return E(bits.RotateLeft16(uint16(x), k))
+		case int32, uint32:
+			return E(bits.RotateLeft32(uint32(x), k))
+		case int64, uint64:
+			return E(bits.RotateLeft64(uint64(x), k))
+		}
+		panic("unreachable")
+	})
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func RotateLeft[E Uints, W Width](x, shift Vec[E, W]) (z Vec[E, W]) {
+	return map2[E, W, E, W](x, shift, func(x, shift E) E {
+		// Compute mod before casting to int.
+		k := int(shift % E(elemBits[E]()))
+		switch any(x).(type) {
+		case int8, uint8:
+			return E(bits.RotateLeft8(uint8(x), k))
+		case int16, uint16:
+			return E(bits.RotateLeft16(uint16(x), k))
+		case int32, uint32:
+			return E(bits.RotateLeft32(uint32(x), k))
+		case int64, uint64:
+			return E(bits.RotateLeft64(uint64(x), k))
+		}
+		panic("unreachable")
+	})
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func RotateAllRight[E Uints, W Width](x Vec[E, W], shift uint64) (z Vec[E, W]) {
+	// Compute mod before casting to int.
+	k := int(shift % uint64(elemBits[E]()))
+	return map1[E, W, E, W](x, func(x E) E {
+		switch any(x).(type) {
+		case int8, uint8:
+			return E(bits.RotateLeft8(uint8(x), -k))
+		case int16, uint16:
+			return E(bits.RotateLeft16(uint16(x), -k))
+		case int32, uint32:
+			return E(bits.RotateLeft32(uint32(x), -k))
+		case int64, uint64:
+			return E(bits.RotateLeft64(uint64(x), -k))
+		}
+		panic("unreachable")
+	})
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func RotateRight[E Uints, W Width](x, shift Vec[E, W]) (z Vec[E, W]) {
+	return map2[E, W, E, W](x, shift, func(x, shift E) E {
+		// Compute mod before casting to int.
+		k := int(shift % E(elemBits[E]()))
+		switch any(x).(type) {
+		case int8, uint8:
+			return E(bits.RotateLeft8(uint8(x), -k))
+		case int16, uint16:
+			return E(bits.RotateLeft16(uint16(x), -k))
+		case int32, uint32:
+			return E(bits.RotateLeft32(uint32(x), -k))
+		case int64, uint64:
+			return E(bits.RotateLeft64(uint64(x), -k))
+		}
+		panic("unreachable")
+	})
 }

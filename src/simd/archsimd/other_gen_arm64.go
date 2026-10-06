@@ -214,137 +214,173 @@ func (x Float64x2) HiToLo() Float64x2 {
 	return v.SetElem(0, x.GetElem(1))
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int8x16) ToMask() (z Mask8x16) {
 	return x.NotEqual(Int8x16{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int16x8) ToMask() (z Mask16x8) {
 	return x.NotEqual(Int16x8{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int32x4) ToMask() (z Mask32x4) {
 	return x.NotEqual(Int32x4{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int64x2) ToMask() (z Mask64x2) {
 	return x.NotEqual(Int64x2{})
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint8x16) RotateAllLeft(shift uint64) Uint8x16 {
+func (x Uint8x16) RotateAllLeft(shift uint64) (z Uint8x16) {
 	shift = shift & (8 - 1)
 	nshift := 8 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint8x16) RotateAllRight(shift uint64) Uint8x16 {
+func (x Uint8x16) RotateAllRight(shift uint64) (z Uint8x16) {
 	shift = shift & (8 - 1)
 	nshift := 8 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint16x8) RotateAllLeft(shift uint64) Uint16x8 {
+func (x Uint16x8) RotateAllLeft(shift uint64) (z Uint16x8) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint16x8) RotateAllRight(shift uint64) Uint16x8 {
+func (x Uint16x8) RotateAllRight(shift uint64) (z Uint16x8) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint32x4) RotateAllLeft(shift uint64) Uint32x4 {
+func (x Uint32x4) RotateAllLeft(shift uint64) (z Uint32x4) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint32x4) RotateAllRight(shift uint64) Uint32x4 {
+func (x Uint32x4) RotateAllRight(shift uint64) (z Uint32x4) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint64x2) RotateAllLeft(shift uint64) Uint64x2 {
+func (x Uint64x2) RotateAllLeft(shift uint64) (z Uint64x2) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint64x2) RotateAllRight(shift uint64) Uint64x2 {
+func (x Uint64x2) RotateAllRight(shift uint64) (z Uint64x2) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// ReduceSum reduces x by summing all elements.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: NEON
-func (x Int8x16) ReduceSum() int8 {
+func (x Int8x16) ReduceSum() (z int8) {
 	return x.reduceSum().GetElem(0)
 }
 
-// ReduceSum reduces x by summing all elements.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: NEON
-func (x Int16x8) ReduceSum() int16 {
+func (x Int16x8) ReduceSum() (z int16) {
 	return x.reduceSum().GetElem(0)
 }
 
-// ReduceSum reduces x by summing all elements.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: NEON
-func (x Int32x4) ReduceSum() int32 {
+func (x Int32x4) ReduceSum() (z int32) {
 	return x.reduceSum().GetElem(0)
 }
 
-// ReduceSum reduces x by summing all elements.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: NEON
-func (x Uint8x16) ReduceSum() uint8 {
+func (x Uint8x16) ReduceSum() (z uint8) {
 	return x.reduceSum().GetElem(0)
 }
 
-// ReduceSum reduces x by summing all elements.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: NEON
-func (x Uint16x8) ReduceSum() uint16 {
+func (x Uint16x8) ReduceSum() (z uint16) {
 	return x.reduceSum().GetElem(0)
 }
 
-// ReduceSum reduces x by summing all elements.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: NEON
-func (x Uint32x4) ReduceSum() uint32 {
+func (x Uint32x4) ReduceSum() (z uint32) {
 	return x.reduceSum().GetElem(0)
 }
 

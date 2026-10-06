@@ -13,49 +13,49 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)           777 / 2865   27%  [spec-common, spec-all]
-docs sourced from spec (§3)                      1060 / 1301   81%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+spec coverage, by (receiver, name) (§1)          1757 / 2865   61%  [spec-common, spec-all]
+docs sourced from spec (§3)                      2506 / 3075   81%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
 type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
-hand-written doc conflicts with spec (§3)         157 -> 0       [doc-triage]
-simd mirror drift (§3)                            148 -> 0       [comments-yaml]
+hand-written doc conflicts with spec (§3)         471 -> 0       [doc-triage]
+simd mirror drift (§3)                            332 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
-midway/comments.yaml entries spec covers (§4)      26 -> 0       [comments-yaml, spec-all]
+midway/comments.yaml entries spec covers (§4)      65 -> 0       [comments-yaml, spec-all]
 
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      1559 / 5043   31%
-by (receiver, name)                               777 / 2865   27%
-by name                                           230 / 458    50%
+by (target, receiver, name)                      3771 / 5043   75%
+by (receiver, name)                              1757 / 2865   61%
+by name                                           275 / 458    60%
 
 By build configuration:
 
-  amd64                                           742 / 2628   28%
-  arm64                                           419 / 1254   33%
-  wasm                                            277 / 805    34%
-  portable                                        121 / 356    34%
+  amd64                                          1673 / 2628   64%
+  arm64                                          1040 / 1254   83%
+  wasm                                            726 / 805    90%
+  portable                                        332 / 356    93%
 
 By generator (declarations per tool, counted once per tool per pair):
 
-  hand-written                                    145 / 545    27%
-  midway                                          121 / 332    36%
-  simdgen                                         608 / 2211   27%
-  tmplgen                                         138 / 404    34%
-  wasmgen                                         136 / 384    35%
+  hand-written                                    486 / 545    89%
+  midway                                          332 / 332   100%
+  simdgen                                        1236 / 2211   56%
+  tmplgen                                         350 / 404    87%
+  wasmgen                                         329 / 384    86%
 
 High-drift-risk names (emitted by >1 generator):
 
-  covered                                          94 / 138    68%  [spec-all]
-  portable core (comments.yaml .common_methods)    26 / 65     40%  [spec-common]
+  covered                                         130 / 138    94%  [spec-all]
+  portable core (comments.yaml .common_methods)    65 / 65    100%  [spec-common]
 
-spec operations written so far                     37
-  expanding to distinct names                     241
-  expanding to (receiver, name) pairs            1368
+spec operations written so far                     80
+  expanding to distinct names                     286
+  expanding to (receiver, name) pairs            2632
 
 
 ## 2. Signatures and names   [named-results, fill-enforce]
@@ -87,17 +87,25 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   1060 / 1301   81%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   2506 / 3075   81%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
-simd ∩ archsimd methods with matching docs        104 / 253    41%  [gen-docs, comments-yaml]
+simd ∩ archsimd methods with matching docs        253 / 253   100%  [gen-docs, comments-yaml]
 
-hand-written doc conflicts with spec              157 -> 0       [doc-triage]
+hand-written doc conflicts with spec              471 -> 0       [doc-triage]
+    archsimd/clmul_arm64.go                         4 -> 0       [doc-triage]
+    archsimd/extra_amd64.go                         6 -> 0       [doc-triage]
+    archsimd/maskrange_128.go                       4 -> 0       [doc-triage]
+    archsimd/maskrange_amd64.go                    12 -> 0       [doc-triage]
+    archsimd/ops_emulated_amd64.go                 48 -> 0       [doc-triage]
+    archsimd/ops_emulated_arm64.go                  2 -> 0       [doc-triage]
+    archsimd/ops_emulated_wasm.go                  29 -> 0       [doc-triage]
+    archsimd/shuffles_amd64.go                     12 -> 0       [doc-triage]
     archsimd/slicepart_128.go                       8 -> 0       [doc-triage]
     archsimd/slicepart_amd64.go                     4 -> 0       [doc-triage]
     archsimd/slicepart_arm64.go                    12 -> 0       [doc-triage]
     archsimd/slicepart_wasm.go                     12 -> 0       [doc-triage]
-    simd_emulated.go                              121 -> 0       [doc-triage]
-drifted docs in simd mirror (stubs vs emulated)   148 -> 0       [comments-yaml]
+    simd_emulated.go                              318 -> 0       [doc-triage]
+drifted docs in simd mirror (stubs vs emulated)   332 -> 0       [comments-yaml]
   mirrored declarations                           356
 
 
@@ -124,9 +132,9 @@ compiler-only categories.yaml entries              42 -> 0       [compiler-ops-i
     regexpTag                                      25 -> 0       [cat-rehome]
     signed                                          6 -> 0       [cat-rehome]
 
-midway/comments.yaml entries spec covers           26 -> 0       [comments-yaml, spec-all]
+midway/comments.yaml entries spec covers           65 -> 0       [comments-yaml, spec-all]
 
-commutativity disagreements, spec vs categories.yaml     2 -> 0       [spec-all]
+commutativity disagreements, spec vs categories.yaml     7 -> 0       [spec-all]
 
 
 ## 5. Spec/API coverage disagreement detail   [spec-all, convert-lo, mask-bits]
@@ -137,26 +145,32 @@ only spec generates are a review queue -- spec is deliberately maximal.
 
 spec misses receivers of a name it defines          8 -> 0       [spec-all, convert-lo, mask-bits]
     declarations affected, counting each target     8 -> 0       [spec-all, convert-lo, mask-bits]
-spec operations implemented nowhere                 0 -> 0       [spec-all]
-    (none)
+spec operations implemented nowhere                 1 -> 0       [spec-all]
+    TrailingZeros
 
-Every name either side defines, less the 228 spec has never defined at all
-(2080 receivers, counted as coverage in §1 rather than disagreement):
+Every name either side defines, less the 183 spec has never defined at all
+(1100 receivers, counted as coverage in §1 rather than disagreement):
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)
-  api = spec         194              0              0
-  api ⊂ spec          30              0            541
+  api = spec         215              0              0
+  api ⊂ spec          54              0            825
   api ⊃ spec           0              0              0
   overlapping          0              0              0
   disjoint             6              8             16
   api = ∅             11              0             34
-  total              241              8            591
+  total              286              8            875
 
 Names that disagree, with api - spec receivers (the defects):
 
   name                       relation    |api| |spec| |api - spec| |spec - api|
   AddSaturated               api ⊂ spec     24     32            0            8
+  AndNot                     api ⊂ spec     36     48            0           12
+  Average                    api ⊂ spec     12     32            0           20
+  CarrylessMultiplyEven      api ⊂ spec      4     16            0           12
+  CarrylessMultiplyEvenOdd   api ⊂ spec      3     16            0           13
+  CarrylessMultiplyOdd       api ⊂ spec      4     16            0           12
+  CarrylessMultiplyOddEven   api ⊂ spec      3     16            0           13
   ConcatAddPairs             api ⊂ spec     10     40            0           30
   ConcatAddPairsGrouped      api ⊂ spec      6     40            0           34
   ConcatAddPairsSaturated    api ⊂ spec      1     32            0           31
@@ -181,8 +195,10 @@ Names that disagree, with api - spec receivers (the defects):
   ConvertToUint32            api ⊂ spec     10     23            0           13
   ConvertToUint64            api ⊂ spec      9     16            0            7
   ConvertToUint8             api ⊂ spec      4     28            0           24
+  Div                        api ⊂ spec     12     40            0           28
   DotProductPairs            api ⊂ spec      3     28            0           25
   DotProductPairsSaturated   api ⊂ spec      3     12            0            9
+  Equal                      api ⊂ spec     40     56            0           16
   ExtendLo16ToInt16          api = ∅         0      1            0            1
   ExtendLo16ToInt32          api = ∅         0      2            0            2
   ExtendLo16ToUint16         api = ∅         0      1            0            1
@@ -201,7 +217,20 @@ Names that disagree, with api - spec receivers (the defects):
       api - spec = Uint8x16
   ExtendLo8ToUint64          disjoint        1      3            1            3
       api - spec = Uint8x16
+  IsNaN                      api ⊂ spec      6      8            0            2
+  LeadingZeros               api ⊂ spec     16     32            0           16
+  Less                       api ⊂ spec     39     40            0            1
+  LessEqual                  api ⊂ spec     39     40            0            1
+  MulAdd                     api ⊂ spec     22     40            0           18
+  Not                        api ⊂ spec     36     48            0           12
+  NotEqual                   api ⊂ spec     40     56            0           16
+  OnesCount                  api ⊂ spec     26     32            0            6
   Permute                    api ⊂ spec     24     40            0           16
+  ReduceSum                  api ⊂ spec     32     40            0            8
+  RotateAllLeft              api ⊂ spec     13     16            0            3
+  RotateAllRight             api ⊂ spec     13     16            0            3
+  RotateLeft                 api ⊂ spec      6     16            0           10
+  RotateRight                api ⊂ spec      6     16            0           10
   ScaleSaturated             api ⊂ spec      8     32            0           24
   ShiftAllLeft               api ⊂ spec     26     32            0            6
   ShiftAllRight              api ⊂ spec     25     32            0            7
@@ -209,3 +238,6 @@ Names that disagree, with api - spec receivers (the defects):
   ShiftRight                 api ⊂ spec     18     32            0           14
   StoreArrayMasked           api ⊂ spec     22     30            0            8
   SubSaturated               api ⊂ spec     24     32            0            8
+  ToMask                     api ⊂ spec     16     40            0           24
+  TrailingZeros              api ⊂ spec     16     32            0           16
+  Xor                        api ⊂ spec     36     48            0           12

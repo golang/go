@@ -274,327 +274,423 @@ func BroadcastFloat64x8(x float64) (z Float64x8) {
 	return v.SetElem(0, x).broadcast1To8()
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int8x16) ToMask() (z Mask8x16) {
 	return x.NotEqual(Int8x16{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int16x8) ToMask() (z Mask16x8) {
 	return x.NotEqual(Int16x8{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int32x4) ToMask() (z Mask32x4) {
 	return x.NotEqual(Int32x4{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int64x2) ToMask() (z Mask64x2) {
 	return x.NotEqual(Int64x2{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int8x32) ToMask() (z Mask8x32) {
 	return x.NotEqual(Int8x32{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int16x16) ToMask() (z Mask16x16) {
 	return x.NotEqual(Int16x16{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int32x8) ToMask() (z Mask32x8) {
 	return x.NotEqual(Int32x8{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int64x4) ToMask() (z Mask64x4) {
 	return x.NotEqual(Int64x4{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int8x64) ToMask() (z Mask8x64) {
 	return x.NotEqual(Int8x64{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int16x32) ToMask() (z Mask16x32) {
 	return x.NotEqual(Int16x32{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int32x16) ToMask() (z Mask32x16) {
 	return x.NotEqual(Int32x16{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
 func (x Int64x8) ToMask() (z Mask64x8) {
 	return x.NotEqual(Int64x8{})
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Int8x16) Not() Int8x16 {
+func (x Int8x16) Not() (z Int8x16) {
 	return x.Xor(x.Equal(x).ToInt8x16())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Int8x16) Neg() Int8x16 {
+func (x Int8x16) Neg() (z Int8x16) {
 	var zero Int8x16
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Int16x8) Not() Int16x8 {
+func (x Int16x8) Not() (z Int16x8) {
 	return x.Xor(x.Equal(x).ToInt16x8())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Int16x8) Neg() Int16x8 {
+func (x Int16x8) Neg() (z Int16x8) {
 	var zero Int16x8
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Int32x4) Not() Int32x4 {
+func (x Int32x4) Not() (z Int32x4) {
 	return x.Xor(x.Equal(x).ToInt32x4())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Int32x4) Neg() Int32x4 {
+func (x Int32x4) Neg() (z Int32x4) {
 	var zero Int32x4
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Int64x2) Not() Int64x2 {
+func (x Int64x2) Not() (z Int64x2) {
 	return x.Xor(x.Equal(x).ToInt64x2())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Int64x2) Neg() Int64x2 {
+func (x Int64x2) Neg() (z Int64x2) {
 	var zero Int64x2
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Int8x32) Not() Int8x32 {
+func (x Int8x32) Not() (z Int8x32) {
 	return x.Xor(x.Equal(x).ToInt8x32())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Int8x32) Neg() Int8x32 {
+func (x Int8x32) Neg() (z Int8x32) {
 	var zero Int8x32
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Int16x16) Not() Int16x16 {
+func (x Int16x16) Not() (z Int16x16) {
 	return x.Xor(x.Equal(x).ToInt16x16())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Int16x16) Neg() Int16x16 {
+func (x Int16x16) Neg() (z Int16x16) {
 	var zero Int16x16
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Int32x8) Not() Int32x8 {
+func (x Int32x8) Not() (z Int32x8) {
 	return x.Xor(x.Equal(x).ToInt32x8())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Int32x8) Neg() Int32x8 {
+func (x Int32x8) Neg() (z Int32x8) {
 	var zero Int32x8
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Int64x4) Not() Int64x4 {
+func (x Int64x4) Not() (z Int64x4) {
 	return x.Xor(x.Equal(x).ToInt64x4())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Int64x4) Neg() Int64x4 {
+func (x Int64x4) Neg() (z Int64x4) {
 	var zero Int64x4
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Int8x64) Not() Int8x64 {
+func (x Int8x64) Not() (z Int8x64) {
 	return x.Xor(x.Equal(x).ToInt8x64())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Int8x64) Neg() Int8x64 {
+func (x Int8x64) Neg() (z Int8x64) {
 	var zero Int8x64
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Int16x32) Not() Int16x32 {
+func (x Int16x32) Not() (z Int16x32) {
 	return x.Xor(x.Equal(x).ToInt16x32())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Int16x32) Neg() Int16x32 {
+func (x Int16x32) Neg() (z Int16x32) {
 	var zero Int16x32
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Int32x16) Not() Int32x16 {
+func (x Int32x16) Not() (z Int32x16) {
 	return x.Xor(x.Equal(x).ToInt32x16())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Int32x16) Neg() Int32x16 {
+func (x Int32x16) Neg() (z Int32x16) {
 	var zero Int32x16
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Int64x8) Not() Int64x8 {
+func (x Int64x8) Not() (z Int64x8) {
 	return x.Xor(x.Equal(x).ToInt64x8())
 }
 
-// Neg returns the element-wise negation of x.
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Int64x8) Neg() Int64x8 {
+func (x Int64x8) Neg() (z Int64x8) {
 	var zero Int64x8
 	return zero.Sub(x)
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Uint8x16) Not() Uint8x16 {
+func (x Uint8x16) Not() (z Uint8x16) {
 	return x.Xor(x.Equal(x).ToInt8x16().AsUint8x16())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Uint16x8) Not() Uint16x8 {
+func (x Uint16x8) Not() (z Uint16x8) {
 	return x.Xor(x.Equal(x).ToInt16x8().AsUint16x8())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Uint32x4) Not() Uint32x4 {
+func (x Uint32x4) Not() (z Uint32x4) {
 	return x.Xor(x.Equal(x).ToInt32x4().AsUint32x4())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
-func (x Uint64x2) Not() Uint64x2 {
+func (x Uint64x2) Not() (z Uint64x2) {
 	return x.Xor(x.Equal(x).ToInt64x2().AsUint64x2())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Uint8x32) Not() Uint8x32 {
+func (x Uint8x32) Not() (z Uint8x32) {
 	return x.Xor(x.Equal(x).ToInt8x32().AsUint8x32())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Uint16x16) Not() Uint16x16 {
+func (x Uint16x16) Not() (z Uint16x16) {
 	return x.Xor(x.Equal(x).ToInt16x16().AsUint16x16())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Uint32x8) Not() Uint32x8 {
+func (x Uint32x8) Not() (z Uint32x8) {
 	return x.Xor(x.Equal(x).ToInt32x8().AsUint32x8())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
-func (x Uint64x4) Not() Uint64x4 {
+func (x Uint64x4) Not() (z Uint64x4) {
 	return x.Xor(x.Equal(x).ToInt64x4().AsUint64x4())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Uint8x64) Not() Uint8x64 {
+func (x Uint8x64) Not() (z Uint8x64) {
 	return x.Xor(x.Equal(x).ToInt8x64().AsUint8x64())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Uint16x32) Not() Uint16x32 {
+func (x Uint16x32) Not() (z Uint16x32) {
 	return x.Xor(x.Equal(x).ToInt16x32().AsUint16x32())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Uint32x16) Not() Uint32x16 {
+func (x Uint32x16) Not() (z Uint32x16) {
 	return x.Xor(x.Equal(x).ToInt32x16().AsUint32x16())
 }
 
-// Not returns the bitwise complement of x.
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
-func (x Uint64x8) Not() Uint64x8 {
+func (x Uint64x8) Not() (z Uint64x8) {
 	return x.Xor(x.Equal(x).ToInt64x8().AsUint64x8())
 }
 
@@ -892,163 +988,199 @@ func (x Mask64x8) String() string {
 	return sliceToString(s[:])
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint16x8) RotateAllLeft(shift uint64) Uint16x8 {
+func (x Uint16x8) RotateAllLeft(shift uint64) (z Uint16x8) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint16x8) RotateAllRight(shift uint64) Uint16x8 {
+func (x Uint16x8) RotateAllRight(shift uint64) (z Uint16x8) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint32x4) RotateAllLeft(shift uint64) Uint32x4 {
+func (x Uint32x4) RotateAllLeft(shift uint64) (z Uint32x4) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint32x4) RotateAllRight(shift uint64) Uint32x4 {
+func (x Uint32x4) RotateAllRight(shift uint64) (z Uint32x4) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint64x2) RotateAllLeft(shift uint64) Uint64x2 {
+func (x Uint64x2) RotateAllLeft(shift uint64) (z Uint64x2) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint64x2) RotateAllRight(shift uint64) Uint64x2 {
+func (x Uint64x2) RotateAllRight(shift uint64) (z Uint64x2) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint16x16) RotateAllLeft(shift uint64) Uint16x16 {
+func (x Uint16x16) RotateAllLeft(shift uint64) (z Uint16x16) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint16x16) RotateAllRight(shift uint64) Uint16x16 {
+func (x Uint16x16) RotateAllRight(shift uint64) (z Uint16x16) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint32x8) RotateAllLeft(shift uint64) Uint32x8 {
+func (x Uint32x8) RotateAllLeft(shift uint64) (z Uint32x8) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint32x8) RotateAllRight(shift uint64) Uint32x8 {
+func (x Uint32x8) RotateAllRight(shift uint64) (z Uint32x8) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint64x4) RotateAllLeft(shift uint64) Uint64x4 {
+func (x Uint64x4) RotateAllLeft(shift uint64) (z Uint64x4) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint64x4) RotateAllRight(shift uint64) Uint64x4 {
+func (x Uint64x4) RotateAllRight(shift uint64) (z Uint64x4) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint16x32) RotateAllLeft(shift uint64) Uint16x32 {
+func (x Uint16x32) RotateAllLeft(shift uint64) (z Uint16x32) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint16x32) RotateAllRight(shift uint64) Uint16x32 {
+func (x Uint16x32) RotateAllRight(shift uint64) (z Uint16x32) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint32x16) RotateAllLeft(shift uint64) Uint32x16 {
+func (x Uint32x16) RotateAllLeft(shift uint64) (z Uint32x16) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint32x16) RotateAllRight(shift uint64) Uint32x16 {
+func (x Uint32x16) RotateAllRight(shift uint64) (z Uint32x16) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 
-// RotateAllLeft rotates all elements left by the specified amount
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
 //
 // Emulated
-func (x Uint64x8) RotateAllLeft(shift uint64) Uint64x8 {
+func (x Uint64x8) RotateAllLeft(shift uint64) (z Uint64x8) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
 	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
-// RotateAllRight rotates all elements right by the specified amount
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
 //
 // Emulated
-func (x Uint64x8) RotateAllRight(shift uint64) Uint64x8 {
+func (x Uint64x8) RotateAllRight(shift uint64) (z Uint64x8) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))

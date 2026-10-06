@@ -59,8 +59,14 @@ func ExtendLoLToZ[E Ints | Uints, W FixedWidth, zE Ints | Uints](x Vec[E, W]) (z
 
 // ConvertLoLToZ converts the low-indexed {{.zL}} elements of x to {{.zE}}.
 //
+//	z[i] = {{.zE}}(x[i])
+//
 //specgen:name ConvertLo{{.zL}}To{{.zE | title}}
 //specgen:require zL<xL
 func ConvertLoLToZ[E Nums, W FixedWidth, zE Floats](x Vec[E, W]) (z Vec[zE, W]) {
-	panic("not implemented")
+	z = makeVec[zE, W]()
+	for i := range z {
+		z[i] = zE(x[i])
+	}
+	return z
 }

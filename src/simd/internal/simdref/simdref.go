@@ -63,6 +63,4614 @@ type (
 	Uint8x64   struct{ v []uint8 }
 )
 
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int8x16) OnesCount() (z Int8x16) {
+	return Int8x16{spec.OnesCount[int8, spec.Width128](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int8x32) OnesCount() (z Int8x32) {
+	return Int8x32{spec.OnesCount[int8, spec.Width256](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int8x64) OnesCount() (z Int8x64) {
+	return Int8x64{spec.OnesCount[int8, spec.Width512](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int8s) OnesCount() (z Int8s) {
+	return Int8s{spec.OnesCount[int8, spec.WidthScalable](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int16x8) OnesCount() (z Int16x8) {
+	return Int16x8{spec.OnesCount[int16, spec.Width128](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int16x16) OnesCount() (z Int16x16) {
+	return Int16x16{spec.OnesCount[int16, spec.Width256](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int16x32) OnesCount() (z Int16x32) {
+	return Int16x32{spec.OnesCount[int16, spec.Width512](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int16s) OnesCount() (z Int16s) {
+	return Int16s{spec.OnesCount[int16, spec.WidthScalable](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int32x4) OnesCount() (z Int32x4) {
+	return Int32x4{spec.OnesCount[int32, spec.Width128](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int32x8) OnesCount() (z Int32x8) {
+	return Int32x8{spec.OnesCount[int32, spec.Width256](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int32x16) OnesCount() (z Int32x16) {
+	return Int32x16{spec.OnesCount[int32, spec.Width512](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int32s) OnesCount() (z Int32s) {
+	return Int32s{spec.OnesCount[int32, spec.WidthScalable](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int64x2) OnesCount() (z Int64x2) {
+	return Int64x2{spec.OnesCount[int64, spec.Width128](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int64x4) OnesCount() (z Int64x4) {
+	return Int64x4{spec.OnesCount[int64, spec.Width256](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int64x8) OnesCount() (z Int64x8) {
+	return Int64x8{spec.OnesCount[int64, spec.Width512](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Int64s) OnesCount() (z Int64s) {
+	return Int64s{spec.OnesCount[int64, spec.WidthScalable](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint8x16) OnesCount() (z Uint8x16) {
+	return Uint8x16{spec.OnesCount[uint8, spec.Width128](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint8x32) OnesCount() (z Uint8x32) {
+	return Uint8x32{spec.OnesCount[uint8, spec.Width256](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint8x64) OnesCount() (z Uint8x64) {
+	return Uint8x64{spec.OnesCount[uint8, spec.Width512](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint8s) OnesCount() (z Uint8s) {
+	return Uint8s{spec.OnesCount[uint8, spec.WidthScalable](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint16x8) OnesCount() (z Uint16x8) {
+	return Uint16x8{spec.OnesCount[uint16, spec.Width128](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint16x16) OnesCount() (z Uint16x16) {
+	return Uint16x16{spec.OnesCount[uint16, spec.Width256](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint16x32) OnesCount() (z Uint16x32) {
+	return Uint16x32{spec.OnesCount[uint16, spec.Width512](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint16s) OnesCount() (z Uint16s) {
+	return Uint16s{spec.OnesCount[uint16, spec.WidthScalable](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint32x4) OnesCount() (z Uint32x4) {
+	return Uint32x4{spec.OnesCount[uint32, spec.Width128](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint32x8) OnesCount() (z Uint32x8) {
+	return Uint32x8{spec.OnesCount[uint32, spec.Width256](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint32x16) OnesCount() (z Uint32x16) {
+	return Uint32x16{spec.OnesCount[uint32, spec.Width512](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint32s) OnesCount() (z Uint32s) {
+	return Uint32s{spec.OnesCount[uint32, spec.WidthScalable](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint64x2) OnesCount() (z Uint64x2) {
+	return Uint64x2{spec.OnesCount[uint64, spec.Width128](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint64x4) OnesCount() (z Uint64x4) {
+	return Uint64x4{spec.OnesCount[uint64, spec.Width256](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint64x8) OnesCount() (z Uint64x8) {
+	return Uint64x8{spec.OnesCount[uint64, spec.Width512](x.v)}
+}
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+func (x Uint64s) OnesCount() (z Uint64s) {
+	return Uint64s{spec.OnesCount[uint64, spec.WidthScalable](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int8x16) LeadingZeros() (z Int8x16) {
+	return Int8x16{spec.LeadingZeros[int8, spec.Width128](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int8x32) LeadingZeros() (z Int8x32) {
+	return Int8x32{spec.LeadingZeros[int8, spec.Width256](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int8x64) LeadingZeros() (z Int8x64) {
+	return Int8x64{spec.LeadingZeros[int8, spec.Width512](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int8s) LeadingZeros() (z Int8s) {
+	return Int8s{spec.LeadingZeros[int8, spec.WidthScalable](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int16x8) LeadingZeros() (z Int16x8) {
+	return Int16x8{spec.LeadingZeros[int16, spec.Width128](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int16x16) LeadingZeros() (z Int16x16) {
+	return Int16x16{spec.LeadingZeros[int16, spec.Width256](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int16x32) LeadingZeros() (z Int16x32) {
+	return Int16x32{spec.LeadingZeros[int16, spec.Width512](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int16s) LeadingZeros() (z Int16s) {
+	return Int16s{spec.LeadingZeros[int16, spec.WidthScalable](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int32x4) LeadingZeros() (z Int32x4) {
+	return Int32x4{spec.LeadingZeros[int32, spec.Width128](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int32x8) LeadingZeros() (z Int32x8) {
+	return Int32x8{spec.LeadingZeros[int32, spec.Width256](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int32x16) LeadingZeros() (z Int32x16) {
+	return Int32x16{spec.LeadingZeros[int32, spec.Width512](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int32s) LeadingZeros() (z Int32s) {
+	return Int32s{spec.LeadingZeros[int32, spec.WidthScalable](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int64x2) LeadingZeros() (z Int64x2) {
+	return Int64x2{spec.LeadingZeros[int64, spec.Width128](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int64x4) LeadingZeros() (z Int64x4) {
+	return Int64x4{spec.LeadingZeros[int64, spec.Width256](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int64x8) LeadingZeros() (z Int64x8) {
+	return Int64x8{spec.LeadingZeros[int64, spec.Width512](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Int64s) LeadingZeros() (z Int64s) {
+	return Int64s{spec.LeadingZeros[int64, spec.WidthScalable](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint8x16) LeadingZeros() (z Uint8x16) {
+	return Uint8x16{spec.LeadingZeros[uint8, spec.Width128](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint8x32) LeadingZeros() (z Uint8x32) {
+	return Uint8x32{spec.LeadingZeros[uint8, spec.Width256](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint8x64) LeadingZeros() (z Uint8x64) {
+	return Uint8x64{spec.LeadingZeros[uint8, spec.Width512](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint8s) LeadingZeros() (z Uint8s) {
+	return Uint8s{spec.LeadingZeros[uint8, spec.WidthScalable](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint16x8) LeadingZeros() (z Uint16x8) {
+	return Uint16x8{spec.LeadingZeros[uint16, spec.Width128](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint16x16) LeadingZeros() (z Uint16x16) {
+	return Uint16x16{spec.LeadingZeros[uint16, spec.Width256](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint16x32) LeadingZeros() (z Uint16x32) {
+	return Uint16x32{spec.LeadingZeros[uint16, spec.Width512](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint16s) LeadingZeros() (z Uint16s) {
+	return Uint16s{spec.LeadingZeros[uint16, spec.WidthScalable](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint32x4) LeadingZeros() (z Uint32x4) {
+	return Uint32x4{spec.LeadingZeros[uint32, spec.Width128](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint32x8) LeadingZeros() (z Uint32x8) {
+	return Uint32x8{spec.LeadingZeros[uint32, spec.Width256](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint32x16) LeadingZeros() (z Uint32x16) {
+	return Uint32x16{spec.LeadingZeros[uint32, spec.Width512](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint32s) LeadingZeros() (z Uint32s) {
+	return Uint32s{spec.LeadingZeros[uint32, spec.WidthScalable](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint64x2) LeadingZeros() (z Uint64x2) {
+	return Uint64x2{spec.LeadingZeros[uint64, spec.Width128](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint64x4) LeadingZeros() (z Uint64x4) {
+	return Uint64x4{spec.LeadingZeros[uint64, spec.Width256](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint64x8) LeadingZeros() (z Uint64x8) {
+	return Uint64x8{spec.LeadingZeros[uint64, spec.Width512](x.v)}
+}
+
+// LeadingZeros counts the leading zero bits of each element in x,
+// starting from the most significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.LeadingZeros(x[i])
+func (x Uint64s) LeadingZeros() (z Uint64s) {
+	return Uint64s{spec.LeadingZeros[uint64, spec.WidthScalable](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint8x16) TrailingZeros() (z Uint8x16) {
+	return Uint8x16{spec.TrailingZeros[uint8, spec.Width128](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint8x32) TrailingZeros() (z Uint8x32) {
+	return Uint8x32{spec.TrailingZeros[uint8, spec.Width256](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint8x64) TrailingZeros() (z Uint8x64) {
+	return Uint8x64{spec.TrailingZeros[uint8, spec.Width512](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 8.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint8s) TrailingZeros() (z Uint8s) {
+	return Uint8s{spec.TrailingZeros[uint8, spec.WidthScalable](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint16x8) TrailingZeros() (z Uint16x8) {
+	return Uint16x8{spec.TrailingZeros[uint16, spec.Width128](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint16x16) TrailingZeros() (z Uint16x16) {
+	return Uint16x16{spec.TrailingZeros[uint16, spec.Width256](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint16x32) TrailingZeros() (z Uint16x32) {
+	return Uint16x32{spec.TrailingZeros[uint16, spec.Width512](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 16.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint16s) TrailingZeros() (z Uint16s) {
+	return Uint16s{spec.TrailingZeros[uint16, spec.WidthScalable](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint32x4) TrailingZeros() (z Uint32x4) {
+	return Uint32x4{spec.TrailingZeros[uint32, spec.Width128](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint32x8) TrailingZeros() (z Uint32x8) {
+	return Uint32x8{spec.TrailingZeros[uint32, spec.Width256](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint32x16) TrailingZeros() (z Uint32x16) {
+	return Uint32x16{spec.TrailingZeros[uint32, spec.Width512](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 32.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint32s) TrailingZeros() (z Uint32s) {
+	return Uint32s{spec.TrailingZeros[uint32, spec.WidthScalable](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint64x2) TrailingZeros() (z Uint64x2) {
+	return Uint64x2{spec.TrailingZeros[uint64, spec.Width128](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint64x4) TrailingZeros() (z Uint64x4) {
+	return Uint64x4{spec.TrailingZeros[uint64, spec.Width256](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint64x8) TrailingZeros() (z Uint64x8) {
+	return Uint64x8{spec.TrailingZeros[uint64, spec.Width512](x.v)}
+}
+
+// TrailingZeros counts the trailing zero bits of each element in x,
+// starting from the least significant bit.
+// If an element is 0, the result is 64.
+//
+//	z[i] = bits.TrailingZeros(x[i])
+func (x Uint64s) TrailingZeros() (z Uint64s) {
+	return Uint64s{spec.TrailingZeros[uint64, spec.WidthScalable](x.v)}
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 16.
+func (x Mask8x16) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask8, spec.Width128](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 32.
+func (x Mask8x32) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask8, spec.Width256](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 64.
+func (x Mask8x64) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask8, spec.Width512](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns x.Len().
+func (x Mask8s) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask8, spec.WidthScalable](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 8.
+func (x Mask16x8) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask16, spec.Width128](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 16.
+func (x Mask16x16) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask16, spec.Width256](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 32.
+func (x Mask16x32) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask16, spec.Width512](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns x.Len().
+func (x Mask16s) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask16, spec.WidthScalable](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 4.
+func (x Mask32x4) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask32, spec.Width128](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 8.
+func (x Mask32x8) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask32, spec.Width256](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 16.
+func (x Mask32x16) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask32, spec.Width512](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns x.Len().
+func (x Mask32s) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask32, spec.WidthScalable](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 2.
+func (x Mask64x2) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask64, spec.Width128](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 4.
+func (x Mask64x4) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask64, spec.Width256](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 8.
+func (x Mask64x8) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask64, spec.Width512](x.v)
+}
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns x.Len().
+func (x Mask64s) TrailingZeros() int {
+	return spec.TrailingZerosMask[spec.Mask64, spec.WidthScalable](x.v)
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint8x16) CarrylessMultiplyEven(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.CarrylessMultiplyEven[uint8, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint8x32) CarrylessMultiplyEven(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.CarrylessMultiplyEven[uint8, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint8x64) CarrylessMultiplyEven(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.CarrylessMultiplyEven[uint8, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint8s) CarrylessMultiplyEven(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.CarrylessMultiplyEven[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint16x8) CarrylessMultiplyEven(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.CarrylessMultiplyEven[uint16, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint16x16) CarrylessMultiplyEven(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.CarrylessMultiplyEven[uint16, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint16x32) CarrylessMultiplyEven(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.CarrylessMultiplyEven[uint16, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint16s) CarrylessMultiplyEven(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.CarrylessMultiplyEven[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint32x4) CarrylessMultiplyEven(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.CarrylessMultiplyEven[uint32, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint32x8) CarrylessMultiplyEven(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.CarrylessMultiplyEven[uint32, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint32x16) CarrylessMultiplyEven(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.CarrylessMultiplyEven[uint32, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint32s) CarrylessMultiplyEven(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.CarrylessMultiplyEven[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.CarrylessMultiplyEven[uint64, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint64x4) CarrylessMultiplyEven(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.CarrylessMultiplyEven[uint64, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint64x8) CarrylessMultiplyEven(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.CarrylessMultiplyEven[uint64, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
+//
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
+//
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
+func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.CarrylessMultiplyEven[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x16) CarrylessMultiplyEvenOdd(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.CarrylessMultiplyEvenOdd[uint8, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x32) CarrylessMultiplyEvenOdd(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.CarrylessMultiplyEvenOdd[uint8, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x64) CarrylessMultiplyEvenOdd(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.CarrylessMultiplyEvenOdd[uint8, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8s) CarrylessMultiplyEvenOdd(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.CarrylessMultiplyEvenOdd[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x8) CarrylessMultiplyEvenOdd(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.CarrylessMultiplyEvenOdd[uint16, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x16) CarrylessMultiplyEvenOdd(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.CarrylessMultiplyEvenOdd[uint16, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x32) CarrylessMultiplyEvenOdd(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.CarrylessMultiplyEvenOdd[uint16, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16s) CarrylessMultiplyEvenOdd(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.CarrylessMultiplyEvenOdd[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x4) CarrylessMultiplyEvenOdd(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.CarrylessMultiplyEvenOdd[uint32, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x8) CarrylessMultiplyEvenOdd(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.CarrylessMultiplyEvenOdd[uint32, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x16) CarrylessMultiplyEvenOdd(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.CarrylessMultiplyEvenOdd[uint32, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32s) CarrylessMultiplyEvenOdd(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.CarrylessMultiplyEvenOdd[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.CarrylessMultiplyEvenOdd[uint64, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.CarrylessMultiplyEvenOdd[uint64, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x8) CarrylessMultiplyEvenOdd(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.CarrylessMultiplyEvenOdd[uint64, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64s) CarrylessMultiplyEvenOdd(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.CarrylessMultiplyEvenOdd[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x16) CarrylessMultiplyOdd(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.CarrylessMultiplyOdd[uint8, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x32) CarrylessMultiplyOdd(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.CarrylessMultiplyOdd[uint8, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x64) CarrylessMultiplyOdd(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.CarrylessMultiplyOdd[uint8, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8s) CarrylessMultiplyOdd(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.CarrylessMultiplyOdd[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x8) CarrylessMultiplyOdd(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.CarrylessMultiplyOdd[uint16, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x16) CarrylessMultiplyOdd(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.CarrylessMultiplyOdd[uint16, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x32) CarrylessMultiplyOdd(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.CarrylessMultiplyOdd[uint16, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16s) CarrylessMultiplyOdd(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.CarrylessMultiplyOdd[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x4) CarrylessMultiplyOdd(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.CarrylessMultiplyOdd[uint32, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x8) CarrylessMultiplyOdd(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.CarrylessMultiplyOdd[uint32, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x16) CarrylessMultiplyOdd(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.CarrylessMultiplyOdd[uint32, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32s) CarrylessMultiplyOdd(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.CarrylessMultiplyOdd[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.CarrylessMultiplyOdd[uint64, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.CarrylessMultiplyOdd[uint64, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.CarrylessMultiplyOdd[uint64, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.CarrylessMultiplyOdd[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x16) CarrylessMultiplyOddEven(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.CarrylessMultiplyOddEven[uint8, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x32) CarrylessMultiplyOddEven(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.CarrylessMultiplyOddEven[uint8, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8x64) CarrylessMultiplyOddEven(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.CarrylessMultiplyOddEven[uint8, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint8s) CarrylessMultiplyOddEven(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.CarrylessMultiplyOddEven[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x8) CarrylessMultiplyOddEven(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.CarrylessMultiplyOddEven[uint16, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x16) CarrylessMultiplyOddEven(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.CarrylessMultiplyOddEven[uint16, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16x32) CarrylessMultiplyOddEven(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.CarrylessMultiplyOddEven[uint16, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint16s) CarrylessMultiplyOddEven(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.CarrylessMultiplyOddEven[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x4) CarrylessMultiplyOddEven(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.CarrylessMultiplyOddEven[uint32, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x8) CarrylessMultiplyOddEven(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.CarrylessMultiplyOddEven[uint32, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32x16) CarrylessMultiplyOddEven(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.CarrylessMultiplyOddEven[uint32, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint32s) CarrylessMultiplyOddEven(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.CarrylessMultiplyOddEven[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.CarrylessMultiplyOddEven[uint64, spec.Width128](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.CarrylessMultiplyOddEven[uint64, spec.Width256](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.CarrylessMultiplyOddEven[uint64, spec.Width512](x.v, y.v)}
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64s) CarrylessMultiplyOddEven(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.CarrylessMultiplyOddEven[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Float32x4) Equal(y Float32x4) (z Mask32x4) {
+	return Mask32x4{spec.Equal[float32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Float32x8) Equal(y Float32x8) (z Mask32x8) {
+	return Mask32x8{spec.Equal[float32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Float32x16) Equal(y Float32x16) (z Mask32x16) {
+	return Mask32x16{spec.Equal[float32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Float32s) Equal(y Float32s) (z Mask32s) {
+	return Mask32s{spec.Equal[float32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Float64x2) Equal(y Float64x2) (z Mask64x2) {
+	return Mask64x2{spec.Equal[float64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Float64x4) Equal(y Float64x4) (z Mask64x4) {
+	return Mask64x4{spec.Equal[float64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Float64x8) Equal(y Float64x8) (z Mask64x8) {
+	return Mask64x8{spec.Equal[float64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Float64s) Equal(y Float64s) (z Mask64s) {
+	return Mask64s{spec.Equal[float64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int8x16) Equal(y Int8x16) (z Mask8x16) {
+	return Mask8x16{spec.Equal[int8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int8x32) Equal(y Int8x32) (z Mask8x32) {
+	return Mask8x32{spec.Equal[int8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int8x64) Equal(y Int8x64) (z Mask8x64) {
+	return Mask8x64{spec.Equal[int8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int8s) Equal(y Int8s) (z Mask8s) {
+	return Mask8s{spec.Equal[int8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int16x8) Equal(y Int16x8) (z Mask16x8) {
+	return Mask16x8{spec.Equal[int16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int16x16) Equal(y Int16x16) (z Mask16x16) {
+	return Mask16x16{spec.Equal[int16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int16x32) Equal(y Int16x32) (z Mask16x32) {
+	return Mask16x32{spec.Equal[int16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int16s) Equal(y Int16s) (z Mask16s) {
+	return Mask16s{spec.Equal[int16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int32x4) Equal(y Int32x4) (z Mask32x4) {
+	return Mask32x4{spec.Equal[int32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int32x8) Equal(y Int32x8) (z Mask32x8) {
+	return Mask32x8{spec.Equal[int32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int32x16) Equal(y Int32x16) (z Mask32x16) {
+	return Mask32x16{spec.Equal[int32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int32s) Equal(y Int32s) (z Mask32s) {
+	return Mask32s{spec.Equal[int32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int64x2) Equal(y Int64x2) (z Mask64x2) {
+	return Mask64x2{spec.Equal[int64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int64x4) Equal(y Int64x4) (z Mask64x4) {
+	return Mask64x4{spec.Equal[int64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int64x8) Equal(y Int64x8) (z Mask64x8) {
+	return Mask64x8{spec.Equal[int64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Int64s) Equal(y Int64s) (z Mask64s) {
+	return Mask64s{spec.Equal[int64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint8x16) Equal(y Uint8x16) (z Mask8x16) {
+	return Mask8x16{spec.Equal[uint8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint8x32) Equal(y Uint8x32) (z Mask8x32) {
+	return Mask8x32{spec.Equal[uint8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint8x64) Equal(y Uint8x64) (z Mask8x64) {
+	return Mask8x64{spec.Equal[uint8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint8s) Equal(y Uint8s) (z Mask8s) {
+	return Mask8s{spec.Equal[uint8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint16x8) Equal(y Uint16x8) (z Mask16x8) {
+	return Mask16x8{spec.Equal[uint16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint16x16) Equal(y Uint16x16) (z Mask16x16) {
+	return Mask16x16{spec.Equal[uint16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint16x32) Equal(y Uint16x32) (z Mask16x32) {
+	return Mask16x32{spec.Equal[uint16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint16s) Equal(y Uint16s) (z Mask16s) {
+	return Mask16s{spec.Equal[uint16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint32x4) Equal(y Uint32x4) (z Mask32x4) {
+	return Mask32x4{spec.Equal[uint32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint32x8) Equal(y Uint32x8) (z Mask32x8) {
+	return Mask32x8{spec.Equal[uint32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint32x16) Equal(y Uint32x16) (z Mask32x16) {
+	return Mask32x16{spec.Equal[uint32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint32s) Equal(y Uint32s) (z Mask32s) {
+	return Mask32s{spec.Equal[uint32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint64x2) Equal(y Uint64x2) (z Mask64x2) {
+	return Mask64x2{spec.Equal[uint64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint64x4) Equal(y Uint64x4) (z Mask64x4) {
+	return Mask64x4{spec.Equal[uint64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint64x8) Equal(y Uint64x8) (z Mask64x8) {
+	return Mask64x8{spec.Equal[uint64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Uint64s) Equal(y Uint64s) (z Mask64s) {
+	return Mask64s{spec.Equal[uint64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask8x16) Equal(y Mask8x16) (z Mask8x16) {
+	return Mask8x16{spec.Equal[spec.Mask8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask8x32) Equal(y Mask8x32) (z Mask8x32) {
+	return Mask8x32{spec.Equal[spec.Mask8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask8x64) Equal(y Mask8x64) (z Mask8x64) {
+	return Mask8x64{spec.Equal[spec.Mask8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask8s) Equal(y Mask8s) (z Mask8s) {
+	return Mask8s{spec.Equal[spec.Mask8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask16x8) Equal(y Mask16x8) (z Mask16x8) {
+	return Mask16x8{spec.Equal[spec.Mask16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask16x16) Equal(y Mask16x16) (z Mask16x16) {
+	return Mask16x16{spec.Equal[spec.Mask16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask16x32) Equal(y Mask16x32) (z Mask16x32) {
+	return Mask16x32{spec.Equal[spec.Mask16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask16s) Equal(y Mask16s) (z Mask16s) {
+	return Mask16s{spec.Equal[spec.Mask16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask32x4) Equal(y Mask32x4) (z Mask32x4) {
+	return Mask32x4{spec.Equal[spec.Mask32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask32x8) Equal(y Mask32x8) (z Mask32x8) {
+	return Mask32x8{spec.Equal[spec.Mask32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask32x16) Equal(y Mask32x16) (z Mask32x16) {
+	return Mask32x16{spec.Equal[spec.Mask32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask32s) Equal(y Mask32s) (z Mask32s) {
+	return Mask32s{spec.Equal[spec.Mask32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask64x2) Equal(y Mask64x2) (z Mask64x2) {
+	return Mask64x2{spec.Equal[spec.Mask64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask64x4) Equal(y Mask64x4) (z Mask64x4) {
+	return Mask64x4{spec.Equal[spec.Mask64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask64x8) Equal(y Mask64x8) (z Mask64x8) {
+	return Mask64x8{spec.Equal[spec.Mask64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Equal returns a mask indicating which elements of x and y are equal.
+func (x Mask64s) Equal(y Mask64s) (z Mask64s) {
+	return Mask64s{spec.Equal[spec.Mask64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float32x4) NotEqual(y Float32x4) (z Mask32x4) {
+	return Mask32x4{spec.NotEqual[float32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float32x8) NotEqual(y Float32x8) (z Mask32x8) {
+	return Mask32x8{spec.NotEqual[float32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float32x16) NotEqual(y Float32x16) (z Mask32x16) {
+	return Mask32x16{spec.NotEqual[float32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float32s) NotEqual(y Float32s) (z Mask32s) {
+	return Mask32s{spec.NotEqual[float32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float64x2) NotEqual(y Float64x2) (z Mask64x2) {
+	return Mask64x2{spec.NotEqual[float64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float64x4) NotEqual(y Float64x4) (z Mask64x4) {
+	return Mask64x4{spec.NotEqual[float64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float64x8) NotEqual(y Float64x8) (z Mask64x8) {
+	return Mask64x8{spec.NotEqual[float64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float64s) NotEqual(y Float64s) (z Mask64s) {
+	return Mask64s{spec.NotEqual[float64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int8x16) NotEqual(y Int8x16) (z Mask8x16) {
+	return Mask8x16{spec.NotEqual[int8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int8x32) NotEqual(y Int8x32) (z Mask8x32) {
+	return Mask8x32{spec.NotEqual[int8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int8x64) NotEqual(y Int8x64) (z Mask8x64) {
+	return Mask8x64{spec.NotEqual[int8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int8s) NotEqual(y Int8s) (z Mask8s) {
+	return Mask8s{spec.NotEqual[int8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int16x8) NotEqual(y Int16x8) (z Mask16x8) {
+	return Mask16x8{spec.NotEqual[int16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int16x16) NotEqual(y Int16x16) (z Mask16x16) {
+	return Mask16x16{spec.NotEqual[int16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int16x32) NotEqual(y Int16x32) (z Mask16x32) {
+	return Mask16x32{spec.NotEqual[int16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int16s) NotEqual(y Int16s) (z Mask16s) {
+	return Mask16s{spec.NotEqual[int16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int32x4) NotEqual(y Int32x4) (z Mask32x4) {
+	return Mask32x4{spec.NotEqual[int32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int32x8) NotEqual(y Int32x8) (z Mask32x8) {
+	return Mask32x8{spec.NotEqual[int32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int32x16) NotEqual(y Int32x16) (z Mask32x16) {
+	return Mask32x16{spec.NotEqual[int32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int32s) NotEqual(y Int32s) (z Mask32s) {
+	return Mask32s{spec.NotEqual[int32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int64x2) NotEqual(y Int64x2) (z Mask64x2) {
+	return Mask64x2{spec.NotEqual[int64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int64x4) NotEqual(y Int64x4) (z Mask64x4) {
+	return Mask64x4{spec.NotEqual[int64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int64x8) NotEqual(y Int64x8) (z Mask64x8) {
+	return Mask64x8{spec.NotEqual[int64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int64s) NotEqual(y Int64s) (z Mask64s) {
+	return Mask64s{spec.NotEqual[int64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint8x16) NotEqual(y Uint8x16) (z Mask8x16) {
+	return Mask8x16{spec.NotEqual[uint8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint8x32) NotEqual(y Uint8x32) (z Mask8x32) {
+	return Mask8x32{spec.NotEqual[uint8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint8x64) NotEqual(y Uint8x64) (z Mask8x64) {
+	return Mask8x64{spec.NotEqual[uint8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint8s) NotEqual(y Uint8s) (z Mask8s) {
+	return Mask8s{spec.NotEqual[uint8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint16x8) NotEqual(y Uint16x8) (z Mask16x8) {
+	return Mask16x8{spec.NotEqual[uint16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint16x16) NotEqual(y Uint16x16) (z Mask16x16) {
+	return Mask16x16{spec.NotEqual[uint16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint16x32) NotEqual(y Uint16x32) (z Mask16x32) {
+	return Mask16x32{spec.NotEqual[uint16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint16s) NotEqual(y Uint16s) (z Mask16s) {
+	return Mask16s{spec.NotEqual[uint16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint32x4) NotEqual(y Uint32x4) (z Mask32x4) {
+	return Mask32x4{spec.NotEqual[uint32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint32x8) NotEqual(y Uint32x8) (z Mask32x8) {
+	return Mask32x8{spec.NotEqual[uint32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint32x16) NotEqual(y Uint32x16) (z Mask32x16) {
+	return Mask32x16{spec.NotEqual[uint32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint32s) NotEqual(y Uint32s) (z Mask32s) {
+	return Mask32s{spec.NotEqual[uint32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint64x2) NotEqual(y Uint64x2) (z Mask64x2) {
+	return Mask64x2{spec.NotEqual[uint64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint64x4) NotEqual(y Uint64x4) (z Mask64x4) {
+	return Mask64x4{spec.NotEqual[uint64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint64x8) NotEqual(y Uint64x8) (z Mask64x8) {
+	return Mask64x8{spec.NotEqual[uint64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint64s) NotEqual(y Uint64s) (z Mask64s) {
+	return Mask64s{spec.NotEqual[uint64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask8x16) NotEqual(y Mask8x16) (z Mask8x16) {
+	return Mask8x16{spec.NotEqual[spec.Mask8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask8x32) NotEqual(y Mask8x32) (z Mask8x32) {
+	return Mask8x32{spec.NotEqual[spec.Mask8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask8x64) NotEqual(y Mask8x64) (z Mask8x64) {
+	return Mask8x64{spec.NotEqual[spec.Mask8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask8s) NotEqual(y Mask8s) (z Mask8s) {
+	return Mask8s{spec.NotEqual[spec.Mask8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask16x8) NotEqual(y Mask16x8) (z Mask16x8) {
+	return Mask16x8{spec.NotEqual[spec.Mask16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask16x16) NotEqual(y Mask16x16) (z Mask16x16) {
+	return Mask16x16{spec.NotEqual[spec.Mask16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask16x32) NotEqual(y Mask16x32) (z Mask16x32) {
+	return Mask16x32{spec.NotEqual[spec.Mask16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask16s) NotEqual(y Mask16s) (z Mask16s) {
+	return Mask16s{spec.NotEqual[spec.Mask16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask32x4) NotEqual(y Mask32x4) (z Mask32x4) {
+	return Mask32x4{spec.NotEqual[spec.Mask32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask32x8) NotEqual(y Mask32x8) (z Mask32x8) {
+	return Mask32x8{spec.NotEqual[spec.Mask32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask32x16) NotEqual(y Mask32x16) (z Mask32x16) {
+	return Mask32x16{spec.NotEqual[spec.Mask32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask32s) NotEqual(y Mask32s) (z Mask32s) {
+	return Mask32s{spec.NotEqual[spec.Mask32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask64x2) NotEqual(y Mask64x2) (z Mask64x2) {
+	return Mask64x2{spec.NotEqual[spec.Mask64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask64x4) NotEqual(y Mask64x4) (z Mask64x4) {
+	return Mask64x4{spec.NotEqual[spec.Mask64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask64x8) NotEqual(y Mask64x8) (z Mask64x8) {
+	return Mask64x8{spec.NotEqual[spec.Mask64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Mask64s) NotEqual(y Mask64s) (z Mask64s) {
+	return Mask64s{spec.NotEqual[spec.Mask64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float32x4) Less(y Float32x4) (z Mask32x4) {
+	return Mask32x4{spec.Less[float32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float32x8) Less(y Float32x8) (z Mask32x8) {
+	return Mask32x8{spec.Less[float32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float32x16) Less(y Float32x16) (z Mask32x16) {
+	return Mask32x16{spec.Less[float32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float32s) Less(y Float32s) (z Mask32s) {
+	return Mask32s{spec.Less[float32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float64x2) Less(y Float64x2) (z Mask64x2) {
+	return Mask64x2{spec.Less[float64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float64x4) Less(y Float64x4) (z Mask64x4) {
+	return Mask64x4{spec.Less[float64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float64x8) Less(y Float64x8) (z Mask64x8) {
+	return Mask64x8{spec.Less[float64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float64s) Less(y Float64s) (z Mask64s) {
+	return Mask64s{spec.Less[float64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int8x16) Less(y Int8x16) (z Mask8x16) {
+	return Mask8x16{spec.Less[int8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int8x32) Less(y Int8x32) (z Mask8x32) {
+	return Mask8x32{spec.Less[int8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int8x64) Less(y Int8x64) (z Mask8x64) {
+	return Mask8x64{spec.Less[int8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int8s) Less(y Int8s) (z Mask8s) {
+	return Mask8s{spec.Less[int8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int16x8) Less(y Int16x8) (z Mask16x8) {
+	return Mask16x8{spec.Less[int16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int16x16) Less(y Int16x16) (z Mask16x16) {
+	return Mask16x16{spec.Less[int16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int16x32) Less(y Int16x32) (z Mask16x32) {
+	return Mask16x32{spec.Less[int16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int16s) Less(y Int16s) (z Mask16s) {
+	return Mask16s{spec.Less[int16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int32x4) Less(y Int32x4) (z Mask32x4) {
+	return Mask32x4{spec.Less[int32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int32x8) Less(y Int32x8) (z Mask32x8) {
+	return Mask32x8{spec.Less[int32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int32x16) Less(y Int32x16) (z Mask32x16) {
+	return Mask32x16{spec.Less[int32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int32s) Less(y Int32s) (z Mask32s) {
+	return Mask32s{spec.Less[int32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int64x2) Less(y Int64x2) (z Mask64x2) {
+	return Mask64x2{spec.Less[int64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int64x4) Less(y Int64x4) (z Mask64x4) {
+	return Mask64x4{spec.Less[int64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int64x8) Less(y Int64x8) (z Mask64x8) {
+	return Mask64x8{spec.Less[int64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int64s) Less(y Int64s) (z Mask64s) {
+	return Mask64s{spec.Less[int64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint8x16) Less(y Uint8x16) (z Mask8x16) {
+	return Mask8x16{spec.Less[uint8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint8x32) Less(y Uint8x32) (z Mask8x32) {
+	return Mask8x32{spec.Less[uint8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint8x64) Less(y Uint8x64) (z Mask8x64) {
+	return Mask8x64{spec.Less[uint8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint8s) Less(y Uint8s) (z Mask8s) {
+	return Mask8s{spec.Less[uint8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint16x8) Less(y Uint16x8) (z Mask16x8) {
+	return Mask16x8{spec.Less[uint16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint16x16) Less(y Uint16x16) (z Mask16x16) {
+	return Mask16x16{spec.Less[uint16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint16x32) Less(y Uint16x32) (z Mask16x32) {
+	return Mask16x32{spec.Less[uint16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint16s) Less(y Uint16s) (z Mask16s) {
+	return Mask16s{spec.Less[uint16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint32x4) Less(y Uint32x4) (z Mask32x4) {
+	return Mask32x4{spec.Less[uint32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint32x8) Less(y Uint32x8) (z Mask32x8) {
+	return Mask32x8{spec.Less[uint32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint32x16) Less(y Uint32x16) (z Mask32x16) {
+	return Mask32x16{spec.Less[uint32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint32s) Less(y Uint32s) (z Mask32s) {
+	return Mask32s{spec.Less[uint32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
+	return Mask64x2{spec.Less[uint64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint64x4) Less(y Uint64x4) (z Mask64x4) {
+	return Mask64x4{spec.Less[uint64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint64x8) Less(y Uint64x8) (z Mask64x8) {
+	return Mask64x8{spec.Less[uint64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint64s) Less(y Uint64s) (z Mask64s) {
+	return Mask64s{spec.Less[uint64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float32x4) LessEqual(y Float32x4) (z Mask32x4) {
+	return Mask32x4{spec.LessEqual[float32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float32x8) LessEqual(y Float32x8) (z Mask32x8) {
+	return Mask32x8{spec.LessEqual[float32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float32x16) LessEqual(y Float32x16) (z Mask32x16) {
+	return Mask32x16{spec.LessEqual[float32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float32s) LessEqual(y Float32s) (z Mask32s) {
+	return Mask32s{spec.LessEqual[float32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float64x2) LessEqual(y Float64x2) (z Mask64x2) {
+	return Mask64x2{spec.LessEqual[float64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float64x4) LessEqual(y Float64x4) (z Mask64x4) {
+	return Mask64x4{spec.LessEqual[float64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float64x8) LessEqual(y Float64x8) (z Mask64x8) {
+	return Mask64x8{spec.LessEqual[float64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float64s) LessEqual(y Float64s) (z Mask64s) {
+	return Mask64s{spec.LessEqual[float64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int8x16) LessEqual(y Int8x16) (z Mask8x16) {
+	return Mask8x16{spec.LessEqual[int8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int8x32) LessEqual(y Int8x32) (z Mask8x32) {
+	return Mask8x32{spec.LessEqual[int8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int8x64) LessEqual(y Int8x64) (z Mask8x64) {
+	return Mask8x64{spec.LessEqual[int8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int8s) LessEqual(y Int8s) (z Mask8s) {
+	return Mask8s{spec.LessEqual[int8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int16x8) LessEqual(y Int16x8) (z Mask16x8) {
+	return Mask16x8{spec.LessEqual[int16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int16x16) LessEqual(y Int16x16) (z Mask16x16) {
+	return Mask16x16{spec.LessEqual[int16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int16x32) LessEqual(y Int16x32) (z Mask16x32) {
+	return Mask16x32{spec.LessEqual[int16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int16s) LessEqual(y Int16s) (z Mask16s) {
+	return Mask16s{spec.LessEqual[int16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int32x4) LessEqual(y Int32x4) (z Mask32x4) {
+	return Mask32x4{spec.LessEqual[int32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int32x8) LessEqual(y Int32x8) (z Mask32x8) {
+	return Mask32x8{spec.LessEqual[int32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int32x16) LessEqual(y Int32x16) (z Mask32x16) {
+	return Mask32x16{spec.LessEqual[int32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int32s) LessEqual(y Int32s) (z Mask32s) {
+	return Mask32s{spec.LessEqual[int32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int64x2) LessEqual(y Int64x2) (z Mask64x2) {
+	return Mask64x2{spec.LessEqual[int64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int64x4) LessEqual(y Int64x4) (z Mask64x4) {
+	return Mask64x4{spec.LessEqual[int64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int64x8) LessEqual(y Int64x8) (z Mask64x8) {
+	return Mask64x8{spec.LessEqual[int64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int64s) LessEqual(y Int64s) (z Mask64s) {
+	return Mask64s{spec.LessEqual[int64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint8x16) LessEqual(y Uint8x16) (z Mask8x16) {
+	return Mask8x16{spec.LessEqual[uint8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint8x32) LessEqual(y Uint8x32) (z Mask8x32) {
+	return Mask8x32{spec.LessEqual[uint8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint8x64) LessEqual(y Uint8x64) (z Mask8x64) {
+	return Mask8x64{spec.LessEqual[uint8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint8s) LessEqual(y Uint8s) (z Mask8s) {
+	return Mask8s{spec.LessEqual[uint8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint16x8) LessEqual(y Uint16x8) (z Mask16x8) {
+	return Mask16x8{spec.LessEqual[uint16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint16x16) LessEqual(y Uint16x16) (z Mask16x16) {
+	return Mask16x16{spec.LessEqual[uint16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint16x32) LessEqual(y Uint16x32) (z Mask16x32) {
+	return Mask16x32{spec.LessEqual[uint16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint16s) LessEqual(y Uint16s) (z Mask16s) {
+	return Mask16s{spec.LessEqual[uint16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint32x4) LessEqual(y Uint32x4) (z Mask32x4) {
+	return Mask32x4{spec.LessEqual[uint32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint32x8) LessEqual(y Uint32x8) (z Mask32x8) {
+	return Mask32x8{spec.LessEqual[uint32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint32x16) LessEqual(y Uint32x16) (z Mask32x16) {
+	return Mask32x16{spec.LessEqual[uint32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint32s) LessEqual(y Uint32s) (z Mask32s) {
+	return Mask32s{spec.LessEqual[uint32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
+	return Mask64x2{spec.LessEqual[uint64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint64x4) LessEqual(y Uint64x4) (z Mask64x4) {
+	return Mask64x4{spec.LessEqual[uint64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint64x8) LessEqual(y Uint64x8) (z Mask64x8) {
+	return Mask64x8{spec.LessEqual[uint64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint64s) LessEqual(y Uint64s) (z Mask64s) {
+	return Mask64s{spec.LessEqual[uint64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Float32x4) Greater(y Float32x4) (z Mask32x4) {
+	return Mask32x4{spec.Greater[float32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Float32x8) Greater(y Float32x8) (z Mask32x8) {
+	return Mask32x8{spec.Greater[float32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Float32x16) Greater(y Float32x16) (z Mask32x16) {
+	return Mask32x16{spec.Greater[float32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Float32s) Greater(y Float32s) (z Mask32s) {
+	return Mask32s{spec.Greater[float32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Float64x2) Greater(y Float64x2) (z Mask64x2) {
+	return Mask64x2{spec.Greater[float64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Float64x4) Greater(y Float64x4) (z Mask64x4) {
+	return Mask64x4{spec.Greater[float64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Float64x8) Greater(y Float64x8) (z Mask64x8) {
+	return Mask64x8{spec.Greater[float64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Float64s) Greater(y Float64s) (z Mask64s) {
+	return Mask64s{spec.Greater[float64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int8x16) Greater(y Int8x16) (z Mask8x16) {
+	return Mask8x16{spec.Greater[int8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int8x32) Greater(y Int8x32) (z Mask8x32) {
+	return Mask8x32{spec.Greater[int8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int8x64) Greater(y Int8x64) (z Mask8x64) {
+	return Mask8x64{spec.Greater[int8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int8s) Greater(y Int8s) (z Mask8s) {
+	return Mask8s{spec.Greater[int8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int16x8) Greater(y Int16x8) (z Mask16x8) {
+	return Mask16x8{spec.Greater[int16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int16x16) Greater(y Int16x16) (z Mask16x16) {
+	return Mask16x16{spec.Greater[int16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int16x32) Greater(y Int16x32) (z Mask16x32) {
+	return Mask16x32{spec.Greater[int16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int16s) Greater(y Int16s) (z Mask16s) {
+	return Mask16s{spec.Greater[int16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int32x4) Greater(y Int32x4) (z Mask32x4) {
+	return Mask32x4{spec.Greater[int32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int32x8) Greater(y Int32x8) (z Mask32x8) {
+	return Mask32x8{spec.Greater[int32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int32x16) Greater(y Int32x16) (z Mask32x16) {
+	return Mask32x16{spec.Greater[int32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int32s) Greater(y Int32s) (z Mask32s) {
+	return Mask32s{spec.Greater[int32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int64x2) Greater(y Int64x2) (z Mask64x2) {
+	return Mask64x2{spec.Greater[int64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int64x4) Greater(y Int64x4) (z Mask64x4) {
+	return Mask64x4{spec.Greater[int64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int64x8) Greater(y Int64x8) (z Mask64x8) {
+	return Mask64x8{spec.Greater[int64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Int64s) Greater(y Int64s) (z Mask64s) {
+	return Mask64s{spec.Greater[int64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint8x16) Greater(y Uint8x16) (z Mask8x16) {
+	return Mask8x16{spec.Greater[uint8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint8x32) Greater(y Uint8x32) (z Mask8x32) {
+	return Mask8x32{spec.Greater[uint8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint8x64) Greater(y Uint8x64) (z Mask8x64) {
+	return Mask8x64{spec.Greater[uint8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint8s) Greater(y Uint8s) (z Mask8s) {
+	return Mask8s{spec.Greater[uint8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint16x8) Greater(y Uint16x8) (z Mask16x8) {
+	return Mask16x8{spec.Greater[uint16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint16x16) Greater(y Uint16x16) (z Mask16x16) {
+	return Mask16x16{spec.Greater[uint16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint16x32) Greater(y Uint16x32) (z Mask16x32) {
+	return Mask16x32{spec.Greater[uint16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint16s) Greater(y Uint16s) (z Mask16s) {
+	return Mask16s{spec.Greater[uint16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint32x4) Greater(y Uint32x4) (z Mask32x4) {
+	return Mask32x4{spec.Greater[uint32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint32x8) Greater(y Uint32x8) (z Mask32x8) {
+	return Mask32x8{spec.Greater[uint32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint32x16) Greater(y Uint32x16) (z Mask32x16) {
+	return Mask32x16{spec.Greater[uint32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint32s) Greater(y Uint32s) (z Mask32s) {
+	return Mask32s{spec.Greater[uint32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint64x2) Greater(y Uint64x2) (z Mask64x2) {
+	return Mask64x2{spec.Greater[uint64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint64x4) Greater(y Uint64x4) (z Mask64x4) {
+	return Mask64x4{spec.Greater[uint64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint64x8) Greater(y Uint64x8) (z Mask64x8) {
+	return Mask64x8{spec.Greater[uint64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint64s) Greater(y Uint64s) (z Mask64s) {
+	return Mask64s{spec.Greater[uint64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Float32x4) GreaterEqual(y Float32x4) (z Mask32x4) {
+	return Mask32x4{spec.GreaterEqual[float32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Float32x8) GreaterEqual(y Float32x8) (z Mask32x8) {
+	return Mask32x8{spec.GreaterEqual[float32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Float32x16) GreaterEqual(y Float32x16) (z Mask32x16) {
+	return Mask32x16{spec.GreaterEqual[float32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Float32s) GreaterEqual(y Float32s) (z Mask32s) {
+	return Mask32s{spec.GreaterEqual[float32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Float64x2) GreaterEqual(y Float64x2) (z Mask64x2) {
+	return Mask64x2{spec.GreaterEqual[float64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Float64x4) GreaterEqual(y Float64x4) (z Mask64x4) {
+	return Mask64x4{spec.GreaterEqual[float64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Float64x8) GreaterEqual(y Float64x8) (z Mask64x8) {
+	return Mask64x8{spec.GreaterEqual[float64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Float64s) GreaterEqual(y Float64s) (z Mask64s) {
+	return Mask64s{spec.GreaterEqual[float64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int8x16) GreaterEqual(y Int8x16) (z Mask8x16) {
+	return Mask8x16{spec.GreaterEqual[int8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int8x32) GreaterEqual(y Int8x32) (z Mask8x32) {
+	return Mask8x32{spec.GreaterEqual[int8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int8x64) GreaterEqual(y Int8x64) (z Mask8x64) {
+	return Mask8x64{spec.GreaterEqual[int8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int8s) GreaterEqual(y Int8s) (z Mask8s) {
+	return Mask8s{spec.GreaterEqual[int8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int16x8) GreaterEqual(y Int16x8) (z Mask16x8) {
+	return Mask16x8{spec.GreaterEqual[int16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int16x16) GreaterEqual(y Int16x16) (z Mask16x16) {
+	return Mask16x16{spec.GreaterEqual[int16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int16x32) GreaterEqual(y Int16x32) (z Mask16x32) {
+	return Mask16x32{spec.GreaterEqual[int16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int16s) GreaterEqual(y Int16s) (z Mask16s) {
+	return Mask16s{spec.GreaterEqual[int16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int32x4) GreaterEqual(y Int32x4) (z Mask32x4) {
+	return Mask32x4{spec.GreaterEqual[int32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int32x8) GreaterEqual(y Int32x8) (z Mask32x8) {
+	return Mask32x8{spec.GreaterEqual[int32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int32x16) GreaterEqual(y Int32x16) (z Mask32x16) {
+	return Mask32x16{spec.GreaterEqual[int32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int32s) GreaterEqual(y Int32s) (z Mask32s) {
+	return Mask32s{spec.GreaterEqual[int32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int64x2) GreaterEqual(y Int64x2) (z Mask64x2) {
+	return Mask64x2{spec.GreaterEqual[int64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int64x4) GreaterEqual(y Int64x4) (z Mask64x4) {
+	return Mask64x4{spec.GreaterEqual[int64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int64x8) GreaterEqual(y Int64x8) (z Mask64x8) {
+	return Mask64x8{spec.GreaterEqual[int64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Int64s) GreaterEqual(y Int64s) (z Mask64s) {
+	return Mask64s{spec.GreaterEqual[int64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint8x16) GreaterEqual(y Uint8x16) (z Mask8x16) {
+	return Mask8x16{spec.GreaterEqual[uint8, spec.Width128, spec.Mask8](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint8x32) GreaterEqual(y Uint8x32) (z Mask8x32) {
+	return Mask8x32{spec.GreaterEqual[uint8, spec.Width256, spec.Mask8](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint8x64) GreaterEqual(y Uint8x64) (z Mask8x64) {
+	return Mask8x64{spec.GreaterEqual[uint8, spec.Width512, spec.Mask8](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint8s) GreaterEqual(y Uint8s) (z Mask8s) {
+	return Mask8s{spec.GreaterEqual[uint8, spec.WidthScalable, spec.Mask8](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint16x8) GreaterEqual(y Uint16x8) (z Mask16x8) {
+	return Mask16x8{spec.GreaterEqual[uint16, spec.Width128, spec.Mask16](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint16x16) GreaterEqual(y Uint16x16) (z Mask16x16) {
+	return Mask16x16{spec.GreaterEqual[uint16, spec.Width256, spec.Mask16](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint16x32) GreaterEqual(y Uint16x32) (z Mask16x32) {
+	return Mask16x32{spec.GreaterEqual[uint16, spec.Width512, spec.Mask16](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint16s) GreaterEqual(y Uint16s) (z Mask16s) {
+	return Mask16s{spec.GreaterEqual[uint16, spec.WidthScalable, spec.Mask16](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint32x4) GreaterEqual(y Uint32x4) (z Mask32x4) {
+	return Mask32x4{spec.GreaterEqual[uint32, spec.Width128, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint32x8) GreaterEqual(y Uint32x8) (z Mask32x8) {
+	return Mask32x8{spec.GreaterEqual[uint32, spec.Width256, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint32x16) GreaterEqual(y Uint32x16) (z Mask32x16) {
+	return Mask32x16{spec.GreaterEqual[uint32, spec.Width512, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint32s) GreaterEqual(y Uint32s) (z Mask32s) {
+	return Mask32s{spec.GreaterEqual[uint32, spec.WidthScalable, spec.Mask32](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint64x2) GreaterEqual(y Uint64x2) (z Mask64x2) {
+	return Mask64x2{spec.GreaterEqual[uint64, spec.Width128, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint64x4) GreaterEqual(y Uint64x4) (z Mask64x4) {
+	return Mask64x4{spec.GreaterEqual[uint64, spec.Width256, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint64x8) GreaterEqual(y Uint64x8) (z Mask64x8) {
+	return Mask64x8{spec.GreaterEqual[uint64, spec.Width512, spec.Mask64](x.v, y.v)}
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint64s) GreaterEqual(y Uint64s) (z Mask64s) {
+	return Mask64s{spec.GreaterEqual[uint64, spec.WidthScalable, spec.Mask64](x.v, y.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Float32x4) ToMask() (z Mask32x4) {
+	return Mask32x4{spec.ToMask[float32, spec.Width128, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Float32x8) ToMask() (z Mask32x8) {
+	return Mask32x8{spec.ToMask[float32, spec.Width256, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Float32x16) ToMask() (z Mask32x16) {
+	return Mask32x16{spec.ToMask[float32, spec.Width512, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Float32s) ToMask() (z Mask32s) {
+	return Mask32s{spec.ToMask[float32, spec.WidthScalable, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Float64x2) ToMask() (z Mask64x2) {
+	return Mask64x2{spec.ToMask[float64, spec.Width128, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Float64x4) ToMask() (z Mask64x4) {
+	return Mask64x4{spec.ToMask[float64, spec.Width256, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Float64x8) ToMask() (z Mask64x8) {
+	return Mask64x8{spec.ToMask[float64, spec.Width512, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Float64s) ToMask() (z Mask64s) {
+	return Mask64s{spec.ToMask[float64, spec.WidthScalable, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int8x16) ToMask() (z Mask8x16) {
+	return Mask8x16{spec.ToMask[int8, spec.Width128, spec.Mask8](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int8x32) ToMask() (z Mask8x32) {
+	return Mask8x32{spec.ToMask[int8, spec.Width256, spec.Mask8](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int8x64) ToMask() (z Mask8x64) {
+	return Mask8x64{spec.ToMask[int8, spec.Width512, spec.Mask8](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int8s) ToMask() (z Mask8s) {
+	return Mask8s{spec.ToMask[int8, spec.WidthScalable, spec.Mask8](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int16x8) ToMask() (z Mask16x8) {
+	return Mask16x8{spec.ToMask[int16, spec.Width128, spec.Mask16](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int16x16) ToMask() (z Mask16x16) {
+	return Mask16x16{spec.ToMask[int16, spec.Width256, spec.Mask16](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int16x32) ToMask() (z Mask16x32) {
+	return Mask16x32{spec.ToMask[int16, spec.Width512, spec.Mask16](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int16s) ToMask() (z Mask16s) {
+	return Mask16s{spec.ToMask[int16, spec.WidthScalable, spec.Mask16](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int32x4) ToMask() (z Mask32x4) {
+	return Mask32x4{spec.ToMask[int32, spec.Width128, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int32x8) ToMask() (z Mask32x8) {
+	return Mask32x8{spec.ToMask[int32, spec.Width256, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int32x16) ToMask() (z Mask32x16) {
+	return Mask32x16{spec.ToMask[int32, spec.Width512, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int32s) ToMask() (z Mask32s) {
+	return Mask32s{spec.ToMask[int32, spec.WidthScalable, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int64x2) ToMask() (z Mask64x2) {
+	return Mask64x2{spec.ToMask[int64, spec.Width128, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int64x4) ToMask() (z Mask64x4) {
+	return Mask64x4{spec.ToMask[int64, spec.Width256, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int64x8) ToMask() (z Mask64x8) {
+	return Mask64x8{spec.ToMask[int64, spec.Width512, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Int64s) ToMask() (z Mask64s) {
+	return Mask64s{spec.ToMask[int64, spec.WidthScalable, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint8x16) ToMask() (z Mask8x16) {
+	return Mask8x16{spec.ToMask[uint8, spec.Width128, spec.Mask8](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint8x32) ToMask() (z Mask8x32) {
+	return Mask8x32{spec.ToMask[uint8, spec.Width256, spec.Mask8](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint8x64) ToMask() (z Mask8x64) {
+	return Mask8x64{spec.ToMask[uint8, spec.Width512, spec.Mask8](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint8s) ToMask() (z Mask8s) {
+	return Mask8s{spec.ToMask[uint8, spec.WidthScalable, spec.Mask8](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint16x8) ToMask() (z Mask16x8) {
+	return Mask16x8{spec.ToMask[uint16, spec.Width128, spec.Mask16](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint16x16) ToMask() (z Mask16x16) {
+	return Mask16x16{spec.ToMask[uint16, spec.Width256, spec.Mask16](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint16x32) ToMask() (z Mask16x32) {
+	return Mask16x32{spec.ToMask[uint16, spec.Width512, spec.Mask16](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint16s) ToMask() (z Mask16s) {
+	return Mask16s{spec.ToMask[uint16, spec.WidthScalable, spec.Mask16](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint32x4) ToMask() (z Mask32x4) {
+	return Mask32x4{spec.ToMask[uint32, spec.Width128, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint32x8) ToMask() (z Mask32x8) {
+	return Mask32x8{spec.ToMask[uint32, spec.Width256, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint32x16) ToMask() (z Mask32x16) {
+	return Mask32x16{spec.ToMask[uint32, spec.Width512, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint32s) ToMask() (z Mask32s) {
+	return Mask32s{spec.ToMask[uint32, spec.WidthScalable, spec.Mask32](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint64x2) ToMask() (z Mask64x2) {
+	return Mask64x2{spec.ToMask[uint64, spec.Width128, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint64x4) ToMask() (z Mask64x4) {
+	return Mask64x4{spec.ToMask[uint64, spec.Width256, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint64x8) ToMask() (z Mask64x8) {
+	return Mask64x8{spec.ToMask[uint64, spec.Width512, spec.Mask64](x.v)}
+}
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+func (x Uint64s) ToMask() (z Mask64s) {
+	return Mask64s{spec.ToMask[uint64, spec.WidthScalable, spec.Mask64](x.v)}
+}
+
+// IsNan returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+func (x Float32x4) IsNaN() (z Mask32x4) {
+	return Mask32x4{spec.IsNaN[float32, spec.Width128, spec.Mask32](x.v)}
+}
+
+// IsNan returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+func (x Float32x8) IsNaN() (z Mask32x8) {
+	return Mask32x8{spec.IsNaN[float32, spec.Width256, spec.Mask32](x.v)}
+}
+
+// IsNan returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+func (x Float32x16) IsNaN() (z Mask32x16) {
+	return Mask32x16{spec.IsNaN[float32, spec.Width512, spec.Mask32](x.v)}
+}
+
+// IsNan returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+func (x Float32s) IsNaN() (z Mask32s) {
+	return Mask32s{spec.IsNaN[float32, spec.WidthScalable, spec.Mask32](x.v)}
+}
+
+// IsNan returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+func (x Float64x2) IsNaN() (z Mask64x2) {
+	return Mask64x2{spec.IsNaN[float64, spec.Width128, spec.Mask64](x.v)}
+}
+
+// IsNan returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+func (x Float64x4) IsNaN() (z Mask64x4) {
+	return Mask64x4{spec.IsNaN[float64, spec.Width256, spec.Mask64](x.v)}
+}
+
+// IsNan returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+func (x Float64x8) IsNaN() (z Mask64x8) {
+	return Mask64x8{spec.IsNaN[float64, spec.Width512, spec.Mask64](x.v)}
+}
+
+// IsNan returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+func (x Float64s) IsNaN() (z Mask64s) {
+	return Mask64s{spec.IsNaN[float64, spec.WidthScalable, spec.Mask64](x.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float32x4) Masked(mask Mask32x4) (z Float32x4) {
+	return Float32x4{spec.Masked[float32, spec.Width128, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float32x8) Masked(mask Mask32x8) (z Float32x8) {
+	return Float32x8{spec.Masked[float32, spec.Width256, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float32x16) Masked(mask Mask32x16) (z Float32x16) {
+	return Float32x16{spec.Masked[float32, spec.Width512, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float32s) Masked(mask Mask32s) (z Float32s) {
+	return Float32s{spec.Masked[float32, spec.WidthScalable, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float64x2) Masked(mask Mask64x2) (z Float64x2) {
+	return Float64x2{spec.Masked[float64, spec.Width128, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float64x4) Masked(mask Mask64x4) (z Float64x4) {
+	return Float64x4{spec.Masked[float64, spec.Width256, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float64x8) Masked(mask Mask64x8) (z Float64x8) {
+	return Float64x8{spec.Masked[float64, spec.Width512, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float64s) Masked(mask Mask64s) (z Float64s) {
+	return Float64s{spec.Masked[float64, spec.WidthScalable, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int8x16) Masked(mask Mask8x16) (z Int8x16) {
+	return Int8x16{spec.Masked[int8, spec.Width128, spec.Mask8](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int8x32) Masked(mask Mask8x32) (z Int8x32) {
+	return Int8x32{spec.Masked[int8, spec.Width256, spec.Mask8](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int8x64) Masked(mask Mask8x64) (z Int8x64) {
+	return Int8x64{spec.Masked[int8, spec.Width512, spec.Mask8](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int8s) Masked(mask Mask8s) (z Int8s) {
+	return Int8s{spec.Masked[int8, spec.WidthScalable, spec.Mask8](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int16x8) Masked(mask Mask16x8) (z Int16x8) {
+	return Int16x8{spec.Masked[int16, spec.Width128, spec.Mask16](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int16x16) Masked(mask Mask16x16) (z Int16x16) {
+	return Int16x16{spec.Masked[int16, spec.Width256, spec.Mask16](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int16x32) Masked(mask Mask16x32) (z Int16x32) {
+	return Int16x32{spec.Masked[int16, spec.Width512, spec.Mask16](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int16s) Masked(mask Mask16s) (z Int16s) {
+	return Int16s{spec.Masked[int16, spec.WidthScalable, spec.Mask16](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int32x4) Masked(mask Mask32x4) (z Int32x4) {
+	return Int32x4{spec.Masked[int32, spec.Width128, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int32x8) Masked(mask Mask32x8) (z Int32x8) {
+	return Int32x8{spec.Masked[int32, spec.Width256, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int32x16) Masked(mask Mask32x16) (z Int32x16) {
+	return Int32x16{spec.Masked[int32, spec.Width512, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int32s) Masked(mask Mask32s) (z Int32s) {
+	return Int32s{spec.Masked[int32, spec.WidthScalable, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int64x2) Masked(mask Mask64x2) (z Int64x2) {
+	return Int64x2{spec.Masked[int64, spec.Width128, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int64x4) Masked(mask Mask64x4) (z Int64x4) {
+	return Int64x4{spec.Masked[int64, spec.Width256, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int64x8) Masked(mask Mask64x8) (z Int64x8) {
+	return Int64x8{spec.Masked[int64, spec.Width512, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int64s) Masked(mask Mask64s) (z Int64s) {
+	return Int64s{spec.Masked[int64, spec.WidthScalable, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint8x16) Masked(mask Mask8x16) (z Uint8x16) {
+	return Uint8x16{spec.Masked[uint8, spec.Width128, spec.Mask8](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint8x32) Masked(mask Mask8x32) (z Uint8x32) {
+	return Uint8x32{spec.Masked[uint8, spec.Width256, spec.Mask8](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint8x64) Masked(mask Mask8x64) (z Uint8x64) {
+	return Uint8x64{spec.Masked[uint8, spec.Width512, spec.Mask8](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint8s) Masked(mask Mask8s) (z Uint8s) {
+	return Uint8s{spec.Masked[uint8, spec.WidthScalable, spec.Mask8](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint16x8) Masked(mask Mask16x8) (z Uint16x8) {
+	return Uint16x8{spec.Masked[uint16, spec.Width128, spec.Mask16](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint16x16) Masked(mask Mask16x16) (z Uint16x16) {
+	return Uint16x16{spec.Masked[uint16, spec.Width256, spec.Mask16](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint16x32) Masked(mask Mask16x32) (z Uint16x32) {
+	return Uint16x32{spec.Masked[uint16, spec.Width512, spec.Mask16](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint16s) Masked(mask Mask16s) (z Uint16s) {
+	return Uint16s{spec.Masked[uint16, spec.WidthScalable, spec.Mask16](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint32x4) Masked(mask Mask32x4) (z Uint32x4) {
+	return Uint32x4{spec.Masked[uint32, spec.Width128, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint32x8) Masked(mask Mask32x8) (z Uint32x8) {
+	return Uint32x8{spec.Masked[uint32, spec.Width256, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint32x16) Masked(mask Mask32x16) (z Uint32x16) {
+	return Uint32x16{spec.Masked[uint32, spec.Width512, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint32s) Masked(mask Mask32s) (z Uint32s) {
+	return Uint32s{spec.Masked[uint32, spec.WidthScalable, spec.Mask32](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint64x2) Masked(mask Mask64x2) (z Uint64x2) {
+	return Uint64x2{spec.Masked[uint64, spec.Width128, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint64x4) Masked(mask Mask64x4) (z Uint64x4) {
+	return Uint64x4{spec.Masked[uint64, spec.Width256, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint64x8) Masked(mask Mask64x8) (z Uint64x8) {
+	return Uint64x8{spec.Masked[uint64, spec.Width512, spec.Mask64](x.v, mask.v)}
+}
+
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint64s) Masked(mask Mask64s) (z Uint64s) {
+	return Uint64s{spec.Masked[uint64, spec.WidthScalable, spec.Mask64](x.v, mask.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float32x4) IfElse(mask Mask32x4, y Float32x4) (z Float32x4) {
+	return Float32x4{spec.IfElse[float32, spec.Width128, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float32x8) IfElse(mask Mask32x8, y Float32x8) (z Float32x8) {
+	return Float32x8{spec.IfElse[float32, spec.Width256, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float32x16) IfElse(mask Mask32x16, y Float32x16) (z Float32x16) {
+	return Float32x16{spec.IfElse[float32, spec.Width512, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float32s) IfElse(mask Mask32s, y Float32s) (z Float32s) {
+	return Float32s{spec.IfElse[float32, spec.WidthScalable, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float64x2) IfElse(mask Mask64x2, y Float64x2) (z Float64x2) {
+	return Float64x2{spec.IfElse[float64, spec.Width128, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float64x4) IfElse(mask Mask64x4, y Float64x4) (z Float64x4) {
+	return Float64x4{spec.IfElse[float64, spec.Width256, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float64x8) IfElse(mask Mask64x8, y Float64x8) (z Float64x8) {
+	return Float64x8{spec.IfElse[float64, spec.Width512, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float64s) IfElse(mask Mask64s, y Float64s) (z Float64s) {
+	return Float64s{spec.IfElse[float64, spec.WidthScalable, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int8x16) IfElse(mask Mask8x16, y Int8x16) (z Int8x16) {
+	return Int8x16{spec.IfElse[int8, spec.Width128, spec.Mask8](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int8x32) IfElse(mask Mask8x32, y Int8x32) (z Int8x32) {
+	return Int8x32{spec.IfElse[int8, spec.Width256, spec.Mask8](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int8x64) IfElse(mask Mask8x64, y Int8x64) (z Int8x64) {
+	return Int8x64{spec.IfElse[int8, spec.Width512, spec.Mask8](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int8s) IfElse(mask Mask8s, y Int8s) (z Int8s) {
+	return Int8s{spec.IfElse[int8, spec.WidthScalable, spec.Mask8](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int16x8) IfElse(mask Mask16x8, y Int16x8) (z Int16x8) {
+	return Int16x8{spec.IfElse[int16, spec.Width128, spec.Mask16](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int16x16) IfElse(mask Mask16x16, y Int16x16) (z Int16x16) {
+	return Int16x16{spec.IfElse[int16, spec.Width256, spec.Mask16](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int16x32) IfElse(mask Mask16x32, y Int16x32) (z Int16x32) {
+	return Int16x32{spec.IfElse[int16, spec.Width512, spec.Mask16](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int16s) IfElse(mask Mask16s, y Int16s) (z Int16s) {
+	return Int16s{spec.IfElse[int16, spec.WidthScalable, spec.Mask16](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int32x4) IfElse(mask Mask32x4, y Int32x4) (z Int32x4) {
+	return Int32x4{spec.IfElse[int32, spec.Width128, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int32x8) IfElse(mask Mask32x8, y Int32x8) (z Int32x8) {
+	return Int32x8{spec.IfElse[int32, spec.Width256, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int32x16) IfElse(mask Mask32x16, y Int32x16) (z Int32x16) {
+	return Int32x16{spec.IfElse[int32, spec.Width512, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int32s) IfElse(mask Mask32s, y Int32s) (z Int32s) {
+	return Int32s{spec.IfElse[int32, spec.WidthScalable, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int64x2) IfElse(mask Mask64x2, y Int64x2) (z Int64x2) {
+	return Int64x2{spec.IfElse[int64, spec.Width128, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int64x4) IfElse(mask Mask64x4, y Int64x4) (z Int64x4) {
+	return Int64x4{spec.IfElse[int64, spec.Width256, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int64x8) IfElse(mask Mask64x8, y Int64x8) (z Int64x8) {
+	return Int64x8{spec.IfElse[int64, spec.Width512, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int64s) IfElse(mask Mask64s, y Int64s) (z Int64s) {
+	return Int64s{spec.IfElse[int64, spec.WidthScalable, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint8x16) IfElse(mask Mask8x16, y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.IfElse[uint8, spec.Width128, spec.Mask8](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint8x32) IfElse(mask Mask8x32, y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.IfElse[uint8, spec.Width256, spec.Mask8](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint8x64) IfElse(mask Mask8x64, y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.IfElse[uint8, spec.Width512, spec.Mask8](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint8s) IfElse(mask Mask8s, y Uint8s) (z Uint8s) {
+	return Uint8s{spec.IfElse[uint8, spec.WidthScalable, spec.Mask8](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint16x8) IfElse(mask Mask16x8, y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.IfElse[uint16, spec.Width128, spec.Mask16](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint16x16) IfElse(mask Mask16x16, y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.IfElse[uint16, spec.Width256, spec.Mask16](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint16x32) IfElse(mask Mask16x32, y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.IfElse[uint16, spec.Width512, spec.Mask16](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint16s) IfElse(mask Mask16s, y Uint16s) (z Uint16s) {
+	return Uint16s{spec.IfElse[uint16, spec.WidthScalable, spec.Mask16](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint32x4) IfElse(mask Mask32x4, y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.IfElse[uint32, spec.Width128, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint32x8) IfElse(mask Mask32x8, y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.IfElse[uint32, spec.Width256, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint32x16) IfElse(mask Mask32x16, y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.IfElse[uint32, spec.Width512, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint32s) IfElse(mask Mask32s, y Uint32s) (z Uint32s) {
+	return Uint32s{spec.IfElse[uint32, spec.WidthScalable, spec.Mask32](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint64x2) IfElse(mask Mask64x2, y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.IfElse[uint64, spec.Width128, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint64x4) IfElse(mask Mask64x4, y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.IfElse[uint64, spec.Width256, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint64x8) IfElse(mask Mask64x8, y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.IfElse[uint64, spec.Width512, spec.Mask64](x.v, mask.v, y.v)}
+}
+
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint64s) IfElse(mask Mask64s, y Uint64s) (z Uint64s) {
+	return Uint64s{spec.IfElse[uint64, spec.WidthScalable, spec.Mask64](x.v, mask.v, y.v)}
+}
+
 // ConvertToFloat64 converts each element of x to float64.
 func (x Float32x4) ConvertToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertToZ[float32, spec.Width128, float64, spec.Width256](x.v)}
@@ -1736,166 +6344,232 @@ func (x Uint32x16) ExtendLo8ToUint64() (z Uint64x8) {
 }
 
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Float32x4) ConvertLo2ToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertLoLToZ[float32, spec.Width128, float64](x.v)}
 }
 
 // ConvertLo4ToFloat64 converts the low-indexed 4 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Float32x8) ConvertLo4ToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertLoLToZ[float32, spec.Width256, float64](x.v)}
 }
 
 // ConvertLo8ToFloat64 converts the low-indexed 8 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Float32x16) ConvertLo8ToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertLoLToZ[float32, spec.Width512, float64](x.v)}
 }
 
 // ConvertLo4ToFloat32 converts the low-indexed 4 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Int8x16) ConvertLo4ToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertLoLToZ[int8, spec.Width128, float32](x.v)}
 }
 
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int8x16) ConvertLo2ToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertLoLToZ[int8, spec.Width128, float64](x.v)}
 }
 
 // ConvertLo8ToFloat32 converts the low-indexed 8 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Int8x32) ConvertLo8ToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertLoLToZ[int8, spec.Width256, float32](x.v)}
 }
 
 // ConvertLo4ToFloat64 converts the low-indexed 4 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int8x32) ConvertLo4ToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertLoLToZ[int8, spec.Width256, float64](x.v)}
 }
 
 // ConvertLo16ToFloat32 converts the low-indexed 16 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Int8x64) ConvertLo16ToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertLoLToZ[int8, spec.Width512, float32](x.v)}
 }
 
 // ConvertLo8ToFloat64 converts the low-indexed 8 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int8x64) ConvertLo8ToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertLoLToZ[int8, spec.Width512, float64](x.v)}
 }
 
 // ConvertLo4ToFloat32 converts the low-indexed 4 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Int16x8) ConvertLo4ToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertLoLToZ[int16, spec.Width128, float32](x.v)}
 }
 
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int16x8) ConvertLo2ToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertLoLToZ[int16, spec.Width128, float64](x.v)}
 }
 
 // ConvertLo8ToFloat32 converts the low-indexed 8 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Int16x16) ConvertLo8ToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertLoLToZ[int16, spec.Width256, float32](x.v)}
 }
 
 // ConvertLo4ToFloat64 converts the low-indexed 4 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int16x16) ConvertLo4ToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertLoLToZ[int16, spec.Width256, float64](x.v)}
 }
 
 // ConvertLo16ToFloat32 converts the low-indexed 16 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Int16x32) ConvertLo16ToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertLoLToZ[int16, spec.Width512, float32](x.v)}
 }
 
 // ConvertLo8ToFloat64 converts the low-indexed 8 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int16x32) ConvertLo8ToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertLoLToZ[int16, spec.Width512, float64](x.v)}
 }
 
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int32x4) ConvertLo2ToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertLoLToZ[int32, spec.Width128, float64](x.v)}
 }
 
 // ConvertLo4ToFloat64 converts the low-indexed 4 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int32x8) ConvertLo4ToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertLoLToZ[int32, spec.Width256, float64](x.v)}
 }
 
 // ConvertLo8ToFloat64 converts the low-indexed 8 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Int32x16) ConvertLo8ToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertLoLToZ[int32, spec.Width512, float64](x.v)}
 }
 
 // ConvertLo4ToFloat32 converts the low-indexed 4 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Uint8x16) ConvertLo4ToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertLoLToZ[uint8, spec.Width128, float32](x.v)}
 }
 
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint8x16) ConvertLo2ToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertLoLToZ[uint8, spec.Width128, float64](x.v)}
 }
 
 // ConvertLo8ToFloat32 converts the low-indexed 8 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Uint8x32) ConvertLo8ToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertLoLToZ[uint8, spec.Width256, float32](x.v)}
 }
 
 // ConvertLo4ToFloat64 converts the low-indexed 4 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint8x32) ConvertLo4ToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertLoLToZ[uint8, spec.Width256, float64](x.v)}
 }
 
 // ConvertLo16ToFloat32 converts the low-indexed 16 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Uint8x64) ConvertLo16ToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertLoLToZ[uint8, spec.Width512, float32](x.v)}
 }
 
 // ConvertLo8ToFloat64 converts the low-indexed 8 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint8x64) ConvertLo8ToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertLoLToZ[uint8, spec.Width512, float64](x.v)}
 }
 
 // ConvertLo4ToFloat32 converts the low-indexed 4 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Uint16x8) ConvertLo4ToFloat32() (z Float32x4) {
 	return Float32x4{spec.ConvertLoLToZ[uint16, spec.Width128, float32](x.v)}
 }
 
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint16x8) ConvertLo2ToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertLoLToZ[uint16, spec.Width128, float64](x.v)}
 }
 
 // ConvertLo8ToFloat32 converts the low-indexed 8 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Uint16x16) ConvertLo8ToFloat32() (z Float32x8) {
 	return Float32x8{spec.ConvertLoLToZ[uint16, spec.Width256, float32](x.v)}
 }
 
 // ConvertLo4ToFloat64 converts the low-indexed 4 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint16x16) ConvertLo4ToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertLoLToZ[uint16, spec.Width256, float64](x.v)}
 }
 
 // ConvertLo16ToFloat32 converts the low-indexed 16 elements of x to float32.
+//
+//	z[i] = float32(x[i])
 func (x Uint16x32) ConvertLo16ToFloat32() (z Float32x16) {
 	return Float32x16{spec.ConvertLoLToZ[uint16, spec.Width512, float32](x.v)}
 }
 
 // ConvertLo8ToFloat64 converts the low-indexed 8 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint16x32) ConvertLo8ToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertLoLToZ[uint16, spec.Width512, float64](x.v)}
 }
 
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint32x4) ConvertLo2ToFloat64() (z Float64x2) {
 	return Float64x2{spec.ConvertLoLToZ[uint32, spec.Width128, float64](x.v)}
 }
 
 // ConvertLo4ToFloat64 converts the low-indexed 4 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint32x8) ConvertLo4ToFloat64() (z Float64x4) {
 	return Float64x4{spec.ConvertLoLToZ[uint32, spec.Width256, float64](x.v)}
 }
 
 // ConvertLo8ToFloat64 converts the low-indexed 8 elements of x to float64.
+//
+//	z[i] = float64(x[i])
 func (x Uint32x16) ConvertLo8ToFloat64() (z Float64x8) {
 	return Float64x8{spec.ConvertLoLToZ[uint32, spec.Width512, float64](x.v)}
 }
@@ -3630,6 +8304,1686 @@ func (x Uint64s) StorePart(s []uint64) (n int) {
 	return spec.StorePart[uint64, spec.WidthScalable](x.v, s)
 }
 
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int8x16) And(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.And[int8, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int8x32) And(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.And[int8, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int8x64) And(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.And[int8, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int8s) And(y Int8s) (z Int8s) {
+	return Int8s{spec.And[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int16x8) And(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.And[int16, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int16x16) And(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.And[int16, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int16x32) And(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.And[int16, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int16s) And(y Int16s) (z Int16s) {
+	return Int16s{spec.And[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int32x4) And(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.And[int32, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int32x8) And(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.And[int32, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int32x16) And(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.And[int32, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int32s) And(y Int32s) (z Int32s) {
+	return Int32s{spec.And[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int64x2) And(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.And[int64, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int64x4) And(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.And[int64, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int64x8) And(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.And[int64, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Int64s) And(y Int64s) (z Int64s) {
+	return Int64s{spec.And[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint8x16) And(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.And[uint8, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint8x32) And(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.And[uint8, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint8x64) And(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.And[uint8, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint8s) And(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.And[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint16x8) And(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.And[uint16, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint16x16) And(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.And[uint16, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint16x32) And(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.And[uint16, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint16s) And(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.And[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint32x4) And(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.And[uint32, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint32x8) And(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.And[uint32, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint32x16) And(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.And[uint32, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint32s) And(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.And[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint64x2) And(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.And[uint64, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint64x4) And(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.And[uint64, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint64x8) And(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.And[uint64, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Uint64s) And(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.And[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask8x16) And(y Mask8x16) (z Mask8x16) {
+	return Mask8x16{spec.And[spec.Mask8, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask8x32) And(y Mask8x32) (z Mask8x32) {
+	return Mask8x32{spec.And[spec.Mask8, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask8x64) And(y Mask8x64) (z Mask8x64) {
+	return Mask8x64{spec.And[spec.Mask8, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask8s) And(y Mask8s) (z Mask8s) {
+	return Mask8s{spec.And[spec.Mask8, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask16x8) And(y Mask16x8) (z Mask16x8) {
+	return Mask16x8{spec.And[spec.Mask16, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask16x16) And(y Mask16x16) (z Mask16x16) {
+	return Mask16x16{spec.And[spec.Mask16, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask16x32) And(y Mask16x32) (z Mask16x32) {
+	return Mask16x32{spec.And[spec.Mask16, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask16s) And(y Mask16s) (z Mask16s) {
+	return Mask16s{spec.And[spec.Mask16, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask32x4) And(y Mask32x4) (z Mask32x4) {
+	return Mask32x4{spec.And[spec.Mask32, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask32x8) And(y Mask32x8) (z Mask32x8) {
+	return Mask32x8{spec.And[spec.Mask32, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask32x16) And(y Mask32x16) (z Mask32x16) {
+	return Mask32x16{spec.And[spec.Mask32, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask32s) And(y Mask32s) (z Mask32s) {
+	return Mask32s{spec.And[spec.Mask32, spec.WidthScalable](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask64x2) And(y Mask64x2) (z Mask64x2) {
+	return Mask64x2{spec.And[spec.Mask64, spec.Width128](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask64x4) And(y Mask64x4) (z Mask64x4) {
+	return Mask64x4{spec.And[spec.Mask64, spec.Width256](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask64x8) And(y Mask64x8) (z Mask64x8) {
+	return Mask64x8{spec.And[spec.Mask64, spec.Width512](x.v, y.v)}
+}
+
+// And returns the bitwise AND of x and y.
+//
+//	z[i] = x[i] & y[i]
+func (x Mask64s) And(y Mask64s) (z Mask64s) {
+	return Mask64s{spec.And[spec.Mask64, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int8x16) AndNot(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.AndNot[int8, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int8x32) AndNot(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.AndNot[int8, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int8x64) AndNot(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.AndNot[int8, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int8s) AndNot(y Int8s) (z Int8s) {
+	return Int8s{spec.AndNot[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int16x8) AndNot(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.AndNot[int16, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int16x16) AndNot(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.AndNot[int16, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int16x32) AndNot(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.AndNot[int16, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int16s) AndNot(y Int16s) (z Int16s) {
+	return Int16s{spec.AndNot[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int32x4) AndNot(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.AndNot[int32, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int32x8) AndNot(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.AndNot[int32, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int32x16) AndNot(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.AndNot[int32, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int32s) AndNot(y Int32s) (z Int32s) {
+	return Int32s{spec.AndNot[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int64x2) AndNot(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.AndNot[int64, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int64x4) AndNot(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.AndNot[int64, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int64x8) AndNot(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.AndNot[int64, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Int64s) AndNot(y Int64s) (z Int64s) {
+	return Int64s{spec.AndNot[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint8x16) AndNot(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.AndNot[uint8, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint8x32) AndNot(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.AndNot[uint8, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint8x64) AndNot(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.AndNot[uint8, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint8s) AndNot(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.AndNot[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint16x8) AndNot(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.AndNot[uint16, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint16x16) AndNot(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.AndNot[uint16, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint16x32) AndNot(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.AndNot[uint16, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint16s) AndNot(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.AndNot[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint32x4) AndNot(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.AndNot[uint32, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint32x8) AndNot(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.AndNot[uint32, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint32x16) AndNot(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.AndNot[uint32, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint32s) AndNot(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.AndNot[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint64x2) AndNot(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.AndNot[uint64, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint64x4) AndNot(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.AndNot[uint64, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint64x8) AndNot(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.AndNot[uint64, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Uint64s) AndNot(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.AndNot[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask8x16) AndNot(y Mask8x16) (z Mask8x16) {
+	return Mask8x16{spec.AndNot[spec.Mask8, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask8x32) AndNot(y Mask8x32) (z Mask8x32) {
+	return Mask8x32{spec.AndNot[spec.Mask8, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask8x64) AndNot(y Mask8x64) (z Mask8x64) {
+	return Mask8x64{spec.AndNot[spec.Mask8, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask8s) AndNot(y Mask8s) (z Mask8s) {
+	return Mask8s{spec.AndNot[spec.Mask8, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask16x8) AndNot(y Mask16x8) (z Mask16x8) {
+	return Mask16x8{spec.AndNot[spec.Mask16, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask16x16) AndNot(y Mask16x16) (z Mask16x16) {
+	return Mask16x16{spec.AndNot[spec.Mask16, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask16x32) AndNot(y Mask16x32) (z Mask16x32) {
+	return Mask16x32{spec.AndNot[spec.Mask16, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask16s) AndNot(y Mask16s) (z Mask16s) {
+	return Mask16s{spec.AndNot[spec.Mask16, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask32x4) AndNot(y Mask32x4) (z Mask32x4) {
+	return Mask32x4{spec.AndNot[spec.Mask32, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask32x8) AndNot(y Mask32x8) (z Mask32x8) {
+	return Mask32x8{spec.AndNot[spec.Mask32, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask32x16) AndNot(y Mask32x16) (z Mask32x16) {
+	return Mask32x16{spec.AndNot[spec.Mask32, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask32s) AndNot(y Mask32s) (z Mask32s) {
+	return Mask32s{spec.AndNot[spec.Mask32, spec.WidthScalable](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask64x2) AndNot(y Mask64x2) (z Mask64x2) {
+	return Mask64x2{spec.AndNot[spec.Mask64, spec.Width128](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask64x4) AndNot(y Mask64x4) (z Mask64x4) {
+	return Mask64x4{spec.AndNot[spec.Mask64, spec.Width256](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask64x8) AndNot(y Mask64x8) (z Mask64x8) {
+	return Mask64x8{spec.AndNot[spec.Mask64, spec.Width512](x.v, y.v)}
+}
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask64s) AndNot(y Mask64s) (z Mask64s) {
+	return Mask64s{spec.AndNot[spec.Mask64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int8x16) Or(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.Or[int8, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int8x32) Or(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.Or[int8, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int8x64) Or(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.Or[int8, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int8s) Or(y Int8s) (z Int8s) {
+	return Int8s{spec.Or[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int16x8) Or(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.Or[int16, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int16x16) Or(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.Or[int16, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int16x32) Or(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.Or[int16, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int16s) Or(y Int16s) (z Int16s) {
+	return Int16s{spec.Or[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int32x4) Or(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.Or[int32, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int32x8) Or(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.Or[int32, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int32x16) Or(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.Or[int32, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int32s) Or(y Int32s) (z Int32s) {
+	return Int32s{spec.Or[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int64x2) Or(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.Or[int64, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int64x4) Or(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.Or[int64, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int64x8) Or(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.Or[int64, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Int64s) Or(y Int64s) (z Int64s) {
+	return Int64s{spec.Or[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint8x16) Or(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.Or[uint8, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint8x32) Or(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.Or[uint8, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint8x64) Or(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.Or[uint8, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint8s) Or(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.Or[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint16x8) Or(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.Or[uint16, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint16x16) Or(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.Or[uint16, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint16x32) Or(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.Or[uint16, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint16s) Or(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.Or[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint32x4) Or(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.Or[uint32, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint32x8) Or(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.Or[uint32, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint32x16) Or(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.Or[uint32, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint32s) Or(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.Or[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint64x2) Or(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.Or[uint64, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint64x4) Or(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.Or[uint64, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint64x8) Or(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.Or[uint64, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Uint64s) Or(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.Or[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask8x16) Or(y Mask8x16) (z Mask8x16) {
+	return Mask8x16{spec.Or[spec.Mask8, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask8x32) Or(y Mask8x32) (z Mask8x32) {
+	return Mask8x32{spec.Or[spec.Mask8, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask8x64) Or(y Mask8x64) (z Mask8x64) {
+	return Mask8x64{spec.Or[spec.Mask8, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask8s) Or(y Mask8s) (z Mask8s) {
+	return Mask8s{spec.Or[spec.Mask8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask16x8) Or(y Mask16x8) (z Mask16x8) {
+	return Mask16x8{spec.Or[spec.Mask16, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask16x16) Or(y Mask16x16) (z Mask16x16) {
+	return Mask16x16{spec.Or[spec.Mask16, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask16x32) Or(y Mask16x32) (z Mask16x32) {
+	return Mask16x32{spec.Or[spec.Mask16, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask16s) Or(y Mask16s) (z Mask16s) {
+	return Mask16s{spec.Or[spec.Mask16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask32x4) Or(y Mask32x4) (z Mask32x4) {
+	return Mask32x4{spec.Or[spec.Mask32, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask32x8) Or(y Mask32x8) (z Mask32x8) {
+	return Mask32x8{spec.Or[spec.Mask32, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask32x16) Or(y Mask32x16) (z Mask32x16) {
+	return Mask32x16{spec.Or[spec.Mask32, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask32s) Or(y Mask32s) (z Mask32s) {
+	return Mask32s{spec.Or[spec.Mask32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask64x2) Or(y Mask64x2) (z Mask64x2) {
+	return Mask64x2{spec.Or[spec.Mask64, spec.Width128](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask64x4) Or(y Mask64x4) (z Mask64x4) {
+	return Mask64x4{spec.Or[spec.Mask64, spec.Width256](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask64x8) Or(y Mask64x8) (z Mask64x8) {
+	return Mask64x8{spec.Or[spec.Mask64, spec.Width512](x.v, y.v)}
+}
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+func (x Mask64s) Or(y Mask64s) (z Mask64s) {
+	return Mask64s{spec.Or[spec.Mask64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int8x16) Xor(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.Xor[int8, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int8x32) Xor(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.Xor[int8, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int8x64) Xor(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.Xor[int8, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int8s) Xor(y Int8s) (z Int8s) {
+	return Int8s{spec.Xor[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int16x8) Xor(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.Xor[int16, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int16x16) Xor(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.Xor[int16, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int16x32) Xor(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.Xor[int16, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int16s) Xor(y Int16s) (z Int16s) {
+	return Int16s{spec.Xor[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int32x4) Xor(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.Xor[int32, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int32x8) Xor(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.Xor[int32, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int32x16) Xor(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.Xor[int32, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int32s) Xor(y Int32s) (z Int32s) {
+	return Int32s{spec.Xor[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int64x2) Xor(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.Xor[int64, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int64x4) Xor(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.Xor[int64, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int64x8) Xor(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.Xor[int64, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Int64s) Xor(y Int64s) (z Int64s) {
+	return Int64s{spec.Xor[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint8x16) Xor(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.Xor[uint8, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint8x32) Xor(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.Xor[uint8, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint8x64) Xor(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.Xor[uint8, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint8s) Xor(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.Xor[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint16x8) Xor(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.Xor[uint16, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint16x16) Xor(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.Xor[uint16, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint16x32) Xor(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.Xor[uint16, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint16s) Xor(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.Xor[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint32x4) Xor(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.Xor[uint32, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint32x8) Xor(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.Xor[uint32, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint32x16) Xor(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.Xor[uint32, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint32s) Xor(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.Xor[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint64x2) Xor(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.Xor[uint64, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint64x4) Xor(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.Xor[uint64, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint64x8) Xor(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.Xor[uint64, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Uint64s) Xor(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.Xor[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask8x16) Xor(y Mask8x16) (z Mask8x16) {
+	return Mask8x16{spec.Xor[spec.Mask8, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask8x32) Xor(y Mask8x32) (z Mask8x32) {
+	return Mask8x32{spec.Xor[spec.Mask8, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask8x64) Xor(y Mask8x64) (z Mask8x64) {
+	return Mask8x64{spec.Xor[spec.Mask8, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask8s) Xor(y Mask8s) (z Mask8s) {
+	return Mask8s{spec.Xor[spec.Mask8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask16x8) Xor(y Mask16x8) (z Mask16x8) {
+	return Mask16x8{spec.Xor[spec.Mask16, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask16x16) Xor(y Mask16x16) (z Mask16x16) {
+	return Mask16x16{spec.Xor[spec.Mask16, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask16x32) Xor(y Mask16x32) (z Mask16x32) {
+	return Mask16x32{spec.Xor[spec.Mask16, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask16s) Xor(y Mask16s) (z Mask16s) {
+	return Mask16s{spec.Xor[spec.Mask16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask32x4) Xor(y Mask32x4) (z Mask32x4) {
+	return Mask32x4{spec.Xor[spec.Mask32, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask32x8) Xor(y Mask32x8) (z Mask32x8) {
+	return Mask32x8{spec.Xor[spec.Mask32, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask32x16) Xor(y Mask32x16) (z Mask32x16) {
+	return Mask32x16{spec.Xor[spec.Mask32, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask32s) Xor(y Mask32s) (z Mask32s) {
+	return Mask32s{spec.Xor[spec.Mask32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask64x2) Xor(y Mask64x2) (z Mask64x2) {
+	return Mask64x2{spec.Xor[spec.Mask64, spec.Width128](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask64x4) Xor(y Mask64x4) (z Mask64x4) {
+	return Mask64x4{spec.Xor[spec.Mask64, spec.Width256](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask64x8) Xor(y Mask64x8) (z Mask64x8) {
+	return Mask64x8{spec.Xor[spec.Mask64, spec.Width512](x.v, y.v)}
+}
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask64s) Xor(y Mask64s) (z Mask64s) {
+	return Mask64s{spec.Xor[spec.Mask64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int8x16) Not() (z Int8x16) {
+	return Int8x16{spec.Not[int8, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int8x32) Not() (z Int8x32) {
+	return Int8x32{spec.Not[int8, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int8x64) Not() (z Int8x64) {
+	return Int8x64{spec.Not[int8, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int8s) Not() (z Int8s) {
+	return Int8s{spec.Not[int8, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int16x8) Not() (z Int16x8) {
+	return Int16x8{spec.Not[int16, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int16x16) Not() (z Int16x16) {
+	return Int16x16{spec.Not[int16, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int16x32) Not() (z Int16x32) {
+	return Int16x32{spec.Not[int16, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int16s) Not() (z Int16s) {
+	return Int16s{spec.Not[int16, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int32x4) Not() (z Int32x4) {
+	return Int32x4{spec.Not[int32, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int32x8) Not() (z Int32x8) {
+	return Int32x8{spec.Not[int32, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int32x16) Not() (z Int32x16) {
+	return Int32x16{spec.Not[int32, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int32s) Not() (z Int32s) {
+	return Int32s{spec.Not[int32, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int64x2) Not() (z Int64x2) {
+	return Int64x2{spec.Not[int64, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int64x4) Not() (z Int64x4) {
+	return Int64x4{spec.Not[int64, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int64x8) Not() (z Int64x8) {
+	return Int64x8{spec.Not[int64, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Int64s) Not() (z Int64s) {
+	return Int64s{spec.Not[int64, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint8x16) Not() (z Uint8x16) {
+	return Uint8x16{spec.Not[uint8, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint8x32) Not() (z Uint8x32) {
+	return Uint8x32{spec.Not[uint8, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint8x64) Not() (z Uint8x64) {
+	return Uint8x64{spec.Not[uint8, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint8s) Not() (z Uint8s) {
+	return Uint8s{spec.Not[uint8, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint16x8) Not() (z Uint16x8) {
+	return Uint16x8{spec.Not[uint16, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint16x16) Not() (z Uint16x16) {
+	return Uint16x16{spec.Not[uint16, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint16x32) Not() (z Uint16x32) {
+	return Uint16x32{spec.Not[uint16, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint16s) Not() (z Uint16s) {
+	return Uint16s{spec.Not[uint16, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint32x4) Not() (z Uint32x4) {
+	return Uint32x4{spec.Not[uint32, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint32x8) Not() (z Uint32x8) {
+	return Uint32x8{spec.Not[uint32, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint32x16) Not() (z Uint32x16) {
+	return Uint32x16{spec.Not[uint32, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint32s) Not() (z Uint32s) {
+	return Uint32s{spec.Not[uint32, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint64x2) Not() (z Uint64x2) {
+	return Uint64x2{spec.Not[uint64, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint64x4) Not() (z Uint64x4) {
+	return Uint64x4{spec.Not[uint64, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint64x8) Not() (z Uint64x8) {
+	return Uint64x8{spec.Not[uint64, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Uint64s) Not() (z Uint64s) {
+	return Uint64s{spec.Not[uint64, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask8x16) Not() (z Mask8x16) {
+	return Mask8x16{spec.Not[spec.Mask8, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask8x32) Not() (z Mask8x32) {
+	return Mask8x32{spec.Not[spec.Mask8, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask8x64) Not() (z Mask8x64) {
+	return Mask8x64{spec.Not[spec.Mask8, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask8s) Not() (z Mask8s) {
+	return Mask8s{spec.Not[spec.Mask8, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask16x8) Not() (z Mask16x8) {
+	return Mask16x8{spec.Not[spec.Mask16, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask16x16) Not() (z Mask16x16) {
+	return Mask16x16{spec.Not[spec.Mask16, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask16x32) Not() (z Mask16x32) {
+	return Mask16x32{spec.Not[spec.Mask16, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask16s) Not() (z Mask16s) {
+	return Mask16s{spec.Not[spec.Mask16, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask32x4) Not() (z Mask32x4) {
+	return Mask32x4{spec.Not[spec.Mask32, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask32x8) Not() (z Mask32x8) {
+	return Mask32x8{spec.Not[spec.Mask32, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask32x16) Not() (z Mask32x16) {
+	return Mask32x16{spec.Not[spec.Mask32, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask32s) Not() (z Mask32s) {
+	return Mask32s{spec.Not[spec.Mask32, spec.WidthScalable](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask64x2) Not() (z Mask64x2) {
+	return Mask64x2{spec.Not[spec.Mask64, spec.Width128](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask64x4) Not() (z Mask64x4) {
+	return Mask64x4{spec.Not[spec.Mask64, spec.Width256](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask64x8) Not() (z Mask64x8) {
+	return Mask64x8{spec.Not[spec.Mask64, spec.Width512](x.v)}
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask64s) Not() (z Mask64s) {
+	return Mask64s{spec.Not[spec.Mask64, spec.WidthScalable](x.v)}
+}
+
 // Mask8x16FromBits returns bitmap x as a mask. If bit i of x is set, then mask
 // element i of the result is true.
 func Mask8x16FromBits(x uint16) (z Mask8x16) {
@@ -3868,6 +10222,366 @@ func (x Mask64x8) ToInt64x8() (z Int64x8) {
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask64s) ToInt64s() (z Int64s) {
 	return Int64s{spec.MaskToZ[spec.Mask64, spec.WidthScalable, int64](x.v)}
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask8x16) All() bool {
+	return spec.All[spec.Mask8, spec.Width128](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask8x32) All() bool {
+	return spec.All[spec.Mask8, spec.Width256](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask8x64) All() bool {
+	return spec.All[spec.Mask8, spec.Width512](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask8s) All() bool {
+	return spec.All[spec.Mask8, spec.WidthScalable](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask16x8) All() bool {
+	return spec.All[spec.Mask16, spec.Width128](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask16x16) All() bool {
+	return spec.All[spec.Mask16, spec.Width256](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask16x32) All() bool {
+	return spec.All[spec.Mask16, spec.Width512](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask16s) All() bool {
+	return spec.All[spec.Mask16, spec.WidthScalable](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask32x4) All() bool {
+	return spec.All[spec.Mask32, spec.Width128](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask32x8) All() bool {
+	return spec.All[spec.Mask32, spec.Width256](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask32x16) All() bool {
+	return spec.All[spec.Mask32, spec.Width512](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask32s) All() bool {
+	return spec.All[spec.Mask32, spec.WidthScalable](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask64x2) All() bool {
+	return spec.All[spec.Mask64, spec.Width128](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask64x4) All() bool {
+	return spec.All[spec.Mask64, spec.Width256](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask64x8) All() bool {
+	return spec.All[spec.Mask64, spec.Width512](x.v)
+}
+
+// All returns true when all positions in mask x are true.
+func (x Mask64s) All() bool {
+	return spec.All[spec.Mask64, spec.WidthScalable](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask8x16) Any() bool {
+	return spec.Any[spec.Mask8, spec.Width128](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask8x32) Any() bool {
+	return spec.Any[spec.Mask8, spec.Width256](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask8x64) Any() bool {
+	return spec.Any[spec.Mask8, spec.Width512](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask8s) Any() bool {
+	return spec.Any[spec.Mask8, spec.WidthScalable](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask16x8) Any() bool {
+	return spec.Any[spec.Mask16, spec.Width128](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask16x16) Any() bool {
+	return spec.Any[spec.Mask16, spec.Width256](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask16x32) Any() bool {
+	return spec.Any[spec.Mask16, spec.Width512](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask16s) Any() bool {
+	return spec.Any[spec.Mask16, spec.WidthScalable](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask32x4) Any() bool {
+	return spec.Any[spec.Mask32, spec.Width128](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask32x8) Any() bool {
+	return spec.Any[spec.Mask32, spec.Width256](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask32x16) Any() bool {
+	return spec.Any[spec.Mask32, spec.Width512](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask32s) Any() bool {
+	return spec.Any[spec.Mask32, spec.WidthScalable](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask64x2) Any() bool {
+	return spec.Any[spec.Mask64, spec.Width128](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask64x4) Any() bool {
+	return spec.Any[spec.Mask64, spec.Width256](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask64x8) Any() bool {
+	return spec.Any[spec.Mask64, spec.Width512](x.v)
+}
+
+// Any returns true when any position in mask x is true.
+func (x Mask64s) Any() bool {
+	return spec.Any[spec.Mask64, spec.WidthScalable](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask8x16) None() bool {
+	return spec.None[spec.Mask8, spec.Width128](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask8x32) None() bool {
+	return spec.None[spec.Mask8, spec.Width256](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask8x64) None() bool {
+	return spec.None[spec.Mask8, spec.Width512](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask8s) None() bool {
+	return spec.None[spec.Mask8, spec.WidthScalable](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask16x8) None() bool {
+	return spec.None[spec.Mask16, spec.Width128](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask16x16) None() bool {
+	return spec.None[spec.Mask16, spec.Width256](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask16x32) None() bool {
+	return spec.None[spec.Mask16, spec.Width512](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask16s) None() bool {
+	return spec.None[spec.Mask16, spec.WidthScalable](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask32x4) None() bool {
+	return spec.None[spec.Mask32, spec.Width128](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask32x8) None() bool {
+	return spec.None[spec.Mask32, spec.Width256](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask32x16) None() bool {
+	return spec.None[spec.Mask32, spec.Width512](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask32s) None() bool {
+	return spec.None[spec.Mask32, spec.WidthScalable](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask64x2) None() bool {
+	return spec.None[spec.Mask64, spec.Width128](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask64x4) None() bool {
+	return spec.None[spec.Mask64, spec.Width256](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask64x8) None() bool {
+	return spec.None[spec.Mask64, spec.Width512](x.v)
+}
+
+// None returns true when no positions in mask x are set.
+func (x Mask64s) None() bool {
+	return spec.None[spec.Mask64, spec.WidthScalable](x.v)
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Float32x4) Abs() (z Float32x4) {
+	return Float32x4{spec.AbsFloat[float32, spec.Width128](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Float32x8) Abs() (z Float32x8) {
+	return Float32x8{spec.AbsFloat[float32, spec.Width256](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Float32x16) Abs() (z Float32x16) {
+	return Float32x16{spec.AbsFloat[float32, spec.Width512](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Float32s) Abs() (z Float32s) {
+	return Float32s{spec.AbsFloat[float32, spec.WidthScalable](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Float64x2) Abs() (z Float64x2) {
+	return Float64x2{spec.AbsFloat[float64, spec.Width128](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Float64x4) Abs() (z Float64x4) {
+	return Float64x4{spec.AbsFloat[float64, spec.Width256](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Float64x8) Abs() (z Float64x8) {
+	return Float64x8{spec.AbsFloat[float64, spec.Width512](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Float64s) Abs() (z Float64s) {
+	return Float64s{spec.AbsFloat[float64, spec.WidthScalable](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int8x16) Abs() (z Uint8x16) {
+	return Uint8x16{spec.AbsInt[int8, spec.Width128, uint8](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int8x32) Abs() (z Uint8x32) {
+	return Uint8x32{spec.AbsInt[int8, spec.Width256, uint8](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int8x64) Abs() (z Uint8x64) {
+	return Uint8x64{spec.AbsInt[int8, spec.Width512, uint8](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int8s) Abs() (z Uint8s) {
+	return Uint8s{spec.AbsInt[int8, spec.WidthScalable, uint8](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int16x8) Abs() (z Uint16x8) {
+	return Uint16x8{spec.AbsInt[int16, spec.Width128, uint16](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int16x16) Abs() (z Uint16x16) {
+	return Uint16x16{spec.AbsInt[int16, spec.Width256, uint16](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int16x32) Abs() (z Uint16x32) {
+	return Uint16x32{spec.AbsInt[int16, spec.Width512, uint16](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int16s) Abs() (z Uint16s) {
+	return Uint16s{spec.AbsInt[int16, spec.WidthScalable, uint16](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int32x4) Abs() (z Uint32x4) {
+	return Uint32x4{spec.AbsInt[int32, spec.Width128, uint32](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int32x8) Abs() (z Uint32x8) {
+	return Uint32x8{spec.AbsInt[int32, spec.Width256, uint32](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int32x16) Abs() (z Uint32x16) {
+	return Uint32x16{spec.AbsInt[int32, spec.Width512, uint32](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int32s) Abs() (z Uint32s) {
+	return Uint32s{spec.AbsInt[int32, spec.WidthScalable, uint32](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int64x2) Abs() (z Uint64x2) {
+	return Uint64x2{spec.AbsInt[int64, spec.Width128, uint64](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int64x4) Abs() (z Uint64x4) {
+	return Uint64x4{spec.AbsInt[int64, spec.Width256, uint64](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int64x8) Abs() (z Uint64x8) {
+	return Uint64x8{spec.AbsInt[int64, spec.Width512, uint64](x.v)}
+}
+
+// Abs returns the elementwise absolute value of x.
+func (x Int64s) Abs() (z Uint64s) {
+	return Uint64s{spec.AbsInt[int64, spec.WidthScalable, uint64](x.v)}
 }
 
 // Add adds x and y elementwise.
@@ -6894,6 +13608,718 @@ func (x Uint64s) ConcatSubPairsSaturatedGrouped(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.ConcatSubPairsSaturatedGrouped[uint64, spec.WidthScalable](x.v, y.v)}
 }
 
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int8x16) Average(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.Average[int8, spec.Width128](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int8x32) Average(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.Average[int8, spec.Width256](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int8x64) Average(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.Average[int8, spec.Width512](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int8s) Average(y Int8s) (z Int8s) {
+	return Int8s{spec.Average[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int16x8) Average(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.Average[int16, spec.Width128](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int16x16) Average(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.Average[int16, spec.Width256](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int16x32) Average(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.Average[int16, spec.Width512](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int16s) Average(y Int16s) (z Int16s) {
+	return Int16s{spec.Average[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int32x4) Average(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.Average[int32, spec.Width128](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int32x8) Average(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.Average[int32, spec.Width256](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int32x16) Average(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.Average[int32, spec.Width512](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int32s) Average(y Int32s) (z Int32s) {
+	return Int32s{spec.Average[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int64x2) Average(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.Average[int64, spec.Width128](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int64x4) Average(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.Average[int64, spec.Width256](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int64x8) Average(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.Average[int64, spec.Width512](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Int64s) Average(y Int64s) (z Int64s) {
+	return Int64s{spec.Average[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint8x16) Average(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.Average[uint8, spec.Width128](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint8x32) Average(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.Average[uint8, spec.Width256](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint8x64) Average(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.Average[uint8, spec.Width512](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint8s) Average(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.Average[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint16x8) Average(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.Average[uint16, spec.Width128](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint16x16) Average(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.Average[uint16, spec.Width256](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint16x32) Average(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.Average[uint16, spec.Width512](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint16s) Average(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.Average[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint32x4) Average(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.Average[uint32, spec.Width128](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint32x8) Average(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.Average[uint32, spec.Width256](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint32x16) Average(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.Average[uint32, spec.Width512](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint32s) Average(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.Average[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint64x2) Average(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.Average[uint64, spec.Width128](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint64x4) Average(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.Average[uint64, spec.Width256](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint64x8) Average(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.Average[uint64, spec.Width512](x.v, y.v)}
+}
+
+// Average returns the elementwise average of x and y, rounded toward +∞.
+//
+//	z[i] = (x[i] + y[i] + 1) / 2
+func (x Uint64s) Average(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.Average[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x4) Div(y Float32x4) (z Float32x4) {
+	return Float32x4{spec.Div[float32, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x8) Div(y Float32x8) (z Float32x8) {
+	return Float32x8{spec.Div[float32, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x16) Div(y Float32x16) (z Float32x16) {
+	return Float32x16{spec.Div[float32, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32s) Div(y Float32s) (z Float32s) {
+	return Float32s{spec.Div[float32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x2) Div(y Float64x2) (z Float64x2) {
+	return Float64x2{spec.Div[float64, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x4) Div(y Float64x4) (z Float64x4) {
+	return Float64x4{spec.Div[float64, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x8) Div(y Float64x8) (z Float64x8) {
+	return Float64x8{spec.Div[float64, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64s) Div(y Float64s) (z Float64s) {
+	return Float64s{spec.Div[float64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt8
+// by -1 results in MinInt8, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int8x16) Div(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.Div[int8, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt8
+// by -1 results in MinInt8, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int8x32) Div(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.Div[int8, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt8
+// by -1 results in MinInt8, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int8x64) Div(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.Div[int8, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt8
+// by -1 results in MinInt8, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int8s) Div(y Int8s) (z Int8s) {
+	return Int8s{spec.Div[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt16
+// by -1 results in MinInt16, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int16x8) Div(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.Div[int16, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt16
+// by -1 results in MinInt16, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int16x16) Div(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.Div[int16, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt16
+// by -1 results in MinInt16, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int16x32) Div(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.Div[int16, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt16
+// by -1 results in MinInt16, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int16s) Div(y Int16s) (z Int16s) {
+	return Int16s{spec.Div[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt32
+// by -1 results in MinInt32, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int32x4) Div(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.Div[int32, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt32
+// by -1 results in MinInt32, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int32x8) Div(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.Div[int32, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt32
+// by -1 results in MinInt32, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int32x16) Div(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.Div[int32, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt32
+// by -1 results in MinInt32, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int32s) Div(y Int32s) (z Int32s) {
+	return Int32s{spec.Div[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt64
+// by -1 results in MinInt64, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int64x2) Div(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.Div[int64, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt64
+// by -1 results in MinInt64, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int64x4) Div(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.Div[int64, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt64
+// by -1 results in MinInt64, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int64x8) Div(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.Div[int64, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator. Also like Go's / operator, dividing MinInt64
+// by -1 results in MinInt64, since the true result is unrepresentable.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Int64s) Div(y Int64s) (z Int64s) {
+	return Int64s{spec.Div[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint8x16) Div(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.Div[uint8, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint8x32) Div(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.Div[uint8, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint8x64) Div(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.Div[uint8, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint8s) Div(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.Div[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint16x8) Div(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.Div[uint16, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint16x16) Div(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.Div[uint16, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint16x32) Div(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.Div[uint16, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint16s) Div(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.Div[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint32x4) Div(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.Div[uint32, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint32x8) Div(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.Div[uint32, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint32x16) Div(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.Div[uint32, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint32s) Div(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.Div[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint64x2) Div(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.Div[uint64, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint64x4) Div(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.Div[uint64, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint64x8) Div(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.Div[uint64, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// The result is rounded toward zero (truncated division), just like Go's /
+// operator.
+// Unlike Go's / operator, division by zero does not panic and instead produces
+// a zero result for that element.
+func (x Uint64s) Div(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.Div[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
 // DotProductPairs multiplies corresponding elements of x and y, and sums
 // adjacent pairs, returning a vector of half as many elements, each with twice
 // the input element size.
@@ -7294,6 +14720,1630 @@ func (x Uint32s) DotProductPairsSaturated(y Int32s) (z Int64s) {
 	return Int64s{spec.DotProductPairsSaturated[uint32, spec.WidthScalable, int32, int64](x.v, y.v)}
 }
 
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Float32x4) Max(y Float32x4) (z Float32x4) {
+	return Float32x4{spec.Max[float32, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Float32x8) Max(y Float32x8) (z Float32x8) {
+	return Float32x8{spec.Max[float32, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Float32x16) Max(y Float32x16) (z Float32x16) {
+	return Float32x16{spec.Max[float32, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Float32s) Max(y Float32s) (z Float32s) {
+	return Float32s{spec.Max[float32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Float64x2) Max(y Float64x2) (z Float64x2) {
+	return Float64x2{spec.Max[float64, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Float64x4) Max(y Float64x4) (z Float64x4) {
+	return Float64x4{spec.Max[float64, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Float64x8) Max(y Float64x8) (z Float64x8) {
+	return Float64x8{spec.Max[float64, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Float64s) Max(y Float64s) (z Float64s) {
+	return Float64s{spec.Max[float64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int8x16) Max(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.Max[int8, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int8x32) Max(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.Max[int8, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int8x64) Max(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.Max[int8, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int8s) Max(y Int8s) (z Int8s) {
+	return Int8s{spec.Max[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int16x8) Max(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.Max[int16, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int16x16) Max(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.Max[int16, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int16x32) Max(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.Max[int16, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int16s) Max(y Int16s) (z Int16s) {
+	return Int16s{spec.Max[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int32x4) Max(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.Max[int32, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int32x8) Max(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.Max[int32, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int32x16) Max(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.Max[int32, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int32s) Max(y Int32s) (z Int32s) {
+	return Int32s{spec.Max[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int64x2) Max(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.Max[int64, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int64x4) Max(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.Max[int64, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int64x8) Max(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.Max[int64, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Int64s) Max(y Int64s) (z Int64s) {
+	return Int64s{spec.Max[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint8x16) Max(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.Max[uint8, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint8x32) Max(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.Max[uint8, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint8x64) Max(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.Max[uint8, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint8s) Max(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.Max[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint16x8) Max(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.Max[uint16, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint16x16) Max(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.Max[uint16, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint16x32) Max(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.Max[uint16, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint16s) Max(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.Max[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint32x4) Max(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.Max[uint32, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint32x8) Max(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.Max[uint32, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint32x16) Max(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.Max[uint32, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint32s) Max(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.Max[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint64x2) Max(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.Max[uint64, spec.Width128](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint64x4) Max(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.Max[uint64, spec.Width256](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint64x8) Max(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.Max[uint64, spec.Width512](x.v, y.v)}
+}
+
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+func (x Uint64s) Max(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.Max[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Float32x4) Min(y Float32x4) (z Float32x4) {
+	return Float32x4{spec.Min[float32, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Float32x8) Min(y Float32x8) (z Float32x8) {
+	return Float32x8{spec.Min[float32, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Float32x16) Min(y Float32x16) (z Float32x16) {
+	return Float32x16{spec.Min[float32, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Float32s) Min(y Float32s) (z Float32s) {
+	return Float32s{spec.Min[float32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Float64x2) Min(y Float64x2) (z Float64x2) {
+	return Float64x2{spec.Min[float64, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Float64x4) Min(y Float64x4) (z Float64x4) {
+	return Float64x4{spec.Min[float64, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Float64x8) Min(y Float64x8) (z Float64x8) {
+	return Float64x8{spec.Min[float64, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Float64s) Min(y Float64s) (z Float64s) {
+	return Float64s{spec.Min[float64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int8x16) Min(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.Min[int8, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int8x32) Min(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.Min[int8, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int8x64) Min(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.Min[int8, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int8s) Min(y Int8s) (z Int8s) {
+	return Int8s{spec.Min[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int16x8) Min(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.Min[int16, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int16x16) Min(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.Min[int16, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int16x32) Min(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.Min[int16, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int16s) Min(y Int16s) (z Int16s) {
+	return Int16s{spec.Min[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int32x4) Min(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.Min[int32, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int32x8) Min(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.Min[int32, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int32x16) Min(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.Min[int32, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int32s) Min(y Int32s) (z Int32s) {
+	return Int32s{spec.Min[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int64x2) Min(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.Min[int64, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int64x4) Min(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.Min[int64, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int64x8) Min(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.Min[int64, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Int64s) Min(y Int64s) (z Int64s) {
+	return Int64s{spec.Min[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint8x16) Min(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.Min[uint8, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint8x32) Min(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.Min[uint8, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint8x64) Min(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.Min[uint8, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint8s) Min(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.Min[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint16x8) Min(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.Min[uint16, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint16x16) Min(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.Min[uint16, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint16x32) Min(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.Min[uint16, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint16s) Min(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.Min[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint32x4) Min(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.Min[uint32, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint32x8) Min(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.Min[uint32, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint32x16) Min(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.Min[uint32, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint32s) Min(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.Min[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint64x2) Min(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.Min[uint64, spec.Width128](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint64x4) Min(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.Min[uint64, spec.Width256](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint64x8) Min(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.Min[uint64, spec.Width512](x.v, y.v)}
+}
+
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+func (x Uint64s) Min(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.Min[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Float32x4) Mul(y Float32x4) (z Float32x4) {
+	return Float32x4{spec.Mul[float32, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Float32x8) Mul(y Float32x8) (z Float32x8) {
+	return Float32x8{spec.Mul[float32, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Float32x16) Mul(y Float32x16) (z Float32x16) {
+	return Float32x16{spec.Mul[float32, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Float32s) Mul(y Float32s) (z Float32s) {
+	return Float32s{spec.Mul[float32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Float64x2) Mul(y Float64x2) (z Float64x2) {
+	return Float64x2{spec.Mul[float64, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Float64x4) Mul(y Float64x4) (z Float64x4) {
+	return Float64x4{spec.Mul[float64, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Float64x8) Mul(y Float64x8) (z Float64x8) {
+	return Float64x8{spec.Mul[float64, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Float64s) Mul(y Float64s) (z Float64s) {
+	return Float64s{spec.Mul[float64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int8x16) Mul(y Int8x16) (z Int8x16) {
+	return Int8x16{spec.Mul[int8, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int8x32) Mul(y Int8x32) (z Int8x32) {
+	return Int8x32{spec.Mul[int8, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int8x64) Mul(y Int8x64) (z Int8x64) {
+	return Int8x64{spec.Mul[int8, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int8s) Mul(y Int8s) (z Int8s) {
+	return Int8s{spec.Mul[int8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int16x8) Mul(y Int16x8) (z Int16x8) {
+	return Int16x8{spec.Mul[int16, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int16x16) Mul(y Int16x16) (z Int16x16) {
+	return Int16x16{spec.Mul[int16, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int16x32) Mul(y Int16x32) (z Int16x32) {
+	return Int16x32{spec.Mul[int16, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int16s) Mul(y Int16s) (z Int16s) {
+	return Int16s{spec.Mul[int16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int32x4) Mul(y Int32x4) (z Int32x4) {
+	return Int32x4{spec.Mul[int32, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int32x8) Mul(y Int32x8) (z Int32x8) {
+	return Int32x8{spec.Mul[int32, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int32x16) Mul(y Int32x16) (z Int32x16) {
+	return Int32x16{spec.Mul[int32, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int32s) Mul(y Int32s) (z Int32s) {
+	return Int32s{spec.Mul[int32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int64x2) Mul(y Int64x2) (z Int64x2) {
+	return Int64x2{spec.Mul[int64, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int64x4) Mul(y Int64x4) (z Int64x4) {
+	return Int64x4{spec.Mul[int64, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int64x8) Mul(y Int64x8) (z Int64x8) {
+	return Int64x8{spec.Mul[int64, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Int64s) Mul(y Int64s) (z Int64s) {
+	return Int64s{spec.Mul[int64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint8x16) Mul(y Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.Mul[uint8, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint8x32) Mul(y Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.Mul[uint8, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint8x64) Mul(y Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.Mul[uint8, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint8s) Mul(y Uint8s) (z Uint8s) {
+	return Uint8s{spec.Mul[uint8, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint16x8) Mul(y Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.Mul[uint16, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint16x16) Mul(y Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.Mul[uint16, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint16x32) Mul(y Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.Mul[uint16, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint16s) Mul(y Uint16s) (z Uint16s) {
+	return Uint16s{spec.Mul[uint16, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint32x4) Mul(y Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.Mul[uint32, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint32x8) Mul(y Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.Mul[uint32, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint32x16) Mul(y Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.Mul[uint32, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint32s) Mul(y Uint32s) (z Uint32s) {
+	return Uint32s{spec.Mul[uint32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint64x2) Mul(y Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.Mul[uint64, spec.Width128](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint64x4) Mul(y Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.Mul[uint64, spec.Width256](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint64x8) Mul(y Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.Mul[uint64, spec.Width512](x.v, y.v)}
+}
+
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
+func (x Uint64s) Mul(y Uint64s) (z Uint64s) {
+	return Uint64s{spec.Mul[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
+	return Float32x4{spec.MulAdd[float32, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8) {
+	return Float32x8{spec.MulAdd[float32, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16) {
+	return Float32x16{spec.MulAdd[float32, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
+	return Float32s{spec.MulAdd[float32, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
+	return Float64x2{spec.MulAdd[float64, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4) {
+	return Float64x4{spec.MulAdd[float64, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8) {
+	return Float64x8{spec.MulAdd[float64, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
+	return Float64s{spec.MulAdd[float64, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int8x16) MulAdd(y Int8x16, z Int8x16) (w Int8x16) {
+	return Int8x16{spec.MulAdd[int8, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int8x32) MulAdd(y Int8x32, z Int8x32) (w Int8x32) {
+	return Int8x32{spec.MulAdd[int8, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int8x64) MulAdd(y Int8x64, z Int8x64) (w Int8x64) {
+	return Int8x64{spec.MulAdd[int8, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int8s) MulAdd(y Int8s, z Int8s) (w Int8s) {
+	return Int8s{spec.MulAdd[int8, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int16x8) MulAdd(y Int16x8, z Int16x8) (w Int16x8) {
+	return Int16x8{spec.MulAdd[int16, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int16x16) MulAdd(y Int16x16, z Int16x16) (w Int16x16) {
+	return Int16x16{spec.MulAdd[int16, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int16x32) MulAdd(y Int16x32, z Int16x32) (w Int16x32) {
+	return Int16x32{spec.MulAdd[int16, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int16s) MulAdd(y Int16s, z Int16s) (w Int16s) {
+	return Int16s{spec.MulAdd[int16, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int32x4) MulAdd(y Int32x4, z Int32x4) (w Int32x4) {
+	return Int32x4{spec.MulAdd[int32, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int32x8) MulAdd(y Int32x8, z Int32x8) (w Int32x8) {
+	return Int32x8{spec.MulAdd[int32, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int32x16) MulAdd(y Int32x16, z Int32x16) (w Int32x16) {
+	return Int32x16{spec.MulAdd[int32, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int32s) MulAdd(y Int32s, z Int32s) (w Int32s) {
+	return Int32s{spec.MulAdd[int32, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int64x2) MulAdd(y Int64x2, z Int64x2) (w Int64x2) {
+	return Int64x2{spec.MulAdd[int64, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int64x4) MulAdd(y Int64x4, z Int64x4) (w Int64x4) {
+	return Int64x4{spec.MulAdd[int64, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int64x8) MulAdd(y Int64x8, z Int64x8) (w Int64x8) {
+	return Int64x8{spec.MulAdd[int64, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Int64s) MulAdd(y Int64s, z Int64s) (w Int64s) {
+	return Int64s{spec.MulAdd[int64, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint8x16) MulAdd(y Uint8x16, z Uint8x16) (w Uint8x16) {
+	return Uint8x16{spec.MulAdd[uint8, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint8x32) MulAdd(y Uint8x32, z Uint8x32) (w Uint8x32) {
+	return Uint8x32{spec.MulAdd[uint8, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint8x64) MulAdd(y Uint8x64, z Uint8x64) (w Uint8x64) {
+	return Uint8x64{spec.MulAdd[uint8, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint8s) MulAdd(y Uint8s, z Uint8s) (w Uint8s) {
+	return Uint8s{spec.MulAdd[uint8, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint16x8) MulAdd(y Uint16x8, z Uint16x8) (w Uint16x8) {
+	return Uint16x8{spec.MulAdd[uint16, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint16x16) MulAdd(y Uint16x16, z Uint16x16) (w Uint16x16) {
+	return Uint16x16{spec.MulAdd[uint16, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint16x32) MulAdd(y Uint16x32, z Uint16x32) (w Uint16x32) {
+	return Uint16x32{spec.MulAdd[uint16, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint16s) MulAdd(y Uint16s, z Uint16s) (w Uint16s) {
+	return Uint16s{spec.MulAdd[uint16, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) (w Uint32x4) {
+	return Uint32x4{spec.MulAdd[uint32, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint32x8) MulAdd(y Uint32x8, z Uint32x8) (w Uint32x8) {
+	return Uint32x8{spec.MulAdd[uint32, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint32x16) MulAdd(y Uint32x16, z Uint32x16) (w Uint32x16) {
+	return Uint32x16{spec.MulAdd[uint32, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint32s) MulAdd(y Uint32s, z Uint32s) (w Uint32s) {
+	return Uint32s{spec.MulAdd[uint32, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint64x2) MulAdd(y Uint64x2, z Uint64x2) (w Uint64x2) {
+	return Uint64x2{spec.MulAdd[uint64, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint64x4) MulAdd(y Uint64x4, z Uint64x4) (w Uint64x4) {
+	return Uint64x4{spec.MulAdd[uint64, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint64x8) MulAdd(y Uint64x8, z Uint64x8) (w Uint64x8) {
+	return Uint64x8{spec.MulAdd[uint64, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+func (x Uint64s) MulAdd(y Uint64s, z Uint64s) (w Uint64s) {
+	return Uint64s{spec.MulAdd[uint64, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int8x16) Neg() (z Int8x16) {
+	return Int8x16{spec.Neg[int8, spec.Width128](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int8x32) Neg() (z Int8x32) {
+	return Int8x32{spec.Neg[int8, spec.Width256](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int8x64) Neg() (z Int8x64) {
+	return Int8x64{spec.Neg[int8, spec.Width512](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int8s) Neg() (z Int8s) {
+	return Int8s{spec.Neg[int8, spec.WidthScalable](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int16x8) Neg() (z Int16x8) {
+	return Int16x8{spec.Neg[int16, spec.Width128](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int16x16) Neg() (z Int16x16) {
+	return Int16x16{spec.Neg[int16, spec.Width256](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int16x32) Neg() (z Int16x32) {
+	return Int16x32{spec.Neg[int16, spec.Width512](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int16s) Neg() (z Int16s) {
+	return Int16s{spec.Neg[int16, spec.WidthScalable](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int32x4) Neg() (z Int32x4) {
+	return Int32x4{spec.Neg[int32, spec.Width128](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int32x8) Neg() (z Int32x8) {
+	return Int32x8{spec.Neg[int32, spec.Width256](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int32x16) Neg() (z Int32x16) {
+	return Int32x16{spec.Neg[int32, spec.Width512](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int32s) Neg() (z Int32s) {
+	return Int32s{spec.Neg[int32, spec.WidthScalable](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int64x2) Neg() (z Int64x2) {
+	return Int64x2{spec.Neg[int64, spec.Width128](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int64x4) Neg() (z Int64x4) {
+	return Int64x4{spec.Neg[int64, spec.Width256](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int64x8) Neg() (z Int64x8) {
+	return Int64x8{spec.Neg[int64, spec.Width512](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Int64s) Neg() (z Int64s) {
+	return Int64s{spec.Neg[int64, spec.WidthScalable](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Float32x4) Neg() (z Float32x4) {
+	return Float32x4{spec.Neg[float32, spec.Width128](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Float32x8) Neg() (z Float32x8) {
+	return Float32x8{spec.Neg[float32, spec.Width256](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Float32x16) Neg() (z Float32x16) {
+	return Float32x16{spec.Neg[float32, spec.Width512](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Float32s) Neg() (z Float32s) {
+	return Float32s{spec.Neg[float32, spec.WidthScalable](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Float64x2) Neg() (z Float64x2) {
+	return Float64x2{spec.Neg[float64, spec.Width128](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Float64x4) Neg() (z Float64x4) {
+	return Float64x4{spec.Neg[float64, spec.Width256](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Float64x8) Neg() (z Float64x8) {
+	return Float64x8{spec.Neg[float64, spec.Width512](x.v)}
+}
+
+// Neg returns the elementwise negation of x.
+//
+//	z[i] = -x[i]
+func (x Float64s) Neg() (z Float64s) {
+	return Float64s{spec.Neg[float64, spec.WidthScalable](x.v)}
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Float32x4) ReduceSum() (z float32) {
+	return spec.ReduceSum[float32, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Float32x8) ReduceSum() (z float32) {
+	return spec.ReduceSum[float32, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Float32x16) ReduceSum() (z float32) {
+	return spec.ReduceSum[float32, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Float32s) ReduceSum() (z float32) {
+	return spec.ReduceSum[float32, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Float64x2) ReduceSum() (z float64) {
+	return spec.ReduceSum[float64, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Float64x4) ReduceSum() (z float64) {
+	return spec.ReduceSum[float64, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Float64x8) ReduceSum() (z float64) {
+	return spec.ReduceSum[float64, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Float64s) ReduceSum() (z float64) {
+	return spec.ReduceSum[float64, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int8x16) ReduceSum() (z int8) {
+	return spec.ReduceSum[int8, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int8x32) ReduceSum() (z int8) {
+	return spec.ReduceSum[int8, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int8x64) ReduceSum() (z int8) {
+	return spec.ReduceSum[int8, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int8s) ReduceSum() (z int8) {
+	return spec.ReduceSum[int8, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int16x8) ReduceSum() (z int16) {
+	return spec.ReduceSum[int16, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int16x16) ReduceSum() (z int16) {
+	return spec.ReduceSum[int16, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int16x32) ReduceSum() (z int16) {
+	return spec.ReduceSum[int16, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int16s) ReduceSum() (z int16) {
+	return spec.ReduceSum[int16, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int32x4) ReduceSum() (z int32) {
+	return spec.ReduceSum[int32, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int32x8) ReduceSum() (z int32) {
+	return spec.ReduceSum[int32, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int32x16) ReduceSum() (z int32) {
+	return spec.ReduceSum[int32, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int32s) ReduceSum() (z int32) {
+	return spec.ReduceSum[int32, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int64x2) ReduceSum() (z int64) {
+	return spec.ReduceSum[int64, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int64x4) ReduceSum() (z int64) {
+	return spec.ReduceSum[int64, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int64x8) ReduceSum() (z int64) {
+	return spec.ReduceSum[int64, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Int64s) ReduceSum() (z int64) {
+	return spec.ReduceSum[int64, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint8x16) ReduceSum() (z uint8) {
+	return spec.ReduceSum[uint8, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint8x32) ReduceSum() (z uint8) {
+	return spec.ReduceSum[uint8, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint8x64) ReduceSum() (z uint8) {
+	return spec.ReduceSum[uint8, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint8s) ReduceSum() (z uint8) {
+	return spec.ReduceSum[uint8, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint16x8) ReduceSum() (z uint16) {
+	return spec.ReduceSum[uint16, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint16x16) ReduceSum() (z uint16) {
+	return spec.ReduceSum[uint16, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint16x32) ReduceSum() (z uint16) {
+	return spec.ReduceSum[uint16, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint16s) ReduceSum() (z uint16) {
+	return spec.ReduceSum[uint16, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint32x4) ReduceSum() (z uint32) {
+	return spec.ReduceSum[uint32, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint32x8) ReduceSum() (z uint32) {
+	return spec.ReduceSum[uint32, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint32x16) ReduceSum() (z uint32) {
+	return spec.ReduceSum[uint32, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint32s) ReduceSum() (z uint32) {
+	return spec.ReduceSum[uint32, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint64x2) ReduceSum() (z uint64) {
+	return spec.ReduceSum[uint64, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint64x4) ReduceSum() (z uint64) {
+	return spec.ReduceSum[uint64, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint64x8) ReduceSum() (z uint64) {
+	return spec.ReduceSum[uint64, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+func (x Uint64s) ReduceSum() (z uint64) {
+	return spec.ReduceSum[uint64, spec.WidthScalable](x.v)
+}
+
+// Sqrt returns the elementwise square root of x.
+//
+//	z[i] = sqrt(x[i])
+func (x Float32x4) Sqrt() (z Float32x4) {
+	return Float32x4{spec.Sqrt[float32, spec.Width128](x.v)}
+}
+
+// Sqrt returns the elementwise square root of x.
+//
+//	z[i] = sqrt(x[i])
+func (x Float32x8) Sqrt() (z Float32x8) {
+	return Float32x8{spec.Sqrt[float32, spec.Width256](x.v)}
+}
+
+// Sqrt returns the elementwise square root of x.
+//
+//	z[i] = sqrt(x[i])
+func (x Float32x16) Sqrt() (z Float32x16) {
+	return Float32x16{spec.Sqrt[float32, spec.Width512](x.v)}
+}
+
+// Sqrt returns the elementwise square root of x.
+//
+//	z[i] = sqrt(x[i])
+func (x Float32s) Sqrt() (z Float32s) {
+	return Float32s{spec.Sqrt[float32, spec.WidthScalable](x.v)}
+}
+
+// Sqrt returns the elementwise square root of x.
+//
+//	z[i] = sqrt(x[i])
+func (x Float64x2) Sqrt() (z Float64x2) {
+	return Float64x2{spec.Sqrt[float64, spec.Width128](x.v)}
+}
+
+// Sqrt returns the elementwise square root of x.
+//
+//	z[i] = sqrt(x[i])
+func (x Float64x4) Sqrt() (z Float64x4) {
+	return Float64x4{spec.Sqrt[float64, spec.Width256](x.v)}
+}
+
+// Sqrt returns the elementwise square root of x.
+//
+//	z[i] = sqrt(x[i])
+func (x Float64x8) Sqrt() (z Float64x8) {
+	return Float64x8{spec.Sqrt[float64, spec.Width512](x.v)}
+}
+
+// Sqrt returns the elementwise square root of x.
+//
+//	z[i] = sqrt(x[i])
+func (x Float64s) Sqrt() (z Float64s) {
+	return Float64s{spec.Sqrt[float64, spec.WidthScalable](x.v)}
+}
+
 // ToBits reinterprets the bits of each element of x as type uint8.
 func (x Int8x16) ToBits() (z Uint8x16) {
 	return Uint8x16{spec.ToBits[int8, spec.Width128, uint8](x.v)}
@@ -7412,6 +16462,126 @@ func (x Float64x8) ToBits() (z Uint64x8) {
 // ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float64s) ToBits() (z Uint64s) {
 	return Uint64s{spec.ToBitsFloat[float64, spec.WidthScalable, uint64](x.v)}
+}
+
+// BitsToInt8 reinterprets the bits of each element of x as type int8.
+func (x Uint8x16) BitsToInt8() (z Int8x16) {
+	return Int8x16{spec.BitsTo[uint8, spec.Width128, int8](x.v)}
+}
+
+// BitsToInt8 reinterprets the bits of each element of x as type int8.
+func (x Uint8x32) BitsToInt8() (z Int8x32) {
+	return Int8x32{spec.BitsTo[uint8, spec.Width256, int8](x.v)}
+}
+
+// BitsToInt8 reinterprets the bits of each element of x as type int8.
+func (x Uint8x64) BitsToInt8() (z Int8x64) {
+	return Int8x64{spec.BitsTo[uint8, spec.Width512, int8](x.v)}
+}
+
+// BitsToInt8 reinterprets the bits of each element of x as type int8.
+func (x Uint8s) BitsToInt8() (z Int8s) {
+	return Int8s{spec.BitsTo[uint8, spec.WidthScalable, int8](x.v)}
+}
+
+// BitsToInt16 reinterprets the bits of each element of x as type int16.
+func (x Uint16x8) BitsToInt16() (z Int16x8) {
+	return Int16x8{spec.BitsTo[uint16, spec.Width128, int16](x.v)}
+}
+
+// BitsToInt16 reinterprets the bits of each element of x as type int16.
+func (x Uint16x16) BitsToInt16() (z Int16x16) {
+	return Int16x16{spec.BitsTo[uint16, spec.Width256, int16](x.v)}
+}
+
+// BitsToInt16 reinterprets the bits of each element of x as type int16.
+func (x Uint16x32) BitsToInt16() (z Int16x32) {
+	return Int16x32{spec.BitsTo[uint16, spec.Width512, int16](x.v)}
+}
+
+// BitsToInt16 reinterprets the bits of each element of x as type int16.
+func (x Uint16s) BitsToInt16() (z Int16s) {
+	return Int16s{spec.BitsTo[uint16, spec.WidthScalable, int16](x.v)}
+}
+
+// BitsToInt32 reinterprets the bits of each element of x as type int32.
+func (x Uint32x4) BitsToInt32() (z Int32x4) {
+	return Int32x4{spec.BitsTo[uint32, spec.Width128, int32](x.v)}
+}
+
+// BitsToInt32 reinterprets the bits of each element of x as type int32.
+func (x Uint32x8) BitsToInt32() (z Int32x8) {
+	return Int32x8{spec.BitsTo[uint32, spec.Width256, int32](x.v)}
+}
+
+// BitsToInt32 reinterprets the bits of each element of x as type int32.
+func (x Uint32x16) BitsToInt32() (z Int32x16) {
+	return Int32x16{spec.BitsTo[uint32, spec.Width512, int32](x.v)}
+}
+
+// BitsToInt32 reinterprets the bits of each element of x as type int32.
+func (x Uint32s) BitsToInt32() (z Int32s) {
+	return Int32s{spec.BitsTo[uint32, spec.WidthScalable, int32](x.v)}
+}
+
+// BitsToInt64 reinterprets the bits of each element of x as type int64.
+func (x Uint64x2) BitsToInt64() (z Int64x2) {
+	return Int64x2{spec.BitsTo[uint64, spec.Width128, int64](x.v)}
+}
+
+// BitsToInt64 reinterprets the bits of each element of x as type int64.
+func (x Uint64x4) BitsToInt64() (z Int64x4) {
+	return Int64x4{spec.BitsTo[uint64, spec.Width256, int64](x.v)}
+}
+
+// BitsToInt64 reinterprets the bits of each element of x as type int64.
+func (x Uint64x8) BitsToInt64() (z Int64x8) {
+	return Int64x8{spec.BitsTo[uint64, spec.Width512, int64](x.v)}
+}
+
+// BitsToInt64 reinterprets the bits of each element of x as type int64.
+func (x Uint64s) BitsToInt64() (z Int64s) {
+	return Int64s{spec.BitsTo[uint64, spec.WidthScalable, int64](x.v)}
+}
+
+// BitsToFloat32 reinterprets the bits of each element of x as type float32.
+func (x Uint32x4) BitsToFloat32() (z Float32x4) {
+	return Float32x4{spec.BitsToFloat[uint32, spec.Width128, float32](x.v)}
+}
+
+// BitsToFloat32 reinterprets the bits of each element of x as type float32.
+func (x Uint32x8) BitsToFloat32() (z Float32x8) {
+	return Float32x8{spec.BitsToFloat[uint32, spec.Width256, float32](x.v)}
+}
+
+// BitsToFloat32 reinterprets the bits of each element of x as type float32.
+func (x Uint32x16) BitsToFloat32() (z Float32x16) {
+	return Float32x16{spec.BitsToFloat[uint32, spec.Width512, float32](x.v)}
+}
+
+// BitsToFloat32 reinterprets the bits of each element of x as type float32.
+func (x Uint32s) BitsToFloat32() (z Float32s) {
+	return Float32s{spec.BitsToFloat[uint32, spec.WidthScalable, float32](x.v)}
+}
+
+// BitsToFloat64 reinterprets the bits of each element of x as type float64.
+func (x Uint64x2) BitsToFloat64() (z Float64x2) {
+	return Float64x2{spec.BitsToFloat[uint64, spec.Width128, float64](x.v)}
+}
+
+// BitsToFloat64 reinterprets the bits of each element of x as type float64.
+func (x Uint64x4) BitsToFloat64() (z Float64x4) {
+	return Float64x4{spec.BitsToFloat[uint64, spec.Width256, float64](x.v)}
+}
+
+// BitsToFloat64 reinterprets the bits of each element of x as type float64.
+func (x Uint64x8) BitsToFloat64() (z Float64x8) {
+	return Float64x8{spec.BitsToFloat[uint64, spec.Width512, float64](x.v)}
+}
+
+// BitsToFloat64 reinterprets the bits of each element of x as type float64.
+func (x Uint64s) BitsToFloat64() (z Float64s) {
+	return Float64s{spec.BitsToFloat[uint64, spec.WidthScalable, float64](x.v)}
 }
 
 // ReshapeToUint16s reinterprets the bits of x as a Uint16x8 vector.
@@ -9380,6 +18550,454 @@ func (x Uint64x8) ShiftLeft(shift Uint64x8) (z Uint64x8) {
 //	z[i] = x[i] << shift[i]
 func (x Uint64s) ShiftLeft(shift Uint64s) (z Uint64s) {
 	return Uint64s{spec.ShiftLeft[uint64, spec.WidthScalable, uint64](x.v, shift.v)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint8x16) RotateAllLeft(shift uint64) (z Uint8x16) {
+	return Uint8x16{spec.RotateAllLeft[uint8, spec.Width128](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint8x32) RotateAllLeft(shift uint64) (z Uint8x32) {
+	return Uint8x32{spec.RotateAllLeft[uint8, spec.Width256](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint8x64) RotateAllLeft(shift uint64) (z Uint8x64) {
+	return Uint8x64{spec.RotateAllLeft[uint8, spec.Width512](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint8s) RotateAllLeft(shift uint64) (z Uint8s) {
+	return Uint8s{spec.RotateAllLeft[uint8, spec.WidthScalable](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint16x8) RotateAllLeft(shift uint64) (z Uint16x8) {
+	return Uint16x8{spec.RotateAllLeft[uint16, spec.Width128](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint16x16) RotateAllLeft(shift uint64) (z Uint16x16) {
+	return Uint16x16{spec.RotateAllLeft[uint16, spec.Width256](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint16x32) RotateAllLeft(shift uint64) (z Uint16x32) {
+	return Uint16x32{spec.RotateAllLeft[uint16, spec.Width512](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint16s) RotateAllLeft(shift uint64) (z Uint16s) {
+	return Uint16s{spec.RotateAllLeft[uint16, spec.WidthScalable](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint32x4) RotateAllLeft(shift uint64) (z Uint32x4) {
+	return Uint32x4{spec.RotateAllLeft[uint32, spec.Width128](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint32x8) RotateAllLeft(shift uint64) (z Uint32x8) {
+	return Uint32x8{spec.RotateAllLeft[uint32, spec.Width256](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint32x16) RotateAllLeft(shift uint64) (z Uint32x16) {
+	return Uint32x16{spec.RotateAllLeft[uint32, spec.Width512](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint32s) RotateAllLeft(shift uint64) (z Uint32s) {
+	return Uint32s{spec.RotateAllLeft[uint32, spec.WidthScalable](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint64x2) RotateAllLeft(shift uint64) (z Uint64x2) {
+	return Uint64x2{spec.RotateAllLeft[uint64, spec.Width128](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint64x4) RotateAllLeft(shift uint64) (z Uint64x4) {
+	return Uint64x4{spec.RotateAllLeft[uint64, spec.Width256](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint64x8) RotateAllLeft(shift uint64) (z Uint64x8) {
+	return Uint64x8{spec.RotateAllLeft[uint64, spec.Width512](x.v, shift)}
+}
+
+// RotateAllLeft rotates each element of x left by shift bits.
+//
+//	z[i] = rotateLeft(x[i], shift)
+func (x Uint64s) RotateAllLeft(shift uint64) (z Uint64s) {
+	return Uint64s{spec.RotateAllLeft[uint64, spec.WidthScalable](x.v, shift)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint8x16) RotateLeft(shift Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.RotateLeft[uint8, spec.Width128](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint8x32) RotateLeft(shift Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.RotateLeft[uint8, spec.Width256](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint8x64) RotateLeft(shift Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.RotateLeft[uint8, spec.Width512](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint8s) RotateLeft(shift Uint8s) (z Uint8s) {
+	return Uint8s{spec.RotateLeft[uint8, spec.WidthScalable](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint16x8) RotateLeft(shift Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.RotateLeft[uint16, spec.Width128](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint16x16) RotateLeft(shift Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.RotateLeft[uint16, spec.Width256](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint16x32) RotateLeft(shift Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.RotateLeft[uint16, spec.Width512](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint16s) RotateLeft(shift Uint16s) (z Uint16s) {
+	return Uint16s{spec.RotateLeft[uint16, spec.WidthScalable](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint32x4) RotateLeft(shift Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.RotateLeft[uint32, spec.Width128](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint32x8) RotateLeft(shift Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.RotateLeft[uint32, spec.Width256](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint32x16) RotateLeft(shift Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.RotateLeft[uint32, spec.Width512](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint32s) RotateLeft(shift Uint32s) (z Uint32s) {
+	return Uint32s{spec.RotateLeft[uint32, spec.WidthScalable](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint64x2) RotateLeft(shift Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.RotateLeft[uint64, spec.Width128](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint64x4) RotateLeft(shift Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.RotateLeft[uint64, spec.Width256](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint64x8) RotateLeft(shift Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.RotateLeft[uint64, spec.Width512](x.v, shift.v)}
+}
+
+// RotateLeft rotates x left by shift bits, elementwise.
+//
+//	z[i] = rotateLeft(x[i], shift[i])
+func (x Uint64s) RotateLeft(shift Uint64s) (z Uint64s) {
+	return Uint64s{spec.RotateLeft[uint64, spec.WidthScalable](x.v, shift.v)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint8x16) RotateAllRight(shift uint64) (z Uint8x16) {
+	return Uint8x16{spec.RotateAllRight[uint8, spec.Width128](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint8x32) RotateAllRight(shift uint64) (z Uint8x32) {
+	return Uint8x32{spec.RotateAllRight[uint8, spec.Width256](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint8x64) RotateAllRight(shift uint64) (z Uint8x64) {
+	return Uint8x64{spec.RotateAllRight[uint8, spec.Width512](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint8s) RotateAllRight(shift uint64) (z Uint8s) {
+	return Uint8s{spec.RotateAllRight[uint8, spec.WidthScalable](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint16x8) RotateAllRight(shift uint64) (z Uint16x8) {
+	return Uint16x8{spec.RotateAllRight[uint16, spec.Width128](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint16x16) RotateAllRight(shift uint64) (z Uint16x16) {
+	return Uint16x16{spec.RotateAllRight[uint16, spec.Width256](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint16x32) RotateAllRight(shift uint64) (z Uint16x32) {
+	return Uint16x32{spec.RotateAllRight[uint16, spec.Width512](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint16s) RotateAllRight(shift uint64) (z Uint16s) {
+	return Uint16s{spec.RotateAllRight[uint16, spec.WidthScalable](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint32x4) RotateAllRight(shift uint64) (z Uint32x4) {
+	return Uint32x4{spec.RotateAllRight[uint32, spec.Width128](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint32x8) RotateAllRight(shift uint64) (z Uint32x8) {
+	return Uint32x8{spec.RotateAllRight[uint32, spec.Width256](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint32x16) RotateAllRight(shift uint64) (z Uint32x16) {
+	return Uint32x16{spec.RotateAllRight[uint32, spec.Width512](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint32s) RotateAllRight(shift uint64) (z Uint32s) {
+	return Uint32s{spec.RotateAllRight[uint32, spec.WidthScalable](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint64x2) RotateAllRight(shift uint64) (z Uint64x2) {
+	return Uint64x2{spec.RotateAllRight[uint64, spec.Width128](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint64x4) RotateAllRight(shift uint64) (z Uint64x4) {
+	return Uint64x4{spec.RotateAllRight[uint64, spec.Width256](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint64x8) RotateAllRight(shift uint64) (z Uint64x8) {
+	return Uint64x8{spec.RotateAllRight[uint64, spec.Width512](x.v, shift)}
+}
+
+// RotateAllRight rotates each element of x right by shift bits.
+//
+//	z[i] = rotateRight(x[i], shift)
+func (x Uint64s) RotateAllRight(shift uint64) (z Uint64s) {
+	return Uint64s{spec.RotateAllRight[uint64, spec.WidthScalable](x.v, shift)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint8x16) RotateRight(shift Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.RotateRight[uint8, spec.Width128](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint8x32) RotateRight(shift Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.RotateRight[uint8, spec.Width256](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint8x64) RotateRight(shift Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.RotateRight[uint8, spec.Width512](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint8s) RotateRight(shift Uint8s) (z Uint8s) {
+	return Uint8s{spec.RotateRight[uint8, spec.WidthScalable](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint16x8) RotateRight(shift Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.RotateRight[uint16, spec.Width128](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint16x16) RotateRight(shift Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.RotateRight[uint16, spec.Width256](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint16x32) RotateRight(shift Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.RotateRight[uint16, spec.Width512](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint16s) RotateRight(shift Uint16s) (z Uint16s) {
+	return Uint16s{spec.RotateRight[uint16, spec.WidthScalable](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint32x4) RotateRight(shift Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.RotateRight[uint32, spec.Width128](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint32x8) RotateRight(shift Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.RotateRight[uint32, spec.Width256](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint32x16) RotateRight(shift Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.RotateRight[uint32, spec.Width512](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint32s) RotateRight(shift Uint32s) (z Uint32s) {
+	return Uint32s{spec.RotateRight[uint32, spec.WidthScalable](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint64x2) RotateRight(shift Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.RotateRight[uint64, spec.Width128](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint64x4) RotateRight(shift Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.RotateRight[uint64, spec.Width256](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint64x8) RotateRight(shift Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.RotateRight[uint64, spec.Width512](x.v, shift.v)}
+}
+
+// RotateRight rotates x right by shift bits, elementwise.
+//
+//	z[i] = rotateRight(x[i], shift[i])
+func (x Uint64s) RotateRight(shift Uint64s) (z Uint64s) {
+	return Uint64s{spec.RotateRight[uint64, spec.WidthScalable](x.v, shift.v)}
 }
 
 // Permute permutes x.

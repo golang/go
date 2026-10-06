@@ -20,7 +20,7 @@ package archsimd
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: PMULL, CPU Feature: PMULL
-func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
+func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiplyWidenLo(y)
 }
 
@@ -38,7 +38,7 @@ func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: PMULL, CPU Feature: PMULL
-func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
+func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
 	return x.HiToLo().carrylessMultiplyWidenLo(y.HiToLo())
 }
 
@@ -56,7 +56,7 @@ func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: PMULL, CPU Feature: PMULL
-func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) Uint64x2 {
+func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
 	return x.HiToLo().carrylessMultiplyWidenLo(y)
 }
 
@@ -74,6 +74,6 @@ func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) Uint64x2 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: PMULL, CPU Feature: PMULL
-func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) Uint64x2 {
+func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiplyWidenLo(y.HiToLo())
 }

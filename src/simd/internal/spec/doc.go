@@ -170,6 +170,12 @@
 //
 // Look at other functions in this package and try to follow their example.
 //
+// Be sure to document behavior in corner cases such as overflow, rounding, or
+// unusual floating-point values. The default assumed oveflow behavior for ints
+// and uints is that they wrap like in Go. Any deviation must be documented. If
+// rounding is possible, document the type of rounding (e.g., rounding toward
+// +/-∞, rounding toward 0, rounding ties to even, rounding ties away from 0).
+//
 // When feasible, doc comments should include a mathematical statement of the
 // operation. This should balance precision and clarity. We follow various
 // conventions for this:

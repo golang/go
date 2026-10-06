@@ -1293,7 +1293,7 @@ func (x Uint16x32) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x32 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVXPCLMULQDQ
-func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
+func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(0, y)
 }
 
@@ -1311,7 +1311,7 @@ func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVXPCLMULQDQ
-func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
+func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(0b10001, y)
 }
 
@@ -1329,7 +1329,7 @@ func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVXPCLMULQDQ
-func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) Uint64x2 {
+func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(0b1, y)
 }
 
@@ -1347,7 +1347,7 @@ func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) Uint64x2 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVXPCLMULQDQ
-func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) Uint64x2 {
+func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(0b10000, y)
 }
 
@@ -1365,7 +1365,7 @@ func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) Uint64x2 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: VPCLMULQDQ
-func (x Uint64x4) CarrylessMultiplyEven(y Uint64x4) Uint64x4 {
+func (x Uint64x4) CarrylessMultiplyEven(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiply(0, y)
 }
 
@@ -1383,7 +1383,7 @@ func (x Uint64x4) CarrylessMultiplyEven(y Uint64x4) Uint64x4 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: VPCLMULQDQ
-func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) Uint64x4 {
+func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiply(0b10001, y)
 }
 
@@ -1401,7 +1401,7 @@ func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) Uint64x4 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: VPCLMULQDQ
-func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) Uint64x4 {
+func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiply(0b1, y)
 }
 
@@ -1419,7 +1419,7 @@ func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) Uint64x4 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: VPCLMULQDQ
-func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) Uint64x4 {
+func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiply(0b10000, y)
 }
 
@@ -1437,7 +1437,7 @@ func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) Uint64x4 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
-func (x Uint64x8) CarrylessMultiplyEven(y Uint64x8) Uint64x8 {
+func (x Uint64x8) CarrylessMultiplyEven(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiply(0, y)
 }
 
@@ -1455,7 +1455,7 @@ func (x Uint64x8) CarrylessMultiplyEven(y Uint64x8) Uint64x8 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
-func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) Uint64x8 {
+func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiply(0b10001, y)
 }
 
@@ -1473,7 +1473,7 @@ func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) Uint64x8 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
-func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) Uint64x8 {
+func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiply(0b1, y)
 }
 
@@ -1491,6 +1491,6 @@ func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) Uint64x8 {
 // polynomial terms, but coefficients "add" with XOR.)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
-func (x Uint64x8) CarrylessMultiplyEvenOdd(y Uint64x8) Uint64x8 {
+func (x Uint64x8) CarrylessMultiplyEvenOdd(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiply(0b10000, y)
 }
