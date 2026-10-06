@@ -1949,7 +1949,8 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 	}
 
 	// Careful, a.Package.GoFiles can be relative or absolute paths (see #82042).
-	srcs := mkAbsFiles(a.Package.Dir, a.Package.GoFiles)
+	// Also, the path may point to a virtual file system (e.g. for overlays).
+	srcs := actualFiles(mkAbsFiles(a.Package.Dir, a.Package.GoFiles))
 	// Collect output source files from any cgo dependencies.
 	if a.Package.UsesCgo() {
 		for _, dep := range a.Deps {
