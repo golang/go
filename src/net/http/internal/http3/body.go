@@ -191,7 +191,7 @@ func (r *bodyReader) Read(p []byte) (n int, err error) {
 			var dec qpackDecoder
 			var totalSize, valueCount int64
 			if err := dec.decode(r.st, func(_ indexType, name, value string) error {
-				totalSize += int64(len(name)) + int64(len(value)) + 32 // RFC 9114 Section 4.2.2
+				totalSize += int64(len(name)) + int64(len(value)) + headerFieldOverhead
 				valueCount++
 				if (r.maxHeaderBytes > 0 && totalSize > r.maxHeaderBytes) ||
 					(r.maxHeaderValueCount > 0 && valueCount > r.maxHeaderValueCount) {

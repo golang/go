@@ -603,6 +603,27 @@ func TestServerHeaderLimits(t *testing.T) {
 		},
 		maxHeaderBytes:      1500,
 		maxHeaderValueCount: 4,
+	}, {
+		name: "declared trailer field count within limit",
+		header: {
+			"trailer": {"a, b, c, d, e"},
+		},
+		maxHeaderBytes:      1500,
+		maxHeaderValueCount: 5,
+		valid:               true,
+	}, {
+		name: "declared trailer field count over limit",
+		header: {
+			"trailer": {"a, b, c, d, e"},
+		},
+		maxHeaderBytes:      1500,
+		maxHeaderValueCount: 4,
+	}, {
+		name: "declared trailer bytes over limit",
+		header: {
+			"trailer": {strings.Repeat("a,", 50)},
+		},
+		maxHeaderBytes: 1500,
 	}} {
 		synctestSubtest(t, test.name, func(t *testing.T) {
 			ts := newTestServer(t, nil)

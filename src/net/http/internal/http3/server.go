@@ -373,6 +373,8 @@ type pseudoHeader struct {
 
 var errHeadersTooLarge = &streamError{errH3MessageError, "headers too large"}
 
+const headerFieldOverhead = 32 // RFC 9114 Section 4.2.2
+
 func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error) {
 	ftype, err := st.readFrameHeader()
 	if err != nil {
@@ -387,19 +389,35 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 		// since the maximum Huffman expansion factor is only ~1.6x.
 		return nil, pseudoHeader{}, errHeadersTooLarge
 	}
+
+	type headerBudget struct {
+		size  int64 // Checked against MaxHeaderBytes
+		count int64 // Checked against MaxHeaderValueCount
+	}
+	var headers, trailers headerBudget
+
 	header := make(http.Header)
-	valueCount := int64(0)
-	totalSize := int64(0)
 	var pHeader pseudoHeader
 	var dec qpackDecoder
 	var hasMethod, hasScheme, hasPath, hasAuthority bool
 	if err := dec.decode(st, func(_ indexType, name, value string) error {
-		totalSize += int64(len(name)) + int64(len(value)) + 32 // RFC 9114 Section 4.2.2
-		valueCount++
-		if totalSize > sc.maxHeaderBytes {
+		var budget *headerBudget
+		if name == "trailer" {
+			budget = &trailers
+			fieldCount := int64(strings.Count(value, ",") + 1)
+			budget.count += fieldCount
+			// Just do the math instead of parsing the declared trailers.
+			// This does make us count whitespace against MaxHeaderBytes, but that's fine.
+			budget.size += int64(len(value)) - fieldCount + 1 + fieldCount*headerFieldOverhead
+		} else {
+			budget = &headers
+			budget.count++
+			budget.size += int64(len(name)) + int64(len(value)) + headerFieldOverhead
+		}
+		if budget.size > sc.maxHeaderBytes {
 			return errHeadersTooLarge
 		}
-		if valueCount > sc.maxHeaderValueCount {
+		if budget.count > sc.maxHeaderValueCount {
 			return errHeadersTooLarge
 		}
 		if !httpguts.ValidHeaderFieldValue(value) {
