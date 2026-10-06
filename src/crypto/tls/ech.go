@@ -9,6 +9,7 @@ import (
 	"crypto/hpke"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"golang.org/x/crypto/cryptobyte"
@@ -455,6 +456,12 @@ func computeAndUpdateOuterECHExtension(outer, inner *clientHelloMsg, ech *echCli
 // picking a config. This can be somewhat lax because even if we pick a
 // valid-looking name, the DNS layer will later reject it anyway.
 func validDNSName(name string) bool {
+	// Reject public names the certificate verifier would interpret as IP addresses.
+	// RFC 9849, Section 6.1.7 explicitly rejects IPv4. IPv6 literals, including
+	// scoped addresses, are already excluded by the DNS syntax (they contain ':').
+	if _, err := netip.ParseAddr(name); err == nil {
+		return false
+	}
 	if len(name) > 253 {
 		return false
 	}
