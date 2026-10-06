@@ -813,6 +813,9 @@ func TestDualStackUDPBroadcast(t *testing.T) {
 
 	addr := netip.AddrPortFrom(netip.MustParseAddr("255.255.255.255"), 12345)
 	if _, err := conn.WriteToUDPAddrPort([]byte{0}, addr); err != nil {
+		if isUnreachableError(err) {
+			t.Skipf("broadcast route not available: %v", err)
+		}
 		t.Errorf("WriteToUDPAddrPort failed: %v", err)
 	}
 }

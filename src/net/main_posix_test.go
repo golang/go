@@ -7,10 +7,15 @@
 package net
 
 import (
+	"errors"
 	"net/internal/socktest"
 	"strings"
 	"syscall"
 )
+
+func isUnreachableError(err error) bool {
+	return errors.Is(err, syscall.EHOSTUNREACH) || errors.Is(err, syscall.ENETUNREACH)
+}
 
 func enableSocketConnect() {
 	sw.Set(socktest.FilterConnect, nil)
