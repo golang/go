@@ -3964,6 +3964,18 @@ func (x Mask8x64) And(y Mask8x64) Mask8x64 {
 	return Mask8x64((archsimd.Mask8x64(x)).And(archsimd.Mask8x64(y)))
 }
 
+func (x Mask8x16) AndNot(y Mask8x16) Mask8x16 {
+	return Mask8x16((archsimd.Mask8x16(x)).AndNot(archsimd.Mask8x16(y)))
+}
+
+func (x Mask8x32) AndNot(y Mask8x32) Mask8x32 {
+	return Mask8x32((archsimd.Mask8x32(x)).AndNot(archsimd.Mask8x32(y)))
+}
+
+func (x Mask8x64) AndNot(y Mask8x64) Mask8x64 {
+	return Mask8x64((archsimd.Mask8x64(x)).AndNot(archsimd.Mask8x64(y)))
+}
+
 func (x Mask8x16) Any() bool {
 	return (archsimd.Mask8x16(x)).Any()
 }
@@ -4036,6 +4048,18 @@ func (x Mask8x64) TrailingZeros() int {
 	return (archsimd.Mask8x64(x)).TrailingZeros()
 }
 
+func (x Mask8x16) Xor(y Mask8x16) Mask8x16 {
+	return Mask8x16((archsimd.Mask8x16(x)).Xor(archsimd.Mask8x16(y)))
+}
+
+func (x Mask8x32) Xor(y Mask8x32) Mask8x32 {
+	return Mask8x32((archsimd.Mask8x32(x)).Xor(archsimd.Mask8x32(y)))
+}
+
+func (x Mask8x64) Xor(y Mask8x64) Mask8x64 {
+	return Mask8x64((archsimd.Mask8x64(x)).Xor(archsimd.Mask8x64(y)))
+}
+
 func (x Mask16x8) All() bool {
 	return (archsimd.Mask16x8(x)).All()
 }
@@ -4058,6 +4082,18 @@ func (x Mask16x16) And(y Mask16x16) Mask16x16 {
 
 func (x Mask16x32) And(y Mask16x32) Mask16x32 {
 	return Mask16x32((archsimd.Mask16x32(x)).And(archsimd.Mask16x32(y)))
+}
+
+func (x Mask16x8) AndNot(y Mask16x8) Mask16x8 {
+	return Mask16x8((archsimd.Mask16x8(x)).AndNot(archsimd.Mask16x8(y)))
+}
+
+func (x Mask16x16) AndNot(y Mask16x16) Mask16x16 {
+	return Mask16x16((archsimd.Mask16x16(x)).AndNot(archsimd.Mask16x16(y)))
+}
+
+func (x Mask16x32) AndNot(y Mask16x32) Mask16x32 {
+	return Mask16x32((archsimd.Mask16x32(x)).AndNot(archsimd.Mask16x32(y)))
 }
 
 func (x Mask16x8) Any() bool {
@@ -4132,6 +4168,18 @@ func (x Mask16x32) TrailingZeros() int {
 	return (archsimd.Mask16x32(x)).TrailingZeros()
 }
 
+func (x Mask16x8) Xor(y Mask16x8) Mask16x8 {
+	return Mask16x8((archsimd.Mask16x8(x)).Xor(archsimd.Mask16x8(y)))
+}
+
+func (x Mask16x16) Xor(y Mask16x16) Mask16x16 {
+	return Mask16x16((archsimd.Mask16x16(x)).Xor(archsimd.Mask16x16(y)))
+}
+
+func (x Mask16x32) Xor(y Mask16x32) Mask16x32 {
+	return Mask16x32((archsimd.Mask16x32(x)).Xor(archsimd.Mask16x32(y)))
+}
+
 func (x Mask32x4) All() bool {
 	return (archsimd.Mask32x4(x)).All()
 }
@@ -4154,6 +4202,18 @@ func (x Mask32x8) And(y Mask32x8) Mask32x8 {
 
 func (x Mask32x16) And(y Mask32x16) Mask32x16 {
 	return Mask32x16((archsimd.Mask32x16(x)).And(archsimd.Mask32x16(y)))
+}
+
+func (x Mask32x4) AndNot(y Mask32x4) Mask32x4 {
+	return Mask32x4((archsimd.Mask32x4(x)).AndNot(archsimd.Mask32x4(y)))
+}
+
+func (x Mask32x8) AndNot(y Mask32x8) Mask32x8 {
+	return Mask32x8((archsimd.Mask32x8(x)).AndNot(archsimd.Mask32x8(y)))
+}
+
+func (x Mask32x16) AndNot(y Mask32x16) Mask32x16 {
+	return Mask32x16((archsimd.Mask32x16(x)).AndNot(archsimd.Mask32x16(y)))
 }
 
 func (x Mask32x4) Any() bool {
@@ -4228,6 +4288,18 @@ func (x Mask32x16) TrailingZeros() int {
 	return (archsimd.Mask32x16(x)).TrailingZeros()
 }
 
+func (x Mask32x4) Xor(y Mask32x4) Mask32x4 {
+	return Mask32x4((archsimd.Mask32x4(x)).Xor(archsimd.Mask32x4(y)))
+}
+
+func (x Mask32x8) Xor(y Mask32x8) Mask32x8 {
+	return Mask32x8((archsimd.Mask32x8(x)).Xor(archsimd.Mask32x8(y)))
+}
+
+func (x Mask32x16) Xor(y Mask32x16) Mask32x16 {
+	return Mask32x16((archsimd.Mask32x16(x)).Xor(archsimd.Mask32x16(y)))
+}
+
 func (x Mask64x2) All() bool {
 	return (archsimd.Mask64x2(x)).All()
 }
@@ -4250,6 +4322,18 @@ func (x Mask64x4) And(y Mask64x4) Mask64x4 {
 
 func (x Mask64x8) And(y Mask64x8) Mask64x8 {
 	return Mask64x8((archsimd.Mask64x8(x)).And(archsimd.Mask64x8(y)))
+}
+
+func (x Mask64x2) AndNot(y Mask64x2) Mask64x2 {
+	return Mask64x2((archsimd.Mask64x2(x)).AndNot(archsimd.Mask64x2(y)))
+}
+
+func (x Mask64x4) AndNot(y Mask64x4) Mask64x4 {
+	return Mask64x4((archsimd.Mask64x4(x)).AndNot(archsimd.Mask64x4(y)))
+}
+
+func (x Mask64x8) AndNot(y Mask64x8) Mask64x8 {
+	return Mask64x8((archsimd.Mask64x8(x)).AndNot(archsimd.Mask64x8(y)))
 }
 
 func (x Mask64x2) Any() bool {
@@ -4322,4 +4406,16 @@ func (x Mask64x4) TrailingZeros() int {
 
 func (x Mask64x8) TrailingZeros() int {
 	return (archsimd.Mask64x8(x)).TrailingZeros()
+}
+
+func (x Mask64x2) Xor(y Mask64x2) Mask64x2 {
+	return Mask64x2((archsimd.Mask64x2(x)).Xor(archsimd.Mask64x2(y)))
+}
+
+func (x Mask64x4) Xor(y Mask64x4) Mask64x4 {
+	return Mask64x4((archsimd.Mask64x4(x)).Xor(archsimd.Mask64x4(y)))
+}
+
+func (x Mask64x8) Xor(y Mask64x8) Mask64x8 {
+	return Mask64x8((archsimd.Mask64x8(x)).Xor(archsimd.Mask64x8(y)))
 }

@@ -102,10 +102,17 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	var loadStore = templateNamed("loadStore", `	addF(simdPackage, "Load{{.Name}}Array", simdLoad(), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.StoreArray", simdStore(), {{GetSysArch}})`)
 
+	// TODO the operand order for AndNot on amd64 is cursed and should instead happen at the generic-to-architecture SSA rewrite (or later?)
 	var mask = templateNamed("mask", `	addF(simdPackage, "{{.Name}}.To{{.VectorCounterpart}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.VectorCounterpart}}.asMask", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.And", opLen2(ssaop.OpAnd{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.Or", opLen2(ssaop.OpOr{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+{{- if eq GetSysArch "sys.AMD64"}}
+	addF(simdPackage, "{{.Name}}.AndNot", opLen2_21(ssaop.OpAndNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+{{- else}}
+	addF(simdPackage, "{{.Name}}.AndNot", opLen2(ssaop.OpAndNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+{{- end}}
+	addF(simdPackage, "{{.Name}}.Xor", opLen2(ssaop.OpXor{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- if eq GetSysArch "sys.ARM64"}}
 	addF(simdPackage, "{{.Name}}.Not", opLen1(ssaop.OpNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- else}}

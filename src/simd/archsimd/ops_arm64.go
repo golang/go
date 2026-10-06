@@ -2759,10 +2759,20 @@ func (from Int8x16) asMask() (to Mask8x16)
 //	z[i] = x[i] & y[i]
 func (x Mask8x16) And(y Mask8x16) (z Mask8x16)
 
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask8x16) AndNot(y Mask8x16) (z Mask8x16)
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask8x16) Or(y Mask8x16) (z Mask8x16)
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask8x16) Xor(y Mask8x16) (z Mask8x16)
 
 // Not returns the bitwise negation of x.
 //
@@ -2781,10 +2791,20 @@ func (from Int16x8) asMask() (to Mask16x8)
 //	z[i] = x[i] & y[i]
 func (x Mask16x8) And(y Mask16x8) (z Mask16x8)
 
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask16x8) AndNot(y Mask16x8) (z Mask16x8)
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask16x8) Or(y Mask16x8) (z Mask16x8)
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask16x8) Xor(y Mask16x8) (z Mask16x8)
 
 // Not returns the bitwise negation of x.
 //
@@ -2803,10 +2823,20 @@ func (from Int32x4) asMask() (to Mask32x4)
 //	z[i] = x[i] & y[i]
 func (x Mask32x4) And(y Mask32x4) (z Mask32x4)
 
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask32x4) AndNot(y Mask32x4) (z Mask32x4)
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask32x4) Or(y Mask32x4) (z Mask32x4)
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask32x4) Xor(y Mask32x4) (z Mask32x4)
 
 // Not returns the bitwise negation of x.
 //
@@ -2825,10 +2855,20 @@ func (from Int64x2) asMask() (to Mask64x2)
 //	z[i] = x[i] & y[i]
 func (x Mask64x2) And(y Mask64x2) (z Mask64x2)
 
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+func (x Mask64x2) AndNot(y Mask64x2) (z Mask64x2)
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask64x2) Or(y Mask64x2) (z Mask64x2)
+
+// Xor returns the bitwise XOR of x and y.
+//
+//	z[i] = x[i] ^ y[i]
+func (x Mask64x2) Xor(y Mask64x2) (z Mask64x2)
 
 // Not returns the bitwise negation of x.
 //

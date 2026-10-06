@@ -1954,6 +1954,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		x86.ParseSuffix(p, "Z")             // must be zero if not in mask
 
 	case ssaop.OpAMD64KANDB, ssaop.OpAMD64KANDW, ssaop.OpAMD64KANDD, ssaop.OpAMD64KANDQ,
+		ssaop.OpAMD64KANDNB, ssaop.OpAMD64KANDNW, ssaop.OpAMD64KANDND, ssaop.OpAMD64KANDNQ,
 		ssaop.OpAMD64KORB, ssaop.OpAMD64KORW, ssaop.OpAMD64KORD, ssaop.OpAMD64KORQ,
 		ssaop.OpAMD64KXORB, ssaop.OpAMD64KXORW, ssaop.OpAMD64KXORD, ssaop.OpAMD64KXORQ,
 		ssaop.OpAMD64KXNORB, ssaop.OpAMD64KXNORW, ssaop.OpAMD64KXNORD, ssaop.OpAMD64KXNORQ: // XNOR == EQ

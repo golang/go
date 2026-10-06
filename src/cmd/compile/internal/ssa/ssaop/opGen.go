@@ -958,6 +958,10 @@ const (
 	OpAMD64KANDW
 	OpAMD64KANDD
 	OpAMD64KANDQ
+	OpAMD64KANDNB
+	OpAMD64KANDNW
+	OpAMD64KANDND
+	OpAMD64KANDNQ
 	OpAMD64KORB
 	OpAMD64KORW
 	OpAMD64KORD
@@ -23860,6 +23864,62 @@ var OpcodeTable = [...]OpInfo{
 		Name:   "KANDQ",
 		ArgLen: 2,
 		asm:    x86.AKANDQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+				{1, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		Name:   "KANDNB",
+		ArgLen: 2,
+		asm:    x86.AKANDNB,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+				{1, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		Name:   "KANDNW",
+		ArgLen: 2,
+		asm:    x86.AKANDNW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+				{1, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		Name:   "KANDND",
+		ArgLen: 2,
+		asm:    x86.AKANDND,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+				{1, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		Name:   "KANDNQ",
+		ArgLen: 2,
+		asm:    x86.AKANDNQ,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 71494644084506624, V2: 0}}, // K1 K2 K3 K4 K5 K6 K7

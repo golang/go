@@ -3545,11 +3545,21 @@ func (x Mask8s) And(y Mask8s) (z Mask8s) {
 	return Mask8s{a: x.a & y.a, b: x.b & y.b}
 }
 
+// AndNot returns the bitwise ANDNOT of x and y.
+func (x Mask8s) AndNot(y Mask8s) Mask8s {
+	return Mask8s{a: x.a &^ y.a, b: x.b &^ y.b}
+}
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask8s) Or(y Mask8s) (z Mask8s) {
 	return Mask8s{a: x.a | y.a, b: x.b | y.b}
+}
+
+// Xor returns the bitwise XOR of x and y.
+func (x Mask8s) Xor(y Mask8s) Mask8s {
+	return Mask8s{a: x.a ^ y.a, b: x.b ^ y.b}
 }
 
 // String returns a string representation of the vector.
@@ -3584,11 +3594,21 @@ func (x Mask16s) And(y Mask16s) (z Mask16s) {
 	return Mask16s{a: x.a & y.a, b: x.b & y.b}
 }
 
+// AndNot returns the bitwise ANDNOT of x and y.
+func (x Mask16s) AndNot(y Mask16s) Mask16s {
+	return Mask16s{a: x.a &^ y.a, b: x.b &^ y.b}
+}
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask16s) Or(y Mask16s) (z Mask16s) {
 	return Mask16s{a: x.a | y.a, b: x.b | y.b}
+}
+
+// Xor returns the bitwise XOR of x and y.
+func (x Mask16s) Xor(y Mask16s) Mask16s {
+	return Mask16s{a: x.a ^ y.a, b: x.b ^ y.b}
 }
 
 // String returns a string representation of the vector.
@@ -3623,11 +3643,21 @@ func (x Mask32s) And(y Mask32s) (z Mask32s) {
 	return Mask32s{a: x.a & y.a, b: x.b & y.b}
 }
 
+// AndNot returns the bitwise ANDNOT of x and y.
+func (x Mask32s) AndNot(y Mask32s) Mask32s {
+	return Mask32s{a: x.a &^ y.a, b: x.b &^ y.b}
+}
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask32s) Or(y Mask32s) (z Mask32s) {
 	return Mask32s{a: x.a | y.a, b: x.b | y.b}
+}
+
+// Xor returns the bitwise XOR of x and y.
+func (x Mask32s) Xor(y Mask32s) Mask32s {
+	return Mask32s{a: x.a ^ y.a, b: x.b ^ y.b}
 }
 
 // String returns a string representation of the vector.
@@ -3660,11 +3690,21 @@ func (x Mask64s) And(y Mask64s) (z Mask64s) {
 	return Mask64s{a: x.a & y.a, b: x.b & y.b}
 }
 
+// AndNot returns the bitwise ANDNOT of x and y.
+func (x Mask64s) AndNot(y Mask64s) Mask64s {
+	return Mask64s{a: x.a &^ y.a, b: x.b &^ y.b}
+}
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask64s) Or(y Mask64s) (z Mask64s) {
 	return Mask64s{a: x.a | y.a, b: x.b | y.b}
+}
+
+// Xor returns the bitwise XOR of x and y.
+func (x Mask64s) Xor(y Mask64s) Mask64s {
+	return Mask64s{a: x.a ^ y.a, b: x.b ^ y.b}
 }
 
 // String returns a string representation of the vector.

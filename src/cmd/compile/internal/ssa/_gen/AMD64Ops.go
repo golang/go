@@ -1540,6 +1540,11 @@ func init() {
 		{name: "KANDD", argLength: 2, reg: k2k, asm: "KANDD", typ: "Mask"},
 		{name: "KANDQ", argLength: 2, reg: k2k, asm: "KANDQ", typ: "Mask"},
 
+		{name: "KANDNB", argLength: 2, reg: k2k, asm: "KANDNB", typ: "Mask"},
+		{name: "KANDNW", argLength: 2, reg: k2k, asm: "KANDNW", typ: "Mask"},
+		{name: "KANDND", argLength: 2, reg: k2k, asm: "KANDND", typ: "Mask"},
+		{name: "KANDNQ", argLength: 2, reg: k2k, asm: "KANDNQ", typ: "Mask"},
+
 		{name: "KORB", argLength: 2, reg: k2k, asm: "KORB", typ: "Mask"},
 		{name: "KORW", argLength: 2, reg: k2k, asm: "KORW", typ: "Mask"},
 		{name: "KORD", argLength: 2, reg: k2k, asm: "KORD", typ: "Mask"},

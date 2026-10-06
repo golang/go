@@ -1198,6 +1198,13 @@ func (x Uint8x16) Not() (z Uint8x16)
 //	z[i] = ^x[i]
 //
 // Asm: V128Not
+func (x Mask8x16) Not() (z Mask8x16)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: V128Not
 func (x Int16x8) Not() (z Int16x8)
 
 // Not returns the bitwise negation of x.
@@ -1206,6 +1213,13 @@ func (x Int16x8) Not() (z Int16x8)
 //
 // Asm: V128Not
 func (x Uint16x8) Not() (z Uint16x8)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: V128Not
+func (x Mask16x8) Not() (z Mask16x8)
 
 // Not returns the bitwise negation of x.
 //
@@ -1226,6 +1240,13 @@ func (x Uint32x4) Not() (z Uint32x4)
 //	z[i] = ^x[i]
 //
 // Asm: V128Not
+func (x Mask32x4) Not() (z Mask32x4)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: V128Not
 func (x Int64x2) Not() (z Int64x2)
 
 // Not returns the bitwise negation of x.
@@ -1234,6 +1255,13 @@ func (x Int64x2) Not() (z Int64x2)
 //
 // Asm: V128Not
 func (x Uint64x2) Not() (z Uint64x2)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: V128Not
+func (x Mask64x2) Not() (z Mask64x2)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
