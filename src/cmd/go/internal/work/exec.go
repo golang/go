@@ -23,6 +23,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"maps"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -1785,11 +1786,51 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// It seems better to let the flags disable export analysis too.
 	fmt.Fprintf(h, "vetflags %q\n", vetFlags)
 
-	fmt.Fprintf(h, "pkg %q\n", a.Deps[0].actionID)
+	fmt.Fprintf(h, "importPath %s\n", vcfg.ImportPath)
+	fmt.Fprintf(h, "compiler %s\n", vcfg.Compiler)
+	fmt.Fprintf(h, "goVersion %s\n", vcfg.GoVersion)
+	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+	if !strings.HasPrefix(vcfg.Dir, b.WorkDir) {
+		fmt.Fprintf(h, "dir %s\n", vcfg.Dir)
+	}
+	if vcfg.Module != nil {
+		fmt.Fprintf(h, "module ")
+		if err := json.NewEncoder(h).Encode(vcfg.Module); err != nil {
+			return fmt.Errorf("internal error marshaling vet module: %v", err)
+		}
+	}
+	for _, k := range slices.Sorted(maps.Keys(vcfg.ImportMap)) {
+		fmt.Fprintf(h, "importmap %q %q\n", k, vcfg.ImportMap[k])
+	}
+	for _, k := range slices.Sorted(maps.Keys(vcfg.Standard)) {
+		fmt.Fprintf(h, "standard %q %v\n", k, vcfg.Standard[k])
+	}
+	hashFile := func(kind, file string) {
+		sum, err := cache.FileHash(mkAbs(vetDir, file))
+		if err == nil {
+			fmt.Fprintf(h, "%s %q %s\n", kind, file, buildid.HashToString(sum))
+		} else {
+			fmt.Fprintf(h, "%s %q\n", kind, file)
+		}
+	}
+	for _, file := range vcfg.GoFiles {
+		hashFile("gofile", file)
+	}
+	for _, file := range vcfg.NonGoFiles {
+		hashFile("nongofile", file)
+	}
+	for _, file := range vcfg.IgnoredFiles {
+		hashFile("ignored", file)
+	}
 	for _, a1 := range a.Deps {
-		if a1.Mode == "vet" && a1.built != "" {
-			fmt.Fprintf(h, "vetout %q %s\n", a1.Package.ImportPath, b.fileHash(a1.built))
-			vcfg.PackageVetx[a1.Package.ImportPath] = a1.built
+		switch a1.Mode {
+		case "cgo run":
+			fmt.Fprintf(h, "%s %x\n", a1.Mode, a1.actionID)
+		case "vet":
+			if a1.built != "" {
+				fmt.Fprintf(h, "vetout %q %s\n", a1.Package.ImportPath, b.fileHash(a1.built))
+				vcfg.PackageVetx[a1.Package.ImportPath] = a1.built
+			}
 		}
 	}
 	var (

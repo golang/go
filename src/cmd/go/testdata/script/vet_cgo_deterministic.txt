@@ -19,6 +19,11 @@ env GODEBUG=
 ! go vet ./bad
 stderr '^bad[/\\]bad\.go:9:\d+: fmt\.Sprintf format %d has arg "x" of wrong type string$'
 
+# 'go test -cover' on a cgo package reuses the uncovered vet cache entry.
+go test ./c
+go test -x -cover ./c
+! stderr '[/\\]vet'$GOEXE'["]? '
+
 -- go.mod --
 module m
 

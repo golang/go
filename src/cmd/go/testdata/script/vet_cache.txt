@@ -21,6 +21,14 @@ go vet example.com/b
 ! go vet example.com/a
 stderr 'fmt.Sprint call has possible Printf formatting directive'
 
+# Overlays mapping the same package file to different backing paths
+# must not share cached diagnostics even when file contents match.
+env GOCACHE=$WORK/gocache3
+! go vet -overlay=ov1.json example.com/a
+stderr 'ov1[/\\]a\.go:'
+! go vet -overlay=ov2.json example.com/a
+stderr 'ov2[/\\]a\.go:'
+
 -- go.mod --
 module example.com
 
@@ -35,3 +43,20 @@ var _ = fmt.Sprint("%s") // oops!
 package b
 
 import _ "example.com/a"
+
+-- ov1.json --
+{"Replace": {"a/a.go": "ov1/a.go"}}
+-- ov2.json --
+{"Replace": {"a/a.go": "ov2/a.go"}}
+-- ov1/a.go --
+package a
+
+import "fmt"
+
+var _ = fmt.Sprint("%s") // oops!
+-- ov2/a.go --
+package a
+
+import "fmt"
+
+var _ = fmt.Sprint("%s") // oops!
