@@ -27,6 +27,10 @@ env CGO_ENABLED=bindings
 go list -export -json b.go
 cp stdout out.json
 
+# Combining -compiled -cover -export must not feed covered files to export.
+go list -compiled -cover -export -json b.go
+cp stdout out_cover.json
+
 # Verify that CompiledGoFiles[len(GoFiles)] is _cgo_gotypes.go for cgo binding
 # packages (relied on by x/tools/go/packages TypecheckCgo).
 go list -compiled -f '{{println (len .GoFiles) (len .CgoFiles) (len .CompiledGoFiles)}}{{index .CompiledGoFiles 1}}' b.go b_plain.go
@@ -35,6 +39,8 @@ cp stdout compiled.txt
 
 wait
 exec ./q$GOEXE out.json compiled.txt
+stdout 'func\(\w+ \*byte\) int32'
+exec ./q$GOEXE out_cover.json
 stdout 'func\(\w+ \*byte\) int32'
 
 -- b.go --
@@ -93,6 +99,9 @@ func main() {
 	}
 	fmt.Println(pkg.Scope().Lookup("V").Type())
 
+	if len(os.Args) < 3 {
+		return
+	}
 	compiled, err := os.ReadFile(os.Args[2])
 	if err != nil {
 		log.Fatal(err)

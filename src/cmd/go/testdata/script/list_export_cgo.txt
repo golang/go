@@ -9,6 +9,13 @@ cp stdout out.json
 go run q.go out.json
 stdout '_Ctype_int'
 
+# ExportAction must not depend on coverage-instrumented cgo outputs when
+# -compiled -cover -export are combined.
+go list -compiled -cover -export -json p.go
+cp stdout out_cover.json
+go run q.go out_cover.json
+stdout '_Ctype_int'
+
 -- p.go --
 package p
 

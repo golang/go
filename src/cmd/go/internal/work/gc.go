@@ -307,8 +307,25 @@ func (a *Action) trimpath() string {
 	// The trimmed paths are a little different, but we need to trim in the
 	// same situations.
 
-	// Strip the object directory entirely.
+	// Strip the object directories of this action and any cover or cgo actions
+	// that generate source files compiled or assembled here.
 	objdir := strings.TrimSuffix(a.Objdir, string(filepath.Separator))
+	objdirs := []string{objdir}
+	deps := a.Deps
+	if a.Mode == "build" && len(a.Deps) > 0 {
+		deps = a.Deps[0].Deps
+	}
+	for _, dep := range deps {
+		switch dep.Mode {
+		case "cover", "cgo run", "collect cgo":
+			if dep.Objdir != "" && dep.Objdir != a.Objdir {
+				d := strings.TrimSuffix(dep.Objdir, string(filepath.Separator))
+				if !slices.Contains(objdirs, d) {
+					objdirs = append(objdirs, d)
+				}
+			}
+		}
+	}
 	rewrite := ""
 
 	rewriteDir := a.Package.Dir
@@ -359,7 +376,9 @@ func (a *Action) trimpath() string {
 				// Generate rewrites for non-Go files copied to files in objdir.
 				if filepath.Dir(path) == a.Package.Dir {
 					// This is a file copied to objdir.
-					overlayNonGoRewrites += filepath.Join(objdir, base) + "=>" + filepath.Join(rewriteDir, base) + ";"
+					for _, d := range objdirs {
+						overlayNonGoRewrites += filepath.Join(d, base) + "=>" + filepath.Join(rewriteDir, base) + ";"
+					}
 				}
 			} else {
 				// Non-overlay Go files are covered by the a.Package.Dir rewrite rule above.
@@ -369,7 +388,12 @@ func (a *Action) trimpath() string {
 	if hasCgoOverlay {
 		rewrite += overlayNonGoRewrites
 	}
-	rewrite += objdir + "=>"
+	for i, d := range objdirs {
+		if i > 0 {
+			rewrite += ";"
+		}
+		rewrite += d + "=>"
+	}
 
 	return rewrite
 }
