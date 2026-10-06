@@ -22,7 +22,7 @@ digraph spectransition {
   "width" [label="width\nResolve scalable width", fillcolor="#dce9f7", color="#999999"];
   "fill-enforce" [label="fill-enforce\nSignature + name\nmismatch becomes an\nerror", fillcolor="#d9f2e2", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "fill-gen" [label="fill-gen\nWire specfill into the\ngenerators", fillcolor="#d9f2e2", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
-  "gen-docs" [label="gen-docs\nInject spec docs into\ngenerated output", fillcolor="#d9f2e2", color="#999999"];
+  "gen-docs" [label="gen-docs\nInject spec docs into\ngenerated output", fillcolor="#d9f2e2", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "named-results" [label="named-results\nReconcile parameter\nand result names with\nspec", fillcolor="#d9f2e2", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "specfill" [label="specfill\nAPI walker + report\nmode", fillcolor="#d9f2e2", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "ci-audit" [label="ci-audit\nCI/hardware audit", fillcolor="#fbe6cd", color="#999999"];

@@ -460,7 +460,7 @@ wherever its prerequisites and track allow.
 | [x] | B | `specfill` | API walker + report mode | — | — |
 | [x] | B | `fill-gen` | Wire `specfill` into the generators | `specfill` | — |
 | [x] | B | `named-results` | Reconcile parameter and result names with spec | `fill-gen` | — |
-| [ ] | B | `gen-docs` | Inject spec docs into generated output | `fill-gen` | `named-results` |
+| [x] | B | `gen-docs` | Inject spec docs into generated output | `fill-gen` | `named-results` |
 | [x] | B | `fill-enforce` | Signature + name mismatch becomes an error | `named-results` | — |
 | [ ] | C | `ci-audit` | CI/hardware audit | — | — |
 | [ ] | C | `conform-fixed` | Conformance harness, fixed-width types | `ci-audit` | `specfill` |
@@ -904,7 +904,7 @@ Fill unnamed arguments in hand-written files with `specfill -w -no-fill-doc`.
 and the generators run without `NoFillNames` or `AllowNameMismatches`.
 
 ### `gen-docs` — Inject spec docs into generated output
-**Done:** [ ] · **Needs:** `fill-gen` · **Prefers:** `named-results` · **Blocks:** `comments-yaml`, `handwritten-fill`, `template-docs` · **Risk:** `risk-silent-doc-loss`
+**Done:** [x] · **Needs:** `fill-gen` · **Prefers:** `named-results` · **Blocks:** `comments-yaml`, `handwritten-fill`, `template-docs` · **Risk:** `risk-silent-doc-loss`
 
 Turn on doc injection in the generators by dropping `NoFillDoc`. Generators keep
 setting `AllowDocRewrite` until `template-docs` removes their own prose.
