@@ -828,7 +828,7 @@ func (t dsnConnector) Driver() driver.Driver {
 //
 // OpenDB may just validate its arguments without creating a connection
 // to the database. To verify that the data source name is valid, call
-// [DB.Ping].
+// [DB.PingContext].
 //
 // The returned [DB] is safe for concurrent use by multiple goroutines
 // and maintains its own pool of idle connections. Thus, the OpenDB
@@ -859,7 +859,7 @@ func OpenDB(c driver.Connector) *DB {
 //
 // Open may just validate its arguments without creating a connection
 // to the database. To verify that the data source name is valid, call
-// [DB.Ping].
+// [DB.PingContext].
 //
 // The returned [DB] is safe for concurrent use by multiple goroutines
 // and maintains its own pool of idle connections. Thus, the Open
@@ -2408,7 +2408,7 @@ func (tx *Tx) Rollback() error {
 // The returned statement operates within the transaction and will be closed
 // when the transaction has been committed or rolled back.
 //
-// To use an existing prepared statement on this transaction, see [Tx.Stmt].
+// To use an existing prepared statement on this transaction, see [Tx.StmtContext].
 //
 // The provided context will be used for the preparation of the context, not
 // for the execution of the returned statement. The returned statement
