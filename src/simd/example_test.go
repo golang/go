@@ -137,20 +137,20 @@ func ExampleInt16s_ShiftAllLeft() {
 	// Output: [4 8 16 32 64 128 256 512]
 }
 
-func ExampleInt16s_RotateAllLeft() {
-	// Int16s on 512-bit vector has 32 elements.
-	in := []int16{
+func ExampleUint16s_RotateAllLeft() {
+	// Uint16s on 512-bit vector has 32 elements.
+	in := []uint16{
 		0x00f0, 0x1234, 0, 0, 0, 0, 0, 0x7000,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 	}
-	v := simd.LoadInt16s(in)
+	v := simd.LoadUint16s(in)
 
 	// Rotate all elements left by 4 bits.
 	res := v.RotateAllLeft(4)
 
-	out := make([]int16, res.Len())
+	out := make([]uint16, res.Len())
 	res.Store(out)
 
 	fmt.Printf("%#04x\n", out[:8])

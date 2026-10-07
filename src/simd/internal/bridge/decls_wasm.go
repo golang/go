@@ -356,14 +356,6 @@ func (x Int16x8) ReduceSum() int16 {
 	return (archsimd.Int16x8(x)).ReduceSum()
 }
 
-func (x Int16x8) RotateAllLeft(shift uint64) Int16x8 {
-	return Int16x8((archsimd.Int16x8(x)).RotateAllLeft(shift))
-}
-
-func (x Int16x8) RotateAllRight(shift uint64) Int16x8 {
-	return Int16x8((archsimd.Int16x8(x)).RotateAllRight(shift))
-}
-
 func (x Int16x8) ShiftAllLeft(y uint64) Int16x8 {
 	return Int16x8((archsimd.Int16x8(x)).ShiftAllLeft(y))
 }
@@ -492,14 +484,6 @@ func (x Int32x4) ReduceSum() int32 {
 	return (archsimd.Int32x4(x)).ReduceSum()
 }
 
-func (x Int32x4) RotateAllLeft(shift uint64) Int32x4 {
-	return Int32x4((archsimd.Int32x4(x)).RotateAllLeft(shift))
-}
-
-func (x Int32x4) RotateAllRight(shift uint64) Int32x4 {
-	return Int32x4((archsimd.Int32x4(x)).RotateAllRight(shift))
-}
-
 func (x Int32x4) ShiftAllLeft(y uint64) Int32x4 {
 	return Int32x4((archsimd.Int32x4(x)).ShiftAllLeft(y))
 }
@@ -598,14 +582,6 @@ func (x Int64x2) NotEqual(y Int64x2) Mask64x2 {
 
 func (x Int64x2) Or(y Int64x2) Int64x2 {
 	return Int64x2((archsimd.Int64x2(x)).Or(archsimd.Int64x2(y)))
-}
-
-func (x Int64x2) RotateAllLeft(shift uint64) Int64x2 {
-	return Int64x2((archsimd.Int64x2(x)).RotateAllLeft(shift))
-}
-
-func (x Int64x2) RotateAllRight(shift uint64) Int64x2 {
-	return Int64x2((archsimd.Int64x2(x)).RotateAllRight(shift))
 }
 
 func (x Int64x2) ShiftAllLeft(y uint64) Int64x2 {

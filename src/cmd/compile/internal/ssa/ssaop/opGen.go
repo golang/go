@@ -8475,40 +8475,20 @@ const (
 	OpReciprocalSqrtFloat64x2
 	OpReciprocalSqrtFloat64x4
 	OpReciprocalSqrtFloat64x8
-	OpRotateAllLeftVarInt16x8
-	OpRotateAllLeftVarInt32x4
-	OpRotateAllLeftVarInt64x2
-	OpRotateAllLeftVarInt8x16
 	OpRotateAllLeftVarUint16x8
 	OpRotateAllLeftVarUint32x4
 	OpRotateAllLeftVarUint64x2
 	OpRotateAllLeftVarUint8x16
-	OpRotateAllRightVarInt16x8
-	OpRotateAllRightVarInt32x4
-	OpRotateAllRightVarInt64x2
-	OpRotateAllRightVarInt8x16
 	OpRotateAllRightVarUint16x8
 	OpRotateAllRightVarUint32x4
 	OpRotateAllRightVarUint64x2
 	OpRotateAllRightVarUint8x16
-	OpRotateLeftInt32x16
-	OpRotateLeftInt32x4
-	OpRotateLeftInt32x8
-	OpRotateLeftInt64x2
-	OpRotateLeftInt64x4
-	OpRotateLeftInt64x8
 	OpRotateLeftUint32x16
 	OpRotateLeftUint32x4
 	OpRotateLeftUint32x8
 	OpRotateLeftUint64x2
 	OpRotateLeftUint64x4
 	OpRotateLeftUint64x8
-	OpRotateRightInt32x16
-	OpRotateRightInt32x4
-	OpRotateRightInt32x8
-	OpRotateRightInt64x2
-	OpRotateRightInt64x4
-	OpRotateRightInt64x8
 	OpRotateRightUint32x16
 	OpRotateRightUint32x4
 	OpRotateRightUint32x8
@@ -121308,26 +121288,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "RotateAllLeftVarInt16x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateAllLeftVarInt32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateAllLeftVarInt64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateAllLeftVarInt8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "RotateAllLeftVarUint16x8",
 		ArgLen:  2,
 		Generic: true,
@@ -121348,26 +121308,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "RotateAllRightVarInt16x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateAllRightVarInt32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateAllRightVarInt64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateAllRightVarInt8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "RotateAllRightVarUint16x8",
 		ArgLen:  2,
 		Generic: true,
@@ -121384,36 +121324,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "RotateAllRightVarUint8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateLeftInt32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateLeftInt32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateLeftInt32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateLeftInt64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateLeftInt64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateLeftInt64x8",
 		ArgLen:  2,
 		Generic: true,
 	},
@@ -121444,36 +121354,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "RotateLeftUint64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateRightInt32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateRightInt32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateRightInt32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateRightInt64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateRightInt64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "RotateRightInt64x8",
 		ArgLen:  2,
 		Generic: true,
 	},

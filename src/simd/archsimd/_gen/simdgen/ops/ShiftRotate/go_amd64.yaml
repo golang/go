@@ -148,33 +148,33 @@
     class: immediate
     immOffset: 0
     name: shift
-  - *any
+  - *uint
   out:
-  - *any
+  - *uint
 - go: rotateAllRight
   nameAndSizeCheck: true
   asm: "VPROR[DQ]"
   in:
   - *pureImm
-  - *any
+  - *uint
   out:
-  - *any
+  - *uint
 - go: RotateLeft
   nameAndSizeCheck: true
   asm: "VPROLV[DQ]"
   in:
-  - *any
-  - *any
+  - *uint
+  - *uint
   out:
-  - *any
+  - *uint
 - go: RotateRight
   nameAndSizeCheck: true
   asm: "VPRORV[DQ]"
   in:
-  - *any
-  - *any
+  - *uint
+  - *uint
   out:
-  - *any
+  - *uint
 
 # Bizzare shifts.
 - go: ShiftAllLeftConcatMod16

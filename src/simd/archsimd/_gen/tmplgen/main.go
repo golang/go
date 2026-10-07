@@ -245,19 +245,9 @@ var avx2UnsignedComparisons = &shapes{
 }
 
 // The shift-all shapes are for rotate emulation
-var amdIntShiftAllShapes = &shapes{
-	vecs: []int{128, 256, 512},
-	ints: []int{16, 32, 64}, // has 32 and 64 rotate on AVX512 that is too hard to use, and no 8-bit shiftall
-}
-
 var amdUintShiftAllShapes = &shapes{
 	vecs:  []int{128, 256, 512},
 	uints: []int{16, 32, 64}, // has 32 and 64 rotate on AVX512 that is too hard to use, and no 8-bit shiftall
-}
-
-var neonIntShiftAllShapes = &shapes{
-	vecs: []int{128},
-	ints: []int{8, 16, 32, 64},
 }
 
 var neonUintShiftAllShapes = &shapes{
@@ -925,27 +915,7 @@ func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 }
 `)
 
-var intRotateAllTemplate = sgutil.TemplateNamed("intRotateAll", `
-// RotateAllLeft rotates all elements left by the specified amount
-//
-// Emulated
-func (x {{.VType}}) RotateAllLeft(dist uint64) {{.VType}} {
-	dist = dist & ({{.EWidth}}-1)
-	ndist := {{.EWidth}} - dist
-	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt{{.EWidth}}()
-}
-
-// RotateAllRight rotates all elements right by the specified amount
-//
-// Emulated
-func (x {{.VType}}) RotateAllRight(dist uint64) {{.VType}} {
-	dist = dist & ({{.EWidth}}-1)
-	ndist := {{.EWidth}} - dist
-	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt{{.EWidth}}()
-}
-`)
-
-var uintRotateAllTemplate = sgutil.TemplateNamed("intRotateAll", `
+var uintRotateAllTemplate = sgutil.TemplateNamed("uintRotateAll", `
 // RotateAllLeft rotates all elements left by the specified amount
 //
 // Emulated
@@ -1455,7 +1425,6 @@ func main() {
 			bitWiseUintTemplate,
 			stringTemplate,
 			maskToString,
-			shapeAndTemplate{amdIntShiftAllShapes, intRotateAllTemplate},
 			shapeAndTemplate{amdUintShiftAllShapes, uintRotateAllTemplate},
 		)
 	}
@@ -1507,7 +1476,6 @@ func main() {
 			stringTemplateArm64,
 			getHiTemplateArm64,
 			arm64MaskCvtTemplate,
-			shapeAndTemplate{neonIntShiftAllShapes, intRotateAllTemplate},
 			shapeAndTemplate{neonUintShiftAllShapes, uintRotateAllTemplate},
 			reduceSumTemplateArm64,
 			reduceMinMaxTemplateArm64)

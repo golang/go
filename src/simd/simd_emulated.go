@@ -651,30 +651,6 @@ func (x Int16s) ShiftAllRight(y uint64) Int16s {
 	return res
 }
 
-// RotateAllLeft rotates all elements left by dist bits.
-func (x Int16s) RotateAllLeft(dist uint64) Int16s {
-	var res Int16s
-	d := dist & 15
-	for i := 0; i < 8; i++ {
-		u := uint16(x.get(i))
-		r := (u << d) | (u >> ((16 - d) & 15))
-		res.set(i, int16(r))
-	}
-	return res
-}
-
-// RotateAllRight rotates all elements right by dist bits.
-func (x Int16s) RotateAllRight(dist uint64) Int16s {
-	var res Int16s
-	d := dist & 15
-	for i := 0; i < 8; i++ {
-		u := uint16(x.get(i))
-		r := (u >> d) | (u << ((16 - d) & 15))
-		res.set(i, int16(r))
-	}
-	return res
-}
-
 // ReduceSum returns the scalar sum of the elements of x.
 func (x Int16s) ReduceSum() int16 {
 	var res int16
@@ -1009,30 +985,6 @@ func (x Int32s) ShiftAllRight(y uint64) Int32s {
 	return res
 }
 
-// RotateAllLeft rotates all elements left by dist bits.
-func (x Int32s) RotateAllLeft(dist uint64) Int32s {
-	var res Int32s
-	d := dist & 31
-	for i := 0; i < 4; i++ {
-		u := uint32(x.get(i))
-		r := (u << d) | (u >> ((32 - d) & 31))
-		res.set(i, int32(r))
-	}
-	return res
-}
-
-// RotateAllRight rotates all elements right by dist bits.
-func (x Int32s) RotateAllRight(dist uint64) Int32s {
-	var res Int32s
-	d := dist & 31
-	for i := 0; i < 4; i++ {
-		u := uint32(x.get(i))
-		r := (u >> d) | (u << ((32 - d) & 31))
-		res.set(i, int32(r))
-	}
-	return res
-}
-
 // ReduceSum returns the scalar sum of the elements of x.
 func (x Int32s) ReduceSum() int32 {
 	var res int32
@@ -1257,24 +1209,6 @@ func (x Int64s) Or(y Int64s) Int64s {
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Int64s) ShiftAllLeft(y uint64) Int64s {
 	return Int64s{a: x.a << y, b: x.b << y}
-}
-
-// RotateAllLeft rotates all elements left by dist bits.
-func (x Int64s) RotateAllLeft(dist uint64) Int64s {
-	d := dist & 63
-	return Int64s{
-		a: (x.a << d) | (x.a >> ((64 - d) & 63)),
-		b: (x.b << d) | (x.b >> ((64 - d) & 63)),
-	}
-}
-
-// RotateAllRight rotates all elements right by dist bits.
-func (x Int64s) RotateAllRight(dist uint64) Int64s {
-	d := dist & 63
-	return Int64s{
-		a: (x.a >> d) | (x.a << ((64 - d) & 63)),
-		b: (x.b >> d) | (x.b << ((64 - d) & 63)),
-	}
 }
 
 // Store stores the vector elements into the slice s.

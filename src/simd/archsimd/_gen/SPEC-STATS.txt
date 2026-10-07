@@ -13,7 +13,7 @@ String and Len are excluded throughout (§2.7).
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)           777 / 2931   27%  [spec-common, spec-all]
+spec coverage, by (receiver, name) (§1)           777 / 2893   27%  [spec-common, spec-all]
 docs sourced from spec (§3)                        76 / 1301    6%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
@@ -22,31 +22,31 @@ type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
 hand-written doc conflicts with spec (§3)         157 -> 0       [doc-triage]
-simd mirror drift (§3)                             59 -> 0       [comments-yaml]
+simd mirror drift (§3)                             53 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
 midway/comments.yaml entries spec covers (§4)      26 -> 0       [comments-yaml, spec-all]
 
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      1559 / 5197   30%
-by (receiver, name)                               777 / 2931   27%
+by (target, receiver, name)                      1559 / 5127   30%
+by (receiver, name)                               777 / 2893   27%
 by name                                           230 / 473    49%
 
 By build configuration:
 
-  amd64                                           742 / 2692   28%
-  arm64                                           419 / 1296   32%
-  wasm                                            277 / 847    33%
-  portable                                        121 / 362    33%
+  amd64                                           742 / 2656   28%
+  arm64                                           419 / 1282   33%
+  wasm                                            277 / 833    33%
+  portable                                        121 / 356    34%
 
 By generator (declarations per tool, counted once per tool per pair):
 
-  hand-written                                    145 / 551    26%
-  midway                                          121 / 366    33%
-  simdgen                                         608 / 2223   27%
-  tmplgen                                         138 / 424    33%
-  wasmgen                                         136 / 392    35%
+  hand-written                                    145 / 545    27%
+  midway                                          121 / 360    34%
+  simdgen                                         608 / 2211   27%
+  tmplgen                                         138 / 404    34%
+  wasmgen                                         136 / 384    35%
 
 High-drift-risk names (emitted by >1 generator):
 
@@ -78,7 +78,7 @@ API consistency across targets (the "one meaning" invariant), for
 argument agrees with any name:
 
   divergent parameter or result types               0 -> 0       [fill-enforce]
-  divergent parameter names                        42 -> 0       [fill-enforce, spec-all]
+  divergent parameter names                        34 -> 0       [fill-enforce, spec-all]
   divergent result names                            0 -> 0       [named-results]
 
 
@@ -97,8 +97,8 @@ hand-written doc conflicts with spec              157 -> 0       [doc-triage]
     archsimd/slicepart_arm64.go                    12 -> 0       [doc-triage]
     archsimd/slicepart_wasm.go                     12 -> 0       [doc-triage]
     simd_emulated.go                              121 -> 0       [doc-triage]
-drifted docs in simd mirror (stubs vs emulated)    59 -> 0       [comments-yaml]
-  mirrored declarations                           362
+drifted docs in simd mirror (stubs vs emulated)    53 -> 0       [comments-yaml]
+  mirrored declarations                           356
 
 
 ## 4. Retiring the old inputs
@@ -141,7 +141,7 @@ spec operations implemented nowhere                 0 -> 0       [spec-all]
     (none)
 
 Every name either side defines, less the 243 spec has never defined at all
-(2146 receivers, counted as coverage in §1 rather than disagreement):
+(2108 receivers, counted as coverage in §1 rather than disagreement):
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)

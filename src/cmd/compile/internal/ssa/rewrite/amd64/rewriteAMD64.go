@@ -5885,24 +5885,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpRotateLeft8:
 		v.Op = ssaop.OpAMD64ROLB
 		return true
-	case ssaop.OpRotateLeftInt32x16:
-		v.Op = ssaop.OpAMD64VPROLVD512
-		return true
-	case ssaop.OpRotateLeftInt32x4:
-		v.Op = ssaop.OpAMD64VPROLVD128
-		return true
-	case ssaop.OpRotateLeftInt32x8:
-		v.Op = ssaop.OpAMD64VPROLVD256
-		return true
-	case ssaop.OpRotateLeftInt64x2:
-		v.Op = ssaop.OpAMD64VPROLVQ128
-		return true
-	case ssaop.OpRotateLeftInt64x4:
-		v.Op = ssaop.OpAMD64VPROLVQ256
-		return true
-	case ssaop.OpRotateLeftInt64x8:
-		v.Op = ssaop.OpAMD64VPROLVQ512
-		return true
 	case ssaop.OpRotateLeftUint32x16:
 		v.Op = ssaop.OpAMD64VPROLVD512
 		return true
@@ -5920,24 +5902,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpRotateLeftUint64x8:
 		v.Op = ssaop.OpAMD64VPROLVQ512
-		return true
-	case ssaop.OpRotateRightInt32x16:
-		v.Op = ssaop.OpAMD64VPRORVD512
-		return true
-	case ssaop.OpRotateRightInt32x4:
-		v.Op = ssaop.OpAMD64VPRORVD128
-		return true
-	case ssaop.OpRotateRightInt32x8:
-		v.Op = ssaop.OpAMD64VPRORVD256
-		return true
-	case ssaop.OpRotateRightInt64x2:
-		v.Op = ssaop.OpAMD64VPRORVQ128
-		return true
-	case ssaop.OpRotateRightInt64x4:
-		v.Op = ssaop.OpAMD64VPRORVQ256
-		return true
-	case ssaop.OpRotateRightInt64x8:
-		v.Op = ssaop.OpAMD64VPRORVQ512
 		return true
 	case ssaop.OpRotateRightUint32x16:
 		v.Op = ssaop.OpAMD64VPRORVD512

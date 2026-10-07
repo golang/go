@@ -402,14 +402,14 @@ var ro uint64 = 2
 var roBig uint64 = 1024 + 2
 
 func TestRotateAllVariable(t *testing.T) {
-	got := make([]int32, 4)
-	archsimd.LoadInt32x4([]int32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(ro).Store(got)
+	got := make([]uint32, 4)
+	archsimd.LoadUint32x4([]uint32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(ro).Store(got)
 	for _, v := range got {
 		if v != 0b1100 {
 			t.Errorf("Want 0b1100, got %b", v)
 		}
 	}
-	archsimd.LoadInt32x4([]int32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(roBig).Store(got)
+	archsimd.LoadUint32x4([]uint32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(roBig).Store(got)
 	for _, v := range got {
 		if v != 0b1100 {
 			t.Errorf("Want 0b1100, got %b", v)
@@ -418,8 +418,8 @@ func TestRotateAllVariable(t *testing.T) {
 }
 
 func TestRotateAllConst(t *testing.T) {
-	got := make([]int32, 4)
-	archsimd.LoadInt32x4([]int32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(2).Store(got)
+	got := make([]uint32, 4)
+	archsimd.LoadUint32x4([]uint32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(2).Store(got)
 	for _, v := range got {
 		if v != 0b1100 {
 			t.Errorf("Want 0b1100, got %b", v)

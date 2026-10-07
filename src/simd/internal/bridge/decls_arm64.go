@@ -702,22 +702,6 @@ func (x Int16x8nclm) ReduceSum() int16 {
 	return (archsimd.Int16x8(x)).ReduceSum()
 }
 
-func (x Int16x8) RotateAllLeft(dist uint64) Int16x8 {
-	return Int16x8((archsimd.Int16x8(x)).RotateAllLeft(dist))
-}
-
-func (x Int16x8nclm) RotateAllLeft(dist uint64) Int16x8nclm {
-	return Int16x8nclm((archsimd.Int16x8(x)).RotateAllLeft(dist))
-}
-
-func (x Int16x8) RotateAllRight(dist uint64) Int16x8 {
-	return Int16x8((archsimd.Int16x8(x)).RotateAllRight(dist))
-}
-
-func (x Int16x8nclm) RotateAllRight(dist uint64) Int16x8nclm {
-	return Int16x8nclm((archsimd.Int16x8(x)).RotateAllRight(dist))
-}
-
 func (x Int16x8) ShiftAllLeft(y uint64) Int16x8 {
 	return Int16x8((archsimd.Int16x8(x)).ShiftAllLeft(y))
 }
@@ -974,22 +958,6 @@ func (x Int32x4nclm) ReduceSum() int32 {
 	return (archsimd.Int32x4(x)).ReduceSum()
 }
 
-func (x Int32x4) RotateAllLeft(dist uint64) Int32x4 {
-	return Int32x4((archsimd.Int32x4(x)).RotateAllLeft(dist))
-}
-
-func (x Int32x4nclm) RotateAllLeft(dist uint64) Int32x4nclm {
-	return Int32x4nclm((archsimd.Int32x4(x)).RotateAllLeft(dist))
-}
-
-func (x Int32x4) RotateAllRight(dist uint64) Int32x4 {
-	return Int32x4((archsimd.Int32x4(x)).RotateAllRight(dist))
-}
-
-func (x Int32x4nclm) RotateAllRight(dist uint64) Int32x4nclm {
-	return Int32x4nclm((archsimd.Int32x4(x)).RotateAllRight(dist))
-}
-
 func (x Int32x4) ShiftAllLeft(y uint64) Int32x4 {
 	return Int32x4((archsimd.Int32x4(x)).ShiftAllLeft(y))
 }
@@ -1188,22 +1156,6 @@ func (x Int64x2) Or(y Int64x2) Int64x2 {
 
 func (x Int64x2nclm) Or(y Int64x2nclm) Int64x2nclm {
 	return Int64x2nclm((archsimd.Int64x2(x)).Or(archsimd.Int64x2(y)))
-}
-
-func (x Int64x2) RotateAllLeft(dist uint64) Int64x2 {
-	return Int64x2((archsimd.Int64x2(x)).RotateAllLeft(dist))
-}
-
-func (x Int64x2nclm) RotateAllLeft(dist uint64) Int64x2nclm {
-	return Int64x2nclm((archsimd.Int64x2(x)).RotateAllLeft(dist))
-}
-
-func (x Int64x2) RotateAllRight(dist uint64) Int64x2 {
-	return Int64x2((archsimd.Int64x2(x)).RotateAllRight(dist))
-}
-
-func (x Int64x2nclm) RotateAllRight(dist uint64) Int64x2nclm {
-	return Int64x2nclm((archsimd.Int64x2(x)).RotateAllRight(dist))
 }
 
 func (x Int64x2) ShiftAllLeft(y uint64) Int64x2 {

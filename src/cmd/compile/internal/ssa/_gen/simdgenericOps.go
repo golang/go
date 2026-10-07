@@ -1098,40 +1098,20 @@ func simdGenericOps() []opData {
 		{name: "ReciprocalSqrtFloat64x2", argLength: 1},                                 // ARCH:amd64
 		{name: "ReciprocalSqrtFloat64x4", argLength: 1},                                 // ARCH:amd64
 		{name: "ReciprocalSqrtFloat64x8", argLength: 1},                                 // ARCH:amd64
-		{name: "RotateAllLeftVarInt8x16", argLength: 2},                                 // ARCH:wasm
-		{name: "RotateAllLeftVarInt16x8", argLength: 2},                                 // ARCH:wasm
-		{name: "RotateAllLeftVarInt32x4", argLength: 2},                                 // ARCH:wasm
-		{name: "RotateAllLeftVarInt64x2", argLength: 2},                                 // ARCH:wasm
 		{name: "RotateAllLeftVarUint8x16", argLength: 2},                                // ARCH:wasm
 		{name: "RotateAllLeftVarUint16x8", argLength: 2},                                // ARCH:wasm
 		{name: "RotateAllLeftVarUint32x4", argLength: 2},                                // ARCH:wasm
 		{name: "RotateAllLeftVarUint64x2", argLength: 2},                                // ARCH:wasm
-		{name: "RotateAllRightVarInt8x16", argLength: 2},                                // ARCH:wasm
-		{name: "RotateAllRightVarInt16x8", argLength: 2},                                // ARCH:wasm
-		{name: "RotateAllRightVarInt32x4", argLength: 2},                                // ARCH:wasm
-		{name: "RotateAllRightVarInt64x2", argLength: 2},                                // ARCH:wasm
 		{name: "RotateAllRightVarUint8x16", argLength: 2},                               // ARCH:wasm
 		{name: "RotateAllRightVarUint16x8", argLength: 2},                               // ARCH:wasm
 		{name: "RotateAllRightVarUint32x4", argLength: 2},                               // ARCH:wasm
 		{name: "RotateAllRightVarUint64x2", argLength: 2},                               // ARCH:wasm
-		{name: "RotateLeftInt32x4", argLength: 2},                                       // ARCH:amd64
-		{name: "RotateLeftInt32x8", argLength: 2},                                       // ARCH:amd64
-		{name: "RotateLeftInt32x16", argLength: 2},                                      // ARCH:amd64
-		{name: "RotateLeftInt64x2", argLength: 2},                                       // ARCH:amd64
-		{name: "RotateLeftInt64x4", argLength: 2},                                       // ARCH:amd64
-		{name: "RotateLeftInt64x8", argLength: 2},                                       // ARCH:amd64
 		{name: "RotateLeftUint32x4", argLength: 2},                                      // ARCH:amd64
 		{name: "RotateLeftUint32x8", argLength: 2},                                      // ARCH:amd64
 		{name: "RotateLeftUint32x16", argLength: 2},                                     // ARCH:amd64
 		{name: "RotateLeftUint64x2", argLength: 2},                                      // ARCH:amd64
 		{name: "RotateLeftUint64x4", argLength: 2},                                      // ARCH:amd64
 		{name: "RotateLeftUint64x8", argLength: 2},                                      // ARCH:amd64
-		{name: "RotateRightInt32x4", argLength: 2},                                      // ARCH:amd64
-		{name: "RotateRightInt32x8", argLength: 2},                                      // ARCH:amd64
-		{name: "RotateRightInt32x16", argLength: 2},                                     // ARCH:amd64
-		{name: "RotateRightInt64x2", argLength: 2},                                      // ARCH:amd64
-		{name: "RotateRightInt64x4", argLength: 2},                                      // ARCH:amd64
-		{name: "RotateRightInt64x8", argLength: 2},                                      // ARCH:amd64
 		{name: "RotateRightUint32x4", argLength: 2},                                     // ARCH:amd64
 		{name: "RotateRightUint32x8", argLength: 2},                                     // ARCH:amd64
 		{name: "RotateRightUint32x16", argLength: 2},                                    // ARCH:amd64

@@ -1000,7 +1000,7 @@ func initWasmOps() {
 	addWasmOpsDetail(sle32, s_q2, 2, mulHalf)
 	addWasmOpsDetail(ule32, u_q2, 2, mulHalf)
 
-	addWasmOpsDetail(ints, rotates, 2, rotate)
+	addWasmOpsDetail(unsigned, rotates, 2, rotate)
 
 	slices.SortFunc(wasmOps, compareWasmOps)
 

@@ -1035,14 +1035,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpPopCount8:
 		return rewriteValue_OpPopCount8(v)
-	case ssaop.OpRotateAllLeftVarInt16x8:
-		return rewriteValue_OpRotateAllLeftVarInt16x8(v)
-	case ssaop.OpRotateAllLeftVarInt32x4:
-		return rewriteValue_OpRotateAllLeftVarInt32x4(v)
-	case ssaop.OpRotateAllLeftVarInt64x2:
-		return rewriteValue_OpRotateAllLeftVarInt64x2(v)
-	case ssaop.OpRotateAllLeftVarInt8x16:
-		return rewriteValue_OpRotateAllLeftVarInt8x16(v)
 	case ssaop.OpRotateAllLeftVarUint16x8:
 		return rewriteValue_OpRotateAllLeftVarUint16x8(v)
 	case ssaop.OpRotateAllLeftVarUint32x4:
@@ -1051,14 +1043,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpRotateAllLeftVarUint64x2(v)
 	case ssaop.OpRotateAllLeftVarUint8x16:
 		return rewriteValue_OpRotateAllLeftVarUint8x16(v)
-	case ssaop.OpRotateAllRightVarInt16x8:
-		return rewriteValue_OpRotateAllRightVarInt16x8(v)
-	case ssaop.OpRotateAllRightVarInt32x4:
-		return rewriteValue_OpRotateAllRightVarInt32x4(v)
-	case ssaop.OpRotateAllRightVarInt64x2:
-		return rewriteValue_OpRotateAllRightVarInt64x2(v)
-	case ssaop.OpRotateAllRightVarInt8x16:
-		return rewriteValue_OpRotateAllRightVarInt8x16(v)
 	case ssaop.OpRotateAllRightVarUint16x8:
 		return rewriteValue_OpRotateAllRightVarUint16x8(v)
 	case ssaop.OpRotateAllRightVarUint32x4:
@@ -3331,98 +3315,6 @@ func rewriteValue_OpPopCount8(v *ssa.Value) bool {
 		return true
 	}
 }
-func rewriteValue_OpRotateAllLeftVarInt16x8(v *ssa.Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateAllLeftVarInt16x8 x y)
-	// result: (V128Or (I16x8Shl x y) (I16x8ShrU x (I64Sub (I64Const [16]) y)))
-	for {
-		x := v_0
-		y := v_1
-		v.Reset(ssaop.OpWasmV128Or)
-		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI16x8Shl, typ.Vec128)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI16x8ShrU, typ.Vec128)
-		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
-		v3.AuxInt = ssa.Int64ToAuxInt(16)
-		v2.AddArg2(v3, y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValue_OpRotateAllLeftVarInt32x4(v *ssa.Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateAllLeftVarInt32x4 x y)
-	// result: (V128Or (I32x4Shl x y) (I32x4ShrU x (I64Sub (I64Const [32]) y)))
-	for {
-		x := v_0
-		y := v_1
-		v.Reset(ssaop.OpWasmV128Or)
-		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI32x4Shl, typ.Vec128)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI32x4ShrU, typ.Vec128)
-		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
-		v3.AuxInt = ssa.Int64ToAuxInt(32)
-		v2.AddArg2(v3, y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValue_OpRotateAllLeftVarInt64x2(v *ssa.Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateAllLeftVarInt64x2 x y)
-	// result: (V128Or (I64x2Shl x y) (I64x2ShrU x (I64Sub (I64Const [64]) y)))
-	for {
-		x := v_0
-		y := v_1
-		v.Reset(ssaop.OpWasmV128Or)
-		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI64x2Shl, typ.Vec128)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI64x2ShrU, typ.Vec128)
-		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
-		v3.AuxInt = ssa.Int64ToAuxInt(64)
-		v2.AddArg2(v3, y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValue_OpRotateAllLeftVarInt8x16(v *ssa.Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateAllLeftVarInt8x16 x y)
-	// result: (V128Or (I8x16Shl x y) (I8x16ShrU x (I64Sub (I64Const [8]) y)))
-	for {
-		x := v_0
-		y := v_1
-		v.Reset(ssaop.OpWasmV128Or)
-		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI8x16Shl, typ.Vec128)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI8x16ShrU, typ.Vec128)
-		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
-		v3.AuxInt = ssa.Int64ToAuxInt(8)
-		v2.AddArg2(v3, y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
 func rewriteValue_OpRotateAllLeftVarUint16x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3506,98 +3398,6 @@ func rewriteValue_OpRotateAllLeftVarUint8x16(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI8x16Shl, typ.Vec128)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI8x16ShrU, typ.Vec128)
-		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
-		v3.AuxInt = ssa.Int64ToAuxInt(8)
-		v2.AddArg2(v3, y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValue_OpRotateAllRightVarInt16x8(v *ssa.Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateAllRightVarInt16x8 x y)
-	// result: (V128Or (I16x8ShrU x y) (I16x8Shl x (I64Sub (I64Const [16]) y)))
-	for {
-		x := v_0
-		y := v_1
-		v.Reset(ssaop.OpWasmV128Or)
-		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI16x8ShrU, typ.Vec128)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI16x8Shl, typ.Vec128)
-		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
-		v3.AuxInt = ssa.Int64ToAuxInt(16)
-		v2.AddArg2(v3, y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValue_OpRotateAllRightVarInt32x4(v *ssa.Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateAllRightVarInt32x4 x y)
-	// result: (V128Or (I32x4ShrU x y) (I32x4Shl x (I64Sub (I64Const [32]) y)))
-	for {
-		x := v_0
-		y := v_1
-		v.Reset(ssaop.OpWasmV128Or)
-		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI32x4ShrU, typ.Vec128)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI32x4Shl, typ.Vec128)
-		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
-		v3.AuxInt = ssa.Int64ToAuxInt(32)
-		v2.AddArg2(v3, y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValue_OpRotateAllRightVarInt64x2(v *ssa.Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateAllRightVarInt64x2 x y)
-	// result: (V128Or (I64x2ShrU x y) (I64x2Shl x (I64Sub (I64Const [64]) y)))
-	for {
-		x := v_0
-		y := v_1
-		v.Reset(ssaop.OpWasmV128Or)
-		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI64x2ShrU, typ.Vec128)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI64x2Shl, typ.Vec128)
-		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
-		v3.AuxInt = ssa.Int64ToAuxInt(64)
-		v2.AddArg2(v3, y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValue_OpRotateAllRightVarInt8x16(v *ssa.Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (RotateAllRightVarInt8x16 x y)
-	// result: (V128Or (I8x16ShrU x y) (I8x16Shl x (I64Sub (I64Const [8]) y)))
-	for {
-		x := v_0
-		y := v_1
-		v.Reset(ssaop.OpWasmV128Or)
-		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI8x16ShrU, typ.Vec128)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, ssaop.OpWasmI8x16Shl, typ.Vec128)
 		v2 := b.NewValue0(v.Pos, ssaop.OpWasmI64Sub, typ.Int64)
 		v3 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
 		v3.AuxInt = ssa.Int64ToAuxInt(8)
