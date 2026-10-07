@@ -52,6 +52,7 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 		c.GpRegMask = gpRegMaskAMD64
 		c.FpRegMask = fpRegMaskAMD64
 		c.SimdRegMask = simdRegMaskAMD64
+		c.SimdMaskReg = simdMaskRegAMD64
 		c.SpecialRegMask = specialRegMaskAMD64
 		c.IntParamRegs = paramIntRegAMD64
 		c.FloatParamRegs = paramFloatRegAMD64

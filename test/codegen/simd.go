@@ -216,3 +216,19 @@ func simdShuffleCopyUsesVEX(a, b archsimd.Uint64x2, n int) archsimd.Uint64x2 {
 	}
 	return x.Add(y)
 }
+
+func simdMaskSpillUsesK(z archsimd.Float32x8, m archsimd.Mask32x8, n int) archsimd.Float32x8 {
+	// The closure keeps the mask itself live across the call, so it is
+	// spilled. It must be reloaded straight into a K register, rather
+	// than into a general purpose one and moved from there.
+	_ = func() {
+		z = z.Compress(m)
+		simdOpaque()
+		// amd64:`KMOVQ [^,]*\(SP\), K[0-7]`
+		for range n {
+			// amd64:-`KMOVQ [A-Z]+, K[0-7]`
+			z = z.Compress(m)
+		}
+	}
+	return z
+}
