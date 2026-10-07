@@ -14,9 +14,17 @@ const base32alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 func Text() string {
 	// ⌈log₃₂ 2¹²⁸⌉ = 26 chars
 	src := make([]byte, 26)
-	Read(src)
-	for i := range src {
-		src[i] = base32alphabet[src[i]%32]
-	}
+	fillText(src)
 	return string(src)
+}
+
+// fillText is outlined to make Text inlineable, so that callers who don't
+// escape the returned string can avoid an allocation.
+//
+//go:noinline
+func fillText(b []byte) {
+	Read(b)
+	for i := range b {
+		b[i] = base32alphabet[b[i]%32]
+	}
 }

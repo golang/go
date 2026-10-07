@@ -5,6 +5,7 @@
 package rand_test
 
 import (
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"fmt"
 	"testing"
@@ -68,4 +69,30 @@ func indexSetTable(t *testing.T, indexSet [26]map[rune]int) {
 		}
 		t.Log(line)
 	}
+}
+
+func TestAllocations(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
+	n := int(testing.AllocsPerRun(10, func() {
+		rand.Text()
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
+	}
+}
+
+var sink string
+
+func BenchmarkText(b *testing.B) {
+	b.Run("NoEscape", func(b *testing.B) {
+		for b.Loop() {
+			rand.Text()
+		}
+	})
+
+	b.Run("Escape", func(b *testing.B) {
+		for b.Loop() {
+			sink = rand.Text()
+		}
+	})
 }
