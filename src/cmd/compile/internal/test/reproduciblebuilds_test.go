@@ -13,10 +13,17 @@ import (
 )
 
 func TestReproducibleBuilds(t *testing.T) {
-	tests := []string{
-		"issue20272.go",
-		"issue27013.go",
-		"issue30202.go",
+	tests := []struct {
+		file string
+		// Number of concurrent backend compilations. More of them exposes
+		// more of the nondeterminism that comes from the runtime scheduler,
+		// but costs more to run.
+		conc string
+	}{
+		{"issue20272.go", "2"},
+		{"issue27013.go", "2"},
+		{"issue30202.go", "2"},
+		{"issue82043.go", "16"},
 	}
 
 	testenv.MustHaveGoBuild(t)
@@ -26,7 +33,7 @@ func TestReproducibleBuilds(t *testing.T) {
 	}
 	t.Parallel()
 	for _, test := range tests {
-		t.Run(test, func(t *testing.T) {
+		t.Run(test.file, func(t *testing.T) {
 			t.Parallel()
 			var want []byte
 			tmp, err := os.CreateTemp("", "")
@@ -36,9 +43,7 @@ func TestReproducibleBuilds(t *testing.T) {
 			defer os.Remove(tmp.Name())
 			defer tmp.Close()
 			for i := 0; i < iters; i++ {
-				// Note: use -c 2 to expose any nondeterminism which is the result
-				// of the runtime scheduler.
-				out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", "2", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
+				out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", test.conc, "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test.file)).CombinedOutput()
 				if err != nil {
 					t.Fatalf("failed to compile: %v\n%s", err, out)
 				}

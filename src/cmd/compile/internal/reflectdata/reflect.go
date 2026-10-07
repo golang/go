@@ -1236,6 +1236,15 @@ func typesStrCmp(a, b typeAndStr) int {
 	if r := strings.Compare(a.regular, b.regular); r != 0 {
 		return r
 	}
+	// A type and the noalg version of it share a name, so nothing above
+	// tells them apart. Order the one that has the algorithms first: its
+	// descriptor is the one that has to survive. See #82043.
+	if an, bn := types.TypeHasNoAlg(a.t), types.TypeHasNoAlg(b.t); an != bn {
+		if bn {
+			return -1
+		}
+		return +1
+	}
 	// Identical anonymous interfaces defined in different locations
 	// will be equal for the above checks, but different in DWARF output.
 	// Sort by source position to ensure deterministic order.
