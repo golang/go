@@ -38,7 +38,9 @@
 // with the corresponding spec documentation (unless [Options.NoFillDoc] is set)
 // and fills unnamed parameters and results with canonical names from spec
 // (unless [Options.NoFillNames] is set), while preserving existing
-// implementation notes and directives unchanged. Because spec documentation is
+// implementation notes and directives unchanged, except that bare "Emulated"
+// notes are expanded with the direct public operations used by the function.
+// Because spec documentation is
 // guaranteed never to begin with an implementation note prefix, the rewrite
 // operation is idempotent: running [Fill] repeatedly on rewritten source
 // produces byte-identical output.
@@ -148,6 +150,7 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 
 	var report Report
 	var edits []textEdit
+	imports := importNames(file)
 
 	for _, d := range file.Decls {
 		fd, ok := d.(*ast.FuncDecl)
@@ -160,10 +163,17 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 			Recv: recvTypeName(fd.Recv),
 			Name: fd.Name.Name,
 		}
+		originalDoc := parseCommentGroup(fd.Doc)
+		doc := fillEmulationNote(originalDoc, fd, imports)
 
 		// Find the spec function
 		specFn := spec.Lookup(decl.Recv, decl.Name)
 		if specFn == nil {
+			if !slices.Equal(originalDoc, doc) {
+				if edit, ok := rewriteWholeDoc(fset, src, fd, doc); ok {
+					edits = append(edits, edit)
+				}
+			}
 			if opts.RejectUnknown {
 				report.UnknownDecls = append(report.UnknownDecls, UnknownDecl{decl})
 			}
@@ -175,7 +185,6 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 		//
 		// Parse the API declaration into a specgen.Func.
 
-		doc := parseCommentGroup(fd.Doc)
 		if !opts.AllowDocRewrite {
 			for _, p := range doc {
 				if p.Kind == specgen.SpecOwned {
@@ -238,7 +247,11 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 		}
 
 		// Compose replacement comment and record text edits
-		if !opts.NoFillDoc && orderErr == nil {
+		if opts.NoFillDoc && !slices.Equal(originalDoc, doc) {
+			if edit, ok := rewriteWholeDoc(fset, src, fd, doc); ok {
+				edits = append(edits, edit)
+			}
+		} else if !opts.NoFillDoc && orderErr == nil {
 			if edit, ok := rewriteDoc(fset, src, fd, doc, specFn.Doc); ok {
 				edits = append(edits, edit)
 			}
@@ -270,6 +283,21 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 		return rewritten, fmt.Errorf("formatting source: %w", err)
 	}
 	return formatted, repErr
+}
+
+func rewriteWholeDoc(fset *token.FileSet, src []byte, fd *ast.FuncDecl, doc []specgen.Paragraph) (textEdit, bool) {
+	replacementComment, err := specgen.FormatComment(doc)
+	if err != nil {
+		return textEdit{}, false
+	}
+	if fd.Doc != nil {
+		start := fset.Position(fd.Doc.Pos()).Offset
+		end := fset.Position(fd.Doc.End()).Offset + 1
+		if string(src[start:end]) != replacementComment {
+			return textEdit{start: start, end: end, text: replacementComment}, true
+		}
+	}
+	return textEdit{}, false
 }
 
 func namedArg(arg specgen.Arg) bool {

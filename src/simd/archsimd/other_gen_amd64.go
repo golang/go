@@ -7,7 +7,9 @@ package archsimd
 // BroadcastInt8x16 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastInt8x16(x int8) Int8x16 {
 	var z Int8x16
 	return z.SetElem(0, x).broadcast1To16()
@@ -16,7 +18,9 @@ func BroadcastInt8x16(x int8) Int8x16 {
 // BroadcastInt16x8 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastInt16x8(x int16) Int16x8 {
 	var z Int16x8
 	return z.SetElem(0, x).broadcast1To8()
@@ -25,7 +29,9 @@ func BroadcastInt16x8(x int16) Int16x8 {
 // BroadcastInt32x4 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastInt32x4(x int32) Int32x4 {
 	var z Int32x4
 	return z.SetElem(0, x).broadcast1To4()
@@ -34,7 +40,9 @@ func BroadcastInt32x4(x int32) Int32x4 {
 // BroadcastInt64x2 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastInt64x2(x int64) Int64x2 {
 	var z Int64x2
 	return z.SetElem(0, x).broadcast1To2()
@@ -43,7 +51,9 @@ func BroadcastInt64x2(x int64) Int64x2 {
 // BroadcastUint8x16 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastUint8x16(x uint8) Uint8x16 {
 	var z Uint8x16
 	return z.SetElem(0, x).broadcast1To16()
@@ -52,7 +62,9 @@ func BroadcastUint8x16(x uint8) Uint8x16 {
 // BroadcastUint16x8 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastUint16x8(x uint16) Uint16x8 {
 	var z Uint16x8
 	return z.SetElem(0, x).broadcast1To8()
@@ -61,7 +73,9 @@ func BroadcastUint16x8(x uint16) Uint16x8 {
 // BroadcastUint32x4 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastUint32x4(x uint32) Uint32x4 {
 	var z Uint32x4
 	return z.SetElem(0, x).broadcast1To4()
@@ -70,7 +84,9 @@ func BroadcastUint32x4(x uint32) Uint32x4 {
 // BroadcastUint64x2 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastUint64x2(x uint64) Uint64x2 {
 	var z Uint64x2
 	return z.SetElem(0, x).broadcast1To2()
@@ -79,7 +95,9 @@ func BroadcastUint64x2(x uint64) Uint64x2 {
 // BroadcastFloat32x4 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastFloat32x4(x float32) Float32x4 {
 	var z Float32x4
 	return z.SetElem(0, x).broadcast1To4()
@@ -88,7 +106,9 @@ func BroadcastFloat32x4(x float32) Float32x4 {
 // BroadcastFloat64x2 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastFloat64x2(x float64) Float64x2 {
 	var z Float64x2
 	return z.SetElem(0, x).broadcast1To2()
@@ -97,7 +117,9 @@ func BroadcastFloat64x2(x float64) Float64x2 {
 // BroadcastInt8x32 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastInt8x32(x int8) Int8x32 {
 	var z Int8x16
 	return z.SetElem(0, x).broadcast1To32()
@@ -106,7 +128,9 @@ func BroadcastInt8x32(x int8) Int8x32 {
 // BroadcastInt16x16 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastInt16x16(x int16) Int16x16 {
 	var z Int16x8
 	return z.SetElem(0, x).broadcast1To16()
@@ -115,7 +139,9 @@ func BroadcastInt16x16(x int16) Int16x16 {
 // BroadcastInt32x8 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastInt32x8(x int32) Int32x8 {
 	var z Int32x4
 	return z.SetElem(0, x).broadcast1To8()
@@ -124,7 +150,9 @@ func BroadcastInt32x8(x int32) Int32x8 {
 // BroadcastInt64x4 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastInt64x4(x int64) Int64x4 {
 	var z Int64x2
 	return z.SetElem(0, x).broadcast1To4()
@@ -133,7 +161,9 @@ func BroadcastInt64x4(x int64) Int64x4 {
 // BroadcastUint8x32 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastUint8x32(x uint8) Uint8x32 {
 	var z Uint8x16
 	return z.SetElem(0, x).broadcast1To32()
@@ -142,7 +172,9 @@ func BroadcastUint8x32(x uint8) Uint8x32 {
 // BroadcastUint16x16 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastUint16x16(x uint16) Uint16x16 {
 	var z Uint16x8
 	return z.SetElem(0, x).broadcast1To16()
@@ -151,7 +183,9 @@ func BroadcastUint16x16(x uint16) Uint16x16 {
 // BroadcastUint32x8 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastUint32x8(x uint32) Uint32x8 {
 	var z Uint32x4
 	return z.SetElem(0, x).broadcast1To8()
@@ -160,7 +194,9 @@ func BroadcastUint32x8(x uint32) Uint32x8 {
 // BroadcastUint64x4 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastUint64x4(x uint64) Uint64x4 {
 	var z Uint64x2
 	return z.SetElem(0, x).broadcast1To4()
@@ -169,7 +205,9 @@ func BroadcastUint64x4(x uint64) Uint64x4 {
 // BroadcastFloat32x8 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastFloat32x8(x float32) Float32x8 {
 	var z Float32x4
 	return z.SetElem(0, x).broadcast1To8()
@@ -178,7 +216,9 @@ func BroadcastFloat32x8(x float32) Float32x8 {
 // BroadcastFloat64x4 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: SetElem
+//
+// CPU Feature: AVX2
 func BroadcastFloat64x4(x float64) Float64x4 {
 	var z Float64x2
 	return z.SetElem(0, x).broadcast1To4()
@@ -187,7 +227,9 @@ func BroadcastFloat64x4(x float64) Float64x4 {
 // BroadcastInt8x64 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512BW
+// Emulated: SetElem
+//
+// CPU Feature: AVX512BW
 func BroadcastInt8x64(x int8) Int8x64 {
 	var z Int8x16
 	return z.SetElem(0, x).broadcast1To64()
@@ -196,7 +238,9 @@ func BroadcastInt8x64(x int8) Int8x64 {
 // BroadcastInt16x32 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512BW
+// Emulated: SetElem
+//
+// CPU Feature: AVX512BW
 func BroadcastInt16x32(x int16) Int16x32 {
 	var z Int16x8
 	return z.SetElem(0, x).broadcast1To32()
@@ -205,7 +249,9 @@ func BroadcastInt16x32(x int16) Int16x32 {
 // BroadcastInt32x16 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512F
+// Emulated: SetElem
+//
+// CPU Feature: AVX512F
 func BroadcastInt32x16(x int32) Int32x16 {
 	var z Int32x4
 	return z.SetElem(0, x).broadcast1To16()
@@ -214,7 +260,9 @@ func BroadcastInt32x16(x int32) Int32x16 {
 // BroadcastInt64x8 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512F
+// Emulated: SetElem
+//
+// CPU Feature: AVX512F
 func BroadcastInt64x8(x int64) Int64x8 {
 	var z Int64x2
 	return z.SetElem(0, x).broadcast1To8()
@@ -223,7 +271,9 @@ func BroadcastInt64x8(x int64) Int64x8 {
 // BroadcastUint8x64 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512BW
+// Emulated: SetElem
+//
+// CPU Feature: AVX512BW
 func BroadcastUint8x64(x uint8) Uint8x64 {
 	var z Uint8x16
 	return z.SetElem(0, x).broadcast1To64()
@@ -232,7 +282,9 @@ func BroadcastUint8x64(x uint8) Uint8x64 {
 // BroadcastUint16x32 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512BW
+// Emulated: SetElem
+//
+// CPU Feature: AVX512BW
 func BroadcastUint16x32(x uint16) Uint16x32 {
 	var z Uint16x8
 	return z.SetElem(0, x).broadcast1To32()
@@ -241,7 +293,9 @@ func BroadcastUint16x32(x uint16) Uint16x32 {
 // BroadcastUint32x16 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512F
+// Emulated: SetElem
+//
+// CPU Feature: AVX512F
 func BroadcastUint32x16(x uint32) Uint32x16 {
 	var z Uint32x4
 	return z.SetElem(0, x).broadcast1To16()
@@ -250,7 +304,9 @@ func BroadcastUint32x16(x uint32) Uint32x16 {
 // BroadcastUint64x8 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512F
+// Emulated: SetElem
+//
+// CPU Feature: AVX512F
 func BroadcastUint64x8(x uint64) Uint64x8 {
 	var z Uint64x2
 	return z.SetElem(0, x).broadcast1To8()
@@ -259,7 +315,9 @@ func BroadcastUint64x8(x uint64) Uint64x8 {
 // BroadcastFloat32x16 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512F
+// Emulated: SetElem
+//
+// CPU Feature: AVX512F
 func BroadcastFloat32x16(x float32) Float32x16 {
 	var z Float32x4
 	return z.SetElem(0, x).broadcast1To16()
@@ -268,7 +326,9 @@ func BroadcastFloat32x16(x float32) Float32x16 {
 // BroadcastFloat64x8 returns a vector with the input
 // x assigned to all elements of the output.
 //
-// Emulated, CPU Feature: AVX512F
+// Emulated: SetElem
+//
+// CPU Feature: AVX512F
 func BroadcastFloat64x8(x float64) Float64x8 {
 	var z Float64x2
 	return z.SetElem(0, x).broadcast1To8()
@@ -336,14 +396,18 @@ func (from Int64x8) ToMask() (to Mask64x8) {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX
 func (x Int8x16) Not() Int8x16 {
 	return x.Xor(x.Equal(x).ToInt8x16())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Sub
+//
+// CPU Feature: AVX
 func (x Int8x16) Neg() Int8x16 {
 	var zero Int8x16
 	return zero.Sub(x)
@@ -351,14 +415,18 @@ func (x Int8x16) Neg() Int8x16 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX
 func (x Int16x8) Not() Int16x8 {
 	return x.Xor(x.Equal(x).ToInt16x8())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Sub
+//
+// CPU Feature: AVX
 func (x Int16x8) Neg() Int16x8 {
 	var zero Int16x8
 	return zero.Sub(x)
@@ -366,14 +434,18 @@ func (x Int16x8) Neg() Int16x8 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX
 func (x Int32x4) Not() Int32x4 {
 	return x.Xor(x.Equal(x).ToInt32x4())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Sub
+//
+// CPU Feature: AVX
 func (x Int32x4) Neg() Int32x4 {
 	var zero Int32x4
 	return zero.Sub(x)
@@ -381,14 +453,18 @@ func (x Int32x4) Neg() Int32x4 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX
 func (x Int64x2) Not() Int64x2 {
 	return x.Xor(x.Equal(x).ToInt64x2())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Sub
+//
+// CPU Feature: AVX
 func (x Int64x2) Neg() Int64x2 {
 	var zero Int64x2
 	return zero.Sub(x)
@@ -396,14 +472,18 @@ func (x Int64x2) Neg() Int64x2 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX2
 func (x Int8x32) Not() Int8x32 {
 	return x.Xor(x.Equal(x).ToInt8x32())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Sub
+//
+// CPU Feature: AVX2
 func (x Int8x32) Neg() Int8x32 {
 	var zero Int8x32
 	return zero.Sub(x)
@@ -411,14 +491,18 @@ func (x Int8x32) Neg() Int8x32 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX2
 func (x Int16x16) Not() Int16x16 {
 	return x.Xor(x.Equal(x).ToInt16x16())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Sub
+//
+// CPU Feature: AVX2
 func (x Int16x16) Neg() Int16x16 {
 	var zero Int16x16
 	return zero.Sub(x)
@@ -426,14 +510,18 @@ func (x Int16x16) Neg() Int16x16 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX2
 func (x Int32x8) Not() Int32x8 {
 	return x.Xor(x.Equal(x).ToInt32x8())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Sub
+//
+// CPU Feature: AVX2
 func (x Int32x8) Neg() Int32x8 {
 	var zero Int32x8
 	return zero.Sub(x)
@@ -441,14 +529,18 @@ func (x Int32x8) Neg() Int32x8 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX2
 func (x Int64x4) Not() Int64x4 {
 	return x.Xor(x.Equal(x).ToInt64x4())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Sub
+//
+// CPU Feature: AVX2
 func (x Int64x4) Neg() Int64x4 {
 	var zero Int64x4
 	return zero.Sub(x)
@@ -456,14 +548,18 @@ func (x Int64x4) Neg() Int64x4 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX512
 func (x Int8x64) Not() Int8x64 {
 	return x.Xor(x.Equal(x).ToInt8x64())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Sub
+//
+// CPU Feature: AVX512
 func (x Int8x64) Neg() Int8x64 {
 	var zero Int8x64
 	return zero.Sub(x)
@@ -471,14 +567,18 @@ func (x Int8x64) Neg() Int8x64 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX512
 func (x Int16x32) Not() Int16x32 {
 	return x.Xor(x.Equal(x).ToInt16x32())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Sub
+//
+// CPU Feature: AVX512
 func (x Int16x32) Neg() Int16x32 {
 	var zero Int16x32
 	return zero.Sub(x)
@@ -486,14 +586,18 @@ func (x Int16x32) Neg() Int16x32 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX512
 func (x Int32x16) Not() Int32x16 {
 	return x.Xor(x.Equal(x).ToInt32x16())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Sub
+//
+// CPU Feature: AVX512
 func (x Int32x16) Neg() Int32x16 {
 	var zero Int32x16
 	return zero.Sub(x)
@@ -501,14 +605,18 @@ func (x Int32x16) Neg() Int32x16 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX512
 func (x Int64x8) Not() Int64x8 {
 	return x.Xor(x.Equal(x).ToInt64x8())
 }
 
 // Neg returns the element-wise negation of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Sub
+//
+// CPU Feature: AVX512
 func (x Int64x8) Neg() Int64x8 {
 	var zero Int64x8
 	return zero.Sub(x)
@@ -516,84 +624,108 @@ func (x Int64x8) Neg() Int64x8 {
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX
 func (x Uint8x16) Not() Uint8x16 {
 	return x.Xor(x.Equal(x).ToInt8x16().AsUint8x16())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX
 func (x Uint16x8) Not() Uint16x8 {
 	return x.Xor(x.Equal(x).ToInt16x8().AsUint16x8())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX
 func (x Uint32x4) Not() Uint32x4 {
 	return x.Xor(x.Equal(x).ToInt32x4().AsUint32x4())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX
 func (x Uint64x2) Not() Uint64x2 {
 	return x.Xor(x.Equal(x).ToInt64x2().AsUint64x2())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX2
 func (x Uint8x32) Not() Uint8x32 {
 	return x.Xor(x.Equal(x).ToInt8x32().AsUint8x32())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX2
 func (x Uint16x16) Not() Uint16x16 {
 	return x.Xor(x.Equal(x).ToInt16x16().AsUint16x16())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX2
 func (x Uint32x8) Not() Uint32x8 {
 	return x.Xor(x.Equal(x).ToInt32x8().AsUint32x8())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX2
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX2
 func (x Uint64x4) Not() Uint64x4 {
 	return x.Xor(x.Equal(x).ToInt64x4().AsUint64x4())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX512
 func (x Uint8x64) Not() Uint8x64 {
 	return x.Xor(x.Equal(x).ToInt8x64().AsUint8x64())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX512
 func (x Uint16x32) Not() Uint16x32 {
 	return x.Xor(x.Equal(x).ToInt16x32().AsUint16x32())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX512
 func (x Uint32x16) Not() Uint32x16 {
 	return x.Xor(x.Equal(x).ToInt32x16().AsUint32x16())
 }
 
 // Not returns the bitwise complement of x.
 //
-// Emulated, CPU Feature: AVX512
+// Emulated: Xor, Equal
+//
+// CPU Feature: AVX512
 func (x Uint64x8) Not() Uint64x8 {
 	return x.Xor(x.Equal(x).ToInt64x8().AsUint64x8())
 }
@@ -894,7 +1026,7 @@ func (x Mask64x8) String() string {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int16x8) RotateAllLeft(dist uint64) Int16x8 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -903,7 +1035,7 @@ func (x Int16x8) RotateAllLeft(dist uint64) Int16x8 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int16x8) RotateAllRight(dist uint64) Int16x8 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -912,7 +1044,7 @@ func (x Int16x8) RotateAllRight(dist uint64) Int16x8 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int32x4) RotateAllLeft(dist uint64) Int32x4 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -921,7 +1053,7 @@ func (x Int32x4) RotateAllLeft(dist uint64) Int32x4 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int32x4) RotateAllRight(dist uint64) Int32x4 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -930,7 +1062,7 @@ func (x Int32x4) RotateAllRight(dist uint64) Int32x4 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int64x2) RotateAllLeft(dist uint64) Int64x2 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -939,7 +1071,7 @@ func (x Int64x2) RotateAllLeft(dist uint64) Int64x2 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int64x2) RotateAllRight(dist uint64) Int64x2 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -948,7 +1080,7 @@ func (x Int64x2) RotateAllRight(dist uint64) Int64x2 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int16x16) RotateAllLeft(dist uint64) Int16x16 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -957,7 +1089,7 @@ func (x Int16x16) RotateAllLeft(dist uint64) Int16x16 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int16x16) RotateAllRight(dist uint64) Int16x16 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -966,7 +1098,7 @@ func (x Int16x16) RotateAllRight(dist uint64) Int16x16 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int32x8) RotateAllLeft(dist uint64) Int32x8 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -975,7 +1107,7 @@ func (x Int32x8) RotateAllLeft(dist uint64) Int32x8 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int32x8) RotateAllRight(dist uint64) Int32x8 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -984,7 +1116,7 @@ func (x Int32x8) RotateAllRight(dist uint64) Int32x8 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int64x4) RotateAllLeft(dist uint64) Int64x4 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -993,7 +1125,7 @@ func (x Int64x4) RotateAllLeft(dist uint64) Int64x4 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int64x4) RotateAllRight(dist uint64) Int64x4 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -1002,7 +1134,7 @@ func (x Int64x4) RotateAllRight(dist uint64) Int64x4 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int16x32) RotateAllLeft(dist uint64) Int16x32 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -1011,7 +1143,7 @@ func (x Int16x32) RotateAllLeft(dist uint64) Int16x32 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int16x32) RotateAllRight(dist uint64) Int16x32 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -1020,7 +1152,7 @@ func (x Int16x32) RotateAllRight(dist uint64) Int16x32 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int32x16) RotateAllLeft(dist uint64) Int32x16 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -1029,7 +1161,7 @@ func (x Int32x16) RotateAllLeft(dist uint64) Int32x16 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int32x16) RotateAllRight(dist uint64) Int32x16 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -1038,7 +1170,7 @@ func (x Int32x16) RotateAllRight(dist uint64) Int32x16 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int64x8) RotateAllLeft(dist uint64) Int64x8 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -1047,7 +1179,7 @@ func (x Int64x8) RotateAllLeft(dist uint64) Int64x8 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Int64x8) RotateAllRight(dist uint64) Int64x8 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -1056,7 +1188,7 @@ func (x Int64x8) RotateAllRight(dist uint64) Int64x8 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint16x8) RotateAllLeft(dist uint64) Uint16x8 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -1065,7 +1197,7 @@ func (x Uint16x8) RotateAllLeft(dist uint64) Uint16x8 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint16x8) RotateAllRight(dist uint64) Uint16x8 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -1074,7 +1206,7 @@ func (x Uint16x8) RotateAllRight(dist uint64) Uint16x8 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint32x4) RotateAllLeft(dist uint64) Uint32x4 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -1083,7 +1215,7 @@ func (x Uint32x4) RotateAllLeft(dist uint64) Uint32x4 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint32x4) RotateAllRight(dist uint64) Uint32x4 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -1092,7 +1224,7 @@ func (x Uint32x4) RotateAllRight(dist uint64) Uint32x4 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint64x2) RotateAllLeft(dist uint64) Uint64x2 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -1101,7 +1233,7 @@ func (x Uint64x2) RotateAllLeft(dist uint64) Uint64x2 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint64x2) RotateAllRight(dist uint64) Uint64x2 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -1110,7 +1242,7 @@ func (x Uint64x2) RotateAllRight(dist uint64) Uint64x2 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint16x16) RotateAllLeft(dist uint64) Uint16x16 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -1119,7 +1251,7 @@ func (x Uint16x16) RotateAllLeft(dist uint64) Uint16x16 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint16x16) RotateAllRight(dist uint64) Uint16x16 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -1128,7 +1260,7 @@ func (x Uint16x16) RotateAllRight(dist uint64) Uint16x16 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint32x8) RotateAllLeft(dist uint64) Uint32x8 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -1137,7 +1269,7 @@ func (x Uint32x8) RotateAllLeft(dist uint64) Uint32x8 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint32x8) RotateAllRight(dist uint64) Uint32x8 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -1146,7 +1278,7 @@ func (x Uint32x8) RotateAllRight(dist uint64) Uint32x8 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint64x4) RotateAllLeft(dist uint64) Uint64x4 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -1155,7 +1287,7 @@ func (x Uint64x4) RotateAllLeft(dist uint64) Uint64x4 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint64x4) RotateAllRight(dist uint64) Uint64x4 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -1164,7 +1296,7 @@ func (x Uint64x4) RotateAllRight(dist uint64) Uint64x4 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint16x32) RotateAllLeft(dist uint64) Uint16x32 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -1173,7 +1305,7 @@ func (x Uint16x32) RotateAllLeft(dist uint64) Uint16x32 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint16x32) RotateAllRight(dist uint64) Uint16x32 {
 	dist = dist & (16 - 1)
 	ndist := 16 - dist
@@ -1182,7 +1314,7 @@ func (x Uint16x32) RotateAllRight(dist uint64) Uint16x32 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint32x16) RotateAllLeft(dist uint64) Uint32x16 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -1191,7 +1323,7 @@ func (x Uint32x16) RotateAllLeft(dist uint64) Uint32x16 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint32x16) RotateAllRight(dist uint64) Uint32x16 {
 	dist = dist & (32 - 1)
 	ndist := 32 - dist
@@ -1200,7 +1332,7 @@ func (x Uint32x16) RotateAllRight(dist uint64) Uint32x16 {
 
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint64x8) RotateAllLeft(dist uint64) Uint64x8 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
@@ -1209,7 +1341,7 @@ func (x Uint64x8) RotateAllLeft(dist uint64) Uint64x8 {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated: ShiftAllLeft, Or, ShiftAllRight
 func (x Uint64x8) RotateAllRight(dist uint64) Uint64x8 {
 	dist = dist & (64 - 1)
 	ndist := 64 - dist
