@@ -98,10 +98,13 @@ func (f fact) archMethodKey() archMethodKey { return archMethodKey{f.target, f.p
 // runs count as one tool.
 func (f fact) tool() string { t, _, _ := strings.Cut(f.gen, "/"); return t }
 
-// nonSpecOps are the operations that will never come from spec: they are Go
-// conventions, not SIMD operations. They are excluded from the fact table, and
+// nonSpecOp reports whether name is an operation that will never come from spec:
+// they are Go conventions (String, Len) or architecture bridge operations
+// (ToArch, FromArch). They are excluded from the fact table, and
 // so from every denominator. See SPEC-TRANSITION.md §2.7.
-var nonSpecOps = map[string]bool{"String": true, "Len": true}
+func nonSpecOp(name string) bool {
+	return name == "String" || name == "Len" || name == "ToArch" || strings.HasSuffix(name, "FromArch")
+}
 
 // loadOverlay builds a packages.Config.Overlay map from the scratch overlay
 // directory if one is active.
@@ -405,13 +408,13 @@ func countMidwayComments(genDir string) (n int) {
 }
 
 // commonMethods returns the method names in comments.yaml's .common_methods
-// block, less [nonSpecOps]. That set is spec-common's scope, and the portable
+// block, less [nonSpecOp]. That set is spec-common's scope, and the portable
 // core a new architecture implements first.
 func commonMethods(genDir string) []string {
 	block := mapValue(readYAML(commentsPath(genDir)), ".common_methods")
 	var names []string
 	eachEntry(block, func(k, _ *yaml.Node) {
-		if !nonSpecOps[k.Value] {
+		if !nonSpecOp(k.Value) {
 			names = append(names, k.Value)
 		}
 	})

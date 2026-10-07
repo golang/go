@@ -6,14 +6,14 @@ Regenerate with: go run ./cmd/specstats -w
 Every fraction heads for 100%; every count heads for zero. Bracketed
 names are SPEC-TRANSITION.md tasks that move the figure. Indented,
 untagged numbers are context breaking down the figure above them.
-String and Len are excluded throughout (§2.7).
+String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 
 
 ## Summary
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)           777 / 2893   27%  [spec-common, spec-all]
+spec coverage, by (receiver, name) (§1)           777 / 2865   27%  [spec-common, spec-all]
 docs sourced from spec (§3)                      1060 / 1301   81%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
@@ -29,21 +29,21 @@ midway/comments.yaml entries spec covers (§4)      26 -> 0       [comments-yaml
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      1559 / 5127   30%
-by (receiver, name)                               777 / 2893   27%
-by name                                           230 / 473    49%
+by (target, receiver, name)                      1559 / 5043   31%
+by (receiver, name)                               777 / 2865   27%
+by name                                           230 / 458    50%
 
 By build configuration:
 
-  amd64                                           742 / 2656   28%
-  arm64                                           419 / 1282   33%
-  wasm                                            277 / 833    33%
+  amd64                                           742 / 2628   28%
+  arm64                                           419 / 1254   33%
+  wasm                                            277 / 805    34%
   portable                                        121 / 356    34%
 
 By generator (declarations per tool, counted once per tool per pair):
 
   hand-written                                    145 / 545    27%
-  midway                                          121 / 360    34%
+  midway                                          121 / 332    36%
   simdgen                                         608 / 2211   27%
   tmplgen                                         138 / 404    34%
   wasmgen                                         136 / 384    35%
@@ -140,8 +140,8 @@ spec misses receivers of a name it defines          8 -> 0       [spec-all, conv
 spec operations implemented nowhere                 0 -> 0       [spec-all]
     (none)
 
-Every name either side defines, less the 243 spec has never defined at all
-(2108 receivers, counted as coverage in §1 rather than disagreement):
+Every name either side defines, less the 228 spec has never defined at all
+(2080 receivers, counted as coverage in §1 rather than disagreement):
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)

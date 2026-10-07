@@ -142,7 +142,7 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 
 	// The fact table: one row per declaration per configuration it builds in.
 	for _, d := range api {
-		if nonSpecOps[d.name] {
+		if nonSpecOp(d.name) {
 			continue
 		}
 		m.decls = append(m.decls, d)
@@ -227,7 +227,7 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 		add(apiRecv, d.name, d.recv)
 	}
 	for p := range m.spec {
-		if !nonSpecOps[p.name] {
+		if !nonSpecOp(p.name) {
 			add(specRecv, p.name, p.recv)
 		}
 	}
