@@ -391,6 +391,23 @@ func (p *maybeTraceableChan) get() *hchan {
 	return (*hchan)(p.maybeTraceablePtr.get())
 }
 
+// sudogType describes which type of synchronization primitive a sudog is used
+// with.
+type sudogType uint8
+
+const (
+	sudogTypeNone sudogType = iota
+
+	// Channel operations, including select.
+	sudogTypeChan
+
+	// semaphores (semacquire, which transitively includes sync.Mutex/RWMutex).
+	sudogTypeSema
+
+	// sync.Cond, via runtime.notifyList.
+	sudogTypeCond
+)
+
 // sudog (pseudo-g) represents a g in a wait list, such as for sending/receiving
 // on a channel.
 //
@@ -402,6 +419,9 @@ func (p *maybeTraceableChan) get() *hchan {
 // sudogs are allocated from a special pool. Use acquireSudog and
 // releaseSudog to allocate and free them.
 type sudog struct {
+	// Which type of sudog is this. Immutable after allocation.
+	typ sudogType
+
 	// The following fields are protected by the hchan.lock of the
 	// channel this sudog is blocking on. shrinkstack depends on
 	// this for sudogs involved in channel ops.
@@ -547,23 +567,41 @@ type g struct {
 	ditWanted       bool // set if g wants to be executed with DIT enabled
 	syncSafePoint   bool // set if g is stopped at a synchronous safe point.
 	runningCleanups atomic.Bool
-	sig             uint32
-	secret          int32 // current nesting of runtime/secret.Do calls.
-	writebuf        []byte
-	sigcode0        uintptr
-	sigcode1        uintptr
-	sigpc           uintptr
-	parentGoid      uint64          // goid of goroutine that created this goroutine
-	gopc            uintptr         // pc of go statement that created this goroutine
-	ancestors       *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
-	startpc         uintptr         // pc of goroutine function
-	racectx         uintptr
-	waiting         *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
-	cgoCtxt         []uintptr      // cgo traceback context
-	labels          unsafe.Pointer // profiler labels
-	timer           *timer         // cached timer for time.Sleep
-	sleepWhen       int64          // when to sleep until
-	selectDone      atomic.Uint32  // are we participating in a select and did someone win the race?
+
+	// waiting references the synchronization primitives that g is
+	// currently or soon waiting on.
+	//
+	// For sudogTypeChan: waiting.elem refers to the src/dst location for
+	// the channel operation. sudog.waitlink forms a linked list of
+	// channels the G is waiting on (that have a valid elem pointer), in
+	// lock order.
+	//
+	// For sudogTypeSema: waiting.elem refers to the semaphore the G is
+	// waiting on.
+	//
+	// For sudogTypeCond: waiting.elem refers to the notifyList the G is
+	// waiting on.
+	//
+	// Note that waiting need not be set atomically with parking. Thus the
+	// G may be preempted with waiting set.
+	waiting *sudog
+
+	sig        uint32
+	secret     int32 // current nesting of runtime/secret.Do calls.
+	writebuf   []byte
+	sigcode0   uintptr
+	sigcode1   uintptr
+	sigpc      uintptr
+	parentGoid uint64          // goid of goroutine that created this goroutine
+	gopc       uintptr         // pc of go statement that created this goroutine
+	ancestors  *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
+	startpc    uintptr         // pc of goroutine function
+	racectx    uintptr
+	cgoCtxt    []uintptr      // cgo traceback context
+	labels     unsafe.Pointer // profiler labels
+	timer      *timer         // cached timer for time.Sleep
+	sleepWhen  int64          // when to sleep until
+	selectDone atomic.Uint32  // are we participating in a select and did someone win the race?
 
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile

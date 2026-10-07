@@ -496,7 +496,7 @@ func goready(gp *g, traceskip int) {
 }
 
 //go:nosplit
-func acquireSudog() *sudog {
+func acquireSudog(typ sudogType) *sudog {
 	// Delicate dance: the semaphore implementation calls
 	// acquireSudog, acquireSudog calls new(sudog),
 	// new calls malloc, malloc can call the garbage collector,
@@ -526,15 +526,22 @@ func acquireSudog() *sudog {
 	s := pp.sudogcache[n-1]
 	pp.sudogcache[n-1] = nil
 	pp.sudogcache = pp.sudogcache[:n-1]
+	if s.typ != sudogTypeNone {
+		throw("acquireSudog: found s.typ != sudogTypeNone in cache")
+	}
 	if s.elem.get() != nil {
 		throw("acquireSudog: found s.elem != nil in cache")
 	}
+	s.typ = typ
 	releasem(mp)
 	return s
 }
 
 //go:nosplit
 func releaseSudog(s *sudog) {
+	if s.typ == sudogTypeNone {
+		throw("runtime: sudog without type")
+	}
 	if s.elem.get() != nil {
 		throw("runtime: sudog with non-nil elem")
 	}
@@ -553,6 +560,7 @@ func releaseSudog(s *sudog) {
 	if s.c.get() != nil {
 		throw("runtime: sudog with non-nil c")
 	}
+	s.typ = sudogTypeNone
 	gp := getg()
 	if gp.param != nil {
 		throw("runtime: releaseSudog with non-nil gp.param")

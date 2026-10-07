@@ -854,12 +854,28 @@ func adjustpanics(gp *g, adjinfo *adjustinfo) {
 	}
 }
 
-func adjustsudogs(gp *g, adjinfo *adjustinfo) {
-	// the data elements pointed to by a SudoG structure
-	// might be in the stack.
-	for s := gp.waiting; s != nil; s = s.waitlink {
-		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vu))
-		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vp))
+func adjustSudogChan(gp *g, adjinfo *adjustinfo) {
+	sg := gp.waiting
+	if sg == nil {
+		return
+	}
+
+	// When waiting on channels, the sudog element points to the channel
+	// operation src/dst slot, which might be on the stack.
+	//
+	// When waiting on a semaphore, the sudog element points to the
+	// semaphore word, which is never on the stack.
+	//
+	// When waiting on a Cond, the sudog element points to the
+	// notifyList object, which is never on the stack.
+	if sg.typ != sudogTypeChan {
+		return
+	}
+
+	// Update all waiting channels.
+	for ; sg != nil; sg = sg.waitlink {
+		adjustpointer(adjinfo, unsafe.Pointer(&sg.elem.vu))
+		adjustpointer(adjinfo, unsafe.Pointer(&sg.elem.vp))
 	}
 }
 
@@ -880,17 +896,22 @@ func findsghi(gp *g, stk stack) uintptr {
 	return sghi
 }
 
-// syncadjustsudogs adjusts gp's sudogs and copies the part of gp's
+// syncAdjustSudogChan adjusts gp's sudogs and copies the part of gp's
 // stack they refer to while synchronizing with concurrent channel
 // operations. It returns the number of bytes of stack copied.
-func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
-	if gp.waiting == nil {
+func syncAdjustSudogChan(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
+	sg := gp.waiting
+	if sg == nil {
+		return 0
+	}
+	// See adjustSudogChan.
+	if sg.typ != sudogTypeChan {
 		return 0
 	}
 
 	// Lock channels to prevent concurrent send/receive.
 	var lastc *hchan
-	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+	for ; sg != nil; sg = sg.waitlink {
 		if sg.c.get() != lastc {
 			// There is a ranking cycle here between gscan bit and
 			// hchan locks. Normally, we only allow acquiring hchan
@@ -907,7 +928,7 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	}
 
 	// Adjust sudogs.
-	adjustsudogs(gp, adjinfo)
+	adjustSudogChan(gp, adjinfo)
 
 	// Copy the part of the stack the sudogs point in to
 	// while holding the lock to prevent races on
@@ -973,7 +994,7 @@ func copystack(gp *g, newsize uintptr) {
 			// since we could self-deadlock.
 			throw("racy sudog adjustment due to parking on channel")
 		}
-		adjustsudogs(gp, &adjinfo)
+		adjustSudogChan(gp, &adjinfo)
 	} else {
 		// sudogs may be pointing in to the stack and gp has
 		// released channel locks, so other goroutines could
@@ -986,7 +1007,7 @@ func copystack(gp *g, newsize uintptr) {
 
 		// Synchronize with channel ops and copy the part of
 		// the stack they may interact with.
-		ncopy -= syncadjustsudogs(gp, used, &adjinfo)
+		ncopy -= syncAdjustSudogChan(gp, used, &adjinfo)
 	}
 
 	// Copy the stack (or the rest of it) to the new location

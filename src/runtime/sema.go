@@ -160,7 +160,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
 	//	enqueue itself as a waiter
 	//	sleep
 	//	(waiter descriptor is dequeued by signaler)
-	s := acquireSudog()
+	s := acquireSudog(sudogTypeSema)
 	root := semtable.rootFor(addr)
 	t0 := int64(0)
 	s.releasetime = 0
@@ -595,7 +595,7 @@ func notifyListWait(l *notifyList, t uint32) {
 	}
 
 	// Enqueue itself.
-	s := acquireSudog()
+	s := acquireSudog(sudogTypeCond)
 	s.g = getg()
 	// Storing this pointer so that we can trace the condvar address
 	// from the blocked goroutine when checking for goroutine leaks.

@@ -315,7 +315,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		casi = int(casei)
 		cas = &scases[casi]
 		c = cas.c
-		sg := acquireSudog()
+		sg := acquireSudog(sudogTypeChan)
 		sg.g = gp
 		sg.isSelect = true
 		// No stack splits between assigning elem and enqueuing

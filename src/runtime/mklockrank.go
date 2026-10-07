@@ -186,7 +186,7 @@ gcBitsArenas,
 gscan < stackpool;
 gscan < stackLarge;
 # Generally, hchan must be acquired before gscan. But in one case,
-# where we suspend a G and then shrink its stack, syncadjustsudogs
+# where we suspend a G and then shrink its stack, syncAdjustSudogChan
 # can acquire hchan locks while holding gscan. To allow this case,
 # we use hchanLeaf instead of hchan.
 gscan < hchanLeaf;
@@ -267,7 +267,7 @@ var cyclicRanks = map[string]bool{
 	// select.
 	"hchan": true,
 	// Multiple hchanLeafs are acquired in hchan.sortkey() order in
-	// syncadjustsudogs().
+	// syncAdjustSudogChan().
 	"hchanLeaf": true,
 	// The point of the deadlock lock is to deadlock.
 	"deadlock": true,

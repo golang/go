@@ -1244,13 +1244,19 @@ func setSyncObjectsUntraceable() {
 		// blocked at concurrency operations that could leak.
 		switch {
 		case gp.waitreason.isSyncWait():
-			// Synchronization primitives are reachable from the *sudog via
-			// via the elem field.
-			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+			// Goroutines can only be blocked on a single semaphore
+			// or sync.Cond, which is reachable via the elem field.
+			//
+			// N.B., Do not iterate through waitlink. For
+			// semaphores, waitlink is a list of goroutines blocked
+			// on the same semaphore. forEachGRace is already going
+			// to visit every goroutine.
+			if sg := gp.waiting; sg != nil {
 				sg.elem.setUntraceable()
 			}
 		case gp.waitreason.isChanWait():
-			// Channels and select statements are reachable from the *sudog via the c field.
+			// Channels and select statements are reachable from
+			// the *sudog via the c field.
 			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
 				sg.c.setUntraceable()
 			}
@@ -1264,9 +1270,16 @@ func gcRestoreSyncObjects() {
 	assertWorldStopped()
 
 	forEachGRace(func(gp *g) {
-		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-			sg.elem.setTraceable()
-			sg.c.setTraceable()
+		// See setSyncObjectsUntraceable.
+		switch {
+		case gp.waitreason.isSyncWait():
+			if sg := gp.waiting; sg != nil {
+				sg.elem.setTraceable()
+			}
+		case gp.waitreason.isChanWait():
+			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+				sg.c.setTraceable()
+			}
 		}
 	})
 }
@@ -1305,13 +1318,14 @@ func findGoroutineLeaks() bool {
 		// NOTE(vsaioc): these primitives should also be reachable
 		// from the goroutine's stack, but let's play it safe.
 		switch {
+		case gp.waitreason.isSyncWait():
+			// Don't walk waitlink. See setSyncObjectsUntraceable.
+			if sg := gp.waiting; sg != nil {
+				shade(sg.elem.uintptr())
+			}
 		case gp.waitreason.isChanWait():
 			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
 				shade(sg.c.uintptr())
-			}
-		case gp.waitreason.isSyncWait():
-			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-				shade(sg.elem.uintptr())
 			}
 		}
 	}

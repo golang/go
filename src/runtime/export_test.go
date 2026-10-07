@@ -1334,7 +1334,7 @@ type SemTable struct {
 
 // Enqueue simulates enqueuing a waiter for a semaphore (or lock) at addr.
 func (t *SemTable) Enqueue(addr *uint32) {
-	s := acquireSudog()
+	s := acquireSudog(sudogTypeSema)
 	s.releasetime = 0
 	s.acquiretime = 0
 	s.ticket = 0

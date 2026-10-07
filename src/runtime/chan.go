@@ -248,7 +248,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 
 	// Block on the channel. Some receiver will complete our operation for us.
 	gp := getg()
-	mysg := acquireSudog()
+	mysg := acquireSudog(sudogTypeChan)
 	mysg.releasetime = 0
 	if t0 != 0 {
 		mysg.releasetime = -1
@@ -628,7 +628,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 
 	// no sender available: block on this channel.
 	gp := getg()
-	mysg := acquireSudog()
+	mysg := acquireSudog(sudogTypeChan)
 	mysg.releasetime = 0
 	if t0 != 0 {
 		mysg.releasetime = -1
