@@ -585,6 +585,7 @@ func TestNumbers(t *testing.T) {
 }
 
 func TestScanErrors(t *testing.T) {
+	bsize := nextSize(0) // initial source refill buffer size
 	for _, test := range []struct {
 		src, err  string
 		line, col uint // 0-based
@@ -597,6 +598,10 @@ func TestScanErrors(t *testing.T) {
 		{"fo\x00o", "invalid NUL character", 0, 2},
 		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 1, 0},
 		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 2, 0},
+
+		// go.dev/issue/81632
+		{"\x00", "invalid NUL character", 0, 0},
+		{"\"" + strings.Repeat("x", bsize-2) + "\x00\"", "invalid NUL character", 0, uint(bsize - 1)},
 
 		// token-level errors
 		{"\u00BD" /* ½ */, "invalid character U+00BD '½' in identifier", 0, 0},

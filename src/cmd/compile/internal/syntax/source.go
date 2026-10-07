@@ -154,6 +154,12 @@ redo:
 		goto redo
 	}
 
+	// after buffer refill, the first byte may be NUL (go.dev/issue/81632)
+	if s.ch == 0 {
+		s.error("invalid NUL character")
+		goto redo
+	}
+
 	// BOM's are only allowed as the first character in a file
 	const BOM = 0xfeff
 	if s.ch == BOM {
