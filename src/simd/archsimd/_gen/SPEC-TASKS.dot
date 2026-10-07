@@ -32,7 +32,7 @@ digraph spectransition {
   "validate-amd64" [label="validate-amd64\nValidate spec bodies\nagainst amd64", fillcolor="#fbe6cd", color="#999999"];
   "doc-explore" [label="doc-explore\nDoc-mechanism\nexploration on a hard\nfamily", fillcolor="#ebdcf7", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "spec-all" [label="spec-all\nBulk spec migration", fillcolor="#ebdcf7", color="#999999"];
-  "spec-common" [label="spec-common\nSpec the common\noperations", fillcolor="#ebdcf7", color="#999999"];
+  "spec-common" [label="spec-common\nSpec the common\noperations", fillcolor="#ebdcf7", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "cat-delete" [label="cat-delete\nDelete categories.yaml", fillcolor="#f7dce3", color="#999999"];
   "cat-rehome" [label="cat-rehome\nRe-home\ncategories.yaml\nnon-doc fields", fillcolor="#f7dce3", color="#999999"];
   "comments-yaml" [label="comments-yaml\nDrop spec-covered docs\nfrom\nmidway/comments.yaml", fillcolor="#f7dce3", color="#999999"];

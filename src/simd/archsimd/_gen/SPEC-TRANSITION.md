@@ -342,7 +342,8 @@ decay.
   tolerated-miss list converge: all three `ops_internal_*.go` files (amd64,
   arm64, sve) contain zero exported declarations, so every compiler-only
   operation falls outside `specfill`'s view without needing a category. The
-  permanent residue is small and enumerable: the `String` and `Len` methods.
+  permanent residue is small and enumerable: the `String`, `Len`, `ToArch`
+  methods and `xFromArch` functions.
 
 ## 1.8 Named results
 
@@ -466,7 +467,7 @@ wherever its prerequisites and track allow.
 | [ ] | C | `conform-fixed` | Conformance harness, fixed-width types | `ci-audit` | `specfill` |
 | [ ] | C | `conform-scalable` | Conformance harness, scalable types | `width`, `conform-fixed` | — |
 | [x] | D | `doc-explore` | Doc-mechanism exploration on a hard family | — | — |
-| [ ] | D | `spec-common` | Spec the common operations | `width`, `doc-explore` | `specfill` |
+| [x] | D | `spec-common` | Spec the common operations | `width`, `doc-explore` | `specfill` |
 | [ ] | C | `validate-amd64` | Validate spec bodies against amd64 | `conform-fixed`, `spec-common`, `impl-defined` | — |
 | [ ] | C | `conform-flip` | Flip conformance direction | `validate-amd64`, `conform-scalable` | — |
 | [ ] | D | `spec-all` | Bulk spec migration | `spec-common`, `convert-lo`, `mask-bits` | `specfill`, `fill-enforce` |
@@ -1080,7 +1081,7 @@ and you want a sterner test.
 families, or the doc mechanism has been extended so that it can.
 
 ### `spec-common` — Spec the common operations
-**Done:** [ ] · **Needs:** `width`, `doc-explore` · **Blocks:** `validate-amd64`, `comments-yaml`, `spec-all` · **Prefers:** `specfill` · **Risk:** `risk-ref-impl-effort`
+**Done:** [x] · **Needs:** `width`, `doc-explore` · **Blocks:** `validate-amd64`, `comments-yaml`, `spec-all` · **Prefers:** `specfill` · **Risk:** `risk-ref-impl-effort`
 
 The method set `midway/comments.yaml` documents: its `.common_methods` block
 less `String` and `Len` — `Add`, `Sub`, `Min`, `Max`, `And`, `Or`, `MulAdd`, the
@@ -1092,8 +1093,8 @@ package), and they are exactly what a new architecture implements first.
 
 The file's keys are not all operations: besides the method docs, it documents
 vector *types*, functions and templates, and carries receiver names keyed to the
-shared block. Only the methods are in scope here, and `String` and `Len` stay
-with midway as the non-spec names (§1.7).
+shared block. Only the methods/functions are in scope here, and this excludes
+non-spec residue (`String`, etc, §1.7).
 
 **Commits.** Start by sampling ~10 operations at random and timing how long it
 takes to implement them, to calibrate `risk-ref-impl-effort` before committing
@@ -1101,9 +1102,8 @@ to the rest. Then one commit per family (arithmetic, bitwise, min/max, compares,
 multiply-accumulate), each adding the spec functions with docs and bodies and
 confirming `cmd/specls` output.
 
-**Done when** every *method* name in `midway/comments.yaml` other than `String`
-and `Len` resolves to a spec
-function, with a real body or an explicit `panic("not implemented")`, unblocking
+**Done when** every *method* name in `midway/comments.yaml` other than non-spec
+residue  resolves to a spec function, with a real body, unblocking
 `comments-yaml`.
 
 ### `spec-all` — Bulk spec migration
