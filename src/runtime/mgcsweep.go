@@ -231,12 +231,17 @@ func (a *activeSweep) reset() {
 func finishsweep_m() {
 	assertWorldStopped()
 
-	// Sweeping must be complete before marking commences, so
-	// sweep any unswept spans. If this is a concurrent GC, there
-	// shouldn't be any spans left to sweep, so this should finish
-	// instantly. If GC was forced before the concurrent sweep
-	// finished, there may be spans to sweep.
-	for sweepone() != ^uintptr(0) {
+	// Sweeping must be complete before marking commences.
+	//
+	// For concurrent GC, gcStart picks up any remaining unswept spans
+	// prior to stopping the world.
+	//
+	// For GODEBUG=gcstoptheworld=2 (work.mode == gcForceBlockMode), mark
+	// termination does all sweeping synchronously.
+	//
+	// Either way, all spans should be swept, so throw if anything is left.
+	if sweepone() != ^uintptr(0) {
+		throw("unswept spans found at start of mark phase")
 	}
 
 	// Make sure there aren't any outstanding sweepers left.
