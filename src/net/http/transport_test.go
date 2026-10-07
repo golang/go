@@ -1541,7 +1541,6 @@ func testSOCKS5Proxy(t *testing.T, mode testMode) {
 }
 
 func TestTransportProxy(t *testing.T) {
-	defer afterTest(t)
 	testCases := []struct{ siteMode, proxyMode testMode }{
 		{http1Mode, http1Mode},
 		{http1Mode, https1Mode},
@@ -1661,8 +1660,6 @@ func TestTransportProxy(t *testing.T) {
 // a proxy server that writes an infinite byte of stream, rather than
 // responding with 200 OK.
 func TestProxyWithInfiniteHeader(t *testing.T) {
-	defer afterTest(t)
-
 	ln := newLocalListener(t)
 	defer ln.Close()
 	cancelc := make(chan struct{})
@@ -1862,8 +1859,6 @@ func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
 		return ctx, cancel
 	})
 
-	defer afterTest(t)
-
 	ln := newLocalListener(t)
 	defer ln.Close()
 	listenerDone := make(chan struct{})
@@ -1923,8 +1918,6 @@ func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
 
 // Issue 16997: test transport dial preserves typed errors
 func TestTransportDialPreservesNetOpProxyError(t *testing.T) {
-	defer afterTest(t)
-
 	var errDial = errors.New("some dial error")
 
 	tr := &Transport{
@@ -2830,7 +2823,6 @@ func TestTransportCancelRequestInDial(t *testing.T) {
 	runCancelTest(t, testTransportCancelRequestInDial)
 }
 func testTransportCancelRequestInDial(t *testing.T, test cancelTest) {
-	defer afterTest(t)
 	var logbuf strings.Builder
 	eventLog := log.New(&logbuf, "", 0)
 
@@ -2954,8 +2946,6 @@ func TestTransportCancelRequestBeforeResponseHeaders(t *testing.T) {
 	runCancelTest(t, testTransportCancelRequestBeforeResponseHeaders, []testMode{http1Mode})
 }
 func testTransportCancelRequestBeforeResponseHeaders(t *testing.T, test cancelTest) {
-	defer afterTest(t)
-
 	serverConnCh := make(chan net.Conn, 1)
 	tr := &Transport{
 		Dial: func(network, addr string) (net.Conn, error) {
@@ -3057,7 +3047,6 @@ func (fooProto) RoundTrip(req *Request) (*Response, error) {
 }
 
 func TestTransportAltProto(t *testing.T) {
-	defer afterTest(t)
 	tr := &Transport{}
 	c := &Client{Transport: tr}
 	tr.RegisterProtocol("foo", fooProto{})
@@ -3076,7 +3065,6 @@ func TestTransportAltProto(t *testing.T) {
 }
 
 func TestTransportNoHost(t *testing.T) {
-	defer afterTest(t)
 	tr := &Transport{}
 	_, err := tr.RoundTrip(&Request{
 		Header: make(Header),
@@ -3187,8 +3175,6 @@ func testTransportSocketLateBinding(t *testing.T, mode testMode) {
 
 // Issue 2184
 func TestTransportReading100Continue(t *testing.T) {
-	defer afterTest(t)
-
 	const numReqs = 5
 	reqBody := func(n int) string { return fmt.Sprintf("request body %d", n) }
 	reqID := func(n int) string { return fmt.Sprintf("REQ-ID-%d", n) }
@@ -3824,7 +3810,7 @@ func testTransportIssue10457(t *testing.T, mode testMode) {
 	defer res.Body.Close()
 
 	// Just a sanity check that we at least get the response. The real
-	// test here is that the "defer afterTest" above doesn't find any
+	// test here is that the synctest bubble doesn't find any
 	// leaked goroutines.
 	if got, want := res.Header.Get("Foo"), "Bar"; got != want {
 		t.Errorf("Foo header = %q; want %q", got, want)
@@ -4630,7 +4616,6 @@ func (c *logWritesConn) Close() error { return nil }
 
 // Issue 6574
 func TestTransportFlushesBodyChunks(t *testing.T) {
-	defer afterTest(t)
 	resBody := make(chan io.Reader, 1)
 	connr, connw := io.Pipe() // connection pipe pair
 	lw := &logWritesConn{
@@ -5370,7 +5355,6 @@ func skipIfDNSHijacked(t *testing.T) {
 
 func TestTransportEventTraceRealDNS(t *testing.T) {
 	skipIfDNSHijacked(t)
-	defer afterTest(t)
 	tr := &Transport{}
 	defer tr.CloseIdleConnections()
 	c := &Client{Transport: tr}
@@ -6979,7 +6963,6 @@ func testTransportDecrementConnWhenIdleConnRemoved(t *testing.T, mode testMode) 
 // Test that we use the older backward compatible cancellation protocol
 // when a RoundTripper is registered via RegisterProtocol.
 func TestAltProtoCancellation(t *testing.T) {
-	defer afterTest(t)
 	tr := &Transport{}
 	c := &Client{
 		Transport: tr,

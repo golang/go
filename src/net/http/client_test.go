@@ -103,8 +103,7 @@ func (t *recordingTransport) RoundTrip(req *Request) (resp *Response, err error)
 }
 
 func TestGetRequestFormat(t *testing.T) {
-	setParallel(t)
-	defer afterTest(t)
+	t.Parallel()
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 	url := "http://dummy.faketld/"
@@ -121,7 +120,6 @@ func TestGetRequestFormat(t *testing.T) {
 }
 
 func TestPostRequestFormat(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -148,7 +146,6 @@ func TestPostRequestFormat(t *testing.T) {
 }
 
 func TestPostFormRequestFormat(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -658,7 +655,6 @@ func testHostMismatchCookies(t *testing.T, mode testMode) {
 }
 
 func TestClientSendsCookieFromJar(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 	client.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
@@ -926,7 +922,6 @@ func testClientInsecureTransport(t *testing.T, mode testMode) {
 }
 
 func TestClientErrorWithRequestURI(t *testing.T) {
-	defer afterTest(t)
 	req, _ := NewRequest("GET", "http://localhost:1234/", nil)
 	req.RequestURI = "/this/field/is/illegal/and/should/error/"
 	_, err := DefaultClient.Do(req)
@@ -1125,7 +1120,6 @@ func testEmptyPasswordAuth(t *testing.T, mode testMode) {
 }
 
 func TestBasicAuth(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -1159,7 +1153,6 @@ func TestBasicAuth(t *testing.T) {
 }
 
 func TestBasicAuthHeadersPreserved(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 

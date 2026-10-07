@@ -131,26 +131,14 @@ func runNoSynctest[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 		}
 	}
 	if t, ok := any(t).(*testing.T); ok && parallel {
-		setParallel(t)
+		t.Parallel()
 	}
 	for _, mode := range modes {
 		t.Run(string(mode), func(t T) {
-			panicking := false
-			defer func() {
-				if err := recover(); err != nil {
-					panicking = true
-					panic(err)
-				}
-			}()
 			t.Helper()
 			if t, ok := any(t).(*testing.T); ok && parallel {
-				setParallel(t)
+				t.Parallel()
 			}
-			t.Cleanup(func() {
-				if !panicking {
-					afterTest(t)
-				}
-			})
 			f(t, mode)
 		})
 	}
@@ -545,7 +533,7 @@ func (tt h12Compare) reqFunc() reqFunc {
 }
 
 func (tt h12Compare) run(t *testing.T) {
-	setParallel(t)
+	t.Parallel()
 	// Using a real network because httptest's fake networking mode doesn't (yet)
 	// support multiple servers on the same fake net.
 	opts := append(tt.Opts, optRealNet)
