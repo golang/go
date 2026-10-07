@@ -944,7 +944,7 @@ func init() {
 		gpregmask:          gp,
 		fpregmask:          fp,
 		simdregmask:        fp,
-		predregmask:        pred,
+		simdmaskreg:        pred,
 		framepointerreg:    -1, // not used
 		linkreg:            int8(num["R30"]),
 	})

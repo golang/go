@@ -648,7 +648,7 @@ func (s *regAllocState) init(f *ssa.Func) {
 	}
 
 	// Figure out which registers we're allowed to use.
-	s.allocatable = s.f.Config.GpRegMask.Union(s.f.Config.FpRegMask).Union(s.f.Config.SpecialRegMask).Union(s.f.Config.SimdRegMask).Union(s.f.Config.PredRegMask)
+	s.allocatable = s.f.Config.GpRegMask.Union(s.f.Config.FpRegMask).Union(s.f.Config.SpecialRegMask).Union(s.f.Config.SimdRegMask).Union(s.f.Config.SimdMaskReg)
 	s.allocatable = s.allocatable.RemoveReg(s.SPReg)
 	s.allocatable = s.allocatable.RemoveReg(s.SBReg)
 	if s.f.Config.HasGReg {
@@ -873,10 +873,10 @@ func (s *regAllocState) compatRegs(t *types.Type) ssaop.RegMask {
 		if t.Size() > 8 {
 			return s.f.Config.SimdRegMask.Intersect(s.allocatable)
 		} else {
-			if !s.f.Config.PredRegMask.Empty() {
+			if !s.f.Config.SimdMaskReg.Empty() {
 				// P predicates
 				// No instructions can move P <-> GP.
-				return s.f.Config.PredRegMask.Intersect(s.allocatable)
+				return s.f.Config.SimdMaskReg.Intersect(s.allocatable)
 			}
 			// K mask
 			// We can move GP <-> K.

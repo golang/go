@@ -39,7 +39,7 @@ type Config struct {
 	Fp32RegMask    ssaop.RegMask      // floating point register mask
 	Fp64RegMask    ssaop.RegMask      // floating point register mask
 	SimdRegMask    ssaop.RegMask      // simd register mask; may be same as fpRegMask
-	PredRegMask    ssaop.RegMask      // predicate register mask; empty if the arch has no predicate registers
+	SimdMaskReg    ssaop.RegMask      // simd mask (predicate) register mask; empty if the arch has none
 	// SpecialRegMask is the set of registers that are allocatable only where
 	// an operation's register mask names them explicitly. The register allocator
 	// must not place a value in one of these merely because of its type.
