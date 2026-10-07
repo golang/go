@@ -256,6 +256,8 @@ func genpltstub(ctxt *ld.Link, ldr *loader.Loader, r loader.Reloc, ri int, s loa
 		}
 		if nop != OP_NOP {
 			ldr.Errorf(s, "Symbol %s is missing toc restoration slot at offset %d", ldr.SymName(s), r.Off()+4)
+			// Avoid rewriting an invalid slot.
+			return stub.Sym(), firstUse
 		}
 		ctxt.Arch.ByteOrder.PutUint32(p[r.Off()+4:], OP_TOCRESTORE)
 	}

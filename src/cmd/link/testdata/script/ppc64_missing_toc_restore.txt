@@ -1,0 +1,29 @@
+[!GOOS:linux] skip
+[!GOARCH:ppc64le] skip
+
+env GOPPC64=power8
+
+# Report a missing TOC restoration slot without panicking while rewriting it.
+! go build -buildmode=pie -ldflags=-linkmode=internal
+stderr 'missing toc restoration slot'
+! stderr 'panic:'
+
+-- go.mod --
+module main
+
+go 1.20
+-- main.go --
+package main
+
+//go:cgo_import_dynamic libc_getpid getpid "libc.so.6"
+
+func getpid() int64
+
+func main() {
+	println(getpid())
+}
+-- main_ppc64le.s --
+#include "textflag.h"
+
+TEXT ·getpid(SB), NOSPLIT|NOFRAME, $0-8
+	CALL libc_getpid(SB)
