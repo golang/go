@@ -1080,6 +1080,8 @@ func typecheckarraylit(curfunc *ir.Func, elemType *types.Type, bound int64, elts
 	}
 
 	var key, length int64
+	lno := base.Pos
+	defer func() { base.Pos = lno }()
 	for i, elt := range elts {
 		ir.SetPos(elt)
 		r := elts[i]

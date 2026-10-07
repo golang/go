@@ -40,6 +40,8 @@ func (w *walkState) walkSelectCases(cases []*ir.CommClause) []ir.Node {
 	}
 
 	// optimization: one-case select: single op.
+	lno := base.Pos
+	defer func() { base.Pos = lno }()
 	if ncas == 1 {
 		cas := cases[0]
 		ir.SetPos(cas)
