@@ -1233,6 +1233,38 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XVSQRTDP F2, F3                 // f060132c
 	XVSQRTDP V2, V3                 // f060132f
 
+	XVADDSP VS1, VS34, VS63         // f3e11203
+	XVADDSP F1, F2, F3              // f0611200
+	XVADDSP V1, V2, V3              // f0611207
+
+	XVSUBSP VS1, VS34, VS63         // f3e11243
+	XVSUBSP F1, F2, F3              // f0611240
+	XVSUBSP V1, V2, V3              // f0611247
+
+	XVMULSP VS1, VS34, VS63         // f3e11283
+	XVMULSP F1, F2, F3              // f0611280
+	XVMULSP V1, V2, V3              // f0611287
+
+	XVDIVSP VS1, VS34, VS63         // f3e112c3
+	XVDIVSP F1, F2, F3              // f06112c0
+	XVDIVSP V1, V2, V3              // f06112c7
+
+	XVMADDASP VS1, VS34, VS63       // f3e1120b
+	XVMADDASP F1, F2, F3            // f0611208
+	XVMADDASP V1, V2, V3            // f061120f
+
+	XVMAXSP VS1, VS34, VS63         // f3e11603
+	XVMAXSP F1, F2, F3              // f0611600
+	XVMAXSP V1, V2, V3              // f0611607
+
+	XVMINSP VS1, VS34, VS63         // f3e11643
+	XVMINSP F1, F2, F3              // f0611640
+	XVMINSP V1, V2, V3              // f0611647
+
+	XVSQRTSP VS33, VS62             // f3c00a2f
+	XVSQRTSP F2, F3                 // f060122c
+	XVSQRTSP V2, V3                 // f060122f
+
 	// FPR usage of the shapes shared with XXLAND (xx3) and XSCVDPSP (xx2).
 	XXMRGHW F1, F2, F3              // f0611090
 	XXPERM F1, F2, F3               // f06110d0
