@@ -253,23 +253,21 @@ var vtests = []struct {
 	{"http://someHost.com/someDir", "/someDir/"},
 }
 
-func TestHostHandlers(t *testing.T) { runNoSynctest(t, testHostHandlers, []testMode{http1Mode}) }
+func TestHostHandlers(t *testing.T) { runSynctest(t, testHostHandlers, []testMode{http1Mode}) }
 func testHostHandlers(t *testing.T, mode testMode) {
 	mux := NewServeMux()
 	for _, h := range handlers {
 		mux.Handle(h.pattern, stringHandler(h.msg))
 	}
-	ts := newClientServerTest(t, mode, mux, optRealNet).ts
+	cst := newClientServerTest(t, mode, mux)
 
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, _ := cst.dialNettest()
 	defer conn.Close()
 	cc := httputil.NewClientConn(conn, nil)
 	for _, vt := range vtests {
 		var r *Response
 		var req Request
+		var err error
 		if req.URL, err = url.Parse(vt.url); err != nil {
 			t.Errorf("cannot parse url: %v", err)
 			continue
@@ -278,7 +276,7 @@ func testHostHandlers(t *testing.T, mode testMode) {
 			t.Errorf("writing request: %v", err)
 			continue
 		}
-		r, err := cc.Read(&req)
+		r, err = cc.Read(&req)
 		if err != nil {
 			t.Errorf("reading response: %v", err)
 			continue
@@ -1365,57 +1363,55 @@ func TestHTTP1ServerIdentityResponse(t *testing.T) {
 
 func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
 	setParallel(t)
-	s := newClientServerTest(t, http1Mode, h, optRealNet).ts
+	synctest.Test(t, func(t *testing.T) {
+		cst := newClientServerTest(t, http1Mode, h)
 
-	conn, err := net.Dial("tcp", s.Listener.Addr().String())
-	if err != nil {
-		t.Fatal("dial error:", err)
-	}
-	defer conn.Close()
+		conn, _ := cst.dialNettest()
+		defer conn.Close()
 
-	_, err = fmt.Fprint(conn, req)
-	if err != nil {
-		t.Fatal("print error:", err)
-	}
+		_, err := fmt.Fprint(conn, req)
+		if err != nil {
+			t.Fatal("print error:", err)
+		}
 
-	r := bufio.NewReader(conn)
-	res, err := ReadResponse(r, &Request{Method: "GET"})
-	if err != nil {
-		t.Fatal("ReadResponse error:", err)
-	}
+		r := bufio.NewReader(conn)
+		res, err := ReadResponse(r, &Request{Method: "GET"})
+		if err != nil {
+			t.Fatal("ReadResponse error:", err)
+		}
 
-	_, err = io.ReadAll(r)
-	if err != nil {
-		t.Fatal("read error:", err)
-	}
+		_, err = io.ReadAll(r)
+		if err != nil {
+			t.Fatal("read error:", err)
+		}
 
-	if !res.Close {
-		t.Errorf("Response.Close = false; want true")
-	}
+		if !res.Close {
+			t.Errorf("Response.Close = false; want true")
+		}
+	})
 }
 
 func testTCPConnectionStaysOpen(t *testing.T, req string, handler Handler) {
 	setParallel(t)
-	ts := newClientServerTest(t, http1Mode, handler, optRealNet).ts
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	br := bufio.NewReader(conn)
-	for i := 0; i < 2; i++ {
-		if _, err := io.WriteString(conn, req); err != nil {
-			t.Fatal(err)
+	synctest.Test(t, func(t *testing.T) {
+		cst := newClientServerTest(t, http1Mode, handler)
+		conn, _ := cst.dialNettest()
+		defer conn.Close()
+		br := bufio.NewReader(conn)
+		for i := 0; i < 2; i++ {
+			if _, err := io.WriteString(conn, req); err != nil {
+				t.Fatal(err)
+			}
+			res, err := ReadResponse(br, nil)
+			if err != nil {
+				t.Fatalf("res %d: %v", i+1, err)
+			}
+			if _, err := io.Copy(io.Discard, res.Body); err != nil {
+				t.Fatalf("res %d body copy: %v", i+1, err)
+			}
+			res.Body.Close()
 		}
-		res, err := ReadResponse(br, nil)
-		if err != nil {
-			t.Fatalf("res %d: %v", i+1, err)
-		}
-		if _, err := io.Copy(io.Discard, res.Body); err != nil {
-			t.Fatalf("res %d body copy: %v", i+1, err)
-		}
-		res.Body.Close()
-	}
+	})
 }
 
 // TestServeHTTP10Close verifies that HTTP/1.0 requests won't be kept alive.
@@ -1785,9 +1781,9 @@ func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTLSServer(t *testing.T) { runNoSynctest(t, testTLSServer, []testMode{https1Mode, http2Mode}) }
+func TestTLSServer(t *testing.T) { runSynctest(t, testTLSServer, []testMode{https1Mode, http2Mode}) }
 func testTLSServer(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.TLS != nil {
 			w.Header().Set("X-TLS-Set", "true")
 			if r.TLS.HandshakeComplete {
@@ -1796,17 +1792,15 @@ func testTLSServer(t *testing.T, mode testMode) {
 		}
 	}), func(ts *httptest.Server) {
 		ts.Config.ErrorLog = log.New(io.Discard, "", 0)
-	}, optRealNet).ts
+	})
+	ts := cst.ts
 
 	// Connect an idle TCP connection to this server before we run
 	// our real tests. This idle connection used to block forever
 	// in the TLS handshake, preventing future connections from
 	// being accepted. It may prevent future accidental blocking
 	// in newConn.
-	idleConn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("Dial: %v", err)
-	}
+	_, idleConn := cst.dialNettest()
 	defer idleConn.Close()
 
 	if !strings.HasPrefix(ts.URL, "https://") {
@@ -1934,19 +1928,16 @@ func TestServeTLS(t *testing.T) {
 
 // Test that the HTTPS server nicely rejects plaintext HTTP/1.x requests.
 func TestTLSServerRejectHTTPRequests(t *testing.T) {
-	runNoSynctest(t, testTLSServerRejectHTTPRequests, []testMode{https1Mode, http2Mode})
+	runSynctest(t, testTLSServerRejectHTTPRequests, []testMode{https1Mode, http2Mode})
 }
 func testTLSServerRejectHTTPRequests(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		t.Error("unexpected HTTPS request")
 	}), func(ts *httptest.Server) {
 		var errBuf bytes.Buffer
 		ts.Config.ErrorLog = log.New(&errBuf, "", 0)
-	}, optRealNet).ts
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
+	_, conn := cst.dialNettest()
 	defer conn.Close()
 	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
 	slurp, err := io.ReadAll(conn)
@@ -2152,9 +2143,9 @@ var serverExpectTests = []serverExpectTest{
 
 // Tests that the server responds to the "Expect" request header
 // correctly.
-func TestServerExpect(t *testing.T) { runNoSynctest(t, testServerExpect, []testMode{http1Mode}) }
+func TestServerExpect(t *testing.T) { runSynctest(t, testServerExpect, []testMode{http1Mode}) }
 func testServerExpect(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		// Note using r.FormValue("readbody") because for POST
 		// requests that would read from r.Body, which we only
 		// conditionally want to do.
@@ -2164,13 +2155,10 @@ func testServerExpect(t *testing.T, mode testMode) {
 		} else {
 			w.WriteHeader(StatusUnauthorized)
 		}
-	}), optRealNet).ts
+	}))
 
 	runTest := func(test serverExpectTest) {
-		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-		if err != nil {
-			t.Fatalf("Dial: %v", err)
-		}
+		conn, _ := cst.dialNettest()
 		defer conn.Close()
 
 		// Only send the body immediately if we're acting like an HTTP client
@@ -3670,19 +3658,14 @@ func testRequestBodyLimit(t *testing.T, mode testMode) {
 
 // TestClientWriteShutdown tests that if the client shuts down the write
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
-func TestClientWriteShutdown(t *testing.T) {
-	runNoSynctest(t, testClientWriteShutdown, http3SkippedMode)
-}
+func TestClientWriteShutdown(t *testing.T) { runSynctest(t, testClientWriteShutdown, http3SkippedMode) }
 func testClientWriteShutdown(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/17906")
 	}
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optRealNet).ts
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("Dial: %v", err)
-	}
-	err = conn.(*net.TCPConn).CloseWrite()
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	_, conn := cst.dialNettest()
+	err := conn.CloseWrite()
 	if err != nil {
 		t.Fatalf("CloseWrite: %v", err)
 	}
@@ -3776,17 +3759,14 @@ func testCaseSensitiveMethod(t *testing.T, mode testMode) {
 // response, the net/http package adds a "Content-Length: 0" response
 // header.
 func TestContentLengthZero(t *testing.T) {
-	runNoSynctest(t, testContentLengthZero, []testMode{http1Mode})
+	runSynctest(t, testContentLengthZero, []testMode{http1Mode})
 }
 func testContentLengthZero(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {}), optRealNet).ts
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {}))
 
 	for _, version := range []string{"HTTP/1.0", "HTTP/1.1"} {
-		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-		if err != nil {
-			t.Fatalf("error dialing: %v", err)
-		}
-		_, err = fmt.Fprintf(conn, "GET / %v\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n", version)
+		conn, _ := cst.dialNettest()
+		_, err := fmt.Fprintf(conn, "GET / %v\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n", version)
 		if err != nil {
 			t.Fatalf("error writing: %v", err)
 		}
@@ -3806,24 +3786,21 @@ func testContentLengthZero(t *testing.T, mode testMode) {
 }
 
 func TestCloseNotifier(t *testing.T) {
-	runNoSynctest(t, testCloseNotifier, []testMode{http1Mode})
+	runSynctest(t, testCloseNotifier, []testMode{http1Mode})
 }
 func testCloseNotifier(t *testing.T, mode testMode) {
 	gotReq := make(chan bool, 1)
 	sawClose := make(chan bool, 1)
-	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		gotReq <- true
 		cc := rw.(CloseNotifier).CloseNotify()
 		<-cc
 		sawClose <- true
-	}), optRealNet).ts
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("error dialing: %v", err)
-	}
+	}))
+	conn, _ := cst.dialNettest()
 	diec := make(chan bool)
 	go func() {
-		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
+		_, err := fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
 		if err != nil {
 			t.Error(err)
 			return
@@ -3840,7 +3817,7 @@ For:
 			break For
 		}
 	}
-	ts.Close()
+	cst.ts.Close()
 }
 
 // Tests that a pipelined request does not cause the first request's
@@ -3973,13 +3950,13 @@ func testHijackAfterCloseNotifier(t *testing.T, mode testMode) {
 }
 
 func TestHijackBeforeRequestBodyRead(t *testing.T) {
-	runNoSynctest(t, testHijackBeforeRequestBodyRead, []testMode{http1Mode})
+	runSynctest(t, testHijackBeforeRequestBodyRead, []testMode{http1Mode})
 }
 func testHijackBeforeRequestBodyRead(t *testing.T, mode testMode) {
 	var requestBody = bytes.Repeat([]byte("a"), 1<<20)
 	bodyOkay := make(chan bool, 1)
 	gotCloseNotify := make(chan bool, 1)
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		defer close(bodyOkay) // caller will read false if nothing else
 
 		reqBody := r.Body
@@ -4002,12 +3979,9 @@ func testHijackBeforeRequestBodyRead(t *testing.T, mode testMode) {
 		bodyOkay <- true
 		<-gone
 		gotCloseNotify <- true
-	}), optRealNet).ts
+	}))
 
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, _ := cst.dialNettest()
 	defer conn.Close()
 
 	fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: foo\r\nContent-Length: %d\r\n\r\n%s",
@@ -4020,23 +3994,20 @@ func testHijackBeforeRequestBodyRead(t *testing.T, mode testMode) {
 	<-gotCloseNotify
 }
 
-func TestOptions(t *testing.T) { runNoSynctest(t, testOptions, []testMode{http1Mode}) }
+func TestOptions(t *testing.T) { runSynctest(t, testOptions, []testMode{http1Mode}) }
 func testOptions(t *testing.T, mode testMode) {
 	uric := make(chan string, 2) // only expect 1, but leave space for 2
 	mux := NewServeMux()
 	mux.HandleFunc("/", func(w ResponseWriter, r *Request) {
 		uric <- r.RequestURI
 	})
-	ts := newClientServerTest(t, mode, mux, optRealNet).ts
+	cst := newClientServerTest(t, mode, mux)
 
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, _ := cst.dialNettest()
 	defer conn.Close()
 
 	// An OPTIONS * request should succeed.
-	_, err = conn.Write([]byte("OPTIONS * HTTP/1.1\r\nHost: foo.com\r\n\r\n"))
+	_, err := conn.Write([]byte("OPTIONS * HTTP/1.1\r\nHost: foo.com\r\n\r\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4062,7 +4033,7 @@ func testOptions(t *testing.T, mode testMode) {
 		t.Errorf("Got non-400 response to GET *: %#v", res)
 	}
 
-	res, err = Get(ts.URL + "/second")
+	res, err = cst.c.Get(cst.ts.URL + "/second")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4072,23 +4043,20 @@ func testOptions(t *testing.T, mode testMode) {
 	}
 }
 
-func TestOptionsHandler(t *testing.T) { runNoSynctest(t, testOptionsHandler, []testMode{http1Mode}) }
+func TestOptionsHandler(t *testing.T) { runSynctest(t, testOptionsHandler, []testMode{http1Mode}) }
 func testOptionsHandler(t *testing.T, mode testMode) {
 	rc := make(chan *Request, 1)
 
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		rc <- r
 	}), func(ts *httptest.Server) {
 		ts.Config.DisableGeneralOptionsHandler = true
-	}, optRealNet).ts
+	})
 
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, _ := cst.dialNettest()
 	defer conn.Close()
 
-	_, err = conn.Write([]byte("OPTIONS * HTTP/1.1\r\nHost: foo.com\r\n\r\n"))
+	_, err := conn.Write([]byte("OPTIONS * HTTP/1.1\r\nHost: foo.com\r\n\r\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4379,12 +4347,12 @@ func TestDoubleHijack(t *testing.T) {
 // optimization and is pointless if dealing with a
 // badly behaved client.
 func TestHTTP10ConnectionHeader(t *testing.T) {
-	runNoSynctest(t, testHTTP10ConnectionHeader, []testMode{http1Mode})
+	runSynctest(t, testHTTP10ConnectionHeader, []testMode{http1Mode})
 }
 func testHTTP10ConnectionHeader(t *testing.T, mode testMode) {
 	mux := NewServeMux()
 	mux.Handle("/", HandlerFunc(func(ResponseWriter, *Request) {}))
-	ts := newClientServerTest(t, mode, mux, optRealNet).ts
+	cst := newClientServerTest(t, mode, mux)
 
 	// net/http uses HTTP/1.1 for requests, so write requests manually
 	tests := []struct {
@@ -4406,12 +4374,9 @@ func testHTTP10ConnectionHeader(t *testing.T, mode testMode) {
 	}
 
 	for _, tt := range tests {
-		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-		if err != nil {
-			t.Fatal("dial err:", err)
-		}
+		conn, _ := cst.dialNettest()
 
-		_, err = fmt.Fprint(conn, tt.req)
+		_, err := fmt.Fprint(conn, tt.req)
 		if err != nil {
 			t.Fatal("conn write err:", err)
 		}
@@ -4605,7 +4570,7 @@ func TestResponseWriterWriteString(t *testing.T) {
 	}
 }
 
-func TestServerConnState(t *testing.T) { runNoSynctest(t, testServerConnState, []testMode{http1Mode}) }
+func TestServerConnState(t *testing.T) { runSynctest(t, testServerConnState, []testMode{http1Mode}) }
 func testServerConnState(t *testing.T, mode testMode) {
 	handler := map[string]func(w ResponseWriter, r *Request){
 		"/": func(w ResponseWriter, r *Request) {
@@ -4657,7 +4622,7 @@ func testServerConnState(t *testing.T, mode testMode) {
 		// next call to wantLog.
 	}
 
-	ts := newClientServerTest(t, mode, nil, func(ts *httptest.Server) {
+	cst := newClientServerTest(t, mode, nil, func(ts *httptest.Server) {
 		ts.Config.ErrorLog = log.New(io.Discard, "", 0)
 		ts.Config.ConnState = func(c net.Conn, state ConnState) {
 			if c == nil {
@@ -4679,7 +4644,8 @@ func testServerConnState(t *testing.T, mode testMode) {
 			}
 			activeLog <- sl
 		}
-	}, optRealNet).ts
+	})
+	ts := cst.ts
 	ts.Config.Handler = HandlerFunc(func(w ResponseWriter, r *Request) {
 		handler[r.URL.Path](w, r)
 	})
@@ -4731,18 +4697,12 @@ func testServerConnState(t *testing.T, mode testMode) {
 	}, StateNew, StateActive, StateHijacked)
 
 	wantLog(func() {
-		c, err := net.Dial("tcp", ts.Listener.Addr().String())
-		if err != nil {
-			t.Fatal(err)
-		}
+		c, _ := cst.dialNettest()
 		c.Close()
 	}, StateNew, StateClosed)
 
 	wantLog(func() {
-		c, err := net.Dial("tcp", ts.Listener.Addr().String())
-		if err != nil {
-			t.Fatal(err)
-		}
+		c, _ := cst.dialNettest()
 		if _, err := io.WriteString(c, "BOGUS REQUEST\r\n\r\n"); err != nil {
 			t.Fatal(err)
 		}
@@ -4751,10 +4711,7 @@ func testServerConnState(t *testing.T, mode testMode) {
 	}, StateNew, StateActive, StateClosed)
 
 	wantLog(func() {
-		c, err := net.Dial("tcp", ts.Listener.Addr().String())
-		if err != nil {
-			t.Fatal(err)
-		}
+		c, _ := cst.dialNettest()
 		if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n"); err != nil {
 			t.Fatal(err)
 		}
@@ -4963,17 +4920,14 @@ func testServerKeepAliveAfterWriteError(t *testing.T, mode testMode) {
 // Issue 9987: shouldn't add automatic Content-Length (or
 // Content-Type) if a Transfer-Encoding was set by the handler.
 func TestNoContentLengthIfTransferEncoding(t *testing.T) {
-	runNoSynctest(t, testNoContentLengthIfTransferEncoding, []testMode{http1Mode})
+	runSynctest(t, testNoContentLengthIfTransferEncoding, []testMode{http1Mode})
 }
 func testNoContentLengthIfTransferEncoding(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Transfer-Encoding", "foo")
 		io.WriteString(w, "<html>")
-	}), optRealNet).ts
-	c, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("Dial: %v", err)
-	}
+	}))
+	c, _ := cst.dialNettest()
 	defer c.Close()
 	if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n"); err != nil {
 		t.Fatal(err)
@@ -5212,11 +5166,11 @@ func TestServerValidatesHostHeader(t *testing.T) {
 }
 
 func TestServerHandlersCanHandleH2PRI(t *testing.T) {
-	runNoSynctest(t, testServerHandlersCanHandleH2PRI, []testMode{http1Mode})
+	runSynctest(t, testServerHandlersCanHandleH2PRI, []testMode{http1Mode})
 }
 func testServerHandlersCanHandleH2PRI(t *testing.T, mode testMode) {
 	const upgradeResponse = "upgrade here"
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		conn, br, err := w.(Hijacker).Hijack()
 		if err != nil {
 			t.Error(err)
@@ -5238,12 +5192,9 @@ func testServerHandlersCanHandleH2PRI(t *testing.T, mode testMode) {
 			return
 		}
 		io.WriteString(conn, upgradeResponse)
-	}), optRealNet).ts
+	}))
 
-	c, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("Dial: %v", err)
-	}
+	c, _ := cst.dialNettest()
 	defer c.Close()
 	io.WriteString(c, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
 	slurp, err := io.ReadAll(c)
@@ -5347,20 +5298,17 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, mode testMode) {
 // is always blocked in a Read call so it notices the EOF from the client.
 // See issues 15927 and 15224.
 func TestServerRequestContextCancel_ConnClose(t *testing.T) {
-	runNoSynctest(t, testServerRequestContextCancel_ConnClose, []testMode{http1Mode})
+	runSynctest(t, testServerRequestContextCancel_ConnClose, []testMode{http1Mode})
 }
 func testServerRequestContextCancel_ConnClose(t *testing.T, mode testMode) {
 	inHandler := make(chan struct{})
 	handlerDone := make(chan struct{})
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		close(inHandler)
 		<-r.Context().Done()
 		close(handlerDone)
-	}), optRealNet).ts
-	c, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	}))
+	c, _ := cst.dialNettest()
 	defer c.Close()
 	io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
 	<-inHandler
@@ -6115,9 +6063,9 @@ func testServerShutdown(t *testing.T, mode testMode) {
 		io.WriteString(w, r.RemoteAddr)
 	})
 
-	cst = newClientServerTest(t, mode, handler, func(srv *httptest.Server) {
+	cst = newClientServerTest(t, mode, handler, optRealNet, func(srv *httptest.Server) {
 		srv.Config.RegisterOnShutdown(func() { close(gotOnShutdown) })
-	}, optRealNet)
+	})
 
 	out := get(t, cst.c, cst.ts.URL) // calls t.Fail on failure
 	t.Logf("%v: %q", cst.ts.URL, out)
@@ -6321,7 +6269,7 @@ func testServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T, mode testMode) {
 // Issue 18535: test that the Server doesn't try to do a background
 // read if it's already done one.
 func TestServerDuplicateBackgroundRead(t *testing.T) {
-	runNoSynctest(t, testServerDuplicateBackgroundRead, []testMode{http1Mode})
+	runSynctest(t, testServerDuplicateBackgroundRead, []testMode{http1Mode})
 }
 func testServerDuplicateBackgroundRead(t *testing.T, mode testMode) {
 	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm" {
@@ -6335,7 +6283,7 @@ func testServerDuplicateBackgroundRead(t *testing.T, mode testMode) {
 		requests = 100
 	}
 
-	hts := newClientServerTest(t, mode, HandlerFunc(NotFound), optRealNet).ts
+	cst := newClientServerTest(t, mode, HandlerFunc(NotFound))
 
 	reqBytes := []byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")
 
@@ -6344,11 +6292,7 @@ func testServerDuplicateBackgroundRead(t *testing.T, mode testMode) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cn, err := net.Dial("tcp", hts.Listener.Addr().String())
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			cn, _ := cst.dialNettest()
 			defer cn.Close()
 
 			wg.Add(1)
@@ -6378,7 +6322,7 @@ func testServerDuplicateBackgroundRead(t *testing.T, mode testMode) {
 // bufio.Reader.Buffered(), without resorting to Reading it
 // (potentially blocking) to get at it.
 func TestServerHijackGetsBackgroundByte(t *testing.T) {
-	runNoSynctest(t, testServerHijackGetsBackgroundByte, []testMode{http1Mode})
+	runSynctest(t, testServerHijackGetsBackgroundByte, []testMode{http1Mode})
 }
 func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
@@ -6386,7 +6330,7 @@ func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 	}
 	done := make(chan struct{})
 	inHandler := make(chan bool, 1)
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		defer close(done)
 
 		// Tell the client to send more data after the GET request.
@@ -6409,12 +6353,9 @@ func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 			t.Error("context unexpectedly canceled")
 		default:
 		}
-	}), optRealNet).ts
+	}))
 
-	cn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, cn := cst.dialNettest()
 	defer cn.Close()
 	if _, err := cn.Write([]byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")); err != nil {
 		t.Fatal(err)
@@ -6424,7 +6365,7 @@ func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 		t.Fatal(err)
 	}
 
-	if err := cn.(*net.TCPConn).CloseWrite(); err != nil {
+	if err := cn.CloseWrite(); err != nil {
 		t.Fatal(err)
 	}
 	<-done
@@ -6432,7 +6373,7 @@ func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 
 // Test that the bufio.Reader returned by Hijack yields the entire body.
 func TestServerHijackGetsFullBody(t *testing.T) {
-	runNoSynctest(t, testServerHijackGetsFullBody, []testMode{http1Mode})
+	runSynctest(t, testServerHijackGetsFullBody, []testMode{http1Mode})
 }
 func testServerHijackGetsFullBody(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
@@ -6440,7 +6381,7 @@ func testServerHijackGetsFullBody(t *testing.T, mode testMode) {
 	}
 	done := make(chan struct{})
 	needle := strings.Repeat("x", 100*1024) // assume: larger than net/http bufio size
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		defer close(done)
 
 		conn, buf, err := w.(Hijacker).Hijack()
@@ -6455,12 +6396,9 @@ func testServerHijackGetsFullBody(t *testing.T, mode testMode) {
 		if n != len(needle) || string(got) != needle || err != nil {
 			t.Errorf("Peek = %q, %v; want 'x'*4096, nil", got, err)
 		}
-	}), optRealNet).ts
+	}))
 
-	cn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, cn := cst.dialNettest()
 	defer cn.Close()
 	buf := []byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")
 	buf = append(buf, []byte(needle)...)
@@ -6468,7 +6406,7 @@ func testServerHijackGetsFullBody(t *testing.T, mode testMode) {
 		t.Fatal(err)
 	}
 
-	if err := cn.(*net.TCPConn).CloseWrite(); err != nil {
+	if err := cn.CloseWrite(); err != nil {
 		t.Fatal(err)
 	}
 	<-done
@@ -6478,7 +6416,7 @@ func testServerHijackGetsFullBody(t *testing.T, mode testMode) {
 // immediate 1MB of data to the server to fill up the server's 4KB
 // buffer.
 func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
-	runNoSynctest(t, testServerHijackGetsBackgroundByte_big, []testMode{http1Mode})
+	runSynctest(t, testServerHijackGetsBackgroundByte_big, []testMode{http1Mode})
 }
 func testServerHijackGetsBackgroundByte_big(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
@@ -6486,7 +6424,7 @@ func testServerHijackGetsBackgroundByte_big(t *testing.T, mode testMode) {
 	}
 	done := make(chan struct{})
 	const size = 8 << 10
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		defer close(done)
 
 		conn, buf, err := w.(Hijacker).Hijack()
@@ -6510,18 +6448,15 @@ func testServerHijackGetsBackgroundByte_big(t *testing.T, mode testMode) {
 		} else if !allX {
 			t.Errorf("read %q; want %d 'x'", slurp, size)
 		}
-	}), optRealNet).ts
+	}))
 
-	cn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, cn := cst.dialNettest()
 	defer cn.Close()
 	if _, err := fmt.Fprintf(cn, "GET / HTTP/1.1\r\nHost: e.com\r\n\r\n%s",
 		strings.Repeat("x", size)); err != nil {
 		t.Fatal(err)
 	}
-	if err := cn.(*net.TCPConn).CloseWrite(); err != nil {
+	if err := cn.CloseWrite(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -7034,12 +6969,12 @@ func (w tlogWriter) Write(p []byte) (int, error) {
 }
 
 func TestWriteHeaderSwitchingProtocols(t *testing.T) {
-	runNoSynctest(t, testWriteHeaderSwitchingProtocols, []testMode{http1Mode})
+	runSynctest(t, testWriteHeaderSwitchingProtocols, []testMode{http1Mode})
 }
 func testWriteHeaderSwitchingProtocols(t *testing.T, mode testMode) {
 	const wantBody = "want"
 	const wantUpgrade = "someProto"
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Connection", "Upgrade")
 		w.Header().Set("Upgrade", wantUpgrade)
 		w.WriteHeader(StatusSwitchingProtocols)
@@ -7063,13 +6998,10 @@ func testWriteHeaderSwitchingProtocols(t *testing.T, mode testMode) {
 	}), func(ts *httptest.Server) {
 		// Don't spam log with warning about superfluous WriteHeader call.
 		ts.Config.ErrorLog = log.New(tlogWriter{t}, "log: ", 0)
-	}, optRealNet).ts
+	})
 
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("net.Dial: %v", err)
-	}
-	_, err = conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"))
+	conn, _ := cst.dialNettest()
+	_, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"))
 	if err != nil {
 		t.Fatalf("conn.Write: %v", err)
 	}
