@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 	ssagen.Arch.MAXWIDTH = 1 << 50
 	types.MaxWidth = ssagen.Arch.MAXWIDTH
 	base.Ctxt = obj.Linknew(ssagen.Arch.LinkArch)
-	base.Ctxt.DiagFunc = base.Errorf
+	base.Ctxt.DiagFunc = base.Diagf
 	base.Ctxt.DiagFlush = base.FlushErrors
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
 	types.LocalPkg = types.NewPkg("p", "local")
