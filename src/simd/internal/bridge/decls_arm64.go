@@ -1646,20 +1646,20 @@ func (x Uint16x8nclm) ReshapeToUint8s() Uint8x16nclm {
 	return Uint8x16nclm((archsimd.Uint16x8(x)).ReshapeToUint8s())
 }
 
-func (x Uint16x8) RotateAllLeft(dist uint64) Uint16x8 {
-	return Uint16x8((archsimd.Uint16x8(x)).RotateAllLeft(dist))
+func (x Uint16x8) RotateAllLeft(shift uint64) Uint16x8 {
+	return Uint16x8((archsimd.Uint16x8(x)).RotateAllLeft(shift))
 }
 
-func (x Uint16x8nclm) RotateAllLeft(dist uint64) Uint16x8nclm {
-	return Uint16x8nclm((archsimd.Uint16x8(x)).RotateAllLeft(dist))
+func (x Uint16x8nclm) RotateAllLeft(shift uint64) Uint16x8nclm {
+	return Uint16x8nclm((archsimd.Uint16x8(x)).RotateAllLeft(shift))
 }
 
-func (x Uint16x8) RotateAllRight(dist uint64) Uint16x8 {
-	return Uint16x8((archsimd.Uint16x8(x)).RotateAllRight(dist))
+func (x Uint16x8) RotateAllRight(shift uint64) Uint16x8 {
+	return Uint16x8((archsimd.Uint16x8(x)).RotateAllRight(shift))
 }
 
-func (x Uint16x8nclm) RotateAllRight(dist uint64) Uint16x8nclm {
-	return Uint16x8nclm((archsimd.Uint16x8(x)).RotateAllRight(dist))
+func (x Uint16x8nclm) RotateAllRight(shift uint64) Uint16x8nclm {
+	return Uint16x8nclm((archsimd.Uint16x8(x)).RotateAllRight(shift))
 }
 
 func (x Uint16x8) ShiftAllLeft(shift uint64) Uint16x8 {
@@ -1918,20 +1918,20 @@ func (x Uint32x4nclm) ReshapeToUint8s() Uint8x16nclm {
 	return Uint8x16nclm((archsimd.Uint32x4(x)).ReshapeToUint8s())
 }
 
-func (x Uint32x4) RotateAllLeft(dist uint64) Uint32x4 {
-	return Uint32x4((archsimd.Uint32x4(x)).RotateAllLeft(dist))
+func (x Uint32x4) RotateAllLeft(shift uint64) Uint32x4 {
+	return Uint32x4((archsimd.Uint32x4(x)).RotateAllLeft(shift))
 }
 
-func (x Uint32x4nclm) RotateAllLeft(dist uint64) Uint32x4nclm {
-	return Uint32x4nclm((archsimd.Uint32x4(x)).RotateAllLeft(dist))
+func (x Uint32x4nclm) RotateAllLeft(shift uint64) Uint32x4nclm {
+	return Uint32x4nclm((archsimd.Uint32x4(x)).RotateAllLeft(shift))
 }
 
-func (x Uint32x4) RotateAllRight(dist uint64) Uint32x4 {
-	return Uint32x4((archsimd.Uint32x4(x)).RotateAllRight(dist))
+func (x Uint32x4) RotateAllRight(shift uint64) Uint32x4 {
+	return Uint32x4((archsimd.Uint32x4(x)).RotateAllRight(shift))
 }
 
-func (x Uint32x4nclm) RotateAllRight(dist uint64) Uint32x4nclm {
-	return Uint32x4nclm((archsimd.Uint32x4(x)).RotateAllRight(dist))
+func (x Uint32x4nclm) RotateAllRight(shift uint64) Uint32x4nclm {
+	return Uint32x4nclm((archsimd.Uint32x4(x)).RotateAllRight(shift))
 }
 
 func (x Uint32x4) ShiftAllLeft(shift uint64) Uint32x4 {
@@ -2158,20 +2158,20 @@ func (x Uint64x2nclm) ReshapeToUint8s() Uint8x16nclm {
 	return Uint8x16nclm((archsimd.Uint64x2(x)).ReshapeToUint8s())
 }
 
-func (x Uint64x2) RotateAllLeft(dist uint64) Uint64x2 {
-	return Uint64x2((archsimd.Uint64x2(x)).RotateAllLeft(dist))
+func (x Uint64x2) RotateAllLeft(shift uint64) Uint64x2 {
+	return Uint64x2((archsimd.Uint64x2(x)).RotateAllLeft(shift))
 }
 
-func (x Uint64x2nclm) RotateAllLeft(dist uint64) Uint64x2nclm {
-	return Uint64x2nclm((archsimd.Uint64x2(x)).RotateAllLeft(dist))
+func (x Uint64x2nclm) RotateAllLeft(shift uint64) Uint64x2nclm {
+	return Uint64x2nclm((archsimd.Uint64x2(x)).RotateAllLeft(shift))
 }
 
-func (x Uint64x2) RotateAllRight(dist uint64) Uint64x2 {
-	return Uint64x2((archsimd.Uint64x2(x)).RotateAllRight(dist))
+func (x Uint64x2) RotateAllRight(shift uint64) Uint64x2 {
+	return Uint64x2((archsimd.Uint64x2(x)).RotateAllRight(shift))
 }
 
-func (x Uint64x2nclm) RotateAllRight(dist uint64) Uint64x2nclm {
-	return Uint64x2nclm((archsimd.Uint64x2(x)).RotateAllRight(dist))
+func (x Uint64x2nclm) RotateAllRight(shift uint64) Uint64x2nclm {
+	return Uint64x2nclm((archsimd.Uint64x2(x)).RotateAllRight(shift))
 }
 
 func (x Uint64x2) ShiftAllLeft(shift uint64) Uint64x2 {

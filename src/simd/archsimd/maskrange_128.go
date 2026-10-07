@@ -128,11 +128,11 @@ func (x Mask64x2) None() bool {
 	return a0 == 0 && b0 == 0
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask x
 //
 // Emulated
-func (m Mask8x16) TrailingZeros() int {
-	word := m.ToInt8x16().ToBits().ReshapeToUint64s()
+func (x Mask8x16) TrailingZeros() int {
+	word := x.ToInt8x16().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
 	a := a0 & 0x0101010101010101
 	lane := bits.TrailingZeros64(a)
@@ -145,11 +145,11 @@ func (m Mask8x16) TrailingZeros() int {
 	return lane>>3 + 8
 }
 
-// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask x
 //
 // Emulated
-func (m Mask16x8) TrailingZeros() int {
-	word := m.ToInt16x8().ToBits().ReshapeToUint64s()
+func (x Mask16x8) TrailingZeros() int {
+	word := x.ToInt16x8().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
 	a := a0 & 0x0001000100010001
 	lane := bits.TrailingZeros64(a)
@@ -162,11 +162,11 @@ func (m Mask16x8) TrailingZeros() int {
 	return lane>>4 + 4
 }
 
-// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask x
 //
 // Emulated
-func (m Mask32x4) TrailingZeros() int {
-	word := m.ToInt32x4().ToBits().ReshapeToUint64s()
+func (x Mask32x4) TrailingZeros() int {
+	word := x.ToInt32x4().ToBits().ReshapeToUint64s()
 	a0 := word.GetElem(0)
 	a := a0 & 0x0000000100000001
 	lane := bits.TrailingZeros64(a)
@@ -179,11 +179,11 @@ func (m Mask32x4) TrailingZeros() int {
 	return lane>>5 + 2
 }
 
-// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask x
 //
 // Emulated
-func (m Mask64x2) TrailingZeros() int {
-	word := m.ToInt64x2().ToBits()
+func (x Mask64x2) TrailingZeros() int {
+	word := x.ToInt64x2().ToBits()
 	if word.GetElem(0) != 0 {
 		return 0
 	}

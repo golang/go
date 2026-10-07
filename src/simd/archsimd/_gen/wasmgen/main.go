@@ -903,7 +903,7 @@ func initWasmOps() {
 
 	// Shuffle is a mess, it takes a 8x16 vector in and SIXTEEN immediates specifying the indices.
 	// addWasmOps([]*simdType{vi8}, i8_shuf, 1, nil)
-	addWasmOpsDetail([]*simdType{vi8}, i8_swiz, 2, func(op *wasmOp) { op.arg1Name = "i" })
+	addWasmOpsDetail([]*simdType{vi8}, i8_swiz, 2, func(op *wasmOp) { op.arg1Name = "indices" })
 
 	// Masks have some operations.
 	addWasmOps(masks, iv_2, 2, isMask)
@@ -1236,7 +1236,7 @@ var docForOp map[string]string = map[string]string{
 	"AddSaturated":       " returns the result of adding x and y, saturating instead of overflowing, elementwise.",
 	"SubSaturated":       " returns the result of subtracting x and y, saturating instead of overflowing, elementwise.",
 	"Shuffle":            " returns the elements of y concatenated with z that are selected by elements of x",
-	"LookupOrZero": ` returns the elements of x as indexed by the elements of i. If an index is out of range, its result is 0.
+	"LookupOrZero": ` returns the elements of x as indexed by the elements of indices. If an index is out of range, its result is 0.
 //
 //	if 0 <= indices[i] && indices[i] < len(table) {
 //	    result[i] = table[indices[i]]

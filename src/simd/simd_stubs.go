@@ -114,7 +114,7 @@ func (x Int8s) SubSaturated(y Int8s) (z Int8s)
 func (x Int8s) ToBits() (z Uint8s)
 
 // ToMask returns a mask representation of the vector.
-func (x Int8s) ToMask() (to Mask8s)
+func (x Int8s) ToMask() (z Mask8s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Int8s) Xor(y Int8s) Int8s
@@ -236,7 +236,7 @@ func (x Int16s) SubSaturated(y Int16s) (z Int16s)
 func (x Int16s) ToBits() (z Uint16s)
 
 // ToMask returns a mask representation of the vector.
-func (x Int16s) ToMask() (to Mask16s)
+func (x Int16s) ToMask() (z Mask16s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Int16s) Xor(y Int16s) Int16s
@@ -351,7 +351,7 @@ func (x Int32s) Sub(y Int32s) (z Int32s)
 func (x Int32s) ToBits() (z Uint32s)
 
 // ToMask returns a mask representation of the vector.
-func (x Int32s) ToMask() (to Mask32s)
+func (x Int32s) ToMask() (z Mask32s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Int32s) Xor(y Int32s) Int32s
@@ -442,7 +442,7 @@ func (x Int64s) Sub(y Int64s) (z Int64s)
 func (x Int64s) ToBits() (z Uint64s)
 
 // ToMask returns a mask representation of the vector.
-func (x Int64s) ToMask() (to Mask64s)
+func (x Int64s) ToMask() (z Mask64s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Int64s) Xor(y Int64s) Int64s
@@ -690,11 +690,11 @@ func (x Uint16s) ReshapeToUint64s() (z Uint64s)
 //	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint16s) ReshapeToUint8s() (z Uint8s)
 
-// RotatesAllLeft rotates all elements left by y bits.
-func (x Uint16s) RotateAllLeft(dist uint64) Uint16s
+// RotatesAllLeft rotates all elements left by shift bits.
+func (x Uint16s) RotateAllLeft(shift uint64) Uint16s
 
-// RotatesAllRight rotates all elements right by y bits.
-func (x Uint16s) RotateAllRight(dist uint64) Uint16s
+// RotatesAllRight rotates all elements right by shift bits.
+func (x Uint16s) RotateAllRight(shift uint64) Uint16s
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
@@ -840,11 +840,11 @@ func (x Uint32s) ReshapeToUint64s() (z Uint64s)
 //	⋯     z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint32s) ReshapeToUint8s() (z Uint8s)
 
-// RotatesAllLeft rotates all elements left by y bits.
-func (x Uint32s) RotateAllLeft(dist uint64) Uint32s
+// RotatesAllLeft rotates all elements left by shift bits.
+func (x Uint32s) RotateAllLeft(shift uint64) Uint32s
 
-// RotatesAllRight rotates all elements right by y bits.
-func (x Uint32s) RotateAllRight(dist uint64) Uint32s
+// RotatesAllRight rotates all elements right by shift bits.
+func (x Uint32s) RotateAllRight(shift uint64) Uint32s
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
@@ -1005,11 +1005,11 @@ func (x Uint64s) ReshapeToUint32s() (z Uint32s)
 //	⋯    z[15]     z[14]    ⋯     z[9]      z[8]      z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64s) ReshapeToUint8s() (z Uint8s)
 
-// RotatesAllLeft rotates all elements left by y bits.
-func (x Uint64s) RotateAllLeft(dist uint64) Uint64s
+// RotatesAllLeft rotates all elements left by shift bits.
+func (x Uint64s) RotateAllLeft(shift uint64) Uint64s
 
-// RotatesAllRight rotates all elements right by y bits.
-func (x Uint64s) RotateAllRight(dist uint64) Uint64s
+// RotatesAllRight rotates all elements right by shift bits.
+func (x Uint64s) RotateAllRight(shift uint64) Uint64s
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.

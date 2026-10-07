@@ -1773,10 +1773,10 @@ func (x Uint16s) ShiftAllRight(shift uint64) (z Uint16s) {
 	return res
 }
 
-// RotateAllLeft rotates all elements left by dist bits.
-func (x Uint16s) RotateAllLeft(dist uint64) Uint16s {
+// RotateAllLeft rotates all elements left by shift bits.
+func (x Uint16s) RotateAllLeft(shift uint64) Uint16s {
 	var res Uint16s
-	d := dist & 15
+	d := shift & 15
 	for i := 0; i < 8; i++ {
 		u := x.get(i)
 		r := (u << d) | (u >> ((16 - d) & 15))
@@ -1785,10 +1785,10 @@ func (x Uint16s) RotateAllLeft(dist uint64) Uint16s {
 	return res
 }
 
-// RotateAllRight rotates all elements right by dist bits.
-func (x Uint16s) RotateAllRight(dist uint64) Uint16s {
+// RotateAllRight rotates all elements right by shift bits.
+func (x Uint16s) RotateAllRight(shift uint64) Uint16s {
 	var res Uint16s
-	d := dist & 15
+	d := shift & 15
 	for i := 0; i < 8; i++ {
 		u := x.get(i)
 		r := (u >> d) | (u << ((16 - d) & 15))
@@ -2102,10 +2102,10 @@ func (x Uint32s) ShiftAllRight(shift uint64) (z Uint32s) {
 	return res
 }
 
-// RotateAllLeft rotates all elements left by dist bits.
-func (x Uint32s) RotateAllLeft(dist uint64) Uint32s {
+// RotateAllLeft rotates all elements left by shift bits.
+func (x Uint32s) RotateAllLeft(shift uint64) Uint32s {
 	var res Uint32s
-	d := dist & 31
+	d := shift & 31
 	for i := 0; i < 4; i++ {
 		u := x.get(i)
 		r := (u << d) | (u >> ((32 - d) & 31))
@@ -2114,10 +2114,10 @@ func (x Uint32s) RotateAllLeft(dist uint64) Uint32s {
 	return res
 }
 
-// RotateAllRight rotates all elements right by dist bits.
-func (x Uint32s) RotateAllRight(dist uint64) Uint32s {
+// RotateAllRight rotates all elements right by shift bits.
+func (x Uint32s) RotateAllRight(shift uint64) Uint32s {
 	var res Uint32s
-	d := dist & 31
+	d := shift & 31
 	for i := 0; i < 4; i++ {
 		u := x.get(i)
 		r := (u >> d) | (u << ((32 - d) & 31))
@@ -2358,18 +2358,18 @@ func (x Uint64s) ShiftAllRight(shift uint64) (z Uint64s) {
 	return Uint64s{a: x.a >> shift, b: x.b >> shift}
 }
 
-// RotateAllLeft rotates all elements left by dist bits.
-func (x Uint64s) RotateAllLeft(dist uint64) Uint64s {
-	d := dist & 63
+// RotateAllLeft rotates all elements left by shift bits.
+func (x Uint64s) RotateAllLeft(shift uint64) Uint64s {
+	d := shift & 63
 	return Uint64s{
 		a: (x.a << d) | (x.a >> ((64 - d) & 63)),
 		b: (x.b << d) | (x.b >> ((64 - d) & 63)),
 	}
 }
 
-// RotateAllRight rotates all elements right by dist bits.
-func (x Uint64s) RotateAllRight(dist uint64) Uint64s {
-	d := dist & 63
+// RotateAllRight rotates all elements right by shift bits.
+func (x Uint64s) RotateAllRight(shift uint64) Uint64s {
+	d := shift & 63
 	return Uint64s{
 		a: (x.a >> d) | (x.a << ((64 - d) & 63)),
 		b: (x.b >> d) | (x.b << ((64 - d) & 63)),
@@ -3179,8 +3179,8 @@ func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) Uint64s {
 	return x.clmul(y)
 }
 
-func (v Int8s) OnesCount() Int8s {
-	a0, a1 := v.a, v.b
+func (x Int8s) OnesCount() Int8s {
+	a0, a1 := x.a, x.b
 	m1 := uint64(0x5555555555555555)
 	m2 := uint64(0x3333333333333333)
 	m4 := uint64(0x0f0f0f0f0f0f0f0f)
@@ -3196,8 +3196,8 @@ func (v Int8s) OnesCount() Int8s {
 	return Int8s{a: a0, b: a1}
 }
 
-func (v Uint8s) OnesCount() Uint8s {
-	a0, a1 := v.a, v.b
+func (x Uint8s) OnesCount() Uint8s {
+	a0, a1 := x.a, x.b
 	m1 := uint64(0x5555555555555555)
 	m2 := uint64(0x3333333333333333)
 	m4 := uint64(0x0f0f0f0f0f0f0f0f)
@@ -3331,53 +3331,53 @@ func (x Mask64s) None() bool {
 }
 
 // TrailingZeros returns the number of trailing (low-order) zeroes in mask m
-func (m Mask8s) TrailingZeros() int {
-	a0 := m.a
+func (x Mask8s) TrailingZeros() int {
+	a0 := x.a
 	a := a0 & 0x0101010101010101
 	lane := bits.TrailingZeros64(a)
 	if lane < 64 {
 		return lane >> 3
 	}
-	a0 = m.b
+	a0 = x.b
 	a = a0 & 0x0101010101010101
 	lane = bits.TrailingZeros64(a)
 	return lane>>3 + 8
 }
 
 // TrailingZeros returns the number of trailing (low-order) zeroes in mask m
-func (m Mask16s) TrailingZeros() int {
-	a0 := m.a
+func (x Mask16s) TrailingZeros() int {
+	a0 := x.a
 	a := a0 & 0x0001000100010001
 	lane := bits.TrailingZeros64(a)
 	if lane < 64 {
 		return lane >> 4
 	}
-	a0 = m.b
+	a0 = x.b
 	a = a0 & 0x0001000100010001
 	lane = bits.TrailingZeros64(a)
 	return lane>>4 + 4
 }
 
 // TrailingZeros returns the number of trailing (low-order) zeroes in mask m
-func (m Mask32s) TrailingZeros() int {
-	a0 := m.a
+func (x Mask32s) TrailingZeros() int {
+	a0 := x.a
 	a := a0 & 0x0000000100000001
 	lane := bits.TrailingZeros64(a)
 	if lane < 64 {
 		return lane >> 5
 	}
-	a0 = m.b
+	a0 = x.b
 	a = a0 & 0x0000000100000001
 	lane = bits.TrailingZeros64(a)
 	return lane>>5 + 2
 }
 
 // TrailingZeros returns the number of trailing (low-order) zeroes in mask m
-func (m Mask64s) TrailingZeros() int {
-	if m.a != 0 {
+func (x Mask64s) TrailingZeros() int {
+	if x.a != 0 {
 		return 0
 	}
-	if m.b != 0 {
+	if x.b != 0 {
 		return 1
 	}
 	return 2

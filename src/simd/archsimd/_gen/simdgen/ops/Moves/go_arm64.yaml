@@ -58,6 +58,7 @@
   - &fscalarIn
     class: vreg
     treatLikeAScalarOfSize: 0
+    name: y
   out:
   - *fvector
 

@@ -985,39 +985,39 @@ type Mask8s struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask8sAllTrue() Mask8s
 
-// First returns a mask with only the first active lane of m active, or no
-// lanes active if m has none.
+// First returns a mask with only the first active lane of x active, or no
+// lanes active if x has none.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m Mask8s) First() Mask8s
+func (x Mask8s) First() Mask8s
 
-// Next returns a mask with only the lane after the last active lane of m
-// active. If m has no active lanes, lane 0 is active; if its last active lane
+// Next returns a mask with only the lane after the last active lane of x
+// active. If x has no active lanes, lane 0 is active; if its last active lane
 // is the last lane, no lanes are active.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m Mask8s) Next() Mask8s
+func (x Mask8s) Next() Mask8s
 
-// All reports whether every lane of m is active.
+// All reports whether every lane of x is active.
 //
 // Asm: BICS (predicate), CPU Feature: SVE
-func (m Mask8s) All() bool
+func (x Mask8s) All() bool
 
-// None reports whether no lane of m is active.
+// None reports whether no lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m Mask8s) None() bool
+func (x Mask8s) None() bool
 
-// Any reports whether some lane of m is active.
+// Any reports whether some lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m Mask8s) Any() bool
+func (x Mask8s) Any() bool
 
-// String returns a string representation of SIMD mask m: 1 for an active lane,
+// String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the vl() lanes that exist at the runtime
 // vector length are shown.
-func (m Mask8s) String() string {
-	bits := *(*uint64)(unsafe.Pointer(&m))
+func (x Mask8s) String() string {
+	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [32]int8
 	n := vl()
 	for i := range n {
@@ -1047,39 +1047,39 @@ type Mask16s struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask16sAllTrue() Mask16s
 
-// First returns a mask with only the first active lane of m active, or no
-// lanes active if m has none.
+// First returns a mask with only the first active lane of x active, or no
+// lanes active if x has none.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m Mask16s) First() Mask16s
+func (x Mask16s) First() Mask16s
 
-// Next returns a mask with only the lane after the last active lane of m
-// active. If m has no active lanes, lane 0 is active; if its last active lane
+// Next returns a mask with only the lane after the last active lane of x
+// active. If x has no active lanes, lane 0 is active; if its last active lane
 // is the last lane, no lanes are active.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m Mask16s) Next() Mask16s
+func (x Mask16s) Next() Mask16s
 
-// All reports whether every lane of m is active.
+// All reports whether every lane of x is active.
 //
 // Asm: BICS (predicate), CPU Feature: SVE
-func (m Mask16s) All() bool
+func (x Mask16s) All() bool
 
-// None reports whether no lane of m is active.
+// None reports whether no lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m Mask16s) None() bool
+func (x Mask16s) None() bool
 
-// Any reports whether some lane of m is active.
+// Any reports whether some lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m Mask16s) Any() bool
+func (x Mask16s) Any() bool
 
-// String returns a string representation of SIMD mask m: 1 for an active lane,
+// String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 2 lanes that exist at the runtime
 // vector length are shown.
-func (m Mask16s) String() string {
-	bits := *(*uint64)(unsafe.Pointer(&m))
+func (x Mask16s) String() string {
+	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [16]int16
 	n := vl() / 2
 	for i := range n {
@@ -1109,39 +1109,39 @@ type Mask32s struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask32sAllTrue() Mask32s
 
-// First returns a mask with only the first active lane of m active, or no
-// lanes active if m has none.
+// First returns a mask with only the first active lane of x active, or no
+// lanes active if x has none.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m Mask32s) First() Mask32s
+func (x Mask32s) First() Mask32s
 
-// Next returns a mask with only the lane after the last active lane of m
-// active. If m has no active lanes, lane 0 is active; if its last active lane
+// Next returns a mask with only the lane after the last active lane of x
+// active. If x has no active lanes, lane 0 is active; if its last active lane
 // is the last lane, no lanes are active.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m Mask32s) Next() Mask32s
+func (x Mask32s) Next() Mask32s
 
-// All reports whether every lane of m is active.
+// All reports whether every lane of x is active.
 //
 // Asm: BICS (predicate), CPU Feature: SVE
-func (m Mask32s) All() bool
+func (x Mask32s) All() bool
 
-// None reports whether no lane of m is active.
+// None reports whether no lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m Mask32s) None() bool
+func (x Mask32s) None() bool
 
-// Any reports whether some lane of m is active.
+// Any reports whether some lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m Mask32s) Any() bool
+func (x Mask32s) Any() bool
 
-// String returns a string representation of SIMD mask m: 1 for an active lane,
+// String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 4 lanes that exist at the runtime
 // vector length are shown.
-func (m Mask32s) String() string {
-	bits := *(*uint64)(unsafe.Pointer(&m))
+func (x Mask32s) String() string {
+	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [8]int32
 	n := vl() / 4
 	for i := range n {
@@ -1171,39 +1171,39 @@ type Mask64s struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask64sAllTrue() Mask64s
 
-// First returns a mask with only the first active lane of m active, or no
-// lanes active if m has none.
+// First returns a mask with only the first active lane of x active, or no
+// lanes active if x has none.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m Mask64s) First() Mask64s
+func (x Mask64s) First() Mask64s
 
-// Next returns a mask with only the lane after the last active lane of m
-// active. If m has no active lanes, lane 0 is active; if its last active lane
+// Next returns a mask with only the lane after the last active lane of x
+// active. If x has no active lanes, lane 0 is active; if its last active lane
 // is the last lane, no lanes are active.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m Mask64s) Next() Mask64s
+func (x Mask64s) Next() Mask64s
 
-// All reports whether every lane of m is active.
+// All reports whether every lane of x is active.
 //
 // Asm: BICS (predicate), CPU Feature: SVE
-func (m Mask64s) All() bool
+func (x Mask64s) All() bool
 
-// None reports whether no lane of m is active.
+// None reports whether no lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m Mask64s) None() bool
+func (x Mask64s) None() bool
 
-// Any reports whether some lane of m is active.
+// Any reports whether some lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m Mask64s) Any() bool
+func (x Mask64s) Any() bool
 
-// String returns a string representation of SIMD mask m: 1 for an active lane,
+// String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 8 lanes that exist at the runtime
 // vector length are shown.
-func (m Mask64s) String() string {
-	bits := *(*uint64)(unsafe.Pointer(&m))
+func (x Mask64s) String() string {
+	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [4]int64
 	n := vl() / 8
 	for i := range n {

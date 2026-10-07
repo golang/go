@@ -1854,64 +1854,64 @@ func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
 // Performance: index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VMOV, CPU Feature: NEON
-func (x Float32x4) SetElem(index uint8, v float32) Float32x4
+func (x Float32x4) SetElem(index uint8, y float32) Float32x4
 
 // SetElem returns x with the index'th element set to y.
 //
 // Performance: index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VMOV, CPU Feature: NEON
-func (x Float64x2) SetElem(index uint8, v float64) Float64x2
+func (x Float64x2) SetElem(index uint8, y float64) Float64x2
 
 /* Shift */
 
 // Shift shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element: positive values shift left, negative values shift right.
+// of shift's corresponding element: positive values shift left, negative values shift right.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int8x16) Shift(y Int8x16) Int8x16
+func (x Int8x16) Shift(shift Int8x16) Int8x16
 
 // Shift shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element: positive values shift left, negative values shift right.
+// of shift's corresponding element: positive values shift left, negative values shift right.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int16x8) Shift(y Int16x8) Int16x8
+func (x Int16x8) Shift(shift Int16x8) Int16x8
 
 // Shift shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element: positive values shift left, negative values shift right.
+// of shift's corresponding element: positive values shift left, negative values shift right.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int32x4) Shift(y Int32x4) Int32x4
+func (x Int32x4) Shift(shift Int32x4) Int32x4
 
 // Shift shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element: positive values shift left, negative values shift right.
+// of shift's corresponding element: positive values shift left, negative values shift right.
 //
 // Asm: VSSHL, CPU Feature: NEON
-func (x Int64x2) Shift(y Int64x2) Int64x2
+func (x Int64x2) Shift(shift Int64x2) Int64x2
 
 // Shift shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element: positive values shift left, negative values shift right.
+// of shift's corresponding element: positive values shift left, negative values shift right.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint8x16) Shift(y Int8x16) Uint8x16
+func (x Uint8x16) Shift(shift Int8x16) Uint8x16
 
 // Shift shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element: positive values shift left, negative values shift right.
+// of shift's corresponding element: positive values shift left, negative values shift right.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint16x8) Shift(y Int16x8) Uint16x8
+func (x Uint16x8) Shift(shift Int16x8) Uint16x8
 
 // Shift shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element: positive values shift left, negative values shift right.
+// of shift's corresponding element: positive values shift left, negative values shift right.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint32x4) Shift(y Int32x4) Uint32x4
+func (x Uint32x4) Shift(shift Int32x4) Uint32x4
 
 // Shift shifts each element in x by the signed value of the least significant byte
-// of y's corresponding element: positive values shift left, negative values shift right.
+// of shift's corresponding element: positive values shift left, negative values shift right.
 //
 // Asm: VUSHL, CPU Feature: NEON
-func (x Uint64x2) Shift(y Int64x2) Uint64x2
+func (x Uint64x2) Shift(shift Int64x2) Uint64x2
 
 /* ShiftAllLeft */
 

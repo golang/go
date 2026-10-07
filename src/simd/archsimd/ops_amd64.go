@@ -5163,67 +5163,67 @@ func (x Float64x8) ReciprocalSqrt() Float64x8
 
 /* RotateLeft */
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeft rotates each element in x to the left by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512
-func (x Uint32x4) RotateLeft(y Uint32x4) Uint32x4
+func (x Uint32x4) RotateLeft(shift Uint32x4) Uint32x4
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeft rotates each element in x to the left by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512
-func (x Uint32x8) RotateLeft(y Uint32x8) Uint32x8
+func (x Uint32x8) RotateLeft(shift Uint32x8) Uint32x8
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeft rotates each element in x to the left by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512
-func (x Uint32x16) RotateLeft(y Uint32x16) Uint32x16
+func (x Uint32x16) RotateLeft(shift Uint32x16) Uint32x16
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeft rotates each element in x to the left by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512
-func (x Uint64x2) RotateLeft(y Uint64x2) Uint64x2
+func (x Uint64x2) RotateLeft(shift Uint64x2) Uint64x2
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeft rotates each element in x to the left by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512
-func (x Uint64x4) RotateLeft(y Uint64x4) Uint64x4
+func (x Uint64x4) RotateLeft(shift Uint64x4) Uint64x4
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeft rotates each element in x to the left by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512
-func (x Uint64x8) RotateLeft(y Uint64x8) Uint64x8
+func (x Uint64x8) RotateLeft(shift Uint64x8) Uint64x8
 
 /* RotateRight */
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRight rotates each element in x to the right by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512
-func (x Uint32x4) RotateRight(y Uint32x4) Uint32x4
+func (x Uint32x4) RotateRight(shift Uint32x4) Uint32x4
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRight rotates each element in x to the right by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512
-func (x Uint32x8) RotateRight(y Uint32x8) Uint32x8
+func (x Uint32x8) RotateRight(shift Uint32x8) Uint32x8
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRight rotates each element in x to the right by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512
-func (x Uint32x16) RotateRight(y Uint32x16) Uint32x16
+func (x Uint32x16) RotateRight(shift Uint32x16) Uint32x16
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRight rotates each element in x to the right by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512
-func (x Uint64x2) RotateRight(y Uint64x2) Uint64x2
+func (x Uint64x2) RotateRight(shift Uint64x2) Uint64x2
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRight rotates each element in x to the right by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512
-func (x Uint64x4) RotateRight(y Uint64x4) Uint64x4
+func (x Uint64x4) RotateRight(shift Uint64x4) Uint64x4
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRight rotates each element in x to the right by the number of bits specified by shift's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512
-func (x Uint64x8) RotateRight(y Uint64x8) Uint64x8
+func (x Uint64x8) RotateRight(shift Uint64x8) Uint64x8
 
 /* Round */
 

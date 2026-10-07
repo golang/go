@@ -333,33 +333,33 @@ type {{.Name}} struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func {{.Name}}AllTrue() {{.Name}}
 
-// First returns a mask with only the first active lane of m active, or no
-// lanes active if m has none.
+// First returns a mask with only the first active lane of x active, or no
+// lanes active if x has none.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m {{.Name}}) First() {{.Name}}
+func (x {{.Name}}) First() {{.Name}}
 
-// Next returns a mask with only the lane after the last active lane of m
-// active. If m has no active lanes, lane 0 is active; if its last active lane
+// Next returns a mask with only the lane after the last active lane of x
+// active. If x has no active lanes, lane 0 is active; if its last active lane
 // is the last lane, no lanes are active.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (m {{.Name}}) Next() {{.Name}}
+func (x {{.Name}}) Next() {{.Name}}
 
-// All reports whether every lane of m is active.
+// All reports whether every lane of x is active.
 //
 // Asm: BICS (predicate), CPU Feature: SVE
-func (m {{.Name}}) All() bool
+func (x {{.Name}}) All() bool
 
-// None reports whether no lane of m is active.
+// None reports whether no lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m {{.Name}}) None() bool
+func (x {{.Name}}) None() bool
 
-// Any reports whether some lane of m is active.
+// Any reports whether some lane of x is active.
 //
 // Asm: PTEST, CPU Feature: SVE
-func (m {{.Name}}) Any() bool
+func (x {{.Name}}) Any() bool
 {{end}}
 
 {{define "sveIfElseTmpl"}}
@@ -389,11 +389,11 @@ func Broadcast{{.Name}}(x {{.Base}}) {{.Name}}
 
 {{define "sveStringTmpl"}}
 {{- if eq .Type "mask"}}
-// String returns a string representation of SIMD mask m: 1 for an active lane,
+// String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the {{.LenExpr}} lanes that exist at the runtime
 // vector length are shown.
-func (m {{.Name}}) String() string {
-	bits := *(*uint64)(unsafe.Pointer(&m))
+func (x {{.Name}}) String() string {
+	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [{{.MaxLanes}}]{{.Base}}
 	n := {{.LenExpr}}
 	for i := range n {
@@ -653,7 +653,7 @@ func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).Trea
 // Performance: {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, v float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}`)
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op3Name "y"}} float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}`)
 
 	st.Add("op3VecAsScalar", `{{if .Documentation}}{{.Documentation}}
 //{{end}}

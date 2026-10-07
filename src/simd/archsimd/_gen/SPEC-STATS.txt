@@ -78,7 +78,7 @@ API consistency across targets (the "one meaning" invariant), for
 argument agrees with any name:
 
   divergent parameter or result types               0 -> 0       [fill-enforce]
-  divergent parameter names                        11 -> 0       [fill-enforce, spec-all]
+  divergent parameter names                         0 -> 0       [fill-enforce, spec-all]
   divergent result names                            0 -> 0       [named-results]
 
 

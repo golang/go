@@ -911,7 +911,7 @@ func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
-	return x.Equal(y).ToInt{{.WxC}}().Not().asMask()	
+	return x.Equal(y).ToInt{{.WxC}}().Not().asMask()
 }
 `)
 
@@ -919,19 +919,19 @@ var uintRotateAllTemplate = sgutil.TemplateNamed("uintRotateAll", `
 // RotateAllLeft rotates all elements left by the specified amount
 //
 // Emulated
-func (x {{.VType}}) RotateAllLeft(dist uint64) {{.VType}} {
-	dist = dist & ({{.EWidth}}-1)
-	ndist := {{.EWidth}} - dist
-	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+func (x {{.VType}}) RotateAllLeft(shift uint64) {{.VType}} {
+	shift = shift & ({{.EWidth}}-1)
+	nshift := {{.EWidth}} - shift
+	return x.ShiftAllLeft(shift).Or(x.ShiftAllRight(nshift))
 }
 
 // RotateAllRight rotates all elements right by the specified amount
 //
 // Emulated
-func (x {{.VType}}) RotateAllRight(dist uint64) {{.VType}} {
-	dist = dist & ({{.EWidth}}-1)
-	ndist := {{.EWidth}} - dist
-	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+func (x {{.VType}}) RotateAllRight(shift uint64) {{.VType}} {
+	shift = shift & ({{.EWidth}}-1)
+	nshift := {{.EWidth}} - shift
+	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
 `)
 
@@ -1228,15 +1228,15 @@ func (x {{.VType}}) ReduceMin() {{.Etype}} {
 
 var maskCvtTemplate = shapedTemplateOf(intShapes, "Mask conversions", `
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
-	return from.NotEqual({{.Base}}{{.WxC}}{})
+func (x {{.Base}}{{.WxC}}) ToMask() (z Mask{{.WxC}}) {
+	return x.NotEqual({{.Base}}{{.WxC}}{})
 }
 `)
 
 var arm64MaskCvtTemplate = shapedTemplateOf(arm64IntShapes, "Mask conversions", `
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
-	return from.NotEqual({{.Base}}{{.WxC}}{})
+func (x {{.Base}}{{.WxC}}) ToMask() (z Mask{{.WxC}}) {
+	return x.NotEqual({{.Base}}{{.WxC}}{})
 }
 `)
 
