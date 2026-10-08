@@ -66,6 +66,10 @@ func AndNot[S integer](x, y S) S {
 	return x &^ y
 }
 
+func Xnor[S integer](x, y S) S {
+	return ^(x ^ y)
+}
+
 func Max[S number](x, y S) S {
 	return max(x, y)
 }

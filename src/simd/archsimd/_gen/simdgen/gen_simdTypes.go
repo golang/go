@@ -772,6 +772,8 @@ func (x {{.Name}}) And(y {{.Name}}) {{.Name}}
 
 func (x {{.Name}}) AndNot(y {{.Name}}) {{.Name}}
 
+func (x {{.Name}}) Equal(y {{.Name}}) {{.Name}}
+
 func (x {{.Name}}) Or(y {{.Name}}) {{.Name}}
 
 func (x {{.Name}}) Xor(y {{.Name}}) {{.Name}}

@@ -94,7 +94,7 @@ func (a *simdType) Compare(b *simdType) int {
 // WasmUName returns the Capitalized wasm type name e.g. I64x2
 func (s *simdType) WasmUName() string {
 	T := s.Name[:1]
-	if T == "U" {
+	if T == "U" || T == "M" {
 		T = "I"
 	}
 	return fmt.Sprintf("%s%dx%d", T, s.ElemSize, s.Count)
@@ -908,6 +908,7 @@ func initWasmOps() {
 	// Masks have some operations.
 	addWasmOps(masks, iv_2, 2, isMask)
 	addWasmOps(masks, iv_1, 1, isMask)
+	addWasmOps(masks, []string{"eq"}, 2, isMask)
 
 	extractImmediate := func(op *wasmOp) {
 		op.resultType = op.t.Elem

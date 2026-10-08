@@ -440,6 +440,11 @@ func (x Uint8x16) Equal(y Uint8x16) (z Mask8x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+// Asm: I8x16Eq
+func (x Mask8x16) Equal(y Mask8x16) (z Mask8x16)
+
+// Equal returns a mask indicating which elements of x and y are equal.
+//
 // Asm: I16x8Eq
 func (x Int16x8) Equal(y Int16x8) (z Mask16x8)
 
@@ -447,6 +452,11 @@ func (x Int16x8) Equal(y Int16x8) (z Mask16x8)
 //
 // Asm: I16x8Eq
 func (x Uint16x8) Equal(y Uint16x8) (z Mask16x8)
+
+// Equal returns a mask indicating which elements of x and y are equal.
+//
+// Asm: I16x8Eq
+func (x Mask16x8) Equal(y Mask16x8) (z Mask16x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
@@ -465,6 +475,11 @@ func (x Float32x4) Equal(y Float32x4) (z Mask32x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+// Asm: I32x4Eq
+func (x Mask32x4) Equal(y Mask32x4) (z Mask32x4)
+
+// Equal returns a mask indicating which elements of x and y are equal.
+//
 // Asm: I64x2Eq
 func (x Int64x2) Equal(y Int64x2) (z Mask64x2)
 
@@ -477,6 +492,11 @@ func (x Uint64x2) Equal(y Uint64x2) (z Mask64x2)
 //
 // Asm: F64x2Eq
 func (x Float64x2) Equal(y Float64x2) (z Mask64x2)
+
+// Equal returns a mask indicating which elements of x and y are equal.
+//
+// Asm: I64x2Eq
+func (x Mask64x2) Equal(y Mask64x2) (z Mask64x2)
 
 // ExtendHi2ToInt64
 //

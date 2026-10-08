@@ -113,6 +113,7 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	addF(simdPackage, "{{.Name}}.AndNot", opLen2(ssaop.OpAndNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- end}}
 	addF(simdPackage, "{{.Name}}.Xor", opLen2(ssaop.OpXor{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.Equal", opLen2(ssaop.OpEqual{{.VectorCounterpart}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- if eq GetSysArch "sys.ARM64"}}
 	addF(simdPackage, "{{.Name}}.Not", opLen1(ssaop.OpNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- else}}

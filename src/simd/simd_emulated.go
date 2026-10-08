@@ -3550,6 +3550,11 @@ func (x Mask8s) AndNot(y Mask8s) Mask8s {
 	return Mask8s{a: x.a &^ y.a, b: x.b &^ y.b}
 }
 
+// Equal returns a mask indicating where x and y are equal.
+func (x Mask8s) Equal(y Mask8s) Mask8s {
+	return Mask8s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
+}
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -3597,6 +3602,11 @@ func (x Mask16s) And(y Mask16s) (z Mask16s) {
 // AndNot returns the bitwise ANDNOT of x and y.
 func (x Mask16s) AndNot(y Mask16s) Mask16s {
 	return Mask16s{a: x.a &^ y.a, b: x.b &^ y.b}
+}
+
+// Equal returns a mask indicating where x and y are equal.
+func (x Mask16s) Equal(y Mask16s) Mask16s {
+	return Mask16s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
 }
 
 // Or returns the bitwise OR of x and y.
@@ -3648,6 +3658,11 @@ func (x Mask32s) AndNot(y Mask32s) Mask32s {
 	return Mask32s{a: x.a &^ y.a, b: x.b &^ y.b}
 }
 
+// Equal returns a mask indicating where x and y are equal.
+func (x Mask32s) Equal(y Mask32s) Mask32s {
+	return Mask32s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
+}
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -3693,6 +3708,11 @@ func (x Mask64s) And(y Mask64s) (z Mask64s) {
 // AndNot returns the bitwise ANDNOT of x and y.
 func (x Mask64s) AndNot(y Mask64s) Mask64s {
 	return Mask64s{a: x.a &^ y.a, b: x.b &^ y.b}
+}
+
+// Equal returns a mask indicating where x and y are equal.
+func (x Mask64s) Equal(y Mask64s) Mask64s {
+	return Mask64s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
 }
 
 // Or returns the bitwise OR of x and y.

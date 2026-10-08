@@ -3988,6 +3988,18 @@ func (x Mask8x64) Any() bool {
 	return (archsimd.Mask8x64(x)).Any()
 }
 
+func (x Mask8x16) Equal(y Mask8x16) Mask8x16 {
+	return Mask8x16((archsimd.Mask8x16(x)).Equal(archsimd.Mask8x16(y)))
+}
+
+func (x Mask8x32) Equal(y Mask8x32) Mask8x32 {
+	return Mask8x32((archsimd.Mask8x32(x)).Equal(archsimd.Mask8x32(y)))
+}
+
+func (x Mask8x64) Equal(y Mask8x64) Mask8x64 {
+	return Mask8x64((archsimd.Mask8x64(x)).Equal(archsimd.Mask8x64(y)))
+}
+
 func (x Mask8x16) None() bool {
 	return (archsimd.Mask8x16(x)).None()
 }
@@ -4106,6 +4118,18 @@ func (x Mask16x16) Any() bool {
 
 func (x Mask16x32) Any() bool {
 	return (archsimd.Mask16x32(x)).Any()
+}
+
+func (x Mask16x8) Equal(y Mask16x8) Mask16x8 {
+	return Mask16x8((archsimd.Mask16x8(x)).Equal(archsimd.Mask16x8(y)))
+}
+
+func (x Mask16x16) Equal(y Mask16x16) Mask16x16 {
+	return Mask16x16((archsimd.Mask16x16(x)).Equal(archsimd.Mask16x16(y)))
+}
+
+func (x Mask16x32) Equal(y Mask16x32) Mask16x32 {
+	return Mask16x32((archsimd.Mask16x32(x)).Equal(archsimd.Mask16x32(y)))
 }
 
 func (x Mask16x8) None() bool {
@@ -4228,6 +4252,18 @@ func (x Mask32x16) Any() bool {
 	return (archsimd.Mask32x16(x)).Any()
 }
 
+func (x Mask32x4) Equal(y Mask32x4) Mask32x4 {
+	return Mask32x4((archsimd.Mask32x4(x)).Equal(archsimd.Mask32x4(y)))
+}
+
+func (x Mask32x8) Equal(y Mask32x8) Mask32x8 {
+	return Mask32x8((archsimd.Mask32x8(x)).Equal(archsimd.Mask32x8(y)))
+}
+
+func (x Mask32x16) Equal(y Mask32x16) Mask32x16 {
+	return Mask32x16((archsimd.Mask32x16(x)).Equal(archsimd.Mask32x16(y)))
+}
+
 func (x Mask32x4) None() bool {
 	return (archsimd.Mask32x4(x)).None()
 }
@@ -4346,6 +4382,18 @@ func (x Mask64x4) Any() bool {
 
 func (x Mask64x8) Any() bool {
 	return (archsimd.Mask64x8(x)).Any()
+}
+
+func (x Mask64x2) Equal(y Mask64x2) Mask64x2 {
+	return Mask64x2((archsimd.Mask64x2(x)).Equal(archsimd.Mask64x2(y)))
+}
+
+func (x Mask64x4) Equal(y Mask64x4) Mask64x4 {
+	return Mask64x4((archsimd.Mask64x4(x)).Equal(archsimd.Mask64x4(y)))
+}
+
+func (x Mask64x8) Equal(y Mask64x8) Mask64x8 {
+	return Mask64x8((archsimd.Mask64x8(x)).Equal(archsimd.Mask64x8(y)))
 }
 
 func (x Mask64x2) None() bool {
