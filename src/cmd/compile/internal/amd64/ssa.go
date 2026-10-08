@@ -2017,7 +2017,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 
 	case ssaop.OpAMD64KMOVQk, ssaop.OpAMD64KMOVDk, ssaop.OpAMD64KMOVWk, ssaop.OpAMD64KMOVBk,
-		ssaop.OpAMD64KMOVQi, ssaop.OpAMD64KMOVDi, ssaop.OpAMD64KMOVWi, ssaop.OpAMD64KMOVBi:
+		ssaop.OpAMD64KMOVQi, ssaop.OpAMD64KMOVDi, ssaop.OpAMD64KMOVWi, ssaop.OpAMD64KMOVBi,
+		ssaop.OpAMD64KNOTB, ssaop.OpAMD64KNOTW, ssaop.OpAMD64KNOTD, ssaop.OpAMD64KNOTQ:
 		// See also ssa.OpAMD64KMOVQload
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

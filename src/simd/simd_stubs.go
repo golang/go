@@ -1607,6 +1607,11 @@ func (x Mask8s) Equal(y Mask8s) (z Mask8s)
 // None returns true when no positions in mask x are set.
 func (x Mask8s) None() bool
 
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask8s) Not() (z Mask8s)
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -1649,6 +1654,11 @@ func (x Mask16s) Equal(y Mask16s) (z Mask16s)
 
 // None returns true when no positions in mask x are set.
 func (x Mask16s) None() bool
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask16s) Not() (z Mask16s)
 
 // Or returns the bitwise OR of x and y.
 //
@@ -1693,6 +1703,11 @@ func (x Mask32s) Equal(y Mask32s) (z Mask32s)
 // None returns true when no positions in mask x are set.
 func (x Mask32s) None() bool
 
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask32s) Not() (z Mask32s)
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -1735,6 +1750,11 @@ func (x Mask64s) Equal(y Mask64s) (z Mask64s)
 
 // None returns true when no positions in mask x are set.
 func (x Mask64s) None() bool
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+func (x Mask64s) Not() (z Mask64s)
 
 // Or returns the bitwise OR of x and y.
 //

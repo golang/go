@@ -3557,6 +3557,11 @@ func (x Mask8s) Equal(y Mask8s) Mask8s {
 	return Mask8s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
 }
 
+// Not returns the bitwise NOT of x.
+func (x Mask8s) Not() Mask8s {
+	return Mask8s{a: ^x.a, b: ^x.b}
+}
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -3609,6 +3614,11 @@ func (x Mask16s) AndNot(y Mask16s) Mask16s {
 // Equal returns a mask indicating where x and y are equal.
 func (x Mask16s) Equal(y Mask16s) Mask16s {
 	return Mask16s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
+}
+
+// Not returns the bitwise NOT of x.
+func (x Mask16s) Not() Mask16s {
+	return Mask16s{a: ^x.a, b: ^x.b}
 }
 
 // Or returns the bitwise OR of x and y.
@@ -3665,6 +3675,11 @@ func (x Mask32s) Equal(y Mask32s) Mask32s {
 	return Mask32s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
 }
 
+// Not returns the bitwise NOT of x.
+func (x Mask32s) Not() Mask32s {
+	return Mask32s{a: ^x.a, b: ^x.b}
+}
+
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -3715,6 +3730,11 @@ func (x Mask64s) AndNot(y Mask64s) Mask64s {
 // Equal returns a mask indicating where x and y are equal.
 func (x Mask64s) Equal(y Mask64s) Mask64s {
 	return Mask64s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
+}
+
+// Not returns the bitwise NOT of x.
+func (x Mask64s) Not() Mask64s {
+	return Mask64s{a: ^x.a, b: ^x.b}
 }
 
 // Or returns the bitwise OR of x and y.

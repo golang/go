@@ -1884,6 +1884,9 @@
 (VPCMPEQQ256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KXNORB x y))
 (VPCMPEQQ512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (KXNORB x y)
 
+(KXOR(B|W|D|Q) x (KXNOR(B|W|D|Q) y y)) => (KNOT(B|W|D|Q) x)
+(KXOR(B|W|D|Q) (KXNOR(B|W|D|Q) y y) x) => (KNOT(B|W|D|Q) x)
+
 (VPMOVVec8x16ToM (VPMOVMToVec8x16 x)) => x
 (VPMOVVec8x32ToM (VPMOVMToVec8x32 x)) => x
 (VPMOVVec8x64ToM (VPMOVMToVec8x64 x)) => x

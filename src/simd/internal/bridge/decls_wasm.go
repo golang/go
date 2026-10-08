@@ -1344,6 +1344,10 @@ func (x Mask8x16) None() bool {
 	return (archsimd.Mask8x16(x)).None()
 }
 
+func (x Mask8x16) Not() Mask8x16 {
+	return Mask8x16((archsimd.Mask8x16(x)).Not())
+}
+
 func (x Mask8x16) Or(y Mask8x16) Mask8x16 {
 	return Mask8x16((archsimd.Mask8x16(x)).Or(archsimd.Mask8x16(y)))
 }
@@ -1386,6 +1390,10 @@ func (x Mask16x8) Equal(y Mask16x8) Mask16x8 {
 
 func (x Mask16x8) None() bool {
 	return (archsimd.Mask16x8(x)).None()
+}
+
+func (x Mask16x8) Not() Mask16x8 {
+	return Mask16x8((archsimd.Mask16x8(x)).Not())
 }
 
 func (x Mask16x8) Or(y Mask16x8) Mask16x8 {
@@ -1432,6 +1440,10 @@ func (x Mask32x4) None() bool {
 	return (archsimd.Mask32x4(x)).None()
 }
 
+func (x Mask32x4) Not() Mask32x4 {
+	return Mask32x4((archsimd.Mask32x4(x)).Not())
+}
+
 func (x Mask32x4) Or(y Mask32x4) Mask32x4 {
 	return Mask32x4((archsimd.Mask32x4(x)).Or(archsimd.Mask32x4(y)))
 }
@@ -1474,6 +1486,10 @@ func (x Mask64x2) Equal(y Mask64x2) Mask64x2 {
 
 func (x Mask64x2) None() bool {
 	return (archsimd.Mask64x2(x)).None()
+}
+
+func (x Mask64x2) Not() Mask64x2 {
+	return Mask64x2((archsimd.Mask64x2(x)).Not())
 }
 
 func (x Mask64x2) Or(y Mask64x2) Mask64x2 {

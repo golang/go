@@ -951,6 +951,13 @@ func (x {{.VType}}) Neg() {{.VType}} {
 	return zero.Sub(x)
 }
 
+// Not returns the bitwise complement of x.
+//
+// Emulated, CPU Feature: {{.CPUfeature}}
+func (x Mask{{.WxC}}) Not() Mask{{.WxC}} {
+	return x.ToInt{{.WxC}}().Xor(x.Equal(x).ToInt{{.WxC}}()).asMask()
+}
+
 `)
 
 var bitWiseUintTemplate = shapedTemplateOf(uintShapes, "bitwise uint complement", `

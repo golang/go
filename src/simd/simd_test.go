@@ -151,6 +151,7 @@ func TestMask8s(t *testing.T) {
 	test_helpers.TestMM2Me(t, load, simd.Mask8s.Xor, test_helpers.Xor)
 	test_helpers.TestMM2Me(t, load, simd.Mask8s.AndNot, test_helpers.AndNot)
 	test_helpers.TestMM2Me(t, load, simd.Mask8s.Equal, test_helpers.Xnor)
+	test_helpers.TestM2Me(t, load, simd.Mask8s.Not, test_helpers.Not)
 }
 
 func TestMask16s(t *testing.T) {
@@ -160,6 +161,7 @@ func TestMask16s(t *testing.T) {
 	test_helpers.TestMM2Me(t, load, simd.Mask16s.Xor, test_helpers.Xor)
 	test_helpers.TestMM2Me(t, load, simd.Mask16s.AndNot, test_helpers.AndNot)
 	test_helpers.TestMM2Me(t, load, simd.Mask16s.Equal, test_helpers.Xnor)
+	test_helpers.TestM2Me(t, load, simd.Mask16s.Not, test_helpers.Not)
 }
 
 func TestMask32s(t *testing.T) {
@@ -169,6 +171,7 @@ func TestMask32s(t *testing.T) {
 	test_helpers.TestMM2Me(t, load, simd.Mask32s.Xor, test_helpers.Xor)
 	test_helpers.TestMM2Me(t, load, simd.Mask32s.AndNot, test_helpers.AndNot)
 	test_helpers.TestMM2Me(t, load, simd.Mask32s.Equal, test_helpers.Xnor)
+	test_helpers.TestM2Me(t, load, simd.Mask32s.Not, test_helpers.Not)
 }
 
 func TestMask64s(t *testing.T) {
@@ -178,6 +181,7 @@ func TestMask64s(t *testing.T) {
 	test_helpers.TestMM2Me(t, load, simd.Mask64s.Xor, test_helpers.Xor)
 	test_helpers.TestMM2Me(t, load, simd.Mask64s.AndNot, test_helpers.AndNot)
 	test_helpers.TestMM2Me(t, load, simd.Mask64s.Equal, test_helpers.Xnor)
+	test_helpers.TestM2Me(t, load, simd.Mask64s.Not, test_helpers.Not)
 }
 
 func TestUint8s(t *testing.T) {

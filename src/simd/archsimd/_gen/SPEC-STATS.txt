@@ -13,39 +13,39 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)          1797 / 2905   62%  [spec-common, spec-all]
-docs sourced from spec (§3)                      2894 / 3155   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+spec coverage, by (receiver, name) (§1)          1809 / 2917   62%  [spec-common, spec-all]
+docs sourced from spec (§3)                      2910 / 3175   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
 type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
-hand-written doc conflicts with spec (§3)         177 -> 0       [doc-triage]
-simd mirror drift (§3)                             12 -> 0       [comments-yaml]
+hand-written doc conflicts with spec (§3)         181 -> 0       [doc-triage]
+simd mirror drift (§3)                             16 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
 midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml, spec-all]
 
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      3875 / 5147   75%
-by (receiver, name)                              1797 / 2905   62%
+by (target, receiver, name)                      3903 / 5175   75%
+by (receiver, name)                              1809 / 2917   62%
 by name                                           275 / 458    60%
 
 By build configuration:
 
-  amd64                                          1721 / 2676   64%
-  arm64                                          1064 / 1278   83%
-  wasm                                            746 / 825    90%
-  portable                                        344 / 368    93%
+  amd64                                          1737 / 2692   65%
+  arm64                                          1068 / 1282   83%
+  wasm                                            750 / 829    90%
+  portable                                        348 / 372    94%
 
 By generator (declarations per tool, counted once per tool per pair):
 
-  hand-written                                    498 / 557    89%
-  midway                                          344 / 344   100%
+  hand-written                                    502 / 561    89%
+  midway                                          348 / 348   100%
   simdgen                                        1272 / 2247   57%
-  tmplgen                                         350 / 404    87%
+  tmplgen                                         362 / 416    87%
   wasmgen                                         337 / 392    86%
 
 High-drift-risk names (emitted by >1 generator):
@@ -71,7 +71,7 @@ one (or _) is not, and is counted below as a name Fill fills in instead:
 Names spec gives that the API leaves unnamed, for declarations spec covers:
 
   declarations with unnamed parameters              0 -> 0       [named-results]
-  declarations with unnamed results                12 -> 0       [named-results]
+  declarations with unnamed results                16 -> 0       [named-results]
 
 API consistency across targets (the "one meaning" invariant), for
 (receiver, name) pairs declared for more than one target. An unnamed
@@ -87,11 +87,11 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   2894 / 3155   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   2910 / 3175   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 simd ∩ archsimd methods with matching docs        253 / 253   100%  [gen-docs, comments-yaml]
 
-hand-written doc conflicts with spec              177 -> 0       [doc-triage]
+hand-written doc conflicts with spec              181 -> 0       [doc-triage]
     archsimd/clmul_arm64.go                         4 -> 0       [doc-triage]
     archsimd/extra_amd64.go                         6 -> 0       [doc-triage]
     archsimd/maskrange_128.go                       4 -> 0       [doc-triage]
@@ -104,9 +104,9 @@ hand-written doc conflicts with spec              177 -> 0       [doc-triage]
     archsimd/slicepart_amd64.go                     4 -> 0       [doc-triage]
     archsimd/slicepart_arm64.go                    12 -> 0       [doc-triage]
     archsimd/slicepart_wasm.go                     12 -> 0       [doc-triage]
-    simd_emulated.go                               24 -> 0       [doc-triage]
-drifted docs in simd mirror (stubs vs emulated)    12 -> 0       [comments-yaml]
-  mirrored declarations                           368
+    simd_emulated.go                               28 -> 0       [doc-triage]
+drifted docs in simd mirror (stubs vs emulated)    16 -> 0       [comments-yaml]
+  mirrored declarations                           372
 
 
 ## 4. Retiring the old inputs
@@ -153,13 +153,13 @@ Every name either side defines, less the 183 spec has never defined at all
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)
-  api = spec         218              0              0
-  api ⊂ spec          51              0            785
+  api = spec         219              0              0
+  api ⊂ spec          50              0            773
   api ⊃ spec           0              0              0
   overlapping          0              0              0
   disjoint             6              8             16
   api = ∅             11              0             34
-  total              286              8            835
+  total              286              8            823
 
 Names that disagree, with api - spec receivers (the defects):
 
@@ -220,7 +220,6 @@ Names that disagree, with api - spec receivers (the defects):
   Less                       api ⊂ spec     39     40            0            1
   LessEqual                  api ⊂ spec     39     40            0            1
   MulAdd                     api ⊂ spec     22     40            0           18
-  Not                        api ⊂ spec     36     48            0           12
   NotEqual                   api ⊂ spec     40     56            0           16
   OnesCount                  api ⊂ spec     26     32            0            6
   Permute                    api ⊂ spec     24     40            0           16

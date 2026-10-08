@@ -271,6 +271,14 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64KMOVQk(v)
 	case ssaop.OpAMD64KMOVWk:
 		return rewriteValue_OpAMD64KMOVWk(v)
+	case ssaop.OpAMD64KXORB:
+		return rewriteValue_OpAMD64KXORB(v)
+	case ssaop.OpAMD64KXORD:
+		return rewriteValue_OpAMD64KXORD(v)
+	case ssaop.OpAMD64KXORQ:
+		return rewriteValue_OpAMD64KXORQ(v)
+	case ssaop.OpAMD64KXORW:
+		return rewriteValue_OpAMD64KXORW(v)
 	case ssaop.OpAMD64LEAL:
 		return rewriteValue_OpAMD64LEAL(v)
 	case ssaop.OpAMD64LEAL1:
@@ -24328,6 +24336,146 @@ func rewriteValue_OpAMD64KMOVWk(v *ssa.Value) bool {
 		v.AuxInt = ssa.Int32ToAuxInt(off)
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64KXORB(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (KXORB x (KXNORB y y))
+	// result: (KNOTB x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpAMD64KXNORB {
+			break
+		}
+		y := v_1.Args[1]
+		if y != v_1.Args[0] {
+			break
+		}
+		v.Reset(ssaop.OpAMD64KNOTB)
+		v.AddArg(x)
+		return true
+	}
+	// match: (KXORB (KXNORB y y) x)
+	// result: (KNOTB x)
+	for {
+		if v_0.Op != ssaop.OpAMD64KXNORB {
+			break
+		}
+		y := v_0.Args[1]
+		if y != v_0.Args[0] {
+			break
+		}
+		x := v_1
+		v.Reset(ssaop.OpAMD64KNOTB)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64KXORD(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (KXORD x (KXNORD y y))
+	// result: (KNOTD x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpAMD64KXNORD {
+			break
+		}
+		y := v_1.Args[1]
+		if y != v_1.Args[0] {
+			break
+		}
+		v.Reset(ssaop.OpAMD64KNOTD)
+		v.AddArg(x)
+		return true
+	}
+	// match: (KXORD (KXNORD y y) x)
+	// result: (KNOTD x)
+	for {
+		if v_0.Op != ssaop.OpAMD64KXNORD {
+			break
+		}
+		y := v_0.Args[1]
+		if y != v_0.Args[0] {
+			break
+		}
+		x := v_1
+		v.Reset(ssaop.OpAMD64KNOTD)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64KXORQ(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (KXORQ x (KXNORQ y y))
+	// result: (KNOTQ x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpAMD64KXNORQ {
+			break
+		}
+		y := v_1.Args[1]
+		if y != v_1.Args[0] {
+			break
+		}
+		v.Reset(ssaop.OpAMD64KNOTQ)
+		v.AddArg(x)
+		return true
+	}
+	// match: (KXORQ (KXNORQ y y) x)
+	// result: (KNOTQ x)
+	for {
+		if v_0.Op != ssaop.OpAMD64KXNORQ {
+			break
+		}
+		y := v_0.Args[1]
+		if y != v_0.Args[0] {
+			break
+		}
+		x := v_1
+		v.Reset(ssaop.OpAMD64KNOTQ)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64KXORW(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (KXORW x (KXNORW y y))
+	// result: (KNOTW x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpAMD64KXNORW {
+			break
+		}
+		y := v_1.Args[1]
+		if y != v_1.Args[0] {
+			break
+		}
+		v.Reset(ssaop.OpAMD64KNOTW)
+		v.AddArg(x)
+		return true
+	}
+	// match: (KXORW (KXNORW y y) x)
+	// result: (KNOTW x)
+	for {
+		if v_0.Op != ssaop.OpAMD64KXNORW {
+			break
+		}
+		y := v_0.Args[1]
+		if y != v_0.Args[0] {
+			break
+		}
+		x := v_1
+		v.Reset(ssaop.OpAMD64KNOTW)
+		v.AddArg(x)
 		return true
 	}
 	return false

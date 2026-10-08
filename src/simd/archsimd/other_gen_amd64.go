@@ -382,6 +382,15 @@ func (x Int8x16) Neg() (z Int8x16) {
 //	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
+func (x Mask8x16) Not() (z Mask8x16) {
+	return x.ToInt8x16().Xor(x.Equal(x).ToInt8x16()).asMask()
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX
 func (x Int16x8) Not() (z Int16x8) {
 	return x.Xor(x.Equal(x).ToInt16x8())
 }
@@ -394,6 +403,15 @@ func (x Int16x8) Not() (z Int16x8) {
 func (x Int16x8) Neg() (z Int16x8) {
 	var zero Int16x8
 	return zero.Sub(x)
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX
+func (x Mask16x8) Not() (z Mask16x8) {
+	return x.ToInt16x8().Xor(x.Equal(x).ToInt16x8()).asMask()
 }
 
 // Not returns the bitwise negation of x.
@@ -420,6 +438,15 @@ func (x Int32x4) Neg() (z Int32x4) {
 //	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX
+func (x Mask32x4) Not() (z Mask32x4) {
+	return x.ToInt32x4().Xor(x.Equal(x).ToInt32x4()).asMask()
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX
 func (x Int64x2) Not() (z Int64x2) {
 	return x.Xor(x.Equal(x).ToInt64x2())
 }
@@ -432,6 +459,15 @@ func (x Int64x2) Not() (z Int64x2) {
 func (x Int64x2) Neg() (z Int64x2) {
 	var zero Int64x2
 	return zero.Sub(x)
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX
+func (x Mask64x2) Not() (z Mask64x2) {
+	return x.ToInt64x2().Xor(x.Equal(x).ToInt64x2()).asMask()
 }
 
 // Not returns the bitwise negation of x.
@@ -458,6 +494,15 @@ func (x Int8x32) Neg() (z Int8x32) {
 //	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
+func (x Mask8x32) Not() (z Mask8x32) {
+	return x.ToInt8x32().Xor(x.Equal(x).ToInt8x32()).asMask()
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX2
 func (x Int16x16) Not() (z Int16x16) {
 	return x.Xor(x.Equal(x).ToInt16x16())
 }
@@ -470,6 +515,15 @@ func (x Int16x16) Not() (z Int16x16) {
 func (x Int16x16) Neg() (z Int16x16) {
 	var zero Int16x16
 	return zero.Sub(x)
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX2
+func (x Mask16x16) Not() (z Mask16x16) {
+	return x.ToInt16x16().Xor(x.Equal(x).ToInt16x16()).asMask()
 }
 
 // Not returns the bitwise negation of x.
@@ -496,6 +550,15 @@ func (x Int32x8) Neg() (z Int32x8) {
 //	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX2
+func (x Mask32x8) Not() (z Mask32x8) {
+	return x.ToInt32x8().Xor(x.Equal(x).ToInt32x8()).asMask()
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX2
 func (x Int64x4) Not() (z Int64x4) {
 	return x.Xor(x.Equal(x).ToInt64x4())
 }
@@ -508,6 +571,15 @@ func (x Int64x4) Not() (z Int64x4) {
 func (x Int64x4) Neg() (z Int64x4) {
 	var zero Int64x4
 	return zero.Sub(x)
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX2
+func (x Mask64x4) Not() (z Mask64x4) {
+	return x.ToInt64x4().Xor(x.Equal(x).ToInt64x4()).asMask()
 }
 
 // Not returns the bitwise negation of x.
@@ -534,6 +606,15 @@ func (x Int8x64) Neg() (z Int8x64) {
 //	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
+func (x Mask8x64) Not() (z Mask8x64) {
+	return x.ToInt8x64().Xor(x.Equal(x).ToInt8x64()).asMask()
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX512
 func (x Int16x32) Not() (z Int16x32) {
 	return x.Xor(x.Equal(x).ToInt16x32())
 }
@@ -546,6 +627,15 @@ func (x Int16x32) Not() (z Int16x32) {
 func (x Int16x32) Neg() (z Int16x32) {
 	var zero Int16x32
 	return zero.Sub(x)
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX512
+func (x Mask16x32) Not() (z Mask16x32) {
+	return x.ToInt16x32().Xor(x.Equal(x).ToInt16x32()).asMask()
 }
 
 // Not returns the bitwise negation of x.
@@ -572,6 +662,15 @@ func (x Int32x16) Neg() (z Int32x16) {
 //	z[i] = ^x[i]
 //
 // Emulated, CPU Feature: AVX512
+func (x Mask32x16) Not() (z Mask32x16) {
+	return x.ToInt32x16().Xor(x.Equal(x).ToInt32x16()).asMask()
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX512
 func (x Int64x8) Not() (z Int64x8) {
 	return x.Xor(x.Equal(x).ToInt64x8())
 }
@@ -584,6 +683,15 @@ func (x Int64x8) Not() (z Int64x8) {
 func (x Int64x8) Neg() (z Int64x8) {
 	var zero Int64x8
 	return zero.Sub(x)
+}
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Emulated, CPU Feature: AVX512
+func (x Mask64x8) Not() (z Mask64x8) {
+	return x.ToInt64x8().Xor(x.Equal(x).ToInt64x8()).asMask()
 }
 
 // Not returns the bitwise negation of x.
