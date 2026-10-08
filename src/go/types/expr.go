@@ -660,16 +660,21 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	} else {
 		// Check that RHS is otherwise at least of integer type.
 		switch {
-		case allInteger(y.typ()):
-			if !allUnsigned(y.typ()) && !check.verifyVersionf(y, go1_13, invalidOp+"signed shift count %s", y) {
+		case isUntyped(y.typ()):
+			// Non-constant untyped shift counts are converted to uint
+			// (go.dev/issue/77117, go.dev/issue/79252, go.dev/issue/80983).
+			// Note: If we change our opinion on go.dev/issue/77177 and
+			//       decide a different type for the RHS (say int) is
+			//       correct, update RHStype accordingly.
+			RHStype := Typ[Uint]
+			check.convertUntyped(y, RHStype)
+			if !y.isValid() {
 				x.invalidate()
 				return
 			}
-		case isUntyped(y.typ()):
-			// This is incorrect, but preserves pre-existing behavior.
-			// See also go.dev/issue/47410.
-			check.convertUntyped(y, Typ[Uint])
-			if !y.isValid() {
+			fallthrough
+		case allInteger(y.typ()):
+			if !allUnsigned(y.typ()) && !check.verifyVersionf(y, go1_13, invalidOp+"signed shift count %s", y) {
 				x.invalidate()
 				return
 			}

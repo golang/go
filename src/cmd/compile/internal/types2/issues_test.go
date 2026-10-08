@@ -1211,3 +1211,42 @@ var f = genericF[string, float64]
 		}()
 	}
 }
+
+func TestIssue47410(t *testing.T) {
+	const src = `
+package p
+
+func _() {
+	var s int
+	_ = s << 1
+	_ = s << 2.
+}
+`
+
+	info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
+	mustTypecheck(src, nil, &info)
+
+	for _, test := range []struct {
+		expr string
+		typ  Type
+	}{
+		{"s", Typ[Int]},
+		{"s << 1", Typ[Int]},
+		{"s << 2.", Typ[Int]},
+		{"1", Typ[UntypedInt]},
+		{"2.", Typ[UntypedFloat]},
+	} {
+		found := false
+		for e, tv := range info.Types {
+			if ExprString(e) == test.expr {
+				if tv.Type != test.typ {
+					t.Errorf("%s: got %s; want %s", test.expr, tv.Type, test.typ)
+				}
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("no type found for %s", test.expr)
+		}
+	}
+}
