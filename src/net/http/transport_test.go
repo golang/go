@@ -5064,12 +5064,9 @@ func testTransportReuseConnection_Gzip(t *testing.T, mode testMode, chunked bool
 }
 
 func TestTransportResponseHeaderLength(t *testing.T) {
-	runSynctest(t, testTransportResponseHeaderLength, http3SkippedMode)
+	runSynctest(t, testTransportResponseHeaderLength)
 }
 func testTransportResponseHeaderLength(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("HTTP/2 Transport doesn't support MaxResponseHeaderBytes")
-	}
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.URL.Path == "/long" {
 			w.Header().Set("Long", strings.Repeat("a", 1<<20))
@@ -5094,9 +5091,6 @@ func testTransportResponseHeaderLength(t *testing.T, mode testMode) {
 			}
 		}
 		t.Fatalf("Unexpected success. Got %v and %d bytes of response headers", res.Status, n)
-	}
-	if want := "server response headers exceeded 524288 bytes"; !strings.Contains(err.Error(), want) {
-		t.Errorf("got error: %v; want %q", err, want)
 	}
 }
 

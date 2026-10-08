@@ -1127,3 +1127,153 @@ func TestRoundTripGzipWithTrailers(t *testing.T) {
 		st.wantClosed("request is complete")
 	})
 }
+
+func TestRoundTripHeaderLimits(t *testing.T) {
+	for _, test := range []struct {
+		name                   string
+		infoHeaders            []http.Header
+		usesGot1xxResponseHook bool
+		header                 http.Header
+		trailer                http.Header
+		maxHeaderBytes         int64
+		valid                  bool
+	}{{
+		name: "within limits",
+		header: {
+			":status": {"200"},
+			"x-foo":   {strings.Repeat("x", 1000)},
+		},
+		maxHeaderBytes: 1500,
+		valid:          true,
+	}, {
+		name: "too many header bytes",
+		header: {
+			":status": {"200"},
+			"x-foo":   {strings.Repeat("x", 1000)},
+			"x-bar":   {strings.Repeat("x", 1000)},
+		},
+		maxHeaderBytes: 1500,
+	}, {
+		name: "1xx responses over limit without hook",
+		infoHeaders: {{
+			":status": {"103"},
+			"x-foo":   {strings.Repeat("x", 1000)},
+		}, {
+			":status": {"103"},
+			"x-foo":   {strings.Repeat("x", 1000)},
+		}},
+		header: {
+			":status": {"200"},
+		},
+		maxHeaderBytes: 1500,
+	}, {
+		name: "1xx responses within per-response limit with hook",
+		infoHeaders: {{
+			":status": {"103"},
+			"x-foo":   {strings.Repeat("x", 1000)},
+		}, {
+			":status": {"103"},
+			"x-foo":   {strings.Repeat("x", 1000)},
+		}},
+		usesGot1xxResponseHook: true,
+		header: {
+			":status": {"200"},
+		},
+		maxHeaderBytes: 1500,
+		valid:          true,
+	}, {
+		name: "1xx responses over total limit with hook",
+		infoHeaders: {{
+			":status": {"103"},
+			"x-foo":   {strings.Repeat("x", 2000)},
+		}},
+		usesGot1xxResponseHook: true,
+		header: {
+			":status": {"200"},
+		},
+		maxHeaderBytes: 1500,
+	}, {
+		name: "1xx responses declared trailer over limit without hook",
+		infoHeaders: {{
+			":status": {"103"},
+			"trailer": {strings.Repeat("x", 1000)},
+		}, {
+			":status": {"103"},
+			"trailer": {strings.Repeat("x", 1000)},
+		}},
+		header: {
+			":status": {"200"},
+		},
+		maxHeaderBytes: 1500,
+	}, {
+		name: "declared trailer bytes over limit",
+		header: {
+			":status": {"200"},
+			"trailer": {strings.Repeat("a,", 50)},
+		},
+		maxHeaderBytes: 1500,
+	}, {
+		name: "sent trailer within limits",
+		header: {
+			":status": {"200"},
+			"trailer": {"x-foo"},
+		},
+		trailer: {
+			"x-foo": {strings.Repeat("x", 1000)},
+		},
+		maxHeaderBytes: 1500,
+		valid:          true,
+	}, {
+		name: "too many sent trailer bytes",
+		header: {
+			":status": {"200"},
+			"trailer": {"x-foo, x-bar"},
+		},
+		trailer: {
+			"x-foo": {strings.Repeat("x", 1000)},
+			"x-bar": {strings.Repeat("x", 1000)},
+		},
+		maxHeaderBytes: 1500,
+	}} {
+		synctestSubtest(t, test.name, func(t *testing.T) {
+			tc := newTestClientConn(t)
+			tc.tr.tr1.MaxResponseHeaderBytes = test.maxHeaderBytes
+			tc.greet()
+
+			ctx := t.Context()
+			if test.usesGot1xxResponseHook {
+				ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+					Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+						return nil
+					},
+				})
+			}
+			req, _ := http.NewRequestWithContext(ctx, "GET", "https://example.tld/", nil)
+			rt := tc.roundTrip(req)
+			st := tc.wantStream(streamTypeRequest)
+			st.wantHeaders(nil)
+			for _, h := range test.infoHeaders {
+				st.writeHeaders(h)
+			}
+			st.writeHeaders(test.header)
+
+			if test.trailer == nil {
+				st.CloseWrite()
+				if !test.valid {
+					rt.wantError("response headers exceed limit")
+					return
+				}
+				rt.wantStatus(200)
+				return
+			}
+
+			rt.wantStatus(200)
+			st.writeHeaders(test.trailer)
+			st.CloseWrite()
+			_, err := rt.readBody()
+			if (err == nil) != test.valid {
+				t.Fatalf("readBody() = %v, want valid=%v", err, test.valid)
+			}
+		})
+	}
+}

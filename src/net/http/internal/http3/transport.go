@@ -223,6 +223,13 @@ func (tr *transport) unregisterConn(cc *clientConn) {
 	close(cc.unregistered)
 }
 
+func (tr *transport) maxResponseHeaderBytes() int64 {
+	if tr.tr1 != nil && tr.tr1.MaxResponseHeaderBytes > 0 {
+		return tr.tr1.MaxResponseHeaderBytes
+	}
+	return 10 << 20 // Matches HTTP/1 and HTTP/2 default of 10 MB.
+}
+
 func (tr *transport) newClientConn(ctx context.Context, qconn *quic.Conn, stateHook func()) (*clientConn, error) {
 	cc := &clientConn{
 		tr:           tr,
@@ -239,7 +246,7 @@ func (tr *transport) newClientConn(ctx context.Context, qconn *quic.Conn, stateH
 		tr.unregisterConn(cc)
 		return nil, fmt.Errorf("http3: cannot create control stream: %v", err)
 	}
-	controlStream.writeSettings()
+	controlStream.writeSettings(settingsMaxFieldSectionSize, tr.maxResponseHeaderBytes())
 	controlStream.Flush()
 
 	go func() {

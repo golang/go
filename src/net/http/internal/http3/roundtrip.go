@@ -9,13 +9,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptrace"
+	"net/http/internal/ascii"
+	"net/http/internal/httpcommon"
 	"net/textproto"
 	"strconv"
-	"net/http/internal/ascii"
+	"strings"
 	"sync"
 
 	"golang.org/x/net/http/httpguts"
-	"net/http/internal/httpcommon"
 	"golang.org/x/net/quic"
 )
 
@@ -32,7 +33,9 @@ type roundTripState struct {
 	// Response.Body, provided to the caller.
 	respBody io.ReadCloser
 
-	trace *httptrace.ClientTrace
+	trace       *httptrace.ClientTrace
+	headerSize  int64
+	trailerSize int64
 
 	errOnce sync.Once
 	err     error
@@ -196,7 +199,7 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 		}
 		switch ftype {
 		case frameTypeHeaders:
-			statusCode, h, err := cc.handleHeaders(st)
+			statusCode, h, err := rt.handleHeaders()
 			if err != nil {
 				return nil, err
 			}
@@ -228,9 +231,10 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 
 			if (contentLength != 0 && req.Method != http.MethodHead) || len(trailer) > 0 {
 				rt.respBody = &bodyReader{
-					st:      st,
-					remain:  contentLength,
-					trailer: trailer,
+					st:             st,
+					remain:         contentLength,
+					trailer:        trailer,
+					maxHeaderBytes: cc.tr.maxResponseHeaderBytes(),
 				}
 			} else {
 				rt.respBody = http.NoBody
@@ -389,12 +393,27 @@ func parseResponseContentLength(method string, statusCode int, h http.Header) (i
 	return int64(contentLen), nil
 }
 
-func (cc *clientConn) handleHeaders(st *stream) (statusCode int, h http.Header, err error) {
+func (rt *roundTripState) handleHeaders() (statusCode int, h http.Header, err error) {
+	maxHeaderBytes := rt.cc.tr.maxResponseHeaderBytes()
 	haveStatus := false
 	cookie := ""
+	// The QPACK decoder will happily allocate an unbounded buffer, so check
+	// the stream read limit prior to decoding.
+	if rt.st.lim > maxHeaderBytes-rt.headerSize {
+		return 0, nil, errHeadersTooLarge
+	}
 	// Issue #71374: Consider tracking the never-indexed status of headers
 	// with the N bit set in their QPACK encoding.
-	err = cc.dec.decode(st, func(_ indexType, name, value string) error {
+	err = rt.cc.dec.decode(rt.st, func(_ indexType, name, value string) error {
+		if name == "trailer" {
+			fieldCount := int64(strings.Count(value, ",") + 1)
+			rt.trailerSize += int64(len(value)) - fieldCount + 1 + fieldCount*headerFieldOverhead
+		} else {
+			rt.headerSize += int64(len(name)) + int64(len(value)) + headerFieldOverhead
+		}
+		if rt.headerSize > maxHeaderBytes || rt.trailerSize > maxHeaderBytes {
+			return errHeadersTooLarge
+		}
 		if !httpguts.ValidHeaderFieldValue(value) {
 			return &streamError{errH3MessageError, "invalid field value"}
 		}
@@ -445,10 +464,13 @@ func (cc *clientConn) handleHeaders(st *stream) (statusCode int, h http.Header, 
 		}
 		return nil
 	})
+	if err != nil {
+		return 0, nil, err
+	}
 	if !haveStatus {
 		// "[The :status] pseudo-header field MUST be included in all responses [...]"
 		// https://www.rfc-editor.org/rfc/rfc9114.html#section-4.3.2-1
-		err = errH3MessageError
+		return 0, nil, errH3MessageError
 	}
 	if cookie != "" {
 		if h == nil {
@@ -456,10 +478,15 @@ func (cc *clientConn) handleHeaders(st *stream) (statusCode int, h http.Header, 
 		}
 		h["Cookie"] = []string{cookie}
 	}
-	if err := st.endFrame(); err != nil {
+	if err := rt.st.endFrame(); err != nil {
 		return 0, nil, err
 	}
-	return statusCode, h, err
+	// go.dev/issue/65035.
+	if isInfoStatus(statusCode) && rt.trace != nil && rt.trace.Got1xxResponse != nil {
+		rt.headerSize = 0
+		rt.trailerSize = 0
+	}
+	return statusCode, h, nil
 }
 
 func (cc *clientConn) handlePushPromise(st *stream) error {
