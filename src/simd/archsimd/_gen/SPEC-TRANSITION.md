@@ -127,7 +127,7 @@ easier to revisit decisions if new evidence arises.
 Measurements in this section were taken at CL 831485 unless otherwise noted.
 They should NOT be updated unless decisions need revisiting.
 
-## 2.1 We are not rewriting simdgen
+## 1.1 We are not rewriting simdgen
 
 The temptation is real: simdgen has 28 stub templates whose *names* encode
 arity, operand permutation, and immediate placement (`op3_231Type1`, `op4_31`,
@@ -156,7 +156,7 @@ What is *not* earning its keep is unification's role as **API definer** — the
 by construction. The unifier's remaining job, expanding one arch entry into every
 matching concrete instruction variant against the ISA database, it does well.
 
-## 2.2 Spec is not a unifier input
+## 1.2 Spec is not a unifier input
 
 Feeding spec into unification via `DefBuilder` is easy and wrong. Spec's
 structure would be flattened into the unstructured value language the moment it
@@ -168,7 +168,7 @@ but the inputs to the unifier are in platform terms. Much of the output of the
 unifier is information on how to map the platform structure into the Go SIMD
 API, so we can't bring spec in until *after* that mapping has been processed.
 
-## 2.3 What belongs in spec
+## 1.3 What belongs in spec
 
 The test is: **is it a checkable claim about the spec's own semantics?**
 
@@ -210,7 +210,7 @@ unique operation names, 163 exported):
 Task `cat-rehome` tackles most of the "transition plan" column.
 `compiler-ops-impl` handles the `noGenericOps` / `noTypes` entries.
 
-## 2.4 `specfill` parses; it does not type-check
+## 1.4 `specfill` parses; it does not type-check
 
 `ops_amd64.go` and `types_amd64.go` have minimal imports, and no exported
 signature in either package uses a qualified type, so `go/parser` is sufficient —
@@ -228,7 +228,7 @@ syntax through `go/packages` once per build configuration, because it reports
 per-target figures. It still does not type-check, and `specfill` does not need
 per-configuration loading.
 
-## 2.5 Two-pass doc injection, and why the "disadvantage" is the point
+## 1.5 Two-pass doc injection, and why the "disadvantage" is the point
 
 The motivation is doc divergence. At CL 831485 there were **six independent
 documentation sources** — `categories.yaml`, wasmgen inline strings, tmplgen
@@ -275,7 +275,7 @@ Consequences:
   `golang.org/x/tools/go/packages` and a loadable spec tree. A narrow hook
   mechanism in gentools plus a few lines per generator keeps the boundary.
 
-## 2.6 The doc-ownership convention
+## 1.6 The doc-ownership convention
 
 `specfill` rewrites part of an existing doc comment, so it needs a rule for which
 part it may touch, and running it twice must be idempotent. The obvious rule,
@@ -323,7 +323,7 @@ note it is. The cost is that unmarked text defaults to spec-owned, which is why
 every rewrite is reviewed as a diff, and why generators, once they emit no API
 prose of their own, may not emit spec-owned text at all (see `specfill`).
 
-## 2.7 Errors versus tolerated gaps
+## 1.7 Errors versus tolerated gaps
 
 At CL 831485, of the 782 `(receiver, name)` pairs declared for more than one
 target, not one had divergent parameter or result *types* — but 72 disagreed on
@@ -344,7 +344,7 @@ decay.
   operation falls outside `specfill`'s view without needing a category. The
   permanent residue is small and enumerable: the `String` and `Len` methods.
 
-## 2.8 Named results
+## 1.8 Named results
 
 Spec names its results and its docs reference those names (`z[i] = x[i] +
 y[i]`). Almost nothing in the shipped API names its results (SPEC-STATS.txt §2).
@@ -365,7 +365,7 @@ body can refer to named arguments but not unnamed ones, so filling unnamed ones
 is safe, while named ones must be checked. SPEC-STATS.txt §2 counts the two
 cases separately, the same way.
 
-## 2.9 Behavioral conformance is a parallel track
+## 1.9 Behavioral conformance is a parallel track
 
 Behavioral conformance has **no hard dependency on the API documentation
 track**. Both consume the same input — spec coverage — independently, and they
@@ -404,7 +404,7 @@ the vocabulary `impl-defined` has to settle.
 either: what it adds is generating the cases from spec rather than hand-writing
 them per operation.
 
-## 2.10 Progress is measured by name, not by normalization
+## 1.10 Progress is measured by name, not by normalization
 
 `apisum` needs normalization because its job is to *test* whether names mean one
 thing. Once we enforce that they do, **the method name is the equivalence class**,
