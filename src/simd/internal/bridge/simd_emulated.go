@@ -1063,14 +1063,18 @@ func LoadInt64s(s []int64) Int64s {
 
 // LoadInt64sPart loads a partial slice of int64 into an Int64s vector.
 func LoadInt64sPart(s []int64) (Int64s, int) {
+	n := len(s)
+	if n > 2 {
+		n = 2
+	}
 	var a, b uint64
-	if len(s) > 0 {
+	if n > 0 {
 		a = uint64(s[0])
 	}
-	if len(s) > 1 {
+	if n > 1 {
 		b = uint64(s[1])
 	}
-	return Int64s{a: a, b: b}, len(s)
+	return Int64s{a: a, b: b}, n
 }
 
 func (x Int64s) get(i int) int64 {
@@ -2214,6 +2218,9 @@ func LoadUint64s(s []uint64) Uint64s {
 // LoadUint64sPart loads a partial slice of uint64 into an Uint64s vector.
 func LoadUint64sPart(s []uint64) (Uint64s, int) {
 	n := len(s)
+	if n > 2 {
+		n = 2
+	}
 	var a, b uint64
 	if n > 0 {
 		a = s[0]
@@ -2727,6 +2734,9 @@ func LoadFloat64s(s []float64) Float64s {
 // LoadFloat64sPart loads a partial slice of float64 into an Float64s vector.
 func LoadFloat64sPart(s []float64) (Float64s, int) {
 	n := len(s)
+	if n > 2 {
+		n = 2
+	}
 	var a, b uint64
 	if n > 0 {
 		a = math.Float64bits(s[0])
