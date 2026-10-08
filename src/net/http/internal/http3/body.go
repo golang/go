@@ -67,7 +67,7 @@ func (w *bodyWriter) write(ps ...[]byte) (n int, err error) {
 		n2, err = w.st.Write(p)
 		n += n2
 		if w.remain >= 0 {
-			w.remain -= int64(n)
+			w.remain -= int64(n2)
 		}
 		if err != nil {
 			break
