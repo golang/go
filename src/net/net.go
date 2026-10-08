@@ -636,7 +636,8 @@ func (e *timeoutError) Is(err error) bool {
 }
 
 // DNSConfigError represents an error reading the machine's DNS configuration.
-// (No longer used; kept for compatibility.)
+//
+// Deprecated: No longer used; kept for compatibility.
 type DNSConfigError struct {
 	Err error
 }
