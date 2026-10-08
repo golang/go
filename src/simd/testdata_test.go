@@ -79,3 +79,10 @@ func TestToString(t *testing.T) {
 		common(t, "testdata", "tostring_test.go", "", "GODEBUG=simd=0")
 	}
 }
+
+func TestLoadPart(t *testing.T) {
+	common(t, "testdata", "loadpart_test.go", "")
+	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
+		common(t, "testdata", "loadpart_test.go", "", "GODEBUG=simd=0")
+	}
+}
