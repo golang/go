@@ -623,9 +623,11 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		xval = constant.ToInt(x.val)
 	}
 
-	if allInteger(x.typ()) || isUntyped(x.typ()) && xval != nil && xval.Kind() == constant.Int {
-		// The lhs is of integer type or an untyped constant representable
-		// as an integer. Nothing to do.
+	if allInteger(x.typ()) ||
+		isUntyped(x.typ()) && (xval != nil && xval.Kind() == constant.Int || xval == nil && isNumeric(x.typ())) {
+		// The lhs is of integer type, or it is an untyped constant
+		// representable as an integer, or a non-constant untyped
+		// numeric value. Nothing to do.
 	} else {
 		// shift has no chance
 		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
@@ -747,13 +749,6 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			x.mode_ = value
 			return
 		}
-	}
-
-	// non-constant shift - lhs must be an integer
-	if !allInteger(x.typ()) {
-		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
-		x.invalidate()
-		return
 	}
 
 	x.mode_ = value
