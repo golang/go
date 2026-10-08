@@ -157,10 +157,8 @@ func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (syntax.TypeAndValue, bool
 	// If x is a generic function whose type arguments are inferred
 	// from assignment context, then we need to find its inferred type
 	// in Info.Instances instead.
-	if name, ok := x.(*syntax.Name); ok {
-		if inst, ok := pw.info.Instances[name]; ok {
-			tv.Type = inst.Type
-		}
+	if _, inst := lookupObj(pw, x); inst.Type != nil {
+		tv.Type = inst.Type
 	}
 
 	return tv, tv.Type != nil
