@@ -682,7 +682,7 @@ func rawGoModSummary(ld *Loader, m module.Version) (*modFileSummary, error) {
 			// Declare that go 1.21.3 requires toolchain 1.21.3,
 			// so that go get knows that downgrading toolchain implies downgrading go
 			// and similarly upgrading go requires upgrading the toolchain.
-			return &modFileSummary{module: m, require: []module.Version{{Path: "toolchain", Version: "go" + m.Version}}}, nil
+			return &modFileSummary{module: m, require: []module.Version{{Path: "toolchain", Version: gover.ToolchainForGoVersion(m.Version)}}}, nil
 		}
 		return &modFileSummary{module: m}, nil
 	}

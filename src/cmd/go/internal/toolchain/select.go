@@ -214,15 +214,12 @@ func Select() {
 				}
 			}
 			if gover.Compare(goVers, minVers) > 0 {
-				gotoolchain = "go" + goVers
-				minVers = goVers
 				// Starting with Go 1.21, the first released version has a .0 patch version suffix.
 				// Don't try to download a language version (sans patch component), such as go1.22.
 				// Instead, use the first toolchain of that language version, such as 1.22.0.
 				// See golang.org/issue/62278.
-				if gover.IsLang(goVers) && gover.Compare(goVers, "1.21") >= 0 {
-					gotoolchain += ".0"
-				}
+				gotoolchain = gover.ToolchainForGoVersion(goVers)
+				minVers = goVers
 				gover.Startup.AutoGoVersion = goVers
 				gover.Startup.AutoToolchain = "" // in case we are overriding it for being too old
 				if toolchainTrace {
