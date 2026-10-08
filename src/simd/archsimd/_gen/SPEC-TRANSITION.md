@@ -472,7 +472,7 @@ wherever its prerequisites and track allow.
 | [ ] | C | `conform-flip` | Flip conformance direction | `validate-amd64`, `conform-scalable` | — |
 | [ ] | D | `spec-all` | Bulk spec migration | `spec-common`, `convert-lo`, `mask-bits` | `specfill`, `fill-enforce` |
 | [ ] | E | `doc-triage` | Hand-written doc conflict triage | `specfill` | `spec-common` |
-| [ ] | E | `comments-yaml` | Drop spec-covered docs from `midway/comments.yaml` | `gen-docs`, `spec-common` | `fill-enforce` |
+| [x] | E | `comments-yaml` | Drop spec-covered docs from `midway/comments.yaml` | `gen-docs`, `spec-common` | `fill-enforce` |
 | [ ] | E | `handwritten-fill` | Enable `-w` on hand-written files | `gen-docs`, `doc-triage` | — |
 | [ ] | E | `template-docs` | Retire generator-supplied API docs | `gen-docs`, `spec-all` | — |
 | [ ] | E | `cat-rehome` | Re-home `categories.yaml` non-doc fields | `template-docs` | — |
@@ -1177,20 +1177,18 @@ of them documents `LoadUint32x4Part` as loading "a Int32x4".
 zero check (a) violations.
 
 ### `comments-yaml` — Drop spec-covered docs from `midway/comments.yaml`
-**Done:** [ ] · **Needs:** `gen-docs`, `spec-common` · **Prefers:** `fill-enforce`
+**Done:** [x] · **Needs:** `gen-docs`, `spec-common` · **Prefers:** `fill-enforce`
 
 Every method or function-template entry spec covers is dropped from
 `comments.yaml`. At the time of this task (after `spec-common`) that is the
-portable core less `String` and `Len`, plus the Load/LoadPart/Broadcast
-templates. Entries spec gains afterwards (in `spec-all`) are dropped when spec
-gains them. As of CL 831485, `simd_stubs.go` and `simd_emulated.go` mirror each
-other by hand and have already drifted (§1.5), so expect a real diff on the
-hand-written side, not a no-op.
+portable core less non-spec residue (`String`, etc, §1.7), plus the
+Load/LoadPart/Broadcast templates. Entries spec gains afterwards (in `spec-all`)
+are dropped when spec gains them.
 
 **Commits.** (1) Confirm spec covers the portable core; fill gaps. (2) Delete
 the covered entries from `comments.yaml`. (3) Run `specfill -w` over
-`simd/simd_emulated.go` and `simd/internal/bridge/simd_emulated.go` — this
-overlaps `handwritten-fill`; sequence whichever lands first.
+`simd/simd_emulated.go` — this overlaps `handwritten-fill`; sequence whichever
+lands first.
 
 **Done when** `comments.yaml` has no entry for any operation spec covers, midway
 sources those docs through `specfill`, and `simd_stubs.go` and

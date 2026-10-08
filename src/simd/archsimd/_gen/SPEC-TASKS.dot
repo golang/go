@@ -35,7 +35,7 @@ digraph spectransition {
   "spec-common" [label="spec-common\nSpec the common\noperations", fillcolor="#ebdcf7", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "cat-delete" [label="cat-delete\nDelete categories.yaml", fillcolor="#f7dce3", color="#999999"];
   "cat-rehome" [label="cat-rehome\nRe-home\ncategories.yaml\nnon-doc fields", fillcolor="#f7dce3", color="#999999"];
-  "comments-yaml" [label="comments-yaml\nDrop spec-covered docs\nfrom\nmidway/comments.yaml", fillcolor="#f7dce3", color="#999999"];
+  "comments-yaml" [label="comments-yaml\nDrop spec-covered docs\nfrom\nmidway/comments.yaml", fillcolor="#f7dce3", color="#999999", fillcolor="#d0d0d0", fontcolor="#777777"];
   "compiler-ops-impl" [label="compiler-ops-impl\nImplement\ncompiler-only ops\nrepresentation", fillcolor="#f7dce3", color="#999999"];
   "doc-triage" [label="doc-triage\nHand-written doc\nconflict triage", fillcolor="#f7dce3", color="#999999"];
   "handwritten-fill" [label="handwritten-fill\nEnable -w on\nhand-written files", fillcolor="#f7dce3", color="#999999"];
