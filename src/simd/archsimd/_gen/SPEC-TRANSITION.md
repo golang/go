@@ -463,7 +463,7 @@ wherever its prerequisites and track allow.
 | [x] | B | `named-results` | Reconcile parameter and result names with spec | `fill-gen` | — |
 | [x] | B | `gen-docs` | Inject spec docs into generated output | `fill-gen` | `named-results` |
 | [x] | B | `fill-enforce` | Signature + name mismatch becomes an error | `named-results` | — |
-| [ ] | C | `ci-audit` | CI/hardware audit | — | — |
+| [x] | C | `ci-audit` | CI/hardware audit | — | — |
 | [ ] | C | `conform-fixed` | Conformance harness, fixed-width types | `ci-audit` | `specfill` |
 | [ ] | C | `conform-scalable` | Conformance harness, scalable types | `width`, `conform-fixed` | — |
 | [x] | D | `doc-explore` | Doc-mechanism exploration on a hard family | — | — |
@@ -968,7 +968,7 @@ Behavioral testing against `simdref`. Parallel to everything else; shares only
 the spec-coverage bottleneck.
 
 ### `ci-audit` — CI/hardware audit
-**Done:** [ ] · **Needs:** — · **Blocks:** `conform-fixed` · **Risk:** `risk-conformance-env`
+**Done:** [x] · **Needs:** — · **Blocks:** `conform-fixed` · **Risk:** `risk-conformance-env`
 
 Determine what can actually execute tests for amd64, arm64, wasm, and SVE —
 natively or emulated. The conformance suite's value for other architectures
@@ -983,6 +983,53 @@ wasm needs a runtime.
 today, on what, how fast, and what it would take if not — marking each runnable,
 runnable-with-work (with the work named), or not runnable, so `conform-fixed`
 knows which targets it is writing tests for.
+
+**Results**
+
+| amd64            | gotip-linux-amd64 | gotip-linux-amd64_avx512 |
+| ---------------- | ----------------- | ------------------------ |
+| AVX              | ✔                 | ✔                        |
+| AVX2             | ✔                 | ✔                        |
+| AVX512           | ✘                 | ✔                        |
+| AVX512BITALG     | ✘                 | ✔                        |
+| AVX512GFNI       | ✘                 | ✔                        |
+| AVX512VAES       | ✘                 | ✔                        |
+| AVX512VBMI       | ✘                 | ✔                        |
+| AVX512VBMI2      | ✘                 | ✔                        |
+| AVX512VNNI       | ✘                 | ✔                        |
+| AVX512VPCLMULQDQ | ✘                 | ✔                        |
+| AVX512VPOPCNTDQ  | ✘                 | ✔                        |
+| AVXAES           | ✔                 | ✔                        |
+| AVXPCLMULQDQ     | ✔                 | ✔                        |
+| AVXVNNI          | ✘                 | ✔                        |
+| FMA              | ✔                 | ✔                        |
+| SHA              | ✘                 | ✔                        |
+| VAES             | ✘                 | ✔                        |
+| VPCLMULQDQ       | ✘                 | ✔                        |
+
+For amd64, use the gotip-linux-amd64_avx512 gomote for testing.
+
+| arm64           | gotip-linux-arm64 | qemu-aarch64 -cpu neoverse-n2 | qemu-aarch64 -cpu neoverse-v1 |
+| --------------- | ----------------- | ----------------------------- | ----------------------------- |
+| PMULL           | ✔                 | ✔                             | ✔                             |
+| SVE             | ✘                 | ✔                             | ✔                             |
+| SVE2            | ✘                 | ✔                             | ✔                             |
+| SVE vector size | n/a               | 128                           | 256                           |
+
+`qemu-aarch64 -cpu neoverse-n1` (which matches the capabilities of
+gotip-linux-arm64) is roughly 7x slower than `gotip-linux-arm64`, so well within
+the range of practical conformance testing.
+
+For NEON, use the gotip-linux-arm64 gomote for testing. For SVE, use
+`qemu-aarch64 -cpu neoverse-v1`.
+
+| wasm    | js-node | wasip1-wazero |
+| ------- | ------- | ------------- |
+| SIMD128 | ✔       | ✔             |
+
+`node` is about 3x faster than `wazero`.
+
+For wasm, use `node` for testing.
 
 ### `conform-fixed` — Conformance harness, fixed-width types
 **Done:** [ ] · **Needs:** `ci-audit` · **Blocks:** `validate-amd64`, `conform-scalable` · **Prefers:** `specfill`
@@ -1350,7 +1397,7 @@ each is far cheaper to settle before the bodies are written than after.
 | **[ ]** | `risk-impl-defined-behavior` | Implementation-defined behavior | `impl-defined` |
 | **[x]** | `risk-doc-template-ceiling` | Doc-template ceiling — the fallback is a mechanism change affecting every doc written so far | `doc-explore` |
 | **[ ]** | `risk-ref-impl-effort` | Reference-implementation effort — every migrated operation needs a body that is *correct*, because conformance tests against it; the distribution of difficulty is unknown | `spec-common`, `spec-all` |
-| **[ ]** | `risk-conformance-env` | Conformance execution environment — can CI run arm64/SVE/wasm, and at what cost? | `ci-audit` |
+| **[x]** | `risk-conformance-env` | Conformance execution environment — can CI run arm64/SVE/wasm, and at what cost? | `ci-audit` |
 | **[ ]** | `risk-sig-refactor-convergence` | `sig-refactor` may not converge — if it does not, §1.1 needs revisiting | `sig-refactor` |
 | **[ ]** | `risk-silent-doc-loss` | Silent doc loss — under §1.6, text without a note prefix is spec-owned, so implementation text nobody prefixed is dropped on the first rewrite; the guards are review of every rewrite's `-diff` and, once generators emit no prose of their own, `AllowDocRewrite` | `gen-docs`, `doc-triage`, `handwritten-fill` |
 | **[ ]** | `risk-cat-unknowns` | Unknown unknowns in `categories.yaml` — the field audit was static | `cat-rehome` |
