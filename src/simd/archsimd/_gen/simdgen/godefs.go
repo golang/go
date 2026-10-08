@@ -770,8 +770,7 @@ func writeGoDefs(cl unify.Closure) error {
 		deduped, typeMap, archLower == "amd64",
 	)
 	writeSIMDIntrinsics(files.NewGoFile("cmd/compile/internal/ssagen/simd"+simdTag+"intrinsics.go"), deduped, typeMap)
-	const simdGenericOpsFile = "cmd/compile/internal/ssa/_gen/simdgenericOps.go"
-	writeSIMDGenericOps(files.NewGoFile(simdGenericOpsFile), deduped, genFlags.InputPath(simdGenericOpsFile))
+	writeSIMDGenericOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+"genericOps_gen.go"), deduped)
 	writeSIMDMachineOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+"ops.go"), deduped)
 	writeSIMDSSA(files.NewGoFile("cmd/compile/internal/"+archLower+"/"+archInfo.ssaGenFile()), deduped)
 	writeSIMDRules(files.NewRawFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+".rules"), deduped)

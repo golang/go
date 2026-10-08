@@ -6,6 +6,7 @@ package main
 
 import (
 	"log"
+	"maps"
 	"slices"
 	"strings"
 )
@@ -887,13 +888,8 @@ func merge(a, b []opData) []opData {
 }
 
 func moreGenericOps() []opData {
-	var keys []string
-	for k := range additionalGenericOps {
-		keys = append(keys, k)
-	}
-	g := simdGenericOps()
-	slices.SortFunc(g, compareOpData)
-	for _, k := range keys {
+	var g []opData
+	for _, k := range slices.Sorted(maps.Keys(additionalGenericOps)) {
 		s := additionalGenericOps[k]
 		slices.SortFunc(s, compareOpData)
 		g = merge(g, s)
@@ -903,10 +899,6 @@ func moreGenericOps() []opData {
 
 func genericInit() {
 	genericOps = append(genericOps, moreGenericOps()...)
-	// When adding SIMD for another architecture, it may be useful to temporarily
-	// maintain a separate list of generic operations till that work stabilizes.
-	// For example:
-	// genericOps = append(genericOps, simdGenericOpsWasm()...)
 	archs = append(archs, arch{
 		name:    "generic",
 		ops:     genericOps,

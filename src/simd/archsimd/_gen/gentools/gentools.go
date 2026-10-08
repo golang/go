@@ -132,6 +132,8 @@ type Files struct {
 	files          []*fileInfo
 	postProcessors []PostProcessor
 
+	fileSet map[string]*fileInfo // By fileInfo.relPath
+
 	// tmpDir is a temporary directory used for communicating with subprocess
 	// gentools.
 	tmpDirOnce sync.Once
@@ -166,21 +168,35 @@ func (f *Files) getOptions() Options {
 // returns a *bytes.Buffer for the generator to populate. During Flush(), Go
 // files are formatted with go/format.
 func (f *Files) NewGoFile(relPath string) *bytes.Buffer {
-	info := &fileInfo{
+	return f.newFile(&fileInfo{
 		relPath: relPath,
 		isGo:    true,
-	}
-	f.files = append(f.files, info)
-	return &info.buf
+	})
 }
 
 // NewRawFile registers a non-Go file (e.g. .rules, YAML, txtar) at relPath
 // (relative to GOROOT/src). It returns a *bytes.Buffer for the generator to
 // populate. During Flush(), content is written directly without go/format.
 func (f *Files) NewRawFile(relPath string) *bytes.Buffer {
-	info := &fileInfo{
+	return f.newFile(&fileInfo{
 		relPath: relPath,
 		isGo:    false,
+	})
+}
+
+func (f *Files) newFile(info *fileInfo) *bytes.Buffer {
+	if f.fileSet == nil {
+		f.fileSet = make(map[string]*fileInfo)
+	}
+	if f.fileSet[info.relPath] != nil {
+		panic(fmt.Sprintf("generator already created file %s", info.relPath))
+	}
+	f.fileSet[info.relPath] = info
+	if opts := f.getOptions(); opts.Write && !opts.WritingToInput() {
+		path := opts.OutputPath(info.relPath)
+		if _, err := os.Stat(path); err == nil {
+			panic(fmt.Sprintf("file already exists in output directory (created by multiple generators?): %s", path))
+		}
 	}
 	f.files = append(f.files, info)
 	return &info.buf

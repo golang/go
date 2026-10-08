@@ -142,6 +142,62 @@ func TestWriteAsideMode(t *testing.T) {
 	}
 }
 
+func TestWriteAsideRefusesOverwrite(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	outDir := t.TempDir()
+
+	// Pre-create a file in the output directory
+	existingFile := filepath.Join(outDir, "src", "pkg", "a.go")
+	if err := os.MkdirAll(filepath.Dir(existingFile), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(existingFile, []byte("existing"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var files Files
+	files.Options = &Options{
+		GOROOT: tmpDir,
+		outDir: outDir,
+		Write:  true,
+	}
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatalf("expected panic when creating file that exists in output directory, got none")
+		}
+		msg, ok := r.(string)
+		if !ok || !strings.Contains(msg, "file already exists in output directory") {
+			t.Errorf("unexpected panic message: %v", r)
+		}
+	}()
+
+	files.NewGoFile("pkg/a.go")
+}
+
+func TestDuplicateFileCreationPanics(t *testing.T) {
+	t.Parallel()
+
+	var files Files
+	files.NewGoFile("pkg/a.go")
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatalf("expected panic on duplicate file creation, got none")
+		}
+		msg, ok := r.(string)
+		if !ok || !strings.Contains(msg, "generator already created file") {
+			t.Errorf("unexpected panic message: %v", r)
+		}
+	}()
+
+	files.NewGoFile("pkg/a.go")
+}
+
 func TestDiffMode(t *testing.T) {
 	t.Parallel()
 

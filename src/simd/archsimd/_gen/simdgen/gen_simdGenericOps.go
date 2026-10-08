@@ -6,16 +6,14 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"simd/archsimd/_gen/sgutil"
 )
 
-// writeSIMDGenericOps generates the generic ops for the current architecture,
-// merges them with existing ops from other architectures, and returns the
-// result as a buffer ready for writing.
-func writeSIMDGenericOps(buffer *bytes.Buffer, ops []Operation, genericOpsFilePath string) {
-	// Generate fresh ops for the current target, keyed by GoTypeArch (see its doc
-	// in arch.go for why the shared-file merge must not key on Arch).
-	currentArch := CurrentArch().GoTypeArch
+// writeSIMDGenericOps writes the generic ops for the current architecture to
+// buffer.
+func writeSIMDGenericOps(buffer *bytes.Buffer, ops []Operation) {
+	archInfo := CurrentArch()
 	var newOps []sgutil.GenericOpsData
 	for _, op := range ops {
 		if op.NoGenericOps != nil && *op.NoGenericOps == "true" {
@@ -33,10 +31,9 @@ func writeSIMDGenericOps(buffer *bytes.Buffer, ops []Operation, genericOpsFilePa
 			OpInLen: len(gOp.In) - gOp.implicitPredCount(),
 			Comm:    op.Commutative,
 			HasAux:  immType == VarImm || immType == VarImmLim || immType == ConstVarImm,
-			Archs:   []string{currentArch},
 		})
 	}
 
-	buf := sgutil.MergeSIMDGenericOps(newOps, genericOpsFilePath, currentArch)
-	buffer.Write(buf.Bytes())
+	fmt.Fprintf(buffer, "%s\n\n", archInfo.GeneratedHeader)
+	sgutil.WriteSIMDGenericOps(buffer, newOps, archInfo.GoTypeArch)
 }

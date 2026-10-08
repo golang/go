@@ -21,11 +21,9 @@ type ArchInfo struct {
 	// output sits alongside — not on top of — the NEON arm64 files even though
 	// both compile as GOARCH arm64.
 	//
-	// It is also the key of the shared simdgenericOps.go merge: each target's
-	// run tags its generic ops with // ARCH:<GoTypeArch> so a later run for a
-	// different target unions its ops in without dropping the others. Keying on
-	// Arch instead would make an SVE run strip the "arm64" tag off every NEON
-	// generic op (and drop arm64-only ones), since SVE and NEON share Arch.
+	// It is also the key for additionalGenericOps: each target's generic ops
+	// file registers into additionalGenericOps[<GoTypeArch>]. Keying on Arch
+	// instead would make SVE collide with NEON since both share Arch.
 	//
 	// TODO: once the NEON and SVE type/op sets are unified, arm64 and sve can
 	// collapse back into a single target and this second tag can go away.
