@@ -24,7 +24,7 @@ spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, con
 hand-written doc conflicts with spec (§3)         471 -> 0       [doc-triage]
 simd mirror drift (§3)                            332 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
-midway/comments.yaml entries spec covers (§4)      65 -> 0       [comments-yaml, spec-all]
+midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml, spec-all]
 
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
@@ -132,7 +132,7 @@ compiler-only categories.yaml entries              42 -> 0       [compiler-ops-i
     regexpTag                                      25 -> 0       [cat-rehome]
     signed                                          6 -> 0       [cat-rehome]
 
-midway/comments.yaml entries spec covers           65 -> 0       [comments-yaml, spec-all]
+midway/comments.yaml entries spec covers            0 -> 0       [comments-yaml, spec-all]
 
 commutativity disagreements, spec vs categories.yaml     7 -> 0       [spec-all]
 

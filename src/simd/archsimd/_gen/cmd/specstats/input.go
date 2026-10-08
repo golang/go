@@ -407,17 +407,21 @@ func countMidwayComments(genDir string) (n int) {
 	return n
 }
 
-// commonMethods returns the method names in comments.yaml's .common_methods
-// block, less [nonSpecOp]. That set is spec-common's scope, and the portable
+// commonMethods returns the method names defined in simd_emulated.go,
+// less [nonSpecOp]. That set is spec-common's scope, and the portable
 // core a new architecture implements first.
-func commonMethods(genDir string) []string {
-	block := mapValue(readYAML(commentsPath(genDir)), ".common_methods")
+func commonMethods(api []*decl) []string {
+	seen := map[string]bool{}
 	var names []string
-	eachEntry(block, func(k, _ *yaml.Node) {
-		if !nonSpecOp(k.Value) {
-			names = append(names, k.Value)
+	for _, d := range api {
+		if d.file == "simd_emulated.go" && d.recv != "" && !nonSpecOp(d.name) {
+			if !seen[d.name] {
+				seen[d.name] = true
+				names = append(names, d.name)
+			}
 		}
-	})
+	}
+	slices.Sort(names)
 	return names
 }
 

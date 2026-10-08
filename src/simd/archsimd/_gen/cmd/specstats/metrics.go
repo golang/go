@@ -182,7 +182,7 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 		}
 	}
 	m.covCommon = new(tally[string])
-	for _, n := range commonMethods(genDir) {
+	for _, n := range commonMethods(api) {
 		m.covCommon.add(n, m.covName.done(n))
 	}
 
