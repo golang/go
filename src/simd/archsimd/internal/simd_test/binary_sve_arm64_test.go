@@ -211,6 +211,52 @@ func TestNegSVE(t *testing.T) {
 	testFloat64sUnary(t, archsimd.Float64s.Neg, negSlice[float64])
 }
 
+func TestOnesCountSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testInt8sUnary(t, archsimd.Int8s.OnesCount, onesCountSlice[int8])
+	testInt16sUnary(t, archsimd.Int16s.OnesCount, onesCountSlice[int16])
+	testInt32sUnary(t, archsimd.Int32s.OnesCount, onesCountSlice[int32])
+	testInt64sUnary(t, archsimd.Int64s.OnesCount, onesCountSlice[int64])
+	testUint8sUnary(t, archsimd.Uint8s.OnesCount, onesCountSlice[uint8])
+	testUint16sUnary(t, archsimd.Uint16s.OnesCount, onesCountSlice[uint16])
+	testUint32sUnary(t, archsimd.Uint32s.OnesCount, onesCountSlice[uint32])
+	testUint64sUnary(t, archsimd.Uint64s.OnesCount, onesCountSlice[uint64])
+}
+
+// TestOnesCountIfElseSVE checks OnesCount under a select, which folds into
+// its merging-predicated form.
+func TestOnesCountIfElseSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testInt8sBinary(t, func(x, y archsimd.Int8s) archsimd.Int8s {
+		return x.OnesCount().IfElse(x.Greater(y), y)
+	}, ifElseSlice(onesCountSlice[int8]))
+	testInt16sBinary(t, func(x, y archsimd.Int16s) archsimd.Int16s {
+		return x.OnesCount().IfElse(x.Greater(y), y)
+	}, ifElseSlice(onesCountSlice[int16]))
+	testInt32sBinary(t, func(x, y archsimd.Int32s) archsimd.Int32s {
+		return x.OnesCount().IfElse(x.Greater(y), y)
+	}, ifElseSlice(onesCountSlice[int32]))
+	testInt64sBinary(t, func(x, y archsimd.Int64s) archsimd.Int64s {
+		return x.OnesCount().IfElse(x.Greater(y), y)
+	}, ifElseSlice(onesCountSlice[int64]))
+	testUint8sBinary(t, func(x, y archsimd.Uint8s) archsimd.Uint8s {
+		return x.OnesCount().IfElse(x.Greater(y), y)
+	}, ifElseSlice(onesCountSlice[uint8]))
+	testUint16sBinary(t, func(x, y archsimd.Uint16s) archsimd.Uint16s {
+		return x.OnesCount().IfElse(x.Greater(y), y)
+	}, ifElseSlice(onesCountSlice[uint16]))
+	testUint32sBinary(t, func(x, y archsimd.Uint32s) archsimd.Uint32s {
+		return x.OnesCount().IfElse(x.Greater(y), y)
+	}, ifElseSlice(onesCountSlice[uint32]))
+	testUint64sBinary(t, func(x, y archsimd.Uint64s) archsimd.Uint64s {
+		return x.OnesCount().IfElse(x.Greater(y), y)
+	}, ifElseSlice(onesCountSlice[uint64]))
+}
+
 func TestSqrtSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no SVE")
@@ -252,7 +298,7 @@ func TestRoundSVE(t *testing.T) {
 }
 
 // ifElseSlice returns, lane by lane, op(x) where x > y and y elsewhere.
-func ifElseSlice[T float32 | float64](op func([]T) []T) func(x, y []T) []T {
+func ifElseSlice[T number](op func([]T) []T) func(x, y []T) []T {
 	return func(x, y []T) []T {
 		r := op(x)
 		for i := range r {

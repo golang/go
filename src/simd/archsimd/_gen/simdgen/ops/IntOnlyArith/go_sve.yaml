@@ -36,3 +36,22 @@
   - class: mask # governing predicate
   out:
   - *uint
+
+# OnesCount - population count per element at every element width. ZCNT is
+# predicated-only, as ZABS is, so its governing predicate is implicit-all-true
+# and its merging qualifier becomes the predicated machine op. The count is
+# never negative, thus the signed form keeps a signed result.
+- go: OnesCount
+  asm: "ZCNT"
+  in:
+  - *int
+  - class: mask # governing predicate
+  out:
+  - *int
+- go: OnesCount
+  asm: "ZCNT"
+  in:
+  - *uint
+  - class: mask # governing predicate
+  out:
+  - *uint

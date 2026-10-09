@@ -1355,6 +1355,72 @@ func (x Uint32s) NotEqual(y Uint32s) (z Mask32s)
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Uint64s) NotEqual(y Uint64s) (z Mask64s)
 
+/* OnesCount */
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Int8s) OnesCount() (z Int8s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Int16s) OnesCount() (z Int16s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Int32s) OnesCount() (z Int32s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Int64s) OnesCount() (z Int64s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Uint8s) OnesCount() (z Uint8s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Uint16s) OnesCount() (z Uint16s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Uint32s) OnesCount() (z Uint32s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Uint64s) OnesCount() (z Uint64s)
+
 /* Or */
 
 // Or returns the bitwise OR of x and y.

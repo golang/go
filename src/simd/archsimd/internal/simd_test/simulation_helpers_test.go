@@ -420,6 +420,10 @@ func absSlice[T number](x []T) []T {
 	return map1[T](abs)(x)
 }
 
+func onesCountSlice[T integer](x []T) []T {
+	return map1[T](onesCount)(x)
+}
+
 // intDiv divides like SVE SDIV/UDIV, where Go's operator would panic:
 // division by zero yields zero, and the minimum signed value divided by -1
 // yields itself.
