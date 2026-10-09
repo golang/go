@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.28 (October 7, 2026)",
+	"Subtitle": "Language version go1.28 (October 9, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -3198,7 +3198,7 @@ LiteralType  = StructType | ArrayType | "[" "..." "]" ElementType |
 LiteralValue = "{" [ ElementList [ "," ] ] "}" .
 ElementList  = [ Key ":" ] Element { "," [ Key ":" ] Element } .
 Key          = Expression .
-Value        = Expression .
+Element      = Expression .
 </pre>
 
 <p>
