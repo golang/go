@@ -9,21 +9,24 @@ package hex
 import (
 	"bytes"
 	"fmt"
+	"simd"
 	"strings"
 	"testing"
 )
 
 type kernel struct {
-	name           string
-	encode, decode func(dst, src []byte) int
+	name                 string
+	encodeMin, decodeMin int // shortest inputs the kernel vectorizes
+	encode, decode       func(dst, src []byte) int
 }
 
 func simdKernels() []kernel {
 	var ks []kernel
 	if haveSIMD {
-		ks = append(ks, kernel{"archsimd", encodeSIMD, decodeSIMD})
+		ks = append(ks, kernel{"archsimd", 16, 32, encodeSIMD, decodeSIMD})
 	}
-	return append(ks, kernel{"portable", encodePortable, decodePortable})
+	vl := simd.VectorBitSize() / 8
+	return append(ks, kernel{"portable", vl, vl, encodePortable, decodePortable})
 }
 
 func TestSIMDKernels(t *testing.T) {
@@ -79,6 +82,9 @@ func BenchmarkSIMDKernels(b *testing.B) {
 		enc := []byte(strings.Repeat("2b744faa", size/8))
 		dst := make([]byte, 2*size)
 		for _, k := range simdKernels() {
+			if size < k.encodeMin {
+				continue
+			}
 			b.Run("Encode/"+sizeName(size)+"/"+k.name, func(b *testing.B) {
 				b.SetBytes(int64(size))
 				for b.Loop() {
@@ -86,7 +92,7 @@ func BenchmarkSIMDKernels(b *testing.B) {
 					Encode(dst[2*i:], src[i:])
 				}
 			})
-			if size < 32 {
+			if size < k.decodeMin {
 				continue
 			}
 			b.Run("Decode/"+sizeName(size)+"/"+k.name, func(b *testing.B) {
