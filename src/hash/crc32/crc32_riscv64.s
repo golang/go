@@ -7,10 +7,16 @@
 // implementation and Intel's PCLMULQDQ CRC paper.
 //
 // The algorithm works as follows:
-//   1. Load first 16 bytes of data, XOR the CRC seed into the low word
-//   2. Fold each subsequent 16-byte block using carry-less multiplication
-//   3. Final fold: reduce 128-bit accumulator to 64 bits
-//   4. Barrett reduction: reduce 64 bits to 32-bit CRC
+//   1. Misaligned input is first processed one byte at a time (table-based,
+//      CRC_BYTE) until the pointer reaches a 16-byte boundary. This makes the
+//      subsequent LD loads in the fold loop always aligned, so the code is
+//      safe on cores that trap on misaligned accesses.
+//   2. Load the first aligned 16 bytes, XOR the CRC seed into the low word.
+//   3. Fold each subsequent 16-byte block using carry-less multiplication.
+//   4. Final fold: reduce the 128-bit accumulator to 64 bits.
+//   5. Barrett reduction: reduce 64 bits to the 32-bit CRC.
+//   6. The tail (< 16 bytes, including anything left after the alignment and
+//      the fold loop) is processed one byte at a time with the same table.
 
 #include "textflag.h"
 
@@ -50,16 +56,70 @@ GLOBL cast_reduce<>(SB), RODATA, $32
 DATA mask32<>+0(SB)/8, $0xffffffff
 GLOBL mask32<>(SB), RODATA, $8
 
+// Advance the CRC (in X5) by one byte at (X6), then X6++, X7--.
+// Table pointer is in X30. Clobbers X13, X14, X15.
+//
+// Formula (matches simpleUpdate, on the non-inverted crc held in X5):
+//   crc = tab[(crc ^ data) & 0xff] ^ (crc >> 8)
+// Table entries are 32-bit; use MOVWU (zero-extending) so an entry with its
+// high bit set doesn't sign-extend and pollute crc's high 32 bits.
+#define CRC_BYTE() \
+	MOVBU	(X6), X13; \
+	AND	$0xff, X5, X14; \
+	XOR	X13, X14, X14; \
+	SLL	$2, X14, X14; \
+	ADD	X30, X14, X14; \
+	MOVWU	(X14), X15; \
+	SRLI	$8, X5, X5; \
+	XOR	X15, X5, X5; \
+	ADD	$1, X6; \
+	ADD	$-1, X7
+
+// Carry-less multiply fold step on the 128-bit accumulator (X8, X9) with a
+// freshly loaded 16-byte block (X13=low, X14=high), producing the new
+// accumulator in X8, X9. Constants K2 (X10) and K1 (X11) must already be
+// loaded. Clobbers X15-X18.
+#define FOLD_STEP() \
+	CLMUL	X11, X8, X15;		/* clmul(K1, t0) → low result */ \
+	CLMULH	X11, X8, X16;		/* clmulh(K1, t0) → high result */ \
+	CLMUL	X10, X9, X17;		/* clmul(K2, t1) → low result */ \
+	CLMULH	X10, X9, X18;		/* clmulh(K2, t1) → high result */ \
+	XOR	X15, X17, X8;		/* t0 = fold_low */ \
+	XOR	X8, X13, X8;		/* t0 ^= d0 */ \
+	XOR	X16, X18, X9;		/* t1 = fold_high */ \
+	XOR	X9, X14, X9		/* t1 ^= d1 */
 
 // Computes CRC32-IEEE using carry-less multiplication (Zbc extension).
 // Expects non-inverted CRC input. Returns non-inverted CRC.
-// Requires len(p) >= 64 and len(p) is a multiple of 16.
-TEXT ·ieeeUpdateCLMUL(SB), NOSPLIT, $0-36
-	MOVWU	crc+0(FP), X5		// CRC value (inverted by caller)
-	MOV	p+8(FP), X6		// data pointer
-	MOV	p_len+16(FP), X7	// len(p)
+//
+// Handles arbitrary len(p) (including misaligned pointers): misaligned input
+// is byte-aligned to a 16-byte boundary first (CRC_BYTE), so all LD in the
+// fold loop are aligned. If fewer than 16 bytes remain after alignment, or
+// after the fold loop, they are processed one byte at a time with the same
+// table. The Go caller (archUpdateIEEE) only passes complete 16-byte blocks,
+// but the routine is correct for any length.
+TEXT ·ieeeUpdateCLMUL(SB), NOSPLIT, $0-44
+	MOVWU	crc+0(FP), X5		// CRC value (non-inverted)
+	MOV	tab+8(FP), X30		// table pointer
+	MOV	p+16(FP), X6		// data pointer
+	MOV	p_len+24(FP), X7	// len(p)
 
-	// Load first 16 bytes of data
+	// Align the pointer to a 16-byte boundary, one byte at a time.
+	ANDI	$15, X6, X23
+	BEQ	X23, ZERO, ieee_aligned
+
+ieee_align_head:
+	CRC_BYTE()
+	ADD	$-1, X23
+	BNE	X23, ZERO, ieee_align_head
+
+ieee_aligned:
+	// If fewer than 16 bytes remain, skip the fold loop entirely and go
+	// straight to the byte-at-a-time tail (X5 still holds the CRC).
+	MOV	$16, X12
+	BLT	X7, X12, ieee_tail
+
+	// Load first 16 bytes of data (aligned LD path)
 	MOV	(X6), X8		// t0 = low 64 bits
 	MOV	8(X6), X9		// t1 = high 64 bits
 	ADD	$16, X6
@@ -72,33 +132,21 @@ TEXT ·ieeeUpdateCLMUL(SB), NOSPLIT, $0-36
 	MOV	ieee_fold<>+0(SB), X10		// K2
 	MOV	ieee_fold<>+8(SB), X11		// K1
 
-	// Main fold loop: process 16 bytes per iteration.
-	// We fold the 128-bit accumulator (X8, X9) with each new 16-byte block.
-	MOV	$16, X12
-ieee_fold_loop:
+	// If fewer than 16 bytes remain after the first block, skip the fold
+	// loop; the tail is handled byte-at-a-time below.
 	BLT	X7, X12, ieee_fold_done
 
-	// Load next 16 bytes of data
+ieee_fold_loop:
+	// Process the next 16-byte block (aligned LD path).
 	MOV	(X6), X13		// d0 = new low 64 bits
 	MOV	8(X6), X14		// d1 = new high 64 bits
 	ADD	$16, X6
 	ADD	$-16, X7
 
-	// Carry-less multiply fold:
-	//   new_low  = clmul(K1, t0)  XOR clmul(K2, t1)  XOR d0
-	//   new_high = clmulh(K1, t0) XOR clmulh(K2, t1) XOR d1
-	CLMUL	X11, X8, X15		// clmul(K1, t0) → low result
-	CLMULH	X11, X8, X16		// clmulh(K1, t0) → high result
-	CLMUL	X10, X9, X17		// clmul(K2, t1) → low result
-	CLMULH	X10, X9, X18		// clmulh(K2, t1) → high result
+	FOLD_STEP()
 
-	// Combine fold results with new data
-	XOR	X15, X17, X8		// t0 = fold_low
-	XOR	X8, X13, X8		// t0 ^= d0
-	XOR	X16, X18, X9		// t1 = fold_high
-	XOR	X9, X14, X9		// t1 ^= d1
-
-	JMP	ieee_fold_loop
+	// Repeat while at least 16 bytes remain.
+	BGE	X7, X12, ieee_fold_loop
 
 ieee_fold_done:
 	// (X8, X9) = (t0, t1) holds the folded 128-bit accumulator.
@@ -145,19 +193,47 @@ ieee_fold_done:
 	XOR	X17, X18, X18		// result = result XOR tmp
 	SRLI	$32, X18, X5		// CRC = upper 32 bits
 
-	MOVW	X5, ret+32(FP)
+	// Process the tail (< 16 bytes) one byte at a time.
+ieee_tail:
+	BEQ	X7, ZERO, ieee_ret
+	CRC_BYTE()
+	JMP	ieee_tail
+ieee_ret:
+	MOVW	X5, ret+40(FP)
 	RET
 
 
 // Computes CRC32-C (Castagnoli) using carry-less multiplication (Zbc extension).
 // Expects non-inverted CRC input. Returns non-inverted CRC.
-// Requires len(p) >= 64 and len(p) is a multiple of 16.
-TEXT ·castagnoliUpdateCLMUL(SB), NOSPLIT, $0-36
-	MOVWU	crc+0(FP), X5		// CRC value (inverted by caller)
-	MOV	p+8(FP), X6		// data pointer
-	MOV	p_len+16(FP), X7	// len(p)
+//
+// Handles arbitrary len(p) (including misaligned pointers): misaligned input
+// is byte-aligned to a 16-byte boundary first (CRC_BYTE), so all LD in the
+// fold loop are aligned. If fewer than 16 bytes remain after alignment, or
+// after the fold loop, they are processed one byte at a time with the same
+// table. The Go caller (archUpdateCastagnoli) only passes complete 16-byte
+// blocks, but the routine is correct for any length.
+TEXT ·castagnoliUpdateCLMUL(SB), NOSPLIT, $0-44
+	MOVWU	crc+0(FP), X5		// CRC value (non-inverted)
+	MOV	tab+8(FP), X30		// table pointer
+	MOV	p+16(FP), X6		// data pointer
+	MOV	p_len+24(FP), X7	// len(p)
 
-	// Load first 16 bytes of data
+	// Align the pointer to a 16-byte boundary, one byte at a time.
+	ANDI	$15, X6, X23
+	BEQ	X23, ZERO, cast_aligned
+
+cast_align_head:
+	CRC_BYTE()
+	ADD	$-1, X23
+	BNE	X23, ZERO, cast_align_head
+
+cast_aligned:
+	// If fewer than 16 bytes remain, skip the fold loop entirely and go
+	// straight to the byte-at-a-time tail (X5 still holds the CRC).
+	MOV	$16, X12
+	BLT	X7, X12, cast_tail
+
+	// Load first 16 bytes of data (aligned LD path)
 	MOV	(X6), X8		// t0 = low 64 bits
 	MOV	8(X6), X9		// t1 = high 64 bits
 	ADD	$16, X6
@@ -170,30 +246,21 @@ TEXT ·castagnoliUpdateCLMUL(SB), NOSPLIT, $0-36
 	MOV	cast_fold<>+0(SB), X10		// K2
 	MOV	cast_fold<>+8(SB), X11		// K1
 
-	// Main fold loop: process 16 bytes per iteration.
-	MOV	$16, X12
-cast_fold_loop:
+	// If fewer than 16 bytes remain after the first block, skip the fold
+	// loop; the tail is handled byte-at-a-time below.
 	BLT	X7, X12, cast_fold_done
 
-	// Load next 16 bytes of data
+cast_fold_loop:
+	// Process the next 16-byte block (aligned LD path).
 	MOV	(X6), X13		// d0 = new low 64 bits
 	MOV	8(X6), X14		// d1 = new high 64 bits
 	ADD	$16, X6
 	ADD	$-16, X7
 
-	// Carry-less multiply fold
-	CLMUL	X11, X8, X15		// clmul(K1, t0)
-	CLMULH	X11, X8, X16		// clmulh(K1, t0)
-	CLMUL	X10, X9, X17		// clmul(K2, t1)
-	CLMULH	X10, X9, X18		// clmulh(K2, t1)
+	FOLD_STEP()
 
-	// Combine fold results with new data
-	XOR	X15, X17, X8		// t0 = fold_low
-	XOR	X8, X13, X8		// t0 ^= d0
-	XOR	X16, X18, X9		// t1 = fold_high
-	XOR	X9, X14, X9		// t1 ^= d1
-
-	JMP	cast_fold_loop
+	// Repeat while at least 16 bytes remain.
+	BGE	X7, X12, cast_fold_loop
 
 cast_fold_done:
 	// Load final reduction constants
@@ -224,5 +291,11 @@ cast_fold_done:
 	XOR	X17, X18, X18		// result = result XOR tmp
 	SRLI	$32, X18, X5		// CRC = upper 32 bits
 
-	MOVW	X5, ret+32(FP)
+	// Process the tail (< 16 bytes) one byte at a time.
+cast_tail:
+	BEQ	X7, ZERO, cast_ret
+	CRC_BYTE()
+	JMP	cast_tail
+cast_ret:
+	MOVW	X5, ret+40(FP)
 	RET
