@@ -830,13 +830,13 @@ func (u *URL) String() string {
 	if u.Opaque != "" {
 		buf.WriteString(u.Opaque)
 	} else {
-		authority := false
 		if u.Scheme != "" || u.Host != "" || u.User != nil {
 			if u.OmitHost && u.Host == "" && u.User == nil {
 				// omit empty host
-			} else if u.Host != "" || u.Path != "" || u.User != nil {
-				buf.WriteString("//")
-				authority = true
+			} else {
+				if u.Host != "" || u.Path != "" || u.User != nil {
+					buf.WriteString("//")
+				}
 				if ui := u.User; ui != nil {
 					buf.WriteString(ui.String())
 					buf.WriteByte('@')
@@ -847,21 +847,15 @@ func (u *URL) String() string {
 			}
 		}
 		path := u.EscapedPath()
-		if authority && path != "" && path[0] != '/' {
-			// When an authority is present (we have written some subset
-			// of "scheme://user@host"), the path must begin with a /.
-			buf.WriteByte('/')
-		}
-		if !authority && strings.HasPrefix(path, "//") {
-			// "If a URI does not contain an authority component,
-			// then the path cannot begin with two slash characters."
-			// https://www.rfc-editor.org/info/rfc3986/#section-3
-			//
+		if u.OmitHost && u.Host == "" && u.User == nil && strings.HasPrefix(path, "//") {
 			// Escape the first / in a path starting with "//" and no authority
 			// so that re-parsing the URL doesn't turn the path into an authority
-			// (e.g., Path="//host/p" producing "%2F/host/p").
+			// (e.g., Path="//host/p" producing "http://host/p").
 			buf.WriteString("%2F")
 			path = path[1:]
+		}
+		if path != "" && path[0] != '/' && u.Host != "" {
+			buf.WriteByte('/')
 		}
 		if buf.Len() == 0 {
 			// RFC 3986 §4.2
