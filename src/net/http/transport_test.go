@@ -6372,6 +6372,39 @@ func testTransportCONNECTRejected(t *testing.T, mode testMode) {
 	conn.wantClosed()
 }
 
+func TestTransportCONNECTContentLengthZeroResponse(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		tt := newHTTP1TransportTest(t)
+		tt.tr.DisableCompression = true
+
+		sentReq, _ := http.NewRequest("CONNECT", "http://example.tld:80", nil)
+		sentReq.Host = "connect.tld:80"
+		sentReq.Header["User-Agent"] = nil
+		rt := tt.roundTrip(sentReq)
+
+		dial := tt.wantDial("tcp", "example.tld:80")
+		conn := dial.connect()
+		conn.wantBytes([]byte(joinCRLF(
+			"CONNECT connect.tld:80 HTTP/1.1",
+			"Host: connect.tld:80",
+			"",
+			"",
+		)))
+
+		conn.writeMessage(
+			"HTTP/1.1 200 Have A Happy Tunnel",
+			"Content-Length: 0",
+			"",
+		)
+
+		rt.wantStatus(200)
+		if got, want := rt.response().Header.Get("Content-Length"), "0"; got != want {
+			t.Errorf("got Content-Length header %q, want %q", got, want)
+		}
+		rt.wantBody(nil)
+	})
+}
+
 func TestTransportRequestReplayable(t *testing.T) {
 	someBody := io.NopCloser(strings.NewReader(""))
 	tests := []struct {
