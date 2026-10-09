@@ -1333,10 +1333,8 @@ func runtimeNano() int64
 func runtimeIsBubbled() bool
 
 // Monotonic times are reported as offsets from startNano.
-// We initialize startNano to runtimeNano() - 1 so that on systems where
-// monotonic time resolution is fairly low (e.g. Windows 2008
-// which appears to have a default resolution of 15ms),
-// we avoid ever reporting a monotonic time of 0.
+// We subtract 1 so that a reading equal to the initial reading is not
+// reported as a monotonic time of 0.
 // (Callers may want to use 0 as "time not set".)
 var startNano int64 = runtimeNano() - 1
 

@@ -601,9 +601,8 @@ func (s *scavengerState) run() (released uintptr, worked float64) {
 		// Accumulate the amount of time spent scavenging.
 		r, duration := s.scavenge(scavengeQuantum)
 
-		// On some platforms we may see end >= start if the time it takes to scavenge
-		// memory is less than the minimum granularity of its clock (e.g. Windows) or
-		// due to clock bugs.
+		// A scavenging operation may take less time than the clock can measure.
+		// In that case, duration is zero.
 		//
 		// In this case, just assume scavenging takes 10 µs per regular physical page
 		// (determined empirically), and conservatively ignore the impact of huge pages

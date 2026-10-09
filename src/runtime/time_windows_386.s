@@ -6,23 +6,14 @@
 
 #include "go_asm.h"
 #include "textflag.h"
+#include "funcdata.h"
 #include "time_windows.h"
 
-TEXT time·now(SB),NOSPLIT,$0-20
-loop:
-	MOVL	(_INTERRUPT_TIME+time_hi1), AX
-	MOVL	(_INTERRUPT_TIME+time_lo), CX
-	MOVL	(_INTERRUPT_TIME+time_hi2), DI
-	CMPL	AX, DI
-	JNE	loop
-
-	// w = DI:CX
-	// multiply by 100
-	MOVL	$100, AX
-	MULL	CX
-	IMULL	$100, DI
-	ADDL	DI, DX
-	// w*100 = DX:AX
+TEXT time·now(SB),NOSPLIT,$8-20
+	NO_LOCAL_POINTERS
+	CALL	runtime·nanotime1(SB)
+	MOVL	0(SP), AX
+	MOVL	4(SP), DX
 	MOVL	AX, mono+12(FP)
 	MOVL	DX, mono+16(FP)
 

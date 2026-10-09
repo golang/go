@@ -9,7 +9,6 @@ import (
 	"internal/cpu"
 	"internal/goarch"
 	"internal/goexperiment"
-	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
 	"internal/runtime/maps"
@@ -1115,19 +1114,9 @@ func (mp *m) hasCgoOnStack() bool {
 	return mp.ncgo > 0 || mp.isextra
 }
 
-const (
-	// osHasLowResTimer indicates that the platform's internal timer system has a low resolution,
-	// typically on the order of 1 ms or more.
-	osHasLowResTimer = GOOS == "windows" || GOOS == "openbsd" || GOOS == "netbsd" || GOOS == "plan9"
-
-	// osHasLowResClockInt is osHasLowResClock but in integer form, so it can be used to create
-	// constants conditionally.
-	osHasLowResClockInt = goos.IsWindows
-
-	// osHasLowResClock indicates that timestamps produced by nanotime on the platform have a
-	// low resolution, typically on the order of 1 ms or more.
-	osHasLowResClock = osHasLowResClockInt > 0
-)
+// osHasLowResTimer indicates that the platform's internal timer system has a low resolution,
+// typically on the order of 1 ms or more.
+const osHasLowResTimer = GOOS == "windows" || GOOS == "openbsd" || GOOS == "netbsd" || GOOS == "plan9"
 
 // Mark gp ready to run.
 func ready(gp *g, traceskip int, next bool) {

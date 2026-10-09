@@ -134,8 +134,7 @@ func TestGcLastTime(t *testing.T) {
 		t.Fatalf("bad last GC time: got %v, want [%v, %v]", last, t0, t1)
 	}
 	pause := ms.PauseNs[(ms.NumGC+255)%256]
-	// Due to timer granularity, pause can actually be 0 on windows
-	// or on virtualized environments.
+	// Clock granularity can make a short pause appear to take zero time.
 	if pause == 0 {
 		t.Logf("last GC pause was 0")
 	} else if pause > 10e9 {

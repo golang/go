@@ -6,13 +6,13 @@
 
 #include "go_asm.h"
 #include "textflag.h"
+#include "funcdata.h"
 #include "time_windows.h"
 
-TEXT time·now(SB),NOSPLIT,$0-24
-	MOVQ	$_INTERRUPT_TIME, DI
-	MOVQ	time_lo(DI), AX
-	IMULQ	$100, AX
-	MOVQ	AX, mono+16(FP)
+TEXT time·now<ABIInternal>(SB),NOSPLIT,$0-0
+	NO_LOCAL_POINTERS
+	CALL	runtime·nanotime1<ABIInternal>(SB)
+	MOVQ	AX, R8
 
 	MOVQ	$_SYSTEM_TIME, DI
 	MOVQ	time_lo(DI), AX
@@ -29,8 +29,9 @@ TEXT time·now(SB),NOSPLIT,$0-24
 	ADDQ	CX, DX
 	RCRQ	$1, DX
 	SHRQ	$29, DX
-	MOVQ	DX, sec+0(FP)
+	MOVQ	DX, AX
 	IMULQ	$1000000000, DX
 	SUBQ	DX, CX
-	MOVL	CX, nsec+8(FP)
+	MOVL	CX, BX
+	MOVQ	R8, CX
 	RET
