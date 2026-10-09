@@ -5,10 +5,13 @@
 package fips140
 
 import (
+	"archive/zip"
+	"cmp"
 	"crypto/sha256"
 	"flag"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -106,6 +109,79 @@ func TestSums(t *testing.T) {
 			return
 		}
 		t.Errorf("GOROOT/lib/fips140/fips140.sum out of date. changes needed:\n%s", strings.Join(diff, ""))
+	}
+}
+
+// TestZipCompression checks that files with the same contents in different
+// snapshot zip files are compressed to the same bytes, so that git can store
+// each new zip file as a small delta against the previous ones.
+func TestZipCompression(t *testing.T) {
+	lib := filepath.Join(testenv.GOROOT(t), "lib/fips140")
+	files, err := filepath.Glob(filepath.Join(lib, "*.zip"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type file struct {
+		name string
+		sum  [32]byte
+	}
+	type compressed struct {
+		zip string
+		sum [32]byte
+	}
+	// (trimmed path, uncompressed hash) => (zip file name, compressed hash)
+	seen := make(map[file]compressed)
+	// (zip file name A, zip file name B) => number of mismatching files
+	mismatches := make(map[[2]string]int)
+	for _, path := range files {
+		name := filepath.Base(path)
+		if name == "v1.0.1.zip" {
+			// Compressed by the Go 1.27 encoder before mkzip required Go 1.26.
+			continue
+		}
+		z, err := zip.OpenReader(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range z.File {
+			rc, err := f.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			contents, err := io.ReadAll(rc)
+			rc.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			r, err := f.OpenRaw()
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := io.ReadAll(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// golang.org/fips140@VERSION/fips140/VERSION/....
+			parts := strings.SplitN(f.Name, "/", 5)
+			k := file{parts[len(parts)-1], sha256.Sum256(contents)}
+			c := compressed{name, sha256.Sum256(raw)}
+			if prev, ok := seen[k]; ok {
+				if prev.sum != c.sum {
+					mismatches[[2]string{prev.zip, name}]++
+				}
+				continue
+			}
+			seen[k] = c
+		}
+		z.Close()
+	}
+
+	for _, pair := range slices.SortedFunc(maps.Keys(mismatches), func(a, b [2]string) int {
+		return cmp.Or(strings.Compare(a[0], b[0]), strings.Compare(a[1], b[1]))
+	}) {
+		t.Errorf("%d files with the same contents in %s and %s are compressed differently",
+			mismatches[pair], pair[0], pair[1])
 	}
 }
 

@@ -4,6 +4,6 @@ The file x.txt (for example, inprocess.txt, certified.txt)
 defines the meaning of the FIPS version alias x, listing
 the exact version to use.
 
-The zip files are created by cmd/go/internal/fips140/mkzip.go.
+The zip files are created by cmd/go/internal/fips140/_mkzip.
 The fips140.sum file lists checksums for the zip files.
 See the Makefile for recipes.

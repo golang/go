@@ -25,9 +25,10 @@ default:
 # make v1.2.3.zip builds a v1.2.3.zip file
 # from the current origin/master.
 # copy and edit the 'go run' command by hand to use a different branch.
+# mkzip must run with Go 1.26, see its package comment.
 v%.zip:
 	git fetch origin master
-	go run ../../src/cmd/go/internal/fips140/mkzip.go v$*
+	GOTOOLCHAIN=go1.26.10 go run -C ../../src/cmd/go/internal/fips140/_mkzip . v$*
 
 # normally mkzip refuses to overwrite an existing zip file.
 # make v1.2.3.rm removes the zip file and unpacked
