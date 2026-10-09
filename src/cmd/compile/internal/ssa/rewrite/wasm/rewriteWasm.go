@@ -723,6 +723,12 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpLsh8x8:
 		return rewriteValue_OpLsh8x8(v)
+	case ssaop.OpMax32F:
+		v.Op = ssaop.OpWasmF32Max
+		return true
+	case ssaop.OpMax64F:
+		v.Op = ssaop.OpWasmF64Max
+		return true
 	case ssaop.OpMaxFloat32x4:
 		v.Op = ssaop.OpWasmF32x4Max
 		return true
@@ -746,6 +752,12 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpMaxUint8x16:
 		v.Op = ssaop.OpWasmI8x16MaxU
+		return true
+	case ssaop.OpMin32F:
+		v.Op = ssaop.OpWasmF32Min
+		return true
+	case ssaop.OpMin64F:
+		v.Op = ssaop.OpWasmF64Min
 		return true
 	case ssaop.OpMinFloat32x4:
 		v.Op = ssaop.OpWasmF32x4Min
