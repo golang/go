@@ -120,8 +120,8 @@ func racer() {
 	donechan <- true
 }
 `, []string{
-	// Allow the race output in either order.
-	`==================
+		// Allow the race output in either order.
+		`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.store\(\)
@@ -144,7 +144,7 @@ Goroutine [0-9] \(running\) created at:
 Found 1 data race\(s\)
 exit status 66
 `,
-	`==================
+		`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.store\(\)
@@ -279,8 +279,8 @@ func h(c chan int) {
 	c <- x
 }
 `, []string{
-	// Allow the race output in either order.
-	`==================
+		// Allow the race output in either order.
+		`==================
 WARNING: DATA RACE
 Read at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.h\(\)
@@ -301,7 +301,7 @@ Goroutine [0-9] \(running\) created at:
 Found 1 data race\(s\)
 exit status 66
 `,
-	`==================
+		`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by main goroutine:
   main\.main\(\)
@@ -361,8 +361,8 @@ func main() {
 	<- done
 }
 `, []string{
-	// Optionally allow ABI wrappers, and allow the race output in either order.
-	`==================
+		// Optionally allow ABI wrappers, and allow the race output in either order.
+		`==================
 WARNING: DATA RACE
 Read at 0x[0-9,a-f]+ by main goroutine:
   main\.main\(\)
@@ -380,7 +380,7 @@ Goroutine [0-9] \(running\) created at:
   runtime\.newextram\(\)
       .*/runtime/proc.go:[0-9]+ \+0x[0-9,a-f]+
 ==================`,
-	`==================
+		`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.goCallback\(\)
@@ -494,8 +494,8 @@ func main() {
 	_ = data
 }
 `, []string{
-	// Allow the race output in either order.
-	`==================
+		// Allow the race output in either order.
+		`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.main\.func2\(\)
@@ -509,7 +509,7 @@ Goroutine [0-9] \(running\) created at:
   main\.main\(\)
       .*/main.go:[0-9]+ \+0x[0-9,a-f]+
 ==================`,
-	`==================
+		`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by main goroutine:
   main\.main\(\)
@@ -543,8 +543,8 @@ func (t T) f() {
 	wg.Done()
 }
 `, []string{
-	// Allow the race output in either order.
-	`==================
+		// Allow the race output in either order.
+		`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.T\.f\(\)
@@ -563,7 +563,7 @@ Previous write at 0x[0-9,a-f]+ by main goroutine:
       .*/main.go:10 \+0x[0-9,a-f]+
 
 `,
-	`==================
+		`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by main goroutine:
   main\.T\.f\(\)
