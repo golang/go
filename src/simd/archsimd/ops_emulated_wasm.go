@@ -7,9 +7,9 @@
 package archsimd
 
 var nn = [2]int64{-1 << 63, -1 << 63}
-var f0s = [16]int8{-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0}
-var ff00s = [8]int16{-1, 0, -1, 0, -1, 0, -1, 0}
-var ffff0000s = [4]int32{-1, 0, -1, 0}
+var evenInt8s = [16]int8{-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0}
+var evenInt16s = [8]int16{-1, 0, -1, 0, -1, 0, -1, 0}
+var evenInt32s = [4]int32{-1, 0, -1, 0}
 
 // For unsigned comparison, the trick for converting it into
 // signed comparisonm is to notice that the unsigned range is
@@ -80,7 +80,7 @@ func (x Int8x16) Mul(y Int8x16) Int8x16 {
 	// elements, shift odds into even position, widen elements in both
 	// vectors, multiply, discard high parts, realign the odd results
 	// and combine.
-	mask := LoadInt8x16Array(&f0s)
+	mask := LoadInt8x16Array(&evenInt8s)
 	mask16 := mask.ToBits().ReshapeToUint16s()
 	xe := x.And(mask).ToBits().ReshapeToUint16s()
 	xo := x.AndNot(mask).ToBits().ReshapeToUint16s().ShiftAllRight(8)
@@ -93,7 +93,7 @@ func (x Int8x16) Mul(y Int8x16) Int8x16 {
 
 // Mul returns the elementswise product of elements in x and y
 func (x Uint8x16) Mul(y Uint8x16) Uint8x16 {
-	mask := LoadInt8x16Array(&f0s).ToBits()
+	mask := LoadInt8x16Array(&evenInt8s).ToBits()
 	mask16 := mask.ReshapeToUint16s()
 	xe := x.And(mask).ReshapeToUint16s()
 	xo := x.AndNot(mask).ReshapeToUint16s().ShiftAllRight(8)
@@ -106,41 +106,41 @@ func (x Uint8x16) Mul(y Uint8x16) Uint8x16 {
 
 // OnesCount returns the number of set bits in each vector element
 func (x Int16x8) OnesCount() Int16x8 {
-	mask := LoadInt8x16Array(&f0s)
-	c := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()                      // per-byte counts
-	ce := c.And(mask).ToBits().ReshapeToUint16s().BitsToInt16()                     // even-element per-byte counts, as 16-bit elements
-	co := c.AndNot(mask).ToBits().ReshapeToUint16s().BitsToInt16().ShiftAllRight(8) // odd-element per-byte counts, as 16-bit elements, aligned
-	return ce.Add(co)                                                               // return their elementwise sum
+	mask8 := LoadInt8x16Array(&evenInt8s)
+	c8 := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()                         // per-byte counts
+	c16e := c8.And(mask8).ToBits().ReshapeToUint16s().BitsToInt16()                     // even-element per-byte counts, as 16-bit elements
+	c16o := c8.AndNot(mask8).ToBits().ReshapeToUint16s().BitsToInt16().ShiftAllRight(8) // odd-element per-byte counts, as 16-bit elements, aligned
+	return c16e.Add(c16o)                                                               // return their elementwise sum
 }
 
 // OnesCount returns the number of set bits in each vector element
 func (x Int32x4) OnesCount() Int32x4 {
-	mask := LoadInt8x16Array(&f0s)
-	c := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()                      // per-byte counts
-	ce := c.And(mask).ToBits().ReshapeToUint16s().BitsToInt16()                     // even-element per-byte counts, as 16-bit elements
-	co := c.AndNot(mask).ToBits().ReshapeToUint16s().BitsToInt16().ShiftAllRight(8) // odd-element per-byte counts, as 16-bit elements, aligned
-	mask16 := LoadInt16x8Array(&ff00s)
-	y := ce.Add(co) // per int16 counts, etc.
-	ye := y.And(mask16).ToBits().ReshapeToUint32s().BitsToInt32()
-	yo := y.AndNot(mask16).ToBits().ReshapeToUint32s().BitsToInt32().ShiftAllRight(16)
-	return ye.Add(yo)
+	mask8 := LoadInt8x16Array(&evenInt8s)
+	c8 := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()                         // per-byte counts
+	c16e := c8.And(mask8).ToBits().ReshapeToUint16s().BitsToInt16()                     // even-element per-byte counts, as 16-bit elements
+	c16o := c8.AndNot(mask8).ToBits().ReshapeToUint16s().BitsToInt16().ShiftAllRight(8) // odd-element per-byte counts, as 16-bit elements, aligned
+	mask16 := LoadInt16x8Array(&evenInt16s)
+	c16 := c16e.Add(c16o) // per int16 counts, etc.
+	c32e := c16.And(mask16).ToBits().ReshapeToUint32s().BitsToInt32()
+	c32o := c16.AndNot(mask16).ToBits().ReshapeToUint32s().BitsToInt32().ShiftAllRight(16)
+	return c32e.Add(c32o)
 }
 
 // OnesCount returns the number of set bits in each vector element
 func (x Int64x2) OnesCount() Int64x2 {
-	mask := LoadInt8x16Array(&f0s)
-	c := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()
-	ce := c.And(mask).ToBits().ReshapeToUint16s().BitsToInt16()
-	co := c.AndNot(mask).ToBits().ReshapeToUint16s().BitsToInt16().ShiftAllRight(8)
-	mask16 := LoadInt16x8Array(&ff00s)
-	y := ce.Add(co)
-	ye := y.And(mask16).ToBits().ReshapeToUint32s().BitsToInt32()
-	yo := y.AndNot(mask16).ToBits().ReshapeToUint32s().BitsToInt32().ShiftAllRight(16)
-	mask32 := LoadInt32x4Array(&ffff0000s)
-	z := ye.Add(yo)
-	ze := z.And(mask32).ToBits().ReshapeToUint64s().BitsToInt64()
-	zo := z.AndNot(mask32).ToBits().ReshapeToUint64s().BitsToInt64().ShiftAllRight(32)
-	return ze.Add(zo)
+	mask8 := LoadInt8x16Array(&evenInt8s)
+	c8 := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()
+	c8e := c8.And(mask8).ToBits().ReshapeToUint16s().BitsToInt16()
+	c8o := c8.AndNot(mask8).ToBits().ReshapeToUint16s().BitsToInt16().ShiftAllRight(8)
+	mask16 := LoadInt16x8Array(&evenInt16s)
+	c16 := c8e.Add(c8o)
+	c32e := c16.And(mask16).ToBits().ReshapeToUint32s().BitsToInt32()
+	c32o := c16.AndNot(mask16).ToBits().ReshapeToUint32s().BitsToInt32().ShiftAllRight(16)
+	mask32 := LoadInt32x4Array(&evenInt32s)
+	c32 := c32e.Add(c32o)
+	c64e := c32.And(mask32).ToBits().ReshapeToUint64s().BitsToInt64()
+	c64o := c32.AndNot(mask32).ToBits().ReshapeToUint64s().BitsToInt64().ShiftAllRight(32)
+	return c64e.Add(c64o)
 }
 
 // OnesCount returns the number of set bits in each vector element
