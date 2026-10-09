@@ -1045,6 +1045,8 @@ var vferfcinvSC = []float64{
 	Inf(1),
 	Inf(-1),
 	NaN(),
+	-1e-40, // Issue 82102
+	2 + 0x1p-51,
 }
 var erfcinvSC = []float64{
 	Inf(+1),
@@ -1053,6 +1055,26 @@ var erfcinvSC = []float64{
 	NaN(),
 	NaN(),
 	NaN(),
+	NaN(),
+	NaN(),
+}
+
+// Erfcinv for small arguments, where Erfinv(1-x) loses precision (Issue 82102).
+var vferfcinvSmall = []float64{
+	1e-300,
+	1e-40,
+	1e-17,
+	1e-12,
+	1e-9,
+	1e-5,
+}
+var erfcinvSmall = []float64{
+	2.6209469960516123886e+01,
+	9.4487897667208582662e+00,
+	6.0626939981635684773e+00,
+	5.0420297456390593762e+00,
+	4.3200053849134452793e+00,
+	3.1234132743408750177e+00,
 }
 
 var vfexpSC = []float64{
@@ -2451,6 +2473,11 @@ func TestErfcinv(t *testing.T) {
 	for i := 0; i < len(vferfcinvSC); i++ {
 		if f := Erfcinv(vferfcinvSC[i]); !alike(erfcinvSC[i], f) {
 			t.Errorf("Erfcinv(%g) = %g, want %g", vferfcinvSC[i], f, erfcinvSC[i])
+		}
+	}
+	for i, x := range vferfcinvSmall {
+		if f := Erfcinv(x); !close(erfcinvSmall[i], f) {
+			t.Errorf("Erfcinv(%g) = %.17g, want %.17g", x, f, erfcinvSmall[i])
 		}
 	}
 	for x := 0.1; x <= 1.9; x += 1e-2 {
