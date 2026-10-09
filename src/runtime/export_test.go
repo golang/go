@@ -592,7 +592,7 @@ func ArenaHintAddrs() []uintptr {
 
 type G = g
 
-type Sudog = sudog
+type WaitingG = waitingG
 
 type XRegPerG = xRegPerG
 
@@ -1334,20 +1334,20 @@ type SemTable struct {
 
 // Enqueue simulates enqueuing a waiter for a semaphore (or lock) at addr.
 func (t *SemTable) Enqueue(addr *uint32) {
-	s := acquireSudog(sudogTypeSema)
-	s.releasetime = 0
-	s.acquiretime = 0
-	s.ticket = 0
-	t.semTable.rootFor(addr).queue(addr, s, false)
+	wg := acquireWaitingG(waitingGTypeSema)
+	wg.releasetime = 0
+	wg.acquiretime = 0
+	wg.ticket = 0
+	t.semTable.rootFor(addr).queue(addr, wg, false)
 }
 
 // Dequeue simulates dequeuing a waiter for a semaphore (or lock) at addr.
 //
 // Returns true if there actually was a waiter to be dequeued.
 func (t *SemTable) Dequeue(addr *uint32) bool {
-	s, _, _ := t.semTable.rootFor(addr).dequeue(addr)
-	if s != nil {
-		releaseSudog(s)
+	wg, _, _ := t.semTable.rootFor(addr).dequeue(addr)
+	if wg != nil {
+		releaseWaitingG(wg)
 		return true
 	}
 	return false

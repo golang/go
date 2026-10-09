@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Scenario that used to leak arbitrarily many SudoG structs.
+// Scenario that used to leak arbitrarily many waitingG structs.
 // See golang.org/issue/9110.
 
 package main
@@ -42,10 +42,10 @@ func main() {
 		time.Sleep(1 * time.Millisecond)
 		release()
 
-		close(c) // let select put its sudog's into the cache
+		close(c) // let select put its waitingG's into the cache
 		time.Sleep(1 * time.Millisecond)
 
-		// pick up top sudog
+		// pick up top waitingG
 		var cond1 sync.Cond
 		var mu1 sync.Mutex
 		cond1.L = &mu1
@@ -56,7 +56,7 @@ func main() {
 		}()
 		time.Sleep(1 * time.Millisecond)
 
-		// pick up next sudog
+		// pick up next waitingG
 		var cond2 sync.Cond
 		var mu2 sync.Mutex
 		cond2.L = &mu2
@@ -67,7 +67,7 @@ func main() {
 		}()
 		time.Sleep(1 * time.Millisecond)
 
-		// put top sudog back
+		// put top waitingG back
 		cond1.Broadcast()
 		time.Sleep(1 * time.Millisecond)
 

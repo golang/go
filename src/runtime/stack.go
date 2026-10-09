@@ -256,11 +256,11 @@ func stackpoolfree(x gclinkptr, order uint8) {
 		// If GC is active, we delay the free until the end of
 		// GC to avoid the following type of situation:
 		//
-		// 1) GC starts, scans a SudoG but does not yet mark the SudoG.elem pointer
+		// 1) GC starts, scans a waitingG but does not yet mark the waitingG.elem pointer
 		// 2) The stack that pointer points to is copied
 		// 3) The old stack is freed
 		// 4) The containing span is marked free
-		// 5) GC attempts to mark the SudoG.elem pointer. The
+		// 5) GC attempts to mark the waitingG.elem pointer. The
 		//    marking fails because the pointer looks like a
 		//    pointer into a free span.
 		//
@@ -601,8 +601,8 @@ type adjustinfo struct {
 	old   stack
 	delta uintptr // ptr distance from old to new stack (newbase - oldbase)
 
-	// sghi is the highest sudog.elem on the stack.
-	sghi uintptr
+	// wghi is the highest waitingG.elem on the stack.
+	wghi uintptr
 }
 
 // adjustpointer checks whether *vpp is in the old stack described by adjinfo.
@@ -659,7 +659,7 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 	// yet, it may contain stack pointers and a concurrent send
 	// could race with adjusting those pointers. (The sent value
 	// itself can never contain stack pointers.)
-	useCAS := uintptr(scanp) < adjinfo.sghi
+	useCAS := uintptr(scanp) < adjinfo.wghi
 	for i := uintptr(0); i < num; i += 8 {
 		if stackDebug >= 4 {
 			for j := uintptr(0); j < 8; j++ {
@@ -854,28 +854,28 @@ func adjustpanics(gp *g, adjinfo *adjustinfo) {
 	}
 }
 
-func adjustSudogChan(gp *g, adjinfo *adjustinfo) {
-	sg := gp.waiting
-	if sg == nil {
+func adjustWaitingGChan(gp *g, adjinfo *adjustinfo) {
+	wg := gp.waiting
+	if wg == nil {
 		return
 	}
 
-	// When waiting on channels, the sudog element points to the channel
+	// When waiting on channels, the waitingG element points to the channel
 	// operation src/dst slot, which might be on the stack.
 	//
-	// When waiting on a semaphore, the sudog element points to the
+	// When waiting on a semaphore, the waitingG element points to the
 	// semaphore word, which is never on the stack.
 	//
-	// When waiting on a Cond, the sudog element points to the
+	// When waiting on a Cond, the waitingG element points to the
 	// notifyList object, which is never on the stack.
-	if sg.typ != sudogTypeChan {
+	if wg.typ != waitingGTypeChan {
 		return
 	}
 
 	// Update all waiting channels.
-	for ; sg != nil; sg = sg.waitlink {
-		adjustpointer(adjinfo, unsafe.Pointer(&sg.elem.vu))
-		adjustpointer(adjinfo, unsafe.Pointer(&sg.elem.vp))
+	for ; wg != nil; wg = wg.waitlink {
+		adjustpointer(adjinfo, unsafe.Pointer(&wg.elem.vu))
+		adjustpointer(adjinfo, unsafe.Pointer(&wg.elem.vp))
 	}
 }
 
@@ -885,34 +885,34 @@ func fillstack(stk stack, b byte) {
 	}
 }
 
-func findsghi(gp *g, stk stack) uintptr {
-	var sghi uintptr
-	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		p := sg.elem.uintptr() + uintptr(sg.c.get().elemsize)
-		if stk.lo <= p && p < stk.hi && p > sghi {
-			sghi = p
+func findwghi(gp *g, stk stack) uintptr {
+	var wghi uintptr
+	for wg := gp.waiting; wg != nil; wg = wg.waitlink {
+		p := wg.elem.uintptr() + uintptr(wg.c.get().elemsize)
+		if stk.lo <= p && p < stk.hi && p > wghi {
+			wghi = p
 		}
 	}
-	return sghi
+	return wghi
 }
 
-// syncAdjustSudogChan adjusts gp's sudogs and copies the part of gp's
+// syncAdjustWaitingGChan adjusts gp's waitingGs and copies the part of gp's
 // stack they refer to while synchronizing with concurrent channel
 // operations. It returns the number of bytes of stack copied.
-func syncAdjustSudogChan(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
-	sg := gp.waiting
-	if sg == nil {
+func syncAdjustWaitingGChan(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
+	wg := gp.waiting
+	if wg == nil {
 		return 0
 	}
-	// See adjustSudogChan.
-	if sg.typ != sudogTypeChan {
+	// See adjustWaitingGChan.
+	if wg.typ != waitingGTypeChan {
 		return 0
 	}
 
 	// Lock channels to prevent concurrent send/receive.
 	var lastc *hchan
-	for ; sg != nil; sg = sg.waitlink {
-		if sg.c.get() != lastc {
+	for ; wg != nil; wg = wg.waitlink {
+		if wg.c.get() != lastc {
 			// There is a ranking cycle here between gscan bit and
 			// hchan locks. Normally, we only allow acquiring hchan
 			// locks and then getting a gscan bit. In this case, we
@@ -922,35 +922,35 @@ func syncAdjustSudogChan(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 			// suspended. So, we get a special hchan lock rank here
 			// that is lower than gscan, but doesn't allow acquiring
 			// any other locks other than hchan.
-			lockWithRank(&sg.c.get().lock, lockRankHchanLeaf)
+			lockWithRank(&wg.c.get().lock, lockRankHchanLeaf)
 		}
-		lastc = sg.c.get()
+		lastc = wg.c.get()
 	}
 
-	// Adjust sudogs.
-	adjustSudogChan(gp, adjinfo)
+	// Adjust waitingGs.
+	adjustWaitingGChan(gp, adjinfo)
 
-	// Copy the part of the stack the sudogs point in to
+	// Copy the part of the stack the waitingGs point in to
 	// while holding the lock to prevent races on
 	// send/receive slots.
-	var sgsize uintptr
-	if adjinfo.sghi != 0 {
+	var wgsize uintptr
+	if adjinfo.wghi != 0 {
 		oldBot := adjinfo.old.hi - used
 		newBot := oldBot + adjinfo.delta
-		sgsize = adjinfo.sghi - oldBot
-		memmove(unsafe.Pointer(newBot), unsafe.Pointer(oldBot), sgsize)
+		wgsize = adjinfo.wghi - oldBot
+		memmove(unsafe.Pointer(newBot), unsafe.Pointer(oldBot), wgsize)
 	}
 
 	// Unlock channels.
 	lastc = nil
-	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c.get() != lastc {
-			unlock(&sg.c.get().lock)
+	for wg := gp.waiting; wg != nil; wg = wg.waitlink {
+		if wg.c.get() != lastc {
+			unlock(&wg.c.get().lock)
 		}
-		lastc = sg.c.get()
+		lastc = wg.c.get()
 	}
 
-	return sgsize
+	return wgsize
 }
 
 // Copies gp's stack to a new stack of a different size.
@@ -984,7 +984,7 @@ func copystack(gp *g, newsize uintptr) {
 	adjinfo.old = old
 	adjinfo.delta = new.hi - old.hi
 
-	// Adjust sudogs, synchronizing with channel ops if necessary.
+	// Adjust waitingGs, synchronizing with channel ops if necessary.
 	ncopy := used
 	if !gp.activeStackChans {
 		if newsize < old.hi-old.lo && gp.parkingOnChan.Load() {
@@ -992,22 +992,22 @@ func copystack(gp *g, newsize uintptr) {
 			// parking on a channel, but it is safe to grow since we do that
 			// ourselves and explicitly don't want to synchronize with channels
 			// since we could self-deadlock.
-			throw("racy sudog adjustment due to parking on channel")
+			throw("racy waitingG adjustment due to parking on channel")
 		}
-		adjustSudogChan(gp, &adjinfo)
+		adjustWaitingGChan(gp, &adjinfo)
 	} else {
-		// sudogs may be pointing in to the stack and gp has
+		// waitingGs may be pointing in to the stack and gp has
 		// released channel locks, so other goroutines could
 		// be writing to gp's stack. Find the highest such
 		// pointer so we can handle everything there and below
 		// carefully. (This shouldn't be far from the bottom
 		// of the stack, so there's little cost in handling
 		// everything below it carefully.)
-		adjinfo.sghi = findsghi(gp, old)
+		adjinfo.wghi = findwghi(gp, old)
 
 		// Synchronize with channel ops and copy the part of
 		// the stack they may interact with.
-		ncopy -= syncAdjustSudogChan(gp, used, &adjinfo)
+		ncopy -= syncAdjustWaitingGChan(gp, used, &adjinfo)
 	}
 
 	// Copy the stack (or the rest of it) to the new location
@@ -1018,8 +1018,8 @@ func copystack(gp *g, newsize uintptr) {
 	// stack because gentraceback uses them.
 	adjustctxt(gp, &adjinfo)
 	adjustdefers(gp, &adjinfo)
-	if adjinfo.sghi != 0 {
-		adjinfo.sghi += adjinfo.delta
+	if adjinfo.wghi != 0 {
+		adjinfo.wghi += adjinfo.delta
 	}
 
 	// Swap out old stack for new one

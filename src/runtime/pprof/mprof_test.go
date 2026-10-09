@@ -162,7 +162,7 @@ func TestMemoryProfiler(t *testing.T) {
 			// Individual line numbers can also be responsible for multiple
 			// allocations. That includes not only the byte slices that these
 			// tests try to observe, but also the slice headers (easy to split
-			// out) as well as runtime-internal structures such as sudogs
+			// out) as well as runtime-internal structures such as waitingGs
 			// (harder)! Filter by the size of the entry to see if it's the one
 			// we're trying to observe, and sum all entries of that size.
 

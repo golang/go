@@ -391,52 +391,54 @@ func (p *maybeTraceableChan) get() *hchan {
 	return (*hchan)(p.maybeTraceablePtr.get())
 }
 
-// sudogType describes which type of synchronization primitive a sudog is used
-// with.
-type sudogType uint8
+// waitingGType describes which type of synchronization primitive a waitingG is
+// used with.
+type waitingGType uint8
 
 const (
-	sudogTypeNone sudogType = iota
+	waitingGTypeNone waitingGType = iota
 
 	// Channel operations, including select.
-	sudogTypeChan
+	waitingGTypeChan
 
 	// semaphores (semacquire, which transitively includes sync.Mutex/RWMutex).
-	sudogTypeSema
+	waitingGTypeSema
 
 	// sync.Cond, via runtime.notifyList.
-	sudogTypeCond
+	waitingGTypeCond
 )
 
-// sudog (pseudo-g) represents a g in a wait list, such as for sending/receiving
-// on a channel.
+// waitingG represents a g on a wait list of a synchronization primitive:
+// either a channel, semaphore (including sync.Mutex) or notifyList
+// (sync.Cond).
 //
-// sudog is necessary because the g ↔ synchronization object relation
+// waitingG is necessary because the g ↔ synchronization object relation
 // is many-to-many. A g can be on many wait lists, so there may be
-// many sudogs for one g; and many gs may be waiting on the same
-// synchronization object, so there may be many sudogs for one object.
+// many waitingGs for one g; and many gs may be waiting on the same
+// synchronization object, so there may be many waitingGs for one object.
 //
-// sudogs are allocated from a special pool. Use acquireSudog and
-// releaseSudog to allocate and free them.
-type sudog struct {
-	// Which type of sudog is this. Immutable after allocation.
-	typ sudogType
+// waitingGs are allocated from a special pool. Use acquireWaitingG and
+// releaseWaitingG to allocate and free them.
+type waitingG struct {
+	// Which type of waitingG is this. Immutable after allocation.
+	typ waitingGType
 
-	// The following fields are protected by the hchan.lock of the
-	// channel this sudog is blocking on. shrinkstack depends on
-	// this for sudogs involved in channel ops.
+	// For channels, the following fields are protected by the
+	// hchan.lock of the channel this waitingG is blocking on. shrinkstack
+	// depends on this for waitingGs involved in channel ops.
+	//
+	// For semaphores, all fields are only accessed when holding a semaRoot
+	// lock.
 
 	g *g
 
-	next *sudog
-	prev *sudog
+	next *waitingG
+	prev *waitingG
 
 	elem maybeTraceablePtr // data element (may point to stack)
 
 	// The following fields are never accessed concurrently.
 	// For channels, waitlink is only accessed by g.
-	// For semaphores, all fields (including the ones above)
-	// are only accessed when holding a semaRoot lock.
 
 	acquiretime int64
 	releasetime int64
@@ -459,9 +461,9 @@ type sudog struct {
 	// in the second entry in the list.)
 	waiters uint16
 
-	parent   *sudog             // semaRoot binary tree
-	waitlink *sudog             // g.waiting list or semaRoot
-	waittail *sudog             // semaRoot
+	parent   *waitingG          // semaRoot binary tree
+	waitlink *waitingG          // g.waiting list or semaRoot
+	waittail *waitingG          // semaRoot
 	c        maybeTraceableChan // channel
 }
 
@@ -513,7 +515,7 @@ type g struct {
 	// parameter would be difficult to find. It is currently used
 	// in four ways:
 	// 1. When a channel operation wakes up a blocked goroutine, it sets param to
-	//    point to the sudog of the completed blocking operation.
+	//    point to the waitingG of the completed blocking operation.
 	// 2. By gcAssistAlloc1 to signal back to its caller that the goroutine completed
 	//    the GC cycle. It is unsafe to do so in any other way, because the goroutine's
 	//    stack may have moved in the meantime.
@@ -571,20 +573,20 @@ type g struct {
 	// waiting references the synchronization primitives that g is
 	// currently or soon waiting on.
 	//
-	// For sudogTypeChan: waiting.elem refers to the src/dst location for
-	// the channel operation. sudog.waitlink forms a linked list of
+	// For waitingGTypeChan: waiting.elem refers to the src/dst location
+	// for the channel operation. waitingG.waitlink forms a linked list of
 	// channels the G is waiting on (that have a valid elem pointer), in
 	// lock order.
 	//
-	// For sudogTypeSema: waiting.elem refers to the semaphore the G is
+	// For waitingGTypeSema: waiting.elem refers to the semaphore the G is
 	// waiting on.
 	//
-	// For sudogTypeCond: waiting.elem refers to the notifyList the G is
+	// For waitingGTypeCond: waiting.elem refers to the notifyList the G is
 	// waiting on.
 	//
 	// Note that waiting need not be set atomically with parking. Thus the
 	// G may be preempted with waiting set.
-	waiting *sudog
+	waiting *waitingG
 
 	sig        uint32
 	secret     int32 // current nesting of runtime/secret.Do calls.
@@ -861,8 +863,8 @@ type p struct {
 	// Available G's (status == Gdead)
 	gFree gList
 
-	sudogcache []*sudog
-	sudogbuf   [128]*sudog
+	waitingGCache []*waitingG
+	waitingGBuf   [128]*waitingG
 
 	// Cache of mspan objects from the heap.
 	mspancache struct {
@@ -1020,9 +1022,9 @@ type schedt struct {
 		noStack gList // Gs without stacks
 	}
 
-	// Central cache of sudog structs.
-	sudoglock  mutex
-	sudogcache *sudog
+	// Central cache of waitingG structs.
+	waitingGLock  mutex
+	waitingGCache *waitingG
 
 	// Central pool of available defer structs.
 	deferlock mutex

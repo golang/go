@@ -61,8 +61,8 @@ func selunlock(scases []scase, lockorder []uint16) {
 }
 
 func selparkcommit(gp *g, _ unsafe.Pointer) bool {
-	// There are unlocked sudogs that point into gp's stack. Stack
-	// copying must lock the channels of those sudogs.
+	// There are unlocked waitingGs that point into gp's stack. Stack
+	// copying must lock the channels of those waitingGs.
 	// Set activeStackChans here instead of before we try parking
 	// because we could self-deadlock in stack growth on a
 	// channel lock.
@@ -82,17 +82,17 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 	// because by the time this is called, gp.waiting has all
 	// channels in lock order.
 	var lastc *hchan
-	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c.get() != lastc && lastc != nil {
+	for wg := gp.waiting; wg != nil; wg = wg.waitlink {
+		if wg.c.get() != lastc && lastc != nil {
 			// As soon as we unlock the channel, fields in
-			// any sudog with that channel may change,
+			// any waitingG with that channel may change,
 			// including c and waitlink. Since multiple
-			// sudogs may have the same channel, we unlock
+			// waitingGs may have the same channel, we unlock
 			// only after we've passed the last instance
 			// of a channel.
 			unlock(&lastc.lock)
 		}
-		lastc = sg.c.get()
+		lastc = wg.c.get()
 	}
 	if lastc != nil {
 		unlock(&lastc.lock)
@@ -252,13 +252,13 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 	sellock(scases, lockorder)
 
 	var (
-		sg     *sudog
+		wg     *waitingG
 		c      *hchan
 		k      *scase
-		sglist *sudog
-		sgnext *sudog
+		wglist *waitingG
+		wgnext *waitingG
 		qp     unsafe.Pointer
-		nextp  **sudog
+		nextp  **waitingG
 	)
 
 	// pass 1 - look for something already waiting
@@ -273,8 +273,8 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		c = cas.c
 
 		if casi >= nsends {
-			sg = c.sendq.dequeue()
-			if sg != nil {
+			wg = c.sendq.dequeue()
+			if wg != nil {
 				goto recv
 			}
 			if c.qcount > 0 {
@@ -290,8 +290,8 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 			if c.closed != 0 {
 				goto sclose
 			}
-			sg = c.recvq.dequeue()
-			if sg != nil {
+			wg = c.recvq.dequeue()
+			if wg != nil {
 				goto send
 			}
 			if c.qcount < c.dataqsiz {
@@ -315,25 +315,25 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		casi = int(casei)
 		cas = &scases[casi]
 		c = cas.c
-		sg := acquireSudog(sudogTypeChan)
-		sg.g = gp
-		sg.isSelect = true
+		wg := acquireWaitingG(waitingGTypeChan)
+		wg.g = gp
+		wg.isSelect = true
 		// No stack splits between assigning elem and enqueuing
-		// sg on gp.waiting where copystack can find it.
-		sg.elem.set(cas.elem)
-		sg.releasetime = 0
+		// wg on gp.waiting where copystack can find it.
+		wg.elem.set(cas.elem)
+		wg.releasetime = 0
 		if t0 != 0 {
-			sg.releasetime = -1
+			wg.releasetime = -1
 		}
-		sg.c.set(c)
+		wg.c.set(c)
 		// Construct waiting list in lock order.
-		*nextp = sg
-		nextp = &sg.waitlink
+		*nextp = wg
+		nextp = &wg.waitlink
 
 		if casi < nsends {
-			c.sendq.enqueue(sg)
+			c.sendq.enqueue(wg)
 		} else {
-			c.recvq.enqueue(sg)
+			c.recvq.enqueue(wg)
 		}
 
 		if c.timer != nil {
@@ -354,22 +354,22 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 	sellock(scases, lockorder)
 
 	gp.selectDone.Store(0)
-	sg = (*sudog)(gp.param)
+	wg = (*waitingG)(gp.param)
 	gp.param = nil
 
 	// pass 3 - dequeue from unsuccessful chans
 	// otherwise they stack up on quiet channels
 	// record the successful case, if any.
-	// We singly-linked up the SudoGs in lock order.
+	// We singly-linked up the waitingGs in lock order.
 	casi = -1
 	cas = nil
 	caseSuccess = false
-	sglist = gp.waiting
+	wglist = gp.waiting
 	// Clear all elem before unlinking from gp.waiting.
-	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
-		sg1.isSelect = false
-		sg1.elem.set(nil)
-		sg1.c.set(nil)
+	for wg1 := gp.waiting; wg1 != nil; wg1 = wg1.waitlink {
+		wg1.isSelect = false
+		wg1.elem.set(nil)
+		wg1.c.set(nil)
 	}
 	gp.waiting = nil
 
@@ -378,26 +378,26 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		if k.c.timer != nil {
 			unblockTimerChan(k.c)
 		}
-		if sg == sglist {
-			// sg has already been dequeued by the G that woke us up.
+		if wg == wglist {
+			// wg has already been dequeued by the G that woke us up.
 			casi = int(casei)
 			cas = k
-			caseSuccess = sglist.success
-			if sglist.releasetime > 0 {
-				caseReleaseTime = sglist.releasetime
+			caseSuccess = wglist.success
+			if wglist.releasetime > 0 {
+				caseReleaseTime = wglist.releasetime
 			}
 		} else {
 			c = k.c
 			if int(casei) < nsends {
-				c.sendq.dequeueSudoG(sglist)
+				c.sendq.dequeueWaitingG(wglist)
 			} else {
-				c.recvq.dequeueSudoG(sglist)
+				c.recvq.dequeueWaitingG(wglist)
 			}
 		}
-		sgnext = sglist.waitlink
-		sglist.waitlink = nil
-		releaseSudog(sglist)
-		sglist = sgnext
+		wgnext = wglist.waitlink
+		wglist.waitlink = nil
+		releaseWaitingG(wglist)
+		wglist = wgnext
 	}
 
 	if cas == nil {
@@ -493,8 +493,8 @@ bufsend:
 	goto retc
 
 recv:
-	// can receive from sleeping sender (sg)
-	recv(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
+	// can receive from sleeping sender (wg)
+	recv(c, wg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
 	if debugSelect {
 		print("syncrecv: cas0=", cas0, " c=", c, "\n")
 	}
@@ -514,7 +514,7 @@ rclose:
 	goto retc
 
 send:
-	// can send to a sleeping receiver (sg)
+	// can send to a sleeping receiver (wg)
 	if raceenabled {
 		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
 	}
@@ -524,7 +524,7 @@ send:
 	if asanenabled {
 		asanread(cas.elem, c.elemtype.Size_)
 	}
-	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
+	send(c, wg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
 	if debugSelect {
 		print("syncsend: cas0=", cas0, " c=", c, "\n")
 	}
@@ -624,35 +624,35 @@ func reflect_rselect(cases []runtimeSelect) (int, bool) {
 	return chosen, recvOK
 }
 
-func (q *waitq) dequeueSudoG(sgp *sudog) {
-	x := sgp.prev
-	y := sgp.next
+func (q *waitq) dequeueWaitingG(wg *waitingG) {
+	x := wg.prev
+	y := wg.next
 	if x != nil {
 		if y != nil {
 			// middle of queue
 			x.next = y
 			y.prev = x
-			sgp.next = nil
-			sgp.prev = nil
+			wg.next = nil
+			wg.prev = nil
 			return
 		}
 		// end of queue
 		x.next = nil
 		q.last = x
-		sgp.prev = nil
+		wg.prev = nil
 		return
 	}
 	if y != nil {
 		// start of queue
 		y.prev = nil
 		q.first = y
-		sgp.next = nil
+		wg.next = nil
 		return
 	}
 
-	// x==y==nil. Either sgp is the only element in the queue,
+	// x==y==nil. Either wg is the only element in the queue,
 	// or it has already been removed. Use q.first to disambiguate.
-	if q.first == sgp {
+	if q.first == wg {
 		q.first = nil
 		q.last = nil
 	}

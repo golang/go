@@ -941,14 +941,14 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 }
 
 func (d *dwctxt) synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
-	sudog := walktypedef(d.findprotodie(ctxt, "type:runtime.sudog"))
+	waitingG := walktypedef(d.findprotodie(ctxt, "type:runtime.waitingG"))
 	waitq := walktypedef(d.findprotodie(ctxt, "type:runtime.waitq"))
 	hchan := walktypedef(d.findprotodie(ctxt, "type:runtime.hchan"))
-	if sudog == nil || waitq == nil || hchan == nil {
+	if waitingG == nil || waitq == nil || hchan == nil {
 		return
 	}
 
-	sudogsize := int(getattr(sudog, dwarf.DW_AT_byte_size).Value)
+	waitingGSize := int(getattr(waitingG, dwarf.DW_AT_byte_size).Value)
 
 	for ; die != nil; die = die.Link {
 		if die.Abbrev != dwarf.DW_ABRV_CHANTYPE {
@@ -959,11 +959,11 @@ func (d *dwctxt) synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
 		elemname := tname[5:]
 		elemtype := d.walksymtypedef(d.defgotype(d.lookupOrDiag(tname)))
 
-		// sudog<T>
-		dwss := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "sudog", elemname, "", func(dws *dwarf.DWDie) {
-			d.copychildren(ctxt, dws, sudog)
+		// waitingG<T>
+		dwss := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "waitingG", elemname, "", func(dws *dwarf.DWDie) {
+			d.copychildren(ctxt, dws, waitingG)
 			d.substitutetype(dws, "elem", d.defptrto(elemtype))
-			newattr(dws, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(sudogsize), nil)
+			newattr(dws, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(waitingGSize), nil)
 		})
 
 		// waitq<T>
@@ -2030,7 +2030,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	prototypedies = map[string]*dwarf.DWDie{
 		"type:runtime.stringStructDWARF":             nil,
 		"type:runtime.slice":                         nil,
-		"type:runtime.sudog":                         nil,
+		"type:runtime.waitingG":                      nil,
 		"type:runtime.waitq":                         nil,
 		"type:runtime.hchan":                         nil,
 		"type:internal/runtime/maps.Map":             nil,

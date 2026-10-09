@@ -632,7 +632,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 		testenv.SkipFlaky(t, 51482)
 	}
 
-	// The goal of this test is to trigger a "racy sudog adjustment"
+	// The goal of this test is to trigger a "racy waitingG adjustment"
 	// throw. Basically, there's a window between when a goroutine
 	// becomes available for preemption for stack scanning (and thus,
 	// stack shrinking) but before the goroutine has fully parked on a

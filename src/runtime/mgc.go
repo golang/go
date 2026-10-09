@@ -1176,10 +1176,10 @@ func (gp *g) isMaybeRunnable() bool {
 	case waitReasonChanReceive,
 		waitReasonSelect,
 		waitReasonChanSend:
-		// Cycle all through all *sudog to check whether
+		// Cycle all through all waitingGs to check whether
 		// the goroutine is waiting on a marked channel.
-		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-			if isMarkedOrNotInHeap(unsafe.Pointer(sg.c.get())) {
+		for wg := gp.waiting; wg != nil; wg = wg.waitlink {
+			if isMarkedOrNotInHeap(unsafe.Pointer(wg.c.get())) {
 				return true
 			}
 		}
@@ -1190,7 +1190,8 @@ func (gp *g) isMaybeRunnable() bool {
 		waitReasonSyncRWMutexLock,
 		waitReasonSyncRWMutexRLock:
 		// If waiting on mutexes, wait groups, or condition variables,
-		// check if the synchronization primitive attached to the sudog is marked.
+		// check if the synchronization primitive attached to the
+		// waitingG is marked.
 		if gp.waiting != nil {
 			return isMarkedOrNotInHeap(gp.waiting.elem.get())
 		}
@@ -1233,9 +1234,10 @@ func findMaybeRunnableGoroutines() (moreWork bool) {
 	return newRootJobs > oldRootJobs
 }
 
-// setSyncObjectsUntraceable scans allgs and sets the elem and c fields of all sudogs to
-// an untrackable pointer. This prevents the GC from marking these objects as live in memory
-// by following these pointers when runnning deadlock detection.
+// setSyncObjectsUntraceable scans allgs and sets the elem and c fields of all
+// waitingGs to an untrackable pointer. This prevents the GC from marking these
+// objects as live in memory by following these pointers when runnning deadlock
+// detection.
 func setSyncObjectsUntraceable() {
 	assertWorldStopped()
 
@@ -1251,21 +1253,21 @@ func setSyncObjectsUntraceable() {
 			// semaphores, waitlink is a list of goroutines blocked
 			// on the same semaphore. forEachGRace is already going
 			// to visit every goroutine.
-			if sg := gp.waiting; sg != nil {
-				sg.elem.setUntraceable()
+			if wg := gp.waiting; wg != nil {
+				wg.elem.setUntraceable()
 			}
 		case gp.waitreason.isChanWait():
 			// Channels and select statements are reachable from
-			// the *sudog via the c field.
-			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-				sg.c.setUntraceable()
+			// the waitingG via the c field.
+			for wg := gp.waiting; wg != nil; wg = wg.waitlink {
+				wg.c.setUntraceable()
 			}
 		}
 	})
 }
 
-// gcRestoreSyncObjects restores the elem and c fields of all sudogs to their original values.
-// Should be invoked after the goroutine leak detection phase.
+// gcRestoreSyncObjects restores the elem and c fields of all waitingGs to
+// their original values. Invoked after the goroutine leak detection phase.
 func gcRestoreSyncObjects() {
 	assertWorldStopped()
 
@@ -1273,12 +1275,12 @@ func gcRestoreSyncObjects() {
 		// See setSyncObjectsUntraceable.
 		switch {
 		case gp.waitreason.isSyncWait():
-			if sg := gp.waiting; sg != nil {
-				sg.elem.setTraceable()
+			if wg := gp.waiting; wg != nil {
+				wg.elem.setTraceable()
 			}
 		case gp.waitreason.isChanWait():
-			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-				sg.c.setTraceable()
+			for wg := gp.waiting; wg != nil; wg = wg.waitlink {
+				wg.c.setTraceable()
 			}
 		}
 	})
@@ -1320,12 +1322,12 @@ func findGoroutineLeaks() bool {
 		switch {
 		case gp.waitreason.isSyncWait():
 			// Don't walk waitlink. See setSyncObjectsUntraceable.
-			if sg := gp.waiting; sg != nil {
-				shade(sg.elem.uintptr())
+			if wg := gp.waiting; wg != nil {
+				shade(wg.elem.uintptr())
 			}
 		case gp.waitreason.isChanWait():
-			for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-				shade(sg.c.uintptr())
+			for wg := gp.waiting; wg != nil; wg = wg.waitlink {
+				shade(wg.c.uintptr())
 			}
 		}
 	}
@@ -1522,7 +1524,7 @@ func gcMarkTermination(stw worldStop) {
 	}
 
 	if work.goroutineLeak.enabled {
-		// Restore the elem and c fields of all sudogs to their original values.
+		// Restore the elem and c fields of all waitingGs to their original values.
 		gcRestoreSyncObjects()
 	}
 
@@ -2197,18 +2199,18 @@ func clearpools() {
 		atomicstorep(p, nil)
 	}
 
-	// Clear central sudog cache.
+	// Clear central waitingG cache.
 	// Leave per-P caches alone, they have strictly bounded size.
 	// Disconnect cached list before dropping it on the floor,
 	// so that a dangling ref to one entry does not pin all of them.
-	lock(&sched.sudoglock)
-	var sg, sgnext *sudog
-	for sg = sched.sudogcache; sg != nil; sg = sgnext {
-		sgnext = sg.next
-		sg.next = nil
+	lock(&sched.waitingGLock)
+	var wg, wgnext *waitingG
+	for wg = sched.waitingGCache; wg != nil; wg = wgnext {
+		wgnext = wg.next
+		wg.next = nil
 	}
-	sched.sudogcache = nil
-	unlock(&sched.sudoglock)
+	sched.waitingGCache = nil
+	unlock(&sched.waitingGLock)
 
 	// Clear central defer pool.
 	// Leave per-P pools alone, they have strictly bounded size.

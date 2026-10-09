@@ -328,7 +328,7 @@ func TestFieldOverlap(t *testing.T) {
 	mustHaveDWARF(t)
 	t.Parallel()
 
-	// This test grew out of issue 21094, where specific sudog<T> DWARF types
+	// This test grew out of issue 21094, where specific waitingG<T> DWARF types
 	// had elem fields set to values instead of pointers.
 	const prog = `
 package main
