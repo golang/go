@@ -2113,8 +2113,8 @@ func (ctxt *Link) hostlink() {
 	}
 
 	if ctxt.IsDarwin() && !combineDwarf && len(buildinfo) > 0 {
-		// If we're not combinding DWARF, update UUID now.
-		// Otherwise the code below takes care of it when combinding DWARF.
+		// If we're not combining DWARF, update UUID now.
+		// Otherwise the code below takes care of it when combining DWARF.
 		updateMachoOutFile("rewriting uuid",
 			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
 				return machoRewriteUuid(ctxt, exef, exem, outexe)
