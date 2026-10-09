@@ -58,6 +58,12 @@ func execGoToolchain(gotoolchain, dir, exe string) {
 		}
 		os.Exit(0)
 	}
-	err := syscall.Exec(exe, os.Args, os.Environ())
+	argv := os.Args
+	if runtime.GOOS == "aix" {
+		// On AIX, os.Executable derives the executable path from Args[0],
+		// so the child must see its own path as argv[0].
+		argv = append([]string{exe}, os.Args[1:]...)
+	}
+	err := syscall.Exec(exe, argv, os.Environ())
 	base.Fatalf("exec %s: %v", gotoolchain, err)
 }

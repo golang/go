@@ -21,7 +21,9 @@
 
 cc -c -o a/b.syso b/b.c
 cc -c -o b/lib.o b/lib.c
-exec ar rc a/libb.a b/lib.o
+# On AIX, ar requires -X64 to operate on 64-bit XCOFF objects.
+[!GOOS:aix] exec ar rc a/libb.a b/lib.o
+[GOOS:aix] exec ar -X64 rc a/libb.a b/lib.o
 
 go build
 ! stderr 'undefined reference'
