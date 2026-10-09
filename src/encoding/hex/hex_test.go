@@ -124,6 +124,47 @@ func TestDecodeStringErr(t *testing.T) {
 	}
 }
 
+// TestEncodeDecodeLengths covers the vectorized blocks and their tails.
+func TestEncodeDecodeLengths(t *testing.T) {
+	src := make([]byte, 300)
+	for i := range src {
+		src[i] = byte(i * 167)
+	}
+	for n := range len(src) + 1 {
+		want := fmt.Sprintf("%x", src[:n])
+		if got := EncodeToString(src[:n]); got != want {
+			t.Fatalf("EncodeToString(%x) = %q, want %q", src[:n], got, want)
+		}
+		for _, s := range []string{want, strings.ToUpper(want)} {
+			got, err := DecodeString(s)
+			if err != nil || !bytes.Equal(got, src[:n]) {
+				t.Fatalf("DecodeString(%q) = %x, %v; want %x", s, got, err, src[:n])
+			}
+		}
+	}
+}
+
+// TestDecodeInvalidByteInBlock checks that an invalid byte anywhere in a
+// vectorized block is reported after the bytes that precede it.
+func TestDecodeInvalidByteInBlock(t *testing.T) {
+	valid := strings.Repeat("0123456789abcdefABCDEF", 4)[:80]
+	want, err := DecodeString(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for p := range len(valid) {
+		for _, c := range []byte{0, ' ', '/', ':', '@', 'G', '`', 'g', 0x7f, 0x80, 0xc6, 0xff} {
+			src := []byte(valid)
+			src[p] = c
+			dst := make([]byte, len(src)/2)
+			n, err := Decode(dst, src)
+			if n != p/2 || err != InvalidByteError(c) || !bytes.Equal(dst[:n], want[:n]) {
+				t.Fatalf("Decode(%q) = %d, %v; want %d, %v", src, n, err, p/2, InvalidByteError(c))
+			}
+		}
+	}
+}
+
 func TestEncoderDecoder(t *testing.T) {
 	for _, multiplier := range []int{1, 128, 192} {
 		for _, test := range encDecTests {
@@ -248,7 +289,7 @@ var expectedHexDump = []byte(`00000000  1e 1f 20 21 22 23 24 25  26 27 28 29 2a 
 var sink []byte
 
 func BenchmarkEncode(b *testing.B) {
-	for _, size := range []int{256, 1024, 4096, 16384} {
+	for _, size := range []int{16, 32, 64, 256, 1024, 4096, 16384} {
 		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)
 		sink = make([]byte, 2*size)
 
@@ -262,7 +303,7 @@ func BenchmarkEncode(b *testing.B) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-	for _, size := range []int{256, 1024, 4096, 16384} {
+	for _, size := range []int{32, 64, 128, 256, 1024, 4096, 16384} {
 		src := bytes.Repeat([]byte{'2', 'b', '7', '4', '4', 'f', 'a', 'a'}, size/8)
 		sink = make([]byte, size/2)
 
