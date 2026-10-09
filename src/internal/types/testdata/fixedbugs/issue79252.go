@@ -16,10 +16,15 @@ func _() {
 	_ = 1 << (1.1 /* ERROR "must be integer" */ << s)
 }
 
+func _() {
+	var s int
+	var _ float32 = (1 /* ERROR "must be integer" */ << 200) << s
+}
+
 // test case from issue
 
 func main() {
 	var v7 int
-	v8 := 0 >> (( /* ERROR "overflows uint" */ 2 /* ERROR "overflows uint" */ ^ 0xffffffffffffffff<<2) >> v7)
+	v8 := 0 >> ((2 /* ERROR "overflows uint" */ ^ 0xffffffffffffffff<<2) >> v7)
 	_ = v8
 }

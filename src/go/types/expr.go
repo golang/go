@@ -358,7 +358,15 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		// still must check that it is representable as the specific
 		// int type requested (was go.dev/issue/22969). Fall through here.
 	}
-	if old.val != nil {
+
+	// A parenthesized expression is the only expression for which updateExprType
+	// is called recursively when old.val != nil (the only other expressions where
+	// updateExprType recurses are unary and binary expressions, and there we don't
+	// recurse if old.val != nil). Thus, if we reach here, the constant value of a
+	// parenthesized expression was checked already and we don't need to check it again.
+	// Exclude them here. This avoids duplicate errors if the constant value of such
+	// an expression is not representable in the new type (was go.dev/issue/82087).
+	if _, isParen := x.(*ast.ParenExpr); !isParen && old.val != nil {
 		// If x is a constant, it must be representable as a value of typ.
 		c := operand{old.mode, x, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)
@@ -730,7 +738,16 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			// Delay operand checking until we know the final type
 			// by marking the lhs expression as lhs shift operand.
 			//
-			// Usually (in correct programs), the lhs expression
+			// Note 1 (subtle!): Mark info.isLhs on the unparenthesized
+			// expression, rather than the expression. Otherwise, in
+			// a case like "var _ float32 = (1 << 200) << s",
+			// updateExprType visits 1 << 200 (where isLhs is false)
+			// before (1 << 200) (where isLhs would be true) reporting
+			// two errors: "1 << 200 overflows float32" and "shifted
+			// operand must be integer". With this we only get the
+			// 2nd error.
+			//
+			// Note 2: Usually (in correct programs), the lhs expression
 			// is in the untyped map. However, it is possible to
 			// create incorrect programs where the same expression
 			// is evaluated twice (via a declaration cycle) such
@@ -741,9 +758,10 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			// that node, and it can only be deleted once).
 			// Be cautious and check for presence of entry.
 			// Example: var e, f = int(1<<""[f]) // go.dev/issue/11347
-			if info, found := check.untyped[x.expr]; found {
+			lhs := ast.Unparen(x.expr) // see Note 1
+			if info, found := check.untyped[lhs]; found {
 				info.isLhs = true
-				check.untyped[x.expr] = info
+				check.untyped[lhs] = info
 			}
 			// keep x's type
 			x.mode_ = value
