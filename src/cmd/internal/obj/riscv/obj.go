@@ -4496,10 +4496,13 @@ var flisMapping = map[float32]uint32{
 }
 
 // flidMapping is the double-precision (float64) counterpart of flisMapping,
-// used for the FLID (load-immediate double) instruction.
+// used for the FLID (load-immediate double) instruction. Its tables are the
+// same as flisMapping except for entry 1, the minimum positive normal value,
+// which is the double-precision one (2^-1022) rather than single-precision
+// (2^-126). See RISC-V Zfa spec, section on fli.d.
 var flidMapping = map[float64]uint32{
-	-1.0:                   0,
-	1.1754943508222875e-38: 1,
+	-1.0:                    0,
+	2.2250738585072014e-308: 1,
 	1.52587890625e-05:      2,
 	3.0517578125e-05:       3,
 	0.00390625:             4,
