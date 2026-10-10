@@ -2,22 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// RISC-V 64-bit CRC32 using carry-less multiplication (Zbc extension)
-// with Barrett reduction. Algorithm adapted from ISA-L's RISC-V CRC
-// implementation and Intel's PCLMULQDQ CRC paper.
-//
-// The algorithm works as follows:
-//   1. Misaligned input is first processed one byte at a time (table-based,
-//      CRC_BYTE) until the pointer reaches a 16-byte boundary. This makes the
-//      subsequent LD loads in the fold loop always aligned, so the code is
-//      safe on cores that trap on misaligned accesses.
-//   2. Load the first aligned 16 bytes, XOR the CRC seed into the low word.
-//   3. Fold each subsequent 16-byte block using carry-less multiplication.
-//   4. Final fold: reduce the 128-bit accumulator to 64 bits.
-//   5. Barrett reduction: reduce 64 bits to the 32-bit CRC.
-//   6. The tail (< 16 bytes, including anything left after the alignment and
-//      the fold loop) is processed one byte at a time with the same table.
-
 #include "textflag.h"
 
 // IEEE CRC32 constants (reflected polynomial 0xEDB88320)
