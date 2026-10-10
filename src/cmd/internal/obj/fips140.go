@@ -355,6 +355,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_CALLLOONG64,
 		objabi.R_CALLPOWER,
 		objabi.R_GOTPCREL,
+		objabi.R_PEIMPORT,
 		objabi.R_LOONG64_ADDR_LO,         // used with PC-relative load
 		objabi.R_LOONG64_ADDR_HI,         // used with PC-relative load
 		objabi.R_LOONG64_ADDR64_LO,       // used with PC-relative load
