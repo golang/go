@@ -59,9 +59,12 @@ var operandModeString = [...]string{
 type operand struct {
 	mode_ operandMode
 	expr  ast.Expr
-	typ_  Type
-	val   constant.Value
-	id    builtinId
+	// exprEnd records the source expression end when expr is synthetic and its
+	// end position is derived from its descriptive name.
+	exprEnd token.Pos
+	typ_    Type
+	val     constant.Value
+	id      builtinId
 }
 
 func (x *operand) mode() operandMode {
