@@ -94,4 +94,31 @@ foreach ($case in $ffiCases) {
     if ($LASTEXITCODE -ne 0) { throw "direct FFI invocation of $($case[1]) failed with exit code $LASTEXITCODE" }
 }
 
+# Exercise the native launcher itself with a tiny DLL so argument forwarding
+# and exact exit-status propagation are independent of the Go commands above.
+$probeDir = Join-Path $work 'launcher-probe'
+New-Item -ItemType Directory -Path $probeDir -Force | Out-Null
+$probeSource = Join-Path $probeDir 'probe.c'
+@'
+#include <stdio.h>
+#include <string.h>
+
+__declspec(dllexport) int __cdecl dll_probe_main(int argc, char **argv) {
+    if (argc != 3 || argv[1] == NULL || argv[2] == NULL) return 91;
+    if (strcmp(argv[1], "argument with spaces") != 0 || strcmp(argv[2], "tail") != 0) return 92;
+    puts("launcher-probe-ok");
+    return 23;
+}
+'@ | Set-Content -Encoding ascii $probeSource
+$probeLauncher = Join-Path $probeDir 'probe.exe'
+$probeLibrary = Join-Path $probeDir 'probe.dll'
+& $gcc '-municode' '-Os' '-static' '-o' $probeLauncher (Join-Path $PSScriptRoot 'launcher.c')
+if ($LASTEXITCODE -ne 0) { throw 'could not build the native launcher probe' }
+& $gcc '-shared' '-o' $probeLibrary $probeSource
+if ($LASTEXITCODE -ne 0) { throw 'could not build the launcher probe DLL' }
+$probeOutput = & $probeLauncher 'argument with spaces' 'tail'
+if ($LASTEXITCODE -ne 23 -or $probeOutput.Trim() -ne 'launcher-probe-ok') {
+    throw "launcher did not preserve arguments/output/exit status (exit $LASTEXITCODE, output '$probeOutput')"
+}
+
 Write-Host 'Windows amd64 shared-toolchain smoke tests passed.'
