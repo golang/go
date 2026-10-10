@@ -200,6 +200,15 @@ var (
 	v7lastTimestamp uint64
 )
 
+// v7NextTimestamp returns a timestamp 1/4096 millisecond after last.
+// Bits 12-15 are reserved for the version field and are not incremented.
+func v7NextTimestamp(last uint64) uint64 {
+	if last&0x0fff != 0x0fff {
+		return last + 1
+	}
+	return (last & 0xffff_ffff_ffff_0000) + (1 << 16)
+}
+
 // NewV7 returns a new version 7 UUID.
 //
 // Version 7 UUIDs contain a timestamp in the most significant 48 bits,
@@ -224,18 +233,15 @@ func NewV7() UUID {
 	//
 	// We store a 12 bit sub-millisecond timestamp fraction in the rand_a section,
 	// as optionally permitted by the RFC.
-	v7mu.Lock()
-
-	// Generate our 60-bit timestamp: 48 bits of millisecond-resolution,
-	// followed by 12 bits of 1/4096-millisecond resolution.
 	now := time.Now()
 	secs := uint64(now.Unix())
 	nanos := uint64(now.Nanosecond())
 	msecs := nanos / 1000000
 	frac := nanos - (1000000 * msecs)
-	timestamp := (1000*secs + msecs) << 12 // ms shifted into position
+	timestamp := (1000*secs + msecs) << 16 // ms shifted into position; bits 12-15 reserved for ver
 	timestamp += (frac * 4096) / 1000000   // ns converted to 1/4096-ms units
 
+	v7mu.Lock()
 	if v7lastSecs > secs {
 		// Time has gone backwards.
 		// This presumably indicates the system clock has changed.
@@ -245,18 +251,15 @@ func NewV7() UUID {
 		// To preserve the property that we generate UUIDs in order,
 		// use a timestamp 1/4096 millisecond later than the most recently
 		// generated UUID.
-		timestamp = v7lastTimestamp + 1
+		timestamp = v7NextTimestamp(v7lastTimestamp)
 	}
 
 	v7lastSecs = secs
 	v7lastTimestamp = timestamp
 	v7mu.Unlock()
 
-	// Insert a gap for the 4 bits of the ver field into the timestamp.
-	hibits := ((timestamp << 4) & 0xffff_ffff_ffff_0000) | (timestamp & 0x0ffff)
-
 	var u UUID
-	binary.BigEndian.PutUint64(u[0:8], hibits)
+	binary.BigEndian.PutUint64(u[0:8], timestamp)
 	rand.Read(u[8:])
 	u.setVersion(7)
 	u.setVariant(0b10)
