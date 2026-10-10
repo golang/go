@@ -20,7 +20,6 @@ import (
 	"io"
 	"io/fs"
 	"iter"
-	"log"
 	"maps"
 	"os"
 	pathpkg "path"

@@ -7,7 +7,6 @@ package analysisflags
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strings"
