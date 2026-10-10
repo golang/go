@@ -59,6 +59,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64ADCQ(v)
 	case ssaop.OpAMD64ADCQconst:
 		return rewriteValue_OpAMD64ADCQconst(v)
+	case ssaop.OpAMD64ADCQload:
+		return rewriteValue_OpAMD64ADCQload(v)
 	case ssaop.OpAMD64ADDBconstmodify:
 		return rewriteValue_OpAMD64ADDBconstmodify(v)
 	case ssaop.OpAMD64ADDL:
@@ -77,6 +79,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64ADDQ(v)
 	case ssaop.OpAMD64ADDQcarry:
 		return rewriteValue_OpAMD64ADDQcarry(v)
+	case ssaop.OpAMD64ADDQcarryload:
+		return rewriteValue_OpAMD64ADDQcarryload(v)
 	case ssaop.OpAMD64ADDQconst:
 		return rewriteValue_OpAMD64ADDQconst(v)
 	case ssaop.OpAMD64ADDQconstmodify:
@@ -473,6 +477,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64SBBQcarrymask(v)
 	case ssaop.OpAMD64SBBQconst:
 		return rewriteValue_OpAMD64SBBQconst(v)
+	case ssaop.OpAMD64SBBQload:
+		return rewriteValue_OpAMD64SBBQload(v)
 	case ssaop.OpAMD64SETA:
 		return rewriteValue_OpAMD64SETA(v)
 	case ssaop.OpAMD64SETAE:
@@ -557,6 +563,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64SUBQ(v)
 	case ssaop.OpAMD64SUBQborrow:
 		return rewriteValue_OpAMD64SUBQborrow(v)
+	case ssaop.OpAMD64SUBQborrowload:
+		return rewriteValue_OpAMD64SUBQborrowload(v)
 	case ssaop.OpAMD64SUBQconst:
 		return rewriteValue_OpAMD64SUBQconst(v)
 	case ssaop.OpAMD64SUBQload:
@@ -7610,6 +7618,32 @@ func rewriteValue_OpAMD64ADCQ(v *ssa.Value) bool {
 		v.AddArg3(x, y, v0)
 		return true
 	}
+	// match: (ADCQ x l:(MOVQload [off] {sym} ptr mem) carry)
+	// cond: ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l)
+	// result: (ADCQload x [off] {sym} ptr carry mem)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			l := v_1
+			if l.Op != ssaop.OpAMD64MOVQload {
+				continue
+			}
+			off := ssa.AuxIntToInt32(l.AuxInt)
+			sym := ssa.AuxToSym(l.Aux)
+			mem := l.Args[1]
+			ptr := l.Args[0]
+			carry := v_2
+			if !(ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64ADCQload)
+			v.AuxInt = ssa.Int32ToAuxInt(off)
+			v.Aux = ssa.SymToAux(sym)
+			v.AddArg4(x, ptr, carry, mem)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValue_OpAMD64ADCQconst(v *ssa.Value) bool {
@@ -7650,6 +7684,105 @@ func rewriteValue_OpAMD64ADCQconst(v *ssa.Value) bool {
 		v1.AddArg(v2)
 		v0.AddArg(v1)
 		v.AddArg2(x, v0)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64ADCQload(v *ssa.Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ADCQload x [off] {sym} ptr (InvertFlags f) mem)
+	// result: (ADCQload x [off] {sym} ptr (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))) mem)
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		x := v_0
+		ptr := v_1
+		if v_2.Op != ssaop.OpAMD64InvertFlags {
+			break
+		}
+		f := v_2.Args[0]
+		mem := v_3
+		v.Reset(ssaop.OpAMD64ADCQload)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVBQZX, types.Types[types.TUINT32])
+		v3 := b.NewValue0(v.Pos, ssaop.OpAMD64SETA, types.Types[types.TUINT8])
+		v3.AddArg(f)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg4(x, ptr, v0, mem)
+		return true
+	}
+	// match: (ADCQload x [off] {sym} ptr (FlagEQ) mem)
+	// result: (ADDQcarryload x [off] {sym} ptr mem)
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		x := v_0
+		ptr := v_1
+		if v_2.Op != ssaop.OpAMD64FlagEQ {
+			break
+		}
+		mem := v_3
+		v.Reset(ssaop.OpAMD64ADDQcarryload)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	// match: (ADCQload [off1] {sym} val (ADDQconst [off2] base) carry mem)
+	// cond: ssa.Is32Bit(int64(off1)+int64(off2))
+	// result: (ADCQload [off1+off2] {sym} val base carry mem)
+	for {
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		val := v_0
+		if v_1.Op != ssaop.OpAMD64ADDQconst {
+			break
+		}
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		base := v_1.Args[0]
+		carry := v_2
+		mem := v_3
+		if !(ssa.Is32Bit(int64(off1) + int64(off2))) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64ADCQload)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(val, base, carry, mem)
+		return true
+	}
+	// match: (ADCQload [off1] {sym1} val (LEAQ [off2] {sym2} base) carry mem)
+	// cond: ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2)
+	// result: (ADCQload [off1+off2] {ssa.MergeSym(sym1,sym2)} val base carry mem)
+	for {
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
+		val := v_0
+		if v_1.Op != ssaop.OpAMD64LEAQ {
+			break
+		}
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
+		base := v_1.Args[0]
+		carry := v_2
+		mem := v_3
+		if !(ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64ADCQload)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
+		v.AddArg4(val, base, carry, mem)
 		return true
 	}
 	return false
@@ -8562,6 +8695,82 @@ func rewriteValue_OpAMD64ADDQcarry(v *ssa.Value) bool {
 			return true
 		}
 		break
+	}
+	// match: (ADDQcarry x l:(MOVQload [off] {sym} ptr mem))
+	// cond: ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l)
+	// result: (ADDQcarryload x [off] {sym} ptr mem)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			l := v_1
+			if l.Op != ssaop.OpAMD64MOVQload {
+				continue
+			}
+			off := ssa.AuxIntToInt32(l.AuxInt)
+			sym := ssa.AuxToSym(l.Aux)
+			mem := l.Args[1]
+			ptr := l.Args[0]
+			if !(ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64ADDQcarryload)
+			v.AuxInt = ssa.Int32ToAuxInt(off)
+			v.Aux = ssa.SymToAux(sym)
+			v.AddArg3(x, ptr, mem)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValue_OpAMD64ADDQcarryload(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ADDQcarryload [off1] {sym} val (ADDQconst [off2] base) mem)
+	// cond: ssa.Is32Bit(int64(off1)+int64(off2))
+	// result: (ADDQcarryload [off1+off2] {sym} val base mem)
+	for {
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		val := v_0
+		if v_1.Op != ssaop.OpAMD64ADDQconst {
+			break
+		}
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		base := v_1.Args[0]
+		mem := v_2
+		if !(ssa.Is32Bit(int64(off1) + int64(off2))) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64ADDQcarryload)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(val, base, mem)
+		return true
+	}
+	// match: (ADDQcarryload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	// cond: ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2)
+	// result: (ADDQcarryload [off1+off2] {ssa.MergeSym(sym1,sym2)} val base mem)
+	for {
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
+		val := v_0
+		if v_1.Op != ssaop.OpAMD64LEAQ {
+			break
+		}
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
+		base := v_1.Args[0]
+		mem := v_2
+		if !(ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64ADDQcarryload)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
+		v.AddArg3(val, base, mem)
+		return true
 	}
 	return false
 }
@@ -32281,6 +32490,29 @@ func rewriteValue_OpAMD64SBBQ(v *ssa.Value) bool {
 		v.AddArg3(x, y, v0)
 		return true
 	}
+	// match: (SBBQ x l:(MOVQload [off] {sym} ptr mem) borrow)
+	// cond: ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l)
+	// result: (SBBQload x [off] {sym} ptr borrow mem)
+	for {
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64MOVQload {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		borrow := v_2
+		if !(ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64SBBQload)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, borrow, mem)
+		return true
+	}
 	return false
 }
 func rewriteValue_OpAMD64SBBQcarrymask(v *ssa.Value) bool {
@@ -32375,6 +32607,105 @@ func rewriteValue_OpAMD64SBBQconst(v *ssa.Value) bool {
 		v1.AddArg(v2)
 		v0.AddArg(v1)
 		v.AddArg2(x, v0)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64SBBQload(v *ssa.Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SBBQload x [off] {sym} ptr (InvertFlags f) mem)
+	// result: (SBBQload x [off] {sym} ptr (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))) mem)
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		x := v_0
+		ptr := v_1
+		if v_2.Op != ssaop.OpAMD64InvertFlags {
+			break
+		}
+		f := v_2.Args[0]
+		mem := v_3
+		v.Reset(ssaop.OpAMD64SBBQload)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVBQZX, types.Types[types.TUINT32])
+		v3 := b.NewValue0(v.Pos, ssaop.OpAMD64SETA, types.Types[types.TUINT8])
+		v3.AddArg(f)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg4(x, ptr, v0, mem)
+		return true
+	}
+	// match: (SBBQload x [off] {sym} ptr (FlagEQ) mem)
+	// result: (SUBQborrowload x [off] {sym} ptr mem)
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		x := v_0
+		ptr := v_1
+		if v_2.Op != ssaop.OpAMD64FlagEQ {
+			break
+		}
+		mem := v_3
+		v.Reset(ssaop.OpAMD64SUBQborrowload)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	// match: (SBBQload [off1] {sym} val (ADDQconst [off2] base) carry mem)
+	// cond: ssa.Is32Bit(int64(off1)+int64(off2))
+	// result: (SBBQload [off1+off2] {sym} val base carry mem)
+	for {
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		val := v_0
+		if v_1.Op != ssaop.OpAMD64ADDQconst {
+			break
+		}
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		base := v_1.Args[0]
+		carry := v_2
+		mem := v_3
+		if !(ssa.Is32Bit(int64(off1) + int64(off2))) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64SBBQload)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(val, base, carry, mem)
+		return true
+	}
+	// match: (SBBQload [off1] {sym1} val (LEAQ [off2] {sym2} base) carry mem)
+	// cond: ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2)
+	// result: (SBBQload [off1+off2] {ssa.MergeSym(sym1,sym2)} val base carry mem)
+	for {
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
+		val := v_0
+		if v_1.Op != ssaop.OpAMD64LEAQ {
+			break
+		}
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
+		base := v_1.Args[0]
+		carry := v_2
+		mem := v_3
+		if !(ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64SBBQload)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
+		v.AddArg4(val, base, carry, mem)
 		return true
 	}
 	return false
@@ -41165,6 +41496,79 @@ func rewriteValue_OpAMD64SUBQborrow(v *ssa.Value) bool {
 		v.Reset(ssaop.OpAMD64SUBQconstborrow)
 		v.AuxInt = ssa.Int32ToAuxInt(int32(c))
 		v.AddArg(x)
+		return true
+	}
+	// match: (SUBQborrow x l:(MOVQload [off] {sym} ptr mem))
+	// cond: ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l)
+	// result: (SUBQborrowload x [off] {sym} ptr mem)
+	for {
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64MOVQload {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64SUBQborrowload)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64SUBQborrowload(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (SUBQborrowload [off1] {sym} val (ADDQconst [off2] base) mem)
+	// cond: ssa.Is32Bit(int64(off1)+int64(off2))
+	// result: (SUBQborrowload [off1+off2] {sym} val base mem)
+	for {
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		val := v_0
+		if v_1.Op != ssaop.OpAMD64ADDQconst {
+			break
+		}
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		base := v_1.Args[0]
+		mem := v_2
+		if !(ssa.Is32Bit(int64(off1) + int64(off2))) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64SUBQborrowload)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(val, base, mem)
+		return true
+	}
+	// match: (SUBQborrowload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	// cond: ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2)
+	// result: (SUBQborrowload [off1+off2] {ssa.MergeSym(sym1,sym2)} val base mem)
+	for {
+		off1 := ssa.AuxIntToInt32(v.AuxInt)
+		sym1 := ssa.AuxToSym(v.Aux)
+		val := v_0
+		if v_1.Op != ssaop.OpAMD64LEAQ {
+			break
+		}
+		off2 := ssa.AuxIntToInt32(v_1.AuxInt)
+		sym2 := ssa.AuxToSym(v_1.Aux)
+		base := v_1.Args[0]
+		mem := v_2
+		if !(ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64SUBQborrowload)
+		v.AuxInt = ssa.Int32ToAuxInt(off1 + off2)
+		v.Aux = ssa.SymToAux(ssa.MergeSym(sym1, sym2))
+		v.AddArg3(val, base, mem)
 		return true
 	}
 	return false

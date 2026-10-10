@@ -77,7 +77,24 @@ func flagalloc(f *ssa.Func) {
 	}
 
 	// Compute which flags values will need to be spilled.
-	spill := map[ssa.ID]bool{}
+	// copyFlags restores a spilled flag value by copying its generator
+	// and, recursively, the generators of that generator's flag
+	// inputs, such as the earlier links of an ADCQ carry chain.
+	// copied records the spilled values and every value that may be
+	// copied along with them.
+	copied := map[ssa.ID]bool{}
+	var markCopied func(v *ssa.Value)
+	markCopied = func(v *ssa.Value) {
+		if copied[v.ID] {
+			return
+		}
+		copied[v.ID] = true
+		for _, a := range v.Args {
+			if a.Type.IsFlags() || a.Type.IsTuple() {
+				markCopied(a)
+			}
+		}
+	}
 	for _, b := range f.Blocks {
 		var flag *ssa.Value
 		if len(b.Preds) > 0 {
@@ -92,7 +109,7 @@ func flagalloc(f *ssa.Func) {
 					continue
 				}
 				// a will need to be restored here.
-				spill[a.ID] = true
+				markCopied(a)
 				flag = a
 			}
 			if v.ClobbersFlags() {
@@ -104,17 +121,50 @@ func flagalloc(f *ssa.Func) {
 		}
 		for _, v := range b.ControlValues() {
 			if v != flag && v.Type.IsFlags() {
-				spill[v.ID] = true
+				markCopied(v)
 			}
 		}
 		if v := end[b.ID]; v != nil && v != flag {
-			spill[v.ID] = true
+			markCopied(v)
+		}
+	}
+
+	// A copy executes later than the original, when the memory that
+	// the original read may have been overwritten. So split every
+	// generator that may be copied and that reads memory into a load
+	// and a flag generator, leaving the load in the original's place.
+	// This must happen before any copying, because the copies of a
+	// generator may be made while processing a block that comes
+	// before the generator's own block.
+	var remove []*ssa.Value // values that should be checked for possible removal
+	var oldSched []*ssa.Value
+	for _, b := range f.Blocks {
+		split := false
+		for _, v := range b.Values {
+			if copied[v.ID] && v.MemoryArg() != nil {
+				split = true
+				break
+			}
+		}
+		if !split {
+			continue
+		}
+		oldSched = append(oldSched[:0], b.Values...)
+		b.Values = b.Values[:0]
+		for _, v := range oldSched {
+			if copied[v.ID] && v.MemoryArg() != nil {
+				remove = append(remove, v)
+				// SplitLoad appends the new load to b.Values,
+				// so it lands just before v.
+				if !f.Config.SplitLoad(v) {
+					f.Fatalf("can't split flag generator: %s", v.LongString())
+				}
+			}
+			b.Values = append(b.Values, v)
 		}
 	}
 
 	// Add flag spill and recomputation where they are needed.
-	var remove []*ssa.Value // values that should be checked for possible removal
-	var oldSched []*ssa.Value
 	for _, b := range f.Blocks {
 		oldSched = append(oldSched[:0], b.Values...)
 		b.Values = b.Values[:0]
@@ -133,15 +183,6 @@ func flagalloc(f *ssa.Func) {
 		for _, v := range oldSched {
 			if v.Op == ssaop.OpPhi && v.Type.IsFlags() {
 				f.Fatalf("phi of flags not supported: %s", v.LongString())
-			}
-
-			// If v will be spilled, and v uses memory, then we must split it
-			// into a load + a flag generator.
-			if spill[v.ID] && v.MemoryArg() != nil {
-				remove = append(remove, v)
-				if !f.Config.SplitLoad(v) {
-					f.Fatalf("can't split flag generator: %s", v.LongString())
-				}
 			}
 
 			// Make sure any flag arg of v is in the flags register.

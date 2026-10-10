@@ -48,6 +48,15 @@
 (ADCQconst x [c] (InvertFlags f)) => (ADCQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
 (SBBQ x y (InvertFlags f)) => (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
 (SBBQconst x [c] (InvertFlags f)) => (SBBQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(ADCQload x [off] {sym} ptr (InvertFlags f) mem) => (ADCQload x [off] {sym} ptr (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))) mem)
+(SBBQload x [off] {sym} ptr (InvertFlags f) mem) => (SBBQload x [off] {sym} ptr (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))) mem)
+// Merge a load into the second operand of ADCQ and friends.
+(ADDQcarry x l:(MOVQload [off] {sym} ptr mem)) && ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l) => (ADDQcarryload x [off] {sym} ptr mem)
+(ADCQ x l:(MOVQload [off] {sym} ptr mem) carry) && ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l) => (ADCQload x [off] {sym} ptr carry mem)
+(SUBQborrow x l:(MOVQload [off] {sym} ptr mem)) && ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l) => (SUBQborrowload x [off] {sym} ptr mem)
+(SBBQ x l:(MOVQload [off] {sym} ptr mem) borrow) && ssa.CanMergeLoadClobber(v, l, x) && ssa.Clobber(l) => (SBBQload x [off] {sym} ptr borrow mem)
+(ADCQload x [off] {sym} ptr (FlagEQ) mem) => (ADDQcarryload x [off] {sym} ptr mem)
+(SBBQload x [off] {sym} ptr (FlagEQ) mem) => (SUBQborrowload x [off] {sym} ptr mem)
 // ADDQ/SUBQ an from a carry flag into ADCQ/SBBQ
 // TODO: maybe add ADCL and SBBL ?
 (ADDQ x (MOVBQZX (SETB flags))) => (Select0 (ADCQconst [0] x flags))
@@ -1030,6 +1039,10 @@
 	((ADD|SUB|AND|OR|XOR)Qload [off1+off2] {sym} val base mem)
 ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym} val (ADDQconst [off2] base) mem) && ssa.Is32Bit(int64(off1)+int64(off2)) =>
 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
+((ADDQcarry|SUBQborrow)load [off1] {sym} val (ADDQconst [off2] base) mem) && ssa.Is32Bit(int64(off1)+int64(off2)) =>
+	((ADDQcarry|SUBQborrow)load [off1+off2] {sym} val base mem)
+((ADC|SBB)Qload [off1] {sym} val (ADDQconst [off2] base) carry mem) && ssa.Is32Bit(int64(off1)+int64(off2)) =>
+	((ADC|SBB)Qload [off1+off2] {sym} val base carry mem)
 (CMP(Q|L|W|B)load [off1] {sym} (ADDQconst [off2] base) val mem) && ssa.Is32Bit(int64(off1)+int64(off2)) =>
 	(CMP(Q|L|W|B)load [off1+off2] {sym} base val mem)
 (CMP(Q|L|W|B)constload [valoff1] {sym} (ADDQconst [off2] base) mem) && ssa.ValAndOff(valoff1).CanAdd32(off2) =>
@@ -1085,6 +1098,12 @@
 ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2) =>
 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {ssa.MergeSym(sym1,sym2)} val base mem)
+((ADDQcarry|SUBQborrow)load [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+	&& ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2) =>
+	((ADDQcarry|SUBQborrow)load [off1+off2] {ssa.MergeSym(sym1,sym2)} val base mem)
+((ADC|SBB)Qload [off1] {sym1} val (LEAQ [off2] {sym2} base) carry mem)
+	&& ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2) =>
+	((ADC|SBB)Qload [off1+off2] {ssa.MergeSym(sym1,sym2)} val base carry mem)
 (CMP(Q|L|W|B)load [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	&& ssa.Is32Bit(int64(off1)+int64(off2)) && ssa.CanMergeSym(sym1, sym2) =>
 	(CMP(Q|L|W|B)load [off1+off2] {ssa.MergeSym(sym1,sym2)} base val mem)

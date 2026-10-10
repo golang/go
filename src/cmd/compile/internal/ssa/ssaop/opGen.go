@@ -342,6 +342,10 @@ const (
 	OpAMD64SBBQ
 	OpAMD64SUBQconstborrow
 	OpAMD64SBBQconst
+	OpAMD64ADDQcarryload
+	OpAMD64ADCQload
+	OpAMD64SUBQborrowload
+	OpAMD64SBBQload
 	OpAMD64MULQU2
 	OpAMD64MULXQ
 	OpAMD64DIVQU2
@@ -14137,6 +14141,86 @@ var OpcodeTable = [...]OpInfo{
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			Outputs: []OutputInfo{
+				{1, RegMask{V1: 0, V2: 0}},
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:           "ADDQcarryload",
+		AuxType:        AuxTypeSymOff,
+		ArgLen:         3,
+		ResultInArg0:   true,
+		FaultOnNilArg1: true,
+		AddrSinkArg1:   true,
+		symEffect:      SymRead,
+		asm:            x86.AADDQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}},             // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, RegMask{V1: 72057594037993471, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+			Outputs: []OutputInfo{
+				{1, RegMask{V1: 0, V2: 0}},
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:           "ADCQload",
+		AuxType:        AuxTypeSymOff,
+		ArgLen:         4,
+		ResultInArg0:   true,
+		FaultOnNilArg1: true,
+		AddrSinkArg1:   true,
+		symEffect:      SymRead,
+		asm:            x86.AADCQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}},             // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, RegMask{V1: 72057594037993471, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+			Outputs: []OutputInfo{
+				{1, RegMask{V1: 0, V2: 0}},
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:           "SUBQborrowload",
+		AuxType:        AuxTypeSymOff,
+		ArgLen:         3,
+		ResultInArg0:   true,
+		FaultOnNilArg1: true,
+		AddrSinkArg1:   true,
+		symEffect:      SymRead,
+		asm:            x86.ASUBQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}},             // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, RegMask{V1: 72057594037993471, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+			Outputs: []OutputInfo{
+				{1, RegMask{V1: 0, V2: 0}},
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:           "SBBQload",
+		AuxType:        AuxTypeSymOff,
+		ArgLen:         4,
+		ResultInArg0:   true,
+		FaultOnNilArg1: true,
+		AddrSinkArg1:   true,
+		symEffect:      SymRead,
+		asm:            x86.ASBBQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}},             // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, RegMask{V1: 72057594037993471, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			Outputs: []OutputInfo{
 				{1, RegMask{V1: 0, V2: 0}},

@@ -7,6 +7,10 @@ import "cmd/compile/internal/ssa"
 
 func RewriteValue(v *ssa.Value) bool {
 	switch v.Op {
+	case ssaop.OpAMD64ADCQload:
+		return rewriteValue_OpAMD64ADCQload(v)
+	case ssaop.OpAMD64ADDQcarryload:
+		return rewriteValue_OpAMD64ADDQcarryload(v)
 	case ssaop.OpAMD64CMPBconstload:
 		return rewriteValue_OpAMD64CMPBconstload(v)
 	case ssaop.OpAMD64CMPBconstloadidx1:
@@ -51,8 +55,58 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64CMPWloadidx1(v)
 	case ssaop.OpAMD64CMPWloadidx2:
 		return rewriteValue_OpAMD64CMPWloadidx2(v)
+	case ssaop.OpAMD64SBBQload:
+		return rewriteValue_OpAMD64SBBQload(v)
+	case ssaop.OpAMD64SUBQborrowload:
+		return rewriteValue_OpAMD64SUBQborrowload(v)
 	}
 	return false
+}
+func rewriteValue_OpAMD64ADCQload(v *ssa.Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (ADCQload {sym} [off] x ptr carry mem)
+	// result: (ADCQ x (MOVQload <x.Type> {sym} [off] ptr mem) carry)
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		x := v_0
+		ptr := v_1
+		carry := v_2
+		mem := v_3
+		v.Reset(ssaop.OpAMD64ADCQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQload, x.Type)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
+		v0.AddArg2(ptr, mem)
+		v.AddArg3(x, v0, carry)
+		return true
+	}
+}
+func rewriteValue_OpAMD64ADDQcarryload(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (ADDQcarryload {sym} [off] x ptr mem)
+	// result: (ADDQcarry x (MOVQload <x.Type> {sym} [off] ptr mem))
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		x := v_0
+		ptr := v_1
+		mem := v_2
+		v.Reset(ssaop.OpAMD64ADDQcarry)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQload, x.Type)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(x, v0)
+		return true
+	}
 }
 func rewriteValue_OpAMD64CMPBconstload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
@@ -834,6 +888,52 @@ func rewriteValue_OpAMD64CMPWloadidx2(v *ssa.Value) bool {
 		v0.Aux = ssa.SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
 		v.AddArg2(v0, x)
+		return true
+	}
+}
+func rewriteValue_OpAMD64SBBQload(v *ssa.Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (SBBQload {sym} [off] x ptr borrow mem)
+	// result: (SBBQ x (MOVQload <x.Type> {sym} [off] ptr mem) borrow)
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		x := v_0
+		ptr := v_1
+		borrow := v_2
+		mem := v_3
+		v.Reset(ssaop.OpAMD64SBBQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQload, x.Type)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
+		v0.AddArg2(ptr, mem)
+		v.AddArg3(x, v0, borrow)
+		return true
+	}
+}
+func rewriteValue_OpAMD64SUBQborrowload(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (SUBQborrowload {sym} [off] x ptr mem)
+	// result: (SUBQborrow x (MOVQload <x.Type> {sym} [off] ptr mem))
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		x := v_0
+		ptr := v_1
+		mem := v_2
+		v.Reset(ssaop.OpAMD64SUBQborrow)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQload, x.Type)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(x, v0)
 		return true
 	}
 }

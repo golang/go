@@ -165,6 +165,9 @@ func init() {
 		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, regMask{}}}
 		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, regMask{}}, outputs: []regMask{gp, regMask{}}}
 
+		gp21loadflags      = regInfo{inputs: []regMask{gp, gpspsbg, regMask{}}, outputs: []regMask{gp, regMask{}}}
+		gp2flags1loadflags = regInfo{inputs: []regMask{gp, gpspsbg, regMask{}, regMask{}}, outputs: []regMask{gp, regMask{}}}
+
 		gp2flags     = regInfo{inputs: []regMask{gpsp, gpsp}}
 		gp1flags     = regInfo{inputs: []regMask{gpsp}}
 		gp0flagsLoad = regInfo{inputs: []regMask{gpspsbg, regMask{}}}
@@ -428,6 +431,13 @@ func init() {
 		{name: "SBBQ", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "SBBQ", resultInArg0: true},                     // r = arg0-(arg1+carry(arg2))
 		{name: "SUBQconstborrow", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "SUBQ", aux: "Int32", resultInArg0: true}, // r = arg0-auxint
 		{name: "SBBQconst", argLength: 2, reg: gp1flags1flags, typ: "(UInt64,Flags)", asm: "SBBQ", aux: "Int32", resultInArg0: true},  // r = arg0-(auxint+carry(arg1))
+
+		// Load/op combos of the carry and borrow ops above, with the second operand
+		// read from memory. The memory argument comes last.
+		{name: "ADDQcarryload", argLength: 3, reg: gp21loadflags, typ: "(UInt64,Flags)", asm: "ADDQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read", addrSinkArg1: true},  // r = arg0+*(arg1+auxint+aux), arg2=mem
+		{name: "ADCQload", argLength: 4, reg: gp2flags1loadflags, typ: "(UInt64,Flags)", asm: "ADCQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read", addrSinkArg1: true},  // r = arg0+*(arg1+auxint+aux)+carry(arg2), arg3=mem
+		{name: "SUBQborrowload", argLength: 3, reg: gp21loadflags, typ: "(UInt64,Flags)", asm: "SUBQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read", addrSinkArg1: true}, // r = arg0-*(arg1+auxint+aux), arg2=mem
+		{name: "SBBQload", argLength: 4, reg: gp2flags1loadflags, typ: "(UInt64,Flags)", asm: "SBBQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read", addrSinkArg1: true},  // r = arg0-(*(arg1+auxint+aux)+carry(arg2)), arg3=mem
 
 		{name: "MULQU2", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}, commutative: true, asm: "MULQ", clobberFlags: true, earlyOk: true}, // arg0 * arg1, returns (hi, lo)
 		// MULXQ is the BMI2 unsigned 64x64->128 multiply. arg0 must be in DX
