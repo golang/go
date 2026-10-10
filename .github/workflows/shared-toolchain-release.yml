@@ -2,11 +2,6 @@ name: Shared toolchain release (Windows + Linux amd64)
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Tag to build and release (for example, shared-toolchain-v0.1.0)
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -17,8 +12,6 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.x'
@@ -53,8 +46,6 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.x'
@@ -93,10 +84,9 @@ jobs:
       - name: Publish GitHub release and package assets
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          tag="$RELEASE_TAG"
+          tag="$GITHUB_REF_NAME"
           if [[ ! "$tag" =~ ^shared-toolchain-v[0-9]+(\.[0-9]+)*([.-][0-9A-Za-z.-]+)?$ ]]; then
             echo "Invalid release tag: $tag" >&2
             exit 1
