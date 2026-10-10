@@ -1,0 +1,57 @@
+# Downloading a toolchain should honor GOFLAGS=-modcacherw.
+# See also install_modcacherw_issue64282.txt.
+
+[!exec:/bin/sh] skip 'the fake proxy serves shell scripts instead of binaries'
+
+env TESTGO_VERSION=go1.21actual
+env GOTOOLCHAIN=auto
+env GOFLAGS=-modcacherw
+env TOOLCHAINDIR=$GOPATH/pkg/mod/golang.org/toolchain@v0.0.1-go1.999testmod.$GOOS-$GOARCH
+
+cd m
+
+# A switch triggered by the toolchain line in go.mod.
+go version
+stderr '^go: downloading go1.999testmod \(.*/.*\)$'
+stdout go1.999testmod
+cp $WORK/extraneous.txt $TOOLCHAINDIR/extraneous.txt
+env GOTOOLCHAIN=local
+go clean -modcache
+env GOTOOLCHAIN=auto
+
+# Flags unknown to this toolchain must not prevent the switch.
+env GOFLAGS='-modcacherw -thisflagdoesnotexist'
+go version
+stderr '^go: downloading go1.999testmod \(.*/.*\)$'
+stdout go1.999testmod
+cp $WORK/extraneous.txt $TOOLCHAINDIR/extraneous.txt
+env GOFLAGS=
+env GOTOOLCHAIN=local
+go clean -modcache
+
+# A switch requested by GOTOOLCHAIN.
+env GOFLAGS=--modcacherw=true
+env GOTOOLCHAIN=go1.999testmod
+go version
+stderr '^go: downloading go1.999testmod \(.*/.*\)$'
+stdout go1.999testmod
+cp $WORK/extraneous.txt $TOOLCHAINDIR/extraneous.txt
+env GOTOOLCHAIN=local
+go clean -modcache
+
+# With -modcacherw=false, the toolchain is read-only.
+env GOFLAGS=-modcacherw=false
+env GOTOOLCHAIN=auto
+go version
+stderr '^go: downloading go1.999testmod \(.*/.*\)$'
+stdout go1.999testmod
+[!GOOS:windows] [!root] ! cp $WORK/extraneous.txt $TOOLCHAINDIR/extraneous.txt
+! exists $TOOLCHAINDIR/extraneous.txt
+
+-- m/go.mod --
+module m
+
+go 1.21
+toolchain go1.999testmod
+-- $WORK/extraneous.txt --
+This is not a Go source file.
