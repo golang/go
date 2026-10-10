@@ -10,7 +10,6 @@ import (
 	"cmd/internal/objabi"
 	"encoding/binary"
 	"fmt"
-	"log"
 )
 
 // funcpctab writes to dst a pc-value table mapping the code in func to the values

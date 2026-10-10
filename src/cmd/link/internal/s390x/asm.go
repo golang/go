@@ -38,7 +38,6 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
-	"log"
 )
 
 // gentext generates assembly to append the local moduledata to the global

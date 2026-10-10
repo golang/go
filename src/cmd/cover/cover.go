@@ -20,7 +20,6 @@ import (
 	"internal/coverage/encodemeta"
 	"internal/coverage/slicewriter"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"

@@ -34,7 +34,6 @@ package obj
 import (
 	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
-	"log"
 	"math"
 )
 

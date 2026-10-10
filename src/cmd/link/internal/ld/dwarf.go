@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
-	"log"
 	"path"
 	"runtime"
 	"slices"

@@ -21,7 +21,6 @@ import (
 	"internal/lazyregexp"
 	"io"
 	"io/fs"
-	"log"
 	"math/rand"
 	"os"
 	"os/exec"

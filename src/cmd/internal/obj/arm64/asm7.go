@@ -38,7 +38,6 @@ import (
 	"errors"
 	"fmt"
 	"internal/buildcfg"
-	"log"
 	"math"
 	"math/bits"
 	"slices"

@@ -37,7 +37,6 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"internal/abi"
-	"log"
 	"math"
 	"path"
 	"strings"

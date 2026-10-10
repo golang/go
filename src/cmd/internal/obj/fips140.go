@@ -140,7 +140,6 @@ import (
 	"fmt"
 	"internal/bisect"
 	"internal/buildcfg"
-	"log"
 	"os"
 	"strings"
 )

@@ -7,7 +7,6 @@ package ssagen
 import (
 	"fmt"
 	"internal/buildcfg"
-	"log"
 	"os"
 	"strings"
 

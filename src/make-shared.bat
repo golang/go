@@ -47,7 +47,7 @@ exit /b 0
 set "SHARED_TOOL=%~1"
 "%GO_SHARED%" build -tags=sharedtool -buildmode=c-shared -o "%SHARED_STAGE%\bin\%SHARED_TOOL%.dll" "cmd/%SHARED_TOOL%"
 if errorlevel 1 exit /b 1
-gcc -Os -static -o "%SHARED_STAGE%\bin\%SHARED_TOOL%.exe" "%SHARED_LAUNCHER%"
+gcc -municode -Os -static -o "%SHARED_STAGE%\bin\%SHARED_TOOL%.exe" "%SHARED_LAUNCHER%"
 if errorlevel 1 exit /b 1
 del "%SHARED_STAGE%\bin\%SHARED_TOOL%.h" >nul 2>nul
 exit /b 0
@@ -56,7 +56,7 @@ exit /b 0
 set "SHARED_TOOL=%~1"
 "%GO_SHARED%" build -tags=sharedtool -buildmode=c-shared -o "%SHARED_STAGE%\pkg\tool\windows_amd64\%SHARED_TOOL%.dll" "cmd/%SHARED_TOOL%"
 if errorlevel 1 exit /b 1
-gcc -Os -static -o "%SHARED_STAGE%\pkg\tool\windows_amd64\%SHARED_TOOL%.exe" "%SHARED_LAUNCHER%"
+gcc -municode -Os -static -o "%SHARED_STAGE%\pkg\tool\windows_amd64\%SHARED_TOOL%.exe" "%SHARED_LAUNCHER%"
 if errorlevel 1 exit /b 1
 del "%SHARED_STAGE%\pkg\tool\windows_amd64\%SHARED_TOOL%.h" >nul 2>nul
 exit /b 0

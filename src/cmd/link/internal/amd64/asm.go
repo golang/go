@@ -38,7 +38,6 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
-	"log"
 )
 
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {

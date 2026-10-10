@@ -35,7 +35,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
-	"log"
 	"slices"
 )
 

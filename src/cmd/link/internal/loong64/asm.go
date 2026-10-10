@@ -14,7 +14,6 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
-	"log"
 )
 
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {

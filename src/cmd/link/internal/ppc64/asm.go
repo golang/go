@@ -41,7 +41,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
-	"log"
 	"strconv"
 	"strings"
 )

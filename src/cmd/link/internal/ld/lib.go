@@ -41,7 +41,6 @@ import (
 	"internal/buildcfg"
 	"internal/platform"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"

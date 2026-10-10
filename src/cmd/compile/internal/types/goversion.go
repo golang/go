@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/goversion"
 	"internal/lazyregexp"
-	"log"
 	"strconv"
 
 	"cmd/internal/sharedentry"

@@ -36,7 +36,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
-	"log"
 	"math"
 	"math/bits"
 	"sort"

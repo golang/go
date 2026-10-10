@@ -14,7 +14,6 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
-	"log"
 	"sort"
 )
 

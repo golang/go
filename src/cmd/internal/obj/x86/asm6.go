@@ -38,7 +38,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
-	"log"
 	"strings"
 )
 

@@ -38,7 +38,6 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"internal/buildcfg"
-	"log"
 	"runtime"
 )
 

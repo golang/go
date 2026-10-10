@@ -8,7 +8,6 @@ package bio
 import (
 	"bufio"
 	"io"
-	"log"
 	"os"
 	"cmd/internal/sharedentry"
 )

@@ -7,7 +7,6 @@ package lex
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"text/scanner"

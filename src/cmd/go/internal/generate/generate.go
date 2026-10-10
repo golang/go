@@ -13,7 +13,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"

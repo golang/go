@@ -10,7 +10,6 @@ import (
 	"cmd/link/internal/loader"
 	"encoding/binary"
 	"errors"
-	"log"
 	"os"
 )
 

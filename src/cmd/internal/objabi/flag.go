@@ -10,7 +10,6 @@ import (
 	"internal/bisect"
 	"internal/buildcfg"
 	"io"
-	"log"
 	"os"
 	"reflect"
 	"sort"

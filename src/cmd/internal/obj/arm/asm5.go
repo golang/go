@@ -36,7 +36,6 @@ import (
 	"cmd/internal/objabi"
 	"fmt"
 	"internal/buildcfg"
-	"log"
 	"math"
 	"slices"
 )

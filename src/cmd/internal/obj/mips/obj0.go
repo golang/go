@@ -36,7 +36,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
-	"log"
 	"math"
 )
 

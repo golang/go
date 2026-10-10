@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"internal/abi"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"

@@ -40,7 +40,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/buildcfg"
-	"log"
 	"os"
 	"runtime"
 )

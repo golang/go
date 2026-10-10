@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
-	"log"
 	"os"
 	"reflect"
 	"runtime"

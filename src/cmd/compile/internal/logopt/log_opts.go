@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"io"
-	"log"
 	"net/url"
 	"os"
 	"path/filepath"

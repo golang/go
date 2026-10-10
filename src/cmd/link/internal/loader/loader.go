@@ -19,7 +19,6 @@ import (
 	"internal/buildcfg"
 	"io"
 	"iter"
-	"log"
 	"math/bits"
 	"os"
 	"sort"

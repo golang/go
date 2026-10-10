@@ -9,7 +9,6 @@ package asm
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"

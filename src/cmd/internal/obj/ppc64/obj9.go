@@ -37,7 +37,6 @@ import (
 	"cmd/internal/sys"
 	"internal/abi"
 	"internal/buildcfg"
-	"log"
 	"math"
 	"math/bits"
 	"strings"

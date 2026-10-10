@@ -9,8 +9,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"log"
-
 	"cmd/internal/sharedentry"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"

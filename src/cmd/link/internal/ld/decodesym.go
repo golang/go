@@ -12,7 +12,6 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"internal/abi"
-	"log"
 )
 
 // Decoding the type.* symbols.	 This has to be in sync with

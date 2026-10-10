@@ -32,7 +32,6 @@
 package ld
 
 import (
-	"log"
 	"os"
 	"path"
 	"path/filepath"

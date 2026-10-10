@@ -34,7 +34,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"fmt"
-	"log"
 	"math"
 	"slices"
 )

@@ -40,7 +40,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
-	"log"
 	"math"
 	"sort"
 	"sync"

@@ -37,7 +37,6 @@ import (
 	"cmd/internal/sys"
 	"internal/abi"
 	"internal/buildcfg"
-	"log"
 )
 
 var progedit_tlsfallback *obj.LSym
