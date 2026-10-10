@@ -43,8 +43,12 @@ func EncodedLen(n int) int { return n * 2 }
 // of bytes written to dst, but this value is always [EncodedLen](len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
-	j := 0
-	for _, v := range src {
+	i := 0
+	if haveSIMD && len(src) >= 16 {
+		i = encodeSIMD(dst, src)
+	}
+	j := 2 * i
+	for _, v := range src[i:] {
 		dst[j] = hextable[v>>4]
 		dst[j+1] = hextable[v&0x0f]
 		j += 2
@@ -86,6 +90,10 @@ func DecodedLen(x int) int { return x / 2 }
 // of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
 	i, j := 0, 0
+	if haveSIMD && len(src) >= 32 {
+		j = decodeSIMD(dst, src)
+		i = j / 2
+	}
 	for ; j < len(src)-1; j += 2 {
 		p := src[j]
 		q := src[j+1]
