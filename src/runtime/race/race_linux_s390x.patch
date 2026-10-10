@@ -61,3 +61,65 @@ index 01bb7b34f43a2..1e791ff765fec 100644
    // Final position in the last part for finished threads.
    Event* final_pos = nullptr;
    // Number of trace parts allocated on behalf of this trace specifically.
+From 7376a706150289cf60fb3648e75e909ab6e86f68 Mon Sep 17 00:00:00 2001
+From: Tamir Duberstein <tamird@gmail.com>
+Date: Sun, 21 Jun 2026 00:02:19 -0400
+Subject: [PATCH] [tsan] fit Go/s390x mapping under QEMU (#204503)
+
+QEMU linux-user first tries guest_base=0. In that identity-mapped mode,
+fixed guest mappings use the same host addresses. On an x86-64 host
+with four-level page tables, the Go/s390x meta shadow starts at
+144 TiB, beyond the 128 TiB userspace limit, and its mmap fails with
+ENOMEM during TSan initialization.
+
+Move the meta shadow down by 32 TiB to
+[0x700000000000, 0x780000000000), restoring the 16 TiB gap after the
+shadow and placing all Go/s390x TSan regions below 2^47. Correct the
+mapping comment's shadow size and ratio.
+
+Failure report and native s390x comparison:
+https://github.com/golang/go/issues/67881
+
+QEMU identity guest-base selection:
+
+https://github.com/qemu/qemu/blob/v10.2.3/linux-user/elfload.c#L1036-L1042
+
+QEMU guest-to-host address translation:
+
+https://github.com/qemu/qemu/blob/v10.2.3/include/user/guest-host.h#L46-L50
+
+QEMU fixed-mapping implementation:
+https://github.com/qemu/qemu/blob/v10.2.3/linux-user/mmap.c#L600-L628
+
+x86-64 four-level paging documentation:
+https://docs.kernel.org/arch/x86/x86_64/5level-paging.html
+---
+ compiler-rt/lib/tsan/rtl/tsan_platform.h | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/compiler-rt/lib/tsan/rtl/tsan_platform.h b/compiler-rt/lib/tsan/rtl/tsan_platform.h
+index b1cde8962fc5..5edec59d5af5 100644
+--- a/compiler-rt/lib/tsan/rtl/tsan_platform.h
++++ b/compiler-rt/lib/tsan/rtl/tsan_platform.h
+@@ -738,13 +738,16 @@ struct MappingGoRiscv64_48 {
+ Go on linux/s390x
+ 0000 0000 1000 - 1000 0000 0000: executable and heap - 16 TiB
+ 1000 0000 0000 - 4000 0000 0000: -
+-4000 0000 0000 - 6000 0000 0000: shadow - 64TiB (4 * app)
+-6000 0000 0000 - 9000 0000 0000: -
+-9000 0000 0000 - 9800 0000 0000: metainfo - 8TiB (0.5 * app)
++4000 0000 0000 - 6000 0000 0000: shadow - 32 TiB (2 * app)
++6000 0000 0000 - 7000 0000 0000: -
++7000 0000 0000 - 7800 0000 0000: metainfo - 8 TiB (0.5 * app)
++7800 0000 0000 - 8000 0000 0000: -
+ */
+ struct MappingGoS390x {
+-  static const uptr kMetaShadowBeg = 0x900000000000ull;
+-  static const uptr kMetaShadowEnd = 0x980000000000ull;
++  // Keep the mapping below 2^47 for QEMU linux-user on x86-64 hosts with
++  // four-level page tables.
++  static const uptr kMetaShadowBeg = 0x700000000000ull;
++  static const uptr kMetaShadowEnd = 0x780000000000ull;
+   static const uptr kShadowBeg     = 0x400000000000ull;
+   static const uptr kShadowEnd = 0x600000000000ull;
+   static const uptr kLoAppMemBeg = 0x000000001000ull;
