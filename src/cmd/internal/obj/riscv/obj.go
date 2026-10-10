@@ -4799,6 +4799,16 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 			ins.funct3 = uint32(p.Scond &^ rmSuffixBit)
 		}
 
+	case AFROUNDS, AFROUNDNXS, AFROUNDD, AFROUNDNXD:
+		// Zfa fround/froundnx take an explicit rounding mode in the rm field
+		// (bits 14:12). Default to round-to-nearest-even (RNE) when no
+		// rounding-mode suffix is given.
+		if p.Scond&rmSuffixBit == 0 {
+			ins.funct3 = uint32(RM_RNE)
+		} else {
+			ins.funct3 = uint32(p.Scond &^ rmSuffixBit)
+		}
+
 	case AFNES, AFNED:
 		// Replace FNE[SD] with FEQ[SD] and NOT.
 		if p.To.Type != obj.TYPE_REG {
@@ -5474,6 +5484,8 @@ func ParseSuffix(prog *obj.Prog, cond string) (err error) {
 	cond = strings.TrimPrefix(cond, ".")
 	switch prog.As {
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
+		prog.Scond, err = rmSuffixEncode(cond)
+	case AFROUNDS, AFROUNDNXS, AFROUNDD, AFROUNDNXD:
 		prog.Scond, err = rmSuffixEncode(cond)
 	case AFENCE:
 		if cond == "TSO" {

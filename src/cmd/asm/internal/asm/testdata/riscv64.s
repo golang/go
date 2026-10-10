@@ -473,6 +473,26 @@ start:
 	FROUNDS F18, F9                // d3044940
 	FROUNDNXD F18, F9              // d3045942
 	FROUNDNXS F18, F9              // d3045940
+	FROUNDS.RNE F18, F9            // d3044940
+	FROUNDS.RTZ F18, F9            // d3144940
+	FROUNDS.RDN F18, F9            // d3244940
+	FROUNDS.RUP F18, F9            // d3344940
+	FROUNDS.RMM F18, F9            // d3444940
+	FROUNDD.RNE F18, F9            // d3044942
+	FROUNDD.RTZ F18, F9            // d3144942
+	FROUNDD.RDN F18, F9            // d3244942
+	FROUNDD.RUP F18, F9            // d3344942
+	FROUNDD.RMM F18, F9            // d3444942
+	FROUNDNXS.RNE F18, F9          // d3045940
+	FROUNDNXS.RTZ F18, F9          // d3145940
+	FROUNDNXS.RDN F18, F9          // d3245940
+	FROUNDNXS.RUP F18, F9          // d3345940
+	FROUNDNXS.RMM F18, F9          // d3445940
+	FROUNDNXD.RNE F18, F9          // d3045942
+	FROUNDNXD.RTZ F18, F9          // d3145942
+	FROUNDNXD.RDN F18, F9          // d3245942
+	FROUNDNXD.RUP F18, F9          // d3345942
+	FROUNDNXD.RMM F18, F9          // d3445942
 
 	// 24.4: Modular Convert-to-Integer Instruction
 	FCVTMODWD F1, X11              // d39580c2
