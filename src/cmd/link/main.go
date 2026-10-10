@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/sys"
 	"cmd/link/internal/amd64"
 	"cmd/link/internal/arm"
@@ -45,7 +46,7 @@ func main() {
 	switch buildcfg.GOARCH {
 	default:
 		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", buildcfg.GOARCH)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	case "386":
 		arch, theArch = x86.Init()
 	case "amd64":

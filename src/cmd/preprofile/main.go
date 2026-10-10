@@ -13,6 +13,7 @@ package main
 
 import (
 	"bufio"
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"cmd/internal/pgo"
 	"cmd/internal/telemetry/counter"
@@ -25,7 +26,7 @@ import (
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: go tool preprofile [-V] [-o output] -i input\n\n")
 	flag.PrintDefaults()
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 var (
@@ -82,6 +83,6 @@ func main() {
 	}
 
 	if err := preprocess(*input, *output); err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 }

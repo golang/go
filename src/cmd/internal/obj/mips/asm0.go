@@ -30,6 +30,7 @@
 package mips
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -519,7 +520,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
-			log.Fatalf("out array in span0 is too small, need at least %d for %v", o.size/4, p)
+			sharedentry.Fatalf("out array in span0 is too small, need at least %d for %v", o.size/4, p)
 		}
 		c.asmout(p, o, out[:])
 		for i = 0; i < int32(o.size/4); i++ {
@@ -929,7 +930,7 @@ func buildop(ctxt *obj.Link) {
 		default:
 			ctxt.Diag("unknown op in build: %v", r)
 			ctxt.DiagFlush()
-			log.Fatalf("bad code")
+			sharedentry.Fatalf("bad code")
 
 		case AABSF:
 			opset(AMOVFD, r0)

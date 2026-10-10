@@ -31,6 +31,7 @@
 package x86
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
@@ -375,7 +376,7 @@ func archreloc(*ld.Target, *loader.Loader, *ld.ArchSyms, loader.Reloc, loader.Sy
 }
 
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
-	log.Fatalf("unexpected relocation variant")
+	sharedentry.Fatalf("unexpected relocation variant")
 	return -1
 }
 

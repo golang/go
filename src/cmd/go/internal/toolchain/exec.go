@@ -7,6 +7,7 @@
 package toolchain
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/base"
 	"fmt"
 	"internal/godebug"
@@ -50,13 +51,13 @@ func execGoToolchain(gotoolchain, dir, exe string) {
 		if err != nil {
 			if e, ok := err.(*exec.ExitError); ok && e.ProcessState != nil {
 				if e.ProcessState.Exited() {
-					os.Exit(e.ProcessState.ExitCode())
+					sharedentry.Exit(e.ProcessState.ExitCode())
 				}
 				base.Fatalf("exec %s: %s", gotoolchain, e.ProcessState)
 			}
 			base.Fatalf("exec %s: %s", exe, err)
 		}
-		os.Exit(0)
+		sharedentry.Exit(0)
 	}
 	err := syscall.Exec(exe, os.Args, os.Environ())
 	base.Fatalf("exec %s: %v", gotoolchain, err)

@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/base"
 	"cmd/go/internal/bug"
 	"cmd/go/internal/cfg"
@@ -127,11 +128,11 @@ func main() {
 
 	if cfg.GOROOT == "" {
 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 	switch strings.ToLower(cfg.GOROOT) {
 	case "/usr/local/go": // Location recommended for installation on Linux and Darwin and used by Mac installer.
@@ -165,7 +166,7 @@ func main() {
 			// or C:\PROGRA~1. Only ~ as a path prefix has meaning to the shell.
 			if strings.HasPrefix(p, "~") {
 				fmt.Fprintf(os.Stderr, "go: GOPATH entry cannot start with shell metacharacter '~': %q\n", p)
-				os.Exit(2)
+				sharedentry.Exit(2)
 			}
 			if !filepath.IsAbs(p) {
 				if cfg.Getenv("GOPATH") == "" {
@@ -175,7 +176,7 @@ func main() {
 				} else {
 					counterErrorsGOPATHEntryRelative.Inc()
 					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
-					os.Exit(2)
+					sharedentry.Exit(2)
 				}
 			}
 		}
@@ -347,7 +348,7 @@ func init() {
 
 func mainUsage() {
 	help.PrintUsage(os.Stderr, base.Go)
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 func maybeStartTrace(pctx context.Context) context.Context {

@@ -5,6 +5,7 @@
 package obj
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"encoding/binary"
@@ -235,7 +236,7 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg an
 	if oldval+p.Spadj < -10000 || oldval+p.Spadj > 1100000000 {
 		ctxt.Diag("overflow in spadj: %d + %d = %d", oldval, p.Spadj, oldval+p.Spadj)
 		ctxt.DiagFlush()
-		log.Fatalf("bad code")
+		sharedentry.Fatalf("bad code")
 	}
 
 	return oldval + p.Spadj
@@ -253,7 +254,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg a
 	if int64(int32(p.To.Offset)) != p.To.Offset {
 		ctxt.Diag("overflow in PCDATA instruction: %v", p)
 		ctxt.DiagFlush()
-		log.Fatalf("bad code")
+		sharedentry.Fatalf("bad code")
 	}
 
 	return int32(p.To.Offset)
@@ -390,7 +391,7 @@ func (it *PCIter) Next() {
 	// Value delta
 	val, n := binary.Varint(it.p)
 	if n <= 0 {
-		log.Fatalf("bad Value varint in pciterNext: read %v", n)
+		sharedentry.Fatalf("bad Value varint in pciterNext: read %v", n)
 	}
 	it.p = it.p[n:]
 
@@ -405,7 +406,7 @@ func (it *PCIter) Next() {
 	// pc delta
 	pc, n := binary.Uvarint(it.p)
 	if n <= 0 {
-		log.Fatalf("bad pc varint in pciterNext: read %v", n)
+		sharedentry.Fatalf("bad pc varint in pciterNext: read %v", n)
 	}
 	it.p = it.p[n:]
 

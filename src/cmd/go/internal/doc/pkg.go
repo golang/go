@@ -21,6 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 )
@@ -157,10 +158,10 @@ func parsePackage(writer io.Writer, pkg *load.Package, userPath string) *Package
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, pkg.Dir, include, parser.ParseComments)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	if len(pkgs) == 0 {
-		log.Fatalf("no source-code package in directory %s", pkg.Dir)
+		sharedentry.Fatalf("no source-code package in directory %s", pkg.Dir)
 	}
 	astPkg := pkgs[pkg.Name]
 
@@ -184,7 +185,7 @@ func parsePackage(writer io.Writer, pkg *load.Package, userPath string) *Package
 	}
 	docPkg, err := doc.NewFromFiles(fset, allGoFiles, pkg.ImportPath, mode)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	typedValue := make(map[*doc.Value]bool)
 	constructor := make(map[*doc.Func]bool)
@@ -230,7 +231,7 @@ func (pkg *Package) Printf(format string, args ...any) {
 func (pkg *Package) flush() {
 	_, err := pkg.writer.Write(pkg.buf.Bytes())
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	pkg.buf.Reset() // Not needed, but it's a flush.
 }
@@ -259,7 +260,7 @@ func (pkg *Package) emit(comment string, node ast.Node) {
 		}
 		err := format.Node(&pkg.buf, pkg.fs, arg)
 		if err != nil {
-			log.Fatal(err)
+			sharedentry.Fatal(err)
 		}
 		if comment != "" && !showSrc {
 			pkg.newlines(1)
@@ -1139,7 +1140,7 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 			inter.Methods.List, methods = methods, inter.Methods.List
 			err := format.Node(&pkg.buf, pkg.fs, inter)
 			if err != nil {
-				log.Fatal(err)
+				sharedentry.Fatal(err)
 			}
 			pkg.newlines(1)
 			// Restore the original methods.
@@ -1262,7 +1263,7 @@ func (pkg *Package) emitExample(ex *doc.Example) {
 		}
 	}
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	if ex.Output != "" {
 		pkg.newlines(2)

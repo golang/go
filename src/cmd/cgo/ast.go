@@ -15,6 +15,7 @@ import (
 	"go/token"
 	"os"
 	"strings"
+	"cmd/internal/sharedentry"
 )
 
 func parse(name string, src []byte, flags parser.Mode) *ast.File {
@@ -28,7 +29,7 @@ func parse(name string, src []byte, flags parser.Mode) *ast.File {
 			for _, e := range list {
 				fmt.Fprintln(os.Stderr, e)
 			}
-			os.Exit(2)
+			sharedentry.Exit(2)
 		}
 		fatalf("parsing %s: %s", name, err)
 	}

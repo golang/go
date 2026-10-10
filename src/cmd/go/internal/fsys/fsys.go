@@ -11,6 +11,7 @@
 package fsys
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/str"
 	"encoding/json"
 	"errors"
@@ -70,7 +71,7 @@ func init() {
 		var err error
 		traceFile, err = os.OpenFile(f, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
-			log.Fatal(err)
+			sharedentry.Fatal(err)
 		}
 	} else {
 		traceFile = os.Stderr
@@ -137,7 +138,7 @@ func cwdOnce() string {
 	wd, err := os.Getwd()
 	if err != nil {
 		// Note: cannot import base, so using log.Fatal.
-		log.Fatalf("cannot determine current directory: %v", err)
+		sharedentry.Fatalf("cannot determine current directory: %v", err)
 	}
 	return wd
 }

@@ -32,6 +32,7 @@
 package obj
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"log"
 	"math"
@@ -41,7 +42,7 @@ import (
 func (s *LSym) Grow(lsiz int64) {
 	siz := int(lsiz)
 	if int64(siz) != lsiz {
-		log.Fatalf("LSym.Grow size %d too long", lsiz)
+		sharedentry.Fatalf("LSym.Grow size %d too long", lsiz)
 	}
 	if len(s.P) >= siz {
 		return

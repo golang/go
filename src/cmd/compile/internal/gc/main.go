@@ -7,6 +7,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/sharedentry"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bloop"
 	"cmd/compile/internal/coverage"
@@ -135,7 +136,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "asan", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if !base.EnableTrace && base.Flag.LowerT {
-		log.Fatalf("compiler not built with support for -t")
+		sharedentry.Fatalf("compiler not built with support for -t")
 	}
 
 	// Enable inlining (after RecordFlags, to avoid recording the rewritten -l).  For now:
@@ -161,7 +162,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		base.Ctxt.Flag_locationlists = false
 	}
 	if base.Ctxt.Flag_locationlists && len(base.Ctxt.Arch.DWARFRegisters) == 0 {
-		log.Fatalf("location lists requested but register mapping not available on %v", base.Ctxt.Arch.Name)
+		sharedentry.Fatalf("location lists requested but register mapping not available on %v", base.Ctxt.Arch.Name)
 	}
 
 	types.ParseLangFlag()
@@ -243,7 +244,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		var err error
 		profile, err = pgoir.New(base.Flag.PgoProfile)
 		if err != nil {
-			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
+			sharedentry.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
 		}
 	}
 
@@ -413,7 +414,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	if base.Flag.Bench != "" {
 		if err := writebench(base.Flag.Bench); err != nil {
-			log.Fatalf("cannot write benchmark data: %v", err)
+			sharedentry.Fatalf("cannot write benchmark data: %v", err)
 		}
 	}
 }

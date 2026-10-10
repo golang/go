@@ -31,6 +31,7 @@
 package ppc64
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
@@ -541,7 +542,7 @@ func gencallstub(ctxt *ld.Link, ldr *loader.Loader, stubType int, stub *loader.S
 			stub.AddUint32(ctxt.Arch, OP_LD_R12_R12)                   // ld r12, 0(r12)
 		}
 	default:
-		log.Fatalf("gencallstub does not support ELFv2 ABI property %d", stubType)
+		sharedentry.Fatalf("gencallstub does not support ELFv2 ABI property %d", stubType)
 	}
 
 	// Jump to the loaded pointer
@@ -780,7 +781,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 	switch r.Type() {
 	case objabi.R_ADDR:
 		if ldr.SymType(s).IsText() {
-			log.Fatalf("R_ADDR relocation in text symbol %s is unsupported\n", ldr.SymName(s))
+			sharedentry.Fatalf("R_ADDR relocation in text symbol %s is unsupported\n", ldr.SymName(s))
 		}
 		if target.IsPIE() && target.IsInternal() {
 			// When internally linking, generate dynamic relocations
@@ -1245,7 +1246,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	// ELFv2 save/restore functions use R0/R12 in special ways, therefore trampolines
 	// as generated here will not always work correctly.
 	if strings.HasPrefix(ldr.SymName(target), "runtime.elf_") {
-		log.Fatalf("Internal linker does not support trampolines to ELFv2 ABI"+
+		sharedentry.Fatalf("Internal linker does not support trampolines to ELFv2 ABI"+
 			" register save/restore function %s", ldr.SymName(target))
 	}
 
@@ -1475,7 +1476,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_POWER_TLS_IE:
 		// Convert TLS_IE relocation to TLS_LE if supported.
 		if !(target.IsPIE() && target.IsElf()) {
-			log.Fatalf("cannot handle R_POWER_TLS_IE (sym %s) when linking non-PIE, non-ELF binaries internally", ldr.SymName(s))
+			sharedentry.Fatalf("cannot handle R_POWER_TLS_IE (sym %s) when linking non-PIE, non-ELF binaries internally", ldr.SymName(s))
 		}
 
 		// We are an ELF binary, we can safely convert to TLS_LE from:
@@ -1505,7 +1506,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_POWER_TLS_IE_PCREL34:
 		// Convert TLS_IE relocation to TLS_LE if supported.
 		if !(target.IsPIE() && target.IsElf()) {
-			log.Fatalf("cannot handle R_POWER_TLS_IE (sym %s) when linking non-PIE, non-ELF binaries internally", ldr.SymName(s))
+			sharedentry.Fatalf("cannot handle R_POWER_TLS_IE (sym %s) when linking non-PIE, non-ELF binaries internally", ldr.SymName(s))
 		}
 
 		// We are an ELF binary, we can safely convert to TLS_LE_TPREL34 from:

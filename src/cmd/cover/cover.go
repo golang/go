@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/internal/sharedentry"
 	"cmd/internal/cov/covcmd"
 	"cmp"
 	"encoding/json"
@@ -63,7 +64,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "\nFlags:")
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr, "\n  Only one of -html, -func, or -mode may be set.")
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 var (
@@ -106,7 +107,7 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		fmt.Fprintln(os.Stderr, `For usage information, run "go tool cover -help"`)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 
 	// Generate coverage-annotated source.
@@ -124,7 +125,7 @@ func main() {
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cover: %v\n", err)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 }
 
@@ -730,7 +731,7 @@ func annotate(names []string) {
 		mp := pkgconfig.ModulePath
 		mdb, err := encodemeta.NewCoverageMetaDataBuilder(pp, pn, mp)
 		if err != nil {
-			log.Fatalf("creating coverage meta-data builder: %v\n", err)
+			sharedentry.Fatalf("creating coverage meta-data builder: %v\n", err)
 		}
 		p = &Package{
 			mdb: mdb,
@@ -740,7 +741,7 @@ func annotate(names []string) {
 	for k, name := range names {
 		if strings.ContainsAny(name, "\r\n") {
 			// annotateFile uses '//line' directives, which don't permit newlines.
-			log.Fatalf("cover: input path contains newline character: %q", name)
+			sharedentry.Fatalf("cover: input path contains newline character: %q", name)
 		}
 
 		fd := os.Stdout
@@ -749,21 +750,21 @@ func annotate(names []string) {
 			var err error
 			fd, err = os.Create(outputfiles[k])
 			if err != nil {
-				log.Fatalf("cover: %s", err)
+				sharedentry.Fatalf("cover: %s", err)
 			}
 			isStdout = false
 		} else if *output != "" {
 			var err error
 			fd, err = os.Create(*output)
 			if err != nil {
-				log.Fatalf("cover: %s", err)
+				sharedentry.Fatalf("cover: %s", err)
 			}
 			isStdout = false
 		}
 		p.annotateFile(name, fd)
 		if !isStdout {
 			if err := fd.Close(); err != nil {
-				log.Fatalf("cover: %s", err)
+				sharedentry.Fatalf("cover: %s", err)
 			}
 		}
 	}
@@ -771,11 +772,11 @@ func annotate(names []string) {
 	if *pkgcfg != "" {
 		fd, err := os.Create(covervarsoutfile)
 		if err != nil {
-			log.Fatalf("cover: %s", err)
+			sharedentry.Fatalf("cover: %s", err)
 		}
 		p.emitMetaData(fd)
 		if err := fd.Close(); err != nil {
-			log.Fatalf("cover: %s", err)
+			sharedentry.Fatalf("cover: %s", err)
 		}
 	}
 }
@@ -784,11 +785,11 @@ func (p *Package) annotateFile(name string, fd io.Writer) {
 	fset := token.NewFileSet()
 	content, err := os.ReadFile(name)
 	if err != nil {
-		log.Fatalf("cover: %s: %s", name, err)
+		sharedentry.Fatalf("cover: %s: %s", name, err)
 	}
 	parsedFile, err := parser.ParseFile(fset, name, content, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
-		log.Fatalf("cover: %s: %s", name, err)
+		sharedentry.Fatalf("cover: %s: %s", name, err)
 	}
 
 	file := &File{
@@ -1291,7 +1292,7 @@ func (p *Package) emitMetaData(w io.Writer) {
 	var sws slicewriter.WriteSeeker
 	digest, err := p.mdb.Emit(&sws)
 	if err != nil {
-		log.Fatalf("encoding meta-data: %v", err)
+		sharedentry.Fatalf("encoding meta-data: %v", err)
 	}
 	p.mdb = nil
 	fmt.Fprintf(w, "var %s = [...]byte{\n", mkMetaVar())
@@ -1316,10 +1317,10 @@ func (p *Package) emitMetaData(w io.Writer) {
 	}
 	fixdata, err := json.Marshal(fixcfg)
 	if err != nil {
-		log.Fatalf("marshal fixupcfg: %v", err)
+		sharedentry.Fatalf("marshal fixupcfg: %v", err)
 	}
 	if err := os.WriteFile(pkgconfig.OutConfig, fixdata, 0666); err != nil {
-		log.Fatalf("error writing %s: %v", pkgconfig.OutConfig, err)
+		sharedentry.Fatalf("error writing %s: %v", pkgconfig.OutConfig, err)
 	}
 }
 
@@ -1344,7 +1345,7 @@ func (p *Package) emitMetaFile(outpath string) {
 	// Open output file.
 	of, err := os.OpenFile(outpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
-		log.Fatalf("opening covmeta %s: %v", outpath, err)
+		sharedentry.Fatalf("opening covmeta %s: %v", outpath, err)
 	}
 
 	if len(p.counterLengths) == 0 {
@@ -1352,7 +1353,7 @@ func (p *Package) emitMetaFile(outpath string) {
 		// in the package to instrument. Leave the file empty file if
 		// this happens.
 		if err = of.Close(); err != nil {
-			log.Fatalf("closing meta-data file: %v", err)
+			sharedentry.Fatalf("closing meta-data file: %v", err)
 		}
 		return
 	}
@@ -1361,7 +1362,7 @@ func (p *Package) emitMetaFile(outpath string) {
 	var sws slicewriter.WriteSeeker
 	digest, err := p.mdb.Emit(&sws)
 	if err != nil {
-		log.Fatalf("encoding meta-data: %v", err)
+		sharedentry.Fatalf("encoding meta-data: %v", err)
 	}
 	payload := sws.BytesWritten()
 	blobs := [][]byte{payload}
@@ -1370,9 +1371,9 @@ func (p *Package) emitMetaFile(outpath string) {
 	mfw := encodemeta.NewCoverageMetaFileWriter(outpath, of)
 	err = mfw.Write(digest, blobs, cmode, cgran)
 	if err != nil {
-		log.Fatalf("writing meta-data file: %v", err)
+		sharedentry.Fatalf("writing meta-data file: %v", err)
 	}
 	if err = of.Close(); err != nil {
-		log.Fatalf("closing meta-data file: %v", err)
+		sharedentry.Fatalf("closing meta-data file: %v", err)
 	}
 }

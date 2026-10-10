@@ -33,6 +33,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/sharedentry"
 	"cmd/internal/gcprog"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -325,7 +326,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			} else if target.IsWindows() {
 				o = r.Add()
 			} else {
-				log.Fatalf("unexpected R_TLS_LE relocation for %v", target.HeadType)
+				sharedentry.Fatalf("unexpected R_TLS_LE relocation for %v", target.HeadType)
 			}
 		case objabi.R_TLS_IE:
 			if target.IsExternal() && target.IsElf() {
@@ -343,12 +344,12 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				// We are linking the final executable, so we
 				// can optimize any TLS IE relocation to LE.
 				if thearch.TLSIEtoLE == nil {
-					log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
+					sharedentry.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
 				}
 				thearch.TLSIEtoLE(P, int(off), int(siz))
 				o = int64(syms.Tlsoffset)
 			} else {
-				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
+				sharedentry.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
 			}
 		case objabi.R_ADDR, objabi.R_PEIMAGEOFF:
 			if weak && !ldr.AttrReachable(rs) {
@@ -1697,7 +1698,7 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
 
 		// Similarly with checking the onlist attr.
 		if ldr.AttrOnList(s) {
-			log.Fatalf("symbol %s listed multiple times", ldr.SymName(s))
+			sharedentry.Fatalf("symbol %s listed multiple times", ldr.SymName(s))
 		}
 		ldr.SetAttrOnList(s, true)
 	}
@@ -3431,7 +3432,7 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 				Addralign: uint32(ctxt.Arch.Alignment),
 			})
 		default:
-			log.Fatalf("can't compress header size:%d", ctxt.Arch.PtrSize)
+			sharedentry.Fatalf("can't compress header size:%d", ctxt.Arch.PtrSize)
 		}
 	} else {
 		buf.Write([]byte("ZLIB"))
@@ -3448,7 +3449,7 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 	// compression can be a significant fraction of link time.
 	z, err := zlib.NewWriterLevel(&buf, zlib.BestSpeed)
 	if err != nil {
-		log.Fatalf("NewWriterLevel failed: %s", err)
+		sharedentry.Fatalf("NewWriterLevel failed: %s", err)
 	}
 	st := ctxt.makeRelocSymState()
 	for _, s := range syms {
@@ -3462,7 +3463,7 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 			st.relocsym(s, P)
 		}
 		if _, err := z.Write(P); err != nil {
-			log.Fatalf("compression failed: %s", err)
+			sharedentry.Fatalf("compression failed: %s", err)
 		}
 		for i := ldr.SymSize(s) - int64(len(P)); i > 0; {
 			b := zeros[:]
@@ -3471,13 +3472,13 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 			}
 			n, err := z.Write(b)
 			if err != nil {
-				log.Fatalf("compression failed: %s", err)
+				sharedentry.Fatalf("compression failed: %s", err)
 			}
 			i -= int64(n)
 		}
 	}
 	if err := z.Close(); err != nil {
-		log.Fatalf("compression failed: %s", err)
+		sharedentry.Fatalf("compression failed: %s", err)
 	}
 	if int64(buf.Len()) >= total {
 		// Compression didn't save any space.

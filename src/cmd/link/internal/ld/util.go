@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/link/internal/loader"
 	"encoding/binary"
 	"fmt"
@@ -28,7 +29,7 @@ func runAtExitFuncs() {
 // Exit exits with code after executing all atExitFuncs.
 func Exit(code int) {
 	runAtExitFuncs()
-	os.Exit(code)
+	sharedentry.Exit(code)
 }
 
 // Exitf logs an error message then calls Exit(2).

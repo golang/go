@@ -31,6 +31,7 @@
 package x86
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -2189,7 +2190,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		n++
 		if n > 1000 {
 			ctxt.Diag("span must be looping")
-			log.Fatalf("loop")
+			sharedentry.Fatalf("loop")
 		}
 		if !reAssemble {
 			break
@@ -2525,7 +2526,7 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 					if isAndroid {
 						return 0x65 // GS
 					}
-					log.Fatalf("unknown TLS base register for %v", ctxt.Headtype)
+					sharedentry.Fatalf("unknown TLS base register for %v", ctxt.Headtype)
 
 				case objabi.Hdarwin,
 					objabi.Hdragonfly,
@@ -2538,7 +2539,7 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 
 			switch ctxt.Headtype {
 			default:
-				log.Fatalf("unknown TLS base register for %v", ctxt.Headtype)
+				sharedentry.Fatalf("unknown TLS base register for %v", ctxt.Headtype)
 
 			case objabi.Hlinux:
 				if isAndroid {
@@ -2546,7 +2547,7 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 				}
 
 				if ctxt.Flag_shared {
-					log.Fatalf("unknown TLS base register for linux with -shared")
+					sharedentry.Fatalf("unknown TLS base register for linux with -shared")
 				} else {
 					return 0x64 // FS
 				}
@@ -3519,7 +3520,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 		s := a.Sym
 		if r == nil {
 			ctxt.Diag("need reloc for %v", obj.Dconv(p, a))
-			log.Fatalf("reloc")
+			sharedentry.Fatalf("reloc")
 		}
 
 		if a.Name == obj.NAME_GOTREF {
@@ -3543,7 +3544,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 	if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Reg == REG_TLS {
 		if r == nil {
 			ctxt.Diag("need reloc for %v", obj.Dconv(p, a))
-			log.Fatalf("reloc")
+			sharedentry.Fatalf("reloc")
 		}
 
 		if !ctxt.Flag_shared || isAndroid || ctxt.Headtype == objabi.Hdarwin {
@@ -4402,7 +4403,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			}
 
 			if z >= len(o.op) {
-				log.Fatalf("asmins bad table %v", p)
+				sharedentry.Fatalf("asmins bad table %v", p)
 			}
 			op := int(o.op[z])
 			if op == 0x0f {
@@ -4841,7 +4842,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				if p.To.Sym == nil {
 					ctxt.Diag("call without target")
 					ctxt.DiagFlush()
-					log.Fatalf("bad code")
+					sharedentry.Fatalf("bad code")
 				}
 
 				if yt.zcase == Zcallduff && ctxt.Flag_dynlink {
@@ -4867,7 +4868,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					if yt.zcase != Zjmp {
 						ctxt.Diag("branch to ATEXT")
 						ctxt.DiagFlush()
-						log.Fatalf("bad code")
+						sharedentry.Fatalf("bad code")
 					}
 
 					ab.Put1(o.op[z+1])
@@ -4892,7 +4893,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				if q == nil {
 					ctxt.Diag("jmp/branch/loop without target")
 					ctxt.DiagFlush()
-					log.Fatalf("bad code")
+					sharedentry.Fatalf("bad code")
 				}
 
 				if p.Back&branchBackwards != 0 {
@@ -5075,7 +5076,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						// are handled in prefixof above and should not be listed here.
 						switch ctxt.Headtype {
 						default:
-							log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
+							sharedentry.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
 						case objabi.Hlinux, objabi.Hfreebsd:
 							if ctxt.Flag_shared {
@@ -5136,11 +5137,11 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 
 					switch ctxt.Headtype {
 					default:
-						log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
+						sharedentry.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
 					case objabi.Hlinux, objabi.Hfreebsd:
 						if !ctxt.Flag_shared {
-							log.Fatalf("unknown TLS base location for linux/freebsd without -shared")
+							sharedentry.Fatalf("unknown TLS base location for linux/freebsd without -shared")
 						}
 						// Note that this is not generating the same insn as the other cases.
 						//     MOV TLS, R_to
@@ -5339,7 +5340,7 @@ func byteswapreg(ctxt *obj.Link, a *obj.Addr) int {
 	default:
 		ctxt.Diag("impossible byte register")
 		ctxt.DiagFlush()
-		log.Fatalf("bad code")
+		sharedentry.Fatalf("bad code")
 		return 0
 	}
 }

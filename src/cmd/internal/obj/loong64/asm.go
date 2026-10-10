@@ -5,6 +5,7 @@
 package loong64
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"fmt"
@@ -624,7 +625,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
-			log.Fatalf("out array in span0 is too small, need at least %d for %v", o.size/4, p)
+			sharedentry.Fatalf("out array in span0 is too small, need at least %d for %v", o.size/4, p)
 		}
 		if p.As == obj.APCALIGN {
 			alignedValue := p.From.Offset
@@ -1328,7 +1329,7 @@ func buildop(ctxt *obj.Link) {
 		default:
 			ctxt.Diag("unknown op in build: %v", as)
 			ctxt.DiagFlush()
-			log.Fatalf("bad code")
+			sharedentry.Fatalf("bad code")
 
 		case AABSF:
 			opset(AMOVFD, r0)
@@ -3388,7 +3389,7 @@ func OpCodeIR(a obj.As) uint32 {
 	if ok {
 		return op
 	}
-	log.Fatalf("bad ir opcode %v", a)
+	sharedentry.Fatalf("bad ir opcode %v", a)
 	return 0
 }
 
@@ -3397,7 +3398,7 @@ func OpCodeIRR(a obj.As) uint32 {
 	if ok {
 		return op
 	}
-	log.Fatalf("bad irr opcode %v", a)
+	sharedentry.Fatalf("bad irr opcode %v", a)
 	return 0
 }
 
@@ -3406,6 +3407,6 @@ func OpCodeRRR(a obj.As) uint32 {
 	if ok {
 		return op
 	}
-	log.Fatalf("bad rrr opcode %v", a)
+	sharedentry.Fatalf("bad rrr opcode %v", a)
 	return 0
 }

@@ -25,6 +25,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
@@ -932,9 +933,9 @@ func main() {
 	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, fuzzTargets, examples)
 {{with .TestMain}}
 	{{.Package}}.{{.Name}}(m)
-	os.Exit(int(reflect.ValueOf(m).Elem().FieldByName("exitCode").Int()))
+	sharedentry.Exit(int(reflect.ValueOf(m).Elem().FieldByName("exitCode").Int()))
 {{else}}
-	os.Exit(m.Run())
+	sharedentry.Exit(m.Run())
 {{end}}
 }
 

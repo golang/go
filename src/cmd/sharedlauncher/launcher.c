@@ -59,7 +59,6 @@ int wmain(int argc, wchar_t **wargv) {
 	char *utf8_name = utf8_arg(name);
 	if (utf8_name == NULL || strlen(utf8_name) + sizeof "dll__main" > sizeof symbol) {
 		free(utf8_name);
-		FreeLibrary(module);
 		fprintf(stderr, "shared launcher: invalid tool name\n");
 		return 127;
 	}
@@ -69,14 +68,12 @@ int wmain(int argc, wchar_t **wargv) {
 	tool_main_fn tool_main = (tool_main_fn)GetProcAddress(module, symbol);
 	if (tool_main == NULL) {
 		fprintf(stderr, "shared launcher: missing entry point %s (error %lu)\n", symbol, GetLastError());
-		FreeLibrary(module);
 		return 127;
 	}
 
 	char **argv = (char **)calloc((size_t)argc + 1, sizeof *argv);
 	if (argv == NULL) {
 		fprintf(stderr, "shared launcher: out of memory\n");
-		FreeLibrary(module);
 		return 127;
 	}
 	for (int i = 0; i < argc; ++i) {
@@ -85,14 +82,12 @@ int wmain(int argc, wchar_t **wargv) {
 			fprintf(stderr, "shared launcher: cannot convert argument %d to UTF-8\n", i);
 			for (int j = 0; j < i; ++j) free(argv[j]);
 			free(argv);
-			FreeLibrary(module);
 			return 127;
 		}
 	}
 	int result = tool_main(argc, argv);
 	for (int i = 0; i < argc; ++i) free(argv[i]);
 	free(argv);
-	FreeLibrary(module);
 	return result;
 }
 
@@ -164,7 +159,6 @@ int main(int argc, char **argv) {
 	char symbol[256];
 	if (snprintf(symbol, sizeof symbol, "dll_%s_main", name) >= (int)sizeof symbol) {
 		fprintf(stderr, "shared launcher: invalid tool name\n");
-		dlclose(module);
 		return 127;
 	}
 	dlerror();
@@ -172,11 +166,9 @@ int main(int argc, char **argv) {
 	const char *error = dlerror();
 	if (error != NULL) {
 		fprintf(stderr, "shared launcher: missing entry point %s: %s\n", symbol, error);
-		dlclose(module);
 		return 127;
 	}
 	int result = tool_main(argc, argv);
-	dlclose(module);
 	return result;
 }
 #endif

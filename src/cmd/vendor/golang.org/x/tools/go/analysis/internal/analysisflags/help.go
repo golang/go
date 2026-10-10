@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -107,6 +108,6 @@ outer:
 				continue outer
 			}
 		}
-		log.Fatalf("Analyzer %q not registered", arg)
+		sharedentry.Fatalf("Analyzer %q not registered", arg)
 	}
 }

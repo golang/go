@@ -32,6 +32,7 @@
 package ld
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -55,7 +56,7 @@ func linknew(arch *sys.Arch) *Link {
 	}
 
 	if buildcfg.GOARCH != arch.Name {
-		log.Fatalf("invalid buildcfg.GOARCH %s (want %s)", buildcfg.GOARCH, arch.Name)
+		sharedentry.Fatalf("invalid buildcfg.GOARCH %s (want %s)", buildcfg.GOARCH, arch.Name)
 	}
 
 	AtExit(func() {
@@ -73,7 +74,7 @@ func linknew(arch *sys.Arch) *Link {
 func (ctxt *Link) computeTLSOffset() {
 	switch ctxt.HeadType {
 	default:
-		log.Fatalf("unknown thread-local storage offset for %v", ctxt.HeadType)
+		sharedentry.Fatalf("unknown thread-local storage offset for %v", ctxt.HeadType)
 
 	case objabi.Hplan9, objabi.Hwindows, objabi.Hjs, objabi.Hwasip1, objabi.Haix:
 		break
@@ -97,7 +98,7 @@ func (ctxt *Link) computeTLSOffset() {
 		 */
 		switch ctxt.Arch.Family {
 		default:
-			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
+			sharedentry.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
 
 			/*
 			 * For x86, Apple has reserved a slot in the TLS for Go. See issue 23617.

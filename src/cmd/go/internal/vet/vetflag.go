@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/base"
 	"cmd/go/internal/cmdflag"
 	"cmd/go/internal/work"
@@ -64,7 +65,7 @@ func parseToolFlag(cmd *base.Command, args []string) string {
 	for i, arg := range args {
 		if arg == "-"+toolFlagName || arg == "--"+toolFlagName {
 			if i+1 >= len(args) {
-				log.Fatalf("%s requires a filename", arg)
+				sharedentry.Fatalf("%s requires a filename", arg)
 			}
 			toolFlag = args[i+1]
 			break
@@ -78,7 +79,7 @@ func parseToolFlag(cmd *base.Command, args []string) string {
 	if toolFlag != "" {
 		tool, err := filepath.Abs(toolFlag)
 		if err != nil {
-			log.Fatal(err)
+			sharedentry.Fatal(err)
 		}
 		return tool
 	}

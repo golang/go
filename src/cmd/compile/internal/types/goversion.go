@@ -11,6 +11,7 @@ import (
 	"log"
 	"strconv"
 
+	"cmd/internal/sharedentry"
 	"cmd/compile/internal/base"
 )
 
@@ -43,16 +44,16 @@ func ParseLangFlag() {
 	var err error
 	langWant, err = parseLang(base.Flag.Lang)
 	if err != nil {
-		log.Fatalf("invalid value %q for -lang: %v", base.Flag.Lang, err)
+		sharedentry.Fatalf("invalid value %q for -lang: %v", base.Flag.Lang, err)
 	}
 
 	if def := currentLang(); base.Flag.Lang != def {
 		defVers, err := parseLang(def)
 		if err != nil {
-			log.Fatalf("internal error parsing default lang %q: %v", def, err)
+			sharedentry.Fatalf("internal error parsing default lang %q: %v", def, err)
 		}
 		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
-			log.Fatalf("invalid value %q for -lang: max known version is %q", base.Flag.Lang, def)
+			sharedentry.Fatalf("invalid value %q for -lang: max known version is %q", base.Flag.Lang, def)
 		}
 	}
 }

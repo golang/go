@@ -30,6 +30,7 @@
 package ppc64
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"encoding/binary"
@@ -807,7 +808,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
-			log.Fatalf("out array in span9 is too small, need at least %d for %v", o.size/4, p)
+			sharedentry.Fatalf("out array in span9 is too small, need at least %d for %v", o.size/4, p)
 		}
 		// asmout is not set up to add large amounts of padding
 		if o.type_ == 0 && p.As == obj.APCALIGN {
@@ -959,7 +960,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			}
 			return C_ZCON
 		}
-		log.Fatalf("Unexpected nonzero FCONST operand %v", a)
+		sharedentry.Fatalf("Unexpected nonzero FCONST operand %v", a)
 
 	case obj.TYPE_CONST,
 		obj.TYPE_ADDR:
@@ -1312,7 +1313,7 @@ func buildop(ctxt *obj.Link) {
 		default:
 			if !opsetGen(r) {
 				ctxt.Diag("unknown op in build: %v", r)
-				log.Fatalf("instruction missing from switch in asm9.go:buildop: %v", r)
+				sharedentry.Fatalf("instruction missing from switch in asm9.go:buildop: %v", r)
 			}
 
 		case ADCBF: /* unary indexed: op (b+a); op (b) */
@@ -2342,7 +2343,7 @@ func pfxload(a obj.As, reg int16, base int16, r uint32) (uint32, uint32) {
 	case AFMOVD:
 		return AOP_PFX_10_MLS(r, 0), AOP_IRR(50<<26, uint32(reg), uint32(base), 0)
 	}
-	log.Fatalf("Error no pfxload for %v\n", a)
+	sharedentry.Fatalf("Error no pfxload for %v\n", a)
 	return 0, 0
 }
 
@@ -2361,7 +2362,7 @@ func pfxstore(a obj.As, reg int16, base int16, r uint32) (uint32, uint32) {
 	case AFMOVD:
 		return AOP_PFX_10_MLS(r, 0), AOP_IRR(54<<26, uint32(reg), uint32(base), 0)
 	}
-	log.Fatalf("Error no pfxstore for %v\n", a)
+	sharedentry.Fatalf("Error no pfxstore for %v\n", a)
 	return 0, 0
 }
 
@@ -2594,7 +2595,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			c.ctxt.Diag("literal operation on R0\n%v", p)
 		}
 		if int32(int16(v)) != v {
-			log.Fatalf("mishandled instruction %v", p)
+			sharedentry.Fatalf("mishandled instruction %v", p)
 		}
 		o1 = AOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
 
@@ -2627,12 +2628,12 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		r := int(p.To.Reg)
 		v := c.regoff(&p.To)
 		if int32(int16(v)) != v {
-			log.Fatalf("mishandled instruction %v", p)
+			sharedentry.Fatalf("mishandled instruction %v", p)
 		}
 		// Offsets in DS form stores must be a multiple of 4
 		inst := c.opstore(p.As)
 		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
+			sharedentry.Fatalf("invalid offset for DS form load/store %v", p)
 		}
 		o1 = AOP_IRR(inst, uint32(p.From.Reg), uint32(r), uint32(v))
 
@@ -2640,12 +2641,12 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		r := int(p.From.Reg)
 		v := c.regoff(&p.From)
 		if int32(int16(v)) != v {
-			log.Fatalf("mishandled instruction %v", p)
+			sharedentry.Fatalf("mishandled instruction %v", p)
 		}
 		// Offsets in DS form loads must be a multiple of 4
 		inst := c.opload(p.As)
 		if c.opform(inst) == DS_FORM && v&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
+			sharedentry.Fatalf("invalid offset for DS form load/store %v", p)
 		}
 		o1 = AOP_IRR(inst, uint32(p.To.Reg), uint32(r), uint32(v))
 
@@ -2909,7 +2910,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		if p.From3Type() != obj.TYPE_NONE {
 			bh = uint32(p.GetFrom3().Offset)
 			if bh == 2 || bh > 3 {
-				log.Fatalf("BH must be 0,1,3 for %v", p)
+				sharedentry.Fatalf("BH must be 0,1,3 for %v", p)
 			}
 			o1 |= bh << 11
 		}
@@ -3209,7 +3210,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		} else {
 			inst := c.opstore(p.As)
 			if c.opform(inst) == DS_FORM && v&0x3 != 0 {
-				log.Fatalf("invalid offset for DS form load/store %v", p)
+				sharedentry.Fatalf("invalid offset for DS form load/store %v", p)
 			}
 			o1 = AOP_IRR(OP_ADDIS, REGTMP, uint32(r), uint32(high16adjusted(v)))
 			o2 = AOP_IRR(inst, uint32(p.From.Reg), REGTMP, uint32(v))
@@ -3573,7 +3574,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			o1, o2 = pfxstore(p.As, p.From.Reg, REG_R0, PFX_R_PCREL)
 			rel.Type = objabi.R_ADDRPOWER_PCREL34
 		} else if c.opform(inst) == DS_FORM && v&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
+			sharedentry.Fatalf("invalid offset for DS form load/store %v", p)
 		}
 		c.cursym.AddRel(c.ctxt, rel)
 
@@ -3620,10 +3621,10 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 				rel.Type = objabi.R_ADDRPOWER_GOT_PCREL34
 			default:
 				// We've failed to convert a TOC-relative relocation to a PC-relative one.
-				log.Fatalf("Unable convert TOC-relative relocation %v to PC-relative", rel.Type)
+				sharedentry.Fatalf("Unable convert TOC-relative relocation %v to PC-relative", rel.Type)
 			}
 		} else if c.opform(inst) == DS_FORM && v&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
+			sharedentry.Fatalf("invalid offset for DS form load/store %v", p)
 		}
 		c.cursym.AddRel(c.ctxt, rel)
 
@@ -3868,10 +3869,10 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		so := c.regoff(&p.To)
 		o2 = AOP_IRR(c.opstore(AMOVD), uint32(REGTMP), uint32(p.To.Reg), uint32(so))
 		if so&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
+			sharedentry.Fatalf("invalid offset for DS form load/store %v", p)
 		}
 		if p.To.Reg == REGTMP {
-			log.Fatalf("SPR move to memory will clobber R31 %v", p)
+			sharedentry.Fatalf("SPR move to memory will clobber R31 %v", p)
 		}
 
 	case 107: /* MOVD soreg, spr */
@@ -3882,7 +3883,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		v = int32(p.To.Reg)
 		o2 = AOP_RRR(o2, uint32(REGTMP), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
 		if so&0x3 != 0 {
-			log.Fatalf("invalid offset for DS form load/store %v", p)
+			sharedentry.Fatalf("invalid offset for DS form load/store %v", p)
 		}
 
 	case 108: /* mov r, xoreg ==> stwx rx,ry */

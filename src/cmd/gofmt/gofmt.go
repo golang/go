@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/sync/semaphore"
@@ -376,7 +377,7 @@ func main() {
 	// so that it can use defer and have them
 	// run before the exit.
 	gofmtMain(s)
-	os.Exit(s.GetExitCode())
+	sharedentry.Exit(s.GetExitCode())
 }
 
 func gofmtMain(s *sequencer) {

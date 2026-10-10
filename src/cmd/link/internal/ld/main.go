@@ -32,6 +32,7 @@ package ld
 
 import (
 	"bufio"
+	"cmd/internal/sharedentry"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/quoted"
@@ -178,7 +179,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	// exposing in usage message.
 	for _, arg := range os.Args {
 		if arg == "-crash_for_testing" {
-			os.Exit(2)
+			sharedentry.Exit(2)
 		}
 	}
 
@@ -534,15 +535,15 @@ func startProfile() {
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
-			log.Fatalf("%v", err)
+			sharedentry.Fatalf("%v", err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatalf("%v", err)
+			sharedentry.Fatalf("%v", err)
 		}
 		AtExit(func() {
 			pprof.StopCPUProfile()
 			if err = f.Close(); err != nil {
-				log.Fatalf("error closing cpu profile: %v", err)
+				sharedentry.Fatalf("error closing cpu profile: %v", err)
 			}
 		})
 	}
@@ -552,7 +553,7 @@ func startProfile() {
 		}
 		f, err := os.Create(*memprofile)
 		if err != nil {
-			log.Fatalf("%v", err)
+			sharedentry.Fatalf("%v", err)
 		}
 		AtExit(func() {
 			// Profile all outstanding allocations.
@@ -562,11 +563,11 @@ func startProfile() {
 			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
 			const writeLegacyFormat = 1
 			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
-				log.Fatalf("%v", err)
+				sharedentry.Fatalf("%v", err)
 			}
 			// Close the file after writing the profile.
 			if err := f.Close(); err != nil {
-				log.Fatalf("could not close %v: %v", *memprofile, err)
+				sharedentry.Fatalf("could not close %v: %v", *memprofile, err)
 			}
 		})
 	}

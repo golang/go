@@ -14,6 +14,7 @@
 package ld
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -721,7 +722,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 
 	// Sanity check.
 	if _, ok := d.rtmap[gotype]; ok {
-		log.Fatalf("internal error: rtmap entry already installed\n")
+		sharedentry.Fatalf("internal error: rtmap entry already installed\n")
 	}
 
 	ds := loader.Sym(die.Sym.(dwSym))
@@ -824,7 +825,7 @@ func (d *dwctxt) findprotodie(ctxt *Link, name string) *dwarf.DWDie {
 		die = prototypedies[name]
 	}
 	if die == nil {
-		log.Fatalf("internal error: DIE generation failed for %s\n", name)
+		sharedentry.Fatalf("internal error: DIE generation failed for %s\n", name)
 	}
 	return die
 }
@@ -1159,7 +1160,7 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 	d.ldr.SetAttrNotInSymbolTable(dsym, true)
 	dst := d.ldr.SymType(dsym)
 	if dst != sym.SDWARFCONST && dst != sym.SDWARFABSFCN {
-		log.Fatalf("error: DWARF info sym %d/%s with incorrect type %s", dsym, d.ldr.SymName(dsym), d.ldr.SymType(dsym).String())
+		sharedentry.Fatalf("error: DWARF info sym %d/%s with incorrect type %s", dsym, d.ldr.SymName(dsym), d.ldr.SymType(dsym).String())
 	}
 	relocs := d.ldr.Relocs(dsym)
 	for i := 0; i < relocs.Count(); i++ {
@@ -1854,7 +1855,7 @@ func (d *dwctxt) assignDebugAddrSlot(unit *sym.CompilationUnit, fnsym loader.Sym
 		rt := r.Type()
 		lim, _ := rt.DwTxtAddrRelocParams()
 		if sl > lim {
-			log.Fatalf("internal error: %s relocation overflow on infosym for %s", rt.String(), d.ldr.SymName(fnsym))
+			sharedentry.Fatalf("internal error: %s relocation overflow on infosym for %s", rt.String(), d.ldr.SymName(fnsym))
 		}
 		unit.Addrs[rsym] = uint32(sl)
 		sb.AddAddrPlus(d.arch, rsym, 0)
@@ -2250,10 +2251,10 @@ func (d *dwctxt) writedebugaddr(unit *sym.CompilationUnit, debugaddr loader.Sym)
 					// R_DWTXTADDR_* relocation should only refer to
 					// text symbols, so something apparently went
 					// wrong here.
-					log.Fatalf("internal error: R_DWTXTADDR_* relocation on dwinfosym for %s against non-function %s type:%s", d.ldr.SymName(fnSym), d.ldr.SymName(rsym), rst.String())
+					sharedentry.Fatalf("internal error: R_DWTXTADDR_* relocation on dwinfosym for %s against non-function %s type:%s", d.ldr.SymName(fnSym), d.ldr.SymName(rsym), rst.String())
 				}
 				if runit := d.ldr.SymUnit(rsym); runit != unit {
-					log.Fatalf("internal error: R_DWTXTADDR_* relocation target text sym unit mismatch (want %q got %q)", unit.Lib.Pkg, runit.Lib.Pkg)
+					sharedentry.Fatalf("internal error: R_DWTXTADDR_* relocation target text sym unit mismatch (want %q got %q)", unit.Lib.Pkg, runit.Lib.Pkg)
 				}
 				d.assignDebugAddrSlot(unit, fnSym, r, dasu)
 			}
@@ -2443,7 +2444,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	seen := loader.MakeBitmap(d.ldr.NSym())
 	for _, s := range infoSec.syms {
 		if seen.Has(s) {
-			log.Fatalf("dwarf symbol %s listed multiple times",
+			sharedentry.Fatalf("dwarf symbol %s listed multiple times",
 				d.ldr.SymName(s))
 		}
 		seen.Set(s)
@@ -2571,7 +2572,7 @@ func dwarfcompress(ctxt *Link) {
 			}
 			ldr.SetSymValue(s, int64(pos))
 			if ldr.SubSym(s) != 0 {
-				log.Fatalf("%s: unexpected sub-symbols", ldr.SymName(s))
+				sharedentry.Fatalf("%s: unexpected sub-symbols", ldr.SymName(s))
 			}
 			pos += uint64(ldr.SymSize(s))
 		}

@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
@@ -160,7 +161,7 @@ func doPkgsite(ctx context.Context, urlPath, fragment string) error {
 			// printing of "exit status" error messages.
 			// Any relevant messages have already been printed
 			// to stdout or stderr.
-			os.Exit(ee.ExitCode())
+			sharedentry.Exit(ee.ExitCode())
 		}
 		return err
 	}

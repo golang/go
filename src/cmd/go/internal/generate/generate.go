@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
@@ -189,14 +190,14 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 		var err error
 		generateRunRE, err = regexp.Compile(generateRunFlag)
 		if err != nil {
-			log.Fatalf("generate: %s", err)
+			sharedentry.Fatalf("generate: %s", err)
 		}
 	}
 	if generateSkipFlag != "" {
 		var err error
 		generateSkipRE, err = regexp.Compile(generateSkipFlag)
 		if err != nil {
-			log.Fatalf("generate: %s", err)
+			sharedentry.Fatalf("generate: %s", err)
 		}
 	}
 
@@ -240,7 +241,7 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 func generate(absFile string) bool {
 	src, err := os.ReadFile(absFile)
 	if err != nil {
-		log.Fatalf("generate: %s", err)
+		sharedentry.Fatalf("generate: %s", err)
 	}
 
 	// Parse package clause

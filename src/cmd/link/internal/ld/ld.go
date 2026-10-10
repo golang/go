@@ -39,6 +39,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"cmd/internal/goobj"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
@@ -49,7 +50,7 @@ func (ctxt *Link) readImportCfg(file string) {
 	ctxt.PackageShlib = make(map[string]string)
 	data, err := os.ReadFile(file)
 	if err != nil {
-		log.Fatalf("-importcfg: %v", err)
+		sharedentry.Fatalf("-importcfg: %v", err)
 	}
 
 	for lineNum, line := range strings.Split(string(data), "\n") {
@@ -72,21 +73,21 @@ func (ctxt *Link) readImportCfg(file string) {
 		}
 		switch verb {
 		default:
-			log.Fatalf("%s:%d: unknown directive %q", file, lineNum, verb)
+			sharedentry.Fatalf("%s:%d: unknown directive %q", file, lineNum, verb)
 		case "packagefile":
 			if before == "" || after == "" {
-				log.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
+				sharedentry.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
 			}
 			ctxt.PackageFile[before] = after
 		case "packageshlib":
 			if before == "" || after == "" {
-				log.Fatalf(`%s:%d: invalid packageshlib: syntax is "packageshlib path=filename"`, file, lineNum)
+				sharedentry.Fatalf(`%s:%d: invalid packageshlib: syntax is "packageshlib path=filename"`, file, lineNum)
 			}
 			ctxt.PackageShlib[before] = after
 		case "modinfo":
 			s, err := strconv.Unquote(args)
 			if err != nil {
-				log.Fatalf("%s:%d: invalid modinfo: %v", file, lineNum, err)
+				sharedentry.Fatalf("%s:%d: invalid modinfo: %v", file, lineNum, err)
 			}
 			addstrdata1(ctxt, "runtime.modinfo="+s)
 		}

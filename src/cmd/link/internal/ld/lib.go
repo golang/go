@@ -52,6 +52,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/internal/sharedentry"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"cmd/internal/hash"
@@ -537,7 +538,7 @@ func (ctxt *Link) loadlib() {
 	case 1, 2:
 		flags |= loader.FlagStrictDups
 	default:
-		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+		sharedentry.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
 	ctxt.loader = loader.NewLoader(flags, &ctxt.ErrorReporter.ErrorReporter)
 	ctxt.ErrorReporter.SymName = func(s loader.Sym) string {
@@ -1282,7 +1283,7 @@ func hostlinksetup(ctxt *Link) {
 	if *flagTmpdir == "" {
 		dir, err := os.MkdirTemp("", "go-link-")
 		if err != nil {
-			log.Fatal(err)
+			sharedentry.Fatal(err)
 		}
 		*flagTmpdir = dir
 		ownTmpDir = true
@@ -1783,7 +1784,7 @@ func (ctxt *Link) hostlink() {
 				cmd = exec.Command(name, args...)
 				if out, err := cmd.CombinedOutput(); err == nil {
 					if !bytes.Contains(out, []byte("GNU gold")) {
-						log.Fatalf("ARM64 external linker must be ld>=2.36 or gold (issue #15696, 22040), but is not: %s", out)
+						sharedentry.Fatalf("ARM64 external linker must be ld>=2.36 or gold (issue #15696, 22040), but is not: %s", out)
 					}
 				}
 			}
@@ -1799,7 +1800,7 @@ func (ctxt *Link) hostlink() {
 		cmd := exec.Command(name, args...)
 		if out, err := cmd.CombinedOutput(); err == nil {
 			if !bytes.Contains(out, []byte("GNU ld")) {
-				log.Fatalf("ARM64 external linker must be ld.bfd (issue #35197), please install devel/binutils")
+				sharedentry.Fatalf("ARM64 external linker must be ld.bfd (issue #35197), please install devel/binutils")
 			}
 		}
 	}
@@ -1905,7 +1906,7 @@ func (ctxt *Link) hostlink() {
 			args := append(args, "-maix64", "--print-file-name="+file)
 			out, err := exec.Command(name, args...).CombinedOutput()
 			if err != nil {
-				log.Fatalf("running %s failed: %v\n%s", extld, err, out)
+				sharedentry.Fatalf("running %s failed: %v\n%s", extld, err, out)
 			}
 			return strings.Trim(string(out), "\n")
 		}
@@ -2219,7 +2220,7 @@ func (ctxt *Link) passLongArgsInResponseFile(argv []string, altLinker string) []
 	// Only use response files if they are supported.
 	response := filepath.Join(*flagTmpdir, "response")
 	if err := os.WriteFile(response, nil, 0644); err != nil {
-		log.Fatalf("failed while testing response file: %v", err)
+		sharedentry.Fatalf("failed while testing response file: %v", err)
 	}
 	if !linkerFlagSupported(ctxt.Arch, ctxt.extld(), altLinker, "@"+response) {
 		if ctxt.Debugvlog != 0 {
@@ -2240,7 +2241,7 @@ func (ctxt *Link) passLongArgsInResponseFile(argv []string, altLinker string) []
 		fmt.Fprintf(&buf, "%q\n", arg)
 	}
 	if err := os.WriteFile(response, buf.Bytes(), 0644); err != nil {
-		log.Fatalf("failed while writing response file: %v", err)
+		sharedentry.Fatalf("failed while writing response file: %v", err)
 	}
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("response file %s contents:\n%s", response, buf.Bytes())
@@ -2887,14 +2888,14 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 	if sect == nil {
 		sect = f.SectionByType(elf.SHT_RELA)
 		if sect == nil {
-			log.Fatalf("can't find SHT_REL or SHT_RELA section of %s", shlib)
+			sharedentry.Fatalf("can't find SHT_REL or SHT_RELA section of %s", shlib)
 		}
 		addends = true
 	}
 	// TODO: Multiple SHT_RELA/SHT_REL sections?
 	data, err := sect.Data()
 	if err != nil {
-		log.Fatalf("can't read relocation section of %s: %v", shlib, err)
+		sharedentry.Fatalf("can't read relocation section of %s: %v", shlib, err)
 	}
 	bo := f.ByteOrder
 	for len(data) > 0 {
@@ -2942,7 +2943,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 				continue
 			}
 		default:
-			log.Fatalf("unknown bit size %s", f.Class)
+			sharedentry.Fatalf("unknown bit size %s", f.Class)
 		}
 		if addend != 0 {
 			continue
@@ -3071,7 +3072,7 @@ func bgetc(r *bio.Reader) int {
 	c, err := r.ReadByte()
 	if err != nil {
 		if err != io.EOF {
-			log.Fatalf("reading input: %v", err)
+			sharedentry.Fatalf("reading input: %v", err)
 		}
 		return -1
 	}
@@ -3174,25 +3175,25 @@ func captureHostObj(h *Hostobj) {
 	info := fmt.Sprintf("pkg: %s\npn: %s\nfile: %s\noff: %d\nlen: %d\n",
 		h.pkg, h.pn, h.file, h.off, h.length)
 	if err := os.WriteFile(ipath, []byte(info), 0666); err != nil {
-		log.Fatalf("error writing captured host obj info %s: %v", ipath, err)
+		sharedentry.Fatalf("error writing captured host obj info %s: %v", ipath, err)
 	}
 
 	readObjData := func() []byte {
 		inf, err := os.Open(h.file)
 		if err != nil {
-			log.Fatalf("capturing host obj: open failed on %s: %v", h.pn, err)
+			sharedentry.Fatalf("capturing host obj: open failed on %s: %v", h.pn, err)
 		}
 		defer inf.Close()
 		res := make([]byte, h.length)
 		if n, err := inf.ReadAt(res, h.off); err != nil || n != int(h.length) {
-			log.Fatalf("capturing host obj: readat failed on %s: %v", h.pn, err)
+			sharedentry.Fatalf("capturing host obj: readat failed on %s: %v", h.pn, err)
 		}
 		return res
 	}
 
 	// Write the object file.
 	if err := os.WriteFile(opath, readObjData(), 0666); err != nil {
-		log.Fatalf("error writing captured host object %s: %v", opath, err)
+		sharedentry.Fatalf("error writing captured host object %s: %v", opath, err)
 	}
 
 	fmt.Fprintf(os.Stderr, "link: info: captured host object %s to %s\n",

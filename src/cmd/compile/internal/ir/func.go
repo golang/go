@@ -5,6 +5,7 @@
 package ir
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/stats"
 	"cmd/compile/internal/types"
@@ -257,7 +258,7 @@ const (
 	funcHasDefer                             // contains a defer statement
 	funcNilCheckDisabled                     // disable nil checks when compiling this function
 	funcInlinabilityChecked                  // inliner has already determined whether the function is inlinable
-	funcNeverReturns                         // function never returns (in most cases calls panic(), os.Exit(), or equivalent)
+	funcNeverReturns                         // function never returns (in most cases calls panic(), sharedentry.Exit(), or equivalent)
 	funcOpenCodedDeferDisallowed             // can't do open-coded defers
 	funcClosureResultsLost                   // closure is called indirectly and we lost track of its results; used by escape analysis
 	funcPackageInit                          // compiler emitted .init func for package

@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
@@ -160,7 +161,7 @@ func runDoc(ctx context.Context, cmd *base.Command, args []string) {
 	var flagSet flag.FlagSet
 	err := do(ctx, os.Stdout, &flagSet, args)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 }
 
@@ -190,7 +191,7 @@ func usage(flagSet *flag.FlagSet) {
 	fmt.Fprintf(os.Stderr, "\nFlags:\n")
 	flagSet.SetOutput(os.Stderr)
 	flagSet.PrintDefaults()
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 // do is the workhorse, broken out of runDoc to make testing easier.
@@ -372,7 +373,7 @@ func failMessage(paths []string, symbol, method string) error {
 func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *load.Package, path, symbol string, more bool) {
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	loader := modload.NewLoader()
 	if testGOPATH {
@@ -407,7 +408,7 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 		arg = filepath.Join(wd, arg)
 	}
 	if version != "" && (build.IsLocalImport(filepath.ToSlash(arg)) || filepath.IsAbs(arg)) {
-		log.Fatal("cannot use @version with local or absolute paths")
+		sharedentry.Fatal("cannot use @version with local or absolute paths")
 	}
 
 	importPkg := func(p string) (*load.Package, error) {
@@ -435,7 +436,7 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 			err = findErr
 		}
 		if version != "" {
-			log.Fatal(err)
+			sharedentry.Fatal(err)
 		}
 		return nil, arg, args[1], false
 	}
@@ -516,9 +517,9 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 
 	if version != "" {
 		if importErr != nil {
-			log.Fatal(importErr)
+			sharedentry.Fatal(importErr)
 		}
-		log.Fatalf("no such package %q at version %q", arg, version)
+		sharedentry.Fatalf("no such package %q at version %q", arg, version)
 	}
 
 	// If it has a slash, we've failed.
@@ -531,9 +532,9 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 		// instead of go/build.
 		importErrStr := importErr.Error()
 		if strings.Contains(importErrStr, arg[:period]) {
-			log.Fatal(importErrStr)
+			sharedentry.Fatal(importErrStr)
 		} else {
-			log.Fatalf("no such package %s: %s", arg[:period], importErrStr)
+			sharedentry.Fatalf("no such package %s: %s", arg[:period], importErrStr)
 		}
 	}
 	// Guess it's a symbol in the current directory.
@@ -642,7 +643,7 @@ func loadPackage(ctx context.Context, loader *modload.Loader, pattern string) (*
 func mustLoadPackage(ctx context.Context, loader *modload.Loader, dir string) *load.Package {
 	pkg, err := loadPackage(ctx, loader, dir)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	return pkg
 }

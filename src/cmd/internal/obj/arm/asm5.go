@@ -31,6 +31,7 @@
 package arm
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"fmt"
@@ -1272,7 +1273,7 @@ func buildop(ctxt *obj.Link) {
 		default:
 			ctxt.Diag("unknown op in build: %v", r)
 			ctxt.DiagFlush()
-			log.Fatalf("bad code")
+			sharedentry.Fatalf("bad code")
 
 		case AADD:
 			opset(ASUB, r0)

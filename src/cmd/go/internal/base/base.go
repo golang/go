@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/internal/sharedentry"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 )
@@ -134,7 +135,14 @@ func Exit() {
 	for _, f := range atExitFuncs {
 		f()
 	}
-	os.Exit(exitStatus)
+	sharedentry.Exit(exitStatus)
+}
+
+// ResetExitStatus clears process-wide exit state before a shared entry point
+// invokes the command again.
+func ResetExitStatus() {
+	exitStatus = 0
+	atExitFuncs = nil
 }
 
 func Fatalf(format string, args ...any) {

@@ -5,6 +5,7 @@
 package loong64
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -480,7 +481,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					if !ctxt.IsAsm {
 						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
 						ctxt.DiagFlush()
-						log.Fatalf("bad SPWRITE")
+						sharedentry.Fatalf("bad SPWRITE")
 					}
 				}
 			}

@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"encoding/binary"
@@ -272,7 +273,7 @@ func (out *OutBuf) WriteString(s string) {
 	pos, buf := out.writeLoc(int64(len(s)))
 	n := copy(buf[pos:], s)
 	if n != len(s) {
-		log.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
+		sharedentry.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
 	}
 	out.off += int64(n)
 }

@@ -5,6 +5,7 @@
 package logopt
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/json"
@@ -246,7 +247,7 @@ var dest string
 func LogJsonOption(flagValue string) {
 	version, directory := parseLogFlag("json", flagValue)
 	if version != 0 {
-		log.Fatal("-json version must be 0")
+		sharedentry.Fatal("-json version must be 0")
 	}
 	dest = checkLogPath(directory)
 	Format = Json0
@@ -256,15 +257,15 @@ func LogJsonOption(flagValue string) {
 // for version,destination format and returns the two parts.
 func parseLogFlag(flag, value string) (version int, directory string) {
 	if Format != None {
-		log.Fatal("Cannot repeat -json flag")
+		sharedentry.Fatal("Cannot repeat -json flag")
 	}
 	commaAt := strings.Index(value, ",")
 	if commaAt <= 0 {
-		log.Fatalf("-%s option should be '<version>,<destination>' where <version> is a number", flag)
+		sharedentry.Fatalf("-%s option should be '<version>,<destination>' where <version> is a number", flag)
 	}
 	v, err := strconv.Atoi(value[:commaAt])
 	if err != nil {
-		log.Fatalf("-%s option should be '<version>,<destination>' where <version> is a number: err=%v", flag, err)
+		sharedentry.Fatalf("-%s option should be '<version>,<destination>' where <version> is a number: err=%v", flag, err)
 	}
 	version = v
 	directory = value[commaAt+1:]
@@ -309,11 +310,11 @@ func parseLogPath(destination string) (string, string) {
 func checkLogPath(destination string) string {
 	path, complaint := parseLogPath(destination)
 	if complaint != "" {
-		log.Fatal(complaint)
+		sharedentry.Fatal(complaint)
 	}
 	err := os.MkdirAll(path, 0755)
 	if err != nil {
-		log.Fatalf("optimizer logging destination '<version>,<directory>' but could not create <directory>: err=%v", err)
+		sharedentry.Fatalf("optimizer logging destination '<version>,<directory>' but could not create <directory>: err=%v", err)
 	}
 	return path
 }
@@ -396,7 +397,7 @@ func writerForLSP(subdirpath, file string) io.WriteCloser {
 	p := filepath.Join(subdirpath, basename+".json")
 	w, err := os.Create(p)
 	if err != nil {
-		log.Fatalf("Could not create file %s for logging optimizer actions, %v", p, err)
+		sharedentry.Fatalf("Could not create file %s for logging optimizer actions, %v", p, err)
 	}
 	return w
 }
@@ -448,7 +449,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		subdirpath := filepath.Join(dest, url.PathEscape(slashPkgPath))
 		err := os.MkdirAll(subdirpath, 0755)
 		if err != nil {
-			log.Fatalf("Could not create directory %s for logging optimizer actions, %v", subdirpath, err)
+			sharedentry.Fatalf("Could not create directory %s for logging optimizer actions, %v", subdirpath, err)
 		}
 		diagnostic := Diagnostic{Source: "go compiler", Severity: SeverityInformation}
 

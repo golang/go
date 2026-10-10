@@ -16,6 +16,7 @@ import (
 	"text/scanner"
 	"unicode/utf8"
 
+	"cmd/internal/sharedentry"
 	"cmd/asm/internal/arch"
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
@@ -95,7 +96,7 @@ func (p *Parser) errorf(format string, args ...any) {
 	fmt.Fprintf(p.errorWriter, format, args...)
 	p.errorCount++
 	if p.errorCount > 10 && !*flags.AllErrors {
-		log.Fatal("too many errors")
+		sharedentry.Fatal("too many errors")
 	}
 }
 

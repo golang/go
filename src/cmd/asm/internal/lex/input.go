@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/scanner"
 
+	"cmd/internal/sharedentry"
 	"cmd/asm/internal/flags"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -73,7 +74,7 @@ func (in *Input) Error(args ...any) {
 		panic(fmt.Errorf("%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...)))
 	}
 	fmt.Fprintf(os.Stderr, "%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...))
-	os.Exit(1)
+	sharedentry.Exit(1)
 }
 
 // expectText is like Error but adds "got XXX" where XXX is a quoted representation of the most recent token.

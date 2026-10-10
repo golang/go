@@ -30,6 +30,7 @@
 package s390x
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"fmt"
@@ -3752,7 +3753,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		var opcode uint32
 		switch p.As {
 		default:
-			log.Fatalf("unexpected opcode %v", p.As)
+			sharedentry.Fatalf("unexpected opcode %v", p.As)
 		case ACEFBRA:
 			opcode = op_CEFBRA
 		case ACDFBRA:
@@ -3780,7 +3781,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		var opcode uint32
 		switch p.As {
 		default:
-			log.Fatalf("unexpected opcode %v", p.As)
+			sharedentry.Fatalf("unexpected opcode %v", p.As)
 		case ACFEBRA:
 			opcode = op_CFEBRA
 		case ACFDBRA:

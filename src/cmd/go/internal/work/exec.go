@@ -8,6 +8,7 @@ package work
 
 import (
 	"bytes"
+	"cmd/internal/sharedentry"
 	"cmd/internal/cov/covcmd"
 	"cmd/internal/pathcache"
 	"cmp"
@@ -2748,7 +2749,7 @@ type toolchain interface {
 type noToolchain struct{}
 
 func noCompiler() error {
-	log.Fatalf("unknown compiler %q", cfg.BuildContext.Compiler)
+	sharedentry.Fatalf("unknown compiler %q", cfg.BuildContext.Compiler)
 	return nil
 }
 
@@ -4185,7 +4186,7 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 
 	tf, err := os.CreateTemp("", "args")
 	if err != nil {
-		log.Fatalf("error writing long arguments to response file: %v", err)
+		sharedentry.Fatalf("error writing long arguments to response file: %v", err)
 	}
 	cleanup = func() { os.Remove(tf.Name()) }
 	var buf bytes.Buffer
@@ -4195,11 +4196,11 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	if _, err := tf.Write(buf.Bytes()); err != nil {
 		tf.Close()
 		cleanup()
-		log.Fatalf("error writing long arguments to response file: %v", err)
+		sharedentry.Fatalf("error writing long arguments to response file: %v", err)
 	}
 	if err := tf.Close(); err != nil {
 		cleanup()
-		log.Fatalf("error writing long arguments to response file: %v", err)
+		sharedentry.Fatalf("error writing long arguments to response file: %v", err)
 	}
 	cmd.Args = []string{cmd.Args[0], "@" + tf.Name()}
 	return cleanup

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/scanner"
 
+	"cmd/internal/sharedentry"
 	"cmd/internal/src"
 )
 
@@ -64,7 +65,7 @@ func NewLexer(name string) TokenReader {
 	input := NewInput(name)
 	fd, err := os.Open(name)
 	if err != nil {
-		log.Fatalf("%s\n", err)
+		sharedentry.Fatalf("%s\n", err)
 	}
 	input.Push(NewTokenizer(name, fd, fd))
 	return input

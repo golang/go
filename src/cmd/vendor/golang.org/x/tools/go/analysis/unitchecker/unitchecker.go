@@ -46,6 +46,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/internal/sharedentry"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
@@ -98,7 +99,7 @@ func Main(analyzers ...*analysis.Analyzer) {
 	log.SetPrefix(progname + ": ")
 
 	if err := analysis.Validate(analyzers); err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 
 	flag.Usage = func() {
@@ -109,7 +110,7 @@ Usage of %[1]s:
 	%.16[1]s help    	# general help, including listing analyzers and flags
 	%.16[1]s help name	# help on specific analyzer and its flags
 `, progname)
-		os.Exit(1)
+		sharedentry.Exit(1)
 	}
 
 	analyzers = analysisflags.Parse(analyzers, true)
@@ -120,10 +121,10 @@ Usage of %[1]s:
 	}
 	if args[0] == "help" {
 		analysisflags.Help(progname, analyzers, args[1:])
-		os.Exit(0)
+		sharedentry.Exit(0)
 	}
 	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
-		log.Fatalf(`invoking "go tool %[1]s" directly is unsupported; use "go %[1]s"`, progname)
+		sharedentry.Fatalf(`invoking "go tool %[1]s" directly is unsupported; use "go %[1]s"`, progname)
 	}
 	Run(args[0], analyzers)
 }
@@ -134,14 +135,14 @@ Usage of %[1]s:
 func Run(configFile string, analyzers []*analysis.Analyzer) {
 	cfg, err := readConfig(configFile)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 
 	// Redirect stdout to a file as requested.
 	if cfg.Stdout != "" {
 		f, err := os.Create(cfg.Stdout)
 		if err != nil {
-			log.Fatal(err)
+			sharedentry.Fatal(err)
 		}
 		os.Stdout = f
 	}
@@ -150,16 +151,16 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 	results, err := run(fset, cfg, analyzers)
 	if err != nil {
 		if cfg.VetxOnly {
-			os.Exit(1)
+			sharedentry.Exit(1)
 		}
 		// Print known diagnostic error types without the log prefix.
 		// (See go.dev/issue/34142.)
 		switch err := err.(type) {
 		case types.Error, *scanner.Error, scanner.ErrorList:
 			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			sharedentry.Exit(1)
 		}
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 
 	code := 0
@@ -169,7 +170,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 		code = processResults(fset, cfg.ID, cfg.FixArchive, results)
 	}
 
-	os.Exit(code)
+	sharedentry.Exit(code)
 }
 
 func readConfig(filename string) (*Config, error) {
@@ -218,16 +219,16 @@ func processResults(fset *token.FileSet, id, fixArchive string, results []result
 		if fixArchive != "" {
 			f, err := os.Create(fixArchive)
 			if err != nil {
-				log.Fatalf("can't create -fix archive: %v", err)
+				sharedentry.Fatalf("can't create -fix archive: %v", err)
 			}
 			zw := zip.NewWriter(f)
 			zw.SetComment(id) // ignore error
 			defer func() {
 				if err := zw.Close(); err != nil {
-					log.Fatalf("closing -fix archive zip writer: %v", err)
+					sharedentry.Fatalf("closing -fix archive zip writer: %v", err)
 				}
 				if err := f.Close(); err != nil {
-					log.Fatalf("closing -fix archive file: %v", err)
+					sharedentry.Fatalf("closing -fix archive file: %v", err)
 				}
 			}()
 			write = func(filename string, content []byte) error {

@@ -6,6 +6,7 @@
 package flags
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"flag"
@@ -72,7 +73,7 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: asm [options] file.s ...\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 func Parse() {

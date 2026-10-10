@@ -9,6 +9,7 @@ package archive
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/sharedentry"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"errors"
@@ -458,15 +459,15 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
 func (a *Archive) AddEntry(typ EntryType, name string, mtime int64, uid, gid int, mode os.FileMode, size int64, r io.Reader) {
 	off, err := a.f.Seek(0, io.SeekEnd)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	n, err := fmt.Fprintf(a.f, entryHeader, exactly16Bytes(name), mtime, uid, gid, mode, size)
 	if err != nil || n != entryLen {
-		log.Fatal("writing entry header: ", err)
+		sharedentry.Fatal("writing entry header: ", err)
 	}
 	n1, _ := io.CopyN(a.f, r, size)
 	if n1 != size {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	if (off+size)&1 != 0 {
 		a.f.Write([]byte{0}) // pad to even byte

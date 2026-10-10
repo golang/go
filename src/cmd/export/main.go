@@ -12,6 +12,7 @@
 package main
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"encoding/json"
 	"flag"
@@ -42,7 +43,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, message)
 	fmt.Fprintln(os.Stderr, "\nFlags:")
 	flag.PrintDefaults()
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 // config defines the JSON schema of the file passed by 'go list -export'.
@@ -67,7 +68,7 @@ func main() {
 		flag.Usage()
 	}
 	if err := export(args[0]); err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 }
 

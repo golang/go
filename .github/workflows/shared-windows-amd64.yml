@@ -1,0 +1,44 @@
+name: Shared toolchain (Windows amd64)
+
+on:
+  push:
+    branches: [feature/shared-toolchain]
+  workflow_dispatch:
+
+jobs:
+  windows-amd64:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Bootstrap native Go toolchain
+        shell: cmd
+        run: |
+          set GOROOT_BOOTSTRAP=%GOROOT%
+          cd src
+          make.bat
+      - name: Build shared tools and launchers
+        shell: cmd
+        run: src\make-shared.bat
+      - name: Validate CLI and FFI behavior
+        shell: pwsh
+        run: .\src\cmd\sharedlauncher\test-windows.ps1
+      - name: Package self-contained Windows amd64 toolchain
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'go-shared-windows-amd64.zip'
+          Compress-Archive -Path bin,pkg,src,lib,go.env,LICENSE,PATENTS,README.md,native -DestinationPath $archive -CompressionLevel Optimal
+          Copy-Item $archive .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-shared-windows-amd64
+          path: go-shared-windows-amd64.zip
+          if-no-files-found: error

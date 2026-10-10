@@ -32,6 +32,7 @@
 package obj
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/goobj"
 	"cmd/internal/hash"
 	"cmd/internal/objabi"
@@ -52,7 +53,7 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Pathname = objabi.WorkingDir()
 
 	if err := ctxt.Headtype.Set(buildcfg.GOOS); err != nil {
-		log.Fatalf("unknown goos %s", buildcfg.GOOS)
+		sharedentry.Fatalf("unknown goos %s", buildcfg.GOOS)
 	}
 
 	ctxt.Flag_optimize = true

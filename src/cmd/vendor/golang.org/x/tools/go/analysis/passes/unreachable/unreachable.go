@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"log"
 
+	"cmd/internal/sharedentry"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
@@ -77,7 +78,7 @@ type deadState struct {
 func (d *deadState) findLabels(stmt ast.Stmt) {
 	switch x := stmt.(type) {
 	default:
-		log.Fatalf("%s: internal error in findLabels: unexpected statement %T", d.pass.Fset.Position(x.Pos()), x)
+		sharedentry.Fatalf("%s: internal error in findLabels: unexpected statement %T", d.pass.Fset.Position(x.Pos()), x)
 
 	case *ast.AssignStmt,
 		*ast.BadStmt,
@@ -212,7 +213,7 @@ func (d *deadState) findDead(stmt ast.Stmt) {
 
 	switch x := stmt.(type) {
 	default:
-		log.Fatalf("%s: internal error in findDead: unexpected statement %T", d.pass.Fset.Position(x.Pos()), x)
+		sharedentry.Fatalf("%s: internal error in findDead: unexpected statement %T", d.pass.Fset.Position(x.Pos()), x)
 
 	case *ast.AssignStmt,
 		*ast.BadStmt,

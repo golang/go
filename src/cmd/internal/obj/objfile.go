@@ -8,6 +8,7 @@ package obj
 
 import (
 	"bytes"
+	"cmd/internal/sharedentry"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"cmd/internal/hash"
@@ -55,7 +56,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 		flags |= goobj.ObjFlagUnlinkable
 	}
 	if w.pkgpath == "" {
-		log.Fatal("empty package path")
+		sharedentry.Fatal("empty package path")
 	}
 	if ctxt.IsAsm {
 		flags |= goobj.ObjFlagFromAssembly
@@ -172,7 +173,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 		}
 	}
 	if int64(uint32(dataOff)) != dataOff {
-		log.Fatalf("data too large")
+		sharedentry.Fatalf("data too large")
 	}
 	w.Uint32(uint32(dataOff))
 

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	"cmd/internal/sharedentry"
 )
 
 func initRewrite() {
@@ -24,7 +25,7 @@ func initRewrite() {
 	f := strings.Split(*rewriteRule, "->")
 	if len(f) != 2 {
 		fmt.Fprintf(os.Stderr, "rewrite rule must be of the form 'pattern -> replacement'\n")
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 	pattern := parseExpr(f[0], "pattern")
 	replace := parseExpr(f[1], "replacement")
@@ -41,7 +42,7 @@ func parseExpr(s, what string) ast.Expr {
 	x, err := parser.ParseExpr(s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "parsing %s %s at %s\n", what, s, err)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 	return x
 }

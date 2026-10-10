@@ -18,6 +18,7 @@ import (
 	"os"
 	"strconv"
 
+	"cmd/internal/sharedentry"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -96,7 +97,7 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	// -flags: print flags so that go vet knows which ones are legitimate.
 	if *printflags {
 		printFlags()
-		os.Exit(0)
+		sharedentry.Exit(0)
 	}
 
 	everything := expand(analyzers)
@@ -183,7 +184,7 @@ func printFlags() {
 	})
 	data, err := json.MarshalIndent(flags, "", "\t")
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	os.Stdout.Write(data)
 }
@@ -208,7 +209,7 @@ func (versionFlag) Get() any         { return nil }
 func (versionFlag) String() string   { return "" }
 func (versionFlag) Set(s string) error {
 	if s != "full" {
-		log.Fatalf("unsupported flag value: -V=%s (use -V=full)", s)
+		sharedentry.Fatalf("unsupported flag value: -V=%s (use -V=full)", s)
 	}
 
 	// This replicates the minimal subset of
@@ -226,16 +227,16 @@ func (versionFlag) Set(s string) error {
 	}
 	f, err := os.Open(progname)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	f.Close()
 	fmt.Printf("%s version devel comments-go-here buildID=%02x\n",
 		progname, string(h.Sum(nil)))
-	os.Exit(0)
+	sharedentry.Exit(0)
 	return nil
 }
 

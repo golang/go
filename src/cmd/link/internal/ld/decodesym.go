@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
@@ -229,7 +230,7 @@ func decodetypeGcmask(ctxt *Link, s loader.Sym) []byte {
 			// can close the file.
 			_, err := sect.ReadAt(r, int64(addr-sect.Addr))
 			if err != nil {
-				log.Fatal(err)
+				sharedentry.Fatal(err)
 			}
 			return r
 		}

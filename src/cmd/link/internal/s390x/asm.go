@@ -31,6 +31,7 @@
 package s390x
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
@@ -570,13 +571,13 @@ func tlsIEtoLE(P []byte, off, size int) {
 	// We need to work with the beginning of LARL (off-2) through LG (off+10).
 
 	if off < 2 {
-		log.Fatalf("R_390_TLS_IEENT relocation at offset %d is too small", off)
+		sharedentry.Fatalf("R_390_TLS_IEENT relocation at offset %d is too small", off)
 	}
 
 	// Verify we have a LARL instruction (opcode 0xC0, second nibble 0x0)
 	// LARL format: C0 R0 I2 I2 I2 I2 (where R is register, I2 is 32-bit immediate)
 	if P[off-2] != 0xc0 || P[off-1]&0x0f != 0x00 {
-		log.Fatalf("R_390_TLS_IEENT relocation not preceded by LARL instruction: %02x %02x", P[off-2], P[off-1])
+		sharedentry.Fatalf("R_390_TLS_IEENT relocation not preceded by LARL instruction: %02x %02x", P[off-2], P[off-1])
 	}
 
 	// Extract the register from LARL (upper nibble of second byte)

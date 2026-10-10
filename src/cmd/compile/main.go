@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/compile/internal/amd64"
 	"cmd/compile/internal/arm"
 	"cmd/compile/internal/arm64"
@@ -51,7 +52,7 @@ func main() {
 	archInit, ok := archInits[buildcfg.GOARCH]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", buildcfg.GOARCH)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 
 	gc.Main(archInit)

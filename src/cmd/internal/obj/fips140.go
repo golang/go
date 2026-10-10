@@ -135,6 +135,7 @@ see ../../link/internal/ld/fips.go for those details.
 package obj
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"fmt"
 	"internal/bisect"
@@ -168,7 +169,7 @@ var bisectFIPS *bisect.Matcher
 func SetFIPSDebugHash(pattern string) {
 	m, err := bisect.New(pattern)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	bisectFIPS = m
 }

@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"cmd/internal/sharedentry"
 )
 
 // Reader implements a seekable buffered io.Reader.
@@ -54,7 +55,7 @@ func (r *Reader) MustSeek(offset int64, whence int) int64 {
 	}
 	off, err := r.f.Seek(offset, whence)
 	if err != nil {
-		log.Fatalf("seeking in output: %v", err)
+		sharedentry.Fatalf("seeking in output: %v", err)
 	}
 	r.Reset(r.f)
 	return off
@@ -62,11 +63,11 @@ func (r *Reader) MustSeek(offset int64, whence int) int64 {
 
 func (w *Writer) MustSeek(offset int64, whence int) int64 {
 	if err := w.Flush(); err != nil {
-		log.Fatalf("writing output: %v", err)
+		sharedentry.Fatalf("writing output: %v", err)
 	}
 	off, err := w.f.Seek(offset, whence)
 	if err != nil {
-		log.Fatalf("seeking in output: %v", err)
+		sharedentry.Fatalf("seeking in output: %v", err)
 	}
 	return off
 }
@@ -74,7 +75,7 @@ func (w *Writer) MustSeek(offset int64, whence int) int64 {
 func (r *Reader) Offset() int64 {
 	off, err := r.f.Seek(0, 1)
 	if err != nil {
-		log.Fatalf("seeking in output [0, 1]: %v", err)
+		sharedentry.Fatalf("seeking in output [0, 1]: %v", err)
 	}
 	off -= int64(r.Buffered())
 	return off
@@ -82,11 +83,11 @@ func (r *Reader) Offset() int64 {
 
 func (w *Writer) Offset() int64 {
 	if err := w.Flush(); err != nil {
-		log.Fatalf("writing output: %v", err)
+		sharedentry.Fatalf("writing output: %v", err)
 	}
 	off, err := w.f.Seek(0, 1)
 	if err != nil {
-		log.Fatalf("seeking in output [0, 1]: %v", err)
+		sharedentry.Fatalf("seeking in output [0, 1]: %v", err)
 	}
 	return off
 }

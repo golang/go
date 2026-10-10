@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"cmd/internal/sharedentry"
 )
 
 // bootstrapDirs is a list of directories holding code that must be
@@ -104,6 +105,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/pkgpattern",
 	"cmd/internal/quoted",
 	"cmd/internal/robustio",
+	"cmd/internal/sharedentry",
 	"cmd/internal/src",
 	"cmd/internal/sys",
 	"cmd/internal/telemetry",

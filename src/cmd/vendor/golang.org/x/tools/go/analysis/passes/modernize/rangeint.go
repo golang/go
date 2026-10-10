@@ -11,6 +11,7 @@ import (
 	"go/types"
 	"log"
 
+	"cmd/internal/sharedentry"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/types/typeutil"
@@ -221,7 +222,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 						// See golang/go#78571.
 						terms, err := typeparams.NormalTerms(v.Type()) // NormalTerms works for any type
 						if err != nil {
-							log.Fatalf("internal error: cannot compute type set of loop var %v: %v", v, err)
+							sharedentry.Fatalf("internal error: cannot compute type set of loop var %v: %v", v, err)
 						}
 						if len(terms) != 0 {
 							// From the spec (https://go.dev/ref/spec#For_range):

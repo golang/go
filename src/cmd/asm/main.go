@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 
+	"cmd/internal/sharedentry"
 	"cmd/asm/internal/arch"
 	"cmd/asm/internal/asm"
 	"cmd/asm/internal/flags"
@@ -37,7 +38,7 @@ func main() {
 
 	architecture := arch.Set(GOARCH, *flags.Shared || *flags.Dynlink)
 	if architecture == nil {
-		log.Fatalf("unrecognized architecture %s", GOARCH)
+		sharedentry.Fatalf("unrecognized architecture %s", GOARCH)
 	}
 	ctxt := obj.Linknew(architecture.LinkArch)
 	ctxt.CompressInstructions = flags.DebugFlags.CompressInstructions != 0
@@ -55,7 +56,7 @@ func main() {
 	switch *flags.Spectre {
 	default:
 		log.Printf("unknown setting -spectre=%s", *flags.Spectre)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	case "":
 		// nothing
 	case "index":
@@ -73,7 +74,7 @@ func main() {
 	// Create object file, write header.
 	buf, err := bio.Create(*flags.OutputFile)
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	defer buf.Close()
 
@@ -126,6 +127,6 @@ func main() {
 		}
 		buf.Close()
 		os.Remove(*flags.OutputFile)
-		os.Exit(1)
+		sharedentry.Exit(1)
 	}
 }

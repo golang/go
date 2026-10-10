@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"cmd/internal/sharedentry"
 )
 
 // run runs the command argv, feeding in stdin on standard input.
@@ -82,7 +83,7 @@ func fatalf(msg string, args ...any) {
 	if nerrors == 0 {
 		fmt.Fprintf(os.Stderr, "cgo: "+msg+"\n", args...)
 	}
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 var nerrors int

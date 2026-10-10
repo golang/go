@@ -32,6 +32,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"cmd/internal/sharedentry"
 	"cmd/internal/quoted"
 )
 
@@ -2289,7 +2290,7 @@ func runGcc(stdin []byte, args []string) (string, string) {
 	}
 	if !ok {
 		os.Stderr.Write(stderr)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 	return string(stdout), string(stderr)
 }

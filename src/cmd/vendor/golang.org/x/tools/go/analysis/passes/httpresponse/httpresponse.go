@@ -11,6 +11,7 @@ import (
 	"go/types"
 	"slices"
 
+	"cmd/internal/sharedentry"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
@@ -26,7 +27,7 @@ determines whether the response is valid:
 	resp, err := http.Head(url)
 	defer resp.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		sharedentry.Fatal(err)
 	}
 	// (defer statement belongs here)
 

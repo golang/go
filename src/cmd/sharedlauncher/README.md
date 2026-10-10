@@ -18,6 +18,10 @@ Windows arguments are converted from UTF-16 to UTF-8; POSIX arguments are
 passed through unchanged. The launcher does not redirect or buffer the standard
 streams.
 
+The Go runtime in a `c-shared` library is process-wide. The launcher therefore
+keeps the library loaded until process exit rather than attempting to unload
+the Go runtime.
+
 Build the Linux launcher with:
 
 ```sh

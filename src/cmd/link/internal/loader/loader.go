@@ -6,6 +6,7 @@ package loader
 
 import (
 	"bytes"
+	"cmd/internal/sharedentry"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"cmd/internal/obj"
@@ -549,7 +550,7 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 			l.sizeFixups = append(l.sizeFixups, symAndSize{oldi, uint32(sz)})
 		}
 	default:
-		log.Fatalf("duplicated definition of symbol %s, from %s (type %s size %d) and %s (type %s size %d)", name, r.unit.Lib.Pkg, newtyp, sz, oldr.unit.Lib.Pkg, oldtyp, oldsz)
+		sharedentry.Fatalf("duplicated definition of symbol %s, from %s (type %s size %d) and %s (type %s size %d)", name, r.unit.Lib.Pkg, newtyp, sz, oldr.unit.Lib.Pkg, oldtyp, oldsz)
 	}
 	return oldi
 }
@@ -674,7 +675,7 @@ func (l *Loader) allocPayload() *extSymPayload {
 
 func (ms *extSymPayload) Grow(siz int64) {
 	if int64(int(siz)) != siz {
-		log.Fatalf("symgrow size %d too long", siz)
+		sharedentry.Fatalf("symgrow size %d too long", siz)
 	}
 	if int64(len(ms.data)) >= siz {
 		return
@@ -754,7 +755,7 @@ func (l *Loader) resolve(r *oReader, s goobj.SymRef) Sym {
 // symbols.
 func (l *Loader) reportMissingBuiltin(bsym int, reflib string) {
 	bname, _ := goobj.BuiltinName(bsym)
-	log.Fatalf("reference to undefined builtin %q from package %q",
+	sharedentry.Fatalf("reference to undefined builtin %q from package %q",
 		bname, reflib)
 }
 
@@ -1737,7 +1738,7 @@ func (l *Loader) Aux(i Sym, j int) Aux {
 // (https://webassembly.github.io/spec/core/syntax/modules.html#imports)
 func (l *Loader) WasmImportSym(fnSymIdx Sym) Sym {
 	if !l.SymType(fnSymIdx).IsText() {
-		log.Fatalf("error: non-function sym %d/%s t=%s passed to WasmImportSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+		sharedentry.Fatalf("error: non-function sym %d/%s t=%s passed to WasmImportSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
 	return l.aux1(fnSymIdx, goobj.AuxWasmImport)
 }
@@ -1750,7 +1751,7 @@ func (l *Loader) WasmTypeSym(s Sym) Sym {
 // a given function symbol.
 func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
 	if !l.SymType(fnSymIdx).IsText() {
-		log.Fatalf("error: non-function sym %d/%s t=%s passed to SEHUnwindSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+		sharedentry.Fatalf("error: non-function sym %d/%s t=%s passed to SEHUnwindSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
 
 	return l.aux1(fnSymIdx, goobj.AuxSehUnwindInfo)
@@ -1763,7 +1764,7 @@ func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
 // go.info.XYZ, etc.
 func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, auxDwarfRanges, auxDwarfLines Sym) {
 	if !l.SymType(fnSymIdx).IsText() {
-		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+		sharedentry.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
 	r, auxs := l.auxs(fnSymIdx)
 
@@ -2201,12 +2202,12 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj.FingerprintType {
 	roObject, readonly, err := f.Slice(uint64(length)) // TODO: no need to map blocks that are for tools only (e.g. RefName)
 	if err != nil {
-		log.Fatal("cannot read object file:", err)
+		sharedentry.Fatal("cannot read object file:", err)
 	}
 	r := goobj.NewReaderFromBytes(roObject, readonly)
 	if r == nil {
 		if len(roObject) >= 8 && bytes.Equal(roObject[:8], []byte("\x00go114ld")) {
-			log.Fatalf("found object file %s in old format", f.File().Name())
+			sharedentry.Fatalf("found object file %s in old format", f.File().Name())
 		}
 		panic("cannot read object file")
 	}
@@ -2227,7 +2228,7 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
 	}
 
 	if r.Unlinkable() {
-		log.Fatalf("link: unlinkable object (from package %s) - compiler requires -p flag", lib.Pkg)
+		sharedentry.Fatalf("link: unlinkable object (from package %s) - compiler requires -p flag", lib.Pkg)
 	}
 
 	// Autolib
@@ -2406,7 +2407,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		pkg := r.Pkg(i)
 		objidx, ok := l.objByPkg[pkg]
 		if !ok {
-			log.Fatalf("%v: reference to nonexistent package %s", r.unit.Lib, pkg)
+			sharedentry.Fatalf("%v: reference to nonexistent package %s", r.unit.Lib, pkg)
 		}
 		r.pkg[i] = objidx
 	}
@@ -2430,7 +2431,7 @@ func abiToVer(abi uint16, localSymVersion int) int {
 		// Note that data symbols are "ABI0", which maps to version 0.
 		v = abiver
 	} else {
-		log.Fatalf("invalid symbol ABI: %d", abi)
+		sharedentry.Fatalf("invalid symbol ABI: %d", abi)
 	}
 	return v
 }
@@ -2535,7 +2536,7 @@ func (l *Loader) checkLinkname(refpkg *oReader, name string, s Sym) {
 
 	pkg := refpkg.unit.Lib.Pkg
 	error := func() {
-		log.Fatalf("%s: invalid reference to %s", pkg, name)
+		sharedentry.Fatalf("%s: invalid reference to %s", pkg, name)
 	}
 	pkgs, ok := blockedLinknames[name]
 	if ok {

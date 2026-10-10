@@ -5,6 +5,7 @@
 package loong64
 
 import (
+	"cmd/internal/sharedentry"
 	. "cmd/internal/obj/loong64"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -683,7 +684,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			// ld.d -> ori
 			return (0x03800000 | (val & 0x3ff) | ((t & 0xfff) << 10)), noExtReloc, isOk
 		} else {
-			log.Fatalf("cannot handle R_LOONG64_TLS_IE_x (sym %s) when linking internally", ldr.SymName(rs))
+			sharedentry.Fatalf("cannot handle R_LOONG64_TLS_IE_x (sym %s) when linking internally", ldr.SymName(rs))
 		}
 
 	case objabi.R_LOONG64_ADD64, objabi.R_LOONG64_SUB64:

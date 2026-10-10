@@ -5,7 +5,7 @@
 package base
 
 import (
-	"os"
+	"cmd/internal/sharedentry"
 )
 
 var atExitFuncs []func()
@@ -20,7 +20,7 @@ func Exit(code int) {
 		atExitFuncs = atExitFuncs[:i]
 		f()
 	}
-	os.Exit(code)
+	sharedentry.Exit(code)
 }
 
 // To enable tracing support (-t flag), set EnableTrace to true.

@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 
+	"cmd/internal/sharedentry"
 	"cmd/internal/edit"
 	"cmd/internal/hash"
 	"cmd/internal/objabi"
@@ -197,7 +198,7 @@ func (t *FuncType) fuzzyMatch(t2 *FuncType) bool {
 func usage() {
 	fmt.Fprint(os.Stderr, "usage: cgo -- [compiler options] file.go ...\n")
 	flag.PrintDefaults()
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 var ptrSizeMap = map[string]int64{
@@ -295,7 +296,7 @@ func main() {
 	if *gccgoDefineCgoIncomplete {
 		if !*gccgo {
 			fmt.Fprintf(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
-			os.Exit(2)
+			sharedentry.Exit(2)
 		}
 		incomplete = "_cgopackage_Incomplete"
 	}
@@ -363,7 +364,7 @@ func main() {
 	gccBaseCmd, err = checkGCCBaseCmd()
 	if err != nil {
 		fatalf("%v", err)
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 
 	// Record linker flags for external linking.
@@ -465,7 +466,7 @@ func main() {
 			}
 		}
 		if nerrors > 0 {
-			os.Exit(2)
+			sharedentry.Exit(2)
 		}
 		p.PackagePath = f.Package
 		p.Record(f)
@@ -499,7 +500,7 @@ func main() {
 		p.writeDefs()
 	}
 	if nerrors > 0 {
-		os.Exit(2)
+		sharedentry.Exit(2)
 	}
 }
 

@@ -5,6 +5,7 @@
 package base
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/cov/covcmd"
 	"cmd/internal/telemetry/counter"
 	"encoding/json"
@@ -151,7 +152,7 @@ type CmdFlags struct {
 func addEnv(s string) {
 	i := strings.Index(s, "=")
 	if i < 0 {
-		log.Fatal("-env argument must be of the form key=value")
+		sharedentry.Fatal("-env argument must be of the form key=value")
 	}
 	os.Setenv(s[:i], s[i+1:])
 }
@@ -292,16 +293,16 @@ func ParseFlags() {
 	}
 
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
-		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
+		sharedentry.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 	if Flag.ASan && !platform.ASanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
-		log.Fatalf("%s/%s does not support -asan", buildcfg.GOOS, buildcfg.GOARCH)
+		sharedentry.Fatalf("%s/%s does not support -asan", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 	if Flag.Race && !platform.RaceDetectorSupported(buildcfg.GOOS, buildcfg.GOARCH) {
-		log.Fatalf("%s/%s does not support -race", buildcfg.GOOS, buildcfg.GOARCH)
+		sharedentry.Fatalf("%s/%s does not support -race", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 	if (*Flag.Shared || *Flag.Dynlink || *Flag.LinkShared) && !Ctxt.Arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X) {
-		log.Fatalf("%s/%s does not support -shared", buildcfg.GOOS, buildcfg.GOARCH)
+		sharedentry.Fatalf("%s/%s does not support -shared", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 	parseSpectre(Flag.Spectre) // left as string for RecordFlags
 
@@ -346,11 +347,11 @@ func ParseFlags() {
 	}
 	switch {
 	case Flag.Race && Flag.MSan:
-		log.Fatal("cannot use both -race and -msan")
+		sharedentry.Fatal("cannot use both -race and -msan")
 	case Flag.Race && Flag.ASan:
-		log.Fatal("cannot use both -race and -asan")
+		sharedentry.Fatal("cannot use both -race and -asan")
 	case Flag.MSan && Flag.ASan:
-		log.Fatal("cannot use both -msan and -asan")
+		sharedentry.Fatal("cannot use both -msan and -asan")
 	}
 	if Flag.Race || Flag.MSan || Flag.ASan {
 		// -race, -msan and -asan imply -d=checkptr for now.
@@ -360,10 +361,10 @@ func ParseFlags() {
 	}
 
 	if Flag.LowerC < 1 {
-		log.Fatalf("-c must be at least 1, got %d", Flag.LowerC)
+		sharedentry.Fatalf("-c must be at least 1, got %d", Flag.LowerC)
 	}
 	if Flag.ExportFD > 0 && Flag.LinkObj == "" {
-		log.Fatalf("-exportfd requires -linkobj")
+		sharedentry.Fatalf("-exportfd requires -linkobj")
 	}
 	if !concurrentBackendAllowed() {
 		Flag.LowerC = 1
@@ -383,7 +384,7 @@ func ParseFlags() {
 	}
 
 	if len(Flag.Cfg.ImportDirs) > 0 && Flag.Cfg.PackageFile != nil {
-		log.Fatalf("cannot use both -I and -importcfg")
+		sharedentry.Fatalf("cannot use both -I and -importcfg")
 	}
 
 	if Debug.Checkptr == -1 { // if not set explicitly
@@ -526,7 +527,7 @@ func readImportCfg(file string) {
 	Flag.Cfg.PackageFile = map[string]string{}
 	data, err := os.ReadFile(file)
 	if err != nil {
-		log.Fatalf("-importcfg: %v", err)
+		sharedentry.Fatalf("-importcfg: %v", err)
 	}
 
 	for lineNum, line := range strings.Split(string(data), "\n") {
@@ -544,15 +545,15 @@ func readImportCfg(file string) {
 
 		switch verb {
 		default:
-			log.Fatalf("%s:%d: unknown directive %q", file, lineNum, verb)
+			sharedentry.Fatalf("%s:%d: unknown directive %q", file, lineNum, verb)
 		case "importmap":
 			if !hasEq || before == "" || after == "" {
-				log.Fatalf(`%s:%d: invalid importmap: syntax is "importmap old=new"`, file, lineNum)
+				sharedentry.Fatalf(`%s:%d: invalid importmap: syntax is "importmap old=new"`, file, lineNum)
 			}
 			Flag.Cfg.ImportMap[before] = after
 		case "packagefile":
 			if !hasEq || before == "" || after == "" {
-				log.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
+				sharedentry.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
 			}
 			Flag.Cfg.PackageFile[before] = after
 		}
@@ -563,10 +564,10 @@ func readCoverageCfg(file string) {
 	var cfg covcmd.CoverFixupConfig
 	data, err := os.ReadFile(file)
 	if err != nil {
-		log.Fatalf("-coveragecfg: %v", err)
+		sharedentry.Fatalf("-coveragecfg: %v", err)
 	}
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		log.Fatalf("error reading -coveragecfg file %q: %v", file, err)
+		sharedentry.Fatalf("error reading -coveragecfg file %q: %v", file, err)
 	}
 	Flag.Cfg.CoverageInfo = &cfg
 }
@@ -574,16 +575,16 @@ func readCoverageCfg(file string) {
 func readEmbedCfg(file string) {
 	data, err := os.ReadFile(file)
 	if err != nil {
-		log.Fatalf("-embedcfg: %v", err)
+		sharedentry.Fatalf("-embedcfg: %v", err)
 	}
 	if err := json.Unmarshal(data, &Flag.Cfg.Embed); err != nil {
-		log.Fatalf("%s: %v", file, err)
+		sharedentry.Fatalf("%s: %v", file, err)
 	}
 	if Flag.Cfg.Embed.Patterns == nil {
-		log.Fatalf("%s: invalid embedcfg: missing Patterns", file)
+		sharedentry.Fatalf("%s: invalid embedcfg: missing Patterns", file)
 	}
 	if Flag.Cfg.Embed.Files == nil {
-		log.Fatalf("%s: invalid embedcfg: missing Files", file)
+		sharedentry.Fatalf("%s: invalid embedcfg: missing Files", file)
 	}
 }
 
@@ -593,7 +594,7 @@ func parseSpectre(s string) {
 		f = strings.TrimSpace(f)
 		switch f {
 		default:
-			log.Fatalf("unknown setting -spectre=%s", f)
+			sharedentry.Fatalf("unknown setting -spectre=%s", f)
 		case "":
 			// nothing
 		case "all":
@@ -611,7 +612,7 @@ func parseSpectre(s string) {
 		case "amd64":
 			// ok
 		default:
-			log.Fatalf("GOARCH=%s does not support -spectre=index", buildcfg.GOARCH)
+			sharedentry.Fatalf("GOARCH=%s does not support -spectre=index", buildcfg.GOARCH)
 		}
 	}
 }

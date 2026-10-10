@@ -31,6 +31,7 @@
 package arm64
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"encoding/binary"
@@ -1441,7 +1442,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 // roundUp rounds up x to "to".
 func roundUp(x, to uint32) uint32 {
 	if to == 0 || to&(to-1) != 0 {
-		log.Fatalf("rounded up to a value that is not a power of 2: %d\n", to)
+		sharedentry.Fatalf("rounded up to a value that is not a power of 2: %d\n", to)
 	}
 	return (x + to - 1) &^ (to - 1)
 }
@@ -2789,7 +2790,7 @@ func buildop(ctxt *obj.Link) {
 		default:
 			ctxt.Diag("unknown op in build: %v", as)
 			ctxt.DiagFlush()
-			log.Fatalf("bad code")
+			sharedentry.Fatalf("bad code")
 
 		case AADD:
 			oprangeset(AADDS, t)

@@ -31,6 +31,7 @@
 package arm64
 
 import (
+	"cmd/internal/sharedentry"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
@@ -992,7 +993,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 			return int64(o1)<<32 | int64(o0), noExtReloc, isOk
 		} else {
-			log.Fatalf("cannot handle R_ARM64_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
+			sharedentry.Fatalf("cannot handle R_ARM64_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
 		}
 
 	case objabi.R_CALLARM64:
@@ -1121,7 +1122,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 }
 
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
-	log.Fatalf("unexpected relocation variant")
+	sharedentry.Fatalf("unexpected relocation variant")
 	return -1
 }
 
@@ -1285,7 +1286,7 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 	// addLabelSyms adds "label" symbols at s+limit, s+2*limit, etc.
 	addLabelSyms := func(s loader.Sym, limit, sz int64) {
 		if ldr.SymSect(s) == nil {
-			log.Fatalf("gensymlate: symbol %s has no section (type=%v)", ldr.SymName(s), ldr.SymType(s))
+			sharedentry.Fatalf("gensymlate: symbol %s has no section (type=%v)", ldr.SymName(s), ldr.SymType(s))
 		}
 		v := ldr.SymValue(s)
 		for off := limit; off < sz; off += limit {

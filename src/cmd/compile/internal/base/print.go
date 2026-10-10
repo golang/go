@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"cmd/internal/sharedentry"
 	"cmd/internal/src"
 	"cmd/internal/telemetry/counter"
 )
@@ -277,7 +278,7 @@ func ErrorExit() {
 	if Flag.LowerO != "" && Flag.ExportFD <= 0 {
 		os.Remove(Flag.LowerO)
 	}
-	os.Exit(2)
+	sharedentry.Exit(2)
 }
 
 // ExitIfErrors calls ErrorExit if any errors have been reported.
