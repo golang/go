@@ -489,3 +489,60 @@ func TestWriteToErr(t *testing.T) {
 		t.Fatalf("want error from writer, got: %v", err)
 	}
 }
+
+// TestIssue70529 reproduces golang/go#70529. sigprofNonGoPC can
+// produce a short stack {pc, _ExternalCode} for a PC that was
+// previously sampled with a full inlined expansion. This triggers a
+// panic in appendLocsForStack when the cached l.pcs is longer than
+// the short stack.
+//
+// The test feeds profileBuilder a long-stack sample (building an
+// l.pcs cache of length >=3 via a 3-level inlined call chain) followed
+// by a short-stack sample simulating sigprofNonGoPC's output.
+func TestIssue70529(t *testing.T) {
+	if _, found := findInlinedCall(recursionChainBottom, 4<<10); !found {
+		t.Skip("Can't determine whether anything was inlined into recursionChainBottom.")
+	}
+
+	pcs := make([]uintptr, 6)
+	recursionChainTop(1, pcs)
+
+	// Find a PC that expands to >=3 frames via runtime_expandFinalInlineFrame.
+	var inlinedPC, callerPC uint64
+	for i, pc := range pcs {
+		if pc == 0 {
+			break
+		}
+		if expanded := runtime_expandFinalInlineFrame([]uintptr{pc}); len(expanded) >= 3 && inlinedPC == 0 {
+			inlinedPC = uint64(pc)
+			if i+1 < len(pcs) && pcs[i+1] != 0 {
+				callerPC = uint64(pcs[i+1])
+			}
+			break
+		}
+	}
+	if inlinedPC == 0 {
+		t.Skip("No PC that expands to >=3 frames found; can't trigger #70529.")
+	}
+	if callerPC == 0 {
+		callerPC = uint64(abi.FuncPCABIInternal(recursionChainTop))
+	}
+
+	externalPC := uint64(abi.FuncPCABIInternal(externalCodeForTest) + 1)
+
+	data := []uint64{
+		3, 0, 500, // hz = 500
+		5, 0, 10, inlinedPC, callerPC, // full stack: builds l.pcs cache (len >=3)
+		5, 0, 5, inlinedPC, externalPC, // short stack: simulates sigprofNonGoPC (len 2)
+	}
+	p, err := translateCPUProfile(data, 3)
+	if err != nil {
+		t.Fatalf("translateCPUProfile failed: %v", err)
+	}
+	if p == nil || len(p.Sample) != 2 {
+		t.Fatalf("expected 2 samples, got %d", len(p.Sample))
+	}
+}
+
+//go:noinline
+func externalCodeForTest() { externalCodeForTest() }
