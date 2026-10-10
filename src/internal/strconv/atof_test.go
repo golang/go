@@ -285,6 +285,10 @@ var atoftests = []atofTest{
 	{"0x2.2222222222222p221", "7.18931911124017e+66", nil},
 	{"0x2." + strings.Repeat("2", 4000) + "p221", "7.18931911124017e+66", nil},
 
+	// Esoteric edge cases.
+	{"1" + strings.Repeat("0", 824) + "1e-699", "1e+126", nil},
+	{"0001" + strings.Repeat("0", 824) + "1.0e-699", "1e+126", nil},
+
 	// Exactly halfway between 1 and math.Nextafter(1, 2).
 	// Round to even (down).
 	{"1.00000000000000011102230246251565404236316680908203125", "1", nil},
@@ -370,6 +374,9 @@ var atof32tests = []atofTest{
 	// Slightly higher, but you have to read all the way to the end.
 	{"1.000000059604644775390625" + strings.Repeat("0", 10000) + "1", "1.0000001", nil},
 	{"0x1.000001" + strings.Repeat("0", 10000) + "1p0", "1.0000001", nil},
+
+	// Esoteric edge case.
+	{"1" + strings.Repeat("0", 824) + "1e-795", "1e+30", nil},
 
 	// largest float32: (1<<128) * (1 - 2^-24)
 	{"340282346638528859811704183484516925440", "3.4028235e+38", nil},

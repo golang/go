@@ -95,8 +95,8 @@ func (b *decimal) set(s string) (ok bool) {
 	}
 
 	// digits
-	sawdot := false
-	sawdigits := false
+	nd := 0 // true number of digits (b.dp is capped at len(b.d) == 800)
+	var sawdot, sawdigits bool
 	for ; i < len(s); i++ {
 		switch {
 		case s[i] == '_':
@@ -107,7 +107,7 @@ func (b *decimal) set(s string) (ok bool) {
 				return
 			}
 			sawdot = true
-			b.dp = b.nd
+			b.dp = nd
 			continue
 
 		case '0' <= s[i] && s[i] <= '9':
@@ -116,6 +116,7 @@ func (b *decimal) set(s string) (ok bool) {
 				b.dp--
 				continue
 			}
+			nd++
 			if b.nd < len(b.d) {
 				b.d[b.nd] = s[i]
 				b.nd++
@@ -130,7 +131,7 @@ func (b *decimal) set(s string) (ok bool) {
 		return
 	}
 	if !sawdot {
-		b.dp = b.nd
+		b.dp = nd
 	}
 
 	// optional exponent moves decimal point.
