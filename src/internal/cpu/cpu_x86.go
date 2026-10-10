@@ -32,6 +32,7 @@ const (
 	cpuid_AVX512VNNI      = 1 << 11
 	cpuid_AVX512BITALG    = 1 << 12
 	cpuid_FMA             = 1 << 12
+	cpuid_CX16            = 1 << 13
 	cpuid_AVX512VPOPCNTDQ = 1 << 14
 	cpuid_SSE41           = 1 << 19
 	cpuid_SSE42           = 1 << 20
@@ -85,6 +86,7 @@ func doinit() {
 		// These options are required at level 2. At lower levels
 		// they can be turned off.
 		options = append(options,
+			option{Name: "cx16", Feature: &X86.HasCX16},
 			option{Name: "popcnt", Feature: &X86.HasPOPCNT},
 			option{Name: "sse3", Feature: &X86.HasSSE3},
 			option{Name: "sse41", Feature: &X86.HasSSE41},
@@ -130,6 +132,7 @@ func doinit() {
 	X86.HasSSE41 = isSet(ecx1, cpuid_SSE41)
 	X86.HasSSE42 = isSet(ecx1, cpuid_SSE42)
 	X86.HasPOPCNT = isSet(ecx1, cpuid_POPCNT)
+	X86.HasCX16 = isSet(ecx1, cpuid_CX16)
 	X86.HasAES = isSet(ecx1, cpuid_AES)
 
 	// OSXSAVE can be false when using older Operating Systems
