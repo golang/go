@@ -211,6 +211,32 @@ func TestRoutingNodeMatch(t *testing.T) {
 		{"GET", "", "/a/b/c", pat2, []string{"c"}},
 		{"GET", "", "/a/b/c/d", pat3, []string{"c/d"}},
 	})
+
+	// CONNECT paths are not cleaned, so they can have empty segments.
+	// A single wildcard matches an empty segment, and an empty literal
+	// matches only an empty segment.
+	pat4 := "CONNECT /a//b"
+	pat5 := "/a/{x}/b"
+	pat6 := "/{x}/{y...}"
+	test(buildTree(pat4, pat5, pat6), []testCase{
+		{"CONNECT", "", "/a//b", pat4, nil},
+		{"CONNECT", "", "/a/z/b", pat5, []string{"z"}},
+		{"CONNECT", "", "//c", pat6, []string{"", "c"}},
+		{"CONNECT", "", "/a//c", pat6, []string{"a", "/c"}},
+	})
+	test(buildTree(pat4), []testCase{
+		{"CONNECT", "", "/a/z/b", "", nil},
+	})
+	pat7 := "CONNECT /a/{x}/b"
+	test(buildTree(pat4, pat7), []testCase{
+		{"CONNECT", "", "/a//b", pat4, nil},
+		{"CONNECT", "", "/a/z/b", pat7, []string{"z"}},
+	})
+	test(buildTree(pat5, "/{x}/", "/{x}/{y}/{z}"), []testCase{
+		{"CONNECT", "", "/a//b", pat5, []string{""}},
+		{"CONNECT", "", "//", "/{x}/", []string{""}},
+		{"CONNECT", "", "///c", "/{x}/{y}/{z}", []string{"", "", "c"}},
+	})
 }
 
 func TestMatchingMethods(t *testing.T) {

@@ -33,7 +33,7 @@ type routingNode struct {
 	// An interior node maps parts of the incoming request to child nodes.
 	// special children keys:
 	//     "/"	trailing slash (resulting from {$})
-	//	   ""   single wildcard
+	//	   ""   single wildcard, stored in emptyChild
 	children   mapping[string, *routingNode]
 	multiChild *routingNode // child with multi wildcard
 	emptyChild *routingNode // optimization: child with key ""
@@ -69,7 +69,7 @@ func (n *routingNode) addSegments(segs []segment, p *pattern, h Handler) {
 	} else if seg.wild {
 		n.addChild("").addSegments(segs[1:], p, h)
 	} else {
-		n.addChild(seg.s).addSegments(segs[1:], p, h)
+		n.addLiteral(seg.s).addSegments(segs[1:], p, h)
 	}
 }
 
@@ -108,6 +108,30 @@ func (n *routingNode) findChild(key string) *routingNode {
 	}
 	r, _ := n.children.find(key)
 	return r
+}
+
+// addLiteral is like addChild, but for a literal path segment.
+// An empty segment, possible only with CONNECT, is kept in children
+// so that it is not confused with a single wildcard.
+func (n *routingNode) addLiteral(seg string) *routingNode {
+	if seg != "" {
+		return n.addChild(seg)
+	}
+	c, ok := n.children.find("")
+	if !ok {
+		c = &routingNode{}
+		n.children.add("", c)
+	}
+	return c
+}
+
+// findLiteral is like findChild, but for a literal path segment.
+func (n *routingNode) findLiteral(seg string) *routingNode {
+	if seg != "" {
+		return n.findChild(seg)
+	}
+	c, _ := n.children.find("")
+	return c
 }
 
 // match returns the leaf node under root that matches the arguments, and a list
@@ -171,7 +195,7 @@ func (n *routingNode) matchPath(path string, matches []string) (*routingNode, []
 	// We know by construction that such patterns are more specific than those
 	// with a wildcard at this position (they are either more specific, equivalent,
 	// or overlap, and we ruled out the first two when the patterns were registered).
-	if n, m := n.findChild(seg).matchPath(rest, matches); n != nil {
+	if n, m := n.findLiteral(seg).matchPath(rest, matches); n != nil {
 		return n, m
 	}
 	// If matching a literal fails, try again with patterns that have a single

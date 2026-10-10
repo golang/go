@@ -394,6 +394,23 @@ func TestServeMuxHandler(t *testing.T) {
 	}
 }
 
+func TestServeMuxConnectEmptySegment(t *testing.T) {
+	mux := NewServeMux()
+	var x, rest string
+	mux.HandleFunc("/{x}/{rest...}", func(w ResponseWriter, r *Request) {
+		x, rest = r.PathValue("x"), r.PathValue("rest")
+	})
+	r := &Request{
+		Method: "CONNECT",
+		Host:   "example.com",
+		URL:    &url.URL{Path: "//a"},
+	}
+	mux.ServeHTTP(httptest.NewRecorder(), r)
+	if x != "" || rest != "a" {
+		t.Errorf("PathValue(x), PathValue(rest) = %q, %q; want %q, %q", x, rest, "", "a")
+	}
+}
+
 // Issue 73688
 func TestServeMuxHandlerTrailingSlash(t *testing.T) {
 	setParallel(t)
