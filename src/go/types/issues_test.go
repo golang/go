@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	. "go/types"
@@ -1222,5 +1223,53 @@ var f = genericF[string, float64]
 				t.Errorf("%s[bool, int]: got %q, want %q", name, err.Error(), want)
 			}
 		}()
+	}
+}
+
+// TestIssue81122 checks that packages type-checked concurrently against
+// a shared imported package do not race on a type of that package which
+// is still expanded lazily. Run with -race.
+func TestIssue81122(t *testing.T) {
+	// Build package a the way an importer reading export data does: the
+	// result type of F is an instance created without a Checker, so its
+	// underlying type is only computed on first use.
+	fromImporter := mustTypecheck(`package a; type Seq[T any] func(yield func(T) bool)`, nil, nil)
+	seq, err := Instantiate(NewContext(), fromImporter.Scope().Lookup("Seq").Type(), []Type{Typ[String]}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := NewTuple(NewParam(nopos, fromImporter, "", seq))
+	fromImporter.Scope().Insert(NewFunc(nopos, fromImporter, "F", NewSignatureType(nil, nil, nil, nil, res, false)))
+
+	// Type-check package a from source instead, as go/packages does
+	// without export data: the result type of F is an instance that the
+	// Checker for a created while instantiating Of, and left unexpanded.
+	// (A result type written as Seq[string] would have been expanded.)
+	fromSource := mustTypecheck(`package a; type Seq[T any] func(yield func(T) bool); func Of[T any]() Seq[T] { return nil }; var F = Of[string]`, nil, nil)
+
+	// Each checker asks whether the result of a.F() is complete and,
+	// to range over it, computes its underlying type.
+	const src = `package p; import "a"; func _() { for range a.F() {} }`
+	for _, test := range []struct {
+		name string
+		a    *Package
+	}{
+		{"importer", fromImporter},
+		{"source", fromSource},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var wg sync.WaitGroup
+			for range 4 {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					conf := Config{Importer: importHelper{pkg: test.a}}
+					if _, err := typecheck(src, &conf, nil); err != nil {
+						t.Error(err)
+					}
+				}()
+			}
+			wg.Wait()
+		})
 	}
 }
