@@ -45,4 +45,6 @@ func libInit() {
 		const stackSize = 0x800000 // 8192KB
 		newosproc0(stackSize, fn)
 	}
+
+	waitLibFuzzerInit()
 }
