@@ -3143,11 +3143,9 @@ func (x Float32s) Mul(y Float32s) (z Float32s) {
 //	w[i] = x[i] * y[i] + z[i]
 func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
 	var res Float32s
-
-	res.set(0, x.get(0)*y.get(0)+z.get(0))
-	res.set(1, x.get(1)*y.get(1)+z.get(1))
-	res.set(2, x.get(2)*y.get(2)+z.get(2))
-	res.set(3, x.get(3)*y.get(3)+z.get(3))
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.FMA(float64(x.get(i)), float64(y.get(i)), float64(z.get(i)))))
+	}
 	return res
 }
 
@@ -3441,8 +3439,9 @@ func (x Float64s) Mul(y Float64s) (z Float64s) {
 //	w[i] = x[i] * y[i] + z[i]
 func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
 	var res Float64s
-	res.set(0, x.get(0)*y.get(0)+z.get(0))
-	res.set(1, x.get(1)*y.get(1)+z.get(1))
+	for i := 0; i < 2; i++ {
+		res.set(i, math.FMA(x.get(i), y.get(i), z.get(i)))
+	}
 	return res
 }
 
