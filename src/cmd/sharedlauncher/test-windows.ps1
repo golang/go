@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
+$env:GOROOT = $root
 $go = Join-Path $root 'bin\go.exe'
 $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
 

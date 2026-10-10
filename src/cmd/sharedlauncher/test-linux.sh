@@ -2,6 +2,7 @@
 set -eu
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 root=$repo
+export GOROOT="$root"
 go="$root/bin/go"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM

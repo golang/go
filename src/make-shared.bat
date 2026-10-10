@@ -4,6 +4,7 @@ setlocal EnableExtensions
 rem Build the native Go distribution first by running src\make.bat.
 rem This script needs a MinGW-w64 GCC on PATH for cgo and the launchers.
 for %%I in ("%~dp0..") do set "GOROOT_SHARED=%%~fI"
+set "GOROOT=%GOROOT_SHARED%"
 set "GO_SHARED=%GOROOT_SHARED%\bin\go.exe"
 set "SHARED_SRC=%GOROOT_SHARED%\src"
 set "SHARED_LAUNCHER=%SHARED_SRC%\cmd\sharedlauncher\launcher.c"

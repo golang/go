@@ -3,6 +3,7 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 src="$root/src"
 go_bin="$root/bin/go"
+export GOROOT="$root"
 if [ -x "$root/native/bin/go-native" ]; then go_bin="$root/native/bin/go-native"; fi
 if [ ! -x "$go_bin" ]; then echo "Go is not built; run src/make.bash first" >&2; exit 1; fi
 command -v "${CC:-cc}" >/dev/null 2>&1 || { echo "C compiler not found: ${CC:-cc}" >&2; exit 1; }
