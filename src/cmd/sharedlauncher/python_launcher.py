@@ -13,7 +13,10 @@ def main() -> int:
     tool = script.stem
     library_path = script.with_suffix(".dll")
     executable_path = script.with_suffix(".exe")
-    argv0 = str(executable_path if executable_path.is_file() else script)
+    # Keep the native tool's argv[0] spelling even though the launcher itself
+    # is a .py file. Several Go tools derive their displayed name from argv[0]
+    # and `go` parses that output (for example `compile -V=full`).
+    argv0 = str(executable_path)
 
     # Set GOROOT before loading the Go runtime when the distribution root can
     # be identified from this script's location.
