@@ -4,10 +4,7 @@
 
 package template
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
 // urlFilter returns its input unless it contains an unsafe scheme in which
 // case it defangs the entire URL.
@@ -83,9 +80,8 @@ func urlProcessor(norm bool, args ...any) string {
 }
 
 // processURLOnto appends a normalized URL corresponding to its input to b
-// and reports whether the appended content differs from s.
+// and reports whether it differs from s. If it does not, nothing is appended.
 func processURLOnto(s string, norm bool, b *strings.Builder) bool {
-	b.Grow(len(s) + 16)
 	written := 0
 	// The byte loop below assumes that all URLs use UTF-8 as the
 	// content-encoding. This is similar to the URI to IRI encoding scheme
@@ -130,13 +126,23 @@ func processURLOnto(s string, norm bool, b *strings.Builder) bool {
 				continue
 			}
 		}
+		if written == 0 {
+			b.Grow(len(s) + 16)
+		}
 		b.WriteString(s[written:i])
-		fmt.Fprintf(b, "%%%02x", c)
+		b.WriteByte('%')
+		b.WriteByte(lowerhex[c>>4])
+		b.WriteByte(lowerhex[c&0xf])
 		written = i + 1
 	}
+	if written == 0 {
+		return false
+	}
 	b.WriteString(s[written:])
-	return written != 0
+	return true
 }
+
+const lowerhex = "0123456789abcdef"
 
 // Filters and normalizes srcset values which are comma separated
 // URLs followed by metadata.
@@ -206,7 +212,13 @@ func filterSrcsetElement(s string, left int, right int, b *strings.Builder) {
 		}
 		if metadataOk {
 			b.WriteString(s[left:start])
-			processURLOnto(url, true, b)
+			// Grow b by the size of url rather than in proportion to its
+			// current size (go.dev/issue/24731). processURLOnto only grows b
+			// if url needs escaping.
+			b.Grow(len(url) + 16)
+			if !processURLOnto(url, true, b) {
+				b.WriteString(url)
+			}
 			b.WriteString(s[end:right])
 			return
 		}
