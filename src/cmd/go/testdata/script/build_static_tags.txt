@@ -1,0 +1,65 @@
+# -static sets the static, netgo, and osusergo build tags on every
+# system that supports it, not only on Linux.
+
+env GOARCH=amd64
+env CGO_ENABLED=0
+
+env GOOS=linux
+go list -static -f '{{context.ToolTags}}' .
+stdout '\bstatic\b'
+stdout '\bnetgo\b'
+stdout '\bosusergo\b'
+
+env GOOS=freebsd
+go list -static -f '{{context.ToolTags}}' .
+stdout '\bstatic\b'
+stdout '\bnetgo\b'
+stdout '\bosusergo\b'
+
+env GOOS=netbsd
+go list -static -f '{{context.ToolTags}}' .
+stdout '\bstatic\b'
+stdout '\bnetgo\b'
+stdout '\bosusergo\b'
+
+env GOOS=dragonfly
+go list -static -f '{{context.ToolTags}}' .
+stdout '\bstatic\b'
+stdout '\bnetgo\b'
+stdout '\bosusergo\b'
+
+env GOOS=plan9
+go list -static -f '{{context.ToolTags}}' .
+stdout '\bstatic\b'
+stdout '\bnetgo\b'
+stdout '\bosusergo\b'
+
+env GOOS=wasip1
+env GOARCH=wasm
+go list -static -f '{{context.ToolTags}}' .
+stdout '\bstatic\b'
+stdout '\bnetgo\b'
+stdout '\bosusergo\b'
+
+# The netcgo build tag conflicts with netgo, so netgo is not set with it.
+env GOOS=freebsd
+env GOARCH=amd64
+go list -static -tags netcgo -f '{{context.ToolTags}}' .
+stdout '\bstatic\b'
+! stdout '\bnetgo\b'
+stdout '\bosusergo\b'
+
+# Without -static, none of the tags are set.
+go list -f '{{context.ToolTags}}' .
+! stdout '\bstatic\b'
+! stdout '\bnetgo\b'
+! stdout '\bosusergo\b'
+
+-- go.mod --
+module example.com/static
+
+go 1.22
+-- main.go --
+package main
+
+func main() {}
