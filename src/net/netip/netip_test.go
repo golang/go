@@ -346,6 +346,37 @@ func TestAddrFromSlice(t *testing.T) {
 	}
 }
 
+func TestParseAddrNoAllocForNilCheckCallers(t *testing.T) {
+	tests := []struct {
+		ip      string
+		wantErr bool
+	}{
+		{ip: "127.0.0.1", wantErr: false},
+		{ip: ".168.1.0", wantErr: true}, // bad IPv4 (and contains dot)
+		{ip: "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b", wantErr: false},
+		{ip: "::ffff:1.2.3.z", wantErr: true}, // bad IPv6 (and contains colon)
+		{ip: "%", wantErr: true},              // bad, no dot or colon
+	}
+	for _, tc := range tests {
+		t.Run(tc.ip, func(t *testing.T) {
+			allocs := int(testing.AllocsPerRun(5, func() {
+				// By design, this function only uses ParseAddr's error result
+				// in nil checks.
+				_, err := ParseAddr(tc.ip)
+				switch {
+				case err != nil && !tc.wantErr:
+					t.Fatalf("ParseAddr(%q) fails, but should succeed", tc.ip)
+				case err == nil && tc.wantErr:
+					t.Fatalf("ParseAddr(%q) succeeds, but should fail", tc.ip)
+				}
+			}))
+			if allocs > 0 {
+				t.Errorf("allocs=%d, want 0", allocs)
+			}
+		})
+	}
+}
+
 func TestIPv4Constructors(t *testing.T) {
 	if AddrFrom4([4]byte{1, 2, 3, 4}) != MustParseAddr("1.2.3.4") {
 		t.Errorf("don't match")
