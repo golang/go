@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"os"
 	"strings"
+	"unicode"
 )
 
 func init() {
@@ -49,7 +50,8 @@ func loadMimeGlobsFile(filename string) error {
 		}
 
 		extension := fields[2][1:]
-		if strings.ContainsAny(extension, "?*[") {
+		switch {
+		case strings.ContainsAny(extension, "?*"):
 			// Not a bare extension, but a glob. Ignore for now:
 			// - we do not have an implementation for this glob
 			//   syntax (translation to path/filepath.Match could
@@ -60,7 +62,15 @@ func loadMimeGlobsFile(filename string) error {
 			// - trying to match glob metacharacters literally is
 			//   not useful
 			continue
+		case strings.Contains(extension, "["):
+			if extensions, ok := expand(extension); ok {
+				for i := range extensions {
+					setExtensionType(extensions[i], fields[1])
+				}
+			}
+			continue
 		}
+
 		if _, ok := mimeTypes.Load(extension); ok {
 			// We've already seen this extension.
 			// The file is in weight order, so we keep
@@ -123,4 +133,105 @@ func initMimeForTests() map[string]string {
 		".t2":  "text/test; charset=utf-8",
 		".png": "image/png",
 	}
+}
+
+func expand(glob string) ([]string, bool) {
+	openingBracketIndex := -1
+	closingBracketIndex := -1
+
+	var prefix []byte
+	var suffix []byte
+	var mux *[]byte = &prefix
+
+	for i, c := range glob {
+		if c > unicode.MaxASCII {
+			return nil, false
+		}
+		switch c {
+		case '[':
+			if len(*mux) > 0 && (*mux)[len(*mux)-1] == '\\' {
+				(*mux)[len(*mux)-1] = glob[i]
+				continue
+			}
+			if openingBracketIndex != -1 {
+				if closingBracketIndex != -1 {
+					return nil, false
+				}
+				continue
+			}
+			openingBracketIndex = i
+			mux = &suffix
+		case ']':
+			if openingBracketIndex == -1 {
+				*mux = append(*mux, ']')
+				continue
+			}
+			if i == openingBracketIndex+1 {
+				continue
+			}
+			closingBracketIndex = i
+		default:
+			if openingBracketIndex > -1 && closingBracketIndex == -1 {
+				continue
+			}
+			*mux = append(*mux, glob[i])
+		}
+	}
+
+	switch {
+	case openingBracketIndex == -1 && closingBracketIndex == -1:
+		return []string{string(prefix)}, true
+
+	case openingBracketIndex != -1 && closingBracketIndex == -1:
+		return []string{string(prefix) + glob[openingBracketIndex:]}, true
+
+	case openingBracketIndex != -1 && openingBracketIndex+1 == '!':
+		return nil, false
+	}
+
+	expansion := expandRangeWithoutNegation(glob[openingBracketIndex+1 : closingBracketIndex])
+	if expansion == nil {
+		return nil, false
+	}
+
+	results := make([]string, len(expansion))
+	for i := 0; i < len(expansion); i++ {
+		results[i] = string(prefix) + string(expansion[i]) + string(suffix)
+	}
+
+	return results, true
+}
+
+func expandRangeWithoutNegation(r string) []byte {
+	var expansion []byte
+	for i := 0; i < len(r); i++ {
+		if r[i] == '!' && i == 0 {
+			// no negations of range expression
+			return nil
+		}
+
+		if r[i] != '-' {
+			expansion = append(expansion, r[i])
+			continue
+		}
+
+		if i == 0 || i == len(r)-1 {
+			expansion = append(expansion, '-')
+			continue
+		}
+		if r[i+1] < r[i-1] {
+			// invalid character range
+			return nil
+		}
+
+		for c := r[i-1] + 1; c <= r[i+1]; c++ {
+			if c == '/' {
+				// '/' cannot be matched: https://man7.org/linux/man-pages/man7/glob.7.html
+				continue
+			}
+			expansion = append(expansion, c)
+		}
+		i++
+	}
+	return expansion
 }
