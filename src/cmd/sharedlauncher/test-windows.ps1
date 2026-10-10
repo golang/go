@@ -120,5 +120,8 @@ $probeOutput = & $probeLauncher 'argument with spaces' 'tail'
 if ($LASTEXITCODE -ne 23 -or $probeOutput.Trim() -ne 'launcher-probe-ok') {
     throw "launcher did not preserve arguments/output/exit status (exit $LASTEXITCODE, output '$probeOutput')"
 }
+# GitHub's pwsh wrapper returns the last native program's status after the
+# script completes, so clear the deliberately nonzero probe status on success.
+$global:LASTEXITCODE = 0
 
 Write-Host 'Windows amd64 shared-toolchain smoke tests passed.'
