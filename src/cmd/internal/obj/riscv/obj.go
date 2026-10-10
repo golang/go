@@ -162,6 +162,18 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				p.From.Reg = REG_ZERO
 				break
 			}
+			if buildcfg.GORISCV64 >= 23 && p.To.Type == obj.TYPE_REG {
+				// math.IsNaN only accepts float64; NaN is the only value
+				// that is not equal to itself, so check f32 directly.
+				if f32 != f32 {
+					p.As = AFLIS
+					break
+				}
+				if _, ok := flisMapping[f32]; ok {
+					p.As = AFLIS
+					break
+				}
+			}
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float32Sym(f32)
 			p.From.Name = obj.NAME_EXTERN
@@ -175,6 +187,16 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REG_ZERO
 				break
+			}
+			if buildcfg.GORISCV64 >= 23 && p.To.Type == obj.TYPE_REG {
+				if math.IsNaN(f64) {
+					p.As = AFLID
+					break
+				}
+				if _, ok := flidMapping[f64]; ok {
+					p.As = AFLID
+					break
+				}
 			}
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float64Sym(f64)
@@ -2627,6 +2649,32 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	// 22.7: Double-Precision Floating-Point Classify Instruction
 	AFCLASSD & obj.AMask: {enc: rFIEncoding},
 
+	// 24: "Zfa" Extension for Additional Floating-Point Instructions
+	// 24.1: Load-Immediate Instructions
+	AFLIS & obj.AMask: {enc: rIFEncoding},
+	AFLID & obj.AMask: {enc: rIFEncoding},
+
+	// 24.2: Minimum and Maximum Instructions
+	AFMAXMS & obj.AMask: {enc: rFFFEncoding},
+	AFMINMS & obj.AMask: {enc: rFFFEncoding},
+	AFMAXMD & obj.AMask: {enc: rFFFEncoding},
+	AFMINMD & obj.AMask: {enc: rFFFEncoding},
+
+	// 24.3: Round-to-Integer Instructions
+	AFROUNDS & obj.AMask:   {enc: rFFEncoding},
+	AFROUNDNXS & obj.AMask: {enc: rFFEncoding},
+	AFROUNDD & obj.AMask:   {enc: rFFEncoding},
+	AFROUNDNXD & obj.AMask: {enc: rFFEncoding},
+
+	// 24.4: Modular Convert-to-Integer Instruction
+	AFCVTMODWD & obj.AMask: {enc: rFIEncoding},
+
+	// 24.6: Comparison Instructions
+	AFLEQS & obj.AMask: {enc: rFFIEncoding},
+	AFLTQS & obj.AMask: {enc: rFFIEncoding},
+	AFLEQD & obj.AMask: {enc: rFFIEncoding},
+	AFLTQD & obj.AMask: {enc: rFFIEncoding},
+
 	//
 	// "C" Extension for Compressed Instructions, Version 2.0
 	//
@@ -4407,6 +4455,85 @@ func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
 	}
 }
 
+// flisMapping maps a single-precision (float32) immediate to its FLI
+// (load-immediate) encoding for the Zfa extension. The FLI instruction
+// materializes a 32-bit float immediate, so the lookup key is float32, not
+// float64: converting the operand to float64 before the check would change
+// the value (e.g. 1.0000000000000002 rounds to 1.0 as float32), making the
+// mapping in progedit inconsistent with the one used by the encoder.
+var flisMapping = map[float32]uint32{
+	-1.0:                   0,
+	1.1754943508222875e-38: 1,
+	1.52587890625e-05:      2,
+	3.0517578125e-05:       3,
+	0.00390625:             4,
+	0.0078125:              5,
+	0.0625:                 6,
+	0.125:                  7,
+	0.25:                   8,
+	0.3125:                 9,
+	0.375:                  10,
+	0.4375:                 11,
+	0.5:                    12,
+	0.625:                  13,
+	0.75:                   14,
+	0.875:                  15,
+	1.0:                    16,
+	1.25:                   17,
+	1.5:                    18,
+	1.75:                   19,
+	2.0:                    20,
+	2.5:                    21,
+	3.0:                    22,
+	4.0:                    23,
+	8.0:                    24,
+	16.0:                   25,
+	128.0:                  26,
+	256.0:                  27,
+	32768.0:                28,
+	65536.0:                29,
+	float32(math.Inf(1)):   30,
+}
+
+// flidMapping is the double-precision (float64) counterpart of flisMapping,
+// used for the FLID (load-immediate double) instruction. Its tables are the
+// same as flisMapping except for entry 1, the minimum positive normal value,
+// which is the double-precision one (2^-1022) rather than single-precision
+// (2^-126). See RISC-V Zfa spec, section on fli.d.
+var flidMapping = map[float64]uint32{
+	-1.0:                    0,
+	2.2250738585072014e-308: 1,
+	1.52587890625e-05:       2,
+	3.0517578125e-05:        3,
+	0.00390625:              4,
+	0.0078125:               5,
+	0.0625:                  6,
+	0.125:                   7,
+	0.25:                    8,
+	0.3125:                  9,
+	0.375:                   10,
+	0.4375:                  11,
+	0.5:                     12,
+	0.625:                   13,
+	0.75:                    14,
+	0.875:                   15,
+	1.0:                     16,
+	1.25:                    17,
+	1.5:                     18,
+	1.75:                    19,
+	2.0:                     20,
+	2.5:                     21,
+	3.0:                     22,
+	4.0:                     23,
+	8.0:                     24,
+	16.0:                    25,
+	128.0:                   26,
+	256.0:                   27,
+	32768.0:                 28,
+	65536.0:                 29,
+	math.Inf(1):             30,
+}
+
 // instructionsForMinMax returns the machine instructions for an integer minimum or maximum.
 func instructionsForMinMax(p *obj.Prog, ins *instruction) []*instruction {
 	if buildcfg.GORISCV64 >= 22 {
@@ -4609,6 +4736,35 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		}
 		ins.rs2 = obj.REG_NONE
 
+	case AFLIS, AFLID:
+		// FLIS materializes a single-precision immediate, so the lookup key is
+		// float32; FLID uses the double-precision value directly. Splitting the
+		// maps keeps the key domain the same as the one used by progedit.
+		var index uint32
+		if p.As == AFLIS {
+			f32 := float32(p.From.Val.(float64))
+			// NaN is special as it can't be used in comparison.
+			if f32 != f32 {
+				index = 31
+			} else if idx, ok := flisMapping[f32]; ok {
+				index = idx
+			} else {
+				p.Ctxt.Diag("%v: unknown floating point immediate", f32)
+				return nil
+			}
+		} else {
+			f64 := p.From.Val.(float64)
+			if math.IsNaN(f64) {
+				index = 31
+			} else if idx, ok := flidMapping[f64]; ok {
+				index = idx
+			} else {
+				p.Ctxt.Diag("%v: unknown floating point immediate", f64)
+				return nil
+			}
+		}
+		ins.rs2 = REG_ZERO + index
+
 	case AFENCE:
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
 		if p.Scond == fenceTsoSuffixBit {
@@ -4639,6 +4795,16 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		// Set the default rounding mode in funct3 to round to zero.
 		if p.Scond&rmSuffixBit == 0 {
 			ins.funct3 = uint32(RM_RTZ)
+		} else {
+			ins.funct3 = uint32(p.Scond &^ rmSuffixBit)
+		}
+
+	case AFROUNDS, AFROUNDNXS, AFROUNDD, AFROUNDNXD:
+		// Zfa fround/froundnx take an explicit rounding mode in the rm field
+		// (bits 14:12). Default to round-to-nearest-even (RNE) when no
+		// rounding-mode suffix is given.
+		if p.Scond&rmSuffixBit == 0 {
+			ins.funct3 = uint32(RM_RNE)
 		} else {
 			ins.funct3 = uint32(p.Scond &^ rmSuffixBit)
 		}
@@ -5318,6 +5484,8 @@ func ParseSuffix(prog *obj.Prog, cond string) (err error) {
 	cond = strings.TrimPrefix(cond, ".")
 	switch prog.As {
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
+		prog.Scond, err = rmSuffixEncode(cond)
+	case AFROUNDS, AFROUNDNXS, AFROUNDD, AFROUNDNXD:
 		prog.Scond, err = rmSuffixEncode(cond)
 	case AFENCE:
 		if cond == "TSO" {
