@@ -1,0 +1,1 @@
+pkg net/http, type HTTP2Config struct, EnableConnectProtocol bool #53208
