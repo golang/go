@@ -7,6 +7,7 @@ package tar
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -132,6 +133,17 @@ func (p *parser) parseNumeric(b []byte) int64 {
 
 	// Normal case is base-8 (octal) format.
 	return p.parseOctal(b)
+}
+
+// parseInt is like parseNumeric but reports ErrHeader if the value does not
+// fit in the platform's int.
+func (p *parser) parseInt(b []byte) int {
+	n := p.parseNumeric(b)
+	if n > math.MaxInt || n < math.MinInt {
+		p.err = ErrHeader
+		return 0
+	}
+	return int(n)
 }
 
 // formatNumeric encodes x into b using base-8 (octal) encoding if possible.

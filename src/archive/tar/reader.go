@@ -391,8 +391,8 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 	hdr.Linkname = p.parseString(v7.linkName())
 	hdr.Size = p.parseNumeric(v7.size())
 	hdr.Mode = p.parseNumeric(v7.mode())
-	hdr.Uid = int(p.parseNumeric(v7.uid()))
-	hdr.Gid = int(p.parseNumeric(v7.gid()))
+	hdr.Uid = p.parseInt(v7.uid())
+	hdr.Gid = p.parseInt(v7.gid())
 	hdr.ModTime = time.Unix(p.parseNumeric(v7.modTime()), 0)
 
 	// Unpack format specific fields.

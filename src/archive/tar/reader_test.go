@@ -1749,3 +1749,70 @@ func TestMergePAXIntegerOverflow(t *testing.T) {
 	}
 }
 
+func TestHeaderNumericIDIntegerOverflow(t *testing.T) {
+	makeHeader := func(uid, gid int64) []byte {
+		var blk block
+		var f formatter
+		v7 := blk.toV7()
+		copy(v7.name(), "testfile")
+		v7.typeFlag()[0] = TypeReg
+		f.formatOctal(v7.mode(), 0644)
+		f.formatNumeric(v7.uid(), uid)
+		f.formatNumeric(v7.gid(), gid)
+		f.formatOctal(v7.size(), 0)
+		f.formatOctal(v7.modTime(), 0)
+		blk.setFormat(FormatGNU)
+		return blk[:]
+	}
+
+	vectors := []struct {
+		name    string
+		uid     int64
+		gid     int64
+		wantErr bool
+	}{
+		{"Normal", 1000, 1000, false},
+		{"BoundaryMaxInt32", 1<<31 - 1, 1000, false},
+		{"OverflowUID_1<<31", 1 << 31, 1000, math.MaxInt < 1<<31},
+		{"OverflowGID_1<<31", 1000, 1 << 31, math.MaxInt < 1<<31},
+		{"OverflowUID_1<<32", 1 << 32, 1000, math.MaxInt < 1<<32},
+		{"OverflowGID_1<<32", 1000, 1 << 32, math.MaxInt < 1<<32},
+		{"BoundaryMinInt32", -1 << 31, 1000, false},
+		{"UnderflowUID_-1<<31-1", -1<<31 - 1, 1000, math.MinInt > -1<<31-1},
+		{"UnderflowGID_-1<<31-1", 1000, -1<<31 - 1, math.MinInt > -1<<31-1},
+		{"UnderflowUID_-1<<40", -1 << 40, 1000, math.MinInt > -1<<40},
+	}
+
+	for _, tt := range vectors {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := makeHeader(tt.uid, tt.gid)
+			var buf bytes.Buffer
+			buf.Write(raw)
+			buf.Write(make([]byte, 1024))
+
+			tr := NewReader(&buf)
+			hdr, err := tr.Next()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("Expected non-nil error")
+				}
+				if !errors.Is(err, ErrHeader) {
+					t.Fatalf("Expected error of type ErrHeader, got %v", err)
+				}
+				if hdr != nil {
+					t.Fatalf("Expected nil header on error, got %+v", hdr)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if hdr.Uid != int(tt.uid) {
+					t.Fatalf("hdr.Uid = %d, want %d", hdr.Uid, tt.uid)
+				}
+				if hdr.Gid != int(tt.gid) {
+					t.Fatalf("hdr.Gid = %d, want %d", hdr.Gid, tt.gid)
+				}
+			}
+		})
+	}
+}
