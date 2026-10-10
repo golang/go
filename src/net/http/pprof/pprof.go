@@ -28,6 +28,14 @@
 // If you are not using DefaultServeMux, you will have to register handlers
 // with the mux you are using.
 //
+// # Security
+//
+// The profiles and endpoints served by this package can expose sensitive
+// information from the running program, such as goroutine stack traces
+// with function arguments, the command line, and memory contents. Do not
+// serve these handlers on an interface reachable by untrusted clients;
+// bind them to a trusted, internal interface instead.
+//
 // # Parameters
 //
 // Parameters can be passed via GET query params:
