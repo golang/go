@@ -90,8 +90,12 @@ var elementContentType = [...]state{
 
 // tTag is the context transition function for the tag state.
 func tTag(c context, s []byte) (context, int) {
-	// Find the attribute name.
+	// Find the attribute name. Like white space, a "/" separates attributes,
+	// as in "<a/href=...>".
 	i := eatWhiteSpace(s, 0)
+	for i < len(s) && s[i] == '/' {
+		i = eatWhiteSpace(s, i+1)
+	}
 	if i == len(s) {
 		return c, len(s)
 	}
@@ -666,7 +670,7 @@ func tMetaContentURL(c context, s []byte) (context, int) {
 func eatAttrName(s []byte, i int) (int, *Error) {
 	for j := i; j < len(s); j++ {
 		switch s[j] {
-		case ' ', '\t', '\n', '\f', '\r', '=', '>':
+		case ' ', '\t', '\n', '\f', '\r', '=', '>', '/':
 			return j, nil
 		case '\'', '"', '<':
 			// These result in a parse warning in HTML5 and are
