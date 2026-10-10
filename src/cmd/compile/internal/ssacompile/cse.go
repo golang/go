@@ -118,6 +118,9 @@ func cse(f *ssa.Func) {
 			slices.SortFunc(e, func(v, w *ssa.Value) int {
 				_, idxMem, _, _ := isMemUser(v)
 				for i, a := range v.Args {
+					if v.Op == ssaop.OpLocalAddr && i == 1 && !v.Type.Elem().HasPointers() {
+						continue
+					}
 					var aId, bId ssa.ID
 					if i != idxMem {
 						b := w.Args[i]
@@ -147,7 +150,7 @@ func cse(f *ssa.Func) {
 				eqArgs := true
 				_, idxMem, _, _ := isMemUser(v)
 				for k, a := range v.Args {
-					if v.Op == ssaop.OpLocalAddr && k == 1 {
+					if v.Op == ssaop.OpLocalAddr && k == 1 && !v.Type.Elem().HasPointers() {
 						continue
 					}
 					var aId, bId ssa.ID
@@ -223,7 +226,7 @@ func cse(f *ssa.Func) {
 					return c
 				}
 			}
-			if v.Op == ssaop.OpLocalAddr {
+			if v.Op == ssaop.OpLocalAddr && !v.Type.Elem().HasPointers() {
 				// compare the memory args for OpLocalAddrs in the same block
 				vm := v.Args[1]
 				wm := w.Args[1]
