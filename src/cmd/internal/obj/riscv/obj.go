@@ -163,11 +163,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				break
 			}
 			if buildcfg.GORISCV64 >= 23 && p.To.Type == obj.TYPE_REG {
-				if math.IsNaN(float64(f32)) {
+				// math.IsNaN only accepts float64; NaN is the only value
+				// that is not equal to itself, so check f32 directly.
+				if f32 != f32 {
 					p.As = AFLIS
 					break
 				}
-				if _, ok := fimmMapping[float64(f32)]; ok {
+				if _, ok := flisMapping[f32]; ok {
 					p.As = AFLIS
 					break
 				}
@@ -191,7 +193,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 					p.As = AFLID
 					break
 				}
-				if _, ok := fimmMapping[f64]; ok {
+				if _, ok := flidMapping[f64]; ok {
 					p.As = AFLID
 					break
 				}
@@ -4453,7 +4455,49 @@ func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
 	}
 }
 
-var fimmMapping = map[float64]uint32{
+// flisMapping maps a single-precision (float32) immediate to its FLI
+// (load-immediate) encoding for the Zfa extension. The FLI instruction
+// materializes a 32-bit float immediate, so the lookup key is float32, not
+// float64: converting the operand to float64 before the check would change
+// the value (e.g. 1.0000000000000002 rounds to 1.0 as float32), making the
+// mapping in progedit inconsistent with the one used by the encoder.
+var flisMapping = map[float32]uint32{
+	-1.0:                   0,
+	1.1754943508222875e-38: 1,
+	1.52587890625e-05:      2,
+	3.0517578125e-05:       3,
+	0.00390625:             4,
+	0.0078125:              5,
+	0.0625:                 6,
+	0.125:                  7,
+	0.25:                   8,
+	0.3125:                 9,
+	0.375:                  10,
+	0.4375:                 11,
+	0.5:                    12,
+	0.625:                  13,
+	0.75:                   14,
+	0.875:                  15,
+	1.0:                    16,
+	1.25:                   17,
+	1.5:                    18,
+	1.75:                   19,
+	2.0:                    20,
+	2.5:                    21,
+	3.0:                    22,
+	4.0:                    23,
+	8.0:                    24,
+	16.0:                   25,
+	128.0:                  26,
+	256.0:                  27,
+	32768.0:                28,
+	65536.0:                29,
+	float32(math.Inf(1)):   30,
+}
+
+// flidMapping is the double-precision (float64) counterpart of flisMapping,
+// used for the FLID (load-immediate double) instruction.
+var flidMapping = map[float64]uint32{
 	-1.0:                   0,
 	1.1754943508222875e-38: 1,
 	1.52587890625e-05:      2,
@@ -4690,16 +4734,31 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		ins.rs2 = obj.REG_NONE
 
 	case AFLIS, AFLID:
-		fimm := p.From.Val.(float64)
+		// FLIS materializes a single-precision immediate, so the lookup key is
+		// float32; FLID uses the double-precision value directly. Splitting the
+		// maps keeps the key domain the same as the one used by progedit.
 		var index uint32
-		// NaN is special as it can't be used in comparison.
-		if math.IsNaN(fimm) {
-			index = 31
-		} else if idx, ok := fimmMapping[fimm]; ok {
-			index = idx
+		if p.As == AFLIS {
+			f32 := float32(p.From.Val.(float64))
+			// NaN is special as it can't be used in comparison.
+			if f32 != f32 {
+				index = 31
+			} else if idx, ok := flisMapping[f32]; ok {
+				index = idx
+			} else {
+				p.Ctxt.Diag("%v: unknown floating point immediate", f32)
+				return nil
+			}
 		} else {
-			p.Ctxt.Diag("%v: unknown floating point immediate", fimm)
-			return nil
+			f64 := p.From.Val.(float64)
+			if math.IsNaN(f64) {
+				index = 31
+			} else if idx, ok := flidMapping[f64]; ok {
+				index = idx
+			} else {
+				p.Ctxt.Diag("%v: unknown floating point immediate", f64)
+				return nil
+			}
 		}
 		ins.rs2 = REG_ZERO + index
 
