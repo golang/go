@@ -171,6 +171,10 @@ func (b *Builder) toolID(name string) string {
 		}
 
 		cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
+		cmdline, err := base.ToolCommandLine(cmdline)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
 		cmd := exec.Command(cmdline[0], cmdline[1:]...)
 		var stdout, stderr strings.Builder
 		cmd.Stdout = &stdout

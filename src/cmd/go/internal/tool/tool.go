@@ -181,7 +181,10 @@ func listTools(ld *modload.Loader, ctx context.Context) {
 	if cmdEntries, err := os.ReadDir(filepath.Join(cfg.GOROOT, "src", "cmd")); err == nil {
 		toolSeen := make(map[string]bool)
 		for _, n := range names {
-			toolSeen[strings.TrimSuffix(strings.ToLower(n), cfg.ToolExeSuffix())] = true
+			if base.ToolSuffix() == ".py" && !strings.EqualFold(filepath.Ext(n), ".py") {
+				continue
+			}
+			toolSeen[strings.TrimSuffix(strings.ToLower(n), base.ToolSuffix())] = true
 		}
 		for _, e := range cmdEntries {
 			if e.IsDir() && loadBuiltinTool(e.Name()) != "" && !toolSeen[e.Name()] {
@@ -193,11 +196,13 @@ func listTools(ld *modload.Loader, ctx context.Context) {
 	ambiguous := make(map[string]bool) // names that can't be used as aliases because they are ambiguous
 	sort.Strings(names)
 	for _, name := range names {
+		if base.ToolSuffix() == ".py" && !strings.EqualFold(filepath.Ext(name), ".py") {
+			continue
+		}
 		ambiguous[name] = true
 
-		// Unify presentation by going to lower case.
-		// If it's windows, don't show the .exe suffix.
-		name = strings.TrimSuffix(strings.ToLower(name), cfg.ToolExeSuffix())
+		// Unify presentation by going to lower case and omit the entry suffix.
+		name = strings.TrimSuffix(strings.ToLower(name), base.ToolSuffix())
 
 		// The tool directory used by gccgo will have other binaries
 		// in addition to go tools. Only display go tools here.
@@ -423,6 +428,11 @@ func buildAndRunTool(ld *modload.Loader, ctx context.Context, tool string, args 
 }
 
 func runBuiltTool(toolName string, env, cmdline []string) error {
+	var err error
+	cmdline, err = base.ToolCommandLine(cmdline)
+	if err != nil {
+		return err
+	}
 	if toolN {
 		fmt.Println(strings.Join(cmdline, " "))
 		return nil
@@ -434,7 +444,6 @@ func runBuiltTool(toolName string, env, cmdline []string) error {
 	// ("text file busy"). Retry a few times with backoff, matching base.RunStdin
 	// and (*runTestActor).Act in cmd/go/internal/test. See #22220, #22315, #78204.
 	var toolCmd *exec.Cmd
-	var err error
 	for try := range 3 {
 		toolCmd = &exec.Cmd{
 			Path:   cmdline[0],

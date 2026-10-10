@@ -598,6 +598,11 @@ func (sh *Shell) startOut(dir string, env []string, extraFiles []*os.File, done 
 	a := sh.action
 
 	cmdline := str.StringList(cmdargs...)
+	var err error
+	cmdline, err = base.ToolCommandLine(cmdline)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, arg := range cmdline {
 		// GNU binutils commands, including gcc and gccgo, interpret an argument

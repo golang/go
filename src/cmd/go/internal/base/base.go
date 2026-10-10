@@ -218,6 +218,11 @@ func Run(cmdargs ...any) {
 // may be an *exec.ExitError.
 func RunErr(cmdargs ...any) error {
 	cmdline := str.StringList(cmdargs...)
+	var err error
+	cmdline, err = ToolCommandLine(cmdline)
+	if err != nil {
+		return err
+	}
 	if cfg.BuildN || cfg.BuildX {
 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
 		if cfg.BuildN {
@@ -233,6 +238,12 @@ func RunErr(cmdargs ...any) error {
 
 // RunStdin is like run but connects Stdin. It retries if it encounters an ETXTBSY.
 func RunStdin(cmdline []string) {
+	var err error
+	cmdline, err = ToolCommandLine(cmdline)
+	if err != nil {
+		Errorf("%v", err)
+		return
+	}
 	env := slices.Clip(cfg.OrigEnv)
 	env = AppendPATH(env)
 	for try := range 3 {

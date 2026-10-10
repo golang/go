@@ -94,7 +94,11 @@ func toolFlags(cmd *base.Command, args []string) (passToTool, packageNames []str
 
 	// Query the tool for its flags.
 	out := new(bytes.Buffer)
-	toolcmd := exec.Command(tool, "-flags")
+	toolcmdline, err := base.ToolCommandLine([]string{tool, "-flags"})
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	toolcmd := exec.Command(toolcmdline[0], toolcmdline[1:]...)
 	toolcmd.Stdout = out
 	if err := toolcmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "go: %s -flags failed: %v\n", tool, err)

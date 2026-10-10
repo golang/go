@@ -2,12 +2,19 @@ $ErrorActionPreference = 'Stop'
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $env:GOROOT = $root
-$go = Join-Path $root 'bin\go.exe'
+$go = Join-Path $root 'bin\go.py'
 $python = (Get-Command python.exe -ErrorAction Stop).Source
 $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
+$launcherExecutables = @((Join-Path $root 'bin\go.exe'), (Join-Path $root 'bin\gofmt.exe'))
+foreach ($tool in @('asm', 'cgo', 'compile', 'link', 'preprofile', 'cover', 'export', 'fix', 'vet')) {
+    $launcherExecutables += Join-Path $root "pkg\tool\windows_amd64\$tool.exe"
+}
+foreach ($executable in $launcherExecutables) {
+    if (Test-Path $executable) { throw "unexpected Windows tool launcher executable: $executable" }
+}
 
 function Invoke-Go([string[]] $Arguments) {
-    & $go @Arguments
+    & $python $go @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "go $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
     }
@@ -19,8 +26,12 @@ Invoke-Go @('tool', 'compile', '-V')
 Invoke-Go @('tool', 'asm', '-V')
 Invoke-Go @('tool', 'link', '-V')
 Invoke-Go @('build', 'std')
+$listedTools = & $python $go tool
+if ($LASTEXITCODE -ne 0 -or $listedTools -notcontains 'compile' -or $listedTools -match '\.(dll|py|bat)$') {
+    throw "go tool did not list the Python-backed tools by tool name: $listedTools"
+}
 
-$pythonVersion = & $python (Join-Path $root 'bin\go.py') version
+$pythonVersion = & $python $go version
 if ($LASTEXITCODE -ne 0 -or $pythonVersion -notmatch '^go version ') { throw "Python go launcher failed: $pythonVersion" }
 $batchVersion = & (Join-Path $root 'bin\go.bat') version
 if ($LASTEXITCODE -ne 0 -or $batchVersion -notmatch '^go version ') { throw "Batch go launcher failed: $batchVersion" }
@@ -68,9 +79,11 @@ func main() { fmt.Println(mathx.Add(20, 22)) }
 
 Push-Location $work
 try {
-    $runResult = & $go run .
+    Invoke-Go @('fmt', 'main.go')
+    $runResult = & $python $go run .
     if ($LASTEXITCODE -ne 0 -or $runResult.Trim() -ne '42') { throw "go run returned '$runResult'" }
     Invoke-Go @('test', './...')
+    Invoke-Go @('vet', './...')
     Invoke-Go @('build', '-o', 'hello.exe', '.')
     $result = & (Join-Path $work 'hello.exe')
     if ($LASTEXITCODE -ne 0 -or $result.Trim() -ne '42') { throw "built program returned '$result'" }
@@ -108,8 +121,8 @@ foreach ($case in $ffiCases) {
     if ($LASTEXITCODE -ne 0) { throw "direct FFI invocation of $($case[1]) failed with exit code $LASTEXITCODE" }
 }
 
-# Exercise the native launcher itself with a tiny DLL so argument forwarding
-# and exact exit-status propagation are independent of the Go commands above.
+# Exercise both Python entry paths with a tiny DLL to verify argument
+# forwarding, stdout, and exact exit-status propagation.
 $probeDir = Join-Path $work 'launcher-probe'
 New-Item -ItemType Directory -Path $probeDir -Force | Out-Null
 $probeSource = Join-Path $probeDir 'probe.c'
@@ -124,21 +137,11 @@ __declspec(dllexport) int __cdecl dll_probe_main(int argc, char **argv) {
     return 23;
 }
 '@ | Set-Content -Encoding ascii $probeSource
-$probeLauncher = Join-Path $probeDir 'probe.exe'
 $probeLibrary = Join-Path $probeDir 'probe.dll'
 $probePython = Join-Path $probeDir 'probe.py'
 $probeBatch = Join-Path $probeDir 'probe.bat'
-& $gcc '-municode' '-Os' '-static' '-o' $probeLauncher (Join-Path $PSScriptRoot 'launcher.c')
-if ($LASTEXITCODE -ne 0) { throw 'could not build the native launcher probe' }
 & $gcc '-shared' '-o' $probeLibrary $probeSource
 if ($LASTEXITCODE -ne 0) { throw 'could not build the launcher probe DLL' }
-$probeOutput = & $probeLauncher 'argument with spaces' 'tail'
-if ($LASTEXITCODE -ne 23 -or $probeOutput.Trim() -ne 'launcher-probe-ok') {
-    throw "launcher did not preserve arguments/output/exit status (exit $LASTEXITCODE, output '$probeOutput')"
-}
-# GitHub's pwsh wrapper returns the last native program's status after the
-# script completes, so clear the deliberately nonzero probe status on success.
-$global:LASTEXITCODE = 0
 
 Copy-Item (Join-Path $PSScriptRoot 'python_launcher.py') $probePython
 $pythonOutput = & $python $probePython 'argument with spaces' 'tail'

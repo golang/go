@@ -98,7 +98,7 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 }
 
 func gofmtPath() string {
-	gofmt := "gofmt" + cfg.ToolExeSuffix()
+	gofmt := "gofmt" + base.ToolSuffix()
 
 	gofmtPath := filepath.Join(cfg.GOBIN, gofmt)
 	if _, err := os.Stat(gofmtPath); err == nil {

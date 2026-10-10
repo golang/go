@@ -18,7 +18,11 @@ import (
 func VetAnalyzers() ([]string, error) {
 	// get supported vet flag information
 	tool := base.Tool("vet")
-	vetcmd := exec.Command(tool, "-flags")
+	vetcmdline, err := base.ToolCommandLine([]string{tool, "-flags"})
+	if err != nil {
+		return nil, err
+	}
+	vetcmd := exec.Command(vetcmdline[0], vetcmdline[1:]...)
 	out := new(bytes.Buffer)
 	vetcmd.Stdout = out
 	if err := vetcmd.Run(); err != nil {

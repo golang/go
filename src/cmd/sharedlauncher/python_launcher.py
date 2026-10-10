@@ -15,6 +15,13 @@ def main() -> int:
     executable_path = script.with_suffix(".exe")
     argv0 = str(executable_path if executable_path.is_file() else script)
 
+    # Set GOROOT before loading the Go runtime when the distribution root can
+    # be identified from this script's location.
+    for parent in script.parents:
+        if (parent / "src" / "cmd" / "go").is_dir() and (parent / "pkg" / "tool").is_dir():
+            os.environ.setdefault("GOROOT", str(parent))
+            break
+
     try:
         # Include this directory when Windows resolves the DLL's dependencies.
         dll_directory = os.add_dll_directory(str(script.parent)) if hasattr(os, "add_dll_directory") else None

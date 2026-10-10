@@ -33,7 +33,7 @@ func ToolPath(toolName string) (string, error) {
 	if !ValidToolName(toolName) {
 		return "", fmt.Errorf("bad tool name: %q", toolName)
 	}
-	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
+	toolPath := filepath.Join(build.ToolDir, toolName) + ToolSuffix()
 	err := toolStatCache.Do(toolPath, func() error {
 		_, err := os.Stat(toolPath)
 		return err
