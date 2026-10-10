@@ -12,7 +12,6 @@ import (
 	"os"
 	"runtime/debug"
 	"sync"
-	"cmd/internal/sharedentry"
 )
 
 type exitStatus int
@@ -26,7 +25,7 @@ func Exit(code int) {
 	if enabled {
 		panic(exitStatus(code))
 	}
-	sharedentry.Exit(code)
+	os.Exit(code)
 }
 
 // Fatal is the shared-entry equivalent of log.Fatal.

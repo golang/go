@@ -1,0 +1,27 @@
+name: Shared toolchain (Linux amd64)
+on:
+  push:
+    branches: [feature/shared-toolchain]
+  workflow_dispatch:
+jobs:
+  linux-amd64:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - name: Bootstrap native Go toolchain
+        run: cd src && ./make.bash
+      - name: Build shared tools and launchers
+        run: sh src/make-shared.sh
+      - name: Validate CLI, subprocess, and FFI behavior
+        run: sh src/cmd/sharedlauncher/test-linux.sh
+      - name: Package self-contained Linux amd64 toolchain
+        run: tar -czf go-shared-linux-amd64.tar.gz bin pkg src lib go.env LICENSE PATENTS README.md native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-shared-linux-amd64
+          path: go-shared-linux-amd64.tar.gz
+          if-no-files-found: error

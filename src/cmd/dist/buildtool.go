@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"cmd/internal/sharedentry"
 )
 
 // bootstrapDirs is a list of directories holding code that must be
