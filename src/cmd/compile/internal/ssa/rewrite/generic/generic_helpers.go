@@ -520,7 +520,7 @@ func rewriteFixedLoad(v *ssa.Value, sym ssa.Sym, sb *ssa.Value, off int64) *ssa.
 	if (v.Type.IsPtrShaped() || v.Type.IsUintptr()) && lsym.Type == objabi.SRODATA {
 		for _, r := range lsym.R {
 			if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
-				if strings.HasPrefix(r.Sym.Name, "type:") {
+				if r.Sym.IsGoType() {
 					// In case we're loading a type out of a dictionary, we need to record
 					// that the containing function might put that type in an interface.
 					// That information is currently recorded in relocations in the dictionary,
