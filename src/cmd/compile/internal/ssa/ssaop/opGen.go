@@ -6590,11 +6590,15 @@ const (
 	OpWasmF32Sub
 	OpWasmF32Mul
 	OpWasmF32Div
+	OpWasmF32Min
+	OpWasmF32Max
 	OpWasmF64Neg
 	OpWasmF64Add
 	OpWasmF64Sub
 	OpWasmF64Mul
 	OpWasmF64Div
+	OpWasmF64Min
+	OpWasmF64Max
 	OpWasmI64TruncSatF64S
 	OpWasmI64TruncSatF64U
 	OpWasmI64TruncSatF32S
@@ -108878,6 +108882,36 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:    "F32Min",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     wasm.AF32Min,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		Name:    "F32Max",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     wasm.AF32Max,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
 		Name:    "F64Neg",
 		ArgLen:  1,
 		EarlyOk: true,
@@ -108941,6 +108975,36 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:  2,
 		EarlyOk: true,
 		asm:     wasm.AF64Div,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:    "F64Min",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     wasm.AF64Min,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:    "F64Max",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     wasm.AF64Max,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
