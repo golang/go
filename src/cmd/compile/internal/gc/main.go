@@ -52,6 +52,9 @@ func handlePanic() {
 	ir.CloseHTMLWriters()
 	noder.CloseHTMLWriters()
 	if err := recover(); err != nil {
+		if _, ok := sharedentry.ExitCode(err); ok {
+			panic(err)
+		}
 		if err == "-h" {
 			// Force real panic now with -h option (hcrash) - the error
 			// information will have already been printed.

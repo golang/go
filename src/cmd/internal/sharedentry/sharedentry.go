@@ -46,6 +46,18 @@ func Fatalln(args ...any) {
 	Exit(1)
 }
 
+// ExitCode reports whether value is an exit request produced by this package
+// or the vendored analysis-tool exit bridge.
+func ExitCode(value any) (int, bool) {
+	if code, ok := value.(exitStatus); ok {
+		return int(code), true
+	}
+	if code, ok := value.(interface{ SharedExitCode() int }); ok {
+		return code.SharedExitCode(), true
+	}
+	return 0, false
+}
+
 // Invoke runs a command with arguments copied from its C caller and converts
 // sharedentry.Exit calls into the C function's return value. Each invocation
 // gets a fresh copy of os.Args.
@@ -55,12 +67,8 @@ func Invoke(args []string, run func()) (status int) {
 	os.Args = append([]string(nil), args...)
 	defer func() {
 		if value := recover(); value != nil {
-			if code, ok := value.(exitStatus); ok {
-				status = int(code)
-				return
-			}
-			if code, ok := value.(interface{ SharedExitCode() int }); ok {
-				status = code.SharedExitCode()
+			if code, ok := ExitCode(value); ok {
+				status = code
 				return
 			}
 			fmt.Fprintf(os.Stderr, "shared tool panic: %v\n", value)
