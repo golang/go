@@ -59,6 +59,10 @@ func Invoke(args []string, run func()) (status int) {
 				status = int(code)
 				return
 			}
+			if code, ok := value.(interface{ SharedExitCode() int }); ok {
+				status = code.SharedExitCode()
+				return
+			}
 			fmt.Fprintf(os.Stderr, "shared tool panic: %v\n", value)
 			debug.PrintStack()
 			status = 2

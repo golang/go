@@ -9,7 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"cmd/internal/sharedentry"
+	sharedentry "golang.org/x/tools/internal/sharedtoolentry"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/types/typeutil"

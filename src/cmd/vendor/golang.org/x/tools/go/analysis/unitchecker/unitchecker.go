@@ -46,7 +46,7 @@ import (
 	"sync"
 	"time"
 
-	"cmd/internal/sharedentry"
+	sharedentry "golang.org/x/tools/internal/sharedtoolentry"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"

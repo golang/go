@@ -18,7 +18,7 @@ import (
 	"os"
 	"strconv"
 
-	"cmd/internal/sharedentry"
+	sharedentry "golang.org/x/tools/internal/sharedtoolentry"
 	"golang.org/x/tools/go/analysis"
 )
 

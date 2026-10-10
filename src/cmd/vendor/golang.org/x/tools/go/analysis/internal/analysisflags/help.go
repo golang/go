@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"cmd/internal/sharedentry"
+	sharedentry "golang.org/x/tools/internal/sharedtoolentry"
 	"golang.org/x/tools/go/analysis"
 )
 
