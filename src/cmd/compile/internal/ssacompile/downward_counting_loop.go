@@ -98,9 +98,9 @@ func maybeRewriteLoopToDownwardCountingLoop(f *ssa.Func, v indVar) {
 			return
 		}
 	case ssaop.OpLess8U, ssaop.OpLess16U, ssaop.OpLess32U, ssaop.OpLess64U, ssaop.OpLeq8U, ssaop.OpLeq16U, ssaop.OpLeq32U, ssaop.OpLeq64U:
-		panic(`parseIndVar didn't yet support unsigned induction variables, this code doesn't yet support them either.
-If you are seeing this it is probably because you've fixed https://go.dev/issue/65918.
-You need to update this code and add tests then.`)
+		// Unsigned induction variables are tracked for BCE, but loop inversion
+		// still relies on signed bounds and is intentionally skipped.
+		return
 	case ssaop.OpEq8, ssaop.OpEq16, ssaop.OpEq32, ssaop.OpEq64, ssaop.OpNeq8, ssaop.OpNeq16, ssaop.OpNeq32, ssaop.OpNeq64:
 		panic(`parseIndVar didn't yet support induction variables using == or !=.
 If you are seeing this it is probably because you've added support for them.
