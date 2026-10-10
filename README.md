@@ -65,6 +65,20 @@ and exercise CLI, compiler-subprocess, standard-library, cross-compilation,
 and direct-FFI paths. Successful runs publish downloadable Windows ZIP and
 Linux tar.gz artifacts. macOS arm64/amd64 remains unimplemented and untested.
 
+To publish both successful packages as a GitHub Release, run the
+`Publish shared toolchain release` workflow on the commit that has successful
+Windows and Linux builds. For example:
+
+```sh
+gh workflow run publish-shared-release.yml \
+  --ref feature/shared-toolchain \
+  -f tag_name=shared-toolchain-v0.1.0
+```
+
+The workflow retrieves only successful platform artifacts for that exact
+commit, validates the archives, creates `SHA256SUMS`, and attaches all three
+files to the release. Choose a new tag name for each release.
+
 The reusable native launcher and its Linux smoke test are in
 `src/cmd/sharedlauncher/`.
 
