@@ -1,0 +1,112 @@
+name: Shared toolchain release (Windows + Linux amd64)
+
+on:
+  push:
+    tags: ['shared-toolchain-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows-amd64:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Bootstrap native Go toolchain
+        shell: cmd
+        run: |
+          set GOROOT_BOOTSTRAP=%GOROOT%
+          cd src
+          make.bat
+      - name: Build shared tools and launchers
+        shell: cmd
+        run: src\make-shared.bat
+      - name: Validate CLI, subprocess, and FFI behavior
+        shell: pwsh
+        run: .\src\cmd\sharedlauncher\test-windows.ps1
+      - name: Package self-contained Windows amd64 toolchain
+        shell: pwsh
+        run: Compress-Archive -Path bin,pkg,src,lib,go.env,LICENSE,PATENTS,README.md,native -DestinationPath go-shared-windows-amd64.zip -CompressionLevel Optimal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-shared-windows-amd64
+          path: go-shared-windows-amd64.zip
+          if-no-files-found: error
+
+  linux-amd64:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - name: Bootstrap native Go toolchain
+        run: cd src && ./make.bash
+      - name: Build shared tools and launchers
+        run: sh src/make-shared.sh
+      - name: Validate CLI, subprocess, and FFI behavior
+        run: sh src/cmd/sharedlauncher/test-linux.sh
+      - name: Package self-contained Linux amd64 toolchain
+        run: tar -czf go-shared-linux-amd64.tar.gz bin pkg src lib go.env LICENSE PATENTS README.md native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-shared-linux-amd64
+          path: go-shared-linux-amd64.tar.gz
+          if-no-files-found: error
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [windows-amd64, linux-amd64]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: go-shared-windows-amd64
+          path: release-assets
+      - uses: actions/download-artifact@v4
+        with:
+          name: go-shared-linux-amd64
+          path: release-assets
+      - name: Validate archives and create checksums
+        run: |
+          set -euo pipefail
+          unzip -tq release-assets/go-shared-windows-amd64.zip
+          tar -tzf release-assets/go-shared-linux-amd64.tar.gz >/dev/null
+          sha256sum release-assets/go-shared-windows-amd64.zip release-assets/go-shared-linux-amd64.tar.gz > release-assets/SHA256SUMS
+      - name: Publish GitHub release and package assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          title="Go shared toolchain $tag"
+          notes="Self-contained Windows amd64 and Linux amd64 Go shared-toolchain packages built and validated from commit $GITHUB_SHA."
+          releases="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          release_id="$(jq -r --arg tag "$tag" '[.[] | select(.tag_name == $tag)][0].id // empty' <<< "$releases")"
+          if [[ -n "$release_id" ]]; then
+            gh release upload "$tag" \
+              release-assets/go-shared-windows-amd64.zip \
+              release-assets/go-shared-linux-amd64.tar.gz \
+              release-assets/SHA256SUMS \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "$title" --notes "$notes" --draft=false
+          else
+            gh release create "$tag" \
+              release-assets/go-shared-windows-amd64.zip \
+              release-assets/go-shared-linux-amd64.tar.gz \
+              release-assets/SHA256SUMS \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "$title" \
+              --notes "$notes"
+          fi
