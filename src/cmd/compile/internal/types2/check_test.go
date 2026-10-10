@@ -373,14 +373,14 @@ func withSizes(sizes Sizes) func(*Config) {
 // represent larger values.
 func TestIndexRepresentability(t *testing.T) {
 	const src = `package index; var s []byte; var _ = s[int64 /* ERRORx "int64\\(1\\) << 40 \\(.*\\) overflows int" */ (1) << 40]`
-	testFiles(t, []string{"index.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{4, 4}))
+	testFiles(t, []string{"index.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{WordSize: 4, MaxAlign: 4}))
 }
 
 func TestIssue47243_TypedRHS(t *testing.T) {
 	// The RHS of the shift expression below overflows uint on 32bit platforms,
 	// but this is OK as it is explicitly typed.
 	const src = `package issue47243; var a uint64; var _ = a << uint64(4294967296)` // uint64(1<<32)
-	testFiles(t, []string{"p.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{4, 4}))
+	testFiles(t, []string{"p.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{WordSize: 4, MaxAlign: 4}))
 }
 
 func TestCheck(t *testing.T) {
