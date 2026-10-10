@@ -245,7 +245,7 @@ func (d *decoder) processSOS(n int) error {
 							if err != nil {
 								return err
 							}
-							if value > 16 {
+							if value > 15 {
 								return UnsupportedError("excessive DC component")
 							}
 							dcDelta, err := d.receiveExtend(value)
