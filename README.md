@@ -3,11 +3,12 @@
 ## Shared-toolchain fork
 
 This fork adds optional shared-library builds for Go command-line tools. On
-Windows amd64, each tool has a C-compatible DLL entry point and a small native
-`.exe` launcher. Linux amd64 uses `.so` libraries and native launchers. Each
-launcher loads its matching library from its own directory, forwards arguments
-and inherited standard streams, and returns the tool's exit status. The
-original native Go executable build remains available.
+Windows amd64, each tool has a C-compatible DLL entry point, a small native
+`.exe` launcher, a Python `ctypes` launcher, and a `.bat` wrapper for the Python
+launcher. Linux amd64 uses `.so` libraries and native launchers. The launchers
+load their matching library from their own directory, forward arguments and
+inherited standard streams, and return the tool's exit status. The original
+native Go executable build remains available.
 
 ### Build Windows amd64 from source
 
@@ -25,6 +26,10 @@ src\make-shared.bat
 `compile`, `link`, `preprofile`, `cover`, `export`, `fix`, and `vet`. The native
 Go build must succeed before that step. The script saves the original native
 executables under `native\`; run `src\use-native.bat` to restore them.
+The generated `bin\go.py`, `bin\go.bat`, and corresponding files under
+`pkg\tool\windows_amd64` call the sibling DLLs through Python's standard
+`ctypes` module. These optional launchers require Python 3 on `PATH` (or the
+Windows `py` launcher); the native `.exe` launchers do not require Python.
 
 ### Build Linux amd64 from source
 
@@ -49,7 +54,8 @@ libraries. This keeps Go's regular tool discovery and child-process calls in
 place. Libraries export `dll_<tool>_main(int argc, char **argv)` and receive
 UTF-8 arguments. A C host can load the library and call that symbol directly;
 set `GOROOT` in the host process when the host executable is outside the Go
-root.
+root. On Windows, the generated Python scripts load the same DLL with
+`ctypes.CDLL` and invoke that entry point directly.
 
 The Go runtime is process-wide. The launcher leaves the DLL loaded until
 process exit. The direct FFI smoke test calls `go` twice in one process; other
@@ -62,9 +68,10 @@ that still call `os.Exit` outside the shared-entry exit path.
 The `Shared toolchain release (Windows + Linux amd64)` GitHub Actions workflow
 builds and validates both platforms, then attaches the Windows ZIP, Linux
 tar.gz, and `SHA256SUMS` to a GitHub Release. Run it manually from the Actions
-tab and enter the tag to build (for example, `shared-toolchain-v0.1.0`). The
-workflow also publishes both packages as downloadable CI artifacts. macOS
-arm64/amd64 remains unimplemented and untested.
+tab and select a release tag matching `shared-toolchain-v*` in the “Use
+workflow from” selector. The workflow also publishes both packages as
+downloadable CI artifacts. macOS arm64/amd64 remains unimplemented and
+untested.
 
 The reusable native launcher and its Linux smoke test are in
 `src/cmd/sharedlauncher/`.

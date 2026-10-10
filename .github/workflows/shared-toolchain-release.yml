@@ -15,6 +15,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26.x'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64

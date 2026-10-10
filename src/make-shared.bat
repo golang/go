@@ -8,6 +8,8 @@ set "GOROOT=%GOROOT_SHARED%"
 set "GO_SHARED=%GOROOT_SHARED%\bin\go.exe"
 set "SHARED_SRC=%GOROOT_SHARED%\src"
 set "SHARED_LAUNCHER=%SHARED_SRC%\cmd\sharedlauncher\launcher.c"
+set "SHARED_PY_LAUNCHER=%SHARED_SRC%\cmd\sharedlauncher\python_launcher.py"
+set "SHARED_BAT_LAUNCHER=%SHARED_SRC%\cmd\sharedlauncher\windows_launcher.bat"
 set "SHARED_STAGE=%GOROOT_SHARED%\shared-stage"
 
 if not exist "%GO_SHARED%" (
@@ -73,6 +75,8 @@ if not exist "%GOROOT_SHARED%\native\%SHARED_DIR%\%SHARED_TOOL%-native.exe" (
 )
 copy /y "%SHARED_STAGE%\%SHARED_DIR%\%SHARED_TOOL%.exe" "%GOROOT_SHARED%\%SHARED_DIR%\%SHARED_TOOL%.exe" >nul || exit /b 1
 copy /y "%SHARED_STAGE%\%SHARED_DIR%\%SHARED_TOOL%.dll" "%GOROOT_SHARED%\%SHARED_DIR%\%SHARED_TOOL%.dll" >nul || exit /b 1
+copy /y "%SHARED_PY_LAUNCHER%" "%GOROOT_SHARED%\%SHARED_DIR%\%SHARED_TOOL%.py" >nul || exit /b 1
+copy /y "%SHARED_BAT_LAUNCHER%" "%GOROOT_SHARED%\%SHARED_DIR%\%SHARED_TOOL%.bat" >nul || exit /b 1
 exit /b 0
 
 :failed

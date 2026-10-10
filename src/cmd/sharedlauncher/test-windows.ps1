@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $env:GOROOT = $root
 $go = Join-Path $root 'bin\go.exe'
+$python = (Get-Command python.exe -ErrorAction Stop).Source
 $gcc = (Get-Command gcc.exe -ErrorAction Stop).Source
 
 function Invoke-Go([string[]] $Arguments) {
@@ -18,6 +19,19 @@ Invoke-Go @('tool', 'compile', '-V')
 Invoke-Go @('tool', 'asm', '-V')
 Invoke-Go @('tool', 'link', '-V')
 Invoke-Go @('build', 'std')
+
+$pythonVersion = & $python (Join-Path $root 'bin\go.py') version
+if ($LASTEXITCODE -ne 0 -or $pythonVersion -notmatch '^go version ') { throw "Python go launcher failed: $pythonVersion" }
+$batchVersion = & (Join-Path $root 'bin\go.bat') version
+if ($LASTEXITCODE -ne 0 -or $batchVersion -notmatch '^go version ') { throw "Batch go launcher failed: $batchVersion" }
+foreach ($tool in @('asm', 'cgo', 'compile', 'link', 'preprofile', 'cover', 'export', 'fix', 'vet')) {
+    $toolPython = Join-Path $root "pkg\tool\windows_amd64\$tool.py"
+    & $python $toolPython '-V' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Python FFI launcher for $tool failed with exit code $LASTEXITCODE" }
+    $toolBatch = Join-Path $root "pkg\tool\windows_amd64\$tool.bat"
+    & $toolBatch '-V' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Batch FFI launcher for $tool failed with exit code $LASTEXITCODE" }
+}
 
 $work = Join-Path $env:RUNNER_TEMP 'shared-toolchain-smoke'
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
@@ -112,6 +126,8 @@ __declspec(dllexport) int __cdecl dll_probe_main(int argc, char **argv) {
 '@ | Set-Content -Encoding ascii $probeSource
 $probeLauncher = Join-Path $probeDir 'probe.exe'
 $probeLibrary = Join-Path $probeDir 'probe.dll'
+$probePython = Join-Path $probeDir 'probe.py'
+$probeBatch = Join-Path $probeDir 'probe.bat'
 & $gcc '-municode' '-Os' '-static' '-o' $probeLauncher (Join-Path $PSScriptRoot 'launcher.c')
 if ($LASTEXITCODE -ne 0) { throw 'could not build the native launcher probe' }
 & $gcc '-shared' '-o' $probeLibrary $probeSource
@@ -122,6 +138,20 @@ if ($LASTEXITCODE -ne 23 -or $probeOutput.Trim() -ne 'launcher-probe-ok') {
 }
 # GitHub's pwsh wrapper returns the last native program's status after the
 # script completes, so clear the deliberately nonzero probe status on success.
+$global:LASTEXITCODE = 0
+
+Copy-Item (Join-Path $PSScriptRoot 'python_launcher.py') $probePython
+$pythonOutput = & $python $probePython 'argument with spaces' 'tail'
+if ($LASTEXITCODE -ne 23 -or $pythonOutput.Trim() -ne 'launcher-probe-ok') {
+    throw "Python launcher did not preserve arguments/output/exit status (exit $LASTEXITCODE, output '$pythonOutput')"
+}
+$global:LASTEXITCODE = 0
+
+Copy-Item (Join-Path $PSScriptRoot 'windows_launcher.bat') $probeBatch
+$batchOutput = & $probeBatch 'argument with spaces' 'tail'
+if ($LASTEXITCODE -ne 23 -or $batchOutput.Trim() -ne 'launcher-probe-ok') {
+    throw "Batch launcher did not preserve arguments/output/exit status (exit $LASTEXITCODE, output '$batchOutput')"
+}
 $global:LASTEXITCODE = 0
 
 Write-Host 'Windows amd64 shared-toolchain smoke tests passed.'
