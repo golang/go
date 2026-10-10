@@ -156,7 +156,7 @@ func shouldEscape(c byte, mode encoding) bool {
 		return false
 	}
 
-	if mode == encodeHost || mode == encodeZone {
+	if mode == encodeHost {
 		// §3.2.2 Host allows
 		//	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
 		// as part of reg-name.
@@ -171,6 +171,21 @@ func shouldEscape(c byte, mode encoding) bool {
 			return false
 		}
 	}
+
+	if mode == encodeZone {
+		// RFC 6874 §2 defines:
+		//   ZoneID = 1*( unreserved / pct-encoded )
+		//   unreserved = ALPHA / DIGIT / "-" / "." / "_" / "~"
+		// ALPHA and DIGIT are already handled above.
+		// All other characters — including sub-delims like "!" and
+		// gen-delims like "]" — must be percent-encoded, not raw.
+		switch c {
+		case '-', '.', '_', '~':
+			return false
+		}
+		return true
+	}
+
 
 	switch c {
 	case '-', '_', '.', '~': // §2.3 Unreserved characters (mark)
