@@ -57,21 +57,14 @@ tools should be independently validated before relying on repeated calls in a
 long-lived host. Commands retain Go's normal process behavior for operations
 that still call `os.Exit` outside the shared-entry exit path.
 
-### CI artifacts
+### Releases
 
-The `Shared toolchain (Windows amd64)` and `Shared toolchain (Linux amd64)`
-GitHub Actions workflows bootstrap Go, build the shared tools and launchers,
-and exercise CLI, compiler-subprocess, standard-library, cross-compilation,
-and direct-FFI paths. Successful runs publish downloadable Windows ZIP and
-Linux tar.gz artifacts. macOS arm64/amd64 remains unimplemented and untested.
-
-The independent `Shared toolchain release (Windows + Linux amd64)` workflow
-integrates both platform builds, validation, packaging, and GitHub Release
-publishing. Push a tag matching `shared-toolchain-v*` to run the complete
-pipeline. For example, use `shared-toolchain-v0.1.0` for the first release.
-Only after both platform jobs pass does the workflow create or update the
-release and attach the Windows ZIP, Linux tar.gz, and `SHA256SUMS`. The same
-run also publishes both packages as downloadable CI artifacts.
+The `Shared toolchain release (Windows + Linux amd64)` GitHub Actions workflow
+builds and validates both platforms, then attaches the Windows ZIP, Linux
+tar.gz, and `SHA256SUMS` to a GitHub Release. Run it manually from the Actions
+tab and enter the tag to build (for example, `shared-toolchain-v0.1.0`). The
+workflow also publishes both packages as downloadable CI artifacts. macOS
+arm64/amd64 remains unimplemented and untested.
 
 The reusable native launcher and its Linux smoke test are in
 `src/cmd/sharedlauncher/`.
