@@ -1,0 +1,12 @@
+# Regression test for https://go.dev/issue/42628.
+# 'go env' output must not change from one run to the next.
+
+go env GOGCCFLAGS
+cp stdout gccflags.txt
+go env GOGCCFLAGS
+cmp stdout gccflags.txt
+
+go env
+cp stdout env.txt
+go env
+cmp stdout env.txt
