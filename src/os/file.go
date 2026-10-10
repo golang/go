@@ -865,6 +865,7 @@ func (dir dirFS) join(name string) (string, error) {
 
 // ReadFile reads the named file and returns the contents.
 // A successful call returns err == nil, not err == EOF.
+// If there is an error, it will be of type [*PathError].
 // Because ReadFile reads the whole file, it does not treat an EOF from Read
 // as an error to be reported.
 // If there is an error, it will be of type [*PathError].
