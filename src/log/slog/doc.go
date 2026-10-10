@@ -90,6 +90,11 @@ The arguments to With are the same key-value pairs used in [Logger.Info].
 The result is a new Logger with the same handler as the original, but additional
 attributes that will appear in the output of every call.
 
+[Logger.WithAttrs] is a more efficient version of [Logger.With] that accepts only [Attr]s.
+For example,
+
+	logger2 := logger.WithAttrs(slog.String("url", r.URL))
+
 # Levels
 
 A [Level] is an integer representing the importance or severity of a log event.
@@ -265,10 +270,11 @@ and build up its Attrs by traversing the old ones with [Record.Attrs].
 If profiling your application demonstrates that logging is taking significant time,
 the following suggestions may help.
 
-If many log lines have a common attribute, use [Logger.With] to create a Logger with
-that attribute. The built-in handlers will format that attribute only once, at the
-call to [Logger.With]. The [Handler] interface is designed to allow that optimization,
-and a well-written Handler should take advantage of it.
+If many log lines have a common attribute, use [Logger.With] or [Logger.WithAttrs]
+to create a Logger with that attribute. The built-in handlers will format that
+attribute only once, at the call to With or WithAttrs. The [Handler] interface
+is designed to allow that optimization, and a well-written Handler should take
+advantage of it.
 
 The arguments to a log call are always evaluated, even if the log event is discarded.
 If possible, defer computation so that it happens only if the value is actually logged.
