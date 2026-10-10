@@ -11,6 +11,10 @@ import (
 	"os"
 )
 
+type exitStatus int
+
+func (s exitStatus) SharedExitCode() int { return int(s) }
+
 // Exit exits a native tool process or unwinds a shared-tool invocation.
 func Exit(code int) {
 	if enabled {
