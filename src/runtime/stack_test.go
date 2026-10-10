@@ -76,6 +76,16 @@ func TestStackMem(t *testing.T) {
 	}
 }
 
+func TestAdjustSudogs(t *testing.T) {
+	semaHead, semaTail, chanHead, chanTail := AdjustSudogsForTest()
+	if !semaHead || semaTail {
+		t.Errorf("adjusted semaphore sudogs: head=%t tail=%t, want true false", semaHead, semaTail)
+	}
+	if !chanHead || !chanTail {
+		t.Errorf("adjusted channel sudogs: head=%t tail=%t, want true true", chanHead, chanTail)
+	}
+}
+
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
 	if *flagQuick {
