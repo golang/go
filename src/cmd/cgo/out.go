@@ -14,6 +14,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"go/version"
 	"internal/xcoff"
 	"io"
 	"os"
@@ -138,9 +139,12 @@ func (p *Package) writeDefs() {
 		// Moreover, empty file name makes compile emit no source debug info at all.
 		var buf bytes.Buffer
 		noSourceConf.Fprint(&buf, fset, def.Go)
-		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) ||
-			strings.HasPrefix(name, "_Ctype_enum_") ||
-			strings.HasPrefix(name, "_Ctype_union_") {
+		// Type aliases were introduced in Go 1.9. For earlier language
+		// versions, use defined types as cgo did before aliases existed.
+		if (*lang == "" || version.Compare(*lang, "go1.9") >= 0) &&
+			(bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) ||
+				strings.HasPrefix(name, "_Ctype_enum_") ||
+				strings.HasPrefix(name, "_Ctype_union_")) {
 			// This typedef is of the form `typedef a b` and should be an alias.
 			fmt.Fprintf(fgo2, "= ")
 		}

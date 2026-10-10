@@ -1321,6 +1321,7 @@ func (b *Builder) cgoRunActionID(a *Action) cache.ActionID {
 	// for the same import path. The hash name argument of NewHash
 	// is debug-only, so the import path must also be written here.
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+	fmt.Fprintf(h, "lang %s\n", gover.Lang(effectiveGoVersion(p)))
 
 	// Add p.Dir, which is needed because cgo embeds absolute
 	// source paths in //line directives of its generated files.
@@ -3538,6 +3539,7 @@ func (b *Builder) runCgo(_ context.Context, a *Action) error {
 	// TODO: make cgo not depend on $GOARCH?
 
 	cgoflags := []string{}
+	cgoflags = append(cgoflags, "-lang=go"+gover.Lang(effectiveGoVersion(p)))
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
 	}
