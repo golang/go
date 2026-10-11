@@ -287,6 +287,33 @@ package archsimd
 `
 }
 
+func (x simdType) CPUFeature() string {
+	switch {
+	case CurrentArch().isSVE():
+		return "SVE"
+	case CurrentArch().Arch == "amd64":
+		switch x.Size() {
+		case 128:
+			return "AVX"
+		case 256:
+			switch x.Shape.Elem.Base {
+			case "float", "mask":
+				return "AVX"
+			case "int", "uint":
+				return "AVX2"
+			default:
+				panic(fmt.Errorf("unexpected element base %q", x.Shape.Elem.Base))
+			}
+		case 512:
+			return "AVX512"
+		default:
+			panic(fmt.Errorf("unexpected amd64 vector size %d", x.Size()))
+		}
+	default:
+		return ""
+	}
+}
+
 const simdTypesTemplates = `
 {{define "sizeTmpl"}}
 // v{{.}} is a tag type that tells the compiler that this is really {{.}}-bit SIMD
@@ -300,6 +327,10 @@ type v{{.}} struct {
 // {{.Name}} is a mask for a SIMD vector of {{.Lanes}} {{.ElemBits}}-bit elements.
 {{- else}}
 // {{.Name}} is a {{.Size}}-bit SIMD vector of {{.Lanes}} {{.Base}}s.
+{{- end}}
+{{- if .CPUFeature}}
+//
+// CPU Feature: {{.CPUFeature}}
 {{- end}}
 type {{.Name}} struct {
 {{.Fields}}
@@ -320,6 +351,10 @@ type {{.Name}} struct {
 // *(*uint64)(unsafe.Pointer(&m)).
 {{- else}}
 // {{.Name}} is a scalable SIMD vector of {{.Base}}s.
+{{- end}}
+{{- if .CPUFeature}}
+//
+// CPU Feature: {{.CPUFeature}}
 {{- end}}
 type {{.Name}} struct {
 {{.Fields}}
