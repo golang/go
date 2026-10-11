@@ -150,7 +150,7 @@ type traceSchedResourceState struct {
 	// There are 3 of these because when transitioning across generations, traceAdvance
 	// needs to be able to reliably observe whether a status was traced for the previous
 	// generation, while we need to clear the value for the next generation.
-	statusTraced [3]atomic.Uint32
+	statusTraced [3]atomic.Uint8
 
 	// seq is the sequence counter for this scheduling resource's events.
 	// The purpose of the sequence counter is to establish a partial order between
@@ -169,7 +169,7 @@ type traceSchedResourceState struct {
 //
 //go:nosplit
 func (r *traceSchedResourceState) acquireStatus(gen uintptr) bool {
-	if !r.statusTraced[gen%3].CompareAndSwap(0, 1) {
+	if r.statusTraced[gen%3].Swap(1) != 0 {
 		return false
 	}
 	r.readyNextGen(gen)

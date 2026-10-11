@@ -131,6 +131,14 @@ func (u *Uint8) Store(value uint8) {
 	Store8(&u.value, value)
 }
 
+// Swap replaces u's value with new, returning
+// u's value before the replacement.
+//
+//go:nosplit
+func (u *Uint8) Swap(value uint8) uint8 {
+	return Xchg8(&u.value, value)
+}
+
 // And takes value and performs a bit-wise
 // "and" operation with the value of u, storing
 // the result into u.
