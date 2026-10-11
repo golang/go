@@ -814,6 +814,12 @@ func (check *Checker) declStmt(d ast.Decl) {
 
 				check.constDecl(obj, d.typ, init, d.inherited)
 			}
+			if !d.inherited && len(d.init) > len(d.spec.Names) {
+				prev := check.iota
+				check.iota = constant.MakeInt64(int64(d.iota))
+				check.use(d.init[len(d.spec.Names):]...)
+				check.iota = prev
+			}
 
 			// process function literals in init expressions before scope changes
 			check.processDelayed(top)
@@ -866,6 +872,9 @@ func (check *Checker) declStmt(d ast.Decl) {
 					}
 					break
 				}
+			}
+			if len(d.spec.Values) > len(d.spec.Names) {
+				check.use(d.spec.Values[len(d.spec.Names):]...)
 			}
 
 			// process function literals in init expressions before scope changes

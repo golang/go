@@ -173,6 +173,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *ast.CompositeLit) {
 				kv, _ := e.(*ast.KeyValueExpr)
 				if kv == nil {
 					check.error(e, MixedStructLit, "mixture of field:value and value elements in struct literal")
+					check.use(e)
 					continue
 				}
 				key, _ := kv.Key.(*ast.Ident)
@@ -224,6 +225,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *ast.CompositeLit) {
 			for i, e := range e.Elts {
 				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
 					check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
+					check.use(kv.Value)
 					continue
 				}
 				if i >= len(fields) {
@@ -288,6 +290,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *ast.CompositeLit) {
 			kv, _ := e.(*ast.KeyValueExpr)
 			if kv == nil {
 				check.error(e, MissingLitKey, "missing key in map literal")
+				check.use(e)
 				continue
 			}
 			check.genericExpr(newHint(utyp.key, "map key"), x, kv.Key)

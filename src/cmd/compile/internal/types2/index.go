@@ -277,6 +277,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	// However, if x.typ is a pointer to an array type, slicing implicitly dereferences the value, meaning
 	// its base type must also be complete.
 	if p, ok := x.typ().Underlying().(*Pointer); ok && !check.isComplete(p.base) {
+		check.use(e.Index[:]...)
 		x.invalidate()
 		return
 	}
@@ -286,6 +287,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	switch u := cu.(type) {
 	case nil:
 		// error reported above
+		check.use(e.Index[:]...)
 		x.invalidate()
 		return
 
@@ -297,6 +299,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 					at = e // e.Index[2] should be present but be careful
 				}
 				check.error(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
+				check.use(e.Index[:]...)
 				x.invalidate()
 				return
 			}
@@ -316,6 +319,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		length = u.len
 		if x.mode() != variable {
 			check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
+			check.use(e.Index[:]...)
 			x.invalidate()
 			return
 		}
@@ -335,6 +339,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 
 	if !valid {
 		check.errorf(x, NonSliceableOperand, "cannot slice %s", x)
+		check.use(e.Index[:]...)
 		x.invalidate()
 		return
 	}
@@ -344,6 +349,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	// spec: "Only the first index may be omitted; it defaults to 0."
 	if e.Full && (e.Index[1] == nil || e.Index[2] == nil) {
 		check.error(e, InvalidSyntaxTree, "2nd and 3rd index required in 3-index slice")
+		check.use(e.Index[:]...)
 		x.invalidate()
 		return
 	}
@@ -408,6 +414,7 @@ func (check *Checker) singleIndex(e *syntax.IndexExpr) syntax.Expr {
 		}
 		// len(l.ElemList) > 1
 		check.error(l.ElemList[1], InvalidIndex, invalidOp+"more than one index")
+		check.use(l.ElemList[1:]...)
 		index = l.ElemList[0] // continue with first index
 	}
 	return index

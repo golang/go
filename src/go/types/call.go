@@ -197,12 +197,15 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		// conversion
 		check.nonGeneric(nil, x)
 		if !x.isValid() {
+			check.use(call.Args...)
+			x.expr = call
 			return conversion
 		}
 		T := x.typ()
 		x.invalidate()
 		// We cannot convert a value to an incomplete type; make sure it's complete.
 		if !check.isComplete(T) {
+			check.use(call.Args...)
 			x.expr = call
 			return conversion
 		}
@@ -267,6 +270,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	})
 	if err != nil {
 		check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
+		check.use(call.Args...)
 		x.invalidate()
 		x.expr = call
 		return statement
@@ -1053,7 +1057,9 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 				}
 			}
 		}
-		check.exprOrType(&x, n, true)
+		// Evaluate e rather than n so that any enclosing ParenExprs
+		// are also recorded in Info.Types.
+		check.exprOrType(&x, e, true)
 		if v != nil {
 			check.usedVars[v] = v_used // restore v.used
 		}

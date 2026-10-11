@@ -347,6 +347,27 @@ func TestTypesInfo(t *testing.T) {
 		{broken + `x7; func _() { _ = undef[0] }`, `undef[0]`, `invalid type`},
 		{broken + `x8; type S struct{}; func _(x S) { _ = x.nofield[0] }`, `x.nofield`, `invalid type`},
 		{broken + `x9; func _(x int) { _ = x.f[1:2] }`, `x.f`, `invalid type`},
+		{broken + `x10; func _(u uint) { var _ float64 = 3 << u }`, `3`, `invalid type`},
+		{broken + `x11; func _(u uint) { var _ int8 = 1000 << u }`, `1000`, `invalid type`},
+		{broken + `x12; func _(x int) { undef((x)) }`, `(x)`, `int`},
+		{broken + `x13; func _() { for x := 0; ; { for x = range undef {} } }`, `x`, `int`},
+		{broken + `x14; type S struct{ f int }; func _(x int) { _ = S{f: 1, x} }`, `x`, `int`},
+		{broken + `x15; type S struct{ f int }; func _(x int) { _ = S{1, f: x} }`, `x`, `int`},
+		{broken + `x16; func _(x int) { _ = map[string]int{x} }`, `x`, `int`},
+		{broken + `x17; func _(x int) { var _ = 1, x }`, `x`, `int`},
+		{broken + `x18; func _(x int) { const _ = 1, x }`, `x`, `int`},
+		{broken + `x19; func _(x, y int) { x, y += 1, 2 }`, `x`, `int`},
+		{broken + `x20; type G[P any] int; func _(x int) { _ = G(x) }`, `x`, `int`},
+		{broken + `x21; func _(x int) { _ = new(int, x) }`, `x`, `int`},
+		{broken + `x22; func _(x int) { _ = make(int, x) }`, `x`, `int`},
+		{broken + `x23; func _(x int) { _ = make([]int, 1, 2, x) }`, `x`, `int`},
+		{broken + `x24; func _(s []int, x int) { _ = s[0, x] }`, `x`, `int`},
+		{broken + `x25; type S struct{ f int }; func _(x S, y any) { switch x.f := y.(type) {} }`, `x.f`, `int`},
+		{broken + `x26; func _(f, x int) { f(x) }`, `x`, `int`},
+		{broken + `x27; type S struct{ f int }; func _(x S) { for x.f := range 1 {} }`, `x.f`, `int`},
+		{broken + `x28; func _(x, y int) { _ = x[y:] }`, `y`, `int`},
+		{broken + `x29; func _(x int) { _ = x.(int) }`, `int`, `int`},
+		{broken + `x30; func _() { const _ = 1, iota }`, `iota`, `untyped int`},
 
 		// parameterized functions
 		{`package p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T any](T)`},
@@ -3327,16 +3348,43 @@ func TestTypeOf(t *testing.T) {
 	const src = `package p
 
 type S struct{ f int }
+type G[P any] int
 
 func _() {
 	var s S
 	var i int
+	var u uint
+	var sl []int
 	_ = undef
 	_ = undef[0]
 	_ = s.nofield
 	_ = s.nofield[0]
 	_ = i.f[1:2]
 	_ = 1 + "a"
+	var _ float64 = 3 << u
+	var _ int8 = 1000 << u
+	undef((s))
+	for s.f = range undef {
+	}
+	var _ = 1, undef2
+	const _ = 1, undef3
+	_ = map[string]int{undef4}
+	_ = G(undef5)
+	_ = new(int, undef6)
+	_ = make(int, undef7)
+	_ = make([]int, 1, 2, undef8)
+	_ = sl[0, undef9]
+	s.f, i += 1, undef10
+	switch s.f := any(nil).(type) {
+	default:
+		_ = undef11
+	}
+	i(undef12)
+	for s.f := range 1 {
+	}
+	_ = i[undef13:undef14]
+	_ = i.(int)
+	_ = undef15.(int)
 }
 `
 	f := mustParse(testFSet, src)
@@ -3349,19 +3397,49 @@ func _() {
 	conf.Check("p", testFSet, []*ast.File{f}, info)
 
 	wantInvalid := map[string]bool{
-		`undef`:        true,
-		`undef[0]`:     true,
-		`s.nofield`:    true,
-		`s.nofield[0]`: true,
-		`i.f`:          true,
-		`i.f[1:2]`:     true,
-		`1 + "a"`:      true,
+		`undef`:                     true,
+		`undef[0]`:                  true,
+		`s.nofield`:                 true,
+		`s.nofield[0]`:              true,
+		`i.f`:                       true,
+		`i.f[1:2]`:                  true,
+		`1 + "a"`:                   true,
+		`3`:                         true,
+		`1000`:                      true,
+		`undef((s))`:                true,
+		`undef2`:                    true,
+		`undef3`:                    true,
+		`undef4`:                    true,
+		`G(undef5)`:                 true,
+		`undef5`:                    true,
+		`new(int, undef6)`:          true,
+		`undef6`:                    true,
+		`make(int, undef7)`:         true,
+		`undef7`:                    true,
+		`make([]int, 1, 2, undef8)`: true,
+		`undef8`:                    true,
+		`undef9`:                    true,
+		`undef10`:                   true,
+		`undef11`:                   true,
+		`i(undef12)`:                true,
+		`undef12`:                   true,
+		`i[undef13:undef14]`:        true,
+		`undef13`:                   true,
+		`undef14`:                   true,
+		`i.(int)`:                   true,
+		`undef15.(int)`:             true,
+		`undef15`:                   true,
 	}
 
-	body := f.Decls[1].(*ast.FuncDecl).Body
-	ast.Inspect(body, func(n ast.Node) bool {
+	body := f.Decls[2].(*ast.FuncDecl).Body
+	var inspect func(ast.Node) bool
+	inspect = func(n ast.Node) bool {
 		if e, ok := n.(ast.Expr); ok {
 			if id, ok := e.(*ast.Ident); ok && id.Name == "_" {
+				return false
+			}
+			if ta, ok := e.(*ast.TypeAssertExpr); ok && ta.Type == nil {
+				ast.Inspect(ta.X, inspect)
 				return false
 			}
 			typ := info.TypeOf(e)
@@ -3373,13 +3451,15 @@ func _() {
 				}
 				delete(wantInvalid, expr)
 			}
-			if _, ok := e.(*ast.SelectorExpr); ok {
-				// Don't visit sel.Sel, which has no type for invalid selectors.
+			if sel, ok := e.(*ast.SelectorExpr); ok {
+				// Visit sel.X, but not sel.Sel, which has no type for invalid selectors.
+				ast.Inspect(sel.X, inspect)
 				return false
 			}
 		}
 		return true
-	})
+	}
+	ast.Inspect(body, inspect)
 	for expr := range wantInvalid {
 		t.Errorf("expression %s not visited", expr)
 	}

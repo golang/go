@@ -571,6 +571,7 @@ func (check *Checker) _Make(z *operand, call *ast.CallExpr) {
 	arg0 := argList[0]
 	T := check.varType(arg0)
 	if !isValid(T) {
+		check.use(argList[1:]...)
 		return
 	}
 
@@ -586,6 +587,7 @@ func (check *Checker) _Make(z *operand, call *ast.CallExpr) {
 	})
 	if err != nil {
 		check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: %s", arg0, err.format(check))
+		check.use(argList[1:]...)
 		return
 	}
 
@@ -601,6 +603,7 @@ func (check *Checker) _Make(z *operand, call *ast.CallExpr) {
 	}
 	if nargs < min || min+1 < nargs {
 		check.errorf(call, WrongArgCount, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+		check.use(argList[1:]...)
 		return
 	}
 
@@ -713,6 +716,7 @@ func (check *Checker) _Min(z *operand, call *ast.CallExpr) {
 // new(expr)
 func (check *Checker) _New(z *operand, call *ast.CallExpr) {
 	if !check.argCount(call, len(call.Args), 1, false) {
+		check.use(call.Args...)
 		return
 	}
 
@@ -888,6 +892,7 @@ func (check *Checker) _Alignof(z *operand, call *ast.CallExpr) {
 // unsafe.Offsetof(x T) uintptr, where x must be a selector
 func (check *Checker) _Offsetof(z *operand, call *ast.CallExpr) {
 	if !check.argCount(call, len(call.Args), 1, false) {
+		check.use(call.Args...)
 		return
 	}
 
@@ -1189,6 +1194,9 @@ func (check *Checker) arg1(call *ast.CallExpr, n int, variadic bool) (x *operand
 		// args == nil in this case
 	}
 	if !check.argCount(call, nargs, n, variadic) {
+		if len(argList) > 1 {
+			check.use(argList[1:]...)
+		}
 		return nil, nil, 0
 	}
 	return x, args, nargs

@@ -758,6 +758,12 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 
 			// Constants must always have init values.
 			check.arity(s.Pos(), s.NameList, values, true, inherited)
+			if !inherited && len(values) > len(s.NameList) {
+				prev := check.iota
+				check.iota = iota
+				check.use(values[len(s.NameList):]...)
+				check.iota = prev
+			}
 
 			// process function literals in init expressions before scope changes
 			check.processDelayed(top)
@@ -816,6 +822,9 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			// If we have no type, we must have values.
 			if s.Type == nil || values != nil {
 				check.arity(s.Pos(), s.NameList, values, false, false)
+			}
+			if len(values) > len(s.NameList) {
+				check.use(values[len(s.NameList):]...)
 			}
 
 			// process function literals in init expressions before scope changes

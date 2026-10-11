@@ -528,11 +528,15 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			// assignment operations
 			if len(s.Lhs) != 1 || len(s.Rhs) != 1 {
 				check.errorf(inNode(s, s.TokPos), MultiValAssignOp, "assignment operation %s requires single-valued expressions", s.Tok)
+				check.useLHS(s.Lhs...)
+				check.use(s.Rhs...)
 				return
 			}
 			op := assignOp(s.Tok)
 			if op == token.ILLEGAL {
 				check.errorf(atPos(s.TokPos), InvalidSyntaxTree, "unknown assignment operation %s", s.Tok)
+				check.useLHS(s.Lhs...)
+				check.use(s.Rhs...)
 				return
 			}
 			var x operand
@@ -702,16 +706,16 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		case *ast.AssignStmt:
 			if len(guard.Lhs) != 1 || guard.Tok != token.DEFINE || len(guard.Rhs) != 1 {
 				check.error(s, InvalidSyntaxTree, "incorrect form of type switch guard")
+				check.useLHS(guard.Lhs...)
 				return
 			}
 
 			lhs, _ = guard.Lhs[0].(*ast.Ident)
 			if lhs == nil {
 				check.error(s, InvalidSyntaxTree, "incorrect form of type switch guard")
-				return
-			}
-
-			if lhs.Name == "_" {
+				check.useLHS(guard.Lhs[0])
+				// continue with lhs == nil so rhs and s.Body are still checked
+			} else if lhs.Name == "_" {
 				// _ := x.(type) is an invalid short variable declaration
 				check.softErrorf(lhs, NoNewVar, "no new variable on left side of :=")
 				lhs = nil // avoid declared and not used error below

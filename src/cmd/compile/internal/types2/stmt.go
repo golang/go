@@ -511,6 +511,8 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		// assignment operations
 		if len(lhs) != 1 || len(rhs) != 1 {
 			check.errorf(s, MultiValAssignOp, "assignment operation %s requires single-valued expressions", s.Op)
+			check.useLHS(lhs...)
+			check.use(rhs...)
 			return
 		}
 

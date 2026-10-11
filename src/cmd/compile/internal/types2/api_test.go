@@ -339,6 +339,25 @@ func TestTypesInfo(t *testing.T) {
 		{broken + `x7; func _() { _ = undef[0] }`, `undef[0]`, `invalid type`},
 		{broken + `x8; type S struct{}; func _(x S) { _ = x.nofield[0] }`, `x.nofield`, `invalid type`},
 		{broken + `x9; func _(x int) { _ = x.f[1:2] }`, `x.f`, `invalid type`},
+		{broken + `x10; func _(u uint) { var _ float64 = 3 << u }`, `3`, `invalid type`},
+		{broken + `x11; func _(u uint) { var _ int8 = 1000 << u }`, `1000`, `invalid type`},
+		{broken + `x12; func _(x int) { undef((x)) }`, `(x)`, `int`},
+		{broken + `x13; func _() { for x := 0; ; { for x = range undef {} } }`, `x`, `int`},
+		{broken + `x14; type S struct{ f int }; func _(x int) { _ = S{f: 1, x} }`, `x`, `int`},
+		{broken + `x15; type S struct{ f int }; func _(x int) { _ = S{1, f: x} }`, `x`, `int`},
+		{broken + `x16; func _(x int) { _ = map[string]int{x} }`, `x`, `int`},
+		{broken + `x17; func _(x int) { var _ = 1, x }`, `x`, `int`},
+		{broken + `x18; func _(x int) { const _ = 1, x }`, `x`, `int`},
+		{broken + `x19; type G[P any] int; func _(x int) { _ = G(x) }`, `x`, `int`},
+		{broken + `x20; func _(x int) { _ = new(int, x) }`, `x`, `int`},
+		{broken + `x21; func _(x int) { _ = make(int, x) }`, `x`, `int`},
+		{broken + `x22; func _(x int) { _ = make([]int, 1, 2, x) }`, `x`, `int`},
+		{broken + `x23; func _(s []int, x int) { _ = s[0, x] }`, `x`, `int`},
+		{broken + `x24; func _(f, x int) { f(x) }`, `x`, `int`},
+		{broken + `x25; type S struct{ f int }; func _(x S) { for x.f := range 1 {} }`, `x.f`, `int`},
+		{broken + `x26; func _(x, y int) { _ = x[y:] }`, `y`, `int`},
+		{broken + `x27; func _(x int) { _ = x.(int) }`, `int`, `int`},
+		{broken + `x28; func _() { const _ = 1, iota }`, `iota`, `untyped int`},
 
 		// parameterized functions
 		{`package p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T any](T)`},
@@ -3308,16 +3327,38 @@ func TestTypeOf(t *testing.T) {
 	const src = `package p
 
 type S struct{ f int }
+type G[P any] int
 
 func _() {
 	var s S
 	var i int
+	var u uint
+	var sl []int
 	_ = undef
 	_ = undef[0]
 	_ = s.nofield
 	_ = s.nofield[0]
 	_ = i.f[1:2]
 	_ = 1 + "a"
+	var _ float64 = 3 << u
+	var _ int8 = 1000 << u
+	undef((s))
+	for s.f = range undef {
+	}
+	var _ = 1, undef2
+	const _ = 1, undef3
+	_ = map[string]int{undef4}
+	_ = G(undef5)
+	_ = new(int, undef6)
+	_ = make(int, undef7)
+	_ = make([]int, 1, 2, undef8)
+	_ = sl[0, undef9]
+	i(undef10)
+	for s.f := range 1 {
+	}
+	_ = i[undef11:undef12]
+	_ = i.(int)
+	_ = undef13.(int)
 }
 `
 	for _, storeInSyntax := range []bool{false, true} {
@@ -3334,18 +3375,45 @@ func _() {
 		conf.Check("p", []*syntax.File{f}, info)
 
 		wantInvalid := map[string]bool{
-			`undef`:        true,
-			`undef[0]`:     true,
-			`s.nofield`:    true,
-			`s.nofield[0]`: true,
-			`i.f`:          true,
-			`i.f[1:2]`:     true,
-			`1 + "a"`:      true,
+			`undef`:                     true,
+			`undef[0]`:                  true,
+			`s.nofield`:                 true,
+			`s.nofield[0]`:              true,
+			`i.f`:                       true,
+			`i.f[1:2]`:                  true,
+			`1 + "a"`:                   true,
+			`3`:                         true,
+			`1000`:                      true,
+			`undef((s))`:                true,
+			`undef2`:                    true,
+			`undef3`:                    true,
+			`undef4`:                    true,
+			`G(undef5)`:                 true,
+			`undef5`:                    true,
+			`new(int, undef6)`:          true,
+			`undef6`:                    true,
+			`make(int, undef7)`:         true,
+			`undef7`:                    true,
+			`make([]int, 1, 2, undef8)`: true,
+			`undef8`:                    true,
+			`undef9`:                    true,
+			`i(undef10)`:                true,
+			`undef10`:                   true,
+			`i[undef11:undef12]`:        true,
+			`undef11`:                   true,
+			`undef12`:                   true,
+			`i.(int)`:                   true,
+			`undef13.(int)`:             true,
+			`undef13`:                   true,
 		}
 
-		body := f.DeclList[1].(*syntax.FuncDecl).Body
-		syntax.Inspect(body, func(n syntax.Node) bool {
+		body := f.DeclList[2].(*syntax.FuncDecl).Body
+		var inspect func(syntax.Node) bool
+		inspect = func(n syntax.Node) bool {
 			if e, ok := n.(syntax.Expr); ok {
+				if _, ok := e.(*syntax.ListExpr); ok {
+					return true
+				}
 				if id, ok := e.(*syntax.Name); ok && id.Value == "_" {
 					return false
 				}
@@ -3358,13 +3426,15 @@ func _() {
 					}
 					delete(wantInvalid, expr)
 				}
-				if _, ok := e.(*syntax.SelectorExpr); ok {
-					// Don't visit sel.Sel, which has no type for invalid selectors.
+				if sel, ok := e.(*syntax.SelectorExpr); ok {
+					// Visit sel.X, but not sel.Sel, which has no type for invalid selectors.
+					syntax.Inspect(sel.X, inspect)
 					return false
 				}
 			}
 			return true
-		})
+		}
+		syntax.Inspect(body, inspect)
 		for expr := range wantInvalid {
 			t.Errorf("storeInSyntax=%v: expression %s not visited", storeInSyntax, expr)
 		}

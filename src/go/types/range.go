@@ -124,6 +124,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *ast.RangeStmt, noN
 				}
 			} else {
 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
+				check.useLHS(lhs)
 				obj = newVar(LocalVar, lhs.Pos(), check.pkg, "_", nil) // dummy variable
 			}
 			assert(obj.typ == nil)
@@ -169,6 +170,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *ast.RangeStmt, noN
 			// assign to lhs iteration variable, if any
 			typ := rhs[i]
 			if typ == nil || typ == Typ[Invalid] {
+				check.useLHS(lhs)
 				continue
 			}
 

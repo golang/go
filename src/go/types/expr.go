@@ -352,6 +352,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		// as an integer if it is a constant.
 		if !allInteger(typ) {
 			check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
+			check.recordTypeAndValue(x, invalid, Typ[Invalid], nil)
 			return
 		}
 		// Even if we have an integer, if the value is a constant we
@@ -371,6 +372,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		c := operand{old.mode, x, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)
 		if !c.isValid() {
+			check.recordTypeAndValue(x, invalid, Typ[Invalid], nil)
 			return
 		}
 	}
@@ -1108,6 +1110,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr) exprKind {
 	case *ast.TypeAssertExpr:
 		check.expr(nil, x, e.X)
 		if !x.isValid() {
+			check.use(e.Type)
 			goto Error
 		}
 		// x.(type) expressions are handled explicitly in type switches
@@ -1119,10 +1122,12 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr) exprKind {
 		}
 		if isTypeParam(x.typ()) {
 			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
+			check.use(e.Type)
 			goto Error
 		}
 		if _, ok := x.typ().Underlying().(*Interface); !ok {
 			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
+			check.use(e.Type)
 			goto Error
 		}
 		T := check.varType(e.Type)

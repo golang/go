@@ -279,6 +279,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	// However, if x.typ is a pointer to an array type, slicing implicitly dereferences the value, meaning
 	// its base type must also be complete.
 	if p, ok := x.typ().Underlying().(*Pointer); ok && !check.isComplete(p.base) {
+		check.use(e.Low, e.High, e.Max)
 		x.invalidate()
 		return
 	}
@@ -288,6 +289,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	switch u := cu.(type) {
 	case nil:
 		// error reported above
+		check.use(e.Low, e.High, e.Max)
 		x.invalidate()
 		return
 
@@ -299,6 +301,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 					at = e // e.Index[2] should be present but be careful
 				}
 				check.error(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
+				check.use(e.Low, e.High, e.Max)
 				x.invalidate()
 				return
 			}
@@ -318,6 +321,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		length = u.len
 		if x.mode() != variable {
 			check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
+			check.use(e.Low, e.High, e.Max)
 			x.invalidate()
 			return
 		}
@@ -337,6 +341,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	if !valid {
 		check.errorf(x, NonSliceableOperand, "cannot slice %s", x)
+		check.use(e.Low, e.High, e.Max)
 		x.invalidate()
 		return
 	}
@@ -346,6 +351,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	// spec: "Only the first index may be omitted; it defaults to 0."
 	if e.Slice3 && (e.High == nil || e.Max == nil) {
 		check.error(inNode(e, e.Rbrack), InvalidSyntaxTree, "2nd and 3rd index required in 3-index slice")
+		check.use(e.Low, e.High, e.Max)
 		x.invalidate()
 		return
 	}
@@ -406,6 +412,7 @@ func (check *Checker) singleIndex(expr *indexedExpr) ast.Expr {
 	if len(expr.indices) > 1 {
 		// TODO(rFindley) should this get a distinct error code?
 		check.error(expr.indices[1], InvalidIndex, invalidOp+"more than one index")
+		check.use(expr.indices[1:]...)
 	}
 	return expr.indices[0]
 }
