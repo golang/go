@@ -344,13 +344,39 @@ func Mul[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	})
 }
 
-// MulAdd returns x * y + z elementwise.
+// MulAddInts returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
-func MulAdd[E Elt, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
+//
+//specgen:name MulAdd
+func MulAddInts[E Ints | Uints, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
 	w = makeVec[E, W]()
 	for i := range x {
 		w[i] = x[i]*y[i] + z[i]
+	}
+	return w
+}
+
+// MulAddFloats returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+//
+//specgen:name MulAdd
+func MulAddFloats[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
+	// Go has the option of compiling x*y + z using FMA, but only does so if FMA
+	// support is guaranteed by the hardware version (e.g., GOAMD64>=3). To
+	// guarantee the right result, we have to do it ourself.
+	w = makeVec[E, W]()
+	for i := range x {
+		switch xi := any(x[i]).(type) {
+		case float32:
+			w[i] = E(fma32(xi, float32(y[i]), float32(z[i])))
+		case float64:
+			w[i] = E(math.FMA(xi, float64(y[i]), float64(z[i])))
+		}
 	}
 	return w
 }

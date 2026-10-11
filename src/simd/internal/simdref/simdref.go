@@ -16139,281 +16139,305 @@ func (x Uint64s) Mul(y Uint64s) (z Uint64s) {
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
-func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
-	return Float32x4{spec.MulAdd[float32, spec.Width128](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8) {
-	return Float32x8{spec.MulAdd[float32, spec.Width256](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16) {
-	return Float32x16{spec.MulAdd[float32, spec.Width512](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
-	return Float32s{spec.MulAdd[float32, spec.WidthScalable](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
-	return Float64x2{spec.MulAdd[float64, spec.Width128](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4) {
-	return Float64x4{spec.MulAdd[float64, spec.Width256](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8) {
-	return Float64x8{spec.MulAdd[float64, spec.Width512](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
-	return Float64s{spec.MulAdd[float64, spec.WidthScalable](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
 func (x Int8x16) MulAdd(y Int8x16, z Int8x16) (w Int8x16) {
-	return Int8x16{spec.MulAdd[int8, spec.Width128](x.v, y.v, z.v)}
+	return Int8x16{spec.MulAddInts[int8, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int8x32) MulAdd(y Int8x32, z Int8x32) (w Int8x32) {
-	return Int8x32{spec.MulAdd[int8, spec.Width256](x.v, y.v, z.v)}
+	return Int8x32{spec.MulAddInts[int8, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int8x64) MulAdd(y Int8x64, z Int8x64) (w Int8x64) {
-	return Int8x64{spec.MulAdd[int8, spec.Width512](x.v, y.v, z.v)}
+	return Int8x64{spec.MulAddInts[int8, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int8s) MulAdd(y Int8s, z Int8s) (w Int8s) {
-	return Int8s{spec.MulAdd[int8, spec.WidthScalable](x.v, y.v, z.v)}
+	return Int8s{spec.MulAddInts[int8, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int16x8) MulAdd(y Int16x8, z Int16x8) (w Int16x8) {
-	return Int16x8{spec.MulAdd[int16, spec.Width128](x.v, y.v, z.v)}
+	return Int16x8{spec.MulAddInts[int16, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int16x16) MulAdd(y Int16x16, z Int16x16) (w Int16x16) {
-	return Int16x16{spec.MulAdd[int16, spec.Width256](x.v, y.v, z.v)}
+	return Int16x16{spec.MulAddInts[int16, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int16x32) MulAdd(y Int16x32, z Int16x32) (w Int16x32) {
-	return Int16x32{spec.MulAdd[int16, spec.Width512](x.v, y.v, z.v)}
+	return Int16x32{spec.MulAddInts[int16, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int16s) MulAdd(y Int16s, z Int16s) (w Int16s) {
-	return Int16s{spec.MulAdd[int16, spec.WidthScalable](x.v, y.v, z.v)}
+	return Int16s{spec.MulAddInts[int16, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int32x4) MulAdd(y Int32x4, z Int32x4) (w Int32x4) {
-	return Int32x4{spec.MulAdd[int32, spec.Width128](x.v, y.v, z.v)}
+	return Int32x4{spec.MulAddInts[int32, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int32x8) MulAdd(y Int32x8, z Int32x8) (w Int32x8) {
-	return Int32x8{spec.MulAdd[int32, spec.Width256](x.v, y.v, z.v)}
+	return Int32x8{spec.MulAddInts[int32, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int32x16) MulAdd(y Int32x16, z Int32x16) (w Int32x16) {
-	return Int32x16{spec.MulAdd[int32, spec.Width512](x.v, y.v, z.v)}
+	return Int32x16{spec.MulAddInts[int32, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int32s) MulAdd(y Int32s, z Int32s) (w Int32s) {
-	return Int32s{spec.MulAdd[int32, spec.WidthScalable](x.v, y.v, z.v)}
+	return Int32s{spec.MulAddInts[int32, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int64x2) MulAdd(y Int64x2, z Int64x2) (w Int64x2) {
-	return Int64x2{spec.MulAdd[int64, spec.Width128](x.v, y.v, z.v)}
+	return Int64x2{spec.MulAddInts[int64, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int64x4) MulAdd(y Int64x4, z Int64x4) (w Int64x4) {
-	return Int64x4{spec.MulAdd[int64, spec.Width256](x.v, y.v, z.v)}
+	return Int64x4{spec.MulAddInts[int64, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int64x8) MulAdd(y Int64x8, z Int64x8) (w Int64x8) {
-	return Int64x8{spec.MulAdd[int64, spec.Width512](x.v, y.v, z.v)}
+	return Int64x8{spec.MulAddInts[int64, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int64s) MulAdd(y Int64s, z Int64s) (w Int64s) {
-	return Int64s{spec.MulAdd[int64, spec.WidthScalable](x.v, y.v, z.v)}
+	return Int64s{spec.MulAddInts[int64, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint8x16) MulAdd(y Uint8x16, z Uint8x16) (w Uint8x16) {
-	return Uint8x16{spec.MulAdd[uint8, spec.Width128](x.v, y.v, z.v)}
+	return Uint8x16{spec.MulAddInts[uint8, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint8x32) MulAdd(y Uint8x32, z Uint8x32) (w Uint8x32) {
-	return Uint8x32{spec.MulAdd[uint8, spec.Width256](x.v, y.v, z.v)}
+	return Uint8x32{spec.MulAddInts[uint8, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint8x64) MulAdd(y Uint8x64, z Uint8x64) (w Uint8x64) {
-	return Uint8x64{spec.MulAdd[uint8, spec.Width512](x.v, y.v, z.v)}
+	return Uint8x64{spec.MulAddInts[uint8, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint8s) MulAdd(y Uint8s, z Uint8s) (w Uint8s) {
-	return Uint8s{spec.MulAdd[uint8, spec.WidthScalable](x.v, y.v, z.v)}
+	return Uint8s{spec.MulAddInts[uint8, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint16x8) MulAdd(y Uint16x8, z Uint16x8) (w Uint16x8) {
-	return Uint16x8{spec.MulAdd[uint16, spec.Width128](x.v, y.v, z.v)}
+	return Uint16x8{spec.MulAddInts[uint16, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint16x16) MulAdd(y Uint16x16, z Uint16x16) (w Uint16x16) {
-	return Uint16x16{spec.MulAdd[uint16, spec.Width256](x.v, y.v, z.v)}
+	return Uint16x16{spec.MulAddInts[uint16, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint16x32) MulAdd(y Uint16x32, z Uint16x32) (w Uint16x32) {
-	return Uint16x32{spec.MulAdd[uint16, spec.Width512](x.v, y.v, z.v)}
+	return Uint16x32{spec.MulAddInts[uint16, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint16s) MulAdd(y Uint16s, z Uint16s) (w Uint16s) {
-	return Uint16s{spec.MulAdd[uint16, spec.WidthScalable](x.v, y.v, z.v)}
+	return Uint16s{spec.MulAddInts[uint16, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) (w Uint32x4) {
-	return Uint32x4{spec.MulAdd[uint32, spec.Width128](x.v, y.v, z.v)}
+	return Uint32x4{spec.MulAddInts[uint32, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint32x8) MulAdd(y Uint32x8, z Uint32x8) (w Uint32x8) {
-	return Uint32x8{spec.MulAdd[uint32, spec.Width256](x.v, y.v, z.v)}
+	return Uint32x8{spec.MulAddInts[uint32, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint32x16) MulAdd(y Uint32x16, z Uint32x16) (w Uint32x16) {
-	return Uint32x16{spec.MulAdd[uint32, spec.Width512](x.v, y.v, z.v)}
+	return Uint32x16{spec.MulAddInts[uint32, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint32s) MulAdd(y Uint32s, z Uint32s) (w Uint32s) {
-	return Uint32s{spec.MulAdd[uint32, spec.WidthScalable](x.v, y.v, z.v)}
+	return Uint32s{spec.MulAddInts[uint32, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint64x2) MulAdd(y Uint64x2, z Uint64x2) (w Uint64x2) {
-	return Uint64x2{spec.MulAdd[uint64, spec.Width128](x.v, y.v, z.v)}
+	return Uint64x2{spec.MulAddInts[uint64, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint64x4) MulAdd(y Uint64x4, z Uint64x4) (w Uint64x4) {
-	return Uint64x4{spec.MulAdd[uint64, spec.Width256](x.v, y.v, z.v)}
+	return Uint64x4{spec.MulAddInts[uint64, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint64x8) MulAdd(y Uint64x8, z Uint64x8) (w Uint64x8) {
-	return Uint64x8{spec.MulAdd[uint64, spec.Width512](x.v, y.v, z.v)}
+	return Uint64x8{spec.MulAddInts[uint64, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint64s) MulAdd(y Uint64s, z Uint64s) (w Uint64s) {
-	return Uint64s{spec.MulAdd[uint64, spec.WidthScalable](x.v, y.v, z.v)}
+	return Uint64s{spec.MulAddInts[uint64, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
+	return Float32x4{spec.MulAddFloats[float32, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8) {
+	return Float32x8{spec.MulAddFloats[float32, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16) {
+	return Float32x16{spec.MulAddFloats[float32, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
+	return Float32s{spec.MulAddFloats[float32, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
+	return Float64x2{spec.MulAddFloats[float64, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4) {
+	return Float64x4{spec.MulAddFloats[float64, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8) {
+	return Float64x8{spec.MulAddFloats[float64, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
+	return Float64s{spec.MulAddFloats[float64, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // Neg returns the elementwise negation of x.

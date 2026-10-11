@@ -1555,12 +1555,18 @@ func (x Uint32x4) Mul(y Uint32x4) (z Uint32x4)
 //
 //	w[i] = x[i] * y[i] + z[i]
 //
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+//
 // Asm: VFMLA
 func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4)
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
 //
 // Asm: VFMLA
 func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2)
