@@ -15,3 +15,10 @@ var ParseRelease = parseRelease
 
 type Siginfo siginfo
 type Sigevent sigevent
+
+// Timespec and SetNsec expose the timer syscall representation for testing.
+type Timespec = timespec
+
+func (ts *timespec) SetNsec(ns int64) {
+	ts.setNsec(ns)
+}

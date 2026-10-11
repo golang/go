@@ -93,3 +93,20 @@ func TestKernelStructSize(t *testing.T) {
 		t.Errorf("Go's sigevent struct is %d bytes long; kernel expects %d", have, want)
 	}
 }
+
+func TestTimespecABI(t *testing.T) {
+	// Linux time64 syscalls exchange __kernel_timespec, whose seconds and
+	// nanoseconds fields are both signed 64-bit integers.
+	if got := unsafe.Sizeof(Timespec{}); got != 16 {
+		t.Fatalf("timespec size = %d, want 16", got)
+	}
+	for _, ns := range []int64{0, 1, 999999999, 1000000000, 1000000001, 1234567890987654321} {
+		var ts Timespec
+		ts.SetNsec(ns)
+		got := *(*[2]int64)(unsafe.Pointer(&ts))
+		want := [2]int64{ns / 1000000000, ns % 1000000000}
+		if got != want {
+			t.Errorf("setNsec(%d): syscall representation = %v, want %v", ns, got, want)
+		}
+	}
+}
