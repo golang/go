@@ -1148,10 +1148,7 @@ func (t templateData) CPUfeatureBC() string {
 	case 256:
 		return "AVX2"
 	case 512:
-		if t.EWidth <= 16 {
-			return "AVX512BW"
-		}
-		return "AVX512F"
+		return "AVX512"
 	}
 	panic(fmt.Errorf("unexpected vector width %d", t.Vwidth))
 }
@@ -1211,7 +1208,7 @@ func (x {{.VType}}) HiToLo() {{.VType}} {
 var reduceSumTemplateArm64 = shapedTemplateOf(arm64ReduceIntegerShapes, "arm64_ReduceSum methods", `
 // ReduceSum reduces x by summing all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x {{.VType}}) ReduceSum() {{.Etype}} {
 	return x.reduceSum().GetElem(0)
 }
@@ -1220,14 +1217,14 @@ func (x {{.VType}}) ReduceSum() {{.Etype}} {
 var reduceMinMaxTemplateArm64 = shapedTemplateOf(arm64ReduceAllShapes, "arm64_ReduceMax/Min methods", `
 // ReduceMax reduces x by taking the maximum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x {{.VType}}) ReduceMax() {{.Etype}} {
 	return x.reduceMax().GetElem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x {{.VType}}) ReduceMin() {{.Etype}} {
 	return x.reduceMin().GetElem(0)
 }

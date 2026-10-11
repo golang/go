@@ -334,7 +334,7 @@ func (x Uint64x2) RotateAllRight(shift uint64) (z Uint64x2) {
 //
 //	z = x[0] + x[1] + ...
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int8x16) ReduceSum() (z int8) {
 	return x.reduceSum().GetElem(0)
 }
@@ -343,7 +343,7 @@ func (x Int8x16) ReduceSum() (z int8) {
 //
 //	z = x[0] + x[1] + ...
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int16x8) ReduceSum() (z int16) {
 	return x.reduceSum().GetElem(0)
 }
@@ -352,7 +352,7 @@ func (x Int16x8) ReduceSum() (z int16) {
 //
 //	z = x[0] + x[1] + ...
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int32x4) ReduceSum() (z int32) {
 	return x.reduceSum().GetElem(0)
 }
@@ -361,7 +361,7 @@ func (x Int32x4) ReduceSum() (z int32) {
 //
 //	z = x[0] + x[1] + ...
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint8x16) ReduceSum() (z uint8) {
 	return x.reduceSum().GetElem(0)
 }
@@ -370,7 +370,7 @@ func (x Uint8x16) ReduceSum() (z uint8) {
 //
 //	z = x[0] + x[1] + ...
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint16x8) ReduceSum() (z uint16) {
 	return x.reduceSum().GetElem(0)
 }
@@ -379,105 +379,105 @@ func (x Uint16x8) ReduceSum() (z uint16) {
 //
 //	z = x[0] + x[1] + ...
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint32x4) ReduceSum() (z uint32) {
 	return x.reduceSum().GetElem(0)
 }
 
 // ReduceMax reduces x by taking the maximum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int8x16) ReduceMax() int8 {
 	return x.reduceMax().GetElem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int8x16) ReduceMin() int8 {
 	return x.reduceMin().GetElem(0)
 }
 
 // ReduceMax reduces x by taking the maximum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int16x8) ReduceMax() int16 {
 	return x.reduceMax().GetElem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int16x8) ReduceMin() int16 {
 	return x.reduceMin().GetElem(0)
 }
 
 // ReduceMax reduces x by taking the maximum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int32x4) ReduceMax() int32 {
 	return x.reduceMax().GetElem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Int32x4) ReduceMin() int32 {
 	return x.reduceMin().GetElem(0)
 }
 
 // ReduceMax reduces x by taking the maximum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint8x16) ReduceMax() uint8 {
 	return x.reduceMax().GetElem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint8x16) ReduceMin() uint8 {
 	return x.reduceMin().GetElem(0)
 }
 
 // ReduceMax reduces x by taking the maximum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint16x8) ReduceMax() uint16 {
 	return x.reduceMax().GetElem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint16x8) ReduceMin() uint16 {
 	return x.reduceMin().GetElem(0)
 }
 
 // ReduceMax reduces x by taking the maximum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint32x4) ReduceMax() uint32 {
 	return x.reduceMax().GetElem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Uint32x4) ReduceMin() uint32 {
 	return x.reduceMin().GetElem(0)
 }
 
 // ReduceMax reduces x by taking the maximum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Float32x4) ReduceMax() float32 {
 	return x.reduceMax().GetElem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
-// Emulated, CPU Feature: NEON
+// Emulated
 func (x Float32x4) ReduceMin() float32 {
 	return x.reduceMin().GetElem(0)
 }

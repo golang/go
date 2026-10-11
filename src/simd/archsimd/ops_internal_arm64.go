@@ -8,14 +8,14 @@ package archsimd
 
 // bitSelect returns the bitwise selection if mask[i] then x[i] else y[i].
 //
-// Asm: VBIF, CPU Feature: NEON
+// Asm: VBIF
 func (x Int8x16) bitSelect(y Int8x16, mask Int8x16) Int8x16
 
 /* bitSelectNot */
 
 // bitSelectNot returns the bitwise selection if mask[i] then y[i] else x[i].
 //
-// Asm: VBIT, CPU Feature: NEON
+// Asm: VBIT
 func (x Int8x16) bitSelectNot(y Int8x16, mask Int8x16) Int8x16
 
 /* broadcast1To2 */
@@ -23,19 +23,19 @@ func (x Int8x16) bitSelectNot(y Int8x16, mask Int8x16) Int8x16
 // broadcast1To2 copies the lowest element of its input to all 2 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Float64x2) broadcast1To2() Float64x2
 
 // broadcast1To2 copies the lowest element of its input to all 2 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Int64x2) broadcast1To2() Int64x2
 
 // broadcast1To2 copies the lowest element of its input to all 2 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Uint64x2) broadcast1To2() Uint64x2
 
 /* broadcast1To4 */
@@ -43,19 +43,19 @@ func (x Uint64x2) broadcast1To2() Uint64x2
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Float32x4) broadcast1To4() Float32x4
 
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Int32x4) broadcast1To4() Int32x4
 
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Uint32x4) broadcast1To4() Uint32x4
 
 /* broadcast1To8 */
@@ -63,13 +63,13 @@ func (x Uint32x4) broadcast1To4() Uint32x4
 // broadcast1To8 copies the lowest element of its input to all 8 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Int16x8) broadcast1To8() Int16x8
 
 // broadcast1To8 copies the lowest element of its input to all 8 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Uint16x8) broadcast1To8() Uint16x8
 
 /* broadcast1To16 */
@@ -77,13 +77,13 @@ func (x Uint16x8) broadcast1To8() Uint16x8
 // broadcast1To16 copies the lowest element of its input to all 16 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Int8x16) broadcast1To16() Int8x16
 
 // broadcast1To16 copies the lowest element of its input to all 16 elements of
 // the output vector.
 //
-// Asm: VDUP, CPU Feature: NEON
+// Asm: VDUP
 func (x Uint8x16) broadcast1To16() Uint8x16
 
 /* carrylessMultiplyWidenLo */
@@ -104,7 +104,7 @@ func (x Uint8x16) broadcast1To16() Uint8x16
 //
 //	x.HiToLo().carrylessMultiplyWidenLo(y.HiToLo())
 //
-// Asm: VPMULL, CPU Feature: NEON
+// Asm: VPMULL
 func (x Uint64x2) carrylessMultiplyWidenLo(y Uint64x2) Uint64x2
 
 /* reduceMax */
@@ -112,43 +112,43 @@ func (x Uint64x2) carrylessMultiplyWidenLo(y Uint64x2) Uint64x2
 // reduceMax reduces x by taking the maximum of all elements. The maximum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VFMAXV, CPU Feature: NEON
+// Asm: VFMAXV
 func (x Float32x4) reduceMax() Float32x4
 
 // reduceMax reduces x by taking the maximum of all elements. The maximum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VSMAXV, CPU Feature: NEON
+// Asm: VSMAXV
 func (x Int8x16) reduceMax() Int8x16
 
 // reduceMax reduces x by taking the maximum of all elements. The maximum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VSMAXV, CPU Feature: NEON
+// Asm: VSMAXV
 func (x Int16x8) reduceMax() Int16x8
 
 // reduceMax reduces x by taking the maximum of all elements. The maximum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VSMAXV, CPU Feature: NEON
+// Asm: VSMAXV
 func (x Int32x4) reduceMax() Int32x4
 
 // reduceMax reduces x by taking the maximum of all elements. The maximum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VUMAXV, CPU Feature: NEON
+// Asm: VUMAXV
 func (x Uint8x16) reduceMax() Uint8x16
 
 // reduceMax reduces x by taking the maximum of all elements. The maximum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VUMAXV, CPU Feature: NEON
+// Asm: VUMAXV
 func (x Uint16x8) reduceMax() Uint16x8
 
 // reduceMax reduces x by taking the maximum of all elements. The maximum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VUMAXV, CPU Feature: NEON
+// Asm: VUMAXV
 func (x Uint32x4) reduceMax() Uint32x4
 
 /* reduceMin */
@@ -156,43 +156,43 @@ func (x Uint32x4) reduceMax() Uint32x4
 // reduceMin reduces x by taking the minimum of all elements. The minimum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VFMINV, CPU Feature: NEON
+// Asm: VFMINV
 func (x Float32x4) reduceMin() Float32x4
 
 // reduceMin reduces x by taking the minimum of all elements. The minimum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VSMINV, CPU Feature: NEON
+// Asm: VSMINV
 func (x Int8x16) reduceMin() Int8x16
 
 // reduceMin reduces x by taking the minimum of all elements. The minimum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VSMINV, CPU Feature: NEON
+// Asm: VSMINV
 func (x Int16x8) reduceMin() Int16x8
 
 // reduceMin reduces x by taking the minimum of all elements. The minimum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VSMINV, CPU Feature: NEON
+// Asm: VSMINV
 func (x Int32x4) reduceMin() Int32x4
 
 // reduceMin reduces x by taking the minimum of all elements. The minimum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VUMINV, CPU Feature: NEON
+// Asm: VUMINV
 func (x Uint8x16) reduceMin() Uint8x16
 
 // reduceMin reduces x by taking the minimum of all elements. The minimum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VUMINV, CPU Feature: NEON
+// Asm: VUMINV
 func (x Uint16x8) reduceMin() Uint16x8
 
 // reduceMin reduces x by taking the minimum of all elements. The minimum is placed
 // in element 0 of the result; other elements are zeroed.
 //
-// Asm: VUMINV, CPU Feature: NEON
+// Asm: VUMINV
 func (x Uint32x4) reduceMin() Uint32x4
 
 /* reduceSum */
@@ -200,35 +200,35 @@ func (x Uint32x4) reduceMin() Uint32x4
 // reduceSum reduces x by summing all elements. The sum is placed in element 0
 // of the result; other elements are zeroed.
 //
-// Asm: VADDV, CPU Feature: NEON
+// Asm: VADDV
 func (x Int8x16) reduceSum() Int8x16
 
 // reduceSum reduces x by summing all elements. The sum is placed in element 0
 // of the result; other elements are zeroed.
 //
-// Asm: VADDV, CPU Feature: NEON
+// Asm: VADDV
 func (x Int16x8) reduceSum() Int16x8
 
 // reduceSum reduces x by summing all elements. The sum is placed in element 0
 // of the result; other elements are zeroed.
 //
-// Asm: VADDV, CPU Feature: NEON
+// Asm: VADDV
 func (x Int32x4) reduceSum() Int32x4
 
 // reduceSum reduces x by summing all elements. The sum is placed in element 0
 // of the result; other elements are zeroed.
 //
-// Asm: VADDV, CPU Feature: NEON
+// Asm: VADDV
 func (x Uint8x16) reduceSum() Uint8x16
 
 // reduceSum reduces x by summing all elements. The sum is placed in element 0
 // of the result; other elements are zeroed.
 //
-// Asm: VADDV, CPU Feature: NEON
+// Asm: VADDV
 func (x Uint16x8) reduceSum() Uint16x8
 
 // reduceSum reduces x by summing all elements. The sum is placed in element 0
 // of the result; other elements are zeroed.
 //
-// Asm: VADDV, CPU Feature: NEON
+// Asm: VADDV
 func (x Uint32x4) reduceSum() Uint32x4
