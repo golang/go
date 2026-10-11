@@ -8,10 +8,12 @@ Base inspected: `64f1787400cb9507e355a13bf5f25c7158dabe4d` on
 reset or modify another session's checkout. Reconcile fresh upstream changes
 before implementing the integration milestone, particularly launcher changes.
 
-## Milestone 1 — Complete language front end and lowering
+## Milestone 1 — Complete explicit syntax, lowering and component runtime
 
 Deliver all discussed feature families together: nested SEs, capturing named
-inner functions, typed block expressions, and minimal JSX-like expressions.
+inner functions, typed block expressions, structured X markup, and component
+declarations with compiler-injected instance/hook context. Deliver the minimal
+headless component runtime in this milestone. Bare JSX spelling follows in M2.
 This is deliberately not an SE-only milestone. Completion means compilable,
 semantically tested Go output, not just token recognition.
 
@@ -31,12 +33,15 @@ semantically tested Go output, not just token recognition.
 
 - [ ] Introduce extension token wrapper and mode stack without changing global
   standard token definitions.
-- [ ] Implement quoted/raw SE prefixes, text escapes, doubled braces and nested
-  interpolation code; retain source spans and original spelling.
+- [ ] Implement uppercase F quoted/raw SE prefixes, text escapes, doubled braces
+  and nested interpolation code; retain source spans and original spelling.
 - [ ] Preserve ordinary Go tokenization for strings, runes, comments, numbers,
   Unicode identifiers and composite literals inside interpolations.
-- [ ] Recognize contextual do/view forms without reserving ordinary identifiers;
-  add markup tag/text modes, attributes, self-closing/closing tags and code holes.
+- [ ] Recognize contextual do/component forms without reserving ordinary identifiers;
+  add structured X wrapper/tag/text modes, quoted attributes and code holes.
+- [ ] Treat quotes inside attributes and interpolations as nested syntax, not outer
+  terminators. Close the X wrapper only after a complete root element. Test
+  multiline X, nested F/X and missing inner/outer delimiters.
 - [ ] Preserve Go semicolon insertion in code; specify end-expression tokens and
   the optional terminal interpolation semicolon interaction.
 - [ ] Bound nesting, recover from EOF and malformed input, guarantee progress.
@@ -47,8 +52,10 @@ semantically tested Go output, not just token recognition.
 - [ ] Parse local named declarations as statement constructs, with receivers,
   local generics and missing bodies rejected explicitly.
 - [ ] Parse do Type Block, including brace-bearing and instantiated type syntax.
-- [ ] Parse view elements/components, ordered attrs/children, expression holes and
+- [ ] Parse X elements/components, ordered attrs/children, expression holes and
   matching tags; reject duplicate attrs and unsupported shorthand.
+- [ ] Parse component declarations, typed parameters and optional children input;
+  represent component definitions separately from ordinary function declarations.
 - [ ] Represent extensions via node-identity records and placeholders, retaining
   standard Go AST nodes for unaffected syntax; avoid impossible external ast.Expr
   implementations and magic source identifier conventions.
@@ -64,18 +71,43 @@ semantically tested Go output, not just token recognition.
 - [ ] Lower named functions in place to declaration plus assignment, allowing
   self-recursion without adding forward visibility or automatic hoisting.
 - [ ] Lower typed blocks to IIFEs with ordinary Go control-flow boundaries.
-- [ ] Implement minimal goxview data model/constructors and lower markup with
-  ordered evaluation; support capturing local component function values.
+- [ ] Lower X into parameterized template functions with sequential single-value
+  slots; preserve typed property checks, nil handling and callbacks without
+  stringifying values into source. Component nodes describe deferred invocations.
+- [ ] Generate component render functions with an explicit instance parameter;
+  keep local declarations/captures in place. Generate stable definition/slot IDs.
+- [ ] Resolve hook forms lexically, inject instance/slot arguments and diagnose
+  prohibited hook positions rather than rewriting ordinary user functions.
+- [ ] Check named component props, required/unknown attrs, children contract and
+  reserved key metadata; generate typed render adapters before erasing inputs.
 - [ ] Assert no extension placeholders survive, emit go/format output and map
   diagnostics to original spans. Compile emitted source with the target compiler.
 
-### M1.5 Required semantic and error matrix
+### M1.5 Persistent component runtime
+
+- [ ] Implement root-owned registry and persistent instances separate from VNodes;
+  store current inputs/callbacks and refresh captures on parent updates.
+- [ ] Reconcile by parent + definition + key/position, reject duplicate keys, and
+  retain keyed instances across reorder. Do not use source sites or closure
+  addresses as occurrence identities.
+- [ ] Implement typed state/ref slots, replacement and functional state updates,
+  mount-only storage initialization and stale-setter lifetime protection.
+- [ ] Implement typed contexts, defaults, nested providers, consumer subscriptions
+  and provider-driven invalidation.
+- [ ] Serialize scheduling/render/commit per root; enqueue updates, expose Flush,
+  reject render-phase setters, and make the cross-goroutine enqueue path safe.
+- [ ] Implement unmount cleanup, panic bookkeeping recovery and headless host
+  tree/event adapter; keep host mutations outside render.
+- [ ] Document v1 hook placement restrictions, snapshot callbacks, ref threading,
+  no live-edit state migration and deferred effects/production renderers.
+
+### M1.6 Required semantic and error matrix
 
 | Area | Required examples/assertions |
 | --- | --- |
 | Ordinary Go | Token/AST compatibility on upstream corpus; comments and semicolons |
 | SE text | Quoted/raw, braces, percent signs, escapes, UTF-8, CRLF, empty text |
-| Recursive syntax | SE inside SE, block inside SE, view inside block/SE, SE in attrs |
+| Recursive syntax | SE inside SE, block inside SE, X inside block/SE, SE in attrs |
 | Delimiters | Composite literals, funcs, comments, nested quotes, unterminated modes |
 | Ordering | Calls plus variable reads, mutating Stringer/Formatter, exactly-once use |
 | Type errors | Multi-value operands, missing return, invalid result type, const contexts |
@@ -83,22 +115,42 @@ semantically tested Go output, not just token recognition.
 | Functions | Self-recursion, duplicate name, before-declaration use, explicit mutual recursion |
 | Loops | := per-iteration capture, = shared variable, pointer/slice aliasing |
 | Blocks | Local loops, defer, panic/recover, illegal outer return/break/goto assumptions |
-| Markup | Native tags, qualified/local components, nil/text/Node children, attrs order |
+| Markup | X nested quotes, native tags, component props, nil/text/Node/slice children, attrs order |
+| Instances | Two occurrences of one definition isolate state; local captures refresh |
+| Identity | Keyed reorder, unkeyed position, duplicate keys, type/key reset, remount |
+| Hooks | State/ref persistence, context defaults/shadowing/subscriptions, invalid placements |
+| Scheduling | State rerenders, refs do not, ordered updates, latest-state updater, queued goroutines |
+| Lifetime | Unmount cleanup, stale setter ignored, render panic recovery, event callback refresh |
 | Hygiene | User names resembling generated names, shadowed fmt/strings, import aliases |
 | Recovery | Multiple diagnostics with correct positions; no hangs or bogus successful output |
 
 Exit gate: every syntax family has valid and invalid fixtures, mixed recursive
 cases execute correctly, copied Go tests pass under the supported host toolchain,
-and generated outputs compile without a modified compiler. Core API is usable
-from tests; user-facing build orchestration is milestone 2. Record unsupported
+and generated outputs compile without a modified compiler. A headless counter
+rerenders after an event, keyed siblings preserve isolated state, refs persist
+without scheduling, and context updates reach the correct consumers. Core API
+is usable from tests; user-facing build orchestration is milestone 2. Record unsupported
 cases as explicit diagnostics rather than silently dropping syntax.
 
-## Milestone 2 — Standalone developer tool and reliable package builds
+## Milestone 2 — Bare JSX and standalone developer tooling
 
 Depends on M1. Deliver an independently usable transformer and documented local
 module/workspace workflow before touching the Go command's package loader.
 
-### M2.1 API and commands
+### M2.1 Bare JSX as an alternative entry syntax
+
+- [ ] Let the parser enter markup at expression-start < without consuming it as
+  ordinary Go lookahead; preserve comparisons, <= and channel receive <-.
+- [ ] Reuse X element records, hole handling, component lowering and runtime.
+  Do not create a second JSX implementation or change ordinary .go parsing.
+- [ ] Test paired X/bare fixtures for equivalent normalized lowering, side-effect
+  ordering, diagnostics, hook identity within each build and runtime output.
+- [ ] Cover return/assignment/call/composite contexts, generic syntax, comments,
+  newlines/semicolons and malformed tags. Report markup errors without fallback.
+- [ ] Document uppercase F, structured X and bare JSX together; old s/view syntax
+  is not accepted as an alias.
+
+### M2.2 API and commands
 
 - [ ] Stabilize TransformFile/TransformPackage inputs, dependency metadata,
   diagnostics and source maps; add cancellation at package orchestration level.
@@ -109,7 +161,7 @@ module/workspace workflow before touching the Go command's package loader.
 - [ ] Preserve stdout/stderr/stdin and process exit status without shell quoting.
 - [ ] Make output writes atomic and explicit, never overwrite source input.
 
-### M2.2 Package transformation and dependencies
+### M2.3 Package transformation and dependencies
 
 - [ ] Select files using target suffixes, build tags, test mode and language
   version before transforming; include mixed .go/.gox and .gox-only packages.
@@ -123,7 +175,7 @@ module/workspace workflow before touching the Go command's package loader.
 - [ ] Cache transformation by source bytes, configuration and transformer identity;
   use atomic writes and concurrent-process tests.
 
-### M2.3 Diagnostics, robustness and documentation
+### M2.4 Diagnostics, robustness and documentation
 
 - [ ] Map compiler/type-check errors to GoX locations with source snippets; test
   errors in nested expressions and generated helpers separately.
@@ -131,6 +183,8 @@ module/workspace workflow before touching the Go command's package loader.
 - [ ] Test output determinism across directory locations and cache hits.
 - [ ] Document syntax, evaluation/capture rules, component ABI, installation,
   first project, generated output inspection, known editor limitations and runtime.
+- [ ] Include interactive headless examples for keyed lists, state/ref/context and
+  current props/captures; explain instance ownership and explicit host adapters.
 - [ ] Add examples combining all features and an ordinary Go consumer of emitted
   source; explain that check/build don't execute compile-time user macros.
 - [ ] Add standalone CI scoped to gox paths; measure transform latency/output size
@@ -138,7 +192,9 @@ module/workspace workflow before touching the Go command's package loader.
 
 Exit gate: a clean environment can install the tool, emit/build/run/test the
 documented examples with stock Go, receive source-mapped errors, and repeat
-builds safely. Validate Linux and Windows paths/launching; test additional OSes
+builds safely. Both X and bare JSX examples must exercise the same runtime and
+produce equivalent behavior. Validate Linux and Windows paths/launching; test
+additional OSes
 only when supported runners exist, and label untested targets accurately.
 
 ## Milestone 3 — Integrate into the fork's Go CLI and distributions
@@ -179,7 +235,8 @@ integration as well as a build step; a compile-only interception is insufficient
 - [ ] Add Go command script tests for build/run/test/list/vet, test coverage,
   build constraints, cross-compilation, embeds, modules/workspaces, vendor mode,
   indexed/uncached loading, import cycles and cache invalidation.
-- [ ] Compile and run mixed Go/GoX integration fixtures with the native toolchain.
+- [ ] Compile and run mixed Go/GoX integration fixtures with the native toolchain,
+  including F, X, bare JSX and headless state/ref/context component scenarios.
 - [ ] Repeat relevant smoke tests with shared-library distributions: Windows
   Python/batch invocation and Linux shared/native launcher paths.
 - [ ] Confirm GoX requires no new .exe launcher on Windows and does not change
@@ -204,6 +261,6 @@ together. Maintain the complete M1 feature scope; simplify semantics explicitly
 instead of postponing a feature family without a scope decision.
 
 Major risks to resolve early: upstream API version drift, semicolon behavior in
-embedded code, scope-safe generated imports, formatting side effects, package
-discovery occurring before compile, and module-index/cache divergence. None
+embedded code, scope-safe generated imports, formatting side effects, component
+identity and hook lifetime, parser-directed bare JSX entry, package discovery occurring before compile, and module-index/cache divergence. None
 requires changing Go closure implementation or the compiler backend.
