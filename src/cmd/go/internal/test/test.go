@@ -1331,6 +1331,13 @@ func builderTest(ld *modload.Loader, b *work.Builder, ctx context.Context, pkgOp
 			// so add a dependence edge from writeCoverMetaAct to the
 			// run action.
 			runAction.Deps = append(runAction.Deps, writeCoverMetaAct)
+			// The link action calls runAction.TryCache, which hashes
+			// the build IDs of writeCoverMetaAct's dependencies. Those
+			// include packages that are not linked into this test
+			// binary, so add a dependence edge from writeCoverMetaAct
+			// to the link action to make sure they have all finished
+			// building before their build IDs are read.
+			buildAction.Deps = append(buildAction.Deps, writeCoverMetaAct)
 			if !p.IsTestOnly() {
 				// Package p is not test only, meaning that the build
 				// action for p may generate a static meta-data file.
@@ -1821,6 +1828,8 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	// its deps to ensure the cache invalidates when covered packages change.
 	// Note: the run action's original deps may be wrapped inside a "test barrier"
 	// action, so we search both a.Deps and any barrier's deps.
+	// builderTest makes the link action depend on writeCoverMetaAct, so the
+	// build IDs read here are final even when called from tryCache.
 	if len(testCoverPkgs) != 0 {
 		searchDeps := a.Deps
 		for _, dep := range a.Deps {
