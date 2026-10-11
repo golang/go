@@ -505,15 +505,42 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	/* copy arguments to stack */		\
 	MOV	stackArgs+16(FP), A1;			\
 	MOVWU	stackArgsSize+24(FP), A2;		\
-	MOV	X2, A3;				\
-	ADD	$8, A3;				\
+	ADD	$8, X2, A3;			\
 	ADD	A3, A2;				\
-	BEQ	A3, A2, 6(PC);			\
+	/* dst is always 8 byte aligned, */	\
+	/* use aligned copies only if src is too */	\
+	AND	$7, A1, A4;			\
+	BNEZ	A4, copy1;			\
+	/* A6 = end - 16, loop while A3 <= A6 */	\
+	SUB	$16, A2, A6;			\
+	BLTU	A6, A3, check8;			\
+copy16:;					\
+	/* copy 16 bytes a time */		\
+	MOV	(0*8)(A1), A4;			\
+	MOV	(1*8)(A1), A5;			\
+	ADD	$16, A1;			\
+	MOV	A4, (0*8)(A3);			\
+	MOV	A5, (1*8)(A3);			\
+	ADD	$16, A3;			\
+	BGEU	A6, A3, copy16;			\
+check8:;					\
+	/* copy 8 more bytes if A3 <= end - 8 */	\
+	ADD	$8, A6;				\
+	BLTU	A6, A3, copy1;			\
+	MOV	(A1), A4;			\
+	ADD	$8, A1;				\
+	MOV	A4, (A3);			\
+	ADD	$8, A3;				\
+copy1:;						\
+	/* copy 1 byte a time for the rest */	\
+	BEQ	A3, A2, callfn;			\
+copy1loop:;					\
 	MOVBU	(A1), A4;			\
 	ADD	$1, A1;				\
 	MOVB	A4, (A3);			\
 	ADD	$1, A3;				\
-	JMP	-5(PC);				\
+	BNE	A3, A2, copy1loop;		\
+callfn:;					\
 	/* set up argument registers */		\
 	MOV	regArgs+40(FP), X25;		\
 	CALL	·unspillArgs(SB);		\
