@@ -335,6 +335,10 @@ func TestTypesInfo(t *testing.T) {
 		{broken + `x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
 		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
+		{broken + `x6; func _() { _ = undef[0] }`, `undef`, `invalid type`},
+		{broken + `x7; func _() { _ = undef[0] }`, `undef[0]`, `invalid type`},
+		{broken + `x8; type S struct{}; func _(x S) { _ = x.nofield[0] }`, `x.nofield`, `invalid type`},
+		{broken + `x9; func _(x int) { _ = x.f[1:2] }`, `x.f`, `invalid type`},
 
 		// parameterized functions
 		{`package p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T any](T)`},
@@ -3297,5 +3301,72 @@ var (
 	}
 	if l != 2 {
 		t.Errorf("found %d instances of L, want 2", l)
+	}
+}
+
+func TestTypeOf(t *testing.T) {
+	const src = `package p
+
+type S struct{ f int }
+
+func _() {
+	var s S
+	var i int
+	_ = undef
+	_ = undef[0]
+	_ = s.nofield
+	_ = s.nofield[0]
+	_ = i.f[1:2]
+	_ = 1 + "a"
+}
+`
+	for _, storeInSyntax := range []bool{false, true} {
+		f := mustParse(src)
+		info := &Info{
+			StoreTypesInSyntax: storeInSyntax,
+			Defs:               make(map[*syntax.Name]Object),
+			Uses:               make(map[*syntax.Name]Object),
+		}
+		if !storeInSyntax {
+			info.Types = make(map[syntax.Expr]TypeAndValue)
+		}
+		conf := Config{Error: func(error) {}}
+		conf.Check("p", []*syntax.File{f}, info)
+
+		wantInvalid := map[string]bool{
+			`undef`:        true,
+			`undef[0]`:     true,
+			`s.nofield`:    true,
+			`s.nofield[0]`: true,
+			`i.f`:          true,
+			`i.f[1:2]`:     true,
+			`1 + "a"`:      true,
+		}
+
+		body := f.DeclList[1].(*syntax.FuncDecl).Body
+		syntax.Inspect(body, func(n syntax.Node) bool {
+			if e, ok := n.(syntax.Expr); ok {
+				if id, ok := e.(*syntax.Name); ok && id.Value == "_" {
+					return false
+				}
+				typ := info.TypeOf(e)
+				if typ == nil {
+					t.Errorf("storeInSyntax=%v: TypeOf(%s) = nil, want non-nil", storeInSyntax, ExprString(e))
+				} else if expr := ExprString(e); wantInvalid[expr] {
+					if typ != Typ[Invalid] {
+						t.Errorf("storeInSyntax=%v: TypeOf(%s) = %v, want %v", storeInSyntax, expr, typ, Typ[Invalid])
+					}
+					delete(wantInvalid, expr)
+				}
+				if _, ok := e.(*syntax.SelectorExpr); ok {
+					// Don't visit sel.Sel, which has no type for invalid selectors.
+					return false
+				}
+			}
+			return true
+		})
+		for expr := range wantInvalid {
+			t.Errorf("storeInSyntax=%v: expression %s not visited", storeInSyntax, expr)
+		}
 	}
 }

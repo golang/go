@@ -183,8 +183,7 @@ type Config struct {
 // be incomplete.
 type Info struct {
 	// Types maps expressions to their types, and for constant
-	// expressions, also their values. Invalid expressions are
-	// omitted.
+	// expressions, also their values.
 	//
 	// For (possibly parenthesized) identifiers denoting built-in
 	// functions, the recorded signatures are call-site specific:

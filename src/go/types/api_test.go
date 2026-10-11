@@ -343,6 +343,10 @@ func TestTypesInfo(t *testing.T) {
 		{broken + `x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
 		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
+		{broken + `x6; func _() { _ = undef[0] }`, `undef`, `invalid type`},
+		{broken + `x7; func _() { _ = undef[0] }`, `undef[0]`, `invalid type`},
+		{broken + `x8; type S struct{}; func _(x S) { _ = x.nofield[0] }`, `x.nofield`, `invalid type`},
+		{broken + `x9; func _(x int) { _ = x.f[1:2] }`, `x.f`, `invalid type`},
 
 		// parameterized functions
 		{`package p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T any](T)`},
@@ -3316,5 +3320,67 @@ var (
 	}
 	if l != 2 {
 		t.Errorf("found %d instances of L, want 2", l)
+	}
+}
+
+func TestTypeOf(t *testing.T) {
+	const src = `package p
+
+type S struct{ f int }
+
+func _() {
+	var s S
+	var i int
+	_ = undef
+	_ = undef[0]
+	_ = s.nofield
+	_ = s.nofield[0]
+	_ = i.f[1:2]
+	_ = 1 + "a"
+}
+`
+	f := mustParse(testFSet, src)
+	info := &Info{
+		Types: make(map[ast.Expr]TypeAndValue),
+		Defs:  make(map[*ast.Ident]Object),
+		Uses:  make(map[*ast.Ident]Object),
+	}
+	conf := Config{Error: func(error) {}}
+	conf.Check("p", testFSet, []*ast.File{f}, info)
+
+	wantInvalid := map[string]bool{
+		`undef`:        true,
+		`undef[0]`:     true,
+		`s.nofield`:    true,
+		`s.nofield[0]`: true,
+		`i.f`:          true,
+		`i.f[1:2]`:     true,
+		`1 + "a"`:      true,
+	}
+
+	body := f.Decls[1].(*ast.FuncDecl).Body
+	ast.Inspect(body, func(n ast.Node) bool {
+		if e, ok := n.(ast.Expr); ok {
+			if id, ok := e.(*ast.Ident); ok && id.Name == "_" {
+				return false
+			}
+			typ := info.TypeOf(e)
+			if typ == nil {
+				t.Errorf("TypeOf(%s) = nil, want non-nil", ExprString(e))
+			} else if expr := ExprString(e); wantInvalid[expr] {
+				if typ != Typ[Invalid] {
+					t.Errorf("TypeOf(%s) = %v, want %v", expr, typ, Typ[Invalid])
+				}
+				delete(wantInvalid, expr)
+			}
+			if _, ok := e.(*ast.SelectorExpr); ok {
+				// Don't visit sel.Sel, which has no type for invalid selectors.
+				return false
+			}
+		}
+		return true
+	})
+	for expr := range wantInvalid {
+		t.Errorf("expression %s not visited", expr)
 	}
 }

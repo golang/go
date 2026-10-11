@@ -59,9 +59,6 @@ func (check *Checker) recordUntyped() {
 func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type, val constant.Value) {
 	assert(x != nil)
 	assert(typ != nil)
-	if mode == invalid {
-		return // omit
-	}
 	if mode == constant_ {
 		assert(val != nil)
 		// We check allBasic(typ, IsConstType) here as constant expressions may be
