@@ -602,6 +602,8 @@ type XRegPerG = xRegPerG
 
 type ValgrindPerG = valgrindPerG
 
+type WasmContPerG = wasmContPerG
+
 func Getg() *G {
 	return getg()
 }

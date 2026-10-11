@@ -159,7 +159,7 @@ type traceSchedResourceState struct {
 	// There are two of these so that we can reset the counter on each generation.
 	// This saves space in the resulting trace by keeping the counter small and allows
 	// GoStatus and GoCreate events to omit a sequence number (implicitly 0).
-	seq [2]uint64
+	seq [2]uint32
 }
 
 // acquireStatus acquires the right to emit a Status event for the scheduling resource.

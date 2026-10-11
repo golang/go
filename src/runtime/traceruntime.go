@@ -19,7 +19,7 @@ type gTraceState struct {
 
 // reset resets the gTraceState for a new goroutine.
 func (s *gTraceState) reset() {
-	s.seq = [2]uint64{}
+	s.seq = [2]uint32{}
 	// N.B. s.statusTraced is managed and cleared separately.
 }
 
