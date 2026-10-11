@@ -922,6 +922,12 @@ func (p *Package) packedAttribute() string {
 	return s + "))"
 }
 
+// genParamName returns the generated name for the parameter at the given
+// position in the C wrapper that cgo writes for an exported function.
+func genParamName(param string, position int) string {
+	return fmt.Sprintf("p%d", position)
+}
+
 // exportParamName returns the value of param as it should be
 // displayed in a c header file. If param contains any non-ASCII
 // characters, this function will return the character p followed by
@@ -1047,25 +1053,32 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 
 		// Build the wrapper function compiled by gcc.
-		var s strings.Builder
-		fmt.Fprintf(&s, "%s %s(", gccResult, exp.ExpName)
-		if fn.Recv != nil {
-			s.WriteString(p.cgoType(fn.Recv.List[0].Type).C.String())
-			s.WriteString(" recv")
-		}
+		// The declaration in the header uses the Go parameter
+		// names, but the definition uses generated names so
+		// that a parameter cannot shadow a C type or variable
+		// used in the body of the wrapper (issue 44648).
+		cdecl := func(paramName func(aname string, i int) string) string {
+			var s strings.Builder
+			fmt.Fprintf(&s, "%s %s(", gccResult, exp.ExpName)
+			if fn.Recv != nil {
+				s.WriteString(p.cgoType(fn.Recv.List[0].Type).C.String())
+				s.WriteString(" recv")
+			}
 
-		if len(fntype.Params.List) > 0 {
-			forFieldList(fntype.Params,
-				func(i int, aname string, atype ast.Expr) {
-					if i > 0 || fn.Recv != nil {
-						s.WriteString(", ")
-					}
-					fmt.Fprintf(&s, "%s %s", p.cgoType(atype).C, exportParamName(aname, i))
-				})
-		} else {
-			s.WriteString("void")
+			if len(fntype.Params.List) > 0 {
+				forFieldList(fntype.Params,
+					func(i int, aname string, atype ast.Expr) {
+						if i > 0 || fn.Recv != nil {
+							s.WriteString(", ")
+						}
+						fmt.Fprintf(&s, "%s %s", p.cgoType(atype).C, paramName(aname, i))
+					})
+			} else {
+				s.WriteString("void")
+			}
+			s.WriteByte(')')
+			return s.String()
 		}
-		s.WriteByte(')')
 
 		if len(exp.Doc) > 0 {
 			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
@@ -1073,11 +1086,11 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 				fmt.Fprint(fgcch, "\n")
 			}
 		}
-		fmt.Fprintf(fgcch, "extern %s;\n", s.String())
+		fmt.Fprintf(fgcch, "extern %s;\n", cdecl(exportParamName))
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\nCGO_NO_SANITIZE_THREAD")
-		fmt.Fprintf(fgcc, "\n%s\n", s.String())
+		fmt.Fprintf(fgcc, "\n%s\n", cdecl(genParamName))
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\tsize_t _cgo_ctxt = _cgo_wait_runtime_init_done();\n")
 		// The results part of the argument structure must be
@@ -1104,7 +1117,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		forFieldList(fntype.Params,
 			func(i int, aname string, atype ast.Expr) {
-				fmt.Fprintf(fgcc, "\t_cgo_a.p%d = %s;\n", i, exportParamName(aname, i))
+				fmt.Fprintf(fgcc, "\t_cgo_a.p%d = %s;\n", i, genParamName(aname, i))
 			})
 		fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
 		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &_cgo_a, %d, _cgo_ctxt);\n", cPrefix, exp.ExpName, off)
