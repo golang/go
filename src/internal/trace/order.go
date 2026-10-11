@@ -1287,12 +1287,15 @@ func (s *rangeState) endRange(typ tracev2.EventType) (stringID, error) {
 // seqCounter represents a global sequence counter for a resource.
 type seqCounter struct {
 	gen uint64 // The generation for the local sequence counter seq.
-	seq uint64 // The sequence number local to the generation.
+	seq uint32 // The sequence number local to the generation.
 }
 
 // makeSeq creates a new seqCounter.
+//
+// A runtime may keep each sequence number in a uint32 and let it wrap to 0
+// within a generation, so only the low 32 bits of seq are kept.
 func makeSeq(gen, seq uint64) seqCounter {
-	return seqCounter{gen: gen, seq: seq}
+	return seqCounter{gen: gen, seq: uint32(seq)}
 }
 
 // succeeds returns true if a is the immediate successor of b.

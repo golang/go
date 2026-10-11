@@ -32,3 +32,21 @@ func TestQueue(t *testing.T) {
 	check("one element again", []int{7})
 	check("two elements again", []int{77, 6336})
 }
+
+func TestSeqCounterSucceeds(t *testing.T) {
+	for _, tc := range []struct {
+		a, b seqCounter
+		want bool
+	}{
+		{seqCounter{gen: 1, seq: 2}, seqCounter{gen: 1, seq: 1}, true},
+		{seqCounter{gen: 1, seq: 3}, seqCounter{gen: 1, seq: 1}, false},
+		{seqCounter{gen: 2, seq: 2}, seqCounter{gen: 1, seq: 1}, false},
+		// A uint32 counter wraps to 0.
+		{seqCounter{gen: 1, seq: 0}, seqCounter{gen: 1, seq: 1<<32 - 1}, true},
+		{seqCounter{gen: 1, seq: 1}, seqCounter{gen: 1, seq: 1<<32 - 1}, false},
+	} {
+		if got := tc.a.succeeds(tc.b); got != tc.want {
+			t.Errorf("%v.succeeds(%v) = %v, want %v", tc.a, tc.b, got, tc.want)
+		}
+	}
+}
