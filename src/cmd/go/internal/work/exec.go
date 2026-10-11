@@ -8,9 +8,9 @@ package work
 
 import (
 	"bytes"
-	"cmd/internal/sharedentry"
 	"cmd/internal/cov/covcmd"
 	"cmd/internal/pathcache"
+	"cmd/internal/sharedentry"
 	"cmp"
 	"context"
 	"crypto/sha256"
@@ -2617,7 +2617,12 @@ func (b *Builder) cover(a *Action, infiles, outfiles []string, varName, mode, co
 		"-var", varName,
 		"-outfilelist", covoutputs,
 	}
-	args = append(args, infiles...)
+	for _, file := range infiles {
+		if generated, ok := fsys.Generated(file); ok {
+			file = generated
+		}
+		args = append(args, file)
+	}
 	if err := b.Shell(a).run(a.Objdir, "", nil,
 		cfg.BuildToolexec, args); err != nil {
 		return nil, err

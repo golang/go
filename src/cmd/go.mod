@@ -19,3 +19,7 @@ require (
 	golang.org/x/text v0.42.0 // indirect
 	rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef // indirect
 )
+
+require github.com/alfu32/go-shared/gox v0.0.0
+
+replace github.com/alfu32/go-shared/gox => ../../gox

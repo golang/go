@@ -1,0 +1,43 @@
+env GOFLAGS=-buildvcs=false
+# GoX-only dependencies work through workspace and local replacement discovery.
+cd app
+go run .
+stdout '^hello workspace$'
+go list ./...
+stdout '^app$'
+
+# Vendoring copies original GoX sources, then discovers them in vendor mode.
+env GOWORK=off
+go mod edit -replace=dep=../dep
+go mod vendor
+exists vendor/dep/value.gox
+go run -mod=vendor .
+stdout '^hello workspace$'
+
+# Cross-compilation uses the generated Go without requiring a target runtime.
+env GOOS=windows
+env GOARCH=amd64
+env CGO_ENABLED=0
+go build -mod=vendor -o app.exe .
+exists app.exe
+
+-- go.work --
+go 1.26
+use (
+ ./app
+ ./dep
+)
+-- app/go.mod --
+module app
+go 1.26
+require dep v0.0.0
+-- app/main.gox --
+package main
+import("fmt";"dep")
+func main(){fmt.Println(F"hello {dep.Value()}")}
+-- dep/go.mod --
+module dep
+go 1.26
+-- dep/value.gox --
+package dep
+func Value()string{return F"workspace"}

@@ -11,8 +11,8 @@
 package fsys
 
 import (
-	"cmd/internal/sharedentry"
 	"cmd/go/internal/str"
+	"cmd/internal/sharedentry"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -182,6 +182,9 @@ type info struct {
 // stat returns info about the path in the virtual file system.
 func stat(path string) info {
 	apath := abs(path)
+	if actual, ok := Generated(path); ok {
+		return info{abs: apath, actual: actual, replaced: true, file: true}
+	}
 	if path == "" {
 		return info{abs: apath, actual: path}
 	}
@@ -439,6 +442,14 @@ func osReadDir(name string) ([]fs.DirEntry, error) {
 
 // ReadDir reads the named directory in the virtual file system.
 func ReadDir(name string) ([]fs.DirEntry, error) {
+	entries, err := readDir(name)
+	if err == nil && SourceExpander != nil {
+		return SourceExpander(name, entries)
+	}
+	return entries, err
+}
+
+func readDir(name string) ([]fs.DirEntry, error) {
 	Trace("ReadDir", name)
 
 	info := stat(name)

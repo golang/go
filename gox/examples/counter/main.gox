@@ -1,0 +1,34 @@
+package main
+
+import (
+ "fmt"
+ view "github.com/alfu32/go-shared/gox/goxview"
+)
+
+var Theme = view.NewContext("light")
+
+component Counter(title string) {
+ count, setCount := useState(0)
+ renders := useRef(0)
+ theme := useContext(Theme)
+ renders.Current++
+ return X"<button theme={theme} onClick={func() {
+  setCount.Update(func(n int) int { return n+1 })
+ }}>{F"{title}: {count} (render {renders.Current})"}</button>"
+}
+
+func main() {
+ func label(prefix string) string {
+  return F"{prefix} {do int { return 6*7 }}"
+ }
+ root := view.NewRoot(nil,nil)
+ tree := Theme.Provider("dark", <list><Counter key="first" title={label("Counter")}/><Counter key="second" title="Another"/></list>)
+ if err := root.Mount(tree); err != nil { panic(err) }
+ buttons := func() []view.Node { return root.Tree().Children[0].Children }
+ fmt.Println(buttons()[0].Children[0].Text)
+ buttons()[0].Attrs[1].Value.(func())()
+ if err := root.Flush(); err != nil { panic(err) }
+ fmt.Println(buttons()[0].Children[0].Text)
+ fmt.Println(buttons()[1].Children[0].Text)
+ root.Unmount()
+}

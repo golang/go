@@ -1,0 +1,57 @@
+env GOFLAGS=-buildvcs=false
+# GoX-only packages participate in package discovery and normal build commands.
+go run .
+stdout '^hello 120$'
+go run main.gox -- value.gox
+stdout '^hello 120$'
+go build -o app$GOEXE .
+go vet .
+go list -f '{{.GoXFiles}} {{.GoXGeneratedFiles}}' .
+stdout 'main.gox.*main.go:main.gox'
+go test ./...
+stdout 'ok.*example/lib'
+go test -cover ./lib
+stdout 'coverage:'
+go list ./...
+stdout 'example/lib'
+go gox emit main.gox
+stdout 'func'
+
+# A source edit invalidates generated source and the native compilation cache.
+cp replacement.txt lib/value.gox
+go run .
+stdout '^hello 121$'
+
+# An inactive GoX file must not be parsed.
+go build -tags=unrelated -o app$GOEXE .
+
+-- go.mod --
+module example
+
+go 1.26
+-- main.gox --
+package main
+import("fmt";"example/lib")
+func main(){
+ func fact(n int)int {if n<2{return 1};return n*fact(n-1)}
+ fmt.Println(F"hello {do int {return fact(5)+lib.Offset()}}")
+}
+-- lib/value.gox --
+package lib
+import _ "embed"
+//go:embed message.txt
+var message string
+func Offset() int { if message != "asset\n" {panic(message)};return do int { return 0 } }
+-- lib/message.txt --
+asset
+-- lib/value_test.gox --
+package lib
+import "testing"
+func TestOffset(t *testing.T){if Offset()!=0{t.Fatal(F"bad {Offset()}")}}
+-- lib/broken.gox --
+//go:build disabled_gox_fixture
+
+this file intentionally cannot parse
+-- replacement.txt --
+package lib
+func Offset() int { return do int { return 1 } }

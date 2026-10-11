@@ -1,10 +1,10 @@
 # GoX language and transformation specification
 
-Status: proposed implementation contract; no GoX implementation is delivered by
-this documentation change. Syntax choices below make the plan actionable and
-are proposals where explicitly identified. Revision 2 incorporates the agreed
-uppercase F prefix, structured X markup, persistent component instances with
-compiler-injected hook context, and bare JSX in milestone 2.
+Status: experimental implementation on `feature/gox-spec-plan`. The standalone
+engine, explicit syntax, bare JSX, headless runtime and native package-loader
+adapter are implemented. This remains the target contract; unchecked release
+gates and deviations are tracked in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+See [the runnable guide](../../gox/README.md) for the implemented API and commands.
 
 Repository baseline: `alfu32/go-shared`, `feature/shared-toolchain`, commit
 `64f1787400cb9507e355a13bf5f25c7158dabe4d` (2026-10-11 inspection).
@@ -400,7 +400,10 @@ within a component build; state migration across live code edits is not promised
 The runtime serializes render/reconcile/commit work per root. State setters enqueue
 updates and mark instances dirty; they do not recursively invoke render. A Flush
 operation drains queued work for deterministic tests; a pluggable scheduler wakes
-an application event loop. Queue updates safely from other goroutines, but render
+an application event loop. Workers use `StateSetter.Enqueue` or `EnqueueUpdate` to queue safely even
+during rendering. Ordinary callable setters and `Update` reject render-phase
+calls. This explicit distinction avoids depending on unsupported goroutine-ID
+introspection. Render
 bodies and host commit calls run on the root owner. Ref writes require the same
 owner discipline or caller synchronization; they are not automatically atomic.
 
@@ -500,7 +503,7 @@ Proposed API responsibilities (names may settle during implementation):
 
 ```go
 TransformFile(filename string, src []byte, opts Options) (Result, error)
-TransformPackage(inputs []Source, opts Options) (PackageResult, error)
+TransformPackage(ctx context.Context, files map[string][]byte, opts Options) (PackageResult, error)
 ```
 
 Options contain language version, build context, runtime import path, limits
@@ -520,8 +523,9 @@ gox test ./...
 ```
 
 Emit is syntax/lowering validation; check includes package type checking using
-the selected Go toolchain. Build/run/test create isolated generated package
-trees and invoke the configured Go command without a shell. Preserve module
+the selected Go toolchain. Build/run/test create immutable generated files and a temporary Go filesystem
+overlay, then invoke the configured Go command without a shell. This preserves
+the existing module/workspace tree instead of copying it. Preserve module
 identity, relative replace directives, embeds and package layout. Do not
 promise transparent arbitrary dependency discovery in the first wrapper:
 support and document local module/workspace scope in M2, then dependency graph

@@ -18,7 +18,6 @@ import (
 	"slices"
 	"strings"
 
-	"cmd/internal/sharedentry"
 	"cmd/go/internal/base"
 	"cmd/go/internal/bug"
 	"cmd/go/internal/cfg"
@@ -27,6 +26,7 @@ import (
 	"cmd/go/internal/envcmd"
 	"cmd/go/internal/fmtcmd"
 	"cmd/go/internal/generate"
+	"cmd/go/internal/goxcmd"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
 	"cmd/go/internal/modcmd"
@@ -44,6 +44,7 @@ import (
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
 	"cmd/go/internal/workcmd"
+	"cmd/internal/sharedentry"
 	"cmd/internal/telemetry"
 	"cmd/internal/telemetry/counter"
 )
@@ -58,6 +59,7 @@ func init() {
 		vet.CmdFix,
 		fmtcmd.CmdFmt,
 		generate.CmdGenerate,
+		goxcmd.CmdGoX,
 		modget.CmdGet,
 		work.CmdInstall,
 		list.CmdList,
@@ -338,6 +340,11 @@ func invoke(cmd *base.Command, args []string) {
 
 	ctx := maybeStartTrace(context.Background())
 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+	var goxErr error
+	args, goxErr = goxcmd.PrepareArgs(cmd.Name(), args)
+	if goxErr != nil {
+		base.Fatal(goxErr)
+	}
 	cmd.Run(ctx, cmd, args)
 	span.Done()
 }
