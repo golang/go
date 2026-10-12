@@ -1,0 +1,25 @@
+[!cgo] skip
+[short] skip
+
+env GOFLAGS=-buildvcs=false
+go run .
+stdout '^C value: 42$'
+go test -cover .
+stdout 'ok'
+
+-- go.mod --
+module example
+go 1.26
+-- main.gox --
+package main
+/*
+static int answer(void) { return 42; }
+*/
+import "C"
+import "fmt"
+func value()string{return F"C value: {C.answer()}"}
+func main(){fmt.Println(value())}
+-- main_test.gox --
+package main
+import "testing"
+func TestValue(t *testing.T){if value()!="C value: 42"{t.Fatal(value())}}

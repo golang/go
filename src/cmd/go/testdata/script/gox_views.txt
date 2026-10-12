@@ -1,0 +1,45 @@
+env GOFLAGS=-buildvcs=false
+# Component properties retain static typing through imported GoX-only packages.
+go mod edit -replace=github.com/alfu32/go-shared/gox=$GOROOT/gox
+go run .
+stdout '^counter:0$'
+stdout '^counter:1$'
+go vet .
+go build -trimpath -o app$GOEXE .
+exec ./app$GOEXE
+stdout '^counter:1$'
+
+# Wrong property types fail compilation before any component is mounted.
+cp bad.txt main.gox
+! go build .
+stderr 'cannot use.*123.*string'
+
+-- go.mod --
+module example
+
+go 1.26
+
+require github.com/alfu32/go-shared/gox v0.0.0
+-- main.gox --
+package main
+import("fmt";"example/ui";v "github.com/alfu32/go-shared/gox/goxview")
+func main(){
+ r:=v.NewRoot(nil,nil)
+ if e:=r.Mount(<ui.Counter title="counter"/>);e!=nil{panic(e)}
+ fmt.Println(r.Tree().Children[0].Text)
+ r.Tree().Attrs[0].Value.(func())()
+ if e:=r.Flush();e!=nil{panic(e)}
+ fmt.Println(r.Tree().Children[0].Text)
+}
+-- ui/counter.gox --
+package ui
+component Counter(title string){
+ n,set:=useState(0)
+ ref:=useRef(0)
+ ref.Current++
+ return X"<button onClick={func(){set(n+1)}}>{F"{title}:{n}"}</button>"
+}
+-- bad.txt --
+package main
+import "example/ui"
+func main(){_ = <ui.Counter title={123}/>}

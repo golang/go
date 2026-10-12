@@ -21,6 +21,7 @@
 //	fix         apply fixes suggested by static checkers
 //	fmt         gofmt (reformat) package sources
 //	generate    generate Go files by processing source
+//	gox         translate GoX source to Go
 //	get         add dependencies to current module and install them
 //	install     compile and install packages and dependencies
 //	list        list packages or modules
@@ -689,6 +690,14 @@
 // For more about build flags, see 'go help build'.
 //
 // For more about specifying packages, see 'go help packages'.
+//
+// # Translate GoX source to Go
+//
+// Usage:
+//
+//	go gox [emit file.gox]
+//
+// GoX supports F formatting, X markup, bare JSX, local functions and components.
 //
 // # Add dependencies to current module and install them
 //

@@ -1,0 +1,40 @@
+name: GoX
+on:
+  push:
+    paths: ['gox/**', 'src/cmd/go/**', 'src/cmd/vendor/github.com/alfu32/**', '.github/workflows/gox.yml']
+  pull_request:
+    paths: ['gox/**', 'src/cmd/go/**', 'src/cmd/vendor/github.com/alfu32/**', '.github/workflows/gox.yml']
+jobs:
+  standalone:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+          cache: false
+      - run: go test ./...
+        working-directory: gox
+      - run: go run ../../cmd/gox run .
+        working-directory: gox/examples/counter
+      - run: python gox/tools/sync_vendor.py
+      - run: git diff --exit-code -- src/cmd/vendor
+  native-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+          cache: false
+      - run: GOROOT_BOOTSTRAP=$(go env GOROOT) ./make.bash
+        working-directory: src
+      - run: bin/go test cmd/go/internal/fsys cmd/go/internal/modindex
+      - run: bin/go test cmd/go -run 'TestChdir|TestDocsUpToDate|TestScript/(gox_build|gox_views|gox_workspace|gox_cgo|build_overlay)$' -count=1
+      - run: sh src/make-shared.sh
+      - run: sh src/cmd/sharedlauncher/test-linux.sh
+      - run: ../../../bin/go run .
+        working-directory: gox/examples/counter

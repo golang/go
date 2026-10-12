@@ -131,6 +131,9 @@ var (
 // using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
+	if fsys.HasGoX(pkgdir) {
+		return nil, ErrNotIndexed
+	}
 	mi, err := GetModule(modroot)
 	if err == nil {
 		return mi.Package(relPath(pkgdir, modroot)), nil
@@ -172,6 +175,9 @@ func GetModule(modroot string) (*Module, error) {
 	modroot = filepath.Clean(modroot)
 	if str.HasFilePathPrefix(modroot, cfg.GOROOTsrc) || !str.HasFilePathPrefix(modroot, cfg.GOMODCACHE) {
 		return nil, errNotFromModuleCache
+	}
+	if moduleHasGoX(modroot) {
+		return nil, ErrNotIndexed
 	}
 	return openIndexModule(modroot, true)
 }
