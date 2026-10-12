@@ -33,10 +33,9 @@ func archUpdateIEEE(crc uint32, p []byte) uint32 {
 		panic("arch-specific zbc instruction for IEEE not available")
 	}
 
-	// The CLMUL routine aligns a misaligned pointer to a 16-byte boundary
-	// one byte at a time (table-based) before entering the fold loop, so all
-	// LD loads inside it are aligned and it is safe on cores that trap on
-	// unaligned accesses. Give it all complete 16-byte blocks.
+	// The CLMUL routine byte-aligns the input to a 16-byte boundary before
+	// the fold loop, so it is safe on cores that trap on unaligned accesses.
+	// Give it all complete 16-byte blocks.
 	if len(p) >= 16 {
 		aligned := len(p) &^ 15
 		crc = ^ieeeUpdateCLMUL(^crc, &archIeeeTable8[0], p[:aligned])
@@ -69,8 +68,7 @@ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
 		panic("arch-specific zbc instruction for Castagnoli not available")
 	}
 
-	// Same as archUpdateIEEE: the CLMUL routine aligns a misaligned pointer
-	// byte-at-a-time before the fold loop.
+	// Same as archUpdateIEEE.
 	if len(p) >= 16 {
 		aligned := len(p) &^ 15
 		crc = ^castagnoliUpdateCLMUL(^crc, &archCastagnoliTable8[0], p[:aligned])
