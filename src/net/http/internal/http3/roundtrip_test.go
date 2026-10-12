@@ -1252,10 +1252,12 @@ func TestRoundTripHeaderLimits(t *testing.T) {
 			rt := tc.roundTrip(req)
 			st := tc.wantStream(streamTypeRequest)
 			st.wantHeaders(nil)
-			for _, h := range test.infoHeaders {
+			for _, h := range append(test.infoHeaders, test.header) {
 				st.writeHeaders(h)
+				if rt.done() {
+					break
+				}
 			}
-			st.writeHeaders(test.header)
 
 			if test.trailer == nil {
 				st.CloseWrite()
