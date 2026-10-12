@@ -4486,7 +4486,7 @@ func TestContentTypeOkayOn204(t *testing.T) {
 // and the http client), and both think they can close it on failure.
 // Therefore, all incoming server requests Bodies need to be thread-safe.
 func TestTransportAndServerSharedBodyRace(t *testing.T) {
-	runSynctest(t, testTransportAndServerSharedBodyRace, testNotParallel, http3SkippedMode)
+	runSynctest(t, testTransportAndServerSharedBodyRace)
 }
 func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
