@@ -78,27 +78,27 @@ var (
 	testClientRSAPSSKey  = testClientRSAPSSCert.PrivateKey.(*rsa.PrivateKey)
 
 	// ML-DSA-44 server leaf, SAN=test.golang.example, issued by Root.
-	testMLDSA44Cert = parseTestCert(testMLDSA44CertPEM, testMLDSA44KeyPEM)
+	testMLDSA44Cert   = parseTestCert(testMLDSA44CertPEM, testMLDSA44KeyPEM)
 	testMLDSA44Key, _ = testMLDSA44Cert.PrivateKey.(*mldsa.PrivateKey)
 
 	// ML-DSA-65 server leaf, SAN=test.golang.example, issued by Root.
-	testMLDSA65Cert = parseTestCert(testMLDSA65CertPEM, testMLDSA65KeyPEM)
+	testMLDSA65Cert   = parseTestCert(testMLDSA65CertPEM, testMLDSA65KeyPEM)
 	testMLDSA65Key, _ = testMLDSA65Cert.PrivateKey.(*mldsa.PrivateKey)
 
 	// ML-DSA-87 server leaf, SAN=test.golang.example, issued by Root.
-	testMLDSA87Cert = parseTestCert(testMLDSA87CertPEM, testMLDSA87KeyPEM)
+	testMLDSA87Cert   = parseTestCert(testMLDSA87CertPEM, testMLDSA87KeyPEM)
 	testMLDSA87Key, _ = testMLDSA87Cert.PrivateKey.(*mldsa.PrivateKey)
 
 	// ML-DSA-44 client leaf, SAN=test.golang.example, issued by Client Root.
-	testClientMLDSA44Cert = parseTestCert(testClientMLDSA44CertPEM, testClientMLDSA44KeyPEM)
+	testClientMLDSA44Cert   = parseTestCert(testClientMLDSA44CertPEM, testClientMLDSA44KeyPEM)
 	testClientMLDSA44Key, _ = testClientMLDSA44Cert.PrivateKey.(*mldsa.PrivateKey)
 
 	// ML-DSA-65 client leaf, SAN=test.golang.example, issued by Client Root.
-	testClientMLDSA65Cert = parseTestCert(testClientMLDSA65CertPEM, testClientMLDSA65KeyPEM)
+	testClientMLDSA65Cert   = parseTestCert(testClientMLDSA65CertPEM, testClientMLDSA65KeyPEM)
 	testClientMLDSA65Key, _ = testClientMLDSA65Cert.PrivateKey.(*mldsa.PrivateKey)
 
 	// ML-DSA-87 client leaf, SAN=test.golang.example, issued by Client Root.
-	testClientMLDSA87Cert = parseTestCert(testClientMLDSA87CertPEM, testClientMLDSA87KeyPEM)
+	testClientMLDSA87Cert   = parseTestCert(testClientMLDSA87CertPEM, testClientMLDSA87KeyPEM)
 	testClientMLDSA87Key, _ = testClientMLDSA87Cert.PrivateKey.(*mldsa.PrivateKey)
 
 	// x509.CertPool containing testRootCert.
