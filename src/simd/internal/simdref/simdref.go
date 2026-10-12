@@ -16288,6 +16288,286 @@ func (x Uint64s) ReduceSum() (z uint64) {
 	return spec.ReduceSum[uint64, spec.WidthScalable](x.v)
 }
 
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Float32x4) ReduceMax() (z float32) {
+	return spec.ReduceMax[float32, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Float32x8) ReduceMax() (z float32) {
+	return spec.ReduceMax[float32, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Float32x16) ReduceMax() (z float32) {
+	return spec.ReduceMax[float32, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Float32s) ReduceMax() (z float32) {
+	return spec.ReduceMax[float32, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Float64x2) ReduceMax() (z float64) {
+	return spec.ReduceMax[float64, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Float64x4) ReduceMax() (z float64) {
+	return spec.ReduceMax[float64, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Float64x8) ReduceMax() (z float64) {
+	return spec.ReduceMax[float64, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Float64s) ReduceMax() (z float64) {
+	return spec.ReduceMax[float64, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int8x16) ReduceMax() (z int8) {
+	return spec.ReduceMax[int8, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int8x32) ReduceMax() (z int8) {
+	return spec.ReduceMax[int8, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int8x64) ReduceMax() (z int8) {
+	return spec.ReduceMax[int8, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int8s) ReduceMax() (z int8) {
+	return spec.ReduceMax[int8, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int16x8) ReduceMax() (z int16) {
+	return spec.ReduceMax[int16, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int16x16) ReduceMax() (z int16) {
+	return spec.ReduceMax[int16, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int16x32) ReduceMax() (z int16) {
+	return spec.ReduceMax[int16, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int16s) ReduceMax() (z int16) {
+	return spec.ReduceMax[int16, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int32x4) ReduceMax() (z int32) {
+	return spec.ReduceMax[int32, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int32x8) ReduceMax() (z int32) {
+	return spec.ReduceMax[int32, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int32x16) ReduceMax() (z int32) {
+	return spec.ReduceMax[int32, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int32s) ReduceMax() (z int32) {
+	return spec.ReduceMax[int32, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int64x2) ReduceMax() (z int64) {
+	return spec.ReduceMax[int64, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int64x4) ReduceMax() (z int64) {
+	return spec.ReduceMax[int64, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int64x8) ReduceMax() (z int64) {
+	return spec.ReduceMax[int64, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int64s) ReduceMax() (z int64) {
+	return spec.ReduceMax[int64, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint8x16) ReduceMax() (z uint8) {
+	return spec.ReduceMax[uint8, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint8x32) ReduceMax() (z uint8) {
+	return spec.ReduceMax[uint8, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint8x64) ReduceMax() (z uint8) {
+	return spec.ReduceMax[uint8, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint8s) ReduceMax() (z uint8) {
+	return spec.ReduceMax[uint8, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint16x8) ReduceMax() (z uint16) {
+	return spec.ReduceMax[uint16, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint16x16) ReduceMax() (z uint16) {
+	return spec.ReduceMax[uint16, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint16x32) ReduceMax() (z uint16) {
+	return spec.ReduceMax[uint16, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint16s) ReduceMax() (z uint16) {
+	return spec.ReduceMax[uint16, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint32x4) ReduceMax() (z uint32) {
+	return spec.ReduceMax[uint32, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint32x8) ReduceMax() (z uint32) {
+	return spec.ReduceMax[uint32, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint32x16) ReduceMax() (z uint32) {
+	return spec.ReduceMax[uint32, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint32s) ReduceMax() (z uint32) {
+	return spec.ReduceMax[uint32, spec.WidthScalable](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint64x2) ReduceMax() (z uint64) {
+	return spec.ReduceMax[uint64, spec.Width128](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint64x4) ReduceMax() (z uint64) {
+	return spec.ReduceMax[uint64, spec.Width256](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint64x8) ReduceMax() (z uint64) {
+	return spec.ReduceMax[uint64, spec.Width512](x.v)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint64s) ReduceMax() (z uint64) {
+	return spec.ReduceMax[uint64, spec.WidthScalable](x.v)
+}
+
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])

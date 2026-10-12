@@ -384,10 +384,12 @@ func (x Uint32x4) ReduceSum() (z uint32) {
 	return x.reduceSum().GetElem(0)
 }
 
-// ReduceMax reduces x by taking the maximum of all elements.
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
 //
 // Emulated
-func (x Int8x16) ReduceMax() int8 {
+func (x Int8x16) ReduceMax() (z int8) {
 	return x.reduceMax().GetElem(0)
 }
 
@@ -398,10 +400,12 @@ func (x Int8x16) ReduceMin() int8 {
 	return x.reduceMin().GetElem(0)
 }
 
-// ReduceMax reduces x by taking the maximum of all elements.
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
 //
 // Emulated
-func (x Int16x8) ReduceMax() int16 {
+func (x Int16x8) ReduceMax() (z int16) {
 	return x.reduceMax().GetElem(0)
 }
 
@@ -412,10 +416,12 @@ func (x Int16x8) ReduceMin() int16 {
 	return x.reduceMin().GetElem(0)
 }
 
-// ReduceMax reduces x by taking the maximum of all elements.
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
 //
 // Emulated
-func (x Int32x4) ReduceMax() int32 {
+func (x Int32x4) ReduceMax() (z int32) {
 	return x.reduceMax().GetElem(0)
 }
 
@@ -426,10 +432,12 @@ func (x Int32x4) ReduceMin() int32 {
 	return x.reduceMin().GetElem(0)
 }
 
-// ReduceMax reduces x by taking the maximum of all elements.
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
 //
 // Emulated
-func (x Uint8x16) ReduceMax() uint8 {
+func (x Uint8x16) ReduceMax() (z uint8) {
 	return x.reduceMax().GetElem(0)
 }
 
@@ -440,10 +448,12 @@ func (x Uint8x16) ReduceMin() uint8 {
 	return x.reduceMin().GetElem(0)
 }
 
-// ReduceMax reduces x by taking the maximum of all elements.
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
 //
 // Emulated
-func (x Uint16x8) ReduceMax() uint16 {
+func (x Uint16x8) ReduceMax() (z uint16) {
 	return x.reduceMax().GetElem(0)
 }
 
@@ -454,10 +464,12 @@ func (x Uint16x8) ReduceMin() uint16 {
 	return x.reduceMin().GetElem(0)
 }
 
-// ReduceMax reduces x by taking the maximum of all elements.
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
 //
 // Emulated
-func (x Uint32x4) ReduceMax() uint32 {
+func (x Uint32x4) ReduceMax() (z uint32) {
 	return x.reduceMax().GetElem(0)
 }
 
@@ -468,10 +480,12 @@ func (x Uint32x4) ReduceMin() uint32 {
 	return x.reduceMin().GetElem(0)
 }
 
-// ReduceMax reduces x by taking the maximum of all elements.
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
 //
 // Emulated
-func (x Float32x4) ReduceMax() float32 {
+func (x Float32x4) ReduceMax() (z float32) {
 	return x.reduceMax().GetElem(0)
 }
 
@@ -509,10 +523,12 @@ func (x Float64x2) ReduceSum() (z float64) {
 	return x.ConcatAddPairs(x).GetElem(0)
 }
 
-// ReduceMax reduces x by taking the maximum of all elements.
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
 //
 // Emulated
-func (x Float64x2) ReduceMax() float64 {
+func (x Float64x2) ReduceMax() (z float64) {
 	return x.ConcatMaxPairs(x).GetElem(0)
 }
 

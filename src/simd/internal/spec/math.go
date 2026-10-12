@@ -365,6 +365,19 @@ func ReduceSum[E Elt, W Width](x Vec[E, W]) (z E) {
 	return z
 }
 
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
+	// TODO: Platforms may not agree on NaN and on the sign of a zero result,
+	// as with Max.
+	z = x[0]
+	for _, xi := range x[1:] {
+		z = max(z, xi)
+	}
+	return z
+}
+
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
