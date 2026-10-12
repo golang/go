@@ -7,6 +7,7 @@ package sve
 import (
 	"slices"
 	"sort"
+	"strings"
 
 	"simd/archsimd/_gen/unify"
 
@@ -103,8 +104,12 @@ func groupPredicationForms(insts []*Instruction) map[*Instruction]bool {
 	for _, g := range groups {
 		if len(g.unpred) == 0 {
 			// No unpredicated form at all — ABS with its /M and /Z encodings,
-			// or SMAX whose only vector encoding is the /M one.
-			groupPredicatedOnly(g.pred, covered)
+			// or SMAX whose only vector encoding is the /M one. A conversion
+			// such as FCVTZS has one /M and one /Z encoding per pair of
+			// element widths, all under one title; each pair folds on its own.
+			for _, pred := range byFixedTemplate(g.pred) {
+				groupPredicatedOnly(pred, covered)
+			}
 			continue
 		}
 		if len(g.unpred) != 1 || len(g.pred) == 0 {
@@ -193,6 +198,33 @@ func groupPredicatedOnly(pred []*Instruction, covered map[*Instruction]bool) {
 			covered[inst] = true
 		}
 	}
+}
+
+// byFixedTemplate splits the encodings of one operation by their assembly
+// template with the predication qualifier removed, so that encodings that fix
+// different element widths ("FCVTZS <Zd>.S, <Pg>/M, <Zn>.S" and "FCVTZS
+// <Zd>.D, <Pg>/M, <Zn>.S") land in different groups and the /M and /Z
+// encodings of one width land in the same one. The groups keep the order of
+// insts.
+func byFixedTemplate(insts []*Instruction) [][]*Instruction {
+	var keys []string
+	groups := map[string][]*Instruction{}
+	for _, inst := range insts {
+		var key string
+		if ic := inst.ic(); ic != nil && len(ic.Encodings) > 0 {
+			key = asmTemplateToString(ic.Encodings[0].AsmTemplate)
+			key = strings.NewReplacer("/M", "", "/Z", "", "/<ZM>", "").Replace(key)
+		}
+		if _, ok := groups[key]; !ok {
+			keys = append(keys, key)
+		}
+		groups[key] = append(groups[key], inst)
+	}
+	out := make([][]*Instruction, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, groups[k])
+	}
+	return out
 }
 
 // governingAsmPos returns the assembly position of the governing predicate in

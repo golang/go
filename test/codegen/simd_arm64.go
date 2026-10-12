@@ -236,6 +236,12 @@ func sveAbsMaskedFoldsToMerging(x archsimd.Int8s, m archsimd.Mask8s) archsimd.Ui
 	return x.Abs().Masked(m)
 }
 
+func sveCeilIfElseFoldsToMerging(x, z archsimd.Float32s, m archsimd.Mask32s) archsimd.Float32s {
+	// FRINTP is predicated-only, like ABS, and folds the same way.
+	// arm64:`ZFRINTP.*P[0-9]+\.M` -`ZSEL` -`PWHILELT` -`ZMOVPRFX`
+	return x.Ceil().IfElse(m, z)
+}
+
 func sveIfElseFloat(x, y archsimd.Float64s, m archsimd.Mask64s) archsimd.Float64s {
 	// arm64:`ZFADD.*P[0-9]+\.M` -`ZSEL`
 	return x.Add(y).IfElse(m, x)
