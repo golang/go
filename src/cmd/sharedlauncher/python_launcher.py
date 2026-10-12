@@ -18,12 +18,25 @@ def main() -> int:
     # and `go` parses that output (for example `compile -V=full`).
     argv0 = str(executable_path)
 
-    # Set GOROOT before loading the Go runtime when the distribution root can
-    # be identified from this script's location.
-    for parent in script.parents:
-        if (parent / "src" / "cmd" / "go").is_dir() and (parent / "pkg" / "tool").is_dir():
-            os.environ.setdefault("GOROOT", str(parent))
-            break
+    # Find this distribution's root before loading the Go runtime. Preserve
+    # an explicit GOROOT only when it looks like a Go source/distribution root;
+    # otherwise a stale setting (for example pkg/tool/windows_amd64) makes
+    # cmd/go search for the standard library under the tool directory.
+    distribution_root = next(
+        (
+            parent
+            for parent in script.parents
+            if (parent / "src" / "cmd" / "go").is_dir()
+            and (parent / "pkg" / "tool").is_dir()
+        ),
+        None,
+    )
+    configured_root = os.environ.get("GOROOT")
+    if distribution_root is not None and (
+        not configured_root
+        or not (Path(configured_root) / "src" / "cmd" / "go").is_dir()
+    ):
+        os.environ["GOROOT"] = str(distribution_root)
 
     try:
         # Include this directory when Windows resolves the DLL's dependencies.
