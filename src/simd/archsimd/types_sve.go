@@ -1083,6 +1083,13 @@ type Mask8s struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask8sAllTrue() Mask8s
 
+// Mask8sFromCount returns a mask whose first count lanes are true and the
+// rest false. A count of 0 or less gives no true lanes, and a count of the
+// vector length or more gives all true lanes.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func Mask8sFromCount(count int) Mask8s
+
 // First returns a mask with only the first active lane of x active, or no
 // lanes active if x has none.
 //
@@ -1154,6 +1161,13 @@ type Mask16s struct {
 //
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask16sAllTrue() Mask16s
+
+// Mask16sFromCount returns a mask whose first count lanes are true and the
+// rest false. A count of 0 or less gives no true lanes, and a count of the
+// vector length or more gives all true lanes.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func Mask16sFromCount(count int) Mask16s
 
 // First returns a mask with only the first active lane of x active, or no
 // lanes active if x has none.
@@ -1227,6 +1241,13 @@ type Mask32s struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask32sAllTrue() Mask32s
 
+// Mask32sFromCount returns a mask whose first count lanes are true and the
+// rest false. A count of 0 or less gives no true lanes, and a count of the
+// vector length or more gives all true lanes.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func Mask32sFromCount(count int) Mask32s
+
 // First returns a mask with only the first active lane of x active, or no
 // lanes active if x has none.
 //
@@ -1298,6 +1319,13 @@ type Mask64s struct {
 //
 // Asm: PWHILELT, CPU Feature: SVE
 func Mask64sAllTrue() Mask64s
+
+// Mask64sFromCount returns a mask whose first count lanes are true and the
+// rest false. A count of 0 or less gives no true lanes, and a count of the
+// vector length or more gives all true lanes.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func Mask64sFromCount(count int) Mask64s
 
 // First returns a mask with only the first active lane of x active, or no
 // lanes active if x has none.

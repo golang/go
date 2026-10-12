@@ -796,6 +796,13 @@ var genericOps = []opData{
 	{name: "Mask32sAllTrue", argLength: 0},
 	{name: "Mask64sAllTrue", argLength: 0},
 
+	// FromCount constructs a scalable predicate whose first arg0 lanes are
+	// true, with the same PWHILELT that AllTrue uses. arg0 = the count (int).
+	{name: "Mask8sFromCount", argLength: 1},
+	{name: "Mask16sFromCount", argLength: 1},
+	{name: "Mask32sFromCount", argLength: 1},
+	{name: "Mask64sFromCount", argLength: 1},
+
 	// First returns a mask with only the first active lane of arg0 active.
 	{name: "Mask8sFirst", argLength: 1},
 	{name: "Mask16sFirst", argLength: 1},

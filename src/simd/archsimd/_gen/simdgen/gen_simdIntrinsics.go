@@ -122,6 +122,7 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 {{- end}}`)
 
 	var sveMask = templateNamed("sveMask", `	addF(simdPackage, "{{.Name}}AllTrue", opLen0(ssaop.Op{{.Name}}AllTrue, types.TypeMask), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}FromCount", opLen1(ssaop.Op{{.Name}}FromCount, types.TypeMask), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.First", opLen1(ssaop.Op{{.Name}}First, types.TypeMask), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.Next", opLen1(ssaop.Op{{.Name}}Next, types.TypeMask), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.All", opLen1(ssaop.Op{{.Name}}All, types.Types[types.TBOOL]), {{GetSysArch}})

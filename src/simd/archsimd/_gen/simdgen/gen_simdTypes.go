@@ -376,6 +376,13 @@ type {{.Name}} struct {
 // Asm: PWHILELT, CPU Feature: SVE
 func {{.Name}}AllTrue() {{.Name}}
 
+// {{.Name}}FromCount returns a mask whose first count lanes are true and the
+// rest false. A count of 0 or less gives no true lanes, and a count of the
+// vector length or more gives all true lanes.
+//
+// Asm: PWHILELT, CPU Feature: SVE
+func {{.Name}}FromCount(count int) {{.Name}}
+
 // First returns a mask with only the first active lane of x active, or no
 // lanes active if x has none.
 //

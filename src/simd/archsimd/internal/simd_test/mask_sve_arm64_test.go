@@ -11,6 +11,7 @@
 package simd_test
 
 import (
+	"math"
 	"simd/archsimd"
 	"testing"
 	"unsafe"
@@ -248,3 +249,29 @@ func TestMaskToIntAndToMaskSVE(t *testing.T) {
 	testMaskToIntAndBack(t, "Mask64s", 8, archsimd.Mask64s.ToInt64s, archsimd.Int64s.ToMask, archsimd.Int64s.Store, archsimd.LoadInt64s)
 }
 
+// testMaskFromCount checks a FromCount constructor against the prefix of
+// lanes it should activate, through the mask's memory representation.
+func testMaskFromCount[M sveMask](t *testing.T, name string, laneBytes, n int, fromCount func(int) M) {
+	t.Helper()
+	for _, c := range []int{math.MinInt, -1, 0, 1, n / 2, n - 1, n, n + 1, math.MaxInt} {
+		m := fromCount(c)
+		got := *(*uint64)(unsafe.Pointer(&m))
+		lanes := make([]bool, n)
+		for i := range lanes {
+			lanes[i] = i < c
+		}
+		if want := bitsOf(lanes, laneBytes); got != want {
+			t.Errorf("%s(%d) = %#x, want %#x", name, c, got, want)
+		}
+	}
+}
+
+func TestMaskFromCountSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testMaskFromCount(t, "Mask8sFromCount", 1, archsimd.Int8s{}.Len(), archsimd.Mask8sFromCount)
+	testMaskFromCount(t, "Mask16sFromCount", 2, archsimd.Int16s{}.Len(), archsimd.Mask16sFromCount)
+	testMaskFromCount(t, "Mask32sFromCount", 4, archsimd.Int32s{}.Len(), archsimd.Mask32sFromCount)
+	testMaskFromCount(t, "Mask64sFromCount", 8, archsimd.Int64s{}.Len(), archsimd.Mask64sFromCount)
+}

@@ -7361,6 +7361,10 @@ const (
 	OpMask16sAllTrue
 	OpMask32sAllTrue
 	OpMask64sAllTrue
+	OpMask8sFromCount
+	OpMask16sFromCount
+	OpMask32sFromCount
+	OpMask64sFromCount
 	OpMask8sFirst
 	OpMask16sFirst
 	OpMask32sFirst
@@ -115930,6 +115934,26 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "Mask64sAllTrue",
 		ArgLen:  0,
+		Generic: true,
+	},
+	{
+		Name:    "Mask8sFromCount",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask16sFromCount",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask32sFromCount",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask64sFromCount",
+		ArgLen:  1,
 		Generic: true,
 	},
 	{

@@ -1966,6 +1966,13 @@
 (Mask32sAllTrue) => (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))
 (Mask64sAllTrue) => (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))
 
+// Lane i is active when i < count, compared signed, so a count of 0 or less
+// gives no active lanes.
+(Mask8sFromCount n) => (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) n))
+(Mask16sFromCount n) => (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) n))
+(Mask32sFromCount n) => (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) n))
+(Mask64sFromCount n) => (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) n))
+
 // The first active lane is the one that follows the last active lane of an
 // all-false mask.
 (Mask8sFirst m) => (PPNEXTB (PPFALSEB) m)
