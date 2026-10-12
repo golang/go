@@ -58,13 +58,24 @@ func (p *parser) dep(path string) string {
 	if n, ok := p.extraImports[path]; ok {
 		return n
 	}
+	if path == runtimePath {
+		p.extraImports[path] = "vdom"
+		return "vdom"
+	}
 
 	n := p.fresh("pkg")
 	p.extraImports[path] = n
 	return n
 }
+
+// vdom is the implicit source-level name for the GoX view runtime. It is
+// supplied as an import by the transformer, so GoX users can name runtime
+// types such as vdom.Node without adding a package import themselves.
 func (p *parser) runtime(name string) ast.Expr { return sel(ident(p.dep(runtimePath)), name) }
 func (p *parser) finishGoX(f *ast.File) {
+	if p.mode&GoX != 0 && usesSelector(f, "vdom") && !hasImportName(f, "vdom") {
+		p.extraImports[runtimePath] = "vdom"
+	}
 	if len(p.extraImports) == 0 {
 		return
 	}
@@ -113,6 +124,30 @@ func (p *parser) finishGoX(f *ast.File) {
 		f.Decls[at] = decl
 	}
 	f.Decls = append(f.Decls, p.extraDecls...)
+}
+
+func usesSelector(f *ast.File, name string) bool {
+	used := false
+	ast.Inspect(f, func(n ast.Node) bool {
+		if s, ok := n.(*ast.SelectorExpr); ok {
+			id, ok := s.X.(*ast.Ident)
+			if ok && id.Name == name {
+				used = true
+				return false
+			}
+		}
+		return !used
+	})
+	return used
+}
+
+func hasImportName(f *ast.File, name string) bool {
+	for _, imp := range f.Imports {
+		if imp.Name != nil && imp.Name.Name == name {
+			return true
+		}
+	}
+	return false
 }
 func (p *parser) enterExtension() func() {
 	p.extensionDepth++

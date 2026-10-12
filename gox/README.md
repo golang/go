@@ -97,12 +97,22 @@ branches, loops, callbacks and after conditional control flow are rejected.
 The generated component value exposes a `GoXDefinition` runtime definition,
 per-property typed adapters and a structural validation function. This ABI is
 experimental. Ordinary Go can consume emitted code and use
-`view.Component(Counter.GoXDefinition, attrs, children)`; that low-level API
+`vdom.Component(Counter.GoXDefinition, attrs, children)`; that low-level API
 performs runtime property checks, whereas markup performs static checks.
+
+`vdom` is the implicit name for the GoX view runtime in GoX source; no import is
+needed. Its public interface includes `Node` (host tag/text, attributes,
+children, component definition and key), `Attr` (`Name` and typed `Value`),
+`Definition`/`Instance` for component rendering, and `Root` for mounting and
+updating a tree. `Element`, `Component`, `Text`, `Child` and `Prop[T]` build or
+inspect values. `NewRoot` creates the host root; `Mount`, `Tree`, `Flush` and
+`Unmount` control it. `NewContext[T]`, `UseContext`, `UseState[T]` and `UseRef[T]`
+provide the component hooks. For example, a GoX component may declare
+`children []vdom.Node` without importing the runtime package.
 
 ## Runtime
 
-`goxview.NewRoot(commit, wake)` creates a root. `Mount(node)` renders;
+`vdom.NewRoot(commit, wake)` creates a root. `Mount(node)` renders;
 `Tree()` returns the headless tree; attribute callback values serve as event
 handlers. Invoke a callback, then call `Flush()` to process its queued updates.
 `Unmount()` invalidates old setters. The counter example demonstrates this host
