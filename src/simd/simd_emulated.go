@@ -1215,14 +1215,15 @@ func LoadInt64s(s []int64) (z Int64s) {
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadInt64sPart(s []int64) (z Int64s, n int) {
+	n = min(len(s), 2)
 	var a, b uint64
-	if len(s) > 0 {
+	if n > 0 {
 		a = uint64(s[0])
 	}
-	if len(s) > 1 {
+	if n > 1 {
 		b = uint64(s[1])
 	}
-	return Int64s{a: a, b: b}, len(s)
+	return Int64s{a: a, b: b}, n
 }
 
 func (x Int64s) get(i int) int64 {
@@ -2618,7 +2619,7 @@ func LoadUint64s(s []uint64) (z Uint64s) {
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadUint64sPart(s []uint64) (z Uint64s, n int) {
-	n = len(s)
+	n = min(len(s), 2)
 	var a, b uint64
 	if n > 0 {
 		a = s[0]
@@ -3243,7 +3244,7 @@ func LoadFloat64s(s []float64) (z Float64s) {
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadFloat64sPart(s []float64) (z Float64s, n int) {
-	n = len(s)
+	n = min(len(s), 2)
 	var a, b uint64
 	if n > 0 {
 		a = math.Float64bits(s[0])
