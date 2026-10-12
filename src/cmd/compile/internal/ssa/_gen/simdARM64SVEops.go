@@ -91,6 +91,8 @@ func simdARM64SVEOps(z11, z21, zkv, zkfp, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPr
 		{name: "ZFCMGTS", argLength: 3, reg: z2kk, asm: "ZFCMGT", typ: "Mask"},
 		{name: "ZFCMNED", argLength: 3, reg: z2kk, asm: "ZFCMNE", commutative: true, typ: "Mask"},
 		{name: "ZFCMNES", argLength: 3, reg: z2kk, asm: "ZFCMNE", commutative: true, typ: "Mask"},
+		{name: "ZFCVTZSMergingS", argLength: 3, reg: z2kvPred, asm: "ZFCVTZS", typ: "Vec256", resultInArg0: true},
+		{name: "ZFCVTZSS", argLength: 2, reg: zkv, asm: "ZFCVTZS", typ: "Vec256"},
 		{name: "ZFDIVD", argLength: 3, reg: z2kvPred, asm: "ZFDIV", typ: "Vec256", resultInArg0: true},
 		{name: "ZFDIVMergingD", argLength: 3, reg: z2kvPred, asm: "ZFDIV", typ: "Vec256", resultInArg0: true},
 		{name: "ZFDIVMergingS", argLength: 3, reg: z2kvPred, asm: "ZFDIV", typ: "Vec256", resultInArg0: true},

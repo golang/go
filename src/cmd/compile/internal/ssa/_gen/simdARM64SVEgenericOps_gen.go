@@ -46,6 +46,7 @@ func init() {
 		{name: "AndUint64s", argLength: 2, commutative: true},
 		{name: "CeilFloat32s", argLength: 1},
 		{name: "CeilFloat64s", argLength: 1},
+		{name: "ConvertToInt32Float32s", argLength: 1},
 		{name: "DivFloat32s", argLength: 2},
 		{name: "DivFloat64s", argLength: 2},
 		{name: "DivInt32s", argLength: 2},

@@ -294,6 +294,17 @@ func (x Float32s) Ceil() Float32s
 // Asm: ZFRINTP, CPU Feature: SVE
 func (x Float64s) Ceil() Float64s
 
+/* ConvertToInt32 */
+
+// ConvertToInt32 converts each element of x to int32.
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
+//
+// Asm: ZFCVTZS, CPU Feature: SVE
+func (x Float32s) ConvertToInt32() (z Int32s)
+
 /* Div */
 
 // Div divides x by y elementwise.

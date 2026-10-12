@@ -5185,6 +5185,8 @@ const (
 	OpARM64ZFCMGTS
 	OpARM64ZFCMNED
 	OpARM64ZFCMNES
+	OpARM64ZFCVTZSMergingS
+	OpARM64ZFCVTZSS
 	OpARM64ZFDIVD
 	OpARM64ZFDIVMergingD
 	OpARM64ZFDIVMergingS
@@ -7744,6 +7746,7 @@ const (
 	OpConvertToFloat64Uint64x2
 	OpConvertToFloat64Uint64x4
 	OpConvertToFloat64Uint64x8
+	OpConvertToInt32Float32s
 	OpConvertToInt32Float32x16
 	OpConvertToInt32Float32x4
 	OpConvertToInt32Float32x8
@@ -88365,6 +88368,36 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "ZFCVTZSMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZFCVTZS,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:   "ZFCVTZSS",
+		ArgLen: 2,
+		asm:    arm64.AZFCVTZS,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},     // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:         "ZFDIVD",
 		ArgLen:       3,
 		ResultInArg0: true,
@@ -117767,6 +117800,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ConvertToFloat64Uint64x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ConvertToInt32Float32s",
 		ArgLen:  1,
 		Generic: true,
 	},
