@@ -272,8 +272,7 @@ TEXT ·ctrBlocks4Asm(SB), NOSPLIT, $0-48
 	VMOVQ	R11, V0.V[1]
 
 	ADDV	$1, R8, R16	// R16 = ivlo+1
-	SGTU	R16, R8, R17	// R17 = 1 if not overflow (R16 > R8); if overflow R17=0
-	XOR	$1, R17		// R17 = 1 overflow need carry
+	SGTU	R8, R16, R17	// R17 = 1 if overflow (unsigned wraparound), else 0
 	ADDV	R17, R9, R18	// R18 = ivhi + carry
 	REVBV	R18, R10
 	REVBV	R16, R11
@@ -281,8 +280,7 @@ TEXT ·ctrBlocks4Asm(SB), NOSPLIT, $0-48
 	VMOVQ	R11, V1.V[1]
 
 	ADDV	$1, R16, R23
-	SGTU	R23, R16, R17
-	XOR	$1, R17
+	SGTU	R16, R23, R17
 	ADDV	R17, R18, R24
 	REVBV	R24, R10
 	REVBV	R23, R11
@@ -290,8 +288,7 @@ TEXT ·ctrBlocks4Asm(SB), NOSPLIT, $0-48
 	VMOVQ	R11, V3.V[1]
 
 	ADDV	$1, R23, R25
-	SGTU	R25, R23, R17
-	XOR	$1, R17
+	SGTU	R23, R25, R17
 	ADDV	R17, R24, R26
 	REVBV	R26, R10
 	REVBV	R25, R11
