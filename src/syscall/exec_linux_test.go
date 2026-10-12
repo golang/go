@@ -184,6 +184,8 @@ func TestGroupCleanup(t *testing.T) {
 func TestGroupCleanupUserNamespace(t *testing.T) {
 	testenv.MustHaveExecPath(t, "id")
 	cmd := testenv.Command(t, "id")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "LC_ALL=C")
 	uid, gid := os.Getuid(), os.Getgid()
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUSER,
