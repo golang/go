@@ -77,18 +77,20 @@ GLOBL mask32<>(SB), RODATA, $8
 // Expects non-inverted CRC input. Returns non-inverted CRC.
 //
 // Handles arbitrary len(p) (including misaligned pointers): misaligned input
-// is byte-aligned to a 16-byte boundary first (CRC_BYTE), so all LD in the
-// fold loop are aligned. If fewer than 16 bytes remain after alignment, or
-// after the fold loop, they are processed one byte at a time with the same
-// table. The Go caller (archUpdateIEEE) only passes complete 16-byte blocks,
-// but the routine is correct for any length.
+// is byte-aligned to a 16-byte boundary first (CRC_BYTE), so every LD in the
+// fold loop is 8-byte aligned. 16-byte alignment serves the fold algorithm
+// (each 16-byte block starts at a boundary); the LD loads only require
+// 8-byte alignment, which the 16-byte boundary implies. Remaining bytes are
+// processed one byte at a time with the same table. The Go caller
+// (archUpdateIEEE) only passes complete 16-byte blocks.
 TEXT ·ieeeUpdateCLMUL(SB), NOSPLIT, $0-44
 	MOVWU	crc+0(FP), X5		// CRC value (non-inverted)
 	MOV	tab+8(FP), X30		// table pointer
 	MOV	p+16(FP), X6		// data pointer
 	MOV	p_len+24(FP), X7	// len(p)
 
-	// Align the pointer to a 16-byte boundary, one byte at a time.
+	// Byte-align input to a 16-byte boundary (algorithm requirement; the
+	// fold-loop LDs only need 8-byte alignment).
 	ANDI	$15, X6, X23
 	BEQ	X23, ZERO, ieee_aligned
 
@@ -103,7 +105,7 @@ ieee_aligned:
 	MOV	$16, X12
 	BLT	X7, X12, ieee_tail
 
-	// Load first 16 bytes of data (aligned LD path)
+	// Load first 16 bytes (X6 is 16-byte aligned).
 	MOV	(X6), X8		// t0 = low 64 bits
 	MOV	8(X6), X9		// t1 = high 64 bits
 	ADD	$16, X6
@@ -121,7 +123,7 @@ ieee_aligned:
 	BLT	X7, X12, ieee_fold_done
 
 ieee_fold_loop:
-	// Process the next 16-byte block (aligned LD path).
+	// Process the next 16-byte block (X6 stays 16-byte aligned).
 	MOV	(X6), X13		// d0 = new low 64 bits
 	MOV	8(X6), X14		// d1 = new high 64 bits
 	ADD	$16, X6
@@ -191,18 +193,20 @@ ieee_ret:
 // Expects non-inverted CRC input. Returns non-inverted CRC.
 //
 // Handles arbitrary len(p) (including misaligned pointers): misaligned input
-// is byte-aligned to a 16-byte boundary first (CRC_BYTE), so all LD in the
-// fold loop are aligned. If fewer than 16 bytes remain after alignment, or
-// after the fold loop, they are processed one byte at a time with the same
-// table. The Go caller (archUpdateCastagnoli) only passes complete 16-byte
-// blocks, but the routine is correct for any length.
+// is byte-aligned to a 16-byte boundary first (CRC_BYTE), so every LD in the
+// fold loop is 8-byte aligned. 16-byte alignment serves the fold algorithm
+// (each 16-byte block starts at a boundary); the LD loads only require
+// 8-byte alignment, which the 16-byte boundary implies. Remaining bytes are
+// processed one byte at a time with the same table. The Go caller
+// (archUpdateCastagnoli) only passes complete 16-byte blocks.
 TEXT ·castagnoliUpdateCLMUL(SB), NOSPLIT, $0-44
 	MOVWU	crc+0(FP), X5		// CRC value (non-inverted)
 	MOV	tab+8(FP), X30		// table pointer
 	MOV	p+16(FP), X6		// data pointer
 	MOV	p_len+24(FP), X7	// len(p)
 
-	// Align the pointer to a 16-byte boundary, one byte at a time.
+	// Byte-align input to a 16-byte boundary (algorithm requirement; the
+	// fold-loop LDs only need 8-byte alignment).
 	ANDI	$15, X6, X23
 	BEQ	X23, ZERO, cast_aligned
 
@@ -217,7 +221,7 @@ cast_aligned:
 	MOV	$16, X12
 	BLT	X7, X12, cast_tail
 
-	// Load first 16 bytes of data (aligned LD path)
+	// Load first 16 bytes (X6 is 16-byte aligned).
 	MOV	(X6), X8		// t0 = low 64 bits
 	MOV	8(X6), X9		// t1 = high 64 bits
 	ADD	$16, X6
@@ -235,7 +239,7 @@ cast_aligned:
 	BLT	X7, X12, cast_fold_done
 
 cast_fold_loop:
-	// Process the next 16-byte block (aligned LD path).
+	// Process the next 16-byte block (X6 stays 16-byte aligned).
 	MOV	(X6), X13		// d0 = new low 64 bits
 	MOV	8(X6), X14		// d1 = new high 64 bits
 	ADD	$16, X6
