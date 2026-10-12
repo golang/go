@@ -699,7 +699,7 @@ func natcmp(x, y []uint) (r int) {
 
 func suffix(s, suffix string) bool {
 	// Note: issue 76304
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix // ERROR "Proved IsSliceInBounds"
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix // ERROR "Proved IsSliceInBounds" "Proved Eq64$"
 }
 
 func constsuffix(s string) bool {
@@ -2964,4 +2964,59 @@ func testConsecutiveLoopsMixed(buf []byte) {
 }
 
 func main() {
+}
+
+// The operand that cancels appears twice in each of these, as separate
+// expressions that are merged only by CSE, after the rewrite rules that
+// would fold the arithmetic have run.
+
+func inverseSliceRow(a []int, i, k int) int {
+	ai := a[i*k : i*k+k] // len(ai) == (i*k+k)-i*k == k
+	s := 0
+	for p := range k { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+		s += ai[p] // ERROR "Proved IsInBounds$"
+	}
+	return s
+}
+
+func inverseAddSubX(x, y, z int) int {
+	if (x*z+y)-x*z == y { // ERROR "Proved Eq64$"
+		return 1
+	}
+	return 0
+}
+
+func inverseAddSubY(x, y, z int) int {
+	if (y+x*z)-x*z == y { // ERROR "Proved Eq64$"
+		return 1
+	}
+	return 0
+}
+
+func inverseSubSub(x, y, z int) int {
+	if x*z-(x*z-y) == y { // ERROR "Proved Eq64$"
+		return 1
+	}
+	return 0
+}
+
+func inverseSubAdd(x, y, z int) int {
+	if (y-x*z)+x*z == y { // ERROR "Proved Eq64$"
+		return 1
+	}
+	return 0
+}
+
+func inverseAddSubCommuted(x, y, z int) int {
+	if x*z+(y-x*z) == y { // ERROR "Proved Eq64$"
+		return 1
+	}
+	return 0
+}
+
+func inverseAddSub32(x, y, z int32) int {
+	if (x*z+y)-x*z == y { // ERROR "Proved Eq32$"
+		return 1
+	}
+	return 0
 }

@@ -2046,6 +2046,7 @@ func (ft *factsTable) addValueFact(b *ssa.Block, v *ssa.Value) {
 			ft.update(b, v, v.Args[0], signed, r)
 		}
 		ft.compareConstDelta(b, v)
+		ft.addCancelFacts(b, v)
 	case ssaop.OpSub64, ssaop.OpSub32, ssaop.OpSub16, ssaop.OpSub8:
 		x := ft.limits[v.Args[0].ID]
 		y := ft.limits[v.Args[1].ID]
@@ -2057,6 +2058,7 @@ func (ft *factsTable) addValueFact(b *ssa.Block, v *ssa.Value) {
 			ft.update(b, v, v.Args[0], unsigned, r)
 		}
 		ft.compareConstDelta(b, v)
+		ft.addCancelFacts(b, v)
 		// FIXME: we could also do signed facts but the overflow checks are much trickier and I don't need it yet.
 	case ssaop.OpAnd64, ssaop.OpAnd32, ssaop.OpAnd16, ssaop.OpAnd8:
 		ft.update(b, v, v.Args[0], unsigned, lt|eq)
@@ -2168,6 +2170,59 @@ func (ft *factsTable) addValueFact(b *ssa.Block, v *ssa.Value) {
 		}
 	case ssaop.OpPhi:
 		addLocalFactsPhi(ft, v)
+	}
+}
+
+// addCancelFacts records that v, an addition or subtraction, equals one of
+// the values it is built from when the other operand cancels out:
+//
+//	(x+y)-x == y    (x+y)-y == x    x-(x-y) == y
+//	(x-y)+y == x    y+(x-y) == x
+//
+// These hold for all inputs: the arithmetic wraps, and the wrap of the inner
+// operation is undone by the outer one. The rewrite rules make the same
+// simplifications, but only for operands that are identical when they run;
+// prove also sees operands that became identical later, in CSE.
+func (ft *factsTable) addCancelFacts(b *ssa.Block, v *ssa.Value) {
+	var add, sub ssaop.Op
+	switch v.Op {
+	case ssaop.OpAdd64, ssaop.OpSub64:
+		add, sub = ssaop.OpAdd64, ssaop.OpSub64
+	case ssaop.OpAdd32, ssaop.OpSub32:
+		add, sub = ssaop.OpAdd32, ssaop.OpSub32
+	case ssaop.OpAdd16, ssaop.OpSub16:
+		add, sub = ssaop.OpAdd16, ssaop.OpSub16
+	case ssaop.OpAdd8, ssaop.OpSub8:
+		add, sub = ssaop.OpAdd8, ssaop.OpSub8
+	default:
+		return
+	}
+	equal := func(w *ssa.Value) {
+		ft.update(b, v, w, signed, eq)
+		ft.update(b, v, w, unsigned, eq)
+	}
+	x, y := v.Args[0], v.Args[1]
+	if v.Op == sub {
+		// (x+y)-x == y and (x+y)-y == x.
+		if x.Op == add {
+			if x.Args[0] == y {
+				equal(x.Args[1])
+			} else if x.Args[1] == y {
+				equal(x.Args[0])
+			}
+		}
+		// x-(x-y) == y.
+		if y.Op == sub && y.Args[0] == x {
+			equal(y.Args[1])
+		}
+		return
+	}
+	// (x-y)+y == x, in either operand order.
+	for i := range 2 {
+		d, o := v.Args[i], v.Args[1-i]
+		if d.Op == sub && d.Args[1] == o {
+			equal(d.Args[0])
+		}
 	}
 }
 
