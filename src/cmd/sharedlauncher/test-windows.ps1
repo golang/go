@@ -35,6 +35,14 @@ $pythonVersion = & $python $go version
 if ($LASTEXITCODE -ne 0 -or $pythonVersion -notmatch '^go version ') { throw "Python go launcher failed: $pythonVersion" }
 $batchVersion = & (Join-Path $root 'bin\go.bat') version
 if ($LASTEXITCODE -ne 0 -or $batchVersion -notmatch '^go version ') { throw "Batch go launcher failed: $batchVersion" }
+
+# A stale GOROOT pointing at the tool directory must not hide GOROOT/src.
+$env:GOROOT = Join-Path $root 'pkg\tool\windows_amd64'
+$resolvedGOROOT = & $python $go env GOROOT
+if ($LASTEXITCODE -ne 0 -or [IO.Path]::GetFullPath($resolvedGOROOT.Trim()) -ne [IO.Path]::GetFullPath($root)) {
+    throw "Python launcher did not correct stale GOROOT: $resolvedGOROOT"
+}
+$env:GOROOT = $root
 foreach ($tool in @('asm', 'cgo', 'compile', 'link', 'preprofile', 'cover', 'export', 'fix', 'vet')) {
     $toolPython = Join-Path $root "pkg\tool\windows_amd64\$tool.py"
     & $python $toolPython '-V' | Out-Null
