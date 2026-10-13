@@ -482,6 +482,8 @@ func netmarshalOld() bool {
 
 // MarshalText implements the [encoding.TextMarshaler] interface.
 // We marshal an IPMask as though it were an IP address.
+// For backward compatibility invalid IPMask values are
+// always encoded as base64 strings, with no error.
 func (m IPMask) MarshalText() ([]byte, error) {
 	// For backward compatibility, marshal as plain []byte.
 	if netmarshalOld() {
@@ -490,7 +492,12 @@ func (m IPMask) MarshalText() ([]byte, error) {
 
 	// We don't use IP.MarshalText directly because
 	// we want to preserve the length.
-	addr, _ := netip.AddrFromSlice(m)
+	addr, ok := netip.AddrFromSlice(m)
+	if !ok {
+		// For backward compatibility, fall back to the old
+		// marshaling for an invalid IPMask.
+		return base64Encode(m), nil
+	}
 	return addr.AppendTo(nil), nil
 }
 
