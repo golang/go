@@ -358,7 +358,16 @@ func TestSignalStacks(t *testing.T) {
 	stk := make([]stack, 0, 100)
 	stk = appendSignalStacks(stk)
 	for _, s := range stk {
-		checkRangeForSecret(t, s.lo, s.hi)
+		// while we're ranging over the signal stack, we might receive a signal
+		// with our test secret in a register. Copy the contents over to a new
+		// buffer before we look through it to avoid this race.
+		sz := s.hi - s.lo
+		dst := make([]byte, sz)
+		src := unsafe.Slice((*byte)(unsafe.Pointer(s.lo)), sz)
+		copy(dst, src)
+		begin := uintptr(unsafe.Pointer(unsafe.SliceData(dst)))
+		end := begin + sz
+		checkRangeForSecret(t, begin, end)
 	}
 }
 
