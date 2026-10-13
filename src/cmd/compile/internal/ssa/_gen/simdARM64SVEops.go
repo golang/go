@@ -2,7 +2,7 @@
 
 package main
 
-func simdARM64SVEOps(z11, z21, zkv, zkfp, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPredAcc regInfo) []opData {
+func simdARM64SVEOps(z11, z21, zkv, zkfp, zkvPred, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPredAcc regInfo) []opData {
 	return []opData{
 		{name: "ZABSB", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
 		{name: "ZABSD", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
@@ -145,6 +145,14 @@ func simdARM64SVEOps(z11, z21, zkv, zkfp, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPr
 		{name: "ZFSUBMergingD", argLength: 3, reg: z2kvPred, asm: "ZFSUB", typ: "Vec256", resultInArg0: true},
 		{name: "ZFSUBMergingS", argLength: 3, reg: z2kvPred, asm: "ZFSUB", typ: "Vec256", resultInArg0: true},
 		{name: "ZFSUBS", argLength: 2, reg: z21, asm: "ZFSUB", typ: "Vec256"},
+		{name: "ZLSLB", argLength: 2, reg: z21, asm: "ZLSL", typ: "Vec256"},
+		{name: "ZLSLD", argLength: 3, reg: z2kvPred, asm: "ZLSL", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLH", argLength: 2, reg: z21, asm: "ZLSL", typ: "Vec256"},
+		{name: "ZLSLMergingB", argLength: 3, reg: z2kvPred, asm: "ZLSL", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLMergingD", argLength: 3, reg: z2kvPred, asm: "ZLSL", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLMergingH", argLength: 3, reg: z2kvPred, asm: "ZLSL", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLMergingS", argLength: 3, reg: z2kvPred, asm: "ZLSL", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLS", argLength: 2, reg: z21, asm: "ZLSL", typ: "Vec256"},
 		{name: "ZMLAB", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
 		{name: "ZMLAD", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
 		{name: "ZMLAH", argLength: 4, reg: z3kvPredAcc, asm: "ZMLA", typ: "Vec256", resultInArg0: true},
@@ -310,5 +318,13 @@ func simdARM64SVEOps(z11, z21, zkv, zkfp, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPr
 		{name: "ZUQSUBMergingH", argLength: 3, reg: z2kvPred, asm: "ZUQSUB", typ: "Vec256", resultInArg0: true},
 		{name: "ZUQSUBMergingS", argLength: 3, reg: z2kvPred, asm: "ZUQSUB", typ: "Vec256", resultInArg0: true},
 		{name: "ZUQSUBS", argLength: 2, reg: z21, asm: "ZUQSUB", typ: "Vec256"},
+		{name: "ZLSLBconst", argLength: 1, reg: z11, asm: "ZLSL", aux: "UInt8", typ: "Vec256"},
+		{name: "ZLSLDconst", argLength: 1, reg: z11, asm: "ZLSL", aux: "UInt8", typ: "Vec256"},
+		{name: "ZLSLHconst", argLength: 1, reg: z11, asm: "ZLSL", aux: "UInt8", typ: "Vec256"},
+		{name: "ZLSLMergingBconst", argLength: 2, reg: zkvPred, asm: "ZLSL", aux: "UInt8", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLMergingDconst", argLength: 2, reg: zkvPred, asm: "ZLSL", aux: "UInt8", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLMergingHconst", argLength: 2, reg: zkvPred, asm: "ZLSL", aux: "UInt8", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLMergingSconst", argLength: 2, reg: zkvPred, asm: "ZLSL", aux: "UInt8", typ: "Vec256", resultInArg0: true},
+		{name: "ZLSLSconst", argLength: 1, reg: z11, asm: "ZLSL", aux: "UInt8", typ: "Vec256"},
 	}
 }

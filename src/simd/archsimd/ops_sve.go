@@ -1125,6 +1125,72 @@ func (x Float32s) Round() Float32s
 // Asm: ZFRINTN, CPU Feature: SVE
 func (x Float64s) Round() Float64s
 
+/* ShiftAllLeft */
+
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Int8s) ShiftAllLeft(shift uint64) (z Int8s)
+
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Int16s) ShiftAllLeft(shift uint64) (z Int16s)
+
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Int32s) ShiftAllLeft(shift uint64) (z Int32s)
+
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Int64s) ShiftAllLeft(shift uint64) (z Int64s)
+
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Uint8s) ShiftAllLeft(shift uint64) (z Uint8s)
+
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Uint16s) ShiftAllLeft(shift uint64) (z Uint16s)
+
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Uint32s) ShiftAllLeft(shift uint64) (z Uint32s)
+
+// ShiftAllLeft shifts each element of x left by shift bits.
+// If shift is greater than the element width, the result is 0.
+//
+//	z[i] = x[i] << shift
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Uint64s) ShiftAllLeft(shift uint64) (z Uint64s)
+
 /* Sqrt */
 
 // Sqrt returns the elementwise square root of x.

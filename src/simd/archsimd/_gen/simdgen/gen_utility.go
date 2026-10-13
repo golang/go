@@ -652,6 +652,12 @@ func rewriteVecAsScalarRegInfo(op Operation, regInfo string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if idx != -1 && CurrentArch().isSVE() {
+		// SVE has no form that takes a scalar register in place of a vector
+		// operand; the lowering broadcasts the scalar (see sveBroadcastScalarArgs),
+		// so the machine op's registers are all vectors.
+		return regInfo, nil
+	}
 	if idx != -1 {
 		if regInfo == "v21" {
 			regInfo = "vfpv"

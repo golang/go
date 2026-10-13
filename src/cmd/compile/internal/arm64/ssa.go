@@ -2349,6 +2349,67 @@ func simdZkfp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	return p
 }
 
+// simdZ11Imm emits an unpredicated SVE operation on one vector and the
+// immediate in the aux, e.g. ZLSL $3, Z0.S, Z1.S.
+func simdZ11Imm(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng)) // Zn
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
+// simdZkvPredImm emits the predicated form of an SVE operation on one vector
+// and the immediate in the aux, e.g. ZLSL $3, Z0.S, P0.M, Z0.S. It is
+// destructive, so resultInArg0 has already put the destination in arg0.
+func simdZkvPredImm(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	d := v.Reg()
+	if d != v.Args[0].Reg() {
+		v.Fatalf("destination is not arg0 of destructive op %v", v.Op)
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.AddRestSourceReg(zregArng(d, arng))                       // Zdn
+	p.AddRestSourceReg(pregMask(v.Args[1].Reg(), arm64.PRED_M)) // Pg/M
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(d, arng) // Zdn
+	return p
+}
+
+// simdZ21Wide emits an unpredicated SVE "wide elements" operation, whose
+// second source has 64-bit elements, e.g. ZLSL Z2.D, Z0.S, Z1.S: each element
+// of arg0 is combined with the 64-bit element of arg1 that overlaps it.
+func simdZ21Wide(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_D) // Zm
+	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng))  // Zn
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
+// simdZ2kvPredWide emits the predicated form of an SVE "wide elements"
+// operation, e.g. ZLSL Z1.D, Z0.S, P0.M, Z0.S. It is destructive and not
+// commutative, so resultInArg0 has already put the destination in arg0.
+func simdZ2kvPredWide(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	d := v.Reg()
+	if d != v.Args[0].Reg() {
+		v.Fatalf("destination is not arg0 of destructive op %v", v.Op)
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_D)        // Zm
+	p.AddRestSourceReg(zregArng(d, arng))                       // Zdn
+	p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M)) // Pg/M
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(d, arng) // Zdn
+	return p
+}
+
 // simdZ2kvPredResultInArg0 emits the merging form of a predicated SVE unary
 // operation, e.g. ZABS Z1.B, P0.M, Z0.B. SSA provides arg0=the value the
 // inactive lanes keep, arg1=x, arg2=mask, and resultInArg0 puts that value in

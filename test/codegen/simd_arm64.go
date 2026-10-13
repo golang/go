@@ -259,6 +259,52 @@ func sveReduceMax(x archsimd.Float64s) float64 {
 	return x.ReduceMax()
 }
 
+// ShiftAllLeft by a constant below the element width is LSL (immediate), and
+// by a larger constant the zero vector. A variable amount is broadcast to
+// 64-bit lanes and shifts by wide elements, which gives zero for an amount of
+// the element width or more, so the amount needs no clamping.
+
+func sveShiftAllLeftConst(x archsimd.Int32s) archsimd.Int32s {
+	// arm64:`ZLSL\s+\$23, Z[0-9]+\.S, Z[0-9]+\.S` -`ZDUP`
+	return x.ShiftAllLeft(23)
+}
+
+func sveShiftAllLeftConst64(x archsimd.Int64s) archsimd.Int64s {
+	// arm64:`ZLSL\s+\$63, Z[0-9]+\.D, Z[0-9]+\.D` -`ZDUP` -`PWHILELT`
+	return x.ShiftAllLeft(63)
+}
+
+func sveShiftAllLeftConstTooBig(x archsimd.Int32s) archsimd.Int32s {
+	// arm64:`ZDUP\s+\$0,` -`ZLSL`
+	return x.ShiftAllLeft(32)
+}
+
+func sveShiftAllLeftConstHuge(x archsimd.Uint64s) archsimd.Uint64s {
+	// arm64:`ZDUP\s+\$0,` -`ZLSL` -`PWHILELT`
+	return x.ShiftAllLeft(1 << 40)
+}
+
+func sveShiftAllLeftConstTooBigIfElse(x archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// arm64:`ZCPY\s+\$0, P[0-9]+\.M, Z[0-9]+\.B` -`ZLSL` -`ZSEL`
+	return x.ShiftAllLeft(8).IfElse(m, x)
+}
+
+func sveShiftAllLeftConstIfElse(x archsimd.Int16s, m archsimd.Mask16s) archsimd.Int16s {
+	// arm64:`ZLSL\s+\$3, Z[0-9]+\.H, P[0-9]+\.M, Z[0-9]+\.H` -`ZSEL`
+	return x.ShiftAllLeft(3).IfElse(m, x)
+}
+
+func sveShiftAllLeftVar(x archsimd.Int16s, s uint64) archsimd.Int16s {
+	// arm64:`ZDUP\s+R[0-9]+, Z[0-9]+\.D` `ZLSL\s+Z[0-9]+\.D, Z[0-9]+\.H, Z[0-9]+\.H` -`CSEL`
+	return x.ShiftAllLeft(s)
+}
+
+func sveShiftAllLeftVar64(x archsimd.Uint64s, s uint64) archsimd.Uint64s {
+	// LSL has no wide form for 64-bit elements; LSL (vectors) is predicated.
+	// arm64:`ZLSL\s+Z[0-9]+\.D, Z[0-9]+\.D, P[0-9]+\.M, Z[0-9]+\.D`
+	return x.ShiftAllLeft(s)
+}
+
 // The zero value of a mask is an all-false predicate.
 func sveZeroMask() archsimd.Mask8s {
 	// arm64:`PPFALSE` -`ZDUP`

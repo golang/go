@@ -15,7 +15,10 @@ import (
 // esize-bit elements. The ISA states the range only in prose, and some ranges
 // depend on the element width ("in the range 0 to number of bits per element
 // minus 1"), so each description an operation uses is entered here by hand.
-var sveImmRanges = map[string]func(esize int) (min, max int){}
+var sveImmRanges = map[string]func(esize int) (min, max int){
+	// LSL (immediate).
+	`Is the immediate shift amount, in the range 0 to number of bits per element minus 1, encoded in "tszh:tszl:imm3".`: func(esize int) (int, int) { return 0, esize - 1 },
+}
 
 // resolveSVEImmRanges sets the range of every SVE immediate in ops from
 // sveImmRanges. It fails on an immediate whose description has no entry, and

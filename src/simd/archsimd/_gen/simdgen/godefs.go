@@ -247,6 +247,22 @@ func sveMaskSuffix(gOp Operation) string {
 	return "Masked"
 }
 
+// sveWideElements reports whether gOp is an SVE "wide elements" form, whose
+// last vector input has 64-bit elements while its result has narrower ones,
+// e.g. LSL <Zd>.<T>, <Zn>.<T>, <Zm>.D: each element is combined with the
+// 64-bit element of the last input that overlaps it.
+func sveWideElements(gOp Operation) bool {
+	if !CurrentArch().isSVE() || len(gOp.Out) != 1 || gOp.Out[0].ElemBits == nil || *gOp.Out[0].ElemBits == 64 {
+		return false
+	}
+	for i := len(gOp.In) - 1; i >= 0; i-- {
+		if gOp.In[i].Class == "vreg" {
+			return gOp.In[i].ElemBits != nil && *gOp.In[i].ElemBits == 64
+		}
+	}
+	return false
+}
+
 // sveArrangementLetter returns the SVE element-size arrangement letter
 // (B=8, H=16, S=32, D=64) that names an SVE machine op, or "" when the target
 // is not SVE. The letter comes from the operation's governing element width:

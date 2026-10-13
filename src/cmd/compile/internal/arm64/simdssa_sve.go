@@ -190,6 +190,8 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZSMULHMergingD,
 		ssaop.OpARM64ZUMULHMergingD,
 		ssaop.OpARM64ZORRMergingD,
+		ssaop.OpARM64ZLSLD,
+		ssaop.OpARM64ZLSLMergingD,
 		ssaop.OpARM64ZFSUBMergingD,
 		ssaop.OpARM64ZSUBMergingD,
 		ssaop.OpARM64ZSQSUBMergingD,
@@ -263,6 +265,48 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssaop.OpARM64ZFMAXVSS,
 		ssaop.OpARM64ZFADDVSS:
 		p = simdZkfp(s, v, arm64.ARNG_S)
+
+	case ssaop.OpARM64ZLSLBconst:
+		p = simdZ11Imm(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZLSLDconst:
+		p = simdZ11Imm(s, v, arm64.ARNG_D)
+
+	case ssaop.OpARM64ZLSLHconst:
+		p = simdZ11Imm(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZLSLSconst:
+		p = simdZ11Imm(s, v, arm64.ARNG_S)
+
+	case ssaop.OpARM64ZLSLMergingBconst:
+		p = simdZkvPredImm(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZLSLMergingDconst:
+		p = simdZkvPredImm(s, v, arm64.ARNG_D)
+
+	case ssaop.OpARM64ZLSLMergingHconst:
+		p = simdZkvPredImm(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZLSLMergingSconst:
+		p = simdZkvPredImm(s, v, arm64.ARNG_S)
+
+	case ssaop.OpARM64ZLSLB:
+		p = simdZ21Wide(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZLSLH:
+		p = simdZ21Wide(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZLSLS:
+		p = simdZ21Wide(s, v, arm64.ARNG_S)
+
+	case ssaop.OpARM64ZLSLMergingB:
+		p = simdZ2kvPredWide(s, v, arm64.ARNG_B)
+
+	case ssaop.OpARM64ZLSLMergingH:
+		p = simdZ2kvPredWide(s, v, arm64.ARNG_H)
+
+	case ssaop.OpARM64ZLSLMergingS:
+		p = simdZ2kvPredWide(s, v, arm64.ARNG_S)
 
 	case ssaop.OpARM64ZABSMergingB,
 		ssaop.OpARM64ZNEGMergingB:
