@@ -925,11 +925,10 @@ func (rw *responseWriter) FlushError() error {
 	defer rw.mu.Unlock()
 	rw.writeHeaderLockedOnce()
 	if !rw.cannotHaveBody {
-		_, err := rw.bw.Write(rw.bb)
-		rw.bb.discard()
-		if err != nil {
+		if _, err := rw.bw.Write(rw.bb); err != nil {
 			return err
 		}
+		rw.bb.discard()
 	}
 	return rw.st.Flush()
 }

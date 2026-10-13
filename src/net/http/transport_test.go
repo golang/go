@@ -2986,7 +2986,7 @@ func testTransportCancelRequestBeforeResponseHeaders(t *testing.T, test cancelTe
 // Calling Close on a Response.Body used to just read until EOF.
 // Now it actually closes the TCP connection.
 func TestTransportCloseResponseBody(t *testing.T) {
-	runSynctest(t, testTransportCloseResponseBody, http3SkippedMode)
+	runSynctest(t, testTransportCloseResponseBody)
 }
 func testTransportCloseResponseBody(t *testing.T, mode testMode) {
 	writeErr := make(chan error, 1)
