@@ -102,6 +102,8 @@ var wincleantests = []PathTest{
 	{`\\host\share\foo\..\..\..\..\bar`, `\\host\share\bar`},
 	{`\\?\UNC\host\share\foo\..\..\..\..\bar`, `\\?\UNC\host\share\bar`},
 	{`\??\UNC\host\share\foo\..\..\..\..\bar`, `\??\UNC\host\share\bar`},
+	{`\??\UNC\host\share`, `\??\UNC\host\share`},
+	{`\??\C:`, `\??\C:`},
 	{`\\.\C:\a\..\..\..\..\bar`, `\\.\C:\bar`},
 	{`\\.\C:\\\\a`, `\\.\C:\a`},
 	{`\\a\b\..\c`, `\\a\b\c`},
@@ -125,6 +127,7 @@ var wincleantests = []PathTest{
 	{`\\?\GLOBALROOT\GLOBAL??\C:\`, `\\?\GLOBALROOT\GLOBAL??\C:\`},
 	{`\\.\GLOBALROOT\Device\HarddiskVolume1\`, `\\.\GLOBALROOT\Device\HarddiskVolume1\`},
 	{`\??\GLOBALROOT\Device\HarddiskVolume1\`, `\??\GLOBALROOT\Device\HarddiskVolume1\`},
+	{`\??\GLOBALROOT\Device\HarddiskVolume1`, `\??\GLOBALROOT\Device\HarddiskVolume1`},
 	// A .. in the volume position is rejected, as it is for UNC paths.
 	{`\\?\GLOBALROOT\..\x`, `\?\x`},
 
