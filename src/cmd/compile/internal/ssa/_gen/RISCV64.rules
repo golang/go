@@ -571,6 +571,9 @@
 (SNEZ (SEQZ x)) => (SEQZ x)
 (SNEZ (SNEZ x)) => (SNEZ x)
 
+// Remove redundant SNEZ from bit test.
+(SNEZ x:(ANDI [1] _)) => x
+
 // Store zero.
 (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
 (MOVHstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
@@ -829,6 +832,12 @@
 (Select0 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MULHU x y)
 (Select1 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MUL x y)
 
+// Optimise bit tests with register shift values.
+(S(EQ|NE)Z a:(AND (SLL (MOVDconst [1]) x) y)) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRL <typ.UInt64> y x)))
+(B(EQ|NE)Z a:(AND (SLL (MOVDconst [1]) x) y)) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRL <typ.UInt64> y x)))
+(S(EQ|NE)Z a:(MOVWUreg (AND (SLLW (MOVDconst [1]) x) y))) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLW <typ.UInt64> y x)))
+(B(EQ|NE)Z a:(MOVWUreg (AND (SLLW (MOVDconst [1]) x) y))) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLW <typ.UInt64> y x)))
+
 // Optimise bit tests with larger than 12 bit values.
 (S(EQ|NE)Z a:(ANDI [x] y)) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)))
 (B(EQ|NE)Z a:(ANDI [x] y) yes no) && ssa.IsPowerOfTwo(uint64(x)) && !ssa.Is12Bit(x) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [1] (SRLI <typ.UInt64> [ssa.Log64u(uint64(x))] y)) yes no)
@@ -839,6 +848,7 @@
 (S(EQ|NE)Z a:(ANDI [x] (SRLI [y] z))) && ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1 => (S(EQ|NE)Z (ANDI <typ.UInt64> [x << y] z))
 (B(EQ|NE)Z a:(ANDI [x] (SRLI [y] z)) yes no) && ssa.IsPowerOfTwo(uint64(x)) && ssa.Is12Bit(x << y) && a.Uses == 1 => (B(EQ|NE)Z (ANDI <typ.UInt64> [x << y] z) yes no)
 
+// Fuse multiply with addition/subtraction.
 (FADD(S|D) a (FMUL(S|D) x y)) && a.Block.Func.UseFMA(v) => (FMADD(S|D) x y a)
 (FSUB(S|D) a (FMUL(S|D) x y)) && a.Block.Func.UseFMA(v) => (FNMSUB(S|D) x y a)
 (FSUB(S|D) (FMUL(S|D) x y) a) && a.Block.Func.UseFMA(v) => (FMSUB(S|D) x y a)
@@ -929,4 +939,3 @@
 (MULW x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22 => (SLLIW [ssa.Log64(c/3)] (SH1ADD <x.Type> x x))
 (MULW x (MOVDconst [c])) && c%5 == 0 && ssa.IsPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22 => (SLLIW [ssa.Log64(c/5)] (SH2ADD <x.Type> x x))
 (MULW x (MOVDconst [c])) && c%9 == 0 && ssa.IsPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22 => (SLLIW [ssa.Log64(c/9)] (SH3ADD <x.Type> x x))
-

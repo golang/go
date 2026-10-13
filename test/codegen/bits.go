@@ -90,22 +90,23 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	return 0
 }
 
-func bitsCheckVarU64(a, b uint64) (n int) {
+func bitsCheckVarU64(a, b, c uint64) bool {
 	// amd64:"BTQ"
 	// arm64:"MOVD [$]1," "LSL" "TST"
 	// loong64:"MOVV [$]1," "SLLV R" "AND" "BNE"
-	// riscv64:"MOV [$]1," "SLL " "AND " -"ANDI"
+	// riscv64:"SRL " "ANDI [$]1," "BNEZ" -"ANDI [$]63," -"MOV [$]1," -"SLL" -"AND "
 	if a&(1<<(b&63)) != 0 {
-		return 1
+		return true
 	}
 	// amd64:"BTQ" -"BT. [$]0,"
 	// arm64:"LSR" "TBZ [$]0,"
 	// loong64:"SRLV" "AND [$]1," "BEQ"
-	// riscv64:"SRL " "ANDI [$]1," -"ANDI [$]63,"
+	// riscv64:"SRL " "ANDI [$]1," "BEQZ" -"ANDI [$]63," -"MOV [$]1,"
 	if (b>>(a&63))&1 != 0 {
-		return 1
+		return true
 	}
-	return 0
+	// riscv64:"SRL " "ANDI [$]1," -"ANDI [$]63," -"MOV [$]1," -"SLL" -"AND " -"SNEZ"
+	return c&(1<<(b&63)) != 0
 }
 
 func bitsCheckMaskU64(a uint64) (n int) {
@@ -315,22 +316,23 @@ func bitsCheckConstRightShiftU32(a [8]uint32) (n int) {
 	return 0
 }
 
-func bitsCheckVarU32(a, b uint32) (n int) {
+func bitsCheckVarU32(a, b, c uint32) bool {
 	// amd64:"BTL"
 	// arm64:"AND [$]31," "MOVD [$]1," "LSL" "TSTW"
 	// loong64:"MOVV [$]1," "SLL R" "AND R" "MOVWU" "BNE"
-	// riscv64:"MOV [$]1," "SLLW" "AND " -"ANDI"
+	// riscv64:"SRLW" "ANDI [$]1," "BNEZ" -"ANDI [$]31," -"MOV [$]1," -"SLL" -"AND "
 	if a&(1<<(b&31)) != 0 {
-		return 1
+		return true
 	}
 	// amd64:"BTL" -"BT. [$]0"
 	// arm64:"AND [$]31," "LSR" "TBZ"
 	// loong64:"SRL R" "AND [$]1," "BEQ"
-	// riscv64:"SRLW " "ANDI [$]1," -"ANDI [$]31,"
+	// riscv64:"SRLW " "ANDI [$]1," "BEQZ" -"ANDI [$]31," -"MOV [$]1,"
 	if (b>>(a&31))&1 != 0 {
-		return 1
+		return true
 	}
-	return 0
+	// riscv64:"SRLW" "ANDI [$]1," -"ANDI [$]31," -"MOV [$]1," -"SLL" -"AND " -"SNEZ"
+	return c&(1<<(b&31)) != 0
 }
 
 func bitsCheckMaskU32(a uint32) (n int) {
