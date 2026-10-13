@@ -2,7 +2,7 @@
 
 package main
 
-func simdARM64SVEOps(z11, z21, zkv, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPredAcc regInfo) []opData {
+func simdARM64SVEOps(z11, z21, zkv, zkfp, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPredAcc regInfo) []opData {
 	return []opData{
 		{name: "ZABSB", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
 		{name: "ZABSD", argLength: 2, reg: zkv, asm: "ZABS", typ: "Vec256"},
@@ -81,6 +81,8 @@ func simdARM64SVEOps(z11, z21, zkv, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPredAcc 
 		{name: "ZFADDMergingPrefixedS", argLength: 4, reg: z3kvPred, asm: "ZFADD", typ: "Vec256", resultInArg0: true},
 		{name: "ZFADDMergingS", argLength: 3, reg: z2kvPred, asm: "ZFADD", typ: "Vec256", resultInArg0: true},
 		{name: "ZFADDS", argLength: 2, reg: z21, asm: "ZFADD", commutative: true, typ: "Vec256"},
+		{name: "ZFADDVDD", argLength: 2, reg: zkfp, asm: "ZFADDVD", typ: "Float64"},
+		{name: "ZFADDVSS", argLength: 2, reg: zkfp, asm: "ZFADDVS", typ: "Float32"},
 		{name: "ZFCMEQD", argLength: 3, reg: z2kk, asm: "ZFCMEQ", commutative: true, typ: "Mask"},
 		{name: "ZFCMEQS", argLength: 3, reg: z2kk, asm: "ZFCMEQ", commutative: true, typ: "Mask"},
 		{name: "ZFCMGED", argLength: 3, reg: z2kk, asm: "ZFCMGE", typ: "Mask"},

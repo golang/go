@@ -205,7 +205,7 @@ func (o *Operation) VectorWidth() int {
 	out := o.Out[0]
 	if out.Class == "vreg" {
 		return out.Bits.N()
-	} else if out.Class == "greg" || out.Class == "mask" {
+	} else if out.Class == "greg" || out.Class == "fpreg" || out.Class == "mask" {
 		for i := range o.In {
 			if o.In[i].Class == "vreg" {
 				return o.In[i].Bits.N()

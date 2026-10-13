@@ -1070,6 +1070,22 @@ func (x Uint32s) Or(y Uint32s) (z Uint32s)
 // Asm: ZORR, CPU Feature: SVE
 func (x Uint64s) Or(y Uint64s) (z Uint64s)
 
+/* ReduceSum */
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZFADDVS, CPU Feature: SVE
+func (x Float32s) ReduceSum() (z float32)
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZFADDVD, CPU Feature: SVE
+func (x Float64s) ReduceSum() (z float64)
+
 /* Round */
 
 // Round rounds elements to the nearest integer, rounding ties to even.

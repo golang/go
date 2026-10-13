@@ -89,7 +89,7 @@ func (t OperandType) String() string {
 // Operand is an SVE instruction operand instantiated for a concrete element size.
 type Operand struct {
 	Type     OperandType
-	Class    string // "vreg", "mask", "greg", "immediate", "mem", "reglist", "special"
+	Class    string // "vreg", "mask", "greg", "fpreg", "immediate", "mem", "reglist", "special"
 	BaseType string // "int", "uint", "float" (for vreg/mask/greg)
 	ElemBits int    // element width in bits (8/16/32/64); 0 if unsized
 	// Bits and Lanes are set for a fixed-width scalar register — a general-purpose
@@ -604,13 +604,16 @@ func buildOperandList(parsed []tok, govern func(regName string) (governing, foun
 			place(Operand{Type: OperandImm, Class: "immediate", AsmPos: p.asmPos}, false)
 		default: // OperandZReg, OperandGReg, OperandVFP
 			class := "vreg"
-			if p.operandType == OperandGReg {
+			switch p.operandType {
+			case OperandGReg:
 				// A general-purpose scalar register.
 				class = "greg"
+			case OperandVFP:
+				// A SIMD&FP scalar register (<V><d>, <Dd>): one value in the FP/SIMD
+				// register bank, which is neither a vector nor a general-purpose
+				// register.
+				class = "fpreg"
 			}
-			// A SIMD&FP scalar (OperandVFP) stays "vreg": it lives in the FP/SIMD
-			// register bank, not the GP bank — just with a fixed width and lanes:1
-			// rather than a scalable length.
 			place(Operand{
 				Type: p.operandType, Class: class, AsmPos: p.asmPos,
 				arngLink: p.arngLink, fixedElem: p.fixedElem, fixedBits: p.fixedBits,

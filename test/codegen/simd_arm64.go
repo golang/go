@@ -241,6 +241,13 @@ func sveIfElseFloat(x, y archsimd.Float64s, m archsimd.Mask64s) archsimd.Float64
 	return x.Add(y).IfElse(m, x)
 }
 
+// A reduction leaves its result in the SIMD&FP scalar register that a float
+// is returned in.
+func sveReduceSum(x archsimd.Float32s) float32 {
+	// arm64:`ZFADDVS\s+Z[0-9]+\.S, P[0-9]+, V[0-9]+` -`FMOV`
+	return x.ReduceSum()
+}
+
 // The zero value of a mask is an all-false predicate.
 func sveZeroMask() archsimd.Mask8s {
 	// arm64:`PPFALSE` -`ZDUP`

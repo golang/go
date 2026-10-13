@@ -14,7 +14,7 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 Heading for 100%:
 
 spec coverage, by (receiver, name) (§1)          1811 / 2921   62%  [spec-common, spec-all]
-docs sourced from spec (§3)                      2937 / 3185   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+docs sourced from spec (§3)                      2939 / 3187   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
@@ -23,20 +23,20 @@ type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
 hand-written doc conflicts with spec (§3)         164 -> 0       [doc-triage]
 simd mirror drift (§3)                              0 -> 0       [comments-yaml]
-categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
+categories.yaml entries (§4)                      228 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
 midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml, spec-all]
 
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      3913 / 5187   75%
+by (target, receiver, name)                      3915 / 5189   75%
 by (receiver, name)                              1811 / 2921   62%
 by name                                           275 / 458    60%
 
 By build configuration:
 
   amd64                                          1737 / 2692   65%
-  arm64                                          1078 / 1294   83%
+  arm64                                          1080 / 1296   83%
   wasm                                            750 / 829    90%
   portable                                        348 / 372    94%
 
@@ -44,7 +44,7 @@ By generator (declarations per tool, counted once per tool per pair):
 
   hand-written                                    502 / 561    89%
   midway                                          348 / 348   100%
-  simdgen                                        1280 / 2255   57%
+  simdgen                                        1282 / 2257   57%
   tmplgen                                         365 / 421    87%
   wasmgen                                         337 / 392    86%
 
@@ -87,9 +87,9 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   2937 / 3185   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   2939 / 3187   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
-simd ∩ archsimd methods with matching docs        261 / 261   100%  [gen-docs, comments-yaml]
+simd ∩ archsimd methods with matching docs        263 / 263   100%  [gen-docs, comments-yaml]
 
 hand-written doc conflicts with spec              164 -> 0       [doc-triage]
     archsimd/clmul_arm64.go                         4 -> 0       [doc-triage]
@@ -117,16 +117,16 @@ removes documentation, cat-rehome removes the rest, sig-from-spec removes
 commutative, and cat-delete removes the file. Compiler-only entries are
 handled wholesale by compiler-ops-impl.
 
-categories.yaml entries                           227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
-    unique operation names                        198
-      exported                                    165
+categories.yaml entries                           228 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
+    unique operation names                        199
+      exported                                    166
 compiler-only categories.yaml entries              42 -> 0       [compiler-ops-impl]
 
   exported entries, by field:
     base                                            6 -> 0       [cat-rehome]
-    commutative                                   185 -> 0       [sig-from-spec]
+    commutative                                   186 -> 0       [sig-from-spec]
     constImm                                       22 -> 0       [cat-rehome]
-    documentation                                 184 -> 0       [cat-rehome]
+    documentation                                 185 -> 0       [cat-rehome]
     elemBits                                       14 -> 0       [cat-rehome]
     out                                            20 -> 0       [cat-rehome]
     regexpTag                                      25 -> 0       [cat-rehome]

@@ -425,8 +425,9 @@ func TestReductionOutput(t *testing.T) {
 	for _, op := range ops {
 		got = append(got, op.Class+":"+opRole(op))
 	}
-	// The scalar result <Dd> is a SIMD&FP register destination, not an input.
-	want := []string{"vreg:destination", "mask:governing", "vreg:op0"}
+	// The scalar result <Dd> is a SIMD&FP scalar register destination, not an
+	// input.
+	want := []string{"fpreg:destination", "mask:governing", "vreg:op0"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("SADDV operands = %v, want %v", got, want)
 	}
@@ -442,8 +443,8 @@ func TestReductionOutput(t *testing.T) {
 		if err := d.Decode(&op); err != nil {
 			t.Fatal(err)
 		}
-		if len(op.Out) != 1 || op.Out[0].Class != "vreg" || op.Out[0].Bits != "64" || op.Out[0].Lanes != "1" {
-			t.Errorf("SADDV out = %+v, want one vreg bits=64 lanes=1", op.Out)
+		if len(op.Out) != 1 || op.Out[0].Class != "fpreg" || op.Out[0].Bits != "64" || op.Out[0].Lanes != "1" {
+			t.Errorf("SADDV out = %+v, want one fpreg bits=64 lanes=1", op.Out)
 		}
 	}
 }

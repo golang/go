@@ -2335,6 +2335,20 @@ func simdZkv(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	return sveUnaryPred(s, v, arng, v.Args[0].Reg(), v.Args[1].Reg(), arm64.PRED_M)
 }
 
+// simdZkfp emits an SVE reduction across the lanes of arg0 that arg1 governs
+// into a floating-point scalar register, e.g. ZFADDVS Z0.S, P0, V1. The
+// scalar is the low lane of the vector register with the same number, which
+// is where a float value lives.
+func simdZkfp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[0].Reg(), arng) // Zn
+	p.AddRestSourceReg(v.Args[1].Reg())          // Pg, unqualified
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = v.Reg() - arm64.REG_F0 + arm64.REG_V0 // Vd
+	return p
+}
+
 // simdZ2kvPredResultInArg0 emits the merging form of a predicated SVE unary
 // operation, e.g. ZABS Z1.B, P0.M, Z0.B. SSA provides arg0=the value the
 // inactive lanes keep, arg1=x, arg2=mask, and resultInArg0 puts that value in

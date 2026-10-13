@@ -1,0 +1,14 @@
+!sum
+# ReduceSum — floating-point add across all lanes (ZFADDV). The sum is a float
+# in a floating-point scalar register.
+# Predicated-only: the governing predicate is implicit-all-true.
+- go: ReduceSum
+  asm: "ZFADDV[SD]"
+  in:
+  - go: $t
+    base: float
+  - class: mask # governing predicate
+  out:
+  - &floatScalar
+    class: fpreg
+    base: float

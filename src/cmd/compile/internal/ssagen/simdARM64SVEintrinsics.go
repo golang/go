@@ -163,6 +163,8 @@ func simdARM64SVEIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFa
 	addF(simdPackage, "Uint16s.Or", opLen2(ssaop.OpOrUint16s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Uint32s.Or", opLen2(ssaop.OpOrUint32s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Uint64s.Or", opLen2(ssaop.OpOrUint64s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Float32s.ReduceSum", opLen1(ssaop.OpReduceSumFloat32s, types.Types[types.TFLOAT32]), sys.ARM64)
+	addF(simdPackage, "Float64s.ReduceSum", opLen1(ssaop.OpReduceSumFloat64s, types.Types[types.TFLOAT64]), sys.ARM64)
 	addF(simdPackage, "Float32s.Round", opLen1(ssaop.OpRoundFloat32s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float64s.Round", opLen1(ssaop.OpRoundFloat64s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float32s.Sqrt", opLen1(ssaop.OpSqrtFloat32s, types.TypeVec256), sys.ARM64)

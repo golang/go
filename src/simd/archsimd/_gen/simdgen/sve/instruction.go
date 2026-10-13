@@ -216,7 +216,7 @@ func (inst *Instruction) goOpPrefix() string {
 // Every other instruction is uniform, i.e. all lanes the same type.
 func (inst *Instruction) laneIsFloat(op *Operand) bool {
 	switch op.Class {
-	case "vreg", "greg":
+	case "vreg", "greg", "fpreg":
 		// has a lane
 	default:
 		// mask lanes are always integer; mem/immediate/special have no lane.
@@ -298,7 +298,7 @@ func (inst *Instruction) integerSignedness(ops []Operand) []string {
 		return []string{"uint"}
 	}
 	for i := range ops {
-		if c := ops[i].Class; (c == "vreg" || c == "greg") && !inst.laneIsFloat(&ops[i]) {
+		if c := ops[i].Class; (c == "vreg" || c == "greg" || c == "fpreg") && !inst.laneIsFloat(&ops[i]) {
 			return []string{"int", "uint"}
 		}
 	}

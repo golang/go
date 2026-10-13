@@ -172,6 +172,8 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 			} else {
 				outType = fmt.Sprintf("Vec%d", gOp.Out[0].Bits.N())
 			}
+		} else if shapeOut == OneFpregOut {
+			outType = fmt.Sprintf("Float%d", gOp.Out[0].Bits.N())
 		} else if shapeOut == OneGregOut {
 			outType = gOp.GoType() // this is a straight Go type, not a VecNNN type
 		} else if shapeOut == OneKmaskOut {
