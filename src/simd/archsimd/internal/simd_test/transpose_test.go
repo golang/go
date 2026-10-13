@@ -9,6 +9,7 @@ package simd_test
 import (
 	"fmt"
 	"simd/archsimd"
+	"sync"
 	"testing"
 )
 
@@ -143,20 +144,24 @@ func TestTranspose8(t *testing.T) {
 
 const BIG = 20000
 
-var bigMatrix [][]int32
+var bigMatrix = makeMatrixLazy(BIG)
 
 // 9x9 is smallest matrix with diagonal and off-diagonal tiles, plus a fringe.
-var nineMatrix [][]int32
+var nineMatrix = makeMatrixLazy(9)
 
-var thirtyMatrix [][]int32
+var thirtyMatrix = makeMatrixLazy(30)
 
-func fill(m [][]int32) {
-	for i := range m {
-		m[i] = make([]int32, len(m))
-		for j := range m[i] {
-			m[i][j] = int32(-i<<16 + j)
+func makeMatrixLazy(n int) func() [][]int32 {
+	return sync.OnceValue(func() [][]int32 {
+		m := make([][]int32, n)
+		for i := range m {
+			m[i] = make([]int32, n)
+			for j := range m[i] {
+				m[i][j] = int32(-i<<16 + j)
+			}
 		}
-	}
+		return m
+	})
 }
 
 func isTransposed(m [][]int32) bool {
@@ -183,63 +188,54 @@ func dupe(m [][]int32) [][]int32 {
 	return p
 }
 
-func init() {
-	bigMatrix = make([][]int32, BIG, BIG)
-	fill(bigMatrix)
-	nineMatrix = make([][]int32, 9, 9)
-	fill(nineMatrix)
-	thirtyMatrix = make([][]int32, 30, 30)
-	fill(thirtyMatrix)
-}
-
 func BenchmarkPlainTranspose(b *testing.B) {
-	d := dupe(bigMatrix)
+	d := dupe(bigMatrix())
 	for b.Loop() {
 		transposePlain(d)
 	}
 }
 
 func BenchmarkTiled4Transpose(b *testing.B) {
-	d := dupe(bigMatrix)
+	d := dupe(bigMatrix())
 	for b.Loop() {
 		transposeTiled4(d)
 	}
 }
 
 func BenchmarkTiled8Transpose(b *testing.B) {
-	d := dupe(bigMatrix)
+	d := dupe(bigMatrix())
 	for b.Loop() {
 		transposeTiled8(d)
 	}
 }
 
 func Benchmark2BlockedTranspose(b *testing.B) {
-	d := dupe(bigMatrix)
+	d := dupe(bigMatrix())
 	for b.Loop() {
 		transpose2Blocked(d)
 	}
 }
 func Benchmark3BlockedTranspose(b *testing.B) {
-	d := dupe(bigMatrix)
+	d := dupe(bigMatrix())
 	for b.Loop() {
 		transpose3Blocked(d)
 	}
 }
 func Benchmark4BlockedTranspose(b *testing.B) {
-	d := dupe(bigMatrix)
+	d := dupe(bigMatrix())
 	for b.Loop() {
 		transpose4Blocked(d)
 	}
 }
 func Benchmark5aBlockedTranspose(b *testing.B) {
-	d := dupe(bigMatrix)
+	d := dupe(bigMatrix())
 	for b.Loop() {
 		transpose5aBlocked(d)
 	}
 }
 
 func Benchmark5bBlockedTranspose(b *testing.B) {
-	d := dupe(bigMatrix)
+	d := dupe(bigMatrix())
 	for b.Loop() {
 		transpose5bBlocked(d)
 	}
@@ -256,7 +252,7 @@ func transposePlain(m [][]int32) {
 }
 
 func TestTransposePlain(t *testing.T) {
-	d := dupe(nineMatrix)
+	d := dupe(nineMatrix())
 	t.Logf("Input matrix is %s", formatMatrix(d))
 	transposePlain(d)
 	if !isTransposed(d) {
@@ -267,7 +263,7 @@ func TestTransposePlain(t *testing.T) {
 }
 
 func TestTranspose2Blocked(t *testing.T) {
-	d := dupe(nineMatrix)
+	d := dupe(nineMatrix())
 	t.Logf("Input matrix is %s", formatMatrix(d))
 	transpose2Blocked(d)
 	if !isTransposed(d) {
@@ -276,7 +272,7 @@ func TestTranspose2Blocked(t *testing.T) {
 }
 
 func TestTranspose3Blocked(t *testing.T) {
-	d := dupe(nineMatrix)
+	d := dupe(nineMatrix())
 	t.Logf("Input matrix is %s", formatMatrix(d))
 	transpose3Blocked(d)
 	if !isTransposed(d) {
@@ -285,7 +281,7 @@ func TestTranspose3Blocked(t *testing.T) {
 }
 
 func TestTranspose4Blocked(t *testing.T) {
-	d := dupe(nineMatrix)
+	d := dupe(nineMatrix())
 	t.Logf("Input matrix is %s", formatMatrix(d))
 	transpose4Blocked(d)
 	if !isTransposed(d) {
@@ -294,7 +290,7 @@ func TestTranspose4Blocked(t *testing.T) {
 }
 
 func TestTranspose5aBlocked(t *testing.T) {
-	d := dupe(nineMatrix)
+	d := dupe(nineMatrix())
 	t.Logf("Input matrix is %s", formatMatrix(d))
 	transpose5aBlocked(d)
 	if !isTransposed(d) {
@@ -303,7 +299,7 @@ func TestTranspose5aBlocked(t *testing.T) {
 }
 
 func TestTranspose5bBlocked(t *testing.T) {
-	d := dupe(nineMatrix)
+	d := dupe(nineMatrix())
 	t.Logf("Input matrix is %s", formatMatrix(d))
 	transpose5bBlocked(d)
 	if !isTransposed(d) {
@@ -312,7 +308,7 @@ func TestTranspose5bBlocked(t *testing.T) {
 }
 
 func TestTransposeTiled4(t *testing.T) {
-	d := dupe(nineMatrix)
+	d := dupe(nineMatrix())
 	transposeTiled4(d)
 	if !isTransposed(d) {
 		t.Errorf("d is not transposed, d = %v", d)
@@ -320,7 +316,7 @@ func TestTransposeTiled4(t *testing.T) {
 }
 
 func TestTransposeTiled8(t *testing.T) {
-	d := dupe(thirtyMatrix)
+	d := dupe(thirtyMatrix())
 	transposeTiled8(d)
 	if !isTransposed(d) {
 		t.Errorf("d is not transposed, d = %v", d)
