@@ -585,27 +585,27 @@ const (
 	// 23.5: Quad-Precision Floating-Point Classify Instruction
 	AFCLASSQ
 
-	// 24: "Zfa" Extension for Additional Floating-Point Instructions
-	// 24.1: Load-Immediate Instructions
+	// 26: "Zfa" Extension for Additional Floating-Point Instructions
+	// 26.1: Load-Immediate Instructions
 	AFLIS
 	AFLID
 
-	// 24.2: Minimum and Maximum Instructions
+	// 26.2: Minimum and Maximum Instructions
 	AFMAXMS
 	AFMINMS
 	AFMAXMD
 	AFMINMD
 
-	// 24.3: Round-to-Integer Instructions
+	// 26.3: Round-to-Integer Instructions
 	AFROUNDS
 	AFROUNDNXS
 	AFROUNDD
 	AFROUNDNXD
 
-	// 24.4: Modular Convert-to-Integer Instruction
+	// 26.4: Modular Convert-to-Integer Instruction
 	AFCVTMODWD
 
-	// 24.6: Comparison Instructions
+	// 26.6: Comparison Instructions
 	AFLEQS
 	AFLTQS
 	AFLEQD

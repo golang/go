@@ -394,8 +394,8 @@ start:
 	// 22.7: Double-Precision Floating-Point Classify Instruction
 	FCLASSD	F0, X5					// d31200e2
 
-	// 24: "Zfa" Extension for Additional Floating-Point Instructions
-	// 24.1: Load-Immediate Instructions
+	// 26: "Zfa" Extension for Additional Floating-Point Instructions
+	// 26.1: Load-Immediate Instructions
 	FLIS $(NaN), F1                       // d3801ff0
 	FLIS $(-1.0), F1                      // d30010f0
 	FLIS $(1.1754943508222875e-38), F1    // d38010f0
@@ -462,13 +462,15 @@ start:
 	FLID $(+Inf), F1                      // d3001ff2
 	FLID $(NaN), F1                       // d3801ff2
 
-	// 24.2: Minimum and Maximum Instructions
+	// 26.2: Minimum and Maximum Instructions
 	FMAXMD F21, F20, F19           // d3395a2b
 	FMAXMS F21, F20, F19           // d3395a29
 	FMINMD F12, F11, F10           // 53a5c52a
 	FMINMS F12, F11, F10           // 53a5c528
 
-	// 24.3: Round-to-Integer Instructions
+	// 26.3: Round-to-Integer Instructions
+	// FROUND/FROUNDNX default to round-to-nearest-even (RNE) when the
+	// rounding-mode suffix is omitted.
 	FROUNDD F18, F9                // d3044942
 	FROUNDS F18, F9                // d3044940
 	FROUNDNXD F18, F9              // d3045942
@@ -494,10 +496,10 @@ start:
 	FROUNDNXD.RUP F18, F9          // d3345942
 	FROUNDNXD.RMM F18, F9          // d3445942
 
-	// 24.4: Modular Convert-to-Integer Instruction
+	// 26.4: Modular Convert-to-Integer Instruction
 	FCVTMODWD F1, X11              // d39580c2
 
-	// 24.6: Comparison Instructions
+	// 26.6: Comparison Instructions
 	FLEQD F2, F1, X11              // d3c520a2
 	FLEQS F2, F1, X11              // d3c520a0
 	FLTQD F18, F9, X11             // d3d524a3

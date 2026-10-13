@@ -163,9 +163,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				break
 			}
 			if buildcfg.GORISCV64 >= 23 && p.To.Type == obj.TYPE_REG {
-				// math.IsNaN only accepts float64; NaN is the only value
-				// that is not equal to itself, so check f32 directly.
-				if f32 != f32 {
+				if math.IsNaN(f64) {
 					p.As = AFLIS
 					break
 				}
@@ -2649,27 +2647,27 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	// 22.7: Double-Precision Floating-Point Classify Instruction
 	AFCLASSD & obj.AMask: {enc: rFIEncoding},
 
-	// 24: "Zfa" Extension for Additional Floating-Point Instructions
-	// 24.1: Load-Immediate Instructions
+	// 26: "Zfa" Extension for Additional Floating-Point Instructions
+	// 26.1: Load-Immediate Instructions
 	AFLIS & obj.AMask: {enc: rIFEncoding},
 	AFLID & obj.AMask: {enc: rIFEncoding},
 
-	// 24.2: Minimum and Maximum Instructions
+	// 26.2: Minimum and Maximum Instructions
 	AFMAXMS & obj.AMask: {enc: rFFFEncoding},
 	AFMINMS & obj.AMask: {enc: rFFFEncoding},
 	AFMAXMD & obj.AMask: {enc: rFFFEncoding},
 	AFMINMD & obj.AMask: {enc: rFFFEncoding},
 
-	// 24.3: Round-to-Integer Instructions
+	// 26.3: Round-to-Integer Instructions
 	AFROUNDS & obj.AMask:   {enc: rFFEncoding},
 	AFROUNDNXS & obj.AMask: {enc: rFFEncoding},
 	AFROUNDD & obj.AMask:   {enc: rFFEncoding},
 	AFROUNDNXD & obj.AMask: {enc: rFFEncoding},
 
-	// 24.4: Modular Convert-to-Integer Instruction
+	// 26.4: Modular Convert-to-Integer Instruction
 	AFCVTMODWD & obj.AMask: {enc: rFIEncoding},
 
-	// 24.6: Comparison Instructions
+	// 26.6: Comparison Instructions
 	AFLEQS & obj.AMask: {enc: rFFIEncoding},
 	AFLTQS & obj.AMask: {enc: rFFIEncoding},
 	AFLEQD & obj.AMask: {enc: rFFIEncoding},
@@ -5483,9 +5481,8 @@ func isUnsafePoint(p *obj.Prog) bool {
 func ParseSuffix(prog *obj.Prog, cond string) (err error) {
 	cond = strings.TrimPrefix(cond, ".")
 	switch prog.As {
-	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
-		prog.Scond, err = rmSuffixEncode(cond)
-	case AFROUNDS, AFROUNDNXS, AFROUNDD, AFROUNDNXD:
+	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD,
+		AFROUNDS, AFROUNDNXS, AFROUNDD, AFROUNDNXD:
 		prog.Scond, err = rmSuffixEncode(cond)
 	case AFENCE:
 		if cond == "TSO" {
