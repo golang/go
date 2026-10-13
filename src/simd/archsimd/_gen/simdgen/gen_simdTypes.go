@@ -87,13 +87,21 @@ func (x simdType) Size() int {
 	return int(x.Shape.Width.(specexpr.Int))
 }
 
-// VectorCounterpart returns the counterpart vector type name for a mask type.
-func (x simdType) VectorCounterpart() string {
+func (x simdType) String() string {
+	return x.Name()
+}
+
+// VectorCounterpart returns the counterpart vector type for a mask type.
+func (x simdType) VectorCounterpart() simdType {
 	v := specexpr.Vector{
 		Elem:  specexpr.Basic{Base: "int", Bits: x.Shape.Elem.Bits},
 		Width: x.Shape.Width,
 	}
-	return v.String()
+	return simdType{
+		Shape:  v,
+		Fields: structFields(v),
+		HasNot: x.HasNot,
+	}
 }
 
 // ReshapedVectorWithAndOr returns the 32-bit-element vector type name with matching width.
@@ -822,16 +830,28 @@ func (x {{.Name}}) To{{.VectorCounterpart}}() (z {{.VectorCounterpart}})
 // asMask converts from {{.VectorCounterpart}} to {{.Name}}.
 func (from {{.VectorCounterpart}}) asMask() (to {{.Name}})
 
+{{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}
+{{end -}}
 func (x {{.Name}}) And(y {{.Name}}) {{.Name}}
 
+{{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}
+{{end -}}
 func (x {{.Name}}) AndNot(y {{.Name}}) {{.Name}}
 
+{{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}
+{{end -}}
 func (x {{.Name}}) Equal(y {{.Name}}) {{.Name}}
 
+{{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}
+{{end -}}
 func (x {{.Name}}) Or(y {{.Name}}) {{.Name}}
 
+{{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}
+{{end -}}
 func (x {{.Name}}) Xor(y {{.Name}}) {{.Name}}
 {{if .HasNot}}
+{{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}
+{{end -}}
 func (x {{.Name}}) Not() {{.Name}}
 {{end}}`)
 
