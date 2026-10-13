@@ -2000,6 +2000,8 @@ func (b *Builder) exportActionID(a *Action, ecfg *exportConfig) cache.ActionID {
 	// Flags.
 	fmt.Fprintf(h, "importPath %s\n", ecfg.ImportPath)
 	fmt.Fprintf(h, "goVersion %s\n", ecfg.GoVersion)
+	// The type checker's sizes depend on the target architecture.
+	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
 	// Source file contents.
 	for _, file := range ecfg.GoFiles {
 		fmt.Fprintf(h, "goFile %s %s\n", file, b.fileHash(file))

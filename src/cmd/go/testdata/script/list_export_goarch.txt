@@ -1,0 +1,20 @@
+# Regression test for https://go.dev/issue/82237:
+# "go list -export" should not reuse export data across GOARCH values.
+
+env GOEXPERIMENT=golistexportnewformat
+env GOOS=linux
+
+env GOARCH=amd64
+go list -export -f '{{.Export}}' p.go
+cp stdout amd64.txt
+
+env GOARCH=386
+go list -export -f '{{.Export}}' p.go
+! cmp stdout amd64.txt
+
+-- p.go --
+package p
+
+import "unsafe"
+
+const PtrSize = unsafe.Sizeof(uintptr(0))
