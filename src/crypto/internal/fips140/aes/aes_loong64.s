@@ -310,18 +310,17 @@ TEXT ·encryptBlockAsm(SB), NOSPLIT, $0-32
 	MOVV	$rot1(SB), R11
 	MOVV	$rot2(SB), R12
 	MOVV	$rot3(SB), R13
-	MOVV	$byteSwap32(SB), R14
 
 	// Load vector constants
 	VMOVQ	(R10), V7	// shiftRows index
 	VMOVQ	(R11), V4	// rot1 index
 	VMOVQ	(R12), V5	// rot2 index
 	VMOVQ	(R13), V6	// rot3 index
-	VMOVQ	(R14), V9	// byteSwap32 index
 
 	// AddRoundKey (round 0)
+	// enc[] round keys are pre-swapped to state byte order by
+	// expandKeyAsm (Phase 2.5), so no per-round VSHUFB is needed here.
 	VMOVQ	(R5), V8
-	VSHUFB	V9, V8, V8, V8
 	VXORV	V8, V0, V0
 	ADDV	$16, R5
 
@@ -338,7 +337,6 @@ Lenc_loop:
 
 	// AddRoundKey
 	VMOVQ	(R5), V8
-	VSHUFB	V9, V8, V8, V8
 	VXORV	V8, V15, V0
 	ADDV	$16, R5
 
@@ -349,7 +347,6 @@ Lenc_loop:
 	SUBBYTES(V0, R9, V0)
 	VSHUFB	V7, V0, V0, V0
 	VMOVQ	(R5), V8
-	VSHUFB	V9, V8, V8, V8
 	VXORV	V8, V0, V0
 
 	// Store ciphertext
@@ -548,7 +545,34 @@ Ldo_xor:
 	JMP	Lexpand_loop
 
 Lexpand_enc_done:
-	BEQ	R7, R0, Lexpand_done	// dec == nil → skip
+	// ---- Phase 2.5 (vectorized): swap enc[] into state byte order ----
+	// expandKeyAsm Phase 1/2 stores enc[] in plain big-endian word order
+	// (matching the scalar key-schedule arithmetic). encryptBlockAsm and
+	// ctrBlocksNAsm (ctr_loong64.s) both previously re-did this swap via
+	// a per-round VSHUFB(byteSwap32) at AddRoundKey time. Do it once here
+	// instead, for all nr+1 round-key groups, so every consumer of enc[]
+	// can load round keys directly. This mirrors what Phase 3 already
+	// does for dec[].
+	//
+	// IMPORTANT: enc[] is also read directly by ctrBlocksNAsm in
+	// ctr_loong64.s. Any change to this on-disk layout must be applied
+	// to BOTH files in the same change, or CTR mode will silently
+	// compute wrong keystreams.
+	MOVV	$byteSwap32(SB), R24
+	VMOVQ	(R24), V2
+	MOVV	$0, R21			// g = 0 (word index)
+Lenc_swap_loop:
+	BEQ	R21, R9, Lenc_swap_done
+	SLLV	$2, R21, R23
+	ADDV	R17, R23, R23		// &enc[g]
+	VMOVQ	(R23), V0
+	VSHUFB	V2, V0, V0, V0
+	VMOVQ	V0, (R23)
+	ADDV	$4, R21
+	JMP	Lenc_swap_loop
+Lenc_swap_done:
+
+	BEQ	R7, R0, Lexpand_done	// dec == nil → skip Phase 3
 
 	// ---- Phase 3 (vectorized): derive dec[] from enc[] ----
 	// n = roundKeysSize (R9), enc base = R17 (saved earlier), dec base = R7
@@ -556,11 +580,10 @@ Lexpand_enc_done:
 	MOVV	$rot1(SB), R26
 	MOVV	$rot2(SB), R27
 	MOVV	$rot3(SB), R28
-	MOVV	$byteSwap32(SB), R24
 	VMOVQ	(R26), V4
 	VMOVQ	(R27), V5
 	VMOVQ	(R28), V6
-	VMOVQ	(R24), V2
+	// byteSwap32/V2 already loaded above by the enc[] swap pass.
 
 	MOVV	$sbox0_0(SB), R29	// sbox0 table base (for SUBBYTES)
 
@@ -571,11 +594,10 @@ Ldec_outer_vec:
 	ADDV	$-4, R20, R20		// R20 = ei = n - i - 4
 	SLLV	$2, R20, R25
 	ADDV	R17, R25, R25		// &enc[ei]  (R17 = saved enc base)
-	VMOVQ	(R25), V0		// load 4 consecutive enc words as one 16-byte group
-	VSHUFB	V2, V0, V0, V0		// word-storage order -> state order.
-					// dec[] is now always stored pre-swapped in state
-					// order (including boundary groups below), so
-					// decryptBlockAsm no longer swaps at use time.
+	VMOVQ	(R25), V0		// enc[ei] is already in state byte order
+					// (swapped in-place by Phase 2.5 above), and
+					// dec[] continues to be stored pre-swapped,
+					// so decryptBlockAsm still needs no swap.
 
 	// boundary: first (i==0) and last (i+4==n) groups get no InvMixColumns
 	BEQ	R19, R0, Ldec_copy_vec
