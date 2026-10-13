@@ -7,6 +7,7 @@ package http2
 import (
 	"bytes"
 	"io"
+	"strings"
 	"testing"
 	"time"
 )
@@ -113,6 +114,59 @@ func TestTransportUsesGetBodyWhenPresent(t *testing.T) {
 	}
 	if req2.Body == req.Body {
 		t.Error("req2.Body unchanged")
+	}
+}
+
+// Issue 82177: when a request body has been closed by transport cleanup
+// after errClientConnUnusable, the transport must not retry the request
+// with the closed body unless Request.GetBody is provided.
+func TestTransportRetryNoGetBody(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{"client_conn_unusable", errClientConnUnusable},
+		{"got_goaway", errClientConnGotGoAway},
+		{"refused_stream", StreamError{Code: ErrCodeRefusedStream}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &ClientRequest{
+				Body: io.NopCloser(strings.NewReader("hello")),
+			}
+			req2, err := shouldRetryRequest(req, tc.err)
+			if err == nil {
+				t.Fatalf("shouldRetryRequest returned non-nil req2 (%v), want error when GetBody is nil", req2)
+			}
+			if !strings.Contains(err.Error(), "define Request.GetBody to avoid this error") {
+				t.Errorf("error %q does not mention Request.GetBody", err)
+			}
+		})
+	}
+}
+
+func TestTransportRetryNilAndNoBody(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body io.ReadCloser
+	}{
+		{"nil_body", nil},
+		{"no_body", NoBody},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &ClientRequest{
+				Body: tc.body,
+			}
+			req2, err := shouldRetryRequest(req, errClientConnUnusable)
+			if err != nil {
+				t.Fatalf("shouldRetryRequest failed: %v", err)
+			}
+			if req2 == nil {
+				t.Fatal("shouldRetryRequest returned nil req2")
+			}
+			if req2.Body != tc.body {
+				t.Errorf("req2.Body = %v, want %v", req2.Body, tc.body)
+			}
+		})
 	}
 }
 
