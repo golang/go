@@ -533,6 +533,7 @@ func TestWriter(t *testing.T) {
 					if err != nil {
 						t.Fatalf("obscuretestdata.DecodeToTempFile(%s): %v", path, err)
 					}
+					defer os.Remove(tf)
 					path = tf
 				}
 

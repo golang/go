@@ -639,6 +639,7 @@ func TestReader(t *testing.T) {
 				if err != nil {
 					t.Fatalf("obscuredtestdata.DecodeToTempFile(%s): %v", path, err)
 				}
+				defer os.Remove(tf)
 				path = tf
 			}
 
