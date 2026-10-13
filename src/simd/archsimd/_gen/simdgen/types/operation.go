@@ -92,9 +92,13 @@ type Operand struct {
 	// The compiler will right-shift the user-passed value by ImmOffset and set it as the AuxInt
 	// field of the operation.
 	ImmOffset *string
-	ImmMax    *int    // optional maximum immediate, also highest case in immediate jump table
-	Name      *string // optional name in the Go intrinsic declaration
-	Lanes     *int    // Omitted for scalable
+	ImmMin    *int // optional minimum immediate
+	ImmMax    *int // optional maximum immediate, also highest case in immediate jump table
+	// ImmDesc is the ISA's description of an immediate, from which simdgen
+	// resolves its range on SVE (see sveImmRanges).
+	ImmDesc *string
+	Name    *string // optional name in the Go intrinsic declaration
+	Lanes   *int    // Omitted for scalable
 	// TreatLikeAScalarOfSize means only the lower $TreatLikeAScalarOfSize bits of the vector
 	// is used, so at the API level we can make it just a scalar value of this size; Then we
 	// can overwrite it to a vector of the right size during intrinsics stage.

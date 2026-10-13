@@ -81,6 +81,15 @@ func (op *Operand) encode() types.Operand {
 	if op.ElemBits > 0 {
 		out.ElemBits = new(op.ElemBits)
 	}
+	if op.Class == "immediate" {
+		// An immediate's range is stated in prose, which is passed on for
+		// simdgen to resolve.
+		out.EncodeBits = &types.VectorSize{NRaw: 8}
+		out.ImmOffset = new("0")
+		if op.immDesc != "" {
+			out.ImmDesc = new(op.immDesc)
+		}
+	}
 	if op.Predication != "" {
 		// "M" (merging) or "Z" (zeroing) for a governing predicate. Some SVE
 		// instructions support only one; this records which.
@@ -328,6 +337,11 @@ func (inst *Instruction) emitVariants(template []Operand) []*unify.Value {
 						} else if variant[i].ElemBits != elem {
 							mixedWidths = true
 						}
+					}
+				}
+				for i := range variant {
+					if variant[i].Type == OperandImm && variant[i].immLink != "" {
+						variant[i].immDesc = inst.explanationText(variant[i].immLink)
 					}
 				}
 				for i := range variant {

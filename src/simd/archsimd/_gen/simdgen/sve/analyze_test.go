@@ -107,3 +107,46 @@ func TestRealXMLShiftImmediateWidths(t *testing.T) {
 		}
 	}
 }
+
+// TestRealXMLImmediateDescriptions checks that a shift by an immediate carries
+// the ISA's description of the immediate for its encoding, which simdgen
+// resolves into a range.
+func TestRealXMLImmediateDescriptions(t *testing.T) {
+	if *svePath == "" {
+		t.Skip("set -svePath to an extracted ISA_A64 XML directory")
+	}
+	defs, err := Load(*svePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"ZLSL": "Is the immediate shift amount, in the range 0 to number of bits per element minus 1, encoded in \"tszh:tszl:imm3\".",
+		"ZASR": "Is the immediate shift amount, in the range 1 to number of bits per element, encoded in \"tszh:tszl:imm3\".",
+	}
+	seen := map[string]bool{}
+	for _, d := range defs {
+		var op struct {
+			Asm string `unify:"asm"`
+			In  []struct {
+				Class   string
+				ImmDesc *string `unify:"immDesc"`
+			} `unify:"in"`
+		}
+		if err := d.Decode(&op); err != nil {
+			t.Fatal(err)
+		}
+		w, ok := want[op.Asm]
+		if !ok || len(op.In) != 2 || op.In[0].Class != "immediate" {
+			continue
+		}
+		seen[op.Asm] = true
+		if got := op.In[0].ImmDesc; got == nil || *got != w {
+			t.Errorf("%s #imm: immDesc %v, want %q", op.Asm, got, w)
+		}
+	}
+	for asm := range want {
+		if !seen[asm] {
+			t.Errorf("no unpredicated %s #imm def", asm)
+		}
+	}
+}

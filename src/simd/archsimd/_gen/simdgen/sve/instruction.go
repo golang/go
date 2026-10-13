@@ -346,6 +346,17 @@ func (inst *Instruction) symbolIsGoverning(name string) (governing, found bool) 
 	return false, found
 }
 
+// explanationText returns the text of the explanation named link, with its
+// whitespace collapsed, e.g. "Is the immediate shift amount, in the range 0 to
+// number of bits per element minus 1, encoded in "tszh:tszl:imm3"."
+func (inst *Instruction) explanationText(link string) string {
+	e := inst.findExplanation(link)
+	if e == nil {
+		return ""
+	}
+	return strings.Join(strings.Fields(e.Account.Intro), " ")
+}
+
 // arngRow is one row of an arrangement size table: the encoding value of the
 // size field and the resulting element width in bits.
 type arngRow struct {

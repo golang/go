@@ -735,6 +735,10 @@ func writeGoDefs(cl unify.Closure) error {
 	// Sorting again, just in case.
 	slices.SortFunc(deduped, compareOperations)
 
+	if err := resolveSVEImmRanges(deduped); err != nil {
+		return err
+	}
+
 	typeMap := parseSIMDTypes(deduped)
 
 	archInfo := CurrentArch()

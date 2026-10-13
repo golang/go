@@ -136,6 +136,11 @@ type Operand struct {
 	isList bool
 	// regName is the inner register symbol, e.g. "Zdn", "Zm", "Pg".
 	regName string
+	// immLink is the <a> link of an immediate's symbol, which names the
+	// explanation of it for this encoding; immDesc is that explanation, which
+	// simdgen turns into the immediate's range.
+	immLink string
+	immDesc string
 	// predRegName is the symbol this operand has in each paired predicated
 	// encoding, indexed to match the operation's predicated variants (and so the
 	// inVariant tuple the def carries). It is nil when the operation has no
@@ -223,6 +228,9 @@ type tok struct {
 	fixedBits int
 	// isList reports that this register came from a single-register list
 	isList bool
+	// immLink is the <a> link of an immediate's symbol, e.g. "const__10",
+	// which names the explanation of it for this encoding.
+	immLink string
 }
 
 // operandsFromTextA parses operands from an assembly template's <text>/<a>
@@ -344,6 +352,9 @@ func classifyToks(toks []rawTok) []tok {
 			if arngValueRe.MatchString(a.value) {
 				p.arngLink = a.link
 			}
+		}
+		if p.operandType == OperandImm && len(t.aElems) > 0 {
+			p.immLink = t.aElems[0].link
 		}
 		if p.arngLink == "" {
 			if m := fixedArngRe.FindStringSubmatch(t.text); m != nil {
@@ -601,7 +612,7 @@ func buildOperandList(parsed []tok, govern func(regName string) (governing, foun
 				arngLink: p.arngLink, fixedElem: p.fixedElem, isList: p.isList, regName: p.regName,
 			}, p.isDestination)
 		case OperandImm:
-			place(Operand{Type: OperandImm, Class: "immediate", AsmPos: p.asmPos}, false)
+			place(Operand{Type: OperandImm, Class: "immediate", AsmPos: p.asmPos, immLink: p.immLink}, false)
 		default: // OperandZReg, OperandGReg, OperandVFP
 			class := "vreg"
 			switch p.operandType {
