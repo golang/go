@@ -528,6 +528,13 @@ func (re *Regexp) find(r io.RuneReader, b []byte, s string, pos int, ncap int, d
 		return nil
 	}
 
+	if r == nil && re.useDFA(len(b)+len(s)-pos, ncap) {
+		var done bool
+		if dstCap, pos, done = re.doDFA(b, s, pos, ncap, dstCap); done {
+			return dstCap
+		}
+	}
+
 	if re.onepass != nil {
 		return re.doOnePass(r, b, s, pos, ncap, dstCap)
 	}
