@@ -137,9 +137,13 @@ var wincleantests = []PathTest{
 	{`a/../c:/a`, `.\c:\a`},
 	{`a/../../c:`, `..\c:`},
 	{`foo:bar`, `foo:bar`},
+	{`xy:z//q/../..`, `.`},
+	{`xy:z//q/../../w`, `w`},
 
 	// Don't allow cleaning to create a Root Local Device path like \??\a.
 	{`/a/../??/a`, `\.\??\a`},
+	{`/a/../??/..`, `\`},
+	{`/a/../??x/..`, `\`},
 }
 
 func TestClean(t *testing.T) {
