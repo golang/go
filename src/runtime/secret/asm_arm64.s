@@ -166,4 +166,12 @@ TEXT ·useSecret(SB),0,$0-24
 	FMOVD   R0, F30
 	ADD     $1, R0
 	FMOVD   R0, F31
+
+	// Delay a bit.  This makes it more likely that
+	// we will be the target of a signal while
+	// registers contain secrets.
+	// It also tests the path from G stack to M stack
+	// to scheduler and back.
+	CALL	runtime∕secret·delay(SB)
+
 	RET
