@@ -61,3 +61,55 @@ func TestReduceSumSVE(t *testing.T) {
 	testSVEReduceSum(t, "Float32s.ReduceSum", archsimd.Float32s{}.Len(), archsimd.LoadFloat32s, archsimd.Float32s.ReduceSum)
 	testSVEReduceSum(t, "Float64s.ReduceSum", archsimd.Float64s{}.Len(), archsimd.LoadFloat64s, archsimd.Float64s.ReduceSum)
 }
+
+// testSVEReduceMax checks a float ReduceMax with the maximum in each lane,
+// with NaN, and with signed zeros.
+func testSVEReduceMax[T float32 | float64, V any](t *testing.T, name string, n int, load func([]T) V, reduce func(V) T) {
+	t.Helper()
+	xs := make([]T, n)
+	for lane := range xs {
+		for i := range xs {
+			xs[i] = T(-3*i - 1)
+		}
+		xs[lane] = 5
+		if got := reduce(load(xs)); got != 5 {
+			t.Errorf("%s(%v) = %v, want 5", name, xs, got)
+		}
+	}
+
+	for i := range xs {
+		xs[i] = T(math.Inf(-1))
+	}
+	if got := reduce(load(xs)); got != T(math.Inf(-1)) {
+		t.Errorf("%s(all -Inf) = %v, want -Inf", name, got)
+	}
+
+	for _, lane := range []int{0, n / 2, n - 1} {
+		for i := range xs {
+			xs[i] = T(i)
+		}
+		xs[lane] = T(math.NaN())
+		if got := reduce(load(xs)); got == got {
+			t.Errorf("%s with NaN in lane %d = %v, want NaN", name, lane, got)
+		}
+	}
+
+	negZero := T(math.Copysign(0, -1))
+	for _, lane := range []int{0, n - 1} {
+		for i := range xs {
+			xs[i] = negZero
+		}
+		xs[lane] = 0
+		if got := reduce(load(xs)); got != 0 || math.Signbit(float64(got)) {
+			t.Errorf("%s of signed zeros with +0 in lane %d = %v, want +0", name, lane, got)
+		}
+	}
+}
+
+func TestReduceMaxSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testSVEReduceMax(t, "Float32s.ReduceMax", archsimd.Float32s{}.Len(), archsimd.LoadFloat32s, archsimd.Float32s.ReduceMax)
+	testSVEReduceMax(t, "Float64s.ReduceMax", archsimd.Float64s{}.Len(), archsimd.LoadFloat64s, archsimd.Float64s.ReduceMax)
+}

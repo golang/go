@@ -1070,6 +1070,22 @@ func (x Uint32s) Or(y Uint32s) (z Uint32s)
 // Asm: ZORR, CPU Feature: SVE
 func (x Uint64s) Or(y Uint64s) (z Uint64s)
 
+/* ReduceMax */
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZFMAXVS, CPU Feature: SVE
+func (x Float32s) ReduceMax() (z float32)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZFMAXVD, CPU Feature: SVE
+func (x Float64s) ReduceMax() (z float64)
+
 /* ReduceSum */
 
 // ReduceSum returns the scalar sum of the elements of x.

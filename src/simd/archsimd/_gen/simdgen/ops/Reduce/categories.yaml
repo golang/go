@@ -18,3 +18,7 @@
   commutative: false
   documentation: !string |-
     // NAME returns the scalar sum of the elements of x.
+- go: ReduceMax
+  commutative: false
+  documentation: !string |-
+    // NAME returns the largest element of x.

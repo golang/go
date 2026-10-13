@@ -248,6 +248,11 @@ func sveReduceSum(x archsimd.Float32s) float32 {
 	return x.ReduceSum()
 }
 
+func sveReduceMax(x archsimd.Float64s) float64 {
+	// arm64:`ZFMAXVD\s+Z[0-9]+\.D, P[0-9]+, V[0-9]+` -`FMOV`
+	return x.ReduceMax()
+}
+
 // The zero value of a mask is an all-false predicate.
 func sveZeroMask() archsimd.Mask8s {
 	// arm64:`PPFALSE` -`ZDUP`

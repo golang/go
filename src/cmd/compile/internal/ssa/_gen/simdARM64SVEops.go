@@ -99,6 +99,8 @@ func simdARM64SVEOps(z11, z21, zkv, zkfp, z2kk, z2kv, z2kvPred, z3kvPred, z3kvPr
 		{name: "ZFMAXMergingD", argLength: 3, reg: z2kvPred, asm: "ZFMAX", typ: "Vec256", resultInArg0: true},
 		{name: "ZFMAXMergingS", argLength: 3, reg: z2kvPred, asm: "ZFMAX", typ: "Vec256", resultInArg0: true},
 		{name: "ZFMAXS", argLength: 3, reg: z2kvPred, asm: "ZFMAX", typ: "Vec256", resultInArg0: true},
+		{name: "ZFMAXVDD", argLength: 2, reg: zkfp, asm: "ZFMAXVD", typ: "Float64"},
+		{name: "ZFMAXVSS", argLength: 2, reg: zkfp, asm: "ZFMAXVS", typ: "Float32"},
 		{name: "ZFMIND", argLength: 3, reg: z2kvPred, asm: "ZFMIN", typ: "Vec256", resultInArg0: true},
 		{name: "ZFMINMergingD", argLength: 3, reg: z2kvPred, asm: "ZFMIN", typ: "Vec256", resultInArg0: true},
 		{name: "ZFMINMergingS", argLength: 3, reg: z2kvPred, asm: "ZFMIN", typ: "Vec256", resultInArg0: true},

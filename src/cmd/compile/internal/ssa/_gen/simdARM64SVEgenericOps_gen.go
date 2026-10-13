@@ -156,6 +156,8 @@ func init() {
 		{name: "OrUint16s", argLength: 2, commutative: true},
 		{name: "OrUint32s", argLength: 2, commutative: true},
 		{name: "OrUint64s", argLength: 2, commutative: true},
+		{name: "ReduceMaxFloat32s", argLength: 1},
+		{name: "ReduceMaxFloat64s", argLength: 1},
 		{name: "ReduceSumFloat32s", argLength: 1},
 		{name: "ReduceSumFloat64s", argLength: 1},
 		{name: "RoundFloat32s", argLength: 1},

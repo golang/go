@@ -12,3 +12,14 @@
   - &floatScalar
     class: fpreg
     base: float
+
+# ReduceMax — floating-point maximum across all lanes (ZFMAXV), the same shape
+# as ReduceSum. FMAXV propagates NaN, as Go's max does.
+- go: ReduceMax
+  asm: "ZFMAXV[SD]"
+  in:
+  - go: $t
+    base: float
+  - class: mask # governing predicate
+  out:
+  - *floatScalar
