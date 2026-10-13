@@ -738,6 +738,8 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 
 // processBench runs bench b for the configured CPU counts and prints the results.
 func (s *benchState) processBench(b *B) {
+	// Repeated runs report failures to the original B so B.Run returns false.
+	original := b
 	for i, procs := range cpuList {
 		for j := uint(0); j < *count; j++ {
 			runtime.GOMAXPROCS(procs)
@@ -753,6 +755,7 @@ func (s *benchState) processBench(b *B) {
 					common: common{
 						signal: make(chan bool),
 						name:   b.name,
+						parent: &original.common,
 						w:      b.w,
 						chatty: b.chatty,
 						bench:  true,

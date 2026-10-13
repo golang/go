@@ -1,9 +1,16 @@
 # Test that calling t.Fatal in a benchmark causes a non-zero exit status.
 
-! go test -run '^$' -bench . benchfatal
+! go test -run '^$' -bench '^BenchmarkThatCallsFatal$' benchfatal
 ! stdout ^ok
 ! stderr ^ok
 stdout FAIL.*benchfatal
+
+# A failure after the first run must reach both B.Run and the process exit status.
+go test -c -o benchfatal.test$GOEXE benchfatal
+! exec ./benchfatal.test$GOEXE -test.bench=BenchmarkFatalOnRepeat -test.benchtime=1x -test.count=2
+stdout '^B.Run returned false$'
+! exec ./benchfatal.test$GOEXE -test.bench=BenchmarkFatalOnRepeat -test.benchtime=1x -test.cpu=1,2
+stdout '^B.Run returned false$'
 
 -- go.mod --
 module benchfatal
@@ -12,8 +19,22 @@ go 1.16
 -- x_test.go --
 package benchfatal
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func BenchmarkThatCallsFatal(b *testing.B) {
 	b.Fatal("called by benchmark")
+}
+
+func BenchmarkFatalOnRepeat(b *testing.B) {
+	var calls int
+	ok := b.Run("sub", func(b *testing.B) {
+		calls++
+		if calls == 2 {
+			b.Fatal("second run")
+		}
+	})
+	fmt.Println("B.Run returned", ok)
 }
