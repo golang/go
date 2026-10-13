@@ -14,15 +14,15 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 Heading for 100%:
 
 spec coverage, by (receiver, name) (§1)          1809 / 2917   62%  [spec-common, spec-all]
-docs sourced from spec (§3)                      2910 / 3175   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+docs sourced from spec (§3)                      2926 / 3175   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
 type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
-hand-written doc conflicts with spec (§3)         181 -> 0       [doc-triage]
-simd mirror drift (§3)                             16 -> 0       [comments-yaml]
+hand-written doc conflicts with spec (§3)         165 -> 0       [doc-triage]
+simd mirror drift (§3)                              0 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
 midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml, spec-all]
 
@@ -71,7 +71,7 @@ one (or _) is not, and is counted below as a name Fill fills in instead:
 Names spec gives that the API leaves unnamed, for declarations spec covers:
 
   declarations with unnamed parameters              0 -> 0       [named-results]
-  declarations with unnamed results                16 -> 0       [named-results]
+  declarations with unnamed results                 0 -> 0       [named-results]
 
 API consistency across targets (the "one meaning" invariant), for
 (receiver, name) pairs declared for more than one target. An unnamed
@@ -87,11 +87,11 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   2910 / 3175   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   2926 / 3175   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 simd ∩ archsimd methods with matching docs        253 / 253   100%  [gen-docs, comments-yaml]
 
-hand-written doc conflicts with spec              181 -> 0       [doc-triage]
+hand-written doc conflicts with spec              165 -> 0       [doc-triage]
     archsimd/clmul_arm64.go                         4 -> 0       [doc-triage]
     archsimd/extra_amd64.go                         6 -> 0       [doc-triage]
     archsimd/maskrange_128.go                       4 -> 0       [doc-triage]
@@ -104,8 +104,8 @@ hand-written doc conflicts with spec              181 -> 0       [doc-triage]
     archsimd/slicepart_amd64.go                     4 -> 0       [doc-triage]
     archsimd/slicepart_arm64.go                    12 -> 0       [doc-triage]
     archsimd/slicepart_wasm.go                     12 -> 0       [doc-triage]
-    simd_emulated.go                               28 -> 0       [doc-triage]
-drifted docs in simd mirror (stubs vs emulated)    16 -> 0       [comments-yaml]
+    simd_emulated.go                               12 -> 0       [doc-triage]
+drifted docs in simd mirror (stubs vs emulated)     0 -> 0       [comments-yaml]
   mirrored declarations                           372
 
 
