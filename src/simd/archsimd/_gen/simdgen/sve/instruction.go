@@ -369,12 +369,18 @@ func (inst *Instruction) resolveArrangementTable(link string) []arngRow {
 	}
 	var rows []arngRow
 	for i, row := range exp.Definition.Table.TGroup.TBody.Row {
+		// A row is keyed by all of its encoding fields: shifts by an
+		// immediate encode the element size in tszh:tszl, where the S row
+		// (01:xx) and the D row (1x:xx) agree on tszl alone.
 		var size string
 		bits := 0
 		for _, entry := range row.Entries {
 			switch entry.Class {
 			case "bitfield":
-				size = strings.TrimSpace(entry.Value)
+				if size != "" {
+					size += ":"
+				}
+				size += strings.TrimSpace(entry.Value)
 			case "symbol":
 				bits = elemLetterBits(strings.TrimSpace(entry.Value))
 			}
