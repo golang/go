@@ -258,13 +258,22 @@ var unquotetests = []unQuoteTest{
 	{`'☹'`, "☹"},
 	{`'\a'`, "\a"},
 	{`'\x10'`, "\x10"},
-	{`'\377'`, "\377"},
 	{`'\u1234'`, "\u1234"},
 	{`'\U00010111'`, "\U00010111"},
 	{`'\t'`, "\t"},
 	{`' '`, " "},
 	{`'\''`, "'"},
 	{`'"'`, "\""},
+
+	// The correct result is the UTF-8 encoding of the rune,
+	// not a string whose sole byte has the same numeric
+	// value as the rune; see go.dev/issue/82205.
+	{`'\377'`, "\u00ff"},
+	{`'\xff'`, "\u00ff"},
+	{`'\u00ff'`, "\u00ff"},
+	{`'\U000000ff'`, "\u00ff"},
+	{`'\x80'`, "\u0080"},
+	{`'\200'`, "\u0080"},
 
 	{"``", ``},
 	{"`a`", `a`},
