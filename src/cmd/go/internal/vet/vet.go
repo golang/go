@@ -160,7 +160,8 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	//
 	// Most are passed through to toolFlags, but not all:
 	// * -V and -flags are used by the handshake in the [toolFlags] function;
-	// * these old flags have no effect: [-all -source -tags -v]; and
+	// * these old flags have no effect: [-all -source -tags -v];
+	//   -tags and -v are also build flags, so they are not passed through; and
 	// * the [-c -fix -diff -json] flags are handled specially
 	//   as described below:
 	//
@@ -177,8 +178,6 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	//   and describes both diagnostics and fixes (but does not apply them).
 	// * -c=n is supported by the unitchecker, but we reimplement it
 	//   here (see printDiagnostics), and do not pass the flag through.
-
-	work.VetExplicit = len(toolFlags) > 0
 
 	applyFixes := false
 	if cmd.Name() == "fix" || *vetFixFlag {
