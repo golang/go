@@ -1739,6 +1739,12 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		// changed here.
 		vetFlags = []string{"-unsafeptr=false"}
 
+		// Unlike go test, go vet has no analyzer flags in VetFlags here,
+		// only its own flags for the tool, such as -json and -fix. Keep them.
+		if cfg.CmdName != "test" {
+			vetFlags = append(vetFlags, VetFlags...)
+		}
+
 		// Also turn off -unreachable checks during go test.
 		// During testing it is very common to make changes
 		// like hard-coded forced returns or panics that make
