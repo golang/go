@@ -1560,6 +1560,7 @@ type exportConfig struct {
 	ImportMap   map[string]string // maps import path to package path
 	PackageFile map[string]string // maps package path to file of type information
 	Output      string            // where to write file of type information
+	TrimPath    string            // rewrites for source file paths, as in -trimpath
 }
 
 // analysisModuleFromModulePublic converts a modinfo.ModulePublic to a analysis.Module.
@@ -1979,6 +1980,7 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 		ImportMap:   make(map[string]string),
 		PackageFile: make(map[string]string),
 		Output:      a.Target,
+		TrimPath:    a.trimpath(),
 	}
 	for i, s := range a.Package.Internal.RawImports {
 		if s != "C" {
@@ -2008,6 +2010,9 @@ func (b *Builder) exportActionID(a *Action, ecfg *exportConfig) cache.ActionID {
 	fmt.Fprintf(h, "goVersion %s\n", ecfg.GoVersion)
 	// The type checker's sizes depend on the target architecture.
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+	if cfg.BuildTrimpath {
+		fmt.Fprintln(h, "trimpath")
+	}
 	// Source file contents.
 	for _, file := range ecfg.GoFiles {
 		fmt.Fprintf(h, "goFile %s %s\n", file, b.fileHash(file))

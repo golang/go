@@ -53,6 +53,7 @@ type config struct {
 	ImportMap   map[string]string // maps import path to package path
 	PackageFile map[string]string // maps package path to file of type information
 	Output      string            // where to write file of type information
+	TrimPath    string            // rewrites for source file paths, as in -trimpath
 }
 
 func main() {
@@ -83,12 +84,13 @@ func export(configFile string) error {
 	fset := token.NewFileSet()
 	var files []*ast.File
 	for _, name := range cfg.GoFiles {
-		// cmd/compile prefixes paths in std with "$GOROOT"; do the same here.
+		// cmd/compile rewrites paths with -trimpath and prefixes paths in std
+		// with "$GOROOT"; do the same here.
 		src, err := os.ReadFile(name)
 		if err != nil {
 			return err
 		}
-		name = objabi.AbsFile("", name, "") // name is an absolute path
+		name = objabi.AbsFile("", name, cfg.TrimPath) // name is an absolute path
 		f, err := parser.ParseFile(fset, name, src, parser.SkipObjectResolution)
 		if err != nil {
 			return err
