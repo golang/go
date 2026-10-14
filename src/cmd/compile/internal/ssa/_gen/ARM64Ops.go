@@ -206,7 +206,9 @@ func init() {
 		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
 		fp1flags       = regInfo{inputs: []regMask{fp}}
+		pred1fp        = regInfo{inputs: []regMask{pred}, outputs: []regMask{fp}}
 		fp1predfp      = regInfo{inputs: []regMask{fp, pred}, outputs: []regMask{fp}}
+		fpgppredfp     = regInfo{inputs: []regMask{fp, gp, pred}, outputs: []regMask{fp}}
 		fp2predpred    = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{pred}}
 		fp2predfp      = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{fp}}
 		fp3predfp      = regInfo{inputs: []regMask{fp, fp, fp, pred}, outputs: []regMask{fp}}
@@ -886,6 +888,31 @@ func init() {
 		{name: "ZDUPIH", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
 		{name: "ZDUPIS", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
 		{name: "ZDUPID", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
+		// ZCPY is the predicated counterpart of ZDUP.
+		// ZCPY{B,H,S,D}const broadcasts a signed 8-bit immediate to the selected
+		// lanes of a scalable vector and zeroes the inactive lanes (Pg/Z).
+		{name: "ZCPYBconst", argLength: 1, aux: "Int8", reg: pred1fp, asm: "ZCPY", typ: "Vec256"}, // arg0=predicate, auxint=imm
+		{name: "ZCPYHconst", argLength: 1, aux: "Int8", reg: pred1fp, asm: "ZCPY", typ: "Vec256"}, // arg0=predicate, auxint=imm
+		{name: "ZCPYSconst", argLength: 1, aux: "Int8", reg: pred1fp, asm: "ZCPY", typ: "Vec256"}, // arg0=predicate, auxint=imm
+		{name: "ZCPYDconst", argLength: 1, aux: "Int8", reg: pred1fp, asm: "ZCPY", typ: "Vec256"}, // arg0=predicate, auxint=imm
+		// ZCPYMerging{B,H,S,D}const broadcasts a signed 8-bit immediate to the
+		// selected lanes of arg0, keeping arg0 on the inactive lanes (Pg/M).
+		{name: "ZCPYMergingBconst", argLength: 2, aux: "Int8", reg: fp1predfp, asm: "ZCPY", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=predicate, auxint=imm
+		{name: "ZCPYMergingHconst", argLength: 2, aux: "Int8", reg: fp1predfp, asm: "ZCPY", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=predicate, auxint=imm
+		{name: "ZCPYMergingSconst", argLength: 2, aux: "Int8", reg: fp1predfp, asm: "ZCPY", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=predicate, auxint=imm
+		{name: "ZCPYMergingDconst", argLength: 2, aux: "Int8", reg: fp1predfp, asm: "ZCPY", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=predicate, auxint=imm
+		// ZCPYMerging{B,H,S,D} broadcasts a general register to the selected lanes
+		// of arg0, keeping arg0 on the inactive lanes (Pg/M).
+		{name: "ZCPYMergingB", argLength: 3, reg: fpgppredfp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYMergingH", argLength: 3, reg: fpgppredfp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYMergingS", argLength: 3, reg: fpgppredfp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYMergingD", argLength: 3, reg: fpgppredfp, asm: "ZCPY", typ: "Vec256", resultInArg0: true},  // arg0=else, arg1=scalar, arg2=predicate
+		// ZCPYIMerging{B,H,S,D} broadcasts element 0 of a vector/FP register to
+		// the selected lanes of arg0, keeping arg0 on the inactive lanes (Pg/M).
+		{name: "ZCPYIMergingB", argLength: 3, reg: fp2predfp, asm: "ZCPYB", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYIMergingH", argLength: 3, reg: fp2predfp, asm: "ZCPYH", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYIMergingS", argLength: 3, reg: fp2predfp, asm: "ZCPYS", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYIMergingD", argLength: 3, reg: fp2predfp, asm: "ZCPYD", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
 		// RDVL reads the architecture vector length in bytes (aux = scale). Used
 		// at package init to verify the hardware VL fits the fixed 256-bit model.
 		{name: "RDVL", argLength: 0, aux: "Int64", reg: gp01, asm: "RDVL", typ: "Int64"},

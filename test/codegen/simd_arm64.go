@@ -286,3 +286,30 @@ func sveMaxBothSourcesLive(x, y archsimd.Int8s) archsimd.Int8s {
 	sinkInt8s(y)
 	return r
 }
+
+func sveMaskToInt(m archsimd.Mask8s) archsimd.Int8s {
+	// Broadcast(-1).Masked(m) folds into a single zeroing CPY.
+	// arm64:`ZCPY\s+\$-1, P[0-9]+\.Z, Z[0-9]+\.B` -`ZDUP` -`ZSEL`
+	return m.ToInt8s()
+}
+
+func sveBroadcastConstIfElse(m archsimd.Mask16s, z archsimd.Int16s) archsimd.Int16s {
+	// arm64:`ZCPY\s+\$5, P[0-9]+\.M, Z[0-9]+\.H` -`ZDUP` -`ZSEL`
+	return archsimd.BroadcastInt16s(5).IfElse(m, z)
+}
+
+func sveBroadcastGpIfElse32(x int32, m archsimd.Mask32s, z archsimd.Int32s) archsimd.Int32s {
+	// arm64:`ZCPYW\s+R[0-9]+, P[0-9]+\.M, Z[0-9]+\.S` -`ZDUP` -`ZSEL`
+	return archsimd.BroadcastInt32s(x).IfElse(m, z)
+}
+
+func sveBroadcastGpIfElse64(x int64, m archsimd.Mask64s, z archsimd.Int64s) archsimd.Int64s {
+	// arm64:`ZCPY\s+R[0-9]+, P[0-9]+\.M, Z[0-9]+\.D` -`ZDUP` -`ZSEL`
+	return archsimd.BroadcastInt64s(x).IfElse(m, z)
+}
+
+func sveBroadcastFloatIfElse(x float32, m archsimd.Mask32s, z archsimd.Float32s) archsimd.Float32s {
+	// arm64:`ZCPYS\s+V[0-9]+, P[0-9]+\.M, Z[0-9]+\.S` -`ZDUP` -`ZSEL`
+	return archsimd.BroadcastFloat32s(x).IfElse(m, z)
+}
+

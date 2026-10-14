@@ -1942,6 +1942,22 @@
 (ZDUPS (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPSconst [int8(c)])
 (ZDUPD (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPDconst [int8(c)])
 
+// A select over a broadcast folds into predicated CPY. Merging CPY (/M) handles
+// an arbitrary else operand; when the broadcast is a small constant and the
+// else operand is zero (as in Masked), zeroing CPY (/Z) constructs the result
+// directly without materializing the zero vector.
+//
+// Fold a select over a GP-register broadcast into a merging GP-register CPY.
+(ZSEL(B|H|S|D) (ZDUP(B|H|S|D) x) z mask) => (ZCPYMerging(B|H|S|D) z x mask)
+// Fold a select over a lane-0 vector/FP broadcast into a merging FP-register CPY.
+(ZSEL(B|H|S|D) (ZDUPI(B|H|S|D) [0] x) z mask) => (ZCPYIMerging(B|H|S|D) z x mask)
+// Fold a select over an immediate broadcast into a merging immediate CPY.
+(ZSEL(B|H|S|D) (ZDUP(B|H|S|D)const [c]) z mask) => (ZCPYMerging(B|H|S|D)const [c] z mask)
+// Fold a small constant scalar into a merging GP-register CPY if ZSEL folded before ZDUP.
+(ZCPYMerging(B|H|S|D) z (MOVDconst [c]) mask) && c == int64(int8(c)) => (ZCPYMerging(B|H|S|D)const [int8(c)] z mask)
+// Replace a merging immediate CPY into a zero vector with a zeroing immediate CPY.
+(ZCPYMerging(B|H|S|D)const [c] (ZDUPBconst [0]) mask) => (ZCPY(B|H|S|D)const [c] mask)
+
 // All-true predicate constructors: the same PWHILELT pattern the lowering
 // synthesizes for implicitly predicated operations, so the select-fold
 // peepholes recognize an explicit all-true mask and CSE dedups it with theirs.

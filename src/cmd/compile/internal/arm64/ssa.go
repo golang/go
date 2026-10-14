@@ -862,6 +862,38 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		simdZDupIndexed(s, v, arm64.ARNG_S)
 	case ssaop.OpARM64ZDUPID:
 		simdZDupIndexed(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZCPYBconst:
+		simdZCpyConst(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZCPYHconst:
+		simdZCpyConst(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZCPYSconst:
+		simdZCpyConst(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZCPYDconst:
+		simdZCpyConst(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZCPYMergingBconst:
+		simdZCpyMergingConst(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZCPYMergingHconst:
+		simdZCpyMergingConst(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZCPYMergingSconst:
+		simdZCpyMergingConst(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZCPYMergingDconst:
+		simdZCpyMergingConst(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZCPYMergingB:
+		simdZCpyMergingGp(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZCPYMergingH:
+		simdZCpyMergingGp(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZCPYMergingS:
+		simdZCpyMergingGp(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZCPYMergingD:
+		simdZCpyMergingGp(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZCPYIMergingB:
+		simdZCpyMergingVec(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZCPYIMergingH:
+		simdZCpyMergingVec(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZCPYIMergingS:
+		simdZCpyMergingVec(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZCPYIMergingD:
+		simdZCpyMergingVec(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64ZSELB:
 		simdZ2kv(s, v, arm64.ARNG_B)
 	case ssaop.OpARM64ZSELH:
@@ -2178,6 +2210,60 @@ func simdZDupIndexed(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = zregArngElem(v.Args[0].Reg(), arng)
 	p.From.Index = int16(v.AuxInt)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZCpyConst emits a zeroing-predicated SVE broadcast of a signed 8-bit
+// immediate, e.g. ZCPY $5, P0.Z, Z0.H.
+func simdZCpyConst(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = v.AuxInt
+	p.AddRestSourceReg(pregMask(v.Args[0].Reg(), arm64.PRED_Z))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZCpyMergingConst emits a merging-predicated SVE broadcast of a signed
+// 8-bit immediate, e.g. ZCPY $5, P0.M, Z0.H. SSA provides arg0=the value the
+// inactive lanes keep (pinned to the destination by resultInArg0) and
+// arg1=the governing predicate.
+func simdZCpyMergingConst(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = v.AuxInt
+	p.AddRestSourceReg(pregMask(v.Args[1].Reg(), arm64.PRED_M))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZCpyMergingGp emits a merging-predicated SVE broadcast of a general
+// register, e.g. ZCPYW R0, P0.M, Z0.B. SSA provides arg0=the value the
+// inactive lanes keep (pinned to the destination by resultInArg0),
+// arg1=scalar, and arg2=the governing predicate.
+func simdZCpyMergingGp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[1].Reg()
+	p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZCpyMergingVec emits a merging-predicated SVE broadcast of element 0 of
+// a SIMD/FP register, e.g. ZCPYS V1, P0.M, Z0.S. SSA provides arg0=the value
+// the inactive lanes keep (pinned to the destination by resultInArg0),
+// arg1=scalar, and arg2=the governing predicate.
+func simdZCpyMergingVec(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[1].Reg() - arm64.REG_F0 + arm64.REG_V0
+	p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = zregArng(v.Reg(), arng)
 	return p

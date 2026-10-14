@@ -1092,7 +1092,7 @@ func (x Mask8s) Any() bool
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
-// Asm: Emulated
+// Asm: ZCPY, CPU Feature: SVE
 func (x Mask8s) ToInt8s() (z Int8s) {
 	return BroadcastInt8s(-1).Masked(x)
 }
@@ -1162,7 +1162,7 @@ func (x Mask16s) Any() bool
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
-// Asm: Emulated
+// Asm: ZCPY, CPU Feature: SVE
 func (x Mask16s) ToInt16s() (z Int16s) {
 	return BroadcastInt16s(-1).Masked(x)
 }
@@ -1232,7 +1232,7 @@ func (x Mask32s) Any() bool
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
-// Asm: Emulated
+// Asm: ZCPY, CPU Feature: SVE
 func (x Mask32s) ToInt32s() (z Int32s) {
 	return BroadcastInt32s(-1).Masked(x)
 }
@@ -1302,7 +1302,7 @@ func (x Mask64s) Any() bool
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
-// Asm: Emulated
+// Asm: ZCPY, CPU Feature: SVE
 func (x Mask64s) ToInt64s() (z Int64s) {
 	return BroadcastInt64s(-1).Masked(x)
 }

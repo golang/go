@@ -404,6 +404,20 @@ func TestIfElseSVE(t *testing.T) {
 		return 0
 	})
 
+	var scalar int8 = 42
+	check("BroadcastConst.IfElse(z)", archsimd.BroadcastInt8s(7).IfElse(m, z), func(i int, active bool) int8 {
+		if active {
+			return 7
+		}
+		return zs[i]
+	})
+	check("BroadcastGp.IfElse(z)", archsimd.BroadcastInt8s(scalar).IfElse(m, z), func(i int, active bool) int8 {
+		if active {
+			return scalar
+		}
+		return zs[i]
+	})
+
 	// The prefixed path with every operand still live afterwards, so the
 	// destination can be none of them and the merging MOVPRFX has to place the
 	// else operand itself.

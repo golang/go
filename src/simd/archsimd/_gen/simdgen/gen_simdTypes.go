@@ -364,7 +364,7 @@ func (x {{.Name}}) Any() bool
 // To{{.VectorCounterpart}} converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
-// Asm: Emulated
+// Asm: ZCPY, CPU Feature: SVE
 func (x {{.Name}}) To{{.VectorCounterpart}}() {{.VectorCounterpart}} {
 	return Broadcast{{.VectorCounterpart}}(-1).Masked(x)
 }
