@@ -357,7 +357,7 @@ func TestPostRedirects(t *testing.T) {
 	want := strings.Join(wantSegments, "\n")
 	runSynctest(t, func(t *testing.T, mode testMode) {
 		testRedirectsByMethod(t, mode, "POST", postRedirectTests, want)
-	}, http3SkippedMode)
+	})
 }
 
 func TestDeleteRedirects(t *testing.T) {
@@ -396,7 +396,7 @@ func TestDeleteRedirects(t *testing.T) {
 	want := strings.Join(wantSegments, "\n")
 	runSynctest(t, func(t *testing.T, mode testMode) {
 		testRedirectsByMethod(t, mode, "DELETE", deleteRedirectTests, want)
-	}, http3SkippedMode)
+	})
 }
 
 func TestQueryRedirects(t *testing.T) {
@@ -433,7 +433,7 @@ func TestQueryRedirects(t *testing.T) {
 	want := strings.Join(wantSegments, "\n")
 	runSynctest(t, func(t *testing.T, mode testMode) {
 		testRedirectsByMethod(t, mode, "QUERY", queryRedirectTests, want)
-	}, http3SkippedMode)
+	})
 }
 
 func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []redirectTest, want string) {
@@ -446,7 +446,11 @@ func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []r
 		log.Lock()
 		slurp, _ := io.ReadAll(r.Body)
 		fmt.Fprintf(&log.Buffer, "%s %s %q", r.Method, r.RequestURI, slurp)
-		if cl := r.Header.Get("Content-Length"); r.Method == "GET" && len(slurp) == 0 && (r.ContentLength != 0 || cl != "") {
+		wantCL := int64(0)
+		if mode == http3Mode {
+			wantCL = -1
+		}
+		if cl := r.Header.Get("Content-Length"); r.Method == "GET" && len(slurp) == 0 && (r.ContentLength != wantCL || cl != "") {
 			fmt.Fprintf(&log.Buffer, " (but with body=%T, content-length = %v, %q)", r.Body, r.ContentLength, cl)
 		}
 		log.WriteByte('\n')
