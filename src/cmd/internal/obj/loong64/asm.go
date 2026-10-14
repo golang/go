@@ -418,7 +418,7 @@ var optab = []Optab{
 	{AXVSLLV, C_U6CON, C_NONE, C_NONE, C_XREG, C_NONE, 32, 4, 0, 0},
 
 	{AWORD, C_32CON, C_NONE, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0},
-	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 61, 4, 0, 0},
+	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 38, 8, 0, 0},
 
 	{ANOOP, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
 
@@ -2727,7 +2727,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_RRRR(c.oprrrr(p.As), uint32(p.From.Reg), uint32(p.Reg), uint32(r), uint32(p.To.Reg))
 
 	case 38: // word
-		o1 = uint32(c.regoff(&p.From))
+		switch o.size {
+		case 4:
+			o1 = uint32(c.regoff(&p.From))
+
+		case 8:
+			o1 = uint32(c.vregoff(&p.From) >> 0)
+			o2 = uint32(c.vregoff(&p.From) >> 32)
+		}
 
 	case 39: // vmov Rn, Vd.<T>[index]
 		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -3037,10 +3044,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(p.To.Reg)
 		}
 		o5 = OP_RRR(c.oprrr(p.As), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
-
-	case 61: // word C_DCON
-		o1 = uint32(c.vregoff(&p.From))
-		o2 = uint32(c.vregoff(&p.From) >> 32)
 
 	case 62: // rdtimex rd, rj
 		o1 = OP_RR(c.oprr(p.As), uint32(p.To.Reg), uint32(p.RegTo2))
