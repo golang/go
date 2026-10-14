@@ -360,6 +360,14 @@ func (x {{.Name}}) None() bool
 //
 // Asm: PTEST, CPU Feature: SVE
 func (x {{.Name}}) Any() bool
+
+// To{{.VectorCounterpart}} converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
+//
+// Asm: Emulated
+func (x {{.Name}}) To{{.VectorCounterpart}}() {{.VectorCounterpart}} {
+	return Broadcast{{.VectorCounterpart}}(-1).Masked(x)
+}
 {{end}}
 
 {{define "sveIfElseTmpl"}}
@@ -385,6 +393,17 @@ func (x {{.Name}}) Masked(mask Mask{{.ElemBits}}s) {{.Name}} {
 //
 // Asm: ZDUP, CPU Feature: SVE
 func Broadcast{{.Name}}(x {{.Base}}) {{.Name}}
+{{end}}
+
+{{define "sveToMaskTmpl"}}
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x {{.Name}}) ToMask() Mask{{.ElemBits}}s {
+	return x.NotEqual({{.Name}}{})
+}
 {{end}}
 
 {{define "sveStringTmpl"}}
@@ -987,6 +1006,11 @@ type psve struct {
 				}
 				if err := t.ExecuteTemplate(buffer, "sveBroadcastTmpl", typeDef); err != nil {
 					panic(fmt.Errorf("failed to execute sveBroadcastTmpl template for type %s: %w", typeDef.Name(), err))
+				}
+				if typeDef.Shape.Elem.Base == "int" {
+					if err := t.ExecuteTemplate(buffer, "sveToMaskTmpl", typeDef); err != nil {
+						panic(fmt.Errorf("failed to execute sveToMaskTmpl template for type %s: %w", typeDef.Name(), err))
+					}
 				}
 			}
 			if typeDef.IsScalable() {

@@ -14,7 +14,7 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 Heading for 100%:
 
 spec coverage, by (receiver, name) (§1)          1809 / 2917   62%  [spec-common, spec-all]
-docs sourced from spec (§3)                      2926 / 3175   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+docs sourced from spec (§3)                      2934 / 3183   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
@@ -29,14 +29,14 @@ midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      3903 / 5175   75%
+by (target, receiver, name)                      3911 / 5183   75%
 by (receiver, name)                              1809 / 2917   62%
 by name                                           275 / 458    60%
 
 By build configuration:
 
   amd64                                          1737 / 2692   65%
-  arm64                                          1068 / 1282   83%
+  arm64                                          1076 / 1290   83%
   wasm                                            750 / 829    90%
   portable                                        348 / 372    94%
 
@@ -44,13 +44,13 @@ By generator (declarations per tool, counted once per tool per pair):
 
   hand-written                                    502 / 561    89%
   midway                                          348 / 348   100%
-  simdgen                                        1272 / 2247   57%
+  simdgen                                        1280 / 2255   57%
   tmplgen                                         362 / 416    87%
   wasmgen                                         337 / 392    86%
 
 High-drift-risk names (emitted by >1 generator):
 
-  covered                                         130 / 138    94%  [spec-all]
+  covered                                         134 / 142    94%  [spec-all]
   portable core (comments.yaml .common_methods)    65 / 65    100%  [spec-common]
 
 spec operations written so far                     80
@@ -87,9 +87,9 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   2926 / 3175   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   2934 / 3183   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
-simd ∩ archsimd methods with matching docs        253 / 253   100%  [gen-docs, comments-yaml]
+simd ∩ archsimd methods with matching docs        261 / 261   100%  [gen-docs, comments-yaml]
 
 hand-written doc conflicts with spec              165 -> 0       [doc-triage]
     archsimd/clmul_arm64.go                         4 -> 0       [doc-triage]

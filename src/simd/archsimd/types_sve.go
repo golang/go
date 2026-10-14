@@ -304,6 +304,15 @@ func (x Int8s) Masked(mask Mask8s) (z Int8s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastInt8s(x int8) (z Int8s)
 
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Int8s) ToMask() (z Mask8s) {
+	return x.NotEqual(Int8s{})
+}
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Int8s) String() string {
@@ -402,6 +411,15 @@ func (x Int16s) Masked(mask Mask16s) (z Int16s) {
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastInt16s(x int16) (z Int16s)
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Int16s) ToMask() (z Mask16s) {
+	return x.NotEqual(Int16s{})
+}
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -502,6 +520,15 @@ func (x Int32s) Masked(mask Mask32s) (z Int32s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastInt32s(x int32) (z Int32s)
 
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Int32s) ToMask() (z Mask32s) {
+	return x.NotEqual(Int32s{})
+}
+
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
 func (x Int32s) String() string {
@@ -600,6 +627,15 @@ func (x Int64s) Masked(mask Mask64s) (z Int64s) {
 //
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastInt64s(x int64) (z Int64s)
+
+// ToMask returns a mask indicating which elements of x are non-zero.
+//
+//	z[i] = x[i] != 0
+//
+// Asm: ZCMPNE, CPU Feature: SVE
+func (x Int64s) ToMask() (z Mask64s) {
+	return x.NotEqual(Int64s{})
+}
 
 // String returns a string representation of SIMD vector x. Only the x.Len()
 // elements that exist at the runtime vector length are shown.
@@ -1053,6 +1089,14 @@ func (x Mask8s) None() bool
 // Asm: PTEST, CPU Feature: SVE
 func (x Mask8s) Any() bool
 
+// ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
+//
+// Asm: Emulated
+func (x Mask8s) ToInt8s() (z Int8s) {
+	return BroadcastInt8s(-1).Masked(x)
+}
+
 // String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the vl() lanes that exist at the runtime
 // vector length are shown.
@@ -1114,6 +1158,14 @@ func (x Mask16s) None() bool
 //
 // Asm: PTEST, CPU Feature: SVE
 func (x Mask16s) Any() bool
+
+// ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
+//
+// Asm: Emulated
+func (x Mask16s) ToInt16s() (z Int16s) {
+	return BroadcastInt16s(-1).Masked(x)
+}
 
 // String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 2 lanes that exist at the runtime
@@ -1177,6 +1229,14 @@ func (x Mask32s) None() bool
 // Asm: PTEST, CPU Feature: SVE
 func (x Mask32s) Any() bool
 
+// ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
+//
+// Asm: Emulated
+func (x Mask32s) ToInt32s() (z Int32s) {
+	return BroadcastInt32s(-1).Masked(x)
+}
+
 // String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 4 lanes that exist at the runtime
 // vector length are shown.
@@ -1238,6 +1298,14 @@ func (x Mask64s) None() bool
 //
 // Asm: PTEST, CPU Feature: SVE
 func (x Mask64s) Any() bool
+
+// ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits
+// set, e.g., -1) if mask element i is "true", and 0 otherwise.
+//
+// Asm: Emulated
+func (x Mask64s) ToInt64s() (z Int64s) {
+	return BroadcastInt64s(-1).Masked(x)
+}
 
 // String returns a string representation of SIMD mask x: 1 for an active lane,
 // 0 for an inactive one. Only the vl() / 8 lanes that exist at the runtime
