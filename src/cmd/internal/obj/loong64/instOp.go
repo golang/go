@@ -83,8 +83,6 @@ var oprrr = map[obj.As]uint32{
 	ACRCCWHW:       0x4d << 15,          // crcc.w.h.w
 	ACRCCWWW:       0x4e << 15,          // crcc.w.w.w
 	ACRCCWVW:       0x4f << 15,          // crcc.w.d.w
-	AJMP:           0x13 << 26,          // jirl r0, rj, 0
-	AJAL:           0x13<<26 | 1<<0,     // jirl r1, rj, 0
 	AMULF:          0x209 << 15,         // fmul.s
 	AMULD:          0x20a << 15,         // fmul.d
 	ADIVF:          0x20d << 15,         // fdiv.s
@@ -706,6 +704,8 @@ var opi = map[obj.As]uint32{
 	ABREAK:   0x54 << 15,   // break
 	ADBAR:    0x70e4 << 15, // dbar
 	AIBAR:    0x70e5 << 15, // ibar
+	AJMP:     0x14 << 26,   // b
+	AJAL:     0x15 << 26,   // bl
 }
 
 var opir = map[obj.As]uint32{
@@ -733,9 +733,8 @@ var opirr = map[obj.As]uint32{
 	AADDV16:     0x4 << 26,            // addu16i.d
 	-ABEQ:       0x10 << 26,           // beqz
 	-ABNE:       0x11 << 26,           // bnez
-	AJIRL:       0x13 << 26,           // jirl
-	AJMP:        0x14 << 26,           // b
-	AJAL:        0x15 << 26,           // bl
+	AJMP:        0x13 << 26,           // jirl
+	AJAL:        0x13 << 26,           // jirl
 	ABEQ:        0x16 << 26,           // beq
 	ABNE:        0x17 << 26,           // bne
 	ABLT:        0x18 << 26,           // blt

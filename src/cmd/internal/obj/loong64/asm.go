@@ -286,10 +286,11 @@ var optab = []Optab{
 	{ABFPT, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
 	{ABFPT, C_FCCREG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
 	// jmp and call
-	{AJMP, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0},        // b
-	{AJAL, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0},        // bl
-	{AJMP, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGZERO, 0}, // jirl r0, rj, 0
-	{AJAL, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGLINK, 0}, // jirl r1, rj, 0
+	{AJMP, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0},           // b
+	{AJAL, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0},           // bl
+	{AJMP, C_NONE, C_NONE, C_NONE, C_SOREG_18, C_NONE, 18, 4, REGZERO, 0}, // jirl r0, rj, 0
+	{AJAL, C_NONE, C_NONE, C_NONE, C_SOREG_18, C_NONE, 18, 4, REGLINK, 0}, // jirl r1, rj, 0
+	{AJAL, C_NONE, C_NONE, C_NONE, C_SOREG_18, C_REG, 18, 4, 0, 0},        // jirl rd, rj, offset
 
 	{ABSTRPICKW, C_U6CON, C_REG, C_U6CON, C_REG, C_NONE, 17, 4, 0, 0},
 	{ABSTRPICKW, C_U6CON, C_REG, C_ZCON, C_REG, C_NONE, 17, 4, 0, 0},
@@ -775,6 +776,8 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 				return C_SOREG_12
 			} else if c.instoffset >= -BIG_16 && c.instoffset < BIG_16 {
 				return C_SOREG_16
+			} else if c.instoffset >= -BIG_18 && c.instoffset < BIG_18 {
+				return C_SOREG_18
 			} else if c.instoffset >= -BIG_32 && c.instoffset < BIG_32 {
 				return C_LOREG_32
 			} else {
@@ -1243,11 +1246,15 @@ func cmp(a int, b int) bool {
 		if b == C_ZOREG || b == C_SOREG_8 ||
 			b == C_SOREG_9 || b == C_SOREG_10 ||
 			b == C_SOREG_11 || b == C_SOREG_12 ||
-			b == C_SOREG_16 || b == C_LOREG_32 {
+			b == C_SOREG_16 || b == C_SOREG_18 ||
+			b == C_LOREG_32 {
 			return true
 		}
 
 	case C_LOREG_32:
+		return cmp(C_SOREG_18, b)
+
+	case C_SOREG_18:
 		return cmp(C_SOREG_16, b)
 
 	case C_SOREG_16:
@@ -2464,7 +2471,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				c.ctxt.Diag("branch too far \n%v", p)
 			}
 		}
-		o1 = OP_B_BL(c.opirr(p.As), uint32(v))
+		o1 = OP_B_BL(c.opi(p.As), uint32(v))
 		if p.To.Sym != nil {
 			c.cursym.AddRel(c.ctxt, obj.Reloc{
 				Type: objabi.R_CALLLOONG64,
@@ -2546,12 +2553,19 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 = OP_IRIR(c.opirir(p.As), uint32(msb), uint32(rj), uint32(lsb), uint32(rd))
 
-	case 18: // jmp [r1],0(r2)
-		r := int(p.Reg)
+	case 18: // jmp [r1], offset(r2)
+		r := int(p.RegTo2)
 		if r == 0 {
 			r = int(o.param)
 		}
-		o1 = OP_RRR(c.oprrr(p.As), uint32(0), uint32(p.To.Reg), uint32(r))
+
+		v := int32(p.To.Offset) >> 2
+		if v < -1<<15 || v >= 1<<15 {
+			c.ctxt.Diag("offset out of 18 bit range: %v", p)
+		}
+
+		o1 = OP_16IRR(c.opirr(p.As), uint32(v), uint32(p.To.Reg), uint32(r))
+
 		if p.As == obj.ACALL {
 			c.cursym.AddRel(c.ctxt, obj.Reloc{
 				Type: objabi.R_CALLIND,
@@ -3385,6 +3399,14 @@ func vshift(a obj.As) bool {
 
 // The following functions are used only within the linker's
 // gentxt, elfsetupplt, addpltsym, gentramp, and gentrampgot.
+func OpCodeI(a obj.As) uint32 {
+	op, ok := opi[a]
+	if ok {
+		return op
+	}
+	log.Fatalf("bad ir opcode %v", a)
+	return 0
+}
 
 func OpCodeIR(a obj.As) uint32 {
 	op, ok := opir[a]

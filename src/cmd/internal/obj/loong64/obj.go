@@ -679,5 +679,6 @@ var Linkloong64 = obj.LinkArch{
 	Preprocess:     preprocess,
 	Assemble:       span0,
 	Progedit:       progedit,
+	UnaryDst:       unaryDst,
 	DWARFRegisters: LOONG64DWARFRegisters,
 }
