@@ -178,16 +178,22 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 	st.writeVarint(int64(frameTypeHeaders))
 	st.writeVarint(int64(len(headers)))
 	st.Write(headers)
-	if err := st.Flush(); err != nil {
-		return nil, err
-	}
 
-	var bodyAndTrailerWritten bool
 	is100ContinueReq := httpguts.HeaderValuesContainsToken(req.Header["Expect"], "100-continue")
-	if is100ContinueReq {
+	hasUnsent100Body := false
+	switch {
+	case rt.reqBody == http.NoBody && len(req.Trailer) == 0:
+		st.CloseWrite()
+	case is100ContinueReq:
+		if err := st.Flush(); err != nil {
+			return nil, err
+		}
+		hasUnsent100Body = true
 		rt.maybeCallWait100Continue()
-	} else {
-		bodyAndTrailerWritten = true
+	default:
+		if err := st.Flush(); err != nil {
+			return nil, err
+		}
 		wg.Go(func() { cc.writeBodyAndTrailer(rt, req) })
 	}
 
@@ -210,8 +216,8 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 				}
 				if statusCode == 100 {
 					rt.maybeCallGot100Continue()
-					if is100ContinueReq && !bodyAndTrailerWritten {
-						bodyAndTrailerWritten = true
+					if hasUnsent100Body {
+						hasUnsent100Body = false
 						wg.Go(func() { cc.writeBodyAndTrailer(rt, req) })
 					}
 				}
