@@ -290,3 +290,34 @@ var funcsPackage = &Package{
 		},
 	},
 }
+
+// Test that constructors are associated with a type when a struct embeds a
+// predeclared type.
+// See https://go.dev/issue/50040.
+func TestEmbeddedPredeclaredConstructor(t *testing.T) {
+	const src = `
+package p
+
+type S struct {
+	error
+}
+
+func NewS() (*S, error) { return nil, nil }
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "p.go", strings.NewReader(src), parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := NewFromFiles(fset, []*ast.File{file}, "p", AllDecls)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Types) != 1 || doc.Types[0].Name != "S" {
+		t.Fatalf("expected 1 type S, got %v", doc.Types)
+	}
+	typ := doc.Types[0]
+	if len(typ.Funcs) != 1 || typ.Funcs[0].Name != "NewS" {
+		t.Fatalf("expected NewS to be associated with S, got %v", typ.Funcs)
+	}
+}
