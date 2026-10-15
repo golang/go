@@ -37,7 +37,7 @@ import (
 // The pseudo-version can be found by executing:
 //
 //	go mod download -json boringssl.googlesource.com/boringssl.git@latest
-const boringsslModVer = "v0.0.0-20260209204302-2a7ca5404e13"
+const boringsslModVer = "v0.0.0-20261008002628-fdcd735858aa"
 
 var (
 	port   = flag.String("port", "", "")
@@ -757,9 +757,10 @@ func runBogoSuite(t *testing.T, filter string, extraEnv []string) bogoResults {
 
 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")
-	if extraEnv != nil {
-		cmd.Env = append(os.Environ(), extraEnv...)
-	}
+	// The runner needs ML-DSA, which is unavailable in older FIPS modules.
+	// This only changes the runner build, not the prebuilt shim's FIPS module or mode.
+	cmd.Env = append(cmd.Environ(), "GOFIPS140=off")
+	cmd.Env = append(cmd.Env, extraEnv...)
 	out, err := cmd.CombinedOutput()
 	// NOTE: we don't immediately check the error, because the failure could be either because
 	// the runner failed for some unexpected reason, or because a test case failed, and we
