@@ -24,7 +24,7 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-48
 	SYSCALL
 	PUSHQ	R12
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	ok2
+	JCS	ok2
 	MOVQ	$-1, r1+32(FP)
 	NEGQ	AX
 	MOVQ	AX, err+40(FP)
@@ -59,7 +59,7 @@ TEXT ·gettimeofday(SB),NOSPLIT,$0-16
 	CALL	AX
 ret:
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	ok7
+	JCS	ok7
 	NEGQ	AX
 	MOVQ	AX, err+8(FP)
 	RET
