@@ -455,7 +455,9 @@ var optab = []Optab{
 	{AVCMLE, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
 	{AVFCMEQ, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVFCMEQ, C_FCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVFCMEQ, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
 	{AVFCMLE, C_FCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVFCMLE, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
 
 	{AVADD, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVADD, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
@@ -6186,7 +6188,10 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			break
 		}
 		var Q, size uint32
-		if p.From.Type == obj.TYPE_FCONST {
+		// Choose the arrangement table by opcode rather than by operand
+		// type: $0 and $(0.0) must be validated identically.
+		switch p.As {
+		case AVFCMEQ, AVFCMGE, AVFCMGT, AVFCMLE, AVFCMLT:
 			switch an {
 			case ARNG_2D:
 				Q = 1
@@ -6200,7 +6205,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			default:
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
-		} else {
+		default:
 			switch an {
 			case ARNG_16B:
 				Q = 1

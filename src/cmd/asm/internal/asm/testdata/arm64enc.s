@@ -445,19 +445,19 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	//TODO FCMEQ F7, F11, F26                  // 7ae5675e
 	//TODO VFCMEQ V29.S4, V26.S4, V30.S4       // 5ee73d4e
 	//TODO FCMEQ $0, F17, F22                  // 36daa05e
-	//TODO VFCMEQ $0, V17.D2, V22.D2           // 36dae04e
+	VFCMEQ $0, V17.D2, V22.D2                  // 36dae04e
 	//TODO FCMGE F29, F31, F13                 // ede77d7e
 	//TODO VFCMGE V8.S2, V31.S2, V2.S2         // e2e7282e
 	//TODO FCMGE $0, F18, F27                  // e2e7282e
-	//TODO VFCMGE $0, V14.S2, V8.S2            // c8c9a02e
+	VFCMGE $0, V14.S2, V8.S2                   // c8c9a02e
 	//TODO FCMGT F20, F2, F8                   // 48e4b47e
 	//TODO VFCMGT V26.D2, V15.D2, V23.D2       // f7e5fa6e
 	//TODO FCMGT $0, F14, F3                   // c3c9e05e
-	//TODO VFCMGT $0, V6.S2, V28.S2            // dcc8a00e
+	VFCMGT $0, V6.S2, V28.S2                   // dcc8a00e
 	//TODO FCMLE $0, F26, F25                  // 59dba07e
-	//TODO VFCMLE $0, V28.S2, V20.S2           // 94dba02e
+	VFCMLE $0, V28.S2, V20.S2                  // 94dba02e
 	//TODO FCMLT $0, F17, F3                   // 23eae05e
-	//TODO VFCMLT $0, V8.S4, V7.S4             // 07e9a04e
+	VFCMLT $0, V8.S4, V7.S4                    // 07e9a04e
 	FCMPS F3, F17                              // 2022231e
 	FCMPS $(0.0), F8                           // 0821201e
 	FCMPD F11, F27                             // 60236b1e

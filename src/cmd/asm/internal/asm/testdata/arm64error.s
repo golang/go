@@ -533,4 +533,22 @@ TEXT errors(SB),$0
 	VSCVTF	V1.B8, V2.B8                                 // ERROR "invalid arrangement"
 	VFCVTN	V1.B8, V2.B8                                 // ERROR "invalid arrangement"
 	VFCVTL	V1.H4, V2.S4                                 // ERROR "operand mismatch"
+
+	// Compare-against-zero floating-point arrangement test cases
+	VFCMEQ	$0, V2.B8, V3.B8                                // ERROR "invalid arrangement"
+	VFCMEQ	$0, V2.B16, V3.B16                              // ERROR "invalid arrangement"
+	VFCMEQ	$0, V2.H4, V3.H4                                // ERROR "invalid arrangement"
+	VFCMEQ	$0, V2.H8, V3.H8                                // ERROR "invalid arrangement"
+	VFCMEQ	$(0.0), V2.B8, V3.B8                            // ERROR "invalid arrangement"
+	VFCMEQ	$(0.0), V2.B16, V3.B16                          // ERROR "invalid arrangement"
+	VFCMEQ	$(0.0), V2.H4, V3.H4                            // ERROR "invalid arrangement"
+	VFCMEQ	$(0.0), V2.H8, V3.H8                            // ERROR "invalid arrangement"
+	VFCMLE	$0, V2.B8, V3.B8                                // ERROR "invalid arrangement"
+	VFCMLE	$0, V2.B16, V3.B16                              // ERROR "invalid arrangement"
+	VFCMLE	$0, V2.H4, V3.H4                                // ERROR "invalid arrangement"
+	VFCMLE	$0, V2.H8, V3.H8                                // ERROR "invalid arrangement"
+	VFCMLE	$(0.0), V2.B8, V3.B8                            // ERROR "invalid arrangement"
+	VFCMLE	$(0.0), V2.B16, V3.B16                          // ERROR "invalid arrangement"
+	VFCMLE	$(0.0), V2.H4, V3.H4                            // ERROR "invalid arrangement"
+	VFCMLE	$(0.0), V2.H8, V3.H8                            // ERROR "invalid arrangement"
 	RET

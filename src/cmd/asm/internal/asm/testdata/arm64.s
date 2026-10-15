@@ -121,11 +121,16 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VCMLT   $0, V2.H4, V3.H4                // 43a8600e
 	VFCMEQ  V1.S4, V2.S4, V3.S4             // 43e4214e
 	VFCMEQ  $(0.0), V2.S4, V3.S4            // 43d8a04e
+	VFCMEQ  $0, V2.S4, V3.S4                // 43d8a04e
+	VFCMEQ  $0, V2.S2, V3.S2                // 43d8a00e
+	VFCMEQ  $0, V2.D2, V3.D2                // 43d8e04e
 	VFCMGE  V1.S4, V2.S4, V3.S4             // 43e4216e
 	VFCMGE  $(0.0), V2.S4, V3.S4            // 43c8a06e
 	VFCMGT  V1.S4, V2.S4, V3.S4             // 43e4a16e
 	VFCMGT  $(0.0), V2.S4, V3.S4            // 43c8a04e
 	VFCMLE  $(0.0), V2.S4, V3.S4            // 43d8a06e
+	VFCMLE  $0, V2.S4, V3.S4                // 43d8a06e
+	VFCMLE  $0, V2.D2, V3.D2                // 43d8e06e
 	VFCMLT  $(0.0), V2.S4, V3.S4            // 43e8a04e
 	VFADD	V0.S4, V0.S4, V1.S4             // 01d4204e
 	VFADD	V0.D2, V0.D2, V1.D2             // 01d4604e
