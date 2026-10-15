@@ -702,13 +702,10 @@
 (MOVWUload [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (MOVWUreg (FMVXS x))
 (FMOVWload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && ssa.IsSamePtr(ptr1, ptr2) => (FMVSX x)
 
-// If a register move has only 1 use, just use the same register without emitting instruction
-// MOVnop does not emit an instruction, only for ensuring the type.
-(MOVDreg x) && x.Uses == 1 => (MOVDnop x)
-
-// TODO: we should be able to get rid of MOVDnop all together.
-// But for now, this is enough to get rid of lots of them.
-(MOVDnop (MOVDconst [c])) => (MOVDconst [c])
+// A register move with a single use just reuses its argument's register, so
+// use the argument directly instead of emitting a move. The value type is not
+// needed after lowering.
+(MOVDreg x) && x.Uses == 1 => x
 
 // Avoid unnecessary zero and sign extension when right shifting.
 (SRAI [x] (MOVWreg  y)) && x >= 0 && x <= 31 => (SRAIW [x] y)

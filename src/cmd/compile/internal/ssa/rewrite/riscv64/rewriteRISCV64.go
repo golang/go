@@ -597,8 +597,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpRISCV64MOVBstorezero(v)
 	case ssaop.OpRISCV64MOVDload:
 		return rewriteValue_OpRISCV64MOVDload(v)
-	case ssaop.OpRISCV64MOVDnop:
-		return rewriteValue_OpRISCV64MOVDnop(v)
 	case ssaop.OpRISCV64MOVDreg:
 		return rewriteValue_OpRISCV64MOVDreg(v)
 	case ssaop.OpRISCV64MOVDstore:
@@ -5594,33 +5592,17 @@ func rewriteValue_OpRISCV64MOVDload(v *ssa.Value) bool {
 	}
 	return false
 }
-func rewriteValue_OpRISCV64MOVDnop(v *ssa.Value) bool {
-	v_0 := v.Args[0]
-	// match: (MOVDnop (MOVDconst [c]))
-	// result: (MOVDconst [c])
-	for {
-		if v_0.Op != ssaop.OpRISCV64MOVDconst {
-			break
-		}
-		c := ssa.AuxIntToInt64(v_0.AuxInt)
-		v.Reset(ssaop.OpRISCV64MOVDconst)
-		v.AuxInt = ssa.Int64ToAuxInt(c)
-		return true
-	}
-	return false
-}
 func rewriteValue_OpRISCV64MOVDreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVDreg x)
 	// cond: x.Uses == 1
-	// result: (MOVDnop x)
+	// result: x
 	for {
 		x := v_0
 		if !(x.Uses == 1) {
 			break
 		}
-		v.Reset(ssaop.OpRISCV64MOVDnop)
-		v.AddArg(x)
+		v.CopyOf(x)
 		return true
 	}
 	return false
