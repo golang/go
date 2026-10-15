@@ -380,6 +380,10 @@ func ASIMDSHF(u, opcode uint32) uint32 {
 	return u<<29 | 0xF<<24 | opcode<<11 | 1<<10
 }
 
+func ASISDPAIR(u, size, opcode uint32) uint32 {
+	return 1<<30 | u<<29 | 0x1E<<24 | size<<22 | 0x18<<17 | opcode<<12 | 0b10<<10
+}
+
 const (
 	// Optab.flag
 	LFROM        = 1 << iota // p.From uses constant pool
@@ -449,7 +453,11 @@ var optab = []Optab{
 	{AFMSUBD, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 15, 4, 0, 0, 0},
 	{AFCMPS, C_FREG, C_FREG, C_NONE, C_NONE, C_NONE, 56, 4, 0, 0, 0},
 	{AFCMPS, C_FCON, C_FREG, C_NONE, C_NONE, C_NONE, 56, 4, 0, 0, 0},
+
+	/* integer pairwise */
 	{AVADDP, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVADDP, C_ARNG, C_NONE, C_NONE, C_VREG, C_NONE, 111, 4, 0, 0, 0},
+	{AVAND, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVCMEQ, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVCMEQ, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
 	{AVCMLE, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
@@ -463,6 +471,12 @@ var optab = []Optab{
 	{AVADD, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
 	{AVADD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
 	{AVADDV, C_ARNG, C_NONE, C_NONE, C_VREG, C_NONE, 85, 4, 0, 0, 0},
+	{AVFMAXV, C_ARNG, C_NONE, C_NONE, C_VREG, C_NONE, 85, 4, 0, 0, 0},
+	{AVFMAXV, C_ARNG, C_NONE, C_NONE, C_FREG, C_NONE, 85, 4, 0, 0, 0},
+
+	/* float pairwise */
+	{AVFADDP, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVFADDP, C_ARNG, C_NONE, C_NONE, C_FREG, C_NONE, 111, 4, 0, 0, 0},
 
 	/* logical operations */
 	{AAND, C_ZREG, C_ZREG, C_NONE, C_ZREG, C_NONE, 1, 4, 0, 0, 0},
@@ -3311,7 +3325,9 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASTXPW, t)
 
 		case AVADDP:
-			oprangeset(AVAND, t)
+			/* AVADDP has both vector and scalar pairwise forms */
+
+		case AVAND:
 			oprangeset(AVORR, t)
 			oprangeset(AVEOR, t)
 			oprangeset(AVBIC, t)
@@ -3387,14 +3403,15 @@ func buildop(ctxt *obj.Link) {
 
 		case AVADDV:
 			oprangeset(AVUADDLV, t)
-			oprangeset(AVFMAXV, t)
-			oprangeset(AVFMAXNMV, t)
-			oprangeset(AVFMINV, t)
-			oprangeset(AVFMINNMV, t)
 			oprangeset(AVSMAXV, t)
 			oprangeset(AVSMINV, t)
 			oprangeset(AVUMAXV, t)
 			oprangeset(AVUMINV, t)
+
+		case AVFMAXV:
+			oprangeset(AVFMAXNMV, t)
+			oprangeset(AVFMINV, t)
+			oprangeset(AVFMINNMV, t)
 
 		case AVFMLA:
 			oprangeset(AVFMLS, t)
@@ -3404,10 +3421,11 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVFDIV, t)
 			oprangeset(AVFMAX, t)
 			oprangeset(AVFMAXNM, t)
-			oprangeset(AVFMAXP, t)
-			oprangeset(AVFADDP, t)
 			oprangeset(AVFMIN, t)
 			oprangeset(AVFMINNM, t)
+
+		case AVFADDP:
+			oprangeset(AVFMAXP, t)
 			oprangeset(AVFMINP, t)
 			oprangeset(AVFMAXNMP, t)
 			oprangeset(AVFMINNMP, t)
@@ -6273,6 +6291,41 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		o1 = c.opirr(p, p.As)
 		o1 |= (uint32(rm&31) << 16) | (uint32(rn&31) << 5) | uint32(encodedOperation)
+
+	case 111: /* scalar pairwise: vaddp/vfaddp/vfmaxp/vfminp/vfmaxnmp/vfminnmp Vn.<T>, Fd */
+		af := int((p.From.Reg >> 5) & 15)
+		switch p.As {
+		case AVADDP:
+			if af != ARNG_2D {
+				c.ctxt.Diag("invalid arrangement, expected 2D: %v\n", p)
+			}
+			o1 = ASISDPAIR(0, 3, 0x1b)
+		default:
+			var sz uint32
+			switch af {
+			case ARNG_2S:
+				sz = 0
+			case ARNG_2D:
+				sz = 1
+			default:
+				c.ctxt.Diag("invalid arrangement: %v\n", p)
+			}
+			switch p.As {
+			case AVFADDP:
+				o1 = ASISDPAIR(1, sz, 0x0d)
+			case AVFMAXP:
+				o1 = ASISDPAIR(1, sz, 0x0f)
+			case AVFMAXNMP:
+				o1 = ASISDPAIR(1, sz, 0x0c)
+			case AVFMINP:
+				o1 = ASISDPAIR(1, sz|2, 0x0f)
+			case AVFMINNMP:
+				o1 = ASISDPAIR(1, sz|2, 0x0c)
+			default:
+				c.ctxt.Diag("unsupported op %v\n", p.As)
+			}
+		}
+		o1 |= uint32(p.From.Reg&31)<<5 | uint32(p.To.Reg&31)
 
 	case 127:
 		// Generic SVE instruction encoding
