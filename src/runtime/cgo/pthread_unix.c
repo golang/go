@@ -51,6 +51,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
 	ts->g->stackhi = size;
 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+	pthread_attr_destroy(&attr);
 
 	pthread_sigmask(SIG_SETMASK, &oset, nil);
 
@@ -68,6 +69,7 @@ x_cgo_sys_thread_create(void* (*func)(void*)) {
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	err = _cgo_try_pthread_create(&p, &attr, func, NULL);
+	pthread_attr_destroy(&attr);
 	if (err != 0) {
 		fatalf("pthread_create failed: %s", strerror(err));
 	}
