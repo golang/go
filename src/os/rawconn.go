@@ -7,7 +7,6 @@
 package os
 
 import (
-	"errors"
 	"internal/poll"
 	"runtime"
 )
@@ -23,7 +22,7 @@ func (c *rawConn) Control(f func(uintptr)) error {
 	}
 	err := c.file.pfd.RawControl(f)
 	runtime.KeepAlive(c.file)
-	if errors.Is(err, poll.ErrFileClosing) {
+	if err == poll.ErrFileClosing {
 		err = ErrClosed
 	}
 	return err
@@ -35,7 +34,7 @@ func (c *rawConn) Read(f func(uintptr) bool) error {
 	}
 	err := c.file.pfd.RawRead(f)
 	runtime.KeepAlive(c.file)
-	if errors.Is(err, poll.ErrFileClosing) {
+	if err == poll.ErrFileClosing {
 		err = ErrClosed
 	}
 	return err
@@ -47,7 +46,7 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
 	}
 	err := c.file.pfd.RawWrite(f)
 	runtime.KeepAlive(c.file)
-	if errors.Is(err, poll.ErrFileClosing) {
+	if err == poll.ErrFileClosing {
 		err = ErrClosed
 	}
 	return err
