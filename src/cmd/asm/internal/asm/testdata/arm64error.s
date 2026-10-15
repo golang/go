@@ -555,4 +555,17 @@ TEXT errors(SB),$0
 	VFCMLE	$(0.0), V2.B16, V3.B16                          // ERROR "invalid arrangement"
 	VFCMLE	$(0.0), V2.H4, V3.H4                            // ERROR "invalid arrangement"
 	VFCMLE	$(0.0), V2.H8, V3.H8                            // ERROR "invalid arrangement"
+
+	// VMOVI error test cases
+	VMOVI	$256, V0.B16                                  // ERROR "immediate constant out of range"
+	VMOVI	$-1, V0.B8                                    // ERROR "immediate constant out of range"
+	VMOVI	$0x101, V0.H4                                 // ERROR "invalid MOVI immediate for .4H/.8H"
+	VMOVI	$0x4201, V0.H8                                // ERROR "invalid MOVI immediate for .4H/.8H"
+	VMOVI	$0x10000, V0.H4                               // ERROR "invalid MOVI immediate for .4H/.8H"
+	VMOVI	$0x4201, V0.S4                                // ERROR "invalid MOVI immediate for .2S/.4S"
+	VMOVI	$0x100000000, V0.S2                           // ERROR "invalid MOVI immediate for .2S/.4S"
+	VMOVI	$0xFF00FF00FF00FF01, V0.D2                    // ERROR "invalid 64-bit MOVI immediate"
+	VMOVI	$0xFF00FF00FF00FF01, V0                       // ERROR "invalid 64-bit MOVI immediate"
+	VMOVI	$66, V0.D1                                    // ERROR "invalid arrangement"
+	VMOVI	$66, V0.Q1                                    // ERROR "invalid arrangement"
 	RET

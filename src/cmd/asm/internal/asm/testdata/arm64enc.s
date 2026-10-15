@@ -709,6 +709,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	VMOV V13.S[0], R20                                          // b43d040e
 	VMOV V13.D[0], R20                                          // b43d084e
 	VMOVI $146, V22.B16                                         // 56e6044f
+	VMOVI $66, V5.B8                                            // 45e4020f
+	VMOVI $66, V5.H4                                            // 4584020f
+	VMOVI $16896, V5.H8                                         // 45a4024f
+	VMOVI $66, V5.S2                                            // 4504020f
+	VMOVI $16896, V5.S4                                         // 4524024f
+	VMOVI $4325376, V5.S2                                       // 4544020f
+	VMOVI $1107296256, V5.S4                                    // 4564024f
+	VMOVI $17151, V5.S4                                         // 45c4024f
+	VMOVI $4390911, V5.S2                                       // 45d4020f
+	VMOVI $-71777214294589696, V5                               // 45e5052f
+	VMOVI $-71777214294589696, V5.D2                            // 45e5056f
 	VORR V25.B16, V22.B16, V15.B16                              // cf1eb94e
 	VPMULL V2.D1, V1.D1, V3.Q1                                  // 23e0e20e
 	VPMULL2 V2.D2, V1.D2, V4.Q1                                 // 24e0e24e

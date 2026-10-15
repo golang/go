@@ -629,7 +629,8 @@ var optab = []Optab{
 	{AVDUP, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 79, 4, 0, 0, 0},
 	{AVDUP, C_ELEM, C_NONE, C_NONE, C_VREG, C_NONE, 80, 4, 0, 0, 0},
 	{AVDUP, C_ZREG, C_NONE, C_NONE, C_ARNG, C_NONE, 82, 4, 0, 0, 0},
-	{AVMOVI, C_ADDCON, C_NONE, C_NONE, C_ARNG, C_NONE, 86, 4, 0, 0, 0},
+	{AVMOVI, C_VCON, C_NONE, C_NONE, C_ARNG, C_NONE, 86, 4, 0, 0, 0},
+	{AVMOVI, C_VCON, C_NONE, C_NONE, C_VREG, C_NONE, 86, 4, 0, 0, 0},
 	{AVFMLA, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVEXT, C_VCON, C_ARNG, C_ARNG, C_ARNG, C_NONE, 94, 4, 0, 0, 0},
 	{AVTBL, C_ARNG, C_NONE, C_LIST, C_ARNG, C_NONE, 100, 4, 0, 0, 0},
@@ -5490,24 +5491,80 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		o1 = c.oprrr(p, p.As, p.To.Reg, p.From.Reg, obj.REG_NONE)
 		o1 |= uint32(Q&1)<<30 | uint32(size&3)<<22
 
-	case 86: /* vmovi $imm8, Vd.<T>*/
-		at := int((p.To.Reg >> 5) & 15)
-		r := int(p.From.Offset)
-		if r > 255 || r < 0 {
-			c.ctxt.Diag("immediate constant out of range: %v\n", p)
-		}
+	case 86: /* vmovi $imm, Vd.<T> or vmovi $imm, Vd (scalar) */
 		rt := int((p.To.Reg) & 31)
-		Q := 0
+		v := p.From.Offset
+
+		// Determine if destination is scalar (VREG) or vector (ARNG).
+		if REG_V0 <= p.To.Reg && p.To.Reg <= REG_V31 {
+			// Scalar 64-bit: VMOVI $imm64, Vd
+			// op=1, cmode=1110, Q=0
+			imm8, ok := moviExpandImm64(uint64(v))
+			if !ok {
+				c.ctxt.Diag("invalid 64-bit MOVI immediate: each byte must be 0x00 or 0xFF: %v\n", p)
+			}
+			o1 = 0xf<<24 | 0xe<<12 | 1<<10 | 1<<29
+			o1 |= (uint32((imm8>>5)&7) << 16) | (uint32(imm8&0x1f) << 5) | uint32(rt&31)
+			break
+		}
+
+		at := int((p.To.Reg >> 5) & 15)
+		Q := uint32(0)
+		var cmode uint32
+		var op uint32
+		var imm8 int
+
 		switch at {
-		case ARNG_8B:
-			Q = 0
-		case ARNG_16B:
+		case ARNG_8B, ARNG_16B:
+			// 8-bit: cmode=1110, op=0
+			if v < 0 || v > 255 {
+				c.ctxt.Diag("immediate constant out of range [0,255]: %v\n", p)
+			}
+			imm8 = int(v)
+			cmode = 0xe
+			if at == ARNG_16B {
+				Q = 1
+			}
+
+		case ARNG_4H, ARNG_8H:
+			// 16-bit shifted: cmode=10x0, op=0
+			imm8, cmode = moviDecompose16(v)
+			if imm8 < 0 {
+				c.ctxt.Diag("invalid MOVI immediate for .4H/.8H (must be $imm8 or $imm8<<8): %v\n", p)
+			}
+			if at == ARNG_8H {
+				Q = 1
+			}
+
+		case ARNG_2S, ARNG_4S:
+			// 32-bit shifted or shifting ones
+			imm8, cmode = moviDecompose32(v)
+			if imm8 < 0 {
+				c.ctxt.Diag("invalid MOVI immediate for .2S/.4S: %v\n", p)
+			}
+			if at == ARNG_4S {
+				Q = 1
+			}
+
+		case ARNG_2D:
+			// 64-bit vector: op=1, cmode=1110, Q=1
+			var imm8u uint8
+			var ok bool
+			imm8u, ok = moviExpandImm64(uint64(v))
+			if !ok {
+				c.ctxt.Diag("invalid 64-bit MOVI immediate: each byte must be 0x00 or 0xFF: %v\n", p)
+			}
+			imm8 = int(imm8u)
+			cmode = 0xe
+			op = 1
 			Q = 1
+
 		default:
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
-		o1 = 0xf<<24 | 0xe<<12 | 1<<10
-		o1 |= (uint32(Q&1) << 30) | (uint32((r>>5)&7) << 16) | (uint32(r&0x1f) << 5) | uint32(rt&31)
+
+		o1 = 0xf<<24 | uint32(cmode)<<12 | 1<<10
+		o1 |= (Q << 30) | (op << 29) | (uint32((imm8>>5)&7) << 16) | (uint32(imm8&0x1f) << 5) | uint32(rt&31)
 
 	case 87: /* stp (r,r), addr(SB) -> adrp + add + stp */
 		rf1, rf2 := p.From.Reg, int16(p.From.Offset)
@@ -8929,4 +8986,74 @@ func RegisterListOffset(firstReg, regCnt int, arrangement int64, scale int16) (i
 	offset |= arrangement
 	offset |= obj.RegListARM64Lo
 	return offset, nil
+}
+
+// moviDecompose16 decomposes a value for MOVI 16-bit shifted immediate.
+// Returns (imm8, cmode) or (-1, 0) if the value cannot be encoded.
+// cmode=1000 for LSL #0, cmode=1010 for LSL #8.
+func moviDecompose16(v int64) (int, uint32) {
+	uv := uint64(v) & 0xFFFF
+	if uint64(v) != uv {
+		return -1, 0
+	}
+	if uv <= 255 {
+		return int(uv), 0x8 // cmode=1000, LSL #0
+	}
+	if uv&0xFF == 0 && (uv>>8) <= 255 {
+		return int(uv >> 8), 0xa // cmode=1010, LSL #8
+	}
+	return -1, 0
+}
+
+// moviDecompose32 decomposes a value for MOVI 32-bit shifted or MSL immediate.
+// Returns (imm8, cmode) or (-1, 0) if the value cannot be encoded.
+func moviDecompose32(v int64) (int, uint32) {
+	uv := uint64(v) & 0xFFFFFFFF
+	if uint64(v) != uv && int64(int32(v)) != v {
+		return -1, 0
+	}
+	// LSL #0: cmode=0000
+	if uv <= 255 {
+		return int(uv), 0x0
+	}
+	// LSL #8: cmode=0010
+	if uv&0xFF == 0 && (uv>>8) <= 255 {
+		return int(uv >> 8), 0x2
+	}
+	// LSL #16: cmode=0100
+	if uv&0xFFFF == 0 && (uv>>16) <= 255 {
+		return int(uv >> 16), 0x4
+	}
+	// LSL #24: cmode=0110
+	if uv&0xFFFFFF == 0 && (uv>>24) <= 255 {
+		return int(uv >> 24), 0x6
+	}
+	// MSL #8: cmode=1100, low byte must be 0xFF
+	if uv&0xFF == 0xFF && (uv>>8) <= 255 {
+		return int(uv >> 8), 0xc
+	}
+	// MSL #16: cmode=1101, low 16 bits must be 0xFFFF
+	if uv&0xFFFF == 0xFFFF && (uv>>16) <= 255 {
+		return int(uv >> 16), 0xd
+	}
+	return -1, 0
+}
+
+// moviExpandImm64 checks if a 64-bit value can be encoded as a MOVI 64-bit
+// immediate. Each byte of the value must be either 0x00 or 0xFF. Returns the
+// 8-bit control value and true, or 0 and false.
+func moviExpandImm64(v uint64) (uint8, bool) {
+	var imm8 uint8
+	for i := 0; i < 8; i++ {
+		b := byte(v >> (uint(i) * 8))
+		switch b {
+		case 0x00:
+			// bit i stays 0
+		case 0xFF:
+			imm8 |= 1 << uint(i)
+		default:
+			return 0, false
+		}
+	}
+	return imm8, true
 }
