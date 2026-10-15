@@ -255,6 +255,9 @@ func TestReadBoolSlice(t *testing.T) {
 			slice := make([]bool, 4)
 			err := dec.fn(BigEndian, slice, []byte{0, 1, 2, 255})
 			checkResult(t, dec.name, BigEndian, err, slice, []bool{false, true, true, true})
+			// Issue 82241: mishandled extra trailing bytes
+			err = dec.fn(BigEndian, slice, []byte{0, 1, 2, 255, 0})
+			checkResult(t, dec.name, BigEndian, err, slice, []bool{false, true, true, true})
 		})
 	}
 }

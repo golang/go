@@ -352,11 +352,11 @@ func decodeFast(bs []byte, order ByteOrder, data any) bool {
 	case *float64:
 		*data = math.Float64frombits(order.Uint64(bs))
 	case []bool:
-		for i, x := range bs { // Easier to loop over the input for 8-bit values.
+		for i, x := range bs[:len(data)] { // Easier to loop over the input for 8-bit values.
 			data[i] = x != 0
 		}
 	case []int8:
-		for i, x := range bs {
+		for i, x := range bs[:len(data)] {
 			data[i] = int8(x)
 		}
 	case []uint8:
