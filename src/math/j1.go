@@ -132,6 +132,9 @@ func J1(x float64) float64 {
 		return z
 	}
 	if x < TwoM27 { // |x|<2**-27
+		if sign {
+			return -0.5 * x
+		}
 		return 0.5 * x // inexact if x!=0 necessary
 	}
 	z := x * x
