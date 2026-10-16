@@ -6,6 +6,7 @@ package uuid_test
 
 import (
 	"encoding/binary"
+	"fmt"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -253,4 +254,126 @@ func BenchmarkParseError(b *testing.B) {
 	for b.Loop() {
 		uuid.Parse("00000000-0000-0000-0000-00000000000X")
 	}
+}
+
+// Example demonstrates basic UUID generation and parsing.
+func Example() {
+	// Generate a new UUID
+	id := uuid.New()
+	fmt.Printf("Generated UUID: %s\n", id)
+
+	// Parse a UUID string
+	parsed, err := uuid.Parse("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+	if err != nil {
+		fmt.Printf("Error parsing: %v\n", err)
+		return
+	}
+	fmt.Printf("Parsed UUID: %s\n", parsed)
+
+	// Compare UUIDs
+	if id.Compare(parsed) == 0 {
+		fmt.Println("UUIDs are equal")
+	} else {
+		fmt.Println("UUIDs are different")
+	}
+
+	// Output:
+	// UUIDs are different
+}
+
+// ExampleNew demonstrates generating a new UUID.
+func ExampleNew() {
+	id := uuid.New()
+	fmt.Printf("UUID length: %d bytes\n", len(id))
+	// Output:
+	// UUID length: 16 bytes
+}
+
+// ExampleNewV4 demonstrates generating a version 4 (random) UUID.
+func ExampleNewV4() {
+	id := uuid.NewV4()
+	fmt.Printf("UUID version: %d\n", id[6]>>4)
+	// Output:
+	// UUID version: 4
+}
+
+// ExampleNewV7 demonstrates generating a version 7 (timestamp-based) UUID.
+func ExampleNewV7() {
+	id := uuid.NewV7()
+	fmt.Printf("UUID version: %d\n", id[6]>>4)
+	// Output:
+	// UUID version: 7
+}
+
+// ExampleParse demonstrates parsing UUID strings in various formats.
+func ExampleParse() {
+	// Standard format
+	u1, _ := uuid.Parse("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+	fmt.Println(u1)
+
+	// Without hyphens
+	u2, _ := uuid.Parse("f81d4fae7dec11d0a76500a0c91e6bf6")
+	fmt.Println(u2)
+
+	// With braces
+	u3, _ := uuid.Parse("{f81d4fae-7dec-11d0-a765-00a0c91e6bf6}")
+	fmt.Println(u3)
+
+	// URN format
+	u4, _ := uuid.Parse("urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+	fmt.Println(u4)
+
+	// Output:
+	// f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+	// f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+	// f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+	// f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+}
+
+// ExampleMustParse demonstrates parsing a UUID with panic on error.
+func ExampleMustParse() {
+	id := uuid.MustParse("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+	fmt.Println(id)
+	// Output:
+	// f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+}
+
+// ExampleNil demonstrates the Nil UUID.
+func ExampleNil() {
+	id := uuid.Nil()
+	fmt.Println(id)
+	// Output:
+	// 00000000-0000-0000-0000-000000000000
+}
+
+// ExampleMax demonstrates the Max UUID.
+func ExampleMax() {
+	id := uuid.Max()
+	fmt.Println(id)
+	// Output:
+	// ffffffff-ffff-ffff-ffff-ffffffffffff
+}
+
+// ExampleUUID_String demonstrates converting a UUID to string.
+func ExampleUUID_String() {
+	id := uuid.MustParse("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+	fmt.Println(id.String())
+	// Output:
+	// f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+}
+
+// ExampleUUID_Compare demonstrates comparing UUIDs.
+func ExampleUUID_Compare() {
+	id1 := uuid.MustParse("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+	id2 := uuid.MustParse("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+	id3 := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+
+	fmt.Printf("id1 == id2: %v\n", id1.Compare(id2) == 0)
+	fmt.Printf("id1 > id3: %v\n", id1.Compare(id3) > 0)
+	fmt.Printf("id3 < id1: %v\n", id3.Compare(id1) < 0)
+
+	// Output:
+	// id1 == id2: true
+	// id1 > id3: true
+	// id3 < id1: true
 }
