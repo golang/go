@@ -127,6 +127,18 @@ func TestInvalidOID(t *testing.T) {
 	}
 }
 
+func TestOIDFromIntsFirstSubidentifierOverflow(t *testing.T) {
+	if _, err := OIDFromInts([]uint64{2, math.MaxUint64 - 80}); err != nil {
+		t.Fatalf("OIDFromInts rejected largest representable first subidentifier: %v", err)
+	}
+
+	for _, second := range []uint64{math.MaxUint64 - 79, math.MaxUint64} {
+		if oid, err := OIDFromInts([]uint64{2, second}); err == nil {
+			t.Errorf("OIDFromInts([2 %d]) = (%v, nil); want an error", second, oid)
+		}
+	}
+}
+
 func TestOIDEqual(t *testing.T) {
 	var cases = []struct {
 		oid  OID
