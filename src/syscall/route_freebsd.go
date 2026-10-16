@@ -4,28 +4,21 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/stringslite"
+	"unsafe"
+)
 
 func init() {
-	conf, _ := Sysctl("kern.conftxt")
-	for i, j := 0, 0; j < len(conf); j++ {
-		if conf[j] != '\n' {
-			continue
-		}
-		s := conf[i:j]
-		i = j + 1
-		if len(s) > len("machine") && s[:len("machine")] == "machine" {
-			s = s[len("machine"):]
-			for k := 0; k < len(s); k++ {
-				if s[k] == ' ' || s[k] == '\t' {
-					s = s[1:]
-				}
-				break
-			}
-			freebsdConfArch = s
-			break
+	machine, _ := Sysctl("hw.machine")
+	if machine == "i386" {
+		arches, _ := Sysctl("hw.supported_archs")
+		amd64 := "amd64"
+		if stringslite.Index(arches, amd64) >= 0 {
+			machine = amd64
 		}
 	}
+	freebsdConfArch = machine
 }
 
 func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
