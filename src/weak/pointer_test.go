@@ -6,6 +6,7 @@ package weak_test
 
 import (
 	"context"
+	"fmt"
 	"internal/goarch"
 	"runtime"
 	"sync"
@@ -362,4 +363,234 @@ func TestPointerTiny(t *testing.T) {
 	if n < want {
 		t.Fatalf("not enough weak pointers are nil: expected at least %v, got %v", want, n)
 	}
+}
+
+// Example demonstrates basic usage of weak pointers.
+func Example() {
+	type Data struct {
+		value int
+	}
+
+	// Create a strong pointer
+	data := &Data{value: 42}
+
+	// Create a weak pointer
+	weakPtr := weak.Make(data)
+
+	// Access the value through the weak pointer
+	if ptr := weakPtr.Value(); ptr != nil {
+		fmt.Printf("Value: %d\n", ptr.value)
+	}
+
+	// Keep data alive
+	runtime.KeepAlive(data)
+
+	// Output:
+	// Value: 42
+}
+
+// ExampleMake demonstrates creating a weak pointer.
+func ExampleMake() {
+	type User struct {
+		name string
+		id   int
+	}
+
+	user := &User{name: "Alice", id: 1}
+	weakUser := weak.Make(user)
+
+	// The weak pointer doesn't prevent garbage collection
+	if ptr := weakUser.Value(); ptr != nil {
+		fmt.Printf("User: %s (ID: %d)\n", ptr.name, ptr.id)
+	}
+
+	runtime.KeepAlive(user)
+
+	// Output:
+	// User: Alice (ID: 1)
+}
+
+// ExampleMake_nil demonstrates creating a weak pointer from nil.
+func ExampleMake_nil() {
+	type Data struct {
+		value int
+	}
+
+	// Creating a weak pointer from nil
+	weakPtr := weak.Make[Data](nil)
+
+	// Value() always returns nil for weak pointers created from nil
+	if ptr := weakPtr.Value(); ptr == nil {
+		fmt.Println("Weak pointer is nil")
+	}
+
+	// Output:
+	// Weak pointer is nil
+}
+
+// ExamplePointer_Value demonstrates accessing the value of a weak pointer.
+func ExamplePointer_Value() {
+	type Cache struct {
+		data string
+	}
+
+	cache := &Cache{data: "cached value"}
+	weakCache := weak.Make(cache)
+
+	// Access the value
+	if ptr := weakCache.Value(); ptr != nil {
+		fmt.Printf("Cache data: %s\n", ptr.data)
+	} else {
+		fmt.Println("Cache was garbage collected")
+	}
+
+	runtime.KeepAlive(cache)
+
+	// Output:
+	// Cache data: cached value
+}
+
+// ExamplePointer_Value_garbageCollected demonstrates a weak pointer
+// after the object has been garbage collected.
+func ExamplePointer_Value_garbageCollected() {
+	type Temporary struct {
+		value int
+	}
+
+	// Create and immediately lose the strong reference
+	weakPtr := weak.Make(&Temporary{value: 100})
+
+	// Force garbage collection
+	runtime.GC()
+
+	// The weak pointer may now return nil
+	if ptr := weakPtr.Value(); ptr == nil {
+		fmt.Println("Object was garbage collected")
+	} else {
+		fmt.Printf("Object still exists: %d\n", ptr.value)
+	}
+
+	// Output:
+	// Object was garbage collected
+}
+
+// Example_cache demonstrates using weak pointers to implement a simple cache.
+func Example_cache() {
+	type CacheEntry struct {
+		key   string
+		value string
+	}
+
+	// Simple cache using weak pointers
+	cache := make(map[string]weak.Pointer[CacheEntry])
+
+	// Add an entry
+	entry := &CacheEntry{key: "user:1", value: "Alice"}
+	cache["user:1"] = weak.Make(entry)
+
+	// Retrieve from cache
+	if weakEntry := cache["user:1"]; weakEntry.Value() != nil {
+		fmt.Printf("Cache hit: %s\n", weakEntry.Value().value)
+	}
+
+	runtime.KeepAlive(entry)
+
+	// Output:
+	// Cache hit: Alice
+}
+
+// Example_canonicalization demonstrates using weak pointers for
+// canonicalization (ensuring only one instance of equal values exists).
+func Example_canonicalization() {
+	type String struct {
+		value string
+	}
+
+	// Canonicalization map
+	canon := make(map[string]weak.Pointer[String])
+
+	intern := func(s string) *String {
+		// Check if we already have this string
+		if wp, ok := canon[s]; ok {
+			if ptr := wp.Value(); ptr != nil {
+				return ptr
+			}
+		}
+
+		// Create new canonical instance
+		str := &String{value: s}
+		canon[s] = weak.Make(str)
+		return str
+	}
+
+	// Intern strings
+	s1 := intern("hello")
+	s2 := intern("hello")
+
+	// Both point to the same instance
+	fmt.Printf("Same instance: %v\n", s1 == s2)
+
+	runtime.KeepAlive(s1)
+	runtime.KeepAlive(s2)
+
+	// Output:
+	// Same instance: true
+}
+
+// Example_lifetimeTying demonstrates tying together lifetimes of separate values.
+func Example_lifetimeTying() {
+	type Resource struct {
+		id int
+	}
+
+	type Metadata struct {
+		description string
+	}
+
+	// Map tying metadata to resources using weak keys
+	metadata := make(map[weak.Pointer[Resource]]*Metadata)
+
+	resource := &Resource{id: 1}
+	weakResource := weak.Make(resource)
+
+	// Associate metadata with the resource
+	metadata[weakResource] = &Metadata{description: "Important resource"}
+
+	// Access metadata
+	if meta, ok := metadata[weakResource]; ok {
+		fmt.Printf("Metadata: %s\n", meta.description)
+	}
+
+	runtime.KeepAlive(resource)
+
+	// Output:
+	// Metadata: Important resource
+}
+
+// Example_equality demonstrates weak pointer equality semantics.
+func Example_equality() {
+	type Data struct {
+		a int
+		b int
+	}
+
+	data := &Data{a: 1, b: 2}
+
+	// Weak pointers to the same object are equal
+	wp1 := weak.Make(data)
+	wp2 := weak.Make(data)
+
+	fmt.Printf("Same object: %v\n", wp1 == wp2)
+
+	// Weak pointers to different fields are not equal
+	wpA := weak.Make(&data.a)
+	wpB := weak.Make(&data.b)
+
+	fmt.Printf("Different fields: %v\n", wpA == wpB)
+
+	runtime.KeepAlive(data)
+
+	// Output:
+	// Same object: true
+	// Different fields: false
 }
