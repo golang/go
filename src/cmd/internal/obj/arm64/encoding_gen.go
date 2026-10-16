@@ -491,7 +491,8 @@ func encodeImm31619(v uint32) (uint32, bool) {
 	if v < 1 || v > 8 {
 		return 0, false
 	}
-	return v << 16, true
+	// From ARM ASL: let shift : integer = esize - UInt(imm3);
+	return (8 - v) << 16, true
 }
 
 // encodeSzByteHalfword is the implementation of the following encoding logic:
