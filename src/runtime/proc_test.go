@@ -996,6 +996,17 @@ func testLockOSThreadExit(t *testing.T, prog string) {
 	}
 }
 
+func TestLockOSThreadExitAIX(t *testing.T) {
+	if runtime.GOOS != "aix" {
+		t.Skip("skipping AIX-only test")
+	}
+	output := runTestProg(t, "testprog", "LockOSThreadExitAIX")
+	want := "OK\n"
+	if output != want {
+		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
 func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
 	want := "OK\n"
 	skip := "unshare not permitted\n"
