@@ -199,6 +199,10 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 			return addrErr(hostport, missingPort)
 		}
 		host = hostport[1:end]
+		// Validate: content of [...] must be an IPv6 literal, per RFC 3986
+		if net.ParseIPv6(host) == nil {
+			return addrErr(hostport, "invalid IPv6 address in brackets")
+		}
 		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
 	} else {
 		host = hostport[:i]
