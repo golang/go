@@ -175,7 +175,7 @@ func printCmdOut(w io.Writer, prefix, path string, args ...string) {
 // firstLine returns the first line of a given byte slice.
 func firstLine(buf []byte) []byte {
 	idx := bytes.IndexByte(buf, '\n')
-	if idx > 0 {
+	if idx >= 0 {
 		buf = buf[:idx]
 	}
 	return bytes.TrimSpace(buf)
