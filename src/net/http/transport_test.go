@@ -2922,7 +2922,7 @@ func testTransportCancelRequestWithBody(t *testing.T, test cancelTest) {
 }
 
 func TestTransportCancelRequestBeforeDo(t *testing.T) {
-	runCancelTest(t, testTransportCancelRequestBeforeDo, http3SkippedMode)
+	runCancelTest(t, testTransportCancelRequestBeforeDo)
 }
 func testTransportCancelRequestBeforeDo(t *testing.T, test cancelTest) {
 	unblockc := make(chan bool)

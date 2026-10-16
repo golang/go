@@ -3331,7 +3331,7 @@ func TestStripPrefixNotModifyRequest(t *testing.T) {
 	}
 }
 
-func TestRequestLimit(t *testing.T) { runSynctest(t, testRequestLimit, http3SkippedMode) }
+func TestRequestLimit(t *testing.T) { runSynctest(t, testRequestLimit) }
 func testRequestLimit(t *testing.T, mode testMode) {
 	bytesPerHeader := len("header12345: val12345\r\n")
 	numHeaders := ((DefaultMaxHeaderBytes + 4096) / bytesPerHeader) + 1

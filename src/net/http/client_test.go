@@ -1235,7 +1235,7 @@ func TestStripPasswordFromError(t *testing.T) {
 	}
 }
 
-func TestClientTimeout(t *testing.T) { runSynctest(t, testClientTimeout, http3SkippedMode) }
+func TestClientTimeout(t *testing.T) { runSynctest(t, testClientTimeout) }
 func testClientTimeout(t *testing.T, mode testMode) {
 	sawSlow := false
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1287,10 +1287,7 @@ func testClientTimeout(t *testing.T, mode testMode) {
 
 // Client.Timeout firing before getting to the body
 func TestClientTimeout_Headers(t *testing.T) {
-	// Leaves lingering goroutine that fails the test when tested with -race
-	// flag for HTTP/3. The lingering goroutine will eventually exit, which can
-	// make this test deceptively pass when ran together with many other tests.
-	runSynctest(t, testClientTimeout_Headers, http3SkippedMode)
+	runSynctest(t, testClientTimeout_Headers)
 }
 func testClientTimeout_Headers(t *testing.T, mode testMode) {
 	donec := make(chan bool, 1)
