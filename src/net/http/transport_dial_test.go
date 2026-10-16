@@ -436,6 +436,97 @@ func TestTransportPoolIDNAConversions(t *testing.T) {
 	}
 }
 
+// CloseIdleConnections closes idle connections and rejects connections returned
+// from in-flight requests until a new request starts.
+func TestTransportPoolCloseIdleConnsThenReturn(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http1Mode)
+
+		// Start four requests on four connections.
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/1.1")
+
+		rt2 := dt.roundTrip()
+		c2 := dt.wantDial()
+		c2.finish(nil)
+		rt2.wantDone(c2, "HTTP/1.1")
+
+		rt3 := dt.roundTrip()
+		c3 := dt.wantDial()
+		c3.finish(nil)
+		rt3.wantDone(c3, "HTTP/1.1")
+
+		rt4 := dt.roundTrip()
+		c4 := dt.wantDial()
+		c4.finish(nil)
+		rt4.wantDone(c4, "HTTP/1.1")
+
+		// Two requests finish, putting c1 and c2 in the idle pool.
+		rt1.finish()
+		rt2.finish()
+
+		// CloseIdleConnections closes c1 and c2.
+		dt.cst.tr.CloseIdleConnections()
+		c1.wantClosed()
+		c2.wantClosed()
+
+		// rt3 finishes before any new request starts; c3 is closed rather than pooled.
+		rt3.finish()
+		c3.wantClosed()
+
+		// A new request starts, re-enabling connection pooling.
+		rt5 := dt.roundTrip()
+		c5 := dt.wantDial()
+
+		// rt4 finishes; c4 returns to the pool and serves rt5.
+		rt4.finish()
+		rt5.wantDone(c4, "HTTP/1.1")
+		rt5.finish()
+
+		c5.finish(nil)
+	})
+}
+
+// Ensure that getConn doesn't call the GotConn trace hook on an HTTP/2 idle conn.
+// Issue #34282.
+func TestTransportPoolTraceGotConnH2IdleConns(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http2UnencryptedMode)
+
+		// First request dials an HTTP/2 connection and leaves it in the idle pool.
+		var got1 []httptrace.GotConnInfo
+		rt1 := dt.roundTrip(&httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				got1 = append(got1, info)
+			},
+		})
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/2.0")
+		rt1.finish()
+		if len(got1) != 1 || got1[0].Conn != c1 || got1[0].Reused || got1[0].WasIdle {
+			t.Errorf("RoundTrip 1 GotConn = %+v, want [{Conn:%v Reused:false WasIdle:false}]", got1, c1)
+		}
+
+		// Second request reuses the HTTP/2 connection from the idle pool.
+		// Transport.getConn must not call GotConn itself; the HTTP/2 transport calls it once.
+		var got2 []httptrace.GotConnInfo
+		rt2 := dt.roundTrip(&httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				got2 = append(got2, info)
+			},
+		})
+		rt2.wantDone(c1, "HTTP/2.0")
+		rt2.finish()
+		synctest.Wait()
+		if len(got2) != 1 || got2[0].Conn != c1 || !got2[0].Reused || !got2[0].WasIdle {
+			t.Errorf("RoundTrip 2 GotConn = %+v, want [{Conn:%v Reused:true WasIdle:true}]", got2, c1)
+		}
+	})
+}
+
 // A transportDialTester manages a test of a connection's Dials.
 type transportDialTester struct {
 	t   *testing.T
@@ -541,10 +632,13 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 func (dt *transportDialTester) roundTrip(opts ...any) *transportDialTesterRoundTrip {
 	dt.t.Helper()
 	host := "fake.tld"
+	var trace *httptrace.ClientTrace
 	for _, o := range opts {
 		switch o := o.(type) {
 		case string:
 			host = o
+		case *httptrace.ClientTrace:
+			trace = o
 		default:
 			dt.t.Fatalf("unknown option type %T", o)
 		}
@@ -564,13 +658,16 @@ func (dt *transportDialTester) roundTrip(opts ...any) *transportDialTesterRoundT
 		rt.finish()
 	})
 	go func() {
+		if trace != nil {
+			ctx = httptrace.WithClientTrace(ctx, trace)
+		}
 		ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
 			GotConn: func(info httptrace.GotConnInfo) {
 				c := info.Conn
 				if tlsConn, ok := c.(*tls.Conn); ok {
 					c = tlsConn.NetConn()
 				}
-				rt.conn = c.(*transportDialTesterConn)
+				rt.conn, _ = c.(*transportDialTesterConn)
 			},
 		})
 		proto, _, _ := strings.Cut(dt.cst.ts.URL, ":")
