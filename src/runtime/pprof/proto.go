@@ -407,7 +407,6 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 	b.deck.reset()
 
 	// The last frame might be truncated. Recover lost inline frames.
-	origStk := stk
 	stk = runtime_expandFinalInlineFrame(stk)
 
 	for len(stk) > 0 {
@@ -444,8 +443,21 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 			// Even if stk was truncated due to the stack depth
 			// limit, expandFinalInlineFrame above has already
 			// fixed the truncation, ensuring it is long enough.
+			//
+			// However, sigprofNonGoPC (runtime/signal_unix.go) can
+			// produce a short stack {pc, _ExternalCode} for a PC
+			// that is actually running Go code, when a SIGPROF lands
+			// in the window between exitsyscall() returning and
+			// m.isExtraInC being cleared in cgocallbackg
+			// (golang/go#70529). If that PC was previously sampled
+			// in a normal Go context, l.pcs here holds its full
+			// inlined expansion, which can be longer than the short
+			// stack. Rather than panic, drop the remaining
+			// (unmatchable) PCs of this sample; the Location we just
+			// recorded is still correct for the leaf, and the cost
+			// is a few missing caller frames on a rare sample.
 			if len(l.pcs) > len(stk) {
-				panic(fmt.Sprintf("stack too short to match cached location; stk = %#x, l.pcs = %#x, original stk = %#x", stk, l.pcs, origStk))
+				return locs
 			}
 			stk = stk[len(l.pcs):]
 			continue
