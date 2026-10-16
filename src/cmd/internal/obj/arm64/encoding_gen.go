@@ -31,6 +31,129 @@ func checkIsR(v uint32) bool {
 	return true
 }
 
+// encPart is a run of width bits at bit lo of the instruction word.
+type encPart struct{ lo, width uint }
+
+// encRow maps an operand value to the value of the field.
+type encRow struct{ sym, field uint32 }
+
+// encReg says what the value of a register field is checked and reduced with.
+type encReg uint8
+
+const (
+	encRegNone encReg = iota // not a register, or a predicate register, which arrives as its number
+	encRegZ                  // a scalable vector register
+	encRegR                  // a general-purpose register
+	encRegV                  // a SIMD&FP register
+)
+
+// An encField says how the value of one operand element is stored in an
+// instruction word. It is derived from the description in the ARM XML, and the
+// disassembler's tables are derived from the same description.
+type encField struct {
+	parts []encPart // where the field value goes, least significant first
+
+	reg encReg
+	sp  bool // register 31 is the stack pointer, and ZR is not accepted
+	zr  bool // an absent register, v == 0, stands for register 31
+
+	signed   bool // v is a two's complement immediate
+	hasRange bool
+	min, max int64 // the values of v that are accepted, if hasRange
+
+	// The field holds invert - (v - bias) / stride, or, if invert is 0,
+	// (v - bias) / stride, taken modulo modulo if that is not 0.
+	bias, stride, modulo, invert int64
+
+	// altBit is set, and v is shifted right by altShift first, if v is only
+	// in range after that: an optional "LSL #8".
+	altBit   uint32
+	altShift uint
+
+	table []encRow // the values of v that are accepted, if there is one
+	flags bool     // the entries of table are bits that v may have set
+}
+
+func (f *encField) scatter(n uint32) uint32 {
+	var out uint32
+	for _, p := range f.parts {
+		out |= (n & (1<<p.width - 1)) << p.lo
+		n >>= p.width
+	}
+	return out
+}
+
+// value returns the field value for v.
+func (f *encField) value(v int64) (int64, bool) {
+	if f.hasRange && (v < f.min || v > f.max) {
+		return 0, false
+	}
+	n := v - f.bias
+	if f.stride > 1 {
+		if n%f.stride != 0 {
+			return 0, false
+		}
+		n /= f.stride
+	}
+	if f.modulo > 0 {
+		n = (n%f.modulo + f.modulo) % f.modulo
+	}
+	if f.invert != 0 {
+		n = f.invert - n
+	}
+	return n, true
+}
+
+// encodeField returns the bits of the instruction word for the operand value v,
+// or false if the field cannot hold v.
+func encodeField(f *encField, v uint32) (uint32, bool) {
+	switch f.reg {
+	case encRegZ:
+		if !stripRawZ(&v) {
+			return 0, false
+		}
+	case encRegR:
+		if f.zr && v == 0 {
+			return f.scatter(31), true
+		}
+		if !checkIsR(v) {
+			return 0, false
+		}
+		if f.sp {
+			if v == REG_R31 {
+				return 0, false
+			}
+			if v == REG_RSP {
+				return f.scatter(31), true
+			}
+		}
+		v &= 31
+	case encRegV:
+		v &= 31
+	}
+	for _, r := range f.table {
+		if f.flags && v&r.sym != 0 || !f.flags && v == r.sym {
+			return f.scatter(r.field), true
+		}
+	}
+	if f.table != nil {
+		return 0, false
+	}
+	sv := int64(v)
+	if f.signed {
+		sv = int64(int32(v))
+	}
+	if n, ok := f.value(sv); ok {
+		return f.scatter(uint32(n)), true
+	}
+	if f.altShift != 0 && sv&(1<<f.altShift-1) == 0 {
+		if n, ok := f.value(sv >> f.altShift); ok {
+			return f.scatter(uint32(n)) | f.altBit, true
+		}
+	}
+	return 0, false
+}
+
 const (
 	enc_NIL component = iota
 	enc_i1_tsz
@@ -314,24 +437,20 @@ func encodeI2_1921_16bit(v uint32) (uint32, bool) {
 // i3h: [22:23)
 // i3l: [19:21)
 func encodeI3hI3l_1923_16Bit(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&3)<<19 | (v>>2)<<22, true
+	return encodeField(&fieldI3hI3l_1923_16Bit, v)
 }
+
+var fieldI3hI3l_1923_16Bit = encField{parts: []encPart{{19, 2}, {22, 1}}, hasRange: true, min: 0, max: 7}
 
 // encodeImm41620V7 is the implementation of the following encoding logic:
 // For the "16-bit" variant: is the immediate shift amount, in the range 1 to 16, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V7(v uint32) (uint32, bool) {
-	if v < 1 || v > 16 {
-		return 0, false
-	}
-	// From ARM ASL: let shift : integer = esize - UInt(imm3);
-	// very weird design.
-	return (16 - v) << 16, true
+	return encodeField(&fieldImm41620V7, v)
 }
+
+var fieldImm41620V7 = encField{parts: []encPart{{16, 4}}, hasRange: true, min: 1, max: 16, invert: 16}
 
 // encodeZm_1619_Range0_7V1 is the implementation of the following encoding logic:
 // For the "16-bit" variant: is the name of the second source scalable vector register Z0-Z7, encoded in the "Zm" field.
@@ -375,11 +494,10 @@ func encodeI2_1921_32Bit(v uint32) (uint32, bool) {
 // i3h: [19:21)
 // i3l: [11:12)
 func encodeI3hI3l_1119_32Bit(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&1)<<11 | (v>>1)<<19, true
+	return encodeField(&fieldI3hI3l_1119_32Bit, v)
 }
+
+var fieldI3hI3l_1119_32Bit = encField{parts: []encPart{{11, 1}, {19, 2}}, hasRange: true, min: 0, max: 7}
 
 // encodeZm_1620_Range0_15 is the implementation of the following encoding logic:
 // For the "32-bit" variant: is the name of the second source scalable vector register Z0-Z15, encoded in the "Zm" field.
@@ -426,11 +544,10 @@ func encodeI1_2021_64Bit(v uint32) (uint32, bool) {
 // i2h: [20:21)
 // i2l: [11:12)
 func encodeI2hI2l_1120_64Bit(v uint32) (uint32, bool) {
-	if v > 3 {
-		return 0, false
-	}
-	return (v&1)<<11 | (v>>1)<<20, true
+	return encodeField(&fieldI2hI2l_1120_64Bit, v)
 }
+
+var fieldI2hI2l_1120_64Bit = encField{parts: []encPart{{11, 1}, {20, 1}}, hasRange: true, min: 0, max: 3}
 
 // encodeZm1620_64Bit is the implementation of the following encoding logic:
 // For the "64-bit" variant: is the name of the second source scalable vector register Z0-Z15, encoded in the "Zm" field.
@@ -452,11 +569,10 @@ func encodeZm1620_64Bit(v uint32) (uint32, bool) {
 // i3h: [22:23)
 // i3l: [19:21)
 func encodeI3hI3l_1923_8To16Bit(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&3)<<19 | (v>>2)<<22, true
+	return encodeField(&fieldI3hI3l_1923_8To16Bit, v)
 }
+
+var fieldI3hI3l_1923_8To16Bit = encField{parts: []encPart{{19, 2}, {22, 1}}, hasRange: true, min: 0, max: 7}
 
 // encodeI2_1921_8To32Bit is the implementation of the following encoding logic:
 // For the "8-bit to 32-bit" variant: is the immediate index of a 32-bit group of four 8-bit values within each 128-bit vector segment, in the range 0 to 3, encoded in the "i2" field.
@@ -488,12 +604,10 @@ func encodeZm1619_8To32Bit(v uint32) (uint32, bool) {
 // bit range mappings:
 // imm3: [16:19)
 func encodeImm31619(v uint32) (uint32, bool) {
-	if v < 1 || v > 8 {
-		return 0, false
-	}
-	// From ARM ASL: let shift : integer = esize - UInt(imm3);
-	return (8 - v) << 16, true
+	return encodeField(&fieldImm31619, v)
 }
+
+var fieldImm31619 = encField{parts: []encPart{{16, 3}}, hasRange: true, min: 1, max: 8, invert: 8}
 
 // encodeSzByteHalfword is the implementation of the following encoding logic:
 // For the "Byte and halfword" variant: is the size specifier,
@@ -586,11 +700,10 @@ func encodeZm1620_DoublePrecision(v uint32) (uint32, bool) {
 // i3h: [22:23)
 // i3l: [17:19)
 func encodeI3hI3l_1722_Doubleword(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&3)<<17 | (v>>2)<<22, true
+	return encodeField(&fieldI3hI3l_1722_Doubleword, v)
 }
+
+var fieldI3hI3l_1722_Doubleword = encField{parts: []encPart{{17, 2}, {22, 1}}, hasRange: true, min: 0, max: 7}
 
 // encodeImm5Signed_1621V2 is the implementation of the following encoding logic:
 // For the "Equal", "Greater than or equal", "Greater than", "Less than or equal", "Less than", and "Not equal" variants: is the signed immediate operand, in the range -16 to 15, encoded in the "imm5" field.
@@ -608,41 +721,30 @@ func encodeImm5Signed_1621V2(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zdn: [2:5)
 func encodeZdn25V1(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%4 != 0 {
-		return 0, false
-	}
-	return (v / 4) << 2, true
+	return encodeField(&fieldZdn25V1, v)
 }
+
+var fieldZdn25V1 = encField{parts: []encPart{{2, 3}}, reg: encRegZ, hasRange: true, min: 0, max: 28, stride: 4}
 
 // encodeZt25V1 is the implementation of the following encoding logic:
 // For the "Four registers" variant: is the name of the first scalable vector register to be transferred, encoded as "Zt" times 4.
 // bit range mappings:
 // Zt: [2:5)
 func encodeZt25V1(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%4 != 0 {
-		return 0, false
-	}
-	return (v / 4) << 2, true
+	return encodeField(&fieldZt25V1, v)
 }
+
+var fieldZt25V1 = encField{parts: []encPart{{2, 3}}, reg: encRegZ, hasRange: true, min: 0, max: 28, stride: 4}
 
 // encodeImm41620V8 is the implementation of the following encoding logic:
 // For the "Four registers" variant: is the optional signed immediate vector offset, a multiple of 4 in the range -32 to 28, defaulting to 0, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V8(v uint32) (uint32, bool) {
-	val := int32(v)
-	if val < -32 || val > 28 || val%4 != 0 {
-		return 0, false
-	}
-	encoded := uint32((val >> 2) & 0xf)
-	return encoded << 16, true
+	return encodeField(&fieldImm41620V8, v)
 }
+
+var fieldImm41620V8 = encField{parts: []encPart{{16, 4}}, signed: true, hasRange: true, min: -32, max: 28, stride: 4}
 
 // encodeZm1619_HalfSinglePrecision is the implementation of the following encoding logic:
 // For the "Half-precision" and "Single-precision" variants: is the name of the second source scalable vector register Z0-Z7, encoded in the "Zm" field.
@@ -664,11 +766,10 @@ func encodeZm1619_HalfSinglePrecision(v uint32) (uint32, bool) {
 // i3h: [22:23)
 // i3l: [19:21)
 func encodeI3hI3l_1923_HalfPrecision(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&3)<<19 | (v>>2)<<22, true
+	return encodeField(&fieldI3hI3l_1923_HalfPrecision, v)
 }
+
+var fieldI3hI3l_1923_HalfPrecision = encField{parts: []encPart{{19, 2}, {22, 1}}, hasRange: true, min: 0, max: 7}
 
 // encodeI2_1921_Half is the implementation of the following encoding logic:
 // For the "Half-precision" variant: is the index of a Real and Imaginary pair, in the range 0 to 3, encoded in the "i2" field.
@@ -712,11 +813,10 @@ func encodeI1_1718_Halfword(v uint32) (uint32, bool) {
 // i3h: [22:24)
 // i3l: [12:13)
 func encodeI3224I31213(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&1)<<12 | (v>>1)<<22, true
+	return encodeField(&fieldI3224I31213, v)
 }
+
+var fieldI3224I31213 = encField{parts: []encPart{{12, 1}, {22, 2}}, hasRange: true, min: 0, max: 7}
 
 // encodeSize0HalfwordMergeZero is the implementation of the following encoding logic:
 // For the "Halfword, merging" and "Halfword, zeroing" variants: is the size specifier,
@@ -798,41 +898,30 @@ func encodeZm_1620_Single(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zdn: [1:5)
 func encodeZdn15V1(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%2 != 0 {
-		return 0, false
-	}
-	return (v / 2) << 1, true
+	return encodeField(&fieldZdn15V1, v)
 }
+
+var fieldZdn15V1 = encField{parts: []encPart{{1, 4}}, reg: encRegZ, hasRange: true, min: 0, max: 30, stride: 2}
 
 // encodeZt15V1 is the implementation of the following encoding logic:
 // For the "Two registers" variant: is the name of the first scalable vector register to be transferred, encoded as "Zt" times 2.
 // bit range mappings:
 // Zt: [1:5)
 func encodeZt15V1(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%2 != 0 {
-		return 0, false
-	}
-	return (v / 2) << 1, true
+	return encodeField(&fieldZt15V1, v)
 }
+
+var fieldZt15V1 = encField{parts: []encPart{{1, 4}}, reg: encRegZ, hasRange: true, min: 0, max: 30, stride: 2}
 
 // encodeImm41620V9 is the implementation of the following encoding logic:
 // For the "Two registers" variant: is the optional signed immediate vector offset, a multiple of 2 in the range -16 to 14, defaulting to 0, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V9(v uint32) (uint32, bool) {
-	val := int32(v)
-	if val < -16 || val > 14 || val%2 != 0 {
-		return 0, false
-	}
-	encoded := uint32((val>>1)&0xf) << 16
-	return encoded, true
+	return encodeField(&fieldImm41620V9, v)
 }
+
+var fieldImm41620V9 = encField{parts: []encPart{{16, 4}}, signed: true, hasRange: true, min: -16, max: 14, stride: 2}
 
 // encodeSzWordDoubleword is the implementation of the following encoding logic:
 // For the "Word and doubleword" variant: is the size specifier,
@@ -893,20 +982,10 @@ func encodeImm8_513_Fimm(v uint32) (uint32, bool) {
 // bit range mappings:
 // sh: [13:14)
 func encodeImm8SignedLsl8(v uint32) (uint32, bool) {
-	vi := int32(v)
-	if vi >= -128 && vi <= 127 {
-		imm8 := uint32(uint8(int8(vi)))
-		return (imm8 << 5), true
-	}
-	if vi&255 == 0 {
-		unshifted := vi >> 8
-		if unshifted >= -128 && unshifted <= 127 {
-			imm8 := uint32(uint8(int8(unshifted)))
-			return (imm8 << 5) | (1 << 13), true
-		}
-	}
-	return 0, false
+	return encodeField(&fieldImm8SignedLsl8, v)
 }
+
+var fieldImm8SignedLsl8 = encField{parts: []encPart{{5, 8}}, signed: true, hasRange: true, min: -128, max: 127, altBit: 0x2000, altShift: 8}
 
 // encodeSize16B8H4S2D is the implementation of the following encoding logic:
 // Is an arrangement specifier,
@@ -964,17 +1043,10 @@ func encodeSize8H4S2D(v uint32) (uint32, bool) {
 // bit range mappings:
 // sh: [13:14)
 func encodeImm8UnsignedLsl8(v uint32) (uint32, bool) {
-	if v <= 255 {
-		return v << 5, true
-	}
-	if v&255 == 0 {
-		unshifted := v >> 8
-		if unshifted <= 255 {
-			return (unshifted << 5) | (1 << 13), true
-		}
-	}
-	return 0, false
+	return encodeField(&fieldImm8UnsignedLsl8, v)
 }
+
+var fieldImm8UnsignedLsl8 = encField{parts: []encPart{{5, 8}}, hasRange: true, min: 0, max: 255, altBit: 0x2000, altShift: 8}
 
 // encodeWdn05 is the implementation of the following encoding logic:
 // Is the 32-bit name of the source and destination general-purpose register, encoded in the "Rdn" field.
@@ -1003,17 +1075,10 @@ func encodeVd0564(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rd: [0:5)
 func encodeRd05_SPAllowed(v uint32) (uint32, bool) {
-	if !checkIsR(v) {
-		return 0, false
-	}
-	if v == REG_R31 {
-		return 0, false
-	}
-	if v == REG_RSP {
-		return 31, true
-	}
-	return v & 31, true
+	return encodeField(&fieldRd05_SPAllowed, v)
 }
+
+var fieldRd05_SPAllowed = encField{parts: []encPart{{0, 5}}, reg: encRegR, sp: true}
 
 // encodeRd05 is the implementation of the following encoding logic:
 // Is the 64-bit name of the destination general-purpose register, encoded in the "Rd" field.
@@ -1048,17 +1113,10 @@ func encodeRn510(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rn: [5:10)
 func encodeRn510SPV2(v uint32) (uint32, bool) {
-	if !checkIsR(v) {
-		return 0, false
-	}
-	if v == REG_R31 {
-		return 0, false
-	}
-	if v == REG_RSP {
-		return 31 << 5, true
-	}
-	return (v & 31) << 5, true
+	return encodeField(&fieldRn510SPV2, v)
 }
+
+var fieldRn510SPV2 = encField{parts: []encPart{{5, 5}}, reg: encRegR, sp: true}
 
 // encodeRm1621V2 is the implementation of the following encoding logic:
 // Is the 64-bit name of the general-purpose offset register, encoded in the "Rm" field.
@@ -1107,17 +1165,10 @@ func encodeXdn05(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rn: [16:21)
 func encodeRn1621_SPAllowed(v uint32) (uint32, bool) {
-	if !checkIsR(v) {
-		return 0, false
-	}
-	if v == REG_R31 {
-		return 0, false
-	}
-	if v == REG_RSP {
-		return 31 << 16, true
-	}
-	return (v & 31) << 16, true
+	return encodeField(&fieldRn1621_SPAllowed, v)
 }
+
+var fieldRn1621_SPAllowed = encField{parts: []encPart{{16, 5}}, reg: encRegR, sp: true}
 
 // encodeRot90_270_1011 is the implementation of the following encoding logic:
 // Is the const specifier,
@@ -1289,11 +1340,10 @@ func encodeI2_1921_Pair16Bit(v uint32) (uint32, bool) {
 // i3h: [19:21)
 // i3l: [11:12)
 func encodeI3hI3l_1119_Pair8Bit(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&1)<<11 | (v>>1)<<19, true
+	return encodeField(&fieldI3hI3l_1119_Pair8Bit, v)
 }
+
+var fieldI3hI3l_1119_Pair8Bit = encField{parts: []encPart{{11, 1}, {19, 2}}, hasRange: true, min: 0, max: 7}
 
 // encodeI4hI4l_1019 is the implementation of the following encoding logic:
 // Is the immediate index, in the range 0 to 15, encoded in the "i4h:i4l" fields.
@@ -1301,11 +1351,10 @@ func encodeI3hI3l_1119_Pair8Bit(v uint32) (uint32, bool) {
 // i4h: [19:21)
 // i4l: [10:12)
 func encodeI4hI4l_1019(v uint32) (uint32, bool) {
-	if v > 15 {
-		return 0, false
-	}
-	return (v&3)<<10 | (v>>2)<<19, true
+	return encodeField(&fieldI4hI4l_1019, v)
 }
+
+var fieldI4hI4l_1019 = encField{parts: []encPart{{10, 2}, {19, 2}}, hasRange: true, min: 0, max: 15}
 
 // encodeI3hI3l_1119 is the implementation of the following encoding logic:
 // Is the immediate index, in the range 0 to 7, encoded in the "i3h:i3l" fields.
@@ -1313,11 +1362,10 @@ func encodeI4hI4l_1019(v uint32) (uint32, bool) {
 // i3h: [19:21)
 // i3l: [11:12)
 func encodeI3hI3l_1119(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&1)<<11 | (v>>1)<<19, true
+	return encodeField(&fieldI3hI3l_1119, v)
 }
+
+var fieldI3hI3l_1119 = encField{parts: []encPart{{11, 1}, {19, 2}}, hasRange: true, min: 0, max: 7}
 
 // encodeI3hI3l_1922 is the implementation of the following encoding logic:
 // Is the immediate index, in the range 0 to 7, encoded in the "i3h:i3l" fields.
@@ -1325,11 +1373,10 @@ func encodeI3hI3l_1119(v uint32) (uint32, bool) {
 // i3h: [22:23)
 // i3l: [19:21)
 func encodeI3hI3l_1922(v uint32) (uint32, bool) {
-	if v > 7 {
-		return 0, false
-	}
-	return (v&3)<<19 | (v>>2)<<22, true
+	return encodeField(&fieldI3hI3l_1922, v)
 }
+
+var fieldI3hI3l_1922 = encField{parts: []encPart{{19, 2}, {22, 1}}, hasRange: true, min: 0, max: 7}
 
 // encodeI1Tsz_Delegate is the implementation of the following encoding logic:
 // Is the immediate index, in the range 0 to one less than the number of elements in 128 bits, encoded in "i1:tsz".
@@ -1448,13 +1495,10 @@ func encodeMsz1012(v uint32) (uint32, bool) {
 // bit range mappings:
 // xs: [14:15)
 func encodeXs1415(v uint32) (uint32, bool) {
-	if v&0b1 != 0 {
-		return 0, true
-	} else if v&0b10 != 0 {
-		return 1 << 14, true
-	}
-	return 0, false
+	return encodeField(&fieldXs1415, v)
 }
+
+var fieldXs1415 = encField{parts: []encPart{{14, 1}}, table: []encRow{{1, 0}, {2, 1}}, flags: true}
 
 // encodeXs2223 is the implementation of the following encoding logic:
 // Is the index extend and shift specifier,
@@ -1464,13 +1508,10 @@ func encodeXs1415(v uint32) (uint32, bool) {
 // bit range mappings:
 // xs: [22:23)
 func encodeXs2223(v uint32) (uint32, bool) {
-	if v&0b1 != 0 {
-		return 0, true
-	} else if v&0b10 != 0 {
-		return 1 << 22, true
-	}
-	return 0, false
+	return encodeField(&fieldXs2223, v)
 }
+
+var fieldXs2223 = encField{parts: []encPart{{22, 1}}, table: []encRow{{1, 0}, {2, 1}}, flags: true}
 
 // encodeMsz1012Amount is the implementation of the following encoding logic:
 // Is the index shift amount,
@@ -1512,12 +1553,10 @@ func encodeVd(v uint32) (uint32, bool) {
 // bit range mappings:
 // PNd: [0:3)
 func encodePNd(v uint32) (uint32, bool) {
-	if v >= 24 && v <= 31 {
-		// PN registers starts from 16.
-		return v - 24, true
-	}
-	return 0, false
+	return encodeField(&fieldPNd, v)
 }
+
+var fieldPNd = encField{parts: []encPart{{0, 3}}, hasRange: true, min: 24, max: 31, bias: 24}
 
 // encodePd is the implementation of the following encoding logic:
 // Is the name of the destination scalable predicate register, encoded in the "Pd" field.
@@ -1576,28 +1615,20 @@ func encodePd04(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zd: [1:5)
 func encodeZd15V1(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%2 != 0 {
-		return 0, false
-	}
-	return (v / 2) << 1, true
+	return encodeField(&fieldZd15V1, v)
 }
+
+var fieldZd15V1 = encField{parts: []encPart{{1, 4}}, reg: encRegZ, hasRange: true, min: 0, max: 30, stride: 2}
 
 // encodeZda15V1 is the implementation of the following encoding logic:
 // Is the name of the first scalable vector register of the destination multi-vector group, encoded as "Zda" times 2.
 // bit range mappings:
 // Zda: [1:5)
 func encodeZda15V1(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%2 != 0 {
-		return 0, false
-	}
-	return (v / 2) << 1, true
+	return encodeField(&fieldZda15V1, v)
 }
+
+var fieldZda15V1 = encField{parts: []encPart{{1, 4}}, reg: encRegZ, hasRange: true, min: 0, max: 30, stride: 2}
 
 // encodeGenZn510V1 is the implementation of the following encoding logic:
 // Is the name of the first scalable vector register of the first source multi-vector group, encoded in the "Zn" field.
@@ -1615,14 +1646,10 @@ func encodeGenZn510V1(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zn: [6:10)
 func encodeZn610V1(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%2 != 0 {
-		return 0, false
-	}
-	return (v / 2) << 6, true
+	return encodeField(&fieldZn610V1, v)
 }
+
+var fieldZn610V1 = encField{parts: []encPart{{6, 4}}, reg: encRegZ, hasRange: true, min: 0, max: 30, stride: 2}
 
 // encodeZn510MultiSrc1 is the implementation of the following encoding logic:
 // Is the name of the first scalable vector register of the source multi-vector group, encoded in the "Zn" field.
@@ -1670,12 +1697,10 @@ func encodeZdnDest(v uint32) (uint32, bool) {
 // bit range mappings:
 // PNn: [5:8)
 func encodePnN_58(v uint32) (uint32, bool) {
-	if v >= 24 && v <= 31 {
-		// PN registers starts from 16.
-		return (v - 24) << 5, true
-	}
-	return 0, false
+	return encodeField(&fieldPnN_58, v)
 }
+
+var fieldPnN_58 = encField{parts: []encPart{{5, 3}}, hasRange: true, min: 24, max: 31, bias: 24}
 
 // encodePn59 is the implementation of the following encoding logic:
 // Is the name of the first source scalable predicate register, encoded in the "Pn" field.
@@ -1709,39 +1734,30 @@ func encodeZn510Table1(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zdn: [2:5)
 func encodeZdn25V2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v < 3 || (v-3)%4 != 0 {
-		return 0, false
-	}
-	return ((v - 3) / 4) << 2, true
+	return encodeField(&fieldZdn25V2, v)
 }
+
+var fieldZdn25V2 = encField{parts: []encPart{{2, 3}}, reg: encRegZ, hasRange: true, min: 3, max: 31, bias: 3, stride: 4}
 
 // encodeZt054 is the implementation of the following encoding logic:
 // Is the name of the fourth scalable vector register to be transferred, encoded as "Zt" plus 3 modulo 32.
 // bit range mappings:
 // Zt: [0:5)
 func encodeZt054(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	return (v - 3) % 32, true
+	return encodeField(&fieldZt054, v)
 }
+
+var fieldZt054 = encField{parts: []encPart{{0, 5}}, reg: encRegZ, bias: 3, modulo: 32}
 
 // encodeZt25V2 is the implementation of the following encoding logic:
 // Is the name of the fourth scalable vector register to be transferred, encoded as "Zt" times 4 plus 3.
 // bit range mappings:
 // Zt: [2:5)
 func encodeZt25V2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v < 3 || (v-3)%4 != 0 {
-		return 0, false
-	}
-	return ((v - 3) / 4) << 2, true
+	return encodeField(&fieldZt25V2, v)
 }
+
+var fieldZt25V2 = encField{parts: []encPart{{2, 3}}, reg: encRegZ, hasRange: true, min: 3, max: 31, bias: 3, stride: 4}
 
 // encodePg1013 is the implementation of the following encoding logic:
 // Is the name of the governing scalable predicate register P0-P7, encoded in the "Pg" field.
@@ -1759,11 +1775,10 @@ func encodePg1013(v uint32) (uint32, bool) {
 // bit range mappings:
 // PNg: [10:13)
 func encodePNg1013(v uint32) (uint32, bool) {
-	if v < 24 {
-		return 0, false
-	}
-	return (v - 24) << 10, true
+	return encodeField(&fieldPNg1013, v)
 }
+
+var fieldPNg1013 = encField{parts: []encPart{{10, 3}}, hasRange: true, min: 24, max: 31, bias: 24}
 
 // encodePg1014 is the implementation of the following encoding logic:
 // Is the name of the governing scalable predicate register, encoded in the "Pg" field.
@@ -1827,123 +1842,100 @@ func encodeZt05(v uint32) (uint32, bool) {
 // bit range mappings:
 // Pd: [1:4)
 func encodePd14Plus1(v uint32) (uint32, bool) {
-	if v&1 == 0 {
-		return 0, false
-	}
-	return v - 1, true
+	return encodeField(&fieldPd14Plus1, v)
 }
+
+var fieldPd14Plus1 = encField{parts: []encPart{{1, 3}}, hasRange: true, min: 1, max: 15, bias: 1, stride: 2}
 
 // encodePd04Plus1 is the implementation of the following encoding logic:
 // Is the name of the second destination scalable predicate register, encoded in the "Pd" field.
 // bit range mappings:
 // Pd: [0:4)
 func encodePd04Plus1(v uint32) (uint32, bool) {
-	// This "second destination" incurs Pd + 1 == v
-	return v - 1, true
+	return encodeField(&fieldPd04Plus1, v)
 }
+
+var fieldPd04Plus1 = encField{parts: []encPart{{0, 4}}, hasRange: true, min: 1, max: 16, bias: 1}
 
 // encodeZdn15V2 is the implementation of the following encoding logic:
 // Is the name of the second scalable vector register of the destination and first source multi-vector group, encoded as "Zdn" times 2 plus 1.
 // bit range mappings:
 // Zdn: [1:5)
 func encodeZdn15V2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v < 1 || (v-1)%2 != 0 {
-		return 0, false
-	}
-	return ((v - 1) / 2) << 1, true
+	return encodeField(&fieldZdn15V2, v)
 }
+
+var fieldZdn15V2 = encField{parts: []encPart{{1, 4}}, reg: encRegZ, hasRange: true, min: 1, max: 31, bias: 1, stride: 2}
 
 // encodeZd15V2 is the implementation of the following encoding logic:
 // Is the name of the second scalable vector register of the destination multi-vector group, encoded as "Zd" times 2 plus 1.
 // bit range mappings:
 // Zd: [1:5)
 func encodeZd15V2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%2 == 0 {
-		return 0, false
-	}
-	return ((v - 1) / 2) << 1, true
+	return encodeField(&fieldZd15V2, v)
 }
+
+var fieldZd15V2 = encField{parts: []encPart{{1, 4}}, reg: encRegZ, hasRange: true, min: 1, max: 31, bias: 1, stride: 2}
 
 // encodeZda15V2 is the implementation of the following encoding logic:
 // Is the name of the second scalable vector register of the destination multi-vector group, encoded as "Zda" times 2 plus 1.
 // bit range mappings:
 // Zda: [1:5)
 func encodeZda15V2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%2 == 0 {
-		return 0, false
-	}
-	return ((v - 1) / 2) << 1, true
+	return encodeField(&fieldZda15V2, v)
 }
+
+var fieldZda15V2 = encField{parts: []encPart{{1, 4}}, reg: encRegZ, hasRange: true, min: 1, max: 31, bias: 1, stride: 2}
 
 // encodeGenZn510V2 is the implementation of the following encoding logic:
 // Is the name of the second scalable vector register of the first source multi-vector group, encoded in the "Zn" field.
 // bit range mappings:
 // Zn: [5:10)
 func encodeGenZn510V2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	return (v - 1) << 5, true
+	return encodeField(&fieldGenZn510V2, v)
 }
+
+var fieldGenZn510V2 = encField{parts: []encPart{{5, 5}}, reg: encRegZ, hasRange: true, min: 1, max: 32, bias: 1}
 
 // encodeZn610V2 is the implementation of the following encoding logic:
 // Is the name of the second scalable vector register of the source multi-vector group, encoded as "Zn" times 2 plus 1.
 // bit range mappings:
 // Zn: [6:10)
 func encodeZn610V2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v%2 == 0 {
-		return 0, false
-	}
-	return ((v - 1) / 2) << 6, true
+	return encodeField(&fieldZn610V2, v)
 }
+
+var fieldZn610V2 = encField{parts: []encPart{{6, 4}}, reg: encRegZ, hasRange: true, min: 1, max: 31, bias: 1, stride: 2}
 
 // encodeZn510MultiSrc2 is the implementation of the following encoding logic:
 // Is the name of the second scalable vector register of the source multi-vector group, encoded in the "Zn" field.
 // bit range mappings:
 // Zn: [5:10)
 func encodeZn510MultiSrc2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	return (v - 1) << 5, true
+	return encodeField(&fieldZn510MultiSrc2, v)
 }
+
+var fieldZn510MultiSrc2 = encField{parts: []encPart{{5, 5}}, reg: encRegZ, hasRange: true, min: 1, max: 32, bias: 1}
 
 // encodeZt052 is the implementation of the following encoding logic:
 // Is the name of the second scalable vector register to be transferred, encoded as "Zt" plus 1 modulo 32.
 // bit range mappings:
 // Zt: [0:5)
 func encodeZt052(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	return (v - 1) % 32, true
+	return encodeField(&fieldZt052, v)
 }
+
+var fieldZt052 = encField{parts: []encPart{{0, 5}}, reg: encRegZ, bias: 1, modulo: 32}
 
 // encodeZt15V2 is the implementation of the following encoding logic:
 // Is the name of the second scalable vector register to be transferred, encoded as "Zt" times 2 plus 1.
 // bit range mappings:
 // Zt: [1:5)
 func encodeZt15V2(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	if v < 1 || (v-1)%2 != 0 {
-		return 0, false
-	}
-	return ((v - 1) / 2) << 1, true
+	return encodeField(&fieldZt15V2, v)
 }
+
+var fieldZt15V2 = encField{parts: []encPart{{1, 4}}, reg: encRegZ, hasRange: true, min: 1, max: 31, bias: 1, stride: 2}
 
 // encodePdmDest is the implementation of the following encoding logic:
 // Is the name of the second source and destination scalable predicate register, encoded in the "Pdm" field.
@@ -2010,8 +2002,10 @@ func encodeZm510V1(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zn: [5:10)
 func encodeZn510Table2(v uint32) (uint32, bool) {
-	return ((v - 1) & 0x1f) << 5, true
+	return encodeField(&fieldZn510Table2, v)
 }
+
+var fieldZn510Table2 = encField{parts: []encPart{{5, 5}}, reg: encRegZ, bias: 1, modulo: 32}
 
 // encodePdnSrcDst is the implementation of the following encoding logic:
 // Is the name of the source and destination scalable predicate register, encoded in the "Pdn" field.
@@ -2053,11 +2047,10 @@ func encodePn59V2(v uint32) (uint32, bool) {
 // bit range mappings:
 // PNn: [5:9)
 func encodePNn59(v uint32) (uint32, bool) {
-	if v > 15 {
-		return (v - 16) << 5, true
-	}
-	return 0, false
+	return encodeField(&fieldPNn59, v)
 }
+
+var fieldPNn59 = encField{parts: []encPart{{5, 4}}, hasRange: true, min: 16, max: 31, bias: 16}
 
 // encodeZm1621V1 is the implementation of the following encoding logic:
 // Is the name of the source scalable vector register, encoded in the "Zm" field.
@@ -2105,11 +2098,10 @@ func encodeZn510Table3(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zt: [0:5)
 func encodeZt053(v uint32) (uint32, bool) {
-	if !stripRawZ(&v) {
-		return 0, false
-	}
-	return (v - 2) % 32, true
+	return encodeField(&fieldZt053, v)
 }
+
+var fieldZt053 = encField{parts: []encPart{{0, 5}}, reg: encRegZ, bias: 2, modulo: 32}
 
 // encodeZda3RdSrcDst is the implementation of the following encoding logic:
 // Is the name of the third source and destination scalable vector register, encoded in the "Zda" field.
@@ -2199,17 +2191,10 @@ func encodeRd05ZR(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rn: [5:10)
 func encodeRn510SPV1(v uint32) (uint32, bool) {
-	if !checkIsR(v) {
-		return 0, false
-	}
-	if v == REG_R31 {
-		return 0, false
-	}
-	if v == REG_RSP {
-		return (REG_R31 & 31) << 5, true
-	}
-	return (v & 31) << 5, true
+	return encodeField(&fieldRn510SPV1, v)
 }
+
+var fieldRn510SPV1 = encField{parts: []encPart{{5, 5}}, reg: encRegR, sp: true}
 
 // encodeRdn05ZR is the implementation of the following encoding logic:
 // Is the number [0-30] of the source and destination general-purpose register or the name ZR (31), encoded in the "Rdn" field.
@@ -2304,78 +2289,60 @@ func encodeVdn05(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rm: [16:21)
 func encodeRm1621XZR(v uint32) (uint32, bool) {
-	if v == 0 {
-		// absent case, according to the spec this should be ZR (R31)
-		return 31, true
-	}
-	if !checkIsR(v) {
-		return 0, false
-	}
-	return (v & 31) << 16, true
+	return encodeField(&fieldRm1621XZR, v)
 }
+
+var fieldRm1621XZR = encField{parts: []encPart{{16, 5}}, reg: encRegR, zr: true}
 
 // encodeImm41620V1 is the implementation of the following encoding logic:
 // Is the optional signed immediate byte offset, a multiple of 16 in the range -128 to 112, defaulting to 0, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V1(v uint32) (uint32, bool) {
-	vi := int32(v)
-	if vi >= -128 && vi <= 112 && vi%16 == 0 {
-		return uint32((vi/16)&15) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm41620V1, v)
 }
+
+var fieldImm41620V1 = encField{parts: []encPart{{16, 4}}, signed: true, hasRange: true, min: -128, max: 112, stride: 16}
 
 // encodeImm41620V2 is the implementation of the following encoding logic:
 // Is the optional signed immediate byte offset, a multiple of 32 in the range -256 to 224, defaulting to 0, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V2(v uint32) (uint32, bool) {
-	vi := int32(v)
-	if vi >= -256 && vi <= 224 && vi%32 == 0 {
-		return uint32((vi/32)&15) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm41620V2, v)
 }
+
+var fieldImm41620V2 = encField{parts: []encPart{{16, 4}}, signed: true, hasRange: true, min: -256, max: 224, stride: 32}
 
 // encodeImm41620V6 is the implementation of the following encoding logic:
 // Is the optional signed immediate vector offset, a multiple of 2 in the range -16 to 14, defaulting to 0, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V6(v uint32) (uint32, bool) {
-	if v&1 != 0 {
-		return 0, false
-	}
-	vi := int32(v)
-	if vi >= -16 && vi <= 14 {
-		return (uint32(vi/2) & 15) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm41620V6, v)
 }
+
+var fieldImm41620V6 = encField{parts: []encPart{{16, 4}}, signed: true, hasRange: true, min: -16, max: 14, stride: 2}
 
 // encodeImm41620V3 is the implementation of the following encoding logic:
 // Is the optional signed immediate vector offset, a multiple of 3 in the range -24 to 21, defaulting to 0, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V3(v uint32) (uint32, bool) {
-	vi := int32(v)
-	if vi >= -24 && vi <= 21 && vi%3 == 0 {
-		return uint32((vi/3)&15) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm41620V3, v)
 }
+
+var fieldImm41620V3 = encField{parts: []encPart{{16, 4}}, signed: true, hasRange: true, min: -24, max: 21, stride: 3}
 
 // encodeImm41620V4 is the implementation of the following encoding logic:
 // Is the optional signed immediate vector offset, a multiple of 4 in the range -32 to 28, defaulting to 0, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V4(v uint32) (uint32, bool) {
-	vi := int32(v)
-	if vi >= -32 && vi <= 28 && vi%4 == 0 {
-		return uint32((vi/4)&15) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm41620V4, v)
 }
+
+var fieldImm41620V4 = encField{parts: []encPart{{16, 4}}, signed: true, hasRange: true, min: -32, max: 28, stride: 4}
 
 // encodeImm9h1622L1013 is the implementation of the following encoding logic:
 // Is the optional signed immediate vector offset, in the range -256 to 255, defaulting to 0, encoded in the "imm9h:imm9l" fields.
@@ -2383,103 +2350,90 @@ func encodeImm41620V4(v uint32) (uint32, bool) {
 // imm9h: [16:22)
 // imm9l: [10:13)
 func encodeImm9h1622L1013(v uint32) (uint32, bool) {
-	vi := int32(v)
-	if vi >= -256 && vi <= 255 {
-		val := uint32(vi) & 0x1FF
-		return ((val & 7) << 10) | ((val >> 3) << 16), true
-	}
-	return 0, false
+	return encodeField(&fieldImm9h1622L1013, v)
 }
+
+var fieldImm9h1622L1013 = encField{parts: []encPart{{10, 3}, {16, 6}}, signed: true, hasRange: true, min: -256, max: 255}
 
 // encodeImm61622V5 is the implementation of the following encoding logic:
 // Is the optional signed immediate vector offset, in the range -32 to 31, defaulting to 0, encoded in the "imm6" field.
 // bit range mappings:
 // imm6: [16:22)
 func encodeImm61622V5(v uint32) (uint32, bool) {
-	vi := int32(v)
-	if vi >= -32 && vi <= 31 {
-		return (uint32(vi) & 0x3F) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm61622V5, v)
 }
+
+var fieldImm61622V5 = encField{parts: []encPart{{16, 6}}, signed: true, hasRange: true, min: -32, max: 31}
 
 // encodeImm41620V5 is the implementation of the following encoding logic:
 // Is the optional signed immediate vector offset, in the range -8 to 7, defaulting to 0, encoded in the "imm4" field.
 // bit range mappings:
 // imm4: [16:20)
 func encodeImm41620V5(v uint32) (uint32, bool) {
-	vi := int32(v)
-	if vi >= -8 && vi <= 7 {
-		return (uint32(vi) & 0xF) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm41620V5, v)
 }
+
+var fieldImm41620V5 = encField{parts: []encPart{{16, 4}}, signed: true, hasRange: true, min: -8, max: 7}
 
 // encodeImm61622V1 is the implementation of the following encoding logic:
 // Is the optional unsigned immediate byte offset, a multiple of 2 in the range 0 to 126, defaulting to 0, encoded in the "imm6" field.
 // bit range mappings:
 // imm6: [16:22)
 func encodeImm61622V1(v uint32) (uint32, bool) {
-	if v <= 126 && v%2 == 0 {
-		return (v / 2) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm61622V1, v)
 }
+
+var fieldImm61622V1 = encField{parts: []encPart{{16, 6}}, hasRange: true, min: 0, max: 126, stride: 2}
 
 // encodeImm51621V1 is the implementation of the following encoding logic:
 // Is the optional unsigned immediate byte offset, a multiple of 2 in the range 0 to 62, defaulting to 0, encoded in the "imm5" field.
 // bit range mappings:
 // imm5: [16:21)
 func encodeImm51621V1(v uint32) (uint32, bool) {
-	if v <= 62 && v%2 == 0 {
-		return (v / 2) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm51621V1, v)
 }
+
+var fieldImm51621V1 = encField{parts: []encPart{{16, 5}}, hasRange: true, min: 0, max: 62, stride: 2}
 
 // encodeImm51621V2 is the implementation of the following encoding logic:
 // Is the optional unsigned immediate byte offset, a multiple of 4 in the range 0 to 124, defaulting to 0, encoded in the "imm5" field.
 // bit range mappings:
 // imm5: [16:21)
 func encodeImm51621V2(v uint32) (uint32, bool) {
-	if v <= 124 && v%4 == 0 {
-		return (v / 4) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm51621V2, v)
 }
+
+var fieldImm51621V2 = encField{parts: []encPart{{16, 5}}, hasRange: true, min: 0, max: 124, stride: 4}
 
 // encodeImm61622V2 is the implementation of the following encoding logic:
 // Is the optional unsigned immediate byte offset, a multiple of 4 in the range 0 to 252, defaulting to 0, encoded in the "imm6" field.
 // bit range mappings:
 // imm6: [16:22)
 func encodeImm61622V2(v uint32) (uint32, bool) {
-	if v <= 252 && v%4 == 0 {
-		return (v / 4) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm61622V2, v)
 }
+
+var fieldImm61622V2 = encField{parts: []encPart{{16, 6}}, hasRange: true, min: 0, max: 252, stride: 4}
 
 // encodeImm51621V3 is the implementation of the following encoding logic:
 // Is the optional unsigned immediate byte offset, a multiple of 8 in the range 0 to 248, defaulting to 0, encoded in the "imm5" field.
 // bit range mappings:
 // imm5: [16:21)
 func encodeImm51621V3(v uint32) (uint32, bool) {
-	if v <= 248 && v%8 == 0 {
-		return (v / 8) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm51621V3, v)
 }
+
+var fieldImm51621V3 = encField{parts: []encPart{{16, 5}}, hasRange: true, min: 0, max: 248, stride: 8}
 
 // encodeImm61622V3 is the implementation of the following encoding logic:
 // Is the optional unsigned immediate byte offset, a multiple of 8 in the range 0 to 504, defaulting to 0, encoded in the "imm6" field.
 // bit range mappings:
 // imm6: [16:22)
 func encodeImm61622V3(v uint32) (uint32, bool) {
-	if v <= 504 && v%8 == 0 {
-		return (v / 8) << 16, true
-	}
-	return 0, false
+	return encodeField(&fieldImm61622V3, v)
 }
+
+var fieldImm61622V3 = encField{parts: []encPart{{16, 6}}, hasRange: true, min: 0, max: 504, stride: 8}
 
 // encodeImm51621V4 is the implementation of the following encoding logic:
 // Is the optional unsigned immediate byte offset, in the range 0 to 31, defaulting to 0, encoded in the "imm5" field.
@@ -3110,14 +3064,10 @@ func encodeSzSD2223(v uint32) (uint32, bool) {
 // bit range mappings:
 // tsize: [19:21)
 func encodeTsize1921V1(v uint32) (uint32, bool) {
-	if v == uint32(ARNG_B) {
-		return 1 << 19, true
-	}
-	if v == uint32(ARNG_H) {
-		return 2 << 19, true // 2 is bit pattern 10 (1x)
-	}
-	return 0, false
+	return encodeField(&fieldTsize1921V1, v)
 }
+
+var fieldTsize1921V1 = encField{parts: []encPart{{19, 2}}, table: []encRow{{uint32(ARNG_B), 1}, {uint32(ARNG_H), 2}}}
 
 // encodeTsize1921V2 is the implementation of the following encoding logic:
 // Is the size specifier,
@@ -3128,14 +3078,10 @@ func encodeTsize1921V1(v uint32) (uint32, bool) {
 // bit range mappings:
 // tsize: [19:21)
 func encodeTsize1921V2(v uint32) (uint32, bool) {
-	if v == uint32(ARNG_H) {
-		return 1 << 19, true
-	}
-	if v == uint32(ARNG_S) {
-		return 2 << 19, true // 2 is bit pattern 10 (1x)
-	}
-	return 0, false
+	return encodeField(&fieldTsize1921V2, v)
 }
+
+var fieldTsize1921V2 = encField{parts: []encPart{{19, 2}}, table: []encRow{{uint32(ARNG_H), 1}, {uint32(ARNG_S), 2}}}
 
 // encodeTsz_1620_SizeSpecifier4 is the implementation of the following encoding logic:
 // Is the size specifier,
@@ -3404,13 +3350,10 @@ func encodeImm8Unsigned_513(v uint32) (uint32, bool) {
 // imm8h: [16:21)
 // imm8l: [10:13)
 func encodeImm8hImm8l_Unsigned(v uint32) (uint32, bool) {
-	if v <= 255 {
-		l := v & 7
-		h := v >> 3
-		return (l << 10) | (h << 16), true
-	}
-	return 0, false
+	return encodeField(&fieldImm8hImm8l_Unsigned, v)
 }
+
+var fieldImm8hImm8l_Unsigned = encField{parts: []encPart{{10, 3}, {16, 5}}, hasRange: true, min: 0, max: 255}
 
 // encodeImm3Unsigned_1619 is the implementation of the following encoding logic:
 // Is the unsigned immediate operand, in the range 0 to 7, encoded in the "imm3" field.

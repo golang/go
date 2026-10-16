@@ -26,4 +26,12 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZUQRSHRN $6, [Z2.H-Z3.H], Z10.B    // 4a38aa45
 	ZSQRSHRN $1, [Z2.H-Z3.H], Z10.B    // 4a28af45
 	ZSQRSHRN $8, [Z2.H-Z3.H], Z10.B    // 4a28a845
+	// Immediates with the optional LSL #8, which the generated suite does not
+	// use: the shift is encoded in bit 13.
+	ZADD $1536, Z7.H, Z7.H             // c7e06025
+	ZSUB $1536, Z7.D, Z7.D             // c7e0e125
+	ZUQADD $65280, Z7.S, Z7.S          // e7ffa525
+	ZCPY $1536, P5.M, Z6.H             // c6605505
+	ZCPY $-32768, P5.Z, Z6.H           // 06305505
+	ZDUP $-768, Z11.S                  // abffb825
 	RET
