@@ -106,11 +106,11 @@ func testTransportPoolConnHTTP2NoStrictMaxConcurrentRequests(t *testing.T) {
 // and StrictMaxConcurrentRequests = true,
 // a new request waits for a slot on the existing connection.
 func TestTransportPoolConnHTTP2StrictMaxConcurrentRequests(t *testing.T) {
-	t.Skip("skipped until h2_bundle.go includes support for StrictMaxConcurrentRequests")
-
 	synctest.Test(t, func(t *testing.T) {
 		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {
-			srv.HTTP2.MaxConcurrentStreams = 2
+			srv.HTTP2 = &http.HTTP2Config{
+				MaxConcurrentStreams: 2,
+			}
 		}, func(tr *http.Transport) {
 			tr.HTTP2 = &http.HTTP2Config{
 				StrictMaxConcurrentRequests: true,
@@ -329,8 +329,6 @@ func TestTransportPoolClosesConnsPastMaxIdleConnsPerHost(t *testing.T) {
 // MaxIdleConnsPerHost doesn't apply to HTTP/2 connections.
 func TestTransportPoolMaxIdleConnsPerHostHTTP2(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		t.Skip("skipped until h2_bundle.go includes support for MaxConcurrentStreams")
-
 		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {
 			srv.HTTP2 = &http.HTTP2Config{
 				MaxConcurrentStreams: 1,
