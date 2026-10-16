@@ -12,6 +12,7 @@ import (
 	"debug/pe"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
 	"internal/platform"
@@ -1449,8 +1450,23 @@ func TestLargeReloc(t *testing.T) {
 
 	tmpdir := t.TempDir()
 
+	// Also generate a large symbol table (>8MB) to test that
+	// unallocated symbols (such as .machosymstr) don't cause failure.
+	var buf bytes.Buffer
+	buf.WriteString(testLargeRelocSrc)
+	const n = 1000
+	symName := strings.Repeat("a", 1<<14)
+	for i := range n {
+		fmt.Fprintf(&buf, "var sym%d_%s byte = 1\n", i, symName)
+	}
+	fmt.Fprintln(&buf, "var syms = []*byte{")
+	for i := range n {
+		fmt.Fprintf(&buf, "\t&sym%d_%s,\n", i, symName)
+	}
+	fmt.Fprintln(&buf, "}\nfunc init() { check(*syms[0], 1) }")
+
 	src := filepath.Join(tmpdir, "x.go")
-	err := os.WriteFile(src, []byte(testLargeRelocSrc), 0666)
+	err := os.WriteFile(src, buf.Bytes(), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
