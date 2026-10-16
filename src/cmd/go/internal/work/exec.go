@@ -3798,6 +3798,14 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 
 	cfile := objdir + "_cgo_main.c"
 	ofile := objdir + "_cgo_main.o"
+	// _cgo_main.c refers to C functions using declarations without
+	// a prototype, such as "extern void free();". Since C23, which
+	// is the default as of GCC 15, that means a function with no
+	// parameters, and the compiler warns that it conflicts with the
+	// built-in function of the same name. Disable built-in functions
+	// for this file; it is only used to collect the dynamic imports
+	// and is not part of the final binary. See issue 32411.
+	cflags = str.StringList(cflags, "-fno-builtin")
 	if err := b.gcc(a, objdir, ofile, cflags, cfile); err != nil {
 		return "", "", err
 	}
