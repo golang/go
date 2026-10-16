@@ -1,0 +1,9 @@
+# Exercise go list with a test variant that gains an implicit SIMD bridge
+# import. This used to panic while constructing ImportMap (golang.org/issue/79749).
+
+env GOOS=linux
+env GOARCH=amd64
+env CGO_ENABLED=0
+env GOEXPERIMENT=simd
+
+go list -compiled -test simd
