@@ -91,24 +91,12 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 func appendIndent(dst, src []byte, prefix, indent string) ([]byte, error) {
 	// In v2, only spaces and tabs are allowed, while v1 allowed any character.
 	dstLen := len(dst)
-	if len(strings.Trim(prefix, " \t"))+len(strings.Trim(indent, " \t")) > 0 {
+	invalidPrefix, invalidIndent := prefix, indent
+	replaceIndent := len(strings.Trim(prefix, " \t"))+len(strings.Trim(indent, " \t")) > 0
+	if replaceIndent {
 		// Use placeholder spaces of correct length, and replace afterwards.
-		invalidPrefix, invalidIndent := prefix, indent
 		prefix = strings.Repeat(" ", len(prefix))
 		indent = strings.Repeat(" ", len(indent))
-		defer func() {
-			b := dst[dstLen:]
-			for i := bytes.IndexByte(b, '\n'); i >= 0; i = bytes.IndexByte(b, '\n') {
-				b = b[i+len("\n"):]
-				n := len(b) - len(bytes.TrimLeft(b, " ")) // len(prefix)+n*len(indent)
-				spaces := b[:n]
-				spaces = spaces[copy(spaces, invalidPrefix):]
-				for len(spaces) > 0 {
-					spaces = spaces[copy(spaces, invalidIndent):]
-				}
-				b = b[n:]
-			}
-		}()
 	}
 
 	dst, err := jsontext.AppendFormat(dst, src,
@@ -121,6 +109,21 @@ func appendIndent(dst, src []byte, prefix, indent string) ([]byte, error) {
 		jsontext.WithIndent(indent))
 	if err != nil {
 		return dst[:dstLen], transformSyntacticError(err)
+	}
+
+	// Replace the placeholder spaces with the original prefix and indent.
+	if replaceIndent {
+		b := dst[dstLen:]
+		for i := bytes.IndexByte(b, '\n'); i >= 0; i = bytes.IndexByte(b, '\n') {
+			b = b[i+len("\n"):]
+			n := len(b) - len(bytes.TrimLeft(b, " ")) // len(prefix)+n*len(indent)
+			spaces := b[:n]
+			spaces = spaces[copy(spaces, invalidPrefix):]
+			for len(spaces) > 0 {
+				spaces = spaces[copy(spaces, invalidIndent):]
+			}
+			b = b[n:]
+		}
 	}
 
 	// In v2, trailing whitespace is discarded, while v1 preserved it.
