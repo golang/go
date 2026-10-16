@@ -235,6 +235,9 @@ type serverConn struct {
 // newServerConn handles a new connection.
 // The baseCtx parameter is the base context for request handlers on this connection.
 func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http.Handler) {
+	baseCtx, cancel := context.WithCancel(baseCtx)
+	defer cancel()
+
 	sc := &serverConn{
 		qconn:               qconn,
 		srv:                 s,
@@ -599,6 +602,11 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 		contentLength = int64(n)
 	}
 
+	// TODO: Similar to HTTP/2, we probably should also cancel the ctx when the
+	// peer cancels the request stream (STOP_SENDING). This is not yet possible
+	// with the current API of the quic package.
+	ctx, cancel := context.WithCancel(sc.baseCtx)
+	defer cancel()
 	req := (&http.Request{
 		Proto:         "HTTP/3.0",
 		Method:        pHeader.method,
@@ -611,7 +619,7 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 		Header:        header,
 		ContentLength: contentLength,
 		TLS:           sc.tlsState,
-	}).WithContext(sc.baseCtx)
+	}).WithContext(ctx)
 
 	rw := sc.newResponseWriter(st, req.Method != "HEAD")
 

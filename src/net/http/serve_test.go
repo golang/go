@@ -5252,7 +5252,7 @@ func TestServerValidatesHeaders(t *testing.T) {
 }
 
 func TestServerRequestContextCancel_ServeHTTPDone(t *testing.T) {
-	runSynctest(t, testServerRequestContextCancel_ServeHTTPDone, http3SkippedMode)
+	runSynctest(t, testServerRequestContextCancel_ServeHTTPDone)
 }
 func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, mode testMode) {
 	ctxc := make(chan context.Context, 1)
@@ -5279,11 +5279,10 @@ func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, mode testMode) {
 }
 
 // Tests that the Request.Context available to the Handler is canceled
-// if the peer closes their TCP connection. This requires that the server
-// is always blocked in a Read call so it notices the EOF from the client.
+// if the peer closes their connection.
 // See issues 15927 and 15224.
 func TestServerRequestContextCancel_ConnClose(t *testing.T) {
-	runSynctest(t, testServerRequestContextCancel_ConnClose, []testMode{http1Mode})
+	runSynctest(t, testServerRequestContextCancel_ConnClose)
 }
 func testServerRequestContextCancel_ConnClose(t *testing.T, mode testMode) {
 	inHandler := make(chan struct{})
@@ -5293,11 +5292,24 @@ func testServerRequestContextCancel_ConnClose(t *testing.T, mode testMode) {
 		<-r.Context().Done()
 		close(handlerDone)
 	}))
-	c, _ := cst.dialNettest()
-	defer c.Close()
-	io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
+	cc, err := cst.tr.NewClientConn(t.Context(), mode.Scheme(), "example.tld:80")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cc.Close()
+
+	req, err := NewRequest("GET", cst.ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		cc.RoundTrip(req)
+	})
+	defer wg.Wait()
+
 	<-inHandler
-	c.Close() // this should trigger the context being done
+	cc.Close() // this should trigger the context being done
 	<-handlerDone
 }
 
