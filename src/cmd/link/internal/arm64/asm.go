@@ -1326,8 +1326,8 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 			// We don't target the middle of a function.
 			continue
 		}
-		if t >= sym.SDWARFSECT {
-			continue // no need to add label for DWARF symbols
+		if t >= sym.SFirstUnallocated {
+			continue // no need to add label for unallocated symbols
 		}
 		if ldr.AttrSpecial(s) || !ldr.TopLevelSym(s) {
 			// no need to add label for special symbols and non-top-level symbols
