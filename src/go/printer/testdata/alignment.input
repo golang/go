@@ -184,3 +184,15 @@ var _ = []any{
 	(expr_size_38_xxxxxxxxxxxxxxxxxxxx)(0), // 1
 	(*expr_size_126_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)(nil), // 2
 }
+
+// Quoted key sizes 14,7,12,31,34 then 41. Go 1.26 keeps one aligned
+// column (41/geomean ≈ 2.478 < 2.5). The log₂ approximation must not
+// cross the 2.5 threshold the other way.
+var m = map[string]int{
+	"execution_id":                            1,
+	"topic":                                   2,
+	"partitions":                              3,
+	"kafka_broker_version_inferred":           4,
+	"kafka_reassignment_api_supported":        5,
+	"kafka_reassignment_api_required_version": 6,
+}
