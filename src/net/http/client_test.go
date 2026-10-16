@@ -938,7 +938,7 @@ func TestClientErrorWithRequestURI(t *testing.T) {
 }
 
 func TestClientWithCorrectTLSServerName(t *testing.T) {
-	runSynctest(t, testClientWithCorrectTLSServerName, []testMode{https1Mode, http2Mode})
+	runSynctest(t, testClientWithCorrectTLSServerName, []testMode{https1Mode, http2Mode, http3Mode})
 }
 func testClientWithCorrectTLSServerName(t *testing.T, mode testMode) {
 	const serverName = "example.com"
@@ -1501,7 +1501,7 @@ func TestClientRedirectResponseWithoutRequest(t *testing.T) {
 // but different ports, sensitive headers like Cookie and Authorization
 // are preserved.
 func TestClientCopyHeadersOnRedirect(t *testing.T) {
-	runSynctest(t, testClientCopyHeadersOnRedirect, http3SkippedMode)
+	runSynctest(t, testClientCopyHeadersOnRedirect)
 }
 func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 	const (
@@ -1574,7 +1574,7 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 // Issue #70530: Once we strip a header on a redirect to a different host,
 // the header should stay stripped across any further redirects.
 func TestClientStripHeadersOnRepeatedRedirect(t *testing.T) {
-	runSynctest(t, testClientStripHeadersOnRepeatedRedirect, http3SkippedMode)
+	runSynctest(t, testClientStripHeadersOnRepeatedRedirect)
 }
 func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
 	var proto string
@@ -1604,15 +1604,11 @@ func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
 	})).ts
 	proto, _, _ = strings.Cut(ts.URL, ":")
 
-	c := ts.Client()
-	c.Transport.(*Transport).Dial = func(_ string, _ string) (net.Conn, error) {
-		return net.Dial("tcp", ts.Listener.Addr().String())
-	}
-
 	req, _ := NewRequest("GET", proto+"://a.example.com/", nil)
 	req.Header.Add("Cookie", "foo=bar")
 	req.Header.Add("Authorization", "secretpassword")
 	req.Header.Add("Proxy-Authorization", "secretpassword")
+	c := ts.Client()
 	res, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)

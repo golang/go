@@ -2733,7 +2733,7 @@ func runCancelTest(t *testing.T, f func(t *testing.T, test cancelTest), opts ...
 }
 
 func TestTransportCancelRequest(t *testing.T) {
-	runCancelTest(t, testTransportCancelRequest, http3SkippedMode)
+	runCancelTest(t, testTransportCancelRequest)
 }
 func testTransportCancelRequest(t *testing.T, test cancelTest) {
 	const msg = "Hello"
@@ -2749,6 +2749,7 @@ func testTransportCancelRequest(t *testing.T, test cancelTest) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer conn.Close()
 
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
 	req = test.newReq(req)
@@ -2871,7 +2872,7 @@ Get error = true
 
 // Issue 51354
 func TestTransportCancelRequestWithBody(t *testing.T) {
-	runCancelTest(t, testTransportCancelRequestWithBody, http3SkippedMode)
+	runCancelTest(t, testTransportCancelRequestWithBody)
 }
 func testTransportCancelRequestWithBody(t *testing.T, test cancelTest) {
 	const msg = "Hello"
@@ -2887,6 +2888,7 @@ func testTransportCancelRequestWithBody(t *testing.T, test cancelTest) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer conn.Close()
 
 	req, _ := NewRequest("POST", cst.ts.URL, strings.NewReader("withbody"))
 	req = test.newReq(req)
