@@ -16,6 +16,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"go/version"
 	"internal/buildcfg"
 	"io"
 	"maps"
@@ -269,6 +270,7 @@ var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for
 var srcDir = flag.String("srcdir", "", "source directory")
 var objDir = flag.String("objdir", "", "object directory")
 var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
+var lang = flag.String("lang", "", "Go language version for generated code")
 var exportHeader = flag.String("exportheader", "", "where to write export header if any exported functions")
 
 var ldflags = flag.String("ldflags", "", "flags to pass to C linker")
@@ -291,6 +293,9 @@ func main() {
 	objabi.Flagparse(usage)
 	counter.Inc("cgo/invocations")
 	counter.CountFlags("cgo/flag:", *flag.CommandLine)
+	if *lang != "" && !version.IsValid(*lang) {
+		fatalf("invalid -lang value %q", *lang)
+	}
 
 	if *gccgoDefineCgoIncomplete {
 		if !*gccgo {

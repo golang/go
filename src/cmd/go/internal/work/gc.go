@@ -56,6 +56,21 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
+func effectiveGoVersion(p *load.Package) string {
+	vers := gover.Local()
+	if p.Module != nil {
+		vers = p.Module.GoVersion
+		if vers == "" {
+			vers = gover.DefaultGoModVersion
+		}
+		// TODO(samthanawalla): Investigate when allowedVersion is not true.
+		if !allowedVersion(vers) {
+			vers = gover.Local()
+		}
+	}
+	return vers
+}
+
 func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, compile *shellCmd, err error) {
 	p := a.Package
 	sh := b.Shell(a)
@@ -76,17 +91,7 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 
 	pkgpath := pkgPath(a)
 	defaultGcFlags := []string{"-p", pkgpath}
-	vers := gover.Local()
-	if p.Module != nil {
-		v := p.Module.GoVersion
-		if v == "" {
-			v = gover.DefaultGoModVersion
-		}
-		// TODO(samthanawalla): Investigate when allowedVersion is not true.
-		if allowedVersion(v) {
-			vers = v
-		}
-	}
+	vers := effectiveGoVersion(p)
 	defaultGcFlags = append(defaultGcFlags, "-lang=go"+gover.Lang(vers))
 	if p.Standard {
 		defaultGcFlags = append(defaultGcFlags, "-std")
