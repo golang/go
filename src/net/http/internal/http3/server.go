@@ -212,10 +212,11 @@ func (s *server) idleTimeout() time.Duration {
 }
 
 type serverConn struct {
-	qconn   *quic.Conn
-	srv     *server
-	baseCtx context.Context
-	handler http.Handler
+	qconn    *quic.Conn
+	srv      *server
+	baseCtx  context.Context
+	handler  http.Handler
+	tlsState *tls.ConnectionState
 
 	genericConn // for handleUnidirectionalStream
 	enc         qpackEncoder
@@ -239,6 +240,7 @@ func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http
 		srv:                 s,
 		baseCtx:             baseCtx,
 		handler:             h,
+		tlsState:            new(qconn.ConnectionState()),
 		maxHeaderBytes:      int64(s.srv1.MaxHeaderBytes),
 		maxHeaderValueCount: int64(s.srv1.MaxHeaderValueCount),
 	}
@@ -608,6 +610,7 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 		RemoteAddr:    sc.qconn.RemoteAddr().String(),
 		Header:        header,
 		ContentLength: contentLength,
+		TLS:           sc.tlsState,
 	}).WithContext(sc.baseCtx)
 
 	rw := sc.newResponseWriter(st, req.Method != "HEAD")

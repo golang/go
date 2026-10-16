@@ -72,6 +72,12 @@ func TestServerCancelPushForUnsentPromise(t *testing.T) {
 func TestServerHeader(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ts := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.TLS == nil {
+				t.Error("Request.TLS = nil, want non-nil")
+			}
+			if !r.TLS.HandshakeComplete {
+				t.Error("Request.TLS.HandshakeComplete = false, want true")
+			}
 			header := w.Header()
 			for key, values := range r.Header {
 				for _, value := range values {
