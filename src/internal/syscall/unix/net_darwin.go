@@ -137,11 +137,11 @@ func ResNinit(state *ResState) error {
 	return nil
 }
 
-//go:cgo_import_dynamic libresolv_res_9_nclose res_9_nclose "/usr/lib/libresolv.9.dylib"
-func libresolv_res_9_nclose_trampoline()
+//go:cgo_import_dynamic libresolv_res_9_ndestroy res_9_ndestroy "/usr/lib/libresolv.9.dylib"
+func libresolv_res_9_ndestroy_trampoline()
 
-func ResNclose(state *ResState) {
-	syscall_syscall(abi.FuncPCABI0(libresolv_res_9_nclose_trampoline),
+func ResNdestroy(state *ResState) {
+	syscall_syscall(abi.FuncPCABI0(libresolv_res_9_ndestroy_trampoline),
 		uintptr(unsafe.Pointer(state)),
 		0, 0)
 }
