@@ -471,6 +471,7 @@ some body`,
 			ProtoMinor: 1,
 			Request:    dummyReq("GET"),
 			Header: Header{
+				"Connection":   {"close"},
 				"Content-Type": []string{"multipart/byteranges; boundary=18a75608c8f47cef"},
 			},
 			Close:         true,
@@ -557,8 +558,8 @@ some body`,
 			"\r\n",
 
 		"HTTP/1.1 200 OK\r\n" +
-			"Connection: close\r\n" +
 			"Content-Length: 256\r\n" +
+			"Connection: keep-alive, close\r\n" +
 			"\r\n",
 
 		Response{
@@ -569,6 +570,7 @@ some body`,
 			ProtoMinor: 1,
 			Request:    dummyReq("HEAD"),
 			Header: Header{
+				"Connection":     {"keep-alive, close"},
 				"Content-Length": {"256"},
 			},
 			TransferEncoding: nil,
@@ -590,8 +592,9 @@ some body`,
 			"\r\n",
 
 		"HTTP/1.1 200 OK\r\n" +
-			"Connection: close\r\n" +
 			"Content-Length: 256\r\n" +
+			"Connection: keep-alive\r\n" +
+			"Connection: close\r\n" +
 			"\r\n",
 
 		Response{
@@ -602,6 +605,7 @@ some body`,
 			ProtoMinor: 1,
 			Request:    dummyReq("HEAD"),
 			Header: Header{
+				"Connection":     {"keep-alive", "close"},
 				"Content-Length": {"256"},
 			},
 			TransferEncoding: nil,
