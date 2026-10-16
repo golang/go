@@ -16,10 +16,12 @@ import (
 	"cmd/internal/obj"
 )
 
+type slotSet = abt.T[*liveSlot]
+
 type BlockDebug struct {
 	// State at the start and end of the block. These are initialized,
 	// and updated from new information that flows on back edges.
-	startState, endState abt.T
+	startState, endState slotSet
 	// Use these to avoid excess work in the merge. If none of the
 	// predecessors has changed since the last check, the old answer is
 	// still good.
@@ -200,15 +202,14 @@ func (s StackOffset) stackOffsetValue() int32 {
 }
 
 // reset fills state with the live variables from live.
-func (state *StateAtPC) reset(live abt.T) {
+func (state *StateAtPC) reset(live slotSet) {
 	slots, registers := state.slots, state.registers
 	clear(slots)
 	for i := range registers {
 		registers[i] = registers[i][:0]
 	}
 	for it := live.Iterator(); !it.Done(); {
-		k, d := it.Next()
-		live := d.(*liveSlot)
+		k, live := it.Next()
 		slots[k] = live.VarLoc
 		if live.VarLoc.Registers.Empty() {
 			continue
@@ -465,7 +466,7 @@ func (state *DebugState) Liveness() []*BlockDebug {
 							continue
 						}
 						old := startState.Find(int32(slotID)) // do NOT replace existing values
-						if oldLS, ok := old.(*liveSlot); !ok || oldLS.VarLoc != slotLoc {
+						if old == nil || old.VarLoc != slotLoc {
 							startState.Insert(int32(slotID),
 								&liveSlot{VarLoc: slotLoc})
 						}
@@ -514,7 +515,7 @@ func (state *DebugState) Liveness() []*BlockDebug {
 // one is a small delta from the other.  Doing this does require a
 // little care in how sets are updated, both in mergePredecessors, and
 // using its result.
-func (state *DebugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, previousBlock *Block, forLocationLists bool) (abt.T, bool) {
+func (state *DebugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, previousBlock *Block, forLocationLists bool) (slotSet, bool) {
 	// Filter out back branches.
 	var predsBuf [10]*Block
 
@@ -545,7 +546,7 @@ func (state *DebugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 
 	state.changedVars.Clear()
 
-	markChangedVars := func(slots, merged abt.T) {
+	markChangedVars := func(slots, merged slotSet) {
 		if !forLocationLists {
 			return
 		}
@@ -555,13 +556,13 @@ func (state *DebugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 		for it := slots.Iterator(); !it.Done(); {
 			k, v := it.Next()
 			m := merged.Find(k)
-			if m == nil || v.(*liveSlot).VarLoc != m.(*liveSlot).VarLoc {
+			if m == nil || v.VarLoc != m.VarLoc {
 				state.changedVars.Add(ID(state.SlotVars[k]))
 			}
 		}
 	}
 
-	reset := func(ourStartState abt.T) {
+	reset := func(ourStartState slotSet) {
 		if !(forLocationLists || blockChanged) {
 			// there is no change and this is not for location lists, do
 			// not bother to reset currentState because it will not be
@@ -577,8 +578,8 @@ func (state *DebugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 			state.F.Fatalf("Function %v, block %s with no predecessors is not first block, has previous %s", state.F, b.String(), previousBlock.String())
 		}
 		// startState is empty
-		reset(abt.T{})
-		return abt.T{}, blockChanged
+		reset(slotSet{})
+		return slotSet{}, blockChanged
 	}
 
 	// One predecessor
@@ -653,7 +654,7 @@ func (state *DebugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 		}
 	}
 
-	state.currentState.reset(abt.T{})
+	state.currentState.reset(slotSet{})
 	// The normal logic of "reset" is included in the intersection loop below.
 
 	slotLocs := state.currentState.slots
@@ -668,8 +669,7 @@ func (state *DebugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 	}
 
 	for it := newState.Iterator(); !it.Done(); {
-		k, d := it.Next()
-		thisSlot := d.(*liveSlot)
+		k, thisSlot := it.Next()
 		x := thisSlot.VarLoc
 		x0 := x // initial value in newState
 
@@ -683,7 +683,7 @@ func (state *DebugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 				x = VarLoc{}
 				break
 			}
-			y := otherSlot.(*liveSlot).VarLoc
+			y := otherSlot.VarLoc
 			x = x.intersect(y)
 			if x.absent() {
 				x = VarLoc{}

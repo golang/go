@@ -10,12 +10,12 @@ import (
 	"testing"
 )
 
-func makeTree(te *testing.T, x []int32, check bool) (t *T, k int, min, max int32) {
-	t = &T{}
+func makeTree(te *testing.T, x []int32, check bool) (t *T[*sstring], k int, min, max int32) {
+	t = &T[*sstring]{}
 	k = 0
 	min = int32(0x7fffffff)
 	max = int32(-0x80000000)
-	history := []*T{}
+	history := []*T[*sstring]{}
 
 	for _, d := range x {
 		d = d + d // double everything for Glb/Lub testing.
@@ -161,7 +161,7 @@ func applicBounds(te *testing.T, x []int32) {
 func applicDeleteMin(te *testing.T, x []int32) {
 	t, _, _, _ := makeTree(te, x, false)
 	_, size := t.wellFormed()
-	history := []*T{}
+	history := []*T[*sstring]{}
 	for !t.IsEmpty() {
 		k, _ := t.Min()
 		history = append(history, t.Copy())
@@ -200,7 +200,7 @@ func applicDeleteMin(te *testing.T, x []int32) {
 func applicDeleteMax(te *testing.T, x []int32) {
 	t, _, _, _ := makeTree(te, x, false)
 	_, size := t.wellFormed()
-	history := []*T{}
+	history := []*T[*sstring]{}
 
 	for !t.IsEmpty() {
 		k, _ := t.Max()
@@ -242,7 +242,7 @@ func applicDeleteMax(te *testing.T, x []int32) {
 func applicDelete(te *testing.T, x []int32) {
 	t, _, _, _ := makeTree(te, x, false)
 	_, size := t.wellFormed()
-	history := []*T{}
+	history := []*T[*sstring]{}
 
 	missing := t.Delete(11)
 	if missing != nil {
@@ -278,7 +278,7 @@ func applicDelete(te *testing.T, x []int32) {
 			}
 		}
 
-		if v.(*sstring).s != vWant {
+		if v.s != vWant {
 			te.Errorf("Deleted %v expected %v but got %v", d, vWant, v)
 			return
 		}
@@ -317,9 +317,8 @@ func applicIterator(te *testing.T, x []int32) {
 	}
 }
 
-func equiv(a, b any) bool {
-	sa, sb := a.(*sstring), b.(*sstring)
-	return *sa == *sb
+func equiv(a, b *sstring) bool {
+	return *a == *b
 }
 
 func applicEquals(te *testing.T, x, y []int32) {
@@ -352,16 +351,16 @@ func applicEquals(te *testing.T, x, y []int32) {
 
 }
 
-func tree(x []int32) *T {
-	t := &T{}
+func tree(x []int32) *T[*sstring] {
+	t := &T[*sstring]{}
 	for _, d := range x {
 		t.Insert(d, stringer(fmt.Sprintf("%v", d)))
 	}
 	return t
 }
 
-func treePlus1(x []int32) *T {
-	t := &T{}
+func treePlus1(x []int32) *T[*sstring] {
+	t := &T[*sstring]{}
 	for _, d := range x {
 		t.Insert(d, stringer(fmt.Sprintf("%v", d+1)))
 	}
@@ -450,16 +449,16 @@ func TestEquals(t *testing.T) {
 		[]int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
 }
 
-func first(x, y any) any {
+func first(x, y *sstring) *sstring {
 	return x
 }
-func second(x, y any) any {
+func second(x, y *sstring) *sstring {
 	return y
 }
-func alwaysNil(x, y any) any {
+func alwaysNil(x, y *sstring) *sstring {
 	return nil
 }
-func smaller(x, y any) any {
+func smaller(x, y *sstring) *sstring {
 	xi, _ := strconv.Atoi(fmt.Sprint(x))
 	yi, _ := strconv.Atoi(fmt.Sprint(y))
 	if xi < yi {
@@ -467,7 +466,7 @@ func smaller(x, y any) any {
 	}
 	return y
 }
-func assert(t *testing.T, expected, got *T, what string) {
+func assert(t *testing.T, expected, got *T[*sstring], what string) {
 	s, _ := got.wellFormed()
 	if s != "" {
 		t.Errorf("Tree consistency problem %v for 'got' in assert for %s, tree=\n%v", s, what, got.DebugString())
@@ -560,7 +559,7 @@ func (s *sstring) String() string {
 	return s.s
 }
 
-func stringer(s string) any {
+func stringer(s string) *sstring {
 	return &sstring{s}
 }
 
@@ -570,7 +569,7 @@ func stringer(s string) any {
 // then the returned string is empty. The size is also
 // returned to allow comparison of calculated tree size
 // with expected.
-func (t *T) wellFormed() (s string, i int) {
+func (t *T[D]) wellFormed() (s string, i int) {
 	if t.root == nil {
 		s = ""
 		i = 0
@@ -585,7 +584,7 @@ func (t *T) wellFormed() (s string, i int) {
 // then the returned string is empty. The size is also
 // returned to allow comparison of calculated tree size
 // with expected.
-func (t *node32) wellFormedSubtree(parent *node32, keyMin, keyMax int32) (s string, i int) {
+func (t *node32[D]) wellFormedSubtree(parent *node32[D], keyMin, keyMax int32) (s string, i int) {
 	i = -1 // initialize to a failing value
 	s = "" // s is the reason for failure; empty means okay.
 
@@ -675,7 +674,7 @@ func (t *node32) wellFormedSubtree(parent *node32, keyMin, keyMax int32) (s stri
 	return
 }
 
-func (t *T) DebugString() string {
+func (t *T[D]) DebugString() string {
 	if t.root == nil {
 		return ""
 	}
@@ -684,7 +683,7 @@ func (t *T) DebugString() string {
 
 // DebugString prints the tree with nested information
 // to allow an eyeball check on the tree balance.
-func (t *node32) DebugString(indent int) string {
+func (t *node32[D]) DebugString(indent int) string {
 	s := ""
 	if t.left != nil {
 		s = s + t.left.DebugString(indent+1)

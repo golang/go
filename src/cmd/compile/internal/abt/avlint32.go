@@ -19,54 +19,53 @@ const (
 // T is the exported applicative balanced tree data type.
 // A T can be used as a value; updates to one copy of the value
 // do not change other copies.
-type T struct {
-	root *node32
+type T[D comparable] struct {
+	root *node32[D]
 	size int
 }
 
 // node32 is the internal tree node data type
-type node32 struct {
+type node32[D comparable] struct {
 	// Standard conventions hold for left = smaller, right = larger
-	left, right *node32
-	data        any
+	left, right *node32[D]
+	data        D
 	key         int32
 	height_     int8
 }
 
-func makeNode(key int32) *node32 {
-	return &node32{key: key, height_: LEAF_HEIGHT}
+func makeNode[D comparable](key int32) *node32[D] {
+	return &node32[D]{key: key, height_: LEAF_HEIGHT}
 }
 
 // IsEmpty returns true iff t is empty.
-func (t *T) IsEmpty() bool {
+func (t *T[D]) IsEmpty() bool {
 	return t.root == nil
 }
 
 // IsSingle returns true iff t is a singleton (leaf).
-func (t *T) IsSingle() bool {
+func (t *T[D]) IsSingle() bool {
 	return t.root != nil && t.root.isLeaf()
 }
 
 // VisitInOrder applies f to the key and data pairs in t,
 // with keys ordered from smallest to largest.
-func (t *T) VisitInOrder(f func(int32, any)) {
+func (t *T[D]) VisitInOrder(f func(int32, D)) {
 	if t.root == nil {
 		return
 	}
 	t.root.visitInOrder(f)
 }
 
-func (n *node32) nilOrData() any {
-	if n == nil {
-		return nil
+func (n *node32[D]) nilOrData() (d D) {
+	if n != nil {
+		d = n.data
 	}
-	return n.data
+	return
 }
 
-func (n *node32) nilOrKeyAndData() (k int32, d any) {
+func (n *node32[D]) nilOrKeyAndData() (k int32, d D) {
 	if n == nil {
 		k = NOT_KEY32
-		d = nil
 	} else {
 		k = n.key
 		d = n.data
@@ -74,7 +73,7 @@ func (n *node32) nilOrKeyAndData() (k int32, d any) {
 	return
 }
 
-func (n *node32) height() int8 {
+func (n *node32[D]) height() int8 {
 	if n == nil {
 		return 0
 	}
@@ -82,30 +81,30 @@ func (n *node32) height() int8 {
 }
 
 // Find returns the data associated with x in the tree, or
-// nil if x is not in the tree.
-func (t *T) Find(x int32) any {
+// the zero value of D if x is not in the tree.
+func (t *T[D]) Find(x int32) D {
 	return t.root.find(x).nilOrData()
 }
 
 // Insert either adds x to the tree if x was not previously
 // a key in the tree, or updates the data for x in the tree if
 // x was already a key in the tree.  The previous data associated
-// with x is returned, and is nil if x was not previously a
+// with x is returned, and is the zero value of D if x was not previously a
 // key in the tree.
-func (t *T) Insert(x int32, data any) any {
+func (t *T[D]) Insert(x int32, data D) D {
 	if x == NOT_KEY32 {
 		panic("Cannot use sentinel value -0x80000000 as key")
 	}
 	n := t.root
-	var newroot *node32
-	var o *node32
+	var newroot *node32[D]
+	var o *node32[D]
 	if n == nil {
-		n = makeNode(x)
+		n = makeNode[D](x)
 		newroot = n
 	} else {
 		newroot, n, o = n.aInsert(x)
 	}
-	var r any
+	var r D
 	if o != nil {
 		r = o.data
 	} else {
@@ -116,66 +115,68 @@ func (t *T) Insert(x int32, data any) any {
 	return r
 }
 
-func (t *T) Copy() *T {
+func (t *T[D]) Copy() *T[D] {
 	u := *t
 	return &u
 }
 
-func (t *T) Delete(x int32) any {
+func (t *T[D]) Delete(x int32) (r D) {
 	n := t.root
 	if n == nil {
-		return nil
+		return
 	}
 	d, s := n.aDelete(x)
 	if d == nil {
-		return nil
+		return
 	}
 	t.root = s
 	t.size--
 	return d.data
 }
 
-func (t *T) DeleteMin() (int32, any) {
+func (t *T[D]) DeleteMin() (k int32, r D) {
 	n := t.root
 	if n == nil {
-		return NOT_KEY32, nil
+		return NOT_KEY32, r
 	}
 	d, s := n.aDeleteMin()
 	if d == nil {
-		return NOT_KEY32, nil
+		return NOT_KEY32, r
 	}
 	t.root = s
 	t.size--
 	return d.key, d.data
 }
 
-func (t *T) DeleteMax() (int32, any) {
+func (t *T[D]) DeleteMax() (k int32, r D) {
 	n := t.root
 	if n == nil {
-		return NOT_KEY32, nil
+		return NOT_KEY32, r
 	}
 	d, s := n.aDeleteMax()
 	if d == nil {
-		return NOT_KEY32, nil
+		return NOT_KEY32, r
 	}
 	t.root = s
 	t.size--
 	return d.key, d.data
 }
 
-func (t *T) Size() int {
+func (t *T[D]) Size() int {
 	return t.size
 }
 
 // Intersection returns the intersection of t and u, where the result
 // data for any common keys is given by f(t's data, u's data) -- f need
-// not be symmetric.  If f returns nil, then the key and data are not
+// not be symmetric.  If f returns the zero value of D, then the key and data are not
 // added to the result.  If f itself is nil, then whatever value was
 // already present in the smaller set is used.
-func (t *T) Intersection(u *T, f func(x, y any) any) *T {
+func (t *T[D]) Intersection(u *T[D], f func(x, y D) D) *T[D] {
 	if t.Size() == 0 || u.Size() == 0 {
-		return &T{}
+		return &T[D]{}
 	}
+
+	var zero D
 
 	// For faster execution and less allocation, prefer t smaller, iterate over t.
 	if t.Size() <= u.Size() {
@@ -183,7 +184,7 @@ func (t *T) Intersection(u *T, f func(x, y any) any) *T {
 		for it := t.Iterator(); !it.Done(); {
 			k, d := it.Next()
 			e := u.Find(k)
-			if e == nil {
+			if e == zero {
 				v.Delete(k)
 				continue
 			}
@@ -191,7 +192,7 @@ func (t *T) Intersection(u *T, f func(x, y any) any) *T {
 				continue
 			}
 			if c := f(d, e); c != d {
-				if c == nil {
+				if c == zero {
 					v.Delete(k)
 				} else {
 					v.Insert(k, c)
@@ -204,7 +205,7 @@ func (t *T) Intersection(u *T, f func(x, y any) any) *T {
 	for it := u.Iterator(); !it.Done(); {
 		k, e := it.Next()
 		d := t.Find(k)
-		if d == nil {
+		if d == zero {
 			v.Delete(k)
 			continue
 		}
@@ -212,7 +213,7 @@ func (t *T) Intersection(u *T, f func(x, y any) any) *T {
 			continue
 		}
 		if c := f(d, e); c != d {
-			if c == nil {
+			if c == zero {
 				v.Delete(k)
 			} else {
 				v.Insert(k, c)
@@ -224,10 +225,10 @@ func (t *T) Intersection(u *T, f func(x, y any) any) *T {
 }
 
 // Union returns the union of t and u, where the result data for any common keys
-// is given by f(t's data, u's data) -- f need not be symmetric.  If f returns nil,
+// is given by f(t's data, u's data) -- f need not be symmetric.  If f returns the zero value of D,
 // then the key and data are not added to the result.  If f itself is nil, then
 // whatever value was already present in the larger set is used.
-func (t *T) Union(u *T, f func(x, y any) any) *T {
+func (t *T[D]) Union(u *T[D], f func(x, y D) D) *T[D] {
 	if t.Size() == 0 {
 		return u
 	}
@@ -235,12 +236,14 @@ func (t *T) Union(u *T, f func(x, y any) any) *T {
 		return t
 	}
 
+	var zero D
+
 	if t.Size() >= u.Size() {
 		v := t.Copy()
 		for it := u.Iterator(); !it.Done(); {
 			k, e := it.Next()
 			d := t.Find(k)
-			if d == nil {
+			if d == zero {
 				v.Insert(k, e)
 				continue
 			}
@@ -248,7 +251,7 @@ func (t *T) Union(u *T, f func(x, y any) any) *T {
 				continue
 			}
 			if c := f(d, e); c != d {
-				if c == nil {
+				if c == zero {
 					v.Delete(k)
 				} else {
 					v.Insert(k, c)
@@ -262,7 +265,7 @@ func (t *T) Union(u *T, f func(x, y any) any) *T {
 	for it := t.Iterator(); !it.Done(); {
 		k, d := it.Next()
 		e := u.Find(k)
-		if e == nil {
+		if e == zero {
 			v.Insert(k, d)
 			continue
 		}
@@ -270,7 +273,7 @@ func (t *T) Union(u *T, f func(x, y any) any) *T {
 			continue
 		}
 		if c := f(d, e); c != d {
-			if c == nil {
+			if c == zero {
 				v.Delete(k)
 			} else {
 				v.Insert(k, c)
@@ -281,27 +284,28 @@ func (t *T) Union(u *T, f func(x, y any) any) *T {
 }
 
 // Difference returns the difference of t and u, subject to the result
-// of f applied to data corresponding to equal keys.  If f returns nil
+// of f applied to data corresponding to equal keys.  If f returns the zero value of D
 // (or if f is nil) then the key+data are excluded, as usual.  If f
-// returns not-nil, then that key+data pair is inserted. instead.
-func (t *T) Difference(u *T, f func(x, y any) any) *T {
+// returns not-zero, then that key+data pair is inserted. instead.
+func (t *T[D]) Difference(u *T[D], f func(x, y D) D) *T[D] {
 	if t.Size() == 0 {
-		return &T{}
+		return &T[D]{}
 	}
 	if u.Size() == 0 {
 		return t
 	}
+	var zero D
 	v := t.Copy()
 	for it := t.Iterator(); !it.Done(); {
 		k, d := it.Next()
 		e := u.Find(k)
-		if e != nil {
+		if e != zero {
 			if f == nil {
 				v.Delete(k)
 				continue
 			}
 			c := f(d, e)
-			if c == nil {
+			if c == zero {
 				v.Delete(k)
 				continue
 			}
@@ -313,11 +317,11 @@ func (t *T) Difference(u *T, f func(x, y any) any) *T {
 	return v
 }
 
-func (t *T) Iterator() Iterator {
-	return Iterator{it: t.root.iterator()}
+func (t *T[D]) Iterator() Iterator[D] {
+	return Iterator[D]{it: t.root.iterator()}
 }
 
-func (t *T) Equals(u *T) bool {
+func (t *T[D]) Equals(u *T[D]) bool {
 	if t == u {
 		return true
 	}
@@ -327,7 +331,7 @@ func (t *T) Equals(u *T) bool {
 	return t.root.equals(u.root)
 }
 
-func (t *T) String() string {
+func (t *T[D]) String() string {
 	var b strings.Builder
 	first := true
 	for it := t.Iterator(); !it.Done(); {
@@ -344,7 +348,7 @@ func (t *T) String() string {
 	return b.String()
 }
 
-func (t *node32) equals(u *node32) bool {
+func (t *node32[D]) equals(u *node32[D]) bool {
 	if t == u {
 		return true
 	}
@@ -365,7 +369,7 @@ func (t *node32) equals(u *node32) bool {
 	return it.done() == iu.done()
 }
 
-func (t *T) Equiv(u *T, eqv func(x, y any) bool) bool {
+func (t *T[D]) Equiv(u *T[D], eqv func(x, y D) bool) bool {
 	if t == u {
 		return true
 	}
@@ -375,7 +379,7 @@ func (t *T) Equiv(u *T, eqv func(x, y any) bool) bool {
 	return t.root.equiv(u.root, eqv)
 }
 
-func (t *node32) equiv(u *node32, eqv func(x, y any) bool) bool {
+func (t *node32[D]) equiv(u *node32[D], eqv func(x, y D) bool) bool {
 	if t == u {
 		return true
 	}
@@ -396,47 +400,47 @@ func (t *node32) equiv(u *node32, eqv func(x, y any) bool) bool {
 	return it.done() == iu.done()
 }
 
-type iterator struct {
-	parents []*node32
+type iterator[D comparable] struct {
+	parents []*node32[D]
 }
 
-type Iterator struct {
-	it iterator
+type Iterator[D comparable] struct {
+	it iterator[D]
 }
 
-func (it *Iterator) Next() (int32, any) {
+func (it *Iterator[D]) Next() (k int32, d D) {
 	x := it.it.next()
 	if x == nil {
-		return NOT_KEY32, nil
+		return NOT_KEY32, d
 	}
 	return x.key, x.data
 }
 
-func (it *Iterator) Done() bool {
+func (it *Iterator[D]) Done() bool {
 	return len(it.it.parents) == 0
 }
 
-func (t *node32) iterator() iterator {
+func (t *node32[D]) iterator() iterator[D] {
 	if t == nil {
-		return iterator{}
+		return iterator[D]{}
 	}
-	it := iterator{parents: make([]*node32, 0, int(t.height()))}
+	it := iterator[D]{parents: make([]*node32[D], 0, int(t.height()))}
 	it.leftmost(t)
 	return it
 }
 
-func (it *iterator) leftmost(t *node32) {
+func (it *iterator[D]) leftmost(t *node32[D]) {
 	for t != nil {
 		it.parents = append(it.parents, t)
 		t = t.left
 	}
 }
 
-func (it *iterator) done() bool {
+func (it *iterator[D]) done() bool {
 	return len(it.parents) == 0
 }
 
-func (it *iterator) next() *node32 {
+func (it *iterator[D]) next() *node32[D] {
 	l := len(it.parents)
 	if l == 0 {
 		return nil
@@ -460,46 +464,46 @@ func (it *iterator) next() *node32 {
 }
 
 // Min returns the minimum element of t.
-// If t is empty, then (NOT_KEY32, nil) is returned.
-func (t *T) Min() (k int32, d any) {
+// If t is empty, then (NOT_KEY32, zero) is returned.
+func (t *T[D]) Min() (k int32, d D) {
 	return t.root.min().nilOrKeyAndData()
 }
 
 // Max returns the maximum element of t.
-// If t is empty, then (NOT_KEY32, nil) is returned.
-func (t *T) Max() (k int32, d any) {
+// If t is empty, then (NOT_KEY32, zero) is returned.
+func (t *T[D]) Max() (k int32, d D) {
 	return t.root.max().nilOrKeyAndData()
 }
 
 // Glb returns the greatest-lower-bound-exclusive of x and the associated
-// data.  If x has no glb in the tree, then (NOT_KEY32, nil) is returned.
-func (t *T) Glb(x int32) (k int32, d any) {
+// data.  If x has no glb in the tree, then (NOT_KEY32, zero) is returned.
+func (t *T[D]) Glb(x int32) (k int32, d D) {
 	return t.root.glb(x, false).nilOrKeyAndData()
 }
 
 // GlbEq returns the greatest-lower-bound-inclusive of x and the associated
-// data.  If x has no glbEQ in the tree, then (NOT_KEY32, nil) is returned.
-func (t *T) GlbEq(x int32) (k int32, d any) {
+// data.  If x has no glbEQ in the tree, then (NOT_KEY32, zero) is returned.
+func (t *T[D]) GlbEq(x int32) (k int32, d D) {
 	return t.root.glb(x, true).nilOrKeyAndData()
 }
 
 // Lub returns the least-upper-bound-exclusive of x and the associated
-// data.  If x has no lub in the tree, then (NOT_KEY32, nil) is returned.
-func (t *T) Lub(x int32) (k int32, d any) {
+// data.  If x has no lub in the tree, then (NOT_KEY32, zero) is returned.
+func (t *T[D]) Lub(x int32) (k int32, d D) {
 	return t.root.lub(x, false).nilOrKeyAndData()
 }
 
 // LubEq returns the least-upper-bound-inclusive of x and the associated
-// data.  If x has no lubEq in the tree, then (NOT_KEY32, nil) is returned.
-func (t *T) LubEq(x int32) (k int32, d any) {
+// data.  If x has no lubEq in the tree, then (NOT_KEY32, zero) is returned.
+func (t *T[D]) LubEq(x int32) (k int32, d D) {
 	return t.root.lub(x, true).nilOrKeyAndData()
 }
 
-func (t *node32) isLeaf() bool {
+func (t *node32[D]) isLeaf() bool {
 	return t.left == nil && t.right == nil && t.height_ == LEAF_HEIGHT
 }
 
-func (t *node32) visitInOrder(f func(int32, any)) {
+func (t *node32[D]) visitInOrder(f func(int32, D)) {
 	if t.left != nil {
 		t.left.visitInOrder(f)
 	}
@@ -509,7 +513,7 @@ func (t *node32) visitInOrder(f func(int32, any)) {
 	}
 }
 
-func (t *node32) find(key int32) *node32 {
+func (t *node32[D]) find(key int32) *node32[D] {
 	for t != nil {
 		if key < t.key {
 			t = t.left
@@ -522,7 +526,7 @@ func (t *node32) find(key int32) *node32 {
 	return nil
 }
 
-func (t *node32) min() *node32 {
+func (t *node32[D]) min() *node32[D] {
 	if t == nil {
 		return t
 	}
@@ -532,7 +536,7 @@ func (t *node32) min() *node32 {
 	return t
 }
 
-func (t *node32) max() *node32 {
+func (t *node32[D]) max() *node32[D] {
 	if t == nil {
 		return t
 	}
@@ -542,8 +546,8 @@ func (t *node32) max() *node32 {
 	return t
 }
 
-func (t *node32) glb(key int32, allow_eq bool) *node32 {
-	var best *node32 = nil
+func (t *node32[D]) glb(key int32, allow_eq bool) *node32[D] {
+	var best *node32[D] = nil
 	for t != nil {
 		if key <= t.key {
 			if allow_eq && key == t.key {
@@ -560,8 +564,8 @@ func (t *node32) glb(key int32, allow_eq bool) *node32 {
 	return best
 }
 
-func (t *node32) lub(key int32, allow_eq bool) *node32 {
-	var best *node32 = nil
+func (t *node32[D]) lub(key int32, allow_eq bool) *node32[D] {
+	var best *node32[D] = nil
 	for t != nil {
 		if key >= t.key {
 			if allow_eq && key == t.key {
@@ -578,7 +582,7 @@ func (t *node32) lub(key int32, allow_eq bool) *node32 {
 	return best
 }
 
-func (t *node32) aInsert(x int32) (newroot, newnode, oldnode *node32) {
+func (t *node32[D]) aInsert(x int32) (newroot, newnode, oldnode *node32[D]) {
 	// oldnode default of nil is good, others should be assigned.
 	if x == t.key {
 		oldnode = t
@@ -590,14 +594,14 @@ func (t *node32) aInsert(x int32) (newroot, newnode, oldnode *node32) {
 	if x < t.key {
 		if t.left == nil {
 			t = t.copy()
-			n := makeNode(x)
+			n := makeNode[D](x)
 			t.left = n
 			newnode = n
 			newroot = t
 			t.height_ = 2 // was balanced w/ 0, sibling is height 0 or 1
 			return
 		}
-		var new_l *node32
+		var new_l *node32[D]
 		new_l, newnode, oldnode = t.left.aInsert(x)
 		t = t.copy()
 		t.left = new_l
@@ -610,14 +614,14 @@ func (t *node32) aInsert(x int32) (newroot, newnode, oldnode *node32) {
 	} else { // x > t.key
 		if t.right == nil {
 			t = t.copy()
-			n := makeNode(x)
+			n := makeNode[D](x)
 			t.right = n
 			newnode = n
 			newroot = t
 			t.height_ = 2 // was balanced w/ 0, sibling is height 0 or 1
 			return
 		}
-		var new_r *node32
+		var new_r *node32[D]
 		new_r, newnode, oldnode = t.right.aInsert(x)
 		t = t.copy()
 		t.right = new_r
@@ -631,7 +635,7 @@ func (t *node32) aInsert(x int32) (newroot, newnode, oldnode *node32) {
 	return
 }
 
-func (t *node32) aDelete(key int32) (deleted, newSubTree *node32) {
+func (t *node32[D]) aDelete(key int32) (deleted, newSubTree *node32[D]) {
 	if t == nil {
 		return nil, nil
 	}
@@ -675,7 +679,7 @@ func (t *node32) aDelete(key int32) (deleted, newSubTree *node32) {
 	return r, t.aRebalanceAfterRightDeletion(oh, tright)
 }
 
-func (t *node32) aDeleteMin() (deleted, newSubTree *node32) {
+func (t *node32[D]) aDeleteMin() (deleted, newSubTree *node32[D]) {
 	if t == nil {
 		return nil, nil
 	}
@@ -690,7 +694,7 @@ func (t *node32) aDeleteMin() (deleted, newSubTree *node32) {
 	return d, t.copy().aRebalanceAfterLeftDeletion(oh, tleft)
 }
 
-func (t *node32) aDeleteMax() (deleted, newSubTree *node32) {
+func (t *node32[D]) aDeleteMax() (deleted, newSubTree *node32[D]) {
 	if t == nil {
 		return nil, nil
 	}
@@ -707,7 +711,7 @@ func (t *node32) aDeleteMax() (deleted, newSubTree *node32) {
 	return d, t.copy().aRebalanceAfterRightDeletion(oh, tright)
 }
 
-func (t *node32) aRebalanceAfterLeftDeletion(oldLeftHeight int8, tleft *node32) *node32 {
+func (t *node32[D]) aRebalanceAfterLeftDeletion(oldLeftHeight int8, tleft *node32[D]) *node32[D] {
 	t.left = tleft
 
 	if oldLeftHeight == tleft.height() || oldLeftHeight == t.right.height() {
@@ -726,7 +730,7 @@ func (t *node32) aRebalanceAfterLeftDeletion(oldLeftHeight int8, tleft *node32) 
 	return t.aRightIsHigh(nil)
 }
 
-func (t *node32) aRebalanceAfterRightDeletion(oldRightHeight int8, tright *node32) *node32 {
+func (t *node32[D]) aRebalanceAfterRightDeletion(oldRightHeight int8, tright *node32[D]) *node32[D] {
 	t.right = tright
 
 	if oldRightHeight == tright.height() || oldRightHeight == t.left.height() {
@@ -747,7 +751,7 @@ func (t *node32) aRebalanceAfterRightDeletion(oldRightHeight int8, tright *node3
 
 // aRightIsHigh does rotations necessary to fix a high right child
 // assume that t and t.right are already fresh copies.
-func (t *node32) aRightIsHigh(newnode *node32) *node32 {
+func (t *node32[D]) aRightIsHigh(newnode *node32[D]) *node32[D] {
 	right := t.right
 	if right.right.height() < right.left.height() {
 		// double rotation
@@ -762,7 +766,7 @@ func (t *node32) aRightIsHigh(newnode *node32) *node32 {
 
 // aLeftIsHigh does rotations necessary to fix a high left child
 // assume that t and t.left are already fresh copies.
-func (t *node32) aLeftIsHigh(newnode *node32) *node32 {
+func (t *node32[D]) aLeftIsHigh(newnode *node32[D]) *node32[D] {
 	left := t.left
 	if left.left.height() < left.right.height() {
 		// double rotation
@@ -776,7 +780,7 @@ func (t *node32) aLeftIsHigh(newnode *node32) *node32 {
 }
 
 // rightToRoot does that rotation, modifying t and t.right in the process.
-func (t *node32) rightToRoot() *node32 {
+func (t *node32[D]) rightToRoot() *node32[D] {
 	//    this
 	// left  right
 	//      rl   rr
@@ -798,7 +802,7 @@ func (t *node32) rightToRoot() *node32 {
 }
 
 // leftToRoot does that rotation, modifying t and t.left in the process.
-func (t *node32) leftToRoot() *node32 {
+func (t *node32[D]) leftToRoot() *node32[D] {
 	//     this
 	//  left  right
 	// ll  lr
@@ -819,7 +823,7 @@ func (t *node32) leftToRoot() *node32 {
 	return left
 }
 
-func (t *node32) copy() *node32 {
+func (t *node32[D]) copy() *node32[D] {
 	u := *t
 	return &u
 }
