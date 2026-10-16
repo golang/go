@@ -213,6 +213,7 @@ func (m *machine) match(i input, pos int) bool {
 				pos += advance
 				r, width = i.step(pos)
 				r1, width1 = i.step(pos + width)
+				flag = i.context(pos)
 			}
 		}
 		if !m.matched {
