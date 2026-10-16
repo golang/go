@@ -319,6 +319,135 @@ func readCode(err Error) errors.Code {
 	return errors.Code(v.FieldByName("go116code").Int())
 }
 
+func readSpan(err Error) (token.Pos, token.Pos) {
+	v := reflect.ValueOf(err)
+	return token.Pos(v.FieldByName("go116start").Int()), token.Pos(v.FieldByName("go116end").Int())
+}
+
+func TestIssue81876(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		span string // source expression covered by the error
+		msg  string // diagnostic text associated with the synthetic expression
+	}{
+		{
+			name: "tuple result",
+			src: `package p
+type I interface{ M() }
+func f() (int, int)
+func _() {
+	var a I
+	var b int
+	a, b = f()
+	_, _ = a, b
+}`,
+			span: "f()",
+			msg:  "1st function result",
+		},
+		{
+			name: "long tuple result",
+			src: `package p
+type I interface{ M() }
+func f(...int) (int, int) { return 0, 0 }
+func _() {
+	var a I
+	var b int
+	a, b = f(1, 2, 3, 4, 5, 6, 7, 8)
+	_, _ = a, b
+}`,
+			span: "f(1, 2, 3, 4, 5, 6, 7, 8)",
+			msg:  "1st function result",
+		},
+		{
+			name: "map comma-ok",
+			src: `package p
+type I interface{ M() }
+var m map[int]int
+func _() {
+	var a int
+	var b I
+	a, b = m[0]
+	_, _ = a, b
+}`,
+			span: "m[0]",
+			msg:  "ok value of (comma, ok) expression",
+		},
+		{
+			name: "channel comma-ok",
+			src: `package p
+type I interface{ M() }
+var ch chan int
+func _() {
+	var a int
+	var b I
+	a, b = <-ch
+	_, _ = a, b
+}`,
+			span: "<-ch",
+			msg:  "ok value of (comma, ok) expression",
+		},
+		{
+			name: "type assertion comma-ok",
+			src: `package p
+type I interface{ M() }
+var x any
+func _() {
+	var a int
+	var b I
+	a, b = x.(int)
+	_, _ = a, b
+}`,
+			span: "x.(int)",
+			msg:  "ok value of (comma, ok) expression",
+		},
+		{
+			name: "generic assignment",
+			src: `package p
+func g[T any](x T) T { return x }
+func _() {
+	var fn func(int) string = g
+	_ = fn
+}
+`,
+			span: "g",
+			msg:  "of fn",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, "test.go", test.src, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var got []Error
+			conf := Config{Error: func(err error) { got = append(got, err.(Error)) }}
+			conf.Check("p", fset, []*ast.File{file}, nil)
+			if len(got) != 1 {
+				t.Fatalf("got %d errors, want 1", len(got))
+			}
+			if !strings.Contains(got[0].Msg, test.msg) {
+				t.Errorf("error message %q does not contain %q", got[0].Msg, test.msg)
+			}
+
+			start := strings.LastIndex(test.src, test.span)
+			if start < 0 {
+				t.Fatalf("test span %q not found in source", test.span)
+			}
+			tf := fset.File(file.Pos())
+			wantStart := tf.Pos(start)
+			wantEnd := tf.Pos(start + len(test.span))
+			gotStart, gotEnd := readSpan(got[0])
+			if gotStart != wantStart || gotEnd != wantEnd {
+				t.Errorf("error span = [%v, %v), want [%v, %v)", gotStart, gotEnd, wantStart, wantEnd)
+			}
+		})
+	}
+}
+
 // boolFieldAddr(conf, name) returns the address of the boolean field conf.<name>.
 // For accessing unexported fields.
 func boolFieldAddr(conf *Config, name string) *bool {
