@@ -18,6 +18,7 @@ import (
 	"sync"
 	"testing"
 	"testing/synctest"
+	"time"
 )
 
 // Successive requests use the same HTTP/1 connection.
@@ -359,6 +360,61 @@ func TestTransportPoolMaxIdleConnsPerHostHTTP2(t *testing.T) {
 		rt3.wantDone(c1, "HTTP/2.0")
 		rt4 := dt.roundTrip()
 		rt4.wantDone(c2, "HTTP/2.0")
+	})
+}
+
+func TestTransportPoolMaxIdleConnsPositive(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const maxIdleConns = 4
+		dt := newTransportDialTester(t, http1Mode, func(tr *http.Transport) {
+			tr.MaxIdleConns = maxIdleConns
+			tr.MaxIdleConnsPerHost = maxIdleConns * 2
+			tr.MaxConnsPerHost = maxIdleConns * 2
+		})
+
+		// Several requests create new connections.
+		var rts []*transportDialTesterRoundTrip
+		var conns []*transportDialTesterConn
+		for range maxIdleConns + 2 {
+			rt := dt.roundTrip()
+			conn := dt.wantDial()
+			conn.finish(nil)
+			rt.wantDone(conn, "HTTP/1.1")
+			rts = append(rts, rt)
+			conns = append(conns, conn)
+		}
+
+		// All requests finish.
+		for _, rt := range rts {
+			rt.finish()
+			synctest.Sleep(1 * time.Millisecond)
+		}
+
+		// Only maxIdleConns conns should remain open.
+		conns[0].wantClosed()
+		conns[1].wantClosed()
+		conns[2].wantAlive()
+		conns[3].wantAlive()
+		conns[4].wantAlive()
+		conns[5].wantAlive()
+	})
+}
+
+func TestTransportPoolMaxIdleConnsNegative(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http1Mode, func(tr *http.Transport) {
+			tr.MaxIdleConns = -1
+		})
+
+		// First request creates a new connection.
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/1.1")
+		rt1.finish()
+
+		// Connection is closed, because MaxIdleConns disallows keeping idle conns.
+		c1.wantClosed()
 	})
 }
 
@@ -761,7 +817,22 @@ func (c *transportDialTesterConn) finish(err error) {
 
 func (c *transportDialTesterConn) wantClosed() {
 	c.t.Helper()
-	<-c.closed
+	synctest.Wait()
+	select {
+	case <-c.closed:
+	default:
+		c.t.Fatalf("Conn %v: not closed (want it to be)", c.connID)
+	}
+}
+
+func (c *transportDialTesterConn) wantAlive() {
+	c.t.Helper()
+	synctest.Wait()
+	select {
+	case <-c.closed:
+		c.t.Fatalf("Conn %v: closed (want it to be alive)", c.connID)
+	default:
+	}
 }
 
 func (c *transportDialTesterConn) Close() error {

@@ -5397,60 +5397,6 @@ func testTLSHandshakeTrace(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportMaxIdleConns(t *testing.T) {
-	runNoSynctest(t, testTransportMaxIdleConns, []testMode{http1Mode})
-}
-func testTransportMaxIdleConns(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		// No body for convenience.
-	}), optRealNet).ts
-	c := ts.Client()
-	tr := c.Transport.(*Transport)
-	tr.MaxIdleConns = 4
-
-	ip, port, err := net.SplitHostPort(ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, _, host string) ([]net.IPAddr, error) {
-		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
-	})
-
-	hitHost := func(n int) {
-		req, _ := NewRequest("GET", fmt.Sprintf("http://host-%d.dns-is-faked.golang:"+port, n), nil)
-		req = req.WithContext(ctx)
-		res, err := c.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res.Body.Close()
-	}
-	for i := 0; i < 4; i++ {
-		hitHost(i)
-	}
-	want := []string{
-		"|http|host-0.dns-is-faked.golang:" + port,
-		"|http|host-1.dns-is-faked.golang:" + port,
-		"|http|host-2.dns-is-faked.golang:" + port,
-		"|http|host-3.dns-is-faked.golang:" + port,
-	}
-	if got := tr.IdleConnKeysForTesting(); !slices.Equal(got, want) {
-		t.Fatalf("idle conn keys mismatch.\n got: %q\nwant: %q\n", got, want)
-	}
-
-	// Now hitting the 5th host should kick out the first host:
-	hitHost(4)
-	want = []string{
-		"|http|host-1.dns-is-faked.golang:" + port,
-		"|http|host-2.dns-is-faked.golang:" + port,
-		"|http|host-3.dns-is-faked.golang:" + port,
-		"|http|host-4.dns-is-faked.golang:" + port,
-	}
-	if got := tr.IdleConnKeysForTesting(); !slices.Equal(got, want) {
-		t.Fatalf("idle conn keys mismatch after 5th host.\n got: %q\nwant: %q\n", got, want)
-	}
-}
-
 func TestTransportIdleConnTimeout(t *testing.T) {
 	runSynctest(t, testTransportIdleConnTimeout, http3SkippedMode)
 }
