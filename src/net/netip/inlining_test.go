@@ -62,6 +62,7 @@ func TestInlining(t *testing.T) {
 		"MustParseAddr",
 		"MustParseAddrPort",
 		"MustParsePrefix",
+		"ParseAddr",
 		"appendDecimal",
 		"appendHex",
 		"uint128.addOne",
