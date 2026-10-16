@@ -237,15 +237,14 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		}
 		if fakeNet {
 			pnet := nettest.NewPacketNet()
-			srvAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:443"))
+			srvAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("192.0.2.1:1000"))
 			var cliPort atomic.Uint32
-			cliPort.Store(100)
+			cliPort.Store(10000)
 			pconn, _ := pnet.NewConn(srvAddr)
 			cst.ts.Listener = http3ServeConn{conn: pconn}
 			http3TransportOpts.ListenPacket = func(network, addr string) (net.PacketConn, error) {
 				port := uint16(cliPort.Add(1))
-				cliAddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(
-					netip.MustParseAddr("127.0.0.1"), port))
+				cliAddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(netip.MustParseAddr("192.0.2.1"), port))
 				return pnet.NewConn(cliAddr)
 			}
 		} else {
@@ -316,9 +315,18 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.ts.StartTLS()
 
 		tr := cst.ts.Client().Transport.(*Transport)
+		if fakeNet {
+			tr.TLSClientConfig.InsecureSkipVerify = true
+		}
 		if err := http3.RegisterTransport(tr, http3TransportOpts); err != nil {
 			t.Fatal(err)
 		}
+		tr.SetHTTP3DialAddrForTesting(func(addr string) string {
+			if fakeNet || addr == "example.com:443" || strings.HasSuffix(addr, ".example.com:443") {
+				return cst.ts.Listener.Addr().String()
+			}
+			return addr
+		})
 	default:
 		t.Fatalf("unknown test mode %v", mode)
 	}
@@ -336,9 +344,7 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 
 	// Fakenet httptest servers always set the URL scheme to "http".
 	// Override it in https tests.
-	// Exclude HTTP3, which manages its own PacketNet URL, and lacks the
-	// ability to intercept "example.com".
-	if fakeNet && mode != http3Mode {
+	if fakeNet {
 		cst.ts.URL = mode.Scheme() + "://example.com"
 	}
 
@@ -432,7 +438,7 @@ func (w testLogWriter) Write(b []byte) (int, error) {
 
 // Testing the newClientServerTest helper itself.
 func TestNewClientServerTest(t *testing.T) {
-	modes := []testMode{http1Mode, https1Mode, http2Mode}
+	modes := []testMode{http1Mode, https1Mode, http2Mode, http3Mode}
 	t.Run("realnet", func(t *testing.T) {
 		runNoSynctest(t, func(t *testing.T, mode testMode) {
 			testNewClientServerTest(t, mode, optRealNet)
@@ -471,6 +477,9 @@ func testNewClientServerTest(t *testing.T, mode testMode, opts ...any) {
 		wantTLS = true
 	case http2Mode:
 		wantProto = "HTTP/2.0"
+		wantTLS = true
+	case http3Mode:
+		wantProto = "HTTP/3.0"
 		wantTLS = true
 	}
 	if got.proto != wantProto {

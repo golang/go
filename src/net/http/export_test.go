@@ -9,6 +9,7 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/url"
@@ -307,4 +308,22 @@ func SetRSTAvoidanceDelay(t *testing.T, d time.Duration) {
 // SetHTTP3 adds or removes HTTP/3 from p.
 func (p *Protocols) SetHTTP3(ok bool) {
 	p.setHTTP3(ok)
+}
+
+type remapHTTP3Dialer struct {
+	dialClientConner
+	closeIdleConnectionser
+	remap func(string) string
+}
+
+func (d remapHTTP3Dialer) DialClientConn(ctx context.Context, addr string, proxy *url.URL, tlsConfig *tls.Config, hook func()) (RoundTripper, error) {
+	return d.dialClientConner.DialClientConn(ctx, d.remap(addr), proxy, tlsConfig, hook)
+}
+
+func (t *Transport) SetHTTP3DialAddrForTesting(remap func(string) string) {
+	t.h3Transport = remapHTTP3Dialer{
+		dialClientConner:       t.h3Transport,
+		closeIdleConnectionser: t.h3Transport.(closeIdleConnectionser),
+		remap:                  remap,
+	}
 }
