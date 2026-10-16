@@ -433,12 +433,16 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 	p.stack[n-1] = re
 	p.checkLimits(re)
 
-	if op == OpRepeat && (min >= 2 || max >= 2) && !repeatIsValid(re, 1000) {
+	if op == OpRepeat && (min >= 2 || max >= 2) && !repeatIsValid(re, maxRepeat) {
 		return "", &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
 	}
 
 	return after, nil
 }
+
+// maxRepeat is the maximum count allowed in any single repetition x{n,m}.
+// The product of all nested repetition counts must also not exceed this limit.
+const maxRepeat = 1000
 
 // repeatIsValid reports whether the repetition re is valid.
 // Valid means that the combination of the top-level repetition
@@ -1000,7 +1004,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 				t = t[1:]
 				break
 			}
-			if min < 0 || min > 1000 || max > 1000 || max >= 0 && min > max {
+			if min < 0 || min > maxRepeat || max > maxRepeat || max >= 0 && min > max {
 				// Numbers were too big, or max is present and min > max.
 				return nil, &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
 			}
