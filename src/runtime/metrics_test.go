@@ -1536,10 +1536,7 @@ func TestMetricHeapUnusedLargeObjectOverflow(t *testing.T) {
 }
 
 func TestReadMetricsCleanups(t *testing.T) {
-	// Evict objects from both sync.Pool caches before measuring. On Windows,
-	// even the test's verbose output can leave a pipe worker with a cleanup.
-	runtime.GC()
-	runtime.GC()
+	runtime.GC()                                                // End any in-progress GC.
 	runtime.BlockUntilEmptyCleanupQueue(int64(1 * time.Second)) // Flush any queued cleanups.
 
 	var before [2]metrics.Sample

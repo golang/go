@@ -337,8 +337,9 @@ func (fd *FD) execIO(
 			// IO canceled by the poller while waiting for completion.
 			err = waitErr
 		} else if fd.kind == kindPipe && fd.closing() {
-			// Close cancels concurrent pipe I/O. If the fd is closing,
-			// assume it caused the cancellation.
+			// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+			// If the fd is a pipe and the I/O was interrupted by CancelIoEx,
+			// we assume it is interrupted by Close.
 			err = errClosing(fd.isFile)
 		}
 	case windows.ERROR_IO_INCOMPLETE:
@@ -362,9 +363,6 @@ type FD struct {
 
 	// I/O poller.
 	pd pollDesc
-
-	// Coordination of I/O cancellation.
-	ioCancel ioCancelState
 
 	// lazyInit is set by Init before the FD is made available to callers.
 	// initOnce serializes first use; initMu protects initialization against
@@ -651,7 +649,7 @@ func (fd *FD) Close() error {
 	}
 
 	if fd.kind == kindPipe {
-		fd.cancelIO()
+		syscall.CancelIoEx(fd.Sysfd, nil)
 	}
 	// unblock pending reader and writer
 	if fd.lazyInit {
@@ -704,26 +702,25 @@ func (fd *FD) Read(buf []byte) (int, error) {
 	switch fd.kind {
 	case kindConsole:
 		n, err = fd.readConsole(buf)
-	case kindFile:
+	case kindFile, kindPipe:
 		n, err = fd.execIO('r', func(o *operation) (qty uint32, err error) {
-			o.setOffset(fd.offset)
-			err = syscall.ReadFile(fd.Sysfd, buf, &qty, fd.overlapped(o))
-			return qty, err
-		}, pinPtrsFromBuf(buf)...)
-		fd.addOffset(n)
-		if err == syscall.ERROR_HANDLE_EOF {
-			err = io.EOF
-		}
-	case kindPipe:
-		n, err = fd.execIO('r', func(o *operation) (qty uint32, err error) {
-			if fd.isBlocking {
-				return fd.execSyncIO(syscall.ReadFile, buf)
+			if fd.kind == kindFile {
+				o.setOffset(fd.offset)
 			}
 			err = syscall.ReadFile(fd.Sysfd, buf, &qty, fd.overlapped(o))
 			return qty, err
 		}, pinPtrsFromBuf(buf)...)
-		if err == syscall.ERROR_HANDLE_EOF || err == syscall.ERROR_BROKEN_PIPE {
+		if fd.kind == kindFile {
+			fd.addOffset(n)
+		}
+		switch err {
+		case syscall.ERROR_HANDLE_EOF:
 			err = io.EOF
+		case syscall.ERROR_BROKEN_PIPE:
+			// ReadFile only documents ERROR_BROKEN_PIPE for pipes.
+			if fd.kind == kindPipe {
+				err = io.EOF
+			}
 		}
 	case kindNet:
 		n, err = fd.execIO('r', func(o *operation) (qty uint32, err error) {
@@ -968,21 +965,17 @@ func (fd *FD) Write(buf []byte) (int, error) {
 		switch fd.kind {
 		case kindConsole:
 			n, err = fd.writeConsole(b)
-		case kindFile:
+		case kindPipe, kindFile:
 			n, err = fd.execIO('w', func(o *operation) (qty uint32, err error) {
-				o.setOffset(fd.offset)
-				err = syscall.WriteFile(fd.Sysfd, b, &qty, fd.overlapped(o))
-				return qty, err
-			}, pinPtrsFromBuf(b)...)
-			fd.addOffset(n)
-		case kindPipe:
-			n, err = fd.execIO('w', func(o *operation) (qty uint32, err error) {
-				if fd.isBlocking {
-					return fd.execSyncIO(syscall.WriteFile, b)
+				if fd.kind == kindFile {
+					o.setOffset(fd.offset)
 				}
 				err = syscall.WriteFile(fd.Sysfd, b, &qty, fd.overlapped(o))
 				return qty, err
 			}, pinPtrsFromBuf(b)...)
+			if fd.kind == kindFile {
+				fd.addOffset(n)
+			}
 		case kindNet:
 			if race.Enabled {
 				race.ReleaseMerge(unsafe.Pointer(&ioSync))
