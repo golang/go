@@ -493,6 +493,14 @@ const (
 	AAMOMINW
 	AAMOMINUW
 
+	// 19.6.1: Cache-Block Management Instructions (Zicbom)
+	ACBOCLEAN
+	ACBOFLUSH
+	ACBOINVAL
+
+	// 19.6.2: Cache-Block Zero Instructions (Zicboz)
+	ACBOZERO
+
 	// 21.5: Single-Precision Load and Store Instructions
 	AFLW
 	AFSW
@@ -1603,6 +1611,9 @@ const (
 	ANEGW
 	ANOT
 	APAUSE
+	APREFETCHI
+	APREFETCHR
+	APREFETCHW
 	ARDCYCLE
 	ARDINSTRET
 	ARDTIME
