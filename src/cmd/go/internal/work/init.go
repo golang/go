@@ -307,7 +307,11 @@ func buildModeInit() {
 		} else {
 			codegenArg = "-dynlink"
 		}
-		cfg.ExeSuffix = ".so"
+		if cfg.Goos == "windows" {
+			cfg.ExeSuffix = ".dll"
+		} else {
+			cfg.ExeSuffix = ".so"
+		}
 		ldBuildmode = "plugin"
 	default:
 		base.Fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
