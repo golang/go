@@ -1,0 +1,54 @@
+# Test that -static produces a statically-linked binary on Linux.
+[!GOOS:linux] skip
+[!cgo] skip
+[short] skip
+
+go build -static -o static_bin .
+go run check_static.go static_bin
+stdout 'statically linked'
+
+-- go.mod --
+module example.com/static
+go 1.24
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"net"
+)
+
+func main() {
+	fmt.Println("hello")
+	// Force use of net package to verify netgo tag is applied.
+	_ = net.IPv4(127, 0, 0, 1)
+}
+
+-- check_static.go --
+//go:build ignore
+
+package main
+
+import (
+	"debug/elf"
+	"fmt"
+	"os"
+)
+
+func main() {
+	f, err := elf.Open(os.Args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	defer f.Close()
+
+	for _, p := range f.Progs {
+		if p.Type == elf.PT_INTERP {
+			fmt.Println("dynamically linked")
+			return
+		}
+	}
+	fmt.Println("statically linked")
+}
