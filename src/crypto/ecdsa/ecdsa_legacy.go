@@ -91,6 +91,19 @@ func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, er
 	}
 
 	c := priv.Curve
+	N := c.Params().N
+	if N.Sign() == 0 {
+		return nil, errZeroParam
+	}
+	if priv.D.Sign() <= 0 {
+		return nil, errors.New("ecdsa: private key scalar is zero or negative")
+	}
+	if priv.D.Cmp(N) >= 0 {
+		return nil, errors.New("ecdsa: private key scalar too large")
+	}
+	if !c.IsOnCurve(priv.X, priv.Y) {
+		return nil, errors.New("ecdsa: invalid public key")
+	}
 
 	// A cheap version of hedged signatures, for the deprecated path.
 	var seed [32]byte
@@ -106,10 +119,6 @@ func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, er
 	csprng = rand.NewChaCha8(seed)
 
 	// SEC 1, Version 2.0, Section 4.1.3
-	N := c.Params().N
-	if N.Sign() == 0 {
-		return nil, errZeroParam
-	}
 	var k, kInv, r, s *big.Int
 	for {
 		for {
@@ -175,6 +184,9 @@ func verifyLegacy(pub *PublicKey, hash []byte, sig []byte) bool {
 		return false
 	}
 	if r.Cmp(N) >= 0 || s.Cmp(N) >= 0 {
+		return false
+	}
+	if !c.IsOnCurve(pub.X, pub.Y) {
 		return false
 	}
 
