@@ -603,7 +603,8 @@ func TestPageCacheLeak(t *testing.T) {
 }
 
 func TestPhysicalMemoryUtilization(t *testing.T) {
-	got := runTestProg(t, "testprog", "GCPhys")
+	// GCPhys allows for one P's page cache, so start it with one P.
+	got := runTestProg(t, "testprog", "GCPhys", "GOMAXPROCS=1")
 	want := "OK\n"
 	if got != want {
 		t.Fatalf("expected %q, but got %q", want, got)
