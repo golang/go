@@ -259,12 +259,16 @@ func init() {
 		{name: "F32Sub", asm: "F32Sub", argLength: 2, reg: fp32_21, typ: "Float32", earlyOk: true}, // arg0 - arg1
 		{name: "F32Mul", asm: "F32Mul", argLength: 2, reg: fp32_21, typ: "Float32", earlyOk: true}, // arg0 * arg1
 		{name: "F32Div", asm: "F32Div", argLength: 2, reg: fp32_21, typ: "Float32", earlyOk: true}, // arg0 / arg1
+		{name: "F32Min", asm: "F32Min", argLength: 2, reg: fp32_21, typ: "Float32", earlyOk: true}, // min(arg0, arg1)
+		{name: "F32Max", asm: "F32Max", argLength: 2, reg: fp32_21, typ: "Float32", earlyOk: true}, // max(arg0, arg1)
 
 		{name: "F64Neg", asm: "F64Neg", argLength: 1, reg: fp64_11, typ: "Float64", earlyOk: true}, // -arg0
 		{name: "F64Add", asm: "F64Add", argLength: 2, reg: fp64_21, typ: "Float64", earlyOk: true}, // arg0 + arg1
 		{name: "F64Sub", asm: "F64Sub", argLength: 2, reg: fp64_21, typ: "Float64", earlyOk: true}, // arg0 - arg1
 		{name: "F64Mul", asm: "F64Mul", argLength: 2, reg: fp64_21, typ: "Float64", earlyOk: true}, // arg0 * arg1
 		{name: "F64Div", asm: "F64Div", argLength: 2, reg: fp64_21, typ: "Float64", earlyOk: true}, // arg0 / arg1
+		{name: "F64Min", asm: "F64Min", argLength: 2, reg: fp64_21, typ: "Float64", earlyOk: true}, // min(arg0, arg1)
+		{name: "F64Max", asm: "F64Max", argLength: 2, reg: fp64_21, typ: "Float64", earlyOk: true}, // max(arg0, arg1)
 
 		{name: "I64TruncSatF64S", asm: "I64TruncSatF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Int64", earlyOk: true}, // truncates the float arg0 to a signed integer (saturating)
 		{name: "I64TruncSatF64U", asm: "I64TruncSatF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Int64", earlyOk: true}, // truncates the float arg0 to an unsigned integer (saturating)
