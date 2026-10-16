@@ -1,0 +1,97 @@
+# Regression test for https://go.dev/issue/37552.
+# A pattern with enough "/.." elements to back into a "..." wildcard
+# must be rejected rather than silently cleaned to a different pattern.
+
+cd parent/m/build
+
+! go list .../..
+stderr '^go: invalid pattern "\.\.\./\.\.": "\.\." element cancels "\.\.\." wildcard$'
+! stdout .
+
+! go list .../../
+stderr '^go: invalid pattern "\.\.\./\.\./": "\.\." element cancels "\.\.\." wildcard$'
+! stdout .
+
+! go list .../../../
+stderr '^go: invalid pattern "\.\.\./\.\./\.\./": "\.\." element cancels "\.\.\." wildcard$'
+! stdout .
+
+! go list ./.../..
+stderr '^go: invalid pattern "\./\.\.\./\.\.": "\.\." element cancels "\.\.\." wildcard$'
+
+! go list a/.../../../..
+stderr '^go: invalid pattern "a/\.\.\./\.\./\.\./\.\.": "\.\." element cancels "\.\.\." wildcard$'
+
+! go list example.com/m/.../..
+stderr '^go: invalid pattern "example\.com/m/\.\.\./\.\.": "\.\." element cancels "\.\.\." wildcard$'
+
+! go list std/.../..
+stderr '^go: invalid pattern "std/\.\.\./\.\.": "\.\." element cancels "\.\.\." wildcard$'
+
+! go list $WORK/gopath/src/parent/m/.../..
+stderr 'invalid pattern ".*/parent/m/\.\.\./\.\.": "\.\." element cancels "\.\.\." wildcard$'
+
+! go build ../a/.../..
+stderr '^go: invalid pattern "\.\./a/\.\.\./\.\.": "\.\." element cancels "\.\.\." wildcard$'
+
+! go get example.com/m/.../..@latest
+stderr '^go: invalid pattern "example\.com/m/\.\.\./\.\.@latest": "\.\." element cancels "\.\.\." wildcard$'
+
+# A ".." that does not back into a "..." wildcard is still allowed.
+go list example.com/m/.../b/..
+stdout '^example.com/m$'
+stdout '^example.com/m/a$'
+stdout '^example.com/m/b$'
+
+go list ../...
+stdout '^example.com/m$'
+stdout '^example.com/m/a$'
+stdout '^example.com/m/b$'
+
+go list ../a/...
+stdout '^example.com/m/a$'
+! stdout '^example.com/m/b$'
+
+go list .../a
+stdout '^example.com/m/a$'
+! stdout '^example.com/m/b$'
+
+go list example.com/m/...
+stdout '^example.com/m$'
+stdout '^example.com/m/a$'
+stdout '^example.com/m/b$'
+
+go list std
+stdout '^fmt$'
+
+go list cmd/...
+stdout '^cmd/go$'
+
+cd ..
+go list ./...
+stdout '^example.com/m$'
+stdout '^example.com/m/a$'
+stdout '^example.com/m/b$'
+
+go list ./a/../b/...
+stdout '^example.com/m/b$'
+! stdout '^example.com/m/a$'
+
+-- parent/go.mod --
+module example.com/parent
+
+go 1.24
+-- parent/parent.go --
+package parent
+-- parent/m/go.mod --
+module example.com/m
+
+go 1.24
+-- parent/m/m.go --
+package m
+-- parent/m/a/a.go --
+package a
+-- parent/m/b/b.go --
+package b
+-- parent/m/build/README --
+Not a package.
