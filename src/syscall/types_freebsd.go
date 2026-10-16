@@ -41,6 +41,7 @@ package syscall
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <netinet/in.h>
+#include <netlink/netlink.h>
 #include <netinet/icmp6.h>
 #include <netinet/tcp.h>
 
