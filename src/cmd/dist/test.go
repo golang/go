@@ -46,6 +46,7 @@ func cmdtest() {
 	flag.BoolVar(&t.msan, "msan", false, "run in memory sanitizer builder mode")
 	flag.BoolVar(&t.asan, "asan", false, "run in address sanitizer builder mode")
 	flag.BoolVar(&t.json, "json", false, "report test results in JSON")
+	flag.StringVar(&t.artifactsDir, "artifacts-dir", "", "save test artifacts in the specified directory")
 
 	xflagparse(-1) // any number of args
 	if noRebuild {
@@ -57,24 +58,25 @@ func cmdtest() {
 
 // tester executes cmdtest.
 type tester struct {
-	race        bool
-	msan        bool
-	asan        bool
-	listMode    bool
-	rebuild     bool
-	failed      bool
-	keepGoing   bool
-	compileOnly bool // just try to compile all tests, but no need to run
-	short       bool
-	cgoEnabled  bool
-	asmflags    string
-	json        bool
-	runRxStr    string
-	runRx       *regexp.Regexp
-	runRxWant   bool     // want runRx to match (true) or not match (false)
-	runNames    []string // tests to run, exclusive with runRx; empty means all
-	banner      string   // prefix, or "" for none
-	lastHeading string   // last dir heading printed
+	race         bool
+	msan         bool
+	asan         bool
+	listMode     bool
+	rebuild      bool
+	failed       bool
+	keepGoing    bool
+	compileOnly  bool // just try to compile all tests, but no need to run
+	short        bool
+	cgoEnabled   bool
+	asmflags     string
+	json         bool
+	artifactsDir string
+	runRxStr     string
+	runRx        *regexp.Regexp
+	runRxWant    bool     // want runRx to match (true) or not match (false)
+	runNames     []string // tests to run, exclusive with runRx; empty means all
+	banner       string   // prefix, or "" for none
+	lastHeading  string   // last dir heading printed
 
 	tests        []distTest // use addTest to extend
 	testNames    map[string]bool
@@ -476,6 +478,9 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	}
 	if t.json {
 		run = append(run, "-json")
+	}
+	if t.artifactsDir != "" {
+		run = append(run, "-artifacts", "-outputdir="+t.artifactsDir)
 	}
 
 	if opts.gcflags != "" {
