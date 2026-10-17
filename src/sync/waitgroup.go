@@ -123,6 +123,11 @@ func (wg *WaitGroup) Add(delta int) {
 	if v > 0 || w == 0 {
 		return
 	}
+	if delta == 0 {
+		// The counter was already zero. The call that set it to zero
+		// releases the waiters.
+		return
+	}
 	// This goroutine has set counter to 0 when waiters > 0.
 	// Now there can't be concurrent mutations of state:
 	// - Adds must not happen concurrently with Wait,

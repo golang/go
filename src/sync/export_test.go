@@ -4,11 +4,23 @@
 
 package sync
 
+import "sync/atomic"
+
 // Export for testing.
 var Runtime_Semacquire = runtime_Semacquire
 var Runtime_Semrelease = runtime_Semrelease
 var Runtime_procPin = runtime_procPin
 var Runtime_procUnpin = runtime_procUnpin
+
+// State returns the state word and the semaphore count of wg.
+func (wg *WaitGroup) State() (state uint64, sema uint32) {
+	return wg.state.Load(), atomic.LoadUint32(&wg.sema)
+}
+
+// SetState sets the state word of wg.
+func (wg *WaitGroup) SetState(state uint64) {
+	wg.state.Store(state)
+}
 
 // PoolDequeue exports an interface for pollDequeue testing.
 type PoolDequeue interface {

@@ -90,6 +90,19 @@ func TestWaitGroupRace(t *testing.T) {
 	}
 }
 
+// An Add with a zero delta that runs after the last Done has brought the
+// counter to zero, but before that Done has released the waiters, must
+// leave the release to that Done. See go.dev/issue/82140.
+func TestWaitGroupAddZeroWhileReleasing(t *testing.T) {
+	var wg WaitGroup
+	const state = 1 // counter 0, 1 waiter
+	wg.SetState(state)
+	wg.Add(0)
+	if got, sema := wg.State(); got != state || sema != 0 {
+		t.Errorf("after Add(0): state = %#x, sema = %d; want %#x, 0", got, sema, state)
+	}
+}
+
 func TestWaitGroupAlign(t *testing.T) {
 	type X struct {
 		x  byte
