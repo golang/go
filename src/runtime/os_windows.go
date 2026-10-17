@@ -1229,12 +1229,32 @@ func setProcessCPUProfiler(hz int32) {
 		var timer uintptr
 		if haveHighResTimer {
 			timer = createHighResTimer()
-		} else {
+			if timer != 0 && !profileTimerSupportsPeriod(timer) {
+				// Some Windows builds (10 1803/1809, Server 2019) create
+				// CREATE_WAITABLE_TIMER_HIGH_RESOLUTION timers but reject
+				// a periodic SetWaitableTimer on them with
+				// ERROR_INVALID_PARAMETER. setThreadCPUProfiler needs a
+				// periodic timer; without the fallback profileLoop never
+				// wakes and CPU profiles contain no samples.
+				stdcall(_CloseHandle, timer)
+				timer = 0
+			}
+		}
+		if timer == 0 {
 			timer = stdcall(_CreateWaitableTimerA, 0, 0, 0)
 		}
 		atomic.Storeuintptr(&profiletimer, timer)
 		newm(profileLoop, nil, -1)
 	}
+}
+
+// profileTimerSupportsPeriod reports whether timer accepts a periodic
+// SetWaitableTimer, which the CPU profiler relies on. On success the
+// timer is left armed with a 1ms period; setThreadCPUProfiler re-arms
+// it with the real period right after.
+func profileTimerSupportsPeriod(timer uintptr) bool {
+	due := int64(-10000) // 1ms, relative
+	return stdcall(_SetWaitableTimer, timer, uintptr(unsafe.Pointer(&due)), 1, 0, 0, 0) != 0
 }
 
 func setThreadCPUProfiler(hz int32) {
