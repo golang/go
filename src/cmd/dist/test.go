@@ -477,7 +477,7 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 		run = append(run, "-skip="+opts.skip)
 	}
 	if t.json {
-		run = append(run, "-json")
+		build = append(build, "-json")
 	}
 	if t.artifactsDir != "" {
 		run = append(run, "-artifacts", "-outputdir="+t.artifactsDir)
