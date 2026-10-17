@@ -18,7 +18,6 @@ package uuid
 
 import (
 	"bytes"
-	"cmp"
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
@@ -175,12 +174,7 @@ func (u *UUID) UnmarshalText(b []byte) error {
 //
 // [Section 6.11 of RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562#section-6.11
 func (u UUID) Compare(v UUID) int {
-	for i := range u {
-		if c := cmp.Compare(u[i], v[i]); c != 0 {
-			return c
-		}
-	}
-	return 0
+	return bytes.Compare(u[:], v[:])
 }
 
 // NewV4 returns a new version 4 UUID.
