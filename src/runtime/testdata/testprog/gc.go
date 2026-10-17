@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2015-2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -24,6 +24,8 @@ func init() {
 	register("GCPhys", GCPhys)
 	register("DeferLiveness", DeferLiveness)
 	register("GCZombie", GCZombie)
+	register("GCZombieSmall", func() { gcZombie(32) })
+	register("GCZombieLarge", func() { gcZombie(2048) })
 	register("GCMemoryLimit", GCMemoryLimit)
 	register("GCMemoryLimitNoGCPercent", GCMemoryLimitNoGCPercent)
 }
@@ -277,10 +279,13 @@ var sink2 any
 
 // Test zombie object detection and reporting.
 func GCZombie() {
-	// Allocate several objects of unusual size (so free slots are
-	// unlikely to all be re-allocated by the runtime).
-	const size = 190
-	const count = 8192 / size
+	gcZombie(190)
+}
+
+func gcZombie(size int) {
+	// Keep enough objects in each size class that the runtime is unlikely
+	// to reallocate every free slot before the second collection.
+	count := max(8192/size, 32)
 	keep := make([]*byte, 0, (count+1)/2)
 	free := make([]uintptr, 0, (count+1)/2)
 	zombies := make([]*byte, 0, len(free))
