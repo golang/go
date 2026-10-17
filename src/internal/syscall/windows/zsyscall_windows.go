@@ -67,6 +67,7 @@ var (
 	procSetTokenInformation               = modadvapi32.NewProc("SetTokenInformation")
 	procProcessPrng                       = modbcryptprimitives.NewProc("ProcessPrng")
 	procGetAdaptersAddresses              = modiphlpapi.NewProc("GetAdaptersAddresses")
+	procCancelSynchronousIo               = modkernel32.NewProc("CancelSynchronousIo")
 	procCreateEventW                      = modkernel32.NewProc("CreateEventW")
 	procCreateIoCompletionPort            = modkernel32.NewProc("CreateIoCompletionPort")
 	procCreateNamedPipeW                  = modkernel32.NewProc("CreateNamedPipeW")
@@ -288,6 +289,14 @@ func GetAdaptersAddresses(family uint32, flags uint32, reserved unsafe.Pointer, 
 	r0, _, _ := syscall.SyscallN(procGetAdaptersAddresses.Addr(), uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)))
 	if r0 != 0 {
 		errcode = syscall.Errno(r0)
+	}
+	return
+}
+
+func CancelSynchronousIo(thread syscall.Handle) (err error) {
+	r1, _, e1 := syscall.SyscallN(procCancelSynchronousIo.Addr(), uintptr(thread))
+	if r1 == 0 {
+		err = errnoErr(e1)
 	}
 	return
 }

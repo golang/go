@@ -164,7 +164,14 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	// "system call", run the Go code (which may grow the stack),
 	// and then re-enter the "system call" reusing the PC and SP
 	// saved by entersyscall here.
-	entersyscall()
+	if GOOS == "windows" && mp.syncIOWorker && sched.npidle.Load() == 0 {
+		// Synchronous pipe I/O may need a peer goroutine to make progress.
+		// If no other P is idle, release ours now instead of waiting for
+		// sysmon to retake it. Otherwise, let a short call keep its P.
+		entersyscallblock()
+	} else {
+		entersyscall()
+	}
 
 	mp.incgo = true
 	// We use ncgo as a check during execution tracing for whether there is
