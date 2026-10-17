@@ -486,18 +486,12 @@ sign:
 		// leaking rejected ch values being acceptable.
 		c := ntt(sampleInBall(ch, p))
 
-		cs1 := make([]ringElement, l, maxL)
-		for i := range cs1 {
-			cs1[i] = inverseNTT(nttMul(c, s1[i]))
-		}
-		cs2 := make([]ringElement, k, maxK)
-		for i := range cs2 {
-			cs2[i] = inverseNTT(nttMul(c, s2[i]))
-		}
-
+		// cs1 and cs2 are computed one element at a time, like ct0 below, so
+		// that the work for the remaining elements is skipped on rejection.
 		z := make([]ringElement, l, maxL)
 		for i := range y {
-			z[i] = polyAdd(y[i], cs1[i])
+			cs1 := inverseNTT(nttMul(c, s1[i]))
+			z[i] = polyAdd(y[i], cs1)
 
 			// Reject if ||z||∞ ≥ γ1 − β
 			if coefficientsExceedBound(z[i], γ1β) {
@@ -508,7 +502,9 @@ sign:
 			}
 		}
 
+		cs2 := make([]ringElement, k, maxK)
 		for i := range w {
+			cs2[i] = inverseNTT(nttMul(c, s2[i]))
 			r0 := polySub(w[i], cs2[i])
 
 			// Reject if ||LowBits(r0)||∞ ≥ γ2 − β
