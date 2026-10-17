@@ -1272,20 +1272,25 @@ func extract(str string) (name string, num int, rest string, ok bool) {
 	return
 }
 
-func (re Regexp) splitSeq(s string, n int) iter.Seq[string] {
+func (re *Regexp) splitSeq(s string, n int) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		if len(re.expr) > 0 && len(s) == 0 {
 			yield("")
 			return
 		}
 
-		var beg, end int
-		for match := range re.allStringIndex(s, n-1) {
+		var beg, end, count int
+		for match := range re.allStringIndex(s, n) {
+			if n > 0 && count >= n-1 {
+				break
+			}
+
 			end = match[0]
 			if match[1] != 0 {
 				if !yield(s[beg:end]) {
 					return
 				}
+				count++
 			}
 			beg = match[1]
 		}
@@ -1319,6 +1324,9 @@ func (re *Regexp) SplitSeq(s string) iter.Seq[string] {
 func (re *Regexp) Split(s string, n int) []string {
 	if n == 0 {
 		return nil
+	}
+	if s == "" && re.expr == "" {
+		return []string{} // non-nil, like strings.SplitN
 	}
 	return collect(re.splitSeq(s, n), n)
 }
