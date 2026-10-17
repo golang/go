@@ -1635,7 +1635,9 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (_ *persis
 // queueForDial queues w to wait for permission to begin dialing.
 // Once w receives permission to dial, it will do so in a separate goroutine.
 func (t *Transport) queueForDial(w *wantConn) {
-	w.beforeDial()
+	if w.beforeDial != nil {
+		w.beforeDial()
+	}
 
 	t.connsPerHostMu.Lock()
 	defer t.connsPerHostMu.Unlock()
@@ -1680,7 +1682,9 @@ func (t *Transport) startDialConnForLocked(w *wantConn) {
 // dialConnFor has received permission to dial w.cm and is counted in t.connCount[w.cm.key()].
 // If the dial is canceled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
 func (t *Transport) dialConnFor(w *wantConn) {
-	defer w.afterDial()
+	if w.afterDial != nil {
+		defer w.afterDial()
+	}
 	ctx := w.getCtxForDial()
 	if ctx == nil {
 		t.decConnsPerHost(w.key)
@@ -2965,11 +2969,14 @@ var (
 	testHookEnterRoundTrip   = nop
 	testHookWaitResLoop      = nop
 	testHookRoundTripRetried = nop
-	testHookPrePendingDial   = nop
-	testHookPostPendingDial  = nop
 
 	testHookMu                     sync.Locker = fakeLocker{} // guards following
 	testHookReadLoopBeforeNextRead             = nop
+)
+
+var (
+	testHookPrePendingDial  func()
+	testHookPostPendingDial func()
 )
 
 func (pc *persistConn) waitForAvailability(ctx context.Context) error {

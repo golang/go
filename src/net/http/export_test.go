@@ -78,9 +78,10 @@ func SetReadLoopBeforeNextReadHook(f func()) {
 
 // SetPendingDialHooks sets the hooks that run before and after handling
 // pending dials.
-func SetPendingDialHooks(before, after func()) {
-	unnilTestHook(&before)
-	unnilTestHook(&after)
+func SetPendingDialHooks(t *testing.T, before, after func()) {
+	t.Cleanup(func() {
+		testHookPrePendingDial, testHookPostPendingDial = nil, nil
+	})
 	testHookPrePendingDial, testHookPostPendingDial = before, after
 }
 

@@ -869,8 +869,7 @@ func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
 	// This request is canceled when dial is queued, which preempts dialing.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	SetPendingDialHooks(cancel, nil)
-	defer SetPendingDialHooks(nil, nil)
+	SetPendingDialHooks(t, cancel, nil)
 
 	req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 	_, err := c.Do(req)
@@ -879,7 +878,7 @@ func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
 	}
 
 	// This request should succeed.
-	SetPendingDialHooks(nil, nil)
+	SetPendingDialHooks(t, nil, nil)
 	req, _ = NewRequest("GET", ts.URL, nil)
 	resp, err := c.Do(req)
 	if err != nil {
@@ -2481,8 +2480,7 @@ func testTransportConcurrency(t *testing.T, mode testMode) {
 	// the leak checker happy, keep track of pending dials and
 	// wait for them to finish (and be closed or returned to the
 	// idle pool) before we close idle connections.
-	SetPendingDialHooks(func() { wg.Add(1) }, wg.Done)
-	defer SetPendingDialHooks(nil, nil)
+	SetPendingDialHooks(t, func() { wg.Add(1) }, wg.Done)
 
 	c := ts.Client()
 	reqs := make(chan string)
@@ -4849,8 +4847,7 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 	defer ln.Close()
 
 	var wg sync.WaitGroup
-	SetPendingDialHooks(func() { wg.Add(1) }, wg.Done)
-	defer SetPendingDialHooks(nil, nil)
+	SetPendingDialHooks(t, func() { wg.Add(1) }, wg.Done)
 
 	testDone := make(chan struct{})
 	defer close(testDone)
