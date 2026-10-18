@@ -13,7 +13,19 @@ import (
 
 type mutator struct {
 	r       mutatorRand
-	scratch []byte // scratch slice to avoid additional allocations
+	scratch [][]byte
+}
+
+// scratchFor returns the empty scratch buffer for value index i, with at
+// least maxPerVal bytes of capacity.
+func (m *mutator) scratchFor(i, maxPerVal int) []byte {
+	for len(m.scratch) <= i {
+		m.scratch = append(m.scratch, nil)
+	}
+	if cap(m.scratch[i]) < maxPerVal {
+		m.scratch[i] = make([]byte, 0, maxPerVal)
+	}
+	return m.scratch[i][:0]
 }
 
 func newMutator() *mutator {
@@ -91,26 +103,18 @@ func (m *mutator) mutate(vals []any, maxBytes int) {
 		if len(v) > maxPerVal {
 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
 		}
-		if cap(m.scratch) < maxPerVal {
-			m.scratch = append(make([]byte, 0, maxPerVal), v...)
-		} else {
-			m.scratch = m.scratch[:len(v)]
-			copy(m.scratch, v)
-		}
-		m.mutateBytes(&m.scratch)
-		vals[i] = string(m.scratch)
+		b := m.scratchFor(i, maxPerVal)[:len(v)]
+		copy(b, v)
+		m.mutateBytes(&b)
+		vals[i] = string(b)
 	case []byte:
 		if len(v) > maxPerVal {
 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
 		}
-		if cap(m.scratch) < maxPerVal {
-			m.scratch = append(make([]byte, 0, maxPerVal), v...)
-		} else {
-			m.scratch = m.scratch[:len(v)]
-			copy(m.scratch, v)
-		}
-		m.mutateBytes(&m.scratch)
-		vals[i] = m.scratch
+		b := m.scratchFor(i, maxPerVal)[:len(v)]
+		copy(b, v)
+		m.mutateBytes(&b)
+		vals[i] = b
 	default:
 		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
 	}
