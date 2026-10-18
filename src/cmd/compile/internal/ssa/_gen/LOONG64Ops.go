@@ -538,6 +538,8 @@ func init() {
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
 
+		{name: "FSEL", argLength: 3, reg: fp21, asm: "FSEL", earlyOk: true}, // arg2 (flags) ? arg0 : arg1; bitwise select for float32 and float64
+
 		{name: "FPFlagTrue", argLength: 1, reg: readflags, earlyOk: true, zeroUpperBits: 56},  // bool, true if FP flag is true
 		{name: "FPFlagFalse", argLength: 1, reg: readflags, earlyOk: true, zeroUpperBits: 56}, // bool, true if FP flag is false
 

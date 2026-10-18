@@ -123,7 +123,7 @@ func canCondSelect(v *ssa.Value, arch string, loadAddr *ssa.SparseSet) bool {
 // needs to be matched here.
 func floatMinMaxSelOp(cond, trueVal, falseVal *ssa.Value) ssaop.Op {
 	switch trueVal.Block.Func.Config.Arch {
-	case "amd64", "arm64":
+	case "amd64", "arm64", "loong64":
 	default:
 		return ssaop.OpInvalid
 	}

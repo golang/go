@@ -313,6 +313,11 @@
 (Leq32U x y) => (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Leq64U x y) => (XOR (MOVVconst [1]) (SGTU x y))
 
+// Strict comparison-select idioms preserve the selected operand's NaN payload
+// and signed zero. CMPGT is ordered, so unordered operands select y.
+(Min(32|64)FSel x y) => (FSEL x y (CMPGT(F|D) y x))
+(Max(32|64)FSel x y) => (FSEL x y (CMPGT(F|D) x y))
+
 (OffPtr [off] ptr:(SP)) => (MOVVaddr [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADDVconst [off] ptr)
 

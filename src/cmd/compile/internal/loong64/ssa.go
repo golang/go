@@ -356,6 +356,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = loong64.REG_FCC0
 
+	case ssaop.OpLOONG64FSEL:
+		// FSEL FCC0, true, false, result selects true when FCC0 != 0.
+		p := s.Prog(loong64.AFSEL)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = loong64.REG_FCC0
+		p.Reg = v.Args[0].Reg()
+		p.AddRestSourceReg(v.Args[1].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssaop.OpLOONG64FMADDF,
 		ssaop.OpLOONG64FMADDD,
 		ssaop.OpLOONG64FMSUBF,

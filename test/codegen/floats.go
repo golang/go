@@ -237,6 +237,7 @@ func Float64MinBranch(a, b float64) float64 {
 	}
 	// amd64:"MINSD"
 	// arm64:"FCSELD"
+	// loong64:"FSEL"
 	return r
 }
 
@@ -247,6 +248,7 @@ func Float32MinBranch(a, b float32) float32 {
 	}
 	// amd64:"MINSS"
 	// arm64:"FCSELS"
+	// loong64:"FSEL"
 	return r
 }
 
@@ -257,6 +259,7 @@ func Float64MaxBranch(a, b float64) float64 {
 	}
 	// amd64:"MAXSD"
 	// arm64:"FCSELD"
+	// loong64:"FSEL"
 	return r
 }
 
@@ -267,6 +270,7 @@ func Float32MaxBranch(a, b float32) float32 {
 	}
 	// amd64:"MAXSS"
 	// arm64:"FCSELS"
+	// loong64:"FSEL"
 	return r
 }
 
@@ -280,6 +284,7 @@ func Float64MinIfElse(a, b float64) float64 {
 	}
 	// amd64:"MINSD"
 	// arm64:"FCSELD"
+	// loong64:"FSEL"
 	return r
 }
 
@@ -293,6 +298,7 @@ func Float64MinLeqNotFused(a, b float64) float64 {
 	}
 	// amd64:-"MINSD"
 	// arm64:-"FCSELD"
+	// loong64:-"FSEL"
 	return r
 }
 
