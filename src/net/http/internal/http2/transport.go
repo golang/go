@@ -106,8 +106,8 @@ func NewTransport(t1 TransportConfig) *Transport {
 }
 
 func (t *Transport) AddConn(scheme, authority string, c net.Conn) error {
-	addr := authorityAddr(scheme, authority)
-	used, err := t.connPool.addConnIfNeeded(addr, t, c)
+	key := authorityConnPoolKey(scheme, authority)
+	used, err := t.connPool.addConnIfNeeded(key, t, c)
 	if !used {
 		go c.Close()
 	}
@@ -403,6 +403,11 @@ func authorityAddr(scheme string, authority string) (addr string) {
 	return net.JoinHostPort(host, port)
 }
 
+// authorityConnPoolKey includes scheme to prevent cross-scheme conn reuse (Issue 81656).
+func authorityConnPoolKey(scheme, authority string) string {
+	return scheme + "://" + authorityAddr(scheme, authority)
+}
+
 func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
 	switch req.URL.Scheme {
 	case "https":
@@ -411,11 +416,11 @@ func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
 		return nil, errors.New("http2: unsupported scheme")
 	}
 
-	addr := authorityAddr(req.URL.Scheme, req.URL.Host)
+	key := authorityConnPoolKey(req.URL.Scheme, req.URL.Host)
 	for retry := 0; ; retry++ {
-		cc, err := t.connPool.GetClientConn(req, addr)
+		cc, err := t.connPool.GetClientConn(req, key)
 		if err != nil {
-			t.vlogf("http2: Transport failed to get client conn for %s: %v", addr, err)
+			t.vlogf("http2: Transport failed to get client conn for %s: %v", key, err)
 			return nil, err
 		}
 		reused := !cc.reused.CompareAndSwap(false, true)

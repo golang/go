@@ -7891,6 +7891,133 @@ func TestTransportServerProtocols(t *testing.T) {
 	}
 }
 
+func TestTransportHTTP2ConnPoolReusesHTTPConnSameScheme(t *testing.T) {
+	CondSkipHTTP2(t)
+
+	var requests, conns atomic.Int32
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+		requests.Add(1)
+		w.WriteHeader(StatusNoContent)
+	}))
+	ts.Config.ConnState = func(_ net.Conn, state ConnState) {
+		if state == StateNew {
+			conns.Add(1)
+		}
+	}
+	ts.Config.Protocols = &Protocols{}
+	ts.Config.Protocols.SetUnencryptedHTTP2(true)
+	ts.Start()
+	defer ts.Close()
+
+	tr := &Transport{
+		Protocols: &Protocols{},
+	}
+	tr.Protocols.SetHTTP2(true)
+	tr.Protocols.SetUnencryptedHTTP2(true)
+	defer tr.CloseIdleConnections()
+
+	client := &Client{Transport: tr}
+	for i := 0; i < 2; i++ {
+		resp, err := client.Get(ts.URL)
+		if err != nil {
+			t.Fatalf("http request %d failed: %v", i+1, err)
+		}
+		resp.Body.Close()
+	}
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("handler requests after two http requests = %d, want 2", got)
+	}
+	if got := conns.Load(); got != 1 {
+		t.Fatalf("server connections after two http requests = %d, want 1", got)
+	}
+}
+
+// Issue 81656 (CVE-2026-94441): an h2c connection cached for http:// must not be reused for https://, and vice versa.
+func TestTransportHTTP2ConnPoolDoesNotReuseAcrossSchemes(t *testing.T) {
+	CondSkipHTTP2(t)
+
+	var requests atomic.Int32
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+		requests.Add(1)
+		w.WriteHeader(StatusNoContent)
+	}))
+	ts.Config.Protocols = &Protocols{}
+	ts.Config.Protocols.SetUnencryptedHTTP2(true)
+	ts.Start()
+	defer ts.Close()
+
+	tr := &Transport{
+		// Keep HTTPS enabled, and allow unencrypted HTTP/2 for http:// requests.
+		Protocols: &Protocols{},
+	}
+	tr.Protocols.SetHTTP2(true)
+	tr.Protocols.SetUnencryptedHTTP2(true)
+	defer tr.CloseIdleConnections()
+
+	client := &Client{Transport: tr}
+
+	resp, err := client.Get(ts.URL)
+	if err != nil {
+		t.Fatalf("http request failed: %v", err)
+	}
+	resp.Body.Close()
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("handler requests after http request = %d, want 1", got)
+	}
+
+	httpsURL := strings.Replace(ts.URL, "http://", "https://", 1)
+	resp, err = client.Get(httpsURL)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatal("https request succeeded unexpectedly; reused cleartext connection")
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("handler requests after https request = %d, want 1", got)
+	}
+}
+
+func TestTransportHTTP2ConnPoolDoesNotReuseAcrossSchemesReverse(t *testing.T) {
+	CondSkipHTTP2(t)
+
+	var requests atomic.Int32
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+		requests.Add(1)
+		w.WriteHeader(StatusNoContent)
+	}))
+	ts.EnableHTTP2 = true
+	ts.StartTLS()
+	defer ts.Close()
+
+	tr := &Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		Protocols:       &Protocols{},
+	}
+	tr.Protocols.SetHTTP2(true)
+	tr.Protocols.SetUnencryptedHTTP2(true)
+	defer tr.CloseIdleConnections()
+
+	client := &Client{Transport: tr}
+
+	resp, err := client.Get(ts.URL)
+	if err != nil {
+		t.Fatalf("https request failed: %v", err)
+	}
+	resp.Body.Close()
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("handler requests after https request = %d, want 1", got)
+	}
+
+	httpURL := strings.Replace(ts.URL, "https://", "http://", 1)
+	resp, err = client.Get(httpURL)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatal("http request succeeded unexpectedly; reused TLS connection")
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("handler requests after http request = %d, want 1", got)
+	}
+}
+
 // testHTTP2ConfigureServer is a stripped-down version of http2.ConfigureServer.
 func testHTTP2ConfigureServer(s *Server) {
 	s.Serve(testHTTP2ServerConfig{})

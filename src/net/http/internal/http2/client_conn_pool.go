@@ -9,6 +9,7 @@ package http2
 import (
 	"net"
 	"slices"
+	"strings"
 	"sync"
 )
 
@@ -21,29 +22,36 @@ type clientConnPool struct {
 	mu sync.Mutex // TODO: maybe switch to RWMutex
 	// TODO: add support for sharing conns based on cert names
 	// (e.g. share conn for googleapis.com and appspot.com)
-	conns        map[string][]*ClientConn // key is host:port
+	conns        map[string][]*ClientConn // key is scheme://host:port
 	keys         map[*ClientConn][]string
 	addConnCalls map[string]*addConnCall // in-flight addConnIfNeeded calls
 }
 
-// GetClientConn returns a cached connection to addr,
+// GetClientConn returns a cached connection for key,
 // or ErrNoCachedConn if there is none available.
-func (p *clientConnPool) GetClientConn(req *ClientRequest, addr string) (*ClientConn, error) {
+func (p *clientConnPool) GetClientConn(req *ClientRequest, key string) (*ClientConn, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	for _, cc := range p.conns[addr] {
+	for _, cc := range p.conns[key] {
 		if cc.ReserveNewRequest() {
 			// When a connection is presented to us by the net/http package,
 			// the GetConn hook has already been called.
 			// Don't call it a second time here.
 			if !cc.getConnCalled {
-				traceGetConn(req, addr)
+				traceGetConn(req, connPoolTraceAddr(key))
 			}
 			cc.getConnCalled = false
 			return cc, nil
 		}
 	}
 	return nil, ErrNoCachedConn
+}
+
+func connPoolTraceAddr(key string) string {
+	if i := strings.Index(key, "://"); i >= 0 {
+		return key[i+3:]
+	}
+	return key
 }
 
 // addConnIfNeeded makes a NewClientConn out of c if a connection for key doesn't
