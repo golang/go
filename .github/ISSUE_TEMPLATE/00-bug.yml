@@ -89,6 +89,6 @@ body:
     id: expected-behavior
     attributes:
       label: "What did you expect to see?"
-      description: Why is the current output incorrect, and any additional context we may need to understand the issue.
+      description: Why is the current output incorrect, and any additional context we may need to understand the issue. Do not post patches in the issue tracker, patches must be sent in a CL / PR with a signed CLA.
     validations:
       required: true
