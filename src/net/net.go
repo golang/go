@@ -91,11 +91,9 @@ requires passing -lresolv when linking the C code.
 
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
-On Windows, the resolver uses C library functions, such as
-GetAddrInfo and DnsQuery, by default. This applies even when building
-with CGO_ENABLED=0, because on Windows the resolver calls Win32 APIs
-directly without using cgo. This can be overridden with
-GODEBUG=netdns=go to force the pure Go resolver.
+On macOS and Windows, the native resolver is used by default and does
+not require cgo, so it is used even when CGO_ENABLED=0. On Windows it
+calls GetAddrInfo and DnsQuery.
 */
 package net
 
