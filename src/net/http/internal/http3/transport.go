@@ -58,6 +58,25 @@ func (t netHTTPTransport) RoundTrip(*http.Request) (*http.Response, error) {
 	panic("netHTTPTransport.RoundTrip should never be called")
 }
 
+// DialClientConn creates a new client connection to address.
+//
+// If proxy is non-nil, the connection should use the provided proxy.
+// If HTTP/3 proxies are not supported, DialClientConn should return
+// an error wrapping [errors.ErrUnsupported].
+//
+// The RoundTripper returned by DialClientConn must also implement the
+// http.genericClientConn interface.
+//
+// The client connection should arrange to call internalStateHook
+// when the connection closes, when requests complete, and when the
+// connection concurrency limit changes.
+//
+// The client connection must call the internal state hook when
+// the connection state changes asynchronously, such as when a request completes.
+//
+// The internal state hook need not be called after synchronous changes
+// to the state: Close, Reserve, Release, and RoundTrip calls
+// which don't start a request do not need to call the hook.
 func (t netHTTPTransport) DialClientConn(ctx context.Context, addr string, _ *url.URL, tlsConfig *tls.Config, stateHook func()) (http.RoundTripper, error) {
 	return t.transport.dial(ctx, addr, tlsConfig, stateHook)
 }
@@ -269,6 +288,22 @@ func (cc *clientConn) Close() error {
 	// thinking that there is still an active cc.
 	<-cc.unregistered
 	return err
+}
+
+func (cc *clientConn) IsAlt() bool {
+	return true
+}
+
+func (cc *clientConn) IsReused() bool {
+	return false
+}
+
+func (cc *clientConn) NetConn() net.Conn {
+	return nil
+}
+
+func (cc *clientConn) CloseWithError(err error) {
+	cc.Close()
 }
 
 func (cc *clientConn) Err() error {

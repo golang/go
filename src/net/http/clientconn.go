@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http/httptrace"
 	"net/url"
@@ -46,9 +47,9 @@ type ClientConn struct {
 type newClientConner interface {
 	// NewClientConn creates a new client connection from a net.Conn.
 	//
-	// The RoundTripper returned by NewClientConn must implement genericClientConn.
-	// (We don't define NewClientConn as returning genericClientConn,
-	// because either we'd need to make genericClientConn an exported type
+	// The RoundTripper returned by NewClientConn must implement externalClientConn.
+	// (We don't define NewClientConn as returning externalClientConn,
+	// because either we'd need to make externalClientConn an exported type
 	// or define it as a type alias. Neither is particularly appealing.)
 	//
 	// The state hook passed here is the internal state hook
@@ -76,11 +77,11 @@ type newClientConner interface {
 	NewClientConn(nc net.Conn, internalStateHook func()) (RoundTripper, error)
 }
 
-// genericClientConn is an interface implemented by HTTP/2 client conns
-// returned from newClientConner.NewClientConn.
+// externalClientConn is an interface implemented by HTTP/2 and HTTP/3 client conns
+// returned from newClientConner.NewClientConn and dialClientConner.DialClientConn.
 //
 // See the newClientConner doc comment for more information.
-type genericClientConn interface {
+type externalClientConn interface {
 	Close() error
 	Err() error
 	RoundTrip(req *Request) (*Response, error)
@@ -88,6 +89,26 @@ type genericClientConn interface {
 	Release()
 	Available() int
 	InFlight() int
+}
+
+// genericClientConn is an internal interface representing any client connection
+// (HTTP/1, HTTP/2, HTTP/3, or custom RoundTripper).
+type genericClientConn interface {
+	externalClientConn
+
+	// IsAlt reports whether this "connection" is backed by a RoundTripper returned
+	// from TLSNextProto or a similar source. Historically, this means the "connection"
+	// is backed by an http2.Transport, with its own connection pool.
+	IsAlt() bool
+
+	// IsReused reports whether the connection has successfully made at least one roundtrip.
+	IsReused() bool
+
+	// NetConn is the net.Conn to use in httptrace.GotConnInfo.
+	NetConn() net.Conn
+
+	// CloseWithError closes the connection, with an error given as the reason.
+	CloseWithError(err error)
 }
 
 // NewClientConn creates a new client connection to the given address.
@@ -176,7 +197,7 @@ func (t *Transport) NewClientConn(ctx context.Context, scheme, address string) (
 	// Since there's no need to change the persistConn's hook, we set it at creation time.
 	cc := &ClientConn{}
 	const isClientConn = true
-	pconn, err := t.dialConn(ctx, cm, isClientConn, nil, cc.maybeRunStateHook)
+	gc, err := t.dialConn(ctx, cm, isClientConn, nil, cc.maybeRunStateHook)
 	if err != nil {
 		return nil, err
 	}
@@ -186,22 +207,8 @@ func (t *Transport) NewClientConn(ctx context.Context, scheme, address string) (
 	// This is fine.
 	cc.stateHookMu.Lock()
 	defer cc.stateHookMu.Unlock()
-	if pconn.alt != nil {
-		// If pconn.alt is set, this is a connection implemented in another package
-		// (probably x/net/http2) or the bundled copy in h2_bundle.go.
-		gc, ok := pconn.alt.(genericClientConn)
-		if !ok {
-			return nil, errors.New("http: NewClientConn returned something that is not a ClientConn")
-		}
-		cc.cc = gc
-		cc.lastAvailable = gc.Available()
-	} else {
-		// This is an HTTP/1 connection.
-		pconn.availch = make(chan struct{}, 1)
-		pconn.availch <- struct{}{}
-		cc.cc = http1ClientConn{pconn}
-		cc.lastAvailable = 1
-	}
+	cc.cc = gc
+	cc.lastAvailable = gc.Available()
 	return cc, nil
 }
 
@@ -395,13 +402,11 @@ func (cc *ClientConn) SetStateHook(f func(*ClientConn)) {
 	cc.maybeRunStateHook()
 }
 
-// http1ClientConn is a genericClientConn implementation backed by
-// an HTTP/1 *persistConn (pconn.alt is nil).
-type http1ClientConn struct {
-	pconn *persistConn
-}
+// The following makes persistConn implement genericClientConn for HTTP/1 connections.
+// TODO: Move to somewhere more associated with persistConn; these functions are here
+// because they predate persistConn implementing genericClientConn.
 
-func (cc http1ClientConn) RoundTrip(req *Request) (*Response, error) {
+func (pc *persistConn) RoundTrip(req *Request) (*Response, error) {
 	ctx := req.Context()
 	trace := httptrace.ContextClientTrace(ctx)
 
@@ -412,70 +417,148 @@ func (cc http1ClientConn) RoundTrip(req *Request) (*Response, error) {
 	}
 
 	treq := &transportRequest{Request: req, trace: trace, ctx: ctx, cancel: cancel}
-	resp, err := cc.pconn.roundTrip(treq)
+	resp, err := pc.roundTrip(treq)
 	if err != nil {
+		cancel(err)
 		return nil, err
 	}
 	resp.Request = req
 	return resp, nil
 }
 
-func (cc http1ClientConn) Close() error {
-	cc.pconn.close(errors.New("ClientConn closed"))
+func (pc *persistConn) Close() error {
+	pc.CloseWithError(errors.New("ClientConn closed"))
 	return nil
 }
 
-func (cc http1ClientConn) Err() error {
+func (pc *persistConn) Err() error {
 	select {
-	case <-cc.pconn.closech:
-		return cc.pconn.closed
+	case <-pc.closech:
+		return pc.closed
 	default:
 		return nil
 	}
 }
 
-func (cc http1ClientConn) Available() int {
-	cc.pconn.mu.Lock()
-	defer cc.pconn.mu.Unlock()
-	if cc.pconn.closed != nil || cc.pconn.reserved || cc.pconn.inFlight {
+func (pc *persistConn) Available() int {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	if pc.closed != nil || pc.reserved || pc.inFlight {
 		return 0
 	}
 	return 1
 }
 
-func (cc http1ClientConn) InFlight() int {
-	cc.pconn.mu.Lock()
-	defer cc.pconn.mu.Unlock()
-	if cc.pconn.closed == nil && (cc.pconn.reserved || cc.pconn.inFlight) {
+func (pc *persistConn) InFlight() int {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	if pc.closed == nil && (pc.reserved || pc.inFlight) {
 		return 1
 	}
 	return 0
 }
 
-func (cc http1ClientConn) Reserve() error {
-	cc.pconn.mu.Lock()
-	defer cc.pconn.mu.Unlock()
-	if cc.pconn.closed != nil {
-		return cc.pconn.closed
+func (pc *persistConn) Reserve() error {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	if pc.closed != nil {
+		return pc.closed
 	}
 	select {
-	case <-cc.pconn.availch:
+	case <-pc.availch:
 	default:
 		return errors.New("connection is unavailable")
 	}
-	cc.pconn.reserved = true
+	pc.reserved = true
 	return nil
 }
 
-func (cc http1ClientConn) Release() {
-	cc.pconn.mu.Lock()
-	defer cc.pconn.mu.Unlock()
-	if cc.pconn.reserved {
+func (pc *persistConn) Release() {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	if pc.reserved {
 		select {
-		case cc.pconn.availch <- struct{}{}:
+		case pc.availch <- struct{}{}:
 		default:
 			panic("cannot release reservation")
 		}
-		cc.pconn.reserved = false
+		pc.reserved = false
 	}
+}
+
+func (pc *persistConn) IsAlt() bool       { return false }
+func (pc *persistConn) NetConn() net.Conn { return pc.conn }
+
+// externalConn wraps an externalClientConn to implement genericClientConn.
+type externalConn struct {
+	externalClientConn
+}
+
+func (cc externalConn) IsAlt() bool          { return false }
+func (cc externalConn) NetConn() net.Conn    { return nil }
+func (cc externalConn) IsReused() bool       { return false }
+func (cc externalConn) CloseWithError(error) { cc.Close() }
+
+func (cc externalConn) Ping(ctx context.Context) error {
+	pinger, ok := cc.externalClientConn.(interface {
+		Ping(context.Context) error
+	})
+	if !ok {
+		return errors.New("http: ClientConn does not support PING")
+	}
+	return pinger.Ping(ctx)
+}
+
+// altClientConn implements the genericClientConn interface for a RoundTripper
+// (such as from TLSNextProto or http2RoundTripper).
+//
+// An altClientConn is, historically, backed by an http2 Transport which manages its
+// own connection pool, and is not really a "connection".
+type altClientConn struct {
+	rt     RoundTripper
+	mu     sync.Mutex
+	closed error
+}
+
+func (cc *altClientConn) IsAlt() bool          { return true }
+func (cc *altClientConn) NetConn() net.Conn    { return nil }
+func (cc *altClientConn) IsReused() bool       { return false }
+func (cc *altClientConn) CloseWithError(error) { cc.Close() }
+func (cc *altClientConn) Reserve() error       { return nil }
+func (cc *altClientConn) Release()             {}
+func (cc *altClientConn) Available() int       { return 1 }
+func (cc *altClientConn) InFlight() int        { return 0 }
+
+func (cc *altClientConn) RoundTrip(req *Request) (*Response, error) {
+	return cc.rt.RoundTrip(req)
+}
+
+func (cc *altClientConn) Ping(ctx context.Context) error {
+	pinger, ok := cc.rt.(interface {
+		Ping(context.Context) error
+	})
+	if !ok {
+		return errors.New("http: ClientConn does not support PING")
+	}
+	return pinger.Ping(ctx)
+}
+
+func (cc *altClientConn) Close() error {
+	cc.mu.Lock()
+	if cc.closed != nil {
+		cc.mu.Unlock()
+		return nil
+	}
+	cc.closed = net.ErrClosed
+	cc.mu.Unlock()
+	if c, ok := cc.rt.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
+func (cc *altClientConn) Err() error {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	return cc.closed
 }

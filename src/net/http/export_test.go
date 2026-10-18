@@ -127,11 +127,12 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 	var ret []string
 	for _, ent := range t.poolCopyEntries() {
 		ent.lock()
-		for _, pc := range ent.idleConns {
-			if pc.conn == nil {
+		for _, pconn := range ent.idleConns {
+			c := pconn.cc.NetConn()
+			if c == nil {
 				continue
 			}
-			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
+			ret = append(ret, c.LocalAddr().String()+"/"+c.RemoteAddr().String())
 		}
 		ent.unlock(t)
 	}
@@ -208,8 +209,10 @@ func ExportCloseTransportConnsAbruptly(tr *Transport) {
 	tr.pool.mu.Lock()
 	pcs := slices.Collect(tr.pool.lru.all())
 	tr.pool.mu.Unlock()
-	for _, pc := range pcs {
-		pc.conn.Close()
+	for _, pconn := range pcs {
+		if c := pconn.cc.NetConn(); c != nil {
+			c.Close()
+		}
 	}
 }
 
@@ -244,18 +247,18 @@ func (p *Protocols) SetHTTP3(ok bool) {
 }
 
 type remapHTTP3Dialer struct {
-	dialClientConner
+	http3Transport
 	closeIdleConnectionser
 	remap func(string) string
 }
 
 func (d remapHTTP3Dialer) DialClientConn(ctx context.Context, addr string, proxy *url.URL, tlsConfig *tls.Config, hook func()) (RoundTripper, error) {
-	return d.dialClientConner.DialClientConn(ctx, d.remap(addr), proxy, tlsConfig, hook)
+	return d.http3Transport.DialClientConn(ctx, d.remap(addr), proxy, tlsConfig, hook)
 }
 
 func (t *Transport) SetHTTP3DialAddrForTesting(remap func(string) string) {
 	t.h3Transport = remapHTTP3Dialer{
-		dialClientConner:       t.h3Transport,
+		http3Transport:         t.h3Transport,
 		closeIdleConnectionser: t.h3Transport.(closeIdleConnectionser),
 		remap:                  remap,
 	}

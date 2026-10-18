@@ -37,8 +37,24 @@ import (
 type clientConnPool struct {
 	mu        sync.Mutex
 	ents      map[connectMethodKey]*clientConnPoolEntry
-	lru       intrusiveList[persistConn]
+	lru       intrusiveList[poolConn]
 	closeIdle bool
+}
+
+type poolConn struct {
+	cc genericClientConn
+
+	// Guarded by clientConnPool.mu.
+	lruLink intrusiveLink[poolConn]
+
+	// Guarded by clientConnPoolEntry's lock.
+	poolEnt  *clientConnPoolEntry
+	isInPool bool      // set when counted in pool entry's numConns
+	idleAt   time.Time // time it last became idle
+}
+
+func (pc *poolConn) isBroken() bool {
+	return pc.cc.Err() != nil
 }
 
 type clientConnPoolEntry struct {
@@ -57,9 +73,9 @@ type clientConnPoolEntry struct {
 	lockc    chan struct{}
 
 	// Idle (available for use) connections, most recently used last.
-	idleConns []*persistConn
+	idleConns []*poolConn
 
-	// Connection with alt != nil.
+	// Connection with IsAlt() == true.
 	//
 	// This is historically a pseudo-"connection" backed by an http2.Transport,
 	// which manages its own connection pool. Lack of visibility into this pool
@@ -69,7 +85,7 @@ type clientConnPoolEntry struct {
 	// This may also be an HTTP/3 connection.
 	//
 	// TODO: Improve management of HTTP/2 and HTTP/3 connections.
-	altConn *persistConn
+	altConn *poolConn
 
 	// Total connections, idle and otherwise.
 	numConns int
@@ -134,7 +150,7 @@ func (ent *clientConnPoolEntry) unlock(tr *Transport) {
 }
 
 // registerConnLocked adds pconn to the entry's bookkeeping.
-func (ent *clientConnPoolEntry) registerConnLocked(pconn *persistConn) {
+func (ent *clientConnPoolEntry) registerConnLocked(pconn *poolConn) {
 	if pconn.isBroken() || pconn.isInPool {
 		return
 	}
@@ -143,7 +159,7 @@ func (ent *clientConnPoolEntry) registerConnLocked(pconn *persistConn) {
 }
 
 // unregisterConnLocked disassociates pconn from the entry.
-func (ent *clientConnPoolEntry) unregisterConnLocked(pconn *persistConn) {
+func (ent *clientConnPoolEntry) unregisterConnLocked(pconn *poolConn) {
 	if !pconn.isInPool {
 		// This can happen if a newly-created connection breaks before we finish
 		// registering it with the pool.
@@ -154,8 +170,8 @@ func (ent *clientConnPoolEntry) unregisterConnLocked(pconn *persistConn) {
 }
 
 // deleteIdleLocked deletes every element in idleConns that matches f.
-func (ent *clientConnPoolEntry) deleteIdleLocked(t *Transport, f func(*persistConn) bool) {
-	ent.idleConns = slices.DeleteFunc(ent.idleConns, func(pconn *persistConn) bool {
+func (ent *clientConnPoolEntry) deleteIdleLocked(t *Transport, f func(*poolConn) bool) {
+	ent.idleConns = slices.DeleteFunc(ent.idleConns, func(pconn *poolConn) bool {
 		delete := f(pconn)
 		if delete {
 			ent.unregisterConnLocked(pconn)
@@ -180,7 +196,7 @@ func (t *Transport) getLockedPoolEntry(key connectMethodKey, clearCloseIdle bool
 		}
 		if t.pool.ents == nil {
 			t.pool.ents = map[connectMethodKey]*clientConnPoolEntry{}
-			t.pool.lru.link = func(pconn *persistConn) *intrusiveLink[persistConn] {
+			t.pool.lru.link = func(pconn *poolConn) *intrusiveLink[poolConn] {
 				return &pconn.lruLink
 			}
 		}
@@ -225,7 +241,7 @@ func (t *Transport) poolCloseIdleConnections() {
 	t.pool.mu.Unlock()
 
 	for _, ent := range t.poolCopyEntries() {
-		var toClose []*persistConn
+		var toClose []*poolConn
 		func() {
 			ent.lock()
 			defer ent.unlock(t)
@@ -234,7 +250,7 @@ func (t *Transport) poolCloseIdleConnections() {
 				toClose = append(toClose, ent.altConn)
 				ent.altConn = nil
 			}
-			ent.deleteIdleLocked(t, func(pconn *persistConn) bool {
+			ent.deleteIdleLocked(t, func(pconn *poolConn) bool {
 				toClose = append(toClose, pconn)
 				return true
 			})
@@ -250,18 +266,18 @@ func (t *Transport) poolCloseIdleConnections() {
 			}
 		}()
 		for _, pconn := range toClose {
-			pconn.close(errCloseIdleConns)
+			pconn.cc.CloseWithError(errCloseIdleConns)
 		}
 	}
 }
 
 // poolPutIdleConn indicates that a connection has become idle and may accept new requests.
-func (t *Transport) poolPutIdleConn(pconn *persistConn) error {
-	ent := pconn.poolEnt
-	if ent == nil {
+func (t *Transport) poolPutIdleConn(pconn *poolConn) error {
+	if pconn == nil || pconn.poolEnt == nil {
 		return errNotInPool
 	}
-	if pconn.alt != nil {
+	ent := pconn.poolEnt
+	if pconn.cc.IsAlt() {
 		// HTTP/2 and HTTP/3 connections should never appear here.
 		// Ignore them if they do.
 		return nil
@@ -285,7 +301,7 @@ func (t *Transport) poolPutIdleConn(pconn *persistConn) error {
 // It returns needExpire=true if the caller should call t.expireIdleLRU
 // after dropping the entry lock. (We check inside poolPutIdleConnLocked to avoid
 // a needless pool mutex acquisition in the common case when expiry is not needed.)
-func (t *Transport) poolPutIdleConnLocked(ent *clientConnPoolEntry, pconn *persistConn) (_ error, needExpire bool) {
+func (t *Transport) poolPutIdleConnLocked(ent *clientConnPoolEntry, pconn *poolConn) (_ error, needExpire bool) {
 	t.pool.mu.Lock()
 	defer t.pool.mu.Unlock()
 
@@ -304,7 +320,7 @@ func (t *Transport) poolPutIdleConnLocked(ent *clientConnPoolEntry, pconn *persi
 		if len(ent.idleConns) >= t.maxIdleConnsPerHost() {
 			return errTooManyIdleHost, false
 		}
-		if pconn.alt != nil && ent.altConn != nil {
+		if pconn.cc.IsAlt() && ent.altConn != nil {
 			// We already have a reusable, shared connection;
 			// discard this one.
 			return errTooManyIdleHost, false
@@ -312,20 +328,20 @@ func (t *Transport) poolPutIdleConnLocked(ent *clientConnPoolEntry, pconn *persi
 		if t.pool.closeIdle {
 			return errCloseIdle, false
 		}
-		if pconn.alt == nil {
+		if !pconn.cc.IsAlt() {
 			ent.idleConns = append(ent.idleConns, pconn)
 		} else {
 			ent.altConn = pconn
 		}
 	}
 
-	if pconn.alt == nil {
+	if !pconn.cc.IsAlt() {
 		t.pool.lru.pushBack(pconn)
 	}
 
 	// Arm the idle timer (if needed).
 	pconn.idleAt = time.Now()
-	if t.IdleConnTimeout > 0 && !ent.idleTimerSet && pconn.alt == nil {
+	if t.IdleConnTimeout > 0 && !ent.idleTimerSet && !pconn.cc.IsAlt() {
 		if ent.idleTimer != nil {
 			ent.idleTimer.Reset(t.IdleConnTimeout)
 		} else {
@@ -349,9 +365,9 @@ func (t *Transport) poolIdleTimeout(ent *clientConnPoolEntry) {
 	}
 	now := time.Now()
 	var next time.Time
-	ent.deleteIdleLocked(t, func(pconn *persistConn) bool {
+	ent.deleteIdleLocked(t, func(pconn *poolConn) bool {
 		if expiry := pconn.idleAt.Add(timeout); !expiry.After(now) {
-			go pconn.close(errIdleConnTimeout)
+			go pconn.cc.CloseWithError(errIdleConnTimeout)
 			return true
 		} else if next.IsZero() || expiry.Before(next) {
 			next = expiry
@@ -365,11 +381,11 @@ func (t *Transport) poolIdleTimeout(ent *clientConnPoolEntry) {
 }
 
 // poolRemoveConn entirely removes pconn from the pool.
-func (t *Transport) poolRemoveConn(pconn *persistConn) {
-	ent := pconn.poolEnt
-	if ent == nil {
+func (t *Transport) poolRemoveConn(pconn *poolConn) {
+	if pconn == nil || pconn.poolEnt == nil {
 		return
 	}
+	ent := pconn.poolEnt
 	ent.lock()
 	defer ent.unlock(t)
 	if ent.altConn == pconn {
@@ -383,13 +399,13 @@ func (t *Transport) poolRemoveConn(pconn *persistConn) {
 }
 
 type pconnOrError struct {
-	pconn *persistConn
+	pconn *poolConn
 	err   error
 }
 
 // poolGetConn gets a usable connection from the pool,
 // dialing a new one if necessary.
-func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persistConn, error) {
+func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*poolConn, error) {
 	getConnCancelCause := func(ctx context.Context) error {
 		err := context.Cause(ctx)
 		if err == errRequestCanceled {
@@ -415,7 +431,7 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persist
 
 	// Fast path: Check to see if there's a usable conn.
 	const clearCloseIdle = true
-	ent, pconn := func() (*clientConnPoolEntry, *persistConn) {
+	ent, pconn := func() (*clientConnPoolEntry, *poolConn) {
 		ent := t.getLockedPoolEntry(cm.key(), clearCloseIdle)
 		defer ent.unlock(t)
 		pconn := t.poolTryGetForEntryLocked(ent)
@@ -456,7 +472,7 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persist
 		case <-ent.cangetc:
 			// Reading from cangetc locks the entry, and indicates that there is
 			// an available connection in the idle list.
-			pconn := func() *persistConn {
+			pconn := func() *poolConn {
 				defer ent.unlock(t)
 				pconn := t.poolTryGetForEntryLocked(ent)
 				if pconn != nil {
@@ -519,14 +535,14 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persist
 // poolTryGetForEntryLocked attempts to fetch an idle connection from ent.
 // ent must be locked.
 // It returns nil if no usable connection was found.
-func (t *Transport) poolTryGetForEntryLocked(ent *clientConnPoolEntry) *persistConn {
+func (t *Transport) poolTryGetForEntryLocked(ent *clientConnPoolEntry) *poolConn {
 	if ent.altConn != nil {
 		// If we've got an HTTP/2 or HTTP/3 connection, use it.
 		return ent.altConn
 	}
 
 	// If IdleConnTimeout is set, calculate the oldest
-	// persistConn.idleAt time we're willing to use a cached idle
+	// poolConn.idleAt time we're willing to use a cached idle
 	// conn.
 	var oldTime time.Time
 	if t.IdleConnTimeout > 0 {
@@ -543,7 +559,7 @@ func (t *Transport) poolTryGetForEntryLocked(ent *clientConnPoolEntry) *persistC
 		if tooOld {
 			// Async cleanup. Launch in its own goroutine (as if a
 			// time.AfterFunc called it).
-			go pconn.close(errIdleConnTimeout)
+			go pconn.cc.CloseWithError(errIdleConnTimeout)
 		}
 		if pconn.isBroken() || tooOld {
 			// If either persistConn.readLoop has marked the connection
@@ -577,7 +593,15 @@ func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 		defer dial.postDial()
 	}
 
-	pconn, err := t.dialConn(ctx, dial.cm, false, ent, nil)
+	pconn := &poolConn{
+		poolEnt: ent,
+	}
+	cc, err := t.dialConn(ctx, dial.cm, false, pconn, nil)
+	if err != nil {
+		pconn = nil
+	} else {
+		pconn.cc = cc
+	}
 	needClose, needExpire := func() (needClose, needExpire bool) {
 		ent.lock()
 		defer ent.unlock(t)
@@ -592,7 +616,7 @@ func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 		// HTTP/2 and HTTP/3 connections can be shared.
 		// Add to the idle connection pool before trying to deliver to w.
 		deliver := pconnOrError{pconn: pconn, err: err}
-		if err == nil && pconn.alt != nil {
+		if err == nil && pconn.cc.IsAlt() {
 			err, needExpire = t.poolPutIdleConnLocked(ent, pconn)
 			if err != nil {
 				// This connection should not go into the idle list.
@@ -637,7 +661,7 @@ func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 			delivered = true
 		case <-dial.donec:
 		}
-		if err != nil || delivered || needClose || pconn.alt != nil {
+		if err != nil || delivered || needClose || pconn.cc.IsAlt() {
 			// Either an error, or an unsharable HTTP/1 connection which was delivered
 			// to the waiter, or a shared HTTP/2 or /3 connection already in the pool.
 			return needClose, false
@@ -652,7 +676,7 @@ func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 		return false, needExpire
 	}()
 	if needClose {
-		pconn.close(err)
+		pconn.cc.CloseWithError(err)
 	}
 	if needExpire {
 		t.expireIdleLRU()
@@ -660,7 +684,7 @@ func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 }
 
 // removeFromIdleLRU removes pconn from the idle-conns LRU.
-func (t *Transport) removeFromIdleLRU(pconn *persistConn) {
+func (t *Transport) removeFromIdleLRU(pconn *poolConn) {
 	t.pool.mu.Lock()
 	defer t.pool.mu.Unlock()
 	t.pool.lru.remove(pconn)
@@ -693,7 +717,7 @@ func (t *Transport) expireIdleLRU() {
 			if idx := slices.Index(ent.idleConns, pconn); idx >= 0 {
 				ent.idleConns = slices.Delete(ent.idleConns, idx, idx+1)
 				ent.unregisterConnLocked(pconn)
-				go pconn.close(errTooManyIdle)
+				go pconn.cc.CloseWithError(errTooManyIdle)
 			}
 			t.pool.lru.remove(pconn)
 		}
