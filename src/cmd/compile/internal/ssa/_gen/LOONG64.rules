@@ -514,6 +514,7 @@
 (If cond yes no) => (NEZ (MOVBUreg <typ.UInt64> cond) yes no)
 (MOVBUreg x:((SGT|SGTU) _ _)) => x
 (MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
+(MOVBUreg x:(FPFlag(True|False) _)) => x
 
 (JumpTable idx) => (JUMPTABLE {ssa.MakeJumpTableSym(b)} idx (MOVVaddr <typ.Uintptr> {ssa.MakeJumpTableSym(b)} (SB)))
 

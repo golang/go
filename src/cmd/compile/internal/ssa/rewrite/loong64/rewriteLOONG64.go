@@ -2816,6 +2816,26 @@ func rewriteValue_OpLOONG64MOVBUreg(v *ssa.Value) bool {
 		}
 		break
 	}
+	// match: (MOVBUreg x:(FPFlagTrue _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64FPFlagTrue {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FPFlagFalse _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64FPFlagFalse {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
 	// match: (MOVBUreg (SLLVconst [lc] x))
 	// cond: lc >= 8
 	// result: (MOVVconst [0])
