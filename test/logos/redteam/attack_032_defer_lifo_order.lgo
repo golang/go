@@ -1,0 +1,53 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
+var errAlpha = errors.New("alpha")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func cleanup(name string, fail bool) error {
+	note(name)
+	if fail {
+		return errAlpha
+	}
+	return nil
+}
+
+func lifoFail() (err error) {
+	errdefer note("E-errdefer")
+	defer note("C-defer")
+	defer cleanup("B-defertry-ok", false)?
+	defer note("A-defer")
+	return errAlpha
+}
+
+func lifoOk() (err error) {
+	errdefer note("E2-errdefer")
+	defer note("C2-defer")
+	defer cleanup("B2-defertry-ok", false)?
+	defer note("A2-defer")
+	return nil
+}
+
+func lifoLate() (err error) {
+	errdefer note("E3-errdefer")
+	defer cleanup("B3-defertry-fail", true)?
+	defer note("A3-defer")
+	return nil
+}
+
+func main() {
+	fmt.Println("fail:", lifoFail())
+	fmt.Println("ok:", lifoOk())
+	fmt.Println("late:", lifoLate())
+	fmt.Println("order:", strings.Join(order, ","))
+}

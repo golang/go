@@ -1,0 +1,10 @@
+// skip
+// rundir
+
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("unreachable")
+}

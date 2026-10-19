@@ -1,0 +1,41 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errParse = errors.New("parse")
+
+func parse(s string) (int, error) {
+	if s == "bad" {
+		return 0, errParse
+	}
+	return len(s), nil
+}
+
+func closeAll() error { return nil }
+
+func compute(input string) (err error) {
+	errors := 0
+	strconv := "prefix"
+	n := parse(input)?
+	errors = n
+	defer closeAll()?
+	if errors < 0 {
+		return errParse
+	}
+	fmt.Println(strconv, errors)
+	return nil
+}
+
+func main() {
+	if err := compute("hello"); err != nil {
+		fmt.Println("fatal:", err)
+	}
+	if err := compute("bad"); err != nil {
+		fmt.Println("err:", err)
+	}
+}

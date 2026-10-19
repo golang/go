@@ -1,0 +1,42 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
+var errClose = errors.New("close")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func closer() error {
+	note("defertry")
+	return nil
+}
+
+func mixedOK() (err error) {
+	errdefer note("errdefer")
+	defer closer()?
+	defer note("defer")
+	return nil
+}
+
+func mixedFail() (err error) {
+	errdefer note("errdefer")
+	defer closer()?
+	defer note("defer")
+	return errClose
+}
+
+func main() {
+	_ = mixedOK()
+	fmt.Println("ok:", strings.Join(order, ","))
+	order = nil
+	_ = mixedFail()
+	fmt.Println("fail:", strings.Join(order, ","))
+}

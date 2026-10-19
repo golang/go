@@ -1,0 +1,28 @@
+// run
+
+package main
+
+import "fmt"
+
+type opErr struct{ msg string }
+
+func (e *opErr) Error() string { return e.msg }
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func commit() (err error) {
+	errdefer note("cleanup")
+	var p *opErr
+	return p
+}
+
+func main() {
+	err := commit()
+	fmt.Println("err==nil:", err == nil)
+	fmt.Println("order:", len(order))
+	for _, s := range order {
+		fmt.Println("ran:", s)
+	}
+}

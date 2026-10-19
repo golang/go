@@ -1,0 +1,42 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errEarly = errors.New("early")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func early(fail bool) (err error) {
+	errdefer note("early-cleanup")
+	if fail {
+		return errEarly
+	}
+	return nil
+}
+
+func evalBoom() (int, error) { panic("eval-boom") }
+
+func returnEval() (v int, err error) {
+	errdefer note("eval-cleanup")
+	return evalBoom()
+}
+
+func main() {
+	_ = early(false)
+	_ = early(true)
+	func() {
+		defer func() { _ = recover() }()
+		_, _ = returnEval()
+	}()
+	for _, s := range order {
+		fmt.Println("ran:", s)
+	}
+	fmt.Println("count:", len(order))
+}

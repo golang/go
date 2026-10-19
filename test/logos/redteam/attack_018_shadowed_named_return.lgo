@@ -1,0 +1,110 @@
+// errorcheck
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"runtime"
+	"strings"
+	"time"
+)
+
+var errWork = errors.New("work")
+var errClose = errors.New("close")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func fetch(fail bool) (int, error) {
+	if fail {
+		return 0, errWork
+	}
+	return 3, nil
+}
+
+func bonus(fail bool) (int, error) {
+	if fail {
+		return 0, errWork
+	}
+	return 5, nil
+}
+
+func closer() error { return errClose }
+
+func shadowed(fail bool) (val int, err error) {
+	defer closer()?
+	{
+		v, err := fetch(fail)
+		if err != nil {
+			return 0, err
+		}
+		val = v * 10
+	}
+	n := bonus(false)?
+	val += n
+	val++
+	return
+}
+
+func earlyShadow(fail bool) (val int, err error) {
+	defer closer()?
+	{
+		v, err := fetch(fail)
+		if err != nil {
+			return 0, err
+		}
+		val = v
+		return // ERROR "result parameter err not in scope at return"
+	}
+}
+
+func guarded(op string) (err error) {
+	errdefer note("guarded-errdefer:" + op)
+	switch op {
+	case "ok":
+		return nil
+	case "fail":
+		return errWork
+	case "panic":
+		panic("guarded-boom")
+	}
+	return nil
+}
+
+func goexitGuarded(done chan string) (err error) {
+	errdefer func() { done <- "goexit-errdefer-ran" }()
+	runtime.Goexit()
+	return nil
+}
+
+func main() {
+	v, err := shadowed(false)
+	fmt.Println("shadowed ok:", v, err)
+	v2, err2 := shadowed(true)
+	fmt.Println("shadowed fail:", v2, errors.Is(err2, errWork), errors.Is(err2, errClose))
+	e3, err3 := earlyShadow(false)
+	fmt.Println("early shadow ok:", e3, err3)
+	e4, err4 := earlyShadow(true)
+	fmt.Println("early shadow fail:", e4, errors.Is(err4, errWork), errors.Is(err4, errClose))
+	_ = guarded("ok")
+	_ = guarded("fail")
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("guarded panic:", r)
+			}
+		}()
+		_ = guarded("panic")
+	}()
+	done := make(chan string, 1)
+	go goexitGuarded(done)
+	select {
+	case msg := <-done:
+		fmt.Println("goexit:", msg)
+	case <-time.After(2 * time.Second):
+		fmt.Println("goexit: timeout")
+	}
+	fmt.Println("order:", strings.Join(order, ","))
+}

@@ -1,0 +1,2 @@
+ok: defer,defertry
+fail: defer,defertry,errdefer

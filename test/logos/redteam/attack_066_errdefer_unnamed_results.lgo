@@ -1,0 +1,51 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
+var errWork = errors.New("work")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func load(fail bool) (int, error) {
+	errdefer note("load-cleanup")
+	if fail {
+		return 0, errWork
+	}
+	return 7, nil
+}
+
+func save(fail bool) (string, int, error) {
+	errdefer note("save-cleanup")
+	v := load(fail)?
+	return "ok", v, nil
+}
+
+func cleanup(fail bool) error {
+	if fail {
+		return errWork
+	}
+	return nil
+}
+
+func flush(fail bool) error {
+	defer cleanup(fail)?
+	return nil
+}
+
+func main() {
+	s, n, err := save(false)
+	fmt.Printf("save ok: %q %d %v\n", s, n, err)
+	s2, n2, err2 := save(true)
+	fmt.Printf("save fail: %q %d %v\n", s2, n2, err2)
+	fmt.Println("flush ok:", flush(false))
+	fmt.Println("flush fail:", flush(true))
+	fmt.Println("order:", strings.Join(order, ","))
+}

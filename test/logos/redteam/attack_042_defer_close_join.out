@@ -1,0 +1,5 @@
+nil: <nil>
+close: close
+both: first
+close
+is-first: true is-close: true

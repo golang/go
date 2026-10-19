@@ -1,0 +1,98 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+
+	"logos/rt"
+)
+
+var errAlpha = errors.New("alpha")
+var errBeta = errors.New("beta")
+
+func srcAlpha(fail bool) (int, error) {
+	if fail {
+		return 0, errAlpha
+	}
+	return 1, nil
+}
+
+func midAlpha(fail bool) (int, error) {
+	n := srcAlpha(fail)?
+	return n + 1, nil
+}
+
+func topAlpha(fail bool) (int, error) {
+	n := midAlpha(fail)?
+	return n + 1, nil
+}
+
+func srcBeta(fail bool) (int, error) {
+	if fail {
+		return 0, errBeta
+	}
+	return 1, nil
+}
+
+func topBeta(fail bool) (int, error) {
+	n := srcBeta(fail)?
+	return n + 1, nil
+}
+
+func c1() (int, error) { return 0, errAlpha }
+
+func c2() (int, error) {
+	n := c1()?
+	return n + 1, nil
+}
+
+func c3() (int, error) {
+	n := c2()?
+	return n + 1, nil
+}
+
+func c4() (int, error) {
+	n := c3()?
+	return n + 1, nil
+}
+
+func c5() (int, error) {
+	n := c4()?
+	return n + 1, nil
+}
+
+func c6() (int, error) {
+	n := c5()?
+	return n + 1, nil
+}
+
+func c7() (int, error) {
+	n := c6()?
+	return n + 1, nil
+}
+
+func c8() (int, error) {
+	n := c7()?
+	return n + 1, nil
+}
+
+func c9() (int, error) {
+	n := c8()?
+	return n + 1, nil
+}
+
+func c10() (int, error) {
+	n := c9()?
+	return n + 1, nil
+}
+
+func main() {
+	_, _ = topAlpha(true)
+	fmt.Println("trace-alpha:", len(rt.ErrorTrace()))
+	_, _ = topBeta(true)
+	fmt.Println("trace-beta-reset:", len(rt.ErrorTrace()))
+	_, _ = c10()
+	fmt.Println("trace-cap:", len(rt.ErrorTrace()))
+}

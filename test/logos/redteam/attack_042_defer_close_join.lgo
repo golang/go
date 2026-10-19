@@ -1,0 +1,41 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errFirst = errors.New("first")
+var errClose = errors.New("close")
+
+type file struct{ closeErr error }
+
+func (f *file) Close() error { return f.closeErr }
+
+func copyNil() (err error) {
+	f := &file{}
+	defer f.Close()?
+	return nil
+}
+
+func copyCloseErr() (err error) {
+	f := &file{closeErr: errClose}
+	defer f.Close()?
+	return nil
+}
+
+func copyBoth() (err error) {
+	f := &file{closeErr: errClose}
+	defer f.Close()?
+	return errFirst
+}
+
+func main() {
+	fmt.Println("nil:", copyNil())
+	fmt.Println("close:", copyCloseErr())
+	b := copyBoth()
+	fmt.Println("both:", b)
+	fmt.Println("is-first:", errors.Is(b, errFirst), "is-close:", errors.Is(b, errClose))
+}

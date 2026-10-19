@@ -1,0 +1,39 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errRec = errors.New("rec")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func ok() (err error) {
+	errdefer func() {
+		_ = recover()
+		note("should-not-run")
+	}()
+	return nil
+}
+
+func fail() (err error) {
+	errdefer func() {
+		_ = recover()
+		note("failed-cleanup")
+	}()
+	return errRec
+}
+
+func main() {
+	_ = ok()
+	_ = fail()
+	for _, s := range order {
+		fmt.Println("ran:", s)
+	}
+	fmt.Println("count:", len(order))
+}

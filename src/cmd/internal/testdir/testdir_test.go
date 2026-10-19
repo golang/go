@@ -612,7 +612,7 @@ func (t test) run() error {
 	}
 	// test/logos cases run through the logos harness (see logos_test.go).
 	if routeLogosHarness(t.dir, t.goFile, action, flags) {
-		return t.runLogosCase(action, args, flags, runenv, srcBytes, wantAuto, tim)
+		return t.runLogos(logosCase{action, args, flags, runenv, srcBytes, wantAuto, wantError, tim})
 	}
 	if action == "errorcheck" {
 		found := false

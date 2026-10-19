@@ -1,0 +1,4 @@
+fail: alpha
+ok: <nil>
+late: alpha
+order: A-defer,B-defertry-ok,C-defer,E-errdefer,A2-defer,B2-defertry-ok,C2-defer,A3-defer,B3-defertry-fail,E3-errdefer

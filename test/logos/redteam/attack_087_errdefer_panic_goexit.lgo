@@ -1,0 +1,53 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"time"
+)
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func onPanic() (err error) {
+	errdefer note("panic-cleanup")
+	panic("boom")
+}
+
+func evalBoom() (int, error) { panic("eval-boom") }
+
+func returnEvalPanics() (v int, err error) {
+	errdefer note("eval-cleanup")
+	return evalBoom()
+}
+
+func goexitWorker(done chan string) (err error) {
+	errdefer func() { done <- "goexit-cleanup" }()
+	runtime.Goexit()
+	return nil
+}
+
+func main() {
+	func() {
+		defer func() { _ = recover() }()
+		_ = onPanic()
+	}()
+	func() {
+		defer func() { _ = recover() }()
+		_, _ = returnEvalPanics()
+	}()
+	done := make(chan string, 1)
+	go goexitWorker(done)
+	select {
+	case msg := <-done:
+		order = append(order, msg)
+	case <-time.After(2 * time.Second):
+		order = append(order, "goexit-timeout")
+	}
+	for _, s := range order {
+		fmt.Println("ran:", s)
+	}
+}

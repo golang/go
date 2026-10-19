@@ -1,0 +1,43 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errPrimary = errors.New("primary")
+var errRollback = errors.New("rollback")
+
+func rollbackFail() error { return errRollback }
+
+func rollbackOK() error { return nil }
+
+func both() (err error) {
+	errdefer rollbackFail()?
+	return errPrimary
+}
+
+// onlyRollback arms errdefer through a swallowed panic, so errdefer runs
+// while the error result is still nil. T-104.2: a nil primary takes the
+// rollback error as is.
+func onlyRollback() (err error) {
+	defer func() { recover() }()
+	errdefer rollbackFail()?
+	panic("rollback-only")
+}
+
+func primaryKept() (err error) {
+	errdefer rollbackOK()?
+	return errPrimary
+}
+
+func main() {
+	err := both()
+	fmt.Println("both is-primary:", errors.Is(err, errPrimary), "is-rollback:", errors.Is(err, errRollback))
+	err = onlyRollback()
+	fmt.Println("only is-rollback:", errors.Is(err, errRollback), "is-primary:", errors.Is(err, errPrimary))
+	err = primaryKept()
+	fmt.Println("kept is-primary:", errors.Is(err, errPrimary), "is-rollback:", errors.Is(err, errRollback))
+}

@@ -1,0 +1,5 @@
+save ok: "ok" 7 <nil>
+save fail: "" 0 work
+flush ok: <nil>
+flush fail: work
+order: load-cleanup,save-cleanup

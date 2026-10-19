@@ -1,0 +1,3 @@
+both is-primary: true is-rollback: true
+only is-rollback: true is-primary: false
+kept is-primary: true is-rollback: false
