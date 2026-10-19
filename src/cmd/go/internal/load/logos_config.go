@@ -75,7 +75,11 @@ func checkLogosConfig(ld *modload.Loader, p *Package) {
 	root := logosConfigRootForPackage(ld, p)
 	cf, err := logosConfigAt(root)
 	if err != nil {
-		if p.Error == nil && claimConfigError(root) {
+		isNoGo := false
+		if p.Error != nil {
+			_, isNoGo = errors.AsType[*NoGoError](p.Error.Err)
+		}
+		if claimConfigError(root) && (p.Error == nil || isNoGo) {
 			p.Error = &PackageError{Err: err}
 			p.Incomplete = true
 		}

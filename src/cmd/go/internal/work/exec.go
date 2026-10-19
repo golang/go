@@ -2832,8 +2832,8 @@ func envList(key, def string) []string {
 	if v == "" {
 		v = def
 	}
-	if key == "CC" {
-		v = logosCCFallback(v)
+	if key == "CC" || key == "CXX" {
+		v = logosCompilerFallback(key, v)
 	}
 	args, err := quoted.Split(v)
 	if err != nil {
@@ -3041,6 +3041,7 @@ func (b *Builder) runCgo(ctx context.Context, a *Action) error {
 	// flags put together from source code (checked).
 	cgoenv := b.cCompilerEnv()
 	cgoenv = append(cgoenv, cfgChangedEnv...)
+	cgoenv = append(cgoenv, logosCgoToolEnv()...)
 	var ldflagsOption []string
 	if len(cgoLDFLAGS) > 0 {
 		flags := make([]string, len(cgoLDFLAGS))

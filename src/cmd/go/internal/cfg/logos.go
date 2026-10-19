@@ -39,6 +39,12 @@ var Pedantic bool
 // any other consumer must read this snapshot instead.
 var logosInitCC = Getenv("CC")
 
+// logosInitCXX snapshots the user CXX at process startup, covering both the
+// process environment and the GOENV file, for the same reason as
+// logosInitCC: the zig c++ fallback must tell an explicit user setting
+// (including `go env -w CXX=...`) from an injected MkEnv default.
+var logosInitCXX = Getenv("CXX")
+
 // logosInitCGOEnabled snapshots the user CGO_ENABLED at process startup,
 // covering both the process environment and the GOENV file. main.invoke
 // injects the effective CGO_ENABLED into the process environment before
@@ -292,34 +298,47 @@ func logosSkippedDir(dir string, d fs.DirEntry) bool {
 	return false
 }
 
-// ZigCC resolves the C compiler for a cgo build given the current CC
-// value: the zig fallback "zig cc -target <triple>" when cgo is on, CC was
-// unset in both the process environment and the GOENV file at startup, the
-// current compiler is missing from PATH, and zig is on PATH; otherwise cc
-// unchanged. The startup snapshot tells an injected MkEnv default (which
-// main.invoke writes into the process environment before builds run) from
-// an explicit user setting, so only the former may fall back. It never
-// writes the process environment, so "go env CC" keeps showing the default
-// or user compiler. It runs under both go and logos for Go and loGo/s
-// packages alike. The triple follows the command target, which ForceHost
-// already reset for host tool builds.
-func ZigCC(cc string) string {
+// zigCompiler resolves one C-family compiler command for a cgo build given
+// its current value: the zig fallback "zig <kind> -target <triple>" when
+// cgo is on, the variable was unset in both the process environment and
+// the GOENV file at startup, the current compiler is missing from PATH,
+// and zig is on PATH; otherwise cmd unchanged. kind is "cc" for CC and
+// "c++" for CXX. The startup snapshot tells an injected MkEnv default
+// (which main.invoke writes into the process environment before builds
+// run) from an explicit user setting, so only the former may fall back. It
+// never writes the process environment, so "go env CC" and "go env CXX"
+// keep showing the default or user compiler. It runs under both go and
+// logos for Go and loGo/s packages alike. The triple follows the command
+// target, which ForceHost already reset for host tool builds.
+func zigCompiler(cmd, startup, kind string) string {
 	if !BuildContext.CgoEnabled {
-		return cc
+		return cmd
 	}
-	if logosInitCC != "" {
-		return cc
+	if startup != "" {
+		return cmd
 	}
-	if _, err := pathcache.LookPath(cc); err == nil {
-		return cc
+	if _, err := pathcache.LookPath(cmd); err == nil {
+		return cmd
 	}
 	if _, err := pathcache.LookPath("zig"); err != nil {
-		return cc
+		return cmd
 	}
 	if target, ok := ZigTarget(Goos, Goarch); ok {
-		return "zig cc -target " + target
+		return "zig " + kind + " -target " + target
 	}
-	return cc
+	return cmd
+}
+
+// ZigCC resolves the C compiler for a cgo build given the current CC
+// value; see zigCompiler. It runs under both go and logos.
+func ZigCC(cc string) string {
+	return zigCompiler(cc, logosInitCC, "cc")
+}
+
+// ZigCXX resolves the C++ compiler for a cgo build given the current CXX
+// value; see zigCompiler. It runs under both go and logos.
+func ZigCXX(cxx string) string {
+	return zigCompiler(cxx, logosInitCXX, "c++")
 }
 
 // CgoPolicyAllow reports whether a package may use cgo under the parsed
