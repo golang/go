@@ -7,6 +7,7 @@ package x509
 import (
 	"bytes"
 	"errors"
+	"slices"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -268,7 +269,12 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 		}
 	}
 
+	chains = slices.DeleteFunc(chains, containsDistrustedSPKIHash)
+
 	if len(chains) == 0 {
+		if topErr == nil {
+			return nil, CertificateInvalidError{c, NoValidChains, ""}
+		}
 		// Return the error from the highest quality context.
 		return nil, topErr
 	}
