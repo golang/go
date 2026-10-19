@@ -1061,5 +1061,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	ENDBR64					// f30f1efa
 
+	// High byte registers are allowed when no REX prefix is needed.
+	ADDB $1, CH                             // 80c501
+	MOVB AH, BL                             // 88e3
+	MOVBLZX AH, AX                          // 0fb6c4
+	MOVBLSX BH, DX                          // 0fbed7
+	MOVB (BX)(CX*4), AH                     // 8a248b
+	MOVB DH, (AX)                           // 8830
+	MOVBWZX CH, BX                          // 660fb6dd
+
 	// End of tests.
 	RET

@@ -5348,6 +5348,27 @@ func isbadbyte(a *obj.Addr) bool {
 	return a.Type == obj.TYPE_REG && (REG_BP <= a.Reg && a.Reg <= REG_DI || REG_BPB <= a.Reg && a.Reg <= REG_DIB)
 }
 
+// highByteReg returns the first of AH, CH, DH or BH
+// used as a register operand of p, or 0 if there is none.
+func highByteReg(p *obj.Prog) int {
+	isHigh := func(r int16) bool { return REG_AH <= r && r <= REG_BH }
+	if p.From.Type == obj.TYPE_REG && isHigh(p.From.Reg) {
+		return int(p.From.Reg)
+	}
+	if isHigh(p.Reg) {
+		return int(p.Reg)
+	}
+	for _, a := range p.RestArgs {
+		if a.Type == obj.TYPE_REG && isHigh(a.Reg) {
+			return int(a.Reg)
+		}
+	}
+	if p.To.Type == obj.TYPE_REG && isHigh(p.To.Reg) {
+		return int(p.To.Reg)
+	}
+	return 0
+}
+
 func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	ab.Reset()
 
@@ -5364,6 +5385,11 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		// note that the handbook often misleadingly shows 66/f2/f3 in `opcode'.
 		if ctxt.Arch.Family != sys.AMD64 {
 			ctxt.Diag("asmins: illegal in mode %d: %v (%d %d)", ctxt.Arch.RegSize*8, p, p.Ft, p.Tt)
+		}
+		// With a REX prefix, the encodings of AH, CH, DH and BH
+		// select SPB, BPB, SIB and DIB instead.
+		if r := highByteReg(p); r != 0 {
+			ctxt.Diag("cannot use %v in instruction requiring REX prefix: %v", rconv(r), p)
 		}
 		n := ab.Len()
 		var np int

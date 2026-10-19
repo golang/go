@@ -147,4 +147,16 @@ TEXT errors(SB),$0
 
 	RDPID (BX)			 // ERROR "invalid instruction"
 
+	// High byte registers cannot be encoded with a REX prefix.
+	MOVB (BX)(R8*4), AH              // ERROR "cannot use AH in instruction requiring REX prefix"
+	MOVB AH, (R8)                    // ERROR "cannot use AH in instruction requiring REX prefix"
+	MOVB AH, SIB                     // ERROR "cannot use AH in instruction requiring REX prefix"
+	MOVB R9B, BH                     // ERROR "cannot use BH in instruction requiring REX prefix"
+	MOVBQZX AH, AX                   // ERROR "cannot use AH in instruction requiring REX prefix"
+	MOVBQZX AH, R8                   // ERROR "cannot use AH in instruction requiring REX prefix"
+	MOVBLZX AH, R9                   // ERROR "cannot use AH in instruction requiring REX prefix"
+	MOVBQSX DH, AX                   // ERROR "cannot use DH in instruction requiring REX prefix"
+	MOVBWZX CH, R10                  // ERROR "cannot use CH in instruction requiring REX prefix"
+	ADDB $1, CH                      // ok
+
 	RET
