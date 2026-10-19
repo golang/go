@@ -335,7 +335,11 @@ func (check *Checker) logosArmType(e *syntax.SwitchExpr, arms []*operand) Type {
 		common = Default(untyped)
 	}
 	for _, v := range arms {
-		if typed != nil && !check.logosArmAssignable(v, common) {
+		// Pre-validate, so a failing arm reports only the tagged
+		// mismatch below and never the untagged assignment message.
+		// This covers typed and defaulted common types alike: a nil
+		// arm fails iff the common type is not nilable.
+		if !check.logosArmAssignable(v, common) {
 			agree = false
 			continue
 		}
