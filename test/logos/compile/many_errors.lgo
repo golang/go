@@ -1,0 +1,16 @@
+// errorcheck
+
+package p
+
+var _ = undefined01 // ERROR "undefined"
+var _ = undefined02 // ERROR "undefined"
+var _ = undefined03 // ERROR "undefined"
+var _ = undefined04 // ERROR "undefined"
+var _ = undefined05 // ERROR "undefined"
+var _ = undefined06 // ERROR "undefined"
+var _ = undefined07 // ERROR "undefined"
+var _ = undefined08 // ERROR "undefined"
+var _ = undefined09 // ERROR "undefined"
+var _ = undefined10 // ERROR "undefined"
+var _ = undefined11 // ERROR "undefined"
+var _ = undefined12 // ERROR "undefined"

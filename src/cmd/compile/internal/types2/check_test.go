@@ -406,19 +406,6 @@ func TestLocal(t *testing.T) { testDirFiles(t, "testdata/local", 0, false) }
 // parsing with Config.Logos = true from the .lgo names (logosPackageMode).
 func TestLogos(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/logos", 0, false) }
 
-// logosPackageMode reports the parse mode and Config.Logos value for a
-// test package: a package of only .lgo files checks as loGo/s
-// (syntax.LogosMode, true); anything else checks as Go (0, false), so
-// every existing caller keeps its behavior.
-func logosPackageMode(filenames []string) (syntax.Mode, bool) {
-	for _, name := range filenames {
-		if !strings.HasSuffix(name, ".lgo") {
-			return 0, false
-		}
-	}
-	return syntax.LogosMode, true
-}
-
 func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
 	testenv.MustHaveGoBuild(t)
 	dir = filepath.FromSlash(dir)

@@ -1,0 +1,16 @@
+// runoutput hello world
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	args := strings.Join(os.Args[1:], ",")
+	fmt.Println("package main")
+	fmt.Println(`import "fmt"`)
+	fmt.Printf("func main() { fmt.Println(%q) }\n", "args:"+args)
+}

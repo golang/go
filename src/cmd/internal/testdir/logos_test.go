@@ -11,20 +11,22 @@ package testdir_test
 // under test/logos/** run with go under the same directives, except under
 // test/logos/lint/, where they run with `logos lint` (M9-S2 owns that
 // subcommand and its first files). A .go twin that needs an optimization
-// tier carries `// run -O=<level>`; routeLogosHarness sends it here and it
-// builds through `go build` with the level intact, never through `go run`
-// or `go tool compile`, and never to logos (a -O belongs to cmd/go).
-// cmd/go does not accept -O yet: M13-S1 owns enabling it and the first -O
-// twin, so no committed file uses -O today.
+// tier carries `// run -O=<level>`; it builds through `go build` with the
+// level intact alongside every other directive flag, never through
+// `go run` or `go tool compile`, and never to logos (a -O belongs to
+// cmd/go). cmd/go does not accept -O yet: M13-S1 owns enabling it and the
+// first -O twin, so no committed file uses -O today.
 //
-// testdir_test.go carries four hook lines for this harness: the "logos"
-// directory entry, the testFilesForDir enumeration call, the runLogos
+// testdir_test.go carries hook lines for this harness: the "logos"
+// directory entry, the testFilesForDir enumeration call, the runLogosCase
 // branch in run(), and the testOutputStem call in checkExpectedOutput.
 // Every upstream case body stays as it is. Every .lgo action below stages
 // the file in a throwaway module and drives it with the logos binary, so
-// language selection (LogosMode parsing, Config.Logos checking) matches
-// real use. `go tool compile` is never used for .lgo files: it would
-// bypass logos file recognition and break spec mapping.
+// language selection matches real use. `go tool compile` is never used
+// for .lgo files: it would bypass logos file recognition and break spec
+// mapping. .lgo compile and errorcheck compiler flags travel as -gcflags
+// (always with -e, plus the ssa/check injection for errorcheck), because
+// `logos build` does not define compiler flags such as -m or -d.
 
 import (
 	"bytes"
@@ -106,22 +108,31 @@ func testOutputStem(filename string) string {
 	return filename
 }
 
-// routeLogosHarness reports whether a test/logos case runs through
-// runLogos: .lgo files (logos binary), test/logos/lint/ files
-// (`logos lint`, M9-S2), and .go twins carrying -O=<level> under a `run`
-// recipe, which build through `go build`. Every other .go twin keeps the
-// upstream handlers, so its flags keep flowing to `go run`/`go build`.
-func routeLogosHarness(goFile, action string, flags []string) bool {
+// routeLogosHarness reports whether a test case runs through runLogos.
+// Only test/logos cases route here (dir == "logos"), so plain go keeps
+// upstream behavior everywhere else (I3): .lgo files run with the logos
+// binary, test/logos/lint/ files run with `logos lint` (M9-S2), and every
+// other .go twin under test/logos runs with go through runLogos (C1),
+// where its base name is staged. Twins carrying -O=<level> build through
+// `go build` with the level intact.
+func routeLogosHarness(dir, goFile, action string, flags []string) bool {
+	if dir != "logos" {
+		return false
+	}
+	// Only single-file actions run here; directory actions (*dir, rundir,
+	// runindir) and the remaining recipes keep the upstream handlers,
+	// which read their inputs from the source tree rather than staging
+	// one file.
+	switch action {
+	case "run", "compile", "build", "errorcheck", "runoutput":
+	default:
+		return false
+	}
 	if strings.HasSuffix(goFile, ".lgo") || strings.HasPrefix(goFile, "lint/") {
 		return true
 	}
-	if action != "run" || !strings.HasSuffix(goFile, ".go") {
-		return false
-	}
-	for _, f := range flags {
-		if strings.HasPrefix(f, "-O=") {
-			return true
-		}
+	if strings.HasSuffix(goFile, ".go") {
+		return true
 	}
 	return false
 }
@@ -137,9 +148,76 @@ type logosCase struct {
 	tim    int
 }
 
+// runLogosCase runs one test/logos recipe through runLogos. It exists so
+// the hook in testdir_test.go stays a single call (M6).
+func (t test) runLogosCase(action string, args, flags, runenv []string, src []byte, auto bool, tim int) error {
+	return t.runLogos(logosCase{
+		action: action,
+		args:   args,
+		flags:  flags,
+		runenv: runenv,
+		src:    src,
+		auto:   auto,
+		tim:    tim,
+	})
+}
+
+// splitOptFlags splits -O=<level> out of directive flags: -O is a
+// go-build-only flag for the .go twins (M13-S1 owns cmd/go acceptance).
+// It is never passed to logos, and never reaches `go run` or
+// `go tool compile`.
+func splitOptFlags(flags []string) (buildFlags, optFlags []string) {
+	for _, f := range flags {
+		if strings.HasPrefix(f, "-O=") {
+			optFlags = append(optFlags, f)
+		} else {
+			buildFlags = append(buildFlags, f)
+		}
+	}
+	return buildFlags, optFlags
+}
+
+// logosGCFlags builds the single -gcflags value for .lgo compile and
+// errorcheck (I1): `logos build` does not define compiler flags such as
+// -m or -d=..., so they must travel as -gcflags. -e is always present so
+// errors past the 10-error cutoff still match ERROR comments; the shared
+// GO_GCFLAGS base stays in the same value so the standard library is not
+// rebuilt.
+func logosGCFlags(compilerFlags []string) string {
+	base := strings.TrimSpace(os.Getenv("GO_GCFLAGS"))
+	parts := make([]string, 0, len(compilerFlags)+2)
+	if base != "" {
+		parts = append(parts, base)
+	}
+	hasE := false
+	for _, f := range compilerFlags {
+		if f == "-e" {
+			hasE = true
+			break
+		}
+	}
+	if !hasE {
+		parts = append(parts, "-e")
+	}
+	parts = append(parts, compilerFlags...)
+	return "-gcflags=all=" + strings.Join(parts, " ")
+}
+
+// logosGoBuildCmd builds the `go build` argv for a .go twin carrying
+// -O=<level> (I2): the -O flags and every other directive flag reach the
+// build, before the file argument.
+func logosGoBuildCmd(gcflags, file string, buildFlags, optFlags []string) []string {
+	cmd := []string{goTool, "build", gcflags, "-o", "a.exe"}
+	cmd = append(cmd, optFlags...)
+	cmd = append(cmd, buildFlags...)
+	cmd = append(cmd, file)
+	return cmd
+}
+
 // runLogos runs one test/logos case. The file is staged under its base
-// name in a throwaway module; .lgo actions drive the logos binary, and
-// test/logos/lint/*.go files drive `logos lint` (M9-S2).
+// name in a throwaway module; .lgo actions drive the logos binary, .go
+// twins drive go, and test/logos/lint/*.go files drive `logos lint`
+// (M9-S2).
 func (t test) runLogos(c logosCase) error {
 	base := path.Base(t.goFile) // t.goFile uses slashes: "run/hello.lgo"
 	isLgo := strings.HasSuffix(base, ".lgo")
@@ -191,18 +269,7 @@ func (t test) runLogos(c logosCase) error {
 		return buf.Bytes(), err
 	}
 
-	// Split -O=<level> out: it is a go-build-only flag for the .go twins
-	// (M13-S1 owns cmd/go acceptance). It is never passed to logos, and
-	// never reaches `go run` or `go tool compile`: .go twins carrying it
-	// take the `go build` path below.
-	var buildFlags, optFlags []string
-	for _, f := range c.flags {
-		if strings.HasPrefix(f, "-O=") {
-			optFlags = append(optFlags, f)
-		} else {
-			buildFlags = append(buildFlags, f)
-		}
-	}
+	buildFlags, optFlags := splitOptFlags(c.flags)
 
 	// test/logos/lint/ belongs to M9-S2: its .go files run with
 	// `logos lint`, never with go. M9-S2 owns the exact subcommand
@@ -216,20 +283,7 @@ func (t test) runLogos(c logosCase) error {
 	}
 
 	if !isLgo {
-		// .go twin carrying -O=<level> (routeLogosHarness sends only
-		// those here): build through `go build` with the level intact,
-		// then run the binary, mirroring the upstream buildrun recipe.
-		cmd := []string{goTool, "build", t.goGcflags(), "-o", "a.exe"}
-		cmd = append(cmd, optFlags...)
-		cmd = append(cmd, filepath.Join(tempDir, base))
-		if _, err := runcmd(cmd...); err != nil {
-			return err
-		}
-		out, err := runcmd(append([]string{"./a.exe"}, c.args...)...)
-		if err != nil {
-			return err
-		}
-		return t.checkExpectedOutput(out)
+		return t.runLogosGo(c, base, tempDir, buildFlags, optFlags, runcmd)
 	}
 
 	if err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module logostest\n\ngo 1.27\n"), 0644); err != nil {
@@ -248,35 +302,50 @@ func (t test) runLogos(c logosCase) error {
 		}
 		return t.checkExpectedOutput(out)
 
-	case "compile", "build":
+	case "compile":
+		cmd := []string{logosToolPath(t.T), "build", logosGCFlags(buildFlags), "."}
+		_, err := runcmd(cmd...)
+		return err
+
+	case "build":
 		cmd := []string{logosToolPath(t.T), "build"}
 		cmd = append(cmd, buildFlags...)
-		if c.action == "build" {
-			cmd = append(cmd, "-o", "a.exe")
-		}
-		cmd = append(cmd, ".")
+		cmd = append(cmd, "-o", "a.exe", ".")
 		_, err := runcmd(cmd...)
 		return err
 
 	case "errorcheck":
-		cmd := []string{logosToolPath(t.T), "build"}
-		cmd = append(cmd, buildFlags...)
-		cmd = append(cmd, ".")
+		flags := slices.Clone(buildFlags)
+		found := false
+		for i, f := range flags {
+			if strings.HasPrefix(f, "-d=") {
+				flags[i] = f + ",ssa/check/on"
+				found = true
+				break
+			}
+		}
+		if !found {
+			flags = append(flags, "-d=ssa/check/on")
+		}
+		cmd := []string{logosToolPath(t.T), "build", logosGCFlags(flags), "."}
 		out, err := runcmd(cmd...)
 		if err == nil {
 			return fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
 		}
 		full := filepath.Join(tempDir, base)
-		// Cover both the bare and "./"-prefixed spellings a build may
-		// use for the file name; the second pair's full side names no
-		// readable file and contributes no ERROR entries, only prefix
-		// normalization.
+		// Keep the "./"-prefixed pair: the unmatched-error filter in
+		// errorCheck uses HasPrefix (not matchPrefix), so without it
+		// "./"-prefixed leftovers would drop silently instead of
+		// failing the test.
 		return t.errorCheck(string(out), c.auto, full, base, "./"+base, base)
 
 	case "runoutput":
+		t.runoutputGate <- true
+		defer func() { <-t.runoutputGate }()
 		cmd := []string{logosToolPath(t.T), "run", t.goGcflags()}
 		cmd = append(cmd, buildFlags...)
 		cmd = append(cmd, ".")
+		cmd = append(cmd, c.args...)
 		out, err := runcmd(cmd...)
 		if err != nil {
 			return err
@@ -296,5 +365,156 @@ func (t test) runLogos(c logosCase) error {
 	default:
 		t.Fatalf("unknown logos pattern: %q", c.action)
 		panic("unreachable")
+	}
+}
+
+// runLogosGo runs a .go twin under test/logos with go (C1). The file is
+// already staged under its base name: the upstream path would write
+// tempDir/run/x.go with only tempDir/test present and fail with ENOENT,
+// so every twin routes here. Twins carrying -O=<level> build through
+// `go build` with the level and every other directive flag intact (I2);
+// plain twins mirror the upstream single-file recipes with the staged
+// base path.
+func (t test) runLogosGo(c logosCase, base, tempDir string, buildFlags, optFlags []string, runcmd runCmd) error {
+	if len(optFlags) > 0 {
+		cmd := logosGoBuildCmd(t.goGcflags(), filepath.Join(tempDir, base), buildFlags, optFlags)
+		if _, err := runcmd(cmd...); err != nil {
+			return err
+		}
+		out, err := runcmd(append([]string{"./a.exe"}, c.args...)...)
+		if err != nil {
+			return err
+		}
+		return t.checkExpectedOutput(out)
+	}
+
+	full := filepath.Join(tempDir, base)
+	switch c.action {
+	case "run":
+		cmd := []string{goTool, "run", t.goGcflags()}
+		cmd = append(cmd, buildFlags...)
+		cmd = append(cmd, full)
+		cmd = append(cmd, c.args...)
+		out, err := runcmd(cmd...)
+		if err != nil {
+			return err
+		}
+		return t.checkExpectedOutput(out)
+
+	case "build":
+		cmd := []string{goTool, "build", t.goGcflags()}
+		cmd = append(cmd, buildFlags...)
+		cmd = append(cmd, "-o", "a.exe", full)
+		_, err := runcmd(cmd...)
+		return err
+
+	case "compile":
+		cmd := []string{goTool, "tool", "compile", "-e", "-p=p", "-importcfg=" + stdlibImportcfgFile()}
+		cmd = append(cmd, buildFlags...)
+		cmd = append(cmd, full)
+		_, err := runcmd(cmd...)
+		return err
+
+	case "errorcheck":
+		flags := slices.Clone(buildFlags)
+		found := false
+		for i, f := range flags {
+			if strings.HasPrefix(f, "-d=") {
+				flags[i] = f + ",ssa/check/on"
+				found = true
+				break
+			}
+		}
+		if !found {
+			flags = append(flags, "-d=ssa/check/on")
+		}
+		cmdline := []string{goTool, "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.o"}
+		cmdline = append(cmdline, flags...)
+		cmdline = append(cmdline, full)
+		out, err := runcmd(cmdline...)
+		if err == nil {
+			return fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+		}
+		return t.errorCheck(string(out), c.auto, full, base)
+
+	case "runoutput":
+		t.runoutputGate <- true
+		defer func() { <-t.runoutputGate }()
+		cmd := []string{goTool, "run", t.goGcflags()}
+		cmd = append(cmd, buildFlags...)
+		cmd = append(cmd, full)
+		cmd = append(cmd, c.args...)
+		out, err := runcmd(cmd...)
+		if err != nil {
+			return err
+		}
+		tfile := filepath.Join(tempDir, "tmp__.go")
+		if err := os.WriteFile(tfile, out, 0666); err != nil {
+			t.Fatalf("write tempfile: %v", err)
+		}
+		cmd = []string{goTool, "run", t.goGcflags()}
+		cmd = append(cmd, tfile)
+		out, err = runcmd(cmd...)
+		if err != nil {
+			return err
+		}
+		return t.checkExpectedOutput(out)
+
+	default:
+		t.Fatalf("unknown logos go pattern: %q", c.action)
+		panic("unreachable")
+	}
+}
+
+func TestRouteLogosHarnessScopesToLogos(t *testing.T) {
+	// I3: -O= outside test/logos keeps upstream behavior.
+	if routeLogosHarness("fixedbugs", "bug000.go", "run", []string{"-O=3"}) {
+		t.Fatal("routeLogosHarness routed an upstream -O= file to the logos harness")
+	}
+	// C1: every .go twin under test/logos routes to runLogos, not only -O.
+	if !routeLogosHarness("logos", "run/twin_go.go", "run", nil) {
+		t.Fatal("routeLogosHarness did not route a plain test/logos .go twin")
+	}
+	if !routeLogosHarness("logos", "run/x.go", "run", []string{"-O=3"}) {
+		t.Fatal("routeLogosHarness did not route a -O= twin")
+	}
+	if !routeLogosHarness("logos", "run/hello.lgo", "run", nil) {
+		t.Fatal("routeLogosHarness did not route a .lgo file")
+	}
+	// Directory actions keep the upstream handlers, which read from the
+	// source tree instead of staging one file.
+	if routeLogosHarness("logos", "run/x.go", "rundir", nil) {
+		t.Fatal("routeLogosHarness routed a directory action to the logos harness")
+	}
+	if routeLogosHarness("logos", "run/x.lgo", "compile", nil) == false {
+		t.Fatal("routeLogosHarness did not route a .lgo compile action")
+	}
+}
+
+func TestLogosGoBuildPreservesFlags(t *testing.T) {
+	// I2: the -O build keeps every other directive flag before the file.
+	cmd := logosGoBuildCmd("-gcflags=all=", "x.go", []string{"-gcflags=-l"}, []string{"-O=3"})
+	foundO, foundGC, fileLast := false, false, false
+	for i, a := range cmd {
+		if a == "-O=3" {
+			foundO = true
+		}
+		if a == "-gcflags=-l" {
+			foundGC = true
+		}
+		if a == "x.go" && i == len(cmd)-1 {
+			fileLast = true
+		}
+	}
+	if !foundO || !foundGC || !fileLast {
+		t.Fatalf("logosGoBuildCmd dropped flags: %q", cmd)
+	}
+}
+
+func TestLogosGCFlagsHasE(t *testing.T) {
+	// I1: compiler flags travel as -gcflags with -e always present.
+	got := logosGCFlags([]string{"-m"})
+	if !strings.HasPrefix(got, "-gcflags=") || !strings.Contains(got, "-e") || !strings.Contains(got, "-m") {
+		t.Fatalf("logosGCFlags = %q, want -gcflags with -e and -m", got)
 	}
 }

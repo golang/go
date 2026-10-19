@@ -610,22 +610,9 @@ func (t test) run() error {
 		}
 		args = args[1:]
 	}
-	// test/logos cases routed here run through the logos harness
-	// (logos_test.go): .lgo files with the logos binary,
-	// test/logos/lint/*.go files with `logos lint` (M9-S2), and .go twins
-	// carrying -O=<level>, which build through `go build` (M13-S1 owns
-	// cmd/go acceptance of -O). Other .go twins keep the upstream
-	// handlers below.
-	if routeLogosHarness(t.goFile, action, flags) {
-		return t.runLogos(logosCase{
-			action: action,
-			args:   args,
-			flags:  flags,
-			runenv: runenv,
-			src:    srcBytes,
-			auto:   wantAuto,
-			tim:    tim,
-		})
+	// test/logos cases run through the logos harness (see logos_test.go).
+	if routeLogosHarness(t.dir, t.goFile, action, flags) {
+		return t.runLogosCase(action, args, flags, runenv, srcBytes, wantAuto, tim)
 	}
 	if action == "errorcheck" {
 		found := false
