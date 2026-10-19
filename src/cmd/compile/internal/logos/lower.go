@@ -131,21 +131,22 @@ func (fl *fileLower) lowerFile() {
 	}
 	if fl.needRT {
 		fl.file.DeclList = append([]syntax.Decl{rtImport(fl.file.Pos())}, fl.file.DeclList...)
-		fl.addImportSplice()
+		fl.addHeaderSplice()
 	}
 	for _, decl := range fl.siteDecls {
 		fl.file.DeclList = append(fl.file.DeclList, decl)
 	}
 }
 
-// addImportSplice adds the eject-text edit that spells the rt import of a
-// lowered file. The AST side carries the ImportDecl above; the rendered
-// text must match so the ejected file compiles standalone. The import is
-// inserted right after the package name token: the scan starts at that
-// token and stops at its end, skipping only comments and automatic
-// semicolons. No statement splice can overlap the zero-width insertion,
-// because every statement begins after the package clause.
-func (fl *fileLower) addImportSplice() {
+// addHeaderSplice adds the eject-text edit that spells the rt import and
+// any package-level site variables of a lowered file. The AST side
+// carries the ImportDecl and VarDecls; the rendered text must match so
+// the ejected file compiles standalone. The text is inserted right after
+// the package name token: the scan starts at that token and stops at its
+// end, skipping only comments and automatic semicolons. No statement
+// splice can overlap the zero-width insertion, because every statement
+// begins after the package clause.
+func (fl *fileLower) addHeaderSplice() {
 	off := fl.off(fl.file.PkgName.Pos())
 	ins := -1
 	scanSegment(fl.src, off, len(fl.src), func(t tok) bool {
@@ -159,6 +160,37 @@ func (fl *fileLower) addImportSplice() {
 		ins = off
 	}
 	fl.add(ins, ins, "\n\nimport "+rtAlias+" "+fmt.Sprintf("%q", rtImportPath))
+	if len(fl.siteDecls) > 0 {
+		text := "\n\n"
+		for i, decl := range fl.siteDecls {
+			if i > 0 {
+				text += "\n"
+			}
+			text += "var " + decl.NameList[0].Value + " = " + rtAlias + ".Site{" + siteText(decl) + "}\n"
+		}
+		fl.add(len(fl.src), len(fl.src), text)
+	}
+}
+
+// siteText spells the keyed elements of a Site literal for ejected text.
+func siteText(decl *syntax.VarDecl) string {
+	lit, _ := decl.Values.(*syntax.CompositeLit)
+	var file, ln string
+	for _, e := range lit.ElemList {
+		kv, ok := e.(*syntax.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key, _ := kv.Key.(*syntax.Name)
+		val, _ := kv.Value.(*syntax.BasicLit)
+		switch key.Value {
+		case "File":
+			file = "File: " + val.Value
+		case "Line":
+			ln = "Line: " + val.Value
+		}
+	}
+	return file + ", " + ln
 }
 
 // scanForLiterals lowers the function literals under root, skipping none.

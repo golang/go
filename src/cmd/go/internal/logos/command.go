@@ -10,6 +10,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/logos/eject"
 )
 
 // ConfigureCommand adjusts the root command for logos mode.
@@ -20,6 +21,7 @@ func ConfigureCommand(cmd *base.Command) {
 		rebrandUsageLine(sub)
 	}
 	addPedanticFlag(cmd)
+	eject.Register(cmd)
 }
 
 // addPedanticFlag registers the logos-only --pedantic build flag on

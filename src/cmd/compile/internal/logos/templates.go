@@ -92,14 +92,13 @@ func guardedJoin(pos syntax.Pos, okName, errName string, stmts []syntax.Stmt) *s
 	return ifOf(pos, nil, cond, stmts)
 }
 
-// deferClosure builds func() { stmts... }. The type carries explicit
-// empty parameter and result lists so every printed node is positioned
-// and the rendered text is exactly func().
+// deferClosure builds func() { stmts... }. The type carries an explicit
+// empty parameter list so the rendered text is exactly func(); a nil
+// result list is what the parser produces for a bare func().
 func deferClosure(pos syntax.Pos, stmts []syntax.Stmt) *syntax.FuncLit {
 	return at(&syntax.FuncLit{
 		Type: at(&syntax.FuncType{
-			ParamList:  []*syntax.Field{},
-			ResultList: []*syntax.Field{},
+			ParamList: []*syntax.Field{},
 		}, pos),
 		Body: blockOf(pos, stmts),
 	}, pos)

@@ -455,7 +455,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 	}
 
 	// If user requested -a, we force a rebuild, so don't use the cache.
-	if cfg.BuildA {
+	if cfg.BuildA || logosEjectNoCache(a) {
 		if p := a.Package; p != nil && !p.Stale {
 			p.Stale = true
 			p.StaleReason = "build -a flag in use"

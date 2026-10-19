@@ -1,0 +1,115 @@
+# M1-S6: eject with Go/loGo/s interop in both directions (R-U2).
+# Case A: a loGo/s main module imports a Go module through a local replace;
+# the ejected tree keeps that require and replace. Case B: a Go main module
+# imports a loGo/s module; eject vendors it under _logos_deps. Both ejected
+# trees build and run with plain go and match logos run output.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Case B: Go main module imports a loGo/s module; eject vendors it.
+cd gapp
+logos run .
+stdout '^logos-dep-ok$'
+cp stdout $WORK/b-stdout.txt
+logos eject -o bout
+exists bout/main.go
+exists bout/go.mod
+exists bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
+grep 'example\.com/lp' bout/go.mod
+grep 'require' bout/go.mod
+grep 'replace' bout/go.mod
+cd bout
+go build ./...
+go run .
+cmp stdout $WORK/b-stdout.txt
+cd ..
+cd ..
+
+# Case A: loGo/s main module imports a Go module through a local replace.
+# Eject to a sibling directory so the kept local replace still resolves.
+cd lapp
+logos run .
+stdout '^go-help-ok$'
+cp stdout $WORK/a-stdout.txt
+logos eject -o ../aout
+exists ../aout/main.go
+exists ../aout/go.mod
+grep 'example\.com/gohelp' ../aout/go.mod
+grep 'require' ../aout/go.mod
+grep 'replace' ../aout/go.mod
+cd ../aout
+go build ./...
+go run .
+cmp stdout $WORK/a-stdout.txt
+cd ..
+
+-- lapp/go.mod --
+module example.com/lapp
+
+go 1.27
+
+require example.com/gohelp v1.0.0
+
+replace example.com/gohelp v1.0.0 => ../gohelp
+
+-- lapp/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gohelp/h"
+)
+
+func main() {
+	fmt.Println(h.Msg())
+}
+
+-- gohelp/go.mod --
+module example.com/gohelp
+
+go 1.27
+
+-- gohelp/h/h.go --
+package h
+
+// Msg reports the Go helper string.
+func Msg() string {
+	return "go-help-ok"
+}
+
+-- gapp/go.mod --
+module example.com/gapp
+
+go 1.27
+
+require example.com/lp v1.2.3
+
+replace example.com/lp v1.2.3 => ../lp
+
+-- gapp/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/lp/p"
+)
+
+func main() {
+	fmt.Println(p.Msg())
+}
+
+-- lp/go.mod --
+module example.com/lp
+
+go 1.27
+
+-- lp/p/p.lgo --
+package p
+
+// Msg reports the loGo/s helper string.
+func Msg() string {
+	return "logos-dep-ok"
+}

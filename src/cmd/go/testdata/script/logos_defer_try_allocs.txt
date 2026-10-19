@@ -1,0 +1,36 @@
+# defer f()? with a nil result leaves the error result nil with no allocation.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos test ./...
+stdout '^ok\s+example\.com/deferalloc'
+! stdout 'no test files'
+
+-- go.mod --
+module example.com/deferalloc
+
+go 1.27
+
+-- alloc.lgo --
+package deferalloc
+
+func closeNil() error { return nil }
+
+func ReturnNil() error {
+	defer closeNil()?
+	return nil
+}
+
+-- alloc_test.lgo --
+package deferalloc
+
+import "testing"
+
+func TestDeferTryNilAllocs(t *testing.T) {
+	if n := testing.AllocsPerRun(200, func() { _ = ReturnNil() }); n != 0 {
+		t.Fatalf("defer f()? with nil result allocated %d times, want 0", n)
+	}
+	if err := ReturnNil(); err != nil {
+		t.Fatalf("ReturnNil() = %v, want nil", err)
+	}
+}

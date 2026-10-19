@@ -1,0 +1,144 @@
+# M1-S6: eject a loGo/s module using ?, defer?, and errdefer to pure Go.
+# main.lgo exercises all three M1 error forms plus a doc comment and
+# interior comments; the module depends on a second loGo/s module via a
+# local replace. The ejected tree must run under plain go with identical
+# output, keep every comment verbatim, and stay vet- and gofmt-clean.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+# logos runs the module before eject.
+logos run .
+stdout '^loaded logos$'
+stdout '^hello logos$'
+cp stdout $WORK/eject-stdout.txt
+
+# Snapshot the source tree; eject must never write into it (#112).
+mkdir $WORK/orig
+cp main.lgo $WORK/orig/main.lgo
+cp go.mod $WORK/orig/go.mod
+cp ../dep/go.mod $WORK/orig/dep-go.mod
+cp ../dep/greet/greet.lgo $WORK/orig/greet.lgo
+
+# Eject the main module.
+logos eject -o out
+exists out/main.go
+exists out/go.mod
+exists out/_logos_deps/rt/go.mod
+exists out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
+
+# The ejected tree runs under plain go with identical output.
+cd out
+go run .
+cmp stdout $WORK/eject-stdout.txt
+cd ..
+
+# Every original comment survives verbatim in out/main.go (A7 text-level oracle).
+grep 'Command ejectdemo' out/main.go
+grep 'load cleans the input' out/main.go
+grep 'Validate the raw input' out/main.go
+grep 'raw input value' out/main.go
+grep 'propagate cleaning errors' out/main.go
+grep 'flush state' out/main.go
+grep 'join cleanup errors' out/main.go
+grep 'undo partial work' out/main.go
+grep 'runs on error only' out/main.go
+
+# The ejected tree is vet- and gofmt-clean.
+cd out
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+# out/go.mod keeps require and replace lines for the loGo/s dependency
+# and for the ejected support module; the support module declares itself.
+grep -count=3 'example\.com/dep' out/go.mod
+grep -count=2 'gosuda/loGos/rt' out/go.mod
+grep 'module github\.com/gosuda/loGos/rt' out/_logos_deps/rt/go.mod
+
+# A second eject into the non-empty directory fails.
+! logos eject -o out
+stderr 'logos eject: out: directory is not empty'
+
+# logos build --emit-go produces the same tree as logos eject.
+logos build --emit-go=out2
+logos eject -o out2b
+cmp out2/main.go out2b/main.go
+cmp out2/go.mod out2b/go.mod
+cmp out2/_logos_deps/rt/go.mod out2b/_logos_deps/rt/go.mod
+cmp out2/_logos_deps/example.com/dep@v0.0.0/go.mod out2b/_logos_deps/example.com/dep@v0.0.0/go.mod
+cmp out2/_logos_deps/example.com/dep@v0.0.0/greet/greet.go out2b/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
+
+# The source tree is unchanged after both ejects (#112).
+cmp main.lgo $WORK/orig/main.lgo
+cmp go.mod $WORK/orig/go.mod
+cmp ../dep/go.mod $WORK/orig/dep-go.mod
+cmp ../dep/greet/greet.lgo $WORK/orig/greet.lgo
+
+-- m/go.mod --
+module example.com/eject
+
+go 1.27
+
+require example.com/dep v0.0.0
+
+replace example.com/dep v0.0.0 => ../dep
+
+-- m/main.lgo --
+// Command ejectdemo exercises eject over ?, defer?, and errdefer.
+package main
+
+import (
+	"fmt"
+
+	"example.com/dep/greet"
+)
+
+// load cleans the input and reports each step.
+func load(s string) (string, error) {
+	// Validate the raw input before greeting.
+	name := greet.Clean(
+		s, // raw input value
+	)? // propagate cleaning errors
+	defer greet.Close(/* flush state */)? // join cleanup errors
+	errdefer greet.Rollback(/* undo partial work */) // runs on error only
+	fmt.Println("loaded", name)
+	return name, nil
+}
+
+func main() {
+	name, err := load("  logos  ")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println("hello", name)
+}
+
+-- dep/go.mod --
+module example.com/dep
+
+go 1.27
+
+-- dep/greet/greet.lgo --
+// Package greet helps the eject test with a local loGo/s dependency.
+package greet
+
+import "strings"
+
+// Clean trims surrounding spaces from s.
+func Clean(s string) (string, error) {
+	return strings.TrimSpace(s), nil
+}
+
+// Close flushes greet state.
+func Close() error {
+	return nil
+}
+
+// Rollback undoes partial greet work.
+func Rollback() {
+}
