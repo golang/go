@@ -62,7 +62,7 @@ func TestTransportPoolConnCannotReuseConnectionInUse(t *testing.T) {
 
 // When an HTTP/2 connection is at its stream limit
 // a new request is made on a new connection.
-func testTransportPoolConnHTTP2NoStrictMaxConcurrentRequests(t *testing.T) {
+func TestTransportPoolConnHTTP2NoStrictMaxConcurrentRequests(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {
 			srv.HTTP2 = &http.HTTP2Config{
