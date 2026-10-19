@@ -154,6 +154,7 @@ func (check *Checker) recordInstance(expr syntax.Expr, targs []Type, typ Type) {
 
 func (check *Checker) recordDef(id *syntax.Name, obj Object) {
 	assert(id != nil)
+	check.logosReservedIdent(id) // logos M1-S3 hook.
 	if m := check.Defs; m != nil {
 		m[id] = obj
 	}

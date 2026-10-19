@@ -1137,6 +1137,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		check.use(e.X)
 		goto Error
 
+	case *syntax.TryExpr:
+		return check.logosTryOperand(x, e) // logos M1-S3 hook.
 	case *syntax.CallExpr:
 		return check.callExpr(x, e)
 

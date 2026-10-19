@@ -1,0 +1,164 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// Shared helpers and types for the attack cases below.
+
+type myError error
+
+func twoResults() (int, error) { return 0, nil }
+
+func threeResults() (int, int, int, error) { return 0, 0, 0, nil }
+
+func justError() error { return nil }
+
+func returnsInt() (int, int) { return 0, 0 }
+
+func returnsNamed() (int, myError) { return 0, nil }
+
+func oneInt(i int) int { return i }
+
+func cleanup() {}
+
+// C1: the operand must be a call.
+
+func tryNonCall() (int, error) {
+	y := 1
+	_ = y? /* ERROR "? operand must be a call" */
+	return 0, nil
+}
+
+// C1: the call's last result must be identical to error.
+
+func tryIntLast() (int, error) {
+	_ = returnsInt()? /* ERROR "? last result must be error" */
+	return 0, nil
+}
+
+// C1: a named type with underlying error is rejected.
+
+func tryNamedLast() (int, error) {
+	_ = returnsNamed()? /* ERROR "? last result must be error" */
+	return 0, nil
+}
+
+// C1: the enclosing function must return error last.
+
+func tryNoEnclosing() int {
+	v := twoResults()? /* ERROR "? requires enclosing function to return error" */
+	return v
+}
+
+// C1: the enclosing rule also requires identity with error.
+
+func tryNamedEnclosing() myError {
+	v := twoResults()? /* ERROR "? requires enclosing function to return error" */
+	_ = v
+	return nil
+}
+
+// C2: ? must end an assignment, expression statement, defer, or errdefer.
+
+func tryBinop() (int, error) {
+	a := 1
+	_ = a + twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+	return 0, nil
+}
+
+func tryArg() (int, error) {
+	_ = oneInt(twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */)
+	return 0, nil
+}
+
+func tryReturn() (int, error) {
+	return twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+}
+
+func tryGo() (int, error) {
+	go justError()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+	return 0, nil
+}
+
+// C3: x := f()? where f returns only error binds nothing.
+
+func tryOnlyError() (int, error) {
+	x := justError()? /* ERROR "? provides no values to assign" */
+	_ = x
+	return 0, nil
+}
+
+// C3: normal := scope rules apply; no new variable here.
+
+func tryRedeclare() (int, error) {
+	x := 0
+	x /* ERROR "no new variables on left side of :=" */ := twoResults()?
+	return x, nil
+}
+
+// C3: ? yields three values for two variables.
+
+func tryCountMismatch() (int, error) {
+	x, y := threeResults()? /* ERROR "? provides 3 values for 2 variables" */
+	_, _ = x, y
+	return 0, nil
+}
+
+// C5: errdefer needs an error result.
+
+func errdeferNoError() int {
+	errdefer /* ERROR "correctness::errdefer_needs_error_result" */ cleanup()
+	return 0
+}
+
+// C6: reserved identifier prefixes.
+
+var _logos_x /* ERROR "correctness::reserved_identifier" */ = 1
+
+func Logos_y /* ERROR "correctness::reserved_identifier" */ () {}
+
+// Valid cases: no ERROR comments; none of these may report an error.
+
+func tryValidAssign() (int, error) {
+	v := twoResults()?
+	var _ int = v
+	return v, nil
+}
+
+func tryValidMulti() (int, error) {
+	a, b, c := threeResults()?
+	_, _, _ = a, b, c
+	return 0, nil
+}
+
+func tryValidAssignOp() (int, error) {
+	v := 0
+	v = twoResults()?
+	return v, nil
+}
+
+func tryValidExprStmt() (int, error) {
+	justError()?
+	return 0, nil
+}
+
+func tryValidDefer() (int, error) {
+	defer justError()?
+	return 0, nil
+}
+
+func tryValidErrdefer() (int, error) {
+	errdefer cleanup()
+	errdefer justError()?
+	return 0, nil
+}
+
+func tryValidLit() (int, error) {
+	g := func() (int, error) {
+		v := twoResults()?
+		return v, nil
+	}
+	v := g()?
+	return v, nil
+}

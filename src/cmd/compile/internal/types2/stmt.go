@@ -437,6 +437,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.stmt(ctxt, s.Stmt)
 
 	case *syntax.ExprStmt:
+		if check.logosTryExprStmt(s) { // logos M1-S3 hook.
+			return
+		}
 		// spec: "With the exception of specific built-in functions,
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
@@ -488,6 +491,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			return
 		}
 
+		if check.logosTryAssignStmt(s) { // logos M1-S3 hook.
+			return
+		}
 		lhs := syntax.UnpackListExpr(s.Lhs)
 		rhs := syntax.UnpackListExpr(s.Rhs)
 		switch s.Op {
@@ -510,11 +516,17 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.assignVar(lhs[0], nil, &x, "assignment")
 
 	case *syntax.CallStmt:
+		if check.logosTryCallStmt(s) { // logos M1-S3 hook.
+			return
+		}
 		kind := "go"
 		if s.Tok == syntax.Defer {
 			kind = "defer"
 		}
 		check.suspendedCall(kind, s.Call)
+
+	case *syntax.ErrdeferStmt:
+		check.logosErrdefer(s) // logos M1-S3 hook.
 
 	case *syntax.ReturnStmt:
 		res := check.sig.results

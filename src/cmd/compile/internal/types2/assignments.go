@@ -587,13 +587,17 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
 		}
 	}
 
-	check.initVars(lhsVars, rhs, nil)
+	if !check.logosTryInitHook(lhsVars, rhs) { // logos M1-S3 hook.
+		check.initVars(lhsVars, rhs, nil)
+	}
 
 	// process function literals in rhs expressions before scope changes
 	check.processDelayed(top)
 
 	if len(newVars) == 0 && !hasErr {
-		check.softErrorf(pos, NoNewVar, "no new variables on left side of :=")
+		if !check.logosTryNoNewVar(lhs, rhs) { // logos M1-S3 hook.
+			check.softErrorf(pos, NoNewVar, "no new variables on left side of :=")
+		}
 		return
 	}
 

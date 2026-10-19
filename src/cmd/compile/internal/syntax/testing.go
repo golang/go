@@ -32,7 +32,8 @@ func CommentsDo(src io.Reader, handler func(line, col uint, text string)) {
 // source order. If there is no preceding token (the matching comment
 // appears at the beginning of the file), then the recorded position
 // is unknown (line, col = 0, 0). If there are no matching comments,
-// the result is nil.
+// the result is nil. The scan accepts the loGo/s ? token, so a ? may
+// precede a comment in .lgo sources; Go sources never hold one.
 func CommentMap(src io.Reader, rx *regexp.Regexp) (res map[uint][]Error) {
 	// position of previous token
 	var base *PosBase
@@ -55,7 +56,7 @@ func CommentMap(src io.Reader, rx *regexp.Regexp) (res map[uint][]Error) {
 			}
 			res[prev.line] = append(res[prev.line], err)
 		}
-	}, comments)
+	}, comments|uint(LogosMode))
 
 	for s.tok != _EOF {
 		s.next()

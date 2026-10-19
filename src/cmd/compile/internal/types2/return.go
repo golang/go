@@ -19,7 +19,7 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 		panic("unreachable")
 
 	case *syntax.DeclStmt, *syntax.EmptyStmt, *syntax.SendStmt,
-		*syntax.AssignStmt, *syntax.CallStmt:
+		*syntax.AssignStmt, *syntax.CallStmt, *syntax.ErrdeferStmt:
 		// no chance
 
 	case *syntax.LabeledStmt:
@@ -112,7 +112,7 @@ func hasBreak(s syntax.Stmt, label string, implicit bool) bool {
 
 	case *syntax.DeclStmt, *syntax.EmptyStmt, *syntax.ExprStmt,
 		*syntax.SendStmt, *syntax.AssignStmt, *syntax.CallStmt,
-		*syntax.ReturnStmt:
+		*syntax.ReturnStmt, *syntax.ErrdeferStmt:
 		// no chance
 
 	case *syntax.LabeledStmt:
