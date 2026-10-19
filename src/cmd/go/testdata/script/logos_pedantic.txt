@@ -1,0 +1,48 @@
+# M0-S7: --pedantic is a logos-only build flag: accepted by logos build,
+# silent when false, standard parse error for bad values, unknown under
+# plain go, and documented in logos help build.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+# logos build accepts --pedantic and the resulting binary runs.
+logos build --pedantic -o $WORK/bin/ped$GOEXE .
+exists $WORK/bin/ped$GOEXE
+exec $WORK/bin/ped$GOEXE
+stdout '^hello$'
+
+# --pedantic=false stays silent at the flag layer.
+logos build --pedantic=false .
+! stdout 'pedantic'
+! stderr 'pedantic'
+
+# An invalid value fails with the standard flag parse error.
+! logos build --pedantic=maybe .
+stderr '^invalid boolean value "maybe" for -pedantic'
+
+# Plain go keeps the upstream unknown-flag error: the flag is logos-only.
+! go build --pedantic .
+stderr '^flag provided but not defined: -pedantic'
+
+# logos help build documents the flag.
+logos help build
+stdout 'pedantic'
+
+# Plain go help stays upstream and names no logos-only flag.
+go help build
+! stdout 'pedantic'
+
+-- go.mod --
+module example.com/pedantic
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}

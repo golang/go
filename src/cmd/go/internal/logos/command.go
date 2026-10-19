@@ -19,6 +19,31 @@ func ConfigureCommand(cmd *base.Command) {
 	for _, sub := range cmd.Commands {
 		rebrandUsageLine(sub)
 	}
+	addPedanticFlag(cmd)
+}
+
+// addPedanticFlag registers the logos-only --pedantic build flag on
+// "logos build" and documents it in "logos help build". It runs only
+// from ConfigureCommand, so plain "go build" keeps the upstream
+// unknown-flag error and "go help build" keeps the upstream text.
+func addPedanticFlag(cmd *base.Command) {
+	build := cmd.Lookup("build")
+	if build == nil {
+		return
+	}
+	if build.Flag.Lookup("pedantic") == nil {
+		build.Flag.BoolVar(&cfg.Pedantic, "pedantic", false, "")
+	}
+	if strings.Contains(build.Long, "-pedantic") {
+		return
+	}
+	const help = "\n\t-pedantic\n\t\tenable pedantic diagnostics (logos builds only).\n"
+	before, after, found := strings.Cut(build.Long, "\nSee also:")
+	if found {
+		build.Long = before + help + "\nSee also:" + after
+		return
+	}
+	build.Long += help
 }
 
 // rebrandUsageLine swaps the leading go verb for logos in one command's

@@ -17,6 +17,14 @@ import (
 // so defaultContext observes it when BuildContext is first built.
 var Logos = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe") == "logos"
 
+// Pedantic opts in to pedantic diagnostics for logos builds. It is set
+// by the logos-only "logos build --pedantic" flag (registered in
+// cmd/go/internal/logos.ConfigureCommand) and overrides the logos.toml
+// pedantic policy (M9); this slice only stores it. Plain go never sets
+// it: the flag is undefined there, so "go help build" keeps the
+// upstream text.
+var Pedantic bool
+
 // logosToolTags returns tags plus the "logos" tool tag in logos mode.
 // defaultContext calls it, so every rebuilt BuildContext keeps the tag.
 func logosToolTags(tags []string) []string {
