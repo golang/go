@@ -18,9 +18,10 @@ import (
 // check with Config.Logos; src holds the original bytes of the files Lower
 // may rewrite. Files without an entry in src are left alone. Lower mutates
 // the files in place and reports whether anything changed. A surviving
-// TryExpr or ErrdeferStmt is an internal error.
+// loGo/s node (TryExpr, ErrdeferStmt, SwitchExpr, ArmClause, or
+// AssertedStruct) is an internal error.
 func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map[*syntax.File][]byte) (bool, map[*syntax.File][]Edit) {
-	shared := &packageLower{info: info}
+	shared := &packageLower{info: info, tpkg: pkg}
 	edits := make(map[*syntax.File][]Edit)
 	changed := false
 	for _, file := range files {
@@ -51,6 +52,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 // packageLower carries the state shared by every file of one package.
 type packageLower struct {
 	info    *types2.Info
+	tpkg    *types2.Package
 	siteSeq int
 }
 
@@ -66,6 +68,7 @@ type fileLower struct {
 	changed   bool
 	needRT    bool
 	siteDecls []*syntax.VarDecl
+	names     map[*types2.Package]string
 }
 
 // off converts a valid file position to a byte offset.
@@ -121,6 +124,7 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 
 // lowerFile lowers every function body of one file.
 func (fl *fileLower) lowerFile() {
+	fl.lowerUnions() // M2 hook: switch expressions and struct assertions.
 	for _, decl := range fl.file.DeclList {
 		fn, ok := decl.(*syntax.FuncDecl)
 		if ok && fn.Body != nil {
@@ -365,7 +369,7 @@ func (fc *funcLower) armOkFlag() {
 func rejectSurvivors(file *syntax.File) {
 	syntax.Inspect(file, func(n syntax.Node) bool {
 		switch n.(type) {
-		case *syntax.TryExpr, *syntax.ErrdeferStmt:
+		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

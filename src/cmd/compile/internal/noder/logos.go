@@ -11,6 +11,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/types2"
 	"cmd/internal/src"
 )
 
@@ -42,6 +43,17 @@ func isLogosFile(name string) bool {
 func isCgoOutput(name string) bool {
 	bn := filepath.Base(name)
 	return strings.HasPrefix(bn, "_cgo_") || strings.HasSuffix(bn, ".cgo1.go")
+}
+
+// hasMethodTable reports whether the unified IR reader sees iface as a
+// non-empty interface. The reader folds the type set of a closed union
+// away (reader.go unionType), so only methods count: a union without
+// methods reads as the empty interface, and the itab form that
+// types2.Interface.Empty would pick for it leaves the case type of a type
+// switch without a runtime type. For every interface of plain Go the two
+// tests agree.
+func hasMethodTable(iface types2.Type) bool {
+	return iface.Underlying().(*types2.Interface).NumMethods() != 0
 }
 
 // logosMode returns syntax.LogosMode for loGo/s files and 0 otherwise.

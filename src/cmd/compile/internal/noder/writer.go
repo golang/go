@@ -2723,7 +2723,7 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
 	w.Sync(pkgbits.SyncExprType)
 	w.pos(typ)
 
-	if w.Bool(iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
+	if w.Bool(iface != nil && hasMethodTable(iface)) { // logos M2-S1 hook: unions fold to method sets.
 		w.itab(tv.Type, iface)
 	} else {
 		w.rtype(tv.Type)
