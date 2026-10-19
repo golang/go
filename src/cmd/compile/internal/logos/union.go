@@ -49,6 +49,7 @@ func (fl *fileLower) lowerUnions() {
 		replaceSwitchExprs(n, fl.lowerSwitchExpr)
 		return true
 	})
+	fl.flushTypeImports()
 }
 
 // replaceSwitchExprs replaces each *syntax.SwitchExpr that n holds
@@ -106,7 +107,7 @@ func (fl *fileLower) lowerSwitchExpr(e *syntax.SwitchExpr) syntax.Expr {
 	}
 	text, ok := fl.spellType(typ)
 	if !ok {
-		base.Fatalf("logos: switch expression at %s has type %s from a package this file does not import", pos.String(), text)
+		base.Fatalf("logos: switch expression at %s has type %s that cannot be spelled in this file", pos.String(), text)
 	}
 	resultType, ok := typeExprAt(text, pos)
 	if !ok {
@@ -123,6 +124,9 @@ func (fl *fileLower) lowerSwitchExpr(e *syntax.SwitchExpr) syntax.Expr {
 		}, arm.Pos())
 	}
 	body := []syntax.Stmt{
+		// Init is guaranteed try-free: the checker rejects `?` in a
+		// switch-expression init, since this literal has no error
+		// result to propagate to.
 		at(&syntax.SwitchStmt{Init: e.Init, Tag: e.Tag, Body: clauses, Rbrace: e.Rbrace}, pos),
 	}
 	unreachable := fmt.Sprintf("%q", fmt.Sprintf("logos: switch expression at %s:%d matched no arm", fl.baseName, pos.Line()))
@@ -228,24 +232,209 @@ func (fl *fileLower) importNames() map[*types2.Package]string {
 	return fl.names
 }
 
+// typeImportSet collects the imports spellType synthesizes for one file:
+// every package of a spelled switch-expression result type that the file
+// does not import, mapped to the qualifier used for it, in first-use
+// order. Lowering runs file by file, so the set is filled while the
+// switch walk spells result types and drained at the end of lowerUnions.
+type typeImportSet struct {
+	qual  map[*types2.Package]string
+	order []*types2.Package
+}
+
+// logosTypeImports holds the pending synthesized imports per file under
+// lowering. It lives outside fileLower so the import machinery stays in
+// this M2 file; lower.go keeps only its hook line.
+var logosTypeImports = make(map[*syntax.File]*typeImportSet)
+
 // spellType renders typ as Go source in this file: names of the package
-// itself stand bare, and every other package by its import name. It
-// reports false when typ mentions a package the file does not import.
+// itself stand bare, names from imported packages use the import name,
+// and names from other packages use a synthesized import (see
+// synthQualifier) recorded for flushTypeImports. It reports false only
+// when typ mentions an unexported name of another package, which no
+// import can spell.
 func (fl *fileLower) spellType(typ types2.Type) (string, bool) {
-	complete := true
 	qualify := func(p *types2.Package) string {
 		if p == fl.pkg.tpkg {
 			return ""
 		}
-		name, found := fl.importNames()[p]
-		if !found {
-			complete = false
-			return p.Name()
+		if name, found := fl.importNames()[p]; found {
+			return name
 		}
-		return name
+		// packagePrefix never calls the qualifier with a nil package,
+		// so p is always a real package here.
+		return fl.synthQualifier(p)
 	}
 	text := types2.TypeString(typ, qualify)
-	return text, complete
+	return text, spellableType(typ, fl.pkg.tpkg)
+}
+
+// synthQualifier returns the qualifier spelling package p in this file,
+// recording a synthesized import on first use. The qualifier is a fresh
+// reserved name, so it collides with neither user identifiers (which
+// cannot use the reserved prefix) nor the file's imports.
+func (fl *fileLower) synthQualifier(p *types2.Package) string {
+	set := logosTypeImports[fl.file]
+	if set == nil {
+		set = &typeImportSet{qual: make(map[*types2.Package]string)}
+		logosTypeImports[fl.file] = set
+	}
+	if q, found := set.qual[p]; found {
+		return q
+	}
+	used := map[string]bool{rtAlias: true}
+	for _, name := range fl.importNames() {
+		used[name] = true
+	}
+	for _, q := range set.qual {
+		used[q] = true
+	}
+	var q string
+	for i := 0; ; i++ {
+		q = fmt.Sprintf("_logos_t%d", i)
+		if !used[q] {
+			break
+		}
+	}
+	set.qual[p] = q
+	set.order = append(set.order, p)
+	return q
+}
+
+// flushTypeImports prepends one import declaration per synthesized package
+// and records the matching eject-text header edit. It runs at the end of
+// lowerUnions, so one import serves every switch expression of the file.
+// The header splice composes with addHeaderSplice: both are zero-width
+// inserts after the package clause.
+func (fl *fileLower) flushTypeImports() {
+	set := logosTypeImports[fl.file]
+	delete(logosTypeImports, fl.file)
+	if set == nil || len(set.order) == 0 {
+		return
+	}
+	pos := fl.file.Pos()
+	decls := make([]syntax.Decl, 0, len(set.order))
+	var text string
+	for _, p := range set.order {
+		q := set.qual[p]
+		decls = append(decls, at(&syntax.ImportDecl{
+			LocalPkgName: nameOf(pos, q),
+			Path:         litOf(pos, fmt.Sprintf("%q", p.Path()), syntax.StringLit),
+		}, pos))
+		text += "\n\nimport " + q + " " + fmt.Sprintf("%q", p.Path())
+	}
+	fl.file.DeclList = append(decls, fl.file.DeclList...)
+	off := fl.off(fl.file.PkgName.Pos())
+	ins := -1
+	scanSegment(fl.src, off, len(fl.src), func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		ins = t.end
+		return false
+	})
+	if ins < 0 {
+		ins = off
+	}
+	fl.add(ins, ins, text)
+}
+
+// spellableType reports whether typ can be spelled in generated source:
+// every package-level name it mentions is either declared in self
+// (spelled bare) or exported (spelled through an import, synthesized if
+// needed). Basic keywords cannot be shadowed in a type position, and type
+// parameters spell bare.
+func spellableType(typ types2.Type, self *types2.Package) bool {
+	seen := make(map[types2.Type]bool)
+	var walk func(t types2.Type) bool
+	walkTuple := func(t *types2.Tuple) bool {
+		for i := 0; i < t.Len(); i++ {
+			if !walk(t.At(i).Type()) {
+				return false
+			}
+		}
+		return true
+	}
+	walk = func(t types2.Type) bool {
+		if t == nil || seen[t] {
+			return true
+		}
+		seen[t] = true
+		switch t := t.(type) {
+		case *types2.Basic, *types2.TypeParam:
+			return true
+		case *types2.Alias:
+			// The alias name and its arguments are what the text spells;
+			// the expansion never appears, so only they matter.
+			if obj := t.Obj(); obj != nil && !spellableObject(obj, self) {
+				return false
+			}
+			if args := t.TypeArgs(); args != nil {
+				for i := 0; i < args.Len(); i++ {
+					if !walk(args.At(i)) {
+						return false
+					}
+				}
+			}
+			return true
+		case *types2.Pointer:
+			return walk(t.Elem())
+		case *types2.Slice:
+			return walk(t.Elem())
+		case *types2.Array:
+			return walk(t.Elem())
+		case *types2.Map:
+			return walk(t.Key()) && walk(t.Elem())
+		case *types2.Chan:
+			return walk(t.Elem())
+		case *types2.Signature:
+			return walkTuple(t.Params()) && walkTuple(t.Results())
+		case *types2.Tuple:
+			return walkTuple(t)
+		case *types2.Named:
+			if obj := t.Obj(); obj != nil && !spellableObject(obj, self) {
+				return false
+			}
+			if args := t.TypeArgs(); args != nil {
+				for i := 0; i < args.Len(); i++ {
+					if !walk(args.At(i)) {
+						return false
+					}
+				}
+			}
+			return true
+		case *types2.Interface:
+			for i := 0; i < t.NumMethods(); i++ {
+				if !walk(t.Method(i).Type()) {
+					return false
+				}
+			}
+			for i := 0; i < t.NumEmbeddeds(); i++ {
+				if !walk(t.EmbeddedType(i)) {
+					return false
+				}
+			}
+			return true
+		case *types2.Struct:
+			for i := 0; i < t.NumFields(); i++ {
+				if !walk(t.Field(i).Type()) {
+					return false
+				}
+			}
+			return true
+		default:
+			return true
+		}
+	}
+	return walk(typ)
+}
+
+// spellableObject reports whether the package-level name obj can be
+// spelled in generated source: universe and own-package names stand bare,
+// other packages' names need an export.
+func spellableObject(obj *types2.TypeName, self *types2.Package) bool {
+	pkg := obj.Pkg()
+	return pkg == nil || pkg == self || obj.Exported()
 }
 
 // typeExprAt parses text as a type and moves every node of the result to

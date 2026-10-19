@@ -36,6 +36,19 @@ func (check *Checker) logosSwitchExpr(x *operand, e *syntax.SwitchExpr) exprKind
 	check.openScope(e, "switch")
 	defer check.closeScope()
 
+	// A `?` in the init would be accepted by the assignment hooks below,
+	// but lowering moves the init inside the `func() T` literal, which has
+	// no error result to propagate to. Type the operand silently (as for
+	// any misplaced `?`, so genuine inner errors still surface and uses
+	// are marked), mark an assigned-to variable used, and reject it.
+	if t := logosInitTry(e.Init); t != nil {
+		check.logosTryMisplaced(t)
+		if s, ok := e.Init.(*syntax.AssignStmt); ok && s.Op != syntax.Def {
+			check.useLHS(syntax.UnpackListExpr(s.Lhs)...)
+		}
+		return statement
+	}
+
 	check.simpleStmt(e.Init)
 	check.logosMultipleArmDefaults(e.Arms)
 
@@ -61,6 +74,32 @@ func (check *Checker) logosSwitchExpr(x *operand, e *syntax.SwitchExpr) exprKind
 	x.mode_ = value
 	x.typ_ = typ
 	return expression
+}
+
+// logosInitTry returns the first `?` in the switch-expression init itself,
+// if any. The init is a simple statement, so `x := f()?` would otherwise
+// flow through the assignment hooks and check cleanly. A `?` inside a
+// nested function literal belongs to that literal and moves with it into
+// the lowered body, so the scan does not descend into one.
+func logosInitTry(init syntax.SimpleStmt) *syntax.TryExpr {
+	if init == nil {
+		return nil
+	}
+	var found *syntax.TryExpr
+	syntax.Inspect(init, func(n syntax.Node) bool {
+		if found != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *syntax.FuncLit:
+			return false
+		case *syntax.TryExpr:
+			found = n
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // logosHasDefault reports whether one of arms is a default arm.
@@ -238,6 +277,11 @@ func (check *Checker) logosCovers(member Type, seen map[Type]syntax.Expr) bool {
 // logosArmType computes the common type of the arm operands and converts
 // every arm to it. It returns nil when an arm is invalid or the arms do
 // not agree, after reporting the cause.
+//
+// A typed arm fixes the common type: every other arm must be assignable
+// to it (an untyped constant by representability, nil iff the type is
+// nilable), so untyped arms are never folded with maxType first. Only
+// when no typed arm exists are the untyped arms folded and defaulted.
 func (check *Checker) logosArmType(e *syntax.SwitchExpr, arms []*operand) Type {
 	for _, v := range arms {
 		if !v.isValid() {
@@ -245,23 +289,17 @@ func (check *Checker) logosArmType(e *syntax.SwitchExpr, arms []*operand) Type {
 		}
 	}
 
-	var typed, untyped Type
+	var typed Type
 	agree := true
 	for _, v := range arms {
-		switch {
-		case v.isNil():
-		case isUntyped(v.typ()):
-			if untyped == nil {
-				untyped = v.typ()
-			} else if m := maxType(untyped, v.typ()); m != nil {
-				untyped = m
-			} else {
-				check.errorf(v, MismatchedTypes, "%s arms have types %s and %s", logosArmMismatch, untyped, v.typ())
-				agree = false
-			}
-		case typed == nil:
+		if v.isNil() || isUntyped(v.typ()) {
+			continue
+		}
+		if typed == nil {
 			typed = v.typ()
-		case !Identical(typed, v.typ()):
+			continue
+		}
+		if !Identical(typed, v.typ()) {
 			check.errorf(v, MismatchedTypes, "%s arms have types %s and %s", logosArmMismatch, typed, v.typ())
 			agree = false
 		}
@@ -272,6 +310,24 @@ func (check *Checker) logosArmType(e *syntax.SwitchExpr, arms []*operand) Type {
 
 	common := typed
 	if common == nil {
+		var untyped Type
+		for _, v := range arms {
+			switch {
+			case v.isNil():
+			case isUntyped(v.typ()):
+				if untyped == nil {
+					untyped = v.typ()
+				} else if m := maxType(untyped, v.typ()); m != nil {
+					untyped = m
+				} else {
+					check.errorf(v, MismatchedTypes, "%s arms have types %s and %s", logosArmMismatch, untyped, v.typ())
+					agree = false
+				}
+			}
+		}
+		if !agree {
+			return nil
+		}
 		if untyped == nil {
 			check.error(e, UntypedNilUse, "use of untyped nil in switch expression")
 			return nil
@@ -279,6 +335,10 @@ func (check *Checker) logosArmType(e *syntax.SwitchExpr, arms []*operand) Type {
 		common = Default(untyped)
 	}
 	for _, v := range arms {
+		if typed != nil && !check.logosArmAssignable(v, common) {
+			agree = false
+			continue
+		}
 		check.assignment(v, common, "switch expression arm")
 		if !v.isValid() {
 			agree = false
@@ -288,4 +348,16 @@ func (check *Checker) logosArmType(e *syntax.SwitchExpr, arms []*operand) Type {
 		return nil
 	}
 	return common
+}
+
+// logosArmAssignable reports whether the arm v converts to the typed
+// common type: an untyped constant by representability, nil iff the type
+// is nilable. On failure it reports switch_arm_mismatch and the caller
+// skips the assignment, so each arm yields at most the one tagged error.
+func (check *Checker) logosArmAssignable(v *operand, common Type) bool {
+	if ok, _ := v.assignableTo(check, common, nil); !ok {
+		check.errorf(v, MismatchedTypes, "%s arms have types %s and %s", logosArmMismatch, common, v.typ())
+		return false
+	}
+	return true
 }

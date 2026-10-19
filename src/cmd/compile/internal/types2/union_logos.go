@@ -147,17 +147,29 @@ func (check *Checker) logosUnionConversion(x *operand, T Type) bool {
 }
 
 // logosNonMemberAssert reports union_nonmember for an assertion or case
-// type T that names a non-interface type outside the member set of the
-// closed union operand x, and reports true. An interface type T (a
-// sub-union or a method-only interface) is never a non-member here:
-// whether it covers members is decided by membership at run time and by
-// the exhaustiveness rules. e is the type expression, for the position.
+// type T outside the member set of the closed union operand x, and
+// reports true. A non-interface T is a member iff it denotes a member.
+// An interface T is a member iff its type set is a subset of the
+// operand's: a sub-union covering only members, `any`, or a method-only
+// interface with no specific terms. A T with no type set (a type
+// parameter) is never reported here. Both callers flow through
+// typeAssertion (assertion and switch-case contexts alike), so no flag
+// distinguishes them. e is the type expression, for the position.
 func (check *Checker) logosNonMemberAssert(e syntax.Expr, x *operand, T Type) bool {
 	if !check.conf.Logos {
 		return false
 	}
 	tset := logosClosedUnion(x.typ())
-	if tset == nil || IsInterface(T) || logosMemberOf(T, tset) {
+	if tset == nil || isTypeParam(T) || logosMemberOf(T, tset) {
+		return false
+	}
+	if IsInterface(T) {
+		if iface, ok := T.Underlying().(*Interface); ok {
+			if ttset := iface.typeSet(); ttset != nil && ttset.hasTerms() && !ttset.subsetOf(tset) {
+				check.errorf(e, ImpossibleAssert, "%s %s is not a member of %s", logosNonMember, T, x.typ())
+				return true
+			}
+		}
 		return false
 	}
 	check.errorf(e, ImpossibleAssert, "%s %s is not a member of %s", logosNonMember, T, x.typ())

@@ -188,7 +188,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #182 | M9 |  | planned |
 | #183 | M0 |  | planned |
 | #184 | M0 |  | planned |
-| #185 |M2| test/logos/redteam/attack_185_dual_use_union | tested |
+| #185 | M2 | test/logos/redteam/attack_185_dual_use_union | planned |
 | #186 | M3 |  | planned |
 | #187 | M16 |  | planned |
 | #188 | M20 |  | planned |
