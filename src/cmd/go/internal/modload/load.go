@@ -536,6 +536,9 @@ func matchLocalDirs(ld *Loader, ctx context.Context, modRoots []string, m *searc
 
 		modRoot := findModuleRoot(absDir)
 		if !slices.Contains(modRoots, modRoot) && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ld, ctx, absDir, rs) == "" {
+			if matchLogosWorkspaceRoot(ld, m, modRoots, absDir) {
+				return
+			}
 			m.Dirs = []string{}
 			scope := "main module or its selected dependencies"
 			if ld.inWorkspaceMode() {

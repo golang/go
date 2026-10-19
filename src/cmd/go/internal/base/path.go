@@ -75,7 +75,10 @@ func RelPaths(paths []string) []string {
 // be excluded from coverage analysis.
 func IsTestFile(file string) bool {
 	// We don't cover tests, only the code they test.
-	return strings.HasSuffix(file, "_test.go")
+	if strings.HasSuffix(file, "_test.go") {
+		return true
+	}
+	return isLogosTestFile(file)
 }
 
 // IsNull reports whether the path is a common name for the null device.

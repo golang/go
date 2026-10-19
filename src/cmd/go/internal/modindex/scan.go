@@ -241,7 +241,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 
 		// Going to save the file. For non-Go files, can stop here.
 		p.sourceFiles = append(p.sourceFiles, rf)
-		if ext != ".go" {
+		if ext != ".go" && !isLogosExt(name) {
 			continue
 		}
 

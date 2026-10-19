@@ -1,0 +1,24 @@
+# M0-S2: a package must not mix .go and .lgo files.
+# logos build fails with correctness::mixed_package naming both files.
+
+env GOPROXY=off
+
+! logos build .
+stderr '\[correctness::mixed_package\] cannot mix \.go files \(a\.go\) and \.lgo files \(b\.lgo\) in one package'
+
+-- go.mod --
+module example.com/nomix
+
+go 1.27
+
+-- a.go --
+package main
+
+func A() int { return 1 }
+
+-- b.lgo --
+package main
+
+func B() int { return 2 }
+
+func main() {}

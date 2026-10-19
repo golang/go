@@ -1,0 +1,50 @@
+# M0-S2: explicit file arguments run .lgo; mixed .go/.lgo arguments are rejected.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Explicit .lgo file runs.
+logos run main.lgo
+stdout '^cmdline ok$'
+
+# Each mixed-test file runs alone, so the mixed failure below is not vacuous.
+logos run a.go
+stdout '^a ok$'
+
+logos run b.lgo
+stdout '^b ok$'
+
+# Mixed .go and .lgo file arguments fail.
+! logos run a.go b.lgo
+stderr 'correctness::mixed_package'
+
+-- go.mod --
+module example.com/cmdline
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("cmdline ok")
+}
+
+-- a.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("a ok")
+}
+
+-- b.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("b ok")
+}

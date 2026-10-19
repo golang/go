@@ -34,3 +34,20 @@ func helpReference(longName string) string {
 	}
 	return "go help " + longName
 }
+
+// isLogosTestFile reports whether file is a loGo/s test source: a logos
+// file whose stem ends in _test. The extension is cut at the last dot, so
+// no alias list is duplicated here. Plain .go files never reach this helper
+// with true, so upstream behavior is unchanged.
+func isLogosTestFile(file string) bool {
+	if !cfg.IsLogosFile(file) {
+		return false
+	}
+	// Trailing variation selectors sit after the last dot, so cutting the
+	// extension at the last dot already excludes them.
+	stem := file
+	if cut, _, found := strings.CutLast(stem, "."); found {
+		stem = cut
+	}
+	return strings.HasSuffix(stem, "_test")
+}

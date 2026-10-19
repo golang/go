@@ -298,7 +298,7 @@ func (a *Action) trimpath() string {
 				path = filepath.Join(a.Package.Dir, path)
 			}
 			base := filepath.Base(path)
-			isGo := strings.HasSuffix(filename, ".go") || strings.HasSuffix(filename, ".s")
+			isGo := cfg.IsGoFile(filename) || strings.HasSuffix(filename, ".s")
 			isCgo := cgoFiles[filename] || !isGo
 			if fsys.Replaced(path) {
 				if isCgo {

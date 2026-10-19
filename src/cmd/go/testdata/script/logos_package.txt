@@ -1,0 +1,28 @@
+# M0-S2: plain .lgo package runs and builds under logos; plain go ignores it.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# logos runs the .lgo package.
+logos run .
+stdout '^hello$'
+
+# logos builds it.
+logos build .
+
+# Plain go sees no Go files in a .lgo-only package.
+! go build .
+stderr 'no Go files'
+
+-- go.mod --
+module example.com/hello
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}

@@ -773,6 +773,9 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
 			return false, err
 		}
+		if cfg.Logos {
+			return logosDirHasGoFiles(dir)
+		}
 		return fsys.IsGoDir(dir)
 	})
 

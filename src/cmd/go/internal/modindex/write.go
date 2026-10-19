@@ -11,7 +11,7 @@ import (
 	"sort"
 )
 
-const indexVersion = "go index v2" // 11 bytes (plus \n), to align uint32s in index
+const indexVersion = "go index v3" // 11 bytes (plus \n), to align uint32s in index
 
 // encodeModuleBytes produces the encoded representation of the module index.
 // encodeModuleBytes may modify the packages slice.

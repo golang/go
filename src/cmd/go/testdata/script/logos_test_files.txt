@@ -1,0 +1,49 @@
+# M0-S2: .lgo test files are discovered; mixed .go test files are rejected.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Pure .lgo package with a .lgo test runs.
+logos test ./ok
+stdout '^ok'
+! stdout 'no test files'
+
+# .lgo beside .go test file fails.
+! logos test ./mix
+stderr 'correctness::mixed_package'
+
+-- go.mod --
+module example.com/t
+
+go 1.27
+
+-- ok/p.lgo --
+package ok
+
+func Add(a, b int) int { return a + b }
+
+-- ok/p_test.lgo --
+package ok
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	if Add(1, 2) != 3 {
+		t.Fatal("bad add")
+	}
+}
+
+-- mix/p.lgo --
+package mix
+
+func Add(a, b int) int { return a + b }
+
+-- mix/p_test.go --
+package mix
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	if Add(1, 2) != 3 {
+		t.Fatal("bad add")
+	}
+}

@@ -465,6 +465,10 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		return p, pkgerr
 	}
 
+	// logosMode gates every logos-source rule below on the requested
+	// Context: the shared index stores all kinds, readers filter here.
+	logosMode := logosEnabled(ctxt)
+
 	// We need to do a second round of bad file processing.
 	var badGoError error
 	badGoFiles := make(map[string]bool)
@@ -491,7 +495,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		name := tf.name()
 		// Check errors for go files and call badGoFiles to put them in
 		// InvalidGoFiles if they do have an error.
-		if strings.HasSuffix(name, ".go") {
+		if strings.HasSuffix(name, ".go") || (logosMode && isLogosExt(name)) {
 			if error := tf.error(); error != "" {
 				badGoFile(name, errors.New(tf.error()))
 				continue
@@ -522,7 +526,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 
 		ext := nameExt(name)
 		if !shouldBuild || tf.ignoreFile() {
-			if ext == ".go" {
+			if ext == ".go" || (logosMode && isLogosExt(name)) {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
 			} else if fileListForExt(p, ext) != nil {
 				p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, name)
@@ -531,7 +535,11 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		}
 
 		// Going to save the file. For non-Go files, can stop here.
-		switch ext {
+		switchExt := ext
+		if logosMode && isLogosExt(name) {
+			switchExt = ".go" // classify loGo/s sources with Go-family files
+		}
+		switch switchExt {
 		case ".go":
 			// keep going
 		case ".S", ".sx":
@@ -550,7 +558,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
 			continue
 		}
-		isTest := strings.HasSuffix(name, "_test.go")
+		isTest := strings.HasSuffix(name, "_test.go") || (logosMode && isLogosTest(name))
 		isXTest := false
 		if isTest && strings.HasSuffix(tf.pkgName(), "_test") && p.Name != tf.pkgName() {
 			isXTest = true
@@ -670,6 +678,12 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	if badGoError != nil {
 		return p, badGoError
 	}
+	if logosMode {
+		checkLogosPackage(p, badGoFile)
+		if badGoError != nil {
+			return p, badGoError
+		}
+	}
 	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		return p, &build.NoGoError{Dir: p.Dir}
 	}
@@ -709,7 +723,11 @@ func (rp *IndexPackage) IsGoDir() (_ bool, err error) {
 		}
 	}()
 	for _, sf := range rp.sourceFiles {
-		if strings.HasSuffix(sf.name(), ".go") {
+		// Presence follows process mode because IsGoDir takes no Context:
+		// cfg.Logos is the only mode signal available. Plain go stays
+		// .go-only so cached and uncached answers agree with fsys.IsGoDir;
+		// Import remains the ToolTags-gated classifier.
+		if strings.HasSuffix(sf.name(), ".go") || (cfg.Logos && isLogosExt(sf.name())) {
 			return true, nil
 		}
 	}
@@ -734,7 +752,8 @@ func (rp *IndexPackage) ScanDir(tags map[string]bool) (sortedImports []string, s
 Files:
 	for _, sf := range rp.sourceFiles {
 		name := sf.name()
-		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") || !strings.HasSuffix(name, ".go") || !imports.MatchFile(name, tags) {
+		isLGO := isLogosExt(name) && tags["logos"]
+		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") || (!strings.HasSuffix(name, ".go") && !isLGO) || !imports.MatchFile(name, tags) {
 			continue
 		}
 
@@ -761,7 +780,7 @@ Files:
 		}
 		numFiles++
 		m := imports_
-		if strings.HasSuffix(name, "_test.go") {
+		if strings.HasSuffix(name, "_test.go") || (isLGO && isLogosTest(name)) {
 			m = testImports
 		}
 		for _, p := range imps {

@@ -1166,7 +1166,7 @@ func (b *Builder) loadCachedCompiledGoFiles(a *Action) error {
 	for name := range strings.SplitSeq(string(list), "\n") {
 		if name == "" { // end of list
 			continue
-		} else if !strings.HasSuffix(name, ".go") {
+		} else if !cfg.IsGoFile(name) {
 			continue
 		}
 		if strings.HasPrefix(name, "./") {
@@ -1230,11 +1230,11 @@ func analysisModuleFromModulePublic(m *modinfo.ModulePublic) *analysis.Module {
 }
 
 func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
-	// Classify files based on .go extension.
+	// Classify files based on Go-family extension.
 	// srcfiles does not include raw cgo files.
 	var gofiles, nongofiles []string
 	for _, name := range srcfiles {
-		if strings.HasSuffix(name, ".go") {
+		if cfg.IsGoFile(name) {
 			gofiles = append(gofiles, name)
 		} else {
 			nongofiles = append(nongofiles, name)

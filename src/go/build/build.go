@@ -898,14 +898,14 @@ Found:
 		ext := nameExt(name)
 
 		info, err := ctxt.matchFile(p.Dir, name, allTags, &p.BinaryOnly, fset)
-		if err != nil && strings.HasSuffix(name, ".go") {
+		if err != nil && isGoFamilyFile(name, ctxt) {
 			badGoFile(name, err)
 			continue
 		}
 		if info == nil {
 			if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") {
 				// not due to build constraints - don't report
-			} else if ext == ".go" {
+			} else if ctxt.isGoFamilyExt(ext) {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
 			} else if fileListForExt(p, ext) != nil {
 				p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, name)
@@ -914,7 +914,13 @@ Found:
 		}
 
 		// Going to save the file. For non-Go files, can stop here.
-		switch ext {
+		// In logos mode, loGo/s sources take the ".go" path below;
+		// recorded names keep their on-disk bytes.
+		switchExt := ext
+		if ctxt.logosMode() && isLogosExt(ext) {
+			switchExt = ".go"
+		}
+		switch switchExt {
 		case ".go":
 			// keep going
 		case ".S", ".sx":
@@ -945,7 +951,7 @@ Found:
 			}
 		}
 
-		isTest := strings.HasSuffix(name, "_test.go")
+		isTest := isTestFile(name, ctxt)
 		isXTest := false
 		if isTest && strings.HasSuffix(pkg, "_test") && p.Name != pkg {
 			isXTest = true
@@ -1075,6 +1081,11 @@ Found:
 
 	if badGoError != nil {
 		return p, badGoError
+	}
+	if ctxt.logosMode() {
+		if err := checkLogosPackage(p); err != nil {
+			return p, err
+		}
 	}
 	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		return p, &NoGoError{p.Dir}
@@ -1286,7 +1297,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 func hasGoFiles(ctxt *Context, dir string) bool {
 	ents, _ := ctxt.readDir(dir)
 	for _, ent := range ents {
-		if !ent.IsDir() && strings.HasSuffix(ent.Name(), ".go") {
+		if !ent.IsDir() && isGoFamilyFile(ent.Name(), ctxt) {
 			return true
 		}
 	}
@@ -1459,7 +1470,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	}
 	ext := name[i:]
 
-	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
+	if !ctxt.isGoFamilyExt(ext) && fileListForExt(&dummyPkg, ext) == nil {
 		// skip
 		return nil, nil
 	}
@@ -1479,9 +1490,9 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 		return nil, err
 	}
 
-	if strings.HasSuffix(name, ".go") {
+	if ctxt.isGoFamilyExt(ext) {
 		err = readGoInfo(f, info)
-		if strings.HasSuffix(name, "_test.go") {
+		if isTestFile(name, ctxt) {
 			binaryOnly = nil // ignore //go:binary-only-package comments in _test.go files
 		}
 	} else {

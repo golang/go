@@ -9,7 +9,7 @@ Bools are written as uint32s: 0 for false and 1 for true.
 
 The following is the format for a full module:
 
-“go index v2\n”
+“go index v3\n”
 str uint32 - offset of string table
 n uint32 - number of packages
 for each rawPackage:

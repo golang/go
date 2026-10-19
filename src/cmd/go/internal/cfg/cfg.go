@@ -131,7 +131,7 @@ func defaultContext() build.Context {
 			save = append(save, tag)
 		}
 	}
-	ctxt.ToolTags = save
+	ctxt.ToolTags = logosToolTags(save)
 
 	// The go/build rule for whether cgo is enabled is:
 	//  1. If $CGO_ENABLED is set, respect it.
