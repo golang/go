@@ -1,0 +1,43 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errNamed = errors.New("named")
+
+func getVal(fail bool, v int) (int, error) {
+	if fail {
+		return 99, errNamed
+	}
+	return v, nil
+}
+
+func namedOK() (v int, err error) {
+	v = getVal(false, 7)?
+	return v, nil
+}
+
+func namedFail() (v int, err error) {
+	v = getVal(true, 7)?
+	return v, nil
+}
+
+func namedDefer() (v int, err error) {
+	defer func() {
+		fmt.Println("deferred sees:", v, err)
+	}()
+	v = getVal(true, 7)?
+	return v, nil
+}
+
+func main() {
+	v, err := namedOK()
+	fmt.Println("ok:", v, err)
+	v, err = namedFail()
+	fmt.Println("fail:", v, err)
+	_, _ = namedDefer()
+}

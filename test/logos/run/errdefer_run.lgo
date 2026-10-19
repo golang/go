@@ -1,0 +1,116 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"runtime"
+	"strings"
+	"time"
+)
+
+var errPrimary = errors.New("primary")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func failErr() error { return errPrimary }
+
+func onError() (err error) {
+	errdefer note("on-error")
+	return errPrimary
+}
+
+func onSuccess() (err error) {
+	errdefer note("on-success")
+	return nil
+}
+
+func onPanic() (err error) {
+	errdefer note("on-panic")
+	panic("boom")
+}
+
+func recoverIt() (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s = fmt.Sprint(r)
+		}
+	}()
+	_ = onPanic()
+	return "no-panic"
+}
+
+func laterDeferFails() (err error) {
+	errdefer note("late-errdefer")
+	defer failErr()?
+	return nil
+}
+
+type typedErr struct{ msg string }
+
+func (e *typedErr) Error() string { return e.msg }
+
+func typedNil() (err error) {
+	errdefer note("typed-nil")
+	var p *typedErr
+	return p
+}
+
+type noter struct{}
+
+func (noter) Close() error {
+	note("L-defertry")
+	return nil
+}
+
+func lifo() (err error) {
+	errdefer note("L-errdefer")
+	n := noter{}
+	defer n.Close()?
+	defer note("L-defer")
+	return errPrimary
+}
+
+var argState = "before"
+
+func argEval() (err error) {
+	errdefer note(argState)
+	argState = "after"
+	return errPrimary
+}
+
+func goexitWorker(done chan string) (err error) {
+	errdefer func() { done <- "goexit-ran" }()
+	runtime.Goexit()
+	return nil
+}
+
+func run() error {
+	_ = onError()
+	_ = onSuccess()
+	fmt.Println("panic:", recoverIt())
+	lateErr := laterDeferFails()
+	fmt.Println("late-err:", lateErr)
+	_ = typedNil()
+	_ = lifo()
+	_ = argEval()
+	done := make(chan string, 1)
+	go goexitWorker(done)
+	select {
+	case msg := <-done:
+		fmt.Println("goexit:", msg)
+	case <-time.After(2 * time.Second):
+		fmt.Println("goexit: timeout")
+	}
+	fmt.Println("order:", strings.Join(order, ","))
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Println("fatal:", err)
+	}
+}

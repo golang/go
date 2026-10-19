@@ -1,0 +1,77 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errSyn = errors.New("syn")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
+
+func cleanup() error { return nil }
+
+func rollback() error {
+	note("rollback")
+	return nil
+}
+
+func unnamedOK() (int, error) {
+	defer cleanup()?
+	return 7, nil
+}
+
+func unnamedFail() (int, error) {
+	defer cleanup()?
+	return 0, errSyn
+}
+
+func shadowed() (int, error) {
+	err := 40
+	r0 := 2
+	defer cleanup()?
+	return r0 + err, nil
+}
+
+func shadowedErrdefer(fail bool) (int, error) {
+	err := 1
+	r0 := 2
+	errdefer rollback()
+	if fail {
+		return 0, errSyn
+	}
+	return err + r0, nil
+}
+
+func blankRes(fail bool) (_ int, _ error) {
+	v := 9
+	if fail {
+		return 0, errSyn
+	}
+	defer cleanup()?
+	return v, nil
+}
+
+func main() {
+	v, err := unnamedOK()
+	fmt.Println("ok:", v, err)
+	v, err = unnamedFail()
+	fmt.Println("fail:", v, err)
+	v, err = shadowed()
+	fmt.Println("shadow:", v, err)
+	v, err = shadowedErrdefer(false)
+	fmt.Println("ed-ok:", v, err)
+	v, err = shadowedErrdefer(true)
+	fmt.Println("ed-fail:", v, err)
+	v, err = blankRes(false)
+	fmt.Println("blank-ok:", v, err)
+	v, err = blankRes(true)
+	fmt.Println("blank-fail:", v, err)
+	for _, s := range order {
+		fmt.Println("ran:", s)
+	}
+}

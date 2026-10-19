@@ -1,0 +1,53 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errFirst = errors.New("first")
+var errSecond = errors.New("second")
+
+type closer struct{ err error }
+
+func (c *closer) Close() error { return c.err }
+
+func returnNil() (err error) {
+	c := &closer{}
+	defer c.Close()?
+	return nil
+}
+
+func returnSecond() (err error) {
+	c := &closer{err: errSecond}
+	defer c.Close()?
+	return nil
+}
+
+func returnBoth() (err error) {
+	c := &closer{err: errSecond}
+	defer c.Close()?
+	return errFirst
+}
+
+func run() error {
+	if err := returnNil(); err != nil {
+		return err
+	}
+	fmt.Println("nil ok")
+	if err := returnSecond(); err != nil {
+		fmt.Println("second:", err)
+	}
+	err := returnBoth()
+	fmt.Println("both:", err)
+	fmt.Println("is-first:", errors.Is(err, errFirst), "is-second:", errors.Is(err, errSecond))
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Println("fatal:", err)
+	}
+}

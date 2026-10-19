@@ -197,6 +197,7 @@ func ParseFlags() {
 	Flag.Cfg.ImportMap = make(map[string]string)
 
 	objabi.AddVersionFlag() // -V
+	logosRegisterFlags()
 	registerFlags()
 	objabi.Flagparse(usage)
 	counter.CountFlags("compile/flag:", *flag.CommandLine)

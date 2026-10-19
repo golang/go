@@ -55,7 +55,7 @@ func LoadPackage(filenames []string) {
 				}
 				defer f.Close()
 
-				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, syntax.CheckBranches|logosMode(filename)) // errors are tracked via p.error
+				p.file = parseLogosFile(fbase, f, filename, p.error, p.pragma) // errors are tracked via p.error
 			}()
 		}
 	}()

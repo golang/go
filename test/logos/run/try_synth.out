@@ -1,0 +1,8 @@
+ok: 7 <nil>
+fail: 0 syn
+shadow: 42 <nil>
+ed-ok: 3 <nil>
+ed-fail: 0 syn
+blank-ok: 9 <nil>
+blank-fail: 0 syn
+ran: rollback

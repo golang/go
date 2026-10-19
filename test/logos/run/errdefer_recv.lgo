@@ -1,0 +1,60 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errRecv = errors.New("recv")
+
+type box struct{ tag string }
+
+func (b box) Close() error {
+	fmt.Println("close:", b.tag)
+	return nil
+}
+
+func (b box) Rollback() error {
+	fmt.Println("rollback:", b.tag)
+	return nil
+}
+
+func check(s string) error {
+	fmt.Println("check:", s)
+	return nil
+}
+
+func recvDefer() (err error) {
+	b := box{tag: "old"}
+	defer b.Close()?
+	b.tag = "new"
+	return nil
+}
+
+func recvErrdefer() (err error) {
+	b := box{tag: "old"}
+	errdefer b.Rollback()
+	b.tag = "new"
+	return errRecv
+}
+
+func argDefer() (err error) {
+	v := "old"
+	defer check(v)?
+	v = "new"
+	return nil
+}
+
+func main() {
+	if err := recvDefer(); err != nil {
+		fmt.Println("fatal:", err)
+	}
+	if err := argDefer(); err != nil {
+		fmt.Println("fatal:", err)
+	}
+	if err := recvErrdefer(); err != nil {
+		fmt.Println("err:", err)
+	}
+}

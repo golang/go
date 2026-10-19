@@ -1,0 +1,67 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errBoom = errors.New("boom")
+
+var seen = -1
+
+var pairA = -1
+var pairB = "unset"
+
+func getVal(fail bool, v int) (int, error) {
+	if fail {
+		return 99, errBoom
+	}
+	return v, nil
+}
+
+func getPair(fail bool) (int, string, error) {
+	if fail {
+		return 99, "payload", errBoom
+	}
+	return 7, "seven", nil
+}
+
+func useAssign(fail bool) error {
+	seen = getVal(fail, 42)?
+	return nil
+}
+
+func usePair(fail bool) error {
+	pairA, pairB = getPair(fail)?
+	return nil
+}
+
+func run() error {
+	v := getVal(false, 7)?
+	fmt.Println("ok:", v)
+	if err := useAssign(false); err != nil {
+		fmt.Println("unexpected:", err)
+	}
+	fmt.Println("seen:", seen)
+	if err := usePair(false); err != nil {
+		fmt.Println("unexpected:", err)
+	}
+	fmt.Println("pair:", pairA, pairB)
+	if err := useAssign(true); err != nil {
+		fmt.Println("err:", err)
+	}
+	fmt.Println("seen:", seen)
+	if err := usePair(true); err != nil {
+		fmt.Println("err:", err)
+	}
+	fmt.Println("pair:", pairA, pairB)
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Println("fatal:", err)
+	}
+}

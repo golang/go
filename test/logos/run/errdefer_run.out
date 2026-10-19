@@ -1,0 +1,4 @@
+panic: boom
+late-err: primary
+goexit: goexit-ran
+order: on-error,on-panic,late-errdefer,typed-nil,L-defer,L-defertry,L-errdefer,before

@@ -1,0 +1,75 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errZero = errors.New("zero")
+
+type Point struct{ X, Y int }
+
+var payloadInt = 42
+
+func failPoint() (Point, error) { return Point{X: 5, Y: 6}, errZero }
+func failArray() ([3]int, error) { return [3]int{1, 2, 3}, errZero }
+func failPtr() (*int, error) { return &payloadInt, errZero }
+func failSlice() ([]int, error) { return []int{1, 2}, errZero }
+func failMap() (map[string]int, error) { return map[string]int{"k": 1}, errZero }
+func failString() (string, error) { return "payload", errZero }
+
+func failGeneric[T any](v T) (T, error) { return v, errZero }
+
+func takePoint() (Point, error) {
+	p := failPoint()?
+	return p, nil
+}
+
+func takeArray() ([3]int, error) {
+	a := failArray()?
+	return a, nil
+}
+
+func takePtr() (*int, error) {
+	p := failPtr()?
+	return p, nil
+}
+
+func takeSlice() ([]int, error) {
+	s := failSlice()?
+	return s, nil
+}
+
+func takeMap() (map[string]int, error) {
+	m := failMap()?
+	return m, nil
+}
+
+func takeString() (string, error) {
+	s := failString()?
+	return s, nil
+}
+
+func takeGen[T any](v T) (T, error) {
+	g := failGeneric[T](v)?
+	return g, nil
+}
+
+func main() {
+	p, errP := takePoint()
+	fmt.Printf("point=%v err=%v\n", p, errP)
+	a, errA := takeArray()
+	fmt.Printf("array=%v err=%v\n", a, errA)
+	pt, errPt := takePtr()
+	fmt.Printf("ptr=%v err=%v\n", pt, errPt)
+	s, errS := takeSlice()
+	fmt.Printf("slice=%v err=%v\n", s, errS)
+	m, errM := takeMap()
+	fmt.Printf("map=%v err=%v\n", m, errM)
+	st, errSt := takeString()
+	fmt.Printf("str=%q err=%v\n", st, errSt)
+	g, errG := takeGen(7)
+	fmt.Printf("gen=%v err=%v\n", g, errG)
+}

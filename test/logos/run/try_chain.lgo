@@ -1,0 +1,54 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+
+	"logos/rt"
+)
+
+var errChain = errors.New("chain")
+
+func source(fail bool) (int, error) {
+	if fail {
+		return 0, errChain
+	}
+	return 3, nil
+}
+
+func leaf(fail bool) (int, error) {
+	n := source(fail)?
+	return n, nil
+}
+
+func middle(fail bool) (int, error) {
+	n := leaf(fail)?
+	return 2 * n, nil
+}
+
+func top(fail bool) (int, error) {
+	n := middle(fail)?
+	return 10 + n, nil
+}
+
+func run() error {
+	n := top(false)?
+	fmt.Println("value:", n)
+	n2, err := top(true)
+	if err != nil {
+		fmt.Println("zero:", n2)
+		return err
+	}
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Println("err:", err)
+		for _, s := range rt.ErrorTrace() {
+			fmt.Printf("%s:%d\n", s.File, s.Line)
+		}
+	}
+}

@@ -1,0 +1,7 @@
+ok: 7
+seen: 42
+pair: 7 seven
+err: boom
+seen: 99
+err: boom
+pair: 99 payload

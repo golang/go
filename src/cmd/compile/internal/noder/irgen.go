@@ -48,6 +48,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	}
 
 	didMidway := false
+	didLogos := false
 
 recheck:
 	// typechecking
@@ -62,7 +63,7 @@ recheck:
 		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
 		Importer:           &importer,
 		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
-		Logos:              allLogos(noders),
+		Logos:              allLogos(noders) && !didLogos,
 	}
 	if base.Flag.ErrorURL {
 		conf.ErrorURL = " [go.dev/e/%s]"
@@ -182,6 +183,13 @@ recheck:
 		dumpSyntax(pkg, info, files, "checked")
 	}
 
+	if conf.Logos && !didLogos {
+		didLogos = true
+		if lowerLogosHook(pkg, info, files) {
+			goto recheck
+		}
+	}
+
 	if buildcfg.Experiment.SIMD && !didMidway {
 		didMidway = true
 		// Perform midway transformation on AST directly
@@ -217,6 +225,8 @@ recheck:
 	if len(base.Debug.AstDump) > 0 {
 		dumpSyntax(pkg, info, files, "rangefunc")
 	}
+
+	writeLogosEject(files)
 
 	return pkg, info, rangeInfo
 }

@@ -1,0 +1,46 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errComment = errors.New("comment")
+
+func parse(s string) (int, error) {
+	if s == "bad" {
+		return 0, errComment
+	}
+	return len(s), nil
+}
+
+type gate struct{ closed bool }
+
+func (g *gate) Close() error {
+	g.closed = true
+	return nil
+}
+
+func rollback() error { return nil }
+
+var g = &gate{}
+
+func run() error {
+	v := parse(
+		// convert the input
+		"hello",
+	/* trailing block */)?
+	fmt.Println("value:", v)
+	defer g.Close(/* idempotent close */)?
+	errdefer rollback(/* undo nothing */)?
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Println("fatal:", err)
+	}
+	fmt.Println("closed:", g.closed)
+}
