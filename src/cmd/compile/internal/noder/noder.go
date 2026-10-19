@@ -55,7 +55,7 @@ func LoadPackage(filenames []string) {
 				}
 				defer f.Close()
 
-				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
+				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, syntax.CheckBranches|logosMode(filename)) // errors are tracked via p.error
 			}()
 		}
 	}()
@@ -72,6 +72,8 @@ func LoadPackage(filenames []string) {
 		lines += p.file.EOF.Line()
 	}
 	base.Timer.AddEvent(int64(lines), "lines")
+
+	checkLogosMixedPackage(filenames)
 
 	unified(m, noders)
 }

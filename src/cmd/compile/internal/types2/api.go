@@ -170,6 +170,8 @@ type Config struct {
 	// for unused imports.
 	DisableUnusedImportCheck bool
 
+	Logos bool // package sources are .lgo files
+
 	// If a non-empty ErrorURL format string is provided, it is used
 	// to format an error URL link that is appended to the first line
 	// of an error message. ErrorURL must be a format string containing

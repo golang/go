@@ -1,0 +1,47 @@
+# M0-S3: the compiler rejects a package that mixes user-authored .go
+# and .lgo files with correctness::mixed_package. A pure .lgo package
+# compiles, and compiler-generated cgo outputs beside .lgo files are
+# exempt from the check.
+
+env GOPROXY=off
+
+# Mixing a.go and b.lgo fails and names both file classes.
+# The compiler prints its diagnostics on stdout.
+! go tool compile -p p -o $WORK/p.o a.go b.lgo
+stdout '\[correctness::mixed_package\] cannot mix \.go files \(a\.go\) and \.lgo files \(b\.lgo\) in one package'
+
+# Two .lgo files compile.
+go tool compile -p p -o $WORK/q.o c.lgo d.lgo
+
+# A cgo output beside an .lgo file is exempt and compiles.
+go tool compile -p p -o $WORK/r.o e.lgo _cgo_gotypes.go
+
+-- a.go --
+package p
+
+func A() int { return 1 }
+
+-- b.lgo --
+package p
+
+func B() int { return 2 }
+
+-- c.lgo --
+package p
+
+func C() int { return 3 }
+
+-- d.lgo --
+package p
+
+func D() int { return 4 }
+
+-- e.lgo --
+package p
+
+func E() int { return 5 }
+
+-- _cgo_gotypes.go --
+package p
+
+func CgoTypes() int { return 6 }

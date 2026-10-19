@@ -16,6 +16,7 @@ type Mode uint
 // Modes supported by the parser.
 const (
 	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
+	LogosMode                      // parse as a loGo/s source file; plain Go parses identically
 )
 
 // Error describes a syntax error. Error implements the error interface.
