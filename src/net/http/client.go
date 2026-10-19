@@ -663,7 +663,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 				// If the caller specified a custom Host header and the
 				// redirect location is relative, preserve the Host header
 				// through the redirect. See issue #22233.
-				if u, _ := url.Parse(loc); u != nil && !u.IsAbs() {
+				if u, _ := url.Parse(loc); u != nil && !u.IsAbs() && u.Host == "" {
 					host = req.Host
 				}
 			}
