@@ -1234,7 +1234,7 @@ func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
 	// srcfiles does not include raw cgo files.
 	var gofiles, nongofiles []string
 	for _, name := range srcfiles {
-		if cfg.IsGoFile(name) {
+		if cfg.IsGoFile(name) && !cfg.IsLogosFile(name) {
 			gofiles = append(gofiles, name)
 		} else {
 			nongofiles = append(nongofiles, name)
@@ -1334,6 +1334,11 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	if vcfg == nil {
 		// Vet config should only be missing if the build failed.
 		return fmt.Errorf("vet config not found")
+	}
+	if len(vcfg.GoFiles) == 0 && a.Package.IsLogos() {
+		// A loGo/s package carries no .go sources for vet to parse;
+		// analysis of its lowered form is a later milestone.
+		return nil
 	}
 
 	sh := b.Shell(a)
