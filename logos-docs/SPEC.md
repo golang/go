@@ -196,7 +196,7 @@ A named type whose underlying type is `error` MUST NOT satisfy the operand rule 
 The enclosing function MUST have a last result type identical to `error` [T-104.1].
 `x := f()?` MUST bind the call results minus the error [T-104.1].
 `x := f()?` where the call returns only `error` MUST fail [T-104.1].
-Zero remaining results MUST be allowed only in an expression statement or a defer [T-104.1].
+Zero remaining results MUST be allowed only in an expression statement, a defer, or an errdefer [T-104.1].
 Normal `:=` scope rules MUST apply to `x := f()?` with no new variable [T-104.1].
 On error, every non-error result MUST take its zero value [T-104.1].
 The returned error MUST be the call error value unchanged [T-104.1].

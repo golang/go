@@ -710,7 +710,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				check.error(s.Cond, InvalidCond, "non-boolean condition in for statement")
 			}
 		}
-		check.simpleStmt(s.Post)
+		check.logosPostStmt(s.Post) // logos M1-S3 hook.
 		// spec: "The init statement may be a short variable
 		// declaration, but the post statement must not."
 		if s, _ := s.Post.(*syntax.AssignStmt); s != nil && s.Op == syntax.Def {

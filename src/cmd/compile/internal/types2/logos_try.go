@@ -17,8 +17,9 @@ import (
 // A `?` in an allowed position (single right-hand side of `=` or `:=`,
 // expression statement, `defer` or `errdefer` call) is handled wholly by
 // the statement hook, which types the inner call once via
-// logosTryResults. Any other `?` reaches exprInternal, which validates
-// the operand the same way and then reports misplaced_try. Each TryExpr
+// logosTryResults. Any other `?` reports misplaced_try: the expression
+// fallback and the `go` and for-post statements type the operand silently
+// via logosTryMisplaced and report only the position error. Each TryExpr
 // node yields at most one error.
 //
 // logosTryResults records the TryExpr type in Info.Types: the single
@@ -57,9 +58,10 @@ func (check *Checker) logosEnclosingError() bool {
 
 // logosTryResults checks C1 for t: the operand must be a call whose last
 // result is identical to error, and the enclosing function must return
-// error last. It returns one operand per non-error result. On failure it
-// reports exactly one error and returns ok == false, in which case
-// callers mark the lhs used but report nothing more for t.
+// error last. A conversion is syntactically a call but not a call operand.
+// It returns one operand per non-error result. On failure it reports
+// exactly one error and returns ok == false, in which case callers mark
+// the lhs used but report nothing more for t.
 func (check *Checker) logosTryResults(t *syntax.TryExpr) (results []*operand, ok bool) {
 	fail := func() ([]*operand, bool) { return nil, false }
 
@@ -72,7 +74,10 @@ func (check *Checker) logosTryResults(t *syntax.TryExpr) (results []*operand, ok
 	}
 
 	var cx operand
-	check.rawExpr(nil, &cx, call, nil, false)
+	if kind := check.rawExpr(nil, &cx, call, nil, false); kind == conversion {
+		check.error(t.Pos(), InvalidCall, "? operand must be a call")
+		return fail()
+	}
 	if !cx.isValid() {
 		return fail()
 	}
@@ -109,8 +114,11 @@ func (check *Checker) logosTryResults(t *syntax.TryExpr) (results []*operand, ok
 
 	results = make([]*operand, len(keep))
 	for i, typ := range keep {
-		dummy := syntax.NewName(syntax.StartPos(call), nth(i+1, "function result"))
-		results[i] = &operand{mode_: value, expr: dummy, typ_: typ}
+		var e syntax.Expr = syntax.NewName(syntax.StartPos(call), nth(i+1, "function result"))
+		if len(keep) == 1 {
+			e = call
+		}
+		results[i] = &operand{mode_: value, expr: e, typ_: typ}
 	}
 
 	var tx operand
@@ -130,6 +138,75 @@ func (check *Checker) logosTryResults(t *syntax.TryExpr) (results []*operand, ok
 	check.record(&tx)
 
 	return results, true
+}
+
+// logosTryMisplaced types the operand of t silently and reports
+// misplaced_try. A call operand is typechecked so its uses are marked
+// and genuine inner errors still surface, but the C1 operand and
+// enclosing checks run without diagnostics; a non-call operand only has
+// its uses marked. The position error is the single diagnostic for t.
+func (check *Checker) logosTryMisplaced(t *syntax.TryExpr) {
+	if inner, isCall := syntax.Unparen(t.X).(*syntax.CallExpr); isCall {
+		var cx operand
+		check.rawExpr(nil, &cx, inner, nil, false)
+	} else {
+		check.use(t.X)
+	}
+	check.error(t.Pos(), InvalidCall, logosMisplacedTry)
+}
+
+// logosPostStmt checks a for-statement post statement. A `?` in the for
+// init stays valid through the assignment hooks; a `?` accepted as the
+// post statement itself is misplaced_try (M1), handled here so the normal
+// statement checker is skipped and no duplicate is reported. Any other
+// post statement runs the upstream path, where a nested `?` reaches the
+// expression fallback and reports misplaced_try itself.
+func (check *Checker) logosPostStmt(post syntax.Stmt) {
+	if !check.logosForPost(post) {
+		check.simpleStmt(post)
+	}
+}
+
+// logosForPost reports whether post is a `?` in an accepted statement
+// shape. It types the operand silently, reports misplaced_try, marks the
+// assigned variables used, and returns true; the caller then skips the
+// normal check. Otherwise it returns false and the caller runs the
+// upstream path.
+func (check *Checker) logosForPost(post syntax.Stmt) bool {
+	if !check.conf.Logos || post == nil {
+		return false
+	}
+	var lhs []syntax.Expr
+	var t *syntax.TryExpr
+	switch s := post.(type) {
+	case *syntax.AssignStmt:
+		if s.Rhs == nil || s.Op != 0 {
+			return false
+		}
+		rhs := syntax.UnpackListExpr(s.Rhs)
+		if len(rhs) != 1 {
+			return false
+		}
+		var ok bool
+		t, ok = syntax.Unparen(rhs[0]).(*syntax.TryExpr)
+		if !ok {
+			return false
+		}
+		lhs = syntax.UnpackListExpr(s.Lhs)
+	case *syntax.ExprStmt:
+		var ok bool
+		t, ok = syntax.Unparen(s.X).(*syntax.TryExpr)
+		if !ok {
+			return false
+		}
+	default:
+		return false
+	}
+	check.logosTryMisplaced(t)
+	if lhs != nil {
+		check.useLHS(lhs...)
+	}
+	return true
 }
 
 // logosTryCountError reports a C3 arity mismatch.
@@ -243,9 +320,9 @@ func (check *Checker) logosTryExprStmt(s *syntax.ExprStmt) bool {
 }
 
 // logosTryCallStmt handles `?` as the call of a go or defer statement.
-// A `?` in a go statement is not an allowed position (SPEC Sec 1.4), so
-// it reports misplaced_try once the operand itself checks out; a
-// `defer f()?` discards any remaining count like an expression statement.
+// A `?` in a go statement is never an allowed position (SPEC Sec 1.4),
+// so it always reports misplaced_try; a `defer f()?` discards any
+// remaining count like an expression statement.
 func (check *Checker) logosTryCallStmt(s *syntax.CallStmt) bool {
 	if !check.conf.Logos {
 		return false
@@ -255,14 +332,8 @@ func (check *Checker) logosTryCallStmt(s *syntax.CallStmt) bool {
 		return false
 	}
 	if s.Tok == syntax.Go {
-		_, ok := check.logosTryResults(t)
-		if ok {
-			check.error(t.Pos(), InvalidCall, logosMisplacedTry)
-		}
+		check.logosTryMisplaced(t)
 		return true
-	}
-	if s.Tok != syntax.Defer {
-		return false
 	}
 	check.logosTryResults(t)
 	return true
@@ -318,8 +389,10 @@ func (check *Checker) logosErrdeferUse(call syntax.Expr) {
 }
 
 // logosTryOperand checks a `?` in expression position, which no statement
-// hook claimed. Full C1 validation runs first so a malformed operand
-// reports its own error; otherwise the position reports misplaced_try.
+// hook claimed. The position is never allowed (SPEC Sec 1.4), so it always
+// reports misplaced_try; the operand is typed silently (uses marked,
+// inner call errors surface) without C1 diagnostics, so each TryExpr
+// yields exactly the one position error.
 func (check *Checker) logosTryOperand(x *operand, e *syntax.TryExpr) exprKind {
 	if !check.conf.Logos {
 		check.error(e, InvalidSyntaxTree, "invalid use of ? outside logos mode")
@@ -328,10 +401,7 @@ func (check *Checker) logosTryOperand(x *operand, e *syntax.TryExpr) exprKind {
 		x.typ_ = Typ[Invalid]
 		return statement
 	}
-	_, ok := check.logosTryResults(e)
-	if ok {
-		check.error(e.Pos(), InvalidCall, logosMisplacedTry)
-	}
+	check.logosTryMisplaced(e)
 	x.invalidate()
 	x.expr = e
 	x.typ_ = Typ[Invalid]

@@ -1,0 +1,78 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// Frozen RED attacks for the M1-S3 review findings I1, I2, I3, M1, M6
+// and M7. Each ERROR comment states the desired post-fix diagnostic;
+// this file is RED until the checker is fixed. Helpers are redeclared
+// here because the harness checks every file as its own package.
+
+func twoResults() (int, error) { return 0, nil }
+
+func justError() error { return nil }
+
+// I1: misplaced_try is reported even when the C1 checks also fail.
+// Each TryExpr yields at most one error, so only misplaced_try appears.
+
+func reviewBinopNoError() int {
+	_ = 1 + twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+	return 0
+}
+
+var reviewV = twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+
+func reviewGoNoError() {
+	go justError()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+}
+
+func reviewNonCallOperand() (int, error) {
+	y := 1
+	_ = 1 + y? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+	return 0, nil
+}
+
+// I2: a conversion is syntactically a call but not a call operand.
+
+func reviewConversionStmt() (int, error) {
+	error(nil)? /* ERROR "? operand must be a call" */
+	return 0, nil
+}
+
+func reviewConversionDefer() (int, error) {
+	defer error(nil)? /* ERROR "? operand must be a call" */
+	return 0, nil
+}
+
+// I3: a reserved-name use on an imported package cannot be expressed in
+// this harness (one package per file, no fixture imports); the
+// imported-selector case is a reported gap with no test here.
+
+// M1: ? in a for post statement is misplaced_try. The init keeps no
+// pin comment, so for-init ? stays valid.
+
+func reviewForPost() (int, error) {
+	for x := twoResults()?; x < 1; x = twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */ {
+	}
+	return 0, nil
+}
+
+// M6: with one kept result the operand is the call, so the message names
+// twoResults() instead of "1st function result". A call is positioned at
+// its function name, so the comment follows twoResults.
+
+func reviewSingleResultMsg() (int, error) {
+	var s string
+	s = twoResults /* ERROR "cannot use twoResults()" */ ()?
+	_ = s
+	return 0, nil
+}
+
+// M7: the embedded Logos_T field reports exactly one error.
+
+type Logos_T /* ERROR "correctness::reserved_identifier" */ struct{}
+
+var _ = struct {
+	Logos_T /* ERROR "correctness::reserved_identifier" */
+}{}
