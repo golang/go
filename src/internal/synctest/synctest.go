@@ -9,6 +9,7 @@ package synctest
 
 import (
 	"internal/abi"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -18,10 +19,21 @@ func Run(f func())
 //go:linkname Wait
 func Wait()
 
-// IsInBubble reports whether the current goroutine is in a bubble.
+// activeBubbles is the number of bubbles which may contain goroutines.
+// It is maintained by the runtime.
 //
-//go:linkname IsInBubble
-func IsInBubble() bool
+//go:linknamestd activeBubbles
+var activeBubbles atomic.Int32
+
+// IsInBubble reports whether the current goroutine is in a bubble.
+func IsInBubble() bool {
+	// Avoid calling into the runtime when there are no bubbles,
+	// which is always the case outside of tests using synctest.
+	return activeBubbles.Load() != 0 && isInBubble()
+}
+
+//go:linknamestd isInBubble
+func isInBubble() bool
 
 // Association is the state of a pointer's bubble association.
 type Association int

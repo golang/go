@@ -167,6 +167,17 @@ func (bubble *synctestBubble) raceaddr() unsafe.Pointer {
 
 var bubbleGen atomic.Uint64 // bubble ID counter
 
+// activeBubbles is the number of bubbles which may contain goroutines.
+// When it is zero, no goroutine is in a bubble, which lets
+// internal/synctest.IsInBubble avoid calling into the runtime.
+//
+// It is incremented before a bubble's root goroutine joins the bubble
+// and decremented only after Run determines that no other goroutines
+// remain in the bubble. A bubble which deadlocks is never decremented.
+//
+//go:linknamestd activeBubbles internal/synctest.activeBubbles
+var activeBubbles atomic.Int32
+
 //go:linkname synctestRun internal/synctest.Run
 func synctestRun(f func()) {
 	gp := getg()
@@ -184,6 +195,9 @@ func synctestRun(f func()) {
 	lockInit(&bubble.mu, lockRankSynctest)
 	lockInit(&bubble.timers.mu, lockRankTimers)
 
+	if activeBubbles.Add(1) < 0 {
+		throw("activeBubbles overflow")
+	}
 	gp.bubble = bubble
 	defer func() {
 		gp.bubble = nil
@@ -250,6 +264,11 @@ func synctestRun(f func()) {
 		// Verify that we haven't marked this goroutine's sleep timer as fake.
 		// This could happen if something in Run were to call timeSleep.
 		throw("synctest root goroutine has a fake timer")
+	}
+	// No goroutines other than the root remain in the bubble,
+	// and the root leaves it when Run returns.
+	if activeBubbles.Add(-1) < 0 {
+		throw("activeBubbles < 0")
 	}
 }
 
@@ -322,7 +341,7 @@ func synctestwait_c(gp *g, _ unsafe.Pointer) bool {
 	return true
 }
 
-//go:linkname synctest_isInBubble internal/synctest.IsInBubble
+//go:linknamestd synctest_isInBubble internal/synctest.isInBubble
 func synctest_isInBubble() bool {
 	return getg().bubble != nil
 }

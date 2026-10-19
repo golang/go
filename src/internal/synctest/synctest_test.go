@@ -70,6 +70,55 @@ func TestRunEmpty(t *testing.T) {
 	})
 }
 
+func TestIsInBubble(t *testing.T) {
+	check := func(want bool) {
+		t.Helper()
+		if got := synctest.IsInBubble(); got != want {
+			t.Errorf("IsInBubble() = %v, want %v", got, want)
+		}
+	}
+	check(false)
+	synctest.Run(func() {
+		check(true)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			check(true)
+		}()
+		<-done
+	})
+	check(false)
+
+	// Overlapping bubbles, with goroutines outside of them.
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			synctest.Run(func() {
+				time.Sleep(time.Second)
+				check(true)
+			})
+			check(false)
+		}()
+		go func() {
+			defer wg.Done()
+			check(false)
+		}()
+	}
+	wg.Wait()
+	check(false)
+
+	// A deadlocked bubble leaves goroutines behind in the bubble.
+	func() {
+		defer func() { recover() }()
+		synctest.Run(func() {
+			go func() { select {} }()
+		})
+	}()
+	check(false)
+}
+
 func TestSimpleWait(t *testing.T) {
 	synctest.Run(func() {
 		synctest.Wait()
