@@ -130,6 +130,7 @@ var unaryDst = map[obj.As]bool{
 	AI64Store8:    true,
 	AI64Store16:   true,
 	AI64Store32:   true,
+	AV128Store:    true,
 	ACALLNORESUME: true,
 }
 
