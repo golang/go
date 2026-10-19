@@ -1,0 +1,34 @@
+// run
+
+package main
+
+import "fmt"
+
+// #1: a closed union mixing a pointer member with a scalar member must
+// use the upstream interface representation, so the two members never
+// share one overlapped slot.
+type Node struct{ V int }
+
+type PtrOrInt interface {
+	*Node | int
+}
+
+func show(u PtrOrInt) string {
+	switch v := u.(type) {
+	case int:
+		return fmt.Sprint("int ", v)
+	case *Node:
+		return fmt.Sprint("node ", v.V)
+	case nil:
+		return "nil"
+	default:
+		return "other"
+	}
+}
+
+func main() {
+	var u PtrOrInt = 3
+	fmt.Println(show(u))
+	u = &Node{V: 5}
+	fmt.Println(show(u))
+}

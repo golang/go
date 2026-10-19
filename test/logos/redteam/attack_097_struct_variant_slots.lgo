@@ -1,0 +1,44 @@
+// run
+
+package main
+
+import "fmt"
+
+// #97: struct-variant union values use the upstream interface
+// representation, so overwriting one variant with another and back
+// leaves no stale bytes in any variant slot.
+type A struct {
+	X int
+	Y int
+}
+
+type B struct {
+	Name string
+	N    int
+}
+
+type V interface {
+	A | B
+}
+
+func show(v V) string {
+	switch t := v.(type) {
+	case A:
+		return fmt.Sprint("A ", t.X, " ", t.Y)
+	case B:
+		return fmt.Sprint("B ", t.Name, " ", t.N)
+	case nil:
+		return "nil"
+	default:
+		return "other"
+	}
+}
+
+func main() {
+	var v V = A{X: 1, Y: 2}
+	fmt.Println(show(v))
+	v = B{Name: "x", N: 9}
+	fmt.Println(show(v))
+	v = A{X: 3, Y: 4}
+	fmt.Println(show(v))
+}

@@ -1,0 +1,76 @@
+// run
+
+package main
+
+import "fmt"
+
+// Declared closed union (SPEC Sec 2.3, T-203.1): an interface whose type
+// set is a finite union of non-`~` terms.
+type NumOrStr interface {
+	int | string
+}
+
+// Union over members with payloads, with a method every member implements.
+type Point struct {
+	X int
+	Y int
+}
+
+func (p Point) Area() int { return p.X * p.Y }
+
+type Named struct {
+	Name string
+}
+
+func (n Named) Area() int { return len(n.Name) }
+
+type Shape interface {
+	Point | Named
+	Area() int
+}
+
+// Switch expression over the union (M2-S5): exhaustive over every member
+// plus nil, so no default is needed.
+func describe(u NumOrStr) string {
+	return switch u.(type) {
+	case int => "int"
+	case string => "str"
+	case nil => "nil"
+	}
+}
+
+// Value switch expression (M2-S5): a default covers the rest.
+func word(n int) string {
+	return switch n {
+	case 1 => "one"
+	default => "many"
+	}
+}
+
+// Inline assertion (M2-S6, T-203.3): *Person must implement Greeter at
+// this declaration; it lowers to var _ Greeter = (*Person)(nil).
+type Greeter interface {
+	Greet() string
+}
+
+type Person struct : Greeter {
+	Name string
+}
+
+func (p Person) Greet() string { return "hi " + p.Name }
+
+func main() {
+	var u NumOrStr = 7
+	fmt.Println(describe(u))
+	u = "seven"
+	fmt.Println(describe(u))
+	var z NumOrStr
+	fmt.Println(describe(z))
+	fmt.Println(word(1))
+	fmt.Println(word(9))
+	p := Person{Name: "ada"}
+	var g Greeter = &p
+	fmt.Println(g.Greet())
+	var s Shape = Point{X: 3, Y: 4}
+	fmt.Println(s.Area())
+}

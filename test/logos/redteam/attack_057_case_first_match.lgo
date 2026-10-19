@@ -1,0 +1,30 @@
+// run
+
+package main
+
+import "fmt"
+
+// #57: cases evaluate top-down in first-match order. A member case ahead
+// of a sub-union case wins for that member; other members still reach
+// the sub-union case (SPEC Sec 2.3 case coverage, T-203.1).
+type Sub interface {
+	int | string
+}
+
+func show(a any) string {
+	switch v := a.(type) {
+	case int:
+		return fmt.Sprint("first ", v)
+	case Sub:
+		return fmt.Sprint("sub ", v)
+	case nil:
+		return "nil"
+	default:
+		return "other"
+	}
+}
+
+func main() {
+	fmt.Println(show(1))
+	fmt.Println(show("s"))
+}

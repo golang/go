@@ -1,0 +1,104 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M2 parser attacks: closed unions (SPEC Sec 2.3, T-203.1), switch
+// expressions with `=>` arms (M2-S5), and inline `: I` struct assertions
+// (M2-S6, T-203.3).
+//
+// Lines without an ERROR comment must parse cleanly in LogosMode once M2
+// ships; each ERROR comment pins a parse error that M2 keeps (regex
+// against the parser message, same matcher as TestSyntaxErrors).
+
+package p
+
+// Closed unions use the SPEC spelling: an interface whose type set is a
+// finite union of non-`~` terms, with optional methods every member
+// implements (SPEC Sec 2.3).
+type NumOrStr interface {
+	int | string
+}
+
+type Mixed interface {
+	int | string | bool
+}
+
+// Members with payloads: named struct variants plus a method the union
+// requires of every member.
+type Point struct {
+	X int
+	Y int
+}
+
+type Circle struct {
+	R float64
+}
+
+func (p Point) Area() float64   { return 0 }
+func (c Circle) Area() float64  { return 0 }
+
+type Shape interface {
+	Point | Circle
+	Area() float64
+}
+
+// Duplicate members are not a parse error (see report): the grammar is
+// Term ("|" Term)* and SPEC names no duplicate diagnostic, so set
+// semantics from the upstream interface representation (T-203.1) apply.
+type DupOK interface {
+	int | int
+}
+
+// `~` terms parse cleanly here; the M2 types2 gate rejects them in value
+// positions with [correctness::open_union_value] (T-203.1, red-team #36),
+// pinned by attack_036_open_union_value.lgo instead of here.
+type Approx interface {
+	~int | string
+}
+
+// Malformed member: trailing `|` starts a term that never comes.
+type BadTrail interface { int | } // ERROR unexpected \}, expected ~ term or type
+
+// Malformed member: trailing `|` after several terms starts a term that never comes.
+type BadTrail2 interface { int | string | } // ERROR unexpected \}, expected ~ term or type
+
+// NOT-YET (M3, T-104.3): `?.` still scans as `?` plus `.` at this seam,
+// so `o?.Name` parses as try-plus-selector and no ERROR can pin it here;
+// types2 rejects the misuse until M3 gives it option-chaining meaning.
+// `??` stays a parse error, pinned below.
+type Opt struct {
+	Name string
+}
+
+func notYet(o Opt, a, b int) {
+	_ = o?.Name
+	v := a ?? b // ERROR at end of statement
+	_ = v
+	_ = dangling?.
+} // ERROR unexpected \}, expected name or \(
+// Switch expressions (M2-S5): `=>` arms are not Go syntax today. The
+// type form covers every member plus nil, so no default is needed;
+// the value form carries a default (T-203.1).
+func kindOf(u NumOrStr) int {
+	return switch u.(type) {
+	case int => 1
+	case nil => 0
+	}
+}
+
+func word(n int) string {
+	return switch n {
+	case 1 => "one"
+	default => "many"
+	}
+}
+
+// Inline assertions (M2-S6, T-203.3): `: I` after `struct` is not Go
+// syntax today; it asserts *Person implements Greeter at the declaration.
+type Greeter interface {
+	Greet() string
+}
+
+type Person struct : Greeter {
+	Name string
+}

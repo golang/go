@@ -1,0 +1,31 @@
+// run
+
+package main
+
+import "fmt"
+
+// #75: a switch expression takes the common type of its arms. A `*P`
+// arm beside a `nil` arm yields `*P`, regardless of arm order
+// (SPEC Sec 2.3, T-203.1).
+type P struct{ V int }
+
+func pickNilFirst(b bool) *P {
+	return switch b {
+	case true => nil
+	default => &P{V: 2}
+	}
+}
+
+func pickNilLast(b bool) *P {
+	return switch b {
+	case true => &P{V: 1}
+	default => nil
+	}
+}
+
+func main() {
+	fmt.Println(pickNilLast(true))
+	fmt.Println(pickNilLast(false))
+	fmt.Println(pickNilFirst(true))
+	fmt.Println(pickNilFirst(false))
+}

@@ -1,0 +1,36 @@
+// run
+
+package main
+
+import "fmt"
+
+// #89: scalar union members round-trip through the upstream interface
+// representation with no overlapped-tail garbage; each extraction sees
+// exactly the stored value.
+type S interface {
+	int | string | bool
+}
+
+func show(s S) string {
+	switch v := s.(type) {
+	case int:
+		return fmt.Sprint("int ", v)
+	case string:
+		return fmt.Sprint("str ", v)
+	case bool:
+		return fmt.Sprint("bool ", v)
+	case nil:
+		return "nil"
+	default:
+		return "other"
+	}
+}
+
+func main() {
+	var s S = 42
+	fmt.Println(show(s))
+	s = "hi"
+	fmt.Println(show(s))
+	s = true
+	fmt.Println(show(s))
+}

@@ -1,0 +1,18 @@
+// run
+
+package main
+
+import "fmt"
+
+// #40: a closed union uses upstream interface equality; comparing two
+// union values compares the dynamic member values.
+type U interface {
+	int | string
+}
+
+func main() {
+	var a U = 1
+	var b U = 1
+	var c U = "x"
+	fmt.Println(a == b, a == c)
+}

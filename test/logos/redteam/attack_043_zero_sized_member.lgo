@@ -1,0 +1,32 @@
+// run
+
+package main
+
+import "fmt"
+
+// #43: a closed union with a zero-sized member uses the upstream
+// interface representation, including upstream handling of the
+// zero-sized member.
+type Z interface {
+	struct{} | int
+}
+
+func show(z Z) string {
+	switch v := z.(type) {
+	case struct{}:
+		return "empty"
+	case int:
+		return fmt.Sprint("int ", v)
+	case nil:
+		return "nil"
+	default:
+		return "other"
+	}
+}
+
+func main() {
+	var z Z = struct{}{}
+	fmt.Println(show(z))
+	z = 9
+	fmt.Println(show(z))
+}

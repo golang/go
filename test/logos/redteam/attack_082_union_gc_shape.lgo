@@ -1,0 +1,43 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+// #82: unions use the upstream interface representation, so no custom
+// GC bitmap or two-tier tag layout exists; ordinary collection reclaims
+// union values stored in slices and maps.
+type U interface {
+	int | string
+}
+
+func sum(us []U) int {
+	n := 0
+	for _, u := range us {
+		switch v := u.(type) {
+		case int:
+			n += v
+		case string:
+			n += len(v)
+		case nil:
+			continue
+		default:
+			continue
+		}
+	}
+	return n
+}
+
+func main() {
+	us := make([]U, 0, 2000)
+	for i := 0; i < 1000; i++ {
+		us = append(us, i)
+		us = append(us, "s")
+	}
+	m := map[string]U{"a": 1, "b": "bb"}
+	runtime.GC()
+	fmt.Println(len(us), sum(us), len(m))
+}

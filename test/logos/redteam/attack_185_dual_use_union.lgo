@@ -1,0 +1,24 @@
+// run
+
+package main
+
+import "fmt"
+
+// #185: one union used both as a type constraint and as a value type.
+// Within loGo/s this is legal: the generic call constrains T by Both
+// while main holds a Both value. Only the Go boundary has no form for
+// it: `logos eject` and a Go import of Both must fail with
+// "logos eject: union Both is used as a type constraint and as a value
+// type; Go cannot express both" (SPEC Sec 2.3, T-203.1, R-U2). That
+// failure half is not pinnable by a run fixture and stays uncovered.
+type Both interface {
+	int | string
+}
+
+func first[T Both](s []T) T { return s[0] }
+
+func main() {
+	var v Both = 42
+	fmt.Println(v)
+	fmt.Println(first([]int{7, 8}))
+}

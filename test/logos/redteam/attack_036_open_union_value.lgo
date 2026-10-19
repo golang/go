@@ -1,0 +1,12 @@
+// errorcheck
+
+package p
+
+// #36: a union with `~` terms has an unbounded type set and must fail
+// with [correctness::open_union_value] instead of compiling as a value
+// type (SPEC Sec 2.3, T-203.1).
+type Open interface {
+	~int | string
+}
+
+var _ Open // ERROR "correctness::open_union_value"
