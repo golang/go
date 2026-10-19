@@ -33,7 +33,7 @@ cd ../..
 cd std
 logos build ./...
 logos run .
-stdout 'std-ok'
+stdout '^std-ok$'
 cd ..
 
 # Case 4: a module holding one Go package and one loGo/s package fails.
@@ -48,9 +48,9 @@ logos build ./...
 logos build -o $WORK/bin/gohello$GOEXE ./gomod
 logos build -o $WORK/bin/lgohello$GOEXE ./lgomod
 exec $WORK/bin/gohello$GOEXE
-stdout 'go-ok'
+stdout '^go-ok$'
 exec $WORK/bin/lgohello$GOEXE
-stdout 'lgo-ok'
+stdout '^lgo-ok$'
 
 -- w1/go.work --
 go 1.27
@@ -82,8 +82,11 @@ import (
 )
 
 func TestMsg(t *testing.T) {
-	if Msg() != q.Msg() {
-		t.Fatal("message mismatch")
+	if got := q.Msg(); got != "from-go" {
+		t.Fatalf("q.Msg() = %q, want %q", got, "from-go")
+	}
+	if got := Msg(); got != "from-go" {
+		t.Fatalf("Msg() = %q, want %q", got, "from-go")
 	}
 }
 
@@ -148,8 +151,11 @@ import (
 )
 
 func TestMsg(t *testing.T) {
-	if Msg() != p.Msg() {
-		t.Fatal("message mismatch")
+	if got := p.Msg(); got != "from-logos" {
+		t.Fatalf("p.Msg() = %q, want %q", got, "from-logos")
+	}
+	if got := Msg(); got != "from-logos" {
+		t.Fatalf("Msg() = %q, want %q", got, "from-logos")
 	}
 }
 
