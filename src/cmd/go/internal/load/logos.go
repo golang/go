@@ -201,33 +201,27 @@ const LogosRTPkg = "logos/rt"
 
 // addLogosRTXTestImport loads the implicit LogosRTPkg import for the
 // external test package of a logos package. The base package gains the
-// import in load (pkg.go, via needsLogosRT) and the internal test package
-// inherits it through p.Internal.Imports, but the external test package is
-// built by hand in TestPackagesAndErrors and otherwise sees only ximports
-// plus the simd bridge, so it needs the same treatment here: load the
-// package, append it to ximports, and record it in the compiled imports.
-// Plain Go packages never take this path: needsLogosRT keys on the .lgo
-// extension, which never reaches the file lists outside logos mode.
-func addLogosRTXTestImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *preload, p *Package, stk *ImportStack, ximports *[]*Package, pxtestErr **PackageError, pxtestIncomplete *bool, pxtestCompiledImports *[]string) {
-	if !needsLogosRT(p) {
+// import in load and the internal test package inherits it, but the
+// external test package is built by hand in TestPackagesAndErrors, so it
+// records the load on the test package itself: the error, the incomplete
+// flag, and the import lists. Plain Go packages never take this path.
+func addLogosRTXTestImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *preload, pxtest *Package) {
+	if pxtest == nil || !needsLogosRT(pxtest) {
 		return
 	}
-	// Mirror addImport's early return: an xtest file may name logos/rt
-	// explicitly, in which case the XTestImports loop above already loaded
-	// it and a second entry would duplicate it in Internal.Imports and the
-	// compiled imports.
-	for _, q := range *ximports {
+	for _, q := range pxtest.Internal.Imports {
 		if q.ImportPath == LogosRTPkg {
 			return
 		}
 	}
-	p1, err := loadImport(ld, ctx, opts, pre, LogosRTPkg, p.Dir, p, stk, nil, ResolveImport)
-	if err != nil && *pxtestErr == nil {
-		*pxtestErr = err
+	stk := ImportStack{{Pkg: pxtest.ImportPath}}
+	p1, err := loadImport(ld, ctx, opts, pre, LogosRTPkg, pxtest.Dir, pxtest, &stk, nil, ResolveImport)
+	if err != nil && pxtest.Error == nil {
+		pxtest.Error = err
 	}
-	if p1.Incomplete {
-		*pxtestIncomplete = true
+	if err != nil || p1.Incomplete {
+		pxtest.Incomplete = true
 	}
-	*ximports = append(*ximports, p1)
-	*pxtestCompiledImports = append(*pxtestCompiledImports, p1.ImportPath)
+	pxtest.Internal.Imports = append(pxtest.Internal.Imports, p1)
+	pxtest.Internal.CompiledImports = append(pxtest.Internal.CompiledImports, p1.ImportPath)
 }
