@@ -13,9 +13,10 @@ import (
 	"testing"
 )
 
-// dumpAddr matches the raw pointer values that Fdump prints for slices
-// of node pointers; they differ between any two parses.
-var dumpAddr = regexp.MustCompile(`0x[0-9a-f]+`)
+// dumpAddr matches the raw pointer values that Fdump prints, unquoted,
+// for arrays of node pointers such as IndexExpr.Index; they differ
+// between any two parses. Hex literals print quoted and stay compared.
+var dumpAddr = regexp.MustCompile(`[ \[]0x[0-9a-f]+`)
 
 // TestLogosModeParsesGo checks that LogosMode parses plain Go exactly
 // like the default mode: every .go file under testdata yields identical

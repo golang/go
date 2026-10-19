@@ -10,11 +10,16 @@ env GOPROXY=off
 ! go tool compile -p p -o $WORK/p.o a.go b.lgo
 stdout '\[correctness::mixed_package\] cannot mix \.go files \(a\.go\) and \.lgo files \(b\.lgo\) in one package'
 
+# Several files per class are listed sorted by base name, and alias
+# extensions, with or without a trailing U+FE0F, count as loGo/s files.
+! go tool compile -p p -o $WORK/s.o z.go a.go c.lgo b.⚡ e.⚡️
+stdout '\[correctness::mixed_package\] cannot mix \.go files \(a\.go, z\.go\) and \.lgo files \(b\.⚡, c\.lgo, e\.⚡️\) in one package'
+
 # Two .lgo files compile.
 go tool compile -p p -o $WORK/q.o c.lgo d.lgo
 
-# A cgo output beside an .lgo file is exempt and compiles.
-go tool compile -p p -o $WORK/r.o e.lgo _cgo_gotypes.go
+# Cgo outputs beside an .lgo file are exempt and compile.
+go tool compile -p p -o $WORK/r.o e.lgo _cgo_gotypes.go x.cgo1.go
 
 -- a.go --
 package p
@@ -40,6 +45,26 @@ func D() int { return 4 }
 package p
 
 func E() int { return 5 }
+
+-- z.go --
+package p
+
+func Z() int { return 26 }
+
+-- b.⚡ --
+package p
+
+func Bz() int { return 7 }
+
+-- e.⚡️ --
+package p
+
+func Ez() int { return 8 }
+
+-- x.cgo1.go --
+package p
+
+func X() int { return 9 }
 
 -- _cgo_gotypes.go --
 package p
