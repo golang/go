@@ -117,28 +117,32 @@ func TestWriteToUDP(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	if !testableNetwork("udp") {
-		t.Skipf("skipping: udp not supported")
-	}
+	for _, network := range []string{"udp4", "udp6"} {
+		t.Run(network, func(t *testing.T) {
+			if !testableNetwork(network) {
+				t.Skipf("skipping: %s not supported", network)
+			}
 
-	c, err := ListenPacket("udp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
+			c, err := ListenPacket(network, JoinHostPort(loopbackIP(network).String(), "0"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c.Close()
 
-	testWriteToConn(t, c.LocalAddr().String())
-	testWriteToPacketConn(t, c.LocalAddr().String())
+			testWriteToConn(t, network, c.LocalAddr().String())
+			testWriteToPacketConn(t, network, c.LocalAddr().String())
+		})
+	}
 }
 
-func testWriteToConn(t *testing.T, raddr string) {
-	c, err := Dial("udp", raddr)
+func testWriteToConn(t *testing.T, network, raddr string) {
+	c, err := Dial(network, raddr)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
 
-	ra, err := ResolveUDPAddr("udp", raddr)
+	ra, err := ResolveUDPAddr(network, raddr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,26 +168,32 @@ func testWriteToConn(t *testing.T, raddr string) {
 	}
 	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, ra)
 	assertErrWriteToConnected(t, err)
-	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, nil)
+	n, oobn, err := c.(*UDPConn).WriteMsgUDP(b, nil, nil)
 	if err != nil {
 		t.Errorf("c.WriteMsgUDP(b, nil, nil) = %v; want nil", err)
 	}
+	if n != len(b) || oobn != 0 {
+		t.Errorf("c.WriteMsgUDP(b, nil, nil) = %d, %d; want %d, 0", n, oobn, len(b))
+	}
 	_, _, err = c.(*UDPConn).WriteMsgUDPAddrPort(b, nil, rap)
 	assertErrWriteToConnected(t, err)
-	_, _, err = c.(*UDPConn).WriteMsgUDPAddrPort(b, nil, netip.AddrPort{})
+	n, oobn, err = c.(*UDPConn).WriteMsgUDPAddrPort(b, nil, netip.AddrPort{})
 	if err != nil {
 		t.Errorf("c.WriteMsgUDPAddrPort(b, nil, netip.AddrPort{}) = %v; want nil", err)
 	}
+	if n != len(b) || oobn != 0 {
+		t.Errorf("c.WriteMsgUDPAddrPort(b, nil, netip.AddrPort{}) = %d, %d; want %d, 0", n, oobn, len(b))
+	}
 }
 
-func testWriteToPacketConn(t *testing.T, raddr string) {
-	c, err := ListenPacket("udp", "127.0.0.1:0")
+func testWriteToPacketConn(t *testing.T, network, raddr string) {
+	c, err := ListenPacket(network, JoinHostPort(loopbackIP(network).String(), "0"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
 
-	ra, err := ResolveUDPAddr("udp", raddr)
+	ra, err := ResolveUDPAddr(network, raddr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,9 +218,19 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
 	if err != nil && err.(*OpError).Err != errMissingAddress {
 		t.Fatalf("should fail as errMissingAddress: %v", err)
 	}
-	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, ra)
+	n, oobn, err := c.(*UDPConn).WriteMsgUDP(b, nil, ra)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n != len(b) || oobn != 0 {
+		t.Errorf("c.WriteMsgUDP(b, nil, ra) = %d, %d; want %d, 0", n, oobn, len(b))
+	}
+	n, oobn, err = c.(*UDPConn).WriteMsgUDPAddrPort(b, nil, ra.AddrPort())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(b) || oobn != 0 {
+		t.Errorf("c.WriteMsgUDPAddrPort(b, nil, ra.AddrPort()) = %d, %d; want %d, 0", n, oobn, len(b))
 	}
 }
 
