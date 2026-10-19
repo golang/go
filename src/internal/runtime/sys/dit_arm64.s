@@ -36,5 +36,11 @@ TEXT ·DITEnabled(SB),$0-1
     RET
 
 TEXT ·DisableDIT(SB),$0
+    // As in EnableDIT, skip the MSR when DIT is already in the wanted state:
+    // the write is not cheap, and callers such as cgocallbackg1 disable DIT
+    // on every return whether or not it was enabled.
+    MRS DIT, R0
+    TBZ $24, R0, done
     MSR $0, DIT
+done:
     RET
