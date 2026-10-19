@@ -36,5 +36,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	RDPID AX                                // f30fc7f8
 
+	// A global symbol may be indexed. See issue 41286.
+	MOVL foo<>(SB)(AX*1), AX                // 8b040500000000
+	MOVL foo<>(SB)(AX*4), AX                // 8b048500000000
+	MOVL AX, foo<>+4(SB)(DX*1)              // 89041500000000
+	LEAL foo<>(SB)(AX*1), AX                // 8d040500000000
+
 	// End of tests.
 	RET

@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 TEXT errors(SB),$0
-	MOVL	foo<>(SB)(AX), AX	// ERROR "invalid instruction"
+	MOVL	foo<>(SB)(AX), AX	// ERROR "base register not allowed with global symbol"
+	MOVL	foo<>(SB)(AX*1), AX	// ERROR "invalid instruction"
 	MOVL	(AX)(SP*1), AX		// ERROR "invalid instruction"
 	EXTRACTPS $4, X2, (BX)          // ERROR "invalid instruction"
 	EXTRACTPS $-1, X2, (BX)         // ERROR "invalid instruction"
