@@ -49,10 +49,9 @@ func logosTraceRead(buf []unsafe.Pointer) int {
 // logosClearErrTrace zeroes gp's error-trace ring. Its single caller is
 // gdestroy, so every recycled g starts empty: gfget hands dead gs to new
 // goroutines, and a stale logosErrLast could match a new error's recycled
-// address and skip the reset. Plain stores only, so it needs no stack and
-// is safe in any caller context.
-//
-//go:nosplit
+// address and skip the reset. It runs on g0 with a P held like the rest
+// of gdestroy and uses normal write barriers for the pointer slots, so it
+// must not run in nowritebarrierrec contexts.
 func logosClearErrTrace(gp *g) {
 	gp.logosErrSite = [8]unsafe.Pointer{}
 	gp.logosErrLen = 0

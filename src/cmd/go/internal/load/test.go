@@ -189,6 +189,7 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 		ximports = append(ximports, p1)
 		pxtestCompiledImports = append(pxtestCompiledImports, p1.ImportPath)
 	}
+	addLogosRTXTestImport(ld, ctx, opts, pre, p, &stk, &ximports, &pxtestErr, &pxtestIncomplete, &pxtestCompiledImports)
 	p.XTestEmbedFiles, xtestEmbed, err = resolveEmbed(p.Dir, p.XTestEmbedPatterns)
 	if err != nil && pxtestErr == nil {
 		pxtestErr = &PackageError{

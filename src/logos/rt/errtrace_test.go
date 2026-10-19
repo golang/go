@@ -16,6 +16,7 @@ package rt_test
 
 import (
 	"errors"
+	"runtime"
 	"slices"
 	"sync"
 	"testing"
@@ -132,5 +133,33 @@ func TestLogosTraceNoAlloc(t *testing.T) {
 		rt.TraceErr(err, &s)
 	}); n != 0 {
 		t.Fatalf("TraceErr allocated %v per run, want 0", n)
+	}
+}
+
+// TestLogosTraceClearedOnGoroutineExit proves the gdestroy hook clears the
+// ring: a goroutine records a trace and exits, and a later goroutine that
+// reuses its g must read an empty trace. Deleting the logosClearErrTrace
+// call in gdestroy leaves this test red. GOMAXPROCS is pinned to 1 so each
+// reader deterministically reuses the writer's just-freed g: the local
+// gfree list is LIFO, and with one P the writer runs goexit and gdestroy
+// before the waiting test goroutine is rescheduled.
+func TestLogosTraceClearedOnGoroutineExit(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	site := rt.Site{File: "exit.go", Line: 7}
+	for range 100 {
+		err := errors.New("exit")
+		var wg sync.WaitGroup
+		wg.Go(func() {
+			rt.TraceErr(err, &site)
+		})
+		wg.Wait()
+		var got []rt.Site
+		wg.Go(func() {
+			got = rt.ErrorTrace()
+		})
+		wg.Wait()
+		if len(got) != 0 {
+			t.Fatalf("reused goroutine ErrorTrace length = %d, want 0 (stale trace survived goroutine exit: %v)", len(got), got)
+		}
 	}
 }

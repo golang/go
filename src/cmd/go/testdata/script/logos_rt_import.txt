@@ -1,0 +1,80 @@
+# M1-S4: every logos package implicitly imports logos/rt, including the
+# external test package; plain Go packages never do.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A loGo/s package can import logos/rt explicitly and run.
+cd rt
+logos run .
+stdout '^rt-ok$'
+logos build .
+
+# logos list shows the implicit logos/rt dependency of a .lgo package that
+# never names the import (package p has no logos/rt import of its own; the
+# explicit importer above is package main).
+logos list -f '{{.Deps}}' ./p
+stdout 'logos/rt'
+
+# The external test build passes: the p_test package resolves and runs.
+logos test ./...
+stdout 'ok\s+example\.com/rt/p'
+
+# The external p_test package of a .lgo package carries logos/rt in its
+# own dependency list (not just via the base package).
+logos list -test -f '{{.ImportPath}} {{.Deps}}' ./...
+stdout 'example\.com/rt/p_test \[example\.com/rt/p\.test\] \[.*logos/rt.*\]'
+
+# Plain Go packages never gain the import, under either command.
+cd ../gomod
+go list -deps .
+! stdout 'logos/rt'
+logos list -deps .
+! stdout 'logos/rt'
+
+-- rt/go.mod --
+module example.com/rt
+
+go 1.27
+
+-- rt/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"logos/rt"
+)
+
+func main() {
+	rt.Cold()
+	fmt.Println("rt-ok")
+}
+
+-- rt/p/p.lgo --
+package p
+
+func Msg() string { return "p-ok" }
+
+-- rt/p/p_test.lgo --
+package p_test
+
+import "testing"
+
+func TestExternal(t *testing.T) {
+	if 1+1 != 2 {
+		t.Fatal("unreachable")
+	}
+}
+
+-- gomod/go.mod --
+module example.com/goplain
+
+go 1.27
+
+-- gomod/main.go --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("go-ok") }

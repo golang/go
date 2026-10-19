@@ -532,7 +532,7 @@ func (w *Walker) loadImports() {
 			//   their "vendor/" standard-library copies.)
 			// - 'go list std' does not include commands, which cannot be
 			//   imported anyway.
-			if ip := pkg.ImportPath; pkg.Standard && ip != "unsafe" && !strings.HasPrefix(ip, "vendor/") && !internalPkg.MatchString(ip) {
+			if ip := pkg.ImportPath; pkg.Standard && ip != "unsafe" && !strings.HasPrefix(ip, "vendor/") && !internalPkg.MatchString(ip) && !isLogosSupportPackage(ip) {
 				stdPackages = append(stdPackages, ip)
 			}
 			importDir[pkg.ImportPath] = pkg.Dir
