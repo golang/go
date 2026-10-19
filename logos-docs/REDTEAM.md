@@ -4,7 +4,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 
 | ID | Milestone | Test | Status |
 | --- | --- | --- | --- |
-| #1 | M2 |  | planned |
+| #1 |M2| test/logos/redteam/attack_001_split_union_ptr_scalar | tested |
 | #2 | M5 |  | planned |
 | #3 | M5 |  | planned |
 | #4 | M18 |  | planned |
@@ -21,7 +21,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #15 | M13 |  | planned |
 | #16 | M5 |  | planned |
 | #17 | M6 |  | planned |
-| #18 | M1 |  | planned |
+| #18 |M1| test/logos/redteam/attack_018_shadowed_named_return | tested |
 | #19 | M7 |  | planned |
 | #20 | M18 |  | planned |
 | #21 | M8 |  | planned |
@@ -35,18 +35,18 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #29 | M19 |  | planned |
 | #30 | M13 |  | planned |
 | #31 | M6 |  | planned |
-| #32 | M1 |  | planned |
+| #32 |M1| test/logos/redteam/attack_032_defer_lifo_order | tested |
 | #33 | M17, M18 |  | planned |
 | #34 | M6 |  | planned |
 | #35 | M18 |  | planned |
-| #36 | M2 |  | planned |
+| #36 |M2| test/logos/redteam/attack_036_open_union_value | tested |
 | #37 | M7 |  | planned |
 | #38 | M6 |  | planned |
 | #39 | M6 |  | planned |
-| #40 | M2 |  | planned |
+| #40 |M2| test/logos/redteam/attack_040_union_equality | tested |
 | #41 | M5, M6 |  | planned |
-| #42 | M1 |  | planned |
-| #43 | M2 |  | planned |
+| #42 |M1| test/logos/redteam/attack_042_defer_close_join | tested |
+| #43 |M2| test/logos/redteam/attack_043_zero_sized_member | tested |
 | #44 | M3 |  | planned |
 | #45 | M7 |  | planned |
 | #46 | M18 |  | planned |
@@ -58,9 +58,9 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #52 | M6 |  | planned |
 | #53 | M18 |  | planned |
 | #54 | M5 |  | planned |
-| #55 | M1 |  | planned |
+| #55 |M1| test/logos/redteam/attack_055_errtrace_reset_cap | tested |
 | #56 | M6 |  | planned |
-| #57 | M2, M7 |  | planned |
+| #57 |M2, M7| test/logos/redteam/attack_057_case_first_match | tested |
 | #58 | M13 |  | planned |
 | #59 | M18 |  | planned |
 | #60 | M3 |  | planned |
@@ -69,7 +69,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #63 | M18 |  | planned |
 | #64 | M6 |  | planned |
 | #65 | M7 |  | planned |
-| #66 | M1 |  | planned |
+| #66 |M1| test/logos/redteam/attack_066_errdefer_unnamed_results | tested |
 | #67 | M6, M13 |  | planned |
 | #68 | M8 |  | planned |
 | #69 | M10 |  | planned |
@@ -78,29 +78,29 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #72 | M7 |  | planned |
 | #73 | M5 |  | planned |
 | #74 | M13 |  | planned |
-| #75 | M2 |  | planned |
+| #75 |M2| test/logos/redteam/attack_075_nil_arm_common_type | tested |
 | #76 | M7 |  | planned |
 | #77 | M9 |  | planned |
 | #78 | M16 |  | planned |
-| #79 | M1 |  | planned |
+| #79 |M1| test/logos/redteam/attack_079_import_alias_collision | tested |
 | #80 | M22 |  | planned |
 | #81 | M18 |  | planned |
-| #82 | M2 |  | planned |
+| #82 |M2| test/logos/redteam/attack_082_union_gc_shape | tested |
 | #83 | M5 |  | planned |
 | #84 | M6 |  | planned |
-| #85 | M1 |  | planned |
+| #85 |M1| test/logos/redteam/attack_085_typed_nil_errdefer | tested |
 | #86 | M7 |  | planned |
-| #87 | M1 |  | planned |
+| #87 |M1| test/logos/redteam/attack_087_errdefer_panic_goexit | tested |
 | #88 | M20 |  | planned |
-| #89 | M2 |  | planned |
-| #90 | M1 |  | planned |
+| #89 |M2| test/logos/redteam/attack_089_scalar_roundtrip | tested |
+| #90 |M1| test/logos/redteam/attack_090_errdefer_recover_success_skip | tested |
 | #91 | M7 |  | planned |
 | #92 | M13 |  | planned |
 | #93 | M5 |  | planned |
 | #94 | M10 |  | planned |
 | #95 | M6 |  | planned |
-| #96 | M1 |  | planned |
-| #97 | M2 |  | planned |
+| #96 |M1| test/logos/redteam/attack_096_errdefer_armed_flag | tested |
+| #97 |M2| test/logos/redteam/attack_097_struct_variant_slots | tested |
 | #98 | M5 |  | planned |
 | #99 | M3 |  | planned |
 | #100 | M15 |  | planned |
@@ -128,7 +128,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #122 | M0 |  | planned |
 | #123 | M6, M11 |  | planned |
 | #124 | M13 |  | planned |
-| #125 | M1 |  | planned |
+| #125 |M1| test/logos/redteam/attack_125_errdefer_join | tested |
 | #126 | M6 |  | planned |
 | #127 | M4 |  | planned |
 | #128 | M7 |  | planned |
@@ -138,7 +138,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #132 | M4 |  | planned |
 | #133 | M0 |  | planned |
 | #134 | M13 |  | planned |
-| #135 | M1 |  | planned |
+| #135 |M1| test/logos/redteam/attack_135_lifo_order | tested |
 | #136 | M8 |  | planned |
 | #137 | M15 |  | planned |
 | #138 | M18 |  | planned |
@@ -188,7 +188,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #182 | M9 |  | planned |
 | #183 | M0 |  | planned |
 | #184 | M0 |  | planned |
-| #185 | M2 |  | planned |
+| #185 |M2| test/logos/redteam/attack_185_dual_use_union | tested |
 | #186 | M3 |  | planned |
 | #187 | M16 |  | planned |
 | #188 | M20 |  | planned |
