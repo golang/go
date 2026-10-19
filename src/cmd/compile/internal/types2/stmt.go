@@ -834,6 +834,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
 	}
+	check.logosExhaustiveStmtSwitch(s, sx, seen) // logos M2-S3 hook.
 
 	// If lhs exists, we must have at least one lhs variable that was used.
 	// (We can't use check.usage because that only looks at one scope; and
