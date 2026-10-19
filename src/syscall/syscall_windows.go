@@ -184,6 +184,7 @@ const (
 	_ERROR_NOT_SUPPORTED        = Errno(50)
 	_ERROR_BAD_NETPATH          = Errno(53)
 	_ERROR_CALL_NOT_IMPLEMENTED = Errno(120)
+	_ERROR_BAD_EXE_FORMAT       = Errno(193)
 )
 
 func (e Errno) Is(target error) bool {
@@ -351,6 +352,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) = DeleteProcThreadAttributeList
 //sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value unsafe.Pointer, size uintptr, prevvalue unsafe.Pointer, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
 //sys	getFinalPathNameByHandle(file Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) [n == 0 || n >= filePathSize] = kernel32.GetFinalPathNameByHandleW
+//sys	getBinaryType(applicationName *uint16, binaryType *uint32) (err error) = GetBinaryTypeW
 
 // syscall interface implementation for other packages
 

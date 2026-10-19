@@ -105,6 +105,7 @@ var (
 	procFormatMessageW                     = modkernel32.NewProc("FormatMessageW")
 	procFreeEnvironmentStringsW            = modkernel32.NewProc("FreeEnvironmentStringsW")
 	procFreeLibrary                        = modkernel32.NewProc("FreeLibrary")
+	procGetBinaryTypeW                     = modkernel32.NewProc("GetBinaryTypeW")
 	procGetCommandLineW                    = modkernel32.NewProc("GetCommandLineW")
 	procGetComputerNameW                   = modkernel32.NewProc("GetComputerNameW")
 	procGetConsoleMode                     = modkernel32.NewProc("GetConsoleMode")
@@ -668,6 +669,14 @@ func FreeEnvironmentStrings(envs *uint16) (err error) {
 
 func FreeLibrary(handle Handle) (err error) {
 	r1, _, e1 := SyscallN(procFreeLibrary.Addr(), uintptr(handle))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func getBinaryType(applicationName *uint16, binaryType *uint32) (err error) {
+	r1, _, e1 := SyscallN(procGetBinaryTypeW.Addr(), uintptr(unsafe.Pointer(applicationName)), uintptr(unsafe.Pointer(binaryType)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
