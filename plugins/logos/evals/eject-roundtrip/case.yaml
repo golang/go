@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: eject-roundtrip
+description: Eject a loGo/s module to plain Go and build and test the result.
+tags: [logos, eject]
+context:
+  add_dirs: []
+execution:
+  prompt: |
+    In a new subdirectory ./ejectme of the working directory, create a loGo/s module with one package that uses ? and errdefer (at least one of each), with a _test.lgo test. Run logos build ./... and logos test ./... (both must exit 0), then run logos eject -o ./ejected. Inside ./ejected, run go build ./... and go test ./... with the upstream Go toolchain. Both must exit 0.
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Bash, Skill]
+runs: 3
+graders:
+  - name: logos-skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only
+    input_match: "logos:logos"
+    min: 1
+  - name: ejected-tree-builds-and-tests
+    type: llm
+    criteria: The source module holds only .lgo sources using both ? and errdefer with green logos build and test; ./ejected holds .go files with no .lgo files and a rewritten go.mod, with green go build ./... and go test ./... inside it.
+    focus: last_message
+expected_outcome: Ejected plain-Go tree builds and tests green.

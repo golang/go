@@ -1,0 +1,11 @@
+{
+  "name": "logos",
+  "displayName": "loGo/s",
+  "version": "0.1.0",
+  "description": "Write, migrate, build, test, and eject loGo/s (.lgo) code with the logos toolchain.",
+  "author": { "name": "gosuda" },
+  "homepage": "https://github.com/gosuda/loGos",
+  "repository": "https://github.com/gosuda/loGos",
+  "license": "BSD-3-Clause",
+  "keywords": ["go", "logos", "lgo", "compiler"]
+}

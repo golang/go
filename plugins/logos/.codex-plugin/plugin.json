@@ -1,0 +1,13 @@
+{
+  "name": "logos",
+  "version": "0.1.0",
+  "description": "Write, migrate, build, test, and eject loGo/s (.lgo) code with the logos toolchain.",
+  "author": { "name": "gosuda" },
+  "keywords": ["go", "logos", "lgo"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "loGo/s",
+    "shortDescription": "Skills to write loGo/s and migrate Go to loGo/s.",
+    "category": "Productivity"
+  }
+}

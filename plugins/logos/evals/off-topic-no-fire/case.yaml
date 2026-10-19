@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: off-topic-no-fire
+description: Standard-toolchain-only task that must not fire any loGo/s skill.
+tags: [logos, off-topic]
+context:
+  add_dirs: []
+execution:
+  prompt: |
+    In a new subdirectory ./fib of the working directory, write a program using only the standard Go toolchain: print the first 10 Fibonacci numbers, with a test in a _test.go file. Use only files the standard toolchain already understands, with no new languages, config files, or wrapper commands. go build ./... and go test ./... must exit 0.
+  max_turns: 10
+  timeout_seconds: 300
+  allowed_tools: [Bash, Skill]
+runs: 3
+graders:
+  - name: no-logos-skill-fired
+    type: tool_used
+    tool: Skill
+    arm: both
+    input_match: "logos"
+    min: 0
+    max: 0
+  - name: pure-go-solution
+    type: llm
+    criteria: The solution uses only the standard Go toolchain with no new languages, config files, or wrapper commands; go build ./... and go test ./... exit 0; the answer makes no claim that other tooling applies.
+    focus: last_message
+expected_outcome: Standard-Go solution with no loGo/s skill fired.

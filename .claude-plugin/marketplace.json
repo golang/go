@@ -1,0 +1,13 @@
+{
+  "name": "logos",
+  "owner": { "name": "gosuda" },
+  "description": "Official agent skills for the loGo/s language: write loGo/s and migrate Go to loGo/s.",
+  "plugins": [
+    {
+      "name": "logos",
+      "source": "./plugins/logos",
+      "description": "Write, migrate, build, test, and eject loGo/s (.lgo) code with the logos toolchain.",
+      "version": "0.1.0"
+    }
+  ]
+}

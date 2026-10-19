@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: migrate-small-module
+description: Migrate a small scaffolded Go module to loGo/s through all six steps.
+tags: [logos, migrate]
+context:
+  scaffold_script: scaffold.sh
+  add_dirs: []
+execution:
+  prompt: |
+    The scaffold created ./migrateme, a small Go module with go test ./... passing. Migrate it to loGo/s with the inventory, baseline, convert, fix, and verify steps: save the Go baseline first, rename all .go files to .lgo, rewrite convertible error checks to ?, and reach logos build ./... and logos test ./... exit 0 with the same tests passing.
+  max_turns: 20
+  timeout_seconds: 600
+  allowed_tools: [Bash, Skill]
+runs: 3
+graders:
+  - name: migrate-skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only
+    input_match: "logos-from-go"
+    min: 1
+  - name: migrated-module-matches-baseline
+    type: llm
+    criteria: A baseline go test ./... log exists from before conversion; no .go file remains with tests as _test.lgo; convertible if err != nil checks became ?; logos build ./... and logos test ./... exit 0 with the same tests passing as the baseline.
+    focus: last_message
+expected_outcome: Migrated loGo/s module matching the Go baseline.

@@ -1,0 +1,36 @@
+schema_version: "1.1"
+name: review-errdefer
+description: Review buggy loGo/s, name each rule ID, fix to a green build.
+tags: [logos, review]
+context:
+  add_dirs: []
+execution:
+  prompt: |
+    Write the following file as reviewme.lgo in a scratch loGo/s module, then review it for loGo/s rule violations, fix each finding, and reach logos build ./... exit 0. Report each finding with its rule ID before the fix.
+    package ferry
+    var _logos_cache = map[string]string{}
+    func load(path string) (string, error) {
+      errdefer removeTemp(path)
+      text := string(mustRead(path)?)
+      return text, nil
+    }
+    func mustRead(path string) ([]byte, error) {
+      return nil, nil
+    }
+    func removeTemp(path string) {}
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Bash, Skill]
+runs: 3
+graders:
+  - name: review-skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only
+    input_match: "logos:logos-review"
+    min: 1
+  - name: both-findings-named-and-fixed
+    type: llm
+    criteria: The review names correctness::reserved_identifier for _logos_cache and correctness::misplaced_try for string(mustRead(path)?); the fixed module reaches logos build ./... exit 0.
+    focus: last_message
+expected_outcome: Both rule IDs named and the module builds.
