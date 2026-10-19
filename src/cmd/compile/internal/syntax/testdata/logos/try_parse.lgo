@@ -76,7 +76,81 @@ func badErrdeferOperand() error {
 	return nil
 }
 
-func badGoTry() error {
-	go g()? // ERROR syntax error: \? not allowed in go statement
+func okGoTry() error {
+	go g()?
 	return nil
+}
+
+func badErrdeferStruct() error {
+	errdefer struct{ f func() }{g}.f() // ERROR syntax error: errdefer requires a function call
+	return nil
+}
+
+func badErrdeferMap() error {
+	errdefer map[int]func(){0: g}[0]() // ERROR syntax error: errdefer requires a function call
+	return nil
+}
+
+func badErrdeferIface(v interface{ M() }) error {
+	errdefer interface{ M() }(v).M() // ERROR syntax error: errdefer requires a function call
+	return nil
+}
+
+func badDeferParenTry() error {
+	defer (g())? // ERROR expression in defer must not be parenthesized
+	return nil
+}
+
+func badGoParenTry() error {
+	go (g())? // ERROR expression in go must not be parenthesized
+	return nil
+}
+
+func keepLabel() {
+errdefer:
+	for {
+		break errdefer
+	}
+}
+
+func keepInc(errdefer int) {
+	errdefer++
+}
+
+func keepDec(errdefer int) {
+	errdefer--
+}
+
+func keepSend(errdefer chan int, v int) {
+	errdefer <- v
+}
+
+func keepIndex(errdefer []int) {
+	errdefer[0] = 1
+}
+
+func keepMulti() {
+	errdefer, x := 1, 2
+	_, _ = errdefer, x
+}
+
+func keepBare(errdefer int) {
+	errdefer
+	_ = errdefer
+}
+
+func keepCallLit(errdefer func(func())) {
+	errdefer(func(){})
+}
+
+func keepParenCall() {
+	errdefer (f())
+}
+
+func keepDot(errdefer Tx) {
+	errdefer.f()
+}
+
+func keepAddAssign(errdefer int) {
+	errdefer += 1
 }

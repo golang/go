@@ -9,15 +9,12 @@ package syntax
 
 // walkLogos visits the children of loGo/s nodes in pre-order, matching
 // the house order (parent before child): TryExpr before its operand,
-// ErrdeferStmt before its call. It reports whether n was a loGo/s node.
-func (w walker) walkLogos(n Node) bool {
+// ErrdeferStmt before its call.
+func (w walker) walkLogos(n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
 		w.node(n.X)
-		return true
 	case *ErrdeferStmt:
 		w.node(n.Call)
-		return true
 	}
-	return false
 }

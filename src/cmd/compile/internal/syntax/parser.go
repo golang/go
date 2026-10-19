@@ -1004,7 +1004,7 @@ func (p *parser) callStmt() *CallStmt {
 	}
 
 	s.Call = x
-	p.logosCheckGoTry(s) // M1-S2 hook: reject `?` in go statements.
+	p.logosCheckCallParen(s) // M1-S2 hook: `?` hiding go/defer parens.
 	return s
 }
 
@@ -1253,14 +1253,7 @@ loop:
 			x = n
 
 		case _Question:
-			// loGo/s postfix `?` (M1-S2 hook): the scanner emits
-			// _Question only in LogosMode, so plain mode always
-			// takes the default branch below.
-			if nx, ok := p.logosQuestion(x, pos); ok {
-				x = nx
-			} else {
-				break loop
-			}
+			x = p.logosQuestion(x, pos)
 
 		default:
 			break loop

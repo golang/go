@@ -4,20 +4,24 @@
 
 package syntax
 
-// This file holds the loGo/s printing logic for M1-S2 (G3: a hook line
+// This file holds the loGo/s printing logic for M1-S2 (G3: hook lines
 // only in printer.go; the logic lives here).
 
 // printLogos prints loGo/s nodes in source form: `X?` for TryExpr and
 // `errdefer <call>` for ErrdeferStmt. Both forms reparse to the same
-// tree, so printing is idempotent. It reports whether n was printed.
-func printLogos(p *printer, n Node) bool {
+// tree, so printing is idempotent.
+func printLogos(p *printer, n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
 		p.print(n.X, _Question)
-		return true
 	case *ErrdeferStmt:
 		p.print(_Name, "errdefer", blank, n.Call)
-		return true
 	}
-	return false
+}
+
+// logosImpliesSemi reports whether a loGo/s token ends an operand like a
+// name or `)`: `?` implies a semicolon, so the printer elides the
+// redundant `;` after `?` between statements.
+func logosImpliesSemi(tok token) bool {
+	return tok == _Question
 }

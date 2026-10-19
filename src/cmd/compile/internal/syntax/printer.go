@@ -133,7 +133,7 @@ func impliesSemi(tok token) bool {
 		/*_Inc, _Dec,*/ _Rparen, _Rbrack, _Rbrace: // TODO(gri) fix this
 		return true
 	}
-	return false
+	return logosImpliesSemi(tok) // M1-S2 hook: loGo/s tokens.
 }
 
 // TODO(gri) provide table of []byte values for all tokens to avoid repeated string conversion
@@ -720,10 +720,10 @@ func (p *printer) printRawNode(n Node) {
 			p.printDeclList(n.DeclList)
 		}
 
+	case *TryExpr, *ErrdeferStmt: // M1-S2 hook: loGo/s nodes.
+		printLogos(p, n)
 	default:
-		if !printLogos(p, n) { // M1-S2 hook: loGo/s nodes.
-			panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))
-		}
+		panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))
 	}
 }
 

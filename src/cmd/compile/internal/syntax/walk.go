@@ -308,10 +308,10 @@ func (w walker) node(n Node) {
 		}
 		w.stmtList(n.Body)
 
+	case *TryExpr, *ErrdeferStmt: // M1-S2 hook: loGo/s nodes.
+		w.walkLogos(n)
 	default:
-		if !w.walkLogos(n) { // M1-S2 hook: loGo/s nodes.
-			panic(fmt.Sprintf("internal error: unknown node type %T", n))
-		}
+		panic(fmt.Sprintf("internal error: unknown node type %T", n))
 	}
 
 	w.v.Visit(nil)

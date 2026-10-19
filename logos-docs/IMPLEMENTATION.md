@@ -558,7 +558,7 @@ Anchor: Tony Hoare, J.R.R. Tolkien
 
 ### M1-S2 Parser and nodes
 Anchor: David Parnas, J.R.R. Tolkien
-- Attack: `syntax/testdata/logos/try_parse.lgo` with ERROR comments: valid `x := f()?`, `f()?`, `defer f()?`, `errdefer f()`, `errdefer tx.Rollback()?`, `errdefer func() { g() }()`; Go meaning kept for `errdefer := 1`, `errdefer = 2`, `errdefer(x)`, `errdefer.f()`; `errdefer 1` -> `syntax error: errdefer requires a function call`; `go f()?` -> `syntax error: ? not allowed in go statement`.
+- Attack: `syntax/testdata/logos/try_parse.lgo` with ERROR comments: valid `x := f()?`, `f()?`, `defer f()?`, `errdefer f()`, `errdefer tx.Rollback()?`, `errdefer func() { g() }()`; Go meaning kept for `errdefer := 1`, `errdefer = 2`, `errdefer(x)`, `errdefer.f()`; `errdefer 1` -> `syntax error: errdefer requires a function call`; `go f()?` parses as a go statement whose call is a `TryExpr` (types2 rejects it with `misplaced_try`, SPEC §1.4).
 - Build: new `syntax/nodes_logos.go`: `TryExpr struct { X Expr; expr }` and `ErrdeferStmt struct { Call Expr; stmt }` (`Call` is `*CallExpr` or `*TryExpr` wrapping one). Parser hooks (each a one-line call into `syntax/parser_logos.go`):
   - `pexpr` (`parser.go:1104`) postfix loop: in LogosMode, `case _Question:` wraps the current operand in `TryExpr` and continues.
   - `stmtOrNil` (`parser.go:2610`): after `lhs := p.exprList()` in the `_Name` branch, if LogosMode, `lhs` is `*Name` with value `errdefer`, and `p.tok` is `_Name` or `_Func`, return `p.errdeferStmt(lhs.Pos())`, which parses `p.pexpr(nil, false)` and requires a call or a `TryExpr` of a call.
