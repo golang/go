@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -106,6 +107,7 @@ var filemap = map[string]action{
 		renameIdents(f, "types2->types")
 	},
 	"assignments.go": func(f *ast.File) {
+		stripLogosHooks(f) // must happen before renaming identifiers
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident", "ident.Value->ident.Name", "ast.Pos->token.Pos") // must happen before renaming identifiers
 		renameIdents(f, "syntax->ast", "poser->positioner", "nopos->noposn")
@@ -186,6 +188,7 @@ var filemap = map[string]action{
 		renameIdents(f, "syntax->ast", "poser->positioner")
 	},
 	"recording.go": func(f *ast.File) {
+		stripLogosHooks(f) // must happen before renaming identifiers
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident") // must happen before renaming identifiers
 		renameIdents(f, "syntax->ast")
@@ -522,6 +525,134 @@ func fixSprintf(f *ast.File) {
 		}
 		return true
 	})
+}
+
+// stripLogosHooks removes the loGos hooks from a types2 file: go/types has
+// no counterparts for them (go/ast has no TryExpr or ErrdeferStmt). A hook is
+// a call check.logosXxx(...) and comes in these shapes:
+//
+//	if check.logosXxx(...) { ... return }   // guard: dropped
+//	if !check.logosXxx(...) { body }        // wrapper: replaced by body
+//	check.logosXxx(...)                     // bare call: dropped
+//	case *syntax.X: <hooks only>            // case clause: dropped
+//
+// The hooks must follow the gofmt layout, each on lines of its own. Anything
+// else that still calls check.logosXxx afterwards is a new hook shape and
+// causes a panic, rather than generating go/types code that doesn't compile.
+//
+// This must run before any renaming: the case clauses of nodes that only
+// exist in types2 are dropped here, before renameIdents turns their types
+// into non-existent ast.X types.
+func stripLogosHooks(f *ast.File) {
+	tf := fset.File(f.Pos())
+
+	// drop removes the lines from..to from the printed output. The go/printer
+	// derives blank lines from the distance between the line numbers of
+	// consecutive nodes, so the removed lines are joined with the following
+	// line (this keeps all positions valid) rather than left as a gap. Their
+	// comments, which go/printer would otherwise print at the next node, are
+	// dropped.
+	drop := func(from, to token.Pos) {
+		first, last := tf.Line(from), tf.Line(to)
+		var groups []*ast.CommentGroup
+		for _, g := range f.Comments {
+			g.List = slices.DeleteFunc(g.List, func(c *ast.Comment) bool {
+				line := tf.Line(c.Pos())
+				return first <= line && line <= last
+			})
+			if len(g.List) > 0 {
+				groups = append(groups, g)
+			}
+		}
+		f.Comments = groups
+		for range last - first + 1 {
+			tf.MergeLine(first)
+		}
+	}
+
+	// isHook reports whether s is a guard, bare call, or return of a hook.
+	isHook := func(s ast.Stmt) bool {
+		switch s := s.(type) {
+		case *ast.ExprStmt:
+			return isLogosCall(s.X)
+		case *ast.ReturnStmt:
+			return len(s.Results) == 1 && isLogosCall(s.Results[0])
+		case *ast.IfStmt:
+			return isLogosCall(s.Cond)
+		}
+		return false
+	}
+
+	// stmts returns list without the guards and bare calls, and with the
+	// wrappers replaced by their bodies.
+	stmts := func(list []ast.Stmt) []ast.Stmt {
+		for i := 0; i < len(list); {
+			switch s := list[i].(type) {
+			case *ast.ExprStmt:
+				if isLogosCall(s.X) {
+					drop(s.Pos(), s.End())
+					list = slices.Delete(list, i, i+1)
+					continue
+				}
+			case *ast.IfStmt:
+				if s.Init != nil || s.Else != nil {
+					break
+				}
+				if isLogosCall(s.Cond) {
+					drop(s.Pos(), s.End())
+					list = slices.Delete(list, i, i+1)
+					continue
+				}
+				if not, _ := s.Cond.(*ast.UnaryExpr); not != nil && not.Op == token.NOT && isLogosCall(not.X) {
+					if tf.Line(s.Body.Lbrace) == tf.Line(s.Body.Rbrace) {
+						panic("logos hook body must span lines")
+					}
+					drop(s.Pos(), s.Body.Lbrace) // if !check.logosXxx(...) {
+					drop(s.Body.Rbrace, s.Body.Rbrace)
+					list = slices.Replace(list, i, i+1, s.Body.List...)
+					continue // the body may hold hooks, too
+				}
+			}
+			i++
+		}
+		return list
+	}
+
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.BlockStmt:
+			n.List = stmts(n.List)
+			// A block holding case clauses is the body of a switch.
+			for i := 0; i < len(n.List); {
+				if cc, _ := n.List[i].(*ast.CaseClause); cc != nil && len(cc.Body) > 0 && !slices.ContainsFunc(cc.Body, func(s ast.Stmt) bool { return !isHook(s) }) {
+					drop(cc.Pos(), cc.End())
+					n.List = slices.Delete(n.List, i, i+1)
+					continue
+				}
+				i++
+			}
+		case *ast.CaseClause:
+			n.Body = stmts(n.Body)
+		}
+		return true
+	})
+
+	ast.Inspect(f, func(n ast.Node) bool {
+		if call, _ := n.(*ast.CallExpr); call != nil && isLogosCall(call) {
+			panic("unhandled logos hook: " + call.Fun.(*ast.SelectorExpr).Sel.Name)
+		}
+		return true
+	})
+}
+
+// isLogosCall reports whether x is a call of the form check.logosXxx(...).
+func isLogosCall(x ast.Node) bool {
+	if call, _ := x.(*ast.CallExpr); call != nil {
+		if selx, _ := call.Fun.(*ast.SelectorExpr); selx != nil && isIdent(selx.X, "check") {
+			return strings.HasPrefix(strings.ToLower(selx.Sel.Name), "logos")
+		}
+	}
+	return false
 }
 
 // asIdent returns x as *ast.Ident if it is an identifier with the given name.
