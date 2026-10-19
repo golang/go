@@ -1,0 +1,5 @@
+// errorcheck
+
+package p
+
+var _ = undefinedName // ERROR "undefined"

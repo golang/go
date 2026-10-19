@@ -6,7 +6,9 @@ package syntax
 
 import (
 	"bytes"
+	"internal/testenv"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -74,5 +76,29 @@ func TestLogosModeParsesGo(t *testing.T) {
 		if dumpAddr.ReplaceAllString(plainDump.String(), "0x") != dumpAddr.ReplaceAllString(logosDump.String(), "0x") {
 			t.Errorf("%s: Fdump differs under LogosMode", filename)
 		}
+	}
+}
+
+// TestLogosErrors runs testdata/logos/*.lgo through the same ERROR-comment
+// matcher as TestSyntaxErrors (error_test.go), with LogosMode. Plain.lgo
+// carries no ERROR comments and must parse cleanly; every other file must
+// report exactly the errors its ERROR comments declare.
+func TestLogosErrors(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // we need access to source (testdata/logos)
+
+	list, err := os.ReadDir("testdata/logos")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nfiles := 0
+	for _, fi := range list {
+		name := fi.Name()
+		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".lgo") {
+			nfiles++
+			testSyntaxErrorsWithMode(t, filepath.Join("testdata", "logos", name), CheckBranches|LogosMode)
+		}
+	}
+	if nfiles == 0 {
+		t.Fatal("no .lgo files in testdata/logos")
 	}
 }

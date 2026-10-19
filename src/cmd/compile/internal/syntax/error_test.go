@@ -110,6 +110,13 @@ func declaredErrors(t *testing.T, filename string) map[position]string {
 }
 
 func testSyntaxErrors(t *testing.T, filename string) {
+	testSyntaxErrorsWithMode(t, filename, CheckBranches)
+}
+
+// testSyntaxErrorsWithMode is testSyntaxErrors with an explicit parser
+// mode. The logos harness (logos_test.go TestLogosErrors) reuses it with
+// CheckBranches|LogosMode over testdata/logos/*.lgo.
+func testSyntaxErrorsWithMode(t *testing.T, filename string, mode Mode) {
 	declared := declaredErrors(t, filename)
 	if *print {
 		fmt.Println("Declared errors:")
@@ -161,7 +168,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 		} else {
 			t.Errorf("%s:%s: unexpected error: %s", filename, orig, e.Msg)
 		}
-	}, nil, CheckBranches)
+	}, nil, mode)
 
 	if *print {
 		fmt.Println()
