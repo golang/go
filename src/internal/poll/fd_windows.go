@@ -1586,7 +1586,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	msg := newWSAMsg(p, oob, 0, rsa)
 	defer freeWSAMsg(msg)
 	n, err := fd.execIO('w', func(o *operation) (qty uint32, err error) {
-		err = windows.WSASendMsg(fd.Sysfd, msg, 0, nil, &o.o, nil)
+		err = windows.WSASendMsg(fd.Sysfd, msg, 0, &qty, &o.o, nil)
 		return qty, err
 	}, rsa, msg)
 	return n, int(msg.Control.Len), err
@@ -1612,7 +1612,7 @@ func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (in
 	msg := newWSAMsg(p, oob, 0, rsa)
 	defer freeWSAMsg(msg)
 	n, err := fd.execIO('w', func(o *operation) (qty uint32, err error) {
-		err = windows.WSASendMsg(fd.Sysfd, msg, 0, nil, &o.o, nil)
+		err = windows.WSASendMsg(fd.Sysfd, msg, 0, &qty, &o.o, nil)
 		return qty, err
 	}, rsa, msg)
 	return n, int(msg.Control.Len), err
@@ -1638,7 +1638,7 @@ func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (in
 	msg := newWSAMsg(p, oob, 0, rsa)
 	defer freeWSAMsg(msg)
 	n, err := fd.execIO('w', func(o *operation) (qty uint32, err error) {
-		err = windows.WSASendMsg(fd.Sysfd, msg, 0, nil, &o.o, nil)
+		err = windows.WSASendMsg(fd.Sysfd, msg, 0, &qty, &o.o, nil)
 		return qty, err
 	}, rsa, msg)
 	return n, int(msg.Control.Len), err
