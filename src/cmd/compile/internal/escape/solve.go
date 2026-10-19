@@ -216,7 +216,10 @@ func (b *batch) walk(s walkState, roots []*location, walkgen uint32, enqueue fun
 		// later.
 		if l.param {
 			if s.outlives(b, l) {
-				if !l.hasAttr(attrEscapes) && diagnose {
+				old := l.paramEsc
+				l.leakTo(s.sink, derefs)
+				// Explain only new or improved leaks, not every path to a sink.
+				if diagnose && l.paramEsc != old && !l.hasAttr(attrEscapes) {
 					root := walkRoot(l, paths)
 					if base.Flag.LowerM >= 2 {
 						fmt.Printf("%s: parameter %v leaks to %s for %v with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), ir.FuncName(l.curfn), derefs)
@@ -228,7 +231,6 @@ func (b *batch) walk(s walkState, roots []*location, walkgen uint32, enqueue fun
 							fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, b.explainLoc(root), derefs), explanation)
 					}
 				}
-				l.leakTo(s.sink, derefs)
 			}
 			if s.hasAttr(attrMutates) {
 				l.paramEsc.AddMutator(derefs)
