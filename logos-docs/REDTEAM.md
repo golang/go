@@ -186,3 +186,10 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #180 | M5 |  | planned |
 | #181 | M18 |  | planned |
 | #182 | M9 |  | planned |
+| #183 | M0 |  | planned |
+| #184 | M0 |  | planned |
+| #185 | M2 |  | planned |
+| #186 | M3 |  | planned |
+| #187 | M16 |  | planned |
+| #188 | M20 |  | planned |
+| #189 | M20 |  | planned |

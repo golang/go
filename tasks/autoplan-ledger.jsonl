@@ -109,3 +109,4 @@
 {"id": "ENG-36", "description": "M19-S6 Green Tea span deck", "phase": "ENG"}
 {"id": "ENG-37", "description": "M19-S7 zgc colored pointers", "phase": "ENG"}
 {"id": "ENG-38", "description": "M19-S8 immix blocks and lines", "phase": "ENG"}
+{"id": "DX-20", "description": "M0-S8 Go and loGo/s interop (replaces the import-edge rejection of M0-S2)", "phase": "DX"}

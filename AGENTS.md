@@ -1,6 +1,6 @@
 # loGos
 
-loGos is a fork of Go 1.27.2 that adds the loGo/s language (`.lgo` files) and the `logos` command. Plain `go` keeps upstream behavior.
+loGos is a fork of Go 1.27.2 that adds the loGo/s language (`.lgo` files) and the `logos` command. It is one toolchain for Go and loGo/s. Backend, runtime, cgo, and tooling improvements apply to Go packages too.
 
 ## Commands
 
@@ -18,9 +18,10 @@ Run from `src/` with the fork first on PATH: `export PATH="$(cd .. && pwd)/bin:$
 
 ## Gotchas
 
-- Upstream files take hook lines only: one call into a `*_logos.go` file or a new package, guarded by a logos condition. Put the logic in new files, because every upstream line costs rebase work.
+- Plain `go` keeps Go language semantics and its upstream command text (`go version`, `go help`), and `run.bash` is its regression floor. It may differ from upstream in performance, code generation, runtime, and tooling.
+- Upstream files take hook lines only: one call into a `*_logos.go` file or a new package. Guard loGo/s language behavior with a logos condition. Backend, runtime, and cgo improvements take no logos guard. A changed default for plain `go` lands only after `run.bash` passes with it. Put the logic in new files, because every upstream line costs rebase work.
 - Leave `src/vendor` and `src/cmd/vendor` unchanged; they are vendored copies.
-- A module holds only `.go` packages or only `.lgo` packages, and `.lgo` code imports only the standard library and loGo/s packages.
+- A module holds only `.go` packages or only `.lgo` packages. Go and loGo/s packages can import each other. Only `logos` builds `.lgo` files.
 
 ## Workflow
 
