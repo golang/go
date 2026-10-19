@@ -1,0 +1,51 @@
+# M0-S5 I4: a Go-syntax package inside a loGo/s module is still governed
+# by the module's cgo policy. The module uses cgo="restricted" with an
+# empty allowlist. The check keys on the main module's kind, not on the
+# package's own file kinds, so ./gp fails with the allowlist error. It is
+# not mixed_module: that diagnostic needs both kinds loaded, and building
+# ./gp alone loads only the Go package. ok/ is a pure loGo/s package that
+# is never built; it exists so the module classifies as loGo/s instead of
+# Go, which is what engages the policy.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+
+# Clear any host CGO_ENABLED so the restricted key alone decides.
+env CGO_ENABLED=
+
+# With an empty allowlist every cgo package is refused, including the
+# Go-syntax one. The -o flag keeps the RED-run binary off directory gp.
+[cgo] ! logos build -o gp.bin ./gp
+[cgo] stderr '\[restriction::cgo_usage\] package example\.com/m/gp uses cgo and is not in cgo_allowlist'
+
+-- go.mod --
+module example.com/m
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "restricted"
+cgo_allowlist = []
+
+-- ok/ok.lgo --
+package ok
+
+// Answer reports a constant.
+func Answer() int {
+	return 42
+}
+
+-- gp/main.go --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("gp:", C.answer()) }

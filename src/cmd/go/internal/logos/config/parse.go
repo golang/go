@@ -6,6 +6,7 @@ package config
 
 import (
 	"fmt"
+	"path"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -376,6 +377,11 @@ func (p *parser) parseArrayValue(key string) error {
 			}
 			if key == "strict_files" && !slices.Contains(strictFileExts, s) {
 				return p.errorf(elemStart, "invalid strict_files entry %q (want %s)", s, strictFilesWant)
+			}
+			if key == "cgo_allowlist" {
+				if _, err := path.Match(s, ""); err != nil {
+					return p.errorf(elemStart, "[configuration::invalid_cgo_allowlist] cgo_allowlist pattern %q: %s", s, err)
+				}
 			}
 			out = append(out, s)
 		case c == '{':

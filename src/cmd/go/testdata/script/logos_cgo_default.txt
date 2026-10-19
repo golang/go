@@ -1,0 +1,28 @@
+# M0-S5: a loGo/s module defaults to cgo forbid. With no logos.toml,
+# a package with import "C" fails with restriction::cgo_usage.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Clear any host CGO_ENABLED: the default case needs no explicit env, and an
+# inherited CGO_ENABLED=1 would win over the absent-key default instead.
+env CGO_ENABLED=
+
+[cgo] ! logos build .
+[cgo] stderr '\[restriction::cgo_usage\] cgo is disabled'
+
+-- go.mod --
+module example.com/cgodefault
+
+go 1.27
+
+-- main.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("default:", C.answer()) }

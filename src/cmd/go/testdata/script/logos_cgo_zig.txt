@@ -1,0 +1,132 @@
+# M0-S5: when cgo is on, CC is unset, and the default C compiler is
+# hidden from PATH, logos and go fall back to zig cc -target <triple>
+# if zig is on PATH. The fake zig logs its arguments, strips zig's
+# leading "cc -target <triple>", and delegates the rest to the real C
+# compiler recorded below before PATH narrows, so the build finishes
+# with the same compiler it would otherwise use. The fake and the
+# capture need POSIX sh, so this fallback coverage is Unix only
+# (see the report for the Windows risk).
+# PATH holds the fake-zig directory plus GOROOT/bin: the relative default
+# compiler stays hidden while the fake zig and the go tool stay findable.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOCACHE=$WORK/gocache
+
+# Install the fake zig, and record the real C compiler before PATH
+# narrows; the fake delegates to the recorded path.
+chmod 0755 $WORK/fakebin/zig
+exists -exec $WORK/fakebin/zig
+[!GOOS:windows] exec sh -c 'command -v cc || command -v gcc || command -v clang'
+[!GOOS:windows] cp stdout $WORK/realcc.txt
+env REALPATH=$PATH
+
+# Case 1: loGo/s module with cgo = "allow". CC unset, default compiler
+# hidden, fake zig on PATH: the build falls back to zig and runs.
+cd zm
+env CC=
+env CGO_ENABLED=
+env ZIGLOG=$WORK/zig-a.log
+env PATH=$WORK/fakebin:$GOROOT/bin
+[cgo] logos run .
+[cgo] stdout '^zm: 42$'
+[cgo] grep 'cc -target' $WORK/zig-a.log
+[cgo] [GOOS:linux] [GOARCH:amd64] grep 'cc -target x86_64-linux-musl' $WORK/zig-a.log
+cd ..
+
+# Case 2: the same cgo package as a Go module (no logos.toml) with
+# CGO_ENABLED=1: the fallback serves Go packages under both commands.
+# gb1 and gb2 are identical packages under different paths so neither
+# build can hit the other's cache entry and skip the compiler.
+cd gm
+env CGO_ENABLED=1
+env ZIGLOG=$WORK/zig-b-logos.log
+[cgo] logos build -o gb1.bin ./gb1
+[cgo] grep 'cc -target' $WORK/zig-b-logos.log
+[cgo] [GOOS:linux] [GOARCH:amd64] grep 'cc -target x86_64-linux-musl' $WORK/zig-b-logos.log
+env ZIGLOG=$WORK/zig-b-go.log
+[cgo] go build -o gb2.bin ./gb2
+[cgo] grep 'cc -target' $WORK/zig-b-go.log
+[cgo] [GOOS:linux] [GOARCH:amd64] grep 'cc -target x86_64-linux-musl' $WORK/zig-b-go.log
+cd ..
+
+# Case 3: CGO_ENABLED unset, CC unset, default compiler hidden: cgo
+# stays off under both commands even with the fake zig on PATH, so the
+# zig log stays empty.
+cd gm
+env CGO_ENABLED=
+env ZIGLOG=$WORK/zig-c.log
+[cgo] ! logos build -o gb1.bin ./gb1
+[cgo] stderr 'build constraints exclude all Go files'
+[cgo] ! go build -o gb1.bin ./gb1
+[cgo] stderr 'build constraints exclude all Go files'
+[cgo] ! exists $WORK/zig-c.log
+cd ..
+
+-- zm/go.mod --
+module example.com/zm
+
+go 1.27
+
+-- zm/logos.toml --
+[build]
+cgo = "allow"
+
+-- zm/main.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("zm:", C.answer()) }
+
+-- gm/go.mod --
+module example.com/gm
+
+go 1.27
+
+-- gm/gb1/main.go --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("gm:", C.answer()) }
+
+-- gm/gb2/main.go --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("gm:", C.answer()) }
+
+-- $WORK/fakebin/zig --
+#!/bin/sh
+# Fake zig for the M0-S5 zig-fallback attack. It logs zig's argv, strips
+# zig's leading "cc -target <triple>", and delegates the remaining C
+# compiler arguments to the real C compiler at an absolute path, so the
+# build finishes without needing PATH.
+echo "zig $@" >>"${ZIGLOG:-$WORK/zig.log}"
+if [ "$#" -lt 3 ]; then
+	echo "fake zig: expected 'cc -target <triple>' arguments, got: $@" >&2
+	exit 1
+fi
+shift 3
+IFS= read -r real <"$WORK/realcc.txt"
+if [ -z "$real" ]; then
+	echo "fake zig: no pre-narrowing compiler recorded in $WORK/realcc.txt" >&2
+	exit 1
+fi
+PATH=$REALPATH exec "$real" "$@"

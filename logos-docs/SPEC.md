@@ -1265,7 +1265,7 @@ cgo_allowlist is a string array of path globs with default empty. [T-Sec10][T-10
 A double star matches any suffix. [T-Sec10][T-101.2]
 An example entry is "example.com/c-sqlite/**". [A-EXAMPLES][T-101.2]
 An explicit CGO_ENABLED value in the environment MUST win over the default only when the `cgo` key is absent [T-101.2]. It MUST NOT override an explicit `forbid` or a `restricted` allowlist refusal [T-101.2].
-When cgo is on, CC is unset, and no C compiler is present, logos and plain go use zig cc with the host target for every cgo package, Go or loGo/s, if zig is on PATH. [T-101.2][R-U1]
+When cgo is on, CC is unset, and no C compiler is present, logos and plain go MUST use zig cc with the build target for every cgo package, Go or loGo/s, if zig is on PATH. [T-101.2][R-U1] The build target is the GOOS/GOARCH pair of the build, not the host. [T-101.2][R-U1]
 With cgo off, net and os/user use their pure-Go paths. [T-101.2]
 opt_level is a string with default "O2". [T-Sec10][T-105]
 See Sec 1.5 for accepted `opt_level` values.

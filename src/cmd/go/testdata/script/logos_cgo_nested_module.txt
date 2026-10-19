@@ -1,0 +1,46 @@
+# M0-S5 I2: a nested loGo/s module does not reclassify its outer Go module.
+# The outer Go module keeps the upstream CGO_ENABLED default under both
+# commands, so its cgo package builds with `go build` and `logos build`.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+
+# No explicit CGO_ENABLED: the outer module must keep the upstream default,
+# which is cgo on when a compiler is present.
+env CGO_ENABLED=
+
+[cgo] go build -o g-go.bin .
+[cgo] logos build -o g-logos.bin .
+[cgo] logos env CGO_ENABLED
+[cgo] stdout '^1$'
+
+-- go.mod --
+module example.com/g
+
+go 1.27
+
+-- main.go --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("g:", C.answer()) }
+
+-- sub/go.mod --
+module example.com/g/sub
+
+go 1.27
+
+-- sub/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("sub") }

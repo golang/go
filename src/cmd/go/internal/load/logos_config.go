@@ -5,9 +5,15 @@
 package load
 
 import (
+	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -155,6 +161,164 @@ func logosConfigRoot(ld *modload.Loader) string {
 		}
 	}
 	return ""
+}
+
+// checkLogosCgo enforces the logos.toml [build] cgo policy for one loaded
+// package in logos mode (M0-S5). It runs in (*Package).load after imports
+// resolve, beside checkLogosConfig (p.Module must be set, so it cannot run
+// at the earlier UsesCgo site). Plain go never reaches past the logos guard.
+// The policy follows the package's module: a main-module package answers to
+// its own logos.toml, while a dependency answers to the governing main
+// module's, so a restricted allowlist covers every package that imports "C"
+// in the build, Go-syntax packages included; the standard library stays
+// exempt. Cgo use is the compiled file set (UsesCgo): a bare cgo build tag
+// without import "C" never counts, while a cgo-only package hidden by
+// disabled cgo is still caught through its ignored files importing "C".
+// A denied package fails with [restriction::cgo_usage] instead of the
+// upstream "build constraints" text: an enabled denial lands directly, and
+// a disabled denial replaces NoGoError. Any other pre-existing error keeps
+// priority and is never overwritten. Config load failures are left to
+// checkLogosConfig.
+func checkLogosCgo(ld *modload.Loader, p *Package) {
+	if !cfg.Logos || p.Internal.TestmainGo != nil || p.Standard {
+		return
+	}
+	if p.Module == nil {
+		return
+	}
+	root := logosConfigRootForPackage(ld, p)
+	if root == "" || !logosModuleHasLogos(root) {
+		return
+	}
+	if !p.UsesCgo() && !logosCgoHidden(p) {
+		return
+	}
+	cf, err := logosConfigAt(root)
+	if err != nil || cf == nil {
+		return
+	}
+	allow, msg := cfg.CgoPolicyAllow(cf, cfg.StartupCgoEnabled(), p.ImportPath)
+	if allow {
+		return
+	}
+	logosDenyCgo(p, msg)
+}
+
+// logosModuleKinds memoizes one loGo/s scan per module root, so the cgo gate
+// walks each module once per process. Entries are write-once under the mutex
+// and never mutated after store.
+var logosModuleKinds = struct {
+	sync.Mutex
+	byRoot map[string]bool
+}{byRoot: make(map[string]bool)}
+
+// logosModuleHasLogos reports whether root holds a loGo/s source file, so
+// the cgo gate can tell a loGo/s module (policy applies to every package in
+// it, whatever syntax each package uses) from a Go module (upstream
+// handling, cgo key ignored). Results are memoized by root.
+func logosModuleHasLogos(root string) bool {
+	logosModuleKinds.Lock()
+	defer logosModuleKinds.Unlock()
+	if isLogos, ok := logosModuleKinds.byRoot[root]; ok {
+		return isLogos
+	}
+	isLogos := logosTreeHasLogos(root)
+	logosModuleKinds.byRoot[root] = isLogos
+	return isLogos
+}
+
+// logosTreeHasLogos walks root for a loGo/s source file, skipping nested
+// modules and directories that never hold built packages of this module.
+func logosTreeHasLogos(root string) bool {
+	found := false
+	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if found {
+			return fs.SkipAll
+		}
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if path != root && logosSkipsDir(path, d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if cfg.IsLogosFile(d.Name()) {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
+// logosSkipsDir reports whether dir never holds built packages of its parent
+// module: a nested module, vendor, testdata, or a dot or underscore prefix.
+func logosSkipsDir(path, name string) bool {
+	if name == "vendor" || name == "testdata" {
+		return true
+	}
+	if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
+		return true
+	}
+	if info, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !info.IsDir() {
+		return true
+	}
+	return false
+}
+
+// logosCgoHidden reports whether p is a cgo package hidden by disabled cgo:
+// nothing compiled, but an ignored file imports "C". It runs only when the
+// package failed with NoGoError, so builds that selected a non-cgo variant
+// never scan. A bare cgo build tag without import "C" never counts.
+func logosCgoHidden(p *Package) bool {
+	if p.UsesCgo() || p.Internal.Build == nil {
+		return false
+	}
+	if p.Error == nil {
+		return false
+	}
+	if _, ok := errors.AsType[*NoGoError](p.Error.Err); !ok {
+		return false
+	}
+	if !slices.Contains(p.Internal.Build.AllTags, "cgo") {
+		return false
+	}
+	for _, name := range p.IgnoredGoFiles {
+		if logosFileImportsC(p.Dir, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// logosFileImportsC reports whether the file imports "C", parsed
+// imports-only. Files that fail to parse never count: a cgo file must use
+// Go syntax, so an unparseable file cannot be one.
+func logosFileImportsC(dir, name string) bool {
+	parsed, err := parser.ParseFile(token.NewFileSet(), filepath.Join(dir, name), nil, parser.ImportsOnly)
+	if err != nil || parsed == nil {
+		return false
+	}
+	for _, imp := range parsed.Imports {
+		if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == "C" {
+			return true
+		}
+	}
+	return false
+}
+
+// logosDenyCgo fails p with the policy denial, replacing NoGoError so the
+// scripts see [restriction::cgo_usage] instead of the upstream text. Any
+// other pre-existing error keeps priority and is never overwritten.
+func logosDenyCgo(p *Package, msg string) {
+	if p.Error != nil {
+		if _, ok := errors.AsType[*NoGoError](p.Error.Err); !ok {
+			return
+		}
+	}
+	p.Error = &PackageError{Err: errors.New(msg)}
+	p.Incomplete = true
 }
 
 // logosConfigExt returns the loGo/s extension of a source file name,

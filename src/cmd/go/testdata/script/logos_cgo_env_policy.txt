@@ -1,0 +1,191 @@
+# M0-S5: an explicit logos.toml cgo policy wins over CGO_ENABLED in
+# both directions, and Go modules keep upstream CGO_ENABLED handling.
+# Every phase sets CGO_ENABLED explicitly so phases stay hermetic.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+
+# Explicit forbid stays enforced with CGO_ENABLED=1.
+cd forbid
+[cgo] env CGO_ENABLED=1
+[cgo] ! logos build .
+[cgo] stderr '\[restriction::cgo_usage\]'
+cd ..
+
+# Restricted keeps its allowlist with CGO_ENABLED=1.
+cd res
+[cgo] env CGO_ENABLED=1
+[cgo] logos build -o ok.bin ./ok
+[cgo] ! logos build ./bad
+[cgo] stderr '\[restriction::cgo_usage\] package example\.com/m/bad uses cgo and is not in cgo_allowlist'
+cd ..
+
+# Restricted keeps its allowlist with CGO_ENABLED=0: explicit wins the
+# other way too.
+cd res
+[cgo] env CGO_ENABLED=0
+[cgo] logos build -o ok.bin ./ok
+[cgo] ! logos build ./bad
+[cgo] stderr '\[restriction::cgo_usage\] package example\.com/m/bad uses cgo and is not in cgo_allowlist'
+cd ..
+
+# Explicit allow stays enabled with CGO_ENABLED=0.
+cd allow
+[cgo] env CGO_ENABLED=0
+[cgo] logos build .
+cd ..
+
+# No cgo key with CGO_ENABLED=0 stays disabled.
+cd nokey
+[cgo] env CGO_ENABLED=0
+[cgo] ! logos build .
+[cgo] stderr '\[restriction::cgo_usage\]'
+cd ..
+
+# A Go module with no logos.toml keeps upstream handling: logos build
+# and go build agree.
+cd gom
+[cgo] env CGO_ENABLED=1
+[cgo] logos build .
+[cgo] go build .
+cd ..
+
+# A cgo key in a Go module's logos.toml has no effect: CGO_ENABLED=1
+# still builds its cgo package under logos build.
+cd goign
+[cgo] env CGO_ENABLED=1
+[cgo] logos build .
+cd ..
+
+-- forbid/go.mod --
+module example.com/cgoforbid
+
+go 1.27
+
+-- forbid/logos.toml --
+[build]
+cgo = "forbid"
+
+-- forbid/main.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("forbid:", C.answer()) }
+
+-- res/go.mod --
+module example.com/m
+
+go 1.27
+
+-- res/logos.toml --
+[build]
+cgo = "restricted"
+cgo_allowlist = ["example.com/m/ok/**"]
+
+-- res/ok/ok.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("ok:", C.answer()) }
+
+-- res/bad/bad.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("bad:", C.answer()) }
+
+-- allow/go.mod --
+module example.com/cgoallow
+
+go 1.27
+
+-- allow/logos.toml --
+[build]
+cgo = "allow"
+
+-- allow/main.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("allow:", C.answer()) }
+
+-- nokey/go.mod --
+module example.com/cgonokey
+
+go 1.27
+
+-- nokey/main.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("nokey:", C.answer()) }
+
+-- gom/go.mod --
+module example.com/gm
+
+go 1.27
+
+-- gom/main.go --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("gom:", C.answer()) }
+
+-- goign/go.mod --
+module example.com/gi
+
+go 1.27
+
+-- goign/logos.toml --
+[build]
+cgo = "forbid"
+
+-- goign/main.go --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("goign:", C.answer()) }

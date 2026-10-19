@@ -1,0 +1,101 @@
+# M0-S5 C1: a CC stored with `go env -w` wins over the zig fallback under
+# plain `go`. With the fake zig on PATH, the default C compiler hidden, and
+# CC configured in the GOENV file, `go build` must use the configured
+# compiler (wrapper log non-empty, zig log empty) and `go env CC` must print
+# the configured value (never `zig cc`), including with cross GOOS/GOARCH.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOENV=$WORK/go.env
+env GOCACHE=$WORK/gocache
+
+# Install the fake zig and the CC wrapper, and record the real C compiler
+# before PATH narrows; both delegate to the recorded path.
+chmod 0755 $WORK/fakebin/zig $WORK/ccwrap/cc
+exists -exec $WORK/fakebin/zig
+exists -exec $WORK/ccwrap/cc
+[!GOOS:windows] exec sh -c 'command -v cc || command -v gcc || command -v clang'
+[!GOOS:windows] cp stdout $WORK/realcc.txt
+env REALPATH=$PATH
+
+# No CC anywhere yet: process env empty, GOENV file fresh. The narrowed
+# PATH hides the default C compiler while the fake zig stays findable.
+env CC=
+env CGO_ENABLED=1
+env ZIGLOG=$WORK/zig.log
+env CCLOG=$WORK/cc.log
+env PATH=$WORK/fakebin:$GOROOT/bin
+
+# Store the wrapper as CC in the GOENV file. The OS environment holds no
+# CC, so the write lands without the "does not override" warning.
+go env -w CC=$WORK/ccwrap/cc
+! stderr 'does not override'
+
+# `go env CC` prints the configured compiler, never the zig fallback.
+go env CC
+stdout 'ccwrap'
+! stdout 'zig cc'
+
+# Same with cross GOOS/GOARCH in effect: no zig triple leaks in.
+env GOOS=linux
+env GOARCH=arm64
+go env CC
+stdout 'ccwrap'
+! stdout 'zig cc'
+env GOOS=
+env GOARCH=
+
+# Plain `go build` uses the configured CC: the wrapper log is non-empty,
+# the binary runs, and the fake zig never runs.
+[cgo] go build -o ccgo.bin .
+[cgo] exec ./ccgo.bin
+[cgo] stdout '^ccgo: 42$'
+[cgo] grep 'cc-wrapper' $WORK/cc.log
+[cgo] ! exists $WORK/zig.log
+
+-- go.mod --
+module example.com/ccgoenv
+
+go 1.27
+
+-- main.go --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("ccgo:", C.answer()) }
+
+-- $WORK/fakebin/zig --
+#!/bin/sh
+# Fake zig for the M0-S5 zig-fallback attack. It logs zig's argv, strips
+# zig's leading "cc -target <triple>", and delegates the remaining C
+# compiler arguments to the real C compiler at an absolute path, so the
+# build finishes without needing PATH.
+echo "zig $@" >>"${ZIGLOG:-$WORK/zig.log}"
+if [ "$#" -lt 3 ]; then
+	echo "fake zig: expected 'cc -target <triple>' arguments, got: $@" >&2
+	exit 1
+fi
+shift 3
+IFS= read -r real <"$WORK/realcc.txt"
+if [ -z "$real" ]; then
+	echo "fake zig: no pre-narrowing compiler recorded in $WORK/realcc.txt" >&2
+	exit 1
+fi
+PATH=$REALPATH exec "$real" "$@"
+
+-- $WORK/ccwrap/cc --
+#!/bin/sh
+# CC wrapper for the M0-S5 go-env-CC attack. It logs its argv, then execs
+# the real C compiler recorded before PATH narrowed.
+echo "cc-wrapper $@" >>"${CCLOG:-$WORK/cc.log}"
+IFS= read -r real <"$WORK/realcc.txt"
+if [ -z "$real" ]; then
+	echo "cc wrapper: no pre-narrowing compiler recorded in $WORK/realcc.txt" >&2
+	exit 1
+fi
+PATH=$REALPATH exec "$real" "$@"

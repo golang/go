@@ -1,0 +1,45 @@
+# M0-S5: cgo = "restricted" allows only cgo_allowlist packages.
+# ok/ builds; bad/ fails with the pinned allowlist error.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+
+[cgo] logos build -o ok.bin ./ok
+[cgo] ! logos build ./bad
+[cgo] stderr '\[restriction::cgo_usage\] package example\.com/m/bad uses cgo and is not in cgo_allowlist'
+
+-- go.mod --
+module example.com/m
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "restricted"
+cgo_allowlist = ["example.com/m/ok/**"]
+
+-- ok/ok.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("ok:", C.answer()) }
+
+-- bad/bad.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("bad:", C.answer()) }

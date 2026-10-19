@@ -1,0 +1,131 @@
+# M0-S5 I1: the cgo policy follows the target module, not the starting
+# directory. `logos -C <dir>` honors the cgo policy of the module at <dir>,
+# and in a workspace each main module's own logos.toml governs its packages.
+# The script starts in a forbid loGo/s module; every case below must still
+# apply the target's policy.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+
+# Case 1: the allow loGo/s module at b/ builds its cgo program via -C,
+# even though the starting directory is a forbid module.
+env CGO_ENABLED=
+[cgo] logos -C b run .
+[cgo] stdout '^b: 42$'
+
+# Case 2: a plain Go cgo module via -C builds with the upstream default
+# (CGO_ENABLED stays unset). The cgo key of the starting module has no
+# effect on it.
+env CGO_ENABLED=
+[cgo] logos -C g run .
+[cgo] stdout '^g: 42$'
+
+# Case 3: workspace w/ with an allow loGo/s module (ma) and a no-key loGo/s
+# module (mb). ma's cgo package builds; mb's fails with the forbid text.
+env CGO_ENABLED=
+[cgo] logos -C w run example.com/ma
+[cgo] stdout '^ma: 42$'
+[cgo] ! logos -C w run example.com/mb
+[cgo] stderr '\[restriction::cgo_usage\] cgo is disabled'
+
+-- go.mod --
+module example.com/a
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "forbid"
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("a") }
+
+-- b/go.mod --
+module example.com/b
+
+go 1.27
+
+-- b/logos.toml --
+[build]
+cgo = "allow"
+
+-- b/main.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("b:", C.answer()) }
+
+-- g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- g/main.go --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("g:", C.answer()) }
+
+-- ma/go.mod --
+module example.com/ma
+
+go 1.27
+
+-- ma/logos.toml --
+[build]
+cgo = "allow"
+
+-- ma/main.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("ma:", C.answer()) }
+
+-- mb/go.mod --
+module example.com/mb
+
+go 1.27
+
+-- mb/main.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("mb:", C.answer()) }
+
+-- w/go.work --
+go 1.27
+
+use (
+	../ma
+	../mb
+)

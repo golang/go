@@ -2832,6 +2832,9 @@ func envList(key, def string) []string {
 	if v == "" {
 		v = def
 	}
+	if key == "CC" {
+		v = logosCCFallback(v)
+	}
 	args, err := quoted.Split(v)
 	if err != nil {
 		panic(fmt.Sprintf("could not parse environment variable %s with value %q: %v", key, v, err))

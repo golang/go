@@ -1,0 +1,33 @@
+# M0-S5 I5: an invalid cgo_allowlist glob fails closed with a configuration
+# error instead of silently never matching.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+env CGO_ENABLED=
+
+[cgo] ! logos build ./ok
+[cgo] stderr '\[configuration::invalid_cgo_allowlist\] cgo_allowlist pattern "\[": syntax error in pattern'
+
+-- go.mod --
+module example.com/m
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "restricted"
+cgo_allowlist = ["["]
+
+-- ok/ok.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("ok:", C.answer()) }

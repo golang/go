@@ -1,0 +1,156 @@
+# M0-S5 I6: a `cgo` build tag alone is not cgo use. Only `import "C"`
+# counts. A pure loGo/s package with cgo/!cgo variants builds the !cgo
+# variant under default forbid; a package whose cgo variant imports C
+# builds the !cgo variant while cgo stays off, and builds the cgo variant
+# when CGO_ENABLED=1 wins over the absent key (env-wins precedence, as in
+# logos_cgo_env.txt). The fbf module pins the other direction: explicit
+# forbid keeps cgo off against CGO_ENABLED=1, so the !cgo variant builds.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+
+# Forbid state first: no explicit CGO_ENABLED, so default forbid decides.
+env CGO_ENABLED=
+
+cd fb
+
+# No import "C" anywhere: the !cgo variant builds and runs.
+[cgo] logos build -o pure.bin ./pure
+[cgo] exec ./pure.bin
+[cgo] stdout '^pure-!cgo$'
+
+# The cgo variant imports C but cgo is off, so the !cgo variant builds.
+[cgo] logos build -o real.bin ./real
+[cgo] exec ./real.bin
+[cgo] stdout '^real-!cgo$'
+
+# With cgo enabled by env, the cgo variant is selected and allowed.
+[cgo] env CGO_ENABLED=1
+[cgo] logos build -o realcgo.bin ./real
+[cgo] exec ./realcgo.bin
+[cgo] stdout '^real-cgo: 42$'
+
+cd ../fbf
+
+# Explicit forbid wins over CGO_ENABLED=1: the !cgo variant still builds.
+[cgo] env CGO_ENABLED=1
+[cgo] logos build -o real.bin ./real
+[cgo] exec ./real.bin
+[cgo] stdout '^real-!cgo$'
+
+-- fb/go.mod --
+module example.com/fb
+
+go 1.27
+
+-- fb/pure/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println(Variant())
+}
+
+-- fb/pure/withcgo.lgo --
+//go:build cgo
+
+package main
+
+// Variant reports which build variant was selected.
+func Variant() string {
+	return "pure-cgo"
+}
+
+-- fb/pure/nocgo.lgo --
+//go:build !cgo
+
+package main
+
+// Variant reports which build variant was selected.
+func Variant() string {
+	return "pure-!cgo"
+}
+
+-- fb/real/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println(Variant())
+}
+
+-- fb/real/withcgo.lgo --
+//go:build cgo
+
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+// Variant reports which build variant was selected.
+func Variant() string {
+	return fmt.Sprintf("real-cgo: %d", int(C.answer()))
+}
+
+-- fb/real/nocgo.lgo --
+//go:build !cgo
+
+package main
+
+// Variant reports which build variant was selected.
+func Variant() string {
+	return "real-!cgo"
+}
+
+-- fbf/go.mod --
+module example.com/fbf
+
+go 1.27
+
+-- fbf/logos.toml --
+[build]
+cgo = "forbid"
+
+-- fbf/real/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println(Variant())
+}
+
+-- fbf/real/withcgo.lgo --
+//go:build cgo
+
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+// Variant reports which build variant was selected.
+func Variant() string {
+	return fmt.Sprintf("real-cgo: %d", int(C.answer()))
+}
+
+-- fbf/real/nocgo.lgo --
+//go:build !cgo
+
+package main
+
+// Variant reports which build variant was selected.
+func Variant() string {
+	return "real-!cgo"
+}
