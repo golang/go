@@ -85,7 +85,7 @@ The default for `[build] cgo` MUST be `forbid` [T-101.2].
 The value `restricted` MUST enable cgo only for packages that match `cgo_allowlist` globs [T-101.2].
 A package with `import "C"` outside the allowlist MUST fail with `restriction::cgo_usage` [T-101.2].
 With no `logos.toml`, a package with `import "C"` MUST fail with `restriction::cgo_usage` and text `cgo is disabled` [T-101.2].
-An explicit `CGO_ENABLED` in the environment MUST win over the default [T-101.2].
+An explicit `CGO_ENABLED` in the environment MUST win over the default only when the `cgo` key is absent [T-101.2]. An explicit `[build] cgo = "forbid"` MUST stay enforced against the environment [T-101.2]. An explicit `[build] cgo = "restricted"` allowlist refusal MUST stay enforced against the environment [T-101.2].
 When cgo is enabled, `CC` is unset, and the default C compiler is missing, the tool MUST use `zig cc -target <zig-arch>-<zig-os>` when `zig` is in PATH [T-101.2].
 The `-musl` suffix MUST apply only for Linux targets [T-101.2].
 A Go main module MUST keep the upstream CGO default unless its own `logos.toml` sets `cgo` [T-101.2].
@@ -107,6 +107,8 @@ A `//logos:allow` directive on a `forbid` rule MUST itself be an error with `cor
 The default group severities MUST be `correctness` forbid, `concurrency` forbid, `slop` deny, `complexity` deny, `perf` warn, `style` warn, `suspicious` warn, `portability` warn, `pedantic` allow [T-102].
 The `logos.toml [lints]` table MUST control group severities [T-102].
 The `logos.toml [lints.thresholds]` defaults MUST be 3 for nesting depth, 15 for cognitive complexity, 60 for function lines, 4 for function parameters, 4096 for comptime nodes, and 100000 for CTFE steps [T-102].
+Configuration MAY raise `max_comptime_ast_nodes` and `max_ctfe_steps` above their defaults [T-102].
+Validation and boundary tests MUST use the selected limits [T-102].
 `logos build` and `logos lint` MUST accept `--pedantic` with default false [T-102].
 The `--pedantic` flag MUST override `logos.toml` [T-102].
 A default build MUST stay silent for the pedantic group [T-102].
@@ -290,9 +292,13 @@ const httpPort = 8080
 
 A `const func` MUST NOT perform I/O, spawn a goroutine, read a mutable package variable, call `recover`, convert a pointer to `uintptr`, range over a dynamic map, or use a pointer. [T-201]
 
-The compiler MUST evaluate `const` composites and `const func` calls at compile time with target integer widths, a step cap of 100,000, and a value cap of 1 MB. [T-201]
+The compiler MUST evaluate `const` composites and `const func` calls at compile time with target integer widths, a step limit from `max_ctfe_steps` with default 100,000, and a value cap of 1 MB. [T-201][T-102]
 
-A run that exceeds 100,000 steps MUST fail with `[comptime::ctfe_step_limit]`. [T-201]
+A run that exceeds the selected `max_ctfe_steps` limit MUST fail with `[comptime::ctfe_step_limit]`. [T-201][T-102]
+
+Configuration MAY raise `max_ctfe_steps` above its default. [T-102]
+
+Validation and boundary tests MUST use the selected limit. [T-102]
 
 A constant value above 1 MB MUST fail with `[comptime::const_too_large]`. [T-201]
 
@@ -410,9 +416,15 @@ A standard-library callee (such as `io.Reader.Read`) MUST keep its own contract.
 
 `T?` MUST NOT be assignable to `T`. [T-202]
 
-For a pointer, func, chan, map, slice, or interface `T`, `T?` MUST lower to `T` with nil as none. [T-202]
+`*T?` where `*T` is non-nil MUST lower to `*T` with nil as none and no extra storage. [T-202]
 
-For any other `T`, `T?` MUST lower to `logos/rt.Option[T]`. [T-202]
+When nil is a valid payload of `T`, `T?` MUST carry explicit presence separate from payload nil. [T-202]
+
+An interface-backed union option with no nil-capable member MUST use the interface nil value for absence. [T-202]
+
+For every other `T` outside those two cases, `T?` MUST lower to `logos/rt.Option[T]`. [T-202]
+
+A present nil payload MUST read as some with nil payload, distinct from none. [T-202]
 
 `(T?)?` MUST lower to `logos/rt.Option[T?]`. [T-202]
 
@@ -439,6 +451,8 @@ See Sec 1.4 for `??` grouping, precedence, and single-value map reads.
 An absent key MUST read as none. [T-104.3]
 
 A present zero value MUST read as some. [T-104.3]
+
+A present nil slice payload MUST read as some with nil payload, distinct from none. [T-104.3][T-202]
 
 Ejected signatures MUST use plain pointers and `rt.Option[T]` from the support module. [T-202]
 
@@ -731,7 +745,11 @@ A panic in unrolled code MUST name the `.lgo` `const for` line in its trace. [T-
 
 A circular instantiation MUST fail with `[comptime::circular_instantiation]` naming the chain. [T-205]
 
-An expansion above 4096 nodes MUST fail with `[comptime::node_limit]`. [T-205]
+An expansion above the selected `max_comptime_ast_nodes` limit with default 4,096 nodes MUST fail with `[comptime::node_limit]`. [T-205][T-102]
+
+Configuration MAY raise `max_comptime_ast_nodes` above its default. [T-102]
+
+Validation and boundary tests MUST use the selected limit. [T-102]
 
 A stack trace MUST print the base name without the `·logosct<N>` suffix. [T-205]
 
@@ -912,7 +930,8 @@ Without history for a PC, it MUST fall back to the upstream global average. [T-3
 Fault-suppressing masked tails MUST appear only in loops that M14 reductions over slices produce. [T-303]
 Other code MUST carry no tail padding. [T-303]
 BMI2 and `CMOV` code MUST come from existing `GOAMD64=v3` rules. [T-303]
-Variable-count rotates MUST use BMI2 rotates at `GOAMD64=v3`. [T-303]
+Constant-count rotates MUST use BMI2 rotates at `GOAMD64=v3`. [T-303]
+Variable-count rotates MUST stay on the existing shift and rotate path. [T-303]
 In `.lgo`, `*` inside a `make` length or capacity MUST lower to `logos/rt.MulLen`. [T-303]
 On overflow, `MulLen` MUST panic with `logos: make length overflow: w * h`. [T-303]
 LSE atomics MUST come from the `GOARM64=v8.2` default. [T-303]
@@ -1020,7 +1039,7 @@ Cross-package facts MUST travel in the archive member `__.LOGOS` [T-Sec6]. The m
 
 ### 6.2 Options, non-nil pointers, unions, and map index
 
-The pointer type `*T` in `.lgo` code MUST mean non-nil [T-202]. The type `*T?` MUST mean an optional pointer [T-202]. A value of type `T` MUST convert to `T?`, and `nil` MUST convert to every `T?` [T-202]. A value of type `T?` MUST NOT convert to `T` without a check [T-202]. For pointer, func, chan, map, slice, and interface `T`, the ejected Go type of `T?` MUST be `T` with `nil` as none [T-202][T-0.3]. For other `T`, the ejected Go type of `T?` MUST be `logos/rt.Option[T]` [T-202][T-0.3]. Ejected signatures MUST use plain pointers and `Option[T]` from the shared support module [T-202][T-0.3]. Zero values of non-nil pointers MUST fail compilation, including `var p *T`, arrays of non-nil pointers, `make` of a non-nil pointer slice with length above zero, and composite literals that leave a non-nil field empty [T-202]. Stores of `nil` into non-nil locations MUST fail compilation [T-202]. Narrowing after `x != nil`, after an early exit on `x == nil`, and through `&&` chains MUST apply to locals and parameters until their next assignment [T-202]. Narrowing MUST NOT apply to fields, to variables whose address escapes, or to variables that a closure assigns [T-202]. The error-first guard MUST apply only to callees declared in `.lgo` files, so standard-library calls such as `io.Reader.Read` MUST keep their own contracts [T-202][A-STD]. Pointers from Go-mode declarations and from type parameters instantiated with non-nil pointers MUST act as platform pointers: dereference and nil comparison MUST compile, and a store into a non-nil location MUST check at run time and panic with the `.lgo` file and line on nil [T-202][A-STD]. The operators `?.` and `??` MUST operate only on option types [T-104.3]. A single-value map read `m[k]` MUST type as `V?`, while `v, ok := m[k]` MUST keep Go meaning [T-104.3]. A closed union MUST be an interface whose type set is a finite union of non-`~` terms, and it MAY declare methods that every member implements [T-203.1]. Closed unions MUST be allowed in value positions in `.lgo` code [T-203.1]. Membership MUST be checked for assignments, conversions, comparisons with constants, assertions, and case types [T-203.1]. The forms `x.(U)` and `case U:` MUST check membership at run time [T-203.1]. An exhaustive `switch x.(type)` MUST cover every member and `nil` or hold `default` [T-203.1]. A switch expression MUST evaluate its operand once and only its chosen arm [T-203.1]. The result type of a switch expression MUST be the common type of its arms [T-203.1]. Ejected code for a value-used union MUST be a plain method-only interface plus a comment that names the member set [T-203.1][T-0.3]. Reflection and `unsafe` MAY store a non-member in a closed union, and the compiler MUST NOT check that path [T-203.1]. Property reads and writes through an interface MUST call the generated accessors, and no timing guarantee MUST cover those calls [T-PERF].
+The pointer type `*T` in `.lgo` code MUST mean non-nil [T-202]. The type `*T?` MUST mean an optional pointer [T-202]. A value of type `T` MUST convert to `T?`, and `nil` MUST convert to every `T?` [T-202]. A value of type `T?` MUST NOT convert to `T` without a check [T-202]. For `*T?` where `*T` is non-nil, the ejected Go type MUST be `*T` with `nil` as none [T-202][T-0.3]. An interface-backed union option with no nil-capable member MUST use the interface nil value for absence in ejected code [T-202][T-0.3]. For every other `T?` outside those two cases, the ejected Go type MUST be `logos/rt.Option[T]` [T-202][T-0.3]. When nil is a valid payload, the ejected form MUST carry explicit presence separate from payload nil [T-202][T-0.3]. A present nil payload MUST stay distinguishable from none in ejected code [T-202][T-0.3]. Ejected signatures MUST use plain pointers and `Option[T]` from the shared support module [T-202][T-0.3]. Zero values of non-nil pointers MUST fail compilation, including `var p *T`, arrays of non-nil pointers, `make` of a non-nil pointer slice with length above zero, and composite literals that leave a non-nil field empty [T-202]. Stores of `nil` into non-nil locations MUST fail compilation [T-202]. Narrowing after `x != nil`, after an early exit on `x == nil`, and through `&&` chains MUST apply to locals and parameters until their next assignment [T-202]. Narrowing MUST NOT apply to fields, to variables whose address escapes, or to variables that a closure assigns [T-202]. The error-first guard MUST apply only to callees declared in `.lgo` files, so standard-library calls such as `io.Reader.Read` MUST keep their own contracts [T-202][A-STD]. Pointers from Go-mode declarations and from type parameters instantiated with non-nil pointers MUST act as platform pointers: dereference and nil comparison MUST compile, and a store into a non-nil location MUST check at run time and panic with the `.lgo` file and line on nil [T-202][A-STD]. The operators `?.` and `??` MUST operate only on option types [T-104.3]. A single-value map read `m[k]` MUST type as `V?`, while `v, ok := m[k]` MUST keep Go meaning [T-104.3]. A closed union MUST be an interface whose type set is a finite union of non-`~` terms, and it MAY declare methods that every member implements [T-203.1]. Closed unions MUST be allowed in value positions in `.lgo` code [T-203.1]. Membership MUST be checked for assignments, conversions, comparisons with constants, assertions, and case types [T-203.1]. The forms `x.(U)` and `case U:` MUST check membership at run time [T-203.1]. An exhaustive `switch x.(type)` MUST cover every member and `nil` or hold `default` [T-203.1]. A switch expression MUST evaluate its operand once and only its chosen arm [T-203.1]. The result type of a switch expression MUST be the common type of its arms [T-203.1]. Ejected code for a value-used union MUST be a plain method-only interface plus a comment that names the member set [T-203.1][T-0.3]. Reflection and `unsafe` MAY store a non-member in a closed union, and the compiler MUST NOT check that path [T-203.1]. Property reads and writes through an interface MUST call the generated accessors, and no timing guarantee MUST cover those calls [T-PERF].
 
 ### 6.3 Interface properties
 
@@ -1111,7 +1130,7 @@ The original text of this section described implementation internals; it is arch
 
 ### 9.1 Const map semantics
 
-A const map with up to 8 keys MUST lower to a `switch` lookup [T-Sec9]. A const map with more keys MUST lower to a static perfect-hash table with probe length 1 in read-only data plus a generated lookup function [T-Sec9]. A lookup of an absent key MUST return none [T-Sec9]. Iteration with `range` MUST visit keys in sorted order [T-Sec9]. The function `len` on a const map MUST be constant [T-Sec9]. Use of a const map as a `map[K]V` value MUST materialize a regular map once [T-Sec9]. A `-0.0` float key MUST canonicalize, and a `NaN` key MUST fail compilation [T-201][T-Sec9]. Lookup latency carries target: about 2.5ns versus about 14ns, measured by BenchmarkConstMapLookup [T-PERF]. Zero init cost and zero scan share MUST NOT be claimed; instead the table symbol MUST sit in read-only data and package init MUST add no heap bytes [T-PERF].
+A const map with up to 8 keys MUST lower to a `switch` lookup [T-Sec9]. A const map with more keys MUST lower to a static perfect-hash table in read-only data plus a generated lookup function [T-Sec9]. A lookup MUST perform constant-time auxiliary metadata reads plus exactly one final key/value-slot probe with full-key validation [T-Sec9]. Construction MUST use at most 1,000,000 seed-candidate trials in total per const map [T-Sec9]. Exhaustion MUST fail with `comptime::constmap_seed_not_found` [T-Sec9]. A logarithmic fallback MUST NOT satisfy the contract [T-Sec9]. The 1, 8, 9, and 10,000-key cases in `test/logos/run/const_map.lgo` MUST be the acceptance check [T-Sec9]. That check MUST NOT promise success for every key set [T-Sec9]. A lookup of an absent key MUST return none [T-Sec9]. Iteration with `range` MUST visit keys in sorted order [T-Sec9]. The function `len` on a const map MUST be constant [T-Sec9]. Use of a const map as a `map[K]V` value MUST materialize a regular map once [T-Sec9]. A `-0.0` float key MUST canonicalize, and a `NaN` key MUST fail compilation [T-201][T-Sec9]. Lookup latency carries target: about 2.5ns versus about 14ns, measured by BenchmarkConstMapLookup [T-PERF]. Zero init cost and zero scan share MUST NOT be claimed; instead the table symbol MUST sit in read-only data and package init MUST add no heap bytes [T-PERF].
 
 ```lgo
 const mimeMap = map[string]string{
@@ -1161,7 +1180,7 @@ A package outside the list fails with restriction::cgo_usage. [T-101.2]
 cgo_allowlist is a string array of path globs with default empty. [T-Sec10][T-101.2]
 A double star matches any suffix. [T-Sec10][T-101.2]
 An example entry is "example.com/c-sqlite/**". [A-EXAMPLES][T-101.2]
-An explicit CGO_ENABLED value in the environment wins over the file. [T-101.2]
+An explicit CGO_ENABLED value in the environment MUST win over the default only when the `cgo` key is absent [T-101.2]. It MUST NOT override an explicit `forbid` or a `restricted` allowlist refusal [T-101.2].
 When cgo is on, CC is unset, and no C compiler is present, logos uses zig cc with the host target if zig is on PATH. [T-101.2]
 With cgo off, net and os/user use their pure-Go paths. [T-101.2]
 opt_level is a string with default "O2". [T-Sec10][T-105]
@@ -1208,6 +1227,8 @@ allow stays silent. [T-102]
 The --pedantic flag overrides the pedantic key for logos build and logos lint. [T-Sec10]
 The lints.thresholds table holds six integer keys. [T-Sec10]
 Defaults are 3 for max_nesting_depth, 15 for max_cognitive_complexity, 60 for max_function_lines, 4 for max_function_params, 4096 for max_comptime_ast_nodes, and 100000 for max_ctfe_steps. [T-Sec10]
+Configuration MAY raise max_comptime_ast_nodes and max_ctfe_steps above their defaults. [T-Sec10][T-102]
+Validation and boundary tests MUST use the selected limits. [T-Sec10][T-102]
 Go modules get no lints. [T-102][R-U1]
 Third-party loGo/s modules get no code lints. [T-102]
 
@@ -1227,8 +1248,9 @@ The build steps are in IMPLEMENTATION.md, milestone M22. [T-Sec11]
 For each .lgo struct type with json tags, defaults, or non-nil pointer fields and no embedded fields, the lowering MUST generate a value-receiver MarshalJSON method. [T-Sec12]
 Field kinds without static support skip generation for that type. [T-Sec12]
 These kinds are interfaces, maps with non-string keys, and embedded structs. [T-Sec12]
-Generated output MUST be byte-identical to encoding/json for the same value. [T-Sec12]
-In the default build, json.Marshal reaches the generated method by interface dispatch and returns the same bytes. [T-Sec12]
+Generated output MUST be byte-identical to encoding/json for the same value under both `goexperiment.jsonv2` and `!goexperiment.jsonv2`. [T-Sec12]
+The default build MUST use the fork baseline with `goexperiment.jsonv2` on. [T-Sec12]
+In both configurations, json.Marshal on an eligible value MUST return the same bytes as the generated method. [T-Sec12]
 No call site is rewritten. [T-Sec12]
 The generator emits fixed key literals first, computes a size bound, then fills one buffer from a single make. [T-Sec12]
 The buffer is returned to the caller, so it escapes to the heap. [T-Sec12]
@@ -1237,7 +1259,7 @@ The fast path calls no reflect. [T-Sec12]
 Only unmodeled fields fall back to reflective json.Marshal per field. [T-Sec12]
 Each string field is read once into a local. [T-Sec12]
 Concurrent mutation during marshal stays a data race. [T-Sec12]
-Escaping and float formatting follow encoding/json with portable Go and no SIMD requirement. [T-Sec12]
+Escaping and float formatting MUST follow encoding/json under the active `goexperiment.jsonv2` setting with portable Go and no SIMD requirement. [T-Sec12]
 Supported tag options are name, omitempty, omitzero, string, and -. [T-Sec12]
 HTML characters, U+2028, U+2029, invalid UTF-8, and float exponents encode per encoding/json. [T-Sec12]
 NaN and infinities report UnsupportedValueError. [T-Sec12]
@@ -1257,7 +1279,7 @@ Decoding fills defaults first, then parses. [T-Sec12]
 A _logos_seen mask sized [(K+63)/64]uint64 tracks matched keys against a required-mask constant. [T-Sec12]
 At the closing brace, a missing required non-nil field returns MissingFieldError naming type and field. [T-Sec12]
 JSON null for a non-nil field returns the same error. [T-Sec12]
-Keys dispatch by switch up to 8 keys and by the const-map perfect-hash table above that. [T-Sec12][T-Sec9]
+Keys MUST dispatch by switch up to 8 keys and by the Sec 9.1 const-map table above that, with constant-time auxiliary metadata reads plus exactly one final key/value-slot probe with full-key validation. [T-Sec12][T-Sec9]
 Unknown fields are ignored. [T-Sec12]
 Duplicate keys keep the last value. [T-Sec12]
 Arrays grow incrementally with no pre-allocation cap. [T-Sec12]
@@ -1360,7 +1382,8 @@ The loader carries target: 1.4 KB, excluding wasm_exec.js, measured by Benchmark
 - Reductions over slices MUST use fault-suppressing masked loads for tail elements. [T-303]
 - Masked tails MUST NOT read past the end of the slice. [T-303]
 - The build MUST NOT add guard padding for vector tails. [T-303]
-- At GOAMD64=v3 variable-count rotates MAY use RORXQ or RORXL besides SARX, SHLX, and SHRX. [T-303]
+- At GOAMD64=v3 constant-count rotates MAY use RORXQ or RORXL besides SARX, SHLX, and SHRX. [T-303]
+- Variable-count rotates MUST stay on the existing path. [T-303]
 - A ternary-shaped branch at GOAMD64=v3 MAY compile to a conditional move. [T-303]
 - In `.lgo` files `*` inside a `make` length or capacity MUST lower to `logos/rt.MulLen`. [T-303]
 - An overflowing `make` length MUST panic with `logos: make length overflow: <expr>`. [T-303]
@@ -1422,7 +1445,7 @@ Each numbered entry states the tailored resolution of its original attack. `REDT
 - #4 Side-stack arena growth across parked goroutines: A goroutine parked with empty arena regions MUST return its leased chunk. Such a goroutine MUST retain no arena capacity; its ordinary stack and runtime metadata still exist. See Sec 8.3. [T-301.1]
 - #5 Cgo fastcall blocks OS thread forever: The fast path MUST record the call start. Sysmon MUST hand off P for calls longer than 1 ms. See Sec 3.4. [T-304]
 - #6 Block lambda return ambiguity inside map: Lambdas MUST allow expression and block forms with known target types. A ? in an expression lambda MUST propagate from the enclosing function. See Sec 1.4. [T-104.6]
-- #7 Non-nil pointer bypass via arrays maps JSON: Zero values of non-nil pointers MUST fail with correctness::nonnil_uninitialized. Absent map and JSON values MUST check through V? and MissingFieldError. See Sec 2.2. [T-202][T-Sec12]
+- #7 Non-nil pointer bypass via arrays maps JSON: Zero values of non-nil pointers MUST fail with correctness::nonnil_uninitialized. Absent map and JSON values MUST check through V? and MissingFieldError. An absent key MUST read as none while a present nil payload MUST read as some. See Sec 2.2. [T-202][T-Sec12]
 - #8 Legacy Go functions returning nil into lgo: Pointers from Go declarations MUST act as platform pointers. Stores into non-nil locations MUST panic with logos: nil from Go value at the source line. See Sec 2.2. [T-202]
 - #9 Text cold RVO corrupting debugger output: Cold successors MUST stay last inside their function. Traces MUST print base names without the `·logosspec<N>` or `·logosct<N>` suffix. See Sec 1.5, Sec 2.3, and Sec 2.5. [T-105][T-203.4][T-205]
 - #10 Exhaustive union switch bypassed via default: A default over a closed union MUST report pedantic::exhaustive_union_switch when the pedantic group is enabled; that rule defaults to allow and is silent otherwise. Exhaustive switches MUST still list every member or default. See Sec 1.2. [T-102]
@@ -1464,9 +1487,9 @@ Each numbered entry states the tailored resolution of its original attack. `REDT
 - #46 Side-stack arena hiding heap pointers from GC: The arena MUST hold a bottom-up noscan region and a top-down scan region. The collector MUST scan scan-region objects with the goroutine stack. See Sec 8.3. [T-301.1]
 - #47 Const func purity broken by recover and addresses: A const func MUST NOT perform I/O, spawn a goroutine, read a mutable package variable, call recover, convert a pointer to uintptr, range over a dynamic map, or use a pointer. A violation MUST fail with correctness::const_func_impure naming the reason. See Sec 2.1. [T-201]
 - #48 Auto-generification breaking function value assignment: The original function MUST stay callable through a function value. Each clone MUST carry a unique package-local name. See Sec 2.3. [T-203.4]
-- #49 Optional union representation: Interface-backed union options MUST use the interface nil value for absence. Non-nilable value options and nested options MUST use `logos/rt.Option[T]` as specified in Sec 2.2. [T-202]
+- #49 Optional union representation: Interface-backed union options with no nil-capable member MUST use the interface nil value for absence. An option whose payload can be nil MUST carry explicit presence as specified in Sec 2.2. Non-nilable value options and nested options MUST use `logos/rt.Option[T]` as specified in Sec 2.2. [T-202]
 - #50 Const rodata slices rejected by reflection and print: reflect.DeepEqual and fmt.Println MUST accept constant composites, and the M5 tests MUST pin that behavior. See Sec 2.1. [T-201]
-- #51 Infinite compile-time loop freezing the IDE: Compile-time evaluation MUST stop after 100,000 steps with `comptime::ctfe_step_limit`. A value above 1 MB MUST fail with `comptime::const_too_large`. See Sec 2.1. [T-201]
+- #51 Infinite compile-time loop freezing the IDE: Compile-time evaluation MUST stop after the selected `max_ctfe_steps` limit with default 100,000 steps with `comptime::ctfe_step_limit`. Configuration MAY raise the limit. A value above 1 MB MUST fail with `comptime::const_too_large`. See Sec 2.1. [T-201][T-102]
 - #52 Inlined defer inside loop exhausting stack slots: A `scope defer` in a loop body MUST run every iteration. It MUST use open-coded defers with no separate unwind table. See Sec 20.1. [T-104.7]
 - #53 Recursive AST escaping local arena on return: A returned arena value that the caller keeps MUST allocate in the caller region. It MUST live until the caller exits. See Sec 8.3. [T-301.1]
 - #54 Rodata constants crashing under address relocation: Pointer-free constant data MUST live in read-only memory. Constant data with pointers MUST live in read-only-after-relocation memory. See Sec 2.1. [T-201]
@@ -1488,7 +1511,7 @@ Each numbered entry states the tailored resolution of its original attack. `REDT
 - #70 constant slice literal allocating on heap: Pointer-free constant data MUST live in read-only memory. See Sec 2.1. [T-201]
 - #71 scan region dead pointers breaking barrier reuse: The runtime MUST zero popped regions before reuse. See Sec 3.1. [T-301.1]
 - #72 ViewAs interior pointer confusing collector scan: The view MUST keep the backing bytes alive. A short input MUST panic with need and have byte counts in `logos: ViewAs` text. See Sec 2.5. [T-205]
-- #73 Const-map seed search fails to terminate: Seed search MUST stop after 1,000,000 candidates. If it finds no collision-free seed, the map MUST use a sorted key array with binary search; the one-probe guarantee applies only to seeded tables. Iteration MUST visit keys in sorted order. See Sec 9.1. [T-Sec9]
+- #73 Const-map seed search fails to terminate: Every const map with more than 8 keys MUST provide one-probe lookup with constant-time auxiliary metadata reads plus exactly one final key/value-slot probe with full-key validation. Construction MUST use at most 1,000,000 seed-candidate trials in total per const map. A logarithmic fallback MUST NOT satisfy the contract. Exhaustion MUST fail with `comptime::constmap_seed_not_found`. The 1, 8, 9, and 10,000-key cases in `test/logos/run/const_map.lgo` MUST be the acceptance check. That check MUST NOT promise success for every key set. Iteration MUST visit keys in sorted order. See Sec 9.1. [T-Sec9]
 - #74 FuncForPC returning mangled specialized names: Traces MUST print the base name without the specialization suffix. See Sec 2.3. [T-203.4]
 - #75 order dependent inference in nil switch arms: Switch results MUST take the common type of the arms. See Sec 2.3. [T-203.1]
 - #76 const for skipping checks on unrolled bodies: Each unrolled body MUST pass full assignment and call checks. Pruned code MUST NOT skip verification. See IMPLEMENTATION.md M7-S2. [T-205]
@@ -1555,7 +1578,7 @@ Each numbered entry states the tailored resolution of its original attack. `REDT
 - #137 Call-free loop starving scheduler blocking GC: Back-edge checks MUST fire every 4096 iterations where async preemption is absent. A call-free loop MUST NOT starve its peers. See Sec 15.3. [T-303]
 - #138 Arena pointer stored into sync Pool: A value stored into `sync.Pool` MUST stay on the heap. The compiler MUST keep such values out of the arena. See Sec 8.3. [T-301.1]
 - #139 Malicious JSON array triggering huge preallocation: JSON decoders MUST grow arrays incrementally with no pre-allocation cap. Binary counts MUST pre-allocate at most `min(len(rest)/2, 1 MB / sizeof(elem))`. See Sec 12.2. [T-Sec12][T-Sec12.1]
-- #140 Known hash seed enabling hash-flooding DoS: Large const maps MUST lower to a static perfect-hash table with probe length 1. The compiler MUST search the seed at compile time. See Sec 9.1. [T-Sec9]
+- #140 Known hash seed enabling hash-flooding DoS: Large const maps MUST provide one-probe lookup from a static perfect-hash table in read-only data with constant-time auxiliary metadata reads plus exactly one final key/value-slot probe with full-key validation. Construction MUST use at most 1,000,000 seed-candidate trials in total per const map. A logarithmic fallback MUST NOT satisfy the contract. Exhaustion MUST fail with `comptime::constmap_seed_not_found`. See Sec 9.1. [T-Sec9]
 - #141 Method call on property value losing mutation: A method call on a property value MUST use read-call-write-back around the call. The write MUST reach the struct. See Sec 6.3. [T-203.2]
 - #142 Chain map leaking file descriptors on failure: Partial chain failure MUST close already produced `io.Closer` elements in reverse order. The fused loop MUST run that rollback before returning. See Sec 1.4. [T-104.6]
 - #143 Buffered channel retaining dead pointer after receive: Go 1.27 already clears the received slot, and the test MUST pin that a received pointer becomes collectable. See IMPLEMENTATION.md M8-S5. [T-206]
@@ -1565,7 +1588,7 @@ Each numbered entry states the tailored resolution of its original attack. `REDT
 - #147 Background goroutine panic crashing server process: A child panic MUST become `*logos/rt.PanicError` with the value and a stack. The group MUST cancel siblings and return it. See Sec 2.6. [T-206]
 - #148 Concurrent multiword interface slice tearing: Sharing a mutable multi-word value with a child plus a write MUST fail with `concurrency::concurrent_multiword_race`. Const views and `logos/sync` types MUST stay allowed. See Sec 1.2. [T-102]
 - #149 Dead-store elimination deleting clear before return: Go 1.27 lowering already keeps `clear(b)` as a runtime memory clear; the test MUST pin its survival before return. Dead-store elimination MUST NOT remove that clear. See Sec 3.3. [T-303]
-- #150 Triple nested const for exploding compiler AST: An expansion above 4096 nodes MUST fail with `[comptime::node_limit]`. An expansion at or below 4096 nodes MUST compile. See Sec 2.5. [T-205]
+- #150 Triple nested const for exploding compiler AST: An expansion above the selected `max_comptime_ast_nodes` limit with default 4,096 nodes MUST fail with `[comptime::node_limit]`. An expansion at or below the selected limit MUST compile. Configuration MAY raise the limit. See Sec 2.5. [T-205][T-102]
 - #151 Group sibling stuck in blocking socket read: A child blocked in netpoll-backed network I/O MUST wake within 100 ms with a timeout error. Goroutines outside the group MUST stay blocked. See Sec 2.6. [T-206]
 - #152 Zero-copy string crashing after munmap: `const []byte` to `string` MUST be zero-copy only from string or const-composite provenance. Any other provenance MUST copy to the Go heap. See Sec 2.1. [T-201]
 - #153 Hot Store leaking retire-list memory: No retire list MUST exist for `Hot[T]`. Stores MUST run the hybrid write barrier with GC-managed values. See Sec 2.6. [T-206][T-PERF]
