@@ -680,7 +680,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 		}
 	} else {
 		d.Alias = p.gotAssign()
-		d.Type = p.typeOrNil()
+		d.Type = p.logosTypeDeclType(d) // M2-S6 hook: inline struct assertions.
 	}
 
 	if d.Type == nil {
@@ -1076,6 +1076,9 @@ func (p *parser) operand(keep_parens bool) Expr {
 		return p.type_() // othertype
 
 	default:
+		if x := p.logosOperand(); x != nil { // M2-S5 hook: switch expressions.
+			return x
+		}
 		x := p.badExpr()
 		p.syntaxError("expected expression")
 		p.advance(_Rparen, _Rbrack, _Rbrace)
@@ -1149,7 +1152,7 @@ loop:
 
 			default:
 				p.syntaxError("expected name or (")
-				p.advance(_Semi, _Rparen)
+				p.logosAdvanceSelector() // M2 hook: loGo/s recovery keeps `}`.
 			}
 
 		case _Lbrack:

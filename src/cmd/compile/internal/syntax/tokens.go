@@ -68,6 +68,7 @@ const (
 	_Type        // type
 	_Var         // var
 	_Question    // ?
+	_FatArrow    // =>
 
 	// empty line comment to exclude it from .String
 	tokenCount //

@@ -720,7 +720,7 @@ func (p *printer) printRawNode(n Node) {
 			p.printDeclList(n.DeclList)
 		}
 
-	case *TryExpr, *ErrdeferStmt: // M1-S2 hook: loGo/s nodes.
+	case *TryExpr, *ErrdeferStmt, *SwitchExpr, *ArmClause, *AssertedStruct: // M1-S2, M2 hook: loGo/s nodes.
 		printLogos(p, n)
 	default:
 		panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))

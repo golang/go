@@ -4,18 +4,63 @@
 
 package syntax
 
-// This file holds the loGo/s printing logic for M1-S2 (G3: hook lines
-// only in printer.go; the logic lives here).
+// This file holds the loGo/s printing logic for M1-S2 and M2 (G3: hook
+// lines only in printer.go; the logic lives here).
 
-// printLogos prints loGo/s nodes in source form: `X?` for TryExpr and
-// `errdefer <call>` for ErrdeferStmt. Both forms reparse to the same
-// tree, so printing is idempotent.
+// printLogos prints loGo/s nodes in source form: `X?` for TryExpr,
+// `errdefer <call>` for ErrdeferStmt, `switch ... { case ... => ... }` for
+// SwitchExpr and ArmClause, and `struct : I, J { ... }` for
+// AssertedStruct. Every form reparses to the same tree, so printing is
+// idempotent. ShortForm elides the arms of a SwitchExpr like the body of
+// a function literal.
 func printLogos(p *printer, n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
 		p.print(n.X, _Question)
 	case *ErrdeferStmt:
 		p.print(_Name, "errdefer", blank, n.Call)
+	case *SwitchExpr:
+		p.print(_Switch, blank)
+		if n.Init != nil {
+			p.print(n.Init, _Semi, blank)
+		}
+		if n.Tag != nil {
+			p.print(n.Tag, blank)
+		}
+		p.print(_Lbrace)
+		switch {
+		case p.form == ShortForm:
+			if len(n.Arms) > 0 {
+				p.print(_Name, "…")
+			}
+		case len(n.Arms) > 0:
+			p.print(newline)
+			for _, arm := range n.Arms {
+				p.print(arm, _Semi, newline)
+			}
+		}
+		p.print(_Rbrace)
+	case *ArmClause:
+		if n.Cases != nil {
+			p.print(_Case, blank, n.Cases)
+		} else {
+			p.print(_Default)
+		}
+		p.print(blank, _FatArrow, blank, n.Body)
+	case *AssertedStruct:
+		p.print(_Struct, blank, _Colon, blank)
+		p.printExprList(n.Asserts)
+		p.print(blank, _Lbrace)
+		if fields := n.Struct.FieldList; len(fields) > 0 {
+			if p.linebreaks {
+				p.print(newline, indent)
+				p.printFieldList(fields, n.Struct.TagList, _Semi)
+				p.print(outdent, newline)
+			} else {
+				p.printFieldList(fields, n.Struct.TagList, _Semi)
+			}
+		}
+		p.print(_Rbrace)
 	}
 }
 

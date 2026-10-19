@@ -336,6 +336,9 @@ redo:
 			s.tok = _Operator
 			break
 		}
+		if s.logosFatArrow() { // M2-S5 hook: loGo/s `=>`.
+			break
+		}
 		s.tok = _Assign
 
 	case '!':

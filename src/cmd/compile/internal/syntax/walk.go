@@ -308,7 +308,7 @@ func (w walker) node(n Node) {
 		}
 		w.stmtList(n.Body)
 
-	case *TryExpr, *ErrdeferStmt: // M1-S2 hook: loGo/s nodes.
+	case *TryExpr, *ErrdeferStmt, *SwitchExpr, *ArmClause, *AssertedStruct: // M1-S2, M2 hook: loGo/s nodes.
 		w.walkLogos(n)
 	default:
 		panic(fmt.Sprintf("internal error: unknown node type %T", n))
