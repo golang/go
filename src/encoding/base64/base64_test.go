@@ -567,10 +567,19 @@ func TestDecoderIssue15656(t *testing.T) {
 	}
 }
 
+func BenchmarkEncode(b *testing.B) {
+	data := make([]byte, 8192)
+	buf := make([]byte, StdEncoding.EncodedLen(len(data)))
+	b.SetBytes(int64(len(data)))
+	for b.Loop() {
+		StdEncoding.Encode(buf, data)
+	}
+}
+
 func BenchmarkEncodeToString(b *testing.B) {
 	data := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		StdEncoding.EncodeToString(data)
 	}
 }
