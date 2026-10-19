@@ -101,3 +101,11 @@
 {"id": "ENG-30", "description": "M22-S4 Codegen and //logos:zeroalloc", "phase": "ENG"}
 {"id": "ENG-31", "description": "M22-S5 Reproducibility", "phase": "ENG"}
 {"id": "ENG-32", "description": "M22-S6 End-to-end example", "phase": "ENG"}
+{"id": "DX-18", "description": "M0-S7 Pedantic opt-in flag", "phase": "DX"}
+{"id": "DX-19", "description": "P1-S3 Update shipped plugin documentation after each milestone", "phase": "DX"}
+{"id": "ENG-33", "description": "M11-S3 Binary encoding", "phase": "ENG"}
+{"id": "ENG-34", "description": "M11-S4 Unions, generics, and call sites", "phase": "ENG"}
+{"id": "ENG-35", "description": "M18-S4 Go-group cancellation without a g field", "phase": "ENG"}
+{"id": "ENG-36", "description": "M19-S6 Green Tea span deck", "phase": "ENG"}
+{"id": "ENG-37", "description": "M19-S7 zgc colored pointers", "phase": "ENG"}
+{"id": "ENG-38", "description": "M19-S8 immix blocks and lines", "phase": "ENG"}
