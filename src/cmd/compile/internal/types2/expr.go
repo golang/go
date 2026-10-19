@@ -481,6 +481,9 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		// (interface) type: values must have concrete dynamic types.
 		// Untyped nil was handled upfront.
 		if !u.Empty() {
+			if t, ok := check.logosUnionDefault(x, u); ok { // logos M2-S2 hook.
+				return t, nil, 0
+			}
 			return nil, nil, InvalidUntypedConversion // cannot assign untyped values to non-empty interfaces
 		}
 		return Default(x.typ()), nil, 0 // default type for nil is nil
@@ -1139,6 +1142,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 
 	case *syntax.TryExpr:
 		return check.logosTryOperand(x, e) // logos M1-S3 hook.
+	case *syntax.SwitchExpr:
+		return check.logosSwitchExpr(x, e) // logos M2-S5 hook.
 	case *syntax.CallExpr:
 		return check.callExpr(x, e)
 
@@ -1296,6 +1301,9 @@ func keyVal(x constant.Value) any {
 
 // typeAssertion checks x.(T). The type of x must be an interface.
 func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitch bool) {
+	if check.logosNonMemberAssert(e, x, T) { // logos M2-S2 hook.
+		return
+	}
 	var cause string
 	if check.assertableTo(x.typ(), T, &cause) {
 		return // success

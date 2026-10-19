@@ -166,6 +166,9 @@ func (check *Checker) validVarType(e syntax.Expr, typ Type) {
 			pos := syntax.StartPos(e)
 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
 			if !tset.IsMethodSet() {
+				if check.logosValueType(pos, typ, tset) { // logos M2-S1 hook.
+					return
+				}
 				if tset.comparable {
 					check.softErrorf(pos, MisplacedConstraintIface, "cannot use type %s outside a type constraint: interface is (or embeds) comparable", typ)
 				} else {
@@ -311,6 +314,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 		typ := new(Struct)
 		check.structType(typ, e)
 		return typ
+
+	case *syntax.AssertedStruct:
+		return check.logosAssertedStruct(e, def) // logos M2-S6 hook.
 
 	case *syntax.Operation:
 		if e.Op == syntax.Mul && e.Y == nil {

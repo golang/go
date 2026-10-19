@@ -172,6 +172,11 @@ type Config struct {
 
 	Logos bool // package sources are .lgo files
 
+	// LogosUnions lets closed unions occupy value positions (SPEC Sec 2.3,
+	// T-203.1). It is set for every check of a package of .lgo files,
+	// including the recheck of lowered code, where Logos is off.
+	LogosUnions bool
+
 	// If a non-empty ErrorURL format string is provided, it is used
 	// to format an error URL link that is appended to the first line
 	// of an error message. ErrorURL must be a format string containing

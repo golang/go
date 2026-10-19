@@ -64,6 +64,7 @@ recheck:
 		Importer:           &importer,
 		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
 		Logos:              allLogos(noders) && !didLogos,
+		LogosUnions:        allLogos(noders), // logos M2-S1 hook: unions stay legal in the recheck.
 	}
 	if base.Flag.ErrorURL {
 		conf.ErrorURL = " [go.dev/e/%s]"

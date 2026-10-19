@@ -211,13 +211,16 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 			check.expr(newTarget(T, "conversion"), x, call.ArgList[0])
 			if x.isValid() {
 				if t, _ := T.Underlying().(*Interface); t != nil && !isTypeParam(T) {
-					if !t.IsMethodSet() {
+					if !t.IsMethodSet() && !check.logosConversionUnion(T) { // logos M2-S1 hook.
 						check.errorf(call, MisplacedConstraintIface, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break
 					}
 				}
 				if hasDots(call) {
 					check.errorf(call.ArgList[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
+					break
+				}
+				if check.logosUnionConversion(x, T) { // logos M2-S1 hook.
 					break
 				}
 				check.conversion(x, T)
