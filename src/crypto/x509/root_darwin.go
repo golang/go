@@ -89,9 +89,14 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 		}
 		chain[0] = append(chain[0], cert)
 	}
+
 	if len(chain[0]) == 0 {
 		// This should _never_ happen, but to be safe
 		return nil, errors.New("x509: macos certificate verification internal error")
+	}
+
+	if containsDistrustedSPKIHash(chain[0]) {
+		return nil, CertificateInvalidError{c, NoValidChains, ""}
 	}
 
 	if opts.DNSName != "" {
