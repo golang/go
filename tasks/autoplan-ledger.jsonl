@@ -1,0 +1,103 @@
+{"id": "CEO-01", "description": "P0-S1 Rename logos-docs/PLAN.md to logos-docs/SPEC.md (pure rename) and P0-S2 rewrite SPEC.md as the tailored spec (tables T, T-PERF, N, Section 23)", "phase": "CEO"}
+{"id": "CEO-02", "description": "P0-S5 Create logos-docs/REDTEAM.md with 182 attack rows", "phase": "CEO"}
+{"id": "CEO-03", "description": "P0-S6 Create tasks/autoplan-ledger.jsonl from this ledger", "phase": "CEO"}
+{"id": "CEO-04", "description": "P0-S7 Replace the session todo list with one item per slice", "phase": "CEO"}
+{"id": "CEO-05", "description": "P0-S3 Archive the original spec by section in logos-docs/archive/ (table A, byte-exact cmp check)", "phase": "CEO"}
+{"id": "CEO-06", "description": "P0-S4 Commit this plan as logos-docs/IMPLEMENTATION.md without session-only references", "phase": "CEO"}
+{"id": "CEO-07", "description": "P0-S8 Create the root AGENTS.md for agents working on loGos (commands, gotchas, workflow, references)", "phase": "CEO"}
+{"id": "DX-01", "description": "M0-S1 The logos command", "phase": "DX"}
+{"id": "DX-02", "description": "M0-S2 Package classification in cmd/go and go/build", "phase": "DX"}
+{"id": "DX-03", "description": "M0-S3 Compiler accepts .lgo files", "phase": "DX"}
+{"id": "DX-04", "description": "M0-S4 logos.toml", "phase": "DX"}
+{"id": "DX-05", "description": "M0-S5 CGo policy", "phase": "DX"}
+{"id": "DX-06", "description": "M0-S6 Test harnesses", "phase": "DX"}
+{"id": "DES-01", "description": "M1-S1 Token and scanner", "phase": "DES"}
+{"id": "DES-02", "description": "M1-S2 Parser and nodes", "phase": "DES"}
+{"id": "DES-03", "description": "M1-S3 Type checking", "phase": "DES"}
+{"id": "DES-04", "description": "M1-S4 Support package logos/rt and runtime error traces", "phase": "DES"}
+{"id": "DES-05", "description": "M1-S5 Lowering", "phase": "DES"}
+{"id": "DX-07", "description": "M1-S6 logos eject", "phase": "DX"}
+{"id": "DX-08", "description": "P1-S1 Add the official agent skills plugin files (catalog, three manifests, skills logos, logos-from-go, and logos-review, the AGENTS.md template, eval cases)", "phase": "DX"}
+{"id": "DX-09", "description": "P1-S2 Validate the plugin for Claude Code, AGY, Codex, and the Agent Skills rules, then run the eval suite after user consent", "phase": "DX"}
+{"id": "DX-10", "description": "P2-S1 Replace README.md with the loGo/s README (README.go.md keeps upstream text)", "phase": "DX"}
+{"id": "DX-11", "description": "P2-S2 Run the five README gates", "phase": "DX"}
+{"id": "DES-06", "description": "M2-S1 Union values in value positions", "phase": "DES"}
+{"id": "DES-07", "description": "M2-S2 Membership in comparisons, assertions, cases", "phase": "DES"}
+{"id": "DES-08", "description": "M2-S3 Exhaustive type switches", "phase": "DES"}
+{"id": "DES-09", "description": "M2-S4 Lowering of assertions to unions", "phase": "DES"}
+{"id": "DES-10", "description": "M2-S5 Switch expressions", "phase": "DES"}
+{"id": "DES-11", "description": "M2-S6 Inline interface assertions", "phase": "DES"}
+{"id": "DES-12", "description": "M2-S7 Eject for unions", "phase": "DES"}
+{"id": "DES-13", "description": "M3-S1 Facts sidecar", "phase": "DES"}
+{"id": "DES-14", "description": "M3-S2 Option types, nil, ??, ?.", "phase": "DES"}
+{"id": "DES-15", "description": "M3-S3 Non-nil zero-value rules", "phase": "DES"}
+{"id": "DES-16", "description": "M3-S4 Narrowing and the error-first guard", "phase": "DES"}
+{"id": "DES-17", "description": "M3-S5 Platform pointers", "phase": "DES"}
+{"id": "DES-18", "description": "M3-S6 Map index yields V?", "phase": "DES"}
+{"id": "DES-19", "description": "M3-S7 Cross-package facts and eject", "phase": "DES"}
+{"id": "DES-20", "description": "M4-S1 Syntax and checking", "phase": "DES"}
+{"id": "DES-21", "description": "M4-S2 Lowering and write-back", "phase": "DES"}
+{"id": "DES-22", "description": "M5-S1 Const view checking", "phase": "DES"}
+{"id": "DES-23", "description": "M5-S2 Const composites and const func", "phase": "DES"}
+{"id": "DES-24", "description": "M5-S3 Read-only placement", "phase": "DES"}
+{"id": "DES-25", "description": "M5-S4 Const maps", "phase": "DES"}
+{"id": "DES-26", "description": "M5-S5 Zero-copy conversions", "phase": "DES"}
+{"id": "DES-27", "description": "M5-S6 logos/rt.Freeze", "phase": "DES"}
+{"id": "DES-28", "description": "M6-S1 Interpolated strings", "phase": "DES"}
+{"id": "DES-29", "description": "M6-S2 &expr", "phase": "DES"}
+{"id": "DES-30", "description": "M6-S3 Struct field defaults", "phase": "DES"}
+{"id": "DES-31", "description": "M6-S4 Spread", "phase": "DES"}
+{"id": "DES-32", "description": "M6-S5 Tuples", "phase": "DES"}
+{"id": "DES-33", "description": "M6-S6 Lambdas", "phase": "DES"}
+{"id": "DES-34", "description": "M6-S7 Collection chains", "phase": "DES"}
+{"id": "DES-35", "description": "M6-S8 Leading-dot continuation", "phase": "DES"}
+{"id": "DES-36", "description": "M6-S9 yield generators", "phase": "DES"}
+{"id": "DES-37", "description": "M6-S10 scope defer", "phase": "DES"}
+{"id": "DES-38", "description": "M7-S1 const if", "phase": "DES"}
+{"id": "DES-39", "description": "M7-S2 const for over concrete types", "phase": "DES"}
+{"id": "DES-40", "description": "M7-S3 Comptime generics", "phase": "DES"}
+{"id": "DES-41", "description": "M7-S4 const switch T", "phase": "DES"}
+{"id": "DES-42", "description": "M7-S5 comptime.ViewAs", "phase": "DES"}
+{"id": "DES-43", "description": "M8-S1 logos/rt.Group", "phase": "DES"}
+{"id": "DES-44", "description": "M8-S2 go group syntax and lowering", "phase": "DES"}
+{"id": "DES-45", "description": "M8-S3 Cancellation of channel operations in children", "phase": "DES"}
+{"id": "DES-46", "description": "M8-S4 Waking children blocked in network I/O", "phase": "DES"}
+{"id": "DES-47", "description": "M8-S5 logos/sync", "phase": "DES"}
+{"id": "DX-12", "description": "M9-S1 Framework, severities, directive, JSON output", "phase": "DX"}
+{"id": "DX-13", "description": "M9-S2 Rules", "phase": "DX"}
+{"id": "DX-14", "description": "M10-S1 logos next", "phase": "DX"}
+{"id": "DX-15", "description": "M10-S2 logos context", "phase": "DX"}
+{"id": "ENG-01", "description": "M11-S1 Generated MarshalJSON", "phase": "ENG"}
+{"id": "ENG-02", "description": "M11-S2 Generated UnmarshalJSON", "phase": "ENG"}
+{"id": "ENG-03", "description": "M12-S1 Policy and unsafe imports (cmd/go)", "phase": "ENG"}
+{"id": "ENG-04", "description": "M12-S2 Reachability sinks (linker)", "phase": "ENG"}
+{"id": "ENG-05", "description": "M13-S1 -O levels and CPU targets", "phase": "ENG"}
+{"id": "ENG-06", "description": "M13-S2 Synthetic PGO", "phase": "ENG"}
+{"id": "ENG-07", "description": "M13-S3 Clone specialization", "phase": "ENG"}
+{"id": "ENG-08", "description": "M13-S4 Identical code folding at Os/Oz", "phase": "ENG"}
+{"id": "ENG-09", "description": "M14-S1 Operators and reductions", "phase": "ENG"}
+{"id": "ENG-10", "description": "M15-S1 ARM64 load/store pairing", "phase": "ENG"}
+{"id": "ENG-11", "description": "M15-S2 amd64 masked tails, BMI2, CMOV, checked make", "phase": "ENG"}
+{"id": "ENG-12", "description": "M15-S3 Long-loop preemption on wasm", "phase": "ENG"}
+{"id": "ENG-13", "description": "M16-S1 Non-yielding functions skip resume points", "phase": "ENG"}
+{"id": "ENG-14", "description": "M16-S2 Loader and wasm directives", "phase": "ENG"}
+{"id": "ENG-15", "description": "M17-S1 Stack-first dynamic slices", "phase": "ENG"}
+{"id": "ENG-16", "description": "M17-S2 Per-call-site initial goroutine stack size", "phase": "ENG"}
+{"id": "ENG-17", "description": "M18-S1 Chunks, lease, release", "phase": "ENG"}
+{"id": "ENG-18", "description": "M18-S2 Compiler placement", "phase": "ENG"}
+{"id": "ENG-19", "description": "M18-S3 Inline noscan bump and GC scanning", "phase": "ENG"}
+{"id": "ENG-20", "description": "M19-S1 batch and epsilon", "phase": "ENG"}
+{"id": "ENG-21", "description": "M19-S2 greentea with elastic workers", "phase": "ENG"}
+{"id": "ENG-22", "description": "M19-S3 wasm idle marking", "phase": "ENG"}
+{"id": "ENG-23", "description": "M19-S4 Generational card table (GOEXPERIMENT=logosgen)", "phase": "ENG"}
+{"id": "ENG-24", "description": "M19-S5 Moving modes: immix (phase 1) and zgc (phase 2), GOEXPERIMENT=logosgcmoving", "phase": "ENG"}
+{"id": "ENG-25", "description": "M20-S0 cgo in .lgo packages", "phase": "ENG"}
+{"id": "ENG-26", "description": "M20-S1 //logos:cgo_fastcall (GOEXPERIMENT=logosfastcgo)", "phase": "ENG"}
+{"id": "DX-16", "description": "M21-S1 Proxy and position mapping", "phase": "DX"}
+{"id": "DX-17", "description": "M21-S2 Inlay hints, hover, code actions", "phase": "DX"}
+{"id": "ENG-27", "description": "M22-S1 Upstream regression at each level", "phase": "ENG"}
+{"id": "ENG-28", "description": "M22-S2 Eject round-trip fuzzing", "phase": "ENG"}
+{"id": "ENG-29", "description": "M22-S3 Red-team completeness", "phase": "ENG"}
+{"id": "ENG-30", "description": "M22-S4 Codegen and //logos:zeroalloc", "phase": "ENG"}
+{"id": "ENG-31", "description": "M22-S5 Reproducibility", "phase": "ENG"}
+{"id": "ENG-32", "description": "M22-S6 End-to-end example", "phase": "ENG"}
