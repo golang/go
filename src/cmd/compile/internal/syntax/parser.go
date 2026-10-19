@@ -86,7 +86,11 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 				}
 			}
 		},
-		directives,
+		// Forward LogosMode into the scanner alongside directives:
+		// the scanner gates '?' on s.mode&uint(LogosMode), while the
+		// comment-reporting bits live high (see scanner.go) so plain
+		// parser scans never enable loGo/s lexing.
+		directives|uint(mode&LogosMode),
 	)
 
 	p.base = file

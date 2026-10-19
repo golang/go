@@ -22,9 +22,15 @@ import (
 // The mode flags below control which comments are reported
 // by calling the error handler. If no flag is set, comments
 // are ignored.
+//
+// These bits live high so they never collide with syntax.Mode bits
+// (CheckBranches = 1<<0, LogosMode = 1<<1): the scanner gates '?' on
+// s.mode&uint(LogosMode), and the parser forwards its LogosMode bit
+// through scanner.init alongside directives. Callers keep using the
+// names comments and directives; only the values moved.
 const (
-	comments   uint = 1 << iota // call handler for all comments
-	directives                  // call handler for directives only
+	comments   uint = 1 << 8 // call handler for all comments
+	directives uint = 1 << 9 // call handler for directives only
 )
 
 type scanner struct {
@@ -347,6 +353,22 @@ redo:
 		s.nextch()
 		s.op, s.prec = Tilde, 0
 		s.tok = _Operator
+
+	case '?':
+		// '?' is loGo/s-only (M1-S1). In LogosMode it scans as
+		// _Question and ends an operand like ')', so a following
+		// newline or EOF yields ';'. Otherwise it keeps the exact
+		// upstream invalid-character path (same message, position,
+		// and rescan behavior as the default case below).
+		if s.mode&uint(LogosMode) != 0 {
+			s.nextch()
+			s.nlsemi = true
+			s.tok = _Question
+			break
+		}
+		s.errorf("invalid character %#U", s.ch)
+		s.nextch()
+		goto redo
 
 	default:
 		s.errorf("invalid character %#U", s.ch)
