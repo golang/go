@@ -41,6 +41,7 @@ func scriptCommands(interrupt os.Signal, waitDelay time.Duration) map[string]scr
 	add("cc", scriptCC(cmdExec))
 	cmdGo := scriptGo(cancel, waitDelay)
 	add("go", cmdGo)
+	add("logos", scriptGoNamed(testLogos, cancel, waitDelay))
 	add("stale", scriptStale(cmdGo))
 
 	return cmds
@@ -75,19 +76,7 @@ var scriptGoInvoked sync.Map // testing.TB → go command was invoked
 
 // scriptGo runs the go command.
 func scriptGo(cancel func(*exec.Cmd) error, waitDelay time.Duration) script.Cmd {
-	cmd := script.Program(testGo, cancel, waitDelay)
-	// Inject code to update scriptGoInvoked before invoking the Go command.
-	return script.Command(*cmd.Usage(), func(state *script.State, s ...string) (script.WaitFunc, error) {
-		t, ok := tbFromContext(state.Context())
-		if !ok {
-			return nil, errors.New("script Context unexpectedly missing testing.TB key")
-		}
-		_, dup := scriptGoInvoked.LoadOrStore(t, true)
-		if !dup {
-			t.Cleanup(func() { scriptGoInvoked.Delete(t) })
-		}
-		return cmd.Run(state, s...)
-	})
+	return scriptGoNamed(testGo, cancel, waitDelay)
 }
 
 // scriptStale checks that the named build targets are stale.

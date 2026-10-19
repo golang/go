@@ -28,6 +28,7 @@ import (
 	"cmd/go/internal/generate"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
+	"cmd/go/internal/logos"
 	"cmd/go/internal/modcmd"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modget"
@@ -103,6 +104,9 @@ func main() {
 		counter.Open() // Open the telemetry counter file so counters can be written to it.
 	}
 	handleChdirFlag()
+	if cfg.Logos {
+		logos.ConfigureCommand(base.Go)
+	}
 	toolchain.Select()
 
 	if !cmdIsGoTelemetryOff {
@@ -204,7 +208,8 @@ func main() {
 			cmdName = args[0]
 		}
 		counter.Inc("go/subcommand:unknown")
-		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
+		prog := logos.ProgramName()
+		fmt.Fprintf(os.Stderr, "%s %s: unknown command\nRun '%s help%s' for usage.\n", prog, cmdName, prog, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}

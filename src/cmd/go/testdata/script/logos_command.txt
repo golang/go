@@ -1,0 +1,16 @@
+# M0-S1: the logos command is the same binary as go, selected by argv[0].
+# logos version reports the logos version; go version keeps upstream text.
+logos version
+stdout '^logos version go1\.27\.2'
+
+go version
+stdout '^go version go1\.27\.2'
+
+# logos help names the logos command.
+logos help
+stdout 'logos <command> \[arguments\]'
+
+# Logos mode never switches toolchains.
+env GOTOOLCHAIN=go1.99.0
+logos version
+stdout '^logos version go1\.27\.2'

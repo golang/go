@@ -72,7 +72,7 @@ func (s *Switcher) addTooNew(err error) {
 
 // NeedSwitch reports whether Switch would attempt to switch toolchains.
 func (s *Switcher) NeedSwitch() bool {
-	return s.TooNew != nil && (HasAuto() || HasPath())
+	return !cfg.Logos && s.TooNew != nil && (HasAuto() || HasPath())
 }
 
 // Switch decides whether to switch to a newer toolchain

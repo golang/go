@@ -96,6 +96,9 @@ var (
 // It must be called early in startup.
 // See https://go.dev/doc/toolchain#select.
 func Select() {
+	if cfg.Logos {
+		return
+	}
 	moduleLoader := modload.NewLoader()
 	log.SetPrefix("go: ")
 	defer log.SetPrefix("")

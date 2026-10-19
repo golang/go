@@ -1627,6 +1627,7 @@ func cmdbootstrap() {
 		}
 		xprintf("Building commands for host, %s/%s.\n", goos, goarch)
 		goInstall(toolenv(), goBootstrap, toolsToInstall...)
+		installLogos()
 		checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
 		checkNotStale(toolenv(), gorootBinGo, toolsToInstall...)
 
@@ -1643,6 +1644,7 @@ func cmdbootstrap() {
 	}
 	goInstall(nil, goBootstrap, "std")
 	goInstall(toolenv(), goBootstrap, toolsToInstall...)
+	installLogos()
 	checkNotStale(toolenv(), goBootstrap, toolchain...)
 	checkNotStale(nil, goBootstrap, "std")
 	checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
@@ -1670,7 +1672,7 @@ func cmdbootstrap() {
 			continue // unfortunate but not unexpected
 		}
 		elem := strings.TrimSuffix(filepath.Base(f), ".exe")
-		if !ok[f] && elem != "go" && elem != "gofmt" && elem != goos+"_"+goarch {
+		if !ok[f] && elem != "go" && elem != "gofmt" && elem != "logos" && elem != goos+"_"+goarch {
 			fatalf("unexpected new file in $GOROOT/bin: %s", elem)
 		}
 	}

@@ -6,12 +6,14 @@ loGos is a fork of Go 1.27.2 that adds the loGo/s language (`.lgo` files) and th
 
 Run from `src/` with the fork first on PATH: `export PATH="$(cd .. && pwd)/bin:$PATH"`.
 
-- Build the toolchain: `./make.bash`. Rerun it after every compiler, runtime, or cmd/go change, because tests use the installed binaries.
+- Build the toolchain: `./make.bash` installs `bin/go` and `bin/logos`. Rerun it after every compiler, runtime, or cmd/go change, because tests use the installed binaries.
+- Smoke: `logos version` prints `logos version go1.27.2`, and `logos help` prints the `logos <command> [arguments]` usage.
 - Test one package: `go test -count=1 -short <pkg>`. Cached results are not evidence.
 - Add `-race` for concurrency, runtime, and cmd/go changes.
 - Script tests: `go test -count=1 cmd/go -run 'Script/^logos_<name>$'`.
 - Compiler run and errorcheck tests: `go test -count=1 cmd/internal/testdir -run 'Test/logos/'`.
 - Changed files: `gofmt -l <files>` prints nothing, and `go vet <pkgs>` passes.
+- Lint new packages only (golangci-lint 2.15.0 at `/home/linuxbrew/.linuxbrew/bin/golangci-lint`): from `src/cmd` with the fork's `bin` first on PATH, `golangci-lint run --config ../../logos-docs/golangci.yml ./go/internal/logos/...`.
 - Milestone gate: `./run.bash --no-rebuild`.
 
 ## Gotchas

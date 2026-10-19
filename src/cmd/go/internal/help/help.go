@@ -56,12 +56,12 @@ Args:
 		}
 
 		// helpSuccess is the help command using as many args as possible that would succeed.
-		helpSuccess := "go help"
+		helpSuccess := helpVerb()
 		if i > 0 {
 			helpSuccess += " " + strings.Join(args[:i], " ")
 		}
 		counterErrorsHelpUnknownTopic.Inc()
-		fmt.Fprintf(os.Stderr, "go help %s: unknown help topic. Run '%s'.\n", strings.Join(args, " "), helpSuccess)
+		fmt.Fprintf(os.Stderr, "%s %s: unknown help topic. Run '%s'.\n", helpVerb(), strings.Join(args, " "), helpSuccess)
 		base.SetExitStatus(2) // failed at 'go help cmd'
 		base.Exit()
 	}
@@ -85,13 +85,13 @@ The commands are:
 {{range .Commands}}{{if or (.Runnable) .Commands}}
 	{{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
 
-Use "go help{{with .LongName}} {{.}}{{end}} <command>" for more information about a command.
-{{if eq (.UsageLine) "go"}}
+Use "{{helpVerb}}{{with .LongName}} {{.}}{{end}} <command>" for more information about a command.
+{{if showHelpTopics .}}
 Additional help topics:
 {{range .Commands}}{{if and (not .Runnable) (not .Commands)}}
 	{{.Name | printf "%-15s"}} {{.Short}}{{end}}{{end}}
 
-Use "go help{{with .LongName}} {{.}}{{end}} <topic>" for more information about that topic.
+Use "{{helpVerb}}{{with .LongName}} {{.}}{{end}} <topic>" for more information about that topic.
 {{end}}
 `
 
@@ -160,7 +160,7 @@ func (w *errWriter) Write(b []byte) (int, error) {
 // tmpl executes the given template text on data, writing the result to w.
 func tmpl(w io.Writer, text string, data any) {
 	t := template.New("top")
-	t.Funcs(template.FuncMap{"trim": strings.TrimSpace, "capitalize": capitalize})
+	t.Funcs(template.FuncMap{"trim": strings.TrimSpace, "capitalize": capitalize, "helpVerb": helpVerb, "showHelpTopics": showHelpTopics})
 	template.Must(t.Parse(text))
 	ew := &errWriter{w: w}
 	err := t.Execute(ew, data)

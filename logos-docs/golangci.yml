@@ -1,0 +1,8 @@
+# golangci-lint v2 config for the G2 lint gate; run it on new packages only with golangci-lint 2.15.0.
+version: "2"
+
+linters:
+  default: standard
+  exclusions:
+    presets:
+      - std-error-handling

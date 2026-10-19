@@ -1,0 +1,45 @@
+# M0-S1 secondary: a dependency with a newer go version reaches the
+# toolchain Switcher during module loading, bypassing Select's logos early
+# return. Logos mode must report the too-new dependency without switching.
+#
+# Fixture: the main module stays at the current version so Select sees no
+# startup switch; only dep/go.mod (wired in with a local replace) requires
+# go 1.99, so the TooNew surfaces through the Switcher while loading deps.
+# Offline (GOPROXY=off) a switch attempt fails in NewerToolchain and the
+# Switcher reports `switching to go >= ...` (switch.go).
+
+env GOTOOLCHAIN=auto
+env GOPROXY=off
+
+# Logos mode: too-new dependency errors without switching.
+! logos mod tidy
+stderr 'requires go >= 1\.99'
+! stderr 'switching to'
+
+# Plain-go control: the same module attempts a switch (upstream intact).
+! go mod tidy
+stderr 'switching to go >= 1\.99'
+
+-- go.mod --
+module example.com/toolchaincheck
+
+go 1.27
+
+require example.com/dep v0.0.0
+
+replace example.com/dep => ./dep
+
+-- main.go --
+package main
+
+import _ "example.com/dep"
+
+func main() {}
+
+-- dep/go.mod --
+module example.com/dep
+
+go 1.99
+
+-- dep/dep.go --
+package dep

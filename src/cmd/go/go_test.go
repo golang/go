@@ -266,6 +266,7 @@ func TestMain(m *testing.M) {
 				log.Fatal(err)
 			}
 		}
+		setupTestLogos()
 
 		out, err := exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
 		if err != nil {

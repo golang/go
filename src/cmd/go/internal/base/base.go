@@ -96,6 +96,9 @@ func (c *Command) LongName() string {
 	if name == "go" {
 		return ""
 	}
+	if logoName, ok := logosLongName(name); ok {
+		return logoName
+	}
 	return strings.TrimPrefix(name, "go ")
 }
 
@@ -110,7 +113,7 @@ func (c *Command) Name() string {
 
 func (c *Command) Usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
-	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.LongName())
+	fmt.Fprintf(os.Stderr, "Run '%s' for details.\n", helpReference(c.LongName()))
 	SetExitStatus(2)
 	Exit()
 }

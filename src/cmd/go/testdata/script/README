@@ -287,6 +287,10 @@ help [-v] name...
 	To display complete documentation when listing all commands,
 	pass the -v flag.
 
+logos [args...] [&]
+	run the 'logos' program provided by the script host
+
+
 mkdir path...
 	create directories, if they do not already exist
 

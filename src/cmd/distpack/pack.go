@@ -185,6 +185,7 @@ func main() {
 	binExes := []string{
 		"go",
 		"gofmt",
+		"logos",
 	}
 	crossBin := "bin"
 	if goos != gohostos || goarch != gohostarch {
