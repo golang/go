@@ -813,9 +813,6 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 			return p, perr
 		}
 	}
-	if perr := checkLogosImportEdge(parent, p); perr != nil {
-		return p, perr
-	}
 
 	if p.Name == "main" && parent != nil && parent.Dir != p.Dir {
 		perr := &PackageError{
@@ -2093,7 +2090,7 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 		}
 	}
 	p.Internal.Imports = imports
-	checkLogosImports(p)
+	checkLogosAliases(p)
 	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && !p.Incomplete && !opts.SuppressBuildInfo {
 		// TODO(bcmills): loading VCS metadata can be fairly slow.
 		// Consider starting this as a background goroutine and retrieving the result

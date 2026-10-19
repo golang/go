@@ -30,15 +30,6 @@ func (p *Package) IsLogos() bool {
 	return false
 }
 
-// logosSupportImport reports whether path is one of the designated loGo/s
-// support namespaces. A loGo/s package may import them without tripping the
-// kind boundary, and the allowance is path-based so it holds before the
-// support packages exist in the tree.
-func logosSupportImport(path string) bool {
-	return path == "logos/rt" || path == "logos/sync" ||
-		strings.HasPrefix(path, "logos/rt/") || strings.HasPrefix(path, "logos/sync/")
-}
-
 // logosIsCanonicalLgo reports whether name is a canonical .lgo file, after
 // stripping trailing variation selectors the same way the shared filename
 // predicate does.
@@ -46,84 +37,13 @@ func logosIsCanonicalLgo(name string) bool {
 	return strings.HasSuffix(strings.TrimRight(name, "\uFE0E\uFE0F"), ".lgo")
 }
 
-// checkLogosImports enforces the loGo/s and Go import boundary for one
-// package after its imports have resolved. A loGo/s package must not import
-// a Go package and a Go package must not import a loGo/s package; the
-// standard library and the designated support namespaces are allowed in
-// either direction. The generated test main is exempt: it is a Go-kind
-// harness that necessarily imports the package under test. The loadImport
-// edge hook reports each edge first, so this per-package pass converges on
-// the same verdict and then emits the alias warnings.
-func checkLogosImports(p *Package) {
+// checkLogosAliases emits the alias-extension warnings for one package
+// after its imports have resolved. The generated test main is exempt.
+func checkLogosAliases(p *Package) {
 	if !cfg.Logos || p.Internal.TestmainGo != nil {
 		return
 	}
-	for _, imp := range p.Internal.Imports {
-		if logosImportViolation(p, imp) {
-			break
-		}
-	}
 	emitLogosAliasWarnings(p)
-}
-
-// logosImportsGoError reports a loGo/s package importing a Go package.
-func logosImportsGoError(importerPath, impPath string) *PackageError {
-	return &PackageError{
-		Err: fmt.Errorf("[correctness::logos_imports_go] loGo/s package %s imports Go package %s; loGo/s and Go code do not import each other", importerPath, impPath),
-	}
-}
-
-// goImportsLogosError reports a Go package importing a loGo/s package.
-func goImportsLogosError(importerPath, impPath string) *PackageError {
-	return &PackageError{
-		Err: fmt.Errorf("[correctness::go_imports_logos] Go package %s imports loGo/s package %s", importerPath, impPath),
-	}
-}
-
-// logosImportEdgeError returns the cross-kind violation for an import edge
-// from importer to imp, or nil when the edge is allowed. It is pure:
-// callers decide where the error lands. Imports that failed to load
-// are skipped so a real load error keeps its own diagnostic, and the
-// standard library plus the designated support namespaces are allowed in
-// either direction.
-func logosImportEdgeError(importer, imp *Package) *PackageError {
-	if imp.Error != nil || imp.Standard || logosSupportImport(imp.ImportPath) {
-		return nil
-	}
-	if importer.IsLogos() == imp.IsLogos() {
-		return nil
-	}
-	if importer.IsLogos() {
-		return logosImportsGoError(importer.ImportPath, imp.ImportPath)
-	}
-	return goImportsLogosError(importer.ImportPath, imp.ImportPath)
-}
-
-// checkLogosImportEdge enforces the kind boundary for one resolved import
-// edge. loadImport is the single funnel for every edge, including test and
-// external test imports resolved for test variants, so this covers edges
-// that never appear in an importer's own file lists. It emits no warnings.
-func checkLogosImportEdge(parent, imp *Package) *PackageError {
-	if !cfg.Logos || parent == nil || parent.Internal.TestmainGo != nil {
-		return nil
-	}
-	return logosImportEdgeError(parent, imp)
-}
-
-// logosImportViolation records a cross-kind import from p to imp and reports
-// whether the scan should stop. Only the first violation is recorded, and
-// only when the package has no error yet, so an upstream load failure keeps
-// its own diagnostic.
-func logosImportViolation(p, imp *Package) bool {
-	err := logosImportEdgeError(p, imp)
-	if err == nil {
-		return false
-	}
-	if p.Error == nil {
-		p.Error = err
-		p.Incomplete = true
-	}
-	return true
 }
 
 // emitLogosAliasWarnings prints one warning per accepted alias-extension
