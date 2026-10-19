@@ -416,6 +416,15 @@ func init() {
 
 		// Issue #76236: '{' and '}' are token chars.
 		{"attachment; filename={file}.png", "attachment", m("filename", "{file}.png")},
+
+		// Issue #82343: Don't allow *-encoded parameters in weird places.
+		{`multipart/form-data; boundary=a; boundary*=utf-8''b`, "multipart/form-data", m("boundary", "a")},
+		{`multipart/form-data; boundary=a; boundary*0="b"`, "multipart/form-data", m("boundary", "a")},
+		{`multipart/form-data; boundary*0="b"`, "multipart/form-data", m()},
+		{`text; charset=utf-8; charset*=utf-8''utf-7`, "text", m("charset", "utf-8")},
+		{`text; charset=utf-8; charset*0="utf-7"`, "text", m("charset", "utf-8")},
+		{`text; charset*0="utf-7"`, "text", m()},
+		{`text; boundary=a; boundary*0="b"`, "text", m("boundary", "a")},
 	}
 }
 
