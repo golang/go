@@ -152,6 +152,10 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	// outside of the loop to speed up the encoder.
 	_ = enc.encode
 
+	// The following optimization avoids the need to recompute the capacities
+	// when generating code for src[3:] and dst[4:].
+	src, dst = src[:len(src):len(src)], dst[:len(dst):len(dst)]
+
 	for len(src) >= 3 {
 		// Convert 3x 8bit source bytes into 4 bytes
 		val := uint(src[0])<<16 | uint(src[1])<<8 | uint(src[2])
