@@ -38,9 +38,11 @@ func (p *parser) logosCheckCallParen(s *CallStmt) {
 	if !ok {
 		return
 	}
+	for inner, ok := t.X.(*TryExpr); ok; inner, ok = t.X.(*TryExpr) {
+		t = inner
+	}
 	if u := Unparen(t.X); u != t.X {
 		p.errorAt(t.X.Pos(), fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
-		// already progressed, no need to advance
 		t.X = u
 	}
 }

@@ -154,3 +154,13 @@ func keepDot(errdefer Tx) {
 func keepAddAssign(errdefer int) {
 	errdefer += 1
 }
+
+func badDeferParenTryTry() error {
+	defer (g())?? // ERROR expression in defer must not be parenthesized
+	return nil
+}
+
+func badGoParenTryTry() error {
+	go (g())?? // ERROR expression in go must not be parenthesized
+	return nil
+}
