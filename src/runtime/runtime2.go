@@ -593,6 +593,16 @@ type g struct {
 	// valgrindStackID is used to track what memory is used for stacks when a program is
 	// built with the "valgrind" build tag, otherwise it is unused.
 	valgrindStackID uintptr
+
+	// logosErrSite holds the per-goroutine loGo/s error-trace ring: site
+	// pointers for the latest error, oldest first. Lowered code uses
+	// package-level sites, so retention is free.
+	logosErrSite [8]unsafe.Pointer
+	// logosErrLen is the number of valid entries in logosErrSite.
+	logosErrLen uint8
+	// logosErrLast is the data word of the error that filled the ring:
+	// identity only, not a reference, so the trace keeps no error alive.
+	logosErrLast uintptr
 }
 
 // gTrackingPeriod is the number of transitions out of _Grunning between

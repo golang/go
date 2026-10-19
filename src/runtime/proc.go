@@ -4537,6 +4537,7 @@ func gdestroy(gp *g) {
 	gp.param = nil
 	gp.labels = nil
 	gp.timer = nil
+	logosClearErrTrace(gp)
 	gp.bubble = nil
 	gp.fipsOnlyBypass = false
 	gp.secret = 0

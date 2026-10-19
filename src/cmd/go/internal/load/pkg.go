@@ -1966,6 +1966,12 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 			addImport("syscall", true)
 		}
 
+		// Every logos package implicitly imports the support package,
+		// so lowered code can call into it without naming it.
+		if needsLogosRT(p) {
+			addImport("logos/rt", true)
+		}
+
 		// SWIG adds imports of some standard packages.
 		if p.UsesSwig() {
 			addImport("unsafe", true)

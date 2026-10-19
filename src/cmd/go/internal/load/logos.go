@@ -183,3 +183,12 @@ func firstCleanPackage(g *moduleKinds, goNames, logosNames []string) *Package {
 	}
 	return nil
 }
+
+// needsLogosRT decides the implicit logos/rt import: every logos package
+// gets it, so lowered code can call TraceErr, Join, and the helpers later
+// milestones add, even when no source file names the import. Plain Go
+// packages never get it. M11 appends logos/rt/json and M14 appends
+// simd/archsimd after this import, in that fixed order.
+func needsLogosRT(p *Package) bool {
+	return p.IsLogos()
+}
