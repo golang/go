@@ -721,7 +721,9 @@ func (p *printer) printRawNode(n Node) {
 		}
 
 	default:
-		panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))
+		if !printLogos(p, n) { // M1-S2 hook: loGo/s nodes.
+			panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))
+		}
 	}
 }
 

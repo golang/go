@@ -107,6 +107,9 @@ func StartPos(n Node) Pos {
 		// case *CommClause:
 
 		default:
+			if pos, ok := startPosLogos(n); ok { // M1-S2 hook: loGo/s nodes.
+				return pos
+			}
 			return n.Pos()
 		}
 	}
@@ -331,6 +334,9 @@ func EndPos(n Node) Pos {
 			return n.Colon
 
 		default:
+			if pos, ok := endPosLogos(n); ok { // M1-S2 hook: loGo/s nodes.
+				return pos
+			}
 			return n.Pos()
 		}
 	}

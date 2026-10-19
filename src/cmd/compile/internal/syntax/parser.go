@@ -1004,6 +1004,7 @@ func (p *parser) callStmt() *CallStmt {
 	}
 
 	s.Call = x
+	p.logosCheckGoTry(s) // M1-S2 hook: reject `?` in go statements.
 	return s
 }
 
@@ -1250,6 +1251,16 @@ loop:
 			n := p.complitexpr()
 			n.Type = x
 			x = n
+
+		case _Question:
+			// loGo/s postfix `?` (M1-S2 hook): the scanner emits
+			// _Question only in LogosMode, so plain mode always
+			// takes the default branch below.
+			if nx, ok := p.logosQuestion(x, pos); ok {
+				x = nx
+			} else {
+				break loop
+			}
 
 		default:
 			break loop
@@ -2623,6 +2634,9 @@ func (p *parser) stmtOrNil() Stmt {
 		lhs := p.exprList()
 		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
 			return p.labeledStmtOrNil(label)
+		}
+		if s := p.logosErrdefer(lhs); s != nil { // M1-S2 hook: errdefer statement.
+			return s
 		}
 		return p.simpleStmt(lhs, 0)
 	}

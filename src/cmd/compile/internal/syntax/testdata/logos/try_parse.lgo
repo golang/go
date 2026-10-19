@@ -1,0 +1,82 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M1-S2 parser attacks: `?` postfix and errdefer statements.
+// Every form without an ERROR comment must parse cleanly in LogosMode;
+// each ERROR comment pins the exact syntax error text.
+
+package p
+
+func f() (int, error) { return 0, nil }
+func g() error        { return nil }
+
+type Tx struct{}
+
+func (Tx) Rollback() error { return nil }
+
+func okAssign() (int, error) {
+	x := f()?
+	return x, nil
+}
+
+func okReassign() (int, error) {
+	x := 0
+	x = f()?
+	return x, nil
+}
+
+func okExpr() error {
+	g()?
+	return nil
+}
+
+func okDefer() error {
+	defer g()?
+	return nil
+}
+
+func okErrdefer() error {
+	errdefer g()
+	return nil
+}
+
+func okErrdeferMethod(tx Tx) error {
+	errdefer tx.Rollback()?
+	return nil
+}
+
+func okErrdeferFuncLit() error {
+	errdefer func() { g() }()
+	return nil
+}
+
+func keepDefine() {
+	errdefer := 1
+	_ = errdefer
+}
+
+func keepAssign() {
+	errdefer := 1
+	errdefer = 2
+	_ = errdefer
+}
+
+func keepCall(errdefer func(int)) {
+	x := 1
+	errdefer(x)
+}
+
+func keepSelect(errdefer Tx) {
+	errdefer.f()
+}
+
+func badErrdeferOperand() error {
+	errdefer 1 // ERROR syntax error: errdefer requires a function call
+	return nil
+}
+
+func badGoTry() error {
+	go g()? // ERROR syntax error: \? not allowed in go statement
+	return nil
+}
