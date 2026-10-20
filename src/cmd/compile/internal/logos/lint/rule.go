@@ -19,6 +19,11 @@ type Rule struct {
 	ID string
 	// Group is the group whose logos.toml severity governs the rule.
 	Group Group
+	// Default is the severity the rule reports at when logos.toml names no
+	// severity for its group, for a rule that SPEC Sec 1.2 sets apart from
+	// its group, such as a deny rule in the forbid group correctness. The
+	// zero value, Allow, selects the default severity of the group.
+	Default Severity
 	// Go is true for the language-neutral rules, which logos lint also
 	// runs on Go packages. Every other rule runs on loGo/s packages only.
 	Go bool

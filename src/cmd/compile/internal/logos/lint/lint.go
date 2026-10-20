@@ -13,8 +13,9 @@
 // as -logos.cfg (see ParsePolicy). Run applies four resolution steps to a
 // finding of rule R:
 //
-//   - the group severity of R is read from the policy, and a Go package
-//     lowers forbid to deny (the Go cap);
+//   - the group severity of R is read from the policy; when the policy
+//     names none, the Default of R applies if it has one, else the group
+//     default; a Go package lowers forbid to deny (the Go cap);
 //   - allow drops the finding, and the rule does not run;
 //   - forbid always reports, and a //logos:allow(R) directive naming it in
 //     a loGo/s package is itself reported as correctness::allow_forbidden_rule;

@@ -25,6 +25,7 @@ func returnEvalPanics() (v int, err error) {
 	return evalBoom()
 }
 
+//logos:allow(correctness::unbounded_channel_op)
 func goexitWorker(done chan string) (err error) {
 	errdefer func() { done <- "goexit-cleanup" }()
 	runtime.Goexit()
@@ -38,6 +39,7 @@ func spawnGoexit(done chan string) error {
 	return nil
 }
 
+//logos:allow(correctness::unbounded_channel_op)
 //logos:allow(slop::discarded_error)
 func main() {
 	func() {

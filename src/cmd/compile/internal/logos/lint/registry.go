@@ -10,6 +10,7 @@ var registry = []Rule{
 	unsupervisedGoroutine,
 	discardedError,
 	exhaustiveUnionSwitch,
+	arenaPointerEscape,
 	concurrentMultiwordRace,
 	errChainReset,
 	nilDerefUnproven,
@@ -24,4 +25,6 @@ var registry = []Rule{
 	sideEffectBeforeSort,
 	serializedUnsizedInt,
 	aliasExtension,
+	unclosedIOCloser,
+	unboundedChannelOp,
 }

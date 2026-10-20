@@ -16,6 +16,7 @@ import (
 
 var errQFail = errors.New("q-fail")
 
+//logos:allow(correctness::unbounded_channel_op)
 func slowChild(done chan string) error {
 	time.Sleep(50 * time.Millisecond)
 	done <- "child-done"
@@ -80,6 +81,7 @@ func returnAfterFailure(ctx context.Context) error {
 	return nil
 }
 
+//logos:allow(correctness::unbounded_channel_op)
 func check(tag string, done chan string) {
 	select {
 	case m := <-done:

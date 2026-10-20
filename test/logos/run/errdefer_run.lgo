@@ -84,12 +84,14 @@ func argEval() (err error) {
 	return errPrimary
 }
 
+//logos:allow(correctness::unbounded_channel_op)
 func goexitWorker(done chan string) (err error) {
 	errdefer func() { done <- "goexit-ran" }()
 	runtime.Goexit()
 	return nil
 }
 
+//logos:allow(correctness::unbounded_channel_op)
 //logos:allow(slop::discarded_error)
 func run() error {
 	_ = onError()

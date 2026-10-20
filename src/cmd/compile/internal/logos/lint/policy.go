@@ -159,10 +159,20 @@ func (p *Policy) Level(id string, k Kind) Severity {
 	g := GroupOf(id)
 	s, ok := p.groups[g]
 	if !ok {
-		s = DefaultSeverity(g)
+		s = defaultLevel(id, g)
 	}
 	if k == KindGo && s == Forbid {
 		return Deny
 	}
 	return s
+}
+
+// defaultLevel returns the severity of rule id when the policy names none
+// for its group g: the Default of the registered rule, else the default
+// severity of the group.
+func defaultLevel(id string, g Group) Severity {
+	if r, ok := Lookup(id); ok && r.Default != Allow {
+		return r.Default
+	}
+	return DefaultSeverity(g)
 }
