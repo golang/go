@@ -1,17 +1,16 @@
-// run
+// errorcheck
 
 package main
 
-import "fmt"
-
-// #75: a switch expression takes the common type of its arms. A `*P`
-// arm beside a `nil` arm yields `*P`, regardless of arm order
-// (SPEC Sec 2.3, T-203.1).
+// #75: a `nil` switch-expression arm reaching a non-nil pointer result
+// is now rejected by the non-nil zero-value rule (M3-S3), in either arm
+// position. An option type (*P?) is the nilable shape this fixture
+// exercised when `*P` could still hold nil.
 type P struct{ V int }
 
 func pickNilFirst(b bool) *P {
 	return switch b {
-	case true => nil
+	case true => nil // ERROR "nil_to_nonnil"
 	default => &P{V: 2}
 	}
 }
@@ -19,13 +18,6 @@ func pickNilFirst(b bool) *P {
 func pickNilLast(b bool) *P {
 	return switch b {
 	case true => &P{V: 1}
-	default => nil
+	default => nil // ERROR "nil_to_nonnil"
 	}
-}
-
-func main() {
-	fmt.Println(pickNilLast(true))
-	fmt.Println(pickNilLast(false))
-	fmt.Println(pickNilFirst(true))
-	fmt.Println(pickNilFirst(false))
 }

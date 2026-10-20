@@ -14,7 +14,7 @@ func note(s string) { order = append(order, s) }
 
 func commit() (err error) {
 	errdefer note("cleanup")
-	var p *opErr
+	p := (*opErr)(nil)
 	return p
 }
 

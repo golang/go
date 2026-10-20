@@ -55,7 +55,7 @@ func (e *typedErr) Error() string { return e.msg }
 
 func typedNil() (err error) {
 	errdefer note("typed-nil")
-	var p *typedErr
+	p := (*typedErr)(nil)
 	return p
 }
 
