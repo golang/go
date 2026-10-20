@@ -541,6 +541,7 @@ var optab = []Optab{
 	{AVMOV, C_ZREG, C_NONE, C_NONE, C_ARNG, C_NONE, 82, 4, 0, 0, 0},
 	{AVMOV, C_ZREG, C_NONE, C_NONE, C_ELEM, C_NONE, 78, 4, 0, 0, 0},
 	{AVMOV, C_ARNG, C_NONE, C_NONE, C_ARNG, C_NONE, 83, 4, 0, 0, 0},
+	{AVSMOV, C_ELEM, C_NONE, C_NONE, C_ZREG, C_NONE, 73, 4, 0, 0, 0},
 	{AVDUP, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 79, 4, 0, 0, 0},
 	{AVDUP, C_ELEM, C_NONE, C_NONE, C_VREG, C_NONE, 80, 4, 0, 0, 0},
 	{AVDUP, C_ZREG, C_NONE, C_NONE, C_ARNG, C_NONE, 82, 4, 0, 0, 0},
@@ -3443,6 +3444,7 @@ func buildop(ctxt *obj.Link) {
 
 		case AVCNT,
 			AVMOV,
+			AVSMOV,
 			AVLD1,
 			AVST1,
 			AVST2,
@@ -4935,11 +4937,14 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		o1 = c.oprrr(p, p.As, p.To.Reg, p.Reg, p.From.Reg)
 		o1 |= uint32(Q&1)<<30 | uint32(size&3)<<22
 
-	case 73: /* vmov V.<T>[index], R */
+	case 73: /* vmov/vsmov V.<T>[index], R */
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		imm5 := 0
 		o1 = 7<<25 | 0xf<<10
+		if p.As == AVSMOV {
+			o1 = 7<<25 | 0xb<<10 | 1<<30
+		}
 		index := int(p.From.Index)
 		switch (p.From.Reg >> 5) & 15 {
 		case ARNG_B:
@@ -4959,6 +4964,9 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			imm5 |= 8
 			imm5 |= index << 4
 			o1 |= 1 << 30
+			if p.As == AVSMOV {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
 		default:
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
