@@ -150,6 +150,13 @@ func optLit() {
 	_ = OptHolder{F: 42}
 }
 
+// An option compares only with nil; comparing it with a value needs an
+// unwrap first.
+func optCompare(m map[string]string) {
+	_ = m /* ERROR "operator != not defined on option" */ ["a"] != "R"
+	_ = (m["a"] ?? "") != "R"
+}
+
 // A `T?` value wraps into `(T?)?`; the nested option never unwraps
 // implicitly.
 func optNestWrap(x int?, w (int?)?) {

@@ -43,6 +43,15 @@ type Option struct {
 
 func (o *Option) Underlying() Type { return o }
 
+// logosCompositeKind names a loGo/s type kind for comparison and
+// conversion diagnostics (compositeKind in operand.go).
+func logosCompositeKind(typ Type) string {
+	if _, ok := typ.Underlying().(*ConstView); ok {
+		return "const view"
+	}
+	return "option"
+}
+
 // String prints the option through the qualified writer (like Pointer),
 // so nested options parenthesize and package qualification has one owner
 // in typestring.go.

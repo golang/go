@@ -177,6 +177,7 @@ var filemap = map[string]action{
 	// "object_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"objset.go": nil,
 	"operand.go": func(f *ast.File) {
+		stripLogosHooks(f) // must happen before renaming identifiers
 		insertImportPath(f, `"go/token"`)
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f,
