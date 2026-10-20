@@ -18,7 +18,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/logos"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
@@ -98,12 +97,6 @@ type pkgWriter struct {
 	// cgoPragmas accumulates any //go:cgo_* pragmas that need to be
 	// passed through to cmd/link.
 	cgoPragmas [][]string
-
-	// logosUnions classifies the declared unions of a loGo/s package
-	// for the Go-facing export. It is nil for plain Go packages (no
-	// declared unions), where every lookup misses and behavior is
-	// unchanged.
-	logosUnions map[*types2.TypeName]logos.UnionUse
 }
 
 // newPkgWriter returns an initialized pkgWriter for the specified
@@ -713,33 +706,6 @@ func (w *writer) interfaceType(typ *types2.Interface) {
 	for i := 0; i < typ.NumEmbeddeds(); i++ {
 		w.typ(typ.EmbeddedType(i))
 	}
-}
-
-// logosUnderlying writes the underlying type of a named type, dropping
-// union terms for a value-used loGo/s union so Go importers see the
-// same methods-only interface logos eject writes. The synthesized
-// interface routes through typ like every other type, so interning and
-// the decoder stay consistent. Every other type, including dual-use
-// unions (which keep the full union for .lgo importers; Go importers
-// fail at the import) and constraint-only unions, encodes exactly as
-// before.
-func (w *writer) logosUnderlying(obj *types2.TypeName, under types2.Type) {
-	iface, ok := under.(*types2.Interface)
-	if !ok || w.p.logosUnions[obj] != logos.UnionValueOnly {
-		w.typ(under)
-		return
-	}
-	methods := make([]*types2.Func, 0, iface.NumExplicitMethods())
-	for i := range iface.NumExplicitMethods() {
-		methods = append(methods, iface.ExplicitMethod(i))
-	}
-	var kept []types2.Type
-	for i := range iface.NumEmbeddeds() {
-		if e := iface.EmbeddedType(i); !logos.IsUnionTerm(e) {
-			kept = append(kept, e)
-		}
-	}
-	w.typ(types2.NewInterfaceType(methods, kept))
 }
 
 func (w *writer) signature(sig *types2.Signature) {
@@ -2995,21 +2961,6 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 	}
 }
 
-// logosClassifyUnionUses classifies the declared unions of the package
-// once, before either export root encodes anything. The public root
-// writes object definitions before pkgInit runs, so classifying in
-// pkgInit would leave the public root on the pre-M2-S7 rules while the
-// private root used the new ones.
-func (pw *pkgWriter) logosClassifyUnionUses(info *types2.Info, noders []*noder) {
-	files := make([]*syntax.File, 0, len(noders))
-	for _, p := range noders {
-		if p.file != nil {
-			files = append(files, p.file)
-		}
-	}
-	pw.logosUnions = logos.ClassifyDeclaredUnions(info, files)
-}
-
 func (w *writer) pkgInit(noders []*noder) {
 	w.Len(len(w.p.cgoPragmas))
 	for _, cgoPragma := range w.p.cgoPragmas {
@@ -3085,11 +3036,9 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 
 		name := w.p.info.Defs[decl.Name].(*types2.TypeName)
 		// Skip type declarations for interfaces that are only usable as
-		// type parameter bounds. A value-used loGo/s union keeps its
-		// declaration: Go importers read the methods-only interface
-		// the object encoding writes.
+		// type parameter bounds.
 		if iface, ok := name.Type().Underlying().(*types2.Interface); ok && !iface.IsMethodSet() {
-			if !logos.KeepUnionDecl(w.p.logosUnions, name) {
+			if logosSkipUnionDecl(w.p, name) { // logos M2-S7 hook: value-used unions keep their declaration.
 				break
 			}
 		}

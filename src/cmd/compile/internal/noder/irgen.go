@@ -57,8 +57,8 @@ recheck:
 	importer := gcimports{
 		ctxt:     ctxt,
 		packages: make(map[string]*types2.Package),
-		logos:    base.Logos,
 	}
+	logosMarkImporter(&importer, base.Logos) // logos M2-S7 hook: the import kind selects union handling.
 	conf := types2.Config{
 		Context:            ctxt,
 		GoVersion:          base.Flag.Lang,

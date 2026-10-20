@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"internal/exportdata"
-	"internal/pkgbits"
 	"os"
 	pathpkg "path"
 	"runtime"
@@ -18,10 +17,6 @@ import (
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/importer"
-	"cmd/compile/internal/ir"
-	"cmd/compile/internal/typecheck"
-	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
@@ -31,10 +26,6 @@ import (
 type gcimports struct {
 	ctxt     *types2.Context
 	packages map[string]*types2.Package
-	// logos reports whether the importing package is loGo/s. A Go
-	// importer rejects a dual-use union at the import (M2-S7); a
-	// loGo/s importer keeps the full union.
-	logos bool
 }
 
 func (m *gcimports) Import(path string) (*types2.Package, error) {
@@ -46,14 +37,7 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
 		panic("mode must be 0")
 	}
 
-	var pkg *types2.Package
-	var err error
-	if m.logos {
-		pkg, err = readLogosImportFile(path, typecheck.Target, m.ctxt, m.packages)
-	} else {
-		pkg, err = readGoImportFile(path, typecheck.Target, m.ctxt, m.packages)
-	}
-	return pkg, err
+	return logosImportFrom(m, path)
 }
 
 func isDriveLetter(b byte) bool {
@@ -175,101 +159,6 @@ func resolveImportPath(path string) (string, error) {
 	}
 
 	return path, nil
-}
-
-// readImportFile reads the import file for the given package path and
-// returns its types.Pkg representation. If packages is non-nil, the
-// types2.Package representation is also returned.
-func readImportFile(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
-	return readImportFileImpl(path, target, env, packages, false)
-}
-
-// readGoImportFile and readLogosImportFile select the importer's
-// package kind; only readLogosImportFile keeps dual-use unions legal.
-func readGoImportFile(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package) (*types2.Package, error) {
-	_, pkg, err := readImportFileImpl(path, target, env, packages, false)
-	return pkg, err
-}
-
-func readLogosImportFile(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package) (*types2.Package, error) {
-	_, pkg, err := readImportFileImpl(path, target, env, packages, true)
-	return pkg, err
-}
-
-func readImportFileImpl(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package, logos bool) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
-	path, err = resolveImportPath(path)
-	if err != nil {
-		return
-	}
-
-	if path == "unsafe" {
-		pkg1, pkg2 = types.UnsafePkg, types2.Unsafe
-
-		// TODO(mdempsky): Investigate if this actually matters. Why would
-		// the linker or runtime care whether a package imported unsafe?
-		if !pkg1.Direct {
-			pkg1.Direct = true
-			target.Imports = append(target.Imports, pkg1)
-		}
-
-		return
-	}
-
-	pkg1 = types.NewPkg(path, "")
-	if packages != nil {
-		pkg2 = packages[path]
-		if !(pkg1.Direct == (pkg2 != nil && pkg2.Complete())) {
-
-			base.Fatalf("pkg1.Direct == (pkg2 != nil && pkg2.Complete()), path=%s\npackages=%v", path, packages)
-		}
-	}
-
-	if pkg1.Direct {
-		return
-	}
-	pkg1.Direct = true
-	target.Imports = append(target.Imports, pkg1)
-
-	f, err := openPackage(path)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	data, err := readExportData(f)
-	if err != nil {
-		return
-	}
-	var logosFacts bool
-	if logosFacts, err = readLogosFacts(f, path, data); err != nil {
-		return
-	}
-
-	if base.Debug.Export != 0 {
-		fmt.Printf("importing %s (%s)\n", path, f.Name())
-	}
-
-	pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
-
-	// The union-import check needs the package scope, but resolving a
-	// foreign lazy scope tripped importer asserts. Gate it on the
-	// export naming a loGo/s source file, which plain-Go archives
-	// never do; the sidecar check additionally requires the transport
-	// to be intact.
-	checkLogosUnion := !logos && logosFacts && logosExportHasLogosFile(&pr)
-
-	// Read package descriptors for both types2 and compiler backend.
-	readPackage(newPkgReader(pr), pkg1, false)
-	pkg2 = importer.ReadPackage(env, packages, pr)
-	if pkg2 != nil && logos {
-		pkg2 = applyLogosOverlayForLgoImporter(path, pkg2, packages) // logos M3-S7 hook: .lgo importers see Option types.
-	}
-	if pkg2 != nil && checkLogosUnion {
-		checkLogosGoImport(pkg2)
-	}
-
-	err = addFingerprint(path, data)
-	return
 }
 
 // readExportData returns the contents of GC-created unified export data.
