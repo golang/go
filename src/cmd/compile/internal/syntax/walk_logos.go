@@ -11,7 +11,7 @@ package syntax
 // the house order (parent before child): TryExpr before its operand,
 // ErrdeferStmt before its call, SwitchExpr before its init, tag, and
 // arms, ArmClause before its cases and body, AssertedStruct before its
-// assertions and struct.
+// assertions and struct, PropertyType before its value type.
 func (w walker) walkLogos(n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
@@ -36,5 +36,7 @@ func (w walker) walkLogos(n Node) {
 	case *AssertedStruct:
 		w.exprList(n.Asserts)
 		w.node(n.Struct)
+	case *PropertyType:
+		w.node(n.Type)
 	}
 }

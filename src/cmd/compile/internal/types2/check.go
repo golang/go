@@ -147,13 +147,15 @@ type Checker struct {
 	usedPkgNames  map[*PkgName]bool          // set of used package names
 	mono          monoGraph                  // graph for detecting non-monomorphizable instantiation loops
 
-	firstErr   error                    // first error encountered
-	methods    map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
-	untyped    map[syntax.Expr]exprInfo // map of expressions without final type
-	delayed    []action                 // stack of delayed action segments; segments are processed in FIFO order
-	objPath    []Object                 // path of object dependencies during type-checking (for cycle reporting)
-	objPathIdx map[Object]int           // map of object to object path index during type-checking (for cycle reporting)
-	cleaners   []cleaner                // list of types that may need a final cleanup at the end of type-checking
+	firstErr      error                         // first error encountered
+	logosConforms map[*Named][]Type             // logos M4-S1 hook: explicit `: I` property-interface conformances per struct
+	logosPropSel  map[*syntax.SelectorExpr]bool // logos M4-S1 hook: property selectors typed through a property interface
+	methods       map[*TypeName][]*Func         // maps package scope type names to associated non-blank (non-interface) methods
+	untyped       map[syntax.Expr]exprInfo      // map of expressions without final type
+	delayed       []action                      // stack of delayed action segments; segments are processed in FIFO order
+	objPath       []Object                      // path of object dependencies during type-checking (for cycle reporting)
+	objPathIdx    map[Object]int                // map of object to object path index during type-checking (for cycle reporting)
+	cleaners      []cleaner                     // list of types that may need a final cleanup at the end of type-checking
 
 	// environment within which the current object is type-checked (valid only
 	// for the duration of type-checking a specific object)

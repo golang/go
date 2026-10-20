@@ -126,12 +126,17 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		*ityp.embedPos = append(*ityp.embedPos, pos)
 	}
 
+	var seenProps map[string]*logosPropDecl // M4-S1 hook: merged property declarations.
 	for _, f := range iface.MethodList {
 		if f.Name == nil {
 			addEmbedded(atPos(f.Type), parseUnion(check, f.Type))
 			continue
 		}
 		// f.Name != nil
+		if pt, ok := f.Type.(*syntax.PropertyType); ok { // M4-S1 hook: `const F T` / `F T` elements.
+			seenProps = check.logosPropertyMethod(ityp, f, pt, def, seenProps)
+			continue
+		}
 
 		// We have a method with name f.Name.
 		name := f.Name.Value

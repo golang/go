@@ -1581,7 +1581,7 @@ func (p *parser) interfaceType() *InterfaceType {
 	p.want(_Lbrace)
 	p.list("interface type", _Semi, _Rbrace, func() bool {
 		var f *Field
-		if p.tok == _Name {
+		if f = p.logosPropertyConst(); f == nil && p.tok == _Name { // M4-S1 hook: `const F T` properties.
 			f = p.methodDecl()
 		}
 		if f == nil || f.Name == nil {
@@ -1778,6 +1778,10 @@ func (p *parser) methodDecl() *Field {
 	name := p.name()
 
 	const context = "interface method"
+
+	if pf := p.logosPropertyRest(name, f); pf != nil { // M4-S1 hook: `F T` properties.
+		return pf
+	}
 
 	switch p.tok {
 	case _Lparen:

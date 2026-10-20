@@ -720,7 +720,7 @@ func (p *printer) printRawNode(n Node) {
 			p.printDeclList(n.DeclList)
 		}
 
-	case *TryExpr, *ErrdeferStmt, *SwitchExpr, *ArmClause, *AssertedStruct: // M1-S2, M2 hook: loGo/s nodes.
+	case *TryExpr, *ErrdeferStmt, *SwitchExpr, *ArmClause, *AssertedStruct, *PropertyType: // M1-S2, M2, M4-S1 hook: loGo/s nodes.
 		printLogos(p, n)
 	default:
 		panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))
@@ -769,8 +769,12 @@ func (p *printer) printMethodList(methods []*Field) {
 			p.print(_Semi, newline)
 		}
 		if m.Name != nil {
-			p.printNode(m.Name)
-			p.printSignature(m.Type.(*FuncType))
+			if pt, ok := m.Type.(*PropertyType); ok { // M4-S1 hook: `const F T` / `F T` elements.
+				logosPrintProperty(p, m.Name, pt)
+			} else {
+				p.printNode(m.Name)
+				p.printSignature(m.Type.(*FuncType))
+			}
 		} else {
 			p.printNode(m.Type)
 		}

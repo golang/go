@@ -825,6 +825,10 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		goto Error
 	}
 
+	if check.logosPropertySelector(x, e, sel) { // logos M4-S1 hook: `x.F` on a property interface.
+		return
+	}
+
 	obj, index, indirect = lookupFieldOrMethod(x.typ(), x.mode() == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).

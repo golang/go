@@ -136,6 +136,9 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 	op := e.Op
 	switch op {
 	case syntax.And:
+		if check.logosPropertyAddress(x, e) { // logos M4-S1 hook: `&x.F` on a property interface.
+			return
+		}
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
 		if _, ok := syntax.Unparen(e.X).(*syntax.CompositeLit); !ok && x.mode() != variable {

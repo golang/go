@@ -23,9 +23,10 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 // endPosLogos reports the approximate end position of loGo/s nodes: one
 // past `?` for a TryExpr (mirroring the Name `p.Col()+len` precedent),
 // the end of the call for an ErrdeferStmt, the closing brace of a
-// SwitchExpr, the end of an arm's result for an ArmClause, and the
-// opening brace of an AssertedStruct (the struct's closing brace is not
-// recorded). ok is false otherwise.
+// SwitchExpr, the end of an arm's result for an ArmClause, the end of
+// the value type for a PropertyType, and the opening brace of an
+// AssertedStruct (the struct's closing brace is not recorded). ok is
+// false otherwise.
 func endPosLogos(n Node) (pos Pos, ok bool) {
 	switch n := n.(type) {
 	case *TryExpr:
@@ -39,6 +40,8 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		return EndPos(n.Body), true
 	case *AssertedStruct:
 		return n.Lbrace, true
+	case *PropertyType:
+		return EndPos(n.Type), true
 	}
 	return Pos{}, false
 }

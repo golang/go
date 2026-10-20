@@ -7,6 +7,8 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
+	"maps"
+	"slices"
 )
 
 // LoGo/s M2-S6 rule for inline interface assertions (SPEC Sec 2.3,
@@ -37,6 +39,9 @@ func (check *Checker) logosAssertedStruct(e *syntax.AssertedStruct, def *TypeNam
 	for i, a := range e.Asserts {
 		asserts[i] = check.typ(a)
 	}
+	if check.conf.Logos {
+		check.logosRecordConforms(def, asserts)
+	}
 	check.later(func() {
 		check.logosCheckAsserts(e, def, asserts)
 	}).describef(e, "check struct assertions of %s", def.name)
@@ -45,20 +50,54 @@ func (check *Checker) logosAssertedStruct(e *syntax.AssertedStruct, def *TypeNam
 
 // logosCheckAsserts reports assertion_failed for every asserted type of
 // e that is not an interface or that *def does not implement, with the
-// cause upstream gives for the missing method.
+// cause upstream gives for the missing method. Asserted property
+// interfaces (M4-S1) take the conformance path instead: their properties
+// merge across the assert list (conflicts report property_conflict),
+// then each merged property needs a field or method source on *def and
+// each ordinary method must be implemented.
 func (check *Checker) logosCheckAsserts(e *syntax.AssertedStruct, def *TypeName, asserts []Type) {
 	ptr := NewPointer(def.Type())
+	var merged map[string]logosMergedProp
+	propErr := false
 	for i, T := range asserts {
 		if !isValid(T) {
 			continue
 		}
 		if !IsInterface(T) || isTypeParam(T) {
 			check.errorf(e.Asserts[i], InvalidIfaceAssign, "%s %s is not an interface", logosAssertFail, T)
+			propErr = true
+			continue
+		}
+		if check.conf.Logos && logosPropertyInterface(T) != nil {
+			if merged == nil {
+				merged = make(map[string]logosMergedProp)
+			}
+			if check.logosCheckPropertyAssert(e, T, i, merged) {
+				propErr = true
+			}
 			continue
 		}
 		var cause string
 		if !check.implements(ptr, T, false, &cause) {
 			check.errorf(e.Asserts[i], InvalidIfaceAssign, "%s %s", logosAssertFail, cause)
+		}
+	}
+	if propErr || len(merged) == 0 {
+		return
+	}
+	for _, name := range slices.Sorted(maps.Keys(merged)) {
+		if check.logosCheckMergedProp(name, ptr, merged[name]) {
+			return
+		}
+	}
+	for i, T := range asserts {
+		iface := logosPropertyInterface(T)
+		if iface == nil {
+			continue
+		}
+		if name := check.logosMissingOrdinary(ptr, iface); name != "" {
+			check.errorf(e.Asserts[i], InvalidIfaceAssign, "%s %s does not implement %s (missing method %s)", logosAssertFail, ptr, T, name)
+			return
 		}
 	}
 }

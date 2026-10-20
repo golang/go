@@ -47,6 +47,11 @@ func printLogos(p *printer, n Node) {
 			p.print(_Default)
 		}
 		p.print(blank, _FatArrow, blank, n.Body)
+	case *PropertyType:
+		if n.Const {
+			p.print(_Const, blank)
+		}
+		p.printNode(n.Type)
 	case *AssertedStruct:
 		p.print(_Struct, blank, _Colon, blank)
 		p.printExprList(n.Asserts)
@@ -62,6 +67,18 @@ func printLogos(p *printer, n Node) {
 		}
 		p.print(_Rbrace)
 	}
+}
+
+// logosPrintProperty prints one property interface element in source
+// form: `const F T` for a read-only property, `F T` otherwise. Both
+// reparse to the same tree, so printing stays idempotent.
+func logosPrintProperty(p *printer, name *Name, pt *PropertyType) {
+	if pt.Const {
+		p.print(_Const, blank)
+	}
+	p.printNode(name)
+	p.print(blank)
+	p.printNode(pt.Type)
 }
 
 // logosImpliesSemi reports whether a loGo/s token ends an operand like a
