@@ -96,6 +96,13 @@ func (fl *fileLower) lowerLambdaExpr(lam *syntax.LambdaExpr) {
 		return
 	}
 	_ = results
+	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
+		var ok2 bool
+		resultsText, ok2 = fl.lowerLambdaScopeDefers(lam, pos, sig, block, params.String(), resultsText)
+		if !ok2 {
+			return
+		}
+	}
 	body, bodyText := fl.lambdaBody(lam, sig, pos)
 	fullText := "func(" + params.String() + ")" + resultsText + " { " + bodyText + " }"
 	ft, ok := typeExprAt("func("+params.String()+")"+resultsText, pos)
@@ -214,6 +221,87 @@ func (fl *fileLower) lambdaTryBody(sig *types2.Signature, pos syntax.Pos, t *syn
 		text.WriteString(" " + strings.Join(retTexts, ", "))
 	}
 	return blockOf(pos, []syntax.Stmt{as, branch, ret}), text.String()
+}
+
+// lowerLambdaScopeDefers runs the M6-S10 scope-defer pre-pass over a block
+// lambda body before lambdaBody bakes its eject text (D9). Function bodies
+// get this pass from funcLower.run, but lambda bodies are still LambdaExpr
+// nodes then and no funcLower ever visits them afterwards, so a scope defer
+// inside one survived lowering. Only the scope pre-pass runs here:
+// statement lowering never visits lambda bodies, and nested function
+// literals keep the funcLower they get from the enclosing statement scan.
+// The pass records its splices strictly inside the body span, so the later
+// textOf in lambdaBody drains them into the outer lambda splice and the
+// native tree and eject text agree. When the lambda has results, they are
+// named in the signature text (tree-only spellings, never splices at the
+// synthetic positions typeExprAt invents) so scopeReturn can stage named
+// values before running cleanups.
+func (fl *fileLower) lowerLambdaScopeDefers(lam *syntax.LambdaExpr, pos syntax.Pos, sig *types2.Signature, block *syntax.BlockStmt, paramText, resultsText string) (string, bool) {
+	if !hasDirectScopeDefer(block) {
+		return resultsText, true
+	}
+	if sig.Results().Len() > 0 {
+		named, ok := fl.lambdaNamedResults(pos, sig)
+		if !ok {
+			return "", false
+		}
+		resultsText = named
+	}
+	ft, ok := typeExprAt("func("+paramText+")"+resultsText, pos)
+	if !ok {
+		return "", false
+	}
+	functype, ok := ft.(*syntax.FuncType)
+	if !ok {
+		return "", false
+	}
+	fc := newFuncLower(fl, functype, block)
+	fc.detectCleanups()
+	if fc.hasScopeDefer {
+		fc.lowerScopeDefers()
+	}
+	return resultsText, true
+}
+
+// hasDirectScopeDefer reports whether block holds a scope defer outside
+// nested function literals and lambdas: those belong to their own lowering
+// and the scope pre-pass traversal never descends into them.
+func hasDirectScopeDefer(block *syntax.BlockStmt) bool {
+	found := false
+	syntax.Inspect(block, func(n syntax.Node) bool {
+		switch n.(type) {
+		case *syntax.FuncLit:
+			return false
+		case *syntax.LambdaExpr:
+			return false
+		case *syntax.ScopeDeferStmt:
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+// lambdaNamedResults spells the result list with generated names, mirroring
+// lambdaResultSpell shapes, for a block lambda whose body holds a scope
+// defer: scopeReturn stages result values through these names.
+func (fl *fileLower) lambdaNamedResults(pos syntax.Pos, sig *types2.Signature) (string, bool) {
+	n := sig.Results().Len()
+	texts := make([]string, n)
+	for i := range texts {
+		spelled, ok := fl.spellLowered(sig.Results().At(i).Type())
+		if !ok {
+			spelled, ok = fl.spellType(sig.Results().At(i).Type())
+			if !ok {
+				return "", false
+			}
+		}
+		texts[i] = fmt.Sprintf("_logos_lr%d %s", i, spelled)
+	}
+	// Always parenthesized: unlike the unnamed single-result shorthand, a
+	// named result list needs parens even for one result.
+	return " (" + strings.Join(texts, ", ") + ")", true
 }
 
 // lambdaZero builds the zero value of a result type.
