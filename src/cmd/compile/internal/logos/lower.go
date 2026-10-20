@@ -374,6 +374,7 @@ func (fc *funcLower) run() {
 		fc.armOkFlag()
 	}
 	fc.lowerScopeDefers() // M6-S10 hook: scope-defer exits before statement lowering.
+	fc.lowerConstIf()     // M7-S1 hook: prune dead `const if` branches first.
 	fc.body.List = fc.lowerList(fc.body.List)
 }
 
@@ -477,7 +478,7 @@ func rejectSurvivors(file *syntax.File) {
 		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
 			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl,
 			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault, *syntax.SpreadExpr, *syntax.InterpExpr,
-			*syntax.TupleType, *syntax.TupleLit, *syntax.LambdaExpr:
+			*syntax.TupleType, *syntax.TupleLit, *syntax.LambdaExpr, *syntax.ConstIfStmt, *syntax.ConstSwitchStmt:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

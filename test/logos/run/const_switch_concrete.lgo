@@ -1,0 +1,84 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"io"
+	"strings"
+)
+
+// M7-S4 const switch over a concrete type (SPEC Sec 2.5, T-205): the
+// switch folds to its first matching case in source order, a tilde case
+// matches the underlying type, an interface case matches an implementer,
+// and a tag that matches no case removes the statement so the code after
+// it runs (#57, #91, #86).
+
+type UserID int
+
+type Word struct {
+	S string
+}
+
+func (w Word) WriteTo(dst io.Writer) (int64, error) {
+	n, err := io.WriteString(dst, w.S)
+	return int64(n), err
+}
+
+func exactFirst() string {
+	const switch UserID {
+	case UserID:
+		return "exact"
+	case ~int:
+		return "tilde"
+	}
+	return "after"
+}
+
+func tildeBeforeIface() string {
+	const switch UserID {
+	case ~int:
+		return "tilde"
+	case any:
+		return "any"
+	}
+	return "after"
+}
+
+func ifaceBeforeIface() string {
+	const switch Word {
+	case io.WriterTo:
+		return "writer-to"
+	case any:
+		return "any"
+	}
+	return "after"
+}
+
+func noMatch() string {
+	const switch UserID {
+	case ~string:
+		return "string"
+	case io.Reader:
+		return "reader"
+	}
+	return "after"
+}
+
+func ifaceBody(w Word) string {
+	const switch Word {
+	case io.WriterTo:
+		var b strings.Builder
+		w.WriteTo(&b)
+		return b.String()
+	}
+	return "after"
+}
+
+func main() {
+	fmt.Println(exactFirst())
+	fmt.Println(tildeBeforeIface())
+	fmt.Println(ifaceBeforeIface())
+	fmt.Println(noMatch())
+	fmt.Println(ifaceBody(Word{"body"}))
+}

@@ -243,6 +243,9 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 				fwdJumps = append(fwdJumps, check.blockBranches(all, b, nil, s.Body)...)
 			}
 
+		case *syntax.ConstIfStmt, *syntax.ConstSwitchStmt:
+			fwdJumps = append(fwdJumps, check.logosConstBranches(all, b, lstmt, s)...) // logos M7-S1/S4 hook.
+
 		case *syntax.SelectStmt:
 			b := &block{b, lstmt, nil}
 			for _, s := range s.Body {

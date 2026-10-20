@@ -1,0 +1,41 @@
+// asmcheck
+
+package deadcheck
+
+// M7-S1 const if (SPEC Sec 2.5, T-205): only the live branch's code
+// exists after lowering. Each pattern sits on the line of a branch call:
+// a dead branch's call line has no CALL, a live branch's call line has
+// one. The callees are not inlinable, so a dead branch that survived
+// lowering would show its CALL.
+
+//go:noinline
+func deadBranch() int { return 0 }
+
+//go:noinline
+func liveBranch() int { return 1 }
+
+func pickThen() int {
+	const if 1 == 1 {
+		return liveBranch() // amd64:"CALL.*liveBranch" arm64:"CALL.*liveBranch"
+	} else {
+		return deadBranch() // amd64:-"CALL" arm64:-"CALL"
+	}
+}
+
+func pickElse() int {
+	const if 1 == 2 {
+		return deadBranch() // amd64:-"CALL" arm64:-"CALL"
+	} else {
+		return liveBranch() // amd64:"CALL.*liveBranch" arm64:"CALL.*liveBranch"
+	}
+}
+
+func pickChain() int {
+	const if 1 == 2 {
+		return deadBranch() // amd64:-"CALL" arm64:-"CALL"
+	} else const if 1 == 1 {
+		return liveBranch() // amd64:"CALL.*liveBranch" arm64:"CALL.*liveBranch"
+	} else {
+		return deadBranch() // amd64:-"CALL" arm64:-"CALL"
+	}
+}

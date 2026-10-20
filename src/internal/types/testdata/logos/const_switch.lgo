@@ -1,0 +1,211 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import (
+	"io"
+	"os"
+)
+
+type UserID int
+
+// M7-S4 const switch (SPEC Sec 2.5, T-205): exact cases rebind T,
+// tilde cases match the underlying type, interface cases gain the
+// case methods while the outer constraint methods keep working, and a
+// slice of T never rebinds as a slice of the interface (#45).
+
+func validSwitch[T any](v T, items []T) string {
+	_, _ = v, items
+	const switch T {
+	case int:
+		return "int"
+	case ~int:
+		return "tilde"
+	case io.Writer:
+		return "writer"
+	}
+	return "other"
+}
+
+func shadowedAfterBroader[T any](v T) string {
+	_ = v
+	const switch T {
+	case ~int:
+		return "tilde"
+	case int /* ERROR "comptime::unreachable_case" */ :
+		return "int"
+	}
+	return "other"
+}
+
+type writerInt int
+
+func (w writerInt) Write(p []byte) (int, error) { return len(p), nil }
+
+func shadowedAfterInterface[T any](v T) string {
+	_ = v
+	const switch T {
+	case io.Writer:
+		return "writer"
+	case writerInt /* ERROR "comptime::unreachable_case" */ :
+		return "writerint"
+	}
+	return "other"
+}
+
+func ifaceGainsKeeps[T io.Reader](v T) {
+	const switch T {
+	case io.Writer:
+		_, _ = v.Read(nil)
+		_, _ = v.Write(nil)
+	}
+}
+
+func ifaceCasesScopeSeparately[T any](v T) {
+	_ = v
+	const switch T {
+	case io.Reader:
+		x := 1
+		_ = x
+	case io.Writer:
+		x := 2
+		_ = x
+	}
+}
+
+func sliceNeverRebinds[T any](items []T) {
+	const switch T {
+	case io.Writer:
+		var ws []io.Writer = items // ERROR "cannot use items"
+		_ = ws
+	}
+}
+
+func bump[T any](v T) {
+	const switch T {
+	case int:
+		_ = v + 1
+	}
+}
+
+func exactRebindsAssign[T any](v T) {
+	const switch T {
+	case int:
+		var n int = v
+		_ = n
+	}
+}
+
+func tildeKeepsDeclaredType(v UserID) int {
+	const switch UserID {
+	case ~int:
+		var n int = v // ERROR "cannot use v"
+		return int(v) + n
+	}
+	return 0
+}
+
+func tildeKeepsTypeParam[T ~int](v T) int {
+	const switch T {
+	case ~int:
+		var n int = v // ERROR "cannot use v"
+		return int(v) + n
+	}
+	return 0
+}
+
+func concreteFold(v UserID) string {
+	_ = v
+	const switch UserID {
+	case int /* ERROR "comptime::unreachable_case" */ :
+		return "exact"
+	case ~int:
+		return "tilde"
+	}
+	return "other"
+}
+
+var switchTagVal = 1
+
+func switchOnValue() {
+	const switch switchTagVal /* ERROR "comptime::switch_not_type" */ {
+	case int:
+	}
+}
+
+func caseOnValue[T any](v T) {
+	_ = v
+	const switch T {
+	case switchTagVal /* ERROR "comptime::case_not_type" */ :
+	}
+}
+
+func tildeComposite[T any](v T) {
+	_ = v
+	const switch T {
+	case ~ /* ERROR "comptime::tilde_not_basic" */ []int :
+	}
+}
+
+func breakInCase[T any](v T) {
+	_ = v
+	for {
+		const switch T {
+		case int:
+			break // ERROR "break not in for, switch, or select statement"
+		}
+	}
+}
+
+func continueInCase[T any](v T) {
+	_ = v
+	for {
+		const switch T {
+		case int:
+			continue // ERROR "continue not in for statement"
+		}
+	}
+}
+
+func breakInNestedFor[T any](v T) {
+	_ = v
+	const switch T {
+	case int:
+		for {
+			break
+		}
+	}
+}
+
+func concreteTerminates(v UserID) string {
+	_ = v
+	const switch UserID {
+	case ~int:
+		return "tilde"
+	case any:
+		return "any"
+	}
+}
+
+func labeledJumpOut[T any](v T) {
+	_ = v
+outer:
+	for {
+		const switch T {
+		case int:
+			break outer
+		case string:
+			continue outer
+		}
+	}
+}
+
+func filesNeverRebind(items []*os.File) {
+	const switch *os.File {
+	case io.Writer:
+		var ws []io.Writer = items // ERROR "cannot use items"
+		_ = ws
+	}
+}

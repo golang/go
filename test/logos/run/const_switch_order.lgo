@@ -1,0 +1,108 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+)
+
+// M7-S4 const switch case order in the run-time form (SPEC Sec 2.5, T-205):
+// cases evaluate top-down in first-match order whatever mix of exact,
+// tilde, and interface cases appears. A case body that does not return
+// still ends the switch: no later case runs after a match (#57, #91).
+
+type UserID int
+
+func tildeThenAny[T any](v T) string {
+	_ = v
+	const switch T {
+	case ~int:
+		return "tilde"
+	case any:
+		return "any"
+	}
+	return "none"
+}
+
+func ifaceThenExact[T any](v T) string {
+	_ = v
+	const switch T {
+	case io.Reader:
+		return "reader"
+	case string:
+		return "string"
+	case any:
+		return "any"
+	}
+	return "none"
+}
+
+func mixed[T any](v T) string {
+	_ = v
+	const switch T {
+	case ~int:
+		return "tilde-int"
+	case string:
+		return "string"
+	case io.Writer:
+		return "writer"
+	case float64:
+		return "float"
+	}
+	return "other"
+}
+
+func trail[T any](v T) string {
+	_ = v
+	out := ""
+	const switch T {
+	case ~int:
+		out += "tilde;"
+	case string:
+		out += "string;"
+	case any:
+		out += "any;"
+	}
+	return out + "end"
+}
+
+func nested[T any](v T) string {
+	_ = v
+	out := ""
+	const switch T {
+	case ~int:
+		const switch T {
+		case int:
+			out += "int;"
+		case ~int:
+			out += "tilde;"
+		}
+	case string:
+		out += "string;"
+	}
+	return out + "end"
+}
+
+func looped[T any](items []T) string {
+	out := ""
+	for range items {
+		const switch T {
+		case ~int:
+			out += "i"
+		case string:
+			out += "s"
+		}
+	}
+	return out + "."
+}
+
+func main() {
+	fmt.Println(tildeThenAny(3), tildeThenAny(UserID(3)), tildeThenAny("s"))
+	fmt.Println(ifaceThenExact("s"), ifaceThenExact(&bytes.Buffer{}), ifaceThenExact(1))
+	fmt.Println(mixed(3), mixed(UserID(4)), mixed("s"), mixed(&bytes.Buffer{}), mixed(1.5), mixed(true))
+	fmt.Println(trail(3), trail("s"), trail(1.5))
+	fmt.Println(nested(3), nested(UserID(1)), nested("s"), nested(1.5))
+	fmt.Println(looped([]int{1, 2}), looped([]string{"a"}), looped([]float64{1}))
+}

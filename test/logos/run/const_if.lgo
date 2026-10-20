@@ -1,0 +1,41 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S1 const if (SPEC Sec 2.5, T-205): only the live branch survives
+// lowering; the dead branch call is absent from the binary
+// (test/logos/codegen/const_if_dead.lgo), and both branches still
+// type-check (src/internal/types/testdata/logos/const_if.lgo).
+
+func pick() string {
+	const if 1 == 1 {
+		return "one"
+	} else {
+		return "other"
+	}
+}
+
+func chain() string {
+	const if 1 == 2 {
+		return "two"
+	} else const if 1 == 1 {
+		return "one"
+	} else {
+		return "other"
+	}
+}
+
+func skipped() string {
+	const if 1 == 2 {
+		return "two"
+	}
+	return "after"
+}
+
+func main() {
+	fmt.Println(pick())
+	fmt.Println(chain())
+	fmt.Println(skipped())
+}

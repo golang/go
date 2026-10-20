@@ -1,0 +1,47 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "io"
+
+// M7-S4 const switch (SPEC Sec 2.5, T-205): `const switch T` dispatches
+// on the switched type, with exact, tilde, and interface cases.
+
+func constSwitchPick[T any](v T) int {
+	_ = v
+	const switch T {
+	case int:
+		return 1
+	case ~int:
+		return 2
+	case io.Writer:
+		return 3
+	}
+	return 4
+}
+
+func constSwitchConcrete(v UserID2) int {
+	_ = v
+	const switch UserID2 {
+	case ~int:
+		return 2
+	}
+	return 4
+}
+
+func constSwitchLabelUse[T any](v T) {
+	_ = v
+outer:
+	for {
+		const switch T {
+		case int:
+			break outer
+		case string:
+			continue outer
+		}
+	}
+}
+
+type UserID2 int

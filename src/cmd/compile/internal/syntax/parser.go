@@ -2706,6 +2706,9 @@ func (p *parser) stmtOrNil() Stmt {
 		return p.declStmt(p.varDecl)
 
 	case _Const:
+		if s := p.logosConstStmt(); s != nil { // M7-S1/S4 hook: `const if` and `const switch` statements.
+			return s
+		}
 		return p.declStmt(p.constDecl)
 
 	case _Type:

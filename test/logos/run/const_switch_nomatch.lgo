@@ -1,0 +1,36 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
+)
+
+// M7-S4 const switch with no matching case (SPEC Sec 2.5, T-205): a T
+// that matches no case returns the input unchanged through the trailing
+// `return buf, nil`.
+
+func EncodeOrKeep[T any](buf []byte, items []T) ([]byte, error) {
+	const switch T {
+	case int64:
+		for _, v := range items {
+			buf = strconv.AppendInt(buf, v, 10)
+		}
+		return buf, nil
+	case io.WriterTo:
+		var b bytes.Buffer
+		for _, v := range items {
+			v.WriteTo(&b)?
+		}
+		return append(buf, b.Bytes()...), nil
+	}
+	return buf, nil
+}
+
+func main() {
+	b, err := EncodeOrKeep([]byte("keep:"), []string{"x", "y"})
+	fmt.Printf("%s %v\n", b, err)
+}

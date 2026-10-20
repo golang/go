@@ -1,0 +1,44 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M7-S1 const if (SPEC Sec 2.5, T-205): `const if` selects the live
+// branch at compile time, with else and else-const-if chains.
+
+func constIfPick() int {
+	const if 1 == 1 {
+		return 1
+	} else {
+		return 2
+	}
+}
+
+func constIfChainPick() int {
+	const if 1 == 2 {
+		return 1
+	} else const if 1 == 1 {
+		return 2
+	} else {
+		return 3
+	}
+}
+
+func constIfSkipped() int {
+	const if 1 == 2 {
+		return 1
+	}
+	return 4
+}
+
+func constIfLabelUse() {
+outer:
+	for {
+		const if 1 == 1 {
+			break outer
+		} else {
+			continue outer
+		}
+	}
+}

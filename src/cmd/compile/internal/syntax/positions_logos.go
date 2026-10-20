@@ -63,6 +63,15 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 	case *TryExpr:
 		p := n.Pos()
 		return MakePos(p.Base(), p.Line(), p.Col()+1), true
+	case *ConstIfStmt:
+		end := EndPos(n.Then)
+		if n.Else != nil {
+			end = EndPos(n.Else)
+		}
+		return MakePos(end.Base(), end.Line(), end.Col()+1), true
+	case *ConstSwitchStmt:
+		p := n.Rbrace
+		return MakePos(p.Base(), p.Line(), p.Col()+1), true
 	case *SpreadExpr:
 		return EndPos(n.X), true
 	case *InterpExpr:

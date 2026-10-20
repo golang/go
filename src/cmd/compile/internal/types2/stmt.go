@@ -550,6 +550,12 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 	case *syntax.ScopeDeferStmt:
 		check.logosScopeDefer(s) // logos M6-S10 hook.
 
+	case *syntax.ConstIfStmt:
+		check.logosConstIf(inner, s) // logos M7-S1 hook.
+
+	case *syntax.ConstSwitchStmt:
+		check.logosConstSwitch(inner, s) // logos M7-S4 hook.
+
 	case *syntax.ReturnStmt:
 		res := check.sig.results
 		// Return with implicit results allowed for function with named results.

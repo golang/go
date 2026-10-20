@@ -40,7 +40,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #34 | M6 | test/logos/run/interp.lgo (bigBox AllocsPerRun) | tested |
 | #35 | M18 |  | planned |
 | #36 |M2| test/logos/redteam/attack_036_open_union_value | tested |
-| #37 | M7 |  | planned |
+| #37 | M7 | src/cmd/go/testdata/script/logos_eject_const_switch.txt | tested |
 | #38 | M6 | src/cmd/compile/internal/syntax/parser_paren_logos_test.go | tested |
 | #39 | M6 | test/logos/run/tuples.lgo (pair call unpack, tuple var pack) | tested |
 | #40 |M2| test/logos/redteam/attack_040_union_equality | tested |
@@ -48,7 +48,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #42 |M1| test/logos/redteam/attack_042_defer_close_join | tested |
 | #43 |M2| test/logos/redteam/attack_043_zero_sized_member | tested |
 | #44 | M3 | src/cmd/go/testdata/script/logos_facts.txt | tested |
-| #45 | M7 |  | planned |
+| #45 | M7 | src/internal/types/testdata/logos/const_switch.lgo; test/logos/run/const_switch.lgo | tested |
 | #46 | M18 |  | planned |
 | #47 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |
 | #48 | M13 |  | planned |
@@ -89,12 +89,12 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #83 | M5 | test/logos/run/zerocopy.lgo | tested |
 | #84 | M6 | src/cmd/compile/internal/logos/m6gaps_test.go (TestChainFuseOneLoop) | tested |
 | #85 |M1| test/logos/redteam/attack_085_typed_nil_errdefer | tested |
-| #86 | M7 |  | planned |
+| #86 | M7 | src/internal/types/testdata/logos/const_switch.lgo; test/logos/run/const_switch.lgo | tested |
 | #87 |M1| test/logos/redteam/attack_087_errdefer_panic_goexit | tested |
 | #88 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #89 |M2| test/logos/redteam/attack_089_scalar_roundtrip | tested |
 | #90 |M1| test/logos/redteam/attack_090_errdefer_recover_success_skip | tested |
-| #91 | M7 |  | planned |
+| #91 | M7 | test/logos/run/const_switch.lgo; src/internal/types/testdata/logos/const_switch.lgo | tested |
 | #92 | M13 |  | planned |
 | #93 | M5 | test/logos/run/constview_bound.lgo | tested |
 | #94 | M10 | src/cmd/go/testdata/script/logos_context.txt; src/cmd/compile/internal/logos/context_test.go (TestContextLineCap); src/cmd/compile/internal/logos/context_bench_test.go (BenchmarkContext) | tested |
@@ -111,7 +111,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #105 | M13 |  | planned |
 | #106 | M18 |  | planned |
 | #107 | M13 |  | planned |
-| #108 | M7 |  | planned |
+| #108 | M7 | src/cmd/go/testdata/script/logos_eject_const_switch.txt; src/cmd/compile/internal/logos (TestEjectMatchesLowering) | tested |
 | #109 | M10 |  | planned |
 | #110 | M5 | test/logos/run/freeze.lgo | tested |
 | #111 | M15 | test/logos/codegen/arm64_pair.lgo; test/logos/codegen/arm64_pair.go; src/cmd/compile/internal/ssa/pair_logos_test.go (TestLogosPairARM64) | tested |
@@ -177,7 +177,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #171 | M19 |  | planned |
 | #172 | M9 |  | planned |
 | #173 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
-| #174 | M7 |  | planned |
+| #174 | M7 | src/internal/types/testdata/logos/const_if.lgo; test/logos/run/const_if.lgo; test/logos/codegen/const_if_dead.lgo | tested |
 | #175 | M19 |  | planned |
 | #176 | M8 | src/logos/sync/sync_test.go (TestLockedWithLockUnlocksAfterPanic) | tested |
 | #177 | M6 | test/logos/run/interp.lgo (format verbs printed literally) | tested |

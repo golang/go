@@ -225,6 +225,8 @@ func (fc *funcLower) lowerCompound(s syntax.Stmt) []syntax.Stmt {
 			clause.Body = fc.lowerList(clause.Body)
 		}
 		return []syntax.Stmt{s}
+	case *syntax.ConstSwitchStmt:
+		return fc.lowerConstSwitchStmt(s) // M7-S4 hook: expand `const switch` in place.
 	default:
 		return fc.lowerLeaf(s)
 	}

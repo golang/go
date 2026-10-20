@@ -844,6 +844,16 @@ An interface case MUST keep the concrete layout and gain the interface method se
 
 `case ~int` MUST match the underlying `int` (such as `UserID`). [T-205]
 
+A `~` case whose type is not a basic type MUST fail with `[comptime::tilde_not_basic]`. [T-205]
+
+A `const switch` tag that is not a type MUST fail with `[comptime::switch_not_type]`. [T-205]
+
+A `const switch` case that is not a type MUST fail with `[comptime::case_not_type]`. [T-205]
+
+A `const switch` case MUST name exactly one type. A `default` arm and a list of types MUST be syntax errors. [T-205]
+
+An unlabeled `break` or `continue` directly in a `const switch` case MUST fail compilation, because the cases lower into generated switches. [T-205]
+
 `[]*os.File` MUST never rebind as `[]io.Writer`. [T-205]
 
 Cases MUST evaluate top-down in first-match order. [T-205]

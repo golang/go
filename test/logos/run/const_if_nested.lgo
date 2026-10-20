@@ -1,0 +1,119 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S1 const if in nested positions (SPEC Sec 2.5, T-205): a const if
+// prunes inside range and for bodies, switch and select clauses, function
+// literals, labeled statements, and the live branch of another const if.
+
+func inRange(xs []int) string {
+	out := ""
+	for _, x := range xs {
+		const if 1 == 1 {
+			out += fmt.Sprint("live", x, ";")
+		} else {
+			out += "dead;"
+		}
+	}
+	return out
+}
+
+func inSwitch(n int) string {
+	switch n {
+	case 1:
+		const if 1 == 2 {
+			return "dead"
+		}
+		return "one"
+	default:
+		const if 2 == 2 {
+			return "default"
+		}
+	}
+	return "end"
+}
+
+func inTypeSwitch(v any) string {
+	switch v.(type) {
+	case int:
+		const if 1 == 1 {
+			return "int"
+		} else {
+			return "dead"
+		}
+	}
+	return "other"
+}
+
+func inSelect() string {
+	c := make(chan int, 1)
+	c <- 1
+	select {
+	case <-c:
+		const if 1 == 2 {
+			return "dead"
+		} else {
+			return "recv"
+		}
+	}
+}
+
+func inClosure() string {
+	f := func() string {
+		const if 1 == 2 {
+			return "dead"
+		} else const if 1 == 2 {
+			return "dead"
+		} else {
+			return "closure"
+		}
+	}
+	return f()
+}
+
+func inLabel() string {
+	n := 0
+loop:
+	for {
+		n++
+		const if 1 == 1 {
+			if n == 3 {
+				break loop
+			}
+		}
+	}
+	return fmt.Sprint("n=", n)
+}
+
+func nestedLive() string {
+	const if 1 == 1 {
+		const if 1 == 2 {
+			return "dead"
+		} else {
+			return "nested"
+		}
+	}
+	return "dead"
+}
+
+func onlyStatement() string {
+	const if 1 == 2 {
+		return "dead"
+	}
+	return "kept"
+}
+
+func main() {
+	fmt.Println(inRange([]int{1, 2}))
+	fmt.Println(inSwitch(1))
+	fmt.Println(inSwitch(2))
+	fmt.Println(inTypeSwitch(3))
+	fmt.Println(inTypeSwitch("s"))
+	fmt.Println(inSelect())
+	fmt.Println(inClosure())
+	fmt.Println(inLabel())
+	fmt.Println(nestedLive())
+	fmt.Println(onlyStatement())
+}

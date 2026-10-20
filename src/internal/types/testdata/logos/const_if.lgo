@@ -1,0 +1,69 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M7-S1 const if (SPEC Sec 2.5, T-205): the condition must be a constant
+// boolean; both branches type-check, so an undefined name in the dead
+// branch is an error (#174).
+
+func constIfLive() int {
+	const if 1 == 1 {
+		return 1
+	} else {
+		return 2
+	}
+}
+
+func constIfDeadChecked() int {
+	const if 1 == 2 {
+		return undefinedInDeadBranch // ERROR "undefined: undefinedInDeadBranch"
+	} else {
+		return 3
+	}
+}
+
+func constIfNeedsConstant(n int) int {
+	const if n /* ERROR "comptime::not_constant" */ > 0 {
+		return 1
+	}
+	return 0
+}
+
+func constIfNeedsBool() int {
+	const if 42 /* ERROR "non-boolean condition" */ {
+		return 1
+	}
+	return 0
+}
+
+func constIfChain() string {
+	const if 1 == 2 {
+		return "two"
+	} else const if 1 == 1 {
+		return "one"
+	} else {
+		return "other"
+	}
+}
+
+func constIfLabelUse() {
+outer:
+	for {
+		const if 1 == 2 {
+			continue outer
+		} else const if 1 == 1 {
+			break outer
+		}
+	}
+}
+
+func constIfLabelUnused() {
+unused /* ERROR "label unused declared and not used" */ :
+	for {
+		const if 1 == 1 {
+			break
+		}
+	}
+}

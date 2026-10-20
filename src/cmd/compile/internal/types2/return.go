@@ -53,6 +53,12 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 	case *syntax.SwitchStmt:
 		return check.isTerminatingSwitch(s.Body, label)
 
+	case *syntax.ConstIfStmt:
+		return check.logosTerminatingConstIf(s) // logos M7-S1 hook.
+
+	case *syntax.ConstSwitchStmt:
+		return check.logosTerminatingConstSwitch(s) // logos M7-S4 hook.
+
 	case *syntax.SelectStmt:
 		for _, cc := range s.Body {
 			if !check.isTerminatingList(cc.Body, "") || hasBreakList(cc.Body, label, true) {
@@ -143,6 +149,12 @@ func hasBreak(s syntax.Stmt, label string, implicit bool) bool {
 		if label != "" && hasBreakCaseList(s.Body, label, false) {
 			return true
 		}
+
+	case *syntax.ConstIfStmt: // logos M7-S1 hook.
+		return logosHasBreakConstIf(s, label, implicit)
+
+	case *syntax.ConstSwitchStmt: // logos M7-S4 hook.
+		return logosHasBreakConstSwitch(s, label, implicit)
 
 	case *syntax.SelectStmt:
 		if label != "" && hasBreakCommList(s.Body, label, false) {

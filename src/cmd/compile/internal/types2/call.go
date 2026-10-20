@@ -907,6 +907,9 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		if check.logosImportedTupleSelect(x, e) { // logos M6-S5 hook: `T_` fallback on imported tuples.
 			return
 		}
+		if check.logosConstIfaceSelect(x, e, sel) { // logos M7-S4 hook: case-interface methods on the switched type.
+			return
+		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
 	}

@@ -1,0 +1,81 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
+)
+
+// M7-S4 const switch (SPEC Sec 2.5, T-205): the PLAN Sec 7.2 example.
+// An exact case rebinds the Items through unsafe, an interface case
+// asserts on the value, and the same output comes back natively and
+// ejected (logos_eject_const_switch.txt, #37, #108).
+
+func EncodeSlice[T any](buf []byte, items []T) ([]byte, error) {
+	const switch T {
+	case int64:
+		for _, v := range items {
+			buf = strconv.AppendInt(buf, v, 10)
+		}
+		return buf, nil
+	case io.WriterTo:
+		// Constraint intersection: T keeps concrete layout, gains WriteTo.
+		var b bytes.Buffer
+		for _, v := range items {
+			v.WriteTo(&b)?
+		}
+		return append(buf, b.Bytes()...), nil
+	}
+	return buf, nil
+}
+
+type Word struct {
+	S string
+}
+
+func (w Word) WriteTo(dst io.Writer) (int64, error) {
+	n, err := dst.Write([]byte(w.S))
+	return int64(n), err
+}
+
+type UserID int
+
+func describe[T any](v T) string {
+	const switch T {
+	case int:
+		return "exact-int"
+	case ~int:
+		return "tilde-int"
+	}
+	return "other"
+}
+
+func classify[T any](v T) string {
+	_ = v
+	const switch T {
+	case int:
+		return "exact"
+	case ~int:
+		return "tilde"
+	case io.Writer:
+		return "writer"
+	}
+	return "other"
+}
+
+func main() {
+	b, err := EncodeSlice([]byte("nums:"), []int64{1, 2, 3})
+	fmt.Printf("%s %v\n", b, err)
+	b, err = EncodeSlice([]byte("words:"), []Word{{"a"}, {"b"}})
+	fmt.Printf("%s %v\n", b, err)
+	fmt.Println(describe(3))
+	fmt.Println(describe(UserID(3)))
+	fmt.Println(describe("s"))
+	fmt.Println(classify(1))
+	fmt.Println(classify(UserID(1)))
+	fmt.Println(classify(&bytes.Buffer{}))
+	fmt.Println(classify("s"))
+}

@@ -116,6 +116,33 @@ func printLogos(p *printer, n Node) {
 		}
 		p.print(blank, _FatArrow, blank)
 		p.printNode(n.Body)
+	case *ConstIfStmt:
+		p.print(_Const, blank, _If, blank, n.Cond, blank, n.Then)
+		if n.Else != nil {
+			p.print(blank, _Else, blank, n.Else)
+		}
+	case *ConstSwitchStmt:
+		p.print(_Const, blank, _Switch, blank)
+		p.printNode(n.Targ)
+		p.print(blank, _Lbrace)
+		if len(n.Cases) > 0 {
+			p.print(newline)
+			for i, c := range n.Cases {
+				p.print(_Case, blank)
+				if c.Tilde {
+					p.print(Tilde)
+				}
+				p.printNode(c.Type)
+				p.print(_Colon)
+				if len(c.Body) > 0 {
+					p.print(newline, indent)
+					p.printStmtList(c.Body, i+1 == len(n.Cases))
+					p.print(outdent)
+				}
+				p.print(newline)
+			}
+		}
+		p.print(_Rbrace)
 	case *AssertedStruct:
 		p.print(_Struct, blank, _Colon, blank)
 		p.printExprList(n.Asserts)

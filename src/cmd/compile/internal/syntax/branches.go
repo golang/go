@@ -323,6 +323,9 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 			for _, cc := range s.Body {
 				innerBlock(inner, cc.Pos(), cc.Body)
 			}
+
+		case *ConstIfStmt, *ConstSwitchStmt:
+			logosConstBranches(s, ctxt, innerBlock) // logos M7-S1/S4 hook.
 		}
 	}
 

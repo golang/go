@@ -330,6 +330,10 @@ type Info struct {
 	LogosPropDecls   []*LogosPropDecl                       // logos M4-S2 hook: asserted property interfaces per declaring struct.
 	LogosCTFE        map[*Const]ctfe.Value                  // logos M5-S2 hook: evaluated const values (scalars and composites) for lowering.
 	LogosSpreads     map[*syntax.CompositeLit][]LogosSpread // logos M6-S4 hook: checked `..src` spreads per struct literal.
+
+	LogosConstIfDead map[syntax.Stmt]bool                             // logos M7-S1 hook: statements of dead `const if` branches, for comptime checks.
+	LogosConstSel    map[*syntax.SelectorExpr]*syntax.ConstSwitchCase // logos M7-S4 hook: interface-case selectors on the switched value, by their case.
+	LogosConstCases  map[*syntax.ConstSwitchCase]LogosConstCase       // logos M7-S4 hook: the case-scope substitution of each `const switch` case.
 }
 
 func (info *Info) recordTypes() bool {

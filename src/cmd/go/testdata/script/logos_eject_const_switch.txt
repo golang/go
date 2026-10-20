@@ -1,0 +1,117 @@
+# M7-S4: a const switch runs natively and ejected with identical output.
+# The m module covers an exact case, an interface case, a tilde case,
+# and a no-match return; the ejected tree builds with plain go and
+# prints the same output (#37, #108).
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^nums:123 <nil>$'
+stdout '^words:ab <nil>$'
+stdout '^exact-int$'
+stdout '^tilde-int$'
+stdout '^other$'
+stdout '^keep: <nil>$'
+cp stdout $WORK/eject-stdout.txt
+
+logos eject -o out
+exists out/main.go
+grep 'switch any\(\(\*T\)\(nil\)\)\.\(type\)' out/main.go
+grep 'case \*int64:' out/main.go
+grep 'Reinterpret\[\[\]int64\]\(&items\)' out/main.go
+grep 'any\(v\)\.\(io\.WriterTo\)\.WriteTo' out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/eject-stdout.txt
+cd ..
+cd out
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+cd ..
+
+-- m/go.mod --
+module example.com/ejectconstswitch
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
+)
+
+func EncodeSlice[T any](buf []byte, items []T) ([]byte, error) {
+	const switch T {
+	case int64:
+		for _, v := range items {
+			buf = strconv.AppendInt(buf, v, 10)
+		}
+		return buf, nil
+	case io.WriterTo:
+		var b bytes.Buffer
+		for _, v := range items {
+			v.WriteTo(&b)?
+		}
+		return append(buf, b.Bytes()...), nil
+	}
+	return buf, nil
+}
+
+type Word struct {
+	S string
+}
+
+func (w Word) WriteTo(dst io.Writer) (int64, error) {
+	n, err := dst.Write([]byte(w.S))
+	return int64(n), err
+}
+
+type UserID int
+
+func describe[T any](v T) string {
+	const switch T {
+	case int:
+		return "exact-int"
+	case ~int:
+		return "tilde-int"
+	}
+	return "other"
+}
+
+func main() {
+	b, err := EncodeSlice([]byte("nums:"), []int64{1, 2, 3})
+	fmt.Printf("%s %v\n", b, err)
+	b, err = EncodeSlice([]byte("words:"), []Word{{"a"}, {"b"}})
+	fmt.Printf("%s %v\n", b, err)
+	fmt.Println(describe(3))
+	fmt.Println(describe(UserID(3)))
+	fmt.Println(describe("s"))
+	kept, kerr := EncodeOrKeep([]byte("keep:"), []string{"x", "y"})
+	fmt.Printf("%s %v\n", kept, kerr)
+}
+
+func EncodeOrKeep[T any](buf []byte, items []T) ([]byte, error) {
+	const switch T {
+	case int64:
+		for _, v := range items {
+			buf = strconv.AppendInt(buf, v, 10)
+		}
+		return buf, nil
+	case io.WriterTo:
+		var b bytes.Buffer
+		for _, v := range items {
+			v.WriteTo(&b)?
+		}
+		return append(buf, b.Bytes()...), nil
+	}
+	return buf, nil
+}
