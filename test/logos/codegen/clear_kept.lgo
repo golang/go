@@ -1,0 +1,14 @@
+// asmcheck
+
+package main
+
+// M15-S2 (SPEC Sec 15.2, T-303; #149): an explicit clear of a slice
+// lowers to a runtime memclr call, and dead-store elimination keeps it.
+// The call survives before the return.
+
+func scrub(b []byte) {
+	// amd64:"CALL.*memclrNoHeapPointers"
+	clear(b)
+}
+
+func main() {}
